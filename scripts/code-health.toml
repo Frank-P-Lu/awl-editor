@@ -41,12 +41,13 @@ reason = "item 114: +8 lines net. The workspace's own two-region keyboard and it
 
 [[file_size_mark]]
 file = "src/app.rs"
-lines = 1805
-reason = "item 188: +7 lines — the `capture_state` and `press` module declarations at the one module list, each with the `#[cfg]` naming where it exists (`capture_state` is native-only like the `--screenshot-app` mode it serves; `press` is native-or-test). `capture_state.rs` carries the live-`App` capture constructor and the `CaptureSubject` impl (it needs `App`'s private fields); `press.rs` is item 183's headless press door, moved out of `app/tests/` because the `--screenshot-app` mode is now a production caller. Both bodies live in their own files precisely to keep them off this one."
+lines = 1840
+reason = "item 202 repair round, DOWN 36 from the prior 1876 mark: `theme_font_reshape_decision`, its `ThemeFontReshapeDecision` enum, and their four pure laws moved out to the new `src/app/theme_font_debounce.rs` (a pure fn with no `self`, no GPU, no clock of its own — the scheduling seam's own module, not `App`'s; orchestrator review, 2026-08-01). `app.rs` keeps only the `theme_font_last_reshape_at` field, the shared window constant, and the two call sites that execute whichever verdict the extracted fn returns — the same 'extract rather than raise' call already made for `framebench.rs`'s bench-witness helper this same item. Net across the whole item-202 field: +24 lines — the theme-picker movement-latency regression fix. `THEME_FONT_DEBOUNCE_DEFAULT_MS` gained a concise mechanism doc-comment plus a compile-time `const _: () = assert!(..)` regression pin (the old value, 0, let the deferred font reshape fire synchronously on the SAME `about_to_wait` pass that armed it — see the constant's own doc, and docs/fonts.md for the measured numbers this file no longer carries as changelog prose); `theme_font_debounce_ms_env_parse` now asserts against the named constant instead of a bare `0` literal; `RESIZE_SYNC_SETTLE`'s doc dropped its now-inaccurate \"mirrors THEME_FONT_DEBOUNCE's value\" claim (the two diverged at this item). Previously: item 188: +7 lines — the theme-picker movement-latency regression fix. `THEME_FONT_DEBOUNCE_DEFAULT_MS` gained a concise mechanism doc-comment plus a compile-time `const _: () = assert!(..)` regression pin (the old value, 0, let the deferred font reshape fire synchronously on the SAME `about_to_wait` pass that armed it — see the constant's own doc, and docs/fonts.md for the measured numbers this file no longer carries as changelog prose); `theme_font_debounce_ms_env_parse` now asserts against the named constant instead of a bare `0` literal; `RESIZE_SYNC_SETTLE`'s doc dropped its now-inaccurate \"mirrors THEME_FONT_DEBOUNCE's value\" claim (the two diverged at this item). Previously: item 188: +7 lines — the `capture_state` and `press` module declarations at the one module list, each with the `#[cfg]` naming where it exists (`capture_state` is native-only like the `--screenshot-app` mode it serves; `press` is native-or-test). `capture_state.rs` carries the live-`App` capture constructor and the `CaptureSubject` impl (it needs `App`'s private fields); `press.rs` is item 183's headless press door, moved out of `app/tests/` because the `--screenshot-app` mode is now a production caller. Both bodies live in their own files precisely to keep them off this one."
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 1037
+lines = 1063
+reason = "item 202 repair round: +26 lines — `retint_theme_preview`'s GPU-gated block now calls `theme_font_reshape_decision` (app.rs) and acts on `Immediate`/`Coalesce` instead of unconditionally stamping `theme_font_at`; `retint_theme_now` and `apply_deferred_theme_font` each gained one line stamping `theme_font_last_reshape_at` so the leading edge's own clock is accurate regardless of which door produced the reshape."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -85,7 +86,8 @@ lines = 690
 
 [[file_size_mark]]
 file = "src/background.rs"
-lines = 263
+lines = 282
+reason = "The grouped per-frame AmbientUpload keeps the prepare call below the argument ceiling; Globals remains the uniform's single Rust mirror, including Kite's forward-travel scalar."
 
 [[file_size_mark]]
 file = "src/buffer.rs"
@@ -101,8 +103,8 @@ lines = 567
 
 [[file_size_mark]]
 file = "src/capture.rs"
-lines = 55
-reason = "item 188: +3 lines — the schema `/193` history row, which the ledger law requires to move with the const, plus the two lines rustfmt wraps `pub use opts::{..}` onto once `CaptureDriver` joins the re-export (the line passes 100 columns)."
+lines = 56
+reason = "The capture schema const and its append-only history ledger intentionally live together so the ledger law can prevent an unrecorded shape change."
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
@@ -111,8 +113,8 @@ reason = "item 114: +4 lines net — the workspace/detail-focus projection, minu
 
 [[file_size_mark]]
 file = "src/capture/sidecar.rs"
-lines = 843
-reason = "item 188: +2 lines — the `driver` argument and its comment at the ONE sidecar format call. A second format site is exactly what this file exists to prevent."
+lines = 844
+reason = "items 188/194: +1 line — the warped-grid sidecar arm is dispatched from the ONE background_json call site, which gained the resolved route pose as a third argument. A second format site is exactly what this file exists to prevent."
 
 [[file_size_mark]]
 file = "src/caret.rs"
@@ -252,8 +254,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2456
-reason = "item 114: +17 lines. The pipeline's `ViewState` mirror gained the workspace flag, the measured rail width, the rail buffer and the rail's placement/mark — the one declaration block every `set_view` field lives in. Item 116a: +4 lines — the `overlay_rows_primary` mirror field, at the same one declaration block. Item 131a: +6 lines — `slant_max_offset`'s doc gained the width-tax-is-a-magnitude clause the mirrored (negative-step) composition needs; both `slant_offset`/`slant_max_offset` are the one owner of the composition's stair math and cannot move. Item 116b: this file also lost the diff-panel field and pipelines; the number here is the MERGED tree's measured size, reconciled by the merge train because both branches moved this same mark."
+lines = 2459
+reason = "The renderer's GPU state floor: workspace mirrors and Kite's forward-travel accumulator live beside the sibling state consumed by the same frame pipeline."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -322,7 +324,8 @@ reason = "item 114: +8 lines. `theme_overlay_geometry` is an exhaustive `Overlay
 
 [[file_size_mark]]
 file = "src/render/framebench.rs"
-lines = 1121
+lines = 1173
+reason = "item 202: +52 lines — `--bench-theme-burst` gained the reshape-count WITNESS the item's own brief demanded (CLAUDE.md's tripwire: this exact bench once \"measured 5ms while nothing reshaped\"). One shared `assert_reshape_witness` helper (extracted rather than inlined three times — item 182) plus three call sites in `burst_doc`: every `BURST_WORLDS` hop must actually reshape (mirrors `benchsuite::scenarios::theme`'s already-fixed witness), every colors-only arrow step must NOT reshape (the split's whole point), and the deferred settle's `sync_theme_font` must reshape at least once. Mutation-proven: a mutation that skipped `sync_theme_font` inside `TextPipeline::sync_theme` made the bench exit 1 with the exact panic text; reverted before commit."
 
 [[file_size_mark]]
 file = "src/render/geometry.rs"
@@ -330,7 +333,8 @@ lines = 1465
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
-lines = 1320
+lines = 1330
+reason = "items 132/194: +10 lines — prepare_background_layer now hands the background pass the grouped AmbientUpload rather than a bare drift scalar, and the warp pose is resolved at the same one seam the drift is. Unavoidable: this function is the single owner of what the background uniform receives each frame."
 
 [[file_size_mark]]
 file = "src/render/livingband.rs"
@@ -338,8 +342,8 @@ lines = 579
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 549
-reason = "item 114: +8 lines at the ONE `TextPipeline` initializer — the rail's glyph buffer and its four mirror fields. Item 116a: +1 line — the `overlay_rows_primary` field's default, at the same one initializer."
+lines = 550
+reason = "The one `TextPipeline` initializer spells out workspace state and the warp accumulator beside the state they initialize."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
@@ -348,8 +352,8 @@ reason = "item 114: +11 lines in `set_view`, the one `ViewState`->pipeline mirro
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
-lines = 410
-reason = "item 131 (row-composition seam): +7 lines. `overlay_slant_dx(row)` — a per-ROW offset any emitter could call, which is how the draw path and the pointer hit-test ended up with two answers for a staggered row's x — became `overlay_row_dx_step()`, the composition's single STEP, fed to the row planner. The growth is its doc comment, which states the ownership rule `render/tests/row_offset_item131.rs::only_the_planner_derives_an_overlay_rows_horizontal_offset` enforces by name. Nothing here is extractable: the method reads the pipeline's own settle phase (`overlay_slant_progress`), which lives beside it. Item 131a: +3 lines — the same doc comment gained the signed-step/mirror clause (the method's OWN return value didn't change; only what it may now mean did)."
+lines = 429
+reason = "Overlay composition and ambient resolvers live here because they read the pipeline's own settled state; Kite shares that ambient ownership seam."
 
 [[file_size_mark]]
 file = "src/render/rects.rs"
@@ -436,7 +440,8 @@ lines = 315
 
 [[file_size_mark]]
 file = "src/theme/model.rs"
-lines = 535
+lines = 537
+reason = "items 132/194: +2 lines — has_ambient_motion gained the warped-grid arm, so the new ground inherits the page-mode force and the move-stream present hold rather than re-implementing them. The match is no-wildcard by design; the arm cannot live anywhere else."
 
 [[file_size_mark]]
 file = "src/theme/worlds.rs"
@@ -446,8 +451,10 @@ file = "src/theme/worlds.rs"
 # deliberately rejects (item 121's mechanism note: represent the capability
 # as theme-owned data, never a silent default a world could skip choosing).
 # Combined with item 158's Paperbark addition + Ornaments::of compaction
-# (1110 -> 1099) on top of the rebased tree.
-lines = 1124
+# (1110 -> 1099) on top of the rebased tree. Item 132 added Kite and moved the
+# never-enrolled gallery audition out to theme/worlds_gallery.rs, so this file
+# holds only the shipped roster (1124 -> 1123).
+lines = 1122
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -474,22 +481,22 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app/window.rs"
 line = 485
-message = "this function has too many lines (132/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 routed the autosave clock through PersistenceRuntime (-1)."
+message = "this function has too many lines (131/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 routed the autosave clock through PersistenceRuntime (-1). Item 199 gave the travelling ground its own hot-loop advance and put the gate + advance behind one call in app::ambient, collapsing the redraw tail (-1)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 841
-message = "this function has too many lines (217/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 moved 6 lines of state out of the constructor into two owners. Line shifted by item 188's two module declarations (`capture_state`, `press`) landing earlier in the file (+7); count unchanged."
+line = 875
+message = "this function has too many lines (218/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 moved 6 lines of state out of the constructor into two owners. Line shifted by item 188's two module declarations (`capture_state`, `press`) landing earlier in the file (+7); count unchanged. Line shifted by item 202's `THEME_FONT_DEBOUNCE_DEFAULT_MS` doc-comment + compile-time assertion landing earlier in the file (+71 total across both landings); +1 REAL growth (217->218) — the constructor's own exhaustive field list gained `theme_font_last_reshape_at: None,`, the leading-edge rule's new root field (`app/tests/domains.rs`'s field-count ceiling bumped to match)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1343
+line = 1378
 message = "this function has too many lines (106/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+7); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+7); count unchanged. Line shifted by item 202's `THEME_FONT_DEBOUNCE_DEFAULT_MS` doc-comment + compile-time assertion (+24); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -501,9 +508,9 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1602
+line = 1637
 message = "this function has too many lines (102/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+7); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+7); count unchanged. Line shifted by item 202's `THEME_FONT_DEBOUNCE_DEFAULT_MS` doc-comment + compile-time assertion (+24); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -732,7 +739,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/layers.rs"
-line = 940
+line = 950
 message = "this function has too many lines (170/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
@@ -746,9 +753,9 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/framebench.rs"
-line = 435
-message = "this function has too many lines (112/100)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
+line = 459
+message = "this function has too many lines (133/100)"
+reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. Item 202: +21 lines net (function grew 112->133) — the shared `assert_reshape_witness` helper (defined just above `burst_doc`, see the file-size mark's reason above) plus its three call sites, replacing three inlined `ensure!` blocks; witnesses CLAUDE.md's tripwire (this bench once \"measured 5ms while nothing reshaped\")."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -768,8 +775,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 line = 7
-message = "this function has too many lines (483/100)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. Item 114 added the workspace rail's buffer and its four mirror fields (+6). Item 116a added the `overlay_rows_primary` field's default (+1). Item 116b: -14 lines. The three `diffpanel_*` pipelines are gone from the ONE `TextPipeline` initializer."
+message = "this function has too many lines (484/100)"
+reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -867,7 +874,7 @@ lint = "clippy::too_many_lines"
 file = "src/app_icon/tests.rs"
 # `roster_growth_does_not_dilute_a_known_erosion` — same function, same
 # size, position fixed up after the item-121/158/161/168 rebase.
-line = 1843
+line = 1909
 message = "this function has too many lines (117/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
@@ -1053,7 +1060,7 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/render/tests/markdown.rs"
 line = 260
-message = "this function has too many lines (131/100)"
+message = "this function has too many lines (132/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
@@ -1150,36 +1157,43 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/theme/tests.rs"
-line = 211
+line = 214
 message = "the function has a cognitive complexity of (30/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
-line = 211
-message = "this function has too many lines (154/100)"
+line = 214
+message = "this function has too many lines (155/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
-line = 621
+line = 965
+message = "this function has too many lines (101/100)"
+reason = "Item 132: a per-world roster sweep whose length IS the roster's, over a no-wildcard `Background` match that gained one arm for the warped grid. Its twin one function above (the outline rail) carries the same shape. The honest fix is merging the two frost-rail sweeps into one owner, a focused follow-up rather than metric-only churn here."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/theme/tests.rs"
+line = 625
 message = "this function has too many lines (130/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/theme/tests.rs"
-line = 1763
+line = 1870
 message = "the function has a cognitive complexity of (27/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
-line = 2878
-message = "this function has too many lines (157/100)"
+line = 2986
+message = "this function has too many lines (161/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 # Add structural exceptions only for intentional URL/unbreakable/rustfmt-skip/generated/architectural cases.

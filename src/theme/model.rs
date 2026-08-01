@@ -477,7 +477,9 @@ impl Theme {
     }
 
     pub fn has_ambient_motion(&self) -> bool {
-        self.background.is_lava() || self.render_caps.ambient.is_animated()
+        self.background.is_lava()
+            || self.background.is_warped_grid()
+            || self.render_caps.ambient.is_animated()
     }
 
     pub fn has_ambient_tick(&self) -> bool {

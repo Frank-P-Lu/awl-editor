@@ -38,8 +38,15 @@ is). Cohesion is "does this all agree with one line of prose," nothing fancier.
 | **Firetail**   | deep oxblood-charcoal       | Lava · smooth     | Monaspace Xenon     | Monaspace Xenon | Awl Marks · ✷ ✶ ✦                             | —     | —        | —         | Warm    |
 | **Cassowary**  | near-black glass            | Pinstripe         | Iosevka             | Iosevka         | Awl Marks · ◆ ✴ ◈                             | Night | —        | Technical | —       |
 | **Paperbark**  | palest cream, honey layers  | Deckle · strata   | EB Garamond         | Monaspace Xenon | EB Garamond · ❦ ❧ ☙                           | Day   | Refined  | Literary  | —       |
+| **Kite**       | near-white pale lavender    | Warped grid       | Fira Sans           | JetBrains Mono  | Awl Marks · ⬥ ✶ ◆                             | —     | —        | Modern    | —       |
 
-*(19 worlds. The names are Australian fauna, flora, and landscape — flavour, not taxonomy. Wagtail and Firetail close the roster as statement-world mirrors; Brolga is the cool light pole; Cassowary is the dark-technical statement, a NERV terminal; Paperbark is the material world, the only one whose ground is a handmade sheet — see below.)*
+*(20 worlds — the authored target. The names are Australian fauna, flora, and landscape — flavour, not taxonomy. Wagtail and Firetail are statement-world mirrors; Brolga is the cool light pole; Cassowary is the dark-technical statement, a NERV terminal; Paperbark is the material world, the only one whose ground is a handmade sheet; Kite closes the roster as Firetail's light counterpart, the only world whose ground is travelling — see below.)*
+
+Kite leaves **Time**, **Register** and **Temperature** untagged on purpose. It is
+plainly a cool, refined, daylit world, but the picker's Cool, Refined, Day, Dawn
+and Night bands are all already at their curated maximum of four, so it headlines
+the one lens where it reads clearest and stays out of the crowd — the same
+curation rule Paperbark follows for Warm.
 
 Paperbark leaves **Temperature** untagged on purpose. It is plainly a warm
 world, but the picker's Warm band already carries its curated maximum of four
@@ -65,6 +72,7 @@ uses the world's own quiet palette, and never spends the caret accent.
 | **Bands** (item 69) | Exactly three large, tone-on-tone diagonal bands spanning the WHOLE margin field — cut-paper grass, not a repeating stripe-tile. Static; the ONLY colors are the world's own ground-ladder rungs. Reusable infrastructure, currently DORMANT — Gumtree (its one-time assignee) moved to Zigzag in item 86. | *(none — dormant)* |
 | **Zigzag** (item 86, tiled in item 89) | A TILED FIELD of repeating chevron ("V") rows over a gradient — a whisper mark like Dots/Pinstripe, not a final-color field like Bands/Waves. The chevron repeats both along its travel direction and across it, and consecutive rows abut by construction, so every part of a margin carries rows at any window size or shape. Four per-world dials (tooth wavelength, peak excursion — which also sets the row pitch — travel angle, an extra coverage multiplier) keep the two shipping worlds from reading as a recolor of one asset: Quokka is tight/steep/bold, Gumtree is broad/open/quiet. | Quokka, Gumtree |
 | **Deckle** (item 158) | Quasi-random CONTOUR LANES of handmade paper, seeded per lane and torn by a fixed two-tone wander so no lane is a ruled line. One theme-owned `weave` picks the profile: **Strata** indexes the lanes on DISTANCE FROM THE PAGE COLUMN, so the contours gather around the writing page and mirror across it, each lane filled at its own seeded tone with a torn tint on its boundary; **Fibres** indexes them on screen `y` and draws thin translucent strokes with seeded dropouts plus a sparser diagonal vein family. Three dials — lane pitch, wander amplitude, one coverage multiplier — and `density: 0.0` collapses either profile to a flat ground exactly, which is the differential oracle its pixel laws measure against. Entirely static. Fibres is reusable infrastructure, currently DORMANT. | Paperbark (Strata) |
+| **Warped grid** (items 132/194) | A straight projected tube seen through two room-fixed margin windows. The opaque page only crops the field: page width cannot rescale, flatten, bend, or reposition it. Rings travel steadily outward; every fifth line is stronger, the minor rung retires in narrow margins, and both lattices fade before the far end becomes unresolved. | Kite |
 | **Waves** (item 69) | Exactly three stacked, non-overlapping shallow wave tiers — wide scalloped crests, horizontally phase-offset so they layer instead of gridding. Static; the world's own ground-ladder rungs. | Bombora |
 
 Currawong's base margin background is **Gradient**. Its slowly appearing and
@@ -210,6 +218,12 @@ EB Garamond's Renaissance serif on the palest cream; Shippori Mincho for Japanes
 Its margins are the world: nested deckled contours in cream and pale honey, laid *around* the writing page rather than behind it — the field is a function of the distance to the page edge, so the layers mirror across the column and gather toward it as you widen the window. Each lane takes its own seeded tone and its boundary carries a torn deckle tint, so the sheet reads as pressed layers rather than a ruled pattern. Static: nothing moves, no raking light, no second material mode. The writing page itself stays flat and opaque; the one accent is a coral-vermilion caret. The paperbark is a eucalypt whose trunk sheds in pale papery layers you can peel and write on — the world is that bark read as a sheet.
 Day · Refined · Literary.
 
+### Kite
+**A near-white mineral page gliding through a cool straight-grid tunnel — indigo geometry in the margins, one vermilion eye.**
+Fira Sans's screen-engineered humanist sans on pale lavender; Noto Sans JP for Japanese; JetBrains Mono for code.
+Kite is the deliberate LIGHT counterpart to Firetail: cool rather than warm, geometric rather than organic, crisp rather than liquid, directional rather than drifting. The writing page stays flat, opaque and motionless; the whole world is in the Frame. Both margins crop one straight indigo-and-graphite tube at a fixed room scale while its rings travel continuously toward the reader. Losing focus pauses it in place and resumes without catching up; ambient motion off and Reduce Motion freeze it to one composed still. The single accent is a hot vermilion caret — the kite's red eye.
+Modern.
+
 ### Cassowary
 **A NERV operations terminal after dark — green phosphor data on black glass, a lit block cursor in that same phosphor, red only when something is wrong.**
 Iosevka as both page and code face, the narrow mechanical terminal-readout font; Noto Sans JP for Japanese; the summoned command overlay goes loud in Archivo Black. Cassowary is the dark-technical statement world (an Evangelion wink). Where every other chromatic world spends its one accent on an amber caret, Cassowary spends it on the terminal's own phosphor GREEN: the caret is the ink's own colour, drawn as an authentic CRT block cursor — a lit green cell with the letter under it knocked out in the black-glass ground. Red is held back for the alert channel alone (the spell-squiggle, a warning-crimson selection). The writing page stays a calm green terminal; the drama is transient, appearing only when you summon a command. The cassowary is a glossy-black, red-wattled, blue-green-necked living dinosaur — the black-ground / green-data / red-warning palette is the bird's own colouring.
@@ -239,7 +253,7 @@ Regular) on every face; and headings deliberately use size, not weight.
 
 ### Display sans
 - **IBM Plex Sans** — IBM's neutral humanist workhorse: clear, unfussy, corporate-calm. *(awl's cool-sans face, worn at both value poles — dark Bowerbird's midnight navy and light Brolga's pale sky.)*
-- **Fira Sans** — a warm, friendly humanist sans: rounder and more personable than corporate-calm Plex. *(Registered, currently unassigned.)*
+- **Fira Sans** — Mozilla's screen-engineered humanist sans: low-contrast, upright, and cut for interface legibility rather than warmth on the page. *(Kite's display face — the roster's last registered-but-unassigned face, and the one whose `l` is a bare stem.)*
 - **Sour Gummy** — a bouncy, gummy-lettered display face with real playful character. *(Quokka's own pick — its printed-card identity: a chamfered card silhouette + a rotated halftone-dot texture pair with the face.)*
 - **Figtree** — a soft, rounded geometric sans with a friendly contemporary warmth.
 - **iA Writer Quattro S** — a duospaced writing face (proportional look, monospace rhythm) tuned for calm drafting.
@@ -268,4 +282,4 @@ Regular) on every face; and headings deliberately use size, not weight.
 Each world carries a trio of **THREE DISTINCT** section-break symbols (dash `---` / star `***` / underscore `___`), all present in its face — the dash is the flagship (also the About end-mark).
 - **EB Garamond** — its only three Renaissance fleurons ❧ ☙ ❦ (no ⁂), permuted three ways, for the TRUE literary serifs Bilby, Bombora & Paperbark.
 - **Junicode** — antique Caslon flowers (botanical sprays E67D/E270/E68A, running vines F01B/F01D/F01E, quatrefoil/lattice/damask tiles EF90/EF98/EF9A + E670/F011/F014) plus the ⁂/⁑ asterisms, for the antique/slab worlds (Magpie, Mopoke, Mulga) AND the warm/pale serifs (Gumtree, Saltpan) whose display face has no fleurons of its own.
-- **Awl Marks** — the merged marks face itself, drawing its per-world trios from the expanded star/floret/geometric pool, for the modern/technical/geometric worlds (Quokka ✿❀✽, Galah ❁❂✿, Potoroo ✶✦◆, Bowerbird ❂✴◈, Mangrove ❖◈⬥, Tawny ✦✷◈, Currawong ✷✴⬥, Wagtail ✧⭑❡, Firetail ✷✶✦, Brolga ✧✴⬥).
+- **Awl Marks** — the merged marks face itself, drawing its per-world trios from the expanded star/floret/geometric pool, for the modern/technical/geometric worlds (Quokka ✿❀✽, Galah ❁❂✿, Potoroo ✶✦◆, Bowerbird ❂✴◈, Mangrove ❖◈⬥, Tawny ✦✷◈, Currawong ✷✴⬥, Wagtail ✧⭑❡, Firetail ✷✶✦, Brolga ✧✴⬥, Kite ⬥✶◆).

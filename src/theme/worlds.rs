@@ -3,7 +3,7 @@ use super::cjk::{
     CJK_ZH_HANS_KLEE, CJK_ZH_HANS_SANS, CJK_ZH_HANS_SERIF, CJK_ZH_HANT,
 };
 use super::color::Srgb;
-use super::ground::{Arrangement, Background, DeckleAnchor, LavaEdge, Weave};
+use super::ground::{Arrangement, Background, DeckleAnchor, LavaEdge, Tunnel, Weave};
 use super::model::{
     AmbientStyle, Backdrop, CardAnchor, CardShape, CardTexture, CaretBlockStyle, ChipVariant,
     ChromeFace, DecorativeWash, Elevation, FacetStyle, FoldAfford, Frost, HighlightTexture,
@@ -17,7 +17,7 @@ use super::ornament::{
     ORNAMENT_MARKS, ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE,
     Ornaments,
 };
-const POSTER_BARS: ListStyle = ListStyle::Bars {
+pub(super) const POSTER_BARS: ListStyle = ListStyle::Bars {
     radius: 6.0,
     gap: 10.0,
     grow_px: 24.0,
@@ -971,64 +971,6 @@ pub const CASSOWARY: Theme = Theme {
     },
 };
 
-#[allow(dead_code)] // gallery-only exploration; not in THEMES (see doc above).
-pub const CASSOWARY_LIGHT: Theme = Theme {
-    name: "Cassowary Light",
-    dark: false,
-    base_100: Srgb::rgb(0xEE, 0xF4, 0xF0),
-    base_200: Srgb::rgb(0xE2, 0xEC, 0xE6),
-    base_300: Srgb::rgb(0xD2, 0xE1, 0xD8),
-    base_content: Srgb::rgb(0x16, 0x24, 0x1B),
-    muted: Srgb::rgb(0x5A, 0x6E, 0x62),
-    faint: Srgb::rgb(0x92, 0xA3, 0x98),
-    primary: Srgb::rgb(0xD9, 0x79, 0x22),
-    primary_content: Srgb::rgb(0xFB, 0xEF, 0xE2),
-    error: Srgb::rgb(0xC2, 0x34, 0x29),
-    selection: Srgb::rgba(0xC8, 0x36, 0x5E, 0x5E),
-    background: Background::Pinstripe {
-        from: Srgb::rgb(0xE2, 0xEC, 0xE6),
-        to: Srgb::rgb(0xD2, 0xE1, 0xD8),
-        dir: (0.0, 1.0),
-        tint: Srgb::rgb(0xAF, 0xC6, 0xB8),
-    },
-    font: "Iosevka",
-    mono: "Iosevka",
-    icon_cursor: IconCursor::Block,
-    icon_ground: IconGround::Base100,
-    heading_bold: true,
-    cjk: CJK_GOTHIC,
-    zh_hans: CJK_ZH_HANS_SANS,
-    zh_hant: CJK_ZH_HANT,
-    ko: CJK_KO,
-    ornaments: Ornaments::of('◆', '✴', '◈'),
-    ornament_face: ORNAMENT_MARKS,
-    ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
-    bullets: BULLETS_PLAIN,
-    bullet_scale: BULLET_SCALE_PLAIN,
-    list_indent_scale: LIST_INDENT_SCALE_PLAIN,
-    tags: ThemeTags {
-        time: Some("Day"),
-        register: None,
-        voice: Some("Technical"),
-        temperature: None,
-    },
-    role_overrides: RoleOverrides::NONE,
-    render_caps: RenderCaps {
-        title_style: TitleStyle::Placard {
-            corner: PlacardCorner::Auto,
-            scale: 3.0,
-            ink: PlacardInk::Bold,
-        },
-        card_anchor: CardAnchor::TopLeft,
-        chrome_face: ChromeFace::Named("Archivo Black"),
-        elevation: Elevation::Bordered,
-        list_style: POSTER_BARS,
-        facet_style: FacetStyle::Chips(ChipVariant::Bracket),
-        pane_split: PaneSplit::Unified,
-        ..RenderCaps::DEFAULT
-    },
-};
-
 /// PAPERBARK — handmade paper in a daylit studio. Static deckled contours in
 /// [`Weave::Strata`] gather around the flat writing page; deep bark-brown prose
 /// and the vermilion caret sit above cream and pale honey. Temperature stays
@@ -1086,10 +1028,66 @@ pub const PAPERBARK: Theme = Theme {
     },
 };
 
-pub const THEMES: [Theme; 19] = [
+pub const THEMES: [Theme; 20] = [
     TAWNY, MOPOKE, CURRAWONG, POTOROO, GUMTREE, BILBY, SALTPAN, QUOKKA, BOMBORA, BOWERBIRD, MULGA,
-    MANGROVE, GALAH, MAGPIE, BROLGA, WAGTAIL, FIRETAIL, CASSOWARY, PAPERBARK,
+    MANGROVE, GALAH, MAGPIE, BROLGA, WAGTAIL, FIRETAIL, CASSOWARY, PAPERBARK, KITE,
 ];
+
+/// KITE — a loud light technical room. The stable mineral page glides through
+/// one cool warped-grid tunnel drawn in the two margins, and the caret is the
+/// bird's single vermilion eye: the deliberate light counterpart to Firetail's
+/// warm, organic, drifting lava (cool / geometric / crisp / directional against
+/// warm / organic / liquid / drifting). Temperature stays untagged even though
+/// the world is definitionally cool — the picker's Cool band is already at its
+/// curated cap of four, the same reason Paperbark leaves Warm untagged.
+pub const KITE: Theme = Theme {
+    name: "Kite",
+    dark: false,
+    base_100: Srgb::rgb(0xF6, 0xF4, 0xFA),
+    base_200: Srgb::rgb(0xE5, 0xDE, 0xF3),
+    base_300: Srgb::rgb(0xCD, 0xC0, 0xE7),
+    base_content: Srgb::rgb(0x24, 0x1D, 0x2F),
+    muted: Srgb::rgb(0x6B, 0x63, 0x74),
+    faint: Srgb::rgb(0xA6, 0x9F, 0xB0),
+    primary: Srgb::rgb(0xFF, 0x3B, 0x14),
+    primary_content: Srgb::rgb(0xFF, 0xF3, 0xEE),
+    error: Srgb::rgb(0xC4, 0x2A, 0x32),
+    selection: Srgb::rgba(0x5A, 0x4F, 0xB4, 0x55),
+    background: Background::WarpedGrid {
+        ground: Srgb::rgb(0xE5, 0xDE, 0xF3),
+        minor: Srgb::rgb(0xA9, 0xA2, 0xC8),
+        major: Srgb::rgb(0x46, 0x40, 0x6E),
+        tunnel: Tunnel::Fixed,
+        spacing_px: 30.0,
+        density: 0.62,
+    },
+    font: "Fira Sans",
+    mono: "JetBrains Mono",
+    icon_cursor: IconCursor::Block,
+    icon_ground: IconGround::Base100,
+    heading_bold: true,
+    cjk: CJK_GOTHIC,
+    zh_hans: CJK_ZH_HANS_SANS,
+    zh_hant: CJK_ZH_HANT,
+    ko: CJK_KO,
+    ornaments: Ornaments::of('\u{2B25}', '\u{2736}', '\u{25C6}'),
+    ornament_face: ORNAMENT_MARKS,
+    ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
+    bullets: BULLETS_PLAIN,
+    bullet_scale: BULLET_SCALE_PLAIN,
+    list_indent_scale: LIST_INDENT_SCALE_PLAIN,
+    tags: ThemeTags {
+        time: None,
+        register: None,
+        voice: Some("Modern"),
+        temperature: None,
+    },
+    role_overrides: RoleOverrides::NONE,
+    render_caps: RenderCaps {
+        elevation: Elevation::Bordered,
+        ..RenderCaps::DEFAULT
+    },
+};
 
 const fn str_eq(a: &str, b: &str) -> bool {
     let (a, b) = (a.as_bytes(), b.as_bytes());

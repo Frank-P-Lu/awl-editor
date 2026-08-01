@@ -31,6 +31,7 @@ const WORLD_NAMES: &[&str] = &[
     "Bombora",
     "Bowerbird",
     "Gumtree",
+    "Kite",
     "Bilby",
     "Saltpan",
     "Quokka",

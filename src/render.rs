@@ -1643,6 +1643,8 @@ pub struct TextPipeline {
     /// [`Self::lava_phase`] holds it. See [`crate::lava`].
     pub lava_pipeline: crate::lava::LavaPipeline,
     lava_phase: f32,
+    /// WARPED-GRID travel phase in seconds.
+    warp_phase: f32,
     lava_field_viewport: [f32; 2],
     /// THE ORGANIC FROST SEED FIELD (proto-cache): the visible margin glyphs' halo
     /// seeds `[x0, x1, yc, r]` (the outline entries + the gutter), summed by the
@@ -2335,6 +2337,7 @@ fn background_desc() -> BgDesc {
         banded: bg.zigzag_banded(),
         profile: bg.profile_mode(),
         deckle_anchor: bg.deckle_anchor_mode(),
+        tunnel: bg.tunnel_mode(),
     }
 }
 /// The visual-line motion LAYOUT ORACLE, implemented on the GPU pipeline because

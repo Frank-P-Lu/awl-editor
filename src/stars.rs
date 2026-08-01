@@ -563,8 +563,8 @@ mod tests {
             );
             assert_eq!(
                 t.has_ambient_motion(),
-                t.background.is_lava() || has_stars,
-                "{}: has_ambient_motion must be exactly the lava/stars OR — one owner",
+                t.background.is_lava() || t.background.is_warped_grid() || has_stars,
+                "{}: has_ambient_motion must be exactly the lava/warped-grid/stars OR — one owner",
                 t.name
             );
         }

@@ -188,6 +188,9 @@ mod toggle;
 mod typewriter;
 mod updates;
 mod view_policy;
+// THE WARPED-GRID CLOCK — deterministic linear forward travel for
+// `Background::WarpedGrid`. Pure; the shader receives one scalar phase.
+mod warpgrid;
 mod web_export;
 mod webreserved;
 mod whichkey;

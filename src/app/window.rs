@@ -575,14 +575,14 @@ impl App {
         // event that routes through `apply` and then calls request_redraw
         // below, and OS key AUTO-REPEAT for a HELD arrow delivers a fresh
         // KeyboardInput per repeat, so a held arrow still repaints promptly.
-        // The loop only stays HOT while the caret spring is still animating.
+        // HOT while the caret spring animates — and, since item 199, while a
+        // TRAVELLING ground runs (`App::advance_travelling_ground`).
+        let warp_hot = self.advance_travelling_ground(dt);
         let (animating, outcome) = if let Some(gpu) = self.gpu.as_mut() {
             // Drive the virtual-clock seam (caret spring + any future live
             // animator) so the timeline capture and the live loop advance
             // animation through the SAME entry point.
-            let still = gpu.pipeline.advance(dt);
-            let presented = gpu.redraw();
-            (still, presented)
+            (gpu.pipeline.advance(dt) || warp_hot, gpu.redraw())
         } else {
             return;
         };

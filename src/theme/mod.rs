@@ -10,7 +10,8 @@
 //! [`color`] (the [`Srgb`] primitive), [`model`] (the [`Theme`]/[`Background`]/
 //! [`Lens`] data model), [`ornament`] (the section-break + list-bullet trios),
 //! [`cjk`] (the per-script fallback ladders + [`FontId`]), [`worlds`] (the
-//! eighteen concrete [`Theme`] literals), and [`derive`] (the active-theme
+//! shipped [`Theme`] literals) plus [`worlds_gallery`] (authored auditions that
+//! are deliberately never enrolled), and [`derive`] (the active-theme
 //! index + every derived-from-active-theme accessor). Every external path
 //! (`theme::Theme`, `theme::THEMES`, `theme::CJK_MINCHO`, …) is unchanged —
 //! this file only re-exports.
@@ -21,11 +22,12 @@
 //! the one organic accent (the caret), `error` is the signal color, and
 //! `selection` is a custom token (DaisyUI has no selection role).
 //!
-//! There are nineteen [`Theme`]s ("worlds"), eleven dark and eight light. Two are
+//! There are twenty [`Theme`]s ("worlds"), eleven dark and nine light. Three are
 //! DESIGN.md §3 statement worlds: Wagtail (awl's first true MONOCHROME/1-bit
-//! world — zero saturation everywhere, the caret included) and Firetail (awl's
+//! world — zero saturation everywhere, the caret included), Firetail (awl's
 //! first LAVA-LAMP world — a slow metaball ground whose living warmth IS the
-//! statement; Mangrove folds the cool second lava ground). See their own doc
+//! statement; Mangrove folds the cool second lava ground) and Kite (the light
+//! counterpart, travelling through a warped-grid tunnel). See their own doc
 //! comments in `worlds.rs` and THEMES.md's logged DESIGN.md §3 amendments. One is the
 //! ACTIVE theme at any moment (an index into [`THEMES`]); the windowed app can
 //! cycle it live (`C-x t` / `C-x T`) and the headless `--theme NAME` flag pins
@@ -43,6 +45,8 @@ mod icon_ground;
 mod model;
 mod ornament;
 mod worlds;
+// Authored `Theme` values that are deliberately NOT enrolled in `THEMES`.
+mod worlds_gallery;
 
 pub(crate) use cjk::EMBEDDED_CJK_FAMILIES;
 pub use cjk::FontId;
@@ -82,10 +86,6 @@ pub use model::{Theme, WashOverride};
 // docs: the GPU is the only runtime consumer; the host reads them ONLY to state
 // the field's laws), so the re-export is gated identically rather than carrying
 // an `allow(dead_code)` a future genuinely-dead constant could hide behind.
-#[allow(unused_imports)] // Weave/Lens/RoleOverrides/ThemeTags: public API
-// surface, no NON-TEST in-crate caller today (the world literals reach `Weave`
-// through `super::ground` directly).
-pub use ground::Weave;
 #[cfg(test)]
 pub use ground::{DECKLE_MAX_PERIOD_PX, DECKLE_MID, DECKLE_MIN_PERIOD_PX, DECKLE_SPREAD_GAIN};
 #[cfg(test)]
@@ -94,6 +94,10 @@ pub use ground::{
     ORGANIC_FINDS_COMPANION_HI, ORGANIC_FINDS_COMPANION_LO, ORGANIC_FINDS_DROPOUT,
     ORGANIC_FINDS_MIN_SCALE_PX,
 };
+#[allow(unused_imports)] // Weave/Lens/RoleOverrides/ThemeTags: public API
+// surface, no NON-TEST in-crate caller today (the world literals reach `Weave`
+// through `super::ground` directly).
+pub use ground::{Tunnel, Weave};
 #[cfg(test)]
 pub use ground::{ZIGZAG_MAX_ROW_PITCH_PX, ZIGZAG_MIN_STROKE_PX, ZIGZAG_STROKE_FRAC};
 #[allow(unused_imports)]
@@ -123,11 +127,11 @@ pub use ornament::{
     ORNAMENT_MARKS, ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE,
     ORNAMENTS_DEFAULT, Ornaments,
 };
-#[allow(unused_imports)] // the seventeen individually named world consts: public
+#[allow(unused_imports)] // the individually named world consts: public
 // API surface (each usable individually, e.g. `theme::TAWNY.mono`); non-test code
 // always reaches them through the `THEMES` array instead (Cassowary among them).
 pub use worlds::{
-    BILBY, BOMBORA, BOWERBIRD, BROLGA, CURRAWONG, FIRETAIL, GALAH, GUMTREE, MAGPIE, MANGROVE,
+    BILBY, BOMBORA, BOWERBIRD, BROLGA, CURRAWONG, FIRETAIL, GALAH, GUMTREE, KITE, MAGPIE, MANGROVE,
     MOPOKE, MULGA, PAPERBARK, POTOROO, QUOKKA, SALTPAN, TAWNY, WAGTAIL,
 };
 pub use worlds::{DEFAULT_THEME, THEMES, world_names};

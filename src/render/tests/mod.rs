@@ -13,6 +13,7 @@
 use super::*;
 
 mod backgrounds_item117;
+mod backgrounds_item132;
 mod backgrounds_item158;
 mod backgrounds_item69;
 mod backgrounds_item86;
@@ -89,6 +90,7 @@ mod tables;
 mod theme;
 mod theme_caps_law;
 mod visual_selection_law;
+mod warp_tunnel_item194;
 mod washes;
 mod waves_drift_item87;
 #[cfg(not(target_arch = "wasm32"))]

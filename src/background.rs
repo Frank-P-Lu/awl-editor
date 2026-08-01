@@ -18,6 +18,8 @@ struct Globals {
     drift: f32,
     pat: [f32; 4],
     params: [f32; 4],
+    /// Warped-grid travel in minor cells. Zero for every other ground.
+    warp_travel: f32,
     /// ITEM 186 — physical pixels per logical pixel (the display's device
     /// ratio). The shader divides every COMPOSITION quantity through this and
     /// leaves every SAMPLING quantity alone; `theme::ground`'s
@@ -25,7 +27,7 @@ struct Globals {
     scale: f32,
     /// std140 tail padding: a uniform struct is rounded up to a multiple of its
     /// 16-byte alignment, and wgpu validates the binding against that size.
-    _pad: [f32; 3],
+    _pad: [f32; 2],
 }
 
 /// A flat, host-side descriptor of a world's [`crate::theme::Background`] — the
@@ -49,6 +51,22 @@ pub struct BgDesc {
     pub profile: f32,
     /// Deckle's stable-room coordinate owner; inert off that ground.
     pub deckle_anchor: f32,
+    /// WARPED GRID's tunnel-placement scalar; INERT `0.0` off that ground
+    /// (`Background::tunnel_mode`), so no other world's upload changes shape.
+    pub tunnel: f32,
+}
+
+/// The PER-FRAME ambient scalars the background pass carries — everything about
+/// this frame that is not the world's own authored data. Grouping them is not
+/// cosmetic: it keeps `prepare`'s signature honest as the shared ambient clock
+/// gains consumers, and every field is `0.0` for a ground that does not read it,
+/// so a static world's upload is byte-identical whatever the clock holds.
+#[derive(Clone, Copy, Default)]
+pub struct AmbientUpload {
+    /// WAVES / ORGANIC phase drift, in radians (item 87 / item 163).
+    pub drift: f32,
+    /// WARPED GRID's forward travel in minor cells.
+    pub warp_travel: f32,
 }
 
 /// The margin-gradient render pipeline: a single fullscreen triangle alpha-blended
@@ -188,7 +206,7 @@ impl BackgroundPipeline {
         height: u32,
         col_left: f32,
         col_w: f32,
-        drift: f32,
+        ambient: AmbientUpload,
         scale: f32,
     ) {
         let globals = Globals {
@@ -199,11 +217,12 @@ impl BackgroundPipeline {
             to: self.to,
             dir: self.dir,
             shader: self.shader,
-            drift,
+            drift: ambient.drift,
             pat: self.pat,
             params: self.params,
+            warp_travel: ambient.warp_travel,
             scale,
-            _pad: [0.0; 3],
+            _pad: [0.0; 2],
         };
         queue.write_buffer(&self.globals_buf, 0, bytemuck_lite::bytes_of(&globals));
     }
