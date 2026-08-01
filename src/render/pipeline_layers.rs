@@ -155,6 +155,7 @@ impl TextPipeline {
         }
         self.overlay_bars.draw(pass);
         self.overlay_spine.draw(pass);
+        self.overlay_spine_selected.draw(pass);
         self.overlay_rows.draw(pass);
         self.overlay_cross.draw(pass);
         self.overlay_range_track.draw(pass);

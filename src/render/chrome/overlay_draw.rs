@@ -93,6 +93,8 @@ impl TextPipeline {
         self.overlay_bars.prepare(device, queue, width, height, &[]);
         self.overlay_spine
             .prepare_rotated(device, queue, width, height, &[]);
+        self.overlay_spine_selected
+            .prepare_rotated(device, queue, width, height, &[]);
         // ARM B LIVING-BAND PROBE: the two-shape crossing quad parks empty too, so
         // a closed picker carries no stale crossing quad into the next frame.
         self.overlay_cross

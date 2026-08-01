@@ -20,6 +20,20 @@ struct OverlayBarLayout {
     chord_px: std::collections::BTreeMap<usize, f32>,
 }
 
+/// Apply each travelling band's own planned two-sided span. This stays beside
+/// the selection emitter so no choreography can smuggle in a second row-offset
+/// calculation.
+fn apply_living_row_spans(plan: &OverlayRowPlan, rects: &mut [[f32; 4]]) {
+    for r in rects {
+        if let Some(row) = plan.display_nearest(r[1] + r[3] * 0.5) {
+            let dx = plan.row_dx(row);
+            let dw = plan.row_dw(row);
+            r[0] += dx;
+            r[2] += dw - dx;
+        }
+    }
+}
+
 impl OverlayBarLayout {
     fn span(&self, geom: &OverlayGeom, row: usize) -> (f32, f32) {
         if self.extent.hugs() {
@@ -213,18 +227,11 @@ impl TextPipeline {
             } => {
                 self.overlay_bar_selection(geom, plan, vis, radius, gap, grow_px, extent, coverage)
             }
-            // The diagonal changes row composition, not selection language; its
-            // selection treatment remains the shared poster-bar treatment.
-            theme::ListStyle::Diagonal(_) => self.overlay_bar_selection(
-                geom,
-                plan,
-                vis,
-                6.0,
-                10.0,
-                24.0,
-                theme::BarExtent::HugLabel,
-                theme::BarCoverage::All,
-            ),
+            // Diagonal selection is the bright local spine segment and connector
+            // prepared by its measured composition owner. It deliberately has no
+            // row-fill fallback: the planned outward span remains the pointer and
+            // text truth while the line, rather than a poster bar, carries focus.
+            theme::ListStyle::Diagonal(_) => OverlaySelectionRects::default(),
         };
         if backing == theme::ListBacking::BarePlates {
             self.overlay_prepare_bar_scrims(device, queue, width, height, list_style, &rects);
@@ -258,30 +265,14 @@ impl TextPipeline {
                 geom.band_w(),
                 line_height,
             );
-            // ITEM 131a — the living morph drew the card's raw bounds, blind to
-            // any row's own two-sided extent (a gap that predates 131a: `dx`/`dw`
-            // didn't exist before the seam, so this path was never WRONG for
-            // anything that ever shipped — it read `0.0` implicitly by never
-            // reading anything). Apply the CURRENT logical row's extent uniformly
-            // to every emitted rect, the same formula the settled branch below
-            // uses: exact for the shipped default (`Choreo::Morph`, one shape,
-            // one row throughout the glide), and strictly better than the prior
-            // "never applied" for the non-default `TwoShape` echo too — though
-            // that echo's OWN row may differ from the logical target mid-glide,
-            // and resolving THAT precisely is a selection/composition question
-            // (item 131e), not one this plumbing fix can silently decide.
-            if let Some(row) = vis.logical() {
-                let dx = plan.row_dx(row);
-                let dw = plan.row_dw(row);
-                for r in selected
-                    .iter_mut()
-                    .chain(unselected.iter_mut())
-                    .chain(cross.iter_mut())
-                {
-                    r[0] += dx;
-                    r[2] += dw - dx;
-                }
-            }
+            // Every travelling shape owns the planned row nearest ITS centre.
+            // This makes the non-default TwoShape echo precise: it no longer
+            // borrows the logical target's diagonal offset while visibly sitting
+            // on another row. The planner remains the one shared geometry source
+            // for the band, row text, and pointer inverse.
+            apply_living_row_spans(plan, &mut selected);
+            apply_living_row_spans(plan, &mut unselected);
+            apply_living_row_spans(plan, &mut cross);
             self.overlay_bars.set_corner(2.5);
             self.overlay_bars
                 .set_color(theme::surface_selected().rgba_bytes());
@@ -496,5 +487,43 @@ impl TextPipeline {
             .set_color(theme::overlay_bars_scrim().rgba_bytes());
         self.panel_card
             .prepare(device, queue, width, height, &scrims);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::render::plan::{OverlayRowPlanInput, plan_overlay_rows};
+
+    #[test]
+    fn twoshape_echo_uses_its_own_nearest_planned_row_span() {
+        let plan = plan_overlay_rows(&OverlayRowPlanInput {
+            card_x: 100.0,
+            card_w: 300.0,
+            text_top: 40.0,
+            lh: 20.0,
+            header_gap: 0.0,
+            header_rows: 0,
+            visible: 3,
+            top_idx: 0,
+            n_items: 3,
+            selected: 2,
+            empty_rows: 0,
+            lines: None,
+            dx_per_row: 10.0,
+            cluster_span: None,
+            selected_offset: None,
+        });
+        // These are the leading, echo, and overlap bands from one TwoShape
+        // crossing. Their centres deliberately belong to three different rows.
+        let mut rects = [
+            [100.0, 40.0, 300.0, 20.0],
+            [100.0, 60.0, 300.0, 20.0],
+            [100.0, 80.0, 300.0, 20.0],
+        ];
+        apply_living_row_spans(&plan, &mut rects);
+        assert_eq!(rects[0], [100.0, 40.0, 300.0, 20.0]);
+        assert_eq!(rects[1], [110.0, 60.0, 290.0, 20.0]);
+        assert_eq!(rects[2], [120.0, 80.0, 280.0, 20.0]);
     }
 }

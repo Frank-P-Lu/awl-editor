@@ -153,6 +153,7 @@ impl TextPipeline {
         let overlay_rows = overlay_quad(theme::selection().rgba_bytes());
         let overlay_bars = overlay_quad(theme::surface_selected().rgba_bytes());
         let overlay_spine = overlay_quad(theme::muted().rgba_bytes());
+        let overlay_spine_selected = overlay_quad(theme::base_content().rgba_bytes());
         let overlay_lens_underline = SelectionPipeline::new(
             device,
             &sel_shader,
@@ -401,6 +402,7 @@ impl TextPipeline {
             overlay_rows,
             overlay_bars,
             overlay_spine,
+            overlay_spine_selected,
             overlay_lens_underline,
             overlay_facet_ghost,
             overlay_cross,

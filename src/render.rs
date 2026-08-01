@@ -2059,6 +2059,7 @@ pub struct TextPipeline {
     pub overlay_rows: SelectionPipeline,
     pub overlay_bars: SelectionPipeline,
     pub overlay_spine: SelectionPipeline,
+    pub overlay_spine_selected: SelectionPipeline,
     pub overlay_lens_underline: SelectionPipeline,
     /// V6 P5 round — the faceted strip's INACTIVE ghost pills under
     /// [`theme::FacetStyle::Chips`]: one hairline STROKE pill per non-active
