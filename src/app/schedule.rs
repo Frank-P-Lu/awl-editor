@@ -165,16 +165,17 @@ impl Scheduler for RecordingScheduler {
 
 impl App {
     fn schedule_prefix_surfaces(&mut self, event_loop: &impl Scheduler) {
-        if let Some(pending) = self.prefix_pending_at {
+        let (prefix_pending_at, whichkey_shown) = self.input.prefix_schedule();
+        if let Some(pending) = prefix_pending_at {
             let deadline = pending + crate::whichkey::PAUSE;
             let elapsed = self.clock.now() >= deadline;
-            if crate::whichkey::should_summon(true, self.whichkey_shown, elapsed) {
+            if crate::whichkey::should_summon(true, whichkey_shown, elapsed) {
                 self.summon_whichkey();
-            } else if !self.whichkey_shown && !elapsed && self.last_frame.is_none() {
+            } else if !whichkey_shown && !elapsed && self.last_frame.is_none() {
                 event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
             }
         }
-        if let Some(armed) = self.peek_armed_at {
+        if let Some(armed) = self.input.peek_armed_at() {
             let deadline = armed + Duration::from_millis(crate::peek::HOLD_PEEK_MS);
             if self.clock.now() >= deadline {
                 let stimulus = if crate::peek::peek_allowed(self.zoom_in_flight()) {
@@ -464,7 +465,7 @@ impl App {
     /// `whichkey::PAUSE` to witness the summon fire EXACTLY at its deadline step.
     #[cfg(any(test, not(target_arch = "wasm32")))]
     pub(crate) fn arm_whichkey_prefix(&mut self) {
-        self.prefix_pending_at = Some(self.clock.now());
+        self.input.arm_prefix(self.clock.now());
     }
 
     /// Whether the which-key continuation panel is currently summoned — the pure App
@@ -472,7 +473,7 @@ impl App {
     /// show the false→true flip at the pause deadline).
     #[cfg(any(test, not(target_arch = "wasm32")))]
     pub(crate) fn whichkey_is_shown(&self) -> bool {
-        self.whichkey_shown
+        self.input.whichkey_shown()
     }
 
     /// The pending prefix's continuation rows — the SAME `continuations_cx` the live

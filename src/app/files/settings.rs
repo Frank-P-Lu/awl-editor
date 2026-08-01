@@ -328,8 +328,8 @@ impl App {
             crate::convention::Convention::current(),
             crate::commands::Platform::current(),
         ));
-        self.keymap.apply_overrides(&keys_with_web_alt);
-        self.keymap.apply_linux_keep(&cfg.effective_linux_keep());
+        self.input.apply_key_overrides(&keys_with_web_alt);
+        self.input.apply_linux_keep(&cfg.effective_linux_keep());
         // CACHE-KEY DISCIPLINE with `Config::apply_sticky_globals`: an ABSENT
         // key must leave the global AS-IS (the built-in default already
         // carries it), never force it back to ON. The old `unwrap_or(true)`

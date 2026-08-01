@@ -2261,7 +2261,7 @@ fn hover_at_gates_on_real_pointer_motion_not_a_relayout_hit_test_change() {
 /// of exactly `HOVER_MOVE_SLOP_PX - 1` (still within the slop) must NOT take
 /// over; `HOVER_MOVE_SLOP_PX + 1` (just past it) MUST — on that very event,
 /// no added latency. Pure distance math (no clock, no pipeline), mirroring
-/// `app::tests::exceeds_drag_slop_pins_the_boundary_in_both_directions`'s own
+/// `app::input::tests::exceeds_drag_slop_is_false_for_sub_slop_jitter`'s own
 /// shape for `DRAG_ARM_SLOP_PX`.
 #[test]
 fn hover_at_movement_slop_boundary_law() {
@@ -2289,7 +2289,7 @@ fn hover_at_movement_slop_boundary_law() {
 
     // Exactly at the slop: the gate is a STRICT inequality (`>`), so a move of
     // EXACTLY the slop distance still does not take over (matches
-    // `App::exceeds_drag_slop`'s own strict `>`).
+    // `PointerInput::exceeds_drag_slop`'s own strict `>`).
     let mut at = deep(10);
     assert!(at.hover_at(0.0, 0.0, Some(1)));
     assert!(

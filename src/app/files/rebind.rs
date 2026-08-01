@@ -42,8 +42,8 @@ impl App {
             crate::commands::Platform::current(),
         ));
         let linux_keep = self.config.effective_linux_keep();
-        self.input.keymap.apply_overrides(&keys_with_web_alt);
-        self.input.keymap.apply_linux_keep(&linux_keep);
+        self.input.apply_key_overrides(&keys_with_web_alt);
+        self.input.apply_linux_keep(&linux_keep);
         self.refresh_settings_overlay();
         // Every sibling settings-mutation door (`setting_toggle`'s generic
         // path, `setting_value_commit`, `setting_path_pick`) ends in a

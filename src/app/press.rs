@@ -33,9 +33,9 @@ impl App {
         chord: &crate::keyspec::Chord,
         exit: &dyn schedule::Exit,
     ) {
-        self.mods = chord.mods;
+        self.input.set_modifiers(chord.mods);
         self.dispatch_pressed_key(exit, chord.key.clone(), chord.key.clone(), false);
-        self.mods = winit::event::Modifiers::default();
+        self.input.clear_modifiers();
     }
 
     /// Drive every chord in `chords` through the real press pipeline above.

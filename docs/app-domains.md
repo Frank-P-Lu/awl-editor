@@ -152,15 +152,22 @@ belongs with the registry.
 `click_count` · `scroll_px_accum` · `preedit` · `ime_enabled` ·
 `scroll_sensitivity`
 
-The largest domain by field count (27) and the **lowest-value** to extract:
-locality is already near-perfect. 14 of the 27 are touched by exactly one file
-(8 only by `app/input/mouse.rs`, 4 only by `keys.rs`, 2 only by `drags.rs`), and
-`app/input/` accounts for 135 of the 164 production references. It now holds
-one `InputRuntime` handle with the keyboard/IME, pointer gesture, click-count,
-and wheel accumulator state together. The only genuine cross-domain leak was
-`cursor_px`, formerly read by `apply.rs`; `sync_overlay_after_core` now accepts
-a typed `RestingPointer` value snapshot, so overlay resync cannot retain or
-mutate the live pointer state.
+The largest domain by field count (27), but locality is near-perfect: 14 of the
+27 are touched by exactly one file and `app/input/` accounts for 135 of the 164
+production references. One `InputRuntime` handle owns two private coherent
+substates. `KeyboardInput` owns key resolution, modifiers, prefix/which-key,
+HUD/peek, and IME composition. `PointerInput` owns visibility and cursor shape,
+press→drag→release state, resize gestures, click cadence, and wheel sensitivity
+and accumulation. Only `app/input/` children may project those substates;
+scheduler, settings, view, headless-press, and window-lifecycle consumers use
+named observations or transitions on `InputRuntime`.
+
+The only genuine cross-domain leak was `cursor_px`, formerly read by `apply.rs`;
+`sync_overlay_after_core` now accepts a typed `RestingPointer` value snapshot,
+so overlay resync cannot retain or mutate the live pointer state. Text-drag
+release and the next press baseline are likewise one pointer transition: release
+retires both `dragging` and the sticky slop arm, and a new press snapshots its
+own position before it can arm.
 
 ### `ConfigurationRuntime` — persisted settings and startup policy
 

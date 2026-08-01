@@ -16,76 +16,89 @@ mod keys;
 mod mouse;
 mod wheel;
 
-pub(crate) use drags::{ImageDrag, RangeDrag};
+use drags::ImageDrag;
+#[cfg(test)]
+pub(in crate::app) use drags::RangeDrag;
+#[cfg(not(test))]
+use drags::RangeDrag;
 pub(in crate::app) use wheel::initial_sensitivity as initial_scroll_sensitivity;
 
-/// The live input handle. Keyboard/prefix/IME state and the pointer gesture
-/// that began at a press belong to one runtime: a window event advances one
-/// coherent interaction, not a bag of `App` flags.
-///
-/// The handle is private to the live app. Its fields are visible inside
-/// `crate::app` while the existing input seams are migrated; no renderer,
-/// configuration, or shared-core code can reach them.
-pub struct InputRuntime {
-    pub(in crate::app) keymap: crate::keymap::KeymapState,
-    pub(in crate::app) mods: winit::event::Modifiers,
-    pub(in crate::app) prefix_pending_at: Option<crate::clock::Instant>,
-    pub(in crate::app) whichkey_shown: bool,
-    pub(in crate::app) hud_key: Option<winit::keyboard::Key>,
-    pub(in crate::app) hud_mods: winit::keyboard::ModifiersState,
-    pub(in crate::app) peek_arm: crate::peek::PeekArm,
-    pub(in crate::app) peek_armed_at: Option<crate::clock::Instant>,
-    pub(in crate::app) pointer_hide: crate::pointer_hide::PointerHide,
-    pub(in crate::app) cursor_px: (f32, f32),
-    pub(in crate::app) dragging: bool,
-    pub(in crate::app) drag_press_px: (f32, f32),
-    pub(in crate::app) drag_armed: bool,
-    pub(in crate::app) page_resizing: bool,
-    pub(in crate::app) page_resize_edge: Option<crate::render::ResizeEdge>,
-    pub(in crate::app) page_resize_anchor: Option<f32>,
-    pub(in crate::app) image_resizing: Option<ImageDrag>,
-    pub(in crate::app) range_drag: Option<RangeDrag>,
-    pub(in crate::app) cursor_icon: winit::window::CursorIcon,
-    pub(in crate::app) drag_granularity: DragGranularity,
-    pub(in crate::app) last_click_time: Option<crate::clock::Instant>,
-    pub(in crate::app) last_click_px: (f32, f32),
-    pub(in crate::app) click_count: u32,
-    pub(in crate::app) scroll_px_accum: f32,
-    pub(in crate::app) preedit: String,
-    pub(in crate::app) ime_enabled: bool,
-    pub(in crate::app) scroll_sensitivity: f32,
+/// The live input handle. It is the one `App` field for input, while its two
+/// private substates own the different invariants advanced by a window event.
+pub(in crate::app) struct InputRuntime {
+    keyboard: KeyboardInput,
+    pointer: PointerInput,
+}
+
+/// Key resolution and the transient keyboard surfaces coupled to it.
+struct KeyboardInput {
+    keymap: crate::keymap::KeymapState,
+    mods: winit::event::Modifiers,
+    prefix_pending_at: Option<crate::clock::Instant>,
+    whichkey_shown: bool,
+    hud_key: Option<winit::keyboard::Key>,
+    hud_mods: winit::keyboard::ModifiersState,
+    peek_arm: crate::peek::PeekArm,
+    peek_armed_at: Option<crate::clock::Instant>,
+    preedit: String,
+    ime_enabled: bool,
+}
+
+/// Pointer visibility, gesture lifetimes, click cadence, and wheel state.
+struct PointerInput {
+    pointer_hide: crate::pointer_hide::PointerHide,
+    cursor_px: (f32, f32),
+    dragging: bool,
+    drag_press_px: (f32, f32),
+    drag_armed: bool,
+    page_resizing: bool,
+    page_resize_edge: Option<crate::render::ResizeEdge>,
+    page_resize_anchor: Option<f32>,
+    image_resizing: Option<ImageDrag>,
+    range_drag: Option<RangeDrag>,
+    cursor_icon: winit::window::CursorIcon,
+    drag_granularity: DragGranularity,
+    last_click_time: Option<crate::clock::Instant>,
+    last_click_px: (f32, f32),
+    click_count: u32,
+    scroll_px_accum: f32,
+    scroll_sensitivity: f32,
 }
 
 impl InputRuntime {
     pub(in crate::app) fn new(keymap: crate::keymap::KeymapState, scroll_sensitivity: f32) -> Self {
         Self {
-            keymap,
-            mods: winit::event::Modifiers::default(),
-            prefix_pending_at: None,
-            whichkey_shown: false,
-            hud_key: None,
-            hud_mods: winit::keyboard::ModifiersState::empty(),
-            peek_arm: crate::peek::PeekArm::default(),
-            peek_armed_at: None,
-            pointer_hide: crate::pointer_hide::PointerHide::Visible,
-            cursor_px: (0.0, 0.0),
-            dragging: false,
-            drag_press_px: (0.0, 0.0),
-            drag_armed: false,
-            page_resizing: false,
-            page_resize_edge: None,
-            page_resize_anchor: None,
-            image_resizing: None,
-            range_drag: None,
-            cursor_icon: winit::window::CursorIcon::Default,
-            drag_granularity: DragGranularity::Char,
-            last_click_time: None,
-            last_click_px: (0.0, 0.0),
-            click_count: 0,
-            scroll_px_accum: 0.0,
-            preedit: String::new(),
-            ime_enabled: false,
-            scroll_sensitivity,
+            keyboard: KeyboardInput {
+                keymap,
+                mods: winit::event::Modifiers::default(),
+                prefix_pending_at: None,
+                whichkey_shown: false,
+                hud_key: None,
+                hud_mods: winit::keyboard::ModifiersState::empty(),
+                peek_arm: crate::peek::PeekArm::default(),
+                peek_armed_at: None,
+                preedit: String::new(),
+                ime_enabled: false,
+            },
+            pointer: PointerInput {
+                pointer_hide: crate::pointer_hide::PointerHide::Visible,
+                cursor_px: (0.0, 0.0),
+                dragging: false,
+                drag_press_px: (0.0, 0.0),
+                drag_armed: false,
+                page_resizing: false,
+                page_resize_edge: None,
+                page_resize_anchor: None,
+                image_resizing: None,
+                range_drag: None,
+                cursor_icon: winit::window::CursorIcon::Default,
+                drag_granularity: DragGranularity::Char,
+                last_click_time: None,
+                last_click_px: (0.0, 0.0),
+                click_count: 0,
+                scroll_px_accum: 0.0,
+                scroll_sensitivity,
+            },
         }
     }
 
@@ -93,13 +106,132 @@ impl InputRuntime {
     /// borrow. It is a value snapshot, so the overlay cannot retain or mutate
     /// live pointer state.
     pub(in crate::app) fn resting_pointer(&self) -> RestingPointer {
-        RestingPointer(self.cursor_px)
+        RestingPointer(self.pointer.cursor_px)
     }
 
     /// Finish a text-selection gesture. The next press must always begin
     /// below drag slop; leaving `drag_armed` true leaks a completed drag into
     /// the next click.
     pub(in crate::app) fn finish_text_drag(&mut self) {
+        self.pointer.finish_text_drag();
+    }
+
+    pub(in crate::app) fn set_modifiers(&mut self, mods: winit::event::Modifiers) {
+        self.keyboard.mods = mods;
+    }
+
+    pub(in crate::app) fn clear_modifiers(&mut self) {
+        self.keyboard.mods = winit::event::Modifiers::default();
+    }
+
+    pub(in crate::app) fn apply_key_overrides(&mut self, overrides: &[(String, Vec<String>)]) {
+        self.keyboard.keymap.apply_overrides(overrides);
+    }
+
+    pub(in crate::app) fn apply_linux_keep(&mut self, keep: &[String]) {
+        self.keyboard.keymap.apply_linux_keep(keep);
+    }
+
+    pub(in crate::app) fn clear_preedit(&mut self) {
+        self.keyboard.preedit.clear();
+    }
+
+    pub(in crate::app) fn preedit(&self) -> &str {
+        &self.keyboard.preedit
+    }
+
+    pub(in crate::app) fn prefix_schedule(&self) -> (Option<crate::clock::Instant>, bool) {
+        (
+            self.keyboard.prefix_pending_at,
+            self.keyboard.whichkey_shown,
+        )
+    }
+
+    pub(in crate::app) fn arm_prefix(&mut self, now: crate::clock::Instant) {
+        self.keyboard.prefix_pending_at = Some(now);
+    }
+
+    pub(in crate::app) fn whichkey_shown(&self) -> bool {
+        self.keyboard.whichkey_shown
+    }
+
+    pub(in crate::app) fn peek_armed_at(&self) -> Option<crate::clock::Instant> {
+        self.keyboard.peek_armed_at
+    }
+
+    pub(in crate::app) fn selecting_drag(&self) -> bool {
+        self.pointer.dragging
+    }
+
+    pub(in crate::app) fn set_scroll_sensitivity(&mut self, value: f32) {
+        self.pointer.scroll_sensitivity = value;
+    }
+
+    pub(in crate::app) fn scroll_sensitivity(&self) -> f32 {
+        self.pointer.scroll_sensitivity
+    }
+
+    /// Focus loss is a pointer-state transition. Return only the OS visibility
+    /// effect that the window host must interpret.
+    pub(in crate::app) fn reveal_pointer(&mut self) -> Option<bool> {
+        let before = self.pointer.pointer_hide;
+        self.pointer.pointer_hide = crate::pointer_hide::PointerHide::Visible;
+        crate::pointer_hide::os_visibility_change(before, self.pointer.pointer_hide)
+    }
+
+    #[cfg(test)]
+    pub(in crate::app) fn set_resting_pointer_for_test(&mut self, px: (f32, f32)) {
+        self.pointer.cursor_px = px;
+    }
+
+    #[cfg(test)]
+    pub(in crate::app) fn set_range_drag_for_test(&mut self, drag: RangeDrag) {
+        self.pointer.range_drag = Some(drag);
+    }
+
+    #[cfg(test)]
+    pub(in crate::app) fn range_drag_active(&self) -> bool {
+        self.pointer.range_drag.is_some()
+    }
+}
+
+impl PointerInput {
+    fn bump_click_count(&mut self, now: crate::clock::Instant) -> u32 {
+        let near = (self.cursor_px.0 - self.last_click_px.0).abs() < 4.0
+            && (self.cursor_px.1 - self.last_click_px.1).abs() < 4.0;
+        let recent = self.last_click_time.is_some_and(|then| {
+            now.duration_since(then) < std::time::Duration::from_millis(super::MULTICLICK_MS)
+        });
+        self.click_count = if recent && near {
+            (self.click_count % 3) + 1
+        } else {
+            1
+        };
+        self.last_click_time = Some(now);
+        self.last_click_px = self.cursor_px;
+        self.click_count
+    }
+
+    fn begin_text_drag(&mut self) {
+        self.dragging = true;
+        self.drag_press_px = self.cursor_px;
+        self.drag_armed = false;
+    }
+
+    fn arm_text_drag_if_moved(&mut self) -> bool {
+        if !self.drag_armed {
+            self.drag_armed = Self::exceeds_drag_slop(self.drag_press_px, self.cursor_px);
+        }
+        self.drag_armed
+    }
+
+    fn exceeds_drag_slop(press: (f32, f32), current: (f32, f32)) -> bool {
+        let dx = current.0 - press.0;
+        let dy = current.1 - press.1;
+        dx * dx + dy * dy > super::DRAG_ARM_SLOP_PX.powi(2)
+    }
+
+    fn finish_text_drag(&mut self) {
         self.dragging = false;
         self.drag_armed = false;
     }

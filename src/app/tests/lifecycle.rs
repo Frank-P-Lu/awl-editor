@@ -683,7 +683,7 @@ fn double_click_bumps_the_shared_click_counter_that_also_backs_the_edge_reset() 
     // No real file content is needed here, so build hermetically (closes
     // the session-restore + scratch-stash doors — see `new_hermetic`'s doc).
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    app.cursor_px = (0.0, 0.0);
+    app.input.set_resting_pointer_for_test((0.0, 0.0));
     assert_eq!(
         app.bump_click_count(),
         1,
@@ -706,7 +706,7 @@ fn double_click_bumps_the_shared_click_counter_that_also_backs_the_edge_reset() 
     );
     // A press at a DIFFERENT spot never continues the run, however fast.
     app.bump_click_count();
-    app.cursor_px = (500.0, 500.0);
+    app.input.set_resting_pointer_for_test((500.0, 500.0));
     assert_eq!(
         app.bump_click_count(),
         1,

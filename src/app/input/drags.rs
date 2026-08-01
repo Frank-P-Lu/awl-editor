@@ -17,15 +17,15 @@ use crate::app::*;
 /// reads), and the current live-preview `width` (pipeline state, NOT a buffer edit,
 /// until the release stamps the `|NNN` hint back as one undoable edit).
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct ImageDrag {
+pub(super) struct ImageDrag {
     /// Document byte range of the `![alt](path)` image span (write-back target).
-    pub(crate) range: (usize, usize),
+    pub(super) range: (usize, usize),
     /// Which edge/corner is being dragged (picks the drive axis + anchor).
-    pub(crate) handle: crate::render::ImageHandle,
+    pub(super) handle: crate::render::ImageHandle,
     /// PRESS-TIME on-screen rect `[left, top, w, h]` — the fixed anchors + aspect.
-    pub(crate) rect: [f32; 4],
+    pub(super) rect: [f32; 4],
     /// The current live-preview DISPLAY WIDTH (px); rounded to the `|NNN` hint on release.
-    pub(crate) width: f32,
+    pub(super) width: f32,
 }
 
 /// ITEM 94 — SETTINGS RANGE SCRUB (live app only): the in-flight state of a drag
@@ -40,14 +40,26 @@ pub(crate) struct ImageDrag {
 /// the live rail each move would shift the track under a stationary pointer and
 /// make the scrub creep. One press, one scale, the whole gesture.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct RangeDrag {
+pub(in crate::app) struct RangeDrag {
     /// Which range setting is being scrubbed (the range-spec key).
-    pub(crate) id: crate::settings::SettingId,
+    pub(super) id: crate::settings::SettingId,
     /// The `items` index of the row being scrubbed (the row whose cell mirrors).
-    pub(crate) item: usize,
+    pub(super) item: usize,
     /// The track's px ends at PRESS — the fixed scale every move resolves against.
-    pub(crate) x0: f32,
-    pub(crate) x1: f32,
+    pub(super) x0: f32,
+    pub(super) x1: f32,
+}
+
+#[cfg(test)]
+impl RangeDrag {
+    pub(in crate::app) fn for_test(
+        id: crate::settings::SettingId,
+        item: usize,
+        x0: f32,
+        x1: f32,
+    ) -> Self {
+        Self { id, item, x0, x1 }
+    }
 }
 
 impl App {
@@ -61,7 +73,7 @@ impl App {
     /// step of the drag that may follow — writes config exactly ONCE, in
     /// [`Self::end_range_drag`].
     pub(in crate::app) fn begin_range_drag(&mut self) -> bool {
-        let (px, py) = self.input.cursor_px;
+        let (px, py) = self.input.pointer.cursor_px;
         let Some((item, frac)) = self
             .gpu
             .as_ref()
@@ -93,7 +105,7 @@ impl App {
         else {
             return false;
         };
-        self.input.range_drag = Some(RangeDrag {
+        self.input.pointer.range_drag = Some(RangeDrag {
             id: cell.id,
             item,
             x0,
@@ -107,10 +119,10 @@ impl App {
     /// PRESS-TIME track scale and apply that step. No persist (see
     /// [`Self::end_range_drag`]).
     pub(in crate::app) fn on_range_drag(&mut self) {
-        let Some(drag) = self.input.range_drag else {
+        let Some(drag) = self.input.pointer.range_drag else {
             return;
         };
-        let frac = crate::render::rail_frac_at(self.input.cursor_px.0, drag.x0, drag.x1);
+        let frac = crate::render::rail_frac_at(self.input.pointer.cursor_px.0, drag.x0, drag.x1);
         self.apply_range_frac(frac);
     }
 
@@ -121,7 +133,7 @@ impl App {
     /// the same fraction changes nothing, which is what makes a fast drag and a slow
     /// one settle identically.
     fn apply_range_frac(&mut self, frac: f32) {
-        let Some(drag) = self.input.range_drag else {
+        let Some(drag) = self.input.pointer.range_drag else {
             return;
         };
         let Some(spec) = crate::settings::range_spec(drag.id) else {
@@ -152,7 +164,7 @@ impl App {
     /// writes one line, not hundreds). Also refreshes the still-open menu from the
     /// live values, so the cell the drag mirrored and the config now agree.
     pub(in crate::app) fn end_range_drag(&mut self) {
-        let Some(drag) = self.input.range_drag.take() else {
+        let Some(drag) = self.input.pointer.range_drag.take() else {
             return;
         };
         if let Some(key) = crate::settings::value_key(drag.id) {
@@ -178,10 +190,10 @@ impl App {
         &mut self,
         exit: &dyn schedule::Exit,
     ) -> bool {
-        let edge = self
-            .gpu
-            .as_ref()
-            .and_then(|g| g.pipeline.page_resize_edge_at(self.input.cursor_px.0));
+        let edge = self.gpu.as_ref().and_then(|g| {
+            g.pipeline
+                .page_resize_edge_at(self.input.pointer.cursor_px.0)
+        });
         let Some(edge) = edge else {
             return false;
         };
@@ -202,14 +214,14 @@ impl App {
             );
             return true;
         }
-        self.input.page_resizing = true;
-        self.input.page_resize_edge = Some(edge);
+        self.input.pointer.page_resizing = true;
+        self.input.pointer.page_resize_edge = Some(edge);
         // STABLE REFERENCE: snapshot the OPPOSITE edge's position ONCE, now, and hold it
         // for the whole drag. The grabbed edge tracks the pointer against this fixed
         // anchor (`geometry::page_resize_measure_anchored`), so the measure stays
         // monotone. Reading the current adaptively-shifted edge each frame instead fed
         // the rail-hide shift back into the measure and oscillated it across the boundary.
-        self.input.page_resize_anchor = self.gpu.as_ref().map(|g| {
+        self.input.pointer.page_resize_anchor = self.gpu.as_ref().map(|g| {
             let left = g.pipeline.column_left();
             match edge {
                 crate::render::ResizeEdge::Right => left,
@@ -227,7 +239,7 @@ impl App {
     /// LIVE page-width drag step: re-derive the measure from the pointer and re-wrap.
     /// Only the release (`end_page_resize`) persists the sticky width.
     pub(in crate::app) fn on_page_resize_drag(&mut self) {
-        if !self.input.page_resizing {
+        if !self.input.pointer.page_resizing {
             return;
         }
         self.apply_page_resize();
@@ -238,17 +250,21 @@ impl App {
     /// redraw. Shared by the initial press + every drag move. Re-wrap mirrors the
     /// `PageWider`/`PageNarrower` command path (`set_size` reshapes at the new width).
     fn apply_page_resize(&mut self) {
-        let anchor = self.input.page_resize_anchor;
-        let target = self
-            .input
-            .page_resize_edge
-            .zip(anchor)
-            .and_then(|(edge, anchor_x)| {
-                self.gpu.as_ref().map(|g| {
-                    g.pipeline
-                        .page_resize_measure_at(self.input.cursor_px.0, edge, anchor_x)
-                })
-            });
+        let anchor = self.input.pointer.page_resize_anchor;
+        let target =
+            self.input
+                .pointer
+                .page_resize_edge
+                .zip(anchor)
+                .and_then(|(edge, anchor_x)| {
+                    self.gpu.as_ref().map(|g| {
+                        g.pipeline.page_resize_measure_at(
+                            self.input.pointer.cursor_px.0,
+                            edge,
+                            anchor_x,
+                        )
+                    })
+                });
         if let Some(target) = target
             && target != crate::page::measure()
         {
@@ -273,9 +289,9 @@ impl App {
     /// Finish a page-width resize on button RELEASE: drop the drag flag and PERSIST the
     /// settled width (sticky, exactly like the C-x } / C-x { keyboard commands).
     pub(in crate::app) fn end_page_resize(&mut self) {
-        self.input.page_resizing = false;
-        self.input.page_resize_edge = None;
-        self.input.page_resize_anchor = None;
+        self.input.pointer.page_resizing = false;
+        self.input.pointer.page_resize_edge = None;
+        self.input.pointer.page_resize_anchor = None;
         self.persist_page_width();
         if let Some(gpu) = self.gpu.as_mut() {
             // Drop the drag readout — gone the instant the edge is released.
@@ -297,7 +313,7 @@ impl App {
     /// cursor shape now, and apply the first preview step. LIVE-ONLY gesture; the hover
     /// hit-test + width math + the write-back are unit-tested.
     pub(in crate::app) fn begin_image_resize_if_hovering(&mut self) -> bool {
-        let (px, py) = self.input.cursor_px;
+        let (px, py) = self.input.pointer.cursor_px;
         // The hit-test lives on the pipeline (where the images layout + the pure
         // `geometry::image_handle_hit` live), mirroring `page_resize_hover` — no raw
         // geometry leaks to the app. Returns the hit image's byte range, the grabbed
@@ -313,7 +329,7 @@ impl App {
         // so the single write-back on release is its own clean undo entry.
         self.active.buffer.seal_undo_group();
         // `width` is a placeholder; `apply_image_resize` below sets it from the pointer.
-        self.input.image_resizing = Some(ImageDrag {
+        self.input.pointer.image_resizing = Some(ImageDrag {
             range,
             handle,
             rect,
@@ -329,7 +345,7 @@ impl App {
     /// LIVE image drag-resize step: re-derive the display width from the pointer and
     /// preview it. Only the release ([`Self::end_image_resize`]) writes the buffer.
     pub(in crate::app) fn on_image_resize_drag(&mut self) {
-        if self.input.image_resizing.is_none() {
+        if self.input.pointer.image_resizing.is_none() {
             return;
         }
         self.apply_image_resize();
@@ -343,10 +359,10 @@ impl App {
     /// marks itself dirty so the next `sync_view` forces the reshape that re-runs the
     /// image layout at the new width.
     fn apply_image_resize(&mut self) {
-        let Some(drag) = self.input.image_resizing else {
+        let Some(drag) = self.input.pointer.image_resizing else {
             return;
         };
-        let pointer = self.input.cursor_px;
+        let pointer = self.input.pointer.cursor_px;
         let width = self.gpu.as_ref().map(|g| {
             g.pipeline
                 .image_resize_width_at(drag.handle, drag.rect, pointer)
@@ -354,7 +370,7 @@ impl App {
         let Some(width) = width else {
             return;
         };
-        if let Some(d) = self.input.image_resizing.as_mut() {
+        if let Some(d) = self.input.pointer.image_resizing.as_mut() {
             d.width = width;
         }
         if let Some(gpu) = self.gpu.as_mut() {
@@ -372,7 +388,7 @@ impl App {
     /// alt as ONE undoable edit ([`Self::write_back_image_width`]). Mirrors
     /// [`Self::end_page_resize`]'s clear-then-persist shape.
     pub(in crate::app) fn end_image_resize(&mut self) {
-        let Some(drag) = self.input.image_resizing.take() else {
+        let Some(drag) = self.input.pointer.image_resizing.take() else {
             return;
         };
         if let Some(gpu) = self.gpu.as_mut() {

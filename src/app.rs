@@ -185,7 +185,7 @@ const WHEEL_PIXELS_PER_LINE: f32 = 16.0;
 /// reflow under a stationary pointer) and must not move the cursor away from the
 /// press's own hit-test result. Matches the multi-click "same spot" tolerance
 /// (`bump_click_count`'s own `4.0`) — both answer "did the pointer really move",
-/// just for two different gestures. See `App::exceeds_drag_slop` (`app/input/mouse.rs`).
+/// just for two different gestures. See `PointerInput::exceeds_drag_slop`.
 ///
 /// `pub(crate)` so `overlay::nav::HOVER_MOVE_SLOP_PX` (item 106) can read this
 /// SAME constant rather than declaring its own copy of the number — the two

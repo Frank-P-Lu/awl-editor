@@ -212,10 +212,7 @@ impl App {
         // POINTER AUTO-HIDE: a focus change must never leave the OS
         // pointer hidden behind another app — reset to Visible on blur
         // too, on the same trigger as the autosave flush above.
-        let prev_pointer_hide = self.pointer_hide;
-        self.pointer_hide = crate::pointer_hide::PointerHide::Visible;
-        if let Some(visible) =
-            crate::pointer_hide::os_visibility_change(prev_pointer_hide, self.pointer_hide)
+        if let Some(visible) = self.input.reveal_pointer()
             && let Some(gpu) = self.gpu.as_ref()
         {
             gpu.window.set_cursor_visible(visible);
