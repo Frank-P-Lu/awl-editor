@@ -41,12 +41,13 @@ reason = "item 114: +8 lines net. The workspace's own two-region keyboard and it
 
 [[file_size_mark]]
 file = "src/app.rs"
-lines = 1805
-reason = "item 188: +7 lines — the `capture_state` and `press` module declarations at the one module list, each with the `#[cfg]` naming where it exists (`capture_state` is native-only like the `--screenshot-app` mode it serves; `press` is native-or-test). `capture_state.rs` carries the live-`App` capture constructor and the `CaptureSubject` impl (it needs `App`'s private fields); `press.rs` is item 183's headless press door, moved out of `app/tests/` because the `--screenshot-app` mode is now a production caller. Both bodies live in their own files precisely to keep them off this one."
+lines = 1840
+reason = "item 202 repair round, DOWN 36 from the prior 1876 mark: `theme_font_reshape_decision`, its `ThemeFontReshapeDecision` enum, and their four pure laws moved out to the new `src/app/theme_font_debounce.rs` (a pure fn with no `self`, no GPU, no clock of its own — the scheduling seam's own module, not `App`'s; orchestrator review, 2026-08-01). `app.rs` keeps only the `theme_font_last_reshape_at` field, the shared window constant, and the two call sites that execute whichever verdict the extracted fn returns — the same 'extract rather than raise' call already made for `framebench.rs`'s bench-witness helper this same item. Net across the whole item-202 field: +24 lines — the theme-picker movement-latency regression fix. `THEME_FONT_DEBOUNCE_DEFAULT_MS` gained a concise mechanism doc-comment plus a compile-time `const _: () = assert!(..)` regression pin (the old value, 0, let the deferred font reshape fire synchronously on the SAME `about_to_wait` pass that armed it — see the constant's own doc, and docs/fonts.md for the measured numbers this file no longer carries as changelog prose); `theme_font_debounce_ms_env_parse` now asserts against the named constant instead of a bare `0` literal; `RESIZE_SYNC_SETTLE`'s doc dropped its now-inaccurate \"mirrors THEME_FONT_DEBOUNCE's value\" claim (the two diverged at this item). Previously: item 188: +7 lines — the theme-picker movement-latency regression fix. `THEME_FONT_DEBOUNCE_DEFAULT_MS` gained a concise mechanism doc-comment plus a compile-time `const _: () = assert!(..)` regression pin (the old value, 0, let the deferred font reshape fire synchronously on the SAME `about_to_wait` pass that armed it — see the constant's own doc, and docs/fonts.md for the measured numbers this file no longer carries as changelog prose); `theme_font_debounce_ms_env_parse` now asserts against the named constant instead of a bare `0` literal; `RESIZE_SYNC_SETTLE`'s doc dropped its now-inaccurate \"mirrors THEME_FONT_DEBOUNCE's value\" claim (the two diverged at this item). Previously: item 188: +7 lines — the `capture_state` and `press` module declarations at the one module list, each with the `#[cfg]` naming where it exists (`capture_state` is native-only like the `--screenshot-app` mode it serves; `press` is native-or-test). `capture_state.rs` carries the live-`App` capture constructor and the `CaptureSubject` impl (it needs `App`'s private fields); `press.rs` is item 183's headless press door, moved out of `app/tests/` because the `--screenshot-app` mode is now a production caller. Both bodies live in their own files precisely to keep them off this one."
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 1037
+lines = 1063
+reason = "item 202 repair round: +26 lines — `retint_theme_preview`'s GPU-gated block now calls `theme_font_reshape_decision` (app.rs) and acts on `Immediate`/`Coalesce` instead of unconditionally stamping `theme_font_at`; `retint_theme_now` and `apply_deferred_theme_font` each gained one line stamping `theme_font_last_reshape_at` so the leading edge's own clock is accurate regardless of which door produced the reshape."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -323,7 +324,8 @@ reason = "item 114: +8 lines. `theme_overlay_geometry` is an exhaustive `Overlay
 
 [[file_size_mark]]
 file = "src/render/framebench.rs"
-lines = 1121
+lines = 1173
+reason = "item 202: +52 lines — `--bench-theme-burst` gained the reshape-count WITNESS the item's own brief demanded (CLAUDE.md's tripwire: this exact bench once \"measured 5ms while nothing reshaped\"). One shared `assert_reshape_witness` helper (extracted rather than inlined three times — item 182) plus three call sites in `burst_doc`: every `BURST_WORLDS` hop must actually reshape (mirrors `benchsuite::scenarios::theme`'s already-fixed witness), every colors-only arrow step must NOT reshape (the split's whole point), and the deferred settle's `sync_theme_font` must reshape at least once. Mutation-proven: a mutation that skipped `sync_theme_font` inside `TextPipeline::sync_theme` made the bench exit 1 with the exact panic text; reverted before commit."
 
 [[file_size_mark]]
 file = "src/render/geometry.rs"
@@ -485,16 +487,16 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 841
-message = "this function has too many lines (217/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 moved 6 lines of state out of the constructor into two owners. Line shifted by item 188's two module declarations (`capture_state`, `press`) landing earlier in the file (+7); count unchanged."
+line = 875
+message = "this function has too many lines (218/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 moved 6 lines of state out of the constructor into two owners. Line shifted by item 188's two module declarations (`capture_state`, `press`) landing earlier in the file (+7); count unchanged. Line shifted by item 202's `THEME_FONT_DEBOUNCE_DEFAULT_MS` doc-comment + compile-time assertion landing earlier in the file (+71 total across both landings); +1 REAL growth (217->218) — the constructor's own exhaustive field list gained `theme_font_last_reshape_at: None,`, the leading-edge rule's new root field (`app/tests/domains.rs`'s field-count ceiling bumped to match)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1343
+line = 1378
 message = "this function has too many lines (106/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+7); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+7); count unchanged. Line shifted by item 202's `THEME_FONT_DEBOUNCE_DEFAULT_MS` doc-comment + compile-time assertion (+24); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -506,9 +508,9 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1602
+line = 1637
 message = "this function has too many lines (102/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+7); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+7); count unchanged. Line shifted by item 202's `THEME_FONT_DEBOUNCE_DEFAULT_MS` doc-comment + compile-time assertion (+24); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -751,9 +753,9 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/framebench.rs"
-line = 435
-message = "this function has too many lines (112/100)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
+line = 459
+message = "this function has too many lines (133/100)"
+reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. Item 202: +21 lines net (function grew 112->133) — the shared `assert_reshape_witness` helper (defined just above `burst_doc`, see the file-size mark's reason above) plus its three call sites, replacing three inlined `ensure!` blocks; witnesses CLAUDE.md's tripwire (this bench once \"measured 5ms while nothing reshaped\")."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

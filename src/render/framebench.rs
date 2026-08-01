@@ -4,7 +4,7 @@
 //! The replay includes every live preparation stage; `STAGE_NAMES` and `mark()` calls
 //! must remain in lockstep.
 
-use anyhow::Context as _;
+use anyhow::{Context as _, ensure};
 use glyphon::{Cache, Resolution};
 use std::path::Path;
 
@@ -432,6 +432,30 @@ async fn theme_burst_async() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// WITNESS a reshape-count delta (item 202) — CLAUDE.md's own tripwire: this
+/// bench once "measured 5ms while nothing reshaped" because it timed
+/// `sync_theme` without ever checking that anything actually reshaped. Every
+/// step below must state which side of that line it expects.
+fn assert_reshape_witness(
+    step: &str,
+    before: u64,
+    after: u64,
+    must_reshape: bool,
+) -> anyhow::Result<()> {
+    if must_reshape {
+        ensure!(
+            after > before,
+            "{step} did not reshape (reshape_count stuck at {before})"
+        );
+    } else {
+        ensure!(
+            after == before,
+            "{step} reshaped when it must not have ({before} -> {after})"
+        );
+    }
+    Ok(())
+}
+
 fn burst_doc(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -506,9 +530,19 @@ fn burst_doc(
 
             // The live apply path: post_transition_effects -> sync_theme (this is where
             // the font-branch reshape — restyle_all_lines over every line — runs).
+            let reshapes_before = p.reshape_count;
             let t0 = Instant::now();
             p.sync_theme();
             let sync_ms = t0.elapsed().as_secs_f64() * 1e3;
+            // WITNESS (item 202): every BURST_WORLDS hop is a different face
+            // (roster comment above), so this must reshape — see
+            // `assert_reshape_witness`'s doc for why this bench asserts it.
+            assert_reshape_witness(
+                &format!("switch to {name} ({face})"),
+                reshapes_before,
+                p.reshape_count,
+                true,
+            )?;
 
             p.set_view(&view);
 
@@ -532,9 +566,18 @@ fn burst_doc(
     for &name in &BURST_WORLDS[..BURST_WORLDS.len() - 1] {
         crate::theme::set_active_by_name(name);
         let face = crate::theme::active().font;
+        let reshapes_before = p.reshape_count;
         let t0 = Instant::now();
         p.sync_theme_colors();
         let colors_ms = t0.elapsed().as_secs_f64() * 1e3;
+        // WITNESS (item 202): the colors-only arrow step must stay reshape-free
+        // — the entire point of the split (docs/fonts.md).
+        assert_reshape_witness(
+            &format!("colors-only step to {name} ({face})"),
+            reshapes_before,
+            p.reshape_count,
+            false,
+        )?;
         p.set_view(&view);
         let s = burst_frame(&mut p, device, queue, &target_view, true)?;
         worst_arrow = worst_arrow.max(colors_ms + s.total);
@@ -543,9 +586,18 @@ fn burst_doc(
             name, face, colors_ms, s.total
         );
     }
+    let reshapes_before = p.reshape_count;
     let t0 = Instant::now();
     p.sync_theme_font();
     let settle_ms = t0.elapsed().as_secs_f64() * 1e3;
+    // WITNESS (item 202): the deferred settle must catch the font up — the
+    // reshape this "debounced preview" shape defers TO.
+    assert_reshape_witness(
+        "the deferred settle",
+        reshapes_before,
+        p.reshape_count,
+        true,
+    )?;
     p.set_view(&view);
     let s = burst_frame(&mut p, device, queue, &target_view, true)?;
     println!(

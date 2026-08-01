@@ -21,6 +21,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const SIZES = [16, 24, 32, 44, 56, 64, 128, 256, 512, 1024];
+const FAVICON_SIZES = [16, 32, 48, 64, 180];
 // The study's own dock checks (it drew at 512 and looked at 44 / 24 / 56),
 // carried forward so the candidates are judged the way the directions were.
 const DOCK_SIZES = [56, 44, 24];
@@ -152,6 +153,15 @@ function tile(world, face, geom, size, id) {
   return `<div class="tile"${idAttr} style="${tileStyle(world, face, geom, size)}"><span class="mark">aw<span class="cur">l</span></span></div>`;
 }
 
+/** The browser-tab companion to the app lockup: the world's own lowercase
+ * `a`, held by the same fake cursor and painted from the same four tokens. */
+function favicon(world, face, geom, size) {
+  // A favicon needs a bolder fake cursor than the app lockup's `l`-shaped
+  // presets: one nearly-square cell, optically padded around a large `a`.
+  const style = tileStyle(world, face, geom, size);
+  return `<div class="tile favicon" style="${style}"><span class="mark"><span class="cur">a</span></span></div>`;
+}
+
 // ------------------------------------------------------------- font css ---
 
 function fontsCss(manifest, fontsDir) {
@@ -235,6 +245,36 @@ function tilesPage(manifest, tuning, size, faceOf) {
     shots,
     html: page({
       title: `awl icon tiles @${size}`,
+      surface: "dark",
+      transparent: true,
+      body: `<div style="position:relative;width:${w}px;height:${h}px">${html}</div>`,
+    }),
+  };
+}
+
+/** One transparent export sheet per favicon size, using each world's shipped
+ * cursor assignment. These are composed natively at every target size. */
+function faviconPage(manifest, tuning, size, faceOf) {
+  const cols = Math.max(1, Math.min(8, Math.floor(1200 / (size + GAP))));
+  const shots = [];
+  let html = "";
+  for (const [i, world] of manifest.worlds.entries()) {
+    const x = GAP + (i % cols) * (size + GAP);
+    const y = GAP + Math.floor(i / cols) * (size + GAP);
+    const geom = geometry(tuning, world.cursor, world.font);
+    html += `<div style="position:absolute;left:${x}px;top:${y}px">${favicon(world, faceOf(world.font), geom, size)}</div>`;
+    shots.push({ out: `favicons/${world.name}-${size}.png`, x, y, w: size, h: size });
+  }
+  const rows = Math.ceil(manifest.worlds.length / cols);
+  const w = GAP + cols * (size + GAP);
+  const h = GAP + rows * (size + GAP);
+  return {
+    file: `favicons-${size}.html`,
+    transparent: true,
+    viewport: { w: Math.min(w, 2000), h: Math.min(h, 2000) },
+    shots,
+    html: page({
+      title: `awl favicons @${size}`,
       surface: "dark",
       transparent: true,
       body: `<div style="position:relative;width:${w}px;height:${h}px">${html}</div>`,
@@ -458,6 +498,7 @@ function main() {
 
   const pages = [];
   for (const size of SIZES) pages.push(tilesPage(manifest, tuning, size, faceOf));
+  for (const size of FAVICON_SIZES) pages.push(faviconPage(manifest, tuning, size, faceOf));
   for (const surface of ["dark", "light"]) pages.push(overviewPage(manifest, tuning, surface, faceOf));
   for (const surface of ["dark", "light"]) pages.push(shippedPage(manifest, tuning, surface, faceOf));
   for (const world of manifest.worlds) pages.push(shippedWorldPage(manifest, tuning, world, faceOf));

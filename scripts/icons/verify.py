@@ -364,6 +364,51 @@ def analyse(path, world):
     }
 
 
+def analyse_favicon(path, world):
+    """Tiny companion mark: transparent corner, dominant ground, cursor + `a`."""
+    w, h, bpp, buf = decode_png(path)
+    ground = hexrgb(world["ground"])
+    cursor = hexrgb(world["primary"])
+    curink = hexrgb(world["primary_content"])
+    counts = {"ground": 0, "cursor": 0, "cursor_ink": 0}
+    pixels = []
+    for y in range(h):
+        for x in range(w):
+            i = (y * w + x) * bpp
+            if bpp == 4 and buf[i + 3] < 128:
+                continue
+            px = (buf[i], buf[i + 1], buf[i + 2])
+            pixels.append((x, y, px))
+            nearest = min(
+                ((dist2(px, color), name) for name, color in (
+                    ("ground", ground), ("cursor", cursor), ("cursor_ink", curink)
+                )),
+                key=lambda pair: pair[0],
+            )
+            if nearest[0] <= 24 * 24 * 3:
+                counts[nearest[1]] += 1
+    cursor_mask = bytearray(w * h)
+    for x, y, px in pixels:
+        coverage = blend_coverage(px, ground, cursor)
+        if coverage is not None and coverage >= 0.08:
+            cursor_mask[y * w + x] = 1
+    # Use the envelope of every cursor pixel. The `a` can divide a tiny cursor
+    # into several connected pieces (especially in two-value worlds), while it
+    # is still plainly one authored shape to the eye.
+    box = bbox([(x, y) for y in range(h) for x in range(w) if cursor_mask[y * w + x]])
+    if box is not None:
+        x0, y0, x1, y1 = box
+        # The highlighted glyph is the contrasting hole inside the cursor.
+        # This also covers two-value worlds where cursor ink equals ground.
+        counts["cursor_ink"] = sum(
+            1 for x, y, px in pixels
+            if x0 <= x <= x1 and y0 <= y <= y1
+            and dist2(px, curink) + 4 < dist2(px, cursor)
+        )
+    corner_alpha = buf[3] if bpp == 4 else 255
+    return {**counts, "corner_alpha": corner_alpha, "area": w * h}
+
+
 def legible(r):
     """Is the knocked-out "l" actually resolvable on the cursor at this size?"""
     return r["cursor_ink"] >= max(3, r["area"] * 0.0006)
@@ -376,6 +421,7 @@ def main():
     ap.add_argument("--presets", default="block,pill,narrow")
     ap.add_argument("--report", help="write the legibility ladder here")
     ap.add_argument("--geometry-report", help="write the shipped-roster geometry table here")
+    ap.add_argument("--favicons", help="directory containing per-world paired favicons")
     args = ap.parse_args()
     manifest = json.loads(pathlib.Path(args.manifest).read_text())
     tiles = pathlib.Path(args.tiles)
@@ -383,6 +429,31 @@ def main():
 
     failures = []
     checked = 0
+
+    if args.favicons:
+        favicon_dir = pathlib.Path(args.favicons)
+        favicon_sizes = [16, 32, 48, 64, 180]
+        for world in manifest["worlds"]:
+            for size in favicon_sizes:
+                p = favicon_dir / f"{world['name']}-{size}.png"
+                if not p.exists():
+                    failures.append(f"{p.name}: missing paired favicon")
+                    continue
+                r = analyse_favicon(p, world)
+                area = r["area"]
+                if r["corner_alpha"] >= 128:
+                    failures.append(f"{p.name}: corner is visibly opaque")
+                if r["ground"] < area * 0.20:
+                    failures.append(f"{p.name}: theme ground missing")
+                if r["cursor"] < max(2, area * 0.015):
+                    failures.append(f"{p.name}: theme cursor missing")
+                if r["cursor_ink"] < max(1, area * 0.004):
+                    failures.append(f"{p.name}: highlighted `a` missing")
+        if not failures:
+            print(
+                f"verify.py: paired favicons carry theme ground, cursor and highlighted `a` "
+                f"for {len(manifest['worlds'])} worlds x {len(favicon_sizes)} sizes"
+            )
     ladder = []
     for world in manifest["worlds"]:
         for preset in presets:
