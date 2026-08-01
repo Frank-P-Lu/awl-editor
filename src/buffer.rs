@@ -3,56 +3,8 @@ use std::path::{Path, PathBuf};
 
 use ropey::Rope;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum Eol {
-    #[default]
-    Lf,
-    Crlf,
-}
-
-impl Eol {
-    pub fn detect(s: &str) -> Eol {
-        // Two vectorized passes over the raw bytes rather than two scalar ones;
-        // `\r\n` cannot overlap itself, so counting it non-overlapping matches
-        // the `match_indices` semantics this replaced.
-        let b = s.as_bytes();
-        let total_lf = memchr::memchr_iter(b'\n', b).count();
-        // Every '\n' immediately preceded by a '\r' is a CRLF pair.
-        let crlf = memchr::memmem::find_iter(b, b"\r\n").count();
-        let lone_lf = total_lf - crlf;
-        if crlf > lone_lf { Eol::Crlf } else { Eol::Lf }
-    }
-
-    /// Encode text for disk without doubling CRLF introduced by other input paths.
-    pub fn encode<'a>(&self, lf_text: &'a str) -> Cow<'a, str> {
-        match self {
-            Eol::Lf => Cow::Borrowed(lf_text),
-            Eol::Crlf if lf_text.contains('\n') => {
-                Cow::Owned(normalize_eol(lf_text).replace('\n', "\r\n"))
-            }
-            Eol::Crlf => Cow::Borrowed(lf_text),
-        }
-    }
-
-    /// The short UI label for this ending — `"LF"` / `"CRLF"` — shown by the held
-    /// stats HUD's LINE ENDINGS row and named in the capture sidecar's `hud.eol`
-    /// field. A pure function, so it is deterministic and capture-safe.
-    pub fn label(&self) -> &'static str {
-        match self {
-            Eol::Lf => "LF",
-            Eol::Crlf => "CRLF",
-        }
-    }
-
-    /// The OTHER ending — the target of the "Line endings…" toggle
-    /// (`Lf`↔`Crlf`). awl recognizes exactly two, so a toggle is total.
-    pub fn toggled(&self) -> Eol {
-        match self {
-            Eol::Lf => Eol::Crlf,
-            Eol::Crlf => Eol::Lf,
-        }
-    }
-}
+mod eol;
+pub use eol::Eol;
 
 /// Normalize a freshly-read file string to the buffer's pure-`\n` model: strip the
 /// `\r` from every `\r\n` pair so no CRLF ever enters the rope. A LONE `\r` (or
