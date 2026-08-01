@@ -14,29 +14,10 @@ jobs:
   linux:
     name: linux (build + test)
     runs-on: ubuntu-latest
-    # Item 196 (2026-08-01): this job was measured at 28.1m against the old
-    # 30m ceiling — 1.9m of headroom, and four of the last six mac/linux runs
-    # actually timed out (GitHub reports a timeout as `cancelled`, identical
-    # to a supersede). Two measured fixes land here: sccache installs AFTER
-    # the cache restore instead of compiling from source every run (was
-    # 4.0m of this job; near-zero once the restore supplies the binary), and
-    # tests/caret_punctuation_pixels.rs splits into five per-world `#[test]`s
-    # so cargo's default concurrent runner can parallelize what was one
-    # single-threaded 166s subprocess-spawn loop. 25m keeps real headroom
-    # over the reduced total while still catching the next growth spurt
-    # earlier than 30m would. Parallelizing the two keymap conventions as
-    # separate matrix legs (the largest remaining lever) is intentionally
-    # NOT done here: native-gate.sh's receipt is the sole authorization for
-    # "full native suite" and composing it from two split jobs is a contract
-    # change this task does not get to make alone (see the item).
-    # RAISED 25 -> 35 on 2026-08-01 by the first real run after item 196:
-    # mac fell 29.9m -> 19.2m, but linux measured 25.2m and was cancelled by
-    # the 25m ceiling item 196 set from a 20-21m projection. That run was
-    # also the FIRST with the reordered sccache step, so rust-cache had
-    # nothing to restore yet; the next run tests whether linux drops further.
-    # 35 buys headroom while that is observed, rather than leaving main's only
-    # real-Linux coverage unverified on a ceiling the measurement disproved.
-    timeout-minutes: 35
+    # The native gate is intentionally exhaustive and currently takes about
+    # 35 minutes on a cold hosted runner. Keep enough variance headroom while
+    # retaining a finite ceiling for genuine hangs.
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v7
         with:
@@ -165,16 +146,9 @@ jobs:
   mac:
     name: mac (build + test)
     runs-on: macos-latest
-    # Item 196 (2026-08-01): see the linux job's comment — same two fixes
-    # (sccache after cache restore, caret_punctuation_pixels.rs split into
-    # per-world tests).
-    # RAISED 25 -> 35 on 2026-08-01: four post-196 runs measured 19m13s,
-    # 20m48s, 25m00s and 25m18s, and the last was cancelled by the 25m
-    # ceiling. This runner's spread is ~6m wide, so a ceiling within it
-    # cancels healthy runs — and a cancelled run is not a pass, so it costs
-    # main's mac coverage rather than saving minutes. 35 matches linux and
-    # still catches a hang, which is the only thing this ceiling is for.
-    timeout-minutes: 35
+    # Match Linux's variance allowance: the same exhaustive gate runs here,
+    # and hosted macOS performance varies substantially between runs.
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v7
 
