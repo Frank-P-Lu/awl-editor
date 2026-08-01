@@ -1728,7 +1728,11 @@ fn recieve_stuff(definately: &str) -> &str {\n\
     /// lines. Placing spans in the TAIL is the whole point: a span on line 0
     /// costs the naive walk nothing, so a law built from early spans passes
     /// with the quadratic still in place.
-    fn tail_span_doc(lines: usize, words_per_line: usize, tail_lines: usize) -> (String, Vec<Misspelling>) {
+    fn tail_span_doc(
+        lines: usize,
+        words_per_line: usize,
+        tail_lines: usize,
+    ) -> (String, Vec<Misspelling>) {
         let mut text = String::new();
         for l in 0..lines {
             for w in 0..words_per_line {
@@ -1782,7 +1786,10 @@ fn recieve_stuff(definately: &str) -> &str {\n\
         // Non-vacuity: the spans must actually RESOLVE. A bug that returned ""
         // for everything would be fast and useless, so pin the payload too.
         assert_eq!(vis.len(), spans.len(), "every tail span must stay valid");
-        assert_eq!(cache[0].word, "wrd03200x00", "spans must resolve to real words");
+        assert_eq!(
+            cache[0].word, "wrd03200x00",
+            "spans must resolve to real words"
+        );
 
         // The linear cost here is ~2ms and the per-span walk it replaced ~590ms,
         // so this ceiling clears the fix by ~50x and trips the bug by ~6x.
@@ -1793,5 +1800,4 @@ fn recieve_stuff(definately: &str) -> &str {\n\
              visible {visible_ms:.0}ms (ceiling {CEILING_MS:.0}ms each)"
         );
     }
-
 }
