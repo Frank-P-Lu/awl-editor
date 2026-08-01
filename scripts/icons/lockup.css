@@ -25,6 +25,9 @@
  *   --sy                bounded per-display-face optical seat correction, as
  *                       a percentage of the shared wordmark font size. It
  *                       moves the complete inline run, never one glyph.
+ *   --cy                the one global fake-cursor optical correction, in em
+ *                       so it scales with the shared wordmark font size. It
+ *                       moves only the cursor, never the glyph run/baseline.
  *   --fw                font-weight, always the weight the FONT FILE declares
  *                       (IBM Plex Mono's regular slot is 300 — see docs/fonts.md).
  * so the entire tile scales exactly with --s, from 1024 down to 16.
@@ -83,6 +86,7 @@
   bottom: var(--ib);
   background: var(--cursor);
   border-radius: var(--r);
+  transform: translateY(var(--cy));
 }
 
 /* The favicon is not a crop of the wordmark. Its one `a` is composed for the

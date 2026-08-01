@@ -1,121 +1,121 @@
 world           face                  preset   px   wordmark ink bbox   cursor bbox         l ink bbox          aw baseline
-Tawny           IBM Plex Mono         block    256  (26, 81, 227, 173)  (168, 54, 235, 201) (175, 81, 227, 171) 173
-Tawny           IBM Plex Mono         block    128  (13, 40, 113, 85)   (84, 26, 117, 100)  (88, 40, 113, 84)   85
-Tawny           IBM Plex Mono         block     64  (6, 19, 56, 42)     (42, 13, 58, 49)    (44, 19, 56, 41)    42
-Tawny           IBM Plex Mono         block     44  (4, 13, 38, 29)     (29, 8, 40, 34)     (30, 13, 38, 28)    29
-Tawny           IBM Plex Mono         block     32  (3, 10, 25, 20)     (21, 6, 28, 24)     (24, 10, 25, 19)    20
-Tawny           IBM Plex Mono         block     24  (2, 4, 21, 15)      (16, 4, 21, 18)     (16, 4, 21, 4)      15
-Mopoke          Bitter                pill     256  (35, 76, 223, 171)  (188, 54, 229, 190) (195, 76, 223, 170) 171
-Mopoke          Bitter                pill     128  (17, 38, 111, 85)   (94, 28, 114, 95)   (97, 38, 111, 84)   85
-Mopoke          Bitter                pill      64  (8, 19, 55, 43)     (47, 12, 57, 46)    (49, 19, 55, 42)    43
-Mopoke          Bitter                pill      44  (6, 12, 38, 27)     (32, 8, 39, 32)     (34, 12, 38, 27)    27
-Mopoke          Bitter                pill      32  (4, 11, 26, 19)     (24, 6, 28, 23)     (26, 13, 26, 18)    19
-Mopoke          Bitter                pill      24  (3, 6, 19, 14)      (17, 4, 22, 17)     (19, 6, 19, 13)     14
-Currawong       Iosevka               pill     256  (43, 89, 213, 173)  (183, 69, 216, 199) (185, 89, 213, 172) 173
-Currawong       Iosevka               pill     128  (22, 44, 106, 86)   (91, 34, 107, 98)   (93, 44, 106, 85)   86
-Currawong       Iosevka               pill      64  (11, 23, 52, 44)    (46, 16, 53, 49)    (47, 23, 52, 43)    44
-Currawong       Iosevka               pill      44  (7, 15, 35, 28)     (31, 12, 36, 33)    (33, 15, 35, 28)    28
-Currawong       Iosevka               pill      32  (5, 11, 25, 20)     (23, 7, 26, 24)     (24, 11, 25, 20)    20
-Currawong       Iosevka               pill      24  (4, 8, 18, 15)      (17, 5, 19, 18)     (18, 8, 18, 15)     15
-Potoroo         Monaspace Xenon       block    256  (21, 77, 233, 173)  (168, 63, 240, 193) (175, 77, 233, 171) 173
-Potoroo         Monaspace Xenon       block    128  (10, 38, 116, 85)   (84, 31, 119, 96)   (87, 38, 116, 84)   85
-Potoroo         Monaspace Xenon       block     64  (5, 19, 58, 43)     (42, 15, 59, 47)    (44, 19, 58, 42)    43
-Potoroo         Monaspace Xenon       block     44  (3, 13, 39, 29)     (29, 10, 40, 32)    (30, 13, 39, 28)    29
-Potoroo         Monaspace Xenon       block     32  (2, 9, 28, 21)      (20, 6, 29, 23)     (22, 9, 28, 20)     21
-Potoroo         Monaspace Xenon       block     24  (2, 7, 21, 15)      (16, 6, 22, 17)     (17, 7, 21, 15)     15
-Gumtree         Literata              block    256  (30, 78, 228, 173)  (187, 38, 235, 206) (196, 78, 228, 171) 173
-Gumtree         Literata              block    128  (15, 39, 114, 86)   (93, 19, 117, 102)  (98, 39, 114, 85)   86
-Gumtree         Literata              block     64  (7, 19, 56, 43)     (47, 8, 58, 50)     (49, 19, 56, 42)    43
-Gumtree         Literata              block     44  (5, 13, 38, 29)     (32, 5, 40, 35)     (34, 13, 38, 28)    29
-Gumtree         Literata              block     32  (4, 9, 27, 21)      (22, 5, 30, 25)     (25, 9, 27, 20)     21
-Gumtree         Literata              block     24  (3, 7, 20, 15)      (17, 2, 22, 19)     (19, 7, 20, 13)     15
-Bilby           Newsreader 16pt 16pt  block    256  (44, 84, 214, 173)  (180, 77, 220, 196) (186, 84, 214, 171) 173
-Bilby           Newsreader 16pt 16pt  block    128  (22, 42, 106, 86)   (90, 39, 110, 98)   (93, 42, 106, 85)   86
-Bilby           Newsreader 16pt 16pt  block     64  (11, 21, 53, 43)    (45, 18, 54, 48)    (47, 21, 53, 42)    43
-Bilby           Newsreader 16pt 16pt  block     44  (7, 14, 36, 29)     (31, 12, 37, 33)    (32, 14, 36, 28)    29
-Bilby           Newsreader 16pt 16pt  block     32  (5, 10, 25, 21)     (23, 10, 27, 23)    (23, 10, 25, 20)    21
-Bilby           Newsreader 16pt 16pt  block     24  (4, 7, 20, 14)      (17, 7, 20, 18)     (17, 7, 20, 14)     14
-Saltpan         Fraunces 9pt          pill     256  (32, 81, 225, 173)  (169, 55, 233, 193) (198, 81, 225, 171) 173
-Saltpan         Fraunces 9pt          pill     128  (16, 40, 112, 85)   (94, 27, 116, 96)   (99, 40, 112, 84)   85
-Saltpan         Fraunces 9pt          pill      64  (8, 20, 55, 43)     (47, 14, 58, 48)    (50, 20, 55, 42)    43
-Saltpan         Fraunces 9pt          pill      44  (5, 14, 37, 29)     (30, 9, 39, 32)     (34, 14, 37, 28)    29
-Saltpan         Fraunces 9pt          pill      32  (4, 10, 27, 21)     (22, 7, 28, 23)     (25, 10, 27, 20)    21
-Saltpan         Fraunces 9pt          pill      24  (3, 7, 20, 14)      (18, 5, 21, 16)     (19, 7, 20, 14)     14
-Quokka          Sour Gummy            pill     256  (33, 93, 221, 172)  (202, 60, 228, 205) (209, 93, 221, 172) 172
-Quokka          Sour Gummy            pill     128  (17, 46, 110, 85)   (101, 30, 113, 103) (104, 46, 110, 85)  85
-Quokka          Sour Gummy            pill      64  (8, 24, 55, 43)     (51, 14, 56, 51)    (52, 24, 55, 43)    43
-Quokka          Sour Gummy            pill      44  (6, 17, 37, 28)     (35, 10, 38, 35)    (36, 17, 37, 28)    28
-Quokka          Sour Gummy            pill      32  (4, 10, 27, 19)     (24, 7, 29, 25)     (26, 10, 27, 19)    19
-Quokka          Sour Gummy            pill      24  (3, 9, 20, 18)      (18, 5, 21, 18)     (19, 18, 20, 18)    14
-Bombora         EB Garamond           block    256  (52, 85, 205, 173)  (175, 56, 211, 203) (181, 85, 205, 170) 173
-Bombora         EB Garamond           block    128  (26, 42, 102, 86)   (88, 28, 105, 101)  (91, 42, 102, 84)   86
-Bombora         EB Garamond           block     64  (13, 22, 50, 43)    (44, 14, 52, 50)    (46, 22, 50, 42)    43
-Bombora         EB Garamond           block     44  (9, 14, 34, 29)     (30, 10, 35, 34)    (32, 14, 34, 28)    29
-Bombora         EB Garamond           block     32  (6, 9, 24, 20)      (22, 7, 25, 24)     (23, 9, 24, 12)     20
-Bombora         EB Garamond           block     24  (5, 11, 18, 15)     (16, 5, 19, 18)     (17, 12, 18, 15)    15
-Bowerbird       IBM Plex Sans         pill     256  (37, 81, 220, 173)  (188, 54, 227, 201) (201, 81, 220, 171) 173
-Bowerbird       IBM Plex Sans         pill     128  (18, 40, 109, 85)   (94, 26, 113, 100)  (101, 40, 109, 84)  85
-Bowerbird       IBM Plex Sans         pill      64  (9, 19, 54, 42)     (47, 13, 56, 49)    (50, 19, 54, 41)    42
-Bowerbird       IBM Plex Sans         pill      44  (6, 13, 37, 29)     (32, 8, 38, 34)     (35, 13, 37, 28)    29
-Bowerbird       IBM Plex Sans         pill      32  (4, 10, 26, 21)     (23, 6, 27, 24)     (25, 10, 26, 19)    21
-Bowerbird       IBM Plex Sans         pill      24  (3, 8, 19, 15)      (17, 4, 21, 18)     (19, 8, 19, 14)     15
-Mulga           Zilla Slab            pill     256  (41, 86, 216, 172)  (184, 63, 222, 199) (190, 86, 216, 170) 172
-Mulga           Zilla Slab            pill     128  (20, 43, 108, 85)   (92, 31, 111, 99)   (95, 43, 108, 84)   85
-Mulga           Zilla Slab            pill      64  (10, 21, 53, 42)    (46, 15, 55, 49)    (47, 21, 53, 41)    42
-Mulga           Zilla Slab            pill      44  (7, 14, 35, 29)     (32, 11, 37, 34)    (33, 14, 35, 27)    29
-Mulga           Zilla Slab            pill      32  (5, 9, 26, 19)      (23, 7, 27, 24)     (24, 9, 26, 19)     19
-Mulga           Zilla Slab            pill      24  (4, 9, 19, 14)      (17, 5, 20, 17)     (18, 14, 19, 14)    14
-Mangrove        JetBrains Mono        block    256  (25, 82, 231, 173)  (166, 56, 236, 204) (168, 82, 231, 171) 173
-Mangrove        JetBrains Mono        block    128  (12, 41, 115, 86)   (83, 28, 118, 102)  (84, 41, 115, 85)   86
-Mangrove        JetBrains Mono        block     64  (6, 23, 57, 43)     (42, 14, 58, 50)    (48, 23, 57, 40)    43
-Mangrove        JetBrains Mono        block     44  (4, 16, 39, 29)     (29, 9, 40, 34)     (33, 16, 39, 28)    29
-Mangrove        JetBrains Mono        block     32  (3, 11, 28, 20)     (21, 7, 29, 25)     (24, 11, 28, 20)    20
-Mangrove        JetBrains Mono        block     24  (2, 9, 18, 15)      (16, 5, 21, 18)     (18, 9, 18, 14)     15
-Galah           Figtree               narrow   256  (40, 86, 211, 173)  (191, 63, 218, 200) (202, 86, 211, 171) 173
-Galah           Figtree               narrow   128  (20, 43, 105, 86)   (88, 32, 109, 99)   (101, 43, 105, 85)  86
-Galah           Figtree               narrow    64  (10, 20, 52, 42)    (45, 15, 54, 49)    (51, 20, 52, 41)    42
-Galah           Figtree               narrow    44  (7, 14, 35, 29)     (30, 11, 37, 34)    (35, 14, 35, 28)    29
-Galah           Figtree               narrow    32  (5, 10, 26, 20)     (24, 7, 26, 25)     (25, 10, 26, 20)    20
-Galah           Figtree               narrow    24  (3, 7, 19, 14)      (18, 5, 20, 17)     (19, 7, 19, 14)     14
-Magpie          Bitter                block    256  (35, 76, 223, 171)  (188, 64, 229, 201) (195, 76, 223, 170) 171
-Magpie          Bitter                block    128  (17, 38, 111, 85)   (94, 33, 114, 100)  (97, 38, 111, 84)   85
-Magpie          Bitter                block     64  (8, 19, 55, 43)     (47, 15, 57, 49)    (49, 19, 55, 42)    43
-Magpie          Bitter                block     44  (6, 12, 38, 27)     (31, 10, 40, 34)    (34, 12, 38, 27)    27
-Magpie          Bitter                block     32  (4, 8, 27, 19)      (24, 7, 28, 24)     (25, 8, 27, 19)     19
-Magpie          Bitter                block     24  (3, 6, 20, 14)      (17, 5, 22, 18)     (19, 6, 20, 14)     14
-Brolga          IBM Plex Sans         pill     256  (37, 81, 220, 173)  (188, 54, 227, 201) (201, 81, 220, 171) 173
-Brolga          IBM Plex Sans         pill     128  (18, 40, 109, 85)   (94, 26, 113, 100)  (101, 40, 109, 84)  85
-Brolga          IBM Plex Sans         pill      64  (9, 19, 54, 42)     (47, 13, 56, 49)    (50, 19, 54, 41)    42
-Brolga          IBM Plex Sans         pill      44  (6, 13, 37, 29)     (32, 8, 38, 34)     (35, 13, 37, 28)    29
-Brolga          IBM Plex Sans         pill      32  (4, 10, 26, 21)     (23, 6, 27, 24)     (25, 10, 26, 19)    21
-Brolga          IBM Plex Sans         pill      24  (3, 8, 19, 15)      (17, 4, 21, 18)     (19, 8, 19, 14)     15
-Wagtail         JetBrains Mono        block    256  (25, 82, 231, 173)  (166, 56, 236, 204) (168, 82, 231, 171) 173
-Wagtail         JetBrains Mono        block    128  (12, 41, 115, 86)   (83, 28, 118, 102)  (84, 41, 115, 85)   86
-Wagtail         JetBrains Mono        block     64  (6, 21, 57, 43)     (42, 14, 58, 50)    (42, 21, 57, 42)    43
-Wagtail         JetBrains Mono        block     44  (4, 14, 39, 29)     (29, 9, 40, 34)     (33, 14, 39, 28)    29
-Wagtail         JetBrains Mono        block     32  (3, 11, 28, 20)     (21, 7, 29, 25)     (24, 11, 28, 20)    20
-Wagtail         JetBrains Mono        block     24  (2, 8, 18, 15)      (16, 5, 21, 18)     (16, 8, 18, 14)     15
-Firetail        Monaspace Xenon       block    256  (21, 77, 233, 173)  (168, 63, 240, 193) (175, 77, 233, 171) 173
-Firetail        Monaspace Xenon       block    128  (10, 38, 116, 85)   (84, 31, 119, 96)   (87, 38, 116, 84)   85
-Firetail        Monaspace Xenon       block     64  (5, 19, 58, 43)     (42, 15, 59, 47)    (44, 19, 58, 42)    43
-Firetail        Monaspace Xenon       block     44  (3, 13, 39, 29)     (29, 10, 40, 32)    (30, 13, 39, 28)    29
-Firetail        Monaspace Xenon       block     32  (2, 9, 28, 21)      (20, 6, 29, 23)     (22, 9, 28, 20)     21
-Firetail        Monaspace Xenon       block     24  (2, 8, 19, 15)      (16, 6, 22, 17)     (18, 8, 19, 14)     15
-Cassowary       Iosevka               block    256  (43, 89, 213, 173)  (183, 71, 216, 201) (185, 89, 213, 172) 173
-Cassowary       Iosevka               block    128  (22, 44, 106, 86)   (91, 35, 107, 99)   (93, 44, 106, 85)   86
-Cassowary       Iosevka               block     64  (11, 23, 52, 44)    (46, 17, 53, 50)    (47, 23, 52, 43)    44
-Cassowary       Iosevka               block     44  (7, 15, 35, 28)     (26, 12, 36, 33)    (33, 15, 35, 28)    28
+Tawny           IBM Plex Mono         block    256  (26, 81, 227, 173)  (168, 49, 235, 196) (175, 81, 227, 171) 173
+Tawny           IBM Plex Mono         block    128  (13, 40, 113, 85)   (84, 24, 117, 98)   (88, 40, 113, 84)   85
+Tawny           IBM Plex Mono         block     64  (6, 19, 56, 42)     (42, 12, 58, 48)    (44, 19, 56, 41)    42
+Tawny           IBM Plex Mono         block     44  (4, 13, 38, 29)     (29, 7, 40, 33)     (30, 13, 38, 28)    29
+Tawny           IBM Plex Mono         block     32  (3, 10, 25, 20)     (21, 6, 28, 23)     (24, 10, 25, 19)    20
+Tawny           IBM Plex Mono         block     24  (2, 10, 21, 18)     (15, 4, 22, 18)     (16, 18, 21, 18)    15
+Mopoke          Bitter                pill     256  (35, 76, 223, 171)  (188, 49, 229, 185) (195, 76, 223, 170) 171
+Mopoke          Bitter                pill     128  (17, 38, 111, 85)   (94, 25, 114, 92)   (97, 38, 111, 84)   85
+Mopoke          Bitter                pill      64  (8, 19, 55, 43)     (47, 11, 57, 45)    (49, 19, 55, 42)    43
+Mopoke          Bitter                pill      44  (6, 12, 38, 27)     (32, 7, 39, 31)     (34, 12, 38, 27)    27
+Mopoke          Bitter                pill      32  (4, 11, 26, 19)     (24, 5, 28, 22)     (26, 13, 26, 18)    19
+Mopoke          Bitter                pill      24  (3, 6, 19, 14)      (18, 3, 21, 16)     (19, 6, 19, 13)     14
+Currawong       Iosevka               pill     256  (43, 89, 213, 173)  (183, 64, 216, 194) (185, 89, 213, 172) 173
+Currawong       Iosevka               pill     128  (22, 44, 106, 86)   (91, 31, 107, 96)   (93, 44, 106, 85)   86
+Currawong       Iosevka               pill      64  (11, 23, 52, 44)    (46, 15, 53, 48)    (47, 23, 52, 43)    44
+Currawong       Iosevka               pill      44  (7, 15, 35, 28)     (31, 11, 36, 33)    (33, 15, 35, 28)    28
+Currawong       Iosevka               pill      32  (5, 11, 25, 20)     (22, 7, 27, 24)     (24, 11, 25, 20)    20
+Currawong       Iosevka               pill      24  (4, 8, 18, 15)      (17, 5, 19, 17)     (18, 8, 18, 15)     15
+Potoroo         Monaspace Xenon       block    256  (21, 77, 233, 173)  (168, 58, 240, 188) (175, 77, 233, 171) 173
+Potoroo         Monaspace Xenon       block    128  (10, 38, 116, 85)   (84, 29, 119, 93)   (87, 38, 116, 84)   85
+Potoroo         Monaspace Xenon       block     64  (5, 19, 58, 43)     (42, 14, 59, 46)    (44, 19, 58, 42)    43
+Potoroo         Monaspace Xenon       block     44  (3, 13, 39, 29)     (29, 10, 40, 31)    (30, 13, 39, 28)    29
+Potoroo         Monaspace Xenon       block     32  (2, 9, 28, 21)      (21, 6, 29, 23)     (22, 9, 28, 20)     21
+Potoroo         Monaspace Xenon       block     24  (2, 7, 21, 15)      (16, 5, 22, 17)     (17, 7, 21, 15)     15
+Gumtree         Literata              block    256  (30, 78, 228, 173)  (187, 33, 235, 201) (196, 78, 228, 171) 173
+Gumtree         Literata              block    128  (15, 39, 114, 86)   (93, 17, 117, 100)  (98, 39, 114, 85)   86
+Gumtree         Literata              block     64  (7, 19, 56, 43)     (47, 7, 58, 49)     (49, 19, 56, 42)    43
+Gumtree         Literata              block     44  (5, 13, 38, 29)     (32, 4, 40, 34)     (34, 13, 38, 28)    29
+Gumtree         Literata              block     32  (4, 9, 27, 21)      (23, 4, 29, 25)     (25, 9, 27, 20)     21
+Gumtree         Literata              block     24  (3, 7, 20, 15)      (18, 1, 21, 18)     (19, 7, 20, 13)     15
+Bilby           Newsreader 16pt 16pt  block    256  (44, 84, 214, 173)  (180, 72, 220, 191) (186, 84, 214, 171) 173
+Bilby           Newsreader 16pt 16pt  block    128  (22, 42, 106, 86)   (90, 36, 110, 96)   (93, 42, 106, 85)   86
+Bilby           Newsreader 16pt 16pt  block     64  (11, 21, 53, 43)    (45, 16, 54, 47)    (47, 21, 53, 42)    43
+Bilby           Newsreader 16pt 16pt  block     44  (7, 14, 36, 29)     (31, 12, 37, 32)    (32, 14, 36, 28)    29
+Bilby           Newsreader 16pt 16pt  block     32  (5, 9, 27, 21)      (23, 9, 27, 23)     (23, 9, 27, 20)     21
+Bilby           Newsreader 16pt 16pt  block     24  (4, 7, 19, 14)      (17, 7, 20, 17)     (18, 7, 19, 14)     14
+Saltpan         Fraunces 9pt          pill     256  (32, 81, 225, 173)  (169, 50, 233, 188) (198, 81, 225, 171) 173
+Saltpan         Fraunces 9pt          pill     128  (16, 40, 112, 85)   (94, 24, 116, 94)   (99, 40, 112, 84)   85
+Saltpan         Fraunces 9pt          pill      64  (8, 20, 55, 43)     (47, 12, 58, 47)    (50, 20, 55, 42)    43
+Saltpan         Fraunces 9pt          pill      44  (5, 14, 37, 29)     (30, 8, 39, 32)     (34, 14, 37, 28)    29
+Saltpan         Fraunces 9pt          pill      32  (4, 10, 27, 21)     (22, 6, 28, 23)     (25, 10, 27, 20)    21
+Saltpan         Fraunces 9pt          pill      24  (3, 7, 20, 14)      (18, 4, 21, 16)     (19, 7, 20, 14)     14
+Quokka          Sour Gummy            pill     256  (33, 93, 221, 172)  (202, 55, 228, 200) (209, 93, 221, 172) 172
+Quokka          Sour Gummy            pill     128  (17, 46, 110, 85)   (101, 27, 113, 100) (104, 46, 110, 85)  85
+Quokka          Sour Gummy            pill      64  (8, 24, 55, 43)     (51, 13, 56, 50)    (52, 24, 55, 43)    43
+Quokka          Sour Gummy            pill      44  (6, 17, 37, 28)     (35, 9, 38, 34)     (36, 17, 37, 28)    28
+Quokka          Sour Gummy            pill      32  (4, 10, 27, 19)     (25, 6, 28, 24)     (26, 10, 27, 19)    19
+Quokka          Sour Gummy            pill      24  (3, 4, 20, 14)      (19, 4, 20, 17)     (19, 4, 20, 4)      14
+Bombora         EB Garamond           block    256  (52, 85, 205, 173)  (175, 51, 211, 198) (181, 85, 205, 170) 173
+Bombora         EB Garamond           block    128  (26, 42, 102, 86)   (88, 25, 105, 99)   (91, 42, 102, 84)   86
+Bombora         EB Garamond           block     64  (13, 22, 50, 43)    (44, 12, 52, 49)    (46, 22, 50, 42)    43
+Bombora         EB Garamond           block     44  (9, 14, 34, 29)     (30, 9, 35, 34)     (32, 14, 34, 28)    29
+Bombora         EB Garamond           block     32  (6, 9, 24, 20)      (22, 6, 25, 24)     (23, 9, 24, 12)     20
+Bombora         EB Garamond           block     24  (5, 11, 18, 15)     (16, 4, 19, 18)     (17, 12, 18, 15)    15
+Bowerbird       IBM Plex Sans         pill     256  (37, 81, 220, 173)  (188, 49, 227, 196) (201, 81, 220, 171) 173
+Bowerbird       IBM Plex Sans         pill     128  (18, 40, 109, 85)   (94, 24, 113, 98)   (101, 40, 109, 84)  85
+Bowerbird       IBM Plex Sans         pill      64  (9, 19, 54, 42)     (47, 12, 56, 48)    (50, 19, 54, 41)    42
+Bowerbird       IBM Plex Sans         pill      44  (6, 13, 37, 29)     (32, 7, 38, 33)     (35, 13, 37, 28)    29
+Bowerbird       IBM Plex Sans         pill      32  (4, 10, 26, 21)     (23, 6, 27, 23)     (25, 10, 26, 19)    21
+Bowerbird       IBM Plex Sans         pill      24  (3, 8, 19, 15)      (18, 4, 20, 18)     (19, 8, 19, 14)     15
+Mulga           Zilla Slab            pill     256  (41, 86, 216, 172)  (184, 58, 222, 194) (190, 86, 216, 170) 172
+Mulga           Zilla Slab            pill     128  (20, 43, 108, 85)   (92, 29, 111, 97)   (95, 43, 108, 84)   85
+Mulga           Zilla Slab            pill      64  (10, 21, 53, 42)    (46, 14, 55, 47)    (47, 21, 53, 41)    42
+Mulga           Zilla Slab            pill      44  (7, 14, 35, 29)     (32, 10, 37, 33)    (33, 14, 35, 27)    29
+Mulga           Zilla Slab            pill      32  (5, 9, 26, 19)      (23, 6, 27, 23)     (24, 9, 26, 19)     19
+Mulga           Zilla Slab            pill      24  (4, 4, 19, 14)      (17, 4, 20, 17)     (18, 4, 19, 4)      14
+Mangrove        JetBrains Mono        block    256  (25, 82, 231, 173)  (166, 51, 236, 199) (168, 82, 231, 171) 173
+Mangrove        JetBrains Mono        block    128  (12, 41, 115, 86)   (83, 25, 118, 100)  (84, 41, 115, 85)   86
+Mangrove        JetBrains Mono        block     64  (6, 23, 57, 43)     (42, 12, 58, 49)    (48, 23, 57, 40)    43
+Mangrove        JetBrains Mono        block     44  (4, 16, 39, 29)     (29, 8, 40, 34)     (33, 16, 39, 28)    29
+Mangrove        JetBrains Mono        block     32  (3, 11, 28, 20)     (21, 6, 29, 25)     (24, 11, 28, 20)    20
+Mangrove        JetBrains Mono        block     24  (2, 9, 18, 15)      (16, 4, 21, 18)     (18, 9, 18, 14)     15
+Galah           Figtree               narrow   256  (40, 86, 211, 173)  (191, 58, 218, 195) (202, 86, 211, 171) 173
+Galah           Figtree               narrow   128  (20, 43, 105, 86)   (88, 30, 109, 97)   (101, 43, 105, 85)  86
+Galah           Figtree               narrow    64  (10, 20, 52, 42)    (45, 14, 54, 47)    (51, 20, 52, 41)    42
+Galah           Figtree               narrow    44  (7, 14, 35, 29)     (30, 10, 37, 33)    (35, 14, 35, 28)    29
+Galah           Figtree               narrow    32  (5, 10, 26, 20)     (24, 6, 26, 24)     (25, 10, 26, 20)    20
+Galah           Figtree               narrow    24  (3, 7, 19, 14)      (17, 4, 21, 17)     (19, 7, 19, 14)     14
+Magpie          Bitter                block    256  (35, 76, 223, 171)  (188, 59, 229, 196) (195, 76, 223, 170) 171
+Magpie          Bitter                block    128  (17, 38, 111, 85)   (94, 30, 114, 97)   (97, 38, 111, 84)   85
+Magpie          Bitter                block     64  (8, 19, 55, 43)     (47, 14, 57, 48)    (49, 19, 55, 42)    43
+Magpie          Bitter                block     44  (6, 12, 38, 27)     (32, 9, 39, 33)     (34, 12, 38, 27)    27
+Magpie          Bitter                block     32  (4, 8, 27, 19)      (24, 6, 28, 23)     (25, 8, 27, 19)     19
+Magpie          Bitter                block     24  (3, 6, 20, 14)      (18, 4, 21, 17)     (19, 6, 20, 14)     14
+Brolga          IBM Plex Sans         pill     256  (37, 81, 220, 173)  (188, 49, 227, 196) (201, 81, 220, 171) 173
+Brolga          IBM Plex Sans         pill     128  (18, 40, 109, 85)   (94, 24, 113, 98)   (101, 40, 109, 84)  85
+Brolga          IBM Plex Sans         pill      64  (9, 19, 54, 42)     (47, 12, 56, 48)    (50, 19, 54, 41)    42
+Brolga          IBM Plex Sans         pill      44  (6, 13, 37, 29)     (32, 7, 38, 33)     (35, 13, 37, 28)    29
+Brolga          IBM Plex Sans         pill      32  (4, 10, 26, 21)     (23, 6, 27, 23)     (25, 10, 26, 19)    21
+Brolga          IBM Plex Sans         pill      24  (3, 8, 19, 15)      (18, 4, 20, 18)     (19, 8, 19, 14)     15
+Wagtail         JetBrains Mono        block    256  (25, 82, 231, 173)  (166, 51, 236, 199) (168, 82, 231, 171) 173
+Wagtail         JetBrains Mono        block    128  (12, 41, 115, 86)   (83, 25, 118, 100)  (84, 41, 115, 85)   86
+Wagtail         JetBrains Mono        block     64  (6, 21, 57, 43)     (42, 12, 58, 49)    (42, 21, 57, 42)    43
+Wagtail         JetBrains Mono        block     44  (4, 14, 39, 29)     (29, 8, 40, 34)     (33, 14, 39, 28)    29
+Wagtail         JetBrains Mono        block     32  (3, 11, 28, 20)     (21, 6, 29, 25)     (24, 11, 28, 20)    20
+Wagtail         JetBrains Mono        block     24  (2, 8, 18, 15)      (16, 4, 21, 18)     (16, 8, 18, 14)     15
+Firetail        Monaspace Xenon       block    256  (21, 77, 233, 173)  (168, 58, 240, 188) (175, 77, 233, 171) 173
+Firetail        Monaspace Xenon       block    128  (10, 38, 116, 85)   (84, 29, 119, 93)   (87, 38, 116, 84)   85
+Firetail        Monaspace Xenon       block     64  (5, 19, 58, 43)     (42, 14, 59, 46)    (44, 19, 58, 42)    43
+Firetail        Monaspace Xenon       block     44  (3, 13, 39, 29)     (29, 10, 40, 31)    (30, 13, 39, 28)    29
+Firetail        Monaspace Xenon       block     32  (2, 9, 28, 21)      (21, 6, 29, 23)     (22, 9, 28, 20)     21
+Firetail        Monaspace Xenon       block     24  (2, 8, 19, 15)      (16, 5, 22, 17)     (18, 8, 19, 14)     15
+Cassowary       Iosevka               block    256  (43, 89, 213, 173)  (183, 66, 216, 196) (185, 89, 213, 172) 173
+Cassowary       Iosevka               block    128  (22, 44, 106, 86)   (91, 32, 107, 97)   (93, 44, 106, 85)   86
+Cassowary       Iosevka               block     64  (11, 23, 52, 44)    (46, 16, 53, 49)    (47, 23, 52, 43)    44
+Cassowary       Iosevka               block     44  (7, 15, 35, 28)     (26, 11, 36, 33)    (33, 15, 35, 28)    28
 Cassowary       Iosevka               block     32  (5, 11, 25, 20)     (19, 7, 26, 24)     (24, 11, 25, 20)    20
-Cassowary       Iosevka               block     24  (4, 8, 18, 15)      (14, 5, 19, 18)     (18, 8, 18, 15)     15
-Paperbark       EB Garamond           block    256  (52, 85, 205, 173)  (175, 56, 211, 203) (181, 85, 205, 170) 173
-Paperbark       EB Garamond           block    128  (26, 42, 102, 86)   (88, 28, 105, 101)  (91, 42, 102, 84)   86
-Paperbark       EB Garamond           block     64  (13, 22, 50, 43)    (44, 14, 52, 50)    (46, 22, 50, 42)    43
-Paperbark       EB Garamond           block     44  (9, 14, 34, 29)     (30, 10, 35, 34)    (32, 14, 34, 28)    29
-Paperbark       EB Garamond           block     32  (6, 9, 24, 20)      (22, 7, 25, 24)     (23, 9, 24, 19)     20
-Paperbark       EB Garamond           block     24  (5, 8, 18, 15)      (16, 5, 19, 18)     (17, 8, 18, 15)     15
-Kite            Fira Sans             block    256  (38, 79, 220, 172)  (184, 64, 226, 201) (198, 79, 220, 171) 172
-Kite            Fira Sans             block    128  (19, 39, 109, 85)   (92, 33, 112, 100)  (99, 39, 109, 85)   85
-Kite            Fira Sans             block     64  (9, 20, 54, 43)     (46, 15, 56, 49)    (50, 20, 54, 42)    43
-Kite            Fira Sans             block     44  (6, 12, 37, 28)     (31, 10, 39, 34)    (34, 12, 37, 27)    28
-Kite            Fira Sans             block     32  (4, 9, 25, 20)      (23, 7, 27, 24)     (25, 9, 25, 18)     20
-Kite            Fira Sans             block     24  (3, 7, 19, 14)      (16, 5, 21, 18)     (19, 7, 19, 14)     14
+Cassowary       Iosevka               block     24  (4, 8, 18, 15)      (14, 5, 19, 17)     (18, 8, 18, 15)     15
+Paperbark       EB Garamond           block    256  (52, 85, 205, 173)  (175, 51, 211, 198) (181, 85, 205, 170) 173
+Paperbark       EB Garamond           block    128  (26, 42, 102, 86)   (88, 25, 105, 99)   (91, 42, 102, 84)   86
+Paperbark       EB Garamond           block     64  (13, 22, 50, 43)    (44, 12, 52, 49)    (46, 22, 50, 42)    43
+Paperbark       EB Garamond           block     44  (9, 14, 34, 29)     (30, 9, 35, 34)     (32, 14, 34, 28)    29
+Paperbark       EB Garamond           block     32  (6, 9, 24, 20)      (22, 6, 25, 24)     (23, 9, 24, 19)     20
+Paperbark       EB Garamond           block     24  (5, 8, 18, 15)      (16, 4, 19, 18)     (17, 8, 18, 15)     15
+Kite            Fira Sans             block    256  (38, 79, 220, 172)  (184, 59, 226, 196) (198, 79, 220, 171) 172
+Kite            Fira Sans             block    128  (19, 39, 109, 85)   (92, 30, 112, 97)   (99, 39, 109, 85)   85
+Kite            Fira Sans             block     64  (9, 20, 54, 43)     (46, 14, 56, 48)    (50, 20, 54, 42)    43
+Kite            Fira Sans             block     44  (6, 12, 37, 28)     (32, 9, 38, 33)     (34, 12, 37, 27)    28
+Kite            Fira Sans             block     32  (4, 9, 25, 20)      (23, 6, 27, 23)     (25, 9, 25, 18)     20
+Kite            Fira Sans             block     24  (3, 7, 19, 14)      (17, 4, 20, 17)     (19, 7, 19, 14)     14

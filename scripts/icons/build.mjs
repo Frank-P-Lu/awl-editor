@@ -48,6 +48,7 @@ const esc = (s) =>
 // runs unconditionally; only the "every key is worn" completeness check is
 // skipped, and only for a caller that says so explicitly.
 function assertNoWorldKeys(tuning, manifest, { partial = false } = {}) {
+  clamp(tuning.cursorOpticalY, tuning.bounds.cursorOpticalY, "cursorOpticalY");
   const families = new Set(manifest.faces.map((f) => f.family));
   const worlds = new Set(manifest.worlds.map((w) => w.name));
   const presetNames = new Set(Object.keys(tuning.presets));
@@ -123,6 +124,7 @@ function geometry(tuning, preset, family) {
     it: add("insetTop"),
     ib: add("insetBottom"),
     sy: clamp((face.seatY ?? 0) + (seat.seatY ?? 0), tuning.bounds.delta, `${family}[.presets.${preset}].seatY combined delta`),
+    cy: tuning.cursorOpticalY,
     radius: radius === "capsule" ? "999px" : `${radius}em`,
     weight,
   };
@@ -144,6 +146,7 @@ function tileStyle(world, face, geom, size) {
     `--it:${geom.it}%`,
     `--ib:${geom.ib}%`,
     `--sy:${geom.sy}%`,
+    `--cy:${geom.cy / 100}em`,
     `--r:${geom.radius}`,
   ].join(";");
 }
