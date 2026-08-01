@@ -788,8 +788,8 @@ fn clicking_the_current_facet_is_a_calm_no_op() {
     let hidden = vec![false; names.len()];
     let mut ov =
         OverlayState::new_command(names, crate::commands::effective_bindings(&[], &[]), hidden);
-    ov.set_facet_lens(2); // switch to the Edit lens once, a real change
-    assert_eq!(ov.active_facet_id(), Some("edit"));
+    ov.set_facet_lens(2); // switch to Navigate once, a real change
+    assert_eq!(ov.active_facet_id(), Some("navigate"));
     let (before_lens, before_selected, before_scroll, before_items) =
         (ov.facet_lens, ov.selected, ov.scroll, ov.item_strings());
     ov.set_facet_lens(2); // click the SAME facet again — a calm no-op
@@ -1303,7 +1303,7 @@ fn history_picker_lists_versions_navigates_and_carries_ids() {
 }
 
 #[test]
-fn command_picker_lands_on_all_then_groups_by_menu_section_and_recent() {
+fn command_picker_lands_on_all_then_groups_every_task_category_and_recent() {
     let names = crate::commands::names();
     let binds = crate::commands::effective_bindings(&[], &[]);
     let hidden = vec![false; names.len()];
@@ -1322,25 +1322,34 @@ fn command_picker_lands_on_all_then_groups_by_menu_section_and_recent() {
         ov.item_sections().iter().all(|s| s.is_empty()),
         "All never groups"
     );
-    // → File lens: every shown row is a File-section command, headed "File".
-    ov.cycle_lens(1);
-    assert_eq!(ov.active_facet_id(), Some("file"));
-    assert!(!ov.items.is_empty(), "File section is non-empty");
-    for (row, &ci) in ov.items.iter().enumerate() {
-        assert_eq!(ov.item_sections()[row], "File");
+    for (idx, category) in crate::commands::TaskCategory::ALL.into_iter().enumerate() {
+        ov.set_facet_lens(idx + 1);
         assert_eq!(
-            crate::commands::menu_section(&ov.rows[ci].accept),
-            Some("File")
+            ov.active_facet_id(),
+            Some(category.label().to_ascii_lowercase().as_str())
         );
+        assert!(
+            !ov.items.is_empty(),
+            "{} category is non-empty",
+            category.label()
+        );
+        for (row, &ci) in ov.items.iter().enumerate() {
+            assert_eq!(ov.item_sections()[row], category.label());
+            assert_eq!(
+                crate::commands::task_category_of(&ov.rows[ci].accept),
+                Some(category)
+            );
+        }
     }
+    ov.set_facet_lens(1);
     assert!(
         ov.item_strings().iter().any(|s| s == "Save"),
-        "Save is a File command"
+        "Save is a Files command"
     );
-    // The Recent lens (strip index 4) reads the recency vec: seed one, see it group.
+    // The Recent lens (strip index 7) reads the recency vec: seed one, see it group.
     let undo = ov.rows.iter().position(|r| r.accept == "Undo").unwrap();
     ov.recent = vec![undo];
-    ov.set_facet_lens(4);
+    ov.set_facet_lens(7);
     assert_eq!(ov.active_facet_id(), Some("recent"));
     assert_eq!(
         ov.item_strings(),
@@ -1348,6 +1357,70 @@ fn command_picker_lands_on_all_then_groups_by_menu_section_and_recent() {
         "only the recent command"
     );
     assert!(ov.item_sections().iter().all(|s| s == "Recent"));
+}
+
+#[test]
+fn command_search_is_global_from_every_category_and_returns_to_that_category() {
+    let names = crate::commands::names();
+    let binds = crate::commands::effective_bindings(&[], &[]);
+    let hidden = vec![false; names.len()];
+    for lens in 0..8 {
+        let mut ov = OverlayState::new_command(names.clone(), binds.clone(), hidden.clone());
+        ov.set_facet_lens(lens);
+        for ch in "bold".chars() {
+            ov.push(ch);
+        }
+        assert!(
+            ov.item_strings().iter().any(|row| row == "Bold"),
+            "exact search reaches Bold from lens {lens}: {:?}",
+            ov.item_strings()
+        );
+        for _ in 0..4 {
+            ov.pop();
+        }
+        assert_eq!(
+            ov.facet_lens, lens,
+            "clearing search preserves browse category"
+        );
+        if lens != 0 {
+            assert!(
+                ov.item_strings().iter().all(|name| {
+                    lens == 7
+                        || crate::commands::task_category_of(name)
+                            == Some(crate::commands::TaskCategory::ALL[lens - 1])
+                        || crate::settings::palette_rows()
+                            .iter()
+                            .any(|row| lens == 6 && row.name == name)
+                }),
+                "clearing returns to lens {lens}"
+            );
+        }
+    }
+}
+
+#[test]
+fn every_command_union_row_has_exactly_one_non_all_browse_route() {
+    let names = crate::commands::visible_names();
+    let binds = crate::commands::visible_effective_bindings(&[], &[]);
+    let hidden = vec![false; names.len()];
+    let mut ov = OverlayState::new_command(names, binds, hidden);
+    let settings = crate::settings::palette_rows();
+    ov.attach_settings_rows(settings.clone(), vec![String::new(); settings.len()]);
+
+    let mut visits = vec![0usize; ov.rows.len()];
+    for lens in 1..=6 {
+        ov.set_facet_lens(lens);
+        for &corpus_i in &ov.items {
+            visits[corpus_i] += 1;
+        }
+    }
+    for (row, count) in ov.rows.iter().zip(visits) {
+        assert_eq!(
+            count, 1,
+            "Commands union row {:?} must have exactly one non-All browse route",
+            row.accept
+        );
+    }
 }
 
 #[test]
@@ -1666,15 +1739,10 @@ fn hint_teaches_descend_only_for_navigable_kinds() {
     // Project ↵ SELECTS; MoveDest ↵ MOVES.
     assert!(OverlayKind::Project.hint().contains("\u{21B5} select"));
     assert!(OverlayKind::MoveDest.hint().contains("move here"));
-    // The FACETED pickers (Goto / Browse / Command / History) teach ←/→ lens, not
+    // The ordinary FACETED pickers teach ←/→ lens, not
     // ->/C-f descend, and each starts with the ↵ Return glyph. (The THEME picker
     // retired its lens strip 2026-07-15 — it is checked below as a FLAT picker.)
-    for k in [
-        OverlayKind::Goto,
-        OverlayKind::Browse,
-        OverlayKind::Command,
-        OverlayKind::History,
-    ] {
+    for k in [OverlayKind::Goto, OverlayKind::Browse, OverlayKind::History] {
         let h = k.hint();
         assert!(!h.contains("C-f"), "{k:?} facets, no descend hint: {h}");
         assert!(
@@ -1686,6 +1754,10 @@ fn hint_teaches_descend_only_for_navigable_kinds() {
             "{k:?} hint leads with type to filter: {h}"
         );
     }
+    assert_eq!(
+        OverlayKind::Command.hint(),
+        "type to filter   ↵ choose   ←/→ category   esc close"
+    );
     // The FLAT theme picker teaches ↵ keep + esc revert, and NO lens axis (its strip
     // was retired) — type to filter still leads.
     let th = OverlayKind::Theme.hint();

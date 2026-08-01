@@ -754,8 +754,8 @@ fn goto_arrows_cycle_the_lens() {
 
 #[test]
 fn command_arrows_cycle_the_lens() {
-    // The command palette gains the ←/→ lens strip: All -> File -> Edit -> View ->
-    // Recent, driven through the real `apply_transition` overlay intercept (so a
+    // The command palette's task categories are driven through the real
+    // `apply_transition` overlay intercept (so a
     // `--keys "C-p <right>"` capture reaches the same code).
     let names = crate::commands::names();
     let hidden = vec![false; names.len()];
@@ -770,7 +770,9 @@ fn command_arrows_cycle_the_lens() {
         Some("all"),
         "lands on All"
     );
-    for expect in ["file", "edit", "view", "recent"] {
+    for expect in [
+        "files", "navigate", "format", "view", "tools", "settings", "recent",
+    ] {
         drive(&mut overlay, &mut accept, &Action::ForwardChar);
         assert_eq!(overlay.card().unwrap().active_facet_id(), Some(expect));
     }
@@ -781,7 +783,7 @@ fn command_arrows_cycle_the_lens() {
         Some("recent"),
         "clamp"
     );
-    for _ in 0..4 {
+    for _ in 0..7 {
         drive(&mut overlay, &mut accept, &Action::BackwardChar);
     }
     assert_eq!(overlay.card().unwrap().active_facet_id(), Some("all"));

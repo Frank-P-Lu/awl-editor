@@ -559,26 +559,29 @@ fn command_and_history_pickers_faceted_lens_render_and_report() {
         serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap()).unwrap()
     };
 
-    // COMMAND palette, cycled RIGHT once to the File lens: every shown row is a
-    // File-section command (Save among them).
+    // COMMAND palette, cycled RIGHT once to Files: every shown row has that task
+    // category (Save among them).
     let names = crate::commands::names();
     let hidden = vec![false; names.len()];
     let mut cmd =
         OverlayState::new_command(names, crate::commands::effective_bindings(&[], &[]), hidden);
     cmd.cycle_lens(1);
-    assert_eq!(cmd.active_facet_id(), Some("file"));
+    assert_eq!(cmd.active_facet_id(), Some("files"));
     let cpng = dir.join("cmd.png");
     capture_with(&cpng, &buf, &fold(&cmd)).expect("command palette capture renders");
     let cj = read(&cpng);
     assert_eq!(cj["overlay"]["mode"], serde_json::json!("command"));
-    assert_eq!(cj["overlay"]["lens"], serde_json::json!("file"));
+    assert_eq!(cj["overlay"]["lens"], serde_json::json!("files"));
     assert_eq!(
         cj["overlay"]["lens_strip"],
         serde_json::json!([
             ["All", false],
-            ["File", true],
-            ["Edit", false],
+            ["Files", true],
+            ["Navigate", false],
+            ["Format", false],
             ["View", false],
+            ["Tools", false],
+            ["Settings", false],
             ["Recent", false]
         ])
     );
@@ -590,15 +593,15 @@ fn command_and_history_pickers_faceted_lens_render_and_report() {
         .collect();
     assert!(
         citems.iter().any(|s| s == "Save"),
-        "Save under File: {citems:?}"
+        "Save under Files: {citems:?}"
     );
     assert!(
         cj["overlay"]["sections"]
             .as_array()
             .unwrap()
             .iter()
-            .all(|s| s == "File"),
-        "every File-lens row is headed File"
+            .all(|s| s == "Files"),
+        "every Files-category row is headed Files"
     );
 
     // HISTORY timeline, headless (no reference clock). All lists every version; the

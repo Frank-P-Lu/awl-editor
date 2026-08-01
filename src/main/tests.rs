@@ -1332,7 +1332,7 @@ fn replay_keys_drives_palette_guide_and_opens_the_guide_buffer() {
 }
 
 #[test]
-fn replay_keys_palette_filter_surfaces_the_marked_settings_row() {
+fn replay_keys_palette_filter_surfaces_the_plain_settings_row() {
     let mut buffer = Buffer::scratch();
     let keys = keyspec::parse_keys("s-p k e y m a p").unwrap();
     let root = PathBuf::from("/tmp");
@@ -1340,8 +1340,8 @@ fn replay_keys_palette_filter_surfaces_the_marked_settings_row() {
     let ov = res.journey.card().expect("the palette is still open");
     assert_eq!(ov.kind, crate::overlay::OverlayKind::Command);
     assert!(
-        ov.item_strings().iter().any(|s| s == "§ Keymap"),
-        "the union corpus surfaces the marked settings row: {:?}",
+        ov.item_strings().iter().any(|s| s == "Keymap"),
+        "the union corpus surfaces the plain settings row: {:?}",
         ov.item_strings()
     );
 }
@@ -1349,7 +1349,7 @@ fn replay_keys_palette_filter_surfaces_the_marked_settings_row() {
 #[test]
 fn replay_keys_palette_filters_to_a_settings_row_and_toggles_it() {
     // THE UNION ROUND: Cmd-P → "keymap" filters to the SETTINGS row "Keymap"
-    // (the union palette's marked settings corpus, `§ Keymap`) → Enter signals
+    // (the union palette's Settings-category row, `Keymap`) → Enter signals
     // the SAME `Effect::SettingToggle{key:"keymap"}` the Settings menu's own
     // accept would, and CLOSES the palette (the palette's "activation closes
     // it" convention). Note the honest scope boundary: `Effect::SettingToggle`

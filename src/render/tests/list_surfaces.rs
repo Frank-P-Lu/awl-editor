@@ -2337,8 +2337,8 @@ fn faceted_lens_strip_tabs_sit_on_plates_on_every_bars_world() {
 
         assert_eq!(
             tabs.len(),
-            3,
-            "{}: File/Edit/View draw 3 tab plates (the All home is not a label), got {}",
+            4,
+            "{}: All/File/Edit/View draw 4 tab plates, got {}",
             th.name,
             tabs.len()
         );

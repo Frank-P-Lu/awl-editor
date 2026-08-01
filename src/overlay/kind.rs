@@ -161,7 +161,7 @@ impl OverlayKind {
             OverlayKind::Dictionary => vec![enter("apply")],
             OverlayKind::CjkLang => vec![enter("apply")],
             OverlayKind::Date => vec![enter("apply")],
-            OverlayKind::Command => vec![enter("run"), key(ARROWS_LR, "lens")],
+            OverlayKind::Command => super::command_hint_actions(),
             OverlayKind::Spell => vec![enter("replace")],
             OverlayKind::Keybindings => {
                 vec![enter("rebind"), key("del", "reset"), key("esc", "close")]

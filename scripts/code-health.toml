@@ -126,8 +126,8 @@ lines = 539
 
 [[file_size_mark]]
 file = "src/commands.rs"
-lines = 620
-reason = "item 24: LOWERED by 159. The convention/platform chord resolver (the Linux-native override table, `resolved_native*`, the truthful pair, and the web-alternate trio) moved out whole to the new src/commands/chords.rs — one subject, every label surface in the codebase reading down from `resolved_native` at its base."
+lines = 586
+reason = "item 24: LOWERED by 159. The convention/platform chord resolver moved to src/commands/chords.rs. Item 210 lowered this mark again by moving the command palette's complete task taxonomy and facet scheme to src/commands/task_category.rs."
 
 [[file_size_mark]]
 file = "src/config/model.rs"
@@ -319,8 +319,8 @@ lines = 634
 
 [[file_size_mark]]
 file = "src/render/chrome/theme_picker.rs"
-lines = 568
-reason = "item 114: +8 lines. `theme_overlay_geometry` is an exhaustive `OverlayGeom` construction site (item 184 removed its `..base()`), so the five new workspace fields must be spelled out here."
+lines = 562
+reason = "item 114: +8 lines. `theme_overlay_geometry` is an exhaustive `OverlayGeom` construction site (item 184 removed its `..base()`), so the five new workspace fields must be spelled out here. Item 210 lowered the mark by making All a normal drawn and clickable facet instead of a skipped special case."
 
 [[file_size_mark]]
 file = "src/render/framebench.rs"
@@ -641,14 +641,14 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/theme_picker.rs"
-line = 179
-message = "this function has too many lines (167/100)"
+line = 176
+message = "this function has too many lines (164/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line/size moved by queue item 114's summoned Settings workspace."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/theme_picker.rs"
-line = 388
+line = 382
 message = "this function has too many lines (124/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line/size moved by queue item 114's summoned Settings workspace."
 
@@ -917,13 +917,13 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
 line = 511
-message = "this function has too many lines (157/100)"
+message = "this function has too many lines (160/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 896
+line = 899
 message = "this function has too many lines (114/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
 
@@ -1187,35 +1187,35 @@ reason = "Pure relocation from the inline src/commands.rs test module; this exac
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 752
+line = 766
 text = "                        \"{}: {:?}'s resolved native chord {resolved:?} must parse via parse_binding\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 759
+line = 773
 text = "                        \"{}: {:?}'s resolved native chord {resolved:?} must resolve to the catalog action\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 1584
+line = 1598
 text = "                        \"{}: reserved native chord {native_resolved:?} still shown verbatim ({convention:?}/{platform:?})\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 1602
+line = 1616
 text = "                            \"{}: no alternate defined, label should be blank ({convention:?}/{platform:?})\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 1613
+line = 1627
 text = "                        \"{}: displaced emacs default {:?} still shown ({convention:?}/{platform:?}) — label was {label:?}\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 

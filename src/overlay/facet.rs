@@ -4,9 +4,13 @@
 //! monolith (2026-07 code-organization pass); every item's path is
 //! unchanged -- only the file it lives in moved.
 
-use super::OverlayState;
+use super::{OverlayKind, OverlayState};
 
 impl OverlayState {
+    pub(super) fn filters_to_active_facet(&self) -> bool {
+        self.facet_lens != 0 && !(self.kind == OverlayKind::Command && !self.query.is_empty())
+    }
+
     /// This picker's FACETING scheme (its lens strip + item bucketing), or `None`
     /// for a non-faceting picker. GENERIC — keyed by [`Self::kind`] through the one
     /// owner [`crate::facets::scheme`], so every facet method below is picker-agnostic.
