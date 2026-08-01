@@ -7,9 +7,10 @@ which invariant). Queue item 172.
 
 ## The defect this map exists to close
 
-`app.rs` declares `pub struct App` with 107 fields. Every one is private to
-`crate::app`, which means every one of the ~24 `impl App` blocks under `src/app/`
-can read and write all 107. The physical file split (item 56) made the code
+The initial census found `pub struct App` with 107 fields; the three extracted
+owners have reduced the root to 94. Every root field is private to `crate::app`,
+which means every one of the ~24 `impl App` blocks under `src/app/` can still
+read and write it. The physical file split (item 56) made the code
 navigable without making any invariant *owned*: a rule spread across four
 modules is still spread across four modules after the split, it just reads
 tidily. Two consequences show up in the census below:
@@ -53,13 +54,15 @@ Names follow queue item 172, with two corrections the census forced (see
 | `PersistenceRuntime` (save feedback) | 5 | 23 | 6 | extracted — slice 2 |
 | `DocumentSession` | 4 | 363 | 21 | mapped |
 | `InputState` | 27 | 164 | 13 | mapped |
-| `ProjectLocation` | 9 | 51 | 9 | mapped |
+| `ConfigurationRuntime` | 4 | 87 | 16 | extracted — slice 3 |
+| `ProjectLocation` | 6 | 51 | 9 | extracted — slice 3 |
 | `RenderRuntime` | 25 | 277 | 23 | mapped — held by item 174 |
 | `FrameScheduler` | 12 | 123 | 12 | mapped |
 | host / lifecycle (stays on `App`) | 22 | 210 | 19 | stays |
 
-107 fields, 1,310 production references, no field in two owners and none
-unassigned — the classification is exhaustive by construction, see below.
+At census time: 107 fields and 1,310 production references, with no field in
+two owners and none unassigned — the classification is exhaustive by
+construction, see below.
 
 `src/app/tests/domains.rs` carries the same table as executable data with a
 no-wildcard match over the owner roster, so a new `App` field fails the suite
@@ -159,10 +162,21 @@ is `cursor_px`, read by `apply.rs`
 pointer's resting position) — a two-site coupling, better fixed by passing the
 position than by moving 27 fields.
 
+### `ConfigurationRuntime` — persisted settings and startup policy
+
+`config` · `default_folder` · `cli_workspace` · `cli_default_folder`
+
+The runtime configuration has a different responsibility from the current
+project: it owns user settings, explicit CLI precedence, and the first-run
+default-folder fallback. Its typed `LocationPolicy` is the only configuration
+fact the live project location receives. A config reload returns that policy as
+a `ReloadOutcome`, so keymap/settings application cannot quietly leave the
+project location on its prior workspace rule.
+
 ### `ProjectLocation` — "where am I working"
 
 `root` · `project` · `file_index` · `workspace_root` · `recent_projects` ·
-`recent_files` · `default_folder` · `cli_workspace` · `cli_default_folder`
+`recent_files`
 
 The real derived-state domain: `project` and `file_index` are *functions of*
 `root`, and `workspace_root` is a function of `(cli_workspace, config.workspace,
@@ -178,8 +192,8 @@ until something calls `reload_config`. The Project picker (`C-x p`) browses
 own queue item alongside the `ProjectLocation` slice, whose `set_root`
 transition is the one obvious place for it.
 
-`cli_default_folder` and `cli_workspace` have exactly one read each, both in
-`reload_config` — the CLI override correctly wins over the reloaded config.
+The CLI inputs and `default_folder` live in `ConfigurationRuntime`, not in this
+owner: first-run policy must never be mistaken for the running project's root.
 
 ### `RenderRuntime` — held by item 174
 
@@ -220,15 +234,16 @@ sites, it is that `clock` has a law and `notice` has a convention.
 
 `clipboard` · `clipboard_last_written` · `soak` · `soak_recovery_pending` ·
 `soak_passed` · `probe_ready` · `daemon_socket_path` · `wait_conns` ·
-`menu_proxy` · `_menu_bar` · `config` · `restored_window` · `pending_crash` ·
+`menu_proxy` · `_menu_bar` · `restored_window` · `pending_crash` ·
 `stats`-group · `streaks`-group
 
 These are process/OS handles and one-shot startup handoffs — `App` genuinely is
 their lifecycle. `_menu_bar` exists only to not be dropped. `stats`/`streaks`
 are already single-owner by locality (all 6 `stats_*` fields are touched by
 `app/stats.rs` alone; all 3 `streaks_*` by `app/streaks.rs` alone) and gain
-nothing from a wrapper. `config` is the exception worth a later slice: 87
-production references over 16 files, and `reload_config` is the one writer.
+nothing from a wrapper. Configuration is no longer host lifecycle state:
+`ConfigurationRuntime` owns it with the startup location policy that gives its
+`workspace` and `default_folder` settings meaning.
 
 ## Where the item's premise was wrong
 

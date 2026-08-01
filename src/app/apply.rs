@@ -379,16 +379,19 @@ impl App {
         if matches!(action, Action::OpenGoto | Action::OpenAssetClean) {
             self.rescan_file_index();
         }
-        let recency_now = if self.root == self.default_folder {
+        let recency_now = if self.project_location.root == self.config.default_folder {
             Some(crate::clock::system_now())
         } else {
             None
         };
-        let (goto_corpus, goto_times) =
-            crate::index::with_recency(&self.root, self.file_index.clone(), recency_now);
+        let (goto_corpus, goto_times) = crate::index::with_recency(
+            &self.project_location.root,
+            self.project_location.file_index.clone(),
+            recency_now,
+        );
         let goto_open: Vec<usize> = {
             let active_rel = self.active.buffer.path().and_then(|p| {
-                p.strip_prefix(&self.root)
+                p.strip_prefix(&self.project_location.root)
                     .ok()
                     .map(|r| r.to_string_lossy().replace('\\', "/"))
             });
@@ -400,10 +403,11 @@ impl App {
                 .collect()
         };
         let goto_recent: Vec<usize> = self
+            .project_location
             .recent_files
             .iter()
             .filter_map(|abs| {
-                abs.strip_prefix(&self.root)
+                abs.strip_prefix(&self.project_location.root)
                     .ok()
                     .map(|r| r.to_string_lossy().replace('\\', "/"))
             })
@@ -484,7 +488,10 @@ impl App {
             };
         #[cfg(not(target_arch = "wasm32"))]
         let assets: Vec<crate::assets::Orphan> = if matches!(action, Action::OpenAssetClean) {
-            crate::assets::scan(&self.root, &self.file_index)
+            crate::assets::scan(
+                &self.project_location.root,
+                &self.project_location.file_index,
+            )
         } else {
             Vec::new()
         };
@@ -564,7 +571,7 @@ impl App {
             history_session_start: crate::history::session_epoch_ms(),
             settings_values: crate::settings::SettingsValues::gather(
                 &self.config,
-                &self.root,
+                &self.project_location.root,
                 self.zoom,
                 crate::dateformat::today_from_system_clock(),
             ),
@@ -579,9 +586,10 @@ impl App {
         // move a document into a folder within it); `Project` (C-x p) walks the
         // workspace by absolute path. Cloned roots dodge the &mut self.active.buffer
         // borrow.
-        let browse_root = self.root.clone();
-        let workspace = self.workspace_root.clone();
+        let browse_root = self.project_location.root.clone();
+        let workspace = self.project_location.workspace_root.clone();
         let recent_projects: Vec<String> = self
+            .project_location
             .recent_projects
             .iter()
             .map(|p| p.display().to_string())
@@ -860,7 +868,12 @@ impl App {
                 Some(p) => (p.with_extension(format.ext()), false),
                 None => {
                     let stem = crate::web_export::export_stem(&self.active.buffer);
-                    (self.root.join(format!("{stem}.{}", format.ext())), true)
+                    (
+                        self.project_location
+                            .root
+                            .join(format!("{stem}.{}", format.ext())),
+                        true,
+                    )
                 }
             };
             if let Some(parent) = target.parent() {

@@ -97,7 +97,7 @@ impl App {
             })
         });
         let state = crate::session::SessionState {
-            root: Some(self.root.clone()),
+            root: Some(self.project_location.root.clone()),
             active: active_path,
             buffers,
             window,
@@ -456,7 +456,7 @@ mod tests {
                 "nothing flushed yet"
             );
             app.switch_project(PathBuf::from("/b"));
-            assert_eq!(app.root, PathBuf::from("/b"));
+            assert_eq!(app.project_location.root, PathBuf::from("/b"));
             assert_eq!(
                 crate::session::load(&crate::session::session_path()).root,
                 Some(PathBuf::from("/b")),

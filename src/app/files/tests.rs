@@ -202,7 +202,7 @@ fn trash_asset_moves_the_file_and_removes_the_row_via_the_fake_seam() {
     // The file was sent to the (fake) Trash at the ROOT-joined absolute path.
     assert_eq!(
         recorder.trashed.lock().unwrap().as_slice(),
-        &[app.root.join("assets/drop.png")],
+        &[app.project_location.root.join("assets/drop.png")],
     );
     // The picker STAYS OPEN and the trashed row LEAVES the list.
     let ov = app
@@ -618,17 +618,17 @@ fn switch_project_pushes_and_persists_the_recent_root() {
             Config::empty(),
         );
         // Fresh launch: no recents yet (missing store).
-        assert!(app.recent_projects.is_empty());
+        assert!(app.project_location.recent_projects.is_empty());
 
         // Switching to two projects pushes each to the FRONT, newest-first.
         app.switch_project(PathBuf::from("/w/proj-a"));
         app.switch_project(PathBuf::from("/w/proj-b"));
         assert_eq!(
-            app.recent_projects,
+            app.project_location.recent_projects,
             vec![PathBuf::from("/w/proj-b"), PathBuf::from("/w/proj-a")],
         );
         assert_eq!(
-            app.root,
+            app.project_location.root,
             PathBuf::from("/w/proj-b"),
             "root followed the switch"
         );
@@ -636,7 +636,7 @@ fn switch_project_pushes_and_persists_the_recent_root() {
         // Re-switching to proj-a moves it to the front (dedup, never a dupe).
         app.switch_project(PathBuf::from("/w/proj-a"));
         assert_eq!(
-            app.recent_projects,
+            app.project_location.recent_projects,
             vec![PathBuf::from("/w/proj-a"), PathBuf::from("/w/proj-b")],
         );
 
@@ -659,7 +659,10 @@ fn opening_files_pushes_them_onto_the_recent_files_mru_and_persists() {
     );
     crate::fs::with_fs(fake, || {
         let mut app = App::new(None, PathBuf::from("/w/proj"), None, None, Config::empty());
-        assert!(app.recent_files.is_empty(), "fresh launch: empty MRU");
+        assert!(
+            app.project_location.recent_files.is_empty(),
+            "fresh launch: empty MRU"
+        );
 
         // Opening three files pushes each to the FRONT (most-recent first). Both
         // load_path branches route here; a fresh disk read is the None branch.
@@ -667,7 +670,7 @@ fn opening_files_pushes_them_onto_the_recent_files_mru_and_persists() {
         app.load_path(PathBuf::from("/w/proj/b.md"));
         app.load_path(PathBuf::from("/w/proj/c.md"));
         assert_eq!(
-            app.recent_files,
+            app.project_location.recent_files,
             vec![
                 PathBuf::from("/w/proj/c.md"),
                 PathBuf::from("/w/proj/b.md"),
@@ -679,7 +682,7 @@ fn opening_files_pushes_them_onto_the_recent_files_mru_and_persists() {
         // front — dedup, never a dupe.
         app.load_path(PathBuf::from("/w/proj/a.md"));
         assert_eq!(
-            app.recent_files,
+            app.project_location.recent_files,
             vec![
                 PathBuf::from("/w/proj/a.md"),
                 PathBuf::from("/w/proj/c.md"),
@@ -691,14 +694,20 @@ fn opening_files_pushes_them_onto_the_recent_files_mru_and_persists() {
         // return), so the MRU is untouched — no re-order, no dupe.
         app.load_path(PathBuf::from("/w/proj/a.md"));
         assert_eq!(
-            app.recent_files.len(),
+            app.project_location.recent_files.len(),
             3,
             "no-op reopen never re-orders / dupes"
         );
-        assert_eq!(app.recent_files[0], PathBuf::from("/w/proj/a.md"));
+        assert_eq!(
+            app.project_location.recent_files[0],
+            PathBuf::from("/w/proj/a.md")
+        );
 
         // PERSISTED: a second launch reads the MRU back through the store.
-        assert_eq!(crate::recent_files::load(), app.recent_files);
+        assert_eq!(
+            crate::recent_files::load(),
+            app.project_location.recent_files
+        );
     });
 }
 
@@ -720,7 +729,7 @@ fn app_new_loads_the_persisted_recent_projects() {
             Config::empty(),
         );
         assert_eq!(
-            app.recent_projects,
+            app.project_location.recent_projects,
             vec![PathBuf::from("/w/proj-a"), PathBuf::from("/w/proj-b")],
         );
     });
@@ -760,8 +769,8 @@ fn project_picker_rows(app: &App) -> Vec<String> {
     let ov = crate::overlay::browse_level(
         crate::overlay::OverlayKind::Project,
         None,
-        &app.root,
-        app.workspace_root.as_deref(),
+        &app.project_location.root,
+        app.project_location.workspace_root.as_deref(),
         &[],
     )
     .expect("workspace_root is always Some on a live App, so the picker always builds");
@@ -795,18 +804,21 @@ fn switch_project_into_a_different_parent_repoints_the_picker_at_the_new_workspa
             None,
             Config::empty(),
         );
-        assert_eq!(app.workspace_root, Some(PathBuf::from("/old-ws")));
+        assert_eq!(
+            app.project_location.workspace_root,
+            Some(PathBuf::from("/old-ws"))
+        );
         assert_eq!(project_picker_rows(&app), vec!["proj-a", "sibling"]);
 
         app.switch_project(PathBuf::from("/new-ws/proj-b"));
 
         assert_eq!(
-            app.project.root,
+            app.project_location.project.root,
             PathBuf::from("/new-ws/proj-b"),
             "project agrees with root"
         );
         assert_eq!(
-            app.workspace_root,
+            app.project_location.workspace_root,
             Some(PathBuf::from("/new-ws")),
             "workspace_root must follow the switch, never stay pinned to the OLD parent"
         );
@@ -840,7 +852,10 @@ fn switch_project_within_the_same_parent_leaves_the_picker_on_the_shared_workspa
             Config::empty(),
         );
         app.switch_project(PathBuf::from("/ws/proj-b"));
-        assert_eq!(app.workspace_root, Some(PathBuf::from("/ws")));
+        assert_eq!(
+            app.project_location.workspace_root,
+            Some(PathBuf::from("/ws"))
+        );
         assert_eq!(project_picker_rows(&app), vec!["proj-a", "proj-b"]);
     });
 }
@@ -860,12 +875,15 @@ fn switch_project_into_the_filesystem_root_falls_back_to_the_root_itself() {
             None,
             Config::empty(),
         );
-        assert_eq!(app.workspace_root, Some(PathBuf::from("/somewhere")));
+        assert_eq!(
+            app.project_location.workspace_root,
+            Some(PathBuf::from("/somewhere"))
+        );
 
         app.switch_project(PathBuf::from("/"));
 
         assert_eq!(
-            app.workspace_root,
+            app.project_location.workspace_root,
             Some(PathBuf::from("/")),
             "no parent to fall back to — the root itself is the workspace"
         );
@@ -887,12 +905,15 @@ fn switch_project_never_overrides_an_explicitly_configured_workspace() {
         let mut config = Config::empty();
         config.workspace = Some(PathBuf::from("/explicit-ws"));
         let mut app = App::new(None, PathBuf::from("/a/proj"), None, None, config);
-        assert_eq!(app.workspace_root, Some(PathBuf::from("/explicit-ws")));
+        assert_eq!(
+            app.project_location.workspace_root,
+            Some(PathBuf::from("/explicit-ws"))
+        );
 
         app.switch_project(PathBuf::from("/x/y/proj2"));
 
         assert_eq!(
-            app.workspace_root,
+            app.project_location.workspace_root,
             Some(PathBuf::from("/explicit-ws")),
             "an explicit config workspace must survive a switch into a \
              different-parent tree, never fall back to root.parent()"
@@ -912,14 +933,20 @@ fn switch_project_a_to_b_and_back_never_leaves_a_stale_workspace() {
     );
     crate::fs::with_fs(fake, || {
         let mut app = App::new(None, PathBuf::from("/aa/proj"), None, None, Config::empty());
-        assert_eq!(app.workspace_root, Some(PathBuf::from("/aa")));
+        assert_eq!(
+            app.project_location.workspace_root,
+            Some(PathBuf::from("/aa"))
+        );
 
         app.switch_project(PathBuf::from("/bb/cc/proj2"));
-        assert_eq!(app.workspace_root, Some(PathBuf::from("/bb/cc")));
+        assert_eq!(
+            app.project_location.workspace_root,
+            Some(PathBuf::from("/bb/cc"))
+        );
 
         app.switch_project(PathBuf::from("/aa/proj"));
         assert_eq!(
-            app.workspace_root,
+            app.project_location.workspace_root,
             Some(PathBuf::from("/aa")),
             "the round trip back to A must not leave B's workspace behind"
         );
@@ -1040,13 +1067,16 @@ fn assert_live_and_capture_locations_agree(
         let info =
             crate::run::project_info(std::path::Path::new(switch_to), &folded, None, &config);
 
-        assert_eq!(info.root, app.root, "{label}: sidecar root == live root");
         assert_eq!(
-            info.name, app.project.name,
+            info.root, app.project_location.root,
+            "{label}: sidecar root == live root"
+        );
+        assert_eq!(
+            info.name, app.project_location.project.name,
             "{label}: sidecar project name == live project name"
         );
         assert_eq!(
-            info.workspace, app.workspace_root,
+            info.workspace, app.project_location.workspace_root,
             "{label}: the sidecar's workspace must be the live workspace — a \
              capture that reports a workspace the running editor does not have \
              is item 180's bug living on in the harness"
@@ -1094,7 +1124,10 @@ fn switch_project_driven_by_real_chords_through_apply_repoints_the_workspace() {
             None,
             Config::empty(),
         );
-        assert_eq!(app.workspace_root, Some(PathBuf::from("/old-ws")));
+        assert_eq!(
+            app.project_location.workspace_root,
+            Some(PathBuf::from("/old-ws"))
+        );
         assert_eq!(project_picker_rows(&app), vec!["proj-a", "sibling"]);
 
         // "Switch project…" — the real binding of the convention this pass runs.
@@ -1122,9 +1155,9 @@ fn switch_project_driven_by_real_chords_through_apply_repoints_the_workspace() {
             !app.workspace_state.overlay_open(),
             "accepting the row closes the picker, exactly as live"
         );
-        assert_eq!(app.root, PathBuf::from("/new-ws/proj-b"));
+        assert_eq!(app.project_location.root, PathBuf::from("/new-ws/proj-b"));
         assert_eq!(
-            app.workspace_root,
+            app.project_location.workspace_root,
             Some(PathBuf::from("/new-ws")),
             "the workspace must follow a switch driven by real keys, not only \
              one driven by a direct call to switch_project"

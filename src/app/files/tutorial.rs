@@ -1,9 +1,5 @@
 use crate::app::*;
 
-pub(in crate::app) fn initial_default_folder(cli: &Option<PathBuf>, config: &Config) -> PathBuf {
-    crate::resolve_default_folder(&cli.clone().or_else(|| config.default_folder.clone()))
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::app) enum TutorialFolderIntent {
     NewDocument,
@@ -15,7 +11,9 @@ impl App {
         if action == Action::KeepTutorial {
             self.workspace_state
                 .set_tutorial_folder_intent(TutorialFolderIntent::KeepTutorial);
-        } else if self.root == crate::fs::data_root() && action == Action::NewDocument {
+        } else if self.project_location.root == crate::fs::data_root()
+            && action == Action::NewDocument
+        {
             self.workspace_state
                 .set_tutorial_folder_intent(TutorialFolderIntent::NewDocument);
             return Action::OpenProject;

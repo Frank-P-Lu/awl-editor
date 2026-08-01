@@ -86,7 +86,7 @@ fn load_path_door_opens_text_and_refuses_binary_leaving_context_intact() {
         Config::empty(),
     );
     let before_path = app.active.buffer.path().map(|p| p.to_path_buf());
-    let before_root = app.root.clone();
+    let before_root = app.project_location.root.clone();
 
     app.load_path(PathBuf::from("/proj/logo.png"));
     assert_eq!(
@@ -95,7 +95,7 @@ fn load_path_door_opens_text_and_refuses_binary_leaving_context_intact() {
         "a refused open leaves the active DOCUMENT intact"
     );
     assert_eq!(
-        app.root, before_root,
+        app.project_location.root, before_root,
         "a refused open leaves the active FOLDER intact"
     );
     assert_eq!(

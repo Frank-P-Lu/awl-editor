@@ -152,7 +152,11 @@ impl App {
     /// notice-only ("nothing to save yet — start a note first"), leaving the
     /// scratch buffer untouched. Both are one function to swap here.
     pub(in crate::app) fn convert_scratch_and_save(&mut self) {
-        match self.active.buffer.save_into_folder(&self.root) {
+        match self
+            .active
+            .buffer
+            .save_into_folder(&self.project_location.root)
+        {
             Ok(()) => {
                 // `Buffer::save_into_folder` already stamped the derived path onto
                 // the buffer itself (the sole authoritative path, item 56).
@@ -244,7 +248,7 @@ impl App {
     /// the injectable [`crate::assets::TrashCan`] seam, so a test drives it with a fake
     /// (the REAL macOS `NSFileManager` call is live-only, flagged).
     pub(in crate::app) fn trash_asset(&mut self, rel: String) {
-        let abs = self.root.join(&rel);
+        let abs = self.project_location.root.join(&rel);
         match crate::assets::active_trash().trash(&abs) {
             Ok(()) => {
                 if let Some(ov) = self.workspace_state.overlay_mut() {
@@ -271,9 +275,9 @@ impl App {
             return; // no current file to move
         };
         let dest_dir = if dest_rel.is_empty() {
-            self.root.clone()
+            self.project_location.root.clone()
         } else {
-            self.root.join(dest_rel)
+            self.project_location.root.join(dest_rel)
         };
         // The actual mkdir + no-clobber + rename lives in `buffer::move_file` (the
         // one move primitive, unit-tested on a temp dir).

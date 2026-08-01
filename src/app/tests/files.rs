@@ -18,25 +18,25 @@ fn rescan_file_index_picks_up_a_file_created_after_the_last_scan() {
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(None, "/proj", Config::empty());
     // The initial scan (at App::new) sees only the file that existed then.
-    assert_eq!(app.file_index, vec!["a.txt".to_string()]);
+    assert_eq!(app.project_location.file_index, vec!["a.txt".to_string()]);
     // SUMMON #1 (simulated: `rescan_file_index` is exactly what `C-x f`
     // triggers): still just the one file — nothing has changed yet.
     app.rescan_file_index();
-    assert_eq!(app.file_index, vec!["a.txt".to_string()]);
+    assert_eq!(app.project_location.file_index, vec!["a.txt".to_string()]);
     // A file appears on disk WITHOUT going through awl at all (another
     // process, a git checkout, a plain `touch`) — the picker is CLOSED at
     // this point, so nothing in awl has any reason to know yet.
     mem.write(std::path::Path::new("/proj/b.txt"), b"b\n")
         .unwrap();
     assert_eq!(
-        app.file_index,
+        app.project_location.file_index,
         vec!["a.txt".to_string()],
         "the cached index does not spontaneously update"
     );
     // SUMMON #2 (`C-x f` again): the fresh scan MUST find it.
     app.rescan_file_index();
     assert_eq!(
-        app.file_index,
+        app.project_location.file_index,
         vec!["a.txt".to_string(), "b.txt".to_string()],
         "re-summoning must re-scan and pick up the new file"
     );
@@ -45,7 +45,7 @@ fn rescan_file_index_picks_up_a_file_created_after_the_last_scan() {
     // `overlay::build` the live App and headless replay both call).
     let effective_keep = app.config.effective_linux_keep();
     let build_ctx = crate::overlay::BuildCtx {
-        goto_corpus: app.file_index.clone(),
+        goto_corpus: app.project_location.file_index.clone(),
         goto_open: Vec::new(),
         goto_recent: Vec::new(),
         goto_times: Vec::new(),
@@ -211,7 +211,7 @@ fn every_settings_toggle_row_dispatches_live_and_flips_its_value() {
     let gather = |app: &App| {
         crate::settings::SettingsValues::gather(
             &app.config,
-            &app.root,
+            &app.project_location.root,
             app.zoom,
             crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
         )
@@ -1443,7 +1443,11 @@ fn path_law_across_a_document_lifecycle_new_document_one_shot_name_no_rename_mov
         None,
         "a fresh document is unnamed"
     );
-    assert_eq!(app.root, PathBuf::from("/proj"), "no root jump on Cmd-N");
+    assert_eq!(
+        app.project_location.root,
+        PathBuf::from("/proj"),
+        "no root jump on Cmd-N"
+    );
 
     // FIRST (MATERIAL) SAVE (auto-name from the first line): the buffer gains
     // a derived path, under the ACTIVE folder, with no separate field to keep
@@ -1496,7 +1500,7 @@ fn path_law_across_a_document_lifecycle_new_document_one_shot_name_no_rename_mov
 fn settings_overlay_with_rail(app: &App) -> (crate::overlay::OverlayState, usize) {
     let vals = crate::settings::SettingsValues::gather(
         &app.config,
-        &app.root,
+        &app.project_location.root,
         app.zoom,
         crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
     );
@@ -1856,7 +1860,7 @@ fn every_range_row_applies_and_persists_through_the_app_side_doors() {
         app.range_apply_live(row.id, target);
         let values = crate::settings::SettingsValues::gather(
             &app.config,
-            &app.root,
+            &app.project_location.root,
             app.zoom,
             crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
         );

@@ -370,6 +370,7 @@ mod gpu;
 mod gpu_recovery;
 mod input;
 mod lifecycle;
+mod location;
 /// The `about_to_wait` scheduling body: every debounce / settle deadline, the
 /// ambient (lava/stars) tick, event-toast expiry, GPU acquire retries + soak
 /// drive — one `WaitUntil` each, lifted out of the trait method (a thin
@@ -560,31 +561,9 @@ pub struct App {
     caret_recoil: Option<crate::caret::RecoilDir>,
     clipboard: Option<Clipboard>,
     clipboard_last_written: Option<String>,
-    root: PathBuf,
-    project: crate::project::Project,
-    file_index: Vec<String>,
-    /// The WORKSPACE folder — the parent directory `Switch project…` browses.
-    /// Renamed from `workspace` by item 172 so it can never be misread for
-    /// `workspace_state` (the summoned-UI owner above); it is the
-    /// `ProjectLocation` domain, a different thing entirely.
-    workspace_root: Option<PathBuf>,
-    recent_projects: Vec<PathBuf>,
-    /// The persisted RECENTLY-OPENED FILES MRU (ABSOLUTE paths, most-recent FIRST,
-    /// capped + deduped — see [`crate::recent_files`]). Loaded once at launch,
-    /// pushed-to-front + saved on every real-file open ([`App::push_recent_file`],
-    /// called from [`App::load_path`]). Drives BOTH the go-to ranker's
-    /// "recently-opened" tier AND the go-to "Recent" LENS (which shows ONLY the
-    /// files in this MRU, in this order). Live/native only; the headless capture
-    /// never constructs an `App`, so it never reads or writes this store.
-    recent_files: Vec<PathBuf>,
+    /// The live root plus its derived project state and persisted MRUs.
+    project_location: location::ProjectLocation,
     prev_file: Option<PathBuf>,
-    /// The DEFAULT FOLDER: the fallback active folder used ONLY when a launch has
-    /// nothing else to go on — no explicit `--root`/file/dir argument AND no
-    /// remembered active-folder context (first run, or session restore off).
-    /// (default `~/notes`, overridable with `--default-folder`). Once the editor
-    /// is running, "where does New document / Move… land" is always the ACTIVE
-    /// folder (`self.root`), never this field again — see item 76.
-    default_folder: PathBuf,
     /// When the open DOCUMENT last changed and an idle AUTOSAVE is pending, the
     /// buffer version known ON DISK, the CLOBBER-GUARD stat baselines (doc +
     /// scratch), and the scratch-stash's own saved-version — ALL buffer-scoped
@@ -732,9 +711,8 @@ pub struct App {
     /// Replacing the GPU/layer invalidates the shadow even when the desired bit
     /// is unchanged; `sync_present_txn` then reapplies it exactly once.
     present_sync_valid: bool,
-    config: Config,
-    cli_default_folder: Option<PathBuf>,
-    cli_workspace: Option<PathBuf>,
+    /// Persisted configuration plus CLI and first-run folder policy.
+    config: location::ConfigurationRuntime,
     /// MULTI-BUFFER REGISTRY: every OTHER currently-open buffer (backgrounded —
     /// not the active `self.active.buffer`), keyed by stable identity. Opening a path
     /// already resident here SWITCHES to its live buffer (unsaved edits, cursor,
@@ -894,17 +872,8 @@ impl App {
         } else {
             None
         };
-        let project = crate::project::Project::resolve(&root);
-        let file_index = crate::index::build_index(&root);
-        let default_folder = files::initial_default_folder(&cli_default_folder, &config);
-        let workspace_opt = cli_workspace.clone().or_else(|| config.workspace.clone());
-        let workspace_root = Some(crate::resolve_workspace(&workspace_opt, &root));
-        // Load the persisted RECENT PROJECT ROOTS (the Recent Projects picker's
-        // MRU). Through the `FileSystem` seam, so it degrades to an empty list on a
-        // fresh install (missing file) and works on wasm (WebFs) too. Only ever
-        // reached on the live `App` — the headless capture never constructs one.
-        let recent_projects = crate::recents::load(&crate::recents::recents_path());
-        let recent_files = crate::recent_files::load();
+        let config = location::ConfigurationRuntime::new(config, cli_workspace, cli_default_folder);
+        let project_location = location::ProjectLocation::new(root, &config.location_policy());
         let mut keys_with_web_alt = config.keys.clone();
         keys_with_web_alt.extend(crate::commands::web_alternate_keys(
             &config.keys,
@@ -1014,14 +983,8 @@ impl App {
                 }
             },
             clipboard_last_written: None,
-            root,
-            project,
-            file_index,
-            workspace_root,
-            recent_projects,
-            recent_files,
+            project_location,
             prev_file: None,
-            default_folder,
             notice: None,
             notice_kind: NoticeKind::Sticky,
             notice_expires_at: None,
@@ -1042,8 +1005,6 @@ impl App {
             present_sync_on: false,
             present_sync_valid: false,
             config,
-            cli_default_folder,
-            cli_workspace,
             buffer_registry: crate::buffers::BufferRegistry::default(),
             #[cfg(not(target_arch = "wasm32"))]
             restored_window: None,

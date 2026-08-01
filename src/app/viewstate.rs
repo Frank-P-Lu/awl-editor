@@ -221,7 +221,7 @@ impl App {
                 .filter(|o| o.kind == crate::overlay::OverlayKind::Caret)
                 .and_then(|o| o.selected_caret_mode()),
             gutter_name: self.active.buffer.display_name(),
-            gutter_project: self.project.name.clone(),
+            gutter_project: self.project_location.project.name.clone(),
             is_markdown: self.active.buffer.is_markdown(),
             doc_dir: self
                 .active

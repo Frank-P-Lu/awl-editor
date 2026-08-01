@@ -83,10 +83,13 @@ impl App {
     /// a project switch). Native/live only — the headless capture never
     /// constructs an `App`, so this file is never touched from a capture.
     pub(in crate::app) fn push_recent_project(&mut self, root: PathBuf) {
-        let list = std::mem::take(&mut self.recent_projects);
-        self.recent_projects = crate::recents::push(list, root, crate::recents::CAP);
-        if let Err(e) = crate::recents::save(&crate::recents::recents_path(), &self.recent_projects)
-        {
+        let list = std::mem::take(&mut self.project_location.recent_projects);
+        self.project_location.recent_projects =
+            crate::recents::push(list, root, crate::recents::CAP);
+        if let Err(e) = crate::recents::save(
+            &crate::recents::recents_path(),
+            &self.project_location.recent_projects,
+        ) {
             eprintln!("recent-projects save failed: {e}");
         }
     }
@@ -98,9 +101,9 @@ impl App {
     ///   `recent-files.toml` is never touched from a capture. The FILE sibling of
     ///   [`Self::push_recent_project`].
     pub(in crate::app) fn push_recent_file(&mut self, file: PathBuf) {
-        let list = std::mem::take(&mut self.recent_files);
-        self.recent_files = crate::recent_files::push(list, file);
-        if let Err(e) = crate::recent_files::save(&self.recent_files) {
+        let list = std::mem::take(&mut self.project_location.recent_files);
+        self.project_location.recent_files = crate::recent_files::push(list, file);
+        if let Err(e) = crate::recent_files::save(&self.project_location.recent_files) {
             eprintln!("recent-files save failed: {e}");
         }
     }
@@ -112,7 +115,7 @@ impl App {
     /// (the ONE door every real-file open routes through), so this stays a thin
     /// resolve-and-load.
     pub(in crate::app) fn open_rel(&mut self, rel: &str) {
-        let path = crate::index::resolve(&self.root, rel);
+        let path = crate::index::resolve(&self.project_location.root, rel);
         self.load_path(path);
     }
 
@@ -327,7 +330,7 @@ impl App {
     /// move/first-save re-scans the SAME root's index without touching
     /// `project` or `workspace_root`, which haven't changed.
     pub(in crate::app) fn rescan_file_index(&mut self) {
-        self.file_index = crate::index::build_index(&self.root);
+        self.project_location.rescan_file_index();
     }
 
     /// THE ONE OWNER of "what does `self.root` imply" (docs/app-domains.md's
@@ -350,14 +353,8 @@ impl App {
     /// sites, makes that disagreement structurally impossible: there is no
     /// window where `project`/`file_index` reflect the new root while
     /// `workspace_root` still reflects the old one.
-    pub(in crate::app) fn resync_project_location(&mut self) {
-        self.project = crate::project::Project::resolve(&self.root);
-        self.rescan_file_index();
-        let workspace_opt = self
-            .cli_workspace
-            .clone()
-            .or_else(|| self.config.workspace.clone());
-        self.workspace_root = Some(crate::resolve_workspace(&workspace_opt, &self.root));
+    pub(in crate::app) fn resync_project_location(&mut self, policy: location::LocationPolicy) {
+        self.project_location.resync(policy);
     }
 
     /// Make `new_root` the ACTIVE project: re-derive everything `root` implies
@@ -385,8 +382,8 @@ impl App {
         // The document autosave / scratch stash flushes on the same trigger.
         self.flush_note();
         self.autosave_flush();
-        self.root = new_root;
-        self.resync_project_location();
+        self.project_location.root = new_root;
+        self.resync_project_location(self.config.location_policy());
         self.sync_view(false);
         if let Some(gpu) = self.gpu.as_ref() {
             gpu.window.request_redraw();
@@ -395,7 +392,7 @@ impl App {
     }
 
     pub(in crate::app) fn new_document(&mut self) {
-        let _ = crate::fs::active().create_dir_all(&self.root);
+        let _ = crate::fs::active().create_dir_all(&self.project_location.root);
         self.start_fresh_document();
     }
 }

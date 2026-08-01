@@ -30,7 +30,9 @@ impl App {
         // `Entry{buffer: Buffer::scratch(), extra: BufferExtra::default()}`
         // placeholder — start the fresh document in place on that
         // already-complete slot, targeting the ACTIVE folder.
-        self.active.buffer.start_fresh_doc(self.root.clone());
+        self.active
+            .buffer
+            .start_fresh_doc(self.project_location.root.clone());
         self.workspace_state.close_search();
         self.preedit.clear();
         self.active.extra.caret_synced_version = self.active.buffer.version();
