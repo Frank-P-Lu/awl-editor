@@ -7,7 +7,8 @@ use super::*;
 // consumer here reads (its forward/inverse row<->y arithmetic stays private to
 // `crate::render::plan`); item 181 adds the shared item-row HEIGHT clamp.
 pub(super) use crate::render::plan::{
-    OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, fit_item_rows, plan_overlay_rows,
+    OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, RowSpan, fit_item_rows,
+    plan_overlay_rows,
 };
 
 const PREFIX_HEADER: &str = "C-x";
@@ -163,6 +164,7 @@ pub(super) fn strip_gap() -> &'static str {
     }
 }
 
+#[derive(Clone)]
 pub(super) struct OverlayGeom {
     visible: usize,
     top_idx: usize,

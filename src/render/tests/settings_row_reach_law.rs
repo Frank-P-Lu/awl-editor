@@ -80,6 +80,147 @@ fn settings_view(ov: &OverlayState) -> ViewState {
     v
 }
 
+/// Item 131d's measured cluster is a geometry contract, not a Settings-only
+/// cosmetic alignment. Sweep every typed settings identity through both diagonal
+/// worlds and both reachable surfaces: the label/control gap stays one measured
+/// rail, the row-side plan accepts the same point as the drawn label, and Range
+/// rails remain wholly inside that accessory cluster.
+#[test]
+fn every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_workspace() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping measured diagonal cluster rail law: no wgpu adapter");
+        return;
+    };
+    let all = crate::settings::visible_rows();
+    assert_eq!(all.len(), crate::settings::SETTINGS.len());
+
+    for world in ["Mangrove", "Magpie"] {
+        theme::set_active_by_name(world).unwrap();
+        p.sync_theme();
+        for dpi in [1.0, 2.0] {
+            p.set_dpi(dpi);
+            for logical_width in [640u32, 1200] {
+                let width = (logical_width as f32 * dpi).round() as u32;
+                let height = (800.0 * dpi).round() as u32;
+                p.set_size(width as f32, height as f32);
+                for workspace in [false, true] {
+                    for (want_item, setting) in all.iter().enumerate() {
+                        let ctx = format!(
+                            "world={world} dpi={dpi} logical_width={logical_width} workspace={workspace} setting={:?}",
+                            setting.id
+                        );
+                        let mut ov = OverlayState::new(
+                            OverlayKind::Settings,
+                            crate::settings::visible_names(),
+                            Vec::new(),
+                            Vec::new(),
+                        );
+                        let values = values(1.4);
+                        ov.set_secondaries(crate::settings::visible_value_cells(&values));
+                        ov.set_range_cells(crate::settings::visible_range_cells(&values));
+                        ov.selected = want_item;
+                        let mut v = settings_view(&ov);
+                        v.overlay_workspace = workspace;
+                        v.overlay_detail_focus = workspace;
+                        p.set_view(&v);
+                        p.prepare(&device, &queue, width, height).unwrap();
+
+                        let geom = p.overlay_geometry(width);
+                        let plan = p.overlay_row_plan(&geom);
+                        let row = plan
+                            .rows()
+                            .iter()
+                            .find(|row| row.item == Some(want_item))
+                            .unwrap_or_else(|| panic!("{ctx}: selected setting must be visible"));
+                        let cluster = p.diagonal_cluster_probe().unwrap_or_else(|| {
+                            panic!("{ctx}: diagonal world must resolve a cluster")
+                        });
+                        assert!(cluster.label_w > 0.0, "{ctx}: labels must reserve a column");
+                        assert!(
+                            cluster.accessory_w >= 0.0,
+                            "{ctx}: an accessory reservation is never negative"
+                        );
+                        assert!(
+                            (row.dx
+                                - (cluster.span.dx + cluster.span.dx_per_row * row.display as f32))
+                                .abs()
+                                < 0.01
+                                && (row.dw
+                                    - (cluster.span.dw
+                                        + cluster.span.dw_per_row * row.display as f32))
+                                    .abs()
+                                    < 0.01,
+                            "{ctx}: planner row bounds must read the measured cluster span"
+                        );
+                        assert!(
+                            (cluster.accessory_left(row.display)
+                                - (cluster.label_left(row.display)
+                                    + cluster.label_w
+                                    + cluster.gap))
+                                .abs()
+                                < 0.01,
+                            "{ctx}: label + fixed gap + accessory must be one measured cluster"
+                        );
+                        let (left, right) = plan.card_x_span();
+                        assert!(
+                            cluster.label_left(row.display) >= left + row.dx - 0.01
+                                && cluster.accessory_right(row.display) <= right + row.dw + 0.01,
+                            "{ctx}: the complete measured cluster must stay inside its planned row span \
+                         (cluster={}..{}, span={}..{}, label_w={} accessory_w={} gap={})",
+                            cluster.label_left(row.display),
+                            cluster.accessory_right(row.display),
+                            left + row.dx,
+                            right + row.dw,
+                            cluster.label_w,
+                            cluster.accessory_w,
+                            cluster.gap,
+                        );
+                        let y = row.top + row.height * 0.5;
+                        assert_eq!(
+                            p.overlay_row_at(cluster.label_left(row.display) + 0.5, y),
+                            Some(want_item),
+                            "{ctx}: the label's drawn side and pointer row must agree"
+                        );
+
+                        match setting.kind {
+                            crate::settings::SettingKind::Range => {
+                                let (x0, x1) =
+                                    p.overlay_range_scale(want_item).unwrap_or_else(|| {
+                                        panic!("{ctx}: every Range setting must retain a rail")
+                                    });
+                                assert!(
+                                    x0 >= cluster.accessory_left(row.display) - 0.01
+                                        && x1 <= cluster.accessory_right(row.display) + 0.01,
+                                    "{ctx}: the Range rail belongs inside the measured accessory cluster"
+                                );
+                                assert_eq!(
+                                    p.overlay_range_at((x0 + x1) * 0.5, y).map(|(item, _)| item),
+                                    Some(want_item),
+                                    "{ctx}: a drawn Range rail and its hit target must name the same setting"
+                                );
+                            }
+                            crate::settings::SettingKind::Toggle
+                            | crate::settings::SettingKind::Picker
+                            | crate::settings::SettingKind::Value
+                            | crate::settings::SettingKind::Path
+                            | crate::settings::SettingKind::Submenu
+                            | crate::settings::SettingKind::Action => {
+                                assert!(
+                                    p.overlay_range_scale(want_item).is_none(),
+                                    "{ctx}: only Range settings may expose a rail"
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    p.set_dpi(1.0);
+    theme::set_active(theme::DEFAULT_THEME);
+}
+
 /// THE POINTER Y-CENTER SWEEP: for every row of the Editor facet, across the
 /// full world roster, both list styles, and both DPIs — a pointer at that
 /// row's own drawn y-CENTER (a) hit-tests back to exactly that row, (b) a

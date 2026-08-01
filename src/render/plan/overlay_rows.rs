@@ -106,6 +106,21 @@ pub(in crate::render) struct OverlayRowPlanInput<'a> {
     /// at once, so this field stays the one owner of the composition's step
     /// rather than shipping a second, unread axis.
     pub dx_per_row: f32,
+    /// A measured diagonal cluster may replace the probe/default stagger with
+    /// its exact attachment-side row span. `None` keeps the historical (and
+    /// env-probe) step above, so every unassigned world stays inert.
+    pub cluster_span: Option<RowSpan>,
+}
+
+/// The row-side span for a measured diagonal cluster.  The cluster owner
+/// resolves this from the same shaped label/accessory measurements that draw
+/// the text; the planner is still the one place that turns it into row bounds.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(in crate::render) struct RowSpan {
+    pub dx: f32,
+    pub dw: f32,
+    pub dx_per_row: f32,
+    pub dw_per_row: f32,
 }
 
 /// THE PLANNED CANDIDATE BAND. Built once per overlay frame; read by the draw
@@ -227,6 +242,7 @@ pub(in crate::render) fn test_row_top(
         empty_rows: 0,
         lines: None,
         dx_per_row: 0.0,
+        cluster_span: None,
     });
     plan.row_top(row).expect("row is inside the planned window")
 }
@@ -250,6 +266,7 @@ pub(in crate::render) fn test_rows(text_top: f32, lh: f32, n: usize) -> Vec<Plan
         empty_rows: 0,
         lines: None,
         dx_per_row: 0.0,
+        cluster_span: None,
     })
     .rows()
     .to_vec()
@@ -274,8 +291,19 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
     // negative part grows `dw` (right edge steps in). Exactly one of the two is
     // ever nonzero for a given `dx_per_row`, which is what lets both mirrored
     // compositions share one input without a second knob.
-    let dx = |display: usize| input.dx_per_row.max(0.0) * display as f32;
-    let dw = |display: usize| input.dx_per_row.min(0.0) * display as f32;
+    let (base_dx, base_dw, dx_step, dw_step) = input.cluster_span.map_or_else(
+        || {
+            (
+                0.0,
+                0.0,
+                input.dx_per_row.max(0.0),
+                input.dx_per_row.min(0.0),
+            )
+        },
+        |span| (span.dx, span.dw, span.dx_per_row, span.dw_per_row),
+    );
+    let dx = |display: usize| base_dx + dx_step * display as f32;
+    let dw = |display: usize| base_dw + dw_step * display as f32;
     let rows: Vec<PlannedRow> = match input.lines {
         Some(lines) => lines
             .iter()

@@ -10,6 +10,7 @@ const ROW_STEP_LOGICAL: f32 = 7.0;
 const SPINE_WEIGHT_LOGICAL: f32 = 1.5;
 const SPINE_CORNER_LOGICAL: f32 = 0.75;
 const ATTACHMENT_BAND_INSET_LOGICAL: f32 = 44.0;
+const CLUSTER_CONNECTOR_LOGICAL: f32 = 10.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(in crate::render) struct DiagonalComposition {
@@ -18,6 +19,136 @@ pub(in crate::render) struct DiagonalComposition {
     pub spine_weight: f32,
     pub spine_corner: f32,
     pub attachment_inset: f32,
+    pub connector: f32,
+}
+
+/// The one measured row-cluster layout shared by diagonal text, accessory
+/// upload, Range geometry, and the planner's clickable row-side span.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(in crate::render) struct DiagonalClusterRail {
+    direction: theme::DiagonalDirection,
+    label_w: f32,
+    accessory_w: f32,
+    gap: f32,
+    connector: f32,
+    spine_start: f32,
+    spine_step: f32,
+    span: RowSpan,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug)]
+pub(in crate::render) struct DiagonalClusterProbe {
+    pub label_w: f32,
+    pub accessory_w: f32,
+    pub gap: f32,
+    pub span: RowSpan,
+    rail: DiagonalClusterRail,
+}
+
+#[cfg(test)]
+impl DiagonalClusterProbe {
+    pub(in crate::render) fn label_left(self, display: usize) -> f32 {
+        self.rail.label_left(display)
+    }
+
+    pub(in crate::render) fn accessory_left(self, display: usize) -> f32 {
+        self.rail.accessory_left(display)
+    }
+
+    pub(in crate::render) fn accessory_right(self, display: usize) -> f32 {
+        self.rail.accessory_right(display)
+    }
+}
+
+impl DiagonalClusterRail {
+    fn new(
+        composition: DiagonalComposition,
+        geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
+        label_w: f32,
+        accessory_w: f32,
+        gap: f32,
+    ) -> Self {
+        let band_x = geom.band_x();
+        let band_right = band_x + geom.band_w();
+        let label_w = label_w.max(0.0);
+        let accessory_w = accessory_w.max(0.0);
+        let gap = if accessory_w > 0.0 { gap.max(0.0) } else { 0.0 };
+        let cluster_w = label_w + gap + accessory_w;
+        let rows = plan.rows().len().saturating_sub(1) as f32;
+        let inset = composition
+            .attachment_inset
+            .min((geom.band_w() * 0.5 - composition.connector).max(0.0));
+        let available_travel = (geom.band_w() - inset - composition.connector - cluster_w).max(0.0);
+        let step = if rows > 0.0 {
+            composition.row_step.abs().min(available_travel / rows)
+        } else {
+            0.0
+        };
+        let (spine_start, spine_step, span) = match composition.direction {
+            theme::DiagonalDirection::Descending => (
+                band_x + inset,
+                step,
+                RowSpan {
+                    dx: inset,
+                    dw: 0.0,
+                    dx_per_row: step,
+                    dw_per_row: 0.0,
+                },
+            ),
+            theme::DiagonalDirection::Ascending => (
+                band_right - inset,
+                -step,
+                RowSpan {
+                    dx: 0.0,
+                    dw: -inset,
+                    dx_per_row: 0.0,
+                    dw_per_row: -step,
+                },
+            ),
+        };
+        Self {
+            direction: composition.direction,
+            label_w,
+            accessory_w,
+            gap,
+            connector: composition.connector,
+            spine_start,
+            spine_step,
+            span,
+        }
+    }
+
+    pub(in crate::render) fn span(self) -> RowSpan {
+        self.span
+    }
+
+    fn spine_x(self, display: usize) -> f32 {
+        self.spine_start + self.spine_step * display as f32
+    }
+
+    pub(in crate::render) fn label_left(self, display: usize) -> f32 {
+        let spine = self.spine_x(display);
+        match self.direction {
+            theme::DiagonalDirection::Descending => spine + self.connector,
+            theme::DiagonalDirection::Ascending => {
+                spine - self.connector - self.label_w - self.gap - self.accessory_w
+            }
+        }
+    }
+
+    pub(in crate::render) fn accessory_left(self, display: usize) -> f32 {
+        self.label_left(display) + self.label_w + self.gap
+    }
+
+    pub(in crate::render) fn accessory_right(self, display: usize) -> f32 {
+        self.accessory_left(display) + self.accessory_w
+    }
+
+    pub(in crate::render) fn accessory_w(self) -> f32 {
+        self.accessory_w
+    }
 }
 
 impl DiagonalComposition {
@@ -30,16 +161,7 @@ impl DiagonalComposition {
             spine_weight: SPINE_WEIGHT_LOGICAL * scale,
             spine_corner: SPINE_CORNER_LOGICAL * scale,
             attachment_inset: ATTACHMENT_BAND_INSET_LOGICAL * scale,
-        }
-    }
-
-    fn attachment_x(self, geom: &OverlayGeom) -> f32 {
-        let inset = self
-            .attachment_inset
-            .min((geom.band_w() * 0.5 - self.spine_weight).max(0.0));
-        match self.direction {
-            theme::DiagonalDirection::Descending => geom.band_x() + inset,
-            theme::DiagonalDirection::Ascending => geom.band_x() + geom.band_w() - inset,
+            connector: CLUSTER_CONNECTOR_LOGICAL * scale,
         }
     }
 
@@ -47,12 +169,79 @@ impl DiagonalComposition {
     pub fn spine(self, geom: &OverlayGeom, plan: &OverlayRowPlan) -> Option<([f32; 2], [f32; 2])> {
         let first = plan.rows().first()?;
         let last = plan.rows().last()?;
-        let x0 = self.attachment_x(geom);
-        let x1 = x0 + self.row_step * last.display.saturating_sub(first.display) as f32;
+        let edge = |row: &PlannedRow| match self.direction {
+            theme::DiagonalDirection::Descending => geom.band_x() + row.dx,
+            theme::DiagonalDirection::Ascending => geom.band_x() + geom.band_w() + row.dw,
+        };
+        let x0 = edge(first);
+        let x1 = edge(last);
         Some((
             [x0, first.top + first.height * 0.5],
             [x1, last.top + last.height * 0.5],
         ))
+    }
+}
+
+impl TextPipeline {
+    pub(super) fn diagonal_cluster_budget(&self, geom: &OverlayGeom) -> Option<f32> {
+        let composition = active(self)?;
+        let inset = composition
+            .attachment_inset
+            .min((geom.band_w() * 0.5 - composition.connector).max(0.0));
+        Some(
+            geom.text_w
+                .min((geom.band_w() - inset - composition.connector).max(0.0)),
+        )
+    }
+
+    pub(super) fn resolve_diagonal_cluster(
+        &self,
+        geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
+    ) -> Option<DiagonalClusterRail> {
+        let composition = active(self)?;
+        let primary = self.overlay_row_primary_px(geom);
+        let secondary = self.overlay_row_secondary_px(geom);
+        let label_w = plan
+            .rows()
+            .iter()
+            .map(|row| primary.get(&row.display).copied().unwrap_or(0.0))
+            .fold(0.0, f32::max);
+        let mut accessory_w = plan
+            .rows()
+            .iter()
+            .map(|row| secondary.get(&row.display).copied().unwrap_or(0.0))
+            .fold(0.0, f32::max);
+        for row in plan.rows() {
+            let Some(item) = row.item else {
+                continue;
+            };
+            if self.overlay_ranges.get(item).copied().flatten().is_some() {
+                let value_w = secondary.get(&row.display).copied().unwrap_or(0.0);
+                accessory_w = accessory_w.max(
+                    value_w + crate::render::rowlayout::rail_accessory_width(self.overlay_lh()),
+                );
+            }
+        }
+        Some(DiagonalClusterRail::new(
+            composition,
+            geom,
+            plan,
+            label_w,
+            accessory_w,
+            rowlayout::GAP_CHARS as f32 * self.overlay_char_width(),
+        ))
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn diagonal_cluster_probe(&self) -> Option<DiagonalClusterProbe> {
+        self.diagonal_cluster.map(|rail| DiagonalClusterProbe {
+            label_w: rail.label_w,
+            accessory_w: rail.accessory_w,
+            gap: rail.gap,
+            span: rail.span,
+            rail,
+        })
     }
 }
 

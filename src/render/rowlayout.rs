@@ -158,6 +158,12 @@ const THUMB_H_LH: f32 = 0.50;
 const RAIL_GAP_LH: f32 = 0.45;
 const RAIL_HIT_PAD_LH: f32 = 0.55;
 
+/// The rail and its fixed internal gap occupy this much of an accessory cluster
+/// before that cluster's measured value text begins.
+pub fn rail_accessory_width(lh: f32) -> f32 {
+    (RAIL_W_LH + RAIL_GAP_LH) * lh.max(0.0)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rail {
     pub track: [f32; 4],

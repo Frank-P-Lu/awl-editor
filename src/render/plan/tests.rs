@@ -33,6 +33,7 @@ fn flat(
         empty_rows: 0,
         lines: None,
         dx_per_row: 0.0,
+        cluster_span: None,
     }
 }
 
