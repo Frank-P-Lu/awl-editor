@@ -80,12 +80,13 @@ fn settings_view(ov: &OverlayState) -> ViewState {
     v
 }
 
-/// Item 131d's measured cluster is a geometry contract, not a Settings-only
-/// cosmetic alignment. Sweep every typed settings identity through both diagonal
+/// The measured cluster is a geometry contract, not a Settings-only cosmetic
+/// alignment. Sweep every typed settings identity through both diagonal
 /// worlds and both reachable surfaces: the label/control gap stays one measured
 /// rail, the row-side plan accepts the same point as the drawn label, and Range
 /// rails remain wholly inside that accessory cluster.
 #[test]
+#[allow(clippy::too_many_lines)]
 fn every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_workspace() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
@@ -107,7 +108,8 @@ fn every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_wor
                 for workspace in [false, true] {
                     for (want_item, setting) in all.iter().enumerate() {
                         let ctx = format!(
-                            "world={world} dpi={dpi} logical_width={logical_width} workspace={workspace} setting={:?}",
+                            "world={world} dpi={dpi} logical_width={logical_width} \
+                             workspace={workspace} setting={:?}",
                             setting.id
                         );
                         let mut ov = OverlayState::new(
