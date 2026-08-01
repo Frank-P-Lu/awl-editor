@@ -1281,3 +1281,21 @@ kind = "architectural"
 line = 705
 text = "            \"{kind:?} must have exactly one palette door (commands={command_doors}, rows={row_doors})\""
 reason = "Pure relocation from the inline src/settings.rs test module; this exact line was grandfathered there."
+
+# Item 203: a NEWLY ADDED Rust comment citing a queue item, round, or sha
+# fails code-health.py (new_comment_citations / check_comment_citations),
+# compared against `git merge-base HEAD main` — item 192's lesson, not
+# main's tip — so a branch is only judged on citations it actually added.
+# Three exceptions are decided structurally in code, not here: a test file
+# whose filename already carries its item number (`backgrounds_item158.rs`),
+# src/capture.rs's own SCHEMA_VERSION history rows (`/188`, `/189`, ...),
+# and anything already present before the branch's fork point (the existing
+# ~1247-hit backlog this item deliberately leaves undeleted). Everything
+# else needs an entry here: a measured threshold or product constant whose
+# provenance genuinely is the cited fact, never a substitute for actually
+# removing narration the type could not otherwise carry.
+# [[comment_citation_exception]]
+# target = "src/example.rs"
+# line = 42
+# text = "// item 9: the pinned perf baseline itself, not narration"
+# reason = "Why this exact citation is the fact, not history about the fact."

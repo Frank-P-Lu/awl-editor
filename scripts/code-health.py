@@ -31,6 +31,63 @@ BASELINE_REASON = "item 134 initial inventory; remove debt instead of extending 
 HIGH_SIGNAL_LINTS = {"clippy::too_many_lines", "clippy::cognitive_complexity"}
 TARGET_OS = {"Darwin": "macos", "Linux": "linux"}.get(platform.system(), platform.system().lower())
 
+# Item 203: a Rust comment line that cites queue-item/round/sha archaeology —
+# CLAUDE.md's Conventions rule ("Comments state what the code can't say about
+# itself. Not history... Never cite a queue item, round, or sha without
+# verifying it exists"), which item 198 enforced once by hand and nothing
+# enforced again. Deliberately the same shape as the grep that measured the
+# defect (`^\s*(//|///|//!).*\bitem [0-9]+`): a whole-line comment, so a
+# trailing `code(); // item 5` note is out of scope exactly as it was out of
+# scope when 198 and this item's own backlog count were measured — changing
+# that now would silently redefine the number everyone has already agreed on.
+COMMENT_LINE = re.compile(r"^\s*(?:///|//!|//)")
+# No trailing `\b`: a sub-item suffix (`item 116a`, `ROUND 131b`) has a digit
+# directly followed by a letter, so `\d+\b` would demand a word boundary that
+# never exists there and silently under-count exactly these — the measuring
+# grep (`\bitem [0-9]+`, no end anchor) has no such requirement, and this
+# check's own reported backlog must equal that measurement, not a stricter
+# reading of it.
+CITATION_KEYWORD = re.compile(r"\b(?:item|round)\s+\d+", re.IGNORECASE)
+# A backtick-quoted token that is ENTIRELY 7-40 lowercase hex characters is a
+# git-sha citation (`24477b88`, `d93109e`); real shas are lowercase only, so
+# this never fires on an uppercase hex literal. `[0-9a-f]{7,40}` alone still
+# accepts a run of pure digits (`1234567`, a thousands-separator example in
+# hud.rs — a real false positive this check must not trip on), so a match is
+# only treated as a citation once it contains at least one a-f letter.
+CITATION_SHA = re.compile(r"`([0-9a-f]{7,40})`")
+# Exception 1: a test module whose filename already carries the queue item it
+# covers (`backgrounds_item158.rs`, `alternate_accept_item116c.rs`) uses the
+# filename as the index — a citation inside is the file doing what its name
+# promises, not archaeology narrating history the type can't express.
+TEST_FILENAME_ITEM_INDEX = re.compile(r"_item\d+[a-z]?\.rs$", re.IGNORECASE)
+# Exception 2: `src/capture.rs`'s SCHEMA_VERSION history table (`/188`,
+# `/189`, ...) is the append-only reservation ledger item 187's
+# `schema_ledger` law reads and re-derives the const from — a live citation
+# of an evolving fact, not narration. (In practice this line shape never
+# contains the word "item"/"round" or a backtick sha, so CITATION_KEYWORD and
+# CITATION_SHA above already leave it alone; named here anyway per the brief,
+# and as a deliberate guard if a future schema row is ever spelled with an
+# "item"/sha reference instead of the `/N` form.)
+CAPTURE_SCHEMA_ROW = re.compile(r"^\s*///\s*`/\d+`")
+
+
+def is_comment_citation_line(line: str) -> bool:
+    """A whole-line Rust comment that cites a queue item, round, or sha."""
+    if not COMMENT_LINE.match(line):
+        return False
+    if CITATION_KEYWORD.search(line):
+        return True
+    sha_match = CITATION_SHA.search(line)
+    return bool(sha_match and any(c in "abcdef" for c in sha_match.group(1)))
+
+
+def is_index_named_test_file(path: str) -> bool:
+    return "/tests/" in path and bool(TEST_FILENAME_ITEM_INDEX.search(Path(path).name))
+
+
+def is_capture_schema_history_row(path: str, text: str) -> bool:
+    return path == "src/capture.rs" and bool(CAPTURE_SCHEMA_ROW.match(text))
+
 
 def git(*args: str) -> str:
     return subprocess.check_output(
@@ -132,32 +189,20 @@ def load_file_size_marks(
     return marks, reasons, failures
 
 
-def previous_marks(
-    manifest_path: str = "scripts/code-health.toml", head_ref: str = "HEAD"
-) -> tuple[dict[str, int] | None, str]:
-    """The file-size-mark table at the commit this branch actually forked
-    from — `git merge-base head_ref main` — and a status naming whether that
-    comparison means anything.
-
-    Deliberately not `main`'s tip: this repo actively encourages paying a
-    code-health bill by *lowering* a mark on `main` (extraction), and the tip
-    moves the instant that lands. A worker whose branch forked before that
-    lowering, and never touched the file itself, would then be compared
-    against a baseline it never saw and never raised — exactly item 186's
-    false failure. The merge base is the one point both histories agree the
-    branch actually started from, so a raise measured against it is a raise
-    the branch itself made.
-
-    Also deliberately not the frozen BASELINE commit: marks did not exist
-    that far back (`git show BASELINE:scripts/code-health.toml` has no such
-    path), and BASELINE's own file sizes are the separate, much larger
-    ceiling `check_structural` enforces directly against history.
+def resolve_merge_base(head_ref: str = "HEAD") -> tuple[str | None, str]:
+    """The commit this branch actually forked from — `git merge-base
+    head_ref main` (or `origin/main`) — and a status naming whether that
+    comparison means anything. Shared by every check that must judge a
+    branch only on what IT changed: `previous_marks` (item 192) and the
+    new-comment-citation ratchet (item 203) both call this instead of each
+    re-deriving the same git plumbing, so the head_is_main/unresolvable
+    semantics stay in exactly one place.
 
     Status is one of:
       "ok"           — `head_ref` differs from the resolved `main`/
                         `origin/main` commit and a merge base was found, so
-                        the returned table is the branch's real fork-point
-                        state and a raise against it is meaningful.
+                        the base sha is the branch's real fork point and a
+                        diff against it is meaningful.
       "unresolvable" — `main`/`origin/main` didn't resolve, `head_ref` itself
                         doesn't resolve, or the two share no merge base (a
                         shallow or detached checkout, or unrelated
@@ -166,18 +211,15 @@ def previous_marks(
                         already grants its own Linux-target Clippy arm when
                         that target isn't installed.
       "head_is_main" — `head_ref` already IS the resolved commit, so there is
-                        no prior branch state to diff against: `main`'s
-                        manifest and the one being checked are the same
-                        object, and a raise can never be observed no matter
-                        what the table says. This is not a clean audit, it is
-                        a vacuous one, and it is the *normal* state in two of
-                        the three places this script runs on this
-                        push-straight-to-`main` repo: CI's `code-health.sh`
-                        job (always HEAD-on-`main`) and the merge train's
-                        post-merge candidate. The raise audit has real force
-                        in exactly one place — a worker's worktree branch,
-                        checked before landing, which is also where item 132
-                        would have been caught.
+                        no prior branch state to diff against. This is not a
+                        clean audit, it is a vacuous one, and it is the
+                        *normal* state in two of the three places this
+                        script runs on this push-straight-to-`main` repo:
+                        CI's `code-health.sh` job (always HEAD-on-`main`) and
+                        the merge train's post-merge candidate. Comparisons
+                        built on this function have real force in exactly
+                        one place — a worker's worktree branch, checked
+                        before landing.
 
     `head_ref` defaults to `HEAD` and is only overridden by a caller proving
     the `head_is_main` behavior without actually checking out `main`.
@@ -201,6 +243,42 @@ def previous_marks(
         base_sha = git("merge-base", head_sha, ref_sha).strip()
     except subprocess.CalledProcessError:
         return None, "unresolvable"
+    return base_sha, "ok"
+
+
+def previous_marks(
+    manifest_path: str = "scripts/code-health.toml", head_ref: str = "HEAD"
+) -> tuple[dict[str, int] | None, str]:
+    """The file-size-mark table at the commit this branch actually forked
+    from — `resolve_merge_base(head_ref)` — and a status naming whether that
+    comparison means anything.
+
+    Deliberately not `main`'s tip: this repo actively encourages paying a
+    code-health bill by *lowering* a mark on `main` (extraction), and the tip
+    moves the instant that lands. A worker whose branch forked before that
+    lowering, and never touched the file itself, would then be compared
+    against a baseline it never saw and never raised — exactly item 186's
+    false failure. The merge base is the one point both histories agree the
+    branch actually started from, so a raise measured against it is a raise
+    the branch itself made.
+
+    Also deliberately not the frozen BASELINE commit: marks did not exist
+    that far back (`git show BASELINE:scripts/code-health.toml` has no such
+    path), and BASELINE's own file sizes are the separate, much larger
+    ceiling `check_structural` enforces directly against history.
+
+    Status comes straight from `resolve_merge_base` — see its docstring for
+    what "ok"/"unresolvable"/"head_is_main" mean here. The raise audit this
+    feeds has real force in exactly one place — a worker's worktree branch,
+    checked before landing, which is also where item 132 would have been
+    caught.
+
+    `head_ref` defaults to `HEAD` and is only overridden by a caller proving
+    the `head_is_main` behavior without actually checking out `main`.
+    """
+    base_sha, status = resolve_merge_base(head_ref)
+    if status != "ok":
+        return None, status
     text = git("show", f"{base_sha}:{manifest_path}")
     data = tomllib.loads(text)
     marks = {
@@ -236,6 +314,156 @@ def check_mark_raises(
                 "for growth unavoidable at a single-owner seam, named by a `reason`)"
             )
     return failures
+
+
+def citation_exceptions(path: Path = MANIFEST) -> tuple[set[tuple[str, int, str]], list[str]]:
+    """Named per-line exceptions for a legitimate new comment citation —
+    item 203's third category, alongside the index-named-test-file and
+    `capture.rs`-schema-row shapes that are decided structurally in code:
+    a measured threshold or product constant whose provenance IS the cited
+    fact (e.g. a perf number pinned to the commit that measured it). Same
+    staleness shape as `structural_exceptions`: `text` must still match the
+    file's current line, so an entry silently expires the moment the cited
+    line moves rather than uselessly guarding dead ground. Kept as its own
+    table rather than folded into `structural_exception` — that table's
+    `kind` vocabulary is about the 100-column line rule, a different
+    invariant, and conflating the two would let one entry silently excuse
+    both without either lane meaning to grant the second.
+    """
+    data = tomllib.loads(path.read_text())
+    failures: list[str] = []
+    allowed: set[tuple[str, int, str]] = set()
+    for entry in data.get("comment_citation_exception", []):
+        missing = {"target", "line", "text", "reason"} - entry.keys()
+        if missing:
+            failures.append(f"code-health: malformed comment-citation exception missing {sorted(missing)}")
+            continue
+        if not entry["reason"].strip():
+            failures.append(f"code-health: empty comment-citation-exception reason for {entry['target']}")
+        target = ROOT / entry["target"]
+        if not target.exists():
+            failures.append(f"code-health: stale comment-citation exception {entry['target']}:{entry['line']}")
+            continue
+        lines = target.read_text().splitlines()
+        number = entry["line"]
+        if not isinstance(number, int) or number < 1 or number > len(lines) or lines[number - 1] != entry["text"]:
+            failures.append(f"code-health: stale comment-citation exception {entry['target']}:{number}")
+            continue
+        allowed.add((entry["target"], number, entry["text"]))
+    return allowed, failures
+
+
+def new_comment_citations(head_ref: str = "HEAD") -> tuple[list[tuple[str, int, str]] | None, str]:
+    """Comment-citation lines (`is_comment_citation_line`) present now under
+    `src/` that were NOT present at `resolve_merge_base(head_ref)` — i.e.
+    genuinely added by this branch, item 192's exact lesson applied to a
+    second metric: compared against the fork point, not `main`'s tip, so a
+    branch that merely touches a file an unrelated lane already salted with
+    archaeology is not blamed for lines it never wrote.
+
+    Diffed against the WORKING TREE (`git diff <base> -- src`, no second
+    ref), matching `check_structural`'s live-disk read elsewhere in this
+    file: a citation added but not yet committed is still worth catching
+    before the commit that would need `--self-test`/`code-health.sh` re-run
+    to see it. `-M` requests rename detection so a pure file move does not
+    read as a wholesale deletion+re-addition of every citation inside it.
+
+    Returns `(None, status)` for the same non-"ok" statuses
+    `resolve_merge_base` can report — an unresolvable reference or a vacuous
+    HEAD-is-`main` comparison can prove nothing was added, so neither is
+    treated as if it had been.
+    """
+    base_sha, status = resolve_merge_base(head_ref)
+    if status != "ok":
+        return None, status
+    diff_text = git("diff", "-M", "--unified=0", base_sha, "--", "src")
+    added: list[tuple[str, int, str]] = []
+    current_file: str | None = None
+    current_line: int | None = None
+    for line in diff_text.splitlines():
+        if line.startswith("+++ "):
+            raw = line[4:]
+            if raw == "/dev/null":
+                current_file = None
+            elif raw.startswith(("a/", "b/")):
+                current_file = raw[2:]
+            else:
+                current_file = raw
+            current_line = None
+            continue
+        if line.startswith("@@"):
+            match = re.search(r"\+(\d+)", line)
+            current_line = int(match.group(1)) if match else None
+            continue
+        if line.startswith("+++") or line.startswith("---"):
+            continue
+        if line.startswith("+"):
+            text = line[1:]
+            if current_file is not None and current_file.endswith(".rs") and current_line is not None:
+                if is_comment_citation_line(text):
+                    added.append((current_file, current_line, text))
+                current_line += 1
+            continue
+        # "-" (removed) and other diff metadata lines don't advance the new
+        # file's line counter.
+    return added, "ok"
+
+
+def check_comment_citations(
+    added: list[tuple[str, int, str]] | None,
+    exceptions: set[tuple[str, int, str]],
+) -> list[str]:
+    """A newly added citation fails unless it is a named exception: an
+    index-named test file, `capture.rs`'s schema-history row, or a
+    `comment_citation_exception` entry recording why. `added` is `None` for
+    either non-"ok" status `new_comment_citations` can return.
+    """
+    if added is None:
+        return []
+    failures: list[str] = []
+    for file, line, text in added:
+        if is_index_named_test_file(file):
+            continue
+        if is_capture_schema_history_row(file, text):
+            continue
+        if (file, line, text) in exceptions:
+            continue
+        failures.append(
+            f"{file}:{line}: new comment cites queue-item/round/sha archaeology "
+            f"({text.strip()!r}); CLAUDE.md's Conventions rule: comments state what "
+            "the code can't say about itself, not history — remove the citation, or "
+            "if it is a genuine exception (an index-named test file, capture.rs's "
+            "schema ledger, or a measured threshold whose provenance is the fact "
+            "itself) record it as a `comment_citation_exception` with a `reason`"
+        )
+    return failures
+
+
+def comment_citation_backlog(paths: list[str] | None = None) -> dict[str, int]:
+    """Existing comment-citation lines under `src/`, counted per top-level
+    module, for standing visibility into the measured backlog item 203
+    deliberately leaves undeleted — establishing the ratchet stops it from
+    growing; draining it is separate work, and a mass deletion here would
+    both bury this item's actual mechanism in the diff and collide with
+    other lanes concurrently editing `src/`.
+    """
+    if paths is None:
+        paths = tracked_rust()
+    counts: dict[str, int] = {}
+    for path in paths:
+        if not path.startswith("src/") or not path.endswith(".rs"):
+            continue
+        try:
+            text = (ROOT / path).read_text()
+        except OSError:
+            continue
+        n = sum(1 for line in text.splitlines() if is_comment_citation_line(line))
+        if n == 0:
+            continue
+        parts = Path(path).parts
+        module = parts[1] if len(parts) > 2 else parts[-1]
+        counts[module] = counts.get(module, 0) + n
+    return counts
 
 
 def clippy_diagnostics(output: str) -> set[tuple[str, str, int, str]]:
@@ -681,6 +909,158 @@ def self_test() -> int:
                 )
         finally:
             globals()["ROOT"] = root
+    # Item 203: is_comment_citation_line's own axis sweep — the one this
+    # check most needs to get right is the FALSE positives, since a comment
+    # rule that also fires on ordinary prose is worse than no rule (every
+    # lane starts inventing workarounds). Each case below is a real shape
+    # sampled from the actual 1247-hit backlog or its near-miss neighbors,
+    # not an imagined one.
+    citation_cases = [
+        ("/// item 42: some archaeology", True),
+        ("// ROUND 3: case-insensitive, same as the measuring grep's -i", True),
+        ("    /// ITEM 116a — a sub-item suffix, no trailing word boundary", True),
+        ("        // ITEM 131b — same suffix shape, lowercase item, uppercase ITEM", True),
+        ("//! fixed in `24477b88`", True),
+        ("// the active item in the menu", False),  # "item" with no number
+        ("// round the corner radius to the nearest pixel", False),  # "round" with no number
+        ("/// `1234567`", False),  # hud.rs's real thousands-separator example: all-digit, not a sha
+        ("let item = 5; // item 9 trailing, not a whole-line comment", False),  # matches the grep's own scope, not the substring
+        ("///     `/188` — permissive replay `replay_skips`.", False),  # capture.rs's own row shape carries no bare item/round/sha token
+        ("    // ordinary present-tense comment, no citation", False),
+    ]
+    for text, expected in citation_cases:
+        if is_comment_citation_line(text) != expected:
+            raise AssertionError(f"is_comment_citation_line({text!r}) must be {expected}")
+    if not is_index_named_test_file("src/render/tests/backgrounds_item158.rs"):
+        raise AssertionError("a tests/ file whose name carries an item number must be index-named")
+    if not is_index_named_test_file("src/actions/tests/alternate_accept_item116c.rs"):
+        raise AssertionError("a trailing-letter item suffix (116c) must still count as index-named")
+    if is_index_named_test_file("src/render/tests/nits.rs"):
+        raise AssertionError("an ordinary test file with no item number must not be index-named")
+    if is_index_named_test_file("src/item42.rs"):
+        raise AssertionError("a production path outside tests/ must never be exempted by filename alone")
+    schema_row = "/// `/188` — permissive replay `replay_skips`."
+    if not is_capture_schema_history_row("src/capture.rs", schema_row):
+        raise AssertionError("capture.rs's own schema-history row shape must be recognized")
+    if is_capture_schema_history_row("src/other.rs", schema_row):
+        raise AssertionError("the schema-row exception must be scoped to capture.rs, not any file")
+    if is_capture_schema_history_row("src/capture.rs", "/// an unrelated doc comment"):
+        raise AssertionError("the schema-row exception must match the row's own shape, not the whole file")
+    with tempfile.TemporaryDirectory() as directory:
+        target = Path(directory) / "src/measured.rs"
+        target.parent.mkdir()
+        target.write_text("fn f() {}\n// item 9: a measured perf number pinned to its commit\n")
+        manifest = Path(directory) / "health.toml"
+        manifest.write_text(
+            '[[comment_citation_exception]]\n'
+            'target = "src/measured.rs"\n'
+            'line = 2\n'
+            'text = "// item 9: a measured perf number pinned to its commit"\n'
+            'reason = "the cited item is the perf baseline itself, not narration"\n'
+        )
+        root = ROOT
+        try:
+            globals()["ROOT"] = Path(directory)
+            allowed, failures = citation_exceptions(manifest)
+            if failures or ("src/measured.rs", 2, "// item 9: a measured perf number pinned to its commit") not in allowed:
+                raise AssertionError("a live comment-citation exception must be accepted")
+            target.write_text("fn f() {}\n// item 9: the line moved or changed\n")
+            _, failures = citation_exceptions(manifest)
+            if not failures:
+                raise AssertionError("a stale comment-citation exception (moved/changed line) must fail")
+        finally:
+            globals()["ROOT"] = root
+    # check_comment_citations directly: each of the three named exceptions
+    # dodges the failure on its own terms, and a plain new citation with none
+    # of them still fails by name.
+    added_cases = [
+        ("src/render/tests/backgrounds_item158.rs", 3, "// item 158: index-named test file"),
+        ("src/capture.rs", 6, "/// `/188` — permissive replay `replay_skips`."),
+        ("src/measured.rs", 2, "// item 9: a measured perf number pinned to its commit"),
+        ("src/plain.rs", 4, "// item 77: fresh archaeology with no exception"),
+    ]
+    direct_failures = check_comment_citations(
+        added_cases,
+        {("src/measured.rs", 2, "// item 9: a measured perf number pinned to its commit")},
+    )
+    if len(direct_failures) != 1 or "src/plain.rs:4" not in direct_failures[0]:
+        raise AssertionError(
+            f"exactly the unexempted new citation must fail, the three named exceptions must not: {direct_failures}"
+        )
+    if check_comment_citations(None, set()):
+        raise AssertionError("a None added-list (non-ok status) must never fail")
+    # Item 203's own regression fixture, same real-git shape as item 192's
+    # above: fork -> diverge -> assert BOTH directions, because a fix that
+    # stops false-alarming and a fix that stops checking are indistinguishable
+    # from outside unless both are tested.
+    with tempfile.TemporaryDirectory() as directory:
+        root = ROOT
+        try:
+            globals()["ROOT"] = Path(directory)
+            git("init", "-q")
+            git("config", "user.email", "code-health-selftest@example.com")
+            git("config", "user.name", "code-health-selftest")
+            git("checkout", "-q", "-b", "main")
+            src_dir = Path(directory) / "src"
+            src_dir.mkdir()
+            existing = src_dir / "existing.rs"
+            existing.write_text(
+                "// plain production comment, no citation\n"
+                "// item 1: pre-existing archaeology that predates this ratchet\n"
+                "fn existing() {}\n"
+            )
+            git("add", "-A")
+            git("commit", "-q", "-m", "fork point: existing.rs carries one old citation")
+            git("checkout", "-q", "-b", "feature")
+
+            # A DIFFERENT lane lands its own brand-new citation on `main`
+            # after the fork — must never bleed into `feature`'s audit (the
+            # unrelated file doesn't even exist in feature's working tree).
+            git("checkout", "-q", "main")
+            unrelated_on_main = src_dir / "unrelated.rs"
+            unrelated_on_main.write_text(
+                "// item 2: a different lane's citation, landed on main after the fork\n"
+                "fn unrelated() {}\n"
+            )
+            git("add", "-A")
+            git("commit", "-q", "-m", "a different lane lands its own citation on main")
+            git("checkout", "-q", "feature")
+
+            # Direction 1: touch existing.rs WITHOUT adding a new citation —
+            # must not fail even though the file already carries one. This is
+            # item 192's exact lesson (comparing against the fork point, not
+            # main's tip) applied to this second metric.
+            existing.write_text(
+                existing.read_text() + "fn touched() { /* unrelated new code, no citation */ }\n"
+            )
+            git("commit", "-q", "-am", "touch existing.rs without adding a citation")
+            added, status = new_comment_citations()
+            if status != "ok":
+                raise AssertionError(f"fixture merge base must resolve: got {status!r}")
+            failures = check_comment_citations(added, set())
+            if failures:
+                raise AssertionError(
+                    "touching a file that already carries a citation, and an unrelated "
+                    f"citation landing on main, must never fail this branch: {failures}"
+                )
+
+            # Direction 2: the SAME branch then genuinely adds a new citation
+            # — must fail by name, proving direction 1 wasn't bought by
+            # silently skipping the check altogether.
+            existing.write_text(
+                existing.read_text() + "// item 3: a fresh citation added by this branch\n"
+            )
+            git("commit", "-q", "-am", "add a fresh citation on this branch")
+            added, status = new_comment_citations()
+            if status != "ok":
+                raise AssertionError(f"fixture merge base must resolve: got {status!r}")
+            failures = check_comment_citations(added, set())
+            if not any("existing.rs:5" in failure and "item 3" in failure for failure in failures):
+                raise AssertionError(
+                    f"a branch that genuinely adds a new citation must fail by name: {failures}"
+                )
+        finally:
+            globals()["ROOT"] = root
     script = '''if (( $# != 0 )); then
 canary_command=(cargo test --test native_gate_canary)
 mac_command=(env AWL_CONVENTION_FORCE=mac cargo test)
@@ -725,9 +1105,21 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--native-gate-audit", action="store_true")
+    parser.add_argument(
+        "--comment-citation-backlog",
+        action="store_true",
+        help="print the measured item/round/sha comment-citation backlog per top-level src module and exit",
+    )
     args = parser.parse_args()
     if args.self_test:
         return self_test()
+    if args.comment_citation_backlog:
+        counts = comment_citation_backlog()
+        total = sum(counts.values())
+        for module, count in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])):
+            print(f"src/{module}: {count}")
+        print(f"total: {total}")
+        return 0
     if args.native_gate_audit:
         failures = native_gate_audit(
             (ROOT / "scripts/native-gate.sh").read_text(),
@@ -766,6 +1158,25 @@ def main() -> int:
             file=sys.stderr,
         )
     failures.extend(check_mark_raises(file_size_marks, mark_reasons, previous))
+    new_citations, citation_status = new_comment_citations()
+    if citation_status == "unresolvable":
+        print(
+            "code-health: SKIPPED the new-comment-citation ratchet (`main`/`origin/main`, or the "
+            "merge base between HEAD and it, not resolvable in this checkout; a newly added "
+            "queue-item/round/sha citation is not verified this run).",
+            file=sys.stderr,
+        )
+    elif citation_status == "head_is_main":
+        print(
+            "code-health: SKIPPED the new-comment-citation ratchet — HEAD is already `main`'s "
+            "commit, so there is no prior branch state to diff against. This is the normal state "
+            "for CI's push-to-`main` run and the merge train's post-merge candidate; the ratchet "
+            "only has force on a worktree branch checked before landing.",
+            file=sys.stderr,
+        )
+    citation_allowed, citation_failures = citation_exceptions()
+    failures.extend(citation_failures)
+    failures.extend(check_comment_citations(new_citations, citation_allowed))
     failures.extend(
         native_gate_audit(
             (ROOT / "scripts/native-gate.sh").read_text(),
