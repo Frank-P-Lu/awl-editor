@@ -91,7 +91,7 @@ reason = "The grouped per-frame AmbientUpload keeps the prepare call below the a
 
 [[file_size_mark]]
 file = "src/buffer.rs"
-lines = 936
+lines = 892
 
 [[file_size_mark]]
 file = "src/buffer/edit.rs"
@@ -382,7 +382,7 @@ lines = 380
 
 [[file_size_mark]]
 file = "src/search/mod.rs"
-lines = 855
+lines = 545
 
 [[file_size_mark]]
 file = "src/selection.rs"
@@ -404,7 +404,7 @@ lines = 618
 
 [[file_size_mark]]
 file = "src/spell.rs"
-lines = 1629
+lines = 954
 
 [[file_size_mark]]
 file = "src/stars.rs"
