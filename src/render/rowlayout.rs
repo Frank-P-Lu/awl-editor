@@ -325,10 +325,14 @@ mod tests {
                 vec!["a rather long name for the draft I want back".into()],
                 None,
             ),
+            OverlayKind::Context => (
+                vec!["Collapse other sections".into(), "Page width settings…".into()],
+                Some("unavailable".chars().count()),
+            ),
         }
     }
 
-    const ALL_KINDS: [OverlayKind; 17] = [
+    const ALL_KINDS: [OverlayKind; 18] = [
         OverlayKind::Goto,
         OverlayKind::Project,
         OverlayKind::Browse,
@@ -346,6 +350,7 @@ mod tests {
         OverlayKind::Rename,
         OverlayKind::InsertLink,
         OverlayKind::KeepName,
+        OverlayKind::Context,
     ];
 
     const NARROW_TOTAL: usize = 28;

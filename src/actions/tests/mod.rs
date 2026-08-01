@@ -560,6 +560,7 @@ pub(super) fn delete_flinch_fixture(
         | Action::Redo
         | Action::SetMark
         | Action::CopyRegion
+        | Action::CopyLinkDestination
         | Action::KillRegion
         | Action::SelectAll
         | Action::ZoomIn
@@ -764,6 +765,7 @@ fn assert_action_roster_covers(a: &Action) {
         | Action::Redo
         | Action::SetMark
         | Action::CopyRegion
+        | Action::CopyLinkDestination
         | Action::KillRegion
         | Action::SelectAll
         | Action::ZoomIn
@@ -1066,6 +1068,7 @@ pub(super) fn smoke_command_kind(a: &Action) -> SmokeKind {
         | Action::Undo
         | Action::Redo
         | Action::CopyRegion
+        | Action::CopyLinkDestination
         | Action::KillRegion
         | Action::Yank
         | Action::SelectAll

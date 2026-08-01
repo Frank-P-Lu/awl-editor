@@ -232,6 +232,12 @@ fn apply_buffer_action(ctx: &mut ActionCtx, action: &Action) -> bool {
             *ctx.shift_selecting = false;
         }
         Action::CopyRegion => ctx.buffer.copy_region(),
+        Action::CopyLinkDestination => {
+            let byte = ctx.buffer.char_to_byte(ctx.buffer.cursor_char());
+            if let Some(url) = crate::markdown::link_at(&ctx.buffer.text(), byte) {
+                ctx.buffer.set_kill(&url);
+            }
+        }
         Action::KillRegion => ctx.buffer.kill_region(),
         Action::SelectAll => {
             ctx.buffer.select_all();
@@ -535,6 +541,7 @@ macro_rules! classify_action_family {
             | Action::Redo
             | Action::SetMark
             | Action::CopyRegion
+            | Action::CopyLinkDestination
             | Action::KillRegion
             | Action::SelectAll => ActionFamily::Buffer,
             Action::ZoomIn

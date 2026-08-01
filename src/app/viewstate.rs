@@ -233,6 +233,7 @@ impl App {
             overlay_spell: ov
                 .filter(|o| o.kind == crate::overlay::OverlayKind::Spell)
                 .and_then(|o| o.spell_target),
+            overlay_context_anchor: ov.and_then(|o| o.context_anchor),
             notice: self.notice.clone().unwrap_or_default(),
             cjk_priority: self.config.cjk_priority_or_default(),
             eol: self.active.buffer.eol(),

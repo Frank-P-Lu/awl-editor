@@ -735,7 +735,7 @@ impl App {
             }
             History => self.restore_history(value),
             Theme | Browse | Command | Spell | Keybindings | Settings | Assets | Rename
-            | InsertLink | KeepName => {}
+            | InsertLink | KeepName | Context => {}
         }
     }
 

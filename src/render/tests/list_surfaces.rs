@@ -1081,7 +1081,7 @@ fn poster_bars_centered_lists_preserve_page_and_distinguish_plates() {
 
         for kind in OverlayKind::ALL {
             let centered = match kind {
-                OverlayKind::Spell => false,
+                OverlayKind::Spell | OverlayKind::Context => false,
                 OverlayKind::Theme
                 | OverlayKind::Goto
                 | OverlayKind::Browse
@@ -1342,7 +1342,8 @@ fn bars_float_bounded_plates_for_every_overlay_kind() {
             | OverlayKind::Assets
             | OverlayKind::Rename
             | OverlayKind::InsertLink
-            | OverlayKind::KeepName => false,
+            | OverlayKind::KeepName
+            | OverlayKind::Context => false,
         };
 
         let mut v = view("the quick brown fox jumps\n", 0, 0);

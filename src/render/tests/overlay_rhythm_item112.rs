@@ -36,7 +36,8 @@ fn surface_contract(kind: crate::overlay::OverlayKind) -> SurfaceContract {
         | K::Assets
         | K::Rename
         | K::InsertLink
-        | K::KeepName => SurfaceContract::Flat,
+        | K::KeepName
+        | K::Context => SurfaceContract::Flat,
     }
 }
 

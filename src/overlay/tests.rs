@@ -2488,7 +2488,8 @@ fn hover_movement_slop_gate_holds_across_every_overlay_kind_no_wildcard() {
             | OverlayKind::Assets
             | OverlayKind::Rename
             | OverlayKind::InsertLink
-            | OverlayKind::KeepName => {}
+            | OverlayKind::KeepName
+            | OverlayKind::Context => {}
         }
         let ctx = format!("kind={kind:?}");
         let corpus: Vec<String> = (0..30).map(|i| format!("row{i}")).collect();
@@ -2968,6 +2969,21 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
             crate::overlay::LinkEditMode::Empty { at: 0 },
         ),
         OverlayKind::KeepName => OverlayState::new_keep_name(),
+        OverlayKind::Context => OverlayState::new_context(
+            crate::context_menu::rows(
+                crate::context_menu::ContextTarget::Body,
+                crate::context_menu::ContextState {
+                    has_selection: false,
+                    link: false,
+                    heading: false,
+                    heading_folded: false,
+                    misspelled: false,
+                    named_file: false,
+                },
+                crate::commands::Platform::Native,
+            ),
+            (10.0, 10.0),
+        ),
     }
 }
 

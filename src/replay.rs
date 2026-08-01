@@ -300,7 +300,8 @@ fn accept_class(kind: OverlayKind) -> EffectClass {
         | OverlayKind::Assets
         | OverlayKind::Rename
         | OverlayKind::InsertLink
-        | OverlayKind::KeepName => EffectClass::Unsupported {
+        | OverlayKind::KeepName
+        | OverlayKind::Context => EffectClass::Unsupported {
             why: "this picker is not expected to emit an accept effect; classify it in replay::accept_class before strict replay can pass it",
         },
     }

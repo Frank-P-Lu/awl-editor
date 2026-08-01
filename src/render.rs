@@ -2237,6 +2237,7 @@ pub struct TextPipeline {
     overlay_lens: Vec<(String, bool)>,
     overlay_sections: Vec<String>,
     overlay_spell: Option<(usize, usize, usize)>,
+    overlay_context_anchor: Option<(f32, f32)>,
     overlay_detail_focus: bool,
     /// ITEM 114 — the summoned card is drawn as a WORKSPACE this frame (mirror of
     /// [`ViewState::overlay_workspace`]). The one input that routes

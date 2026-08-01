@@ -319,26 +319,47 @@ impl TextPipeline {
         };
         let empty_rows = empty.is_some() as usize;
 
-        let header_rows = 1; // the `› query` line every flat/nav picker shows on top
+        let contextual = self.overlay_context_anchor.is_some();
+        let header_rows = usize::from(!contextual); // contextual rows need no query field
         // PALETTE-COMPOSITION round: a calm gap after the query header, before the
         // candidate list (negative space as the divider). Grows the card by exactly
         // this and offsets the candidate band/hit-test through `overlay_row_top`.
-        let header_gap = self.overlay_header_gap();
-        let card_y = margin + 40.0 + self.menubar_reserve();
+        let header_gap = if contextual {
+            0.0
+        } else {
+            self.overlay_header_gap()
+        };
+        let card_y = self
+            .overlay_context_anchor
+            .map(|(_, y)| y + 4.0)
+            .unwrap_or(margin + 40.0 + self.menubar_reserve());
         // ITEM 181 — cap the item window to what the canvas fits, same owner the
         // grouped family reads (`theme_overlay_geometry`).
-        let avail_px =
-            (self.window_h - card_y - margin - 2.0 * pad - header_gap).max(self.overlay_lh());
+        let avail_px = if contextual {
+            (self.window_h - 2.0 * margin).max(self.overlay_lh())
+        } else {
+            (self.window_h - card_y - margin - 2.0 * pad - header_gap).max(self.overlay_lh())
+        };
         let chrome_rows = header_rows + hint_rows + empty_rows + footer_rows;
         let (top_idx, visible) = self.overlay_flat_window(n_items, avail_px, chrome_rows);
         let total_rows = header_rows + visible + empty_rows + hint_rows + footer_rows;
         let desired_w = self.overlay_desired_w(CARD_MAX_W);
-        let (card_x, card_w) = self.overlay_card_box(width, desired_w);
+        let (mut card_x, card_w) = self.overlay_card_box(width, desired_w);
+        if let Some((x, _)) = self.overlay_context_anchor {
+            card_x = x.clamp(
+                CARD_EDGE_INSET_FLOOR,
+                (width as f32 - card_w - CARD_EDGE_INSET_FLOOR).max(CARD_EDGE_INSET_FLOOR),
+            );
+        }
         let card_narrow = overlay_card_fill_regime(width as f32, desired_w);
         let hpad = self.overlay_text_hpad();
         let text_w = card_w - 2.0 * hpad;
         let card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, pad);
-        let card_y = card_y + self.overlay_entrance_offset();
+        let card_y = if contextual {
+            card_y.clamp(margin, (self.window_h - card_h - margin).max(margin))
+        } else {
+            card_y
+        } + self.overlay_entrance_offset();
         let text_left = card_x + hpad;
         let text_top = card_y + pad;
         OverlayGeom {

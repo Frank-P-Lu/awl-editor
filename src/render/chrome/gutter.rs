@@ -309,6 +309,29 @@ impl TextPipeline {
         self.gutter_layout().map(|g| (g.name, g.project))
     }
 
+    /// Hit-test the two identity rows from the exact layout that draws them.
+    pub fn gutter_context_target(
+        &self,
+        px: f32,
+        py: f32,
+        height: u32,
+    ) -> Option<crate::context_menu::ContextTarget> {
+        let layout = self.gutter_layout()?;
+        let row_h = self.metrics.line_height * crate::markdown::type_scale::LABEL;
+        let lines = if layout.project.is_empty() { 1.0 } else { 2.0 };
+        let top = height as f32 - row_h * lines - 8.0;
+        if px < 0.0 || px > layout.avail || py < top || py >= top + row_h * lines {
+            return None;
+        }
+        if py < top + row_h {
+            Some(crate::context_menu::ContextTarget::Filename)
+        } else if !layout.project.is_empty() {
+            Some(crate::context_menu::ContextTarget::Folder)
+        } else {
+            None
+        }
+    }
+
     /// True when a FULL-takeover overlay is up and the document RECEDES behind it (the
     /// cached frosted-blur backdrop is active). False for the search SPLIT panel / no
     /// overlay (the doc stays bright), for the crisp THEME/CARET pickers (the doc stays

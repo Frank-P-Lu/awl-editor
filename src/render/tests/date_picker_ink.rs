@@ -138,6 +138,7 @@ fn capture_date_picker(
         browse_dir: None,
         return_to: None,
         spell_target: None,
+        context_anchor: None,
         capture: None,
         notice: String::new(),
         lens: None,

@@ -511,6 +511,7 @@ impl TextPipeline {
             overlay_lens: Vec::new(),
             overlay_sections: Vec::new(),
             overlay_spell: None,
+            overlay_context_anchor: None,
             overlay_detail_focus: false,
             overlay_workspace: false,
             overlay_rows_primary: false,

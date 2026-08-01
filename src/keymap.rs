@@ -240,6 +240,9 @@ pub enum Action {
     /// Headless replay never opens a browser (the effect is live-App-only). Also a
     /// palette command ("Follow link"), rebindable via `[keys]`.
     FollowLink,
+    /// Copy the destination of the Markdown link at the caret. Context menus and
+    /// replay share this catalog action; outside a link it is a calm no-op.
+    CopyLinkDestination,
     InsertLink,
     InsertDate,
     BeginPrefix,

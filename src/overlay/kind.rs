@@ -19,6 +19,7 @@ enum_with_all! {
         Rename,
         InsertLink,
         KeepName,
+        Context,
     }
 }
 
@@ -54,6 +55,7 @@ impl OverlayKind {
             OverlayKind::Rename => "rename",
             OverlayKind::InsertLink => "insert_link",
             OverlayKind::KeepName => "keep_version",
+            OverlayKind::Context => "context",
         }
     }
 
@@ -66,7 +68,8 @@ impl OverlayKind {
             | OverlayKind::MoveDest
             | OverlayKind::Spell
             | OverlayKind::History
-            | OverlayKind::Command => Navigate,
+            | OverlayKind::Command
+            | OverlayKind::Context => Navigate,
             OverlayKind::Theme
             | OverlayKind::Caret
             | OverlayKind::Dictionary
@@ -85,6 +88,7 @@ impl OverlayKind {
         match self {
             OverlayKind::Goto => &[GotoFile, GotoHeading],
             OverlayKind::Command => &[Plain, CommandHidden, CommandSetting],
+            OverlayKind::Context => &[Plain],
             OverlayKind::Spell => &[Plain, SpellAdd],
             OverlayKind::History => &[History],
             OverlayKind::Project
@@ -116,6 +120,7 @@ impl OverlayKind {
     pub fn window_rows(self) -> usize {
         match self {
             OverlayKind::Spell => Self::MAX_SUGGESTIONS + 1,
+            OverlayKind::Context => 8,
             OverlayKind::Theme => crate::theme::THEMES.len(),
             // ITEM 114 — a workspace is bounded by the CANVAS (item 181's
             // `fit_item_rows`, applied where the canvas is known), so naming the
@@ -163,6 +168,7 @@ impl OverlayKind {
             OverlayKind::Date => vec![enter("apply")],
             OverlayKind::Command => super::command_hint_actions(),
             OverlayKind::Spell => vec![enter("replace")],
+            OverlayKind::Context => vec![enter("choose"), key("esc", "close")],
             OverlayKind::Keybindings => {
                 vec![enter("rebind"), key("del", "reset"), key("esc", "close")]
             }
@@ -223,6 +229,7 @@ impl OverlayKind {
             OverlayKind::Rename => "no matches",
             OverlayKind::InsertLink => "no matches",
             OverlayKind::KeepName => "no matches",
+            OverlayKind::Context => "no actions",
         }
     }
 
@@ -246,6 +253,7 @@ impl OverlayKind {
             OverlayKind::Rename => "rename",
             OverlayKind::InsertLink => "insert link",
             OverlayKind::KeepName => "keep version",
+            OverlayKind::Context => "",
         }
     }
 
@@ -268,14 +276,18 @@ impl OverlayKind {
             | OverlayKind::Settings
             | OverlayKind::Assets
             | OverlayKind::Rename
-            | OverlayKind::KeepName => false,
+            | OverlayKind::KeepName
+            | OverlayKind::Context => false,
         }
     }
 
     pub fn draws_title_prefix(self) -> bool {
         !matches!(
             self,
-            OverlayKind::Rename | OverlayKind::InsertLink | OverlayKind::KeepName
+            OverlayKind::Rename
+                | OverlayKind::InsertLink
+                | OverlayKind::KeepName
+                | OverlayKind::Context
         )
     }
 

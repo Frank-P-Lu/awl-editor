@@ -104,6 +104,10 @@ pub struct OverlayState {
     pub detail_focus: bool,
     pub diff_scroll: usize,
     pub last_hover_px: Option<(f32, f32)>,
+    /// Context menus retain their catalog action identity parallel to `rows`.
+    pub context_actions: Vec<Option<crate::keymap::Action>>,
+    /// Physical-pixel click anchor; other overlay kinds remain theme-anchored.
+    pub context_anchor: Option<(f32, f32)>,
 }
 
 impl OverlayState {
@@ -178,6 +182,8 @@ impl OverlayState {
             detail_focus: false,
             diff_scroll: 0,
             last_hover_px: None,
+            context_actions: Vec::new(),
+            context_anchor: None,
         };
         s.refilter();
         s
@@ -569,6 +575,32 @@ impl OverlayState {
         s.spell_target = Some(target);
         s.add_word = Some(word);
         s
+    }
+
+    pub fn new_context(rows: Vec<crate::context_menu::ContextRow>, anchor: (f32, f32)) -> Self {
+        let mut state = Self::new(
+            OverlayKind::Context,
+            rows.iter().map(|row| row.label.to_string()).collect(),
+            Vec::new(),
+            Vec::new(),
+        );
+        state.context_actions = rows
+            .iter()
+            .map(|row| row.enabled.then_some(row.action.clone()))
+            .collect();
+        state.set_secondaries(
+            rows.into_iter()
+                .map(|row| {
+                    if row.enabled {
+                        String::new()
+                    } else {
+                        "unavailable".to_string()
+                    }
+                })
+                .collect(),
+        );
+        state.context_anchor = Some(anchor);
+        state
     }
 
     pub fn new_history(

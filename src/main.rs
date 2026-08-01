@@ -58,6 +58,7 @@ mod caret_glyph;
 mod clock;
 mod commands;
 mod config;
+mod context_menu;
 mod convention;
 mod crashlog;
 mod credits;

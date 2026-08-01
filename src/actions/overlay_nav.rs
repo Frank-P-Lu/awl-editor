@@ -167,6 +167,16 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
     if let Some(effect) = navigate_overlay(ctx, action) {
         return effect;
     }
+    // A contextual card is an action list, never a fuzzy-query field. It keeps
+    // arrow/Enter/Esc navigation from the shared overlay owner and swallows all
+    // other keys without editing either a hidden query or the document.
+    if ctx.journey.card().unwrap().kind == crate::overlay::OverlayKind::Context {
+        return match action {
+            Action::Newline | Action::AcceptAlternate => accept_overlay(ctx),
+            Action::Cancel => cancel_overlay(ctx),
+            _ => Effect::None,
+        };
+    }
     match action {
         Action::InsertChar(c) => {
             ctx.journey.card_mut().unwrap().push(*c);
@@ -401,6 +411,16 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
         let eff = ov
             .selected_corpus_index()
             .map(|i| Effect::RunAction(crate::commands::visible_action_of(i)))
+            .unwrap_or(Effect::None);
+        dispose_after_accept(ctx);
+        return eff;
+    }
+    if ov.kind == crate::overlay::OverlayKind::Context {
+        let eff = ov
+            .selected_corpus_index()
+            .and_then(|i| ov.context_actions.get(i))
+            .and_then(Clone::clone)
+            .map(Effect::RunAction)
             .unwrap_or(Effect::None);
         dispose_after_accept(ctx);
         return eff;
