@@ -32,6 +32,7 @@ fn flat(
         selected: 0,
         empty_rows: 0,
         lines: None,
+        dx_per_row: 0.0,
     }
 }
 
@@ -346,6 +347,70 @@ fn fit_item_rows_binds_below_a_big_per_kind_cap_once_the_canvas_cannot_hold_it()
          ({per_kind_cap}) — otherwise this fixture no longer reproduces the \
          reported regression"
     );
+}
+
+// --- item 131a: the signed step splits into a two-sided extent ---------------
+
+/// THE SIGN SPLIT, at the pure planner level (no device, no pipeline): a
+/// POSITIVE `dx_per_row` plans a growing `dx` with `dw` held at exactly `0.0`
+/// (Mangrove's shape — left edge steps in, right edge flush); a NEGATIVE
+/// `dx_per_row` plans a growing-negative `dw` with `dx` held at exactly `0.0`
+/// (Magpie's mirror — right edge steps in, left edge flush). Never both at
+/// once for a single signed input, by construction — the reason one field
+/// suffices for two mirrored compositions.
+#[test]
+fn a_positive_step_plans_dx_only_and_a_negative_step_plans_dw_only() {
+    let mut mangrove = flat(4, 0, 4, 0);
+    mangrove.dx_per_row = 6.0;
+    let plan = plan_overlay_rows(&mangrove);
+    for (i, row) in plan.rows().iter().enumerate() {
+        assert_eq!(
+            row.dx,
+            6.0 * i as f32,
+            "row {i}: dx must be the positive stair"
+        );
+        assert_eq!(
+            row.dw, 0.0,
+            "row {i}: dw must stay zero under a positive step"
+        );
+    }
+
+    let mut magpie = flat(4, 0, 4, 0);
+    magpie.dx_per_row = -6.0;
+    let plan = plan_overlay_rows(&magpie);
+    for (i, row) in plan.rows().iter().enumerate() {
+        assert_eq!(
+            row.dx, 0.0,
+            "row {i}: dx must stay zero under a negative step"
+        );
+        assert_eq!(
+            row.dw,
+            -6.0 * i as f32,
+            "row {i}: dw must be the negative stair"
+        );
+    }
+}
+
+/// `row_at`'s x-test against the two-sided extent, directly (no pipeline): a
+/// row's clickable span is `[card_x + dx, card_x + card_w + dw]`. Proven on
+/// BOTH mirror directions from one fixture — the shape that would have caught
+/// a `row_at` still hard-coded to the card's own right edge (pre-131a).
+#[test]
+fn row_at_bounds_by_the_two_sided_extent_on_both_mirrors() {
+    let mut magpie = flat(3, 0, 3, 0);
+    magpie.dx_per_row = -10.0; // row 2's right edge retreats 20px
+    let plan = plan_overlay_rows(&magpie);
+    let (x0, x1) = plan.card_x_span();
+    let mid_y = plan.row_top(2).unwrap() + plan.lh() * 0.5;
+    // Row 2's own right edge is `x1 - 20`; past it is bare card, not row 2.
+    assert_eq!(plan.row_at(x1 - 20.5, mid_y), Some(2));
+    assert_eq!(
+        plan.row_at(x1 - 19.5, mid_y),
+        None,
+        "a pointer inside the retreated strip (drawn nowhere) must not select row 2"
+    );
+    // The LEFT edge is untouched under this mirror — still clickable at x0.
+    assert_eq!(plan.row_at(x0 + 0.5, mid_y), Some(2));
 }
 
 /// DETERMINISM: the planner is a pure function of its inputs — the same input

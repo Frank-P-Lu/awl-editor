@@ -31,6 +31,10 @@ mod caret_visual_body;
 mod chrome_overlay;
 mod chrome_panels;
 mod cjk;
+/// ITEM 116b — the RELOCATED DOCUMENT VIEWPORT: the one owner all four
+/// document-geometry owners read, the private page-column bypass, the total
+/// relocation, and the margin-orientation surfaces that yield to it.
+mod comparison_viewport_item116b;
 mod date_picker_ink;
 mod distinguishability;
 mod dither;
@@ -68,11 +72,13 @@ mod overlay_rail_thirds_law;
 mod overlay_rhythm_item112;
 mod overlay_right_hug_law;
 mod page_frame;
+mod paperbark_retina_item201;
 mod pixeldiff;
 mod popover;
 pub(in crate::render) mod potoroo_pane;
 mod range_rail;
 mod reanchor_crossing_law;
+mod row_offset_item131;
 mod scroll_pos;
 mod selection_clip_law;
 mod settings_row_reach_law;
@@ -92,6 +98,9 @@ mod webgl_shader_validation;
 /// ITEM 114 — the summoned workspace's presentation: two regions, wide/narrow
 /// staging, drawn-equals-clickable, and a focus cue asserted in real pixels.
 mod workspace_item114;
+/// ITEM 116a — the shape: `workspace_shape() -> Option<WorkspaceShape>`'s
+/// roster and the `rows_are_primary()` bypass-is-module-private law.
+mod workspace_shape_item116a;
 mod wrap_affinity;
 mod wysiwyg;
 mod zoom_anchor;
@@ -136,6 +145,32 @@ pub(super) fn view(text: &str, line: usize, col: usize) -> ViewState {
         cursor_col: col,
         ..ViewState::base()
     }
+}
+
+/// ITEM 116b — a [`view`] whose summoned workspace carries its own ROWS in the
+/// PRIMARY column, so the CONTENT pane becomes the RELOCATED DOCUMENT VIEWPORT
+/// (`TextPipeline::comparison_viewport`) and the document layer draws there.
+///
+/// No `OverlayKind` produces this shape until item 116d flips History onto
+/// `WorkspaceShape::TimelineOverComparison` — `workspace_shape(History)` is
+/// still `None`. The three fields set here are exactly the ones `sync_view`
+/// will then set for real (`overlay_workspace` / `overlay_rows_primary` are its
+/// flat projections of `workspace_shape` / `rows_are_primary`), so a law that
+/// drives them is driving the production seam rather than a test-only door.
+pub(super) fn comparison_view(text: &str, line: usize, col: usize) -> ViewState {
+    let mut v = view(text, line, col);
+    v.overlay_active = true;
+    v.overlay_workspace = true;
+    v.overlay_rows_primary = true;
+    v.overlay_title = "Version history";
+    v.overlay_lens = vec![
+        ("All".into(), true),
+        ("Today".into(), false),
+        ("Kept".into(), false),
+    ];
+    v.overlay_items = (0..8).map(|i| format!("version {i}")).collect();
+    v.overlay_hint = "type to filter".into();
+    v
 }
 
 /// A markdown [`view`] — same as [`view`] but with `is_markdown` set, so the

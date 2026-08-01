@@ -1291,11 +1291,13 @@ fn history_picker_lists_versions_navigates_and_carries_ids() {
             .iter()
             .all(|s| !s.contains('•') && !s.ends_with('/'))
     );
-    // The hint teaches restore + diff + lens + close (informational, button-free) —
-    // DIFF-AS-PREVIEW: Tab shifts focus into the diff panel, so the cell reads "diff".
+    // ITEM 116c: restore moved behind the deliberate SHIFT-HELD accept — bare
+    // `↵` only opens the comparison (the same door `Tab` already is), and
+    // `⇧↵` is the one restore door, footer-taught with its own glyph (Shift
+    // reads the same on both conventions, so it needs no chord resolution).
     assert_eq!(
         OverlayKind::History.hint(),
-        "type to filter   \u{21B5} restore   tab diff   \u{2190}/\u{2192} lens"
+        "type to filter   \u{21B5} compare   \u{21E7}\u{21B5} restore   \u{2190}/\u{2192} lens"
     );
     assert!(ov.foot_hint().contains("restore"));
 }

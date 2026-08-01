@@ -14,7 +14,7 @@ pub(super) fn assert_capture_is_serialized() {
         crate::testlock::currently_held(),
         "capture law: a capture in a test build must hold `crate::testlock::serial()` \
          for its whole window — an unguarded capture races every theme-flipping test \
-         and reports state it did not render (queue item 98). Add \
+         and reports state it did not render. Add \
          `let _tg = crate::testlock::serial();` as the first line of the test."
     );
 }
@@ -93,7 +93,7 @@ pub(super) fn write_sidecar(
     let (font_zoom, font_size, line_height) = pipeline.effective_font_metrics();
     let json = super::scroll_sidecar::sidecar_format!(
         schema_json = json_string(&schema),
-        // WHICH TIER DROVE THIS FRAME (item 188) — see `capture::CaptureDriver`.
+        // The tier that drove this frame; see `capture::CaptureDriver`.
         driver = json_string(opts.driver.as_str()),
         caret_extra = caret_extra,
         cjk = cjk_json(&script_fonts),

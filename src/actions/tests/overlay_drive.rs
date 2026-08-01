@@ -996,6 +996,87 @@ fn keep_version_blank_enter_is_the_plain_keep_and_esc_cancels() {
     );
 }
 
+fn one_history_row() -> Vec<crate::history::TimelineRow> {
+    vec![crate::history::TimelineRow {
+        when: "just now".into(),
+        which: String::new(),
+        counts: "+0 −0".into(),
+        id: "300".into(),
+        timestamp: 300,
+        pinned: false,
+        name: None,
+    }]
+}
+
+#[test]
+fn open_keep_version_over_an_already_open_workspace_descends_and_resumes_it_on_cancel() {
+    // ITEM 116c: `workspace_nav::open_keep_version` — the function
+    // `Action::KeepVersion`'s dispatch calls — no longer unconditionally
+    // `enter`s, which used to REPLACE whatever was open with no parent
+    // parked, silently stranding it. It cannot be proven by re-dispatching
+    // `Action::KeepVersion` through `apply_transition`: that entry point's
+    // OWN top-level intercept gate (`intercept_action`) swallows any action
+    // outright whenever a card is already open, so `Action::KeepVersion`'s
+    // own arm is only ever reached with nothing open in practice (the Command
+    // palette closes itself before its `RunAction` re-dispatch — see
+    // `replay_keys_keep_version_minibuffer_esc_pops_back_to_the_palette`).
+    // `open_keep_version` is instead the door a future in-workspace "keep"
+    // gesture (116d's History timeline) must call DIRECTLY, exactly like
+    // `deep_link_settings` is called directly rather than by re-dispatching an
+    // `Action` — so this test calls it the same way.
+    let mut buffer = Buffer::from_str("keep me\n");
+    let mut shift = false;
+    let mut zoom = 1.0;
+    let mut search = None;
+    let seed_history = OverlayState::new_history(one_history_row(), None, None);
+    let mut journey = crate::overlay::Journey::seeded(Some(seed_history));
+    let mut make_overlay = |k: OverlayKind| -> Option<OverlayState> {
+        match k {
+            OverlayKind::History => Some(OverlayState::new_history(one_history_row(), None, None)),
+            _ => None,
+        }
+    };
+    let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
+    let mut ctx = ActionCtx {
+        buffer: &mut buffer,
+        shift_selecting: &mut shift,
+        zoom: &mut zoom,
+        search: &mut search,
+        scroll_page_lines: 1,
+        journey: &mut journey,
+        make_overlay: &mut make_overlay,
+        browse_to: &mut browse_to,
+        oracle: None,
+    };
+    super::super::workspace_nav::open_keep_version(&mut ctx);
+    {
+        let ov = ctx
+            .journey
+            .card()
+            .expect("Keep version… still opens the naming minibuffer");
+        assert_eq!(ov.kind, OverlayKind::KeepName);
+    }
+    assert_eq!(
+        ctx.journey.parked_kind(),
+        Some(OverlayKind::History),
+        "History is PARKED (descend), never dropped (enter)"
+    );
+    // Esc: the ONE lifecycle door (`Journey::cancel`) resumes the parked
+    // workspace at its exact position, rather than a hand-rolled `dismiss()`
+    // that would have dropped straight to the editor regardless.
+    apply_transition(&mut ctx, &Action::Cancel, false).primary();
+    let ov = ctx
+        .journey
+        .card()
+        .expect("Esc resumes the parked History workspace, not the bare editor");
+    assert_eq!(ov.kind, OverlayKind::History);
+    assert_eq!(
+        ctx.journey.parked_kind(),
+        None,
+        "single-level: resumed, not re-parked"
+    );
+}
+
 #[test]
 fn convert_line_endings_toggles_the_buffer_eol_as_metadata() {
     use crate::buffer::Eol;

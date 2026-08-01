@@ -491,9 +491,7 @@ pub(super) fn settled_viewstate(
         vstate.cursor_col = pc;
         sc_line = pl;
         sc_col = pc;
-        // Dress the page column as the diff panel card, with the focus cue
-        // mirrored from the overlay state.
-        vstate.diff_panel = true;
+        // The focus cue is mirrored from the overlay state.
         vstate.overlay_detail_focus = opts
             .overlay
             .as_ref()

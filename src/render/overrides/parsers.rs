@@ -112,9 +112,19 @@ pub(crate) fn parse_motion_force(s: &str) -> Option<theme::MotionJuice> {
 // WILD-MENU SLANT PROBE
 // ---------------------------------------------------------------------------
 
-/// Each successive row's draw origin steps `px_per_row` further right;
-/// `italic` also requests an italic row style. No `RenderCaps` field — an
-/// env-gated layout variant, not a shipped world option.
+/// Each successive row's draw origin steps `px_per_row` further in from the
+/// content band's own edge; `italic` also requests an italic row style. No
+/// `RenderCaps` field — an env-gated layout variant, not a shipped world
+/// option.
+///
+/// SIGNED (item 131a): the sign picks WHICH edge steps. Positive walks the
+/// row's LEFT edge in while the right edge stays flush with the band (the
+/// shape Mangrove's descending `\` composition needs — the row's own `dx`).
+/// Negative walks the RIGHT edge in while the left edge stays flush (Magpie's
+/// ascending `/` composition, whose clusters are right-aligned — the row's
+/// own `dw`). `plan::overlay_rows::plan_overlay_rows` is the one place that
+/// splits the sign into the two-sided `PlannedRow::{dx,dw}` extent; nothing
+/// upstream of it needs to know both shapes exist.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct SlantProbe {
     pub px_per_row: f32,
@@ -129,7 +139,10 @@ pub(crate) fn parse_overlay_slant_force(s: &str) -> Option<SlantProbe> {
         None => (s, false),
     };
     let px: f32 = px_s.trim().parse().ok()?;
-    if px > 0.0 && px.is_finite() {
+    // `0.0` stays rejected (an explicit "no stagger" is `AWL_OVERLAY_SLANT_FORCE`
+    // simply unset, not a zero step); either sign of a genuinely nonzero, finite
+    // step now selects one of the two mirrored compositions (see the struct doc).
+    if px != 0.0 && px.is_finite() {
         Some(SlantProbe {
             px_per_row: px,
             italic,

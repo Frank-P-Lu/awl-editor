@@ -671,13 +671,16 @@ contextual card. When it is true, `overlay.lens_strip` IS that rail (the same
 instead of repeating it as a header over the only bucket it lets through. The
 focus field was renamed because it was never diff-specific: it has always meant
 "the summoned surface's DETAIL stage holds the keyboard", which for History is
-its diff panel and for Settings is the content pane beside the rail; and
-`page.background`'s `warped-grid` arm (items 132/194's Kite — `{kind, ground,
-minor, major, tunnel, spacing_px, curvature, density, yaw, pitch,
-forward_cells}`, where `tunnel` is the theme-owned profile and the last three
-are the route's resolved STEERING POSE, `0` in every headless capture because
-nothing there ticks the clock; a STATE oracle only — how the field LOOKS is
-asserted over the PNG, `/194`); and
+its comparison and for Settings is the content pane beside the rail (item 116b
+retired the diff-panel card the History detail stage used to be dressed as; no
+document-layer surface reads this field any more, and
+`capture::tests::panels::history_preview_renders_the_transcript_as_the_document_in_every_world`
+asserts a `detail_focus` flip moves no pixel of it); and
+`page.background`'s `warped-grid` arm (Kite — `{kind, ground, minor, major,
+tunnel, spacing_px, curvature, density, yaw, pitch, forward_cells}`, where
+`tunnel` is the theme-owned profile and the last three are the resolved pose,
+`0` in every headless capture because nothing there ticks the clock; a STATE
+oracle only — how the field LOOKS is asserted over the PNG, `/194`); and
 `overlay.ranges` (item 94's Settings RANGE ROWS — a per-row array parallel to
 `overlay.items`, `null` on an ordinary row and a 0..1 RAIL FRACTION on a range
 row, so a `--keys`-driven rail step is assertable beside the value TEXT the

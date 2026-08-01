@@ -524,7 +524,26 @@ fn parse_overlay_slant_force_grammar() {
             italic: true
         })
     );
-    for bad in ["", "0", "-3", "nan", "10:bold", "italic"] {
+    // ITEM 131a — a negative step is now a real grammar: it selects the MIRRORED
+    // composition (right edge steps in) rather than being rejected. `0.0` alone
+    // stays out-of-grammar (an explicit "no stagger" is the env var unset, not a
+    // zero step that would silently no-op every consumer).
+    assert_eq!(
+        parse_overlay_slant_force("-3"),
+        Some(SlantProbe {
+            px_per_row: -3.0,
+            italic: false
+        }),
+        "a negative step selects the mirrored (right-edge) composition"
+    );
+    assert_eq!(
+        parse_overlay_slant_force("-6.5:italic"),
+        Some(SlantProbe {
+            px_per_row: -6.5,
+            italic: true
+        })
+    );
+    for bad in ["", "0", "nan", "10:bold", "italic"] {
         assert_eq!(
             parse_overlay_slant_force(bad),
             None,
@@ -551,6 +570,25 @@ fn slant_offset_math_is_a_stair_with_row_zero_unshifted() {
         slant_max_offset(&s, 1),
         0.0,
         "a single row pays no width tax"
+    );
+
+    // ITEM 131a — a MIRRORED (negative) step's width tax is the SAME magnitude:
+    // a right-moving stagger eats just as much usable width as a left-moving
+    // one, so `slant_max_offset` must not go negative and silently GRANT width
+    // back to `overlay_shape.rs`'s elision budget.
+    let mirrored = SlantProbe {
+        px_per_row: -8.0,
+        italic: false,
+    };
+    assert_eq!(
+        slant_offset(&mirrored, 3),
+        -24.0,
+        "the signed step itself stays signed"
+    );
+    assert_eq!(
+        slant_max_offset(&mirrored, 12),
+        88.0,
+        "the mirrored tax is the same positive magnitude as the straight one"
     );
 }
 
@@ -806,28 +844,45 @@ fn overlay_density_scales_the_row_pitch_owner() {
 fn slant_bar_span_cascades_without_overrunning_the_card() {
     // No slant → the input span verbatim.
     assert_eq!(
-        chrome::slant_bar_span(30.0, 200.0, false, 0.0),
+        chrome::slant_bar_span(30.0, 200.0, false, 0.0, 0.0),
         (30.0, 200.0)
     );
     assert_eq!(
-        chrome::slant_bar_span(30.0, 200.0, true, 0.0),
+        chrome::slant_bar_span(30.0, 200.0, true, 0.0, 0.0),
         (30.0, 200.0)
     );
 
-    // HUG: translate right, width untouched.
+    // HUG: translate right, width untouched. `dw` (a mirrored stagger) means
+    // nothing to a hug plate — its width already comes from measured content,
+    // not the band's width — so it must be a no-op here even when nonzero.
     assert_eq!(
-        chrome::slant_bar_span(30.0, 120.0, true, 15.0),
+        chrome::slant_bar_span(30.0, 120.0, true, 15.0, -50.0),
         (45.0, 120.0)
     );
 
-    // FULL: left edge steps right by dx, RIGHT edge stays flush.
-    let (x, w) = chrome::slant_bar_span(30.0, 200.0, false, 40.0);
+    // FULL, dx (Mangrove-shape): left edge steps right by dx, RIGHT edge stays
+    // flush.
+    let (x, w) = chrome::slant_bar_span(30.0, 200.0, false, 40.0, 0.0);
     assert_eq!(x, 70.0);
     assert!(
         (x + w - (30.0 + 200.0)).abs() < 0.001,
         "the full-width plate's right edge stays flush at card-right ({} vs {})",
         x + w,
         230.0
+    );
+
+    // ITEM 131a — FULL, dw (Magpie's mirror): LEFT edge stays flush, the RIGHT
+    // edge steps in by `dw` (negative).
+    let (x, w) = chrome::slant_bar_span(30.0, 200.0, false, 0.0, -40.0);
+    assert_eq!(
+        x, 30.0,
+        "the mirrored full-width plate's left edge stays flush"
+    );
+    assert!(
+        (x + w - (30.0 + 200.0 - 40.0)).abs() < 0.001,
+        "the mirrored full-width plate's right edge steps in by dw ({} vs {})",
+        x + w,
+        190.0
     );
 }
 
@@ -968,7 +1023,11 @@ fn motion_frame_dump_probe_pins_phase_and_settles() {
         enter: 0.0,
         band: 0.0,
     }));
-    assert_eq!(p.overlay_slant_dx(3), 0.0, "enter=0 draws the stair flush");
+    assert_eq!(
+        p.overlay_row_dx_step() * 3.0,
+        0.0,
+        "enter=0 draws the stair flush"
+    );
     assert_eq!(
         p.overlay_grow_progress(),
         0.0,
@@ -980,9 +1039,9 @@ fn motion_frame_dump_probe_pins_phase_and_settles() {
         band: 1.0,
     }));
     assert!(
-        (p.overlay_slant_dx(3) - 30.0).abs() < 0.01,
+        ((p.overlay_row_dx_step() * 3.0) - 30.0).abs() < 0.01,
         "enter=1 draws the full 3-step stair ({})",
-        p.overlay_slant_dx(3)
+        (p.overlay_row_dx_step() * 3.0)
     );
     assert_eq!(
         p.overlay_grow_progress(),
@@ -996,7 +1055,7 @@ fn motion_frame_dump_probe_pins_phase_and_settles() {
         enter: 0.2,
         band: 0.2,
     }));
-    let mid = p.overlay_slant_dx(3);
+    let mid = p.overlay_row_dx_step() * 3.0;
     assert!(
         mid > 0.0 && mid < 30.0,
         "a partway phase is between flush and full ({mid})"

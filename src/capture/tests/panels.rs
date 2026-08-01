@@ -1626,32 +1626,64 @@ fn popover_labels_demonstrate_their_own_effects() {
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 }
 
-/// DIFF-AS-PREVIEW card dressing (the pixel law): while the History picker's
-/// writer's-diff preview is up (`opts.preview_text` set), the page column wears a
-/// CARD — a `base_300` fill under a raised rim (RIMMED, not Shadowed; the
-/// chin-round decision, see `prepare_diff_panel`). The law asserts the OUTCOME, in
-/// real pixels (the sidecar-is-a-state-oracle tripwire): the dressing paints a
-/// VISIBLE edge around the column in EVERY world — a value transition at the
-/// panel's left rim that a bare document (uniform page margin) never makes —
-/// including the one-bit world Wagtail, where the ink ladder collapses and a
-/// value-only cue is all that can carry. Focus (Tab) strengthens the rim: a
-/// second capture proves the focused edge out-masses the resting one.
+/// HISTORY PREVIEW, the capture tier (item 84's dressing law, re-aimed by item
+/// 116b). While the History picker's writer's-diff preview is up
+/// (`opts.preview_text` set) the DOCUMENT itself becomes the transcript: the
+/// same substitution the live `sync_view` performs, with the same caret park on
+/// the transcript's blank line 1 so no line's WYSIWYG conceal reveals.
+///
+/// **WHAT ITEM 116b CHANGED.** The claim this law used to make was about the
+/// diff panel's own CARD DRESSING — a `base_300` fill under a raised rim, drawn
+/// around the page column, its rim strengthening when Tab moved focus in. That
+/// composition is gone: the dressing, `diff_panel_rect`, `prepare_diff_panel`
+/// and their three GPU pipelines were removed with it, because the transcript
+/// no longer wants a card drawn around the page column — it wants to be
+/// RELOCATED into a workspace's content region
+/// (`TextPipeline::comparison_viewport`), which is a different composition, not
+/// a differently-dressed one. What survives at THIS tier is the content half,
+/// which is exactly what the removal must not have broken:
+///
+/// 1. the transcript really is what got shaped and captured, in every world;
+/// 2. it draws at the ordinary page column, undressed — no rim, no card fill,
+///    the page margin either side reading as plain background;
+/// 3. and `detail_focus` no longer moves a single pixel of the document layer,
+///    which is the removal stated as an outcome rather than as an absence.
+///
+/// The relocation's own pixel claims live at the render tier, where the
+/// workspace state that reaches them exists:
+/// `render::tests::comparison_viewport_item116b`.
 #[test]
-fn diff_panel_card_dressing_is_visible_around_the_column_in_every_world() {
+fn history_preview_renders_the_transcript_as_the_document_in_every_world() {
     if !adapter_available() {
         eprintln!(
-            "skipping diff_panel_card_dressing_is_visible_around_the_column_in_every_world: no wgpu adapter"
+            "skipping history_preview_renders_the_transcript_as_the_document: no wgpu adapter"
         );
         return;
     }
     let _tg = crate::testlock::serial();
     let dir = ScratchDir::new(
-        std::env::temp_dir().join(format!("awl_diffpanel_test_{}", std::process::id())),
+        std::env::temp_dir().join(format!("awl_histpreview_test_{}", std::process::id())),
     );
 
-    // A real writer's-diff transcript, tall enough to fill the panel vertically.
-    let old = "The opening paragraph stands unchanged across both drafts here.\n\nThe middle paragraph gets entirely rewritten in the newer draft below.\n\nA third paragraph the newer draft drops out of the manuscript wholesale.\n";
-    let new = "The opening paragraph stands unchanged across both drafts here.\n\nThe middle paragraph is now reworded completely for the fresher draft.\n\nA brand new closing paragraph arrives to take the tail position instead.\n";
+    // A real writer's-diff transcript, deliberately TALL enough that the document
+    // still paints in the bottom third of the canvas, well below the History
+    // card — the band arm 2 grades. A short transcript would make that arm
+    // vacuous by leaving the compared region empty in both frames.
+    let mut old = String::new();
+    let mut new = String::new();
+    for i in 0..14 {
+        old.push_str(&format!(
+            "Paragraph {i} stands unchanged across both drafts of the manuscript \
+             here.\n\nParagraph {i}b gets entirely rewritten in the newer draft \
+             below this one.\n\n"
+        ));
+        new.push_str(&format!(
+            "Paragraph {i} stands unchanged across both drafts of the manuscript \
+             here.\n\nParagraph {i}b is now reworded completely for the fresher \
+             draft instead.\n\n"
+        ));
+    }
+    let (old, new) = (old.as_str(), new.as_str());
     let (transcript, _counts) = crate::prosediff::diff_and_render(
         old,
         new,
@@ -1689,8 +1721,8 @@ fn diff_panel_card_dressing_is_visible_around_the_column_in_every_world() {
     };
 
     // The three probed worlds: a warm default, a dark world, and the ONE-BIT
-    // Wagtail (the value-only cue must still read there — the picker-invisible-row
-    // bug's home world).
+    // Wagtail (where the ink ladder collapses and only a value cue can carry —
+    // the picker-invisible-row bug's home world).
     for world in ["Tawny", "Mopoke", "Wagtail"] {
         crate::theme::set_active_by_name(world);
 
@@ -1699,100 +1731,102 @@ fn diff_panel_card_dressing_is_visible_around_the_column_in_every_world() {
         opts.preview_text = Some(transcript.clone());
         opts.overlay = Some(history_overlay(false));
         let png = dir.join(format!("{world}_rest.png"));
-        capture_with(&png, &Buffer::from_str(new), &opts).expect("diff panel capture");
+        capture_with(&png, &Buffer::from_str(new), &opts).expect("history preview capture");
 
-        let img = image::open(&png).expect("decode diff-panel PNG").to_rgba8();
+        // ARM 1 — THE TRANSCRIPT IS WHAT GOT CAPTURED, from the sidecar's own
+        // `text` block (a state claim, so the sidecar is the right oracle).
+        let sidecar: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(png.with_extension("json")).expect("sidecar"),
+        )
+        .expect("sidecar json");
+        let shown = sidecar["text"].as_str().expect("sidecar text");
+        assert_eq!(
+            shown, transcript,
+            "{world}: the previewed version's TRANSCRIPT must be the captured document"
+        );
+
+        let img = image::open(&png)
+            .expect("decode history-preview PNG")
+            .to_rgba8();
         let (w, h) = img.dimensions();
-        let y_mid = h / 2;
-        // The page MARGIN background = the far-left column (well outside any panel).
-        let bg = *img.get_pixel(3, y_mid);
-        let delta = |p: &image::Rgba<u8>| -> i32 {
-            let d = |a: u8, b: u8| (a as i32 - b as i32).abs();
-            d(p[0], bg[0]) + d(p[1], bg[1]) + d(p[2], bg[2])
-        };
 
-        // Walk in from the left at mid-height: find the panel's left edge — the
-        // first column whose pixel departs the uniform page margin.
-        let mut left_edge = None;
-        for x in 0..w {
-            if delta(img.get_pixel(x, y_mid)) > 18 {
-                left_edge = Some(x);
-                break;
+        // ARM 2 — UNDRESSED, differentially against the SAME transcript captured
+        // as an ORDINARY document. Below the History card (the bottom third of
+        // the canvas, where no overlay quad reaches) the two frames must agree
+        // pixel for pixel: the transcript is a plain document at the plain page
+        // column now, with no card fill under it, no rim beside it and no
+        // vertical clip band cutting it. An absolute rim scan cannot make this
+        // claim — page mode's own ground punch draws a continuous value step at
+        // `column_left` on every document, dressed or not, and that edge is what
+        // a from-the-left scan finds first.
+        let mut plain_opts = fixture_opts();
+        plain_opts.overlay = None;
+        let png_plain = dir.join(format!("{world}_plain.png"));
+        capture_with(&png_plain, &Buffer::from_str(&transcript), &plain_opts)
+            .expect("plain transcript capture");
+        let img_plain = image::open(&png_plain)
+            .expect("decode plain PNG")
+            .to_rgba8();
+        // Bounded to the page COLUMN itself: the left/right margins carry the
+        // orientation chrome a summoned overlay deliberately yields (item 34's
+        // outline + bottom-left gutter), which is a difference about the open
+        // picker, not about the document.
+        let col_left = sidecar["page"]["column"]["left"]
+            .as_f64()
+            .expect("page.column.left") as u32;
+        let col_w = sidecar["page"]["column"]["width"]
+            .as_f64()
+            .expect("page.column.width") as u32;
+        // NON-VACUITY: the graded band must actually carry document INK in the
+        // plain frame, or "identical" would only mean "both empty" — the exact
+        // way this arm went quiet when its fixture transcript was short.
+        let ground = *img_plain.get_pixel(col_left + col_w / 2, h - 4);
+        let mut inked = 0u32;
+        let mut differing = 0u32;
+        for y in (h * 2 / 3)..h {
+            for x in col_left..(col_left + col_w).min(w) {
+                if img.get_pixel(x, y) != img_plain.get_pixel(x, y) {
+                    differing += 1;
+                }
+                if *img_plain.get_pixel(x, y) != ground {
+                    inked += 1;
+                }
             }
         }
-        let left_edge = left_edge.unwrap_or_else(|| {
-            panic!("{world}: no card dressing found across the whole mid scanline (uniform margin — the panel is invisible)")
-        });
-        // The edge sits in the left margin band (the column starts ~120px in at
-        // 1200 canvas), never at x=0 (that would be a full-bleed fill, not a card).
         assert!(
-            (40..400).contains(&left_edge),
-            "{world}: panel left edge at x={left_edge} is not a margin-inset card (canvas {w}x{h})"
+            inked > 2_000,
+            "{world}: the graded band carries almost no document ink ({inked} px) — the \
+             transcript fixture is too short for this arm to mean anything"
         );
-        // The edge is the panel's RIM, not a stray text glyph: prove it is a
-        // CONTINUOUS vertical edge spanning the panel's height. A glyph column
-        // departs bg at only a few rows; the rim (the card dressing) departs it
-        // at essentially every row. This is the world-agnostic "dressing visible
-        // AROUND the panel" proof — on Tawny/Mopoke the `base_300` fill reads too,
-        // but on the ONE-BIT Wagtail the fill is black-on-black by construction
-        // (its collapsed ramp) and the white rim is the whole cue, exactly as
-        // every float/HUD/menu border carries one-bit depth (`surface_selected`).
-        let mut rim_rows = 0u32;
-        let mut sampled = 0u32;
-        let y0 = 60u32;
-        let y1 = h.saturating_sub(60);
-        let mut y = y0;
-        let win_lo = left_edge.saturating_sub(3);
-        let win_hi = (left_edge + 4).min(w - 1);
-        while y < y1 {
-            sampled += 1;
-            let mut mx = 0;
-            for x in win_lo..=win_hi {
-                mx = mx.max(delta(img.get_pixel(x, y)));
-            }
-            if mx > 12 {
-                rim_rows += 1;
-            }
-            y += 4;
-        }
-        // And the margin OUTSIDE the panel (2px left of the edge) is still bg.
-        let outside_delta = if left_edge >= 2 {
-            delta(img.get_pixel(left_edge - 2, y_mid))
-        } else {
-            999
-        };
-        assert!(
-            rim_rows * 100 >= sampled * 80,
-            "{world}: the panel rim must be a CONTINUOUS edge around the column, not stray text; only {rim_rows}/{sampled} rows lit near x={left_edge}"
-        );
-        assert!(
-            outside_delta <= 18,
-            "{world}: the page margin just outside the panel must stay background; outside_delta={outside_delta}"
+        assert_eq!(
+            differing, 0,
+            "{world}: {differing} pixels below the History card differ between the \
+             previewed transcript and the same transcript captured as an ordinary \
+             document. The transcript must render as a plain document — any dressing \
+             (a card fill, a rim, a clip band) is the diff-as-preview composition item \
+             116b retired."
         );
 
-        // FOCUS CUE: Tab strengthens the rim (wider + one value step up). Capture
-        // the focused frame; the rim column band must out-mass the resting one.
+        // ARM 3 — `detail_focus` moves NOTHING. It used to widen and re-ink the
+        // panel rim; with the dressing gone the document layer must not read it
+        // at all, and the two frames are byte-identical.
         let mut opts_f = fixture_opts();
-        // The focused capture fixture layers optional history state after defaults.
         opts_f.preview_text = Some(transcript.clone());
         opts_f.overlay = Some(history_overlay(true));
         let png_f = dir.join(format!("{world}_focus.png"));
-        capture_with(&png_f, &Buffer::from_str(new), &opts_f).expect("focused diff panel capture");
+        capture_with(&png_f, &Buffer::from_str(new), &opts_f).expect("focused preview capture");
         let img_f = image::open(&png_f).expect("decode focused PNG").to_rgba8();
-        // Sum the departure over the rim band [edge-3 .. edge+1] at mid-height —
-        // a wider, darker rim raises this sum.
-        let rim_mass = |im: &image::RgbaImage| -> i32 {
-            let mut s = 0;
-            for x in left_edge.saturating_sub(3)..=(left_edge + 1).min(w - 1) {
-                s += delta(im.get_pixel(x, y_mid));
-            }
-            s
-        };
-        let rest_mass = rim_mass(&img);
-        let focus_mass = rim_mass(&img_f);
-        assert!(
-            focus_mass > rest_mass,
-            "{world}: the focus cue must STRENGTHEN the rim (wider + a value step up); rest={rest_mass} focus={focus_mass}"
+        let focus_diff = img
+            .pixels()
+            .zip(img_f.pixels())
+            .filter(|(a, b)| a != b)
+            .count();
+        assert_eq!(
+            focus_diff, 0,
+            "{world}: Tab-into-the-content moved {focus_diff} pixels. It must not move a \
+             pixel of the document layer — the focus cue it used to strengthen was the \
+             diff panel's rim, and the rim is gone. A difference here means something in \
+             the document layer grew a `detail_focus` read."
         );
     }
 

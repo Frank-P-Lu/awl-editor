@@ -831,38 +831,27 @@ impl TextPipeline {
         page_column_advance(self.metrics.char_width, self.metrics.zoom)
     }
 
+    /// The WRITING COLUMN's width (px) — the ONE owner every document consumer
+    /// reads, [`Self::comparison_viewport`]'s override folded in (item 116b).
     pub fn column_width(&self) -> f32 {
-        column_width_for(
-            self.window_w,
-            self.page_advance(),
-            crate::page::page_on(),
-            crate::page::measure(),
-        )
+        match self.comparison_viewport() {
+            Some([_, _, w, _]) => w,
+            None => self.page_column_width(),
+        }
     }
 
     /// PAGE MODE: the LEFT edge (px) of the writing column — the ONE owner every
     /// downstream reader (caret/selection/washes, hit-test, the page-edge drag
     /// handle, the corner readouts, the margin outline + gutter) goes through, so
-    /// the ADAPTIVE-COLUMN placement policy ([`adaptive_column_left`]) composes
-    /// for free everywhere without a parallel geometry to keep in sync. WIDE: a
-    /// byte-identical passthrough to [`column_left_for`]. NARROW + the margin
-    /// outline wanting its rail ([`Self::outline_wants_rail`]): shifts right per
-    /// [`adaptive_column_left`]'s pressure test. Zoom-independent (driven by
-    /// [`Self::page_advance`]).
+    /// the ADAPTIVE-COLUMN placement policy ([`adaptive_column_left`]) and the
+    /// RELOCATED document viewport ([`Self::comparison_viewport`], item 116b)
+    /// both compose for free everywhere without a parallel geometry to keep in
+    /// sync.
     pub fn column_left(&self) -> f32 {
-        let label = crate::markdown::type_scale::LABEL;
-        let char_width = self.page_advance();
-        adaptive_column_left(
-            self.window_w,
-            char_width,
-            crate::page::page_on(),
-            crate::page::measure(),
-            self.outline_wants_rail(),
-            rowlayout::OUTLINE_PREFERRED_CHARS as f32 * self.metrics.char_width * label,
-            rowlayout::OUTLINE_MIN_CHARS as f32 * self.metrics.char_width * label,
-            self.metrics.char_width * crate::render::chrome::MARGIN_COLUMN_GAP_CHARS,
-            crate::render::TEXT_LEFT,
-        )
+        match self.comparison_viewport() {
+            Some([x, _, _, _]) => x,
+            None => self.page_column_left(),
+        }
     }
 
     pub(in crate::render) fn outline_wants_rail(&self) -> bool {
@@ -870,38 +859,6 @@ impl TextPipeline {
             && crate::page::page_on()
             && self.md_enabled
             && !self.outline_headings.is_empty()
-    }
-
-    /// DIRECT-MANIPULATION resize — is the pointer at `pointer_x` (physical px)
-    /// hovering a DRAGGABLE page-column edge? True whenever page mode is ON and the
-    /// pointer is within [`PAGE_RESIZE_GRAB_PX`] of a DRAWN column edge — including a
-    /// COLLAPSED page whose margins sit at the [`PAGE_MIN_PAD`] floor. The edge is
-    /// the affordance whether or not there is margin left to give: dragging INWARD
-    /// from a collapsed column must still narrow the measure (else the user is locked
-    /// out — the widen-past-capacity lockout bug, 2026-07-15). The pure proximity
-    /// test is [`page_boundary_hit`]. The live app reads this to flip the OS cursor
-    /// to a resize glyph and to decide whether a press begins a width drag instead of
-    /// a text selection.
-    pub fn page_resize_hover(&self, pointer_x: f32) -> bool {
-        self.page_resize_edge_at(pointer_x).is_some()
-    }
-
-    pub fn page_resize_edge_at(&self, pointer_x: f32) -> Option<ResizeEdge> {
-        page_resize_edge_hit(
-            crate::page::page_on(),
-            self.column_left(),
-            self.column_width(),
-            pointer_x,
-            PAGE_RESIZE_GRAB_PX,
-        )
-    }
-
-    pub fn over_writing_column(&self, pointer_x: f32) -> bool {
-        in_writing_column(pointer_x, self.column_left(), self.column_width())
-    }
-
-    pub fn page_resize_measure_at(&self, pointer_x: f32, edge: ResizeEdge, anchor_x: f32) -> usize {
-        page_resize_measure_anchored(self.page_advance(), pointer_x, anchor_x, edge)
     }
 
     /// INLINE-IMAGE DRAG-RESIZE (v2) — the DISPLAY WIDTH (px) an image gets from
@@ -928,15 +885,6 @@ impl TextPipeline {
             self.text_wrap_width(),
             MIN_IMAGE_W,
             max_h,
-        )
-    }
-
-    pub fn page_geometry(&self) -> (bool, usize, f32, f32) {
-        (
-            crate::page::page_on(),
-            crate::page::measure(),
-            self.column_left(),
-            self.column_width(),
         )
     }
 
@@ -986,8 +934,18 @@ impl TextPipeline {
         }
     }
 
+    /// The canvas y of the document's own first row at scroll 0, less the
+    /// rendered scroll offset — the ONE vertical origin every row, caret,
+    /// ornament and wash composes off. ITEM 116b: the relocated comparison
+    /// viewport supplies its own top, so the transcript begins inside the
+    /// content pane instead of at the canvas's `TEXT_TOP`; scrolling still
+    /// subtracts identically, so the whole document layer moves as one.
     pub(super) fn doc_top(&self) -> f32 {
-        TEXT_TOP + self.menubar_reserve() - self.rendered_scroll_top_px(self.scroll)
+        let top = match self.comparison_viewport() {
+            Some([_, y, _, _]) => y,
+            None => TEXT_TOP + self.menubar_reserve(),
+        };
+        top - self.rendered_scroll_top_px(self.scroll)
     }
 
     pub(super) fn row_top_px(&self, row: usize) -> f32 {
@@ -1497,6 +1455,11 @@ impl TextPipeline {
         col
     }
 }
+
+/// ITEM 116b — the PAGE's own column on the canvas: the geometry the relocated
+/// document viewport deliberately does NOT move, and the direct-manipulation
+/// affordances that describe it.
+mod page;
 
 #[cfg(test)]
 mod tests;

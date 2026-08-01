@@ -166,9 +166,12 @@ impl OverlayKind {
             OverlayKind::Keybindings => {
                 vec![enter("rebind"), key("del", "reset"), key("esc", "close")]
             }
-            OverlayKind::History => {
-                vec![enter("restore"), key("tab", "diff"), key(ARROWS_LR, "lens")]
-            }
+            // Item 116c: restore moved behind ⇧↵.
+            OverlayKind::History => vec![
+                enter("compare"),
+                key("\u{21E7}\u{21B5}", "restore"),
+                key(ARROWS_LR, "lens"),
+            ],
             // ITEM 114 — the rows pane is the workspace's DETAIL stage, so `esc`
             // is a BACK to the rail and `←/→` steps a named category. The footer
             // is awl's only statement of what a key does (ACCESSIBILITY.md).

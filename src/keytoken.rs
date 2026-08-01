@@ -74,20 +74,38 @@ pub fn key_token_label(
     convention: Convention,
     platform: Platform,
 ) -> Option<String> {
+    key_token_spec(slug_want, convention, platform).map(|spec| match convention {
+        Convention::Mac => crate::keyspec::mac_glyph_chord(&spec),
+        Convention::Linux => crate::keyspec::linux_glyph_chord(&spec),
+    })
+}
+
+/// [`key_token_label`]'s SPEC half — the terse chord
+/// [`crate::keyspec::parse_chord`] accepts, before it becomes a ⌘ glyph or a
+/// `Ctrl+` word. `None` for an unknown slug; `Some("")` for a slug that
+/// resolves to NO chord on this convention/platform (Insert-link on Linux,
+/// where `C-k` stays kill-line; a browser-reserved chord with no alternate).
+///
+/// Every reader of "what does this doc teach" goes through here, so the law
+/// below can drive exactly the chord a reader is shown — never a second,
+/// possibly-diverging derivation of it.
+pub fn key_token_spec(
+    slug_want: &str,
+    convention: Convention,
+    platform: Platform,
+) -> Option<String> {
     if let Some(c) = commands::COMMANDS
         .iter()
         .find(|c| commands::slug(c.name) == slug_want)
     {
-        return Some(commands::resolved_native_label_truthful(
-            c, convention, platform,
-        ));
+        return Some(commands::resolved_native_truthful(c, convention, platform));
     }
     SYNTHETIC
         .iter()
         .find(|(s, _, _)| *s == slug_want)
         .map(|(_, mac, linux)| match convention {
-            Convention::Mac => crate::keyspec::mac_glyph_chord(mac),
-            Convention::Linux => crate::keyspec::linux_glyph_chord(linux),
+            Convention::Mac => (*mac).to_string(),
+            Convention::Linux => (*linux).to_string(),
         })
 }
 
@@ -165,225 +183,4 @@ pub fn render_key_tokens(text: &str, convention: Convention, platform: Platform)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    const WELCOME: &str = crate::embedded_docs::WELCOME_MD;
-    const TOUR: &str = crate::embedded_docs::TOUR_MD;
-    const GUIDE: &str = crate::embedded_docs::GUIDE_MD;
-
-    /// Every `{{key:slug}}` slug used in `text`, in order.
-    fn extract_token_slugs(text: &str) -> Vec<String> {
-        extract_tagged_slugs(text, KEY_PREFIX)
-    }
-
-    /// Every `{{cmd:slug}}` slug used in `text`, in order.
-    fn extract_cmd_slugs(text: &str) -> Vec<String> {
-        extract_tagged_slugs(text, CMD_PREFIX)
-    }
-
-    /// Shared token-body scanner: every `{{<prefix><slug>}}` occurrence in
-    /// `text`, `<slug>` extracted in order. A `{{...}}` span carrying a
-    /// DIFFERENT prefix (or none) is simply not this scan's business — the
-    /// unified render-side law tests below drive `render_key_tokens` itself,
-    /// which is what actually enforces "every token kind resolves or is loud."
-    fn extract_tagged_slugs(text: &str, prefix: &str) -> Vec<String> {
-        let mut out = Vec::new();
-        let mut rest = text;
-        while let Some(start) = rest.find(OPEN) {
-            let after = &rest[start + OPEN.len()..];
-            match after.find(CLOSE) {
-                Some(end) => {
-                    let inner = &after[..end];
-                    if let Some(slug_want) = inner.strip_prefix(prefix) {
-                        out.push(slug_want.to_string());
-                    }
-                    rest = &after[end + CLOSE.len()..];
-                }
-                None => break,
-            }
-        }
-        out
-    }
-
-    fn strip_generated_table(doc: &str) -> String {
-        const BEGIN: &str = "<!-- GENERATED:keys-reference:BEGIN -->";
-        const END: &str = "<!-- GENERATED:keys-reference:END -->";
-        match (doc.find(BEGIN), doc.find(END)) {
-            (Some(s), Some(e)) => format!("{}{}", &doc[..s], &doc[e + END.len()..]),
-            _ => doc.to_string(),
-        }
-    }
-
-    #[test]
-    fn render_key_tokens_substitutes_a_known_slug() {
-        let out = render_key_tokens(
-            "press {{key:save}} to save",
-            Convention::Mac,
-            Platform::Native,
-        );
-        assert_eq!(out, "press \u{2318}S to save");
-    }
-
-    #[test]
-    fn render_key_tokens_flags_an_unknown_slug_rather_than_vanishing() {
-        let out = render_key_tokens("{{key:nope}}", Convention::Mac, Platform::Native);
-        assert_eq!(out, "[[unknown-key:nope]]");
-    }
-
-    #[test]
-    fn render_key_tokens_leaves_an_unterminated_token_verbatim() {
-        let out = render_key_tokens("abc {{key:save no close", Convention::Mac, Platform::Native);
-        assert_eq!(out, "abc {{key:save no close");
-    }
-
-    #[test]
-    fn render_key_tokens_substitutes_a_known_cmd_slug() {
-        let out = render_key_tokens(
-            "open {{cmd:widen_page}} from the palette",
-            Convention::Mac,
-            Platform::Native,
-        );
-        assert_eq!(out, "open Widen page from the palette");
-        // Convention/platform-independent, unlike a chord token.
-        let out_linux = render_key_tokens("{{cmd:widen_page}}", Convention::Linux, Platform::Web);
-        assert_eq!(out_linux, "Widen page");
-    }
-
-    #[test]
-    fn render_key_tokens_flags_an_unknown_cmd_slug_rather_than_vanishing() {
-        let out = render_key_tokens("{{cmd:nope}}", Convention::Mac, Platform::Native);
-        assert_eq!(out, "[[unknown-cmd:nope]]");
-    }
-
-    #[test]
-    fn render_key_tokens_flags_an_unrecognized_token_kind() {
-        let out = render_key_tokens("{{bogus:widen_page}}", Convention::Mac, Platform::Native);
-        assert_eq!(out, "[[unknown-token:bogus:widen_page]]");
-    }
-
-    #[test]
-    fn synthetic_tokens_resolve_on_both_conventions() {
-        assert_eq!(
-            key_token_label("command_palette", Convention::Mac, Platform::Native).as_deref(),
-            Some("\u{2318}P")
-        );
-        assert_eq!(
-            key_token_label("command_palette", Convention::Linux, Platform::Native).as_deref(),
-            Some("Ctrl+P")
-        );
-        assert!(key_token_label("stats_hud", Convention::Mac, Platform::Native).is_some());
-        assert!(key_token_label("stats_hud", Convention::Linux, Platform::Native).is_some());
-    }
-
-    /// THE DOCS-VS-CATALOG LAW (chord half): guards `render_key_tokens`'s
-    /// unknown-slug fallback from ever actually shipping — every
-    /// `{{key:slug}}` token used in the STARTING docs must resolve, on every
-    /// convention x platform combination. This is the harvest-and-resolve law
-    /// the "welcome-doc taught a retired chord" incident asked for: a retired
-    /// or renamed chord slug fails `cargo test` here, before it ever reaches a
-    /// reader.
-    #[test]
-    fn every_key_token_in_the_starting_docs_resolves() {
-        for (name, doc) in [
-            ("welcome.md", WELCOME),
-            ("tour.md", TOUR),
-            ("GUIDE.md", GUIDE),
-        ] {
-            let slugs = extract_token_slugs(doc);
-            assert!(
-                !slugs.is_empty(),
-                "{name}: expected at least one {{{{key:..}}}} token"
-            );
-            for slug_want in slugs {
-                for convention in [Convention::Mac, Convention::Linux] {
-                    for platform in [Platform::Native, Platform::Web] {
-                        assert!(
-                            key_token_label(&slug_want, convention, platform).is_some(),
-                            "{name}: unknown key token slug {slug_want:?} under {convention:?}/{platform:?}"
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    /// THE DOCS-VS-CATALOG LAW (command-name half): every `{{cmd:slug}}`
-    /// token used in the STARTING docs must resolve against the live catalog
-    /// (`commands::action_for_name`'s own slug space — see `cmd_token_label`).
-    /// A command renamed or retired since a doc cited it by name fails here.
-    /// Not every doc need cite a bare command name (`tour.md` today doesn't —
-    /// it only teaches chords), so an empty slug list per-doc is fine; the
-    /// requirement is just that whichever slugs ARE used resolve.
-    #[test]
-    fn every_cmd_token_in_the_starting_docs_resolves() {
-        let mut total = 0usize;
-        for (name, doc) in [
-            ("welcome.md", WELCOME),
-            ("tour.md", TOUR),
-            ("GUIDE.md", GUIDE),
-        ] {
-            for slug_want in extract_cmd_slugs(doc) {
-                total += 1;
-                assert!(
-                    cmd_token_label(&slug_want).is_some(),
-                    "{name}: unknown cmd token slug {slug_want:?} (renamed or retired command?)"
-                );
-            }
-        }
-        assert!(
-            total > 0,
-            "expected at least one {{{{cmd:..}}}} token across the starting docs"
-        );
-    }
-
-    /// THE GREP-LAW: no literal chord glyph survives in the STARTING docs'
-    /// PROSE — every specific chord mention must be a `{{key:slug}}` token, so
-    /// it can never silently drift from what actually fires. Two literal forms
-    /// are banned: the mac ⌘ glyph, and the generated table's own `Ctrl+<key>`
-    /// word form. Exempted: the ONE generated keys-reference fence in
-    /// GUIDE.md (dual-column BY DESIGN — see `commands::generate_keys_
-    /// reference_markdown`'s doc) and a short, individually curated allowlist
-    /// of lines that talk ABOUT the two-convention split itself (both
-    /// conventions named explicitly in the SAME breath, so there is no single
-    /// per-viewer truth a token could substitute without erasing the other).
-    #[test]
-    fn no_literal_chord_glyphs_survive_outside_tokens_and_the_generated_table() {
-        // Curated, honest allowlist: lines that name BOTH conventions in the
-        // same breath (never claim a single truth a token could replace).
-        const ALLOWED_MAC_GLYPH_SUBSTRINGS: &[&str] = &[
-            "**slot 1 is native** (\u{2318} on",
-            "**The hold-\u{2318} peek.** Hold the arming modifier alone for a beat (\u{2318} on",
-        ];
-        // The Omarchy/Hyprland recipe: `Ctrl+C/X/V` here names the LITERAL
-        // signal the compositor forwards to every app (a hardware/OS fact,
-        // not an awl chord label) — explicitly out of scope, per the round's
-        // own "curate honestly" instruction.
-        const ALLOWED_CTRL_WORD_SUBSTRINGS: &[&str] = &["as Ctrl+C/X/V for the system clipboard"];
-        for (name, doc) in [
-            ("welcome.md", WELCOME),
-            ("tour.md", TOUR),
-            ("GUIDE.md", GUIDE),
-        ] {
-            let body = strip_generated_table(doc);
-            for line in body.lines() {
-                if line.contains('\u{2318}')
-                    && !ALLOWED_MAC_GLYPH_SUBSTRINGS
-                        .iter()
-                        .any(|a| line.contains(a))
-                {
-                    panic!("{name}: literal \u{2318} glyph outside a token/allowlist: {line:?}");
-                }
-                if line.contains("Ctrl+")
-                    && !ALLOWED_CTRL_WORD_SUBSTRINGS
-                        .iter()
-                        .any(|a| line.contains(a))
-                {
-                    panic!(
-                        "{name}: literal Ctrl+ word-form outside the generated table/allowlist: {line:?}"
-                    );
-                }
-            }
-        }
-    }
-}
+mod tests;

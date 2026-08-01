@@ -390,7 +390,7 @@ fn no_second_place_decides_how_settings_is_presented() {
     assert!(
         offenders.is_empty(),
         "the renderer may not name the Settings KIND: how a card is presented is \
-         `OverlayKind::workspace_shell`'s decision, projected through \
+         `OverlayKind::workspace_shape`'s decision, projected through \
          `ViewState::overlay_workspace`. A second test here is the parallel path \
          item 114 exists to remove. Offending lines: {offenders:?}"
     );

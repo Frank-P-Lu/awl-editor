@@ -467,7 +467,7 @@ impl OverlayState {
         // Its PRIMARY list is the navigation rail; its DETAIL stage is the rows
         // pane, whose keys are the picker's ordinary row keys (including the
         // per-row range variant below), because the rows really are the picker.
-        if self.workspace_shell() {
+        if self.workspace_shape().is_some() {
             if !self.detail_focus {
                 return super::format_hint(&self.kind.rail_hint_actions());
             }
@@ -477,13 +477,14 @@ impl OverlayState {
             return self.kind.hint();
         }
         if self.detail_focus {
+            // Item 116c: bare ↵ no longer restores while comparing; ⇧↵ does.
             return super::format_hint(&[
                 super::HintAction {
                     glyph: "\u{2191}/\u{2193}",
                     label: "scroll",
                 },
                 super::HintAction {
-                    glyph: "\u{21B5}",
+                    glyph: "\u{21E7}\u{21B5}",
                     label: "restore",
                 },
                 super::HintAction {

@@ -282,6 +282,123 @@ fn isolated_filesystem_authority_promotes_only_save_and_setting_requests() {
     }
 }
 
+/// **ITEM 193** — closes the direction `the_harness_reach_map_matches_the_
+/// production_classifier` (below) leaves unpinned: THIS classifier is
+/// derived from the doc, but nothing pinned the classifier BACK to the
+/// interpreter that actually has to perform its promise.
+/// `classify_settings` used to say `Applied` for every `toggle_key` except
+/// `"keymap"`, while `ReplaySession::interpret_setting_toggle` handled a
+/// hand-copied roster behind its own `_ => return` — so a key added to
+/// `settings::toggle_key` without a matching interpreter arm would work
+/// live and silently no-op through replay while the sidecar still reported
+/// `Applied`. A no-wildcard match over EVERY [`crate::settings::SettingId`]
+/// variant — no `_`/catch-all binding anywhere, the same shape
+/// `settings::value_for`'s own no-wildcard readout match already uses, so a
+/// 32nd variant fails to COMPILE here until it is placed in one of the three
+/// buckets below, and only THEN can the sweep fail by name: non-toggle rows
+/// resolve no key at all (checked against `toggle_key` directly, the same
+/// claim `settings::tests::every_toggle_has_a_config_key_and_nothing_else_
+/// does` makes — restated here as a sanity guard, not duplicated as a second
+/// authority); `Keymap` is a NAMED, deliberate exclusion (a live keymap
+/// rebuild, not a boolean flip); every other `Toggle` row must be a key the
+/// shared toggle core ([`crate::settings::flip_toggle_global`], `App::
+/// setting_toggle`'s and this classifier's ONE shared owner) recognizes, and
+/// an Isolated replay must promise it `Applied`.
+#[test]
+fn the_settings_toggle_core_handles_every_key_toggle_key_names() {
+    use crate::settings::SettingId;
+    for row in crate::settings::SETTINGS {
+        match row.id {
+            // Non-toggle rows: `toggle_key` must name nothing for them, and
+            // there is nothing further for this sweep to check.
+            SettingId::CaretStyle
+            | SettingId::PageWidthProse
+            | SettingId::PageWidthCode
+            | SettingId::Zoom
+            | SettingId::ScrollSensitivity
+            | SettingId::DateFormat
+            | SettingId::Theme
+            | SettingId::Dictionary
+            | SettingId::CjkReadsAs
+            | SettingId::DefaultFolder
+            | SettingId::ProjectsFolder
+            | SettingId::ProjectRoot
+            | SettingId::Keybindings
+            | SettingId::ReportProblem
+            | SettingId::EditConfigAsText => {
+                assert!(
+                    crate::settings::toggle_key(row.id).is_none(),
+                    "{:?}: not a Toggle row, yet toggle_key resolved one",
+                    row.name
+                );
+            }
+            // The one deliberate exception: needs a LIVE keymap rebuild, not
+            // a boolean negate — stays Unsupported even Isolated.
+            SettingId::Keymap => {
+                let key = crate::settings::toggle_key(row.id).expect("Keymap is a Toggle row");
+                let effect = Effect::SettingToggle {
+                    key: key.to_string(),
+                };
+                for filesystem in [FilesystemCapability::None, FilesystemCapability::Isolated] {
+                    assert!(
+                        matches!(
+                            classify_for(&effect, filesystem).class,
+                            EffectClass::Unsupported { .. }
+                        ),
+                        "Keymap under {filesystem:?}: must stay Unsupported"
+                    );
+                }
+            }
+            // The shared toggle core's whole domain: a key the classifier
+            // promises Applied must be one `flip_toggle_global` handles.
+            SettingId::PageMode
+            | SettingId::TypewriterScroll
+            | SettingId::ReduceMotion
+            | SettingId::Wysiwyg
+            | SettingId::FormatPopover
+            | SettingId::InlineImages
+            | SettingId::CodeLigatures
+            | SettingId::Outline
+            | SettingId::MenuBar
+            | SettingId::Spellcheck
+            | SettingId::WritingNits
+            | SettingId::FileVisibility
+            | SettingId::Autosave
+            | SettingId::LocalHistory
+            | SettingId::SessionRestore => {
+                let key = crate::settings::toggle_key(row.id)
+                    .unwrap_or_else(|| panic!("{:?}: expected a Toggle row's key", row.name));
+                assert!(
+                    crate::settings::is_core_toggle_key(key),
+                    "{:?} ({key:?}): `toggle_key` names this key but the shared toggle \
+                     core (`settings::flip_toggle_global`) does not recognize it — the \
+                     classifier would promise `Applied` for a key the interpreter \
+                     silently drops through its own `_ => return`",
+                    row.name
+                );
+                let effect = Effect::SettingToggle {
+                    key: key.to_string(),
+                };
+                assert_eq!(
+                    classify_for(&effect, FilesystemCapability::Isolated).class,
+                    EffectClass::Applied,
+                    "{:?} ({key:?}): an Isolated replay must promise Applied for a \
+                     core-handled key",
+                    row.name
+                );
+                assert!(
+                    matches!(
+                        classify_for(&effect, FilesystemCapability::None).class,
+                        EffectClass::Unsupported { .. }
+                    ),
+                    "{:?} ({key:?}): ordinary replay (no capability) must stay Unsupported",
+                    row.name
+                );
+            }
+        }
+    }
+}
+
 #[test]
 fn intercepted_effects_carry_their_payload_as_detail() {
     let follow = classify(&Effect::FollowLink("https://awl.example/g".into()));

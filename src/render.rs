@@ -1449,8 +1449,14 @@ pub(crate) fn slant_offset(slant: &SlantProbe, row: usize) -> f32 {
     slant.px_per_row * row as f32
 }
 
+/// The deepest row's TOTAL inward step, as a magnitude — used to tax the width
+/// elision budgets against, never as a signed position. Item 131a: the probe's
+/// step is signed (which edge moves), but a mirrored (right-moving) stagger
+/// eats just as much usable width as a straight (left-moving) one, so the tax
+/// itself is always `>= 0`, `.abs()` of the signed step. Byte-identical to the
+/// pre-131a formula for every existing (positive-only) probe value.
 pub(crate) fn slant_max_offset(slant: &SlantProbe, n_rows: usize) -> f32 {
-    slant.px_per_row * n_rows.saturating_sub(1) as f32
+    slant.px_per_row.abs() * n_rows.saturating_sub(1) as f32
 }
 
 pub(crate) const BAR_OUTLINE_STROKE_PX: f32 = 1.5;
@@ -1799,9 +1805,6 @@ pub struct TextPipeline {
     pub float_border: SelectionPipeline,
     pub float_card: SelectionPipeline,
     pub(in crate::render) float_panel_model: Option<chrome::FloatPanelModel>,
-    pub diffpanel_shadow: SelectionPipeline,
-    pub diffpanel_border: SelectionPipeline,
-    pub diffpanel_card: SelectionPipeline,
     pub preview_renderer: TextRenderer,
     pub preview_buffer: GlyphBuffer,
     /// The GPU quad pipeline that draws the wavy spell-check underlines.
@@ -2236,13 +2239,16 @@ pub struct TextPipeline {
     overlay_lens: Vec<(String, bool)>,
     overlay_sections: Vec<String>,
     overlay_spell: Option<(usize, usize, usize)>,
-    diff_panel: bool,
     overlay_detail_focus: bool,
     /// ITEM 114 — the summoned card is drawn as a WORKSPACE this frame (mirror of
     /// [`ViewState::overlay_workspace`]). The one input that routes
     /// `overlay_geometry` to its third family; every other overlay path stays
     /// byte-identical because this is `false` for them.
     overlay_workspace: bool,
+    /// Mirror of [`ViewState::overlay_rows_primary`] (item 116a) — within a
+    /// workspace, does the primary column carry rows rather than labels?
+    /// `false` for every kind that routes here today.
+    overlay_rows_primary: bool,
     /// The workspace navigation rail's MEASURED column width (device px),
     /// measured at `set_view` with a `&mut FontSystem` in hand — the item-51
     /// `overlay_content_w` pattern, for the same reason. `0.0` off a workspace.

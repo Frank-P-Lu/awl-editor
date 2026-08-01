@@ -1,14 +1,9 @@
-//! WAVES' phase-drift owner (item 87) — the shared ambient clock's third
+//! Waves' phase-drift owner — the shared ambient clock's third
 //! consumer, plus the shader-mirror the drift laws are stated against.
 //!
-//! Carved out of `background.rs` when item 186 added the device-ratio field to
-//! `Globals`: the drift is a self-contained sub-vocabulary (one runtime
+//! The drift is a self-contained sub-vocabulary (one runtime
 //! function, one env knob, one test mirror) with a single call site in
 //! `render/layers.rs`, and it shares nothing with the pipeline's wgpu plumbing.
-//! Moved verbatim; `git log -p src/background.rs` has the earlier rounds.
-
-// --- ITEM 87: WAVES PHASE DRIFT (the shared ambient clock's third consumer) ---
-//
 // Bombora's wave-tier boundaries ride a single scalar DRIFT (radians),
 // uploaded through the DEDICATED `Globals.drift` slot (NOT `params` — item 86's
 // Zigzag owns all four `params` slots; see that field's doc). The two boundary
@@ -19,7 +14,7 @@
 // is identical to evaluating the undrifted field at `x + d/F` — the field's
 // shape literally never changes, only its position) — a "one sheet" slide
 // where every tier, middle included, shares IDENTICAL motion, precisely the
-// outcome item 87 asks NOT to produce. The opposite-sign choice is the only
+// outcome the background must not produce. The opposite-sign choice is the only
 // one that breaks that rigid-translation identity: each OUTER tier (top,
 // bottom) is bounded by exactly one of the two curves and sweeps with that
 // curve's own sign, while the MIDDLE tier — bounded by BOTH, one advancing
@@ -36,14 +31,14 @@
 // read off `g.drift` and its `waves_rgb`'s
 // `WAVE_AMP`/`WAVE_FREQ`/`WAVE_PHASE_1`/`WAVE_PHASE_2`.
 //
-// ITEM 89 SCOPE NOTE: the four SHAPE constants below, and the
+// The four shape constants below, and the
 // [`waves_boundaries`] mirror that reads them, exist ONLY so those tier-geometry
 // laws can be unit-tested without a GPU — the shipping renderer reads the
 // WGSL's own copies (`shaders/background.wgsl`'s `waves_rgb`), never these. They
 // are therefore `#[cfg(test)]`-gated and module-PRIVATE (no cross-module test
 // calls them; `render/tests/backgrounds_item69.rs` only mentions `WAVE_AMP` in a
-// comment) rather than carrying an `allow(dead_code)` that would let a genuinely
-// dead future constant hide here. `WAVE_DRIFT_CYCLES` stays ungated: it feeds
+// comment) rather than carrying an `allow(dead_code)` that would hide a genuinely
+// dead constant. `WAVE_DRIFT_CYCLES` stays ungated: it feeds
 // the RUNTIME [`waves_drift_radians`].
 #[cfg(test)]
 pub(super) const WAVE_AMP: f32 = 22.0;
@@ -58,7 +53,7 @@ const WAVE_DRIFT_CYCLES: f32 = 1.0;
 /// The WAVES drift, in radians, for the shared ambient `phase` (cycles,
 /// `[0, LAVA_LOOP_CYCLES)`) — `0.0` at `phase == 0.0` (the frozen/settled/
 /// headless-capture phase, so a theme crossing INTO Bombora, and every
-/// headless capture, renders the EXACT pre-item-87 static composition). Pure.
+/// headless capture, renders the static composition). Pure.
 /// See the module doc above for the seamless-wrap derivation.
 pub(crate) fn waves_drift_radians(phase: f32) -> f32 {
     phase * std::f32::consts::TAU * WAVE_DRIFT_CYCLES / crate::lava::LAVA_LOOP_CYCLES
@@ -68,7 +63,7 @@ pub(crate) fn waves_drift_radians(phase: f32) -> f32 {
 // `AWL_STARS_PHASE` exactly (read once, memoized, a total no-op unless set —
 // a headless capture never ticks the clock, so this never touches
 // determinism there). Drives BOTH consumers of `waves_render_phase` — Bombora's
-// wave drift AND Bowerbird's organic drift (item 163) — one shared clock, one
+// wave drift and Bowerbird's organic drift — one shared clock, one
 // knob. Lets a gallery/before-after shot reach a real mid-drift composition.
 fn parse_waves_phase(raw: &str) -> Option<f32> {
     let p: f32 = raw.trim().parse().ok()?;
@@ -93,7 +88,7 @@ pub(crate) fn env_phase() -> Option<f32> {
 /// `b2` (bottom third, phase-RETARDED by `drift` — the opposite sign).
 /// `viewport_h` in px; returns `(b1, b2)` in px. MUST stay in lockstep with
 /// the shader; unit-tested here without a GPU (the `lava.rs`/`dither.rs`
-/// shader-mirror idiom). TEST-ONLY and module-private (item 89) — the runtime
+/// shader-mirror idiom). Test-only and module-private — the runtime
 /// path reads the WGSL's own copy of this math; see the scope note above the
 /// `WAVE_*` constants.
 #[cfg(test)]

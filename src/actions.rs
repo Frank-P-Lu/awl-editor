@@ -197,7 +197,7 @@ fn apply_buffer_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         Action::BufferStart => ctx.buffer.buffer_start(),
         Action::BufferEnd => ctx.buffer.buffer_end(),
         Action::InsertChar(c) => ctx.buffer.insert_char(*c),
-        Action::Newline => {
+        Action::Newline | Action::AcceptAlternate => {
             if !smart_newline(ctx) {
                 ctx.buffer.insert_newline();
             }
@@ -495,8 +495,8 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         // Cmd-Shift-H: summon the HISTORY TIMELINE picker for the current file. The
         // caller's `make_overlay` gathers the file's versions (via
         // `history::timeline_rows`); an empty history still opens (the calm "no
-        // history yet" row), so this is never a silent no-op. Enter then RESTORES the
-        // highlighted version into the buffer as an undoable edit.
+        // history yet" row), so this is never a silent no-op. `AcceptAlternate`
+        // (⇧↵) then RESTORES the highlighted version as an undoable edit — item 116c.
         Action::OpenHistory => {
             ctx.journey.enter((ctx.make_overlay)(OverlayKind::History));
         }
@@ -508,9 +508,9 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         Action::OpenAssetClean => {
             ctx.journey.enter((ctx.make_overlay)(OverlayKind::Assets));
         }
-        Action::KeepVersion => {
-            ctx.journey.enter(Some(OverlayState::new_keep_name()));
-        }
+        // ITEM 116c — see `workspace_nav::open_keep_version`'s own doc: parks
+        // whatever is already open rather than `enter`-ing over it.
+        Action::KeepVersion => workspace_nav::open_keep_version(ctx),
         // DIFF-AS-PREVIEW ("Compare with version…" from the BUFFER): the palette
         // command REPOINTS to opening the HISTORY picker — whose live preview IS
         // the writer's diff now (arrowing the versions shows each one's marked-up
@@ -557,6 +557,7 @@ macro_rules! classify_action_family {
             | Action::BufferEnd
             | Action::InsertChar(_)
             | Action::Newline
+            | Action::AcceptAlternate
             | Action::InsertTab
             | Action::Outdent
             | Action::DeleteBackward

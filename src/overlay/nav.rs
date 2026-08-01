@@ -149,7 +149,7 @@ impl OverlayState {
     /// answer to "what sections does this card show", so the drawn rows, the row
     /// plan and the sidecar's `sections` array cannot disagree.
     pub fn item_sections(&self) -> Vec<String> {
-        if self.workspace_shell() {
+        if self.workspace_shape().is_some() {
             return Vec::new();
         }
         self.item_sections.clone()

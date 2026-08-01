@@ -42,7 +42,7 @@ const WORKSPACE_MARGIN_MAX: f32 = 72.0;
 /// character widths — the same currency `rowlayout::GAP_CHARS` spends between a
 /// row's primary and secondary cells, so the workspace's internal rhythm is the
 /// picker's own.
-const RAIL_GAP_CHARS: f32 = 3.0;
+pub(in crate::render) const RAIL_GAP_CHARS: f32 = 3.0;
 
 /// The workspace's inner padding, between its own edge and its regions.
 pub(in crate::render) const WORKSPACE_PAD: f32 = 12.0;
@@ -265,19 +265,34 @@ impl TextPipeline {
     /// place to float.
     pub(in crate::render) fn workspace_geometry(&self, width: u32) -> OverlayGeom {
         let lh = self.overlay_lh();
-        let cw = self.overlay_char_width();
         let pad = WORKSPACE_PAD;
-        let margin = self.workspace_margin();
         let n_items = self.overlay_items.len();
+        // ITEM 116b — the POSITIONAL half lives in `comparison.rs`, so the row
+        // geometry below and the relocated document viewport read ONE
+        // derivation of the card box, the primary column and the content pane.
+        let regions = self.workspace_regions(width);
+        let rows_focused = regions.content_focused;
 
-        // THE FOOTER'S HOME IS THE REGION THAT IS SHOWING ITS LIST. With a content
-        // pane on screen the hint is that pane's footer, under the rows, exactly
-        // as every picker's is. On the narrow PRIMARY stage there are no rows —
-        // the rail is the list — so the hint follows the rail instead of hanging
-        // in an empty pane a full viewport above the eye that needs it. One
-        // sentence, in one place, either way; the rail shaper reads this same
-        // `hint_rows == 0 && rail.is_some()` fact rather than a second flag.
-        let show_rows = self.overlay_detail_focus || self.workspace_is_wide(width);
+        // ITEM 116a — THE ONE FACT THE TWO REGIONS' ROLES REDUCE TO.
+        // `RailOverRows` (Settings, today) keeps the row list in the CONTENT
+        // pane behind a PRIMARY column of labels; `TimelineOverComparison`
+        // (item 116d, unreached) keeps it in the PRIMARY column instead,
+        // behind a content region this module never draws into — item 116b's
+        // `comparison_viewport`, which the document layer itself relocates to.
+        // `primary_visible`/`content_visible` are which REGION is on screen —
+        // unchanged by the shape; `show_rows` is whichever owns the rows.
+        let rows_primary = self.overlay_rows_primary;
+        let primary_visible = regions.primary_visible();
+        let content_visible = regions.content_visible();
+        let show_rows = if rows_primary {
+            primary_visible
+        } else {
+            content_visible
+        };
+
+        // THE FOOTER FOLLOWS WHICHEVER REGION IS SHOWING ITS LIST — the rail
+        // shaper reads this same `hint_rows == 0 && rail.is_some()` fact
+        // rather than a second flag, so one sentence lives in one place.
         let hint = self.overlay_hint.clone();
         let hint_rows = usize::from(!hint.is_empty() && show_rows);
         let empty = if n_items == 0 {
@@ -289,44 +304,30 @@ impl TextPipeline {
         let header_rows = 1; // the `settings › query` search line
         let header_gap = self.overlay_header_gap();
 
-        let card_x = margin;
-        let card_w = (width as f32 - 2.0 * margin).max(0.0);
-        let card_y = margin + self.menubar_reserve();
-        let card_h = (self.window_h - card_y - margin).max(lh);
+        let [card_x, card_y, card_w, card_h] = regions.card;
+        let ([primary_x, primary_w], [pane_x, pane_w]) = (regions.primary, regions.pane);
 
-        // ── THE TWO REGIONS ───────────────────────────────────────────────
-        // The rail wants its measured column; the content wants everything
-        // else. When "everything else" is no longer a legible pane, the
-        // workspace stages the two instead of squeezing them.
-        let hpad = self.overlay_text_hpad();
-        let rail_w = self.workspace_rail_w;
-        let gap = RAIL_GAP_CHARS * cw;
-        let interior = (card_w - 2.0 * hpad).max(0.0);
-        let wide = self.workspace_is_wide(width);
-        let rows_focused = self.overlay_detail_focus;
+        // A LABEL RAIL is shaped only when the primary column shows LABELS
+        // (`!rows_primary`) and only while visible; its grid is resolved from
+        // the row plan's own band origin at draw/hit time (`workspace_rail_box`).
+        // When rows are primary there is no label list to shape — the rows
+        // fill that column through `text_left`/`text_w` below instead, just as
+        // the content pane's rows do today.
+        let rail = (!rows_primary && primary_visible).then_some([primary_x, primary_w]);
 
-        // The rail carries its COLUMN only (`[x, w]`). Its vertical grid is
-        // resolved from the row plan's own band origin at draw and hit time
-        // (`workspace_rail_box`), so a rail entry and the settings row beside it
-        // sit on one line by construction rather than by two arithmetics
-        // agreeing — the same rule item 174 wrote for the candidate rows.
-        let (rail, pane_x, pane_w) = match (wide, rows_focused) {
-            // Wide: the rail column, then the content pane beside it.
-            (true, _) => (
-                Some([card_x + hpad, rail_w]),
-                card_x + hpad + rail_w + gap,
-                (card_w - 2.0 * hpad - rail_w - gap).max(0.0),
-            ),
-            // Narrow, primary stage: the rail IS the workspace.
-            (false, false) => (Some([card_x + hpad, interior]), card_x + hpad, interior),
-            // Narrow, detail stage: the content is.
-            (false, true) => (None, card_x + hpad, interior),
+        // THE ROW LIST'S OWN BOX follows `rows_primary`: the primary column's
+        // when it owns the rows, the content pane's otherwise — today's rule,
+        // and the only one any kind currently reaches.
+        let (text_left, text_w) = if rows_primary {
+            (primary_x, primary_w)
+        } else {
+            (pane_x, pane_w)
         };
 
-        // On the narrow PRIMARY stage the content pane draws no rows at all — the
-        // rail is the list you are on. The search line still rides above it:
-        // typing is how you search from either stage, and a field you cannot see
-        // is a field you will not use.
+        // On a stage that is not showing its list, no rows are windowed at
+        // all — the search line still rides above at `text_left`/`text_top`:
+        // typing is how you search from either stage, and a field you cannot
+        // see is a field you will not use.
         let avail_px = (card_h - 2.0 * pad - header_gap).max(lh);
         let chrome_rows = header_rows + hint_rows + empty_rows;
         let (top_idx, visible) = match show_rows {
@@ -347,11 +348,9 @@ impl TextPipeline {
             card_y,
             card_w,
             card_h,
-            // The search line and the rows both live in the content pane, so the
-            // shaper's text box IS that pane.
-            text_left: pane_x,
+            text_left,
             text_top: card_y + pad,
-            text_w: pane_w,
+            text_w,
             // A workspace is never in the card's fill regime: it already fills.
             // Saying so explicitly keeps the placard's own narrow-card rule
             // (`overlay_shape_placard`) reading a fact rather than a coincidence.

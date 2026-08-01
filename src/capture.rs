@@ -4,13 +4,13 @@ pub const CANVAS_WIDTH: u32 = 1200;
 pub const CANVAS_HEIGHT: u32 = 800;
 pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 /// `/188` — permissive replay `replay_skips`.
-/// `/189` — `page.background`'s `deckle` arm (item 158, Paperbark).
+/// `/189` — `page.background`'s `deckle` arm.
 /// `/190` — `page.background`'s `organic` arm gains `arrangement`.
-/// `/191` — `overlay.workspace` (item 114's summoned workspace), and
+/// `/191` — `overlay.workspace`, and
 ///          `overlay.diff_focus` renamed `overlay.detail_focus`.
-/// `/193` — top-level `driver` (item 188; `/192` was claimed by a parked branch).
-/// `/194` — `page.background`'s `warped-grid` arm (items 132/194, Kite): the
-///          authored dials plus the route's resolved steering pose.
+/// `/193` — top-level `driver`.
+/// `/194` — `page.background`'s `warped-grid` arm: the authored dials plus
+///          the route's resolved pose.
 /// History lives in Git. Bump this row with the const.
 pub const SCHEMA_VERSION: u32 = 194;
 /// Plain single-frame schema; timeline and held take the next two versions.

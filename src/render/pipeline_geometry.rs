@@ -121,9 +121,6 @@ impl TextPipeline {
         self.float_border
             .set_color(theme::surface_selected().rgba_bytes());
         self.float_card.set_color(theme::base_300().rgba_bytes());
-        self.diffpanel_shadow.set_color(float_shadow_srgba());
-        self.diffpanel_card
-            .set_color(theme::base_300().rgba_bytes());
         self.overlay_rows.set_color(theme::selection().rgba_bytes());
         self.overlay_bars
             .set_color(theme::surface_selected().rgba_bytes());
@@ -473,9 +470,9 @@ impl TextPipeline {
         self.overlay_hint = view.overlay_hint.clone();
         self.overlay_lens = view.overlay_lens.clone();
         self.overlay_workspace = view.overlay_workspace;
+        self.overlay_rows_primary = view.overlay_rows_primary;
         self.overlay_sections = view.overlay_sections.clone();
         self.overlay_spell = view.overlay_spell;
-        self.diff_panel = view.diff_panel;
         self.overlay_detail_focus = view.overlay_detail_focus;
         self.overlay_spell_w = if self.overlay_spell.is_some() {
             self.measure_spell_content_w()

@@ -59,10 +59,12 @@ fn cmd_r_opens_replace_revealed_with_focus_on_find_through_core() {
 }
 
 #[test]
-fn history_picker_enter_emits_restore_id_of_the_highlighted_version() {
+fn history_picker_accept_alternate_emits_restore_id_of_the_highlighted_version() {
     // SUMMON the timeline with three versions (newest-first); NAVIGATE down and
-    // ENTER emits OverlayAccept(History, <id>) for the highlighted version, then
-    // closes. The caller resolves the id via history::load + set_text (undoable).
+    // the ALTERNATE ACCEPT (⇧↵, item 116c) emits OverlayAccept(History, <id>)
+    // for the highlighted version, then closes. The caller resolves the id via
+    // history::load + set_text (undoable). Restoring is deliberate now — see
+    // the companion test below for bare Enter's (non-destructive) meaning.
     let row = |when: &str, which: &str, counts: &str, id: &str| crate::history::TimelineRow {
         when: when.to_string(),
         which: which.to_string(),
@@ -81,20 +83,61 @@ fn history_picker_enter_emits_restore_id_of_the_highlighted_version() {
         crate::overlay::Journey::seeded(Some(OverlayState::new_history(rows, None, None)));
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::NextLine); // highlight "2 min ago"
-    drive(&mut overlay, &mut accept, &Action::Newline);
-    assert!(overlay.card().is_none(), "Enter closes the history picker");
+    drive(&mut overlay, &mut accept, &Action::AcceptAlternate);
+    assert!(
+        overlay.card().is_none(),
+        "Shift+Enter closes the history picker"
+    );
     assert_eq!(accept, Some((OverlayKind::History, "200".to_string())));
 }
 
 #[test]
-fn history_picker_tab_shifts_focus_into_the_diff_panel() {
-    // DIFF-AS-PREVIEW: TAB over a highlighted version shifts keyboard FOCUS into
-    // the diff PANEL (the picker STAYS OPEN — the old Tab-takeover into a
-    // separate view is retired). Under panel focus ↑/↓ scroll the diff
-    // step-wise, PgUp/PgDn page it, and Tab returns focus to the list.
-    // The highlighted (middle) row is a NAMED SAVE POINT here, deliberately:
-    // a named row rides the same parallel `history_ids`, so the diff panel
-    // works on it exactly like any snapshot — this pins that law.
+fn history_picker_bare_enter_never_restores_it_only_opens_the_comparison() {
+    // ITEM 116c: restore moved BEHIND the deliberate alternate accept. Bare
+    // Enter on a highlighted, unfocused row now does what `Tab`/`CompareVersion`
+    // already did — move focus into the comparison — and, focused there, is a
+    // calm no-op. Neither ever emits a restore.
+    let row = |id: &str| crate::history::TimelineRow {
+        when: "just now".into(),
+        which: String::new(),
+        counts: "+0 −0".into(),
+        id: id.to_string(),
+        timestamp: id.parse().unwrap_or(0),
+        pinned: false,
+        name: None,
+    };
+    let rows = vec![row("300"), row("200")];
+    let mut overlay =
+        crate::overlay::Journey::seeded(Some(OverlayState::new_history(rows, None, None)));
+    let mut accept = None;
+    drive(&mut overlay, &mut accept, &Action::Newline);
+    assert!(
+        overlay.card().is_some(),
+        "bare Enter never closes the history picker"
+    );
+    assert_eq!(accept, None, "bare Enter never restores");
+    assert!(
+        overlay.card().unwrap().detail_focus,
+        "bare Enter moves focus into the comparison, same as Tab"
+    );
+    // A second bare Enter, now focused on the comparison, is a calm no-op —
+    // never a restore either.
+    drive(&mut overlay, &mut accept, &Action::Newline);
+    assert!(overlay.card().is_some());
+    assert_eq!(accept, None, "bare Enter never restores, focused or not");
+}
+
+#[test]
+fn history_picker_tab_shifts_focus_into_the_comparison() {
+    // TAB over a highlighted version shifts keyboard FOCUS into the COMPARISON
+    // (the picker STAYS OPEN — the old Tab-takeover into a separate view is
+    // retired). Under that focus ↑/↓ scroll the transcript step-wise, PgUp/PgDn
+    // page it, and Tab returns focus to the list. The highlighted (middle) row
+    // is a NAMED SAVE POINT here, deliberately: a named row rides the same
+    // parallel `history_ids`, so the comparison works on it exactly like any
+    // snapshot — this pins that law. (Item 116b retired the CARD the comparison
+    // used to be dressed as; the focus fact itself is untouched, and lives in
+    // the shared core, so this test is unchanged apart from its name.)
     let row = |id: &str| crate::history::TimelineRow {
         when: "just now".into(),
         which: String::new(),

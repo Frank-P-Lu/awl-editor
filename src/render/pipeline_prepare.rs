@@ -34,10 +34,6 @@ impl TextPipeline {
         // THE PAGE FRAME: the thin writing-column frame (zero rects for every
         // PageFrame::None world, so those stay byte-identical).
         self.prepare_page_frame(device, queue, width, height);
-        // DIFF-AS-PREVIEW: the page-column card dressing (parked on every
-        // ordinary frame). Prepared before the washes/text so its quads sit
-        // under them in the document band (painter's order is the draw fn's).
-        self.prepare_diff_panel(device, queue, width, height);
         self.prepare_wash_layer(device, queue, width, height);
         self.prepare_wysiwyg_wash_layer(device, queue, width, height);
         self.prepare_text_layer(device, queue, width, height)?;

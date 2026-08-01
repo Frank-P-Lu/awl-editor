@@ -42,13 +42,42 @@ receipt with the gate outcome, for example:
 ```
 
 **Tell the worker to run gates in the foreground, with an explicit long
-timeout.** A worker that launches a multi-minute gate in the background has
-nothing left to do and ends its turn, so the orchestrator must wake it once per
-gate; on 2026-07-31 three lanes in one wave each burned two or three round trips
-this way, and one of them ended a turn holding uncommitted work. The brief
-should name the timeout, because the default is shorter than a cold gate.
-A gate that genuinely exceeds the tool's maximum is a finding to report, not a
-reason to background it.
+timeout — except `native-gate.sh`, which cannot fit.** A worker that launches a
+multi-minute gate in the background has nothing left to do and ends its turn, so
+the orchestrator must wake it once per gate; on 2026-07-31 several lanes each
+burned two or three round trips this way, and some ended a turn holding
+uncommitted work. The brief should name the timeout, because the default is
+shorter than a cold gate.
+
+**But `native-gate.sh` genuinely exceeds the tool's 600 s maximum in this
+repo** — it runs the suite under both conventions, and `cargo test --bin awl`
+alone measured 276 s at `cargo_jobs=2` on 2026-08-01. The harness auto-
+backgrounds it; that is the tool, not the worker's choice. Briefs told lanes
+"never background a gate" for a full night before item 131 measured it, which
+made the instruction unfollowable for the one gate that issues the receipt.
+Say instead: run code-health and web-smoke in the foreground; expect
+`native-gate.sh` to be auto-backgrounded, and **wait on it rather than ending
+the turn** — ending the turn is the actual failure, because nothing wakes a
+worker but the orchestrator. Committing before any wait remains mandatory
+regardless.
+
+**A turn must never end on the word "holding".** On 2026-08-01 one lane ended
+four consecutive turns saying it was waiting for a monitor to notify it that a
+gate had finished. The gate had already finished — no build process was even
+running — and its work sat uncommitted underneath the whole time. Two separate
+mistakes hide in that pattern and both are worth naming. First, **an armed
+background monitor is not a wake-up source**: nothing but the orchestrator
+resumes a worker, so waiting on a notification is waiting forever. Second, a
+turn that ends with no findings wastes the round trip entirely — the
+orchestrator has to spend a message asking what happened before it can spend
+one deciding anything.
+
+So the rule is about what a turn *ends with*, not about what it waits on: if a
+turn has to end, it ends with the findings so far written down, gaps named as
+"unknown". A partial report costs one round trip. "Holding" costs one round
+trip and buys nothing. When the orchestrator needs to know whether a lane's
+gate is still alive, the honest check is the host itself — `ps aux | grep
+cargo` — not the lane's own account of it.
 
 ## Disk-pressure preflight
 
@@ -155,6 +184,29 @@ once, at landing.
 - **Check `main`'s CI before pushing and after** —
   `gh run list --branch main --limit 1`. A green local train says nothing about
   the remote. While `main` is red, the repair is the only thing that ships.
+  **A `cancelled` run is not a pass — it is no verification at all.** Check for
+  the last **successful** sha, not the last run:
+  `gh run list --branch main --limit 12 --json headSha,conclusion -q '.[] |
+  select(.conclusion=="success")'`.
+  **`cancelled` has two unrelated causes that read identically in the
+  conclusion field, and the fix is to check duration, not to slow down
+  pushing.** A genuine supersede (a newer push cancelled an in-flight run) is
+  usually short — it dies within minutes of the next push landing. GitHub also
+  reports a **timed-out** job as `cancelled`, with no separate status: item 196
+  (2026-08-01) found the orchestrator had misdiagnosed exactly this, twice,
+  attributing a string of cancellations to pushing faster than CI's cycle, when
+  four of the last six `mac`/`linux` runs had actually run the clock out on
+  `timeout-minutes: 30` (durations `30m21s`, `30m25s`, `30m18s`, `30m25s`
+  cancelled vs. `29m59s`, `27m05s` success — one of the two passes cleared the
+  wall by a single second). `gh run view <id> --json jobs` gives per-job
+  `startedAt`/`completedAt`; a `cancelled` job that ran close to its
+  `timeout-minutes` is a timeout, not a supersede, no matter how it was
+  triggered. Waiting longer between pushes never fixes a timeout — only
+  lowering the job's real cost or raising its ceiling does. When a wave is
+  landing quickly, still let one run finish before pushing the next — CI's
+  linux job is the only thing that tests on real Linux, which no local gate
+  covers — but do not assume a `cancelled` streak means "pushed too fast"
+  without checking the clock first.
 - **Keep the local toolchain level with CI's** — `rustup check`. CI tracks
   floating stable; a stale local clippy cannot see the lint it is pushing.
 

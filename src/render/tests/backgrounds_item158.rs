@@ -287,26 +287,29 @@ fn galah_fibres_are_sparse_present_and_deterministic_across_size_and_dpi() {
 /// vertical scan crosses, and the total tonal range the margin spans. Both are
 /// read off the differential field, so they measure the MATERIAL, never the
 /// gradient underneath it.
-struct MarginStats {
+// pub(super) (item 201): the lane-INTERIOR tone count is exactly the oracle
+// item 201's own Retina law needs — reused rather than re-derived, per the
+// "same behavior, same code" rule.
+pub(super) struct MarginStats {
     /// Peak absolute deviation anywhere in the margin.
-    peak: i32,
+    pub(super) peak: i32,
     /// Number of lane BOUNDARIES a mid-height horizontal scan crosses — a
     /// run-length count of sign-stable bands, so an antialiased edge is one
     /// crossing, not fifty.
-    bands: usize,
+    pub(super) bands: usize,
     /// The tonal SPREAD the margin shows: max deviation minus min deviation
     /// across the whole margin. A margin that collapsed to one flat lane has
     /// a spread near zero however dark that lane is.
-    spread: i32,
+    pub(super) spread: i32,
     /// How many DISTINCT tones the lane INTERIORS take. `spread` and `bands`
     /// are both satisfied by the deckled boundary alone, so a field whose
     /// lanes all drew one seeded tone — layered paper degraded to a ruled
     /// grid — would slip past them. This counts the long runs only (a boundary
     /// feather is short), so it measures the layering itself.
-    lane_tones: usize,
+    pub(super) lane_tones: usize,
 }
 
-fn margin_stats(field: &[i32], w: u32, h: u32, mx0: u32, mx1: u32) -> MarginStats {
+pub(super) fn margin_stats(field: &[i32], w: u32, h: u32, mx0: u32, mx1: u32) -> MarginStats {
     let at = |x: u32, y: u32| field[(y * w + x) as usize];
     let mut peak = 0;
     let mut lo = i32::MAX;
@@ -903,11 +906,23 @@ fn paperbark_reads_as_neither_saltpans_pinstripes_nor_bilbys_gradient() {
         "the Saltpan reference must actually be a STRAIGHT rule (its boundary wanders \
          {sp_wander:.2}px) — otherwise the deckle claim below is meaningless"
     );
+    // ITEM 201: DERIVED from Paperbark's own `wander_px`, not a hand-picked
+    // constant. `boundary_wander` is the stddev of one tracked boundary's x
+    // position, which the shader computes as a sinusoid whose amplitude is
+    // `wander_px` — linear in the dial regardless of `period_px` — so the
+    // measured-to-authored ratio is a stable ~0.74 at both this world's
+    // pre-201 (94/13) and post-201 (47/6.5) dials. A hardcoded `6.0` (picked
+    // against 13.0's ~9.6px measurement) went stale the moment item 201
+    // retuned the dial for the Retina regression; half the authored wander
+    // stays a comfortable floor at either scale while still failing on a
+    // genuinely-flattened mutation.
+    let wander_floor = paperbark_bg().wander_px() * 0.5;
     assert!(
-        pb_wander >= 6.0,
-        "Paperbark's lane boundary must WANDER down the margin (it moves {pb_wander:.2}px, \
-         Saltpan's {sp_wander:.2}px) — a deckled torn edge is the whole material claim, \
-         and a straight one is a recolored pinstripe"
+        pb_wander >= wander_floor,
+        "Paperbark's lane boundary must WANDER down the margin (it moves {pb_wander:.2}px \
+         against a floor of {wander_floor:.2} — half the authored wander_px — Saltpan's \
+         {sp_wander:.2}px) — a deckled torn edge is the whole material claim, and a \
+         straight one is a recolored pinstripe"
     );
     eprintln!(
         "done-clause law: paperbark gap {pb_gap:.1}px wander {pb_wander:.2}px ({pb_marks} \

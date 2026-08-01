@@ -10,9 +10,13 @@ light/dark).
 ```
 site/
   index.html      the landing page (single document, links style.css)
+  guide.html      the user guide page
+  credits.html    third-party assets and dependencies
+  check.html      the "Check for updates" page
   style.css       all styles — tokens lifted from DESIGN.md's ink ladder + amber
   llms.txt        the Answer.AI llms.txt index (markdown at a .txt name)
   fonts/          local OFL faces used by the page (EB Garamond, Literata, JetBrains Mono)
+  img/            social-sharing image(s) — see below
 ```
 
 ### Page sections (`index.html`)
@@ -24,6 +28,41 @@ site/
 
 Human navigation is deliberately limited to GitHub, Try, Philosophy, and Guide.
 `llms.txt` remains available to machines but is not linked from human pages.
+
+### Social image (`img/social.png`)
+
+`img/social.png` is the Open Graph / Twitter Card image for every hand-authored
+page (`index.html`, `guide.html`, `credits.html`, `check.html`), wired via each
+page's `og:image`/`twitter:image` meta. It is a real headless capture, not an
+HTML mockup — produced by `scripts/hero-image.sh` from `scripts/hero-specimen.md`
+(the Firetail "write Markdown / now with lava lamps" composition), rendered
+through the real product exactly like every other captured asset (see
+CAPTURE.md).
+That script also renders the other candidate worlds it was chosen from and a
+comparison sheet, under gitignored `gallery/hero/` — regenerate on demand,
+nothing there is committed. To swap the shipped world, re-render and install in
+one command, e.g.:
+
+```sh
+scripts/hero-image.sh --install Firetail   # or Wagtail, or any world in the roster
+```
+
+(`scripts/hero-image.sh` writes `site/img/social.png` directly; no other file
+needs to change.)
+
+**The social tags are absolute, and they have to be.** `og:image`, `twitter:image`
+and `og:url` carry a full `https://` URL. Facebook, X/Twitter, LinkedIn and Slack
+drop a card whose image URL is relative rather than resolving it against the
+page, so a relative path shows no image anywhere while still pointing at a real
+file on disk.
+
+The canonical origin has one owner: **`site/fly.toml`'s `app` name**. A Fly app
+serves at `<app>.fly.dev` and this site sets `force_https`, so `app = "awl-editor"`
+means `https://awl-editor.fly.dev`. `scripts/site-links.sh` derives the expected
+origin from that file and fails if any page disagrees with it, so the pages and
+the deploy config cannot drift apart silently. To move to a custom domain:
+change `fly.toml`, then update the absolute URLs on the four hand-authored pages
+— the check names every page still pointing at the old origin.
 
 ### Web analytics — GoatCounter (configured)
 

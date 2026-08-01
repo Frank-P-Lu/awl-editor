@@ -70,10 +70,18 @@ pub struct ViewState {
     /// kind (so the pipeline draws no strip). Drives the theme picker's branch.
     pub overlay_lens: Vec<(String, bool)>,
     /// ITEM 114 — is the summoned card drawn as a SUMMONED WORKSPACE (viewport,
-    /// navigation rail, document as a quiet backdrop) rather than a contextual
-    /// card? Owned by [`crate::overlay::OverlayKind::workspace_shell`]; the
-    /// renderer never re-tests the kind.
+    /// two coordinated regions, document as a quiet backdrop) rather than a
+    /// contextual card? Owned by [`crate::overlay::OverlayKind::workspace_shape`]
+    /// (`Some` of either shape); the renderer never re-tests the kind.
     pub overlay_workspace: bool,
+    /// ITEM 116a — within a summoned workspace, does the PRIMARY (narrow)
+    /// column carry the workspace's own ROWS (a future timeline), rather than
+    /// category labels? The one fact `render::chrome::workspace_geometry`
+    /// reduces to for which region is which; owned by
+    /// [`crate::overlay::workspace::WorkspaceShape::rows_are_primary`].
+    /// `false` off a workspace and for `RailOverRows` (Settings, today) — the
+    /// only value any kind currently produces.
+    pub overlay_rows_primary: bool,
     pub overlay_sections: Vec<String>,
     pub caret_preview: Option<CaretMode>,
     pub gutter_name: String,
@@ -96,7 +104,6 @@ pub struct ViewState {
     /// `None` parks every popover quad/glyph empty, so a default capture is
     /// byte-identical.
     pub popover: Option<crate::popover::PopoverModel>,
-    pub diff_panel: bool,
     pub overlay_detail_focus: bool,
     /// COLLAPSED SECTIONS (folds): the FULL-document logical lines of the ATX
     /// headings whose sections are folded, ascending. VIEW state only — the rope is
@@ -176,6 +183,7 @@ impl ViewState {
             overlay_hint: String::new(),
             overlay_lens: Vec::new(),
             overlay_workspace: false,
+            overlay_rows_primary: false,
             overlay_sections: Vec::new(),
             caret_preview: None,
             gutter_name: String::new(),
@@ -188,7 +196,6 @@ impl ViewState {
             cjk_priority: crate::frontmatter::DEFAULT_CJK_PRIORITY.to_vec(),
             eol: crate::buffer::Eol::Lf,
             popover: None,
-            diff_panel: false,
             overlay_detail_focus: false,
             folds: Vec::new(),
             fold_tails: Vec::new(),

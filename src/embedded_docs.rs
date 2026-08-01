@@ -25,12 +25,16 @@ pub const GUIDE_MD: &str = include_str!("../GUIDE.md");
 /// The repo's `CREDITS.md` (the in-app Credits card source).
 pub const CREDITS_MD: &str = include_str!("../CREDITS.md");
 
-// The seed samples are consumed only by `fs::SEED_SAMPLES` (wasm/test seeding)
-// and the keytoken tests, so they carry that module's exact `cfg` to stay
-// warning-clean in a plain native build.
-/// `samples/welcome.md` — the first-launch greeting buffer.
-#[cfg(any(test, target_arch = "wasm32"))]
+/// `samples/welcome.md` — the FIRST-RUN document (queue item 24), on both
+/// builds: seeded into the active folder by `crate::firstrun` on a native first
+/// launch, and into the virtual fs by `fs::SEED_SAMPLES` on a browser's first
+/// load. Unconditional — unlike its three siblings below it has a production
+/// consumer in a plain native build.
 pub const WELCOME_MD: &str = include_str!("../samples/welcome.md");
+
+// The remaining seed samples are consumed only by `fs::SEED_SAMPLES` (wasm/test
+// seeding) and the keytoken tests, so they carry that module's exact `cfg` to
+// stay warning-clean in a plain native build.
 
 /// `samples/tour.md` — the markdown-showcase seed doc.
 #[cfg(any(test, target_arch = "wasm32"))]
