@@ -276,20 +276,80 @@ fn cell_caret_vertical_has_one_owner_across_every_caret_form() {
 /// I-beam deliberately remains a full line bar, and therefore must be equal
 /// on both columns too.  The bound is item 105's measured adjacent
 /// glyph-to-glyph seam budget, with genuinely short ink held tighter.
+fn assert_punctuation_cell(
+    p: &mut TextPipeline,
+    world: &str,
+    is_mono: bool,
+    dpi: f32,
+    mode: CaretMode,
+    ch: char,
+) -> bool {
+    let text = format!("a{ch}a");
+    let (letter_col, punctuation_col) = match mode {
+        CaretMode::Block | CaretMode::Ibeam => (0, 1),
+        CaretMode::Morph => (1, 2),
+    };
+    p.set_view(&view(&text, 0, letter_col));
+    p.settle_caret();
+    let (_, _, _, letter_h, ..) = p.caret_geometry();
+    p.set_view(&view(&text, 0, punctuation_col));
+    p.settle_caret();
+    let (_, _, _, punctuation_h, ..) = p.caret_geometry();
+    let bound = 14.0 * p.metrics.caret_h / CARET_H;
+    assert!(
+        (punctuation_h - letter_h).abs() <= bound,
+        "{world} {mode:?} {ch:?} dpi={dpi}: punctuation height {punctuation_h:.2} \
+         differs from its row letter {letter_h:.2} beyond {bound:.2}px"
+    );
+
+    let short_ink = if is_mono {
+        false
+    } else {
+        let ink = p
+            .caret_anchor_ink_box()
+            .expect("proportional punctuation ink");
+        let (_, ascent, font) = p.caret_row_metrics();
+        let short = ink.height < ascent * super::super::facepitch::x_height_ratio(font);
+        if short {
+            let tight = 6.0 * p.metrics.caret_h / CARET_H;
+            assert!(
+                (punctuation_h - letter_h).abs() <= tight,
+                "{world} {mode:?} {ch:?} dpi={dpi}: short punctuation height {punctuation_h:.2} \
+                 differs from its row x-height letter {letter_h:.2} beyond {tight:.2}px"
+            );
+        }
+        short
+    };
+
+    if mode == CaretMode::Block {
+        let eol = format!("a{ch}");
+        p.set_view(&view(&eol, 0, 1));
+        p.settle_caret();
+        let (_, _, _, punctuation_h, ..) = p.caret_geometry();
+        p.set_view(&view(&eol, 0, 2));
+        p.settle_caret();
+        let (_, _, _, eol_h, ..) = p.caret_geometry();
+        assert!(
+            (eol_h - punctuation_h).abs() <= bound,
+            "{world} {mode:?} {ch:?} dpi={dpi}: punctuation->EOL height seam \
+             {punctuation_h:.2}->{eol_h:.2} exceeds {bound:.2}px"
+        );
+    }
+    short_ink
+}
+
 #[test]
 fn punctuation_uses_the_rows_letter_height_across_forms_worlds_dpi_and_anchors() {
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!(
-            "skipping punctuation_uses_the_rows_letter_height_across_forms_worlds_dpi_and_anchors: no wgpu adapter"
-        );
+        eprintln!("skipping item-205 punctuation height law: no wgpu adapter");
         return;
     };
     let punct = [',', '.', ':', '-', '(', '[', '。'];
-    let mut proportional = 0usize;
-    let mut mono = 0usize;
+    let mut proportional = false;
+    let mut mono = false;
     let mut raw_shorter_than_band = false;
 
     for world in theme::THEMES {
@@ -301,92 +361,19 @@ fn punctuation_uses_the_rows_letter_height_across_forms_worlds_dpi_and_anchors()
             for mode in CaretMode::ALL {
                 crate::caret::set_mode(mode);
                 for ch in punct {
-                    // Compare against a same-row x-height letter: this is the
-                    // authored insertion band punctuation must join, while
-                    // ascenders/descenders retain their own real overhang.
-                    let text = format!("a{ch}a");
-                    let (letter_col, punctuation_col) = match mode {
-                        CaretMode::Block | CaretMode::Ibeam => (0, 1),
-                        CaretMode::Morph => (1, 2),
-                    };
-                    p.set_view(&view(&text, 0, letter_col));
-                    p.settle_caret();
-                    let (_, _, _, letter_h, ..) = p.caret_geometry();
-                    p.set_view(&view(&text, 0, punctuation_col));
-                    p.settle_caret();
-                    let (_, _, _, punctuation_h, ..) = p.caret_geometry();
-                    // The product already accepts up to 14px for two real
-                    // glyph boxes with different natural overhangs (item
-                    // 105's measured glyph-to-glyph bar).  Tall brackets may
-                    // legitimately use that room; the short-ink arm below is
-                    // held substantially tighter.
-                    let bound = 14.0 * p.metrics.caret_h / CARET_H;
-                    assert!(
-                        (punctuation_h - letter_h).abs() <= bound,
-                        "{} {mode:?} {ch:?} dpi={dpi}: punctuation height {punctuation_h:.2} \
-                         differs from its row letter {letter_h:.2} beyond item 105's {bound:.2}px seam budget",
-                        world.name
-                    );
-
-                    if !is_mono {
-                        let ink = p
-                            .caret_anchor_ink_box()
-                            .expect("proportional punctuation ink");
-                        let (_, ascent, font) = p.caret_row_metrics();
-                        let x_height = ascent * super::super::facepitch::x_height_ratio(font);
-                        if ink.height < x_height {
-                            let short_bound = 6.0 * p.metrics.caret_h / CARET_H;
-                            assert!(
-                                (punctuation_h - letter_h).abs() <= short_bound,
-                                "{} {mode:?} {ch:?} dpi={dpi}: short punctuation height \
-                                 {punctuation_h:.2} differs from its row x-height letter {letter_h:.2} \
-                                 beyond {short_bound:.2}px",
-                                world.name
-                            );
-                        }
-                    }
-
-                    // Block's end-of-line is glyphless and borrows the nearby
-                    // punctuation.  It must inherit the same repaired vertical
-                    // band instead of shrinking back to punctuation ink.
-                    if mode == CaretMode::Block {
-                        let eol = format!("a{ch}");
-                        p.set_view(&view(&eol, 0, 1));
-                        p.settle_caret();
-                        let (_, _, _, on_punctuation_h, ..) = p.caret_geometry();
-                        p.set_view(&view(&eol, 0, 2));
-                        p.settle_caret();
-                        let (_, _, _, eol_h, ..) = p.caret_geometry();
-                        assert!(
-                            (eol_h - on_punctuation_h).abs() <= bound,
-                            "{} {mode:?} {ch:?} dpi={dpi}: punctuation->EOL height seam \
-                             {on_punctuation_h:.2}->{eol_h:.2} exceeds {bound:.2}px",
-                            world.name
-                        );
-                    }
-
                     if is_mono {
-                        mono += 1;
+                        mono = true;
                     } else {
-                        proportional += 1;
-                        p.set_view(&view(&text, 0, punctuation_col));
-                        p.settle_caret();
-                        let ink = p
-                            .caret_anchor_ink_box()
-                            .expect("proportional punctuation ink");
-                        let (_, ascent, font) = p.caret_row_metrics();
-                        raw_shorter_than_band |=
-                            ink.height < ascent * super::super::facepitch::x_height_ratio(font);
+                        proportional = true;
                     }
+                    raw_shorter_than_band |=
+                        assert_punctuation_cell(&mut p, world.name, is_mono, dpi, mode, ch);
                 }
             }
         }
     }
-    assert!(
-        proportional > 0,
-        "the proportional roster must be exercised"
-    );
-    assert!(mono > 0, "the mono roster must be exercised");
+    assert!(proportional, "the proportional roster must be exercised");
+    assert!(mono, "the mono roster must be exercised");
     assert!(
         raw_shorter_than_band,
         "non-vacuity: no punctuation ink was shorter than its row x-height band"

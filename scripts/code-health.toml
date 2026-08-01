@@ -271,7 +271,7 @@ lines = 580
 
 [[file_size_mark]]
 file = "src/render/caret.rs"
-lines = 1025
+lines = 982
 
 [[file_size_mark]]
 file = "src/render/chrome/hud.rs"
@@ -974,20 +974,6 @@ lint = "clippy::too_many_lines"
 file = "src/render/tests/caret_transition_item105.rs"
 line = 1257
 message = "this function has too many lines (115/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
-
-[[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/render/tests/caret_transition_item105.rs"
-line = 1593
-message = "the function has a cognitive complexity of (31/25)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/render/tests/caret_transition_item105.rs"
-line = 1593
-message = "this function has too many lines (182/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]

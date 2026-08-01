@@ -6,6 +6,7 @@ pub(super) use super::caret_body::{InkBox, caret_visual_body_dims};
 use super::*;
 
 mod motion;
+mod vertical;
 
 /// TARGET-LINE-LOCAL caret glyph record (item 57) — the shaped glyph clusters of
 /// ONE logical line (the cursor line), read straight from that line's OWN
@@ -280,59 +281,6 @@ impl TextPipeline {
         })
     }
 
-    /// Search within the visual row and blend boxes from both sides by distance.
-    /// This stays O(row width), never O(document).
-    fn nearest_row_raster_box(&mut self, line: usize, col: usize) -> Option<InkBox> {
-        let rows = self.visual_rows(line);
-        let row = rows.get(pick_row_index_aff(&rows, col, self.caret_affinity))?;
-        let (start, end) = (row.start_col, row.end_col);
-        let max_back = col.saturating_sub(start);
-        let max_fwd = end.saturating_sub(col + 1);
-
-        let mut back: Option<(usize, InkBox)> = None;
-        for d in 1..=max_back {
-            if let Some(b) = self.raster_box_at(line, col - d) {
-                back = Some((d, b));
-                break;
-            }
-        }
-        let mut fwd: Option<(usize, InkBox)> = None;
-        for d in 1..=max_fwd {
-            if let Some(b) = self.raster_box_at(line, col + d) {
-                fwd = Some((d, b));
-                break;
-            }
-        }
-
-        // Borrow the VERTICAL insertion envelopes, not the raw punctuation
-        // masks.  Blending raw `l` and `.` then applying an x-height clamp is
-        // non-linear: a tied space can end up nearer one side than the other.
-        // Lifting each real neighbour first keeps the existing distance blend
-        // genuinely symmetric while horizontal callers still receive each
-        // glyph's untouched `left`/`width`.
-        let (_, row_ascent, ascent_font) = self.caret_row_metrics();
-        let lift = |(_, ink): (usize, InkBox)| {
-            self.caret_cell_vertical_ink_box(ink, row_ascent, ascent_font)
-        };
-        back = back.map(|pair| (pair.0, lift(pair)));
-        fwd = fwd.map(|pair| (pair.0, lift(pair)));
-
-        match (back, fwd) {
-            (Some((db, bb)), Some((df, fb))) => {
-                let t = db as f32 / (db + df) as f32;
-                Some(InkBox {
-                    left: bb.left + (fb.left - bb.left) * t,
-                    top: bb.top + (fb.top - bb.top) * t,
-                    width: bb.width + (fb.width - bb.width) * t,
-                    height: bb.height + (fb.height - bb.height) * t,
-                })
-            }
-            (Some((_, bb)), None) => Some(bb),
-            (None, Some((_, fb))) => Some(fb),
-            (None, None) => None,
-        }
-    }
-
     /// Ink-aligned box for a single-glyph proportional anchor. Mono, ligature, and
     /// glyphless anchors use cell geometry to preserve a uniform or fair split.
     pub(super) fn caret_anchor_ink_box(&mut self) -> Option<InkBox> {
@@ -345,44 +293,6 @@ impl TextPipeline {
             return None;
         }
         self.caret_anchor_raster_box()
-    }
-
-    /// The vertical reference for a proportional cell caret.  Its horizontal
-    /// silhouette still comes from `ink`; only a short glyph's vertical box is
-    /// raised into this row's measured x-height band.  The union preserves an
-    /// ascender or descender that genuinely exceeds that band without a
-    /// punctuation table or a theme-specific branch.
-    fn caret_cell_vertical_ink_box(
-        &self,
-        ink: InkBox,
-        row_max_ascent: f32,
-        ratio_font: &str,
-    ) -> InkBox {
-        let x_height = (row_max_ascent * facepitch::x_height_ratio(ratio_font)).max(1.0);
-        let top = ink.top.max(x_height);
-        let descent = ink.descent();
-        InkBox {
-            left: ink.left,
-            top,
-            width: ink.width,
-            height: top + descent,
-        }
-    }
-
-    fn caret_cell_vertical_from_ink(
-        &self,
-        ink: InkBox,
-        baseline: f32,
-        row_max_ascent: f32,
-        ratio_font: &str,
-        px: f32,
-    ) -> (f32, f32) {
-        let vertical = self.caret_cell_vertical_ink_box(ink, row_max_ascent, ratio_font);
-        // Keep the established horizontally ink-hugging body dimensions.  The
-        // vertical envelope deliberately replaces only its height and centre.
-        let (_w, old_h) = caret_visual_body_dims(ink, px);
-        let h = old_h.max(vertical.height + 2.0 * CARET_INK_PAD * px);
-        (baseline - vertical.top + vertical.height * 0.5, h)
     }
 
     /// THE ONE OWNER of the CELL-form caret's VERTICAL extent: `(center_y, height)`
