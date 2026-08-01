@@ -343,6 +343,22 @@ impl TextPipeline {
     /// call site (there is only one).
     pub fn advance_lava(&mut self, dt: f32) {
         self.lava_phase = crate::lava::advance_phase(self.lava_phase, dt);
+    }
+
+    /// Advance the WARPED GRID's route phase by `dt` seconds — called only by
+    /// the live App's HOT per-frame loop (`App::on_redraw_requested`), never by
+    /// the ~10 fps ambient tick that owns the drifting grounds.
+    ///
+    /// THE SPLIT IS THE POINT, AND IT IS THE SECOND DEFECT ITEM 199 REPORTED.
+    /// The lava lamp, the stars and Bombora's waves DRIFT: a sparse cadence is
+    /// what they are, and spending full refresh on them would be waste. This
+    /// world TRAVELS, and a camera moving through a lattice at 10 fps does not
+    /// read as slow — it reads as broken, because the eye tracks the individual
+    /// rings. Riding the shared tick (`crate::lava::LAVA_TICK_MS` = 100) is what
+    /// the review saw. The gates are unchanged and still the tick's own
+    /// (`lava::lava_should_tick`): ambient motion on, motion not reduced, window
+    /// focused, no resize/move transaction in flight.
+    pub fn advance_warp(&mut self, dt: f32) {
         self.warp_phase = crate::warpgrid::advance_phase(self.warp_phase, dt);
     }
 

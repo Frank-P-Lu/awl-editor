@@ -1,50 +1,62 @@
-//! ITEM 194 — ONE CYLINDER AT ONE CONSTANT SCALE, SEEN THROUGH TWO WINDOWS.
+//! ITEM 194 — ONE CYLINDER, ONE CONSTANT SCALE, PLACED BY THE ROOM AND SEEN
+//! THROUGH TWO WINDOWS.
 //!
 //! Item 132's own laws (`backgrounds_item132`) prove the ground exists, stays
-//! out of the page, keeps its hierarchy and never aliases. Round 1's laws lived
-//! here and proved something else again: that the two margins are two crops of
-//! ONE projection rather than two independently composed fields.
+//! out of the page, keeps its hierarchy and never aliases. The laws here prove
+//! something else again: that the two margins are two crops of ONE projection
+//! rather than two independently composed fields, and that the page column can
+//! only MASK that projection.
 //!
-//! **THE MODEL THEY WERE WRITTEN FOR WAS SUPERSEDED, so the laws were re-aimed
-//! rather than re-tuned.** Round 1's contract was "one cylinder continuing
-//! behind the page", with the section SIZED from the page column
-//! (`anchor = 3 * page_half`) so the overlap was implied by occlusion. The live
-//! review approved that at the narrowest page and failed it everywhere else:
-//! widening the page rescaled and flattened the world, because the authored
-//! scale was a function of the margin the picture had to land in. Round 2's
-//! contract is "two overlapping windows onto one cylinder": the cylinder never
-//! rescales, and each margin is a window onto that one fixed projection, sliding
-//! inward and OVERLAPPING as the margins narrow so the centre appears in both.
+//! **THE MODEL HAS BEEN SUPERSEDED TWICE, SO THE LAWS WERE RE-AIMED RATHER THAN
+//! RE-TUNED — TWICE.**
 //!
-//! The audit that mattered is recorded in THEMES.md: every round-1 law here was
-//! asked whether it could still pass under a model it was never written for, and
-//! the one that could — a straight-pose composition target measured at a SINGLE
-//! page width — was replaced by a sweep, because a single width is exactly where
-//! this defect hides. Round 1's own geometry is kept as `theme::Tunnel::
-//! PageScaled` so the replacement can be watched failing on the composition it
-//! names, at every width but the one round 1 got right.
+//! * Round 1's contract was "one cylinder continuing behind the page", with the
+//!   section SIZED from the page column (`anchor = 3 * page_half`). The live
+//!   review approved it at the narrowest page and failed it everywhere else,
+//!   because an authored scale that is a function of the margin is not a
+//!   projection. Kept as `theme::Tunnel::PageScaled`.
+//! * Round 2 made the scale the ROOM's and moved the page dependence into the
+//!   WINDOW PLACEMENT, sliding each margin's axis by that margin's own width.
+//!   **Its width law stayed green and the live review failed it again**, because
+//!   aspect ratio and radius-on-the-ladder — everything that law measured — are
+//!   exactly the quantities a translation preserves, and the remaining defect
+//!   was a translation. Kept as `theme::Tunnel::MarginPlaced`.
+//! * Round 3's contract is "one scene, framed by the room; the page is a mask".
+//!   The placement owner takes no page and no margin argument at all.
 //!
-//! THREE CLAIMS, ALL ARITHMETIC OVER REAL GPU PIXELS — the differential `field`
+//! Two further things round 2's sweep could not see, and this one is built to:
+//! it stopped at measure 96 while `page::MAX_MEASURE` is **140**, so the two
+//! widths the review named were never rendered; and it swept one room with a
+//! bare view, so awl's column was always centred. A real window reserves a
+//! gutter for the margin outline, and at the wide end the margins measure 405px
+//! and 139px — which is where a margin-derived placement puts the two windows in
+//! different regimes at the same instant, i.e. back into round 1's rejected
+//! "two separately cropped circles".
+//!
+//! FOUR CLAIMS, ALL ARITHMETIC OVER REAL GPU PIXELS — the differential `field`
 //! oracle item 86 authored, so the flat ground cancels and what is measured is
 //! the lattice alone.
 //!
-//! 1. **The scale.** Across the whole adaptive-column range, every major
-//!    cross-ring arc a margin offers is TRACED and solved — with a FREE centre —
-//!    for the ellipse it belongs to, and the best-corroborated survivor is the
-//!    margin's answer. Its ASPECT RATIO must be the constant 1.00 and its radius
-//!    must sit on the room's own fixed ring ladder. Recovering the opening from
-//!    an ARC rather than a whole ring is the point: no margin holds the
-//!    section's apex, so the eye infers the opening from the flank, and so does
-//!    this law.
-//! 2. **The windows.** The same fitted centres say where each window sits: the
-//!    two must TILE (both centres behind the page) while the margins are wide,
-//!    and OVERLAP (each centre out in its own margin) once they are not — with
-//!    the slide monotone in the margin's width between.
-//! 3. **The coherence, at every route pose.** Each margin's ink is fitted, ON
-//!    ITS OWN, for the camera that would explain it. The two margins must
-//!    recover the SAME steering — which is one statement of all three things the
-//!    review found disagreeing, since horizon, curvature and vanishing direction
-//!    are each a function of that one pose.
+//! 1. **The scale.** Across the whole adaptive-column range, in two rooms, every
+//!    major cross-ring arc a margin offers is TRACED and solved — with a FREE
+//!    centre — for the ellipse it belongs to. Its ASPECT RATIO must be the
+//!    constant 1.00 and its radius must sit on the room's own fixed ring ladder.
+//!    Recovering the opening from an ARC rather than a whole ring is the point:
+//!    no margin holds the section's apex, so the eye infers the opening from the
+//!    flank, and so does this law.
+//! 2. **The windows, and the headline claim of round 3.** The same fitted centres
+//!    say where each window sits, and that x must be a constant of the ROOM: the
+//!    same number at every page width the "Narrow page"/"Widen page" commands
+//!    reach, the same distance from its own room edge on both sides, including
+//!    at the off-centre columns a real window produces.
+//! 3. **The coherence, at every route pose.** Each margin's ink is fitted, ON ITS
+//!    OWN, for the camera that would explain it. The two margins must recover the
+//!    SAME steering — one statement of all three things round 1's review found
+//!    disagreeing, since horizon, curvature and vanishing direction are each a
+//!    function of that one pose.
+//! 4. **The direction.** Forward travel must GROW the projected rings, at the
+//!    rate the projection fixes. One ring is tracked across a ladder of route
+//!    phases inside a single straight leg.
 //!
 //! The fit needs a host model of the projection, which item 132 deliberately
 //! avoided for the ROUTE (the route's consumer is Rust, so a WGSL mirror could
@@ -61,6 +73,7 @@ use crate::warpgrid;
 // --- The host model of the projection (see the module doc) ------------------
 
 const SECTION_ROOM_FRAC: f32 = 0.432;
+const WINDOW_INSET: f32 = 0.4;
 const WINDOW_FULL: f32 = 1.0;
 const WINDOW_TIGHT: f32 = 0.35;
 const WINDOW_STRADDLE: f32 = 0.4;
@@ -101,17 +114,26 @@ impl Camera {
         }
     }
 
-    /// `warp_window_hide`, mirrored: how far INSIDE the page edge one margin's
-    /// copy of the axis falls. Positive hides it behind the page (the windows
-    /// tile); negative brings it out into the margin (they overlap).
+    /// ROUND 2's `warp_window_hide`, mirrored, and alive here only to predict
+    /// the `MarginPlaced` mutation arm: how far INSIDE the page edge one
+    /// margin's copy of the axis fell, as a function of that margin's OWN width.
     fn hide(&self, span: f32, page_half: f32) -> f32 {
         let full = smoothstep(WINDOW_TIGHT, WINDOW_FULL, span / self.anchor.max(1.0));
         let tight = -WINDOW_STRADDLE * span;
         tight + (page_half - tight) * full
     }
 
-    /// Where that margin's window puts the axis on the glass.
-    fn axis_x(&self, w: u32, col_left: f32, col_w: f32, on_right: bool) -> f32 {
+    /// Where that margin's window puts the axis on the glass — `warp_window_axis`
+    /// mirrored. Note what it does NOT take: no column left, no column width, no
+    /// margin span. The placement is the ROOM's, which is the whole of round 3,
+    /// and this signature is the cheapest possible statement of it.
+    fn axis_x(&self, w: u32, on_right: bool) -> f32 {
+        let inset = WINDOW_INSET * self.anchor;
+        if on_right { w as f32 - inset } else { inset }
+    }
+
+    /// Round 2's placement, for the `MarginPlaced` arm alone.
+    fn margin_placed_axis_x(&self, w: u32, col_left: f32, col_w: f32, on_right: bool) -> f32 {
         let col_right = col_left + col_w;
         let span = if on_right {
             w as f32 - col_right
@@ -155,7 +177,7 @@ impl Camera {
         let w = (q.0 - bend.0 / d, q.1 - bend.1 / d);
         let u = (w.0 * w.0 + w.1 * w.1).sqrt().max(core);
         (
-            self.rpo * (self.anchor / u).log2() - forward,
+            self.rpo * (self.anchor / u).log2() + forward,
             w.1.atan2(w.0) * (RAILS_PER_HALF_TURN / std::f32::consts::PI),
         )
     }
@@ -163,9 +185,9 @@ impl Camera {
 
 /// One candidate camera: the steering being tested, the world's own bend gain,
 /// and the FORWARD travel the route has already made — which is not optional.
-/// Forward travel is a pure subtraction from the ring coordinate, so leaving it
-/// out shifts every predicted cross-ring by its fractional part and the fit
-/// then reads a perfectly coherent field as explained by nothing.
+/// Forward travel is a pure ADDITION to the ring coordinate, so leaving it out
+/// shifts every predicted cross-ring by its fractional part and the fit then
+/// reads a perfectly coherent field as explained by nothing.
 #[derive(Clone, Copy)]
 struct Steer {
     yaw: f32,
@@ -588,6 +610,15 @@ fn fit_arc(pts: &[(f32, f32)], cy0: f32) -> Option<Fit> {
 /// a ring is a fork with no local evidence about which way is the ring — agrees
 /// with nothing. Ties go to the arc with the most points behind it.
 fn best_section(fr: &Frame, m: (u32, u32), left: bool) -> Option<Fit> {
+    sections(fr, m, left).into_iter().max_by_key(|f| (f.votes, f.n))
+}
+
+/// Every section this margin's arcs determine, corroborated and filtered but not
+/// yet reduced to one. [`best_section`] takes the best-corroborated; the
+/// direction ladder instead TRACKS one ring across phases, which needs the
+/// alternatives — its winner legitimately changes as the lattice travels, and a
+/// sequence that silently swapped rings would read as a jump rather than motion.
+fn sections(fr: &Frame, m: (u32, u32), left: bool) -> Vec<Fit> {
     let cy = fr.horizon(m);
     let fits: Vec<Fit> = fr
         .ring_arcs(m, cy, left)
@@ -600,14 +631,23 @@ fn best_section(fr: &Frame, m: (u32, u32), left: bool) -> Option<Fit> {
             ..*f
         })
         .filter(|f| f.votes >= FIT_MIN_VOTES && f.n >= FIT_MIN_POINTS)
-        .max_by_key(|f| (f.votes, f.n))
+        .collect()
 }
 
 /// One graded cell of the page-width sweep: the geometry, and what each margin's
 /// own traced arc says about the section it is an arc of.
 #[derive(Debug, Clone, Copy)]
 struct Cell {
+    /// The ROOM this cell was rendered in. Round 2 swept one room and one axis;
+    /// the defect needs both, because how far off-centre awl's own column sits
+    /// at a given measure is a function of the room, and an OFF-CENTRE column is
+    /// what put the two margins in different regimes at the same instant.
+    room: (u32, u32),
     measure: usize,
+    /// True for the hand-placed OFF-CENTRE columns appended to the sweep — the
+    /// geometry awl's own outline gutter produces in a real window, which the
+    /// bare test view never reaches. See [`OFF_CENTRE`].
+    off_centre: bool,
     col_left: f32,
     col_w: f32,
     span: [f32; 2],
@@ -620,8 +660,14 @@ struct Cell {
 /// [`crate::page::MEASURE_STEP`] until the margins close. The PRIMARY AXIS of
 /// item 194 round 2: the defect it repairs is invisible at any single width,
 /// and round 1's brief was written from one.
+/// ROUND 3 EXTENDED THIS TO THE WHOLE BAND, AND THAT IS HOW ROUND 2'S LAW WENT
+/// GREEN OVER THE DEFECT. Round 2 swept `MIN_MEASURE..=96` while
+/// [`crate::page::MAX_MEASURE`] is 140, so measures 100 through 140 were never
+/// rendered — and the live review reported the failure at 105 and 140. A sweep
+/// that stops before the command does is a single-width law wearing a sweep's
+/// clothes.
 fn measure_sweep() -> Vec<usize> {
-    (crate::page::MIN_MEASURE..=96)
+    (crate::page::MIN_MEASURE..=crate::page::MAX_MEASURE)
         .step_by(crate::page::MEASURE_STEP)
         .collect()
 }
@@ -631,42 +677,127 @@ fn measure_sweep() -> Vec<usize> {
 /// the page-edge quiet band eats most of what is left.
 const TRACEABLE_MARGIN_PX: f32 = 120.0;
 
-/// Render the straight pose at every page width in the sweep, at the app's OWN
-/// adaptive column, and solve each margin's own arcs for the section it shows.
+/// ...and a margin the page has covered the window's AXIS in cannot be solved
+/// either, at any width. It holds only a short outer flank, and this module's
+/// own [`FIT_MIN_ARC_DEG`] records what a short cap does: it fits a smooth,
+/// low-residual ellipse of the wrong size that no residual notices. Measured
+/// here rather than assumed — in the 1000px room a 137px margin, whose axis sits
+/// at 173px and is therefore behind the page, returned aspect 0.902 and a radius
+/// 0.32 rungs off the ladder from a 164-degree arc with 11 corroborating votes,
+/// against 1.000 and 0.00 everywhere the axis was visible.
+///
+/// This is a MEASUREMENT GAP, not a claim about the product: those widths are
+/// exactly where `WARP_WINDOW_INSET`'s own named cost lands, and what happens
+/// there is a mask covering the opening. It is recorded in THEMES.md.
+fn axis_is_visible(span: f32, anchor: f32) -> bool {
+    span >= WINDOW_INSET * anchor
+}
+
+/// COLUMNS THAT ARE NOT CENTRED, which the test view cannot produce and a real
+/// window does: awl reserves a gutter for the margin outline, so a document with
+/// headings pushes the text column sideways. Measured off a real 2560x1440
+/// capture of the world-gallery specimen at measure 140 — margins 405px and
+/// 139px — and appended to the sweep as its own cells, because THIS is the
+/// geometry that turned round 2's margin-derived placement into two different
+/// compositions on one screen.
+const OFF_CENTRE: [((u32, u32), usize, f32, f32); 2] = [
+    ((2560, 1440), crate::page::MAX_MEASURE, 405.0, 2016.0),
+    ((2560, 1440), 104, 430.0, 1497.6),
+];
+
+/// The ROOMS the width sweep is made in. The canonical test canvas, and a wide
+/// Retina room — which is not decoration: awl's column is only centred while it
+/// has room to be, and at the wide end of the measure band on the second room
+/// the margins measure 405px and 139px. That asymmetry is what a placement read
+/// from the margin's OWN width turns into two different compositions on one
+/// screen, and one room can never show it.
+const ROOMS: [(u32, u32); 2] = [(W, H), (2560, 1440)];
+
+/// Render the straight pose at every page width in the sweep, in every room, at
+/// the app's OWN adaptive column, and solve each margin's own arcs for the
+/// section it shows.
 fn sweep_cells(device: &wgpu::Device, queue: &wgpu::Queue, bg: theme::Background) -> Vec<Cell> {
     let mut out = Vec::new();
     let restore = crate::page::measure();
-    for measure in measure_sweep() {
-        let Some((_d, _q, mut pipe)) = super::headless_dqp(W as f32, H as f32) else {
+    for room in ROOMS {
+        let (rw, rh) = room;
+        for measure in measure_sweep() {
+            let Some((_d, _q, mut pipe)) = super::headless_dqp(rw as f32, rh as f32) else {
+                crate::page::set_measure(restore);
+                return out;
+            };
+            crate::page::set_measure(measure);
+            pipe.set_view(&super::view("hello", 0, 0));
+            let (col_left, col_w) = (pipe.column_left(), pipe.column_width());
+            let f = Frame {
+                f: field(
+                    device,
+                    queue,
+                    bg,
+                    rw,
+                    rh,
+                    col_left,
+                    col_w,
+                    warpgrid::FROZEN_PHASE,
+                ),
+                w: rw,
+                h: rh,
+            };
+            let ms = super::backgrounds_item89::margins(rw, col_left, col_w);
+            let mut cell = Cell {
+                room,
+                measure,
+                off_centre: false,
+                col_left,
+                col_w,
+                span: [col_left, rw as f32 - (col_left + col_w)],
+                fit: [None, None],
+            };
+            let anchor = SECTION_ROOM_FRAC * rh as f32;
+            for (i, m) in ms.into_iter().enumerate() {
+                if cell.span[i] < TRACEABLE_MARGIN_PX || !axis_is_visible(cell.span[i], anchor) {
+                    continue;
+                }
+                cell.fit[i] = best_section(&f, m, i == 0);
+            }
+            out.push(cell);
+        }
+    }
+    for (room, measure, col_left, col_w) in OFF_CENTRE {
+        let (rw, rh) = room;
+        let Some((_d, _q, _pipe)) = super::headless_dqp(rw as f32, rh as f32) else {
             break;
         };
-        crate::page::set_measure(measure);
-        pipe.set_view(&super::view("hello", 0, 0));
-        let (col_left, col_w) = (pipe.column_left(), pipe.column_width());
         let f = Frame {
             f: field(
                 device,
                 queue,
                 bg,
-                W,
-                H,
+                rw,
+                rh,
                 col_left,
                 col_w,
                 warpgrid::FROZEN_PHASE,
             ),
-            w: W,
-            h: H,
+            w: rw,
+            h: rh,
         };
-        let ms = super::backgrounds_item89::margins(W, col_left, col_w);
         let mut cell = Cell {
+            room,
             measure,
+            off_centre: true,
             col_left,
             col_w,
-            span: [col_left, W as f32 - (col_left + col_w)],
+            span: [col_left, rw as f32 - (col_left + col_w)],
             fit: [None, None],
         };
-        for (i, m) in ms.into_iter().enumerate() {
-            if cell.span[i] < TRACEABLE_MARGIN_PX {
+        for (i, m) in super::backgrounds_item89::margins(rw, col_left, col_w)
+            .into_iter()
+            .enumerate()
+        {
+            if cell.span[i] < TRACEABLE_MARGIN_PX
+                || !axis_is_visible(cell.span[i], SECTION_ROOM_FRAC * rh as f32)
+            {
                 continue;
             }
             cell.fit[i] = best_section(&f, m, i == 0);
@@ -696,10 +827,10 @@ fn margins_at(col_left: f32, col_w: f32) -> [(u32, u32); 2] {
 
 /// PER-CELL bounds, and where they come from. Solving a section from an ARC is
 /// the only measurement a margin narrower than the page allows, so these are set
-/// from the fit's own measured spread over the whole band — aspect 0.943..1.016
-/// and radius within 0.040 of a ladder rung — rather than from a wish. The
-/// defect they exist to catch is 3.00 of aspect and 1.5 rungs of scale, an order
-/// of magnitude outside them. The CENTRAL bounds below are what pin the value.
+/// from the fit's own measured spread over the whole band rather than from a
+/// wish. The defect they exist to catch is 3.00 of aspect and 1.5 rungs of
+/// scale, an order of magnitude outside them. The CENTRAL bounds below are what
+/// pin the value.
 const ASPECT_TOL: f32 = 0.08;
 /// How far a fitted radius may sit off the room's own ring ladder, in RUNGS —
 /// the majors are `MAJOR_EVERY / rpo` octaves apart, so a rung is a factor of
@@ -711,23 +842,30 @@ const RUNG_TOL: f32 = 0.06;
 const ASPECT_MEDIAN_TOL: f32 = 0.02;
 const RUNG_MEDIAN_TOL: f32 = 0.02;
 
-/// THE HEADLINE LAW OF ROUND 2, and the defect stated as arithmetic: **the
-/// projected cross-section's aspect ratio is invariant across the full adaptive
-/// column range**, and so is its scale.
+/// The camera the cell's own ROOM fixes. Nothing about a cell but its room may
+/// reach this, which is the claim these laws are made of.
+fn cam_for(room: (u32, u32), spacing: f32) -> Camera {
+    Camera::new(room.1, spacing)
+}
+
+/// **The projected cross-section's shape and size are invariant across the full
+/// adaptive column range**, in every room.
 ///
 /// Swept over the whole measure band at the app's own column owner, each
 /// margin's major cross-ring arcs are traced and solved for the ellipse they
-/// belong to with a free centre. Two numbers come out and neither may move: the ASPECT
-/// must be the constant 1.00 (the section is a circle — round 2 removed the
-/// affine fit entirely), and the RADIUS must sit on the ladder the ROOM fixes,
-/// `anchor * 2^(-k * MAJOR_EVERY / rpo)`, so no page width can rescale the
-/// world it lands in.
+/// belong to with a free centre. Two numbers come out and neither may move: the
+/// ASPECT must be the constant 1.00 (the section is a circle — round 2 removed
+/// the affine fit entirely), and the RADIUS must sit on the ladder the ROOM
+/// fixes, `anchor * 2^(-k * MAJOR_EVERY / rpo)`, so no page width can rescale
+/// the world it lands in.
 ///
-/// Round 1 measured 1.00 to 4.00 on the first of those and 432px to 1942px on
-/// the second, over this same band — and it is the sweep that says so: at the
-/// NARROWEST page the two models agree exactly, which is why the live review
-/// approved that pose and failed every wider one, and why a law measuring one
-/// width could pass while the world did something else.
+/// THIS LAW WAS TRUE IN ROUND 2 AND THE WORLD STILL RESCALED, which is why it
+/// is no longer the headline. Aspect and radius-on-the-ladder are exactly the
+/// two quantities a TRANSLATION preserves, and round 2's remaining defect was a
+/// translation: it slid each window's axis by the margin's own width. The claim
+/// that catches that is
+/// [`the_two_windows_are_placed_by_the_room_so_the_page_can_only_mask`] below.
+/// Both are kept, because the scale can regress on its own.
 ///
 /// Proven capable of failing: `warp_page_scaled_projection_breaks_the_one_scale`
 /// restores round 1's geometry through `Tunnel::PageScaled`.
@@ -738,33 +876,36 @@ fn the_projection_never_rescales_across_the_adaptive_column_range() {
     };
     let _g = crate::testlock::serial();
     let (spacing, _) = kite_dials();
-    let cam = Camera::new(H, spacing);
     let cells = sweep_cells(&device, &queue, kite());
     let mut graded = 0usize;
     let mut aspects: Vec<f32> = Vec::new();
     let mut rungs: Vec<f32> = Vec::new();
-    let report: Vec<(usize, [f32; 2], [Option<Fit>; 2])> =
-        cells.iter().map(|c| (c.measure, c.span, c.fit)).collect();
+    let report: Vec<((u32, u32), usize, [f32; 2], [Option<Fit>; 2])> = cells
+        .iter()
+        .map(|c| (c.room, c.measure, c.span, c.fit))
+        .collect();
     for c in &cells {
+        let cam = cam_for(c.room, spacing);
         for i in 0..2 {
             let Some(f) = c.fit[i] else { continue };
             assert!(
                 (f.aspect - 1.0).abs() <= ASPECT_TOL,
-                "m{}/margin {i}: the projected cross-section must be a CIRCLE at every \
-                 page width — measured aspect {:.3} against 1.000. A section whose \
+                "{:?} m{}/margin {i}: the projected cross-section must be a CIRCLE at \
+                 every page width — measured aspect {:.3} against 1.000. A section whose \
                  shape depends on the page is the item-194 defect itself.\n\
                  sweep: {report:?}",
+                c.room,
                 c.measure,
                 f.aspect
             );
-            // The radius must be a rung of the ROOM's ladder, not merely stable.
             let rung = cam.rpo * (cam.anchor / f.u).log2() / MAJOR_EVERY;
             let rungs_off = rung - rung.round();
             assert!(
                 rungs_off.abs() <= RUNG_TOL,
-                "m{}/margin {i}: the traced ring's radius {:.1}px is not a rung of the \
-                 room's own ring ladder (anchor {:.1}px, {:.2} rungs off an integer) — \
-                 the projection has been rescaled by the page.\nsweep: {report:?}",
+                "{:?} m{}/margin {i}: the traced ring's radius {:.1}px is not a rung of \
+                 the room's own ring ladder (anchor {:.1}px, {:.2} rungs off an integer) \
+                 — the projection has been rescaled by the page.\nsweep: {report:?}",
+                c.room,
                 c.measure,
                 f.u,
                 cam.anchor,
@@ -775,21 +916,27 @@ fn the_projection_never_rescales_across_the_adaptive_column_range() {
             graded += 1;
         }
     }
-    // The sweep must reach BOTH ends of the band, not merely many widths in the
-    // middle: the two models agree at the narrowest page, so a sweep that stops
-    // short of the wide end is the single-width law again in disguise.
+    // The sweep must reach BOTH ends of the band in a room wide enough to hold
+    // them, not merely many widths in the middle.
     for (label, want) in [
         (
             "widest margin",
-            cells
-                .iter()
-                .any(|c| c.fit[0].is_some() && c.span[0] >= cam.anchor),
+            cells.iter().any(|c| {
+                c.fit[0].is_some() && c.span[0] >= cam_for(c.room, spacing).anchor
+            }),
         ),
         (
-            "narrowest traceable margin",
+            "narrowest margin that still shows its window's axis",
+            cells.iter().any(|c| {
+                let anchor = cam_for(c.room, spacing).anchor;
+                c.fit[0].is_some() && c.span[0] <= 1.15 * WINDOW_INSET * anchor
+            }),
+        ),
+        (
+            "the widest page the command reaches",
             cells
                 .iter()
-                .any(|c| c.fit[0].is_some() && c.span[0] <= cam.anchor * WINDOW_TIGHT),
+                .any(|c| c.measure == crate::page::MAX_MEASURE && c.fit.iter().any(|f| f.is_some())),
         ),
     ] {
         assert!(
@@ -799,7 +946,7 @@ fn the_projection_never_rescales_across_the_adaptive_column_range() {
         );
     }
     assert!(
-        graded >= 14,
+        graded >= 20,
         "the page-width sweep must actually grade margins, got {graded}\nsweep: {report:?}"
     );
     let lo = aspects.iter().cloned().fold(f32::MAX, f32::min);
@@ -833,10 +980,6 @@ fn the_projection_never_rescales_across_the_adaptive_column_range() {
 /// to the flank the page edge cuts. The sweep must go red on it, and this test
 /// is what says so out loud: it asserts the aspect ratio SPREADS and the radius
 /// leaves the room's ladder, so it fails the day the mutation stops being one.
-///
-/// It also pins the shape of the defect the live review reported: the two models
-/// AGREE at the narrowest page — which is why that pose was approved — and
-/// diverge monotonically as the page widens.
 #[test]
 fn warp_page_scaled_projection_breaks_the_one_scale() {
     let Some((device, queue)) = headless_dq() else {
@@ -844,12 +987,12 @@ fn warp_page_scaled_projection_breaks_the_one_scale() {
     };
     let _g = crate::testlock::serial();
     let (spacing, _) = kite_dials();
-    let cam = Camera::new(H, spacing);
     let bad = with_tunnel(kite(), theme::Tunnel::PageScaled);
     let cells = sweep_cells(&device, &queue, bad);
     let mut aspects: Vec<(usize, f32)> = Vec::new();
     let mut off_ladder = 0usize;
     for c in &cells {
+        let cam = cam_for(c.room, spacing);
         for i in 0..2 {
             let Some(f) = c.fit[i] else {
                 continue;
@@ -862,176 +1005,242 @@ fn warp_page_scaled_projection_breaks_the_one_scale() {
         }
     }
     assert!(
-        aspects.len() >= 4,
-        "the mutation sweep must grade margins too, got {}",
+        aspects.len() >= 8,
+        "the mutation sweep must grade margins, got {}\n{aspects:?}",
         aspects.len()
     );
-    let lo = aspects.iter().map(|&(_, a)| a).fold(f32::MAX, f32::min);
-    let hi = aspects.iter().map(|&(_, a)| a).fold(f32::MIN, f32::max);
+    let lo = aspects.iter().map(|a| a.1).fold(f32::MAX, f32::min);
+    let hi = aspects.iter().map(|a| a.1).fold(f32::MIN, f32::max);
     assert!(
-        hi - lo > ASPECT_TOL * 3.0,
-        "the page-scaled arm must make the section's aspect ratio a FUNCTION of the \
-         page width — measured {lo:.3}..{hi:.3}, which the invariance law would not \
-         even notice. The mutation has stopped being one.\n{aspects:?}"
+        hi - lo > ASPECT_TOL * 1.25,
+        "PageScaled must SPREAD the aspect ratio across the band — that is the \
+         defect — and it measured {lo:.3}..{hi:.3}\n{aspects:?}"
     );
     assert!(
-        off_ladder >= 2,
-        "the page-scaled arm must also move the ring ladder off the room's own \
-         ({off_ladder} margins off it) — otherwise the scale half of the law is \
-         untested.\n{aspects:?}"
-    );
-    // The narrowest page is where round 1 was RIGHT, and the live review said so.
-    let narrowest = aspects
-        .iter()
-        .filter(|&&(m, _)| m == crate::page::MIN_MEASURE)
-        .map(|&(_, a)| a)
-        .fold(f32::MIN, f32::max);
-    assert!(
-        (narrowest - 1.0).abs() <= ASPECT_TOL,
-        "at the NARROWEST page the two models must still agree ({narrowest:.3}) — that \
-         is the pose the live review approved, and the reason a single-width law \
-         could pass while the world did something else"
+        off_ladder > 0,
+        "PageScaled must take the section OFF the room's ring ladder somewhere in \
+         the band — that is the rescale — and every graded margin sat on it\n{aspects:?}"
     );
 }
 
 // ---------------------------------------------------------------------------
-// 2. THE WINDOWS — tiling while there is room, overlapping once there is not.
+// 2. THE WINDOWS — placed by the ROOM, so the page can only mask.
 // ---------------------------------------------------------------------------
 
-/// TWO WINDOWS ONTO ONE CYLINDER, and the slide between them. Round 1's contract
-/// was one cylinder continuing behind the page with the overlap merely implied;
-/// round 2's makes it VISIBLE, so the law has to be about where each window
-/// sits, measured from the fitted centre of each margin's own arc.
+/// How far a measured axis may sit from where the one placement owner puts it.
+/// A traced arc recovers its centre to a pixel or two; this is the slack that
+/// leaves, not the claim.
+const PLACEMENT_TOL_PX: f32 = 12.0;
+
+/// **THE HEADLINE LAW OF ROUND 3, and the defect stated as arithmetic: each
+/// window's axis is a constant of the ROOM, so a page-width change can only
+/// reveal or cover this one fixed scene.**
 ///
-/// Three claims across the swept page widths:
+/// Round 1 sized the cylinder from the page column. Round 2 fixed that and moved
+/// the page dependence into the WINDOW PLACEMENT, sliding each margin's axis by
+/// that margin's own width — and its width law stayed green, because aspect and
+/// radius-on-the-ladder are precisely what a translation preserves. This is the
+/// claim that does not survive a translation: the fitted centre of each margin's
+/// own arc, in ROOM coordinates, must be the same number at every measure the
+/// "Narrow page"/"Widen page" commands reach, in every room.
 ///
-/// * WIDE margins TILE — both centres sit behind the opaque page, so each window
-///   shows its own side of the cylinder and nothing is duplicated. This is round
-///   1's approved reading at the narrowest page, and it is preserved exactly.
-/// * NARROW margins OVERLAP — each centre has come out from behind the page into
-///   its own margin, so the centre of the cylinder appears in BOTH windows. The
-///   duplication is intended.
-/// * The slide between them is MONOTONE in the margin's width: no page width
-///   jumps the window, which is what makes dragging the page read as one
-///   continuous motion rather than a cut.
+/// Two things follow from it that the review asked for by name and that round 2
+/// could not deliver:
+///
+/// * the scene is FRAMED once — the opening does not travel across the margin as
+///   the page is dragged, so what the page does is mask;
+/// * the two margins CANNOT disagree, even where awl's column sits off-centre.
+///   That is not hypothetical: in the wide room at the widest page the margins
+///   are 405px and 139px, and round 2's rule put one axis behind the page and
+///   the other out in its margin at the same instant — round 1's rejected
+///   "two separately cropped circles", re-created by the fix for something else.
+///
+/// Proven capable of failing:
+/// `warp_margin_placed_windows_let_the_page_reframe_the_scene`.
 #[test]
-fn the_two_windows_tile_while_the_margins_are_wide_and_overlap_once_they_are_not() {
+fn the_two_windows_are_placed_by_the_room_so_the_page_can_only_mask() {
     let Some((device, queue)) = headless_dq() else {
         return;
     };
     let _g = crate::testlock::serial();
     let (spacing, _) = kite_dials();
-    let cam = Camera::new(H, spacing);
     let cells = sweep_cells(&device, &queue, kite());
-    /// How far a measured axis may sit from where the one placement owner puts
-    /// it. A traced arc recovers its centre to a pixel or two; this is the slack
-    /// that leaves, not the claim.
-    const PLACEMENT_TOL_PX: f32 = 12.0;
-    // (measure, span, span/anchor, measured hide, predicted hide, page half) per
-    // margin. The PAGE HALF is carried separately on purpose: the tiling claim
-    // below is that the axis sits on the page column's own centre line, and
-    // reading that off the placement owner's prediction — which equals it in that
-    // regime — would make the claim a restatement of the assertion above it
-    // rather than an independent measurement of the composition.
-    let mut placed: Vec<(usize, f32, f32, f32, f32, f32)> = Vec::new();
+    // (room, measure, span, side, measured axis, the room's own prediction).
+    let mut placed: Vec<((u32, u32), usize, f32, usize, f32, f32)> = Vec::new();
     for c in &cells {
-        let page_half = (c.col_w * 0.5).max(1.0);
+        let cam = cam_for(c.room, spacing);
         for (i, f) in c.fit.iter().enumerate() {
             let Some(f) = f else { continue };
-            let hide = if i == 0 {
-                f.cx - c.col_left
-            } else {
-                c.col_left + c.col_w - f.cx
-            };
             placed.push((
+                c.room,
                 c.measure,
                 c.span[i],
-                c.span[i] / cam.anchor,
-                hide,
-                cam.hide(c.span[i], page_half),
-                page_half,
+                i,
+                f.cx,
+                cam.axis_x(c.room.0, i == 1),
             ));
         }
     }
-    // A bare floor, so a sweep that graded almost nothing cannot pass quietly.
-    // The claim about COVERAGE is the two-regime assertion below, which is what a
-    // pinned window fails on: it does not merely grade fewer cells, it never
-    // reaches the regime where the windows overlap at all.
     assert!(
-        placed.len() >= 8,
+        placed.len() >= 20,
         "the placement sweep must grade margins, got {}\n{placed:?}",
         placed.len()
     );
-    let mut wide = 0usize;
-    let mut tight = 0usize;
-    for &(measure, span, ratio, hide, want, page_half) in &placed {
+    // 1. Every window sits where the ROOM puts it — measured, not predicted from
+    //    anything the page owns.
+    for &(room, measure, span, side, cx, want) in &placed {
         assert!(
-            (hide - want).abs() <= PLACEMENT_TOL_PX,
-            "m{measure}: a {span:.0}px margin puts its window's axis {hide:.0}px inside \
-             the page edge where the ONE placement owner puts it {want:.0}px — the two \
-             margins are not reading the same rule.\n{placed:?}"
+            (cx - want).abs() <= PLACEMENT_TOL_PX,
+            "{room:?} m{measure}/margin {side}: a {span:.0}px margin put its window's \
+             axis at x={cx:.0} where the ROOM's one placement owner puts it at \
+             x={want:.0}. A placement that moves with the page is the page reframing \
+             the scene, not masking it.\n{placed:?}"
         );
-        if ratio >= WINDOW_FULL {
-            wide += 1;
-            // TILING: the axis is on the page's own centre line, hidden behind
-            // it, so each window shows its own side and nothing is duplicated.
-            // This is round 1's approved composition, preserved exactly.
+    }
+    // 2. ...and therefore the axis does not MOVE across the band. Stated
+    //    separately and measured from the pixels alone, so it cannot be a
+    //    restatement of the prediction above: within one room and one side, the
+    //    whole spread of fitted centres over every page width must be a couple of
+    //    pixels of tracing noise.
+    for room in ROOMS {
+        for side in 0..2usize {
+            let xs: Vec<f32> = placed
+                .iter()
+                .filter(|p| p.0 == room && p.3 == side)
+                .map(|p| p.4)
+                .collect();
+            if xs.len() < 3 {
+                continue;
+            }
+            let lo = xs.iter().cloned().fold(f32::MAX, f32::min);
+            let hi = xs.iter().cloned().fold(f32::MIN, f32::max);
             assert!(
-                hide > 0.0 && (hide - page_half).abs() <= PLACEMENT_TOL_PX,
-                "m{measure}: a margin {ratio:.2} anchors wide must TILE — its axis \
-                 belongs on the page's own centre line, {page_half:.0}px in, and was \
-                 measured {hide:.0}px in.\n{placed:?}"
+                hi - lo <= PLACEMENT_TOL_PX,
+                "{room:?}/margin {side}: the window's axis swept {lo:.0}..{hi:.0}px \
+                 across the measure band ({} widths). One consistently framed scene \
+                 means this number does not move.\n{placed:?}",
+                xs.len()
             );
         }
-        if ratio <= WINDOW_TIGHT {
-            tight += 1;
-            // OVERLAP: the axis has come out from behind the page into the
-            // margin itself, so the cylinder's centre appears in BOTH windows.
+    }
+    // 3. ...and the two margins are the same distance from their OWN room edge,
+    //    at every width, including the widths where the column is off-centre.
+    for room in ROOMS {
+        for &(r, measure, _, _, _, _) in placed.iter().filter(|p| p.0 == room) {
+            let left: Vec<f32> = placed
+                .iter()
+                .filter(|p| p.0 == r && p.1 == measure && p.3 == 0)
+                .map(|p| p.4)
+                .collect();
+            let right: Vec<f32> = placed
+                .iter()
+                .filter(|p| p.0 == r && p.1 == measure && p.3 == 1)
+                .map(|p| r.0 as f32 - p.4)
+                .collect();
+            if let (Some(&l), Some(&rr)) = (left.first(), right.first()) {
+                assert!(
+                    (l - rr).abs() <= PLACEMENT_TOL_PX,
+                    "{r:?} m{measure}: the left window sits {l:.0}px from its room edge \
+                     and the right {rr:.0}px from its own. The two margins are not one \
+                     scene.\n{placed:?}"
+                );
+            }
+        }
+    }
+    // 4. The sweep must actually contain an OFF-CENTRE column, or claim 3 above
+    //    is being asserted only where it is trivially true.
+    let asymmetric = cells
+        .iter()
+        .any(|c| c.off_centre && c.fit.iter().all(|f| f.is_some()) && (c.span[0] - c.span[1]).abs() > 100.0);
+    assert!(
+        asymmetric,
+        "the sweep must include a page width where awl's own column sits badly \
+         off-centre — that geometry is where round 2's placement put the two margins \
+         in different regimes, and a sweep without it cannot see the defect.\n\
+         spans: {:?}",
+        cells
+            .iter()
+            .map(|c| (c.room, c.measure, c.span))
+            .collect::<Vec<_>>()
+    );
+}
+
+/// THE MUTATION PROOF for the law above. `Tunnel::MarginPlaced` is round 2's own
+/// placement kept as data — the axis slid inward by a smoothstep on the margin's
+/// own width. The sweep must go red on it, and this test says so out loud: it
+/// asserts the fitted centre MOVES across the band, so it fails the day the
+/// mutation stops being one.
+#[test]
+fn warp_margin_placed_windows_let_the_page_reframe_the_scene() {
+    let Some((device, queue)) = headless_dq() else {
+        return;
+    };
+    let _g = crate::testlock::serial();
+    let (spacing, _) = kite_dials();
+    let bad = with_tunnel(kite(), theme::Tunnel::MarginPlaced);
+    let cells = sweep_cells(&device, &queue, bad);
+    let mut moved = 0usize;
+    let mut worst: f32 = 0.0;
+    // The mutation must be ROUND 2's rule, not merely a different number: every
+    // graded margin's measured centre has to land where round 2's own
+    // margin-derived placement puts it. Without this the test would still pass
+    // if the arm degenerated into noise, and a mutation proof that only asserts
+    // "different" cannot tell a restored defect from a broken shader.
+    let mut predicted = 0usize;
+    for c in &cells {
+        let cam = cam_for(c.room, spacing);
+        for (i, f) in c.fit.iter().enumerate() {
+            let Some(f) = f else { continue };
+            // Only where round 2's OWN rule leaves the axis out in the margin.
+            // Where it hid the axis behind the page the margin holds a short
+            // outer flank and the fit is not a measurement of a centre — the
+            // same limit `axis_is_visible` records for the shipping placement,
+            // applied to the arm's own geometry rather than to the shipped one.
+            let hide = cam.hide(c.span[i], (c.col_w * 0.5).max(1.0));
+            if hide >= 0.0 {
+                continue;
+            }
+            let want = cam.margin_placed_axis_x(c.room.0, c.col_left, c.col_w, i == 1);
             assert!(
-                hide < 0.0,
-                "m{measure}: a margin only {ratio:.2} anchors wide must have slid its \
-                 window INWARD until the axis left the page ({hide:+.0}px) — that \
-                 overlap is what keeps a thin margin showing the opening.\n{placed:?}"
+                (f.cx - want).abs() <= PLACEMENT_TOL_PX,
+                "{:?} m{}/margin {i}: the MarginPlaced arm must reproduce round 2's own \
+                 placement — measured axis x={:.0}, round 2's rule x={want:.0}",
+                c.room,
+                c.measure,
+                f.cx
             );
-            let straddle = -hide / span;
-            assert!(
-                (straddle - WINDOW_STRADDLE).abs() <= 0.12,
-                "m{measure}: a fully slid window must sit {WINDOW_STRADDLE:.2} of its \
-                 own width in from the page — ~60% of its own side of the cylinder and \
-                 ~40% of the other's — and this one measured {straddle:.2}.\n{placed:?}"
-            );
+            predicted += 1;
         }
     }
     assert!(
-        wide >= 4 && tight >= 2,
-        "both regimes must be exercised: {wide} tiling margins, {tight} overlapping \
-         ones.\n{placed:?}"
+        predicted >= 2,
+        "the mutation proof must actually check round 2's placement somewhere it can \
+         be measured, and it checked {predicted} margins"
     );
-    // The slide is MONOTONE in the margin's own width: no page width jumps the
-    // window, so dragging the page reads as one continuous motion.
-    // ...over the SLIDE's own band: past `WINDOW_FULL` the window is parked on
-    // the page's centre line, and `page_half` growing with the page is not the
-    // window moving.
-    let mut by_ratio: Vec<_> = placed
-        .iter()
-        .copied()
-        .filter(|p| p.2 <= WINDOW_FULL)
-        .collect();
-    by_ratio.sort_by(|a, b| a.2.total_cmp(&b.2));
-    for pair in by_ratio.windows(2) {
-        let (a, b) = (pair[0], pair[1]);
-        let slide = |x: &(usize, f32, f32, f32, f32, f32)| x.3 / x.1; // hide, per own width
-        assert!(
-            slide(&b) >= slide(&a) - 0.02,
-            "the slide must be monotone in the margin's width: a margin {:.2} anchors \
-             wide holds its axis {:.2} of its own width in and a WIDER {:.2} one only \
-             {:.2}.\n{by_ratio:?}",
-            a.2,
-            slide(&a),
-            b.2,
-            slide(&b)
-        );
+    for room in ROOMS {
+        for side in 0..2usize {
+            let xs: Vec<f32> = cells
+                .iter()
+                .filter(|c| c.room == room)
+                .filter_map(|c| c.fit[side].map(|f| f.cx))
+                .collect();
+            if xs.len() < 3 {
+                continue;
+            }
+            let lo = xs.iter().cloned().fold(f32::MAX, f32::min);
+            let hi = xs.iter().cloned().fold(f32::MIN, f32::max);
+            worst = worst.max(hi - lo);
+            if hi - lo > PLACEMENT_TOL_PX {
+                moved += 1;
+            }
+        }
     }
+    assert!(
+        moved > 0,
+        "MarginPlaced must let the page MOVE the window's axis across the band — \
+         that is round 2's remaining defect — and the widest sweep measured only \
+         {worst:.0}px of travel, inside the {PLACEMENT_TOL_PX:.0}px the law allows"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -1193,7 +1402,7 @@ fn both_margins_are_one_camera_at_every_route_pose() {
             };
             for (i, m) in margins_at(col_left, col_w).into_iter().enumerate() {
                 let side = if i == 0 { "left" } else { "right" };
-                let axis_x = cam.axis_x(W, col_left, col_w, i == 1);
+                let axis_x = cam.axis_x(W, i == 1);
                 let mine = phase_score(&fr, m, &cam, axis_x, st(pose.yaw, pose.pitch));
                 report.push((col_w as u32, name, side, mine));
                 assert!(
@@ -1270,7 +1479,7 @@ fn warp_per_margin_steering_breaks_the_shared_camera() {
                 forward: pose.forward_cells,
             };
             let m = margins_at(col_left, col_w)[0];
-            let axis_x = cam.axis_x(W, col_left, col_w, false);
+            let axis_x = cam.axis_x(W, false);
             let shared = phase_score(&fr, m, &cam, axis_x, st(pose.yaw, pose.pitch));
             let flipped = phase_score(&fr, m, &cam, axis_x, st(-pose.yaw, -pose.pitch));
             report.push((col_w as u32, name, shared, flipped));
@@ -1302,6 +1511,7 @@ fn the_host_model_matches_the_shaders_own_constants() {
     let wgsl = include_str!("../../../shaders/background.wgsl");
     for (name, value) in [
         ("WARP_SECTION_ROOM_FRAC", SECTION_ROOM_FRAC),
+        ("WARP_WINDOW_INSET", WINDOW_INSET),
         ("WARP_WINDOW_FULL", WINDOW_FULL),
         ("WARP_WINDOW_TIGHT", WINDOW_TIGHT),
         ("WARP_WINDOW_STRADDLE", WINDOW_STRADDLE),
@@ -1325,4 +1535,211 @@ fn the_host_model_matches_the_shaders_own_constants() {
         wgsl.contains(&want),
         "background.wgsl must declare `{want}`"
     );
+}
+
+// ---------------------------------------------------------------------------
+// 4. THE DIRECTION — forward travel approaches, and one sign says so.
+// ---------------------------------------------------------------------------
+
+/// How much forward travel the direction sweep covers, in minor cells. It stays
+/// strictly under [`warpgrid::MAJOR_EVERY`] on purpose: one major rung of travel
+/// carries every ring onto the NEXT ring's radius, and a sweep that crosses one
+/// cannot tell "the rings grew" from "the lattice repeated". Under a rung, the
+/// ring a margin is tracing keeps its identity and its radius is a clean
+/// monotone function of the travel.
+/// Two cells grows a ring by `2^(2/rpo)` — about 50% here — which is far more
+/// than tracing noise and comfortably under the 2.83x that would carry it onto
+/// its neighbour. Four cells was tried first and is too many for a different
+/// reason worth recording: the tracked ring grows out of the window entirely
+/// (the anchor ring already reaches the room's half-height) and the ladder then
+/// has nothing left to follow.
+const DIRECTION_SWEEP_CELLS: f32 = 2.0;
+const DIRECTION_SWEEP_STEPS: usize = 5;
+
+/// **FORWARD TRAVEL APPROACHES.** The user-visible defect item 199 opened with
+/// was that the world read as travelling BACKWARDS, and it is one character:
+/// the ring coordinate is `rpo*log2(anchor/u) + Z`, so a ring is drawn at
+/// `u = anchor * 2^((Z - n)/rpo)` and its projected radius GROWS as the route's
+/// `forward_cells` grows — the lattice sweeps outward past the reader. Subtract
+/// `Z` instead and every radius shrinks toward the axis: the rings converge into
+/// the far end, which is what receding looks like.
+///
+/// This is a deterministic proof over real pixels and not a reading of the
+/// shader: the same margin's section is traced at a ladder of phases spanning
+/// less than one major rung of travel, and `log2(radius)` must rise, with the
+/// slope the projection predicts (`+1/rpo` per cell of travel) rather than
+/// merely some positive number. A world that travelled forward at the wrong
+/// speed would pass a bare sign test and fails this one.
+///
+/// Proven capable of failing: `warp_reversed_travel_recedes`.
+#[test]
+fn forward_travel_grows_the_projected_rings() {
+    let Some((device, queue)) = headless_dq() else {
+        return;
+    };
+    let _g = crate::testlock::serial();
+    let (spacing, _) = kite_dials();
+    let cam = Camera::new(H, spacing);
+    let (cells, radii) = direction_ladder(&device, &queue, kite(), &cam, Seed::Innermost);
+    assert!(
+        radii.len() >= DIRECTION_SWEEP_STEPS,
+        "the direction ladder must grade every phase, got {} of {DIRECTION_SWEEP_STEPS}\n\
+         {cells:?} {radii:?}",
+        radii.len()
+    );
+    for w in radii.windows(2) {
+        assert!(
+            w[1] > w[0],
+            "forward travel must GROW the projected rings — the lattice sweeps outward \
+             past the reader. Radius went {:.1}px -> {:.1}px as the route travelled \
+             forward, which is the world receding.\ncells: {cells:?}\nradii: {radii:?}",
+            w[0],
+            w[1]
+        );
+    }
+    // ...at the rate the projection predicts, so a merely-positive drift cannot
+    // pass for travel. Slope of log2(radius) against cells travelled is 1/rpo.
+    let n = radii.len() as f64;
+    let xs: Vec<f64> = cells.iter().map(|c| *c as f64).collect();
+    let ys: Vec<f64> = radii.iter().map(|r| (*r as f64).log2()).collect();
+    let mx = xs.iter().sum::<f64>() / n;
+    let my = ys.iter().sum::<f64>() / n;
+    let num: f64 = xs.iter().zip(&ys).map(|(x, y)| (x - mx) * (y - my)).sum();
+    let den: f64 = xs.iter().map(|x| (x - mx) * (x - mx)).sum();
+    let slope = num / den;
+    let want = 1.0 / cam.rpo as f64;
+    assert!(
+        (slope - want).abs() <= 0.15 * want,
+        "forward travel must grow the rings at the rate the projection fixes: measured \
+         {slope:+.4} octaves per cell against the predicted {want:+.4} (rpo {:.2}).\n\
+         cells: {cells:?}\nradii: {radii:?}",
+        cam.rpo
+    );
+}
+
+/// THE MUTATION PROOF for the law above. `Tunnel::Reversed` is the old sign kept
+/// as data. The ladder must go the other way, and this test says so out loud.
+#[test]
+fn warp_reversed_travel_recedes() {
+    let Some((device, queue)) = headless_dq() else {
+        return;
+    };
+    let _g = crate::testlock::serial();
+    let (spacing, _) = kite_dials();
+    let cam = Camera::new(H, spacing);
+    let bad = with_tunnel(kite(), theme::Tunnel::Reversed);
+    let (cells, radii) = direction_ladder(&device, &queue, bad, &cam, Seed::Outermost);
+    assert!(
+        radii.len() >= DIRECTION_SWEEP_STEPS,
+        "the direction ladder must grade every phase under the mutation too, got {}\n\
+         {cells:?} {radii:?}",
+        radii.len()
+    );
+    let shrank = radii.windows(2).filter(|w| w[1] < w[0]).count();
+    assert_eq!(
+        shrank,
+        radii.len() - 1,
+        "Reversed must make every step of forward travel SHRINK the rings — that is \
+         the defect, and the world reading as backwards is what it looks like.\n\
+         cells: {cells:?}\nradii: {radii:?}"
+    );
+}
+
+/// Which ring the ladder follows. A ring only stays traceable in the direction
+/// it has room to move: the innermost determined rung can GROW for a while
+/// before it leaves the window, and the outermost can SHRINK. So the shipped
+/// world is tracked from the inside out and the reversed arm from the outside
+/// in — the same measurement, seeded where the arm being measured leaves it
+/// something to follow.
+#[derive(Clone, Copy)]
+enum Seed {
+    Innermost,
+    Outermost,
+}
+
+/// Trace ONE margin's section at a ladder of route phases, all inside a single
+/// straight leg, and return `(cells travelled, fitted radius)` per phase.
+///
+/// The margin is the canonical geometry's left one and the phases are taken from
+/// the route itself rather than invented, so what is measured is the world the
+/// live app runs, one frozen frame at a time.
+fn direction_ladder(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    bg: theme::Background,
+    cam: &Camera,
+    seed: Seed,
+) -> (Vec<f32>, Vec<f32>) {
+    let per_cell = warpgrid::ROUTE_LOOP_SECONDS / warpgrid::FORWARD_CELLS_PER_LOOP;
+    let (mut cells, mut radii): (Vec<f32>, Vec<f32>) = (Vec::new(), Vec::new());
+    for step in 0..DIRECTION_SWEEP_STEPS {
+        let travelled =
+            DIRECTION_SWEEP_CELLS * step as f32 / (DIRECTION_SWEEP_STEPS - 1).max(1) as f32;
+        let phase = warpgrid::FROZEN_PHASE + travelled * per_cell;
+        let pose = warpgrid::route_pose(phase);
+        // The ladder must stay inside ONE straight leg: a bend moves the section
+        // off-centre, and a fit that straddles the ease would be reading the
+        // turn, not the travel.
+        assert!(
+            pose.yaw.abs() < 1e-4 && pose.pitch.abs() < 1e-4,
+            "the direction ladder must stay on a straight leg — at {phase:.3}s the route \
+             steers yaw {:.4} pitch {:.4}",
+            pose.yaw,
+            pose.pitch
+        );
+        let f = Frame {
+            f: field(device, queue, bg, W, H, COL_LEFT, COL_W, phase),
+            w: W,
+            h: H,
+        };
+        let m = margins_at(COL_LEFT, COL_W)[0];
+        let candidates = sections(&f, m, true);
+        // TRACK ONE RING. The best-corroborated arc is not necessarily the same
+        // ring from frame to frame, and swapping to its neighbour is a factor of
+        // ~2.8 in radius — which would drown the few percent the travel itself
+        // moves it. So the first frame takes the best-corroborated section and
+        // every later frame takes the one NEAREST to it.
+        let fit = match radii.last() {
+            // SEED ON THE INNERMOST determined section, not the
+            // best-corroborated one. The best-corroborated is the anchor ring,
+            // which already reaches the room's half-height and leaves the window
+            // as soon as it grows; an inner rung has room to travel.
+            None => match seed {
+                Seed::Innermost => candidates.iter().min_by(|a, b| a.u.total_cmp(&b.u)),
+                Seed::Outermost => candidates.iter().max_by(|a, b| a.u.total_cmp(&b.u)),
+            }
+            .copied(),
+            Some(&prev) => candidates
+                .iter()
+                .min_by(|a, b| {
+                    (a.u - prev)
+                        .abs()
+                        .total_cmp(&(b.u - prev).abs())
+                })
+                .copied(),
+        };
+        let Some(fit) = fit else {
+            continue;
+        };
+        // Guard the ring's IDENTITY. The traced ring's radius is SUPPOSED to
+        // move — that is the whole measurement — so the guard cannot be on the
+        // absolute rung. It is on the STEP: one rung of the room's ladder is a
+        // factor of `2^(MAJOR_EVERY/rpo)` (about 2.8 here), and the ladder's own
+        // steps are a few percent, so a `best_section` that jumped to the
+        // neighbouring ring shows up as a step of more than half a rung.
+        let rung_factor = (MAJOR_EVERY / cam.rpo).exp2();
+        if let Some(prev) = radii.last() {
+            let step = (fit.u / prev).max(prev / fit.u);
+            assert!(
+                step < rung_factor.sqrt(),
+                "the direction ladder crossed onto a different ring ({prev:.1}px -> \
+                 {:.1}px, a factor of {step:.2} against a rung of {rung_factor:.2}) — \
+                 shorten DIRECTION_SWEEP_CELLS",
+                fit.u
+            );
+        }
+        cells.push(pose.forward_cells);
+        radii.push(fit.u);
+    }
+    (cells, radii)
 }

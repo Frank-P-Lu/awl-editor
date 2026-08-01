@@ -575,14 +575,38 @@ impl App {
         // event that routes through `apply` and then calls request_redraw
         // below, and OS key AUTO-REPEAT for a HELD arrow delivers a fresh
         // KeyboardInput per repeat, so a held arrow still repaints promptly.
-        // The loop only stays HOT while the caret spring is still animating.
+        // The loop stays HOT while the caret spring is still animating — and,
+        // since item 199, while a TRAVELLING ground is running. See
+        // `TextPipeline::advance_warp` for why this one world is the exception
+        // to the ~10 fps ambient tick every other time-varying ground rides.
+        // The gate is the tick's own, so a blurred/reduced/ambient-off/resizing
+        // window schedules exactly as many frames as it did before: none.
+        let warp_hot = crate::lava::lava_should_tick(
+            crate::theme::active().background.is_warped_grid(),
+            self.config.ambient_motion_on(),
+            crate::motion::reduced(),
+            self.focused,
+            crate::lava::lava_paused(
+                self.resize_settle_at.is_some(),
+                self.move_settle_at.is_some(),
+                self.gpu
+                    .as_ref()
+                    .is_some_and(|gpu| gpu.pipeline.lava_blur_active()),
+            ),
+        );
         let (animating, outcome) = if let Some(gpu) = self.gpu.as_mut() {
             // Drive the virtual-clock seam (caret spring + any future live
             // animator) so the timeline capture and the live loop advance
             // animation through the SAME entry point.
             let still = gpu.pipeline.advance(dt);
+            if warp_hot {
+                // The same bounded step the ambient tick uses, so a delayed wake
+                // (a window drag, a stalled compositor) advances the route by at
+                // most one tick's worth of travel rather than teleporting.
+                gpu.pipeline.advance_warp(crate::lava::ambient_tick_dt(dt));
+            }
             let presented = gpu.redraw();
-            (still, presented)
+            (still || warp_hot, presented)
         } else {
             return;
         };

@@ -276,13 +276,19 @@ pub(super) const WARPED_GRID: &[GroundQuantity] = &[
          `Tunnel::PageScaled`, as the mutation arm",
     ),
     logical(
-        "WARP_WINDOW_FULL / WARP_WINDOW_TIGHT / WARP_WINDOW_STRADDLE (where each \
-         margin's window sits on the one projection)",
-        "the first two are margin widths measured in ANCHORS and the third a \
-         fraction of a margin's own width — all three dimensionless ratios of \
-         composition quantities, so they carry no pixel to convert. They move \
-         the WINDOW, never the world, which is exactly why the projection's \
-         aspect ratio survives the whole adaptive-column range",
+        "WARP_WINDOW_INSET (where each margin's window sits on the one \
+         projection)",
+        "a distance from the ROOM's own outer edge, measured in ANCHORS — a \
+         dimensionless ratio of composition quantities, so it carries no pixel \
+         to convert. It is the whole of the placement after item 194 round 3, \
+         and it reads neither the page nor the margin: the page column can only \
+         MASK the field, which is why the composition survives the whole \
+         adaptive-column range and why the two margins cannot land in different \
+         regimes when the column sits off-centre. Round 2 placed the window from \
+         the margin's own width instead (WARP_WINDOW_FULL / _TIGHT / \
+         _STRADDLE), which held the SCALE constant while still letting the page \
+         reframe the scene; that placement survives only inside \
+         `Tunnel::MarginPlaced`, as the mutation arm",
     ),
     logical(
         "the ring/rail half-widths (0.45px minor, 1.00px major) and \

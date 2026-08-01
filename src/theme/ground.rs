@@ -118,24 +118,36 @@ pub enum Background {
 ///   two windows onto it; a bend moves the shared opening as a unit.
 /// * [`Tunnel::PerMargin`] — round 1's defect: each margin re-derives the
 ///   STEERING from its own side, so the two openings disagree.
-/// * [`Tunnel::PageScaled`] — round 2's: the SCALE comes from the page column,
-///   so a wider page rescales and squashes the world. Round 1's geometry.
+/// * [`Tunnel::PageScaled`] — round 2's first defect: the SCALE comes from the
+///   page column, so a wider page rescales and squashes the world. Round 1's
+///   geometry.
+/// * [`Tunnel::MarginPlaced`] — round 2's SECOND defect, and the one its own
+///   width law could not see: the scale was constant but the WINDOW PLACEMENT
+///   was a function of the margin's own width, so the page still reframed the
+///   scene — and, where awl's column sits off-centre, placed the two margins in
+///   different regimes at the same instant.
+/// * [`Tunnel::Reversed`] — forward travel with the ring coordinate's sign
+///   inverted, which reads as receding rather than approaching.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tunnel {
     Shared,
     PerMargin,
     PageScaled,
+    MarginPlaced,
+    Reversed,
 }
 
 impl Tunnel {
-    /// The scalar the WGSL `warped_grid_rgb` branches on (`params.w`). MUST
-    /// match `background.wgsl`'s `WARP_TUNNEL_PER_MARGIN`/`_PAGE_SCALED`
-    /// thresholds, which bracket each arm.
+    /// The scalar the WGSL `warped_grid_rgb` branches on (`params.w`). Each arm
+    /// occupies a unit-wide band bracketed by `background.wgsl`'s own
+    /// `WARP_TUNNEL_*` thresholds, so a new arm cannot silently alias an old one.
     pub fn mode(self) -> f32 {
         match self {
             Tunnel::Shared => 0.0,
             Tunnel::PerMargin => 1.0,
             Tunnel::PageScaled => 2.0,
+            Tunnel::MarginPlaced => 3.0,
+            Tunnel::Reversed => 4.0,
         }
     }
     pub fn as_str(self) -> &'static str {
@@ -143,6 +155,8 @@ impl Tunnel {
             Tunnel::Shared => "shared",
             Tunnel::PerMargin => "per-margin",
             Tunnel::PageScaled => "page-scaled",
+            Tunnel::MarginPlaced => "margin-placed",
+            Tunnel::Reversed => "reversed",
         }
     }
 }
