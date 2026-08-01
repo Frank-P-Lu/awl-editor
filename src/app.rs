@@ -59,22 +59,13 @@ enum NoticeKind {
 
 const ZOOM_PERSIST_DEBOUNCE: Duration = Duration::from_millis(500);
 
-/// LEADING-EDGE-PLUS-TRAILING-COALESCE window for a theme-picker preview
-/// step's font reshape (item 202 repair round; item 37b had set a flat
-/// trailing-only debounce to 0, item 202's first landing set it to a flat
-/// 100 — both are ONE NUMBER trying to answer two different questions:
-/// `theme_font_reshape_decision` is the actual fix. An ISOLATED step (nothing
-/// reshaped in the last `window`) reshapes IMMEDIATELY — this is item 37b's
-/// own measured ~39ms single-step settle, untouched. A step arriving WITHIN
-/// `window` of the last reshape (or while one is already pending) is a BURST
-/// continuation: it coalesces into `theme_font_at` instead of reshaping again,
-/// so N rapid steps pay one trailing reshape at rest, not N — the bug a flat
-/// 0ms debounce reintroduced (every step reshapes; later steps queue behind
-/// earlier ones on the single main thread) and a flat 100ms "fixed" only by
-/// punishing the isolated case too. Shared by every input modality that funnels
-/// through `App::retint_theme_preview` (keyboard nav, pointer hover, wheel).
-/// `AWL_THEME_FONT_DEBOUNCE_MS` is the A/B override; see docs/fonts.md for the
-/// live before/after numbers on both axes.
+/// The LEADING-EDGE-PLUS-TRAILING-COALESCE window shared by both halves of
+/// `theme_font_debounce::theme_font_reshape_decision` (that module's own doc
+/// has the full mechanism story) — the isolated-vs-burst cooldown AND the
+/// trailing coalesce duration are the SAME window. Shared by every input
+/// modality that funnels through `App::retint_theme_preview` (keyboard nav,
+/// pointer hover, wheel). `AWL_THEME_FONT_DEBOUNCE_MS` is the A/B override;
+/// see docs/fonts.md for the live before/after numbers on both axes.
 const THEME_FONT_DEBOUNCE_DEFAULT_MS: u64 = 100;
 
 // A reversion to 0 fails the BUILD (item 202); `theme_debounce_item202.rs`
@@ -97,38 +88,6 @@ fn theme_font_debounce() -> Duration {
         parse_theme_font_debounce_ms(std::env::var("AWL_THEME_FONT_DEBOUNCE_MS").ok().as_deref())
     });
     Duration::from_millis(ms)
-}
-
-/// The outcome of [`theme_font_reshape_decision`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ThemeFontReshapeDecision {
-    /// Reshape right now — an isolated step, nothing recent to coalesce with.
-    Immediate,
-    /// Fold into the pending/sliding trailing debounce — a burst continuation.
-    Coalesce,
-}
-
-/// ITEM 202's LEADING-EDGE rule, pure and GPU-free so it is unit-testable at
-/// the seam that actually decides (the GPU-gated caller, `retint_theme_preview`,
-/// only executes the decision). A step is ISOLATED — reshape `Immediate` — when
-/// no reshape is currently `pending` AND either nothing has reshaped yet or the
-/// last reshape is at least `window` old; otherwise it is a burst continuation
-/// and must `Coalesce` (never re-enter the immediate path while one is already
-/// pending, and never treat two reshapes closer than `window` apart as two
-/// separate isolated steps).
-fn theme_font_reshape_decision(
-    pending: Option<Instant>,
-    last_reshape_at: Option<Instant>,
-    now: Instant,
-    window: Duration,
-) -> ThemeFontReshapeDecision {
-    let isolated = pending.is_none()
-        && last_reshape_at.is_none_or(|t| now.saturating_duration_since(t) >= window);
-    if isolated {
-        ThemeFontReshapeDecision::Immediate
-    } else {
-        ThemeFontReshapeDecision::Coalesce
-    }
 }
 
 #[cfg(test)]
@@ -416,6 +375,10 @@ mod lifecycle;
 /// delegate now) so the file's #1 collision seam has its own home.
 mod schedule;
 mod startup;
+/// ITEM 202's leading-edge-plus-trailing-coalesce rule for the theme-picker
+/// preview's deferred font reshape — a pure scheduling decision, extracted
+/// out of this file because it needs neither `App` nor a GPU.
+mod theme_font_debounce;
 mod viewstate;
 mod window;
 /// The SUMMONED-UI LAYER owner (item 172): the overlay/search/popover
@@ -423,6 +386,7 @@ mod window;
 mod workspace;
 #[cfg(any(test, not(target_arch = "wasm32")))]
 pub(crate) use schedule::RecordingScheduler;
+pub(crate) use theme_font_debounce::{ThemeFontReshapeDecision, theme_font_reshape_decision};
 mod apply;
 /// ITEM 188 — the live `App`'s own SIDECAR FOLD + its capture constructor.
 /// Native-only, like the `--screenshot-app` mode that is its only consumer.

@@ -13,15 +13,13 @@
 //! six) but punishes the ISOLATED case too — settle rises to ~124ms, reopening
 //! the exact "felt theme-switch freeze" 37b's own commit was about.
 //!
-//! **The fix:** `theme_font_reshape_decision` (`app.rs`) replaces the flat
-//! window with LEADING-EDGE-PLUS-TRAILING-COALESCE. An ISOLATED step (nothing
-//! has reshaped in the last `window`, and nothing is already pending) reshapes
-//! IMMEDIATELY — 37b's ~39ms path, untouched. A step arriving WITHIN `window`
-//! of the last reshape (or while one is already pending) is a BURST
-//! CONTINUATION: it coalesces into the trailing debounce instead of reshaping
-//! again, so a rapid run pays one leading reshape (step 1) plus one trailing
-//! settle (once the run stops) — two reshapes total for an N-step burst,
-//! never N, and never the isolated case's cost either.
+//! **The fix:** `crate::app::theme_font_debounce::theme_font_reshape_decision`
+//! replaces the flat window with LEADING-EDGE-PLUS-TRAILING-COALESCE (that
+//! module's own doc has the pure-function mechanism and its four exhaustive
+//! laws — session start, the `>=` window boundary, inside-window coalescing,
+//! and "never re-enter Immediate while one is pending"). This file covers what
+//! that module cannot: the END-TO-END wiring through the REAL `App` scheduling
+//! body, and the shared window constant's own same-tick structural law.
 //!
 //! LIVE evidence this round is built against (measured 2026-08-01,
 //! `--live-script`, real compositor, release build, screen confirmed unlocked
@@ -34,13 +32,12 @@
 //! at the purest reachable seam, since a live re-measurement needs an unlocked
 //! display this session did not have throughout (`docs/harness-reach.md`).
 //!
-//! This file drives `theme_font_reshape_decision` directly (pure, no GPU
-//! needed — the function the GPU-gated `retint_theme_preview` merely executes)
-//! and the REAL `about_to_wait_impl` scheduling body (`App::step_scheduling`)
-//! under a `VirtualClock`, exactly like `which_key.rs`'s frame-loop law.
-//! `App::apply_deferred_theme_font` stamps `theme_font_last_reshape_at`
-//! unconditionally, before its GPU-gated reshape call, so the trailing half of
-//! the mechanism is exercised for real here, not stood in for.
+//! This file drives the REAL `about_to_wait_impl` scheduling body
+//! (`App::step_scheduling`) under a `VirtualClock`, exactly like
+//! `which_key.rs`'s frame-loop law. `App::apply_deferred_theme_font` stamps
+//! `theme_font_last_reshape_at` unconditionally, before its GPU-gated reshape
+//! call, so the trailing half of the mechanism is exercised for real here,
+//! not stood in for.
 
 use super::*;
 use crate::clock::Clock as _;
@@ -66,71 +63,6 @@ fn simulate_preview_step(app: &mut App, now: crate::clock::Instant) -> ThemeFont
         }
     }
     decision
-}
-
-// ── `theme_font_reshape_decision` — pure, exhaustive over its own inputs ────
-
-#[test]
-fn nothing_pending_and_no_prior_reshape_is_isolated() {
-    let t = crate::clock::VirtualClock::new().now();
-    assert_eq!(
-        theme_font_reshape_decision(None, None, t, theme_font_debounce()),
-        ThemeFontReshapeDecision::Immediate,
-        "the very first preview step of a session has nothing to coalesce with"
-    );
-}
-
-#[test]
-fn a_reshape_at_or_past_the_window_reads_isolated() {
-    let clock = crate::clock::VirtualClock::new();
-    let last = clock.now();
-    let window = theme_font_debounce();
-    clock.advance_ms(window.as_millis() as u64); // exactly at the boundary
-    let now = clock.now();
-    assert_eq!(
-        theme_font_reshape_decision(None, Some(last), now, window),
-        ThemeFontReshapeDecision::Immediate,
-        "`debounce_due`'s own `>=` semantics say the boundary itself counts as \
-         isolated — this law pins that the leading-edge check agrees"
-    );
-}
-
-#[test]
-fn a_reshape_inside_the_window_is_a_burst_continuation() {
-    let clock = crate::clock::VirtualClock::new();
-    let last = clock.now();
-    let window = theme_font_debounce();
-    clock.advance_ms(window.as_millis() as u64 - 1);
-    let now = clock.now();
-    assert_eq!(
-        theme_font_reshape_decision(None, Some(last), now, window),
-        ThemeFontReshapeDecision::Coalesce,
-        "one millisecond short of the window must still coalesce, not reshape again"
-    );
-}
-
-#[test]
-fn a_pending_coalesce_never_re_enters_the_immediate_path() {
-    // Even if the LAST REAL reshape is ancient, a step that arrives while one
-    // is already PENDING must coalesce — two steps racing to both go
-    // "immediate" would defeat the whole point (two reshapes instead of one).
-    let clock = crate::clock::VirtualClock::new();
-    let ancient = clock.now();
-    clock.advance_ms(10 * theme_font_debounce().as_millis() as u64);
-    let pending_since = clock.now();
-    clock.advance_ms(1);
-    let now = clock.now();
-    assert_eq!(
-        theme_font_reshape_decision(
-            Some(pending_since),
-            Some(ancient),
-            now,
-            theme_font_debounce()
-        ),
-        ThemeFontReshapeDecision::Coalesce,
-        "a step must coalesce whenever one is already pending, regardless of \
-         how long ago the last REAL reshape was"
-    );
 }
 
 // ── End-to-end: an isolated step vs. a rapid burst, driven through the real
@@ -225,8 +157,9 @@ fn a_rapid_burst_pays_one_leading_reshape_and_one_trailing_settle_not_six() {
 /// STRUCTURAL regression pin: the debounce window itself must be large enough
 /// that `debounce_due` cannot be satisfied on the SAME instant it was armed —
 /// the trailing half of the mechanism still needs this (it is what makes a
-/// burst's tail coalesce at all rather than firing every step, same as the
-/// leading-edge check's own boundary law above). A nonzero
+/// burst's tail coalesce at all rather than firing every step, same as
+/// `theme_font_debounce::a_reshape_at_or_past_the_window_reads_isolated`'s own
+/// boundary law for the leading-edge half). A nonzero
 /// `THEME_FONT_DEBOUNCE_DEFAULT_MS` is ALSO a compile-time invariant (`app.rs`'s
 /// own `const _: () = assert!(..)`); this law covers the non-const half — the
 /// real, env-overridable predicate.
