@@ -1,7 +1,7 @@
 //! src/app/input/ — INPUT handling, split by natural seam (2026-07
 //! code-organization pass) out of the former `app/input.rs` monolith:
 //! [`keys`] (the keyboard path — held-HUD/peek, whichkey, incremental
-//! search, zoom, page scroll, IME, `KeyboardInput`/`ModifiersChanged`
+//! search, zoom, page scroll, `KeyboardInput`/`ModifiersChanged`
 //! dispatch), [`mouse`] (the pointer path — hit-test, click/drag-select,
 //! outline/link/overlay/panel/menu-bar clicks, the cursor icon,
 //! wheel scroll/zoom/table-pan, `CursorMoved`/`MouseInput`/`MouseWheel`
@@ -12,6 +12,7 @@
 
 mod context_menu;
 mod drags;
+mod ime;
 mod keys;
 mod mouse;
 mod wheel;

@@ -502,7 +502,8 @@ fn app_does_not_deref_to_an_input_runtime() {
             && !source.contains(&deref_mut)
             && !source.contains(&input_deref)
             && !source.contains(&input_deref_mut),
-        "App/InputRuntime must not Deref/DerefMut across the input boundary; spell the owner explicitly"
+        "App/InputRuntime must not Deref/DerefMut across the input boundary; \
+         spell the owner explicitly"
     );
 }
 
@@ -516,6 +517,7 @@ enum InputConsumer {
     Settings,
     ContextMenu,
     Drags,
+    Ime,
     Keys,
     Mouse,
     Press,
@@ -535,6 +537,7 @@ impl InputConsumer {
         Self::Settings,
         Self::ContextMenu,
         Self::Drags,
+        Self::Ime,
         Self::Keys,
         Self::Mouse,
         Self::Press,
@@ -556,6 +559,7 @@ impl InputConsumer {
             Self::Settings => ("src/app/files/settings.rs", false),
             Self::ContextMenu => ("src/app/input/context_menu.rs", true),
             Self::Drags => ("src/app/input/drags.rs", true),
+            Self::Ime => ("src/app/input/ime.rs", true),
             Self::Keys => ("src/app/input/keys.rs", true),
             Self::Mouse => ("src/app/input/mouse.rs", true),
             Self::Press => ("src/app/press.rs", false),
@@ -633,7 +637,8 @@ fn input_substates_are_private_and_every_consumer_is_swept() {
             source.contains("self.input.keyboard") || source.contains("self.input.pointer");
         assert_eq!(
             has_raw_reach, inside_owner,
-            "{relative} has the wrong InputRuntime reach; only app/input children may project a substate"
+            "{relative} has the wrong InputRuntime reach; only app/input children \
+             may project a substate"
         );
     }
 

@@ -1,5 +1,7 @@
 //! Live-only effects layered around shared pure action application.
 
+mod overlay_sync;
+
 use super::apply_context::{CoreBefore, CoreRun};
 use super::*;
 
@@ -619,31 +621,6 @@ impl App {
             theme_overlay_before,
             theme_before,
             history_overlay_before,
-        }
-    }
-
-    fn sync_overlay_after_core(
-        &mut self,
-        overlay_was_open: bool,
-        pointer: crate::app::input::RestingPointer,
-    ) {
-        // ITEM 106 — re-anchor the hover movement-slop gate to the pointer's
-        // CURRENT resting position after every action this seam applies (keyboard
-        // nav/type, a menu command, or a click routed back through `apply` from
-        // `overlay_click` — arming here from the pointer's real position is
-        // correct regardless of which input drove the action). Without this, a
-        // keyboard-only session's overlay hover memory stays stale (or `None`)
-        // through a whole run of arrow presses; the very next incidental
-        // `CursorMoved` — even the pointer's first-ever hover check, which
-        // `hover_at` always treats as real motion on a `None` baseline — would
-        // then silently steal the keyboard's selection out from under a
-        // motionless hand. See `OverlayState::arm_hover_baseline`'s doc.
-        if let Some(ov) = self.workspace_state.overlay_mut() {
-            let (px, py) = pointer.px();
-            ov.arm_hover_baseline(px, py);
-        }
-        if self.workspace_state.overlay_open() != overlay_was_open {
-            self.sync_cursor_icon();
         }
     }
 

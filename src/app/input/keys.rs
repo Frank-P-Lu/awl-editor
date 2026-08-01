@@ -271,36 +271,6 @@ impl App {
         visible.saturating_sub(2).max(1)
     }
 
-    /// Handle a platform IME event (Japanese/CJK composition lifecycle).
-    ///
-    /// * `Enabled`/`Disabled` track whether the IME is active; a Disable clears
-    ///   any dangling preedit so a stale composition never lingers.
-    /// * `Preedit(text, _)` stores the in-progress composition as a transient
-    ///   overlay (rendered underlined at the caret) WITHOUT touching the buffer.
-    ///   An empty preedit clears it.
-    /// * `Commit(text)` inserts the finalized text (the chosen kanji/kana) into
-    ///   the ropey buffer at the cursor and clears the preedit.
-    pub(in crate::app) fn handle_ime(&mut self, ime: Ime) {
-        match ime {
-            Ime::Enabled => {
-                self.input.keyboard.ime_enabled = true;
-            }
-            Ime::Disabled => {
-                self.input.keyboard.ime_enabled = false;
-                self.input.keyboard.preedit.clear();
-            }
-            Ime::Preedit(text, _cursor) => {
-                self.input.keyboard.preedit = text;
-            }
-            Ime::Commit(text) => {
-                self.input.keyboard.preedit.clear();
-                for c in text.chars() {
-                    self.active.buffer.insert_char(c);
-                }
-            }
-        }
-    }
-
     /// `WindowEvent::ModifiersChanged`: track the live modifier state, and let a
     /// dropped SUMMONING modifier break a held stats-HUD chord (e.g. lifting Cmd
     /// or Option of Option-Cmd-I), covering the macOS case where the character key-UP is never
@@ -327,14 +297,6 @@ impl App {
         self.feed_peek(stim);
         self.sync_cursor_icon();
     }
-    pub(in crate::app) fn on_ime(&mut self, ime: Ime) {
-        self.handle_ime(ime);
-        self.sync_view(true);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
-    }
-
     /// `WindowEvent::KeyboardInput`: the full press pipeline — release handling,
     /// the preedit / lone-modifier / search / rebind-capture guards, the macOS
     /// Option dead-key fix, then keymap resolve → `apply`. Preserves every
