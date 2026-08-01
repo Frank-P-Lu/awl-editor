@@ -83,13 +83,14 @@ needs.
 ## Tier 3 — the live-only census, exactly
 
 Every function under `src/app.rs` + `src/app/**` whose signature takes an
-`&ActiveEventLoop`. Twelve, in three files, and the list is not maintained by
+`&ActiveEventLoop`. Twelve, in four files, and the list is not maintained by
 hand: `app::tests::source_audit::the_active_event_loop_census_is_exact_and_the_input_chain_is_free_of_it`
 scans the source and fails on any new one.
 
 | Where | Functions | Why the loop is genuinely needed |
 | --- | --- | --- |
-| `app.rs` | `rebuild_gpu`, `drive_gpu_soak` | creates the window + display handle; `--soak-gpu` drives a real one |
+| `app.rs` | `drive_gpu_soak` | `--soak-gpu` drives a real window |
+| `app/gpu_recovery.rs` | `rebuild_gpu` | recreates the window-bound renderer |
 | `app/lifecycle.rs` | `user_event`, `resumed`, `suspended`, `window_event`, `exiting`, `about_to_wait` | winit's own `ApplicationHandler` signatures |
 | `app/window.rs` | `handle_gpu_fault`, `handle_gpu_frame_outcome`, `on_resized`, `on_redraw_requested` | rebuilds the surface, sets `ControlFlow` |
 

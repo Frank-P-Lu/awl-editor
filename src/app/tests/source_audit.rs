@@ -539,15 +539,8 @@ fn resync_project_location_is_the_sole_derivation_of_project_location_fields() {
 // of the blind region `docs/harness-reach.md` maps, and it is mechanical:
 // the parameter position is a fact of the source text, not a judgement call.
 //
-// Before this round the census included `App::apply` — the ONE seam a
-// keypress, a menu item, a palette command, an overlay click and the
-// `--live-script` probe all funnel through — for a single `event_loop.exit()`
-// call. Everything `apply` interprets therefore inherited the blindness,
-// including `switch_project` -> `set_root` (queue item 180, whose Verify
-// clause asked for a capture that structurally could not exist) and
-// `reload_config`. Narrowing that one borrow to `app::Exit` moved the entire
-// input-dispatch chain out of the census; what remains is genuinely about
-// owning a window, a surface, or the loop's own control flow.
+// The input-dispatch chain takes the narrow `app::Exit` capability. What
+// remains in this census genuinely owns a window, surface, or loop control.
 
 /// The census is EXACT, per file, and the input-dispatch chain is EMPTY.
 ///
@@ -567,10 +560,10 @@ fn the_active_event_loop_census_is_exact_and_the_input_chain_is_free_of_it() {
     // Every remaining site, with the window/surface/control-flow capability it
     // genuinely needs — none of them is a pass-through for `exit()`.
     let expected: &[(&str, usize)] = &[
-        // `rebuild_gpu` calls `create_window` + `owned_display_handle`;
-        // `drive_gpu_soak` (`--soak-gpu`) drives a real window and sets its
-        // own control flow.
-        ("app.rs", 2),
+        // `drive_gpu_soak` owns a real window and its control flow.
+        ("app.rs", 1),
+        // `rebuild_gpu` recreates the window-bound renderer.
+        ("app/gpu_recovery.rs", 1),
         // The winit `ApplicationHandler` trait's own six callbacks — their
         // signatures are winit's, not ours: `user_event`, `resumed`,
         // `suspended`, `window_event`, `exiting`, `about_to_wait`. The
