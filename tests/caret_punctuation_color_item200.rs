@@ -53,9 +53,7 @@ use std::path::{Path, PathBuf};
 /// place. `*` is added for Bombora's specifically-reported asterisk; the rest
 /// is unchanged from `tests/caret_punctuation_pixels.rs` so both files sweep
 /// the same shapes (dash/bracket/quote/CJK-ideographic-comma included).
-const PUNCT: [char; 11] = [
-    ',', '.', '\'', ':', ';', '-', '(', '[', '—', '。', '*',
-];
+const PUNCT: [char; 11] = [',', '.', '\'', ':', ';', '-', '(', '[', '—', '。', '*'];
 
 /// The subset of [`PUNCT`] this file's own pixel-forensic COLOUR oracle can
 /// discriminate reliably ACROSS THE WHOLE ROSTER. Every mark sweeps the
@@ -102,10 +100,7 @@ const DOC: &str = "a, . ' : ; - ( [ — 。 z *\n\n\nreference\n";
 const BLANK_DOC: &str = "\n\n\nreference\n";
 
 fn temp(tag: &str) -> ScratchDir {
-    let p = std::env::temp_dir().join(format!(
-        "awl-item200-color-{}-{tag}",
-        std::process::id()
-    ));
+    let p = std::env::temp_dir().join(format!("awl-item200-color-{}-{tag}", std::process::id()));
     ScratchDir::new(p)
 }
 
@@ -204,7 +199,13 @@ impl Capture<'_> {
     /// [`Self::run`] this always captures at the tool's default scale.
     fn run_motion(&self, out: &Path, mode: &str) {
         let o = common::awl(self.sandbox)
-            .args(["--theme", self.world, "--caret-mode", mode, "--screenshot-motion"])
+            .args([
+                "--theme",
+                self.world,
+                "--caret-mode",
+                mode,
+                "--screenshot-motion",
+            ])
             .arg(out)
             .arg(self.doc)
             .output()
@@ -342,11 +343,13 @@ fn off_caret_ink(
         .map(|(c, _)| c)
         .collect();
     let n = core.len() as f32;
-    let sum = core
-        .iter()
-        .fold([0f32; 3], |acc, c| {
-            [acc[0] + c[0] as f32, acc[1] + c[1] as f32, acc[2] + c[2] as f32]
-        });
+    let sum = core.iter().fold([0f32; 3], |acc, c| {
+        [
+            acc[0] + c[0] as f32,
+            acc[1] + c[1] as f32,
+            acc[2] + c[2] as f32,
+        ]
+    });
     Some([
         (sum[0] / n).round() as u8,
         (sum[1] / n).round() as u8,
@@ -424,11 +427,13 @@ fn dominant_off_segment(
         .map(|(c, _)| c)
         .collect();
     let n = core.len() as f32;
-    let sum = core
-        .iter()
-        .fold([0f32; 3], |acc, c| {
-            [acc[0] + c[0] as f32, acc[1] + c[1] as f32, acc[2] + c[2] as f32]
-        });
+    let sum = core.iter().fold([0f32; 3], |acc, c| {
+        [
+            acc[0] + c[0] as f32,
+            acc[1] + c[1] as f32,
+            acc[2] + c[2] as f32,
+        ]
+    });
     Some((
         [
             (sum[0] / n).round() as u8,
@@ -449,6 +454,7 @@ fn dominant_off_segment(
 /// there and callers must not run it on one (see
 /// `mono_worlds_tawny_and_mangrove_are_unaffected`, which correctly omits
 /// it).
+#[allow(clippy::too_many_arguments)]
 fn assert_geometry_floor(
     world: &str,
     mode: &str,
@@ -651,7 +657,13 @@ fn band(sidecar: &Path) -> (u32, u32) {
 /// `font` (`src/theme/worlds.rs`), independently re-derived here, not
 /// imported — this is an integration test with no door into crate internals.
 const MONO_PROSE_WORLDS: [&str; 7] = [
-    "Potoroo", "Tawny", "Currawong", "Mangrove", "Wagtail", "Firetail", "Cassowary",
+    "Potoroo",
+    "Tawny",
+    "Currawong",
+    "Mangrove",
+    "Wagtail",
+    "Firetail",
+    "Cassowary",
 ];
 
 /// The two `CaretBlockStyle` EXCEPTIONS (`folds_morph_to_block` in
@@ -758,13 +770,22 @@ fn every_world_every_form_owns_comma_geometry_and_colour_correctly() {
             } else if is_mono {
                 // See `assert_mono_caret_painted`'s doc: mono immunity is
                 // proved at the unit seam
-                // (`render::tests::caret_visual_body::mono_worlds_never_read_a_punctuation_ink_box`),
-                // not here — this is footprint sanity only.
+                // (`render::tests::caret_visual_body::mono_worlds_never_read_a_punctuation_ink_box`
+                // — wrapped here only to respect the column limit), not
+                // pixel-side — this is footprint sanity only.
                 let (_l, _t, _r, _b, n) = footprint(&rendered, &refimg, band_top, band_bottom);
                 assert_mono_caret_painted(world, mode, ',', n);
             } else {
                 saw_distinct_ink |= assert_geometry_and_color_ownership(
-                    world, mode, ',', 1.0, &rendered, &refimg, &blankimg, band_top, band_bottom,
+                    world,
+                    mode,
+                    ',',
+                    1.0,
+                    &rendered,
+                    &refimg,
+                    &blankimg,
+                    band_top,
+                    band_bottom,
                     primary,
                 );
             }
@@ -971,16 +992,15 @@ fn comma_and_roster_in_bowerbird_never_flip_black() {
                 let page_color = px(&refimg, l, t);
                 if let Some((dominant, n)) =
                     dominant_off_segment(&rendered, (l, t, r, b), primary, page_color, 24.0)
+                    && n >= 4
                 {
-                    if n >= 4 {
-                        let d = dist(dominant, reported_black);
-                        assert!(
-                            d > 40.0,
-                            "{world} {mode} {ch:?}: covered glyph reads as the exact \
-                             reported black flip ({reported_black:?}, measured {dominant:?}, \
-                             distance {d:.1})"
-                        );
-                    }
+                    let d = dist(dominant, reported_black);
+                    assert!(
+                        d > 40.0,
+                        "{world} {mode} {ch:?}: covered glyph reads as the exact \
+                         reported black flip ({reported_black:?}, measured {dominant:?}, \
+                         distance {d:.1})"
+                    );
                 }
             }
         }
@@ -1149,7 +1169,11 @@ fn mid_glide_frames_never_engage_the_punctuation_colour_swap() {
     // Row 2 BLANK (rows 0/1 unchanged) — [`off_caret_ink`]'s per-pixel ground,
     // same reasoning as [`BLANK_DOC`].
     let motion_doc_blank = dir.join("motion-blank.txt");
-    std::fs::write(&motion_doc_blank, "reference line zero\nreference line one\n\n").unwrap();
+    std::fs::write(
+        &motion_doc_blank,
+        "reference line zero\nreference line one\n\n",
+    )
+    .unwrap();
     std::fs::write(
         common::config_path_in(&dir),
         "writing_nits = false\nspellcheck = false\n",
@@ -1214,18 +1238,17 @@ fn mid_glide_frames_never_engage_the_punctuation_colour_swap() {
         let page_color = px(&refimg, l, t);
         if let Some((on_ink, on_n)) =
             dominant_off_segment(&rendered, (l, t, r, b), primary, page_color, 24.0)
+            && on_n >= 4
         {
-            if on_n >= 4 {
-                let off_ink = off_caret_ink(&refimg, &blankimg, (l, t, r, b))
-                    .expect("comma must render real off-caret ink at this rect");
-                let d = dist(on_ink, off_ink);
-                assert!(
-                    d <= INK_MATCH_TOLERANCE,
-                    "{world}: mid-glide frame's covered comma ink {on_ink:?} diverged from \
-                     its own off-caret ink {off_ink:?} (distance {d:.1} > \
-                     {INK_MATCH_TOLERANCE}) — motion must not recolour a glyph either"
-                );
-            }
+            let off_ink = off_caret_ink(&refimg, &blankimg, (l, t, r, b))
+                .expect("comma must render real off-caret ink at this rect");
+            let d = dist(on_ink, off_ink);
+            assert!(
+                d <= INK_MATCH_TOLERANCE,
+                "{world}: mid-glide frame's covered comma ink {on_ink:?} diverged from \
+                 its own off-caret ink {off_ink:?} (distance {d:.1} > \
+                 {INK_MATCH_TOLERANCE}) — motion must not recolour a glyph either"
+            );
         }
     }
 }
