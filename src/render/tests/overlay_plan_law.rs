@@ -699,7 +699,7 @@ fn steps_off_the_band_origin(line: &str) -> bool {
 }
 
 /// The ONLY place the arithmetic may live.
-const ARITHMETIC_OWNER: &str = "plan/overlay_rows.rs";
+const ARITHMETIC_OWNERS: &[&str] = &["plan/overlay_rows.rs", "plan/overlay_row_plan.rs"];
 
 fn re_derives_a_row_y(line: &str) -> bool {
     let trimmed = line.trim_start();
@@ -756,12 +756,12 @@ fn only_the_planner_derives_an_overlay_row_position() {
     scan(&render_root, &render_root, &mut hits);
     let strays: Vec<String> = hits
         .iter()
-        .filter(|(f, _)| f != ARITHMETIC_OWNER)
+        .filter(|(f, _)| !ARITHMETIC_OWNERS.contains(&f.as_str()))
         .map(|(f, l)| format!("  {f}:{l}"))
         .collect();
     assert!(
         strays.is_empty(),
-        "only `{ARITHMETIC_OWNER}` may derive an overlay candidate row's position. A \
+        "only `{ARITHMETIC_OWNERS:?}` may derive an overlay candidate row's position. A \
          consumer that computes its own row y is a parallel calculation: the drawn band, \
          the click that lands in it and the sidecar's report of it will agree until the \
          day one of them is edited. Read the row off `OverlayRowPlan` instead. \
@@ -771,11 +771,12 @@ fn only_the_planner_derives_an_overlay_row_position() {
 
     // NON-VACUOUS: the owner really does carry the arithmetic, so a refactor that
     // moved it elsewhere trips this law instead of silently emptying it.
-    assert!(
-        hits.iter().any(|(f, _)| f == ARITHMETIC_OWNER),
-        "`{ARITHMETIC_OWNER}` must actually contain the row arithmetic — this law is \
-         scanning for something that no longer exists"
-    );
+    for owner in ARITHMETIC_OWNERS {
+        assert!(
+            hits.iter().any(|(f, _)| f == owner),
+            "`{owner}` must carry planner arithmetic"
+        );
+    }
 }
 
 #[test]

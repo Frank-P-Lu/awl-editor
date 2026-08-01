@@ -134,7 +134,7 @@ impl TextPipeline {
         self.overlay_prepare_selection(
             device, queue, width, height, geom, plan, list_style, backing, vis,
         );
-        self.prepare_diagonal_spine(device, queue, width, height, geom, plan);
+        self.prepare_diagonal_spine(device, queue, width, height, plan, vis);
         self.overlay_prepare_range_rails(device, queue, width, height, geom, plan, vis);
         self.overlay_prepare_facet_marks(device, queue, width, height, geom);
     }

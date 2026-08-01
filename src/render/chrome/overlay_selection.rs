@@ -426,6 +426,7 @@ mod tests {
             dx_per_row: 10.0,
             cluster_span: None,
             selected_offset: None,
+            selected_display: None,
         });
         // These are the leading, echo, and overlap bands from one TwoShape
         // crossing. Their centres deliberately belong to three different rows.

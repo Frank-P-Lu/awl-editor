@@ -76,6 +76,7 @@ impl DiagonalClusterRail {
         composition: DiagonalComposition,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
+        selected_display: Option<usize>,
         label_w: f32,
         accessory_w: f32,
         gap: f32,
@@ -143,7 +144,7 @@ impl DiagonalClusterRail {
             spine_start,
             spine_step,
             span,
-            selected_display: plan.selected_display(),
+            selected_display,
             selected_shift: composition.selected_outward,
         }
     }
@@ -168,6 +169,16 @@ impl DiagonalClusterRail {
     pub(in crate::render) fn selected_offset(self) -> (f32, f32) {
         let shift = self.selected_shift * self.direction.sign();
         (shift, shift)
+    }
+
+    pub(in crate::render) fn row_plan(
+        self,
+    ) -> (Option<RowSpan>, Option<(f32, f32)>, Option<usize>) {
+        (
+            Some(self.span()),
+            Some(self.selected_offset()),
+            self.selected_display,
+        )
     }
 
     fn spine(self, plan: &OverlayRowPlan) -> Option<([f32; 2], [f32; 2])> {
@@ -235,6 +246,7 @@ impl TextPipeline {
         &self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
+        vis: &VisualSelection,
     ) -> Option<DiagonalClusterRail> {
         let composition = active(self)?;
         let primary = self.overlay_row_primary_px(geom);
@@ -264,6 +276,7 @@ impl TextPipeline {
             composition,
             geom,
             plan,
+            vis.rows().first().copied(),
             label_w,
             accessory_w,
             rowlayout::GAP_CHARS as f32 * self.overlay_char_width(),
@@ -298,8 +311,8 @@ impl TextPipeline {
         queue: &wgpu::Queue,
         width: u32,
         height: u32,
-        _geom: &OverlayGeom,
         plan: &OverlayRowPlan,
+        vis: &VisualSelection,
     ) {
         let Some(composition) = active(self) else {
             self.overlay_spine
@@ -328,32 +341,36 @@ impl TextPipeline {
         self.overlay_spine
             .prepare_rotated(device, queue, width, height, &[segment]);
 
-        let selected = plan
-            .selected_display()
-            .and_then(|display| plan.rows().iter().find(|row| row.display == display));
-        let selected_segments = selected.map_or_else(Vec::new, |row| {
-            let spine_x = cluster.spine_x(row.display);
-            let mid_y = row.top + row.height * 0.5;
-            let local = crate::selection::spine_segment(
-                [spine_x, row.top + 2.0],
-                [spine_x, row.bottom() - 2.0],
-                composition.selected_spine_weight,
-            );
-            let connector_end = match composition.direction {
-                theme::DiagonalDirection::Descending => [cluster.label_left(row.display), mid_y],
-                theme::DiagonalDirection::Ascending => {
-                    [cluster.accessory_right(row.display), mid_y]
-                }
-            };
-            vec![
-                local,
-                crate::selection::spine_segment(
-                    [spine_x, mid_y],
-                    connector_end,
+        let selected_segments = plan
+            .rows()
+            .iter()
+            .filter(|row| vis.reads_selected(row.display))
+            .flat_map(|row| {
+                let spine_x = cluster.spine_x(row.display);
+                let mid_y = row.top + row.height * 0.5;
+                let local = crate::selection::spine_segment(
+                    [spine_x, row.top + 2.0],
+                    [spine_x, row.bottom() - 2.0],
                     composition.selected_spine_weight,
-                ),
-            ]
-        });
+                );
+                let connector_end = match composition.direction {
+                    theme::DiagonalDirection::Descending => {
+                        [cluster.label_left(row.display), mid_y]
+                    }
+                    theme::DiagonalDirection::Ascending => {
+                        [cluster.accessory_right(row.display), mid_y]
+                    }
+                };
+                [
+                    local,
+                    crate::selection::spine_segment(
+                        [spine_x, mid_y],
+                        connector_end,
+                        composition.selected_spine_weight,
+                    ),
+                ]
+            })
+            .collect::<Vec<_>>();
         self.overlay_spine_selected
             .set_corner(composition.spine_corner);
         self.overlay_spine_selected

@@ -114,6 +114,7 @@ pub(in crate::render) struct OverlayRowPlanInput<'a> {
     /// planned geometry so its text, control, selection connector, and hit-test
     /// share the same two-sided span.
     pub selected_offset: Option<(f32, f32)>,
+    pub selected_display: Option<usize>,
 }
 
 /// The row-side span for a measured diagonal cluster.  The cluster owner
@@ -248,6 +249,7 @@ pub(in crate::render) fn test_row_top(
         dx_per_row: 0.0,
         cluster_span: None,
         selected_offset: None,
+        selected_display: None,
     });
     plan.row_top(row).expect("row is inside the planned window")
 }
@@ -273,6 +275,7 @@ pub(in crate::render) fn test_rows(text_top: f32, lh: f32, n: usize) -> Vec<Plan
         dx_per_row: 0.0,
         cluster_span: None,
         selected_offset: None,
+        selected_display: None,
     })
     .rows()
     .to_vec()
@@ -341,7 +344,9 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
             .collect(),
     };
     if let Some((dx, dw)) = input.selected_offset
-        && let Some(row) = rows.iter_mut().find(|row| row.item == Some(input.selected))
+        && let Some(row) = rows
+            .iter_mut()
+            .find(|row| Some(row.display) == input.selected_display)
     {
         row.dx += dx;
         row.dw += dw;

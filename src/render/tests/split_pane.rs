@@ -294,7 +294,6 @@ fn every_world_splits_by_its_cap_never_by_identity() {
     for t in theme::THEMES.iter() {
         theme::set_active_by_name(t.name).unwrap();
         p.sync_theme();
-        let is_pane = matches!(t.render_caps.list_style, theme::ListStyle::Pane);
 
         // (1) The world's OWN data governs (no override).
         set_pane_split_test_override(None);
@@ -302,28 +301,49 @@ fn every_world_splits_by_its_cap_never_by_identity() {
         p.set_view(&v);
         p.prepare(&device, &queue, w, h).unwrap();
         let fills = p.overlay_pane_fills_probe();
-        if is_pane {
-            let want = match t.render_caps.pane_split {
-                theme::PaneSplit::Split => 2,
-                theme::PaneSplit::Unified => 1,
-            };
-            assert_eq!(
-                fills.len(),
-                want,
-                "{}: a Pane world's fill count follows its pane_split cap",
-                t.name
-            );
-        } else {
-            // A Bars world never draws the split card — its card fill is the
-            // per-plate scrim set (one per plate), unrelated to the 1/2 split.
-            let plates = p.overlay_bars.instance_count() + p.overlay_rows.instance_count();
-            assert!(plates > 0, "{}: a Bars world floats plates", t.name);
-            assert_eq!(
-                p.panel_card.instance_count(),
-                plates,
-                "{}: a Bars world's card fill is the per-plate scrims (split inert)",
-                t.name
-            );
+        match t.render_caps.list_style {
+            theme::ListStyle::Pane => {
+                let want = match t.render_caps.pane_split {
+                    theme::PaneSplit::Split => 2,
+                    theme::PaneSplit::Unified => 1,
+                };
+                assert_eq!(
+                    fills.len(),
+                    want,
+                    "{}: Pane fill count follows pane_split",
+                    t.name
+                );
+            }
+            theme::ListStyle::Bars { .. } => {
+                let plates = p.overlay_bars.instance_count() + p.overlay_rows.instance_count();
+                assert!(plates > 0, "{}: Bars floats plates", t.name);
+                assert_eq!(
+                    p.panel_card.instance_count(),
+                    plates,
+                    "{}: Bars scrims are its card fill",
+                    t.name
+                );
+            }
+            theme::ListStyle::Diagonal(_) => {
+                assert_eq!(
+                    p.overlay_bars.instance_count() + p.overlay_rows.instance_count(),
+                    0,
+                    "{}: diagonal has no bars",
+                    t.name
+                );
+                assert_eq!(
+                    p.panel_card.instance_count(),
+                    0,
+                    "{}: diagonal has no card fill",
+                    t.name
+                );
+                assert_eq!(
+                    p.overlay_spine.instance_count(),
+                    1,
+                    "{}: diagonal keeps one spine",
+                    t.name
+                );
+            }
         }
 
         // (2) The decision is DATA: the override flips it on EVERY world the same
@@ -337,13 +357,20 @@ fn every_world_splits_by_its_cap_never_by_identity() {
             p.set_view(&v);
             p.prepare(&device, &queue, w, h).unwrap();
             let fills = p.overlay_pane_fills_probe();
-            if is_pane {
-                assert_eq!(
+            match t.render_caps.list_style {
+                theme::ListStyle::Pane => assert_eq!(
                     fills.len(),
                     want,
-                    "{}: forcing pane_split={forced:?} sets the Pane fill count (data, not identity)",
+                    "{}: forcing pane_split={forced:?} sets Pane fill count",
                     t.name
-                );
+                ),
+                theme::ListStyle::Bars { .. } => {}
+                theme::ListStyle::Diagonal(_) => assert_eq!(
+                    p.overlay_bars.instance_count() + p.overlay_rows.instance_count(),
+                    0,
+                    "{}: pane split override cannot turn diagonal into bars",
+                    t.name
+                ),
             }
         }
     }

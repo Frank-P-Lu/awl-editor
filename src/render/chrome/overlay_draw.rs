@@ -48,7 +48,7 @@ impl TextPipeline {
         // hand by the time `overlay_draw_card` asks the facet-mark owner for it.
         let has_rail = self.workspace_shape_rail(&geom, &plan);
         let has_right = self.overlay_shape_text(&geom, &plan, ink, muted, selected_ink, &vis, true);
-        self.diagonal_cluster = self.resolve_diagonal_cluster(&geom, &plan);
+        self.diagonal_cluster = self.resolve_diagonal_cluster(&geom, &plan, &vis);
         let plan = self.overlay_row_plan(&geom);
         self.overlay_upload_text(
             device, queue, width, height, &geom, &plan, has_right, has_rail, ink, muted, placard,

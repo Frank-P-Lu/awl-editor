@@ -35,6 +35,7 @@ fn flat(
         dx_per_row: 0.0,
         cluster_span: None,
         selected_offset: None,
+        selected_display: None,
     }
 }
 

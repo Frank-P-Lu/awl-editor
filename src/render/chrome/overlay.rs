@@ -569,8 +569,7 @@ impl TextPipeline {
     /// ITEM 174 — THE ONE PLANNING SEAM for the candidate-row band. Hands the
     /// already-resolved [`OverlayGeom`] (card box + window + header metrics) and
     /// the row pitch to the device-free scene planner, which emits one
-    /// [`PlannedRow`] per candidate DISPLAY LINE plus that band's interaction
-    /// geometry.
+    /// [`PlannedRow`] per candidate display line and its interaction geometry.
     ///
     /// Every downstream consumer — the selected band, the bar plates, the chord
     /// plates, the footer plate, the range rails, the text clip bands, the pointer
@@ -579,10 +578,10 @@ impl TextPipeline {
     /// `prepare_overlay` and threaded down, and freshly (still O(visible)) by the
     /// standalone pointer/report entry points, which have no frame to ride.
     pub(in crate::render) fn overlay_row_plan(&self, geom: &OverlayGeom) -> OverlayRowPlan {
-        let cluster_span = self.diagonal_cluster.map(|cluster| cluster.span());
-        let selected_offset = self
-            .diagonal_cluster
-            .map(|cluster| cluster.selected_offset());
+        let (cluster_span, selected_offset, selected_display) = self.diagonal_cluster.map_or(
+            (None, None, None),
+            crate::render::chrome::diagonal::DiagonalClusterRail::row_plan,
+        );
         plan_overlay_rows(&OverlayRowPlanInput {
             card_x: geom.band_x(),
             card_w: geom.band_w(),
@@ -599,6 +598,7 @@ impl TextPipeline {
             dx_per_row: self.overlay_row_dx_step(),
             cluster_span,
             selected_offset,
+            selected_display,
         })
     }
 

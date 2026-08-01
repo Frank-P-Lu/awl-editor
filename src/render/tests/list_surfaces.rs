@@ -719,7 +719,6 @@ fn spell_popup_floats_bare_on_bars_keeps_the_card_on_pane() {
         // Per-world tokens (read AFTER set_active — never hoist a palette value
         // out of the world loop).
         let base300 = theme::base_300();
-        let backing = t.render_caps.list_style.list_backing(true);
 
         // Frame B: the page + the spell popup over "teh" (cols [0,3)).
         let mut b = view(&doc, 0, 0);
@@ -740,8 +739,8 @@ fn spell_popup_floats_bare_on_bars_keeps_the_card_on_pane() {
         let pb = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
         let base100 = theme::base_100();
 
-        match backing {
-            theme::ListBacking::BarePlates => {
+        match t.render_caps.list_style {
+            theme::ListStyle::Bars { .. } => {
                 assert_eq!(
                     float_n, 0,
                     "{}: a Bars world floats the spell plates BARE — no raised float pane",
@@ -830,7 +829,7 @@ fn spell_popup_floats_bare_on_bars_keeps_the_card_on_pane() {
                     t.name
                 );
             }
-            theme::ListBacking::Card => {
+            theme::ListStyle::Pane => {
                 assert_eq!(
                     float_n, 1,
                     "{}: a Pane world keeps its raised float pane behind the spell popup",
@@ -854,6 +853,30 @@ fn spell_popup_floats_bare_on_bars_keeps_the_card_on_pane() {
                     d_pane <= 20.0,
                     "{}: the spell popup background {bg:?} must read the base_300 PANE fill {base300:?} \
                      (redmean {d_pane:.1}) — the unchanged pre-refit pane, not a Bars ground room",
+                    t.name
+                );
+            }
+            theme::ListStyle::Diagonal(_) => {
+                assert_eq!(
+                    float_n, 0,
+                    "{}: diagonal spell rows have no float pane",
+                    t.name
+                );
+                assert_eq!(
+                    n_plates, 0,
+                    "{}: diagonal selection never falls back to bars",
+                    t.name
+                );
+                assert_eq!(
+                    p.overlay_spine.instance_count(),
+                    1,
+                    "{}: diagonal popup keeps its spine",
+                    t.name
+                );
+                assert_eq!(
+                    p.overlay_spine_selected.instance_count(),
+                    2,
+                    "{}: diagonal popup selects with local spine plus connector",
                     t.name
                 );
             }
