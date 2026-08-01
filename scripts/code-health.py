@@ -31,43 +31,17 @@ BASELINE_REASON = "item 134 initial inventory; remove debt instead of extending 
 HIGH_SIGNAL_LINTS = {"clippy::too_many_lines", "clippy::cognitive_complexity"}
 TARGET_OS = {"Darwin": "macos", "Linux": "linux"}.get(platform.system(), platform.system().lower())
 
-# Item 203: a Rust comment line that cites queue-item/round/sha archaeology —
-# CLAUDE.md's Conventions rule ("Comments state what the code can't say about
-# itself. Not history... Never cite a queue item, round, or sha without
-# verifying it exists"), which item 198 enforced once by hand and nothing
-# enforced again. Deliberately the same shape as the grep that measured the
-# defect (`^\s*(//|///|//!).*\bitem [0-9]+`): a whole-line comment, so a
-# trailing `code(); // item 5` note is out of scope exactly as it was out of
-# scope when 198 and this item's own backlog count were measured — changing
-# that now would silently redefine the number everyone has already agreed on.
+# Only whole-line Rust comments are governed here. Inline comments are a
+# separate syntax and must not silently enter this metric.
 COMMENT_LINE = re.compile(r"^\s*(?:///|//!|//)")
-# No trailing `\b`: a sub-item suffix (`item 116a`, `ROUND 131b`) has a digit
-# directly followed by a letter, so `\d+\b` would demand a word boundary that
-# never exists there and silently under-count exactly these — the measuring
-# grep (`\bitem [0-9]+`, no end anchor) has no such requirement, and this
-# check's own reported backlog must equal that measurement, not a stricter
-# reading of it.
+# No trailing word boundary: indexed suffixes such as `116a` remain citations.
 CITATION_KEYWORD = re.compile(r"\b(?:item|round)\s+\d+", re.IGNORECASE)
-# A backtick-quoted token that is ENTIRELY 7-40 lowercase hex characters is a
-# git-sha citation (`24477b88`, `d93109e`); real shas are lowercase only, so
-# this never fires on an uppercase hex literal. `[0-9a-f]{7,40}` alone still
-# accepts a run of pure digits (`1234567`, a thousands-separator example in
-# hud.rs — a real false positive this check must not trip on), so a match is
-# only treated as a citation once it contains at least one a-f letter.
+# Backticks distinguish commit-like tokens from ordinary hexadecimal values;
+# requiring an a-f digit excludes long decimal examples.
 CITATION_SHA = re.compile(r"`([0-9a-f]{7,40})`")
-# Exception 1: a test module whose filename already carries the queue item it
-# covers (`backgrounds_item158.rs`, `alternate_accept_item116c.rs`) uses the
-# filename as the index — a citation inside is the file doing what its name
-# promises, not archaeology narrating history the type can't express.
+# Index-named test modules may use their filename as a durable test-family key.
 TEST_FILENAME_ITEM_INDEX = re.compile(r"_item\d+[a-z]?\.rs$", re.IGNORECASE)
-# Exception 2: `src/capture.rs`'s SCHEMA_VERSION history table (`/188`,
-# `/189`, ...) is the append-only reservation ledger item 187's
-# `schema_ledger` law reads and re-derives the const from — a live citation
-# of an evolving fact, not narration. (In practice this line shape never
-# contains the word "item"/"round" or a backtick sha, so CITATION_KEYWORD and
-# CITATION_SHA above already leave it alone; named here anyway per the brief,
-# and as a deliberate guard if a future schema row is ever spelled with an
-# "item"/sha reference instead of the `/N` form.)
+# Capture schema rows are a live append-only protocol ledger.
 CAPTURE_SCHEMA_ROW = re.compile(r"^\s*///\s*`/\d+`")
 
 
@@ -83,6 +57,16 @@ def is_comment_citation_line(line: str) -> bool:
 
 def is_index_named_test_file(path: str) -> bool:
     return "/tests/" in path and bool(TEST_FILENAME_ITEM_INDEX.search(Path(path).name))
+
+
+def is_index_named_test_citation(path: str, text: str) -> bool:
+    if not is_index_named_test_file(path) or CITATION_SHA.search(text):
+        return False
+    filename_match = re.search(r"_item(\d+)[a-z]?\.rs$", Path(path).name, re.IGNORECASE)
+    cited = re.findall(r"\bitem\s+(\d+)", text, re.IGNORECASE)
+    return bool(filename_match and cited) and all(
+        number == filename_match.group(1) for number in cited
+    )
 
 
 def is_capture_schema_history_row(path: str, text: str) -> bool:
@@ -192,11 +176,8 @@ def load_file_size_marks(
 def resolve_merge_base(head_ref: str = "HEAD") -> tuple[str | None, str]:
     """The commit this branch actually forked from — `git merge-base
     head_ref main` (or `origin/main`) — and a status naming whether that
-    comparison means anything. Shared by every check that must judge a
-    branch only on what IT changed: `previous_marks` (item 192) and the
-    new-comment-citation ratchet (item 203) both call this instead of each
-    re-deriving the same git plumbing, so the head_is_main/unresolvable
-    semantics stay in exactly one place.
+    comparison means anything. Every branch-delta check shares this resolver
+    so head-is-main and unresolvable semantics stay in one place.
 
     Status is one of:
       "ok"           — `head_ref` differs from the resolved `main`/
@@ -257,8 +238,7 @@ def previous_marks(
     code-health bill by *lowering* a mark on `main` (extraction), and the tip
     moves the instant that lands. A worker whose branch forked before that
     lowering, and never touched the file itself, would then be compared
-    against a baseline it never saw and never raised — exactly item 186's
-    false failure. The merge base is the one point both histories agree the
+    against a baseline it never saw and never raised. The merge base is the one point both histories agree the
     branch actually started from, so a raise measured against it is a raise
     the branch itself made.
 
@@ -270,8 +250,7 @@ def previous_marks(
     Status comes straight from `resolve_merge_base` — see its docstring for
     what "ok"/"unresolvable"/"head_is_main" mean here. The raise audit this
     feeds has real force in exactly one place — a worker's worktree branch,
-    checked before landing, which is also where item 132 would have been
-    caught.
+    checked before landing.
 
     `head_ref` defaults to `HEAD` and is only overridden by a caller proving
     the `head_is_main` behavior without actually checking out `main`.
@@ -317,9 +296,8 @@ def check_mark_raises(
 
 
 def citation_exceptions(path: Path = MANIFEST) -> tuple[set[tuple[str, int, str]], list[str]]:
-    """Named per-line exceptions for a legitimate new comment citation —
-    item 203's third category, alongside the index-named-test-file and
-    `capture.rs`-schema-row shapes that are decided structurally in code:
+    """Named per-line exceptions for a legitimate new comment citation,
+    alongside index-named test files and capture schema rows:
     a measured threshold or product constant whose provenance IS the cited
     fact (e.g. a perf number pinned to the commit that measured it). Same
     staleness shape as `structural_exceptions`: `text` must still match the
@@ -356,8 +334,8 @@ def citation_exceptions(path: Path = MANIFEST) -> tuple[set[tuple[str, int, str]
 def new_comment_citations(head_ref: str = "HEAD") -> tuple[list[tuple[str, int, str]] | None, str]:
     """Comment-citation lines (`is_comment_citation_line`) present now under
     `src/` that were NOT present at `resolve_merge_base(head_ref)` — i.e.
-    genuinely added by this branch, item 192's exact lesson applied to a
-    second metric: compared against the fork point, not `main`'s tip, so a
+    genuinely added by this branch. Comparison uses the fork point rather
+    than `main`'s moving tip, so a
     branch that merely touches a file an unrelated lane already salted with
     archaeology is not blamed for lines it never wrote.
 
@@ -422,7 +400,7 @@ def check_comment_citations(
         return []
     failures: list[str] = []
     for file, line, text in added:
-        if is_index_named_test_file(file):
+        if is_index_named_test_citation(file, text):
             continue
         if is_capture_schema_history_row(file, text):
             continue
@@ -441,11 +419,7 @@ def check_comment_citations(
 
 def comment_citation_backlog(paths: list[str] | None = None) -> dict[str, int]:
     """Existing comment-citation lines under `src/`, counted per top-level
-    module, for standing visibility into the measured backlog item 203
-    deliberately leaves undeleted — establishing the ratchet stops it from
-    growing; draining it is separate work, and a mass deletion here would
-    both bury this item's actual mechanism in the diff and collide with
-    other lanes concurrently editing `src/`.
+    module. The ratchet stops growth; draining the backlog is separate work.
     """
     if paths is None:
         paths = tracked_rust()
@@ -909,12 +883,8 @@ def self_test() -> int:
                 )
         finally:
             globals()["ROOT"] = root
-    # Item 203: is_comment_citation_line's own axis sweep — the one this
-    # check most needs to get right is the FALSE positives, since a comment
-    # rule that also fires on ordinary prose is worse than no rule (every
-    # lane starts inventing workarounds). Each case below is a real shape
-    # sampled from the actual 1247-hit backlog or its near-miss neighbors,
-    # not an imagined one.
+    # False-positive coverage matters as much as citation detection: a noisy
+    # rule invites workarounds instead of better comments.
     citation_cases = [
         ("/// item 42: some archaeology", True),
         ("// ROUND 3: case-insensitive, same as the measuring grep's -i", True),
@@ -939,6 +909,14 @@ def self_test() -> int:
         raise AssertionError("an ordinary test file with no item number must not be index-named")
     if is_index_named_test_file("src/item42.rs"):
         raise AssertionError("a production path outside tests/ must never be exempted by filename alone")
+    if not is_index_named_test_citation(
+        "src/render/tests/backgrounds_item158.rs", "// item 158: indexed test family"
+    ):
+        raise AssertionError("an index-named test may cite its own family")
+    if is_index_named_test_citation(
+        "src/render/tests/backgrounds_item158.rs", "// item 99: unrelated history"
+    ):
+        raise AssertionError("an index-named test must not excuse a different item")
     schema_row = "/// `/188` — permissive replay `replay_skips`."
     if not is_capture_schema_history_row("src/capture.rs", schema_row):
         raise AssertionError("capture.rs's own schema-history row shape must be recognized")
@@ -989,8 +967,7 @@ def self_test() -> int:
         )
     if check_comment_citations(None, set()):
         raise AssertionError("a None added-list (non-ok status) must never fail")
-    # Item 203's own regression fixture, same real-git shape as item 192's
-    # above: fork -> diverge -> assert BOTH directions, because a fix that
+    # The real-git fixture asserts both directions because a fix that
     # stops false-alarming and a fix that stops checking are indistinguishable
     # from outside unless both are tested.
     with tempfile.TemporaryDirectory() as directory:
@@ -1028,8 +1005,7 @@ def self_test() -> int:
 
             # Direction 1: touch existing.rs WITHOUT adding a new citation —
             # must not fail even though the file already carries one. This is
-            # item 192's exact lesson (comparing against the fork point, not
-            # main's tip) applied to this second metric.
+            # Compare against the fork point, not main's moving tip.
             existing.write_text(
                 existing.read_text() + "fn touched() { /* unrelated new code, no citation */ }\n"
             )
