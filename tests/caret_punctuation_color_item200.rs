@@ -1013,41 +1013,44 @@ fn comma_and_roster_in_bowerbird_never_flip_black() {
 }
 
 /// KITE / PAPERBARK — Kite is the literally-reported world for the "shrinks"
-/// symptom, but it does not exist on `main`: it lives on a held branch and
-/// `theme::THEMES` (hence `--list-worlds`, hence every world this binary can
-/// select) does not include it. That is asserted here, not assumed, so this
-/// deferral is a checked fact rather than a guess that could go stale.
+/// symptom, but it does not exist on `main` today: it lives on a held branch
+/// and `theme::THEMES` (hence `--list-worlds`, hence every world this binary
+/// can select) does not include it.
+///
+/// THIS TEST SWITCHES ON BY ROSTER PRESENCE, not by a future edit: `world` is
+/// chosen below from `list_worlds()`'s OWN read of `--list-worlds` — `"Kite"`
+/// the moment it is reachable, the analogue until then. When Kite lands on
+/// `main`, this test starts asserting the real reported repro on Kite itself
+/// with no code change here at all; nothing to remember, nothing to go stale.
 ///
 /// PAPERBARK is the nearest HONEST in-repo analogue for the exact FAILURE
-/// MODE reported as "shrink": measured directly off `src/theme/worlds.rs`,
-/// Paperbark's `primary_content` (`#FFF6E9`) sits only ~2.0 RGB-distance
-/// units from its own `base_100` page ground (`#FFF8E9`) — the closest pair
-/// in the whole roster (next closest: Galah at ~5.1, Saltpan at ~7.5; every
-/// dark world is 15+). Painting a covered glyph in `primary_content` on
-/// Paperbark would have rendered it almost exactly the colour of the empty
-/// page around it — visually reading as the caret's accent-coloured support
-/// body with a nearly-invisible mark inside, i.e. "the caret got tiny." This
-/// is offered as the closest available evidence for the reported mechanism,
-/// not as a claim that Kite itself has been verified; Kite verification
-/// stays a live/held-branch follow-up.
+/// MODE reported as "shrink" in the meantime: measured directly off
+/// `src/theme/worlds.rs`, Paperbark's `primary_content` (`#FFF6E9`) sits only
+/// ~2.0 RGB-distance units from its own `base_100` page ground (`#FFF8E9`) —
+/// the closest pair in the whole roster (next closest: Galah at ~5.1,
+/// Saltpan at ~7.5; every dark world is 15+). Painting a covered glyph in
+/// `primary_content` on Paperbark would have rendered it almost exactly the
+/// colour of the empty page around it — visually reading as the caret's
+/// accent-coloured support body with a nearly-invisible mark inside, i.e.
+/// "the caret got tiny." Offered as the closest available evidence for the
+/// reported mechanism, not as a claim that Kite itself has been verified.
 #[test]
 fn kite_is_unreachable_paperbark_is_the_documented_analogue() {
     let dir = temp("kite-deferred");
     let worlds = list_worlds(&dir);
     assert!(
-        !worlds.iter().any(|w| w == "Kite"),
-        "Kite is reachable from this worktree after all — replace this deferred \
-         analogue with a real Kite repro test"
-    );
-    assert!(
         worlds.iter().any(|w| w == "Paperbark"),
-        "Paperbark (the chosen analogue) must be in the reachable roster"
+        "Paperbark (the deferred-analogue fallback) must be in the reachable roster"
     );
+    let world = if worlds.iter().any(|w| w == "Kite") {
+        "Kite"
+    } else {
+        "Paperbark"
+    };
 
     let doc_dir = temp("kite-deferred-doc");
     let doc = fixture(&doc_dir);
     let blank_doc = fixture_blank(&doc_dir);
-    let world = "Paperbark";
     let mut saw_distinct_ink = false;
     for (dpi, zoom) in [(1.0, 1.0), (2.0, 1.5)] {
         let capture = Capture {
@@ -1057,7 +1060,7 @@ fn kite_is_unreachable_paperbark_is_the_documented_analogue() {
             dpi,
             zoom,
         };
-        let reference = doc_dir.join(format!("paperbark-{dpi}-{zoom}-ref.png"));
+        let reference = doc_dir.join(format!("{world}-{dpi}-{zoom}-ref.png"));
         capture.run(&reference, "block", "Down Down");
         let refimg = rgba(&reference);
         let blank_capture = Capture {
@@ -1067,7 +1070,7 @@ fn kite_is_unreachable_paperbark_is_the_documented_analogue() {
             dpi,
             zoom,
         };
-        let blank_out = doc_dir.join(format!("paperbark-{dpi}-{zoom}-blank.png"));
+        let blank_out = doc_dir.join(format!("{world}-{dpi}-{zoom}-blank.png"));
         blank_capture.run(&blank_out, "block", "Down Down");
         let blankimg = rgba(&blank_out);
         let (top, lh) = band(&reference.with_extension("json"));
@@ -1078,7 +1081,7 @@ fn kite_is_unreachable_paperbark_is_the_documented_analogue() {
             let col = col_of(ch);
             for mode in ["block", "morph"] {
                 let c = if mode == "morph" { col + 1 } else { col };
-                let out = doc_dir.join(format!("paperbark-{dpi}-{zoom}-{ch:?}-{mode}.png"));
+                let out = doc_dir.join(format!("{world}-{dpi}-{zoom}-{ch:?}-{mode}.png"));
                 capture.run(&out, mode, &"Right ".repeat(c));
                 let rendered = rgba(&out);
                 saw_distinct_ink |= assert_roster_cell(
@@ -1098,7 +1101,7 @@ fn kite_is_unreachable_paperbark_is_the_documented_analogue() {
     }
     assert!(
         saw_distinct_ink,
-        "non-vacuity: the Paperbark analogue must exercise the covered-glyph colour path"
+        "non-vacuity: {world} must exercise the covered-glyph colour path somewhere in this sweep"
     );
 }
 
@@ -1251,4 +1254,210 @@ fn mid_glide_frames_never_engage_the_punctuation_colour_swap() {
             );
         }
     }
+}
+
+/// The floored body a thin mark's ink cannot explain on its own — see
+/// `punctuation_caret_body_sits_at_the_authored_floor_not_the_raw_ink`'s doc.
+/// `caret_visual_body_dims`'s W/H floors (6.5, 12.0) engage before its area
+/// floor does (`6.5 * 12.0 = 78 < 96`), so the area floor grows BOTH
+/// dimensions by one scale-invariant ratio, `sqrt(96/78)`.
+fn predicted_floor_body(scale: f32) -> (f32, f32) {
+    let grow = (96.0f32 / (6.5 * 12.0)).sqrt();
+    (6.5 * scale * grow, 12.0 * scale * grow)
+}
+
+/// The tight bbox of pixels in `[x0, x1) x [y0, y1)` that differ from
+/// `blank` at the SAME coordinates — a glyph's own raw ink, with no caret
+/// and no authored floor involved at all.
+fn raw_glyph_bbox(
+    rendered: &(u32, u32, Vec<u8>),
+    blank: &(u32, u32, Vec<u8>),
+    x0: u32,
+    x1: u32,
+    y0: u32,
+    y1: u32,
+) -> Option<(u32, u32)> {
+    let mut minx = x1;
+    let mut maxx = x0;
+    let mut miny = y1;
+    let mut maxy = y0;
+    let mut any = false;
+    for y in y0..y1 {
+        for x in x0..x1 {
+            if dist(px(rendered, x, y), px(blank, x, y)) > 20.0 {
+                minx = minx.min(x);
+                maxx = maxx.max(x);
+                miny = miny.min(y);
+                maxy = maxy.max(y);
+                any = true;
+            }
+        }
+    }
+    any.then_some((maxx - minx + 1, maxy - miny + 1))
+}
+
+/// One (dpi, zoom) cell of `punctuation_caret_body_sits_at_the_authored_floor_not_the_raw_ink`:
+/// captures the reference + blank once, then checks every mark in `marks`
+/// (both Block and Morph). Returns `(floor_engaged, raw_ink_confirmed_tiny)`
+/// so the caller can fold non-vacuity across the whole scale sweep.
+#[allow(clippy::too_many_arguments)]
+fn check_floor_engagement_at_scale(
+    dir: &Path,
+    doc: &Path,
+    blank_doc: &Path,
+    world: &str,
+    dpi: f32,
+    zoom: f32,
+    marks: &[(char, usize)],
+) -> (bool, bool) {
+    let scale = dpi * zoom;
+    let (pred_w, pred_h) = predicted_floor_body(scale);
+    let capture = Capture {
+        sandbox: dir,
+        doc,
+        world,
+        dpi,
+        zoom,
+    };
+    let reference = dir.join(format!("floor-{dpi}-{zoom}-ref.png"));
+    capture.run(&reference, "block", "Down Down");
+    let refimg = rgba(&reference);
+    let blank_capture = Capture {
+        sandbox: dir,
+        doc: blank_doc,
+        world,
+        dpi,
+        zoom,
+    };
+    let blank_out = dir.join(format!("floor-{dpi}-{zoom}-blank.png"));
+    blank_capture.run(&blank_out, "block", "Down Down");
+    let blankimg = rgba(&blank_out);
+    let sidecar: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(reference.with_extension("json")).unwrap())
+            .unwrap();
+    let row = &sidecar["layout"]["rows"][0];
+    let xs: Vec<f64> = row["xs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_f64().unwrap())
+        .collect();
+    let row_top = row["top"].as_f64().unwrap() as u32;
+    let row_h = row["height"].as_f64().unwrap() as u32;
+    let (top, lh) = band(&reference.with_extension("json"));
+    let pad = (20.0 * scale) as u32;
+    let band_top = top.saturating_sub(pad);
+    let band_bottom = top + lh + pad;
+
+    let mut floor_engaged = false;
+    let mut raw_tiny = false;
+    for &(ch, col) in marks {
+        // Raw ink: diff against the blank-row reference within a tight
+        // per-glyph column strip (this glyph's own x to the next one's).
+        let x0 = (xs[col] as u32).saturating_sub(2);
+        let x1 = (xs[col + 1] as u32) + 2;
+        let Some((raw_w, raw_h)) =
+            raw_glyph_bbox(&refimg, &blankimg, x0, x1, row_top, row_top + row_h)
+        else {
+            panic!("{world} {ch:?} scale={scale}: raw ink must be non-empty");
+        };
+        // A mark's own natural ink is genuinely THIN only when it sits
+        // clearly below the floor (asterisk's own points can already
+        // approach or clear a 12.0-unit height, so it does not always
+        // qualify — that is a fact about the glyph, not a test gap).
+        let ink_is_thin = (raw_w as f32) < pred_w * 0.6 && (raw_h as f32) < pred_h * 0.6;
+        raw_tiny |= ink_is_thin;
+
+        for mode in ["block", "morph"] {
+            let c = if mode == "morph" { col + 1 } else { col };
+            let out = dir.join(format!("floor-{dpi}-{zoom}-{ch:?}-{mode}.png"));
+            capture.run(&out, mode, &"Right ".repeat(c));
+            let rendered = rgba(&out);
+            let (_left, outer_top, _right, outer_bottom, _) =
+                footprint(&rendered, &refimg, band_top, band_bottom);
+            let h = (outer_bottom - outer_top + 1) as f32;
+            if ink_is_thin {
+                // A thin mark's floor is a TARGET, not just a minimum: its
+                // own ink cannot explain a height this large, so the
+                // rendered height should sit within a few px of the
+                // PREDICTION on both sides (a 3px band covers AA + the
+                // rounded-corner overhang at every scale measured). Miss
+                // high OR low and the floor formula is not what is driving
+                // this glyph's size.
+                assert!(
+                    (h - pred_h).abs() <= 3.0,
+                    "{world} {mode} {ch:?} scale={scale}: rendered caret body height {h} is not \
+                     within 3px of the predicted floor {pred_h:.1} (6.5x12.0 area-floored, raw \
+                     ink height {raw_h}) — the size floor may not be engaging"
+                );
+                floor_engaged = true;
+            } else {
+                // A mark whose own ink already reaches or exceeds the floor
+                // (asterisk, at some scales) is CORRECTLY drawn at its own
+                // real size, not clamped down to the floor — the floor is a
+                // MINIMUM here, so only the lower bound holds.
+                assert!(
+                    h >= pred_h - 3.0,
+                    "{world} {mode} {ch:?} scale={scale}: rendered caret body height {h} fell \
+                     BELOW the floor {pred_h:.1} even though its own raw ink ({raw_h}) is not \
+                     thin — this is the shrink this item's floor exists to prevent"
+                );
+            }
+        }
+    }
+    (floor_engaged, raw_tiny)
+}
+
+/// THE FLOOR ENGAGES — the item's OTHER sentence ("the caret becomes tiny"),
+/// proven from pixels rather than asserted from the colour fix alone.
+/// `caret_visual_body_dims` (`render/caret_body.rs`) floors a punctuation
+/// mark's body to `CARET_VISUAL_BODY_MIN_W` (6.5) / `_MIN_H` (12.0) /
+/// `_MIN_AREA` (96.0), scaled by `px = metrics.caret_h / CARET_H`, which
+/// `Metrics::with_dpi` sets to exactly `zoom * dpi` (`src/render.rs`) — the
+/// same `scale` this file already threads through every capture. A thin
+/// mark's floored body is therefore predictable in closed form: the W/H
+/// floors engage before the area floor does (`6.5 * 12.0 = 78 < 96`), so the
+/// area floor grows BOTH dimensions by one scale-invariant ratio,
+/// `sqrt(96/78) ≈ 1.109` — `predicted_floor_body` below is exactly that
+/// formula, nothing measured or eyeballed.
+///
+/// The claim: on a real capture, a thin mark's ON-CARET body sits WITHIN A
+/// FEW PIXELS of that prediction (the residual is AA + the rounded-corner
+/// overhang, not drift) — while its own OFF-CARET, no-caret-involved raw ink
+/// is measured (not assumed) to be much smaller, so the floor is shown
+/// PULLING the caret UP from a tiny glyph, not merely coexisting with an
+/// already-large one. Swept over Block AND Morph, and four scale products
+/// spanning 2x-via-DPI, 2x-via-zoom, and a combined product — a floor
+/// expressed in scaled units has more ways to silently not engage (a wrong
+/// axis fed the scale, a clamp order bug, a missing multiply) than to engage
+/// by accident, so covering DPI and zoom SEPARATELY as well as together is
+/// the point, not a formality.
+#[test]
+fn punctuation_caret_body_sits_at_the_authored_floor_not_the_raw_ink() {
+    let dir = temp("floor-proof");
+    let doc = fixture(&dir);
+    let blank_doc = fixture_blank(&dir);
+    let world = "Bombora";
+    // (char, DOC_LINE column) — period is the tightest natural ink of the
+    // three; comma and asterisk are the two literally-reported repro marks.
+    let marks = [(',', col_of(',')), ('.', col_of('.')), ('*', col_of('*'))];
+    let mut floor_engaged_somewhere = false;
+    let mut raw_ink_confirmed_tiny_somewhere = false;
+
+    for (dpi, zoom) in [(1.0, 1.0), (2.0, 1.0), (1.0, 2.0), (2.0, 1.5)] {
+        let (engaged, tiny) =
+            check_floor_engagement_at_scale(&dir, &doc, &blank_doc, world, dpi, zoom, &marks);
+        floor_engaged_somewhere |= engaged;
+        raw_ink_confirmed_tiny_somewhere |= tiny;
+    }
+    assert!(
+        floor_engaged_somewhere,
+        "non-vacuity: no cell in this sweep ever matched the predicted floor height — the \
+         sweep would pass even if the floor prediction itself were checking nothing"
+    );
+    assert!(
+        raw_ink_confirmed_tiny_somewhere,
+        "non-vacuity: no mark's raw off-caret ink was ever confirmed smaller than the floor — \
+         without this, 'the floor pulls the caret up' is not actually shown from pixels"
+    );
 }
