@@ -55,6 +55,13 @@ debug = "line-tables-only"
 [profile.dev.package."*"]
 opt-level = 3
 
+# The native suite is dominated by awl's own test code rather than compilation.
+# Level 1 cuts that runtime substantially without changing dev builds or taking
+# level 2's observed correctness risk. Dependency optimization remains owned by
+# the package override above.
+[profile.test]
+opt-level = 1
+
 # The health gate owns this deliberately small extension to Clippy's defaults.
 # These lints catch real mistakes here without prescribing a style or forcing
 # architecture-scale rewrites of existing dispatch and capture seams.

@@ -22,10 +22,31 @@ linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)
 
 echo "==> native integration canary"
 "${canary_command[@]}"
-echo "==> native suite (mac convention)"
-"${mac_command[@]}"
-echo "==> native suite (linux convention)"
-"${linux_command[@]}"
+
+# The canary fronts dependency and library compilation. Cargo's shared-target
+# lock prevents duplicate remaining compilation when these siblings start; in
+# worker lanes both also inherit the orchestration-owned Cargo cap.
+echo "==> native suites (mac and linux conventions, concurrent)"
+"${mac_command[@]}" &
+mac_pid=$!
+"${linux_command[@]}" &
+linux_pid=$!
+
+# `wait` is allowed to report failure without set -e ending the gate before the
+# sibling has finished. Preserve both statuses; neither convention can hide the
+# other or authorize a receipt on partial coverage.
+set +e
+wait "$mac_pid"
+mac_status=$?
+wait "$linux_pid"
+linux_status=$?
+set -e
+
+if (( mac_status != 0 || linux_status != 0 )); then
+  printf 'native-gate: suite failure mac_status=%s linux_status=%s; no receipt issued\n' \
+    "$mac_status" "$linux_status" >&2
+  exit 1
+fi
 
 end_commit="$(git rev-parse HEAD)"
 if [[ "$start_commit" != "$end_commit" ]]; then

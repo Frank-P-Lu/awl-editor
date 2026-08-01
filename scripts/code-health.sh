@@ -63,6 +63,9 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   fi
 fi
 RUSTC_WRAPPER= python3 scripts/code-health.py
+# A disposable fake Cargo makes both convention failure directions cheap to
+# exercise on every health run; the static audit above pins the command scope.
+scripts/test-native-gate.sh
 # The scan covers every tracked Rust source file, including native/macOS/wasm/
 # feature-gated paths. Never let a target directory's generated output make a
 # dependency look live. awl has no renamed dependency packages, so the

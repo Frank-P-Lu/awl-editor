@@ -572,6 +572,12 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
             "native-gate-audit: receipt must capture HEAD before the suites",
         'end_commit="$(git rev-parse HEAD)"':
             "native-gate-audit: receipt must resolve HEAD after both suites",
+        'wait "$mac_pid"':
+            "native-gate-audit: gate must await the mac convention",
+        'wait "$linux_pid"':
+            "native-gate-audit: gate must await the Linux convention",
+        'if (( mac_status != 0 || linux_status != 0 )); then':
+            "native-gate-audit: either convention failure must suppress the receipt",
         "printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n' \"$end_commit\"":
             "native-gate-audit: receipt must name the exact commit, both conventions, and all-target scope",
     }
@@ -583,9 +589,13 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
     mac = script.find('"${mac_command[@]}"')
     linux = script.find('"${linux_command[@]}"')
     receipt = script.find("native-gate-receipt")
-    if min(canary, mac, linux, receipt) < 0 or not canary < mac < linux < receipt:
+    mac_wait = script.find('wait "$mac_pid"')
+    linux_wait = script.find('wait "$linux_pid"')
+    if min(canary, mac, linux, mac_wait, linux_wait, receipt) < 0 or not (
+        canary < mac < linux < mac_wait < linux_wait < receipt
+    ):
         failures.append(
-            "native-gate-audit: canary, mac suite, Linux suite, and receipt must run in that order"
+            "native-gate-audit: canary must precede both suites, both waits, and the receipt"
         )
     if "if (( $# != 0 )); then" not in script:
         failures.append("native-gate-audit: gate must reject target-selection and test-name arguments")
@@ -1043,8 +1053,19 @@ mac_command=(env AWL_CONVENTION_FORCE=mac cargo test)
 linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)
 start_commit="$(git rev-parse HEAD)"
 "${canary_command[@]}"
-"${mac_command[@]}"
-"${linux_command[@]}"
+"${mac_command[@]}" &
+mac_pid=$!
+"${linux_command[@]}" &
+linux_pid=$!
+set +e
+wait "$mac_pid"
+mac_status=$?
+wait "$linux_pid"
+linux_status=$?
+set -e
+if (( mac_status != 0 || linux_status != 0 )); then
+  exit 1
+fi
 end_commit="$(git rev-parse HEAD)"
 printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n' "$end_commit"
 '''
@@ -1066,6 +1087,10 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
                            "missing named integration-only canary"),
         "stale SHA": (script.replace('end_commit="$(git rev-parse HEAD)"', 'end_commit="$start_commit"'), ci,
                       "receipt must resolve HEAD after both suites"),
+        "dropped mac status": (script.replace("mac_status != 0 || ", ""), ci,
+                               "either convention failure must suppress the receipt"),
+        "unawaited Linux": (script.replace('wait "$linux_pid"', 'true # dropped Linux wait'), ci,
+                            "gate must await the Linux convention"),
         "CI bypass": (script, ci.replace("scripts/native-gate.sh", "cargo test"),
                       "CI linux job must call scripts/native-gate.sh"),
     }
