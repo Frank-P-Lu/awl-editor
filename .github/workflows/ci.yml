@@ -29,7 +29,14 @@ jobs:
     # NOT done here: native-gate.sh's receipt is the sole authorization for
     # "full native suite" and composing it from two split jobs is a contract
     # change this task does not get to make alone (see the item).
-    timeout-minutes: 25
+    # RAISED 25 -> 35 on 2026-08-01 by the first real run after item 196:
+    # mac fell 29.9m -> 19.2m, but linux measured 25.2m and was cancelled by
+    # the 25m ceiling item 196 set from a 20-21m projection. That run was
+    # also the FIRST with the reordered sccache step, so rust-cache had
+    # nothing to restore yet; the next run tests whether linux drops further.
+    # 35 buys headroom while that is observed, rather than leaving main's only
+    # real-Linux coverage unverified on a ceiling the measurement disproved.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
         with:
