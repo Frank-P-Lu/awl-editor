@@ -2456,6 +2456,5 @@ impl crate::actions::LayoutOracle for TextPipeline {
         (line, pick_row_aff(&rows, col, affinity).end_col)
     }
 }
-
 #[cfg(test)]
 mod tests;

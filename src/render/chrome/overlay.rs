@@ -584,11 +584,6 @@ impl TextPipeline {
             .diagonal_cluster
             .map(|cluster| cluster.selected_offset());
         plan_overlay_rows(&OverlayRowPlanInput {
-            // ITEM 114 — the CONTENT BAND, not necessarily the card: a workspace's
-            // rows occupy the pane beside its rail, so the planned slots (and with
-            // them the selected band and `row_at`'s own x bounds) stop at the rail
-            // rather than running under it. Identical to the card for every
-            // contextual overlay.
             card_x: geom.band_x(),
             card_w: geom.band_w(),
             text_top: geom.text_top,

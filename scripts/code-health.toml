@@ -292,12 +292,12 @@ lines = 894
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay.rs"
-lines = 749
+lines = 748
 reason = "The overlay owns the one shared row plan and pointer geometry. Item 131's measured diagonal span and Range rail read remain at that seam alongside the existing workspace dispatch and row-offset inputs."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_draw.rs"
-lines = 514
+lines = 511
 reason = "The one text-upload batch now places diagonal labels and accessories per measured planned row, so their draw positions cannot drift from the plan and hit geometry."
 
 [[file_size_mark]]
@@ -343,7 +343,7 @@ lines = 579
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 545
+lines = 543
 reason = "The one `TextPipeline` initializer spells out workspace state, the diagonal cluster cache, and the warp accumulator beside the state they initialize."
 
 [[file_size_mark]]
@@ -615,7 +615,7 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/overlay_draw.rs"
-line = 204
+line = 201
 message = "this function has too many lines (206/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Item 114 added the workspace rail's own clipped text area (+17). Line/size moved by queue item 114's summoned Settings workspace."
 
@@ -734,7 +734,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/layers.rs"
-line = 950
+line = 948
 message = "this function has too many lines (170/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
@@ -770,7 +770,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 line = 6
-message = "this function has too many lines (483/100)"
+message = "this function has too many lines (485/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer."
 
 [[clippy_exception]]

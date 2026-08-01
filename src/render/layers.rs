@@ -112,8 +112,6 @@ impl TextPipeline {
         };
         let rail_carved = self.lava_rail_carved(height);
         let gutter_rect = self.lava_gutter_carve_rect(height);
-        // ORGANIC FROST SEEDS (the shipped headed-doc default): every visible margin
-        // glyph (the outline entries + the bottom-left gutter's filename/project
         // stack) seeds a small close halo `[x0, x1, yc, r]`; the shader SUMS them
         // into one continuous field and thresholds it, so nearby words/rows merge
         // into organic islands with NO per-row separation and NO zoom breakpoint

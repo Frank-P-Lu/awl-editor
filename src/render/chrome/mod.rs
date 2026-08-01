@@ -1,6 +1,4 @@
-//! Document chrome: search/replace, navigation overlays, gutter, and corner readouts.
-//! Methods remain on [`super::TextPipeline`] because they prepare its shared glyph and
-//! GPU resources. Corner labels share [`TextPipeline::prepare_corner_label`].
+//! Document chrome: overlays, gutter, and corner readouts.
 
 use super::*;
 // ITEM 174 — the scene planner owns the candidate-row geometry every overlay
@@ -288,6 +286,8 @@ pub(in crate::render) use overlay::{
 mod overlay_draw;
 mod overlay_rows;
 mod overlay_selection;
+#[cfg(test)]
+mod overlay_selection_probe;
 mod overlay_shape;
 // ITEM 164 — the ONE visual-selection transaction every selected visual reads.
 mod overlay_visual_sel;

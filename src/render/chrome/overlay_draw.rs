@@ -21,8 +21,6 @@ impl TextPipeline {
         let ink = theme::base_content().to_glyphon();
         let muted = theme::muted().to_glyphon();
         let geom = self.overlay_geometry(width);
-        // ITEM 174 — PLAN THE CANDIDATE BAND ONCE, before anything is shaped,
-        // resolved or emitted; nothing downstream computes a row's y.
         let plan = self.overlay_row_plan(&geom);
         let placard = self.overlay_shape_placard(&geom);
         let stipple = matches!(
@@ -51,9 +49,6 @@ impl TextPipeline {
         let has_rail = self.workspace_shape_rail(&geom, &plan);
         let has_right = self.overlay_shape_text(&geom, &plan, ink, muted, selected_ink, &vis, true);
         self.diagonal_cluster = self.resolve_diagonal_cluster(&geom, &plan);
-        // The final plan reads the cluster's measured extents. Its display rows
-        // are unchanged, so the visual-selection transaction above keeps the
-        // same logical answer while draw and hit geometry gain the same x truth.
         let plan = self.overlay_row_plan(&geom);
         self.overlay_upload_text(
             device, queue, width, height, &geom, &plan, has_right, has_rail, ink, muted, placard,

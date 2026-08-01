@@ -430,6 +430,64 @@ fn an_upright_composition_plans_no_offset_and_keeps_the_cards_own_span() {
 /// This crosses the complete picker roster, the two authored directions, both
 /// supported DPIs, and the narrow/wide widths where clipping and row reach are
 /// most likely to disagree.
+fn assert_diagonal_selection(
+    p: &TextPipeline,
+    plan: &crate::render::chrome::OverlayRowPlan,
+    ctx: &str,
+) {
+    let selected = plan
+        .selected_display()
+        .unwrap_or_else(|| panic!("{ctx}: real nonempty picker needs a selected display row"));
+    let row = plan.rows()[selected];
+    let cluster = p
+        .diagonal_cluster_probe()
+        .unwrap_or_else(|| panic!("{ctx}: diagonal list style must resolve a measured rail"));
+    let base_dx = cluster.span.dx + cluster.span.dx_per_row * selected as f32;
+    let base_dw = cluster.span.dw + cluster.span.dw_per_row * selected as f32;
+    let (outward_dx, outward_dw) = cluster.selected_offset();
+    assert!(
+        (row.dx - (base_dx + outward_dx)).abs() < 0.01
+            && (row.dw - (base_dw + outward_dw)).abs() < 0.01,
+        "{ctx}: selected row must use the same planned outward span as its cluster"
+    );
+    assert!(
+        outward_dx.abs() > 1.0 || outward_dw.abs() > 1.0,
+        "{ctx}: selection must visibly step outward"
+    );
+    let y = row.top + row.height * 0.5;
+    assert_eq!(
+        p.overlay_row_at(cluster.label_left(selected) + 0.5, y),
+        row.item,
+        "{ctx}: stepped selected label and hit test must share geometry"
+    );
+    let (left, right) = plan.card_x_span();
+    assert!(
+        cluster.label_left(selected) >= left + row.dx - 0.01
+            && cluster.accessory_right(selected) <= right + row.dw + 0.01,
+        "{ctx}: selected cluster must stay inside its planned clip span \
+         (cluster={}..{}, span={}..{})",
+        cluster.label_left(selected),
+        cluster.accessory_right(selected),
+        left + row.dx,
+        right + row.dw,
+    );
+    assert_eq!(
+        p.overlay_spine.instance_count(),
+        1,
+        "{ctx}: base spine continuity"
+    );
+    assert_eq!(
+        p.overlay_spine_selected.instance_count(),
+        2,
+        "{ctx}: selected local spine plus connector"
+    );
+    assert_eq!(
+        p.overlay_rows.instance_count(),
+        0,
+        "{ctx}: diagonal selection must not use a full-width bar"
+    );
+}
+
 #[test]
 fn diagonal_selection_steps_one_cluster_outward_without_a_full_width_bar() {
     let _g = crate::testlock::serial();
@@ -461,57 +519,7 @@ fn diagonal_selection_steps_one_cluster_outward_without_a_full_width_bar() {
                     let geom = p.overlay_geometry(width);
                     let plan = p.overlay_row_plan(&geom);
                     if diagonal {
-                        let selected = plan.selected_display().unwrap_or_else(|| {
-                            panic!("{ctx}: real nonempty picker needs a selected display row")
-                        });
-                        let row = plan.rows()[selected];
-                        let cluster = p.diagonal_cluster_probe().unwrap_or_else(|| {
-                            panic!("{ctx}: diagonal list style must resolve a measured rail")
-                        });
-                        let base_dx = cluster.span.dx + cluster.span.dx_per_row * selected as f32;
-                        let base_dw = cluster.span.dw + cluster.span.dw_per_row * selected as f32;
-                        let (outward_dx, outward_dw) = cluster.selected_offset();
-                        assert!(
-                            (row.dx - (base_dx + outward_dx)).abs() < 0.01
-                                && (row.dw - (base_dw + outward_dw)).abs() < 0.01,
-                            "{ctx}: selected row must use the same planned outward span as its cluster"
-                        );
-                        assert!(
-                            outward_dx.abs() > 1.0 || outward_dw.abs() > 1.0,
-                            "{ctx}: selection must visibly step outward"
-                        );
-                        let y = row.top + row.height * 0.5;
-                        assert_eq!(
-                            p.overlay_row_at(cluster.label_left(selected) + 0.5, y),
-                            row.item,
-                            "{ctx}: stepped selected label and hit test must share geometry"
-                        );
-                        let (left, right) = plan.card_x_span();
-                        assert!(
-                            cluster.label_left(selected) >= left + row.dx - 0.01
-                                && cluster.accessory_right(selected) <= right + row.dw + 0.01,
-                            "{ctx}: selected cluster must stay inside its planned clip span \
-                             (cluster={}..{}, span={}..{})",
-                            cluster.label_left(selected),
-                            cluster.accessory_right(selected),
-                            left + row.dx,
-                            right + row.dw,
-                        );
-                        assert_eq!(
-                            p.overlay_spine.instance_count(),
-                            1,
-                            "{ctx}: base spine continuity"
-                        );
-                        assert_eq!(
-                            p.overlay_spine_selected.instance_count(),
-                            2,
-                            "{ctx}: selected local spine plus connector"
-                        );
-                        assert_eq!(
-                            p.overlay_rows.instance_count(),
-                            0,
-                            "{ctx}: diagonal selection must not use a full-width bar"
-                        );
+                        assert_diagonal_selection(&p, &plan, &ctx);
                         diagonal_cases += 1;
                     } else {
                         assert!(

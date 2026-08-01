@@ -131,13 +131,13 @@ pub(in crate::render) struct RowSpan {
 /// emitters, the pointer hit-test, and the sidecar report.
 #[derive(Clone, Debug)]
 pub(in crate::render) struct OverlayRowPlan {
-    card_x: f32,
-    card_w: f32,
-    first_top: f32,
-    lh: f32,
-    rows: Vec<PlannedRow>,
-    empty_rows: usize,
-    selected_display: Option<usize>,
+    pub(super) card_x: f32,
+    pub(super) card_w: f32,
+    pub(super) first_top: f32,
+    pub(super) lh: f32,
+    pub(super) rows: Vec<PlannedRow>,
+    pub(super) empty_rows: usize,
+    pub(super) selected_display: Option<usize>,
 }
 
 /// PLAN WORK WITNESSES, counted by the planner itself so no consumer can dodge
@@ -390,141 +390,5 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
         rows,
         empty_rows: input.empty_rows,
         selected_display,
-    }
-}
-
-impl OverlayRowPlan {
-    /// Every planned candidate display row, ascending. The draw path iterates
-    /// THIS rather than counting rows itself.
-    pub(in crate::render) fn rows(&self) -> &[PlannedRow] {
-        &self.rows
-    }
-
-    /// The planned top of display row `display`, or `None` past the band. The
-    /// only door to a row's y.
-    pub(in crate::render) fn row_top(&self, display: usize) -> Option<f32> {
-        self.rows.get(display).map(|r| r.top)
-    }
-
-    /// The `overlay_items` index drawn at display row `display`, or `None` when
-    /// that line is a section header or past the band.
-    pub(in crate::render) fn item_at(&self, display: usize) -> Option<usize> {
-        self.rows.get(display).and_then(|r| r.item)
-    }
-
-    /// Candidate display lines the card draws (headers included).
-    pub(in crate::render) fn candidate_rows(&self) -> usize {
-        self.rows.len()
-    }
-
-    /// Display lines the card's CONTENT occupies — the candidate band plus the
-    /// empty-state notice, which is where the footer band begins. One owner, so
-    /// the footer plate can no longer sit a row above its own glyphs on a card
-    /// that shows a notice.
-    pub(in crate::render) fn content_rows(&self) -> usize {
-        self.rows.len() + self.empty_rows
-    }
-
-    pub(in crate::render) fn first_top(&self) -> f32 {
-        self.first_top
-    }
-
-    pub(in crate::render) fn lh(&self) -> f32 {
-        self.lh
-    }
-
-    /// The canvas y just past the LAST planned candidate row — the band's own
-    /// bottom edge, equal to the last row's `bottom()` when the card has rows.
-    pub(in crate::render) fn band_bottom(&self) -> f32 {
-        self.first_top + self.rows.len() as f32 * self.lh
-    }
-
-    /// The canvas y the footer band (foot hint + keybinding tips) starts at.
-    pub(in crate::render) fn footer_top(&self) -> f32 {
-        self.first_top + self.content_rows() as f32 * self.lh
-    }
-
-    pub(in crate::render) fn selected_display(&self) -> Option<usize> {
-        self.selected_display
-    }
-
-    /// THE INVERSE — the display line a pointer at canvas `py` falls in,
-    /// ignoring the card's horizontal bounds. `None` above, below, or outside the
-    /// planned band.
-    ///
-    /// It SCANS THE PLANNED SLOTS rather than inverting the forward formula. The
-    /// scan is exact where a division is not: `(py - first_top) / lh` truncated at
-    /// a row's own top edge lands on the row ABOVE whenever `k * lh` is not
-    /// representable (the pure law caught `lh = 12`, `header_gap = 63.55`, row 11 —
-    /// a pointer on row 11's first pixel selecting row 10). Comparing against the
-    /// same `f32` `top` values the band was DRAWN from cannot disagree with the
-    /// draw by construction, which is the whole point of planning the rows. It is
-    /// O(visible) over a band that is at most a couple of dozen rows.
-    pub(in crate::render) fn display_at(&self, py: f32) -> Option<usize> {
-        if self.lh <= 0.0 {
-            return None;
-        }
-        self.rows
-            .iter()
-            .position(|r| py >= r.top && py < r.bottom())
-    }
-
-    /// The display row that OWNS a travelling band centred at `py`.
-    ///
-    /// A settled band is wholly inside one planned slot and [`Self::display_at`]
-    /// answers it directly. A `TwoShape` echo can instead straddle the gap while
-    /// it travels, so its visual centre is assigned to the nearest planned row.
-    /// That is deliberately a planner answer, not a selection-animation guess:
-    /// each emitted shape reads the same row span as text and hit testing.
-    pub(in crate::render) fn display_nearest(&self, py: f32) -> Option<usize> {
-        self.rows
-            .iter()
-            .min_by(|a, b| {
-                let a_distance = (a.top + a.height * 0.5 - py).abs();
-                let b_distance = (b.top + b.height * 0.5 - py).abs();
-                a_distance.total_cmp(&b_distance)
-            })
-            .map(|row| row.display)
-    }
-
-    /// The planned LEFT-edge inset of display row `display` — `0.0` past the
-    /// band, and `0.0` on every row of every shipping world. The one door to a
-    /// row's left x, exactly as [`Self::row_top`] is the one door to its y.
-    pub(in crate::render) fn row_dx(&self, display: usize) -> f32 {
-        self.rows.get(display).map_or(0.0, |r| r.dx)
-    }
-
-    /// The planned RIGHT-edge width delta of display row `display` (item 131a)
-    /// — `0.0` past the band, and `0.0` on every row of every shipping world.
-    /// The row's own right edge is `card_x + card_w + row_dw(display)`; a
-    /// mirrored (Magpie-shape) composition plans this negative, never `dx`.
-    pub(in crate::render) fn row_dw(&self, display: usize) -> f32 {
-        self.rows.get(display).map_or(0.0, |r| r.dw)
-    }
-
-    /// THE INTERACTION GEOMETRY — the `overlay_items` index a pointer at
-    /// `(px, py)` selects, or `None` off the card, above the band, on a section
-    /// header, or below the last planned row. The inverse of the same
-    /// [`PlannedRow`] slots the band is drawn from, so a click cannot land on a
-    /// row other than the one under the pointer.
-    ///
-    /// The x-test is PER ROW, not per card: a row's composition spans its own
-    /// `[card_x + dx, card_x + card_w + dw]` (item 131a generalized this from a
-    /// left-only inset to both edges, for the mirrored composition where the
-    /// RIGHT edge is the one that steps in). With `dx == 0.0 && dw == 0.0` —
-    /// every shipping world — this is the card's own span, verbatim.
-    pub(in crate::render) fn row_at(&self, px: f32, py: f32) -> Option<usize> {
-        let display = self.display_at(py)?;
-        let row = self.rows.get(display)?;
-        if px < self.card_x + row.dx || px > self.card_x + self.card_w + row.dw {
-            return None;
-        }
-        row.item
-    }
-
-    /// The card's own horizontal bounds, as the hit-test reads them.
-    #[cfg(test)]
-    pub(in crate::render) fn card_x_span(&self) -> (f32, f32) {
-        (self.card_x, self.card_x + self.card_w)
     }
 }

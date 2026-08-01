@@ -23,12 +23,8 @@ impl TextPipeline {
         let caret_trail_pipeline = CaretPipeline::new(device, format, theme::primary().rgb_bytes());
         let caret_glyph_pipeline =
             CaretGlyphPipeline::new(device, queue, format, theme::primary().rgb_bytes());
-        // PAGE MODE margin gradient, drawn first (under selection + text). Tinted
-        // from the active world's margin tokens; re-tinted on a live theme switch.
         let background_pipeline = BackgroundPipeline::new(device, format, background_desc());
         let lava_pipeline = crate::lava::LavaPipeline::new(device, format);
-        // One `selection.wgsl` module for the ~25 selection pipelines below —
-        // see `selection::selection_shader`.
         let sel_shader = crate::selection::selection_shader(device);
         let mut page_frame_pipeline = SelectionPipeline::new(
             device,
