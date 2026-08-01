@@ -74,7 +74,7 @@ fn rescan_file_index_picks_up_a_file_created_after_the_last_scan() {
 /// keymap LIVE from the updated in-memory config — proven here by feeding
 /// the SAME `app.config.effective_linux_keep()` a fresh `KeymapState`
 /// would consume (the exact composition `toggle_keymap_flavor` rebuilds
-/// `self.keymap` from) into a `Convention::Linux`-pinned keymap and
+/// `self.input.keyboard.keymap` from) into a `Convention::Linux`-pinned keymap and
 /// confirming it now carries the full emacs preset.
 #[test]
 fn settings_keymap_toggle_flips_persists_and_live_reapplies() {
@@ -108,7 +108,7 @@ fn settings_keymap_toggle_flips_persists_and_live_reapplies() {
     );
 
     // LIVE RE-APPLY: the same composed keep-list the toggle rebuilt
-    // `self.keymap` from now carries the WHOLE emacs preset — build a
+    // `self.input.keyboard.keymap` from now carries the WHOLE emacs preset — build a
     // fresh convention-pinned keymap from exactly that composition (the
     // private `KeymapState.linux_keep` field can't be introspected from
     // here, so this proves the INPUT the live rebuild consumed, which
@@ -1546,12 +1546,13 @@ fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
     // Arm the scrub exactly as a rail press does (the press-time track scale is
     // snapshotted; here it is supplied directly, since the hit-test needs a GPU).
     let (x0, x1) = (100.0f32, 300.0f32);
-    app.range_drag = Some(crate::app::input::RangeDrag {
-        id: crate::settings::SettingId::Zoom,
-        item: zi,
-        x0,
-        x1,
-    });
+    app.input
+        .set_range_drag_for_test(crate::app::input::RangeDrag::for_test(
+            crate::settings::SettingId::Zoom,
+            zi,
+            x0,
+            x1,
+        ));
 
     let config_text = |mem: &InMemoryFs| -> String {
         mem.read_to_string(std::path::Path::new("/cfg/config.toml"))
@@ -1561,7 +1562,7 @@ fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
     let mut applied = Vec::new();
     for i in 0..=40u32 {
         let px = x0 + (x1 - x0) * (i as f32 / 40.0);
-        app.cursor_px = (px, 0.0);
+        app.input.set_resting_pointer_for_test((px, 0.0));
         app.on_range_drag();
         let want = spec.value_at_frac(crate::render::rail_frac_at(px, x0, x1));
         assert_eq!(
@@ -1602,7 +1603,10 @@ fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
         written.contains(&format!("zoom = {}", spec.persist_value(settled))),
         "the persisted value is the settled one: {written:?}"
     );
-    assert!(app.range_drag.is_none(), "the release ends the gesture");
+    assert!(
+        !app.input.range_drag_active(),
+        "the release ends the gesture"
+    );
     assert!(
         app.zoom_persist_at.is_none(),
         "the release supersedes (and cancels) the debounced write the live apply armed"
@@ -1648,12 +1652,13 @@ fn a_paused_mid_drag_persists_nothing_until_the_release() {
     let (ov, zi) = settings_overlay_with_rail(&app);
     app.workspace_state.install_overlay_for_test(ov);
     let (x0, x1) = (100.0f32, 300.0f32);
-    app.range_drag = Some(crate::app::input::RangeDrag {
-        id: crate::settings::SettingId::Zoom,
-        item: zi,
-        x0,
-        x1,
-    });
+    app.input
+        .set_range_drag_for_test(crate::app::input::RangeDrag::for_test(
+            crate::settings::SettingId::Zoom,
+            zi,
+            x0,
+            x1,
+        ));
     let config_text = |mem: &InMemoryFs| -> String {
         mem.read_to_string(std::path::Path::new("/cfg/config.toml"))
             .unwrap_or_default()
@@ -1669,7 +1674,8 @@ fn a_paused_mid_drag_persists_nothing_until_the_release() {
     };
 
     // PRESS + a first move to a low value the user will NOT release on.
-    app.cursor_px = (x0 + (x1 - x0) * 0.15, 0.0);
+    app.input
+        .set_resting_pointer_for_test((x0 + (x1 - x0) * 0.15, 0.0));
     app.on_range_drag();
     let paused = app.zoom;
     assert_ne!(
@@ -1704,7 +1710,7 @@ fn a_paused_mid_drag_persists_nothing_until_the_release() {
             "t={t}ms: the value itself is untouched"
         );
         assert!(
-            app.range_drag.is_some(),
+            app.input.range_drag_active(),
             "t={t}ms: the gesture is still in flight"
         );
         wakes.push((t, sched.scheduled_this_step()));
@@ -1717,7 +1723,8 @@ fn a_paused_mid_drag_persists_nothing_until_the_release() {
     );
 
     // The pause ends: the user drags on to a genuinely different value and releases.
-    app.cursor_px = (x0 + (x1 - x0) * 0.95, 0.0);
+    app.input
+        .set_resting_pointer_for_test((x0 + (x1 - x0) * 0.95, 0.0));
     app.on_range_drag();
     let settled = app.zoom;
     assert_ne!(

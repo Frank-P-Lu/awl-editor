@@ -60,7 +60,10 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   cache).
   `App` is being decomposed into owned state domains (queue item 172): read
   `docs/app-domains.md` — the ownership map — before adding a field to `App` or
-  an `impl App` block in a new module. `app/tests/domains.rs` is the gate: every
+  an `impl App` block in a new module. Its single `InputRuntime` handle contains
+  private `KeyboardInput` and `PointerInput` substates; only `app/input/`
+  projects them, while sibling domains use named transitions and typed snapshots.
+  `app/tests/domains.rs` is the gate: every
   root `App` field is classified to exactly one owner, and the field count is a
   ratchet that may only go down.
 - `daemon.rs` — the SINGLE-INSTANCE DAEMON (native only,

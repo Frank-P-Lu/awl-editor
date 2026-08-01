@@ -6,6 +6,7 @@
 //! (`app::input::click_tests::foo` -> `app::input::tests::foo`, no
 //! external caller named the old path).
 
+use super::*;
 use crate::app::*;
 use crate::render::{Metrics, TEXT_LEFT, TEXT_TOP};
 
@@ -20,7 +21,7 @@ use crate::render::{Metrics, TEXT_LEFT, TEXT_TOP};
 /// resolved a pointer to document column `col`.
 fn press_at_col(app: &mut App, col: usize, shift: bool) {
     let m = Metrics::with_dpi(app.zoom, app.dpi);
-    app.cursor_px = (TEXT_LEFT + col as f32 * m.char_width, TEXT_TOP);
+    app.input.pointer.cursor_px = (TEXT_LEFT + col as f32 * m.char_width, TEXT_TOP);
     app.press_at_char(col, shift);
 }
 
@@ -36,7 +37,7 @@ fn gutter_press_never_moves_or_selects_document_text() {
     let before_cursor = app.active.buffer.cursor_char();
     let before_selection = app.active.buffer.selection_range();
 
-    app.cursor_px = (0.0, TEXT_TOP);
+    app.input.pointer.cursor_px = (0.0, TEXT_TOP);
     app.on_press(false, false);
 
     assert_eq!(
@@ -50,11 +51,11 @@ fn gutter_press_never_moves_or_selects_document_text() {
         "gutter press neither creates nor clears a document selection"
     );
     assert!(
-        !app.dragging,
+        !app.input.pointer.dragging,
         "gutter press cannot arm a text-selection drag"
     );
     assert!(
-        !app.drag_armed,
+        !app.input.pointer.drag_armed,
         "gutter press cannot cross the drag-slop gate later"
     );
 
@@ -138,7 +139,7 @@ fn double_and_triple_click_arms_ignore_shift() {
 }
 
 // === THE PHANTOM-SELECTION-CLICK FIX ================================
-// `App::drag_armed` / `App::exceeds_drag_slop`: a `CursorMoved` while
+// `PointerInput::drag_armed` / `PointerInput::exceeds_drag_slop`: a `CursorMoved` while
 // `dragging` must only extend the selection once the pointer has genuinely
 // traveled past `DRAG_ARM_SLOP_PX` from the press position — never merely
 // because a WYSIWYG reveal reflow (concealed markup regaining its real glyph
@@ -154,7 +155,10 @@ fn exceeds_drag_slop_is_false_for_a_perfectly_stationary_pointer() {
     // what a hit-test at that same position would now resolve to (a reveal
     // reflow changes the hit-test RESULT, never the pointer's own pixel
     // position) — `exceeds_drag_slop` only ever looks at the two positions.
-    assert!(!App::exceeds_drag_slop((100.0, 200.0), (100.0, 200.0)));
+    assert!(!PointerInput::exceeds_drag_slop(
+        (100.0, 200.0),
+        (100.0, 200.0)
+    ));
 }
 
 #[test]
@@ -162,17 +166,32 @@ fn exceeds_drag_slop_is_false_for_sub_slop_jitter() {
     // Real mice/trackpads report tiny (sub-pixel-rounded) motion even while
     // "held still" — e.g. the physical act of pressing the button. Anything
     // strictly under the slop must not arm.
-    assert!(!App::exceeds_drag_slop((100.0, 200.0), (102.0, 200.0)));
-    assert!(!App::exceeds_drag_slop((100.0, 200.0), (100.0, 203.0)));
+    assert!(!PointerInput::exceeds_drag_slop(
+        (100.0, 200.0),
+        (102.0, 200.0)
+    ));
+    assert!(!PointerInput::exceeds_drag_slop(
+        (100.0, 200.0),
+        (100.0, 203.0)
+    ));
     // Right at the threshold (distance == slop, not >) still does not arm —
     // the comparison is strict `>`.
-    assert!(!App::exceeds_drag_slop((0.0, 0.0), (DRAG_ARM_SLOP_PX, 0.0)));
+    assert!(!PointerInput::exceeds_drag_slop(
+        (0.0, 0.0),
+        (DRAG_ARM_SLOP_PX, 0.0)
+    ));
 }
 
 #[test]
 fn exceeds_drag_slop_is_true_past_the_threshold() {
-    assert!(App::exceeds_drag_slop((100.0, 200.0), (105.0, 200.0)));
-    assert!(App::exceeds_drag_slop((100.0, 200.0), (100.0, 205.0)));
+    assert!(PointerInput::exceeds_drag_slop(
+        (100.0, 200.0),
+        (105.0, 200.0)
+    ));
+    assert!(PointerInput::exceeds_drag_slop(
+        (100.0, 200.0),
+        (100.0, 205.0)
+    ));
 }
 
 #[test]
@@ -185,21 +204,68 @@ fn exceeds_drag_slop_combines_both_axes_diagonally() {
         (dx * dx + dy * dy).sqrt() > DRAG_ARM_SLOP_PX,
         "test fixture sanity"
     );
-    assert!(App::exceeds_drag_slop((0.0, 0.0), (dx, dy)));
+    assert!(PointerInput::exceeds_drag_slop((0.0, 0.0), (dx, dy)));
+}
+
+#[test]
+fn release_resets_drag_arm_and_next_press_snapshots_a_fresh_baseline() {
+    let mut pointer = PointerInput {
+        pointer_hide: crate::pointer_hide::PointerHide::Visible,
+        cursor_px: (10.0, 20.0),
+        dragging: false,
+        drag_press_px: (0.0, 0.0),
+        drag_armed: false,
+        page_resizing: false,
+        page_resize_edge: None,
+        page_resize_anchor: None,
+        image_resizing: None,
+        range_drag: None,
+        cursor_icon: winit::window::CursorIcon::Default,
+        drag_granularity: DragGranularity::Char,
+        last_click_time: None,
+        last_click_px: (0.0, 0.0),
+        click_count: 0,
+        scroll_px_accum: 0.0,
+        scroll_sensitivity: 1.0,
+    };
+
+    pointer.begin_text_drag();
+    assert_eq!(pointer.drag_press_px, (10.0, 20.0));
+    pointer.cursor_px = (20.0, 20.0);
+    assert!(
+        pointer.arm_text_drag_if_moved(),
+        "first gesture crosses slop"
+    );
+
+    pointer.finish_text_drag();
+    assert!(!pointer.dragging, "release ends the gesture");
+    assert!(!pointer.drag_armed, "release retires the sticky drag arm");
+
+    pointer.cursor_px = (80.0, 90.0);
+    pointer.begin_text_drag();
+    assert_eq!(
+        pointer.drag_press_px,
+        (80.0, 90.0),
+        "the next press snapshots its own position, never the old baseline"
+    );
+    assert!(pointer.dragging);
+    assert!(!pointer.drag_armed, "every press starts below drag slop");
 }
 
 /// Move a hermetic pointer through the drag-arm state seam, then supply the
 /// document endpoint that production obtains from the live pipeline.
 fn move_by(app: &mut App, dx: f32, dy: f32) {
-    let (x, y) = app.cursor_px;
+    let (x, y) = app.input.pointer.cursor_px;
     app.on_cursor_moved(winit::dpi::PhysicalPosition::new(
         (x + dx) as f64,
         (y + dy) as f64,
     ));
-    if app.drag_armed {
+    if app.input.pointer.drag_armed {
         let m = Metrics::with_dpi(app.zoom, app.dpi);
-        let line = ((app.cursor_px.1 - TEXT_TOP).max(0.0) / m.line_height).floor() as usize;
-        let col = ((app.cursor_px.0 - TEXT_LEFT).max(0.0) / m.char_width).round() as usize;
+        let line =
+            ((app.input.pointer.cursor_px.1 - TEXT_TOP).max(0.0) / m.line_height).floor() as usize;
+        let col =
+            ((app.input.pointer.cursor_px.0 - TEXT_LEFT).max(0.0) / m.char_width).round() as usize;
         app.drag_to_char(app.active.buffer.hit_char(line, col));
     }
 }
@@ -239,7 +305,7 @@ fn sub_slop_jitter_does_not_arm_a_selection_even_across_a_column_boundary() {
     let m = Metrics::with_dpi(app.zoom, app.dpi);
     // Half a cell short of column 6's boundary: rounds to column 6 today,
     // but a nudge of less than half a cell tips it to column 7.
-    app.cursor_px = (TEXT_LEFT + 6.0 * m.char_width - 0.5, TEXT_TOP);
+    app.input.pointer.cursor_px = (TEXT_LEFT + 6.0 * m.char_width - 0.5, TEXT_TOP);
     app.press_at_char(6, false);
     let pressed_at = app.active.buffer.cursor_char();
     assert!(
@@ -319,7 +385,7 @@ fn a_drag_past_the_pages_left_edge_clamps_to_the_rows_first_column() {
     // Drag the pointer far LEFT of the writing column's own origin — well past
     // the page's left edge, deep in the margin — but keep it on the SAME row.
     let m = Metrics::with_dpi(app.zoom, app.dpi);
-    let (x, y) = app.cursor_px;
+    let (x, y) = app.input.pointer.cursor_px;
     move_by(
         &mut app,
         TEXT_LEFT - 500.0 - x,
@@ -341,7 +407,7 @@ fn a_drag_past_the_pages_left_edge_clamps_to_the_rows_first_column() {
 
     // Dragging even FURTHER left changes nothing further — the clamp is
     // idempotent, not a crash-prone unbounded extrapolation.
-    let (x, y) = app.cursor_px;
+    let (x, y) = app.input.pointer.cursor_px;
     move_by(
         &mut app,
         TEXT_LEFT - 100_000.0 - x,
@@ -362,8 +428,13 @@ fn release_disarms_so_the_next_press_is_slop_gated_again() {
     let m = Metrics::with_dpi(app.zoom, app.dpi);
     move_by(&mut app, 6.0 * m.char_width, 0.0);
     assert!(app.active.buffer.has_selection());
-    app.dragging = false;
-    app.drag_armed = false; // mirrors `on_mouse_input`'s Released arm
+    // This is the one release transition, not a mirror of its statements:
+    // removing `finish_text_drag`'s armed reset makes this law fail by name.
+    app.input.finish_text_drag();
+    assert!(
+        !app.input.pointer.dragging && !app.input.pointer.drag_armed,
+        "release retires both the active drag and its slop latch"
+    );
     press_at_col(&mut app, 3, false);
     assert!(
         !app.active.buffer.has_selection(),
@@ -386,7 +457,7 @@ const FOLD_DOC: &str = "# A\na1\na2\n# B\nb1";
 /// resolved the row and column.
 fn press_at_row_col(app: &mut App, row: usize, col: usize, shift: bool) {
     let m = Metrics::with_dpi(app.zoom, app.dpi);
-    app.cursor_px = (
+    app.input.pointer.cursor_px = (
         TEXT_LEFT + col as f32 * m.char_width,
         TEXT_TOP + (row as f32 + 0.5) * m.line_height,
     );
@@ -518,7 +589,10 @@ fn a_drag_across_a_collapsed_section_reveals_every_fold_it_crosses() {
     // on_press -> on_cursor_moved(drag) seam.
     let mut app = folded_app();
     press_at_row_col(&mut app, 0, 0, false); // caret on # A, drag armed on next travel
-    assert!(app.dragging, "a press on the heading text arms a text drag");
+    assert!(
+        app.input.pointer.dragging,
+        "a press on the heading text arms a text drag"
+    );
     assert!(
         app.active.buffer.folds().contains(&0),
         "the press alone does not reveal"
@@ -591,7 +665,7 @@ fn wheel_scroll_from_cold_start_does_not_expose_selection_to_the_next_hover_chec
     app.workspace_state.install_overlay_for_test(ov);
     // The pointer is resting somewhere (its OS position is always something;
     // it just hasn't generated a hover check on this overlay yet).
-    app.cursor_px = (123.0, 45.0);
+    app.input.pointer.cursor_px = (123.0, 45.0);
 
     // A wheel scroll deep enough to move the window (Goto's `window_rows` is
     // 12; 22 notches lands `selected` at 22, well past the first page).
@@ -611,7 +685,8 @@ fn wheel_scroll_from_cold_start_does_not_expose_selection_to_the_next_hover_chec
     // post-scroll visible band ([11, 23) for Goto's window), so a steal here
     // can only come from the missing cold-start stamp, never from
     // `hover_select`'s own separate visible-band rejection.
-    let stolen = ov.hover_at(app.cursor_px.0, app.cursor_px.1, Some(15));
+    let (px, py) = app.input.resting_pointer().px();
+    let stolen = ov.hover_at(px, py, Some(15));
     assert!(
         !stolen,
         "a stationary pointer re-check after a wheel scroll must not steal the selection"

@@ -32,8 +32,8 @@ pub(crate) enum Domain {
     ConfigurationRuntime,
     /// The active document slot, the registry, the checker.
     DocumentSession,
-    /// Raw keyboard/pointer/gesture state.
-    InputState,
+    /// Raw keyboard/pointer/gesture state (`app::input::InputRuntime`).
+    InputRuntime,
     /// "Where am I working": root, project, indexes, MRUs.
     ProjectLocation,
     /// GPU handles, zoom, theme retint, caret feedback, debug frame stats.
@@ -58,36 +58,6 @@ pub(crate) enum Extraction {
 
 /// Root-`App` fields still owned by [`Domain::DocumentSession`].
 const DOCUMENT_SESSION: &[&str] = &["active", "buffer_registry", "prev_file", "spell"];
-/// Root-`App` fields still owned by [`Domain::InputState`].
-const INPUT_STATE: &[&str] = &[
-    "keymap",
-    "mods",
-    "prefix_pending_at",
-    "whichkey_shown",
-    "hud_key",
-    "hud_mods",
-    "peek_arm",
-    "peek_armed_at",
-    "pointer_hide",
-    "cursor_px",
-    "dragging",
-    "drag_press_px",
-    "drag_armed",
-    "page_resizing",
-    "page_resize_edge",
-    "page_resize_anchor",
-    "image_resizing",
-    "range_drag",
-    "cursor_icon",
-    "drag_granularity",
-    "last_click_time",
-    "last_click_px",
-    "click_count",
-    "scroll_px_accum",
-    "preedit",
-    "ime_enabled",
-    "scroll_sensitivity",
-];
 /// Root-`App` fields still owned by [`Domain::RenderRuntime`].
 const RENDER_RUNTIME: &[&str] = &[
     "gpu",
@@ -166,7 +136,7 @@ impl Domain {
         Domain::PersistenceRuntime,
         Domain::ConfigurationRuntime,
         Domain::DocumentSession,
-        Domain::InputState,
+        Domain::InputRuntime,
         Domain::ProjectLocation,
         Domain::RenderRuntime,
         Domain::FrameScheduler,
@@ -186,8 +156,8 @@ impl Domain {
             Domain::PersistenceRuntime => Some("persistence"),
             Domain::ConfigurationRuntime => Some("config"),
             Domain::ProjectLocation => Some("project_location"),
+            Domain::InputRuntime => Some("input"),
             Domain::DocumentSession
-            | Domain::InputState
             | Domain::RenderRuntime
             | Domain::FrameScheduler
             | Domain::HostLifecycle => None,
@@ -217,7 +187,7 @@ impl Domain {
 
             // ── MAPPED, STILL ON ROOT `App` ──────────────────────────────
             Domain::DocumentSession => (Extraction::OnRootApp, DOCUMENT_SESSION),
-            Domain::InputState => (Extraction::OnRootApp, INPUT_STATE),
+            Domain::InputRuntime => (Extraction::Extracted, &[]),
             Domain::RenderRuntime => (Extraction::OnRootApp, RENDER_RUNTIME),
             Domain::FrameScheduler => (Extraction::OnRootApp, FRAME_SCHEDULER),
             Domain::HostLifecycle => (Extraction::OnRootApp, HOST_LIFECYCLE),
@@ -431,6 +401,35 @@ fn retired_field_names(domain: Domain) -> &'static [&'static str] {
             "title_dirty",
         ],
         Domain::ConfigurationRuntime => &["default_folder", "cli_workspace", "cli_default_folder"],
+        Domain::InputRuntime => &[
+            "keymap",
+            "mods",
+            "prefix_pending_at",
+            "whichkey_shown",
+            "hud_key",
+            "hud_mods",
+            "peek_arm",
+            "peek_armed_at",
+            "pointer_hide",
+            "cursor_px",
+            "dragging",
+            "drag_press_px",
+            "drag_armed",
+            "page_resizing",
+            "page_resize_edge",
+            "page_resize_anchor",
+            "image_resizing",
+            "range_drag",
+            "cursor_icon",
+            "drag_granularity",
+            "last_click_time",
+            "last_click_px",
+            "click_count",
+            "scroll_px_accum",
+            "preedit",
+            "ime_enabled",
+            "scroll_sensitivity",
+        ],
         Domain::ProjectLocation => &[
             "root",
             "project",
@@ -440,7 +439,6 @@ fn retired_field_names(domain: Domain) -> &'static [&'static str] {
             "recent_files",
         ],
         Domain::DocumentSession
-        | Domain::InputState
         | Domain::RenderRuntime
         | Domain::FrameScheduler
         | Domain::HostLifecycle => &[],
@@ -469,8 +467,9 @@ fn root_app_does_not_grow() {
     // every build). 101 + 1 = 102. ConfigurationRuntime then replaces
     // `default_folder` + both CLI location inputs with its existing `config`
     // handle (-3), while ProjectLocation replaces six loose fields with one
-    // handle (-5): 102 - 3 - 5 = 94.
-    const CEILING: usize = 94;
+    // handle (-5): 102 - 3 - 5 = 94. InputRuntime then replaces 27 loose
+    // fields with its one handle: 94 - 27 + 1 = 68.
+    const CEILING: usize = 68;
     let fields = root_app_fields();
     assert_eq!(
         fields.len(),
@@ -483,6 +482,215 @@ fn root_app_does_not_grow() {
     );
 }
 
+/// Input is an explicit owner handle. `Deref` would make `self.keymap` look
+/// like an App field again and silently restore the cross-domain reach this
+/// slice removed.
+#[test]
+fn app_does_not_deref_to_an_input_runtime() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/app");
+    let mut source =
+        std::fs::read_to_string(root.join("../app.rs")).expect("src/app.rs must be readable");
+    for path in rust_files_beneath(&root) {
+        source.push_str(&std::fs::read_to_string(path).expect("app source must be readable"));
+    }
+    let deref = ["De", "ref for App"].concat();
+    let deref_mut = ["De", "refMut for App"].concat();
+    let input_deref = ["De", "ref for InputRuntime"].concat();
+    let input_deref_mut = ["De", "refMut for InputRuntime"].concat();
+    assert!(
+        !source.contains(&deref)
+            && !source.contains(&deref_mut)
+            && !source.contains(&input_deref)
+            && !source.contains(&input_deref_mut),
+        "App/InputRuntime must not Deref/DerefMut across the input boundary; spell the owner explicitly"
+    );
+}
+
+#[derive(Clone, Copy)]
+enum InputConsumer {
+    Apply,
+    Document,
+    Open,
+    RangeSettings,
+    Rebind,
+    Settings,
+    ContextMenu,
+    Drags,
+    Keys,
+    Mouse,
+    Press,
+    Probe,
+    Schedule,
+    Viewstate,
+    Window,
+}
+
+impl InputConsumer {
+    const ROSTER: &'static [Self] = &[
+        Self::Apply,
+        Self::Document,
+        Self::Open,
+        Self::RangeSettings,
+        Self::Rebind,
+        Self::Settings,
+        Self::ContextMenu,
+        Self::Drags,
+        Self::Keys,
+        Self::Mouse,
+        Self::Press,
+        Self::Probe,
+        Self::Schedule,
+        Self::Viewstate,
+        Self::Window,
+    ];
+
+    /// Production consumers of `App::input`. No wildcard arm: a new roster
+    /// member cannot join without choosing whether it is inside the owner.
+    fn path_and_reach(self) -> (&'static str, bool) {
+        match self {
+            Self::Apply => ("src/app/apply.rs", false),
+            Self::Document => ("src/app/files/document.rs", false),
+            Self::Open => ("src/app/files/open.rs", false),
+            Self::RangeSettings => ("src/app/files/range_settings.rs", false),
+            Self::Rebind => ("src/app/files/rebind.rs", false),
+            Self::Settings => ("src/app/files/settings.rs", false),
+            Self::ContextMenu => ("src/app/input/context_menu.rs", true),
+            Self::Drags => ("src/app/input/drags.rs", true),
+            Self::Keys => ("src/app/input/keys.rs", true),
+            Self::Mouse => ("src/app/input/mouse.rs", true),
+            Self::Press => ("src/app/press.rs", false),
+            Self::Probe => ("src/app/probe.rs", false),
+            Self::Schedule => ("src/app/schedule.rs", false),
+            Self::Viewstate => ("src/app/viewstate.rs", false),
+            Self::Window => ("src/app/window.rs", false),
+        }
+    }
+}
+
+/// KeyboardInput and PointerInput are the only raw state projections. Every
+/// sibling consumer must use an InputRuntime observation or transition.
+#[test]
+fn input_substates_are_private_and_every_consumer_is_swept() {
+    let repo = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let input = std::fs::read_to_string(repo.join("src/app/input/mod.rs"))
+        .expect("input owner source must be readable");
+    assert_eq!(
+        struct_fields(&input, "InputRuntime"),
+        ["keyboard", "pointer"],
+        "InputRuntime must contain exactly the two coherent substates"
+    );
+    assert_eq!(
+        struct_fields(&input, "KeyboardInput"),
+        [
+            "keymap",
+            "mods",
+            "prefix_pending_at",
+            "whichkey_shown",
+            "hud_key",
+            "hud_mods",
+            "peek_arm",
+            "peek_armed_at",
+            "preedit",
+            "ime_enabled",
+        ],
+        "keyboard state roster drifted"
+    );
+    assert_eq!(
+        struct_fields(&input, "PointerInput"),
+        [
+            "pointer_hide",
+            "cursor_px",
+            "dragging",
+            "drag_press_px",
+            "drag_armed",
+            "page_resizing",
+            "page_resize_edge",
+            "page_resize_anchor",
+            "image_resizing",
+            "range_drag",
+            "cursor_icon",
+            "drag_granularity",
+            "last_click_time",
+            "last_click_px",
+            "click_count",
+            "scroll_px_accum",
+            "scroll_sensitivity",
+        ],
+        "pointer state roster drifted"
+    );
+
+    let mut roster_paths = std::collections::BTreeSet::new();
+    for consumer in InputConsumer::ROSTER {
+        let (relative, inside_owner) = consumer.path_and_reach();
+        roster_paths.insert(relative.to_string());
+        let source = std::fs::read_to_string(repo.join(relative))
+            .unwrap_or_else(|e| panic!("{relative} must be readable: {e}"));
+        assert!(
+            source.contains("self.input."),
+            "{relative} is a vacuous consumer"
+        );
+        let has_raw_reach =
+            source.contains("self.input.keyboard") || source.contains("self.input.pointer");
+        assert_eq!(
+            has_raw_reach, inside_owner,
+            "{relative} has the wrong InputRuntime reach; only app/input children may project a substate"
+        );
+    }
+
+    let mut discovered = std::collections::BTreeSet::new();
+    for path in rust_files_beneath(&repo.join("src/app")) {
+        let relative = path
+            .strip_prefix(&repo)
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
+        if relative.contains("/tests/") || relative.ends_with("/input/tests.rs") {
+            continue;
+        }
+        let source = std::fs::read_to_string(&path).expect("app source must be readable");
+        if source.contains("self.input.") {
+            discovered.insert(relative);
+        }
+    }
+    assert_eq!(
+        discovered, roster_paths,
+        "the no-wildcard input-consumer roster must cover every production consumer"
+    );
+}
+
+fn rust_files_beneath(root: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut out = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        for entry in std::fs::read_dir(dir).expect("app source directory must be readable") {
+            let path = entry.expect("source entry must be readable").path();
+            if path.is_dir() {
+                pending.push(path);
+            } else if path.extension().is_some_and(|ext| ext == "rs") {
+                out.push(path);
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
+fn struct_fields<'a>(source: &'a str, name: &str) -> Vec<&'a str> {
+    let marker = format!("struct {name} {{");
+    let start = source
+        .find(&marker)
+        .unwrap_or_else(|| panic!("missing {marker}"));
+    let body = &source[start + marker.len()..];
+    let end = body
+        .find('\n')
+        .and_then(|_| body.find('}'))
+        .expect("struct body");
+    body[..end]
+        .lines()
+        .filter_map(|line| line.trim().split_once(':').map(|(field, _)| field.trim()))
+        .collect()
+}
+
 /// Sanity: the parser reads the real struct, not an empty list. A silently
 /// empty parse would make all three gates above vacuously green — the
 /// classic way a structural law stops guarding anything.
@@ -490,7 +698,7 @@ fn root_app_does_not_grow() {
 fn the_root_app_field_parser_is_not_vacuous() {
     let fields = root_app_fields();
     assert!(
-        fields.len() > 80,
+        fields.len() > 60,
         "parsed only {} field(s) out of src/app.rs — the parser lost the struct \
          body and every gate in this file just went vacuous: {fields:?}",
         fields.len()
@@ -498,7 +706,7 @@ fn the_root_app_field_parser_is_not_vacuous() {
     // Spot-check three fields of very different declaration shapes: a plain
     // one, a `#[cfg]`-gated one, and one whose type carries a generic
     // parameter list (the bracket-depth tracking).
-    for expect in ["keymap", "wait_conns", "buffer_registry"] {
+    for expect in ["input", "wait_conns", "buffer_registry"] {
         assert!(
             fields.iter().any(|f| f == expect),
             "the parser missed `{expect}`, so its declaration shape is not covered: {fields:?}"

@@ -53,7 +53,7 @@ Names follow queue item 172, with two corrections the census forced (see
 | `WorkspaceState` (summoned UI) | 3 | 99 | 14 | extracted — slice 1 |
 | `PersistenceRuntime` (save feedback) | 5 | 23 | 6 | extracted — slice 2 |
 | `DocumentSession` | 4 | 363 | 21 | mapped |
-| `InputState` | 27 | 164 | 13 | mapped |
+| `InputRuntime` | 27 | 164 | 13 | extracted — slice 4 |
 | `ConfigurationRuntime` | 4 | 87 | 16 | extracted — slice 3 |
 | `ProjectLocation` | 6 | 51 | 9 | extracted — slice 3 |
 | `RenderRuntime` | 25 | 277 | 23 | mapped — held by item 174 |
@@ -142,7 +142,7 @@ design avoids). A future slice should narrow `extra` field-by-field rather than
 wrap `active`; `prev_file` (the last-buffer toggle target) has two writers and
 belongs with the registry.
 
-### `InputState`
+### `InputRuntime`
 
 `keymap` · `mods` · `prefix_pending_at` · `whichkey_shown` · `hud_key` ·
 `hud_mods` · `peek_arm` · `peek_armed_at` · `pointer_hide` · `cursor_px` ·
@@ -152,15 +152,22 @@ belongs with the registry.
 `click_count` · `scroll_px_accum` · `preedit` · `ime_enabled` ·
 `scroll_sensitivity`
 
-The largest domain by field count (27) and the **lowest-value** to extract:
-locality is already near-perfect. 14 of the 27 are touched by exactly one file
-(8 only by `app/input/mouse.rs`, 4 only by `keys.rs`, 2 only by `drags.rs`), and
-`app/input/` accounts for 135 of the 164 production references. Extracting this
-buys a struct rename, not an owned invariant. The one genuine cross-domain leak
-is `cursor_px`, read by `apply.rs`
-(`sync_overlay_after_core` re-arms the overlay's hover baseline from the
-pointer's resting position) — a two-site coupling, better fixed by passing the
-position than by moving 27 fields.
+The largest domain by field count (27), but locality is near-perfect: 14 of the
+27 are touched by exactly one file and `app/input/` accounts for 135 of the 164
+production references. One `InputRuntime` handle owns two private coherent
+substates. `KeyboardInput` owns key resolution, modifiers, prefix/which-key,
+HUD/peek, and IME composition. `PointerInput` owns visibility and cursor shape,
+press→drag→release state, resize gestures, click cadence, and wheel sensitivity
+and accumulation. Only `app/input/` children may project those substates;
+scheduler, settings, view, headless-press, and window-lifecycle consumers use
+named observations or transitions on `InputRuntime`.
+
+The only genuine cross-domain leak was `cursor_px`, formerly read by `apply.rs`;
+`sync_overlay_after_core` now accepts a typed `RestingPointer` value snapshot,
+so overlay resync cannot retain or mutate the live pointer state. Text-drag
+release and the next press baseline are likewise one pointer transition: release
+retires both `dragging` and the sticky slop arm, and a new press snapshots its
+own position before it can arm.
 
 ### `ConfigurationRuntime` — persisted settings and startup policy
 
@@ -263,9 +270,9 @@ nothing from a wrapper. Configuration is no longer host lifecycle state:
    invariant* is. `app/input/mouse.rs` reaches 40 fields and is fine, because 14
    of them are its own and the rest are read once. `overlay` is reached by 13
    files and is not fine, because five of them re-derive the same precedence
-   rule. Extracting the 27-field `InputState` would satisfy the item's letter
-   and buy nothing; extracting the 3-field `WorkspaceState` retires five copies
-   of a rule.
+   rule. The initial map correctly prioritized `WorkspaceState`; the later
+   `InputRuntime` extraction is deliberately a locality-preserving handle plus
+   the typed pointer snapshot, not a second interaction system.
 3. **`RenderRuntime` is mostly not a render domain.** `gpu`'s 146 references
    are dominated by "request a redraw", which belongs to scheduling. A
    `RenderRuntime` extraction that moved `gpu` without first separating the

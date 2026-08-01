@@ -152,11 +152,11 @@ impl App {
             scroll: scroll::resolved_scroll(diff_scroll, self.active.extra.scroll),
             zoom: self.zoom,
             selection: self.active.buffer.selection_line_col(),
-            preedit: self.preedit.clone(),
+            preedit: self.input.preedit().to_owned(),
             misspelled,
             is_edit_move,
             held,
-            selecting_drag: self.dragging,
+            selecting_drag: self.input.selecting_drag(),
             search_matches,
             search_current,
             search_query,
@@ -316,7 +316,7 @@ impl App {
                 pipeline.visual_row_of_aff(cursor_line, cursor_col, self.active.buffer.affinity());
             self.active.extra.scroll = match crate::view_policy::follow_scroll_strategy(
                 crate::typewriter::typewriter_on(),
-                self.dragging,
+                self.input.selecting_drag(),
             ) {
                 crate::view_policy::FollowScroll::ShowRow => {
                     pipeline.scroll_to_show_row_pos(cursor_row, self.active.extra.scroll, height)

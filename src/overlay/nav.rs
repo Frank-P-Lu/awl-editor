@@ -298,7 +298,7 @@ impl OverlayState {
     /// SAME original anchor (so a genuinely slow drag still crosses the slop and
     /// fires the moment its TOTAL travel does, never hiding indefinitely below
     /// the noise floor by re-basing itself every micro-step — the same "fixed
-    /// until armed" shape `App::exceeds_drag_slop`'s own `press` anchor uses).
+    /// until armed" shape `PointerInput::exceeds_drag_slop`'s own press anchor uses).
     ///
     /// `hit` is the row the CALLER already resolved under `(px, py)` (a plain
     /// injected value, not a pipeline call — keeps this pure/unit-testable).

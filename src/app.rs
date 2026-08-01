@@ -167,12 +167,12 @@ use winit::keyboard::{Key, ModifiersState};
 // logical key (see the cfg-split helper near the bottom of this file).
 #[cfg(not(target_arch = "wasm32"))]
 use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
-use winit::window::{CursorIcon, Window};
+use winit::window::Window;
 
 use crate::actions;
 use crate::buffer::Buffer;
 use crate::config::Config;
-use crate::keymap::{Action, KeymapState};
+use crate::keymap::Action;
 use crate::render::{self, TextPipeline, ViewState};
 
 const MULTICLICK_MS: u64 = 400;
@@ -185,7 +185,7 @@ const WHEEL_PIXELS_PER_LINE: f32 = 16.0;
 /// reflow under a stationary pointer) and must not move the cursor away from the
 /// press's own hit-test result. Matches the multi-click "same spot" tolerance
 /// (`bump_click_count`'s own `4.0`) — both answer "did the pointer really move",
-/// just for two different gestures. See `App::exceeds_drag_slop` (`app/input/mouse.rs`).
+/// just for two different gestures. See `PointerInput::exceeds_drag_slop`.
 ///
 /// `pub(crate)` so `overlay::nav::HOVER_MOVE_SLOP_PX` (item 106) can read this
 /// SAME constant rather than declaring its own copy of the number — the two
@@ -195,13 +195,6 @@ const WHEEL_PIXELS_PER_LINE: f32 = 16.0;
 /// not grow two independently-tuned pointer-jitter constants that could drift
 /// apart under a future retune of either.
 pub(crate) const DRAG_ARM_SLOP_PX: f32 = 4.0;
-
-#[derive(Clone, Copy, PartialEq)]
-enum DragGranularity {
-    Char,
-    Word,
-    Line,
-}
 
 #[derive(Clone, Copy)]
 enum CaretImpact {
@@ -436,10 +429,10 @@ pub struct App {
     /// per-buffer half of saving stays in `files::BufferExtra`, travelling
     /// with the active slot.
     persistence: persistence::PersistenceRuntime,
-    keymap: KeymapState,
-    mods: Modifiers,
-    prefix_pending_at: Option<Instant>,
-    whichkey_shown: bool,
+    /// All live keyboard, IME, pointer, and press→drag→release state. The
+    /// typed owner keeps its independent substates from leaking back onto
+    /// root `App`; see `app/input/mod.rs`.
+    input: input::InputRuntime,
     gpu: Option<Gpu>,
     recovery_window: Option<Arc<Window>>,
     gpu_lifecycle: GpuLifecycle,
@@ -480,29 +473,7 @@ pub struct App {
     last_latency_ms: Option<f32>,
     redraw_count: u64,
     debug_still: crate::debug::DebugStill,
-    /// POINTER AUTO-HIDE state ("games do this" / the macOS-native
-    /// `NSCursor.setHiddenUntilMouseMoves` convention): `Visible` (resting),
-    /// or `Hidden` (the OS pointer is currently hidden, having been hidden by
-    /// a keystroke). Pure transitions live in `pointer_hide.rs`; this field
-    /// is the live App's only copy of "where are we". A real keystroke hides
-    /// it immediately (see the `KeyboardInput` arm below); any mouse motion,
-    /// or the window losing focus, un-hides it instantly. LIVE-ONLY: the
-    /// headless capture never touches this (no window, no OS pointer to
-    /// hide).
-    pointer_hide: crate::pointer_hide::PointerHide,
-    hud_key: Option<Key>,
-    hud_mods: ModifiersState,
-    /// HOLD-⌘ SHORTCUT PEEK arm state (`crate::peek::PeekArm`): the pure hold/cancel
-    /// machine. Fed stimuli from the raw input handlers (`ModifiersChanged` → the
-    /// convention's bare arming modifier alone/broken — `peek::is_bare_arming_modifier`,
-    /// ⌘ on Mac, Ctrl on Linux — a joined key press, a mouse press / blur) and the
-    /// hold-timer deadline; its result drives the process-global (`peek::set_open`) +
-    /// the single `WaitUntil` in `about_to_wait`. LIVE-ONLY — a headless capture never
-    /// constructs an `App`, so the peek is summoned there only by the `--peek` flag.
-    peek_arm: crate::peek::PeekArm,
-    peek_armed_at: Option<Instant>,
     zoom: f32,
-    scroll_sensitivity: f32,
     /// The window's display DPI `scale_factor` (1.0 on a 1:1 screen, 2.0 on a 2x
     /// Retina panel). The window width and the cursor position arrive in PHYSICAL
     /// pixels, but the glyph metrics are tuned for a 1:1 canvas, so this factor is
@@ -510,38 +481,6 @@ pub struct App {
     /// keep the live page proportioned like the capture. Updated on creation and on
     /// `ScaleFactorChanged` (a monitor move). The headless capture never sets it.
     dpi: f32,
-    cursor_px: (f32, f32),
-    dragging: bool,
-    drag_press_px: (f32, f32),
-    /// True once the pointer has traveled past the drag-arm SLOP threshold since
-    /// the current press (`App::exceeds_drag_slop`) — sticky for the rest of the
-    /// gesture once tripped. THE PHANTOM-SELECTION FIX: a WYSIWYG reveal reflow can
-    /// relocate glyphs under an otherwise-STATIONARY pointer between press and
-    /// release (concealed markup regaining its real advance once the caret lands on
-    /// that line), which used to look identical to a real drag because `on_drag`
-    /// re-hit-tested on every `CursorMoved` regardless of actual pixel travel. Now a
-    /// `CursorMoved` while `dragging` only extends the selection once real travel is
-    /// proven — a reflow under a still pointer reads as a plain click (no selection
-    /// arms), never a drag. Reset to `false` on every fresh press. See `on_press` /
-    /// `on_cursor_moved` in `app/input/mouse.rs`.
-    drag_armed: bool,
-    page_resizing: bool,
-    page_resize_edge: Option<crate::render::ResizeEdge>,
-    page_resize_anchor: Option<f32>,
-    image_resizing: Option<crate::app::input::ImageDrag>,
-    range_drag: Option<crate::app::input::RangeDrag>,
-    /// The CACHED last icon actually handed to `Window::set_cursor` — the invariant
-    /// `cursor_shape::cursor_icon_change` leans on (this always equals the OS's real
-    /// last-set icon), so the context-aware cursor (`sync_cursor_icon`) only ever
-    /// calls `set_cursor` on an actual change, never every move. See `cursor_shape.rs`.
-    cursor_icon: CursorIcon,
-    drag_granularity: DragGranularity,
-    last_click_time: Option<Instant>,
-    last_click_px: (f32, f32),
-    click_count: u32,
-    scroll_px_accum: f32,
-    preedit: String,
-    ime_enabled: bool,
     /// The spell-check engine (bundled en_US Hunspell), loaded ONCE at startup.
     /// `None` if the dictionary failed to parse (reported to stderr); spell-check
     /// then no-ops rather than crashing the editor. App-GLOBAL (not buffer-scoped
@@ -912,11 +851,8 @@ impl App {
             active,
             workspace_state: workspace::WorkspaceState::default(),
             persistence: persistence::PersistenceRuntime::default(),
-            keymap,
+            input: input::InputRuntime::new(keymap, scroll_sensitivity),
             clock,
-            mods: Modifiers::default(),
-            prefix_pending_at: None,
-            whichkey_shown: false,
             gpu: None,
             recovery_window: None,
             gpu_lifecycle: GpuLifecycle::AwaitingWindow,
@@ -939,31 +875,8 @@ impl App {
             last_latency_ms: None,
             redraw_count: 0,
             debug_still: crate::debug::DebugStill::Active,
-            pointer_hide: crate::pointer_hide::PointerHide::Visible,
-            hud_key: None,
-            hud_mods: ModifiersState::empty(),
-            peek_arm: crate::peek::PeekArm::default(),
-            peek_armed_at: None,
             zoom,
-            scroll_sensitivity,
             dpi: 1.0,
-            cursor_px: (0.0, 0.0),
-            dragging: false,
-            drag_press_px: (0.0, 0.0),
-            drag_armed: false,
-            page_resizing: false,
-            page_resize_edge: None,
-            page_resize_anchor: None,
-            image_resizing: None,
-            range_drag: None,
-            cursor_icon: CursorIcon::Default,
-            drag_granularity: DragGranularity::Char,
-            last_click_time: None,
-            last_click_px: (0.0, 0.0),
-            click_count: 0,
-            scroll_px_accum: 0.0,
-            preedit: String::new(),
-            ime_enabled: false,
             spell: match crate::spell::SpellChecker::new(crate::spell::active_variant()) {
                 Ok(sc) => Some(sc),
                 Err(e) => {

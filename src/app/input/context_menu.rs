@@ -9,7 +9,7 @@ impl App {
         if self.workspace_state.overlay_open() {
             let _ = self.apply(Action::Cancel, false, exit, crate::stats::Door::Chord);
         }
-        let (px, py) = self.cursor_px;
+        let (px, py) = self.input.pointer.cursor_px;
         if self.summon_heading_context(px, py) {
             return self.finish_context_summon();
         }
@@ -49,7 +49,7 @@ impl App {
         }
         self.active.buffer.seal_undo_group();
         let idx = self.hit_test_char();
-        self.dragging = false;
+        self.input.pointer.dragging = false;
         let selection_contains = self
             .active
             .buffer

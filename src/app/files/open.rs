@@ -237,7 +237,7 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         self.stats_flush();
         self.workspace_state.close_search();
-        self.preedit.clear();
+        self.input.clear_preedit();
         // The HISTORY TIMELINE preview cache is now buffer-scoped
         // (`BufferExtra::history_preview`, item 56): the ARRIVING buffer's own
         // slot already carries its own value (`None` on a fresh open, or

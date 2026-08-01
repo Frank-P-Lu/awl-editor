@@ -22,9 +22,9 @@ impl App {
                 // A parsed chord carries its own modifier state (a physical
                 // press would have delivered it as `ModifiersChanged` first);
                 // it is already un-composed, so `raw` and `bare` coincide.
-                self.mods = chord.mods;
+                self.input.set_modifiers(chord.mods);
                 self.dispatch_pressed_key(exit, chord.key.clone(), chord.key, false);
-                self.mods = winit::event::Modifiers::default();
+                self.input.clear_modifiers();
             }
             crate::probe::ProbeEvent::MouseMove(x, y) => {
                 // The real pointer-move seam: sets `cursor_px` and, while a picker

@@ -34,7 +34,7 @@ impl App {
             .buffer
             .start_fresh_doc(self.project_location.root.clone());
         self.workspace_state.close_search();
-        self.preedit.clear();
+        self.input.clear_preedit();
         self.active.extra.caret_synced_version = self.active.buffer.version();
         self.persistence.reset_for_fresh_document();
         // STICKY PAGE WIDTH: a fresh document is always markdown (PROSE), so this
