@@ -59,7 +59,22 @@ enum NoticeKind {
 
 const ZOOM_PERSIST_DEBOUNCE: Duration = Duration::from_millis(500);
 
-const THEME_FONT_DEBOUNCE_DEFAULT_MS: u64 = 0;
+/// The LEADING-EDGE-PLUS-TRAILING-COALESCE window shared by both halves of
+/// `theme_font_debounce::theme_font_reshape_decision` (that module's own doc
+/// has the full mechanism story) — the isolated-vs-burst cooldown AND the
+/// trailing coalesce duration are the SAME window. Shared by every input
+/// modality that funnels through `App::retint_theme_preview` (keyboard nav,
+/// pointer hover, wheel). `AWL_THEME_FONT_DEBOUNCE_MS` is the A/B override;
+/// see docs/fonts.md for the live before/after numbers on both axes.
+const THEME_FONT_DEBOUNCE_DEFAULT_MS: u64 = 100;
+
+// A reversion to 0 fails the BUILD (item 202); `theme_debounce_item202.rs`
+// covers the non-const half — the real, env-overridable predicate also
+// doesn't fire at elapsed 0.
+const _: () = assert!(
+    THEME_FONT_DEBOUNCE_DEFAULT_MS > 0,
+    "item 202: must be nonzero"
+);
 
 fn parse_theme_font_debounce_ms(raw: Option<&str>) -> u64 {
     raw.filter(|s| !s.is_empty())
@@ -78,18 +93,22 @@ fn theme_font_debounce() -> Duration {
 #[cfg(test)]
 #[test]
 fn theme_font_debounce_ms_env_parse() {
-    assert_eq!(parse_theme_font_debounce_ms(None), 0);
-    assert_eq!(parse_theme_font_debounce_ms(Some("")), 0);
+    let default = THEME_FONT_DEBOUNCE_DEFAULT_MS;
+    assert_eq!(parse_theme_font_debounce_ms(None), default);
+    assert_eq!(parse_theme_font_debounce_ms(Some("")), default);
+    // An explicit "0" is still honored as a real override (the A/B escape
+    // hatch item 202's own measurement rode) — only an ABSENT/empty/garbage
+    // value falls back to the default, never a deliberate zero.
     assert_eq!(parse_theme_font_debounce_ms(Some("0")), 0);
     assert_eq!(parse_theme_font_debounce_ms(Some("150")), 150);
-    assert_eq!(parse_theme_font_debounce_ms(Some("garbage")), 0);
+    assert_eq!(parse_theme_font_debounce_ms(Some("garbage")), default);
 }
 
 /// AMBIENT LAVA TICK period — the lava-lamp ground's slow drift cadence
 /// (`crate::lava::LAVA_TICK_MS`). A single `WaitUntil` this far out in
 /// `about_to_wait` advances the phase + requests one redraw + re-arms, so a lava
 /// world costs ~10 sparse frames/sec (NEVER the caret spring's hot per-frame
-/// loop), and a non-lava world costs zero (the tick never arms). See
+/// loop), and a static world costs zero (the tick never arms). See
 /// `App::tick_lava`.
 const LAVA_TICK: Duration = Duration::from_millis(crate::lava::LAVA_TICK_MS);
 
@@ -98,11 +117,12 @@ const LAVA_TICK: Duration = Duration::from_millis(crate::lava::LAVA_TICK_MS);
 /// transaction`) is flipped back OFF (debounce; macOS-only — see
 /// `resize_settle_at`'s doc for the full mechanism). A fast drag re-stamps the
 /// deadline on every tick (`App::arm_live_resize_sync`), so this only fires
-/// once the drag genuinely stops. TASTE TUNABLE, mirrors `THEME_FONT_
-/// DEBOUNCE`'s value: short enough that the transaction-sync cost (Apple's
-/// own documented throughput trade-off for `presentsWithTransaction`) is paid
-/// only while actually dragging, long enough that a brief pause mid-drag
-/// doesn't flap it on/off.
+/// once the drag genuinely stops. TASTE TUNABLE (independent of the theme-font
+/// debounce below — the two diverged at item 202, which lowered the theme
+/// debounce off this same 150ms without this one needing to follow): short
+/// enough that the transaction-sync cost (Apple's own documented throughput
+/// trade-off for `presentsWithTransaction`) is paid only while actually
+/// dragging, long enough that a brief pause mid-drag doesn't flap it on/off.
 const RESIZE_SYNC_SETTLE: Duration = Duration::from_millis(150);
 
 /// Quiet period after the last `Moved` tick before the MOVE stream is considered
@@ -344,8 +364,8 @@ struct ThemeSettleInFlight {
     phases: crate::themeswitch::SwitchPhases,
 }
 
-mod files;
 /// GPU surface + frame loop (device/queue/surface, prepare/render).
+mod files;
 mod gpu;
 mod input;
 mod lifecycle;
@@ -355,6 +375,10 @@ mod lifecycle;
 /// delegate now) so the file's #1 collision seam has its own home.
 mod schedule;
 mod startup;
+/// ITEM 202's leading-edge-plus-trailing-coalesce rule for the theme-picker
+/// preview's deferred font reshape — a pure scheduling decision, extracted
+/// out of this file because it needs neither `App` nor a GPU.
+mod theme_font_debounce;
 mod viewstate;
 mod window;
 /// The SUMMONED-UI LAYER owner (item 172): the overlay/search/popover
@@ -362,6 +386,7 @@ mod window;
 mod workspace;
 #[cfg(any(test, not(target_arch = "wasm32")))]
 pub(crate) use schedule::RecordingScheduler;
+pub(crate) use theme_font_debounce::{ThemeFontReshapeDecision, theme_font_reshape_decision};
 mod apply;
 /// ITEM 188 — the live `App`'s own SIDECAR FOLD + its capture constructor.
 /// Native-only, like the `--screenshot-app` mode that is its only consumer.
@@ -611,6 +636,15 @@ pub struct App {
     /// replay applies theme fonts synchronously through the pure core + a fresh
     /// pipeline, so captures are untouched).
     theme_font_at: Option<Instant>,
+    /// ITEM 202 — the LEADING edge's own clock: when the font last actually
+    /// reshaped (via the immediate path below or the coalesced settle),
+    /// `None` before any reshape this session. `theme_font_reshape_decision`
+    /// reads it to tell an ISOLATED preview step (nothing reshaped recently —
+    /// reshape now, matching item 37b's own ~39ms single-step figure) from a
+    /// BURST continuation (a reshape is recent or already pending — coalesce
+    /// into `theme_font_at` instead, so a rapid run of steps pays one
+    /// trailing reshape, not one per step).
+    theme_font_last_reshape_at: Option<Instant>,
     /// LIVE-ONLY (DEBUG settle readout): the `Instant` of the input that triggered the
     /// current theme switch — re-stamped by each preview arrow (`retint_theme_preview`)
     /// so the settle measures from the LAST input, and stamped afresh by a direct/commit
@@ -620,15 +654,15 @@ pub struct App {
     /// retint seams, so a capture never stamps it.
     theme_switch_at: Option<Instant>,
     theme_settle: Option<ThemeSettleInFlight>,
-    /// AMBIENT LAVA TICK — the lava-lamp ground's slow ~10 fps drift clock
+    /// AMBIENT TICK — the slow shared clock for animated grounds
     /// (`crate::lava`). `Some(when)` = the last tick instant, driving the single
     /// `WaitUntil(when + LAVA_TICK)` in `about_to_wait` that advances the phase by
     /// one FIXED/CLAMPED ambient step +
     /// requests one redraw + re-arms — a SLOW sparse cadence, NEVER the caret
     /// spring's hot per-frame loop. Armed ONLY while `lava::lava_should_tick` holds
-    /// (a lava world active, `ambient_motion` on, motion not reduced, the window
-    /// focused), so a non-lava world (every world today) schedules ZERO frames and
-    /// idles at 0% CPU. Cleared on blur / whenever the lamp goes static. `None` =
+    /// (an ambient world active, `ambient_motion` on, motion not reduced, the window
+    /// focused), so a static world schedules ZERO frames and idles at 0% CPU.
+    /// Cleared on blur or whenever the active ground goes static. `None` =
     /// not ticking (live only — a headless capture never constructs this, so it can
     /// never advance the phase; a capture is always the frozen t=0 phase).
     lava_tick_at: Option<Instant>,
@@ -1043,6 +1077,7 @@ impl App {
             zoom_reflow: ZoomReflow::default(),
             zoom_anchor: None,
             theme_font_at: None,
+            theme_font_last_reshape_at: None,
             theme_switch_at: None,
             theme_settle: None,
             lava_tick_at: None,

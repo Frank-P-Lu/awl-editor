@@ -51,6 +51,11 @@
     },
     "Zilla Slab": { "insetX": -2, "seatY": 1 },
     "Figtree": { "insetX": -2, "seatY": 1 },
-    "IBM Plex Sans": { "insetX": -2, "seatY": -2 }
+    "IBM Plex Sans": { "insetX": -2, "seatY": -2 },
+    "Fira Sans": {
+      "insetX": -2,
+      "_seat": "item 132: Kite is the only world on this face. Fira Sans's shorter x-height seated the whole `awl` run 3px high of the roster at 256px, one past the vertical-rhythm law's 2px raster noise floor; this brings it back onto the shared optical seat.",
+      "seatY": 2
+    }
   }
 }

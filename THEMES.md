@@ -13,7 +13,7 @@ world the design got wrong.
 ## 1. What a world is
 
 A **world** (`theme::Theme`, `src/theme.rs`) is a complete, curated mood — not a
-swatch. Eighteen ship today (eleven dark, seven light; `theme::THEMES`), each with:
+swatch. Twenty ship today (eleven dark, nine light; `theme::THEMES`), each with:
 
 - **An identity**: a name (Tawny, Saltpan, Potoroo, …), a one-line character
   description in its doc comment, and — critically — its own **display font**
@@ -34,7 +34,8 @@ swatch. Eighteen ship today (eleven dark, seven light; `theme::THEMES`), each wi
   into a **true 1-bit world** ("only black or white, no gray") — see "The
   1-bit law" immediately below the monochrome law.
 - **A ground** (`Background`): the procedural margin pattern (Dots / Gradient /
-  Starfield / Pinstripe / Stripes / Bands / Waves / Zigzag / Organic / Deckle)
+  Starfield / Pinstripe / Stripes / Bands / Waves / Zigzag / Organic / Deckle /
+  WarpedGrid)
   drawn only in the page-mode margins, never the
   document column itself (`every_world_has_a_valid_background`,
   `every_world_has_a_real_margin_gradient`). The sixteenth ground is **`Lava`** —
@@ -174,6 +175,24 @@ collapses either weave to a flat ground exactly, which is what lets every pixel
 law here be differential. Paperbark leaves Temperature untagged: it is plainly
 warm, but the picker's Warm band is already at its curated cap of four.
 Laws: `render::tests::backgrounds_item158`.
+
+The twentieth world, **Kite** (item 132), closes `PHILOSOPHY.md`'s authored
+twenty-world target, and it is the deliberate LIGHT `5/5` counterpart to
+Firetail: cool rather than warm, geometric rather than organic, crisp rather than
+liquid, directional rather than drifting. A near-white mineral / pale-lavender
+room under deep cool graphite-violet prose, with one hot vermilion caret as the
+sole accent — deepened once, in item 194 round 2, when the user answered the
+Kite↔Brolga distinctness question (see the roster-wide floor above). It ships the roster's eleventh ground, **`Background::WarpedGrid`**
+— see "The warped-grid law" below — and it is the roster's second world (after
+Firetail/Mangrove's lava) whose ground genuinely TRAVELS. Its palette was solved
+against the role laws rather than eyeballed: two successive first cuts failed
+`role_style_laws_hold_for_every_world` on two DIFFERENT floors (a string tint at
+4.38:1 against the ground, then Definition vs CommentCode at 38.1 redmean),
+because both are functions of the same `base_content`/`muted` lightness gap, so a
+fix for one moves the other; the shipped ladder clears the tighter of the two at
+5.22:1 and 47.8. Like Paperbark, it headlines ONE lens (Voice = Modern) and
+leaves the rest untagged — the Cool, Refined, Day, Dawn and Night bands are all
+at the picker's curated cap of four.
 
 The eighteenth world, **Cassowary**, is the dark-technical statement — a NERV
 operations terminal (an Evangelion wink): green phosphor data on near-black
@@ -680,6 +699,28 @@ exactly like the monochrome and 1-bit laws fence Wagtail's:
   `primary_content` stays the shared dark-warm ink — an authored token, not
   derived from `primary`, and inert for Mopoke's `CaretBlockStyle::Normal`
   (the knockout-to-`primary_content` repaint is the `Filled` arm's alone).
+- **The ROSTER-WIDE floor (item 194 round 2 — it could not be written before).**
+  Kite arrived as the tightest pair the roster had ever carried: Kite↔Brolga at
+  **38.8** on the same ten-token recipe, under both floors this repo had chosen
+  to defend, and inherent to the item as written — "cool light world, near-white
+  ground, deep cool prose ink, vermilion caret" IS Brolga's definition. The user
+  answered it by taking the recommended shift rather than shipping 38.8 or
+  chasing the 57.8 ceiling (which costs the near-white mineral character for six
+  further points and still misses 60 — a worse world and not a passing number):
+  `base_200`/`base_300` to `#E5DEF3`/`#CDC0E7` and the caret to `#FF3B14`,
+  measuring **49.3** here. That unblocked
+  `every_pair_of_worlds_clears_the_roster_wide_distinctness_floor`, which grades
+  every pair rather than a hand-picked few. **Its threshold is 40.0 and it is
+  deliberately NOT Kite's number**: after the shift the roster's true closest
+  pair is **Tawny↔Bowerbird at 40.6**, with **Magpie↔Brolga at 40.8** behind it —
+  two pairs with nothing to do with Kite, and nobody had pinned either. A
+  Kite-derived floor would have failed on the day, and a round 35 would bless
+  pairs looser than anything shipping; 40.0 is the largest whole point under the
+  roster's own measured minimum, so the law is as tight as the roster actually
+  is and a new world cannot arrive closer than the closest pair already
+  standing. It sits BELOW the two pairwise floors above on purpose: those defend
+  specific decisions, this is a floor under everything. Item 99's lesson is why
+  it sweeps: the true closest pair is the one nobody pinned.
   Test: `theme::tests::tawny_and_mopoke_carets_and_selections_are_now_numerically_distinct`.
 - **The 1-bit foil (why a lava world can NEVER be Wagtail).** A `Background::Lava`
   paints authored COLOR (wine, teal) at fractional metaball-blend coverage — the
@@ -1044,6 +1085,28 @@ user sees, and every taste call on a ground was quietly density-dependent.
   abutment rule folds it into the row PITCH, so a physical thickness would make
   the field's own pitch density-dependent. Item 176's `FINDS_EDGE_AA_PX` (the
   0.75px crisp edge) is the canonical sampling quantity and did not move.
+- **KITE'S WARPED GRID.** Its ring pitch, coverage, forward distance, room-sized
+  section, window placement, line weights, radius floor, and page-edge and
+  narrow-margin reaches are COMPOSITION. `WARP_AA_PX` (the 1.0px line skirt) is
+  the ground's only SAMPLING quantity. The interesting one is the MOIRE BOUND
+  (`WARP_ALIAS_FADE_LO_PX`/`HI_PX`), which shipped physical and was reclassified
+  LOGICAL: its motivation is a sampling one, but what it DECIDES is how deep the
+  tunnel is drawn — how many cross-rings the composition holds — so in physical
+  pixels the display would be choosing that, which is the same tension
+  `FINDS_MIN_SCALE_PX` and `DECKLE_MIN_PITCH_PX` were already settled on. Logical
+  is also the conservative reading: at 2x those logical pixels carry twice the
+  device samples, so the moire is further away, not nearer.
+- **THE `fwidth` TRAP, which is the item's own bug in miniature.** A converging
+  lattice draws its lines by dividing the distance to a level set by
+  `fwidth(coord)` — and `fwidth` differentiates against the RASTERISER's grid
+  however logical the coordinate handed to it was. So everything derived from it
+  is PHYSICAL by accident, which is exactly the shape item 186 exists to prevent,
+  and it slipped straight past `to_logical` because the fragment position really
+  had been converted. The warped grid's composition correlated at 0.767 against a
+  0.90 floor until both sides were named: the drawn line WEIGHT converts UP into
+  the device space `fwidth` measures in, the AA skirt is already there, and the
+  moire bound converts back DOWN into the logical space it is authored in. Any
+  future ground that reads a screen-space derivative inherits this.
 - **Two grounds were already right, by a different mechanism.** `Bands` and
   `Lava` author their composition as FRACTIONS of the viewport, so they carry no
   pixel pitch to convert; the item's premise does not reach them. Both are named
@@ -1069,6 +1132,47 @@ user sees, and every taste call on a ground was quietly density-dependent.
   doubled-width ramp gets gentler per pixel and vanishes under 8-bit
   quantization instead of reading as wider. Measuring the ramp's mean RUN LENGTH
   on a high-contrast literal is what made it able to fail.
+### The warped-grid law (`Background::WarpedGrid` — items 132 and 194)
+
+Kite is the roster’s only travelling margin field. The writing page remains
+flat, opaque, and still. Two room-fixed windows crop one straight projected
+tube; changing the page width reveals or covers the field but never rescales,
+flattens, or repositions it.
+
+- **Fixed framing.** `WARP_SECTION_ROOM_FRAC` sizes a circular section from
+  the room height. `warp_window_axis` reads only the viewport and side.
+  Page geometry is used only for cropping and legibility masks. The outer
+  bands are therefore byte-identical across centred, asymmetric, narrow, and
+  wide page columns. `Tunnel::PageScaled` and `Tunnel::MarginPlaced` keep
+  the rejected page-owned mechanisms as mutation arms.
+- **Forward travel.** The tube itself is straight: `w = q`. Rings are level
+  sets of `rpo*log2(anchor/u) + forward_cells`, so increasing travel grows
+  their projected radius at exactly `1/rpo` octaves per cell. The
+  `Tunnel::Reversed` mutation flips that sign and makes the rings recede.
+  Every fifth line is stronger, and `FORWARD_CELLS_PER_LOOP = 65` is a
+  multiple of five, so both the lattice and its hierarchy wrap exactly.
+- **One motion owner.** `src/warpgrid.rs` owns a linear 406-second loop.
+  Ambient motion off, Reduce Motion, lost focus, and headless capture all
+  resolve to the same frozen frame. Delayed wakes advance one bounded step
+  rather than catching up.
+- **Legibility.** The page-edge fade and narrow-margin simplification are masks
+  on the one room field. A core radius and far-end retirement keep projected
+  lines resolvable instead of packing into moiré.
+- **Headless evidence.** `AWL_WARP_PHASE=still|settled|start|wrap|<seconds>`
+  selects a deterministic phase for captures. The sidecar reports
+  `forward_cells`; appearance claims come from PNG arithmetic.
+
+The headline pixel laws are in `render/tests/warp_tunnel_item194.rs`. They
+sweep page width and offset, prove the fixed outer field, track one projected
+ring through forward travel at the authored rate, and turn red under the three
+mutation arms. Item 132’s inherited laws continue to cover page exclusion,
+value hierarchy, edge fade, narrow simplification, no-moiré, freeze paths, and
+the exact pixel wrap.
+
+Live review still owns taste: whether the travel feels calm over real time and
+whether the fixed framing remains comfortable during a long writing session.
+The harness can prove direction, rate, invariance, and scheduling; it cannot
+prove comfort.
 
 ### Render capabilities as data (`Theme::render_caps` — the 2026-07 refactor)
 

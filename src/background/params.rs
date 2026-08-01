@@ -17,6 +17,8 @@ pub(super) fn ground_params(desc: &BgDesc) -> [f32; 4] {
                 2.0 * desc.deckle_anchor
             },
         ],
+        // Warped grid: projected minor-cell spacing, coverage, and framing.
+        10 => [desc.period_px, desc.density, 0.0, desc.tunnel],
         _ => {
             let edge_period = if desc.edge { 1.0 } else { 0.0 } + desc.period_px;
             let signed_density = if desc.banded { -1.0 } else { 1.0 } * desc.density;

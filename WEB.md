@@ -134,7 +134,7 @@ hermetic setup for automated input-state testing.
   recoil/glide animation, selection highlights.
 - Live markdown styling, soft-wrap, the go-to / file-browse overlays.
 - Typing and the emacs-style editing keymap.
-- **Theme switching** — `C-x t` summons the theme picker (19 worlds, fuzzy-
+- **Theme switching** — `C-x t` summons the theme picker (20 worlds, fuzzy-
   filterable, live preview; Enter commits, Esc reverts).
 - Spellcheck — the en_US Hunspell dictionary is compiled in and checks every
   buffer with no network (the old `spellcheck.md` squiggle-demo fixture isn't

@@ -96,11 +96,31 @@ impl App {
         }
         if let Some(gpu) = self.gpu.as_mut() {
             gpu.pipeline.sync_theme_colors();
-            self.theme_font_at = if gpu.pipeline.needs_theme_reshape() {
-                Some(self.clock.now())
+            if gpu.pipeline.needs_theme_reshape() {
+                let now = self.clock.now();
+                // ITEM 202 — LEADING EDGE vs BURST CONTINUATION: an isolated step
+                // (nothing reshaped recently) pays its reshape right here, matching
+                // item 37b's own measured ~39ms single-step settle untouched; a step
+                // inside a rapid run coalesces into the trailing debounce instead, so
+                // the run pays one settle reshape, not one per step.
+                match theme_font_reshape_decision(
+                    self.theme_font_at,
+                    self.theme_font_last_reshape_at,
+                    now,
+                    theme_font_debounce(),
+                ) {
+                    ThemeFontReshapeDecision::Immediate => {
+                        gpu.pipeline.sync_theme_font();
+                        self.theme_font_last_reshape_at = Some(now);
+                        self.theme_font_at = None;
+                    }
+                    ThemeFontReshapeDecision::Coalesce => {
+                        self.theme_font_at = Some(now);
+                    }
+                }
             } else {
-                None
-            };
+                self.theme_font_at = None;
+            }
         }
         #[cfg(not(target_arch = "wasm32"))]
         if crate::probe::recording() {
@@ -139,6 +159,9 @@ impl App {
             gpu.pipeline.sync_theme_colors();
         }
         self.sync_theme_font_maybe_timed(input_at);
+        // ITEM 202: a commit/revert reshapes for real, so it counts as the most
+        // recent reshape for the NEXT summon's leading-edge decision.
+        self.theme_font_last_reshape_at = Some(self.clock.now());
         self.update_title();
     }
 
@@ -169,6 +192,9 @@ impl App {
 
     pub(super) fn apply_deferred_theme_font(&mut self) {
         self.theme_font_at = None;
+        // ITEM 202: this IS a reshape (the coalesced-burst settle), so the next
+        // preview step's leading-edge decision must see it as recent, not stale.
+        self.theme_font_last_reshape_at = Some(self.clock.now());
         let input_at = crate::debug::debug_on()
             .then_some(self.theme_switch_at)
             .flatten();
@@ -1018,7 +1044,7 @@ impl App {
         //
         // THE DOCK ICON rides this exact guard, for the same reason and one more:
         // a preview must not churn the Dock. Arrowing or sweeping the pointer
-        // through nineteen worlds re-tints pipelines through
+        // through twenty worlds re-tints pipelines through
         // `retint_theme_preview`, which has no route to `app_icon` at all — so the
         // "no churn" property is structural, not a rule anybody has to remember.
         // The two doors that DO adopt are both settled states: this commit/revert,

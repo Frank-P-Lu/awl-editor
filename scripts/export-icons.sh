@@ -20,6 +20,8 @@
 #      canonical bundle icon; regenerate `src/app_icon/embedded.rs`. Pure
 #      Rust — no `iconutil`, so the container has one owner and `cargo test`
 #      can re-pack a committed asset and demand identical bytes.
+#   5. install the DEFAULT world's 32px favicon into the static site. Every
+#      world's paired favicon remains available under candidates/favicons.
 #
 # NO BROWSER IN THE BUILD: this script is the ONLY thing that runs Chromium. An
 # ordinary `cargo build`, `cargo test`, and the shipping app never invoke it —
@@ -80,6 +82,7 @@ echo "==> pixel checks"
 python3 scripts/icons/verify.py \
   --manifest "$BUILD/manifest.json" \
   --tiles "$OUT/tiles" \
+  --favicons "$OUT/favicons" \
   --report "$OUT/legibility.txt" \
   --geometry-report "$OUT/geometry.txt"
 
@@ -97,6 +100,9 @@ if [ -z "$ONLY" ]; then
   # identical while `embedded.rs` shows an 18-line diff that is pure formatting,
   # and a re-export looks like a change nobody made.
   rustfmt --edition 2024 src/app_icon/embedded.rs
+  DEFAULT_WORLD="$(sed -n 's/.*DEFAULT_THEME: usize = world_index("\([^"]*\)").*/\1/p' src/theme/worlds.rs)"
+  test -n "$DEFAULT_WORLD"
+  cp "$OUT/favicons/$DEFAULT_WORLD-32.png" site/favicon.png
 else
   echo "==> pack SKIPPED (--only renders a subset; the pack needs every size)"
 fi

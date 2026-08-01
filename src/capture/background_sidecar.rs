@@ -8,12 +8,16 @@
 use super::sidecar::json_string;
 
 #[rustfmt::skip]
-pub(super) fn background_json(bg: crate::theme::Background, lava_phase: f32) -> String {
+pub(super) fn background_json(
+    bg: crate::theme::Background,
+    lava_phase: f32,
+    warp_travel: f32,
+) -> String {
     use crate::theme::Background;
     match bg {
         Background::Gradient { .. } | Background::Dots { .. } | Background::Starfield { .. }
         | Background::Pinstripe { .. } | Background::Stripes { .. } => simple_background_json(bg),
-        _ => rich_background_json(bg, lava_phase),
+        _ => rich_background_json(bg, lava_phase, warp_travel),
     }
 }
 #[rustfmt::skip]
@@ -45,7 +49,11 @@ fn simple_background_json(bg: crate::theme::Background) -> String {
     }
 }
 #[rustfmt::skip]
-fn rich_background_json(bg: crate::theme::Background, lava_phase: f32) -> String {
+fn rich_background_json(
+    bg: crate::theme::Background,
+    lava_phase: f32,
+    warp_travel: f32,
+) -> String {
     use crate::theme::Background;
     let hex = |c: crate::theme::Srgb| json_string(&c.hex());
     match bg {
@@ -115,6 +123,34 @@ fn rich_background_json(bg: crate::theme::Background, lava_phase: f32) -> String
                 "\"wander_px\":{},\"density\":{},\"static\":true}}"),
             hex(ground), hex(layer), hex(deckle), weave.as_str(), anchor.as_str(),
             period_px, wander_px, density
+        ), Background::WarpedGrid {
+            ground, minor, major, tunnel, spacing_px, density
+        } => format!(
+            concat!("{{\"kind\":\"warped-grid\",\"ground\":{},\"minor\":{},",
+                "\"major\":{},\"tunnel\":\"{}\",\"spacing_px\":{},",
+                "\"density\":{},\"forward_cells\":{}}}"),
+            hex(ground), hex(minor), hex(major), tunnel.as_str(), spacing_px,
+            density, warp_travel
         ), _ => unreachable!("rich background helper received a simple ground"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::background_json;
+
+    #[test]
+    fn kite_sidecar_reports_fixed_framing_and_forward_travel_only() {
+        let json = background_json(crate::theme::KITE.background, 9.0, 12.5);
+        for field in [
+            "\"kind\":\"warped-grid\"",
+            "\"tunnel\":\"fixed\"",
+            "\"forward_cells\":12.5",
+        ] {
+            assert!(json.contains(field), "missing {field}: {json}");
+        }
+        for retired in ["curvature", "yaw", "pitch"] {
+            assert!(!json.contains(retired), "retired field {retired}: {json}");
+        }
     }
 }

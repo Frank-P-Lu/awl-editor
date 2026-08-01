@@ -17,6 +17,30 @@
 
 use super::*;
 
+impl App {
+    /// Advance the TRAVELLING ground by one HOT frame, and say whether it did.
+    /// The rule is `warpgrid::should_travel`'s; the bounded step is the ambient
+    /// tick's own, so a delayed wake cannot teleport the route.
+    pub(super) fn advance_travelling_ground(&mut self, dt: f32) -> bool {
+        let hot = crate::warpgrid::should_travel(
+            self.config.ambient_motion_on(),
+            crate::motion::reduced(),
+            self.focused,
+            crate::lava::lava_paused(
+                self.resize_settle_at.is_some(),
+                self.move_settle_at.is_some(),
+                self.gpu
+                    .as_ref()
+                    .is_some_and(|gpu| gpu.pipeline.lava_blur_active()),
+            ),
+        );
+        if hot && let Some(gpu) = self.gpu.as_mut() {
+            gpu.pipeline.advance_warp(crate::lava::ambient_tick_dt(dt));
+        }
+        hot
+    }
+}
+
 /// The winit control-flow SINK the scheduling body writes its debounce / settle
 /// deadlines into. `about_to_wait_impl`'s ONLY dependency on the event loop is
 /// `set_control_flow` / `control_flow`, so abstracting exactly those two behind a

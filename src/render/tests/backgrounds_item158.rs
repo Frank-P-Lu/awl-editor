@@ -139,6 +139,7 @@ fn deckle_roster_assigns_paperbark_strata_and_galah_fibres_no_wildcard() {
             Background::Zigzag { .. } => None,
             Background::Organic { .. } => None,
             Background::Deckle { weave, .. } => Some(weave),
+            Background::WarpedGrid { .. } => None,
         };
         let want = match t.name {
             "Paperbark" => Some(Weave::Strata),

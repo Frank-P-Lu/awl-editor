@@ -842,6 +842,7 @@ fn organic_arrangement_roster_is_bowerbird_finds_only_and_the_profile_slot_stays
             theme::Background::Zigzag { .. } => None,
             theme::Background::Organic { arrangement, .. } => Some(arrangement),
             theme::Background::Deckle { .. } => None,
+            theme::Background::WarpedGrid { .. } => None,
         };
         assert_eq!(
             arrangement,

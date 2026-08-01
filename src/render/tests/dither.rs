@@ -129,7 +129,7 @@ fn render_background(
     height: u32,
 ) -> Vec<[u8; 4]> {
     let mut bg = crate::background::BackgroundPipeline::new(device, FMT, desc);
-    bg.prepare(queue, width, height, 0.0, 0.0, 0.0, 1.0);
+    bg.prepare(queue, width, height, 0.0, 0.0, Default::default(), 1.0);
     let (texture, tview) = offscreen(device, width, height);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("awl dither-test bg encoder"),
@@ -206,6 +206,7 @@ fn flat_gradient_renders_byte_identical_pure_pixels_end_to_end() {
         banded: false,
         profile: 0.0,
         deckle_anchor: 0.0,
+        tunnel: 0.0,
     };
     let pixels = render_background(&device, &queue, desc, 64, 128);
     for (i, p) in pixels.iter().enumerate() {
@@ -248,6 +249,7 @@ fn real_gradient_dither_stays_within_one_lsb_of_the_naive_value_and_is_actually_
         banded: false,
         profile: 0.0,
         deckle_anchor: 0.0,
+        tunnel: 0.0,
     };
     let (w, h) = (48u32, 220u32);
     let pixels = render_background(&device, &queue, desc, w, h);

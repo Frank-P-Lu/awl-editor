@@ -414,6 +414,7 @@ fn mulga_star_conceals_to_the_literal_asterism_item_88() {
             "Firetail" => ('✷', '✶', '✦'),
             "Cassowary" => ('◆', '✴', '◈'),
             "Paperbark" => ('❦', '❧', '☙'), // item 158 — the third Garamond rotation
+            "Kite" => ('\u{2B25}', '\u{2736}', '\u{25C6}'), // item 132 — geometric marks
             other => panic!(
                 "unenrolled world {other:?} in theme::THEMES — add its expected ornament \
                  trio to this exhaustive law before it can ship"

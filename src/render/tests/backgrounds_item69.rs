@@ -53,6 +53,7 @@ pub(super) fn bg_desc_for(bg: theme::Background) -> BgDesc {
         density: bg.density(),
         banded: bg.zigzag_banded(),
         profile: bg.profile_mode(),
+        tunnel: bg.tunnel_mode(),
         deckle_anchor: bg.deckle_anchor_mode(),
     }
 }
@@ -97,7 +98,18 @@ pub(super) fn render_bg_scaled(
     scale: f32,
 ) -> Vec<[u8; 4]> {
     let mut bg = crate::background::BackgroundPipeline::new(device, super::dither::FMT, desc);
-    bg.prepare(queue, width, height, col_left, col_w, drift, scale);
+    bg.prepare(
+        queue,
+        width,
+        height,
+        col_left,
+        col_w,
+        crate::background::AmbientUpload {
+            drift,
+            ..Default::default()
+        },
+        scale,
+    );
     let (texture, tview) = super::dither::offscreen(device, width, height);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("awl item69-bg-test encoder"),

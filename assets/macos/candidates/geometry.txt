@@ -113,3 +113,9 @@ Paperbark       EB Garamond           block     64  (13, 22, 50, 43)    (44, 14,
 Paperbark       EB Garamond           block     44  (9, 14, 34, 29)     (30, 10, 35, 34)    (32, 14, 34, 28)    29
 Paperbark       EB Garamond           block     32  (6, 9, 24, 20)      (22, 7, 25, 24)     (23, 9, 24, 19)     20
 Paperbark       EB Garamond           block     24  (5, 8, 18, 15)      (16, 5, 19, 18)     (17, 8, 18, 15)     15
+Kite            Fira Sans             block    256  (38, 79, 220, 172)  (184, 64, 226, 201) (198, 79, 220, 171) 172
+Kite            Fira Sans             block    128  (19, 39, 109, 85)   (92, 33, 112, 100)  (99, 39, 109, 85)   85
+Kite            Fira Sans             block     64  (9, 20, 54, 43)     (46, 15, 56, 49)    (50, 20, 54, 42)    43
+Kite            Fira Sans             block     44  (6, 12, 37, 28)     (31, 10, 39, 34)    (34, 12, 37, 27)    28
+Kite            Fira Sans             block     32  (4, 9, 25, 20)      (23, 7, 27, 24)     (25, 9, 25, 18)     20
+Kite            Fira Sans             block     24  (3, 7, 19, 14)      (16, 5, 21, 18)     (19, 7, 19, 14)     14

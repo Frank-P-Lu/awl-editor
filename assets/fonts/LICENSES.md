@@ -78,6 +78,15 @@ URL) — the authoritative ground truth, not an assumption.
 | `SourGummy-Black.ttf` | Sour Gummy | The Sour Gummy Project Authors | — | SIL OFL 1.1 | github.com/eifetx/Sour-Gummy-Fonts (instanced `wght=900 wdth=100`, same subset — item 70's bundled 900 heavy candidate, see below) |
 | `AwlMarks.ttf` | Awl Marks | EB Garamond, Noto (Adobe), Iosevka (Renzhi Li), Junicode (Peter S. Baker) — Project Authors, per glyph source | — | SIL OFL 1.1 (composed from OFL sources — see note below) | github.com/octaviopardo/EBGaramond12; github.com/notofonts (Noto Sans Symbols 2); github.com/be5invis/Iosevka; github.com/psb1558/Junicode-font |
 
+**Item 132 (Kite, the twentieth world) added NO font asset.** Its display face is
+the Fira Sans Regular + Bold pair above, which was already embedded, licensed and
+attributed — Quokka's face until item 70 moved it to Sour Gummy, and the roster's
+last registered-but-unassigned display family since. Both rows' license and
+copyright holder are unchanged and still read from the files' own `name` tables;
+no reserved font name is involved. Shipped weight, for the asset-size audit:
+`FiraSans-Regular.ttf` 274,832 bytes, `FiraSans-Bold.ttf` 191,756 bytes — both
+already counted in every previous release.
+
 Most faces here are single-weight instances (Regular, except IBM Plex Mono which
 ships Light/300); the CJK faces are subset to their target script's code-point
 range (JIS X 0208 / GB 2312 / KS X 1001), and the text/ornament/chrome faces
