@@ -347,15 +347,123 @@ impl SearchState {
     }
 }
 
+/// Every NON-OVERLAPPING occurrence of `needle` in `haystack`, as CHAR spans.
+///
+/// Two paths, ONE meaning. Byte search through [`memchr::memmem`] is the fast
+/// path; the char scan below stays the fallback rather than dead legacy,
+/// because the byte path is only reachable where byte equality means exactly
+/// what [`chars_eq_fold`] means:
+///
+/// - CASE-SENSITIVE always takes it. UTF-8 is self-synchronizing — a leading
+///   byte never appears as a continuation byte — so a valid needle can never
+///   match starting mid-character, and every byte hit is a real char hit.
+/// - CASE-INSENSITIVE takes it when the NEEDLE is ASCII and the haystack holds
+///   no [`KELVIN_SIGN`]. ASCII-lowercasing the raw BYTES is length- and
+///   boundary-preserving (it touches only `A`-`Z`, never a byte >= 0x80), so
+///   the offset map survives it even in mixed text — the haystack itself does
+///   NOT have to be ASCII. Real prose is full of curly quotes and em dashes;
+///   gating on the haystack would have sent nearly every manuscript down the
+///   slow path.
+///
+/// A non-ASCII NEEDLE keeps the char scan: Unicode folding is not a per-char
+/// byte-preserving rule (`İ` lowercases to TWO chars), so it cannot be done in
+/// place. The fallback is therefore live code, held to the same output by
+/// `byte_path_and_char_path_agree_across_the_corpus`.
 pub fn find_all(haystack: &str, needle: &str, case_sensitive: bool) -> Vec<Match> {
-    let mut out = Vec::new();
     if needle.is_empty() {
-        return out;
+        return Vec::new();
     }
+    if case_sensitive {
+        return byte_matches(haystack, haystack.as_bytes(), needle.as_bytes(), needle);
+    }
+    if needle.is_ascii() && !holds_kelvin_sign(haystack) {
+        let hay = haystack.as_bytes().to_ascii_lowercase();
+        let ndl = needle.as_bytes().to_ascii_lowercase();
+        return byte_matches(haystack, &hay, &ndl, needle);
+    }
+    find_all_by_char(haystack, needle, case_sensitive)
+}
+
+/// U+212A KELVIN SIGN — the ONLY non-ASCII scalar in all of Unicode that
+/// case-folds equal to an ASCII char (`k`) under [`chars_eq_fold`], and so the
+/// only one an ASCII-only byte fold would miss. Swept exhaustively by
+/// `kelvin_sign_is_the_only_scalar_folding_to_ascii`, which re-derives the set
+/// from `char::to_lowercase` rather than trusting this comment.
+const KELVIN_SIGN: &str = "\u{212A}";
+
+/// Vectorized presence test for the one scalar that defeats an ASCII byte fold.
+/// Bails out immediately on pure-ASCII text, which cannot contain it.
+fn holds_kelvin_sign(haystack: &str) -> bool {
+    let bytes = haystack.as_bytes();
+    // A 3-byte needle over a SIMD substring search: far cheaper than the
+    // char-window scan it keeps us out of.
+    memchr::memmem::find(bytes, KELVIN_SIGN.as_bytes()).is_some()
+}
+
+/// Byte-offset search over `hay`/`ndl` (which may be case-folded copies),
+/// remapped onto `haystack`'s CHAR indices. `needle` supplies the char length,
+/// so the span width stays in the caller's units.
+fn byte_matches(haystack: &str, hay: &[u8], ndl: &[u8], needle: &str) -> Vec<Match> {
+    if ndl.is_empty() || ndl.len() > hay.len() {
+        return Vec::new();
+    }
+    let mut starts: Vec<usize> = Vec::new();
+    let finder = memchr::memmem::Finder::new(ndl);
+    let mut pos = 0usize;
+    while let Some(off) = finder.find(&hay[pos..]) {
+        let at = pos + off;
+        starts.push(at);
+        pos = at + ndl.len(); // non-overlapping, matching the char scan
+    }
+    if starts.is_empty() {
+        return Vec::new();
+    }
+    let width = needle.chars().count();
+    // In pure ASCII a byte offset IS a char offset, so the remap walk is skipped
+    // entirely — the common case for English prose.
+    if haystack.is_ascii() {
+        return starts
+            .iter()
+            .map(|&s| Match {
+                start: s,
+                end: s + width,
+            })
+            .collect();
+    }
+    // Otherwise convert the (ascending) byte starts to char indices by COUNTING
+    // the chars between them. Counting is a flat byte predicate the optimizer
+    // can vectorize; decoding each scalar through `char_indices` cannot be, and
+    // measured ~5x slower over the same span.
+    let bytes = haystack.as_bytes();
+    let mut out = Vec::with_capacity(starts.len());
+    let mut chars_before = 0usize;
+    let mut counted_to = 0usize;
+    for &s in &starts {
+        chars_before += char_count(&bytes[counted_to..s]);
+        counted_to = s;
+        out.push(Match {
+            start: chars_before,
+            end: chars_before + width,
+        });
+    }
+    out
+}
+
+/// Chars in a valid-UTF-8 byte slice: every byte that is NOT a continuation
+/// byte (`0b10xxxxxx`) begins exactly one scalar.
+#[inline]
+fn char_count(bytes: &[u8]) -> usize {
+    bytes.iter().filter(|&&b| (b & 0xC0) != 0x80).count()
+}
+
+/// The exhaustive char-window scan — correct for ANY text and any fold, and the
+/// oracle the byte path is tested against.
+fn find_all_by_char(haystack: &str, needle: &str, case_sensitive: bool) -> Vec<Match> {
+    let mut out = Vec::new();
     let hay: Vec<char> = haystack.chars().collect();
     let ndl: Vec<char> = needle.chars().collect();
     let nlen = ndl.len();
-    if nlen > hay.len() {
+    if nlen == 0 || nlen > hay.len() {
         return out;
     }
     let mut i = 0usize;
@@ -851,5 +959,166 @@ mod tests {
         set_last_query("second");
         assert_eq!(last_query(), "second");
         clear_last_query(); // leave no residue for other tests reading the global
+    }
+
+    /// LAW — the vectorized byte path and the exhaustive char scan must return
+    /// the IDENTICAL span list for every text awl can hold.
+    ///
+    /// The axis that matters is not "does search still work" but WHICH path a
+    /// given (haystack, needle, case) triple lands on, so the corpus sweeps the
+    /// gate itself: pure ASCII (byte path both ways), non-ASCII haystack with an
+    /// ASCII needle (byte path when case-sensitive, char scan when not), a
+    /// non-ASCII needle, and folds Unicode does NOT do per-char (`İ`, `ß`).
+    /// Multibyte text sits BEFORE the matches on purpose — a byte offset used
+    /// as a char index is the exact bug this remap exists to prevent, and it is
+    /// invisible unless something multibyte precedes a hit.
+    #[test]
+    fn byte_path_and_char_path_agree_across_the_corpus() {
+        let _g = crate::testlock::serial();
+        let corpus = [
+            "",
+            "the quick brown fox",
+            "The Quick BROWN fox the THE tHe",
+            "aaaaa",
+            "abababab",
+            "line one\nline two\r\nline three\rlone cr",
+            // multibyte BEFORE the hits: catches a byte offset leaking through
+            // as a char index.
+            "日本語のテスト the fox 日本語 the end",
+            "café the naïve the résumé",
+            "e\u{301}crit the combining the mark",
+            "İstanbul the İ fold",
+            "straße the ß fold STRASSE",
+            "🎨🎭 the emoji the 🎪 tail",
+            "\u{2028}\u{2029} the separators the",
+            "bake a \u{212A}elvin the cake",
+            "\u{212A}\u{212A} the double kelvin the",
+        ];
+        let needles = [
+            "the", "The", "THE", "tHe", "a", "aa", "ab", "fox", "日本語", "テスト", "é", "e",
+            "İ", "ß", "ss", "🎨", "k", "K", "\u{212A}", "\n", "\r\n", "\r", "zzz", "the quick brown fox and more",
+            " ", "  ",
+        ];
+        let mut byte_path_hits = 0usize;
+        for haystack in corpus {
+            for needle in needles {
+                for case_sensitive in [true, false] {
+                    let got = find_all(haystack, needle, case_sensitive);
+                    let want = find_all_by_char(haystack, needle, case_sensitive);
+                    assert_eq!(
+                        got, want,
+                        "path divergence: haystack={haystack:?} needle={needle:?} \
+                         case_sensitive={case_sensitive}"
+                    );
+                    // Every reported span must be a REAL char slice of the
+                    // haystack, so an off-by-one in the remap cannot hide behind
+                    // both paths agreeing on a wrong answer.
+                    let chars: Vec<char> = haystack.chars().collect();
+                    for m in &got {
+                        assert!(m.end <= chars.len(), "span past end: {m:?}");
+                        let slice: String = chars[m.start..m.end].iter().collect();
+                        let equal = if case_sensitive {
+                            slice == needle
+                        } else {
+                            slice.to_lowercase() == needle.to_lowercase()
+                        };
+                        assert!(
+                            equal,
+                            "span {m:?} reads {slice:?}, not {needle:?} in {haystack:?}"
+                        );
+                    }
+                    if haystack.is_ascii() && needle.is_ascii() && !got.is_empty() {
+                        byte_path_hits += 1;
+                    }
+                }
+            }
+        }
+        // Non-vacuity: the fast path must actually be producing hits, not
+        // silently returning empty while the oracle also returns empty.
+        assert!(
+            byte_path_hits > 20,
+            "the byte path barely ran ({byte_path_hits} hit cases) — the law would \
+             pass even if it were broken"
+        );
+    }
+
+    /// LAW — the ASCII byte fold is exact because exactly ONE non-ASCII scalar
+    /// folds to an ASCII char, and [`find_all`] guards on it.
+    ///
+    /// Swept over EVERY Unicode scalar rather than the handful anyone would
+    /// think to name: if a future Unicode table adds a second such scalar, this
+    /// goes red and the guard has to grow with it.
+    #[test]
+    fn kelvin_sign_is_the_only_scalar_folding_to_ascii() {
+        let _g = crate::testlock::serial();
+        let mut found: Vec<char> = Vec::new();
+        for cp in 0u32..=0x10FFFF {
+            let Some(c) = char::from_u32(cp) else { continue };
+            if c.is_ascii() {
+                continue;
+            }
+            let lower: Vec<char> = c.to_lowercase().collect();
+            if lower.len() == 1 && lower[0].is_ascii() {
+                found.push(c);
+            }
+        }
+        assert_eq!(
+            found,
+            vec![KELVIN_SIGN.chars().next().unwrap()],
+            "the set of non-ASCII scalars folding to ASCII changed; find_all's \
+             byte-fold guard must cover exactly this set"
+        );
+        // And the guard must actually SEE it, wherever it sits.
+        assert!(holds_kelvin_sign(KELVIN_SIGN));
+        assert!(holds_kelvin_sign(&format!("a long stretch of prose {KELVIN_SIGN} tail")));
+        assert!(!holds_kelvin_sign("no kelvin here, just a plain k and K"));
+        // The exotic fold still resolves correctly, via the char fallback.
+        let text = format!("bake a {KELVIN_SIGN}elvin cake");
+        assert_eq!(
+            find_all(&text, "k", false),
+            find_all_by_char(&text, "k", false),
+            "U+212A must still fold-match 'k' through the fallback"
+        );
+    }
+
+    /// LAW — line-ending detection is unchanged by vectorizing its two counts.
+    #[test]
+    fn eol_detect_matches_the_scalar_count_on_every_mix() {
+        let _g = crate::testlock::serial();
+        fn scalar(s: &str) -> crate::buffer::Eol {
+            let total_lf = s.bytes().filter(|&b| b == b'\n').count();
+            let crlf = s.match_indices("\r\n").count();
+            let lone_lf = total_lf - crlf;
+            if crlf > lone_lf {
+                crate::buffer::Eol::Crlf
+            } else {
+                crate::buffer::Eol::Lf
+            }
+        }
+        let cases = [
+            "",
+            "no breaks at all",
+            "a\nb\nc",
+            "a\r\nb\r\nc",
+            // exact ties must resolve the SAME way (Lf wins on `>`)
+            "a\r\nb\nc",
+            "a\nb\r\nc\r\nd\ne",
+            // a lone CR is CONTENT, never a break — and `\r\r\n` must count ONE
+            // pair, not two, which is where a naive overlapping scan diverges.
+            "a\rb\rc",
+            "a\r\r\nb",
+            "\r\n",
+            "\n",
+            "\r",
+            "日本語\r\nテスト\n",
+            "trailing\r\n\r\n",
+        ];
+        for s in cases {
+            assert_eq!(
+                crate::buffer::Eol::detect(s),
+                scalar(s),
+                "eol detect diverged on {s:?}"
+            );
+        }
     }
 }

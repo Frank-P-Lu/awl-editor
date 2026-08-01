@@ -167,6 +167,7 @@ dependencies = [
  "js-sys",
  "libc",
  "log",
+ "memchr",
  "muda",
  "naga",
  "objc2 0.6.4",

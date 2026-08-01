@@ -84,6 +84,30 @@ branches_sharing_code = "warn"
 anyhow = "1.0.102"
 glyphon = "0.11.0"
 image = { version = "0.25.10", default-features = false, features = ["png"] }
+# Vectorized substring/byte search for the two places awl scans a WHOLE document
+# on a hot path: isearch's `find_all` (re-run on every keystroke in the search
+# field) and `Eol::detect` (once per open). Already in the graph via ropey's
+# `simd` feature, so naming it directly adds no new code to the build — it only
+# lets us call it.
+#
+# What each build actually GETS (verified against memchr 2.8's own cfg gates,
+# not assumed): aarch64 takes the NEON backend unconditionally — NEON is
+# baseline on the architecture, so macOS/Linux ARM is always vectorized.
+# x86_64 takes SSE2 as its baseline with a runtime AVX2 upgrade. wasm32 has a
+# simd128 backend, but it is gated on `target_feature = "simd128"` at COMPILE
+# time and awl passes no such RUSTFLAG, so the browser build takes the generic
+# (SWAR, not naive) fallback.
+#
+# DECIDED 2026-08-01 — do NOT enable `+simd128`, and this is the comment that
+# should stop the next person from "fixing" it. Missing wasm SIMD is not a slow
+# path, it is a module that fails to instantiate: a blank page, where WEB.md's
+# WebGPU->WebGL2 fallback deliberately degrades instead (Playwright-confirmed
+# 2026-07-10). Raising that floor is a product decision about who can run awl
+# in a browser, not a perf tweak — and the gain would be small, because the win
+# here is mostly algorithmic (a byte-level two-way search replacing an O(n*m)
+# scan over a `Vec<char>` copy of the whole document), which wasm already gets.
+# Revisit only with a real wasm measurement and an explicit call on the floor.
+memchr = "2.8"
 pollster = "0.4.0"
 pulldown-cmark = { version = "0.12", default-features = false }
 # LINE-ENDING MODEL (VS Code): the buffer is PURELY '\n'-based. We drop ropey's

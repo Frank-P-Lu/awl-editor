@@ -12,9 +12,13 @@ pub enum Eol {
 
 impl Eol {
     pub fn detect(s: &str) -> Eol {
-        let total_lf = s.bytes().filter(|&b| b == b'\n').count();
+        // Two vectorized passes over the raw bytes rather than two scalar ones;
+        // `\r\n` cannot overlap itself, so counting it non-overlapping matches
+        // the `match_indices` semantics this replaced.
+        let b = s.as_bytes();
+        let total_lf = memchr::memchr_iter(b'\n', b).count();
         // Every '\n' immediately preceded by a '\r' is a CRLF pair.
-        let crlf = s.match_indices("\r\n").count();
+        let crlf = memchr::memmem::find_iter(b, b"\r\n").count();
         let lone_lf = total_lf - crlf;
         if crlf > lone_lf { Eol::Crlf } else { Eol::Lf }
     }
