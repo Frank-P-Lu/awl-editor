@@ -16,7 +16,7 @@ Gumtree         Literata              pill     32px
 Gumtree         Literata              narrow   32px
 Bilby           Newsreader 16pt 16pt  block    64px
 Bilby           Newsreader 16pt 16pt  pill     64px
-Bilby           Newsreader 16pt 16pt  narrow   128px
+Bilby           Newsreader 16pt 16pt  narrow   64px
 Saltpan         Fraunces 9pt          block    32px
 Saltpan         Fraunces 9pt          pill     32px
 Saltpan         Fraunces 9pt          narrow   32px
@@ -29,8 +29,8 @@ Bombora         EB Garamond           narrow   64px
 Bowerbird       IBM Plex Sans         block    24px
 Bowerbird       IBM Plex Sans         pill     24px
 Bowerbird       IBM Plex Sans         narrow   24px
-Mulga           Zilla Slab            block    64px
-Mulga           Zilla Slab            pill     64px
+Mulga           Zilla Slab            block    32px
+Mulga           Zilla Slab            pill     32px
 Mulga           Zilla Slab            narrow   64px
 Mangrove        JetBrains Mono        block    24px
 Mangrove        JetBrains Mono        pill     24px
