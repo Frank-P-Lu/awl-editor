@@ -18,11 +18,8 @@ struct Globals {
     drift: f32,
     pat: [f32; 4],
     params: [f32; 4],
-    /// The warped grid's finished steering pose — `[yaw, pitch, forward_cells, 0]`,
-    /// resolved by `crate::warpgrid::route_pose` on the HOST so the shader carries
-    /// no route arithmetic to drift out of lockstep. All zero for every other
-    /// ground, on every frame, so their render is byte-identical.
-    pose: [f32; 4],
+    /// Warped-grid travel in minor cells. Zero for every other ground.
+    warp_travel: f32,
     /// ITEM 186 — physical pixels per logical pixel (the display's device
     /// ratio). The shader divides every COMPOSITION quantity through this and
     /// leaves every SAMPLING quantity alone; `theme::ground`'s
@@ -30,7 +27,7 @@ struct Globals {
     scale: f32,
     /// std140 tail padding: a uniform struct is rounded up to a multiple of its
     /// 16-byte alignment, and wgpu validates the binding against that size.
-    _pad: [f32; 3],
+    _pad: [f32; 2],
 }
 
 /// A flat, host-side descriptor of a world's [`crate::theme::Background`] — the
@@ -68,9 +65,8 @@ pub struct BgDesc {
 pub struct AmbientUpload {
     /// WAVES / ORGANIC phase drift, in radians (item 87 / item 163).
     pub drift: f32,
-    /// WARPED GRID's finished steering pose — `[yaw, pitch, forward_cells]`,
-    /// resolved by `crate::warpgrid::route_pose` on the host (item 132).
-    pub pose: [f32; 3],
+    /// WARPED GRID's forward travel in minor cells.
+    pub warp_travel: f32,
 }
 
 /// The margin-gradient render pipeline: a single fullscreen triangle alpha-blended
@@ -224,9 +220,9 @@ impl BackgroundPipeline {
             drift: ambient.drift,
             pat: self.pat,
             params: self.params,
-            pose: [ambient.pose[0], ambient.pose[1], ambient.pose[2], 0.0],
+            warp_travel: ambient.warp_travel,
             scale,
-            _pad: [0.0; 3],
+            _pad: [0.0; 2],
         };
         queue.write_buffer(&self.globals_buf, 0, bytemuck_lite::bytes_of(&globals));
     }

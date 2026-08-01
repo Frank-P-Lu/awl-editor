@@ -15,8 +15,7 @@
 //! it is asserted directly.
 //!
 //! Nothing here trusts the sidecar for how the field LOOKS — CAPTURE.md's
-//! "state oracle, not an appearance oracle" tripwire. The sidecar's steering pose
-//! is used only to say WHICH pose was asked for.
+//! "state oracle, not an appearance oracle" tripwire.
 
 use super::backgrounds_item69::{bg_desc_for, headless_dq};
 use super::backgrounds_item89::{SWEEP, margins};
@@ -47,7 +46,6 @@ fn with_density(bg: theme::Background, density: f32) -> theme::Background {
             major,
             tunnel,
             spacing_px,
-            curvature,
             ..
         } => theme::Background::WarpedGrid {
             ground,
@@ -55,7 +53,6 @@ fn with_density(bg: theme::Background, density: f32) -> theme::Background {
             major,
             tunnel,
             spacing_px,
-            curvature,
             density,
         },
         other => other,
@@ -69,7 +66,6 @@ pub(super) fn with_tunnel(bg: theme::Background, tunnel: theme::Tunnel) -> theme
             minor,
             major,
             spacing_px,
-            curvature,
             density,
             ..
         } => theme::Background::WarpedGrid {
@@ -78,16 +74,13 @@ pub(super) fn with_tunnel(bg: theme::Background, tunnel: theme::Tunnel) -> theme
             major,
             tunnel,
             spacing_px,
-            curvature,
             density,
         },
         other => other,
     }
 }
 
-/// Render one background pass at a real steering pose. The pose reaches the
-/// shader through the SAME `Globals.pose` row production uses, resolved by the
-/// SAME `warpgrid::route_pose` owner — the test never invents a pose shape.
+/// Render one background pass at a real forward-travel phase.
 #[allow(clippy::too_many_arguments)]
 fn render(
     device: &wgpu::Device,
@@ -99,8 +92,7 @@ fn render(
     col_w: f32,
     phase: f32,
 ) -> Vec<[u8; 4]> {
-    let p = warpgrid::route_pose(phase);
-    render_pose(
+    render_travel(
         device,
         queue,
         desc,
@@ -108,15 +100,14 @@ fn render(
         h,
         col_left,
         col_w,
-        [p.yaw, p.pitch, p.forward_cells],
+        warpgrid::forward_cells(phase),
     )
 }
 
-/// The same pass driven by an EXPLICIT pose — the seam a lattice-periodicity
-/// claim needs, because `route_pose` wraps its phase and so cannot express "one
-/// whole loop of travel further on".
+/// The same pass driven by EXPLICIT travel — the seam a lattice-periodicity
+/// claim needs, because the phase resolver wraps at the loop boundary.
 #[allow(clippy::too_many_arguments)]
-fn render_pose(
+fn render_travel(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     desc: BgDesc,
@@ -124,7 +115,7 @@ fn render_pose(
     h: u32,
     col_left: f32,
     col_w: f32,
-    pose: [f32; 3],
+    warp_travel: f32,
 ) -> Vec<[u8; 4]> {
     let mut bg = crate::background::BackgroundPipeline::new(device, super::dither::FMT, desc);
     bg.prepare(
@@ -134,7 +125,7 @@ fn render_pose(
         col_left,
         col_w,
         crate::background::AmbientUpload {
-            pose,
+            warp_travel,
             ..Default::default()
         },
         1.0,
@@ -239,7 +230,7 @@ fn warped_grid_is_kites_alone_no_wildcard() {
             theme::Background::Deckle { .. } => None,
             theme::Background::WarpedGrid { tunnel, .. } => Some(tunnel),
         };
-        let want = (t.name == "Kite").then_some(theme::Tunnel::Shared);
+        let want = (t.name == "Kite").then_some(theme::Tunnel::Fixed);
         assert_eq!(
             tunnel, want,
             "{}: deliberate warped-grid assignment",
@@ -252,7 +243,7 @@ fn warped_grid_is_kites_alone_no_wildcard() {
             t.name
         );
         let want_mode = if t.name == "Kite" {
-            theme::Tunnel::Shared.mode()
+            theme::Tunnel::Fixed.mode()
         } else {
             0.0
         };
@@ -270,32 +261,23 @@ fn warped_grid_is_kites_alone_no_wildcard() {
             t.name
         );
     }
-    assert_eq!(theme::Tunnel::Shared.mode(), 0.0);
-    assert_eq!(theme::Tunnel::PerMargin.mode(), 1.0);
-    // The MUTATION arm ships and is reachable, so the item-194 coherence
-    // laws can be proven capable of failing.
-    assert_ne!(
-        theme::Tunnel::Shared.mode(),
-        theme::Tunnel::PerMargin.mode(),
-        "the two profiles must be distinguishable to the shader"
-    );
+    assert_eq!(theme::Tunnel::Fixed.mode(), 0.0);
+    assert_ne!(theme::Tunnel::Fixed.mode(), theme::Tunnel::Reversed.mode());
 }
 
 /// NO OTHER WORLD'S UPLOAD CHANGED, proven over rendered BYTES rather than over
-/// the descriptor's field list. The route's steering pose arrives in a new
-/// `Globals` row; if any other ground could read it, that ground's pixels would
-/// move when the pose does. Every non-Kite world is rendered at the frozen pose
-/// and at a hard mid-route pose and required to be byte-identical.
+/// the descriptor's field list. If another ground read Kite's travel scalar,
+/// its pixels would move between these two phases.
 #[test]
-fn no_other_worlds_ground_can_see_the_route_pose() {
+fn no_other_worlds_ground_can_see_kites_travel() {
     let Some((device, queue)) = headless_dq() else {
         return;
     };
-    let mid = warpgrid::ROUTE_LEG_SECONDS * 1.5;
+    let mid = warpgrid::LOOP_SECONDS * 0.37;
     assert_ne!(
-        warpgrid::route_pose(mid),
-        warpgrid::route_pose(warpgrid::FROZEN_PHASE),
-        "the probe pose must actually differ from the settled one"
+        warpgrid::forward_cells(mid),
+        warpgrid::forward_cells(warpgrid::FROZEN_PHASE),
+        "the probe phase must actually differ from the settled one"
     );
     let mut checked = 0usize;
     for t in theme::THEMES {
@@ -317,7 +299,7 @@ fn no_other_worlds_ground_can_see_the_route_pose() {
         let b = render(&device, &queue, d, 640, 400, 160.0, 320.0, mid);
         assert_eq!(
             a, b,
-            "{}: a non-warped ground must be byte-identical at every route pose",
+            "{}: a non-warped ground must be byte-identical at every travel phase",
             t.name
         );
         checked += 1;
@@ -382,11 +364,9 @@ fn zero_density_is_an_exact_flat_ground_reference() {
 // ---------------------------------------------------------------------------
 
 /// THE WRITING PAGE STAYS FLAT AND OPAQUE — not one pixel of grid inside the
-/// column, at every swept geometry AND every named pose. The item's own first
-/// constraint, and the one a "distort the curvature outward" mechanism is most
-/// able to break.
+/// column, at every swept geometry and sampled travel phase.
 #[test]
-fn the_grid_never_enters_the_writing_page_at_any_geometry_or_pose() {
+fn the_grid_never_enters_the_writing_page_at_any_geometry_or_phase() {
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -402,7 +382,7 @@ fn the_grid_never_enters_the_writing_page_at_any_geometry_or_pose() {
         pipe.set_view(&super::view("hello", 0, 0));
         let col_left = pipe.column_left();
         let col_w = pipe.column_width();
-        for phase in named_phases() {
+        for phase in sampled_phases() {
             let f = field(&device, &queue, kite(), ww, wh, col_left, col_w, phase);
             let x0 = col_left.max(0.0) as u32;
             let x1 = ((col_left + col_w).ceil() as u32).min(ww);
@@ -422,14 +402,13 @@ fn the_grid_never_enters_the_writing_page_at_any_geometry_or_pose() {
     );
 }
 
-fn named_phases() -> [f32; 5] {
-    let hold = |leg: f32| warpgrid::ROUTE_LEG_SECONDS * (leg + warpgrid::ROUTE_HOLD_FRAC * 0.5);
+fn sampled_phases() -> [f32; 5] {
     [
         warpgrid::FROZEN_PHASE,
-        hold(1.0), // left
-        hold(2.0), // climb
-        hold(4.0), // right
-        hold(5.0), // descent
+        warpgrid::LOOP_SECONDS * 0.17,
+        warpgrid::LOOP_SECONDS * 0.33,
+        warpgrid::LOOP_SECONDS * 0.58,
+        warpgrid::LOOP_SECONDS * 0.81,
     ]
 }
 
@@ -474,143 +453,6 @@ fn both_margins_carry_a_real_field_at_every_swept_geometry() {
         }
     }
     crate::page::set_measure(restore);
-}
-
-/// ONE JOURNEY, TWO SLICES: during a LEFT turn the left margin's field
-/// COMPRESSES and the right margin's OPENS, and a RIGHT turn mirrors it exactly.
-///
-/// "Compresses" is measured as the slice's own INK DENSITY — the share of its
-/// pixels the lattice occupies. That is the reading the eye actually makes, and
-/// it is the one the geometry guarantees: ring pitch grows as `ln2*(spacing+r)/k`
-/// and rail pitch as `pi*r/k`, so the margin whose radii shrink draws tighter
-/// lines and the margin whose radii grow draws looser ones, from ONE shared
-/// vanishing point.
-///
-/// A COUNT of lines crossed along one scanline is deliberately NOT the metric,
-/// and finding that out is the reason this law exists in this shape: the number
-/// of lattice periods a margin's own x-extent spans FALLS on both sides during a
-/// turn (measured 8 -> 6 left and 8 -> 5 right on the left bend), because the
-/// margin maps to a narrower range of the log-radial coordinate even as the
-/// lines inside it get tighter. A count law would have read "both margins
-/// opened" and been green on a field that visibly does the right thing.
-///
-/// This is the law the item's "rather than two unrelated animations" clause
-/// names, and `Tunnel::PerMargin` is what proves it can fail (see
-/// `warp_tunnel_item194::warp_per_margin_steering_breaks_the_shared_camera`).
-#[test]
-fn a_turn_compresses_one_margin_and_opens_the_other_coherently() {
-    let Some((device, queue)) = headless_dq() else {
-        return;
-    };
-    let density = |phase: f32| {
-        let f = field(&device, &queue, kite(), W, H, COL_LEFT, COL_W, phase);
-        canon_margins().map(|(x0, x1)| ink_in(&f, W, H, x0, x1) as f64 / ((x1 - x0) * H) as f64)
-    };
-    let hold = |leg: f32| warpgrid::ROUTE_LEG_SECONDS * (leg + warpgrid::ROUTE_HOLD_FRAC * 0.5);
-    let straight = density(warpgrid::FROZEN_PHASE);
-    let left = density(hold(1.0)); // the long LEFT bend
-    let right = density(hold(4.0)); // the long RIGHT bend
-
-    // Straight travel is symmetric by construction — the common reference.
-    assert!(
-        (straight[0] - straight[1]).abs() < 0.02,
-        "straight travel must read symmetrically ({:.4} vs {:.4})",
-        straight[0],
-        straight[1]
-    );
-    assert!(
-        straight[0] > 0.03,
-        "the reference pose must carry a real field ({:.4})",
-        straight[0]
-    );
-    assert!(
-        left[0] > straight[0] && left[1] < straight[1],
-        "a LEFT bend must COMPRESS the left slice and OPEN the right: \
-         left {:.4} -> {:.4}, right {:.4} -> {:.4}",
-        straight[0],
-        left[0],
-        straight[1],
-        left[1]
-    );
-    assert!(
-        right[1] > straight[1] && right[0] < straight[0],
-        "a RIGHT bend must mirror it: right {:.4} -> {:.4}, left {:.4} -> {:.4}",
-        straight[1],
-        right[1],
-        straight[0],
-        right[0]
-    );
-    // The two bends lean OPPOSITE ways — not merely "both busier".
-    assert!(
-        (left[0] - left[1]).signum() == -(right[0] - right[1]).signum(),
-        "the bends must lean opposite ways (left bend {:.4}/{:.4}, right bend {:.4}/{:.4})",
-        left[0],
-        left[1],
-        right[0],
-        right[1]
-    );
-}
-
-/// CLIMB and DESCENT produce COHERENT OPPOSING VERTICAL FLOW: the field's
-/// weight moves to opposite halves of the canvas, and it does so the SAME way in
-/// BOTH margins (one camera, not two).
-#[test]
-fn climb_and_descent_shift_the_field_in_opposite_halves_of_both_margins() {
-    let Some((device, queue)) = headless_dq() else {
-        return;
-    };
-    let hold = |leg: f32| warpgrid::ROUTE_LEG_SECONDS * (leg + warpgrid::ROUTE_HOLD_FRAC * 0.5);
-    // Ink balance = (top half ink - bottom half ink) / total, per margin.
-    let balance = |phase: f32| {
-        let f = field(&device, &queue, kite(), W, H, COL_LEFT, COL_W, phase);
-        canon_margins().map(|(x0, x1)| {
-            let mut top = 0i64;
-            let mut bot = 0i64;
-            for y in 0..H {
-                for x in x0..x1 {
-                    if f[(y * W + x) as usize] > INK_FLOOR {
-                        if y < H / 2 {
-                            top += 1;
-                        } else {
-                            bot += 1;
-                        }
-                    }
-                }
-            }
-            (top - bot) as f64 / (top + bot).max(1) as f64
-        })
-    };
-    let up = balance(hold(2.0)); // climb
-    let down = balance(hold(5.0)); // descent
-    for i in 0..2 {
-        assert!(
-            up[i] * down[i] < 0.0,
-            "margin {i}: climb and descent must push the field into OPPOSITE halves \
-             (climb balance {:.3}, descent {:.3})",
-            up[i],
-            down[i]
-        );
-        assert!(
-            up[i].abs() > 0.02 && down[i].abs() > 0.02,
-            "margin {i}: the vertical shift must be measurable (climb {:.3}, descent {:.3})",
-            up[i],
-            down[i]
-        );
-    }
-    // COHERENCE: both margins lean the SAME way on a given climb/descent — one
-    // camera. Two independent animations would have no reason to agree.
-    assert!(
-        up[0] * up[1] > 0.0,
-        "a climb must move both margins the same way ({:.3} vs {:.3})",
-        up[0],
-        up[1]
-    );
-    assert!(
-        down[0] * down[1] > 0.0,
-        "a descent must move both margins the same way ({:.3} vs {:.3})",
-        down[0],
-        down[1]
-    );
 }
 
 /// THE LINE HIERARCHY IS TWO MEASURABLE RUNGS, every fifth line the strong one.
@@ -705,7 +547,7 @@ fn the_field_fades_toward_the_page_edge() {
     }
 }
 
-/// NO HIGH-FREQUENCY ALIASING, swept over DPI, canvas and pose. A converging
+/// NO HIGH-FREQUENCY ALIASING, swept over DPI, canvas and phase. A converging
 /// lattice that reaches sub-pixel pitch turns into moire; the shader bounds its
 /// own projected pitch (a SOFTENED RADIUS — ring pitch grows as
 /// `ln2*(spacing+r)/k`, rail pitch as `pi*r/k`, so a floor under `r` is a floor
@@ -733,15 +575,8 @@ fn the_lattice_never_saturates_a_patch_of_margin_at_any_scale() {
     // under half; a tile past this has lost its structure.
     const MAX_TILE_COVERAGE: f64 = 0.70;
     // 1x, 2x Retina, two zoom-like scalings — AND the geometry that actually
-    // exercises the radius floor. THE AXIS THE FIRST CUT MISSED: on a WIDE
-    // canvas at a NARROW measure the page column is small relative to the
-    // window, so a committed bend swings the shared vanishing point PAST the
-    // page edge and INTO a margin. The proportional distance floor scales with
-    // distance from that point, so it offers nothing there — only the softened
-    // radius keeps the lattice resolvable. Every other swept geometry keeps the
-    // vanishing point behind the page, where the proportional floor alone is
-    // already enough, which is exactly why they all stayed green over a
-    // deliberate removal of the radius floor.
+    // exercises the radius floor, including ultrawide rooms with a narrow page
+    // where a large share of the converging field is exposed.
     for (ww, wh, col_left, col_w) in [
         (W, H, COL_LEFT, COL_W),
         (W * 2, H * 2, COL_LEFT * 2.0, COL_W * 2.0),
@@ -750,7 +585,7 @@ fn the_lattice_never_saturates_a_patch_of_margin_at_any_scale() {
         (2560, 1000, 930.0, 700.0), // ultrawide + narrow measure: the VP enters a margin
         (3440, 1200, 1370.0, 700.0), // and further still
     ] {
-        for phase in named_phases() {
+        for phase in sampled_phases() {
             let f = field(&device, &queue, kite(), ww, wh, col_left, col_w, phase);
             let mut worst = 0.0f64;
             let mut worst_at = (0u32, 0u32);
@@ -867,7 +702,7 @@ fn the_field_stays_inside_the_grounds_value_band_and_the_ink_clears_it() {
     // The field mixes ground -> minor -> major, so `mix()` bounds it by its
     // endpoints; the darkest reachable pixel is the authored `major`.
     let mut darkest = [255u8; 4];
-    for phase in named_phases() {
+    for phase in sampled_phases() {
         let px = render(
             &device,
             &queue,
@@ -914,14 +749,14 @@ fn the_field_stays_inside_the_grounds_value_band_and_the_ink_clears_it() {
 // MOTION: determinism, the invisible wrap, and the composed still.
 // ---------------------------------------------------------------------------
 
-/// THE ROUTE'S REPEAT IS INVISIBLE IN REAL PIXELS, and the claim is made where
+/// THE LOOP REPEAT IS INVISIBLE IN REAL PIXELS, and the claim is made where
 /// it can actually fail.
 ///
-/// A first cut compared the frame at `phase == ROUTE_LOOP_SECONDS` with the one
-/// at `phase == 0`. That is VACUOUS: `route_pose` wraps its input, so the two
+/// Comparing the resolved frames at `phase == LOOP_SECONDS` and `phase == 0`
+/// would be vacuous because the phase resolver wraps its input. The two
 /// calls are literally the same call, and the law stayed green over
 /// `FORWARD_CELLS_PER_LOOP: 64` — the very value whose wrap rotates which lines
-/// are major. The load-bearing statement is about the POSE, not the phase: a
+/// are major. The load-bearing statement is about explicit travel, not phase: a
 /// whole loop of forward travel must land the field back on its own lattice AND
 /// its own line hierarchy, which happens if and only if the travel is a multiple
 /// of the major modulus.
@@ -931,7 +766,7 @@ fn a_whole_loop_of_forward_travel_is_byte_identical_at_real_pixels() {
         return;
     };
     let at = |forward: f32| {
-        render_pose(
+        render_travel(
             &device,
             &queue,
             bg_desc_for(kite()),
@@ -939,7 +774,7 @@ fn a_whole_loop_of_forward_travel_is_byte_identical_at_real_pixels() {
             H,
             COL_LEFT,
             COL_W,
-            [0.0, 0.0, forward],
+            forward,
         )
     };
     let start = at(0.0);
@@ -1003,7 +838,7 @@ fn a_whole_loop_of_forward_travel_is_byte_identical_at_real_pixels() {
             H,
             COL_LEFT,
             COL_W,
-            warpgrid::ROUTE_LOOP_SECONDS
+            warpgrid::LOOP_SECONDS
         ),
         "the App-driven phase wrap must be exactly periodic"
     );
@@ -1016,10 +851,10 @@ fn a_whole_loop_of_forward_travel_is_byte_identical_at_real_pixels() {
             H,
             COL_LEFT,
             COL_W,
-            warpgrid::ROUTE_LEG_SECONDS * 1.5
+            warpgrid::LOOP_SECONDS * 0.37
         ),
         start,
-        "the route must actually move the field"
+        "the travel clock must actually move the field"
     );
 }
 
@@ -1043,7 +878,7 @@ fn every_freeze_path_renders_the_one_composed_still() {
         warpgrid::FROZEN_PHASE,
     );
     // Reduce Motion pins the phase whatever the accumulator holds.
-    for stored in [0.0f32, 91.3, warpgrid::ROUTE_LOOP_SECONDS * 0.77] {
+    for stored in [0.0f32, 91.3, warpgrid::LOOP_SECONDS * 0.77] {
         let phase = warpgrid::phase_for(stored, true, None);
         let frame = render(
             &device,
@@ -1085,14 +920,8 @@ fn every_freeze_path_renders_the_one_composed_still() {
 // STRUCTURE: the WGSL tripwire.
 // ---------------------------------------------------------------------------
 
-/// THE SHADER'S STRUCTURAL REPAIRS ARE PINNED, and it names no world.
-///
-/// Every derived bound above rests on two expressions the shader must keep: a
-/// PROPORTIONAL floor under the pulled distance, and a SOFTENED radius. The
-/// first cut's constant floor is pinned as ABSENT, so reverting to it fails
-/// here as well as in the aliasing law. The every-fifth-line modulus is held in
-/// lockstep with the Rust constant `FORWARD_CELLS_PER_LOOP` must respect, or the
-/// seamless-wrap proof silently stops being about the shipped field.
+/// The shader keeps one fixed framing, direct straight-tube geometry, the
+/// forward sign, and no dormant steering machinery.
 #[test]
 fn the_warped_grid_wgsl_holds_its_repairs_and_names_no_world() {
     let wgsl = include_str!("../../../shaders/background.wgsl");
@@ -1104,51 +933,29 @@ fn the_warped_grid_wgsl_holds_its_repairs_and_names_no_world() {
          depends on them being the same number"
     );
     for expr in [
-        // ITEM 194 — the nearest-wall solve. ONE bracketed bisection, which is
-        // what makes the projection unconditional at every bend.
-        "if (length(q - bend / mid) - mid > 0.0) { lo = mid; } else { hi = mid; }",
-        "let w = q - bend / max(d, core);",
-        // ITEM 194 ROUND 2 — the scale is the ROOM's and nothing else's. A page
-        // column reaching this line is the defect the live review failed the
-        // world on, and it now lives only inside the `PageScaled` mutation arm.
         "var anchor = WARP_SECTION_ROOM_FRAC * max(vp.y, 1.0);",
-        // ...and the two windows onto it have ONE placement owner, which after
-        // item 194 round 3 reads the ROOM and nothing else: no page column, no
-        // margin span. A page term reaching the PLACEMENT is round 2's defect,
-        // and it now lives only inside the `MarginPlaced` mutation arm.
         "fn warp_window_axis(vp_x: f32, anchor: f32, on_right: bool) -> f32 {",
         "let inset = WARP_WINDOW_INSET * anchor;",
-        // ONE bend vector for the whole picture — not one per margin.
-        "let bend = WARP_BEND_GAIN * curvature * anchor * anchor * steer;",
-        // The radius floor: what bounds both lattices' projected density.
+        "let w = q;",
         "let u = max(u_raw, core);",
-        // Both families retire into the far end rather than crowding into a knot.
         "let core_fade = smoothstep(core * WARP_CORE_FADE_LO, core * WARP_CORE_FADE_HI, u_raw);",
-        // The mutation arm, and the ONLY place a side test may reach the STEERING.
-        "if (per_margin) {",
+        "let travel = select(g.warp_travel, -g.warp_travel, reversed);",
     ] {
         assert!(
             wgsl.contains(expr),
             "shaders/background.wgsl must hold `{expr}`"
         );
     }
-    // THE DEFECT ITEM 194 REPAIRED. The outward pull re-planted the tunnel's own
-    // vanishing region at each page edge, which is what made the two margins read
-    // as separately cropped circles; nothing may bring it back.
-    for gone in ["WARP_PULL_FRAC", "WARP_PULL_KEEP", "WARP_TUNNEL_CENTRED"] {
+    for gone in [
+        "WARP_PULL_FRAC",
+        "WARP_BEND_GAIN",
+        "WARP_SOLVE_STEPS",
+        "per_margin",
+        "g.pose",
+    ] {
         assert!(
             !wgsl.contains(gone),
-            "the per-margin outward pull is back (`{gone}`) — it re-plants the \
-             vanishing region at each page edge and the margins stop being one \
-             cylinder"
-        );
-    }
-    // The route lives in Rust alone: no leg table, no loop length, no easing here.
-    for absent in ["leg_seconds", "loop_seconds", "warp_route_pose"] {
-        assert!(
-            !wgsl.contains(absent),
-            "the route must not be mirrored into WGSL (`{absent}` found) — the host \
-             resolves the pose and there is nothing here to drift"
+            "obsolete warped-grid machinery remains: `{gone}`"
         );
     }
     // No world name in the branch's CODE (prose comments are fine).

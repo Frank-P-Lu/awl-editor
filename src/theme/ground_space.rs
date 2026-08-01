@@ -136,16 +136,10 @@ impl Background {
                 (Weave::Strata, _) => DECKLE_STRATA,
                 (Weave::Fibres, _) => DECKLE_FIBRES,
             },
-            // Every tunnel profile authors the SAME numbers in the same spaces.
-            // The arms differ only in WHERE the steering comes from
-            // (`PerMargin`), WHAT the scale is measured against (`PageScaled`),
-            // WHERE the window is placed (`MarginPlaced`) and which way travel
-            // runs (`Reversed`) — all composition mistakes rather than
-            // coordinate ones — so the arms are spelled out rather than
-            // wildcarded and answer alike.
+            // Every tunnel profile authors the same quantities in the same
+            // spaces; the non-shipping arms change framing or travel direction.
             Background::WarpedGrid { tunnel, .. } => match tunnel {
-                Tunnel::Shared => WARPED_GRID,
-                Tunnel::PerMargin => WARPED_GRID,
+                Tunnel::Fixed => WARPED_GRID,
                 Tunnel::PageScaled => WARPED_GRID,
                 Tunnel::MarginPlaced => WARPED_GRID,
                 Tunnel::Reversed => WARPED_GRID,

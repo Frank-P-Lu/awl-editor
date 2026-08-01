@@ -245,13 +245,6 @@ pub(super) const WARPED_GRID: &[GroundQuantity] = &[
          itself",
     ),
     logical(
-        "curvature (the bend gain)",
-        "a dimensionless gain multiplying `anchor^2`, a composition quantity, so \
-         it inherits its space: it decides HOW FAR the shared opening shifts \
-         off-centre in a turn, and the eye measures that shift against the \
-         section it moves, never against the sample grid",
-    ),
-    logical(
         "density (the coverage multiplier)",
         "dimensionless contrast, spaceless by construction, and named here so its \
          absence from both classes is a recorded decision rather than an \
@@ -259,36 +252,28 @@ pub(super) const WARPED_GRID: &[GroundQuantity] = &[
          is what gives the family item 86's `mark_field` differential oracle",
     ),
     logical(
-        "the route's pose triple (yaw, pitch, forward_cells)",
-        "yaw and pitch are dimensionless STEERING and forward travel is a COUNT \
-         of ring cells, so a 2x display travels the same journey at the same \
-         speed through the same lattice. Resolved on the host by \
-         `crate::warpgrid::route_pose`; the shader carries no route arithmetic",
+        "forward_cells",
+        "a count of ring cells, so a 2x display travels at the same speed \
+         through the same lattice. The host resolves the scalar; the shader \
+         carries no clock arithmetic",
     ),
     logical(
         "WARP_SECTION_ROOM_FRAC (the anchor ring's radius, in room heights)",
-        "the whole size and shape of the cross-section, and after item 194 round \
-         2 the whole of its SCALE: a ratio of a quantity the host measured (the \
-         room), so it is density-independent by construction — the same \
-         mechanism `Bands` and `Lava` are named here for. Round 1 authored it \
-         against the PAGE COLUMN instead, which is what let a wider page \
-         rescale and squash the world; that geometry survives only inside \
-         `Tunnel::PageScaled`, as the mutation arm",
+        "the whole size and shape of the cross-section: a ratio of a quantity \
+         the host measured (the room), so it is density-independent by \
+         construction. `Tunnel::PageScaled` is the mutation arm that instead \
+         lets the page column rescale and flatten the field",
     ),
     logical(
         "WARP_WINDOW_INSET (where each margin's window sits on the one \
          projection)",
         "a distance from the ROOM's own outer edge, measured in ANCHORS — a \
          dimensionless ratio of composition quantities, so it carries no pixel \
-         to convert. It is the whole of the placement after item 194 round 3, \
-         and it reads neither the page nor the margin: the page column can only \
-         MASK the field, which is why the composition survives the whole \
-         adaptive-column range and why the two margins cannot land in different \
-         regimes when the column sits off-centre. Round 2 placed the window from \
-         the margin's own width instead (WARP_WINDOW_FULL / _TIGHT / \
-         _STRADDLE), which held the SCALE constant while still letting the page \
-         reframe the scene; that placement survives only inside \
-         `Tunnel::MarginPlaced`, as the mutation arm",
+         to convert. It reads neither the page nor the margin: the page column \
+         can only MASK the field, so the composition survives the adaptive \
+         column range and asymmetric margins cannot choose different regimes. \
+         `Tunnel::MarginPlaced` is the mutation arm that derives placement from \
+         each margin's width",
     ),
     logical(
         "the ring/rail half-widths (0.45px minor, 1.00px major) and \

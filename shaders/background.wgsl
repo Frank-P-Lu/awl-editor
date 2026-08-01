@@ -68,16 +68,11 @@ struct Globals {
     // every ground this round didn't touch, so those grounds take their
     // exact original code path. (Waves' item-87 drift is NOT here — it rides
     // the dedicated `drift` slot above.) Shader 10 (WarpedGrid, item 132) reads
-    // x/y/z/w as projected minor-cell spacing / coverage density / steering
-    // gain / tunnel placement; see `warped_grid_rgb`.
+    // x/y/w as projected minor-cell spacing / coverage density / framing.
     params: vec4<f32>,
-    // The warped grid's finished steering pose: `[yaw, pitch, forward_cells, 0]`.
-    // Resolved on the HOST by `crate::warpgrid::route_pose` — the route is Rust's
-    // alone, so there is no route arithmetic here to drift out of lockstep with
-    // it. Identically ZERO for every other ground and every headless frame, so
-    // their renders are byte-identical. Must byte-match `Globals.pose` in
-    // src/background.rs.
-    pose: vec4<f32>,
+    // Warped-grid travel in minor cells, resolved on the host. Zero for every
+    // other ground. Must byte-match `Globals.warp_travel` in src/background.rs.
+    warp_travel: f32,
     // ITEM 186 — PHYSICAL PIXELS PER LOGICAL PIXEL (the display's device ratio:
     // 1.0 on a 1:1 screen, 2.0 on a Retina one). The host uploads it from the
     // SAME `scale_factor` the window reports (`--capture-dpi` headlessly);
@@ -95,7 +90,6 @@ struct Globals {
     // this drifts).
     pad0: f32,
     pad1: f32,
-    pad2: f32,
 };
 
 @group(0) @binding(0) var<uniform> g: Globals;
@@ -981,76 +975,17 @@ fn waves_rgb(px: vec2<f32>) -> vec3<f32> {
 // There is no geometry, no depth buffer and no 3-D engine here: the whole
 // tunnel is a closed-form ray cast done per fragment.
 //
-// THE MODEL. The camera sits inside a tube of radius R whose AXIS is a
-// parabolic arc — straight when the route holds straight, bending when it
-// bends. A wall point at depth `z` and angle `theta` is
-// `C(z) + R*e(theta)` with `C(z) = (kappa/2) z^2` the axis' own lateral
-// excursion, and it projects to
+// The camera travels straight through a circular tube. A ring is a level set of
+// projected radius; a rail is a level set of polar angle. The two room-placed
+// windows keep one fixed scale and framing while the opaque page masks them.
 //
-//     p = B/u + u*e(theta),      u = f*R/z,   B = (f^2*R*kappa/2).
-//
-// `u` is the cross-section's PROJECTED radius, so `u` falls as depth grows and
-// `1/u` IS the depth coordinate. Two consequences are the whole item:
-//
-//   * a RING (constant `u`) is an exact circle of radius `u` centred at `B/u`,
-//     so a bend MOVES THE WHOLE OPENING off-centre as a unit — it never
-//     pinches one side of it;
-//   * a RAIL (constant `theta`) is the curve `u -> B/u + u*e(theta)`, which
-//     curves toward the same destination every ring centre is migrating
-//     toward, because both are the same `B/u`.
-//
-// The near wall therefore broadens continuously around the OUTSIDE of a turn
-// (large `u`, small displacement) while the far wall compresses continuously
-// around the INSIDE (small `u`, large displacement). ONE bend vector warps the
-// whole picture; the only thing a margin decides for itself is WHERE ITS WINDOW
-// SITS on that one picture (`warp_window_hide`), which is a translation, not a
-// camera.
-//
-// SOLVING IT. Inverting `p = B/u + u*e` means finding the nearest wall along
-// the ray, i.e. the LARGEST `u` with `h(u) = |p - B/u| - u = 0`. Three facts
-// make that a closed bracket rather than a search: `h` is positive as `u`
-// approaches zero (the far end swings away without bound), it is negative for
-// every `u` past the nearest wall (a second sign change would BE a larger
-// root), and `u <= (|p| + sqrt(|p|^2 + 4|B|))/2` follows from the triangle
-// inequality. So the interval `[core, that bound]` always brackets the answer
-// and BISECTION converges to it — unconditionally, at every bend, which a fixed
-// point does not: `w = p - B/|w|` has contraction factor `|B|/|w|^2` and
-// diverges into a knot of aliasing exactly where a committed bend swings the
-// far end into a margin. Two Newton steps polish the bracket so the field stays
-// smooth enough for `fwidth` to draw a constant-width line through it.
-//
-// THE SCALE IS CONSTANT, AND THAT IS ITEM 194 ROUND 2. Round 1 sized the
-// section from the PAGE COLUMN (`anchor = 3 * page_half`, with an aspect fitted
-// to the flank the page edge cut), so widening the page rescaled the world:
-// across awl's own measure band the anchor swept 432px to 1942px and the
-// section's aspect 1.00 to 4.00, and the live review read that as the tunnel
-// being squashed into whatever margin was left. A projection whose scale is a
-// function of the margin it lands in is not a projection.
-//
-// So the cylinder NEVER rescales. `WARP_SECTION_ROOM_FRAC` sizes the anchor
+// The cylinder never rescales. `WARP_SECTION_ROOM_FRAC` sizes the anchor
 // ring against the ROOM's own height and nothing else, and the section is a
 // CIRCLE — no aspect, no affine fit, one isotropic space — so its projected
 // aspect ratio is the constant 1.00 at every page width the adaptive column can
 // reach. The page width moves the WINDOWS, never the world.
 //
-// THE TWO WINDOWS ARE PLACED BY THE ROOM, AND THAT IS ITEM 194 ROUND 3. Round 2
-// held the SCALE constant and then moved the page dependence into the WINDOW
-// PLACEMENT: each margin put its own copy of the axis at a distance derived from
-// that margin's own width, sliding from behind the page's centre line out into
-// the margin as the margin narrowed. That is still the page reframing the scene,
-// and it produced exactly the symptom the review reported — swept over awl's own
-// measure band on a 2560x1440 room, the innermost VISIBLE section radius climbed
-// 144px to 624px as the page widened (the vanishing region swallowed) before the
-// axis slid out into the margin and the whole opening snapped back.
-//
-// It also broke the two margins apart again, which is the defect round 1 was
-// rejected for. awl's column is NOT always centred — the margin outline reserves
-// space on one side — so at measure 140 on that room the margins are 405px and
-// 139px, and a placement read from `span` puts the left axis BEHIND the page and
-// the right axis OUT IN the margin at the same instant: one margin shows outer
-// arcs, the other a complete converging tunnel.
-//
-// So the placement reads the ROOM and nothing else. Each margin's copy of the
+// The placement reads the room and nothing else. Each margin's copy of the
 // axis sits `WARP_WINDOW_INSET` anchors in from the ROOM's own outer edge — a
 // constant offset between the two windows, fixed for a given room, with no term
 // from the page. The page column can then only MASK this field: widening it
@@ -1058,11 +993,10 @@ fn waves_rgb(px: vec2<f32>) -> vec3<f32> {
 // opening. The vanishing region stays in the margin at every width the column
 // leaves room for, which is what the review asked for at both ends of the band.
 //
-// The two windows OVERLAP, and that is intended and was accepted: the centre
+// The two windows overlap: the centre
 // appears in both because they are two windows onto ONE cylinder, offset by a
 // constant, not two cylinders. The placement is a TRANSLATION and nothing else:
-// one camera, one steering vector, one scale, one lattice. Both windows show the
-// same picture at the same instant.
+// one scale and one lattice.
 
 // The anchor ring's projected RADIUS, as a fraction of the room's height. The
 // section is a circle, so this is the whole of its size and shape. 0.432 is
@@ -1122,7 +1056,6 @@ const WARP_AA_PX: f32 = 1.0;
 // The lattice fades out BELOW this projected spacing, in LOGICAL pixels, so a
 // converging grid can never reach the regime where a Retina or WebGL2
 // rasteriser turns it into moire. It is also what quietly dissolves the
-// silhouette seam where a hard bend folds the far wall behind the near one.
 // LOGICAL, although its motivation is a sampling one: this bound decides HOW
 // DEEP the tunnel is drawn, so in physical pixels the display would choose how
 // much of the world the reader sees — item 186 already settled that tension the
@@ -1142,41 +1075,23 @@ const WARP_NARROW_HI_PX: f32 = 210.0;
 // THE CAMERA NEVER REACHES THE FAR END. A floor under the projected radius,
 // as a fraction of the anchor, BOUNDS both lattices' projected pitch (ring
 // pitch grows as `u*ln2/rpo`, rail pitch as `pi*u/rails`) and keeps the fixed
-// point above from dividing by a vanishing radius. No-moire is a property of
-// this expression; the alias fade is a second line of defence.
+// deepest visible rings resolvable. No-moire is a property of this expression;
+// the alias fade is a second line of defence.
 const WARP_CORE_FRAC: f32 = 0.055;
 // Both families retire INTO the far end rather than crowding into a knot: the
 // far end of a real tunnel is haze, not a solid lattice.
 const WARP_CORE_FADE_LO: f32 = 1.0;
 const WARP_CORE_FADE_HI: f32 = 4.0;
-// How far a unit of steering swings the tunnel's axis. The displacement of a
-// ring of radius `u` is `WARP_BEND_GAIN * curvature * steer * anchor^2 / u`, so
-// the near rings barely move and the far ones swing hard — which IS the near
-// wall broadening around the outside while the far wall compresses around the
-// inside.
-const WARP_BEND_GAIN: f32 = 0.075;
-// The MUTATION arms, each bracketed by a pair of these thresholds so a new arm
-// cannot alias an old one. See `theme::Tunnel`: `PerMargin` steers each margin
-// on its own (round 1's defect), `PageScaled` restores round 1's page-derived
-// scale, `MarginPlaced` restores round 2's margin-derived window placement, and
-// `Reversed` inverts the travel sign — so each law can be watched failing on the
-// composition it names.
-const WARP_TUNNEL_PER_MARGIN: f32 = 0.5;
-const WARP_TUNNEL_PAGE_SCALED: f32 = 1.5;
-const WARP_TUNNEL_MARGIN_PLACED: f32 = 2.5;
-const WARP_TUNNEL_REVERSED: f32 = 3.5;
+// Mutation arms for page-derived scale, margin-derived placement, and reversed
+// travel. Each threshold occupies its own unit-wide band.
+const WARP_TUNNEL_PAGE_SCALED: f32 = 0.5;
+const WARP_TUNNEL_MARGIN_PLACED: f32 = 1.5;
+const WARP_TUNNEL_REVERSED: f32 = 2.5;
 // Round 1's authored numbers, alive only inside the `PageScaled` arm: the anchor
 // ring's diameter in page widths, and where its flank crossed the page edge as a
 // fraction of the room's height.
 const WARP_PAGE_SCALED_RATIO: f32 = 3.0;
 const WARP_PAGE_SCALED_FIT: f32 = 0.42;
-// How many bisection halvings bracket the nearest wall, and how many Newton
-// steps polish it. 20 halvings of a bracket no wider than the canvas leave under
-// a thousandth of a logical pixel; the polish is what keeps the result SMOOTH,
-// so `fwidth` reads a real gradient rather than the bisection's last bit.
-const WARP_SOLVE_STEPS: i32 = 20;
-const WARP_POLISH_STEPS: i32 = 2;
-
 // Anti-aliased distance to the nearest integer level set of `coord`, in units of
 // its own screen-space gradient — so one expression draws a line of constant
 // width at every projected spacing, near and far.
@@ -1228,22 +1143,19 @@ fn warped_grid_rgb(p: vec2<f32>) -> vec3<f32> {
     let cw = col_w_l();
     let spacing = max(g.params.x, 8.0);
     let density = clamp(g.params.y, 0.0, 1.0);
-    let curvature = clamp(g.params.z, 0.0, 2.0);
 
     // THE ONE CAMERA, AT ONE CONSTANT SCALE. The section is a circle sized
     // against the ROOM alone and the horizon is the room's middle, so no page
     // width can rescale, flatten or re-shape the cylinder.
     let page_half = max(cw * 0.5, 1.0);
     let mode = g.params.w;
-    let per_margin = mode >= WARP_TUNNEL_PER_MARGIN && mode < WARP_TUNNEL_PAGE_SCALED;
     let page_scaled = mode >= WARP_TUNNEL_PAGE_SCALED && mode < WARP_TUNNEL_MARGIN_PLACED;
     let margin_placed = mode >= WARP_TUNNEL_MARGIN_PLACED && mode < WARP_TUNNEL_REVERSED;
     let reversed = mode >= WARP_TUNNEL_REVERSED;
     var anchor = WARP_SECTION_ROOM_FRAC * max(vp.y, 1.0);
     var aspect = 1.0;
     if (page_scaled) {
-        // ROUND 1, KEPT AS DATA: the scale as a function of the page column,
-        // flattened to whatever flank the page edge cut. See `theme::Tunnel`.
+        // Mutation arm: scale and flatten the section from the page column.
         anchor = WARP_PAGE_SCALED_RATIO * page_half;
         let flank = sqrt(max(anchor * anchor - page_half * page_half, 1.0));
         aspect = clamp(flank / max(WARP_PAGE_SCALED_FIT * vp.y, 1.0), 1.0, 4.0);
@@ -1269,45 +1181,17 @@ fn warped_grid_rgb(p: vec2<f32>) -> vec3<f32> {
     // than by tuning. Only `PageScaled` puts an affine transform here.
     let q = vec2<f32>(p.x - axis.x, (p.y - axis.y) * aspect);
 
-    // THE BEND — ONE vector for the whole picture, so both windows show the
-    // same opening shifting the same way. `PerMargin` is the mutation arm: it
-    // re-derives the STEERING from the fragment's own side of the page, which
-    // is the defect, not the design.
-    var steer = vec2<f32>(g.pose.x, g.pose.y * aspect);
-    if (per_margin) {
-        let side = select(-1.0, 1.0, on_right);
-        steer = vec2<f32>(g.pose.x * side, g.pose.y * aspect * side);
-    }
-    let bend = WARP_BEND_GAIN * curvature * anchor * anchor * steer;
-
-    // THE NEAREST WALL — bisection on the bracket, then two Newton polishes.
+    // Straight tube: the projected radius and polar angle are direct.
     let core = WARP_CORE_FRAC * anchor;
-    var lo = core;
-    var hi = max(0.5 * (length(q) + sqrt(length(q) * length(q) + 4.0 * length(bend))), core);
-    for (var i = 0; i < WARP_SOLVE_STEPS; i = i + 1) {
-        let mid = 0.5 * (lo + hi);
-        if (length(q - bend / mid) - mid > 0.0) { lo = mid; } else { hi = mid; }
-    }
-    var d = 0.5 * (lo + hi);
-    for (var i = 0; i < WARP_POLISH_STEPS; i = i + 1) {
-        let s = q - bend / d;
-        let sl = max(length(s), 1e-4);
-        // h(d) = |q - B/d| - d ;  h'(d) = (B . (q - B/d)) / (d^2 |q - B/d|) - 1.
-        let hp = dot(bend, s) / (d * d * sl) - 1.0;
-        d = clamp(d - (sl - d) / min(hp, -1e-4), lo, hi);
-    }
-    // The wall point itself, in the tunnel's own space: one length() away from a
-    // radius, so what the lattice reads is smooth even where the bracket is not.
-    let w = q - bend / max(d, core);
+    let w = q;
     let u_raw = length(w);
     let u = max(u_raw, core);
 
     // Rings are level sets of `log(u)`, and forward travel is one ADDITION.
     //
-    // THE SIGN IS THE WHOLE OF ONE REPORTED DEFECT, so it is worth writing down
-    // rather than trusting. The ring labelled `n` is drawn where
+    // The ring labelled `n` is drawn where
     // `rpo*log2(anchor/u) + Z = n`, i.e. at `u = anchor * 2^((Z - n)/rpo)`.
-    // `route_pose` makes `Z` (`forward_cells`) strictly INCREASE with time, so
+    // `warp_travel` strictly increases with time, so
     // every ring's projected radius GROWS and the lattice sweeps outward past
     // the reader — which is approach. Subtracting `Z`, as this line did before,
     // shrinks every radius toward the axis instead: the rings converge into the
@@ -1318,7 +1202,7 @@ fn warped_grid_rgb(p: vec2<f32>) -> vec3<f32> {
         WARP_RPO_MIN,
         WARP_RPO_MAX,
     );
-    let travel = select(g.pose.z, -g.pose.z, reversed);
+    let travel = select(g.warp_travel, -g.warp_travel, reversed);
     let ring = rpo * log2(anchor / u) + travel;
     let rail = atan2(w.y, w.x) * (WARP_RAILS_PER_HALF_TURN / 3.14159265);
 

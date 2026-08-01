@@ -325,22 +325,18 @@ impl TextPipeline {
         crate::lava::lava_phase_for(self.lava_phase, crate::motion::reduced(), env)
     }
 
-    /// THE WARPED GRID's effective route phase, in seconds — the resolver shape
-    /// of the three above, over `crate::warpgrid`'s own knob and loop length.
+    /// THE WARPED GRID's effective travel phase, in seconds.
     pub fn warp_render_phase(&self) -> f32 {
         let env = crate::warpgrid::env_phase();
         crate::warpgrid::phase_for(self.warp_phase, crate::motion::reduced(), env)
     }
 
-    /// THE WARPED GRID's finished steering pose — `[yaw, pitch, forward_cells]`,
-    /// all-zero for every other ground (so their upload is byte-identical). The
-    /// route is `crate::warpgrid`'s; the shader receives only this result.
-    pub fn warp_pose(&self) -> [f32; 3] {
+    /// Forward distance in minor cells; zero for every other ground.
+    pub fn warp_travel(&self) -> f32 {
         if !self.effective_background().is_warped_grid() {
-            return [0.0; 3];
+            return 0.0;
         }
-        let p = crate::warpgrid::route_pose(self.warp_render_phase());
-        [p.yaw, p.pitch, p.forward_cells]
+        crate::warpgrid::forward_cells(self.warp_render_phase())
     }
 
     /// THE TWO AMBIENT ADVANCE DOORS, and why item 199 made it two. The

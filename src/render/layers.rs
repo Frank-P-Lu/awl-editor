@@ -97,7 +97,7 @@ impl TextPipeline {
             bg_w,
             crate::background::AmbientUpload {
                 drift,
-                pose: self.warp_pose(),
+                warp_travel: self.warp_travel(),
             },
             self.dpi,
         );

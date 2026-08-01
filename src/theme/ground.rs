@@ -106,19 +106,14 @@ pub enum Background {
     Deckle { ground: Srgb, layer: Srgb, deckle: Srgb, weave: Weave, anchor: DeckleAnchor,
         period_px: f32, wander_px: f32, density: f32 },
     WarpedGrid { ground: Srgb, minor: Srgb, major: Srgb, tunnel: Tunnel,
-        spacing_px: f32, curvature: f32, density: f32 },
+        spacing_px: f32, density: f32 },
 }
 
-/// WARPED GRID's one theme-owned profile dial: the shipped projection
-/// ([`Tunnel::Shared`] — one camera, one ROOM-derived scale, two ROOM-placed
-/// windows onto it), and every defect items 194/199 repaired kept beside it as
-/// an explicit MUTATION arm (the `DeckleAnchor::Page` precedent) so each law can
-/// be watched failing on the composition it names. `Shared` is the only profile
-/// a world should author; what each arm restores is in THEMES.md.
+/// WARPED GRID's framing profile. `Fixed` is the shipped room-owned projection;
+/// the other arms mutation-prove page-independent placement and forward travel.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tunnel {
-    Shared,
-    PerMargin,
+    Fixed,
     PageScaled,
     MarginPlaced,
     Reversed,
@@ -130,17 +125,15 @@ impl Tunnel {
     /// `WARP_TUNNEL_*` thresholds, so a new arm cannot silently alias an old one.
     pub fn mode(self) -> f32 {
         match self {
-            Tunnel::Shared => 0.0,
-            Tunnel::PerMargin => 1.0,
-            Tunnel::PageScaled => 2.0,
-            Tunnel::MarginPlaced => 3.0,
-            Tunnel::Reversed => 4.0,
+            Tunnel::Fixed => 0.0,
+            Tunnel::PageScaled => 1.0,
+            Tunnel::MarginPlaced => 2.0,
+            Tunnel::Reversed => 3.0,
         }
     }
     pub fn as_str(self) -> &'static str {
         match self {
-            Tunnel::Shared => "shared",
-            Tunnel::PerMargin => "per-margin",
+            Tunnel::Fixed => "fixed",
             Tunnel::PageScaled => "page-scaled",
             Tunnel::MarginPlaced => "margin-placed",
             Tunnel::Reversed => "reversed",
@@ -404,7 +397,6 @@ impl Background {
         match self {
             Background::Zigzag { amplitude_px, .. } => *amplitude_px,
             Background::Deckle { wander_px, .. } => *wander_px,
-            Background::WarpedGrid { curvature, .. } => *curvature,
             _ => 0.0,
         }
     }
@@ -438,11 +430,6 @@ impl Background {
     }
     pub fn is_deckle(&self) -> bool {
         matches!(self, Background::Deckle { .. })
-    }
-    /// WARPED GRID's steering-response gain, by its own name (the shared slot is
-    /// `amplitude_px`, exactly as Deckle's `wander_px` rides it).
-    pub fn curvature(&self) -> f32 {
-        self.amplitude_px()
     }
     /// Warped grid's vanishing-region placement, as the scalar the shader
     /// branches on — inert `0.0` for every ground that has no tunnel, so no

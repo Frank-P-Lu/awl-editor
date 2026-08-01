@@ -85,8 +85,8 @@ lines = 690
 
 [[file_size_mark]]
 file = "src/background.rs"
-lines = 286
-reason = "items 132/194: +23 lines — the grouped per-frame AmbientUpload (the shared ambient clock's fourth consumer pushed prepare past the argument ceiling, and a struct is the honest answer rather than an allow), the inert BgDesc::tunnel slot, and the Globals.pose row the host-resolved steering pose rides. Unavoidable at this seam: Globals IS the uniform's one Rust mirror, and a second file describing half of it is exactly the drift the byte-match law exists to stop."
+lines = 282
+reason = "The grouped per-frame AmbientUpload keeps the prepare call below the argument ceiling; Globals remains the uniform's single Rust mirror, including Kite's forward-travel scalar."
 
 [[file_size_mark]]
 file = "src/buffer.rs"
@@ -102,8 +102,8 @@ lines = 567
 
 [[file_size_mark]]
 file = "src/capture.rs"
-lines = 57
-reason = "items 188/194: +2 lines — the schema /194 history row, which the ledger law requires to move with the const, plus item 188's own /193 row and the rustfmt wrap of pub use opts::{..}. Not extractable: the ledger law's whole point is that the const and its row live together."
+lines = 56
+reason = "The capture schema const and its append-only history ledger intentionally live together so the ledger law can prevent an unrecorded shape change."
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
@@ -253,8 +253,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2461
-reason = "The renderer's GPU state floor: workspace mirrors and the warp phase accumulator live beside the sibling state consumed by the same frame pipeline."
+lines = 2459
+reason = "The renderer's GPU state floor: workspace mirrors and Kite's forward-travel accumulator live beside the sibling state consumed by the same frame pipeline."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -350,8 +350,8 @@ reason = "item 114: +11 lines in `set_view`, the one `ViewState`->pipeline mirro
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
-lines = 433
-reason = "Overlay composition and ambient resolvers live here because they read the pipeline's own settled state; the warp resolver shares the single ambient ownership seam."
+lines = 429
+reason = "Overlay composition and ambient resolvers live here because they read the pipeline's own settled state; Kite shares that ambient ownership seam."
 
 [[file_size_mark]]
 file = "src/render/rects.rs"
@@ -452,7 +452,7 @@ file = "src/theme/worlds.rs"
 # (1110 -> 1099) on top of the rebased tree. Item 132 added Kite and moved the
 # never-enrolled gallery audition out to theme/worlds_gallery.rs, so this file
 # holds only the shipped roster (1124 -> 1123).
-lines = 1123
+lines = 1122
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

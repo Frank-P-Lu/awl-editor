@@ -1643,9 +1643,7 @@ pub struct TextPipeline {
     /// [`Self::lava_phase`] holds it. See [`crate::lava`].
     pub lava_pipeline: crate::lava::LavaPipeline,
     lava_phase: f32,
-    /// THE WARPED-GRID ROUTE PHASE, in SECONDS ([`crate::warpgrid`]) — the same
-    /// sparse ambient tick as [`Self::lava_phase`], its own accumulator only
-    /// because that loop is minutes long where the lamp's is seconds.
+    /// WARPED-GRID travel phase in seconds.
     warp_phase: f32,
     lava_field_viewport: [f32; 2],
     /// THE ORGANIC FROST SEED FIELD (proto-cache): the visible margin glyphs' halo
