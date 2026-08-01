@@ -6,13 +6,22 @@
 
 ## Latest integration receipt
 
-Items 177, 159, and 171 are landed on `main` in that order. The final combined
-train is `18b4b7fff638761e6f692061a8a4ebe7d834d9fa`; web/wasm is 16/16 and the
-canonical receipt is `conventions=mac,linux scope=all-targets`. Integration
-caught and repaired Galah's stale health ratchets plus a parallel spellcheck
-state leak in the macOS About command-roster sweep; the latter now has a
-process-wide cleanliness law. This note supersedes their older waiting-for-
-approval annotations below.
+**2026-08-01, the current train.** Items **201** (Paperbark's Deckle density on
+Retina) and **200** (the caret's punctuation knockback colour) are landed on
+`main` in that order. The combined candidate is
+`a4f35a43c64a8ea20de3d0e67b35467ce21722e7`, receipt
+`native-gate-receipt commit=a4f35a43… conventions=mac,linux scope=all-targets`,
+web/wasm 16/16, code health clean. Item 200's own receipt predated item 201, and
+its laws measure Paperbark pixels as the Kite analogue, so all 8 were re-run on
+the combined tree (8 passed) before the train gate rather than trusting two
+receipts taken on different bases. CI is green on `f47028d0` under the raised
+mac ceiling.
+
+Earlier: items 177, 159, and 171 landed as train
+`18b4b7fff638761e6f692061a8a4ebe7d834d9fa`. That integration caught and repaired
+Galah's stale health ratchets plus a parallel spellcheck state leak in the macOS
+About command-roster sweep; the latter now has a process-wide cleanliness law.
+This note supersedes their older waiting-for-approval annotations below.
 
 ## Ready — current user-visible wave
 
