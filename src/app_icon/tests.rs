@@ -993,6 +993,8 @@ impl Blessed {
 /// Measured 2026-07-26 (item 102): every pair whose `differing` sits under
 /// 28.33% today, i.e. the whole low cluster below the roster's own cliff to
 /// 80.47% (Potoroo/Firetail) — see `axes()`'s `danger` value.
+/// Item 213 remeasured the affected baselines after applying the same global
+/// cursor lift to the full roster; palettes and preset assignments are intact.
 const DIFFERING_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Currawong",
@@ -1021,7 +1023,7 @@ const DIFFERING_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Saltpan",
         b: "Quokka",
-        baseline: 0.236328125,
+        baseline: 0.2353515625,
     },
     Blessed {
         a: "Galah",
@@ -1041,17 +1043,17 @@ const DIFFERING_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Tawny",
         b: "Mulga",
-        baseline: 0.2685546875,
+        baseline: 0.26171875,
     },
     Blessed {
         a: "Tawny",
         b: "Mopoke",
-        baseline: 0.2822265625,
+        baseline: 0.2783203125,
     },
     Blessed {
         a: "Tawny",
         b: "Bowerbird",
-        baseline: 0.287109375,
+        baseline: 0.28125,
     },
     Blessed {
         a: "Currawong",
@@ -1115,7 +1117,7 @@ const DIFFERING_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Brolga",
         b: "Kite",
-        baseline: 0.2236328125,
+        baseline: 0.21875,
     },
     Blessed {
         a: "Galah",
@@ -1134,11 +1136,13 @@ const DIFFERING_BLESSED: &[Blessed] = &[
 /// individually well before its own distant cliff (173.79 -> 473.61,
 /// Bombora/Wagtail -> Gumtree/Mangrove), so this axis's `danger` is set with
 /// margin above the tightest 10, not at that far cliff (see `axes()`'s doc).
+/// Item 213 remeasured the affected baselines after the roster-wide cursor
+/// lift; Bilby/Kite widened past 70 and is therefore removed rather than kept.
 const MEAN_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Currawong",
         b: "Cassowary",
-        baseline: 20.7490234375,
+        baseline: 20.6298828125,
     },
     // Item 121: Firetail's icon cursor moved Pill -> Block (32.87 -> 25.94),
     // then its ground moved to the user's C pick, `IconGround::Blend40`
@@ -1169,7 +1173,7 @@ const MEAN_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Saltpan",
         b: "Galah",
-        baseline: 68.1943359375,
+        baseline: 67.7998046875,
     },
     // Item 110's vertical-seat correction moves Bilby's rendered ink while
     // preserving every palette and cursor assignment. Item 161's further
@@ -1177,12 +1181,12 @@ const MEAN_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Bilby",
         b: "Galah",
-        baseline: 60.4755859375,
+        baseline: 59.962890625,
     },
     Blessed {
         a: "Bilby",
         b: "Saltpan",
-        baseline: 62.83203125,
+        baseline: 62.7783203125,
     },
     Blessed {
         a: "Bowerbird",
@@ -1204,12 +1208,12 @@ const MEAN_BLESSED: &[Blessed] = &[
         // Re-blessed at integration (item 161 + item 158): 158 measured this
         // against Bilby's PRE-LIFT pixels, then 161 lifted Bilby's cursor, so
         // the pair moved 52.79 -> 52.47. Neither branch could see this alone.
-        baseline: 52.47,
+        baseline: 52.306640625,
     },
     Blessed {
         a: "Galah",
         b: "Paperbark",
-        baseline: 64.453125,
+        baseline: 64.259765625,
     },
     // ITEM 132 — the same pale-light ground cluster as DIFFERING_BLESSED's own
     // Kite note. Bilby/Galah, Bilby/Saltpan and Bilby/Paperbark are already
@@ -1224,19 +1228,15 @@ const MEAN_BLESSED: &[Blessed] = &[
         b: "Kite",
         baseline: 53.849609375,
     },
-    Blessed {
-        a: "Bilby",
-        b: "Kite",
-        baseline: 68.30078125,
-    },
 ];
 
 /// Measured 2026-07-26 (item 102): every pair whose `ink` sits under 92%
 /// today — the roster's own cluster tops out at 88.39% (Bowerbird/Firetail)
 /// before a cliff to 94.22%; 92% sits between the two so the axis still
-/// catches a scenario shaped like `Ibis` (85.43% after item 161, see
+/// catches a scenario shaped like `Ibis` (84.08% after item 213, see
 /// `ibis_near_duplicate_is_caught_without_becoming_champion`) without
 /// pulling the entire 94%+ plateau into the blessed list.
+/// Item 213 remeasured the affected baseline after the roster-wide lift.
 const INK_BLESSED: &[Blessed] = &[
     // Item 121: Firetail's Block cursor first closed Potoroo/Firetail's ink
     // to 49.81% (from 54.31%, briefly the roster's global minimum) — then
@@ -1269,7 +1269,7 @@ const INK_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Bowerbird",
         b: "Firetail",
-        baseline: 0.8763250883392226,
+        baseline: 0.8715277777777778,
     },
     // ITEM 132: Kite's ONE ink-axis neighbour, and it sits at the top of the
     // roster's existing cluster (88.39% Bowerbird/Firetail) rather than near
@@ -1684,7 +1684,7 @@ fn check_pair_axes(pairs: &[Pair]) -> Vec<String> {
 /// silence: `Ibis` never displaces Currawong/Cassowary (differing, mean) or
 /// Potoroo/Firetail (ink) as the incumbent minimum. Under
 /// `check_pair_axes`'s danger-zone guard it must fail on all three axes —
-/// `Ibis`'s own values (currently 16.60%, 18.72, 85.43%) fall under
+/// `Ibis`'s own values (currently 16.60%, 18.72, 84.08%) fall under
 /// every axis's `danger` threshold without ever leading any of them, and the
 /// guard checks it by value, not by whether it happens to be the champion.
 #[test]
@@ -1733,7 +1733,8 @@ fn ibis_near_duplicate_is_caught_without_becoming_champion() {
     // whether the law catches it. Item 110 moved Bilby's rendered seat to
     // 16.80% / 18.77 / 85.57% from item 102's historical 18.16% / 20.46 /
     // 90.73%; item 161's further restrained lift on Bilby moves it again, to
-    // today's 16.60% / 18.72 / 85.43%, without weakening the probe.
+    // Item 213's global cursor lift moves only its ink figure again, to
+    // today's 16.60% / 18.72 / 84.08%, without weakening the probe.
     let ibis_vs_galah = pairs
         .iter()
         .find(|p| (p.a == "Ibis" && p.b == "Galah") || (p.a == "Galah" && p.b == "Ibis"))
@@ -1749,8 +1750,8 @@ fn ibis_near_duplicate_is_caught_without_becoming_champion() {
         ibis_vs_galah.mean
     );
     assert!(
-        (ibis_vs_galah.ink - 0.854271).abs() < 1e-3,
-        "ink = {} (item 161 geometry expects 85.43%)",
+        (ibis_vs_galah.ink - 0.8407960199004975).abs() < 1e-3,
+        "ink = {} (item 213 geometry expects 84.08%)",
         ibis_vs_galah.ink
     );
 
