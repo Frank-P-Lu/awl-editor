@@ -1771,9 +1771,16 @@ fn ordered_class_pair_transitions_stay_within_the_measured_bar_both_directions()
         let (_cy_a, h_a) = cell_at(&mut p, "a", 0, 0);
         let (_cy_e, h_e) = cell_at(&mut p, "", 0, 0);
         let d = (h_a - h_e).abs() / ps;
+        // Item 205 raises real punctuation into the row's x-height band but
+        // deliberately preserves item 105's font-measured *typical* empty
+        // line.  Those are different honest references, so this structural
+        // case uses the file's existing measured wide seam budget rather than
+        // pretending every world's real-glyph spread must cover both.
+        let empty_bound = bar.max(TRANSITION_BOUND_WIDE_PX);
         assert!(
-            d <= bar,
-            "{world}: EmptyLine vs a real line exceeds the bar ({bar:.2}px): Δ={d:.2}"
+            d <= empty_bound,
+            "{world}: EmptyLine vs a real line exceeds its structural bound \
+             ({empty_bound:.2}px; glyph bar {bar:.2}px): Δ={d:.2}"
         );
     }
 

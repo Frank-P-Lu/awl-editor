@@ -304,6 +304,19 @@ impl TextPipeline {
             }
         }
 
+        // Borrow the VERTICAL insertion envelopes, not the raw punctuation
+        // masks.  Blending raw `l` and `.` then applying an x-height clamp is
+        // non-linear: a tied space can end up nearer one side than the other.
+        // Lifting each real neighbour first keeps the existing distance blend
+        // genuinely symmetric while horizontal callers still receive each
+        // glyph's untouched `left`/`width`.
+        let (_, row_ascent, ascent_font) = self.caret_row_metrics();
+        let lift = |(_, ink): (usize, InkBox)| {
+            self.caret_cell_vertical_ink_box(ink, row_ascent, ascent_font)
+        };
+        back = back.map(|pair| (pair.0, lift(pair)));
+        fwd = fwd.map(|pair| (pair.0, lift(pair)));
+
         match (back, fwd) {
             (Some((db, bb)), Some((df, fb))) => {
                 let t = db as f32 / (db + df) as f32;
@@ -332,6 +345,44 @@ impl TextPipeline {
             return None;
         }
         self.caret_anchor_raster_box()
+    }
+
+    /// The vertical reference for a proportional cell caret.  Its horizontal
+    /// silhouette still comes from `ink`; only a short glyph's vertical box is
+    /// raised into this row's measured x-height band.  The union preserves an
+    /// ascender or descender that genuinely exceeds that band without a
+    /// punctuation table or a theme-specific branch.
+    fn caret_cell_vertical_ink_box(
+        &self,
+        ink: InkBox,
+        row_max_ascent: f32,
+        ratio_font: &str,
+    ) -> InkBox {
+        let x_height = (row_max_ascent * facepitch::x_height_ratio(ratio_font)).max(1.0);
+        let top = ink.top.max(x_height);
+        let descent = ink.descent();
+        InkBox {
+            left: ink.left,
+            top,
+            width: ink.width,
+            height: top + descent,
+        }
+    }
+
+    fn caret_cell_vertical_from_ink(
+        &self,
+        ink: InkBox,
+        baseline: f32,
+        row_max_ascent: f32,
+        ratio_font: &str,
+        px: f32,
+    ) -> (f32, f32) {
+        let vertical = self.caret_cell_vertical_ink_box(ink, row_max_ascent, ratio_font);
+        // Keep the established horizontally ink-hugging body dimensions.  The
+        // vertical envelope deliberately replaces only its height and centre.
+        let (_w, old_h) = caret_visual_body_dims(ink, px);
+        let h = old_h.max(vertical.height + 2.0 * CARET_INK_PAD * px);
+        (baseline - vertical.top + vertical.height * 0.5, h)
     }
 
     /// THE ONE OWNER of the CELL-form caret's VERTICAL extent: `(center_y, height)`
@@ -441,10 +492,8 @@ impl TextPipeline {
         let m = self.metrics;
         let px = m.caret_h / CARET_H;
         if let Some(ink) = self.caret_anchor_ink_box() {
-            let baseline = self.caret_baseline_y();
-            let cy = baseline - ink.top + ink.height * 0.5;
-            let (_w, h) = caret_visual_body_dims(ink, px);
-            return (cy, h);
+            let (baseline, row_ascent, ascent_font) = self.caret_row_metrics();
+            return self.caret_cell_vertical_from_ink(ink, baseline, row_ascent, ascent_font, px);
         }
         // Gated on `doc_family()` (the LIVE effective face the ACTIVE theme wants
         // for this buffer kind), deliberately NOT `shaped_font` (the face the
@@ -473,12 +522,10 @@ impl TextPipeline {
                 .caret_anchor_raster_box()
                 .or_else(|| self.nearest_row_raster_box(self.cursor_line, col))
                 .unwrap_or_else(|| self.caret_synthetic_ink_box(row_ascent, ascent_font));
-            let cy = baseline - ink.top + ink.height * 0.5;
-            // A glyphless column borrows or synthesizes the SAME visual body
-            // as the ink it joins.  Otherwise a comma's new floor would reopen
-            // item 105's glyph -> EOL seam the instant the caret stepped off it.
-            let (_w, h) = caret_visual_body_dims(ink, px);
-            return (cy, h);
+            // A glyphless column borrows or synthesizes the SAME vertical
+            // ordinary-letter band as the ink it joins.  Otherwise stepping
+            // off punctuation would reintroduce its short body at end-of-line.
+            return self.caret_cell_vertical_from_ink(ink, baseline, row_ascent, ascent_font, px);
         }
         let cy = self.caret.pos.y;
         let h = m.caret_block_h * self.cursor_scale();
@@ -665,7 +712,7 @@ impl TextPipeline {
     /// end-of-line case the hand-rolled loop lacked), so reusing it here makes
     /// the caret's row ownership one decision instead of three independently
     /// almost-identical ones.
-    fn caret_row_metrics(&self) -> (f32, f32, &'static str) {
+    pub(super) fn caret_row_metrics(&self) -> (f32, f32, &'static str) {
         // Anchor column (the cursor column in Block/I-beam; one back in Morph — at a
         // soft-wrap boundary that is the PREVIOUS visual row).
         let col = self.caret_anchor_col();

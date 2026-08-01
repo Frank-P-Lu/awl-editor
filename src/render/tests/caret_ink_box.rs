@@ -67,10 +67,10 @@ fn caret_top_bottom(p: &mut TextPipeline) -> (f32, f32) {
 }
 
 /// THE CORE LAW (item 91). On a PROPORTIONAL world the settled cell caret's TOP
-/// and BOTTOM are the anchored glyph's own full raster ink box grown by exactly
-/// `CARET_INK_PAD` — for an ASCENDER (`l`), an X-HEIGHT letter (`a`, `m`) and a
-/// DESCENDER (`g`, `y`) alike, through the SAME box (no separate descender rule,
-/// no per-letter list, no per-world offset).
+/// and BOTTOM follow the row's ordinary-letter band plus the anchored glyph's
+/// real overhang.  Ascenders and descenders retain their real ink extent; a
+/// short mark is raised to the same row-measured x-height band.  There is no
+/// punctuation list or per-world offset.
 ///
 /// Non-vacuous twice over: it asserts the pad is the same small number for every
 /// letter class (the exact property the old line-cell geometry failed — its top
@@ -111,19 +111,23 @@ fn cell_caret_hugs_the_full_ink_box_on_ascenders_x_height_and_descenders() {
         let ink = p
             .caret_anchor_ink_box()
             .unwrap_or_else(|| panic!("'{ch}' must yield a real ink box on Gumtree"));
-        let baseline = p.caret_baseline_y();
+        let (baseline, row_ascent, font) = p.caret_row_metrics();
+        let x_height = row_ascent * super::super::facepitch::x_height_ratio(font);
         let ink_top = baseline - ink.top;
         let ink_bottom = baseline + ink.descent();
+        let vertical_top = baseline - ink.top.max(x_height);
+        let vertical_bottom = ink_bottom;
 
         let (top, bottom) = caret_top_bottom(&mut p);
         assert!(
-            (top - (ink_top - pad)).abs() < 1e-2,
-            "'{ch}': caret top must be the ink top minus one pad: top={top} ink_top={ink_top} pad={pad}"
+            (top - (vertical_top - pad)).abs() < 1e-2,
+            "'{ch}': caret top must be the row x-height/ink envelope minus one pad: \
+             top={top} vertical_top={vertical_top} pad={pad}"
         );
         assert!(
-            (bottom - (ink_bottom + pad)).abs() < 1e-2,
+            (bottom - (vertical_bottom + pad)).abs() < 1e-2,
             "'{ch}': caret bottom must be the ink bottom plus one pad (descenders \
-             covered through the SAME box): bottom={bottom} ink_bottom={ink_bottom} pad={pad}"
+             covered through the same envelope): bottom={bottom} ink_bottom={ink_bottom} pad={pad}"
         );
         // The caret always fully CONTAINS the letter's ink, with room to spare.
         assert!(
@@ -131,7 +135,7 @@ fn cell_caret_hugs_the_full_ink_box_on_ascenders_x_height_and_descenders() {
             "'{ch}': the ink must sit strictly inside the caret: caret={top}..{bottom} ink={ink_top}..{ink_bottom}"
         );
 
-        top_gaps.push((ch, ink_top - top));
+        top_gaps.push((ch, vertical_top - top));
 
         // Fixture witnesses: the line really does hold both an ascender-tall ink
         // box and a below-baseline one, so the letter classes are genuinely covered.
@@ -159,9 +163,9 @@ fn cell_caret_hugs_the_full_ink_box_on_ascenders_x_height_and_descenders() {
     assert!(saw_ascender_ink, "fixture must include an ascender");
     assert!(saw_descender_ink, "fixture must include a real descender");
 
-    // THE LETTER-INDEPENDENCE LAW: the margin above the ink is ONE small constant
-    // for every letter — that is what makes this a mechanism and not a table of
-    // offsets. (The old geometry's top gap ranged 3px on `i` to 9px on `a`.)
+    // THE ENVELOPE LAW: the margin above the vertical envelope is ONE small
+    // constant for every letter — that is what makes this a mechanism and not
+    // a table of offsets.
     let (_c0, first) = top_gaps[0];
     for &(ch, gap) in &top_gaps {
         assert!(
@@ -217,8 +221,9 @@ fn cell_caret_vertical_has_one_owner_across_every_caret_form() {
         let ink = p
             .caret_anchor_ink_box()
             .expect("'m' must yield an ink box on Gumtree");
-        let baseline = p.caret_baseline_y();
-        let (ink_top, ink_bottom) = (baseline - ink.top, baseline + ink.descent());
+        let (baseline, row_ascent, font) = p.caret_row_metrics();
+        let x_height = row_ascent * super::super::facepitch::x_height_ratio(font);
+        let (ink_top, ink_bottom) = (baseline - ink.top.max(x_height), baseline + ink.descent());
 
         match mode {
             CaretMode::Block | CaretMode::Morph => {
@@ -255,6 +260,137 @@ fn cell_caret_vertical_has_one_owner_across_every_caret_form() {
             }
         }
     }
+
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+    crate::caret::set_mode(CaretMode::Block);
+}
+
+/// ITEM 205 — punctuation is horizontally ink-hugging but vertically an
+/// insertion point in the same ordinary-letter band as its row.  This is the
+/// reported comparison the earlier floor law omitted: a period is not judged
+/// against its own tiny ink, but against a letter caret on the SAME row.
+///
+/// Every world, form, DPI, and the two anchoring shapes are covered.  Block
+/// and Morph each put their anchor on the period by their real conventions;
+/// I-beam deliberately remains a full line bar, and therefore must be equal
+/// on both columns too.  The bound is item 105's measured adjacent
+/// glyph-to-glyph seam budget, with genuinely short ink held tighter.
+#[test]
+fn punctuation_uses_the_rows_letter_height_across_forms_worlds_dpi_and_anchors() {
+    let _t = crate::testlock::serial();
+    let _g = crate::testlock::serial();
+    let _c = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping punctuation_uses_the_rows_letter_height_across_forms_worlds_dpi_and_anchors: no wgpu adapter"
+        );
+        return;
+    };
+    let punct = [',', '.', ':', '-', '(', '[', '。'];
+    let mut proportional = 0usize;
+    let mut mono = 0usize;
+    let mut raw_shorter_than_band = false;
+
+    for world in theme::THEMES {
+        theme::set_active_by_name(world.name).unwrap();
+        p.sync_theme();
+        let is_mono = crate::caret::font_is_mono(p.shaped_font);
+        for dpi in [1.0, 2.0] {
+            p.set_dpi(dpi);
+            for mode in CaretMode::ALL {
+                crate::caret::set_mode(mode);
+                for ch in punct {
+                    // Compare against a same-row x-height letter: this is the
+                    // authored insertion band punctuation must join, while
+                    // ascenders/descenders retain their own real overhang.
+                    let text = format!("a{ch}a");
+                    let (letter_col, punctuation_col) = match mode {
+                        CaretMode::Block | CaretMode::Ibeam => (0, 1),
+                        CaretMode::Morph => (1, 2),
+                    };
+                    p.set_view(&view(&text, 0, letter_col));
+                    p.settle_caret();
+                    let (_, _, _, letter_h, ..) = p.caret_geometry();
+                    p.set_view(&view(&text, 0, punctuation_col));
+                    p.settle_caret();
+                    let (_, _, _, punctuation_h, ..) = p.caret_geometry();
+                    // The product already accepts up to 14px for two real
+                    // glyph boxes with different natural overhangs (item
+                    // 105's measured glyph-to-glyph bar).  Tall brackets may
+                    // legitimately use that room; the short-ink arm below is
+                    // held substantially tighter.
+                    let bound = 14.0 * p.metrics.caret_h / CARET_H;
+                    assert!(
+                        (punctuation_h - letter_h).abs() <= bound,
+                        "{} {mode:?} {ch:?} dpi={dpi}: punctuation height {punctuation_h:.2} \
+                         differs from its row letter {letter_h:.2} beyond item 105's {bound:.2}px seam budget",
+                        world.name
+                    );
+
+                    if !is_mono {
+                        let ink = p
+                            .caret_anchor_ink_box()
+                            .expect("proportional punctuation ink");
+                        let (_, ascent, font) = p.caret_row_metrics();
+                        let x_height = ascent * super::super::facepitch::x_height_ratio(font);
+                        if ink.height < x_height {
+                            let short_bound = 6.0 * p.metrics.caret_h / CARET_H;
+                            assert!(
+                                (punctuation_h - letter_h).abs() <= short_bound,
+                                "{} {mode:?} {ch:?} dpi={dpi}: short punctuation height \
+                                 {punctuation_h:.2} differs from its row x-height letter {letter_h:.2} \
+                                 beyond {short_bound:.2}px",
+                                world.name
+                            );
+                        }
+                    }
+
+                    // Block's end-of-line is glyphless and borrows the nearby
+                    // punctuation.  It must inherit the same repaired vertical
+                    // band instead of shrinking back to punctuation ink.
+                    if mode == CaretMode::Block {
+                        let eol = format!("a{ch}");
+                        p.set_view(&view(&eol, 0, 1));
+                        p.settle_caret();
+                        let (_, _, _, on_punctuation_h, ..) = p.caret_geometry();
+                        p.set_view(&view(&eol, 0, 2));
+                        p.settle_caret();
+                        let (_, _, _, eol_h, ..) = p.caret_geometry();
+                        assert!(
+                            (eol_h - on_punctuation_h).abs() <= bound,
+                            "{} {mode:?} {ch:?} dpi={dpi}: punctuation->EOL height seam \
+                             {on_punctuation_h:.2}->{eol_h:.2} exceeds {bound:.2}px",
+                            world.name
+                        );
+                    }
+
+                    if is_mono {
+                        mono += 1;
+                    } else {
+                        proportional += 1;
+                        p.set_view(&view(&text, 0, punctuation_col));
+                        p.settle_caret();
+                        let ink = p
+                            .caret_anchor_ink_box()
+                            .expect("proportional punctuation ink");
+                        let (_, ascent, font) = p.caret_row_metrics();
+                        raw_shorter_than_band |=
+                            ink.height < ascent * super::super::facepitch::x_height_ratio(font);
+                    }
+                }
+            }
+        }
+    }
+    assert!(
+        proportional > 0,
+        "the proportional roster must be exercised"
+    );
+    assert!(mono > 0, "the mono roster must be exercised");
+    assert!(
+        raw_shorter_than_band,
+        "non-vacuity: no punctuation ink was shorter than its row x-height band"
+    );
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
