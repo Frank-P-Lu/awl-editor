@@ -167,9 +167,14 @@ jobs:
     runs-on: macos-latest
     # Item 196 (2026-08-01): see the linux job's comment — same two fixes
     # (sccache after cache restore, caret_punctuation_pixels.rs split into
-    # per-world tests). This job was measured at 29.9m against the old 30m
-    # ceiling, a pass by one second. 25m is the same reasoning as linux.
-    timeout-minutes: 25
+    # per-world tests).
+    # RAISED 25 -> 35 on 2026-08-01: four post-196 runs measured 19m13s,
+    # 20m48s, 25m00s and 25m18s, and the last was cancelled by the 25m
+    # ceiling. This runner's spread is ~6m wide, so a ceiling within it
+    # cancels healthy runs — and a cancelled run is not a pass, so it costs
+    # main's mac coverage rather than saving minutes. 35 matches linux and
+    # still catches a hang, which is the only thing this ceiling is for.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
 
