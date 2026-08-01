@@ -115,6 +115,7 @@ const RENDER_RUNTIME: &[&str] = &[
     "zoom_reflow",
     "zoom_anchor",
     "theme_font_at",
+    "theme_font_last_reshape_at",
     "theme_switch_at",
     "theme_settle",
     "theme_switches",
@@ -456,7 +457,15 @@ fn root_app_does_not_grow() {
     // Item 172 baseline: 107 fields. Slice 1 removed 3 (`overlay`, `search`,
     // `popover_open`) and added 1 owner handle (`workspace_state`); slice 2
     // removed 5 and added 1 (`persistence`). 107 - 3 + 1 - 5 + 1 = 101.
-    const CEILING: usize = 101;
+    // Item 202 repair round: +1, `theme_font_last_reshape_at` — the
+    // leading-edge rule's own clock (when the font last actually reshaped),
+    // a sibling of the existing `theme_font_at`/`theme_switch_at`/
+    // `theme_settle`/`theme_switches` quartet this exact feature area already
+    // keeps as individual root fields rather than a sub-owner struct; no
+    // existing field can stand in for it (`theme_switch_at`/`theme_settle`
+    // are both DEBUG-only, gated behind `debug_on()`, and this must hold in
+    // every build). 101 + 1 = 102.
+    const CEILING: usize = 102;
     let fields = root_app_fields();
     assert_eq!(
         fields.len(),

@@ -59,17 +59,22 @@ enum NoticeKind {
 
 const ZOOM_PERSIST_DEBOUNCE: Duration = Duration::from_millis(500);
 
-/// Deferred FONT-RESHAPE debounce for a theme-picker preview step (item 202;
-/// item 37b had set this to 0). `debounce_due` is `now - dirty >= window`,
-/// trivially true at `window == 0` on the SAME instant `theme_font_at` is
-/// stamped — so the reshape ran synchronously inside the very `about_to_wait`
-/// pass that armed it, before that step's own colors-only redraw ever reached
-/// `RedrawRequested`, collapsing "instant colors, ONE reshape at rest"
-/// (docs/fonts.md) back into "colors + a full reshape, every single step" for
-/// every input modality that shares this constant (keyboard nav, pointer
-/// hover, wheel — `App::retint_theme_preview`). `AWL_THEME_FONT_DEBOUNCE_MS`
-/// is the A/B override this value was measured through; see docs/fonts.md for
-/// the live before/after numbers.
+/// LEADING-EDGE-PLUS-TRAILING-COALESCE window for a theme-picker preview
+/// step's font reshape (item 202 repair round; item 37b had set a flat
+/// trailing-only debounce to 0, item 202's first landing set it to a flat
+/// 100 — both are ONE NUMBER trying to answer two different questions:
+/// `theme_font_reshape_decision` is the actual fix. An ISOLATED step (nothing
+/// reshaped in the last `window`) reshapes IMMEDIATELY — this is item 37b's
+/// own measured ~39ms single-step settle, untouched. A step arriving WITHIN
+/// `window` of the last reshape (or while one is already pending) is a BURST
+/// continuation: it coalesces into `theme_font_at` instead of reshaping again,
+/// so N rapid steps pay one trailing reshape at rest, not N — the bug a flat
+/// 0ms debounce reintroduced (every step reshapes; later steps queue behind
+/// earlier ones on the single main thread) and a flat 100ms "fixed" only by
+/// punishing the isolated case too. Shared by every input modality that funnels
+/// through `App::retint_theme_preview` (keyboard nav, pointer hover, wheel).
+/// `AWL_THEME_FONT_DEBOUNCE_MS` is the A/B override; see docs/fonts.md for the
+/// live before/after numbers on both axes.
 const THEME_FONT_DEBOUNCE_DEFAULT_MS: u64 = 100;
 
 // A reversion to 0 fails the BUILD (item 202); `theme_debounce_item202.rs`
@@ -92,6 +97,38 @@ fn theme_font_debounce() -> Duration {
         parse_theme_font_debounce_ms(std::env::var("AWL_THEME_FONT_DEBOUNCE_MS").ok().as_deref())
     });
     Duration::from_millis(ms)
+}
+
+/// The outcome of [`theme_font_reshape_decision`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ThemeFontReshapeDecision {
+    /// Reshape right now — an isolated step, nothing recent to coalesce with.
+    Immediate,
+    /// Fold into the pending/sliding trailing debounce — a burst continuation.
+    Coalesce,
+}
+
+/// ITEM 202's LEADING-EDGE rule, pure and GPU-free so it is unit-testable at
+/// the seam that actually decides (the GPU-gated caller, `retint_theme_preview`,
+/// only executes the decision). A step is ISOLATED — reshape `Immediate` — when
+/// no reshape is currently `pending` AND either nothing has reshaped yet or the
+/// last reshape is at least `window` old; otherwise it is a burst continuation
+/// and must `Coalesce` (never re-enter the immediate path while one is already
+/// pending, and never treat two reshapes closer than `window` apart as two
+/// separate isolated steps).
+fn theme_font_reshape_decision(
+    pending: Option<Instant>,
+    last_reshape_at: Option<Instant>,
+    now: Instant,
+    window: Duration,
+) -> ThemeFontReshapeDecision {
+    let isolated = pending.is_none()
+        && last_reshape_at.is_none_or(|t| now.saturating_duration_since(t) >= window);
+    if isolated {
+        ThemeFontReshapeDecision::Immediate
+    } else {
+        ThemeFontReshapeDecision::Coalesce
+    }
 }
 
 #[cfg(test)]
@@ -635,6 +672,15 @@ pub struct App {
     /// replay applies theme fonts synchronously through the pure core + a fresh
     /// pipeline, so captures are untouched).
     theme_font_at: Option<Instant>,
+    /// ITEM 202 — the LEADING edge's own clock: when the font last actually
+    /// reshaped (via the immediate path below or the coalesced settle),
+    /// `None` before any reshape this session. `theme_font_reshape_decision`
+    /// reads it to tell an ISOLATED preview step (nothing reshaped recently —
+    /// reshape now, matching item 37b's own ~39ms single-step figure) from a
+    /// BURST continuation (a reshape is recent or already pending — coalesce
+    /// into `theme_font_at` instead, so a rapid run of steps pays one
+    /// trailing reshape, not one per step).
+    theme_font_last_reshape_at: Option<Instant>,
     /// LIVE-ONLY (DEBUG settle readout): the `Instant` of the input that triggered the
     /// current theme switch — re-stamped by each preview arrow (`retint_theme_preview`)
     /// so the settle measures from the LAST input, and stamped afresh by a direct/commit
@@ -1067,6 +1113,7 @@ impl App {
             zoom_reflow: ZoomReflow::default(),
             zoom_anchor: None,
             theme_font_at: None,
+            theme_font_last_reshape_at: None,
             theme_switch_at: None,
             theme_settle: None,
             lava_tick_at: None,

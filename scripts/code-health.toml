@@ -41,12 +41,13 @@ reason = "item 114: +8 lines net. The workspace's own two-region keyboard and it
 
 [[file_size_mark]]
 file = "src/app.rs"
-lines = 1829
-reason = "item 202: +24 lines net — the theme-picker movement-latency regression fix. `THEME_FONT_DEBOUNCE_DEFAULT_MS` gained a concise mechanism doc-comment plus a compile-time `const _: () = assert!(..)` regression pin (the old value, 0, let the deferred font reshape fire synchronously on the SAME `about_to_wait` pass that armed it — see the constant's own doc, and docs/fonts.md for the measured numbers this file no longer carries as changelog prose); `theme_font_debounce_ms_env_parse` now asserts against the named constant instead of a bare `0` literal; `RESIZE_SYNC_SETTLE`'s doc dropped its now-inaccurate \"mirrors THEME_FONT_DEBOUNCE's value\" claim (the two diverged at this item). Previously: item 188: +7 lines — the `capture_state` and `press` module declarations at the one module list, each with the `#[cfg]` naming where it exists (`capture_state` is native-only like the `--screenshot-app` mode it serves; `press` is native-or-test). `capture_state.rs` carries the live-`App` capture constructor and the `CaptureSubject` impl (it needs `App`'s private fields); `press.rs` is item 183's headless press door, moved out of `app/tests/` because the `--screenshot-app` mode is now a production caller. Both bodies live in their own files precisely to keep them off this one."
+lines = 1876
+reason = "item 202 repair round: +47 lines on top of the +24 below — the leading-edge-plus-trailing-coalesce rewrite. `theme_font_reshape_decision` (a pure fn) plus its `ThemeFontReshapeDecision` enum replace the flat-window doc/logic with the two-question split (isolated step vs. burst continuation); the new `theme_font_last_reshape_at` root field (see `app/tests/domains.rs`'s field-count ceiling, also bumped) gets its own doc comment. First landing: +24 lines — the theme-picker movement-latency regression fix. `THEME_FONT_DEBOUNCE_DEFAULT_MS` gained a concise mechanism doc-comment plus a compile-time `const _: () = assert!(..)` regression pin (the old value, 0, let the deferred font reshape fire synchronously on the SAME `about_to_wait` pass that armed it — see the constant's own doc, and docs/fonts.md for the measured numbers this file no longer carries as changelog prose); `theme_font_debounce_ms_env_parse` now asserts against the named constant instead of a bare `0` literal; `RESIZE_SYNC_SETTLE`'s doc dropped its now-inaccurate \"mirrors THEME_FONT_DEBOUNCE's value\" claim (the two diverged at this item). Previously: item 188: +7 lines — the `capture_state` and `press` module declarations at the one module list, each with the `#[cfg]` naming where it exists (`capture_state` is native-only like the `--screenshot-app` mode it serves; `press` is native-or-test). `capture_state.rs` carries the live-`App` capture constructor and the `CaptureSubject` impl (it needs `App`'s private fields); `press.rs` is item 183's headless press door, moved out of `app/tests/` because the `--screenshot-app` mode is now a production caller. Both bodies live in their own files precisely to keep them off this one."
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 1037
+lines = 1063
+reason = "item 202 repair round: +26 lines — `retint_theme_preview`'s GPU-gated block now calls `theme_font_reshape_decision` (app.rs) and acts on `Immediate`/`Coalesce` instead of unconditionally stamping `theme_font_at`; `retint_theme_now` and `apply_deferred_theme_font` each gained one line stamping `theme_font_last_reshape_at` so the leading edge's own clock is accurate regardless of which door produced the reshape."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -481,14 +482,14 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 865
-message = "this function has too many lines (217/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 moved 6 lines of state out of the constructor into two owners. Line shifted by item 188's two module declarations (`capture_state`, `press`) landing earlier in the file (+7); count unchanged. Line shifted by item 202's `THEME_FONT_DEBOUNCE_DEFAULT_MS` doc-comment + compile-time assertion landing earlier in the file (+24); count unchanged."
+line = 911
+message = "this function has too many lines (218/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 moved 6 lines of state out of the constructor into two owners. Line shifted by item 188's two module declarations (`capture_state`, `press`) landing earlier in the file (+7); count unchanged. Line shifted by item 202's `THEME_FONT_DEBOUNCE_DEFAULT_MS` doc-comment + compile-time assertion landing earlier in the file (+71 total across both landings); +1 REAL growth (217->218) — the constructor's own exhaustive field list gained `theme_font_last_reshape_at: None,`, the leading-edge rule's new root field (`app/tests/domains.rs`'s field-count ceiling bumped to match)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1367
+line = 1414
 message = "this function has too many lines (106/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+7); count unchanged. Line shifted by item 202's `THEME_FONT_DEBOUNCE_DEFAULT_MS` doc-comment + compile-time assertion (+24); count unchanged."
 
@@ -502,7 +503,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1626
+line = 1673
 message = "this function has too many lines (102/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+7); count unchanged. Line shifted by item 202's `THEME_FONT_DEBOUNCE_DEFAULT_MS` doc-comment + compile-time assertion (+24); count unchanged."
 
