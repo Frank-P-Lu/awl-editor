@@ -71,3 +71,7 @@ pub const SITE_GUIDE_HTML: &str = include_str!("../site/guide.html");
 /// the sidecar-schema reservation header can't drift from the const.
 #[cfg(test)]
 pub const CAPTURE_MD: &str = include_str!("../CAPTURE.md");
+
+/// Product-boundary source used by the first-launch documentation law.
+#[cfg(test)]
+pub const PHILOSOPHY_MD: &str = include_str!("../PHILOSOPHY.md");

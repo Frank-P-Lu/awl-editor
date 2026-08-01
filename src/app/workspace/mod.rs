@@ -102,9 +102,23 @@ pub(in crate::app) struct WorkspaceState {
     /// [`Self::summon_popover`] may set it true, and it applies the ladder on
     /// the way in, so the bit can never be armed underneath a picker.
     popover_summoned: bool,
+    tutorial_folder_intent: Option<super::files::TutorialFolderIntent>,
 }
 
 impl WorkspaceState {
+    pub(in crate::app) fn set_tutorial_folder_intent(
+        &mut self,
+        intent: super::files::TutorialFolderIntent,
+    ) {
+        self.tutorial_folder_intent = Some(intent);
+    }
+
+    pub(in crate::app) fn take_tutorial_folder_intent(
+        &mut self,
+    ) -> Option<super::files::TutorialFolderIntent> {
+        self.tutorial_folder_intent.take()
+    }
+
     // ─── THE LADDER: ONE OWNER ───────────────────────────────────────────
 
     /// Which rung holds attention. **The sole description of the precedence

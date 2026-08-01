@@ -430,9 +430,9 @@ mod tests {
             // `export::pdf::tests`, gated on `AWL_BLESS`): write committed test
             // fixtures under `src/export/testdata/`, never a durable user store
             // — a torn write just means re-blessing, and either golden is
-            // regenerated on demand.
             ("export/pdf/tests.rs", 1),
             ("export/tests.rs", 1),
+            ("firstrun/tests.rs", 1),
             ("fs.rs", 4),
             ("history/tests.rs", 1),
             ("index.rs", 4),

@@ -3,7 +3,8 @@ const EXPECTED: &[(&str, usize)] = &[
     // usable window (spell dictionary / clipboard / render-state init, the
     // daemon socket) — none has a `self.notice` seam to route through this
     // early, and each is a one-time, non-recurring condition.
-    ("app.rs", 5),
+    ("app.rs", 4),
+    ("app/gpu_recovery.rs", 1),
     ("app/lifecycle.rs", 1),
     // LIVE PROBE harness protocol/diagnostic lines (fate (c), CLI harness
     // output): the driver's ready-timeout warning + the ONE `PROBE-TRACE …`

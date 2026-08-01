@@ -32,6 +32,7 @@ clean_unused_assets|||
 keep_version|||
 last_file|C-Tab|C-Tab|
 new_document|Cmd-N|C-n|
+keep_tutorial|||
 move|||
 rename_note|||
 duplicate_note|||

@@ -585,7 +585,6 @@ pub struct App {
     /// is running, "where does New document / Move… land" is always the ACTIVE
     /// folder (`self.root`), never this field again — see item 76.
     default_folder: PathBuf,
-    tutorial_folder_intent: Option<files::TutorialFolderIntent>,
     /// When the open DOCUMENT last changed and an idle AUTOSAVE is pending, the
     /// buffer version known ON DISK, the CLOBBER-GUARD stat baselines (doc +
     /// scratch), and the scratch-stash's own saved-version — ALL buffer-scoped
@@ -1023,7 +1022,6 @@ impl App {
             recent_files,
             prev_file: None,
             default_folder,
-            tutorial_folder_intent: None,
             notice: None,
             notice_kind: NoticeKind::Sticky,
             notice_expires_at: None,

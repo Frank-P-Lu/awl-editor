@@ -370,7 +370,7 @@ fn every_settings_row_the_docs_cite_still_exists() {
 #[test]
 fn first_launch_docs_never_assign_an_implicit_notes_folder() {
     let docs = [
-        ("PHILOSOPHY.md", include_str!("../PHILOSOPHY.md")),
+        ("PHILOSOPHY.md", crate::embedded_docs::PHILOSOPHY_MD),
         ("GUIDE.md", crate::embedded_docs::GUIDE_MD),
         ("samples/welcome.md", crate::embedded_docs::WELCOME_MD),
         ("site/guide.html", crate::embedded_docs::SITE_GUIDE_HTML),

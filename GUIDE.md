@@ -167,6 +167,7 @@ drift into this page silently.
 | Keep version… |  |  |
 | Last file | ⌃Tab | Ctrl+Tab |
 | New document | ⌘N | Ctrl+N |
+| Keep tutorial… |  |  |
 | Move… |  |  |
 | Rename note… |  |  |
 | Duplicate note |  |  |

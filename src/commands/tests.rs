@@ -109,6 +109,7 @@ fn catalog_non_empty_and_named() {
         "Go to heading…",
         "Toggle typewriter scroll",
         "Toggle menu bar",
+        "Keep tutorial…",
         "Keep version…",
         "Clean unused assets…",
         "Compare with version…",
@@ -735,7 +736,6 @@ fn catalog_and_keymap_agree_on_every_default_chord() {
     // half skips a chord the DEFAULT (config-free) Linux keep-list holds
     // back (`keymap::linux_builtin_keep()` — Insert link's Ctrl-K, which
     // yields to kill-line out of the box; the insert-link-yields round) —
-    // that non-firing is ITS own law-tested contract too
     // (`keymap::tests::out_of_the_box_linux_ctrl_k_is_kill_line_under_both_keymap_flavors`),
     // and the labels never advertise the chord there either
     // (`insert_link_has_no_visible_linux_binding_out_of_the_box_mac_shows_cmd_k`).
@@ -1043,6 +1043,7 @@ const HIDE_ON_WEB: &[&str] = &[
     "Clean unused assets…",
     "Recent projects…",
     "Check for Updates",
+    "Keep tutorial…",
     "Export as PDF…",
 ];
 
@@ -1566,8 +1567,7 @@ fn non_displaced_emacs_default_survives_linux() {
 /// platform) pair: [`resolved_native_label_truthful`] is empty whenever
 /// [`crate::webreserved::is_reserved`] says so, and the joined label never
 /// contains a Linux-displaced emacs default as one of its `·`-separated
-/// tokens. A future catalog command that starts colliding fails THIS test
-/// until it is accounted for — the no-wildcard sweep the round's laws ask for.
+/// tokens. A future collision must be explicitly accounted for.
 #[test]
 fn label_truth_law_holds_across_the_whole_catalog() {
     for c in COMMANDS.iter() {

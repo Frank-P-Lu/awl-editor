@@ -41,7 +41,7 @@ reason = "item 114: +8 lines net. The workspace's own two-region keyboard and it
 
 [[file_size_mark]]
 file = "src/app.rs"
-lines = 1795
+lines = 1793
 reason = "item 202 repair round, DOWN 36 from the prior 1876 mark: `theme_font_reshape_decision`, its `ThemeFontReshapeDecision` enum, and their four pure laws moved out to the new `src/app/theme_font_debounce.rs` (a pure fn with no `self`, no GPU, no clock of its own — the scheduling seam's own module, not `App`'s; orchestrator review, 2026-08-01). `app.rs` keeps only the `theme_font_last_reshape_at` field, the shared window constant, and the two call sites that execute whichever verdict the extracted fn returns — the same 'extract rather than raise' call already made for `framebench.rs`'s bench-witness helper this same item. Net across the whole item-202 field: +24 lines — the theme-picker movement-latency regression fix. `THEME_FONT_DEBOUNCE_DEFAULT_MS` gained a concise mechanism doc-comment plus a compile-time `const _: () = assert!(..)` regression pin (the old value, 0, let the deferred font reshape fire synchronously on the SAME `about_to_wait` pass that armed it — see the constant's own doc, and docs/fonts.md for the measured numbers this file no longer carries as changelog prose); `theme_font_debounce_ms_env_parse` now asserts against the named constant instead of a bare `0` literal; `RESIZE_SYNC_SETTLE`'s doc dropped its now-inaccurate \"mirrors THEME_FONT_DEBOUNCE's value\" claim (the two diverged at this item). Previously: item 188: +7 lines — the theme-picker movement-latency regression fix. `THEME_FONT_DEBOUNCE_DEFAULT_MS` gained a concise mechanism doc-comment plus a compile-time `const _: () = assert!(..)` regression pin (the old value, 0, let the deferred font reshape fire synchronously on the SAME `about_to_wait` pass that armed it — see the constant's own doc, and docs/fonts.md for the measured numbers this file no longer carries as changelog prose); `theme_font_debounce_ms_env_parse` now asserts against the named constant instead of a bare `0` literal; `RESIZE_SYNC_SETTLE`'s doc dropped its now-inaccurate \"mirrors THEME_FONT_DEBOUNCE's value\" claim (the two diverged at this item). Previously: item 188: +7 lines — the `capture_state` and `press` module declarations at the one module list, each with the `#[cfg]` naming where it exists (`capture_state` is native-only like the `--screenshot-app` mode it serves; `press` is native-or-test). `capture_state.rs` carries the live-`App` capture constructor and the `CaptureSubject` impl (it needs `App`'s private fields); `press.rs` is item 183's headless press door, moved out of `app/tests/` because the `--screenshot-app` mode is now a production caller. Both bodies live in their own files precisely to keep them off this one."
 
 [[file_size_mark]]
@@ -487,14 +487,14 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 833
-message = "this function has too many lines (215/100)"
+line = 832
+message = "this function has too many lines (214/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 moved 6 lines of state out of the constructor into two owners. Line shifted by item 188's two module declarations (`capture_state`, `press`) landing earlier in the file (+7); count unchanged. Line shifted by item 202's `THEME_FONT_DEBOUNCE_DEFAULT_MS` doc-comment + compile-time assertion landing earlier in the file (+71 total across both landings); +1 REAL growth (217->218) — the constructor's own exhaustive field list gained `theme_font_last_reshape_at: None,`, the leading-edge rule's new root field (`app/tests/domains.rs`'s field-count ceiling bumped to match)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1333
+line = 1331
 message = "this function has too many lines (106/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+7); count unchanged. Line shifted by item 202's `THEME_FONT_DEBOUNCE_DEFAULT_MS` doc-comment + compile-time assertion (+24); count unchanged."
 
@@ -508,7 +508,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1592
+line = 1590
 message = "this function has too many lines (102/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+7); count unchanged. Line shifted by item 202's `THEME_FONT_DEBOUNCE_DEFAULT_MS` doc-comment + compile-time assertion (+24); count unchanged."
 
@@ -823,7 +823,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/picker_misc_smoke.rs"
-line = 748
+line = 749
 message = "this function has too many lines (122/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Item 116b: line moved only — the diff-panel CARD it was named for is retired, so the test's name and note now say `comparison`; the body is unchanged. Item 116c: line shifted +41 by the new restore/bare-Enter History tests added above it; this function's own body is unchanged."
 
@@ -937,7 +937,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/keymap/tests.rs"
-line = 1513
+line = 1514
 message = "this function has too many lines (103/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 

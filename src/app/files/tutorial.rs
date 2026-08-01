@@ -13,16 +13,18 @@ pub(in crate::app) enum TutorialFolderIntent {
 impl App {
     pub(in crate::app) fn prepare_tutorial_action(&mut self, action: Action) -> Action {
         if action == Action::KeepTutorial {
-            self.tutorial_folder_intent = Some(TutorialFolderIntent::KeepTutorial);
+            self.workspace_state
+                .set_tutorial_folder_intent(TutorialFolderIntent::KeepTutorial);
         } else if self.root == crate::fs::data_root() && action == Action::NewDocument {
-            self.tutorial_folder_intent = Some(TutorialFolderIntent::NewDocument);
+            self.workspace_state
+                .set_tutorial_folder_intent(TutorialFolderIntent::NewDocument);
             return Action::OpenProject;
         }
         action
     }
 
     pub(in crate::app) fn complete_tutorial_folder_choice(&mut self) {
-        match self.tutorial_folder_intent.take() {
+        match self.workspace_state.take_tutorial_folder_intent() {
             Some(TutorialFolderIntent::NewDocument) => self.new_document(),
             Some(TutorialFolderIntent::KeepTutorial) => self.manual_save(),
             None => {}

@@ -60,9 +60,9 @@ stale and the room should not have to.
 
 This Welcome starts safely with awl, so you can read and edit it before choosing
 where your own files should live. Its edits survive a relaunch. When you are
-ready to start a new document, awl asks you to choose a writing folder. To keep
-this tutorial there as ordinary Markdown, open {{key:command_palette}} and run
-"{{cmd:keep_tutorial}}".
+ready to start a new document, awl asks you to choose a writing folder. On a
+desktop, the command palette can also keep this tutorial there as ordinary
+Markdown.
 
 You do not have to save it. awl writes the file about a second after you stop
 typing, and again when the window loses focus, when you switch files, and when

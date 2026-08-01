@@ -31,6 +31,7 @@ const ALLOWED_DIRECT_CALLERS: &[&str] = &[
     "chrome/mod.rs",
     "chrome/hud.rs",
     "chrome/menubar.rs",
+    "chrome/menubar/dropdown.rs",
     "chrome/whichkey.rs",
 ];
 

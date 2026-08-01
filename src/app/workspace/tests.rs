@@ -25,6 +25,7 @@ fn cell(rung: Rung, search: bool, popover: bool) -> WorkspaceState {
         journey: journey_on(kind),
         search: search.then(|| SearchState::start(0, crate::search::Direction::Forward)),
         popover_summoned: popover,
+        tutorial_folder_intent: None,
     }
 }
 
@@ -134,6 +135,7 @@ fn every_overlay_kind_lands_on_the_rung_its_lifecycle_claims() {
             journey: journey_on(Some(kind)),
             search: None,
             popover_summoned: false,
+            tutorial_folder_intent: None,
         };
         let expect = if kind.sustained() {
             sustained.push(kind);
