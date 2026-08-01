@@ -1112,8 +1112,12 @@ fn the_warped_grid_wgsl_holds_its_repairs_and_names_no_world() {
         // column reaching this line is the defect the live review failed the
         // world on, and it now lives only inside the `PageScaled` mutation arm.
         "var anchor = WARP_SECTION_ROOM_FRAC * max(vp.y, 1.0);",
-        // ...and the two windows onto it have ONE placement owner.
-        "let hide = select(warp_window_hide(span, page_half, anchor), page_half, page_scaled);",
+        // ...and the two windows onto it have ONE placement owner, which after
+        // item 194 round 3 reads the ROOM and nothing else: no page column, no
+        // margin span. A page term reaching the PLACEMENT is round 2's defect,
+        // and it now lives only inside the `MarginPlaced` mutation arm.
+        "fn warp_window_axis(vp_x: f32, anchor: f32, on_right: bool) -> f32 {",
+        "let inset = WARP_WINDOW_INSET * anchor;",
         // ONE bend vector for the whole picture — not one per margin.
         "let bend = WARP_BEND_GAIN * curvature * anchor * anchor * steer;",
         // The radius floor: what bounds both lattices' projected density.
@@ -1121,7 +1125,7 @@ fn the_warped_grid_wgsl_holds_its_repairs_and_names_no_world() {
         // Both families retire into the far end rather than crowding into a knot.
         "let core_fade = smoothstep(core * WARP_CORE_FADE_LO, core * WARP_CORE_FADE_HI, u_raw);",
         // The mutation arm, and the ONLY place a side test may reach the STEERING.
-        "if (g.params.w >= WARP_TUNNEL_PER_MARGIN && !page_scaled) {",
+        "if (per_margin) {",
     ] {
         assert!(
             wgsl.contains(expr),
