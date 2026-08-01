@@ -1969,6 +1969,25 @@ fn selected_only_coverage_drops_unselected_bars_but_keeps_the_selected() {
 // pipeline's `stroke` uniform now serves ONLY the `FacetStyle::Chips` ghost pills
 // (see `facet_chips_render_a_pill_per_label_and_differ_from_text`).
 
+fn command_facet_scheme() -> &'static crate::facets::FacetScheme {
+    crate::facets::scheme(crate::overlay::OverlayKind::Command)
+        .expect("the command palette owns the facet roster under test")
+}
+
+fn command_facet_view(active: usize) -> ViewState {
+    let scheme = command_facet_scheme();
+    assert!(
+        active < scheme.strip.len(),
+        "active index {active} must name a command facet"
+    );
+    let mut v = view("hello\n", 0, 0);
+    v.overlay_active = true;
+    v.overlay_items = (0..8).map(|i| format!("Command {i}")).collect();
+    v.overlay_selected = 1;
+    v.overlay_lens = scheme.strip_labels(active);
+    v
+}
+
 /// REAL CHIPS (third attempt, MUST render) — `FacetStyle::Chips` draws a rounded
 /// pill hugging EACH facet label: the ACTIVE label a FILLED value pill
 /// (`overlay_lens_underline`), every INACTIVE label a GHOST hairline-stroke pill
@@ -1984,19 +2003,9 @@ fn facet_chips_render_a_pill_per_label_and_differ_from_text() {
     };
     let _g = crate::testlock::serial();
 
-    // A faceted picker: All + three task lenses, one active. All remains drawn so
-    // the user can return to the unfiltered corpus.
-    let mut v = view("hello\n", 0, 0);
-    v.overlay_active = true;
-    v.overlay_items = (0..8).map(|i| format!("Command {i}")).collect();
-    v.overlay_selected = 1;
-    v.overlay_lens = vec![
-        ("All".into(), false),
-        ("File".into(), true),
-        ("Edit".into(), false),
-        ("View".into(), false),
-    ];
-
+    let scheme = command_facet_scheme();
+    let expected_pills = scheme.strip.len();
+    let v = command_facet_view(0);
     let frame = |p: &mut TextPipeline, style: theme::FacetStyle| {
         set_facet_style_test_override(Some(style));
         p.set_view(&v);
@@ -2009,21 +2018,7 @@ fn facet_chips_render_a_pill_per_label_and_differ_from_text() {
         &mut p,
         theme::FacetStyle::Chips(theme::ChipVariant::Hairline),
     );
-    let active_pills = p.overlay_lens_underline.instance_count();
-    let ghost_pills = p.overlay_facet_ghost.instance_count();
     let ghost_stroke = p.overlay_facet_ghost.stroke();
-    set_facet_style_test_override(None);
-
-    // ONE pill per label: 1 active (filled) + 3 inactive (ghost stroke). This is
-    // the assertion the two prior attempts never made — they rendered nothing.
-    assert_eq!(
-        active_pills, 1,
-        "Chips draws exactly ONE filled active pill (got {active_pills})"
-    );
-    assert_eq!(
-        ghost_pills, 3,
-        "one ghost pill per inactive facet; got {ghost_pills}"
-    );
     assert!(
         ghost_stroke > 0.0,
         "the ghost pills are a hairline STROKE, not a fill (got {ghost_stroke})"
@@ -2045,6 +2040,45 @@ fn facet_chips_render_a_pill_per_label_and_differ_from_text() {
         "facet Chips vs Text strip (per-label pills)",
     );
 
+    for active in 0..expected_pills {
+        let v = command_facet_view(active);
+        p.set_view(&v);
+        p.prepare(&device, &queue, w, h).unwrap();
+        let active_pills = p.overlay_lens_underline.instance_count();
+        let ghost_pills = p.overlay_facet_ghost.instance_count();
+        assert_eq!(active_pills, 1, "active={active}: exactly one filled chip");
+        assert_eq!(
+            ghost_pills,
+            (expected_pills - 1) as u32,
+            "active={active}: one ghost chip per inactive command facet"
+        );
+        let [x, y, width, height] = p
+            .overlay_theme_underline
+            .expect("the active command facet has a chip");
+        assert_eq!(
+            p.overlay_lens_at(x + width * 0.5, y + height * 0.5),
+            Some(active),
+            "active={active}: the filled chip belongs to its own facet"
+        );
+        let actual: std::collections::BTreeSet<_> = p
+            .overlay_theme_facet_ghosts
+            .iter()
+            .map(|[x, y, width, height]| {
+                p.overlay_lens_at(x + width * 0.5, y + height * 0.5)
+                    .expect("every ghost chip is clickable at its own facet")
+            })
+            .collect();
+        let expected: std::collections::BTreeSet<_> = (0..expected_pills)
+            .filter(|index| *index != active)
+            .collect();
+        assert_eq!(
+            actual, expected,
+            "active={active}: ghosts cover every other facet"
+        );
+    }
+
+    set_facet_style_test_override(None);
+
     theme::set_active(theme::DEFAULT_THEME);
 }
 
@@ -2064,46 +2098,38 @@ fn facet_chips_leave_a_breathing_gap_between_pills() {
     };
     let _g = crate::testlock::serial();
 
-    let mut v = view("hello\n", 0, 0);
-    v.overlay_active = true;
-    v.overlay_items = (0..8).map(|i| format!("Command {i}")).collect();
-    v.overlay_selected = 1;
-    v.overlay_lens = vec![
-        ("All".into(), false),
-        ("File".into(), true),
-        ("Edit".into(), false),
-        ("View".into(), false),
-    ];
-
+    let expected_pills = command_facet_scheme().strip.len();
     set_facet_style_test_override(Some(theme::FacetStyle::Chips(theme::ChipVariant::Hairline)));
-    p.set_view(&v);
-    p.prepare(&device, &queue, w, h).unwrap();
+    for active in 0..expected_pills {
+        let v = command_facet_view(active);
+        p.set_view(&v);
+        p.prepare(&device, &queue, w, h).unwrap();
 
-    // Every drawn pill: the active (filled) mark + each inactive ghost, ordered by x.
-    let mut pills: Vec<[f32; 4]> = Vec::new();
-    if let Some(a) = p.overlay_theme_underline {
-        pills.push(a);
+        // Every drawn pill: the active mark + each inactive ghost, ordered by x.
+        let mut pills: Vec<[f32; 4]> = Vec::new();
+        if let Some(a) = p.overlay_theme_underline {
+            pills.push(a);
+        }
+        pills.extend(p.overlay_theme_facet_ghosts.iter().copied());
+        assert_eq!(
+            pills.len(),
+            expected_pills,
+            "active={active}: the command facet roster draws one chip per facet"
+        );
+        pills.sort_by(|a, b| a[0].partial_cmp(&b[0]).unwrap());
+        for pair in pills.windows(2) {
+            let gap = pair[1][0] - (pair[0][0] + pair[0][2]);
+            assert!(
+                gap >= 4.0,
+                "active={active}: adjacent chip pills must leave a breathing gap (≥4px), \
+                 got {gap:.1} between {:?} and {:?}",
+                pair[0],
+                pair[1]
+            );
+        }
     }
-    pills.extend(p.overlay_theme_facet_ghosts.iter().copied());
     set_facet_style_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
-
-    assert_eq!(
-        pills.len(),
-        4,
-        "All/File/Edit/View draw 4 pills (1 active + 3 ghost)"
-    );
-    pills.sort_by(|a, b| a[0].partial_cmp(&b[0]).unwrap());
-    for pair in pills.windows(2) {
-        let gap = pair[1][0] - (pair[0][0] + pair[0][2]);
-        assert!(
-            gap >= 4.0,
-            "adjacent chip pills must leave a breathing gap (≥4px), got {gap:.1} \
-             between {:?} and {:?}",
-            pair[0],
-            pair[1]
-        );
-    }
 }
 
 /// Pointer anchoring, edge clamping and row hit-testing share the
