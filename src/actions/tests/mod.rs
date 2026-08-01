@@ -599,6 +599,7 @@ pub(super) fn delete_flinch_fixture(
         | Action::OpenBrowse
         | Action::LastBuffer
         | Action::NewDocument
+        | Action::KeepTutorial
         | Action::MoveFile
         | Action::OpenRenameNote
         | Action::DuplicateNote
@@ -803,6 +804,7 @@ pub(super) fn all_actions() -> Vec<Action> {
             | Action::OpenBrowse
             | Action::LastBuffer
             | Action::NewDocument
+            | Action::KeepTutorial
             | Action::MoveFile
             | Action::OpenRenameNote
             | Action::DuplicateNote
@@ -1023,6 +1025,7 @@ pub(super) fn smoke_command_kind(a: &Action) -> SmokeKind {
         Action::Quit
         | Action::LastBuffer
         | Action::NewDocument
+        | Action::KeepTutorial
         | Action::OpenCredits
         | Action::OpenGuide
         | Action::FinishBuffer

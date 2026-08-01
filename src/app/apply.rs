@@ -308,11 +308,26 @@ impl App {
 
     pub(super) fn apply(
         &mut self,
-        action: Action,
+        mut action: Action,
         shift: bool,
         exit: &dyn schedule::Exit,
         door: crate::stats::Door,
     ) -> bool {
+        // The authored scratch Welcome has no claimed writing home. Both the
+        // first new document and the explicit Keep tutorial command enter the
+        // existing Project picker through the normal Action route; accepting a
+        // folder resumes the ordinary root/document owners below.
+        if matches!(action, Action::KeepTutorial) {
+            self.tutorial_folder_intent = Some(TutorialFolderIntent::KeepTutorial);
+        } else if self.root == crate::fs::data_root() {
+            match action {
+                Action::NewDocument => {
+                    self.tutorial_folder_intent = Some(TutorialFolderIntent::NewDocument);
+                    action = Action::OpenProject;
+                }
+                _ => {}
+            }
+        }
         self.pre_apply(&action, door);
 
         let CoreRun {
@@ -756,7 +771,14 @@ impl App {
         use crate::overlay::OverlayKind::*;
         match kind {
             Goto => self.open_rel(value),
-            Project => self.switch_project(PathBuf::from(value)),
+            Project => {
+                self.switch_project(PathBuf::from(value));
+                match self.tutorial_folder_intent.take() {
+                    Some(TutorialFolderIntent::NewDocument) => self.new_document(),
+                    Some(TutorialFolderIntent::KeepTutorial) => self.manual_save(),
+                    None => {}
+                }
+            }
             MoveDest => self.move_current_file(value),
             Caret => self.persist_caret_mode(),
             Dictionary => self.set_dictionary(crate::spell::active_variant()),

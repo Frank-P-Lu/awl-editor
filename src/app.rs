@@ -583,6 +583,10 @@ pub struct App {
     /// is running, "where does New document / Move… land" is always the ACTIVE
     /// folder (`self.root`), never this field again — see item 76.
     default_folder: PathBuf,
+    /// A bare Welcome has no user folder yet. The next Project-picker accept
+    /// consumes this transient intent through the ordinary root/new-document
+    /// owners; it is UI state, never a second persistence model.
+    tutorial_folder_intent: Option<TutorialFolderIntent>,
     /// When the open DOCUMENT last changed and an idle AUTOSAVE is pending, the
     /// buffer version known ON DISK, the CLOBBER-GUARD stat baselines (doc +
     /// scratch), and the scratch-stash's own saved-version — ALL buffer-scoped
@@ -824,6 +828,12 @@ pub struct App {
     /// before the window/NSApp exist.
     #[cfg(target_os = "macos")]
     _menu_bar: Option<muda::Menu>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TutorialFolderIntent {
+    NewDocument,
+    KeepTutorial,
 }
 
 impl App {
@@ -1069,6 +1079,7 @@ impl App {
             recent_files,
             prev_file: None,
             default_folder,
+            tutorial_folder_intent: None,
             notice: None,
             notice_kind: NoticeKind::Sticky,
             notice_expires_at: None,

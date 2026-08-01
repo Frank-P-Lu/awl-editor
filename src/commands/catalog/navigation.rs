@@ -99,6 +99,14 @@ pub(super) static COMMANDS: &[Command] = &[
         web_only: false,
     },
     Command {
+        name: "Keep tutorial…",
+        action: Action::KeepTutorial,
+        native: "",
+        emacs: "",
+        native_only: true,
+        web_only: false,
+    },
+    Command {
         name: "Move…",
         action: Action::MoveFile,
         native: "",

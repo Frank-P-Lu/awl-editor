@@ -286,6 +286,7 @@ fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect>
     let effect = match action {
         Action::LastBuffer => Effect::Buffer(BufferEffect::Previous { finished: false }),
         Action::NewDocument => Effect::Buffer(BufferEffect::NewDocument),
+        Action::KeepTutorial => Effect::RunAction(Action::OpenProject),
         Action::MoveFile => {
             ctx.journey
                 .enter((ctx.browse_to)(OverlayKind::MoveDest, None));
@@ -642,6 +643,7 @@ macro_rules! classify_action_family {
             | Action::OpenBrowse => ActionFamily::Overlay,
             Action::LastBuffer
             | Action::NewDocument
+            | Action::KeepTutorial
             | Action::MoveFile
             | Action::OpenRenameNote
             | Action::DuplicateNote

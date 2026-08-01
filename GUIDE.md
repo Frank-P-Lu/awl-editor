@@ -14,6 +14,10 @@ through the same recoverable scratch store it uses for unfinished writing. It
 does not create `~/notes` or place a file in a user folder. Edit it freely;
 those edits survive relaunch.
 
+The first {{key:new_document}} asks for a writing folder, then opens the
+ordinary unnamed document there. "{{cmd:keep_tutorial}}" uses the same folder
+choice and saves the edited Welcome as an ordinary Markdown file.
+
 | | |
 |---|---|
 | Where it lives first | awl's recoverable scratch store, not a user folder |

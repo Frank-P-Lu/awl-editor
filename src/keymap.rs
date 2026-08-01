@@ -185,6 +185,7 @@ pub enum Action {
     OpenBrowse,
     LastBuffer,
     NewDocument,
+    KeepTutorial,
     MoveFile,
     OpenRenameNote,
     DuplicateNote,
