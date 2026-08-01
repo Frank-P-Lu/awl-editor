@@ -613,7 +613,7 @@ impl App {
         self.zoom = zoom;
         let _ = make_overlay;
         let _ = browse_to;
-        self.sync_overlay_after_core(overlay_was_open);
+        self.sync_overlay_after_core(overlay_was_open, self.input.resting_pointer());
         CoreRun {
             transition,
             theme_overlay_before,
@@ -622,7 +622,11 @@ impl App {
         }
     }
 
-    fn sync_overlay_after_core(&mut self, overlay_was_open: bool) {
+    fn sync_overlay_after_core(
+        &mut self,
+        overlay_was_open: bool,
+        pointer: crate::app::input::RestingPointer,
+    ) {
         // ITEM 106 — re-anchor the hover movement-slop gate to the pointer's
         // CURRENT resting position after every action this seam applies (keyboard
         // nav/type, a menu command, or a click routed back through `apply` from
@@ -635,7 +639,8 @@ impl App {
         // then silently steal the keyboard's selection out from under a
         // motionless hand. See `OverlayState::arm_hover_baseline`'s doc.
         if let Some(ov) = self.workspace_state.overlay_mut() {
-            ov.arm_hover_baseline(self.cursor_px.0, self.cursor_px.1);
+            let (px, py) = pointer.px();
+            ov.arm_hover_baseline(px, py);
         }
         if self.workspace_state.overlay_open() != overlay_was_open {
             self.sync_cursor_icon();

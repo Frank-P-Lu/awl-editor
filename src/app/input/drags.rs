@@ -254,11 +254,11 @@ impl App {
             }
             self.sync_view(true);
         }
+        let (px, py) = self.input.resting_pointer().px();
         if let Some(gpu) = self.gpu.as_mut() {
             // DRAG READOUT: a quiet muted char-count near the pointer while the edge
             // is held (Butterick's line-length rule made visible) — live for the
             // whole gesture (press through every move); cleared on release.
-            let (px, py) = self.cursor_px;
             gpu.pipeline
                 .set_page_drag_readout(Some((px, py, crate::page::measure())));
             gpu.window.request_redraw();

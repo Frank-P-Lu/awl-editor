@@ -502,7 +502,8 @@ impl App {
         } else {
             raw
         };
-        let action = self.keymap.resolve(&logical, &self.mods);
+        let mods = self.input.mods;
+        let action = self.input.keymap.resolve(&logical, &mods);
         // LIFETIME STATS: record this press into the odometer — a keystroke, a
         // printable char iff it resolved to an insert, and the capped active-
         // writing interval since the previous press. On the keyboard-input path

@@ -32,8 +32,8 @@ pub(crate) enum Domain {
     ConfigurationRuntime,
     /// The active document slot, the registry, the checker.
     DocumentSession,
-    /// Raw keyboard/pointer/gesture state.
-    InputState,
+    /// Raw keyboard/pointer/gesture state (`app::input::InputRuntime`).
+    InputRuntime,
     /// "Where am I working": root, project, indexes, MRUs.
     ProjectLocation,
     /// GPU handles, zoom, theme retint, caret feedback, debug frame stats.
@@ -58,36 +58,6 @@ pub(crate) enum Extraction {
 
 /// Root-`App` fields still owned by [`Domain::DocumentSession`].
 const DOCUMENT_SESSION: &[&str] = &["active", "buffer_registry", "prev_file", "spell"];
-/// Root-`App` fields still owned by [`Domain::InputState`].
-const INPUT_STATE: &[&str] = &[
-    "keymap",
-    "mods",
-    "prefix_pending_at",
-    "whichkey_shown",
-    "hud_key",
-    "hud_mods",
-    "peek_arm",
-    "peek_armed_at",
-    "pointer_hide",
-    "cursor_px",
-    "dragging",
-    "drag_press_px",
-    "drag_armed",
-    "page_resizing",
-    "page_resize_edge",
-    "page_resize_anchor",
-    "image_resizing",
-    "range_drag",
-    "cursor_icon",
-    "drag_granularity",
-    "last_click_time",
-    "last_click_px",
-    "click_count",
-    "scroll_px_accum",
-    "preedit",
-    "ime_enabled",
-    "scroll_sensitivity",
-];
 /// Root-`App` fields still owned by [`Domain::RenderRuntime`].
 const RENDER_RUNTIME: &[&str] = &[
     "gpu",
@@ -166,7 +136,7 @@ impl Domain {
         Domain::PersistenceRuntime,
         Domain::ConfigurationRuntime,
         Domain::DocumentSession,
-        Domain::InputState,
+        Domain::InputRuntime,
         Domain::ProjectLocation,
         Domain::RenderRuntime,
         Domain::FrameScheduler,
@@ -186,8 +156,8 @@ impl Domain {
             Domain::PersistenceRuntime => Some("persistence"),
             Domain::ConfigurationRuntime => Some("config"),
             Domain::ProjectLocation => Some("project_location"),
+            Domain::InputRuntime => Some("input"),
             Domain::DocumentSession
-            | Domain::InputState
             | Domain::RenderRuntime
             | Domain::FrameScheduler
             | Domain::HostLifecycle => None,
@@ -217,7 +187,7 @@ impl Domain {
 
             // ── MAPPED, STILL ON ROOT `App` ──────────────────────────────
             Domain::DocumentSession => (Extraction::OnRootApp, DOCUMENT_SESSION),
-            Domain::InputState => (Extraction::OnRootApp, INPUT_STATE),
+            Domain::InputRuntime => (Extraction::Extracted, &[]),
             Domain::RenderRuntime => (Extraction::OnRootApp, RENDER_RUNTIME),
             Domain::FrameScheduler => (Extraction::OnRootApp, FRAME_SCHEDULER),
             Domain::HostLifecycle => (Extraction::OnRootApp, HOST_LIFECYCLE),
@@ -431,6 +401,35 @@ fn retired_field_names(domain: Domain) -> &'static [&'static str] {
             "title_dirty",
         ],
         Domain::ConfigurationRuntime => &["default_folder", "cli_workspace", "cli_default_folder"],
+        Domain::InputRuntime => &[
+            "keymap",
+            "mods",
+            "prefix_pending_at",
+            "whichkey_shown",
+            "hud_key",
+            "hud_mods",
+            "peek_arm",
+            "peek_armed_at",
+            "pointer_hide",
+            "cursor_px",
+            "dragging",
+            "drag_press_px",
+            "drag_armed",
+            "page_resizing",
+            "page_resize_edge",
+            "page_resize_anchor",
+            "image_resizing",
+            "range_drag",
+            "cursor_icon",
+            "drag_granularity",
+            "last_click_time",
+            "last_click_px",
+            "click_count",
+            "scroll_px_accum",
+            "preedit",
+            "ime_enabled",
+            "scroll_sensitivity",
+        ],
         Domain::ProjectLocation => &[
             "root",
             "project",
@@ -440,7 +439,6 @@ fn retired_field_names(domain: Domain) -> &'static [&'static str] {
             "recent_files",
         ],
         Domain::DocumentSession
-        | Domain::InputState
         | Domain::RenderRuntime
         | Domain::FrameScheduler
         | Domain::HostLifecycle => &[],
@@ -469,8 +467,9 @@ fn root_app_does_not_grow() {
     // every build). 101 + 1 = 102. ConfigurationRuntime then replaces
     // `default_folder` + both CLI location inputs with its existing `config`
     // handle (-3), while ProjectLocation replaces six loose fields with one
-    // handle (-5): 102 - 3 - 5 = 94.
-    const CEILING: usize = 94;
+    // handle (-5): 102 - 3 - 5 = 94. InputRuntime then replaces 27 loose
+    // fields with its one handle: 94 - 27 + 1 = 68.
+    const CEILING: usize = 68;
     let fields = root_app_fields();
     assert_eq!(
         fields.len(),
@@ -490,7 +489,7 @@ fn root_app_does_not_grow() {
 fn the_root_app_field_parser_is_not_vacuous() {
     let fields = root_app_fields();
     assert!(
-        fields.len() > 80,
+        fields.len() > 60,
         "parsed only {} field(s) out of src/app.rs — the parser lost the struct \
          body and every gate in this file just went vacuous: {fields:?}",
         fields.len()
@@ -498,7 +497,7 @@ fn the_root_app_field_parser_is_not_vacuous() {
     // Spot-check three fields of very different declaration shapes: a plain
     // one, a `#[cfg]`-gated one, and one whose type carries a generic
     // parameter list (the bracket-depth tracking).
-    for expect in ["keymap", "wait_conns", "buffer_registry"] {
+    for expect in ["input", "wait_conns", "buffer_registry"] {
         assert!(
             fields.iter().any(|f| f == expect),
             "the parser missed `{expect}`, so its declaration shape is not covered: {fields:?}"

@@ -362,8 +362,13 @@ fn release_disarms_so_the_next_press_is_slop_gated_again() {
     let m = Metrics::with_dpi(app.zoom, app.dpi);
     move_by(&mut app, 6.0 * m.char_width, 0.0);
     assert!(app.active.buffer.has_selection());
-    app.dragging = false;
-    app.drag_armed = false; // mirrors `on_mouse_input`'s Released arm
+    // This is the one release transition, not a mirror of its statements:
+    // removing `finish_text_drag`'s armed reset makes this law fail by name.
+    app.input.finish_text_drag();
+    assert!(
+        !app.dragging && !app.drag_armed,
+        "release retires both the active drag and its slop latch"
+    );
     press_at_col(&mut app, 3, false);
     assert!(
         !app.active.buffer.has_selection(),
@@ -611,7 +616,8 @@ fn wheel_scroll_from_cold_start_does_not_expose_selection_to_the_next_hover_chec
     // post-scroll visible band ([11, 23) for Goto's window), so a steal here
     // can only come from the missing cold-start stamp, never from
     // `hover_select`'s own separate visible-band rejection.
-    let stolen = ov.hover_at(app.cursor_px.0, app.cursor_px.1, Some(15));
+    let (px, py) = app.input.resting_pointer().px();
+    let stolen = ov.hover_at(px, py, Some(15));
     assert!(
         !stolen,
         "a stationary pointer re-check after a wheel scroll must not steal the selection"

@@ -1,4 +1,5 @@
 use super::wheel::*;
+use crate::app::input::DragGranularity;
 use crate::app::*;
 
 impl App {
@@ -332,8 +333,9 @@ impl App {
         // redraw-duplicate `CursorMoved` at the pointer's unmoved position — as
         // unconditional real motion, silently overriding the wheel's selection
         // with whatever row now sits under the stationary pointer.
+        let (px, py) = self.input.resting_pointer().px();
         if let Some(ov) = self.workspace_state.overlay_mut() {
-            ov.arm_hover_baseline(self.cursor_px.0, self.cursor_px.1);
+            ov.arm_hover_baseline(px, py);
         }
         if kind == crate::overlay::OverlayKind::Theme {
             self.retint_theme_preview(prev);
@@ -950,8 +952,7 @@ impl App {
                 self.end_page_resize();
             }
             ElementState::Released => {
-                self.dragging = false;
-                self.drag_armed = false;
+                self.input.finish_text_drag();
                 self.sync_cursor_icon();
                 if !self.active.buffer.has_selection() {
                     self.active.buffer.clear_mark();
