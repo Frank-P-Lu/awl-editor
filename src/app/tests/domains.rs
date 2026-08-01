@@ -482,6 +482,20 @@ fn root_app_does_not_grow() {
     );
 }
 
+/// Input is an explicit owner handle. `Deref` would make `self.keymap` look
+/// like an App field again and silently restore the cross-domain reach this
+/// slice removed.
+#[test]
+fn app_does_not_deref_to_an_input_runtime() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/app.rs");
+    let source = std::fs::read_to_string(root).expect("src/app.rs must be readable");
+    let forbidden = ["impl std::ops::De", "ref for App"].concat();
+    assert!(
+        !source.contains(&forbidden),
+        "App must not deref to InputRuntime; spell the owner as self.input"
+    );
+}
+
 /// Sanity: the parser reads the real struct, not an empty list. A silently
 /// empty parse would make all three gates above vacuously green — the
 /// classic way a structural law stops guarding anything.

@@ -20,7 +20,7 @@ use crate::render::{Metrics, TEXT_LEFT, TEXT_TOP};
 /// resolved a pointer to document column `col`.
 fn press_at_col(app: &mut App, col: usize, shift: bool) {
     let m = Metrics::with_dpi(app.zoom, app.dpi);
-    app.cursor_px = (TEXT_LEFT + col as f32 * m.char_width, TEXT_TOP);
+    app.input.cursor_px = (TEXT_LEFT + col as f32 * m.char_width, TEXT_TOP);
     app.press_at_char(col, shift);
 }
 
@@ -36,7 +36,7 @@ fn gutter_press_never_moves_or_selects_document_text() {
     let before_cursor = app.active.buffer.cursor_char();
     let before_selection = app.active.buffer.selection_range();
 
-    app.cursor_px = (0.0, TEXT_TOP);
+    app.input.cursor_px = (0.0, TEXT_TOP);
     app.on_press(false, false);
 
     assert_eq!(
@@ -50,11 +50,11 @@ fn gutter_press_never_moves_or_selects_document_text() {
         "gutter press neither creates nor clears a document selection"
     );
     assert!(
-        !app.dragging,
+        !app.input.dragging,
         "gutter press cannot arm a text-selection drag"
     );
     assert!(
-        !app.drag_armed,
+        !app.input.drag_armed,
         "gutter press cannot cross the drag-slop gate later"
     );
 
@@ -191,15 +191,15 @@ fn exceeds_drag_slop_combines_both_axes_diagonally() {
 /// Move a hermetic pointer through the drag-arm state seam, then supply the
 /// document endpoint that production obtains from the live pipeline.
 fn move_by(app: &mut App, dx: f32, dy: f32) {
-    let (x, y) = app.cursor_px;
+    let (x, y) = app.input.cursor_px;
     app.on_cursor_moved(winit::dpi::PhysicalPosition::new(
         (x + dx) as f64,
         (y + dy) as f64,
     ));
-    if app.drag_armed {
+    if app.input.drag_armed {
         let m = Metrics::with_dpi(app.zoom, app.dpi);
-        let line = ((app.cursor_px.1 - TEXT_TOP).max(0.0) / m.line_height).floor() as usize;
-        let col = ((app.cursor_px.0 - TEXT_LEFT).max(0.0) / m.char_width).round() as usize;
+        let line = ((app.input.cursor_px.1 - TEXT_TOP).max(0.0) / m.line_height).floor() as usize;
+        let col = ((app.input.cursor_px.0 - TEXT_LEFT).max(0.0) / m.char_width).round() as usize;
         app.drag_to_char(app.active.buffer.hit_char(line, col));
     }
 }
@@ -239,7 +239,7 @@ fn sub_slop_jitter_does_not_arm_a_selection_even_across_a_column_boundary() {
     let m = Metrics::with_dpi(app.zoom, app.dpi);
     // Half a cell short of column 6's boundary: rounds to column 6 today,
     // but a nudge of less than half a cell tips it to column 7.
-    app.cursor_px = (TEXT_LEFT + 6.0 * m.char_width - 0.5, TEXT_TOP);
+    app.input.cursor_px = (TEXT_LEFT + 6.0 * m.char_width - 0.5, TEXT_TOP);
     app.press_at_char(6, false);
     let pressed_at = app.active.buffer.cursor_char();
     assert!(
@@ -319,7 +319,7 @@ fn a_drag_past_the_pages_left_edge_clamps_to_the_rows_first_column() {
     // Drag the pointer far LEFT of the writing column's own origin — well past
     // the page's left edge, deep in the margin — but keep it on the SAME row.
     let m = Metrics::with_dpi(app.zoom, app.dpi);
-    let (x, y) = app.cursor_px;
+    let (x, y) = app.input.cursor_px;
     move_by(
         &mut app,
         TEXT_LEFT - 500.0 - x,
@@ -341,7 +341,7 @@ fn a_drag_past_the_pages_left_edge_clamps_to_the_rows_first_column() {
 
     // Dragging even FURTHER left changes nothing further — the clamp is
     // idempotent, not a crash-prone unbounded extrapolation.
-    let (x, y) = app.cursor_px;
+    let (x, y) = app.input.cursor_px;
     move_by(
         &mut app,
         TEXT_LEFT - 100_000.0 - x,
@@ -366,7 +366,7 @@ fn release_disarms_so_the_next_press_is_slop_gated_again() {
     // removing `finish_text_drag`'s armed reset makes this law fail by name.
     app.input.finish_text_drag();
     assert!(
-        !app.dragging && !app.drag_armed,
+        !app.input.dragging && !app.input.drag_armed,
         "release retires both the active drag and its slop latch"
     );
     press_at_col(&mut app, 3, false);
@@ -391,7 +391,7 @@ const FOLD_DOC: &str = "# A\na1\na2\n# B\nb1";
 /// resolved the row and column.
 fn press_at_row_col(app: &mut App, row: usize, col: usize, shift: bool) {
     let m = Metrics::with_dpi(app.zoom, app.dpi);
-    app.cursor_px = (
+    app.input.cursor_px = (
         TEXT_LEFT + col as f32 * m.char_width,
         TEXT_TOP + (row as f32 + 0.5) * m.line_height,
     );
@@ -523,7 +523,10 @@ fn a_drag_across_a_collapsed_section_reveals_every_fold_it_crosses() {
     // on_press -> on_cursor_moved(drag) seam.
     let mut app = folded_app();
     press_at_row_col(&mut app, 0, 0, false); // caret on # A, drag armed on next travel
-    assert!(app.dragging, "a press on the heading text arms a text drag");
+    assert!(
+        app.input.dragging,
+        "a press on the heading text arms a text drag"
+    );
     assert!(
         app.active.buffer.folds().contains(&0),
         "the press alone does not reveal"
@@ -596,7 +599,7 @@ fn wheel_scroll_from_cold_start_does_not_expose_selection_to_the_next_hover_chec
     app.workspace_state.install_overlay_for_test(ov);
     // The pointer is resting somewhere (its OS position is always something;
     // it just hasn't generated a hover check on this overlay yet).
-    app.cursor_px = (123.0, 45.0);
+    app.input.cursor_px = (123.0, 45.0);
 
     // A wheel scroll deep enough to move the window (Goto's `window_rows` is
     // 12; 22 notches lands `selected` at 22, well past the first page).

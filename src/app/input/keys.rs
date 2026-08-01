@@ -2,7 +2,7 @@ use crate::app::*;
 
 impl App {
     pub(in crate::app) fn on_key_release(&mut self, released: &Key) {
-        if self.hud_key.as_ref() == Some(released) {
+        if self.input.hud_key.as_ref() == Some(released) {
             self.clear_hud();
         }
     }
@@ -14,7 +14,7 @@ impl App {
     /// hold chord is broken, so the HUD vanishes. The pure decision is
     /// [`hud_mods_broken`] (unit-tested without a window).
     pub(in crate::app) fn hud_release_on_mods(&mut self, now: ModifiersState) {
-        if self.hud_key.is_some() && hud_mods_broken(self.hud_mods, now) {
+        if self.input.hud_key.is_some() && hud_mods_broken(self.input.hud_mods, now) {
             self.clear_hud();
         }
     }
@@ -25,8 +25,8 @@ impl App {
     /// modifier) so the HUD is a true momentary hold — gone the instant the chord lifts.
     pub(in crate::app) fn clear_hud(&mut self) {
         crate::hud::set_held(false);
-        self.hud_key = None;
-        self.hud_mods = ModifiersState::empty();
+        self.input.hud_key = None;
+        self.input.hud_mods = ModifiersState::empty();
         self.sync_view(false);
         if let Some(gpu) = self.gpu.as_ref() {
             gpu.window.request_redraw();
@@ -43,17 +43,17 @@ impl App {
     /// stimulus (no state change — the common case: typing without ⌘, a stray timer) is a
     /// cheap early return with no redraw.
     pub(in crate::app) fn feed_peek(&mut self, stim: crate::peek::PeekStimulus) {
-        let before = self.peek_arm;
+        let before = self.input.peek_arm;
         let after = before.next(stim);
         if after == before {
             return;
         }
-        self.peek_arm = after;
+        self.input.peek_arm = after;
         use crate::peek::PeekArm::*;
         match after {
-            Pending => self.peek_armed_at = Some(self.clock.now()),
+            Pending => self.input.peek_armed_at = Some(self.clock.now()),
             Open => {
-                self.peek_armed_at = None;
+                self.input.peek_armed_at = None;
                 crate::peek::set_open(true);
                 self.sync_view(false);
                 if let Some(gpu) = self.gpu.as_ref() {
@@ -65,7 +65,7 @@ impl App {
             // (never drawn) costs no repaint.
             Idle => {
                 let was_open = crate::peek::peek_open();
-                self.peek_armed_at = None;
+                self.input.peek_armed_at = None;
                 crate::peek::set_open(false);
                 if was_open {
                     self.sync_view(false);
@@ -79,13 +79,13 @@ impl App {
 
     pub(in crate::app) fn sync_whichkey_prefix(&mut self) {
         let transition = crate::whichkey::on_key(
-            self.keymap.in_prefix(),
-            self.prefix_pending_at.is_some(),
-            self.whichkey_shown,
+            self.input.keymap.in_prefix(),
+            self.input.prefix_pending_at.is_some(),
+            self.input.whichkey_shown,
         );
         match transition {
             crate::whichkey::PrefixTransition::Arm => {
-                self.prefix_pending_at = Some(self.clock.now());
+                self.input.prefix_pending_at = Some(self.clock.now());
             }
             // The prefix just resolved or aborted: put the panel down at once (summoned
             // + transient — it never lingers past the chord).
@@ -95,7 +95,7 @@ impl App {
     }
 
     pub(in crate::app) fn summon_whichkey(&mut self) {
-        self.whichkey_shown = true;
+        self.input.whichkey_shown = true;
         let rows: Vec<(String, String)> = crate::whichkey::continuations_cx(&self.config.keys)
             .into_iter()
             .map(|c| (c.key, c.name))
@@ -110,9 +110,9 @@ impl App {
     /// already-down panel just redraws nothing new. Redraws only when the panel was
     /// actually shown, so a bare prefix that never paused long enough costs no repaint.
     pub(in crate::app) fn dismiss_whichkey(&mut self) {
-        self.prefix_pending_at = None;
-        let was_shown = self.whichkey_shown;
-        self.whichkey_shown = false;
+        self.input.prefix_pending_at = None;
+        let was_shown = self.input.whichkey_shown;
+        self.input.whichkey_shown = false;
         if let Some(gpu) = self.gpu.as_mut() {
             gpu.pipeline.set_whichkey(None);
             if was_shown {
@@ -161,7 +161,7 @@ impl App {
     /// stale anchor for an unrelated `sync_view` to apply). No-op headless (no gpu).
     pub(in crate::app) fn arm_zoom_anchor_pointer(&mut self) {
         let Some(gpu) = self.gpu.as_ref() else { return };
-        let (px, py) = self.cursor_px;
+        let (px, py) = self.input.cursor_px;
         let (line, col) = gpu
             .pipeline
             .hit_test_scroll(px, py, self.active.extra.scroll);
@@ -212,7 +212,7 @@ impl App {
         // in flight (mirrors the page-drag readout). Armed on EVERY zoom step (this is
         // the ONE owner both the keyboard ⌘± and wheel ⌘-scroll paths funnel through),
         // floated at the last pointer position; cleared on settle in `about_to_wait`.
-        let (px, py) = self.cursor_px;
+        let (px, py) = self.input.cursor_px;
         let zoom = self.zoom;
         if let Some(gpu) = self.gpu.as_mut() {
             gpu.pipeline.set_zoom_readout(Some((px, py, zoom)));
@@ -249,7 +249,7 @@ impl App {
     /// in the first place (that branch is skipped anyway), and the next range setting to
     /// grow a rail inherits the rule for free instead of having to remember it.
     pub(in crate::app) fn zoom_persist_held(&self) -> bool {
-        self.range_drag.is_some()
+        self.input.range_drag.is_some()
     }
 
     /// The ONE owner of "how many rows is one page". Both the document pager and
@@ -281,17 +281,17 @@ impl App {
     pub(in crate::app) fn handle_ime(&mut self, ime: Ime) {
         match ime {
             Ime::Enabled => {
-                self.ime_enabled = true;
+                self.input.ime_enabled = true;
             }
             Ime::Disabled => {
-                self.ime_enabled = false;
-                self.preedit.clear();
+                self.input.ime_enabled = false;
+                self.input.preedit.clear();
             }
             Ime::Preedit(text, _cursor) => {
-                self.preedit = text;
+                self.input.preedit = text;
             }
             Ime::Commit(text) => {
-                self.preedit.clear();
+                self.input.preedit.clear();
                 for c in text.chars() {
                     self.active.buffer.insert_char(c);
                 }
@@ -304,7 +304,7 @@ impl App {
     /// or Option of Option-Cmd-I), covering the macOS case where the character key-UP is never
     /// delivered.
     pub(in crate::app) fn on_modifiers_changed(&mut self, m: Modifiers) {
-        self.mods = m;
+        self.input.mods = m;
         self.hud_release_on_mods(m.state());
         // HOLD-⌘ SHORTCUT PEEK: the ACTIVE CONVENTION's bare arming modifier ALONE
         // arms the hold (`peek::is_bare_arming_modifier` / `peek::arming_modifier` — ⌘
@@ -348,7 +348,7 @@ impl App {
             }
             return;
         }
-        if !self.preedit.is_empty() {
+        if !self.input.preedit.is_empty() {
             return;
         }
         if let Key::Named(n) = &event.logical_key {
@@ -362,7 +362,7 @@ impl App {
         // BARE key. Both forms feed the shared dispatch tail, which decides per
         // consumer which one applies (see `dispatch_pressed_key`'s doc). The
         // un-compose is computed here because it needs the raw `KeyEvent`.
-        let bare = if self.mods.state().contains(ModifiersState::ALT) {
+        let bare = if self.input.mods.state().contains(ModifiersState::ALT) {
             key_without_modifiers(&event)
         } else {
             event.logical_key.clone()
@@ -425,10 +425,10 @@ impl App {
         // (`NSCursor.setHiddenUntilMouseMoves`). Any mouse motion
         // instantly reverses it (the `CursorMoved` arm above); so does
         // the window losing focus (the `Focused(false)` arm above).
-        let prev_pointer_hide = self.pointer_hide;
-        self.pointer_hide = crate::pointer_hide::on_key(prev_pointer_hide);
+        let prev_pointer_hide = self.input.pointer_hide;
+        self.input.pointer_hide = crate::pointer_hide::on_key(prev_pointer_hide);
         if let Some(visible) =
-            crate::pointer_hide::os_visibility_change(prev_pointer_hide, self.pointer_hide)
+            crate::pointer_hide::os_visibility_change(prev_pointer_hide, self.input.pointer_hide)
             && let Some(gpu) = self.gpu.as_ref()
         {
             gpu.window.set_cursor_visible(visible);
@@ -440,7 +440,7 @@ impl App {
         // lone-modifier filter (so a bare Shift/Ctrl tap during search is
         // dropped) and AFTER the preedit guard, but BEFORE keymap.resolve.
         if self.workspace_state.search_active() {
-            let mods = self.mods;
+            let mods = self.input.mods;
             self.handle_search_key(&raw, &mods, exit);
             self.sync_view(true);
             if let Some(gpu) = self.gpu.as_ref() {
@@ -463,7 +463,7 @@ impl App {
                     | Key::Named(winit::keyboard::NamedKey::Escape)
             );
             if !is_ctrl_key {
-                let combo = crate::keyspec::format_chord(&bare, self.mods.state());
+                let combo = crate::keyspec::format_chord(&bare, self.input.mods.state());
                 let finished = self
                     .workspace_state
                     .overlay_mut()
@@ -495,8 +495,8 @@ impl App {
         // headless `--keys` replay already sends the un-composed key + ALT, so this
         // branch is exercised only live (its behaviour with a real composing keyboard
         // needs human confirmation).
-        let logical = if self.mods.state().contains(ModifiersState::ALT)
-            && self.keymap.is_meta_chord(&bare)
+        let logical = if self.input.mods.state().contains(ModifiersState::ALT)
+            && self.input.keymap.is_meta_chord(&bare)
         {
             bare
         } else {
@@ -519,8 +519,8 @@ impl App {
         // The press itself summons it via `apply_transition` (sets the process-global); an
         // OS auto-repeat re-affirms the same key/mods.
         if action == Action::ShowStatsHud {
-            self.hud_key = Some(logical.clone());
-            self.hud_mods = self.mods.state();
+            self.input.hud_key = Some(logical.clone());
+            self.input.hud_mods = self.input.mods.state();
         }
         // SHIFT = SELECT-INTENT, keyed on the pressed CHORD (the resolved logical
         // key), not the Action alone. `M-<` / `M->` need Shift just to TYPE the
@@ -530,7 +530,7 @@ impl App {
         // navigation key and DO extend, exactly like every platform text field.
         // The ONE owner (`motion_honors_shift_select`) makes that call from key
         // shape; the headless `--keys` replay derives its flag through the same fn.
-        let shift = self.mods.state().contains(ModifiersState::SHIFT)
+        let shift = self.input.mods.state().contains(ModifiersState::SHIFT)
             && motion_honors_shift_select(&action, &logical);
         self.apply(action, shift, exit, crate::stats::Door::Chord);
     }

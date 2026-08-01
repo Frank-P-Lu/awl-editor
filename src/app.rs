@@ -1025,24 +1025,6 @@ impl App {
     }
 }
 
-// `App` remains the composition root during item 172's incremental slices.
-// Input fields resolve through this private handle so existing focused input
-// seams retain their local spelling while root `App` cannot grow another input
-// slot. New cross-domain readers take a typed `RestingPointer` instead.
-impl std::ops::Deref for App {
-    type Target = input::InputRuntime;
-
-    fn deref(&self) -> &Self::Target {
-        &self.input
-    }
-}
-
-impl std::ops::DerefMut for App {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.input
-    }
-}
-
 /// TEST HERMETICITY: the ONE door every test that needs a real `App` should
 /// build it through, instead of calling `App::new` directly. `App::new` reads
 /// two pieces of ambient state a plain test never intends to touch:
