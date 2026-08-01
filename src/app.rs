@@ -59,7 +59,40 @@ enum NoticeKind {
 
 const ZOOM_PERSIST_DEBOUNCE: Duration = Duration::from_millis(500);
 
-const THEME_FONT_DEBOUNCE_DEFAULT_MS: u64 = 0;
+/// ITEM 202 (repair round; item 37b had set this to 0). `debounce_due` is
+/// `now - dirty >= window` — at `window == 0` it is trivially true at the SAME
+/// instant `theme_font_at` is stamped, so `schedule_render_settles` ran the
+/// deferred reshape synchronously inside the very `about_to_wait` pass that
+/// armed it, before that step's own colors-only redraw had even reached
+/// `RedrawRequested`. That collapsed "instant colors, ONE reshape at rest"
+/// (the split `sync_theme_colors`/`sync_theme_font` exists for, docs/fonts.md)
+/// back into "colors + a full reshape, synchronously, every single step" for
+/// every input modality that funnels through `App::retint_theme_preview`
+/// (keyboard nav, pointer hover, wheel — one shared owner). Measured live
+/// 2026-08-01 (`--live-script`, real compositor, release build, a 30ms-apart
+/// six-step burst — a real held-arrow/fast-wheel cadence): at 0ms every step
+/// paid its own reshape (6 of 6, later steps queuing behind earlier ones —
+/// p95 movement-latency 18.9ms); at 100ms the same burst coalesced to ONE
+/// reshape and every step's own present stayed fast and consistent (p50
+/// 5.1ms, p95 8.9ms — both LOWER than 0ms, with no queued step). 100ms keeps
+/// a single deliberate step's full glyph-correct settle (debounce + the
+/// reshape's own real cost, measured 10-35ms under load via
+/// `--bench-theme-burst`) comfortably under item 37b's own retired 150ms
+/// figure, while restoring genuine burst coalescing. `AWL_THEME_FONT_
+/// DEBOUNCE_MS` remains the A/B escape hatch this value was derived through.
+const THEME_FONT_DEBOUNCE_DEFAULT_MS: u64 = 100;
+
+// Compile-time half of the item 202 regression pin: a future reversion to 0
+// (or any value clippy can see is `<= 0`, i.e. only 0 for a `u64`) fails the
+// BUILD, not just a test — `theme_debounce_item202.rs`'s runtime law covers
+// the other half (that `debounce_due` genuinely cannot fire on the same tick
+// at this value, which is not itself a compile-time fact).
+const _: () = assert!(
+    THEME_FONT_DEBOUNCE_DEFAULT_MS > 0,
+    "THEME_FONT_DEBOUNCE_DEFAULT_MS must be nonzero — at 0 every preview step \
+     pays its font reshape synchronously, one per step, instead of coalescing \
+     a burst to one settle at rest (item 202)"
+);
 
 fn parse_theme_font_debounce_ms(raw: Option<&str>) -> u64 {
     raw.filter(|s| !s.is_empty())
@@ -78,11 +111,23 @@ fn theme_font_debounce() -> Duration {
 #[cfg(test)]
 #[test]
 fn theme_font_debounce_ms_env_parse() {
-    assert_eq!(parse_theme_font_debounce_ms(None), 0);
-    assert_eq!(parse_theme_font_debounce_ms(Some("")), 0);
+    assert_eq!(
+        parse_theme_font_debounce_ms(None),
+        THEME_FONT_DEBOUNCE_DEFAULT_MS
+    );
+    assert_eq!(
+        parse_theme_font_debounce_ms(Some("")),
+        THEME_FONT_DEBOUNCE_DEFAULT_MS
+    );
+    // An explicit "0" is still honored as a real override (the A/B escape
+    // hatch item 202's own measurement rode) — only an ABSENT/empty/garbage
+    // value falls back to the default, never a deliberate zero.
     assert_eq!(parse_theme_font_debounce_ms(Some("0")), 0);
     assert_eq!(parse_theme_font_debounce_ms(Some("150")), 150);
-    assert_eq!(parse_theme_font_debounce_ms(Some("garbage")), 0);
+    assert_eq!(
+        parse_theme_font_debounce_ms(Some("garbage")),
+        THEME_FONT_DEBOUNCE_DEFAULT_MS
+    );
 }
 
 /// AMBIENT LAVA TICK period — the lava-lamp ground's slow drift cadence
@@ -98,11 +143,12 @@ const LAVA_TICK: Duration = Duration::from_millis(crate::lava::LAVA_TICK_MS);
 /// transaction`) is flipped back OFF (debounce; macOS-only — see
 /// `resize_settle_at`'s doc for the full mechanism). A fast drag re-stamps the
 /// deadline on every tick (`App::arm_live_resize_sync`), so this only fires
-/// once the drag genuinely stops. TASTE TUNABLE, mirrors `THEME_FONT_
-/// DEBOUNCE`'s value: short enough that the transaction-sync cost (Apple's
-/// own documented throughput trade-off for `presentsWithTransaction`) is paid
-/// only while actually dragging, long enough that a brief pause mid-drag
-/// doesn't flap it on/off.
+/// once the drag genuinely stops. TASTE TUNABLE (independent of the theme-font
+/// debounce below — the two diverged at item 202, which lowered the theme
+/// debounce off this same 150ms without this one needing to follow): short
+/// enough that the transaction-sync cost (Apple's own documented throughput
+/// trade-off for `presentsWithTransaction`) is paid only while actually
+/// dragging, long enough that a brief pause mid-drag doesn't flap it on/off.
 const RESIZE_SYNC_SETTLE: Duration = Duration::from_millis(150);
 
 /// Quiet period after the last `Moved` tick before the MOVE stream is considered

@@ -4,7 +4,7 @@
 //! The replay includes every live preparation stage; `STAGE_NAMES` and `mark()` calls
 //! must remain in lockstep.
 
-use anyhow::Context as _;
+use anyhow::{Context as _, ensure};
 use glyphon::{Cache, Resolution};
 use std::path::Path;
 
@@ -506,9 +506,25 @@ fn burst_doc(
 
             // The live apply path: post_transition_effects -> sync_theme (this is where
             // the font-branch reshape — restyle_all_lines over every line — runs).
+            let reshapes_before = p.reshape_count;
             let t0 = Instant::now();
             p.sync_theme();
             let sync_ms = t0.elapsed().as_secs_f64() * 1e3;
+            // WITNESS (item 202): every BURST_WORLDS hop lands on a genuinely
+            // different display face (see the roster comment above), so this
+            // must actually reshape — the exact thing a same-face switch would
+            // silently skip (cosmic-text's `set_attrs_list` no-ops on an
+            // unchanged family), which is how the old theme bench once
+            // "measured" 5ms while nothing reshaped. Never again: a future
+            // change that makes this a no-op now fails the bench itself,
+            // loudly, instead of printing a smaller, meaningless number.
+            ensure!(
+                p.reshape_count > reshapes_before,
+                "theme-burst switch to {name} ({face}) did not reshape (reshape_count \
+                 unchanged at {reshapes_before}) — a different-face theme switch must \
+                 always reshape; the old theme bench measured 5ms while nothing \
+                 reshaped, never again"
+            );
 
             p.set_view(&view);
 
@@ -532,9 +548,22 @@ fn burst_doc(
     for &name in &BURST_WORLDS[..BURST_WORLDS.len() - 1] {
         crate::theme::set_active_by_name(name);
         let face = crate::theme::active().font;
+        let reshapes_before = p.reshape_count;
         let t0 = Instant::now();
         p.sync_theme_colors();
         let colors_ms = t0.elapsed().as_secs_f64() * 1e3;
+        // WITNESS (item 202): the whole point of the colors/font split is that
+        // an arrow-per-arrow preview stays reshape-free — assert it, not just
+        // time it, so a future regression that makes `sync_theme_colors` reshape
+        // (defeating the split this bench exists to demonstrate) fails loudly.
+        ensure!(
+            p.reshape_count == reshapes_before,
+            "sync_theme_colors reshaped on the arrow step to {name} ({face}) — \
+             the colors-only preview path must never reshape (reshape_count \
+             {reshapes_before} -> {}); that is the entire point of the deferred- \
+             reshape split (docs/fonts.md)",
+            p.reshape_count
+        );
         p.set_view(&view);
         let s = burst_frame(&mut p, device, queue, &target_view, true)?;
         worst_arrow = worst_arrow.max(colors_ms + s.total);
@@ -543,9 +572,20 @@ fn burst_doc(
             name, face, colors_ms, s.total
         );
     }
+    let reshapes_before = p.reshape_count;
     let t0 = Instant::now();
     p.sync_theme_font();
     let settle_ms = t0.elapsed().as_secs_f64() * 1e3;
+    // WITNESS (item 202): the deferred settle must actually catch the font up
+    // — the reshape this whole "debounced preview" shape defers TO, and the
+    // exact call the old bench never proved really ran.
+    ensure!(
+        p.reshape_count > reshapes_before,
+        "the deferred settle's sync_theme_font did not reshape (reshape_count \
+         unchanged at {reshapes_before}) — the debounced-preview shape defers \
+         the reshape to exactly this call, and if it silently no-ops the \
+         picker would settle on the wrong face"
+    );
     p.set_view(&view);
     let s = burst_frame(&mut p, device, queue, &target_view, true)?;
     println!(
