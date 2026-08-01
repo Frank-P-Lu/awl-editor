@@ -203,8 +203,10 @@ impl App {
     #[cfg(not(target_arch = "wasm32"))]
     pub(in crate::app) fn ensure_note_named_before_paste(&mut self) {
         if !self.active.buffer.is_unnamed_fresh() {
-            let _ = crate::fs::active().create_dir_all(&self.root);
-            self.active.buffer.set_note_dir(self.root.clone());
+            let _ = crate::fs::active().create_dir_all(&self.project_location.root);
+            self.active
+                .buffer
+                .set_note_dir(self.project_location.root.clone());
         }
         self.autosave_note();
     }

@@ -28,6 +28,8 @@ pub(crate) enum Domain {
     /// App-global save feedback + the autosave debounce — EXTRACTED
     /// (`app::persistence::PersistenceRuntime`).
     PersistenceRuntime,
+    /// Persisted configuration plus CLI/default-folder location policy.
+    ConfigurationRuntime,
     /// The active document slot, the registry, the checker.
     DocumentSession,
     /// Raw keyboard/pointer/gesture state.
@@ -86,20 +88,6 @@ const INPUT_STATE: &[&str] = &[
     "ime_enabled",
     "scroll_sensitivity",
 ];
-/// Root-`App` fields still owned by [`Domain::ProjectLocation`].
-const PROJECT_LOCATION: &[&str] = &[
-    "root",
-    "project",
-    "file_index",
-    // Renamed from `workspace` by item 172 so it can never be
-    // misread for `workspace_state` (the summoned-UI owner).
-    "workspace_root",
-    "recent_projects",
-    "recent_files",
-    "default_folder",
-    "cli_workspace",
-    "cli_default_folder",
-];
 /// Root-`App` fields still owned by [`Domain::RenderRuntime`].
 const RENDER_RUNTIME: &[&str] = &[
     "gpu",
@@ -156,7 +144,6 @@ const HOST_LIFECYCLE: &[&str] = &[
     "wait_conns",
     "menu_proxy",
     "_menu_bar",
-    "config",
     "restored_window",
     "pending_crash",
     "stats",
@@ -177,6 +164,7 @@ impl Domain {
     pub(crate) const ROSTER: &'static [Domain] = &[
         Domain::WorkspaceState,
         Domain::PersistenceRuntime,
+        Domain::ConfigurationRuntime,
         Domain::DocumentSession,
         Domain::InputState,
         Domain::ProjectLocation,
@@ -196,9 +184,10 @@ impl Domain {
         match self {
             Domain::WorkspaceState => Some("workspace_state"),
             Domain::PersistenceRuntime => Some("persistence"),
+            Domain::ConfigurationRuntime => Some("config"),
+            Domain::ProjectLocation => Some("project_location"),
             Domain::DocumentSession
             | Domain::InputState
-            | Domain::ProjectLocation
             | Domain::RenderRuntime
             | Domain::FrameScheduler
             | Domain::HostLifecycle => None,
@@ -219,11 +208,16 @@ impl Domain {
             // behind `PersistenceRuntime`'s transitions; the debounce stamp and
             // the version it wrote are ONE ledger, not two fields.
             Domain::PersistenceRuntime => (Extraction::Extracted, &[]),
+            // `Config`, its CLI precedence inputs, and the default-folder
+            // fallback are one runtime policy, held behind `App::config`.
+            Domain::ConfigurationRuntime => (Extraction::Extracted, &[]),
+            // The root, its derived project/index/workspace state, and both
+            // project MRUs move together behind one location owner.
+            Domain::ProjectLocation => (Extraction::Extracted, &[]),
 
             // ── MAPPED, STILL ON ROOT `App` ──────────────────────────────
             Domain::DocumentSession => (Extraction::OnRootApp, DOCUMENT_SESSION),
             Domain::InputState => (Extraction::OnRootApp, INPUT_STATE),
-            Domain::ProjectLocation => (Extraction::OnRootApp, PROJECT_LOCATION),
             Domain::RenderRuntime => (Extraction::OnRootApp, RENDER_RUNTIME),
             Domain::FrameScheduler => (Extraction::OnRootApp, FRAME_SCHEDULER),
             Domain::HostLifecycle => (Extraction::OnRootApp, HOST_LIFECYCLE),
@@ -436,9 +430,17 @@ fn retired_field_names(domain: Domain) -> &'static [&'static str] {
             "last_saved_ok",
             "title_dirty",
         ],
+        Domain::ConfigurationRuntime => &["default_folder", "cli_workspace", "cli_default_folder"],
+        Domain::ProjectLocation => &[
+            "root",
+            "project",
+            "file_index",
+            "workspace_root",
+            "recent_projects",
+            "recent_files",
+        ],
         Domain::DocumentSession
         | Domain::InputState
-        | Domain::ProjectLocation
         | Domain::RenderRuntime
         | Domain::FrameScheduler
         | Domain::HostLifecycle => &[],
@@ -464,8 +466,11 @@ fn root_app_does_not_grow() {
     // keeps as individual root fields rather than a sub-owner struct; no
     // existing field can stand in for it (`theme_switch_at`/`theme_settle`
     // are both DEBUG-only, gated behind `debug_on()`, and this must hold in
-    // every build). 101 + 1 = 102.
-    const CEILING: usize = 102;
+    // every build). 101 + 1 = 102. ConfigurationRuntime then replaces
+    // `default_folder` + both CLI location inputs with its existing `config`
+    // handle (-3), while ProjectLocation replaces six loose fields with one
+    // handle (-5): 102 - 3 - 5 = 94.
+    const CEILING: usize = 94;
     let fields = root_app_fields();
     assert_eq!(
         fields.len(),

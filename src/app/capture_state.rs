@@ -65,14 +65,11 @@ impl App {
     /// the location the running editor actually has), and everything else
     /// through `run::fold_capture_state`, shared with the storyboard stepper.
     pub(crate) fn capture_opts(&self) -> CaptureOpts {
-        let workspace = self
-            .cli_workspace
-            .clone()
-            .or_else(|| self.config.workspace.clone());
+        let workspace = self.config.location_policy().workspace_override();
         let project = crate::run::project_info(
-            &self.root,
+            &self.project_location.root,
             &workspace,
-            Some(self.default_folder.as_path()),
+            Some(self.config.default_folder.as_path()),
             &self.config,
         );
         let mut opts = crate::run::fold_capture_state(self, project);

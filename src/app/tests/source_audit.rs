@@ -489,45 +489,25 @@ fn the_page_scroll_row_rule_has_exactly_one_owner() {
     );
 }
 
-/// ITEM 180 — `project`/`file_index`/`workspace_root` are all pure functions
-/// of `self.root` (docs/app-domains.md's `ProjectLocation` section): before
-/// this round `set_root` re-derived the first two and `reload_config`
-/// re-derived the third, so a Switch-project into a tree whose parent
-/// differed from the old one left `workspace_root` pointing at the OLD
-/// parent — the Project picker's stale-sibling bug. `App::
-/// resync_project_location` is now the SOLE site that assigns any of the
-/// three (every entry point calls it instead), so a future consumer that
-/// re-derives one of them by hand — the exact shape that caused the bug —
-/// fails this test instead of silently reintroducing the disagreement.
-///
-/// NO WILDCARD: each of the three fields is checked by its OWN exact name,
-/// never a generic "any assignment into App" scan that could pass by
-/// accident on an unrelated match — a violation of any one of the three
-/// fails by naming exactly which field and where.
+/// The live root's derived project, index, and workspace all cross from
+/// `ConfigurationRuntime` to `ProjectLocation` through one typed policy.
+/// `App::resync_project_location` is the sole App-level kernel: a direct
+/// `ProjectLocation::resync` elsewhere would recreate the former half-update
+/// bug, where a project switch changed the root but left its picker workspace
+/// stale.
 #[test]
 fn resync_project_location_is_the_sole_derivation_of_project_location_fields() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
-    for field in ["project", "file_index", "workspace_root"] {
-        // No embedded whitespace: `scan_dir_collapsed` strips ALL whitespace
-        // from the source text before matching, so the needle must already
-        // be in that same collapsed shape (see its own doc).
-        let needle = format!("self.{field}=");
-        let mut hits: std::collections::BTreeMap<String, usize> = Default::default();
-        scan_dir_collapsed(&root, &root, &needle, &mut hits);
-        assert_eq!(
-            hits.keys().collect::<Vec<_>>(),
-            vec!["app/files/open.rs"],
-            "`self.{field} = ..` must be assigned ONLY inside \
-             `App::resync_project_location` (app/files/open.rs); found in: {hits:?}"
-        );
-        assert_eq!(
-            hits.get("app/files/open.rs"),
-            Some(&1),
-            "`self.{field} = ..` must appear exactly once — a second site is \
-             the exact half-derivation shape that caused the stale-Project- \
-             picker bug; found: {hits:?}"
-        );
-    }
+    let mut hits: std::collections::BTreeMap<String, usize> = Default::default();
+    let method = "resync";
+    let needle = format!("self.project_location.{method}(");
+    scan_dir_collapsed(&root, &root, &needle, &mut hits);
+    assert_eq!(
+        hits,
+        std::collections::BTreeMap::from([("app/files/open.rs".to_string(), 1)]),
+        "only App::resync_project_location may cross the typed location-policy \
+         boundary; found: {hits:?}"
+    );
 }
 
 // ── ITEM 183 — THE EVENT-LOOP CENSUS: what stays live-only, exactly ──────

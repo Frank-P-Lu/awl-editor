@@ -80,7 +80,7 @@ fn seeded_fs() -> crate::fs::InMemoryFs {
 fn readout(app: &App, row: &SettingRow) -> String {
     let values = crate::settings::SettingsValues::gather(
         &app.config,
-        &app.root,
+        &app.project_location.root,
         app.zoom,
         crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
     );
@@ -359,7 +359,7 @@ fn sweep_path(app: &mut App, mem: &crate::fs::InMemoryFs, row: &SettingRow) {
         }
         SettingId::ProjectRoot => {
             assert_eq!(
-                app.root,
+                app.project_location.root,
                 std::path::PathBuf::from("/ws"),
                 "{:?}: picking a folder re-scopes the live project",
                 row.name

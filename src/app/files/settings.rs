@@ -169,7 +169,7 @@ impl App {
     pub(in crate::app) fn refresh_settings_overlay(&mut self) {
         let values = crate::settings::SettingsValues::gather(
             &self.config,
-            &self.root,
+            &self.project_location.root,
             self.zoom,
             crate::dateformat::today_from_system_clock(),
         );
@@ -344,14 +344,8 @@ impl App {
         if let Some(on) = cfg.spellcheck {
             crate::spell::set_spellcheck_on(on);
         }
-        self.config = cfg;
-        self.default_folder = crate::resolve_default_folder(
-            &self
-                .cli_default_folder
-                .clone()
-                .or_else(|| self.config.default_folder.clone()),
-        );
-        self.resync_project_location(); // root's unchanged; config.workspace may not be
+        let outcome = self.config.apply_loaded(cfg);
+        self.resync_project_location(outcome.location_policy);
         self.sync_page_measure();
         self.run_spellcheck_now();
     }
