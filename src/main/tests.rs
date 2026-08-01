@@ -2537,7 +2537,8 @@ fn resolve_launch_context_explicit_root_wins_over_remembered_and_file() {
             &Some(flag.clone()),
             &Some(file),
             Some(&remembered),
-            &default_folder
+            &default_folder,
+            true,
         ),
         flag
     );
@@ -2554,7 +2555,7 @@ fn resolve_launch_context_file_argument_wins_over_remembered() {
     let file = dir.join("note.txt");
     std::fs::write(&file, "hi").unwrap();
     assert_eq!(
-        resolve_launch_context(&None, &Some(file), Some(&remembered), &default_folder),
+        resolve_launch_context(&None, &Some(file), Some(&remembered), &default_folder, true),
         dir.to_path_buf()
     );
 }
@@ -2582,7 +2583,8 @@ fn resolve_launch_context_dir_argument_awl_dot_is_explicit_not_remembered() {
             &None,
             &Some(dir.to_path_buf()),
             Some(&remembered),
-            &default_folder
+            &default_folder,
+            true,
         ),
         dir.to_path_buf()
     );
@@ -2593,20 +2595,22 @@ fn resolve_launch_context_bare_launch_restores_remembered() {
     let remembered = PathBuf::from("/home/me/work/repo-a");
     let default_folder = PathBuf::from("/home/me/notes");
     assert_eq!(
-        resolve_launch_context(&None, &None, Some(&remembered), &default_folder),
+        resolve_launch_context(&None, &None, Some(&remembered), &default_folder, true),
         remembered
     );
 }
 
 #[test]
-fn resolve_launch_context_first_run_falls_to_default_folder() {
-    // Law point 3: bare launch, NOTHING remembered (a fresh install, or
-    // session_restore off) — opens the configured default folder, never
-    // cwd (the behavior item 76 replaces).
+fn resolve_launch_context_first_run_uses_only_an_explicit_default_folder() {
     let default_folder = PathBuf::from("/home/me/notes");
     assert_eq!(
-        resolve_launch_context(&None, &None, None, &default_folder),
+        resolve_launch_context(&None, &None, None, &default_folder, true),
         default_folder
+    );
+    assert_eq!(
+        resolve_launch_context(&None, &None, None, &default_folder, false),
+        crate::fs::data_root(),
+        "an implicit ~/notes fallback is never a first-launch destination"
     );
     let _tg = crate::testlock::serial();
     let cwd = crate::fs::current_dir().unwrap_or_else(|_| PathBuf::from("."));

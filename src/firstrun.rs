@@ -2,14 +2,10 @@
 //! of a launch with nothing remembered.
 //!
 //! `main/run/location.rs::resolve_launch_context` owns the FOLDER half of the
-//! same decision — branch 3 of its precedence law is "bare launch, nothing
-//! remembered: open the configured `default_folder`". This module owns what is
-//! IN that folder on the very first launch: one ordinary Markdown file,
-//! `welcome.md`, seeded from `samples/welcome.md` and opened as the active
-//! buffer. `PHILOSOPHY.md` §1 states the product rule it implements — *"First
-//! launch opens one real Markdown file that is both welcome and tutorial. The
-//! user learns awl by reading and editing inside the actual editor, not by
-//! completing a modal tour."*
+//! same decision. This module owns the authored Welcome bytes on a truly bare
+//! first launch. They enter through the existing scratch stash, not an assumed
+//! writing folder: the tutorial is recoverable across relaunch before the user
+//! has chosen where ordinary files belong.
 //!
 //! # Why there is no welcome MODE, and no welcome state
 //!
@@ -130,6 +126,21 @@ pub(crate) fn seed(path: &Path, convention: Convention, platform: Platform) -> s
     crate::fs::write_atomic(path, text.as_bytes())
 }
 
+/// Put the rendered Welcome into the ordinary recoverable scratch store. This
+/// is deliberately the same durable-write owner autosave uses: Welcome is not
+/// a volatile buffer or a second persistence model.
+pub(crate) fn seed_scratch(convention: Convention, platform: Platform) -> std::io::Result<()> {
+    let stash = crate::fs::scratch_stash_path();
+    if crate::fs::active().exists(&stash) {
+        return Ok(());
+    }
+    if let Some(parent) = stash.parent() {
+        crate::fs::active().create_dir_all(parent)?;
+    }
+    let text = crate::keytoken::render_key_tokens(WELCOME_MD, convention, platform);
+    crate::fs::write_atomic(&stash, text.as_bytes())
+}
+
 /// `samples/welcome.md`'s bytes. The `include_str!` itself lives in the one
 /// embed owner, [`crate::embedded_docs`].
 const WELCOME_MD: &str = crate::embedded_docs::WELCOME_MD;
@@ -151,11 +162,24 @@ pub(crate) fn resolve_first_run_document(
     root: &Option<PathBuf>,
     remembered: Option<&Path>,
     active_root: &Path,
+    default_folder_configured: bool,
     convention: Convention,
     platform: Platform,
 ) -> Option<PathBuf> {
     if !is_first_run(root, &file, remembered, marked()) {
         return file;
+    }
+    // A configured destination is an intentional instruction. Keep the old
+    // ordinary-file welcome only for that explicit case; the implicit HOME
+    // fallback is not consent to create a writing folder.
+    if !default_folder_configured {
+        return match seed_scratch(convention, platform) {
+            Ok(()) => {
+                mark();
+                None
+            }
+            Err(_) => file,
+        };
     }
     let path = active_root.join(WELCOME_FILE);
     match seed(&path, convention, platform) {

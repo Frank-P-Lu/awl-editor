@@ -51,18 +51,16 @@
 
         <h2>Where your words live</h2>
         <p><strong>The first launch opens a document, not an empty
-        editor.</strong> With nothing to resume, awl writes
-        <code>welcome.md</code> into the active folder and opens it. It is an
-        ordinary Markdown file and nothing more: edit it, rename it, delete
-        it, or replace it with your own. Later launches resume whatever you
-        had open, exactly as they would for any other file — there is no
-        welcome state to carry.</p>
+        editor.</strong> With nothing to resume and no configured writing
+        folder, awl opens its authored Welcome through the recoverable scratch
+        store. It does not create <code>~/notes</code> or place a file in a
+        user folder. Its edits survive relaunch.</p>
         <table>
           <tbody>
-          <tr><td>Where it lands</td><td>The active folder, which on a first launch is <code>default_folder</code> (<code>~/notes</code> unless you set it)</td></tr>
-          <tr><td>Existing file</td><td>An existing <code>welcome.md</code> is never overwritten; awl opens yours</td></tr>
+          <tr><td>Where it lives first</td><td>awl's recoverable scratch store, not a user folder</td></tr>
+          <tr><td>Configured folder</td><td><code>default_folder</code> is intentional: Welcome is an ordinary <code>welcome.md</code> there</td></tr>
           <tr><td>Shown again?</td><td>No. awl records the fact once, in <code>$XDG_DATA_HOME/awl/welcomed</code> (or <code>~/.local/share/awl/welcomed</code>)</td></tr>
-          <tr><td>To be welcomed again</td><td>Delete that marker file, then launch with nothing to resume</td></tr>
+          <tr><td>To be welcomed again</td><td>Delete that marker file and the scratch document, then launch with nothing to resume</td></tr>
           <tr><td>In the browser</td><td>The same document is seeded into the tab's storage on a first load, alongside <code>tour.md</code>, <code>prose.md</code> and <code>japanese.md</code></td></tr>
           </tbody>
         </table>

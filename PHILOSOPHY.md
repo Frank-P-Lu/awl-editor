@@ -74,9 +74,10 @@ manager. It includes the simple file operations, navigation, search, and version
 history needed to sustain writing. The filesystem stays real and understandable;
 awl does not replace it with an application database.
 
-The opening experience follows the same rule. First launch opens one real
-Markdown file that is both welcome and tutorial. The user learns awl by reading
-and editing inside the actual editor, not by completing a modal tour.
+The opening experience follows the same rule. First launch opens the authored
+Welcome as a recoverable editor document, not a modal tour. Until someone
+chooses a writing folder, it lives with awl's own scratch recovery rather than
+silently claiming a folder of their files.
 
 ## 2. Beauty is coherence
 

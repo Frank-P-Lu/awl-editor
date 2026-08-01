@@ -58,9 +58,10 @@ stale and the room should not have to.
 
 ## Where this goes
 
-This file is called `welcome.md`, and awl put it in your writing folder on
-first launch. When the window is wide enough, the bottom of the left margin
-names the file and the folder it sits in.
+This Welcome starts safely with awl, so you can read and edit it before choosing
+where your own files should live. Its edits survive a relaunch. When you are
+ready to start a new document, awl asks you to choose a writing folder; you can
+also keep this tutorial there as an ordinary Markdown file.
 
 You do not have to save it. awl writes the file about a second after you stop
 typing, and again when the window loses focus, when you switch files, and when
