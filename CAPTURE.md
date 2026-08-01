@@ -586,9 +586,14 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/194` (`/195` timeline, `/196` held)
+## The sidecar JSON — schema `awl-capture/195` (`/196` timeline, `/197` held)
 
 Field order is stable; consumers may parse positionally or by key.
+
+Schema `/195` adds **`overlay.context_anchor`**, the physical-pixel click
+anchor `[x, y]` for the awl-rendered contextual menu, or `null` for every
+other summoned surface. The rendered `overlay.window` remains the clamped
+appearance geometry; the anchor is the input/state oracle.
 
 Schema `/193` adds the top-level **`driver`** field, immediately after `schema`:
 which TIER produced this sidecar. `"replay"` — the shared core

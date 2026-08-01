@@ -253,7 +253,7 @@ impl OverlayKind {
             OverlayKind::Rename => "rename",
             OverlayKind::InsertLink => "insert link",
             OverlayKind::KeepName => "keep version",
-            OverlayKind::Context => "",
+            OverlayKind::Context => "context menu",
         }
     }
 

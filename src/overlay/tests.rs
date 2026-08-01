@@ -1978,12 +1978,13 @@ fn every_kind_names_itself_with_a_nonempty_distinct_title() {
             "{k:?}'s title {t:?} collides with another kind's"
         );
     }
-    // Rename/InsertLink/KeepName are the RENDER exceptions (their own modal
-    // prompt already orients) — every other kind draws its title prefix.
+    // Prompt surfaces and the pointer-anchored context menu orient without a
+    // title prefix; every other kind draws one.
     for k in [
         OverlayKind::Rename,
         OverlayKind::InsertLink,
         OverlayKind::KeepName,
+        OverlayKind::Context,
     ] {
         assert!(
             !k.draws_title_prefix(),
@@ -1993,7 +1994,10 @@ fn every_kind_names_itself_with_a_nonempty_distinct_title() {
     for k in OverlayKind::ALL {
         if !matches!(
             k,
-            OverlayKind::Rename | OverlayKind::InsertLink | OverlayKind::KeepName
+            OverlayKind::Rename
+                | OverlayKind::InsertLink
+                | OverlayKind::KeepName
+                | OverlayKind::Context
         ) {
             assert!(k.draws_title_prefix(), "{k:?} should draw the title prefix");
         }

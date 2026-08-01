@@ -309,6 +309,10 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 .spell_target
                 .map(|(l, s, e)| format!("[{l}, {s}, {e}]"))
                 .unwrap_or_else(|| "null".into());
+            let context_anchor = o
+                .context_anchor
+                .map(|(x, y)| format!("[{x}, {y}]"))
+                .unwrap_or_else(|| "null".into());
             let lens = o.lens.map(json_string).unwrap_or_else(|| "null".into());
             let lens_strip = o
                 .lens_strip
@@ -336,7 +340,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 concat!(
                     "{{ \"active\": {}, \"mode\": {}, \"title\": {}, \"query\": {}, ",
                     "\"selected_index\": {}, \"browse_dir\": {}, \"return_to\": {}, ",
-                    "\"spell_target\": {}, \"hint\": {}, \"notice\": {}, \"lens\": {}, ",
+                    "\"spell_target\": {}, \"context_anchor\": {}, \"hint\": {}, \"notice\": {}, \"lens\": {}, ",
                     "\"workspace\": {}, \"lens_strip\": [{}], \"sections\": [{}], ",
                     "\"preview_id\": {}, \"detail_focus\": {}, \"diff_scroll\": {}, ",
                     "\"show_hidden\": {}, \"capture\": {}, \"empty\": {}, \"window\": {}, ",
@@ -351,6 +355,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 browse_dir,
                 return_to,
                 spell_target,
+                context_anchor,
                 json_string(&o.hint),
                 json_string(&o.notice),
                 lens,
@@ -373,7 +378,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
         None => concat!(
             "{ \"active\": false, \"mode\": null, \"title\": null, \"query\": \"\", ",
             "\"selected_index\": null, \"browse_dir\": null, \"return_to\": null, ",
-            "\"spell_target\": null, \"hint\": null, \"notice\": \"\", ",
+            "\"spell_target\": null, \"context_anchor\": null, \"hint\": null, \"notice\": \"\", ",
             "\"lens\": null, \"workspace\": false, \"lens_strip\": [], ",
             "\"sections\": [], \"preview_id\": null, \"detail_focus\": false, ",
             "\"diff_scroll\": 0, \"show_hidden\": false, \"capture\": null, ",

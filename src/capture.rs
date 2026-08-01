@@ -10,8 +10,9 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 ///          `overlay.diff_focus` renamed `overlay.detail_focus`.
 /// `/193` — top-level `driver`.
 /// `/194` — `page.background`'s `warped-grid` arm: authored dials and travel.
+/// `/195` — pointer-anchored context menus add `overlay.context_anchor`.
 /// History lives in Git. Bump this row with the const.
-pub const SCHEMA_VERSION: u32 = 194;
+pub const SCHEMA_VERSION: u32 = 195;
 /// Plain single-frame schema; timeline and held take the next two versions.
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")

@@ -135,6 +135,7 @@ fn catalog_non_empty_and_named() {
         "Export as Word…",
         "Export as HTML…",
         "Export as PDF…",
+        "Copy link destination",
     ];
     for c in COMMANDS.iter() {
         if !PALETTE_ONLY.contains(&c.name) {

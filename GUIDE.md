@@ -173,6 +173,7 @@ drift into this page silently.
 | Duplicate note |  |  |
 | Finish file | ⌘W | Ctrl+W |
 | Follow link | C-c C-o |  |
+| Copy link destination |  |  |
 | Switch theme… | ⌘T | Ctrl+T |
 | Caret style… |  |  |
 | Dictionary… |  |  |

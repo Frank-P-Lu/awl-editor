@@ -961,6 +961,84 @@ fn caret_picker_absent_by_default_and_open_reflects_selected_style() {
     crate::caret::set_mode(crate::caret::CaretMode::Block);
 }
 
+/// ITEM 212 — the sidecar records the click anchor as STATE, while the PNG
+/// proves the shared renderer paints the menu at that physical location.
+#[test]
+fn context_menu_capture_names_its_anchor_and_paints_the_anchored_card() {
+    if !adapter_available() {
+        eprintln!(
+            "skipping context_menu_capture_names_its_anchor_and_paints_the_anchored_card: no wgpu adapter"
+        );
+        return;
+    }
+    let _g = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_context_capture_{}", std::process::id())),
+    );
+    let buf = Buffer::from_str("[a link](https://example.test)\n");
+    let off_png = dir.join("off.png");
+    capture_with(&off_png, &buf, &CaptureOpts::default()).expect("plain capture");
+
+    let anchor = (180.0, 150.0);
+    let mut opts = fixture_opts();
+    opts.overlay = Some(OverlayInfo {
+        align: crate::render::effective_card_anchor(),
+        active: true,
+        mode: "context",
+        title: "context menu",
+        query: String::new(),
+        items: vec![
+            "Follow link".into(),
+            "Edit link…".into(),
+            "Copy destination".into(),
+        ],
+        ranges: Vec::new(),
+        bindings: vec![String::new(); 3],
+        git: Vec::new(),
+        selected_index: 0,
+        hint: "↵ choose   esc close".into(),
+        browse_dir: None,
+        return_to: None,
+        spell_target: None,
+        context_anchor: Some(anchor),
+        capture: None,
+        notice: String::new(),
+        lens: None,
+        lens_strip: Vec::new(),
+        sections: Vec::new(),
+        preview_id: None,
+        workspace: false,
+        detail_focus: false,
+        diff_scroll: 0,
+        empty: None,
+        show_hidden: false,
+    });
+    let on_png = dir.join("on.png");
+    capture_with(&on_png, &buf, &opts).expect("context capture");
+
+    let sidecar: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(on_png.with_extension("json")).unwrap())
+            .unwrap();
+    assert_eq!(sidecar["overlay"]["mode"], "context");
+    let recorded_anchor = sidecar["overlay"]["context_anchor"]
+        .as_array()
+        .expect("context anchor");
+    assert_eq!(recorded_anchor[0].as_f64(), Some(anchor.0 as f64));
+    assert_eq!(recorded_anchor[1].as_f64(), Some(anchor.1 as f64));
+    let off = image::open(off_png).unwrap().to_rgba8();
+    let on = image::open(on_png).unwrap().to_rgba8();
+    let x0 = anchor.0 as u32;
+    let y0 = anchor.1 as u32;
+    let changed = (y0..y0 + 80)
+        .flat_map(|y| (x0..x0 + 240).map(move |x| (x, y)))
+        .filter(|&(x, y)| off.get_pixel(x, y) != on.get_pixel(x, y))
+        .count();
+    assert!(
+        changed > 500,
+        "anchored menu must paint real pixels, got {changed}"
+    );
+}
+
 /// CARET-STYLE PICKER, MORPH highlighted: the settled preview demo actually PAINTS
 /// the glyph silhouette (`caret_preview.silhouette == true`) — the bug fix. Drives
 /// the exact overlay shape a real `--keys "Cmd-P C a r e t Enter Down"` replay
