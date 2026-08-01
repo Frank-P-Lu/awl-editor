@@ -7,7 +7,6 @@
 //! pure physical carve — the chrome pixels are byte-identical. See [`super`].
 
 use super::*;
-
 pub(super) const FACET_CHIP_RADIUS: f32 = 6.0;
 
 impl TextPipeline {
@@ -135,6 +134,7 @@ impl TextPipeline {
         self.overlay_prepare_selection(
             device, queue, width, height, geom, plan, list_style, backing, vis,
         );
+        self.prepare_diagonal_spine(device, queue, width, height, geom, plan);
         self.overlay_prepare_range_rails(device, queue, width, height, geom, plan, vis);
         self.overlay_prepare_facet_marks(device, queue, width, height, geom);
     }

@@ -602,7 +602,7 @@ pub const MANGROVE: Theme = Theme {
         },
         card_anchor: CardAnchor::TopRight,
         elevation: Elevation::Bordered,
-        list_style: POSTER_BARS,
+        list_style: ListStyle::Diagonal(super::diagonal::DiagonalDirection::Descending),
         facet_style: FacetStyle::Chips(ChipVariant::Bracket),
         fold_afford: FoldAfford {
             chevron_lift: 0.60,
@@ -721,7 +721,7 @@ pub const MAGPIE: Theme = Theme {
         },
         card_anchor: CardAnchor::TopLeft,
         elevation: Elevation::Bordered,
-        list_style: POSTER_BARS,
+        list_style: ListStyle::Diagonal(super::diagonal::DiagonalDirection::Ascending),
         facet_style: FacetStyle::Chips(ChipVariant::Underline),
         ..RenderCaps::DEFAULT
     },

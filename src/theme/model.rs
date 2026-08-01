@@ -1,6 +1,7 @@
-use super::ground::Background;
 pub use super::icon_ground::IconGround;
-use super::{cjk::FontId, color::Srgb, ornament::Ornaments};
+use super::{
+    cjk::FontId, color::Srgb, diagonal::DiagonalDirection, ground::Background, ornament::Ornaments,
+};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RoleOverrides {
     pub def_fg: Option<Srgb>,
@@ -15,7 +16,6 @@ pub enum WashOverride {
     Off,
     Pin(Srgb),
 }
-
 impl RoleOverrides {
     pub const NONE: RoleOverrides = RoleOverrides {
         def_fg: None,
@@ -25,14 +25,12 @@ impl RoleOverrides {
         str_wash: WashOverride::Default,
     };
 }
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 // Renderers consume per-theme capabilities as data, never world names.
 pub enum SelectionStyle {
     Fill,
     InverseVideo,
 }
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CaretBlockStyle {
     Normal,
@@ -116,6 +114,7 @@ impl CardAnchor {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ListStyle {
     Pane,
+    Diagonal(DiagonalDirection),
     Bars {
         radius: f32,
         gap: f32,
@@ -129,6 +128,7 @@ impl ListStyle {
     pub fn list_backing(self, _spell: bool) -> ListBacking {
         match self {
             ListStyle::Pane => ListBacking::Card,
+            ListStyle::Diagonal(_) => ListBacking::BarePlates,
             ListStyle::Bars { .. } => ListBacking::BarePlates,
         }
     }

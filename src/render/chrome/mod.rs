@@ -3,7 +3,6 @@
 //! GPU resources. Corner labels share [`TextPipeline::prepare_corner_label`].
 
 use super::*;
-
 // ITEM 174 — the scene planner owns the candidate-row geometry every overlay
 // consumer here reads (its forward/inverse row<->y arithmetic stays private to
 // `crate::render::plan`); item 181 adds the shared item-row HEIGHT clamp.
@@ -265,7 +264,8 @@ impl OverlayGeom {
 // carries its own `impl TextPipeline { .. }` block (Rust merges the inherent impls
 // across the module tree). This file keeps the SHARED items every submodule needs —
 // the panel/overlay geometry structs, the float-quad primitive, the overlay row<->Y
-// owner, the sidecar report structs — plus the hit-test unit sweep.
+// owner and the sidecar report structs.
+pub(in crate::render) mod diagonal;
 mod overlay;
 mod overlay_clamp;
 mod panel;

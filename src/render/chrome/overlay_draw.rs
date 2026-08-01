@@ -85,9 +85,9 @@ impl TextPipeline {
         self.panel_shadow.prepare(device, queue, width, height, &[]);
         self.panel_border.prepare(device, queue, width, height, &[]);
         self.overlay_rows.prepare(device, queue, width, height, &[]);
-        // PER-ITEM LIST SURFACES: the bar surfaces park empty too, so a closed
-        // picker carries no stale bar quads into the next frame.
         self.overlay_bars.prepare(device, queue, width, height, &[]);
+        self.overlay_spine
+            .prepare_rotated(device, queue, width, height, &[]);
         // ARM B LIVING-BAND PROBE: the two-shape crossing quad parks empty too, so
         // a closed picker carries no stale crossing quad into the next frame.
         self.overlay_cross
@@ -236,7 +236,7 @@ impl TextPipeline {
         // whenever it is not used, so a stale wordmark never lingers.
         let bars = matches!(
             crate::render::effective_list_style(),
-            theme::ListStyle::Bars { .. }
+            theme::ListStyle::Bars { .. } | theme::ListStyle::Diagonal(_)
         );
         let canvas_bounds = TextBounds {
             left: 0,

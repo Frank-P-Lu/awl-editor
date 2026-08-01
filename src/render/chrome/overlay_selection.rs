@@ -130,7 +130,7 @@ impl TextPipeline {
         let vis = self.resolve_visual_selection(&geom, &plan);
         match crate::render::effective_list_style() {
             theme::ListStyle::Pane => self.overlay_pane_selection(&geom, &plan, &vis).selected,
-            theme::ListStyle::Bars { .. } => Vec::new(),
+            theme::ListStyle::Bars { .. } | theme::ListStyle::Diagonal(_) => Vec::new(),
         }
     }
 
@@ -157,6 +157,19 @@ impl TextPipeline {
                 (r.selected, r.unselected)
             }
             theme::ListStyle::Pane => (Vec::new(), Vec::new()),
+            theme::ListStyle::Diagonal(_) => {
+                let r = self.overlay_bar_selection(
+                    &geom,
+                    &plan,
+                    &vis,
+                    6.0,
+                    10.0,
+                    24.0,
+                    theme::BarExtent::HugLabel,
+                    theme::BarCoverage::All,
+                );
+                (r.selected, r.unselected)
+            }
         }
     }
 
@@ -200,6 +213,18 @@ impl TextPipeline {
             } => {
                 self.overlay_bar_selection(geom, plan, vis, radius, gap, grow_px, extent, coverage)
             }
+            // The diagonal changes row composition, not selection language; its
+            // selection treatment remains the shared poster-bar treatment.
+            theme::ListStyle::Diagonal(_) => self.overlay_bar_selection(
+                geom,
+                plan,
+                vis,
+                6.0,
+                10.0,
+                24.0,
+                theme::BarExtent::HugLabel,
+                theme::BarCoverage::All,
+            ),
         };
         if backing == theme::ListBacking::BarePlates {
             self.overlay_prepare_bar_scrims(device, queue, width, height, list_style, &rects);
@@ -457,6 +482,7 @@ impl TextPipeline {
         const PAD: f32 = 2.0;
         let radius = match list_style {
             theme::ListStyle::Bars { radius, .. } => radius.max(0.0),
+            theme::ListStyle::Diagonal(_) => 6.0,
             theme::ListStyle::Pane => 0.0,
         };
         let scrims = rects

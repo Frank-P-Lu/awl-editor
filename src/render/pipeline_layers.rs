@@ -145,7 +145,7 @@ impl TextPipeline {
         self.panel_card.draw(pass);
         let bars = matches!(
             crate::render::effective_list_style(),
-            theme::ListStyle::Bars { .. }
+            theme::ListStyle::Bars { .. } | theme::ListStyle::Diagonal(_)
         );
         if bars {
             self.placard_stipple.draw(pass);
@@ -154,6 +154,7 @@ impl TextPipeline {
                 .map_err(|e| anyhow::anyhow!("glyphon placard render failed: {e:?}"))?;
         }
         self.overlay_bars.draw(pass);
+        self.overlay_spine.draw(pass);
         self.overlay_rows.draw(pass);
         self.overlay_cross.draw(pass);
         self.overlay_range_track.draw(pass);

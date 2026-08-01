@@ -48,7 +48,7 @@ use crate::render::livingband::{self, BandRect, MotionForce};
 fn selected_secondary_on_band() -> bool {
     match crate::render::effective_list_style() {
         theme::ListStyle::Bars { .. } => true,
-        theme::ListStyle::Pane => true,
+        theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) => true,
     }
 }
 

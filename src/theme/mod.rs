@@ -39,6 +39,7 @@
 mod cjk;
 mod color;
 mod derive;
+mod diagonal;
 mod ground;
 mod ground_space;
 mod icon_ground;
@@ -71,6 +72,7 @@ pub use derive::{
     primary, selected_row_ink, selected_row_secondary_ink, selection, set_active,
     set_active_by_name, surface_selected,
 };
+pub use diagonal::DiagonalDirection;
 #[allow(unused_imports)]
 // DeckleAnchor is public theme data; production literals use ground directly.
 pub use ground::{Arrangement, Background, DeckleAnchor, LavaEdge};

@@ -117,7 +117,7 @@ impl TextPipeline {
     pub(in crate::render) fn overlay_row_gap(&self) -> f32 {
         match crate::render::effective_list_style() {
             theme::ListStyle::Bars { gap, .. } => gap.max(0.0),
-            theme::ListStyle::Pane => 0.0,
+            theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) => 0.0,
         }
     }
 
@@ -133,7 +133,7 @@ impl TextPipeline {
     pub(in crate::render) fn overlay_text_hpad(&self) -> f32 {
         match crate::render::effective_list_style() {
             theme::ListStyle::Bars { .. } => BAR_SIDE_INSET + BAR_TEXT_PAD,
-            theme::ListStyle::Pane => 12.0,
+            theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) => 12.0,
         }
     }
 

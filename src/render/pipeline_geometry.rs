@@ -2,7 +2,6 @@
 //! Pure column, wrap, and hit-test math lives in [`super::geometry`].
 
 use super::*;
-
 impl TextPipeline {
     /// Re-tint every baked GPU pipeline (caret, selection, search-match, panel
     /// card, panel caret, spell squiggle) from the ACTIVE theme AND, when the new
@@ -124,6 +123,7 @@ impl TextPipeline {
         self.overlay_rows.set_color(theme::selection().rgba_bytes());
         self.overlay_bars
             .set_color(theme::surface_selected().rgba_bytes());
+        self.overlay_spine.set_color(theme::muted().rgba_bytes());
         self.overlay_cross
             .set_color(theme::overlay_band_overlap().rgba_bytes());
         self.overlay_range_track
