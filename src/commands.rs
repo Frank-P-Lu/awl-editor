@@ -539,8 +539,32 @@ const FILE_COMMANDS: &[&str] = &[
     "Export as PDF…",
     "Export as Word…",
     "Export as HTML…",
+    "Version history…",
+    "Move…",
+    "Rename note…",
+    "Duplicate note",
 ];
-const EDIT_COMMANDS: &[&str] = &["Undo", "Redo", "Cut", "Copy", "Paste", "Select all"];
+const EDIT_COMMANDS: &[&str] = &[
+    "Undo",
+    "Redo",
+    "Cut",
+    "Copy",
+    "Paste",
+    "Select all",
+    "Bold",
+    "Italic",
+    "Inline code",
+    "Highlight",
+    "Strikethrough",
+    "Insert link…",
+    "Heading",
+    "Blockquote",
+    "Bullet list",
+    "Numbered list",
+    "Task list",
+    "Code block",
+    "Align table",
+];
 const VIEW_COMMANDS: &[&str] = &[
     "Toggle page mode",
     "Switch theme…",
@@ -548,6 +572,14 @@ const VIEW_COMMANDS: &[&str] = &[
     "Zoom out",
     "Reset zoom",
     "Toggle debug",
+    "Narrow page",
+    "Widen page",
+    "Reset page width",
+    "Toggle outline",
+    "Fold section",
+    "Collapse other sections",
+    "Toggle typewriter scroll",
+    "Toggle menu bar",
 ];
 
 /// The menu SECTION (`"File"` / `"Edit"` / `"View"`) command `name` sits under, or

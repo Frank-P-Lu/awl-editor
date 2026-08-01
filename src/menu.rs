@@ -176,7 +176,12 @@ const APP_ITEMS: &[Routed] = &[
 const FILE_ITEMS: &[Routed] = &[
     ri("awl.new_document", "New document"),
     ri("awl.open", "Browse files…"),
-    ri("awl.switch_project", "Switch project…"),
+    Routed {
+        id: "awl.switch_project",
+        command: "Switch project…",
+        label: "Switch folder…",
+        icon: true,
+    },
     // "Recent projects" is a SINGLE File item that opens the SWITCH-PROJECT
     // navigator pre-lensed onto its Recent lens (`Action::OpenRecentProjects` — the
     // fold that retired the standalone RecentProjects picker), not a dynamic
@@ -186,9 +191,38 @@ const FILE_ITEMS: &[Routed] = &[
     // so it has no place in that table. The navigator (fuzzy-filterable,
     // keyboard-drivable, shared with the palette command) is the one door; a live
     // submenu is a possible future round. No icon (kept minimal, like most items).
-    r("awl.recent_projects", "Recent projects…"),
+    Routed {
+        id: "awl.recent_projects",
+        command: "Recent projects…",
+        label: "Recent folders…",
+        icon: false,
+    },
+    Routed {
+        id: "awl.rename_file",
+        command: "Rename note…",
+        label: "Rename file…",
+        icon: false,
+    },
+    Routed {
+        id: "awl.move_file",
+        command: "Move…",
+        label: "Move file…",
+        icon: false,
+    },
+    Routed {
+        id: "awl.duplicate_file",
+        command: "Duplicate note",
+        label: "Duplicate file",
+        icon: false,
+    },
+    r("awl.history", "Version history…"),
     ri("awl.save", "Save"),
-    ri("awl.finish_buffer", "Finish file"),
+    Routed {
+        id: "awl.finish_buffer",
+        command: "Finish file",
+        label: "Save and return",
+        icon: true,
+    },
     r("awl.export_pdf", "Export as PDF…"),
     r("awl.export_word", "Export as Word…"),
     r("awl.export_html", "Export as HTML…"),
@@ -203,6 +237,26 @@ const EDIT_ITEMS: &[Routed] = &[
     r("awl.select_all", "Select all"),
 ];
 
+/// The Markdown child menu is deliberately stable: its complete writing
+/// vocabulary stays visible as one menu on every platform, and the surfaces
+/// disable it as a whole for a non-Markdown buffer rather than making the
+/// surrounding Edit menu jump as files change.
+const MARKDOWN_ITEMS: &[Routed] = &[
+    r("awl.bold", "Bold"),
+    r("awl.italic", "Italic"),
+    r("awl.inline_code", "Inline code"),
+    r("awl.highlight", "Highlight"),
+    r("awl.strikethrough", "Strikethrough"),
+    r("awl.insert_link", "Insert link…"),
+    r("awl.heading", "Heading"),
+    r("awl.blockquote", "Blockquote"),
+    r("awl.bullet_list", "Bullet list"),
+    r("awl.numbered_list", "Numbered list"),
+    r("awl.task_list", "Task list"),
+    r("awl.code_block", "Code block"),
+    r("awl.align_table", "Align table"),
+];
+
 const VIEW_ITEMS: &[Routed] = &[
     r("awl.toggle_page_mode", "Toggle page mode"),
     ri("awl.switch_theme", "Switch theme…"),
@@ -210,9 +264,37 @@ const VIEW_ITEMS: &[Routed] = &[
     r("awl.zoom_out", "Zoom out"),
     r("awl.reset_zoom", "Reset zoom"),
     r("awl.toggle_debug", "Toggle debug"),
+    r("awl.narrow_page", "Narrow page"),
+    r("awl.widen_page", "Widen page"),
+    r("awl.reset_page_width", "Reset page width"),
+    Routed {
+        id: "awl.page_width_settings",
+        command: "Settings…",
+        label: "Page width settings…",
+        icon: false,
+    },
+    r("awl.toggle_outline", "Toggle outline"),
+    r("awl.fold_section", "Fold section"),
+    r("awl.collapse_other_sections", "Collapse other sections"),
+    r("awl.toggle_typewriter", "Toggle typewriter scroll"),
+    r("awl.toggle_menu_bar", "Toggle menu bar"),
 ];
 
-const SECTIONS: &[&[Routed]] = &[APP_ITEMS, FILE_ITEMS, EDIT_ITEMS, VIEW_ITEMS];
+const HELP_ITEMS: &[Routed] = &[
+    r("awl.guide", "Guide"),
+    r("awl.credits", "Credits"),
+    r("awl.check_for_updates", "Check for Updates"),
+    r("awl.report_problem", "Report a Problem"),
+];
+
+const SECTIONS: &[&[Routed]] = &[
+    APP_ITEMS,
+    FILE_ITEMS,
+    EDIT_ITEMS,
+    MARKDOWN_ITEMS,
+    VIEW_ITEMS,
+    HELP_ITEMS,
+];
 
 /// A muda PREDEFINED item this menu bar uses — no `Action`, no catalog entry:
 /// genuinely OS chrome (a window-manager command), never app behavior (see
@@ -229,7 +311,7 @@ pub enum PredefinedKind {
     ShowAll,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RosterItem {
     Routed {
         id: &'static str,
@@ -237,6 +319,10 @@ pub enum RosterItem {
         icon: bool,
     },
     Predefined(PredefinedKind),
+    Submenu {
+        label: &'static str,
+        items: Vec<RosterItem>,
+    },
     Separator,
 }
 
@@ -299,12 +385,18 @@ fn filter_items_for_platform(
 ) -> Vec<RosterItem> {
     let kept: Vec<RosterItem> = items
         .into_iter()
-        .filter(|item| match item {
-            RosterItem::Routed { id, .. } => resolve(id)
-                .map(|a| commands::action_available(&a, platform))
-                .unwrap_or(true),
-            RosterItem::Predefined(_) => platform == commands::Platform::Native,
-            RosterItem::Separator => true, // dangling ones trimmed below
+        .filter_map(|item| match item {
+            RosterItem::Routed { id, label, icon } => resolve(id)
+                .filter(|action| commands::action_available(action, platform))
+                .map(|_| RosterItem::Routed { id, label, icon }),
+            RosterItem::Predefined(kind) => {
+                (platform == commands::Platform::Native).then_some(RosterItem::Predefined(kind))
+            }
+            RosterItem::Submenu { label, items } => {
+                let items = filter_items_for_platform(items, platform);
+                (!items.is_empty()).then_some(RosterItem::Submenu { label, items })
+            }
+            RosterItem::Separator => Some(RosterItem::Separator), // dangling ones trimmed below
         })
         .collect();
     trim_separators(kept)
@@ -366,12 +458,17 @@ fn roster_all() -> Vec<RosterMenu> {
                 routed(&FILE_ITEMS[2]), // Switch project…
                 routed(&FILE_ITEMS[3]), // Recent projects… (opens the picker)
                 RosterItem::Separator,
-                routed(&FILE_ITEMS[4]), // Save
-                routed(&FILE_ITEMS[5]), // Finish file
+                routed(&FILE_ITEMS[4]), // Rename file…
+                routed(&FILE_ITEMS[5]), // Move file…
+                routed(&FILE_ITEMS[6]), // Duplicate file
+                routed(&FILE_ITEMS[7]), // Version history…
                 RosterItem::Separator,
-                routed(&FILE_ITEMS[6]), // Export as PDF…
-                routed(&FILE_ITEMS[7]), // Export as Word…
-                routed(&FILE_ITEMS[8]), // Export as HTML…
+                routed(&FILE_ITEMS[8]), // Save
+                routed(&FILE_ITEMS[9]), // Save and return
+                RosterItem::Separator,
+                routed(&FILE_ITEMS[10]), // Export as PDF…
+                routed(&FILE_ITEMS[11]), // Export as Word…
+                routed(&FILE_ITEMS[12]), // Export as HTML…
             ],
         },
         RosterMenu {
@@ -385,6 +482,11 @@ fn roster_all() -> Vec<RosterMenu> {
                 routed(&EDIT_ITEMS[4]), // Paste
                 RosterItem::Separator,
                 routed(&EDIT_ITEMS[5]), // Select all
+                RosterItem::Separator,
+                RosterItem::Submenu {
+                    label: "Markdown",
+                    items: MARKDOWN_ITEMS.iter().map(routed).collect(),
+                },
             ],
         },
         RosterMenu {
@@ -398,6 +500,17 @@ fn roster_all() -> Vec<RosterMenu> {
                 routed(&VIEW_ITEMS[4]), // Reset zoom
                 RosterItem::Separator,
                 routed(&VIEW_ITEMS[5]), // Toggle debug
+                RosterItem::Separator,
+                RosterItem::Submenu {
+                    label: "Page width",
+                    items: VIEW_ITEMS[6..10].iter().map(routed).collect(),
+                },
+                RosterItem::Separator,
+                routed(&VIEW_ITEMS[10]), // Toggle outline
+                routed(&VIEW_ITEMS[11]), // Fold section
+                routed(&VIEW_ITEMS[12]), // Collapse other sections
+                routed(&VIEW_ITEMS[13]), // Toggle typewriter scroll
+                routed(&VIEW_ITEMS[14]), // Toggle menu bar
             ],
         },
         RosterMenu {
@@ -405,6 +518,16 @@ fn roster_all() -> Vec<RosterMenu> {
             items: vec![
                 RosterItem::Predefined(PredefinedKind::Minimize),
                 RosterItem::Predefined(PredefinedKind::Maximize),
+            ],
+        },
+        RosterMenu {
+            title: "Help",
+            items: vec![
+                routed(&HELP_ITEMS[0]),
+                routed(&HELP_ITEMS[1]),
+                RosterItem::Separator,
+                routed(&HELP_ITEMS[2]),
+                routed(&HELP_ITEMS[3]),
             ],
         },
     ]
@@ -519,15 +642,30 @@ pub fn predefined_label(kind: PredefinedKind) -> &'static str {
 #[cfg(target_os = "macos")]
 pub fn print_roster() {
     for menu in roster() {
-        for item in menu.items {
+        for item in dropdown_items(&menu) {
             let label = match item {
                 RosterItem::Routed { label, .. } => label,
                 RosterItem::Predefined(kind) => predefined_label(kind),
+                RosterItem::Submenu { label, .. } => label,
                 RosterItem::Separator => continue,
             };
             println!("{}\t{}", menu.title, label);
         }
     }
+}
+
+/// The awl-rendered web/Linux bar keeps its one-level card geometry while the
+/// native menu presents real nested submenus. Expanding child rows here gives
+/// every Markdown verb the same route on platforms without OS menu plumbing;
+/// the semantic roster above remains nested and is the source of truth.
+pub fn dropdown_items(menu: &RosterMenu) -> Vec<RosterItem> {
+    menu.items
+        .iter()
+        .flat_map(|item| match item {
+            RosterItem::Submenu { items, .. } => items.clone(),
+            other => vec![other.clone()],
+        })
+        .collect()
 }
 
 /// Build the whole menu bar as real muda types, from [`roster`] verbatim.
@@ -545,17 +683,8 @@ pub fn build_menu() -> Menu {
     let submenus: Vec<Submenu> = roster()
         .into_iter()
         .map(|m| {
-            let items: Vec<Box<dyn muda::IsMenuItem>> = m
-                .items
-                .iter()
-                .map(|item| -> Box<dyn muda::IsMenuItem> {
-                    match item {
-                        RosterItem::Routed { id, label, icon } => to_menu_item(id, label, *icon),
-                        RosterItem::Separator => Box::new(PredefinedMenuItem::separator()),
-                        RosterItem::Predefined(kind) => Box::new(to_predefined(*kind)),
-                    }
-                })
-                .collect();
+            let items: Vec<Box<dyn muda::IsMenuItem>> =
+                m.items.iter().map(to_native_item).collect();
             let refs: Vec<&dyn muda::IsMenuItem> = items.iter().map(|b| b.as_ref()).collect();
             Submenu::with_items(m.title, true, &refs).expect("submenu build")
         })
@@ -565,6 +694,22 @@ pub fn build_menu() -> Menu {
         .map(|s| s as &dyn muda::IsMenuItem)
         .collect();
     Menu::with_items(&refs).expect("root menu build")
+}
+
+#[cfg(target_os = "macos")]
+fn to_native_item(item: &RosterItem) -> Box<dyn muda::IsMenuItem> {
+    match item {
+        RosterItem::Routed { id, label, icon } => to_menu_item(id, label, *icon),
+        RosterItem::Separator => Box::new(PredefinedMenuItem::separator()),
+        RosterItem::Predefined(kind) => Box::new(to_predefined(*kind)),
+        RosterItem::Submenu { label, items } => {
+            let children: Vec<Box<dyn muda::IsMenuItem>> =
+                items.iter().map(to_native_item).collect();
+            let refs: Vec<&dyn muda::IsMenuItem> =
+                children.iter().map(|item| item.as_ref()).collect();
+            Box::new(Submenu::with_items(label, true, &refs).expect("submenu build"))
+        }
+    }
 }
 
 /// Build + install the menu bar for the running NSApp (`Menu::init_for_nsapp`,
@@ -612,6 +757,22 @@ pub fn install<E: Send + 'static>(
 mod tests {
     use super::*;
 
+    fn labels(items: &[RosterItem]) -> Vec<&str> {
+        items
+            .iter()
+            .flat_map(|item| match item {
+                RosterItem::Routed { label, .. } => vec![*label],
+                RosterItem::Predefined(kind) => vec![predefined_label(*kind)],
+                RosterItem::Submenu { label, items } => {
+                    let mut out = vec![*label];
+                    out.extend(labels(items));
+                    out
+                }
+                RosterItem::Separator => Vec::new(),
+            })
+            .collect()
+    }
+
     /// LAW TEST: every routed table entry's `command` name must resolve to a
     /// real catalog `Action` — a walk of every section, so a typo'd or
     /// renamed command name in this file fails a test instead of silently
@@ -656,7 +817,8 @@ mod tests {
             (APP_ITEMS, None),
             (FILE_ITEMS, Some("File")),
             (EDIT_ITEMS, Some("Edit")),
-            (VIEW_ITEMS, Some("View")),
+            (MARKDOWN_ITEMS, Some("Edit")),
+            (HELP_ITEMS, None),
         ] {
             for r in items {
                 assert_eq!(
@@ -666,6 +828,13 @@ mod tests {
                     r.id,
                     r.command
                 );
+            }
+        }
+        for r in VIEW_ITEMS {
+            if r.id == "awl.page_width_settings" {
+                assert_eq!(commands::menu_section(r.command), None);
+            } else {
+                assert_eq!(commands::menu_section(r.command), Some("View"));
             }
         }
     }
@@ -696,7 +865,7 @@ mod tests {
     #[test]
     fn renderer_consumes_every_roster_item() {
         for menu in roster() {
-            for item in &menu.items {
+            for item in dropdown_items(&menu) {
                 match item {
                     RosterItem::Routed { id, .. } => {
                         assert!(
@@ -709,11 +878,11 @@ mod tests {
                     }
                     RosterItem::Predefined(kind) => {
                         assert!(
-                            !predefined_label(*kind).is_empty(),
+                            !predefined_label(kind).is_empty(),
                             "predefined {kind:?} has no label"
                         );
                     }
-                    RosterItem::Separator => {}
+                    RosterItem::Submenu { .. } | RosterItem::Separator => {}
                 }
             }
         }
@@ -734,10 +903,13 @@ mod tests {
     /// any test thread (unlike `build_menu`, which is main-thread-only; see
     /// its own doc).
     #[test]
-    fn roster_has_the_five_top_level_menus_in_order() {
+    fn roster_has_the_complete_top_level_menus_in_order() {
         let menus = roster();
         let titles: Vec<&str> = menus.iter().map(|m| m.title).collect();
-        assert_eq!(titles, vec!["Awl", "File", "Edit", "View", "Window"]);
+        assert_eq!(
+            titles,
+            vec!["Awl", "File", "Edit", "View", "Window", "Help"]
+        );
     }
 
     #[test]
@@ -775,59 +947,25 @@ mod tests {
     }
 
     #[test]
-    fn native_and_linux_file_menu_has_the_separated_export_block_in_order() {
+    fn native_file_menu_has_the_complete_writing_roster_in_order() {
         let menus = roster_for(commands::Platform::Native);
         let file = menus.iter().find(|m| m.title == "File").unwrap();
         assert_eq!(
-            file.items,
+            labels(&file.items),
             vec![
-                RosterItem::Routed {
-                    id: "awl.new_document",
-                    label: "New document",
-                    icon: true
-                },
-                RosterItem::Routed {
-                    id: "awl.open",
-                    label: "Browse files…",
-                    icon: true
-                },
-                RosterItem::Routed {
-                    id: "awl.switch_project",
-                    label: "Switch project…",
-                    icon: true
-                },
-                RosterItem::Routed {
-                    id: "awl.recent_projects",
-                    label: "Recent projects…",
-                    icon: false
-                },
-                RosterItem::Separator,
-                RosterItem::Routed {
-                    id: "awl.save",
-                    label: "Save",
-                    icon: true
-                },
-                RosterItem::Routed {
-                    id: "awl.finish_buffer",
-                    label: "Finish file",
-                    icon: true
-                },
-                RosterItem::Separator,
-                RosterItem::Routed {
-                    id: "awl.export_pdf",
-                    label: "Export as PDF…",
-                    icon: false
-                },
-                RosterItem::Routed {
-                    id: "awl.export_word",
-                    label: "Export as Word…",
-                    icon: false
-                },
-                RosterItem::Routed {
-                    id: "awl.export_html",
-                    label: "Export as HTML…",
-                    icon: false
-                },
+                "New document",
+                "Browse files…",
+                "Switch folder…",
+                "Recent folders…",
+                "Rename file…",
+                "Move file…",
+                "Duplicate file",
+                "Version history…",
+                "Save",
+                "Save and return",
+                "Export as PDF…",
+                "Export as Word…",
+                "Export as HTML…",
             ]
         );
     }
@@ -853,9 +991,9 @@ mod tests {
         let menus = roster();
         let roster_ids: Vec<&str> = menus
             .iter()
-            .flat_map(|m| m.items.iter())
+            .flat_map(|m| dropdown_items(m))
             .filter_map(|i| match i {
-                RosterItem::Routed { id, .. } => Some(*id),
+                RosterItem::Routed { id, .. } => Some(id),
                 _ => None,
             })
             .collect();
@@ -881,16 +1019,26 @@ mod tests {
     /// the menu from the palette), narrowed by name rather than left open.
     #[test]
     fn roster_routed_labels_match_the_command_catalog_display_names() {
-        const APP_NAME_SUFFIXED: &[&str] = &["awl.about", "awl.quit"];
+        const EXPLICIT_MENU_LABELS: &[&str] = &[
+            "awl.about",
+            "awl.quit",
+            "awl.switch_project",
+            "awl.recent_projects",
+            "awl.rename_file",
+            "awl.move_file",
+            "awl.duplicate_file",
+            "awl.finish_buffer",
+            "awl.page_width_settings",
+        ];
         for menu in roster() {
-            for item in menu.items {
+            for item in dropdown_items(&menu) {
                 if let RosterItem::Routed { id, label, .. } = item {
                     let r = SECTIONS
                         .iter()
                         .flat_map(|s| s.iter())
                         .find(|r| r.id == id)
                         .unwrap();
-                    if APP_NAME_SUFFIXED.contains(&id) {
+                    if EXPLICIT_MENU_LABELS.contains(&id) {
                         assert_ne!(
                             label, r.command,
                             "{id:?} is expected to differ from its bare catalog name"
@@ -963,44 +1111,21 @@ mod tests {
     }
 
     #[test]
-    fn web_file_menu_drops_pdf_and_keeps_word_html_without_dangling_separators() {
+    fn web_file_menu_prunes_history_pdf_and_save_return_without_losing_the_file_verbs() {
         let menus = roster_for(commands::Platform::Web);
         let file = menus.iter().find(|m| m.title == "File").unwrap();
         assert_eq!(
-            file.items,
+            labels(&file.items),
             vec![
-                RosterItem::Routed {
-                    id: "awl.new_document",
-                    label: "New document",
-                    icon: true
-                },
-                RosterItem::Routed {
-                    id: "awl.open",
-                    label: "Browse files…",
-                    icon: true
-                },
-                RosterItem::Routed {
-                    id: "awl.switch_project",
-                    label: "Switch project…",
-                    icon: true
-                },
-                RosterItem::Separator,
-                RosterItem::Routed {
-                    id: "awl.save",
-                    label: "Save",
-                    icon: true
-                },
-                RosterItem::Separator,
-                RosterItem::Routed {
-                    id: "awl.export_word",
-                    label: "Export as Word…",
-                    icon: false
-                },
-                RosterItem::Routed {
-                    id: "awl.export_html",
-                    label: "Export as HTML…",
-                    icon: false
-                },
+                "New document",
+                "Browse files…",
+                "Switch folder…",
+                "Rename file…",
+                "Move file…",
+                "Duplicate file",
+                "Save",
+                "Export as Word…",
+                "Export as HTML…",
             ]
         );
     }
@@ -1035,7 +1160,7 @@ mod tests {
             "Window must vanish on web"
         );
         let titles: Vec<&str> = menus.iter().map(|m| m.title).collect();
-        assert_eq!(titles, vec!["Awl", "File", "Edit", "View"]);
+        assert_eq!(titles, vec!["Awl", "File", "Edit", "View", "Help"]);
     }
 
     #[test]
@@ -1068,7 +1193,7 @@ mod tests {
     #[test]
     fn web_roster_every_surviving_routed_item_resolves() {
         for menu in roster_for(commands::Platform::Web) {
-            for item in &menu.items {
+            for item in dropdown_items(&menu) {
                 if let RosterItem::Routed { id, .. } = item {
                     assert!(
                         resolve(id).is_some(),

@@ -555,7 +555,8 @@ impl App {
                 let menus = crate::menu::roster();
                 menus
                     .get(menu)
-                    .and_then(|m| m.items.get(item))
+                    .map(crate::menu::dropdown_items)
+                    .and_then(|items| items.get(item).cloned())
                     .and_then(|it| match it {
                         crate::menu::RosterItem::Routed { id, .. } => crate::menu::resolve(id),
                         _ => None,

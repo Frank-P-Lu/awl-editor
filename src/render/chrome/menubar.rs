@@ -247,7 +247,8 @@ impl TextPipeline {
         let label_lh = m.line_height * label;
         let row_h = label_lh * DROP_ROW_SCALE;
         let menus = crate::menu::roster();
-        let items = &menus[menu_i].items;
+        let rendered_items = crate::menu::dropdown_items(&menus[menu_i]);
+        let items = &rendered_items;
 
         // Per-row content: label, native chord, separator flag. Labels/chords are ONE
         // line per row (separator rows blank), so the buffer lines land on the uniform
@@ -275,6 +276,11 @@ impl TextPipeline {
                     let lbl = crate::menu::predefined_label(*kind);
                     widest_label = widest_label.max(lbl.chars().count());
                     labels.push_str(lbl);
+                    separators.push(false);
+                }
+                crate::menu::RosterItem::Submenu { label, .. } => {
+                    widest_label = widest_label.max(label.chars().count());
+                    labels.push_str(label);
                     separators.push(false);
                 }
                 crate::menu::RosterItem::Separator => {
