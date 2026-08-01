@@ -1228,14 +1228,12 @@ impl TextPipeline {
     ) -> anyhow::Result<()> {
         self.begin_float_panel_frame();
         // CARET-STYLE PICKER: the floating preview PANEL below the picker card (the
-        // sample line with the choreographed demo caret). Parked (nothing drawn) unless
         // that picker is open, so every other frame stays byte-identical. Built on the
         // reusable `prepare_float_panel` primitive. Prepared BEFORE the overlay so the
         // SPELL contextual panel (which reuses the SAME float quads for its own
         // elevation, see `prepare_overlay`) sets them LAST and isn't parked here — the
-        // caret picker and the spell panel are mutually exclusive, so only one ever
-        // owns the float quads on a frame. (THE FORMAT POPOVER shares these quads too,
-        // prepared later at the chrome tail — its own guard, not call order, is what
+        // caret picker and spell panel are mutually exclusive. (THE FORMAT POPOVER
+        // shares these quads too; its own guard, not call order, is what
         // keeps it from racing this one; see `prepare_popover`'s doc.)
         self.prepare_caret_preview_panel(device, queue, width, height)?;
 
@@ -1245,6 +1243,8 @@ impl TextPipeline {
             self.prepare_panel(device, queue, width, height)?;
             self.overlay_rows.prepare(device, queue, width, height, &[]);
             self.overlay_bars.prepare(device, queue, width, height, &[]);
+            self.overlay_spine
+                .prepare_rotated(device, queue, width, height, &[]);
         } else {
             self.park_overlay(device, queue, width, height)?;
         }

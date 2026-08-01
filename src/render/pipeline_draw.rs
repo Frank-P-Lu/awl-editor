@@ -20,9 +20,6 @@ impl TextPipeline {
         let metrics = Metrics::new(1.0);
         let buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
 
-        // The caret is a GPU quad (the accent underline that collapses to a dot
-        // while it glides) drawn by its own pipeline, not a glyph. Colors come
-        // from the ACTIVE theme; `sync_theme()` re-uploads them on a live switch.
         let caret_pipeline = CaretPipeline::new(device, format, theme::primary().rgb_bytes());
         let caret_trail_pipeline = CaretPipeline::new(device, format, theme::primary().rgb_bytes());
         let caret_glyph_pipeline =
@@ -153,14 +150,10 @@ impl TextPipeline {
         let preview_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
         // The overlay's selected-row highlight: same rounded quad as selection,
         // tinted with the muted selection token (amber stays the caret's alone).
-        let overlay_rows =
-            SelectionPipeline::new(device, &sel_shader, format, theme::selection().rgba_bytes());
-        let overlay_bars = SelectionPipeline::new(
-            device,
-            &sel_shader,
-            format,
-            theme::surface_selected().rgba_bytes(),
-        );
+        let overlay_quad = |color| SelectionPipeline::new(device, &sel_shader, format, color);
+        let overlay_rows = overlay_quad(theme::selection().rgba_bytes());
+        let overlay_bars = overlay_quad(theme::surface_selected().rgba_bytes());
+        let overlay_spine = overlay_quad(theme::muted().rgba_bytes());
         let overlay_lens_underline = SelectionPipeline::new(
             device,
             &sel_shader,
@@ -408,6 +401,7 @@ impl TextPipeline {
             search_replacement_caret: usize::MAX,
             overlay_rows,
             overlay_bars,
+            overlay_spine,
             overlay_lens_underline,
             overlay_facet_ghost,
             overlay_cross,

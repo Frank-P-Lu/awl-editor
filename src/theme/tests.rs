@@ -3027,8 +3027,8 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 title_style: auto(PlacardInk::Ghost),
                 card_anchor: model::CardAnchor::TopLeft,
                 elevation: Elevation::Bordered,
-                // Magpie wears UNDERLINE chips (user's confirmed chip map).
-                list_style: poster_bars,
+                // The mirrored editorial diagonal composition.
+                list_style: ListStyle::Diagonal(super::DiagonalDirection::Ascending),
                 facet_style: FacetStyle::Chips(ChipVariant::Underline),
                 ..RenderCaps::DEFAULT
             },
@@ -3038,8 +3038,8 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 // RIGHT rail (Auto corner then derives bottom-LEFT).
                 card_anchor: model::CardAnchor::TopRight,
                 elevation: Elevation::Bordered,
-                // Mangrove wears BRACKET chips (user's confirmed chip map).
-                list_style: poster_bars,
+                // The mirrored tidal diagonal composition.
+                list_style: ListStyle::Diagonal(super::DiagonalDirection::Descending),
                 facet_style: FacetStyle::Chips(ChipVariant::Bracket),
                 // ITEM 65 (Fable adjustment): both marks lifted — see
                 // `worlds::MANGROVE`'s own doc.

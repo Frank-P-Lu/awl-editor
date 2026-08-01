@@ -1035,8 +1035,8 @@ fn overlay_query_caret_places_at_begin_mid_end_char_index() {
     theme::set_active(theme::DEFAULT_THEME);
 }
 
-/// POSTER BARS KEEP THE LIVE PAGE (real pixels): Mangrove, Firetail, and
-/// Cassowary all ship the shared Bars treatment. Every centered list kind must
+/// POSTER BARS KEEP THE LIVE PAGE (real pixels): Firetail and Cassowary ship the
+/// shared Bars treatment outside Galah's deliberate full-canvas room. Every centered list kind must
 /// therefore leave meaningful source glyphs untouched inside its own layout
 /// footprint — a full-canvas room would make that count exactly zero — while its
 /// selected and unselected plates still read as distinct surfaces. The explicit,
@@ -1060,7 +1060,7 @@ fn poster_bars_centered_lists_preserve_page_and_distinguish_plates() {
         .collect::<Vec<_>>()
         .join("\n");
 
-    for world in ["Mangrove", "Firetail", "Cassowary"] {
+    for world in ["Firetail", "Cassowary"] {
         theme::set_active_by_name(world).unwrap();
         p.sync_theme();
         assert!(
@@ -2137,7 +2137,7 @@ fn faceted_section_header_sits_on_a_plate_on_every_bars_world() {
         .collect();
     assert!(
         !bars_worlds.is_empty(),
-        "expected at least one Bars world (Firetail/Galah/Magpie/Mangrove)"
+        "expected at least one Bars world (Firetail/Galah/Cassowary)"
     );
 
     for th in &bars_worlds {
@@ -2264,7 +2264,7 @@ fn faceted_lens_strip_tabs_sit_on_plates_on_every_bars_world() {
         .collect();
     assert!(
         !bars_worlds.is_empty(),
-        "expected at least one Bars world (Firetail/Galah/Magpie/Mangrove)"
+        "expected at least one Bars world (Firetail/Galah/Cassowary)"
     );
 
     for th in &bars_worlds {

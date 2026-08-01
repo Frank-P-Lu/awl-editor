@@ -298,8 +298,8 @@ impl TextPipeline {
     /// (see `PlannedRow`'s doc).
     pub(in crate::render) fn overlay_row_dx_step(&self) -> f32 {
         match crate::render::overlay_slant() {
-            None => 0.0,
             Some(s) => crate::render::slant_offset(&s, 1) * self.overlay_slant_progress(),
+            None => super::chrome::diagonal::active(self).map_or(0.0, |c| c.row_step),
         }
     }
 

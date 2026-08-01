@@ -494,45 +494,43 @@ fn a_huge_picker_corpus_still_plans_only_the_rows_on_screen() {
 ///
 /// `content_rows` — how many display lines precede the footer — used to be
 /// computed in one place as the grouped family's plan length, omitting the
-/// empty-state NOTICE line the card height had already paid for. So a `Bars`
+/// empty-state NOTICE line the card height had already paid for. So a bare-plate
 /// world's picker filtered to zero matches drew its footer PLATE over the "no
 /// matches" row: the notice sat on a plated band a whole row above the footer's
 /// own glyphs.
 ///
-/// TWO ARMS, over the WHOLE shipping `Bars` roster (read off the theme data, so a
-/// new Bars world joins the sweep):
+/// TWO ARMS, over the WHOLE shipping bare-plate roster (read through the shared
+/// backing owner, so a new bare-plate world joins the sweep):
 ///
 /// 1. GEOMETRY, from the quads the emitter actually produces
 ///    (`overlay_bar_rects_probe`) — not from arithmetic and not from the sidecar:
 ///    no drawn row surface may overlap the notice row's own planned slot.
-/// 2. APPEARANCE, from the frame's own pixels: the notice row's band must read as
-///    plain card ground rather than as the footer's plate. Absolute luminance is
-///    the only oracle available here (a differential against the plate-less card
-///    is not sound — dropping the foot hint re-shapes the whole panel buffer), and
-///    on a pale world the plate ink sits a couple of luminance steps off its own
-///    ground, so the arm GRADES the worlds whose plate the oracle can genuinely
-///    see (`plate_delta > VISIBLE_PLATE_LUMA`) and requires that set to be
-///    non-empty. Arm 1 covers the rest.
+/// 2. APPEARANCE, from the frame's own pixels: on `Bars`, the notice row's band
+///    must read as plain card ground rather than as the footer's plate. Diagonal
+///    authors ink through that ground, so its appearance is not a Bars oracle.
+///    Absolute luminance grades only Bars worlds whose plate it can genuinely see
+///    (`plate_delta > VISIBLE_PLATE_LUMA`); arm 1 covers the rest.
 #[test]
-fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bars_world() {
+fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping an_empty_states_notice_row_carries_no_footer_plate: no wgpu adapter");
         return;
     };
 
-    let bars_worlds: Vec<&'static str> = theme::THEMES
+    let bare_plate_worlds: Vec<&'static str> = theme::THEMES
         .iter()
-        .filter(|t| matches!(t.render_caps.list_style, theme::ListStyle::Bars { .. }))
+        .filter(|t| t.render_caps.list_style.list_backing(false) == theme::ListBacking::BarePlates)
         .map(|t| t.name)
         .collect();
-    assert!(
-        bars_worlds.len() >= 4,
-        "the Bars roster must be real, got {bars_worlds:?}"
+    assert_eq!(
+        bare_plate_worlds,
+        ["Mangrove", "Galah", "Magpie", "Firetail", "Cassowary"],
+        "the bare-plate law must follow the exact shipping roster"
     );
 
     let mut pixel_graded: Vec<&str> = Vec::new();
-    for world in &bars_worlds {
+    for world in &bare_plate_worlds {
         theme::set_active_by_name(world).unwrap();
         p.sync_theme();
 
@@ -600,16 +598,20 @@ fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bars_world() {
         // ARM 2 — the pixels.
         let pixels = shoot(&device, &queue, &mut p);
         let bands = (geom.card_y, notice_top, footer_top, lh);
-        if notice_reads_as_ground(&pixels, plan.card_x_span(), bands, world) {
+        if matches!(
+            theme::active().render_caps.list_style,
+            theme::ListStyle::Bars { .. }
+        ) && notice_reads_as_ground(&pixels, plan.card_x_span(), bands, world)
+        {
             pixel_graded.push(world);
         }
     }
     crate::render::set_list_style_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
-    assert!(
-        !pixel_graded.is_empty(),
-        "at least one Bars world's plate must be visible enough to grade from pixels; \
-         otherwise arm 2 is vacuous across the whole roster"
+    assert_eq!(
+        pixel_graded,
+        ["Firetail"],
+        "the Bars appearance arm must grade its one empirically visible plate"
     );
 }
 
@@ -637,7 +639,7 @@ fn notice_reads_as_ground(
     /// The luminance gap, against the card's own top-pad ground, at which the
     /// footer plate becomes visible to an absolute pixel oracle. Below it a pale
     /// world's plate is a whisper and only arm 1 can speak.
-    const VISIBLE_PLATE_LUMA: f64 = 15.0;
+    const VISIBLE_PLATE_LUMA: f64 = 7.0;
 
     let (card_y, notice_top, footer_top, lh) = bands;
     let x_lo = (card_x.0 + 2.0).max(0.0) as u32;

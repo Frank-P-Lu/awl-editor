@@ -342,7 +342,7 @@ lines = 579
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 550
+lines = 544
 reason = "The one `TextPipeline` initializer spells out workspace state and the warp accumulator beside the state they initialize."
 
 [[file_size_mark]]
@@ -768,7 +768,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 line = 7
-message = "this function has too many lines (484/100)"
+message = "this function has too many lines (481/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer."
 
 [[clippy_exception]]

@@ -2052,13 +2052,13 @@ pub struct TextPipeline {
     /// COLOR comes from the ONE `highlight_treatment` owner: the muted selection
     /// token on an ordinary (`Fill`) world so amber stays reserved for the
     /// caret, or solid `base_content` (white) on a true 1-bit world, where the
-    /// selected row's own glyphs are recolored to solid `base_300` (black) up in
     /// the shaper (`selected_ink`) so the pair reads as crisp black-on-white.
     /// That solid-fill + recolor SUPERSEDED an earlier framebuffer invert of the
     /// row (retired), whose gamma-limited flip of the antialiased row text read
     /// as a faint grey — see [`theme::HighlightTreatment::InverseFill`].
     pub overlay_rows: SelectionPipeline,
     pub overlay_bars: SelectionPipeline,
+    pub overlay_spine: SelectionPipeline,
     pub overlay_lens_underline: SelectionPipeline,
     /// V6 P5 round — the faceted strip's INACTIVE ghost pills under
     /// [`theme::FacetStyle::Chips`]: one hairline STROKE pill per non-active
