@@ -109,6 +109,7 @@ use muda::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 /// Context policy shared by the native updater and the roster laws. This stays
 /// platform-neutral so the state transition can be proved without constructing
 /// AppKit objects in a test process.
+#[cfg(any(target_os = "macos", test))]
 pub fn markdown_submenu_enabled(is_markdown: bool) -> bool {
     is_markdown
 }
