@@ -86,10 +86,11 @@ pub fn overlay(rows: Vec<ContextRow>, anchor: (f32, f32)) -> crate::overlay::Ove
     state.set_secondaries(
         rows.into_iter()
             .map(|row| {
-                (!row.enabled)
-                    .then_some("unavailable")
-                    .unwrap_or_default()
-                    .to_string()
+                if row.enabled {
+                    String::new()
+                } else {
+                    "unavailable".to_string()
+                }
             })
             .collect(),
     );
