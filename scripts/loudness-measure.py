@@ -108,6 +108,9 @@ EDGE_DELTA = 3
 # Channel-wise tolerance for "this pixel is the accent", loose enough to catch
 # the caret's own anti-aliased body and tight enough to exclude ordinary ink.
 ACCENT_TOL = 24
+# How many of the most extreme page-column pixels define "the ink". A fixed
+# COUNT, deliberately not a percentile — see `measure`'s comment at its use.
+INK_SAMPLE = 500
 
 
 def lum8(rgb):
@@ -250,9 +253,17 @@ def measure(png, sidecar):
     page_ground = modal_color(page)
     pl = sorted(lum8(p) for p in page)
     # The ink extreme is the tail AWAY from the page ground: dark ink on a
-    # light page, light ink on a dark one.
+    # light page, light ink on a dark one — taken as the median of a FIXED
+    # COUNT of the most extreme pixels, never a percentile. A percentile is a
+    # fraction of the sampled COLUMN, and the column's area changes with the
+    # arm while the specimen's ink does not: at measure=100 the same text fills
+    # a smaller share of a wider column, so a 0.5th-percentile tail slides off
+    # solid glyph interiors onto anti-aliased edges. That is exactly what
+    # produced a spurious Paperbark reading of 4.42 against 10.75 for the same
+    # palette. INK_SAMPLE sits well inside solid glyph coverage in every arm.
     pg_l = lum8(page_ground)
-    ink_l = percentile(pl, 0.005) if pg_l > 127 else percentile(pl, 0.995)
+    tail = pl[:INK_SAMPLE] if pg_l > 127 else pl[-INK_SAMPLE:]
+    ink_l = tail[len(tail) // 2]
     ink_px = min(page, key=lambda p: abs(lum8(p) - ink_l))
     ink_cr = contrast_ratio(page_ground, ink_px)
 
