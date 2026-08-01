@@ -102,19 +102,63 @@ pub struct Misspelling {
     pub end_col: usize,
 }
 
-/// The exact word text at `m`'s span in `text` — the same char-column
-/// extraction [`SpellChecker::suggest_at`] uses to read the word it's about to
-/// offer corrections for. `""` when the span no longer resolves (a vanished
-/// line, or `end_col <= start_col`) — never a panic on a stale span read
-/// against edited-out text.
+/// A text's logical lines, sliced ONCE — THE ONE owner of the span-to-text
+/// rule every span read routes through.
+///
+/// Resolving a span needs the line it sits on, and finding that line by walking
+/// from the document start costs O(line). The readers here are BATCH readers —
+/// [`keyed`] over a whole fresh scan, [`visible`] over the whole verdict cache
+/// on every `sync_view` — so a per-span walk costs O(spans x lines): on a
+/// novel-length manuscript carrying an ordinary typo rate that dominates the
+/// per-edit cost, and it grows quadratically with the document. Slicing once
+/// makes the same batch O(lines + spans).
+///
+/// Cheap to build for a ONE-SHOT read too ([`word_at`]): the slice walk it
+/// replaces was already O(text), and this adds only a pointer per line.
+pub struct LineIndex<'a> {
+    lines: Vec<&'a str>,
+}
+
+impl<'a> LineIndex<'a> {
+    pub fn new(text: &'a str) -> Self {
+        Self {
+            lines: text.split('\n').collect(),
+        }
+    }
+
+    /// The exact word text at `m`'s span — the same char-column extraction
+    /// [`SpellChecker::suggest_at`] uses to read the word it is about to offer
+    /// corrections for. `""` when the span no longer resolves (a vanished line,
+    /// or `end_col <= start_col`) — never a panic on a stale span read against
+    /// edited-out text.
+    pub fn word_at(&self, m: &Misspelling) -> String {
+        self.lines
+            .get(m.line)
+            .copied()
+            .unwrap_or("")
+            .chars()
+            .skip(m.start_col)
+            .take(m.end_col.saturating_sub(m.start_col))
+            .collect()
+    }
+
+    /// True iff this index's text still holds `v`'s EXACT word at its span. A
+    /// `false` means the text under this span changed since the verdict was
+    /// computed — painting it now would show a squiggle under the WRONG word
+    /// (or a stale MISSPELLED squiggle for a word that's since been fixed):
+    /// the just-completed-word flash [`SpellVerdict`] exists to make
+    /// structurally impossible. THE ONE check every consumer routes through.
+    pub fn still_valid(&self, v: &SpellVerdict) -> bool {
+        self.word_at(&v.span) == v.word
+    }
+}
+
+/// One-shot [`LineIndex::word_at`] for a caller holding a SINGLE span. Every
+/// production reader resolves spans in batches and builds the index once, so
+/// this convenience exists for tests alone.
+#[cfg(test)]
 pub fn word_at(text: &str, m: &Misspelling) -> String {
-    text.split('\n')
-        .nth(m.line)
-        .unwrap_or("")
-        .chars()
-        .skip(m.start_col)
-        .take(m.end_col.saturating_sub(m.start_col))
-        .collect()
+    LineIndex::new(text).word_at(m)
 }
 
 /// A spell verdict KEYED to the exact word text it judged (the COMPLETED-WORD-
@@ -124,7 +168,7 @@ pub fn word_at(text: &str, m: &Misspelling) -> String {
 /// misspelled" apart from "this span's text has since changed underneath it"
 /// (an edit can shift/alter a span's covered text without moving its columns —
 /// e.g. correcting "helo" to "hell" keeps the SAME `0..4` span but a DIFFERENT
-/// word). [`Self::still_valid`] is the one check every consumer routes
+/// word). [`LineIndex::still_valid`] is the one check every consumer routes
 /// through, so a stale verdict can never paint a squiggle under text it never
 /// actually judged.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -134,22 +178,21 @@ pub struct SpellVerdict {
 }
 
 impl SpellVerdict {
-    /// True iff `text` still holds this verdict's EXACT word at its span. A
-    /// `false` means the text under this span changed since the verdict was
-    /// computed — painting it now would show a squiggle under the WRONG word
-    /// (or a stale MISSPELLED squiggle for a word that's since been fixed):
-    /// the just-completed-word flash this type exists to make structurally
-    /// impossible.
+    /// One-shot [`LineIndex::still_valid`] for a caller holding a SINGLE
+    /// verdict. Production filters the whole cache at once through
+    /// [`visible`], so — like [`word_at`] — this convenience is for tests.
+    #[cfg(test)]
     pub fn still_valid(&self, text: &str) -> bool {
-        word_at(text, &self.span) == self.word
+        LineIndex::new(text).still_valid(self)
     }
 }
 
 pub fn keyed(text: &str, misspellings: Vec<Misspelling>) -> Vec<SpellVerdict> {
+    let index = LineIndex::new(text);
     misspellings
         .into_iter()
         .map(|span| {
-            let word = word_at(text, &span);
+            let word = index.word_at(&span);
             SpellVerdict { span, word }
         })
         .collect()
@@ -163,9 +206,10 @@ pub fn keyed(text: &str, misspellings: Vec<Misspelling>) -> Vec<SpellVerdict> {
 /// directly off a possibly-stale verdict — a verdict whose text has changed
 /// since it was computed is silently dropped here, never painted.
 pub fn visible(cache: &[SpellVerdict], text: &str) -> Vec<Misspelling> {
+    let index = LineIndex::new(text);
     cache
         .iter()
-        .filter(|v| v.still_valid(text))
+        .filter(|v| index.still_valid(v))
         .map(|v| v.span)
         .collect()
 }
@@ -1626,4 +1670,128 @@ fn recieve_stuff(definately: &str) -> &str {\n\
             }
         }
     }
+
+    /// The naive per-span line walk [`LineIndex`] replaces, kept as the
+    /// correctness ORACLE: the index must agree with it on every span shape,
+    /// including the ones that resolve to `""`.
+    fn word_at_reference(text: &str, m: &Misspelling) -> String {
+        text.split('\n')
+            .nth(m.line)
+            .unwrap_or("")
+            .chars()
+            .skip(m.start_col)
+            .take(m.end_col.saturating_sub(m.start_col))
+            .collect()
+    }
+
+    #[test]
+    fn line_index_agrees_with_the_naive_walk_on_every_span_shape() {
+        let _g = crate::testlock::serial();
+        // Deliberately awkward: an empty line, a trailing empty line, CJK and
+        // combining-mark text (char columns are NOT byte offsets), a lone CR
+        // that is CONTENT not a break, and no trailing newline on the last line.
+        let texts = [
+            "hello wrld\n\nsecond line\n日本語のテスト\ncafe\u{301} x\nlast",
+            "",
+            "\n",
+            "single",
+            "a\rb\nc",
+            "trailing\n",
+        ];
+        for text in texts {
+            let index = LineIndex::new(text);
+            for line in 0..8 {
+                for start_col in 0..8 {
+                    // end_col deliberately sweeps BELOW start_col (degenerate,
+                    // must yield "") and far past the line end (must clamp).
+                    for end_col in 0..12 {
+                        let m = Misspelling {
+                            line,
+                            start_col,
+                            end_col,
+                        };
+                        assert_eq!(
+                            index.word_at(&m),
+                            word_at_reference(text, &m),
+                            "LineIndex disagreed with the naive walk at \
+                             line={line} cols={start_col}..{end_col} in {text:?}"
+                        );
+                        // the free function must route through the same owner
+                        assert_eq!(word_at(text, &m), word_at_reference(text, &m));
+                    }
+                }
+            }
+        }
+    }
+
+    /// Build a document plus spans for EVERY word on the LAST `tail_lines`
+    /// lines. Placing spans in the TAIL is the whole point: a span on line 0
+    /// costs the naive walk nothing, so a law built from early spans passes
+    /// with the quadratic still in place.
+    fn tail_span_doc(lines: usize, words_per_line: usize, tail_lines: usize) -> (String, Vec<Misspelling>) {
+        let mut text = String::new();
+        for l in 0..lines {
+            for w in 0..words_per_line {
+                if w > 0 {
+                    text.push(' ');
+                }
+                text.push_str(&format!("wrd{l:05}x{w:02}"));
+            }
+            if l + 1 < lines {
+                text.push('\n');
+            }
+        }
+        let mut spans = Vec::new();
+        for l in lines.saturating_sub(tail_lines)..lines {
+            for w in 0..words_per_line {
+                let start_col = w * 12;
+                spans.push(Misspelling {
+                    line: l,
+                    start_col,
+                    end_col: start_col + 11,
+                });
+            }
+        }
+        (text, spans)
+    }
+
+    /// LAW — resolving a BATCH of spans must not re-walk the document per span.
+    ///
+    /// `keyed` (every edit) and `visible` (every `sync_view`, so every scroll
+    /// and drag too) each resolve the whole span set at once. With a per-span
+    /// line walk that is O(spans x lines) and a novel-length manuscript stalls
+    /// for hundreds of ms per keystroke; with [`LineIndex`] it is O(lines +
+    /// spans). The ceiling below sits ~10x above the linear cost and well under
+    /// the quadratic one, so it fails on the bug it names rather than on a slow
+    /// machine.
+    #[test]
+    fn batch_span_resolution_is_not_quadratic_in_document_length() {
+        let _g = crate::testlock::serial();
+        let (text, spans) = tail_span_doc(4000, 12, 800);
+        assert_eq!(spans.len(), 9600, "the law needs a large tail span set");
+        assert!(text.len() > 250_000, "and a long document: {}", text.len());
+
+        let t = std::time::Instant::now();
+        let cache = keyed(&text, spans.clone());
+        let keyed_ms = t.elapsed().as_secs_f64() * 1000.0;
+
+        let t = std::time::Instant::now();
+        let vis = visible(&cache, &text);
+        let visible_ms = t.elapsed().as_secs_f64() * 1000.0;
+
+        // Non-vacuity: the spans must actually RESOLVE. A bug that returned ""
+        // for everything would be fast and useless, so pin the payload too.
+        assert_eq!(vis.len(), spans.len(), "every tail span must stay valid");
+        assert_eq!(cache[0].word, "wrd03200x00", "spans must resolve to real words");
+
+        // The linear cost here is ~2ms and the per-span walk it replaced ~590ms,
+        // so this ceiling clears the fix by ~50x and trips the bug by ~6x.
+        const CEILING_MS: f64 = 100.0;
+        assert!(
+            keyed_ms < CEILING_MS && visible_ms < CEILING_MS,
+            "batch span resolution went quadratic: keyed {keyed_ms:.0}ms, \
+             visible {visible_ms:.0}ms (ceiling {CEILING_MS:.0}ms each)"
+        );
+    }
+
 }
