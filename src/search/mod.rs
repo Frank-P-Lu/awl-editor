@@ -373,15 +373,19 @@ pub fn find_all(haystack: &str, needle: &str, case_sensitive: bool) -> Vec<Match
     if needle.is_empty() {
         return Vec::new();
     }
-    if case_sensitive {
+    if can_byte_search(haystack, needle, case_sensitive) {
+        if !case_sensitive {
+            let hay = haystack.as_bytes().to_ascii_lowercase();
+            let ndl = needle.as_bytes().to_ascii_lowercase();
+            return byte_matches(haystack, &hay, &ndl, needle);
+        }
         return byte_matches(haystack, haystack.as_bytes(), needle.as_bytes(), needle);
     }
-    if needle.is_ascii() && !holds_kelvin_sign(haystack) {
-        let hay = haystack.as_bytes().to_ascii_lowercase();
-        let ndl = needle.as_bytes().to_ascii_lowercase();
-        return byte_matches(haystack, &hay, &ndl, needle);
-    }
     find_all_by_char(haystack, needle, case_sensitive)
+}
+
+fn can_byte_search(haystack: &str, needle: &str, case_sensitive: bool) -> bool {
+    case_sensitive || (needle.is_ascii() && !holds_kelvin_sign(haystack))
 }
 
 /// U+212A KELVIN SIGN — the ONLY non-ASCII scalar in all of Unicode that
@@ -967,7 +971,7 @@ mod tests {
     /// The axis that matters is not "does search still work" but WHICH path a
     /// given (haystack, needle, case) triple lands on, so the corpus sweeps the
     /// gate itself: pure ASCII (byte path both ways), non-ASCII haystack with an
-    /// ASCII needle (byte path when case-sensitive, char scan when not), a
+    /// ASCII needle (byte path both ways unless it contains Kelvin Sign), a
     /// non-ASCII needle, and folds Unicode does NOT do per-char (`İ`, `ß`).
     /// Multibyte text sits BEFORE the matches on purpose — a byte offset used
     /// as a char index is the exact bug this remap exists to prevent, and it is
@@ -995,9 +999,32 @@ mod tests {
             "\u{212A}\u{212A} the double kelvin the",
         ];
         let needles = [
-            "the", "The", "THE", "tHe", "a", "aa", "ab", "fox", "日本語", "テスト", "é", "e",
-            "İ", "ß", "ss", "🎨", "k", "K", "\u{212A}", "\n", "\r\n", "\r", "zzz", "the quick brown fox and more",
-            " ", "  ",
+            "the",
+            "The",
+            "THE",
+            "tHe",
+            "a",
+            "aa",
+            "ab",
+            "fox",
+            "日本語",
+            "テスト",
+            "é",
+            "e",
+            "İ",
+            "ß",
+            "ss",
+            "🎨",
+            "k",
+            "K",
+            "\u{212A}",
+            "\n",
+            "\r\n",
+            "\r",
+            "zzz",
+            "the quick brown fox and more",
+            " ",
+            "  ",
         ];
         let mut byte_path_hits = 0usize;
         for haystack in corpus {
@@ -1042,6 +1069,18 @@ mod tests {
         );
     }
 
+    #[test]
+    fn mixed_utf8_prose_with_an_ascii_needle_uses_the_byte_path() {
+        let _g = crate::testlock::serial();
+        let haystack = "日本語の前置き — then the ASCII needle";
+        assert!(can_byte_search(haystack, "ascii", false));
+        assert_eq!(
+            find_all(haystack, "ascii", false),
+            vec![Match { start: 19, end: 24 }]
+        );
+        assert!(!can_byte_search("a Kelvin exception", "k", false));
+    }
+
     /// LAW — the ASCII byte fold is exact because exactly ONE non-ASCII scalar
     /// folds to an ASCII char, and [`find_all`] guards on it.
     ///
@@ -1053,7 +1092,9 @@ mod tests {
         let _g = crate::testlock::serial();
         let mut found: Vec<char> = Vec::new();
         for cp in 0u32..=0x10FFFF {
-            let Some(c) = char::from_u32(cp) else { continue };
+            let Some(c) = char::from_u32(cp) else {
+                continue;
+            };
             if c.is_ascii() {
                 continue;
             }
@@ -1070,7 +1111,9 @@ mod tests {
         );
         // And the guard must actually SEE it, wherever it sits.
         assert!(holds_kelvin_sign(KELVIN_SIGN));
-        assert!(holds_kelvin_sign(&format!("a long stretch of prose {KELVIN_SIGN} tail")));
+        assert!(holds_kelvin_sign(&format!(
+            "a long stretch of prose {KELVIN_SIGN} tail"
+        )));
         assert!(!holds_kelvin_sign("no kelvin here, just a plain k and K"));
         // The exotic fold still resolves correctly, via the char fallback.
         let text = format!("bake a {KELVIN_SIGN}elvin cake");
