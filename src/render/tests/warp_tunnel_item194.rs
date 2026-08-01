@@ -610,7 +610,9 @@ fn fit_arc(pts: &[(f32, f32)], cy0: f32) -> Option<Fit> {
 /// a ring is a fork with no local evidence about which way is the ring — agrees
 /// with nothing. Ties go to the arc with the most points behind it.
 fn best_section(fr: &Frame, m: (u32, u32), left: bool) -> Option<Fit> {
-    sections(fr, m, left).into_iter().max_by_key(|f| (f.votes, f.n))
+    sections(fr, m, left)
+        .into_iter()
+        .max_by_key(|f| (f.votes, f.n))
 }
 
 /// Every section this margin's arcs determine, corroborated and filtered but not
@@ -842,6 +844,15 @@ const RUNG_TOL: f32 = 0.06;
 const ASPECT_MEDIAN_TOL: f32 = 0.02;
 const RUNG_MEDIAN_TOL: f32 = 0.02;
 
+/// One row of the swept-cell report a failing law prints: the room, the page
+/// measure, both margin widths, and what each margin's arc said.
+type SweepRow = ((u32, u32), usize, [f32; 2], [Option<Fit>; 2]);
+
+/// One graded margin of the placement law's report: the room, the page measure,
+/// that margin's width, which side it is, the axis MEASURED off the pixels, and
+/// where the room's own placement owner puts it.
+type PlacedRow = ((u32, u32), usize, f32, usize, f32, f32);
+
 /// The camera the cell's own ROOM fixes. Nothing about a cell but its room may
 /// reach this, which is the claim these laws are made of.
 fn cam_for(room: (u32, u32), spacing: f32) -> Camera {
@@ -880,7 +891,7 @@ fn the_projection_never_rescales_across_the_adaptive_column_range() {
     let mut graded = 0usize;
     let mut aspects: Vec<f32> = Vec::new();
     let mut rungs: Vec<f32> = Vec::new();
-    let report: Vec<((u32, u32), usize, [f32; 2], [Option<Fit>; 2])> = cells
+    let report: Vec<SweepRow> = cells
         .iter()
         .map(|c| (c.room, c.measure, c.span, c.fit))
         .collect();
@@ -921,9 +932,9 @@ fn the_projection_never_rescales_across_the_adaptive_column_range() {
     for (label, want) in [
         (
             "widest margin",
-            cells.iter().any(|c| {
-                c.fit[0].is_some() && c.span[0] >= cam_for(c.room, spacing).anchor
-            }),
+            cells
+                .iter()
+                .any(|c| c.fit[0].is_some() && c.span[0] >= cam_for(c.room, spacing).anchor),
         ),
         (
             "narrowest margin that still shows its window's axis",
@@ -934,9 +945,9 @@ fn the_projection_never_rescales_across_the_adaptive_column_range() {
         ),
         (
             "the widest page the command reaches",
-            cells
-                .iter()
-                .any(|c| c.measure == crate::page::MAX_MEASURE && c.fit.iter().any(|f| f.is_some())),
+            cells.iter().any(|c| {
+                c.measure == crate::page::MAX_MEASURE && c.fit.iter().any(|f| f.is_some())
+            }),
         ),
     ] {
         assert!(
@@ -1066,7 +1077,7 @@ fn the_two_windows_are_placed_by_the_room_so_the_page_can_only_mask() {
     let (spacing, _) = kite_dials();
     let cells = sweep_cells(&device, &queue, kite());
     // (room, measure, span, side, measured axis, the room's own prediction).
-    let mut placed: Vec<((u32, u32), usize, f32, usize, f32, f32)> = Vec::new();
+    let mut placed: Vec<PlacedRow> = Vec::new();
     for c in &cells {
         let cam = cam_for(c.room, spacing);
         for (i, f) in c.fit.iter().enumerate() {
@@ -1149,9 +1160,9 @@ fn the_two_windows_are_placed_by_the_room_so_the_page_can_only_mask() {
     }
     // 4. The sweep must actually contain an OFF-CENTRE column, or claim 3 above
     //    is being asserted only where it is trivially true.
-    let asymmetric = cells
-        .iter()
-        .any(|c| c.off_centre && c.fit.iter().all(|f| f.is_some()) && (c.span[0] - c.span[1]).abs() > 100.0);
+    let asymmetric = cells.iter().any(|c| {
+        c.off_centre && c.fit.iter().all(|f| f.is_some()) && (c.span[0] - c.span[1]).abs() > 100.0
+    });
     assert!(
         asymmetric,
         "the sweep must include a page width where awl's own column sits badly \
@@ -1740,11 +1751,7 @@ fn direction_ladder(
             .copied(),
             Some(&prev) => candidates
                 .iter()
-                .min_by(|a, b| {
-                    (a.u - prev)
-                        .abs()
-                        .total_cmp(&(b.u - prev).abs())
-                })
+                .min_by(|a, b| (a.u - prev).abs().total_cmp(&(b.u - prev).abs()))
                 .copied(),
         };
         let Some(fit) = fit else {

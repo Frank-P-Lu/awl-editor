@@ -344,8 +344,8 @@ struct ThemeSettleInFlight {
     phases: crate::themeswitch::SwitchPhases,
 }
 
-mod files;
 /// GPU surface + frame loop (device/queue/surface, prepare/render).
+mod files;
 mod gpu;
 mod input;
 mod lifecycle;

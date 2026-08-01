@@ -333,31 +333,15 @@ impl TextPipeline {
         [p.yaw, p.pitch, p.forward_cells]
     }
 
-    /// Advance the lava lamp's animation phase by `dt` seconds — called ONLY by
-    /// the live App's slow ambient tick (`App::about_to_wait`), NEVER `advance()`'s
-    /// hot per-frame loop (the lava's whole point is a ~10 fps sparse cadence, not
-    /// full refresh). Delayed wakes clamp to one ambient step and wrap over the
-    /// field's full two-cycle period ([`crate::lava::advance_phase`]).
-    /// THE APP'S ONE AMBIENT-ADVANCE DOOR — it advances EVERY accumulator the
-    /// shared tick owns, so a future consumer cannot be forgotten at a second
-    /// call site (there is only one).
+    /// THE TWO AMBIENT ADVANCE DOORS, and why item 199 made it two. The
+    /// DRIFTING grounds ride the slow ~10 fps tick (`App::about_to_wait`) —
+    /// that cadence is what they are. The TRAVELLING one rides the live App's
+    /// hot per-frame loop, under the same gates (`warpgrid::should_travel`),
+    /// because a camera moving through a lattice at 10 fps reads as broken
+    /// rather than slow. Both clamp a delayed wake to one step.
     pub fn advance_lava(&mut self, dt: f32) {
         self.lava_phase = crate::lava::advance_phase(self.lava_phase, dt);
     }
-
-    /// Advance the WARPED GRID's route phase by `dt` seconds — called only by
-    /// the live App's HOT per-frame loop (`App::on_redraw_requested`), never by
-    /// the ~10 fps ambient tick that owns the drifting grounds.
-    ///
-    /// THE SPLIT IS THE POINT, AND IT IS THE SECOND DEFECT ITEM 199 REPORTED.
-    /// The lava lamp, the stars and Bombora's waves DRIFT: a sparse cadence is
-    /// what they are, and spending full refresh on them would be waste. This
-    /// world TRAVELS, and a camera moving through a lattice at 10 fps does not
-    /// read as slow — it reads as broken, because the eye tracks the individual
-    /// rings. Riding the shared tick (`crate::lava::LAVA_TICK_MS` = 100) is what
-    /// the review saw. The gates are unchanged and still the tick's own
-    /// (`lava::lava_should_tick`): ambient motion on, motion not reduced, window
-    /// focused, no resize/move transaction in flight.
     pub fn advance_warp(&mut self, dt: f32) {
         self.warp_phase = crate::warpgrid::advance_phase(self.warp_phase, dt);
     }

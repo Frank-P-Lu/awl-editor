@@ -109,25 +109,12 @@ pub enum Background {
         spacing_px: f32, curvature: f32, density: f32 },
 }
 
-/// WARPED GRID's one theme-owned profile dial: the shipped projection, and the
-/// two defects item 194 repaired, kept beside it as explicit MUTATION arms (the
-/// `DeckleAnchor::Page` precedent) so each law can be watched failing on the
-/// composition it names. `Shared` is the only profile a world should author.
-///
-/// * [`Tunnel::Shared`] — one camera, one cylinder at one ROOM-derived scale,
-///   two windows onto it; a bend moves the shared opening as a unit.
-/// * [`Tunnel::PerMargin`] — round 1's defect: each margin re-derives the
-///   STEERING from its own side, so the two openings disagree.
-/// * [`Tunnel::PageScaled`] — round 2's first defect: the SCALE comes from the
-///   page column, so a wider page rescales and squashes the world. Round 1's
-///   geometry.
-/// * [`Tunnel::MarginPlaced`] — round 2's SECOND defect, and the one its own
-///   width law could not see: the scale was constant but the WINDOW PLACEMENT
-///   was a function of the margin's own width, so the page still reframed the
-///   scene — and, where awl's column sits off-centre, placed the two margins in
-///   different regimes at the same instant.
-/// * [`Tunnel::Reversed`] — forward travel with the ring coordinate's sign
-///   inverted, which reads as receding rather than approaching.
+/// WARPED GRID's one theme-owned profile dial: the shipped projection
+/// ([`Tunnel::Shared`] — one camera, one ROOM-derived scale, two ROOM-placed
+/// windows onto it), and every defect items 194/199 repaired kept beside it as
+/// an explicit MUTATION arm (the `DeckleAnchor::Page` precedent) so each law can
+/// be watched failing on the composition it names. `Shared` is the only profile
+/// a world should author; what each arm restores is in THEMES.md.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tunnel {
     Shared,

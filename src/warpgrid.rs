@@ -75,6 +75,30 @@ pub const FORWARD_CELLS_PER_LOOP: f32 = 65.0;
 #[cfg(test)]
 pub const MAJOR_EVERY: f32 = 5.0;
 
+/// WHETHER THE ROUTE IS TRAVELLING THIS FRAME, and the one owner of that
+/// question. It is [`crate::lava::lava_should_tick`] over a different world
+/// predicate: the SAME five conditions the shared ambient tick already applies
+/// — ambient motion on, motion not reduced, window focused, no resize/move
+/// transaction in flight — asked about the travelling ground instead of the
+/// drifting ones.
+///
+/// The gates are deliberately not new. What changed in item 199 is only the
+/// CADENCE they gate: the drifting grounds tick at `lava::LAVA_TICK_MS` (~10
+/// fps), which is what they are, and this one runs on the live App's hot
+/// per-frame loop, because a camera travelling through a lattice at 10 fps does
+/// not read as slow — the eye tracks the individual rings, and it reads as
+/// broken. Sharing the gates is what keeps a blurred, reduced-motion or
+/// ambient-off window scheduling exactly zero frames, exactly as before.
+pub fn should_travel(ambient_on: bool, reduced: bool, focused: bool, paused: bool) -> bool {
+    crate::lava::lava_should_tick(
+        crate::theme::active().background.is_warped_grid(),
+        ambient_on,
+        reduced,
+        focused,
+        paused,
+    )
+}
+
 /// The composed still: Reduce Motion, `ambient_motion` off, and every headless
 /// capture render exactly this pose — a straight leg at the start of its hold,
 /// so the settled frame is the world's most legible composition rather than

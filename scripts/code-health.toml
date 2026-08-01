@@ -474,8 +474,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app/window.rs"
 line = 485
-message = "this function has too many lines (132/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 routed the autosave clock through PersistenceRuntime (-1)."
+message = "this function has too many lines (131/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 routed the autosave clock through PersistenceRuntime (-1). Item 199 gave the travelling ground its own hot-loop advance and put the gate + advance behind one call in app::ambient, collapsing the redraw tail (-1)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
