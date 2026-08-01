@@ -28,6 +28,11 @@ Per (world, arm) it reports:
                 world regardless of display face, so at one arm every world's
                 ground gets exactly the same stage. Kept in the table because
                 a constant that was worth checking is worth showing.
+  g_sdL         CIE L* standard deviation inside the right margin (0-100
+                scale). THE HEADLINE GROUND-CONTRAST NUMBER, because it is the
+                only one that treats a dark world's ground the way an eye
+                does; see `lstar` below for why the linear columns cannot.
+  g_spanL       L* span (99th - 1st percentile) in the right margin.
   g_sd          luminance standard deviation inside the right margin, x1000.
                 A flat gradient sits near zero; a hard-edged mark field does
                 not. This is the ground's contrast against itself.
@@ -106,8 +111,25 @@ ACCENT_TOL = 24
 
 
 def lum8(rgb):
-    """Perceptual luminance on a 0-255 scale (WCAG relative luminance x255)."""
+    """WCAG relative luminance on a 0-255 scale. LINEAR light, not perceptual."""
     return luminance(rgb) * 255.0
+
+
+def lstar(rgb):
+    """CIE L* (0-100) — perceptually uniform lightness.
+
+    WHY THIS EXISTS ALONGSIDE `lum8`, AND IT IS THE POINT OF THIS SCRIPT'S
+    SECOND PASS. Relative luminance is LINEAR light: near black it compresses
+    brutally. Bowerbird's ground steps #0c1426 -> #1f2c49, which the eye reads
+    as an obvious shape edge and which the Room capture shows as plainly
+    legible scattered objects — but in linear luminance that is a span of
+    about 5 units in 255, so a linear standard deviation calls the whole
+    field almost flat. Measure a dark world in linear light and the metric
+    will tell you every dark world is quiet, which is not a finding, it is
+    the metric's own gamma. L* is the same comparison the eye makes.
+    """
+    y = luminance(rgb)
+    return 116.0 * (y ** (1.0 / 3.0)) - 16.0 if y > 0.008856 else 903.3 * y
 
 
 def band_pixels(rows, bpp, x0, x1, y0, y1, xstep=1, ystep=1):
@@ -216,6 +238,14 @@ def measure(png, sidecar):
     lp_mean = sum(lp) / len(lp)
     g_sd_lp = (sum((v - lp_mean) ** 2 for v in lp) / len(lp)) ** 0.5
 
+    # The same field in perceptual lightness. Sampled on the same 3-row stride
+    # as `gm` so the two standard deviations describe the same pixels.
+    gL = [lstar(p) for p in gm]
+    gL_mean = sum(gL) / len(gL)
+    g_sdL = (sum((v - gL_mean) ** 2 for v in gL) / len(gL)) ** 0.5
+    gL_sorted = sorted(gL)
+    g_spanL = percentile(gL_sorted, 0.99) - percentile(gL_sorted, 0.01)
+
     page = band_pixels(rows, bpp, left + inset, right_x0 - inset, y0, y1, ystep=3)
     page_ground = modal_color(page)
     pl = sorted(lum8(p) for p in page)
@@ -243,6 +273,8 @@ def measure(png, sidecar):
         "margin_frac": margin_frac,
         "ink_is_accent": ink_is_accent,
         "g_sd_lp": g_sd_lp * 1000 / 255,
+        "g_sdL": g_sdL,
+        "g_spanL": g_spanL,
         "g_sd": g_sd * 1000 / 255,
         "g_p99_p01": g_span * 1000 / 255,
         "g_edge": g_edge,
@@ -261,7 +293,8 @@ def main(argv):
     arms = argv[1:] or ARMS
     hdr = (
         "arm\tworld\tmode\tground\tambient\tface\t"
-        "margin_frac\tg_sd\tg_sd_lp\tg_p99_p01\tg_edge\tg_chroma\tstep\tink_cr\taccent\tink=accent"
+        "margin_frac\tg_sdL\tg_spanL\tg_sd\tg_sd_lp\tg_p99_p01\t"
+        "g_edge\tg_chroma\tstep\tink_cr\taccent\tink=accent"
     )
     print(hdr)
     for arm in arms:
@@ -275,7 +308,8 @@ def main(argv):
             m = measure(os.path.join(d, f), os.path.join(d, world + ".json"))
             print(
                 f"{arm}\t{world}\t{m['mode']}\t{m['ground']}\t{m['ambient']}\t{m['face']}\t"
-                f"{m['margin_frac']:.3f}\t{m['g_sd']:.1f}\t{m['g_sd_lp']:.1f}\t"
+                f"{m['margin_frac']:.3f}\t{m['g_sdL']:.2f}\t{m['g_spanL']:.2f}\t"
+                f"{m['g_sd']:.1f}\t{m['g_sd_lp']:.1f}\t"
                 f"{m['g_p99_p01']:.1f}\t"
                 f"{m['g_edge']:.4f}\t{m['g_chroma']:.1f}\t{m['step']:.1f}\t"
                 f"{m['ink_cr']:.2f}\t{m['accent']:.1f}\t"
