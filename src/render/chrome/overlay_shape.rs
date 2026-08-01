@@ -385,7 +385,9 @@ impl TextPipeline {
         let slant_tax = slant
             .map(|s| crate::render::slant_max_offset(&s, plan.candidate_rows()))
             .unwrap_or(0.0);
-        let slant_text_w = (geom.text_w - slant_tax).max(0.0);
+        let slant_text_w = (geom.text_w - slant_tax)
+            .max(0.0)
+            .min(self.diagonal_cluster_budget(geom).unwrap_or(f32::INFINITY));
         let char_w = self.overlay_char_width();
         let total_chars = if char_w > 0.0 {
             (slant_text_w / char_w).floor() as usize
@@ -492,6 +494,14 @@ impl TextPipeline {
         vis: &VisualSelection,
         elide: bool,
     ) -> bool {
+        // Diagonal rows occupy one side of their spine rather than the whole
+        // card. Shape against that real side territory before deciding whether
+        // a secondary cell fits, so narrow cards elide/yield instead of drawing
+        // a measured cluster through the spine or off its planned span.
+        let mut shaped_geom = geom.clone();
+        if let Some(budget) = self.diagonal_cluster_budget(geom) {
+            shaped_geom.text_w = shaped_geom.text_w.min(budget);
+        }
         let right_labels = self.overlay_right_labels();
         let has_right = !right_labels.is_empty();
         let hug_inline = has_right && super::bars_inline_shortcut();
@@ -522,11 +532,38 @@ impl TextPipeline {
         } else {
             Vec::new()
         };
-        self.overlay_shape_theme(geom, ink, muted, selected_ink, vis, &trailing, elide);
+        self.overlay_shape_theme(
+            &shaped_geom,
+            ink,
+            muted,
+            selected_ink,
+            vis,
+            &trailing,
+            elide,
+        );
+        // `rowlayout` begins from a character-grid estimate, while the diagonal
+        // side territory is a hard pixel bound. A display face can be wider than
+        // that estimate (especially at 2×), so re-shape once against the actual
+        // widest label ratio before seating its fixed accessory column.
+        if let Some(budget) = self.diagonal_cluster_budget(geom) {
+            let measured = self.widest_candidate_px(&shaped_geom, plan);
+            if measured > budget && measured > 0.0 {
+                shaped_geom.text_w *= budget / measured;
+                self.overlay_shape_theme(
+                    &shaped_geom,
+                    ink,
+                    muted,
+                    selected_ink,
+                    vis,
+                    &trailing,
+                    elide,
+                );
+            }
+        }
         if !has_right || hug_inline {
             return false;
         }
-        self.shape_overlay_right(geom, ink, muted, vis, &bind_strs);
+        self.shape_overlay_right(&shaped_geom, ink, muted, vis, &bind_strs);
 
         // ITEM 83 — THE NO-OVERLAP LAW, extended to the faceted path: unlike the
         // flat shaper, `shape_theme_spans`'s primary NEVER reserves budget for a
@@ -539,13 +576,13 @@ impl TextPipeline {
         // YIELDS (whole column dropped, `false`) rather than ever painting
         // toward a name — the primary stays exactly as already shaped (it never
         // budgeted FOR a secondary, so it needs no re-shape on yield).
-        let name_px = self.widest_candidate_px(geom, plan);
+        let name_px = self.widest_candidate_px(&shaped_geom, plan);
         let right_px = self.widest_right_px();
         let slant = crate::render::overlay_slant();
         let slant_tax = slant
             .map(|s| crate::render::slant_max_offset(&s, plan.candidate_rows()))
             .unwrap_or(0.0);
-        let slant_text_w = (geom.text_w - slant_tax).max(0.0);
+        let slant_text_w = (shaped_geom.text_w - slant_tax).max(0.0);
         let gap_px = rowlayout::GAP_CHARS as f32 * self.overlay_char_width();
         if !rowlayout::fits(slant_text_w, gap_px, name_px, right_px) {
             return false;

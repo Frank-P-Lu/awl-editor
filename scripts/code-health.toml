@@ -254,8 +254,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2459
-reason = "The renderer's GPU state floor: workspace mirrors and Kite's forward-travel accumulator live beside the sibling state consumed by the same frame pipeline."
+lines = 2460
+reason = "The renderer's GPU state floor: workspace mirrors, Kite's forward-travel accumulator, and the diagonal cluster's per-frame measured layout live beside the sibling state consumed by the same frame pipeline."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -283,8 +283,8 @@ lines = 536
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 1054
-reason = "item 114: +23 lines. `OverlayGeom` gained the five workspace fields; its band/probe accessors moved to `chrome/workspace.rs`. The struct is the one resolved-geometry record every chrome consumer reads, so the fields cannot live elsewhere. Item 116a: +2 lines — the `rail` field's doc gained one clause naming the new `rows_are_primary` case where it is also `None`, at the one struct definition every chrome consumer reads. Item 131a: +6 lines — `slant_bar_span` gained a second parameter (`dw`) and its doc grew to explain the mirrored (right-edge) case; it is the ONE owner both the unselected and selected slanted plates read, so the two-sided extent cannot be resolved anywhere else. Item 116b: this file also lost the diff-panel field and pipelines; the number here is the MERGED tree's measured size, reconciled by the merge train because both branches moved this same mark."
+lines = 1056
+reason = "The chrome module owns the resolved overlay geometry record and its single sibling re-export for item 131's measured diagonal row span; workspace, rail, and two-sided slant consumers share that seam."
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
@@ -292,13 +292,13 @@ lines = 894
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay.rs"
-lines = 738
-reason = "item 131 (row-composition seam): +1 line — `dx_per_row` at the ONE `OverlayRowPlanInput` construction site, the exhaustive struct literal that hands the planner every already-resolved input. The field cannot be extracted: a plan built without it would leave the row planner deriving y alone while some other place derived x, which is the exact split this item retires. Item 114: +11 lines. `overlay_geometry` gained the workspace family's dispatch arm — the one place a card's presentation family is chosen — and `overlay_row_plan` now feeds the plan the CONTENT band rather than the card."
+lines = 749
+reason = "The overlay owns the one shared row plan and pointer geometry. Item 131's measured diagonal span and Range rail read remain at that seam alongside the existing workspace dispatch and row-offset inputs."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_draw.rs"
-lines = 485
-reason = "item 114: +22 lines. `prepare_overlay` shapes the rail and `overlay_upload_text` pushes its own clipped area; the placement and clip themselves moved to `chrome/workspace.rs`, leaving only the batch entry the one upload owner must hold."
+lines = 514
+reason = "The one text-upload batch now places diagonal labels and accessories per measured planned row, so their draw positions cannot drift from the plan and hit geometry."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_rows.rs"
@@ -307,7 +307,8 @@ reason = "item 114: +14 lines. `overlay_prepare_facet_marks` gained the workspac
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_shape.rs"
-lines = 829
+lines = 866
+reason = "Faceted diagonal rows must shape against their measured side territory and re-fit real glyph widths before the accessory column is granted."
 
 [[file_size_mark]]
 file = "src/render/chrome/popover.rs"
@@ -342,13 +343,13 @@ lines = 579
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 544
-reason = "The one `TextPipeline` initializer spells out workspace state and the warp accumulator beside the state they initialize."
+lines = 545
+reason = "The one `TextPipeline` initializer spells out workspace state, the diagonal cluster cache, and the warp accumulator beside the state they initialize."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 600
-reason = "item 114: +11 lines in `set_view`, the one `ViewState`->pipeline mirror, plus the rail-width measurement that must happen in the same `&mut FontSystem` window item 51's content-hug measurement already uses. Item 116a: +1 line — the `overlay_rows_primary` mirror, at the same one `set_view`."
+lines = 604
+reason = "`set_view` is the one ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, and invalidates item 131's measured diagonal cluster with the other view-derived geometry before publishing a new frame."
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
@@ -361,7 +362,8 @@ lines = 1449
 
 [[file_size_mark]]
 file = "src/render/rowlayout.rs"
-lines = 678
+lines = 684
+reason = "The Range rail's fixed internal width is shared with the measured diagonal accessory cluster."
 
 [[file_size_mark]]
 file = "src/render/spans.rs"
@@ -613,8 +615,8 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/overlay_draw.rs"
-line = 199
-message = "this function has too many lines (182/100)"
+line = 204
+message = "this function has too many lines (206/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Item 114 added the workspace rail's own clipped text area (+17). Line/size moved by queue item 114's summoned Settings workspace."
 
 [[clippy_exception]]
@@ -768,7 +770,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 line = 6
-message = "this function has too many lines (482/100)"
+message = "this function has too many lines (483/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer."
 
 [[clippy_exception]]
@@ -951,7 +953,7 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/rowlayout.rs"
-line = 222
+line = 228
 message = "this function has too many lines (105/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 

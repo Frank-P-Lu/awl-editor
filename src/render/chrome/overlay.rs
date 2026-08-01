@@ -579,6 +579,7 @@ impl TextPipeline {
     /// `prepare_overlay` and threaded down, and freshly (still O(visible)) by the
     /// standalone pointer/report entry points, which have no frame to ride.
     pub(in crate::render) fn overlay_row_plan(&self, geom: &OverlayGeom) -> OverlayRowPlan {
+        let cluster_span = self.diagonal_cluster.map(|cluster| cluster.span());
         plan_overlay_rows(&OverlayRowPlanInput {
             // ITEM 114 — the CONTENT BAND, not necessarily the card: a workspace's
             // rows occupy the pane beside its rail, so the planned slots (and with
@@ -598,6 +599,7 @@ impl TextPipeline {
             empty_rows: geom.empty.is_some() as usize,
             lines: geom.theme.then_some(geom.plan.as_slice()),
             dx_per_row: self.overlay_row_dx_step(),
+            cluster_span,
         })
     }
 
@@ -622,6 +624,7 @@ impl TextPipeline {
         }
         let secondary = self.overlay_row_secondary_px(geom);
         let primary = self.overlay_row_primary_px(geom);
+        let cluster = self.diagonal_cluster;
         let mut out = Vec::new();
         for row in plan.rows() {
             let Some(item) = row.item else {
@@ -633,8 +636,16 @@ impl TextPipeline {
             let k = row.display;
             let value_w = secondary.get(&k).copied().unwrap_or(0.0);
             let label_w = primary.get(&k).copied().unwrap_or(0.0);
-            let text_right = geom.text_left + geom.text_w;
-            let avail = (text_right - value_w) - (geom.text_left + label_w);
+            let (text_right, avail) = match cluster {
+                Some(cluster) => (cluster.accessory_right(k), cluster.accessory_w()),
+                None => {
+                    let text_right = geom.text_left + geom.text_w;
+                    (
+                        text_right,
+                        (text_right - value_w) - (geom.text_left + label_w),
+                    )
+                }
+            };
             if let Some(rail) = crate::render::rowlayout::rail_geom(
                 text_right, value_w, avail, row.top, row.height, frac,
             ) {

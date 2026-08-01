@@ -2097,6 +2097,7 @@ pub struct TextPipeline {
     overlay_theme_facet_ghosts: Vec<[f32; 4]>,
     overlay_strip_tab_plates: Vec<[f32; 4]>,
     overlay_right_shown: bool,
+    diagonal_cluster: Option<chrome::diagonal::DiagonalClusterRail>,
     pub wordcount_renderer: TextRenderer,
     pub wordcount_buffer: GlyphBuffer,
     pub notice_renderer: TextRenderer,

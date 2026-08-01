@@ -50,6 +50,11 @@ impl TextPipeline {
         // hand by the time `overlay_draw_card` asks the facet-mark owner for it.
         let has_rail = self.workspace_shape_rail(&geom, &plan);
         let has_right = self.overlay_shape_text(&geom, &plan, ink, muted, selected_ink, &vis, true);
+        self.diagonal_cluster = self.resolve_diagonal_cluster(&geom, &plan);
+        // The final plan reads the cluster's measured extents. Its display rows
+        // are unchanged, so the visual-selection transaction above keeps the
+        // same logical answer while draw and hit geometry gain the same x truth.
+        let plan = self.overlay_row_plan(&geom);
         self.overlay_upload_text(
             device, queue, width, height, &geom, &plan, has_right, has_rail, ink, muted, placard,
         )?;
@@ -313,11 +318,12 @@ impl TextPipeline {
             placard_in_panel = true;
         }
         let slant = crate::render::overlay_slant();
-        match slant {
-            None => {
+        let cluster = self.diagonal_cluster;
+        match (slant, cluster) {
+            (None, None) => {
                 areas.push(panel_area);
             }
-            Some(_) => {
+            _ => {
                 // ITEM 174 — one clip band PER PLANNED ROW, off the plan's own
                 // slots (this loop used to re-derive `first_top + k * lh`).
                 let clip = |top: f32, bottom: f32| TextBounds {
@@ -336,9 +342,12 @@ impl TextPipeline {
                     custom_glyphs: &[],
                 });
                 for row in plan.rows() {
+                    let left = cluster.map_or(text_left + row.dx, |cluster| {
+                        cluster.label_left(row.display)
+                    });
                     areas.push(TextArea {
                         buffer: &self.panel_buffer,
-                        left: text_left + row.dx,
+                        left,
                         top: text_top,
                         scale: 1.0,
                         bounds: clip(row.top, row.bottom()),
@@ -372,15 +381,35 @@ impl TextPipeline {
             });
         }
         if has_right {
-            areas.push(TextArea {
-                buffer: &self.panel_bind_buffer,
-                left: text_left,
-                top: overlay_secondary_top(text_top, geom.header_gap),
-                scale: 1.0,
-                bounds,
-                default_color: muted,
-                custom_glyphs: &[],
-            });
+            if let Some(cluster) = cluster {
+                let clip = |top: f32, bottom: f32| TextBounds {
+                    left: bounds.left,
+                    top: top.max(0.0) as i32,
+                    right: bounds.right,
+                    bottom: (bottom.min(height as f32)) as i32,
+                };
+                for row in plan.rows() {
+                    areas.push(TextArea {
+                        buffer: &self.panel_bind_buffer,
+                        left: cluster.accessory_left(row.display),
+                        top: overlay_secondary_top(text_top, geom.header_gap),
+                        scale: 1.0,
+                        bounds: clip(row.top, row.bottom()),
+                        default_color: muted,
+                        custom_glyphs: &[],
+                    });
+                }
+            } else {
+                areas.push(TextArea {
+                    buffer: &self.panel_bind_buffer,
+                    left: text_left,
+                    top: overlay_secondary_top(text_top, geom.header_gap),
+                    scale: 1.0,
+                    bounds,
+                    default_color: muted,
+                    custom_glyphs: &[],
+                });
+            }
         }
         // GRACEFUL DEGRADATION (AtlasFull fix, 2026-07-17): under `Pane` the placard
         // rides this batch as `areas[0]` (drawn behind the rows). If its giant glyphs

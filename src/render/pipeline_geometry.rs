@@ -274,6 +274,10 @@ impl TextPipeline {
     /// shaped text at the cursor so it renders with real glyphs; the caret is then
     /// placed at the preedit's end and an underline is drawn beneath it.
     pub fn set_view(&mut self, view: &ViewState) {
+        // The diagonal cluster is measured from the current overlay's shaped
+        // labels and controls. A new view invalidates that measurement before
+        // the next overlay preparation can publish a replacement.
+        self.diagonal_cluster = None;
         // Apply zoom first: if it changed, reset the glyphon buffer metrics and
         // re-shape so glyph layout matches the zoomed caret + selection rects. The
         // metrics fold in the display DPI (`self.dpi`, set by `set_dpi`) on top of
