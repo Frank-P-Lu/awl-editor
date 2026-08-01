@@ -86,9 +86,9 @@
         you're already in.</strong> ⌘N opens a new, unnamed document in the
         active folder — wherever you last opened a file or switched
         projects, never a separate jump. Nothing writes to disk until you
-        type something. On a first launch with nothing to resume, that
-        active folder starts out as <code>~/notes</code> (configurable —
-        <code>default_folder</code> in the config).</p>
+        type something. An explicitly configured <code>default_folder</code>
+        is used as that initial folder; otherwise awl asks before the first
+        real file is created.</p>
 
         <p><strong>Autosave runs on four triggers:</strong> idle (about a
         second after you stop typing), window blur, buffer switch, quit.

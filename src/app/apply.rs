@@ -313,20 +313,11 @@ impl App {
         exit: &dyn schedule::Exit,
         door: crate::stats::Door,
     ) -> bool {
-        // The authored scratch Welcome has no claimed writing home. Both the
-        // first new document and the explicit Keep tutorial command enter the
-        // existing Project picker through the normal Action route; accepting a
-        // folder resumes the ordinary root/document owners below.
         if matches!(action, Action::KeepTutorial) {
             self.tutorial_folder_intent = Some(TutorialFolderIntent::KeepTutorial);
-        } else if self.root == crate::fs::data_root() {
-            match action {
-                Action::NewDocument => {
-                    self.tutorial_folder_intent = Some(TutorialFolderIntent::NewDocument);
-                    action = Action::OpenProject;
-                }
-                _ => {}
-            }
+        } else if self.root == crate::fs::data_root() && action == Action::NewDocument {
+            self.tutorial_folder_intent = Some(TutorialFolderIntent::NewDocument);
+            action = Action::OpenProject;
         }
         self.pre_apply(&action, door);
 
