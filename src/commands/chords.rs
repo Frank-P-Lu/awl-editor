@@ -78,6 +78,7 @@ pub fn resolved_native(c: &Command, convention: Convention) -> String {
 /// (palette rows, the rebind menu, the in-app menubar hints, the hold-⌘ peek) — never
 /// call [`crate::keyspec::mac_glyph_chord`] on a raw `c.native` directly outside this
 /// function, or a Linux/web build would show a mac glyph under its own convention.
+#[cfg(any(not(target_arch = "wasm32"), test))]
 pub fn resolved_native_label(c: &Command, convention: Convention) -> String {
     let native = resolved_native(c, convention);
     if native.trim().is_empty() {

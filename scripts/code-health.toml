@@ -64,7 +64,7 @@ lines = 536
 
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
-lines = 1106
+lines = 1102
 reason = "item 114: +23 lines in `overlay_click`, the ONE pointer-dispatch owner — a click in the navigation rail resolves through the picker's own lens setter and the lifecycle's named focus transition, so the pointer and the keyboard reach one state."
 
 [[file_size_mark]]
@@ -126,7 +126,7 @@ lines = 539
 
 [[file_size_mark]]
 file = "src/commands.rs"
-lines = 669
+lines = 620
 reason = "item 24: LOWERED by 159. The convention/platform chord resolver (the Linux-native override table, `resolved_native*`, the truthful pair, and the web-alternate trio) moved out whole to the new src/commands/chords.rs — one subject, every label surface in the codebase reading down from `resolved_native` at its base."
 
 [[file_size_mark]]
@@ -211,7 +211,7 @@ lines = 661
 
 [[file_size_mark]]
 file = "src/menu.rs"
-lines = 1081
+lines = 1058
 
 [[file_size_mark]]
 file = "src/menubar.rs"
@@ -279,7 +279,7 @@ lines = 539
 
 [[file_size_mark]]
 file = "src/render/chrome/menubar.rs"
-lines = 612
+lines = 536
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
@@ -466,7 +466,7 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/input/mouse.rs"
-line = 866
+line = 862
 message = "this function has too many lines (107/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 replaced two hand-written ladder conjunctions with one call. Item 183 narrowed the &ActiveEventLoop parameter to app::Exit, collapsing the wrapped signatures (-5). Line shifted by queue item 114's summoned Settings workspace (the navigation rail's own click resolution)."
 
@@ -620,15 +620,8 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/menubar.rs"
-line = 49
+line = 51
 message = "this function has too many lines (131/100)"
-reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/render/chrome/menubar.rs"
-line = 233
-message = "this function has too many lines (158/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]

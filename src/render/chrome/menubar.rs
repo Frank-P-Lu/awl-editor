@@ -21,6 +21,8 @@
 
 use super::*;
 
+mod dropdown;
+
 /// The gap drawn BETWEEN adjacent menu titles (as literal spaces in the shaped title
 /// line) — comfortable separation without a heavy bar. The exact width doesn't affect
 /// correctness (the hit-test reads the shaped positions, not this).
@@ -250,116 +252,31 @@ impl TextPipeline {
         let rendered_items = crate::menu::dropdown_items(&menus[menu_i]);
         let items = &rendered_items;
 
-        // Per-row content: label, native chord, separator flag. Labels/chords are ONE
-        // line per row (separator rows blank), so the buffer lines land on the uniform
-        // row grid `drop_rows` lays out.
-        let mut labels = String::new();
-        let mut chords = String::new();
-        let mut separators: Vec<bool> = Vec::with_capacity(items.len());
-        let mut widest_label = 0usize;
-        let mut widest_chord = 0usize;
-        for (idx, item) in items.iter().enumerate() {
-            if idx > 0 {
-                labels.push('\n');
-                chords.push('\n');
-            }
-            match item {
-                crate::menu::RosterItem::Routed { id, label, .. } => {
-                    let chord = crate::menu::item_chord_for_id(id);
-                    widest_label = widest_label.max(label.chars().count());
-                    widest_chord = widest_chord.max(chord.chars().count());
-                    labels.push_str(label);
-                    chords.push_str(&chord);
-                    separators.push(false);
-                }
-                crate::menu::RosterItem::Predefined(kind) => {
-                    let lbl = crate::menu::predefined_label(*kind);
-                    widest_label = widest_label.max(lbl.chars().count());
-                    labels.push_str(lbl);
-                    separators.push(false);
-                }
-                crate::menu::RosterItem::Submenu { label, .. } => {
-                    widest_label = widest_label.max(label.chars().count());
-                    labels.push_str(label);
-                    separators.push(false);
-                }
-                crate::menu::RosterItem::Separator => {
-                    // Blank line; a hairline is drawn in this row's slot.
-                    separators.push(true);
-                }
-            }
-        }
-
-        let (rows, rows_total) = crate::menubar::drop_rows(&separators, row_h);
-        // Card width: a generous char-count estimate (no second shaping pass) — labels
-        // Align-left + chords Align-right then sit exactly within it.
         let label_char_w = m.char_width * label;
-        let gap_chars = rowlayout::GAP_CHARS;
-        let content_w =
-            ((widest_label + gap_chars + widest_chord) as f32 * label_char_w * DROP_WIDTH_SLACK)
-                .max(DROP_MIN_WIDTH);
-        let anchor = self
-            .menubar_boxes
-            .get(menu_i)
-            .copied()
-            .unwrap_or(crate::menubar::TitleBox {
-                band_left: 0.0,
-                text_left: 0.0,
-                text_right: 0.0,
-                band_right: 0.0,
-            });
-        let rect = crate::menubar::drop_rect(&anchor, bar_h, content_w, rows_total);
-        self.menu_drop_rect = Some(rect);
-        self.menu_drop_rows = rows.clone();
-        self.menu_drop_menu = Some(menu_i);
-
-        // Card elevation (raised border -> opaque card, no drop shadow) — unconditional
-        // (this dropdown has no scrim/blur backdrop of its own to lean on instead).
-        super::set_float_quads(
-            &mut self.menu_drop_shadow,
-            &mut self.menu_drop_border,
-            &mut self.menu_drop_card,
-            device,
-            queue,
-            width,
-            height,
-            Some(rect),
-            super::FloatElevation::Rimmed,
-            0.0,
-            None,
-        );
-
-        // Separator hairlines (one thin quad centered in each separator row).
-        let inner_left = rect[0] + crate::menubar::DROP_PAD_X;
-        let inner_top = rect[1] + crate::menubar::DROP_PAD_Y;
-        let seps: Vec<[f32; 4]> = rows
-            .iter()
-            .filter(|r| r.separator)
-            .map(|r| {
-                [
-                    inner_left,
-                    inner_top + r.top + r.height * 0.5 - 0.5,
-                    content_w,
-                    1.0,
-                ]
-            })
-            .collect();
-        self.menu_drop_sep
-            .prepare(device, queue, width, height, &seps);
+        let plan = dropdown::DropdownPlan::new(items, row_h, label_char_w, self.md_enabled);
+        let geometry =
+            self.prepare_dropdown_card(device, queue, [width, height], menu_i, bar_h, &plan);
+        let inner_left = geometry.inner_left;
+        let inner_top = geometry.inner_top;
+        let content_w = plan.content_w;
+        let rows_total = plan.rows_total;
 
         // Item LABELS (left) + native CHORDS (right), one line per row on the uniform
         // `row_h` grid, drawn from the card's inner top-left.
         let base = panel_attrs();
-        for (buf, text, ink, align) in [
+        let disabled = theme::faint().to_glyphon();
+        for (buf, text, ranges, ink, align) in [
             (
                 &mut self.menu_drop_buffer,
-                labels,
+                plan.labels,
+                plan.disabled_labels,
                 content,
                 glyphon::cosmic_text::Align::Left,
             ),
             (
                 &mut self.menu_chord_buffer,
-                chords,
+                plan.chords,
+                plan.disabled_chords,
                 muted,
                 glyphon::cosmic_text::Align::Right,
             ),
@@ -373,10 +290,11 @@ impl TextPipeline {
                 Some(content_w),
                 Some(rows_total + 1.0),
             );
-            buf.set_text(
+            let spans = dropdown::rich_spans(&text, &ranges, &base, ink, disabled);
+            buf.set_rich_text(
                 &mut self.font_system,
-                &text,
-                &base.clone().color(ink),
+                spans,
+                &base,
                 Shaping::Advanced,
                 Some(align),
             );

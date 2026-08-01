@@ -5,12 +5,16 @@ use std::sync::Mutex;
 mod catalog;
 /// The convention/platform chord resolver — one subject, one file.
 mod chords;
+mod menu_section;
 use catalog::COMMAND_SEED;
+#[cfg(any(not(target_arch = "wasm32"), test))]
+pub use chords::resolved_native_label;
 pub use chords::{
-    resolved_native, resolved_native_label, resolved_native_label_truthful,
-    resolved_native_truthful, web_alternate_keys,
+    resolved_native, resolved_native_label_truthful, resolved_native_truthful, web_alternate_keys,
 };
-
+pub use menu_section::menu_section;
+#[cfg(test)]
+use menu_section::{EDIT_COMMANDS, FILE_COMMANDS, VIEW_COMMANDS};
 pub struct Command {
     pub name: &'static str,
     pub action: Action,
@@ -511,91 +515,6 @@ pub fn action_available(action: &Action, platform: Platform) -> bool {
     match COMMANDS.iter().find(|c| &c.action == action) {
         Some(c) => c.available_on(platform),
         None => true,
-    }
-}
-
-// ── The command palette's FACETING scheme (All · File · Edit · View · Recent) ──
-//
-// The Cmd-P palette is a faceting picker (see `crate::facets`): ←/→ regroup the flat
-// catalog under a lens. File / Edit / View mirror the macOS menu bar's grouping;
-// Recent lists the most-recently-run commands.
-//
-// SINGLE-OWNER NOTE (menu section): the task calls for reusing `menu.rs`'s section
-// table so there is no second hand-maintained category map. `menu.rs` is, however,
-// `#![cfg(target_os = "macos")]` — its `SECTIONS` cannot be referenced from this
-// CROSS-PLATFORM palette code. So the SEMANTIC owner of "which menu section a command
-// belongs to" lives HERE, in [`menu_section`] (compiled on every target), and the
-// macOS `menu.rs` is checked AGAINST it by a drift-guard test
-// (`menu::tests::routed_sections_match_command_section`), so the menu's File/Edit/View
-// arrays and this owner can never silently disagree — one source of truth, guarded.
-
-const FILE_COMMANDS: &[&str] = &[
-    "New document",
-    "Browse files…",
-    "Switch project…",
-    "Recent projects…",
-    "Save",
-    "Finish file",
-    "Export as PDF…",
-    "Export as Word…",
-    "Export as HTML…",
-    "Version history…",
-    "Move…",
-    "Rename note…",
-    "Duplicate note",
-];
-const EDIT_COMMANDS: &[&str] = &[
-    "Undo",
-    "Redo",
-    "Cut",
-    "Copy",
-    "Paste",
-    "Select all",
-    "Bold",
-    "Italic",
-    "Inline code",
-    "Highlight",
-    "Strikethrough",
-    "Insert link…",
-    "Heading",
-    "Blockquote",
-    "Bullet list",
-    "Numbered list",
-    "Task list",
-    "Code block",
-    "Align table",
-];
-const VIEW_COMMANDS: &[&str] = &[
-    "Toggle page mode",
-    "Switch theme…",
-    "Zoom in",
-    "Zoom out",
-    "Reset zoom",
-    "Toggle debug",
-    "Narrow page",
-    "Widen page",
-    "Reset page width",
-    "Toggle outline",
-    "Fold section",
-    "Collapse other sections",
-    "Toggle typewriter scroll",
-    "Toggle menu bar",
-];
-
-/// The menu SECTION (`"File"` / `"Edit"` / `"View"`) command `name` sits under, or
-/// `None` for a command in no menu section (the App-menu About/Quit, or any command
-/// not surfaced in the menu bar at all). The SINGLE owner of this mapping, consulted
-/// by both the palette's File/Edit/View lenses (every platform) and the macOS menu's
-/// own drift-guard test — see the module note above.
-pub fn menu_section(name: &str) -> Option<&'static str> {
-    if FILE_COMMANDS.contains(&name) {
-        Some("File")
-    } else if EDIT_COMMANDS.contains(&name) {
-        Some("Edit")
-    } else if VIEW_COMMANDS.contains(&name) {
-        Some("View")
-    } else {
-        None
     }
 }
 

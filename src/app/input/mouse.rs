@@ -553,14 +553,9 @@ impl App {
             crate::menubar::set_open(None);
             let action = {
                 let menus = crate::menu::roster();
-                menus
-                    .get(menu)
-                    .map(crate::menu::dropdown_items)
-                    .and_then(|items| items.get(item).cloned())
-                    .and_then(|it| match it {
-                        crate::menu::RosterItem::Routed { id, .. } => crate::menu::resolve(id),
-                        _ => None,
-                    })
+                menus.get(menu).and_then(|menu| {
+                    crate::menu::dropdown_action(menu, item, self.active.buffer.is_markdown())
+                })
             };
             if let Some(action) = action {
                 let exited = self.apply(action, false, exit, crate::stats::Door::Menu);

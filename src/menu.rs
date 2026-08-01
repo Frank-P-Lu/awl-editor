@@ -1,142 +1,24 @@
-//! Native macOS menu bar: a second route to catalog actions, never a separate
-//! behavior path. Linux and wasm use their own menu surfaces.
+//! Shared menu roster and routing.
+//! Every routed item resolves to an existing catalog action. Native macOS and
+//! awl-drawn menu bars consume the same data; native construction lives in
+//! [`native`]. Quit stays routed through awl's clean-shutdown path.
 //!
-//! **The design law:** every routed menu item fires an `Action` the
-//! `commands.rs` catalog already dispatches, through the SAME apply seam a
-//! keypress uses (`App::apply`, via `App::handle_menu_event` in
-//! `app/menu.rs`). This file owns exactly ONE table ([`SECTIONS`]) mapping a
-//! muda item id to a catalog command NAME — it both feeds [`roster`] (what
-//! gets BUILT) and [`resolve`] (what a fired id RESOLVES to), so a typo'd or
-//! renamed command name fails the law test below instead of silently building
-//! a dead menu item.
-//!
-//! **Two doors, one owner:**
-//! - [`roster`] is a PURE data description of the whole menu bar (titles +
-//!   items, no muda calls) — buildable and assertable from ANY thread,
-//!   including a `cargo test` worker. This is what the tests below check.
-//! - [`build_menu`] translates that SAME roster into real `muda::Menu`/
-//!   `Submenu`/`MenuItem` types. It is LIVE-ONLY: muda's macOS backend
-//!   requires the process's TRUE main thread (`MainThreadMarker::new()`
-//!   panics otherwise — confirmed empirically: a root `muda::Menu` built off
-//!   the main thread panics with "can only be created on the main thread",
-//!   even under `cfg(test)`), so it is exercised only by the live app via
-//!   [`install`], never by a unit test.
-//!
-//! **ACCELERATOR DECISION (researched, not guessed):** every routed command
-//! already has a keymap-owned chord (native and/or emacs slot in
-//! `commands::COMMANDS`). On macOS, an `NSMenuItem` key equivalent ALWAYS
-//! intercepts that key combination in `NSApplication::sendEvent:` — via
-//! `keyWindow performKeyEquivalent:` then a `mainMenu performKeyEquivalent:`
-//! fallback — BEFORE the event ever reaches `keyDown:`/winit's key path
-//! (there is no "display-only, non-intercepting" key equivalent in AppKit;
-//! muda's `Accelerator` sets the same real key-equivalent slot either way).
-//! So v1 registers `None` for every routed item's accelerator uniformly: the
-//! chord keeps firing through the keymap exactly as it does today (recoil
-//! juice, input stamping, debug `key→px` timing all intact), and the menu is
-//! a second, accelerator-less door to the same `Action` — "menu shows the
-//! item, the chord keeps working through the keymap as today" is the
-//! documented lesser evil versus double-dispatch semantics or a stolen chord.
-//! (One item, Quit, has NO native macOS chord in the catalog at all — a
-//! `Cmd-Q` accelerator there would collide with nothing — but is left
-//! unaccelerated too, for uniformity with this decision and because adding
-//! Cmd-Q as a *keymap* chord, if ever wanted, belongs in `commands.rs`, not
-//! bolted on only in the menu.)
-//!
-//! **QUIT is ROUTED, not muda's `PredefinedMenuItem::quit()` (a deliberate,
-//! evidence-based deviation from "predefined items where possible"):** muda's
-//! predefined Quit sends the `terminate:` selector straight to `NSApplication`
-//! (confirmed in muda 0.19.3's macOS backend,
-//! `PredefinedMenuItemType::Quit => Some(sel!(terminate:))`), which does NOT
-//! run through winit's event loop at all — `App::exiting()` (the hook that
-//! flushes autosave, session-restore, and the daemon-socket teardown; see
-//! CLAUDE.md's Autosave/Daemon sections) is only ever called by
-//! `ActiveEventLoop::exit()`'s own clean-shutdown path, which `terminate:`
-//! never touches. A routed Quit item instead fires the EXISTING
-//! `Action::Quit`, which already signals `Effect::Quit` → `App::apply` calls
-//! `event_loop.exit()` — the identical path Cmd-P → Quit / `Cmd-Q` take
-//! today — so autosave/session/daemon teardown all still run.
-//!
-//! **ABOUT is ALSO ROUTED now (v1 shipped it as muda's predefined About; this
-//! round replaced it) — for TWO independent reasons, only the first of which
-//! was ever really about About specifically:**
-//! 1. **The real bug this round found + fixed lived one layer BELOW About: a
-//!    Rust-side use-after-free in [`install`]**, not anything About-specific.
-//!    `crate::menu::install` used to return `()` and just let its built `Menu`
-//!    fall out of scope — but every native `NSMenuItem` muda builds stashes a
-//!    RAW (non-retaining) pointer back into that `Menu`'s owned
-//!    `Rc<RefCell<MenuChild>>` chain, so once the Rust side dropped it, EVERY
-//!    item (About, Quit, every routed item, Window's still-predefined Minimize/
-//!    Maximize) pointed at freed memory — clicking literally any of them was a
-//!    use-after-free, confirmed empirically to manifest two different ways
-//!    (an `Icon`-decode panic reading corrupted `AboutMetadata` bytes in one
-//!    repro; a clean `SIGSEGV` null-deref in another) purely depending on what
-//!    reused that freed allocation by click time. `install` now returns the
-//!    `Menu` and `App` keeps it alive for the app's whole lifetime — see both
-//!    docs. This alone made every predefined AND routed item safe again.
-//! 2. **Separately, About is now an in-app card** (`about.rs` +
-//!    `render/chrome.rs`, reusing the HUD's float-card pipeline) rather than
-//!    AppKit's stock About dialog, so it reads as awl chrome (one warm accent,
-//!    `base_300` card, the active world's own name + end-mark ornament) instead
-//!    of a generic system panel, and so it works identically on Linux (no
-//!    native menu bar there) and is `--keys`/sidecar-drivable like the rest of
-//!    the app. This is a taste upgrade, not a correctness fix — the About
-//!    dialog itself never touched an icon unless `AboutMetadata.icon` was
-//!    `Some` (it wasn't), so it was never the actual crash source; see (1).
-//!
-//! **LIVE-ONLY (needs human confirmation):** the bar actually appearing, an
-//! item firing under a real click, the About card's actual pixel look + Quit's
-//! teardown, and macOS text-services behavior in the Edit menu (see
-//! `app/menu.rs`'s module doc for why Edit uses routed items, not muda's
-//! predefined Cut/Copy/Paste/Undo/Redo). The harness proves the roster/routing
-//! DATA and the resolve direction; it cannot drive an NSMenu click.
-//!
-//! **CROSS-PLATFORM SPLIT (the web/Linux menu-bar round):** the PURE ROSTER —
-//! [`SECTIONS`] / [`roster`] / [`resolve`] / [`print_roster`] and their data types —
-//! is compiled on EVERY target now, because the awl-RENDERED menu bar
-//! ([`crate::menubar`], shown on web + Linux where the OS gives no chrome) reads the
-//! SAME roster the macOS NSMenu bar does: ONE roster, three consumers (the native
-//! bar, the awl renderer, the law tests). Only the muda CONSTRUCTION
-//! ([`build_menu`] / [`install`] / [`to_menu_item`] / [`to_predefined`]) and the
-//! icon set stay `#[cfg(target_os = "macos")]` — muda is a macOS-only dependency.
-
 use crate::commands;
 use crate::keymap::Action;
+
 #[cfg(target_os = "macos")]
-use crate::menu_icons;
+mod native;
 #[cfg(target_os = "macos")]
-use muda::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+pub use native::{InstalledMenu, install};
 
 /// Context policy shared by the native updater and the roster laws. This stays
 /// platform-neutral so the state transition can be proved without constructing
 /// AppKit objects in a test process.
-#[cfg(any(target_os = "macos", test))]
 pub fn markdown_submenu_enabled(is_markdown: bool) -> bool {
     is_markdown
 }
 
-#[cfg(target_os = "macos")]
-pub struct InstalledMenu {
-    menu: Menu,
-    markdown: Submenu,
-}
-
-#[cfg(target_os = "macos")]
-impl InstalledMenu {
-    pub fn set_markdown_enabled(&self, is_markdown: bool) {
-        self.markdown
-            .set_enabled(markdown_submenu_enabled(is_markdown));
-    }
-}
-
-/// One ROUTED menu item: the muda [`muda::MenuId`] string assigned to a plain
-/// [`MenuItem`], the exact `commands::COMMANDS` display NAME it fires on
-/// activation, its menu-facing DISPLAY LABEL, and whether it carries an
-/// ICON (see `menu_icons.rs`; `false` for the great majority — Apple's own
-/// apps stay text-mostly, a logged taste call). `label` equals `command` for
-/// every item except the two macOS App-menu conventions ("Quit Awl" / "About
-/// Awl" append the app name, per every stock macOS app) — see the module doc
-/// and the law test below, which enumerates that exact exception rather than
-/// silently allowing labels to drift from the catalog everywhere.
+/// One routed menu item and its catalog command.
 struct Routed {
     id: &'static str,
     command: &'static str,
@@ -144,10 +26,7 @@ struct Routed {
     icon: bool,
 }
 
-/// Build a [`Routed`] whose menu-facing label is IDENTICAL to its catalog
-/// command name and carries NO icon (the common case — everywhere except the
-/// two macOS App-menu conventions in [`APP_ITEMS`], which spell their labels
-/// out explicitly, and the small `ri`-built icon set below).
+/// Build the common text-only item whose label matches its command name.
 const fn r(id: &'static str, command: &'static str) -> Routed {
     Routed {
         id,
@@ -602,38 +481,6 @@ pub fn item_chord_for_id(id: &str) -> String {
         .unwrap_or_default()
 }
 
-/// One routed [`RosterItem`] translated into a real, id-carrying, ACCELERATOR-
-/// LESS menu item (see the module doc's accelerator decision) — an
-/// [`muda::IconMenuItem`] when `icon` is set AND `menu_icons::icon_for`
-/// actually resolves one for this id (see that module's safety-guarded
-/// construction), else a plain [`MenuItem`] (also the fallback if the icon
-/// somehow fails to resolve — never a missing/dead menu item over a missing
-/// icon).
-#[cfg(target_os = "macos")]
-fn to_menu_item(id: &'static str, label: &'static str, icon: bool) -> Box<dyn muda::IsMenuItem> {
-    if icon && let Some(icon) = menu_icons::icon_for(id) {
-        return Box::new(muda::IconMenuItem::with_id(
-            id,
-            label,
-            true,
-            Some(icon),
-            None,
-        ));
-    }
-    Box::new(MenuItem::with_id(id, label, true, None))
-}
-
-#[cfg(target_os = "macos")]
-fn to_predefined(kind: PredefinedKind) -> PredefinedMenuItem {
-    match kind {
-        PredefinedKind::Minimize => PredefinedMenuItem::minimize(None),
-        PredefinedKind::Maximize => PredefinedMenuItem::maximize(None),
-        PredefinedKind::Hide => PredefinedMenuItem::hide(None),
-        PredefinedKind::HideOthers => PredefinedMenuItem::hide_others(None),
-        PredefinedKind::ShowAll => PredefinedMenuItem::show_all(None),
-    }
-}
-
 /// The ACTUAL AppKit-displayed label for a predefined item — muda's own
 /// `PredefinedMenuItemType::text()` on macOS (`&Minimize` -> "Minimize" once
 /// its mnemonic `&` is stripped, `Maximize` -> "Zoom", the real macOS
@@ -690,110 +537,31 @@ pub fn dropdown_items(menu: &RosterMenu) -> Vec<RosterItem> {
         .collect()
 }
 
-/// Build the whole menu bar as real muda types, from [`roster`] verbatim.
-///
-/// **LIVE-ONLY / main-thread-only:** muda's macOS backend calls
-/// `MainThreadMarker::new().expect(..)` when constructing a root [`Menu`],
-/// with NO `cfg(test)` exemption (unlike its `Submenu` constructor, which
-/// does special-case tests) — confirmed empirically: calling this off the
-/// real process main thread panics. It is therefore called exactly once, live,
-/// from `crate::menu::install` (via `resumed()`), never from a unit test —
-/// see [`roster`]'s tests for the structure this function is not re-tested
-/// against directly.
-#[cfg(target_os = "macos")]
-pub fn build_menu() -> InstalledMenu {
-    let mut markdown = None;
-    let submenus: Vec<Submenu> = roster()
-        .into_iter()
-        .map(|m| {
-            let items: Vec<Box<dyn muda::IsMenuItem>> = m
-                .items
-                .iter()
-                .map(|item| to_native_item(item, &mut markdown))
-                .collect();
-            let refs: Vec<&dyn muda::IsMenuItem> = items.iter().map(|b| b.as_ref()).collect();
-            Submenu::with_items(m.title, true, &refs).expect("submenu build")
-        })
-        .collect();
-    let refs: Vec<&dyn muda::IsMenuItem> = submenus
-        .iter()
-        .map(|s| s as &dyn muda::IsMenuItem)
-        .collect();
-    InstalledMenu {
-        menu: Menu::with_items(&refs).expect("root menu build"),
-        markdown: markdown.expect("the menu roster must carry the Markdown submenu"),
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn to_native_item(item: &RosterItem, markdown: &mut Option<Submenu>) -> Box<dyn muda::IsMenuItem> {
+pub fn dropdown_item_enabled(item: &RosterItem, is_markdown: bool) -> bool {
     match item {
-        RosterItem::Routed { id, label, icon } => to_menu_item(id, label, *icon),
-        RosterItem::Separator => Box::new(PredefinedMenuItem::separator()),
-        RosterItem::Predefined(kind) => Box::new(to_predefined(*kind)),
-        RosterItem::Submenu { label, items } => {
-            let children: Vec<Box<dyn muda::IsMenuItem>> = items
-                .iter()
-                .map(|item| to_native_item(item, markdown))
-                .collect();
-            let refs: Vec<&dyn muda::IsMenuItem> =
-                children.iter().map(|item| item.as_ref()).collect();
-            let submenu = Submenu::with_items(label, true, &refs).expect("submenu build");
-            if *label == "Markdown" {
-                assert!(
-                    markdown.replace(submenu.clone()).is_none(),
-                    "one Markdown submenu"
-                );
-            }
-            Box::new(submenu)
+        RosterItem::Routed { id, .. } => {
+            markdown_submenu_enabled(is_markdown) || !MARKDOWN_ITEMS.iter().any(|r| r.id == *id)
         }
+        RosterItem::Predefined(_) | RosterItem::Submenu { .. } | RosterItem::Separator => true,
     }
 }
 
-/// Build + install the menu bar for the running NSApp (`Menu::init_for_nsapp`,
-/// itself main-thread-only), and register muda's global event handler to
-/// forward every fired item's id into the live winit event loop via `proxy` —
-/// mirroring `crate::daemon::spawn_accept_thread`'s own "hand the live App an
-/// `EventLoopProxy`, forward posted events" shape (the SAME seam the daemon
-/// built; see `crate::app::AwlEvent`). `wrap` lets the caller name its own
-/// event-enum variant (`AwlEvent::Menu`) without this module depending on
-/// `crate::app`'s types — the same decoupling `spawn_accept_thread` uses.
-///
-/// **Returns the built [`Menu`] — the CALLER MUST KEEP IT ALIVE for as long as
-/// the app runs.** This is not cosmetic: every native `NSMenuItem` muda builds
-/// stashes a RAW pointer (`ivars().set(&*self)`, no retain) back to its Rust-side
-/// `MenuChild`, whose actual allocation is owned by an `Rc<RefCell<MenuChild>>`
-/// chain rooted in this `Menu` value. `Menu::init_for_nsapp` hands the NATIVE
-/// `NSMenu`/`NSMenuItem` objects to AppKit (which retains those fine), but does
-/// nothing to keep the RUST-side `Rc` chain alive — if this return value is
-/// simply dropped (the v1 bug: it used to be a local that fell out of scope at
-/// the end of this very function), every `MenuChild` is freed while AppKit's
-/// native items still point at that freed memory, and clicking ANY item later
-/// (About, Quit, a routed item, even a menu built with no icons at all) is a
-/// clean use-after-free — confirmed empirically: it manifested as an
-/// `Icon`-decoding panic in one repro and a bare `SIGSEGV` null-deref in
-/// another, purely depending on what reused that freed memory by click time.
-/// `App` stores this in a field for its whole lifetime; see its doc.
-///
-/// Call exactly ONCE, from `resumed()`, after the window (and therefore
-/// NSApp) exists.
-#[cfg(target_os = "macos")]
-#[must_use = "the returned Menu must be kept alive for the app's lifetime — see this fn's doc"]
-pub fn install<E: Send + 'static>(
-    proxy: winit::event_loop::EventLoopProxy<E>,
-    wrap: impl Fn(String) -> E + Send + Sync + 'static,
-) -> InstalledMenu {
-    let menu = build_menu();
-    menu.menu.init_for_nsapp();
-    muda::MenuEvent::set_event_handler(Some(move |event: muda::MenuEvent| {
-        let _ = proxy.send_event(wrap(event.id().0.clone()));
-    }));
-    menu
+pub fn dropdown_action(menu: &RosterMenu, index: usize, is_markdown: bool) -> Option<Action> {
+    let item = dropdown_items(menu).get(index)?.clone();
+    if !dropdown_item_enabled(&item, is_markdown) {
+        return None;
+    }
+    match item {
+        RosterItem::Routed { id, .. } => resolve(id),
+        RosterItem::Predefined(_) | RosterItem::Submenu { .. } | RosterItem::Separator => None,
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "macos")]
+    use crate::menu_icons;
 
     fn labels(items: &[RosterItem]) -> Vec<&str> {
         items
@@ -825,6 +593,36 @@ mod tests {
             markdown_submenu_enabled(true),
             "switching back re-enables it"
         );
+    }
+
+    #[test]
+    fn flattened_markdown_rows_cannot_fire_in_a_non_markdown_buffer() {
+        let menu = RosterMenu {
+            title: "Markdown",
+            items: vec![RosterItem::Routed {
+                id: MARKDOWN_ITEMS[0].id,
+                label: MARKDOWN_ITEMS[0].label,
+                icon: false,
+            }],
+        };
+        assert_eq!(dropdown_action(&menu, 0, false), None);
+        assert_eq!(
+            dropdown_action(&menu, 0, true),
+            commands::action_for_name(MARKDOWN_ITEMS[0].command)
+        );
+    }
+
+    #[test]
+    fn markdown_context_does_not_disable_unrelated_rows() {
+        let edit = roster()
+            .into_iter()
+            .find(|menu| menu.title == "Edit")
+            .unwrap();
+        let index = dropdown_items(&edit)
+            .iter()
+            .position(|item| matches!(item, RosterItem::Routed { .. }))
+            .unwrap();
+        assert!(dropdown_action(&edit, index, false).is_some());
     }
 
     /// LAW TEST: every routed table entry's `command` name must resolve to a

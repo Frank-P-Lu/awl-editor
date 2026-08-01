@@ -24,10 +24,9 @@
 //! its Edit-menu-anchored text services (the Character Viewer / Emoji &
 //! Symbols item, Services menu entries) at all — a structural presence
 //! requirement, not a responder-chain one.
-#![cfg(target_os = "macos")]
-
 use super::*;
 
+#[cfg(target_os = "macos")]
 impl App {
     /// A menu item fired (posted via `EventLoopProxy::send_event`, so this
     /// always runs on the normal winit thread — the same cross-thread-safety
@@ -67,5 +66,27 @@ impl App {
             // attributed to `Door::Menu` in the silent usage ledger.
             self.apply(action, false, exit, crate::stats::Door::Menu);
         }
+    }
+}
+
+impl App {
+    #[cfg(target_os = "macos")]
+    pub(super) fn install_native_menu(
+        &mut self,
+        proxy: winit::event_loop::EventLoopProxy<AwlEvent>,
+    ) {
+        self._menu_bar = Some(crate::menu::install(
+            proxy,
+            AwlEvent::Menu,
+            self.active.buffer.is_markdown(),
+        ));
+    }
+
+    pub(super) fn sync_menu_context_and_gpu_absent(&self) -> bool {
+        #[cfg(target_os = "macos")]
+        if let Some(menu) = self._menu_bar.as_ref() {
+            menu.set_markdown_enabled(self.active.buffer.is_markdown());
+        }
+        self.gpu.is_none()
     }
 }

@@ -2,23 +2,8 @@ use super::*;
 mod scroll;
 
 impl App {
-    /// One update owner for the only buffer-sensitive native menu surface.
-    /// The Markdown submenu stays in place and AppKit visibly disables it for
-    /// non-Markdown buffers; every open, swap, and extension-driven kind change
-    /// reaches this from `sync_view`.
-    #[cfg(target_os = "macos")]
-    pub(super) fn sync_native_menu_context(&self) {
-        if let Some(menu) = self._menu_bar.as_ref() {
-            menu.set_markdown_enabled(self.active.buffer.is_markdown());
-        }
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    pub(super) fn sync_native_menu_context(&self) {}
-
     pub(super) fn sync_view(&mut self, follow: bool) {
-        self.sync_native_menu_context();
-        if self.gpu.is_none() {
+        if self.sync_menu_context_and_gpu_absent() {
             return;
         }
         self.zoom_reflow.clear();

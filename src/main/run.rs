@@ -8,7 +8,7 @@ use crate::capture::{self, CaptureOpts};
 use crate::config::Config;
 use crate::keymap::Action;
 use crate::replay_report::ReplayResult;
-use crate::{actions, app, bench};
+use crate::{actions, bench};
 
 #[path = "run/capture_fold.rs"]
 mod capture_fold;
@@ -1033,7 +1033,7 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
         Mode::SoakGpu(config) => {
             let root = std::env::temp_dir().join(format!("awl-soak-gpu-{}", std::process::id()));
             std::fs::create_dir_all(&root)?;
-            let result = app::run(
+            let result = crate::app::run(
                 None,
                 root.clone(),
                 None,
