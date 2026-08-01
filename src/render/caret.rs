@@ -6,6 +6,7 @@ pub(super) use super::caret_body::{InkBox, caret_visual_body_dims};
 use super::*;
 
 mod motion;
+mod vertical;
 
 /// TARGET-LINE-LOCAL caret glyph record (item 57) — the shaped glyph clusters of
 /// ONE logical line (the cursor line), read straight from that line's OWN
@@ -280,46 +281,6 @@ impl TextPipeline {
         })
     }
 
-    /// Search within the visual row and blend boxes from both sides by distance.
-    /// This stays O(row width), never O(document).
-    fn nearest_row_raster_box(&mut self, line: usize, col: usize) -> Option<InkBox> {
-        let rows = self.visual_rows(line);
-        let row = rows.get(pick_row_index_aff(&rows, col, self.caret_affinity))?;
-        let (start, end) = (row.start_col, row.end_col);
-        let max_back = col.saturating_sub(start);
-        let max_fwd = end.saturating_sub(col + 1);
-
-        let mut back: Option<(usize, InkBox)> = None;
-        for d in 1..=max_back {
-            if let Some(b) = self.raster_box_at(line, col - d) {
-                back = Some((d, b));
-                break;
-            }
-        }
-        let mut fwd: Option<(usize, InkBox)> = None;
-        for d in 1..=max_fwd {
-            if let Some(b) = self.raster_box_at(line, col + d) {
-                fwd = Some((d, b));
-                break;
-            }
-        }
-
-        match (back, fwd) {
-            (Some((db, bb)), Some((df, fb))) => {
-                let t = db as f32 / (db + df) as f32;
-                Some(InkBox {
-                    left: bb.left + (fb.left - bb.left) * t,
-                    top: bb.top + (fb.top - bb.top) * t,
-                    width: bb.width + (fb.width - bb.width) * t,
-                    height: bb.height + (fb.height - bb.height) * t,
-                })
-            }
-            (Some((_, bb)), None) => Some(bb),
-            (None, Some((_, fb))) => Some(fb),
-            (None, None) => None,
-        }
-    }
-
     /// Ink-aligned box for a single-glyph proportional anchor. Mono, ligature, and
     /// glyphless anchors use cell geometry to preserve a uniform or fair split.
     pub(super) fn caret_anchor_ink_box(&mut self) -> Option<InkBox> {
@@ -441,10 +402,8 @@ impl TextPipeline {
         let m = self.metrics;
         let px = m.caret_h / CARET_H;
         if let Some(ink) = self.caret_anchor_ink_box() {
-            let baseline = self.caret_baseline_y();
-            let cy = baseline - ink.top + ink.height * 0.5;
-            let (_w, h) = caret_visual_body_dims(ink, px);
-            return (cy, h);
+            let (baseline, row_ascent, ascent_font) = self.caret_row_metrics();
+            return self.caret_cell_vertical_from_ink(ink, baseline, row_ascent, ascent_font, px);
         }
         // Gated on `doc_family()` (the LIVE effective face the ACTIVE theme wants
         // for this buffer kind), deliberately NOT `shaped_font` (the face the
@@ -473,12 +432,10 @@ impl TextPipeline {
                 .caret_anchor_raster_box()
                 .or_else(|| self.nearest_row_raster_box(self.cursor_line, col))
                 .unwrap_or_else(|| self.caret_synthetic_ink_box(row_ascent, ascent_font));
-            let cy = baseline - ink.top + ink.height * 0.5;
-            // A glyphless column borrows or synthesizes the SAME visual body
-            // as the ink it joins.  Otherwise a comma's new floor would reopen
-            // item 105's glyph -> EOL seam the instant the caret stepped off it.
-            let (_w, h) = caret_visual_body_dims(ink, px);
-            return (cy, h);
+            // A glyphless column borrows or synthesizes the SAME vertical
+            // ordinary-letter band as the ink it joins.  Otherwise stepping
+            // off punctuation would reintroduce its short body at end-of-line.
+            return self.caret_cell_vertical_from_ink(ink, baseline, row_ascent, ascent_font, px);
         }
         let cy = self.caret.pos.y;
         let h = m.caret_block_h * self.cursor_scale();
@@ -665,7 +622,7 @@ impl TextPipeline {
     /// end-of-line case the hand-rolled loop lacked), so reusing it here makes
     /// the caret's row ownership one decision instead of three independently
     /// almost-identical ones.
-    fn caret_row_metrics(&self) -> (f32, f32, &'static str) {
+    pub(super) fn caret_row_metrics(&self) -> (f32, f32, &'static str) {
         // Anchor column (the cursor column in Block/I-beam; one back in Morph — at a
         // soft-wrap boundary that is the PREVIOUS visual row).
         let col = self.caret_anchor_col();

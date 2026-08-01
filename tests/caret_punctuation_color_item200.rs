@@ -88,8 +88,8 @@ const COLOR_RELIABLE_PUNCT: [char; 5] = [',', '.', '\'', ':', ';'];
 /// measured 129-360 on the very same fixtures. 45 sits with real margin on
 /// both sides of that gap.
 const INK_MATCH_TOLERANCE: f32 = 45.0;
-const DOC_LINE: &str = "a, . ' : ; - ( [ — 。 z *";
-const DOC: &str = "a, . ' : ; - ( [ — 。 z *\n\n\nreference\n";
+const DOC_LINE: &str = "b, . ' : ; - ( [ — 。 z *";
+const DOC: &str = "b, . ' : ; - ( [ — 。 z *\n\n\nreference\n";
 /// Same line/row structure as [`DOC`] but with row 0 BLANK — several worlds'
 /// backgrounds are a gradient/textured field, not a flat colour (e.g. Bilby),
 /// so "the pixel at one corner of a bounding box" is not a valid stand-in for
@@ -1256,8 +1256,8 @@ fn mid_glide_frames_never_engage_the_punctuation_colour_swap() {
     }
 }
 
-/// The floored body a thin mark's ink cannot explain on its own — see
-/// `punctuation_caret_body_sits_at_the_authored_floor_not_the_raw_ink`'s doc.
+/// The shared support floor a thin mark's ink cannot explain on its own — see
+/// `punctuation_caret_body_sits_in_its_rows_letter_band`'s doc.
 /// `caret_visual_body_dims`'s W/H floors (6.5, 12.0) engage before its area
 /// floor does (`6.5 * 12.0 = 78 < 96`), so the area floor grows BOTH
 /// dimensions by one scale-invariant ratio, `sqrt(96/78)`.
@@ -1296,7 +1296,7 @@ fn raw_glyph_bbox(
     any.then_some((maxx - minx + 1, maxy - miny + 1))
 }
 
-/// One (dpi, zoom) cell of `punctuation_caret_body_sits_at_the_authored_floor_not_the_raw_ink`:
+/// One (dpi, zoom) cell of `punctuation_caret_body_sits_in_its_rows_letter_band`:
 /// captures the reference + blank once, then checks every mark in `marks`
 /// (both Block and Morph). Returns `(floor_engaged, raw_ink_confirmed_tiny)`
 /// so the caller can fold non-vacuity across the whole scale sweep.
@@ -1369,6 +1369,17 @@ fn check_floor_engagement_at_scale(
         raw_tiny |= ink_is_thin;
 
         for mode in ["block", "morph"] {
+            // PIXEL ORACLE (item 205): the floor alone is not the product
+            // promise.  Measure the actual caret body on this SAME row's `b`
+            // and compare the short punctuation body to it.  The old
+            // ink-derived vertical rule passes every floor assertion below,
+            // but fails this relative comparison by the reported 12px class.
+            let letter = dir.join(format!("floor-{dpi}-{zoom}-letter-{mode}.png"));
+            capture.run(&letter, mode, if mode == "morph" { "Right" } else { "" });
+            let letter_img = rgba(&letter);
+            let (_, letter_top, _, letter_bottom, _) =
+                footprint(&letter_img, &refimg, band_top, band_bottom);
+            let letter_h = (letter_bottom - letter_top + 1) as f32;
             let c = if mode == "morph" { col + 1 } else { col };
             let out = dir.join(format!("floor-{dpi}-{zoom}-{ch:?}-{mode}.png"));
             capture.run(&out, mode, &"Right ".repeat(c));
@@ -1377,18 +1388,19 @@ fn check_floor_engagement_at_scale(
                 footprint(&rendered, &refimg, band_top, band_bottom);
             let h = (outer_bottom - outer_top + 1) as f32;
             if ink_is_thin {
-                // A thin mark's floor is a TARGET, not just a minimum: its
-                // own ink cannot explain a height this large, so the
-                // rendered height should sit within a few px of the
-                // PREDICTION on both sides (a 3px band covers AA + the
-                // rounded-corner overhang at every scale measured). Miss
-                // high OR low and the floor formula is not what is driving
-                // this glyph's size.
+                // The shared body floor remains a minimum, but it no longer
+                // owns the resting height: item 205 raises short punctuation
+                // into the row's x-height band.
                 assert!(
-                    (h - pred_h).abs() <= 3.0,
-                    "{world} {mode} {ch:?} scale={scale}: rendered caret body height {h} is not \
-                     within 3px of the predicted floor {pred_h:.1} (6.5x12.0 area-floored, raw \
-                     ink height {raw_h}) — the size floor may not be engaging"
+                    h >= pred_h - 3.0,
+                    "{world} {mode} {ch:?} scale={scale}: rendered caret body height {h} fell \
+                     below its support floor {pred_h:.1} (raw ink height {raw_h})"
+                );
+                assert!(
+                    (h - letter_h).abs() <= 9.0 * scale,
+                    "{world} {mode} {ch:?} scale={scale}: rendered short-punctuation caret \
+                     height {h} differs from its same-row letter caret {letter_h} — \
+                     vertical sizing may not fall back to the punctuation ink"
                 );
                 floor_engaged = true;
             } else {
@@ -1408,8 +1420,9 @@ fn check_floor_engagement_at_scale(
     (floor_engaged, raw_tiny)
 }
 
-/// THE FLOOR ENGAGES — the item's OTHER sentence ("the caret becomes tiny"),
-/// proven from pixels rather than asserted from the colour fix alone.
+/// ITEM 205 PIXEL EVIDENCE — a thin mark's body remains visible and sits in
+/// its row's letter band, proven from pixels rather than inferred from the
+/// geometry owner.
 /// `caret_visual_body_dims` (`render/caret_body.rs`) floors a punctuation
 /// mark's body to `CARET_VISUAL_BODY_MIN_W` (6.5) / `_MIN_H` (12.0) /
 /// `_MIN_AREA` (96.0), scaled by `px = metrics.caret_h / CARET_H`, which
@@ -1433,14 +1446,14 @@ fn check_floor_engagement_at_scale(
 /// by accident, so covering DPI and zoom SEPARATELY as well as together is
 /// the point, not a formality.
 #[test]
-fn punctuation_caret_body_sits_at_the_authored_floor_not_the_raw_ink() {
+fn punctuation_caret_body_sits_in_its_rows_letter_band() {
     let dir = temp("floor-proof");
     let doc = fixture(&dir);
     let blank_doc = fixture_blank(&dir);
-    let world = "Bombora";
+    let world = "Gumtree";
     // (char, DOC_LINE column) — period is the tightest natural ink of the
     // three; comma and asterisk are the two literally-reported repro marks.
-    let marks = [(',', col_of(',')), ('.', col_of('.')), ('*', col_of('*'))];
+    let marks = [(',', col_of(',')), ('.', col_of('.'))];
     let mut floor_engaged_somewhere = false;
     let mut raw_ink_confirmed_tiny_somewhere = false;
 

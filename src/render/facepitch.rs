@@ -147,6 +147,13 @@ pub fn registered_family(bytes: &[u8]) -> Option<String> {
 /// box (item 105), never a real glyph's own ink.
 pub(crate) const DEFAULT_TYPICAL_LETTER_RATIO: f32 = 0.62;
 
+/// The x-height/ascent ratio used by the caret's vertical insertion band when
+/// a real glyph is shorter than an ordinary letter.  Unlike the typical-letter
+/// ratio below, this is deliberately the bare x-height: it is the minimum
+/// vertical presence of a character about to be typed, not an approximation
+/// for a glyphless column beside an arbitrary neighbour.
+pub(crate) const DEFAULT_X_HEIGHT_RATIO: f32 = 0.48;
+
 /// MEASURE one font file's own TYPICAL-LETTER-TO-ASCENT ratio (item 105): how
 /// tall a "generic" letter's ink sits relative to the font's own ascent, read
 /// straight from the face's `OS/2`/`hhea` tables through the SAME skrifa
@@ -194,6 +201,20 @@ fn measure_typical_letter_ratio(bytes: &[u8]) -> f32 {
     (px / m.ascent).clamp(0.2, 0.95)
 }
 
+fn measure_x_height_ratio(bytes: &[u8]) -> f32 {
+    let Ok(font) = FontRef::new(bytes) else {
+        return DEFAULT_X_HEIGHT_RATIO;
+    };
+    let m = font.metrics(Size::unscaled(), LocationRef::default());
+    let Some(xh) = m.x_height.filter(|v| *v > 0.0) else {
+        return DEFAULT_X_HEIGHT_RATIO;
+    };
+    if m.ascent <= 0.0 {
+        return DEFAULT_X_HEIGHT_RATIO;
+    }
+    (xh / m.ascent).clamp(0.2, 0.95)
+}
+
 /// One bundled display face, as the roster knows it.
 #[derive(Clone, Copy, Debug)]
 pub struct FaceFacts {
@@ -209,6 +230,9 @@ pub struct FaceFacts {
     /// read alongside the pitch measurement so a face's bytes are parsed once
     /// for both facts, not twice.
     pub typical_letter_ratio: f32,
+    /// This face's own x-height / ascent ratio.  The caret uses this only to
+    /// keep punctuation's vertical body in the row's ordinary-letter band.
+    pub x_height_ratio: f32,
 }
 
 /// THE ROSTER: every bundled display family → its declared pitch, measured
@@ -230,6 +254,7 @@ pub fn roster() -> &'static BTreeMap<String, FaceFacts> {
                 declared,
                 measured: measure_pitch(bytes),
                 typical_letter_ratio: measure_typical_letter_ratio(bytes),
+                x_height_ratio: measure_x_height_ratio(bytes),
             });
         }
         out
@@ -263,4 +288,13 @@ pub fn typical_letter_ratio(family: &str) -> f32 {
         .get(family)
         .map(|f| f.typical_letter_ratio)
         .unwrap_or(DEFAULT_TYPICAL_LETTER_RATIO)
+}
+
+/// The measured x-height/ascent ratio for the row's actual face, or the
+/// conservative fallback for an unknown override face.
+pub fn x_height_ratio(family: &str) -> f32 {
+    roster()
+        .get(family)
+        .map(|f| f.x_height_ratio)
+        .unwrap_or(DEFAULT_X_HEIGHT_RATIO)
 }
