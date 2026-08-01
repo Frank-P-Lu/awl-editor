@@ -61,6 +61,24 @@ the turn** — ending the turn is the actual failure, because nothing wakes a
 worker but the orchestrator. Committing before any wait remains mandatory
 regardless.
 
+**A turn must never end on the word "holding".** On 2026-08-01 one lane ended
+four consecutive turns saying it was waiting for a monitor to notify it that a
+gate had finished. The gate had already finished — no build process was even
+running — and its work sat uncommitted underneath the whole time. Two separate
+mistakes hide in that pattern and both are worth naming. First, **an armed
+background monitor is not a wake-up source**: nothing but the orchestrator
+resumes a worker, so waiting on a notification is waiting forever. Second, a
+turn that ends with no findings wastes the round trip entirely — the
+orchestrator has to spend a message asking what happened before it can spend
+one deciding anything.
+
+So the rule is about what a turn *ends with*, not about what it waits on: if a
+turn has to end, it ends with the findings so far written down, gaps named as
+"unknown". A partial report costs one round trip. "Holding" costs one round
+trip and buys nothing. When the orchestrator needs to know whether a lane's
+gate is still alive, the honest check is the host itself — `ps aux | grep
+cargo` — not the lane's own account of it.
+
 ## Disk-pressure preflight
 
 `.orchestrator/disk-preflight.sh` is the one serialized disk-recovery door.
