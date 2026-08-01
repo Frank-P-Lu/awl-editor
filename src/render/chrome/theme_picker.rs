@@ -151,10 +151,7 @@ impl TextPipeline {
             let mut s = String::from("\n");
             let mut ranges: Vec<(usize, std::ops::Range<usize>)> = Vec::new();
             for (idx, (lbl, _)) in self.overlay_lens.iter().enumerate() {
-                if idx == 0 {
-                    continue; // the All home is not a drawn label
-                }
-                if idx > 1 {
+                if idx > 0 {
                     s.push_str(super::strip_gap());
                 }
                 let a = s.len();
@@ -191,10 +188,7 @@ impl TextPipeline {
         let mut sep_ranges: Vec<std::ops::Range<usize>> = Vec::new();
         let mut active_range: Option<std::ops::Range<usize>> = None;
         for (idx, (lbl, active)) in geom.strip.iter().enumerate() {
-            if idx == 0 {
-                continue; // the All home is the flat corpus, not a drawn label
-            }
-            if idx > 1 {
+            if idx > 0 {
                 let s = strip_s.len();
                 strip_s.push_str(super::strip_gap());
                 sep_ranges.push(s..strip_s.len());

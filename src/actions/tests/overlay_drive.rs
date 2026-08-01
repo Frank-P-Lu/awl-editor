@@ -377,12 +377,12 @@ fn command_drive(journey: &mut crate::overlay::Journey, action: &Action) -> Effe
 
 /// The palette's corpus is the UNION of commands + NON-COVERED settings — a
 /// settings row with no command twin (e.g. "Keymap") is fuzzy-findable there,
-/// wears the `§ ` marker glyph in its display text, and shows its CURRENT VALUE
+/// reads plainly inside its named category, and shows its CURRENT VALUE
 /// in the secondary (binding) column exactly like the Settings menu itself. A
 /// COVERED row (e.g. "Theme" — see `settings::COVERED_BY`) is excluded: its
 /// covering command is the one door.
 #[test]
-fn union_palette_lists_settings_rows_with_marker_and_current_value() {
+fn union_palette_lists_plain_settings_rows_with_current_value() {
     let mut ov = command_overlay_with_settings();
     // The full corpus is commands ++ palette-visible (non-covered) settings.
     assert_eq!(
@@ -393,14 +393,14 @@ fn union_palette_lists_settings_rows_with_marker_and_current_value() {
         ov.push(ch);
     }
     assert!(
-        ov.item_strings().iter().any(|s| s == "§ Keymap"),
-        "typing \"keymap\" should surface the marked settings row: {:?}",
+        ov.item_strings().iter().any(|s| s == "Keymap"),
+        "typing \"keymap\" should surface the settings row: {:?}",
         ov.item_strings()
     );
     let idx = ov
         .item_strings()
         .iter()
-        .position(|s| s == "§ Keymap")
+        .position(|s| s == "Keymap")
         .unwrap();
     assert_eq!(
         ov.item_bindings()[idx],

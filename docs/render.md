@@ -60,7 +60,7 @@
 
 ## Settings in the palette + overlay titles (`overlay/` + `settings.rs`)
 
-- The Cmd-P palette's rows are catalog commands **∪** `settings::SETTINGS` (a settings row like "Keymap" is fuzzy-findable straight from the palette). Still one `OverlayKind::Command`; the union is data (`attach_settings_rows`, an `is_setting` flag). A settings row shows its current value in the secondary column; marker prefix `§ ` (measured bundled in `AwlMarks.ttf`; the gear ⚙ is not bundled, so it never competed). Dispatch parity via one owner `dispatch_settings_row` (`close_on_toggle` = the only difference: palette closes, Settings menu stays).
+- The Cmd-P palette's rows are catalog commands **∪** the surfaced Settings roster (a row like "Keymap" is fuzzy-findable straight from the palette). Still one `OverlayKind::Command`; the union is data (`attach_settings_rows`, typed `RowMeta`). Every command has one task category from `commands::task_category`; every attached setting joins Settings. The visible strip is `All · Files · Navigate · Format · View · Tools · Settings · Recent`; typing searches the whole union from any category, while clearing the query returns to the category left in place. Settings names read plainly because their named browse home replaces the unexplained `§` marker. Dispatch parity remains one owner (`dispatch_settings_row`; `close_on_toggle` is the only difference: the palette closes, Settings stays).
 - **Every `OverlayKind` names itself** (`OverlayKind::title`, no-wildcard) — drawn as a muted prefix on the picker's input line (Rename/InsertLink opt out via `draws_title_prefix`, their own prompt orients). Sidecar `overlay.title`.
 
 ## Settings RANGE rows — the rail (item 94, `range.rs` + `render/rowlayout`)

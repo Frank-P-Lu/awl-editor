@@ -158,10 +158,9 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
             ov.recent = crate::commands::visible_recent_indices();
             // THE UNION ROUND: the SETTINGS corpus joins the palette — appended after
             // the commands (mirrors Go-to's headings-after-files convention), so the
-            // flat All lens fuzzy-ranks commands + settings together while the File/
-            // Edit/View/Recent lenses (which bucket by `menu_section`/`recent`, neither
-            // of which any setting name matches) naturally exclude them, no bucket code
-            // needed. Same platform-filtered value readout the Settings menu itself
+            // flat All lens fuzzy-ranks commands + settings together; typed settings
+            // rows share the Settings browse category without a second command entry.
+            // Same platform-filtered value readout the Settings menu itself
             // opens with, so a setting reached via the palette shows the identical
             // current-value secondary cell.
             //

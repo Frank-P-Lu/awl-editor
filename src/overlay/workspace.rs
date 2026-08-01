@@ -204,7 +204,7 @@ impl OverlayState {
     }
 
     /// Point the rail at the category a given settings row lives under — the
-    /// deep-link door (`Cmd-P` → a `§ setting` row → this workspace, standing on
+    /// deep-link door (`Cmd-P` → a Settings-category row → this workspace, standing on
     /// that row under its own category). A no-op when the row's category names
     /// no lens, so an unknown category degrades to the `All` home rather than
     /// landing nowhere.

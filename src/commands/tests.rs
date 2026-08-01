@@ -162,11 +162,16 @@ fn every_popover_button_fires_a_catalog_command() {
 }
 
 #[test]
-fn command_facets_land_on_all_home_then_group_by_menu_section() {
+fn command_facets_land_on_all_home_then_offer_every_task_category() {
     assert_eq!(COMMAND_FACETS.strip[0].id, "all");
     assert!(COMMAND_FACETS.strip[0].sections.is_empty());
     let ids: Vec<&str> = COMMAND_FACETS.strip.iter().map(|f| f.id).collect();
-    assert_eq!(ids, vec!["all", "file", "edit", "view", "recent"]);
+    assert_eq!(
+        ids,
+        vec![
+            "all", "files", "navigate", "format", "view", "tools", "settings", "recent"
+        ]
+    );
 }
 
 #[test]
@@ -197,17 +202,26 @@ fn menu_section_buckets_known_commands() {
 
 #[test]
 fn command_bucket_routes_each_lens() {
-    assert_eq!(command_bucket(FacetItem::new("Save"), 1), Some("File"));
-    assert_eq!(command_bucket(FacetItem::new("Copy"), 1), None); // Edit, not File
-    assert_eq!(command_bucket(FacetItem::new("Copy"), 2), Some("Edit"));
+    assert_eq!(command_bucket(FacetItem::new("Save"), 1), Some("Files"));
+    assert_eq!(command_bucket(FacetItem::new("Copy"), 1), None);
     assert_eq!(
-        command_bucket(FacetItem::new("Switch theme…"), 3),
+        command_bucket(FacetItem::new("Forward word"), 2),
+        Some("Navigate")
+    );
+    assert_eq!(command_bucket(FacetItem::new("Copy"), 3), Some("Format"));
+    assert_eq!(
+        command_bucket(FacetItem::new("Switch theme…"), 4),
         Some("View")
+    );
+    assert_eq!(command_bucket(FacetItem::new("Guide"), 5), Some("Tools"));
+    assert_eq!(
+        command_bucket(FacetItem::new("Keybindings…"), 6),
+        Some("Settings")
     );
     let mut recent = FacetItem::new("Undo");
     recent.recent = true;
-    assert_eq!(command_bucket(recent, 4), Some("Recent"));
-    assert_eq!(command_bucket(FacetItem::new("Undo"), 4), None); // not flagged
+    assert_eq!(command_bucket(recent, 7), Some("Recent"));
+    assert_eq!(command_bucket(FacetItem::new("Undo"), 7), None); // not flagged
     // The All home (index 0) never groups.
     assert_eq!(command_bucket(FacetItem::new("Save"), 0), None);
 }

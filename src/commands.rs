@@ -1,20 +1,29 @@
 use crate::convention::Convention;
-use crate::facets::{Facet, FacetItem, FacetScheme};
 use crate::keymap::Action;
 use std::sync::Mutex;
 mod catalog;
 /// The convention/platform chord resolver — one subject, one file.
 mod chords;
+#[cfg(test)]
 mod menu_section;
+mod task_category;
+#[cfg(test)]
+use crate::facets::FacetItem;
 use catalog::COMMAND_SEED;
 #[cfg(any(not(target_arch = "wasm32"), test))]
 pub use chords::resolved_native_label;
 pub use chords::{
     resolved_native, resolved_native_label_truthful, resolved_native_truthful, web_alternate_keys,
 };
-pub use menu_section::menu_section;
+#[cfg(test)]
+pub(crate) use menu_section::menu_section;
 #[cfg(test)]
 use menu_section::{EDIT_COMMANDS, FILE_COMMANDS, VIEW_COMMANDS};
+pub use task_category::COMMAND_FACETS;
+#[cfg(test)]
+use task_category::command_bucket;
+#[cfg(test)]
+pub(crate) use task_category::{TaskCategory, task_category_of};
 pub struct Command {
     pub name: &'static str,
     pub action: Action,
@@ -517,49 +526,6 @@ pub fn action_available(action: &Action, platform: Platform) -> bool {
         None => true,
     }
 }
-
-const COMMAND_FACET_STRIP: [Facet; 5] = [
-    Facet {
-        label: "All",
-        id: "all",
-        sections: &[],
-    },
-    Facet {
-        label: "File",
-        id: "file",
-        sections: &["File"],
-    },
-    Facet {
-        label: "Edit",
-        id: "edit",
-        sections: &["Edit"],
-    },
-    Facet {
-        label: "View",
-        id: "view",
-        sections: &["View"],
-    },
-    Facet {
-        label: "Recent",
-        id: "recent",
-        sections: &["Recent"],
-    },
-];
-
-fn command_bucket(item: FacetItem, lens_idx: usize) -> Option<&'static str> {
-    match lens_idx {
-        1 => (menu_section(item.accept) == Some("File")).then_some("File"),
-        2 => (menu_section(item.accept) == Some("Edit")).then_some("Edit"),
-        3 => (menu_section(item.accept) == Some("View")).then_some("View"),
-        4 => item.recent.then_some("Recent"), // Recent
-        _ => None,
-    }
-}
-
-pub static COMMAND_FACETS: FacetScheme = FacetScheme {
-    strip: &COMMAND_FACET_STRIP,
-    bucket: command_bucket,
-};
 
 // ── Recently-run commands (an in-memory MRU, NOT persisted) ────────────────────
 //

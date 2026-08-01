@@ -48,5 +48,22 @@ pub use kind::{
 // OverlayRow/RowMeta/RowMetaTag: used by overlay::tests + item 55's follow-up
 pub use state::{OverlayRow, OverlayState, RangeCell, RowMeta, RowMetaTag};
 
+fn command_hint_actions() -> Vec<HintAction> {
+    vec![
+        HintAction {
+            glyph: "↵",
+            label: "choose",
+        },
+        HintAction {
+            glyph: ARROWS_LR,
+            label: "category",
+        },
+        HintAction {
+            glyph: "esc",
+            label: "close",
+        },
+    ]
+}
+
 #[cfg(test)]
 mod tests;

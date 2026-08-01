@@ -99,7 +99,7 @@ impl OverlayState {
             ranked.retain(|&i| !matches!(self.rows[i].meta, RowMeta::GotoHeading { .. }));
         }
         let scheme = self.facet_scheme();
-        if let Some(sc) = scheme.filter(|_| self.facet_lens != 0) {
+        if let Some(sc) = scheme.filter(|_| self.filters_to_active_facet()) {
             let mut items = Vec::with_capacity(ranked.len());
             let mut sections = Vec::with_capacity(ranked.len());
             for sect in sc.strip[self.facet_lens].sections {
@@ -428,7 +428,7 @@ impl OverlayState {
             return rel.rsplit('/').next().unwrap_or(rel).to_string();
         }
         if matches!(row.meta, RowMeta::CommandSetting { .. }) {
-            return format!("{}{}", OverlayKind::SETTINGS_MARKER_PREFIX, row.accept);
+            return row.accept.clone();
         }
         if matches!(row.meta, RowMeta::GotoHeading { .. }) {
             return format!("{}{}", OverlayKind::HEADING_MARKER_PREFIX, row.accept);

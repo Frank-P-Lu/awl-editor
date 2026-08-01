@@ -141,8 +141,8 @@ pub fn scheme(kind: OverlayKind) -> Option<&'static FacetScheme> {
         // Recent (the recent-PROJECTS MRU). Scheme lives beside the other file-picker
         // schemes in [`crate::index`], mirroring Go-to's own Recent lens.
         OverlayKind::Project => Some(&crate::index::PROJECT_FACETS),
-        // The COMMAND PALETTE: lens the catalog by menu section (File / Edit / View)
-        // + Recent. Scheme lives in its domain module ([`crate::commands`]).
+        // The COMMAND PALETTE: browse the complete union through task categories +
+        // Recent. Scheme and exhaustive taxonomy live in [`crate::commands`].
         OverlayKind::Command => Some(&crate::commands::COMMAND_FACETS),
         // The HISTORY TIMELINE: lens the versions by Session / Today. Scheme lives in
         // its domain module ([`crate::history`]).

@@ -1138,8 +1138,8 @@ fn overlay_lens_at_resolves_facet_labels_by_their_own_strip_index() {
         return;
     };
 
-    // A faceted picker shaped like the theme picker: five strip lenses (All,
-    // Time, Register, Voice, Temperature — All never drawn), Time active.
+    // A faceted picker shaped like the command palette: all five strip labels are
+    // visible, including the All home, with Time active.
     let strip = |active: usize| -> Vec<(String, bool)> {
         ["All", "Time", "Register", "Voice", "Temperature"]
             .iter()
