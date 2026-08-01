@@ -367,6 +367,7 @@ struct ThemeSettleInFlight {
 /// GPU surface + frame loop (device/queue/surface, prepare/render).
 mod files;
 mod gpu;
+mod gpu_recovery;
 mod input;
 mod lifecycle;
 /// The `about_to_wait` scheduling body: every debounce / settle deadline, the
@@ -388,6 +389,7 @@ mod workspace;
 pub(crate) use schedule::RecordingScheduler;
 pub(crate) use theme_font_debounce::{ThemeFontReshapeDecision, theme_font_reshape_decision};
 mod apply;
+mod apply_context;
 /// ITEM 188 — the live `App`'s own SIDECAR FOLD + its capture constructor.
 /// Native-only, like the `--screenshot-app` mode that is its only consumer.
 #[cfg(not(target_arch = "wasm32"))]
@@ -583,7 +585,7 @@ pub struct App {
     /// is running, "where does New document / Move… land" is always the ACTIVE
     /// folder (`self.root`), never this field again — see item 76.
     default_folder: PathBuf,
-    tutorial_folder_intent: Option<TutorialFolderIntent>,
+    tutorial_folder_intent: Option<files::TutorialFolderIntent>,
     /// When the open DOCUMENT last changed and an idle AUTOSAVE is pending, the
     /// buffer version known ON DISK, the CLOBBER-GUARD stat baselines (doc +
     /// scratch), and the scratch-stash's own saved-version — ALL buffer-scoped
@@ -827,58 +829,7 @@ pub struct App {
     _menu_bar: Option<muda::Menu>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum TutorialFolderIntent {
-    NewDocument,
-    KeepTutorial,
-}
-
 impl App {
-    fn rebuild_gpu(&mut self, event_loop: &ActiveEventLoop, reason: &str) {
-        if self.gpu_lifecycle == GpuLifecycle::Rebuilding {
-            return;
-        }
-        let Some(window) = self.recovery_window.clone() else {
-            event_loop.exit();
-            return;
-        };
-        self.gpu = None;
-        self.gpu_lifecycle = GpuLifecycle::Rebuilding;
-        self.last_frame = None;
-        self.gpu_retry_at = None;
-        self.gpu_timeout_streak = 0;
-        self.input_stamp = None;
-        self.set_sticky_notice(format!("{reason} — rebuilding graphics…"));
-        let display_handle = event_loop.owned_display_handle();
-        #[cfg(not(target_arch = "wasm32"))]
-        match pollster::block_on(Gpu::new(window, display_handle)) {
-            Ok(gpu) => {
-                self.gpu = Some(gpu);
-                self.gpu_lifecycle = GpuLifecycle::Active { oom_skips: 0 };
-                self.set_toast_notice("graphics recovered");
-                self.on_gpu_ready();
-            }
-            Err(e) => {
-                eprintln!("failed to rebuild render state: {e}");
-                self.set_sticky_notice("graphics could not recover — closing safely");
-                event_loop.exit();
-            }
-        }
-        #[cfg(target_arch = "wasm32")]
-        {
-            let slot = self.gpu_pending.clone();
-            let wake = window.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                *slot.borrow_mut() = Some(
-                    Gpu::new(window, display_handle)
-                        .await
-                        .map_err(|e| e.to_string()),
-                );
-                wake.request_redraw();
-            });
-        }
-    }
-
     fn new(
         file: Option<PathBuf>,
         root: PathBuf,
@@ -946,11 +897,7 @@ impl App {
         };
         let project = crate::project::Project::resolve(&root);
         let file_index = crate::index::build_index(&root);
-        let default_folder = crate::resolve_default_folder(
-            &cli_default_folder
-                .clone()
-                .or_else(|| config.default_folder.clone()),
-        );
+        let default_folder = files::initial_default_folder(&cli_default_folder, &config);
         let workspace_opt = cli_workspace.clone().or_else(|| config.workspace.clone());
         let workspace_root = Some(crate::resolve_workspace(&workspace_opt, &root));
         // Load the persisted RECENT PROJECT ROOTS (the Recent Projects picker's

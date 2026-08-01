@@ -36,9 +36,11 @@ mod open;
 mod range_settings;
 mod rebind;
 mod settings;
+mod tutorial;
 mod verbs;
 
 pub(in crate::app) use active::BufferExtra;
+pub(in crate::app) use tutorial::{TutorialFolderIntent, initial_default_folder};
 
 // Only `tests` (below, via `use super::*`) needs the App-scope glob now that
 // this file's own pure leftover (`window_title`) needs nothing from it beyond

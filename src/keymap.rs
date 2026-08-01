@@ -4,6 +4,10 @@ use winit::event::Modifiers;
 use winit::keyboard::{Key, ModifiersState, NamedKey, SmolStr};
 
 use crate::convention::Convention;
+
+mod binding;
+use binding::canon_key;
+pub use binding::parse_binding;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     ForwardChar,
@@ -1088,54 +1092,6 @@ pub fn linux_emacs_preset_keep() -> Vec<String> {
         .iter()
         .map(|c| format!("C-{c}"))
         .collect()
-}
-
-fn canon_key(key: &Key) -> Key {
-    match key {
-        Key::Character(s) => Key::Character(SmolStr::new(s.to_lowercase())),
-        other => other.clone(),
-    }
-}
-
-fn key_is_char(key: &Key, c: char) -> bool {
-    matches!(key, Key::Character(s) if s.eq_ignore_ascii_case(&c.to_string()))
-}
-
-/// Parse a config CHORD STRING into a [`Chord`] keyed for the override maps. Reuses
-/// the headless [`crate::keyspec::parse_chord`] so config chords and `--keys` chords
-/// share one grammar. Two shapes are accepted (matching the keymap's prefix model):
-/// a single chord (`"C-t"`, `"M-g"`), or a `C-x`/`C-c` prefix plus one key (`"C-x g"`,
-/// `"C-c C-o"`). Anything else (an unsupported prefix, 3+ chords, an empty/garbled
-/// token) is an `Err(String)` the caller reports while keeping the default — never a panic.
-pub fn parse_binding(spec: &str) -> Result<Chord, String> {
-    let toks: Vec<&str> = spec.split_whitespace().collect();
-    match toks.as_slice() {
-        [one] => {
-            let (k, m) = crate::keyspec::parse_chord(one).map_err(|e| e.to_string())?;
-            Ok(Chord::Single(canon_key(&k), m.state()))
-        }
-        [a, b] => {
-            let (ka, ma) = crate::keyspec::parse_chord(a).map_err(|e| e.to_string())?;
-            let is_cx = ma.state() == ModifiersState::CONTROL && key_is_char(&ka, 'x');
-            let is_cc = ma.state() == ModifiersState::CONTROL && key_is_char(&ka, 'c');
-            if !is_cx && !is_cc {
-                return Err(format!(
-                    "only the C-x / C-c prefixes are supported for two-chord bindings, got {a:?}"
-                ));
-            }
-            let (kb, mb) = crate::keyspec::parse_chord(b).map_err(|e| e.to_string())?;
-            if is_cx {
-                Ok(Chord::Cx(canon_key(&kb), mb.state()))
-            } else {
-                Ok(Chord::Cc(canon_key(&kb), mb.state()))
-            }
-        }
-        [] => Err("empty binding".to_string()),
-        _ => Err(format!(
-            "expected one chord or 'C-x <key>', got {} chords",
-            toks.len()
-        )),
-    }
 }
 
 #[cfg(test)]
