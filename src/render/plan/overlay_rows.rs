@@ -110,6 +110,10 @@ pub(in crate::render) struct OverlayRowPlanInput<'a> {
     /// its exact attachment-side row span. `None` keeps the historical (and
     /// env-probe) step above, so every unassigned world stays inert.
     pub cluster_span: Option<RowSpan>,
+    /// A selected diagonal row steps its whole cluster outward. This remains
+    /// planned geometry so its text, control, selection connector, and hit-test
+    /// share the same two-sided span.
+    pub selected_offset: Option<(f32, f32)>,
 }
 
 /// The row-side span for a measured diagonal cluster.  The cluster owner
@@ -243,6 +247,7 @@ pub(in crate::render) fn test_row_top(
         lines: None,
         dx_per_row: 0.0,
         cluster_span: None,
+        selected_offset: None,
     });
     plan.row_top(row).expect("row is inside the planned window")
 }
@@ -267,6 +272,7 @@ pub(in crate::render) fn test_rows(text_top: f32, lh: f32, n: usize) -> Vec<Plan
         lines: None,
         dx_per_row: 0.0,
         cluster_span: None,
+        selected_offset: None,
     })
     .rows()
     .to_vec()
@@ -304,7 +310,7 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
     );
     let dx = |display: usize| base_dx + dx_step * display as f32;
     let dw = |display: usize| base_dw + dw_step * display as f32;
-    let rows: Vec<PlannedRow> = match input.lines {
+    let mut rows: Vec<PlannedRow> = match input.lines {
         Some(lines) => lines
             .iter()
             .enumerate()
@@ -334,6 +340,12 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
             })
             .collect(),
     };
+    if let Some((dx, dw)) = input.selected_offset {
+        if let Some(row) = rows.iter_mut().find(|row| row.item == Some(input.selected)) {
+            row.dx += dx;
+            row.dw += dw;
+        }
+    }
     // THE LOGICAL SELECTED DISPLAY LINE — the row Enter or a click activates.
     // Two families: a grouped plan's selected item sits at its POSITION in the
     // line sequence (headers push it down); a flat window's is its offset in the
@@ -455,6 +467,24 @@ impl OverlayRowPlan {
         self.rows
             .iter()
             .position(|r| py >= r.top && py < r.bottom())
+    }
+
+    /// The display row that OWNS a travelling band centred at `py`.
+    ///
+    /// A settled band is wholly inside one planned slot and [`Self::display_at`]
+    /// answers it directly. A `TwoShape` echo can instead straddle the gap while
+    /// it travels, so its visual centre is assigned to the nearest planned row.
+    /// That is deliberately a planner answer, not a selection-animation guess:
+    /// each emitted shape reads the same row span as text and hit testing.
+    pub(in crate::render) fn display_nearest(&self, py: f32) -> Option<usize> {
+        self.rows
+            .iter()
+            .min_by(|a, b| {
+                let a_distance = (a.top + a.height * 0.5 - py).abs();
+                let b_distance = (b.top + b.height * 0.5 - py).abs();
+                a_distance.total_cmp(&b_distance)
+            })
+            .map(|row| row.display)
     }
 
     /// The planned LEFT-edge inset of display row `display` — `0.0` past the

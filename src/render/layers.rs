@@ -1245,6 +1245,8 @@ impl TextPipeline {
             self.overlay_bars.prepare(device, queue, width, height, &[]);
             self.overlay_spine
                 .prepare_rotated(device, queue, width, height, &[]);
+            self.overlay_spine_selected
+                .prepare_rotated(device, queue, width, height, &[]);
         } else {
             self.park_overlay(device, queue, width, height)?;
         }

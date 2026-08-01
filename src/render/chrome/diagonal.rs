@@ -11,6 +11,8 @@ const SPINE_WEIGHT_LOGICAL: f32 = 1.5;
 const SPINE_CORNER_LOGICAL: f32 = 0.75;
 const ATTACHMENT_BAND_INSET_LOGICAL: f32 = 44.0;
 const CLUSTER_CONNECTOR_LOGICAL: f32 = 10.0;
+const SELECTED_OUTWARD_LOGICAL: f32 = 4.0;
+const SELECTED_SPINE_WEIGHT_LOGICAL: f32 = 3.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(in crate::render) struct DiagonalComposition {
@@ -20,6 +22,8 @@ pub(in crate::render) struct DiagonalComposition {
     pub spine_corner: f32,
     pub attachment_inset: f32,
     pub connector: f32,
+    pub selected_outward: f32,
+    pub selected_spine_weight: f32,
 }
 
 /// The one measured row-cluster layout shared by diagonal text, accessory
@@ -34,6 +38,8 @@ pub(in crate::render) struct DiagonalClusterRail {
     spine_start: f32,
     spine_step: f32,
     span: RowSpan,
+    selected_display: Option<usize>,
+    selected_shift: f32,
 }
 
 #[cfg(test)]
@@ -59,6 +65,10 @@ impl DiagonalClusterProbe {
     pub(in crate::render) fn accessory_right(self, display: usize) -> f32 {
         self.rail.accessory_right(display)
     }
+
+    pub(in crate::render) fn selected_offset(self) -> (f32, f32) {
+        self.rail.selected_offset()
+    }
 }
 
 impl DiagonalClusterRail {
@@ -80,19 +90,35 @@ impl DiagonalClusterRail {
         let inset = composition
             .attachment_inset
             .min((geom.band_w() * 0.5 - composition.connector).max(0.0));
-        let available_travel = (geom.band_w() - inset - composition.connector - cluster_w).max(0.0);
+        // A selected cluster takes one small outward step. Reserve that room at
+        // the far end before deriving the per-row diagonal travel, otherwise a
+        // last visible selected row could push its measured accessory past the
+        // card clip.
+        let available_travel = (geom.band_w()
+            - inset
+            - composition.connector
+            - cluster_w
+            - composition.selected_outward)
+            .max(0.0);
         let step = if rows > 0.0 {
             composition.row_step.abs().min(available_travel / rows)
         } else {
             0.0
         };
+        // The row plan is also the text clip and pointer extent. A contextual
+        // label can be wider than a narrow card's attachment-side budget, so
+        // include that measured overhang in the SAME span rather than clipping
+        // ink at one edge while a pointer still reads the old card bounds.
+        let overhang = (inset + composition.connector + cluster_w + composition.selected_outward
+            - geom.band_w())
+        .max(0.0);
         let (spine_start, spine_step, span) = match composition.direction {
             theme::DiagonalDirection::Descending => (
                 band_x + inset,
                 step,
                 RowSpan {
                     dx: inset,
-                    dw: 0.0,
+                    dw: overhang,
                     dx_per_row: step,
                     dw_per_row: 0.0,
                 },
@@ -101,7 +127,7 @@ impl DiagonalClusterRail {
                 band_right - inset,
                 -step,
                 RowSpan {
-                    dx: 0.0,
+                    dx: -overhang,
                     dw: -inset,
                     dx_per_row: 0.0,
                     dw_per_row: -step,
@@ -117,6 +143,8 @@ impl DiagonalClusterRail {
             spine_start,
             spine_step,
             span,
+            selected_display: plan.selected_display(),
+            selected_shift: composition.selected_outward,
         }
     }
 
@@ -128,8 +156,29 @@ impl DiagonalClusterRail {
         self.spine_start + self.spine_step * display as f32
     }
 
+    fn shift(self, display: usize) -> f32 {
+        (self.selected_display == Some(display))
+            .then_some(self.selected_shift)
+            .unwrap_or(0.0)
+            * self.direction.sign()
+    }
+
+    pub(in crate::render) fn selected_offset(self) -> (f32, f32) {
+        let shift = self.selected_shift * self.direction.sign();
+        (shift, shift)
+    }
+
+    fn spine(self, plan: &OverlayRowPlan) -> Option<([f32; 2], [f32; 2])> {
+        let first = plan.rows().first()?;
+        let last = plan.rows().last()?;
+        Some((
+            [self.spine_x(first.display), first.top + first.height * 0.5],
+            [self.spine_x(last.display), last.top + last.height * 0.5],
+        ))
+    }
+
     pub(in crate::render) fn label_left(self, display: usize) -> f32 {
-        let spine = self.spine_x(display);
+        let spine = self.spine_x(display) + self.shift(display);
         match self.direction {
             theme::DiagonalDirection::Descending => spine + self.connector,
             theme::DiagonalDirection::Ascending => {
@@ -162,23 +211,9 @@ impl DiagonalComposition {
             spine_corner: SPINE_CORNER_LOGICAL * scale,
             attachment_inset: ATTACHMENT_BAND_INSET_LOGICAL * scale,
             connector: CLUSTER_CONNECTOR_LOGICAL * scale,
+            selected_outward: SELECTED_OUTWARD_LOGICAL * scale,
+            selected_spine_weight: SELECTED_SPINE_WEIGHT_LOGICAL * scale,
         }
-    }
-
-    /// The continuous spine through the fixed surface-relative row samples.
-    pub fn spine(self, geom: &OverlayGeom, plan: &OverlayRowPlan) -> Option<([f32; 2], [f32; 2])> {
-        let first = plan.rows().first()?;
-        let last = plan.rows().last()?;
-        let edge = |row: &PlannedRow| match self.direction {
-            theme::DiagonalDirection::Descending => geom.band_x() + row.dx,
-            theme::DiagonalDirection::Ascending => geom.band_x() + geom.band_w() + row.dw,
-        };
-        let x0 = edge(first);
-        let x1 = edge(last);
-        Some((
-            [x0, first.top + first.height * 0.5],
-            [x1, last.top + last.height * 0.5],
-        ))
     }
 }
 
@@ -261,16 +296,27 @@ impl TextPipeline {
         queue: &wgpu::Queue,
         width: u32,
         height: u32,
-        geom: &OverlayGeom,
+        _geom: &OverlayGeom,
         plan: &OverlayRowPlan,
     ) {
         let Some(composition) = active(self) else {
             self.overlay_spine
                 .prepare_rotated(device, queue, width, height, &[]);
+            self.overlay_spine_selected
+                .prepare_rotated(device, queue, width, height, &[]);
             return;
         };
-        let Some((start, end)) = composition.spine(geom, plan) else {
+        let Some(cluster) = self.diagonal_cluster else {
             self.overlay_spine
+                .prepare_rotated(device, queue, width, height, &[]);
+            self.overlay_spine_selected
+                .prepare_rotated(device, queue, width, height, &[]);
+            return;
+        };
+        let Some((start, end)) = cluster.spine(plan) else {
+            self.overlay_spine
+                .prepare_rotated(device, queue, width, height, &[]);
+            self.overlay_spine_selected
                 .prepare_rotated(device, queue, width, height, &[]);
             return;
         };
@@ -279,6 +325,44 @@ impl TextPipeline {
         let segment = crate::selection::spine_segment(start, end, composition.spine_weight);
         self.overlay_spine
             .prepare_rotated(device, queue, width, height, &[segment]);
+
+        let selected = plan
+            .selected_display()
+            .and_then(|display| plan.rows().iter().find(|row| row.display == display));
+        let selected_segments = selected.map_or_else(Vec::new, |row| {
+            let spine_x = cluster.spine_x(row.display);
+            let mid_y = row.top + row.height * 0.5;
+            let local = crate::selection::spine_segment(
+                [spine_x, row.top + 2.0],
+                [spine_x, row.bottom() - 2.0],
+                composition.selected_spine_weight,
+            );
+            let connector_end = match composition.direction {
+                theme::DiagonalDirection::Descending => [cluster.label_left(row.display), mid_y],
+                theme::DiagonalDirection::Ascending => {
+                    [cluster.accessory_right(row.display), mid_y]
+                }
+            };
+            vec![
+                local,
+                crate::selection::spine_segment(
+                    [spine_x, mid_y],
+                    connector_end,
+                    composition.selected_spine_weight,
+                ),
+            ]
+        });
+        self.overlay_spine_selected
+            .set_corner(composition.spine_corner);
+        self.overlay_spine_selected
+            .set_color(theme::base_content().rgba_bytes());
+        self.overlay_spine_selected.prepare_rotated(
+            device,
+            queue,
+            width,
+            height,
+            &selected_segments,
+        );
     }
 }
 
@@ -294,6 +378,8 @@ mod tests {
         assert_eq!(two.spine_weight, one.spine_weight * 2.0);
         assert_eq!(two.spine_corner, one.spine_corner * 2.0);
         assert_eq!(two.attachment_inset, one.attachment_inset * 2.0);
+        assert_eq!(two.selected_outward, one.selected_outward * 2.0);
+        assert_eq!(two.selected_spine_weight, one.selected_spine_weight * 2.0);
         assert!(
             one.row_step > 0.0,
             "the diagonal law must not pass on an inert composition"
@@ -308,6 +394,12 @@ mod tests {
         assert_eq!(down.spine_weight, up.spine_weight);
         assert_eq!(down.spine_corner, up.spine_corner);
         assert_eq!(down.attachment_inset, up.attachment_inset);
+        assert_eq!(down.selected_outward, up.selected_outward);
+        assert_eq!(down.selected_spine_weight, up.selected_spine_weight);
+        assert!(
+            down.selected_spine_weight > down.spine_weight,
+            "the selected local spine must visibly thicken over its resting stroke"
+        );
     }
 
     #[test]
@@ -340,6 +432,11 @@ mod tests {
                 theme::muted(),
                 theme::primary(),
                 "{name}: spine ink is never the accent"
+            );
+            assert_ne!(
+                theme::muted(),
+                theme::base_content(),
+                "{name}: the selected local spine must brighten over the resting muted ink"
             );
         }
         theme::set_active(theme::DEFAULT_THEME);

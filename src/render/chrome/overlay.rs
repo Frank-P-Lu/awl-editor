@@ -580,6 +580,9 @@ impl TextPipeline {
     /// standalone pointer/report entry points, which have no frame to ride.
     pub(in crate::render) fn overlay_row_plan(&self, geom: &OverlayGeom) -> OverlayRowPlan {
         let cluster_span = self.diagonal_cluster.map(|cluster| cluster.span());
+        let selected_offset = self
+            .diagonal_cluster
+            .map(|cluster| cluster.selected_offset());
         plan_overlay_rows(&OverlayRowPlanInput {
             // ITEM 114 — the CONTENT BAND, not necessarily the card: a workspace's
             // rows occupy the pane beside its rail, so the planned slots (and with
@@ -600,6 +603,7 @@ impl TextPipeline {
             lines: geom.theme.then_some(geom.plan.as_slice()),
             dx_per_row: self.overlay_row_dx_step(),
             cluster_span,
+            selected_offset,
         })
     }
 

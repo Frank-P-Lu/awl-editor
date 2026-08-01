@@ -143,14 +143,20 @@ fn every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_wor
                             cluster.accessory_w >= 0.0,
                             "{ctx}: an accessory reservation is never negative"
                         );
+                        let (selected_dx, selected_dw) = (row.item == Some(want_item))
+                            .then(|| cluster.selected_offset())
+                            .unwrap_or((0.0, 0.0));
                         assert!(
                             (row.dx
-                                - (cluster.span.dx + cluster.span.dx_per_row * row.display as f32))
+                                - (cluster.span.dx
+                                    + cluster.span.dx_per_row * row.display as f32
+                                    + selected_dx))
                                 .abs()
                                 < 0.01
                                 && (row.dw
                                     - (cluster.span.dw
-                                        + cluster.span.dw_per_row * row.display as f32))
+                                        + cluster.span.dw_per_row * row.display as f32
+                                        + selected_dw))
                                     .abs()
                                     < 0.01,
                             "{ctx}: planner row bounds must read the measured cluster span"
@@ -183,6 +189,21 @@ fn every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_wor
                             p.overlay_row_at(cluster.label_left(row.display) + 0.5, y),
                             Some(want_item),
                             "{ctx}: the label's drawn side and pointer row must agree"
+                        );
+                        assert_eq!(
+                            p.overlay_spine.instance_count(),
+                            1,
+                            "{ctx}: diagonal base spine must remain one continuous segment"
+                        );
+                        assert_eq!(
+                            p.overlay_spine_selected.instance_count(),
+                            2,
+                            "{ctx}: selected row must draw one bright local spine and one connector"
+                        );
+                        assert_eq!(
+                            p.overlay_rows.instance_count(),
+                            0,
+                            "{ctx}: diagonal selection must not fall back to a full-width row fill"
                         );
 
                         match setting.kind {
