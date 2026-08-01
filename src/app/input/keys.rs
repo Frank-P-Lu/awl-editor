@@ -323,8 +323,8 @@ impl App {
             crate::peek::PeekStimulus::ArmBroken
         };
         self.feed_peek(stim);
+        self.sync_cursor_icon();
     }
-
     pub(in crate::app) fn on_ime(&mut self, ime: Ime) {
         self.handle_ime(ime);
         self.sync_view(true);

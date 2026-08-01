@@ -1015,7 +1015,7 @@ mod tests {
         // caller does NOT advance its cache (`prev` stays the last genuinely
         // -drawn icon); the next un-hide call (hidden = false) then sees the
         // real prev-vs-next gap and fires exactly once, landing on the
-        // context-correct shape rather than a stale intermediate one.
+        // correct shape rather than a stale one.
         assert_eq!(
             cursor_icon_change(CursorIcon::Default, CursorIcon::Text, true),
             None

@@ -64,6 +64,7 @@ const COMMAND_TASK_CATEGORIES: &[(&str, TaskCategory)] = &[
     ("Duplicate note", Files),
     ("Finish file", Files),
     ("Follow link", Navigate),
+    ("Copy link destination", Navigate),
     ("Switch theme…", View),
     ("Caret style…", Settings),
     ("Dictionary…", Settings),

@@ -38,6 +38,7 @@ rename_note|||
 duplicate_note|||
 finish_file|Cmd-W|C-w|
 follow_link|||C-c C-o
+copy_link_destination|||
 switch_theme|Cmd-T|C-t|
 caret_style|||
 dictionary|||

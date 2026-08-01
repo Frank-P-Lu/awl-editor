@@ -1081,7 +1081,7 @@ fn poster_bars_centered_lists_preserve_page_and_distinguish_plates() {
 
         for kind in OverlayKind::ALL {
             let centered = match kind {
-                OverlayKind::Spell => false,
+                OverlayKind::Spell | OverlayKind::Context => false,
                 OverlayKind::Theme
                 | OverlayKind::Goto
                 | OverlayKind::Browse
@@ -1342,7 +1342,8 @@ fn bars_float_bounded_plates_for_every_overlay_kind() {
             | OverlayKind::Assets
             | OverlayKind::Rename
             | OverlayKind::InsertLink
-            | OverlayKind::KeepName => false,
+            | OverlayKind::KeepName
+            | OverlayKind::Context => false,
         };
 
         let mut v = view("the quick brown fox jumps\n", 0, 0);
@@ -1983,8 +1984,8 @@ fn facet_chips_render_a_pill_per_label_and_differ_from_text() {
     };
     let _g = crate::testlock::serial();
 
-    // A faceted picker: All (index 0, never drawn) + three lenses, one active.
-    // The drawn labels are File / Edit / View → 3 pills, 1 active + 2 ghost.
+    // A faceted picker: All + three task lenses, one active. All remains drawn so
+    // the user can return to the unfiltered corpus.
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
     v.overlay_items = (0..8).map(|i| format!("Command {i}")).collect();
@@ -2013,15 +2014,15 @@ fn facet_chips_render_a_pill_per_label_and_differ_from_text() {
     let ghost_stroke = p.overlay_facet_ghost.stroke();
     set_facet_style_test_override(None);
 
-    // ONE pill per label: 1 active (filled) + 2 inactive (ghost stroke). This is
+    // ONE pill per label: 1 active (filled) + 3 inactive (ghost stroke). This is
     // the assertion the two prior attempts never made — they rendered nothing.
     assert_eq!(
         active_pills, 1,
         "Chips draws exactly ONE filled active pill (got {active_pills})"
     );
     assert_eq!(
-        ghost_pills, 2,
-        "Chips draws ONE ghost pill per INACTIVE drawn facet (File active, Edit+View ghost) — got {ghost_pills}"
+        ghost_pills, 3,
+        "one ghost pill per inactive facet; got {ghost_pills}"
     );
     assert!(
         ghost_stroke > 0.0,
@@ -2089,8 +2090,8 @@ fn facet_chips_leave_a_breathing_gap_between_pills() {
 
     assert_eq!(
         pills.len(),
-        3,
-        "File/Edit/View draw 3 pills (1 active + 2 ghost)"
+        4,
+        "All/File/Edit/View draw 4 pills (1 active + 3 ghost)"
     );
     pills.sort_by(|a, b| a[0].partial_cmp(&b[0]).unwrap());
     for pair in pills.windows(2) {
@@ -2103,6 +2104,58 @@ fn facet_chips_leave_a_breathing_gap_between_pills() {
             pair[1]
         );
     }
+}
+
+/// Pointer anchoring, edge clamping and row hit-testing share the
+/// real overlay geometry across every world and both common scale factors.
+#[test]
+fn context_menu_anchor_clamps_and_hits_across_world_dpi_and_edges() {
+    let (w, h) = (720.0f32, 480.0f32);
+    let Some((device, queue, mut p)) = headless_dqp(w, h) else {
+        eprintln!("skipping context menu anchor sweep: no wgpu adapter");
+        return;
+    };
+    let _g = crate::testlock::serial();
+    for (world_i, world) in theme::THEMES.iter().enumerate() {
+        theme::set_active(world_i);
+        for dpi in [1.0, 2.0] {
+            p.set_dpi(dpi);
+            for anchor in [
+                (2.0, 2.0),
+                (w - 2.0, 2.0),
+                (2.0, h - 2.0),
+                (w - 2.0, h - 2.0),
+            ] {
+                let mut v = view("body\n", 0, 0);
+                v.overlay_active = true;
+                v.overlay_title = "context menu";
+                v.overlay_items = vec!["Cut".into(), "Copy".into(), "Paste".into()];
+                v.overlay_bindings = vec![String::new(); 3];
+                v.overlay_hint = "↵ choose   esc close".into();
+                v.overlay_context_anchor = Some(anchor);
+                p.set_view(&v);
+                p.prepare(&device, &queue, w as u32, h as u32).unwrap();
+                let rect = p.overlay_card_rect().expect("context card");
+                let [x, y, cw, ch] = rect;
+                assert!(
+                    x >= 0.0 && y >= 0.0 && x + cw <= w && y + ch <= h,
+                    "{} dpi={dpi} anchor={anchor:?} rect={rect:?}",
+                    world.name
+                );
+                let mut found = None;
+                'scan: for yy in (y as u32)..((y + ch) as u32) {
+                    for xx in (x as u32)..((x + cw) as u32) {
+                        if let Some(row) = p.overlay_row_at(xx as f32 + 0.5, yy as f32 + 0.5) {
+                            found = Some(row);
+                            break 'scan;
+                        }
+                    }
+                }
+                assert_eq!(found, Some(0), "{} dpi={dpi} anchor={anchor:?}", world.name);
+            }
+        }
+    }
+    theme::set_active(theme::DEFAULT_THEME);
 }
 
 /// ITEM 46 — the faceted grouped-lens SECTION HEADERS sit on a plate (the wave-2

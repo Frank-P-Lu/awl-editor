@@ -1,10 +1,9 @@
+use super::opts::CaptureOpts;
+use super::{CANVAS_HEIGHT, CANVAS_WIDTH, schema_held, schema_plain, schema_timeline};
 use crate::render::{self, ScriptFontReports, TextPipeline, ViewState};
 use anyhow::{Context, Result};
 use std::io::Write;
 use std::path::Path;
-
-use super::opts::CaptureOpts;
-use super::{CANVAS_HEIGHT, CANVAS_WIDTH, schema_held, schema_plain, schema_timeline};
 
 #[inline]
 // Test captures read shared globals; enforce the process-wide test lock here.
@@ -18,7 +17,6 @@ pub(super) fn assert_capture_is_serialized() {
          `let _tg = crate::testlock::serial();` as the first line of the test."
     );
 }
-
 pub(super) struct CaretFrame {
     pub(super) t_ms: u32,
     pub(super) pos: (f32, f32),
@@ -31,7 +29,6 @@ pub(super) struct CaretFrame {
     pub(super) trail: Option<TrailReport>,
     pub(super) cosmetic: CosmeticReport,
 }
-
 pub(super) struct CosmeticReport {
     pub(super) present: bool,
     pub(super) length: f32,
@@ -42,14 +39,12 @@ pub(super) struct CosmeticReport {
     pub(super) tail: (f32, f32),
     pub(super) head: (f32, f32),
 }
-
 pub(super) struct TrailReport {
     pub(super) holding: bool,
     pub(super) length: f32,
     pub(super) tail: (f32, f32),
     pub(super) head: (f32, f32),
 }
-
 pub(super) fn write_sidecar(
     out_png: &Path,
     view: &ViewState,
@@ -59,10 +54,8 @@ pub(super) fn write_sidecar(
 ) -> Result<()> {
     assert_capture_is_serialized();
     let json_path = out_png.with_extension("json");
-
     let text = &view.text;
     let (cursor_line, cursor_col) = (view.cursor_line, view.cursor_col);
-
     let first_lines: Vec<String> = text.lines().take(12).map(|s| s.to_string()).collect();
     let first_lines_json = first_lines
         .iter()
@@ -305,10 +298,8 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 }
                 None => "null".to_string(),
             };
-            let spell_target = o
-                .spell_target
-                .map(|(l, s, e)| format!("[{l}, {s}, {e}]"))
-                .unwrap_or_else(|| "null".into());
+            let spell_target = super::opts::spell_target_json(o.spell_target);
+            let context_anchor = super::opts::context_anchor_json(o.context_anchor);
             let lens = o.lens.map(json_string).unwrap_or_else(|| "null".into());
             let lens_strip = o
                 .lens_strip
@@ -336,7 +327,8 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 concat!(
                     "{{ \"active\": {}, \"mode\": {}, \"title\": {}, \"query\": {}, ",
                     "\"selected_index\": {}, \"browse_dir\": {}, \"return_to\": {}, ",
-                    "\"spell_target\": {}, \"hint\": {}, \"notice\": {}, \"lens\": {}, ",
+                    "\"spell_target\": {}, \"context_anchor\": {}, \"hint\": {}, ",
+                    "\"notice\": {}, \"lens\": {}, ",
                     "\"workspace\": {}, \"lens_strip\": [{}], \"sections\": [{}], ",
                     "\"preview_id\": {}, \"detail_focus\": {}, \"diff_scroll\": {}, ",
                     "\"show_hidden\": {}, \"capture\": {}, \"empty\": {}, \"window\": {}, ",
@@ -351,6 +343,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 browse_dir,
                 return_to,
                 spell_target,
+                context_anchor,
                 json_string(&o.hint),
                 json_string(&o.notice),
                 lens,
@@ -373,7 +366,8 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
         None => concat!(
             "{ \"active\": false, \"mode\": null, \"title\": null, \"query\": \"\", ",
             "\"selected_index\": null, \"browse_dir\": null, \"return_to\": null, ",
-            "\"spell_target\": null, \"hint\": null, \"notice\": \"\", ",
+            "\"spell_target\": null, \"context_anchor\": null, \"hint\": null, ",
+            "\"notice\": \"\", ",
             "\"lens\": null, \"workspace\": false, \"lens_strip\": [], ",
             "\"sections\": [], \"preview_id\": null, \"detail_focus\": false, ",
             "\"diff_scroll\": 0, \"show_hidden\": false, \"capture\": null, ",

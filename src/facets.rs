@@ -170,7 +170,8 @@ pub fn scheme(kind: OverlayKind) -> Option<&'static FacetScheme> {
         // the NAMED-SAVE-POINT Keep-version minibuffer.
         | OverlayKind::Rename
         | OverlayKind::InsertLink
-        | OverlayKind::KeepName => None,
+        | OverlayKind::KeepName
+        | OverlayKind::Context => None,
         // v1 note: the Settings menu FACETS (see the arm above); no None case here.
     }
 }

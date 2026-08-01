@@ -154,6 +154,14 @@ pub(super) static COMMANDS: &[Command] = &[
         web_only: false,
     },
     Command {
+        name: "Copy link destination",
+        action: Action::CopyLinkDestination,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
         name: "Switch theme…",
         action: Action::OpenThemeMenu,
         native: "",

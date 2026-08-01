@@ -280,7 +280,11 @@ pub(super) fn complete(primary: Effect, action: &Action) -> Transition {
     }
     if matches!(
         action,
-        Action::DeleteWordBackward | Action::KillLine | Action::CopyRegion | Action::KillRegion
+        Action::DeleteWordBackward
+            | Action::KillLine
+            | Action::CopyRegion
+            | Action::KillRegion
+            | Action::CopyLinkDestination
     ) {
         transition.push(Effect::Clipboard(ClipboardEffect::WriteKillRing));
     }

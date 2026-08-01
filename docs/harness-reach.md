@@ -160,6 +160,7 @@ fails if these rows drift from them, so this table cannot go stale.
 | `overlay_accept:Caret` | Applied |
 | `overlay_accept:CjkLang` | Applied |
 | `overlay_accept:Command` | Unsupported |
+| `overlay_accept:Context` | Unsupported |
 | `overlay_accept:Date` | Applied |
 | `overlay_accept:Dictionary` | Applied |
 | `overlay_accept:Goto` | Applied |

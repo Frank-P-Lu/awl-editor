@@ -233,6 +233,7 @@ impl App {
             overlay_spell: ov
                 .filter(|o| o.kind == crate::overlay::OverlayKind::Spell)
                 .and_then(|o| o.spell_target),
+            overlay_context_anchor: ov.and_then(|o| o.context_anchor),
             notice: self.notice.clone().unwrap_or_default(),
             cjk_priority: self.config.cjk_priority_or_default(),
             eol: self.active.buffer.eol(),
@@ -241,8 +242,7 @@ impl App {
             folds: Vec::new(),
             fold_tails: Vec::new(),
         };
-        // HISTORY PREVIEW geometry safety: the pushed text is a DIFFERENT (possibly
-        // shorter) version than the buffer, so every field whose line/col spans
+        // Preview text may be shorter than the buffer, so every line/col span
         // index the BUFFER text must be re-bounded or cleared — the cursor clamps
         // into the previewed text (the shared `clamp_line_col`); selection /
         // preedit / squiggles / search highlights are dropped for the preview's

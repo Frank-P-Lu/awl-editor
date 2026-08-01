@@ -1978,12 +1978,13 @@ fn every_kind_names_itself_with_a_nonempty_distinct_title() {
             "{k:?}'s title {t:?} collides with another kind's"
         );
     }
-    // Rename/InsertLink/KeepName are the RENDER exceptions (their own modal
-    // prompt already orients) — every other kind draws its title prefix.
+    // Prompt surfaces and the pointer-anchored context menu orient without a
+    // title prefix; every other kind draws one.
     for k in [
         OverlayKind::Rename,
         OverlayKind::InsertLink,
         OverlayKind::KeepName,
+        OverlayKind::Context,
     ] {
         assert!(
             !k.draws_title_prefix(),
@@ -1993,7 +1994,10 @@ fn every_kind_names_itself_with_a_nonempty_distinct_title() {
     for k in OverlayKind::ALL {
         if !matches!(
             k,
-            OverlayKind::Rename | OverlayKind::InsertLink | OverlayKind::KeepName
+            OverlayKind::Rename
+                | OverlayKind::InsertLink
+                | OverlayKind::KeepName
+                | OverlayKind::Context
         ) {
             assert!(k.draws_title_prefix(), "{k:?} should draw the title prefix");
         }
@@ -2488,7 +2492,8 @@ fn hover_movement_slop_gate_holds_across_every_overlay_kind_no_wildcard() {
             | OverlayKind::Assets
             | OverlayKind::Rename
             | OverlayKind::InsertLink
-            | OverlayKind::KeepName => {}
+            | OverlayKind::KeepName
+            | OverlayKind::Context => {}
         }
         let ctx = format!("kind={kind:?}");
         let corpus: Vec<String> = (0..30).map(|i| format!("row{i}")).collect();
@@ -2968,6 +2973,21 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
             crate::overlay::LinkEditMode::Empty { at: 0 },
         ),
         OverlayKind::KeepName => OverlayState::new_keep_name(),
+        OverlayKind::Context => crate::context_menu::overlay(
+            crate::context_menu::rows(
+                crate::context_menu::ContextTarget::Body,
+                crate::context_menu::ContextState {
+                    has_selection: false,
+                    link: false,
+                    heading: false,
+                    heading_folded: false,
+                    misspelled: false,
+                    named_file: false,
+                },
+                crate::commands::Platform::Native,
+            ),
+            (10.0, 10.0),
+        ),
     }
 }
 

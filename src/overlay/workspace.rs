@@ -140,7 +140,8 @@ impl OverlayKind {
             | OverlayKind::Assets
             | OverlayKind::Rename
             | OverlayKind::InsertLink
-            | OverlayKind::KeepName => None,
+            | OverlayKind::KeepName
+            | OverlayKind::Context => None,
         }
     }
 
@@ -184,7 +185,8 @@ impl OverlayKind {
             | OverlayKind::Assets
             | OverlayKind::Rename
             | OverlayKind::InsertLink
-            | OverlayKind::KeepName => Vec::new(),
+            | OverlayKind::KeepName
+            | OverlayKind::Context => Vec::new(),
         }
     }
 }

@@ -99,13 +99,12 @@ pub struct OverlayState {
     pub rename_edit: Option<RenameEdit>,
     pub link_edit: Option<LinkEdit>,
     pub keep_edit: Option<KeepEdit>,
-    /// Does the workspace's DETAIL stage hold focus? Storage only: every WRITE
-    /// goes through `journey::Journey`, which owns what Esc/Tab mean here.
     pub detail_focus: bool,
     pub diff_scroll: usize,
     pub last_hover_px: Option<(f32, f32)>,
+    pub context_actions: Vec<Option<crate::keymap::Action>>,
+    pub context_anchor: Option<(f32, f32)>,
 }
-
 impl OverlayState {
     pub fn new(
         kind: OverlayKind,
@@ -178,11 +177,12 @@ impl OverlayState {
             detail_focus: false,
             diff_scroll: 0,
             last_hover_px: None,
+            context_actions: Vec::new(),
+            context_anchor: None,
         };
         s.refilter();
         s
     }
-
     pub fn accepts(&self) -> Vec<&str> {
         self.rows.iter().map(|r| r.accept.as_str()).collect()
     }

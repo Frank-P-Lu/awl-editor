@@ -2,7 +2,6 @@
 //! composition live in their respective pipeline modules.
 
 use super::*;
-
 impl TextPipeline {
     pub fn new(
         device: &wgpu::Device,
@@ -505,6 +504,7 @@ impl TextPipeline {
             overlay_lens: Vec::new(),
             overlay_sections: Vec::new(),
             overlay_spell: None,
+            overlay_context_anchor: None,
             overlay_detail_focus: false,
             overlay_workspace: false,
             overlay_rows_primary: false,

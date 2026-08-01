@@ -457,9 +457,9 @@ pub(super) fn settled_viewstate(
         .as_ref()
         .map(|o| o.detail_focus)
         .unwrap_or(false);
-    // SPELL contextual panel: the misspelled word's span (from the still-open spell
-    // picker) anchors the small floating panel at the word — no blur backdrop.
+    // Spell and context cards retain their real pointer/text anchors.
     vstate.overlay_spell = opts.overlay.as_ref().and_then(|o| o.spell_target);
+    vstate.overlay_context_anchor = opts.overlay.as_ref().and_then(|o| o.context_anchor);
     // CARET-STYLE PICKER preview: when the still-open overlay is the caret picker,
     // map its highlighted row label back to the look so the headless capture renders
     // that look's SETTLED preview caret (the loop is live-only; see settle_caret_preview).

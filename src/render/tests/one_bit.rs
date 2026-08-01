@@ -695,17 +695,15 @@ fn every_overlay_kind_is_classified_and_the_two_families_render_as_declared() {
             | OverlayKind::Assets
             | OverlayKind::Rename
             | OverlayKind::InsertLink
-            | OverlayKind::KeepName => CardFamily::CenteredPanel,
+            | OverlayKind::KeepName
+            | OverlayKind::Context => CardFamily::CenteredPanel,
         };
         match family {
             CardFamily::FloatAnchored => spell_count += 1,
             CardFamily::CenteredPanel => centered_count += 1,
         }
     }
-    assert_eq!(
-        spell_count, 1,
-        "exactly one kind (Spell) floats at its own anchor"
-    );
+    assert_eq!(spell_count, 1, "exactly one float-primitive kind (Spell)");
     assert_eq!(
         centered_count,
         OverlayKind::ALL.len() - 1,

@@ -234,6 +234,15 @@ impl WorkspaceState {
         self.search = None;
     }
 
+    /// Pointer-only entrance for the awl-rendered contextual card. The card's
+    /// rows remain ordinary catalog Actions and acceptance returns through the
+    /// shared action core; this method owns only the named summon transition.
+    pub(in crate::app) fn summon_context(&mut self, card: OverlayState) {
+        self.search = None;
+        self.popover_summoned = false;
+        self.journey.enter(Some(card));
+    }
+
     // ─── SEARCH TRANSITIONS ──────────────────────────────────────────────
 
     /// Read the find/replace panel's state (matches, query, focus).

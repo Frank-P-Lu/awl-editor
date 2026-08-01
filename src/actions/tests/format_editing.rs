@@ -8,6 +8,22 @@ use super::{drive_act, drive_format, drive_newline, md};
 use crate::overlay::OverlayKind;
 
 #[test]
+fn copy_link_destination_uses_the_catalog_action_and_existing_kill_ring() {
+    let mut buffer = Buffer::from_str("see [awl](https://awl.example/docs) now\n");
+    buffer.set_cursor(7); // inside the visible link label
+    drive_act(&mut buffer, &Action::CopyLinkDestination);
+    assert_eq!(buffer.kill_buffer(), "https://awl.example/docs");
+    let before = buffer.kill_buffer().to_string();
+    buffer.set_cursor(0);
+    drive_act(&mut buffer, &Action::CopyLinkDestination);
+    assert_eq!(
+        buffer.kill_buffer(),
+        before,
+        "outside a link is a calm no-op"
+    );
+}
+
+#[test]
 fn align_table_aligns_under_caret_is_undoable_and_no_ops_outside() {
     // Action::AlignTable routes through the SAME apply_transition seam a palette/menu
     // invocation uses, so `--keys` drives it identically. A no-path buffer is

@@ -133,7 +133,8 @@ impl OverlayKind {
             | OverlayKind::Assets
             | OverlayKind::Rename
             | OverlayKind::InsertLink
-            | OverlayKind::KeepName => false,
+            | OverlayKind::KeepName
+            | OverlayKind::Context => false,
         }
     }
 }

@@ -30,7 +30,6 @@ fn rename_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect>
     }
     Some(Effect::None)
 }
-
 fn link_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     ctx.journey.card().unwrap().link_edit.as_ref()?;
     let overlay = ctx.journey.card_mut().unwrap();
@@ -60,7 +59,6 @@ fn link_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     }
     Some(Effect::None)
 }
-
 fn keep_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     ctx.journey.card().unwrap().keep_edit.as_ref()?;
     let overlay = ctx.journey.card_mut().unwrap();
@@ -75,13 +73,7 @@ fn keep_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
         Action::DeleteWordForward => overlay.keep_edit_delete_word_forward(),
         Action::Newline => {
             let target = overlay.keep_edit_target();
-            // ITEM 116c — route the completion through the SAME lifecycle
-            // door every other accept uses (`dispose_after_accept`'s
-            // pattern), rather than a blanket `dismiss()`: if `KeepVersion`
-            // was reached by `descend`ing over a parked workspace (see
-            // `Action::KeepVersion`'s own dispatch), this is what lets the
-            // table's own rules decide the landing instead of unconditionally
-            // dropping the parked position.
+            // Let the journey table decide whether a parked parent resumes.
             ctx.journey.accept(
                 crate::overlay::OverlayKind::KeepName.accept_disposition(),
                 ctx.make_overlay,
@@ -93,18 +85,13 @@ fn keep_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
             );
         }
         Action::Cancel => {
-            // ITEM 116c — `cancel()`, not `dismiss()`: the table's own Cancel
-            // arm reverts nothing here (`KeepName` never auditions) but DOES
-            // resume a parked parent when there is one (`descend`ed from an
-            // open workspace) instead of unconditionally dropping to the
-            // editor — the coherent-return half of the fix.
+            // Cancel resumes a parked parent; dismiss would discard it.
             ctx.journey.cancel(ctx.make_overlay);
         }
         _ => {}
     }
     Some(Effect::None)
 }
-
 fn value_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     ctx.journey.card().unwrap().value_edit.as_ref()?;
     let overlay = ctx.journey.card_mut().unwrap();
@@ -132,15 +119,7 @@ fn value_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> 
     Some(Effect::None)
 }
 
-/// The modal OVERLAY INTERCEPT. When the summoned navigation overlay is open, it OWNS
-/// every key: printable chars extend the overlay query (never the rope), Up/Down (and
-/// C-n/C-p, which resolve to NextLine/PreviousLine) move the selection, Enter accepts
-/// the highlighted item, Esc/C-g cancels. Routing this through the shared core (rather
-/// than only in `App`) is exactly what makes the overlay drivable under `--keys` — the
-/// same mistake the isearch panel made (its query routing lives in `App`, so `--keys`
-/// can't type into it) is deliberately avoided here. Returns the one [`Effect`] the key
-/// signals back; `apply_transition` returns it directly (the overlay is modal, so the key
-/// never reaches the buffer).
+/// Modal overlay input shared by the live app and `--keys` replay.
 pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect {
     if let Some(effect) = rename_edit_intercept(ctx, action) {
         return effect;
@@ -166,6 +145,14 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
     }
     if let Some(effect) = navigate_overlay(ctx, action) {
         return effect;
+    }
+    if ctx.journey.card().unwrap().kind == crate::overlay::OverlayKind::Context
+        && !matches!(
+            action,
+            Action::Newline | Action::AcceptAlternate | Action::Cancel
+        )
+    {
+        return Effect::None;
     }
     match action {
         Action::InsertChar(c) => {
@@ -388,16 +375,12 @@ fn accept_path_overlay(ctx: &mut ActionCtx) -> Option<Effect> {
 }
 
 fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
+    if let Some(effect) = accept_context(ctx) {
+        return effect;
+    }
     let ov = ctx.journey.card().unwrap();
     if ov.kind == crate::overlay::OverlayKind::Command {
-        // RUN the highlighted command. The corpus is `commands::visible()`
-        // (the platform-filtered view — see `commands.rs`'s "PLATFORM-SCOPED
-        // COMMANDS" section), so the selected corpus index maps back through
-        // `commands::visible_action_of`, never a raw `COMMANDS[i]` index (which
-        // would silently mis-map once some rows are hidden on web). Close the
-        // palette FIRST so the caller's re-dispatch lands with the slot empty
-        // (an overlay-opening command can then open into it); a no-match closes
-        // silently.
+        // Map through the platform-filtered catalog, then close before re-dispatch.
         let eff = ov
             .selected_corpus_index()
             .map(|i| Effect::RunAction(crate::commands::visible_action_of(i)))
@@ -405,19 +388,14 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
         dispose_after_accept(ctx);
         return eff;
     }
-    if ov.kind == crate::overlay::OverlayKind::Theme {
+    if matches!(
+        ov.kind,
+        crate::overlay::OverlayKind::Theme | crate::overlay::OverlayKind::Caret
+    ) {
         // COMMIT: the highlighted world is ALREADY active (live preview
         // applied it as the selection moved), so Enter just keeps it and
         // closes. Emit the committed name so the caller can re-tint its
         // GPU pipelines / window title to match.
-        let eff = match ov.selected_value() {
-            Some(v) => Effect::OverlayAccept(ov.kind, v.to_string()),
-            None => Effect::None,
-        };
-        dispose_after_accept(ctx);
-        return eff;
-    }
-    if ov.kind == crate::overlay::OverlayKind::Caret {
         let eff = match ov.selected_value() {
             Some(v) => Effect::OverlayAccept(ov.kind, v.to_string()),
             None => Effect::None,
@@ -507,6 +485,22 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
     };
     dispose_after_accept(ctx);
     eff
+}
+
+fn accept_context(ctx: &mut ActionCtx) -> Option<Effect> {
+    if ctx.journey.card().unwrap().kind != crate::overlay::OverlayKind::Context {
+        return None;
+    }
+    let effect = ctx
+        .journey
+        .card()
+        .unwrap()
+        .selected_corpus_index()
+        .and_then(|i| ctx.journey.card().unwrap().context_actions[i].clone())
+        .map(Effect::RunAction)
+        .unwrap_or(Effect::None);
+    dispose_after_accept(ctx);
+    Some(effect)
 }
 
 fn accept_overlay(ctx: &mut ActionCtx) -> Effect {

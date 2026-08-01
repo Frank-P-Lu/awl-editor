@@ -1,5 +1,4 @@
-//! Reconfigure-from-input methods: resize, retint, font sync, and view ingestion.
-//! Pure column, wrap, and hit-test math lives in [`super::geometry`].
+//! Reconfiguration methods; pure layout and hit-test math lives in [`super::geometry`].
 
 use super::*;
 impl TextPipeline {
@@ -473,6 +472,7 @@ impl TextPipeline {
         self.overlay_rows_primary = view.overlay_rows_primary;
         self.overlay_sections = view.overlay_sections.clone();
         self.overlay_spell = view.overlay_spell;
+        self.overlay_context_anchor = view.overlay_context_anchor;
         self.overlay_detail_focus = view.overlay_detail_focus;
         self.overlay_spell_w = if self.overlay_spell.is_some() {
             self.measure_spell_content_w()

@@ -114,6 +114,8 @@ pub struct OverlayInfo {
     /// so the capture path can anchor the contextual float panel AT the word (and the
     /// sidecar can report it). `None` for every other mode.
     pub spell_target: Option<(usize, usize, usize)>,
+    /// Context-menu click anchor in physical pixels; `None` for every other card.
+    pub context_anchor: Option<(f32, f32)>,
     /// Keybindings rebind menu only: the active CAPTURE sub-state (the command being
     /// rebound, the phase, the KEY/CHORD mode, and the combos captured so far), or
     /// `None` while browsing the list / for every other mode. Emitted as the sidecar
@@ -179,6 +181,18 @@ pub struct OverlayInfo {
     /// sidecar (a picker with no title-carrying render surface still reports it
     /// here — the law is "every kind names itself", not "every kind draws it").
     pub title: &'static str,
+}
+
+pub(super) fn spell_target_json(target: Option<(usize, usize, usize)>) -> String {
+    target
+        .map(|(l, s, e)| format!("[{l}, {s}, {e}]"))
+        .unwrap_or_else(|| "null".into())
+}
+
+pub(super) fn context_anchor_json(anchor: Option<(f32, f32)>) -> String {
+    anchor
+        .map(|(x, y)| format!("[{x}, {y}]"))
+        .unwrap_or_else(|| "null".into())
 }
 
 /// The Keybindings menu's capture sub-state for the sidecar `overlay.capture` block.

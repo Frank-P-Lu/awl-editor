@@ -8,7 +8,7 @@ impl App {
             .is_some_and(|gpu| gpu.pipeline.over_writing_column(self.cursor_px.0))
     }
 
-    fn hit_test_line_col(&self) -> (usize, usize) {
+    pub(in crate::app) fn hit_test_line_col(&self) -> (usize, usize) {
         let (px, py) = self.cursor_px;
         let gpu = self
             .gpu
@@ -43,7 +43,7 @@ impl App {
     /// live pointer to begin with). The ONE hit-test [`Self::sync_cursor_icon`]'s
     /// pointing-hand decision also reads, so hover, cursor, and click can never
     /// disagree on where the target is.
-    fn fold_chevron_at_pointer(&self) -> Option<usize> {
+    pub(in crate::app) fn fold_chevron_at_pointer(&self) -> Option<usize> {
         let (px, py) = self.cursor_px;
         let filtered = self.gpu.as_ref()?.pipeline.fold_chevron_hit(px, py)?;
         Some(self.active.buffer.visible_line_to_full(filtered))
@@ -581,48 +581,6 @@ impl App {
         over_surface
     }
 
-    pub(in crate::app) fn on_right_press(
-        &mut self,
-        exit: &dyn schedule::Exit,
-        over_writing_column: bool,
-    ) {
-        if self.workspace_state.overlay_open() {
-            let _ = self.apply(Action::Cancel, false, exit, crate::stats::Door::Chord);
-        }
-        // A margin right-click may dismiss an open spell picker, but it never
-        // retargets the caret/selection to the clamped edge of document text.
-        if !over_writing_column {
-            self.sync_view(true);
-            if let Some(gpu) = self.gpu.as_ref() {
-                gpu.window.request_redraw();
-            }
-            return;
-        }
-        // A click is a non-edit gesture: seal the open undo group first.
-        self.active.buffer.seal_undo_group();
-        let idx = self.hit_test_char();
-        self.dragging = false;
-        self.active.buffer.set_cursor(idx);
-        self.active.buffer.clear_mark();
-        self.active.buffer.set_anchor(idx);
-        self.active.extra.shift_selecting = false;
-        // Fire the spell picker for the word now under the cursor (same Action the
-        // Cmd-`;` chord runs, so the overlay + sidecar behave identically). A right-click
-        // is a direct, learned gesture — the FAST path, not a discovery browse — so the
-        // ledger attributes it to `Door::Chord` (see `crate::stats::Door`), never
-        // inflating the slow-door count the discoverability surfacing keys on.
-        let _ = self.apply(
-            Action::OpenSpellSuggest,
-            false,
-            exit,
-            crate::stats::Door::Chord,
-        );
-        self.sync_view(true);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
-    }
-
     pub(in crate::app) fn on_drag(&mut self) {
         if !self.dragging {
             return;
@@ -743,6 +701,16 @@ impl App {
         // where a click would land. Only while no overlay is open (its scrim covers
         // the document).
         let over_fold_chevron = !overlay_open && gpu.pipeline.fold_chevron_hit(px, py).is_some();
+        let over_modified_link = !overlay_open
+            && gpu.pipeline.over_writing_column(px)
+            && crate::context_menu::modified_link_hover(
+                self.mods.state().contains(ModifiersState::SUPER),
+                crate::markdown::link_at(
+                    &self.active.buffer.text(),
+                    self.active.buffer.char_to_byte(self.hit_test_char()),
+                )
+                .is_some(),
+            );
         let ctx = crate::cursor_shape::CursorContext {
             dragging_edge: self.page_resizing,
             dragging_text: self.dragging,
@@ -752,7 +720,7 @@ impl App {
             over_clickable_overlay_row,
             over_clickable_lens,
             over_query_input,
-            over_outline_row,
+            over_outline_row: over_outline_row || over_modified_link,
             over_menu_hand,
             over_menu_bar,
             over_case_toggle,
