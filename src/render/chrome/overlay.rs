@@ -1,13 +1,6 @@
 use super::*;
 
-/// The summoned picker/overlay chrome renders at a UI size a step SMALLER than the
-/// reading body (DESIGN §4 — the size ladder), so a picker reads as DENSE CHROME (a
-/// scannable list), not prose, and MORE rows fit in the same card. ONE tunable:
-/// dialing it re-flows the whole overlay through the single-owner
-/// [`TextPipeline::overlay_metrics`] / [`TextPipeline::overlay_lh`] pair, so the card
-/// height, the row-Y geometry ([`overlay_row_top`]), the hit-test ([`overlay_row_of`]),
-/// and the selected-row band can NEVER disagree about a row's size. Non-overlay
-/// rendering (the document, gutter, HUD, ornaments) is untouched.
+/// Dense chrome size; every overlay geometry owner consumes this scale.
 pub(in crate::render) const OVERLAY_UI_SCALE: f32 = 0.85;
 
 pub(in crate::render) const CARD_EDGE_INSET_FLOOR: f32 = 10.0;
@@ -19,42 +12,7 @@ pub(in crate::render) const CARD_MAX_W: f32 = 520.0;
 pub(in crate::render) const CARD_MAX_W_FACETED: f32 = 600.0;
 pub(in crate::render) const CARD_CONTENT_MIN_W: f32 = 160.0;
 
-/// The QUERY-INPUT BEAT (item 4), as a fraction of the overlay row height — the
-/// clear breath between the input line and the first result row. A single dial
-/// the gallery A/Bs; see [`TextPipeline::overlay_header_gap`].
-///
-/// REFIT (2026-07-16): the user found `0.72` still read cramped under the input
-/// box on EVERY picker (Pane and Bars alike). Widened to a clearly-breathing
-/// FULL row of air — the beat moves the candidate band AND the glyphs together
-/// by construction (the shaper inflates the last header line's real metrics by
-/// exactly this; the y-agreement law holds), so this is a pure taste dial with
-/// no alignment risk. LIVE-ONLY: whether the fuller beat reads right needs an eye.
-///
-/// The `0.72 -> 1.0` widening was a user-directed taste change that moves
-/// EVERY summoned picker's query line (and the whole candidate stack below
-/// it) down a fraction vs the `main` base — so byte-identity-vs-`main` is by
-/// design IMPOSSIBLE for any query-line surface, and the Persona-list inert
-/// guarantee is scoped to self-consistency + the model-level inert law instead
-/// (see `render/tests/list_surfaces.rs`'s module doc). NOTE the caret's y is
-/// NOT derived from this constant: it reads the query line's real shaped
-/// `line_height` (`overlay_place_caret`), so it tracks the glyphs through
-/// cosmic-text's half-leading whatever this dial is set to (the full-bleed
-/// caret bug that refit closed).
-///
-/// REFIT (overlay/chrome polish round, pasted-8): a full row (`1.0`) STILL
-/// read cramped under the command palette's input on a fresh report — a full
-/// row of air apparently isn't visually "full" once the strip/lens header rows
-/// (theme_overlay_geometry's own inflated line) sit right above it, crowding
-/// the eye's read of the gap. Widened again, `1.0 -> 1.3`, so the beat reads
-/// unambiguously as its own deliberate divider rather than "a slightly loose
-/// row". Same no-risk taste dial as the 2026-07-16 refit (the shaper inflates
-/// the real header line's metrics by exactly this, so the band/glyphs/caret
-/// all move together — no alignment class to regress). LIVE-ONLY: whether
-/// `1.3` finally reads right needs a human eye.
-// The strip's real shaped line consumes this beat on faceted cards, so raising
-// this one shared value opens the title → facet relationship as well as the
-// facet → candidate relationship.  It is deliberately not a Commands-only
-// spacer: every overlay has one vertical composition grammar.
+/// Query-to-results breathing room, shared by flat and faceted cards.
 const OVERLAY_QUERY_BEAT: f32 = 1.55;
 
 const OVERLAY_HINT_ROW: f32 = 0.70;

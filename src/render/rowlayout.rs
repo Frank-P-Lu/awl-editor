@@ -1,5 +1,4 @@
 pub const GAP_CHARS: usize = 2;
-
 pub const PRIMARY_MIN_CHARS: usize = 16;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -8,7 +7,6 @@ pub enum Plan {
     Split { primary: usize },
     Measure,
 }
-
 pub fn plan(total_chars: usize, widest_secondary_chars: Option<usize>) -> Plan {
     let Some(widest) = widest_secondary_chars else {
         return Plan::Full {
@@ -22,18 +20,15 @@ pub fn plan(total_chars: usize, widest_secondary_chars: Option<usize>) -> Plan {
         Plan::Measure
     }
 }
-
 pub fn full_budget(total_chars: usize) -> usize {
     total_chars.saturating_sub(1).max(4)
 }
-
 pub fn fits(text_w: f32, gap_px: f32, primary_px: f32, secondary_px: f32) -> bool {
     if secondary_px <= 0.0 {
         return primary_px <= text_w;
     }
     primary_px + gap_px + secondary_px <= text_w
 }
-
 pub fn fit_primary(text: &str, budget: usize) -> String {
     crate::overlay::elide_path(text, budget)
 }

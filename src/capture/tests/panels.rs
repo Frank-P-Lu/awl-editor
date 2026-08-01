@@ -961,14 +961,12 @@ fn caret_picker_absent_by_default_and_open_reflects_selected_style() {
     crate::caret::set_mode(crate::caret::CaretMode::Block);
 }
 
-/// ITEM 212 — the sidecar records the click anchor as STATE, while the PNG
+/// The sidecar records the click anchor as state, while the PNG
 /// proves the shared renderer paints the menu at that physical location.
 #[test]
 fn context_menu_capture_names_its_anchor_and_paints_the_anchored_card() {
     if !adapter_available() {
-        eprintln!(
-            "skipping context_menu_capture_names_its_anchor_and_paints_the_anchored_card: no wgpu adapter"
-        );
+        eprintln!("skipping context menu capture law: no wgpu adapter");
         return;
     }
     let _g = crate::testlock::serial();

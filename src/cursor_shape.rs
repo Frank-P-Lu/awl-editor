@@ -49,8 +49,6 @@ pub struct CursorContext {
     /// can never disagree with a clickable one. Only ever set while no overlay is
     /// open (an overlay's scrim covers the document).
     pub over_fold_chevron: bool,
-    /// Command-modified hover over a Markdown link: the immediate-follow gesture.
-    pub over_modified_link: bool,
 }
 
 /// The OS cursor glyph for a given inline-image resize HANDLE: a horizontal
@@ -140,7 +138,7 @@ pub fn cursor_icon_for(ctx: CursorContext) -> CursorIcon {
         CursorIcon::ColResize
     } else if let Some(handle) = ctx.image_hover {
         image_handle_icon(handle)
-    } else if ctx.over_outline_row || ctx.over_fold_chevron || ctx.over_modified_link {
+    } else if ctx.over_outline_row || ctx.over_fold_chevron {
         CursorIcon::Pointer
     } else if ctx.over_text {
         CursorIcon::Text
@@ -199,7 +197,6 @@ mod tests {
             image_hover: None,
             over_popover_button: false,
             over_fold_chevron: false,
-            over_modified_link: false,
         }
     }
 
@@ -226,7 +223,6 @@ mod tests {
             image_hover: None,
             over_popover_button: false,
             over_fold_chevron: false,
-            over_modified_link: false,
         }
     }
 
@@ -253,7 +249,6 @@ mod tests {
             image_hover: Some(handle),
             over_popover_button: false,
             over_fold_chevron: false,
-            over_modified_link: false,
         }
     }
 
@@ -277,7 +272,6 @@ mod tests {
             image_hover: None,
             over_popover_button: false,
             over_fold_chevron: false,
-            over_modified_link: false,
         }
     }
 
@@ -299,7 +293,6 @@ mod tests {
             image_hover: None,
             over_popover_button: false,
             over_fold_chevron: false,
-            over_modified_link: false,
         }
     }
 
@@ -321,7 +314,6 @@ mod tests {
             image_hover: None,
             over_popover_button: false,
             over_fold_chevron: false,
-            over_modified_link: false,
         }
     }
 
@@ -343,7 +335,6 @@ mod tests {
             image_hover: None,
             over_popover_button: false,
             over_fold_chevron: false,
-            over_modified_link: false,
         }
     }
 
@@ -614,7 +605,6 @@ mod tests {
             image_hover: None,
             over_popover_button: false,
             over_fold_chevron: false,
-            over_modified_link: false,
         };
         assert_eq!(cursor_icon_for(both), CursorIcon::Pointer);
     }
@@ -656,7 +646,6 @@ mod tests {
             image_hover: None,
             over_popover_button: false,
             over_fold_chevron: false,
-            over_modified_link: false,
         };
         assert_eq!(cursor_icon_for(both), CursorIcon::Pointer);
     }
@@ -707,7 +696,6 @@ mod tests {
             image_hover: None,
             over_popover_button: false,
             over_fold_chevron: false,
-            over_modified_link: false,
         }
     }
 
@@ -729,7 +717,6 @@ mod tests {
             image_hover: None,
             over_popover_button: false,
             over_fold_chevron: false,
-            over_modified_link: false,
         }
     }
 
@@ -783,7 +770,6 @@ mod tests {
             image_hover: None,
             over_popover_button: false,
             over_fold_chevron: false,
-            over_modified_link: false,
         }
     }
 
@@ -852,7 +838,6 @@ mod tests {
             image_hover: None,
             over_popover_button: false,
             over_fold_chevron: true,
-            over_modified_link: false,
         }
     }
 
@@ -862,14 +847,6 @@ mod tests {
             cursor_icon_for(ctx_fold_chevron(false, false, false)),
             CursorIcon::Pointer
         );
-    }
-
-    #[test]
-    fn command_modified_link_is_a_hand_but_plain_link_remains_text() {
-        let mut c = ctx(false, false, false, true);
-        assert_eq!(cursor_icon_for(c), CursorIcon::Text);
-        c.over_modified_link = true;
-        assert_eq!(cursor_icon_for(c), CursorIcon::Pointer);
     }
 
     #[test]
@@ -1038,7 +1015,7 @@ mod tests {
         // caller does NOT advance its cache (`prev` stays the last genuinely
         // -drawn icon); the next un-hide call (hidden = false) then sees the
         // real prev-vs-next gap and fires exactly once, landing on the
-        // context-correct shape rather than a stale intermediate one.
+        // correct shape rather than a stale one.
         assert_eq!(
             cursor_icon_change(CursorIcon::Default, CursorIcon::Text, true),
             None

@@ -61,6 +61,42 @@ pub fn document_target(state: ContextState) -> ContextTarget {
     }
 }
 
+pub const fn modified_link_hover(command_down: bool, over_link: bool) -> bool {
+    command_down && over_link
+}
+
+pub fn copy_link_destination(buffer: &mut crate::buffer::Buffer) {
+    let byte = buffer.char_to_byte(buffer.cursor_char());
+    if let Some(url) = crate::markdown::link_at(&buffer.text(), byte) {
+        buffer.set_kill(&url);
+    }
+}
+
+pub fn overlay(rows: Vec<ContextRow>, anchor: (f32, f32)) -> crate::overlay::OverlayState {
+    let mut state = crate::overlay::OverlayState::new(
+        crate::overlay::OverlayKind::Context,
+        rows.iter().map(|row| row.label.to_string()).collect(),
+        Vec::new(),
+        Vec::new(),
+    );
+    state.context_actions = rows
+        .iter()
+        .map(|row| row.enabled.then_some(row.action.clone()))
+        .collect();
+    state.set_secondaries(
+        rows.into_iter()
+            .map(|row| {
+                (!row.enabled)
+                    .then_some("unavailable")
+                    .unwrap_or_default()
+                    .to_string()
+            })
+            .collect(),
+    );
+    state.context_anchor = Some(anchor);
+    state
+}
+
 /// The complete target × state × platform owner. Every row routes through a
 /// catalog Action; unavailable native filesystem operations are omitted on web.
 pub fn rows(target: ContextTarget, state: ContextState, platform: Platform) -> Vec<ContextRow> {
@@ -158,6 +194,18 @@ mod tests {
                 ContextTarget::Body
             };
             assert_eq!(document_target(s), want, "bits={bits:05b}");
+        }
+    }
+
+    #[test]
+    fn link_cursor_affordance_sweeps_modifier_and_hit_state() {
+        for command_down in [false, true] {
+            for over_link in [false, true] {
+                assert_eq!(
+                    modified_link_hover(command_down, over_link),
+                    command_down && over_link
+                );
+            }
         }
     }
 

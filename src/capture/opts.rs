@@ -183,6 +183,18 @@ pub struct OverlayInfo {
     pub title: &'static str,
 }
 
+pub(super) fn spell_target_json(target: Option<(usize, usize, usize)>) -> String {
+    target
+        .map(|(l, s, e)| format!("[{l}, {s}, {e}]"))
+        .unwrap_or_else(|| "null".into())
+}
+
+pub(super) fn context_anchor_json(anchor: Option<(f32, f32)>) -> String {
+    anchor
+        .map(|(x, y)| format!("[{x}, {y}]"))
+        .unwrap_or_else(|| "null".into())
+}
+
 /// The Keybindings menu's capture sub-state for the sidecar `overlay.capture` block.
 #[derive(Clone)]
 pub struct CaptureInfo {

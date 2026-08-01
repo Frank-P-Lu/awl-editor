@@ -232,12 +232,7 @@ fn apply_buffer_action(ctx: &mut ActionCtx, action: &Action) -> bool {
             *ctx.shift_selecting = false;
         }
         Action::CopyRegion => ctx.buffer.copy_region(),
-        Action::CopyLinkDestination => {
-            let byte = ctx.buffer.char_to_byte(ctx.buffer.cursor_char());
-            if let Some(url) = crate::markdown::link_at(&ctx.buffer.text(), byte) {
-                ctx.buffer.set_kill(&url);
-            }
-        }
+        Action::CopyLinkDestination => crate::context_menu::copy_link_destination(ctx.buffer),
         Action::KillRegion => ctx.buffer.kill_region(),
         Action::SelectAll => {
             ctx.buffer.select_all();
@@ -773,9 +768,7 @@ fn apply_transition_primary(ctx: &mut ActionCtx, action: &Action, shift: bool) -
     // leaves it unchanged), the content version (a no-op delete never bumps it), and
     // whether undo/redo had anything to do. See `recoil_for`.
     let snapshot = ActionSnapshot::capture(ctx);
-
     let effect = dispatch_action(ctx, action);
-
     finish_action(ctx, action, snapshot, effect)
 }
 

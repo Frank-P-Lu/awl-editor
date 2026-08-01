@@ -323,11 +323,8 @@ impl App {
             crate::peek::PeekStimulus::ArmBroken
         };
         self.feed_peek(stim);
-        // Modifier-only link affordance: Cmd press/release must refresh the
-        // pointing hand even while the pointer itself is stationary.
         self.sync_cursor_icon();
     }
-
     pub(in crate::app) fn on_ime(&mut self, ime: Ime) {
         self.handle_ime(ime);
         self.sync_view(true);

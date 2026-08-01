@@ -2,7 +2,6 @@
 //! composition live in their respective pipeline modules.
 
 use super::*;
-
 impl TextPipeline {
     pub fn new(
         device: &wgpu::Device,

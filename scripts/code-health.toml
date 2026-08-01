@@ -36,7 +36,7 @@ lines = 908
 
 [[file_size_mark]]
 file = "src/actions/overlay_nav.rs"
-lines = 768
+lines = 762
 reason = "item 114: +8 lines net. The workspace's own two-region keyboard and its deep link were carved out to `actions/workspace_nav.rs`; what remains here is the intercept-chain entry and the dispatcher arm that calls them. Item 116c: -23 lines net — the whole `history_intercept` function (folded into the shape-aware `workspace_nav::workspace_intercept`, item 116a's `rows_are_primary` fact) is gone from this file; the `Newline`/`AcceptAlternate` accept arm and the keep-version minibuffer's Cancel/Newline arms now route through `Journey::cancel`/`accept` instead of a bare `dismiss()`."
 
 [[file_size_mark]]
@@ -64,7 +64,7 @@ lines = 536
 
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
-lines = 1102
+lines = 1070
 reason = "item 114: +23 lines in `overlay_click`, the ONE pointer-dispatch owner — a click in the navigation rail resolves through the picker's own lens setter and the lifecycle's named focus transition, so the pointer and the keyboard reach one state."
 
 [[file_size_mark]]
@@ -113,7 +113,7 @@ reason = "item 114: +4 lines net — the workspace/detail-focus projection, minu
 
 [[file_size_mark]]
 file = "src/capture/sidecar.rs"
-lines = 844
+lines = 838
 reason = "items 188/194: +1 line — the warped-grid sidecar arm is dispatched from the ONE background_json call site, which gained the resolved route pose as a third argument. A second format site is exactly what this file exists to prevent."
 
 [[file_size_mark]]
@@ -292,7 +292,7 @@ lines = 894
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay.rs"
-lines = 759
+lines = 738
 reason = "item 131 (row-composition seam): +1 line — `dx_per_row` at the ONE `OverlayRowPlanInput` construction site, the exhaustive struct literal that hands the planner every already-resolved input. The field cannot be extracted: a plan built without it would leave the row planner deriving y alone while some other place derived x, which is the exact split this item retires. Item 114: +11 lines. `overlay_geometry` gained the workspace family's dispatch arm — the one place a card's presentation family is chosen — and `overlay_row_plan` now feeds the plan the CONTENT band rather than the card."
 
 [[file_size_mark]]
@@ -466,7 +466,7 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/input/mouse.rs"
-line = 862
+line = 830
 message = "this function has too many lines (107/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 replaced two hand-written ladder conjunctions with one call. Item 183 narrowed the &ActiveEventLoop parameter to app::Exit, collapsing the wrapped signatures (-5). Line shifted by queue item 114's summoned Settings workspace (the navigation rail's own click resolution)."
 
@@ -474,7 +474,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 line = 5
-message = "this function has too many lines (244/100)"
+message = "this function has too many lines (245/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 bound the summoned picker once for the whole ViewState projection (-46). Item 114 added the `overlay_workspace` projection to the one exhaustive construction site (+1). Item 116a added the `overlay_rows_primary` projection to the same site (+4 counted lines). Item 116b: -1 line. `sync_view` lost the `diff_panel` field with the diff-panel dressing."
 
 [[clippy_exception]]
@@ -544,21 +544,21 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/capture/modes.rs"
 line = 201
-message = "this function has too many lines (212/100)"
+message = "this function has too many lines (213/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 116b: -1 line. The history-preview fold no longer lights `vstate.diff_panel`."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
-line = 53
+line = 48
 message = "this function has too many lines (105/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 188 added the one `driver` argument to the one sidecar format call (+1)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
-line = 244
-message = "this function has too many lines (140/100)"
+line = 237
+message = "this function has too many lines (141/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 114 added the `overlay.workspace` field to the one format string (+1). Line/size moved by queue item 114's summoned Settings workspace. Line shifted by item 188's `driver` argument + its comment (+2); count unchanged."
 
 [[clippy_exception]]
@@ -767,8 +767,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
-line = 7
-message = "this function has too many lines (484/100)"
+line = 6
+message = "this function has too many lines (485/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer."
 
 [[clippy_exception]]
@@ -831,21 +831,21 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
 line = 531
-message = "this function has too many lines (110/100)"
+message = "this function has too many lines (111/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line/size moved by queue item 114's summoned Settings workspace. Item 116c: +1 line — the `AcceptAlternate` arm alongside `Newline` in the not-a-delete list."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 736
-message = "this function has too many lines (111/100)"
+line = 737
+message = "this function has too many lines (112/100)"
 reason = "The no-wildcard Action roster match is the compile-time coverage owner. KeepTutorial adds one unavoidable exhaustive arm; the duplicate 222-line list owner was split into two sub-100-line rosters."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 1007
-message = "this function has too many lines (110/100)"
+line = 1009
+message = "this function has too many lines (111/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 114's summoned Settings workspace. Item 116c: +1 line — the `AcceptAlternate` arm (`NotCatalog`, alongside `Newline`)."
 
 [[clippy_exception]]
@@ -881,49 +881,49 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 1183
+line = 1262
 message = "this function has too many lines (138/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 1486
+line = 1565
 message = "this function has too many lines (111/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 1656
-message = "this function has too many lines (138/100)"
+line = 1735
+message = "this function has too many lines (139/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field). Item 116b: +12 lines. Item 84's cross-world diff-panel DRESSING law is re-aimed as `history_preview_renders_the_transcript_as_the_document_in_every_world`: the dressing claim moved to the render tier (where the relocated viewport exists), and what stays here is the content half — the transcript IS the captured document, it renders undressed (a differential against the same transcript captured plainly, with an ink floor so the band cannot go vacuous), and `detail_focus` moves no pixel. Each of the three arms needs its own capture, which is what the growth is."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 218
-message = "this function has too many lines (113/100)"
+line = 220
+message = "this function has too many lines (114/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 352
-message = "this function has too many lines (128/100)"
+line = 355
+message = "this function has too many lines (129/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 511
-message = "this function has too many lines (160/100)"
+line = 515
+message = "this function has too many lines (161/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 899
+line = 905
 message = "this function has too many lines (114/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
 
@@ -937,7 +937,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/keymap/tests.rs"
-line = 1514
+line = 1515
 message = "this function has too many lines (103/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
@@ -951,8 +951,8 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/rowlayout.rs"
-line = 227
-message = "this function has too many lines (101/100)"
+line = 222
+message = "this function has too many lines (105/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
@@ -1018,13 +1018,13 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
 line = 1311
-message = "this function has too many lines (109/100)"
+message = "this function has too many lines (110/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
-line = 2251
+line = 2304
 message = "this function has too many lines (117/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
@@ -1080,14 +1080,14 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/render/tests/overlay_rhythm_item112.rs"
-line = 57
+line = 58
 message = "the function has a cognitive complexity of (27/25)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/overlay_rhythm_item112.rs"
-line = 57
+line = 58
 message = "this function has too many lines (159/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
@@ -1187,35 +1187,35 @@ reason = "Pure relocation from the inline src/commands.rs test module; this exac
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 766
+line = 767
 text = "                        \"{}: {:?}'s resolved native chord {resolved:?} must parse via parse_binding\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 773
+line = 774
 text = "                        \"{}: {:?}'s resolved native chord {resolved:?} must resolve to the catalog action\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 1598
+line = 1599
 text = "                        \"{}: reserved native chord {native_resolved:?} still shown verbatim ({convention:?}/{platform:?})\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 1616
+line = 1617
 text = "                            \"{}: no alternate defined, label should be blank ({convention:?}/{platform:?})\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 1627
+line = 1628
 text = "                        \"{}: displaced emacs default {:?} still shown ({convention:?}/{platform:?}) — label was {label:?}\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 

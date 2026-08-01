@@ -8,7 +8,7 @@ impl App {
             .is_some_and(|gpu| gpu.pipeline.over_writing_column(self.cursor_px.0))
     }
 
-    fn hit_test_line_col(&self) -> (usize, usize) {
+    pub(in crate::app) fn hit_test_line_col(&self) -> (usize, usize) {
         let (px, py) = self.cursor_px;
         let gpu = self
             .gpu
@@ -43,7 +43,7 @@ impl App {
     /// live pointer to begin with). The ONE hit-test [`Self::sync_cursor_icon`]'s
     /// pointing-hand decision also reads, so hover, cursor, and click can never
     /// disagree on where the target is.
-    fn fold_chevron_at_pointer(&self) -> Option<usize> {
+    pub(in crate::app) fn fold_chevron_at_pointer(&self) -> Option<usize> {
         let (px, py) = self.cursor_px;
         let filtered = self.gpu.as_ref()?.pipeline.fold_chevron_hit(px, py)?;
         Some(self.active.buffer.visible_line_to_full(filtered))
@@ -581,147 +581,6 @@ impl App {
         over_surface
     }
 
-    pub(in crate::app) fn on_right_press(
-        &mut self,
-        exit: &dyn schedule::Exit,
-        over_writing_column: bool,
-    ) {
-        if self.workspace_state.overlay_open() {
-            let _ = self.apply(Action::Cancel, false, exit, crate::stats::Door::Chord);
-        }
-        let (px, py) = self.cursor_px;
-        let chevron_heading = self.fold_chevron_at_pointer();
-        if let Some(line) = chevron_heading {
-            let idx = self.active.buffer.line_col_to_char(line, 0);
-            self.active.buffer.set_cursor(idx);
-            self.active.buffer.clear_mark();
-            let state = crate::context_menu::ContextState {
-                has_selection: false,
-                link: false,
-                heading: true,
-                heading_folded: self.active.buffer.folds().contains(&line),
-                misspelled: false,
-                named_file: self.active.buffer.path().is_some(),
-            };
-            let rows = crate::context_menu::rows(
-                crate::context_menu::ContextTarget::Heading,
-                state,
-                crate::commands::Platform::current(),
-            );
-            self.workspace_state
-                .summon_context(crate::overlay::OverlayState::new_context(rows, (px, py)));
-            self.sync_view(true);
-            if let Some(gpu) = self.gpu.as_ref() {
-                gpu.window.request_redraw();
-            }
-            return;
-        }
-        let target = self.gpu.as_ref().and_then(|gpu| {
-            gpu.pipeline
-                .page_resize_edge_at(px)
-                .map(|edge| match edge {
-                    crate::render::ResizeEdge::Left => crate::context_menu::ContextTarget::LeftEdge,
-                    crate::render::ResizeEdge::Right => {
-                        crate::context_menu::ContextTarget::RightEdge
-                    }
-                })
-                .or_else(|| {
-                    gpu.pipeline
-                        .gutter_context_target(px, py, gpu.config.height)
-                })
-        });
-        if let Some(target) = target {
-            let state = crate::context_menu::ContextState {
-                has_selection: self.active.buffer.has_selection(),
-                link: false,
-                heading: false,
-                heading_folded: false,
-                misspelled: false,
-                named_file: self.active.buffer.path().is_some(),
-            };
-            let rows =
-                crate::context_menu::rows(target, state, crate::commands::Platform::current());
-            if !rows.is_empty() {
-                self.workspace_state
-                    .summon_context(crate::overlay::OverlayState::new_context(rows, (px, py)));
-            }
-            self.sync_view(true);
-            if let Some(gpu) = self.gpu.as_ref() {
-                gpu.window.request_redraw();
-            }
-            return;
-        }
-        if !over_writing_column {
-            return;
-        }
-        // A click is a non-edit gesture: seal the open undo group first.
-        self.active.buffer.seal_undo_group();
-        let idx = self.hit_test_char();
-        self.dragging = false;
-        let selection_contains = self
-            .active
-            .buffer
-            .selection_range()
-            .is_some_and(|(start, end)| idx >= start && idx <= end);
-        if !selection_contains {
-            self.active.buffer.set_cursor(idx);
-            self.active.buffer.clear_mark();
-            self.active.buffer.set_anchor(idx);
-        }
-        self.active.extra.shift_selecting = false;
-        // Fire the spell picker for the word now under the cursor (same Action the
-        // Cmd-`;` chord runs, so the overlay + sidecar behave identically). A right-click
-        // is a direct, learned gesture — the FAST path, not a discovery browse — so the
-        // ledger attributes it to `Door::Chord` (see `crate::stats::Door`), never
-        // inflating the slow-door count the discoverability surfacing keys on.
-        let (pointer_line, pointer_col) = self.hit_test_line_col();
-        let line = pointer_line;
-        let byte = self.active.buffer.char_to_byte(idx);
-        let text = self.active.buffer.text();
-        let misspelled = self.spell.as_ref().is_some_and(|sc| {
-            sc.suggest_at(
-                &text,
-                pointer_line,
-                pointer_col,
-                self.active.buffer.syntax_lang(),
-            )
-            .is_some()
-        });
-        if misspelled {
-            self.active.buffer.set_cursor(idx);
-            self.active.buffer.clear_mark();
-            let _ = self.apply(
-                Action::OpenSpellSuggest,
-                false,
-                exit,
-                crate::stats::Door::Chord,
-            );
-        } else {
-            let link = crate::markdown::link_at(&text, byte).is_some();
-            let heading = self.active.buffer.is_markdown()
-                && crate::markdown::headings(&text)
-                    .iter()
-                    .any(|h| h.line == line);
-            let state = crate::context_menu::ContextState {
-                has_selection: selection_contains,
-                link,
-                heading,
-                heading_folded: self.active.buffer.folds().contains(&line),
-                misspelled,
-                named_file: self.active.buffer.path().is_some(),
-            };
-            let target = crate::context_menu::document_target(state);
-            let rows =
-                crate::context_menu::rows(target, state, crate::commands::Platform::current());
-            self.workspace_state
-                .summon_context(crate::overlay::OverlayState::new_context(rows, (px, py)));
-        }
-        self.sync_view(true);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
-    }
-
     pub(in crate::app) fn on_drag(&mut self) {
         if !self.dragging {
             return;
@@ -843,13 +702,15 @@ impl App {
         // the document).
         let over_fold_chevron = !overlay_open && gpu.pipeline.fold_chevron_hit(px, py).is_some();
         let over_modified_link = !overlay_open
-            && self.mods.state().contains(ModifiersState::SUPER)
             && gpu.pipeline.over_writing_column(px)
-            && crate::markdown::link_at(
-                &self.active.buffer.text(),
-                self.active.buffer.char_to_byte(self.hit_test_char()),
-            )
-            .is_some();
+            && crate::context_menu::modified_link_hover(
+                self.mods.state().contains(ModifiersState::SUPER),
+                crate::markdown::link_at(
+                    &self.active.buffer.text(),
+                    self.active.buffer.char_to_byte(self.hit_test_char()),
+                )
+                .is_some(),
+            );
         let ctx = crate::cursor_shape::CursorContext {
             dragging_edge: self.page_resizing,
             dragging_text: self.dragging,
@@ -859,7 +720,7 @@ impl App {
             over_clickable_overlay_row,
             over_clickable_lens,
             over_query_input,
-            over_outline_row,
+            over_outline_row: over_outline_row || over_modified_link,
             over_menu_hand,
             over_menu_bar,
             over_case_toggle,
@@ -867,7 +728,6 @@ impl App {
             image_hover,
             over_popover_button,
             over_fold_chevron,
-            over_modified_link,
         };
         let desired = crate::cursor_shape::cursor_icon_for(ctx);
         let hidden = self.pointer_hide == crate::pointer_hide::PointerHide::Hidden;

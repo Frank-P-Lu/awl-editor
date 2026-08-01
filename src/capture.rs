@@ -6,8 +6,7 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 /// `/188` — permissive replay `replay_skips`.
 /// `/189` — `page.background`'s `deckle` arm.
 /// `/190` — `page.background`'s `organic` arm gains `arrangement`.
-/// `/191` — `overlay.workspace`, and
-///          `overlay.diff_focus` renamed `overlay.detail_focus`.
+/// `/191` — `overlay.workspace`; `overlay.diff_focus` became `overlay.detail_focus`.
 /// `/193` — top-level `driver`.
 /// `/194` — `page.background`'s `warped-grid` arm: authored dials and travel.
 /// `/195` — pointer-anchored context menus add `overlay.context_anchor`.

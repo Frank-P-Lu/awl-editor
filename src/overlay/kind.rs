@@ -122,15 +122,11 @@ impl OverlayKind {
             OverlayKind::Spell => Self::MAX_SUGGESTIONS + 1,
             OverlayKind::Context => 8,
             OverlayKind::Theme => crate::theme::THEMES.len(),
-            // ITEM 114 — a workspace is bounded by the CANVAS (item 181's
-            // `fit_item_rows`, applied where the canvas is known), so naming the
-            // whole corpus here is what lets that bound be the binding one — the
-            // theme picker's own arrangement, one line above.
+            // The workspace canvas, not this roster, bounds Settings rows.
             OverlayKind::Settings => crate::settings::SETTINGS.len(),
             _ => 12,
         }
     }
-
     pub fn hint_actions(self) -> Vec<HintAction> {
         let mut actions = vec![HintAction {
             glyph: "type",
@@ -139,7 +135,6 @@ impl OverlayKind {
         actions.extend(self.kind_actions());
         actions
     }
-
     fn kind_actions(self) -> Vec<HintAction> {
         let enter = |label| HintAction {
             glyph: "\u{21B5}",
@@ -178,9 +173,7 @@ impl OverlayKind {
                 key("\u{21E7}\u{21B5}", "restore"),
                 key(ARROWS_LR, "lens"),
             ],
-            // ITEM 114 — the rows pane is the workspace's DETAIL stage, so `esc`
-            // is a BACK to the rail and `←/→` steps a named category. The footer
-            // is awl's only statement of what a key does (ACCESSIBILITY.md).
+            // Settings uses Esc for the rail and arrows for categories.
             OverlayKind::Settings => {
                 vec![
                     enter("edit"),
@@ -194,11 +187,9 @@ impl OverlayKind {
             OverlayKind::KeepName => vec![enter("keep"), key("esc", "cancel")],
         }
     }
-
     pub fn hint(self) -> String {
         format_hint(&self.hint_actions())
     }
-
     pub fn range_row_hint(self) -> String {
         let mut actions = self.hint_actions();
         match actions.iter_mut().find(|a| a.glyph == ARROWS_LR) {
@@ -313,11 +304,8 @@ pub struct HintAction {
 }
 
 pub const HINT_SEP: &str = "   ";
-
 pub const ARROWS_LR: &str = "\u{2190}/\u{2192}";
-
 pub const RANGE_LR_LABEL: &str = "adjust";
-
 pub const PIN_TAG: &str = "pinned";
 
 pub fn format_hint(actions: &[HintAction]) -> String {

@@ -237,11 +237,8 @@ pub enum Action {
     /// back as [`crate::actions::Effect::FollowLink`]; the live App performs the OS
     /// browser handoff (a user-initiated launch, not an app network fetch — the
     /// zero-network invariant holds). A caret outside every link is a calm no-op.
-    /// Headless replay never opens a browser (the effect is live-App-only). Also a
-    /// palette command ("Follow link"), rebindable via `[keys]`.
+    /// Headless replay never opens a browser.
     FollowLink,
-    /// Copy the destination of the Markdown link at the caret. Context menus and
-    /// replay share this catalog action; outside a link it is a calm no-op.
     CopyLinkDestination,
     InsertLink,
     InsertDate,

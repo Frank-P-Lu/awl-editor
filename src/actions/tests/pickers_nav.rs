@@ -67,7 +67,7 @@ fn context_card_is_an_action_list_not_a_hidden_query() {
         misspelled: false,
         named_file: true,
     };
-    let card = OverlayState::new_context(
+    let card = crate::context_menu::overlay(
         crate::context_menu::rows(
             crate::context_menu::ContextTarget::Link,
             state,
@@ -95,7 +95,7 @@ fn disabled_context_row_is_a_noop_and_still_dismisses_cleanly() {
         misspelled: false,
         named_file: false,
     };
-    let card = OverlayState::new_context(
+    let card = crate::context_menu::overlay(
         crate::context_menu::rows(
             crate::context_menu::ContextTarget::Body,
             state,

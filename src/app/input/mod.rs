@@ -10,6 +10,7 @@
 //! dispatches into; every external path (`app::input::ImageDrag`) is
 //! unchanged — this file only re-exports.
 
+mod context_menu;
 mod drags;
 mod keys;
 mod mouse;

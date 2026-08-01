@@ -2022,7 +2022,7 @@ fn facet_chips_render_a_pill_per_label_and_differ_from_text() {
     );
     assert_eq!(
         ghost_pills, 3,
-        "Chips draws ONE ghost pill per INACTIVE drawn facet (File active, All+Edit+View ghost) — got {ghost_pills}"
+        "one ghost pill per inactive facet; got {ghost_pills}"
     );
     assert!(
         ghost_stroke > 0.0,
@@ -2106,15 +2106,13 @@ fn facet_chips_leave_a_breathing_gap_between_pills() {
     }
 }
 
-/// ITEM 212 — pointer anchoring, edge clamping and row hit-testing share the
+/// Pointer anchoring, edge clamping and row hit-testing share the
 /// real overlay geometry across every world and both common scale factors.
 #[test]
 fn context_menu_anchor_clamps_and_hits_across_world_dpi_and_edges() {
     let (w, h) = (720.0f32, 480.0f32);
     let Some((device, queue, mut p)) = headless_dqp(w, h) else {
-        eprintln!(
-            "skipping context_menu_anchor_clamps_and_hits_across_world_dpi_and_edges: no wgpu adapter"
-        );
+        eprintln!("skipping context menu anchor sweep: no wgpu adapter");
         return;
     };
     let _g = crate::testlock::serial();

@@ -2239,10 +2239,9 @@ pub struct TextPipeline {
     overlay_spell: Option<(usize, usize, usize)>,
     overlay_context_anchor: Option<(f32, f32)>,
     overlay_detail_focus: bool,
-    /// ITEM 114 — the summoned card is drawn as a WORKSPACE this frame (mirror of
+    /// Whether the summoned card is drawn as a workspace (mirror of
     /// [`ViewState::overlay_workspace`]). The one input that routes
-    /// `overlay_geometry` to its third family; every other overlay path stays
-    /// byte-identical because this is `false` for them.
+    /// `overlay_geometry` to its third family.
     overlay_workspace: bool,
     /// Mirror of [`ViewState::overlay_rows_primary`] (item 116a) — within a
     /// workspace, does the primary column carry rows rather than labels?

@@ -2973,7 +2973,7 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
             crate::overlay::LinkEditMode::Empty { at: 0 },
         ),
         OverlayKind::KeepName => OverlayState::new_keep_name(),
-        OverlayKind::Context => OverlayState::new_context(
+        OverlayKind::Context => crate::context_menu::overlay(
             crate::context_menu::rows(
                 crate::context_menu::ContextTarget::Body,
                 crate::context_menu::ContextState {

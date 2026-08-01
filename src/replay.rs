@@ -46,7 +46,6 @@
 use crate::actions::Effect;
 use crate::keymap::Action;
 use crate::overlay::OverlayKind;
-
 mod skip;
 mod typed;
 pub use skip::{SkippedEffect, permissive_skip};
