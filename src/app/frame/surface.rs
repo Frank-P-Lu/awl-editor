@@ -119,6 +119,7 @@ impl SurfaceState {
         self.present_sync.apply(want)
     }
 
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(super) fn present_sync_on(&self) -> bool {
         self.present_sync.on
     }

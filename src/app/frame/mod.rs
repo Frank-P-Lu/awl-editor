@@ -38,6 +38,7 @@ pub(in crate::app) enum SettleKind {
 pub(in crate::app) struct SettleSnapshot {
     pub(in crate::app) resize_at: Option<Instant>,
     pub(in crate::app) move_at: Option<Instant>,
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(in crate::app) crossing_at: Option<Instant>,
     pub(in crate::app) crossing_teardown_pending: bool,
 }
@@ -166,6 +167,7 @@ impl FrameRuntime {
         self.surface.apply_present_sync(want)
     }
 
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(in crate::app) fn present_sync_on(&self) -> bool {
         self.surface.present_sync_on()
     }
