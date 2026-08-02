@@ -259,3 +259,77 @@ fn the_timeline_footer_fits_its_own_column_in_every_world() {
          longer reproduce the clip this law is named for"
     );
 }
+
+/// LAW 4 — AN EMPTY TIMELINE DOES NOT STAND THE LIVE DOCUMENT UP INSIDE THE
+/// WORKSPACE.
+///
+/// The SHAPE says there is a comparison region; the PAYLOAD says there is
+/// something in it, and the two are not the same fact. A timeline can be up with
+/// nothing to compare — an empty history, or a query that filters every version
+/// away — and on those frames the text the pipeline is handed is the user's OWN
+/// document. Relocating it into the comparison's place would put the live
+/// document up as a third readable layer inside the workspace, which is the
+/// composition this whole surface exists to remove.
+///
+/// The two arms differ in EXACTLY the payload flag, so the claim is about that
+/// fact and nothing else; and the second half is a PIXEL claim, because "the
+/// viewport is `None`" alone would still be green if the document layer had found
+/// another way in.
+#[test]
+fn a_timeline_with_nothing_to_compare_leaves_the_document_where_it_was() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping a_timeline_with_nothing_to_compare: no adapter");
+        return;
+    };
+    let mut graded = 0usize;
+    for world in crate::theme::THEMES {
+        crate::theme::set_active_by_name(world.name).expect("a roster world");
+        p.sync_theme();
+
+        let arm = |payload: bool| {
+            let mut v = timeline_view(6);
+            v.text = super::comparison_composite_item116d::sample_transcript();
+            v.overlay_comparison = payload;
+            v
+        };
+        let (with, without) = (arm(true), arm(false));
+
+        p.set_view(&with);
+        p.prepare(&device, &queue, 1200, 800).unwrap();
+        assert!(
+            p.comparison_viewport().is_some(),
+            "{}: precondition — with a payload the document relocates",
+            world.name
+        );
+        let relocated = super::pixeldiff::render_frame(&mut p, &device, &queue, 1200, 800);
+
+        p.set_view(&without);
+        p.prepare(&device, &queue, 1200, 800).unwrap();
+        assert!(
+            p.comparison_viewport().is_none(),
+            "{}: with NOTHING to compare the document must not be relocated — the text on \
+             such a frame is the user's own document, not a transcript",
+            world.name
+        );
+        let parked = super::pixeldiff::render_frame(&mut p, &device, &queue, 1200, 800);
+
+        // THE PIXELS AGREE WITH THE GATE. Two frames whose only difference is the
+        // payload flag must differ somewhere: on one the document is drawn inside
+        // the workspace, on the other it is not drawn there at all. A gate that
+        // changed no pixel would be a gate that changed nothing.
+        assert!(
+            relocated != parked,
+            "{}: turning the comparison's payload off changed no pixel — the document is \
+             either being relocated on both frames or on neither",
+            world.name
+        );
+        graded += 1;
+    }
+    crate::theme::set_active(crate::theme::DEFAULT_THEME);
+    assert_eq!(
+        graded,
+        crate::theme::THEMES.len(),
+        "every world must be graded"
+    );
+}

@@ -402,6 +402,10 @@ fn restoring_names_the_version_and_the_undo_while_esc_says_nothing() {
     ] {
         app.apply_transition_for_test(&act);
     }
+    // …including the App-level close hook the live dispatch runs after the
+    // transition, which `apply_transition_for_test` deliberately does not reach.
+    // Without it a notice emitted on CLOSE would sail past this law.
+    app.history_overlay_closed(false);
     assert_eq!(
         app.frame.notice().owned().unwrap_or_default(),
         String::new(),
