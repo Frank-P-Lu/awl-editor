@@ -236,9 +236,21 @@ run.
   photographed nothing; and `live-probe.sh` tests the lock only in preflight,
   never at the end, so it would have passed at 12:52 three minutes before the
   lock landed.
-- **116d** — 🟢 UNBLOCKED, unclaimed. The compositing call is made (see Latest
-  design decisions). Ready to dispatch the moment a lane returns; the
-  concurrent-worker budget is four and all four are in use.
+- **116d** — 🟡 IN PROGRESS — claude (deep owner), branch
+  `claude/item-116d-timeline-comparison`, worktree
+  `../awl-next-worktrees/item-116d-timeline-comparison`. Both blocking decisions
+  are made (comparison ON the surface; one Esc always leaves, which binds item
+  114's Settings workspace too and must be made consistent in the same change).
+  Briefed to do the compositing round FIRST — delete
+  `the_relocated_document_is_geometrically_placed_but_not_yet_composited` and
+  replace it with the containment-and-visibility law its own message asks for —
+  before flipping `workspace_shape(History)`, since flipping first presents the
+  empty workspace item 114 forbids. ⚠️ **Item 174's header band landed hours
+  earlier**, so moving the lens to the header means working inside
+  `render/plan/overlay_header.rs` rather than adding a fourth copy of the
+  header's height. **Nothing else may be dispatched into
+  `render/chrome/overlay_draw.rs`, `overlay_rows.rs` or `chrome/mod.rs` while
+  this runs** — that is the collision that held it back this afternoon.
 
 ## Remaining work — handoff order (2026-08-02, after the evening wave)
 
