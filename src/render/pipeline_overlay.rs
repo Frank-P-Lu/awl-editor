@@ -15,10 +15,15 @@ impl TextPipeline {
     ///   pipeline never calls it, so those paths render the settled state
     ///   STRUCTURALLY (the determinism law's "live-only animation renders its
     ///   settled state in capture", enforced by construction rather than by a
-    ///   per-frame check). Arming alone changes nothing: the animators also
-    ///   require a non-CALM effective [`theme::MotionJuice`] (no world ships
-    ///   one — the `AWL_MOTION_FORCE` probe is the only current door) and fold
-    ///   to nothing under Reduce Motion.
+    ///   per-frame check). What arming enables is NOT uniform across the three,
+    ///   and item 211 was missed for wanting it to be: the entrance spring and
+    ///   the `BandResponse::Slide` band additionally require a non-CALM
+    ///   effective [`theme::MotionJuice`] (no world ships one — the
+    ///   `AWL_MOTION_FORCE` probe is the only door), but the Pane LIVING BAND
+    ///   ([`Self::living_band_phase`]) does not: `livingband::
+    ///   overlay_motion_force` defaults to `Choreo::Morph`, so on a live
+    ///   `ListStyle::Pane` world the selection band eases on EVERY move in the
+    ///   shipped product. All three fold to nothing under Reduce Motion.
     pub fn arm_live_juice(&mut self) {
         self.juice_live = true;
     }

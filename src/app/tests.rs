@@ -16,6 +16,11 @@ mod dock_icon;
 mod files;
 mod history;
 mod lifecycle;
+/// ITEM 211's LIVE-`App` EVENT→PRESENT TRACE ASSERTION: the picker-navigation
+/// chain read back off the flight recorder's own lines. Native-only — the
+/// recorder is (`crate::probe`), like the daemon and the live probe.
+#[cfg(not(target_arch = "wasm32"))]
+mod nav_trace_item211;
 mod openable;
 mod source_audit;
 mod spell;
