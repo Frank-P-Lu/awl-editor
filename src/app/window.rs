@@ -625,6 +625,18 @@ impl App {
         // simply resumes from the next OS/input/timed wake; otherwise an
         // occluded window can allocate and prepare thousands of unseen frames.
         let keep_hot = keep_gpu_loop_hot(animating, frame_presented);
+        // FLIGHT RECORDER / PROBE (item 211): the ANIMATION-SCHEDULING link. `dt`
+        // and `animating` are read BEFORE `gpu.redraw()` runs `prepare` — so an
+        // animator whose target is set inside `prepare` cannot be seen by the
+        // `keep_hot` decision on the frame that retargets it. This line is what
+        // makes that ordering visible instead of inferred.
+        #[cfg(not(target_arch = "wasm32"))]
+        if crate::probe::recording() {
+            crate::probe::trace(format_args!(
+                "redraw dt={:.1}ms animating={animating} presented={frame_presented} keep_hot={keep_hot}",
+                dt * 1000.0
+            ));
+        }
         self.frame
             .set_last_frame(if keep_hot { Some(now) } else { None });
         if keep_hot {

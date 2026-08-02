@@ -277,6 +277,17 @@ impl App {
         exit: &dyn schedule::Exit,
         event: winit::event::KeyEvent,
     ) {
+        // FLIGHT RECORDER / PROBE (item 211): the WINIT-RECEIPT link of the
+        // event→present chain — logged BEFORE every guard below, so a press the
+        // preedit / lone-modifier / release filters swallow is visibly received
+        // and visibly dropped, rather than simply absent from the trace.
+        #[cfg(not(target_arch = "wasm32"))]
+        if crate::probe::recording() {
+            crate::probe::trace(format_args!(
+                "winit KeyboardInput state={:?} key={:?} repeat={}",
+                event.state, event.logical_key, event.repeat
+            ));
+        }
         if event.state != ElementState::Pressed {
             if event.state == ElementState::Released {
                 self.on_key_release(&event.logical_key);
@@ -480,6 +491,14 @@ impl App {
             .state()
             .contains(ModifiersState::SHIFT)
             && motion_honors_shift_select(&action, &logical);
+        // FLIGHT RECORDER / PROBE (item 211): the KEYMAP-RESOLVE link — what the
+        // press actually became. A chord that resolved to something other than the
+        // navigation action is a DROPPED input; the same action twice for one
+        // physical press is a REPEATED one.
+        #[cfg(not(target_arch = "wasm32"))]
+        if crate::probe::recording() {
+            crate::probe::trace(format_args!("resolve -> {action:?} shift={shift}"));
+        }
         self.apply(action, shift, exit, crate::stats::Door::Chord);
     }
 }
