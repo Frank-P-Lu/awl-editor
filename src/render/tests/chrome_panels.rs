@@ -2213,6 +2213,14 @@ fn overlay_card_anchor_is_data_center_default_top_left_for_statement_worlds() {
 // 5 sites. The sweep merged each into ONE owner (`overlay_card_h`,
 // `overlay_strip_band`, `overlay_right_labels`, and `spans::push_symbol_split`);
 // these laws are the no-wildcard cap so copy #2 fails a test instead of shipping.
+//
+// ITEM 174 (second family) RETIRED the strip-band entry from the list below:
+// `overlay_strip_band` is GONE from `render/chrome` entirely, so "exactly one
+// site here" is the wrong claim — the right one is "no site here at all", and
+// the type system carries it (the formula lives inside the scene planner, whose
+// `PlannedHeader` is the only way to reach a header line's box). The grep half
+// moved to `overlay_plan_law.rs`'s retired-term sweep, which scans the whole of
+// `src/render/` rather than `chrome` alone.
 
 /// The card PADDING each `OverlayKind` breathes at, classified NO-WILDCARD so a
 /// new picker must declare its value here or fail to compile. The Spell
@@ -2391,10 +2399,6 @@ fn chrome_geometry_owner_formulas_are_single_site() {
         (
             "total_rows as f32 * self.overlay_lh() + header_gap + 2.0 * pad",
             "overlay_card_h (the card-height formula)",
-        ),
-        (
-            "(geom.text_top + lh, lh + geom.header_gap)",
-            "overlay_strip_band (the lens-strip Y band)",
         ),
         (
             "if !self.overlay_bindings.is_empty() {",

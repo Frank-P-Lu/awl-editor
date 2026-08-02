@@ -26,6 +26,7 @@ pub(in crate::render) struct OverlayYProbe {
     pub primary: std::collections::BTreeMap<usize, f32>,
     pub secondary: std::collections::BTreeMap<usize, f32>,
     pub strip_baseline: Option<f32>,
+    pub strip_line_top: Option<f32>,
     pub strip_line_bottom: Option<f32>,
     pub strip_underline_y: Option<f32>,
 }
@@ -61,10 +62,12 @@ impl TextPipeline {
         let sel_disp = plan.selected_display().unwrap_or(0);
         let band_top = plan.row_top(sel_disp).unwrap_or(plan.first_top());
         let mut strip_baseline = None;
+        let mut strip_line_top = None;
         let mut strip_line_bottom = None;
         for run in self.panel_buffer.layout_runs() {
             if run.line_i == 1 {
                 strip_baseline = Some(geom.text_top + run.line_y);
+                strip_line_top = Some(geom.text_top + run.line_top);
                 strip_line_bottom = Some(geom.text_top + run.line_top + run.line_height);
                 break;
             }
@@ -98,6 +101,7 @@ impl TextPipeline {
             primary,
             secondary,
             strip_baseline,
+            strip_line_top,
             strip_line_bottom,
             strip_underline_y,
         }
