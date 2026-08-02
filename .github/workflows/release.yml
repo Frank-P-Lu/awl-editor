@@ -50,6 +50,12 @@ permissions:
 jobs:
   # Single source of truth for "is this a real release" so every job (and
   # the final publish step) agrees.
+  #
+  # Note what this does NOT read: the `dry_run` input. Only a `v*` TAG PUSH
+  # can ever set is_release, so `-f dry_run=false` on a manual dispatch is
+  # inert — a manual run cannot publish, whatever the box says. That is the
+  # safety property, kept deliberately; the input survives as documentation
+  # of intent.
   plan:
     name: plan
     runs-on: ubuntu-latest
@@ -364,10 +370,38 @@ jobs:
           (cd release && sha256sum awl-linux-x86_64.tar.gz > SHA256SUMS)
           cat release/SHA256SUMS
 
+      # The release body IS the install page — a reader arrives here from the
+      # site's Download link and must not have to guess. `body` (not
+      # `body_path`) keeps it beside the file list it describes;
+      # `fail_on_unmatched_files` is the difference between a failed run and a
+      # published Release with nothing attached to it.
       - name: softprops/action-gh-release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.plan.outputs.version }}
+          fail_on_unmatched_files: true
+          body: |
+            **Linux x86_64.** macOS builds from source until Apple signing and
+            notarization are in place; Windows uses the web editor.
+
+            ```sh
+            sha256sum -c SHA256SUMS
+            tar xzf awl-linux-x86_64.tar.gz
+            cd awl-linux-x86_64
+            ./awl notes.md
+            ```
+
+            The archive unpacks into one directory and installs nothing. Put it
+            on your PATH with `install -Dm755 awl ~/.local/bin/awl`.
+
+            awl needs a working Vulkan driver, fontconfig, libxkbcommon, and
+            Wayland or X11. `README.txt` inside the archive lists the package
+            names per distro; `GLIBC.txt` records the glibc version this build
+            requires. Fonts and dictionaries are compiled in — awl never
+            fetches anything at runtime.
+
+            GPL-3.0-only. `LICENSE`, `NOTICE`, `CREDITS.md`,
+            `THIRD-PARTY-LICENSES.md` and `licenses/` ride inside the archive.
           files: |
             release/awl-linux-x86_64.tar.gz
             release/SHA256SUMS

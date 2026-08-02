@@ -217,6 +217,7 @@ will name.
 | 7 | Launch the unpacked binary on a real Linux desktop | window opens, a file opens, `--screenshot` writes a PNG |
 | 8 | `Cargo.toml`'s `package.version` matches the tag | `v<version>` — no stale `0.1.0` |
 | 9 | `git tag`, `git push origin <tag>` | **user's explicit word, every time** |
+| 10 | After the tag: `gh workflow run deploy-web.yml` | **user's explicit word too.** `version.json` comes from `git describe --tags`, so until the site is redeployed at or after the tag, Check for Updates keeps reporting "no tagged release yet" |
 
 ### Still open — decisions, not tasks
 
@@ -224,6 +225,6 @@ will name.
 |---|---|---|
 | Cut a public tag at all | no tag has ever been pushed; `gh release list` is empty | the user, explicitly (CLAUDE.md §Branches) |
 | macOS artifacts | none of the five Apple secrets in §1 are set; the mac job is skipped on a tag so an unsigned `.app` cannot publish | the user — needs a paid Apple Developer Program membership |
-| Version + prerelease flag | `Cargo.toml` says `0.1.0`; queue item 228 proposes `v0.9.0` marked prerelease | queue item 228 |
+| Version + prerelease flag | `Cargo.toml` says `0.1.0`; queue item 228 proposes `v0.9.0` marked prerelease. `release.yml` does not pass `prerelease:` and `deploy-web.yml`'s `version.json` sets `prerelease: false` for any tag it finds — so a beta would currently read as stable on both surfaces | queue item 228 |
 | glibc floor | `ubuntu-latest` builds against glibc 2.39, which excludes Debian 12, Ubuntu 22.04 and RHEL 9; the tarball records its own floor in `GLIBC.txt` | open — building in a `debian:bookworm` container would drop the floor to 2.36 |
 | Web download | `awl-web-dist.zip` builds on dry runs and is not attached; the site is the web distribution | settled unless a self-host story is wanted |
