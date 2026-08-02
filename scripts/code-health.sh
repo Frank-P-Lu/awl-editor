@@ -62,6 +62,12 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     echo "  x86_64-unknown-linux-gnu' to close the gap locally." >&2
   fi
 fi
+# The health script's own laws run before it audits anything else, and they
+# cost under three seconds with no Cargo work: without this, the fixtures that
+# prove the branch-delta baselines (fork point on a worktree branch, HEAD's
+# first parent at CI's push-to-`main` job and the merge train's post-merge
+# candidate) were author-run only and nothing would have noticed them rotting.
+python3 scripts/code-health.py --self-test
 RUSTC_WRAPPER= python3 scripts/code-health.py
 # A disposable fake Cargo makes both convention failure directions cheap to
 # exercise on every health run; the static audit above pins the command scope.
