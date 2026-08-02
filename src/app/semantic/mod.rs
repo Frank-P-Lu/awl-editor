@@ -120,7 +120,7 @@ impl App {
 
         debug_assert_eq!(nodes.iter().filter(|node| node.focused).count(), 1);
         SemanticSnapshot {
-            schema: crate::semantic::SCHEMA,
+            schema: crate::semantic::SCHEMA.to_string(),
             root_id: ROOT_ID.to_string(),
             focus_id,
             nodes,
@@ -131,6 +131,34 @@ impl App {
     pub(crate) fn set_semantic_text_for_test(&mut self, text: &str) {
         self.document.set_text(text);
         self.document.set_cursor(text.chars().count());
+    }
+
+    /// Put this App on a named surface. The projection laws live in
+    /// `semantic::native`, which cannot reach `WorkspaceState`'s private
+    /// transitions, so the fixtures are named here beside the folds they
+    /// exercise.
+    #[cfg(test)]
+    pub(crate) fn install_semantic_fixture_for_test(&mut self, surface: &str) {
+        match surface {
+            "editor" => {}
+            "overlay" => {
+                self.workspace_state
+                    .install_overlay_for_test(crate::overlay::OverlayState::new(
+                        crate::overlay::OverlayKind::Command,
+                        vec!["alpha".to_string(), "beta".to_string()],
+                        Vec::new(),
+                        Vec::new(),
+                    ))
+            }
+            "search" => {
+                let (search, _) = self.workspace_state.core_slots();
+                *search = Some(crate::search::SearchState::start(
+                    0,
+                    crate::search::Direction::Forward,
+                ));
+            }
+            other => panic!("unknown semantic fixture {other}"),
+        }
     }
 }
 

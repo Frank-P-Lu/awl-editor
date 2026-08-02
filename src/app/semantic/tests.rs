@@ -136,6 +136,37 @@ fn the_renderer_composes_no_card_text_of_its_own() {
     }
 }
 
+/// A screen reader must not be re-announced at 120 Hz because the caret is
+/// gliding. The dedup in `frame::accessibility` can only suppress an update if
+/// the snapshot really is equal, so the load-bearing claim is that the snapshot
+/// carries NO animation phase at all: twenty real scheduling steps with a live
+/// caret spring in flight must produce the identical tree.
+#[test]
+fn animation_only_frames_produce_an_identical_snapshot() {
+    let _guard = crate::testlock::serial();
+    calm_globals();
+    let clock = crate::clock::VirtualClock::new();
+    let mut app = hermetic();
+    app.set_clock(Box::new(clock.clone()));
+    app.set_semantic_text_for_test("some prose with a caret that has somewhere to travel");
+    // A real caret jump, so the spring/glide is genuinely mid-flight while the
+    // frames below step.
+    app.document.set_cursor(0);
+    app.sync_view(true);
+    let settled = app.semantic_snapshot();
+    let sched = schedule::RecordingScheduler::new();
+    for step in 0..20 {
+        clock.advance_ms(8);
+        sched.begin_step();
+        app.step_scheduling(&sched);
+        assert_eq!(
+            app.semantic_snapshot(),
+            settled,
+            "scheduling step {step} moved the semantic tree with no input",
+        );
+    }
+}
+
 #[test]
 fn document_ids_survive_edits() {
     let _guard = crate::testlock::serial();

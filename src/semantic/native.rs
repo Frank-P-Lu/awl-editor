@@ -290,4 +290,182 @@ mod tests {
             })
         );
     }
+
+    /// One extended grapheme cluster longer than 255 bytes: a base letter with
+    /// several hundred combining marks. UAX #29 keeps it as ONE cluster, but
+    /// AccessKit's `character_lengths` is a `Vec<u8>`, so the cluster has to be
+    /// carried across several character slots. That split is pure arithmetic
+    /// in three functions that must agree, and nothing had ever fed them a
+    /// cluster big enough to make them disagree.
+    fn oversized_cluster() -> String {
+        format!("e{}", "\u{301}".repeat(200))
+    }
+
+    #[test]
+    fn a_grapheme_longer_than_255_bytes_crosses_the_accesskit_bridge_both_ways() {
+        let cluster = oversized_cluster();
+        assert!(
+            cluster.len() > usize::from(u8::MAX),
+            "the fixture must actually exceed one slot",
+        );
+        assert_eq!(
+            crate::semantic::grapheme_lengths(&cluster).len(),
+            1,
+            "UAX #29 keeps this one cluster; the whole test rests on that",
+        );
+
+        // A document of three graphemes: a plain letter, the oversized
+        // cluster, and another letter — so the split cluster has neighbours on
+        // both sides and an off-by-one cannot hide at an edge.
+        let text = format!("a{cluster}z");
+        let lengths = crate::semantic::grapheme_lengths(&text);
+        assert_eq!(lengths, vec![1, cluster.len(), 1]);
+
+        let expanded = expanded_lengths(&lengths);
+        assert_eq!(
+            expanded.iter().map(|n| usize::from(*n)).sum::<usize>(),
+            text.len(),
+            "every byte of the document is accounted for exactly once",
+        );
+        assert_eq!(
+            expanded,
+            vec![1, u8::MAX, (cluster.len() - usize::from(u8::MAX)) as u8, 1],
+            "the cluster occupies as many full slots as it needs plus a tail",
+        );
+
+        // FORWARD: semantic grapheme offset -> AccessKit character index.
+        assert_eq!(expanded_index(&lengths, 0), 0);
+        assert_eq!(expanded_index(&lengths, 1), 1, "before the big cluster");
+        assert_eq!(expanded_index(&lengths, 2), 3, "the cluster spent 2 slots");
+        assert_eq!(expanded_index(&lengths, 3), 4, "end of the document");
+
+        // BACK: every AccessKit character index — including the one INSIDE the
+        // split cluster, which a screen reader can and will produce — maps to a
+        // grapheme boundary, never to the middle of a cluster.
+        assert_eq!(semantic_index(&lengths, 0), 0);
+        assert_eq!(semantic_index(&lengths, 1), 1);
+        assert_eq!(
+            semantic_index(&lengths, 2),
+            1,
+            "a position inside the split cluster clamps to the cluster's start",
+        );
+        assert_eq!(semantic_index(&lengths, 3), 2);
+        assert_eq!(semantic_index(&lengths, 4), 3);
+
+        // ROUND TRIP: forward then back is the identity on every boundary.
+        for index in 0..=lengths.len() {
+            assert_eq!(
+                semantic_index(&lengths, expanded_index(&lengths, index)),
+                index,
+                "grapheme {index} did not survive the bridge",
+            );
+        }
+    }
+
+    #[test]
+    fn an_oversized_cluster_round_trips_through_a_real_selection_request() {
+        let _guard = crate::testlock::serial();
+        let mut app = crate::app::App::new_hermetic(
+            None,
+            std::path::PathBuf::from("/"),
+            crate::config::Config::empty(),
+        );
+        let cluster = oversized_cluster();
+        app.set_semantic_text_for_test(&format!("a{cluster}z"));
+        let snapshot = app.semantic_snapshot();
+        let update = tree_update(&snapshot);
+        let text_node = update
+            .nodes
+            .iter()
+            .find(|(id, _)| *id == node_id(DOCUMENT_TEXT_ID))
+            .map(|(_, node)| node)
+            .expect("the document text node is projected");
+        assert_eq!(
+            text_node
+                .character_lengths()
+                .iter()
+                .map(|n| usize::from(*n))
+                .sum::<usize>(),
+            2 + cluster.len(),
+        );
+
+        // Select from just before the cluster to just after it, expressed in
+        // AccessKit's expanded character space, and decode it back.
+        let selection = TextSelection {
+            anchor: TextPosition {
+                node: node_id(DOCUMENT_TEXT_ID),
+                character_index: 1,
+            },
+            focus: TextPosition {
+                node: node_id(DOCUMENT_TEXT_ID),
+                character_index: 3,
+            },
+        };
+        let decoded = decode_request(
+            &snapshot,
+            ActionRequest {
+                action: Action::SetTextSelection,
+                target_tree: TreeId::ROOT,
+                target_node: node_id(DOCUMENT_ID),
+                data: Some(ActionData::SetTextSelection(selection)),
+            },
+        );
+        assert_eq!(
+            decoded,
+            Some(SemanticRequest::SetTextSelection {
+                id: DOCUMENT_ID.to_string(),
+                anchor: 1,
+                focus: 2,
+            }),
+            "the split cluster must decode to ONE grapheme, not two",
+        );
+    }
+
+    /// JSON is the agent's view and AccessKit is the screen reader's. Both are
+    /// projections of one snapshot, so an agent and a screen reader must never
+    /// be told different things — including after a full serialize/parse cycle,
+    /// which is what `--semantic-json` and the capture sidecar actually do.
+    #[test]
+    fn json_and_accesskit_are_projections_of_the_same_snapshot() {
+        let _guard = crate::testlock::serial();
+        for surface in ["editor", "overlay", "search"] {
+            let mut app = crate::app::App::new_hermetic(
+                None,
+                std::path::PathBuf::from("/"),
+                crate::config::Config::empty(),
+            );
+            app.set_semantic_text_for_test("e\u{301} 👨‍👩‍👧‍👦 prose");
+            app.install_semantic_fixture_for_test(surface);
+            let snapshot = app.semantic_snapshot();
+
+            let json = serde_json::to_string(&snapshot).expect("the snapshot serializes");
+            let parsed: SemanticSnapshot =
+                serde_json::from_str(&json).expect("the snapshot parses back");
+            assert_eq!(parsed, snapshot, "{surface}: JSON lost or changed a fact");
+
+            let direct = tree_update(&snapshot);
+            let via_json = tree_update(&parsed);
+            assert_eq!(direct.focus, via_json.focus, "{surface}");
+            assert_eq!(direct.nodes.len(), via_json.nodes.len(), "{surface}");
+            for ((left_id, left), (right_id, right)) in
+                direct.nodes.iter().zip(via_json.nodes.iter())
+            {
+                assert_eq!(left_id, right_id, "{surface}");
+                assert_eq!(left, right, "{surface}: node {left_id:?} diverged");
+            }
+
+            // The two views name the same nodes: every id the agent can read
+            // hashes to a node the screen reader is given, and vice versa.
+            let mut projected: Vec<NodeId> = direct.nodes.iter().map(|(id, _)| *id).collect();
+            projected.sort_by_key(|id| id.0);
+            let mut expected: Vec<NodeId> =
+                parsed.nodes.iter().map(|node| node_id(&node.id)).collect();
+            expected.sort_by_key(|id| id.0);
+            assert_eq!(projected, expected, "{surface}");
+            assert!(
+                parsed.nodes.iter().any(|node| node.id == parsed.focus_id),
+                "{surface}: focus_id names a node neither view contains",
+            );
+        }
+    }
 }

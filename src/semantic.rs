@@ -17,7 +17,11 @@ pub const DOCUMENT_TEXT_ID: &str = "document.text";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SemanticSnapshot {
-    pub schema: &'static str,
+    /// Owned, not `&'static str`: a consumer that reads `--semantic-json` or a
+    /// capture sidecar has to be able to parse the snapshot BACK, and serde
+    /// can only fill a `&'static str` from a `&'static` input. The cost is one
+    /// short allocation against a snapshot that already clones the rope.
+    pub schema: String,
     pub root_id: String,
     pub focus_id: String,
     pub nodes: Vec<SemanticNode>,
