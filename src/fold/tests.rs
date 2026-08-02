@@ -385,3 +385,93 @@ fn prune_stale_drops_a_fold_whose_heading_was_edited_away() {
     assert!(changed);
     assert_eq!(f, folds(&[0]), "the non-heading fold entry is pruned");
 }
+
+/// A FOLD DOES NOT CHANGE THE DOCUMENT. [`apply_to_view`] substitutes
+/// the fold-filtered text for what the pipeline shapes, and the card's DOCUMENT
+/// figures used to be read straight off that: fold a section and the drawn WORD
+/// COUNT fell to the visible lines while the announced one, derived from the
+/// buffer by `App::card_inputs`, stayed whole. So the substitution records the
+/// document and the caret's UNFILTERED place in it, and this law pins that
+/// record — against hand-derived arithmetic, not against a second call to the
+/// derivation it is checking.
+///
+/// It also asserts the visible-only reading, which is what the bug produced: the
+/// two must genuinely differ, or a green law here would prove nothing.
+#[test]
+fn a_fold_keeps_the_whole_document_for_the_card_figures() {
+    use crate::card::figures::{DocFigures, fixture};
+
+    let levels = heading_levels(fixture::DOC, true);
+    let f = folds(&[fixture::FOLD_HEADING]);
+    let hidden = hidden_lines(&levels, &f);
+    let tails = fold_tails(&levels, &f);
+
+    let mut view = crate::render::ViewState {
+        text: fixture::DOC.to_string(),
+        cursor_line: fixture::CARET.0,
+        cursor_col: fixture::CARET.1,
+        is_markdown: true,
+        ..crate::render::ViewState::base()
+    };
+    apply_to_view(&mut view, &hidden, &tails);
+
+    // The substitution really happened: the shaped text lost the two hidden
+    // lines and the caret really moved into filtered space.
+    assert_eq!(view.text, fixture::FOLDED);
+    assert_eq!(view.cursor_line, fixture::FOLDED_CARET_LINE);
+
+    // …and the DOCUMENT survived it, caret and all.
+    let doc = view
+        .doc_source
+        .as_ref()
+        .expect("a fold substitutes the shaped text, so it must record the document");
+    assert_eq!(doc.text, fixture::DOC);
+    assert_eq!((doc.cursor_line, doc.cursor_col), fixture::CARET);
+
+    // The figures over that record are the WHOLE document's — the same answer
+    // the semantic snapshot gets from the buffer.
+    let figures = DocFigures::of(&doc.text, view.is_markdown, doc.cursor_line, doc.cursor_col);
+    assert_eq!(figures.words, fixture::WORDS);
+    assert_eq!(figures.percent, fixture::PERCENT);
+    assert_eq!(figures.lang, Some(crate::frontmatter::Lang::Ja));
+
+    // The bug's reading, for contrast: deriving from the FILTERED text gives a
+    // different word count and a different percent. If these ever matched the
+    // document's, this law would be vacuous.
+    let visible = DocFigures::of(
+        &view.text,
+        view.is_markdown,
+        view.cursor_line,
+        view.cursor_col,
+    );
+    assert_eq!(visible.words, fixture::FOLDED_WORDS);
+    assert_eq!(visible.percent, fixture::FOLDED_PERCENT);
+    assert_ne!(visible.words, figures.words);
+    assert_ne!(visible.percent, figures.percent);
+}
+
+/// An unfolded document substitutes nothing, so it records nothing: the shaped
+/// text IS the document and the figures come off it directly. Pins the no-op
+/// path, which is what keeps a default capture byte-identical.
+#[test]
+fn an_unfolded_view_records_no_substitute_document() {
+    use crate::card::figures::fixture;
+
+    let levels = heading_levels(fixture::DOC, true);
+    let f = folds(&[]);
+    let mut view = crate::render::ViewState {
+        text: fixture::DOC.to_string(),
+        cursor_line: fixture::CARET.0,
+        cursor_col: fixture::CARET.1,
+        is_markdown: true,
+        ..crate::render::ViewState::base()
+    };
+    apply_to_view(
+        &mut view,
+        &hidden_lines(&levels, &f),
+        &fold_tails(&levels, &f),
+    );
+    assert_eq!(view.text, fixture::DOC);
+    assert_eq!(view.cursor_line, fixture::CARET.0);
+    assert!(view.doc_source.is_none());
+}

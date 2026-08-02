@@ -601,3 +601,78 @@ fn no_chevron_off_a_heading_or_off_a_markdown_buffer() {
     );
     crate::page::set_page_on(true);
 }
+
+/// DRAWN ⇔ ANNOUNCED WITH A SECTION FOLDED. The renderer used to
+/// derive the card's DOCUMENT figures from the text it happened to be shaping,
+/// which a fold has already filtered down to the visible lines. So the drawn
+/// WORD COUNT was over the visible document while the announced one — which
+/// `App::card_inputs` derives from the buffer — was over the whole buffer: two
+/// surfaces disagreeing about one fact.
+///
+/// This drives the REAL seams on both sides. The announced side is built from a
+/// real [`crate::buffer::Buffer`] through the exact expression the semantic fold
+/// uses; the drawn side is a real headless pipeline fed through
+/// [`crate::fold::apply_to_view`], asked for the same
+/// [`crate::card::content::CardInputs`] a frame composes its card from. The
+/// hand-derived fixture numbers are asserted alongside, so the law does not rest
+/// on the two sides being wrong in the same way.
+#[test]
+fn a_folded_section_never_moves_the_card_figures_the_pipeline_draws() {
+    use crate::card::figures::{DocFigures, fixture};
+
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("no GPU adapter; skipping folded-card-figures law");
+        return;
+    };
+    let _g = crate::testlock::serial();
+
+    // THE ANNOUNCED SIDE, verbatim from `App::card_inputs`: the buffer's own
+    // text, kind and caret. A fold is view state, so the buffer never sees one.
+    let mut buffer = crate::buffer::Buffer::from_str(fixture::DOC);
+    buffer.set_cursor(63); // the start of `beta five six` — fixture::CARET
+    assert_eq!(buffer.cursor_line_col(), fixture::CARET);
+    let (cl, cc) = buffer.cursor_line_col();
+    let announced = DocFigures::of(&buffer.text(), buffer.is_markdown(), cl, cc);
+    assert_eq!(announced.words, fixture::WORDS, "hand-derived word count");
+    assert_eq!(announced.percent, fixture::PERCENT, "hand-derived percent");
+
+    // THE DRAWN SIDE, unfolded first — the baseline both readings already agreed
+    // on, so a regression here would be a different bug.
+    let mut v = view_md(fixture::DOC, fixture::CARET.0, fixture::CARET.1);
+    p.set_view(&v);
+    assert_eq!(p.card_inputs().doc, announced, "unfolded baseline");
+
+    // …then with `# Alpha` collapsed, through the shared fold seam.
+    let levels = crate::fold::heading_levels(fixture::DOC, true);
+    let set: BTreeSet<usize> = [fixture::FOLD_HEADING].into_iter().collect();
+    crate::fold::apply_to_view(
+        &mut v,
+        &crate::fold::hidden_lines(&levels, &set),
+        &crate::fold::fold_tails(&levels, &set),
+    );
+    p.set_view(&v);
+
+    // The pipeline really is shaping the FILTERED document — otherwise nothing
+    // was folded and the assertion below is free.
+    assert_eq!(p.doc_text(), fixture::FOLDED);
+    assert_eq!(p.cursor_line, fixture::FOLDED_CARET_LINE);
+
+    assert_eq!(
+        p.card_inputs().doc,
+        announced,
+        "folding a section moved the DRAWN card figures away from the announced ones",
+    );
+    // And the sidecar's own HUD block, which is how a capture reports the card.
+    let hud = p.hud_report();
+    assert_eq!(hud.words, Some(fixture::WORDS_PAIR));
+    assert_eq!(hud.percent, fixture::PERCENT);
+    assert_eq!(hud.lang, Some(crate::frontmatter::Lang::Ja));
+    assert_eq!(p.readout_report(), Some(fixture::WORDS_PAIR));
+
+    // The reading the bug produced, named: it is a DIFFERENT answer, so this law
+    // is not green by coincidence.
+    assert_eq!(
+        DocFigures::of(&p.doc_text(), true, p.cursor_line, p.cursor_col).words,
+        fixture::FOLDED_WORDS,
+    );
+}

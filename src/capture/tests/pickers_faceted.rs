@@ -899,6 +899,117 @@ fn history_preview_folds_text_and_reports_preview_id() {
     assert!(col <= 3, "cursor clamped into the preview's cols: {col}");
 }
 
+/// A HISTORY PREVIEW REPLACES THE PAGE, NOT THE DOCUMENT. The preview
+/// substitutes a writer's-diff TRANSCRIPT for what the renderer shapes, and the
+/// card's document figures used to be read straight off it: a WORD COUNT over a
+/// diff — its markers, and both sides of every change — is not a fact about
+/// anything, and the LANGUAGE row vanished because a transcript carries no
+/// frontmatter. Meanwhile the semantic snapshot, which derives the same figures
+/// from the buffer, went on reporting the document's.
+///
+/// Driven through the real capture entry point with the real `preview_text`
+/// fold, so the sidecar's `hud` and `readout` blocks are the drawn side
+/// end-to-end. The transcript's own reading is asserted to be a DIFFERENT
+/// number, so a green result cannot be a coincidence.
+#[test]
+fn a_history_preview_leaves_the_card_figures_over_the_users_document() {
+    if !adapter_available() {
+        eprintln!("skipping a_history_preview_leaves_the_card_figures_over_the_users_document");
+        return;
+    }
+    let _tg = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_prevfig_test_{}", std::process::id())),
+    );
+    use crate::card::figures::{DocFigures, fixture};
+
+    let mut buf = Buffer::from_str(fixture::DOC);
+    buf.set_cursor(63); // the start of `beta five six` — fixture::CARET
+    assert_eq!(buf.cursor_line_col(), fixture::CARET);
+
+    // THE ANNOUNCED SIDE, verbatim from `App::card_inputs`: the buffer's own text
+    // and caret, which a preview never touches.
+    let (cl, cc) = buf.cursor_line_col();
+    let announced = DocFigures::of(&buf.text(), buf.is_markdown(), cl, cc);
+    assert_eq!(announced.words, fixture::WORDS);
+
+    // The transcript reads as something else entirely — the bug's answer.
+    let transcript_reading = DocFigures::of(fixture::TRANSCRIPT, true, 0, 0);
+    assert_ne!(transcript_reading.words, fixture::WORDS);
+    assert_eq!(transcript_reading.lang, None);
+
+    let mut opts = fixture_opts();
+    opts.preview_text = Some(fixture::TRANSCRIPT.to_string());
+    opts.overlay = Some(OverlayInfo {
+        align: crate::render::effective_card_anchor(),
+        active: true,
+        mode: "history",
+        title: "version history",
+        query: String::new(),
+        items: vec!["2 hr ago · edited \"Old\"".into()],
+        bindings: vec!["+2 −1".into()],
+        ranges: Vec::new(),
+        git: Vec::new(),
+        selected_index: 0,
+        hint: crate::overlay::OverlayKind::History.hint(),
+        browse_dir: None,
+        return_to: None,
+        spell_target: None,
+        context_anchor: None,
+        capture: None,
+        notice: String::new(),
+        lens: None,
+        lens_strip: Vec::new(),
+        sections: Vec::new(),
+        preview_id: Some("1700000000000".into()),
+        // A History preview IS a comparison, so the real path emits its view tag
+        // (`capture_fold`: `request.map(|r| r.view.tag())`); `None` here would
+        // contradict the `preview_text` this fixture sets.
+        preview_view: Some("diff"),
+        workspace: false,
+        detail_focus: false,
+        diff_scroll: 0,
+        empty: None,
+        show_hidden: false,
+    });
+    let png = dir.join("preview_figures.png");
+    capture_with(&png, &buf, &opts).expect("preview capture renders");
+    let j: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
+            .unwrap();
+
+    // The page really is showing the transcript — else the figures below are
+    // over the document by default and this proves nothing.
+    assert_eq!(j["text"], serde_json::json!(fixture::TRANSCRIPT));
+
+    // …and every document figure is still the DOCUMENT's.
+    assert_eq!(
+        j["hud"]["words"],
+        serde_json::json!(fixture::WORDS_PAIR.0),
+        "the drawn WORD COUNT counted the diff transcript, not the document",
+    );
+    assert_eq!(
+        j["hud"]["reading_min"],
+        serde_json::json!(fixture::WORDS_PAIR.1),
+        "the drawn reading time followed the transcript's count",
+    );
+    assert_eq!(
+        j["hud"]["percent"],
+        serde_json::json!(fixture::PERCENT),
+        "the drawn THROUGH DOC measured the transcript, not the document",
+    );
+    assert_eq!(
+        j["hud"]["lang"],
+        serde_json::json!(crate::frontmatter::Lang::Ja.code()),
+        "the document's frontmatter language, not the transcript's absence of one",
+    );
+    assert_eq!(
+        j["readout"]["words"],
+        serde_json::json!(fixture::WORDS_PAIR.0),
+        "the quiet readout counted the diff transcript, not the document",
+    );
+}
+
 /// ITEM 94 — THE RANGE ROW THROUGH THE REAL REPLAY + SIDECAR SEAM: drive RIGHT on
 /// the Settings menu's Zoom row through the SAME `apply_transition` a `--keys` replay
 /// runs, fold the still-open overlay through the SAME

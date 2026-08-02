@@ -68,13 +68,12 @@ impl App {
             None
         };
         // ROPE-CLONE SHORT-CIRCUIT: reuse the last materialised rope clone while the
-        // buffer version is unchanged (see [`Self::view_text`]). A PREVIEW bypasses
-        // `view_text` entirely — the version-keyed `sync_text_cache` must never hold
-        // a previewed version's bytes (the cache-key discipline).
-        let text = match &preview {
-            Some(p) => p.clone(),
-            None => self.view_text(),
-        };
+        // buffer version is unchanged (see [`Self::view_text`]). This is always the
+        // BUFFER's own text: a preview substitutes its transcript in below, through
+        // the one door that keeps the document behind it, so the version-keyed
+        // `sync_text_cache` still never holds a previewed version's bytes (the
+        // cache-key discipline).
+        let text = self.view_text();
         // The follow branch chases the BUFFER cursor; a preview clamps that cursor
         // into a DIFFERENT text, so arrowing the rows must never scroll-chase it.
         let follow = follow && preview.is_none();
@@ -117,17 +116,10 @@ impl App {
         // (`spell::visible`, THE ONE reader) — a verdict whose exact word has
         // since changed underneath its span (an edit this same sync just made,
         // or — belt and suspenders — any future path that mutates `spell_cache`
-        // without an immediate rescan) can never paint. A DIFF-AS-PREVIEW
-        // substitutes a different transcript into `text` above; every verdict
-        // stays keyed to the REAL buffer text, so key against that (a cached
-        // `view_text()` clone, not a fresh rope walk) rather than the preview
-        // transcript it would never match anyway.
-        let misspelled = if preview.is_some() {
-            let buffer_text = self.view_text();
-            crate::spell::visible(self.document.spell_cache(), &buffer_text)
-        } else {
-            crate::spell::visible(self.document.spell_cache(), &text)
-        };
+        // without an immediate rescan) can never paint. Every verdict is keyed to
+        // the REAL buffer text, which `text` above now always is; a preview clears
+        // the list outright below.
+        let misspelled = crate::spell::visible(self.document.spell_cache(), &text);
 
         // The summoned picker, bound ONCE for the whole projection below (item
         // 172): fourteen `overlay_*` fields read it, and asking its owner
@@ -247,6 +239,9 @@ impl App {
             overlay_detail_focus: ov.map(|o| o.detail_focus).unwrap_or(false),
             folds: Vec::new(),
             fold_tails: Vec::new(),
+            // `text` above IS the document; the two substitutions below (preview
+            // transcript, fold filter) each record it via `substitute_text`.
+            doc_source: None,
         };
         // Preview text may be shorter than the buffer, so every line/col span
         // index the BUFFER text must be re-bounded or cleared — the cursor clamps
@@ -255,7 +250,12 @@ impl App {
         // duration (they'd misalign, or panic in the glyph-span layer). All
         // restored automatically on close: the next sync rebuilds them from the
         // untouched buffer.
-        if preview.is_some() {
+        if let Some(transcript) = preview.clone() {
+            // Through the ONE door, which keeps the document behind the transcript
+            // so the card figures stay over it: a word count of a writer's diff —
+            // markers, both sides of every change — is a fact about nothing, and
+            // the announced count never left the buffer.
+            view.substitute_text(transcript);
             // DIFF-AS-PREVIEW: park the caret on the transcript's blank line 1
             // (between the `# title` and the first diff block) so NO line's WYSIWYG
             // conceal reveals — the reveal is caret-line-scoped and line 1 carries no

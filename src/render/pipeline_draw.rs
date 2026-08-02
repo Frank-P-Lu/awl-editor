@@ -532,6 +532,7 @@ impl TextPipeline {
             syn_lang: None,
             syn_spans: Vec::new(),
             doc_lang: None,
+            doc_source: None,
             cjk_priority: crate::frontmatter::DEFAULT_CJK_PRIORITY.to_vec(),
             eol: crate::buffer::Eol::Lf,
             copy_pulse_t: 1.0,

@@ -141,12 +141,42 @@ pub struct ViewState {
     /// nothing is folded, so a default capture is byte-identical.
     pub folds: Vec<usize>,
     pub fold_tails: Vec<FoldTail>,
+    /// The user's OWN document, when `text` above is a SUBSTITUTE for it rather
+    /// than the document itself — a fold has dropped the hidden lines, or a
+    /// History preview has replaced the whole thing with a diff transcript.
+    /// `None` on every ordinary frame, where `text` IS the document and the
+    /// shaped lines answer for it (so a default capture stays byte-identical).
+    ///
+    /// Exists because the card's DOCUMENT figures — word count, frontmatter
+    /// language, through-doc percent — are facts about the user's document, and
+    /// the renderer used to read them off whatever it happened to be shaping.
+    /// Fold a section and the drawn WORD COUNT fell to the visible lines while
+    /// the announced one (which reads the buffer) stayed whole; open a History
+    /// preview and the drawn one counted a diff transcript. Written ONLY by
+    /// [`ViewState::substitute_text`], the one door every substitution goes
+    /// through.
+    pub doc_source: Option<DocSource>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FoldTail {
     pub line: usize,
     pub hidden: usize,
+}
+
+/// The user's own document and the caret's place IN it — the input the pure
+/// figure owner ([`crate::card::figures::DocFigures::of`]) reads when the shaped
+/// `text` is a substitute. Carried as ONE value, for the same reason
+/// `DocFigures` is gathered: a caller cannot take the text from the document and
+/// the caret from the substitute.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DocSource {
+    /// The document text, unfiltered and unsubstituted.
+    pub text: String,
+    /// The caret's logical line in that text, in CHARACTERS.
+    pub cursor_line: usize,
+    /// The caret's logical column in that text, in CHARACTERS.
+    pub cursor_col: usize,
 }
 
 impl ViewState {
@@ -227,6 +257,32 @@ impl ViewState {
             overlay_detail_focus: false,
             folds: Vec::new(),
             fold_tails: Vec::new(),
+            doc_source: None,
+        }
+    }
+
+    /// Replace the shaped [`Self::text`] with a SUBSTITUTE — the fold-filtered
+    /// document, or a History preview's diff transcript — remembering the
+    /// document (and the caret's place in it) in [`Self::doc_source`] first.
+    ///
+    /// THE one door for every text substitution. A caller that assigns
+    /// `view.text` directly leaves the card's document figures derived from the
+    /// substitute, which is the bug this exists to make unrepresentable: the
+    /// drawn WORD COUNT would be over the visible lines while the announced one
+    /// — read from the buffer by `App::card_inputs` — stayed over the whole
+    /// document. Must be called BEFORE the caret is remapped or parked into the
+    /// substitute's line space; it captures the caret it is given.
+    ///
+    /// Idempotent in the sense that matters: a second substitution keeps the
+    /// FIRST recorded document, since that is still the user's own.
+    pub fn substitute_text(&mut self, replacement: String) {
+        let previous = std::mem::replace(&mut self.text, replacement);
+        if self.doc_source.is_none() {
+            self.doc_source = Some(DocSource {
+                text: previous,
+                cursor_line: self.cursor_line,
+                cursor_col: self.cursor_col,
+            });
         }
     }
 }

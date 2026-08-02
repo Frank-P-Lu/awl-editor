@@ -390,6 +390,11 @@ impl Filter {
 /// and every coordinate stay byte-identical). Shared by the live `sync_view` and
 /// the headless capture builder so the two flows cannot drift.
 ///
+/// The replacement goes through [`crate::render::ViewState::substitute_text`], so
+/// the unfiltered document and the caret's place in it survive in
+/// `doc_source` — the card's WORD COUNT / LANGUAGE / THROUGH DOC are facts about
+/// the user's document, not about how much of it is currently on screen.
+///
 /// `tails` is the FULL-document `(heading_line, hidden_count)` list ([`fold_tails`]);
 /// each entry's heading is remapped into filtered space here and recorded as a
 /// [`crate::render::FoldTail`] so the render can hang the quiet "… N lines" glyph on
@@ -399,10 +404,11 @@ pub fn apply_to_view(
     hidden: &[bool],
     tails: &[(usize, usize)],
 ) {
-    let filter = Filter::new(&view.text, hidden);
+    let mut filter = Filter::new(&view.text, hidden);
     if !filter.any_hidden() {
         return;
     }
+    let filtered_text = std::mem::take(&mut filter.text);
     view.fold_tails = tails
         .iter()
         .map(|&(h, n)| crate::render::FoldTail {
@@ -410,6 +416,12 @@ pub fn apply_to_view(
             hidden: n,
         })
         .collect();
+    // Substitute the filtered text through the ONE door, which records the
+    // document and the caret's UNFILTERED place in it before either is remapped
+    // below. The card's document figures are derived from that record, so
+    // folding a section cannot change the word count the card draws — the
+    // announced count, read from the buffer, never moved.
+    view.substitute_text(filtered_text);
     view.cursor_line = filter.line(view.cursor_line);
     view.selection = view.selection.map(|(a, b)| (filter.pos(a), filter.pos(b)));
     view.search_matches = view
@@ -434,7 +446,6 @@ pub fn apply_to_view(
             m
         })
         .collect();
-    view.text = filter.text;
 }
 
 #[cfg(test)]
