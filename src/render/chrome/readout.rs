@@ -187,9 +187,9 @@ impl TextPipeline {
     /// The readout string for the bottom-right corner, e.g. `"240 words · 2 min"`.
     /// Empty when there is nothing to show (non-markdown or wordless).
     ///
-    /// REUSED by the held HUD's WORD COUNT figure (phase 2): the persistent
-    /// bottom-right readout is no longer drawn, but this text-feeder +
-    /// [`Self::readout_report`] (the sidecar source) live on as the HUD's source.
+    /// The persistent bottom-right readout is no longer drawn; this text-feeder
+    /// lives on for the calm corner notice. The held HUD's own WORD COUNT
+    /// figure comes from `crate::card::figures`, not from here.
     pub(in crate::render) fn wordcount_text(&self) -> String {
         crate::card::figures::words_readout(&self.doc_text(), self.md_enabled)
     }

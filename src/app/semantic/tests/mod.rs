@@ -1,6 +1,10 @@
 use super::*;
 use crate::overlay::{OverlayKind, OverlayState};
 
+/// The drawn-⇔-announced roster law for the passive surfaces, in its own
+/// file because it renders real frames and reads their pixels back.
+mod passive_roster;
+
 fn hermetic() -> App {
     App::new_hermetic(None, PathBuf::from("/"), Config::empty())
 }

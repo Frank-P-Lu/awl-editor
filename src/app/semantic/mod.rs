@@ -163,6 +163,4 @@ impl App {
 }
 
 #[cfg(test)]
-mod passive_roster;
-#[cfg(test)]
 mod tests;
