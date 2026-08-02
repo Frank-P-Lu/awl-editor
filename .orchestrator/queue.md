@@ -446,15 +446,56 @@ run.
   feature. 222 is warned off pre-empting item 131e, which still owns selection
   composition on the diagonal machinery.
 
-- **231** — 🟡 IN PROGRESS — claude (deep), branch `claude/item-231-ci-fix`. The
-  CI fix. Briefed to run the two ~10-minute discriminators FIRST
-  (`--test-threads=1`: does the wedge need concurrency? and a `render::tests::`
-  restriction: does it localise?) before committing to a repair, reusing
-  `scripts/ci-mac-bisect.sh` rather than rebuilding the probe machinery. **The
-  constraint that shapes it:** a helper that stops rebuilding the pipeline must
-  still give each test the world it asked for and the roster sweeps must still
-  sweep — if sharing a device would let one test's state leak into another's,
-  that trades this defect for item 233's and is not a fix.
+- **231** — 🔴 STILL OPEN. **The fix did NOT clear the hang, and the probes
+  FALSIFIED the recorded diagnosis.** Receipt for the landed improvement:
+  `native-gate-receipt commit=3e3db0c6… conventions=mac,linux scope=all-targets`.
+  **Four discriminating arms over one grafted workflow** (run `30766842071`):
+  control **WEDGED**; `RUST_TEST_THREADS=1` **WEDGED** — so **it does not need
+  concurrency**, which kills the "three workers race" reading; `render::tests::`
+  **WEDGED**; `--skip render::tests::` **COMPLETED**, 2860 tests per convention
+  in 110 s *while standing up its own device per test and building ~80,000 GPU
+  programs in aggregate*. **So it is not how many programs a process builds — it
+  is how many against ONE long-lived device.**
+  ⚠️ **THE "SHARED WGPU DEVICE WEDGES" DIAGNOSIS IS DEAD.** In the post-fix log
+  the mac and linux conventions — **two separate processes with two separate
+  wgpu devices** — stopped **within 10 MILLISECONDS** of each other and never
+  moved. They share no device. **The contended resource is SYSTEM-WIDE: the VM's
+  virtualised Metal stack itself.** That also explains why the no-render arm
+  survives while doing far more total GPU work — its tests create AND DESTROY
+  devices, forcing driver-side reclamation, where `render::tests::` piles
+  transient resources onto one device never torn down.
+  **The landed work still earns its place** (`src/gpu_cache.rs`): `render::tests::`
+  GPU program builds **52,083 → 5,577**, `TextPipeline::new` 44 ms → 23 ms,
+  `cargo test --bin awl` 133.8 s → 116.6 s, 3616 passing either side. Only
+  objects that are pure code are shared; everything writable stays per-instance.
+  **A 9.3× cut in churn did not clear it** (run `30770296246`).
+  ⚠️ **A DANGEROUS wgpu FACT, measured (29.0.3): `wgpu::Device`'s `PartialEq`
+  reports two separately requested, simultaneously live devices as EQUAL.** A
+  device-keyed cache is therefore impossible — the first draft trusted it and
+  648/3616 tests died with `BindGroupLayout does not exist`. Identity is a
+  property of the CALL SHAPE instead. The cache also **must not be
+  thread-local**: libtest gives every test its own thread, which left builds at
+  86,061, i.e. no change at all.
+  **One law initially PASSED its own leak mutation** — drawing one world at a
+  time lets each `prepare` overwrite the last; only building and preparing all
+  twenty BEFORE any draws exposes it.
+  **Where to look next, per the lane:** the residual ~5,577 builds are dominated
+  by the direct `BackgroundPipeline`/`SelectionPipeline` helpers (~1,800 calls,
+  55 call sites) — but more promising given the system-wide finding, the
+  per-call `glyphon::Cache` + `TextAtlas` and every `offscreen()` texture and
+  readback buffer, which are **allocations, not programs**, and which wgpu only
+  reclaims on poll. Probe driver at `~/.awl-item231/probe.sh`.
+  **Item 232's virtualised-GPU arm would have caught all of this locally in
+  minutes rather than 50 per cycle** — that item is now the higher-value one.
+  ⚠️ **The merge shipped two wasm warnings the branch could not have seen**
+  (`OnceLock` native-only, `scoped` whose caller is `None` on wasm); fixed at
+  `3e3db0c6`, and an over-gate of `Mutex` broke the wasm build in between —
+  the wasm `programs()` is an `unreachable!` stub that still names it.
+
+**⚠️ THE GITHUB REPO HAS BEEN RENAMED to `Frank-P-Lu/awl-editor`.** `git remote`
+still says `awl-next.git` and every push tonight succeeded through GitHub's
+redirect, but tooling that reconstructs URLs by hand will point at the old name
+— `scripts/ci-mac-bisect.sh` already does.
 - **219 + 225** — ✅ COMPLETE. Receipt `native-gate-receipt commit=d7709def…
   conventions=mac,linux scope=all-targets`.
   ⚠️ **NEITHER DEFECT WAS WORLD-SPECIFIC, and that inverts what both items
