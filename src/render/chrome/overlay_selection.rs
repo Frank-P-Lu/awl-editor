@@ -313,20 +313,26 @@ impl TextPipeline {
             });
             // THE PLATE BACKS THE FOOTER, not "everything below it".
             // Running it to the card's bottom edge is right for a card that HUGS
-            // its content (the plate closes the card, and the two are the same
-            // line); a WORKSPACE's card comes from the canvas instead, so on a
-            // short list the same rule paints a plate as tall as whatever space
-            // the rows did not use. Bounding it to the footer's own band is a
-            // no-op wherever the card already ends there, which is every
-            // contextual family.
-            let band_bottom = plan.footer_top()
-                + (geom.hint_rows + geom.footer_rows) as f32 * self.overlay_lh()
-                + super::workspace::WORKSPACE_PAD;
+            // its content: the plate closes the card, and the two are the same
+            // line. A WORKSPACE's card comes from the CANVAS instead, so there is
+            // no bottom edge to close — the same rule paints a slab as tall as
+            // whatever vertical space the rows did not use, hanging below the
+            // footer's own glyphs with nothing in it. There the plate takes the
+            // FOOTER'S OWN BAND, whose height is the row pitch LESS the amount a
+            // footer line is shorter than a row — `overlay_footer_reclaim`, the
+            // one owner of that difference, which the card height already reads.
+            let footer_band = (geom.hint_rows + geom.footer_rows) as f32 * self.overlay_lh()
+                - self.overlay_footer_reclaim(geom.hint_rows);
+            let card_bottom = geom.card_y + geom.card_h;
+            let plate_bottom = match geom.workspace {
+                true => (plan.footer_top() + footer_band).min(card_bottom),
+                false => card_bottom,
+            };
             rects.push(footer_plate_rect(
                 plan.footer_top(),
                 geom.band_x(),
                 geom.band_w(),
-                (geom.card_y + geom.card_h).min(band_bottom),
+                plate_bottom,
                 footer_hug,
             ));
         }

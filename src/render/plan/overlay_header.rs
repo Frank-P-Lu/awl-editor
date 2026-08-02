@@ -16,12 +16,11 @@ use super::overlay_rows::OverlayRowPlanInput;
 /// `lh + header_gap·(1 - 2·frac)` — comfortably true for every body face at 0.4.
 pub(super) const SPLIT_GAP_FRAC: f32 = 0.4;
 
-/// A GROUPED card's upper surface borrows this fraction of the SAME
+/// A split card's upper surface borrows this fraction of the SAME
 /// already-proven-safe slack as symmetric breathing room below the query box
 /// before the visible gap starts, so the query stops reading bottom-heavy inside
-/// its own small strip. The FLAT arm is already at its ceiling (its gap sits
-/// flush against the first candidate row) and takes no breathe.
-pub(super) const FACETED_BREATHE_FRAC: f32 = 0.2;
+/// its own small strip.
+pub(super) const BREATHE_FRAC: f32 = 0.2;
 
 /// **THE HEADER BAND'S OWN RUN** — the distance from a card's `text_top` down to
 /// its candidate band's `first_top`, for a card with `header_rows` display lines
@@ -42,11 +41,31 @@ pub(in crate::render) fn header_band_height(header_rows: usize, lh: f32, header_
     header_rows as f32 * lh + header_gap
 }
 
+/// **WHERE THE BEAT STANDS.** The query BEAT is negative space BEFORE the first
+/// candidate; the only question the band has to answer is whose LINE BOX owns
+/// it. A card carrying a lens STRIP folds it into the strip's box, because
+/// cosmic-text centres a line's glyph run in its box and that half-leading is
+/// exactly what seats the strip below the split seam, clear of the query bar.
+/// A card whose ONLY header line IS the query field has no such line to seat:
+/// folding the beat there centres the field's glyphs in a box that runs all the
+/// way to the first candidate, dropping them the better part of a row below the
+/// query bar's own surface and opening a blank strip ABOVE them. So the beat
+/// stands on its own after the header lines instead, and the shaper emits it as
+/// a glyph-free line rather than as line-height on a line that has glyphs.
+///
+/// Reduced to one sentence: **THE QUERY FIELD'S BOX IS ALWAYS EXACTLY ONE LINE**,
+/// and the beat closes the band from whichever box follows it.
+pub(in crate::render) fn beat_stands_alone(header_rows: usize, header_gap: f32) -> bool {
+    header_rows <= 1 && header_gap > 0.0
+}
+
 /// Lay out one box per header display line, stacked from `text_top` at the
 /// candidate band's own pitch, with the query BEAT folded into the LAST box
-/// exactly as the shaper folds it into that line's own glyph metrics — so the
-/// band closes on `first_top` and the query field, the lens strip and the first
-/// candidate row cannot disagree about where one ends and the next begins.
+/// exactly as the shaper folds it into that line's own glyph metrics — unless
+/// that box is the query field's own ([`beat_stands_alone`]), in which case the
+/// beat closes the band as its own glyph-free run. Either way the band closes on
+/// `first_top`, so the query field, the lens strip and the first candidate row
+/// cannot disagree about where one ends and the next begins.
 ///
 /// The last box's height is whatever [`header_band_height`] has left over rather
 /// than a second `lh + header_gap`, so the boxes and the band's run are one
@@ -54,13 +73,14 @@ pub(in crate::render) fn header_band_height(header_rows: usize, lh: f32, header_
 pub(super) fn plan_header_band(input: &OverlayRowPlanInput<'_>) -> Vec<PlannedHeader> {
     let n = input.header_rows;
     let band_bottom = input.text_top + header_band_height(n, input.lh, input.header_gap);
+    let folded = !beat_stands_alone(n, input.header_gap);
     (0..n)
         .map(|line| {
             let top = input.text_top + line as f32 * input.lh;
             PlannedHeader {
                 line,
                 top,
-                height: match line + 1 == n {
+                height: match folded && line + 1 == n {
                     true => band_bottom - top,
                     false => input.lh,
                 },
@@ -78,14 +98,14 @@ pub(super) fn plan_header_band(input: &OverlayRowPlanInput<'_>) -> Vec<PlannedHe
 /// in, the box a pointer must fall inside to be "on the field", and the box the
 /// split-pane composition carves its visible gap out of.
 ///
-/// THE BEAT LIVES IN THE LAST HEADER LINE'S BOX, not between the lines. The
-/// query BEAT (`header_gap`, `overlay_header_gap`'s calm slab of negative space
-/// before the first candidate) is STRUCTURAL: the shaper inflates the LAST
-/// header line's real glyph metrics by exactly it (`shape_overlay_names`'s
-/// `header_lh` on a flat card's line 0; `shape_theme_spans`'s `strip_lh` on a
-/// grouped card's line 1) rather than emitting a blank line. So header line `i`
-/// is `lh` tall except the last, which is `lh + header_gap` — and the last
-/// line's own BOTTOM is the candidate band's `first_top`, by construction.
+/// THE BEAT IS STRUCTURAL, never a leading newline. The query BEAT
+/// (`header_gap`, `overlay_header_gap`'s calm slab of negative space before the
+/// first candidate) either inflates the LAST header line's real glyph metrics
+/// (`shape_theme_spans`'s `strip_lh` on a grouped card's line 1) or stands as
+/// its own glyph-free line after them ([`beat_stands_alone`] — a flat card,
+/// whose one header line is the query field itself). So header line `i` is
+/// exactly `lh` tall, except a folded last line, which is `lh + header_gap`; the
+/// band always closes on the candidate band's `first_top`, by construction.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub(in crate::render) struct PlannedHeader {
     pub line: usize,
@@ -136,11 +156,25 @@ impl OverlayRowPlan {
     /// field". `None` for the contextual spell popup, which has no query line at
     /// all (`header_rows == 0`).
     ///
-    /// On a FLAT picker this box is `lh + header_gap` tall: the query BEAT is the
-    /// bottom of the field's own box, not a separate row. That is why reading the
-    /// bare `lh` here was a real drift — see `over_overlay_query`.
+    /// The field's box is exactly ONE line on every family ([`beat_stands_alone`]):
+    /// the caret it centres, the pointer band it defines and the glyphs the
+    /// shaper half-leads into it are then one box, and the beat that follows is
+    /// not part of the field.
     pub(in crate::render) fn query_band(&self) -> Option<PlannedHeader> {
         self.headers.first().copied()
+    }
+
+    /// THE BEAT'S OWN GLYPH-FREE LINE — its height, when the beat stands after
+    /// the header lines rather than inside the last one. `None` when it is
+    /// folded (a grouped card's lens strip) or when there is no beat at all.
+    ///
+    /// DERIVED from the planned boxes, never re-decided: whatever run the header
+    /// lines leave between their last bottom and the candidate band's `first_top`
+    /// IS the beat, so the shaper cannot emit a spacer the band did not plan.
+    pub(in crate::render) fn beat_line(&self) -> Option<f32> {
+        let last = self.headers.last()?;
+        let slack = self.first_top() - last.bottom();
+        (slack > 0.0).then_some(slack)
     }
 
     /// THE LENS STRIP's own line box on a GROUPED card — the last header line,
@@ -173,32 +207,27 @@ impl OverlayRowPlan {
     /// `[gap_bottom, card_bottom]` (the facets / section-headers + candidate rows
     /// + footer). The world's own background shows through between them.
     ///
-    /// BOTH ARMS ARE CARVED OUT OF THE LAST HEADER LINE'S OWN BOX — the negative
-    /// space of the query beat — so no glyph falls in the gap and no text moves;
-    /// it is a pure FILL change. They differ only in which EDGE of that box the
-    /// band hangs from:
+    /// THE SEAM HANGS FROM THE QUERY FIELD'S OWN BOTTOM EDGE, on every family —
+    /// one rule, no arms. The upper surface holds the query INPUT and nothing
+    /// else, so it closes [`BREATHE_FRAC`] of the beat below the field's box as
+    /// symmetric breathing (the field then sits with a pad above it and a pad
+    /// below it inside its own bar), and the visible band is
+    /// [`SPLIT_GAP_FRAC`] of the beat tall. Everything below — a lens strip, the
+    /// candidate rows, the footer — belongs to the lower surface. On a GROUPED
+    /// card that is the same number the retired `strip.top + breathe` produced,
+    /// because the strip's own top IS the field's bottom.
     ///
-    ///   * FLAT (one header line): the beat is the BOTTOM of the query box, so
-    ///     the band sits flush against the box's bottom edge — which is the first
-    ///     candidate row's top, and sacred (moving it would shift every row
-    ///     below).
-    ///   * GROUPED (query line + lens strip): the beat is the BOTTOM of the STRIP
-    ///     box, but the surface seam belongs above the strip, so the band hangs
-    ///     from the strip box's TOP edge — plus [`FACETED_BREATHE_FRAC`] of the
-    ///     beat as symmetric breathing below the query box.
+    /// IT IS CARVED OUT OF THE BEAT, the negative space between the query field's
+    /// glyphs and the first candidate, so no glyph falls in the gap and no text
+    /// moves; it is a pure FILL change. `first_top` is sacred and untouched
+    /// (moving it would shift every row below).
     pub(in crate::render) fn split_bounds(&self) -> Option<(f32, f32)> {
-        let head = self.headers.last()?;
+        let field = self.headers.first()?;
         if self.header_gap <= 0.0 {
             return None;
         }
-        let gap = self.header_gap * SPLIT_GAP_FRAC;
-        if self.headers.len() == 1 {
-            let lower_top = head.bottom();
-            Some((lower_top - gap, lower_top))
-        } else {
-            let upper_bottom = head.top + self.header_gap * FACETED_BREATHE_FRAC;
-            Some((upper_bottom, upper_bottom + gap))
-        }
+        let upper_bottom = field.bottom() + self.header_gap * BREATHE_FRAC;
+        Some((upper_bottom, upper_bottom + self.header_gap * SPLIT_GAP_FRAC))
     }
 
     /// Invert a planned row slot without re-deriving its y arithmetic.

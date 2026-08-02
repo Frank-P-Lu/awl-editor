@@ -102,11 +102,22 @@ fn every_overlay_kind_orders_drawn_title_facet_candidates_footer_and_hits_the_sa
             q.0 >= card[0] && q.0 <= card[0] + card[2] && q.1 >= card[1] && q.1 <= card[1] + card[3]
         };
 
-        let (header_rows, first_candidate_line) = match contract {
-            SurfaceContract::Contextual => (0usize, 0usize),
-            SurfaceContract::Flat => (1, 1),
-            SurfaceContract::Faceted => (2, 2),
+        let header_rows = match contract {
+            SurfaceContract::Contextual => 0usize,
+            SurfaceContract::Flat => 1,
+            SurfaceContract::Faceted => 2,
         };
+        // WHICH shaped line carries candidate 0 is production's own answer
+        // (`OverlayGeom::shaped_first_row_line`), not a count of header rows:
+        // item 219 gives a flat card's BEAT its own glyph-free line between the
+        // query field and the candidates. The header count above stays hand-
+        // written so the two are still cross-checked.
+        let first_candidate_line = p.overlay_geometry(w).shaped_first_row_line();
+        assert_eq!(
+            p.overlay_geometry(w).header_rows_probe(),
+            header_rows,
+            "{kind:?}: the surface contract's own header-row count"
+        );
 
         let mut previous_bottom = card[1];
         if header_rows > 0 {
@@ -292,11 +303,15 @@ fn footer_pixels_add_clear_air_above_trim_the_chin_and_reject_the_old_dials() {
         p.prepare(&device, &queue, w, h).unwrap();
         let pixels = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
 
+        // The final candidate and the footer by their PRODUCTION line indices —
+        // a flat card's beat takes a shaped line of its own (item 219), so a
+        // hardcoded 3/4 here silently measures the wrong two bands.
+        let first_row = p.overlay_geometry(w).shaped_first_row_line();
         let candidate_box = p
-            .overlay_line_glyph_box(3)
+            .overlay_line_glyph_box(first_row + 2)
             .unwrap_or_else(|| panic!("{world}: final candidate shaped"));
         let footer_box = p
-            .overlay_line_glyph_box(4)
+            .overlay_line_glyph_box(first_row + 3)
             .unwrap_or_else(|| panic!("{world}: footer shaped"));
         let (_, candidate_bottom) = core_ink_y_band(
             &pixels,

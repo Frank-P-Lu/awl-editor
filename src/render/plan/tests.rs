@@ -471,8 +471,9 @@ fn headered(header_rows: usize, header_gap: f32, lh: f32) -> super::OverlayRowPl
 }
 
 /// THE HEADER BAND TILES, WITH NO HOLE AND NO OVERLAP, FROM `text_top` DOWN TO
-/// THE FIRST CANDIDATE ROW — and the query BEAT lives inside the LAST header
-/// line's own box, never as a gap between boxes.
+/// THE FIRST CANDIDATE ROW — and the query BEAT either lives inside the LAST
+/// header line's own box or closes the band as its own glyph-free run
+/// (`beat_stands_alone`), never as an unaccounted gap between boxes.
 ///
 /// The oracle is independent: each line's expected top is accumulated by
 /// SUMMING the previous heights (never by calling the plan's own `top`), and the
@@ -502,15 +503,29 @@ fn the_header_band_tiles_from_text_top_to_the_first_candidate_row() {
                         head.top,
                         i.saturating_sub(1)
                     );
-                    let want_h = if i + 1 == header_rows { lh + gap } else { lh };
+                    // The QUERY FIELD's box is ALWAYS exactly one row pitch; only
+                    // a LAST header line that is NOT the field carries the beat.
+                    let folded = i + 1 == header_rows && i > 0;
+                    let want_h = if folded { lh + gap } else { lh };
                     assert!(
                         (head.height - want_h).abs() < 1e-3,
                         "{ctx}: header line {i} is {} tall, want {want_h} — the beat \
-                         belongs to the LAST header line's own box",
+                         belongs to the last header line's own box only when that line \
+                         is not the query field itself",
                         head.height
                     );
                     cursor = head.bottom();
                 }
+                // Whatever the header LINES did not use is the beat's own run, and
+                // the plan must name it rather than leave it unaccounted.
+                let standalone = plan.beat_line().unwrap_or(0.0);
+                assert_eq!(
+                    standalone > 0.0,
+                    header_rows == 1 && gap > 0.0,
+                    "{ctx}: the beat stands alone exactly when the card's one header \
+                     line is the query field and there is a beat to stand"
+                );
+                cursor += standalone;
                 // …and the band closes exactly on the candidate band's first row,
                 // graded against the ROW family's own owner.
                 //
@@ -587,15 +602,22 @@ fn the_secondary_origin_lands_every_label_on_its_own_planned_row() {
     }
 }
 
-/// THE SPLIT-PANE GAP IS CARVED OUT OF THE LAST HEADER LINE'S OWN BOX. It never
-/// crosses into the candidate band, never starts above that box, and is exactly
-/// `SPLIT_GAP_FRAC` of the beat tall — for BOTH arms (flat hangs it from the
-/// box's bottom edge, grouped from its top edge plus the item-83 breathe).
+/// THE SPLIT-PANE GAP IS CARVED OUT OF THE BEAT, BELOW THE QUERY FIELD'S OWN
+/// BOX — one rule, no arms. It never starts inside the field, never crosses into
+/// the candidate band, hangs exactly one breathe (`BREATHE_FRAC`) below the
+/// field, and is exactly `SPLIT_GAP_FRAC` of the beat tall, on BOTH families.
+///
+/// **THE UPPER SURFACE IS THE QUERY BAR AND NOTHING ELSE**, which is the claim
+/// that fails on item 219's defect: with the beat folded into a lone query
+/// line's box, the field's box ran all the way to the first candidate and
+/// SWALLOWED the seam — the bar could not close above the gap, so it closed
+/// below it and the query's glyphs, centred in that tall box, left a blank strip
+/// above them.
 ///
 /// The containment oracle is the header band accumulated independently (as
 /// above), not `split_bounds`' own inputs.
 #[test]
-fn the_split_gap_stays_inside_the_last_header_lines_box() {
+fn the_split_gap_is_carved_out_of_the_beat_below_the_query_field() {
     for &gap in &[5.0f32, 42.0, 84.3] {
         for &lh in &[12.0f32, 27.2, 81.6] {
             for header_rows in [1usize, 2] {
@@ -604,38 +626,30 @@ fn the_split_gap_stays_inside_the_last_header_lines_box() {
                 let (gt, gb) = plan
                     .split_bounds()
                     .unwrap_or_else(|| panic!("{ctx}: a card with a header and a beat splits"));
-                let beat_box = plan.header_lines()[header_rows - 1];
+                let field = plan.query_band().unwrap();
                 assert!(gb > gt, "{ctx}: the gap is a real band");
                 assert!(
                     (gb - gt - gap * 0.4).abs() < 1e-3,
                     "{ctx}: the gap is 0.4 of the beat, got {}",
                     gb - gt
                 );
+                // THE UPPER SURFACE CLOSES BELOW THE FIELD, never through it.
                 assert!(
-                    gt >= beat_box.top - 1e-3 && gb <= beat_box.bottom() + 1e-3,
-                    "{ctx}: the gap [{gt}, {gb}] escapes the last header line's box \
-                     [{}, {}]",
-                    beat_box.top,
-                    beat_box.bottom()
+                    gt >= field.bottom() - 1e-3,
+                    "{ctx}: the gap [{gt}, {gb}] starts inside the query field's own \
+                     box [{}, {}] — the surface seam would cut the bar it belongs to",
+                    field.top,
+                    field.bottom()
+                );
+                assert!(
+                    (gt - (field.bottom() + gap * 0.2)).abs() < 1e-3,
+                    "{ctx}: the gap hangs one breathe below the query field's box"
                 );
                 // Never into the candidate band.
                 assert!(
                     gb <= plan.row_top(0).unwrap() + 1e-3,
                     "{ctx}: the gap runs into the first candidate row"
                 );
-                // The two arms differ, and differ in the documented direction:
-                // flat hangs from the bottom edge, grouped from the top.
-                if header_rows == 1 {
-                    assert!(
-                        (gb - beat_box.bottom()).abs() < 1e-3,
-                        "{ctx}: the flat arm's gap is flush against the first row"
-                    );
-                } else {
-                    assert!(
-                        (gt - (beat_box.top + gap * 0.2)).abs() < 1e-3,
-                        "{ctx}: the grouped arm's gap hangs one breathe below the query box"
-                    );
-                }
             }
         }
     }
@@ -659,46 +673,66 @@ fn a_contextual_popup_plans_no_header_band() {
     }
 }
 
-/// THE QUERY FIELD'S BOX IS NOT THE ROW PITCH — the arithmetic shape of the
-/// live defect this family closed. On the FLAT family (one header line) the beat
-/// inflates the query line itself, so a consumer reading the bare `lh` describes
-/// a box that stops well short of the field's own ink; on the GROUPED family
-/// (two lines) the beat inflates the STRIP instead, so the same wrong reading
-/// happens to be right. A parallel calculation agrees on the arm somebody looked
-/// at — which is why this is asserted as a DIFFERENCE, by name.
+/// **THE QUERY FIELD'S BOX IS EXACTLY ONE ROW PITCH, ON EVERY FAMILY** — item
+/// 219's arithmetic claim, and the sweep the previous shape of this law had
+/// inverted.
+///
+/// A picker's query field is one line of text in a bar. Whatever negative space
+/// a card wants before its first candidate is the BEAT, and a beat folded into
+/// the field's own box does not sit below the field — cosmic-text CENTRES a
+/// line's glyph run in its box, so a field inflated to `lh + header_gap` draws
+/// its own ink `header_gap/2` lower than the bar's own top pad, which is the
+/// blank strip above the picker's content that item 219 names.
+///
+/// The sweep is every header count a picker reaches × the beats and pitches the
+/// zoom band spans, and the assertion is stated as an INVARIANT over that whole
+/// grid rather than as two hand-picked family fixtures — the shape that let the
+/// flat and grouped arms disagree in the first place.
 #[test]
-fn the_flat_query_box_is_taller_than_the_row_pitch_and_the_grouped_one_is_not() {
-    let (gap, lh) = (42.0f32, 27.2f32);
-    let flat_field = headered(1, gap, lh).query_band().unwrap();
-    assert!(
-        (flat_field.height - (lh + gap)).abs() < 1e-3,
-        "the flat query box carries the beat: {} vs {}",
-        flat_field.height,
-        lh + gap
-    );
-    assert!(
-        flat_field.center() > flat_field.top + lh,
-        "the flat field's own centre ({}) sits BELOW a bare-`lh` band ending at {} — \
-         a consumer reading the row pitch misses the caret entirely",
-        flat_field.center(),
-        flat_field.top + lh
-    );
-    let grouped = headered(2, gap, lh);
-    let grouped_field = grouped.query_band().unwrap();
-    assert!(
-        (grouped_field.height - lh).abs() < 1e-3,
-        "the grouped query box is a plain row: {}",
-        grouped_field.height
-    );
-    assert!(
-        (grouped.strip_band().unwrap().height - (lh + gap)).abs() < 1e-3,
-        "…and the grouped family's beat inflates its STRIP instead"
-    );
-    // `contains` is the pointer's own predicate: half-open, so the boundary
-    // belongs to exactly one box.
-    assert!(flat_field.contains(flat_field.top));
-    assert!(!flat_field.contains(flat_field.bottom()));
-    assert!(!flat_field.contains(flat_field.top - 0.01));
+fn the_query_field_box_is_one_row_pitch_on_every_family() {
+    for header_rows in 1usize..=3 {
+        for &gap in &[0.0f32, 5.0, 42.0, 84.3] {
+            for &lh in &[12.0f32, 27.2, 81.6] {
+                let plan = headered(header_rows, gap, lh);
+                let ctx = format!("hdr={header_rows} gap={gap} lh={lh}");
+                let field = plan.query_band().unwrap();
+                assert!(
+                    (field.height - lh).abs() < 1e-3,
+                    "{ctx}: the query field's box is {} tall, want the bare row pitch \
+                     {lh} — a beat folded in here drops the field's own glyphs half a \
+                     beat below its bar",
+                    field.height
+                );
+                // Its ink therefore rides where a plain row's ink would: the
+                // centre a caret is placed at is one half-pitch below the top.
+                assert!(
+                    (field.center() - (field.top + lh * 0.5)).abs() < 1e-3,
+                    "{ctx}: the field centres at {}, want {}",
+                    field.center(),
+                    field.top + lh * 0.5
+                );
+                // The beat is still THERE — it moved, it did not vanish.
+                let band = plan.row_top(0).unwrap() - field.top;
+                assert!(
+                    (band - (header_rows as f32 * lh + gap)).abs() < 1e-3,
+                    "{ctx}: the header band runs {band}, want {}",
+                    header_rows as f32 * lh + gap
+                );
+                // …and on a card with a lens strip it is the STRIP that carries it.
+                if header_rows >= 2 {
+                    assert!(
+                        (plan.strip_band().unwrap().height - (lh + gap)).abs() < 1e-3,
+                        "{ctx}: a grouped card's beat inflates its STRIP"
+                    );
+                }
+                // `contains` is the pointer's own predicate: half-open, so the
+                // boundary belongs to exactly one box.
+                assert!(field.contains(field.top));
+                assert!(!field.contains(field.bottom()));
+                assert!(!field.contains(field.top - 0.01));
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

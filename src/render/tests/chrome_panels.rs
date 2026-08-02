@@ -1263,10 +1263,14 @@ fn overlay_right_column_yields_before_names_elide() {
         !p.overlay_right_shown,
         "narrow + oversized right column: the right column must YIELD"
     );
+    // Candidate 0's shaped line is production's own `shaped_first_row_line`: a
+    // flat card's query BEAT takes a glyph-free line of its own (item 219), so
+    // indexing from a bare header-row count reads the spacer as a name.
+    let first = p.overlay_geometry(464).shaped_first_row_line();
     let line = |p: &TextPipeline, i: usize| p.panel_buffer.lines[i].text().to_string();
-    assert_eq!(line(&p, 1), "Block", "a 5-char name is NEVER elided");
-    assert_eq!(line(&p, 2), "Morph");
-    assert_eq!(line(&p, 3), "I-beam");
+    assert_eq!(line(&p, first), "Block", "a 5-char name is NEVER elided");
+    assert_eq!(line(&p, first + 1), "Morph");
+    assert_eq!(line(&p, first + 2), "I-beam");
 
     // The SAME names beside SHORT labels at the SAME minimum window: both cells
     // genuinely fit, so the right column shows and the names stay whole —
@@ -1279,7 +1283,7 @@ fn overlay_right_column_yields_before_names_elide() {
         "narrow + short right column: both cells fit, the column shows"
     );
     assert_eq!(
-        line(&p, 1),
+        line(&p, first),
         "Block",
         "names stay whole beside a granted column"
     );
@@ -1295,7 +1299,7 @@ fn overlay_right_column_yields_before_names_elide() {
         "an oversized right column yields at any width"
     );
     assert_eq!(
-        line(&p, 1),
+        line(&p, p.overlay_geometry(1200).shaped_first_row_line()),
         "Block",
         "…and the names still never pay for it"
     );
