@@ -1,4 +1,4 @@
-//! ITEM 174, SECOND FAMILY — THE HEADER BAND AGAINST THE REAL PIPELINE.
+//! THE HEADER BAND, AGAINST THE REAL PIPELINE.
 //!
 //! The pure laws live beside the planner (`render/plan/tests.rs`); this file is
 //! the device-level half. Its subject is the two display lines ABOVE the
@@ -35,7 +35,7 @@ use super::{headless_dqp, view};
 use crate::overlay::OverlayKind;
 
 /// The same family split the plan law uses, derived from production's own
-/// classifier rather than a hand-copied match (item 185's lesson).
+/// classifier rather than a hand-copied match, which can silently drift.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Family {
     Flat,
@@ -92,6 +92,204 @@ fn overlay_view(kind: OverlayKind, n: usize) -> ViewState {
     v
 }
 
+/// Grade ONE rendered card's header band: the query field's box against the
+/// shaped run, the pointer, the caret; then the lens strip against the shaped
+/// strip line and `overlay_lens_at`. Split out of the sweep so each concern
+/// reads as one claim rather than one long scroll.
+fn grade_header_band(
+    p: &TextPipeline,
+    plan: &crate::render::plan::OverlayRowPlan,
+    geom: &crate::render::chrome::OverlayGeom,
+    pr: &super::overlay_probe::OverlayYProbe,
+    fam: Family,
+    ctx: &str,
+    tally: (&mut usize, &mut usize),
+) {
+    let (fields, strips) = tally;
+    let (x0, x1) = plan.card_x_span();
+    let mid_x = (x0 + x1) * 0.5;
+    // WHICH kinds have a field is asserted BEFORE the branch, not
+    // inferred from it: a `let else` that only checks the kind on
+    // the `None` arm cannot see a contextual popup that GREW one
+    // (it would sail into the main arm, where every consumer reads
+    // the same plan and so agrees with it perfectly).
+    assert_eq!(
+        plan.query_band().is_some(),
+        fam != Family::Contextual,
+        "{ctx}: exactly the takeover pickers draw a query line — a \
+         contextual popup has no field to centre a caret in, hit-test, \
+         or split a surface at"
+    );
+    let Some(field) = plan.query_band() else {
+        // A contextual popup plans no field, so nothing may
+        // accept a pointer as one, anywhere down the card.
+        let card = geom.card_probe();
+        let mut y = card[1];
+        while y < card[1] + card[3] {
+            assert!(
+                !p.over_overlay_query(mid_x, y),
+                "{ctx}: a card with no query line accepted a pointer at \
+                 y={y} as if it had one"
+            );
+            y += plan.lh() * 0.25;
+        }
+        *fields += 1;
+        return;
+    };
+
+    // --- DRAWN == PLANNED -------------------------------------
+    // `query_line_top`/`query_line_height` are read off the shaped
+    // run the draw pass uploads, not off the plan.
+    assert!(
+        (pr.query_line_top - field.top).abs() < 0.75,
+        "{ctx}: the query line is DRAWN at {} but PLANNED at {}",
+        pr.query_line_top,
+        field.top
+    );
+    assert!(
+        (pr.query_line_height - field.height).abs() < 0.75,
+        "{ctx}: the query line is DRAWN {} tall but PLANNED {} — the \
+         beat belongs to the field's own box",
+        pr.query_line_height,
+        field.height
+    );
+
+    // --- INTERACTIVE == DRAWN ---------------------------------
+    // Sampled through the production hit-test's own yes/no answer.
+    for (label, y, want) in [
+        ("just above the field", field.top - 1.0, false),
+        ("the field's top edge", field.top + 0.1, true),
+        ("the field's centre", field.center(), true),
+        ("just inside the bottom", field.bottom() - 0.1, true),
+        ("the field's bottom edge", field.bottom() + 0.1, false),
+    ] {
+        assert_eq!(
+            p.over_overlay_query(mid_x, y),
+            want,
+            "{ctx}: the pointer at {label} (y={y}) must{} read as the \
+             query field — planned box [{}, {}]",
+            if want { "" } else { " not" },
+            field.top,
+            field.bottom()
+        );
+    }
+    // …and off the card horizontally it is never the field.
+    assert!(
+        !p.over_overlay_query(x0 - 40.0, field.center()),
+        "{ctx}: a pointer left of the card is not on the field"
+    );
+
+    // --- THE INK IS INSIDE THE BAND ---------------------------
+    // THE DEFECT'S OWN SHAPE, graded from the shaped BASELINE (a
+    // glyph fact, not arithmetic): the row the query's ink sits on
+    // must be inside the band the pointer accepts. Before this
+    // family the baseline sat up to 30px BELOW the accepted band.
+    assert!(
+        p.over_overlay_query(mid_x, pr.query_baseline),
+        "{ctx}: the query's own shaped baseline (y={}) is not inside \
+         the band the pointer accepts as the field — the I-beam is \
+         somewhere the text is not",
+        pr.query_baseline
+    );
+
+    // --- THE CARET IS CENTRED IN ITS OWN FIELD ----------------
+    assert!(
+        field.contains(pr.caret_center),
+        "{ctx}: the caret centre {} is outside the field box [{}, {}]",
+        pr.caret_center,
+        field.top,
+        field.bottom()
+    );
+    assert!(
+        p.over_overlay_query(mid_x, pr.caret_center),
+        "{ctx}: the pointer does not accept the field where its own \
+         caret is drawn"
+    );
+    *fields += 1;
+
+    grade_lens_strip(p, plan, pr, fam, ctx, field, strips);
+}
+
+/// The GROUPED family's lens strip: its planned box against the shaped strip
+/// line, and `overlay_lens_at` against that same box's edges.
+fn grade_lens_strip(
+    p: &TextPipeline,
+    plan: &crate::render::plan::OverlayRowPlan,
+    pr: &super::overlay_probe::OverlayYProbe,
+    fam: Family,
+    ctx: &str,
+    field: crate::render::plan::PlannedHeader,
+    strips: &mut usize,
+) {
+    let (x0, x1) = plan.card_x_span();
+    let mid_x = (x0 + x1) * 0.5;
+    // --- THE LENS STRIP ---------------------------------------
+    let Some(strip) = plan.strip_band() else {
+        assert_ne!(
+            fam,
+            Family::Grouped,
+            "{ctx}: a grouped card must plan a lens strip"
+        );
+        assert!(
+            p.overlay_lens_at(mid_x, field.center()).is_none(),
+            "{ctx}: a card with no strip may not answer a lens hit"
+        );
+        return;
+    };
+    assert_eq!(fam, Family::Grouped, "{ctx}: only a grouped card strips");
+    let drawn_top = pr
+        .strip_line_top
+        .unwrap_or_else(|| panic!("{ctx}: a grouped card shapes line 1"));
+    let drawn_bottom = pr.strip_line_bottom.unwrap();
+    assert!(
+        (drawn_top - strip.top).abs() < 0.75 && (drawn_bottom - strip.bottom()).abs() < 0.75,
+        "{ctx}: the strip is DRAWN [{drawn_top}, {drawn_bottom}] but \
+         PLANNED [{}, {}]",
+        strip.top,
+        strip.bottom()
+    );
+    // The strip box is BELOW the query field and they abut.
+    assert!(
+        (strip.top - field.bottom()).abs() < 1e-3,
+        "{ctx}: the strip must start where the query field ends \
+         ({} vs {})",
+        strip.top,
+        field.bottom()
+    );
+
+    // INTERACTIVE: find an x the lens hit-test genuinely claims at
+    // the planned strip centre, then prove the SAME x is refused
+    // just outside the planned box in both directions.
+    let mut lens_x = None;
+    let mut x = x0;
+    while x < x1 {
+        if p.overlay_lens_at(x, strip.center()).is_some() {
+            lens_x = Some(x);
+            break;
+        }
+        x += 2.0;
+    }
+    if let Some(lx) = lens_x {
+        *strips += 1;
+        assert!(
+            p.overlay_lens_at(lx, strip.top + 0.1).is_some(),
+            "{ctx}: the strip's own top edge must accept a lens click"
+        );
+        assert!(
+            p.overlay_lens_at(lx, strip.bottom() - 0.1).is_some(),
+            "{ctx}: just inside the strip's bottom must accept a lens click"
+        );
+        assert!(
+            p.overlay_lens_at(lx, strip.top - 1.0).is_none(),
+            "{ctx}: above the planned strip box is not the strip"
+        );
+        assert!(
+            p.overlay_lens_at(lx, strip.bottom() + 0.1).is_none(),
+            "{ctx}: below the planned strip box is not the strip"
+        );
+    }
+}
+
 /// THE HEADLINE LAW. Over the WHOLE `OverlayKind` roster (all three families),
 /// both list styles, four canvases and both DPIs: the query field's PLANNED box
 /// is the box the shaper DREW, is the band the pointer ACCEPTS, and is the box
@@ -122,7 +320,7 @@ fn the_drawn_query_field_the_pointer_band_and_the_caret_are_one_planned_box() {
     let canvases: [(u32, u32); 4] = [(1200, 800), (700, 800), (900, 460), (1400, 1600)];
 
     // Per-family non-vacuity counters: an aggregate floor is exactly how a whole
-    // family's arm can quietly go to zero (item 185).
+    // family's arm can quietly go to zero.
     let mut fields_by_family: [usize; 3] = [0, 0, 0];
     let mut strips_graded = 0usize;
     let fam_idx = |f: Family| match f {
@@ -148,174 +346,16 @@ fn the_drawn_query_field_the_pointer_band_and_the_caret_are_one_planned_box() {
                     let plan = p.overlay_row_plan(&geom);
                     let pr = p.overlay_row_y_probe();
                     let ctx = format!("{kind:?}/{fam:?} dpi={dpi} list={sname} canvas={cw}x{ch}");
-                    let (x0, x1) = plan.card_x_span();
-                    let mid_x = (x0 + x1) * 0.5;
 
-                    // WHICH kinds have a field is asserted BEFORE the branch, not
-                    // inferred from it: a `let else` that only checks the kind on
-                    // the `None` arm cannot see a contextual popup that GREW one
-                    // (it would sail into the main arm, where every consumer reads
-                    // the same plan and so agrees with it perfectly).
-                    assert_eq!(
-                        plan.query_band().is_some(),
-                        fam != Family::Contextual,
-                        "{ctx}: exactly the takeover pickers draw a query line — a \
-                         contextual popup has no field to centre a caret in, hit-test, \
-                         or split a surface at"
+                    grade_header_band(
+                        &p,
+                        &plan,
+                        &geom,
+                        &pr,
+                        fam,
+                        &ctx,
+                        (&mut fields_by_family[fam_idx(fam)], &mut strips_graded),
                     );
-                    let Some(field) = plan.query_band() else {
-                        // A contextual popup plans no field, so nothing may
-                        // accept a pointer as one, anywhere down the card.
-                        let card = geom.card_probe();
-                        let mut y = card[1];
-                        while y < card[1] + card[3] {
-                            assert!(
-                                !p.over_overlay_query(mid_x, y),
-                                "{ctx}: a card with no query line accepted a pointer at \
-                                 y={y} as if it had one"
-                            );
-                            y += plan.lh() * 0.25;
-                        }
-                        fields_by_family[fam_idx(fam)] += 1;
-                        continue;
-                    };
-
-                    // --- DRAWN == PLANNED -------------------------------------
-                    // `query_line_top`/`query_line_height` are read off the shaped
-                    // run the draw pass uploads, not off the plan.
-                    assert!(
-                        (pr.query_line_top - field.top).abs() < 0.75,
-                        "{ctx}: the query line is DRAWN at {} but PLANNED at {}",
-                        pr.query_line_top,
-                        field.top
-                    );
-                    assert!(
-                        (pr.query_line_height - field.height).abs() < 0.75,
-                        "{ctx}: the query line is DRAWN {} tall but PLANNED {} — the \
-                         beat belongs to the field's own box",
-                        pr.query_line_height,
-                        field.height
-                    );
-
-                    // --- INTERACTIVE == DRAWN ---------------------------------
-                    // Sampled through the production hit-test's own yes/no answer.
-                    for (label, y, want) in [
-                        ("just above the field", field.top - 1.0, false),
-                        ("the field's top edge", field.top + 0.1, true),
-                        ("the field's centre", field.center(), true),
-                        ("just inside the bottom", field.bottom() - 0.1, true),
-                        ("the field's bottom edge", field.bottom() + 0.1, false),
-                    ] {
-                        assert_eq!(
-                            p.over_overlay_query(mid_x, y),
-                            want,
-                            "{ctx}: the pointer at {label} (y={y}) must{} read as the \
-                             query field — planned box [{}, {}]",
-                            if want { "" } else { " not" },
-                            field.top,
-                            field.bottom()
-                        );
-                    }
-                    // …and off the card horizontally it is never the field.
-                    assert!(
-                        !p.over_overlay_query(x0 - 40.0, field.center()),
-                        "{ctx}: a pointer left of the card is not on the field"
-                    );
-
-                    // --- THE INK IS INSIDE THE BAND ---------------------------
-                    // THE DEFECT'S OWN SHAPE, graded from the shaped BASELINE (a
-                    // glyph fact, not arithmetic): the row the query's ink sits on
-                    // must be inside the band the pointer accepts. Before this
-                    // family the baseline sat up to 30px BELOW the accepted band.
-                    assert!(
-                        p.over_overlay_query(mid_x, pr.query_baseline),
-                        "{ctx}: the query's own shaped baseline (y={}) is not inside \
-                         the band the pointer accepts as the field — the I-beam is \
-                         somewhere the text is not",
-                        pr.query_baseline
-                    );
-
-                    // --- THE CARET IS CENTRED IN ITS OWN FIELD ----------------
-                    assert!(
-                        field.contains(pr.caret_center),
-                        "{ctx}: the caret centre {} is outside the field box [{}, {}]",
-                        pr.caret_center,
-                        field.top,
-                        field.bottom()
-                    );
-                    assert!(
-                        p.over_overlay_query(mid_x, pr.caret_center),
-                        "{ctx}: the pointer does not accept the field where its own \
-                         caret is drawn"
-                    );
-                    fields_by_family[fam_idx(fam)] += 1;
-
-                    // --- THE LENS STRIP ---------------------------------------
-                    let Some(strip) = plan.strip_band() else {
-                        assert_ne!(
-                            fam,
-                            Family::Grouped,
-                            "{ctx}: a grouped card must plan a lens strip"
-                        );
-                        assert!(
-                            p.overlay_lens_at(mid_x, field.center()).is_none(),
-                            "{ctx}: a card with no strip may not answer a lens hit"
-                        );
-                        continue;
-                    };
-                    assert_eq!(fam, Family::Grouped, "{ctx}: only a grouped card strips");
-                    let drawn_top = pr
-                        .strip_line_top
-                        .unwrap_or_else(|| panic!("{ctx}: a grouped card shapes line 1"));
-                    let drawn_bottom = pr.strip_line_bottom.unwrap();
-                    assert!(
-                        (drawn_top - strip.top).abs() < 0.75
-                            && (drawn_bottom - strip.bottom()).abs() < 0.75,
-                        "{ctx}: the strip is DRAWN [{drawn_top}, {drawn_bottom}] but \
-                         PLANNED [{}, {}]",
-                        strip.top,
-                        strip.bottom()
-                    );
-                    // The strip box is BELOW the query field and they abut.
-                    assert!(
-                        (strip.top - field.bottom()).abs() < 1e-3,
-                        "{ctx}: the strip must start where the query field ends \
-                         ({} vs {})",
-                        strip.top,
-                        field.bottom()
-                    );
-
-                    // INTERACTIVE: find an x the lens hit-test genuinely claims at
-                    // the planned strip centre, then prove the SAME x is refused
-                    // just outside the planned box in both directions.
-                    let mut lens_x = None;
-                    let mut x = x0;
-                    while x < x1 {
-                        if p.overlay_lens_at(x, strip.center()).is_some() {
-                            lens_x = Some(x);
-                            break;
-                        }
-                        x += 2.0;
-                    }
-                    if let Some(lx) = lens_x {
-                        strips_graded += 1;
-                        assert!(
-                            p.overlay_lens_at(lx, strip.top + 0.1).is_some(),
-                            "{ctx}: the strip's own top edge must accept a lens click"
-                        );
-                        assert!(
-                            p.overlay_lens_at(lx, strip.bottom() - 0.1).is_some(),
-                            "{ctx}: just inside the strip's bottom must accept a lens click"
-                        );
-                        assert!(
-                            p.overlay_lens_at(lx, strip.top - 1.0).is_none(),
-                            "{ctx}: above the planned strip box is not the strip"
-                        );
-                        assert!(
-                            p.overlay_lens_at(lx, strip.bottom() + 0.1).is_none(),
-                            "{ctx}: below the planned strip box is not the strip"
-                        );
-                    }
                 }
             }
         }

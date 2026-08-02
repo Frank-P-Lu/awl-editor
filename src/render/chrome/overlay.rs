@@ -96,7 +96,7 @@ impl TextPipeline {
     }
 
     /// The overlay row LINE HEIGHT — the single-owner metric the card height, the
-    /// row-Y ([`overlay_row_top`]), the hit-test ([`overlay_row_of`]), and the
+    /// row-Y, the hit-test, and the
     /// selected-row band all read, so a click always lands on the row it highlights.
     pub(in crate::render) fn overlay_lh(&self) -> f32 {
         self.metrics.line_height * crate::render::effective_overlay_scale()
@@ -191,7 +191,7 @@ impl TextPipeline {
     /// leading newline (the f2cb656 tripwire): the shaper inflates the last
     /// header line's REAL glyph metrics by exactly this, and the band, primary
     /// name, secondary chord, hit-test, and caret all fold it in through the ONE
-    /// y-owner family ([`overlay_row_top`] / [`overlay_secondary_top`]) — so text
+    /// y-owner, the scene planner — so text
     /// and band move together, never a half-row split. Both geometry owners read
     /// this; the contextual spell popup passes `0.0` (no header to divide from).
     /// LIVE-ONLY taste: whether the widened beat reads right needs a human eye.
@@ -266,7 +266,7 @@ impl TextPipeline {
         let header_rows = usize::from(!contextual); // contextual rows need no query field
         // PALETTE-COMPOSITION round: a calm gap after the query header, before the
         // candidate list (negative space as the divider). Grows the card by exactly
-        // this and offsets the candidate band/hit-test through `overlay_row_top`.
+        // this and offsets the candidate band/hit-test through the planned rows.
         let header_gap = if contextual {
             0.0
         } else {
@@ -591,7 +591,7 @@ impl TextPipeline {
     /// row's `(item index, rail)` pair, resolved through `rowlayout::rail_geom`
     /// against the SAME shaped-glyph measurements the value column draws from
     /// (`overlay_row_secondary_px` / `overlay_row_primary_px`) and the SAME row-y
-    /// owner (`overlay_row_top`) the highlight band uses.
+    /// owner (the row plan) the highlight band uses.
     ///
     /// EMPTY unless the card genuinely carries rails AND the secondary column was
     /// granted (`overlay_right_shown` — a rail beside a yielded value column would
@@ -715,18 +715,16 @@ impl TextPipeline {
     /// query band and this always returns `false`. Used by
     /// `input.rs::sync_cursor_icon` to give the field the I-beam.
     ///
-    /// **THE DRIFT THIS CLOSES (item 174, second family).** This used to test the
-    /// bare row pitch, `text_top .. text_top + lh` — but on the FLAT family the
-    /// query field's box is `lh + header_gap` tall (the beat is the BOTTOM of the
-    /// field's own box, not a row after it), and cosmic-text half-leads the glyphs
-    /// into that taller box, so the ink centres LOW. Measured on the shipping
-    /// default at 1200x800: the field draws `[64.0, 133.2]` with its caret centred
-    /// at 98.6 and its glyph baseline at 106.0, while the pointer band ended at
-    /// 91.2 — the I-beam appeared in the empty air ABOVE the query text and the
-    /// text itself took the plain arrow, by 7.4px at 1x and 14.8px at 2x. The
-    /// GROUPED family was correct by accident (its beat inflates the lens strip
-    /// instead, leaving the query line a plain `lh`), which is exactly how a
-    /// parallel calculation survives: it agrees on the arm anybody looked at.
+    /// **THE DRIFT THIS CLOSES.** Reading the bare row pitch here — `text_top ..
+    /// text_top + lh` — describes the wrong box on the FLAT family, whose field
+    /// is `lh + header_gap` tall (the beat is the BOTTOM of the field's own box,
+    /// not a row after it) with its ink half-led LOW inside it. On the shipping
+    /// default at 1200x800 the field draws `[64.0, 133.2]`, caret at 98.6 and
+    /// baseline at 106.0, against a pointer band ending at 91.2: the I-beam sat
+    /// in empty air above the text, missing by 7.4px at 1x and 14.8px at 2x. The
+    /// GROUPED family was right by accident (its beat inflates the lens strip
+    /// instead), which is how a parallel calculation survives review — it agrees
+    /// on the arm somebody looked at.
     pub fn over_overlay_query(&self, px: f32, py: f32) -> bool {
         if !self.overlay_active {
             return false;

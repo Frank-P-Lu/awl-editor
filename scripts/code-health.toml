@@ -283,8 +283,8 @@ lines = 536
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 1056
-reason = "The chrome module owns the resolved overlay geometry record and its single sibling re-export for item 131's measured diagonal row span; workspace, rail, and two-sided slant consumers share that seam."
+lines = 967
+reason = "The chrome module owns the resolved overlay geometry record and its single sibling re-export for the measured diagonal row span; workspace, rail, and two-sided slant consumers share that seam. The header band's four y-owners (secondary origin, split bounds, strip band, query centre) left for the scene planner."
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
@@ -292,23 +292,23 @@ lines = 894
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay.rs"
-lines = 748
-reason = "The overlay owns the one shared row plan and pointer geometry. Item 131's measured diagonal span and Range rail read remain at that seam alongside the existing workspace dispatch and row-offset inputs."
+lines = 738
+reason = "The overlay owns the one shared row plan and pointer geometry; the measured diagonal span and Range rail read remain at that seam alongside the workspace dispatch and row-offset inputs. The lens strip's Y band left for the scene planner."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_draw.rs"
-lines = 511
-reason = "The one text-upload batch now places diagonal labels and accessories per measured planned row, so their draw positions cannot drift from the plan and hit geometry."
+lines = 512
+reason = "+1 line. The one text-upload batch places diagonal labels and accessories per measured planned row, and now takes the row plan for the query caret's own field box too — the caret is centred in the same planned box the pointer hit-test accepts, instead of a line height read back off the shaped run only the draw path could see."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_rows.rs"
-lines = 309
-reason = "item 114: +14 lines. `overlay_prepare_facet_marks` gained the workspace's own arm — two lines of dispatch plus its argument; the arm's body lives in `chrome/workspace.rs`."
+lines = 304
+reason = "`overlay_prepare_facet_marks` carries the workspace's own arm — two lines of dispatch plus its argument; the arm's body lives in `chrome/workspace.rs`. The split-pane gap is now read off the row plan rather than re-derived here."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_shape.rs"
-lines = 866
-reason = "Faceted diagonal rows must shape against their measured side territory and re-fit real glyph widths before the accessory column is granted."
+lines = 873
+reason = "+7 lines. Faceted diagonal rows must shape against their measured side territory and re-fit real glyph widths before the accessory column is granted. The row plan is now threaded to the two shapers so the inflated header line's height IS the query field's planned box (read, not re-summed) and the secondary column's leading-empty count comes from the same object as its upload origin."
 
 [[file_size_mark]]
 file = "src/render/chrome/popover.rs"
@@ -320,8 +320,8 @@ lines = 634
 
 [[file_size_mark]]
 file = "src/render/chrome/theme_picker.rs"
-lines = 562
-reason = "item 114: +8 lines. `theme_overlay_geometry` is an exhaustive `OverlayGeom` construction site (item 184 removed its `..base()`), so the five new workspace fields must be spelled out here. Item 210 lowered the mark by making All a normal drawn and clickable facet instead of a skipped special case."
+lines = 561
+reason = "`theme_overlay_geometry` is an exhaustive `OverlayGeom` construction site, so every workspace field is spelled out here. The strip band now reads the row plan, which is threaded through the two shaping owners."
 
 [[file_size_mark]]
 file = "src/render/framebench.rs"
@@ -643,14 +643,14 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/theme_picker.rs"
-line = 176
-message = "this function has too many lines (164/100)"
-reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line/size moved by queue item 114's summoned Settings workspace."
+line = 179
+message = "this function has too many lines (167/100)"
+reason = "The row plan is threaded to this shaper so the strip's active mark rides the planned strip box; +3 lines at an existing chrome draw owner. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line/size moved by queue item 114's summoned Settings workspace."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/theme_picker.rs"
-line = 382
+line = 389
 message = "this function has too many lines (124/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line/size moved by queue item 114's summoned Settings workspace."
 
@@ -967,7 +967,7 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/chrome_overlay.rs"
-line = 205
+line = 206
 message = "this function has too many lines (128/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 

@@ -46,13 +46,15 @@
 //! already-resolved floats (an available-pixel budget, a row pitch, an overhead
 //! row count) — no device, no shaping, no clock — so it keeps the planner pure.
 
+mod overlay_header;
 mod overlay_row_plan;
 mod overlay_rows;
 
+pub(in crate::render) use overlay_header::PlannedHeader;
 pub(in crate::render) use overlay_rows::plan_witness;
 pub(in crate::render) use overlay_rows::{
-    OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedHeader, PlannedRow, RowSpan,
-    fit_item_rows, plan_overlay_rows,
+    OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, RowSpan, fit_item_rows,
+    plan_overlay_rows,
 };
 #[cfg(test)]
 pub(in crate::render) use overlay_rows::{test_header_plan, test_row_top, test_rows};

@@ -437,7 +437,7 @@ fn planning_is_deterministic() {
     assert_eq!(a.card_x_span(), b.card_x_span());
 }
 
-// ===== THE HEADER BAND (item 174, second family) =============================
+// ===== THE HEADER BAND =======================================================
 //
 // The query/title INPUT line and the grouped family's lens STRIP. Four owners
 // used to answer questions about these two boxes from loose scalars in

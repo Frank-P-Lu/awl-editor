@@ -493,12 +493,10 @@ impl TextPipeline {
                 });
         let caret_h = m.caret_h * 0.8 * OVERLAY_UI_SCALE;
         let caret_cx = caret_x + m.caret_w * 0.5;
-        // ITEM 174 — the caret is centred in the SAME planned field box the
-        // pointer hit-test accepts and the split composition carves its gap from.
-        // It used to read the line height back off the shaped run instead: the
-        // right ANSWER (the planner folds the beat into that box by construction,
-        // exactly as the shaper folds it into the line's metrics) reached through
-        // a second calculation that only the draw path could see.
+        // The caret is centred in the SAME planned field box the pointer
+        // hit-test accepts and the split composition carves its gap from —
+        // never a line height read back off the shaped run here, which is a
+        // second calculation only the draw path can see.
         let caret_cy = field.center();
         self.panel_caret.prepare(
             queue,

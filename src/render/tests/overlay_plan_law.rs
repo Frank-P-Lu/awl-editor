@@ -686,11 +686,10 @@ const RETIRED_TERMS: &[&str] = &[
     "overlay_row_of(",
     "overlay_row_index(",
     "header_rows as f32",
-    // ITEM 174, SECOND FAMILY — the HEADER band's four retired owners. Each is
-    // DELETED from `render/chrome`, so the compiler is the primary guard and
-    // these are the belt-and-braces half: a future round that reintroduces one
-    // by name fails here instead of shipping a fifth answer to "where is the
-    // query line".
+    // The HEADER band's four retired owners. Each is DELETED from
+    // `render/chrome`, so the compiler is the primary guard and these are the
+    // belt-and-braces half: reintroducing one by name fails here instead of
+    // shipping a fifth answer to "where is the query line".
     "overlay_secondary_top(",
     "overlay_split_bounds(",
     "overlay_strip_band(",

@@ -650,11 +650,8 @@ impl TextPipeline {
         let title_prefix = self.overlay_title_prefix(geom);
         let sigil = "› ";
         let name_fs = self.overlay_metrics().font_size;
-        // ITEM 174 — the inflated header line's height IS the query field's own
-        // PLANNED box. The shaper used to re-sum `lh + header_gap` here while the
-        // caret, the pointer band and the split composition each summed it
-        // somewhere else; reading the plan makes the DRAWN box and the planned one
-        // literally the same object rather than four sums that agree today.
+        // The query field's own PLANNED box height, read rather than re-summed:
+        // the DRAWN box and the planned one are then the same object.
         let header_lh = plan
             .query_band()
             .map_or_else(|| self.overlay_lh(), |field| field.height);

@@ -138,13 +138,10 @@ impl TextPipeline {
         if !geom.theme || px < geom.card_x || px > geom.card_x + geom.card_w {
             return None;
         }
-        // ITEM 174 — the strip's clickable band is its PLANNED line box, the same
-        // object the active-mark centre and the strip's own glyph metrics read.
-        // A pointer entry point has no frame to ride, so it plans freshly (still
-        // O(visible)) exactly as `overlay_row_at` does.
-        let Some(strip) = self.overlay_row_plan(&geom).strip_band() else {
-            return None;
-        };
+        // The strip's clickable band is its PLANNED line box — the same object
+        // the mark centre and the strip's own glyph metrics read. A pointer entry
+        // point has no frame to ride, so it plans freshly, still O(visible).
+        let strip = self.overlay_row_plan(&geom).strip_band()?;
         if !strip.contains(py) {
             return None;
         }
@@ -471,23 +468,14 @@ impl TextPipeline {
                 pushes.push((r.clone(), faint));
             }
             pushes.sort_by_key(|(r, _)| r.start);
-            // The strip row's HEIGHT is inflated by `header_gap` (PALETTE-COMPOSITION
-            // round) so the calm divider space falls after the lens strip, before the
-            // section-grouped rows — uniform with the flat pickers' query-line gap.
-            // The plan-line offsets, selected band, and underline all fold the same
-            // gap in through `overlay_row_top`, so nothing below the strip drifts.
-            //
-            // The gap MUST ride the strip line's REAL LABEL glyphs, NOT its leading
-            // "\n": cosmic-text sizes a line from the glyphs ON it, and the "\n" is a
-            // BREAK that terminates the PRIOR (query) line — its own metrics never
-            // grow the strip line, so inflating only the "\n" moved the selected BAND
-            // (which reads `header_gap` off `overlay_row_top`) down a half-row while
-            // the TEXT stayed put. That half-row band/text drift was invisible under
-            // a gentle value band but clipped the top of the selected row's own
-            // glyphs once a 1-bit world drew them as solid black on a white band
-            // (the Wagtail selected-row bug's second half). `strip_lh` on the labels
-            // makes text and band agree; the "\n" keeps the row's scale-invariant
-            // baseline size.
+            // The strip's own PLANNED box height, which carries the query beat so
+            // the calm divider falls after the lens strip and before the grouped
+            // rows. The inflation MUST ride the strip line's REAL LABEL glyphs,
+            // never its leading "\n": cosmic-text sizes a line from the glyphs ON
+            // it, and that "\n" is a BREAK terminating the PRIOR (query) line, so
+            // inflating it alone moves the planned band a half-row below the text
+            // — invisible under a gentle value band, but it clipped the selected
+            // row's glyphs once a 1-bit world drew them black on white.
             let strip_lh = plan.strip_band().map_or(lh, |strip| strip.height);
             spans.push((
                 &strip_s[0..1],
