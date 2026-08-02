@@ -81,6 +81,7 @@ mod fold;
 mod frontmatter;
 mod fs;
 mod fuzzy;
+mod gpu_cache;
 mod grapheme;
 mod guide;
 mod history;

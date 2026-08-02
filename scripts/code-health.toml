@@ -88,8 +88,8 @@ reason = "The external-change check at focus return (+3, comment included). This
 
 [[file_size_mark]]
 file = "src/background.rs"
-lines = 282
-reason = "The grouped per-frame AmbientUpload keeps the prepare call below the argument ceiling; Globals remains the uniform's single Rust mirror, including Kite's forward-travel scalar."
+lines = 283
+reason = "The grouped per-frame AmbientUpload keeps the prepare call below the argument ceiling; Globals remains the uniform's single Rust mirror, including Kite's forward-travel scalar. The one construction site each pipeline family has now sits inside gpu_cache::render_pipeline's build closure — the seam that makes a GPU program once-per-process instead of once-per-instance, which is what the hosted-macOS gate wedged on. The growth is that closure's own indent (+1)."
 
 [[file_size_mark]]
 file = "src/buffer.rs"
@@ -125,6 +125,7 @@ lines = 259
 [[file_size_mark]]
 file = "src/caret_glyph.rs"
 lines = 539
+reason = "The one construction site each pipeline family has now sits inside gpu_cache::render_pipeline's build closure — the seam that makes a GPU program once-per-process instead of once-per-instance, which is what the hosted-macOS gate wedged on. The growth is that closure's own indent (+1)."
 
 [[file_size_mark]]
 file = "src/commands.rs"
@@ -192,7 +193,8 @@ reason = "`undo_chord_label`: Undo has no palette command to resolve a label fro
 
 [[file_size_mark]]
 file = "src/lava.rs"
-lines = 946
+lines = 947
+reason = "The one construction site each pipeline family has now sits inside gpu_cache::render_pipeline's build closure — the seam that makes a GPU program once-per-process instead of once-per-instance, which is what the hosted-macOS gate wedged on. The growth is that closure's own indent (+1)."
 
 [[file_size_mark]]
 file = "src/main/args.rs"
@@ -394,8 +396,8 @@ lines = 545
 
 [[file_size_mark]]
 file = "src/selection.rs"
-lines = 728
-reason = "item 131b: +52 lines. `SelInstance` gained the `axis` field (+ its `UPRIGHT_AXIS` default), the vertex layout gained a fourth attribute, `prepare`/`prepare_multicolor` upload the inert default, and the new `prepare_rotated` emitter + `spine_segment`/`narrowed_spine_corner_px` pure helpers are the one place a rotated quad's geometry is built — the shared pipeline-construction body every SelectionPipeline instance goes through. The two pure spine helpers were later EXTRACTED to `selection/spine.rs` (merge train, item 182's rule: a mark may not rise for growth extraction can absorb) after rustfmt on the merge candidate pushed this file three lines past its old 768 mark; the mark came down to the measured size rather than up. (Item 24's branch independently repaired the same red by RAISING it to 771 on the reading that rustfmt's wrapping left nothing to extract; the merge train kept the extraction, because item 182's rule prefers it and the spine helpers were in fact extractable.) Its own tests moved to the sibling `selection/tests.rs` (production() exemption) once they pushed the inline `mod tests` well past this ceiling; no behavior moved, only which file counts the lines."
+lines = 749
+reason = "item 131b: +52 lines. `SelInstance` gained the `axis` field (+ its `UPRIGHT_AXIS` default), the vertex layout gained a fourth attribute, `prepare`/`prepare_multicolor` upload the inert default, and the new `prepare_rotated` emitter + `spine_segment`/`narrowed_spine_corner_px` pure helpers are the one place a rotated quad's geometry is built — the shared pipeline-construction body every SelectionPipeline instance goes through. The two pure spine helpers were later EXTRACTED to `selection/spine.rs` (merge train, item 182's rule: a mark may not rise for growth extraction can absorb) after rustfmt on the merge candidate pushed this file three lines past its old 768 mark; the mark came down to the measured size rather than up. (Item 24's branch independently repaired the same red by RAISING it to 771 on the reading that rustfmt's wrapping left nothing to extract; the merge train kept the extraction, because item 182's rule prefers it and the spine helpers were in fact extractable.) Its own tests moved to the sibling `selection/tests.rs` (production() exemption) once they pushed the inline `mod tests` well past this ceiling; no behavior moved, only which file counts the lines. The one construction site each pipeline family has now sits inside gpu_cache::render_pipeline's build closure — the seam that makes a GPU program once-per-process instead of once-per-instance, which is what the hosted-macOS gate wedged on. The growth is that closure's own indent, plus the Flavor record carrying the cache key beside the entry point and blend state it must track — the two flavors' only baked-in differences, kept in one place so a third cannot collide on a stale key (+21)."
 
 [[file_size_mark]]
 file = "src/session.rs"
@@ -566,8 +568,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/caret_glyph.rs"
 line = 163
-message = "this function has too many lines (213/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+message = "this function has too many lines (214/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The construction now happens inside gpu_cache::render_pipeline's build closure, so the program is compiled once per process rather than once per pipeline instance; the added lines are that closure's own."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -594,8 +596,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/image_pipeline.rs"
 line = 75
-message = "this function has too many lines (133/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+message = "this function has too many lines (134/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The construction now happens inside gpu_cache::render_pipeline's build closure, so the program is compiled once per process rather than once per pipeline instance; the added lines are that closure's own."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -699,8 +701,8 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 lint = "clippy::too_many_lines"
 file = "src/render/blur.rs"
 line = 119
-message = "this function has too many lines (104/100)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
+message = "this function has too many lines (106/100)"
+reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. The construction now happens inside gpu_cache::render_pipeline's build closure, so the program is compiled once per process rather than once per pipeline instance; the added lines are that closure's own."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -782,16 +784,16 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/selection.rs"
-line = 209
-message = "this function has too many lines (111/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 131b added the `axis` vertex attribute (+5 lines) to the one shared pipeline-construction body both `new`/`new_invert` route through."
+line = 222
+message = "this function has too many lines (120/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 131b added the `axis` vertex attribute (+5 lines) to the one shared pipeline-construction body both `new`/`new_invert` route through. The construction now happens inside gpu_cache::render_pipeline's build closure, so the program is compiled once per process rather than once per pipeline instance; the added lines are that closure's own."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/spellunderline.rs"
 line = 66
-message = "this function has too many lines (132/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+message = "this function has too many lines (133/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The construction now happens inside gpu_cache::render_pipeline's build closure, so the program is compiled once per process rather than once per pipeline instance; the added lines are that closure's own."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
