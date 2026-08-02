@@ -230,6 +230,25 @@ impl TextPipeline {
         self.doc_lang
     }
 
+    /// The SHAPED document, reassembled from the shaped lines — the `&str` the
+    /// pure figure owners in [`crate::card::figures`] read.
+    ///
+    /// cosmic-text stores each line's terminator separately, so the lines are
+    /// exactly the pushed text split on `\n` and rejoining them returns those
+    /// same bytes. O(doc) and allocating, so it is called only where the work
+    /// already was: the sidecar's readout/HUD blocks and the composition of a
+    /// summoned card — never on an ordinary frame.
+    pub(in crate::render) fn doc_text(&self) -> String {
+        let mut out = String::new();
+        for (i, line) in self.buffer.lines.iter().enumerate() {
+            if i > 0 {
+                out.push('\n');
+            }
+            out.push_str(line.text());
+        }
+        out
+    }
+
     /// The document BYTE offset of buffer line `li`'s first byte (sum of the
     /// earlier lines' text lengths, each plus one for its `\n`). Maps the
     /// document-byte markdown/syntax spans into a single line's local byte range
@@ -719,7 +738,7 @@ impl TextPipeline {
         // face on each changed line below via the per-run script ladder
         // (`build_line_attrs` -> `add_script_spans`).
         let fonts = self.resolve_script_fonts();
-        self.doc_lang = crate::frontmatter::detect(text).and_then(|fm| fm.lang);
+        self.doc_lang = crate::card::figures::frontmatter_lang(text);
         let (md_spans, syn_spans) = self.parse_doc_spans(text);
         // Split into lines WITHOUT the line terminators (cosmic-text stores the
         // ending separately). `str::lines()` drops a single trailing newline, which

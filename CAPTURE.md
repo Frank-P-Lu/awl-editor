@@ -641,16 +641,19 @@ Ids are stable across edits AND across filtering: a picker row is keyed by its
 CORPUS position, so typing a query narrows the visible rows without renaming
 the survivors.
 
-**What a live-`App` capture's `semantic` does NOT contain.** The summoned
-cards (About, Lifetime, Streaks, the stats HUD, the shortcut peek) announce
-through `crate::card::content`, whose live figures are gathered by the render
-pipeline. A `--screenshot-app` `App` has no pipeline of its own — the harness
-renders its buffer through a separate offscreen one — so a card that is DRAWN
-in the PNG has no node in that sidecar's `semantic`. This is the same
-live-only boundary that already makes `hud.saved`, the `lifetime` odometer and
-the `streaks` grid read as placeholders in a capture; it is a real gap and it
-is named here rather than papered over. The which-key panel and the rendered
-menu bar have no such dependency and DO appear.
+**Every passive surface a live-`App` capture DRAWS, it also announces.** The
+summoned cards (About, Lifetime, Streaks, the stats HUD, the shortcut peek),
+the which-key panel and the rendered menu bar each carry a node whenever the
+PNG carries their pixels, and none when it does not. The cards' three document
+figures — word count, frontmatter language, through-doc percent — are derived
+by `crate::card::figures`, a pure owner over the document text that the
+renderer and the fold both read, so the announced card is the drawn card rather
+than a second description of it. Their LIVE-only figures (`hud.saved`, the
+`lifetime` odometer, the `streaks` grid, the peek's learned rows, the About
+card's update marker) read as their documented placeholders in a capture, in
+the tree exactly as in the PNG — that determinism boundary is unchanged. The
+roster is swept both directions, drawn ⇔ announced, by
+`app::semantic::passive_roster`.
 
 Schema `/193` adds the top-level **`driver`** field, immediately after `schema`:
 which TIER produced this sidecar. `"replay"` — the shared core

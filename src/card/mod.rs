@@ -19,9 +19,12 @@
 //! peek is deliberately NOT part of [`dismiss_summoned_card`]: it is not modal —
 //! it closes when the hold breaks (`peek::PeekArm`), never on a key.
 
-//! [`content`] is the sibling half of that same rule for what the cards SAY.
+//! [`content`] is the sibling half of that same rule for what the cards SAY,
+//! and [`figures`] owns the three lines of that content which are derived from
+//! the document itself.
 
 pub mod content;
+pub mod figures;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 

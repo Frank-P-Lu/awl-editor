@@ -9,22 +9,21 @@
 //! "informational": its titles and rows really are operable, so they advertise
 //! actions — and every one of those actions is routed in `requests.rs`.
 //!
-//! Card CONTENT is NOT derived here. It comes from `crate::card::content`, the
-//! same owner `render/chrome/hud.rs` composes from, so an assistive technology
-//! hears the card that is drawn rather than a second description of it.
+//! Card CONTENT is NOT described here. It is composed by `crate::card::content`
+//! from figures whose one owner is `crate::card::figures`, the same pair
+//! `render/chrome/hud.rs` draws from — so an assistive technology hears the
+//! card that is drawn rather than a second description of it, and a capture
+//! with no render pipeline of its own can still announce one.
 
 use super::*;
 
 impl App {
-    pub(super) fn fold_passive(&self, nodes: &mut Vec<SemanticNode>) {
-        self.fold_card(nodes, self.card_content());
+    pub(super) fn fold_passive(&self, nodes: &mut Vec<SemanticNode>, text: &str) {
+        self.fold_card(nodes, self.card_content(text));
         self.fold_whichkey(nodes);
         self.fold_menu_bar(nodes);
     }
 
-    /// Takes the content rather than fetching it: the only source is the render
-    /// pipeline, which a hermetic `App` does not have, and a fold nobody can
-    /// reach without a GPU is a fold nobody tests.
     pub(super) fn fold_card(
         &self,
         nodes: &mut Vec<SemanticNode>,
@@ -49,20 +48,57 @@ impl App {
         nodes[0].children.push(id.to_string());
     }
 
-    /// The card this frame, as CONTENT. The render pipeline is the one holder
-    /// of every live figure a card shows, so it is the one gatherer; with no
-    /// pipeline there is no card being drawn either and there is nothing to
-    /// announce.
-    fn card_content(&self) -> Option<crate::card::content::CardContent> {
-        self.frame.gpu()?.pipeline.card_content()
+    /// Everything a summoned card can say, gathered from the `App`'s own state.
+    ///
+    /// The three DOCUMENT figures — word count, frontmatter language, through-
+    /// doc percent — come from [`crate::card::figures`], the pure owner the
+    /// renderer derives them through as well, so no second description of them
+    /// exists to drift. The LIVE-only figures are read back out of the render
+    /// pipeline, which is where the `App`'s own `sync_*` push put them; with no
+    /// pipeline they are the all-absent default, which is exactly the
+    /// placeholder set a headless capture's offscreen pipeline draws.
+    pub(in crate::app) fn card_inputs(&self, text: &str) -> crate::card::content::CardInputs {
+        let buffer = self.document.buffer();
+        let (cursor_line, cursor_col) = buffer.cursor_line_col();
+        let overlay_active = self.workspace_state.overlay_open();
+        crate::card::content::CardInputs {
+            hud_held: crate::card::content::hud_shown(overlay_active),
+            peek_shown: crate::card::content::peek_shown(overlay_active),
+            streaks_page: crate::streaks::card_view(),
+            doc: crate::card::figures::DocFigures::of(
+                text,
+                buffer.is_markdown(),
+                cursor_line,
+                cursor_col,
+            ),
+            eol: buffer.eol(),
+            live: self
+                .frame
+                .gpu()
+                .map(|gpu| gpu.pipeline.card_live())
+                .unwrap_or_default(),
+        }
+    }
+
+    /// The card this frame, as CONTENT — composed by the same
+    /// [`crate::card::content::open_card`] the renderer draws from.
+    fn card_content(&self, text: &str) -> Option<crate::card::content::CardContent> {
+        crate::card::content::open_card(&self.card_inputs(text))
+    }
+
+    /// The which-key panel's rows when it is up, `None` when it is not — the
+    /// one gate the semantic fold and the live-`App` capture's own `CaptureOpts`
+    /// both read, so the panel is announced exactly when it is drawn.
+    pub(in crate::app) fn whichkey_panel_rows(&self) -> Option<Vec<(String, String)>> {
+        (self.whichkey_is_shown() || crate::whichkey::force_shown())
+            .then(|| self.whichkey_continuation_rows())
     }
 
     fn fold_whichkey(&self, nodes: &mut Vec<SemanticNode>) {
-        if !self.whichkey_is_shown() && !crate::whichkey::force_shown() {
+        let Some(rows) = self.whichkey_panel_rows() else {
             return;
-        }
+        };
         let id = WHICHKEY_ID;
-        let rows = self.whichkey_continuation_rows();
         let mut panel = SemanticNode::new(
             id,
             SemanticRole::Status,

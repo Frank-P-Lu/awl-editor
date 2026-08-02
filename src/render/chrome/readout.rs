@@ -174,38 +174,14 @@ impl TextPipeline {
         Ok(())
     }
 
-    /// The word count of the current buffer (whitespace-separated tokens). Summed
-    /// per line — a word never spans a newline — so it equals
-    /// [`crate::markdown::word_count`] of the whole document without joining it.
-    /// EXCLUDES a leading frontmatter block ([`crate::markdown::frontmatter_end`])
-    /// — metadata, not manuscript, so a `lang:`/`title:` line never inflates the
-    /// reading-time readout.
-    fn word_count(&self) -> usize {
-        let fm_end = crate::markdown::frontmatter_end(&self.md_spans);
-        let mut start = 0usize;
-        let mut total = 0usize;
-        for line in &self.buffer.lines {
-            let text = line.text();
-            if fm_end.is_none_or(|end| start >= end) {
-                total += crate::markdown::word_count(text);
-            }
-            start += text.len() + 1;
-        }
-        total
-    }
-
     /// The QUIET readout for a MARKDOWN buffer: `Some((words, reading_minutes))` when
     /// the buffer is markdown and has at least one word, else `None` (nothing drawn).
     /// Exposed so the capture sidecar can report exactly what the readout shows.
+    ///
+    /// Derived by [`crate::card::figures::readout_figures`] — the ONE owner the
+    /// semantic fold reads too, so a card announces the count it draws.
     pub fn readout_report(&self) -> Option<(usize, usize)> {
-        if !self.md_enabled {
-            return None;
-        }
-        let words = self.word_count();
-        if words == 0 {
-            return None;
-        }
-        Some((words, crate::markdown::reading_time_min(words)))
+        crate::card::figures::readout_figures(&self.doc_text(), self.md_enabled)
     }
 
     /// The readout string for the bottom-right corner, e.g. `"240 words · 2 min"`.
@@ -214,14 +190,8 @@ impl TextPipeline {
     /// REUSED by the held HUD's WORD COUNT figure (phase 2): the persistent
     /// bottom-right readout is no longer drawn, but this text-feeder +
     /// [`Self::readout_report`] (the sidecar source) live on as the HUD's source.
-    pub(super) fn wordcount_text(&self) -> String {
-        match self.readout_report() {
-            Some((w, m)) => {
-                let unit = if w == 1 { "word" } else { "words" };
-                format!("{w} {unit} · {m} min")
-            }
-            None => String::new(),
-        }
+    pub(in crate::render) fn wordcount_text(&self) -> String {
+        crate::card::figures::words_readout(&self.doc_text(), self.md_enabled)
     }
 
     /// Shape + upload the quiet word-count / reading-time readout. Drawn DIM and

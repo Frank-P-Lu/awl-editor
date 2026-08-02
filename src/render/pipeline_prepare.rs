@@ -80,7 +80,7 @@ impl TextPipeline {
     /// `overlay_active` flag the overlay draw path already reads, so they can't drift;
     /// the HUD reappears once the overlay closes if the key is still held.
     pub(in crate::render) fn hud_showing(&self) -> bool {
-        crate::hud::hud_held() && !self.overlay_active
+        crate::card::content::hud_shown(self.overlay_active)
     }
 
     /// True when the HOLD-⌘ SHORTCUT PEEK should DRAW this frame. Like the held HUD, it
@@ -89,7 +89,7 @@ impl TextPipeline {
     /// in practice, but the gate keeps the two mutually exclusive by construction, same
     /// as `hud_showing`.
     pub(in crate::render) fn peek_showing(&self) -> bool {
-        crate::peek::peek_open() && !self.overlay_active
+        crate::card::content::peek_shown(self.overlay_active)
     }
 
     /// True when ANY frosted-blur backdrop applies this frame: a blur-eligible full

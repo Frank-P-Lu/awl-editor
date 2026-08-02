@@ -47,26 +47,26 @@ impl TextPipeline {
         self.keybindings_tips = tips;
     }
 
-    fn hud_percent(&self) -> u32 {
-        let lines = &self.buffer.lines;
-        let total_chars: usize = lines.iter().map(|l| l.text().chars().count()).sum();
-        let denom = total_chars + lines.len().saturating_sub(1); // + inter-line newlines
-        if denom == 0 {
-            return 0;
-        }
-        let mut offset = 0usize;
-        for l in lines.iter().take(self.cursor_line) {
-            offset += l.text().chars().count() + 1; // + the line's trailing newline
-        }
-        offset += self.cursor_col;
-        (((offset.min(denom) as f32) / denom as f32) * 100.0).round() as u32
+    /// The three DOCUMENT figures for the shaped frame, from their one owner.
+    fn doc_figures(&self) -> crate::card::figures::DocFigures {
+        crate::card::figures::DocFigures::of(
+            &self.doc_text(),
+            self.md_enabled,
+            self.cursor_line,
+            self.cursor_col,
+        )
     }
 
     pub fn hud_report(&self) -> HudReport {
+        let text = self.doc_text();
         HudReport {
             held: crate::hud::hud_held(),
-            words: self.readout_report(),
-            percent: self.hud_percent(),
+            words: crate::card::figures::readout_figures(&text, self.md_enabled),
+            percent: crate::card::figures::through_doc_percent(
+                &text,
+                self.cursor_line,
+                self.cursor_col,
+            ),
             lang: self.doc_lang_report(),
             eol: self.eol,
             saved: crate::hud::saved_readout(self.hud_saved),
@@ -111,25 +111,33 @@ impl TextPipeline {
         }
     }
 
+    /// The LIVE-only card figures as they were last pushed in. A running `App`
+    /// is their one gatherer and the pipeline is the courier; reading them back
+    /// out is how the semantic fold announces the same figures the frame draws,
+    /// including the all-absent placeholders of a pipeline nobody has fed.
+    pub fn card_live(&self) -> crate::card::content::CardLive {
+        crate::card::content::CardLive {
+            stats: self.hud_stats.clone(),
+            streaks: self.streaks_view.clone(),
+            saved: self.hud_saved,
+            peek_rows: self.peek_rows.clone(),
+            update_checked: self.hud_update_checked,
+            pending_crash: self.hud_pending_crash,
+        }
+    }
+
     /// Everything a summoned card can say, gathered for
-    /// [`crate::card::content`] — the ONE owner of the content. The pipeline
-    /// is the only holder of all of these at once, so it is the only gatherer;
-    /// composition, captions and phrasing live there, not here.
+    /// [`crate::card::content`] — the ONE owner of the content. Composition,
+    /// captions and phrasing live there, not here; the three document figures
+    /// come from [`crate::card::figures`], which the semantic fold reads too.
     pub fn card_inputs(&self) -> crate::card::content::CardInputs {
         crate::card::content::CardInputs {
             hud_held: self.hud_showing(),
             peek_shown: self.peek_showing(),
-            stats: self.hud_stats.clone(),
-            streaks: Some(self.streaks_effective_view()),
             streaks_page: crate::streaks::card_view(),
-            saved: self.hud_saved,
-            words: self.wordcount_text(),
-            lang: self.doc_lang_report(),
-            percent: self.hud_percent(),
+            doc: self.doc_figures(),
             eol: self.eol,
-            peek_rows: self.peek_effective_rows(),
-            update_checked: self.hud_update_checked,
-            pending_crash: self.hud_pending_crash,
+            live: self.card_live(),
         }
     }
 
