@@ -425,6 +425,27 @@ run.
 
 **Overnight results, newest first.**
 
+- **220 + 221 + 224 + 234** — 🟡 IN PROGRESS — claude (deep), branch
+  `claude/items-220-221-224-location`. ⚠️ **THE COLLISION MAP RECORDED EARLIER
+  WAS WRONG and is corrected here.** It grouped 220+221 and put 224 with 222,
+  but **221 and 224 are two WORLDS' EXPRESSIONS of the very hierarchy datum 220
+  introduces** — Cassowary's rotated flush-left label and Magpie's slanted
+  mirrored cue are the same feature, and splitting them guarantees three
+  different ideas of what that datum is. 234 rides along as the same
+  "plate measured against the wrong bound" shape. **The governing constraint:**
+  221 says the world expression must be **theme data, not a palette code path**,
+  and `CLAUDE.md` is blunt that a theme needing its own code path means the
+  design is wrong — so if both expressions cannot come from one data mechanism,
+  the lane is told to STOP and say so rather than branch per world.
+- **222 + 223** — 🟡 IN PROGRESS — claude (production), branch
+  `claude/items-222-223-mangrove`. Both briefed with the lesson 219/225 just
+  taught: **assume universal until measured otherwise.** For 223 especially,
+  "Mangrove omits shortcuts other themes show" may mean the SHARED owner drops
+  them under a condition Mangrove happens to meet — and if the labels are
+  ELIDED rather than omitted, that is a rowlayout budget question, not a missing
+  feature. 222 is warned off pre-empting item 131e, which still owns selection
+  composition on the diagonal machinery.
+
 - **231** — 🟡 IN PROGRESS — claude (deep), branch `claude/item-231-ci-fix`. The
   CI fix. Briefed to run the two ~10-minute discriminators FIRST
   (`--test-threads=1`: does the wedge need concurrency? and a `render::tests::`
