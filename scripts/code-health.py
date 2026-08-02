@@ -697,6 +697,41 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
             ):
                 if setting not in body:
                     failures.append(failure)
+            # A third bound, and the only one that does not depend on the
+            # gate's own shell being alive. Run 30746762499 had both bounds
+            # above wired correctly and still died with no log: the step never
+            # concluded, so the gate never exited, so the in-gate budget never
+            # fired. `timeout-minutes` on the step is enforced by the runner
+            # agent, so it survives a starved watchdog and a frozen shell.
+            step = next(
+                (chunk for chunk in body.split("\n      - ")
+                 if chunk.startswith("name: native full suite")),
+                None,
+            )
+            if step is None:
+                failures.append(
+                    "native-gate-audit: CI mac job must run the gate as a named step"
+                )
+            else:
+                stated = re.search(r"^        timeout-minutes:\s*(\d+)\s*$", step, re.M)
+                budget = re.search(r"AWL_NATIVE_GATE_BUDGET_SECONDS:\s*(\d+)", step)
+                if stated is None:
+                    failures.append(
+                        "native-gate-audit: CI mac job's gate step must carry a runner-enforced timeout-minutes, which does not depend on the gate's own shell being healthy"
+                    )
+                elif int(stated.group(1)) >= 50:
+                    # The step starts around job-minute 2; the four runner
+                    # losses came at job-minute 53, 55, 56 and 62.
+                    failures.append(
+                        "native-gate-audit: CI mac job's gate step timeout must land inside the earliest observed runner loss at job-minute 53"
+                    )
+                elif budget is not None and int(stated.group(1)) * 60 <= int(budget.group(1)):
+                    # If the runner's blunt kill always wins, the in-gate abort
+                    # — the only one that names the phase, the convention and
+                    # the test that never returned — can never be seen.
+                    failures.append(
+                        "native-gate-audit: CI mac job's gate step timeout must outlast the in-gate budget, or the rich in-band abort can never win"
+                    )
     return failures
 
 
@@ -1175,7 +1210,9 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
   mac:
     steps:
       - run: echo "AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( $(date +%s) + 2100 ))" >> "$GITHUB_ENV"
-      - env:
+      - name: native full suite
+        timeout-minutes: 40
+        env:
           AWL_NATIVE_GATE_BUDGET_SECONDS: 1500
         run: scripts/native-gate.sh
 '''
@@ -1293,6 +1330,20 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
             script.replace("ps -A -o pid=,ppid=,pgid=,etime=,time=", "# ps -A -o pid=,ppid=,pgid=,etime=,time="),
             ci,
             "abort's process dump must carry CPU time beside elapsed time"),
+        # The runner-enforced step bound. Run 30746762499 proved every bound
+        # that lives inside our own shell can fail to fire at all.
+        "mac gate step with no runner-enforced timeout": (
+            script, ci.replace("        timeout-minutes: 40\n", ""),
+            "gate step must carry a runner-enforced timeout-minutes"),
+        "mac gate step timeout demoted to a comment": (
+            script, ci.replace("        timeout-minutes: 40", "        # timeout-minutes: 40"),
+            "gate step must carry a runner-enforced timeout-minutes"),
+        "mac gate step timeout past the observed runner loss": (
+            script, ci.replace("timeout-minutes: 40", "timeout-minutes: 55"),
+            "gate step timeout must land inside the earliest observed runner loss"),
+        "mac gate step timeout shorter than the in-gate budget": (
+            script, ci.replace("timeout-minutes: 40", "timeout-minutes: 10"),
+            "gate step timeout must outlast the in-gate budget"),
         # The mutation this audit failed on its first run: a deleted bound that
         # a comment mentioning the same variable silently stood in for.
         "mac bound demoted to a comment": (

@@ -230,8 +230,13 @@ gate_cpu_report() {
         delta = ($2 + 0) - was[$1]
       } else {
         fresh++
-        span = ($3 + 0 < window) ? $3 + 0 : window
-        if (span < 1) span = 1
+        # Its whole CPU time over its whole age — a lifetime average, which is
+        # the only honest reading for a process with no baseline. NOT over the
+        # window: a process can be older than the window and still new to the
+        # probe, because a phase group is registered as it launches, and
+        # dividing a long lifetime by a short window reports several hundred
+        # percent for something merely idle.
+        span = ($3 + 0 < 1) ? 1 : $3 + 0
         delta = $2 + 0
       }
       if (delta < 0) delta = 0
