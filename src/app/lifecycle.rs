@@ -33,8 +33,8 @@ impl ApplicationHandler<AwlEvent> for App {
         // the active world) rather than starting bare and waiting for the
         // first `update_title()` call to catch up.
         let title = files::window_title(
-            self.active.buffer.path(),
-            self.active.buffer.is_unnamed_fresh(),
+            self.document.buffer().path(),
+            self.document.buffer().is_unnamed_fresh(),
             crate::theme::active().name,
             self.is_document_dirty(),
         );

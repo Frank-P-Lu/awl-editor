@@ -32,7 +32,7 @@ use std::path::Path;
 impl App {
     /// SESSION FLUSH — the CAPTURE half's one door (mirrors the autosave
     /// engine's `autosave_flush`): snapshot every open PATHED buffer's path +
-    /// cursor + scroll (the active one, via `self.active.buffer` — `Buffer::path()`
+    /// cursor + scroll (the active one, via `self.document.buffer()` — `Buffer::path()`
     /// is the sole authoritative path, item 56 — plus every backgrounded one
     /// still in the registry), which one is active, and the native window
     /// frame, then write it atomically beside the scratch stash. Config-gated
@@ -53,35 +53,8 @@ impl App {
         if !self.config.session_restore_on() {
             return;
         }
-        let mut buffers = Vec::new();
-        let active_path = self.active.buffer.path().map(Path::to_path_buf);
-        if let Some(path) = active_path.clone() {
-            let (line, col) = self.active.buffer.cursor_line_col();
-            buffers.push((
-                path,
-                crate::session::BufferPos {
-                    line,
-                    col,
-                    scroll: self.active.extra.scroll.row,
-                    scroll_px_q: self.active.extra.scroll.px_q,
-                },
-            ));
-        }
-        for (_key, entry) in self.buffer_registry.iter() {
-            let Some(path) = entry.buffer.path() else {
-                continue; // the parked Scratch entry (if any): not a session member
-            };
-            let (line, col) = entry.buffer.cursor_line_col();
-            buffers.push((
-                path.to_path_buf(),
-                crate::session::BufferPos {
-                    line,
-                    col,
-                    scroll: entry.extra.scroll.row,
-                    scroll_px_q: entry.extra.scroll.px_q,
-                },
-            ));
-        }
+        let active_path = self.document.buffer().path().map(Path::to_path_buf);
+        let buffers = self.document.session_buffers();
         // Best-effort: `outer_position` can fail (e.g. some Wayland compositors
         // refuse it) — degrade to no window frame rather than skip the whole
         // flush, mirroring every other "never let a live-only quirk disrupt the
@@ -108,7 +81,7 @@ impl App {
     }
 
     /// SESSION RESTORE's apply half, called ONCE from `App::new` (after the
-    /// scratch-stash restore has already picked `self.active.buffer`). `file_arg_given`
+    /// scratch-stash restore has already picked `self.document.buffer()`). `file_arg_given`
     /// is whether THIS launch named an explicit file:
     ///
     ///  - a BARE launch (`false`): the session's own remembered `active`
@@ -117,7 +90,7 @@ impl App {
     ///    parked into the buffer registry (backgrounded, cursor/scroll
     ///    restored too). Composes with — never replaces — the scratch-stash
     ///    outcome: a session with no `active` (or an `active` that vanished)
-    ///    leaves `self.active.buffer` exactly as the stash restore left it,
+    ///    leaves `self.document.buffer()` exactly as the stash restore left it,
     ///    and its OTHER survivors still get parked.
     ///  - a launch WITH a file argument (`true`, TASTE CALL — logged in
     ///    CLAUDE.md): that file STAYS active (never overridden), but the
@@ -153,58 +126,19 @@ impl App {
                 .and_then(|p| survivors.iter().find(|(sp, _)| sp == p).cloned())
         };
         if let Some((path, pos)) = &active_path {
-            let mut buffer = Buffer::from_file(path);
-            Self::apply_restored_pos(&mut buffer, *pos);
-            // Build the COMPLETE entry locally and install it in ONE move
-            // (item 56: never a half-moved active slot).
-            let extra = files::BufferExtra {
-                scroll: crate::render::ScrollPos {
-                    row: pos.scroll,
-                    px_q: pos.scroll_px_q,
-                },
-                doc_saved_version: Some(buffer.version()),
-                disk_mtime: Self::disk_mtime_of(path),
-                caret_synced_version: buffer.version(),
-                ..Default::default()
-            };
-            self.active = crate::buffers::Entry { buffer, extra };
+            self.document
+                .restore_active(path, *pos, Self::disk_mtime_of(path));
         }
         for (path, pos) in &survivors {
             if active_path.as_ref().map(|(p, _)| p) == Some(path) {
                 continue; // just became the active buffer above
             }
-            if self.active.buffer.path() == Some(path.as_path()) {
+            if self.document.buffer().path() == Some(path.as_path()) {
                 continue; // already this launch's CLI-argument file
             }
-            let mut buffer = Buffer::from_file(path);
-            Self::apply_restored_pos(&mut buffer, *pos);
-            let extra = files::BufferExtra {
-                scroll: crate::render::ScrollPos {
-                    row: pos.scroll,
-                    px_q: pos.scroll_px_q,
-                },
-                doc_saved_version: Some(buffer.version()),
-                disk_mtime: Self::disk_mtime_of(path),
-                caret_synced_version: buffer.version(),
-                ..Default::default()
-            };
-            self.buffer_registry.park(
-                crate::buffers::BufferKey::path(path),
-                crate::buffers::Entry { buffer, extra },
-            );
+            self.document
+                .restore_background(path, *pos, Self::disk_mtime_of(path));
         }
-    }
-
-    /// Place `buffer`'s cursor at the remembered (line, col), clamped exactly
-    /// like `App::jump_to_line` does (`Buffer::line_col_to_char` already
-    /// clamps both the line and the column). Shared by both restore arms
-    /// above so a freshly-loaded restored buffer always lands its cursor the
-    /// same way.
-    #[cfg(not(target_arch = "wasm32"))]
-    fn apply_restored_pos(buffer: &mut Buffer, pos: crate::session::BufferPos) {
-        let idx = buffer.line_col_to_char(pos.line, pos.col);
-        buffer.clear_mark();
-        buffer.set_cursor(idx);
     }
 }
 
@@ -259,26 +193,30 @@ mod tests {
             let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
 
             assert_eq!(
-                app.active.buffer.path(),
+                app.document.buffer().path(),
                 Some(Path::new("/n/a.md")),
                 "session active file wins"
             );
             assert_eq!(
-                app.active.buffer.cursor_line_col(),
+                app.document.buffer().cursor_line_col(),
                 (1, 2),
                 "cursor restored"
             );
-            assert_eq!(app.active.extra.scroll.row, 3, "scroll restored");
-            assert_eq!(app.buffer_registry.len(), 1, "the OTHER survivor is parked");
+            assert_eq!(app.document.scroll().row, 3, "scroll restored");
+            assert_eq!(
+                app.document.open_count() - 1,
+                1,
+                "the OTHER survivor is parked"
+            );
             assert!(
-                app.buffer_registry
-                    .contains(&crate::buffers::BufferKey::path(Path::new("/n/b.md")))
+                app.document
+                    .contains_background(&crate::buffers::BufferKey::path(Path::new("/n/b.md")))
             );
 
             // Switching to it finds the restored cursor/scroll, not a fresh 0,0.
             app.load_path(PathBuf::from("/n/b.md"));
-            assert_eq!(app.active.buffer.cursor_line_col(), (0, 1));
-            assert_eq!(app.active.extra.scroll.row, 0);
+            assert_eq!(app.document.buffer().cursor_line_col(), (0, 1));
+            assert_eq!(app.document.scroll().row, 0);
         });
     }
 
@@ -304,23 +242,23 @@ mod tests {
             );
 
             assert_eq!(
-                app.active.buffer.path(),
+                app.document.buffer().path(),
                 Some(Path::new("/n/a.md")),
                 "the CLI file argument wins"
             );
             assert_eq!(
-                app.active.buffer.cursor_line_col(),
+                app.document.buffer().cursor_line_col(),
                 (0, 0),
                 "the CLI-argument file opens at its own start, not the session's remembered cursor"
             );
             assert_eq!(
-                app.buffer_registry.len(),
+                app.document.open_count() - 1,
                 1,
                 "b.md still restores BEHIND the active file"
             );
             assert!(
-                app.buffer_registry
-                    .contains(&crate::buffers::BufferKey::path(Path::new("/n/b.md")))
+                app.document
+                    .contains_background(&crate::buffers::BufferKey::path(Path::new("/n/b.md")))
             );
         });
     }
@@ -340,18 +278,18 @@ mod tests {
 
             // "/n/gone.md" never existed: it must never become active, and must
             // never appear in the registry.
-            assert_ne!(app.active.buffer.path(), Some(Path::new("/n/gone.md")));
+            assert_ne!(app.document.buffer().path(), Some(Path::new("/n/gone.md")));
             assert!(
-                !app.buffer_registry
-                    .contains(&crate::buffers::BufferKey::path(Path::new("/n/gone.md")))
+                !app.document
+                    .contains_background(&crate::buffers::BufferKey::path(Path::new("/n/gone.md")))
             );
             // "keep.md" survives and gets parked (it wasn't the session's
             // `active`, which vanished, so it's just a background survivor —
             // and since the session named no SURVIVING active file, the
-            // scratch-stash outcome for `self.active.buffer` stands).
+            // scratch-stash outcome for `self.document.buffer()` stands).
             assert!(
-                app.buffer_registry
-                    .contains(&crate::buffers::BufferKey::path(Path::new("/n/keep.md")))
+                app.document
+                    .contains_background(&crate::buffers::BufferKey::path(Path::new("/n/keep.md")))
             );
         });
     }
@@ -378,12 +316,12 @@ mod tests {
             let app = App::new(None, PathBuf::from("/n"), None, None, cfg);
 
             assert_eq!(
-                app.active.buffer.path(),
+                app.document.buffer().path(),
                 None,
                 "the kill-switch leaves the plain scratch buffer active"
             );
             assert_eq!(
-                app.buffer_registry.len(),
+                app.document.open_count() - 1,
                 0,
                 "nothing is parked when the switch is off"
             );
@@ -409,10 +347,10 @@ mod tests {
                 None,
                 Config::empty(),
             );
-            app.active
-                .buffer
-                .set_cursor(app.active.buffer.line_col_to_char(2, 1));
-            app.active.extra.scroll = crate::render::ScrollPos { row: 7, px_q: 23 };
+            app.document
+                .set_cursor(app.document.buffer().line_col_to_char(2, 1));
+            app.document
+                .set_scroll(crate::render::ScrollPos { row: 7, px_q: 23 });
             app.load_path(PathBuf::from("/n/b.md")); // a.md is now backgrounded
 
             app.session_flush();
@@ -485,10 +423,9 @@ mod tests {
                 None,
                 Config::empty(),
             );
-            app.active
-                .buffer
-                .set_cursor(app.active.buffer.line_col_to_char(2, 1));
-            app.active.extra.scroll = crate::render::ScrollPos::at_row(5);
+            app.document
+                .set_cursor(app.document.buffer().line_col_to_char(2, 1));
+            app.document.set_scroll(crate::render::ScrollPos::at_row(5));
 
             app.switch_project(PathBuf::from("/fb"));
             app.load_path(PathBuf::from("/fb/two.md"));
@@ -505,10 +442,10 @@ mod tests {
                 "resumes the LAST active folder (FB)"
             );
             let mut app2 = App::new(None, remembered_root, None, None, Config::empty());
-            assert_eq!(app2.active.buffer.path(), Some(Path::new("/fb/two.md")));
+            assert_eq!(app2.document.buffer().path(), Some(Path::new("/fb/two.md")));
             assert!(
-                app2.buffer_registry
-                    .contains(&crate::buffers::BufferKey::path(Path::new("/fa/one.md")))
+                app2.document
+                    .contains_background(&crate::buffers::BufferKey::path(Path::new("/fa/one.md")))
             );
 
             // Now actually flip BACK to FA (mirrors a Last-file / Goto back to
@@ -516,11 +453,11 @@ mod tests {
             // cursor/scroll — round-trips through the registry, not a fresh re-read.
             app2.load_path(PathBuf::from("/fa/one.md"));
             assert_eq!(
-                app2.active.buffer.cursor_line_col(),
+                app2.document.buffer().cursor_line_col(),
                 (2, 1),
                 "A's cursor survived"
             );
-            assert_eq!(app2.active.extra.scroll.row, 5, "A's scroll survived");
+            assert_eq!(app2.document.scroll().row, 5, "A's scroll survived");
         });
     }
 }

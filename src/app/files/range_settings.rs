@@ -89,7 +89,7 @@ impl App {
                 }
                 _ => unreachable!(),
             };
-            if self.active.buffer.page_class() == class {
+            if self.document.buffer().page_class() == class {
                 self.sync_page_measure();
             }
         }

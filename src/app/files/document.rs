@@ -14,9 +14,6 @@ impl App {
     /// folder (`self.root`) — item 76 retired the old C-x n "jump to the notes
     /// home" behavior. Parks the leaving buffer under its key.
     pub(super) fn start_fresh_document(&mut self) {
-        // Captured BEFORE `park_active_buffer` below moves the slot away
-        // (`Buffer::path()` is the sole authoritative path, item 56).
-        self.prev_file = self.active.buffer.path().map(|p| p.to_path_buf());
         // WRITING STREAKS: sample the LEAVING buffer's word-delta before it is
         // replaced by the fresh document (the anchor is reset below), so words
         // written in it are recorded before the swap (native only; gated inside).
@@ -25,17 +22,10 @@ impl App {
         // PARK the buffer we are leaving (registered under its own identity if
         // it has one) exactly like `load_path`, so a later C-x b / reopen finds
         // it live rather than re-reading disk.
-        self.park_active_buffer();
-        // `park_active_buffer` already left `self.active` a fresh
-        // `Entry{buffer: Buffer::scratch(), extra: BufferExtra::default()}`
-        // placeholder — start the fresh document in place on that
-        // already-complete slot, targeting the ACTIVE folder.
-        self.active
-            .buffer
-            .start_fresh_doc(self.project_location.root.clone());
+        self.document
+            .start_fresh_document(self.project_location.root.clone());
         self.workspace_state.close_search();
         self.input.clear_preedit();
-        self.active.extra.caret_synced_version = self.active.buffer.version();
         self.persistence.reset_for_fresh_document();
         // STICKY PAGE WIDTH: a fresh document is always markdown (PROSE), so this
         // re-applies `page_width_prose` regardless of what the leaving buffer's

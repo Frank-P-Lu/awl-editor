@@ -28,7 +28,7 @@
 // `new_hermetic` because it needs `Buffer::from_file` to see genuine
 // bytes), or a test already wrapped in `fs::with_fs`/`FsGuard::install`
 // with a controlled fake `InMemoryFs` (hermetic by construction,
-// independent of `session_restore`'s value — `app/session.rs`'s own
+// independent of `session_restore`'s value — `app/document.rs`'s own
 // tests, which specifically exercise session restore, cannot use
 // `new_hermetic` at all since it forces `session_restore: Some(false)`).
 // A test that only needs a plain, don't-care-about-disk `App` must go
@@ -68,14 +68,14 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // that switches + flushes, a second bare-launch App that resumes from
         // the flushed state) — so they can't use a constructor that forces
         // `session_restore` off.
-        ("app/session.rs", 8),
+        ("app/document.rs", 8),
         // 3 store tests (2 recent-projects + 1 recent-files), each inside its
         // own `fs::with_fs(fake, ..)` closure seeded with an `InMemoryFs` — they
         // exist specifically to prove what `App::switch_project` / `App::load_path`
         // / `App::new` write to and read back from the recent-projects /
         // recent-files stores, so they need to CONTROL + INSPECT the injected fs
         // (which `new_hermetic`'s private internal fs hides), never real disk.
-        // Same treatment as `app/session.rs` above. Plus 3 NO-PATH-PASTE-SAVES-
+        // Same treatment as `app/document.rs` above. Plus 3 NO-PATH-PASTE-SAVES-
         // FIRST tests (`ensure_note_named_before_paste_*`), each also inside its
         // own `fs::with_fs(fake, ..)` closure with an `InMemoryFs` handle kept by
         // the test — they exist specifically to prove what
@@ -127,7 +127,7 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // `ledger_note_dispatch` + `stats_flush` write to and read back from
         // `stats.toml`, so they need to CONTROL + INSPECT the injected fs (which
         // `new_hermetic`'s private internal fs hides). Same treatment as
-        // `app/session.rs` / `app/files/tests.rs` above. (The 3 added by the ledger:
+        // `app/document.rs` / `app/files/tests.rs` above. (The 3 added by the ledger:
         // door-attribution round-trip, graduation-candidate ranking, kill-switch;
         // the 2 added by the discoverability round: peek/footer ranking from a fake
         // ledger, and the fresh-ledger-empty case.)
@@ -228,7 +228,7 @@ fn scan_dir_for_app_new(
     }
 }
 
-// ── ITEM 56 LAW: `files/active.rs` IS THE SOLE OWNER OF THE SLOT ────────
+// ── ITEM 56 LAW: `document.rs` IS THE SOLE OWNER OF THE SLOT ────────
 //
 // The manual field-by-field EXTRA-STATE copy-out/copy-back pair this round
 // RETIRED (the two former per-buffer-bookkeeping helpers this module's own
@@ -244,6 +244,7 @@ fn scan_dir_for_app_new(
 #[test]
 fn source_audit_the_active_slot_has_one_owner() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let app_root = root.join("app");
 
     // The two retired helpers (named only by runtime concatenation — see
     // this test function's own doc above) must never reappear anywhere.
@@ -263,7 +264,7 @@ fn source_audit_the_active_slot_has_one_owner() {
     );
 
     // The WHOLE-SLOT mem::replace that parks the outgoing active buffer
-    // exists exactly once, in `files/active.rs` — the sole place permitted
+    // exists exactly once, in `document.rs` — the sole place permitted
     // to tear the slot apart. Whitespace-COLLAPSED search (the real call
     // wraps its arguments onto their own lines), so line-wrap reflow can
     // never dodge this scan the way a raw substring match would.
@@ -273,57 +274,61 @@ fn source_audit_the_active_slot_has_one_owner() {
     // breaks the contiguous match, so this scan's own source can't trip its
     // own needle — only the RUNTIME-concatenated value can).
     let mem_replace_needle = ["mem::replace(&mut", "self.active"].concat();
-    scan_dir_collapsed(&root, &root, &mem_replace_needle, &mut mem_replace_hits);
+    scan_dir_collapsed(&root, &app_root, &mem_replace_needle, &mut mem_replace_hits);
     assert_eq!(
         mem_replace_hits.keys().collect::<Vec<_>>(),
-        vec!["app/files/active.rs"],
-        "the whole-slot mem::replace must exist ONLY in files/active.rs, found in: {mem_replace_hits:?}"
+        vec!["app/document.rs"],
+        "the whole-slot mem::replace must exist ONLY in document.rs, found in: {mem_replace_hits:?}"
     );
-    assert_eq!(mem_replace_hits.get("app/files/active.rs"), Some(&1));
+    assert_eq!(mem_replace_hits.get("app/document.rs"), Some(&1));
 
     // `BufferRegistry::take` — the ACTIVATION half of the swap — is called
-    // raw in exactly one place, `files/active.rs`'s own
-    // `activate_from_registry`; every other switch site goes through THAT
+    // raw in exactly one place, `document.rs`'s own
+    // `private activate`; every other switch site goes through THAT
     // method (never touches `buffer_registry` directly for a take).
     let mut take_hits: std::collections::BTreeMap<String, usize> = Default::default();
-    scan_dir_collapsed(
-        &root,
-        &root,
-        &[".buffer_registry", ".take("].concat(),
-        &mut take_hits,
-    );
+    let take_needle = ["self.reg", "istry.take("].concat();
+    scan_dir_collapsed(&root, &app_root, &take_needle, &mut take_hits);
     assert_eq!(
         take_hits.keys().collect::<Vec<_>>(),
-        vec!["app/files/active.rs"],
-        "raw buffer_registry.take() must appear ONLY inside files/active.rs's activate_from_registry, found in: {take_hits:?}"
+        vec!["app/document.rs"],
+        "raw buffer_registry.take() must appear ONLY inside document.rs's private activate, found in: {take_hits:?}"
     );
-    assert_eq!(take_hits.get("app/files/active.rs"), Some(&1));
+    assert_eq!(take_hits.get("app/document.rs"), Some(&1));
 
     // `BufferRegistry::park` — the PARK-OUT half of the swap — is called raw
-    // in exactly TWO places: `files/active.rs`'s own `park_active_buffer`
-    // (parks the buffer being REPLACED as active), and `app/session.rs`'s
+    // in exactly TWO places: `document.rs`'s own `private park_active`
+    // (parks the buffer being REPLACED as active), and `app/document.rs`'s
     // `apply_session_restore` (parks the OTHER, never-active survivors read
     // straight from the session file — a distinct, pre-existing mechanism
     // that never touches `self.active` at all, so it is not a bypass of the
     // slot's ownership law). Any THIRD site is the bypass this law exists to
     // catch.
     let mut park_hits: std::collections::BTreeMap<String, usize> = Default::default();
-    scan_dir_collapsed(
-        &root,
-        &root,
-        &[".buffer_registry", ".park("].concat(),
-        &mut park_hits,
-    );
+    let park_needle = ["self.reg", "istry.park("].concat();
+    scan_dir_collapsed(&root, &app_root, &park_needle, &mut park_hits);
     assert_eq!(
         park_hits.keys().collect::<Vec<_>>(),
-        vec!["app/files/active.rs", "app/session.rs"],
-        "raw buffer_registry.park() must appear ONLY in files/active.rs + app/session.rs, found in: {park_hits:?}"
+        vec!["app/document.rs"],
+        "raw registry.park() must appear ONLY in document.rs, found in: {park_hits:?}"
     );
+    assert_eq!(park_hits.get("app/document.rs"), Some(&2));
+
+    let mut loan_hits: std::collections::BTreeMap<String, usize> = Default::default();
+    let loan_needle = ["action_buffer", "_mut("].concat();
+    scan_dir_collapsed(&root, &app_root, &loan_needle, &mut loan_hits);
+    assert_eq!(
+        loan_hits.keys().collect::<Vec<_>>(),
+        vec!["app/apply.rs", "app/document.rs"],
+        "mutable Buffer loan must be definition + action-core call only: {loan_hits:?}"
+    );
+    assert_eq!(loan_hits.get("app/apply.rs"), Some(&1));
+    assert_eq!(loan_hits.get("app/document.rs"), Some(&1));
 }
 
 /// Like [`count_substr_in_dir`], but COLLAPSES all whitespace runs to a
 /// single space before matching, per file — so a needle spanning a call's
-/// line-wrapped arguments (`self.buffer_registry\n    .park(..)`) is found
+/// line-wrapped arguments (`self.registry\n    .park(..)`) is found
 /// regardless of how the call happens to be formatted, and (unlike a plain
 /// substring scan) a future reformat can never silently dodge this law.
 /// Records PER-FILE hit counts (relative to `base`), so a failing assertion

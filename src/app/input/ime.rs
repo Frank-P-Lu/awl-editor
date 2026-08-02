@@ -16,7 +16,7 @@ impl App {
             Ime::Commit(text) => {
                 self.input.keyboard.preedit.clear();
                 for c in text.chars() {
-                    self.active.buffer.insert_char(c);
+                    self.document.insert_char(c);
                 }
             }
         }

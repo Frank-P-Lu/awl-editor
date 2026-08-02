@@ -28,7 +28,6 @@
 //! (`window_title`) plus the module wiring; `#[cfg(test)] mod tests` (the
 //! former files.rs's own test module) lives in [`tests`].
 
-mod active;
 mod autosave;
 mod dictionary;
 mod document;
@@ -39,7 +38,6 @@ mod settings;
 mod tutorial;
 mod verbs;
 
-pub(in crate::app) use active::BufferExtra;
 pub(in crate::app) use tutorial::TutorialFolderIntent;
 
 // Only `tests` (below, via `use super::*`) needs the App-scope glob now that

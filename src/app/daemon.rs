@@ -35,7 +35,7 @@ impl App {
                     gpu.window.request_redraw();
                 }
                 if let Some(w) = waiter {
-                    match crate::buffers::BufferKey::of(&self.active.buffer) {
+                    match crate::buffers::BufferKey::of(&self.document.buffer()) {
                         Some(key) => {
                             self.wait_conns.entry(key).or_default().push(w);
                         }
@@ -54,11 +54,11 @@ impl App {
     /// Live persistence interpreter for Finish file. It runs before the
     /// separately typed daemon-notify and previous-buffer effects.
     pub(super) fn save_finished_buffer(&mut self) {
-        let _ = self.active.buffer.save();
+        let _ = self.document.save();
         self.snapshot_after_save();
-        if let Some(p) = self.active.buffer.path().map(|p| p.to_path_buf()) {
-            self.active.extra.disk_mtime = Self::disk_mtime_of(&p);
-            self.active.extra.doc_saved_version = Some(self.active.buffer.version());
+        if let Some(p) = self.document.buffer().path().map(|p| p.to_path_buf()) {
+            self.document
+                .record_document_saved(self.document.buffer().version(), Self::disk_mtime_of(&p));
             self.emit_notice(crate::actions::NoticeEffect::Clear);
         }
     }
@@ -72,10 +72,10 @@ impl App {
 
     /// Notify + drop every daemon connection waiting on the buffer we are
     /// ABOUT to leave (called BEFORE the `last_buffer_toggle` swap in
-    /// [`Self::finish_buffer`], while `self.active.buffer` is still the finished one).
+    /// [`Self::finish_buffer`], while `self.document.buffer()` is still the finished one).
     #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
     fn notify_daemon_waiters(&mut self) {
-        let Some(key) = crate::buffers::BufferKey::of(&self.active.buffer) else {
+        let Some(key) = crate::buffers::BufferKey::of(&self.document.buffer()) else {
             return;
         };
         if let Some(waiters) = self.wait_conns.remove(&key) {
@@ -108,28 +108,12 @@ mod tests {
     use std::os::unix::net::UnixStream;
 
     /// Drive `Action::FinishBuffer` through the REAL `actions::apply_transition` seam
-    /// against `app.active.buffer` (mirroring exactly how `App::apply` wires
+    /// against `app.document.buffer()` (mirroring exactly how `App::apply` wires
     /// `ActionCtx`, minus the `ActiveEventLoop` a live keypress carries — no
     /// window/GPU/quit path is exercised by this action), returning the
     /// resulting `Effect`.
     fn drive_finish_buffer(app: &mut App) -> actions::Transition {
-        let mut shift_selecting = false;
-        let mut zoom = app.zoom;
-        let mut make_overlay = |_: crate::overlay::OverlayKind| None;
-        let mut browse_to = |_: crate::overlay::OverlayKind, _: Option<String>| None;
-        let (search, journey) = app.workspace_state.core_slots();
-        let mut ctx = actions::ActionCtx {
-            buffer: &mut app.active.buffer,
-            shift_selecting: &mut shift_selecting,
-            zoom: &mut zoom,
-            search,
-            scroll_page_lines: 20,
-            journey,
-            make_overlay: &mut make_overlay,
-            browse_to: &mut browse_to,
-            oracle: None,
-        };
-        actions::apply_transition(&mut ctx, &Action::FinishBuffer, false)
+        app.transition_for_test(&Action::FinishBuffer, false)
     }
 
     #[test]
@@ -165,9 +149,13 @@ mod tests {
         };
         let mut app = App::new(Some(a.clone()), dir.to_path_buf(), None, None, cfg);
         app.load_path(b.clone());
-        assert_eq!(app.active.buffer.path(), Some(b.as_path()), "B is active");
         assert_eq!(
-            app.prev_file,
+            app.document.buffer().path(),
+            Some(b.as_path()),
+            "B is active"
+        );
+        assert_eq!(
+            app.document.previous_path(),
             Some(a.clone()),
             "A is the last-buffer target"
         );
@@ -180,7 +168,7 @@ mod tests {
             .or_default()
             .push(crate::daemon::Waiter::new(b.clone(), theirs));
 
-        app.active.buffer.set_text("beta\nedited\n");
+        app.document.set_text("beta\nedited\n");
         let transition = drive_finish_buffer(&mut app);
         assert_eq!(
             &transition.effects()[..3],
@@ -216,7 +204,7 @@ mod tests {
 
         // SWITCHED: the active buffer is A again (the previously-open other buffer).
         assert_eq!(
-            app.active.buffer.path(),
+            app.document.buffer().path(),
             Some(a.as_path()),
             "FinishBuffer switches to the previous buffer"
         );

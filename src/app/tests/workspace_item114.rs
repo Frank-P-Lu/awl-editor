@@ -390,7 +390,7 @@ fn sweep_action(app: &mut App, row: &SettingRow) {
                 row.name
             );
             assert_eq!(
-                app.active.buffer.path(),
+                app.document.buffer().path(),
                 Some(std::path::Path::new(CFG)),
                 "{:?}: the config file itself is now the open buffer",
                 row.name
@@ -605,16 +605,17 @@ fn leaving_the_workspace_returns_the_editor_untouched() {
     let _g = crate::testlock::serial();
 
     let mut app = workspace_app(&mem);
-    app.active.buffer = crate::buffer::Buffer::from_str("alpha\nbeta\ngamma\n");
+    app.document
+        .replace_buffer(crate::buffer::Buffer::from_str("alpha\nbeta\ngamma\n"));
     app.press_spec_headless("Down Down Right Right")
         .expect("cursor chords parse");
     let state = |app: &App| {
         (
-            app.active.buffer.disk_bytes(),
-            app.active.buffer.cursor_char(),
-            app.active.buffer.selection_range(),
-            app.active.buffer.eol(),
-            app.active.buffer.can_undo(),
+            app.document.buffer().disk_bytes(),
+            app.document.buffer().cursor_char(),
+            app.document.buffer().selection_range(),
+            app.document.buffer().eol(),
+            app.document.buffer().can_undo(),
         )
     };
     let before = state(&app);

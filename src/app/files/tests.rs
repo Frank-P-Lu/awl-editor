@@ -96,7 +96,7 @@ fn window_title_dirty_is_only_ever_a_leading_marker_insertion() {
 #[test]
 fn update_title_uses_the_same_pure_window_title() {
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    app.active.buffer.set_text("hello");
+    app.document.set_text("hello");
     // No live `gpu`/window in a hermetic App (see `App::update_title`'s gate) —
     // this proves the call is a harmless no-op off a real window and exercises
     // the same code path `resumed()`/`load_path`/theme-switch drive.
@@ -109,65 +109,68 @@ fn image_width_hint_write_back_is_one_undoable_edit_that_keeps_the_cursor() {
     // insert/replace `|NNN` in the alt as ONE undoable edit, restoring the mouse
     // caret rather than moving it to the edit end.
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    app.active.buffer.set_text("![a cat](cat.png)\ntail\n");
+    app.document.set_text("![a cat](cat.png)\ntail\n");
     assert!(
-        app.active.buffer.is_markdown(),
+        app.document.buffer().is_markdown(),
         "a no-path scratch buffer is markdown"
     );
     // Caret parked on the SECOND line (past the image span) — a mouse drag must
     // never move it.
-    let cursor = app.active.buffer.text().chars().count() - 1;
-    app.active.buffer.set_cursor(cursor);
+    let cursor = app.document.buffer().text().chars().count() - 1;
+    app.document.set_cursor(cursor);
 
     // INSERT: a 300px drag stamps `|300` into the hint-less alt (round from 300.4).
     app.write_back_image_width((0, 17), 300.4);
-    assert_eq!(app.active.buffer.text(), "![a cat|300](cat.png)\ntail\n");
+    assert_eq!(
+        app.document.buffer().text(),
+        "![a cat|300](cat.png)\ntail\n"
+    );
     // The caret shifted by the +4-char insertion (stayed on its glyph), never
     // jumped to the edit end.
     assert_eq!(
-        app.active.buffer.cursor_char(),
+        app.document.buffer().cursor_char(),
         cursor + 4,
         "caret past the edit shifts by the delta"
     );
 
     // ONE undoable edit: a single Cmd-Z restores the pre-drag text exactly.
-    app.active.buffer.undo();
+    app.document.undo();
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         "![a cat](cat.png)\ntail\n",
         "one Cmd-Z restores the size"
     );
 
     // REPLACE: an existing `|NNN` is swapped in place (still one edit); a caret
     // BEFORE the edit never moves.
-    app.active.buffer.set_text("![a cat|300](cat.png)\n");
-    app.active.buffer.set_cursor(0);
+    app.document.set_text("![a cat|300](cat.png)\n");
+    app.document.set_cursor(0);
     app.write_back_image_width((0, 21), 128.0);
-    assert_eq!(app.active.buffer.text(), "![a cat|128](cat.png)\n");
+    assert_eq!(app.document.buffer().text(), "![a cat|128](cat.png)\n");
     assert_eq!(
-        app.active.buffer.cursor_char(),
+        app.document.buffer().cursor_char(),
         0,
         "a caret before the edit stays put"
     );
-    app.active.buffer.undo();
+    app.document.undo();
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         "![a cat|300](cat.png)\n",
         "one Cmd-Z restores the prior hint"
     );
 
     // No-op guard: re-committing the SAME width records nothing (keeps the timeline
     // meaningful) — the text is unchanged and a following undo reaches PAST it.
-    app.active.buffer.set_text("![a cat|200](cat.png)\n");
-    app.active.buffer.set_cursor(3);
+    app.document.set_text("![a cat|200](cat.png)\n");
+    app.document.set_cursor(3);
     app.write_back_image_width((0, 21), 200.0);
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         "![a cat|200](cat.png)\n",
         "same width is a no-op"
     );
     assert_eq!(
-        app.active.buffer.cursor_char(),
+        app.document.buffer().cursor_char(),
         3,
         "a no-op never disturbs the caret"
     );
@@ -274,12 +277,11 @@ fn ensure_note_named_before_paste_promotes_a_scratch_buffer_and_saves_under_the_
             Config::empty(),
         );
         assert!(
-            !app.active.buffer.is_unnamed_fresh(),
+            !app.document.buffer().is_unnamed_fresh(),
             "a bare launch buffer starts as plain scratch"
         );
-        assert!(app.active.buffer.path().is_none());
-        app.active
-            .buffer
+        assert!(app.document.buffer().path().is_none());
+        app.document
             .set_text("My Pasted Screenshot\n\nsome body text\n");
 
         app.ensure_note_named_before_paste();
@@ -288,12 +290,12 @@ fn ensure_note_named_before_paste_promotes_a_scratch_buffer_and_saves_under_the_
         // happen in this one call, so by the time it returns the buffer is
         // already an ORDINARY pathed document, not a lasting note identity.
         assert!(
-            !app.active.buffer.is_unnamed_fresh(),
+            !app.document.buffer().is_unnamed_fresh(),
             "named once — an ordinary file now"
         );
         let path = app
-            .active
-            .buffer
+            .document
+            .buffer()
             .path()
             .expect("gained a path")
             .to_path_buf();
@@ -320,7 +322,7 @@ fn ensure_note_named_before_paste_promotes_a_scratch_buffer_and_saves_under_the_
         );
         // `App.file` + the title track the freshly-named document, exactly like
         // a real fresh document's first autosave.
-        assert_eq!(app.active.buffer.path(), Some(path.as_path()));
+        assert_eq!(app.document.buffer().path(), Some(path.as_path()));
     });
 }
 
@@ -338,14 +340,13 @@ fn ensure_note_named_before_paste_leaves_an_in_progress_note_dir_alone() {
             Some(PathBuf::from("/notes")),
             Config::empty(),
         );
-        app.active
-            .buffer
-            .start_fresh_doc(PathBuf::from("/elsewhere"));
-        app.active.buffer.set_text("Elsewhere Note\n");
+        app.document
+            .start_fresh_for_test(PathBuf::from("/elsewhere"));
+        app.document.set_text("Elsewhere Note\n");
 
         app.ensure_note_named_before_paste();
 
-        let path = app.active.buffer.path().expect("gained a path");
+        let path = app.document.buffer().path().expect("gained a path");
         assert!(
             path.starts_with("/elsewhere"),
             "an in-progress fresh document's own dir is respected, not overridden: {}",
@@ -373,7 +374,7 @@ fn ensure_note_named_before_paste_on_an_empty_buffer_stays_path_less() {
             Config::empty(),
         );
         assert_eq!(
-            app.active.buffer.text(),
+            app.document.buffer().text(),
             "",
             "a fresh scratch buffer starts empty"
         );
@@ -381,11 +382,11 @@ fn ensure_note_named_before_paste_on_an_empty_buffer_stays_path_less() {
         app.ensure_note_named_before_paste();
 
         assert!(
-            app.active.buffer.path().is_none(),
+            app.document.buffer().path().is_none(),
             "no first line to derive a name from"
         );
         assert!(
-            app.active.buffer.is_unnamed_fresh(),
+            app.document.buffer().is_unnamed_fresh(),
             "promoted regardless — matches typing-then-pausing"
         );
     });
@@ -546,12 +547,12 @@ fn add_to_dictionary_persists_the_word_and_silences_it_live() {
         config.path = PathBuf::from("/cfg/config.toml");
         let mut app = App::new(None, PathBuf::from("/w/proj"), None, None, config);
         // Precondition: a made-up word squiggles.
-        assert!(!app.spell.as_ref().unwrap().check("wrold"));
+        assert!(!app.document.spell_check("wrold").unwrap());
 
         app.add_to_dictionary("wrold");
         // Live: the checker now accepts it.
         assert!(
-            app.spell.as_ref().unwrap().check("wrold"),
+            app.document.spell_check("wrold").unwrap(),
             "silenced in the live checker"
         );
         // Persisted: the file beside config.toml holds exactly one line.
@@ -594,11 +595,11 @@ fn startup_loads_the_personal_dictionary_so_an_added_word_never_squiggles_across
         // Fresh App (the "restart"): its startup load reads the file.
         let app = App::new(None, PathBuf::from("/w/proj"), None, None, config);
         assert!(
-            app.spell.as_ref().unwrap().check("wrold"),
+            app.document.spell_check("wrold").unwrap(),
             "startup loaded the personal dictionary — the word never squiggles across a restart"
         );
         // A word NOT in the file still squiggles (the load is scoped to the file).
-        assert!(!app.spell.as_ref().unwrap().check("teh"));
+        assert!(!app.document.spell_check("teh").unwrap());
     });
 }
 

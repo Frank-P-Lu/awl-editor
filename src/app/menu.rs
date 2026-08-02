@@ -78,14 +78,14 @@ impl App {
         self._menu_bar = Some(crate::menu::install(
             proxy,
             AwlEvent::Menu,
-            self.active.buffer.is_markdown(),
+            self.document.buffer().is_markdown(),
         ));
     }
 
     pub(super) fn sync_menu_context_and_gpu_absent(&self) -> bool {
         #[cfg(target_os = "macos")]
         if let Some(menu) = self._menu_bar.as_ref() {
-            menu.set_markdown_enabled(self.active.buffer.is_markdown());
+            menu.set_markdown_enabled(self.document.buffer().is_markdown());
         }
         self.gpu.is_none()
     }

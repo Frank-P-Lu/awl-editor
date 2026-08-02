@@ -61,7 +61,7 @@ impl App {
     /// infrequent (idle/blur/switch/quit), so this is cheap.
     #[cfg(not(target_arch = "wasm32"))]
     fn streaks_current_words(&self) -> usize {
-        crate::markdown::word_count(&self.active.buffer.text())
+        crate::markdown::word_count(&self.document.buffer().text())
     }
 
     /// Drop the word-delta ANCHOR to LAZY across a BUFFER SWAP into an OPENED
@@ -188,13 +188,13 @@ mod tests {
             let today = app.streaks_local_today();
 
             // Write some words, then flush: the net delta is recorded under today.
-            app.active.buffer.set_text("hello there friend");
+            app.document.set_text("hello there friend");
             app.streaks_flush();
             assert_eq!(app.streaks.words_on(&today), 3, "three net words added");
 
             // Cut back to two words, flush: a net-cut flush never erodes the day
             // total (raw net still drops).
-            app.active.buffer.set_text("hello there");
+            app.document.set_text("hello there");
             app.streaks_flush();
             assert_eq!(
                 app.streaks.words_on(&today),
@@ -213,7 +213,7 @@ mod tests {
     fn a_buffer_swap_reset_anchors_the_new_buffer() {
         crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
             let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
-            app.active.buffer.set_text("one two three four");
+            app.document.set_text("one two three four");
             // The birth scratch is eager-anchored at 0, so this first flush records
             // the 4 words typed into it (the anchor-swallow fix); `before` captures
             // whatever the day total is now — this test then proves the SWAP below
@@ -224,7 +224,8 @@ mod tests {
             // Simulate a swap into an OPENED file: reset the anchor LAZY, replace the
             // buffer with a big doc.
             app.streaks_reset_baseline();
-            app.active.buffer = crate::buffer::Buffer::from_str("a b c d e f g h i j");
+            app.document
+                .replace_buffer(crate::buffer::Buffer::from_str("a b c d e f g h i j"));
             app.streaks_flush(); // must ANCHOR the arriving words, not count them
             assert_eq!(
                 app.streaks.words_on(&today),
@@ -247,7 +248,7 @@ mod tests {
             app.new_document();
             let today = app.streaks_local_today();
             // Type INTO the fresh note before any idle flush has fired.
-            app.active.buffer.set_text("brand new words typed today");
+            app.document.set_text("brand new words typed today");
             // The first idle flush of this awl-created note.
             app.streaks_flush();
             assert_eq!(
@@ -268,7 +269,7 @@ mod tests {
             let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
             let today = app.streaks_local_today();
             // Type into the birth scratch before any idle flush.
-            app.active.buffer.set_text("first words of the day");
+            app.document.set_text("first words of the day");
             app.streaks_flush();
             assert_eq!(
                 app.streaks.words_on(&today),
@@ -288,9 +289,7 @@ mod tests {
             let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
             let today = app.streaks_local_today_ymd();
             // Type into the birth scratch, but DON'T let an idle flush fire.
-            app.active
-                .buffer
-                .set_text("live words not yet flushed today");
+            app.document.set_text("live words not yet flushed today");
             // The delta is still pending — the store hasn't seen it.
             assert_eq!(
                 app.streaks.view(today).today_words,
@@ -318,7 +317,7 @@ mod tests {
                 ..Config::empty()
             };
             let mut app = App::new(None, PathBuf::from("/n"), None, None, cfg);
-            app.active.buffer.set_text("some words here now");
+            app.document.set_text("some words here now");
             app.streaks_flush();
             assert!(app.streaks.days.is_empty(), "off: no recording");
             assert!(

@@ -67,7 +67,7 @@ impl App {
             return;
         };
         let xy = gpu.pipeline.caret_doc_xy();
-        let cur = self.active.buffer.cursor_line_col();
+        let cur = self.document.buffer().cursor_line_col();
         if let (Some(prev_xy), Some(prev_cur)) = (self.stats_last_caret_xy, self.stats_last_cursor)
             && cur != prev_cur
         {

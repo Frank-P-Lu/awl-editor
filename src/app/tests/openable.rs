@@ -51,7 +51,7 @@ fn cli_launch_door_opens_text_and_refuses_binary() {
         Config::empty(),
     );
     assert_eq!(
-        app.active.buffer.path(),
+        app.document.buffer().path(),
         Some(std::path::Path::new("/proj/notes.xyzzy")),
         "a supported unusual-text CLI argument opens"
     );
@@ -62,7 +62,7 @@ fn cli_launch_door_opens_text_and_refuses_binary() {
         Config::empty(),
     );
     assert_eq!(
-        refused.active.buffer.path(),
+        refused.document.buffer().path(),
         None,
         "a refused CLI launch never binds the active buffer to the binary path"
     );
@@ -85,12 +85,12 @@ fn load_path_door_opens_text_and_refuses_binary_leaving_context_intact() {
         "/proj",
         Config::empty(),
     );
-    let before_path = app.active.buffer.path().map(|p| p.to_path_buf());
+    let before_path = app.document.buffer().path().map(|p| p.to_path_buf());
     let before_root = app.project_location.root.clone();
 
     app.load_path(PathBuf::from("/proj/logo.png"));
     assert_eq!(
-        app.active.buffer.path().map(|p| p.to_path_buf()),
+        app.document.buffer().path().map(|p| p.to_path_buf()),
         before_path,
         "a refused open leaves the active DOCUMENT intact"
     );
@@ -108,7 +108,7 @@ fn load_path_door_opens_text_and_refuses_binary_leaving_context_intact() {
     let mut fresh = app_on(None, "/proj", Config::empty());
     fresh.load_path(PathBuf::from("/proj/notes.xyzzy"));
     assert_eq!(
-        fresh.active.buffer.path(),
+        fresh.document.buffer().path(),
         Some(std::path::Path::new("/proj/notes.xyzzy")),
         "a supported unusual-text file opens via load_path (picker/C-x b/daemon)"
     );
@@ -149,7 +149,7 @@ fn file_visibility_never_changes_the_openable_verdict() {
         );
         app.load_path(PathBuf::from("/proj/logo.png"));
         assert_eq!(
-            app.active.buffer.path(),
+            app.document.buffer().path(),
             Some(std::path::Path::new("/proj/notes.xyzzy")),
             "file_visibility={all}: still refused, still leaves the prior document active"
         );

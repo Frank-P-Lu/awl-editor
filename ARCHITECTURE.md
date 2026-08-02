@@ -49,6 +49,8 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   renderer, mouse handling, and the live transition interpreter (persistence,
   clipboard mirroring, GPU-measured page sizing, animation/redraw scheduling).
   → `app/`: `gpu` (device/surface setup), `files` (open/save/project glue),
+  `document` (`DocumentSession` — the active whole slot, background registry,
+  previous-buffer target, spell checker, and private `BufferExtra` caches),
   `viewstate` (view sync + paging), `input` (mouse/key event handling), `apply`
   (the `App::apply` wrapper around `apply_transition` + live effects), `daemon`
   (the App-side half of the single-instance daemon below), `workspace`
@@ -102,14 +104,13 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   identity — a path, or the one `Scratch` sentinel) + `BufferRegistry<T>` (the
   MRU-ordered, capped park/take store for every BACKGROUNDED buffer) +
   `Entry<T>` (a buffer plus its opaque per-buffer payload — the SAME type the
-  live App's `App::active` owned slot uses), shared verbatim by the live `App`
-  (`app/files/active.rs`'s `BufferExtra` payload) and the headless `--keys`
+  live App's `DocumentSession` owned slot uses), shared verbatim by the live
+  `App` (`app/document.rs`'s private `BufferExtra` payload) and the headless `--keys`
   replay (`main/run.rs`'s `replay_keys`, payload `()`) — one owner of "open a
   file that's already open switches to its live buffer," never two aligned
-  copies. `App::active` (`app/files/active.rs`'s SOLE ownership — a whole-slot
+  copies. `DocumentSession` owns the live ACTIVE half and performs a whole-slot
   `mem::replace`/assignment on park/activate, never a field-by-field
-  snapshot/restore) is the live App's ACTIVE half; the replay's `buffer` local
-  is its own, unchanged.
+  snapshot/restore; the replay's `buffer` local is its own, unchanged.
 - `selection.rs` — the selection / region model (C-Space mark, kill/copy, drag).
 - `range.rs` — the RANGE SPEC owner (item 94): one typed description of a bounded,
   stepped setting (`min`/`max`/`step`/`default`, a display unit, and a linear or

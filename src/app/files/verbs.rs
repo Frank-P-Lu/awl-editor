@@ -14,17 +14,17 @@ impl App {
     /// Live interpreter for `PersistenceEffect::Save(Manual)`. The shared
     /// transition describes the write; only this live owner may perform it.
     pub(in crate::app) fn manual_save(&mut self) {
-        if self.active.buffer.path().is_none() && !self.active.buffer.is_unnamed_fresh() {
+        if self.document.buffer().path().is_none() && !self.document.buffer().is_unnamed_fresh() {
             self.convert_scratch_and_save();
         } else {
-            let result = self.active.buffer.save();
+            let result = self.document.save();
             let (ok, message) = match result {
                 Ok(()) => (true, "saved".to_string()),
                 Err(error) => (false, format!("save failed: {error}")),
             };
             self.finish_manual_save(ok, message);
         }
-        if self.active.buffer.path().is_some_and(|path| {
+        if self.document.buffer().path().is_some_and(|path| {
             !self.config.path.as_os_str().is_empty() && path == self.config.path
         }) {
             self.reload_config();
@@ -46,11 +46,11 @@ impl App {
     /// cursor, apply, then restore it (shifted by the edit's length delta only when it
     /// sat past the edit), so the caret stays exactly where it was.
     pub(in crate::app) fn write_back_image_width(&mut self, range: (usize, usize), width_px: f32) {
-        if !self.active.buffer.is_markdown() {
+        if !self.document.buffer().is_markdown() {
             return;
         }
         let width = width_px.round().max(1.0) as u32;
-        let text = self.active.buffer.text();
+        let text = self.document.buffer().text();
         let (bstart, bend) = range;
         let Some(src) = text.get(bstart..bend) else {
             return;
@@ -71,11 +71,11 @@ impl App {
             return;
         }
         // Snapshot the caret so the mouse drag never moves it (see the doc nuance).
-        let saved = self.active.buffer.cursor_char();
+        let saved = self.document.buffer().cursor_char();
         let delta = new_len as isize - (c1 - c0) as isize;
-        self.active.buffer.seal_undo_group();
-        self.active.buffer.replace_char_range(c0, c1, &new_alt);
-        self.active.buffer.seal_undo_group();
+        self.document.seal_undo_group();
+        self.document.replace_char_range(c0, c1, &new_alt);
+        self.document.seal_undo_group();
         let restored = if saved <= c0 {
             saved
         } else if saved >= c1 {
@@ -83,7 +83,7 @@ impl App {
         } else {
             c0
         };
-        self.active.buffer.set_cursor(restored);
+        self.document.set_cursor(restored);
     }
 
     /// Finish the live interpreter's explicit manual save. The typed
@@ -115,10 +115,11 @@ impl App {
     pub(in crate::app) fn finish_manual_save(&mut self, ok: bool, message: String) {
         if ok {
             self.snapshot_after_save();
-            if let Some(p) = self.active.buffer.path().map(|p| p.to_path_buf()) {
-                self.active.extra.disk_mtime = Self::disk_mtime_of(&p);
-                self.active.extra.doc_saved_version = Some(self.active.buffer.version());
-                self.active.extra.caret_synced_version = self.active.buffer.version();
+            if let Some(p) = self.document.buffer().path().map(|p| p.to_path_buf()) {
+                self.document.record_document_saved(
+                    self.document.buffer().version(),
+                    Self::disk_mtime_of(&p),
+                );
             }
             // NOTES VERBS round: the held HUD's SAVED stat.
             let now = self.clock.now();
@@ -152,11 +153,7 @@ impl App {
     /// notice-only ("nothing to save yet — start a note first"), leaving the
     /// scratch buffer untouched. Both are one function to swap here.
     pub(in crate::app) fn convert_scratch_and_save(&mut self) {
-        match self
-            .active
-            .buffer
-            .save_into_folder(&self.project_location.root)
-        {
+        match self.document.save_into_folder(&self.project_location.root) {
             Ok(()) => {
                 // `Buffer::save_into_folder` already stamped the derived path onto
                 // the buffer itself (the sole authoritative path, item 56).
@@ -167,18 +164,19 @@ impl App {
                 // fallible bookkeeping call in this file — a failed remove
                 // never disrupts the save that already succeeded.
                 let _ = crate::fs::active().remove_file(&crate::fs::scratch_stash_path());
-                self.active.extra.scratch_saved_version = None;
-                self.active.extra.scratch_mtime = None;
+                self.document.clear_scratch_saved();
                 // The note's own debounced autosave now owns this buffer;
                 // mark the version we just wrote as already-saved so the
                 // next idle tick doesn't immediately rewrite it (mirrors
                 // `autosave_note`'s own post-save bookkeeping).
                 self.persistence
-                    .record_note_write(self.active.buffer.version());
+                    .record_note_write(self.document.buffer().version());
                 self.snapshot_after_save();
-                if let Some(p) = self.active.buffer.path().map(|p| p.to_path_buf()) {
-                    self.active.extra.disk_mtime = Self::disk_mtime_of(&p);
-                    self.active.extra.doc_saved_version = Some(self.active.buffer.version());
+                if let Some(p) = self.document.buffer().path().map(|p| p.to_path_buf()) {
+                    self.document.record_document_saved(
+                        self.document.buffer().version(),
+                        Self::disk_mtime_of(&p),
+                    );
                 }
                 self.emit_notice(crate::actions::NoticeEffect::Toast("saved".to_string()));
                 // NOTES VERBS round: the held HUD's SAVED stat.
@@ -211,11 +209,16 @@ impl App {
     /// pin never disrupts the buffer.
     pub(in crate::app) fn keep_version(&self, name: Option<&str>) {
         let path = crate::history::source_path(
-            self.active.buffer.path(),
-            self.active.buffer.is_unnamed_fresh(),
+            self.document.buffer().path(),
+            self.document.buffer().is_unnamed_fresh(),
         );
         if let Some(path) = path {
-            crate::history::record_pinned(&path, &self.active.buffer.text(), &self.config, name);
+            crate::history::record_pinned(
+                &path,
+                &self.document.buffer().text(),
+                &self.config,
+                name,
+            );
         }
     }
 
@@ -230,13 +233,13 @@ impl App {
     /// unresolvable id (best-effort — a failed restore must never disrupt the buffer).
     pub(in crate::app) fn restore_history(&mut self, id: &str) {
         let path = crate::history::source_path(
-            self.active.buffer.path(),
-            self.active.buffer.is_unnamed_fresh(),
+            self.document.buffer().path(),
+            self.document.buffer().is_unnamed_fresh(),
         );
         if let Some(path) = path
             && let Some(content) = crate::history::load(&path, id)
         {
-            self.active.buffer.set_text(&content);
+            self.document.set_text(&content);
         }
     }
 
@@ -271,7 +274,7 @@ impl App {
     /// clobber (numeric suffix), then re-points the buffer so editing/auto-save
     /// continue at the new path. A true `std::fs::rename` move — never a copy.
     pub(in crate::app) fn move_current_file(&mut self, dest_rel: &str) {
-        let Some(old) = self.active.buffer.path().map(|p| p.to_path_buf()) else {
+        let Some(old) = self.document.buffer().path().map(|p| p.to_path_buf()) else {
             return; // no current file to move
         };
         let dest_dir = if dest_rel.is_empty() {
@@ -295,12 +298,12 @@ impl App {
             return; // already there: nothing changed
         }
         // No success notice — the window title already renders the new path.
-        self.active.buffer.set_path(new_path);
+        self.document.set_path(new_path);
         // An UNNAMED fresh document being moved before its first save (rare —
         // the picker only opens for a pathed file) keeps auto-saving into its
         // new home.
-        if self.active.buffer.is_unnamed_fresh() {
-            self.active.buffer.set_note_dir(dest_dir);
+        if self.document.buffer().is_unnamed_fresh() {
+            self.document.set_note_dir(dest_dir);
         }
         self.update_title();
         self.rescan_file_index();
@@ -324,7 +327,7 @@ impl App {
     /// a GIT-MANAGED source (git owns naming there — `git mv` is the honest tool).
     /// A blank or UNCHANGED typed name is a quiet no-op (nothing to rename to).
     pub(in crate::app) fn rename_current_file(&mut self, new_name: &str) {
-        let Some(old) = self.active.buffer.path().map(|p| p.to_path_buf()) else {
+        let Some(old) = self.document.buffer().path().map(|p| p.to_path_buf()) else {
             return; // nothing to rename (the prompt shouldn't have opened either)
         };
         let trimmed = new_name.trim();
@@ -354,11 +357,11 @@ impl App {
         // Best-effort: the history log follows the file; a failed carry-over never
         // disrupts the rename that already succeeded on disk.
         let _ = crate::history::rename(&old, &dest);
-        self.active.buffer.set_path(dest.clone());
-        if self.active.buffer.is_unnamed_fresh()
+        self.document.set_path(dest.clone());
+        if self.document.buffer().is_unnamed_fresh()
             && let Some(dir) = dest.parent()
         {
-            self.active.buffer.set_note_dir(dir.to_path_buf());
+            self.document.set_note_dir(dir.to_path_buf());
         }
         self.update_title();
         self.rescan_file_index();
@@ -385,12 +388,12 @@ impl App {
     /// dedup scan runs (otherwise a not-yet-flushed `old` would look "free" to
     /// `unique_path` and the copy could collide with it).
     pub(in crate::app) fn duplicate_current_file(&mut self) {
-        let Some(old) = self.active.buffer.path().map(|p| p.to_path_buf()) else {
+        let Some(old) = self.document.buffer().path().map(|p| p.to_path_buf()) else {
             return; // scratch: nothing to duplicate
         };
         self.flush_note();
         self.autosave_flush();
-        let bytes = self.active.buffer.disk_bytes();
+        let bytes = self.document.buffer().disk_bytes();
         let dir = old.parent().map(Path::to_path_buf).unwrap_or_default();
         let stem = old
             .file_stem()

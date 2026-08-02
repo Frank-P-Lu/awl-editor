@@ -142,8 +142,10 @@ impl App {
         _exit: &dyn schedule::Exit,
     ) {
         let (search, _) = self.workspace_state.core_slots();
-        let buffer = &mut self.active.buffer;
-        if let Some(dir) = crate::search::keys::intercept(search, buffer, logical, mods.state()) {
+        if let Some(dir) = self
+            .document
+            .intercept_search_key(search, logical, mods.state())
+        {
             self.caret_recoil = Some(dir);
         }
     }
@@ -164,9 +166,7 @@ impl App {
     pub(in crate::app) fn arm_zoom_anchor_pointer(&mut self) {
         let Some(gpu) = self.gpu.as_ref() else { return };
         let (px, py) = self.input.pointer.cursor_px;
-        let (line, col) = gpu
-            .pipeline
-            .hit_test_scroll(px, py, self.active.extra.scroll);
+        let (line, col) = gpu.pipeline.hit_test_scroll(px, py, self.document.scroll());
         self.zoom_anchor = Some(ZoomAnchor {
             line,
             col,
@@ -183,10 +183,10 @@ impl App {
         let Some(gpu) = self.gpu.as_ref() else { return };
         let height = gpu.config.height as f32;
         let top = render::TEXT_TOP + gpu.pipeline.menubar_reserve();
-        let (cl, cc) = self.active.buffer.cursor_line_col();
+        let (cl, cc) = self.document.buffer().cursor_line_col();
         let caret_y = gpu
             .pipeline
-            .char_screen_top_scroll(cl, cc, self.active.extra.scroll);
+            .char_screen_top_scroll(cl, cc, self.document.scroll());
         self.zoom_anchor = Some(if caret_y >= top && caret_y < height {
             ZoomAnchor {
                 line: cl,
@@ -196,9 +196,7 @@ impl App {
         } else {
             let cx = (gpu.config.width as f32) * 0.5;
             let cy = (top + height) * 0.5;
-            let (line, col) = gpu
-                .pipeline
-                .hit_test_scroll(cx, cy, self.active.extra.scroll);
+            let (line, col) = gpu.pipeline.hit_test_scroll(cx, cy, self.document.scroll());
             ZoomAnchor {
                 line,
                 col,

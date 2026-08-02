@@ -29,12 +29,12 @@ impl App {
         });
         if let Some(target) = target {
             let state = crate::context_menu::ContextState {
-                has_selection: self.active.buffer.has_selection(),
+                has_selection: self.document.buffer().has_selection(),
                 link: false,
                 heading: false,
                 heading_folded: false,
                 misspelled: false,
-                named_file: self.active.buffer.path().is_some(),
+                named_file: self.document.buffer().path().is_some(),
             };
             let rows =
                 crate::context_menu::rows(target, state, crate::commands::Platform::current());
@@ -47,30 +47,27 @@ impl App {
         if !over_writing_column {
             return;
         }
-        self.active.buffer.seal_undo_group();
+        self.document.seal_undo_group();
         let idx = self.hit_test_char();
         self.input.pointer.dragging = false;
         let selection_contains = self
-            .active
-            .buffer
+            .document
+            .buffer()
             .selection_range()
             .is_some_and(|(start, end)| idx >= start && idx <= end);
         if !selection_contains {
-            self.active.buffer.set_cursor(idx);
-            self.active.buffer.clear_mark();
-            self.active.buffer.set_anchor(idx);
+            self.document.set_cursor(idx);
+            self.document.clear_mark();
+            self.document.set_anchor(idx);
         }
-        self.active.extra.shift_selecting = false;
+        self.document.set_shift_selecting(false);
         let (line, col) = self.hit_test_line_col();
-        let byte = self.active.buffer.char_to_byte(idx);
-        let text = self.active.buffer.text();
-        let misspelled = self.spell.as_ref().is_some_and(|sc| {
-            sc.suggest_at(&text, line, col, self.active.buffer.syntax_lang())
-                .is_some()
-        });
+        let byte = self.document.buffer().char_to_byte(idx);
+        let text = self.document.buffer().text();
+        let misspelled = self.document.spell_suggestion_target(line, col).is_some();
         if misspelled {
-            self.active.buffer.set_cursor(idx);
-            self.active.buffer.clear_mark();
+            self.document.set_cursor(idx);
+            self.document.clear_mark();
             let _ = self.apply(
                 Action::OpenSpellSuggest,
                 false,
@@ -81,13 +78,13 @@ impl App {
             let state = crate::context_menu::ContextState {
                 has_selection: selection_contains,
                 link: crate::markdown::link_at(&text, byte).is_some(),
-                heading: self.active.buffer.is_markdown()
+                heading: self.document.buffer().is_markdown()
                     && crate::markdown::headings(&text)
                         .iter()
                         .any(|h| h.line == line),
-                heading_folded: self.active.buffer.folds().contains(&line),
+                heading_folded: self.document.buffer().folds().contains(&line),
                 misspelled: false,
-                named_file: self.active.buffer.path().is_some(),
+                named_file: self.document.buffer().path().is_some(),
             };
             let rows = crate::context_menu::rows(
                 crate::context_menu::document_target(state),
@@ -104,16 +101,16 @@ impl App {
         let Some(line) = self.fold_chevron_at_pointer() else {
             return false;
         };
-        let idx = self.active.buffer.line_col_to_char(line, 0);
-        self.active.buffer.set_cursor(idx);
-        self.active.buffer.clear_mark();
+        let idx = self.document.buffer().line_col_to_char(line, 0);
+        self.document.set_cursor(idx);
+        self.document.clear_mark();
         let state = crate::context_menu::ContextState {
             has_selection: false,
             link: false,
             heading: true,
-            heading_folded: self.active.buffer.folds().contains(&line),
+            heading_folded: self.document.buffer().folds().contains(&line),
             misspelled: false,
-            named_file: self.active.buffer.path().is_some(),
+            named_file: self.document.buffer().path().is_some(),
         };
         let rows = crate::context_menu::rows(
             crate::context_menu::ContextTarget::Heading,

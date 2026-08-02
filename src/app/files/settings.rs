@@ -153,7 +153,7 @@ impl App {
     pub(in crate::app) fn insert_date(&mut self) {
         let fmt = crate::dateformat::active_format();
         let (y, m, d) = crate::dateformat::today_from_system_clock();
-        self.active.buffer.insert_text(&fmt.format(y, m, d));
+        self.document.insert_text(&fmt.format(y, m, d));
     }
 
     /// After a settings toggle, rebuild the STILL-OPEN settings menu's value cells in
@@ -221,7 +221,7 @@ impl App {
     /// width, not the glyph size (zoom has its own sticky pref).
     pub(in crate::app) fn persist_page_width(&mut self) {
         let w = crate::page::measure();
-        let key = Self::page_width_key(self.active.buffer.page_class());
+        let key = Self::page_width_key(self.document.buffer().page_class());
         self.persist_pref(key, &w.to_string());
     }
 
@@ -238,7 +238,7 @@ impl App {
         if path.as_os_str().is_empty() {
             return; // no config path (no HOME): nothing to remember
         }
-        let class = self.active.buffer.page_class();
+        let class = self.document.buffer().page_class();
         let key = Self::page_width_key(class);
         if let Err(e) = Config::remove_pref(&path, key) {
             eprintln!("could not clear {key} in {}: {e}", path.display());
@@ -270,7 +270,7 @@ impl App {
     /// on the NEXT drawn frame — this keeps the switch itself glitch-free. A
     /// no-op pre-GPU-init, since `set_size` only runs when `self.gpu` exists.)
     pub(in crate::app) fn sync_page_measure(&mut self) {
-        let target = self.config.measure_for(self.active.buffer.page_class());
+        let target = self.config.measure_for(self.document.buffer().page_class());
         crate::page::set_measure(target);
         if let Some(gpu) = self.gpu.as_mut() {
             let (w, h) = (gpu.config.width as f32, gpu.config.height as f32);

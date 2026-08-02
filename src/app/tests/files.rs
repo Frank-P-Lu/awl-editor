@@ -316,7 +316,7 @@ fn autosave_flush_writes_doc_and_snapshots_loose_file() {
         app.persistence.engine_last_write_at().is_none(),
         "the debug panel's autosave clock is untouched before any write"
     );
-    app.active.buffer.set_text("v2\n");
+    app.document.set_text("v2\n");
     app.autosave_flush();
     assert_eq!(
         mem.read_to_string(&p).unwrap(),
@@ -324,8 +324,8 @@ fn autosave_flush_writes_doc_and_snapshots_loose_file() {
         "the edit hit the disk"
     );
     assert_eq!(
-        app.active.extra.doc_saved_version,
-        Some(app.active.buffer.version()),
+        app.document.doc_saved_version(),
+        Some(app.document.buffer().version()),
         "the flushed version is bookkept"
     );
     assert!(app.notice.is_none(), "a clean write raises no notice");
@@ -364,7 +364,7 @@ fn autosave_flush_skips_and_notices_when_disk_changed_externally() {
     // Someone ELSE writes the file behind awl's back.
     std::thread::sleep(Duration::from_millis(2)); // distinct mtime
     mem.write(&p, b"external edit\n").unwrap();
-    app.active.buffer.set_text("mine\n");
+    app.document.set_text("mine\n");
     app.autosave_flush();
     // The CLOBBER GUARD held the write: the external edit survives on disk.
     assert_eq!(
@@ -389,8 +389,8 @@ fn autosave_flush_skips_and_notices_when_disk_changed_externally() {
     // The version is marked handled so the idle timer doesn't spin; the NEXT
     // edit re-arms the engine (and the notice would recur calmly).
     assert_eq!(
-        app.active.extra.doc_saved_version,
-        Some(app.active.buffer.version())
+        app.document.doc_saved_version(),
+        Some(app.document.buffer().version())
     );
 }
 
@@ -405,7 +405,7 @@ fn autosave_off_disables_flush() {
         ..Config::empty()
     };
     let mut app = app_on(Some(p.clone()), "/notes", cfg);
-    app.active.buffer.set_text("v2\n");
+    app.document.set_text("v2\n");
     app.autosave_flush();
     assert_eq!(
         mem.read_to_string(&p).unwrap(),
@@ -432,17 +432,17 @@ fn load_path_flushes_the_leaving_buffer() {
     let mem = InMemoryFs::new().with_file(&a, "A\n").with_file(&b, "B\n");
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(Some(a.clone()), "/notes", Config::empty());
-    app.active.buffer.set_text("A edited\n");
+    app.document.set_text("A edited\n");
     app.load_path(b.clone());
     assert_eq!(
         mem.read_to_string(&a).unwrap(),
         "A edited\n",
         "switching files flushes the buffer being left"
     );
-    assert_eq!(app.active.buffer.text(), "B\n", "the new file is open");
+    assert_eq!(app.document.buffer().text(), "B\n", "the new file is open");
     assert_eq!(
-        app.active.extra.doc_saved_version,
-        Some(app.active.buffer.version()),
+        app.document.doc_saved_version(),
+        Some(app.document.buffer().version()),
         "the arriving buffer starts saved"
     );
 }
@@ -458,7 +458,7 @@ fn launching_on_an_untagged_japanese_file_tags_it_once() {
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let app = app_on(Some(p.clone()), "/notes", Config::empty());
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         format!("---\nlang: ja\n---\n{original}"),
         "an untagged kana-bearing doc is tagged ja on first open"
     );
@@ -471,7 +471,7 @@ fn launching_on_an_untagged_japanese_file_tags_it_once() {
         "disk is untouched"
     );
     assert!(
-        app.active.extra.doc_saved_version.unwrap() < app.active.buffer.version(),
+        app.document.doc_saved_version().unwrap() < app.document.buffer().version(),
         "the stamped tag is a PENDING edit, not already-saved"
     );
 }
@@ -485,13 +485,13 @@ fn write_back_never_touches_a_pure_latin_document() {
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let app = app_on(Some(p.clone()), "/notes", Config::empty());
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         original,
         "a pure-Latin doc is never touched"
     );
     assert_eq!(
-        app.active.extra.doc_saved_version,
-        Some(app.active.buffer.version()),
+        app.document.doc_saved_version(),
+        Some(app.document.buffer().version()),
         "no edit landed -> still reads as saved"
     );
 }
@@ -508,7 +508,7 @@ fn write_back_never_fires_on_a_non_markdown_file() {
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let app = app_on(Some(p.clone()), "/proj", Config::empty());
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         original,
         "a non-markdown file is never tagged"
     );
@@ -530,7 +530,7 @@ fn write_back_uses_the_configured_cjk_priority_for_ambiguous_han() {
     };
     let app = app_on(Some(p.clone()), "/notes", cfg);
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         format!("---\nlang: zh-Hans\n---\n{original}")
     );
 }
@@ -543,10 +543,10 @@ fn write_back_is_undoable_with_cmd_z() {
     let mem = InMemoryFs::new().with_file(&p, original);
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
-    assert_ne!(app.active.buffer.text(), original, "the tag landed");
-    app.active.buffer.undo();
+    assert_ne!(app.document.buffer().text(), original, "the tag landed");
+    app.document.undo();
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         original,
         "Cmd-Z removes the stamped tag cleanly"
     );
@@ -563,13 +563,13 @@ fn write_back_never_re_tags_a_document_already_carrying_frontmatter() {
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let app = app_on(Some(p.clone()), "/notes", Config::empty());
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         already,
         "an already-tagged doc is untouched"
     );
     assert_eq!(
-        app.active.extra.doc_saved_version,
-        Some(app.active.buffer.version()),
+        app.document.doc_saved_version(),
+        Some(app.document.buffer().version()),
         "no edit landed -> still reads as saved"
     );
 }
@@ -587,7 +587,7 @@ fn write_back_never_fires_twice_across_a_reopen() {
     let mut app = app_on(Some(a.clone()), "/notes", Config::empty());
     // First open of `b`: tags it (still only in-memory — disk untouched).
     app.load_path(b.clone());
-    let tagged = app.active.buffer.text();
+    let tagged = app.document.buffer().text();
     assert_eq!(tagged, format!("---\nlang: ja\n---\n{original}"));
     // Simulate a save (autosave/Cmd-S would write exactly this).
     mem.write(&b, tagged.as_bytes()).unwrap();
@@ -596,7 +596,7 @@ fn write_back_never_fires_twice_across_a_reopen() {
     app.load_path(a.clone());
     app.load_path(b.clone());
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         tagged,
         "no second frontmatter block, live round trip"
     );
@@ -604,7 +604,7 @@ fn write_back_never_fires_twice_across_a_reopen() {
     // (the write-back gate is `frontmatter::detect`, not a one-shot flag).
     let app2 = app_on(Some(b.clone()), "/notes", Config::empty());
     assert_eq!(
-        app2.active.buffer.text(),
+        app2.document.buffer().text(),
         tagged,
         "a fresh session sees the tag and never re-fires"
     );
@@ -624,7 +624,7 @@ fn load_path_preserves_a_clobber_notice_the_leaving_flush_just_raised() {
     let mem = InMemoryFs::new().with_file(&a, "A\n").with_file(&b, "B\n");
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(Some(a.clone()), "/notes", Config::empty());
-    app.active.buffer.set_text("A edited\n");
+    app.document.set_text("A edited\n");
     // Someone ELSE writes A behind awl's back before we switch away from it.
     std::thread::sleep(Duration::from_millis(2)); // distinct mtime
     mem.write(&a, b"external edit\n").unwrap();
@@ -632,7 +632,7 @@ fn load_path_preserves_a_clobber_notice_the_leaving_flush_just_raised() {
     app.load_path(b.clone());
 
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         "B\n",
         "the switch to B still happens"
     );
@@ -656,7 +656,7 @@ fn scratch_stash_and_restore_round_trip() {
     let stash = crate::fs::scratch_stash_path();
     // A no-file launch, some typing, then a flush (idle/blur/quit all route here).
     let mut app = app_on(None, "/proj", Config::empty());
-    app.active.buffer.set_text("brain dump\n");
+    app.document.set_text("brain dump\n");
     app.autosave_flush();
     assert_eq!(
         mem.read_to_string(&stash).unwrap(),
@@ -671,18 +671,18 @@ fn scratch_stash_and_restore_round_trip() {
     // markdown-first scratch surface, not a note.
     let mut app2 = app_on(None, "/proj", Config::empty());
     assert_eq!(
-        app2.active.buffer.text(),
+        app2.document.buffer().text(),
         "brain dump\n",
         "the stash restores"
     );
     assert!(
-        app2.active.buffer.path().is_none(),
+        app2.document.buffer().path().is_none(),
         "restored scratch stays path-less"
     );
-    assert!(app2.active.buffer.is_markdown() && !app2.active.buffer.is_unnamed_fresh());
+    assert!(app2.document.buffer().is_markdown() && !app2.document.buffer().is_unnamed_fresh());
     // The restore stamped the stash mtime, so a follow-up edit + flush is not
     // mistaken for a two-instance clobber.
-    app2.active.buffer.set_text("brain dump\nmore\n");
+    app2.document.set_text("brain dump\nmore\n");
     app2.autosave_flush();
     assert_eq!(mem.read_to_string(&stash).unwrap(), "brain dump\nmore\n");
     assert!(
@@ -705,12 +705,12 @@ fn convert_scratch_and_save_promotes_the_buffer_and_retires_the_stash() {
 
     let mut app = app_on(None, "/proj", Config::empty());
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         "yesterday's dump\n",
         "restored from the stash first"
     );
     assert!(
-        app.active.buffer.path().is_none() && !app.active.buffer.is_unnamed_fresh(),
+        app.document.buffer().path().is_none() && !app.document.buffer().is_unnamed_fresh(),
         "still a true scratch"
     );
 
@@ -721,17 +721,17 @@ fn convert_scratch_and_save_promotes_the_buffer_and_retires_the_stash() {
     // returns, the buffer reads as an ORDINARY pathed file, not a lasting
     // "note" identity.
     assert!(
-        !app.active.buffer.is_unnamed_fresh(),
+        !app.document.buffer().is_unnamed_fresh(),
         "Cmd-S named the document once — it's an ordinary file now, not a lasting note identity"
     );
-    let p = app.active.buffer.path().unwrap().to_path_buf();
+    let p = app.document.buffer().path().unwrap().to_path_buf();
     assert!(
         p.starts_with("/proj"),
         "item 76: the document lands under the ACTIVE folder, not a separate notes-root concept: {p:?}"
     );
     assert_eq!(mem.read_to_string(&p).unwrap(), "yesterday's dump\n");
     assert_eq!(
-        app.active.buffer.path(),
+        app.document.buffer().path(),
         Some(p.as_path()),
         "Buffer::path is the new path"
     );
@@ -750,19 +750,19 @@ fn convert_scratch_and_save_second_save_is_a_plain_save() {
     let mem = InMemoryFs::new();
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(None, "/proj", Config::empty());
-    app.active.buffer.set_text("first entry\n");
+    app.document.set_text("first entry\n");
     app.convert_scratch_and_save();
-    let named = app.active.buffer.path().unwrap().to_path_buf();
+    let named = app.document.buffer().path().unwrap().to_path_buf();
 
     // A SECOND explicit save (the buffer is now an ordinary note) must
     // NOT re-run the scratch-conversion machinery — same path, same file,
     // just the updated content. This spells out the two live-interpreter
     // halves: `Buffer::save()`, then `finish_manual_save` bookkeeping.
-    app.active.buffer.set_text("first entry\nmore\n");
-    app.active.buffer.save().unwrap();
+    app.document.set_text("first entry\nmore\n");
+    app.document.save().unwrap();
     app.finish_manual_save(true, "saved".to_string());
     assert_eq!(
-        app.active.buffer.path().unwrap(),
+        app.document.buffer().path().unwrap(),
         named,
         "no re-homing on the second save"
     );
@@ -777,7 +777,7 @@ fn convert_scratch_and_save_unwritable_active_folder_raises_a_calm_notice_never_
     // is left untouched (nothing succeeded to retire it over).
     let _g = crate::fs::FsGuard::install(Arc::new(crate::fs::UnwritableFs));
     let mut app = app_on(None, "/proj", Config::empty());
-    app.active.buffer.set_text("won't land\n");
+    app.document.set_text("won't land\n");
 
     app.convert_scratch_and_save();
 
@@ -807,13 +807,13 @@ fn rename_current_file_happy_path_renames_disk_buffer_and_history() {
     );
 
     let mut app = app_on(Some(old.clone()), "/notes", Config::empty());
-    assert_eq!(app.active.buffer.path(), Some(old.as_path()));
+    assert_eq!(app.document.buffer().path(), Some(old.as_path()));
 
     app.rename_current_file("new.md");
 
     let new = PathBuf::from("/notes/new.md");
     assert_eq!(
-        app.active.buffer.path(),
+        app.document.buffer().path(),
         Some(new.as_path()),
         "buffer follows the rename — the sole authoritative path (item 56)"
     );
@@ -845,7 +845,7 @@ fn rename_current_file_refuses_to_clobber_an_existing_name() {
     app.rename_current_file("taken.md");
 
     assert_eq!(
-        app.active.buffer.path(),
+        app.document.buffer().path(),
         Some(old.as_path()),
         "buffer stays put — refused, not clobbered"
     );
@@ -881,7 +881,7 @@ fn rename_current_file_refuses_a_git_managed_file() {
     app.rename_current_file("renamed.md");
 
     assert_eq!(
-        app.active.buffer.path(),
+        app.document.buffer().path(),
         Some(old.as_path()),
         "a git-managed file never renames here"
     );
@@ -909,7 +909,7 @@ fn rename_current_file_unchanged_or_blank_name_is_a_quiet_no_op() {
 
     app.rename_current_file("old.md");
     assert_eq!(
-        app.active.buffer.path(),
+        app.document.buffer().path(),
         Some(old.as_path()),
         "unchanged name: no-op"
     );
@@ -917,7 +917,7 @@ fn rename_current_file_unchanged_or_blank_name_is_a_quiet_no_op() {
 
     app.rename_current_file("   ");
     assert_eq!(
-        app.active.buffer.path(),
+        app.document.buffer().path(),
         Some(old.as_path()),
         "blank name: no-op"
     );
@@ -944,13 +944,13 @@ fn duplicate_current_file_dedups_the_name_and_starts_a_fresh_history_timeline() 
     let mut app = app_on(Some(old.clone()), "/notes", Config::empty());
     // Simulate an UNSAVED edit: the duplicate must carry the LIVE buffer
     // content, not necessarily what's on disk.
-    app.active.buffer.set_text("live edit, not yet flushed\n");
+    app.document.set_text("live edit, not yet flushed\n");
 
     app.duplicate_current_file();
 
     let dup = PathBuf::from("/notes/old-3.md");
     assert_eq!(
-        app.active.buffer.path(),
+        app.document.buffer().path(),
         Some(dup.as_path()),
         "switched to the deduped sibling"
     );
@@ -978,7 +978,7 @@ fn duplicate_current_file_dedups_the_name_and_starts_a_fresh_history_timeline() 
     // dedup scan) and its live state survives in the registry.
     let key = crate::buffers::BufferKey::path(&old);
     assert!(
-        app.buffer_registry.contains(&key),
+        app.document.contains_background(&key),
         "the original was parked, not dropped"
     );
 }
@@ -993,10 +993,10 @@ fn duplicate_current_file_on_a_pathless_buffer_is_a_quiet_no_op() {
     let mem = InMemoryFs::new().with_dir("/proj");
     let _g = crate::fs::FsGuard::install(Arc::new(mem));
     let mut app = app_on(None, "/proj", Config::empty());
-    assert!(app.active.buffer.path().is_none());
+    assert!(app.document.buffer().path().is_none());
     app.duplicate_current_file();
     assert!(
-        app.active.buffer.path().is_none(),
+        app.document.buffer().path().is_none(),
         "nothing to duplicate yet"
     );
     assert!(app.notice.is_none());
@@ -1046,11 +1046,11 @@ fn finish_manual_save_clears_a_freshly_named_documents_dirty_marker_immediately(
     // Make the active buffer an UNNAMED FRESH DOCUMENT with content, then
     // write it to disk the way `apply_transition`'s `Action::Save` arm does before
     // signalling SaveDone.
-    app.active.buffer.start_fresh_doc(notes.clone());
-    app.active.buffer.set_text("note body\n");
-    app.active.buffer.save().unwrap();
+    app.document.start_fresh_for_test(notes.clone());
+    app.document.set_text("note body\n");
+    app.document.save().unwrap();
     assert!(
-        !app.active.buffer.is_unnamed_fresh() && app.active.buffer.path().is_some(),
+        !app.document.buffer().is_unnamed_fresh() && app.document.buffer().path().is_some(),
         "arranged: the save named it once — an ordinary pathed file now"
     );
     // Pre-bookkeeping the document reads DIRTY: `doc_saved_version` is still
@@ -1079,10 +1079,10 @@ fn finish_manual_save_clears_a_regular_files_dirty_marker_immediately() {
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(Some(p.clone()), "/proj", Config::empty());
 
-    app.active.buffer.set_text("edited body\n");
-    app.active.buffer.save().unwrap();
+    app.document.set_text("edited body\n");
+    app.document.save().unwrap();
     assert!(
-        !app.active.buffer.is_unnamed_fresh() && app.active.buffer.path().is_some(),
+        !app.document.buffer().is_unnamed_fresh() && app.document.buffer().path().is_some(),
         "arranged: a saved file"
     );
     assert!(
@@ -1126,7 +1126,7 @@ fn sync_view_retitles_only_on_an_actual_dirty_flip() {
     // mirroring `update_title_uses_the_same_pure_window_title`'s own
     // "no live window, still exercised" shape.
     assert!(!app.is_document_dirty(), "just-loaded content starts saved");
-    app.active.buffer.set_text("edited\n");
+    app.document.set_text("edited\n");
     assert!(
         app.is_document_dirty(),
         "an edit past the saved version is dirty"
@@ -1146,7 +1146,7 @@ fn is_document_dirty_clears_on_autosave_not_just_manual_save() {
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
     assert!(!app.is_document_dirty());
-    app.active.buffer.set_text("v2\n");
+    app.document.set_text("v2\n");
     assert!(app.is_document_dirty(), "an unsaved edit reads dirty");
     app.autosave_flush(); // NOT a manual save — the background engine
     assert_eq!(mem.read_to_string(&p).unwrap(), "v2\n");
@@ -1172,11 +1172,11 @@ fn scratch_stash_invalid_utf8_preserves_a_corrupt_sibling_then_starts_a_blank_sc
 
     let app = app_on(None, "/proj", Config::empty());
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         "",
         "an undecodable stash falls back to a blank scratch"
     );
-    assert!(app.active.buffer.path().is_none());
+    assert!(app.document.buffer().path().is_none());
 
     let dir = stash.parent().unwrap();
     let names: Vec<String> = mem
@@ -1217,9 +1217,9 @@ fn blur_flush_never_reloads_buffer_or_resets_cursor() {
     // `WindowEvent::Focused(false)` is the one live door a blur reaches —
     // and it calls exactly `App::autosave_flush` (`app.rs`'s `Focused(false)`
     // arm), which fans out to `stash_scratch_now` for a no-path scratch. That
-    // function is a pure WRITE: it reads `self.active.buffer.text()` and writes it
+    // function is a pure WRITE: it reads `self.document.buffer().text()` and writes it
     // OUT to the stash path; it never calls `crate::fs::active().read_*` or
-    // reconstructs `self.active.buffer`. The ONLY place a stash is ever read back
+    // reconstructs `self.document.buffer()`. The ONLY place a stash is ever read back
     // INTO a buffer is `App::new` (a true process/page (re)launch) — never a
     // blur, never any other live-App path. This test pins that down: typing
     // "AAA", flushing (the blur trigger) as many times as a stress test's
@@ -1230,10 +1230,10 @@ fn blur_flush_never_reloads_buffer_or_resets_cursor() {
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(None, "/proj", Config::empty());
     for c in "AAA".chars() {
-        app.active.buffer.insert_char(c);
+        app.document.insert_char(c);
     }
     assert_eq!(
-        app.active.buffer.cursor_char(),
+        app.document.buffer().cursor_char(),
         3,
         "cursor sits after the typed AAA"
     );
@@ -1243,25 +1243,25 @@ fn blur_flush_never_reloads_buffer_or_resets_cursor() {
     app.autosave_flush();
     app.autosave_flush();
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         "AAA",
         "a blur-driven flush never reloads content"
     );
     assert_eq!(
-        app.active.buffer.cursor_char(),
+        app.document.buffer().cursor_char(),
         3,
         "a blur-driven flush never resets the cursor — only App::new restores"
     );
     // A later "dispatch batch" continues typing from exactly where it left off.
     for c in "BBB".chars() {
-        app.active.buffer.insert_char(c);
+        app.document.insert_char(c);
     }
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         "AAABBB",
         "BBB lands after AAA, not at position 0"
     );
-    assert_eq!(app.active.buffer.cursor_char(), 6);
+    assert_eq!(app.document.buffer().cursor_char(), 6);
 }
 
 #[test]
@@ -1276,7 +1276,7 @@ fn scratch_restore_skips_empty_stash() {
         mem.write(&crate::fs::scratch_stash_path(), b"").unwrap();
         let app = app_on(None, "/proj", Config::empty());
         assert!(
-            app.active.buffer.text().is_empty(),
+            app.document.buffer().text().is_empty(),
             "empty stash → plain scratch"
         );
     }
@@ -1285,7 +1285,7 @@ fn scratch_restore_skips_empty_stash() {
         let _g = crate::fs::FsGuard::install(Arc::new(InMemoryFs::new()));
         let app = app_on(None, "/proj", Config::empty());
         assert!(
-            app.active.buffer.text().is_empty(),
+            app.document.buffer().text().is_empty(),
             "missing stash → plain scratch"
         );
     }
@@ -1303,7 +1303,7 @@ fn autosave_writes_git_files_but_never_snapshots_them() {
         .with_file(&p, "v1\n");
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(Some(p.clone()), "/repo", Config::empty());
-    app.active.buffer.set_text("v2\n");
+    app.document.set_text("v2\n");
     app.autosave_flush();
     assert_eq!(
         mem.read_to_string(&p).unwrap(),
@@ -1330,7 +1330,7 @@ fn scratch_stash_clobber_guard_holds_two_instance_writes() {
     let stash = crate::fs::scratch_stash_path();
     let mut app = app_on(None, "/proj", Config::empty());
     mem.write(&stash, b"the other instance's dump\n").unwrap();
-    app.active.buffer.set_text("mine\n");
+    app.document.set_text("mine\n");
     app.autosave_flush();
     assert_eq!(
         mem.read_to_string(&stash).unwrap(),
@@ -1356,11 +1356,11 @@ fn emptied_scratch_clears_the_stale_stash() {
     mem.write(&stash, b"yesterday's dump\n").unwrap();
     let mut app = app_on(None, "/proj", Config::empty());
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         "yesterday's dump\n",
         "the stash restored"
     );
-    app.active.buffer.set_text("");
+    app.document.set_text("");
     app.autosave_flush();
     assert_eq!(
         mem.read_to_string(&stash).unwrap(),
@@ -1377,7 +1377,7 @@ fn emptied_scratch_clears_the_stale_stash() {
 //
 // `App.file` is gone entirely (there is no second field left to disagree
 // with `Buffer::path()` — the type system now makes the "single truth" law
-// structural, not just observed). These tests walk `self.active.buffer.
+// structural, not just observed). These tests walk `self.document.buffer().
 // path()` through every path-changing verb, proving it always reflects
 // reality rather than merely compiling.
 
@@ -1393,24 +1393,32 @@ fn path_law_across_a_plain_file_lifecycle_open_rename_duplicate_close_toggle() {
 
     // OPEN: the launch argument becomes the buffer's own path.
     let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
-    assert_eq!(app.active.buffer.path(), Some(a.as_path()), "open");
+    assert_eq!(app.document.buffer().path(), Some(a.as_path()), "open");
 
     // RENAME: the buffer follows the on-disk rename.
     app.rename_current_file("renamed.txt");
     let renamed = PathBuf::from("/proj/renamed.txt");
-    assert_eq!(app.active.buffer.path(), Some(renamed.as_path()), "rename");
+    assert_eq!(
+        app.document.buffer().path(),
+        Some(renamed.as_path()),
+        "rename"
+    );
 
     // DUPLICATE: `load_path` switches the ACTIVE buffer to the new sibling.
     app.duplicate_current_file();
     let dup = PathBuf::from("/proj/renamed-2.txt");
-    assert_eq!(app.active.buffer.path(), Some(dup.as_path()), "duplicate");
+    assert_eq!(
+        app.document.buffer().path(),
+        Some(dup.as_path()),
+        "duplicate"
+    );
 
     // CLOSE-TOGGLE (C-x b): the 2-deep last-buffer history swaps back to the
     // pre-duplicate path, itself sourced from `Buffer::path()` (captured
     // before each park — see `load_path`/`duplicate_current_file`).
     app.last_buffer_toggle();
     assert_eq!(
-        app.active.buffer.path(),
+        app.document.buffer().path(),
         Some(renamed.as_path()),
         "close-toggle restores the pre-duplicate path"
     );
@@ -1418,7 +1426,7 @@ fn path_law_across_a_plain_file_lifecycle_open_rename_duplicate_close_toggle() {
     // OPEN a second, previously-untouched file: still tracks exactly.
     app.load_path(b.clone());
     assert_eq!(
-        app.active.buffer.path(),
+        app.document.buffer().path(),
         Some(b.as_path()),
         "open a second file"
     );
@@ -1439,7 +1447,7 @@ fn path_law_across_a_document_lifecycle_new_document_one_shot_name_no_rename_mov
     // CURRENT active folder — no root jump.
     app.new_document();
     assert_eq!(
-        app.active.buffer.path(),
+        app.document.buffer().path(),
         None,
         "a fresh document is unnamed"
     );
@@ -1452,26 +1460,26 @@ fn path_law_across_a_document_lifecycle_new_document_one_shot_name_no_rename_mov
     // FIRST (MATERIAL) SAVE (auto-name from the first line): the buffer gains
     // a derived path, under the ACTIVE folder, with no separate field to keep
     // in step.
-    app.active.buffer.insert_text("first draft\n");
+    app.document.insert_text("first draft\n");
     app.autosave_note();
-    let named = app.active.buffer.path().map(|p| p.to_path_buf());
+    let named = app.document.buffer().path().map(|p| p.to_path_buf());
     assert!(named.is_some(), "auto-name gave the document a path");
     assert!(
         named.as_deref().unwrap().starts_with("/proj"),
         "named under the ACTIVE folder, not a separate notes-root concept: {named:?}"
     );
     assert!(
-        !app.active.buffer.is_unnamed_fresh(),
+        !app.document.buffer().is_unnamed_fresh(),
         "one-shot: named once, ordinary now"
     );
 
     // A LATER title edit NEVER renames (the old live-rename-to-title behavior
     // is retired): editing the FIRST LINE again leaves the path untouched.
-    let end_of_first_line = app.active.buffer.line_col_to_char(0, usize::MAX);
-    app.active.buffer.set_cursor(end_of_first_line);
-    app.active.buffer.insert_text(" retitled");
+    let end_of_first_line = app.document.buffer().line_col_to_char(0, usize::MAX);
+    app.document.set_cursor(end_of_first_line);
+    app.document.insert_text(" retitled");
     app.autosave_note(); // is_unnamed_fresh() is false: this is now a no-op
-    let after_title_edit = app.active.buffer.path().map(|p| p.to_path_buf());
+    let after_title_edit = app.document.buffer().path().map(|p| p.to_path_buf());
     assert_eq!(
         after_title_edit, named,
         "later title edits never rename (one-shot naming)"
@@ -1481,7 +1489,12 @@ fn path_law_across_a_document_lifecycle_new_document_one_shot_name_no_rename_mov
     // to the ACTIVE folder), keeping the filename.
     let before_move = after_title_edit.clone().unwrap();
     app.move_current_file("sub");
-    let moved = app.active.buffer.path().map(|p| p.to_path_buf()).unwrap();
+    let moved = app
+        .document
+        .buffer()
+        .path()
+        .map(|p| p.to_path_buf())
+        .unwrap();
     assert_eq!(
         moved.file_name(),
         before_move.file_name(),

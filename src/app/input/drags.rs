@@ -199,7 +199,7 @@ impl App {
         };
         // A resize (or a reset) is a non-edit gesture either way: seal the open
         // undo group like a click does, before branching.
-        self.active.buffer.seal_undo_group();
+        self.document.seal_undo_group();
         if self.bump_click_count() == 2 {
             // DOUBLE-CLICK on the draggable edge: reset instead of beginning a drag.
             // Routes through the real Action via `App::apply`, so it is the exact
@@ -327,7 +327,7 @@ impl App {
         };
         // A resize is a non-edit gesture: seal the open undo group like a click does,
         // so the single write-back on release is its own clean undo entry.
-        self.active.buffer.seal_undo_group();
+        self.document.seal_undo_group();
         // `width` is a placeholder; `apply_image_resize` below sets it from the pointer.
         self.input.pointer.image_resizing = Some(ImageDrag {
             range,

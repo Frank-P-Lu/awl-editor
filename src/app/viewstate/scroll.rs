@@ -22,9 +22,10 @@ impl App {
         height: f32,
     ) {
         let pipeline = &self.gpu.as_ref().unwrap().pipeline;
-        self.active.extra.scroll = pipeline.scroll_by_px(self.active.extra.scroll, 0.0, height);
-        if self.active.extra.scroll != previous {
-            view.scroll = self.active.extra.scroll;
+        let scroll = pipeline.scroll_by_px(self.document.scroll(), 0.0, height);
+        self.document.set_scroll(scroll);
+        if self.document.scroll() != previous {
+            view.scroll = self.document.scroll();
             self.gpu.as_mut().unwrap().pipeline.set_view(view);
         }
     }

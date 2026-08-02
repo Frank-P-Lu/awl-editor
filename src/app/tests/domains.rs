@@ -56,8 +56,6 @@ pub(crate) enum Extraction {
     OnRootApp,
 }
 
-/// Root-`App` fields still owned by [`Domain::DocumentSession`].
-const DOCUMENT_SESSION: &[&str] = &["active", "buffer_registry", "prev_file", "spell"];
 /// Root-`App` fields still owned by [`Domain::RenderRuntime`].
 const RENDER_RUNTIME: &[&str] = &[
     "gpu",
@@ -157,10 +155,8 @@ impl Domain {
             Domain::ConfigurationRuntime => Some("config"),
             Domain::ProjectLocation => Some("project_location"),
             Domain::InputRuntime => Some("input"),
-            Domain::DocumentSession
-            | Domain::RenderRuntime
-            | Domain::FrameScheduler
-            | Domain::HostLifecycle => None,
+            Domain::DocumentSession => Some("document"),
+            Domain::RenderRuntime | Domain::FrameScheduler | Domain::HostLifecycle => None,
         }
     }
 
@@ -186,7 +182,7 @@ impl Domain {
             Domain::ProjectLocation => (Extraction::Extracted, &[]),
 
             // ── MAPPED, STILL ON ROOT `App` ──────────────────────────────
-            Domain::DocumentSession => (Extraction::OnRootApp, DOCUMENT_SESSION),
+            Domain::DocumentSession => (Extraction::Extracted, &[]),
             Domain::InputRuntime => (Extraction::Extracted, &[]),
             Domain::RenderRuntime => (Extraction::OnRootApp, RENDER_RUNTIME),
             Domain::FrameScheduler => (Extraction::OnRootApp, FRAME_SCHEDULER),
@@ -438,10 +434,8 @@ fn retired_field_names(domain: Domain) -> &'static [&'static str] {
             "recent_projects",
             "recent_files",
         ],
-        Domain::DocumentSession
-        | Domain::RenderRuntime
-        | Domain::FrameScheduler
-        | Domain::HostLifecycle => &[],
+        Domain::DocumentSession => &["active", "buffer_registry", "prev_file", "spell"],
+        Domain::RenderRuntime | Domain::FrameScheduler | Domain::HostLifecycle => &[],
     }
 }
 
@@ -468,8 +462,9 @@ fn root_app_does_not_grow() {
     // `default_folder` + both CLI location inputs with its existing `config`
     // handle (-3), while ProjectLocation replaces six loose fields with one
     // handle (-5): 102 - 3 - 5 = 94. InputRuntime then replaces 27 loose
-    // fields with its one handle: 94 - 27 + 1 = 68.
-    const CEILING: usize = 68;
+    // fields with its one handle: 94 - 27 + 1 = 68. DocumentSession replaces
+    // four loose fields with one owner handle: 68 - 4 + 1 = 65.
+    const CEILING: usize = 65;
     let fields = root_app_fields();
     assert_eq!(
         fields.len(),

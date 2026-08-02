@@ -7,8 +7,8 @@ which invariant). Queue item 172.
 
 ## The defect this map exists to close
 
-The initial census found `pub struct App` with 107 fields; the three extracted
-owners have reduced the root to 94. Every root field is private to `crate::app`,
+The initial census found `pub struct App` with 107 fields; the extracted
+owners have reduced the root to 65. Every root field is private to `crate::app`,
 which means every one of the ~24 `impl App` blocks under `src/app/` can still
 read and write it. The physical file split (item 56) made the code
 navigable without making any invariant *owned*: a rule spread across four
@@ -52,7 +52,7 @@ Names follow queue item 172, with two corrections the census forced (see
 | --- | --- | --- | --- | --- |
 | `WorkspaceState` (summoned UI) | 3 | 99 | 14 | extracted — slice 1 |
 | `PersistenceRuntime` (save feedback) | 5 | 23 | 6 | extracted — slice 2 |
-| `DocumentSession` | 4 | 363 | 21 | mapped |
+| `DocumentSession` | 4 | 363 | 21 | extracted — slice 5 |
 | `InputRuntime` | 27 | 164 | 13 | extracted — slice 4 |
 | `ConfigurationRuntime` | 4 | 87 | 16 | extracted — slice 3 |
 | `ProjectLocation` | 6 | 51 | 9 | extracted — slice 3 |
@@ -132,15 +132,14 @@ that collide.
 
 `active` · `buffer_registry` · `prev_file` · `spell`
 
-363 production references, 21 files — the largest domain by reach, and the one
-already partly owned: `active` is a whole-slot `Entry<BufferExtra>` whose sole
-constructor/destructor is `files/active.rs`, enforced by a source-audit law.
-What is *not* owned is the reading: 21 modules reach `self.active.buffer` and
-`self.active.extra.<field>` directly, deliberately (the module doc argues a
-whole-self borrow through an accessor would reintroduce the friction the slot
-design avoids). A future slice should narrow `extra` field-by-field rather than
-wrap `active`; `prev_file` (the last-buffer toggle target) has two writers and
-belongs with the registry.
+Extracted as `app/document.rs::DocumentSession`. The active
+`Entry<BufferExtra>`, background registry, last-buffer target, and shared spell
+checker are private to that owner. Park/activate moves the whole entry; session
+restore inserts through the same owner. Consumers receive immutable document
+and cache projections plus named edit, cache, and persistence transitions. The
+one mutable `Buffer` loan is fenced to `app/apply.rs`'s shared action core by a
+source law. A full A→B→A→B→C→A law compares every `BufferExtra` member, including
+the version-keyed text/spell caches and the pending autosave stamp.
 
 ### `InputRuntime`
 

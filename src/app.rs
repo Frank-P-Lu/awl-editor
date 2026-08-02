@@ -389,6 +389,9 @@ mod apply_context;
 #[cfg(not(target_arch = "wasm32"))]
 mod capture_state;
 mod daemon;
+/// The active whole-slot, background registry, previous target, checker, and
+/// every buffer-scoped App cache.
+mod document;
 mod menu;
 /// The APP-GLOBAL SAVE LEDGER (item 172): the fresh-document autosave
 /// debounce+version pair, the save-feedback clocks, the title dirty cache.
@@ -402,18 +405,9 @@ mod stats;
 mod streaks;
 
 pub struct App {
-    /// THE OWNED ACTIVE BUFFER SLOT (item 56): the live `Buffer` plus every
-    /// App-level per-buffer field that must travel WITH it across a park/
-    /// activate swap (scroll, spell cache, sync/autosave bookkeeping — see
-    /// `files::BufferExtra`), as ONE `Entry<BufferExtra>` — the SAME type a
-    /// backgrounded buffer parks as in `buffer_registry`, so a swap is a
-    /// single whole-slot MOVE, never a field-by-field snapshot/restore. THE
-    /// SOLE owner constructing or destructuring this field is `files/active.rs`
-    /// (`park_active_buffer` / `activate_from_registry`); every other reader
-    /// goes through `self.active.buffer` / `self.active.extra.<field>` directly
-    /// — no accessor method (a whole-self borrow would reintroduce the exact
-    /// friction this slot design avoids).
-    active: crate::buffers::Entry<files::BufferExtra>,
+    /// One owner for the active whole slot, background registry, previous-file
+    /// target, spell checker, and every buffer-scoped cache.
+    document: document::DocumentSession,
     /// THE SUMMONED-UI LAYER (item 172's first owner — `app/workspace.rs`):
     /// the modal picker, the find/replace panel, and the format popover's
     /// summon bit, with their PRECEDENCE LADDER. The three former `App`
@@ -481,13 +475,6 @@ pub struct App {
     /// keep the live page proportioned like the capture. Updated on creation and on
     /// `ScaleFactorChanged` (a monitor move). The headless capture never sets it.
     dpi: f32,
-    /// The spell-check engine (bundled en_US Hunspell), loaded ONCE at startup.
-    /// `None` if the dictionary failed to parse (reported to stderr); spell-check
-    /// then no-ops rather than crashing the editor. App-GLOBAL (not buffer-scoped
-    /// — the checker itself is shared; `spell_cache`/`spell_checked_version`,
-    /// the PER-BUFFER verdict cache, live in `files::BufferExtra` instead, see
-    /// `self.active.extra`).
-    spell: Option<crate::spell::SpellChecker>,
     caret_edit_streaks: bool,
     caret_held: bool,
     caret_impact: Option<CaretImpact>,
@@ -502,11 +489,10 @@ pub struct App {
     clipboard_last_written: Option<String>,
     /// The live root plus its derived project state and persisted MRUs.
     project_location: location::ProjectLocation,
-    prev_file: Option<PathBuf>,
     /// When the open DOCUMENT last changed and an idle AUTOSAVE is pending, the
     /// buffer version known ON DISK, the CLOBBER-GUARD stat baselines (doc +
     /// scratch), and the scratch-stash's own saved-version — ALL buffer-scoped
-    /// (item 56), so they now live in `files::BufferExtra` (`self.active.extra`)
+    /// (item 56), so they now live in `document::BufferExtra`
     /// instead of here: see `doc_autosave_at`/`doc_saved_version`/`disk_mtime`/
     /// `scratch_saved_version`/`scratch_mtime` on that type.
     /// When the AUTOSAVE ENGINE last wrote successfully THIS session (the doc
@@ -537,7 +523,7 @@ pub struct App {
     /// `sync_view`'s own comparison, keeps this cache honest).
     /// DIFF-AS-PREVIEW cache (`history_preview`) + the pre-open scroll
     /// (`history_scroll_before`): buffer-scoped (item 56), folded into
-    /// `files::BufferExtra` (`self.active.extra`) — see that type for the full
+    /// `document::BufferExtra` — see that type for the full
     /// doc, unchanged from here.
     /// When the zoom last changed and a STICKY-ZOOM write is pending; the debounced
     /// write fires after `ZOOM_PERSIST_DEBOUNCE` of quiet in `about_to_wait`, so a
@@ -652,12 +638,6 @@ pub struct App {
     present_sync_valid: bool,
     /// Persisted configuration plus CLI and first-run folder policy.
     config: location::ConfigurationRuntime,
-    /// MULTI-BUFFER REGISTRY: every OTHER currently-open buffer (backgrounded —
-    /// not the active `self.active.buffer`), keyed by stable identity. Opening a path
-    /// already resident here SWITCHES to its live buffer (unsaved edits, cursor,
-    /// scroll, undo, spell state all survive) instead of re-reading disk — the
-    /// v1 multi-buffer win. See `files::BufferExtra` + `files::park_active_buffer`.
-    buffer_registry: crate::buffers::BufferRegistry<files::BufferExtra>,
     /// SESSION RESTORE (native only): the window FRAME a previous session left
     /// (already clamped to whatever screens were connected at THAT save time —
     /// re-clamped again in `resumed()` against the CURRENT screens), applied
@@ -804,7 +784,6 @@ impl App {
                 }
             },
         };
-        let initial_version = buffer.version();
         let disk_mtime = file.as_deref().and_then(Self::disk_mtime_of);
         let scratch_mtime = if file.is_none() {
             Self::disk_mtime_of(&stash)
@@ -830,25 +809,9 @@ impl App {
         let clock: Box<dyn crate::clock::Clock> = Box::new(crate::clock::RealClock);
         #[cfg(not(target_arch = "wasm32"))]
         let stats_origin = clock.now();
-        // THE OWNED ACTIVE SLOT (item 56): a fresh buffer's `BufferExtra` starts
-        // at its inert defaults EXCEPT the version-keyed fields, which must be
-        // stamped to `initial_version`/the launch mtimes right here — this is
-        // the sole App-construction site, so it is the one place that ever
-        // builds an `Entry` from raw pieces rather than a whole-slot move (see
-        // `files/active.rs`'s `park_active_buffer`/`activate_from_registry`).
-        let active = crate::buffers::Entry {
-            buffer,
-            extra: files::BufferExtra {
-                caret_synced_version: initial_version,
-                doc_saved_version: Some(initial_version),
-                disk_mtime,
-                scratch_saved_version: Some(initial_version),
-                scratch_mtime,
-                ..Default::default()
-            },
-        };
+        let document = document::DocumentSession::new(buffer, disk_mtime, scratch_mtime);
         let mut app = Self {
-            active,
+            document,
             workspace_state: workspace::WorkspaceState::default(),
             persistence: persistence::PersistenceRuntime::default(),
             input: input::InputRuntime::new(keymap, scroll_sensitivity),
@@ -877,13 +840,6 @@ impl App {
             debug_still: crate::debug::DebugStill::Active,
             zoom,
             dpi: 1.0,
-            spell: match crate::spell::SpellChecker::new(crate::spell::active_variant()) {
-                Ok(sc) => Some(sc),
-                Err(e) => {
-                    eprintln!("spell-check disabled: {e}");
-                    None
-                }
-            },
             caret_edit_streaks: false,
             caret_held: false,
             caret_impact: None,
@@ -897,7 +853,6 @@ impl App {
             },
             clipboard_last_written: None,
             project_location,
-            prev_file: None,
             notice: None,
             notice_kind: NoticeKind::Sticky,
             notice_expires_at: None,
@@ -918,7 +873,6 @@ impl App {
             present_sync_on: false,
             present_sync_valid: false,
             config,
-            buffer_registry: crate::buffers::BufferRegistry::default(),
             #[cfg(not(target_arch = "wasm32"))]
             restored_window: None,
             // LIFETIME STATS: load the persisted odometer through the same
@@ -957,7 +911,7 @@ impl App {
         // C-x f / C-x b / goto path's own call in `App::load_path` — a real
         // FILE only (never the no-argument scratch/stash-restore buffer,
         // which isn't "opening a document").
-        if app.active.buffer.path().is_some() {
+        if app.document.buffer().path().is_some() {
             app.write_back_lang_tag_once();
         }
         if let Some(msg) = file_refusal {
@@ -979,7 +933,7 @@ impl App {
         // (CLI arg or session-restored active) keeps the LAZY anchor — its
         // pre-existing words are not "writing" — so `streaks_baseline` stays `None`.
         #[cfg(not(target_arch = "wasm32"))]
-        if app.active.buffer.path().is_none() {
+        if app.document.buffer().path().is_none() {
             app.streaks_anchor_now();
         }
         #[cfg(not(target_arch = "wasm32"))]
@@ -991,7 +945,7 @@ impl App {
         // dictionary" words) into the checker so an added word stays un-squiggled
         // ACROSS RESTARTS. Absent file = empty (no error). ZERO-NETWORK — a file,
         // never a fetch. Runs AFTER the spell field is built (the struct literal
-        // above) so `self.spell` is `Some` when the words load.
+        // above) so the session checker exists when the words load.
         app.load_user_dictionary();
         app
     }

@@ -38,13 +38,7 @@ impl App {
     /// (reported to stderr), exactly like the `App::new` startup path.
     pub(in crate::app) fn set_dictionary(&mut self, variant: crate::spell::DictVariant) {
         let t0 = std::time::Instant::now();
-        self.spell = match crate::spell::SpellChecker::new(variant) {
-            Ok(sc) => Some(sc),
-            Err(e) => {
-                eprintln!("dictionary switch failed: {e}");
-                None
-            }
-        };
+        self.document.replace_spell_checker(variant);
         eprintln!(
             "dictionary switched to {}: parsed in {:.2}ms",
             crate::config::dictionary_name(variant),
@@ -55,7 +49,6 @@ impl App {
         // reset the stale cache would look "current" until the next edit. Clearing
         // it forces `run_spellcheck_now` to actually re-scan against the new
         // dictionary right away.
-        self.active.extra.spell_checked_version = None;
         // Re-fold the user (personal) dictionary onto the FRESH checker: the switch
         // reconstructed it with an empty personal set, so without this the words the
         // user added would stop suppressing squiggles until the next launch.
@@ -85,9 +78,7 @@ impl App {
             .read_to_string(&path)
             .unwrap_or_default();
         let words = crate::spell::parse_dictionary(&text);
-        if let Some(sc) = self.spell.as_mut() {
-            sc.set_user_words(words);
-        }
+        self.document.set_user_words(words);
     }
 
     /// "Add '<word>' to dictionary" (the Cmd-`;` overlay row / the right-click
@@ -103,11 +94,7 @@ impl App {
         if word.is_empty() {
             return;
         }
-        let newly = self
-            .spell
-            .as_mut()
-            .map(|sc| sc.add_user_word(word))
-            .unwrap_or(false);
+        let newly = self.document.add_user_word(word);
         if newly
             && let Some(path) = self.user_dictionary_path()
             && let Err(e) = Self::append_word_to_dictionary_file(&path, word)
@@ -117,7 +104,7 @@ impl App {
                 path.display()
             );
         }
-        self.active.extra.spell_checked_version = None;
+        self.document.invalidate_spell_cache();
         self.run_spellcheck_now();
     }
 

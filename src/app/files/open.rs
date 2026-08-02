@@ -1,4 +1,3 @@
-use super::active::BufferExtra;
 use crate::app::*;
 
 impl App {
@@ -120,7 +119,7 @@ impl App {
     }
 
     pub(in crate::app) fn last_buffer_toggle(&mut self) {
-        let Some(prev) = self.prev_file.clone() else {
+        let Some(prev) = self.document.previous_path() else {
             return; // nothing opened before; toggle is a quiet no-op
         };
         self.load_path(prev);
@@ -179,30 +178,15 @@ impl App {
         // root-joined spelling (see `BufferKey::path`'s doc) must both be
         // recognized as "already here", or this falls through into an
         // unnecessary (if harmless, post-fix) park/take round trip.
-        if self
-            .active
-            .buffer
-            .path()
-            .map(crate::buffers::BufferKey::path)
-            == Some(crate::buffers::BufferKey::path(&path))
-        {
+        let opened = self.document.open_path(&path, Self::disk_mtime_of(&path));
+        if opened == document::OpenPath::AlreadyActive {
             return;
         }
-        self.prev_file = self.active.buffer.path().map(|p| p.to_path_buf());
-        self.park_active_buffer();
-        let key = crate::buffers::BufferKey::path(&path);
         // ALREADY OPEN elsewhere in this session: switch to its LIVE buffer
         // instead of re-reading disk — unsaved edits, cursor, scroll, undo,
         // and spell-cache state all survive the round trip (a whole-slot
         // activation — see `activate_from_registry`).
-        if !self.activate_from_registry(&key) {
-            self.active = crate::buffers::Entry {
-                buffer: Buffer::from_file(&path),
-                extra: BufferExtra::default(),
-            };
-            self.active.extra.disk_mtime = Self::disk_mtime_of(&path);
-            self.active.extra.doc_saved_version = Some(self.active.buffer.version());
-            self.active.extra.caret_synced_version = self.active.buffer.version();
+        if opened == document::OpenPath::Fresh {
             // i18n WRITE-BACK-ONCE: an untagged CJK document gets a `lang:`
             // frontmatter tag stamped in as one normal undoable edit (never
             // for a pure-Latin doc, never a second time on a doc that
@@ -283,10 +267,10 @@ impl App {
     ///    always wins regardless of the ladder — see `crate::script::dominant_cjk`
     ///    / `doc_lang_for`.
     pub(in crate::app) fn write_back_lang_tag_once(&mut self) {
-        if !self.active.buffer.is_markdown() {
+        if !self.document.buffer().is_markdown() {
             return;
         }
-        let text = self.active.buffer.text();
+        let text = self.document.buffer().text();
         if crate::frontmatter::detect(&text).is_some() {
             return; // already carries a frontmatter block — never re-tag
         }
@@ -295,19 +279,19 @@ impl App {
         };
         let lang = crate::script::doc_lang_for(script, &self.config.cjk_priority_or_default());
         let block = format!("---\nlang: {}\n---\n", lang.code());
-        self.active.buffer.replace_char_range(0, 0, &block);
+        self.document.replace_char_range(0, 0, &block);
     }
 
     pub(in crate::app) fn jump_to_line(&mut self, line: usize) {
-        let idx = self.active.buffer.line_col_to_char(line, 0);
-        self.active.buffer.clear_mark();
-        self.active.buffer.set_cursor(idx);
+        let idx = self.document.buffer().line_col_to_char(line, 0);
+        self.document.clear_mark();
+        self.document.set_cursor(idx);
         // REVEALED PLACEMENT (folds): a heading Go-to / margin-outline jump may target
         // a line hidden inside a collapsed section — route through the ONE placement
         // owner so the landing line is revealed, never left inside a fold. A cheap
         // no-op unless a section is folded.
-        self.active.buffer.reveal_placement();
-        self.active.extra.shift_selecting = false;
+        self.document.reveal_placement();
+        self.document.set_shift_selecting(false);
         self.sync_view(true);
         if let Some(gpu) = self.gpu.as_ref() {
             gpu.window.request_redraw();

@@ -232,7 +232,7 @@ fn every_pixel_packet_result_is_canonical() {
 #[test]
 fn production_scroll_has_one_semantic_owner_and_one_normalizer() {
     let owner_sources = [
-        include_str!("../../app/files/active.rs"),
+        include_str!("../../app/document.rs"),
         include_str!("../viewstate_def.rs"),
         include_str!("../../render.rs"),
         include_str!("../pipeline_geometry.rs"),

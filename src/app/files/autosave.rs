@@ -27,13 +27,13 @@ impl App {
     /// write lands, manual save or autosave alike — matching every
     /// conventional editor's own dirty-dot behavior.
     pub(in crate::app) fn is_document_dirty(&self) -> bool {
-        if self.active.buffer.is_unnamed_fresh() {
+        if self.document.buffer().is_unnamed_fresh() {
             self.persistence
-                .note_write_owed(self.active.buffer.version())
-        } else if self.active.buffer.path().is_some() {
-            self.active.extra.doc_saved_version != Some(self.active.buffer.version())
+                .note_write_owed(self.document.buffer().version())
+        } else if self.document.buffer().path().is_some() {
+            self.document.doc_saved_version() != Some(self.document.buffer().version())
         } else {
-            self.active.extra.scratch_saved_version != Some(self.active.buffer.version())
+            self.document.scratch_saved_version() != Some(self.document.buffer().version())
         }
     }
 
@@ -92,8 +92,8 @@ impl App {
         self.persistence.record_title(dirty);
         if let Some(gpu) = self.gpu.as_ref() {
             gpu.window.set_title(&window_title(
-                self.active.buffer.path(),
-                self.active.buffer.is_unnamed_fresh(),
+                self.document.buffer().path(),
+                self.document.buffer().is_unnamed_fresh(),
                 crate::theme::active().name,
                 dirty,
             ));
@@ -120,10 +120,10 @@ impl App {
     /// quit. A truly empty note still writes nothing (no litter); a non-note buffer
     /// or an already-saved version is a no-op.
     pub(in crate::app) fn flush_note(&mut self) {
-        if self.active.buffer.is_unnamed_fresh()
+        if self.document.buffer().is_unnamed_fresh()
             && self
                 .persistence
-                .note_write_owed(self.active.buffer.version())
+                .note_write_owed(self.document.buffer().version())
         {
             self.persistence.disarm_note_debounce();
             self.autosave_note();
@@ -151,21 +151,19 @@ impl App {
     /// stale/absent one that would misreport dirty.
     pub(in crate::app) fn autosave_note(&mut self) {
         self.persistence
-            .record_note_write(self.active.buffer.version());
-        if !self.active.buffer.is_unnamed_fresh() {
+            .record_note_write(self.document.buffer().version());
+        if !self.document.buffer().is_unnamed_fresh() {
             return;
         }
-        if let Ok(()) = self.active.buffer.save() {
+        if let Ok(()) = self.document.save() {
             // `Buffer::save` only returns `Ok` here having derived + bound a
             // path (an empty document, the ONLY other `Ok`-less case, bails
             // into the `Err` arm below instead) — so `path()` is always
             // `Some` on this arm.
-            let p = self.active.buffer.path().map(|p| p.to_path_buf());
-            self.active.extra.doc_saved_version = Some(self.active.buffer.version());
-            self.active.extra.caret_synced_version = self.active.buffer.version();
-            if let Some(p) = &p {
-                self.active.extra.disk_mtime = Self::disk_mtime_of(p);
-            }
+            let p = self.document.buffer().path().map(|p| p.to_path_buf());
+            let version = self.document.buffer().version();
+            let mtime = p.as_deref().and_then(Self::disk_mtime_of);
+            self.document.record_document_saved(version, mtime);
             // SAVE-FEEDBACK round: no terminal echo — a background
             // autosave naming a fresh document is silent chatter (the
             // window title already renders the new name). `Buffer::save`
@@ -202,10 +200,9 @@ impl App {
     /// pre-existing absolute data-root location rather than blocking the paste.
     #[cfg(not(target_arch = "wasm32"))]
     pub(in crate::app) fn ensure_note_named_before_paste(&mut self) {
-        if !self.active.buffer.is_unnamed_fresh() {
+        if !self.document.buffer().is_unnamed_fresh() {
             let _ = crate::fs::active().create_dir_all(&self.project_location.root);
-            self.active
-                .buffer
+            self.document
                 .set_note_dir(self.project_location.root.clone());
         }
         self.autosave_note();
@@ -226,8 +223,8 @@ impl App {
     /// major-surgery flag would be minted here and carried into the store,
     /// exempt from the ladder. See `history::prune_ladder`.
     pub(in crate::app) fn snapshot_after_save(&self) {
-        if let Some(path) = self.active.buffer.path() {
-            crate::history::record(path, &self.active.buffer.text(), &self.config);
+        if let Some(path) = self.document.buffer().path() {
+            crate::history::record(path, &self.document.buffer().text(), &self.config);
         }
     }
 
@@ -271,14 +268,14 @@ impl App {
     /// Lives only on the live `App`, so the headless capture is structurally
     /// autosave-free (determinism law).
     pub(in crate::app) fn autosave_flush(&mut self) {
-        self.active.extra.doc_autosave_at = None;
+        self.document.disarm_doc_autosave();
         if !self.config.autosave_on() {
             return;
         }
-        if self.active.buffer.is_unnamed_fresh() {
+        if self.document.buffer().is_unnamed_fresh() {
             return; // notes have their own debounced autosave (flush_note)
         }
-        if self.active.buffer.path().is_some() {
+        if self.document.buffer().path().is_some() {
             self.autosave_doc_now();
         } else {
             self.stash_scratch_now();
@@ -293,26 +290,26 @@ impl App {
     /// notice, and record a history snapshot (the store's git gate + dedup +
     /// ladder decide what's kept). Errors go to stderr, never disrupt.
     fn autosave_doc_now(&mut self) {
-        let Some(path) = self.active.buffer.path().map(|p| p.to_path_buf()) else {
+        let Some(path) = self.document.buffer().path().map(|p| p.to_path_buf()) else {
             return;
         };
-        let version = self.active.buffer.version();
-        if self.active.extra.doc_saved_version == Some(version) {
+        let version = self.document.buffer().version();
+        if self.document.doc_saved_version() == Some(version) {
             return; // nothing new to write
         }
-        if Self::disk_changed(&path, self.active.extra.disk_mtime) {
+        if Self::disk_changed(&path, self.document.disk_mtime()) {
             self.set_sticky_notice(CLOBBER_NOTICE);
             // Mark the version handled so the idle timer doesn't spin on the
             // same content; the next edit re-arms (and the notice recurs calmly).
-            self.active.extra.doc_saved_version = Some(version);
+            self.document.acknowledge_document_version(version);
             return;
         }
         // Restore the buffer's remembered line ending on the way out (CRLF files
         // round-trip byte-for-byte; LF is byte-identical to `text().as_bytes()`).
-        match crate::fs::write_atomic(&path, &self.active.buffer.disk_bytes()) {
+        match crate::fs::write_atomic(&path, &self.document.buffer().disk_bytes()) {
             Ok(()) => {
-                self.active.extra.doc_saved_version = Some(version);
-                self.active.extra.disk_mtime = Self::disk_mtime_of(&path);
+                self.document
+                    .record_document_saved(version, Self::disk_mtime_of(&path));
                 if self.clobber_notice_active() {
                     self.clear_notice();
                 }
@@ -336,17 +333,18 @@ impl App {
     /// grow the stash's own ladder timeline via [`crate::history::record`]. The
     /// restore half lives in `App::new` (a no-argument launch).
     fn stash_scratch_now(&mut self) {
-        let version = self.active.buffer.version();
-        if self.active.extra.scratch_saved_version == Some(version) {
+        let version = self.document.buffer().version();
+        if self.document.scratch_saved_version() == Some(version) {
             return; // stash already holds this content
         }
         let path = crate::fs::scratch_stash_path();
-        if Self::disk_changed(&path, self.active.extra.scratch_mtime) {
+        if Self::disk_changed(&path, self.document.scratch_mtime()) {
             self.set_sticky_notice(CLOBBER_NOTICE);
-            self.active.extra.scratch_saved_version = Some(version);
+            self.document
+                .record_scratch_saved(version, self.document.scratch_mtime());
             return;
         }
-        let text = self.active.buffer.text();
+        let text = self.document.buffer().text();
         let fs = crate::fs::active();
         if let Some(parent) = path.parent() {
             let _ = fs.create_dir_all(parent);
@@ -354,10 +352,10 @@ impl App {
         // A true scratch buffer is always Lf, but route the write through the ONE
         // encoder for uniformity; the history snapshot stays the internal pure-`\n`
         // `text` (awl's own store — see the "Line endings" note in CLAUDE.md).
-        match crate::fs::write_atomic(&path, &self.active.buffer.disk_bytes()) {
+        match crate::fs::write_atomic(&path, &self.document.buffer().disk_bytes()) {
             Ok(()) => {
-                self.active.extra.scratch_saved_version = Some(version);
-                self.active.extra.scratch_mtime = Self::disk_mtime_of(&path);
+                self.document
+                    .record_scratch_saved(version, Self::disk_mtime_of(&path));
                 if self.clobber_notice_active() {
                     self.clear_notice();
                 }

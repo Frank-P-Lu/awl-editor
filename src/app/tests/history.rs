@@ -9,8 +9,11 @@ use super::*;
 /// Seed two history versions for `p` and open the History overlay on `app`,
 /// exactly as the OpenHistory gather builds it (timeline_rows → new_history).
 fn open_history_overlay(app: &mut App, p: &std::path::Path) {
-    let rows =
-        crate::history::timeline_rows(p, &app.active.buffer.text(), crate::history::now_millis());
+    let rows = crate::history::timeline_rows(
+        p,
+        &app.document.buffer().text(),
+        crate::history::now_millis(),
+    );
     app.workspace_state
         .install_overlay_for_test(crate::overlay::OverlayState::new_history(rows, None, None));
 }
@@ -24,7 +27,7 @@ fn history_preview_resolves_without_touching_buffer() {
     crate::history::record(&p, "the first draft wording\n", &Config::empty());
     crate::history::record(&p, "the second draft entirely\n", &Config::empty());
     let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
-    let version_before = app.active.buffer.version();
+    let version_before = app.document.buffer().version();
     open_history_overlay(&mut app, &p);
     // DIFF-AS-PREVIEW: row 0 (newest, identical to the buffer) previews a
     // folds-only transcript; row 1 (older) previews a transcript CARRYING the
@@ -45,9 +48,9 @@ fn history_preview_resolves_without_touching_buffer() {
         "arrowing to the older version previews ITS diff (marks present): {older}"
     );
     // The BUFFER was never touched: content, version, and undo all intact.
-    assert_eq!(app.active.buffer.text(), "the second draft entirely\n");
+    assert_eq!(app.document.buffer().text(), "the second draft entirely\n");
     assert_eq!(
-        app.active.buffer.version(),
+        app.document.buffer().version(),
         version_before,
         "no version bump"
     );
@@ -75,12 +78,7 @@ fn preview_cache_invalidates_on_selection_move() {
     let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
     open_history_overlay(&mut app, &p);
     assert!(app.history_preview_text().is_some());
-    let cached_id = app
-        .active
-        .extra
-        .history_preview
-        .as_ref()
-        .map(|(id, _)| id.clone());
+    let cached_id = app.document.history_preview_value().map(|(id, _)| id);
     // Moving the selection to another row (a different id) re-renders: the
     // cache is keyed by id, never by "an overlay is open". (The selection
     // move also resets the diff panel scroll — the transcript changed.)
@@ -93,11 +91,7 @@ fn preview_cache_invalidates_on_selection_move() {
     );
     assert!(app.history_preview_text().is_some());
     assert_ne!(
-        app.active
-            .extra
-            .history_preview
-            .as_ref()
-            .map(|(id, _)| id.clone()),
+        app.document.history_preview_value().map(|(id, _)| id),
         cached_id,
         "the cache now holds the newly highlighted id"
     );
@@ -112,32 +106,39 @@ fn history_close_without_accept_restores_scroll_and_drops_preview() {
     // open; the close-without-accept restores the saved scroll EXACTLY
     // ("Esc = back to now") and puts the preview down.
     let before = crate::render::ScrollPos { row: 42, px_q: 17 };
-    app.active.extra.history_scroll_before = Some(before);
-    app.active.extra.scroll = crate::render::ScrollPos { row: 3, px_q: 29 };
-    app.active.extra.history_preview = Some(("100".into(), "old\n".into()));
+    app.document.set_scroll(before);
+    app.document.remember_history_scroll();
+    app.document
+        .set_scroll(crate::render::ScrollPos { row: 3, px_q: 29 });
+    app.document
+        .set_history_preview("100".into(), "old\n".into());
     app.history_overlay_closed(false);
     assert_eq!(
-        app.active.extra.scroll, before,
+        app.document.scroll(),
+        before,
         "Esc restores the pre-open scroll"
     );
-    assert!(app.active.extra.history_scroll_before.is_none());
+    assert!(app.document.history_scroll_before().is_none());
     assert!(
-        app.active.extra.history_preview.is_none(),
+        app.document.history_preview_value().is_none(),
         "the preview is dropped"
     );
     // A real ACCEPT keeps the current viewport (the restored version owns
     // it) — the saved scroll is discarded, the preview still dropped.
-    app.active.extra.history_scroll_before = Some(before);
+    app.document.set_scroll(before);
+    app.document.remember_history_scroll();
     let accepted = crate::render::ScrollPos { row: 3, px_q: 29 };
-    app.active.extra.scroll = accepted;
-    app.active.extra.history_preview = Some(("100".into(), "old\n".into()));
+    app.document.set_scroll(accepted);
+    app.document
+        .set_history_preview("100".into(), "old\n".into());
     app.history_overlay_closed(true);
     assert_eq!(
-        app.active.extra.scroll, accepted,
+        app.document.scroll(),
+        accepted,
         "an accept never yanks the viewport"
     );
-    assert!(app.active.extra.history_scroll_before.is_none());
-    assert!(app.active.extra.history_preview.is_none());
+    assert!(app.document.history_scroll_before().is_none());
+    assert!(app.document.history_preview_value().is_none());
 }
 
 // ── DIFF-AS-PREVIEW — the History picker's writer's-diff preview ────────
@@ -162,8 +163,8 @@ fn diff_preview_renders_marked_up_transcript_without_touching_buffer() {
     let old = "Keep this opening paragraph exactly as it was.\n\nDrop this whole second paragraph entirely please.\n";
     crate::history::record(&p, old, &Config::empty());
     let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
-    let version_before = app.active.buffer.version();
-    let text_before = app.active.buffer.text();
+    let version_before = app.document.buffer().version();
+    let text_before = app.document.buffer().text();
     open_history_overlay(&mut app, &p);
     let transcript = app
         .history_preview_text()
@@ -179,18 +180,18 @@ fn diff_preview_renders_marked_up_transcript_without_touching_buffer() {
     );
     // The BUFFER was never touched — content, version, undo all intact.
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         text_before,
         "preview never mutates the buffer"
     );
     assert_eq!(
-        app.active.buffer.version(),
+        app.document.buffer().version(),
         version_before,
         "no version bump"
     );
-    app.active.buffer.undo();
+    app.document.undo();
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         text_before,
         "undo after preview is inert"
     );
@@ -210,7 +211,7 @@ fn diff_preview_read_only_law_typing_edits_the_query_never_the_buffer() {
     crate::history::record(&p, "older words\n", &Config::empty());
     crate::history::record(&p, "current words\n", &Config::empty());
     let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
-    let version_before = app.active.buffer.version();
+    let version_before = app.document.buffer().version();
     open_history_overlay(&mut app, &p);
     assert!(app.history_preview_text().is_some(), "preview live");
     // Drive the modal intercept exactly as a keypress would (the core seam).
@@ -224,12 +225,12 @@ fn diff_preview_read_only_law_typing_edits_the_query_never_the_buffer() {
         app.apply_transition_for_test(&act);
     }
     assert_eq!(
-        app.active.buffer.text(),
+        app.document.buffer().text(),
         "current words\n",
         "the rope never changed"
     );
     assert_eq!(
-        app.active.buffer.version(),
+        app.document.buffer().version(),
         version_before,
         "no version bump"
     );
@@ -249,7 +250,7 @@ fn diff_preview_read_only_law_typing_edits_the_query_never_the_buffer() {
         "second Esc closes the picker"
     );
     assert_eq!(
-        app.active.buffer.version(),
+        app.document.buffer().version(),
         version_before,
         "back to now exactly"
     );
@@ -263,17 +264,17 @@ fn scratch_buffer_lists_its_stash_history() {
     // under its stash path — and the timeline gather's shared source_path
     // fallback finds it, so the no-path scratch has a summonable timeline.
     let mut app = app_on(None, "/proj", Config::empty());
-    app.active.buffer.set_text("scratch thoughts\n");
+    app.document.set_text("scratch thoughts\n");
     app.autosave_flush();
     let key = crate::history::source_path(
-        app.active.buffer.path(),
-        app.active.buffer.is_unnamed_fresh(),
+        app.document.buffer().path(),
+        app.document.buffer().is_unnamed_fresh(),
     )
     .expect("the true scratch keys under its stash");
     assert_eq!(key, crate::fs::scratch_stash_path());
     let rows = crate::history::timeline_rows(
         &key,
-        &app.active.buffer.text(),
+        &app.document.buffer().text(),
         crate::history::now_millis(),
     );
     assert!(!rows.is_empty(), "the scratch stash has a timeline");
@@ -293,8 +294,8 @@ fn notes_keep_their_own_autosave() {
     let mem = InMemoryFs::new();
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(None, "/proj", Config::empty());
-    app.active.buffer.start_fresh_doc(PathBuf::from("/mynotes"));
-    app.active.buffer.set_text("a note in flight\n");
+    app.document.start_fresh_for_test(PathBuf::from("/mynotes"));
+    app.document.set_text("a note in flight\n");
     app.autosave_flush();
     // The DOC engine leaves notes to their own 400ms flow (flush_note): no
     // scratch stash, no note file written by this door.

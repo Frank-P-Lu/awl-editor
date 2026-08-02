@@ -202,10 +202,10 @@ impl App {
                 event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
             }
         }
-        if let Some(dirty) = self.active.extra.doc_autosave_at {
+        if let Some(dirty) = self.document.doc_autosave_at() {
             match debounce_due(dirty, AUTOSAVE_IDLE, self.clock.now()) {
                 true => {
-                    self.active.extra.doc_autosave_at = None;
+                    self.document.disarm_doc_autosave();
                     self.autosave_flush();
                     #[cfg(not(target_arch = "wasm32"))]
                     self.stats_flush();
