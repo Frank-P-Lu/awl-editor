@@ -9,19 +9,20 @@ use super::{headless_dqp, headless_pipeline, view};
 
 /// PURE GEOMETRY LAW (no GPU) — the secondary column and the selected-row band
 /// share ONE y-origin. A right-column buffer is uniform-line-height and leads
-/// with `header_rows` empty lines, so uploading it at
-/// [`chrome::overlay_secondary_top`] must land label N exactly on the band
-/// [`chrome::overlay_row_top`] draws for candidate row N — for EVERY header
-/// count (0 spell, 1 flat/nav, 2 faceted) and EVERY header gap. This is the
-/// invariant the composition-round header gap broke (the right column stayed
-/// flush at `text_top`); no element may compute its own row y again.
+/// with `header_rows` empty lines, so uploading it at the plan's own
+/// `secondary_top()` must land label N exactly on the band the plan draws for
+/// candidate row N — for EVERY header count (0 spell, 1 flat/nav, 2 faceted) and
+/// EVERY header gap. This is the invariant the composition-round header gap broke
+/// (the right column stayed flush at `text_top`); no element may compute its own
+/// row y again.
 #[test]
 fn overlay_secondary_column_shares_the_band_row_origin() {
     const TEXT_TOP: f32 = 56.0;
     const LH: f32 = 27.2;
     for &header_rows in &[0usize, 1, 2] {
         for &gap in &[0.0f32, 5.0, 15.0] {
-            let sec_top = chrome::overlay_secondary_top(TEXT_TOP, gap);
+            let sec_top = crate::render::plan::test_header_plan(TEXT_TOP, header_rows, gap, LH)
+                .secondary_top();
             for r in 0usize..8 {
                 // Label N sits at `sec_top + (header_rows + r) leading lines`.
                 let label_top = sec_top + (header_rows as f32 + r as f32) * LH;

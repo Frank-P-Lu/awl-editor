@@ -686,6 +686,29 @@ const RETIRED_TERMS: &[&str] = &[
     "overlay_row_of(",
     "overlay_row_index(",
     "header_rows as f32",
+    // The HEADER band's four retired owners. Each is DELETED from
+    // `render/chrome`, so the compiler is the primary guard and these are the
+    // belt-and-braces half: reintroducing one by name fails here instead of
+    // shipping a fifth answer to "where is the query line".
+    "overlay_secondary_top(",
+    "overlay_split_bounds(",
+    "overlay_strip_band(",
+    "overlay_query_center(",
+    // …and the ARITHMETIC shape those four carried: adding the card's loose
+    // `header_gap` to something to place or size a header line. The planner owns
+    // `text_top + i*lh` and the beat's home in the LAST header line's box; a
+    // consumer that reaches for `geom.header_gap` in a sum is re-deriving it.
+    //
+    // DISCLOSED LIMIT: this catches the sum written against `geom`, which is how
+    // every retired copy was written. A copy that first binds the gap to a local
+    // and sums THAT is invisible to it — which is why the DELETION, not this
+    // sweep, is the real enforcement. One member of the family is knowingly
+    // outside both: `comparison.rs::workspace_header_beat`, whose consumer is
+    // called ~45 times a frame and so cannot afford a plan; it is pinned equal
+    // to the planned box by `overlay_header_band_law.rs`'s
+    // `the_workspace_beat_still_agrees_with_the_planned_query_box` instead.
+    "+ geom.header_gap",
+    "geom.header_gap +",
 ];
 
 /// The OTHER shape of the same mistake: stepping off the plan's own band origin by

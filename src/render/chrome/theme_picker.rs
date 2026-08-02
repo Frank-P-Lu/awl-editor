@@ -138,8 +138,11 @@ impl TextPipeline {
         if !geom.theme || px < geom.card_x || px > geom.card_x + geom.card_w {
             return None;
         }
-        let (strip_top, strip_lh) = self.overlay_strip_band(&geom);
-        if py < strip_top || py >= strip_top + strip_lh {
+        // The strip's clickable band is its PLANNED line box — the same object
+        // the mark centre and the strip's own glyph metrics read. A pointer entry
+        // point has no frame to ride, so it plans freshly, still O(visible).
+        let strip = self.overlay_row_plan(&geom).strip_band()?;
+        if !strip.contains(py) {
             return None;
         }
         let want = px - geom.text_left;
@@ -176,6 +179,7 @@ impl TextPipeline {
     pub(super) fn overlay_shape_theme(
         &mut self,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         ink: glyphon::Color,
         muted: glyphon::Color,
         selected_ink: Option<glyphon::Color>,
@@ -210,6 +214,7 @@ impl TextPipeline {
         };
         self.shape_theme_spans(
             geom,
+            plan,
             ink,
             active_ink,
             muted,
@@ -227,6 +232,7 @@ impl TextPipeline {
             let scale = (geom.text_w / strip_w).max(0.5);
             self.shape_theme_spans(
                 geom,
+                plan,
                 ink,
                 active_ink,
                 muted,
@@ -287,8 +293,9 @@ impl TextPipeline {
         let facet_style = crate::render::effective_facet_style();
         const CHIP_HPAD: f32 = 6.0;
         const CHIP_VPAD: f32 = 2.0;
-        let (strip_top, strip_lh) = self.overlay_strip_band(geom);
-        let mark_cy = strip_top + strip_lh * 0.5;
+        let mark_cy = plan
+            .strip_band()
+            .map_or(geom.text_top, |strip| strip.center());
         let strip_text_lh = self.metrics.line_height * crate::render::effective_overlay_scale();
         let chip_h = (strip_text_lh - 2.0 * CHIP_VPAD).max(1.0);
         let pill_px = |left: f32, right: f32| -> [f32; 4] {
@@ -382,6 +389,7 @@ impl TextPipeline {
     fn shape_theme_spans(
         &mut self,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         ink: glyphon::Color,
         active_ink: glyphon::Color,
         muted: glyphon::Color,
@@ -460,24 +468,15 @@ impl TextPipeline {
                 pushes.push((r.clone(), faint));
             }
             pushes.sort_by_key(|(r, _)| r.start);
-            // The strip row's HEIGHT is inflated by `header_gap` (PALETTE-COMPOSITION
-            // round) so the calm divider space falls after the lens strip, before the
-            // section-grouped rows — uniform with the flat pickers' query-line gap.
-            // The plan-line offsets, selected band, and underline all fold the same
-            // gap in through `overlay_row_top`, so nothing below the strip drifts.
-            //
-            // The gap MUST ride the strip line's REAL LABEL glyphs, NOT its leading
-            // "\n": cosmic-text sizes a line from the glyphs ON it, and the "\n" is a
-            // BREAK that terminates the PRIOR (query) line — its own metrics never
-            // grow the strip line, so inflating only the "\n" moved the selected BAND
-            // (which reads `header_gap` off `overlay_row_top`) down a half-row while
-            // the TEXT stayed put. That half-row band/text drift was invisible under
-            // a gentle value band but clipped the top of the selected row's own
-            // glyphs once a 1-bit world drew them as solid black on a white band
-            // (the Wagtail selected-row bug's second half). `strip_lh` on the labels
-            // makes text and band agree; the "\n" keeps the row's scale-invariant
-            // baseline size.
-            let strip_lh = self.overlay_strip_band(geom).1;
+            // The strip's own PLANNED box height, which carries the query beat so
+            // the calm divider falls after the lens strip and before the grouped
+            // rows. The inflation MUST ride the strip line's REAL LABEL glyphs,
+            // never its leading "\n": cosmic-text sizes a line from the glyphs ON
+            // it, and that "\n" is a BREAK terminating the PRIOR (query) line, so
+            // inflating it alone moves the planned band a half-row below the text
+            // — invisible under a gentle value band, but it clipped the selected
+            // row's glyphs once a 1-bit world drew them black on white.
+            let strip_lh = plan.strip_band().map_or(lh, |strip| strip.height);
             spans.push((
                 &strip_s[0..1],
                 mk(faint).metrics(GlyphMetrics::new(m.font_size * ui, lh)),

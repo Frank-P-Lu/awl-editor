@@ -96,7 +96,7 @@ impl TextPipeline {
     }
 
     /// The overlay row LINE HEIGHT — the single-owner metric the card height, the
-    /// row-Y ([`overlay_row_top`]), the hit-test ([`overlay_row_of`]), and the
+    /// row-Y, the hit-test, and the
     /// selected-row band all read, so a click always lands on the row it highlights.
     pub(in crate::render) fn overlay_lh(&self) -> f32 {
         self.metrics.line_height * crate::render::effective_overlay_scale()
@@ -191,7 +191,7 @@ impl TextPipeline {
     /// leading newline (the f2cb656 tripwire): the shaper inflates the last
     /// header line's REAL glyph metrics by exactly this, and the band, primary
     /// name, secondary chord, hit-test, and caret all fold it in through the ONE
-    /// y-owner family ([`overlay_row_top`] / [`overlay_secondary_top`]) — so text
+    /// y-owner, the scene planner — so text
     /// and band move together, never a half-row split. Both geometry owners read
     /// this; the contextual spell popup passes `0.0` (no header to divide from).
     /// LIVE-ONLY taste: whether the widened beat reads right needs a human eye.
@@ -216,21 +216,6 @@ impl TextPipeline {
     ) -> f32 {
         total_rows as f32 * self.overlay_lh() + header_gap + 2.0 * pad
             - self.overlay_footer_reclaim(hint_rows)
-    }
-
-    /// THE ONE STRIP-BAND OWNER — the faceted theme picker's lens STRIP sits on
-    /// display line 1, whose height is inflated to `lh + header_gap` by the query
-    /// BEAT (cosmic-text half-leads the labels into that taller box, so they center
-    /// below a plain `lh` band). Returns `(strip_top, strip_lh)`: the strip's top
-    /// edge (`text_top + lh`) and its inflated line height. The lens hit-test
-    /// ([`TextPipeline::overlay_lens_at`]), the active-facet pill center, and the
-    /// strip-label glyph metrics all read THIS — so the clickable band, the pill,
-    /// and the shaped glyphs can never disagree about where the strip sits (the
-    /// misaligned-chip / half-row band-vs-text drift class). Flat pickers have no
-    /// strip; this is meaningful only when `geom.theme`.
-    pub(in crate::render) fn overlay_strip_band(&self, geom: &OverlayGeom) -> (f32, f32) {
-        let lh = self.overlay_lh();
-        (geom.text_top + lh, lh + geom.header_gap)
     }
 
     pub(in crate::render) fn overlay_right_labels(&self) -> &[String] {
@@ -281,7 +266,7 @@ impl TextPipeline {
         let header_rows = usize::from(!contextual); // contextual rows need no query field
         // PALETTE-COMPOSITION round: a calm gap after the query header, before the
         // candidate list (negative space as the divider). Grows the card by exactly
-        // this and offsets the candidate band/hit-test through `overlay_row_top`.
+        // this and offsets the candidate band/hit-test through the planned rows.
         let header_gap = if contextual {
             0.0
         } else {
@@ -606,7 +591,7 @@ impl TextPipeline {
     /// row's `(item index, rail)` pair, resolved through `rowlayout::rail_geom`
     /// against the SAME shaped-glyph measurements the value column draws from
     /// (`overlay_row_secondary_px` / `overlay_row_primary_px`) and the SAME row-y
-    /// owner (`overlay_row_top`) the highlight band uses.
+    /// owner (the row plan) the highlight band uses.
     ///
     /// EMPTY unless the card genuinely carries rails AND the secondary column was
     /// granted (`overlay_right_shown` — a rail beside a yielded value column would
@@ -724,25 +709,30 @@ impl TextPipeline {
 
     /// Hit-test a pointer at PHYSICAL `(px, py)` against the SUMMONED overlay's
     /// editable QUERY-INPUT line — the `› query` filter field every flat/nav/theme
-    /// picker draws on top (`header_rows == 1`). Returns `true` when the pointer
-    /// sits on that one row, within the card's x-bounds. The contextual SPELL
-    /// panel has NO query line (`header_rows == 0`), so it always returns `false`.
-    /// Reads the SAME [`Self::overlay_geometry`] the query line renders from (its
-    /// row is `text_top .. text_top + line_height`, the row just above the
-    /// candidate window), so this can never disagree with where the field draws.
-    /// Used by `input.rs::sync_cursor_icon` to give the field the I-beam.
+    /// picker draws on top. Returns `true` when the pointer sits inside the
+    /// field's own PLANNED line box, within the card's x-bounds. The contextual
+    /// SPELL panel has NO query line (`header_rows == 0`), so the plan carries no
+    /// query band and this always returns `false`. Used by
+    /// `input.rs::sync_cursor_icon` to give the field the I-beam.
+    ///
+    /// **THE DRIFT THIS CLOSES.** Reading the bare row pitch here — `text_top ..
+    /// text_top + lh` — describes the wrong box on the FLAT family, whose field
+    /// is `lh + header_gap` tall (the beat is the BOTTOM of the field's own box,
+    /// not a row after it) with its ink half-led LOW inside it. On the shipping
+    /// default at 1200x800 the field draws `[64.0, 133.2]`, caret at 98.6 and
+    /// baseline at 106.0, against a pointer band ending at 91.2: the I-beam sat
+    /// in empty air above the text, missing by 7.4px at 1x and 14.8px at 2x. The
+    /// GROUPED family was right by accident (its beat inflates the lens strip
+    /// instead), which is how a parallel calculation survives review — it agrees
+    /// on the arm somebody looked at.
     pub fn over_overlay_query(&self, px: f32, py: f32) -> bool {
         if !self.overlay_active {
             return false;
         }
         let geom = self.overlay_geometry(self.window_w as u32);
-        if geom.header_rows == 0 {
+        let Some(field) = self.overlay_row_plan(&geom).query_band() else {
             return false;
-        }
-        let lh = self.overlay_lh();
-        px >= geom.card_x
-            && px <= geom.card_x + geom.card_w
-            && py >= geom.text_top
-            && py < geom.text_top + lh
+        };
+        px >= geom.card_x && px <= geom.card_x + geom.card_w && field.contains(py)
     }
 }

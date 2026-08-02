@@ -63,6 +63,7 @@ mod one_bit;
 mod oracle;
 mod outline;
 mod overlay_align_law;
+mod overlay_header_band_law;
 mod overlay_height_clamp_law;
 mod overlay_hover_stability_law;
 mod overlay_personality;

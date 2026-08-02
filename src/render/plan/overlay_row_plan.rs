@@ -34,27 +34,6 @@ impl OverlayRowPlan {
         self.selected_display
     }
 
-    /// Invert a planned row slot without re-deriving its y arithmetic.
-    pub(in crate::render) fn display_at(&self, py: f32) -> Option<usize> {
-        (self.lh > 0.0).then(|| {
-            self.rows
-                .iter()
-                .position(|r| py >= r.top && py < r.bottom())
-        })?
-    }
-
-    /// A travelling band belongs to the planned row nearest its visual centre.
-    pub(in crate::render) fn display_nearest(&self, py: f32) -> Option<usize> {
-        self.rows
-            .iter()
-            .min_by(|a, b| {
-                let da = (a.top + a.height * 0.5 - py).abs();
-                let db = (b.top + b.height * 0.5 - py).abs();
-                da.total_cmp(&db)
-            })
-            .map(|row| row.display)
-    }
-
     pub(in crate::render) fn row_dx(&self, display: usize) -> f32 {
         self.rows.get(display).map_or(0.0, |r| r.dx)
     }

@@ -14,8 +14,6 @@
 //! positions, not arithmetic, so a law can point at ink that genuinely exists.
 
 use super::super::TextPipeline;
-use super::super::chrome::overlay_query_center;
-use super::super::chrome::overlay_secondary_top;
 
 pub(in crate::render) struct OverlayYProbe {
     pub lh: f32,
@@ -28,6 +26,7 @@ pub(in crate::render) struct OverlayYProbe {
     pub primary: std::collections::BTreeMap<usize, f32>,
     pub secondary: std::collections::BTreeMap<usize, f32>,
     pub strip_baseline: Option<f32>,
+    pub strip_line_top: Option<f32>,
     pub strip_line_bottom: Option<f32>,
     pub strip_underline_y: Option<f32>,
 }
@@ -52,7 +51,7 @@ impl TextPipeline {
                 primary.insert(li - header_rows, geom.text_top + run.line_top);
             }
         }
-        let sec_top = overlay_secondary_top(geom.text_top, geom.header_gap);
+        let sec_top = plan.secondary_top();
         let mut secondary = BTreeMap::new();
         for run in self.panel_bind_buffer.layout_runs() {
             let li = run.line_i;
@@ -63,15 +62,19 @@ impl TextPipeline {
         let sel_disp = plan.selected_display().unwrap_or(0);
         let band_top = plan.row_top(sel_disp).unwrap_or(plan.first_top());
         let mut strip_baseline = None;
+        let mut strip_line_top = None;
         let mut strip_line_bottom = None;
         for run in self.panel_buffer.layout_runs() {
             if run.line_i == 1 {
                 strip_baseline = Some(geom.text_top + run.line_y);
+                strip_line_top = Some(geom.text_top + run.line_top);
                 strip_line_bottom = Some(geom.text_top + run.line_top + run.line_height);
                 break;
             }
         }
         let strip_underline_y = self.overlay_theme_underline.map(|q| q[1]);
+        // DRAWN, not planned: the query line's real shaped box, so a law can
+        // compare it against the plan the caret and the hit-test read.
         let query_run = self.panel_buffer.layout_runs().next();
         let query_line_height = query_run
             .as_ref()
@@ -89,13 +92,16 @@ impl TextPipeline {
             lh,
             band_top,
             sel_disp,
-            caret_center: overlay_query_center(geom.text_top, query_line_height),
+            caret_center: plan
+                .query_band()
+                .map_or(geom.text_top, |field| field.center()),
             query_line_top,
             query_line_height,
             query_baseline,
             primary,
             secondary,
             strip_baseline,
+            strip_line_top,
             strip_line_bottom,
             strip_underline_y,
         }

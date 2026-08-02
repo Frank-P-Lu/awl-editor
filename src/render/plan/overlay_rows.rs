@@ -8,6 +8,8 @@
 //! window (an explicit [`PlanLine`] sequence whose section headers push the item
 //! rows down) — so "which display line is item 3" has exactly one answer.
 
+use super::PlannedHeader;
+
 /// One DISPLAY line in an overlay card's candidate area: a faint uppercase
 /// section header, or a candidate row carrying its index into `overlay_items`.
 ///
@@ -134,8 +136,11 @@ pub(in crate::render) struct RowSpan {
 pub(in crate::render) struct OverlayRowPlan {
     pub(super) card_x: f32,
     pub(super) card_w: f32,
+    pub(super) text_top: f32,
+    pub(super) header_gap: f32,
     pub(super) first_top: f32,
     pub(super) lh: f32,
+    pub(super) headers: Vec<PlannedHeader>,
     pub(super) rows: Vec<PlannedRow>,
     pub(super) empty_rows: usize,
     pub(super) selected_display: Option<usize>,
@@ -254,6 +259,38 @@ pub(in crate::render) fn test_row_top(
     plan.row_top(row).expect("row is inside the planned window")
 }
 
+/// TEST-ONLY: a REAL plan built from loose header metrics, for a law whose
+/// subject is the HEADER band rather than a rendered card — the shape the
+/// `overlay_split_bounds` / `overlay_secondary_top` unit laws used to carry as
+/// free functions taking the same scalars. Two candidate rows, so the band the
+/// header sits above genuinely exists.
+#[cfg(test)]
+pub(in crate::render) fn test_header_plan(
+    text_top: f32,
+    header_rows: usize,
+    header_gap: f32,
+    lh: f32,
+) -> OverlayRowPlan {
+    plan_overlay_rows(&OverlayRowPlanInput {
+        card_x: 0.0,
+        card_w: 0.0,
+        text_top,
+        lh,
+        header_gap,
+        header_rows,
+        visible: 2,
+        top_idx: 0,
+        n_items: 2,
+        selected: 0,
+        empty_rows: 0,
+        lines: None,
+        dx_per_row: 0.0,
+        cluster_span: None,
+        selected_offset: None,
+        selected_display: None,
+    })
+}
+
 /// TEST-ONLY: `n` planned rows of pitch `lh` seated at `text_top` with no header,
 /// built by the REAL planner — for a law whose subject is a row band rather than a
 /// card (the living band's own coverage sweep).
@@ -291,6 +328,7 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
         0,
         input.lh,
     );
+    let headers = super::overlay_header::plan_header_band(input);
     // A row's horizontal extent is planned exactly like its vertical one, off
     // the same display index, so a composition that staggers rows cannot end up
     // with the draw and the hit-test reading two different arithmetics.
@@ -390,8 +428,11 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
     OverlayRowPlan {
         card_x: input.card_x,
         card_w: input.card_w,
+        text_top: input.text_top,
+        header_gap: input.header_gap,
         first_top,
         lh: input.lh,
+        headers,
         rows,
         empty_rows: input.empty_rows,
         selected_display,

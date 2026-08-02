@@ -368,7 +368,7 @@ impl TextPipeline {
             i.and_then(|i| right_labels.get(i))
                 .map_or("", |s| s.as_str())
         };
-        let bind_strs = right_bind_lines(geom.header_rows, items.iter().map(chord));
+        let bind_strs = right_bind_lines(plan.header_rows(), items.iter().map(chord));
 
         // ONE shared row budget, split by the rowlayout primitive: the card's text
         // width in mean glyph widths against the widest right-column label. `Split`/
@@ -397,7 +397,7 @@ impl TextPipeline {
         if has_right && super::bars_inline_shortcut() {
             let (rows, trailing) =
                 inline_shortcut_rows(&row_labels, &items, right_labels, total_chars, elide);
-            self.shape_overlay_names(geom, ink, muted, selected_ink, vis, &rows, &trailing);
+            self.shape_overlay_names(geom, plan, ink, muted, selected_ink, vis, &rows, &trailing);
             return false;
         }
         let widest_right = if has_right {
@@ -428,7 +428,7 @@ impl TextPipeline {
                 None => label.clone(),
             })
             .collect();
-        self.shape_overlay_names(geom, ink, muted, selected_ink, vis, &rows, &[]);
+        self.shape_overlay_names(geom, plan, ink, muted, selected_ink, vis, &rows, &[]);
         if !has_right {
             return false;
         }
@@ -449,7 +449,7 @@ impl TextPipeline {
             .iter()
             .map(|label| rowlayout::fit_primary(label, full))
             .collect();
-        self.shape_overlay_names(geom, ink, muted, selected_ink, vis, &rows, &[]);
+        self.shape_overlay_names(geom, plan, ink, muted, selected_ink, vis, &rows, &[]);
         false
     }
 
@@ -523,7 +523,7 @@ impl TextPipeline {
         };
         let bind_strs: Vec<String> = if has_right && !hug_inline {
             right_bind_lines(
-                geom.header_rows,
+                plan.header_rows(),
                 geom.plan.iter().map(|line| match line {
                     PlanLine::Item(i) => right_labels.get(*i).map(|s| s.as_str()).unwrap_or(""),
                     PlanLine::Header(_) => "",
@@ -534,6 +534,7 @@ impl TextPipeline {
         };
         self.overlay_shape_theme(
             &shaped_geom,
+            plan,
             ink,
             muted,
             selected_ink,
@@ -551,6 +552,7 @@ impl TextPipeline {
                 shaped_geom.text_w *= budget / measured;
                 self.overlay_shape_theme(
                     &shaped_geom,
+                    plan,
                     ink,
                     muted,
                     selected_ink,
@@ -632,6 +634,7 @@ impl TextPipeline {
     fn shape_overlay_names(
         &mut self,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         ink: glyphon::Color,
         muted: glyphon::Color,
         selected_ink: Option<glyphon::Color>,
@@ -647,7 +650,11 @@ impl TextPipeline {
         let title_prefix = self.overlay_title_prefix(geom);
         let sigil = "› ";
         let name_fs = self.overlay_metrics().font_size;
-        let header_lh = self.overlay_lh() + geom.header_gap;
+        // The query field's own PLANNED box height, read rather than re-summed:
+        // the DRAWN box and the planned one are then the same object.
+        let header_lh = plan
+            .query_band()
+            .map_or_else(|| self.overlay_lh(), |field| field.height);
         let hk = |c| {
             if geom.header_gap > 0.0 {
                 mk(c).metrics(GlyphMetrics::new(name_fs, header_lh))
