@@ -371,20 +371,19 @@ impl FrameRuntime {
             || !self.presentation.theme_switches.is_empty()
     }
 
-    pub(in crate::app) fn caret_edit_streaks(&self) -> bool {
-        self.presentation.caret_edit_streaks
-    }
-
     pub(in crate::app) fn set_caret_edit_streaks(&mut self, value: bool) {
         self.presentation.caret_edit_streaks = value;
     }
 
-    pub(in crate::app) fn caret_held(&self) -> bool {
-        self.presentation.caret_held
-    }
-
     pub(in crate::app) fn set_caret_held(&mut self, value: bool) {
         self.presentation.caret_held = value;
+    }
+
+    pub(in crate::app) fn take_caret_motion_flags(&mut self) -> (bool, bool) {
+        (
+            std::mem::take(&mut self.presentation.caret_edit_streaks),
+            std::mem::take(&mut self.presentation.caret_held),
+        )
     }
 
     pub(in crate::app) fn set_caret_impact(&mut self, impact: Option<CaretImpact>) {

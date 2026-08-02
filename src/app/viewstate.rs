@@ -11,13 +11,8 @@ impl App {
         debug_assert!(height.is_finite());
         let (cursor_line, cursor_col) = self.document.buffer().cursor_line_col();
         self.sync_spell_cache();
-        // SAVE-FEEDBACK round: the window-title EDITED marker + the native
-        // macOS titlebar dot, kept live WITHOUT re-titling every keystroke —
-        // `sync_view` already runs on nearly every edit/cursor-move (gated on
-        // the gpu-present check above, the cheapest honest hook), so compare
-        // against `persistence`'s title cache and only call `update_title` (a
-        // string format + a `set_title`/`set_document_edited` OS call) on an
-        // ACTUAL clean↔dirty flip.
+        // Update the title marker and native edited dot only on a clean↔dirty
+        // transition; sync_view already observes every live edit.
         if self.persistence.title_cache_stale(self.is_document_dirty()) {
             self.update_title();
         }
@@ -85,15 +80,11 @@ impl App {
         let follow = follow && preview.is_none();
 
         let version = self.document.buffer().version();
-        let streak_override = self.frame.caret_edit_streaks();
-        self.frame.set_caret_edit_streaks(false);
+        let (streak_override, held) = self.frame.take_caret_motion_flags();
         let is_edit_move = self.document.caret_was_synced_at(version) && !streak_override;
         // Was the keypress driving this sync an OS auto-repeat (a HELD arrow)?
         // One-shot, like `caret_edit_streaks`: consumed here so a following
         // non-keyboard sync (IME/wheel) doesn't inherit a stale held flag.
-        let held = self.frame.caret_held();
-        self.frame.set_caret_held(false);
-
         let popover = if self.workspace_state.popover_holds_attention()
             && crate::popover::popover_on()
             && self.document.buffer().has_selection()

@@ -206,7 +206,6 @@ impl App {
         let line = self
             .frame
             .gpu()
-            .as_ref()
             .and_then(|g| g.pipeline.outline_hit_line(px, py, g.config.height));
         if let Some(line) = line {
             self.jump_to_line(self.outline_row_target_line(line));
@@ -333,24 +332,13 @@ impl App {
     ///     the document cursor beneath the card).
     ///     Always consumes the click while an overlay is open.
     ///
-    /// ITEM 85 — THE ONE EXPLICIT ACTIVATION RULE: only `WindowEvent::MouseButton`
-    /// `ElementState::Pressed` reaches this door (see `on_mouse_input`'s match arms
-    /// below — `Released` never re-enters it), and it hit-tests `self.input.pointer.cursor_px` at
-    /// that SAME instant. So "the row a click activates" is, unconditionally, THE
-    /// ROW UNDER THE PRESS — never a release position, and never re-derived from
-    /// whatever `overlay_hover` last computed (a hover between an earlier motion and
-    /// this press only ever moved `selected` to a row the pointer was ACTUALLY over
-    /// at the time; this fresh hit-test can only agree with or refine that, never
-    /// contradict a stationary pointer). A picker offers no drag-to-a-different-row
-    /// gesture, so a press/release pair over a world-jump-relaid-out card can never
-    /// activate two different rows depending on which edge you read — there is only
-    /// the one edge this fires on.
+    /// Activate the overlay row under the press-time pointer position. Release
+    /// position and cached hover state never choose the row.
     pub(in crate::app) fn overlay_click(&mut self, exit: &dyn schedule::Exit) {
         let (px, py) = self.input.pointer.cursor_px;
         let (row_hit, lens_hit, rail_hit, card) = self
             .frame
             .gpu()
-            .as_ref()
             .map(|g| {
                 (
                     g.pipeline.overlay_row_at(px, py),
@@ -361,12 +349,7 @@ impl App {
             })
             .unwrap_or((None, None, None, None));
 
-        // ITEM 114 — A CLICK IN THE WORKSPACE'S NAVIGATION RAIL means exactly what
-        // `↵` on that rail entry means: show me this category, and put me in it.
-        // Both halves go through their owners — the picker's own lens setter, and
-        // the lifecycle's focus transition — so the pointer and the keyboard reach
-        // one state, never two that agree by coincidence. Resolved before the row
-        // hit-test, though they cannot overlap: the row band stops at the pane.
+        // Rail clicks use the same lens and focus transitions as keyboard entry.
         if let Some(rail_idx) = rail_hit {
             if let Some(ov) = self.workspace_state.overlay_mut() {
                 ov.set_facet_lens(rail_idx);
@@ -854,7 +837,6 @@ impl App {
                     let hit = self
                         .frame
                         .gpu()
-                        .as_ref()
                         .and_then(|g| g.pipeline.popover_hit(px, py));
                     if let Some(button) = hit {
                         let _ = self.apply(button.action(), false, exit, crate::stats::Door::Chord);
@@ -865,7 +847,6 @@ impl App {
                     if self
                         .frame
                         .gpu()
-                        .as_ref()
                         .is_some_and(|g| g.pipeline.over_popover(px, py))
                     {
                         return;
@@ -989,7 +970,6 @@ impl App {
                     && !self
                         .frame
                         .gpu()
-                        .as_ref()
                         .and_then(|g| g.pipeline.overlay_card_rect())
                         .map(|[x, y, w, h]| {
                             let (px, py) = self.input.pointer.cursor_px;

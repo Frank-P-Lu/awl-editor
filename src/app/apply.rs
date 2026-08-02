@@ -63,11 +63,8 @@ impl App {
         };
         if needs_theme_reshape {
             let now = self.frame.now();
-            // ITEM 202 — LEADING EDGE vs BURST CONTINUATION: an isolated step
-            // (nothing reshaped recently) pays its reshape right here, matching
-            // item 37b's own measured ~39ms single-step settle untouched; a step
-            // inside a rapid run coalesces into the trailing debounce instead, so
-            // the run pays one settle reshape, not one per step.
+            // An isolated step reshapes immediately; a rapid run coalesces into
+            // one trailing reshape.
             match theme_font_reshape_decision(
                 self.frame.theme_font_at(),
                 self.frame.theme_font_last_reshape_at(),
@@ -132,14 +129,8 @@ impl App {
         self.update_title();
     }
 
-    /// THE ONE FONT-RESHAPE DOOR for a settled/direct theme change, shared by
-    /// [`Self::retint_theme_now`] and [`Self::apply_deferred_theme_font`]. `input_at`
-    /// = `Some` only when the DEBUG settle readout is armed (`debug_on()`): then the
-    /// reshape is TIMED (`sync_theme_font_timed`) and a real reshape arms the
-    /// once-per-switch readout keyed to that input; a no-op reshape arms nothing (never
-    /// clobbering the last reading). `None` (panel off / no pending input) takes the
-    /// byte-identical plain `sync_theme_font` — the ONLY variant the headless path ever
-    /// reaches, so a capture reads no clock here.
+    /// Apply one theme-font reshape. Debug mode records the measured phases;
+    /// the ordinary and headless paths stay clock-free.
     fn sync_theme_font_maybe_timed(&mut self, input_at: Option<Instant>) {
         let Some(gpu) = self.frame.gpu_mut() else {
             return;

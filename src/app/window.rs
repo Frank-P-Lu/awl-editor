@@ -452,7 +452,6 @@ impl App {
         let fault = self
             .frame
             .gpu()
-            .as_ref()
             .and_then(|g| g.take_faults().into_iter().next());
         if let Some(fault) = fault {
             #[cfg(not(target_arch = "wasm32"))]

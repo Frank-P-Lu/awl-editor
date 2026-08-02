@@ -77,7 +77,6 @@ impl App {
         let Some((item, frac)) = self
             .frame
             .gpu()
-            .as_ref()
             .and_then(|g| g.pipeline.overlay_range_at(px, py))
         else {
             return false;
@@ -102,7 +101,6 @@ impl App {
         let Some((x0, x1)) = self
             .frame
             .gpu()
-            .as_ref()
             .and_then(|g| g.pipeline.overlay_range_scale(item))
         else {
             return false;
@@ -319,7 +317,6 @@ impl App {
         let hit = self
             .frame
             .gpu()
-            .as_ref()
             .and_then(|g| g.pipeline.image_handle_at(px, py));
         let Some((range, handle, rect)) = hit else {
             return false;

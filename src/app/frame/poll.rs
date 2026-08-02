@@ -55,6 +55,13 @@ impl<'a> NoticeSnapshot<'a> {
     }
 }
 
+fn propose(out: &mut PollOutcome, deadline: Instant) {
+    out.next_deadline = Some(
+        out.next_deadline
+            .map_or(deadline, |current| current.min(deadline)),
+    );
+}
+
 impl FrameRuntime {
     /// Poll the coupled frame lifecycle at one injected-clock instant.
     /// Mutable input, document, and configuration owners stay outside this
@@ -67,10 +74,20 @@ impl FrameRuntime {
         config: location::SchedulingSnapshot,
     ) -> PollOutcome {
         let mut out = PollOutcome::default();
-        fn propose(slot: &mut Option<Instant>, deadline: Instant) {
-            *slot = Some(slot.map_or(deadline, |current| current.min(deadline)));
-        }
+        self.poll_debounces(now, input, &mut out);
+        self.poll_settles(now, &mut out);
+        self.poll_ambient(now, config, &mut out);
+        self.poll_lifetimes(now, &mut out);
+        Self::poll_owner_deadlines(now, input, document, &mut out);
+        out
+    }
 
+    fn poll_debounces(
+        &mut self,
+        now: Instant,
+        input: input::SchedulingSnapshot,
+        out: &mut PollOutcome,
+    ) {
         if let Some(dirty) = self.presentation.theme_font_at {
             let deadline = dirty + theme_font_debounce();
             if now >= deadline {
@@ -78,7 +95,7 @@ impl FrameRuntime {
                 out.reshape = true;
                 out.redraw = true;
             } else {
-                propose(&mut out.next_deadline, deadline);
+                propose(out, deadline);
             }
         }
         if let Some(dirty) = self.deadlines.zoom_persist_at
@@ -90,10 +107,12 @@ impl FrameRuntime {
                 out.persist_zoom = true;
                 out.redraw = true;
             } else {
-                propose(&mut out.next_deadline, deadline);
+                propose(out, deadline);
             }
         }
+    }
 
+    fn poll_settles(&mut self, now: Instant, out: &mut PollOutcome) {
         if let Some(dirty) = self.deadlines.resize_settle_at {
             let deadline = dirty + RESIZE_SYNC_SETTLE;
             if now >= deadline {
@@ -104,7 +123,7 @@ impl FrameRuntime {
                 }
                 out.redraw = true;
             } else {
-                propose(&mut out.next_deadline, deadline);
+                propose(out, deadline);
             }
         }
         if let Some(dirty) = self.deadlines.move_settle_at {
@@ -114,7 +133,7 @@ impl FrameRuntime {
                 self.deadlines.lava_tick_at = None;
                 out.redraw = true;
             } else {
-                propose(&mut out.next_deadline, deadline);
+                propose(out, deadline);
             }
         }
         if let Some(dirty) = self.deadlines.crossing_settle_at {
@@ -124,10 +143,17 @@ impl FrameRuntime {
                 self.deadlines.crossing_teardown_pending = true;
                 out.redraw = true;
             } else {
-                propose(&mut out.next_deadline, deadline);
+                propose(out, deadline);
             }
         }
+    }
 
+    fn poll_ambient(
+        &mut self,
+        now: Instant,
+        config: location::SchedulingSnapshot,
+        out: &mut PollOutcome,
+    ) {
         let lava_active = crate::theme::active().has_ambient_tick();
         let lava_paused = crate::lava::lava_paused(
             self.deadlines.resize_settle_at.is_some(),
@@ -154,7 +180,7 @@ impl FrameRuntime {
                 }
                 _ => {
                     let last = *self.deadlines.lava_tick_at.get_or_insert(now);
-                    propose(&mut out.next_deadline, last + LAVA_TICK);
+                    propose(out, last + LAVA_TICK);
                 }
             }
         } else if lava_active {
@@ -165,7 +191,9 @@ impl FrameRuntime {
                 gpu.pipeline.freeze_lava();
             }
         }
+    }
 
+    fn poll_lifetimes(&mut self, now: Instant, out: &mut PollOutcome) {
         if self.notice.kind == NoticeKind::Toast
             && self
                 .notice
@@ -176,7 +204,7 @@ impl FrameRuntime {
             out.expire_notice = true;
             out.redraw = true;
         } else if let Some(deadline) = self.notice.expires_at {
-            propose(&mut out.next_deadline, deadline);
+            propose(out, deadline);
         }
         if let Some(deadline) = self.surface.retry_at() {
             if now >= deadline {
@@ -184,29 +212,35 @@ impl FrameRuntime {
                 out.retry = true;
                 out.redraw = true;
             } else {
-                propose(&mut out.next_deadline, deadline);
+                propose(out, deadline);
             }
         }
+    }
 
+    fn poll_owner_deadlines(
+        now: Instant,
+        input: input::SchedulingSnapshot,
+        document: document::SchedulingSnapshot,
+        out: &mut PollOutcome,
+    ) {
         if let Some(pending) = input.prefix_pending_at
             && !input.whichkey_shown
             && now < pending + crate::whichkey::PAUSE
         {
-            propose(&mut out.next_deadline, pending + crate::whichkey::PAUSE);
+            propose(out, pending + crate::whichkey::PAUSE);
         }
         if let Some(armed) = input.peek_armed_at {
             let deadline = armed + Duration::from_millis(crate::peek::HOLD_PEEK_MS);
             if now < deadline {
-                propose(&mut out.next_deadline, deadline);
+                propose(out, deadline);
             }
         }
         if let Some(dirty) = document.autosave_at {
             let deadline = dirty + AUTOSAVE_IDLE;
             if now < deadline {
-                propose(&mut out.next_deadline, deadline);
+                propose(out, deadline);
             }
         }
-        out
     }
 
     pub(in crate::app) fn set_sticky_notice(&mut self, text: String) {

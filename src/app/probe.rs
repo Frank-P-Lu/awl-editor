@@ -89,7 +89,6 @@ impl App {
         let (sw, sh) = self
             .frame
             .gpu()
-            .as_ref()
             .map(|g| (g.config.width, g.config.height))
             .unwrap_or((0, 0));
         #[cfg(target_os = "macos")]

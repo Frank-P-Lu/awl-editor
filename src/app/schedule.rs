@@ -32,7 +32,6 @@ impl App {
                 self.frame.settles().move_at.is_some(),
                 self.frame
                     .gpu()
-                    .as_ref()
                     .is_some_and(|gpu| gpu.pipeline.lava_blur_active()),
             ),
         );
