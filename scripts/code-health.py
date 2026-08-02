@@ -590,11 +590,17 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
         # Flat memory and zero swap describe a deadlock and a livelock equally
         # well. CPU is the discriminator, and the load average alone is only
         # half of it: it says the box is busy, never which process is busy.
-        'load1=%s cpu_count=%s':
+        #
+        # Both halves are pinned to the HEARTBEAT's own format string and its
+        # own argument list, not to the bare field names. The first draft
+        # required `load1=%s cpu_count=%s` and was vacuous: the abort report
+        # carries those fields too, so the heartbeat's copy could be deleted
+        # outright — or commented out whole — with the audit still green.
+        'native-gate-vitals elapsed_seconds=%s free_bytes=%s swap_used_bytes=%s load1=%s cpu_count=%s %s':
             "native-gate-audit: the heartbeat must report the system load beside the core count that makes it readable",
         'ps -A -o pid=,pgid=,time=,comm=':
             "native-gate-audit: the heartbeat must sample cumulative per-process CPU time, which means the same thing on macOS and Linux; ps pcpu does not",
-        '"$(gate_cpu_report)"':
+        '"$(gate_load1)" "$gate_cpus" "$(gate_cpu_report)"':
             "native-gate-audit: the heartbeat must carry per-tracked-process CPU, not only the machine's load average",
         'ps -A -o pid=,ppid=,pgid=,etime=,time=,rss=,stat=,comm=':
             "native-gate-audit: the abort's process dump must carry CPU time beside elapsed time, or it cannot say whether the hung process was spinning",
@@ -1137,7 +1143,7 @@ printf 'native-gate-env cpus=%s\\n' "$gate_cpus"
 ps -A -o pid=,pgid=,time=,comm=
 ps -A -o pid=,ppid=,pgid=,etime=,time=,rss=,stat=,comm=
 gate_cpu_sample >"$gate_cpu_prev"
-printf 'native-gate-vitals load1=%s cpu_count=%s %s\\n' "$(gate_load1)" "$gate_cpus" "$(gate_cpu_report)"
+printf 'native-gate-vitals elapsed_seconds=%s free_bytes=%s swap_used_bytes=%s load1=%s cpu_count=%s %s mac_last=[%s]\\n' "$elapsed" "$(gate_free_bytes)" "$(gate_swap_bytes)" "$(gate_load1)" "$gate_cpus" "$(gate_cpu_report)"
 gate_budget_seconds=$(( AWL_NATIVE_GATE_DEADLINE_EPOCH - gate_started_epoch ))
 printf 'native-gate-phase label=%s event=%s elapsed_seconds=%s %s\\n' "$1" "$2" "$(gate_elapsed)" "${3:-}"
 "$@" 2>&1 | gate_stamp_phases "$label"
@@ -1237,13 +1243,14 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
         # reads the raw text is satisfied by the comment, and that is how this
         # auditor was green over a disabled bound once already.
         "no load average": (
-            script.replace("""printf 'native-gate-vitals load1=%s cpu_count=%s %s\\n' "$(gate_load1)" "$gate_cpus" "$(gate_cpu_report)"\n""", ""),
-            ci,
+            script.replace("load1=%s cpu_count=%s %s ", ""), ci,
             "must report the system load beside the core count"),
-        "load average demoted to a comment": (
+        # The whole heartbeat commented out. Requiring the bare field names was
+        # green here, because the abort report names them too.
+        "heartbeat demoted to a comment": (
             script.replace(
-                """printf 'native-gate-vitals load1=%s cpu_count=%s""",
-                """# printf 'native-gate-vitals load1=%s cpu_count=%s"""),
+                "printf 'native-gate-vitals elapsed_seconds=",
+                "# printf 'native-gate-vitals elapsed_seconds="),
             ci,
             "must report the system load beside the core count"),
         # `ps -o pcpu` is a lifetime average on Linux and a decayed one on
@@ -1259,12 +1266,14 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
         # difference between "the runner is oversubscribed" and "attach a
         # debugger to this pid".
         "load average without per-process attribution": (
-            script.replace(""" "$(gate_cpu_report)"\n""", "\n"), ci,
+            script.replace(' "$(gate_cpu_report)"', ""), ci,
             "must carry per-tracked-process CPU"),
-        "per-process CPU report demoted to a comment": (
+        # The same comment-out, checked for the OTHER requirement the line
+        # carries: a comment must not stand in for either half.
+        "per-process CPU demoted to a comment": (
             script.replace(
-                """printf 'native-gate-vitals load1=%s cpu_count=%s %s\\n'""",
-                """# printf 'native-gate-vitals load1=%s cpu_count=%s %s\\n'"""),
+                "printf 'native-gate-vitals elapsed_seconds=",
+                "# printf 'native-gate-vitals elapsed_seconds="),
             ci,
             "must carry per-tracked-process CPU"),
         "CPU baseline taken after the first heartbeat": (

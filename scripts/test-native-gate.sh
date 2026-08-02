@@ -432,7 +432,7 @@ vitals_peak() {
         value = substr($i, length(key) + 1) + 0
         if (value > peak) peak = value
       }
-    } END { printf "%.1f\n", peak }' "$probe_output"
+    } END { printf "%g\n", peak }' "$probe_output"
 }
 
 # The system load average is the heartbeat's headline and it is the field most
