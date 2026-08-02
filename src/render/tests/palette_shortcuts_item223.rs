@@ -190,14 +190,14 @@ fn every_world_draws_its_palette_key_chords_on_the_owning_row() {
         resized.join("\n  ")
     );
     assert!(
-        silent.is_empty(),
-        "these worlds' command palettes draw NO key chord for a row that has one:\n  {}",
-        silent.join("\n  ")
-    );
-    assert!(
         misplaced.is_empty(),
         "these worlds draw a row's chord outside that row's own band:\n  {}",
         misplaced.join("\n  ")
+    );
+    assert!(
+        silent.is_empty(),
+        "these worlds' command palettes draw NO key chord for a row that has one:\n  {}",
+        silent.join("\n  ")
     );
 }
 
