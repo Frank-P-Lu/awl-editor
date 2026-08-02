@@ -193,7 +193,7 @@ lines = 946
 
 [[file_size_mark]]
 file = "src/main/args.rs"
-lines = 1226
+lines = 1225
 reason = "item 207, DOWN 211: the `Mode` enum moved out to `src/main/args/modes.rs` beside the existing `args/parsers.rs`. A new capture door adds a variant, so the roster grows on every such item while the parser itself does not; splitting them means `args.rs` is now the parser alone. `modes.rs` also owns `LiveAppSpec`, the one payload both live-`App` doors (`--screenshot-app`, `--semantic-json`) carry instead of two copies of the same five fields."
 
 [[file_size_mark]]
@@ -519,7 +519,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/main/args.rs"
 line = 22
-message = "this function has too many lines (767/100)"
+message = "this function has too many lines (764/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 121 added one minimal --ground-audition arm (+13 lines). Item 188 added one CLI flag arm, one Mode variant selection arm and its `live_app` flag to the one parser (+20), and MERGED the two hermetic-fs installs into one unconditional call (-1, after routing its one branch through the new `scenario::seed_document` owner) — the net is the smallest a new capture mode can cost in a single-owner arg parser."
 
 [[clippy_exception]]

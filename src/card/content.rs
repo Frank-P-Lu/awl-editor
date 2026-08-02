@@ -32,6 +32,8 @@ enum_with_all! {
     }
 }
 
+/// Read only by the semantic fold, which is native-only.
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 impl CardKind {
     /// The stable semantic id prefix for this card's nodes.
     pub fn id(self) -> &'static str {
@@ -137,6 +139,7 @@ impl CardContent {
 
     /// The card's lines as an assistive technology should hear them: the text
     /// alone, in reading order, with no layout characters.
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub fn lines(&self) -> Vec<&str> {
         self.spans.iter().map(|span| span.text.as_str()).collect()
     }

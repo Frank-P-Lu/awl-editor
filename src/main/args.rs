@@ -35,7 +35,6 @@ pub(crate) fn parse_args() -> Result<Mode> {
     // native-only, and the only door that photographs live-`App`-only state.
     #[cfg(not(target_arch = "wasm32"))]
     let mut live_app = false;
-    let mut semantic_json = false;
     #[cfg(not(target_arch = "wasm32"))]
     let mut frame_step_ms: Option<u64> = None;
     // Every capture-mode flag seen, in order. More than one is a conflict (each
@@ -204,10 +203,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 capture_modes.push("--screenshot-app");
             }
             #[cfg(not(target_arch = "wasm32"))]
-            "--semantic-json" => {
-                semantic_json = true;
-                capture_modes.push("--semantic-json");
-            }
+            "--semantic-json" => capture_modes.push("--semantic-json"),
             #[cfg(not(target_arch = "wasm32"))]
             "--screenshot-frames" => {
                 // `--screenshot-frames N OUT.png`: the frame COUNT then the output path
@@ -686,6 +682,9 @@ pub(crate) fn parse_args() -> Result<Mode> {
     //     normal launch flags (file/--theme/--config/--root/…) and with nothing
     //     headless (the whole point is the real window; a capture mode would
     //     silently swallow the script).
+    // Derived, not tracked: `capture_modes` already records every capture flag
+    // in order, and on wasm the arm that pushes this one does not exist.
+    let semantic_json = capture_modes.contains(&"--semantic-json");
     if live_script.is_some() && (out.is_some() || storyboard_arg.is_some() || semantic_json) {
         bail!("--live-script drives the real windowed app; it does not compose with capture modes");
     }
