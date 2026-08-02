@@ -143,20 +143,28 @@ impl TextPipeline {
     ///
     /// `Some([x, y, w, h])` — the workspace CONTENT pane, when this frame's
     /// summoned workspace puts its own rows in the PRIMARY column
-    /// (`WorkspaceShape::rows_are_primary`, item 116a's single fact) and that
-    /// content region is on screen. `None` on every other frame, including every
-    /// frame any `OverlayKind` can reach today: `workspace_shape` returns
-    /// `Some(RailOverRows)` for Settings alone, whose rows live in the pane, and
-    /// `None` for History until item 116d. So this is a structural relocation
-    /// with **zero pixel change** — proven, not asserted, by the world × surface
-    /// fingerprint matrix this item landed with.
+    /// (`WorkspaceShape::rows_are_primary`, item 116a's single fact), that content
+    /// region is on screen, and there is READ-ONLY COMPARISON PROSE to put in it
+    /// (`overlay_comparison`). `None` on every other frame — including every frame
+    /// of Settings, whose rows live in the pane.
+    ///
+    /// ITEM 116d: the payload gate is not belt-and-braces. The timeline shape can
+    /// be up with nothing to compare (an empty history; a query that filters every
+    /// version away), and on those frames the pushed text is the user's OWN
+    /// document. Relocating it into the comparison's place would put the live
+    /// document up as a third readable layer inside the workspace — the exact
+    /// composition item 116 exists to remove.
     ///
     /// [`Self::column_left`], [`Self::column_width`], `doc_top` and
     /// `doc_clip_band` are the four readers; everything downstream of them —
     /// caret, selection, washes, wrap width, hit-test, the content clip — follows
     /// without knowing this exists.
     pub(in crate::render) fn comparison_viewport(&self) -> Option<[f32; 4]> {
-        if !self.overlay_active || !self.overlay_rows_primary || !self.overlay_is_workspace() {
+        if !self.overlay_active
+            || !self.overlay_rows_primary
+            || !self.overlay_comparison
+            || !self.overlay_is_workspace()
+        {
             return None;
         }
         let r = self.workspace_regions(self.window_w as u32);

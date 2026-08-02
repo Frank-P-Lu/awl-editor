@@ -309,14 +309,13 @@ pub(super) fn settled_viewstate(
         vstate.popover =
             crate::actions::popover::plan(&buffer.text(), Some(a), c, buffer.is_markdown());
     }
-    // CRISP-BACKDROP exception: the THEME / CARET / HISTORY pickers keep the doc
-    // crisp (no frosted blur) — the theme/caret cards preview live document state,
-    // and the history timeline previews the highlighted VERSION in the document
-    // itself; every other full overlay gets the blur backdrop.
+    // CRISP-BACKDROP exception: the THEME / CARET pickers keep the doc crisp (no
+    // frosted blur) — their cards preview live document state. ITEM 116d dropped
+    // HISTORY, whose comparison no longer IS the document behind the card.
     vstate.overlay_crisp = opts
         .overlay
         .as_ref()
-        .map(|o| o.mode == "theme" || o.mode == "caret" || o.mode == "history")
+        .map(|o| o.mode == "theme" || o.mode == "caret")
         .unwrap_or(false);
     vstate.overlay_query = opts
         .overlay
@@ -452,6 +451,25 @@ pub(super) fn settled_viewstate(
     // workspace has two regions whether or not anything is previewed beneath it,
     // and the focus stage is what says which of them is live.
     vstate.overlay_workspace = opts.overlay.as_ref().map(|o| o.workspace).unwrap_or(false);
+    // ITEM 116d — and WHICH SHAPE it is presented as. Derived from the kind's own
+    // owner (`OverlayKind::workspace_shape`) rather than carried as a second
+    // sidecar field, because it is not independent state: the sidecar already
+    // names the mode, and a capture that re-declared the shape could disagree with
+    // the live App about a kind's composition. `sync_view` makes exactly this
+    // projection; without it a replayed workspace would draw the OTHER shape —
+    // the timeline's lens back in a rail it does not have, its rows in the
+    // comparison's pane, and its document not relocated at all.
+    vstate.overlay_rows_primary = opts
+        .overlay
+        .as_ref()
+        .filter(|o| o.workspace)
+        .and_then(|o| crate::overlay::OverlayKind::from_mode(&o.mode))
+        .and_then(|k| k.workspace_shape())
+        .is_some_and(crate::overlay::workspace::WorkspaceShape::rows_are_primary);
+    // …and whether that comparison region has prose in it — the capture's own
+    // `preview_text`, which the fold resolved through the SAME typed
+    // `ComparisonRequest` the live App does (`main/run/capture_fold.rs`).
+    vstate.overlay_comparison = opts.preview_text.is_some();
     vstate.overlay_detail_focus = opts
         .overlay
         .as_ref()

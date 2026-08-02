@@ -2258,6 +2258,11 @@ pub struct TextPipeline {
     /// workspace, does the primary column carry rows rather than labels?
     /// `false` for Settings; `true` for the History timeline (item 116d).
     overlay_rows_primary: bool,
+    /// Mirror of [`ViewState::overlay_comparison`] (item 116d) — is the content
+    /// region carrying read-only comparison prose this frame? The second half of
+    /// the relocation gate: the shape says there IS a comparison region, this says
+    /// there is something in it.
+    overlay_comparison: bool,
     /// The workspace PRIMARY column's MEASURED width (device px) — a rail of
     /// category labels, or a timeline of versions — measured at `set_view` with a
     /// `&mut FontSystem` in hand: the item-51 `overlay_content_w` pattern, for the

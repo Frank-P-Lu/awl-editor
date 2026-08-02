@@ -474,6 +474,7 @@ impl TextPipeline {
         self.overlay_lens = view.overlay_lens.clone();
         self.overlay_workspace = view.overlay_workspace;
         self.overlay_rows_primary = view.overlay_rows_primary;
+        self.overlay_comparison = view.overlay_comparison;
         self.overlay_sections = view.overlay_sections.clone();
         self.overlay_spell = view.overlay_spell;
         self.overlay_context_anchor = view.overlay_context_anchor;

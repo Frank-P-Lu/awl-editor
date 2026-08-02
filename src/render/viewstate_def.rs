@@ -79,9 +79,22 @@ pub struct ViewState {
     /// category labels? The one fact `render::chrome::workspace_geometry`
     /// reduces to for which region is which; owned by
     /// [`crate::overlay::workspace::WorkspaceShape::rows_are_primary`].
-    /// `false` off a workspace and for `RailOverRows` (Settings, today) — the
-    /// only value any kind currently produces.
+    /// `false` off a workspace and for `RailOverRows` (Settings); `true` for the
+    /// History timeline (item 116d).
     pub overlay_rows_primary: bool,
+    /// ITEM 116d — is the workspace's CONTENT region carrying read-only
+    /// COMPARISON PROSE this frame? `true` exactly when the pushed `text` is a
+    /// comparison transcript rather than the user's own document
+    /// (`App::comparison_transcript` resolved a
+    /// [`crate::overlay::ComparisonRequest`]).
+    ///
+    /// Distinct from [`Self::overlay_rows_primary`], which says the SHAPE has a
+    /// comparison region, and necessary because the shape can be up with nothing
+    /// to show — an empty history, or a query that filters every version away.
+    /// Relocating the document layer there on such a frame would put the user's
+    /// LIVE document in the comparison's place: a third readable layer, which is
+    /// the exact composition queue item 116 exists to remove.
+    pub overlay_comparison: bool,
     pub overlay_sections: Vec<String>,
     pub caret_preview: Option<CaretMode>,
     pub gutter_name: String,
@@ -185,6 +198,7 @@ impl ViewState {
             overlay_lens: Vec::new(),
             overlay_workspace: false,
             overlay_rows_primary: false,
+            overlay_comparison: false,
             overlay_sections: Vec::new(),
             caret_preview: None,
             gutter_name: String::new(),

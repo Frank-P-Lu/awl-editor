@@ -311,11 +311,22 @@ impl TextPipeline {
                     self.overlay_footer_content_px(geom, content_rows),
                 )
             });
+            // ITEM 116d — THE PLATE BACKS THE FOOTER, not "everything below it".
+            // Running it to the card's bottom edge is right for a card that HUGS
+            // its content (the plate closes the card, and the two are the same
+            // line); a WORKSPACE's card comes from the canvas instead, so on a
+            // short list the same rule paints a plate as tall as whatever space
+            // the rows did not use. Bounding it to the footer's own band is a
+            // no-op wherever the card already ends there, which is every
+            // contextual family.
+            let band_bottom = plan.footer_top()
+                + (geom.hint_rows + geom.footer_rows) as f32 * self.overlay_lh()
+                + super::workspace::WORKSPACE_PAD;
             rects.push(footer_plate_rect(
                 plan.footer_top(),
                 geom.band_x(),
                 geom.band_w(),
-                geom.card_y + geom.card_h,
+                (geom.card_y + geom.card_h).min(band_bottom),
                 footer_hug,
             ));
         }

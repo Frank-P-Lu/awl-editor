@@ -247,13 +247,28 @@ impl TextPipeline {
         if !rows_primary {
             return widest + 2.0 * hpad;
         }
+        // THE FOOTER IS PART OF THE COLUMN'S CONTENT, so it is part of the
+        // measurement. On the rail shape the footer rides the wide pane beside the
+        // rail, so its width is never the rail's problem; on the timeline shape it
+        // rides the timeline itself, and a column measured from the rows alone
+        // clips the very line that teaches the keys — the exact failure the last
+        // slice's vision smoke caught on a footer running off a card. It is shaped
+        // at the UI face here and scaled by `LABEL`, which is the size the footer
+        // really draws at (`push_overlay_hint_spans`).
+        let hint = match self.overlay_hint.is_empty() {
+            true => 0.0,
+            false => {
+                self.measure_workspace_column_px(&self.overlay_hint.clone())
+                    * crate::markdown::type_scale::LABEL
+            }
+        };
         // A timeline is BOUNDED, never merely measured — and it keeps its floor
         // even when the corpus is empty ("no history yet"), so an empty timeline
         // is still a timeline beside a comparison rather than a collapsed column.
         let cw = self.overlay_char_width();
         let interior = (self.window_w - 2.0 * self.workspace_margin() - 2.0 * hpad).max(0.0);
         let floor = TIMELINE_MIN_CHARS * cw;
-        (widest + 2.0 * hpad).clamp(floor, (interior * TIMELINE_MAX_FRAC).max(floor))
+        (widest.max(hint) + 2.0 * hpad).clamp(floor, (interior * TIMELINE_MAX_FRAC).max(floor))
     }
 
     /// Shape `text` into the primary column's own buffer and report its widest

@@ -172,13 +172,19 @@ impl OverlayKind {
                 key("esc", "close"),
             ],
             // THE TIMELINE STAGE. `↑/↓` steps versions and the comparison follows
-            // immediately; `←/→` cycles the lens now visible in the header; `⇧↵`
-            // is item 116c's deliberate restore, the one key here that changes the
-            // document. `tab` (INTO the comparison) is taught by the comparison's
+            // immediately; `⇧↵` is item 116c's deliberate restore, the one key here
+            // that changes the document; `esc` leaves.
+            //
+            // THREE CELLS, and the omissions are deliberate rather than an
+            // oversight. This column is NARROW by design (a timeline beside a large
+            // comparison), and its footer rides the column — so every cell is paid
+            // for in width the comparison does not get. `←/→ lens` is dropped
+            // because the lens strip is drawn directly above with its active label
+            // marked, and `←/→` is the grammar every faceted picker already
+            // teaches; `tab` is dropped because it is taught on the COMPARISON's
             // own line, which is where you need to know how to come back from.
             OverlayKind::History => vec![
                 key(ARROWS_UD, "version"),
-                key(super::ARROWS_LR, "lens"),
                 key("\u{21E7}\u{21B5}", "restore"),
                 key("esc", "close"),
             ],
