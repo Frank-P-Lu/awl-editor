@@ -4,6 +4,80 @@
 > (`git log -p .orchestrator/queue.md`). Protocol, claiming, worktrees, and
 > execution hygiene live in `.orchestrator/README.md`.
 
+## ⚠️ RELEASE IS NOT SHIPPABLE TODAY — item 226's dry run, 2026-08-03
+
+**The release pipeline could not have built anything.** Landed at `3160e309`.
+Found BEFORE a tag was attempted, which is the whole point of the item.
+
+1. **The whole pipeline was dead.** `.cargo/config.toml` gained
+   `rustc-wrapper = "sccache"` on 2026-07-30 (`d76eaaaa`) — **after** the last
+   dry run on 2026-07-11. `ci.yml` installs sccache in all four jobs;
+   `release.yml` in **none**. Reproduced in a clean container: `could not
+   execute process sccache (never executed)`, exit 101, at `rustc -vV`. The
+   first tag ever pushed would have failed to compile, publicly.
+2. **`publish` could never publish.** The repo's default workflow permission is
+   `read` and the job declared none. **Only a tag exercises that path, so no dry
+   run could ever have found it** — it took reading the API.
+3. **`deploy-web.yml` has the identical hole.** Found by the new law, not by
+   looking. That law sweeps the axis a release-only check would have missed:
+   every workflow JOB running cargo or trunk must install the wrapper first,
+   across all workflow files — `ci.yml` was correct throughout, so a
+   release-scoped check would have gone green.
+4. **The tarball would have shipped with no `LICENSE`, silently.** Fonts
+   (OFL 1.1) and Hunspell dictionaries (LGPL-2.1) are `include_bytes!`d into the
+   binary; neither packaging path copied their audits while `RELEASING.md`
+   asserted all five docs rode the artifacts — `cp X 2>/dev/null || true`
+   swallowed it. No GPLv3 §6(d) source offer either. Now a **hard packaging
+   failure**, mutation-proved.
+5. **Portability, measured not estimated:** the binary requires `GLIBC_2.39`,
+   proved by running the produced tarball on `debian:12`. **Excludes Debian 12,
+   Ubuntu 22.04 LTS and RHEL 9.** Build base deliberately unchanged — a
+   support-matrix decision; `RELEASING.md` §5 has the four options.
+
+**Linux-only beta is structural now:** `mac` and `web` build on a dry run and
+are SKIPPED on a tag, so an unsigned `.app` cannot reach a Release.
+
+## 🔵 BLOCKED ON THE USER — nothing else can close these
+
+⚠️ **This section has now been silently deleted TWICE** — once by an
+orchestrator `git add -A` sweeping another tool's in-flight edit, once by the
+item-204 worker's own commit `1127673d` despite its brief forbidding board
+writes. **After every merge, verify this heading still exists.** If it is
+missing, `git log -S"BLOCKED ON THE USER" -- .orchestrator/queue.md` finds who
+took it.
+
+1. **118 — the world-loudness map and the `--release` ambient sitting.** The
+   Done clause requires a USER-CONFIRMED map; pixel arithmetic may prove
+   territory and contrast but never the taste score. An independent agent map
+   exists (`1, 10, 3, 4, 1`, mean 2.68) to diff against rather than re-derive.
+2. **207 — real VoiceOver and AT-SPI journeys.** Verified at the snapshot and
+   projection tier. Whether a screen reader *reads it well* — announcement
+   order, verbosity, live-region politeness — is unproven and no test tier
+   substitutes.
+3. **131c — the chrome pixel-space decision.** Overlay chrome mixes both
+   spaces: row pitch scales with DPI while `BAR_SIDE_INSET`, the text hpad and
+   `CARD_MAX_W` are raw device px. A diagonal pitch authored like its neighbours
+   would be **physical by inheritance**, which item 186 exists to stop; making
+   it logical makes it the first chrome quantity to declare its space, either
+   extending `ground_space` past `Background` or opening a sibling registry.
+   **Owed a human eye, not a line of code.** 131d/131e are behind it.
+4. **211 — three narrow arms.** Presence is ✅ confirmed on a real screen
+   (2026-08-03) and the defect was reproduced live and restored. Still owed, all
+   needing a human: whether the glide **reads as calm** (pacing deliberately
+   uncharacterised — the host ran at load 19→57 and the lane refused to offer
+   its 16.7 ms intervals as evidence); **1×**, no 1× display was available; and
+   **focus loss/regain and occlusion return**, which `--live-script`
+   structurally cannot test since it forces a Prohibited `AlwaysOnTop` window.
+5. **The tag itself, and the site deploy.** Both are the user's explicit word,
+   every time. See the release section above for what must be true first.
+
+⚠️ **Before any live sitting: `displaysleep` is 10 and screensaver `idleTime`
+is 300.** That is what silently invalidated the 2026-08-02 attempt seven minutes
+in. Hold the display with `caffeinate -d -i -t <seconds>` and re-check the lock
+at BOTH ends — `live-probe.sh` only checks in preflight, and `--live-script`
+writes successful-looking `LIVE-PROBE shot … ok` lines while presenting zero
+frames under a lock.
+
 ## Latest design decisions
 
 **Item 116d — 2026-08-02, THE COMPOSITING CALL, and 116d is now UNBLOCKED.**
