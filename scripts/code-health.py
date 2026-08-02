@@ -561,6 +561,13 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
     otherwise catch its own scope loss.
     """
     failures: list[str] = []
+    # Every shape check below reads the script with its comment lines removed.
+    # Substring matching against the raw text passes on a requirement that has
+    # merely been commented out — which is exactly how a bound gets disabled,
+    # and it left this auditor green over a disabled thread bound once.
+    script = "\n".join(
+        line for line in script.splitlines() if not line.lstrip().startswith("#")
+    )
     required_script_lines = {
         'canary_command=(cargo test --test native_gate_canary)':
             "native-gate-audit: missing named integration-only canary",
