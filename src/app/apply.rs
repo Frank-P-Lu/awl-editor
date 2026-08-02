@@ -489,7 +489,7 @@ impl App {
         // `commands::visible_hidden_mask` below — the ONE live fact behind the
         // "Finish file" row's visibility.
         #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
-        let has_waiter = crate::buffers::BufferKey::of(&self.document.buffer())
+        let has_waiter = crate::buffers::BufferKey::of(self.document.buffer())
             .is_some_and(|key| self.wait_conns.get(&key).is_some_and(|w| !w.is_empty()));
         #[cfg(any(target_arch = "wasm32", feature = "mas"))]
         let has_waiter = false;
@@ -781,7 +781,7 @@ impl App {
     pub(super) fn download_file(&self) {
         #[cfg(target_arch = "wasm32")]
         {
-            let filename = crate::web_export::filename_for(&self.document.buffer());
+            let filename = crate::web_export::filename_for(self.document.buffer());
             let text = self.document.buffer().text();
             crate::web_export::trigger_download(&filename, &text);
         }
@@ -815,7 +815,7 @@ impl App {
 
         #[cfg(target_arch = "wasm32")]
         {
-            let name = crate::web_export::export_name(&self.document.buffer(), format);
+            let name = crate::web_export::export_name(self.document.buffer(), format);
             crate::web_export::trigger_download_bytes(&name, format.mime(), &bytes);
             self.set_toast_notice(format!("downloaded {name}"));
         }

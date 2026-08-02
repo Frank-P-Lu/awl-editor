@@ -35,7 +35,7 @@ impl App {
                     gpu.window.request_redraw();
                 }
                 if let Some(w) = waiter {
-                    match crate::buffers::BufferKey::of(&self.document.buffer()) {
+                    match crate::buffers::BufferKey::of(self.document.buffer()) {
                         Some(key) => {
                             self.wait_conns.entry(key).or_default().push(w);
                         }
@@ -75,7 +75,7 @@ impl App {
     /// [`Self::finish_buffer`], while `self.document.buffer()` is still the finished one).
     #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
     fn notify_daemon_waiters(&mut self) {
-        let Some(key) = crate::buffers::BufferKey::of(&self.document.buffer()) else {
+        let Some(key) = crate::buffers::BufferKey::of(self.document.buffer()) else {
             return;
         };
         if let Some(waiters) = self.wait_conns.remove(&key) {

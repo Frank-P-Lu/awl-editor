@@ -31,7 +31,7 @@ fn recompute_spell_cache_reflects_the_current_text_immediately() {
     app.document
         .replace_buffer(Buffer::from_str("helo world\n"));
     app.recompute_spell_cache();
-    let visible = crate::spell::visible(&app.document.spell_cache(), &app.document.buffer().text());
+    let visible = crate::spell::visible(app.document.spell_cache(), &app.document.buffer().text());
     assert_eq!(visible.len(), 1, "helo starts out flagged: {visible:?}");
     assert_eq!((visible[0].start_col, visible[0].end_col), (0, 4));
 
@@ -46,8 +46,7 @@ fn recompute_spell_cache_reflects_the_current_text_immediately() {
     // again immediately — no leftover flagged span for the now-correct word,
     // and nothing else newly flagged either.
     app.recompute_spell_cache();
-    let visible2 =
-        crate::spell::visible(&app.document.spell_cache(), &app.document.buffer().text());
+    let visible2 = crate::spell::visible(app.document.spell_cache(), &app.document.buffer().text());
     assert!(
         visible2.is_empty(),
         "the corrected word must not still be flagged: {visible2:?}"
@@ -102,7 +101,7 @@ fn eager_rescan_fixes_only_the_edited_word_leaving_a_real_typo_flagged() {
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
     app.document.replace_buffer(Buffer::from_str("helo wrld\n"));
     app.recompute_spell_cache();
-    let v1 = crate::spell::visible(&app.document.spell_cache(), &app.document.buffer().text());
+    let v1 = crate::spell::visible(app.document.spell_cache(), &app.document.buffer().text());
     assert_eq!(v1.len(), 2, "both helo and wrld start out flagged: {v1:?}");
 
     // Fix only "helo" -> "hello".
@@ -112,7 +111,7 @@ fn eager_rescan_fixes_only_the_edited_word_leaving_a_real_typo_flagged() {
     assert_eq!(app.document.buffer().text(), "hello wrld\n");
     app.recompute_spell_cache();
 
-    let v2 = crate::spell::visible(&app.document.spell_cache(), &app.document.buffer().text());
+    let v2 = crate::spell::visible(app.document.spell_cache(), &app.document.buffer().text());
     assert_eq!(v2.len(), 1, "only wrld remains flagged: {v2:?}");
     let w2 = crate::spell::word_at(&app.document.buffer().text(), &v2[0]);
     assert_eq!(
@@ -122,7 +121,7 @@ fn eager_rescan_fixes_only_the_edited_word_leaving_a_real_typo_flagged() {
 
     // A second eager pass over UNCHANGED text is idempotent.
     app.recompute_spell_cache();
-    let v3 = crate::spell::visible(&app.document.spell_cache(), &app.document.buffer().text());
+    let v3 = crate::spell::visible(app.document.spell_cache(), &app.document.buffer().text());
     assert_eq!(
         v3, v2,
         "a repeat rescan of unchanged text must not move anything"
