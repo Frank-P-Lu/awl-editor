@@ -151,14 +151,21 @@ fn the_drawn_query_field_the_pointer_band_and_the_caret_are_one_planned_box() {
                     let (x0, x1) = plan.card_x_span();
                     let mid_x = (x0 + x1) * 0.5;
 
+                    // WHICH kinds have a field is asserted BEFORE the branch, not
+                    // inferred from it: a `let else` that only checks the kind on
+                    // the `None` arm cannot see a contextual popup that GREW one
+                    // (it would sail into the main arm, where every consumer reads
+                    // the same plan and so agrees with it perfectly).
+                    assert_eq!(
+                        plan.query_band().is_some(),
+                        fam != Family::Contextual,
+                        "{ctx}: exactly the takeover pickers draw a query line — a \
+                         contextual popup has no field to centre a caret in, hit-test, \
+                         or split a surface at"
+                    );
                     let Some(field) = plan.query_band() else {
                         // A contextual popup plans no field, so nothing may
                         // accept a pointer as one, anywhere down the card.
-                        assert_eq!(
-                            fam,
-                            Family::Contextual,
-                            "{ctx}: only the contextual popup may plan no query field"
-                        );
                         let card = geom.card_probe();
                         let mut y = card[1];
                         while y < card[1] + card[3] {
