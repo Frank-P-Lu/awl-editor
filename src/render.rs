@@ -34,7 +34,7 @@ pub use chrome::PanelHit;
 
 /// The `AWL_*_FORCE` dev-only render/theme override knobs, consolidated into
 /// ONE [`overrides::RenderOverrides`] struct. See that module's doc.
-mod overrides;
+pub(crate) mod overrides;
 #[cfg(test)]
 pub(crate) use overrides::{
     ForcedKnob, RenderOverrides, classify_forced_knob, parse_facet_style_force,

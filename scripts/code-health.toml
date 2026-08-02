@@ -345,7 +345,7 @@ reason = "The affordance is part of the drawn gutter block, so it joins that blo
 
 [[file_size_mark]]
 file = "src/render/livingband.rs"
-lines = 579
+lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"

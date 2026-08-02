@@ -9,8 +9,14 @@
 //! sites need no edits). One `#[cfg(test)]` `Mutex` remains as the test
 //! bypass — not zero — because these readers are called from ~200 sites with
 //! no shared owner object to thread a parameter through (see the commit
-//! message for the full tradeoff). It is NOT testlock-guarded — see
+//! message for the full tradeoff). Its READ side is NOT testlock-guarded — see
 //! [`TEST_OVERRIDE`]'s doc for why a uniform guard was tried and reverted.
+//!
+//! Its WRITE side is guarded twice over: [`assert_writer_serialized`] rejects a
+//! writer that does not hold `crate::testlock::serial()`, and the guard itself
+//! snapshots [`pins`] on entry and restores them on exit, so a forced knob
+//! cannot survive the window that forced it even when that window unwinds. See
+//! [`OverridePins`].
 //!
 //! The per-knob value parsers live in [`parsers`]; this file owns the
 //! consolidated struct, its env resolution, and the test-override plumbing.
@@ -132,8 +138,8 @@ fn env_overrides() -> &'static RenderOverrides {
 
 /// The one `#[cfg(test)]` bypass for every knob in [`RenderOverrides`].
 ///
-/// NOT testlock-guarded, matching nine of the ten predecessor statics this
-/// module replaced (only `LIST_STYLE_TEST_OVERRIDE` asserted
+/// Its READ side is not testlock-guarded, matching nine of the ten predecessor
+/// statics this module replaced (only the forced `list_style` asserted
 /// `crate::testlock::currently_held()`). Guarding [`current`] uniformly was
 /// tried and reverted: `card_anchor` alone is read incidentally by
 /// `OverlayState::open` from ~120 test call sites across `overlay::tests`,
@@ -204,6 +210,143 @@ fn assert_writer_serialized() {
         "a RenderOverrides test override was installed without holding \
          crate::testlock::serial()"
     );
+}
+
+// ---------------------------------------------------------------------------
+// THE SERIAL GUARD'S RESTORE SURFACE
+// ---------------------------------------------------------------------------
+
+/// The living-band choreography probe: an eleventh forced render knob, stored
+/// here beside the other ten rather than in `livingband` so that ONE snapshot
+/// covers every knob a test can force. Its value does not fit
+/// [`RenderOverrides`] — the parsed `AWL_LIVING_BAND` grammar is `livingband`'s
+/// own, distinct from `AWL_OVERLAY_MOTION_FORCE`'s — so it rides alongside.
+#[cfg(test)]
+static LIVING_BAND_OVERRIDE: std::sync::Mutex<Option<crate::render::livingband::MotionForce>> =
+    std::sync::Mutex::new(None);
+
+#[cfg(test)]
+pub(crate) fn living_band_test_override() -> Option<crate::render::livingband::MotionForce> {
+    *LIVING_BAND_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+}
+
+#[cfg(test)]
+pub(crate) fn set_living_band_test_override(m: Option<crate::render::livingband::MotionForce>) {
+    assert_writer_serialized();
+    *LIVING_BAND_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = m;
+}
+
+/// Everything a test can force about the render: the ten consolidated knobs
+/// plus the living-band probe above.
+///
+/// `crate::testlock::serial()` snapshots this on entry and restores it on exit,
+/// so a forced knob cannot outlive the window that forced it — *including when
+/// that window unwinds*, which is the case a reset at the end of a test body
+/// cannot cover. Without the restore, a fixture that forces a knob and then dies
+/// poisons whatever the harness schedules next, and the victim is a different
+/// test in a different file — visible only under a wide `--test-threads`.
+#[cfg(test)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct OverridePins {
+    knobs: RenderOverrides,
+    living_band: Option<crate::render::livingband::MotionForce>,
+}
+
+#[cfg(test)]
+impl OverridePins {
+    /// Nothing forced at all — what every test window is entitled to start
+    /// from, now that the guard restores.
+    pub(crate) fn none() -> OverridePins {
+        OverridePins {
+            knobs: RenderOverrides::default(),
+            living_band: None,
+        }
+    }
+}
+
+/// Read every forced knob, for the guard's entry snapshot.
+#[cfg(test)]
+pub(crate) fn pins() -> OverridePins {
+    OverridePins {
+        knobs: TEST_OVERRIDE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone(),
+        living_band: living_band_test_override(),
+    }
+}
+
+/// Put every forced knob back the way [`pins`] found it. Routed through the
+/// ordinary asserting writers — the guard still holds the lock when it runs
+/// this, so there is exactly one write door, not a private back one.
+#[cfg(test)]
+pub(crate) fn restore_pins(p: &OverridePins) {
+    set_test_override(p.knobs.clone());
+    set_living_band_test_override(p.living_band);
+}
+
+/// Name every knob whose value differs, `before -> after`. Both sides are
+/// destructured exhaustively, so a new [`RenderOverrides`] field must be listed
+/// here consciously and cannot dodge the sweep by defaulting to "unchanged".
+#[cfg(test)]
+pub(crate) fn leaked_knobs(before: &OverridePins, after: &OverridePins) -> Vec<String> {
+    let OverridePins {
+        knobs:
+            RenderOverrides {
+                title_style: b_title_style,
+                card_anchor: b_card_anchor,
+                chrome_face: b_chrome_face,
+                motion_juice: b_motion_juice,
+                slant: b_slant,
+                list_style: b_list_style,
+                facet_style: b_facet_style,
+                pane_split: b_pane_split,
+                density: b_density,
+                overlay_motion: b_overlay_motion,
+            },
+        living_band: b_living_band,
+    } = before;
+    let OverridePins {
+        knobs:
+            RenderOverrides {
+                title_style: a_title_style,
+                card_anchor: a_card_anchor,
+                chrome_face: a_chrome_face,
+                motion_juice: a_motion_juice,
+                slant: a_slant,
+                list_style: a_list_style,
+                facet_style: a_facet_style,
+                pane_split: a_pane_split,
+                density: a_density,
+                overlay_motion: a_overlay_motion,
+            },
+        living_band: a_living_band,
+    } = after;
+
+    let mut leaked = Vec::new();
+    macro_rules! knob {
+        ($name:literal, $b:ident, $a:ident) => {
+            if $b != $a {
+                leaked.push(format!("{}: {:?} -> {:?}", $name, $b, $a));
+            }
+        };
+    }
+    knob!("title_style", b_title_style, a_title_style);
+    knob!("card_anchor", b_card_anchor, a_card_anchor);
+    knob!("chrome_face", b_chrome_face, a_chrome_face);
+    knob!("motion_juice", b_motion_juice, a_motion_juice);
+    knob!("slant", b_slant, a_slant);
+    knob!("list_style", b_list_style, a_list_style);
+    knob!("facet_style", b_facet_style, a_facet_style);
+    knob!("pane_split", b_pane_split, a_pane_split);
+    knob!("density", b_density, a_density);
+    knob!("overlay_motion", b_overlay_motion, a_overlay_motion);
+    knob!("living_band", b_living_band, a_living_band);
+    leaked
 }
 
 // The ten legacy per-knob setters, kept so the ~200 existing test call sites
