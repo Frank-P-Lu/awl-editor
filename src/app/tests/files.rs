@@ -328,7 +328,10 @@ fn autosave_flush_writes_doc_and_snapshots_loose_file() {
         Some(app.document.buffer().version()),
         "the flushed version is bookkept"
     );
-    assert!(!app.frame.notice_active(), "a clean write raises no notice");
+    assert!(
+        !app.frame.notice().active(),
+        "a clean write raises no notice"
+    );
     assert!(
         app.persistence.engine_last_write_at().is_some(),
         "a real engine write stamps the debug panel's autosave clock"
@@ -336,7 +339,11 @@ fn autosave_flush_writes_doc_and_snapshots_loose_file() {
     // The debug panel's pure composer agrees: enabled + not held + a stamped
     // write => Saved (never Off/Held after a clean autosave).
     assert!(matches!(
-        crate::debug::autosave_state(app.config.autosave_on(), app.frame.notice_active(), Some(0)),
+        crate::debug::autosave_state(
+            app.config.autosave_on(),
+            app.frame.notice().active(),
+            Some(0)
+        ),
         crate::debug::AutosaveState::Saved(Some(0))
     ));
     // Every save records: the loose file grew a history snapshot.
@@ -373,7 +380,7 @@ fn autosave_flush_skips_and_notices_when_disk_changed_externally() {
         "autosave never overwrites external edits"
     );
     assert_eq!(
-        app.frame.notice_text(),
+        app.frame.notice().text(),
         Some(CLOBBER_NOTICE),
         "a calm notice is raised"
     );
@@ -383,7 +390,7 @@ fn autosave_flush_skips_and_notices_when_disk_changed_externally() {
     );
     // The debug panel's pure composer agrees: held wins over "nothing written yet".
     assert_eq!(
-        crate::debug::autosave_state(app.config.autosave_on(), app.frame.notice_active(), None),
+        crate::debug::autosave_state(app.config.autosave_on(), app.frame.notice().active(), None),
         crate::debug::AutosaveState::Held
     );
     // The version is marked handled so the idle timer doesn't spin; the NEXT
@@ -412,14 +419,14 @@ fn autosave_off_disables_flush() {
         "v1\n",
         "autosave = false leaves the disk untouched"
     );
-    assert!(!app.frame.notice_active());
+    assert!(!app.frame.notice().active());
     assert!(
         app.persistence.engine_last_write_at().is_none(),
         "a disabled engine never stamps the debug panel's autosave clock"
     );
     // The debug panel's pure composer agrees: disabled wins over everything.
     assert_eq!(
-        crate::debug::autosave_state(app.config.autosave_on(), app.frame.notice_active(), None),
+        crate::debug::autosave_state(app.config.autosave_on(), app.frame.notice().active(), None),
         crate::debug::AutosaveState::Off
     );
 }
@@ -642,7 +649,7 @@ fn load_path_preserves_a_clobber_notice_the_leaving_flush_just_raised() {
         "the clobber guard held A's write — the external edit is intact"
     );
     assert_eq!(
-        app.frame.notice_text(),
+        app.frame.notice().text(),
         Some(CLOBBER_NOTICE),
         "the notice raised while leaving A must survive into the switch, not vanish unseen"
     );
@@ -686,7 +693,7 @@ fn scratch_stash_and_restore_round_trip() {
     app2.autosave_flush();
     assert_eq!(mem.read_to_string(&stash).unwrap(), "brain dump\nmore\n");
     assert!(
-        !app2.frame.notice_active(),
+        !app2.frame.notice().active(),
         "no false clobber notice after a restore"
     );
 }
@@ -735,7 +742,7 @@ fn convert_scratch_and_save_promotes_the_buffer_and_retires_the_stash() {
         Some(p.as_path()),
         "Buffer::path is the new path"
     );
-    assert_eq!(app.frame.notice_text(), Some("saved"));
+    assert_eq!(app.frame.notice().text(), Some("saved"));
     // THE STASH IS RETIRED: a later bare relaunch must never resurrect a
     // ghost copy of content that is now a real, named file.
     assert!(
@@ -783,10 +790,11 @@ fn convert_scratch_and_save_unwritable_active_folder_raises_a_calm_notice_never_
 
     assert!(
         app.frame
-            .notice_text()
+            .notice()
+            .text()
             .is_some_and(|n| n.starts_with("save failed:")),
         "a calm failure notice, not a panic: {:?}",
-        app.frame.notice_owned()
+        app.frame.notice().owned()
     );
 }
 
@@ -819,7 +827,7 @@ fn rename_current_file_happy_path_renames_disk_buffer_and_history() {
     );
     assert_eq!(mem.read_to_string(&new).unwrap(), "hi\n", "content moved");
     assert!(mem.read_to_string(&old).is_err(), "the old path is gone");
-    assert_eq!(app.frame.notice_text(), Some("renamed to new.md"));
+    assert_eq!(app.frame.notice().text(), Some("renamed to new.md"));
     // THE ONE-OWNER LAW: the history log followed too.
     assert!(
         !crate::history::list(&new).is_empty(),
@@ -861,10 +869,11 @@ fn rename_current_file_refuses_to_clobber_an_existing_name() {
     );
     assert!(
         app.frame
-            .notice_text()
+            .notice()
+            .text()
             .is_some_and(|n| n.contains("already a file named")),
         "a calm refusal notice: {:?}",
-        app.frame.notice_owned()
+        app.frame.notice().owned()
     );
 }
 
@@ -892,10 +901,11 @@ fn rename_current_file_refuses_a_git_managed_file() {
     );
     assert!(
         app.frame
-            .notice_text()
+            .notice()
+            .text()
             .is_some_and(|n| n.contains("git already tracks")),
         "a calm git-managed refusal notice: {:?}",
-        app.frame.notice_owned()
+        app.frame.notice().owned()
     );
 }
 
@@ -913,7 +923,7 @@ fn rename_current_file_unchanged_or_blank_name_is_a_quiet_no_op() {
         Some(old.as_path()),
         "unchanged name: no-op"
     );
-    assert!(!app.frame.notice_active(), "no notice for a no-op");
+    assert!(!app.frame.notice().active(), "no notice for a no-op");
 
     app.rename_current_file("   ");
     assert_eq!(
@@ -921,7 +931,7 @@ fn rename_current_file_unchanged_or_blank_name_is_a_quiet_no_op() {
         Some(old.as_path()),
         "blank name: no-op"
     );
-    assert!(!app.frame.notice_active(), "no notice for a no-op");
+    assert!(!app.frame.notice().active(), "no notice for a no-op");
 }
 
 #[test]
@@ -999,7 +1009,7 @@ fn duplicate_current_file_on_a_pathless_buffer_is_a_quiet_no_op() {
         app.document.buffer().path().is_none(),
         "nothing to duplicate yet"
     );
-    assert!(!app.frame.notice_active());
+    assert!(!app.frame.notice().active());
 }
 
 #[test]
@@ -1015,15 +1025,15 @@ fn finish_manual_save_ok_is_silent_failure_notices_the_error() {
     let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
 
     app.finish_manual_save(true, "saved".to_string());
-    assert_eq!(app.frame.notice_text(), Some("saved"));
-    assert_eq!(app.frame.notice_kind(), NoticeKind::Toast);
+    assert_eq!(app.frame.notice().text(), Some("saved"));
+    assert_eq!(app.frame.notice().kind(), NoticeKind::Toast);
     assert!(
-        app.frame.notice_expires_at().is_none(),
+        app.frame.notice().expires_at().is_none(),
         "a headless test never arms a live timer"
     );
 
     app.finish_manual_save(false, "save failed: disk full".to_string());
-    assert_eq!(app.frame.notice_text(), Some("save failed: disk full"));
+    assert_eq!(app.frame.notice().text(), Some("save failed: disk full"));
 }
 
 #[test]
@@ -1310,7 +1320,10 @@ fn autosave_writes_git_files_but_never_snapshots_them() {
         "v2\n",
         "autosave still WRITES a git-managed file"
     );
-    assert!(!app.frame.notice_active(), "a clean write raises no notice");
+    assert!(
+        !app.frame.notice().active(),
+        "a clean write raises no notice"
+    );
     // The snapshot store never grew a log dir — the record gate held.
     let store = crate::fs::data_root().join("history");
     assert!(
@@ -1338,7 +1351,7 @@ fn scratch_stash_clobber_guard_holds_two_instance_writes() {
         "the stash write is held — external content survives"
     );
     assert_eq!(
-        app.frame.notice_text(),
+        app.frame.notice().text(),
         Some(CLOBBER_NOTICE),
         "the calm notice names the hold"
     );
@@ -1368,7 +1381,7 @@ fn emptied_scratch_clears_the_stale_stash() {
         "an emptied scratch clears the stale stash"
     );
     assert!(
-        !app.frame.notice_active(),
+        !app.frame.notice().active(),
         "our own restore is not an external edit"
     );
 }

@@ -28,8 +28,8 @@ impl App {
             crate::motion::reduced(),
             self.frame.focused(),
             crate::lava::lava_paused(
-                self.frame.resize_settle_at().is_some(),
-                self.frame.move_settle_at().is_some(),
+                self.frame.settles().resize_at.is_some(),
+                self.frame.settles().move_at.is_some(),
                 self.frame
                     .gpu()
                     .as_ref()

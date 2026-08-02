@@ -54,10 +54,6 @@ impl SurfaceState {
         self.gpu.as_mut()
     }
 
-    pub(super) fn has_gpu(&self) -> bool {
-        self.gpu.is_some()
-    }
-
     pub(super) fn install_gpu(&mut self, gpu: Gpu) {
         self.gpu = Some(gpu);
         self.present_sync.invalidate();

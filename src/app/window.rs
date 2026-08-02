@@ -18,10 +18,9 @@ impl App {
 
     fn handle_gpu_fault(&mut self, event_loop: &ActiveEventLoop, fault: gpu::GpuFault) {
         eprintln!("gpu {:?}: {}", fault.kind, fault.message);
-        match gpu_fault_action(self.frame.gpu_lifecycle(), fault.kind) {
+        match self.frame.gpu_fault_action(fault.kind) {
             GpuFaultAction::RetryOneFrame => {
-                self.frame
-                    .set_gpu_lifecycle(GpuLifecycle::Active { oom_skips: 1 });
+                self.frame.gpu_memory_pressure();
                 self.set_sticky_notice("graphics memory pressure — skipped one frame");
                 self.request_frame();
             }
@@ -48,10 +47,7 @@ impl App {
     ) -> Result<(Option<(f32, Instant)>, bool), ()> {
         match outcome {
             gpu::GpuFrameOutcome::Presented(perf) => {
-                self.frame
-                    .set_gpu_lifecycle(GpuLifecycle::Active { oom_skips: 0 });
-                self.frame.clear_gpu_retry();
-                self.frame.clear_gpu_timeout_streak();
+                self.frame.gpu_presented();
                 #[cfg(not(target_arch = "wasm32"))]
                 if let Some(soak) = self.soak.as_mut() {
                     soak.observe_frame(crate::soak_gpu::FrameOutcome::Presented, true);
@@ -79,24 +75,22 @@ impl App {
                     crate::probe::trace(format_args!(
                         "present SKIPPED {skip:?} (txn_on={} crossing={} teardown_pending={})",
                         self.frame.present_sync_on(),
-                        self.frame.crossing_settle_at().is_some(),
-                        self.frame.crossing_teardown_pending(),
+                        self.frame.settles().crossing_at.is_some(),
+                        self.frame.settles().crossing_teardown_pending,
                     ));
                 }
-                let action = gpu_skip_action(skip, self.frame.gpu_timeout_streak());
-                self.frame
-                    .record_gpu_timeout(skip == gpu::GpuFrameSkip::Timeout);
+                let action = self.frame.gpu_skipped(skip);
                 match action {
-                    GpuSkipAction::WaitForWake => self.frame.clear_gpu_retry(),
+                    GpuSkipAction::WaitForWake => self.frame.wait_for_gpu_wake(),
                     GpuSkipAction::RetryAfter(delay) => {
-                        self.frame.arm_gpu_retry(self.frame.now() + delay);
+                        self.frame.retry_gpu_after(self.frame.now(), delay);
                     }
                     GpuSkipAction::RetryWithNoticeAfter(delay, notice) => {
                         self.set_toast_notice(notice);
-                        self.frame.arm_gpu_retry(self.frame.now() + delay);
+                        self.frame.retry_gpu_after(self.frame.now(), delay);
                     }
                     GpuSkipAction::HoldWithNotice(notice) => {
-                        self.frame.clear_gpu_retry();
+                        self.frame.wait_for_gpu_wake();
                         self.set_sticky_notice(notice);
                     }
                 }
@@ -281,7 +275,8 @@ impl App {
     /// theme-font/zoom-persist debounces. See `resize_settle_at`'s own doc for
     /// the full mechanism + the user-reported symptom this closes.
     pub(super) fn arm_live_resize_sync(&mut self) {
-        self.frame.arm_resize_settle(self.frame.now());
+        self.frame
+            .arm_settle(frame::SettleKind::Resize, self.frame.now());
         self.sync_present_txn();
     }
 
@@ -306,7 +301,8 @@ impl App {
             if crate::probe::recording() {
                 crate::probe::trace(format_args!("on_moved (ambient world)"));
             }
-            self.frame.arm_move_settle(self.frame.now());
+            self.frame
+                .arm_settle(frame::SettleKind::Move, self.frame.now());
             self.frame.clear_lava_tick();
             self.sync_present_txn();
         }
@@ -337,8 +333,8 @@ impl App {
                 if want { "ON" } else { "OFF" },
                 resize_active,
                 move_active,
-                self.frame.crossing_settle_at().is_some(),
-                self.frame.crossing_teardown_pending(),
+                self.frame.settles().crossing_at.is_some(),
+                self.frame.settles().crossing_teardown_pending,
             ));
         }
         #[cfg(target_os = "macos")]
@@ -355,7 +351,7 @@ impl App {
     /// the settle fire exactly once — the `about_to_wait` arm is gated on the
     /// stamp being present.
     pub(super) fn finish_resize_settle(&mut self) {
-        self.frame.clear_resize_settle();
+        self.frame.clear_settle(frame::SettleKind::Resize);
         if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline
                 .settle_lava_field_viewport(gpu.config.width, gpu.config.height);
@@ -379,7 +375,7 @@ impl App {
         if crate::probe::recording() {
             crate::probe::trace(format_args!("finish_move_settle"));
         }
-        self.frame.clear_move_settle();
+        self.frame.clear_settle(frame::SettleKind::Move);
         self.frame.clear_lava_tick();
         self.sync_present_txn();
         self.request_frame();
@@ -475,7 +471,7 @@ impl App {
             Some(prev) => (now - prev).as_secs_f32(),
             None => 1.0 / 60.0,
         };
-        self.frame.next_redraw_count();
+        self.frame.begin_redraw();
         // DEBUG panel feed — the ONLY timing work, and all of it gated on
         // the panel being on (the pane never creates the work it measures;
         // the pane-off editor takes zero clock reads). The panel text is
@@ -485,26 +481,15 @@ impl App {
         // cost isn't knowable until it presents).
         let mut is_stamp = false;
         if crate::debug::debug_on() {
-            self.frame.set_debug_still(crate::debug::still_wake(
-                self.frame.debug_still(),
-                self.frame.input_stamp().is_some(),
-            ));
-            is_stamp = self.frame.debug_still() == crate::debug::DebugStill::StampQueued;
-            let cost = self
-                .frame
-                .frame_costs()
-                .last()
-                .zip(self.frame.frame_costs().worst());
-            let last_latency_ms = self.frame.last_latency_ms();
-            let redraw_count = self.frame.redraw_count();
+            let debug = self.frame.wake_debug_panel(now);
+            is_stamp = debug.stamp_queued;
             let engine_wrote = self.persistence.engine_last_write_at();
             let since_secs = engine_wrote.map(|t| (now - t).as_secs());
             let autosave = crate::debug::autosave_state(
                 self.config.autosave_on(),
-                self.frame.notice_active(),
+                self.frame.notice().active(),
                 since_secs,
             );
-            let theme_settle = self.frame.theme_switches_mut().report(now);
             if let Some(gpu) = self.frame.gpu_mut() {
                 let budget = crate::debug::budget_ms(
                     gpu.window
@@ -512,9 +497,9 @@ impl App {
                         .and_then(|m| m.refresh_rate_millihertz()),
                 );
                 gpu.pipeline.set_debug_perf(
-                    cost,
-                    last_latency_ms,
-                    Some(redraw_count),
+                    debug.cost,
+                    debug.last_latency_ms,
+                    Some(debug.redraw_count),
                     is_stamp,
                     Some(budget),
                 );
@@ -533,7 +518,7 @@ impl App {
                 // Transaction diagnostics age on the App clock, not on frame count.
                 // This redraw already happened for real work; checking here never
                 // arms a timer or turns the Debug panel into a hot loop.
-                gpu.pipeline.set_debug_theme_settle(theme_settle);
+                gpu.pipeline.set_debug_theme_settle(debug.theme_settle);
             }
         } else if self.clear_debug_session_if_populated() {
             // Clear GPU diagnostics only when a live pipeline exists.
@@ -579,13 +564,7 @@ impl App {
         // early-return redraw (`None`) keeps the input stamp alive so the
         // latency measures through to the retry frame that really presents.
         if let Some((cost_ms, done)) = presented {
-            if let Some(stamp) = self.frame.take_input_stamp() {
-                self.frame
-                    .set_last_latency_ms(Some((done - stamp).as_secs_f32() * 1000.0));
-            }
-            if !is_stamp {
-                self.frame.frame_costs_mut().push(cost_ms);
-            }
+            self.frame.record_present_cost(cost_ms, done, is_stamp);
         }
 
         // THEME-SWITCH SETTLE readout (DEBUG, live-only): the reshape was timed on an
@@ -620,17 +599,16 @@ impl App {
             // per-frame GPU measurement above.
             let settled_at = self.frame.now();
             let total_ms = (settled_at - settle.input_at).as_secs_f32() * 1000.0;
-            self.frame
-                .theme_switches_mut()
-                .insert(settled_at, total_ms, settle.phases);
-            let theme_settle = self.frame.theme_switches_mut().report(settled_at);
+            let theme_settle = self
+                .frame
+                .record_theme_switch(settled_at, total_ms, settle.phases);
             if let Some(gpu) = self.frame.gpu_mut() {
                 gpu.pipeline.set_debug_theme_settle(theme_settle);
                 self.request_frame();
             }
         }
 
-        if frame_presented && self.frame.crossing_teardown_pending() {
+        if frame_presented && self.frame.settles().crossing_teardown_pending {
             self.finish_crossing_teardown();
         }
 
@@ -660,10 +638,7 @@ impl App {
         // Control flow stays `Wait`; `request_redraw` alone delivers the
         // one frame. New input meanwhile simply wins (see `still_wake`).
         if crate::debug::debug_on() {
-            let (next, request_stamp) =
-                crate::debug::still_settle(self.frame.debug_still(), animating);
-            self.frame.set_debug_still(next);
-            if request_stamp {
+            if self.frame.settle_debug_panel(animating) {
                 self.request_frame();
             }
         }

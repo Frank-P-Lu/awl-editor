@@ -454,11 +454,10 @@ fn root_app_does_not_grow() {
     );
 }
 
-/// Input is an explicit owner handle. `Deref` would make `self.keymap` look
-/// like an App field again and silently restore the cross-domain reach this
-/// slice removed.
+/// Extracted owners are explicit handles. `Deref` would make their private
+/// state look like App fields again and restore the cross-domain reach.
 #[test]
-fn app_does_not_deref_to_an_input_runtime() {
+fn app_does_not_deref_across_extracted_runtime_boundaries() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/app");
     let mut source =
         std::fs::read_to_string(root.join("../app.rs")).expect("src/app.rs must be readable");
@@ -469,13 +468,61 @@ fn app_does_not_deref_to_an_input_runtime() {
     let deref_mut = ["De", "refMut for App"].concat();
     let input_deref = ["De", "ref for InputRuntime"].concat();
     let input_deref_mut = ["De", "refMut for InputRuntime"].concat();
+    let frame_deref = ["De", "ref for FrameRuntime"].concat();
+    let frame_deref_mut = ["De", "refMut for FrameRuntime"].concat();
     assert!(
         !source.contains(&deref)
             && !source.contains(&deref_mut)
             && !source.contains(&input_deref)
-            && !source.contains(&input_deref_mut),
-        "App/InputRuntime must not Deref/DerefMut across the input boundary; \
+            && !source.contains(&input_deref_mut)
+            && !source.contains(&frame_deref)
+            && !source.contains(&frame_deref_mut),
+        "App and its owner handles must not Deref/DerefMut across domain boundaries; \
          spell the owner explicitly"
+    );
+}
+
+fn visible_impl_method_count(source: &str, owner: &str) -> usize {
+    let marker = format!("impl {owner} {{");
+    let mut rest = source;
+    let mut count = 0;
+    while let Some(start) = rest.find(&marker) {
+        let body = &rest[start + marker.len()..];
+        let mut depth = 1usize;
+        let mut end = body.len();
+        for (index, byte) in body.bytes().enumerate() {
+            match byte {
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = index;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        count += body[..end].matches("pub(in crate::app) fn ").count();
+        rest = &body[end.saturating_add(1)..];
+    }
+    count
+}
+
+#[test]
+fn frame_runtime_api_does_not_regrow_into_a_field_bag() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/app/frame");
+    let mut count = 0;
+    for file in ["mod.rs", "poll.rs", "presentation.rs", "surface.rs"] {
+        let source = std::fs::read_to_string(root.join(file)).expect("frame source");
+        count += visible_impl_method_count(&source, "FrameRuntime");
+    }
+    const CEILING: usize = 80;
+    assert_eq!(
+        count, CEILING,
+        "FrameRuntime's visible API changed ({count} vs {CEILING}). A larger API \
+         recreates root App's field bag behind one-field accessors; add a named \
+         transition or typed read snapshot. When the API shrinks, lower this ratchet."
     );
 }
 

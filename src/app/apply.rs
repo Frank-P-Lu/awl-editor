@@ -105,7 +105,8 @@ impl App {
                 g[2],
             ));
         }
-        self.frame.arm_crossing_settle(self.frame.now());
+        self.frame
+            .arm_settle(frame::SettleKind::Crossing, self.frame.now());
         self.sync_present_txn();
         self.update_title();
     }

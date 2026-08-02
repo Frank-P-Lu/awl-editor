@@ -7,7 +7,11 @@
 
 use super::*;
 
+mod poll;
+mod presentation;
 mod surface;
+use poll::{Deadlines, NoticeState};
+use presentation::{DebugPanelSnapshot, PresentationState};
 use surface::SurfaceState;
 
 pub(in crate::app) struct FrameRuntime {
@@ -17,57 +21,25 @@ pub(in crate::app) struct FrameRuntime {
     notice: NoticeState,
 }
 
-/// Effects owed by one idle poll. This is a fixed set of frame-domain facts,
-/// not an extensible message queue; `App` remains the interpreter for writes
-/// and document reshaping.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(in crate::app) struct PollOutcome {
-    pub(in crate::app) redraw: bool,
-    pub(in crate::app) reshape: bool,
-    pub(in crate::app) persist_zoom: bool,
-    pub(in crate::app) expire_notice: bool,
-    pub(in crate::app) retry: bool,
-    pub(in crate::app) next_deadline: Option<Instant>,
+pub(in crate::app) enum GpuRebuildStart {
+    AlreadyRunning,
+    NoWindow,
+    Ready(Arc<Window>),
 }
 
-struct PresentationState {
-    last_frame: Option<Instant>,
-    frame_costs: crate::debug::CostRing,
-    theme_switches: crate::themeswitch::SwitchHistory,
-    input_stamp: Option<Instant>,
-    last_latency_ms: Option<f32>,
-    redraw_count: u64,
-    debug_still: crate::debug::DebugStill,
-    zoom: f32,
-    dpi: f32,
-    zoom_reflow: ZoomReflow,
-    zoom_anchor: Option<ZoomAnchor>,
-    theme_font_at: Option<Instant>,
-    theme_font_last_reshape_at: Option<Instant>,
-    theme_switch_at: Option<Instant>,
-    theme_settle: Option<ThemeSettleInFlight>,
-    caret_edit_streaks: bool,
-    caret_held: bool,
-    caret_impact: Option<CaretImpact>,
-    caret_recoil: Option<crate::caret::RecoilDir>,
+#[derive(Clone, Copy)]
+pub(in crate::app) enum SettleKind {
+    Resize,
+    Move,
+    Crossing,
 }
 
-struct Deadlines {
-    clock: Box<dyn crate::clock::Clock>,
-    lava_tick_at: Option<Instant>,
-    resize_settle_at: Option<Instant>,
-    move_settle_at: Option<Instant>,
-    crossing_settle_at: Option<Instant>,
-    crossing_teardown_pending: bool,
-    zoom_persist_at: Option<Instant>,
-    focused: bool,
-}
-
-#[derive(Default)]
-struct NoticeState {
-    text: Option<String>,
-    kind: NoticeKind,
-    expires_at: Option<Instant>,
+#[derive(Clone, Copy)]
+pub(in crate::app) struct SettleSnapshot {
+    pub(in crate::app) resize_at: Option<Instant>,
+    pub(in crate::app) move_at: Option<Instant>,
+    pub(in crate::app) crossing_at: Option<Instant>,
+    pub(in crate::app) crossing_teardown_pending: bool,
 }
 
 impl FrameRuntime {
@@ -117,54 +89,75 @@ impl FrameRuntime {
         self.surface.gpu_mut()
     }
 
-    pub(in crate::app) fn has_gpu(&self) -> bool {
-        self.surface.has_gpu()
-    }
-
-    pub(in crate::app) fn install_gpu(&mut self, gpu: Gpu) {
+    pub(in crate::app) fn activate_gpu(&mut self, gpu: Gpu) {
         self.surface.install_gpu(gpu);
+        self.surface
+            .set_lifecycle(GpuLifecycle::Active { oom_skips: 0 });
+        self.surface.clear_retry();
+        self.surface.clear_timeout_streak();
     }
 
-    pub(in crate::app) fn clear_gpu(&mut self) {
-        self.surface.clear_gpu();
+    pub(in crate::app) fn gpu_presented(&mut self) {
+        self.surface
+            .set_lifecycle(GpuLifecycle::Active { oom_skips: 0 });
+        self.surface.clear_retry();
+        self.surface.clear_timeout_streak();
+    }
+
+    pub(in crate::app) fn gpu_memory_pressure(&mut self) {
+        self.surface
+            .set_lifecycle(GpuLifecycle::Active { oom_skips: 1 });
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(in crate::app) fn await_gpu(&mut self) {
+        self.surface.set_lifecycle(GpuLifecycle::Rebuilding);
     }
 
     pub(in crate::app) fn recovery_window(&self) -> Option<&Arc<Window>> {
         self.surface.recovery_window()
     }
 
-    pub(in crate::app) fn set_recovery_window(&mut self, window: Arc<Window>) {
+    pub(in crate::app) fn bind_window(&mut self, window: Arc<Window>) {
         self.surface.set_recovery_window(window);
     }
 
-    pub(in crate::app) fn gpu_lifecycle(&self) -> GpuLifecycle {
-        self.surface.lifecycle()
+    pub(in crate::app) fn begin_gpu_rebuild(&mut self) -> GpuRebuildStart {
+        if self.surface.lifecycle() == GpuLifecycle::Rebuilding {
+            return GpuRebuildStart::AlreadyRunning;
+        }
+        let Some(window) = self.surface.recovery_window().cloned() else {
+            return GpuRebuildStart::NoWindow;
+        };
+        self.surface.clear_gpu();
+        self.surface.set_lifecycle(GpuLifecycle::Rebuilding);
+        self.surface.clear_retry();
+        self.surface.clear_timeout_streak();
+        self.presentation.last_frame = None;
+        self.presentation.input_stamp = None;
+        GpuRebuildStart::Ready(window)
     }
 
-    pub(in crate::app) fn set_gpu_lifecycle(&mut self, lifecycle: GpuLifecycle) {
-        self.surface.set_lifecycle(lifecycle);
+    pub(in crate::app) fn gpu_fault_action(&self, kind: gpu::GpuFaultKind) -> GpuFaultAction {
+        gpu_fault_action(self.surface.lifecycle(), kind)
     }
 
-    pub(in crate::app) fn arm_gpu_retry(&mut self, deadline: Instant) {
-        self.surface.arm_retry(deadline);
+    pub(in crate::app) fn gpu_skipped(&mut self, skip: gpu::GpuFrameSkip) -> GpuSkipAction {
+        let action = gpu_skip_action(skip, self.surface.timeout_streak());
+        self.surface
+            .record_timeout(skip == gpu::GpuFrameSkip::Timeout);
+        action
     }
 
-    pub(in crate::app) fn clear_gpu_retry(&mut self) {
+    pub(in crate::app) fn retry_gpu_after(&mut self, now: Instant, delay: Duration) {
+        self.surface.arm_retry(now + delay);
+    }
+
+    pub(in crate::app) fn wait_for_gpu_wake(&mut self) {
         self.surface.clear_retry();
     }
 
-    pub(in crate::app) fn gpu_timeout_streak(&self) -> u8 {
-        self.surface.timeout_streak()
-    }
-
-    pub(in crate::app) fn record_gpu_timeout(&mut self, timed_out: bool) {
-        self.surface.record_timeout(timed_out);
-    }
-
-    pub(in crate::app) fn clear_gpu_timeout_streak(&mut self) {
-        self.surface.clear_timeout_streak();
-    }
-
+    #[cfg(test)]
     pub(in crate::app) fn invalidate_present_sync(&mut self) {
         self.surface.invalidate_present_sync();
     }
@@ -203,159 +196,6 @@ impl FrameRuntime {
         self.deadlines.clock.now()
     }
 
-    /// Poll the coupled frame lifecycle at one injected-clock instant.
-    /// Mutable input, document, and configuration owners stay outside this
-    /// boundary; only their copyable scheduling facts cross it.
-    pub(in crate::app) fn poll(
-        &mut self,
-        now: Instant,
-        input: input::SchedulingSnapshot,
-        document: document::SchedulingSnapshot,
-        config: location::SchedulingSnapshot,
-    ) -> PollOutcome {
-        let mut out = PollOutcome::default();
-        fn propose(slot: &mut Option<Instant>, deadline: Instant) {
-            *slot = Some(slot.map_or(deadline, |current| current.min(deadline)));
-        }
-
-        if let Some(dirty) = self.presentation.theme_font_at {
-            let deadline = dirty + theme_font_debounce();
-            if now >= deadline {
-                self.presentation.theme_font_at = None;
-                out.reshape = true;
-                out.redraw = true;
-            } else {
-                propose(&mut out.next_deadline, deadline);
-            }
-        }
-        if let Some(dirty) = self.deadlines.zoom_persist_at
-            && !input.zoom_persist_held
-        {
-            let deadline = dirty + ZOOM_PERSIST_DEBOUNCE;
-            if now >= deadline {
-                self.deadlines.zoom_persist_at = None;
-                out.persist_zoom = true;
-                out.redraw = true;
-            } else {
-                propose(&mut out.next_deadline, deadline);
-            }
-        }
-
-        if let Some(dirty) = self.deadlines.resize_settle_at {
-            let deadline = dirty + RESIZE_SYNC_SETTLE;
-            if now >= deadline {
-                self.deadlines.resize_settle_at = None;
-                if let Some(gpu) = self.surface.gpu_mut() {
-                    gpu.pipeline
-                        .settle_lava_field_viewport(gpu.config.width, gpu.config.height);
-                }
-                out.redraw = true;
-            } else {
-                propose(&mut out.next_deadline, deadline);
-            }
-        }
-        if let Some(dirty) = self.deadlines.move_settle_at {
-            let deadline = dirty + MOVE_SETTLE;
-            if now >= deadline {
-                self.deadlines.move_settle_at = None;
-                self.deadlines.lava_tick_at = None;
-                out.redraw = true;
-            } else {
-                propose(&mut out.next_deadline, deadline);
-            }
-        }
-        if let Some(dirty) = self.deadlines.crossing_settle_at {
-            let deadline = dirty + CROSSING_SYNC_SETTLE;
-            if now >= deadline {
-                self.deadlines.crossing_settle_at = None;
-                self.deadlines.crossing_teardown_pending = true;
-                out.redraw = true;
-            } else {
-                propose(&mut out.next_deadline, deadline);
-            }
-        }
-
-        let lava_active = crate::theme::active().has_ambient_tick();
-        let lava_paused = crate::lava::lava_paused(
-            self.deadlines.resize_settle_at.is_some(),
-            self.deadlines.move_settle_at.is_some(),
-            self.surface
-                .gpu()
-                .is_some_and(|gpu| gpu.pipeline.lava_blur_active()),
-        );
-        if crate::lava::lava_should_tick(
-            lava_active,
-            config.ambient_motion_on(),
-            crate::motion::reduced(),
-            self.deadlines.focused,
-            lava_paused,
-        ) {
-            match self.deadlines.lava_tick_at {
-                Some(last) if now.saturating_duration_since(last) >= LAVA_TICK => {
-                    let dt = (now - last).as_secs_f32();
-                    self.deadlines.lava_tick_at = Some(now);
-                    if let Some(gpu) = self.surface.gpu_mut() {
-                        gpu.pipeline.advance_lava(dt);
-                        out.redraw = true;
-                    }
-                }
-                _ => {
-                    let last = *self.deadlines.lava_tick_at.get_or_insert(now);
-                    propose(&mut out.next_deadline, last + LAVA_TICK);
-                }
-            }
-        } else if lava_active {
-            self.deadlines.lava_tick_at = None;
-            if (crate::motion::reduced() || !config.ambient_motion_on())
-                && let Some(gpu) = self.surface.gpu_mut()
-            {
-                gpu.pipeline.freeze_lava();
-            }
-        }
-
-        if self.notice.kind == NoticeKind::Toast
-            && self
-                .notice
-                .expires_at
-                .is_some_and(|deadline| now >= deadline)
-        {
-            self.notice = NoticeState::default();
-            out.expire_notice = true;
-            out.redraw = true;
-        } else if let Some(deadline) = self.notice.expires_at {
-            propose(&mut out.next_deadline, deadline);
-        }
-        if let Some(deadline) = self.surface.retry_at() {
-            if now >= deadline {
-                self.surface.clear_retry();
-                out.retry = true;
-                out.redraw = true;
-            } else {
-                propose(&mut out.next_deadline, deadline);
-            }
-        }
-
-        if let Some(pending) = input.prefix_pending_at
-            && !input.whichkey_shown
-            && now < pending + crate::whichkey::PAUSE
-        {
-            propose(&mut out.next_deadline, pending + crate::whichkey::PAUSE);
-        }
-        if let Some(armed) = input.peek_armed_at {
-            let deadline = armed + Duration::from_millis(crate::peek::HOLD_PEEK_MS);
-            if now < deadline {
-                propose(&mut out.next_deadline, deadline);
-            }
-        }
-        if let Some(dirty) = document.autosave_at {
-            let deadline = dirty + AUTOSAVE_IDLE;
-            if now < deadline {
-                propose(&mut out.next_deadline, deadline);
-            }
-        }
-        out
-    }
-
     #[cfg(any(test, not(target_arch = "wasm32")))]
     pub(in crate::app) fn set_clock(&mut self, clock: Box<dyn crate::clock::Clock>) {
         self.deadlines.clock = clock;
@@ -367,10 +207,6 @@ impl FrameRuntime {
 
     pub(in crate::app) fn set_last_frame(&mut self, value: Option<Instant>) {
         self.presentation.last_frame = value;
-    }
-
-    pub(in crate::app) fn frame_is_hot(&self) -> bool {
-        self.presentation.last_frame.is_some()
     }
 
     pub(in crate::app) fn zoom(&self) -> f32 {
@@ -461,53 +297,63 @@ impl FrameRuntime {
         self.presentation.theme_settle.take()
     }
 
-    pub(in crate::app) fn theme_switches_mut(&mut self) -> &mut crate::themeswitch::SwitchHistory {
-        &mut self.presentation.theme_switches
-    }
-
-    pub(in crate::app) fn frame_costs(&self) -> &crate::debug::CostRing {
-        &self.presentation.frame_costs
-    }
-
-    pub(in crate::app) fn frame_costs_mut(&mut self) -> &mut crate::debug::CostRing {
-        &mut self.presentation.frame_costs
-    }
-
-    pub(in crate::app) fn input_stamp(&self) -> Option<Instant> {
-        self.presentation.input_stamp
-    }
-
     pub(in crate::app) fn stamp_input_if_absent(&mut self, now: Instant) {
         self.presentation.input_stamp.get_or_insert(now);
     }
 
-    pub(in crate::app) fn take_input_stamp(&mut self) -> Option<Instant> {
-        self.presentation.input_stamp.take()
-    }
-
-    pub(in crate::app) fn last_latency_ms(&self) -> Option<f32> {
-        self.presentation.last_latency_ms
-    }
-
-    pub(in crate::app) fn set_last_latency_ms(&mut self, value: Option<f32>) {
-        self.presentation.last_latency_ms = value;
-    }
-
-    pub(in crate::app) fn next_redraw_count(&mut self) -> u64 {
+    pub(in crate::app) fn begin_redraw(&mut self) {
         self.presentation.redraw_count += 1;
-        self.presentation.redraw_count
     }
 
-    pub(in crate::app) fn redraw_count(&self) -> u64 {
-        self.presentation.redraw_count
+    pub(in crate::app) fn wake_debug_panel(&mut self, now: Instant) -> DebugPanelSnapshot {
+        self.presentation.debug_still = crate::debug::still_wake(
+            self.presentation.debug_still,
+            self.presentation.input_stamp.is_some(),
+        );
+        DebugPanelSnapshot {
+            cost: self
+                .presentation
+                .frame_costs
+                .last()
+                .zip(self.presentation.frame_costs.worst()),
+            last_latency_ms: self.presentation.last_latency_ms,
+            redraw_count: self.presentation.redraw_count,
+            stamp_queued: self.presentation.debug_still == crate::debug::DebugStill::StampQueued,
+            theme_settle: self.presentation.theme_switches.report(now),
+        }
     }
 
-    pub(in crate::app) fn debug_still(&self) -> crate::debug::DebugStill {
-        self.presentation.debug_still
+    pub(in crate::app) fn record_present_cost(
+        &mut self,
+        cost_ms: f32,
+        done: Instant,
+        stamp_frame: bool,
+    ) {
+        if let Some(stamp) = self.presentation.input_stamp.take() {
+            self.presentation.last_latency_ms = Some((done - stamp).as_secs_f32() * 1000.0);
+        }
+        if !stamp_frame {
+            self.presentation.frame_costs.push(cost_ms);
+        }
     }
 
-    pub(in crate::app) fn set_debug_still(&mut self, value: crate::debug::DebugStill) {
-        self.presentation.debug_still = value;
+    pub(in crate::app) fn record_theme_switch(
+        &mut self,
+        settled_at: Instant,
+        total_ms: f32,
+        phases: crate::themeswitch::SwitchPhases,
+    ) -> Option<crate::themeswitch::SwitchReport> {
+        self.presentation
+            .theme_switches
+            .insert(settled_at, total_ms, phases);
+        self.presentation.theme_switches.report(settled_at)
+    }
+
+    pub(in crate::app) fn settle_debug_panel(&mut self, animating: bool) -> bool {
+        let (next, request_stamp) =
+            crate::debug::still_settle(self.presentation.debug_still, animating);
+        self.presentation.debug_still = next;
+        request_stamp
     }
 
     pub(in crate::app) fn clear_debug_session(&mut self) {
@@ -577,50 +423,34 @@ impl FrameRuntime {
         self.deadlines.lava_tick_at = None;
     }
 
-    pub(in crate::app) fn resize_settle_at(&self) -> Option<Instant> {
-        self.deadlines.resize_settle_at
+    pub(in crate::app) fn settles(&self) -> SettleSnapshot {
+        SettleSnapshot {
+            resize_at: self.deadlines.resize_settle_at,
+            move_at: self.deadlines.move_settle_at,
+            crossing_at: self.deadlines.crossing_settle_at,
+            crossing_teardown_pending: self.deadlines.crossing_teardown_pending,
+        }
     }
 
-    pub(in crate::app) fn arm_resize_settle(&mut self, now: Instant) {
-        self.deadlines.resize_settle_at = Some(now);
+    pub(in crate::app) fn arm_settle(&mut self, kind: SettleKind, now: Instant) {
+        match kind {
+            SettleKind::Resize => self.deadlines.resize_settle_at = Some(now),
+            SettleKind::Move => self.deadlines.move_settle_at = Some(now),
+            SettleKind::Crossing => self.deadlines.crossing_settle_at = Some(now),
+        }
     }
 
-    pub(in crate::app) fn clear_resize_settle(&mut self) {
-        self.deadlines.resize_settle_at = None;
-    }
-
-    pub(in crate::app) fn move_settle_at(&self) -> Option<Instant> {
-        self.deadlines.move_settle_at
-    }
-
-    pub(in crate::app) fn arm_move_settle(&mut self, now: Instant) {
-        self.deadlines.move_settle_at = Some(now);
-    }
-
-    pub(in crate::app) fn clear_move_settle(&mut self) {
-        self.deadlines.move_settle_at = None;
-    }
-
-    pub(in crate::app) fn crossing_settle_at(&self) -> Option<Instant> {
-        self.deadlines.crossing_settle_at
-    }
-
-    pub(in crate::app) fn arm_crossing_settle(&mut self, now: Instant) {
-        self.deadlines.crossing_settle_at = Some(now);
-    }
-
-    #[cfg(test)]
-    pub(in crate::app) fn clear_crossing_settle(&mut self) {
-        self.deadlines.crossing_settle_at = None;
+    pub(in crate::app) fn clear_settle(&mut self, kind: SettleKind) {
+        match kind {
+            SettleKind::Resize => self.deadlines.resize_settle_at = None,
+            SettleKind::Move => self.deadlines.move_settle_at = None,
+            SettleKind::Crossing => self.deadlines.crossing_settle_at = None,
+        }
     }
 
     pub(in crate::app) fn begin_crossing_teardown(&mut self) {
         self.deadlines.crossing_settle_at = None;
         self.deadlines.crossing_teardown_pending = true;
-    }
-
-    pub(in crate::app) fn crossing_teardown_pending(&self) -> bool {
-        self.deadlines.crossing_teardown_pending
     }
 
     pub(in crate::app) fn finish_crossing_teardown(&mut self) {
@@ -637,46 +467,11 @@ impl FrameRuntime {
 
     pub(in crate::app) fn suspend(&mut self) {
         self.presentation.last_frame = None;
+        self.presentation.input_stamp = None;
         self.deadlines.lava_tick_at = None;
         self.deadlines.resize_settle_at = None;
         self.deadlines.move_settle_at = None;
         self.deadlines.crossing_settle_at = None;
         self.deadlines.crossing_teardown_pending = false;
-    }
-
-    pub(in crate::app) fn set_sticky_notice(&mut self, text: String) {
-        self.notice.text = Some(text);
-        self.notice.kind = NoticeKind::Sticky;
-        self.notice.expires_at = None;
-    }
-
-    pub(in crate::app) fn set_toast_notice(&mut self, text: String, expires_at: Option<Instant>) {
-        self.notice.text = Some(text);
-        self.notice.kind = NoticeKind::Toast;
-        self.notice.expires_at = expires_at;
-    }
-
-    pub(in crate::app) fn clear_notice(&mut self) {
-        self.notice = NoticeState::default();
-    }
-
-    pub(in crate::app) fn notice_text(&self) -> Option<&str> {
-        self.notice.text.as_deref()
-    }
-
-    pub(in crate::app) fn notice_owned(&self) -> Option<String> {
-        self.notice.text.clone()
-    }
-
-    pub(in crate::app) fn notice_active(&self) -> bool {
-        self.notice.text.is_some()
-    }
-
-    pub(in crate::app) fn notice_kind(&self) -> NoticeKind {
-        self.notice.kind
-    }
-
-    pub(in crate::app) fn notice_expires_at(&self) -> Option<Instant> {
-        self.notice.expires_at
     }
 }

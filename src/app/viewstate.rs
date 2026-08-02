@@ -235,7 +235,7 @@ impl App {
                 .filter(|o| o.kind == crate::overlay::OverlayKind::Spell)
                 .and_then(|o| o.spell_target),
             overlay_context_anchor: ov.and_then(|o| o.context_anchor),
-            notice: self.frame.notice_owned().unwrap_or_default(),
+            notice: self.frame.notice().owned().unwrap_or_default(),
             cjk_priority: self.config.cjk_priority_or_default(),
             eol: self.document.buffer().eol(),
             popover,

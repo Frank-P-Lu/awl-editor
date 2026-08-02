@@ -67,7 +67,7 @@ fn cli_launch_door_opens_text_and_refuses_binary() {
         "a refused CLI launch never binds the active buffer to the binary path"
     );
     assert_eq!(
-        refused.frame.notice_text(),
+        refused.frame.notice().text(),
         Some("PNG \u{b7} not editable in awl"),
         "the refusal names the type, calmly"
     );
@@ -99,7 +99,7 @@ fn load_path_door_opens_text_and_refuses_binary_leaving_context_intact() {
         "a refused open leaves the active FOLDER intact"
     );
     assert_eq!(
-        app.frame.notice_text(),
+        app.frame.notice().text(),
         Some("PNG \u{b7} not editable in awl")
     );
 

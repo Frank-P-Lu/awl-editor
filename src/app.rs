@@ -755,8 +755,8 @@ impl App {
     }
 
     fn clobber_notice_active(&self) -> bool {
-        self.frame.notice_kind() == NoticeKind::Sticky
-            && self.frame.notice_text() == Some(CLOBBER_NOTICE)
+        self.frame.notice().kind() == NoticeKind::Sticky
+            && self.frame.notice().text() == Some(CLOBBER_NOTICE)
     }
 }
 
@@ -876,15 +876,12 @@ impl App {
     /// inline after the NATIVE blocking init, and from `window_event` once the WASM
     /// async init deposits its GPU.
     fn on_gpu_ready(&mut self) {
-        if !self.frame.has_gpu() {
+        if self.frame.gpu().is_none() {
             return;
         }
         // `Gpu::new` owns a fresh surface/CAMetalLayer. The value shadowed for
         // the previous layer cannot suppress application to this one.
-        self.frame.invalidate_present_sync();
         self.sync_present_txn();
-        self.frame.clear_gpu_retry();
-        self.frame.clear_gpu_timeout_streak();
         let Some(gpu) = self.frame.gpu() else { return };
         let sf = gpu.window.scale_factor() as f32;
         self.frame.set_dpi(sf);
@@ -1037,7 +1034,7 @@ impl App {
         // `soak.finished` can flip on schedule completion. `finished` is false
         // here (the finished branch returned above).
         self.request_frame();
-        if !self.frame.frame_is_hot() {
+        if self.frame.last_frame().is_none() {
             event_loop.set_control_flow(control_flow_with_deadline(
                 event_loop.control_flow(),
                 now + if stimuli.len() == 32 {

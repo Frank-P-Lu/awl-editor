@@ -12,14 +12,10 @@ fn debug_off_clears_theme_transaction_history_without_a_frame_sample() {
     let mut phases = crate::themeswitch::SwitchPhases::default();
     phases.record(crate::themeswitch::SwitchPhase::Reshape, 7.0);
     let now = app.frame.now();
-    app.frame.theme_switches_mut().insert(now, 9.0, phases);
+    app.frame.record_theme_switch(now, 9.0, phases);
     assert!(
-        app.frame.frame_costs().last().is_none(),
-        "precondition: no frame sample"
-    );
-    assert!(
-        !app.frame.theme_switches_mut().is_empty(),
-        "precondition: transaction recorded"
+        app.frame.debug_session_populated(),
+        "a history-only session is populated"
     );
 
     crate::debug::set_debug_on(false);
@@ -28,7 +24,7 @@ fn debug_off_clears_theme_transaction_history_without_a_frame_sample() {
         "the production Debug-off predicate recognizes history-only state"
     );
     assert!(
-        app.frame.theme_switches_mut().is_empty(),
+        !app.frame.debug_session_populated(),
         "Debug off clears the transaction window"
     );
     crate::debug::set_debug_on(false);
@@ -197,7 +193,8 @@ fn present_transaction_sync_composes_over_every_source() {
 fn gpu_replacement_invalidates_and_reestablishes_the_present_sync_shadow() {
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
 
-    app.frame.arm_crossing_settle(Instant::now());
+    app.frame
+        .arm_settle(frame::SettleKind::Crossing, Instant::now());
     app.sync_present_txn();
     assert!(app.frame.present_sync_on());
     assert!(app.frame.present_sync_valid());
@@ -246,7 +243,7 @@ fn moved_stream_holds_the_lamp_and_syncs_presents_until_settle() {
     for _ in 0..5 {
         app.on_moved(winit::dpi::PhysicalPosition::new(40, 40));
         assert!(
-            app.frame.move_settle_at().is_some(),
+            app.frame.settles().move_at.is_some(),
             "the stream holds the stamp"
         );
         assert!(
@@ -265,7 +262,7 @@ fn moved_stream_holds_the_lamp_and_syncs_presents_until_settle() {
                 true,
                 false,
                 true,
-                crate::lava::lava_paused(false, app.frame.move_settle_at().is_some(), false),
+                crate::lava::lava_paused(false, app.frame.settles().move_at.is_some(), false),
             ),
             "the tick gate is closed while the stream is live: phase held"
         );
@@ -276,7 +273,7 @@ fn moved_stream_holds_the_lamp_and_syncs_presents_until_settle() {
     // fire again — exactly ONE settle redraw per stream.
     app.finish_move_settle();
     assert!(
-        app.frame.move_settle_at().is_none(),
+        app.frame.settles().move_at.is_none(),
         "settle clears the hold once"
     );
     assert!(
@@ -311,7 +308,7 @@ fn one_streams_settle_never_strips_the_other_streams_present_sync() {
     // Resize settles first (its window is the shorter one): the move
     // stream is still live, so presents STAY transaction-synced.
     app.finish_resize_settle();
-    assert!(app.frame.resize_settle_at().is_none());
+    assert!(app.frame.settles().resize_at.is_none());
     assert!(
         app.frame.present_sync_on(),
         "the move stream still owns a claim on the sync"
@@ -338,7 +335,7 @@ fn a_non_lava_world_takes_a_moved_stream_as_a_total_no_op() {
         app.on_moved(winit::dpi::PhysicalPosition::new(40, 40));
     }
     assert!(
-        app.frame.move_settle_at().is_none(),
+        app.frame.settles().move_at.is_none(),
         "no hold: the settle arm can never fire, zero redraws scheduled"
     );
     assert!(
@@ -384,14 +381,14 @@ fn every_preview_step_brackets_and_teardown_waits_for_the_reshape_present() {
         (galah, "Magpie", "static->static LANDING"),
         (mangrove, "Firetail", "lava->lava"),
     ] {
-        app.frame.clear_crossing_settle();
+        app.frame.clear_settle(frame::SettleKind::Crossing);
         app.frame.finish_crossing_teardown();
         app.sync_present_txn();
         assert!(!app.frame.present_sync_on(), "{label}: starts disarmed");
         crate::theme::set_active_by_name(to).unwrap();
         app.retint_theme_preview(from);
         assert!(
-            app.frame.crossing_settle_at().is_some(),
+            app.frame.settles().crossing_at.is_some(),
             "{label}: the preview stamps the settle"
         );
         assert!(
@@ -405,11 +402,11 @@ fn every_preview_step_brackets_and_teardown_waits_for_the_reshape_present() {
     // because the deferred reshape's present has not happened yet.
     app.finish_crossing_settle();
     assert!(
-        app.frame.crossing_settle_at().is_none(),
+        app.frame.settles().crossing_at.is_none(),
         "phase 1 clears the settle debounce"
     );
     assert!(
-        app.frame.crossing_teardown_pending(),
+        app.frame.settles().crossing_teardown_pending,
         "phase 1 hands off to the pending teardown"
     );
     assert!(
@@ -420,7 +417,7 @@ fn every_preview_step_brackets_and_teardown_waits_for_the_reshape_present() {
     // is the ONLY thing that disarms.
     app.finish_crossing_teardown();
     assert!(
-        !app.frame.crossing_teardown_pending(),
+        !app.frame.settles().crossing_teardown_pending,
         "phase 2 clears the pending teardown"
     );
     assert!(
@@ -460,13 +457,13 @@ fn a_crossing_settle_never_strips_a_live_resize_streams_present_sync() {
     // still owns a claim through EACH phase — the disarm belongs to the one
     // owner, never to a single source's settle.
     app.finish_crossing_settle();
-    assert!(app.frame.crossing_settle_at().is_none());
+    assert!(app.frame.settles().crossing_at.is_none());
     assert!(
         app.frame.present_sync_on(),
         "resize still owns a claim after phase 1"
     );
     app.finish_crossing_teardown();
-    assert!(!app.frame.crossing_teardown_pending());
+    assert!(!app.frame.settles().crossing_teardown_pending);
     assert!(
         app.frame.present_sync_on(),
         "resize still owns a claim after phase 2"
