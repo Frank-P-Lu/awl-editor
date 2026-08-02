@@ -111,6 +111,35 @@ impl TextPipeline {
         }
     }
 
+    /// Everything a summoned card can say, gathered for
+    /// [`crate::card::content`] — the ONE owner of the content. The pipeline
+    /// is the only holder of all of these at once, so it is the only gatherer;
+    /// composition, captions and phrasing live there, not here.
+    pub fn card_inputs(&self) -> crate::card::content::CardInputs {
+        crate::card::content::CardInputs {
+            hud_held: self.hud_showing(),
+            peek_shown: self.peek_showing(),
+            stats: self.hud_stats.clone(),
+            streaks: Some(self.streaks_effective_view()),
+            streaks_page: crate::streaks::card_view(),
+            saved: self.hud_saved,
+            words: self.wordcount_text(),
+            lang: self.doc_lang_report(),
+            percent: self.hud_percent(),
+            eol: self.eol,
+            peek_rows: self.peek_effective_rows(),
+            update_checked: self.hud_update_checked,
+            pending_crash: self.hud_pending_crash,
+        }
+    }
+
+    /// The summoned card this frame, as CONTENT. The semantic tree reads this
+    /// same value, so an assistive technology hears exactly the card that is
+    /// drawn rather than a second description of it.
+    pub fn card_content(&self) -> Option<crate::card::content::CardContent> {
+        crate::card::content::open_card(&self.card_inputs())
+    }
+
     pub(in crate::render) fn prepare_hud(
         &mut self,
         device: &wgpu::Device,
@@ -197,72 +226,12 @@ impl TextPipeline {
         let label_metrics = GlyphMetrics::new(m.font_size * label, m.line_height * label);
         let title_metrics = GlyphMetrics::new(m.font_size * section, m.line_height * section);
 
-        let mut owned: Vec<(String, u8)> = Vec::new();
-        if about {
-            let world = theme::active();
-            owned.push(("Awl\n\n".to_string(), 2));
-            owned.push((format!("v{}\n", env!("CARGO_PKG_VERSION")), 1));
-            owned.push(("by Frank Lu · GPL-3.0\n\n".to_string(), 0));
-            owned.push((format!("{}\n", world.name), 0));
-            if let Some(line) = crate::updates::checked_line(self.hud_update_checked) {
-                owned.push((format!("{line}\n"), 0));
-            }
-            if self.hud_pending_crash {
-                owned.push((
-                    "previous crash log available · Settings → Report a Problem\n".to_string(),
-                    0,
-                ));
-            }
-            owned.push(("⌘P → Credits\n\n".to_string(), 0));
-            owned.push((world.ornaments.dash.to_string(), 3));
-        } else if lifetime {
-            let rows = crate::hud::odometer_rows(self.hud_stats.as_ref());
-            let last = rows.len().saturating_sub(1);
-            for (i, (caption, value)) in rows.into_iter().enumerate() {
-                owned.push((format!("{caption}\n"), 0)); // caption (label / faint)
-                let val_line = if i == last {
-                    value
-                } else {
-                    format!("{value}\n\n")
-                };
-                owned.push((val_line, 1));
-            }
-        } else if peek {
-            let rows = self.peek_effective_rows();
-            let last = rows.len().saturating_sub(1);
-            for (i, row) in rows.into_iter().enumerate() {
-                owned.push((format!("{}\n", row.chord), 1)); // chord figure (content / body)
-                let name_line = if i == last {
-                    row.name
-                } else {
-                    format!("{}\n\n", row.name)
-                };
-                owned.push((name_line, 0)); // name caption (faint / label)
-            }
-        } else {
-            let mut stats: Vec<(&'static str, String)> = Vec::with_capacity(4);
-            stats.push(("SAVED", crate::hud::saved_readout(self.hud_saved)));
-            let words = self.wordcount_text();
-            if !words.is_empty() {
-                stats.push(("WORD COUNT", words));
-            }
-            if let Some(lang) = self.doc_lang_report() {
-                stats.push(("LANGUAGE", lang.code().to_string()));
-            }
-            stats.push(("THROUGH DOC", format!("{}%", self.hud_percent())));
-            stats.push(("LINE ENDINGS", self.eol.label().to_string()));
-
-            let last = stats.len().saturating_sub(1);
-            for (i, (caption, value)) in stats.into_iter().enumerate() {
-                owned.push((format!("{caption}\n"), 0)); // caption (label / faint)
-                let val_line = if i == last {
-                    value
-                } else {
-                    format!("{value}\n\n") // value + a blank gap before the next group
-                };
-                owned.push((val_line, 1));
-            }
-        }
+        // CONTENT comes from the one card owner; this function keeps the style,
+        // metrics and geometry that are genuinely the renderer's.
+        let owned: Vec<(String, u8)> = self
+            .card_content()
+            .map(|content| content.spans())
+            .unwrap_or_default();
         let base = panel_attrs();
         let spans: Vec<(&str, Attrs)> = owned
             .iter()
@@ -360,6 +329,11 @@ impl TextPipeline {
         height: u32,
     ) -> anyhow::Result<()> {
         use crate::streaks::{CardView, DAYS_PER_WEEK, LEVELS, WEEKS};
+        let owned = crate::card::content::card(
+            crate::card::content::CardKind::Streaks,
+            &self.card_inputs(),
+        )
+        .spans();
         let view = self.streaks_effective_view();
         let page = crate::streaks::card_view();
         let m = self.metrics;
@@ -381,30 +355,6 @@ impl TextPipeline {
         let grid_w = WEEKS as f32 * step - gap;
         let grid_h = DAYS_PER_WEEK as f32 * step - gap;
 
-        let streak_val = if view.streak == 1 {
-            "1 day".to_string()
-        } else {
-            format!("{} days", crate::hud::group_thousands(view.streak))
-        };
-        let (second_caption, second_val) = match page {
-            CardView::Heatmap => (
-                "WRITTEN TODAY",
-                format!("{} words", crate::hud::group_thousands(view.today_words)),
-            ),
-            CardView::Cumulative => (
-                "PAST YEAR",
-                format!(
-                    "{} words",
-                    crate::hud::group_thousands(view.cumulative.last().copied().unwrap_or(0))
-                ),
-            ),
-        };
-        let owned: Vec<(String, u8)> = vec![
-            ("CURRENT STREAK\n".to_string(), 0),
-            (format!("{streak_val}\n\n"), 1),
-            (format!("{second_caption}\n"), 0),
-            (second_val, 1),
-        ];
         let base = panel_attrs();
         let spans: Vec<(&str, Attrs)> = owned
             .iter()
