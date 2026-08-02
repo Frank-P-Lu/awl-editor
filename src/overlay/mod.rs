@@ -27,6 +27,7 @@ mod facet;
 mod journey;
 mod kind;
 mod nav;
+mod semantic;
 mod state;
 pub(crate) mod workspace;
 

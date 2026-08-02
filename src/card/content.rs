@@ -145,7 +145,7 @@ impl CardContent {
 /// Every live figure a card can show, gathered once by the render pipeline (the
 /// only holder of all of them) and passed here whole. Nothing in this struct is
 /// a renderer type, so the composition below is testable with no GPU.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct CardInputs {
     /// The stats HUD's hold is live AND not yielding to a summoned overlay.
     pub hud_held: bool,
@@ -176,6 +176,30 @@ pub struct CardInputs {
     pub update_checked: Option<crate::updates::UpdateChecked>,
     /// A previous run left a crash log the About card should mention.
     pub pending_crash: bool,
+}
+
+/// The OFF-the-live-App reading: nothing summoned and every live-only figure
+/// absent, so each card composes its documented placeholder. Written out rather
+/// than derived because `CardView`'s default page is the streaks card's design
+/// statement, not a language default, and it is owned there.
+impl Default for CardInputs {
+    fn default() -> Self {
+        Self {
+            hud_held: false,
+            peek_shown: false,
+            stats: None,
+            streaks: None,
+            streaks_page: CardView::Heatmap,
+            saved: None,
+            words: String::new(),
+            lang: None,
+            percent: 0,
+            eol: crate::buffer::Eol::Lf,
+            peek_rows: Vec::new(),
+            update_checked: None,
+            pending_crash: false,
+        }
+    }
 }
 
 /// Which card is up, and what it says — `None` when the room is calm.

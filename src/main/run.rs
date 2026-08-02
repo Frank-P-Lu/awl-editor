@@ -859,22 +859,9 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
             Ok(())
         }
         #[cfg(not(target_arch = "wasm32"))]
-        Mode::ScreenshotApp {
-            out,
-            file,
-            keys,
-            root,
-            workspace,
-            config,
-        } => live_app::capture_live_app(out, file, keys, root, workspace, config),
+        Mode::ScreenshotApp { out, spec } => live_app::capture_live_app(out, spec),
         #[cfg(not(target_arch = "wasm32"))]
-        Mode::SemanticJson {
-            file,
-            keys,
-            root,
-            workspace,
-            config,
-        } => live_app::print_semantic_json(file, keys, root, workspace, config),
+        Mode::SemanticJson(spec) => live_app::print_semantic_json(spec),
         #[cfg(not(target_arch = "wasm32"))]
         Mode::ScreenshotFrames {
             out,

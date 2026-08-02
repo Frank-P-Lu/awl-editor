@@ -49,20 +49,21 @@ use std::path::PathBuf;
 use anyhow::Result;
 
 use crate::app::App;
+use crate::args::LiveAppSpec;
 use crate::capture;
 use crate::config::Config;
 
 /// Drive `keys` into a real headless [`App`] rooted at `root`, then capture the
 /// resulting editor state to `out` + its sidecar. Returns after both artifacts
 /// are written.
-pub(crate) fn capture_live_app(
-    out: PathBuf,
-    file: Option<PathBuf>,
-    keys: Vec<crate::keyspec::Chord>,
-    root: Option<PathBuf>,
-    workspace: Option<PathBuf>,
-    config: Config,
-) -> Result<()> {
+pub(crate) fn capture_live_app(out: PathBuf, spec: LiveAppSpec) -> Result<()> {
+    let LiveAppSpec {
+        file,
+        keys,
+        root,
+        workspace,
+        config,
+    } = spec;
     // Same root precedence as every other capture door — the EXPLICIT `--root`
     // or the launch file's own directory, never a remembered session (the
     // capture-gate law).
@@ -81,13 +82,14 @@ pub(crate) fn capture_live_app(
 
 /// Print the same semantic snapshot the AccessKit adapter and live-App
 /// sidecar consume, after driving optional real keymap actions headlessly.
-pub(crate) fn print_semantic_json(
-    file: Option<PathBuf>,
-    keys: Vec<crate::keyspec::Chord>,
-    root: Option<PathBuf>,
-    workspace: Option<PathBuf>,
-    config: Config,
-) -> Result<()> {
+pub(crate) fn print_semantic_json(spec: LiveAppSpec) -> Result<()> {
+    let LiveAppSpec {
+        file,
+        keys,
+        root,
+        workspace,
+        config,
+    } = spec;
     let active_root = super::resolve_root(&root, &file);
     let mut app = App::new_headless_capture(file, active_root, workspace, config);
     let _exit_requested = app.press_chords_headless(&keys);
@@ -149,6 +151,17 @@ mod tests {
 
     /// A config with a real (sandbox) path, so a settings persist has somewhere
     /// to land — the write is part of what the live door actually performs.
+    /// The live-`App` payload these tests drive, over the scratch config.
+    fn spec(keys: Vec<crate::keyspec::Chord>, root: Option<PathBuf>) -> LiveAppSpec {
+        LiveAppSpec {
+            file: None,
+            keys,
+            root,
+            workspace: None,
+            config: cfg(),
+        }
+    }
+
     fn cfg() -> Config {
         Config {
             path: std::path::PathBuf::from(CFG),
@@ -199,11 +212,10 @@ mod tests {
         let json = in_sandbox(|| {
             capture_live_app(
                 png.clone(),
-                None,
-                crate::keyspec::parse_chords(new_document_chord()).unwrap(),
-                Some(crate::fs::data_root()),
-                None,
-                cfg(),
+                spec(
+                    crate::keyspec::parse_chords(new_document_chord()).unwrap(),
+                    Some(crate::fs::data_root()),
+                ),
             )
             .unwrap();
             sidecar(&png)
@@ -240,7 +252,7 @@ mod tests {
         // ── THE LIVE-`App` CAPTURE ────────────────────────────────────────
         let live = dir.join("live.png");
         let live_json = in_sandbox(|| {
-            capture_live_app(live.clone(), None, keys.clone(), Some(proj()), None, cfg())
+            capture_live_app(live.clone(), spec(keys.clone(), Some(proj())))
                 .expect("the live-App capture needs a GPU adapter");
             sidecar(&live)
         });
@@ -334,7 +346,7 @@ mod tests {
         );
         let live = dir.join("plain.png");
         let live_json = in_sandbox(|| {
-            capture_live_app(live.clone(), None, Vec::new(), Some(proj()), None, cfg())
+            capture_live_app(live.clone(), spec(Vec::new(), Some(proj())))
                 .expect("the live-App capture needs a GPU adapter");
             sidecar(&live)
         });

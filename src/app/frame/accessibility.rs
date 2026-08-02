@@ -70,6 +70,56 @@ impl AccessibilityRuntime {
     }
 }
 
+/// The runtime is private to this file; `FrameRuntime` is the door every App
+/// call goes through, so "who may talk to the adapter" stays answerable with
+/// one grep.
+impl FrameRuntime {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn set_accessibility_proxy(
+        &mut self,
+        proxy: winit::event_loop::EventLoopProxy<AwlEvent>,
+    ) {
+        self.accessibility.set_proxy(proxy);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn install_accessibility(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        window: &Window,
+    ) {
+        self.accessibility.install(event_loop, window);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn process_accessibility_window_event(
+        &mut self,
+        window: &Window,
+        event: &WindowEvent,
+    ) {
+        self.accessibility.process_window_event(window, event);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn update_accessibility(
+        &mut self,
+        snapshot: crate::semantic::SemanticSnapshot,
+        force: bool,
+    ) {
+        self.accessibility.update(snapshot, force);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn set_accessibility_active(&mut self, active: bool) {
+        self.accessibility.set_active(active);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn accessibility_wants_snapshot(&self) -> bool {
+        self.accessibility.wants_snapshot()
+    }
+}
+
 fn semantic_update_needed(
     previous: Option<&crate::semantic::SemanticSnapshot>,
     next: &crate::semantic::SemanticSnapshot,

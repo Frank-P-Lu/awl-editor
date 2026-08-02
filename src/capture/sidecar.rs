@@ -86,9 +86,8 @@ pub(super) fn write_sidecar(
     let (font_zoom, font_size, line_height) = pipeline.effective_font_metrics();
     let json = super::scroll_sidecar::sidecar_format!(
         schema_json = json_string(&schema),
-        // The tier that drove this frame; see `capture::CaptureDriver`.
         driver = json_string(opts.driver.as_str()),
-        semantic = semantic_json(opts),
+        semantic = opts.semantic_json(),
         caret_extra = caret_extra,
         cjk = cjk_json(&script_fonts),
         scripts = scripts_json(&script_fonts),
@@ -161,13 +160,6 @@ pub(super) fn write_sidecar(
         .with_context(|| format!("failed to create {}", json_path.display()))?;
     f.write_all(json.as_bytes())?;
     Ok(())
-}
-
-fn semantic_json(opts: &CaptureOpts) -> String {
-    opts.semantic
-        .as_ref()
-        .map(|snapshot| serde_json::to_string(snapshot).expect("semantic snapshot serializes"))
-        .unwrap_or_else(|| "null".to_string())
 }
 
 fn folds_json(view: &ViewState) -> String {

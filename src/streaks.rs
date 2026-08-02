@@ -54,9 +54,8 @@ pub fn set_open(open: bool) {
 /// every summon ([`set_open`]) — the default view is a design statement (the
 /// habit view leads), so there is deliberately NO config key and NO
 /// stickiness across summons.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CardView {
-    #[default]
     Heatmap,
     Cumulative,
 }

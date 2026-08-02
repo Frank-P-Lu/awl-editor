@@ -234,8 +234,9 @@ pub enum CaptureDriver {
 }
 
 impl CaptureDriver {
-    /// The sidecar's own `driver` string. Hyphenated, matching the flag that
-    /// selects it, so a reader can grep one for the other.
+    /// The sidecar's own `driver` string — the tier that drove the frame.
+    /// Hyphenated, matching the flag that selects it, so a reader can grep one
+    /// for the other.
     pub fn as_str(self) -> &'static str {
         match self {
             CaptureDriver::Replay => "replay",
@@ -343,4 +344,16 @@ pub struct CaptureOpts {
     /// ordinary capture is byte-identical; the `popover.rs` card-fits law sets it
     /// to render the toolbar without racing a process-global env var.
     pub force_popover: bool,
+}
+
+impl CaptureOpts {
+    /// The `semantic` sidecar field: the live-App semantic tree serialized
+    /// verbatim, or JSON `null`. Lives beside the field rather than in the
+    /// writer so the one place that knows the field also knows its absence.
+    pub(super) fn semantic_json(&self) -> String {
+        self.semantic
+            .as_ref()
+            .map(|snapshot| serde_json::to_string(snapshot).expect("semantic snapshot serializes"))
+            .unwrap_or_else(|| "null".to_string())
+    }
 }
