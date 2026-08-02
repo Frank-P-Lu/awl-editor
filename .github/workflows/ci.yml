@@ -252,7 +252,29 @@ jobs:
       # step-8 deaths on 2026-08-01/02 (runs 30706851397, 30715372469,
       # 30721529191, 30727349406, 30742490207) each left an HTTP 404 where the
       # log should be, which is why five runs never named a single test.
+      #
+      # And a THIRD bound, which is not ours. Run 30746762499 (mac job
+      # 91493566597) had every bound above wired correctly and still died with
+      # no log: step 2 ran at 11:56:18 so the deadline was 12:31:18, the gate
+      # started at 11:58:23 so its duration expired 12:23:23, whichever-first
+      # was 12:23:23 — and the job was lost at 12:49:18, twenty-six minutes
+      # later. Step 9 concluded `null`, both Post steps `null`, the log 404. A
+      # step that never concludes means a gate that never exited, which means
+      # the in-gate budget did not fire, on a runner where it had passed every
+      # local mutation. Either the watchdog was starved or killed, or the whole
+      # VM froze before 12:23 and 12:49 is only when GitHub gave up reaping it.
+      #
+      # `timeout-minutes` on the STEP is enforced by the runner agent, not by
+      # our shell, so it survives both of those. 40 minutes puts it 15 past the
+      # in-gate duration — so a healthy gate still wins and still emits the
+      # rich abort naming the phase, convention and hung test — and 11 minutes
+      # inside the 12:49 loss, at job-minute ~42 against the earliest observed
+      # loss at 53. It also discriminates the two candidates for free: if this
+      # produces a log where the in-gate budget did not, the watchdog is
+      # broken; if even this produces nothing, the VM is freezing and no
+      # in-process self-abort can ever work.
       - name: native full suite
+        timeout-minutes: 40
         env:
           AWL_NATIVE_GATE_BUDGET_SECONDS: 1500
         run: scripts/native-gate.sh

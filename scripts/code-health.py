@@ -587,6 +587,23 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
             "native-gate-audit: gate must bound per-convention test-thread concurrency",
         'native-gate-env cpus=':
             "native-gate-audit: gate must state the machine and bound it is about to load",
+        # Flat memory and zero swap describe a deadlock and a livelock equally
+        # well. CPU is the discriminator, and the load average alone is only
+        # half of it: it says the box is busy, never which process is busy.
+        #
+        # Both halves are pinned to the HEARTBEAT's own format string and its
+        # own argument list, not to the bare field names. The first draft
+        # required `load1=%s cpu_count=%s` and was vacuous: the abort report
+        # carries those fields too, so the heartbeat's copy could be deleted
+        # outright — or commented out whole — with the audit still green.
+        'native-gate-vitals elapsed_seconds=%s free_bytes=%s swap_used_bytes=%s load1=%s cpu_count=%s %s':
+            "native-gate-audit: the heartbeat must report the system load beside the core count that makes it readable",
+        'ps -A -o pid=,pgid=,etime=,time=,comm=':
+            "native-gate-audit: the heartbeat must sample cumulative per-process CPU time, which means the same thing on macOS and Linux; ps pcpu does not",
+        '"$(gate_load1)" "$gate_cpus" "$(gate_cpu_report)"':
+            "native-gate-audit: the heartbeat must carry per-tracked-process CPU, not only the machine's load average",
+        'ps -A -o pid=,ppid=,pgid=,etime=,time=,rss=,stat=,comm=':
+            "native-gate-audit: the abort's process dump must carry CPU time beside elapsed time, or it cannot say whether the hung process was spinning",
         'if [[ -f "$gate_budget_marker" ]]; then':
             "native-gate-audit: an exhausted budget must suppress the receipt",
         'AWL_NATIVE_GATE_DEADLINE_EPOCH - gate_started_epoch':
@@ -636,6 +653,15 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
         )
     if "if (( $# != 0 )); then" not in script:
         failures.append("native-gate-audit: gate must reject target-selection and test-name arguments")
+    # A CPU reading is a DELTA between two samples, so the first heartbeat is
+    # blind unless a baseline was taken before it. Sixty seconds of blindness
+    # covers the whole canary phase on a warm runner.
+    cpu_baseline = script.find('gate_cpu_sample >"$gate_cpu_prev"')
+    cpu_report = script.find('"$(gate_cpu_report)"')
+    if cpu_baseline < 0 or cpu_report < 0 or not cpu_baseline < cpu_report:
+        failures.append(
+            "native-gate-audit: the CPU baseline must be sampled before the first heartbeat, or that heartbeat reports no delta"
+        )
     # A watchdog armed after the canary has returned cannot reach the phase that
     # compiles every dependency — the slowest thing on a cold hosted runner, and
     # the phase whose silence has no log at all.
@@ -671,6 +697,41 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
             ):
                 if setting not in body:
                     failures.append(failure)
+            # A third bound, and the only one that does not depend on the
+            # gate's own shell being alive. Run 30746762499 had both bounds
+            # above wired correctly and still died with no log: the step never
+            # concluded, so the gate never exited, so the in-gate budget never
+            # fired. `timeout-minutes` on the step is enforced by the runner
+            # agent, so it survives a starved watchdog and a frozen shell.
+            step = next(
+                (chunk for chunk in body.split("\n      - ")
+                 if chunk.startswith("name: native full suite")),
+                None,
+            )
+            if step is None:
+                failures.append(
+                    "native-gate-audit: CI mac job must run the gate as a named step"
+                )
+            else:
+                stated = re.search(r"^        timeout-minutes:\s*(\d+)\s*$", step, re.M)
+                budget = re.search(r"AWL_NATIVE_GATE_BUDGET_SECONDS:\s*(\d+)", step)
+                if stated is None:
+                    failures.append(
+                        "native-gate-audit: CI mac job's gate step must carry a runner-enforced timeout-minutes, which does not depend on the gate's own shell being healthy"
+                    )
+                elif int(stated.group(1)) >= 50:
+                    # The step starts around job-minute 2; the four runner
+                    # losses came at job-minute 53, 55, 56 and 62.
+                    failures.append(
+                        "native-gate-audit: CI mac job's gate step timeout must land inside the earliest observed runner loss at job-minute 53"
+                    )
+                elif budget is not None and int(stated.group(1)) * 60 <= int(budget.group(1)):
+                    # If the runner's blunt kill always wins, the in-gate abort
+                    # — the only one that names the phase, the convention and
+                    # the test that never returned — can never be seen.
+                    failures.append(
+                        "native-gate-audit: CI mac job's gate step timeout must outlast the in-gate budget, or the rich in-band abort can never win"
+                    )
     return failures
 
 
@@ -1114,6 +1175,10 @@ linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)
 start_commit="$(git rev-parse HEAD)"
 export RUST_TEST_THREADS
 printf 'native-gate-env cpus=%s\\n' "$gate_cpus"
+ps -A -o pid=,pgid=,etime=,time=,comm=
+ps -A -o pid=,ppid=,pgid=,etime=,time=,rss=,stat=,comm=
+gate_cpu_sample >"$gate_cpu_prev"
+printf 'native-gate-vitals elapsed_seconds=%s free_bytes=%s swap_used_bytes=%s load1=%s cpu_count=%s %s mac_last=[%s]\\n' "$elapsed" "$(gate_free_bytes)" "$(gate_swap_bytes)" "$(gate_load1)" "$gate_cpus" "$(gate_cpu_report)"
 gate_budget_seconds=$(( AWL_NATIVE_GATE_DEADLINE_EPOCH - gate_started_epoch ))
 printf 'native-gate-phase label=%s event=%s elapsed_seconds=%s %s\\n' "$1" "$2" "$(gate_elapsed)" "${3:-}"
 "$@" 2>&1 | gate_stamp_phases "$label"
@@ -1145,7 +1210,9 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
   mac:
     steps:
       - run: echo "AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( $(date +%s) + 2100 ))" >> "$GITHUB_ENV"
-      - env:
+      - name: native full suite
+        timeout-minutes: 40
+        env:
           AWL_NATIVE_GATE_BUDGET_SECONDS: 1500
         run: scripts/native-gate.sh
 '''
@@ -1208,6 +1275,75 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
             script, ci.replace(
                 '      - run: echo "AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( $(date +%s) + 2100 ))" >> "$GITHUB_ENV"\n', ""),
             "CI mac job must anchor the gate to the runner's clock"),
+        # Deadlock against livelock. Each requirement is mutated TWICE — deleted
+        # outright, and merely commented out — because a substring matcher that
+        # reads the raw text is satisfied by the comment, and that is how this
+        # auditor was green over a disabled bound once already.
+        "no load average": (
+            script.replace("load1=%s cpu_count=%s %s ", ""), ci,
+            "must report the system load beside the core count"),
+        # The whole heartbeat commented out. Requiring the bare field names was
+        # green here, because the abort report names them too.
+        "heartbeat demoted to a comment": (
+            script.replace(
+                "printf 'native-gate-vitals elapsed_seconds=",
+                "# printf 'native-gate-vitals elapsed_seconds="),
+            ci,
+            "must report the system load beside the core count"),
+        # `ps -o pcpu` is a lifetime average on Linux and a decayed one on
+        # macOS: a suite that ran hot then hung reads ~9% on one and ~0% on the
+        # other, and neither is about the interval in question.
+        "per-process CPU replaced by ps pcpu": (
+            script.replace("ps -A -o pid=,pgid=,etime=,time=,comm=", "ps -A -o pid=,pgid=,etime=,pcpu=,comm="), ci,
+            "must sample cumulative per-process CPU time"),
+        "per-process CPU sample demoted to a comment": (
+            script.replace("ps -A -o pid=,pgid=,etime=,time=,comm=", "# ps -A -o pid=,pgid=,etime=,time=,comm="), ci,
+            "must sample cumulative per-process CPU time"),
+        # Load alone cannot say WHICH process is spinning, which is the whole
+        # difference between "the runner is oversubscribed" and "attach a
+        # debugger to this pid".
+        "load average without per-process attribution": (
+            script.replace(' "$(gate_cpu_report)"', ""), ci,
+            "must carry per-tracked-process CPU"),
+        # The same comment-out, checked for the OTHER requirement the line
+        # carries: a comment must not stand in for either half.
+        "per-process CPU demoted to a comment": (
+            script.replace(
+                "printf 'native-gate-vitals elapsed_seconds=",
+                "# printf 'native-gate-vitals elapsed_seconds="),
+            ci,
+            "must carry per-tracked-process CPU"),
+        "CPU baseline taken after the first heartbeat": (
+            script.replace('gate_cpu_sample >"$gate_cpu_prev"\n', "")
+                  .replace('linux_pid=$!\n', 'linux_pid=$!\ngate_cpu_sample >"$gate_cpu_prev"\n'),
+            ci,
+            "CPU baseline must be sampled before the first heartbeat"),
+        "CPU baseline demoted to a comment": (
+            script.replace('gate_cpu_sample >"$gate_cpu_prev"', '# gate_cpu_sample >"$gate_cpu_prev"'),
+            ci,
+            "CPU baseline must be sampled before the first heartbeat"),
+        "abort dump without CPU time": (
+            script.replace("pid=,ppid=,pgid=,etime=,time=,rss=,stat=,comm=", "pid=,ppid=,pgid=,etime=,rss=,stat=,comm="),
+            ci,
+            "abort's process dump must carry CPU time beside elapsed time"),
+        "abort dump demoted to a comment": (
+            script.replace("ps -A -o pid=,ppid=,pgid=,etime=,time=", "# ps -A -o pid=,ppid=,pgid=,etime=,time="),
+            ci,
+            "abort's process dump must carry CPU time beside elapsed time"),
+        # The runner-enforced step bound. Run 30746762499 proved every bound
+        # that lives inside our own shell can fail to fire at all.
+        "mac gate step with no runner-enforced timeout": (
+            script, ci.replace("        timeout-minutes: 40\n", ""),
+            "gate step must carry a runner-enforced timeout-minutes"),
+        "mac gate step timeout demoted to a comment": (
+            script, ci.replace("        timeout-minutes: 40", "        # timeout-minutes: 40"),
+            "gate step must carry a runner-enforced timeout-minutes"),
+        "mac gate step timeout past the observed runner loss": (
+            script, ci.replace("timeout-minutes: 40", "timeout-minutes: 55"),
+            "gate step timeout must land inside the earliest observed runner loss"),
+        "mac gate step timeout shorter than the in-gate budget": (
+            script, ci.replace("timeout-minutes: 40", "timeout-minutes: 10"),
+            "gate step timeout must outlast the in-gate budget"),
         # The mutation this audit failed on its first run: a deleted bound that
         # a comment mentioning the same variable silently stood in for.
         "mac bound demoted to a comment": (

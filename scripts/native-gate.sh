@@ -133,6 +133,132 @@ gate_swap_bytes() {
   sysctl -n vm.swapusage 2>/dev/null | awk '{ gsub(/M/, "", $6); printf "%.0f\n", $6 * 1048576 }'
 }
 
+# ── Deadlock or livelock: the one number that separates them ─────────────────
+# Steady memory and zero swap read identically for both. Processes blocked on a
+# GPU fence and processes spinning on one both leave the memory graph flat, and
+# the fixes have nothing in common. CPU is the discriminator.
+#
+# The system load average is the headline but it cannot answer the question on
+# its own: it says the box is busy, never WHICH process is busy, and on a
+# shared runner it is also the slowest thing on the machine to move. So the
+# heartbeat reports both — the machine's one-minute load beside the core count
+# that makes it readable, and the CPU seconds each process in the gate's own
+# tracked groups actually consumed since the previous heartbeat, over the wall
+# time between the two samples. 100 is one core pegged.
+#
+# It is a DELTA and not `ps -o pcpu` because pcpu does not mean the same thing
+# on the two platforms this script runs on: a lifetime average on Linux, a
+# decayed one on macOS. A suite that ran hot for 3.5 minutes and then hung for
+# 35 reads as roughly 9% on one and roughly 0% on the other, and neither number
+# is about the interval anybody is asking about. `-o time=` is POSIX and is
+# cumulative on both.
+gate_load1() {
+  local raw="" pattern='^[0-9]+([.][0-9]+)?$'
+  if [[ -r /proc/loadavg ]]; then
+    raw="$(awk '{ print $1 }' /proc/loadavg)"
+  else
+    # `{ 5.70 12.72 16.79 }` — the braces are fields, so the first number is $2.
+    raw="$(sysctl -n vm.loadavg 2>/dev/null | awk '{ print $2 }')"
+  fi
+  # An unparsed reading says so. Printing 0.00 for one is the exact failure this
+  # heartbeat has already shipped once: a memory probe that read macOS's page
+  # size out of the wrong field reported free_bytes=0 through a full green gate,
+  # and only a human reading the output ever noticed.
+  [[ "$raw" =~ $pattern ]] || { printf 'unavailable\n'; return 1; }
+  printf '%s\n' "$raw"
+}
+
+gate_cpu_prev="$gate_run_dir/cpu-prev"
+
+# One sample: the epoch it was taken at, then `pid cpu_seconds age_seconds name`
+# for every process in a tracked group. macOS prints `mm:ss.ff` with hundredths
+# and Linux `[[dd-]hh:]mm:ss` whole seconds; both are colon-scaled, so one
+# parser reads both, and the Linux quantum is 1 s against a 60 s window.
+gate_cpu_sample() {
+  date +%s
+  ps -A -o pid=,pgid=,etime=,time=,comm= 2>/dev/null \
+    | awk -v groups="$(tr '\n' ' ' <"$gate_pgid_file")" '
+        function seconds(t,   days, parts, p, i, out) {
+          days = 0
+          if (t ~ /-/) { split(t, p, "-"); days = p[1] + 0; t = p[2] }
+          parts = split(t, p, ":")
+          out = 0
+          for (i = 1; i <= parts; i++) out = out * 60 + (p[i] + 0)
+          return out + days * 86400
+        }
+        BEGIN { n = split(groups, g, " "); for (i = 1; i <= n; i++) if (g[i] != "") want[g[i]] = 1 }
+        !want[$2] { next }
+        {
+          name = $5
+          for (i = 6; i <= NF; i++) name = name " " $i
+          sub(/.*\//, "", name)
+          if (name == "") name = "unnamed"
+          print $1, seconds($4), seconds($3), name
+        }
+      '
+}
+
+# A pid present in both samples is measured over the window between them. A pid
+# that appeared inside the window is measured over its own age instead, and
+# counted in `new_procs` so a reader knows which readings those are.
+#
+# Dropping the newcomers, as the first draft did, was the same confident zero
+# this heartbeat exists to avoid, one level in: on the receipt run of
+# 2026-08-02 the unit-test binary finished and the integration binaries started
+# inside one window, and two heartbeats reported `tracked_procs=0` and `0.6%`
+# while two test binaries were burning a core each. Crediting a newcomer the
+# whole window it was not alive for is the opposite lie, so it gets its own age.
+#
+# `tracked_procs=0` still prints `tracked_cpu_pct=none` rather than `0.0`: no
+# measurement and an idle machine are exactly the two answers this heartbeat
+# exists to tell apart.
+gate_cpu_report() {
+  local now="$gate_run_dir/cpu-now"
+  gate_cpu_sample >"$now"
+  awk '
+    BEGIN { best_pct = -1 }
+    FNR == 1 {
+      file++
+      if (file == 1) { prev_epoch = $1 + 0 }
+      else { window = ($1 + 0) - prev_epoch; if (window < 1) window = 1 }
+      next
+    }
+    file == 1 { was[$1] = $2 + 0; seen[$1] = 1; next }
+    {
+      if ($1 in seen) {
+        span = window
+        delta = ($2 + 0) - was[$1]
+      } else {
+        fresh++
+        # Its whole CPU time over its whole age — a lifetime average, which is
+        # the only honest reading for a process with no baseline. NOT over the
+        # window: a process can be older than the window and still new to the
+        # probe, because a phase group is registered as it launches, and
+        # dividing a long lifetime by a short window reports several hundred
+        # percent for something merely idle.
+        span = ($3 + 0 < 1) ? 1 : $3 + 0
+        delta = $2 + 0
+      }
+      if (delta < 0) delta = 0
+      pct = delta * 100 / span
+      matched++
+      total += pct
+      if (pct > best_pct) { best_pct = pct; best = $4 ":" $1 }
+    }
+    END {
+      if (file < 2) {
+        print "cpu_probe=broken window_seconds=0 tracked_procs=0 new_procs=0 tracked_cpu_pct=none busiest=[none]"
+      } else if (matched == 0) {
+        printf "window_seconds=%d tracked_procs=0 new_procs=0 tracked_cpu_pct=none busiest=[none]\n", window
+      } else {
+        printf "window_seconds=%d tracked_procs=%d new_procs=%d tracked_cpu_pct=%.1f busiest=[%s=%.1f]\n", \
+          window, matched, fresh + 0, total, best, best_pct
+      }
+    }
+  ' "$gate_cpu_prev" "$now"
+  mv "$now" "$gate_cpu_prev"
+}
+
 gate_vitals_interval="${AWL_NATIVE_GATE_VITALS_SECONDS:-60}"
 
 # ── Per-phase timing, and naming the line a hang stopped on ──────────────────
@@ -220,13 +346,19 @@ gate_sleep_then() {
 gate_vitals_loop() {
   local elapsed sleeper=""
   trap '[[ -n "$sleeper" ]] && kill "$sleeper" 2>/dev/null; exit 0' TERM
+  # The baseline is taken before the first sleep, so heartbeat one already
+  # carries a delta instead of a hole. A CPU probe whose first reading is
+  # meaningless is a probe that says nothing for the first minute, and the
+  # canary phase is entirely inside that minute on a warm runner.
+  gate_cpu_sample >"$gate_cpu_prev"
   while :; do
     sleep "$gate_vitals_interval" &
     sleeper=$!
     wait "$sleeper" 2>/dev/null || exit 0
     elapsed="$(gate_elapsed)"
-    printf 'native-gate-vitals elapsed_seconds=%s free_bytes=%s swap_used_bytes=%s mac_last=[%s] linux_last=[%s]\n' \
+    printf 'native-gate-vitals elapsed_seconds=%s free_bytes=%s swap_used_bytes=%s load1=%s cpu_count=%s %s mac_last=[%s] linux_last=[%s]\n' \
       "$elapsed" "$(gate_free_bytes)" "$(gate_swap_bytes)" \
+      "$(gate_load1)" "$gate_cpus" "$(gate_cpu_report)" \
       "$(gate_last_progress mac)" "$(gate_last_progress linux)"
   done
 }
@@ -289,14 +421,19 @@ gate_budget_marker="$gate_run_dir/budget-expired"
 
 gate_budget_expired() {
   printf 'exceeded\n' >"$gate_budget_marker"
-  printf 'native-gate: budget of %ss (%s) exceeded at %ss; free_bytes=%s swap_used_bytes=%s; terminating every phase group\n' \
+  printf 'native-gate: budget of %ss (%s) exceeded at %ss; free_bytes=%s swap_used_bytes=%s load1=%s cpu_count=%s; terminating every phase group\n' \
     "$gate_budget_seconds" "$gate_budget_source" "$(gate_elapsed)" \
-    "$(gate_free_bytes)" "$(gate_swap_bytes)" >&2
+    "$(gate_free_bytes)" "$(gate_swap_bytes)" "$(gate_load1)" "$gate_cpus" >&2
   printf 'native-gate-budget-last label=mac line=[%s]\n' "$(gate_last_progress mac)" >&2
   printf 'native-gate-budget-last label=linux line=[%s]\n' "$(gate_last_progress linux)" >&2
   # A hung suite is a hung PROCESS; name it and its age before killing it, so
   # the next reader gets the binary and its elapsed time rather than a silence.
-  ps -A -o pid=,ppid=,pgid=,etime=,rss=,stat=,comm= 2>/dev/null \
+  # `time=` beside `etime=` is the deadlock/livelock answer at the instant of
+  # death and costs nothing: CPU time far below elapsed means blocked, CPU time
+  # tracking elapsed means spinning. `stat=` says the same thing from the
+  # kernel's side (R against S/U), and two independent readings of it are worth
+  # having in a log that may be the only one this failure ever produces.
+  ps -A -o pid=,ppid=,pgid=,etime=,time=,rss=,stat=,comm= 2>/dev/null \
     | awk -v groups="$(tr '\n' ' ' <"$gate_pgid_file")" '
         BEGIN { n = split(groups, g, " "); for (i = 1; i <= n; i++) want[g[i]] = 1 }
         want[$3] { print "native-gate-budget-proc " $0 }

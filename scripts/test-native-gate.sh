@@ -45,6 +45,20 @@ if [[ -n "${AWL_NATIVE_GATE_PROBE_ORPHAN_FILE:-}" ]]; then
 fi
 if [[ "$convention" == canary ]]; then
   sleep "${AWL_NATIVE_GATE_PROBE_CANARY_SLEEP:-0}"
+elif [[ -n "${AWL_NATIVE_GATE_PROBE_SPIN_SECONDS:-}" ]]; then
+  # A LIVELOCK, as opposed to the sleeping fixture's deadlock. Both leave memory
+  # flat and both stop producing output; only CPU tells them apart, so the
+  # fixture has to be able to be either. The spin is bash's own `SECONDS`
+  # builtin and an empty loop body: no fork per iteration, so the CPU it burns
+  # is attributed to THIS pid, which is the pid the heartbeat has to name.
+  # The spinner is a CHILD born after a delay, so it is deterministically
+  # absent from the heartbeat sample before it and present in the next — the
+  # NEWCOMER case, which the probe must measure over the process's own age
+  # rather than drop. Letting the conventions themselves be the newcomers was
+  # flaky: whether they beat the gate's baseline sample was a fork race.
+  sleep "${AWL_NATIVE_GATE_PROBE_SPIN_DELAY:-0}"
+  bash -c 'printf "%s\n" "$$" >>"$1"; SECONDS=0; while (( SECONDS < $2 )); do :; done' \
+    _ "$AWL_NATIVE_GATE_PROBE_SPIN_PID_FILE" "$AWL_NATIVE_GATE_PROBE_SPIN_SECONDS"
 else
   sleep "${AWL_NATIVE_GATE_PROBE_SLEEP:-0.2}"
 fi
@@ -396,6 +410,133 @@ vitals_free="$(awk '/^native-gate-vitals/ { for (i = 1; i <= NF; i++) if ($i ~ /
 }
 
 echo "test-native-gate: the vitals heartbeat reaches this host's real memory counters while the suite runs"
+
+# ── Deadlock or livelock ─────────────────────────────────────────────────────
+# Flat memory and zero swap are equally consistent with processes blocked on a
+# fence and processes spinning on one, and the fixes have nothing in common.
+# The laws below are stated as a PAIR on purpose: each one alone is satisfiable
+# by a probe that always answers the same thing, and the pair is not. A probe
+# hardwired to 0 fails the spinning direction; one hardwired to 100 fails the
+# sleeping direction; a probe that finds no processes at all fails both.
+
+# `busiest=[name:pid=pct]` is one whitespace-free field, so the highest reading
+# across every heartbeat of a run is one awk pass. The MAX is the statistic that
+# matters: a spin only has to show up in one heartbeat to be diagnosed.
+busiest_peak() {
+  awk 'BEGIN { peak = -1 }
+    /^native-gate-vitals/ {
+      for (i = 1; i <= NF; i++) if (index($i, "busiest=[") == 1) {
+        value = $i; sub(/.*=/, "", value); sub(/\]$/, "", value)
+        if (value + 0 > peak) { peak = value + 0; who = $i }
+      }
+    } END { printf "%.1f %s\n", peak, (who == "" ? "busiest=[absent]" : who) }' "$probe_output"
+}
+
+vitals_peak() {
+  awk -v key="$1=" 'BEGIN { peak = -1 }
+    /^native-gate-vitals/ {
+      for (i = 1; i <= NF; i++) if (index($i, key) == 1) {
+        value = substr($i, length(key) + 1) + 0
+        if (value > peak) peak = value
+      }
+    } END { printf "%g\n", peak }' "$probe_output"
+}
+
+# The system load average is the heartbeat's headline and it is the field most
+# likely to come back as a brace or an empty string: macOS hands it over as
+# `{ 5.70 12.72 16.79 }` and Linux as the first field of /proc/loadavg. A probe
+# that could not read it must SAY so rather than report a confident 0.00, so
+# this asserts a real number from this host's real kernel — the same shape of
+# assertion the memory law above makes, for the same reason.
+probe load-average AWL_NATIVE_GATE_VITALS_SECONDS=1 AWL_NATIVE_GATE_PROBE_SLEEP=3
+(( probe_status == 0 )) || { echo "test-native-gate: load-average probe failed ($probe_status)" >&2; exit 1; }
+load_seen="$(awk '/^native-gate-vitals/ { for (i = 1; i <= NF; i++) if (index($i, "load1=") == 1) { sub(/load1=/, "", $i); print $i; exit } }' "$probe_output")"
+[[ "$load_seen" =~ ^[0-9]+\.?[0-9]*$ ]] || {
+  echo "test-native-gate: the heartbeat reported load1=$load_seen — the load-average probe does not work on this host" >&2
+  exit 1
+}
+require "load average" "cpu_count=$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 1)"
+
+echo "test-native-gate: the heartbeat reports this host's real load average beside the core count that makes it readable"
+
+# Direction 1 — LIVELOCK. The fixture's conventions burn CPU in-process for 9 s
+# while producing no output, which is exactly what a spinning test binary looks
+# like from outside. The heartbeat must report a pegged core AND name the pid
+# doing it: a bare load average would rise here too, and would not say which of
+# the gate's own processes to attach a debugger to.
+: >"$WORK/spinners"
+probe cpu-spin AWL_NATIVE_GATE_VITALS_SECONDS=3 AWL_NATIVE_GATE_PROBE_SPIN_SECONDS=9 \
+  AWL_NATIVE_GATE_PROBE_SPIN_DELAY=4 AWL_NATIVE_GATE_PROBE_SPIN_PID_FILE="$WORK/spinners"
+(( probe_status == 0 )) || { echo "test-native-gate: cpu-spin probe failed ($probe_status)" >&2; exit 1; }
+[[ -s "$WORK/spinners" ]] || {
+  echo "test-native-gate: the fixture never entered its spin, so this law proved nothing" >&2
+  exit 1
+}
+read -r spin_peak spin_who <<<"$(busiest_peak)"
+# One core fully pegged is 100. The floor is 50 because `ps -o time=` quantises
+# to whole seconds on Linux, so a 3 s window can under-read a pegged process by
+# a third; macOS reports hundredths and measures nearer 100.
+awk -v peak="$spin_peak" 'BEGIN { exit !(peak >= 50) }' || {
+  echo "test-native-gate: two conventions spun for 9s and the busiest tracked process peaked at ${spin_peak}% ($spin_who) — the CPU probe cannot see a livelock" >&2
+  exit 1
+}
+# A process that appeared INSIDE the window must be measured over its own age,
+# not dropped. The first draft dropped it, and the receipt run of 2026-08-02
+# shows what that cost: two heartbeats reporting `tracked_procs=0` and `0.6%`
+# while two test binaries were burning a core each, because Cargo had moved
+# from one test target to the next inside the window. A probe that can only see
+# processes older than a heartbeat is blind for the first minute of every run
+# and blind again at every phase change — including the one the hang is near.
+#
+# The fixture's spinner is born mid-run for exactly this, so the heartbeat that
+# first sees it is deterministically a newcomer reading.
+read -r new_peak new_who <<<"$(awk 'BEGIN { peak = -1 }
+    /^native-gate-vitals/ {
+      fresh = -1; value = -1; who = ""
+      for (i = 1; i <= NF; i++) {
+        if (index($i, "new_procs=") == 1) fresh = substr($i, 11) + 0
+        else if (index($i, "busiest=[") == 1) {
+          who = $i; value = $i; sub(/.*=/, "", value); sub(/\]$/, "", value); value += 0
+        }
+      }
+      if (fresh >= 1 && value > peak) { peak = value; bestwho = who; found = 1 }
+    } END { if (found) printf "%.1f %s\n", peak, bestwho; else print "-1 no-heartbeat-reported-a-newcomer" }' "$probe_output")"
+awk -v peak="$new_peak" 'BEGIN { exit !(peak >= 50) }' || {
+  echo "test-native-gate: the busiest NEW process across every heartbeat read ${new_peak}% ($new_who) — a process that appeared inside the window is dropped instead of measured over its own age" >&2
+  exit 1
+}
+new_pid="${new_who##*:}"; new_pid="${new_pid%%=*}"
+grep -Fxq "$new_pid" "$WORK/spinners" || {
+  echo "test-native-gate: the newcomer heartbeat blamed pid $new_pid ($new_who), which is not one of the fixture's spinners ($(tr '\n' ' ' <"$WORK/spinners"))" >&2
+  exit 1
+}
+spin_pid="${spin_who##*:}"; spin_pid="${spin_pid%%=*}"
+grep -Fxq "$spin_pid" "$WORK/spinners" || {
+  echo "test-native-gate: the heartbeat blamed pid $spin_pid ($spin_who) but the processes actually spinning were $(tr '\n' ' ' <"$WORK/spinners")— a load number nobody can attribute is not a diagnosis" >&2
+  exit 1
+}
+
+echo "test-native-gate: a spinning convention is reported as a pegged core and named by pid, not merely as a busy machine"
+
+# Direction 2 — DEADLOCK. Same silence, same flat memory, zero CPU. This is the
+# half that makes the pair non-vacuous, and `tracked_procs` is asserted
+# separately: without it a probe that found NOTHING would pass this law while
+# failing to measure anything at all.
+probe cpu-idle AWL_NATIVE_GATE_VITALS_SECONDS=2 AWL_NATIVE_GATE_PROBE_SLEEP=7
+(( probe_status == 0 )) || { echo "test-native-gate: cpu-idle probe failed ($probe_status)" >&2; exit 1; }
+idle_procs="$(vitals_peak tracked_procs)"
+awk -v procs="$idle_procs" 'BEGIN { exit !(procs >= 1) }' || {
+  echo "test-native-gate: the heartbeat tracked $idle_procs processes while two conventions were running — it measured nothing, so its zero means nothing" >&2
+  exit 1
+}
+read -r idle_peak idle_who <<<"$(busiest_peak)"
+awk -v peak="$idle_peak" 'BEGIN { exit !(peak < 25) }' || {
+  echo "test-native-gate: two conventions were blocked in sleep(1) and the busiest tracked process read ${idle_peak}% ($idle_who) — the CPU probe cannot tell a deadlock from a livelock" >&2
+  exit 1
+}
+refuse "cpu idle" "cpu_probe=broken"
+
+echo "test-native-gate: a blocked convention reads as idle over a heartbeat that still tracked its processes — the two failures are distinguishable"
 
 assert_concurrent_and_complete() {
   local first_two
