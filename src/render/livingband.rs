@@ -309,19 +309,13 @@ fn awl_living_band() -> &'static Option<MotionForce> {
     })
 }
 
-/// TEST-ONLY escape hatch for the living-band probe (mirrors
-/// [`crate::render::set_slant_test_override`]; `serial()`-guarded at call sites)
-/// — the memoised env `OnceLock` can't be re-armed per test, so a capture-level
-/// law test pins the choreography + mid-flight phase through this instead.
+/// TEST-ONLY escape hatch for the living-band probe — the memoised env
+/// `OnceLock` can't be re-armed per test, so a capture-level law test pins the
+/// choreography + mid-flight phase through this instead. It is stored with the
+/// other forced render knobs (`super::overrides`), which is what brings it under
+/// the serial guard's snapshot-and-restore.
 #[cfg(test)]
-static MOTION_TEST_OVERRIDE: std::sync::Mutex<Option<MotionForce>> = std::sync::Mutex::new(None);
-
-#[cfg(test)]
-pub fn set_motion_test_override(m: Option<MotionForce>) {
-    *MOTION_TEST_OVERRIDE
-        .lock()
-        .unwrap_or_else(|e| e.into_inner()) = m;
-}
+pub(crate) use super::overrides::set_living_band_test_override as set_motion_test_override;
 
 /// The EFFECTIVE living-band voice for this frame — the calm [`Choreo::Morph`]
 /// default (shipped ON) unless `AWL_LIVING_BAND` overrides it (`off` → `None`,
@@ -332,13 +326,8 @@ pub fn set_motion_test_override(m: Option<MotionForce>) {
 /// frame without re-arming the memoised env `OnceLock`.
 pub fn overlay_motion_force() -> Option<MotionForce> {
     #[cfg(test)]
-    {
-        if let Some(m) = *MOTION_TEST_OVERRIDE
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-        {
-            return Some(m);
-        }
+    if let Some(m) = super::overrides::living_band_test_override() {
+        return Some(m);
     }
     *awl_living_band()
 }
