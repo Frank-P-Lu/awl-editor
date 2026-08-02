@@ -653,7 +653,7 @@ than a second description of it. Their LIVE-only figures (`hud.saved`, the
 card's update marker) read as their documented placeholders in a capture, in
 the tree exactly as in the PNG — that determinism boundary is unchanged. The
 roster is swept both directions, drawn ⇔ announced, by
-`app::semantic::passive_roster`.
+`app::semantic::tests::passive_roster`.
 
 Schema `/193` adds the top-level **`driver`** field, immediately after `schema`:
 which TIER produced this sidecar. `"replay"` — the shared core
