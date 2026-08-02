@@ -625,6 +625,8 @@ macro_rules! classify_action_family {
             | Action::OpenGuide
             | Action::OpenSettingsMenu
             | Action::FinishBuffer
+            | Action::ResolveKeepMine
+            | Action::ResolveTakeTheirs
             | Action::FollowLink
             | Action::BeginPrefix
             | Action::Ignore => ActionFamily::Deferred,

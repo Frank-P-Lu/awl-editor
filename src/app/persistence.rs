@@ -77,6 +77,31 @@ pub(in crate::app) struct PersistenceRuntime {
     /// rendered, so `sync_view` re-titles only on an actual clean↔dirty FLIP
     /// rather than formatting a string and making an OS call every keystroke.
     title_dirty: bool,
+    /// THE ONE UNRESOLVED EXTERNAL CHANGE, or `None`. App-global and singular
+    /// on purpose: while one is open every door that would leave the document
+    /// — switch, rename, move, Finish — is refused, so a second conflict is
+    /// unreachable rather than merely unlikely. That is what makes "one
+    /// recovery record" ([`crate::recovery`]) a structural fact instead of a
+    /// convention.
+    unresolved: Option<UnresolvedChange>,
+    /// Has the user already been sent back to the conflict once by trying to
+    /// quit? A second Quit proceeds. Refusing forever would trap someone whose
+    /// only way out is a resolution they may not want to make yet — and it is
+    /// unnecessary, because the recovery record has already made quitting
+    /// lossless by the time this is consulted.
+    quit_deferred_once: bool,
+}
+
+/// A file that changed on disk while awl held unsaved edits for it. Both texts
+/// are real work; awl holds the editable one and stops writing to the path.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::app) struct UnresolvedChange {
+    /// The user's file — the path awl has stopped writing to.
+    pub(in crate::app) path: std::path::PathBuf,
+    /// What the disk said when the conflict was raised, or `None` when the file
+    /// was DELETED — in which case there is no disk version to take, and the
+    /// resolution offering it must decline rather than write an empty document.
+    pub(in crate::app) theirs: Option<String>,
 }
 
 impl PersistenceRuntime {
@@ -161,6 +186,49 @@ impl PersistenceRuntime {
     /// When the autosave engine last wrote (the Debug panel's line).
     pub(in crate::app) fn engine_last_write_at(&self) -> Option<Instant> {
         self.engine_last_write
+    }
+
+    // ─── THE UNRESOLVED EXTERNAL CHANGE (one, or none) ───────────────────
+
+    /// The open conflict, if there is one. Every gated door reads this and
+    /// nothing else, so "is this document resolvable right now" has one answer.
+    pub(in crate::app) fn unresolved(&self) -> Option<&UnresolvedChange> {
+        self.unresolved.as_ref()
+    }
+
+    /// Is a conflict open for `path` specifically? A conflict belongs to one
+    /// file; a door acting on a DIFFERENT file is not gated by it, which
+    /// matters because the gated doors are reached from surfaces that name
+    /// their own target.
+    pub(in crate::app) fn unresolved_for(&self, path: &std::path::Path) -> bool {
+        self.unresolved.as_ref().is_some_and(|u| u.path == path)
+    }
+
+    /// LATCH a conflict. Replaces any previous one — see the field's doc for
+    /// why a second is unreachable rather than merely rare.
+    pub(in crate::app) fn set_unresolved(&mut self, change: UnresolvedChange) {
+        self.unresolved = Some(change);
+        self.quit_deferred_once = false;
+    }
+
+    /// RESOLVED — the only way out, taken by both resolutions and by nothing
+    /// else. Returns what was latched so the caller can act on it.
+    pub(in crate::app) fn take_unresolved(&mut self) -> Option<UnresolvedChange> {
+        self.quit_deferred_once = false;
+        self.unresolved.take()
+    }
+
+    /// Should a Quit be sent back to the conflict? True exactly once per
+    /// latched conflict: the first attempt is deferred so the user is told,
+    /// every attempt after it proceeds. Consuming the flag here — rather than
+    /// asking and clearing at the call site — is what keeps "exactly once"
+    /// from depending on the caller remembering to clear it.
+    pub(in crate::app) fn defer_quit_for_conflict(&mut self) -> bool {
+        if self.unresolved.is_none() || self.quit_deferred_once {
+            return false;
+        }
+        self.quit_deferred_once = true;
+        true
     }
 
     // ─── THE TITLE DIRTY-STATE CACHE ─────────────────────────────────────

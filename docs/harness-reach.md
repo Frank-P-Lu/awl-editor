@@ -192,6 +192,8 @@ fails if these rows drift from them, so this table cannot go stale.
 | `rename_note_commit` | Unsupported |
 | `report_problem` | Intercepted |
 | `reshape` | Applied |
+| `resolve_keep_mine` | Unsupported |
+| `resolve_take_theirs` | Unsupported |
 | `run_action` | Applied |
 | `save` | Unsupported |
 | `setting_path_pick` | Unsupported |
@@ -372,7 +374,43 @@ Named here rather than quietly absorbed:
    it — the identical defect shape, one call site removed. No storyboard
    fixture drives a Switch-project today, so this is undiagnosed rather than
    reproduced; flag it before writing one.
-3. ~~**The Unsupported bucket is a work list, not a verdict.**~~ The settings
+3. **No capture tier reaches an EXTERNAL-CHANGE CONFLICT, and the reason is
+   structural at both ends.** Measured, not inferred, before anything was
+   promised — the mistake item 180 is the cautionary tale for.
+
+   The conflict is latched on the live `App`'s per-buffer disk baseline, so
+   tier 1 cannot hold it at all. Tier 2 can, but only two ways in exist and
+   both are shut:
+
+   - **Raise one during the run.** Impossible by construction: the change has
+     to come from OUTSIDE awl, and a capture drives chords only. There is no
+     step at which another writer touches the file.
+   - **Start already conflicted, from the recovery record.** This is the
+     reachable-looking one, and it is the one to check rather than assume.
+     `--screenshot-app` is a `crate::scenario` door whose sandbox is seeded by
+     `scenario::cli_seeds` from exactly TWO paths — the CLI `file` and
+     `--config`. Nothing writes awl's data root, so `recovery::read()` finds
+     nothing. Driven for real: a record placed at
+     `$XDG_DATA_HOME/awl/unresolved-change.md` beside a diverging file, with
+     `--screenshot-app` pointed at that file, photographs the DISK text and no
+     conflict. The store is not merely unseeded, it is unseedable through the
+     current door.
+
+   And even with the state reached, the sidecar could not report it: the chrome
+   `notice` — where the guard's own line is rendered — **has no sidecar field**
+   (confirmed against a real `driver: "live-app"` artifact's key list). An
+   appearance claim there would be pixels only, per the Wagtail tripwire, which
+   is correct but worth knowing before a Verify clause asks for a state oracle.
+
+   **What would open it**, named rather than absorbed: a seed slot for awl's
+   DATA ROOT on the scenario door, so a live-`App` capture can start from a
+   seeded store the way item 116d's ordinary `--keys` capture starts from a
+   seeded history under `XDG_DATA_HOME`. That is one narrowing of the same
+   shape as `app::Exit`, not a stub — but it is a harness change with its own
+   laws, and it belongs with the surface it would photograph rather than
+   bolted onto the guard beneath it.
+
+4. ~~**The Unsupported bucket is a work list, not a verdict.**~~ The settings
    trio's own grant closed by item 190 — see "Two asymmetries" above and
    `main/run/settings_effects.rs`. **Still true in general:** a row in the
    table above is Unsupported because the replay owns no capability for it,

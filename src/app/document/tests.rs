@@ -68,14 +68,20 @@ impl DocumentSession {
         self.active.extra.caret_synced_version = 999;
         self.active.extra.doc_saved_version = Some(777);
         self.active.extra.scratch_saved_version = Some(888);
-        self.active.extra.disk_mtime = Some(crate::fs::Metadata {
-            modified: None,
-            len: Some(101),
-        });
-        self.active.extra.scratch_mtime = Some(crate::fs::Metadata {
-            modified: None,
-            len: Some(202),
-        });
+        self.active.extra.disk_baseline = crate::external::Seen::Present {
+            stat: crate::fs::Metadata {
+                modified: None,
+                len: Some(101),
+            },
+            digest: Some(101),
+        };
+        self.active.extra.scratch_baseline = crate::external::Seen::Present {
+            stat: crate::fs::Metadata {
+                modified: None,
+                len: Some(202),
+            },
+            digest: Some(202),
+        };
         self.active.extra.doc_autosave_at = None;
         self.active.extra.history_preview = Some(("42".to_string(), "old text".to_string()));
         self.active.extra.history_scroll_before = Some(crate::render::ScrollPos::at_row(55));
@@ -97,7 +103,11 @@ fn every_buffer_extra_field_round_trips_a_b_a_b_c_a() {
         .with_file(&b, "bravo\n")
         .with_file(&c, "charlie\n");
     let _fs = crate::fs::FsGuard::install(Arc::new(fs));
-    let mut session = DocumentSession::new(Buffer::from_file(&a), None, None);
+    let mut session = DocumentSession::new(
+        Buffer::from_file(&a),
+        crate::external::Seen::Absent,
+        crate::external::Seen::Absent,
+    );
 
     session.seed_round_trip_extra();
     session.active.extra.doc_autosave_at = Some(Instant::now());
@@ -107,12 +117,27 @@ fn every_buffer_extra_field_round_trips_a_b_a_b_c_a() {
         "fixture must exercise spell cache"
     );
 
-    assert_eq!(session.open_path(&b, None), OpenPath::Fresh);
-    assert_eq!(session.open_path(&a, None), OpenPath::Reactivated);
+    assert_eq!(
+        session.open_path(&b, crate::external::Seen::Absent),
+        OpenPath::Fresh
+    );
+    assert_eq!(
+        session.open_path(&a, crate::external::Seen::Absent),
+        OpenPath::Reactivated
+    );
     assert_eq!(session.active.extra, expected, "A -> B -> A");
-    assert_eq!(session.open_path(&b, None), OpenPath::Reactivated);
-    assert_eq!(session.open_path(&c, None), OpenPath::Fresh);
-    assert_eq!(session.open_path(&a, None), OpenPath::Reactivated);
+    assert_eq!(
+        session.open_path(&b, crate::external::Seen::Absent),
+        OpenPath::Reactivated
+    );
+    assert_eq!(
+        session.open_path(&c, crate::external::Seen::Absent),
+        OpenPath::Fresh
+    );
+    assert_eq!(
+        session.open_path(&a, crate::external::Seen::Absent),
+        OpenPath::Reactivated
+    );
     assert_eq!(session.active.extra, expected, "A -> B -> C -> A");
 }
 
@@ -121,7 +146,11 @@ fn autosave_poll_waits_then_consumes_the_due_arm_once() {
     let _guard = crate::testlock::serial();
     let armed = Instant::now();
     let idle = std::time::Duration::from_secs(1);
-    let mut session = DocumentSession::new(Buffer::scratch(), None, None);
+    let mut session = DocumentSession::new(
+        Buffer::scratch(),
+        crate::external::Seen::Absent,
+        crate::external::Seen::Absent,
+    );
     session.arm_doc_autosave(armed);
 
     assert_eq!(

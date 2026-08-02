@@ -10,6 +10,13 @@ fn load_path_switches_to_already_open_buffer_preserving_edits_and_cursor() {
     // disk. Proven by mutating A's on-disk bytes BEHIND awl's back while B is
     // active, then asserting the restored A shows the in-memory edit, not the
     // disk write.
+    //
+    // AUTOSAVE IS OFF here on purpose. With it on, the switch away from A
+    // flushes A's edit to disk, so by the time the fixture writes behind awl's
+    // back the buffer is clean — and a clean buffer over a changed file is
+    // reloaded, not kept, which would make this fixture assert the opposite of
+    // its own premise. Off, the edit is genuinely unsaved, which is the state
+    // this law is about.
     use crate::fs::{FileSystem, InMemoryFs};
     let a = PathBuf::from("/proj/a.txt");
     let b = PathBuf::from("/proj/b.txt");
@@ -17,7 +24,14 @@ fn load_path_switches_to_already_open_buffer_preserving_edits_and_cursor() {
         .with_file(&a, "alpha\n")
         .with_file(&b, "beta\n");
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
-    let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
+    let mut app = app_on(
+        Some(a.clone()),
+        "/proj",
+        Config {
+            autosave: Some(false),
+            ..Config::empty()
+        },
+    );
     app.document.set_text("ALPHA EDITED\n");
     app.document.set_cursor(3);
     assert_eq!(app.document.open_count(), 1, "only A is open so far");
@@ -52,6 +66,14 @@ fn load_path_switches_to_already_open_buffer_preserving_edits_and_cursor() {
         app.document.buffer().is_dirty(),
         "the unsaved edit is still unsaved"
     );
+    // …and, because A's file DID move while A was parked, reactivating it raises
+    // the conflict rather than quietly picking a winner. Both texts are intact:
+    // the buffer holds the edit, the file holds the outside change.
+    assert!(
+        app.change_unresolved(),
+        "reactivating a parked buffer whose file changed must raise the conflict"
+    );
+    assert_eq!(mem.read_to_string(&a).unwrap(), "ALPHA CHANGED ON DISK\n");
     assert_eq!(
         app.document.open_count(),
         2,
@@ -59,6 +81,13 @@ fn load_path_switches_to_already_open_buffer_preserving_edits_and_cursor() {
     );
 
     // And B's OWN edit is preserved too (not silently dropped when we left it).
+    // Leaving A requires settling A's conflict first: a conflicted buffer is the
+    // sole editable copy of one of two versions and may not be parked behind
+    // another document. Keeping A's version matches this law's premise — the
+    // edit was always the thing worth keeping — and must not disturb B.
+    app.resolve_keep_mine();
+    assert!(!app.change_unresolved());
+    assert_eq!(mem.read_to_string(&a).unwrap(), "ALPHA EDITED\n");
     app.load_path(b.clone());
     assert_eq!(
         app.document.buffer().text(),

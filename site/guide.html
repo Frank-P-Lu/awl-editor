@@ -92,10 +92,42 @@
 
         <p><strong>Autosave runs on four triggers:</strong> idle (about a
         second after you stop typing), window blur, buffer switch, quit.
-        Writes are atomic (a temp file, then a rename) and never clobber an
-        external edit — if the file changed on disk since awl last touched
-        it, the write is held and a notice appears at the bottom of the
-        screen. Editing again re-arms it. A manual ⌘S always force-writes.</p>
+        Writes are atomic — a temp file, then a rename.</p>
+
+        <p><strong>Nothing awl writes ever replaces a change made outside
+        it.</strong> awl remembers the exact bytes it last saw in each open
+        file, so a rewrite that keeps the same timestamp and the same length
+        is still noticed. It re-checks when you return to the window, when
+        you switch or open a file, and before every write.</p>
+
+        <table>
+        <thead><tr><th>what awl finds</th><th>what happens</th></tr></thead>
+        <tbody>
+        <tr><td>the file is unchanged</td><td>the write goes through</td></tr>
+        <tr><td>the file changed, and you have no unsaved edits</td><td>awl reloads it, keeping your cursor and scroll</td></tr>
+        <tr><td>the file changed and you have unsaved edits</td><td>both are kept — see below</td></tr>
+        </tbody>
+        </table>
+
+        <p><strong>When both changed, you choose.</strong> awl keeps your
+        text as the one document you are editing and stops writing to the
+        file, so neither version can be lost. A <code>changed elsewhere</code>
+        notice appears at the bottom of the screen, and your unsaved text is
+        copied to awl's own data folder — so it survives a crash, and comes
+        back when you reopen the file. Two commands settle it:</p>
+
+        <table>
+        <thead><tr><th>command</th><th>what it does</th></tr></thead>
+        <tbody>
+        <tr><td><strong>Save your version</strong></td><td>re-checks the file, then writes your text over it</td></tr>
+        <tr><td><strong>Use disk version</strong></td><td>replaces your text with the file's, as one edit ⌘Z takes back</td></tr>
+        </tbody>
+        </table>
+
+        <p>Saving, switching files, renaming, moving and Finish file all wait
+        until you have chosen. ⌘S does <strong>not</strong> force-write over
+        an external change; <strong>Save your version</strong> is the explicit
+        way to keep yours.</p>
 
         <p><strong>A small dot (•) in the window title marks an unsaved
         buffer</strong>, clearing the instant it's written. The stats HUD

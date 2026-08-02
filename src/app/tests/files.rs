@@ -58,7 +58,7 @@ fn rescan_file_index_picks_up_a_file_created_after_the_last_scan() {
         history_session_start: None,
         settings_values: Default::default(),
         assets: Vec::new(),
-        has_waiter: false,
+        row_gates: Default::default(),
     };
     let ov = crate::overlay::build(crate::overlay::OverlayKind::Goto, &build_ctx)
         .expect("Goto always summons");
@@ -269,40 +269,30 @@ fn settings_corpus_includes_the_keymap_row() {
     );
 }
 
+/// The pure truth table moved to its own owner (`crate::external`, whose tests
+/// sweep content against stat). What belongs HERE is that the App's baseline is
+/// the thing that owner compares against — i.e. that opening a file records what
+/// is actually in it, so the very first check after an open is honest.
 #[test]
-fn disk_changed_truth_table() {
+fn opening_a_file_records_a_baseline_that_reads_clean_against_it() {
     use crate::fs::{FileSystem, InMemoryFs};
-    let mem = InMemoryFs::new();
+    let p = PathBuf::from("/notes/draft.md");
+    let mem = InMemoryFs::new().with_file(&p, "on disk\n");
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
-    let p = std::path::Path::new("/d/f.md");
-    // (None, None): the file never existed — our write CREATES it, no clobber.
-    assert!(!App::disk_changed(p, None));
-    mem.write(p, b"v1").unwrap();
-    let t1 = App::disk_mtime_of(p);
-    assert!(t1.is_some(), "the fake records mtimes");
-    // (Some, Some) equal → unchanged.
-    assert!(!App::disk_changed(p, t1));
-    // (Some, None): the file APPEARED externally since we looked.
-    assert!(App::disk_changed(p, None));
-    // (Some, Some) differing → a real external change.
-    std::thread::sleep(Duration::from_millis(2)); // ensure a distinct mtime
-    mem.write(p, b"v2").unwrap();
-    assert!(App::disk_changed(p, t1));
-    // (Some, Some) with the SAME mtime but a DIFFERENT size → a same-tick
-    // external edit (equal mtime, changed content) must still be caught by the
-    // size guard, or we'd silently overwrite it.
-    let cur = App::disk_mtime_of(p).expect("v2 exists");
-    let same_tick_other_size = Some(crate::fs::Metadata {
-        modified: cur.modified,
-        len: cur.len.map(|n| n + 1),
-    });
-    assert!(App::disk_changed(p, same_tick_other_size));
-    // (None, Some): the file was DELETED externally (renamed away here — the
-    // trait has no remove op, and a rename models the same disappearance).
-    let last = App::disk_mtime_of(p);
-    mem.rename(p, std::path::Path::new("/d/elsewhere.md"))
-        .unwrap();
-    assert!(App::disk_changed(p, last));
+    let app = app_on(Some(p.clone()), "/notes", Config::empty());
+    assert_eq!(
+        crate::external::look(&p, &app.document.disk_baseline()).0,
+        crate::external::Change::Unchanged,
+        "a freshly opened file must not look changed to its own baseline"
+    );
+    // A same-LENGTH rewrite by somebody else is seen — the case a stat-only
+    // baseline answers "unchanged" to, driven here through the App's own
+    // recorded baseline rather than through hand-built observations.
+    mem.write(&p, b"ON DISK\n").unwrap();
+    assert_eq!(
+        crate::external::look(&p, &app.document.disk_baseline()).0,
+        crate::external::Change::Modified
+    );
 }
 
 #[test]
@@ -352,10 +342,10 @@ fn autosave_flush_writes_doc_and_snapshots_loose_file() {
         "autosave records a local-history snapshot for a loose file"
     );
     // An unchanged buffer is not re-written (version bookkeeping short-circuits).
-    let t = App::disk_mtime_of(&p);
+    let t = crate::external::Seen::at(&p);
     app.autosave_flush();
     assert_eq!(
-        App::disk_mtime_of(&p),
+        crate::external::Seen::at(&p),
         t,
         "no redundant write for a clean buffer"
     );
@@ -381,7 +371,7 @@ fn autosave_flush_skips_and_notices_when_disk_changed_externally() {
     );
     assert_eq!(
         app.frame.notice().text(),
-        Some(CLOBBER_NOTICE),
+        Some(crate::app::files::CHANGED_ELSEWHERE_NOTICE),
         "a calm notice is raised"
     );
     assert!(
@@ -596,8 +586,12 @@ fn write_back_never_fires_twice_across_a_reopen() {
     app.load_path(b.clone());
     let tagged = app.document.buffer().text();
     assert_eq!(tagged, format!("---\nlang: ja\n---\n{original}"));
-    // Simulate a save (autosave/Cmd-S would write exactly this).
-    mem.write(&b, tagged.as_bytes()).unwrap();
+    // Save it through the REAL door. (This used to be a raw `mem.write`, which
+    // wrote the right bytes but left awl's own disk baseline pointing at the
+    // pre-save content — i.e. it simulated an EXTERNAL write, and now correctly
+    // reads as one.)
+    app.manual_save();
+    assert_eq!(mem.read_to_string(&b).unwrap(), tagged);
     // Switch away, then back: `load_path`'s SWITCH branch (already open in
     // the registry) restores the live buffer untouched — no second call.
     app.load_path(a.clone());
@@ -618,13 +612,19 @@ fn write_back_never_fires_twice_across_a_reopen() {
 }
 
 #[test]
-fn load_path_preserves_a_clobber_notice_the_leaving_flush_just_raised() {
-    // REGRESSION (code review nit): if the flush `load_path` runs on the
-    // buffer being LEFT hits the autosave clobber guard (the file changed
-    // on disk outside awl), the notice it raises must survive the switch
-    // — the unconditional `self.notice = None` a few lines later used to
-    // wipe it in the very same call, before a single frame ever rendered
-    // it, so the user never learned their unsaved edit was held.
+fn load_path_refuses_the_switch_the_leaving_flush_just_made_unresolvable() {
+    // REGRESSION, TWICE OVER. The original defect: the flush `load_path` runs
+    // on the buffer being LEFT can raise the guard's notice, and the
+    // unconditional `self.notice = None` a few lines later used to wipe it in
+    // the very same call, before a single frame ever rendered it — so the user
+    // never learned their unsaved edit was held.
+    //
+    // The same moment is now stricter, because holding the write is not the
+    // whole story: A carries an UNRESOLVED CHANGE, and A's buffer is the only
+    // editable copy of one of two real versions. Parking it behind B would leave
+    // that copy reachable through nothing but the recovery record, with the
+    // conflict itself off screen. So the switch is refused, and the notice —
+    // which used to have to survive a switch — has no switch to survive.
     use crate::fs::{FileSystem, InMemoryFs};
     let a = PathBuf::from("/notes/a.md");
     let b = PathBuf::from("/notes/b.md");
@@ -640,8 +640,14 @@ fn load_path_preserves_a_clobber_notice_the_leaving_flush_just_raised() {
 
     assert_eq!(
         app.document.buffer().text(),
-        "B\n",
-        "the switch to B still happens"
+        "A edited\n",
+        "the switch is refused: A is the sole editable copy of an unresolved change"
+    );
+    assert!(app.change_unresolved(), "and the conflict is open");
+    assert_eq!(
+        crate::recovery::read().map(|r| r.text),
+        Some("A edited\n".to_string()),
+        "A's held text is on disk before the refusal, not only in memory"
     );
     assert_eq!(
         mem.read_to_string(&a).unwrap(),
@@ -650,8 +656,17 @@ fn load_path_preserves_a_clobber_notice_the_leaving_flush_just_raised() {
     );
     assert_eq!(
         app.frame.notice().text(),
-        Some(CLOBBER_NOTICE),
-        "the notice raised while leaving A must survive into the switch, not vanish unseen"
+        Some(crate::app::files::CHANGED_ELSEWHERE_NOTICE),
+        "the notice must survive the attempted switch, not vanish unseen"
+    );
+
+    // Once resolved, the switch that was refused goes through unremarkably.
+    app.resolve_take_theirs();
+    app.load_path(b.clone());
+    assert_eq!(
+        app.document.buffer().text(),
+        "B\n",
+        "the switch works after resolving"
     );
 }
 
@@ -1347,8 +1362,9 @@ fn scratch_stash_clobber_guard_holds_two_instance_writes() {
     );
     assert_eq!(
         app.frame.notice().text(),
-        Some(CLOBBER_NOTICE),
-        "the calm notice names the hold"
+        Some(crate::app::files::SCRATCH_CHANGED_NOTICE),
+        "the calm notice names the hold — the stash's own wording, since the two \
+         document resolutions are about a file the user named and this is not"
     );
 }
 

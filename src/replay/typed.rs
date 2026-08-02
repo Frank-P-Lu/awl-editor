@@ -102,8 +102,18 @@ pub(super) fn classify_persistence(
     effect: &crate::actions::PersistenceEffect,
     filesystem: FilesystemCapability,
 ) -> Classified {
-    use crate::actions::{PersistenceEffect::*, PreferenceEffect::*, SaveKind};
+    use crate::actions::{PersistenceEffect::*, PreferenceEffect::*, Resolution, SaveKind};
     match effect {
+        ResolveExternalChange(resolution) => named(
+            match resolution {
+                Resolution::KeepMine => "resolve_keep_mine",
+                Resolution::TakeTheirs => "resolve_take_theirs",
+            },
+            EffectClass::Unsupported {
+                why: "an external-change conflict is latched on the live App; \
+                      replay holds no baseline for a file it never opened",
+            },
+        ),
         Save(kind) => {
             let (name, why) = match kind {
                 SaveKind::Manual => (

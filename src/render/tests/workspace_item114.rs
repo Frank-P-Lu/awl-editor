@@ -434,7 +434,7 @@ fn a_contextual_overlay_never_enters_the_workspace_family() {
     let ov = OverlayState::new_command(
         crate::commands::visible_names(),
         crate::commands::visible_effective_bindings(&[], &[]),
-        crate::commands::visible_hidden_mask(false),
+        crate::commands::visible_hidden_mask(Default::default()),
     );
     let mut v = workspace_view(&ov);
     v.overlay_title = OverlayKind::Command.title();

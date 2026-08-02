@@ -48,7 +48,6 @@ const AUTOSAVE_DEBOUNCE: Duration = Duration::from_millis(400);
 const AUTOSAVE_IDLE: Duration = Duration::from_secs(1);
 
 const TOAST_LIFETIME: Duration = Duration::from_millis(2500);
-const CLOBBER_NOTICE: &str = "changed on disk outside awl — ⌘S keeps yours · reopen for theirs";
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 enum NoticeKind {
@@ -377,6 +376,10 @@ struct ThemeSettleInFlight {
 mod awl_event;
 /// GPU surface + frame loop (device/queue/surface, prepare/render).
 mod files;
+/// Re-exported crate-wide so the render fixtures and the docs-vocabulary law
+/// read the SAME constant the running app displays, never a retyped copy.
+#[cfg(test)]
+pub(crate) use files::CHANGED_ELSEWHERE_NOTICE;
 /// The one live owner of frame timing, presentation bookkeeping, render state,
 /// surface lifecycle, and notices.
 mod frame;
@@ -628,11 +631,14 @@ impl App {
                 }
             },
         };
-        let disk_mtime = file.as_deref().and_then(Self::disk_mtime_of);
-        let scratch_mtime = if file.is_none() {
-            Self::disk_mtime_of(&stash)
+        let disk_baseline = file
+            .as_deref()
+            .map(crate::external::Seen::at)
+            .unwrap_or_default();
+        let scratch_baseline = if file.is_none() {
+            crate::external::Seen::at(&stash)
         } else {
-            None
+            crate::external::Seen::Absent
         };
         let config = location::ConfigurationRuntime::new(config, cli_workspace, cli_default_folder);
         let project_location = location::ProjectLocation::new(root, &config.location_policy());
@@ -653,7 +659,7 @@ impl App {
         let clock: Box<dyn crate::clock::Clock> = Box::new(crate::clock::RealClock);
         #[cfg(not(target_arch = "wasm32"))]
         let stats_origin = clock.now();
-        let document = document::DocumentSession::new(buffer, disk_mtime, scratch_mtime);
+        let document = document::DocumentSession::new(buffer, disk_baseline, scratch_baseline);
         let mut app = Self {
             document,
             workspace_state: workspace::WorkspaceState::default(),
@@ -729,6 +735,8 @@ impl App {
         // whatever the scratch-stash restore above already picked.
         #[cfg(not(target_arch = "wasm32"))]
         app.apply_session_restore(file_arg_given);
+        // RELAUNCH RECOVERY, once every startup buffer decision has settled.
+        app.adopt_unresolved_after_startup();
         // WRITING STREAKS: set the INITIAL word-delta anchor now that every startup
         // buffer decision (scratch-stash restore + session restore, which can swap
         // the active buffer) has settled. An awl-CREATED scratch (no path — fresh
@@ -773,11 +781,6 @@ impl App {
 
     fn clear_notice(&mut self) {
         self.frame.clear_notice();
-    }
-
-    fn clobber_notice_active(&self) -> bool {
-        self.frame.notice().kind() == NoticeKind::Sticky
-            && self.frame.notice().text() == Some(CLOBBER_NOTICE)
     }
 }
 

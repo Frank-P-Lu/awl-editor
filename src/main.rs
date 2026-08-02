@@ -72,6 +72,7 @@ mod ease;
 mod embedded_docs;
 mod embedded_docs_law;
 mod export;
+mod external;
 mod facets;
 mod file_visibility;
 mod firstrun;
@@ -143,8 +144,13 @@ mod prosediff;
 mod range;
 mod recent_files;
 mod recents;
+mod recovery;
 mod render;
 mod replay;
+// The SAVE-MODEL PROSE LAW: the user-facing sentences about what saving does,
+// pinned to the live notice constant and the live catalog. Test-only by its own
+// inner `cfg`, beside `docs_catalog_law` which pins chords and command names.
+mod save_model_law;
 // The hermetic scenario filesystem (the strict-replay sandbox) — native-only:
 // wasm has no CLI capture modes and installs `WebFs` instead.
 #[cfg(not(target_arch = "wasm32"))]

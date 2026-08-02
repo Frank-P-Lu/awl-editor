@@ -97,6 +97,11 @@ impl<'a> ReplaySession<'a> {
                     let _ = self.buffer.save();
                 }
             }
+            // Live-App-only: the conflict this settles is latched on the App's
+            // own per-buffer baseline, which a replay never builds. Classified
+            // Unsupported, so a strict replay aborts naming it rather than
+            // pretending to resolve something it cannot see.
+            actions::PersistenceEffect::ResolveExternalChange(_) => {}
             actions::PersistenceEffect::Preference(preference) => match preference {
                 actions::PreferenceEffect::CaretMode
                 | actions::PreferenceEffect::PageMode

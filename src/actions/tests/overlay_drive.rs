@@ -323,7 +323,7 @@ pub(super) fn command_overlay_with_settings() -> OverlayState {
         crate::commands::visible_effective_bindings(&[], &[]),
         // No daemon waiter in this fixture: matches the real arm's default
         // (`BuildCtx::has_waiter: false`) for every non-live caller.
-        crate::commands::visible_hidden_mask(false),
+        crate::commands::visible_hidden_mask(Default::default()),
     );
     ov.attach_settings_rows(
         crate::settings::palette_rows(),

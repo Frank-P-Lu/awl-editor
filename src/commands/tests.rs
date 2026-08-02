@@ -136,6 +136,8 @@ fn catalog_non_empty_and_named() {
         "Export as HTML…",
         "Export as PDF…",
         "Copy link destination",
+        "Save your version",
+        "Use disk version",
     ];
     for c in COMMANDS.iter() {
         if !PALETTE_ONLY.contains(&c.name) {
@@ -1053,6 +1055,8 @@ const HIDE_ON_WEB: &[&str] = &[
     "Version history…",
     "Compare with version…",
     "Keep version…",
+    "Save your version",
+    "Use disk version",
     "Lifetime stats",
     "Writing streaks",
     "Clean unused assets…",
@@ -1280,7 +1284,7 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
         .position(|c| c.action == Action::FinishBuffer)
         .expect("FinishBuffer is a real catalog row");
 
-    let mask_no_waiter = visible_hidden_mask(false);
+    let mask_no_waiter = visible_hidden_mask(Default::default());
     assert_eq!(
         mask_no_waiter.len(),
         corpus.len(),
@@ -1290,20 +1294,58 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
         mask_no_waiter[idx],
         "FinishBuffer must be hidden with no waiter"
     );
+    // THE WHOLE RUNTIME-GATED SET, by name, under "no live fact is true" — so a
+    // row that quietly grows a gate has to be named here rather than absorbed
+    // into a count.
+    let hidden_now: Vec<&str> = corpus
+        .iter()
+        .zip(&mask_no_waiter)
+        .filter(|&(_, &h)| h)
+        .map(|(c, _)| c.name)
+        .collect();
     assert_eq!(
-        mask_no_waiter.iter().filter(|&&h| h).count(),
-        1,
-        "exactly one row (FinishBuffer) is ever runtime-hidden"
+        hidden_now,
+        vec!["Finish file", "Save your version", "Use disk version"],
+        "exactly these rows are runtime-gated, and each on its own live fact"
     );
 
-    let mask_waiting = visible_hidden_mask(true);
+    let mask_waiting = visible_hidden_mask(RowGates {
+        has_waiter: true,
+        ..Default::default()
+    });
     assert!(
         !mask_waiting[idx],
         "FinishBuffer must show while a waiter is active"
     );
-    assert!(
-        mask_waiting.iter().all(|&h| !h),
-        "no OTHER row is ever runtime-gated"
+    // The waiter fact unmasks the waiter row ALONE — it must not also reveal a
+    // row gated on some other fact, which is the drift a single bool invited.
+    let still_hidden: Vec<&str> = corpus
+        .iter()
+        .zip(&mask_waiting)
+        .filter(|&(_, &h)| h)
+        .map(|(c, _)| c.name)
+        .collect();
+    assert_eq!(
+        still_hidden,
+        vec!["Save your version", "Use disk version"],
+        "the waiter fact gates the waiter row and nothing else"
+    );
+
+    // …and the conflict fact, symmetrically.
+    let mask_conflicted = visible_hidden_mask(RowGates {
+        change_unresolved: true,
+        ..Default::default()
+    });
+    let hidden_in_conflict: Vec<&str> = corpus
+        .iter()
+        .zip(&mask_conflicted)
+        .filter(|&(_, &h)| h)
+        .map(|(c, _)| c.name)
+        .collect();
+    assert_eq!(
+        hidden_in_conflict,
+        vec!["Finish file"],
+        "an open conflict reveals both resolutions and nothing else"
     );
 }
 

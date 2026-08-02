@@ -220,6 +220,13 @@ pub enum Action {
     /// (`OverlayKind::Assets`) + `assets.rs`.
     OpenAssetClean,
     KeepVersion,
+    /// Settle an unresolved external change by writing the buffer over the file,
+    /// after rechecking the disk. Palette-only, and its row is hidden unless a
+    /// conflict is open (`app/files/external.rs`).
+    ResolveKeepMine,
+    /// Settle it the other way: replace the buffer with the file, as ONE
+    /// undoable edit. Palette-only and hidden the same way.
+    ResolveTakeTheirs,
     /// FINISH the active buffer (the emacsclient "server-edit" convention; the emacs
     /// `C-x #` default is retired, so it is palette-only now): save it, notify any
     /// daemon `--wait` client waiting on it, and

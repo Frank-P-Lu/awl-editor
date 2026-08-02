@@ -7,13 +7,34 @@
 //! (its first material save), and Rename is the one, explicit, generic verb
 //! thereafter.
 
+use super::WritePermission;
 use crate::app::*;
 use std::path::Path;
 
 impl App {
     /// Live interpreter for `PersistenceEffect::Save(Manual)`. The shared
     /// transition describes the write; only this live owner may perform it.
+    /// **A manual Save no longer force-writes.** It routes through the SAME
+    /// external-change guard the autosave engine does
+    /// ([`Self::settle_external_change`]), because the contract it used to
+    /// honour — "⌘S keeps yours" — spent one of the two manuscripts to do it,
+    /// and the user pressing ⌘S was never told that is what it meant. A file
+    /// that moved under an unsaved buffer now raises the conflict; the explicit
+    /// **Save your version** resolution is where "keep mine" lives, and it says
+    /// so before it writes.
     pub(in crate::app) fn manual_save(&mut self) {
+        match self.settle_external_change() {
+            WritePermission::Clear => {}
+            // The buffer was clean, so the reload IS the save's whole outcome:
+            // the document now matches the file it would have been written to.
+            WritePermission::Reloaded => return,
+            WritePermission::Held => {
+                if let Some(path) = self.document.buffer().path().map(|p| p.to_path_buf()) {
+                    self.write_recovery_record(&path);
+                }
+                return;
+            }
+        }
         if self.document.buffer().path().is_none() && !self.document.buffer().is_unnamed_fresh() {
             self.convert_scratch_and_save();
         } else {
@@ -118,7 +139,7 @@ impl App {
             if let Some(p) = self.document.buffer().path().map(|p| p.to_path_buf()) {
                 self.document.record_document_saved(
                     self.document.buffer().version(),
-                    Self::disk_mtime_of(&p),
+                    crate::external::Seen::at(&p),
                 );
             }
             // NOTES VERBS round: the held HUD's SAVED stat.
@@ -175,7 +196,7 @@ impl App {
                 if let Some(p) = self.document.buffer().path().map(|p| p.to_path_buf()) {
                     self.document.record_document_saved(
                         self.document.buffer().version(),
-                        Self::disk_mtime_of(&p),
+                        crate::external::Seen::at(&p),
                     );
                 }
                 self.emit_notice(crate::actions::NoticeEffect::Toast("saved".to_string()));
@@ -289,6 +310,12 @@ impl App {
     /// clobber (numeric suffix), then re-points the buffer so editing/auto-save
     /// continue at the new path. A true `std::fs::rename` move — never a copy.
     pub(in crate::app) fn move_current_file(&mut self, dest_rel: &str) {
+        // A move is an IDENTITY boundary: it re-points every path-keyed store at
+        // a new name, and doing that while one version of the file is unwritten
+        // would strand the conflict on a path that no longer holds the document.
+        if self.refuse_while_unresolved() {
+            return;
+        }
         let Some(old) = self.document.buffer().path().map(|p| p.to_path_buf()) else {
             return; // no current file to move
         };
@@ -313,7 +340,12 @@ impl App {
             return; // already there: nothing changed
         }
         // No success notice — the window title already renders the new path.
-        self.document.set_path(new_path);
+        self.document.set_path(new_path.clone());
+        // The guard's baseline is keyed to a PATH. Re-take it at the new one, or
+        // every later check would compare this document against a file it is no
+        // longer stored in — the stale-key defect the move used to leave behind.
+        self.document
+            .adopt_disk_baseline(crate::external::Seen::at(&new_path));
         // An UNNAMED fresh document being moved before its first save (rare —
         // the picker only opens for a pathed file) keeps auto-saving into its
         // new home.
@@ -340,6 +372,10 @@ impl App {
     /// a GIT-MANAGED source (git owns naming there — `git mv` is the honest tool).
     /// A blank or UNCHANGED typed name is a quiet no-op (nothing to rename to).
     pub(in crate::app) fn rename_current_file(&mut self, new_name: &str) {
+        // Same identity boundary as a move — see `move_current_file`.
+        if self.refuse_while_unresolved() {
+            return;
+        }
         let Some(old) = self.document.buffer().path().map(|p| p.to_path_buf()) else {
             return; // nothing to rename (the prompt shouldn't have opened either)
         };
@@ -371,6 +407,9 @@ impl App {
         // disrupts the rename that already succeeded on disk.
         let _ = crate::history::rename(&old, &dest);
         self.document.set_path(dest.clone());
+        // Re-key the guard's baseline at the new path (see `move_current_file`).
+        self.document
+            .adopt_disk_baseline(crate::external::Seen::at(&dest));
         if self.document.buffer().is_unnamed_fresh()
             && let Some(dir) = dest.parent()
         {

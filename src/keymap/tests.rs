@@ -83,6 +83,8 @@ export_as_html|||
 export_as_pdf|||
 insert_link|Cmd-K|C-k|
 save|Cmd-S|C-s|
+save_your_version|||
+use_disk_version|||
 quit|Cmd-Q|C-q|
 search_forward|Cmd-F|C-f|C-s
 search_backward|Cmd-S-f|C-S-f|C-r

@@ -155,8 +155,25 @@ impl App {
         if !crate::mas::ensure_access(&path) {
             return;
         }
+        // LEAVING AN UNRESOLVED DOCUMENT IS NOT ALLOWED. The conflicted buffer
+        // is the sole editable copy of one of the two versions; parking it
+        // behind another document would leave the user's text reachable only
+        // through the recovery record, and the conflict itself invisible. The
+        // refusal names the two resolutions.
+        if self.refuse_while_unresolved() {
+            return;
+        }
         self.flush_note();
         self.autosave_flush();
+        // …AND AGAIN, because the flush above is itself a write door: it may
+        // have discovered the change and latched the conflict a moment ago,
+        // after the gate at the top of this function had already passed. Missing
+        // this leaves the conflicted buffer parked behind another document with
+        // its notice showing and no way back to it — found by an existing
+        // reopen law, not by this item's own tests.
+        if self.refuse_while_unresolved() {
+            return;
+        }
         // WRITING STREAKS: sample the LEAVING buffer's word-delta BEFORE it is
         // replaced below, so words written in it this session are recorded against
         // the right document; the anchor is reset after the swap so the arriving
@@ -178,7 +195,9 @@ impl App {
         // root-joined spelling (see `BufferKey::path`'s doc) must both be
         // recognized as "already here", or this falls through into an
         // unnecessary (if harmless, post-fix) park/take round trip.
-        let opened = self.document.open_path(&path, Self::disk_mtime_of(&path));
+        let opened = self
+            .document
+            .open_path(&path, crate::external::Seen::at(&path));
         if opened == document::OpenPath::AlreadyActive {
             return;
         }
@@ -197,6 +216,18 @@ impl App {
         }
         if !clobber_notice_just_raised {
             self.clear_notice();
+        }
+        // THE ARRIVING BUFFER is a persistence boundary of its own, in two
+        // ways. A record left by a previous run (or by a conflict raised on
+        // this file before it was parked) is adopted here, so the unresolved
+        // state is found by opening the file it belongs to rather than only on
+        // the launch that happens to reopen it. And a REACTIVATED buffer — one
+        // parked in the registry, carrying the baseline it had when it was
+        // parked — is re-checked, because the disk has had the whole
+        // intervening session to move.
+        self.adopt_unresolved_for(&path);
+        if !self.change_unresolved() {
+            self.settle_external_change();
         }
         // `Buffer::path()` already carries this exact path — on the fresh-open
         // arm from `Buffer::from_file(&path)`, on the registry-hit arm from

@@ -729,6 +729,18 @@ fn deferred_effect_matches(action: &Action, effect: &Effect) -> bool {
         Action::FinishBuffer => {
             effect == &Effect::Persistence(PersistenceEffect::Save(SaveKind::Finish))
         }
+        Action::ResolveKeepMine => {
+            effect
+                == &Effect::Persistence(PersistenceEffect::ResolveExternalChange(
+                    crate::actions::Resolution::KeepMine,
+                ))
+        }
+        Action::ResolveTakeTheirs => {
+            effect
+                == &Effect::Persistence(PersistenceEffect::ResolveExternalChange(
+                    crate::actions::Resolution::TakeTheirs,
+                ))
+        }
         Action::FollowLink => matches!(effect, Effect::FollowLink(_)),
         Action::ReportProblem => effect == &Effect::ReportProblem,
         Action::DownloadFile => effect == &Effect::None,
@@ -803,7 +815,7 @@ fn every_catalog_command_dispatches_without_panicking() {
         history_session_start: None,
         settings_values: crate::settings::SettingsValues::default(),
         assets: vec![],
-        has_waiter: false,
+        row_gates: Default::default(),
     };
 
     for c in crate::commands::COMMANDS.iter() {

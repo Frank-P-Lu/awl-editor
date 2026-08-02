@@ -139,6 +139,22 @@ pub(super) static COMMANDS: &[Command] = &[
         web_only: false,
     },
     Command {
+        name: "Save your version",
+        action: Action::ResolveKeepMine,
+        native: "",
+        emacs: "",
+        native_only: true,
+        web_only: false,
+    },
+    Command {
+        name: "Use disk version",
+        action: Action::ResolveTakeTheirs,
+        native: "",
+        emacs: "",
+        native_only: true,
+        web_only: false,
+    },
+    Command {
         name: "Quit",
         action: Action::Quit,
         native: "",
