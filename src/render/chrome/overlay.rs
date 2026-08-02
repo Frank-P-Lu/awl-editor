@@ -388,6 +388,68 @@ impl TextPipeline {
         max_w
     }
 
+    /// The widest SECONDARY cell in a roster, shaped exactly as
+    /// [`Self::shape_overlay_right`] shapes the column it reserves room for —
+    /// the monospace chord face with the same symbol-family split. Measuring it
+    /// through the panel face instead under-read a chord by a few pixels, and a
+    /// reserved extent that is narrower than the ink it reserves for is not a
+    /// reservation.
+    pub(super) fn measure_bind_roster_px(&mut self, labels: &[String]) -> f32 {
+        let text = labels.join("\n");
+        if text.is_empty() {
+            return 0.0;
+        }
+        let m = self.metrics;
+        let metrics = GlyphMetrics::new(
+            m.font_size
+                * crate::render::effective_overlay_scale()
+                * crate::markdown::type_scale::LABEL,
+            self.overlay_lh(),
+        );
+        let key = {
+            use std::hash::{Hash, Hasher};
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            text.hash(&mut h);
+            metrics.font_size.to_bits().hash(&mut h);
+            (theme::active().font.as_ptr() as usize).hash(&mut h);
+            h.finish()
+        };
+        if let Some((cached, w)) = self.roster_memo[RosterSlot::Secondary as usize]
+            && cached == key
+        {
+            return w;
+        }
+        let ink = theme::muted().to_glyphon();
+        let mono = |c| Attrs::new().family(Family::Monospace).color(c);
+        let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
+        let mut spans: Vec<(&str, glyphon::Attrs)> = Vec::new();
+        for label in labels {
+            push_symbol_split(&mut spans, label, || mono(ink), || sym(ink));
+            spans.push(("\n", mono(ink)));
+        }
+        self.panel_bind_buffer
+            .set_metrics(&mut self.font_system, metrics);
+        self.panel_bind_buffer
+            .set_size(&mut self.font_system, None, None);
+        self.panel_bind_buffer
+            .set_wrap(&mut self.font_system, Wrap::None);
+        self.panel_bind_buffer.set_rich_text(
+            &mut self.font_system,
+            spans,
+            &panel_attrs().color(ink),
+            Shaping::Advanced,
+            None,
+        );
+        self.panel_bind_buffer
+            .shape_until_scroll(&mut self.font_system, false);
+        let mut max_w = 0.0_f32;
+        for run in self.panel_bind_buffer.layout_runs() {
+            max_w = max_w.max(run.line_w);
+        }
+        self.roster_memo[RosterSlot::Secondary as usize] = Some((key, max_w));
+        max_w
+    }
+
     pub(in crate::render) fn measure_spell_content_w(&mut self) -> f32 {
         let ui_metrics = self.overlay_metrics();
         let text = self.overlay_items.join("\n");

@@ -501,8 +501,11 @@ impl TextPipeline {
         // roster for the same reason the hug width is: a rail re-derived from the
         // visible window is a rail that moves when the window does.
         self.overlay_roster_secondary_w = 0.0;
+        self.overlay_roster_primary_w = 0.0;
         if self.overlay_active && self.overlay_spell.is_none() && self.diagonal_is_active() {
             self.overlay_roster_secondary_w = self.measure_roster_secondary_px();
+            let geom = self.overlay_geometry(self.window_w as u32);
+            self.overlay_roster_primary_w = self.measure_roster_primary_px(&geom);
         }
         // ITEM 114 — the workspace rail's column is MEASURED, never estimated
         // from a mean character width: its labels are display-face words and the

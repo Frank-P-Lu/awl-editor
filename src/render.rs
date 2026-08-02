@@ -2292,6 +2292,9 @@ pub struct TextPipeline {
     /// `0.0` on every upright world, whose secondary column is right-aligned to
     /// the card and never read this.
     overlay_roster_secondary_w: f32,
+    /// The widest PRIMARY cell in the whole candidate roster (device px), the
+    /// label half of the same reserved rail as [`Self::overlay_roster_secondary_w`].
+    overlay_roster_primary_w: f32,
     caret_preview: Option<CaretMode>,
     caret_demo: crate::caret::CaretDemo,
     caret_preview_mask_to: Option<GlyphMask>,

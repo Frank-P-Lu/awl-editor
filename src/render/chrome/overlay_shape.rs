@@ -401,9 +401,10 @@ impl TextPipeline {
         let slant_tax = slant
             .map(|s| crate::render::slant_max_offset(&s, plan.candidate_rows()))
             .unwrap_or(0.0);
-        let slant_text_w = (geom.text_w - slant_tax)
-            .max(0.0)
-            .min(self.diagonal_cluster_budget(geom).unwrap_or(f32::INFINITY));
+        let slant_text_w = (geom.text_w - slant_tax).max(0.0).min(
+            self.diagonal_cluster_budget(geom, plan.rows().len())
+                .unwrap_or(f32::INFINITY),
+        );
         let char_w = self.overlay_char_width();
         let total_chars = if char_w > 0.0 {
             (slant_text_w / char_w).floor() as usize
@@ -490,7 +491,12 @@ impl TextPipeline {
         // band's chase state (measuring may never advance an animation).
         let vis = VisualSelection::default();
         let plan = self.overlay_row_plan(&geom);
-        let has_right = self.overlay_shape_text(&geom, &plan, ink, muted, None, &vis, false);
+        // The card must be measured for what it HOLDS, not for what this scroll
+        // position happens to fit: reading the shaper's own yield verdict made
+        // the hug width flip whenever a wide row scrolled through, which is the
+        // same defect one level up.
+        let _ = self.overlay_shape_text(&geom, &plan, ink, muted, None, &vis, false);
+        let has_right = !self.overlay_right_labels().is_empty();
         // The card's own CHROME lines — query, lens strip, footer — are shaped by
         // that pass and are not row content, so they are read before the roster
         // measurement reuses the same buffer.
@@ -523,7 +529,7 @@ impl TextPipeline {
     /// answered by that column directly, because every such card lands on the cap
     /// regardless. The 2x margin is what keeps a MEAN-glyph-width estimate from
     /// ever short-circuiting a roster that would genuinely have hugged.
-    fn measure_roster_primary_px(&mut self, geom: &OverlayGeom) -> f32 {
+    pub(in crate::render) fn measure_roster_primary_px(&mut self, geom: &OverlayGeom) -> f32 {
         let Some(widest_chars) = self.overlay_items.iter().map(|s| s.chars().count()).max() else {
             return 0.0;
         };
@@ -538,15 +544,8 @@ impl TextPipeline {
     /// The widest secondary cell — key chord, time, git tag — in the whole
     /// roster, shaped at the right column's OWN recessive metrics.
     pub(in crate::render) fn measure_roster_secondary_px(&mut self) -> f32 {
-        let text = self.overlay_right_labels().join("\n");
-        let m = self.metrics;
-        let metrics = GlyphMetrics::new(
-            m.font_size
-                * crate::render::effective_overlay_scale()
-                * crate::markdown::type_scale::LABEL,
-            self.overlay_lh(),
-        );
-        self.measure_panel_roster_px(super::RosterSlot::Secondary, &text, metrics)
+        let labels = self.overlay_right_labels().to_vec();
+        self.measure_bind_roster_px(&labels)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -565,7 +564,7 @@ impl TextPipeline {
         // a secondary cell fits, so narrow cards elide/yield instead of drawing
         // a measured cluster through the spine or off its planned span.
         let mut shaped_geom = geom.clone();
-        if let Some(budget) = self.diagonal_cluster_budget(geom) {
+        if let Some(budget) = self.diagonal_cluster_budget(geom, plan.rows().len()) {
             shaped_geom.text_w = shaped_geom.text_w.min(budget);
         }
         let right_labels = self.overlay_right_labels();
@@ -612,7 +611,7 @@ impl TextPipeline {
         // side territory is a hard pixel bound. A display face can be wider than
         // that estimate (especially at 2×), so re-shape once against the actual
         // widest label ratio before seating its fixed accessory column.
-        if let Some(budget) = self.diagonal_cluster_budget(geom) {
+        if let Some(budget) = self.diagonal_cluster_budget(geom, plan.rows().len()) {
             let measured = self.widest_candidate_px(&shaped_geom, plan);
             if measured > budget && measured > 0.0 {
                 shaped_geom.text_w *= budget / measured;
