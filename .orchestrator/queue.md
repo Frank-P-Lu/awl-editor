@@ -247,21 +247,54 @@ run.
   photographed nothing; and `live-probe.sh` tests the lock only in preflight,
   never at the end, so it would have passed at 12:52 three minutes before the
   lock landed.
-- **116d** — 🟡 IN PROGRESS — claude (deep owner), branch
-  `claude/item-116d-timeline-comparison`, worktree
-  `../awl-next-worktrees/item-116d-timeline-comparison`. Both blocking decisions
-  are made (comparison ON the surface; one Esc always leaves, which binds item
-  114's Settings workspace too and must be made consistent in the same change).
-  Briefed to do the compositing round FIRST — delete
-  `the_relocated_document_is_geometrically_placed_but_not_yet_composited` and
-  replace it with the containment-and-visibility law its own message asks for —
-  before flipping `workspace_shape(History)`, since flipping first presents the
-  empty workspace item 114 forbids. ⚠️ **Item 174's header band landed hours
-  earlier**, so moving the lens to the header means working inside
-  `render/plan/overlay_header.rs` rather than adding a fourth copy of the
-  header's height. **Nothing else may be dispatched into
-  `render/chrome/overlay_draw.rs`, `overlay_rows.rs` or `chrome/mod.rs` while
-  this runs** — that is the collision that held it back this afternoon.
+- **116d** — 🟢 COMPOSITING ROUND LANDED; the flip is deliberately NOT done.
+  Merged to `main`; worktree removed. **The owner stopped at a clean boundary
+  and that is the correct outcome** — the comparison can now be SEEN, and
+  `workspace_shape(History)` is still `None`, which is now safe to change.
+  `draw_document_layers` splits into `draw_document_ground` (background, lava,
+  stars, page frame — the quiet frame, never relocated) and
+  `draw_document_content`; on a comparison frame the content is submitted AFTER
+  `draw_overlay_card` into the carved region without re-drawing its ground, and
+  the ordinary frame concatenates the two in their original order so **every
+  non-comparison frame is byte-identical by construction**. The blur path now
+  captures the ground alone while a comparison is up (116b's frosted-ghost
+  defect), and `blur_signature` hashes the comparison flag — otherwise Settings'
+  workspace and History's sign identically at one scroll and keep the wrong
+  frost. `clip_text_bounds` is the glyph twin of item 84's quad clip. The old
+  boundary law is deleted as its own message asked and replaced by four
+  containment-and-visibility laws. **The Esc decision landed for BOTH members**;
+  `Shift-Tab` was not wired at all and had to be added, and `GUIDE.md` plus
+  `site/guide.html` both promised "Esc there is a *back* to the rail" and were
+  fixed. Captures 1320 files: 1080 byte-identical, 240 differing — all the
+  `settings-detail` probes, one sidecar field, `esc back` → `tab back`.
+  ⚠️ **The vision smoke found a defect the whole green suite missed:** the
+  five-cell workspace footer ran off the card on Firetail at 900×520. The
+  pre-existing no-clip law measured the FLAT card at one canvas over three
+  worlds and was structurally blind to the workspace; the missing law is now
+  written over the whole roster at four canvases and both stages.
+  **Premise corrections worth keeping:** 116c's `⇧↵`/`open_keep_version` is the
+  *restore* and the *keep* prompt, NOT groundwork for the Back affordance — the
+  orchestrator's brief said otherwise and was wrong; and History's Back was
+  already half-present (`foot_hint`'s `detail_focus` branch said `tab back`) —
+  the debt was **Settings'**, whose line said `esc back`, the reverse of how the
+  brief framed it. `workspace_header_beat` was deliberately left unfolded: it is
+  a fourth copy of a ONE-LINE header today, and the moment the lens moves to the
+  header `header_rows` becomes 2 and that copy becomes **wrong** rather than
+  merely duplicated — so folding it belongs inside the lens-to-header slice.
+  **The restore notice is CALLED but not implemented:** restore emits one calm
+  notice naming the version and the undo (`restored "2 hr ago" · ⌘Z to undo`);
+  Esc emits none, because it undoes a view substitution and a toast confirming a
+  no-op is the nagging DESIGN's calm bias forbids. It belongs with the restore
+  journey the flip owns.
+  **Left for the next slice:** flip History to `TimelineOverComparison`; move the
+  lens to the header (inside `PlannedHeader`, folding `workspace_header_beat` in
+  as part of it); reuse the ordinary candidate-row hit-test for the timeline;
+  deep-link `Version history…` and `Compare with version…`; implement the restore
+  notice; and the tier-2 hermetic work. ⚠️ **One harness fact for that slice:**
+  `--keys` captures reach History's timeline but **not** its comparison — a
+  headless capture has no history store, so `selected_history_id()` is `None`
+  and the focus transfer declines. The comparison's capture-tier probes need
+  `--screenshot-app` or a seeded store.
 
 ## Remaining work — handoff order (2026-08-02, after the evening wave)
 
