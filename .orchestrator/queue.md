@@ -434,13 +434,41 @@ run.
   still give each test the world it asked for and the roster sweeps must still
   sweep — if sharing a device would let one test's state leak into another's,
   that trades this defect for item 233's and is not a fix.
-- **219 + 225** — 🟡 IN PROGRESS — claude (production), branch
-  `claude/item-219-225-surfaces`. Both "an unintended surface appears" defects,
-  given to ONE owner because both are likely a shared layout owner rather than
-  world-specific dead space. Briefed that 219 must not be hand-tuned per world
-  and 225 must not be masked by overlaying another rectangle, and pointed at
-  `PlannedHeader` (item 174's landed header-band owner) as the likely home of a
-  blank band, plus the recently-moved workspace geometry for the black bar.
+- **219 + 225** — ✅ COMPLETE. Receipt `native-gate-receipt commit=d7709def…
+  conventions=mac,linux scope=all-targets`.
+  ⚠️ **NEITHER DEFECT WAS WORLD-SPECIFIC, and that inverts what both items
+  asked for — a per-world nudge would have left FIFTEEN WORLDS BROKEN.**
+  **219 is on all twenty worlds**, byte for byte identically: the query beat was
+  folded into the last header line's box, and cosmic-text **centres** a line's
+  glyph run in its box, so on the flat family — whose one header line IS the
+  query field — the glyphs drew `header_gap/2` low. Measured at 1200×800: query
+  ink centres at **98.0** where its own line box centres at **77.6** — a
+  **20.4 px blank strip at the top of every takeover picker**.
+  Mopoke/Currawong/Gumtree/Bilby/Bowerbird were simply the five clicked through.
+  **225 is on all five bare-plate worlds:** the `Bars` footer plate ran to the
+  card's bottom edge — right for a card that hugs its content, wrong for a
+  workspace whose card comes from the canvas. **Cassowary's plate ink is
+  `base_100` `#050506`, which is why it reads BLACK there; on Galah it is pale
+  pink and invisible.** 52 px of plate for 19 px of ink.
+  **Fixes, one sentence each:** the query field's box is always exactly one
+  line, `plan::beat_stands_alone` owning whether the beat rides the last header
+  line's glyph metrics or closes the band as its own glyph-free line —
+  `split_bounds` collapsed from two arms to one and the seam hangs from the
+  field's own bottom edge, byte-identical arithmetic on the grouped family; and
+  the workspace footer takes its own band via `overlay_footer_reclaim`, the
+  existing owner the card height already reads. No overlay rectangle, no
+  per-world anything, rowlayout untouched.
+  **A law was DELETED rather than repaired**, per item 217's precedent: item
+  174's `the_pre_plan_query_band_genuinely_missed_the_field` reconstructed the
+  RETIRED formula, which after 219 is the CORRECT one on both families, so it
+  could no longer fail on anything. 174's user-visible outcome is still held by
+  its own headline law, which passed unmodified.
+  **A constraint in the brief was unsatisfiable:** "other worlds must remain
+  byte-identical" cannot hold for a correct fix here. What IS byte-identical is
+  every other **surface** — 840 probes, **840/840 sidecars identical**, 480/840
+  PNGs identical, all 360 differing the same deliberate class (the six
+  one-header-line surfaces × 20 worlds × 3 canvases). **State the constraint
+  per-surface in future briefs of this class.** Follow-up: item **234**.
 - **233** — ✅ COMPLETE. Receipt `native-gate-receipt commit=e5d520d2…
   conventions=mac,linux scope=all-targets`. `SerialGuard` now snapshots
   `render::overrides::pins()` on entry and restores on exit beside
@@ -812,6 +840,8 @@ user authorization.
 232. **No local gate exercises a virtualised GPU, and that blind spot just cost ~140 commits of red CI.** **Defect:** `scripts/native-gate.sh` runs on the dev host's real Apple Silicon Metal. Nothing in the local gate set exercises a virtualised GPU, so a receipt's greenness never was evidence about that axis — and item 231's defect is green on real Metal and red on virtualised Metal. **This is not a harness artifact of no consequence:** it left unkillable processes and took down whole VMs, and it went unnoticed for 140 commits because the only signal that could see it was the CI job everyone had stopped believing. **The honest statement of what a receipt certifies today is "sound on the hardware the receipts run on, with virtualised-GPU behaviour untested by any local gate."** **Build:** decide whether awl wants a virtualised-GPU arm at all, and if so where — a container with a software adapter (lavapipe/SwiftShader) in the local gate, a CI job that is allowed to be slow, or an explicit declaration that the hosted-mac CI job IS that arm and must therefore be treated as gating rather than tolerated red. **Do not answer it by making the local gate slower for every developer without deciding that consciously.** **Done:** the tier a receipt certifies is stated accurately wherever receipts are described (`CLAUDE.md`, `.orchestrator/README.md`, `RELEASING.md`), and either an arm covers the axis or its absence is a recorded decision. **Verify:** the chosen arm reproduces item 231's wedge before its fix and passes after. **Routing:** deep tier — this is a testing-strategy decision, not a script change. **Found by item 231's bisect owner, correcting this orchestrator's claim that "the tree the receipts were certifying was sound" 2026-08-03.**
 
 233. **`SerialGuard` restores globals but does not police the render overrides.** **Defect:** found by item 204 slice 2, whose extra test only changed the scheduling and exposed a pre-existing hole. `jump_hint_is_present_and_never_clips_for_every_kind` built its pipeline **before** taking the serial guard and never pinned the list style it measures against, so a leaked `Bars { gap: 8.0, FullWidth }` override made it report a clip that was not one — **green single-threaded, red in a wide parallel run.** The reader's end is closed (guard hoisted, style pinned). **The producer is not:** `list_surfaces.rs:909` is the only site with that exact value and it *does* reset, so the leak path is unexplained. **The real gap: `SerialGuard` restores world, page and spellcheck but leaves the render overrides unpoliced**, so any test that sets one and dies — or resets on a path an early `?` skips — poisons whatever runs next, and the victim is a *different* test in a *different* file. Same shape as the CI wedge item 231 diagnosed: a shared resource corrupted by one actor, failing somewhere unrelated. **Build:** bring the render overrides under the same restore discipline as the other globals; prefer making the leak impossible over finding the leaker. **Verify:** a fixture that sets an override and panics must not affect the next test; the whole suite green under a wide `--test-threads`; mutation proof that removing the restore fails by name. ⚠️ **A green single-threaded run proves nothing here** — the defect only appears under parallelism, the axis a local reproduction is least likely to sweep. **Found 2026-08-03; the leak path is a named unknown, not a solved problem.**
+
+234. **Cassowary's Settings clips its own value plates.** **Defect:** in the Settings workspace on Cassowary, the "Block" value plate cuts the final `k` at the panel's right edge. **Confirmed PRE-EXISTING on the base binary** by the item 219/225 lane, which found it while capturing and deliberately did not widen its scope. **Same class as items 220/221's palette work** — a value/accessory plate measured against the wrong right bound — so it may share an owner with them and should be looked at together rather than patched alone. **Build:** find the one owner of the value plate's right bound in the workspace's content pane and make it read the pane's real extent; do not special-case Cassowary and do not shrink the type. **Verify:** the full `SettingId × SettingKind` sweep at the widths where it bites, across the roster rather than the world it was noticed on — items 219 and 225 were both reported as world-specific and both turned out to be universal, so **assume universal until measured otherwise**; exact before/after captures with every unaffected surface byte-identical; a pixel law that fails on the clipped glyph. **Found 2026-08-03 by the 219/225 lane, not fixed.**
 
 213. **Optically center the logo cursor inside every app icon.** ✅ **COMPLETE — `f8d023e1`; user approved the 3 px lift on 2026-08-02.** The canonical macOS icon, complete world roster, paired favicon assets, and all Block/Pill/Narrow galleries were regenerated together; exporter/container laws and raster-clearance sweeps passed before review.
 
