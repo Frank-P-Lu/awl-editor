@@ -143,6 +143,32 @@ jobs:
           path: dist/
           retention-days: 14
 
+  # ── What the one surviving log says, and what has NOT been done about it ────
+  # Run 30732589551 is the only mac failure of this streak that left a log, and
+  # it falsifies both standing hypotheses. Step 8 began 04:40:25; both
+  # conventions finished COMPILING 113 seconds later; tests then ran normally
+  # for three and a half minutes; and at 04:45:56 output stopped dead for the
+  # remaining 35 minutes, with `free_bytes` steady at ~2.38 GB and
+  # `swap_used_bytes=0` on every heartbeat through to the budget. So this job is
+  # not memory-starved and it is not compile-bound. Something HANGS. The last
+  # thing either convention printed was libtest's unterminated prefix for
+  # `render::tests::scroll_pos::subpixel_semantics_do_not_change_settled_pixels_or_render_hash`,
+  # which builds a real wgpu device and reads a rendered frame back — while the
+  # sibling convention was doing the same thing on the same virtualised Metal
+  # device. That is one observation, not a diagnosis; the phase markers and the
+  # last-progress heartbeat exist to make the next occurrence say it outright.
+  #
+  # The obvious narrowing is deliberately NOT taken yet. This job runs BOTH
+  # keymap conventions concurrently, the linux job runs the identical script
+  # over the same two conventions and passes in ~18 minutes, and a keymap
+  # convention is not an OS property — what is genuinely mac-only here is the
+  # suite running against real Metal, CoreText and AppKit. Halving this job to
+  # one convention is therefore free coverage-wise and would remove the
+  # contention. But selecting a smaller tier while a test hangs would HIDE the
+  # hang, so the instrumentation lands first. If that narrowing is taken later
+  # it must issue a differently named, honestly scoped receipt: only
+  # `native-gate.sh`'s receipt, naming both conventions and the exact commit, is
+  # authorised to say "full native suite".
   mac:
     name: mac (build + test)
     runs-on: macos-latest
