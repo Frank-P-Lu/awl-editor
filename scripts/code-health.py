@@ -174,36 +174,43 @@ def load_file_size_marks(
 
 
 def resolve_merge_base(head_ref: str = "HEAD") -> tuple[str | None, str]:
-    """The commit this branch actually forked from — `git merge-base
-    head_ref main` (or `origin/main`) — and a status naming whether that
-    comparison means anything. Every branch-delta check shares this resolver
-    so head-is-main and unresolvable semantics stay in one place.
+    """The prior state every branch-delta check measures against, and a status
+    naming which kind of prior state it is. Every such check shares this
+    resolver so the baseline and its degenerate cases stay in one place.
 
     Status is one of:
-      "ok"           — `head_ref` differs from the resolved `main`/
+      "ok"            — `head_ref` differs from the resolved `main`/
                         `origin/main` commit and a merge base was found, so
                         the base sha is the branch's real fork point and a
-                        diff against it is meaningful.
-      "unresolvable" — `main`/`origin/main` didn't resolve, `head_ref` itself
-                        doesn't resolve, or the two share no merge base (a
+                        diff against it is meaningful. This is a worker's
+                        worktree branch, checked before landing.
+      "first_parent"  — `head_ref` already IS the resolved `main` commit, and
+                        its first parent is the prior state. This is the
+                        normal shape in the two places that only ever see
+                        HEAD-on-`main`: CI's push-to-`main` job and the merge
+                        train's post-merge candidate — and it is precisely
+                        where CROSS-BRANCH drift becomes visible for the
+                        first time. A merge commit's first parent IS the
+                        prior `main`, so the diff is exactly what the merged
+                        branch contributed on top of it; an ordinary
+                        non-merge push's sole parent is its own predecessor,
+                        which is the same question one commit wide. Two
+                        branches cut from one base can each be green alone
+                        and over a mark together, and this is the only
+                        baseline that can see it.
+      "unresolvable"  — `main`/`origin/main` didn't resolve, `head_ref` itself
+                        doesn't resolve, the two share no merge base (a
                         shallow or detached checkout, or unrelated
-                        histories). Skips the audit rather than failing every
-                        worker's gate — the same tolerance code-health.sh
-                        already grants its own Linux-target Clippy arm when
-                        that target isn't installed.
-      "head_is_main" — `head_ref` already IS the resolved commit, so there is
-                        no prior branch state to diff against. This is not a
-                        clean audit, it is a vacuous one, and it is the
-                        *normal* state in two of the three places this
-                        script runs on this push-straight-to-`main` repo:
-                        CI's `code-health.sh` job (always HEAD-on-`main`) and
-                        the merge train's post-merge candidate. Comparisons
-                        built on this function have real force in exactly
-                        one place — a worker's worktree branch, checked
-                        before landing.
+                        histories), or `head_ref` is `main` and has no first
+                        parent at all (a root commit). There is genuinely no
+                        prior state to compare against, so the audit is
+                        skipped rather than failing every worker's gate — the
+                        same tolerance code-health.sh already grants its own
+                        Linux-target Clippy arm when that target isn't
+                        installed. This is the only honest skip.
 
     `head_ref` defaults to `HEAD` and is only overridden by a caller proving
-    the `head_is_main` behavior without actually checking out `main`.
+    the `first_parent` behavior without actually checking out `main`.
     """
     ref_sha = None
     for ref in ("main", "origin/main"):
@@ -219,7 +226,14 @@ def resolve_merge_base(head_ref: str = "HEAD") -> tuple[str | None, str]:
     except subprocess.CalledProcessError:
         return None, "unresolvable"
     if ref_sha == head_sha:
-        return None, "head_is_main"
+        # `^1` and not `^` or `~1`: the distinction is the whole point at a
+        # merge. The FIRST parent is the prior `main` the train merged into;
+        # the second is the branch that just arrived and already measured
+        # itself against its own fork point.
+        try:
+            return git("rev-parse", "--verify", f"{head_sha}^1").strip(), "first_parent"
+        except subprocess.CalledProcessError:
+            return None, "unresolvable"
     try:
         base_sha = git("merge-base", head_sha, ref_sha).strip()
     except subprocess.CalledProcessError:
@@ -230,9 +244,9 @@ def resolve_merge_base(head_ref: str = "HEAD") -> tuple[str | None, str]:
 def previous_marks(
     manifest_path: str = "scripts/code-health.toml", head_ref: str = "HEAD"
 ) -> tuple[dict[str, int] | None, str]:
-    """The file-size-mark table at the commit this branch actually forked
-    from — `resolve_merge_base(head_ref)` — and a status naming whether that
-    comparison means anything.
+    """The file-size-mark table at the prior state `resolve_merge_base(
+    head_ref)` resolves — the fork point on a worktree branch, HEAD's first
+    parent when HEAD is already `main` — and a status naming which one it is.
 
     Deliberately not `main`'s tip: this repo actively encourages paying a
     code-health bill by *lowering* a mark on `main` (extraction), and the tip
@@ -248,15 +262,19 @@ def previous_marks(
     ceiling `check_structural` enforces directly against history.
 
     Status comes straight from `resolve_merge_base` — see its docstring for
-    what "ok"/"unresolvable"/"head_is_main" mean here. The raise audit this
-    feeds has real force in exactly one place — a worker's worktree branch,
-    checked before landing.
+    what "ok"/"first_parent"/"unresolvable" mean here. The raise audit this
+    feeds runs on a worker's worktree branch AND on the merge train's
+    post-merge candidate and CI's push-to-`main` job, which is the only place
+    a raise assembled out of two separately-green branches can be seen.
 
     `head_ref` defaults to `HEAD` and is only overridden by a caller proving
-    the `head_is_main` behavior without actually checking out `main`.
+    the `first_parent` behavior without actually checking out `main`.
     """
     base_sha, status = resolve_merge_base(head_ref)
-    if status != "ok":
+    # Gate on the resolved baseline, not on one status string: every status
+    # that carries a base sha is a real comparison, and only the absence of
+    # one is a skip.
+    if base_sha is None:
         return None, status
     text = git("show", f"{base_sha}:{manifest_path}")
     data = tomllib.loads(text)
@@ -265,7 +283,7 @@ def previous_marks(
         for entry in data.get("file_size_mark", [])
         if isinstance(entry.get("file"), str) and isinstance(entry.get("lines"), int)
     }
-    return marks, "ok"
+    return marks, status
 
 
 def check_mark_raises(
@@ -277,9 +295,9 @@ def check_mark_raises(
     directly against that fixed commit. This is the other half of the real
     invariant: a raise below that baseline is only legitimate when growth is
     unavoidable at a single-owner seam, and that judgment must be recorded,
-    not silent. `previous` is `None` for either non-"ok" status `previous_marks`
-    can return; neither an unresolvable reference nor a vacuous HEAD-is-main
-    comparison can prove a raise happened, so neither is treated as one.
+    not silent. `previous` is `None` only when `previous_marks` found no prior
+    state at all ("unresolvable"); an absent reference cannot prove a raise
+    happened, so it is not treated as one.
     """
     if previous is None:
         return []
@@ -346,13 +364,15 @@ def new_comment_citations(head_ref: str = "HEAD") -> tuple[list[tuple[str, int, 
     to see it. `-M` requests rename detection so a pure file move does not
     read as a wholesale deletion+re-addition of every citation inside it.
 
-    Returns `(None, status)` for the same non-"ok" statuses
-    `resolve_merge_base` can report — an unresolvable reference or a vacuous
-    HEAD-is-`main` comparison can prove nothing was added, so neither is
-    treated as if it had been.
+    Returns `(None, status)` only when `resolve_merge_base` found no prior
+    state at all ("unresolvable") — an absent reference can prove nothing was
+    added, so it is not treated as if it had been. A "first_parent" baseline
+    is a real comparison and is audited like any other: this ratchet shares
+    the resolver with the file-size-mark raise audit and has the same
+    cross-branch blind spot without it.
     """
     base_sha, status = resolve_merge_base(head_ref)
-    if status != "ok":
+    if base_sha is None:
         return None, status
     diff_text = git("diff", "-M", "--unified=0", base_sha, "--", "src")
     added: list[tuple[str, int, str]] = []
@@ -384,7 +404,7 @@ def new_comment_citations(head_ref: str = "HEAD") -> tuple[list[tuple[str, int, 
             continue
         # "-" (removed) and other diff metadata lines don't advance the new
         # file's line counter.
-    return added, "ok"
+    return added, status
 
 
 def check_comment_citations(
@@ -393,8 +413,8 @@ def check_comment_citations(
 ) -> list[str]:
     """A newly added citation fails unless it is a named exception: an
     index-named test file, `capture.rs`'s schema-history row, or a
-    `comment_citation_exception` entry recording why. `added` is `None` for
-    either non-"ok" status `new_comment_citations` can return.
+    `comment_citation_exception` entry recording why. `added` is `None` only
+    when `new_comment_citations` found no prior state at all.
     """
     if added is None:
         return []
@@ -877,12 +897,12 @@ def self_test() -> int:
             raise AssertionError("a non-empty file-size-mark reason must be captured")
         if not any("empty file-size-mark reason for src/blank.rs" in failure for failure in failures):
             raise AssertionError("a blank file-size-mark reason must fail")
-    # previous_marks must distinguish a real prior branch state from the two
-    # ways the comparison can mean nothing: an unresolvable reference, and the
-    # vacuous case a comparison-to-itself hides — HEAD already being `main`'s
-    # commit, which is the ordinary state for CI's push-to-`main` job and the
-    # merge train's post-merge candidate. Fully mocked, deterministic
-    # regardless of the environment running this self-test.
+    # previous_marks must resolve a real prior state in BOTH shapes it can
+    # take — a worktree branch's fork point, and HEAD's first parent when HEAD
+    # is already `main`'s commit (CI's push-to-`main` job, and the merge
+    # train's post-merge candidate) — and must report the one genuinely
+    # degenerate case, no resolvable prior state at all. Fully mocked,
+    # deterministic regardless of the environment running this self-test.
     original_git = git
     try:
         def fake_git_ok(*args: str) -> str:
@@ -906,16 +926,43 @@ def self_test() -> int:
                 "previous_marks must resolve the merge-base table when HEAD diverges from main"
             )
 
-        def fake_git_same(*args: str) -> str:
+        # HEAD is `main` and is a MERGE: both parents are offered, with
+        # different tables, so picking the wrong one is caught by value rather
+        # than by the mock raising. The first parent is the prior `main`; the
+        # second is the branch that just arrived and already measured itself
+        # against its own fork point.
+        def fake_git_merge(*args: str) -> str:
             if args in (("rev-parse", "main"), ("rev-parse", "HEAD")):
-                return "samesha\n"
+                return "mergesha\n"
+            if args == ("rev-parse", "--verify", "mergesha^1"):
+                return "priormain\n"
+            if args == ("rev-parse", "--verify", "mergesha^2"):
+                return "mergedbranch\n"
+            if args == ("show", "priormain:scripts/code-health.toml"):
+                return '[[file_size_mark]]\nfile = "src/app.rs"\nlines = 600\n'
+            if args == ("show", "mergedbranch:scripts/code-health.toml"):
+                return '[[file_size_mark]]\nfile = "src/app.rs"\nlines = 610\n'
             raise subprocess.CalledProcessError(1, args)
 
-        globals()["git"] = fake_git_same
+        globals()["git"] = fake_git_merge
         marks, status = previous_marks()
-        if status != "head_is_main" or marks is not None:
+        if status != "first_parent" or marks != {"src/app.rs": 600}:
             raise AssertionError(
-                "HEAD identical to main's commit must report head_is_main, not a clean 'ok' audit"
+                "HEAD identical to main's commit must baseline on its FIRST parent (the prior "
+                f"main, 600), never skip and never read the merged branch (610): got {status!r} {marks!r}"
+            )
+
+        # The one honest skip: HEAD is `main` and has no parent at all.
+        def fake_git_root(*args: str) -> str:
+            if args in (("rev-parse", "main"), ("rev-parse", "HEAD")):
+                return "rootsha\n"
+            raise subprocess.CalledProcessError(1, args)
+
+        globals()["git"] = fake_git_root
+        marks, status = previous_marks()
+        if status != "unresolvable" or marks is not None:
+            raise AssertionError(
+                "a root commit on main has no prior state and must report unresolvable"
             )
 
         def fake_git_unresolvable(*args: str) -> str:
@@ -945,14 +992,23 @@ def self_test() -> int:
     finally:
         globals()["git"] = original_git
     # And against the real repo, without checking out `main`: forcing
-    # `head_ref="main"` makes HEAD-vs-main trivially a comparison against
-    # itself, exercising the exact silent-vacuity shape live rather than
-    # mocked. It must never come back "ok".
+    # `head_ref="main"` reproduces live exactly what CI's push-to-`main` job
+    # and the merge train's post-merge candidate see. It must never come back
+    # "ok" (that would mean a fork point was found against itself), and — this
+    # repo's `main` is never a root commit — it must resolve a real table off
+    # the first parent rather than skip.
     marks, status = previous_marks(head_ref="main")
     if status == "ok":
         raise AssertionError("comparing main against itself must never report a real (ok) prior state")
-    if status == "head_is_main" and marks is not None:
-        raise AssertionError("head_is_main status must carry no marks")
+    if status != "first_parent" or not marks:
+        raise AssertionError(
+            "main's first parent carries a real file-size-mark table in this repo, so the audit "
+            f"must run there rather than skip: got {status!r}"
+        )
+    if marks != previous_marks(head_ref=git("rev-parse", "main^1").strip())[0]:
+        raise AssertionError(
+            "the first-parent baseline must be main's first parent's own table"
+        )
     # The regression fixture, built as real git history rather than mocked
     # plumbing: a branch forks from main, main *lowers* a mark (the extraction
     # this board actively encourages — items 184/185's real shape), and the
@@ -1014,6 +1070,188 @@ def self_test() -> int:
                 )
         finally:
             globals()["ROOT"] = root
+    # THE CROSS-BRANCH FIXTURE, built as real git history: two branches cut
+    # from one base, each green on its own, whose COMBINED tree is over a mark
+    # neither of them could see. This is the shape the merge train actually
+    # produces and the only place it is visible — a branch measures itself
+    # against the tree it forked from, so nothing on either side is wrong.
+    #
+    # It is deliberately a CONFLICTED merge resolved by the train, because the
+    # clean-auto-merge version of this cannot exist: a mark and its `reason`
+    # are adjacent lines of the same entry, so two branches that both move a
+    # mark always conflict, and the resolver has to choose a number. That
+    # choice is where the drift enters and where no reason gets recorded.
+    #
+    # Every assertion below is paired with its non-vacuity twin: each branch
+    # alone must be GREEN, the merge must be RED, the baseline must be the
+    # FIRST parent and not the second, and the same merged manifest judged
+    # with no baseline at all (the unconditional skip this fixture exists to
+    # retire) must go green — so this fixture cannot pass for a reason other
+    # than the one it names.
+    with tempfile.TemporaryDirectory() as directory:
+        root = ROOT
+        original_tracked_rust = tracked_rust
+        original_baseline = baseline
+        try:
+            globals()["ROOT"] = Path(directory)
+            globals()["tracked_rust"] = lambda: ["src/app.rs"]
+            # The frozen ceiling sits far above every number here, so it is
+            # never what fails: the marks are the only thing under test.
+            globals()["baseline"] = lambda path: ["x"] * 700
+            git("init", "-q")
+            git("config", "user.email", "code-health-selftest@example.com")
+            git("config", "user.name", "code-health-selftest")
+            git("checkout", "-q", "-b", "main")
+            (Path(directory) / "scripts").mkdir()
+            (Path(directory) / "src").mkdir()
+            toml_path = Path(directory) / "scripts/code-health.toml"
+            app_path = Path(directory) / "src/app.rs"
+
+            def write_marks(lines: int, reason: str | None = None) -> None:
+                entry = f'[[file_size_mark]]\nfile = "src/app.rs"\nlines = {lines}\n'
+                if reason is not None:
+                    entry += f'reason = "{reason}"\n'
+                toml_path.write_text(entry)
+
+            def write_app(top: int = 0, bottom: int = 0) -> None:
+                # Growth at opposite ends of a 600-line file, so the two
+                # branches' edits to app.rs itself merge cleanly and only the
+                # manifest conflicts — exactly the case where the combined
+                # size is a number nobody wrote down.
+                body = [f"fn top{i}() {{}}" for i in range(top)]
+                body += [f"fn f{i}() {{}}" for i in range(600)]
+                body += [f"fn bottom{i}() {{}}" for i in range(bottom)]
+                app_path.write_text("\n".join(body) + "\n")
+
+            def mark_failures(path: Path = toml_path) -> tuple[list[str], str, dict[str, int] | None]:
+                previous, status = previous_marks()
+                current, reasons, load_failures = load_file_size_marks(path)
+                if load_failures:
+                    raise AssertionError(f"fixture manifest must load cleanly: {load_failures}")
+                return check_mark_raises(current, reasons, previous), status, previous
+
+            write_app()
+            write_marks(600)
+            git("add", "-A")
+            git("commit", "-q", "-m", "base: src/app.rs at 600, mark 600")
+
+            # The one honest skip, against real history rather than a mock:
+            # HEAD is `main` and `main` is the root commit, so no prior state
+            # exists in any direction.
+            previous, status = previous_marks()
+            if status != "unresolvable" or previous is not None:
+                raise AssertionError(
+                    f"a root commit is the degenerate case and must skip: got {status!r} {previous!r}"
+                )
+
+            # Branch A, cut from base: +5 lines at the top, mark raised in
+            # lockstep with a reason. Green.
+            git("checkout", "-q", "-b", "branch-a")
+            write_app(top=5)
+            write_marks(605, "branch A: +5 at the exhaustive construction site")
+            git("commit", "-q", "-am", "branch A: app.rs 600 -> 605")
+            failures, status, previous = mark_failures()
+            if status != "ok" or previous != {"src/app.rs": 600}:
+                raise AssertionError(f"branch A must diff against its fork point: {status!r} {previous!r}")
+            if failures or check_structural(set(), {"src/app.rs": 605}):
+                raise AssertionError(f"branch A must be green on its own: {failures}")
+
+            # Branch B, cut from the SAME base: +8 lines at the bottom, mark
+            # raised in lockstep with its own reason. Also green.
+            git("checkout", "-q", "main")
+            git("checkout", "-q", "-b", "branch-b")
+            write_app(bottom=8)
+            write_marks(608, "branch B: +8 at the one dispatch call site")
+            git("commit", "-q", "-am", "branch B: app.rs 600 -> 608")
+            failures, status, previous = mark_failures()
+            if status != "ok" or previous != {"src/app.rs": 600}:
+                raise AssertionError(f"branch B must diff against its fork point: {status!r} {previous!r}")
+            if failures or check_structural(set(), {"src/app.rs": 608}):
+                raise AssertionError(f"branch B must be green on its own: {failures}")
+
+            # A lands. `main` is now base+A and knows nothing about B.
+            git("checkout", "-q", "main")
+            git("merge", "-q", "--ff-only", "branch-a")
+
+            # The train integrates B. app.rs merges cleanly to 613 — a size
+            # neither branch ever measured — and the manifest conflicts.
+            try:
+                git("merge", "--no-commit", "--no-ff", "branch-b")
+            except subprocess.CalledProcessError:
+                pass
+            combined = len(app_path.read_text().splitlines())
+            if combined != 613:
+                raise AssertionError(
+                    f"the fixture's premise is that the combined file is 605+8=613 lines: got {combined}"
+                )
+            # Over a mark together, before anyone touches the number: prior
+            # `main`'s 605 no longer covers the combined tree. This half is
+            # caught by check_structural, which needs no baseline — which is
+            # exactly why the resolver raises the mark, and exactly why the
+            # raise is the only thing left to audit.
+            if not any(
+                "high-water mark is 605, must not grow" in failure
+                for failure in check_structural(set(), {"src/app.rs": 605})
+            ):
+                raise AssertionError("the combined tree must exceed prior main's mark before resolution")
+
+            # The train resolves the conflict the only way that compiles the
+            # ledger: the number that fits the combined file. Neither side's
+            # reason survives a hand-picked third number, and none is written.
+            write_marks(613)
+            git("add", "-A")
+            git("commit", "-q", "-m", "merge: branch B into main")
+
+            failures, status, previous = mark_failures()
+            if status != "first_parent":
+                raise AssertionError(
+                    f"the merge candidate must baseline on its first parent, not skip: got {status!r}"
+                )
+            if previous != {"src/app.rs": 605}:
+                raise AssertionError(
+                    "the baseline must be the FIRST parent (prior main, 605), never the merged "
+                    f"branch (608) and never the fork point (600): got {previous!r}"
+                )
+            if not any(
+                "src/app.rs: file-size mark raised from 605 to 613" in failure for failure in failures
+            ):
+                raise AssertionError(
+                    f"the merge candidate must fail by name on the unreasoned raise: {failures}"
+                )
+            # Non-vacuity, and the mutation this fixture exists for, asserted
+            # rather than remembered: the merged tree is structurally clean now
+            # that the mark was raised to fit it, so check_structural cannot
+            # see this; and judged with no baseline — the unconditional
+            # HEAD-is-`main` skip — the identical manifest goes green.
+            if check_structural(set(), {"src/app.rs": 613}):
+                raise AssertionError(
+                    "once the mark is raised to fit, nothing but the raise audit can catch this"
+                )
+            current, reasons, _ = load_file_size_marks(toml_path)
+            if check_mark_raises(current, reasons, None):
+                raise AssertionError(
+                    "fixture is vacuous: it must go GREEN with no baseline, so its redness is "
+                    "caused by the first-parent baseline and nothing else"
+                )
+
+            # An ordinary non-merge push to `main`: its sole parent is its own
+            # predecessor, which is a valid diff one commit wide.
+            write_marks(620)
+            write_app(top=5, bottom=15)
+            git("commit", "-q", "-am", "a plain push straight to main raises the mark")
+            failures, status, previous = mark_failures()
+            if status != "first_parent" or previous != {"src/app.rs": 613}:
+                raise AssertionError(
+                    f"a plain push must diff against its predecessor: got {status!r} {previous!r}"
+                )
+            if not any(
+                "src/app.rs: file-size mark raised from 613 to 620" in failure for failure in failures
+            ):
+                raise AssertionError(f"a plain push's unreasoned raise must fail by name: {failures}")
+        finally:
+            globals()["ROOT"] = root
+            globals()["tracked_rust"] = original_tracked_rust
+            globals()["baseline"] = original_baseline
     # False-positive coverage matters as much as citation detection: a noisy
     # rule invites workarounds instead of better comments.
     citation_cases = [
@@ -1402,35 +1640,33 @@ def main() -> int:
     previous, previous_status = previous_marks()
     if previous_status == "unresolvable":
         print(
-            "code-health: SKIPPED the file-size-mark raise audit (`main`/`origin/main`, or the "
-            "merge base between HEAD and it, not resolvable in this checkout; a raise is not "
-            "verified against a reason this run).",
+            "code-health: SKIPPED the file-size-mark raise audit (`main`/`origin/main`, the "
+            "merge base between HEAD and it, or HEAD's own first parent not resolvable in this "
+            "checkout; a raise is not verified against a reason this run).",
             file=sys.stderr,
         )
-    elif previous_status == "head_is_main":
+    elif previous_status == "first_parent":
         print(
-            "code-health: SKIPPED the file-size-mark raise audit — HEAD is already `main`'s "
-            "commit, so there is no prior branch state to diff against (comparing a commit's "
-            "manifest to itself). This is the normal state for CI's push-to-`main` run and the "
-            "merge train's post-merge candidate; the audit only has force on a worktree branch "
-            "checked before landing.",
+            "code-health: file-size-mark raise audit baselined on HEAD's FIRST PARENT — HEAD is "
+            "already `main`'s commit, the normal state for CI's push-to-`main` run and the merge "
+            "train's post-merge candidate. At a merge that first parent is exactly the prior "
+            "`main`, so a raise the combined tree introduces is measured here even though "
+            "neither merged branch could see it.",
             file=sys.stderr,
         )
     failures.extend(check_mark_raises(file_size_marks, mark_reasons, previous))
     new_citations, citation_status = new_comment_citations()
     if citation_status == "unresolvable":
         print(
-            "code-health: SKIPPED the new-comment-citation ratchet (`main`/`origin/main`, or the "
-            "merge base between HEAD and it, not resolvable in this checkout; a newly added "
-            "queue-item/round/sha citation is not verified this run).",
+            "code-health: SKIPPED the new-comment-citation ratchet (`main`/`origin/main`, the "
+            "merge base between HEAD and it, or HEAD's own first parent not resolvable in this "
+            "checkout; a newly added queue-item/round/sha citation is not verified this run).",
             file=sys.stderr,
         )
-    elif citation_status == "head_is_main":
+    elif citation_status == "first_parent":
         print(
-            "code-health: SKIPPED the new-comment-citation ratchet — HEAD is already `main`'s "
-            "commit, so there is no prior branch state to diff against. This is the normal state "
-            "for CI's push-to-`main` run and the merge train's post-merge candidate; the ratchet "
-            "only has force on a worktree branch checked before landing.",
+            "code-health: new-comment-citation ratchet baselined on HEAD's FIRST PARENT — the "
+            "same prior-`main` comparison the raise audit uses, for the same reason.",
             file=sys.stderr,
         )
     citation_allowed, citation_failures = citation_exceptions()

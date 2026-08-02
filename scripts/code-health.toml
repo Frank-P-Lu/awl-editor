@@ -17,13 +17,16 @@
 # break the exhaustiveness or ownership property the seam exists for. Such a
 # raise is only legitimate with a `reason` field naming the seam and the size
 # delta; it is never a substitute for extraction the file can actually afford.
-# A raise recorded relative to `main` with no `reason` fails the gate
-# (code-health.py: check_mark_raises). That comparison only has force where
-# HEAD differs from `main` — a worker's worktree branch, checked before
-# landing. HEAD-is-`main` (CI's push-to-`main` job, and the merge train's
-# post-merge candidate) is a vacuous comparison-to-itself and is reported as
-# SKIPPED, not as a clean audit (code-health.py: previous_marks). Do not read
-# "the ledger enforces raise reasons" as something CI verifies generally.
+# A raise recorded relative to the prior state with no `reason` fails the gate
+# (code-health.py: check_mark_raises). On a worker's worktree branch that
+# prior state is the fork point. Where HEAD already IS `main` — CI's
+# push-to-`main` job, and the merge train's post-merge candidate — it is
+# HEAD's first parent, which at a merge is exactly the prior `main`: two
+# branches cut from one base can each be green against their own fork point
+# and raise a mark together, and that is the only place it is visible
+# (code-health.py: resolve_merge_base). The audit is skipped only when there
+# is no prior state at all — a root commit, or a checkout where neither
+# `main`/`origin/main` nor HEAD's first parent resolves.
 
 [[file_size_mark]]
 file = "src/actions.rs"
