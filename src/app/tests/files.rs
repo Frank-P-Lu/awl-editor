@@ -212,7 +212,7 @@ fn every_settings_toggle_row_dispatches_live_and_flips_its_value() {
         crate::settings::SettingsValues::gather(
             &app.config,
             &app.project_location.root,
-            app.zoom,
+            app.frame.zoom(),
             crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
         )
     };
@@ -328,7 +328,10 @@ fn autosave_flush_writes_doc_and_snapshots_loose_file() {
         Some(app.document.buffer().version()),
         "the flushed version is bookkept"
     );
-    assert!(app.notice.is_none(), "a clean write raises no notice");
+    assert!(
+        !app.frame.notice().active(),
+        "a clean write raises no notice"
+    );
     assert!(
         app.persistence.engine_last_write_at().is_some(),
         "a real engine write stamps the debug panel's autosave clock"
@@ -336,7 +339,11 @@ fn autosave_flush_writes_doc_and_snapshots_loose_file() {
     // The debug panel's pure composer agrees: enabled + not held + a stamped
     // write => Saved (never Off/Held after a clean autosave).
     assert!(matches!(
-        crate::debug::autosave_state(app.config.autosave_on(), app.notice.is_some(), Some(0)),
+        crate::debug::autosave_state(
+            app.config.autosave_on(),
+            app.frame.notice().active(),
+            Some(0)
+        ),
         crate::debug::AutosaveState::Saved(Some(0))
     ));
     // Every save records: the loose file grew a history snapshot.
@@ -373,7 +380,7 @@ fn autosave_flush_skips_and_notices_when_disk_changed_externally() {
         "autosave never overwrites external edits"
     );
     assert_eq!(
-        app.notice.as_deref(),
+        app.frame.notice().text(),
         Some(CLOBBER_NOTICE),
         "a calm notice is raised"
     );
@@ -383,7 +390,7 @@ fn autosave_flush_skips_and_notices_when_disk_changed_externally() {
     );
     // The debug panel's pure composer agrees: held wins over "nothing written yet".
     assert_eq!(
-        crate::debug::autosave_state(app.config.autosave_on(), app.notice.is_some(), None),
+        crate::debug::autosave_state(app.config.autosave_on(), app.frame.notice().active(), None),
         crate::debug::AutosaveState::Held
     );
     // The version is marked handled so the idle timer doesn't spin; the NEXT
@@ -412,14 +419,14 @@ fn autosave_off_disables_flush() {
         "v1\n",
         "autosave = false leaves the disk untouched"
     );
-    assert!(app.notice.is_none());
+    assert!(!app.frame.notice().active());
     assert!(
         app.persistence.engine_last_write_at().is_none(),
         "a disabled engine never stamps the debug panel's autosave clock"
     );
     // The debug panel's pure composer agrees: disabled wins over everything.
     assert_eq!(
-        crate::debug::autosave_state(app.config.autosave_on(), app.notice.is_some(), None),
+        crate::debug::autosave_state(app.config.autosave_on(), app.frame.notice().active(), None),
         crate::debug::AutosaveState::Off
     );
 }
@@ -642,7 +649,7 @@ fn load_path_preserves_a_clobber_notice_the_leaving_flush_just_raised() {
         "the clobber guard held A's write — the external edit is intact"
     );
     assert_eq!(
-        app.notice.as_deref(),
+        app.frame.notice().text(),
         Some(CLOBBER_NOTICE),
         "the notice raised while leaving A must survive into the switch, not vanish unseen"
     );
@@ -686,7 +693,7 @@ fn scratch_stash_and_restore_round_trip() {
     app2.autosave_flush();
     assert_eq!(mem.read_to_string(&stash).unwrap(), "brain dump\nmore\n");
     assert!(
-        app2.notice.is_none(),
+        !app2.frame.notice().active(),
         "no false clobber notice after a restore"
     );
 }
@@ -735,7 +742,7 @@ fn convert_scratch_and_save_promotes_the_buffer_and_retires_the_stash() {
         Some(p.as_path()),
         "Buffer::path is the new path"
     );
-    assert_eq!(app.notice.as_deref(), Some("saved"));
+    assert_eq!(app.frame.notice().text(), Some("saved"));
     // THE STASH IS RETIRED: a later bare relaunch must never resurrect a
     // ghost copy of content that is now a real, named file.
     assert!(
@@ -782,11 +789,12 @@ fn convert_scratch_and_save_unwritable_active_folder_raises_a_calm_notice_never_
     app.convert_scratch_and_save();
 
     assert!(
-        app.notice
-            .as_deref()
+        app.frame
+            .notice()
+            .text()
             .is_some_and(|n| n.starts_with("save failed:")),
         "a calm failure notice, not a panic: {:?}",
-        app.notice
+        app.frame.notice().owned()
     );
 }
 
@@ -819,7 +827,7 @@ fn rename_current_file_happy_path_renames_disk_buffer_and_history() {
     );
     assert_eq!(mem.read_to_string(&new).unwrap(), "hi\n", "content moved");
     assert!(mem.read_to_string(&old).is_err(), "the old path is gone");
-    assert_eq!(app.notice.as_deref(), Some("renamed to new.md"));
+    assert_eq!(app.frame.notice().text(), Some("renamed to new.md"));
     // THE ONE-OWNER LAW: the history log followed too.
     assert!(
         !crate::history::list(&new).is_empty(),
@@ -860,11 +868,12 @@ fn rename_current_file_refuses_to_clobber_an_existing_name() {
         "never overwritten"
     );
     assert!(
-        app.notice
-            .as_deref()
+        app.frame
+            .notice()
+            .text()
             .is_some_and(|n| n.contains("already a file named")),
         "a calm refusal notice: {:?}",
-        app.notice
+        app.frame.notice().owned()
     );
 }
 
@@ -891,11 +900,12 @@ fn rename_current_file_refuses_a_git_managed_file() {
         "no new file created"
     );
     assert!(
-        app.notice
-            .as_deref()
+        app.frame
+            .notice()
+            .text()
             .is_some_and(|n| n.contains("git already tracks")),
         "a calm git-managed refusal notice: {:?}",
-        app.notice
+        app.frame.notice().owned()
     );
 }
 
@@ -913,7 +923,7 @@ fn rename_current_file_unchanged_or_blank_name_is_a_quiet_no_op() {
         Some(old.as_path()),
         "unchanged name: no-op"
     );
-    assert!(app.notice.is_none(), "no notice for a no-op");
+    assert!(!app.frame.notice().active(), "no notice for a no-op");
 
     app.rename_current_file("   ");
     assert_eq!(
@@ -921,7 +931,7 @@ fn rename_current_file_unchanged_or_blank_name_is_a_quiet_no_op() {
         Some(old.as_path()),
         "blank name: no-op"
     );
-    assert!(app.notice.is_none(), "no notice for a no-op");
+    assert!(!app.frame.notice().active(), "no notice for a no-op");
 }
 
 #[test]
@@ -999,7 +1009,7 @@ fn duplicate_current_file_on_a_pathless_buffer_is_a_quiet_no_op() {
         app.document.buffer().path().is_none(),
         "nothing to duplicate yet"
     );
-    assert!(app.notice.is_none());
+    assert!(!app.frame.notice().active());
 }
 
 #[test]
@@ -1015,15 +1025,10 @@ fn finish_manual_save_ok_is_silent_failure_notices_the_error() {
     let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
 
     app.finish_manual_save(true, "saved".to_string());
-    assert_eq!(app.notice.as_deref(), Some("saved"));
-    assert_eq!(app.notice_kind, NoticeKind::Toast);
-    assert!(
-        app.notice_expires_at.is_none(),
-        "a headless test never arms a live timer"
-    );
-
+    assert_eq!(app.frame.notice().text(), Some("saved"));
+    assert_eq!(app.frame.notice().kind(), NoticeKind::Toast);
     app.finish_manual_save(false, "save failed: disk full".to_string());
-    assert_eq!(app.notice.as_deref(), Some("save failed: disk full"));
+    assert_eq!(app.frame.notice().text(), Some("save failed: disk full"));
 }
 
 #[test]
@@ -1310,7 +1315,10 @@ fn autosave_writes_git_files_but_never_snapshots_them() {
         "v2\n",
         "autosave still WRITES a git-managed file"
     );
-    assert!(app.notice.is_none(), "a clean write raises no notice");
+    assert!(
+        !app.frame.notice().active(),
+        "a clean write raises no notice"
+    );
     // The snapshot store never grew a log dir — the record gate held.
     let store = crate::fs::data_root().join("history");
     assert!(
@@ -1338,7 +1346,7 @@ fn scratch_stash_clobber_guard_holds_two_instance_writes() {
         "the stash write is held — external content survives"
     );
     assert_eq!(
-        app.notice.as_deref(),
+        app.frame.notice().text(),
         Some(CLOBBER_NOTICE),
         "the calm notice names the hold"
     );
@@ -1368,7 +1376,7 @@ fn emptied_scratch_clears_the_stale_stash() {
         "an emptied scratch clears the stale stash"
     );
     assert!(
-        app.notice.is_none(),
+        !app.frame.notice().active(),
         "our own restore is not an external edit"
     );
 }
@@ -1514,7 +1522,7 @@ fn settings_overlay_with_rail(app: &App) -> (crate::overlay::OverlayState, usize
     let vals = crate::settings::SettingsValues::gather(
         &app.config,
         &app.project_location.root,
-        app.zoom,
+        app.frame.zoom(),
         crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
     );
     let mut ov = crate::overlay::OverlayState::new(
@@ -1552,7 +1560,7 @@ fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
     };
     let mut app = app_on(None, "/proj", cfg);
     let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
-    app.zoom = spec.default;
+    app.frame.set_zoom(spec.default);
     let (ov, zi) = settings_overlay_with_rail(&app);
     app.workspace_state.install_overlay_for_test(ov);
 
@@ -1579,15 +1587,18 @@ fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
         app.on_range_drag();
         let want = spec.value_at_frac(crate::render::rail_frac_at(px, x0, x1));
         assert_eq!(
-            app.zoom.to_bits(),
+            app.frame.zoom().to_bits(),
             want.to_bits(),
             "step {i} applied a parallel value"
         );
-        applied.push(app.zoom);
+        applied.push(app.frame.zoom());
         // …and the row's own readout + thumb track it in the same move.
         let ov = app.workspace_state.overlay().unwrap();
-        assert_eq!(ov.item_bindings()[zi], spec.format(app.zoom));
-        assert_eq!(ov.range_of_item(zi).unwrap().step, spec.step_of(app.zoom));
+        assert_eq!(ov.item_bindings()[zi], spec.format(app.frame.zoom()));
+        assert_eq!(
+            ov.range_of_item(zi).unwrap().step,
+            spec.step_of(app.frame.zoom())
+        );
         // …while NOTHING is written to disk mid-gesture.
         assert!(
             !config_text(&mem).contains("zoom"),
@@ -1599,7 +1610,7 @@ fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
         applied.iter().any(|v| *v != spec.default),
         "the scrub genuinely moved the value"
     );
-    let settled = app.zoom;
+    let settled = app.frame.zoom();
 
     // THE RELEASE: exactly one write, of the settled value, and the drag is over.
     app.end_range_drag();
@@ -1621,7 +1632,7 @@ fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
         "the release ends the gesture"
     );
     assert!(
-        app.zoom_persist_at.is_none(),
+        app.frame.zoom_persist_at().is_none(),
         "the release supersedes (and cancels) the debounced write the live apply armed"
     );
     assert_eq!(
@@ -1661,7 +1672,7 @@ fn a_paused_mid_drag_persists_nothing_until_the_release() {
     app.set_clock(Box::new(clock.clone()));
 
     let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
-    app.zoom = spec.default;
+    app.frame.set_zoom(spec.default);
     let (ov, zi) = settings_overlay_with_rail(&app);
     app.workspace_state.install_overlay_for_test(ov);
     let (x0, x1) = (100.0f32, 300.0f32);
@@ -1690,13 +1701,13 @@ fn a_paused_mid_drag_persists_nothing_until_the_release() {
     app.input
         .set_resting_pointer_for_test((x0 + (x1 - x0) * 0.15, 0.0));
     app.on_range_drag();
-    let paused = app.zoom;
+    let paused = app.frame.zoom();
     assert_ne!(
         paused, spec.default,
         "the scrub genuinely moved off the default"
     );
     assert!(
-        app.zoom_persist_at.is_some(),
+        app.frame.zoom_persist_at().is_some(),
         "the live apply still ARMS the in-flight stamp (the zoom gesture is live — the \
          hold-⌘ peek suppression reads exactly this); it is the WRITE that is held"
     );
@@ -1718,7 +1729,7 @@ fn a_paused_mid_drag_persists_nothing_until_the_release() {
              must NEVER reach the config — only the release writes"
         );
         assert_eq!(
-            app.zoom.to_bits(),
+            app.frame.zoom().to_bits(),
             paused.to_bits(),
             "t={t}ms: the value itself is untouched"
         );
@@ -1739,7 +1750,7 @@ fn a_paused_mid_drag_persists_nothing_until_the_release() {
     app.input
         .set_resting_pointer_for_test((x0 + (x1 - x0) * 0.95, 0.0));
     app.on_range_drag();
-    let settled = app.zoom;
+    let settled = app.frame.zoom();
     assert_ne!(
         settled.to_bits(),
         paused.to_bits(),
@@ -1796,24 +1807,27 @@ fn a_keyboard_range_step_persists_discretely_through_the_live_door() {
     // The core already stepped the value (see the `actions` half of this pair);
     // the App owns the live tail. Drive the EXACT door `Effect::SettingRangeStep`
     // resolves to at the `app/apply.rs` seam.
-    app.zoom = spec.stepped(spec.default, 1);
+    app.frame.set_zoom(spec.stepped(spec.default, 1));
     app.setting_range_step("zoom");
     let written = mem
         .read_to_string(std::path::Path::new("/cfg/config.toml"))
         .unwrap();
     assert!(
-        written.contains(&format!("zoom = {}", spec.persist_value(app.zoom))),
+        written.contains(&format!("zoom = {}", spec.persist_value(app.frame.zoom()))),
         "a discrete step persists at once: {written:?}"
     );
     assert!(
-        app.zoom_persist_at.is_none(),
+        app.frame.zoom_persist_at().is_none(),
         "nothing left pending after a discrete write"
     );
     // The still-open menu was refreshed from the LIVE values through the one
     // owner, so its cell and its thumb both show the stepped value.
     let ov = app.workspace_state.overlay().unwrap();
-    assert_eq!(ov.item_bindings()[zi], spec.format(app.zoom));
-    assert_eq!(ov.range_of_item(zi).unwrap().step, spec.step_of(app.zoom));
+    assert_eq!(ov.item_bindings()[zi], spec.format(app.frame.zoom()));
+    assert_eq!(
+        ov.range_of_item(zi).unwrap().step,
+        spec.step_of(app.frame.zoom())
+    );
 }
 
 /// THE LIVE-APPLY DOOR IS THE SETTING'S OWN OWNER: `range_apply_live` moves the
@@ -1833,11 +1847,11 @@ fn the_live_range_apply_door_clamps_through_the_settings_own_owner() {
     for raw in [-4.0f32, 0.0, 0.53, 1.0, 2.97, 99.0] {
         app.range_apply_live(crate::settings::SettingId::Zoom, raw);
         assert_eq!(
-            app.zoom.to_bits(),
+            app.frame.zoom().to_bits(),
             spec.quantize(raw).to_bits(),
             "raw {raw}"
         );
-        assert!((spec.min..=spec.max).contains(&app.zoom));
+        assert!((spec.min..=spec.max).contains(&app.frame.zoom()));
     }
 }
 
@@ -1881,7 +1895,7 @@ fn every_range_row_applies_and_persists_through_the_app_side_doors() {
         let values = crate::settings::SettingsValues::gather(
             &app.config,
             &app.project_location.root,
-            app.zoom,
+            app.frame.zoom(),
             crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
         );
         assert_eq!(

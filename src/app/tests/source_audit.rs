@@ -435,7 +435,7 @@ fn scheduling_reads_runtime_owners_through_typed_poll_boundaries() {
     let collapsed: String = schedule.chars().filter(|c| !c.is_whitespace()).collect();
     for required in [
         "self.input.scheduling_snapshot()",
-        ".poll_autosave(self.clock.now(),AUTOSAVE_IDLE)",
+        ".poll_autosave(self.frame.now(),AUTOSAVE_IDLE)",
         "self.config.scheduling_snapshot()",
     ] {
         assert!(

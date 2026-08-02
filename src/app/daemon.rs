@@ -24,7 +24,7 @@ impl App {
         match event {
             crate::daemon::DaemonEvent::OpenPath { path, waiter } => {
                 self.load_path(path);
-                if let Some(gpu) = self.gpu.as_ref() {
+                if let Some(gpu) = self.frame.gpu() {
                     // RAISE the window: bring it to front, and ask the OS for
                     // urgent attention (a mac dock bounce) in case it wasn't
                     // focused — harmless (a no-op-ish nudge) if it already was.

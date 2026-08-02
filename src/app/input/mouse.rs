@@ -4,7 +4,7 @@ use crate::app::*;
 
 impl App {
     fn pointer_over_writing_column(&self) -> bool {
-        self.gpu.as_ref().is_some_and(|gpu| {
+        self.frame.gpu().is_some_and(|gpu| {
             gpu.pipeline
                 .over_writing_column(self.input.pointer.cursor_px.0)
         })
@@ -13,8 +13,8 @@ impl App {
     pub(in crate::app) fn hit_test_line_col(&self) -> (usize, usize) {
         let (px, py) = self.input.pointer.cursor_px;
         let gpu = self
-            .gpu
-            .as_ref()
+            .frame
+            .gpu()
             .expect("pointer hit testing requires the live GPU text pipeline");
         gpu.pipeline.hit_test_scroll(px, py, self.document.scroll())
     }
@@ -46,7 +46,7 @@ impl App {
     /// disagree on where the target is.
     pub(in crate::app) fn fold_chevron_at_pointer(&self) -> Option<usize> {
         let (px, py) = self.input.pointer.cursor_px;
-        let filtered = self.gpu.as_ref()?.pipeline.fold_chevron_hit(px, py)?;
+        let filtered = self.frame.gpu()?.pipeline.fold_chevron_hit(px, py)?;
         Some(self.document.buffer().visible_line_to_full(filtered))
     }
 
@@ -58,7 +58,7 @@ impl App {
     /// double-click reads the same wherever the pointer lands — one owner, so the
     /// two can't drift apart on what counts as "a double-click".
     pub(in crate::app) fn bump_click_count(&mut self) -> u32 {
-        self.input.pointer.bump_click_count(self.clock.now())
+        self.input.pointer.bump_click_count(self.frame.now())
     }
 
     /// THE PHANTOM-SELECTION-CLICK FIX: whether the pointer has traveled far
@@ -204,8 +204,8 @@ impl App {
     pub(in crate::app) fn outline_click(&mut self) -> bool {
         let (px, py) = self.input.pointer.cursor_px;
         let line = self
-            .gpu
-            .as_ref()
+            .frame
+            .gpu()
             .and_then(|g| g.pipeline.outline_hit_line(px, py, g.config.height));
         if let Some(line) = line {
             self.jump_to_line(self.outline_row_target_line(line));
@@ -247,7 +247,7 @@ impl App {
         // itself still owns the visible-band + no-op checks; `hover_at` never
         // moves the scroll window either, so hovering the top/bottom edge can't
         // auto-scroll the list.
-        let Some(gpu) = self.gpu.as_ref() else { return };
+        let Some(gpu) = self.frame.gpu() else { return };
         let kind = match self.workspace_state.overlay_mut() {
             Some(ov) => {
                 if !gpu.pipeline.resolve_overlay_hover(ov, px, py) {
@@ -332,23 +332,13 @@ impl App {
     ///     the document cursor beneath the card).
     ///     Always consumes the click while an overlay is open.
     ///
-    /// ITEM 85 — THE ONE EXPLICIT ACTIVATION RULE: only `WindowEvent::MouseButton`
-    /// `ElementState::Pressed` reaches this door (see `on_mouse_input`'s match arms
-    /// below — `Released` never re-enters it), and it hit-tests `self.input.pointer.cursor_px` at
-    /// that SAME instant. So "the row a click activates" is, unconditionally, THE
-    /// ROW UNDER THE PRESS — never a release position, and never re-derived from
-    /// whatever `overlay_hover` last computed (a hover between an earlier motion and
-    /// this press only ever moved `selected` to a row the pointer was ACTUALLY over
-    /// at the time; this fresh hit-test can only agree with or refine that, never
-    /// contradict a stationary pointer). A picker offers no drag-to-a-different-row
-    /// gesture, so a press/release pair over a world-jump-relaid-out card can never
-    /// activate two different rows depending on which edge you read — there is only
-    /// the one edge this fires on.
+    /// Activate the overlay row under the press-time pointer position. Release
+    /// position and cached hover state never choose the row.
     pub(in crate::app) fn overlay_click(&mut self, exit: &dyn schedule::Exit) {
         let (px, py) = self.input.pointer.cursor_px;
         let (row_hit, lens_hit, rail_hit, card) = self
-            .gpu
-            .as_ref()
+            .frame
+            .gpu()
             .map(|g| {
                 (
                     g.pipeline.overlay_row_at(px, py),
@@ -359,12 +349,7 @@ impl App {
             })
             .unwrap_or((None, None, None, None));
 
-        // ITEM 114 — A CLICK IN THE WORKSPACE'S NAVIGATION RAIL means exactly what
-        // `↵` on that rail entry means: show me this category, and put me in it.
-        // Both halves go through their owners — the picker's own lens setter, and
-        // the lifecycle's focus transition — so the pointer and the keyboard reach
-        // one state, never two that agree by coincidence. Resolved before the row
-        // hit-test, though they cannot overlap: the row band stops at the pane.
+        // Rail clicks use the same lens and focus transitions as keyboard entry.
         if let Some(rail_idx) = rail_hit {
             if let Some(ov) = self.workspace_state.overlay_mut() {
                 ov.set_facet_lens(rail_idx);
@@ -451,7 +436,7 @@ impl App {
     /// redraw, mirroring the two focus doors `handle_search_key` already uses.
     pub(in crate::app) fn panel_click(&mut self) -> bool {
         let (px, py) = self.input.pointer.cursor_px;
-        let hit = self.gpu.as_ref().and_then(|g| g.pipeline.panel_hit(px, py));
+        let hit = self.frame.gpu().and_then(|g| g.pipeline.panel_hit(px, py));
         match hit {
             Some(crate::render::PanelHit::CaseToggle) => {
                 let hay = self.document.buffer().text();
@@ -501,7 +486,7 @@ impl App {
         }
         let (px, py) = self.input.pointer.cursor_px;
         let (item_hit, title_hit, over_surface) = {
-            let Some(gpu) = self.gpu.as_ref() else {
+            let Some(gpu) = self.frame.gpu() else {
                 return false;
             };
             (
@@ -546,7 +531,7 @@ impl App {
         if !self.input.pointer.dragging {
             return;
         }
-        let Some(_) = self.gpu.as_ref() else {
+        let Some(_) = self.frame.gpu() else {
             return;
         };
         let idx = self.hit_test_char();
@@ -606,7 +591,7 @@ impl App {
     /// — compares the fresh icon against the still-accurate cache and lands directly on
     /// the context-correct shape instead of a stale one from before the hide.
     pub(in crate::app) fn sync_cursor_icon(&mut self) {
-        let Some(gpu) = self.gpu.as_ref() else { return };
+        let Some(gpu) = self.frame.gpu() else { return };
         let (px, py) = self.input.pointer.cursor_px;
         // The pointing-hand affordance now covers EVERY summoned picker's clickable
         // rows (Command-P / go-to / browse / theme / history / keybindings / spell /
@@ -705,7 +690,7 @@ impl App {
     }
 
     fn wheel_scroll_px(&mut self, pixels: f32) {
-        if let Some(gpu) = self.gpu.as_ref() {
+        if let Some(gpu) = self.frame.gpu() {
             let scroll =
                 gpu.pipeline
                     .scroll_by_px(self.document.scroll(), pixels, gpu.config.height as f32);
@@ -724,7 +709,7 @@ impl App {
         if let Some(visible) = crate::pointer_hide::os_visibility_change(
             prev_pointer_hide,
             self.input.pointer.pointer_hide,
-        ) && let Some(gpu) = self.gpu.as_ref()
+        ) && let Some(gpu) = self.frame.gpu()
         {
             gpu.window.set_cursor_visible(visible);
         }
@@ -776,7 +761,9 @@ impl App {
         let over_col = self.document.buffer().is_markdown() && self.pointer_over_writing_column();
         let (px, py) = self.input.pointer.cursor_px;
         let scroll = self.document.scroll();
-        let Some(gpu) = self.gpu.as_mut() else { return };
+        let Some(gpu) = self.frame.gpu_mut() else {
+            return;
+        };
         let line = if over_col {
             Some(gpu.pipeline.hit_test_scroll(px, py, scroll).0)
         } else {
@@ -848,8 +835,8 @@ impl App {
                 if self.workspace_state.popover_holds_attention() {
                     let (px, py) = self.input.pointer.cursor_px;
                     let hit = self
-                        .gpu
-                        .as_ref()
+                        .frame
+                        .gpu()
                         .and_then(|g| g.pipeline.popover_hit(px, py));
                     if let Some(button) = hit {
                         let _ = self.apply(button.action(), false, exit, crate::stats::Door::Chord);
@@ -858,8 +845,8 @@ impl App {
                         return;
                     }
                     if self
-                        .gpu
-                        .as_ref()
+                        .frame
+                        .gpu()
                         .is_some_and(|g| g.pipeline.over_popover(px, py))
                     {
                         return;
@@ -956,7 +943,7 @@ impl App {
             if dx.abs() > dy.abs() * 1.2 && dx.abs() > 0.5 {
                 let (px, py) = self.input.pointer.cursor_px;
                 let scroll = self.document.scroll();
-                if let Some(gpu) = self.gpu.as_mut()
+                if let Some(gpu) = self.frame.gpu_mut()
                     && gpu.pipeline.try_table_pan(px, py, scroll, dx)
                 {
                     self.request_frame();
@@ -981,8 +968,8 @@ impl App {
                     })
                     .unwrap_or(false)
                     && !self
-                        .gpu
-                        .as_ref()
+                        .frame
+                        .gpu()
                         .and_then(|g| g.pipeline.overlay_card_rect())
                         .map(|[x, y, w, h]| {
                             let (px, py) = self.input.pointer.cursor_px;
@@ -1006,15 +993,15 @@ impl App {
         } else if zoom_mod {
             if lines.abs() >= 1.0 {
                 let dir = lines.signum();
-                let before = self.zoom;
+                let before = self.frame.zoom();
                 // ITEM 94: one AUTHORED step per notch, through the range spec (the
                 // same owner ⌘± and the Settings rail step through).
-                self.set_zoom(crate::range::ZOOM.stepped(self.zoom, dir as i32));
+                self.set_zoom(crate::range::ZOOM.stepped(self.frame.zoom(), dir as i32));
                 // Anchor the wheel zoom on the POINTER (captured against the OLD
                 // geometry before the deferred reflow) — the doc point under the mouse
                 // holds its screen position. Only when the zoom actually moved, so a
                 // step against the min/max clamp leaves no stale anchor behind.
-                if self.zoom != before {
+                if self.frame.zoom() != before {
                     self.arm_zoom_anchor_pointer();
                 }
                 self.feed_peek(crate::peek::PeekStimulus::Interrupt);
@@ -1026,7 +1013,11 @@ impl App {
             ));
             self.sync_view(false);
         } else if let MouseScrollDelta::LineDelta(_, y) = delta {
-            self.wheel_scroll_px(line_wheel_document_px(y, self.zoom, self.dpi));
+            self.wheel_scroll_px(line_wheel_document_px(
+                y,
+                self.frame.zoom(),
+                self.frame.dpi(),
+            ));
             self.sync_view(false);
         }
         self.request_frame();

@@ -40,7 +40,7 @@ impl App {
         // same `self.clock`), so a deterministic clock would govern the active-
         // writing odometer too. `RealClock` makes this `stats_origin.elapsed()`.
         let now_ms = self
-            .clock
+            .frame
             .now()
             .duration_since(self.stats_origin)
             .as_millis() as u64;
@@ -63,7 +63,7 @@ impl App {
         if !self.config.stats_on() {
             return;
         }
-        let Some(gpu) = self.gpu.as_ref() else {
+        let Some(gpu) = self.frame.gpu() else {
             return;
         };
         let xy = gpu.pipeline.caret_doc_xy();
@@ -113,7 +113,7 @@ impl App {
     /// retired `set_hud_session`.
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn stats_sync_hud(&mut self) {
-        let Some(gpu) = self.gpu.as_mut() else {
+        let Some(gpu) = self.frame.gpu_mut() else {
             return;
         };
         let snapshot = if self.config.stats_on() {
@@ -151,7 +151,7 @@ impl App {
         } else {
             Vec::new()
         };
-        if let Some(gpu) = self.gpu.as_mut() {
+        if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.set_peek_rows(peek_rows);
             gpu.pipeline.set_keybindings_tips(tips);
         }

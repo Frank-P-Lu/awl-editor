@@ -45,8 +45,8 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   headless modes it loads the buffer, `replay_keys`, then hands off to capture.
   → `main/`: `args` (CLI / `Mode` parsing + folder resolution), `run` (the
   interactive + headless run paths).
-- `app.rs` — the winit `ApplicationHandler`: window + event loop, owns the GPU
-  renderer, mouse handling, and the live transition interpreter (persistence,
+- `app.rs` — the winit `ApplicationHandler`: window + event loop, composes the
+  owned runtime handles, mouse handling, and the live transition interpreter (persistence,
   clipboard mirroring, GPU-measured page sizing, animation/redraw scheduling).
   → `app/`: `gpu` (device/surface setup), `files` (open/save/project glue),
   `document` (`DocumentSession` — the active whole slot, background registry,
@@ -59,7 +59,9 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   reads `overlay::Journey`), `persistence`
   (`PersistenceRuntime` — the app-global save ledger: the fresh-document
   autosave debounce+version pair, the save-feedback clocks, the title dirty
-  cache).
+  cache), `frame` (`FrameRuntime` — private GPU/surface lifecycle,
+  presentation ledger, injected-clock deadlines, notice lifetime, and the
+  typed idle-poll boundary).
   `App` is being decomposed into owned state domains (queue item 172): read
   `docs/app-domains.md` — the ownership map — before adding a field to `App` or
   an `impl App` block in a new module. Its single `InputRuntime` handle contains

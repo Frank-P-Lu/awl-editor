@@ -122,7 +122,7 @@ impl App {
                 );
             }
             // NOTES VERBS round: the held HUD's SAVED stat.
-            let now = self.clock.now();
+            let now = self.frame.now();
             self.persistence.record_save(now);
             self.emit_notice(crate::actions::NoticeEffect::Toast("saved".to_string()));
         } else {
@@ -180,7 +180,7 @@ impl App {
                 }
                 self.emit_notice(crate::actions::NoticeEffect::Toast("saved".to_string()));
                 // NOTES VERBS round: the held HUD's SAVED stat.
-                let now = self.clock.now();
+                let now = self.frame.now();
                 self.persistence.record_save(now);
             }
             Err(e) => {

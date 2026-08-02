@@ -39,6 +39,7 @@ pub(in crate::app) struct SchedulingSnapshot {
     pub(in crate::app) prefix_pending_at: Option<crate::clock::Instant>,
     pub(in crate::app) whichkey_shown: bool,
     pub(in crate::app) peek_armed_at: Option<crate::clock::Instant>,
+    pub(in crate::app) zoom_persist_held: bool,
 }
 
 /// Key resolution and the transient keyboard surfaces coupled to it.
@@ -158,6 +159,7 @@ impl InputRuntime {
             prefix_pending_at: self.keyboard.prefix_pending_at,
             whichkey_shown: self.keyboard.whichkey_shown,
             peek_armed_at: self.keyboard.peek_armed_at,
+            zoom_persist_held: self.pointer.range_drag.is_some(),
         }
     }
 

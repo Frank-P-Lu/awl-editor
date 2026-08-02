@@ -100,7 +100,7 @@ impl App {
         self.persist_pref(key, if next { "true" } else { "false" });
         match key {
             "page_mode" | "wysiwyg" | "inline_images" => {
-                if let Some(gpu) = self.gpu.as_mut() {
+                if let Some(gpu) = self.frame.gpu_mut() {
                     let (w, h) = (gpu.config.width as f32, gpu.config.height as f32);
                     gpu.pipeline.set_size(w, h);
                 }
@@ -166,7 +166,7 @@ impl App {
         let values = crate::settings::SettingsValues::gather(
             &self.config,
             &self.project_location.root,
-            self.zoom,
+            self.frame.zoom(),
             crate::dateformat::today_from_system_clock(),
         );
         if let Some(ov) = self.workspace_state.overlay_mut()
@@ -264,11 +264,11 @@ impl App {
     /// stale pre-switch layout for one frame. (The per-frame `sync_wrap_width`
     /// invariant in `prepare` would eventually self-correct on its own, but only
     /// on the NEXT drawn frame — this keeps the switch itself glitch-free. A
-    /// no-op pre-GPU-init, since `set_size` only runs when `self.gpu` exists.)
+    /// no-op pre-GPU-init, since `set_size` only runs when `self.frame.gpu()` exists.)
     pub(in crate::app) fn sync_page_measure(&mut self) {
         let target = self.config.measure_for(self.document.buffer().page_class());
         crate::page::set_measure(target);
-        if let Some(gpu) = self.gpu.as_mut() {
+        if let Some(gpu) = self.frame.gpu_mut() {
             let (w, h) = (gpu.config.width as f32, gpu.config.height as f32);
             gpu.pipeline.set_size(w, h);
         }
@@ -285,7 +285,7 @@ impl App {
     }
 
     fn persist_zoom_now(&mut self) {
-        let z = self.zoom;
+        let z = self.frame.zoom();
         self.persist_pref("zoom", &format!("{z:.3}"));
     }
 
@@ -296,7 +296,7 @@ impl App {
     /// Exactly two doors call it, one per shape of gesture ending:
     /// - `about_to_wait`'s quiet window — the ⌘± / ⌘0 / ⌘-wheel path, which has no end
     ///   EVENT, so ~500 ms of silence is inferred as the end (gated by
-    ///   [`App::zoom_persist_held`], which is what keeps that inference off while a
+    ///   the input scheduling snapshot's hold bit, which keeps that inference off while a
     ///   gesture that DOES have an end is in flight);
     /// - [`Self::range_persist`] — the Settings rail's button release and its discrete
     ///   keyboard step, which end explicitly and pay their single write right there.
@@ -308,9 +308,9 @@ impl App {
     /// `RedrawRequested` handler re-decide control flow (Wait, now that this is settled)
     /// instead of leaving an elapsed `WaitUntil` to busy-spin the loop (DESIGN §6).
     pub(in crate::app) fn settle_zoom_persist(&mut self) {
-        self.zoom_persist_at = None;
+        self.frame.clear_zoom_persist();
         self.persist_zoom_now();
-        if let Some(gpu) = self.gpu.as_mut() {
+        if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.set_zoom_readout(None);
             self.request_frame();
         }

@@ -87,8 +87,8 @@ impl App {
     fn probe_shot(&self, path: &std::path::Path) {
         #[cfg(target_os = "macos")]
         let (sw, sh) = self
-            .gpu
-            .as_ref()
+            .frame
+            .gpu()
             .map(|g| (g.config.width, g.config.height))
             .unwrap_or((0, 0));
         #[cfg(target_os = "macos")]
@@ -145,8 +145,8 @@ impl App {
     #[cfg(not(target_arch = "wasm32"))]
     fn probe_shot_mirror(&self, path: &std::path::Path, why_not_ws: &str) {
         let read = self
-            .gpu
-            .as_ref()
+            .frame
+            .gpu()
             .ok_or_else(|| "no gpu".to_string())
             .and_then(Gpu::read_probe_mirror);
         match read {

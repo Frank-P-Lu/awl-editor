@@ -343,7 +343,7 @@ fn setting_value_commit_clamps_persists_and_applies_measure_and_zoom() {
     // ZOOM: the percent readout form parses + clamps through the shared set_zoom
     // owner + persists.
     app.setting_value_commit("zoom", "150%");
-    assert!((app.zoom - 1.5).abs() < 1e-4, "150% -> factor 1.5");
+    assert!((app.frame.zoom() - 1.5).abs() < 1e-4, "150% -> factor 1.5");
     assert_eq!(Config::load(cfg_path.clone()).zoom, Some(1.5));
 
     crate::page::set_measure(measure0);

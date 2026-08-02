@@ -6,18 +6,13 @@ impl App {
         if self.sync_menu_context_and_gpu_absent() {
             return;
         }
-        self.zoom_reflow.clear();
-        let height = self.gpu.as_ref().unwrap().config.height as f32;
+        self.frame.clear_zoom_reflow();
+        let height = self.frame.gpu().unwrap().config.height as f32;
         debug_assert!(height.is_finite());
         let (cursor_line, cursor_col) = self.document.buffer().cursor_line_col();
         self.sync_spell_cache();
-        // SAVE-FEEDBACK round: the window-title EDITED marker + the native
-        // macOS titlebar dot, kept live WITHOUT re-titling every keystroke —
-        // `sync_view` already runs on nearly every edit/cursor-move (gated on
-        // the gpu-present check above, the cheapest honest hook), so compare
-        // against `persistence`'s title cache and only call `update_title` (a
-        // string format + a `set_title`/`set_document_edited` OS call) on an
-        // ACTUAL clean↔dirty flip.
+        // Update the title marker and native edited dot only on a clean↔dirty
+        // transition; sync_view already observes every live edit.
         if self.persistence.title_cache_stale(self.is_document_dirty()) {
             self.update_title();
         }
@@ -31,7 +26,7 @@ impl App {
                 .persistence
                 .note_write_owed(self.document.buffer().version())
         {
-            let now = self.clock.now();
+            let now = self.frame.now();
             self.persistence.arm_note_debounce(now);
         }
         // Arm the DOCUMENT AUTOSAVE idle timer (config-gated, default ON) when a
@@ -46,7 +41,7 @@ impl App {
                 self.document.scratch_saved_version() != Some(self.document.buffer().version())
             };
             if unsaved {
-                self.document.arm_doc_autosave(self.clock.now());
+                self.document.arm_doc_autosave(self.frame.now());
             }
         }
         // DIFF-AS-PREVIEW: while the History picker is open, the page below the
@@ -85,13 +80,11 @@ impl App {
         let follow = follow && preview.is_none();
 
         let version = self.document.buffer().version();
-        let streak_override = std::mem::take(&mut self.caret_edit_streaks);
+        let (streak_override, held) = self.frame.take_caret_motion_flags();
         let is_edit_move = self.document.caret_was_synced_at(version) && !streak_override;
         // Was the keypress driving this sync an OS auto-repeat (a HELD arrow)?
         // One-shot, like `caret_edit_streaks`: consumed here so a following
         // non-keyboard sync (IME/wheel) doesn't inherit a stale held flag.
-        let held = std::mem::take(&mut self.caret_held);
-
         let popover = if self.workspace_state.popover_holds_attention()
             && crate::popover::popover_on()
             && self.document.buffer().has_selection()
@@ -149,7 +142,7 @@ impl App {
             // visually belongs to at a shared soft-wrap boundary.
             caret_affinity: self.document.buffer().affinity(),
             scroll: scroll::resolved_scroll(diff_scroll, self.document.scroll()),
-            zoom: self.zoom,
+            zoom: self.frame.zoom(),
             selection: self.document.buffer().selection_line_col(),
             preedit: self.input.preedit().to_owned(),
             misspelled,
@@ -233,7 +226,7 @@ impl App {
                 .filter(|o| o.kind == crate::overlay::OverlayKind::Spell)
                 .and_then(|o| o.spell_target),
             overlay_context_anchor: ov.and_then(|o| o.context_anchor),
-            notice: self.notice.clone().unwrap_or_default(),
+            notice: self.frame.notice().owned().unwrap_or_default(),
             cjk_priority: self.config.cjk_priority_or_default(),
             eol: self.document.buffer().eol(),
             popover,
@@ -293,24 +286,24 @@ impl App {
             );
         }
         {
-            let gpu = self.gpu.as_mut().unwrap();
+            let gpu = self.frame.gpu_mut().unwrap();
             gpu.pipeline.set_view(&view);
         }
 
         let prev_scroll = self.document.scroll();
-        if let Some(anchor) = self.zoom_anchor.take() {
+        if let Some(anchor) = self.frame.take_zoom_anchor() {
             // ZOOM ANCHOR wins this sync: this `set_view` just reshaped to the newly
             // changed zoom, so re-solve the scroll that keeps the anchored document
             // point at its captured screen y (the ONE owner does the variable-row
             // math + clamp). Overrides cursor-follow — the anchored caret is on
             // screen by construction, and the off-screen fallback deliberately holds
             // the viewport centre rather than yanking to the caret.
-            let pipeline = &self.gpu.as_ref().unwrap().pipeline;
+            let pipeline = &self.frame.gpu().unwrap().pipeline;
             let scroll =
                 pipeline.zoom_anchor_scroll_pos(anchor.line, anchor.col, anchor.screen_y, height);
             self.document.set_scroll(scroll);
         } else if follow {
-            let pipeline = &self.gpu.as_ref().unwrap().pipeline;
+            let pipeline = &self.frame.gpu().unwrap().pipeline;
             // Affinity resolves shared boundaries to the caret's visual row.
             let cursor_row = pipeline.visual_row_of_aff(
                 cursor_line,
@@ -331,7 +324,7 @@ impl App {
             };
             self.document.set_scroll(scroll);
         }
-        let max = self.gpu.as_ref().unwrap().pipeline.max_scroll_rows(height);
+        let max = self.frame.gpu().unwrap().pipeline.max_scroll_rows(height);
         match diff_scroll {
             Some(ds) => {
                 let clamped = ds.min(max);
@@ -340,7 +333,7 @@ impl App {
                 }
                 if view.scroll != crate::render::ScrollPos::at_row(clamped) {
                     view.scroll = crate::render::ScrollPos::at_row(clamped);
-                    self.gpu.as_mut().unwrap().pipeline.set_view(&view);
+                    self.frame.gpu_mut().unwrap().pipeline.set_view(&view);
                 }
             }
             None => {
@@ -504,8 +497,8 @@ impl App {
     }
 
     fn apply_caret_impulses(&mut self) {
-        if let Some(imp) = self.caret_impact.take()
-            && let Some(gpu) = self.gpu.as_mut()
+        if let Some(imp) = self.frame.take_caret_impact()
+            && let Some(gpu) = self.frame.gpu_mut()
         {
             match imp {
                 CaretImpact::Type => gpu.pipeline.caret_type_impact(),
@@ -517,15 +510,15 @@ impl App {
         }
         // BLOCKED-ACTION RECOIL: a motion/scroll/undo/delete that couldn't proceed
         // bumps the visual caret away from the wall (every caret look).
-        if let Some(dir) = self.caret_recoil.take()
-            && let Some(gpu) = self.gpu.as_mut()
+        if let Some(dir) = self.frame.take_caret_recoil()
+            && let Some(gpu) = self.frame.gpu_mut()
         {
             gpu.pipeline.caret_recoil(dir);
         }
     }
 
     pub(super) fn update_ime_cursor_area(&self) {
-        let Some(gpu) = self.gpu.as_ref() else {
+        let Some(gpu) = self.frame.gpu() else {
             return;
         };
         let (x, y, w, h) = gpu.pipeline.caret_pixel_rect();

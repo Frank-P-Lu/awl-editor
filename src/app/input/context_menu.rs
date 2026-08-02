@@ -13,7 +13,7 @@ impl App {
         if self.summon_heading_context(px, py) {
             return self.finish_context_summon();
         }
-        let target = self.gpu.as_ref().and_then(|gpu| {
+        let target = self.frame.gpu().and_then(|gpu| {
             gpu.pipeline
                 .page_resize_edge_at(px)
                 .map(|edge| match edge {

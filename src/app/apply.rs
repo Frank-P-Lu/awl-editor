@@ -53,35 +53,37 @@ impl App {
         // input to the settled present. Gated on `debug_on()` — the pane never creates
         // the work it measures. Off the headless path (replay never calls this seam).
         if crate::debug::debug_on() {
-            self.theme_switch_at = Some(self.clock.now());
+            self.frame.stamp_theme_switch(self.frame.now());
         }
-        if let Some(gpu) = self.gpu.as_mut() {
+        let needs_theme_reshape = if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.sync_theme_colors();
-            if gpu.pipeline.needs_theme_reshape() {
-                let now = self.clock.now();
-                // ITEM 202 — LEADING EDGE vs BURST CONTINUATION: an isolated step
-                // (nothing reshaped recently) pays its reshape right here, matching
-                // item 37b's own measured ~39ms single-step settle untouched; a step
-                // inside a rapid run coalesces into the trailing debounce instead, so
-                // the run pays one settle reshape, not one per step.
-                match theme_font_reshape_decision(
-                    self.theme_font_at,
-                    self.theme_font_last_reshape_at,
-                    now,
-                    theme_font_debounce(),
-                ) {
-                    ThemeFontReshapeDecision::Immediate => {
+            gpu.pipeline.needs_theme_reshape()
+        } else {
+            false
+        };
+        if needs_theme_reshape {
+            let now = self.frame.now();
+            // An isolated step reshapes immediately; a rapid run coalesces into
+            // one trailing reshape.
+            match theme_font_reshape_decision(
+                self.frame.theme_font_at(),
+                self.frame.theme_font_last_reshape_at(),
+                now,
+                theme_font_debounce(),
+            ) {
+                ThemeFontReshapeDecision::Immediate => {
+                    if let Some(gpu) = self.frame.gpu_mut() {
                         gpu.pipeline.sync_theme_font();
-                        self.theme_font_last_reshape_at = Some(now);
-                        self.theme_font_at = None;
                     }
-                    ThemeFontReshapeDecision::Coalesce => {
-                        self.theme_font_at = Some(now);
-                    }
+                    self.frame.mark_theme_font_reshaped(now);
+                    self.frame.clear_theme_font();
                 }
-            } else {
-                self.theme_font_at = None;
+                ThemeFontReshapeDecision::Coalesce => {
+                    self.frame.arm_theme_font(now);
+                }
             }
+        } else {
+            self.frame.clear_theme_font();
         }
         #[cfg(not(target_arch = "wasm32"))]
         if crate::probe::recording() {
@@ -100,7 +102,8 @@ impl App {
                 g[2],
             ));
         }
-        self.crossing_settle_at = Some(self.clock.now());
+        self.frame
+            .arm_settle(frame::SettleKind::Crossing, self.frame.now());
         self.sync_present_txn();
         self.update_title();
     }
@@ -110,32 +113,28 @@ impl App {
     /// reshape — the commit (Enter) / revert (Esc, C-g, click-away) path, where
     /// the chosen world must apply completely before the picker's absence.
     pub(super) fn retint_theme_now(&mut self) {
-        self.theme_font_at = None;
+        self.frame.clear_theme_font();
         // DEBUG settle readout (live-only): a direct/commit retint stamps the switch
         // start at the retint (essentially the input time). Colors always apply now
         // (`sync_theme` = colors + font); the font half routes through the shared
         // timed-or-plain door below so it can feed the settle breakdown.
-        let input_at = crate::debug::debug_on().then(|| self.clock.now());
-        if let Some(gpu) = self.gpu.as_mut() {
+        let input_at = crate::debug::debug_on().then(|| self.frame.now());
+        if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.sync_theme_colors();
         }
         self.sync_theme_font_maybe_timed(input_at);
         // ITEM 202: a commit/revert reshapes for real, so it counts as the most
         // recent reshape for the NEXT summon's leading-edge decision.
-        self.theme_font_last_reshape_at = Some(self.clock.now());
+        self.frame.mark_theme_font_reshaped(self.frame.now());
         self.update_title();
     }
 
-    /// THE ONE FONT-RESHAPE DOOR for a settled/direct theme change, shared by
-    /// [`Self::retint_theme_now`] and [`Self::apply_deferred_theme_font`]. `input_at`
-    /// = `Some` only when the DEBUG settle readout is armed (`debug_on()`): then the
-    /// reshape is TIMED (`sync_theme_font_timed`) and a real reshape arms the
-    /// once-per-switch readout keyed to that input; a no-op reshape arms nothing (never
-    /// clobbering the last reading). `None` (panel off / no pending input) takes the
-    /// byte-identical plain `sync_theme_font` — the ONLY variant the headless path ever
-    /// reaches, so a capture reads no clock here.
+    /// Apply one theme-font reshape. Debug mode records the measured phases;
+    /// the ordinary and headless paths stay clock-free.
     fn sync_theme_font_maybe_timed(&mut self, input_at: Option<Instant>) {
-        let Some(gpu) = self.gpu.as_mut() else { return };
+        let Some(gpu) = self.frame.gpu_mut() else {
+            return;
+        };
         let armed = match input_at {
             Some(input_at) => gpu
                 .pipeline
@@ -147,17 +146,17 @@ impl App {
             }
         };
         if armed.is_some() {
-            self.theme_settle = armed;
+            self.frame.set_theme_settle(armed);
         }
     }
 
     pub(super) fn apply_deferred_theme_font(&mut self) {
-        self.theme_font_at = None;
+        self.frame.clear_theme_font();
         // ITEM 202: this IS a reshape (the coalesced-burst settle), so the next
         // preview step's leading-edge decision must see it as recent, not stale.
-        self.theme_font_last_reshape_at = Some(self.clock.now());
+        self.frame.mark_theme_font_reshaped(self.frame.now());
         let input_at = crate::debug::debug_on()
-            .then_some(self.theme_switch_at)
+            .then_some(self.frame.theme_switch_at())
             .flatten();
         self.sync_theme_font_maybe_timed(input_at);
         self.sync_view(false);
@@ -502,7 +501,7 @@ impl App {
     fn run_action_core(&mut self, action: &Action, shift: bool) -> CoreRun {
         let page_scroll_lines = self.page_scroll_rows();
         let mut shift_selecting = self.document.shift_selecting();
-        let mut zoom = self.zoom;
+        let mut zoom = self.frame.zoom();
         // Borrow the summoned-layer slots in place for the transition run.
         let overlay_was_open = self.workspace_state.overlay_open();
         let CoreBefore {
@@ -544,7 +543,7 @@ impl App {
             settings_values: crate::settings::SettingsValues::gather(
                 &self.config,
                 &location.root,
-                self.zoom,
+                self.frame.zoom(),
                 crate::dateformat::today_from_system_clock(),
             ),
             assets,
@@ -575,13 +574,13 @@ impl App {
             )
         };
         // The visual-line motion LAYOUT ORACLE: the live GPU pipeline, which owns
-        // the shaped wrap geometry. A shared borrow of `self.gpu` (disjoint from the
+        // the shaped wrap geometry. A shared borrow of `self.frame.gpu()` (disjoint from the
         // `&mut self.document.buffer()` below), so the same transition seam sees the SAME
         // geometry headless replay sees through its offscreen pipeline. `None` before
         // the window's GPU exists; motion then falls back to LOGICAL lines.
         let oracle = self
-            .gpu
-            .as_ref()
+            .frame
+            .gpu()
             .map(|g| &g.pipeline as &dyn actions::LayoutOracle);
         let (search, journey) = self.workspace_state.core_slots();
         let mut ctx = actions::ActionCtx {
@@ -597,7 +596,7 @@ impl App {
         };
         let transition = actions::apply_transition(&mut ctx, action, shift);
         self.document.set_shift_selecting(shift_selecting);
-        self.zoom = zoom;
+        self.frame.set_zoom(zoom);
         let _ = make_overlay;
         let _ = browse_to;
         self.sync_overlay_after_core(overlay_was_open, self.input.resting_pointer());
@@ -628,12 +627,12 @@ impl App {
                 confirmed,
             } => self.rebind_commit(slug, binding, confirmed),
             actions::Effect::RebindReset { slug } => self.rebind_reset(slug),
-            actions::Effect::Recoil(dir) => self.caret_recoil = Some(dir),
-            actions::Effect::TypeImpact => self.caret_impact = Some(CaretImpact::Type),
-            actions::Effect::DeleteSquash => self.caret_impact = Some(CaretImpact::Delete),
-            actions::Effect::Gulp => self.caret_impact = Some(CaretImpact::Gulp),
-            actions::Effect::LineLand => self.caret_impact = Some(CaretImpact::Land),
-            actions::Effect::CopyPulse => self.caret_impact = Some(CaretImpact::Copy),
+            actions::Effect::Recoil(dir) => self.frame.set_caret_recoil(Some(dir)),
+            actions::Effect::TypeImpact => self.frame.set_caret_impact(Some(CaretImpact::Type)),
+            actions::Effect::DeleteSquash => self.frame.set_caret_impact(Some(CaretImpact::Delete)),
+            actions::Effect::Gulp => self.frame.set_caret_impact(Some(CaretImpact::Gulp)),
+            actions::Effect::LineLand => self.frame.set_caret_impact(Some(CaretImpact::Land)),
+            actions::Effect::CopyPulse => self.frame.set_caret_impact(Some(CaretImpact::Copy)),
             actions::Effect::SettingToggle { key } => self.setting_toggle(&key),
             actions::Effect::SettingValueCommit { key, value } => {
                 self.setting_value_commit(&key, &value)
@@ -937,7 +936,7 @@ impl App {
         match effect {
             actions::RenderEffect::SyncView { follow } => self.sync_view(follow),
             actions::RenderEffect::Reshape => {
-                if let Some(gpu) = self.gpu.as_mut() {
+                if let Some(gpu) = self.frame.gpu_mut() {
                     let (w, h) = (gpu.config.width as f32, gpu.config.height as f32);
                     gpu.pipeline.set_size(w, h);
                 }
@@ -949,7 +948,7 @@ impl App {
             actions::RenderEffect::Redraw => {
                 self.request_frame();
             }
-            actions::RenderEffect::EditStreak => self.caret_edit_streaks = true,
+            actions::RenderEffect::EditStreak => self.frame.set_caret_edit_streaks(true),
         }
     }
 

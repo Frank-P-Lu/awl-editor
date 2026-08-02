@@ -21,7 +21,7 @@ fn pdf_export_writes_saved_sibling_and_scratch_active_folder_without_other_forma
         assert!(pdf.starts_with(b"%PDF-1.7\n"));
         assert!(!saved_fs.exists(Path::new("/docs/draft.docx")));
         assert!(!saved_fs.exists(Path::new("/docs/draft.html")));
-        assert_eq!(saved.notice.as_deref(), Some("exported draft.pdf"));
+        assert_eq!(saved.frame.notice().text(), Some("exported draft.pdf"));
     });
 
     let scratch_fs = InMemoryFs::new().with_dir("/notes");
@@ -35,7 +35,7 @@ fn pdf_export_writes_saved_sibling_and_scratch_active_folder_without_other_forma
         let pdf = scratch_fs.read(target).unwrap();
         assert!(pdf.starts_with(b"%PDF-1.7\n"));
         assert_eq!(
-            scratch.notice.as_deref(),
+            scratch.frame.notice().text(),
             Some("exported /notes/scratch-pdf.pdf")
         );
     });

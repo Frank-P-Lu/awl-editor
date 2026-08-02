@@ -51,7 +51,7 @@ impl App {
         self.input.keyboard.peek_arm = after;
         use crate::peek::PeekArm::*;
         match after {
-            Pending => self.input.keyboard.peek_armed_at = Some(self.clock.now()),
+            Pending => self.input.keyboard.peek_armed_at = Some(self.frame.now()),
             Open => {
                 self.input.keyboard.peek_armed_at = None;
                 crate::peek::set_open(true);
@@ -81,7 +81,7 @@ impl App {
         );
         match transition {
             crate::whichkey::PrefixTransition::Arm => {
-                self.input.keyboard.prefix_pending_at = Some(self.clock.now());
+                self.input.keyboard.prefix_pending_at = Some(self.frame.now());
             }
             // The prefix just resolved or aborted: put the panel down at once (summoned
             // + transient — it never lingers past the chord).
@@ -96,7 +96,7 @@ impl App {
             .into_iter()
             .map(|c| (c.key, c.name))
             .collect();
-        if let Some(gpu) = self.gpu.as_mut() {
+        if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.set_whichkey(Some(rows));
             self.request_frame();
         }
@@ -109,7 +109,7 @@ impl App {
         self.input.keyboard.prefix_pending_at = None;
         let was_shown = self.input.keyboard.whichkey_shown;
         self.input.keyboard.whichkey_shown = false;
-        if let Some(gpu) = self.gpu.as_mut() {
+        if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.set_whichkey(None);
             if was_shown {
                 self.request_frame();
@@ -140,14 +140,14 @@ impl App {
             .document
             .intercept_search_key(search, logical, mods.state())
         {
-            self.caret_recoil = Some(dir);
+            self.frame.set_caret_recoil(Some(dir));
         }
     }
 
     pub(in crate::app) fn set_zoom(&mut self, z: f32) {
         let clamped = render::clamp_zoom(z);
-        if clamped != self.zoom {
-            self.zoom = clamped;
+        if clamped != self.frame.zoom() {
+            self.frame.set_zoom(clamped);
             self.mark_zoom_dirty();
         }
     }
@@ -158,10 +158,10 @@ impl App {
     /// when the zoom actually changed (a no-op `set_zoom` at a clamp must not leave a
     /// stale anchor for an unrelated `sync_view` to apply). No-op headless (no gpu).
     pub(in crate::app) fn arm_zoom_anchor_pointer(&mut self) {
-        let Some(gpu) = self.gpu.as_ref() else { return };
+        let Some(gpu) = self.frame.gpu() else { return };
         let (px, py) = self.input.pointer.cursor_px;
         let (line, col) = gpu.pipeline.hit_test_scroll(px, py, self.document.scroll());
-        self.zoom_anchor = Some(ZoomAnchor {
+        self.frame.set_zoom_anchor(ZoomAnchor {
             line,
             col,
             screen_y: py,
@@ -174,41 +174,42 @@ impl App {
     /// the OLD (pre-reshape) geometry — call from the zoom-changed arm in `apply`
     /// BEFORE the reflow. No-op headless (no gpu).
     pub(in crate::app) fn arm_zoom_anchor_caret(&mut self) {
-        let Some(gpu) = self.gpu.as_ref() else { return };
+        let Some(gpu) = self.frame.gpu() else { return };
         let height = gpu.config.height as f32;
         let top = render::TEXT_TOP + gpu.pipeline.menubar_reserve();
         let (cl, cc) = self.document.buffer().cursor_line_col();
         let caret_y = gpu
             .pipeline
             .char_screen_top_scroll(cl, cc, self.document.scroll());
-        self.zoom_anchor = Some(if caret_y >= top && caret_y < height {
-            ZoomAnchor {
-                line: cl,
-                col: cc,
-                screen_y: caret_y,
-            }
-        } else {
-            let cx = (gpu.config.width as f32) * 0.5;
-            let cy = (top + height) * 0.5;
-            let (line, col) = gpu.pipeline.hit_test_scroll(cx, cy, self.document.scroll());
-            ZoomAnchor {
-                line,
-                col,
-                screen_y: cy,
-            }
-        });
+        self.frame
+            .set_zoom_anchor(if caret_y >= top && caret_y < height {
+                ZoomAnchor {
+                    line: cl,
+                    col: cc,
+                    screen_y: caret_y,
+                }
+            } else {
+                let cx = (gpu.config.width as f32) * 0.5;
+                let cy = (top + height) * 0.5;
+                let (line, col) = gpu.pipeline.hit_test_scroll(cx, cy, self.document.scroll());
+                ZoomAnchor {
+                    line,
+                    col,
+                    screen_y: cy,
+                }
+            });
     }
 
     pub(in crate::app) fn mark_zoom_dirty(&mut self) {
-        self.zoom_persist_at = Some(self.clock.now());
-        self.zoom_reflow.queue();
+        self.frame.arm_zoom_persist(self.frame.now());
+        self.frame.queue_zoom_reflow();
         // ZOOM READOUT: a quiet muted percentage near the pointer while the gesture is
         // in flight (mirrors the page-drag readout). Armed on EVERY zoom step (this is
         // the ONE owner both the keyboard ⌘± and wheel ⌘-scroll paths funnel through),
         // floated at the last pointer position; cleared on settle in `about_to_wait`.
         let (px, py) = self.input.pointer.cursor_px;
-        let zoom = self.zoom;
-        if let Some(gpu) = self.gpu.as_mut() {
+        let zoom = self.frame.zoom();
+        if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.set_zoom_readout(Some((px, py, zoom)));
             self.request_frame();
         }
@@ -221,29 +222,7 @@ impl App {
     /// hold-⌘ shortcut peek's zoom-suppression gate ([`crate::peek::peek_allowed`]) so
     /// the frosted card never pops up over the very text the user is zooming to read.
     pub(in crate::app) fn zoom_in_flight(&self) -> bool {
-        self.zoom_persist_at.is_some()
-    }
-
-    /// Is the debounced sticky-zoom write HELD because a GESTURE owns its own end?
-    ///
-    /// The quiet-window debounce exists to INFER the end of a zoom gesture that has no
-    /// end event: ⌘±, ⌘0 and the ⌘-wheel just stop arriving, so ~500 ms of silence is
-    /// the only available "the user is done" signal. A Settings RANGE-RAIL scrub is the
-    /// other shape — it has a real end, the button release, and pays its single write
-    /// exactly there (`end_range_drag` -> `range_persist` -> [`App::settle_zoom_persist`]).
-    ///
-    /// Without this gate the two mechanisms race, and the inference is simply WRONG:
-    /// pausing mid-drag to look at the value IS half a second of quiet, so the debounce
-    /// fired and persisted a value the user had not released on (a paused scrub wrote
-    /// 130 % to config, then the real 280 % after release). One owner: while a range
-    /// drag is live the inference is off, and the release is the only writer.
-    ///
-    /// Deliberately keyed on "a range drag is live" rather than on the dragged
-    /// setting's identity — a drag on some OTHER range row never arms `zoom_persist_at`
-    /// in the first place (that branch is skipped anyway), and the next range setting to
-    /// grow a rail inherits the rule for free instead of having to remember it.
-    pub(in crate::app) fn zoom_persist_held(&self) -> bool {
-        self.input.pointer.range_drag.is_some()
+        self.frame.zoom_persist_at().is_some()
     }
 
     /// The ONE owner of "how many rows is one page". Both the document pager and
@@ -254,8 +233,8 @@ impl App {
     /// is still on screen after the jump. Without a GPU there is no viewport to
     /// measure, so one row is the only honest answer.
     pub(in crate::app) fn page_scroll_rows(&self) -> usize {
-        let visible = if let Some(gpu) = self.gpu.as_ref() {
-            let line_height = render::LINE_HEIGHT * self.zoom * self.dpi;
+        let visible = if let Some(gpu) = self.frame.gpu() {
+            let line_height = render::LINE_HEIGHT * self.frame.zoom() * self.frame.dpi();
             render::visible_lines_z(gpu.config.height as f32, line_height)
         } else {
             1
@@ -392,7 +371,7 @@ impl App {
         if let Some(visible) = crate::pointer_hide::os_visibility_change(
             prev_pointer_hide,
             self.input.pointer.pointer_hide,
-        ) && let Some(gpu) = self.gpu.as_ref()
+        ) && let Some(gpu) = self.frame.gpu()
         {
             gpu.window.set_cursor_visible(visible);
         }
@@ -443,7 +422,7 @@ impl App {
                 return;
             }
         }
-        self.caret_held = repeat;
+        self.frame.set_caret_held(repeat);
         // macOS OPTION DEAD-KEY FIX (LIVE path only): Option composes a
         // letter into a glyph (Option-f -> 'ƒ'), so the raw `logical_key` is the
         // composed char. Since the identity round retired the built-in Option-letter

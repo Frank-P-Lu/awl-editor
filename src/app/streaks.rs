@@ -143,7 +143,7 @@ impl App {
         } else {
             None
         };
-        if let Some(gpu) = self.gpu.as_mut() {
+        if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.set_streaks(view);
         }
     }
