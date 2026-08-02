@@ -2,26 +2,27 @@ use super::*;
 
 impl App {
     pub(super) fn rebuild_gpu(&mut self, event_loop: &ActiveEventLoop, reason: &str) {
-        if self.gpu_lifecycle == GpuLifecycle::Rebuilding {
+        if self.frame.gpu_lifecycle() == GpuLifecycle::Rebuilding {
             return;
         }
-        let Some(window) = self.recovery_window.clone() else {
+        let Some(window) = self.frame.recovery_window().cloned() else {
             event_loop.exit();
             return;
         };
-        self.gpu = None;
-        self.gpu_lifecycle = GpuLifecycle::Rebuilding;
+        self.frame.clear_gpu();
+        self.frame.set_gpu_lifecycle(GpuLifecycle::Rebuilding);
         self.frame.set_last_frame(None);
-        self.gpu_retry_at = None;
-        self.gpu_timeout_streak = 0;
+        self.frame.clear_gpu_retry();
+        self.frame.clear_gpu_timeout_streak();
         self.frame.take_input_stamp();
         self.set_sticky_notice(format!("{reason} — rebuilding graphics…"));
         let display_handle = event_loop.owned_display_handle();
         #[cfg(not(target_arch = "wasm32"))]
         match pollster::block_on(Gpu::new(window, display_handle)) {
             Ok(gpu) => {
-                self.gpu = Some(gpu);
-                self.gpu_lifecycle = GpuLifecycle::Active { oom_skips: 0 };
+                self.frame.install_gpu(gpu);
+                self.frame
+                    .set_gpu_lifecycle(GpuLifecycle::Active { oom_skips: 0 });
                 self.set_toast_notice("graphics recovered");
                 self.on_gpu_ready();
             }
@@ -33,7 +34,7 @@ impl App {
         }
         #[cfg(target_arch = "wasm32")]
         {
-            let slot = self.gpu_pending.clone();
+            let slot = self.frame.gpu_pending_slot();
             let wake = window.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 *slot.borrow_mut() = Some(

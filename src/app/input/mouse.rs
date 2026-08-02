@@ -4,7 +4,7 @@ use crate::app::*;
 
 impl App {
     fn pointer_over_writing_column(&self) -> bool {
-        self.gpu.as_ref().is_some_and(|gpu| {
+        self.frame.gpu().is_some_and(|gpu| {
             gpu.pipeline
                 .over_writing_column(self.input.pointer.cursor_px.0)
         })
@@ -13,8 +13,8 @@ impl App {
     pub(in crate::app) fn hit_test_line_col(&self) -> (usize, usize) {
         let (px, py) = self.input.pointer.cursor_px;
         let gpu = self
-            .gpu
-            .as_ref()
+            .frame
+            .gpu()
             .expect("pointer hit testing requires the live GPU text pipeline");
         gpu.pipeline.hit_test_scroll(px, py, self.document.scroll())
     }
@@ -46,7 +46,7 @@ impl App {
     /// disagree on where the target is.
     pub(in crate::app) fn fold_chevron_at_pointer(&self) -> Option<usize> {
         let (px, py) = self.input.pointer.cursor_px;
-        let filtered = self.gpu.as_ref()?.pipeline.fold_chevron_hit(px, py)?;
+        let filtered = self.frame.gpu()?.pipeline.fold_chevron_hit(px, py)?;
         Some(self.document.buffer().visible_line_to_full(filtered))
     }
 
@@ -204,7 +204,8 @@ impl App {
     pub(in crate::app) fn outline_click(&mut self) -> bool {
         let (px, py) = self.input.pointer.cursor_px;
         let line = self
-            .gpu
+            .frame
+            .gpu()
             .as_ref()
             .and_then(|g| g.pipeline.outline_hit_line(px, py, g.config.height));
         if let Some(line) = line {
@@ -247,7 +248,7 @@ impl App {
         // itself still owns the visible-band + no-op checks; `hover_at` never
         // moves the scroll window either, so hovering the top/bottom edge can't
         // auto-scroll the list.
-        let Some(gpu) = self.gpu.as_ref() else { return };
+        let Some(gpu) = self.frame.gpu() else { return };
         let kind = match self.workspace_state.overlay_mut() {
             Some(ov) => {
                 if !gpu.pipeline.resolve_overlay_hover(ov, px, py) {
@@ -347,7 +348,8 @@ impl App {
     pub(in crate::app) fn overlay_click(&mut self, exit: &dyn schedule::Exit) {
         let (px, py) = self.input.pointer.cursor_px;
         let (row_hit, lens_hit, rail_hit, card) = self
-            .gpu
+            .frame
+            .gpu()
             .as_ref()
             .map(|g| {
                 (
@@ -451,7 +453,7 @@ impl App {
     /// redraw, mirroring the two focus doors `handle_search_key` already uses.
     pub(in crate::app) fn panel_click(&mut self) -> bool {
         let (px, py) = self.input.pointer.cursor_px;
-        let hit = self.gpu.as_ref().and_then(|g| g.pipeline.panel_hit(px, py));
+        let hit = self.frame.gpu().and_then(|g| g.pipeline.panel_hit(px, py));
         match hit {
             Some(crate::render::PanelHit::CaseToggle) => {
                 let hay = self.document.buffer().text();
@@ -501,7 +503,7 @@ impl App {
         }
         let (px, py) = self.input.pointer.cursor_px;
         let (item_hit, title_hit, over_surface) = {
-            let Some(gpu) = self.gpu.as_ref() else {
+            let Some(gpu) = self.frame.gpu() else {
                 return false;
             };
             (
@@ -546,7 +548,7 @@ impl App {
         if !self.input.pointer.dragging {
             return;
         }
-        let Some(_) = self.gpu.as_ref() else {
+        let Some(_) = self.frame.gpu() else {
             return;
         };
         let idx = self.hit_test_char();
@@ -606,7 +608,7 @@ impl App {
     /// — compares the fresh icon against the still-accurate cache and lands directly on
     /// the context-correct shape instead of a stale one from before the hide.
     pub(in crate::app) fn sync_cursor_icon(&mut self) {
-        let Some(gpu) = self.gpu.as_ref() else { return };
+        let Some(gpu) = self.frame.gpu() else { return };
         let (px, py) = self.input.pointer.cursor_px;
         // The pointing-hand affordance now covers EVERY summoned picker's clickable
         // rows (Command-P / go-to / browse / theme / history / keybindings / spell /
@@ -705,7 +707,7 @@ impl App {
     }
 
     fn wheel_scroll_px(&mut self, pixels: f32) {
-        if let Some(gpu) = self.gpu.as_ref() {
+        if let Some(gpu) = self.frame.gpu() {
             let scroll =
                 gpu.pipeline
                     .scroll_by_px(self.document.scroll(), pixels, gpu.config.height as f32);
@@ -724,7 +726,7 @@ impl App {
         if let Some(visible) = crate::pointer_hide::os_visibility_change(
             prev_pointer_hide,
             self.input.pointer.pointer_hide,
-        ) && let Some(gpu) = self.gpu.as_ref()
+        ) && let Some(gpu) = self.frame.gpu()
         {
             gpu.window.set_cursor_visible(visible);
         }
@@ -776,7 +778,9 @@ impl App {
         let over_col = self.document.buffer().is_markdown() && self.pointer_over_writing_column();
         let (px, py) = self.input.pointer.cursor_px;
         let scroll = self.document.scroll();
-        let Some(gpu) = self.gpu.as_mut() else { return };
+        let Some(gpu) = self.frame.gpu_mut() else {
+            return;
+        };
         let line = if over_col {
             Some(gpu.pipeline.hit_test_scroll(px, py, scroll).0)
         } else {
@@ -848,7 +852,8 @@ impl App {
                 if self.workspace_state.popover_holds_attention() {
                     let (px, py) = self.input.pointer.cursor_px;
                     let hit = self
-                        .gpu
+                        .frame
+                        .gpu()
                         .as_ref()
                         .and_then(|g| g.pipeline.popover_hit(px, py));
                     if let Some(button) = hit {
@@ -858,7 +863,8 @@ impl App {
                         return;
                     }
                     if self
-                        .gpu
+                        .frame
+                        .gpu()
                         .as_ref()
                         .is_some_and(|g| g.pipeline.over_popover(px, py))
                     {
@@ -956,7 +962,7 @@ impl App {
             if dx.abs() > dy.abs() * 1.2 && dx.abs() > 0.5 {
                 let (px, py) = self.input.pointer.cursor_px;
                 let scroll = self.document.scroll();
-                if let Some(gpu) = self.gpu.as_mut()
+                if let Some(gpu) = self.frame.gpu_mut()
                     && gpu.pipeline.try_table_pan(px, py, scroll, dx)
                 {
                     self.request_frame();
@@ -981,7 +987,8 @@ impl App {
                     })
                     .unwrap_or(false)
                     && !self
-                        .gpu
+                        .frame
+                        .gpu()
                         .as_ref()
                         .and_then(|g| g.pipeline.overlay_card_rect())
                         .map(|[x, y, w, h]| {

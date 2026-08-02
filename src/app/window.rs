@@ -18,9 +18,10 @@ impl App {
 
     fn handle_gpu_fault(&mut self, event_loop: &ActiveEventLoop, fault: gpu::GpuFault) {
         eprintln!("gpu {:?}: {}", fault.kind, fault.message);
-        match gpu_fault_action(self.gpu_lifecycle, fault.kind) {
+        match gpu_fault_action(self.frame.gpu_lifecycle(), fault.kind) {
             GpuFaultAction::RetryOneFrame => {
-                self.gpu_lifecycle = GpuLifecycle::Active { oom_skips: 1 };
+                self.frame
+                    .set_gpu_lifecycle(GpuLifecycle::Active { oom_skips: 1 });
                 self.set_sticky_notice("graphics memory pressure — skipped one frame");
                 self.request_frame();
             }
@@ -47,9 +48,10 @@ impl App {
     ) -> Result<(Option<(f32, Instant)>, bool), ()> {
         match outcome {
             gpu::GpuFrameOutcome::Presented(perf) => {
-                self.gpu_lifecycle = GpuLifecycle::Active { oom_skips: 0 };
-                self.gpu_retry_at = None;
-                self.gpu_timeout_streak = 0;
+                self.frame
+                    .set_gpu_lifecycle(GpuLifecycle::Active { oom_skips: 0 });
+                self.frame.clear_gpu_retry();
+                self.frame.clear_gpu_timeout_streak();
                 #[cfg(not(target_arch = "wasm32"))]
                 if let Some(soak) = self.soak.as_mut() {
                     soak.observe_frame(crate::soak_gpu::FrameOutcome::Presented, true);
@@ -76,28 +78,25 @@ impl App {
                 if crate::probe::recording() {
                     crate::probe::trace(format_args!(
                         "present SKIPPED {skip:?} (txn_on={} crossing={} teardown_pending={})",
-                        self.present_sync_on,
+                        self.frame.present_sync_on(),
                         self.frame.crossing_settle_at().is_some(),
                         self.frame.crossing_teardown_pending(),
                     ));
                 }
-                let action = gpu_skip_action(skip, self.gpu_timeout_streak);
-                self.gpu_timeout_streak = if skip == gpu::GpuFrameSkip::Timeout {
-                    self.gpu_timeout_streak.saturating_add(1)
-                } else {
-                    0
-                };
+                let action = gpu_skip_action(skip, self.frame.gpu_timeout_streak());
+                self.frame
+                    .record_gpu_timeout(skip == gpu::GpuFrameSkip::Timeout);
                 match action {
-                    GpuSkipAction::WaitForWake => self.gpu_retry_at = None,
+                    GpuSkipAction::WaitForWake => self.frame.clear_gpu_retry(),
                     GpuSkipAction::RetryAfter(delay) => {
-                        self.gpu_retry_at = Some(self.frame.now() + delay);
+                        self.frame.arm_gpu_retry(self.frame.now() + delay);
                     }
                     GpuSkipAction::RetryWithNoticeAfter(delay, notice) => {
                         self.set_toast_notice(notice);
-                        self.gpu_retry_at = Some(self.frame.now() + delay);
+                        self.frame.arm_gpu_retry(self.frame.now() + delay);
                     }
                     GpuSkipAction::HoldWithNotice(notice) => {
-                        self.gpu_retry_at = None;
+                        self.frame.clear_gpu_retry();
                         self.set_sticky_notice(notice);
                     }
                 }
@@ -200,7 +199,7 @@ impl App {
         // pointer hidden behind another app — reset to Visible on blur
         // too, on the same trigger as the autosave flush above.
         if let Some(visible) = self.input.reveal_pointer()
-            && let Some(gpu) = self.gpu.as_ref()
+            && let Some(gpu) = self.frame.gpu()
         {
             gpu.window.set_cursor_visible(visible);
         }
@@ -238,7 +237,7 @@ impl App {
         let mut request_redraw = true;
         #[cfg(not(target_arch = "wasm32"))]
         let mut reconfigured = false;
-        if let Some(gpu) = self.gpu.as_mut() {
+        if let Some(gpu) = self.frame.gpu_mut() {
             changed = gpu.config.width != size.width || gpu.config.height != size.height;
             if changed {
                 gpu.pipeline
@@ -261,7 +260,7 @@ impl App {
         self.sync_view(true);
         if changed {
             self.arm_live_resize_sync();
-            let outcome = self.gpu.as_mut().map(Gpu::redraw);
+            let outcome = self.frame.gpu_mut().map(Gpu::redraw);
             if let Some(outcome) = outcome {
                 request_redraw = self
                     .handle_gpu_frame_outcome(event_loop, outcome)
@@ -328,7 +327,7 @@ impl App {
         // can never coalesce into an unbracketed frame.
         let (resize_active, move_active, crossing_active) = self.frame.present_sync_sources();
         let want = present_sync_armed(resize_active, move_active, crossing_active);
-        if self.present_sync_valid && want == self.present_sync_on {
+        if !self.frame.apply_present_sync(want) {
             return;
         }
         #[cfg(not(target_arch = "wasm32"))]
@@ -342,10 +341,8 @@ impl App {
                 self.frame.crossing_teardown_pending(),
             ));
         }
-        self.present_sync_on = want;
-        self.present_sync_valid = true;
         #[cfg(target_os = "macos")]
-        if let Some(gpu) = self.gpu.as_ref() {
+        if let Some(gpu) = self.frame.gpu() {
             gpu.set_presents_with_transaction(want);
         }
     }
@@ -359,7 +356,7 @@ impl App {
     /// stamp being present.
     pub(super) fn finish_resize_settle(&mut self) {
         self.frame.clear_resize_settle();
-        if let Some(gpu) = self.gpu.as_mut() {
+        if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline
                 .settle_lava_field_viewport(gpu.config.width, gpu.config.height);
         }
@@ -439,7 +436,7 @@ impl App {
     pub(super) fn on_scale_factor_changed(&mut self, scale_factor: f64) {
         let sf = scale_factor as f32;
         self.frame.set_dpi(sf);
-        if let Some(gpu) = self.gpu.as_mut() {
+        if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.set_dpi(sf);
         }
         self.sync_view(true);
@@ -454,7 +451,8 @@ impl App {
     /// its settle-stamp.
     pub(super) fn on_redraw_requested(&mut self, event_loop: &ActiveEventLoop) {
         let fault = self
-            .gpu
+            .frame
+            .gpu()
             .as_ref()
             .and_then(|g| g.take_faults().into_iter().next());
         if let Some(fault) = fault {
@@ -492,21 +490,31 @@ impl App {
                 self.frame.input_stamp().is_some(),
             ));
             is_stamp = self.frame.debug_still() == crate::debug::DebugStill::StampQueued;
-            if let Some(gpu) = self.gpu.as_mut() {
+            let cost = self
+                .frame
+                .frame_costs()
+                .last()
+                .zip(self.frame.frame_costs().worst());
+            let last_latency_ms = self.frame.last_latency_ms();
+            let redraw_count = self.frame.redraw_count();
+            let engine_wrote = self.persistence.engine_last_write_at();
+            let since_secs = engine_wrote.map(|t| (now - t).as_secs());
+            let autosave = crate::debug::autosave_state(
+                self.config.autosave_on(),
+                self.frame.notice_active(),
+                since_secs,
+            );
+            let theme_settle = self.frame.theme_switches_mut().report(now);
+            if let Some(gpu) = self.frame.gpu_mut() {
                 let budget = crate::debug::budget_ms(
                     gpu.window
                         .current_monitor()
                         .and_then(|m| m.refresh_rate_millihertz()),
                 );
-                let cost = self
-                    .frame
-                    .frame_costs()
-                    .last()
-                    .zip(self.frame.frame_costs().worst());
                 gpu.pipeline.set_debug_perf(
                     cost,
-                    self.frame.last_latency_ms(),
-                    Some(self.frame.redraw_count()),
+                    last_latency_ms,
+                    Some(redraw_count),
                     is_stamp,
                     Some(budget),
                 );
@@ -521,24 +529,15 @@ impl App {
                 // anything the engine didn't just do. The only clock read
                 // here (`now - persistence.engine_last_write_at()`) is gated on
                 // `debug_on()` like every other perf read this block makes.
-                let engine_wrote = self.persistence.engine_last_write_at();
-                let since_secs = engine_wrote.map(|t| (self.frame.now() - t).as_secs());
-                let autosave = crate::debug::autosave_state(
-                    self.config.autosave_on(),
-                    self.frame.notice_active(),
-                    since_secs,
-                );
                 gpu.pipeline.set_debug_autosave(Some(autosave));
                 // Transaction diagnostics age on the App clock, not on frame count.
                 // This redraw already happened for real work; checking here never
                 // arms a timer or turns the Debug panel into a hot loop.
-                let now = self.frame.now();
-                gpu.pipeline
-                    .set_debug_theme_settle(self.frame.theme_switches_mut().report(now));
+                gpu.pipeline.set_debug_theme_settle(theme_settle);
             }
         } else if self.clear_debug_session_if_populated() {
             // Clear GPU diagnostics only when a live pipeline exists.
-            if let Some(gpu) = self.gpu.as_mut() {
+            if let Some(gpu) = self.frame.gpu_mut() {
                 gpu.pipeline.set_debug_perf(None, None, None, true, None);
                 gpu.pipeline.set_debug_autosave(None);
                 gpu.pipeline.set_debug_theme_settle(None);
@@ -555,7 +554,7 @@ impl App {
         // HOT while the caret spring animates — and, since item 199, while a
         // TRAVELLING ground runs (`App::advance_travelling_ground`).
         let warp_hot = self.advance_travelling_ground(dt);
-        let (animating, outcome) = if let Some(gpu) = self.gpu.as_mut() {
+        let (animating, outcome) = if let Some(gpu) = self.frame.gpu_mut() {
             // Drive the virtual-clock seam (caret spring + any future live
             // animator) so the timeline capture and the live loop advance
             // animation through the SAME entry point.
@@ -606,7 +605,7 @@ impl App {
                 .frame
                 .take_theme_settle()
                 .expect("just checked is_some");
-            if let Some((prep_ms, present_ms)) = self.gpu.as_ref().and_then(|g| g.debug_frame_split)
+            if let Some((prep_ms, present_ms)) = self.frame.gpu().and_then(|g| g.debug_frame_split)
             {
                 settle
                     .phases
@@ -624,9 +623,9 @@ impl App {
             self.frame
                 .theme_switches_mut()
                 .insert(settled_at, total_ms, settle.phases);
-            if let Some(gpu) = self.gpu.as_mut() {
-                gpu.pipeline
-                    .set_debug_theme_settle(self.frame.theme_switches_mut().report(settled_at));
+            let theme_settle = self.frame.theme_switches_mut().report(settled_at);
+            if let Some(gpu) = self.frame.gpu_mut() {
+                gpu.pipeline.set_debug_theme_settle(theme_settle);
                 self.request_frame();
             }
         }

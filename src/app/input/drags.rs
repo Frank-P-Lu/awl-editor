@@ -75,7 +75,8 @@ impl App {
     pub(in crate::app) fn begin_range_drag(&mut self) -> bool {
         let (px, py) = self.input.pointer.cursor_px;
         let Some((item, frac)) = self
-            .gpu
+            .frame
+            .gpu()
             .as_ref()
             .and_then(|g| g.pipeline.overlay_range_at(px, py))
         else {
@@ -99,7 +100,8 @@ impl App {
         // struct's doc). Falls back to nothing when the rail vanished between the
         // hit-test and here (it cannot, but a missing scale must not scrub at 0).
         let Some((x0, x1)) = self
-            .gpu
+            .frame
+            .gpu()
             .as_ref()
             .and_then(|g| g.pipeline.overlay_range_scale(item))
         else {
@@ -186,7 +188,7 @@ impl App {
         &mut self,
         exit: &dyn schedule::Exit,
     ) -> bool {
-        let edge = self.gpu.as_ref().and_then(|g| {
+        let edge = self.frame.gpu().and_then(|g| {
             g.pipeline
                 .page_resize_edge_at(self.input.pointer.cursor_px.0)
         });
@@ -217,7 +219,7 @@ impl App {
         // anchor (`geometry::page_resize_measure_anchored`), so the measure stays
         // monotone. Reading the current adaptively-shifted edge each frame instead fed
         // the rail-hide shift back into the measure and oscillated it across the boundary.
-        self.input.pointer.page_resize_anchor = self.gpu.as_ref().map(|g| {
+        self.input.pointer.page_resize_anchor = self.frame.gpu().map(|g| {
             let left = g.pipeline.column_left();
             match edge {
                 crate::render::ResizeEdge::Right => left,
@@ -253,7 +255,7 @@ impl App {
                 .page_resize_edge
                 .zip(anchor)
                 .and_then(|(edge, anchor_x)| {
-                    self.gpu.as_ref().map(|g| {
+                    self.frame.gpu().map(|g| {
                         g.pipeline.page_resize_measure_at(
                             self.input.pointer.cursor_px.0,
                             edge,
@@ -265,14 +267,14 @@ impl App {
             && target != crate::page::measure()
         {
             crate::page::set_measure(target);
-            if let Some(gpu) = self.gpu.as_mut() {
+            if let Some(gpu) = self.frame.gpu_mut() {
                 let (w, h) = (gpu.config.width as f32, gpu.config.height as f32);
                 gpu.pipeline.set_size(w, h);
             }
             self.sync_view(true);
         }
         let (px, py) = self.input.resting_pointer().px();
-        if let Some(gpu) = self.gpu.as_mut() {
+        if let Some(gpu) = self.frame.gpu_mut() {
             // DRAG READOUT: a quiet muted char-count near the pointer while the edge
             // is held (Butterick's line-length rule made visible) — live for the
             // whole gesture (press through every move); cleared on release.
@@ -289,7 +291,7 @@ impl App {
         self.input.pointer.page_resize_edge = None;
         self.input.pointer.page_resize_anchor = None;
         self.persist_page_width();
-        if let Some(gpu) = self.gpu.as_mut() {
+        if let Some(gpu) = self.frame.gpu_mut() {
             // Drop the drag readout — gone the instant the edge is released.
             gpu.pipeline.set_page_drag_readout(None);
             self.request_frame();
@@ -315,7 +317,8 @@ impl App {
         // geometry leaks to the app. Returns the hit image's byte range, the grabbed
         // edge/corner, and the press-time rect (the width math's anchors).
         let hit = self
-            .gpu
+            .frame
+            .gpu()
             .as_ref()
             .and_then(|g| g.pipeline.image_handle_at(px, py));
         let Some((range, handle, rect)) = hit else {
@@ -359,7 +362,7 @@ impl App {
             return;
         };
         let pointer = self.input.pointer.cursor_px;
-        let width = self.gpu.as_ref().map(|g| {
+        let width = self.frame.gpu().map(|g| {
             g.pipeline
                 .image_resize_width_at(drag.handle, drag.rect, pointer)
         });
@@ -369,7 +372,7 @@ impl App {
         if let Some(d) = self.input.pointer.image_resizing.as_mut() {
             d.width = width;
         }
-        if let Some(gpu) = self.gpu.as_mut() {
+        if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline
                 .set_image_preview(Some((drag.range.0, drag.range.1, width)));
         }
@@ -385,7 +388,7 @@ impl App {
         let Some(drag) = self.input.pointer.image_resizing.take() else {
             return;
         };
-        if let Some(gpu) = self.gpu.as_mut() {
+        if let Some(gpu) = self.frame.gpu_mut() {
             // Drop the live preview — the committed `|NNN` hint drives the fit now.
             gpu.pipeline.set_image_preview(None);
         }

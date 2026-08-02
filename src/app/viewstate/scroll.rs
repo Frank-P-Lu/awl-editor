@@ -21,12 +21,12 @@ impl App {
         previous: crate::render::ScrollPos,
         height: f32,
     ) {
-        let pipeline = &self.gpu.as_ref().unwrap().pipeline;
+        let pipeline = &self.frame.gpu().unwrap().pipeline;
         let scroll = pipeline.scroll_by_px(self.document.scroll(), 0.0, height);
         self.document.set_scroll(scroll);
         if self.document.scroll() != previous {
             view.scroll = self.document.scroll();
-            self.gpu.as_mut().unwrap().pipeline.set_view(view);
+            self.frame.gpu_mut().unwrap().pipeline.set_view(view);
         }
     }
 }

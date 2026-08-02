@@ -8,7 +8,7 @@ use super::*;
 
 impl App {
     pub(in crate::app) fn request_frame(&self) {
-        if let Some(gpu) = self.gpu.as_ref() {
+        if let Some(gpu) = self.frame.gpu() {
             request_window(&gpu.window);
         }
     }

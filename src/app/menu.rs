@@ -85,6 +85,6 @@ impl App {
         if let Some(menu) = self._menu_bar.as_ref() {
             menu.set_markdown_enabled(self.document.buffer().is_markdown());
         }
-        self.gpu.is_none()
+        self.frame.gpu().is_none()
     }
 }

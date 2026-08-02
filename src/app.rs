@@ -436,11 +436,6 @@ pub struct App {
     /// One frame lifecycle. Render-affecting state and the deadlines which
     /// settle it cannot drift as separate root field bags.
     frame: frame::FrameRuntime,
-    gpu: Option<Gpu>,
-    recovery_window: Option<Arc<Window>>,
-    gpu_lifecycle: GpuLifecycle,
-    gpu_retry_at: Option<Instant>,
-    gpu_timeout_streak: u8,
     #[cfg(not(target_arch = "wasm32"))]
     soak: Option<crate::soak_gpu::Controller>,
     #[cfg(not(target_arch = "wasm32"))]
@@ -455,12 +450,6 @@ pub struct App {
     /// probe run — zero cost on a normal launch.
     #[cfg(not(target_arch = "wasm32"))]
     probe_ready: Option<std::sync::mpsc::Sender<()>>,
-    /// WASM-only handoff slot for the ASYNC GPU init. The browser main thread can't
-    /// block, so `Gpu::new` runs on a `spawn_local` future that parks its result
-    /// here; `window_event` moves it into `gpu` on the first frame. `Rc<RefCell>`
-    /// because the future and the App share it on the (single) wasm main thread.
-    #[cfg(target_arch = "wasm32")]
-    gpu_pending: std::rc::Rc<std::cell::RefCell<Option<Result<Gpu, String>>>>,
     clipboard: Option<Clipboard>,
     clipboard_last_written: Option<String>,
     /// The live root plus its derived project state and persisted MRUs.
@@ -470,23 +459,6 @@ pub struct App {
     /// acknowledges it.
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pending_crash: Option<String>,
-    /// Shadow of the CAMetalLayer's `presentsWithTransaction` flag — the ONE
-    /// owner of its composition is `App::sync_present_txn`, which arms it while
-    /// ANY live source (resize OR move stream, OR a theme-preview lava-boundary
-    /// crossing) is active and disarms it only once ALL have settled
-    /// (`present_sync_armed`). The MOVE half is the
-    /// move-flash fix's structural core: any present that happens around a
-    /// window move (the settle redraw, a sibling debounce firing mid-stream, a
-    /// cross-display `ScaleFactorChanged` redraw) now JOINS the window-server's
-    /// move transaction instead of racing it — the same cure the resize-stretch
-    /// artifact already had, extended to the move stream it never covered.
-    /// Tracked on every platform (the objc call itself is macOS-only), so the
-    /// state machine stays unit-testable everywhere.
-    present_sync_on: bool,
-    /// Whether `present_sync_on` describes the CURRENT GPU's CAMetalLayer.
-    /// Replacing the GPU/layer invalidates the shadow even when the desired bit
-    /// is unchanged; `sync_present_txn` then reapplies it exactly once.
-    present_sync_valid: bool,
     /// Persisted configuration plus CLI and first-run folder policy.
     config: location::ConfigurationRuntime,
     /// SESSION RESTORE (native only): the window FRAME a previous session left
@@ -667,11 +639,6 @@ impl App {
             persistence: persistence::PersistenceRuntime::default(),
             input: input::InputRuntime::new(keymap, scroll_sensitivity),
             frame: frame::FrameRuntime::new(zoom, clock),
-            gpu: None,
-            recovery_window: None,
-            gpu_lifecycle: GpuLifecycle::AwaitingWindow,
-            gpu_retry_at: None,
-            gpu_timeout_streak: 0,
             #[cfg(not(target_arch = "wasm32"))]
             soak: None,
             #[cfg(not(target_arch = "wasm32"))]
@@ -680,8 +647,6 @@ impl App {
             soak_passed: None,
             #[cfg(not(target_arch = "wasm32"))]
             probe_ready: None,
-            #[cfg(target_arch = "wasm32")]
-            gpu_pending: std::rc::Rc::new(std::cell::RefCell::new(None)),
             clipboard: match Clipboard::new() {
                 Ok(c) => Some(c),
                 Err(e) => {
@@ -692,8 +657,6 @@ impl App {
             clipboard_last_written: None,
             project_location,
             pending_crash: None,
-            present_sync_on: false,
-            present_sync_valid: false,
             config,
             #[cfg(not(target_arch = "wasm32"))]
             restored_window: None,
@@ -783,7 +746,7 @@ impl App {
     fn set_toast_notice(&mut self, text: impl Into<String>) {
         // A real window is the live/capture boundary: unit tests and headless
         // replay keep the text deterministic but never arm a wall-clock expiry.
-        let expires_at = self.gpu.as_ref().map(|_| self.frame.now() + TOAST_LIFETIME);
+        let expires_at = self.frame.gpu().map(|_| self.frame.now() + TOAST_LIFETIME);
         self.frame.set_toast_notice(text.into(), expires_at);
     }
 
@@ -913,23 +876,23 @@ impl App {
     /// inline after the NATIVE blocking init, and from `window_event` once the WASM
     /// async init deposits its GPU.
     fn on_gpu_ready(&mut self) {
-        if self.gpu.is_none() {
+        if !self.frame.has_gpu() {
             return;
         }
         // `Gpu::new` owns a fresh surface/CAMetalLayer. The value shadowed for
         // the previous layer cannot suppress application to this one.
-        self.present_sync_valid = false;
+        self.frame.invalidate_present_sync();
         self.sync_present_txn();
-        self.gpu_retry_at = None;
-        self.gpu_timeout_streak = 0;
-        let Some(gpu) = self.gpu.as_ref() else { return };
+        self.frame.clear_gpu_retry();
+        self.frame.clear_gpu_timeout_streak();
+        let Some(gpu) = self.frame.gpu() else { return };
         let sf = gpu.window.scale_factor() as f32;
         self.frame.set_dpi(sf);
-        if let Some(gpu) = self.gpu.as_mut() {
+        if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.set_dpi(sf);
         }
         #[cfg(not(target_arch = "wasm32"))]
-        if let (Some(soak), Some(gpu)) = (self.soak.as_mut(), self.gpu.as_ref()) {
+        if let (Some(soak), Some(gpu)) = (self.soak.as_mut(), self.frame.gpu()) {
             soak.observe_backend(gpu.backend_name().to_string());
         }
         // WASM: the surface was configured inside the async `Gpu::new` against the
@@ -942,9 +905,9 @@ impl App {
         // fix is web-only and leaves the native path untouched.
         #[cfg(target_arch = "wasm32")]
         {
-            let Some(gpu) = self.gpu.as_ref() else { return };
+            let Some(gpu) = self.frame.gpu() else { return };
             let size = gpu.window.inner_size();
-            if let Some(gpu) = self.gpu.as_mut() {
+            if let Some(gpu) = self.frame.gpu_mut() {
                 gpu.resize(size.width.max(1), size.height.max(1));
             }
         }
@@ -962,7 +925,7 @@ impl App {
         // the reported live conditions (focused editing).
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(tx) = self.probe_ready.take() {
-            if let Some(gpu) = self.gpu.as_ref() {
+            if let Some(gpu) = self.frame.gpu() {
                 gpu.window
                     .set_window_level(winit::window::WindowLevel::AlwaysOnTop);
                 gpu.window.focus_window();
@@ -980,7 +943,7 @@ impl App {
             return;
         }
         let now = self.frame.now();
-        let metal = self.gpu.as_ref().and_then(Gpu::current_gpu_bytes);
+        let metal = self.frame.gpu().and_then(Gpu::current_gpu_bytes);
         let (finished, stimuli) = {
             let Some(soak) = self.soak.as_mut() else {
                 return;
@@ -1024,7 +987,7 @@ impl App {
                     self.sync_view(true);
                 }
                 crate::soak_gpu::Stimulus::Resize { width, height } => {
-                    if let Some(w) = self.recovery_window.as_ref() {
+                    if let Some(w) = self.frame.recovery_window().as_ref() {
                         let _ = w.request_inner_size(winit::dpi::PhysicalSize::new(width, height));
                     }
                 }
@@ -1052,7 +1015,7 @@ impl App {
                 }
                 crate::soak_gpu::Stimulus::Inject(kind) => {
                     self.soak_recovery_pending = Some(kind);
-                    if let Some(gpu) = self.gpu.as_mut() {
+                    if let Some(gpu) = self.frame.gpu_mut() {
                         match kind {
                             crate::soak_gpu::FaultKind::OutOfMemory => {
                                 gpu.inject_fault(gpu::GpuFaultInjection::OutOfMemory)

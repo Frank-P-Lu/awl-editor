@@ -7,7 +7,7 @@ impl App {
             return;
         }
         self.frame.clear_zoom_reflow();
-        let height = self.gpu.as_ref().unwrap().config.height as f32;
+        let height = self.frame.gpu().unwrap().config.height as f32;
         debug_assert!(height.is_finite());
         let (cursor_line, cursor_col) = self.document.buffer().cursor_line_col();
         self.sync_spell_cache();
@@ -295,7 +295,7 @@ impl App {
             );
         }
         {
-            let gpu = self.gpu.as_mut().unwrap();
+            let gpu = self.frame.gpu_mut().unwrap();
             gpu.pipeline.set_view(&view);
         }
 
@@ -307,12 +307,12 @@ impl App {
             // math + clamp). Overrides cursor-follow — the anchored caret is on
             // screen by construction, and the off-screen fallback deliberately holds
             // the viewport centre rather than yanking to the caret.
-            let pipeline = &self.gpu.as_ref().unwrap().pipeline;
+            let pipeline = &self.frame.gpu().unwrap().pipeline;
             let scroll =
                 pipeline.zoom_anchor_scroll_pos(anchor.line, anchor.col, anchor.screen_y, height);
             self.document.set_scroll(scroll);
         } else if follow {
-            let pipeline = &self.gpu.as_ref().unwrap().pipeline;
+            let pipeline = &self.frame.gpu().unwrap().pipeline;
             // Affinity resolves shared boundaries to the caret's visual row.
             let cursor_row = pipeline.visual_row_of_aff(
                 cursor_line,
@@ -333,7 +333,7 @@ impl App {
             };
             self.document.set_scroll(scroll);
         }
-        let max = self.gpu.as_ref().unwrap().pipeline.max_scroll_rows(height);
+        let max = self.frame.gpu().unwrap().pipeline.max_scroll_rows(height);
         match diff_scroll {
             Some(ds) => {
                 let clamped = ds.min(max);
@@ -342,7 +342,7 @@ impl App {
                 }
                 if view.scroll != crate::render::ScrollPos::at_row(clamped) {
                     view.scroll = crate::render::ScrollPos::at_row(clamped);
-                    self.gpu.as_mut().unwrap().pipeline.set_view(&view);
+                    self.frame.gpu_mut().unwrap().pipeline.set_view(&view);
                 }
             }
             None => {
@@ -507,7 +507,7 @@ impl App {
 
     fn apply_caret_impulses(&mut self) {
         if let Some(imp) = self.frame.take_caret_impact()
-            && let Some(gpu) = self.gpu.as_mut()
+            && let Some(gpu) = self.frame.gpu_mut()
         {
             match imp {
                 CaretImpact::Type => gpu.pipeline.caret_type_impact(),
@@ -520,14 +520,14 @@ impl App {
         // BLOCKED-ACTION RECOIL: a motion/scroll/undo/delete that couldn't proceed
         // bumps the visual caret away from the wall (every caret look).
         if let Some(dir) = self.frame.take_caret_recoil()
-            && let Some(gpu) = self.gpu.as_mut()
+            && let Some(gpu) = self.frame.gpu_mut()
         {
             gpu.pipeline.caret_recoil(dir);
         }
     }
 
     pub(super) fn update_ime_cursor_area(&self) {
-        let Some(gpu) = self.gpu.as_ref() else {
+        let Some(gpu) = self.frame.gpu() else {
             return;
         };
         let (x, y, w, h) = gpu.pipeline.caret_pixel_rect();

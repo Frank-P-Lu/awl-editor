@@ -36,11 +36,8 @@ pub(crate) enum Domain {
     InputRuntime,
     /// "Where am I working": root, project, indexes, MRUs.
     ProjectLocation,
-    /// GPU handles, zoom, theme retint, caret feedback, debug frame stats.
-    /// Held by queue item 174 — do not extract from under it.
-    RenderRuntime,
-    /// Every debounce/settle deadline and the notice's own expiry.
-    FrameScheduler,
+    /// GPU/presentation lifecycle, frame state, and every settle deadline.
+    FrameRuntime,
     /// Process/OS handles and one-shot startup handoffs. `App` genuinely is
     /// their lifecycle; these stay.
     HostLifecycle,
@@ -56,50 +53,6 @@ pub(crate) enum Extraction {
     OnRootApp,
 }
 
-/// Root-`App` fields still owned by [`Domain::RenderRuntime`].
-const RENDER_RUNTIME: &[&str] = &[
-    "gpu",
-    "recovery_window",
-    "gpu_lifecycle",
-    "gpu_retry_at",
-    "gpu_timeout_streak",
-    "gpu_pending",
-    "present_sync_on",
-    "present_sync_valid",
-    "dpi",
-    "zoom",
-    "zoom_reflow",
-    "zoom_anchor",
-    "theme_font_at",
-    "theme_font_last_reshape_at",
-    "theme_switch_at",
-    "theme_settle",
-    "theme_switches",
-    "caret_edit_streaks",
-    "caret_held",
-    "caret_impact",
-    "caret_recoil",
-    "frame_costs",
-    "debug_still",
-    "redraw_count",
-    "last_latency_ms",
-    "input_stamp",
-];
-/// Root-`App` fields still owned by [`Domain::FrameScheduler`].
-const FRAME_SCHEDULER: &[&str] = &[
-    "clock",
-    "last_frame",
-    "lava_tick_at",
-    "resize_settle_at",
-    "move_settle_at",
-    "crossing_settle_at",
-    "crossing_teardown_pending",
-    "focused",
-    "notice",
-    "notice_kind",
-    "notice_expires_at",
-    "zoom_persist_at",
-];
 /// Root-`App` fields still owned by [`Domain::HostLifecycle`].
 const HOST_LIFECYCLE: &[&str] = &[
     "clipboard",
@@ -136,8 +89,7 @@ impl Domain {
         Domain::DocumentSession,
         Domain::InputRuntime,
         Domain::ProjectLocation,
-        Domain::RenderRuntime,
-        Domain::FrameScheduler,
+        Domain::FrameRuntime,
         Domain::HostLifecycle,
     ];
 
@@ -156,7 +108,8 @@ impl Domain {
             Domain::ProjectLocation => Some("project_location"),
             Domain::InputRuntime => Some("input"),
             Domain::DocumentSession => Some("document"),
-            Domain::RenderRuntime | Domain::FrameScheduler | Domain::HostLifecycle => None,
+            Domain::FrameRuntime => Some("frame"),
+            Domain::HostLifecycle => None,
         }
     }
 
@@ -184,8 +137,7 @@ impl Domain {
             // ── MAPPED, STILL ON ROOT `App` ──────────────────────────────
             Domain::DocumentSession => (Extraction::Extracted, &[]),
             Domain::InputRuntime => (Extraction::Extracted, &[]),
-            Domain::RenderRuntime => (Extraction::OnRootApp, RENDER_RUNTIME),
-            Domain::FrameScheduler => (Extraction::OnRootApp, FRAME_SCHEDULER),
+            Domain::FrameRuntime => (Extraction::Extracted, &[]),
             Domain::HostLifecycle => (Extraction::OnRootApp, HOST_LIFECYCLE),
             // NO `_ =>` ARM. A new domain must be described here.
         }
@@ -435,7 +387,47 @@ fn retired_field_names(domain: Domain) -> &'static [&'static str] {
             "recent_files",
         ],
         Domain::DocumentSession => &["active", "buffer_registry", "prev_file", "spell"],
-        Domain::RenderRuntime | Domain::FrameScheduler | Domain::HostLifecycle => &[],
+        Domain::FrameRuntime => &[
+            "gpu",
+            "recovery_window",
+            "gpu_lifecycle",
+            "gpu_retry_at",
+            "gpu_timeout_streak",
+            "gpu_pending",
+            "present_sync_on",
+            "present_sync_valid",
+            "dpi",
+            "zoom",
+            "zoom_reflow",
+            "zoom_anchor",
+            "theme_font_at",
+            "theme_font_last_reshape_at",
+            "theme_switch_at",
+            "theme_settle",
+            "theme_switches",
+            "caret_edit_streaks",
+            "caret_held",
+            "caret_impact",
+            "caret_recoil",
+            "frame_costs",
+            "debug_still",
+            "redraw_count",
+            "last_latency_ms",
+            "input_stamp",
+            "clock",
+            "last_frame",
+            "lava_tick_at",
+            "resize_settle_at",
+            "move_settle_at",
+            "crossing_settle_at",
+            "crossing_teardown_pending",
+            "focused",
+            "notice",
+            "notice_kind",
+            "notice_expires_at",
+            "zoom_persist_at",
+        ],
+        Domain::HostLifecycle => &[],
     }
 }
 
@@ -448,23 +440,8 @@ fn retired_field_names(domain: Domain) -> &'static [&'static str] {
 /// move the item forbids.
 #[test]
 fn root_app_does_not_grow() {
-    // Item 172 baseline: 107 fields. Slice 1 removed 3 (`overlay`, `search`,
-    // `popover_open`) and added 1 owner handle (`workspace_state`); slice 2
-    // removed 5 and added 1 (`persistence`). 107 - 3 + 1 - 5 + 1 = 101.
-    // Item 202 repair round: +1, `theme_font_last_reshape_at` — the
-    // leading-edge rule's own clock (when the font last actually reshaped),
-    // a sibling of the existing `theme_font_at`/`theme_switch_at`/
-    // `theme_settle`/`theme_switches` quartet this exact feature area already
-    // keeps as individual root fields rather than a sub-owner struct; no
-    // existing field can stand in for it (`theme_switch_at`/`theme_settle`
-    // are both DEBUG-only, gated behind `debug_on()`, and this must hold in
-    // every build). 101 + 1 = 102. ConfigurationRuntime then replaces
-    // `default_folder` + both CLI location inputs with its existing `config`
-    // handle (-3), while ProjectLocation replaces six loose fields with one
-    // handle (-5): 102 - 3 - 5 = 94. InputRuntime then replaces 27 loose
-    // fields with its one handle: 94 - 27 + 1 = 68. DocumentSession replaces
-    // four loose fields with one owner handle: 68 - 4 + 1 = 65.
-    const CEILING: usize = 65;
+    // Root App is lifecycle composition: seven domain handles plus host state.
+    const CEILING: usize = 28;
     let fields = root_app_fields();
     assert_eq!(
         fields.len(),
@@ -698,7 +675,7 @@ fn struct_fields<'a>(source: &'a str, name: &str) -> Vec<&'a str> {
 fn the_root_app_field_parser_is_not_vacuous() {
     let fields = root_app_fields();
     assert!(
-        fields.len() > 60,
+        fields.len() > 20,
         "parsed only {} field(s) out of src/app.rs — the parser lost the struct \
          body and every gate in this file just went vacuous: {fields:?}",
         fields.len()

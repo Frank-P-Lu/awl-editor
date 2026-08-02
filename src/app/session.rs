@@ -59,7 +59,7 @@ impl App {
         // refuse it) — degrade to no window frame rather than skip the whole
         // flush, mirroring every other "never let a live-only quirk disrupt the
         // rest of the save" pattern in this codebase.
-        let window = self.gpu.as_ref().and_then(|gpu| {
+        let window = self.frame.gpu().and_then(|gpu| {
             let pos = gpu.window.outer_position().ok()?;
             let size = gpu.window.inner_size();
             Some(crate::session::WindowFrame {

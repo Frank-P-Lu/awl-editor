@@ -20,10 +20,10 @@ impl ApplicationHandler<AwlEvent> for App {
     }
 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        if self.gpu.is_some() {
+        if self.frame.has_gpu() {
             return;
         }
-        if self.recovery_window.is_some() {
+        if self.frame.recovery_window().is_some() {
             self.rebuild_gpu(event_loop, "graphics resumed");
             return;
         }
@@ -154,7 +154,7 @@ impl ApplicationHandler<AwlEvent> for App {
             attrs.with_canvas(canvas)
         };
         let window = Arc::new(event_loop.create_window(attrs).expect("create window"));
-        self.recovery_window = Some(window.clone());
+        self.frame.set_recovery_window(window.clone());
         // Ask the platform to deliver IME events so CJK (Japanese) composition
         // works: without this, WindowEvent::Ime is never sent and the user can
         // only type raw ASCII. Safe to call unconditionally; platforms without an
@@ -167,8 +167,9 @@ impl ApplicationHandler<AwlEvent> for App {
         #[cfg(not(target_arch = "wasm32"))]
         match pollster::block_on(Gpu::new(window, display_handle)) {
             Ok(gpu) => {
-                self.gpu = Some(gpu);
-                self.gpu_lifecycle = GpuLifecycle::Active { oom_skips: 0 };
+                self.frame.install_gpu(gpu);
+                self.frame
+                    .set_gpu_lifecycle(GpuLifecycle::Active { oom_skips: 0 });
                 self.on_gpu_ready();
                 // NATIVE MACOS MENU BAR: install now that the window (and
                 // therefore NSApp) exists — `Menu::init_for_nsapp` and the
@@ -207,8 +208,8 @@ impl ApplicationHandler<AwlEvent> for App {
         // first frame. (The event-loop borrow can't cross the await, hence the slot.)
         #[cfg(target_arch = "wasm32")]
         {
-            self.gpu_lifecycle = GpuLifecycle::Rebuilding;
-            let slot = self.gpu_pending.clone();
+            self.frame.set_gpu_lifecycle(GpuLifecycle::Rebuilding);
+            let slot = self.frame.gpu_pending_slot();
             let win = window.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 match Gpu::new(window, display_handle).await {
@@ -226,12 +227,8 @@ impl ApplicationHandler<AwlEvent> for App {
     }
 
     fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
-        self.gpu = None;
-        self.gpu_lifecycle = GpuLifecycle::Suspended;
-        self.frame.suspend();
+        self.frame.suspend_surface();
         self.frame.take_input_stamp();
-        self.present_sync_on = false;
-        self.present_sync_valid = false;
     }
 
     fn window_event(
@@ -244,13 +241,14 @@ impl ApplicationHandler<AwlEvent> for App {
         // trailing `request_redraw` is what delivered us here). The first frame
         // after init lands here with `gpu` still `None` but the slot full.
         #[cfg(target_arch = "wasm32")]
-        if self.gpu.is_none() {
-            let pending = self.gpu_pending.borrow_mut().take();
+        if !self.frame.has_gpu() {
+            let pending = self.frame.take_gpu_pending();
             if let Some(result) = pending {
                 match result {
                     Ok(gpu) => {
-                        self.gpu = Some(gpu);
-                        self.gpu_lifecycle = GpuLifecycle::Active { oom_skips: 0 };
+                        self.frame.install_gpu(gpu);
+                        self.frame
+                            .set_gpu_lifecycle(GpuLifecycle::Active { oom_skips: 0 });
                         self.on_gpu_ready();
                     }
                     Err(e) => {
@@ -261,7 +259,7 @@ impl ApplicationHandler<AwlEvent> for App {
                 }
             }
         }
-        if self.gpu.is_none() {
+        if !self.frame.has_gpu() {
             return;
         }
         match event {

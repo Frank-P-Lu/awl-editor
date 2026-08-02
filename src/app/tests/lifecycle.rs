@@ -199,21 +199,27 @@ fn gpu_replacement_invalidates_and_reestablishes_the_present_sync_shadow() {
 
     app.frame.arm_crossing_settle(Instant::now());
     app.sync_present_txn();
-    assert!(app.present_sync_on);
-    assert!(app.present_sync_valid);
+    assert!(app.frame.present_sync_on());
+    assert!(app.frame.present_sync_valid());
 
     // This is the state at the replacement seam in `on_gpu_ready`: the old
     // value remains useful as state, but cannot describe the fresh layer.
-    app.present_sync_valid = false;
+    app.frame.invalidate_present_sync();
     app.sync_present_txn();
-    assert!(app.present_sync_on, "the live crossing claim is preserved");
     assert!(
-        app.present_sync_valid,
+        app.frame.present_sync_on(),
+        "the live crossing claim is preserved"
+    );
+    assert!(
+        app.frame.present_sync_valid(),
         "the current layer's shadow is established before equality may elide work"
     );
 
     app.sync_present_txn();
-    assert!(app.present_sync_valid, "steady-state sync stays idempotent");
+    assert!(
+        app.frame.present_sync_valid(),
+        "steady-state sync stays idempotent"
+    );
 }
 
 /// THE MOVE-FLASH REGRESSION PIN (user report 2026-07-15, "kinda back"):
@@ -233,7 +239,7 @@ fn moved_stream_holds_the_lamp_and_syncs_presents_until_settle() {
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
     // An ambient tick was armed before the drag started.
     app.frame.arm_lava_tick(Instant::now());
-    assert!(!app.present_sync_on, "idle: presents run async");
+    assert!(!app.frame.present_sync_on(), "idle: presents run async");
 
     // The burst: every event re-stamps the hold and clears the tick arm;
     // the first arms the present-transaction sync for the whole stream.
@@ -248,7 +254,7 @@ fn moved_stream_holds_the_lamp_and_syncs_presents_until_settle() {
             "no ambient tick may be armed mid-stream"
         );
         assert!(
-            app.present_sync_on,
+            app.frame.present_sync_on(),
             "every present around the move joins the window-server transaction"
         );
         // Phase (and with it the field — `advance_lava`'s ONLY caller is
@@ -278,7 +284,7 @@ fn moved_stream_holds_the_lamp_and_syncs_presents_until_settle() {
         "the tick re-arms fresh after settle (no catch-up dt)"
     );
     assert!(
-        !app.present_sync_on,
+        !app.frame.present_sync_on(),
         "presents return to async once genuinely settled"
     );
     crate::theme::set_active(prev);
@@ -295,20 +301,26 @@ fn one_streams_settle_never_strips_the_other_streams_present_sync() {
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
 
     app.arm_live_resize_sync();
-    assert!(app.present_sync_on, "resize stream arms the sync");
+    assert!(app.frame.present_sync_on(), "resize stream arms the sync");
     app.on_moved(winit::dpi::PhysicalPosition::new(12, 12));
-    assert!(app.present_sync_on, "still armed with both streams live");
+    assert!(
+        app.frame.present_sync_on(),
+        "still armed with both streams live"
+    );
 
     // Resize settles first (its window is the shorter one): the move
     // stream is still live, so presents STAY transaction-synced.
     app.finish_resize_settle();
     assert!(app.frame.resize_settle_at().is_none());
     assert!(
-        app.present_sync_on,
+        app.frame.present_sync_on(),
         "the move stream still owns a claim on the sync"
     );
     app.finish_move_settle();
-    assert!(!app.present_sync_on, "both settled: async presents again");
+    assert!(
+        !app.frame.present_sync_on(),
+        "both settled: async presents again"
+    );
     crate::theme::set_active(prev);
 }
 
@@ -329,7 +341,10 @@ fn a_non_lava_world_takes_a_moved_stream_as_a_total_no_op() {
         app.frame.move_settle_at().is_none(),
         "no hold: the settle arm can never fire, zero redraws scheduled"
     );
-    assert!(!app.present_sync_on, "no stream, no transaction sync");
+    assert!(
+        !app.frame.present_sync_on(),
+        "no stream, no transaction sync"
+    );
     crate::theme::set_active(prev);
 }
 
@@ -360,7 +375,7 @@ fn every_preview_step_brackets_and_teardown_waits_for_the_reshape_present() {
 
     crate::theme::set_active_by_name("Mangrove").unwrap();
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    assert!(!app.present_sync_on, "idle: presents run async");
+    assert!(!app.frame.present_sync_on(), "idle: presents run async");
 
     // (1) The STEADY steps the retired classifier left unbracketed now arm:
     // `Galah→Magpie` (static→static — the real reported LANDING) and
@@ -372,7 +387,7 @@ fn every_preview_step_brackets_and_teardown_waits_for_the_reshape_present() {
         app.frame.clear_crossing_settle();
         app.frame.finish_crossing_teardown();
         app.sync_present_txn();
-        assert!(!app.present_sync_on, "{label}: starts disarmed");
+        assert!(!app.frame.present_sync_on(), "{label}: starts disarmed");
         crate::theme::set_active_by_name(to).unwrap();
         app.retint_theme_preview(from);
         assert!(
@@ -380,7 +395,7 @@ fn every_preview_step_brackets_and_teardown_waits_for_the_reshape_present() {
             "{label}: the preview stamps the settle"
         );
         assert!(
-            app.present_sync_on,
+            app.frame.present_sync_on(),
             "{label}: the bracket arms unconditionally"
         );
     }
@@ -398,7 +413,7 @@ fn every_preview_step_brackets_and_teardown_waits_for_the_reshape_present() {
         "phase 1 hands off to the pending teardown"
     );
     assert!(
-        app.present_sync_on,
+        app.frame.present_sync_on(),
         "the bracket is HELD through the reshape present, not torn down"
     );
     // Phase 2 (the post-present hook, after the in-bracket reshape present)
@@ -409,7 +424,7 @@ fn every_preview_step_brackets_and_teardown_waits_for_the_reshape_present() {
         "phase 2 clears the pending teardown"
     );
     assert!(
-        !app.present_sync_on,
+        !app.frame.present_sync_on(),
         "only after the bracketed reshape present does the bracket disarm"
     );
     crate::theme::set_active(prev);
@@ -433,10 +448,13 @@ fn a_crossing_settle_never_strips_a_live_resize_streams_present_sync() {
 
     // A live resize stream, then a preview step (now unconditional).
     app.arm_live_resize_sync();
-    assert!(app.present_sync_on, "resize stream arms the sync");
+    assert!(app.frame.present_sync_on(), "resize stream arms the sync");
     crate::theme::set_active_by_name("Magpie").unwrap();
     app.retint_theme_preview(mangrove);
-    assert!(app.present_sync_on, "still armed with both sources live");
+    assert!(
+        app.frame.present_sync_on(),
+        "still armed with both sources live"
+    );
 
     // The preview settles + fully tears down (both phases): the resize stream
     // still owns a claim through EACH phase — the disarm belongs to the one
@@ -444,17 +462,20 @@ fn a_crossing_settle_never_strips_a_live_resize_streams_present_sync() {
     app.finish_crossing_settle();
     assert!(app.frame.crossing_settle_at().is_none());
     assert!(
-        app.present_sync_on,
+        app.frame.present_sync_on(),
         "resize still owns a claim after phase 1"
     );
     app.finish_crossing_teardown();
     assert!(!app.frame.crossing_teardown_pending());
     assert!(
-        app.present_sync_on,
+        app.frame.present_sync_on(),
         "resize still owns a claim after phase 2"
     );
     app.finish_resize_settle();
-    assert!(!app.present_sync_on, "both settled: async presents again");
+    assert!(
+        !app.frame.present_sync_on(),
+        "both settled: async presents again"
+    );
     crate::theme::set_active(prev);
 }
 

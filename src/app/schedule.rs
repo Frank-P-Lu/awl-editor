@@ -30,12 +30,13 @@ impl App {
             crate::lava::lava_paused(
                 self.frame.resize_settle_at().is_some(),
                 self.frame.move_settle_at().is_some(),
-                self.gpu
+                self.frame
+                    .gpu()
                     .as_ref()
                     .is_some_and(|gpu| gpu.pipeline.lava_blur_active()),
             ),
         );
-        if hot && let Some(gpu) = self.gpu.as_mut() {
+        if hot && let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.advance_warp(crate::lava::ambient_tick_dt(dt));
         }
         hot
@@ -220,63 +221,9 @@ impl App {
         }
     }
 
-    fn schedule_render_settles(&mut self, event_loop: &impl Scheduler) {
-        if let Some(dirty) = self.frame.theme_font_at() {
-            let debounce = theme_font_debounce();
-            match debounce_due(dirty, debounce, self.frame.now()) {
-                true => self.apply_deferred_theme_font(),
-                false if self.frame.last_frame().is_none() => {
-                    event_loop.set_control_flow(ControlFlow::WaitUntil(dirty + debounce));
-                }
-                false => {}
-            }
-        }
-        if let Some(dirty) = self
-            .frame
-            .zoom_persist_at()
-            .filter(|_| !self.zoom_persist_held())
-        {
-            match debounce_due(dirty, ZOOM_PERSIST_DEBOUNCE, self.frame.now()) {
-                true => self.settle_zoom_persist(),
-                false if self.frame.last_frame().is_none() => {
-                    event_loop
-                        .set_control_flow(ControlFlow::WaitUntil(dirty + ZOOM_PERSIST_DEBOUNCE));
-                }
-                false => {}
-            }
-        }
-        if let Some(dirty) = self.frame.resize_settle_at() {
-            match debounce_due(dirty, RESIZE_SYNC_SETTLE, self.frame.now()) {
-                true => self.finish_resize_settle(),
-                false if self.frame.last_frame().is_none() => {
-                    event_loop.set_control_flow(ControlFlow::WaitUntil(dirty + RESIZE_SYNC_SETTLE));
-                }
-                false => {}
-            }
-        }
-        if let Some(dirty) = self.frame.move_settle_at() {
-            match debounce_due(dirty, MOVE_SETTLE, self.frame.now()) {
-                true => self.finish_move_settle(),
-                false if self.frame.last_frame().is_none() => {
-                    event_loop.set_control_flow(ControlFlow::WaitUntil(dirty + MOVE_SETTLE));
-                }
-                false => {}
-            }
-        }
-        if let Some(dirty) = self.frame.crossing_settle_at() {
-            match debounce_due(dirty, CROSSING_SYNC_SETTLE, self.frame.now()) {
-                true => self.finish_crossing_settle(),
-                false if self.frame.last_frame().is_none() => {
-                    event_loop
-                        .set_control_flow(ControlFlow::WaitUntil(dirty + CROSSING_SYNC_SETTLE));
-                }
-                false => {}
-            }
-        }
-    }
-
     pub(super) fn about_to_wait_impl(&mut self, event_loop: &impl Scheduler) {
         let input_schedule = self.input.scheduling_snapshot();
+        let document_schedule = self.document.scheduling_snapshot();
         let config_schedule = self.config.scheduling_snapshot();
         // WHICH-KEY pause: while a PREFIX (`C-x`) is pending its second key, summon the
         // continuation panel once ~500ms elapses without a follow-up. The timer is
@@ -309,7 +256,30 @@ impl App {
         // `theme_font_at` (`retint_theme_preview`), sliding the deadline — the same
         // single-`WaitUntil`, idle-safe pattern as the zoom persist below (no hot
         // loop; commit/revert clear the stamp synchronously via `retint_theme_now`).
-        self.schedule_render_settles(event_loop);
+        let now = self.frame.now();
+        let outcome = self
+            .frame
+            .poll(now, input_schedule, document_schedule, config_schedule);
+        if outcome.reshape {
+            self.apply_deferred_theme_font();
+        }
+        if outcome.persist_zoom {
+            self.settle_zoom_persist();
+        }
+        if outcome.redraw {
+            // Present-sync sources are settled inside the frame owner. The
+            // host applies their composed value to the platform layer once.
+            self.sync_present_txn();
+            self.request_frame();
+        }
+        if let Some(deadline) = outcome.next_deadline
+            && self.frame.last_frame().is_none()
+        {
+            event_loop.set_control_flow(control_flow_with_deadline(
+                event_loop.control_flow(),
+                deadline,
+            ));
+        }
         // Debounced STICKY-ZOOM write: persist the SETTLED zoom after ~500ms of quiet,
         // so a rapid Cmd-=/Cmd-- run writes the final value once (not one-per-step).
         // Each new zoom step RE-STAMPS `zoom_persist_at` (via `mark_zoom_dirty`), so the
@@ -346,93 +316,6 @@ impl App {
         // window is focused (pause on blur). Every static world (and, among
         // ambient worlds, every frozen/paused/reduced-motion moment) schedules
         // ZERO ambient frames — preserving 0% idle CPU there.
-        let lava_active = crate::theme::active().has_ambient_tick();
-        let lava_paused = crate::lava::lava_paused(
-            self.frame.resize_settle_at().is_some(),
-            self.frame.move_settle_at().is_some(),
-            self.gpu
-                .as_ref()
-                .is_some_and(|gpu| gpu.pipeline.lava_blur_active()),
-        );
-        if crate::lava::lava_should_tick(
-            lava_active,
-            config_schedule.ambient_motion_on(),
-            crate::motion::reduced(),
-            self.frame.focused(),
-            lava_paused,
-        ) {
-            let now = self.frame.now();
-            match self.frame.lava_tick_at() {
-                Some(last) if now.saturating_duration_since(last) >= LAVA_TICK => {
-                    // Due: hand the elapsed time to the bounded ambient advance
-                    // (`lava::ambient_tick_dt` clamps it to one fixed tick), so a
-                    // delayed macOS window-drag wake cannot catch up in one jump.
-                    // The follow-up `about_to_wait` pass (after the redraw) re-arms
-                    // the single `WaitUntil` via the `_` arm below.
-                    let dt = (now - last).as_secs_f32();
-                    self.frame.arm_lava_tick(now);
-                    if let Some(gpu) = self.gpu.as_mut() {
-                        gpu.pipeline.advance_lava(dt);
-                        self.request_frame();
-                    }
-                }
-                _ => {
-                    // Not due yet (or the first arm): keep/arm the single
-                    // `WaitUntil`, but NEVER override the caret spring's hot `Poll`
-                    // loop (guard on `last_frame`, like every sibling debounce) —
-                    // during a caret glide the lava still advances above at ~10 fps
-                    // while the frame itself redraws at full refresh.
-                    let last = self.frame.lava_tick_at_or_arm(now);
-                    if self.frame.last_frame().is_none() {
-                        event_loop.set_control_flow(control_flow_with_deadline(
-                            event_loop.control_flow(),
-                            last + LAVA_TICK,
-                        ));
-                    }
-                }
-            }
-        } else if lava_active {
-            // An ambient-motion world (lava or stars), but the ground must be
-            // STATIC: reduce motion OR ambient motion off (blur is handled at
-            // the focus edge, which merely HOLDS the phase). Stop ticking;
-            // hard-freeze the shared phase to the settled frame so a later
-            // resume restarts cleanly rather than from a stale mid-breath.
-            self.frame.clear_lava_tick();
-            if (crate::motion::reduced() || !config_schedule.ambient_motion_on())
-                && let Some(gpu) = self.gpu.as_mut()
-            {
-                gpu.pipeline.freeze_lava();
-            }
-        }
-        // EVENT TOAST expiry: one live-only deadline, consumed once. This runs
-        // after sibling timers so it can choose the EARLIER deadline instead of
-        // delaying a lava tick (or being delayed by one). Poll always wins.
-        if let Some(deadline) = self.frame.notice_expires_at() {
-            if notice_expired(self.frame.notice_kind(), Some(deadline), self.frame.now()) {
-                self.clear_notice();
-                self.request_frame();
-            } else if self.frame.last_frame().is_none() {
-                event_loop.set_control_flow(control_flow_with_deadline(
-                    event_loop.control_flow(),
-                    deadline,
-                ));
-            }
-        }
-        // GPU acquire retries are App-owned timers, never immediate redraw
-        // recursion. Occlusion deliberately arms no timer: an OS visibility,
-        // input, lava, or probe wake is the next opportunity. Timeout and
-        // surface reconfiguration arrive here after their bounded delay.
-        if let Some(deadline) = self.gpu_retry_at {
-            if self.frame.now() >= deadline {
-                self.gpu_retry_at = None;
-                self.request_frame();
-            } else if self.frame.last_frame().is_none() {
-                event_loop.set_control_flow(control_flow_with_deadline(
-                    event_loop.control_flow(),
-                    deadline,
-                ));
-            }
-        }
         // The `--soak-gpu` drive used to trail here; it needs the REAL
         // `&ActiveEventLoop` (it resizes the recovery window + sets its own control
         // flow) and always runs on real time, so it moved UP into the trait
