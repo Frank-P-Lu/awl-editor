@@ -129,8 +129,33 @@ Not for main. Adds only $WORKFLOW; the tree under test is untouched.")"
     "https://github.com/Frank-P-Lu/awl-next/actions?query=branch%3A$BRANCH"
 }
 
-# Classify a finished run against the fixed oracle. Prints one of
-# BAD / GOOD / INVALID / RUNNING plus the evidence it used.
+# Classify a finished run against the fixed oracle.
+#
+# The marker is the `native full suite` STEP, not the job's conclusion. Two
+# facts force that, both measured rather than assumed:
+#
+#  1. `gh` encodes an unfinished step as `status:"in_progress"`,
+#     `conclusion:""` — an EMPTY STRING, never `null`. A `.conclusion==null`
+#     test matches nothing and calls every dead run GOOD. Verified against
+#     30750073308 and 30706851397, whose step "native full suite" is
+#     `in_progress`/`""` in a job that is long over.
+#  2. The job's own conclusion does not discriminate. The same freeze reads
+#     `failure` when GitHub reaps a runner that stopped answering
+#     (30750073308, 30715372469) and `cancelled` when the job ceiling fires
+#     first (30706851397, cancelled with step 8 still `in_progress`) —
+#     CLAUDE.md's standing note that GitHub reports a timeout as `cancelled`
+#     with no separate status. A gate step left `in_progress` in a finished
+#     job is one phenomenon under two labels.
+#
+# So: the job is over and the gate step never completed => BAD.
+#
+# GATE SECONDS is printed on every GOOD reading and is not decoration. The
+# window's own ci.yml capped the mac JOB at 35 minutes while the last green run
+# took 26m51s end to end — an 8-minute margin. This probe workflow runs a
+# 75-minute ceiling precisely so that "the suite got slower" completes and
+# reads GOOD while only a real hang reads BAD. A GOOD probe whose gate took 40
+# minutes and one whose gate took 17 tell different stories, and the bisect
+# would otherwise throw that away.
 cmd_verdict() {
   local run="${1:-}"
   if [ -z "$run" ]; then
@@ -140,35 +165,37 @@ cmd_verdict() {
   [ -n "$run" ] || die "no run found on $BRANCH"
 
   local json status conclusion
-  json="$(gh run view "$run" --json status,conclusion,headSha,createdAt,updatedAt,jobs)"
+  json="$(gh run view "$run" --json status,conclusion,headSha,jobs)"
   status="$(printf '%s' "$json" | jq -r '.status')"
   conclusion="$(printf '%s' "$json" | jq -r '.conclusion')"
 
   printf 'run %s  head=%s  status=%s  conclusion=%s\n' \
     "$run" "$(printf '%s' "$json" | jq -r '.headSha[0:8]')" "$status" "$conclusion"
-  printf '%s' "$json" | jq -r '.jobs[] | "  job \(.databaseId) \(.name) \(.status)/\(.conclusion) \(.startedAt)..\(.completedAt)"'
+  printf '%s' "$json" | jq -r '.jobs[] | "  job \(.databaseId) \(.name) \(.conclusion) \(.startedAt)..\(.completedAt)"'
   printf '%s' "$json" | jq -r '.jobs[].steps[] | "    step \(.number) \(.name): \(.status)/\(.conclusion)"'
 
   if [ "$status" != "completed" ]; then printf 'VERDICT: RUNNING\n'; return; fi
 
-  local jobid nullsteps gatestarted loghttp
-  jobid="$(printf '%s' "$json" | jq -r '.jobs[] | select(.name|test("mac")) | .databaseId' | head -1)"
-  nullsteps="$(printf '%s' "$json" | jq -r '[.jobs[].steps[] | select(.conclusion==null)] | length')"
-  gatestarted="$(printf '%s' "$json" | jq -r '[.jobs[].steps[] | select(.name=="native full suite")] | length')"
+  local jobid gate_status gate_conc job_secs gate_secs loghttp
+  jobid="$(printf '%s' "$json" | jq -r '.jobs[] | select(.name|startswith("mac (")) | .databaseId' | head -1)"
+  gate_status="$(printf '%s' "$json" | jq -r '[.jobs[].steps[] | select(.name=="native full suite") | .status] | first // "absent"')"
+  gate_conc="$(printf '%s' "$json" | jq -r '[.jobs[].steps[] | select(.name=="native full suite") | .conclusion] | first // ""')"
+  job_secs="$(printf '%s' "$json" | jq -r '.jobs[] | select(.name|startswith("mac (")) | (( .completedAt|fromdateiso8601 ) - ( .startedAt|fromdateiso8601 ))' 2>/dev/null || echo '?')"
+  gate_secs="$(gh api "repos/Frank-P-Lu/awl-next/actions/jobs/$jobid" \
+                 -q '[.steps[]|select(.name=="native full suite")][0] | if .completed_at then ((.completed_at|fromdateiso8601)-(.started_at|fromdateiso8601)) else "unfinished" end' \
+                 2>/dev/null || echo '?')"
   loghttp="$(gh api "repos/Frank-P-Lu/awl-next/actions/jobs/$jobid/logs" \
                --include --silent 2>&1 | head -1 || true)"
 
-  printf 'null-conclusion steps: %s | gate step present: %s | job log: %s\n' \
-    "$nullsteps" "$gatestarted" "$loghttp"
+  printf 'gate step: %s/%s | gate seconds: %s | job seconds: %s | job log: %s\n' \
+    "$gate_status" "$gate_conc" "$gate_secs" "$job_secs" "$loghttp"
 
-  if [ "$conclusion" = "cancelled" ]; then
-    printf 'VERDICT: INVALID (cancelled is not a reading — re-run)\n'
-  elif [ "$nullsteps" -gt 0 ]; then
-    printf 'VERDICT: BAD (step conclusion null — the VM froze)\n'
-  elif [ "$gatestarted" -eq 0 ]; then
-    printf 'VERDICT: INVALID (the gate step never ran)\n'
+  if [ "$gate_status" = "absent" ]; then
+    printf 'VERDICT: INVALID (the gate step never ran — re-run)\n'
+  elif [ "$gate_status" != "completed" ]; then
+    printf 'VERDICT: BAD (job over, gate step still %s — it hung)\n' "$gate_status"
   else
-    printf 'VERDICT: GOOD (the job completed: %s)\n' "$conclusion"
+    printf 'VERDICT: GOOD (gate concluded %s in %ss)\n' "$gate_conc" "$gate_secs"
   fi
 }
 
