@@ -51,9 +51,14 @@ elif [[ -n "${AWL_NATIVE_GATE_PROBE_SPIN_SECONDS:-}" ]]; then
   # fixture has to be able to be either. The spin is bash's own `SECONDS`
   # builtin and an empty loop body: no fork per iteration, so the CPU it burns
   # is attributed to THIS pid, which is the pid the heartbeat has to name.
-  printf '%s\n' "$$" >>"$AWL_NATIVE_GATE_PROBE_SPIN_PID_FILE"
-  SECONDS=0
-  while (( SECONDS < AWL_NATIVE_GATE_PROBE_SPIN_SECONDS )); do :; done
+  # The spinner is a CHILD born after a delay, so it is deterministically
+  # absent from the heartbeat sample before it and present in the next — the
+  # NEWCOMER case, which the probe must measure over the process's own age
+  # rather than drop. Letting the conventions themselves be the newcomers was
+  # flaky: whether they beat the gate's baseline sample was a fork race.
+  sleep "${AWL_NATIVE_GATE_PROBE_SPIN_DELAY:-0}"
+  bash -c 'printf "%s\n" "$$" >>"$1"; SECONDS=0; while (( SECONDS < $2 )); do :; done' \
+    _ "$AWL_NATIVE_GATE_PROBE_SPIN_PID_FILE" "$AWL_NATIVE_GATE_PROBE_SPIN_SECONDS"
 else
   sleep "${AWL_NATIVE_GATE_PROBE_SLEEP:-0.2}"
 fi
@@ -459,7 +464,7 @@ echo "test-native-gate: the heartbeat reports this host's real load average besi
 # the gate's own processes to attach a debugger to.
 : >"$WORK/spinners"
 probe cpu-spin AWL_NATIVE_GATE_VITALS_SECONDS=3 AWL_NATIVE_GATE_PROBE_SPIN_SECONDS=9 \
-  AWL_NATIVE_GATE_PROBE_SPIN_PID_FILE="$WORK/spinners"
+  AWL_NATIVE_GATE_PROBE_SPIN_DELAY=4 AWL_NATIVE_GATE_PROBE_SPIN_PID_FILE="$WORK/spinners"
 (( probe_status == 0 )) || { echo "test-native-gate: cpu-spin probe failed ($probe_status)" >&2; exit 1; }
 [[ -s "$WORK/spinners" ]] || {
   echo "test-native-gate: the fixture never entered its spin, so this law proved nothing" >&2
@@ -473,18 +478,33 @@ awk -v peak="$spin_peak" 'BEGIN { exit !(peak >= 50) }' || {
   echo "test-native-gate: two conventions spun for 9s and the busiest tracked process peaked at ${spin_peak}% ($spin_who) — the CPU probe cannot see a livelock" >&2
   exit 1
 }
-# The FIRST heartbeat is the one that has to work, and it is the hardest: its
-# baseline was taken before the conventions existed, so every tracked process is
-# a NEWCOMER to it. The first draft dropped newcomers outright, and the receipt
-# run of 2026-08-02 shows what that cost — two heartbeats reporting
-# `tracked_procs=0 tracked_cpu_pct=none` and `0.6%` while two test binaries were
-# burning a core each, because Cargo had moved from one test target to the next
-# inside the window. A probe that only measures processes older than a minute is
-# blind to exactly the minute anybody is asking about.
-first_new="$(awk '/^native-gate-vitals/ { for (i = 1; i <= NF; i++) if (index($i, "new_procs=") == 1) { print substr($i, 11) + 0; exit } }' "$probe_output")"
-first_busy="$(awk '/^native-gate-vitals/ { for (i = 1; i <= NF; i++) if (index($i, "busiest=[") == 1) { v = $i; sub(/.*=/, "", v); sub(/\]$/, "", v); print v + 0; exit } }' "$probe_output")"
-awk -v new="$first_new" -v busy="$first_busy" 'BEGIN { exit !(new >= 1 && busy >= 50) }' || {
-  echo "test-native-gate: the first heartbeat of a spinning run reported new_procs=$first_new busiest=${first_busy}% — a process that appeared inside the window is dropped instead of measured over its own age" >&2
+# A process that appeared INSIDE the window must be measured over its own age,
+# not dropped. The first draft dropped it, and the receipt run of 2026-08-02
+# shows what that cost: two heartbeats reporting `tracked_procs=0` and `0.6%`
+# while two test binaries were burning a core each, because Cargo had moved
+# from one test target to the next inside the window. A probe that can only see
+# processes older than a heartbeat is blind for the first minute of every run
+# and blind again at every phase change — including the one the hang is near.
+#
+# The fixture's spinner is born mid-run for exactly this, so the heartbeat that
+# first sees it is deterministically a newcomer reading.
+read -r new_peak new_who <<<"$(awk '/^native-gate-vitals/ {
+      fresh = -1; value = -1; who = ""
+      for (i = 1; i <= NF; i++) {
+        if (index($i, "new_procs=") == 1) fresh = substr($i, 11) + 0
+        else if (index($i, "busiest=[") == 1) {
+          who = $i; value = $i; sub(/.*=/, "", value); sub(/\]$/, "", value); value += 0
+        }
+      }
+      if (fresh >= 1 && value > peak) { peak = value; bestwho = who; found = 1 }
+    } END { if (found) printf "%.1f %s\n", peak, bestwho; else print "-1 no-heartbeat-reported-a-newcomer" }' "$probe_output")"
+awk -v peak="$new_peak" 'BEGIN { exit !(peak >= 50) }' || {
+  echo "test-native-gate: the busiest NEW process across every heartbeat read ${new_peak}% ($new_who) — a process that appeared inside the window is dropped instead of measured over its own age" >&2
+  exit 1
+}
+new_pid="${new_who##*:}"; new_pid="${new_pid%%=*}"
+grep -Fxq "$new_pid" "$WORK/spinners" || {
+  echo "test-native-gate: the newcomer heartbeat blamed pid $new_pid ($new_who), which is not one of the fixture's spinners ($(tr '\n' ' ' <"$WORK/spinners"))" >&2
   exit 1
 }
 spin_pid="${spin_who##*:}"; spin_pid="${spin_pid%%=*}"
