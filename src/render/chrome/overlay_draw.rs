@@ -54,7 +54,7 @@ impl TextPipeline {
             device, queue, width, height, &geom, &plan, has_right, has_rail, ink, muted, placard,
         )?;
         self.overlay_draw_card(device, queue, width, height, &geom, &plan, &vis);
-        self.overlay_place_caret(queue, width, height, &geom);
+        self.overlay_place_caret(queue, width, height, &geom, &plan);
         Ok(())
     }
 
@@ -389,7 +389,7 @@ impl TextPipeline {
                     areas.push(TextArea {
                         buffer: &self.panel_bind_buffer,
                         left: cluster.accessory_left(row.display),
-                        top: overlay_secondary_top(text_top, geom.header_gap),
+                        top: plan.secondary_top(),
                         scale: 1.0,
                         bounds: clip(row.top, row.bottom()),
                         default_color: muted,
@@ -400,7 +400,7 @@ impl TextPipeline {
                 areas.push(TextArea {
                     buffer: &self.panel_bind_buffer,
                     left: text_left,
-                    top: overlay_secondary_top(text_top, geom.header_gap),
+                    top: plan.secondary_top(),
                     scale: 1.0,
                     bounds,
                     default_color: muted,
@@ -456,11 +456,14 @@ impl TextPipeline {
         width: u32,
         height: u32,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
     ) {
-        if geom.header_rows == 0 {
+        // The field's own PLANNED line box. `None` is the contextual spell
+        // popup, which draws no query line at all.
+        let Some(field) = plan.query_band() else {
             self.panel_caret.prepare_empty();
             return;
-        }
+        };
         let m = self.metrics;
         let sigil = "› ";
         let title_prefix = self.overlay_title_prefix(geom);
@@ -490,13 +493,13 @@ impl TextPipeline {
                 });
         let caret_h = m.caret_h * 0.8 * OVERLAY_UI_SCALE;
         let caret_cx = caret_x + m.caret_w * 0.5;
-        let query_line_height = self
-            .panel_buffer
-            .layout_runs()
-            .next()
-            .map(|r| r.line_height)
-            .unwrap_or_else(|| self.overlay_lh());
-        let caret_cy = overlay_query_center(geom.text_top, query_line_height);
+        // ITEM 174 — the caret is centred in the SAME planned field box the
+        // pointer hit-test accepts and the split composition carves its gap from.
+        // It used to read the line height back off the shaped run instead: the
+        // right ANSWER (the planner folds the beat into that box by construction,
+        // exactly as the shaper folds it into the line's metrics) reached through
+        // a second calculation that only the draw path could see.
+        let caret_cy = field.center();
         self.panel_caret.prepare(
             queue,
             width,

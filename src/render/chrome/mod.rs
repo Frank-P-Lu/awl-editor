@@ -533,74 +533,6 @@ fn preview_glyph_key_at(buf: &GlyphBuffer, text: &str, idx: usize) -> Option<Cac
     None
 }
 
-/// SPLIT-PANE COMPOSITION — the vertical bounds `(gap_top, gap_bottom)` (device
-/// px) of the visible-BACKGROUND strip between a split Pane card's two surfaces,
-/// or `None` when there is no header to split off (the contextual spell popup, or
-/// a zero query beat). The UPPER surface owns `[card_y, gap_top]` (the
-/// title/query INPUT line); the LOWER surface owns `[gap_bottom, card_bottom]`
-/// (the facets / section-headers + candidate rows + footer). The world's own
-/// background shows through `[gap_top, gap_bottom]`.
-///
-/// The gap is carved from the query BEAT's own negative space (the `header_gap`
-/// divider), so NO glyph falls in it and NO text moves — it is a pure FILL
-/// change:
-///   - FLAT picker (`header_rows == 1`): the query line 0 is inflated by
-///     `header_gap`, so its glyph centres LOW; the clear band is the query box's
-///     BOTTOM half, ending at the first candidate box top (the planner's
-///     `first_top` == `text_top + lh + header_gap`).
-///   - FACETED picker (`header_rows == 2`): the query line 0 is plain `lh` (its
-///     glyph sits HIGH) and the lens STRIP (line 1) is inflated by `header_gap`,
-///     so the strip labels centre LOW; the clear band is the strip box's TOP
-///     half, starting at the query box bottom (`text_top + lh`).
-///     The band is [`SPLIT_GAP_FRAC`] of the query beat tall — glyph-free by the
-///     half-leading CENTRING bound: an inflated line box (`line_height + header_gap`)
-///     centres its glyph run, so the glyph's far edge clears the band's near edge as
-///     long as the run's own font height stays under `line_height + header_gap·(1 -
-/// 2·frac)` (comfortably true for every body face at `frac = 0.4`: the query /
-///     strip shape at the overlay body size, whose ascent+descent sits well under the
-///     row pitch). Pixel-law-tested per world. THE ONE owner the fill
-///     ([`TextPipeline::overlay_pane_fills`]) and the split-outcome law both read.
-///
-/// ITEM 83 (FACETED branch only) — the query TEXT itself never moves (it stays
-/// pinned to `text_top`, exactly as documented above), but the UPPER SURFACE's
-/// own bottom edge historically sat FLUSH against the query box's natural end
-/// (`text_top + line_height`, zero breathing room below the glyphs) while its
-/// TOP edge carries the card's own `pad` (12px) breathing room above them — so
-/// the query read visibly BOTTOM-HEAVY inside its own small strip (Quokka's
-/// command palette: the query/caret sit closer to the strip's bottom edge than
-/// its top, never truly centred). [`FACETED_BREATHE_FRAC`] borrows a slice of
-/// the SAME already-proven-safe `header_gap·(1 - 2·frac)` slack the doc above
-/// establishes (the strip's own quiet headroom, unused by anything) as
-/// SYMMETRIC breathing below the query box before the visible gap starts —
-/// widening the drawn upper surface (a pure FILL change, `overlay_pane_fills`'s
-/// only consumer) without moving the gap's WIDTH, the strip's box, or a single
-/// glyph. The FLAT branch (`header_rows == 1`) is already at its ceiling — its
-/// gap already sits flush against the first candidate row (`lower_top`, sacred:
-/// moving it would shift every row below) — so it keeps its historical formula.
-pub(super) fn overlay_split_bounds(
-    text_top: f32,
-    header_rows: usize,
-    header_gap: f32,
-    line_height: f32,
-) -> Option<(f32, f32)> {
-    if header_rows == 0 || header_gap <= 0.0 {
-        return None;
-    }
-    let gap = header_gap * SPLIT_GAP_FRAC;
-    if header_rows == 1 {
-        let lower_top = text_top + line_height + header_gap;
-        Some((lower_top - gap, lower_top))
-    } else {
-        let breathe = header_gap * FACETED_BREATHE_FRAC;
-        let upper_bottom = text_top + line_height + breathe;
-        Some((upper_bottom, upper_bottom + gap))
-    }
-}
-
-const FACETED_BREATHE_FRAC: f32 = 0.2;
-
-const SPLIT_GAP_FRAC: f32 = 0.4;
-
 pub(super) const BAR_SIDE_INSET: f32 = 8.0;
 
 pub(super) const BAR_TEXT_PAD: f32 = 13.0;
@@ -704,27 +636,6 @@ pub(super) fn footer_plate_rect(
         None => bar_full_span(card_x, card_w),
     };
     [x, hint_top, w, (card_bottom - hint_top).max(1.0)]
-}
-
-/// The device-px TOP a uniform-line-height RIGHT-COLUMN buffer must be uploaded
-/// at so its chord/time labels — which lead with `header_rows` empty lines —
-/// land EXACTLY on the candidate band the scene planner lays out. The secondary
-/// column and the band therefore share ONE y-origin, by the invariant
-/// `overlay_secondary_top(..) + header_rows*lh + r*lh == plan.row_top(r)` (the
-/// leading empties supply `header_rows*lh`, this supplies the gap).
-///
-/// THE COMPOSITION-ROUND BUG this closes: the header GAP is folded into the
-/// primary column (its inflated header line) AND the band/hit-test (through
-/// the planned row slots), but the right column was still uploaded flush at
-/// `text_top` — so every shortcut rode `header_gap` HIGH of its row. No element
-/// may compute its own row y; the right column now reads the same gap the band
-/// does. Pure; the y-agreement law pins the invariant.
-pub(super) fn overlay_secondary_top(text_top: f32, header_gap: f32) -> f32 {
-    text_top + header_gap
-}
-
-pub(super) fn overlay_query_center(text_top: f32, line_height: f32) -> f32 {
-    text_top + line_height * 0.5
 }
 
 pub(super) fn field_caret_byte(text: &str, caret_char: usize) -> usize {

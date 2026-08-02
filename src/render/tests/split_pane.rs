@@ -13,13 +13,13 @@
 //! (the Wagtail tripwire — appearance is asserted by pixel arithmetic, never the
 //! sidecar/count alone): real ground shows across the FULL inter-surface gap, and
 //! NO lower glyph escapes above its lower surface. The geometry owner
-//! [`chrome::overlay_split_bounds`] is unit-tested pure; the exhaustive
+//! The plan's own `split_bounds` is unit-tested pure; the exhaustive
 //! surface-roster law sweeps every world with a no-wildcard cap match.
 
 use super::super::*;
 use super::{headless_dqp, pixeldiff, view};
 
-// --- pure geometry: `overlay_split_bounds` -----------------------------------
+// --- pure geometry: the plan's own `split_bounds` -----------------------------
 
 /// The gap sits ENTIRELY inside the query beat's negative space, above the first
 /// candidate row, for both the flat and faceted header layouts — so no text moves
@@ -28,11 +28,12 @@ use super::{headless_dqp, pixeldiff, view};
 fn split_bounds_carve_the_query_beat_above_the_first_row() {
     let (text_top, lh, hg) = (64.0_f32, 27.2_f32, 35.0_f32);
     // No header (spell popup) or a zero beat → never split.
-    assert_eq!(chrome::overlay_split_bounds(text_top, 0, hg, lh), None);
-    assert_eq!(chrome::overlay_split_bounds(text_top, 1, 0.0, lh), None);
+    let plan = crate::render::plan::test_header_plan;
+    assert_eq!(plan(text_top, 0, hg, lh).split_bounds(), None);
+    assert_eq!(plan(text_top, 1, 0.0, lh).split_bounds(), None);
 
     for header_rows in [1usize, 2] {
-        let (gt, gb) = chrome::overlay_split_bounds(text_top, header_rows, hg, lh).unwrap();
+        let (gt, gb) = plan(text_top, header_rows, hg, lh).split_bounds().unwrap();
         // The gap is a real, positive band.
         assert!(gb > gt, "gap is non-degenerate (header_rows={header_rows})");
         // It is `SPLIT_GAP_FRAC` (0.4) of the beat tall — a strip of ground, not
@@ -75,7 +76,9 @@ fn faceted_query_strip_is_optically_centered_not_bottom_heavy() {
     let header_rows = 2;
 
     let (gap_top, gap_bottom) =
-        chrome::overlay_split_bounds(text_top, header_rows, header_gap, line_height).unwrap();
+        crate::render::plan::test_header_plan(text_top, header_rows, header_gap, line_height)
+            .split_bounds()
+            .unwrap();
     assert!(gap_bottom > gap_top, "a real, non-degenerate gap");
 
     // The query text's own (UNMOVED) vertical center — `overlay_query_center`'s
@@ -195,17 +198,19 @@ fn split_draws_two_surfaces_unified_draws_one() {
             gap_bottom > gap_top + 1.0,
             "a real background gap sits between the surfaces (faceted={faceted})"
         );
-        // The gap matches the ONE geometry owner.
-        let (gt, gb) = chrome::overlay_split_bounds(
+        // The gap matches the ONE geometry owner — a plan built here from the
+        // pipeline's own header metrics, never the plan the fills were cut from.
+        let (gt, gb) = crate::render::plan::test_header_plan(
             rect[1] + 12.0, // text_top = card_y + pad
             if faceted { 2 } else { 1 },
             p.overlay_header_gap(),
             p.overlay_lh(),
         )
+        .split_bounds()
         .unwrap();
         assert!(
             (gap_top - gt).abs() < 1e-3 && (gap_bottom - gb).abs() < 1e-3,
-            "the drawn gap == overlay_split_bounds (faceted={faceted})"
+            "the drawn gap == the plan's split_bounds (faceted={faceted})"
         );
     }
 

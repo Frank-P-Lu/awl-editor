@@ -138,8 +138,14 @@ impl TextPipeline {
         if !geom.theme || px < geom.card_x || px > geom.card_x + geom.card_w {
             return None;
         }
-        let (strip_top, strip_lh) = self.overlay_strip_band(&geom);
-        if py < strip_top || py >= strip_top + strip_lh {
+        // ITEM 174 — the strip's clickable band is its PLANNED line box, the same
+        // object the active-mark centre and the strip's own glyph metrics read.
+        // A pointer entry point has no frame to ride, so it plans freshly (still
+        // O(visible)) exactly as `overlay_row_at` does.
+        let Some(strip) = self.overlay_row_plan(&geom).strip_band() else {
+            return None;
+        };
+        if !strip.contains(py) {
             return None;
         }
         let want = px - geom.text_left;
@@ -176,6 +182,7 @@ impl TextPipeline {
     pub(super) fn overlay_shape_theme(
         &mut self,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         ink: glyphon::Color,
         muted: glyphon::Color,
         selected_ink: Option<glyphon::Color>,
@@ -210,6 +217,7 @@ impl TextPipeline {
         };
         self.shape_theme_spans(
             geom,
+            plan,
             ink,
             active_ink,
             muted,
@@ -227,6 +235,7 @@ impl TextPipeline {
             let scale = (geom.text_w / strip_w).max(0.5);
             self.shape_theme_spans(
                 geom,
+                plan,
                 ink,
                 active_ink,
                 muted,
@@ -287,8 +296,9 @@ impl TextPipeline {
         let facet_style = crate::render::effective_facet_style();
         const CHIP_HPAD: f32 = 6.0;
         const CHIP_VPAD: f32 = 2.0;
-        let (strip_top, strip_lh) = self.overlay_strip_band(geom);
-        let mark_cy = strip_top + strip_lh * 0.5;
+        let mark_cy = plan
+            .strip_band()
+            .map_or(geom.text_top, |strip| strip.center());
         let strip_text_lh = self.metrics.line_height * crate::render::effective_overlay_scale();
         let chip_h = (strip_text_lh - 2.0 * CHIP_VPAD).max(1.0);
         let pill_px = |left: f32, right: f32| -> [f32; 4] {
@@ -382,6 +392,7 @@ impl TextPipeline {
     fn shape_theme_spans(
         &mut self,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         ink: glyphon::Color,
         active_ink: glyphon::Color,
         muted: glyphon::Color,
@@ -477,7 +488,7 @@ impl TextPipeline {
             // (the Wagtail selected-row bug's second half). `strip_lh` on the labels
             // makes text and band agree; the "\n" keeps the row's scale-invariant
             // baseline size.
-            let strip_lh = self.overlay_strip_band(geom).1;
+            let strip_lh = plan.strip_band().map_or(lh, |strip| strip.height);
             spans.push((
                 &strip_s[0..1],
                 mk(faint).metrics(GlyphMetrics::new(m.font_size * ui, lh)),

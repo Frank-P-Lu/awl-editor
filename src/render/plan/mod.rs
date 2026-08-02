@@ -29,6 +29,15 @@
 //! nothing and shapes nothing. It is handed the metrics the measured stage
 //! already produced.
 //!
+//! **THE HEADER BAND** — the query/title INPUT line and the grouped family's
+//! lens STRIP — is planned by the same code as the candidate rows, so the four
+//! answers that used to live in four separate `render/chrome` owners
+//! (`overlay_secondary_top`, `overlay_split_bounds`, `overlay_strip_band`,
+//! `overlay_query_center`, all DELETED) are one object read many ways: the
+//! query caret's centre, the field's own pointer band, the strip's clickable
+//! band and active-mark centre, the secondary column's upload origin, and the
+//! split-pane surfaces' gap.
+//!
 //! **THE HEIGHT CLAMP (item 181)** — `fit_item_rows` — is the one owner of
 //! "how many candidate item rows fit the canvas", shared by both families
 //! (`render/chrome/overlay.rs`'s flat window and `render/chrome/theme_picker.rs`'s
@@ -42,11 +51,11 @@ mod overlay_rows;
 
 pub(in crate::render) use overlay_rows::plan_witness;
 pub(in crate::render) use overlay_rows::{
-    OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, RowSpan, fit_item_rows,
-    plan_overlay_rows,
+    OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedHeader, PlannedRow, RowSpan,
+    fit_item_rows, plan_overlay_rows,
 };
 #[cfg(test)]
-pub(in crate::render) use overlay_rows::{test_row_top, test_rows};
+pub(in crate::render) use overlay_rows::{test_header_plan, test_row_top, test_rows};
 
 #[cfg(test)]
 mod tests;

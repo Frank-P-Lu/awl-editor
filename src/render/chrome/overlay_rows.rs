@@ -82,12 +82,7 @@ impl TextPipeline {
         ) {
             return vec![full];
         }
-        let Some((gap_top, gap_bottom)) = super::overlay_split_bounds(
-            geom.text_top,
-            geom.header_rows,
-            geom.header_gap,
-            plan.lh(),
-        ) else {
+        let Some((gap_top, gap_bottom)) = plan.split_bounds() else {
             return vec![full];
         };
         let card_bottom = geom.card_y + geom.card_h;

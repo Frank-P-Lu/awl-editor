@@ -72,6 +72,44 @@ impl PlannedRow {
     }
 }
 
+/// ONE PLANNED HEADER LINE — a display line ABOVE the candidate band: the
+/// query/title INPUT line every summoned picker draws, and (on the grouped
+/// family) the lens STRIP under it.
+///
+/// `top`/`height` are the LINE BOX in canvas px — the box cosmic-text half-leads
+/// this line's glyphs into, which is what makes it the box the caret is centred
+/// in, the box a pointer must fall inside to be "on the field", and the box the
+/// split-pane composition carves its visible gap out of.
+///
+/// THE BEAT LIVES IN THE LAST HEADER LINE'S BOX, not between the lines. The
+/// query BEAT (`header_gap`, `overlay_header_gap`'s calm slab of negative space
+/// before the first candidate) is STRUCTURAL: the shaper inflates the LAST
+/// header line's real glyph metrics by exactly it (`shape_overlay_names`'s
+/// `header_lh` on a flat card's line 0; `shape_theme_spans`'s `strip_lh` on a
+/// grouped card's line 1) rather than emitting a blank line. So header line `i`
+/// is `lh` tall except the last, which is `lh + header_gap` — and the last
+/// line's own BOTTOM is the candidate band's `first_top`, by construction.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub(in crate::render) struct PlannedHeader {
+    pub line: usize,
+    pub top: f32,
+    pub height: f32,
+}
+
+impl PlannedHeader {
+    pub(in crate::render) fn bottom(&self) -> f32 {
+        self.top + self.height
+    }
+    /// The y a glyph run half-led into this box centres on — where the query
+    /// caret rides and where the strip's active mark is centred.
+    pub(in crate::render) fn center(&self) -> f32 {
+        self.top + self.height * 0.5
+    }
+    pub(in crate::render) fn contains(&self, py: f32) -> bool {
+        py >= self.top && py < self.bottom()
+    }
+}
+
 /// The measured, already-resolved inputs a row plan is derived from. Every field
 /// is produced by a stage that has already run: the card box by the placement
 /// policy, `lh`/`header_gap` by the overlay metric owners, the window by the
@@ -134,12 +172,29 @@ pub(in crate::render) struct RowSpan {
 pub(in crate::render) struct OverlayRowPlan {
     pub(super) card_x: f32,
     pub(super) card_w: f32,
+    pub(super) text_top: f32,
+    pub(super) header_gap: f32,
     pub(super) first_top: f32,
     pub(super) lh: f32,
+    pub(super) headers: Vec<PlannedHeader>,
     pub(super) rows: Vec<PlannedRow>,
     pub(super) empty_rows: usize,
     pub(super) selected_display: Option<usize>,
 }
+
+/// The visible-BACKGROUND strip between a split Pane card's two surfaces is this
+/// fraction of the query BEAT tall (item 50). Glyph-free by the half-leading
+/// CENTRING bound: an inflated line box centres its glyph run, so the run's far
+/// edge clears the band's near edge as long as its own font height stays under
+/// `lh + header_gap·(1 - 2·frac)` — comfortably true for every body face at 0.4.
+pub(super) const SPLIT_GAP_FRAC: f32 = 0.4;
+
+/// ITEM 83 — a GROUPED card's upper surface borrows this fraction of the SAME
+/// already-proven-safe slack as symmetric breathing room below the query box
+/// before the visible gap starts, so the query stops reading bottom-heavy inside
+/// its own small strip. The FLAT arm is already at its ceiling (its gap sits
+/// flush against the first candidate row) and takes no breathe.
+pub(super) const FACETED_BREATHE_FRAC: f32 = 0.2;
 
 /// PLAN WORK WITNESSES, counted by the planner itself so no consumer can dodge
 /// them: plans built, and `PlannedRow`s across those plans. Their ratio is the
@@ -254,6 +309,38 @@ pub(in crate::render) fn test_row_top(
     plan.row_top(row).expect("row is inside the planned window")
 }
 
+/// TEST-ONLY: a REAL plan built from loose header metrics, for a law whose
+/// subject is the HEADER band rather than a rendered card — the shape the
+/// `overlay_split_bounds` / `overlay_secondary_top` unit laws used to carry as
+/// free functions taking the same scalars. Two candidate rows, so the band the
+/// header sits above genuinely exists.
+#[cfg(test)]
+pub(in crate::render) fn test_header_plan(
+    text_top: f32,
+    header_rows: usize,
+    header_gap: f32,
+    lh: f32,
+) -> OverlayRowPlan {
+    plan_overlay_rows(&OverlayRowPlanInput {
+        card_x: 0.0,
+        card_w: 0.0,
+        text_top,
+        lh,
+        header_gap,
+        header_rows,
+        visible: 2,
+        top_idx: 0,
+        n_items: 2,
+        selected: 0,
+        empty_rows: 0,
+        lines: None,
+        dx_per_row: 0.0,
+        cluster_span: None,
+        selected_offset: None,
+        selected_display: None,
+    })
+}
+
 /// TEST-ONLY: `n` planned rows of pitch `lh` seated at `text_top` with no header,
 /// built by the REAL planner — for a law whose subject is a row band rather than a
 /// card (the living band's own coverage sweep).
@@ -291,6 +378,23 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
         0,
         input.lh,
     );
+    // THE HEADER BAND. One box per header display line, stacked from `text_top`
+    // at the same pitch as the candidate band, with the query BEAT folded into
+    // the LAST box exactly as the shaper folds it into that line's own glyph
+    // metrics — so `headers.last().bottom() == first_top` and the query field,
+    // the lens strip and the first candidate row cannot disagree about where one
+    // ends and the next begins.
+    let headers: Vec<PlannedHeader> = (0..input.header_rows)
+        .map(|line| PlannedHeader {
+            line,
+            top: input.text_top + line as f32 * input.lh,
+            height: if line + 1 == input.header_rows {
+                input.lh + input.header_gap
+            } else {
+                input.lh
+            },
+        })
+        .collect();
     // A row's horizontal extent is planned exactly like its vertical one, off
     // the same display index, so a composition that staggers rows cannot end up
     // with the draw and the hit-test reading two different arithmetics.
@@ -390,8 +494,11 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
     OverlayRowPlan {
         card_x: input.card_x,
         card_w: input.card_w,
+        text_top: input.text_top,
+        header_gap: input.header_gap,
         first_top,
         lh: input.lh,
+        headers,
         rows,
         empty_rows: input.empty_rows,
         selected_display,
