@@ -202,34 +202,83 @@ fn row_ids_survive_filtering() {
     overlay.set_query_text("");
     app.workspace_state.install_overlay_for_test(overlay);
 
-    let unfiltered: Vec<String> = app
-        .semantic_snapshot()
-        .nodes
-        .into_iter()
-        .filter(|node| node.id.contains(".row."))
-        .map(|node| node.id)
-        .collect();
+    // Keyed by NAME, not by position: an id set that is merely a subset of the
+    // unfiltered one proves nothing (display-position ids are exactly that),
+    // so the law asks where one particular row went.
+    let named = |app: &App| -> Vec<(String, String)> {
+        app.semantic_snapshot()
+            .nodes
+            .into_iter()
+            .filter(|node| node.id.contains(".row."))
+            .map(|node| (node.name, node.id))
+            .collect()
+    };
+    let unfiltered = named(&app);
     assert_eq!(unfiltered.len(), 4);
+    let gamma = unfiltered
+        .iter()
+        .find(|(name, _)| name == "gamma")
+        .expect("gamma is a row")
+        .1
+        .clone();
 
     app.workspace_state
         .overlay_mut()
         .unwrap()
-        .set_query_text("beta");
-    let filtered: Vec<String> = app
-        .semantic_snapshot()
-        .nodes
-        .into_iter()
-        .filter(|node| node.id.contains(".row."))
-        .map(|node| node.id)
-        .collect();
+        .set_query_text("gamma");
+    let filtered = named(&app);
     assert!(
         filtered.len() < unfiltered.len() && !filtered.is_empty(),
         "the query really filtered: {filtered:?}",
     );
-    for id in &filtered {
-        assert!(
-            unfiltered.contains(id),
-            "filtering minted a new id {id}; row identity must key on the corpus",
+    assert_eq!(
+        filtered
+            .iter()
+            .find(|(name, _)| name == "gamma")
+            .map(|(_, id)| id.as_str()),
+        Some(gamma.as_str()),
+        "filtering renamed a surviving row; identity must key on the corpus, \
+         not on the filtered display position",
+    );
+}
+
+/// The card fold is the one passive surface whose content only the render
+/// pipeline holds, so it is folded from a value rather than fetched — which is
+/// what makes this law possible at all without a GPU. Every card kind must
+/// announce every line it draws, in order, and take no focus.
+#[test]
+fn a_summoned_card_announces_every_drawn_line_and_takes_no_focus() {
+    let _guard = crate::testlock::serial();
+    calm_globals();
+    let app = hermetic();
+    let inputs = crate::card::content::CardInputs {
+        words: "9 words · 1 min".to_string(),
+        ..crate::card::content::CardInputs::default()
+    };
+    for kind in crate::card::content::CardKind::ALL {
+        let content = crate::card::content::card(kind, &inputs);
+        let mut nodes = app.semantic_snapshot().nodes;
+        let before = nodes.len();
+        app.fold_card(&mut nodes, Some(content.clone()));
+        assert_eq!(
+            nodes.len(),
+            before + content.spans.len() + 1,
+            "{kind:?}: one node per drawn line, plus the card itself",
+        );
+        let card = nodes
+            .iter()
+            .find(|node| node.id == kind.id())
+            .unwrap_or_else(|| panic!("{kind:?} announced no card node"));
+        assert_eq!(card.name, kind.title());
+        assert_eq!(card.children.len(), content.spans.len());
+        for (child, line) in card.children.iter().zip(content.lines()) {
+            let node = nodes.iter().find(|node| node.id == *child).unwrap();
+            assert_eq!(node.name, line, "{kind:?}: a drawn line was not announced");
+        }
+        assert_eq!(
+            nodes.iter().filter(|node| node.focused).count(),
+            1,
+            "{kind:?}: a passive card moved the focus owner",
         );
     }
 }

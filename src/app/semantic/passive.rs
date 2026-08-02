@@ -17,13 +17,20 @@ use super::*;
 
 impl App {
     pub(super) fn fold_passive(&self, nodes: &mut Vec<SemanticNode>) {
-        self.fold_card(nodes);
+        self.fold_card(nodes, self.card_content());
         self.fold_whichkey(nodes);
         self.fold_menu_bar(nodes);
     }
 
-    fn fold_card(&self, nodes: &mut Vec<SemanticNode>) {
-        let Some(content) = self.card_content() else {
+    /// Takes the content rather than fetching it: the only source is the render
+    /// pipeline, which a hermetic `App` does not have, and a fold nobody can
+    /// reach without a GPU is a fold nobody tests.
+    pub(super) fn fold_card(
+        &self,
+        nodes: &mut Vec<SemanticNode>,
+        content: Option<crate::card::content::CardContent>,
+    ) {
+        let Some(content) = content else {
             return;
         };
         let id = content.kind.id();
