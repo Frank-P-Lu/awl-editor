@@ -846,7 +846,7 @@ fn caret_preview_float_owner_sweeps_world_style_and_dpi() {
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 }
 
-/// LIST_STYLE_TEST_OVERRIDE is a process global: its reader and writer must both
+/// The forced `list_style` is a process global: its reader and writer must both
 /// remain behind the one serial guard, so an override cannot leak across a parallel
 /// render test's frame window.
 #[test]
@@ -875,6 +875,7 @@ fn list_style_override_reader_writer_are_serialized() {
                 theme::ListStyle::Bars { .. }
             ));
             entered.store(true, Ordering::SeqCst);
+            crate::render::set_list_style_test_override(None);
         })
     };
     barrier.wait();
@@ -883,10 +884,13 @@ fn list_style_override_reader_writer_are_serialized() {
         !entered.load(Ordering::SeqCst),
         "writer/reader must wait behind the outer guard"
     );
+    // Each window clears its own override BEFORE releasing the lock. Without
+    // that, the forced value outlives both windows and the next thread through
+    // the mutex reads it — which is how a forced `Bars` once reached an
+    // unrelated law in another file.
+    crate::render::set_list_style_test_override(None);
     drop(outer);
     worker.join().unwrap();
-    let _g = crate::testlock::serial();
-    crate::render::set_list_style_test_override(None);
 }
 
 /// PARK-ON-CLOSE: a CLOSED summoned overlay must leave ZERO stale overlay

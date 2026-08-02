@@ -33,9 +33,15 @@
 //! old `theme::TEST_LOCK` / `fs::TEST_LOCK` / `page::test_lock` /
 //! `about`+`lifetime` composite / caret / debug / hud / … family.
 //!
-//! WORLD + PAGE CLEANLINESS are checked, not silently imposed. An outermost
-//! [`serial`] guard snapshots the active world and page inputs and fails (after
-//! restoring them) if its test window exits dirty. This is deliberately not the
+//! WORLD, PAGE, SPELLCHECK and RENDER-OVERRIDE CLEANLINESS are checked, not
+//! silently imposed. An outermost [`serial`] guard snapshots those globals and
+//! fails (after restoring them) if its test window exits dirty. The restore is
+//! what makes a leak IMPOSSIBLE rather than merely reported: it also runs while
+//! the window is UNWINDING, where the report is suppressed, so a fixture that
+//! forces a knob and then panics — or returns early past its own reset — cannot
+//! hand that value to the next test — a leaked forced `ListStyle` once made an
+//! unrelated jump-hint law in another file report a clip that was not one, green
+//! single-threaded and red in a wide parallel run. This is deliberately not the
 //! retired ambient `WorldPin-on-serial`: a clean window performs no write, and
 //! production code that owns a persistent global write takes [`product`] instead.
 //! A nested product acquire under a test guard remains inside the test's checked
@@ -66,6 +72,8 @@ pub(crate) struct SerialGuard {
     world_at_entry: Option<usize>,
     page_at_entry: Option<(bool, usize)>,
     spellcheck_at_entry: Option<bool>,
+    #[cfg(test)]
+    overrides_at_entry: Option<crate::render::overrides::OverridePins>,
 }
 
 impl Drop for SerialGuard {
@@ -108,6 +116,24 @@ impl Drop for SerialGuard {
                     }
                 }
             }
+            #[cfg(test)]
+            let mut override_leak = None;
+            #[cfg(test)]
+            if let Some(before) = self.overrides_at_entry.take() {
+                let after = crate::render::overrides::pins();
+                let leaked = crate::render::overrides::leaked_knobs(&before, &after);
+                if !leaked.is_empty() {
+                    // Restore before reporting, exactly as above — and note that
+                    // this arm runs on the UNWINDING path too, where reporting is
+                    // suppressed. That is the whole point: a fixture that forces a
+                    // knob and then dies cannot hand its forced value to the next
+                    // test in another file.
+                    crate::render::overrides::restore_pins(&before);
+                    if !std::thread::panicking() {
+                        override_leak = Some(leaked);
+                    }
+                }
+            }
             HELD.with(|h| h.set(false));
             if let Some((before, after)) = world_leak {
                 panic!(
@@ -120,7 +146,8 @@ impl Drop for SerialGuard {
             }
             if let Some(((on_before, measure_before), (on_after, measure_after))) = page_leak {
                 panic!(
-                    "test left page inputs dirty: entered at page_on={} measure={} and exited at page_on={} measure={}",
+                    "test left page inputs dirty: entered at page_on={} measure={} \
+                     and exited at page_on={} measure={}",
                     on_before, measure_before, on_after, measure_after
                 );
             }
@@ -129,6 +156,10 @@ impl Drop for SerialGuard {
                     "test left spellcheck dirty: entered at {} and exited at {}",
                     before, after
                 );
+            }
+            #[cfg(test)]
+            if let Some(leaked) = override_leak {
+                panic!("test left render overrides dirty: {}", leaked.join("; "));
             }
         }
     }
@@ -163,6 +194,8 @@ fn acquire(check_world: bool) -> SerialGuard {
             world_at_entry: None,
             page_at_entry: None,
             spellcheck_at_entry: None,
+            #[cfg(test)]
+            overrides_at_entry: None,
         };
     }
     let guard = TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
@@ -172,6 +205,10 @@ fn acquire(check_world: bool) -> SerialGuard {
         world_at_entry: check_world.then(crate::theme::active_index),
         page_at_entry: check_world.then(|| (crate::page::page_on(), crate::page::measure())),
         spellcheck_at_entry: check_world.then(crate::spell::spellcheck_on),
+        // Snapshot AFTER the flag is set: `pins` reads through the ordinary
+        // doors, which assert the hold.
+        #[cfg(test)]
+        overrides_at_entry: check_world.then(crate::render::overrides::pins),
     }
 }
 
@@ -182,202 +219,4 @@ pub(crate) fn currently_held() -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn serial_is_reentrant_and_the_outermost_guard_owns_the_release() {
-        let g1 = serial();
-        assert!(currently_held(), "the outer guard sets the thread flag");
-        let g2 = serial(); // nested acquire on the SAME thread: must not deadlock
-        drop(g2);
-        assert!(
-            currently_held(),
-            "dropping the inner (no-op) guard must NOT release the outer hold"
-        );
-        drop(g1);
-        assert!(!currently_held(), "the outermost drop clears the flag");
-    }
-
-    #[test]
-    fn nested_guards_from_many_former_lock_sites_share_one_underlying_lock() {
-        // The collapse's core promise: what used to be a theme lock + a page
-        // lock + a caret lock (three DIFFERENT mutexes, taken in a fixed order)
-        // is now ONE reentrant guard. Acquiring it three deep on one thread must
-        // never deadlock and the outermost must own the release.
-        let a = serial();
-        let b = serial();
-        let c = serial();
-        assert!(currently_held());
-        drop(c);
-        drop(b);
-        assert!(currently_held(), "still held while the outermost lives");
-        drop(a);
-        assert!(!currently_held(), "released once the outermost drops");
-    }
-
-    #[test]
-    fn a_writer_thread_blocks_until_the_guard_is_released() {
-        // THE mutual-exclusion law (the visual_* / wash-cache flake fix rests on
-        // it): a thread that does not hold the guard cannot proceed past its own
-        // acquire while another thread holds it.
-        let g = serial();
-        let done = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let writer = {
-            let done = done.clone();
-            std::thread::spawn(move || {
-                let _held = serial();
-                done.store(true, std::sync::atomic::Ordering::SeqCst);
-            })
-        };
-        std::thread::sleep(std::time::Duration::from_millis(50));
-        assert!(
-            !done.load(std::sync::atomic::Ordering::SeqCst),
-            "the other thread must still be blocked while we hold the guard"
-        );
-        drop(g);
-        writer.join().unwrap();
-        assert!(
-            done.load(std::sync::atomic::Ordering::SeqCst),
-            "the blocked thread proceeds once the guard is released"
-        );
-    }
-
-    #[test]
-    fn a_global_writer_nested_under_the_guard_never_self_deadlocks() {
-        // A page-global WRITER (`set_measure`) acquires the guard INTERNALLY under
-        // `cfg(test)`. A test that already holds the guard and then drives such a
-        // writer must nest for free (not self-deadlock), and the write must land.
-        let _g = serial();
-        crate::page::set_measure(33);
-        assert_eq!(
-            crate::page::measure(),
-            33,
-            "the nested writer's write lands"
-        );
-        crate::page::set_measure(crate::page::DEFAULT_MEASURE); // leave as found
-    }
-
-    #[test]
-    fn a_deliberately_leaking_test_window_fails_and_cleans_before_unlocking() {
-        let before = {
-            let _g = serial();
-            crate::theme::active_index()
-        };
-        let leaked = std::panic::catch_unwind(|| {
-            let _g = serial();
-            crate::theme::set_active(before + 1);
-        });
-        assert!(
-            leaked.is_err(),
-            "a checked test window must reject a dirty exit"
-        );
-        let _g = serial();
-        assert_eq!(
-            crate::theme::active_index(),
-            before,
-            "the failing window cleans the global before another test can acquire it"
-        );
-    }
-
-    #[test]
-    fn a_product_request_cannot_bypass_an_outer_test_window() {
-        let before = {
-            let _g = serial();
-            crate::theme::active_index()
-        };
-        let nested_leak = std::panic::catch_unwind(|| {
-            let _test = serial();
-            let _product = product();
-            crate::theme::set_active(before + 1);
-        });
-        assert!(
-            nested_leak.is_err(),
-            "a nested production acquire cannot punch through the outer test check"
-        );
-        let _g = serial();
-        assert_eq!(crate::theme::active_index(), before);
-    }
-
-    #[test]
-    fn page_signature_distinguishes_the_retired_eighty_measure_from_prose_default() {
-        let _g = serial();
-        let _page = crate::page::PagePin::snapshot();
-        crate::page::set_page_on(true);
-        crate::page::set_measure(crate::page::DEFAULT_MEASURE);
-        let prose_default = (crate::page::page_on(), crate::page::measure());
-        crate::page::set_measure(80);
-        let retired_eighty = (crate::page::page_on(), crate::page::measure());
-        assert_eq!(prose_default, (true, crate::page::DEFAULT_MEASURE));
-        assert_eq!(retired_eighty, (true, 80));
-        assert_ne!(
-            prose_default, retired_eighty,
-            "the victim must distinguish the predecessor's 80 from the prose default"
-        );
-    }
-
-    #[test]
-    fn a_deliberately_dirty_page_window_fails_and_restores_before_the_next_reader() {
-        let before = {
-            let _g = serial();
-            (crate::page::page_on(), crate::page::measure())
-        };
-        let leaked = std::panic::catch_unwind(|| {
-            let _g = serial();
-            crate::page::set_page_on(!before.0);
-            crate::page::set_measure(before.1 + 1);
-        });
-        assert!(
-            leaked.is_err(),
-            "a checked window must reject dirty page inputs"
-        );
-        let _g = serial();
-        assert_eq!(
-            (crate::page::page_on(), crate::page::measure()),
-            before,
-            "the failed page window restores before its next reader enters"
-        );
-    }
-
-    #[test]
-    fn a_deliberately_dirty_spellcheck_window_fails_and_restores_before_the_next_reader() {
-        let before = {
-            let _g = serial();
-            crate::spell::spellcheck_on()
-        };
-        let leaked = std::panic::catch_unwind(|| {
-            let _g = serial();
-            crate::spell::set_spellcheck_on(!before);
-        });
-        assert!(
-            leaked.is_err(),
-            "a checked window must reject dirty spellcheck state"
-        );
-        let _g = serial();
-        assert_eq!(
-            crate::spell::spellcheck_on(),
-            before,
-            "the failed spellcheck window restores before its next reader enters"
-        );
-    }
-
-    #[test]
-    fn an_inner_guard_drop_never_releases_the_outer_hold_for_a_following_writer() {
-        // Models `apply_transition` (and any writer): while a test holds the guard,
-        // a nested acquire+drop must NOT release the test's outer hold, so a
-        // FOLLOWING nested writer still serializes under the same outer window.
-        let outer = serial();
-        {
-            let _inner = serial();
-        }
-        assert!(
-            currently_held(),
-            "the outer hold survives an inner acquire+drop"
-        );
-        crate::page::set_measure(44);
-        assert_eq!(crate::page::measure(), 44);
-        crate::page::set_measure(crate::page::DEFAULT_MEASURE);
-        drop(outer);
-        assert!(!currently_held());
-    }
-}
+mod tests;
