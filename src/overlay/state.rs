@@ -469,12 +469,10 @@ impl OverlayState {
         // own ([`OverlayKind::hint_actions`], including the per-row range variant
         // below).
         //
-        // ITEM 116d: the two stages' hints are now BOTH per-kind statements. They
-        // used to be split between this method (History's comparison line, spelled
-        // inline below a `detail_focus` test) and `kind.rs` (Settings'), which was
-        // only coherent while History was not a workspace — the moment it became
-        // one, the inline arm went dead and History's detail stage would silently
-        // have advertised its TIMELINE's keys.
+        // Both stages' hints are per-kind statements, and both live in `kind.rs`.
+        // Spelling one of them inline here — under a bare `detail_focus` test —
+        // only reads as correct while exactly one kind has a detail stage: a
+        // second kind reaching it would silently take the first one's line.
         if self.workspace_shape().is_some() {
             if !self.detail_focus {
                 return super::format_hint(&self.kind.rail_hint_actions());

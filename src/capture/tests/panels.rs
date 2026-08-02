@@ -1705,16 +1705,15 @@ fn popover_labels_demonstrate_their_own_effects() {
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 }
 
-/// HISTORY'S COMPARISON, the capture tier (item 84's dressing law, re-aimed by
-/// item 116b and again by 116d). While the History workspace is open with a
+/// HISTORY'S COMPARISON, the capture tier. While the History workspace is open with a
 /// version selected, the DOCUMENT itself becomes the writer's-diff transcript:
 /// the same substitution the live `sync_view` performs, with the same caret park
 /// on the transcript's blank line 1 so no line's WYSIWYG conceal reveals.
 ///
-/// **WHAT 116d CHANGED, and why two arms went away.** This law once graded the
-/// transcript as an ORDINARY document drawn at the page column with no dressing
-/// — that was the composition between the diff panel's removal (116b) and the
-/// flip. History is now a summoned workspace: the transcript is RELOCATED into
+/// **WHY TWO ARMS WENT AWAY.** This law once graded the transcript as an
+/// ORDINARY document drawn at the page column with no dressing — the composition
+/// between the diff panel's removal and the flip. History is now a summoned
+/// workspace: the transcript is RELOCATED into
 /// its content region and composited onto its surface, the backdrop behind the
 /// card frosts like every other workspace's, and `detail_focus` legitimately
 /// changes the focus cue. "Undressed at the page column" and "`detail_focus`
@@ -1859,7 +1858,7 @@ fn history_comparison_is_relocated_by_the_capture_path_in_every_world() {
 
         // WHERE the transcript's ink landed, as a bounding box over the
         // differing pixels. The sidecar's `page.column` is deliberately NOT the
-        // oracle here: it reports the PAGE's own column (item 116b's named,
+        // oracle here: it reports the PAGE's own column (the named,
         // never-relocating second idea of "the writing column"), so it answers 16
         // on this frame and would grade nothing.
         let (mut x0, mut x1, mut y0, mut y1) = (u32::MAX, 0u32, u32::MAX, 0u32);

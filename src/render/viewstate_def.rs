@@ -80,9 +80,9 @@ pub struct ViewState {
     /// reduces to for which region is which; owned by
     /// [`crate::overlay::workspace::WorkspaceShape::rows_are_primary`].
     /// `false` off a workspace and for `RailOverRows` (Settings); `true` for the
-    /// History timeline (item 116d).
+    /// History timeline.
     pub overlay_rows_primary: bool,
-    /// ITEM 116d — is the workspace's CONTENT region carrying read-only
+    /// Is the workspace's CONTENT region carrying read-only
     /// COMPARISON PROSE this frame? `true` exactly when the pushed `text` is a
     /// comparison transcript rather than the user's own document
     /// (`App::comparison_transcript` resolved a
@@ -93,7 +93,7 @@ pub struct ViewState {
     /// to show — an empty history, or a query that filters every version away.
     /// Relocating the document layer there on such a frame would put the user's
     /// LIVE document in the comparison's place: a third readable layer, which is
-    /// the exact composition queue item 116 exists to remove.
+    /// three competing readable layers, which is what this composition removes.
     pub overlay_comparison: bool,
     pub overlay_sections: Vec<String>,
     pub caret_preview: Option<CaretMode>,

@@ -626,11 +626,10 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
             },
             (692.0, (10.0, 690.0), 8, Some((29, 8, 7, 692.0, 800.0))),
         ),
-        // ITEM 116d — this cell used to be `History`, which is no longer a
-        // GROUPED picker either: it is presented as a summoned workspace
-        // (`TimelineOverComparison`), so its numbers here would be measuring a
-        // card production does not draw — exactly what item 114 said when it
-        // retired the `Settings` cell below for the same reason. `Project` is the
+        // This cell used to be `History`, which is no longer a GROUPED picker
+        // either: it is presented as a summoned workspace, so its numbers here
+        // would be measuring a card production does not draw — the same reason
+        // the `Settings` cell below was retired. `Project` is the
         // grouped kind that was not otherwise covered, held at the same tall-canvas
         // shape the History cell was chosen for.
         (

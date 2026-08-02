@@ -1414,11 +1414,11 @@ fn overlay_home_end_jump_to_first_and_last_for_every_kind() {
             let last = overlay.card().unwrap().item_strings().len() - 1;
             assert!(last >= 1, "{k:?}: sweep corpus lists multiple rows");
             let mut accept = None;
-            // ITEM 114 — a `RailOverRows` WORKSPACE lands on its navigation rail,
+            // A `RailOverRows` WORKSPACE lands on its navigation rail,
             // where the vertical keys step CATEGORIES. The list-nav arm under test
             // lives in its content pane, so enter it the way a user does.
             //
-            // ITEM 116d — the TIMELINE shape is the mirror: its rows ARE the
+            // The TIMELINE shape is the mirror: its rows ARE the
             // primary list, so it lands already standing on them and a `Tab` would
             // take the list-nav keys away into the comparison, where `↑/↓` scroll
             // a transcript instead.

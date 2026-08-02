@@ -289,9 +289,9 @@ pub fn auto_description(prev: &str, cur: &str) -> String {
 /// request) and the headless capture (`main/run.rs::history_preview_for`) build
 /// from, so live and `--keys` replay can never disagree on what a comparison shows.
 ///
-/// The `Mine`/`Theirs` views have no producer yet: they are queue item 204's, and
-/// this returns `None` rather than pretending. The point of routing through the
-/// typed request now is that adding them is an arm HERE, not a second mechanism.
+/// The `Mine`/`Theirs` views have no producer here and this returns `None`
+/// rather than pretending. The point of routing through the typed request is
+/// that adding one is an arm HERE, not a second mechanism.
 pub fn comparison_prose(
     ov: &crate::overlay::OverlayState,
     request: &crate::overlay::ComparisonRequest,
@@ -315,6 +315,23 @@ pub fn comparison_prose(
         &title,
     );
     Some((request.subject.clone(), transcript, counts))
+}
+
+/// THE SHORT NAME OF ONE VERSION — what a sentence ABOUT a version calls it:
+/// the user's own name for a kept version, else its relative `when` label.
+///
+/// The same `name`-else-`when` rule [`crate::overlay::OverlayState::new_history`]
+/// leads a timeline row with, so the restore notice names the version the way the
+/// row the user was standing on did. It deliberately stops there — a row also
+/// carries its `which` description and its changed counts, and a notice that
+/// repeated the whole row would be a second copy of the timeline rather than a
+/// confirmation. `None` for an id this file's history does not contain.
+pub fn version_label(path: &Path, id: &str, now_ms: u64) -> Option<String> {
+    let snap = list(path).into_iter().find(|s| s.id == id)?;
+    Some(
+        snap.name
+            .unwrap_or_else(|| relative_label(now_ms, snap.timestamp)),
+    )
 }
 
 /// Clamp a live `(line, col)` cursor into `text`'s geometry — the HISTORY

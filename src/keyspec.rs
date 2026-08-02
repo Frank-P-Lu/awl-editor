@@ -367,6 +367,23 @@ pub fn linux_glyph_chord(spec: &str) -> String {
     out.join(" ")
 }
 
+/// THE UNDO CHORD, AS PROSE THE USER READS. `Undo` has no palette command and so
+/// no [`crate::commands`] row to resolve a label from — but a sentence telling
+/// someone how to take a change back must name a key that fires on the convention
+/// they are on. `keyspec::tests::the_taught_undo_chord_is_the_one_that_fires`
+/// proves these two specs do, through the real keymap.
+pub fn undo_chord_label() -> String {
+    match crate::convention::Convention::current() {
+        crate::convention::Convention::Mac => mac_glyph_chord(UNDO_SPEC_MAC),
+        crate::convention::Convention::Linux => linux_glyph_chord(UNDO_SPEC_LINUX),
+    }
+}
+
+/// `Undo`'s default chord per convention — the spec [`undo_chord_label`] renders
+/// and the law resolves.
+pub(crate) const UNDO_SPEC_MAC: &str = "s-z";
+pub(crate) const UNDO_SPEC_LINUX: &str = "C-/";
+
 /// One chord as a Linux/GTK label: `"Ctrl+Shift+P"`. Helper for [`linux_glyph_chord`].
 fn linux_glyph_token(key: &Key, mods: ModifiersState) -> String {
     let mut parts: Vec<&str> = Vec::new();

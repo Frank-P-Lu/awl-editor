@@ -85,8 +85,8 @@ pub enum WorkspaceShape {
     RailOverRows,
     /// Version History: the primary (narrow) column IS the workspace's row list
     /// — a timeline of versions — and the wide region is a read-only COMPARISON
-    /// the document layer itself relocates into (item 116b's
-    /// `comparison_viewport`), composited onto the workspace surface.
+    /// the document layer itself relocates into
+    /// (`TextPipeline::comparison_viewport`), composited onto the workspace surface.
     ///
     /// The LENS has nowhere to live in the primary column here, because that
     /// column carries the rows; it moves into the header instead, on the same
@@ -172,8 +172,8 @@ impl OverlayKind {
                 key("esc", "close"),
             ],
             // THE TIMELINE STAGE. `↑/↓` steps versions and the comparison follows
-            // immediately; `⇧↵` is item 116c's deliberate restore, the one key here
-            // that changes the document; `esc` leaves.
+            // immediately; `⇧↵` is the deliberate restore, the one key here that
+            // changes the document; `esc` leaves.
             //
             // THREE CELLS, and the omissions are deliberate rather than an
             // oversight. This column is NARROW by design (a timeline beside a large
@@ -205,6 +205,51 @@ impl OverlayKind {
             | OverlayKind::InsertLink
             | OverlayKind::KeepName
             | OverlayKind::Context => Vec::new(),
+        }
+    }
+    /// THE DETAIL STAGE'S OWN LINE — what the footer teaches while a summoned
+    /// workspace's CONTENT region holds focus. Its sibling is
+    /// [`super::workspace::OverlayKind::rail_hint_actions`], the PRIMARY list's
+    /// line; between them a workspace advertises the stage you are standing on.
+    ///
+    /// This is a WHOLE line, not [`Self::hint_actions`] with cells
+    /// swapped, because the two workspace members' detail stages are not the same
+    /// kind of thing. Settings' rows ARE the picker: you type to filter them and
+    /// `↵` edits one, so its detail line is exactly its picker line. A COMPARISON
+    /// is read-only prose: typing does not filter it, `↵` does nothing (restore
+    /// is deliberately behind `⇧↵`), and `↑/↓` scrolls the transcript rather
+    /// than moving a selection. Reusing the picker line there would
+    /// advertise three keys that do not do what it says.
+    ///
+    /// Wildcard-free like its neighbours; unreachable for a kind that is not
+    /// drawn as a workspace, because [`super::OverlayState::foot_hint`] gates on
+    /// [`Self::workspace_shape`].
+    pub fn detail_hint_actions(self) -> Vec<HintAction> {
+        let key = |glyph, label| HintAction { glyph, label };
+        match self {
+            OverlayKind::History => vec![
+                key(ARROWS_UD, "scroll"),
+                key("\u{21E7}\u{21B5}", "restore"),
+                key(super::workspace::TAB_GLYPH, "back"),
+            ],
+            OverlayKind::Settings
+            | OverlayKind::Goto
+            | OverlayKind::Project
+            | OverlayKind::Browse
+            | OverlayKind::Theme
+            | OverlayKind::Caret
+            | OverlayKind::Dictionary
+            | OverlayKind::CjkLang
+            | OverlayKind::Date
+            | OverlayKind::MoveDest
+            | OverlayKind::Command
+            | OverlayKind::Spell
+            | OverlayKind::Keybindings
+            | OverlayKind::Assets
+            | OverlayKind::Rename
+            | OverlayKind::InsertLink
+            | OverlayKind::KeepName
+            | OverlayKind::Context => self.hint_actions(),
         }
     }
 }

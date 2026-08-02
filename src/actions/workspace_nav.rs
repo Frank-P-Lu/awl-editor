@@ -38,10 +38,7 @@ use super::*;
 /// exception here prevents kind checks from spreading through the handler.
 pub(super) fn workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     let ov = ctx.journey.card().unwrap();
-    let Some(shape) = ov.workspace_shape() else {
-        return None;
-    };
-    let rows_primary = shape.rows_are_primary();
+    let rows_primary = ov.workspace_shape()?.rows_are_primary();
     // IS THERE A CONTENT REGION TO GO INTO? On the timeline shape the content is
     // read-only prose that has to come from somewhere — a version selected in the
     // timeline — and an empty history (or a query that filters every version away)

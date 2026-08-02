@@ -143,17 +143,17 @@ impl TextPipeline {
     ///
     /// `Some([x, y, w, h])` — the workspace CONTENT pane, when this frame's
     /// summoned workspace puts its own rows in the PRIMARY column
-    /// (`WorkspaceShape::rows_are_primary`, item 116a's single fact), that content
+    /// (`WorkspaceShape::rows_are_primary`, the shape's single fact), that content
     /// region is on screen, and there is READ-ONLY COMPARISON PROSE to put in it
     /// (`overlay_comparison`). `None` on every other frame — including every frame
     /// of Settings, whose rows live in the pane.
     ///
-    /// ITEM 116d: the payload gate is not belt-and-braces. The timeline shape can
+    /// The payload gate is not belt-and-braces. The timeline shape can
     /// be up with nothing to compare (an empty history; a query that filters every
     /// version away), and on those frames the pushed text is the user's OWN
     /// document. Relocating it into the comparison's place would put the live
-    /// document up as a third readable layer inside the workspace — the exact
-    /// composition item 116 exists to remove.
+    /// document up as a third readable layer inside the workspace — three
+    /// competing readable layers, which is what this whole composition removes.
     ///
     /// [`Self::column_left`], [`Self::column_width`], `doc_top` and
     /// `doc_clip_band` are the four readers; everything downstream of them —
@@ -179,13 +179,10 @@ impl TextPipeline {
     /// The vertical run of the workspace's HEADER BAND — from `text_top` down to
     /// the line its own candidate rows begin on.
     ///
-    /// ITEM 116d: this used to be a bare `overlay_lh() + overlay_header_gap()`,
-    /// which was a fourth copy of a ONE-LINE header's height and therefore
-    /// correct only for as long as every workspace had exactly one header line.
-    /// The moment the timeline shape moved its lens into the header the copy
-    /// became WRONG rather than merely duplicated, so it now asks the plan
-    /// module's own owner, over this workspace's own
-    /// [`Self::workspace_header_rows`].
+    /// It asks the plan module's own owner over this workspace's own
+    /// [`Self::workspace_header_rows`] rather than re-summing `lh + header_gap`:
+    /// that sum describes a ONE-LINE header, and the timeline shape's header
+    /// carries two, so a local copy would not be duplicated but simply wrong.
     pub(in crate::render) fn workspace_header_band(&self) -> f32 {
         crate::render::plan::header_band_height(
             self.workspace_header_rows(),

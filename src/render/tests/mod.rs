@@ -164,7 +164,7 @@ pub(super) fn comparison_view(text: &str, line: usize, col: usize) -> ViewState 
     v.overlay_active = true;
     v.overlay_workspace = true;
     v.overlay_rows_primary = true;
-    // ITEM 116d — the shape has a comparison region AND there is prose in it.
+    // The shape has a comparison region AND there is prose in it.
     // Both halves are `sync_view`'s own projections, and the second is what makes
     // the document relocate: the timeline can be up with nothing to compare.
     v.overlay_comparison = true;

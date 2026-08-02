@@ -475,15 +475,24 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         // ITEM 116c — see `workspace_nav::open_keep_version`'s own doc: parks
         // whatever is already open rather than `enter`-ing over it.
         Action::KeepVersion => workspace_nav::open_keep_version(ctx),
-        // DIFF-AS-PREVIEW ("Compare with version…" from the BUFFER): the palette
-        // command REPOINTS to opening the HISTORY picker — whose live preview IS
-        // the writer's diff now (arrowing the versions shows each one's marked-up
-        // manuscript in the page below the card). ONE behavior, no orphaned second
-        // mode: the old read-only takeover view is retired. From an OPEN History
-        // picker this action is intercepted earlier (`overlay_nav`'s Tab arm — the
-        // focus shift into the diff panel) and never reaches here.
+        // "Compare with version…" from the BUFFER: the SAME workspace
+        // `OpenHistory` enters — one surface, no orphaned second mode — at a
+        // DIFFERENT FOCUS, which is the whole of what makes it a distinct deep
+        // link. "Version history…" asks WHICH version and lands on the timeline;
+        // this asks WHAT CHANGED and lands in the comparison. The transfer goes
+        // through the LIFECYCLE, never by writing `detail_focus`, and declines
+        // with nothing to compare, so an empty history degrades to the timeline
+        // rather than opening a blank region. From an OPEN History workspace the
+        // workspace intercept owns this action as the same toggle.
         Action::CompareVersion => {
             ctx.journey.enter((ctx.make_overlay)(OverlayKind::History));
+            if ctx
+                .journey
+                .card()
+                .is_some_and(|o| o.comparison_request().is_some())
+            {
+                ctx.journey.toggle_detail();
+            }
         }
         Action::OpenBrowse => {
             ctx.journey

@@ -42,7 +42,7 @@ mod store;
 
 pub use picker::{
     HISTORY_FACETS, TimelineRow, clamp_line_col, comparison_prose, mark_session_start,
-    session_epoch_ms, source_path, timeline_rows,
+    session_epoch_ms, source_path, timeline_rows, version_label,
 };
 #[allow(unused_imports)] // auto_description/clock_hm/first_changed_line/line_diff_counts/
 // relative_label/rows_from: public API surface (the pure row-composer helpers

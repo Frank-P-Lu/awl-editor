@@ -311,7 +311,7 @@ impl TextPipeline {
                     self.overlay_footer_content_px(geom, content_rows),
                 )
             });
-            // ITEM 116d — THE PLATE BACKS THE FOOTER, not "everything below it".
+            // THE PLATE BACKS THE FOOTER, not "everything below it".
             // Running it to the card's bottom edge is right for a card that HUGS
             // its content (the plate closes the card, and the two are the same
             // line); a WORKSPACE's card comes from the canvas instead, so on a

@@ -3,23 +3,23 @@
 //! A `WorkspaceShape::TimelineOverComparison` workspace puts a list in its
 //! primary column and read-only prose in its content region. That prose is not
 //! drawn by a pane renderer of its own — awl has exactly ONE prose renderer, and
-//! item 116b relocated it (`render/chrome/comparison.rs`). What was still missing
-//! was a typed answer to *which* prose, asked in a way that is not about Version
-//! History.
+//! the one there is has been relocated instead (`render/chrome/comparison.rs`).
+//! What that leaves is a typed answer to *which* prose, asked in a way that is not
+//! about Version History.
 //!
 //! # Why this is not `selected_history_id()`
 //!
-//! Before item 116d the comparison's content came from `App::history_preview_text`,
-//! keyed on `OverlayState::selected_history_id()` and cached under that bare id.
-//! Two things are wrong with that shape the moment a SECOND consumer exists:
+//! The obvious shape is a History-shaped one: ask the card for its selected
+//! history id and cache the transcript under that bare id. Two things go wrong
+//! with it the moment a SECOND consumer exists:
 //!
 //!   * it is History-specific — an overlay that is not a timeline has no "history
 //!     id" to be keyed on, so a second consumer needs a second mechanism, which
 //!     is a second renderer by another name;
 //!   * it is UNTYPED — one opaque string per subject, so a surface that shows
-//!     several read-only views OF THE SAME SUBJECT (queue item 204's external-file
-//!     conflict: *Differences* / *Your version* / *Version on disk*, one at a
-//!     time) cannot express them without colliding in the cache.
+//!     several read-only views OF THE SAME SUBJECT — an external-file conflict
+//!     offering *Differences* / *Your version* / *Version on disk* one at a time
+//!     — cannot express them without colliding in the cache.
 //!
 //! [`ComparisonRequest`] is both: a [`ComparisonView`] naming which read-only view
 //! is wanted, and an opaque per-surface SUBJECT naming what of. Its
@@ -48,11 +48,11 @@ pub enum ComparisonView {
     /// only view, and the one a conflict opens on.
     Differences,
     /// The user's OWN text for the subject, shown whole and unmarked. No consumer
-    /// yet; queue item 204's "Your version".
+    /// yet; the "Your version" a file conflict would offer.
     #[allow(dead_code)]
     Mine,
     /// The OTHER text for the subject, shown whole and unmarked. No consumer yet;
-    /// queue item 204's "Version on disk".
+    /// the "Version on disk" a file conflict would offer.
     #[allow(dead_code)]
     Theirs,
 }
@@ -74,8 +74,8 @@ impl ComparisonView {
 /// ONE REQUEST for read-only comparison prose: which view, of what.
 ///
 /// `subject` is opaque to everything but the surface that produced it and the
-/// resolver that answers it — a history restore id today, a conflict's own handle
-/// for item 204. Nothing between them parses it.
+/// resolver that answers it — a history restore id today, a conflict's own
+/// handle tomorrow. Nothing between them parses it.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ComparisonRequest {
     pub view: ComparisonView,
@@ -88,8 +88,7 @@ impl ComparisonRequest {
     /// This is the whole reason the type exists: a surface offering three views of
     /// one subject keyed on the bare subject would serve whichever view was
     /// rendered first for all three, which is the cache-key discipline's own
-    /// failure mode (a key that does not name everything the value depends on) and
-    /// exactly what blocked item 204 against the old shape.
+    /// failure mode: a key that does not name everything the value depends on.
     pub fn cache_key(&self) -> String {
         format!("{}:{}", self.view.tag(), self.subject)
     }

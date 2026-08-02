@@ -166,11 +166,10 @@ impl App {
             overlay_align: ov.map(|o| o.align),
             // CRISP-BACKDROP exception: the THEME / CARET pickers preview live
             // DOCUMENT state behind their card, so frosting it would defeat the
-            // preview. ITEM 116d dropped History from this list: its comparison
-            // used to BE the document behind the card and so had to stay sharp;
-            // it is now composited inside the workspace's own content region, and
-            // what is left behind the card is the user's untouched document — a
-            // quiet backdrop, which DESIGN.md §5 says recedes.
+            // preview. History is deliberately NOT here: its comparison is
+            // composited inside the workspace's own content region, so what is
+            // left behind the card is the user's untouched document — a quiet
+            // backdrop, which DESIGN.md §5 says recedes.
             overlay_crisp: ov
                 .map(|o| {
                     matches!(
@@ -213,12 +212,10 @@ impl App {
                 o.workspace_shape()
                     .is_some_and(crate::overlay::workspace::WorkspaceShape::rows_are_primary)
             }),
-            // ITEM 116d — and is there anything IN that comparison region this
-            // frame? Exactly when the text pushed above is a comparison
-            // transcript rather than the user's own document. The renderer
-            // relocates the document layer on this fact, so an empty timeline
-            // leaves the live document where it was instead of standing it up
-            // inside the workspace as a third readable layer.
+            // …and is there anything IN that comparison region? Exactly when the
+            // text pushed above is a transcript rather than the user's own
+            // document, so an empty timeline leaves the live document where it
+            // was instead of standing it up inside the workspace.
             overlay_comparison: preview.is_some(),
             overlay_sections: ov.map(|o| o.item_sections()).unwrap_or_default(),
             caret_preview: ov

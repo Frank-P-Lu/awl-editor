@@ -30,8 +30,8 @@ pub(super) const FACETED_BREATHE_FRAC: f32 = 0.2;
 /// ONE owner, because this number is asked for from three unrelated places and
 /// used to be re-summed at each: the row planner's forward y arithmetic
 /// (`row_top`), the header boxes below (whose LAST box closes exactly on it), and
-/// — item 116d — a summoned workspace's relocated document viewport, which opens
-/// at the same line the candidate band does. A workspace whose lens moved into
+/// and a summoned workspace's relocated document viewport, which opens at the
+/// same line the candidate band does. A workspace whose lens moved into
 /// its header carries TWO header lines, so a consumer that re-summed `lh +
 /// header_gap` for itself would seat the comparison a whole line high the moment
 /// that second line appeared.

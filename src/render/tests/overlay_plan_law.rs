@@ -703,9 +703,9 @@ const RETIRED_TERMS: &[&str] = &[
     // every retired copy was written. A copy that first binds the gap to a local
     // and sums THAT is invisible to it — which is why the DELETION, not this
     // sweep, is the real enforcement. The last member of the family outside it,
-    // `comparison.rs::workspace_header_beat`, MERGED in item 116d: its consumer
-    // is called ~45 times a frame and still cannot afford a plan, but it now
-    // calls the planner's own `header_band_height` rather than re-summing, and
+    // `comparison.rs`'s workspace header band, has MERGED: its consumer is
+    // called ~45 times a frame and still cannot afford a plan, but it now calls
+    // the planner's own `header_band_height` rather than re-summing, and
     // `overlay_header_band_law.rs`'s
     // `the_workspace_header_band_still_agrees_with_the_planned_header_boxes`
     // grades it against the planned boxes over both workspace shapes.
@@ -725,7 +725,7 @@ fn steps_off_the_band_origin(line: &str) -> bool {
 
 /// The ONLY place the arithmetic may live — the planner's own files.
 ///
-/// ITEM 116d added `plan/overlay_header.rs`: `header_band_height` is the one
+/// `plan/overlay_header.rs` is here because `header_band_height` is the one
 /// owner of "how far below `text_top` the candidate band begins", and both the
 /// planner's `row_top` and the workspace's relocated document viewport now read
 /// it instead of each summing `header_rows * lh + header_gap` for themselves. It
