@@ -11,14 +11,25 @@
 use super::PlannedHeader;
 use super::row_extent::{RowExtent, RowSpan, apply_row_extent};
 
-/// One DISPLAY line in an overlay card's candidate area: a faint uppercase
-/// section header, or a candidate row carrying its index into `overlay_items`.
+/// One DISPLAY line in an overlay card's candidate area: the card's SECONDARY
+/// LOCATION heading, a faint uppercase section header, or a candidate row
+/// carrying its index into `overlay_items`.
+///
+/// `Location` and `Header` occupy the same slot and the same pitch — they differ
+/// only in what they SAY. A `Header` names one group of a list that has several;
+/// a `Location` names WHERE THE WHOLE CARD IS, the second level of the hierarchy
+/// whose first level is the kind's own title (item 220). Every lens every
+/// shipping picker offers today groups into exactly ONE section, whose label is
+/// character-for-character the lens's own — so on every one of them that line is
+/// a location, and drawing it as list chrome was what made it read as a repeat
+/// of the title rather than as the level below it.
 ///
 /// Built by the grouped/faceted geometry owner from the parallel section labels
 /// and handed to [`plan_overlay_rows`] as the line sequence; the plan turns it
 /// into geometry, and the shaper reads the same sequence for its glyphs.
 #[derive(Clone)]
 pub(in crate::render) enum PlanLine {
+    Location(String),
     Header(String),
     Item(usize),
 }
@@ -332,7 +343,7 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
                 display,
                 item: match line {
                     PlanLine::Item(i) => Some(*i),
-                    PlanLine::Header(_) => None,
+                    PlanLine::Location(_) | PlanLine::Header(_) => None,
                 },
                 top: first_top + display as f32 * input.lh,
                 height: input.lh,

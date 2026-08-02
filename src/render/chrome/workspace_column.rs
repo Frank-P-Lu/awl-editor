@@ -87,7 +87,10 @@ impl TextPipeline {
         // readable type and honest control sizes before anything else). A world
         // whose display face shapes the footer wider than the cap gets a slightly
         // wider timeline, not a cut footer.
-        let floor = (TIMELINE_MIN_CHARS * cw).max(hint + 2.0 * hpad);
+        // CEIL, because the two shapings agree to the pixel but not to the last
+        // bit of an `f32`, and a column short by a ten-thousandth of a pixel cuts
+        // a glyph exactly as thoroughly as one short by ten.
+        let floor = (TIMELINE_MIN_CHARS * cw).max(hint.ceil() + 2.0 * hpad);
         (widest + 2.0 * hpad).clamp(floor, (interior * TIMELINE_MAX_FRAC).max(floor))
     }
 
@@ -137,9 +140,28 @@ impl TextPipeline {
         self.workspace_rail_buffer
             .set_wrap(&mut self.font_system, Wrap::None);
         let ink = theme::base_content().to_glyphon();
-        self.workspace_rail_buffer.set_text(
-            &mut self.font_system,
+        // THE FOOTER IS MEASURED IN THE FACES IT IS DRAWN IN. The drawn line is
+        // SYMBOL-SPLIT (`push_overlay_hint_spans` → `push_symbol_split`): the key
+        // glyphs `↵ ← → ⌘` come from the symbol family, whose advances are not the
+        // body face's. Shaping the raw string in one face UNDER-measures it — by
+        // 1.3px on Mopoke's own footer, harmless while the column carried two
+        // unspent pads of slack and a clipped footer the moment item 234 spent
+        // them. One corpus, the same split, so the floor cannot under-reserve.
+        let mut spans: Vec<(&str, Attrs)> = Vec::new();
+        push_symbol_split(
+            &mut spans,
             &hint,
+            || panel_attrs().color(ink).metrics(metrics),
+            || {
+                Attrs::new()
+                    .family(Family::Name(SYMBOL_FAMILY))
+                    .color(ink)
+                    .metrics(metrics)
+            },
+        );
+        self.workspace_rail_buffer.set_rich_text(
+            &mut self.font_system,
+            spans,
             &panel_attrs().color(ink),
             Shaping::Advanced,
             None,

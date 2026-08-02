@@ -93,6 +93,26 @@ impl OverlayGeom {
         }
     }
 
+    /// TEST-ONLY reader for the item-220 hierarchy law: the card's candidate
+    /// DISPLAY LINES, tagged by kind, so a law can assert what the band opens on
+    /// without a render path exposing its plan.
+    #[cfg(test)]
+    pub(in crate::render) fn plan_labels_probe(&self) -> Vec<String> {
+        self.plan
+            .iter()
+            .filter_map(|l| match l {
+                PlanLine::Location(s) => Some(format!("loc:{s}")),
+                PlanLine::Header(s) => Some(format!("hdr:{s}")),
+                PlanLine::Item(_) => None,
+            })
+            .collect()
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn plan_len_probe(&self) -> usize {
+        self.plan.len()
+    }
+
     /// TEST-ONLY readers for the item-114 law probe (`render/tests/overlay_probe.rs`),
     /// which lives outside this module so a law can compare against what the
     /// frame committed without a render path growing an exception.
@@ -291,14 +311,29 @@ impl TextPipeline {
         // the content pane's rows do today.
         let rail = (!rows_primary && primary_visible).then_some([primary_x, primary_w]);
 
-        // THE ROW LIST'S OWN BOX follows `rows_primary`: the primary column's
+        // THE ROW LIST'S OWN BAND follows `rows_primary`: the primary column's
         // when it owns the rows, the content pane's otherwise — today's rule,
         // and the only one any kind currently reaches.
-        let (text_left, text_w) = if rows_primary {
+        let (band_x, band_w) = if rows_primary {
             (primary_x, primary_w)
         } else {
             (pane_x, pane_w)
         };
+        // ITEM 234 — **THE ROW TEXT SITS INSIDE ITS OWN PLATE, HERE TOO.** Both
+        // other overlay families put their row text `overlay_text_hpad()` inside
+        // the band the row surfaces span, and that number is not decoration: on a
+        // `Bars` world it is `BAR_SIDE_INSET + BAR_TEXT_PAD` exactly so that the
+        // plate — which `bar_full_span` insets `BAR_SIDE_INSET` from the band —
+        // brackets the glyphs with `BAR_TEXT_PAD` of air on each side. The
+        // workspace family laid its rows out on the bare band instead, which put
+        // the text OUTSIDE its own plate by `BAR_SIDE_INSET` at BOTH edges: the
+        // first glyph of every row label cut by the plate's left edge, and the
+        // right-aligned VALUE hanging past its right one — the reported "Block"
+        // plate cutting its final `k`. Measured 8px of overhang, which is
+        // `BAR_SIDE_INSET` to the pixel. The same `overlay_text_hpad` owner both
+        // other families read closes it, so no family now derives its own answer.
+        let hpad = self.overlay_text_hpad();
+        let (text_left, text_w) = (band_x + hpad, (band_w - 2.0 * hpad).max(1.0));
 
         // On a stage that is not showing its list, no rows are windowed at
         // all — the search line still rides above at `text_left`/`text_top`:
@@ -360,8 +395,8 @@ impl TextPipeline {
             // shape the rows live in the PRIMARY column. Pointing this at the
             // comparison instead would draw the selected-version band across the
             // transcript and make the timeline clickable nowhere it is drawn.
-            pane_x: text_left,
-            pane_w: text_w,
+            pane_x: band_x,
+            pane_w: band_w,
             rows_focused,
             ..OverlayGeom::base()
         }

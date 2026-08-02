@@ -503,6 +503,7 @@ impl TextPipeline {
             overlay_hint: String::new(),
             overlay_lens: Vec::new(),
             overlay_sections: Vec::new(),
+            overlay_location: None,
             overlay_spell: None,
             overlay_context_anchor: None,
             overlay_detail_focus: false,

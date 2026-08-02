@@ -450,6 +450,11 @@ pub(super) fn settled_viewstate(
         .as_ref()
         .map(|o| o.sections.clone())
         .unwrap_or_default();
+    // ITEM 220 — the SECONDARY location, rebuilt from the strip this snapshot
+    // already carries (`facets::strip_location`, held to the live owner's answer
+    // by a scheme-wide law) rather than added as a second serialized fact.
+    vstate.overlay_location =
+        crate::facets::strip_location(&vstate.overlay_lens).map(std::string::ToString::to_string);
     // ITEM 114 — the SUMMONED WORKSPACE's presentation + focus stage. Set for
     // every capture that carries an overlay, not only a previewing one: a
     // workspace has two regions whether or not anything is previewed beneath it,

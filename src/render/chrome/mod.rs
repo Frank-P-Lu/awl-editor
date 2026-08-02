@@ -567,6 +567,13 @@ pub(super) fn bars_inline_shortcut() -> bool {
     )
 }
 
+/// TEST-ONLY reader for the item-234 law, which has to compare the plate's own
+/// span against the row box without re-deriving either.
+#[cfg(test)]
+pub(in crate::render) fn bar_full_span_probe(card_x: f32, card_w: f32) -> (f32, f32) {
+    bar_full_span(card_x, card_w)
+}
+
 pub(super) fn bar_full_span(card_x: f32, card_w: f32) -> (f32, f32) {
     (
         card_x + BAR_SIDE_INSET,

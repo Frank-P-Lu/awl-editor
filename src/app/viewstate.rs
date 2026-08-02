@@ -210,6 +210,11 @@ impl App {
             // was instead of standing it up inside the workspace.
             overlay_comparison: preview.is_some(),
             overlay_sections: ov.map(|o| o.item_sections()).unwrap_or_default(),
+            // ITEM 220 — the SECOND level of the picker's location. `None` at the
+            // All home, which is why a home card shows no category label at all.
+            overlay_location: ov
+                .and_then(|o| o.location())
+                .map(std::string::ToString::to_string),
             caret_preview: ov
                 .filter(|o| o.kind == crate::overlay::OverlayKind::Caret)
                 .and_then(|o| o.selected_caret_mode()),

@@ -115,6 +115,26 @@ pub struct FacetScheme {
 }
 
 impl FacetScheme {
+    /// **THE SECONDARY LEVEL OF A PICKER'S TWO-LEVEL LOCATION** (item 220) — the
+    /// active lens's own label, or `None` at the All HOME.
+    ///
+    /// A summoned picker names where you are at two levels: the PRIMARY content
+    /// level is the kind's own title ([`OverlayKind::title`] — "commands"), and
+    /// this is the narrower place inside it. All is the home, so it names no
+    /// narrower place and returns `None` — there is no second level to show.
+    ///
+    /// ONE owner, because three unrelated readers ask for it and a second
+    /// derivation is exactly what lets a world's expression of the hierarchy
+    /// disagree with the strip it came from: the renderer's display plan, the
+    /// projection the renderer reads it through
+    /// ([`crate::render::ViewState::overlay_location`]), and the laws.
+    pub fn location(&self, active: usize) -> Option<&'static str> {
+        match active {
+            0 => None,
+            i => self.strip.get(i).map(|f| f.label),
+        }
+    }
+
     /// The strip's active-lens LABELS + a flag marking the one at `active` — the
     /// data the render pipeline + sidecar draw as the lens strip.
     pub fn strip_labels(&self, active: usize) -> Vec<(String, bool)> {
@@ -124,6 +144,22 @@ impl FacetScheme {
             .map(|(i, f)| (f.label.to_string(), i == active))
             .collect()
     }
+}
+
+/// [`FacetScheme::location`] asked of an ALREADY-BUILT strip rather than of the
+/// scheme — the same rule (index 0 is the All home and names no narrower place),
+/// for the one caller that holds a serialized strip and no live picker: the
+/// headless capture path, which rebuilds a `ViewState` from a snapshot.
+///
+/// It is a reconstruction of the owner's answer, not a second owner, and
+/// `facets::tests::a_rebuilt_strips_location_is_the_schemes_own` sweeps every
+/// scheme x every lens index to keep it that way.
+pub fn strip_location(strip: &[(String, bool)]) -> Option<&str> {
+    strip
+        .iter()
+        .position(|(_, active)| *active)
+        .filter(|&i| i > 0)
+        .map(|i| strip[i].0.as_str())
 }
 
 /// The faceting SCHEME for an overlay `kind`, or `None` for a NON-faceting picker

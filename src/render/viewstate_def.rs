@@ -96,6 +96,15 @@ pub struct ViewState {
     /// three competing readable layers, which is what this composition removes.
     pub overlay_comparison: bool,
     pub overlay_sections: Vec<String>,
+    /// **THE SUMMONED PICKER'S SECONDARY LOCATION** (item 220) — the active
+    /// category, `None` at the All home and off a faceting picker.
+    ///
+    /// The projection of [`crate::overlay::OverlayState::location`], which is
+    /// its one owner. The renderer reads the hierarchy from here rather than
+    /// re-deriving it from the strip, so a world's own expression of the cue —
+    /// wherever a world chooses to put it — is an expression of the SAME datum
+    /// the strip's active mark is.
+    pub overlay_location: Option<String>,
     pub caret_preview: Option<CaretMode>,
     pub gutter_name: String,
     pub gutter_project: String,
@@ -241,6 +250,7 @@ impl ViewState {
             overlay_rows_primary: false,
             overlay_comparison: false,
             overlay_sections: Vec::new(),
+            overlay_location: None,
             caret_preview: None,
             gutter_name: String::new(),
             gutter_project: String::new(),
