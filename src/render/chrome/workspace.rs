@@ -93,26 +93,6 @@ impl OverlayGeom {
         }
     }
 
-    /// TEST-ONLY reader for the item-220 hierarchy law: the card's candidate
-    /// DISPLAY LINES, tagged by kind, so a law can assert what the band opens on
-    /// without a render path exposing its plan.
-    #[cfg(test)]
-    pub(in crate::render) fn plan_labels_probe(&self) -> Vec<String> {
-        self.plan
-            .iter()
-            .filter_map(|l| match l {
-                PlanLine::Location(s) => Some(format!("loc:{s}")),
-                PlanLine::Header(s) => Some(format!("hdr:{s}")),
-                PlanLine::Item(_) => None,
-            })
-            .collect()
-    }
-
-    #[cfg(test)]
-    pub(in crate::render) fn plan_len_probe(&self) -> usize {
-        self.plan.len()
-    }
-
     /// TEST-ONLY readers for the item-114 law probe (`render/tests/overlay_probe.rs`),
     /// which lives outside this module so a law can compare against what the
     /// frame committed without a render path growing an exception.
@@ -319,19 +299,13 @@ impl TextPipeline {
         } else {
             (pane_x, pane_w)
         };
-        // ITEM 234 — **THE ROW TEXT SITS INSIDE ITS OWN PLATE, HERE TOO.** Both
-        // other overlay families put their row text `overlay_text_hpad()` inside
-        // the band the row surfaces span, and that number is not decoration: on a
-        // `Bars` world it is `BAR_SIDE_INSET + BAR_TEXT_PAD` exactly so that the
-        // plate — which `bar_full_span` insets `BAR_SIDE_INSET` from the band —
-        // brackets the glyphs with `BAR_TEXT_PAD` of air on each side. The
-        // workspace family laid its rows out on the bare band instead, which put
-        // the text OUTSIDE its own plate by `BAR_SIDE_INSET` at BOTH edges: the
-        // first glyph of every row label cut by the plate's left edge, and the
-        // right-aligned VALUE hanging past its right one — the reported "Block"
-        // plate cutting its final `k`. Measured 8px of overhang, which is
-        // `BAR_SIDE_INSET` to the pixel. The same `overlay_text_hpad` owner both
-        // other families read closes it, so no family now derives its own answer.
+        // **THE ROW TEXT SITS INSIDE ITS OWN PLATE.** Both other overlay families
+        // put their row text `overlay_text_hpad()` inside the band the row
+        // surfaces span, and that number is not decoration: on a `Bars` world it
+        // is `BAR_SIDE_INSET + BAR_TEXT_PAD`, so the plate — which `bar_full_span`
+        // insets `BAR_SIDE_INSET` from the same band — brackets the glyphs with
+        // `BAR_TEXT_PAD` of air. Laying rows out on the bare band puts the text
+        // `BAR_SIDE_INSET` OUTSIDE its own plate at both edges.
         let hpad = self.overlay_text_hpad();
         let (text_left, text_w) = (band_x + hpad, (band_w - 2.0 * hpad).max(1.0));
 

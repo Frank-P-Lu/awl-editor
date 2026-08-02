@@ -96,7 +96,7 @@ pub struct ViewState {
     /// three competing readable layers, which is what this composition removes.
     pub overlay_comparison: bool,
     pub overlay_sections: Vec<String>,
-    /// **THE SUMMONED PICKER'S SECONDARY LOCATION** (item 220) — the active
+    /// **THE SUMMONED PICKER'S SECONDARY LOCATION** — the active
     /// category, `None` at the All home and off a faceting picker.
     ///
     /// The projection of [`crate::overlay::OverlayState::location`], which is

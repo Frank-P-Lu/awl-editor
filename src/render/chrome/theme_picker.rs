@@ -6,10 +6,9 @@ use super::*;
 /// the baseline for every chrome/mono/display face without striking the glyphs.
 const UNDERLINE_BASELINE_DROP: f32 = 2.0;
 
-/// ITEM 220 — the SECONDARY LOCATION heading's font size, as a fraction of the
-/// overlay's own UI size. Above `type_scale::LABEL` (the section header's
-/// whisper) and below 1.0 (a candidate row), so the hierarchy reads by size as
-/// well as by ink: title, then location, then the commands themselves.
+/// The SECONDARY LOCATION heading's font size, as a fraction of the overlay's
+/// own UI size — above `type_scale::LABEL` (a section header's whisper), below a
+/// candidate row, so the hierarchy reads by size as well as by ink.
 const LOCATION_SCALE: f32 = 0.92;
 
 impl TextPipeline {
@@ -20,13 +19,12 @@ impl TextPipeline {
     /// labels are uppercased for the faint header display. Shared by the geometry,
     /// shaping, selected-band, and hit-test so they can never disagree.
     ///
-    /// **ITEM 220 — A SECTION WHOSE LABEL IS THE CARD'S OWN LOCATION IS NOT A
-    /// SECTION.** When the group being headed is the very place the picker is —
-    /// `overlay_location`, the active lens — that line is the SECOND LEVEL of the
-    /// card's heading hierarchy, not chrome dividing a list into parts, and it is
-    /// planned as [`PlanLine::Location`] so the shaper can say so. The line's
-    /// SLOT is unchanged (same position, same pitch, same count), because the
-    /// defect was never geometry: it was a heading drawn in a list's voice.
+    /// **A SECTION WHOSE LABEL IS THE CARD'S OWN LOCATION IS NOT A SECTION.**
+    /// When the group being headed is the very place the picker is
+    /// (`overlay_location`, the active lens), that line is the SECOND LEVEL of
+    /// the card's heading hierarchy rather than chrome dividing a list into
+    /// parts, and is planned as [`PlanLine::Location`] so the shaper can say so.
+    /// Its SLOT is unchanged: the defect was a heading in a list's voice.
     pub(in crate::render) fn theme_plan(&self) -> Vec<PlanLine> {
         let mut out = Vec::with_capacity(self.overlay_items.len());
         let mut prev: Option<String> = None;
@@ -430,10 +428,8 @@ impl TextPipeline {
         let ui = crate::render::effective_overlay_scale();
         let lh = self.overlay_lh();
         let header_metrics = GlyphMetrics::new(m.font_size * ui * label, lh);
-        // ITEM 220 — the location sits between the section header's whisper and a
-        // row's own size: legibly the level below the title, never competing with
-        // the commands it heads. The row pitch is the shared `lh`, so it can no
-        // more move the band than the section header it replaces.
+        // The row pitch stays the shared `lh`, so the location can no more move
+        // the band than the section header it replaces.
         let location_metrics = GlyphMetrics::new(m.font_size * ui * LOCATION_SCALE, lh);
         let base = panel_attrs();
         let mk = |c| base.clone().color(c);
@@ -532,16 +528,12 @@ impl TextPipeline {
         for (idx, (line, fit)) in geom.plan.iter().zip(fitted.iter()).enumerate() {
             spans.push(("\n", mk(ink)));
             match line {
-                // ITEM 220 — THE SECOND LEVEL, in the HEADING's voice. The card
-                // already names its content level (the title prefix on the query
-                // line, or a world's placard); this names the category inside it.
-                // Three deliberate differences from the section header below it,
-                // and each one is what stops it reading as a repeat of the title:
-                // the CHROME face the title prefix and the lens strip are set in
-                // (a section header takes the panel's body face), the label's own
-                // authored case (a section header shouts in caps), and `muted`
-                // rather than `faint` — subordinate to the primary, but a
-                // statement rather than a whisper.
+                // THE SECOND LEVEL, in the HEADING's voice. Three deliberate
+                // differences from the section header, each of which stops it
+                // reading as a repeat of the title: the CHROME face the title
+                // prefix and the lens strip are set in, the label's own authored
+                // case, and `muted` rather than `faint` — subordinate to the
+                // primary, but a statement rather than a whisper.
                 PlanLine::Location(l) => {
                     spans.push((
                         l.as_str(),

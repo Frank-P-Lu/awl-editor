@@ -18,7 +18,7 @@ use super::row_extent::{RowExtent, RowSpan, apply_row_extent};
 /// `Location` and `Header` occupy the same slot and the same pitch — they differ
 /// only in what they SAY. A `Header` names one group of a list that has several;
 /// a `Location` names WHERE THE WHOLE CARD IS, the second level of the hierarchy
-/// whose first level is the kind's own title (item 220). Every lens every
+/// whose first level is the kind's own title. Every lens every
 /// shipping picker offers today groups into exactly ONE section, whose label is
 /// character-for-character the lens's own — so on every one of them that line is
 /// a location, and drawing it as list chrome was what made it read as a repeat

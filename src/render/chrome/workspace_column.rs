@@ -145,8 +145,8 @@ impl TextPipeline {
         // glyphs `↵ ← → ⌘` come from the symbol family, whose advances are not the
         // body face's. Shaping the raw string in one face UNDER-measures it — by
         // 1.3px on Mopoke's own footer, harmless while the column carried two
-        // unspent pads of slack and a clipped footer the moment item 234 spent
-        // them. One corpus, the same split, so the floor cannot under-reserve.
+        // unspent pads of slack, and a clipped footer the moment they are spent.
+        // One corpus, the same split, so the floor cannot under-reserve.
         let mut spans: Vec<(&str, Attrs)> = Vec::new();
         push_symbol_split(
             &mut spans,

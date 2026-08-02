@@ -115,7 +115,7 @@ pub struct FacetScheme {
 }
 
 impl FacetScheme {
-    /// **THE SECONDARY LEVEL OF A PICKER'S TWO-LEVEL LOCATION** (item 220) — the
+    /// **THE SECONDARY LEVEL OF A PICKER'S TWO-LEVEL LOCATION** — the
     /// active lens's own label, or `None` at the All HOME.
     ///
     /// A summoned picker names where you are at two levels: the PRIMARY content

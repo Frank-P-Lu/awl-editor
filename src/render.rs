@@ -2247,7 +2247,7 @@ pub struct TextPipeline {
     overlay_hint: String,
     overlay_lens: Vec<(String, bool)>,
     overlay_sections: Vec<String>,
-    /// Mirror of [`ViewState::overlay_location`] (item 220) — the summoned
+    /// Mirror of [`ViewState::overlay_location`] — the summoned
     /// picker's SECONDARY location, `None` at the All home. The display plan
     /// consumes it; no render path re-derives it from `overlay_lens`.
     overlay_location: Option<String>,

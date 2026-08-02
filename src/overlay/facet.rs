@@ -32,7 +32,7 @@ impl OverlayState {
             .map(|f| f.id)
     }
 
-    /// **WHERE THIS PICKER IS, at the SECONDARY level** (item 220) — the active
+    /// **WHERE THIS PICKER IS, at the SECONDARY level** — the active
     /// lens's label, or `None` at the All home and for a non-faceting picker.
     ///
     /// The picker's PRIMARY level is its [`OverlayKind::title`]; this is the
