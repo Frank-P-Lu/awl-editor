@@ -83,13 +83,14 @@ needs.
 ## Tier 3 — the live-only census, exactly
 
 Every function under `src/app.rs` + `src/app/**` whose signature takes an
-`&ActiveEventLoop`. Twelve, in four files, and the list is not maintained by
+`&ActiveEventLoop`. Fourteen, in five files, and the list is not maintained by
 hand: `app::tests::source_audit::the_active_event_loop_census_is_exact_and_the_input_chain_is_free_of_it`
 scans the source and fails on any new one.
 
 | Where | Functions | Why the loop is genuinely needed |
 | --- | --- | --- |
 | `app.rs` | `drive_gpu_soak` | `--soak-gpu` drives a real window |
+| `app/frame/accessibility.rs` | `FrameRuntime::install_accessibility`, `AccessibilityRuntime::install` | the AccessKit adapter binds the real loop + window, and must do so BEFORE the window becomes visible (macOS caches a newly ordered-in window's accessibility parent) |
 | `app/gpu_recovery.rs` | `rebuild_gpu` | recreates the window-bound renderer |
 | `app/lifecycle.rs` | `user_event`, `resumed`, `suspended`, `window_event`, `exiting`, `about_to_wait` | winit's own `ApplicationHandler` signatures |
 | `app/window.rs` | `handle_gpu_fault`, `handle_gpu_frame_outcome`, `on_resized`, `on_redraw_requested` | rebuilds the surface, sets `ControlFlow` |

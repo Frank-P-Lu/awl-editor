@@ -7,7 +7,9 @@
 use super::*;
 
 impl App {
-    pub(in crate::app) fn request_frame(&self) {
+    pub(in crate::app) fn request_frame(&mut self) {
+        #[cfg(not(target_arch = "wasm32"))]
+        self.refresh_accessibility();
         if let Some(gpu) = self.frame.gpu() {
             // FLIGHT RECORDER / PROBE: the REDRAW-REQUEST link of the
             // event→present chain. A navigation input that changes `selected` but

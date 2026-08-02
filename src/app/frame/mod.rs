@@ -7,9 +7,13 @@
 
 use super::*;
 
+#[cfg(not(target_arch = "wasm32"))]
+mod accessibility;
 mod poll;
 mod presentation;
 mod surface;
+#[cfg(not(target_arch = "wasm32"))]
+use accessibility::AccessibilityRuntime;
 use poll::{Deadlines, NoticeState};
 use presentation::{DebugPanelSnapshot, PresentationState};
 use surface::SurfaceState;
@@ -19,6 +23,8 @@ pub(in crate::app) struct FrameRuntime {
     presentation: PresentationState,
     deadlines: Deadlines,
     notice: NoticeState,
+    #[cfg(not(target_arch = "wasm32"))]
+    accessibility: AccessibilityRuntime,
 }
 
 pub(in crate::app) enum GpuRebuildStart {
@@ -79,6 +85,8 @@ impl FrameRuntime {
                 focused: true,
             },
             notice: NoticeState::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            accessibility: AccessibilityRuntime::new(),
         }
     }
 

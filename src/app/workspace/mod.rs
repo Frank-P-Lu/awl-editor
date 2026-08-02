@@ -319,6 +319,19 @@ impl WorkspaceState {
     pub(in crate::app) fn install_overlay_for_test(&mut self, overlay: OverlayState) {
         self.journey.install_for_test(overlay);
     }
+
+    /// TEST-ONLY: the find/replace panel's twin of
+    /// [`Self::install_overlay_for_test`]. Production opens the panel only
+    /// through [`Self::core_slots`], and the law over that seam counts its call
+    /// sites — so a test that needs the panel standing takes this door rather
+    /// than widening the one the law guards.
+    /// Native-only alongside its callers: every one lives under
+    /// `app/semantic/`, which the wasm build does not compile, so a bare
+    /// `cfg(test)` here is dead code on wasm and warns.
+    #[cfg(all(test, not(target_arch = "wasm32")))]
+    pub(in crate::app) fn install_search_for_test(&mut self, search: SearchState) {
+        self.search = Some(search);
+    }
 }
 
 #[cfg(test)]

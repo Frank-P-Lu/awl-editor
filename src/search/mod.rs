@@ -1,5 +1,5 @@
 pub mod keys;
-
+mod semantic;
 use crate::textbox::TextBox;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

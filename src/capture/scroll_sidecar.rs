@@ -7,6 +7,7 @@ macro_rules! sidecar_format {
                 "{{\n",
                 "  \"schema\": {schema_json},\n",
                 "  \"driver\": {driver},\n",
+                "  \"semantic\": {semantic},\n",
                 "  \"canvas\": {canvas},\n",
                 "  \"font\": {{ \"family\": {ff}, \"zoom\": {fz}, \"size\": {fs}, ",
                 "\"line_height\": {lh}, \"ornament\": {ornament}, \"cjk\": {cjk}, ",

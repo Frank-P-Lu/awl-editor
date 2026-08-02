@@ -41,8 +41,8 @@ reason = "item 114: +8 lines net. The workspace's own two-region keyboard and it
 
 [[file_size_mark]]
 file = "src/app.rs"
-lines = 1412
-reason = "item 202 repair round, DOWN 36 from the prior 1876 mark: `theme_font_reshape_decision`, its `ThemeFontReshapeDecision` enum, and their four pure laws moved out to the new `src/app/theme_font_debounce.rs` (a pure fn with no `self`, no GPU, no clock of its own — the scheduling seam's own module, not `App`'s; orchestrator review, 2026-08-01). `app.rs` keeps only the `theme_font_last_reshape_at` field, the shared window constant, and the two call sites that execute whichever verdict the extracted fn returns — the same 'extract rather than raise' call already made for `framebench.rs`'s bench-witness helper this same item. Net across the whole item-202 field: +24 lines — the theme-picker movement-latency regression fix. `THEME_FONT_DEBOUNCE_DEFAULT_MS` gained a concise mechanism doc-comment plus a compile-time `const _: () = assert!(..)` regression pin (the old value, 0, let the deferred font reshape fire synchronously on the SAME `about_to_wait` pass that armed it — see the constant's own doc, and docs/fonts.md for the measured numbers this file no longer carries as changelog prose); `theme_font_debounce_ms_env_parse` now asserts against the named constant instead of a bare `0` literal; `RESIZE_SYNC_SETTLE`'s doc dropped its now-inaccurate \"mirrors THEME_FONT_DEBOUNCE's value\" claim (the two diverged at this item). Previously: item 188: +7 lines — the theme-picker movement-latency regression fix. `THEME_FONT_DEBOUNCE_DEFAULT_MS` gained a concise mechanism doc-comment plus a compile-time `const _: () = assert!(..)` regression pin (the old value, 0, let the deferred font reshape fire synchronously on the SAME `about_to_wait` pass that armed it — see the constant's own doc, and docs/fonts.md for the measured numbers this file no longer carries as changelog prose); `theme_font_debounce_ms_env_parse` now asserts against the named constant instead of a bare `0` literal; `RESIZE_SYNC_SETTLE`'s doc dropped its now-inaccurate \"mirrors THEME_FONT_DEBOUNCE's value\" claim (the two diverged at this item). Previously: item 188: +7 lines — the `capture_state` and `press` module declarations at the one module list, each with the `#[cfg]` naming where it exists (`capture_state` is native-only like the `--screenshot-app` mode it serves; `press` is native-or-test). `capture_state.rs` carries the live-`App` capture constructor and the `CaptureSubject` impl (it needs `App`'s private fields); `press.rs` is item 183's headless press door, moved out of `app/tests/` because the `--screenshot-app` mode is now a production caller. Both bodies live in their own files precisely to keep them off this one."
+lines = 1398
+reason = "items 207 + 211 combined at the merge train, DOWN 14 from main's 1412: item 207 moved the winit user-event type out to `src/app/awl_event.rs` (-29), and item 211 added `keep_gpu_loop_hot`'s second animation term plus the mechanism doc that explains why the follow-up-frame decision needs two (+15). Reconciled here rather than on either branch because neither could see the other: both were cut from `73d35118`, so each computed a mark against a tree the other had already changed. `AwlEvent` grows a variant per posted-event source (daemon, macOS menu, live probe, and now AccessKit), and each one is exactly the kind of growth that should not land on the root file; the enum's own module also holds the `From<accesskit_winit::Event>` impl the event-loop proxy needs. Item 207, DOWN 14: the winit user-event type moved out to `src/app/awl_event.rs`. `AwlEvent` grows a variant per posted-event source (daemon, macOS menu, live probe, and now AccessKit), and each one is exactly the kind of growth that should not land on the root file; the enum's own module also holds the `From<accesskit_winit::Event>` impl the event-loop proxy needs. `app.rs` keeps the module declaration and the re-export."
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
@@ -195,13 +195,13 @@ lines = 946
 
 [[file_size_mark]]
 file = "src/main/args.rs"
-lines = 1437
-reason = "item 188: +31 lines net for one new capture mode in the one CLI parser — the `--screenshot-app` flag arm, the `Mode::ScreenshotApp` variant, its `live_app` flag and its Mode-selection arm, minus 5 lines from MERGING the strict-replay and storyboard hermetic-fs installs into the single call `scenario.rs`'s module doc already claimed was there. The mode's own body lives in `main/run/live_app.rs`; nothing here is extractable without splitting the single-owner arg parser."
+lines = 1225
+reason = "item 207, DOWN 211: the `Mode` enum moved out to `src/main/args/modes.rs` beside the existing `args/parsers.rs`. A new capture door adds a variant, so the roster grows on every such item while the parser itself does not; splitting them means `args.rs` is now the parser alone. `modes.rs` also owns `LiveAppSpec`, the one payload both live-`App` doors (`--screenshot-app`, `--semantic-json`) carry instead of two copies of the same five fields."
 
 [[file_size_mark]]
 file = "src/main/run.rs"
-lines = 1062
-reason = "item 24: LOWERED by 42. The whole `Mode::Windowed` arm body moved to run/location.rs as `launch_windowed` — that module already owns the launch-precedence law this arm's first half IS, and item 24's first-run document is the same law's document half. Previously: item 188: +17 lines — the `#[path] mod live_app;` declaration (+4), the `Mode::ScreenshotApp` dispatch arm (+9, a struct destructure plus a one-line delegate), and the `CaptureSubject` re-export split onto its own native-only line (+4) so the wasm build gains no unused-import warning. The mode itself lives in the new run/live_app.rs, kept out of this file for the same reason item 190 kept settings_effects.rs out."
+lines = 1057
+reason = "item 207, DOWN 5: the two live-`App` dispatch arms collapsed to one line each when `--screenshot-app` and `--semantic-json` started carrying the shared `args::LiveAppSpec` payload instead of five destructured fields apiece."
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
@@ -278,7 +278,8 @@ lines = 982
 
 [[file_size_mark]]
 file = "src/render/chrome/hud.rs"
-lines = 539
+lines = 489
+reason = "item 207, DOWN 50: every summoned card's TEXT moved out to `src/card/content.rs`, the one owner both this renderer and the semantic tree read. This file keeps what is genuinely the renderer's — style, metrics, geometry — and composes no card text of its own; a law in `app/semantic/tests.rs` asserts that."
 
 [[file_size_mark]]
 file = "src/render/chrome/menubar.rs"
@@ -485,36 +486,36 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 567
+line = 573
 message = "this function has too many lines (117/100)"
 reason = "Existing constructor owner and exhaustive App construction site. DocumentSession moved the active slot, registry, previous target, spell checker, and buffer extras behind one initializer, reducing the constructor by twenty counted lines."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 950
+line = 956
 message = "this function has too many lines (104/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. DocumentSession removed root fields and shifted this unchanged function upward."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/lifecycle.rs"
-line = 22
-message = "this function has too many lines (117/100)"
+line = 23
+message = "this function has too many lines (122/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1209
-message = "this function has too many lines (102/100)"
+line = 1194
+message = "this function has too many lines (103/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. DocumentSession removed root fields and shifted this unchanged function upward."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/args.rs"
-line = 251
-message = "this function has too many lines (749/100)"
+line = 22
+message = "this function has too many lines (764/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 121 added one minimal --ground-audition arm (+13 lines). Item 188 added one CLI flag arm, one Mode variant selection arm and its `live_app` flag to the one parser (+20), and MERGED the two hermetic-fs installs into one unconditional call (-1, after routing its one branch through the new `scenario::seed_document` owner) — the net is the smallest a new capture mode can cost in a single-owner arg parser."
 
 [[clippy_exception]]
@@ -535,7 +536,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
 line = 764
-message = "this function has too many lines (292/100)"
+message = "this function has too many lines (287/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Item 188 added the `Mode::ScreenshotApp` dispatch arm — a struct destructure plus a one-line delegate into `run/live_app.rs`, where the mode itself lives (+9). Item 24 REDUCED it 330 -> 292: `run`'s `Mode::Windowed` arm is now a one-line delegate into `run/location.rs::launch_windowed`, beside the launch-precedence law it opens with."
 
 [[clippy_exception]]
@@ -549,7 +550,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
 line = 48
-message = "this function has too many lines (105/100)"
+message = "this function has too many lines (106/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 188 added the one `driver` argument to the one sidecar format call (+1)."
 
 [[clippy_exception]]
@@ -653,15 +654,15 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/hud.rs"
-line = 114
-message = "this function has too many lines (220/100)"
+line = 143
+message = "this function has too many lines (159/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/hud.rs"
-line = 355
-message = "this function has too many lines (169/100)"
+line = 324
+message = "this function has too many lines (150/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]

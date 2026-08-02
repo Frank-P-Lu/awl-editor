@@ -1,4 +1,4 @@
-# Accessibility — where awl stands (tier 1, 2026-07)
+# Accessibility — where awl stands (tier 2, 2026-08)
 
 A calm, honest statement of what works today, what the known gap is, and where
 the seams are for a future tier. No promised dates — this is a running note,
@@ -15,9 +15,9 @@ this one sits alongside.
   edit, save, search, format, switch project, rebind keys, everything — is
   operable without ever touching a pointing device.
 - **The picker footer names the keys THIS row has.** Every summoned card
-  carries one dim line of control hints, and because there is no
-  accessibility tree behind the surface (see the gap below), that line is the
-  only statement awl makes about what a key will do. So it is per-ROW wherever
+  carries one dim line of control hints — for a sighted keyboard user, the
+  only statement awl makes on screen about what a key will do (a screen reader
+  now also hears it, as the dialog's description). So it is per-ROW wherever
   a row's keys differ from its picker's default: on a Settings row with a
   value rail (Zoom), where Left/Right step the value instead of switching
   category, the line reads `←/→ adjust` rather than `←/→ lens`. The rule is
@@ -55,34 +55,72 @@ this one sits alongside.
   independently-hand-written copies, so the very first frame after launch
   and every later open/switch/theme-change agree.
 
-## The known gap, stated plainly
+## Screen readers — what is wired, and what is unproven
 
-**awl has no screen-reader / VoiceOver support.** The editor draws its own
-text with wgpu straight onto a GPU surface — there is no `NSTextView`, no
-DOM, no platform text-widget underneath any of it, so there is no
-accessibility tree for VoiceOver (or any other screen reader) to read. A
-blind or low-vision user relying on a screen reader cannot use awl today:
-the document contents, the summoned overlays (palette, pickers, Settings),
-and the caret position are all invisible to assistive technology, full stop.
+**Native awl now publishes a real accessibility tree.** The editor still draws
+its own text with wgpu straight onto a GPU surface — there is no `NSTextView`
+and no platform text widget underneath any of it — so awl builds the tree
+itself and hands it to [AccessKit](https://accesskit.dev/), the crate the Rust
+GUI ecosystem has converged on for exactly this problem. AccessKit bridges it
+to each OS's real API: NSAccessibility on macOS, AT-SPI2 on Linux, UIA on
+Windows.
 
-This is not a small gap and it is not hidden here: it is the single largest
-accessibility limitation in the app, and it is a direct consequence of the
-same custom-rendering architecture that gives awl its calm, GPU-drawn feel
-(ARCHITECTURE.md). Closing it is a real engineering project, not a toggle.
+**One owner, three consumers.** `App::semantic_snapshot` folds the live
+`Buffer`, the summoned-surface ladder, search state and the passive surfaces
+into one renderer-independent `SemanticSnapshot`. Three things read it and
+nothing re-derives it: the AccessKit tree, `awl --semantic-json`, and the
+`semantic` field of a live-`App` capture sidecar. That is the point — two
+parallel descriptions of one UI drift, and a screen reader is exactly where
+that drift is invisible until it hurts someone.
 
-**The named path: [AccessKit](https://accesskit.dev/).** AccessKit is the
-crate the Rust GUI ecosystem (egui, Xilem, and others) has converged on for
-exactly this problem — a cross-platform accessibility-tree abstraction a
-custom-rendered app can populate (node roles, labels, text ranges, focus)
-and that AccessKit itself bridges to each OS's real accessibility API
-(NSAccessibility on macOS, UIA on Windows, AT-SPI2 on Linux, the DOM-based
-web story separately). It is **banked, not built**: no AccessKit dependency
-exists in this tree yet, and wiring it is a genuine round of its own —
-deciding what awl's node tree even *is* (the document as one giant text
-node? a node per line? per paragraph?), keeping it in sync with every edit
-without becoming a second source of truth, and exposing the summoned
-overlays' own transient structure. Logged here so it is a known, named
-destination rather than a silently-dropped idea.
+### What the tree contains
+
+| surface | what it exposes |
+|---|---|
+| The document | One multiline editable text node, its full text, and the caret/selection as GRAPHEME offsets — a combining sequence, a ZWJ family emoji or a flag is one position, never half of one. Supports focus, set-selection, replace-selected-text and set-value. |
+| Summoned pickers (all 19 kinds) | A dialog with its title and footer hint, its query field, and one option per visible row with its binding value and selected state. Row identity is keyed to the corpus, so filtering never renames a row under an assistive cursor. |
+| Settings rows | The control each row actually is — check box, slider, text field or button — not a generic list option, with the actions that control really supports. |
+| Find and replace | Both fields with their carets, the match-count description, and the case-sensitivity check box. |
+| The format popover | One button per formatting command, with its on/off state. |
+| Passive cards | About, Lifetime, Writing streaks, the stats HUD and the shortcut peek, announced line by line WITHOUT taking focus. Their text comes from `crate::card::content`, the same owner the renderer composes from, so what is heard is what is drawn. |
+| Which-key | The `C-x` continuation panel, announced as informational rows. It teaches keys; it does not offer to press them. |
+| The rendered menu bar | Menu titles with real expand/collapse, and an open dropdown's rows with real click. (This is the awl-drawn bar — Linux and web. macOS's native bar is already accessible on its own.) |
+| Notices | The transient status line, as a live region. |
+
+Exactly one node is focused at any moment, and it is the one the summoned-UI
+ladder names. Passive surfaces never move it.
+
+### Actions are real, not advertised
+
+An action a node claims but that nothing performs is worse than an absent one,
+because a screen reader offers it to the user and it silently does nothing. So
+every advertised action is routed back through the ordinary `Action` /
+`apply_transition` owners — the same path a keypress takes, with the same undo
+and the same redraw — and a law sweeps every node of every surface and fails by
+name on any action that is not. Nothing mutates the rope or an overlay from a
+platform callback; requests arrive as winit user events and are applied on the
+main loop.
+
+### The honest limits
+
+- **No real VoiceOver or AT-SPI journey has been run.** Those are a human
+  check on an unlocked display, and they have not happened. Everything above is
+  verified by unit and law tests over the snapshot and its AccessKit
+  projection — that the tree is correct and complete, that JSON and AccessKit
+  say the same thing, that actions really fire. Whether a screen reader
+  *reads it well* — announcement order, verbosity, live-region politeness — is
+  unproven and stated here as unproven.
+- **The web build has no accessibility tree.** AccessKit has no canvas or web
+  adapter, so this round is native-only by construction. A browser story needs
+  a DOM mirror behind the canvas, which is a separate round with a separate
+  design; it is not a port of this one.
+- **Announcement cost is gated, not free.** Building a snapshot walks the whole
+  document, so a frame pays for one only while an assistive technology is
+  actually attached, and identical snapshots emit no update — a gliding caret
+  does not re-announce the document.
+- **Reading order is the tree's order.** awl does not model spatial navigation,
+  and there is no bounding-box geometry in the tree yet, so a screen reader's
+  cursor-tracking and mouse-over modes have nothing to work with.
 
 ## Hold-gestures note
 
@@ -107,12 +145,22 @@ block keyboard-only use — but a hold does require the physical ability to
 keep a key depressed, which is worth naming honestly rather than assuming
 away.
 
-## Where this leaves tier 2
+## Where this leaves tier 3
 
-Reduce Motion (this round) and the pre-existing keyboard-first design close
-the two accessibility needs awl's own architecture makes cheap: motion is a
-render-side settle-instantly gate, and full keyboard operability was already
-part of the design (`PHILOSOPHY.md` §4, `DESIGN.md` §6). Screen-reader support is the
-opposite kind of gap — expensive, architectural, and honestly the reason a
-"tier 2" is a real future round rather than a follow-up patch. This document
-will be updated when that round lands, not before.
+Tier 1 closed the two needs awl's architecture made cheap: Reduce Motion as a
+render-side settle-instantly gate, and keyboard operability that was already
+the design (`PHILOSOPHY.md` §4, `DESIGN.md` §6). Tier 2 — this round — closed
+the expensive, architectural one: a real accessibility tree, with one owner
+feeding both the platform and a headless agent.
+
+What tier 3 is for, in order of how much it would matter:
+
+1. **A real screen-reader sitting.** VoiceOver on macOS and Orca on Linux,
+   driven by a person, on an unlocked display. Nothing below is worth designing
+   before that says what actually reads badly.
+2. **Web.** A DOM mirror behind the canvas — the same snapshot, a different
+   adapter.
+3. **Geometry in the tree.** Bounding boxes, so cursor tracking and
+   mouse-over reading work.
+4. **Windows.** AccessKit's UIA adapter is already in the dependency tree; awl
+   has no Windows build to put it in.

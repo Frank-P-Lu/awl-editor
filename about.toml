@@ -15,6 +15,15 @@
 # GPL code); the dual-licensed GPL-2.0/LGPL-2.1-or-later options (self_cell,
 # r-efi) are chosen via their Apache-2.0/MIT alternative, never the copyleft
 # one. See CLAUDE.md's LICENSE + CREDITS round notes for the audit trail.
+#
+# Item 207 (native accessibility) added 55 crates -- the AccessKit adapters and
+# the Linux AT-SPI/zbus stack -- and added NOTHING to this list: every one of
+# them is MIT, Apache-2.0, or the two dual-licensed, all already accepted.
+# `accesskit_winit` is Apache-2.0 alone, which is one-way compatible with
+# GPL-3.0 (the direction awl needs). Flagged, not fabricated: those crates ship
+# no license TEXT in their archives, so the identifiers below come from their
+# published manifests and cargo-about renders canonical SPDX text for them.
+# See docs/licensing.md for the full note.
 accepted = [
     "Apache-2.0",
     "MIT",

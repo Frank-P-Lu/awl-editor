@@ -234,8 +234,9 @@ pub enum CaptureDriver {
 }
 
 impl CaptureDriver {
-    /// The sidecar's own `driver` string. Hyphenated, matching the flag that
-    /// selects it, so a reader can grep one for the other.
+    /// The sidecar's own `driver` string — the tier that drove the frame.
+    /// Hyphenated, matching the flag that selects it, so a reader can grep one
+    /// for the other.
     pub fn as_str(self) -> &'static str {
         match self {
             CaptureDriver::Replay => "replay",
@@ -333,10 +334,26 @@ pub struct CaptureOpts {
     /// top-level `driver` field. Defaults to `Replay`, so every existing capture
     /// path is unchanged; only `--screenshot-app` sets `LiveApp`.
     pub driver: CaptureDriver,
+    /// The exact renderer-independent semantic tree owned by a live `App`.
+    /// Replay captures leave this `None`; `--screenshot-app` embeds the same
+    /// value `--semantic-json` and AccessKit consume.
+    pub semantic: Option<crate::semantic::SemanticSnapshot>,
     /// FORCE the format popover over the current `selection` (the deterministic
     /// in-test equivalent of the CLI's `AWL_POPOVER` env probe — the live summon is
     /// a mouse gesture the headless path has no pointer for). Default false, so an
     /// ordinary capture is byte-identical; the `popover.rs` card-fits law sets it
     /// to render the toolbar without racing a process-global env var.
     pub force_popover: bool,
+}
+
+impl CaptureOpts {
+    /// The `semantic` sidecar field: the live-App semantic tree serialized
+    /// verbatim, or JSON `null`. Lives beside the field rather than in the
+    /// writer so the one place that knows the field also knows its absence.
+    pub(super) fn semantic_json(&self) -> String {
+        self.semantic
+            .as_ref()
+            .map(|snapshot| serde_json::to_string(snapshot).expect("semantic snapshot serializes"))
+            .unwrap_or_else(|| "null".to_string())
+    }
 }

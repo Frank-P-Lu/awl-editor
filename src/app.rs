@@ -372,6 +372,9 @@ struct ThemeSettleInFlight {
     phases: crate::themeswitch::SwitchPhases,
 }
 
+/// The winit USER EVENT type, and the conversions the event loop needs to
+/// post one — lifted out so the enum grows without the root file growing.
+mod awl_event;
 /// GPU surface + frame loop (device/queue/surface, prepare/render).
 mod files;
 /// The one live owner of frame timing, presentation bookkeeping, render state,
@@ -387,6 +390,9 @@ mod location;
 /// drive — one `WaitUntil` each, lifted out of the trait method (a thin
 /// delegate now) so the file's #1 collision seam has its own home.
 mod schedule;
+pub(crate) use awl_event::AwlEvent;
+#[cfg(not(target_arch = "wasm32"))]
+mod semantic;
 mod startup;
 /// ITEM 202's leading-edge-plus-trailing-coalesce rule for the theme-picker
 /// preview's deferred font reshape — a pure scheduling decision, extracted
@@ -1069,27 +1075,6 @@ impl App {
     }
 }
 
-/// The winit USER EVENT type this app's event loop carries: the single-
-/// instance daemon's posted events on every native platform, PLUS (macOS
-/// only) a fired native menu-bar item's raw id — an uninhabited no-op on wasm
-/// (the browser has no process/socket/menu-bar concept; `crate::daemon` and
-/// `crate::menu` both compile out there entirely). Growing this enum (the
-/// `Menu` variant) is what FORCES `user_event`'s match below to grow a
-/// matching arm — the exhaustiveness check is the whole point.
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) enum AwlEvent {
-    #[cfg(not(feature = "mas"))]
-    Daemon(crate::daemon::DaemonEvent),
-    #[cfg(target_os = "macos")]
-    Menu(String),
-    /// A live-probe step posted by the `--live-script` driver thread (see
-    /// `crate::probe`'s module doc) — a scripted chord for the real dispatch
-    /// tail, a compositor-side window shot, or the terminating quit.
-    Probe(crate::probe::ProbeEvent),
-}
-#[cfg(target_arch = "wasm32")]
-type AwlEvent = ();
-
 /// Has a DEBOUNCE window elapsed? `dirty` is when the action was last seen, `window`
 /// the quiet period to wait, `now` the current instant: true once `now` has reached
 /// `dirty + window` (fire the deferred write), false while still inside the window
@@ -1347,6 +1332,7 @@ pub fn run(
     #[cfg(not(target_arch = "wasm32"))]
     {
         app.soak = soak.map(crate::soak_gpu::Controller::new);
+        app.frame.set_accessibility_proxy(proxy.clone());
     }
     #[cfg(target_os = "macos")]
     {

@@ -152,6 +152,7 @@ mod scenario;
 mod script;
 mod search;
 mod selection;
+mod semantic;
 #[cfg(not(target_arch = "wasm32"))]
 mod session;
 mod settings;
