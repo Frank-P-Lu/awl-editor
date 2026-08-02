@@ -971,13 +971,20 @@ impl App {
         };
         if self.workspace_state.overlay_open() {
             if lines.abs() >= 1.0 {
+                // WHICH REGION IS UNDER THE WHEEL, asked kind-neutrally. The
+                // question is "does this surface HAVE a read-only comparison
+                // standing beside its rows", and
+                // `comparison_request()` is that fact typed — the same one
+                // `workspace_nav`'s intercept reads to decide whether the
+                // keyboard has a content region to go into. It used to be
+                // spelled `kind == History`, which was true of the only such
+                // surface at the time and silently false for the next one: a
+                // conflict workspace's wheel moved its three rows instead of
+                // scrolling the manuscript under the pointer.
                 let diff_wheel = self
                     .workspace_state
                     .overlay()
-                    .map(|o| {
-                        o.kind == crate::overlay::OverlayKind::History
-                            && o.selected_history_id().is_some()
-                    })
+                    .map(|o| o.comparison_request().is_some())
                     .unwrap_or(false)
                     && !self
                         .frame

@@ -39,7 +39,9 @@ fn workspace_shape_roster_is_exact() {
         let shape = kind.workspace_shape();
         let expected = match kind {
             OverlayKind::Settings => Some(WorkspaceShape::RailOverRows),
-            OverlayKind::History => Some(WorkspaceShape::TimelineOverComparison),
+            OverlayKind::History | OverlayKind::Conflict => {
+                Some(WorkspaceShape::TimelineOverComparison)
+            }
             _ => None,
         };
         assert_eq!(shape, expected, "{kind:?} workspace_shape() drifted");
@@ -52,13 +54,30 @@ fn workspace_shape_roster_is_exact() {
         OverlayKind::History.workspace_shape(),
         Some(WorkspaceShape::TimelineOverComparison)
     );
+    // THREE, deliberately. The gate is "a workspace is not a default", not
+    // "there are exactly two workspaces": the conflict surface earns one on the
+    // same grounds History does — sustained reading, in two coordinated regions,
+    // with the document behind it being the very thing under comparison. It
+    // reuses `TimelineOverComparison` unchanged, so the shape roster itself did
+    // not grow; only its membership did.
     assert_eq!(
         OverlayKind::ALL
             .iter()
             .filter(|k| k.workspace_shape().is_some())
             .count(),
-        2,
+        3,
         "the workspace roster is deliberately short (DESIGN.md §5)"
+    );
+    // …and it is still exactly TWO shapes for those three members, which is the
+    // half of this gate that has not moved.
+    assert_eq!(
+        OverlayKind::ALL
+            .iter()
+            .filter_map(|k| k.workspace_shape())
+            .filter(|s| s.rows_are_primary())
+            .count(),
+        2,
+        "History and the conflict share one shape; Settings has the other"
     );
 }
 

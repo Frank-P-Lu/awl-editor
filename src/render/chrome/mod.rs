@@ -124,6 +124,11 @@ struct GutterLayout {
     avail: f32,
     name: String,
     project: String,
+    /// The `changed elsewhere` line, fit to the same budget, or empty when the
+    /// active document holds no unresolved external change. Drawn ABOVE the
+    /// filename in the strongest of the block's three inks — the ladder is
+    /// value, not colour (DESIGN.md §4: the accent belongs to the caret alone).
+    changed: String,
 }
 
 pub(in crate::render) struct PanelShape {

@@ -27,8 +27,8 @@
 
 [[file_size_mark]]
 file = "src/actions.rs"
-lines = 793
-reason = "Two arms in the one exhaustive `classify_action_family!` macro: an `Action` variant must be placed there to compile, and the external-change resolutions are Deferred effects like every other live-App verb (+2)."
+lines = 794
+reason = "One more arm in the exhaustive `classify_action_family!` macro: an `Action` variant must be placed there to compile, and reviewing an external change is a Deferred effect like the two resolutions beside it (+1)."
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
@@ -46,8 +46,8 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 1031
-reason = "The live effect interpreter is an exhaustive dispatch site: two arms for the typed `ResolveExternalChange` effect (+2). The remaining +5 is the `OverlayInputs`/`BuildCtx` seam carrying `commands::RowGates` instead of a bare `has_waiter` bool, gathered once at the one place the live palette facts are collected; the Quit deferral itself lives in `app/files/external.rs` and costs three lines here."
+lines = 1037
+reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6)."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -65,8 +65,8 @@ reason = "The event-to-present flight recorder needs its winit-receipt and keyma
 
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
-lines = 1037
-reason = "item 114: +23 lines in `overlay_click`, the ONE pointer-dispatch owner — a click in the navigation rail resolves through the picker's own lens setter and the lifecycle's named focus transition, so the pointer and the keyboard reach one state."
+lines = 1044
+reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong)."
 
 [[file_size_mark]]
 file = "src/app/session.rs"
@@ -78,8 +78,8 @@ lines = 500
 
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
-lines = 539
-reason = "item 114: +1 line — the `overlay_workspace` projection at the one exhaustive `ViewState` construction site. Item 116a: +10 lines net — the `overlay_rows_primary` projection (`WorkspaceShape::rows_are_primary`) at the same one exhaustive construction site, which must fail to compile on a new field by design. sync_view projects the workspace's comparison payload (`overlay_comparison`) beside its shape, and History left the crisp-backdrop exception (+9)."
+lines = 545
+reason = "The persistent `changed elsewhere` affordance is a new `ViewState` field, and `sync_view` is the ONE exhaustive construction site that must fail to compile on it (+6)."
 
 [[file_size_mark]]
 file = "src/app/window.rs"
@@ -105,18 +105,18 @@ lines = 567
 
 [[file_size_mark]]
 file = "src/capture.rs"
-lines = 56
-reason = "The capture schema const and its append-only history ledger intentionally live together so the ledger law can prevent an unrecorded shape change."
+lines = 57
+reason = "One `/N` row in the schema ledger, which must move in the same commit as `SCHEMA_VERSION` (+1)."
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
-lines = 563
-reason = "item 114: +4 lines net — the workspace/detail-focus projection, minus the hand-copied per-kind window-row table this item replaced with the one `OverlayKind::window_rows` owner. The capture path derives a summoned workspace's SHAPE and whether its comparison region carries prose; a sidecar carries a mode, not a shape (+13)."
+lines = 567
+reason = "The `gutter.changed` fold at the one `base_viewstate` consumer that drives the single-frame path (+4)."
 
 [[file_size_mark]]
 file = "src/capture/sidecar.rs"
-lines = 838
-reason = "items 188/194: +1 line — the warped-grid sidecar arm is dispatched from the ONE background_json call site, which gained the resolved route pose as a third argument. A second format site is exactly what this file exists to prevent."
+lines = 847
+reason = "Two new sidecar keys — `gutter.changed` and `overlay.preview_view` — in the ONE serializer, whose no-overlay literal must stay in lockstep with its populated arm (+9)."
 
 [[file_size_mark]]
 file = "src/caret.rs"
@@ -128,8 +128,8 @@ lines = 539
 
 [[file_size_mark]]
 file = "src/commands.rs"
-lines = 610
-reason = "+24 for `RowGates` and `row_hidden` — the ONE place a runtime-gated palette row is written down. It replaces a bare `has_waiter: bool` parameter that a second gate would otherwise have doubled into two positional bools, and the predicate is a wildcard-free match so which rows are conditional is answerable by reading one function rather than grepping for `Action::` comparisons."
+lines = 614
+reason = "The review row joins the two resolutions in `row_hidden`, the one place a runtime palette gate is written down (+4)."
 
 [[file_size_mark]]
 file = "src/config/model.rs"
@@ -153,8 +153,8 @@ lines = 475
 
 [[file_size_mark]]
 file = "src/durable.rs"
-lines = 527
-reason = "item 189: +3 lines, the main/tests.rs bare-write accounted-for count moved 19->21 for two real-fixture marker-file writes the Switch-project-then-Goto capture law seeds."
+lines = 533
+reason = "Six more accounted-for real-disk fixture writes in the seeding module's own laws, recorded in the one accounting table (+6)."
 
 [[file_size_mark]]
 file = "src/export/docx.rs"
@@ -182,8 +182,8 @@ lines = 841
 
 [[file_size_mark]]
 file = "src/keymap.rs"
-lines = 1105
-reason = "Two `Action` variants with their docs (+7). `Action` is the exhaustive input vocabulary; a palette-only command still needs its variant here, and the docs state the one thing the name cannot — that each row is hidden unless a conflict is open."
+lines = 1112
+reason = "One `Action` variant with its doc comment; the enum is the one dispatch vocabulary and a catalog command cannot exist without an entry here (+7)."
 
 [[file_size_mark]]
 file = "src/keyspec.rs"
@@ -196,8 +196,8 @@ lines = 946
 
 [[file_size_mark]]
 file = "src/main/args.rs"
-lines = 1225
-reason = "item 207, DOWN 211: the `Mode` enum moved out to `src/main/args/modes.rs` beside the existing `args/parsers.rs`. A new capture door adds a variant, so the roster grows on every such item while the parser itself does not; splitting them means `args.rs` is now the parser alone. `modes.rs` also owns `LiveAppSpec`, the one payload both live-`App` doors (`--screenshot-app`, `--semantic-json`) carry instead of two copies of the same five fields."
+lines = 1264
+reason = "`parse_args` is the ONE flag-parsing owner AND the ONE hermetic-sandbox install site: the `--seed-data` slot needs an arm, a help line, and the refusal that keeps it from being a silent no-op outside a scenario door (+39)."
 
 [[file_size_mark]]
 file = "src/main/run.rs"
@@ -226,8 +226,8 @@ lines = 761
 
 [[file_size_mark]]
 file = "src/overlay/kind.rs"
-lines = 321
-reason = "item 114: +12 lines at the per-kind statement site — the Settings foot-hint cells that now name a category and a back, and the workspace's canvas-bounded `window_rows` arm. Both are single no-wildcard matches over `OverlayKind`; splitting one would be splitting the exhaustiveness. Item 116c: +3 lines — the History `kind_actions` arm's third hint cell (the new ⇧↵ restore glyph) no longer fits one line, at the same no-wildcard match. The comparison stage's `↑/↓ scroll` cell needs the vertical arrow pair in the shared hint vocabulary beside `ARROWS_LR` (+4)."
+lines = 341
+reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches in this one file — name, accept disposition, row-meta roster, hints, empty copy, title, row split — each of which exists so a new kind cannot inherit an untested path (+20)."
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
@@ -236,8 +236,8 @@ reason = "item 114: +12 lines. `item_sections` gained the workspace's empty-sect
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
-lines = 642
-reason = "item 114: +13 lines in `foot_hint`, the ONE owner of what a summoned surface advertises; a workspace has two stages and each must say its own keys (ACCESSIBILITY.md — the footer is awl's only such statement). Item 116c: +1 line — a one-line note at the same owner's detail-focused arm, whose ↵ glyph changed to ⇧↵ (restore moved behind the alternate accept). History's comparison hint moved out of `foot_hint` into the per-kind detail-stage line beside its sibling (-11)."
+lines = 647
+reason = "The conflict card's payload field on the one `OverlayState` struct and its one exhaustive `new_marked` initializer (+5)."
 
 [[file_size_mark]]
 file = "src/peek.rs"
@@ -258,8 +258,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2474
-reason = "The renderer's GPU state floor: workspace mirrors, Kite's forward-travel accumulator, and the diagonal cluster's per-frame measured layout live beside the sibling state consumed by the same frame pipeline. The `overlay_comparison` mirror field, beside the `overlay_rows_primary` one it gates with (+5)."
+lines = 2475
+reason = "One `TextPipeline` field for the gutter affordance, beside the two gutter strings it joins (+1)."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -288,8 +288,8 @@ lines = 536
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 968
-reason = "The chrome module owns the resolved overlay geometry record and its single sibling re-export for the measured diagonal row span; workspace, rail, and two-sided slant consumers share that seam. The header band's four y-owners (secondary origin, split bounds, strip band, query centre) left for the scene planner. One `mod workspace_column;` declaration: the primary column's measurement extracted so `chrome/workspace.rs` stays under the 500-line ceiling (+1)."
+lines = 973
+reason = "The gutter block became variable-height, so `GutterLayout` gained the affordance line every consumer reads through one owner (+5)."
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
@@ -339,8 +339,8 @@ lines = 1465
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
-lines = 1330
-reason = "items 132/194: +10 lines — prepare_background_layer now hands the background pass the grouped AmbientUpload rather than a bare drift scalar, and the warp pose is resolved at the same one seam the drift is. Unavoidable: this function is the single owner of what the background uniform receives each frame."
+lines = 1333
+reason = "The affordance is part of the drawn gutter block, so it joins that block's own cache key (+3)."
 
 [[file_size_mark]]
 file = "src/render/livingband.rs"
@@ -348,13 +348,13 @@ lines = 579
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 545
-reason = "The one `TextPipeline` initializer spells out workspace state, the diagonal cluster cache, and the warp accumulator beside the state they initialize. The `overlay_comparison` mirror's inert default in the one initializer (+1)."
+lines = 546
+reason = "One field in the exhaustive `TextPipeline` construction site (+1)."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 605
-reason = "`set_view` is the one ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, and invalidates item 131's measured diagonal cluster with the other view-derived geometry before publishing a new frame. The `overlay_comparison` mirror's assignment in `set_view` (+1)."
+lines = 606
+reason = "One field carried at the one `set_view` projection site (+1)."
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
@@ -367,8 +367,8 @@ lines = 1449
 
 [[file_size_mark]]
 file = "src/render/rowlayout.rs"
-lines = 684
-reason = "The Range rail's fixed internal width is shared with the measured diagonal accessory cluster."
+lines = 674
+reason = "The hand-kept `ALL_KINDS` array — which had silently omitted a shipping kind — is now derived from `OverlayKind::ALL` (-10)."
 
 [[file_size_mark]]
 file = "src/render/spans.rs"
@@ -380,8 +380,8 @@ lines = 1440
 
 [[file_size_mark]]
 file = "src/replay.rs"
-lines = 364
-reason = "item 190: +4 lines net — classify_for's three settings-trio arms now call the new `typed::classify_settings` (mirroring how `classify_persistence` already keeps this match's own line budget), passing the effect-specific Unsupported reason and, for SettingToggle, the one excluded key (`\"keymap\"`, which needs a live keymap rebuild no capability grant can supply)."
+lines = 371
+reason = "The conflict kind's arm in `accept_class`, the exhaustive per-kind accept classifier, plus the correction to that arm's own premise — it is the one member there that really can reach the generic accept fallthrough (+7)."
 
 [[file_size_mark]]
 file = "src/search/keys.rs"
@@ -481,7 +481,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 line = 5
-message = "this function has too many lines (247/100)"
+message = "this function has too many lines (248/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The document-session extraction replaced direct buffer and cache fields with explicit read projections, adding four counted lines while preserving the one exhaustive ViewState construction site. -1 line net: the `overlay_comparison` projection, against a shorter crisp-backdrop match once History left it."
 
 [[clippy_exception]]
@@ -516,7 +516,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/main/args.rs"
 line = 22
-message = "this function has too many lines (764/100)"
+message = "this function has too many lines (786/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 121 added one minimal --ground-audition arm (+13 lines). Item 188 added one CLI flag arm, one Mode variant selection arm and its `live_app` flag to the one parser (+20), and MERGED the two hermetic-fs installs into one unconditional call (-1, after routing its one branch through the new `scenario::seed_document` owner) — the net is the smallest a new capture mode can cost in a single-owner arg parser."
 
 [[clippy_exception]]
@@ -544,7 +544,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/capture/modes.rs"
 line = 201
-message = "this function has too many lines (221/100)"
+message = "this function has too many lines (222/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 116b: -1 line. The history-preview fold no longer lights `vstate.diff_panel`. +8 lines: the capture path must derive a summoned workspace's SHAPE (a sidecar carries a mode, not a shape) and whether its comparison region carries prose, or a replayed workspace draws the other shape."
 
 [[clippy_exception]]
@@ -558,7 +558,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
 line = 237
-message = "this function has too many lines (141/100)"
+message = "this function has too many lines (148/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 114 added the `overlay.workspace` field to the one format string (+1). Line/size moved by queue item 114's summoned Settings workspace. Line shifted by item 188's `driver` argument + its comment (+2); count unchanged."
 
 [[clippy_exception]]
@@ -732,7 +732,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/layers.rs"
-line = 948
+line = 951
 message = "this function has too many lines (170/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
@@ -768,7 +768,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 line = 6
-message = "this function has too many lines (487/100)"
+message = "this function has too many lines (488/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer. +1 line: the `overlay_comparison` mirror field's inert default, beside the `overlay_rows_primary` one it pairs with."
 
 [[clippy_exception]]
@@ -823,7 +823,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/picker_misc_smoke.rs"
-line = 761
+line = 764
 message = "this function has too many lines (122/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Item 116b: line moved only — the diff-panel CARD it was named for is retired, so the test's name and note now say `comparison`; the body is unchanged. Item 116c: line shifted +41 by the new restore/bare-Enter History tests added above it; this function's own body is unchanged."
 
@@ -831,21 +831,21 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
 line = 532
-message = "this function has too many lines (113/100)"
+message = "this function has too many lines (114/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line/size moved by queue item 114's summoned Settings workspace. Item 116c: +1 line — the `AcceptAlternate` arm alongside `Newline` in the not-a-delete list. Item 116d: line shifted +1 by one `mod` declaration added above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 740
-message = "this function has too many lines (114/100)"
+line = 741
+message = "this function has too many lines (115/100)"
 reason = "The no-wildcard Action roster match is the compile-time coverage owner. KeepTutorial adds one unavoidable exhaustive arm; the duplicate 222-line list owner was split into two sub-100-line rosters. Item 116d: line shifted +1 by one `mod` declaration added above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 1016
-message = "this function has too many lines (113/100)"
+line = 1019
+message = "this function has too many lines (114/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 114's summoned Settings workspace. Item 116c: +1 line — the `AcceptAlternate` arm (`NotCatalog`, alongside `Newline`). Item 116d: line shifted +1 by one `mod` declaration added above it; this function's own body is unchanged."
 
 [[clippy_exception]]
@@ -881,49 +881,49 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 1262
+line = 1266
 message = "this function has too many lines (138/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 1565
+line = 1569
 message = "this function has too many lines (111/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 1733
-message = "this function has too many lines (130/100)"
+line = 1737
+message = "this function has too many lines (131/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field). Item 116b: +12 lines. Item 84's cross-world diff-panel DRESSING law is re-aimed as `history_preview_renders_the_transcript_as_the_document_in_every_world`: the dressing claim moved to the render tier (where the relocated viewport exists), and what stays here is the content half — the transcript IS the captured document, it renders undressed (a differential against the same transcript captured plainly, with an ink floor so the band cannot go vacuous), and `detail_focus` moves no pixel. The History workspace's own composition then retired the two dressing arms outright — 'undressed at the page column' and 'detail_focus moves nothing' describe a composition that no longer exists — and what stays is the sidecar's transcript plus a differential proving the CAPTURE PATH's own workspace-shape derivation places the comparison in the content pane (-11 lines)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 220
-message = "this function has too many lines (114/100)"
+line = 222
+message = "this function has too many lines (115/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 355
-message = "this function has too many lines (129/100)"
+line = 358
+message = "this function has too many lines (130/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 515
-message = "this function has too many lines (161/100)"
+line = 519
+message = "this function has too many lines (162/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 905
+line = 911
 message = "this function has too many lines (114/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
 
@@ -937,7 +937,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/keymap/tests.rs"
-line = 1517
+line = 1518
 message = "this function has too many lines (103/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
@@ -952,7 +952,7 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 lint = "clippy::too_many_lines"
 file = "src/render/rowlayout.rs"
 line = 228
-message = "this function has too many lines (105/100)"
+message = "this function has too many lines (109/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
@@ -1011,20 +1011,20 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
 line = 1069
-message = "this function has too many lines (145/100)"
+message = "this function has too many lines (146/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
-line = 1334
-message = "this function has too many lines (110/100)"
+line = 1335
+message = "this function has too many lines (111/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
-line = 2353
+line = 2355
 message = "this function has too many lines (117/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by the command-facet roster law above it."
 
@@ -1080,14 +1080,14 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/render/tests/overlay_rhythm_item112.rs"
-line = 58
+line = 61
 message = "the function has a cognitive complexity of (27/25)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/overlay_rhythm_item112.rs"
-line = 58
+line = 61
 message = "this function has too many lines (159/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
@@ -1187,35 +1187,35 @@ reason = "Pure relocation from the inline src/commands.rs test module; this exac
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 769
+line = 770
 text = "                        \"{}: {:?}'s resolved native chord {resolved:?} must parse via parse_binding\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 776
+line = 777
 text = "                        \"{}: {:?}'s resolved native chord {resolved:?} must resolve to the catalog action\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 1641
+line = 1648
 text = "                        \"{}: reserved native chord {native_resolved:?} still shown verbatim ({convention:?}/{platform:?})\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 1659
+line = 1666
 text = "                            \"{}: no alternate defined, label should be blank ({convention:?}/{platform:?})\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 1670
+line = 1677
 text = "                        \"{}: displaced emacs default {:?} still shown ({convention:?}/{platform:?}) — label was {label:?}\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 

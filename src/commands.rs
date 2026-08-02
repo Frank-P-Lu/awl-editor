@@ -514,7 +514,11 @@ fn row_hidden(action: &Action, gates: RowGates) -> bool {
         // The two conflict resolutions exist only while there is a conflict.
         // Offering them otherwise would advertise an action that does nothing,
         // which is the exact defect the retired "reopen for theirs" notice was.
-        Action::ResolveKeepMine | Action::ResolveTakeTheirs => !gates.change_unresolved,
+        // …and so does the read that precedes them: with nothing latched there is
+        // no second version to look at.
+        Action::ReviewChange | Action::ResolveKeepMine | Action::ResolveTakeTheirs => {
+            !gates.change_unresolved
+        }
         _ => false,
     }
 }

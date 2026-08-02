@@ -326,6 +326,10 @@ mod tests {
                 vec!["a rather long name for the draft I want back".into()],
                 None,
             ),
+            OverlayKind::Conflict => (
+                crate::overlay::CONFLICT_ROWS.iter().map(|r| r.to_string()).collect(),
+                None,
+            ),
             OverlayKind::Context => (
                 vec!["Collapse other sections".into(), "Page width settings…".into()],
                 Some("unavailable".chars().count()),
@@ -333,26 +337,12 @@ mod tests {
         }
     }
 
-    const ALL_KINDS: [OverlayKind; 18] = [
-        OverlayKind::Goto,
-        OverlayKind::Project,
-        OverlayKind::Browse,
-        OverlayKind::Theme,
-        OverlayKind::Caret,
-        OverlayKind::Dictionary,
-        OverlayKind::CjkLang,
-        OverlayKind::MoveDest,
-        OverlayKind::Command,
-        OverlayKind::Spell,
-        OverlayKind::Keybindings,
-        OverlayKind::History,
-        OverlayKind::Settings,
-        OverlayKind::Assets,
-        OverlayKind::Rename,
-        OverlayKind::InsertLink,
-        OverlayKind::KeepName,
-        OverlayKind::Context,
-    ];
+    /// The whole roster, derived from the enum's own declaration rather than
+    /// hand-kept beside it. The hand-written list this replaces had silently
+    /// omitted `OverlayKind::Date` — a kind that ships, with rows and a
+    /// secondary column, swept by neither law below — which is exactly the
+    /// failure a parallel roster produces and the reason there is no second one.
+    const ALL_KINDS: [OverlayKind; OverlayKind::ALL.len()] = OverlayKind::ALL;
 
     const NARROW_TOTAL: usize = 28;
     const WIDE_TOTAL: usize = 40;

@@ -216,9 +216,12 @@ impl TextPipeline {
         if let Some(rows) = self.outline_key_rows(height) {
             rows.hash(&mut h);
         }
-        if let Some((name, project)) = self.gutter_report() {
+        if let Some((name, project, changed)) = self.gutter_report() {
             name.hash(&mut h);
             project.hash(&mut h);
+            // The affordance is part of the drawn block, so it belongs in the key:
+            // latching a conflict changes the gutter's height and its ink ladder.
+            changed.hash(&mut h);
         }
         h.finish()
     }

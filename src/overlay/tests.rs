@@ -2054,15 +2054,19 @@ fn breadcrumb_kinds_are_value_based_never_positional() {
         OverlayKind::ALL.len(),
         "every kind has a distinct name"
     );
-    // Exactly TWO kinds are SUSTAINED workspaces — the shared workspace's whole
-    // declared scope (Settings, item 114; Version History, item 131). Everything
-    // else is a brief contextual overlay, and a value-pick child returns to its
-    // parent exactly when that parent is one of these two.
+    // Exactly THREE kinds are SUSTAINED workspaces — the shared workspace's whole
+    // declared scope: Settings, Version History, and the external-change
+    // conflict. Everything else is a brief contextual
+    // overlay, and a value-pick child returns to its parent exactly when that
+    // parent is one of these three.
     for k in OverlayKind::ALL {
         assert_eq!(
             k.sustained(),
-            matches!(k, OverlayKind::Settings | OverlayKind::History),
-            "{k:?}: the sustained-workspace roster is Settings + History"
+            matches!(
+                k,
+                OverlayKind::Settings | OverlayKind::History | OverlayKind::Conflict
+            ),
+            "{k:?}: the sustained-workspace roster is Settings + History + Conflict"
         );
     }
 }
@@ -2491,6 +2495,7 @@ fn hover_movement_slop_gate_holds_across_every_overlay_kind_no_wildcard() {
             | OverlayKind::Spell
             | OverlayKind::Keybindings
             | OverlayKind::History
+            | OverlayKind::Conflict
             | OverlayKind::Settings
             | OverlayKind::Assets
             | OverlayKind::Rename
@@ -2964,6 +2969,10 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
             crate::commands::visible_effective_bindings(&[], &[]),
         ),
         OverlayKind::History => OverlayState::new_history(history_rows(), None, None),
+        OverlayKind::Conflict => OverlayState::new_conflict(
+            std::path::PathBuf::from("/notes/a.md"),
+            Some("what the disk says\n".to_string()),
+        ),
         OverlayKind::Settings => {
             let mut ov = OverlayState::new(kind, crate::settings::visible_names(), vec![], vec![]);
             ov.set_secondaries(crate::settings::visible_value_cells(&Default::default()));

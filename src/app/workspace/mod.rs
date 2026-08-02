@@ -244,6 +244,18 @@ impl WorkspaceState {
         self.journey.enter(Some(card));
     }
 
+    /// Summon the CONFLICT WORKSPACE over the one unresolved external change.
+    /// A named transition for the same reason [`Self::summon_context`] is one:
+    /// its card is built from a live fact the shared action core cannot reach
+    /// (the App's latched conflict — its path and the disk text), so it can never
+    /// arrive through `core_slots`. Clears the search panel like every other
+    /// full-surface summon.
+    pub(in crate::app) fn summon_conflict(&mut self, card: OverlayState) {
+        self.search = None;
+        self.popover_summoned = false;
+        self.journey.enter(Some(card));
+    }
+
     // ─── SEARCH TRANSITIONS ──────────────────────────────────────────────
 
     /// Read the find/replace panel's state (matches, query, focus).

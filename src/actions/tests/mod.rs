@@ -614,6 +614,7 @@ pub(super) fn delete_flinch_fixture(
         | Action::OpenAssetClean
         | Action::KeepVersion
         | Action::FinishBuffer
+        | Action::ReviewChange
         | Action::ResolveKeepMine
         | Action::ResolveTakeTheirs
         | Action::FollowLink
@@ -821,6 +822,7 @@ fn assert_action_roster_covers(a: &Action) {
         | Action::OpenAssetClean
         | Action::KeepVersion
         | Action::FinishBuffer
+        | Action::ReviewChange
         | Action::ResolveKeepMine
         | Action::ResolveTakeTheirs
         | Action::FollowLink
@@ -942,6 +944,7 @@ fn command_action_roster() -> Vec<Action> {
         Action::OpenAssetClean,
         Action::KeepVersion,
         Action::FinishBuffer,
+        Action::ReviewChange,
         Action::ResolveKeepMine,
         Action::ResolveTakeTheirs,
         Action::FollowLink,
@@ -1052,6 +1055,7 @@ pub(super) fn smoke_command_kind(a: &Action) -> SmokeKind {
         | Action::OpenCredits
         | Action::OpenGuide
         | Action::FinishBuffer
+        | Action::ReviewChange
         | Action::ResolveKeepMine
         | Action::ResolveTakeTheirs
         | Action::FollowLink

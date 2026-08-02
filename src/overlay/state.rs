@@ -104,7 +104,11 @@ pub struct OverlayState {
     pub last_hover_px: Option<(f32, f32)>,
     pub context_actions: Vec<Option<crate::keymap::Action>>,
     pub context_anchor: Option<(f32, f32)>,
+    /// THE CONFLICT WORKSPACE'S OWN SUBJECT ([`super::ConflictSubject`]), or
+    /// `None` for every other kind.
+    pub conflict: Option<super::ConflictSubject>,
 }
+
 impl OverlayState {
     pub fn new(
         kind: OverlayKind,
@@ -179,6 +183,7 @@ impl OverlayState {
             last_hover_px: None,
             context_actions: Vec::new(),
             context_anchor: None,
+            conflict: None,
         };
         s.refilter();
         s

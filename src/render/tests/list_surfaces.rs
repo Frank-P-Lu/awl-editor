@@ -1121,6 +1121,7 @@ fn poster_bars_centered_lists_preserve_page_and_distinguish_plates() {
                 | OverlayKind::Assets
                 | OverlayKind::Rename
                 | OverlayKind::InsertLink
+                | OverlayKind::Conflict
                 | OverlayKind::KeepName => true,
             };
             if !centered {
@@ -1365,6 +1366,7 @@ fn bars_float_bounded_plates_for_every_overlay_kind() {
             | OverlayKind::Assets
             | OverlayKind::Rename
             | OverlayKind::InsertLink
+            | OverlayKind::Conflict
             | OverlayKind::KeepName
             | OverlayKind::Context => false,
         };

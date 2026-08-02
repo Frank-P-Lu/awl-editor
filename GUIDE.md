@@ -64,15 +64,22 @@ file, and before every write.
 
 **When both changed, you choose.** awl keeps your text as the one
 document you are editing and stops writing to the file, so neither
-version can be lost. A `changed elsewhere` notice appears at the
-bottom of the screen, and your unsaved text is copied to awl's own
-data folder — so it survives a crash, and comes back when you reopen
-the file. Two commands settle it:
+version can be lost. A `changed elsewhere` line sits beside the
+filename in the page margin for as long as the change is unresolved,
+and your unsaved text is copied to awl's own data folder — so it
+survives a crash, and comes back when you reopen the file. Three
+commands settle it:
 
 | command | what it does |
 |---|---|
+| **Review the change** | shows both versions, one at a time, changing nothing |
 | **Save your version** | re-checks the file, then writes your text over it |
 | **Use disk version** | replaces your text with the file's, as one edit {{key:undo}} takes back |
+
+**Review the change** opens a reading surface with three views —
+**Differences**, **Your version**, and **Version on disk** — and
+Esc returns you to editing with nothing settled. It is a
+read: neither version changes until you run one of the other two.
 
 Saving, switching files, renaming, moving and Finish file all wait
 until you have chosen. {{key:save}} does **not** force-write over an
@@ -244,6 +251,7 @@ drift into this page silently.
 | Export as PDF… |  |  |
 | Insert link… | ⌘K |  |
 | Save | ⌘S | Ctrl+S |
+| Review the change |  |  |
 | Save your version |  |  |
 | Use disk version |  |  |
 | Quit | ⌘Q | Ctrl+Q |

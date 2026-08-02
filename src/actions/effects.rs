@@ -42,6 +42,11 @@ pub enum PersistenceEffect {
     /// it is not one: it is the door out of a state in which saving is refused,
     /// and only one of its two arms writes anything at all.
     ResolveExternalChange(Resolution),
+    /// SUMMON the conflict workspace over the one unresolved external change.
+    /// A read, not a write — but it lives here beside its resolutions because
+    /// what it can show is the App's own latched conflict, which is the same
+    /// live-only fact, and a replay that "opened" it would show an empty card.
+    ReviewExternalChange,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

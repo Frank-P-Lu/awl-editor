@@ -285,13 +285,17 @@ pub fn auto_description(prev: &str, cur: &str) -> String {
 /// `None` for an overlay that shows no
 /// comparison, an empty-state row, or an unresolvable subject (the document then
 /// shows the buffer — a calm degrade). Reads only; the buffer is NEVER touched.
-/// THE ONE OWNER both the live App (`App::comparison_transcript`, which caches per
-/// request) and the headless capture (`main/run.rs::history_preview_for`) build
-/// from, so live and `--keys` replay can never disagree on what a comparison shows.
+/// VERSION HISTORY'S PRODUCER, reached through the one dispatch
+/// ([`crate::comparison::prose_for`]) by both the live App
+/// (`App::comparison_transcript`, which caches per request) and the headless
+/// capture (`main/run/capture_fold.rs::comparison_preview_for`), so live and
+/// `--keys` replay can never disagree on what a comparison shows.
 ///
-/// The `Mine`/`Theirs` views have no producer here and this returns `None`
-/// rather than pretending. The point of routing through the typed request is
-/// that adding one is an arm HERE, not a second mechanism.
+/// It answers for the `Differences` view of a VERSION and nothing else — a
+/// request for `Mine`/`Theirs`, or one from another surface, is not this
+/// producer's to answer and returns `None` rather than pretending. The conflict
+/// workspace's own producer lives in [`crate::comparison`], beside the two texts
+/// it reads.
 pub fn comparison_prose(
     ov: &crate::overlay::OverlayState,
     request: &crate::overlay::ComparisonRequest,

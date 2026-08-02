@@ -171,6 +171,9 @@ pub fn scheme(kind: OverlayKind) -> Option<&'static FacetScheme> {
         | OverlayKind::Rename
         | OverlayKind::InsertLink
         | OverlayKind::KeepName
+        // The CONFLICT workspace's three views are the whole list — a lens over
+        // three fixed rows would be a strip with nothing to narrow.
+        | OverlayKind::Conflict
         | OverlayKind::Context => None,
         // v1 note: the Settings menu FACETS (see the arm above); no None case here.
     }

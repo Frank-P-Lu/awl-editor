@@ -136,6 +136,7 @@ fn catalog_non_empty_and_named() {
         "Export as HTML…",
         "Export as PDF…",
         "Copy link destination",
+        "Review the change",
         "Save your version",
         "Use disk version",
     ];
@@ -1055,6 +1056,7 @@ const HIDE_ON_WEB: &[&str] = &[
     "Version history…",
     "Compare with version…",
     "Keep version…",
+    "Review the change",
     "Save your version",
     "Use disk version",
     "Lifetime stats",
@@ -1305,7 +1307,12 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
         .collect();
     assert_eq!(
         hidden_now,
-        vec!["Finish file", "Save your version", "Use disk version"],
+        vec![
+            "Finish file",
+            "Review the change",
+            "Save your version",
+            "Use disk version"
+        ],
         "exactly these rows are runtime-gated, and each on its own live fact"
     );
 
@@ -1327,7 +1334,7 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
         .collect();
     assert_eq!(
         still_hidden,
-        vec!["Save your version", "Use disk version"],
+        vec!["Review the change", "Save your version", "Use disk version"],
         "the waiter fact gates the waiter row and nothing else"
     );
 

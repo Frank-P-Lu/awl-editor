@@ -37,6 +37,9 @@ fn surface_contract(kind: crate::overlay::OverlayKind) -> SurfaceContract {
         | K::Rename
         | K::InsertLink
         | K::KeepName
+        // A workspace, but not a FACETED one: its three views are the whole
+        // list, so there is no lens strip above them to order.
+        | K::Conflict
         | K::Context => SurfaceContract::Flat,
     }
 }

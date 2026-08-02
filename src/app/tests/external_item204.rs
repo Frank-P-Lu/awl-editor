@@ -40,6 +40,21 @@ fn conflicted() -> (App, InMemoryFs, crate::fs::FsGuard) {
     (app, mem, guard)
 }
 
+/// The affordance's input read exactly as the capture fold reads it — through
+/// the `CaptureSubject` seam on native, where that seam exists. The wasm build
+/// compiles no capture door at all, so there the same fact is read off the guard
+/// directly; both spellings are the same call one level apart.
+fn changed_elsewhere_as_the_capture_reads_it(app: &App) -> bool {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        crate::run::CaptureSubject::changed_elsewhere(app)
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        app.change_unresolved()
+    }
+}
+
 fn palette_chord() -> &'static str {
     match crate::convention::Convention::current() {
         crate::convention::Convention::Mac => "s-p",
@@ -114,6 +129,7 @@ fn every_gated_door_is_refused_while_the_change_is_unresolved() {
         ("rename", |a| a.rename_current_file("renamed.md")),
         ("move", |a| a.move_current_file("sub")),
         ("focus return", |a| a.on_focus_gained()),
+        ("duplicate", |a| a.duplicate_current_file()),
     ];
     for (what, drive) in doors {
         let (mut app, mem, _fs) = conflicted();
@@ -155,6 +171,23 @@ fn every_gated_door_is_refused_while_the_change_is_unresolved() {
             crate::recovery::read().map(|r| r.text),
             Some(MINE.to_string()),
             "{what}: the only copy of the user's text is still recorded"
+        );
+        // AND THE DOOR LEFT NO LITTER. A door that half-performed — writing a
+        // sibling file, or a rename target, and only then discovering it may not
+        // finish — leaves the user a file they did not ask for and a toast that
+        // says it worked. Nothing but the two fixtures may exist under the root.
+        let mut listed: Vec<String> = mem
+            .read_dir(std::path::Path::new("/notes"))
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|e| e.is_file)
+            .map(|e| e.name)
+            .collect();
+        listed.sort();
+        assert_eq!(
+            listed,
+            vec!["draft.md".to_string(), "other.md".to_string()],
+            "{what}: the refused door left a file behind"
         );
     }
 }
@@ -602,4 +635,302 @@ fn the_palette_door_this_file_drives_really_opens() {
         run_from_palette(&mut app, "Keep version…"),
         "an ungated row is offered through this same door"
     );
+}
+
+// ── SLICE 2: THE CONFLICT WORKSPACE ──────────────────────────────────────
+//
+// The read-only half. Slice 1 proved neither version can be silently lost;
+// these prove the user can SEE both before choosing, and that looking is not
+// itself a choice.
+
+/// A hermetic App standing IN the conflict workspace, reached the way a user
+/// reaches it: the conflict is real, and the palette row that is hidden without
+/// one is pressed by name.
+fn reviewing() -> (App, InMemoryFs, crate::fs::FsGuard) {
+    let (mut app, mem, guard) = conflicted();
+    app.manual_save(); // latches the conflict, refuses the write
+    assert!(app.change_unresolved(), "precondition: a conflict is open");
+    assert!(
+        run_from_palette(&mut app, "Review the change"),
+        "the review row must be offered while a conflict is open"
+    );
+    (app, mem, guard)
+}
+
+/// The transcript the workspace is showing right now, resolved through the ONE
+/// dispatch the live render and the headless capture both use.
+fn showing(app: &App) -> String {
+    let ov = app.workspace_state.overlay().expect("a card is open");
+    let request = ov.comparison_request().expect("it asks for a view");
+    let (_, transcript, _) = crate::comparison::prose_for(
+        ov,
+        &request,
+        app.document.buffer().path(),
+        app.document.buffer().is_unnamed_fresh(),
+        &app.document.buffer().text(),
+    )
+    .expect("and the dispatch answers it");
+    transcript
+}
+
+/// **THE SURFACE EXISTS, AND IT SHOWS BOTH MANUSCRIPTS.** Driven by real chords
+/// into a real conflict: the workspace opens on Differences, `↓` walks to each
+/// whole version, and each one carries the text it names.
+///
+/// This is the law the whole slice is for. It fails if the workspace does not
+/// open, if the rows are in the wrong order, if a view resolves to nothing, or
+/// if two rows serve each other's prose out of the cache.
+#[test]
+fn the_conflict_workspace_shows_the_three_views_one_at_a_time() {
+    let (mut app, _mem, _fs) = reviewing();
+    assert_eq!(
+        app.workspace_state.overlay().map(|o| o.kind),
+        Some(crate::overlay::OverlayKind::Conflict),
+        "the review row opens the conflict workspace"
+    );
+
+    let differences = showing(&app);
+    assert!(
+        differences.starts_with("# Differences"),
+        "it opens on what changed: {differences:?}"
+    );
+    assert!(
+        differences.contains("somebody else") && differences.contains("what I typed"),
+        "the diff must carry BOTH sides: {differences}"
+    );
+
+    app.press_spec_headless("Down").expect("Down parses");
+    let mine = showing(&app);
+    assert!(mine.starts_with("# Your version"), "{mine:?}");
+    assert!(mine.contains(MINE), "…and it is the buffer, whole");
+    assert!(!mine.contains("somebody else"), "one at a time: {mine}");
+
+    app.press_spec_headless("Down").expect("Down parses");
+    let theirs = showing(&app);
+    assert!(theirs.starts_with("# Version on disk"), "{theirs:?}");
+    assert!(theirs.contains(DISK_SECOND), "…and it is the disk, whole");
+    assert!(!theirs.contains("what I typed"), "one at a time: {theirs}");
+}
+
+/// **PREVIEWS ARE READ-ONLY, AND ESC LEAVES UNRESOLVED.** The whole surface is a
+/// read: walking every view and then leaving must change the buffer by nothing,
+/// leave the conflict exactly as it was, and leave the recovery record intact.
+///
+/// The axis here is not "Esc closes the card" — it is everything the card could
+/// have quietly touched while it was open.
+#[test]
+fn walking_every_view_and_leaving_changes_nothing_at_all() {
+    let (mut app, mem, _fs) = reviewing();
+    let text_before = app.document.buffer().text();
+    let version_before = app.document.buffer().version();
+    let record_before = crate::recovery::read().map(|r| r.text);
+    assert_eq!(
+        record_before.as_deref(),
+        Some(MINE),
+        "precondition: the record is holding the user's text"
+    );
+
+    for _ in 0..crate::overlay::CONFLICT_ROWS.len() {
+        let _ = showing(&app);
+        app.press_spec_headless("Down").expect("Down parses");
+    }
+    // ONE Esc leaves the conflict workspace. It lands on the palette it was
+    // launched FROM, not straight in the editor, because a palette-launched
+    // surface parks its launcher (`Journey::attribute_launch`) — the standing
+    // grammar every palette-opened picker already has, History included. Both
+    // presses are driven here rather than one asserted, so the law states the
+    // real route out instead of a shorter one nobody takes.
+    app.press_spec_headless("Escape").expect("Escape parses");
+    assert_ne!(
+        app.workspace_state.overlay().map(|o| o.kind),
+        Some(crate::overlay::OverlayKind::Conflict),
+        "one Esc leaves the conflict workspace"
+    );
+    app.press_spec_headless("Escape").expect("Escape parses");
+    assert!(
+        app.workspace_state.overlay().is_none(),
+        "…and the next reaches the editor, got {:?}",
+        app.workspace_state.overlay().map(|o| o.kind),
+    );
+    assert_eq!(
+        app.document.buffer().text(),
+        text_before,
+        "a preview may never replace the buffer"
+    );
+    assert_eq!(
+        app.document.buffer().version(),
+        version_before,
+        "…and may never even bump its version (an undo entry from READING would \
+         be a phantom edit on the timeline)"
+    );
+    assert!(
+        app.change_unresolved(),
+        "Esc returns to editing UNRESOLVED — looking is not choosing"
+    );
+    assert_eq!(
+        crate::recovery::read().map(|r| r.text),
+        record_before,
+        "…and the record that makes a kill survivable is still there"
+    );
+    assert_eq!(
+        mem.read_to_string(&doc()).unwrap(),
+        DISK_SECOND,
+        "…and the file on disk was never written"
+    );
+}
+
+/// THE PERSISTENT AFFORDANCE'S ONE INPUT is the latch itself, read per frame —
+/// so it cannot be cleared by anything that clears a notice.
+///
+/// This is the gap slice 1 named and refused to hack around: there is ONE notice
+/// slot, and an unrelated toast expiring takes the conflict's line with it. Here
+/// a toast is raised on purpose ON TOP of the conflict and then cleared, and the
+/// affordance's input is asserted before, during and after.
+#[test]
+fn an_unrelated_toast_can_take_the_notice_but_never_the_affordance() {
+    let (mut app, _mem, _fs) = conflicted();
+    app.manual_save();
+    assert!(app.change_unresolved());
+    assert_eq!(
+        app.frame.notice().text(),
+        Some(crate::app::CHANGED_ELSEWHERE_NOTICE),
+        "precondition: the sticky line is up"
+    );
+
+    // Something else entirely says something.
+    app.set_toast_notice("copied");
+    assert_eq!(app.frame.notice().text(), Some("copied"));
+    assert!(
+        changed_elsewhere_as_the_capture_reads_it(&app),
+        "the affordance does not live in the notice slot"
+    );
+
+    // …and then expires, leaving the notice empty.
+    app.frame.clear_notice();
+    assert_eq!(
+        app.frame.notice().text(),
+        None,
+        "precondition: the notice slot is now empty"
+    );
+    assert!(
+        changed_elsewhere_as_the_capture_reads_it(&app),
+        "THE GAP THIS SLICE CLOSES: with the notice gone, the persistent \
+         affordance is the only thing left saying the document is held — it \
+         must still be true"
+    );
+    assert!(app.change_unresolved(), "and the guard itself is untouched");
+}
+
+/// ANTI-VACUITY for the affordance: it is FALSE on an ordinary document, so the
+/// law above is reading a real signal rather than a constant.
+#[test]
+fn the_affordance_is_absent_without_a_conflict() {
+    let mem = InMemoryFs::new().with_file(doc(), DISK_FIRST);
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let app = app_on(Some(doc()), "/notes", Config::empty());
+    assert!(!app.change_unresolved());
+    assert!(!changed_elsewhere_as_the_capture_reads_it(&app));
+}
+
+/// THE REVIEW DOOR IS BELT-AND-BRACES. Its palette row is hidden with no
+/// conflict; this proves the ACTION is a no-op too, so a rebound chord cannot
+/// open an empty workspace over a document that is perfectly fine.
+#[test]
+fn reviewing_nothing_opens_nothing() {
+    let mem = InMemoryFs::new().with_file(doc(), DISK_FIRST);
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(Some(doc()), "/notes", Config::empty());
+    app.review_external_change();
+    assert!(
+        app.workspace_state.overlay().is_none(),
+        "with nothing latched there is nothing to review"
+    );
+}
+
+/// **THE WHEEL SCROLLS THE MANUSCRIPT, NOT THE LIST.** Wheeling over the
+/// comparison region — outside the card that carries the three rows — pages the
+/// prose; the selected view does not change under the pointer.
+///
+/// The axis here is the one that was actually wrong: the predicate deciding
+/// which region the wheel belongs to asked `kind == History`, which is a fact
+/// about ONE surface rather than about the shape both share. A conflict
+/// workspace could never satisfy it, so a long "Version on disk" was
+/// unscrollable by wheel and every notch flipped the view instead. It is asked
+/// kind-neutrally now (`comparison_request().is_some()`), and this drives the
+/// real pointer path on BOTH members so the answer cannot regress for one of
+/// them alone.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn the_wheel_over_a_comparison_scrolls_the_prose_on_every_surface_that_has_one() {
+    let (mut app, _mem, _fs) = reviewing();
+    let before = app.workspace_state.overlay().map(|o| o.selected);
+    assert_eq!(before, Some(0), "precondition: standing on the first view");
+
+    // Park the pointer OUTSIDE the card — over the relocated document, which is
+    // where the prose is — then wheel.
+    // Wheel DOWN by one notch, through the real pointer entry point. A headless
+    // App has no surface, so `overlay_card_rect()` is `None` and the pointer is
+    // — correctly — outside the card, which is the region this law is about.
+    app.on_mouse_wheel(winit::event::MouseScrollDelta::LineDelta(0.0, -1.0));
+
+    let ov = app.workspace_state.overlay().expect("still open");
+    assert!(
+        ov.diff_scroll > 0,
+        "the wheel must page the prose the pointer is over"
+    );
+    assert_eq!(
+        ov.selected, 0,
+        "…and must NOT flip which version is being shown — that is what the \
+         keyboard's own ↑/↓ is for"
+    );
+}
+
+/// **NEITHER `↵` NOR `⇧↵` RESOLVES ANYTHING FROM THE VIEWS.** `⇧↵` is the key
+/// that restores a version on a timeline, and the conflict workspace shares that
+/// shape — so the one thing it must not share is the key that changes a
+/// document.
+///
+/// The trace this pins is real rather than imagined: bare `Newline` is caught by
+/// the shape's own intercept (it means "into the content"), but `AcceptAlternate`
+/// deliberately falls through to the ordinary accept path, where no arm names
+/// this kind and the generic fallthrough emits `OverlayAccept(Conflict, <row
+/// label>)`. That effect is a no-op on the live App by explicit arm — this drives
+/// it end to end so the no-op is a tested fact rather than a comment.
+#[test]
+fn neither_enter_nor_shift_enter_settles_anything_from_the_views() {
+    for chord in ["Enter", "S-Enter"] {
+        let (mut app, mem, _fs) = reviewing();
+        let text_before = app.document.buffer().text();
+        let version_before = app.document.buffer().version();
+
+        app.press_spec_headless(chord)
+            .unwrap_or_else(|e| panic!("{chord} parses: {e}"));
+
+        assert_eq!(
+            app.document.buffer().text(),
+            text_before,
+            "{chord}: a key pressed on a page of prose may not replace the document"
+        );
+        assert_eq!(
+            app.document.buffer().version(),
+            version_before,
+            "{chord}: …nor put a phantom edit on the undo timeline"
+        );
+        assert_eq!(
+            mem.read_to_string(&doc()).unwrap(),
+            DISK_SECOND,
+            "{chord}: …nor write the file"
+        );
+        assert!(
+            app.change_unresolved(),
+            "{chord}: the conflict is settled by its two NAMED palette rows and by \
+             nothing else — a resolution reached by a keystroke is a version \
+             destroyed without being asked for"
+        );
+        assert_eq!(
+            crate::recovery::read().map(|r| r.text),
+            Some(MINE.to_string()),
+            "{chord}: …and the record still holds the user's text"
+        );
+    }
 }

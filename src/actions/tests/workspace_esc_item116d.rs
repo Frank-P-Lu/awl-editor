@@ -59,6 +59,13 @@ fn card_for(kind: OverlayKind) -> OverlayState {
                 None,
             )
         }
+        // The conflict workspace: its primary column is the three read-only
+        // views and its content region is the one they name, so it answers this
+        // law from exactly the same two stages the other two do.
+        OverlayKind::Conflict => OverlayState::new_conflict(
+            std::path::PathBuf::from("/notes/heron.md"),
+            Some("what the disk says\n".to_string()),
+        ),
         other => panic!(
             "{other:?} is sustained but this law does not know how to build its card — a new \
              workspace member must state what its two regions advertise before it ships"
@@ -91,11 +98,15 @@ fn advertises(hint: &str, glyph: &str, label: &str) -> bool {
 fn one_esc_leaves_a_workspace_from_its_detail_stage_on_every_sustained_kind() {
     let _g = crate::testlock::serial();
     let kinds = sustained_kinds();
+    // The number is spelled out so a new member cannot arrive by silently
+    // widening a filter. The DECISION each time is whether that member really is
+    // a place you stay in — the conflict workspace is one: you read two
+    // manuscripts there to choose between them.
     assert_eq!(
         kinds.len(),
-        2,
-        "the sustained roster is Settings + History; a third member must answer this law \
-         rather than silently skip it — got {kinds:?}"
+        3,
+        "the sustained roster is Settings + History + Conflict; a fourth member must answer \
+         this law rather than silently skip it — got {kinds:?}"
     );
     for kind in kinds {
         // ESC LEAVES.
@@ -177,7 +188,7 @@ fn the_footer_names_the_back_it_actually_has_on_every_sustained_kind() {
             graded += 1;
         }
     }
-    assert_eq!(graded, 4, "two members x two stages must each be graded");
+    assert_eq!(graded, 6, "three members x two stages must each be graded");
 }
 
 /// AND THE TABLE AGREES WITH THE KEYBOARD. The lifecycle's own statement of the

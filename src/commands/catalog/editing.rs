@@ -139,6 +139,14 @@ pub(super) static COMMANDS: &[Command] = &[
         web_only: false,
     },
     Command {
+        name: "Review the change",
+        action: Action::ReviewChange,
+        native: "",
+        emacs: "",
+        native_only: true,
+        web_only: false,
+    },
+    Command {
         name: "Save your version",
         action: Action::ResolveKeepMine,
         native: "",

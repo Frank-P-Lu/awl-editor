@@ -112,17 +112,25 @@
         <p><strong>When both changed, you choose.</strong> awl keeps your
         text as the one document you are editing and stops writing to the
         file, so neither version can be lost. A <code>changed elsewhere</code>
-        notice appears at the bottom of the screen, and your unsaved text is
-        copied to awl's own data folder — so it survives a crash, and comes
-        back when you reopen the file. Two commands settle it:</p>
+        line sits beside the filename in the page margin for as long as the
+        change is unresolved, and your unsaved text is copied to awl's own
+        data folder — so it survives a crash, and comes back when you reopen
+        the file. Three commands settle it:</p>
 
         <table>
         <thead><tr><th>command</th><th>what it does</th></tr></thead>
         <tbody>
+        <tr><td><strong>Review the change</strong></td><td>shows both versions, one at a time, changing nothing</td></tr>
         <tr><td><strong>Save your version</strong></td><td>re-checks the file, then writes your text over it</td></tr>
         <tr><td><strong>Use disk version</strong></td><td>replaces your text with the file's, as one edit ⌘Z takes back</td></tr>
         </tbody>
         </table>
+
+        <p><strong>Review the change</strong> opens a reading surface with
+        three views — <strong>Differences</strong>, <strong>Your version</strong>,
+        and <strong>Version on disk</strong> — and <kbd>Esc</kbd> returns you to
+        editing with nothing settled. It is a read: neither version changes
+        until you run one of the other two.</p>
 
         <p>Saving, switching files, renaming, moving and Finish file all wait
         until you have chosen. ⌘S does <strong>not</strong> force-write over

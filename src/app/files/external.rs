@@ -169,6 +169,31 @@ impl App {
         });
     }
 
+    /// **REVIEW THE CHANGE** — summon the conflict workspace over the latched
+    /// conflict: a list of the three read-only views beside the one it names.
+    ///
+    /// It reads and shows; it resolves nothing. That separation is the product
+    /// decision, not an omission: the two resolutions each destroy a version, so
+    /// each is reached by its own named palette row rather than by pressing `↵`
+    /// on a page of prose. `Esc` from here lands back in the editor with the
+    /// conflict exactly as it was, which is what the persistent affordance is for.
+    ///
+    /// A no-op with nothing latched. Its palette row is hidden then anyway
+    /// (`commands::RowGates`), so this is the belt to that row's braces — the
+    /// same pairing the two resolutions already have, and the reason a rebound
+    /// chord cannot open an empty workspace.
+    pub(in crate::app) fn review_external_change(&mut self) {
+        let Some(unresolved) = self.persistence.unresolved() else {
+            return;
+        };
+        let card = crate::overlay::OverlayState::new_conflict(
+            unresolved.path.clone(),
+            unresolved.theirs.clone(),
+        );
+        self.workspace_state.summon_conflict(card);
+        self.request_frame();
+    }
+
     /// **SAVE YOUR VERSION** — write the buffer over the file, resolving the
     /// conflict.
     ///

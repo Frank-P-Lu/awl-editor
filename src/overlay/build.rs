@@ -238,6 +238,12 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         // its `Action::KeepVersion` apply_transition arm (`OverlayState::new_keep_name`)
         // — it needs no caller-gathered context at all (the prompt opens empty) —
         // so this generic builder never constructs one. Exhaustiveness arm.
+        // The CONFLICT workspace is built from the App's own latched conflict
+        // (`OverlayState::new_conflict`, at the `Effect::ReviewExternalChange`
+        // arm) — the path and the disk text it carries are live-App facts this
+        // shared builder has no access to, and no headless summon can invent.
+        // Exhaustiveness arm.
+        OverlayKind::Conflict => None,
         OverlayKind::KeepName | OverlayKind::Context => None,
     }
 }

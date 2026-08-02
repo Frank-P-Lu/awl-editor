@@ -286,11 +286,17 @@ fn accept_class(kind: OverlayKind) -> EffectClass {
         OverlayKind::MoveDest => EffectClass::Unsupported {
             why: "the note move (mkdir + rename) is live-App-only; the buffer would keep its old path",
         },
-        // These pickers never EMIT an `OverlayAccept` today (Browse re-routes files
-        // through Goto; Command runs via `RunAction`; Spell edits in the core;
-        // Keybindings/Settings/Assets/Rename/InsertLink ride their own effects or
-        // core-internal edits — see `actions/overlay_nav.rs`). Defaulted to Unsupported
-        // so a NEW emission aborts a strict run loudly rather than silently passing.
+        // These pickers ride their own effects or core-internal edits rather than
+        // an accept (Browse re-routes files through Goto; Command runs via
+        // `RunAction`; Spell edits in the core; Keybindings/Settings/Assets/
+        // Rename/InsertLink — see `actions/overlay_nav.rs`). The CONFLICT
+        // workspace is the one member here that CAN reach the generic accept
+        // fallthrough — `⇧↵` on one of its rows emits `OverlayAccept(Conflict,
+        // <row label>)`, which the live App answers with a deliberate no-op — so
+        // Unsupported is the honest classification rather than a defensive one:
+        // a strict replay must abort naming it instead of pretending it settled a
+        // conflict it cannot see. The rest are Unsupported so a NEW emission
+        // aborts loudly rather than silently passing.
         OverlayKind::Browse
         | OverlayKind::Command
         | OverlayKind::Spell
@@ -300,6 +306,7 @@ fn accept_class(kind: OverlayKind) -> EffectClass {
         | OverlayKind::Rename
         | OverlayKind::InsertLink
         | OverlayKind::KeepName
+        | OverlayKind::Conflict
         | OverlayKind::Context => EffectClass::Unsupported {
             why: "this picker is not expected to emit an accept effect; classify it in replay::accept_class before strict replay can pass it",
         },

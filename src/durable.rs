@@ -457,7 +457,13 @@ mod tests {
             // never user data.
             ("main/story.rs", 1),
             ("render/overrides/tests.rs", 1), // render_overrides_env_read_law's own fixture.
-            ("scenario.rs", 5),
+            // The seeding boundary itself: `cli_seeds` / `data_root_seeds` READ
+            // the real disk with `std::fs` before the sandbox exists, and the
+            // module's own tests WRITE their real-disk fixtures the same way
+            // (the data-root slot's laws account for six: two seed files, the
+            // nested directory the flatness law needs, and the compose law's
+            // document, config and store). Neither is a durable store.
+            ("scenario.rs", 11),
             ("testscratch.rs", 3), // ScratchDir's own fixtures, not a store.
         ];
         let expected_map: std::collections::BTreeMap<String, usize> =

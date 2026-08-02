@@ -137,13 +137,25 @@ pub struct OverlayInfo {
     /// FACETING pickers only: the SECTION label per `items` row (parallel), so the
     /// grouping is drawable + assertable. Empty for a flat picker / the All lens.
     pub sections: Vec<String>,
-    /// HISTORY timeline only: the restore id of the highlighted row whose
-    /// writer's-DIFF the capture is previewing in the document (paired with
-    /// [`CaptureOpts::preview_text`] — DIFF-AS-PREVIEW: the previewed text is the
-    /// marked-up-manuscript transcript, not the raw version), or `None` for every
-    /// other mode / the empty-state row. Emitted as `overlay.preview_id` so a
-    /// `--keys`-driven history preview is assertable from the sidecar.
+    /// The SUBJECT of the read-only comparison the capture is previewing in the
+    /// document: a restore id on a timeline, the conflicted file's path on a
+    /// conflict workspace (paired with [`CaptureOpts::preview_text`] — the
+    /// previewed text is the transcript, not the raw version). `None` for every
+    /// mode that shows no comparison and for the empty-state row. Emitted as
+    /// `overlay.preview_id`.
     pub preview_id: Option<String>,
+    /// WHICH READ-ONLY VIEW of that subject
+    /// ([`crate::overlay::ComparisonView::tag`] — `"diff"` / `"mine"` /
+    /// `"theirs"`), or `None` when there is no comparison. Emitted as
+    /// `overlay.preview_view`.
+    ///
+    /// It is a separate key from `preview_id` because it is a separate fact, and
+    /// because it is the ONE fact that distinguishes the three views a conflict
+    /// workspace offers of ONE subject — a sidecar carrying the subject alone
+    /// could not tell them apart, which is precisely the cache collision
+    /// [`crate::overlay::ComparisonRequest::cache_key`] exists to prevent, read
+    /// back out at the oracle end.
+    pub preview_view: Option<&'static str>,
     /// ITEM 114 — is this card drawn as a SUMMONED WORKSPACE (the viewport, with a
     /// navigation rail beside its content) rather than a contextual card? Emitted
     /// as `overlay.workspace`. When it is true, `lens_strip` IS the rail — the
@@ -326,6 +338,11 @@ pub struct CaptureOpts {
     /// is omitted, so a plain `--screenshot` is byte-identical. Populated only by the
     /// capture harness's env-gated diff render (`AWL_DIFF_OLD`/`AWL_DIFF_NEW`).
     pub diff: Option<DiffInfo>,
+    /// Is the captured document holding an UNRESOLVED external change? Drives
+    /// the page-mode gutter's persistent `changed elsewhere` affordance and is
+    /// emitted as `gutter.changed`. Only a `driver: "live-app"` capture can ever
+    /// set it — see `run::CaptureSubject::changed_elsewhere`.
+    pub gutter_changed: bool,
     /// Explicit passive pending-crash state for the About-card capture law.
     /// False by default; ordinary/headless captures never inspect ambient crash
     /// files and remain deterministic.

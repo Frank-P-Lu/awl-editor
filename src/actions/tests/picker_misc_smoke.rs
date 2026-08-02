@@ -729,6 +729,9 @@ fn deferred_effect_matches(action: &Action, effect: &Effect) -> bool {
         Action::FinishBuffer => {
             effect == &Effect::Persistence(PersistenceEffect::Save(SaveKind::Finish))
         }
+        Action::ReviewChange => {
+            effect == &Effect::Persistence(PersistenceEffect::ReviewExternalChange)
+        }
         Action::ResolveKeepMine => {
             effect
                 == &Effect::Persistence(PersistenceEffect::ResolveExternalChange(

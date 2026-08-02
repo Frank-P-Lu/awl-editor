@@ -101,7 +101,8 @@ impl<'a> ReplaySession<'a> {
             // own per-buffer baseline, which a replay never builds. Classified
             // Unsupported, so a strict replay aborts naming it rather than
             // pretending to resolve something it cannot see.
-            actions::PersistenceEffect::ResolveExternalChange(_) => {}
+            actions::PersistenceEffect::ResolveExternalChange(_)
+            | actions::PersistenceEffect::ReviewExternalChange => {}
             actions::PersistenceEffect::Preference(preference) => match preference {
                 actions::PreferenceEffect::CaretMode
                 | actions::PreferenceEffect::PageMode

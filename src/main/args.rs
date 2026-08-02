@@ -80,6 +80,9 @@ pub(crate) fn parse_args() -> Result<Mode> {
     // `--config <path>` override for the config file location (also via `$AWL_CONFIG`),
     // so a test config can be pointed at headlessly.
     let mut config_arg: Option<PathBuf> = None;
+    // The `--seed-data` directory: awl's own data root, seeded into a hermetic
+    // scenario sandbox. `None` on every ordinary run.
+    let mut data_seed: Option<PathBuf> = None;
     // Did the user pass an EXPLICIT sticky-pref flag? A flag always WINS over the
     // config's remembered value (flag > config > default), so the config is applied
     // only where its flag is absent. (Zoom rides `opts.zoom.is_some()` already.)
@@ -477,6 +480,17 @@ pub(crate) fn parse_args() -> Result<Mode> {
                     .ok_or_else(|| anyhow::anyhow!("--config requires a path"))?;
                 config_arg = Some(PathBuf::from(v));
             }
+            // THE DATA-ROOT SEED SLOT. Hermetic-scenario doors only — it gives
+            // a `--screenshot-app` capture a starting store (an
+            // unresolved-change record, a scratch stash, a session), which is
+            // the one thing the sandbox has no other way to hold. See
+            // `crate::scenario::data_root_seeds`.
+            "--seed-data" => {
+                let v = args
+                    .next()
+                    .ok_or_else(|| anyhow::anyhow!("--seed-data requires a directory"))?;
+                data_seed = Some(PathBuf::from(v));
+            }
             "--root" => {
                 let v = args
                     .next()
@@ -610,6 +624,10 @@ pub(crate) fn parse_args() -> Result<Mode> {
                      \x20 --config PATH       load settings from PATH (default ~/.config/awl/config.toml)\n\
                      \x20 --wait              windowed editor only: single-instance daemon — hand `file` to an already-running awl and block until C-x # finishes it (EDITOR=awl --wait for git)\n\
                      \x20 --keys \"SPEC\"        replay emacs chords (e.g. \"C-n C-n M->\") then capture\n\
+                     \x20 --seed-data DIR     seed awl's own DATA ROOT (the \
+                     unresolved-change record, the scratch stash, session.toml, history) into a \
+                     hermetic scenario sandbox from DIR's files — the only way a --screenshot-app \
+                     run can START from state awl already had; refused outside a hermetic door\n\
                      \x20 --strict-replay     with --screenshot --keys: abort (naming the offender) on an unbound chord, a live-only effect the replay can't perform, or a missing layout oracle; runs HERMETIC (an in-memory fs seeded from the named file + --config — a replayed save never touches the real file, the user's own config/notes/history are never read or written)\n\
                      \x20 --storyboard TOML   run a scenario storyboard (press/type/pause/run_for/expect steps — see scenarios/): strict + hermetic, emitting per-step PNG+JSON, deterministic film frames, a byte-stable trace.json, and (with ffmpeg on PATH) film.webm/film.mp4\n\
                      \x20 --storyboard-out DIR where the storyboard run's artifacts land (default: <storyboard>.run/ beside the .toml)"
@@ -803,8 +821,28 @@ pub(crate) fn parse_args() -> Result<Mode> {
     // resolved above, plus its parent-directory marker), and item 188's
     // `--screenshot-app`, whose claim is the strongest — it drives a real `App`,
     // which PERFORMS the writes a replay only records.
+    //
+    // `--seed-data` only means anything HERE, so it is refused everywhere else
+    // rather than silently ignored: a run that named a store and then did not
+    // get one would photograph the wrong starting state and look like a product
+    // bug. The slot exists because a `--screenshot-app` capture of an
+    // external-change conflict has to START conflicted: nothing can raise one
+    // mid-run, since the change must come from outside awl.
+    // `live_app` is a native-only binding (the wasm build compiles no live-`App`
+    // capture door), so the hermetic predicate is spelled per target. The wasm
+    // arm installs no sandbox at all, which is why its answer is unconditional.
     #[cfg(not(target_arch = "wasm32"))]
-    if strict_replay || storyboard.is_some() || live_app || semantic_json {
+    let hermetic = strict_replay || storyboard.is_some() || live_app || semantic_json;
+    #[cfg(target_arch = "wasm32")]
+    let hermetic = false;
+    if data_seed.is_some() && !hermetic {
+        bail!(
+            "--seed-data only applies to a hermetic scenario run (--screenshot-app, \
+             --semantic-json, --storyboard, or --screenshot --keys --strict-replay)"
+        );
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    if hermetic {
         crate::scenario::install_hermetic_fs(
             crate::scenario::seed_document(
                 storyboard.is_some(),
@@ -813,6 +851,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
             ),
             config_arg.as_deref(),
             root.as_deref(),
+            data_seed.as_deref(),
         );
     }
     // Load the persistent CONFIG (flag/$AWL_CONFIG/XDG path — resolved inside

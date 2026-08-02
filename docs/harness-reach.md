@@ -63,7 +63,10 @@ Three properties worth knowing before you reach for it:
 - **It is hermetic, unconditionally.** A live `App` PERFORMS the writes a replay
   only records, so the mode is a `crate::scenario` door: `args::parse_args` swaps
   the process fs to the seeded sandbox before the config loads, exactly as a
-  storyboard run does.
+  storyboard run does. The sandbox is seeded from exactly the paths the command
+  line names — the CLI `file`, `--config`, and (item 204) `--seed-data DIR`, whose
+  files land at awl's own `fs::data_root()` paths so a run can START from state
+  awl already had. See "Left for a follow-up" #3.
 - **It skips nothing.** `replay_skips` is empty by construction — there is no
   capability to lack, because the effect interpreter that runs is the live one.
   A live-`App` capture of a spec whose tier-1 twin warns on stderr is the point
@@ -161,6 +164,7 @@ fails if these rows drift from them, so this table cannot go stale.
 | `overlay_accept:Caret` | Applied |
 | `overlay_accept:CjkLang` | Applied |
 | `overlay_accept:Command` | Unsupported |
+| `overlay_accept:Conflict` | Unsupported |
 | `overlay_accept:Context` | Unsupported |
 | `overlay_accept:Date` | Applied |
 | `overlay_accept:Dictionary` | Applied |
@@ -194,6 +198,7 @@ fails if these rows drift from them, so this table cannot go stale.
 | `reshape` | Applied |
 | `resolve_keep_mine` | Unsupported |
 | `resolve_take_theirs` | Unsupported |
+| `review_external_change` | Unsupported |
 | `run_action` | Applied |
 | `save` | Unsupported |
 | `setting_path_pick` | Unsupported |
@@ -374,41 +379,59 @@ Named here rather than quietly absorbed:
    it — the identical defect shape, one call site removed. No storyboard
    fixture drives a Switch-project today, so this is undiagnosed rather than
    reproduced; flag it before writing one.
-3. **No capture tier reaches an EXTERNAL-CHANGE CONFLICT, and the reason is
-   structural at both ends.** Measured, not inferred, before anything was
-   promised — the mistake item 180 is the cautionary tale for.
+3. ~~**No capture tier reaches an EXTERNAL-CHANGE CONFLICT.**~~ **Closed by item
+   204 slice 2 — `--seed-data DIR`.** The measurement slice 1 recorded here was
+   right and is kept, because it is what the fix was designed against.
 
    The conflict is latched on the live `App`'s per-buffer disk baseline, so
-   tier 1 cannot hold it at all. Tier 2 can, but only two ways in exist and
-   both are shut:
+   **tier 1 cannot hold it at all** — that has not changed and will not. Tier 2
+   had two possible ways in and both were shut:
 
-   - **Raise one during the run.** Impossible by construction: the change has
-     to come from OUTSIDE awl, and a capture drives chords only. There is no
-     step at which another writer touches the file.
-   - **Start already conflicted, from the recovery record.** This is the
-     reachable-looking one, and it is the one to check rather than assume.
-     `--screenshot-app` is a `crate::scenario` door whose sandbox is seeded by
-     `scenario::cli_seeds` from exactly TWO paths — the CLI `file` and
-     `--config`. Nothing writes awl's data root, so `recovery::read()` finds
-     nothing. Driven for real: a record placed at
-     `$XDG_DATA_HOME/awl/unresolved-change.md` beside a diverging file, with
-     `--screenshot-app` pointed at that file, photographs the DISK text and no
-     conflict. The store is not merely unseeded, it is unseedable through the
-     current door.
+   - **Raise one during the run.** Still impossible by construction: the change
+     has to come from OUTSIDE awl, and a capture drives chords only. There is no
+     step at which another writer touches the file. This one is not fixable and
+     was not fixed.
+   - **Start already conflicted, from the recovery record.** This is the one that
+     opened. `--screenshot-app` is a `crate::scenario` door whose sandbox was
+     seeded by `scenario::cli_seeds` from exactly TWO paths — the CLI `file` and
+     `--config`. Nothing wrote awl's data root, so `recovery::read()` found
+     nothing: driven for real, a record at `$XDG_DATA_HOME/awl/unresolved-change.md`
+     beside a diverging file photographed the DISK text and no conflict. The
+     store was not merely unseeded, it was **unseedable through the door**.
 
-   And even with the state reached, the sidecar could not report it: the chrome
-   `notice` — where the guard's own line is rendered — **has no sidecar field**
-   (confirmed against a real `driver: "live-app"` artifact's key list). An
-   appearance claim there would be pixels only, per the Wagtail tripwire, which
-   is correct but worth knowing before a Verify clause asks for a state oracle.
+   **What opened it** is a THIRD seed slot of the same shape as the two that
+   were already there — `--seed-data DIR` (`scenario::data_root_seeds`), whose
+   files are carried into the sandbox at awl's own `fs::data_root()` paths, so
+   `recovery::read()`, `fs::scratch_stash_path()` and `session.toml` find them
+   where they look. It is a narrowing, not a stub: the harness NAMES the store
+   on the command line rather than reading the machine's real one, so a
+   capture's starting state is written down in its own invocation and a
+   developer's remembered session can never leak into it. Flat by design —
+   entries one directory deep, directories skipped — because every consumer of
+   the data root puts a plain file directly under it. Refused outside a hermetic
+   door rather than silently ignored, since a run that named a store and did not
+   get one would photograph the wrong starting state.
 
-   **What would open it**, named rather than absorbed: a seed slot for awl's
-   DATA ROOT on the scenario door, so a live-`App` capture can start from a
-   seeded store the way item 116d's ordinary `--keys` capture starts from a
-   seeded history under `XDG_DATA_HOME`. That is one narrowing of the same
-   shape as `app::Exit`, not a stub — but it is a harness change with its own
-   laws, and it belongs with the surface it would photograph rather than
-   bolted onto the guard beneath it.
+   ```sh
+   awl --screenshot-app OUT.png DOC.md --seed-data DIR --keys "SPEC"
+   ```
+
+   **What the oracle can now say.** The chrome `notice` still has no sidecar
+   field — that has not changed, and it is deliberate: a notice is transient and
+   a single slot, so it was the wrong thing to build a state oracle on. What
+   item 204 slice 2 added instead is the PERSISTENT affordance's own field,
+   **`gutter.changed`** (schema `/197`), plus **`overlay.preview_view`** — the
+   `ComparisonView` tag, which is the one fact that tells three previews of ONE
+   subject apart. So a live-`App` capture of a conflict reports: the affordance
+   is up, which surface is open, which of its three views, and the previewed
+   prose itself. Appearance claims about the affordance stay pixel arithmetic
+   (`render::tests::chrome_overlay::the_changed_elsewhere_affordance_reports_grows_and_reads_stronger_than_the_name`),
+   per the Wagtail tripwire.
+
+   Proved on the REAL binary, both ways round, in
+   `tests/seed_data_slot_item204.rs`: with the slot the capture starts
+   conflicted; without it, the identical command still photographs the disk text
+   and no conflict.
 
 4. ~~**The Unsupported bucket is a work list, not a verdict.**~~ The settings
    trio's own grant closed by item 190 — see "Two asymmetries" above and

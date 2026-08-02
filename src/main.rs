@@ -57,6 +57,7 @@ mod caret;
 mod caret_glyph;
 mod clock;
 mod commands;
+mod comparison;
 mod config;
 mod context_menu;
 mod convention;

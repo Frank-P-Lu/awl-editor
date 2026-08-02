@@ -34,7 +34,7 @@ pub(crate) mod workspace;
 
 pub use build::{BuildCtx, browse_level, build, elide_path, row_split};
 pub use capture::{Capture, CaptureStage, KeepEdit, LinkEdit, LinkEditMode, RenameEdit, ValueEdit};
-pub use comparison::{ComparisonRequest, ComparisonView};
+pub use comparison::{CONFLICT_ROWS, ComparisonRequest, ComparisonView, ConflictSubject};
 #[allow(unused_imports)]
 // the table's own vocabulary is consumed by the lifecycle law + item 114
 pub use journey::{

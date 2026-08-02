@@ -200,6 +200,27 @@ cargo run -- --screenshot-app OUT.png --root /some/proj \
 neither. The only differences in the artifact are the top-level `driver` field
 and the `semantic` tree, which only a live `App` can fold.
 
+**Starting from state awl already had — `--seed-data DIR` (item 204).** The
+sandbox is seeded from exactly the paths the command line names, and awl's own
+data root was not one of them, so a mode whose whole premise is remembered state
+— an unresolved-change record, a scratch stash, a session, a history log — had no
+way in. `--seed-data DIR` carries `DIR`'s files into the sandbox at
+`fs::data_root()/<name>`, where awl's own readers look for them. Hermetic-door
+only (`--screenshot-app`, `--semantic-json`, `--storyboard`, or `--screenshot
+--keys --strict-replay`); naming it anywhere else is an error rather than a
+silent no-op, because a run that named a store and did not get one would
+photograph the wrong starting state.
+
+```sh
+# Start ALREADY CONFLICTED: the record says awl was holding `MINE` for draft.md,
+# and the file on disk has since moved.
+printf 'awl-unresolved-change 1\n%s\n%s' "$PWD/draft.md" "$MINE" > seed/unresolved-change.md
+cargo run -- --screenshot-app OUT.png draft.md --seed-data seed \
+  --keys "s-p R e v i e w Enter Down"
+# OUT.json: gutter.changed: true, overlay.mode: "conflict",
+#           overlay.preview_view: "mine", text: the user's own version.
+```
+
 ## Semantic state without a GPU (`--semantic-json`)
 
 ```sh
@@ -604,7 +625,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/196` (`/197` timeline, `/198` held)
+## The sidecar JSON — schema `awl-capture/197` (`/198` timeline, `/199` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
@@ -612,6 +633,32 @@ Schema `/195` adds **`overlay.context_anchor`**, the physical-pixel click
 anchor `[x, y]` for the awl-rendered contextual menu, or `null` for every
 other summoned surface. The rendered `overlay.window` remains the clamped
 appearance geometry; the anchor is the input/state oracle.
+
+Schema `/197` adds two fields for the EXTERNAL-CHANGE CONFLICT surface (queue
+item 204): **`gutter.changed`** and **`overlay.preview_view`**.
+
+`gutter.changed` is the persistent `changed elsewhere` affordance beside the
+filename — `true` exactly while the captured document is holding an unresolved
+external change. It is chrome, not a notice, and that is the point: there is one
+notice slot and a toast expiry clears it, so an unrelated "copied" can take the
+conflict's line and leave nothing behind it. This field is true for as long as
+the conflict is. Only a `driver: "live-app"` capture can ever set it — the
+conflict is latched on the live `App`'s per-buffer disk baseline, and an
+ordinary replay structurally has none (`run::CaptureSubject::changed_elsewhere`),
+so every `"replay"` sidecar reports `false` and every pre-existing capture stays
+byte-identical. Reaching the state at all needs `--seed-data` (see
+`docs/harness-reach.md`); the affordance's APPEARANCE — that it reads stronger
+than the filename beneath it — is asserted over the PNG's pixels, never from
+this field.
+
+`overlay.preview_view` names WHICH read-only view the comparison region is
+showing: `"diff"`, `"mine"` or `"theirs"` (`overlay::ComparisonView::tag`), or
+`null` when there is no comparison. It sits beside `preview_id`, which names the
+SUBJECT — a restore id on a timeline, the conflicted file's path on a conflict
+workspace. Two keys because they are two facts, and because the view is the only
+one that tells three previews of ONE subject apart: a conflict workspace offers
+Differences / Your version / Version on disk of the same file, and a sidecar
+carrying the subject alone could not say which was on screen.
 
 Schema `/196` adds the top-level **`semantic`** field, immediately after
 `driver`: the exact renderer-independent semantic tree an assistive technology
@@ -1344,7 +1391,7 @@ world.)
   "syn_lang": null,
   "syn_spans": [[0, 17, "comment"], [21, 24, "definition"]],
   "readout": { "words": 58, "reading_min": 1 },
-  "gutter": { "visible": true, "name": "notes.md", "project": "repo" },
+  "gutter": { "visible": true, "name": "notes.md", "project": "repo", "changed": false },
   "dim_overlay": false,
   "debug": { "enabled": false, "text": "", "frame_ms": null, "worst_ms": null, "budget_ms": null, "key_px_ms": null, "redraws": null, "still": true, "autosave_state": null, "autosave_since_s": null },
   "hud": { "held": false, "file_created": "—", "session": "—", "words": 58, "reading_min": 1, "percent": 0 },
@@ -1380,7 +1427,7 @@ world.)
 | `syn_lang`     | SYNTAX HIGHLIGHTING: the DETECTED code language name (`"rust"`, `"go"`, …) or `null` for a non-CODE buffer; agrees with `syn_spans` (`null` ⇔ empty) |
 | `syn_spans`    | SYNTAX HIGHLIGHTING: array of `[start_byte, end_byte, "tag"]` Alabaster role spans (`comment`/`string`/`constant`/`definition`); empty for non-CODE buffers (`.env`/`.md`/`.txt`/unknown). Mutually exclusive with `md_spans` |
 | `readout`      | QUIET word-count readout: `{ words, reading_min }` (reading_min = ceil(words/200), min 1), or `null` for a non-markdown / wordless buffer. NO LONGER drawn (moved to the held HUD); kept as the HUD's source |
-| `gutter`       | PAGE-MODE GUTTER: `{ visible, name, project }` — the left-margin orientation label (filename muted over project faint, LABEL size). `visible` is true only when drawn (page mode + a name + a margin past the hard floor, `render::rowlayout::GUTTER_MIN_NAME_CHARS`); `name` and `project` are each **exactly as drawn** — independently fit to ONE line, middle-elided (extension preserved) only once the margin can't hold that line whole (`render::rowlayout::gutter_plan`/`fit_primary`, the same door the picker rows use). Neither line yields to the other from width pressure; `project` is `""` only when there is genuinely no project to show |
+| `gutter`       | PAGE-MODE GUTTER: `{ visible, name, project, changed }` — the left-margin orientation label (filename muted over project faint, LABEL size). `visible` is true only when drawn (page mode + a name + a margin past the hard floor, `render::rowlayout::GUTTER_MIN_NAME_CHARS`); `name` and `project` are each **exactly as drawn** — independently fit to ONE line, middle-elided (extension preserved) only once the margin can't hold that line whole (`render::rowlayout::gutter_plan`/`fit_primary`, the same door the picker rows use). Neither line yields to the other from width pressure; `project` is `""` only when there is genuinely no project to show. `changed` (schema `/197`) is the persistent `changed elsewhere` affordance — `true` only on a `driver: "live-app"` capture whose document holds an unresolved external change, in which case the block draws a THIRD line above the filename in a stronger ink |
 | `dim_overlay`  | `true` when a FULL-takeover overlay dims the document behind it (the scrim); `false` for the search SPLIT panel / no overlay (DESIGN §5) |
 | `debug`        | DEBUG panel (renamed from the old `fps` counter): `{ enabled, text, frame_ms, worst_ms, budget_ms, key_px_ms, redraws, still, autosave_state, autosave_since_s }`. OFF by default (empty `text` → byte-identical). `text` is the full stacked readout; `frame_ms`/`worst_ms`/`budget_ms`/`key_px_ms`/`redraws`/`still` are the machine-readable perf triad (all `null` + `still: true` in a capture — no clock runs headlessly). `autosave_state` (`"off"`/`"held"`/`"saved"`, else `null`) + `autosave_since_s` (whole seconds since the last successful autosave write, else `null`) mirror the panel's `autosave …` line, fed EXCLUSIVELY through `App::autosave_flush`'s one door — both `null` in every capture (the engine is structurally live-App-only) |
 | `hud`          | HELD STATS HUD: `{ held, words, reading_min, percent, lang }`. `held` is the summon state (false by default → byte-identical); `words`/`reading_min` null for non-markdown; `percent` = cursor %-through-doc; `lang` (i18n round, schema `/92`) mirrors the top-level `doc_lang` exactly. Every figure is a pure function of the doc + cursor — no clock, fully capture-safe |

@@ -14,6 +14,7 @@ enum_with_all! {
         Spell,
         Keybindings,
         History,
+        Conflict,
         Settings,
         Assets,
         Rename,
@@ -50,6 +51,7 @@ impl OverlayKind {
             OverlayKind::Spell => "spell",
             OverlayKind::Keybindings => "keybindings",
             OverlayKind::History => "history",
+            OverlayKind::Conflict => "conflict",
             OverlayKind::Settings => "settings",
             OverlayKind::Assets => "assets",
             OverlayKind::Rename => "rename",
@@ -75,7 +77,10 @@ impl OverlayKind {
             | OverlayKind::Dictionary
             | OverlayKind::CjkLang
             | OverlayKind::Date => ValuePick,
-            OverlayKind::Assets | OverlayKind::Keybindings | OverlayKind::Settings => StayOpen,
+            OverlayKind::Assets
+            | OverlayKind::Keybindings
+            | OverlayKind::Settings
+            | OverlayKind::Conflict => StayOpen,
             OverlayKind::Rename => Navigate,
             OverlayKind::InsertLink => Navigate,
             OverlayKind::KeepName => Navigate,
@@ -91,6 +96,7 @@ impl OverlayKind {
             OverlayKind::Context => &[Plain],
             OverlayKind::Spell => &[Plain, SpellAdd],
             OverlayKind::History => &[History],
+            OverlayKind::Conflict => &[Plain],
             OverlayKind::Project
             | OverlayKind::Browse
             | OverlayKind::Theme
@@ -167,6 +173,13 @@ impl OverlayKind {
             OverlayKind::Keybindings => {
                 vec![enter("rebind"), key("del", "reset"), key("esc", "close")]
             }
+            // THE THREE READ-ONLY VIEWS. `↵` is the workspace grammar's own
+            // "into the content" (`workspace_nav::rows_primary_intercept`) —
+            // which is what you want when a version is longer than the pane. It
+            // commits nothing: neither resolution is reachable by pressing a key
+            // on a page of prose. `esc` names the OUTCOME rather than the key's
+            // usual meaning, because leaving here resolves nothing.
+            OverlayKind::Conflict => vec![enter("read"), key("esc", "keep editing")],
             // Item 116c: restore moved behind ⇧↵.
             OverlayKind::History => vec![
                 enter("compare"),
@@ -205,6 +218,9 @@ impl OverlayKind {
     pub fn empty_corpus_message(self) -> &'static str {
         match self {
             OverlayKind::History => "no history yet",
+            // Unreachable in practice: the workspace is only summoned with a
+            // conflict open, and it always carries its three fixed views.
+            OverlayKind::Conflict => "nothing to review",
             OverlayKind::Spell => "no suggestions",
             OverlayKind::Browse => "this folder is empty",
             OverlayKind::Goto | OverlayKind::Project | OverlayKind::MoveDest => "no files here",
@@ -239,6 +255,9 @@ impl OverlayKind {
             OverlayKind::Spell => "spelling",
             OverlayKind::Keybindings => "keybindings",
             OverlayKind::History => "version history",
+            // The SAME words the persistent gutter affordance uses, so the thing
+            // you noticed and the place you review it read as one thing.
+            OverlayKind::Conflict => "changed elsewhere",
             OverlayKind::Settings => "settings",
             OverlayKind::Assets => "unused assets",
             OverlayKind::Rename => "rename",
@@ -264,6 +283,7 @@ impl OverlayKind {
             | OverlayKind::Spell
             | OverlayKind::Keybindings
             | OverlayKind::History
+            | OverlayKind::Conflict
             | OverlayKind::Settings
             | OverlayKind::Assets
             | OverlayKind::Rename

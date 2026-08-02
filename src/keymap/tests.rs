@@ -83,6 +83,7 @@ export_as_html|||
 export_as_pdf|||
 insert_link|Cmd-K|C-k|
 save|Cmd-S|C-s|
+review_the_change|||
 save_your_version|||
 use_disk_version|||
 quit|Cmd-Q|C-q|

@@ -114,6 +114,13 @@ pub(super) fn classify_persistence(
                       replay holds no baseline for a file it never opened",
             },
         ),
+        ReviewExternalChange => named(
+            "review_external_change",
+            EffectClass::Unsupported {
+                why: "the conflict this reviews is latched on the live App; \
+                      replay holds no baseline for a file it never opened",
+            },
+        ),
         Save(kind) => {
             let (name, why) = match kind {
                 SaveKind::Manual => (
