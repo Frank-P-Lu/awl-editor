@@ -719,7 +719,7 @@ impl TextPipeline {
         // face on each changed line below via the per-run script ladder
         // (`build_line_attrs` -> `add_script_spans`).
         let fonts = self.resolve_script_fonts();
-        self.doc_lang = crate::frontmatter::detect(text).and_then(|fm| fm.lang);
+        self.doc_lang = crate::card::figures::frontmatter_lang(text);
         let (md_spans, syn_spans) = self.parse_doc_spans(text);
         // Split into lines WITHOUT the line terminators (cosmic-text stores the
         // ending separately). `str::lines()` drops a single trailing newline, which

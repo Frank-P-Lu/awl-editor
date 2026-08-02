@@ -1,6 +1,10 @@
 use super::*;
 use crate::overlay::{OverlayKind, OverlayState};
 
+/// The drawn-⇔-announced roster law for the passive surfaces, in its own
+/// file because it renders real frames and reads their pixels back.
+mod passive_roster;
+
 fn hermetic() -> App {
     App::new_hermetic(None, PathBuf::from("/"), Config::empty())
 }
@@ -252,7 +256,10 @@ fn a_summoned_card_announces_every_drawn_line_and_takes_no_focus() {
     calm_globals();
     let app = hermetic();
     let inputs = crate::card::content::CardInputs {
-        words: "9 words · 1 min".to_string(),
+        doc: crate::card::figures::DocFigures {
+            words: "9 words · 1 min".to_string(),
+            ..crate::card::figures::DocFigures::default()
+        },
         ..crate::card::content::CardInputs::default()
     };
     for kind in crate::card::content::CardKind::ALL {

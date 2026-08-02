@@ -74,6 +74,11 @@ impl App {
         );
         let mut opts = crate::run::fold_capture_state(self, project);
         opts.driver = crate::capture::CaptureDriver::LiveApp;
+        // The which-key panel is drawn by the harness's offscreen pipeline from
+        // `opts`, but ANNOUNCED from the App's own scheduling state. Fed from
+        // the one gate (`whichkey_panel_rows`) so the PNG and the `semantic`
+        // tree cannot disagree about whether the panel is up.
+        opts.whichkey = self.whichkey_panel_rows();
         opts.semantic = Some(self.semantic_snapshot());
         opts
     }

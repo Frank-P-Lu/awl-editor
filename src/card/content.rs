@@ -9,15 +9,20 @@
 //! this module exists to prevent, so the content moved here and the renderer
 //! kept what is genuinely its own: style, metrics and geometry.
 //!
-//! The split is: [`CardInputs`] carries the live figures (the render pipeline
-//! is their one gatherer), [`open_card`] decides which card is up and composes
-//! it, and [`CardContent::spans`] flattens the composed card into the exact
+//! The split is: [`CardInputs`] carries every figure a card can show — the
+//! three DOCUMENT ones from [`crate::card::figures`], the live-only ones in
+//! [`CardLive`] — [`open_card`] decides which card is up and composes it, and
+//! [`CardContent::spans`] flattens the composed card into the exact
 //! `(text, style)` pairs the glyphon rich-text call wants. A semantic consumer
 //! reads the same [`CardContent`] structurally and never sees the newlines.
+//!
+//! Because the figures are derivable without a render pipeline, the semantic
+//! fold composes its own card rather than being handed one. That is what lets a
+//! `--screenshot-app` capture — which has no pipeline of its own — announce the
+//! card its PNG draws.
 
-use crate::hud::{HudSaved, HudStats};
-use crate::peek::PeekRow;
-use crate::streaks::{CardView, StreaksView};
+use super::CardLive;
+use crate::streaks::CardView;
 
 enum_with_all! {
     /// Every passive card awl can summon. A new one must be placed here to be
@@ -145,40 +150,26 @@ impl CardContent {
     }
 }
 
-/// Every live figure a card can show, gathered once by the render pipeline (the
-/// only holder of all of them) and passed here whole. Nothing in this struct is
-/// a renderer type, so the composition below is testable with no GPU.
+/// Every figure a card can show. The three DOCUMENT figures come from
+/// [`crate::card::figures`], the one owner both the renderer and the semantic
+/// fold derive them through; the live-only figures ride in [`CardLive`].
+/// Nothing in this struct is a renderer type, so the composition below is
+/// testable with no GPU.
 #[derive(Debug, Clone)]
 pub struct CardInputs {
     /// The stats HUD's hold is live AND not yielding to a summoned overlay.
     pub hud_held: bool,
     /// The shortcut peek's hold is live AND not yielding to a summoned overlay.
     pub peek_shown: bool,
-    /// Lifetime odometer figures; `None` off the live App (every row reads as
-    /// the placeholder).
-    pub stats: Option<HudStats>,
-    /// The streak card's year view, already folded to the placeholder off the
-    /// live App.
-    pub streaks: Option<StreaksView>,
     /// Which streaks page is showing.
     pub streaks_page: CardView,
-    /// The SAVED figure; `None` off the live App.
-    pub saved: Option<HudSaved>,
-    /// The word-count readout line, empty when there is nothing to count.
-    pub words: String,
-    /// The document's frontmatter language, when it declares one.
-    pub lang: Option<crate::frontmatter::Lang>,
-    /// How far through the document the caret sits.
-    pub percent: u32,
+    /// The word count, frontmatter language and through-doc percent, derived
+    /// from the document by their one owner.
+    pub doc: crate::card::figures::DocFigures,
     /// The document's line-ending convention.
     pub eol: crate::buffer::Eol,
-    /// The peek card's rows, already folded to the starter six when the ledger
-    /// has taught nothing.
-    pub peek_rows: Vec<PeekRow>,
-    /// The About card's "last checked" marker; `None` off the live App.
-    pub update_checked: Option<crate::updates::UpdateChecked>,
-    /// A previous run left a crash log the About card should mention.
-    pub pending_crash: bool,
+    /// The figures only a running App can gather.
+    pub live: CardLive,
 }
 
 /// The OFF-the-live-App reading: nothing summoned and every live-only figure
@@ -190,17 +181,10 @@ impl Default for CardInputs {
         Self {
             hud_held: false,
             peek_shown: false,
-            stats: None,
-            streaks: None,
             streaks_page: CardView::Heatmap,
-            saved: None,
-            words: String::new(),
-            lang: None,
-            percent: 0,
+            doc: crate::card::figures::DocFigures::default(),
             eol: crate::buffer::Eol::Lf,
-            peek_rows: Vec::new(),
-            update_checked: None,
-            pending_crash: false,
+            live: CardLive::default(),
         }
     }
 }
@@ -252,10 +236,10 @@ fn about_spans(inputs: &CardInputs) -> Vec<CardSpan> {
         CardSpan::new("by Frank Lu · GPL-3.0", CardStyle::Caption, true),
         CardSpan::new(world.name, CardStyle::Caption, false),
     ];
-    if let Some(line) = crate::updates::checked_line(inputs.update_checked) {
+    if let Some(line) = crate::updates::checked_line(inputs.live.update_checked) {
         spans.push(CardSpan::new(line, CardStyle::Caption, false));
     }
-    if inputs.pending_crash {
+    if inputs.live.pending_crash {
         spans.push(CardSpan::new(
             "previous crash log available · Settings → Report a Problem",
             CardStyle::Caption,
@@ -273,28 +257,34 @@ fn about_spans(inputs: &CardInputs) -> Vec<CardSpan> {
 
 fn lifetime_spans(inputs: &CardInputs) -> Vec<CardSpan> {
     figure_spans(
-        crate::hud::odometer_rows(inputs.stats.as_ref())
+        crate::hud::odometer_rows(inputs.live.stats.as_ref())
             .into_iter()
             .map(|(caption, value)| (caption.to_string(), value)),
     )
 }
 
 fn hud_spans(inputs: &CardInputs) -> Vec<CardSpan> {
-    let mut rows: Vec<(String, String)> =
-        vec![("SAVED".to_string(), crate::hud::saved_readout(inputs.saved))];
-    if !inputs.words.is_empty() {
-        rows.push(("WORD COUNT".to_string(), inputs.words.clone()));
+    let mut rows: Vec<(String, String)> = vec![(
+        "SAVED".to_string(),
+        crate::hud::saved_readout(inputs.live.saved),
+    )];
+    if !inputs.doc.words.is_empty() {
+        rows.push(("WORD COUNT".to_string(), inputs.doc.words.clone()));
     }
-    if let Some(lang) = inputs.lang {
+    if let Some(lang) = inputs.doc.lang {
         rows.push(("LANGUAGE".to_string(), lang.code().to_string()));
     }
-    rows.push(("THROUGH DOC".to_string(), format!("{}%", inputs.percent)));
+    rows.push((
+        "THROUGH DOC".to_string(),
+        format!("{}%", inputs.doc.percent),
+    ));
     rows.push(("LINE ENDINGS".to_string(), inputs.eol.label().to_string()));
     figure_spans(rows.into_iter())
 }
 
 fn streaks_spans(inputs: &CardInputs) -> Vec<CardSpan> {
     let view = inputs
+        .live
         .streaks
         .clone()
         .unwrap_or_else(crate::streaks::placeholder);
@@ -328,7 +318,7 @@ fn streaks_spans(inputs: &CardInputs) -> Vec<CardSpan> {
 fn peek_spans(inputs: &CardInputs) -> Vec<CardSpan> {
     // The peek reads the other way round: the chord is the figure and the
     // command name is its caption underneath.
-    let rows = crate::peek::rows_or_starter(&inputs.peek_rows);
+    let rows = crate::peek::rows_or_starter(&inputs.live.peek_rows);
     let mut spans = Vec::with_capacity(rows.len() * 2);
     for row in rows {
         spans.push(CardSpan::new(row.chord, CardStyle::Body, false));
@@ -354,9 +344,11 @@ mod tests {
 
     fn inputs() -> CardInputs {
         CardInputs {
-            words: "12 words · 1 min".to_string(),
-            percent: 42,
-            peek_rows: Vec::new(),
+            doc: crate::card::figures::DocFigures {
+                words: "12 words · 1 min".to_string(),
+                lang: None,
+                percent: 42,
+            },
             ..CardInputs::default()
         }
     }

@@ -111,7 +111,7 @@ impl App {
         // PASSIVE surfaces ride on top of whatever holds focus and never take
         // it: any number may be up at once without disturbing the invariant
         // below.
-        self.fold_passive(&mut nodes);
+        self.fold_passive(&mut nodes, &text);
 
         if let Some(message) = self.frame.notice().text() {
             nodes.push(SemanticNode::new(NOTICE_ID, SemanticRole::Status, message));

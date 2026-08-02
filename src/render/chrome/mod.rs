@@ -306,6 +306,7 @@ mod theme_picker;
 pub(in crate::render) use outline::OutlineRow;
 #[cfg(test)]
 pub(in crate::render) use outline::OutlineRung;
+mod card;
 mod debug_text;
 mod hud;
 mod popover;
