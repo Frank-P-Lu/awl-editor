@@ -318,6 +318,10 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 .as_ref()
                 .map(|p| json_string(p))
                 .unwrap_or_else(|| "null".into());
+            let preview_view = o
+                .preview_view
+                .map(json_string)
+                .unwrap_or_else(|| "null".into());
             let empty = o
                 .empty
                 .as_ref()
@@ -330,7 +334,8 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                     "\"spell_target\": {}, \"context_anchor\": {}, \"hint\": {}, ",
                     "\"notice\": {}, \"lens\": {}, ",
                     "\"workspace\": {}, \"lens_strip\": [{}], \"sections\": [{}], ",
-                    "\"preview_id\": {}, \"detail_focus\": {}, \"diff_scroll\": {}, ",
+                    "\"preview_id\": {}, \"preview_view\": {}, ",
+                    "\"detail_focus\": {}, \"diff_scroll\": {}, ",
                     "\"show_hidden\": {}, \"capture\": {}, \"empty\": {}, \"window\": {}, ",
                     "\"items\": [{}], \"bindings\": [{}], \"ranges\": [{}], ",
                     "\"git\": [{}] }}",
@@ -351,6 +356,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 lens_strip,
                 sections,
                 preview_id,
+                preview_view,
                 o.detail_focus,
                 o.diff_scroll,
                 o.show_hidden,
@@ -369,7 +375,8 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
             "\"spell_target\": null, \"context_anchor\": null, \"hint\": null, ",
             "\"notice\": \"\", ",
             "\"lens\": null, \"workspace\": false, \"lens_strip\": [], ",
-            "\"sections\": [], \"preview_id\": null, \"detail_focus\": false, ",
+            "\"sections\": [], \"preview_id\": null, \"preview_view\": null, ",
+            "\"detail_focus\": false, ",
             "\"diff_scroll\": 0, \"show_hidden\": false, \"capture\": null, ",
             "\"empty\": null, \"window\": null, \"items\": [], \"bindings\": [], ",
             "\"ranges\": [], \"git\": [] }",
@@ -748,15 +755,17 @@ fn caret_preview_json(pipeline: &TextPipeline) -> String {
 }
 
 fn gutter_json(pipeline: &TextPipeline) -> String {
-    let (gutter_visible, gutter_name, gutter_project) = match pipeline.gutter_report() {
-        Some((name, project)) => (true, name, project),
-        None => (false, String::new(), String::new()),
-    };
+    let (gutter_visible, gutter_name, gutter_project, gutter_changed) =
+        match pipeline.gutter_report() {
+            Some((name, project, changed)) => (true, name, project, changed),
+            None => (false, String::new(), String::new(), false),
+        };
     format!(
-        "{{ \"visible\": {}, \"name\": {}, \"project\": {} }}",
+        "{{ \"visible\": {}, \"name\": {}, \"project\": {}, \"changed\": {} }}",
         gutter_visible,
         json_string(&gutter_name),
         json_string(&gutter_project),
+        gutter_changed,
     )
 }
 

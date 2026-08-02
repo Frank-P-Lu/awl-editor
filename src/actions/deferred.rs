@@ -29,6 +29,7 @@ pub(super) fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Opt
             Effect::None
         }
         Action::FinishBuffer => Effect::Persistence(PersistenceEffect::Save(SaveKind::Finish)),
+        Action::ReviewChange => Effect::Persistence(PersistenceEffect::ReviewExternalChange),
         Action::ResolveKeepMine => Effect::Persistence(PersistenceEffect::ResolveExternalChange(
             Resolution::KeepMine,
         )),

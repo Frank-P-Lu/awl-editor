@@ -15,7 +15,7 @@
 use crate::buffer::Buffer;
 use crate::capture::{self, CaptureOpts};
 
-/// A DRIVEN EDITOR, as the sidecar fold reads it — the five facts
+/// A DRIVEN EDITOR, as the sidecar fold reads it — the six facts
 /// [`fold_capture_state`] needs and nothing else. Implemented by
 /// [`super::ReplaySession`] (the shared-core driver behind `--keys`,
 /// `--storyboard` and `--capture-timeline`) and by [`crate::app::App`] (the live
@@ -27,6 +27,14 @@ pub(crate) trait CaptureSubject {
     fn search(&self) -> Option<&crate::search::SearchState>;
     fn journey(&self) -> &crate::overlay::Journey;
     fn buffers_open(&self) -> usize;
+    /// Is the active document holding an UNRESOLVED external change? The
+    /// persistent `changed elsewhere` affordance's one input, and the sixth fact
+    /// because it is the first one the shared core genuinely cannot answer: the
+    /// conflict is latched on the live `App`'s per-buffer disk baseline, and a
+    /// replay never builds one. `ReplaySession` therefore answers `false`
+    /// STRUCTURALLY rather than as a default (see its impl), which is what makes
+    /// a `driver: "live-app"` sidecar the only one that can ever report `true`.
+    fn changed_elsewhere(&self) -> bool;
 }
 
 /// THE ONE PER-FRAME FOLD: a driven editor's CURRENT state plus its already-built
@@ -72,6 +80,7 @@ pub(crate) fn fold_capture_state(
             opts.scroll = Some(crate::render::ScrollPos::at_row(diff_scroll));
         }
     }
+    opts.gutter_changed = subject.changed_elsewhere();
     opts.buffers = Some(capture::BuffersInfo {
         open: subject.buffers_open(),
         active: match buffer.path() {
@@ -83,8 +92,8 @@ pub(crate) fn fold_capture_state(
 }
 
 /// Fold ONE still-open overlay into its sidecar [`capture::OverlayInfo`] block
-/// plus the History live-preview TEXT (if that overlay is the History timeline
-/// — see [`history_preview_for`]). Extracted from [`capture_screenshot`]
+/// plus the read-only COMPARISON TEXT (if that overlay shows one — see
+/// [`comparison_preview_for`]). Extracted from [`capture_screenshot`]
 /// VERBATIM so the storyboard runner's per-step render (`crate::story`) and the
 /// one-shot `--keys` capture share ONE owner of "what does an open overlay
 /// report" — the two can never drift.
@@ -97,7 +106,11 @@ pub(crate) fn overlay_capture_info(
     Option<capture::DiffInfo>,
 )> {
     let ov = journey.card()?;
-    let preview = history_preview_for(ov, buffer);
+    // The REQUEST is read once here and reported beside its answer, so the
+    // sidecar names the view it is showing rather than leaving a reader to infer
+    // it from the selected row.
+    let request = ov.comparison_request();
+    let preview = comparison_preview_for(ov, buffer);
     let preview_text = preview
         .as_ref()
         .map(|(_, transcript, _)| transcript.clone());
@@ -130,6 +143,7 @@ pub(crate) fn overlay_capture_info(
         spell_target: ov.spell_target,
         context_anchor: ov.context_anchor,
         preview_id: preview.map(|(id, _, _)| id),
+        preview_view: request.as_ref().map(|r| r.view.tag()),
         workspace: ov.workspace_shape().is_some(),
         detail_focus: ov.detail_focus,
         diff_scroll: ov.diff_scroll,
@@ -174,27 +188,34 @@ impl CaptureSubject for super::ReplaySession<'_> {
     fn buffers_open(&self) -> usize {
         super::ReplaySession::buffers_open(self)
     }
+    /// STRUCTURALLY false: an ordinary replay holds no per-buffer disk baseline,
+    /// so it has nothing that could be in conflict. Not a "not implemented yet"
+    /// — there is no state here to read.
+    fn changed_elsewhere(&self) -> bool {
+        false
+    }
 }
 
-/// The HISTORY timeline's headless live preview: when the replay left the History
-/// overlay OPEN, resolve its highlighted row's restore id to that version's
-/// `(id, content)` via [`crate::history::load`] — keyed by the same shared
-/// [`crate::history::source_path`] derivation the live App uses — so the capture
-/// shows THAT VERSION in the document itself and the sidecar reports which.
-/// `None` for every other overlay kind, the empty-state row, or an unresolvable
-/// id (the capture then just shows the buffer — the live degrade). Pure over the
-/// store, so it is unit-testable with a seeded log.
-pub(super) fn history_preview_for(
+/// The headless side of the READ-ONLY COMPARISON: when the replay left a
+/// comparison surface OPEN, resolve the view it is asking for into prose, so the
+/// capture shows THAT text in the document itself and the sidecar reports which
+/// subject and which view. `None` for every overlay kind that shows no
+/// comparison, an empty-state row, or an unresolvable subject (the capture then
+/// just shows the buffer — the live degrade). Pure over its inputs, so it is
+/// unit-testable with a seeded store or a seeded conflict card.
+pub(super) fn comparison_preview_for(
     ov: &crate::overlay::OverlayState,
     buffer: &Buffer,
 ) -> Option<(String, String, crate::prosediff::DiffCounts)> {
-    // THE SAME TYPED REQUEST the live App resolves (`OverlayState::
-    // comparison_request` -> `history::comparison_prose`), synchronously — the
-    // live debounce is a wall-clock concern the deterministic capture never has.
-    // Routing the capture through the request rather than a parallel History
-    // lookup is what keeps live and `--keys` replay unable to disagree.
+    // THE SAME TYPED REQUEST through THE SAME DISPATCH the live App resolves
+    // (`OverlayState::comparison_request` -> `comparison::prose_for`),
+    // synchronously — the live debounce is a wall-clock concern the
+    // deterministic capture never has. Routing the capture through the one
+    // dispatch rather than a parallel per-kind lookup is what keeps live and
+    // `--keys` replay unable to disagree, and it is why a SECOND comparison
+    // surface needed no second capture path at all.
     let request = ov.comparison_request()?;
-    crate::history::comparison_prose(
+    crate::comparison::prose_for(
         ov,
         &request,
         buffer.path(),

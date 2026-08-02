@@ -522,6 +522,7 @@ impl TextPipeline {
             caret_preview_from_key: None,
             gutter_name: String::new(),
             gutter_project: String::new(),
+            gutter_changed: false,
             md_enabled: false,
             wysiwyg_latched: crate::markdown::wysiwyg_on(),
             inline_images_latched: crate::markdown::inline_images_on(),

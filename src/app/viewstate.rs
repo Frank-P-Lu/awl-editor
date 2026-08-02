@@ -223,6 +223,11 @@ impl App {
                 .and_then(|o| o.selected_caret_mode()),
             gutter_name: self.document.buffer().display_name(),
             gutter_project: self.project_location.project.name.clone(),
+            // THE PERSISTENT AFFORDANCE. Asked of the latch itself, per FRAME —
+            // not raised by an event and not re-raised by a poll — so it is true
+            // for exactly as long as the conflict is and cannot be cleared by an
+            // unrelated toast expiring on top of it.
+            gutter_changed: self.change_unresolved(),
             is_markdown: self.document.buffer().is_markdown(),
             doc_dir: self
                 .document
@@ -419,9 +424,10 @@ impl App {
     /// subject — the document then just shows the buffer, a calm degrade).
     ///
     /// The REQUEST is typed and kind-neutral ([`crate::overlay::ComparisonRequest`],
-    /// whose module doc says why); the ANSWER needs the buffer, its path and the
-    /// store, which is why it is resolved here and not in the overlay content
-    /// model. Rendered ONCE per request into the `history_preview` cache, keyed by
+    /// whose module doc says why); the ANSWER comes from the one dispatch
+    /// ([`crate::comparison::prose_for`]), which picks the producer for the
+    /// surface that asked. This function owns the CACHE and the live inputs, not
+    /// the prose. Rendered ONCE per request into the `history_preview` cache, keyed by
     /// [`crate::overlay::ComparisonRequest::cache_key`] — VIEW and subject, so a
     /// surface offering several read-only views of one subject cannot be served
     /// the wrong one. Reads only; the buffer is never touched.
@@ -440,7 +446,7 @@ impl App {
         }
         let current = self.view_text();
         let ov = self.workspace_state.overlay()?;
-        let (_, transcript, _counts) = crate::history::comparison_prose(
+        let (_, transcript, _counts) = crate::comparison::prose_for(
             ov,
             &request,
             self.document.buffer().path(),

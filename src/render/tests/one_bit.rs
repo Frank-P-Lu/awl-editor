@@ -695,6 +695,7 @@ fn every_overlay_kind_is_classified_and_the_two_families_render_as_declared() {
             | OverlayKind::Assets
             | OverlayKind::Rename
             | OverlayKind::InsertLink
+            | OverlayKind::Conflict
             | OverlayKind::KeepName
             | OverlayKind::Context => CardFamily::CenteredPanel,
         };

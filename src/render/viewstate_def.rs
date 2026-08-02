@@ -99,6 +99,17 @@ pub struct ViewState {
     pub caret_preview: Option<CaretMode>,
     pub gutter_name: String,
     pub gutter_project: String,
+    /// THE PERSISTENT `changed elsewhere` AFFORDANCE: is the active document's
+    /// file holding an unresolved external change right now?
+    ///
+    /// A notice cannot carry this. There is exactly ONE notice slot and a toast
+    /// expiry clears it, so an unrelated "copied" can transiently take the
+    /// conflict's line and leave nothing behind it — no work is at risk (every
+    /// write door refuses regardless of what is on screen), but the user is left
+    /// with no way to see the state they are in. This is chrome instead: it is
+    /// true for as long as the conflict is, and it is drawn beside the filename
+    /// because the filename is the thing that changed underneath.
+    pub gutter_changed: bool,
     pub is_markdown: bool,
     pub doc_dir: Option<std::path::PathBuf>,
     pub syn_lang: Option<crate::syntax::Lang>,
@@ -203,6 +214,7 @@ impl ViewState {
             caret_preview: None,
             gutter_name: String::new(),
             gutter_project: String::new(),
+            gutter_changed: false,
             is_markdown: false,
             doc_dir: None,
             syn_lang: None,

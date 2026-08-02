@@ -145,11 +145,20 @@ fn every_overlay_kind_lands_on_the_rung_its_lifecycle_claims() {
         };
         assert_eq!(ws.layer(), expect, "{kind:?} landed on the wrong rung");
     }
+    // The third member is a product decision and not a refactor: the conflict
+    // surface is a place you stay in to read two manuscripts, with its own
+    // detail stage and its own Back. The list stays spelled out by name rather
+    // than counted, so a FOURTH still has to be argued for here.
     assert_eq!(
         sustained,
-        vec![OverlayKind::History, OverlayKind::Settings],
-        "the shared workspace is scoped to Version History and Settings — \
-         adding a third is a product decision, not a refactor"
+        vec![
+            OverlayKind::History,
+            OverlayKind::Conflict,
+            OverlayKind::Settings
+        ],
+        "the shared workspace is scoped to Version History, the external-change \
+         conflict, and Settings — adding a fourth is a product decision, not a \
+         refactor"
     );
 }
 

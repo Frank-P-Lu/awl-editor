@@ -29,7 +29,7 @@ mod settings_effects;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) use capture_fold::CaptureSubject;
 #[cfg(test)]
-use capture_fold::history_preview_for;
+use capture_fold::comparison_preview_for;
 pub(crate) use capture_fold::{fold_capture_state, overlay_capture_info};
 pub(crate) use location::{launch_windowed, project_info, resolve_root, resolve_workspace};
 // The launch-precedence law's own unit tests (`main/tests.rs`) drive it directly;

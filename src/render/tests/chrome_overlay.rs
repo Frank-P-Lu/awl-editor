@@ -403,7 +403,7 @@ fn gutter_visible_only_in_page_mode_and_dim_overlay_tracks_takeover() {
     p.set_view(&v);
     assert_eq!(
         p.gutter_report(),
-        Some(("notes.md".to_string(), "awl".to_string())),
+        Some(("notes.md".to_string(), "awl".to_string(), false)),
         "page mode + a name + a wide margin => the gutter is drawn"
     );
 
@@ -533,7 +533,7 @@ fn narrow_gutter_never_wraps_and_both_lines_elide_independently() {
         project.chars().count()
     );
 
-    let (name, reported_project) = p
+    let (name, reported_project, _) = p
         .gutter_report()
         .expect("a tight-but-real margin still shows the gutter");
     // (1) THE FIX: the filename is ALWAYS one line — never mid-word wrapped —
@@ -568,7 +568,7 @@ fn narrow_gutter_never_wraps_and_both_lines_elide_independently() {
     short.gutter_name = "short.md".to_string();
     short.gutter_project = project.to_string();
     p.set_view(&short);
-    let (short_name, short_project) = p
+    let (short_name, short_project, _) = p
         .gutter_report()
         .expect("a short name always fits this margin");
     assert_eq!(short_name, "short.md", "a short name is never elided");
@@ -591,7 +591,7 @@ fn narrow_gutter_never_wraps_and_both_lines_elide_independently() {
     swapped.gutter_name = "short.md".to_string();
     swapped.gutter_project = long_project.to_string();
     p.set_view(&swapped);
-    let (swapped_name, elided_project) = p
+    let (swapped_name, elided_project, _) = p
         .gutter_report()
         .expect("a tight-but-real margin still shows the gutter");
     assert_eq!(
@@ -1105,5 +1105,161 @@ fn caret_preview_panel_morph_paints_the_glyph_silhouette() {
     assert!(
         !p.caret_preview_pipeline.is_drawn(),
         "block/bar caret parked too"
+    );
+}
+
+/// **THE PERSISTENT `changed elsewhere` AFFORDANCE** — the state it reports and
+/// the shape it adds. (Its INK, and the pointer targets under it, are the
+/// sibling law below, asserted over real pixels.)
+///
+///   1. **State.** `gutter_report` carries the flag, so a capture can assert the
+///      affordance is up without reading pixels — and it is `false` on an
+///      ordinary document, so the assertion is reading a signal, not a constant.
+///   2. **Shape.** The block grows by exactly one LABEL row and stays
+///      bottom-anchored, and every geometry consumer (carve, frost seeds,
+///      hit-test) grows with it, because they all read the one `lines()` owner.
+#[test]
+fn the_changed_elsewhere_affordance_reports_and_grows_the_block() {
+    let _g = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let (w, h) = (1200u32, 800u32);
+    let Some((_device, _queue, mut p)) = super::headless_dqp(w as f32, h as f32) else {
+        eprintln!("skipping the changed-elsewhere affordance law: no wgpu adapter");
+        return;
+    };
+    crate::page::set_measure(40);
+    crate::page::set_page_on(true);
+
+    let base = |changed: bool| {
+        let mut v = view("hello world\n", 0, 0);
+        v.gutter_name = "notes.md".to_string();
+        v.gutter_project = "awl".to_string();
+        v.gutter_changed = changed;
+        v
+    };
+
+    // ── (1) STATE, both ways round.
+    p.set_view(&base(false));
+    let (name, project, quiet) = p.gutter_report().expect("the gutter is drawn");
+    assert_eq!((name.as_str(), project.as_str()), ("notes.md", "awl"));
+    assert!(!quiet, "an ordinary document has no affordance");
+    let calm_rect = p.gutter_carve_rect(h).expect("a drawn gutter carves");
+    let calm_seeds = p.gutter_frost_seeds(h).len();
+
+    p.set_view(&base(true));
+    let (name, project, loud) = p.gutter_report().expect("the gutter is still drawn");
+    assert_eq!(
+        (name.as_str(), project.as_str()),
+        ("notes.md", "awl"),
+        "the affordance joins the block; it never displaces a line"
+    );
+    assert!(loud, "…and the sidecar can see it");
+
+    // ── (2) SHAPE: one more row, still bottom-anchored, and the derived
+    //        geometry followed. A consumer that kept its own `if project…` count
+    //        would leave its rect a row short here.
+    let loud_rect = p.gutter_carve_rect(h).expect("a drawn gutter carves");
+    assert_eq!(
+        loud_rect[3], calm_rect[3],
+        "the block stays anchored to the same bottom edge"
+    );
+    assert!(
+        loud_rect[1] < calm_rect[1],
+        "the carve must grow UPWARD by the new row: {loud_rect:?} vs {calm_rect:?}"
+    );
+    let row_h = p.metrics.line_height * crate::markdown::type_scale::LABEL;
+    let grew = calm_rect[1] - loud_rect[1];
+    assert!(
+        (grew - row_h).abs() < 1.0,
+        "exactly one LABEL row taller (grew {grew}, row {row_h})"
+    );
+    assert!(
+        p.gutter_frost_seeds(h).len() > calm_seeds,
+        "the lava frost seeds follow the block's own line list"
+    );
+}
+
+/// The affordance's APPEARANCE, asserted over the PNG's pixels (CLAUDE.md's
+/// Wagtail tripwire) rather than inferred from the state above: it is drawn in a
+/// STRONGER ink than the filename beneath it — a three-step value ladder, no new
+/// accent — and it is a LABEL, so the pointer targets under it do not shift.
+#[test]
+fn the_changed_elsewhere_affordance_reads_stronger_than_the_name_it_sits_over() {
+    let _g = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let (w, h) = (1200u32, 800u32);
+    let Some((device, queue, mut p)) = super::headless_dqp(w as f32, h as f32) else {
+        eprintln!("skipping the changed-elsewhere ink law: no wgpu adapter");
+        return;
+    };
+    crate::page::set_measure(40);
+    crate::page::set_page_on(true);
+    let mut v = view("hello world\n", 0, 0);
+    v.gutter_name = "notes.md".to_string();
+    v.gutter_project = "awl".to_string();
+    v.gutter_changed = true;
+    p.set_view(&v);
+
+    let row_h = p.metrics.line_height * crate::markdown::type_scale::LABEL;
+    let block_top = h as f32 - row_h * 3.0 - 8.0;
+    p.prepare(&device, &queue, w, h).unwrap();
+    let px = super::pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+    // The darkest ink drawn in a band, as a luminance — the glyph strokes are
+    // antialiased, so a percentile-free extreme is the honest reading of "how
+    // dark did this row get" (the `mac_about` ink lesson, one axis simpler
+    // because both rows here are the same face at the same size).
+    let ink_of = |row: f32| -> f32 {
+        let y0 = (block_top + row * row_h).round().max(0.0) as u32;
+        let y1 = ((block_top + (row + 1.0) * row_h).round() as u32).min(h);
+        let mut best = f32::MAX;
+        let mut ground = f32::MIN;
+        for y in y0..y1 {
+            for x in 0..(p.column_left().max(1.0) as u32).min(w) {
+                let c = px[(y * w + x) as usize];
+                let l = 0.2126 * c[0] as f32 + 0.7152 * c[1] as f32 + 0.0722 * c[2] as f32;
+                best = best.min(l);
+                ground = ground.max(l);
+            }
+        }
+        assert!(
+            ground - best > 8.0,
+            "row {row} drew no ink at all (range {best}..{ground}) — this law \
+             would be vacuous"
+        );
+        best
+    };
+    let affordance = ink_of(0.0);
+    let filename = ink_of(1.0);
+    let project_ink = ink_of(2.0);
+    assert!(
+        affordance < filename,
+        "the affordance must read STRONGER than the filename beneath it \
+         (ink {affordance} vs {filename}) — it is the one line here that is news"
+    );
+    assert!(
+        filename < project_ink,
+        "…and the existing two-step ladder is unchanged beneath it \
+         (name {filename} vs project {project_ink})"
+    );
+
+    // …and the affordance is a LABEL, not a target: the rows below it still
+    // hit-test as themselves, so nothing a pointer could reach moved.
+    let mid = |row: f32| block_top + (row + 0.5) * row_h;
+    let at = |row: f32| p.gutter_context_target(4.0, mid(row), h);
+    assert_eq!(
+        at(0.0),
+        None,
+        "the affordance names a state; the things you can do about it are named \
+         palette rows, not a click here"
+    );
+    assert_eq!(
+        at(1.0),
+        Some(crate::context_menu::ContextTarget::Filename),
+        "the filename row still targets the filename"
+    );
+    assert_eq!(
+        at(2.0),
+        Some(crate::context_menu::ContextTarget::Folder),
+        "and the project row still targets the folder"
     );
 }

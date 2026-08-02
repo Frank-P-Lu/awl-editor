@@ -220,6 +220,13 @@ pub enum Action {
     /// (`OverlayKind::Assets`) + `assets.rs`.
     OpenAssetClean,
     KeepVersion,
+    /// READ the unresolved external change: summon the conflict workspace, whose
+    /// three read-only views — Differences, Your version, Version on disk — show
+    /// one at a time beside the list naming them. Changes nothing: `Esc` returns
+    /// to editing with the conflict still open. Palette-only, and its row is
+    /// hidden unless a conflict is open (`app/files/external.rs`), exactly like
+    /// the two resolutions it is read before.
+    ReviewChange,
     /// Settle an unresolved external change by writing the buffer over the file,
     /// after rechecking the disk. Palette-only, and its row is hidden unless a
     /// conflict is open (`app/files/external.rs`).

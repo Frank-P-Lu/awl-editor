@@ -62,7 +62,15 @@ pub struct Seed {
 /// INTO the sandbox, performed before it exists. A missing/unreadable input
 /// yields no seed — the scenario then sees an absent file, the same degrade
 /// `Buffer::from_file` / `Config::load` give the legacy path.
-pub fn cli_seeds(file: Option<&Path>, config: Option<&Path>) -> Vec<Seed> {
+///
+/// `data_seed` is the THIRD slot: a real directory whose files
+/// are carried in at awl's OWN [`crate::fs::data_root`] paths — see
+/// [`data_root_seeds`] for why that slot has to exist at all.
+pub fn cli_seeds(
+    file: Option<&Path>,
+    config: Option<&Path>,
+    data_seed: Option<&Path>,
+) -> Vec<Seed> {
     let mut seeds = Vec::new();
     for path in [file, config].into_iter().flatten() {
         if let Ok(bytes) = std::fs::read(path) {
@@ -72,6 +80,60 @@ pub fn cli_seeds(file: Option<&Path>, config: Option<&Path>) -> Vec<Seed> {
             });
         }
     }
+    seeds.extend(data_root_seeds(data_seed));
+    seeds
+}
+
+/// THE DATA-ROOT SEED SLOT: carry the files in `dir` into the sandbox at awl's
+/// own machine-state paths — `data_root()/<name>` for each entry.
+///
+/// # Why this slot exists
+///
+/// A scenario sandbox is seeded from exactly the paths the command line names,
+/// and awl's data root is not one of them. That is fine for a document and a
+/// config, and it is a wall for anything whose whole premise is state awl
+/// already had: the unresolved-change record, the scratch stash, a session, a
+/// history log. The consequence was measured rather than assumed: without this
+/// slot, a live-`App` capture of a file with a conflict record beside it under
+/// `$XDG_DATA_HOME/awl/` photographs the DISK text and no conflict, because
+/// `recovery::read()` looks inside the sandbox and the sandbox has never heard
+/// of that path. The store was not merely unseeded — it was unseedable.
+///
+/// # Why it is an explicit directory and not the machine's real data root
+///
+/// Seeding the developer's actual data root would make a capture depend on
+/// whatever that machine happens to remember, which is the exact property
+/// `new_headless_capture` pins `session_restore` off to avoid. The harness names
+/// the store, so a capture's starting state is written down in its own command
+/// line.
+///
+/// FLAT by design: entries are taken one directory deep and directories inside
+/// are skipped. Every consumer of the data root — `recovery::record_path`,
+/// `fs::scratch_stash_path`, `session.rs`, `updates.rs` — puts a plain file
+/// directly under it, and a slot that quietly walked deeper would be inventing a
+/// layout awl does not have.
+pub fn data_root_seeds(dir: Option<&Path>) -> Vec<Seed> {
+    let Some(dir) = dir else {
+        return Vec::new();
+    };
+    let root = crate::fs::data_root();
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut seeds: Vec<Seed> = entries
+        .flatten()
+        .filter_map(|e| {
+            let from = e.path();
+            let bytes = std::fs::read(&from).ok()?;
+            Some(Seed {
+                path: root.join(from.file_name()?),
+                bytes,
+            })
+        })
+        .collect();
+    // Deterministic order, so two runs of one command seed identically and a
+    // failure is reproducible from the command line alone.
+    seeds.sort_by(|a, b| a.path.cmp(&b.path));
     seeds
 }
 
@@ -103,11 +165,16 @@ pub fn build_sandbox(seeds: &[Seed], roots: &[&Path]) -> InMemoryFs {
 /// scenario. The user's IMPLICIT `~/.config/awl/config.toml` never does: the
 /// sandbox simply has no file at the XDG path, so `Config::load` degrades to
 /// pure defaults exactly like a machine with no config.
-pub fn install_hermetic_fs(file: Option<&Path>, config_arg: Option<&Path>, root: Option<&Path>) {
+pub fn install_hermetic_fs(
+    file: Option<&Path>,
+    config_arg: Option<&Path>,
+    root: Option<&Path>,
+    data_seed: Option<&Path>,
+) {
     let explicit_config: Option<PathBuf> = config_arg
         .map(Path::to_path_buf)
         .or_else(|| std::env::var_os("AWL_CONFIG").map(PathBuf::from));
-    let seeds = cli_seeds(file, explicit_config.as_deref());
+    let seeds = cli_seeds(file, explicit_config.as_deref(), data_seed);
     let roots: Vec<&Path> = root.into_iter().collect();
     crate::fs::set_active(Arc::new(build_sandbox(&seeds, &roots)));
 }
@@ -144,6 +211,74 @@ mod tests {
         ScratchDir::new(dir)
     }
 
+    /// **THE DATA-ROOT SEED SLOT**: files named in a real directory
+    /// arrive at awl's OWN data-root paths, so `recovery::read()` /
+    /// `fs::scratch_stash_path()` / `session.toml` find them where they look.
+    ///
+    /// The mapping is the whole claim. A slot that seeded the source paths
+    /// verbatim — the shape the two existing slots have — would put the record
+    /// somewhere nothing reads, and the run would look exactly like an unseeded
+    /// one.
+    #[test]
+    fn a_data_root_seed_lands_at_awls_own_paths() {
+        let dir = tmp_dir("data-root");
+        std::fs::write(dir.join("unresolved-change.md"), "a record\n").unwrap();
+        std::fs::write(dir.join("scratch.md"), "a stash\n").unwrap();
+        // A DIRECTORY inside is skipped: every consumer of the data root puts a
+        // plain file directly under it, and walking deeper would invent a layout
+        // awl does not have.
+        std::fs::create_dir_all(dir.join("nested")).unwrap();
+        std::fs::write(dir.join("nested").join("deep.md"), "unreachable\n").unwrap();
+
+        let root = crate::fs::data_root();
+        let seeds = data_root_seeds(Some(&dir));
+        let paths: Vec<&Path> = seeds.iter().map(|s| s.path.as_path()).collect();
+        assert_eq!(
+            paths,
+            vec![
+                root.join("scratch.md").as_path(),
+                root.join("unresolved-change.md").as_path()
+            ],
+            "flat, at the data root, and in a deterministic order"
+        );
+        assert_eq!(seeds[1].bytes, b"a record\n", "bytes carried verbatim");
+        // …and the record really is where `recovery` looks for it.
+        assert_eq!(seeds[1].path, crate::recovery::record_path());
+        assert_eq!(seeds[0].path, crate::fs::scratch_stash_path());
+
+        // ANTI-VACUITY: no directory named, nothing seeded — so an ordinary run
+        // is untouched by the slot's existence.
+        assert!(data_root_seeds(None).is_empty());
+        assert!(
+            data_root_seeds(Some(&dir.join("nope"))).is_empty(),
+            "a missing directory degrades to no seeds, never an error"
+        );
+    }
+
+    /// The slot composes with the two that were already there rather than
+    /// replacing either: a scenario can name a document, a config AND a store.
+    #[test]
+    fn the_three_seed_slots_compose() {
+        let dir = tmp_dir("compose");
+        let doc = dir.join("doc.md");
+        let cfg = dir.join("cfg.toml");
+        let store = dir.join("store");
+        std::fs::write(&doc, "# body\n").unwrap();
+        std::fs::write(&cfg, "theme = \"Bombora\"\n").unwrap();
+        std::fs::create_dir_all(&store).unwrap();
+        std::fs::write(store.join("unresolved-change.md"), "held\n").unwrap();
+
+        let seeds = cli_seeds(Some(&doc), Some(&cfg), Some(&store));
+        assert_eq!(seeds.len(), 3, "document, config, and store");
+        let fs = build_sandbox(&seeds, &[]);
+        assert_eq!(fs.read_to_string(&doc).unwrap(), "# body\n");
+        assert_eq!(
+            fs.read_to_string(&crate::recovery::record_path()).unwrap(),
+            "held\n",
+            "the seeded store is readable at the path awl's own reader uses"
+        );
+    }
+
     #[test]
     fn cli_seeds_reads_the_named_inputs_and_skips_missing_ones() {
         let dir = tmp_dir("seeds");
@@ -153,7 +288,7 @@ mod tests {
         std::fs::write(&cfg, "theme = \"Bombora\"\n").unwrap();
 
         // Both present: two seeds, verbatim bytes, in (file, config) order.
-        let seeds = cli_seeds(Some(&doc), Some(&cfg));
+        let seeds = cli_seeds(Some(&doc), Some(&cfg), None);
         assert_eq!(seeds.len(), 2);
         assert_eq!(seeds[0].path, doc);
         assert_eq!(seeds[0].bytes, b"# body\n");
@@ -163,9 +298,9 @@ mod tests {
         // A missing input yields NO seed (the scenario sees an absent file —
         // the same degrade the legacy path gives), never an error.
         let missing = dir.join("nope.md");
-        assert!(cli_seeds(Some(&missing), None).is_empty());
-        assert_eq!(cli_seeds(None, Some(&cfg)).len(), 1);
-        assert!(cli_seeds(None, None).is_empty());
+        assert!(cli_seeds(Some(&missing), None, None).is_empty());
+        assert_eq!(cli_seeds(None, Some(&cfg), None).len(), 1);
+        assert!(cli_seeds(None, None, None).is_empty());
     }
 
     #[test]
@@ -231,7 +366,7 @@ mod tests {
         // `capture()` rather than `install(fs::active())`: the argument form
         // read the global BEFORE taking the guard (queue item 101).
         let _restore = crate::fs::FsGuard::capture();
-        install_hermetic_fs(Some(&doc), None, Some(&dir));
+        install_hermetic_fs(Some(&doc), None, Some(&dir), None);
         // The active backend now serves the seeded copy…
         assert_eq!(
             crate::fs::active().read_to_string(&doc).unwrap(),

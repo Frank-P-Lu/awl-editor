@@ -625,6 +625,7 @@ macro_rules! classify_action_family {
             | Action::OpenGuide
             | Action::OpenSettingsMenu
             | Action::FinishBuffer
+            | Action::ReviewChange
             | Action::ResolveKeepMine
             | Action::ResolveTakeTheirs
             | Action::FollowLink

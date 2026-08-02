@@ -12,6 +12,47 @@ use super::*;
 /// gutter-corner bounds law (`theme::tests`).
 pub(in crate::render) const GUTTER_CARVE_BREATH: f32 = 0.5;
 
+/// THE PERSISTENT AFFORDANCE'S WORDS — the same two the conflict workspace
+/// titles itself with (`OverlayKind::Conflict::title`), so the thing you notice
+/// and the place you review it are recognisably one thing. Deliberately NOT the
+/// sticky notice's whole sentence: a notice has room to name both resolutions,
+/// a margin label has room to name the state.
+pub(in crate::render) const GUTTER_CHANGED_LABEL: &str = "changed elsewhere";
+
+/// WHICH of the gutter block's stacked lines a row is. The block is variable —
+/// the project line is absent without a project, the affordance is absent
+/// without a conflict — so every consumer (the drawn spans, the frost seeds, the
+/// carve height, the sidecar, the hit-test) reads the SAME ordered list rather
+/// than each re-deriving "is there a second line".
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum GutterLine {
+    Changed,
+    Name,
+    Project,
+}
+
+impl GutterLayout {
+    /// The block's lines, TOP to BOTTOM, absent ones omitted. THE one owner of
+    /// the block's shape.
+    pub(super) fn lines(&self) -> Vec<(&str, GutterLine)> {
+        let mut out = Vec::with_capacity(3);
+        if !self.changed.is_empty() {
+            out.push((self.changed.as_str(), GutterLine::Changed));
+        }
+        out.push((self.name.as_str(), GutterLine::Name));
+        if !self.project.is_empty() {
+            out.push((self.project.as_str(), GutterLine::Project));
+        }
+        out
+    }
+
+    /// How many rows tall the block is, as the `f32` every geometry consumer
+    /// multiplies a row height by.
+    pub(super) fn line_count(&self) -> f32 {
+        self.lines().len() as f32
+    }
+}
+
 impl TextPipeline {
     /// The page-mode GUTTER's fully decided layout for this frame: the available
     /// RIGHT-aligned box width (px), the filename AND the project line each
@@ -65,11 +106,66 @@ impl TextPipeline {
         } else {
             String::new()
         };
+        // The affordance rides the SAME per-line budget and the SAME one elision
+        // door as the other two lines — never a third convention — so a narrow
+        // margin elides it rather than overflowing the writing column.
+        let changed = if self.gutter_changed {
+            rowlayout::fit_primary(GUTTER_CHANGED_LABEL, plan.name_budget)
+        } else {
+            String::new()
+        };
         Some(GutterLayout {
             avail,
             name,
             project,
+            changed,
         })
+    }
+
+    /// The HIDDEN arm: park an empty buffer off-screen so nothing draws and a
+    /// non-page (or unnamed, or too-narrow) capture stays byte-identical to what
+    /// it rendered before this chrome existed. Split out of
+    /// [`Self::prepare_gutter`] verbatim — the drawn arm is the one that has
+    /// anything to decide.
+    fn park_gutter_offscreen(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        bounds: TextBounds,
+        muted: glyphon::Color,
+    ) -> anyhow::Result<()> {
+        let line_height = self.metrics.line_height;
+        self.gutter_buffer
+            .set_size(&mut self.font_system, Some(1.0), Some(line_height));
+        self.gutter_buffer.set_text(
+            &mut self.font_system,
+            "",
+            &panel_attrs().color(muted),
+            Shaping::Advanced,
+            None,
+        );
+        self.gutter_buffer
+            .shape_until_scroll(&mut self.font_system, false);
+        let area = TextArea {
+            buffer: &self.gutter_buffer,
+            left: 0.0,
+            top: -1000.0,
+            scale: 1.0,
+            bounds,
+            default_color: muted,
+            custom_glyphs: &[],
+        };
+        self.gutter_renderer
+            .prepare(
+                device,
+                queue,
+                &mut self.font_system,
+                &mut self.atlas,
+                &self.viewport,
+                [area],
+                &mut self.swash_cache,
+            )
+            .map_err(|e| anyhow::anyhow!("glyphon gutter prepare failed: {e:?}"))
     }
 
     /// Shape + upload the page-mode ORIENTATION GUTTER: a quiet stacked label in the
@@ -106,58 +202,42 @@ impl TextPipeline {
         // Hidden: empty text parked off-screen, so nothing draws and a non-page (or
         // unnamed) capture stays byte-identical.
         let Some(layout) = self.gutter_layout() else {
-            self.gutter_buffer
-                .set_size(&mut self.font_system, Some(1.0), Some(m.line_height));
-            self.gutter_buffer.set_text(
-                &mut self.font_system,
-                "",
-                &base.clone().color(muted),
-                Shaping::Advanced,
-                None,
-            );
-            self.gutter_buffer
-                .shape_until_scroll(&mut self.font_system, false);
-            let area = TextArea {
-                buffer: &self.gutter_buffer,
-                left: 0.0,
-                top: -1000.0,
-                scale: 1.0,
-                bounds,
-                default_color: muted,
-                custom_glyphs: &[],
-            };
-            self.gutter_renderer
-                .prepare(
-                    device,
-                    queue,
-                    &mut self.font_system,
-                    &mut self.atlas,
-                    &self.viewport,
-                    [area],
-                    &mut self.swash_cache,
-                )
-                .map_err(|e| anyhow::anyhow!("glyphon gutter prepare failed: {e:?}"))?;
-            return Ok(());
+            return self.park_gutter_offscreen(device, queue, bounds, muted);
         };
         // The filename AND the project line are ALREADY fit to one line each by
         // `gutter_layout` (through the shared `rowlayout::fit_primary` door) — this
         // box NEVER lays raw, possibly-overflowing text into a wrapping width, so
         // neither line can ever word-wrap mid-word.
-        let name = layout.name;
-        let project = layout.project;
-        // Filename (muted) over project (faint). The project line carries its own
-        // leading newline so it stacks under the filename; an empty project (no
-        // project at all — never a width-pressure yield) => name only.
+        let lines = layout.line_count();
+        let name = layout.name.clone();
+        let project = layout.project.clone();
+        // `changed elsewhere` (base content) over filename (muted) over project
+        // (faint) — a three-step VALUE ladder with the state at the top of it,
+        // since that is the one line here that is news. Each lower line carries
+        // its own leading newline so the block stacks; an absent line contributes
+        // nothing at all, so an ordinary document's gutter is byte-identical to
+        // what it drew before this existed.
+        let changed_line = if layout.changed.is_empty() {
+            String::new()
+        } else {
+            format!("{}\n", layout.changed)
+        };
         let proj_line = if project.is_empty() {
             String::new()
         } else {
             format!("\n{project}")
         };
-        let mut spans: Vec<(&str, Attrs)> = vec![(name.as_str(), base.clone().color(muted))];
+        let mut spans: Vec<(&str, Attrs)> = Vec::new();
+        if !changed_line.is_empty() {
+            spans.push((
+                changed_line.as_str(),
+                base.clone().color(theme::base_content().to_glyphon()),
+            ));
+        }
+        spans.push((name.as_str(), base.clone().color(muted)));
         if !proj_line.is_empty() {
             spans.push((proj_line.as_str(), base.clone().color(faint)));
         }
-        let lines = if proj_line.is_empty() { 1.0 } else { 2.0 };
         self.gutter_buffer.set_size(
             &mut self.font_system,
             Some(layout.avail),
@@ -235,7 +315,7 @@ impl TextPipeline {
     pub(in crate::render) fn gutter_carve_rect(&self, height: u32) -> Option<[f32; 4]> {
         let layout = self.gutter_layout()?;
         let label = crate::markdown::type_scale::LABEL;
-        let lines = if layout.project.is_empty() { 1.0 } else { 2.0 };
+        let lines = layout.line_count();
         let block_h = self.metrics.line_height * label * lines;
         // `prepare_gutter` anchors the block bottom 8px up from the canvas bottom.
         let block_top = height as f32 - block_h - 8.0;
@@ -271,7 +351,7 @@ impl TextPipeline {
         // The two stacked LABEL rows, bottom-anchored 8px up (mirrors `prepare_gutter`
         // / `gutter_carve_rect`): name over project. Each line is RIGHT-aligned within
         // `[0, avail]`, so its ink hugs the column at the right edge.
-        let lines_n = if layout.project.is_empty() { 1.0 } else { 2.0 };
+        let lines_n = layout.line_count();
         let block_top = height as f32 - row_h * lines_n - 8.0;
         // The gutter's own LABEL advance (its glyphs are the doc advance × LABEL).
         let label_char_w = self.metrics.char_width * label;
@@ -292,8 +372,9 @@ impl TextPipeline {
             );
         };
         let mut seeds = Vec::new();
-        push_line(&mut seeds, &layout.name, 0.0);
-        push_line(&mut seeds, &layout.project, 1.0);
+        for (row, (text, _)) in layout.lines().into_iter().enumerate() {
+            push_line(&mut seeds, text, row as f32);
+        }
         seeds
     }
 
@@ -305,8 +386,9 @@ impl TextPipeline {
     /// margin can't hold it whole. Neither one yields to the other from width
     /// pressure: `project` is empty here only when there is genuinely no project
     /// to show, so the sidecar always agrees with the pixels.
-    pub fn gutter_report(&self) -> Option<(String, String)> {
-        self.gutter_layout().map(|g| (g.name, g.project))
+    pub fn gutter_report(&self) -> Option<(String, String, bool)> {
+        self.gutter_layout()
+            .map(|g| (g.name, g.project, !g.changed.is_empty()))
     }
 
     /// Hit-test the two identity rows from the exact layout that draws them.
@@ -318,17 +400,22 @@ impl TextPipeline {
     ) -> Option<crate::context_menu::ContextTarget> {
         let layout = self.gutter_layout()?;
         let row_h = self.metrics.line_height * crate::markdown::type_scale::LABEL;
-        let lines = if layout.project.is_empty() { 1.0 } else { 2.0 };
+        let lines = layout.line_count();
         let top = height as f32 - row_h * lines - 8.0;
         if px < 0.0 || px > layout.avail || py < top || py >= top + row_h * lines {
             return None;
         }
-        if py < top + row_h {
-            Some(crate::context_menu::ContextTarget::Filename)
-        } else if !layout.project.is_empty() {
-            Some(crate::context_menu::ContextTarget::Folder)
-        } else {
-            None
+        // Hit-test against the SAME ordered line list the block is drawn from, so
+        // an added line can never shift a target silently: the affordance itself
+        // is a LABEL, not a target — it names a state, and the two things you can
+        // do about that state are named palette rows, not a click here.
+        let row = ((py - top) / row_h).floor() as usize;
+        match layout.lines().get(row)?.1 {
+            GutterLine::Name => Some(crate::context_menu::ContextTarget::Filename),
+            GutterLine::Project => Some(crate::context_menu::ContextTarget::Folder),
+            // The affordance is a LABEL, not a target: it names a state, and the
+            // three things you can do about that state are named palette rows.
+            GutterLine::Changed => None,
         }
     }
 

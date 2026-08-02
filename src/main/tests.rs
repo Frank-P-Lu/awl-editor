@@ -411,7 +411,7 @@ fn hermetic_scenario_save_lands_in_the_sandbox_never_on_real_disk() {
     std::fs::write(&input, "alpha\n").unwrap();
     {
         let _restore = crate::fs::FsGuard::capture();
-        crate::scenario::install_hermetic_fs(Some(&input), None, Some(&dir));
+        crate::scenario::install_hermetic_fs(Some(&input), None, Some(&dir), None);
         let mut buffer = load_buffer(&Some(input.clone()));
         assert_eq!(
             buffer.text(),
@@ -455,7 +455,7 @@ fn hermetic_scenario_witnesses_the_url_handoff_as_an_intercept() {
     std::fs::write(&input, body).unwrap();
     {
         let _restore = crate::fs::FsGuard::capture();
-        crate::scenario::install_hermetic_fs(Some(&input), None, Some(&dir));
+        crate::scenario::install_hermetic_fs(Some(&input), None, Some(&dir), None);
         let mut buffer = load_buffer(&Some(input.clone()));
         let keys = keyspec::parse_keys("Right C-c C-o").unwrap();
         let res = replay_keys_mode(
@@ -2409,7 +2409,7 @@ fn with_seeded_history(body: impl FnOnce(PathBuf)) {
 }
 
 #[test]
-fn history_preview_for_resolves_selected_row() {
+fn comparison_preview_for_resolves_selected_row() {
     // DIFF-AS-PREVIEW: the capture-side preview resolver — the still-open
     // History overlay's highlighted row resolves to (id, TRANSCRIPT, counts):
     // the writer's diff of the current buffer vs that version, exactly what
@@ -2422,7 +2422,7 @@ fn history_preview_for_resolves_selected_row() {
         assert_eq!(rows.len(), 2, "two seeded versions");
         let mut ov = crate::overlay::OverlayState::new_history(rows, None, None);
         let (id, transcript, _counts) =
-            history_preview_for(&ov, &buffer).expect("the newest row resolves");
+            comparison_preview_for(&ov, &buffer).expect("the newest row resolves");
         assert!(
             transcript.starts_with("# Comparing with "),
             "a titled diff transcript: {transcript}"
@@ -2433,7 +2433,7 @@ fn history_preview_for_resolves_selected_row() {
         );
         assert_eq!(Some(id.as_str()), ov.selected_history_id());
         ov.move_sel(1);
-        let (_, older, _) = history_preview_for(&ov, &buffer).expect("row 1 resolves");
+        let (_, older, _) = comparison_preview_for(&ov, &buffer).expect("row 1 resolves");
         assert!(
             older.contains("~~") || older.contains("=="),
             "the highlighted row's diff carries change marks: {older}"
@@ -2445,7 +2445,7 @@ fn history_preview_for_resolves_selected_row() {
             Vec::new(),
             Vec::new(),
         );
-        assert!(history_preview_for(&goto, &buffer).is_none());
+        assert!(comparison_preview_for(&goto, &buffer).is_none());
     });
 }
 

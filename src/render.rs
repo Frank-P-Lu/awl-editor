@@ -2284,6 +2284,7 @@ pub struct TextPipeline {
     caret_preview_from_key: Option<CacheKey>,
     gutter_name: String,
     gutter_project: String,
+    gutter_changed: bool,
     md_enabled: bool,
     /// WYSIWYG / INLINE-IMAGES LATCH: the last-shaped value of the two rendering
     /// process-globals (`markdown::wysiwyg_on()` / `inline_images_on()`), so

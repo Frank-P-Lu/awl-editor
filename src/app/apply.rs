@@ -734,8 +734,13 @@ impl App {
                 self.refresh_settings_overlay();
             }
             History => self.restore_history(value),
+            // The conflict workspace accepts nothing: stepping its rows already
+            // changes what the comparison shows, and neither resolution is
+            // reachable by pressing `↵` on a view of a manuscript. Both run from
+            // named palette rows, which is what makes destroying a version an
+            // act with a name rather than a keypress.
             Theme | Browse | Command | Spell | Keybindings | Settings | Assets | Rename
-            | InsertLink | KeepName | Context => {}
+            | InsertLink | KeepName | Context | Conflict => {}
         }
     }
 
@@ -912,6 +917,7 @@ impl App {
         match effect {
             Save(actions::SaveKind::Manual) => self.manual_save(),
             Save(actions::SaveKind::Finish) => self.save_finished_buffer(),
+            ReviewExternalChange => self.review_external_change(),
             ResolveExternalChange(actions::Resolution::KeepMine) => self.resolve_keep_mine(),
             ResolveExternalChange(actions::Resolution::TakeTheirs) => self.resolve_take_theirs(),
             Preference(CaretMode) => self.persist_caret_mode(),

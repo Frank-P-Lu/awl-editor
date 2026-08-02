@@ -127,6 +127,12 @@ impl OverlayKind {
         match self {
             OverlayKind::Settings => Some(WorkspaceShape::RailOverRows),
             OverlayKind::History => Some(WorkspaceShape::TimelineOverComparison),
+            // THE SAME SHAPE, a different subject: a short list of views beside
+            // the read-only prose one of them names. It is a workspace and not a
+            // card because reading two manuscripts to decide between them is
+            // sustained work, and because the document behind it is the very
+            // thing being compared — leaving it visible would show a third text.
+            OverlayKind::Conflict => Some(WorkspaceShape::TimelineOverComparison),
             OverlayKind::Goto
             | OverlayKind::Project
             | OverlayKind::Browse
@@ -188,6 +194,19 @@ impl OverlayKind {
                 key("\u{21E7}\u{21B5}", "restore"),
                 key("esc", "close"),
             ],
+            // THE VIEWS STAGE. Stepping the rows changes the prose beside them,
+            // so there is nothing to commit and no `↵` cell. `esc keep editing`
+            // states the outcome rather than the key's usual meaning, because
+            // leaving here does NOT resolve anything — the two resolutions are
+            // named by the affordance and run from the palette.
+            OverlayKind::Conflict => vec![
+                key(ARROWS_UD, "view"),
+                HintAction {
+                    glyph: "\u{21B5}",
+                    label: "read",
+                },
+                key("esc", "keep editing"),
+            ],
             OverlayKind::Goto
             | OverlayKind::Project
             | OverlayKind::Browse
@@ -230,6 +249,12 @@ impl OverlayKind {
             OverlayKind::History => vec![
                 key(ARROWS_UD, "scroll"),
                 key("\u{21E7}\u{21B5}", "restore"),
+                key(super::workspace::TAB_GLYPH, "back"),
+            ],
+            // A comparison here is read-only prose exactly as it is on a
+            // timeline, minus the one key that changes the document.
+            OverlayKind::Conflict => vec![
+                key(ARROWS_UD, "scroll"),
                 key(super::workspace::TAB_GLYPH, "back"),
             ],
             OverlayKind::Settings

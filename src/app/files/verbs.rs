@@ -443,6 +443,15 @@ impl App {
         };
         self.flush_note();
         self.autosave_flush();
+        // DUPLICATE IS AN IDENTITY BOUNDARY TOO, and it is gated BEFORE the copy
+        // is written rather than after. The flushes above are what raise a
+        // conflict, and `load_path` below refuses to leave a conflicted
+        // document — so writing first left a real sibling file on disk, no
+        // switch, and a "duplicated" toast sitting on top of the refusal's own
+        // line, which reads as "it worked" for something that did not.
+        if self.refuse_while_unresolved() {
+            return;
+        }
         let bytes = self.document.buffer().disk_bytes();
         let dir = old.parent().map(Path::to_path_buf).unwrap_or_default();
         let stem = old

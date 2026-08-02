@@ -261,6 +261,10 @@ pub(super) fn settled_viewstate(
         misspelled,
         false,
     );
+    // THE PERSISTENT AFFORDANCE, folded in beside the two gutter lines it joins.
+    // `false` on every replay by construction (the fold's own doc says why), so
+    // an ordinary capture stays byte-identical.
+    vstate.gutter_changed = opts.gutter_changed;
     vstate.selection = opts.selection;
     vstate.preedit = opts.preedit.clone().unwrap_or_default();
     vstate.search_matches = search_matches;

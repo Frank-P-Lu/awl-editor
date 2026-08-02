@@ -104,4 +104,7 @@ impl crate::run::CaptureSubject for App {
     fn buffers_open(&self) -> usize {
         self.document.open_count()
     }
+    fn changed_elsewhere(&self) -> bool {
+        self.change_unresolved()
+    }
 }

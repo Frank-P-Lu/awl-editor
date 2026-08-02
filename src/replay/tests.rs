@@ -24,6 +24,7 @@ fn roster() -> Vec<Effect> {
         Effect::Persistence(crate::actions::PersistenceEffect::ResolveExternalChange(
             crate::actions::Resolution::TakeTheirs,
         )),
+        Effect::Persistence(crate::actions::PersistenceEffect::ReviewExternalChange),
         preference(crate::actions::PreferenceEffect::CaretMode),
         preference(crate::actions::PreferenceEffect::PageMode),
         preference(crate::actions::PreferenceEffect::PageWidth),
@@ -172,6 +173,7 @@ fn every_effect_lands_in_its_documented_bucket() {
         "duplicate_note",
         "resolve_keep_mine",
         "resolve_take_theirs",
+        "review_external_change",
     ];
     for e in roster() {
         let c = classify(&e);

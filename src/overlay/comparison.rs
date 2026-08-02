@@ -30,9 +30,10 @@
 //!
 //! This module states the REQUEST, not the answer: resolving a request needs the
 //! buffer, its path and the store, none of which the overlay content model may
-//! reach. `App::comparison_transcript` is the one resolver, and the headless
-//! capture folds through the same request so live and `--keys` replay cannot
-//! disagree about what a comparison shows.
+//! reach. [`crate::comparison::prose_for`] is the one DISPATCH — one resolver,
+//! one producer per surface — and both consumers (the live App's
+//! `App::comparison_transcript` and the headless capture fold) go through it, so
+//! live and `--keys` replay cannot disagree about what a comparison shows.
 
 use super::{OverlayKind, OverlayState};
 
@@ -47,17 +48,24 @@ pub enum ComparisonView {
     /// subject and the current buffer ([`crate::prosediff`]). Version History's
     /// only view, and the one a conflict opens on.
     Differences,
-    /// The user's OWN text for the subject, shown whole and unmarked. No consumer
-    /// yet; the "Your version" a file conflict would offer.
-    #[allow(dead_code)]
+    /// The user's OWN text for the subject, shown whole and unmarked — the
+    /// conflict workspace's "Your version".
     Mine,
-    /// The OTHER text for the subject, shown whole and unmarked. No consumer yet;
-    /// the "Version on disk" a file conflict would offer.
-    #[allow(dead_code)]
+    /// The OTHER text for the subject, shown whole and unmarked — the conflict
+    /// workspace's "Version on disk".
     Theirs,
 }
 
 impl ComparisonView {
+    /// The three views, in the order a reader wants them: what changed, then
+    /// each whole version. [`CONFLICT_ROWS`] is this roster's user-facing
+    /// spelling and a law pins the two in lockstep.
+    pub const ALL: [ComparisonView; 3] = [
+        ComparisonView::Differences,
+        ComparisonView::Mine,
+        ComparisonView::Theirs,
+    ];
+
     /// A stable, machine-readable tag — the cache key's first component and the
     /// sidecar's spelling. Not the user-facing label: that belongs to the surface
     /// that shows it, because "Differences" reads differently on a timeline and
@@ -69,6 +77,32 @@ impl ComparisonView {
             ComparisonView::Theirs => "theirs",
         }
     }
+}
+
+/// THE CONFLICT WORKSPACE'S ROW LABELS, parallel to [`ComparisonView::ALL`].
+///
+/// The user-facing names, which are deliberately NOT the machine tags: a tag is
+/// a cache key and a sidecar spelling, a label is what a reader is asked to
+/// choose between. "Your version" and "Version on disk" name the two
+/// manuscripts by whose they are, because that is the only distinction that
+/// matters while deciding.
+pub const CONFLICT_ROWS: [&str; 3] = ["Differences", "Your version", "Version on disk"];
+
+/// THE CONFLICT WORKSPACE'S SUBJECT: which file, and what the disk said.
+///
+/// It rides the CARD because the producer that reads it is reached from both the
+/// live App and the headless capture fold, and the fold is handed only the
+/// overlay and the buffer — the App's own latch is not in its reach. Putting the
+/// payload on the card is what lets live and capture resolve one request through
+/// one producer.
+///
+/// `theirs` is `None` for a DELETED file — there is no disk version to read, and
+/// the "Version on disk" view says so rather than showing an empty document that
+/// would read as "the file is empty".
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConflictSubject {
+    pub path: std::path::PathBuf,
+    pub theirs: Option<String>,
 }
 
 /// ONE REQUEST for read-only comparison prose: which view, of what.
@@ -95,6 +129,26 @@ impl ComparisonRequest {
 }
 
 impl OverlayState {
+    /// THE CONFLICT WORKSPACE: three read-only views of ONE subject, shown one
+    /// at a time, in the order a reader wants them — what changed, then each
+    /// whole version.
+    ///
+    /// The row order IS the [`ComparisonView`] order
+    /// ([`Self::comparison_request`] reads the selected CORPUS index, never the
+    /// filtered position), so the two cannot drift; the row labels are the
+    /// user-facing names and the view tags are the machine ones, deliberately
+    /// separate because "Differences" reads differently on a timeline.
+    pub fn new_conflict(path: std::path::PathBuf, theirs: Option<String>) -> Self {
+        let mut s = Self::new(
+            OverlayKind::Conflict,
+            CONFLICT_ROWS.iter().map(|r| r.to_string()).collect(),
+            Vec::new(),
+            Vec::new(),
+        );
+        s.conflict = Some(ConflictSubject { path, theirs });
+        s
+    }
+
     /// WHAT READ-ONLY PROSE THIS CARD'S COMPARISON REGION IS ASKING FOR, or `None`
     /// when it has nothing to show — a kind with no comparison at all, or a
     /// timeline standing on its empty-state row.
@@ -111,6 +165,18 @@ impl OverlayState {
                 view: ComparisonView::Differences,
                 subject: self.selected_history_id()?.to_string(),
             }),
+            // THE SECOND CONSUMER the typed request was built for: three views of
+            // ONE subject. The view comes from the selected CORPUS index — the
+            // row's own identity — never from its filtered position, so a typed
+            // query that hides a row cannot silently re-point the remaining ones
+            // at the wrong view. The subject is the file's path: stable across
+            // all three views, so `cache_key`'s view component is what keeps them
+            // apart, which is exactly the collision that type exists to prevent.
+            OverlayKind::Conflict => {
+                let subject = self.conflict.as_ref()?.path.to_string_lossy().to_string();
+                let view = *ComparisonView::ALL.get(self.selected_corpus_index()?)?;
+                Some(ComparisonRequest { view, subject })
+            }
             OverlayKind::Settings
             | OverlayKind::Goto
             | OverlayKind::Project
@@ -137,23 +203,31 @@ impl OverlayState {
 mod tests {
     use super::*;
 
-    /// THE ROSTER: exactly one kind asks for read-only prose today, and it asks
-    /// for the DIFF. Wildcard-free at the source; this pins what the roster
-    /// currently reads so a kind that quietly grows a comparison is noticed.
+    /// THE ROSTER: exactly TWO kinds ask for read-only prose — the timeline, and
+    /// the external-change conflict. Wildcard-free at the source; this
+    /// pins what the roster currently reads so a kind that quietly grows a
+    /// comparison is noticed.
+    ///
+    /// The number moved from one to two DELIBERATELY, and that is the whole
+    /// point of the typed request: 116d built it for a second consumer, and this
+    /// is that consumer arriving. What has NOT moved is the shape of the
+    /// membership test — each member is named, and a bare card of every other
+    /// kind must still ask for nothing.
     #[test]
-    fn exactly_the_timeline_asks_for_read_only_prose() {
+    fn exactly_the_timeline_and_the_conflict_ask_for_read_only_prose() {
         let _g = crate::testlock::serial();
-        let mut asked = 0usize;
+        let mut asked = Vec::new();
         for kind in OverlayKind::ALL {
             let card = OverlayState::new(kind, vec!["a row".into()], vec![], vec![]);
             match kind {
-                OverlayKind::History => {
-                    // A generic card carries no History row meta, so its subject
-                    // is absent and it correctly asks for nothing — which is the
-                    // empty-timeline case, and the reason the focus transfer can
-                    // decline. The populated case is covered below.
+                // A generic card carries no History row meta and no conflict
+                // payload, so its subject is absent in both cases and it
+                // correctly asks for nothing — the empty-timeline case, and the
+                // reason the focus transfer can decline. Both populated cases are
+                // covered below.
+                OverlayKind::History | OverlayKind::Conflict => {
                     assert!(card.comparison_request().is_none());
-                    asked += 1;
+                    asked.push(kind);
                 }
                 _ => assert!(
                     card.comparison_request().is_none(),
@@ -161,7 +235,23 @@ mod tests {
                 ),
             }
         }
-        assert_eq!(asked, 1, "the roster must contain the timeline");
+        assert_eq!(
+            asked,
+            vec![OverlayKind::History, OverlayKind::Conflict],
+            "the comparison roster is the timeline and the conflict"
+        );
+
+        // THE CONFLICT, POPULATED: it asks, on its own subject, for the view its
+        // selected row names.
+        let conflict = OverlayState::new_conflict(
+            std::path::PathBuf::from("/notes/heron.md"),
+            Some("disk".into()),
+        );
+        let req = conflict
+            .comparison_request()
+            .expect("a conflict standing on its first row asks for the differences");
+        assert_eq!(req.view, ComparisonView::Differences);
+        assert_eq!(req.subject, "/notes/heron.md");
 
         let rows = vec![crate::history::TimelineRow {
             when: "2 hr ago".into(),

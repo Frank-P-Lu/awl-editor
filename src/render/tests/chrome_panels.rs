@@ -1954,6 +1954,7 @@ fn footer_contract(kind: crate::overlay::OverlayKind) -> FooterContract {
         | K::Rename
         | K::InsertLink
         | K::KeepName
+        | K::Conflict
         | K::Context => FooterContract::TakeoverCard,
     }
 }
@@ -1985,24 +1986,10 @@ fn overlay_hint_footer_is_compact_and_identical_across_kinds() {
     // The NO-WILDCARD sweep: exactly one contextual popup (Spell), the rest
     // takeover cards. A new kind must classify itself above or this won't compile.
     use crate::overlay::OverlayKind as K;
-    const ALL_KINDS: &[K] = &[
-        K::Goto,
-        K::Project,
-        K::Browse,
-        K::Theme,
-        K::Caret,
-        K::MoveDest,
-        K::Dictionary,
-        K::CjkLang,
-        K::Command,
-        K::Spell,
-        K::Keybindings,
-        K::History,
-        K::Settings,
-        K::Assets,
-        K::Rename,
-        K::InsertLink,
-    ];
+    // The WHOLE roster, from the enum's own declaration: the hand-kept list this
+    // replaces omitted Date, KeepName and Context, so three shipping kinds were
+    // classified by the match above and swept by nothing.
+    const ALL_KINDS: &[K] = &K::ALL;
     let popups = ALL_KINDS
         .iter()
         .filter(|k| footer_contract(**k) == FooterContract::ContextualPopup)
@@ -2095,6 +2082,23 @@ fn overlay_hint_footer_is_compact_and_identical_across_kinds() {
 #[test]
 fn jump_hint_is_present_and_never_clips_for_every_kind() {
     use crate::overlay::OverlayKind;
+    // THE GUARD COMES FIRST, and the page pin with it. `headless_dqp` CONSTRUCTS a
+    // pipeline, which reads the swappable page/theme globals — so taking the lock
+    // only afterwards leaves a window in which another test's write lands between
+    // this pipeline's geometry and this test's expectations (CLAUDE.md's
+    // test-global rule: every READER of a swappable global holds the guard). The
+    // card width this law measures against is derived from the page column, so a
+    // stray `set_measure` in that window narrows the card and reads as a clip.
+    let _g = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    // …AND THE LIST STYLE THIS LAW IS ABOUT IS PINNED, not assumed. The claim is
+    // "the footer fits the FLAT card — the narrowest budget"; under a `Bars`
+    // style there is no boxed pane and the budget is a different one, so a stray
+    // override left set by another test does not make this law stricter, it
+    // makes it measure something else and report a clip that is not one.
+    // (`SerialGuard` restores the world / page / spellcheck globals but does not
+    // police the render overrides, so this has to be said here.)
+    crate::render::set_list_style_test_override(None);
     // (1) PRESENT — no adapter needed: every kind's foot hint teaches the jump. Both
     // VARIANTS of the line are swept: the ordinary one and item 94's RANGE-ROW one
     // (`←/→ adjust`), which is a genuinely wider string and therefore its own clip risk.
@@ -2111,7 +2115,6 @@ fn jump_hint_is_present_and_never_clips_for_every_kind() {
         eprintln!("skipping jump_hint_is_present_and_never_clips_for_every_kind: no wgpu adapter");
         return;
     };
-    let _g = crate::testlock::serial();
     let width = 1200u32;
     for world in ["Tawny", "Mopoke", "Wagtail"] {
         theme::set_active_by_name(world).unwrap();
@@ -2248,6 +2251,7 @@ fn card_pad_for(kind: crate::overlay::OverlayKind) -> f32 {
         | K::Rename
         | K::InsertLink
         | K::KeepName
+        | K::Conflict
         | K::Context => 12.0,
     }
 }
@@ -2274,24 +2278,10 @@ fn overlay_card_h_owner_reproduces_every_kinds_card_height() {
 
     // NO-WILDCARD sweep: exactly one kind (Spell) is the small popup pad; the rest
     // are takeover cards. A new kind must classify itself in `card_pad_for` above.
-    const ALL_KINDS: &[K] = &[
-        K::Goto,
-        K::Project,
-        K::Browse,
-        K::Theme,
-        K::Caret,
-        K::MoveDest,
-        K::Dictionary,
-        K::CjkLang,
-        K::Command,
-        K::Spell,
-        K::Keybindings,
-        K::History,
-        K::Settings,
-        K::Assets,
-        K::Rename,
-        K::InsertLink,
-    ];
+    // The WHOLE roster, from the enum's own declaration: the hand-kept list this
+    // replaces omitted Date, KeepName and Context, so three shipping kinds were
+    // classified by the match above and swept by nothing.
+    const ALL_KINDS: &[K] = &K::ALL;
     let popups = ALL_KINDS
         .iter()
         .filter(|k| card_pad_for(**k) == 10.0)
