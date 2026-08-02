@@ -220,6 +220,26 @@ section { padding: 5.5rem 0; }
   font-family: var(--mono);
   font-size: 0.72rem;
 }
+.download-note {
+  width: min(46rem, calc(100vw - 3rem));
+  margin: 1.6rem auto 0;
+  text-align: left;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.download-note p { margin: 0 0 0.9rem; }
+.download-note pre {
+  margin: 0 0 0.9rem;
+  padding: 0.9rem 1.1rem;
+  overflow-x: auto;
+  background: var(--raised);
+  border: 1px solid var(--border);
+}
+.download-note code {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
 
 /* ---- Section headings --------------------------------------------------- */
 .eyebrow {

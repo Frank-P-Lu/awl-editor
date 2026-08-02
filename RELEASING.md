@@ -9,6 +9,10 @@ pull request (linux build + test, wasm build + smoke) — the merge gate, not a
 release step. This doc is the one-time setup for the two release pipelines, plus
 how to actually cut a release.
 
+**A tag publishes Linux only.** The mac and web jobs build on a dry run and are
+skipped on a tag, so no unsigned `.app` can reach a public Release. §5 is the
+pre-tag checklist, including the two decisions that are still open.
+
 ## 1. Apple setup (macOS signing + notarization)
 
 Signing is **optional but gated** — without these five secrets, `release.yml`
@@ -74,22 +78,23 @@ Builds a fresh `trunk build --release --public-url /editor/`, assembles it
 over a copy of `site/`, and `flyctl deploy`s that assembled directory. Never
 touches or commits `site/editor/`'s checked-in bundle (legacy — see below).
 
-**Downloadable artifacts (macOS / Linux / web):**
+**Downloadable artifacts (Linux):**
 
 ```sh
 # 1. on the final combined main, prove debug/release state parity
 scripts/release-profile-gate.sh
 # 2. bump Cargo.toml's package.version if this is a real version bump
-# 3. tag and push
+# 3. work §5's checklist, then tag and push
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The tag push triggers `release.yml`: builds a macOS universal `.app`/`.dmg`
-(signed + notarized if the Apple secrets are set, unsigned otherwise), a
-Linux `.tar.gz`, and a zipped web `dist/`, then attaches all of them to a new
-GitHub Release at that tag. The Linux release job reruns the headless parity
-law before packaging, so a missed local pre-tag run still blocks publication.
+The tag push triggers `release.yml`'s `linux` and `publish` jobs: a
+`cargo build --release`, the headless parity law again, `scripts/package-linux.sh`,
+and a new GitHub Release carrying `awl-linux-x86_64.tar.gz` and `SHA256SUMS`.
+The mac and web jobs do not run on a tag (see §5's open decisions), so no
+unsigned `.app` and no `dist/` zip can be attached. Rerunning the parity law
+inside the release job means a missed local pre-tag run still blocks publication.
 
 **Dry run (no tag, nothing published) — verify the pipeline is healthy:**
 
@@ -98,16 +103,26 @@ gh workflow run release.yml -f dry_run=true
 gh run watch
 ```
 
-Every job still builds; artifacts land in the run's **Artifacts** tab
-instead of a GitHub Release, and no tag or release is created.
+All three build jobs run; artifacts land in the run's **Artifacts** tab instead
+of a GitHub Release, `publish` is skipped, and no tag or release is created.
+
+**Locally, without GitHub** — the packaging step alone, against any Linux build:
+
+```sh
+scripts/package-linux.sh path/to/linux/awl dist-linux
+```
+
+It stages the payload, writes the tarball and its `.sha256`, and prints the
+archive listing. A missing licence file is a hard failure, not a warning.
 
 ### What lands where
 
 | Artifact | Where |
 |---|---|
-| `Awl.app` (universal, signed+notarized if secrets set) + `Awl.dmg` | GitHub Release (tag) or workflow artifact `awl-macos` (dry run) |
-| `awl-linux-x86_64.tar.gz` | GitHub Release or workflow artifact `awl-linux` |
-| `awl-web-dist.zip` (the `trunk build --release` output) | GitHub Release or workflow artifact `awl-web` |
+| `awl-linux-x86_64.tar.gz` + `SHA256SUMS` | GitHub Release (tag) |
+| `awl-linux-x86_64.tar.gz` + `.sha256` | workflow artifact `awl-linux` (dry run) |
+| `Awl.app` (universal, unsigned until §1 is done) + `Awl.dmg` | workflow artifact `awl-macos` — **dry run only**, never attached to a Release |
+| `awl-web-dist.zip` (the `trunk build --release` output) | workflow artifact `awl-web` — **dry run only**, never attached to a Release |
 | the live website + `/editor/` demo | Fly.io (`awl-editor`, `site/fly.toml`) — via `deploy-web.yml`, separately |
 
 ### Icons (RESOLVED — the per-world app-icon round)
@@ -164,8 +179,51 @@ Two more artifacts landed alongside: `THIRD-PARTY-LICENSES.md` (the
 generated Rust-crate license inventory, `cargo about generate about.hbs -o
 THIRD-PARTY-LICENSES.md` — regeneration instructions in the file's own
 header) and `CREDITS.md` (the human-readable thank-you, also reachable
-in-app via Cmd-P → "Credits" and on the website at `/credits.html`). All
-five license-adjacent docs (`LICENSE`, `NOTICE`, `CREDITS.md`,
-`THIRD-PARTY-LICENSES.md`, plus the font/dict `LICENSES.md` pair) ride the
-release artifacts — see `scripts/package-macos.sh`'s Resources/ + DMG-root
-copies and `release.yml`'s Linux tarball / web zip steps.
+in-app via Cmd-P → "Credits" and on the website at `/credits.html`).
+
+All six license-adjacent docs ride every release artifact. Until item 226 only
+four of them did: the font and dictionary audits were named here as shipping
+and were not copied by any packaging path, while the fonts and dictionaries
+themselves are `include_bytes!`d into the binary — so a downloaded awl carried
+OFL and LGPL-2.1 material with neither licence beside it.
+
+| Doc | Tarball | `Awl.app` |
+|---|---|---|
+| `LICENSE` (GPL-3.0 full text) | root | `Contents/Resources/` + DMG root |
+| `NOTICE` (copyright holder, asset carve-outs) | root | `Contents/Resources/` + DMG root |
+| `CREDITS.md` | root | `Contents/Resources/` + DMG root |
+| `THIRD-PARTY-LICENSES.md` (generated crate inventory) | root | `Contents/Resources/` + DMG root |
+| `assets/fonts/LICENSES.md` (SIL OFL 1.1) | `licenses/fonts-LICENSES.md` | `Contents/Resources/licenses/` |
+| `assets/dict/LICENSES.md` (LGPL-2.1 + SCOWL/Ispell) | `licenses/dict-LICENSES.md` | `Contents/Resources/licenses/` |
+
+The tarball's `README.txt` carries the GPLv3 §6(d) source offer — a link to the
+public repository. `scripts/package-linux.sh` exits non-zero on any missing
+file in that set; `scripts/package-macos.sh` warns, because it must stay
+runnable against an older checkout.
+
+## 5. Pre-tag checklist
+
+Nothing here is automatic. Work it top to bottom on the exact commit the tag
+will name.
+
+| # | Step | Done when |
+|---|---|---|
+| 1 | `scripts/native-gate.sh` on combined main | receipt names the tag's commit |
+| 2 | `scripts/audit.sh` | cargo-deny clean, or a recorded narrow ignore |
+| 3 | `scripts/release-profile-gate.sh` | all 8 action families match debug↔release |
+| 4 | `cargo about generate about.hbs -o THIRD-PARTY-LICENSES.md` | regenerated, diff reviewed, committed |
+| 5 | `gh workflow run release.yml -f dry_run=true` | three green build jobs, `publish` skipped |
+| 6 | Download `awl-linux` from the run and unpack it | listing matches §4's table; `sha256sum -c` passes |
+| 7 | Launch the unpacked binary on a real Linux desktop | window opens, a file opens, `--screenshot` writes a PNG |
+| 8 | `Cargo.toml`'s `package.version` matches the tag | `v<version>` — no stale `0.1.0` |
+| 9 | `git tag`, `git push origin <tag>` | **user's explicit word, every time** |
+
+### Still open — decisions, not tasks
+
+| Decision | State today | Owner |
+|---|---|---|
+| Cut a public tag at all | no tag has ever been pushed; `gh release list` is empty | the user, explicitly (CLAUDE.md §Branches) |
+| macOS artifacts | none of the five Apple secrets in §1 are set; the mac job is skipped on a tag so an unsigned `.app` cannot publish | the user — needs a paid Apple Developer Program membership |
+| Version + prerelease flag | `Cargo.toml` says `0.1.0`; queue item 228 proposes `v0.9.0` marked prerelease | queue item 228 |
+| glibc floor | `ubuntu-latest` builds against glibc 2.39, which excludes Debian 12, Ubuntu 22.04 and RHEL 9; the tarball records its own floor in `GLIBC.txt` | open — building in a `debian:bookworm` container would drop the floor to 2.36 |
+| Web download | `awl-web-dist.zip` builds on dry runs and is not attached; the site is the web distribution | settled unless a self-host story is wanted |

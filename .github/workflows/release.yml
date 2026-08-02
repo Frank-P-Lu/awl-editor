@@ -15,6 +15,14 @@ name: release
 # job is independently gated on its own secrets (see below) — a dry run
 # with no signing secrets configured produces an UNSIGNED .app + .dmg, which
 # is the expected, fully-testable-today path.
+#
+# WHAT A TAG PUBLISHES TODAY: Linux only. The mac and web jobs build on a
+# DRY RUN — that is what keeps the whole pipeline honest — and are skipped
+# on a tag, so an unsigned .app can never reach a public Release by
+# accident. macOS ships when Apple signing + notarization are configured
+# (RELEASING.md §1); the web build ships as the live site via
+# deploy-web.yml, not as a download. Flip both `if:` conditions and the
+# publish job's `needs`/`files` together when that changes.
 
 on:
   push:
@@ -30,6 +38,14 @@ on:
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
+
+# The repository's default workflow permission is READ. Every build job is
+# happy with that; the publish job raises `contents: write` for itself alone,
+# which is the token scope `softprops/action-gh-release` needs to create the
+# Release. Without it a tag push builds everything and then 403s on the last
+# step — a failure no dry run can surface, because dry runs skip publish.
+permissions:
+  contents: read
 
 jobs:
   # Single source of truth for "is this a real release" so every job (and
@@ -54,6 +70,8 @@ jobs:
   mac:
     name: mac (universal .app + .dmg)
     needs: plan
+    # Dry runs only — see the header. A tag must not produce an unsigned .app.
+    if: needs.plan.outputs.is_release != 'true'
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
@@ -66,6 +84,14 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: release-mac
+
+      # .cargo/config.toml sets `rustc-wrapper = "sccache"` for every build in
+      # this checkout, so the wrapper has to exist before the first cargo
+      # invocation or it dies on `rustc -vV` with "could not execute process
+      # sccache (never executed)". Installed after the cache restore, exactly
+      # as ci.yml does it.
+      - name: Install sccache
+        run: scripts/install-sccache.sh
 
       # with-remap.sh strips the runner's $HOME/registry paths from the shipped
       # release binary (rustc bakes compile-time source locations otherwise).
@@ -229,6 +255,10 @@ jobs:
         with:
           key: release-linux
 
+      # See the mac job's copy of this step for why it is not optional.
+      - name: Install sccache
+        run: scripts/install-sccache.sh
+
       # Build the debug half consumed by the profile differential below.
       - name: cargo build
         run: cargo build
@@ -244,25 +274,27 @@ jobs:
       - name: Debug/release sidecar parity
         run: scripts/release-profile-gate.sh --use-built-binaries
 
-      - name: Package tar.gz
-        run: |
-          mkdir -p dist-linux/awl-linux-x86_64
-          cp target/release/awl dist-linux/awl-linux-x86_64/
-          cp LICENSE dist-linux/awl-linux-x86_64/ 2>/dev/null || true
-          cp NOTICE dist-linux/awl-linux-x86_64/ 2>/dev/null || true
-          cp CREDITS.md dist-linux/awl-linux-x86_64/ 2>/dev/null || true
-          cp THIRD-PARTY-LICENSES.md dist-linux/awl-linux-x86_64/ 2>/dev/null || true
-          tar -czf dist-linux/awl-linux-x86_64.tar.gz -C dist-linux awl-linux-x86_64
+      # One owner for the archive layout, the licence set and the checksum,
+      # runnable locally against any Linux build — the eight inline `cp`
+      # lines this replaced could only be exercised by pushing to CI, and
+      # their `2>/dev/null || true` would have shipped a tarball with no
+      # LICENSE in it without failing.
+      - name: Package tar.gz + checksum
+        run: scripts/package-linux.sh target/release/awl dist-linux
 
       - uses: actions/upload-artifact@v7
         with:
           name: awl-linux
-          path: dist-linux/awl-linux-x86_64.tar.gz
+          path: |
+            dist-linux/awl-linux-x86_64.tar.gz
+            dist-linux/awl-linux-x86_64.tar.gz.sha256
           retention-days: 14
 
   web:
     name: web (trunk dist, zipped)
     needs: plan
+    # Dry runs only — see the header. The web build ships as the live site.
+    if: needs.plan.outputs.is_release != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -276,6 +308,10 @@ jobs:
         with:
           key: release-web
 
+      # See the mac job's copy of this step for why it is not optional.
+      - name: Install sccache
+        run: scripts/install-sccache.sh
+
       - name: Install wasm-bindgen-cli + trunk
         run: |
           cargo install wasm-bindgen-cli --version 0.2.121 --locked
@@ -286,10 +322,15 @@ jobs:
       - name: trunk build --release
         run: scripts/with-remap.sh trunk build --release
 
+      # The same licence set the Linux tarball carries, including the two
+      # bundled-asset audits — the fonts and dictionaries are compiled into
+      # the wasm exactly as they are into the native binary.
       - name: Zip dist/
         run: |
-          mkdir -p dist-web
-          cp LICENSE NOTICE CREDITS.md THIRD-PARTY-LICENSES.md dist/ 2>/dev/null || true
+          mkdir -p dist-web dist/licenses
+          cp LICENSE NOTICE CREDITS.md THIRD-PARTY-LICENSES.md dist/
+          cp assets/fonts/LICENSES.md dist/licenses/fonts-LICENSES.md
+          cp assets/dict/LICENSES.md dist/licenses/dict-LICENSES.md
           (cd dist && zip -r ../dist-web/awl-web-dist.zip .)
 
       - uses: actions/upload-artifact@v7
@@ -300,21 +341,33 @@ jobs:
 
   publish:
     name: publish GitHub Release
-    needs: [plan, mac, linux, web]
+    # Linux only — the mac and web jobs do not run on a tag at all, so they
+    # cannot be depended on here and cannot be attached by accident.
+    needs: [plan, linux]
     if: needs.plan.outputs.is_release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v8
         with:
           path: artifacts
+
+      # SHA256SUMS covers exactly the files about to be attached, computed
+      # from the artifacts themselves rather than transcribed. `sha256sum -c
+      # SHA256SUMS` in the download directory is the whole verification.
+      - name: Build the checksum manifest
+        run: |
+          mkdir -p release
+          cp artifacts/awl-linux/awl-linux-x86_64.tar.gz release/
+          (cd release && sha256sum awl-linux-x86_64.tar.gz > SHA256SUMS)
+          cat release/SHA256SUMS
 
       - name: softprops/action-gh-release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.plan.outputs.version }}
           files: |
-            artifacts/awl-macos/Awl-macos-universal.app.zip
-            artifacts/awl-macos/Awl.dmg
-            artifacts/awl-linux/awl-linux-x86_64.tar.gz
-            artifacts/awl-web/awl-web-dist.zip
+            release/awl-linux-x86_64.tar.gz
+            release/SHA256SUMS

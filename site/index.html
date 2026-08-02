@@ -53,17 +53,28 @@
       <h2>Write on your platform.</h2>
       <div class="platform-links">
         <a href="https://github.com/Frank-P-Lu/awl-next/releases">
-          <span>macOS</span>
-          <small>Universal app</small>
-        </a>
-        <a href="https://github.com/Frank-P-Lu/awl-next/releases">
           <span>Linux</span>
-          <small>x86_64</small>
+          <small>x86_64 tar.gz</small>
+        </a>
+        <a href="https://github.com/Frank-P-Lu/awl-next#build--run">
+          <span>macOS</span>
+          <small>Build from source</small>
         </a>
         <a href="editor/">
           <span>Windows</span>
           <small>Use the web editor</small>
         </a>
+      </div>
+      <div class="download-note">
+        <p>Unpack the archive and run the binary. Nothing is installed.</p>
+        <pre><code>tar xzf awl-linux-x86_64.tar.gz
+cd awl-linux-x86_64
+./awl notes.md</code></pre>
+        <p>Check it against the release's <code>SHA256SUMS</code> first with
+          <code>sha256sum -c SHA256SUMS</code>. awl needs a working Vulkan
+          driver, fontconfig, libxkbcommon, and Wayland or X11; the archive's
+          <code>README.txt</code> names the packages per distro. A signed macOS
+          build is not ready yet.</p>
       </div>
     </section>
   </main>

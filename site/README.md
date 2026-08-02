@@ -30,8 +30,9 @@ installs the default world's 32px asset here. Do not edit it by hand.
 
 1. **One-screen hero** — compact human navigation, the `awl` wordmark, one-line
    description, primary `Try it →` CTA, and secondary `Download ↓` anchor.
-2. **Download** — macOS and Linux release links plus the web-editor route for
-   Windows.
+2. **Download** — the Linux release link, the build-from-source route for macOS
+   (no signed build yet), and the web-editor route for Windows, under an
+   unpack-and-run note with the checksum and runtime-library facts.
 
 Human navigation is deliberately limited to GitHub, Try, Philosophy, and Guide.
 `llms.txt` remains available to machines but is not linked from human pages.
