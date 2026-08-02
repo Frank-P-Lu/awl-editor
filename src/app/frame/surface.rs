@@ -108,6 +108,7 @@ impl SurfaceState {
         self.timeout_streak = 0;
     }
 
+    #[cfg(test)]
     pub(super) fn invalidate_present_sync(&mut self) {
         self.present_sync.invalidate();
     }

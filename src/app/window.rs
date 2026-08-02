@@ -350,6 +350,7 @@ impl App {
     /// the ONE settle redraw. Clearing `resize_settle_at` first is what makes
     /// the settle fire exactly once — the `about_to_wait` arm is gated on the
     /// stamp being present.
+    #[cfg(test)]
     pub(super) fn finish_resize_settle(&mut self) {
         self.frame.clear_settle(frame::SettleKind::Resize);
         if let Some(gpu) = self.frame.gpu_mut() {
@@ -370,6 +371,7 @@ impl App {
     /// `advance_lava`; a pure move never touches `lava_field_viewport`), so
     /// this redraw presents the SAME lava the move started with — no snap, no
     /// flash. Clearing `move_settle_at` first makes it fire exactly once.
+    #[cfg(test)]
     pub(super) fn finish_move_settle(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
         if crate::probe::recording() {
@@ -397,6 +399,7 @@ impl App {
     /// what makes the `about_to_wait` arm (gated on the stamp) fire exactly once.
     /// A resize/move stream still live keeps the sync armed regardless (the one
     /// owner composes all three). Live-only: a headless capture never previews.
+    #[cfg(test)]
     pub(super) fn finish_crossing_settle(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
         if crate::probe::recording() {
@@ -637,10 +640,8 @@ impl App {
         // machine goes fully quiet (the stamp itself requests nothing).
         // Control flow stays `Wait`; `request_redraw` alone delivers the
         // one frame. New input meanwhile simply wins (see `still_wake`).
-        if crate::debug::debug_on() {
-            if self.frame.settle_debug_panel(animating) {
-                self.request_frame();
-            }
+        if crate::debug::debug_on() && self.frame.settle_debug_panel(animating) {
+            self.request_frame();
         }
     }
 }

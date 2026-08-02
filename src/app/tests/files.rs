@@ -1027,11 +1027,6 @@ fn finish_manual_save_ok_is_silent_failure_notices_the_error() {
     app.finish_manual_save(true, "saved".to_string());
     assert_eq!(app.frame.notice().text(), Some("saved"));
     assert_eq!(app.frame.notice().kind(), NoticeKind::Toast);
-    assert!(
-        app.frame.notice().expires_at().is_none(),
-        "a headless test never arms a live timer"
-    );
-
     app.finish_manual_save(false, "save failed: disk full".to_string());
     assert_eq!(app.frame.notice().text(), Some("save failed: disk full"));
 }

@@ -1080,6 +1080,7 @@ type AwlEvent = ();
 /// `dirty + window` (fire the deferred write), false while still inside the window
 /// (keep waiting — a fresh action re-stamps `dirty`, sliding the deadline). Pure, so
 /// the debounce decision is unit-testable without an event loop.
+#[cfg(test)]
 fn debounce_due(dirty: Instant, window: Duration, now: Instant) -> bool {
     now.saturating_duration_since(dirty) >= window
 }
@@ -1110,6 +1111,7 @@ fn control_flow_with_deadline(current: ControlFlow, proposed: Instant) -> Contro
 
 /// Pure notice lifetime law: only a Toast carrying a reached live deadline may
 /// disappear. Sticky state and clockless/headless toasts never expire.
+#[cfg(test)]
 fn notice_expired(kind: NoticeKind, deadline: Option<Instant>, now: Instant) -> bool {
     kind == NoticeKind::Toast && deadline.is_some_and(|d| now >= d)
 }

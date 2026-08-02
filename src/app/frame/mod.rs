@@ -411,10 +411,12 @@ impl FrameRuntime {
         self.deadlines.focused = focused;
     }
 
+    #[cfg(test)]
     pub(in crate::app) fn lava_tick_at(&self) -> Option<Instant> {
         self.deadlines.lava_tick_at
     }
 
+    #[cfg(test)]
     pub(in crate::app) fn arm_lava_tick(&mut self, now: Instant) {
         self.deadlines.lava_tick_at = Some(now);
     }
@@ -440,6 +442,7 @@ impl FrameRuntime {
         }
     }
 
+    #[cfg(test)]
     pub(in crate::app) fn clear_settle(&mut self, kind: SettleKind) {
         match kind {
             SettleKind::Resize => self.deadlines.resize_settle_at = None,
@@ -448,6 +451,7 @@ impl FrameRuntime {
         }
     }
 
+    #[cfg(test)]
     pub(in crate::app) fn begin_crossing_teardown(&mut self) {
         self.deadlines.crossing_settle_at = None;
         self.deadlines.crossing_teardown_pending = true;

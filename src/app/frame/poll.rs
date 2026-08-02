@@ -35,7 +35,6 @@ pub(super) struct NoticeState {
 pub(in crate::app) struct NoticeSnapshot<'a> {
     text: Option<&'a str>,
     kind: NoticeKind,
-    expires_at: Option<Instant>,
 }
 
 impl<'a> NoticeSnapshot<'a> {
@@ -53,10 +52,6 @@ impl<'a> NoticeSnapshot<'a> {
 
     pub(in crate::app) fn kind(self) -> NoticeKind {
         self.kind
-    }
-
-    pub(in crate::app) fn expires_at(self) -> Option<Instant> {
-        self.expires_at
     }
 }
 
@@ -234,7 +229,6 @@ impl FrameRuntime {
         NoticeSnapshot {
             text: self.notice.text.as_deref(),
             kind: self.notice.kind,
-            expires_at: self.notice.expires_at,
         }
     }
 }
