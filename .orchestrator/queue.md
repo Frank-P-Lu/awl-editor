@@ -4,7 +4,33 @@
 > (`git log -p .orchestrator/queue.md`). Protocol, claiming, worktrees, and
 > execution hygiene live in `.orchestrator/README.md`.
 
-## Latest design decision
+## Latest design decisions
+
+**Item 116d — 2026-08-02, THE COMPOSITING CALL, and 116d is now UNBLOCKED.**
+The comparison sits **ON the workspace surface**, not as a window through it.
+The card stays one opaque surface — "A WORKSPACE IS ONE SURFACE" survives
+intact — and the relocated document layer draws **after** the card into the
+carved region, **without re-drawing its own ground**. The rejected arm was the
+one the code itself had already found the defect in: a hole punched in the card
+would show the *backdrop's* ground, because the ground punch is at the page
+column and not at the region, and on a blur-eligible world `backdrop_blur()`
+frosts the frame *around* the workspace — exactly where the region is not. So
+"through" would have meant fixing two compositing bugs to reach a worse answer.
+**116b's boundary law
+`the_relocated_document_is_geometrically_placed_but_not_yet_composited` is now
+the thing to delete and replace** with the containment-and-visibility law its
+own message asks for. Painter's order gains a second document pass; the region
+must be proven to contain it, in every world.
+
+**Item 132 / item 118 — 2026-08-02, the contradiction is RESOLVED in favour of
+132.** **Kite is a 5/5.** The roster's target distribution is amended from
+`1, 7, 7, 4, 1` (mean 2.85) to **`1, 7, 6, 4, 2` (mean 2.90)** — two deliberate
+statement worlds, Firetail and Kite. Item 118's "the gap is the middle, not more
+5s" was written before Kite was commissioned and is superseded on that one
+clause only; the rest of its direction (calm bias, hover around 3, no
+theme-park bell curve) stands. Recorded here because item 118's own audit found
+these two user decisions could not both hold and asked for the call before Kite
+was built rather than after.
 
 **Item 213 — 2026-08-02:** The user approved the **3 px optical lift** for the
 app-icon cursor across the complete world roster and all three cursor shapes.
@@ -83,6 +109,21 @@ worktree `../awl-next-worktrees/ci-red-mac-runner`.
   `../awl-next-worktrees/item-174-strip-band`. The next family named by the
   landed slice: fold `overlay_secondary_top` / `overlay_split_bounds` /
   `overlay_strip_band` into the one deterministic planner.
+- **211** — 🟡 IN PROGRESS — claude (deep owner), branch
+  `claude/item-211-present-trace`, worktree
+  `../awl-next-worktrees/item-211-present-trace`. **The display is unlocked and
+  the user has released it for a live sitting (2026-08-02)** — item 113's
+  unlocked session no longer held, and item 118 recorded the lock as the reason
+  every ambient score stayed provisional. ⚠️ **The host is not quiet:** three
+  build lanes are running, and item 174's own bench notes record what
+  concurrent workers did to its numbers ("the whole S tier moved on every
+  scenario including ones this change cannot touch"). 211 is the most
+  load-sensitive measurement on the board — an intermittent dropped frame is
+  exactly what host contention manufactures — so the lane must confirm a quiet
+  host before it times anything.
+- **116d** — 🟢 UNBLOCKED, unclaimed. The compositing call is made (see Latest
+  design decisions). Ready to dispatch the moment a lane returns; the
+  concurrent-worker budget is four and all four are in use.
 
 ## Remaining work — handoff order (2026-08-02)
 
