@@ -568,6 +568,12 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
             "native-gate-audit: native suite command for mac must be unfiltered",
         'linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)':
             "native-gate-audit: missing Linux full-suite convention",
+        'export RUST_TEST_THREADS':
+            "native-gate-audit: gate must bound per-convention test-thread concurrency",
+        'native-gate-env cpus=':
+            "native-gate-audit: gate must state the machine and bound it is about to load",
+        'if [[ -f "$gate_budget_marker" ]]; then':
+            "native-gate-audit: an exhausted budget must suppress the receipt",
         'start_commit="$(git rev-parse HEAD)"':
             "native-gate-audit: receipt must capture HEAD before the suites",
         'end_commit="$(git rev-parse HEAD)"':
@@ -596,6 +602,14 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
     ):
         failures.append(
             "native-gate-audit: canary must precede both suites, both waits, and the receipt"
+        )
+    # A bound applied after the suites have launched binds nothing, and a
+    # machine receipt printed after a starved runner has died is never read.
+    bound = script.find("export RUST_TEST_THREADS")
+    machine = script.find("native-gate-env cpus=")
+    if bound < 0 or machine < 0 or not (bound < mac and machine < mac):
+        failures.append(
+            "native-gate-audit: the thread bound and the machine receipt must precede both suites"
         )
     if "if (( $# != 0 )); then" not in script:
         failures.append("native-gate-audit: gate must reject target-selection and test-name arguments")
@@ -1052,6 +1066,8 @@ canary_command=(cargo test --test native_gate_canary)
 mac_command=(env AWL_CONVENTION_FORCE=mac cargo test)
 linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)
 start_commit="$(git rev-parse HEAD)"
+export RUST_TEST_THREADS
+printf 'native-gate-env cpus=%s\\n' "$gate_cpus"
 "${canary_command[@]}"
 "${mac_command[@]}" &
 mac_pid=$!
@@ -1063,6 +1079,9 @@ mac_status=$?
 wait "$linux_pid"
 linux_status=$?
 set -e
+if [[ -f "$gate_budget_marker" ]]; then
+  exit 1
+fi
 if (( mac_status != 0 || linux_status != 0 )); then
   exit 1
 fi
@@ -1093,6 +1112,17 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
                             "gate must await the Linux convention"),
         "CI bypass": (script, ci.replace("scripts/native-gate.sh", "cargo test"),
                       "CI linux job must call scripts/native-gate.sh"),
+        "unbounded test threads": (script.replace("export RUST_TEST_THREADS\n", ""), ci,
+                                   "must bound per-convention test-thread concurrency"),
+        "silent machine": (script.replace("""printf 'native-gate-env cpus=%s\\n' "$gate_cpus"\n""", ""), ci,
+                           "must state the machine and bound it is about to load"),
+        "budget leaks a receipt": (script.replace('if [[ -f "$gate_budget_marker" ]]; then\n  exit 1\nfi\n', ""), ci,
+                                   "an exhausted budget must suppress the receipt"),
+        "bound applied after launch": (
+            script.replace("export RUST_TEST_THREADS\n", "")
+                  .replace('linux_pid=$!\n', 'linux_pid=$!\nexport RUST_TEST_THREADS\n'),
+            ci,
+            "thread bound and the machine receipt must precede both suites"),
     }
     for mutation, (bad_script, bad_ci, expected) in mutations.items():
         failures = native_gate_audit(bad_script, bad_ci)

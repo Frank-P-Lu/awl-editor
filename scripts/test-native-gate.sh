@@ -11,8 +11,9 @@ cat >"$WORK/cargo" <<'EOF'
 set -euo pipefail
 convention="${AWL_CONVENTION_FORCE:-canary}"
 printf 'start %s\n' "$convention" >>"$AWL_NATIVE_GATE_PROBE_LOG"
+printf 'threads %s %s\n' "$convention" "${RUST_TEST_THREADS:-unset}" >>"$AWL_NATIVE_GATE_PROBE_LOG"
 if [[ "$convention" != canary ]]; then
-  sleep 0.2
+  sleep "${AWL_NATIVE_GATE_PROBE_SLEEP:-0.2}"
 fi
 printf 'finish %s\n' "$convention" >>"$AWL_NATIVE_GATE_PROBE_LOG"
 if [[ "$convention" == "${AWL_NATIVE_GATE_FAIL_CONVENTION:-}" ]]; then
@@ -42,6 +43,91 @@ run_probe() {
   probe_status=$?
   set -e
 }
+
+# The bound is a launch seam, so it is asserted where it lands: in the child's
+# environment. The machine axis swept here is the one the gate exists for — a
+# hosted runner far smaller than the host the gate was written on — plus the
+# case a core count alone cannot see, a wide box with a starved RAM budget.
+probe_bound() {
+  local cpus="$1" mem_bytes="$2" caller="${3:-}" label="bound-$1-$2-${3:-default}"
+  : >"$WORK/events"
+  set +e
+  env -u RUST_TEST_THREADS \
+    PATH="$WORK:$PATH" \
+    ${caller:+RUST_TEST_THREADS="$caller"} \
+    AWL_NATIVE_GATE_CPUS="$cpus" \
+    AWL_NATIVE_GATE_MEM_BYTES="$mem_bytes" \
+    AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
+    AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+    AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
+    AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-$label" \
+    "$ROOT/scripts/native-gate.sh" >"$WORK/output-$label" 2>&1
+  probe_status=$?
+  set -e
+  bound_output="$WORK/output-$label"
+}
+
+assert_bound() {
+  local cpus="$1" mem_bytes="$2" caller="$3" expected="$4" convention seen
+  probe_bound "$cpus" "$mem_bytes" "$caller"
+  (( probe_status == 0 )) || {
+    echo "test-native-gate: bound probe cpus=$cpus mem=$mem_bytes failed ($probe_status)" >&2
+    exit 1
+  }
+  for convention in mac linux; do
+    seen="$(awk -v c="$convention" '$1 == "threads" && $2 == c { print $3 }' "$WORK/events")"
+    [[ "$seen" == "$expected" ]] || {
+      echo "test-native-gate: cpus=$cpus mem=$mem_bytes caller=${caller:-none} gave the $convention convention RUST_TEST_THREADS=$seen, expected $expected" >&2
+      exit 1
+    }
+  done
+  grep -Fq "native-gate-env cpus=$cpus mem_bytes=$mem_bytes conventions=2 test_threads=$expected" "$bound_output" || {
+    echo "test-native-gate: machine receipt did not name cpus=$cpus mem=$mem_bytes test_threads=$expected" >&2
+    exit 1
+  }
+}
+
+# A three-vCPU hosted runner gets one thread per convention (two on three
+# cores); the ten-core dev host keeps five apiece, which is its core count in
+# total rather than twice it; a wide box with 2 GiB is bounded by RAM, not
+# cores; and a caller that states a value owns it.
+assert_bound 3 $((7 * 1024 * 1024 * 1024)) "" 1
+assert_bound 10 $((64 * 1024 * 1024 * 1024)) "" 5
+assert_bound 64 $((2 * 1024 * 1024 * 1024)) "" 16
+assert_bound 10 $((64 * 1024 * 1024 * 1024)) 3 3
+
+echo "test-native-gate: the thread bound tracks cores and RAM, defers to a caller, and is receipted"
+
+# A gate that outruns its budget must fail LOUDLY and IN BAND. The whole point
+# is a starved CI runner that dies mid-step and uploads no log at all: a gate
+# that ends itself first leaves a log behind that names what happened.
+: >"$WORK/events"
+set +e
+env -u RUST_TEST_THREADS \
+  PATH="$WORK:$PATH" \
+  AWL_NATIVE_GATE_BUDGET_SECONDS=1 \
+  AWL_NATIVE_GATE_PROBE_SLEEP=60 \
+  AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+  AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
+  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-budget" \
+  "$ROOT/scripts/native-gate.sh" >"$WORK/output-budget" 2>&1
+budget_status=$?
+set -e
+(( budget_status == 1 )) || {
+  echo "test-native-gate: an exhausted budget returned $budget_status, expected gate status 1" >&2
+  exit 1
+}
+grep -Fq 'native-gate: ABORTED on its 1s budget' "$WORK/output-budget" || {
+  echo "test-native-gate: an exhausted budget did not name itself in the output" >&2
+  exit 1
+}
+if grep -Fq 'native-gate-receipt' "$WORK/output-budget"; then
+  echo "test-native-gate: an exhausted budget leaked a receipt" >&2
+  exit 1
+fi
+
+echo "test-native-gate: an exhausted budget ends the run in band, by name, with no receipt"
 
 assert_concurrent_and_complete() {
   local first_two

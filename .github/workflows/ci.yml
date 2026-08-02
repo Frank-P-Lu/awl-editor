@@ -154,7 +154,19 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      # `cache-on-failure` is what stops a red mac job from making the NEXT one
+      # harder. rust-cache saves only on success by default, and this job's
+      # post step has not run since the last green build — so every run after
+      # the first failure restored a target/ frozen at that commit and had to
+      # rebuild the whole accumulated delta inside the native-gate step, on
+      # three vCPUs. That ratchet is why step 8 went from 17 minutes green to
+      # over 49 minutes and a dead runner. Saving on failure means a run that
+      # ends badly still leaves the next one no worse off than itself. It
+      # cannot rescue a runner that is KILLED (no post step runs at all) —
+      # that is what the gate's own budget below is for.
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
 
       # sccache installs after the cache restore — see the linux job's
       # comment (item 196): a full `cargo install sccache` ahead of the
@@ -176,7 +188,19 @@ jobs:
       - name: cargo build
         run: cargo build
 
+      # The budget is set BELOW this job's timeout-minutes on purpose. When the
+      # hosted runner is starved to death the job uploads no log at all — the
+      # step-8 deaths on 2026-08-01/02 (runs 30706851397, 30715372469,
+      # 30721529191, 30727349406) each left an HTTP 404 where the log should
+      # be, which is why they took four runs to characterise and never named a
+      # test. A gate that ends ITSELF first exits normally, so its log
+      # survives and says how far it got and on what machine. 40 minutes is
+      # ~2.4x the 16m54s this step measured on its last green run
+      # (30686231377) and lands ahead of the 49-54 minute deaths. It is not a
+      # ceiling being raised: the job's own 75-minute limit is untouched.
       - name: native full suite
+        env:
+          AWL_NATIVE_GATE_BUDGET_SECONDS: 2400
         run: scripts/native-gate.sh
 
   # ── The mac live-probe (free mac-VM tier — now GATING) ──────────────────────
