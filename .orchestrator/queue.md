@@ -33,14 +33,56 @@ the combined tree (8 passed) before the train gate rather than trusting two
 receipts taken on different bases. CI is green on `f47028d0` under the raised
 mac ceiling.
 
+## 🔴 CI RED — top priority, blocks integration
+
+**`main` has had no successful CI run since `7bca59d6` (2026-08-01 05:38).**
+130 commits have landed since. Eight consecutive runs are `failure` or
+`cancelled`, and the previous orchestrator's train notes claim green from local
+receipts alone — no one checked the remote, which is exactly the check
+`.orchestrator/README.md` §Gates makes mandatory before AND after a push.
+
+**The failure is one job and one cause.** `linux`, `web` and `mac live-probe`
+pass on every red run. Only `mac (build + test)` fails, always in step 8
+(`scripts/native-gate.sh`), always with a `null` step conclusion and the
+GitHub annotation *"The hosted runner lost communication with the server.
+Anything in your workflow that terminates the runner process, starves it for
+CPU/Memory, or blocks its network access can cause this error."* Confirmed
+identical on runs `30727349406` (04bef696, 55m), `30721529191` (9111aed4, 56m)
+and `30715372469` (eea3118a, 62m). Job logs 404 — the runner dies before
+uploading them, which is itself evidence of a hard kill rather than a test
+failure.
+
+**This is NOT the timeout class item 196 diagnosed.** `timeout-minutes` is 75
+and all three deaths happened at 55–62 minutes, well inside it. Raising the
+ceiling again will not help; the runner is being starved, not guillotined.
+`scripts/native-gate.sh` sets no parallelism or memory bound at all — no
+`--test-threads`, no `CARGO_BUILD_JOBS` — so on a hosted macOS VM it runs the
+whole GPU/glyphon suite at host-adaptive width under both conventions.
+
+Claimed — 🟡 IN PROGRESS — claude (deep), branch `claude/ci-red-mac-runner`,
+worktree `../awl-next-worktrees/ci-red-mac-runner`.
+
 ## Ready — current user-visible wave
 
 ## Active claims — 2026-08-02 wave
 
-- **207** — 🟠 HANDOFF — branch `codex/item-207-semantic-owner`, worktree
+- **207** — 🟡 IN PROGRESS — claude (deep owner), branch
+  `codex/item-207-semantic-owner`, worktree
   `../awl-next-worktrees/item-207-semantic-owner`. Stage 1 is committed at
   `4044c2cb`; compiling stage-2 AccessKit event-loop wiring is checkpointed at
-  `9006f573`. The worktree is clean. Do not delete it.
+  `9006f573`. The worktree is clean. Do not delete it. **Stage-2 defect fixed at
+  `2921d446`:** `request_frame` built a whole-rope snapshot plus a UAX #29 pass
+  on EVERY redraw request and deduped only afterwards, so animation frames paid
+  O(document) for a tree nobody read. The AccessKit activation/deactivation
+  edges now gate the build, deactivation drops the remembered snapshot so a
+  reattaching screen reader is not deduped out of its own initial tree, and an
+  enumerated call-site law (mutation-proved against `redraw.rs`) keeps a second
+  frame-side caller from reintroducing it.
+- **174** — 🟡 IN PROGRESS — claude (deep owner), branch
+  `claude/item-174-strip-band`, worktree
+  `../awl-next-worktrees/item-174-strip-band`. The next family named by the
+  landed slice: fold `overlay_secondary_top` / `overlay_split_bounds` /
+  `overlay_strip_band` into the one deterministic planner.
 
 ## Remaining work — handoff order (2026-08-02)
 
