@@ -144,12 +144,11 @@ fn invert_blend() -> wgpu::BlendState {
 /// not a module one — so a single module serves them all, and the WGSL is
 /// translated to the backend's shading language once per device instead of
 /// once per pipeline. Every `SelectionPipeline` constructor takes the module
-/// by reference so there is no path that recompiles it.
+/// by reference so there is no path that recompiles it. `gpu_cache` holds the
+/// same rule across the whole process: the translation now happens once per
+/// device rather than once per `TextPipeline`.
 pub fn selection_shader(device: &wgpu::Device) -> wgpu::ShaderModule {
-    device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("selection shader"),
-        source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/selection.wgsl").into()),
-    })
+    crate::gpu_cache::shader(device, crate::gpu_cache::Shader::Selection)
 }
 
 impl SelectionPipeline {
@@ -164,6 +163,7 @@ impl SelectionPipeline {
             shader,
             format,
             srgba,
+            "selection.ordinary",
             "fs_main",
             CORNER_RADIUS,
             ordinary_blend(),
@@ -195,6 +195,7 @@ impl SelectionPipeline {
             shader,
             format,
             [255, 255, 255, 255],
+            "selection.invert",
             "fs_invert",
             0.0,
             invert_blend(),
@@ -211,22 +212,30 @@ impl SelectionPipeline {
         shader: &wgpu::ShaderModule,
         format: wgpu::TextureFormat,
         srgba: [u8; 4],
+        // `key` names the PROGRAM this flavor compiles to, and must change
+        // whenever anything baked into the `wgpu::RenderPipeline` changes —
+        // the entry point and the blend state, here. Everything else the two
+        // flavors differ on (color, corner radius, dither) is a uniform, not
+        // pipeline state, so it stays per-instance and out of the key.
+        key: &'static str,
         entry_point: &str,
         corner: f32,
         blend: wgpu::BlendState,
     ) -> Self {
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("selection globals layout"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
+        let bind_group_layout = crate::gpu_cache::bind_group_layout("selection", || {
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("selection globals layout"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            })
         });
 
         let globals_buf = device.create_buffer(&wgpu::BufferDescriptor {
@@ -245,68 +254,70 @@ impl SelectionPipeline {
             }],
         });
 
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("selection pipeline layout"),
-            bind_group_layouts: &[Some(&bind_group_layout)],
-            immediate_size: 0,
-        });
+        let pipeline = crate::gpu_cache::render_pipeline(key, format, || {
+            let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("selection pipeline layout"),
+                bind_group_layouts: &[Some(&bind_group_layout)],
+                immediate_size: 0,
+            });
 
-        let instance_layout = wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<SelInstance>() as u64,
-            step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x2,
-                    offset: 0,
-                    shader_location: 0,
-                },
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x2,
-                    offset: 8,
-                    shader_location: 1,
-                },
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x4,
-                    offset: 16,
-                    shader_location: 2,
-                },
-                // ITEM 131b — `axis`, at the END of the struct so every offset
-                // above is untouched (no existing attribute moves).
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x2,
-                    offset: 32,
-                    shader_location: 3,
-                },
-            ],
-        };
+            let instance_layout = wgpu::VertexBufferLayout {
+                array_stride: std::mem::size_of::<SelInstance>() as u64,
+                step_mode: wgpu::VertexStepMode::Instance,
+                attributes: &[
+                    wgpu::VertexAttribute {
+                        format: wgpu::VertexFormat::Float32x2,
+                        offset: 0,
+                        shader_location: 0,
+                    },
+                    wgpu::VertexAttribute {
+                        format: wgpu::VertexFormat::Float32x2,
+                        offset: 8,
+                        shader_location: 1,
+                    },
+                    wgpu::VertexAttribute {
+                        format: wgpu::VertexFormat::Float32x4,
+                        offset: 16,
+                        shader_location: 2,
+                    },
+                    // ITEM 131b — `axis`, at the END of the struct so every offset
+                    // above is untouched (no existing attribute moves).
+                    wgpu::VertexAttribute {
+                        format: wgpu::VertexFormat::Float32x2,
+                        offset: 32,
+                        shader_location: 3,
+                    },
+                ],
+            };
 
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("selection pipeline"),
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: shader,
-                entry_point: Some("vs_main"),
-                buffers: &[instance_layout],
-                compilation_options: Default::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: shader,
-                entry_point: Some(entry_point),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format,
-                    blend: Some(blend),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: Default::default(),
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                ..Default::default()
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-            multiview_mask: None,
-            cache: None,
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("selection pipeline"),
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: shader,
+                    entry_point: Some("vs_main"),
+                    buffers: &[instance_layout],
+                    compilation_options: Default::default(),
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: shader,
+                    entry_point: Some(entry_point),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format,
+                        blend: Some(blend),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                    compilation_options: Default::default(),
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    ..Default::default()
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState::default(),
+                multiview_mask: None,
+                cache: None,
+            })
         });
 
         let instance_cap = 64;

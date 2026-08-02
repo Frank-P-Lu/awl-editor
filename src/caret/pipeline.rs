@@ -160,23 +160,22 @@ fn build_render_pipeline(
 
 impl CaretPipeline {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat, caret_srgb: [u8; 3]) -> Self {
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("caret shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../../shaders/caret.wgsl").into()),
-        });
+        let shader = crate::gpu_cache::shader(device, crate::gpu_cache::Shader::Caret);
 
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("caret globals layout"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
+        let bind_group_layout = crate::gpu_cache::bind_group_layout("caret", || {
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("caret globals layout"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            })
         });
 
         let globals_buf = device.create_buffer(&wgpu::BufferDescriptor {
@@ -195,20 +194,21 @@ impl CaretPipeline {
             }],
         });
 
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("caret pipeline layout"),
-            bind_group_layouts: &[Some(&bind_group_layout)],
-            immediate_size: 0,
+        let pipeline = crate::gpu_cache::render_pipeline("caret", format, || {
+            let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("caret pipeline layout"),
+                bind_group_layouts: &[Some(&bind_group_layout)],
+                immediate_size: 0,
+            });
+
+            let instance_layout = wgpu::VertexBufferLayout {
+                array_stride: std::mem::size_of::<CaretInstance>() as u64,
+                step_mode: wgpu::VertexStepMode::Instance,
+                attributes: &INSTANCE_ATTRS,
+            };
+
+            build_render_pipeline(device, format, &shader, &pipeline_layout, instance_layout)
         });
-
-        let instance_layout = wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<CaretInstance>() as u64,
-            step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &INSTANCE_ATTRS,
-        };
-
-        let pipeline =
-            build_render_pipeline(device, format, &shader, &pipeline_layout, instance_layout);
 
         let instance_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("caret instances"),

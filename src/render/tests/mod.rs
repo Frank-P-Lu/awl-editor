@@ -48,6 +48,8 @@ mod frost;
 mod geometry;
 mod geometry_reshape;
 mod glide_anchor_law;
+/// ITEM 231 — the GPU program cache: amortised, single-owner, and world-neutral.
+mod gpu_cache_law;
 mod grapheme_click;
 mod ground_space_item186;
 mod hit_test;
@@ -118,12 +120,20 @@ pub(super) const H: f32 = 800.0;
 /// Build a headless pipeline, or `None` if no wgpu adapter is available. The
 /// device/queue underneath come from the process-wide shared pair
 /// (`crate::test_gpu`) — only the `TextPipeline` (and its `Cache`) are fresh.
+///
+/// `with_shared_programs`, not `shared_device_queue`: it is the same shared
+/// device either way, but inside it the ~33 render pipelines and 8 shader
+/// modules `TextPipeline::new` stands up are built ONCE FOR THE PROCESS rather
+/// than once per call. Only the device-level PROGRAMS are shared — never a
+/// uniform, a bind group or an instance buffer — so each caller still gets its
+/// own pipeline state and the world it asked for.
 pub(super) fn headless_pipeline() -> Option<TextPipeline> {
-    let (device, queue) = crate::test_gpu::shared_device_queue()?;
-    let cache = Cache::new(&device);
-    let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-    p.set_size(1200.0, 800.0);
-    Some(p)
+    crate::test_gpu::with_shared_programs(|device, queue| {
+        let cache = Cache::new(device);
+        let mut p = TextPipeline::new(device, queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        p.set_size(1200.0, 800.0);
+        p
+    })
 }
 
 /// A `(Device, Queue, TextPipeline)` triple sized `w`×`h`, or `None` on a
@@ -132,11 +142,13 @@ pub(super) fn headless_pipeline() -> Option<TextPipeline> {
 /// and queue to drive it. The device/queue are cloned handles onto the shared
 /// process-wide pair (`crate::test_gpu`), not a fresh device.
 pub(super) fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
-    let (device, queue) = crate::test_gpu::shared_device_queue()?;
-    let cache = Cache::new(&device);
-    let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-    p.set_size(w, h);
-    Some((device, queue, p))
+    // `with_shared_programs` for the same reason `headless_pipeline` uses it.
+    crate::test_gpu::with_shared_programs(|device, queue| {
+        let cache = Cache::new(device);
+        let mut p = TextPipeline::new(device, queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        p.set_size(w, h);
+        (device.clone(), queue.clone(), p)
+    })
 }
 
 /// ITEM 164 — an EMPTY visual selection, for the shaping/width probes that pass

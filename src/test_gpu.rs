@@ -53,3 +53,31 @@ fn cached() -> &'static Option<(wgpu::Device, wgpu::Queue)> {
 pub(crate) fn shared_device_queue() -> Option<(wgpu::Device, wgpu::Queue)> {
     cached().clone()
 }
+
+/// Run `f` against the shared device+queue with `gpu_cache` armed, or `None` on
+/// a GPU-less machine.
+///
+/// This is the ONE caller of [`crate::gpu_cache::scoped`], and the reason the
+/// cache can be sound at all. `f` receives the shared device rather than
+/// choosing one, so nothing built inside it can belong to a different device —
+/// which matters because `wgpu::Device`'s `PartialEq` reports two separately
+/// requested, simultaneously live devices as EQUAL (measured, wgpu 29.0.3), so
+/// a device-keyed cache cannot be written. Identity here is a property of the
+/// call shape, not of a comparison.
+///
+/// The shared device is created once and never dropped, so the programs cached
+/// against it stay valid for the process.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn with_shared_programs<R>(
+    f: impl FnOnce(&wgpu::Device, &wgpu::Queue) -> R,
+) -> Option<R> {
+    let (device, queue) = cached().as_ref()?;
+    Some(crate::gpu_cache::scoped(|| f(device, queue)))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn with_shared_programs<R>(
+    _f: impl FnOnce(&wgpu::Device, &wgpu::Queue) -> R,
+) -> Option<R> {
+    None
+}
