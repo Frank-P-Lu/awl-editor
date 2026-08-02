@@ -24,6 +24,53 @@ frames — a probe run can look like it worked and have photographed nothing.
    arithmetic may prove territory and contrast but never claims the taste
    score. An independent agent map exists (`1, 10, 3, 4, 1`, mean 2.68) to diff
    against rather than re-derive.
+2. **207 — real VoiceOver and AT-SPI journeys.** Everything is verified at the
+   snapshot and projection tier. Whether a screen reader *reads it well* —
+   announcement order, verbosity, live-region politeness — is unproven and no
+   test tier can stand in for it.
+3. **131c — the chrome pixel-space decision.** Overlay chrome already mixes
+   both spaces: row pitch scales with DPI while `BAR_SIDE_INSET`, the text hpad
+   and `CARD_MAX_W` are raw device px. A diagonal pitch authored like its
+   neighbours would be **physical by inheritance**, which is exactly what item
+   186 exists to stop; making it logical would make it the first chrome
+   quantity to declare its space, which either extends `ground_space` past
+   `Background` or opens a sibling registry. **A design decision owed a human
+   eye, not a line of code.** 131d and 131e are unclaimed behind it.
+4. **211 — ✅ PRESENCE CONFIRMED ON A REAL SCREEN 2026-08-03; only FEEL and two
+   arms remain.** Frames were photographed at last: a 10 s capture of the awl
+   window alone, 110 frames, band top measured per frame by pixel arithmetic —
+   one row per input over ~9–10 frames with the `out_back` overshoot and the
+   two-row morph stretch mid-flight. **No input moved two rows; none snapped
+   without a transition.** ~1,072 presented frames over 22 release launches,
+   exactly 2 `Occluded` per launch (startup, before `occluded=false`) and zero
+   after — the previous sitting's 10/10 `Occluded` was the lock and nothing
+   else. **The defect was reproduced ON SCREEN and restored:** reverting
+   `keep_gpu_loop_hot` to `stepped && frame_presented` parked the band on the
+   row the selection left, then snapped two rows — distinct drawn band tops
+   across four inputs, **2 mutated vs 34 fixed**, the user's report verbatim.
+   17 sweep cells covered. 🔵 **Owed, and all three need a human:** whether the
+   glide *reads* as calm (pacing was deliberately NOT characterised — the host
+   ran at load 19→57 and the lane refused to offer its 16.7 ms intervals as
+   evidence of smoothness); **1×**, since no 1× display was available; and
+   **focus loss/regain and occlusion return**, which `--live-script`
+   structurally cannot test — it forces a Prohibited, `AlwaysOnTop` window that
+   can neither lose focus nor be occluded, so that arm needs a normal
+   activating launch. **Scope note:** the Settings-as-workspace CATEGORY band
+   moves one row per input and presents (253→297→340→384 px, verified by pixel
+   arithmetic) but does not go through the living-band animator — it snaps,
+   `prepare_highlight` never reports it, and 211's fix neither applies nor is
+   needed there. Evidence in the gitignored `gallery/item-211-live-2026-08-03/`.
+
+⚠️ **A SHARED-WORKING-TREE HAZARD, found by causing it.** Commit `47b9e40f`
+carries a message about the heartbeat's Linux branches and ALSO silently
+deleted items 211, 207 and 131c from this section. The mechanism: **two
+orchestrators edit this file in the SAME working tree, so `git add -A` sweeps
+whatever the other one has in flight into your commit under your message.**
+`.orchestrator/README.md` §5 already says to reread at HEAD and diff before
+committing — that is necessary but NOT sufficient, because the other tool's
+edit can land between your read and your commit. **Stage `queue.md`
+deliberately and read `git diff --cached` before every board commit; never
+`git add -A` in the shared tree.**
 
 ## Latest design decisions
 
