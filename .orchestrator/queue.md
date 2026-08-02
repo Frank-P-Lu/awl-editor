@@ -194,53 +194,67 @@ runs on record. **Two oracle bugs of the same shape in one investigation — a
 harness that reads a status field must enumerate what it accepts, never test
 for inequality.**
 
-**THE LEADING HYPOTHESIS, now evidenced rather than guessed: Kite's new
-`WarpedGrid` shader.** The wedge victims are not random. Probe 3's three
-simultaneously-parked tests were `split_pane::split_shows_ground_across_the_gap_and_no_glyph_escapes`,
-`split_pane::split_stays_valid_narrow_and_empty` and
-`stars::currawong_star_field_is_dpi_invariant_in_logical_space` — and
-`split_pane.rs` carries **"THE EXHAUSTIVE SURFACE-ROSTER LAW: sweep EVERY
-shipped world"**, iterating `theme::THEMES`. Commit `8207e519` changes that
-roster: **19 worlds → 20**, and the new one's ground is the brand-new
-`Background::WarpedGrid` shader — **+267 lines of `background.wgsl` in that one
-commit**. So every roster-sweeping render test in the suite begins rendering a
-new shader on the virtualised Metal device, which is exactly the population
-that wedges, and it explains why **the victim varies between runs**
-(`scroll_pos` at HEAD, `split_pane`/`stars` in probe 3) **while the wedge is
-constant**. `94211bb6` adds no world — it only tweaks the shader and adds
-tests. Compounding it: `BackgroundPipeline::new` calls `create_shader_module`
-on the whole of `background.wgsl` **plus** `create_render_pipeline`, and the
-tests construct one per rendered frame, so the roster sweep also multiplies
-full shader compiles of a file this commit grew by 267 lines.
+**✅ CONVERGED: the first bad commit is `8207e519`** — "item 194: one camera,
+one projected cylinder, cropped at the page". Six probes, every boundary
+measured:
 
-⚠️ **The honest gap, stated rather than papered over:** no unbounded loop has
-been found in the new WGSL — `warp_line`/`warped_grid_rgb` are bounded
-(`log2`, `atan2`, `fwidth`, `smoothstep`) — and `warpgrid.rs` touches no wgpu
-at all. So what NEWLY RUNS on the device is named with confidence; the precise
-construct that stops a command buffer retiring is **not yet identified**.
+| probe | commit | run | verdict |
+|---|---|---|---|
+| baseline | `7bca59d6` | `30686231377` | GOOD, gate 1014 s, log 200 |
+| 1 | `c5b8399e` | `30752286816` | BAD, 3543 s, log 404 |
+| 2 | `10cd49e0` | `30754550500` | BAD, 3482 s, log 404 |
+| 3 | `d1e997b9` | `30756807172` | BAD, 3853 s, log 200 (ceiling) |
+| 4 | `94211bb6` | `30759720562` | BAD, 3242 s, log 404 |
+| 5 | **`8207e519`** | `30761792967` | **BAD**, 3423 s, log 404 |
+| 6 | `36707d06` (`8207e519^`) | `30763999999` | measuring the GOOD side |
 
-**If this holds it is also a PRODUCT question, not only a CI one:** a shader
-that wedges a virtualised Metal device may do the same on a real user's VM, and
-Kite ships in `THEMES` today.
+**What is SUPPORTED by evidence.** `8207e519` takes `THEMES` from 19 to 20,
+adding `KITE` with `Background::WarpedGrid` and **+267 lines of
+`background.wgsl`**; 42 test files reference `THEMES`. The tests that wedge are
+**roster sweeps** — `split_pane.rs` carries "sweep EVERY shipped world" over
+`theme::THEMES.iter()`. All three libtest workers (3 vCPUs) park at the same
+instant and **the victim differs between runs**, so the shared device wedges
+rather than any specific test. `BackgroundPipeline::new` calls
+`create_shader_module` on the whole grown file **plus** `create_render_pipeline`
+— and the **test** helpers do this **once per rendered frame** (3 sites) while
+the **live app does it exactly once** (`pipeline_draw.rs:32`, stored as a
+field).
 
-**Bisect state:** window `7bca59d6` GOOD .. `94211bb6` BAD; the culprit is
-`8207e519` or `94211bb6` and probe 5 (`8207e519`) converges it either way.
-**Probe 6 is already planned as `36707d06`** — `8207e519`'s parent, verified an
-ancestor of the GOOD baseline 86 commits back. It does double duty: it MEASURES
-the boundary's GOOD side instead of inferring it, and it is the flakiness re-run
-in the uncorroborated direction. Worth knowing: that 86-commit distance means
-`8207e519` lacks those commits, so the standard "BAD with GOOD ancestors ⇒ it
-introduced the defect" conclusion holds, but the parent is an ASSUMED GOOD until
-probe 6 measures it.
+⚠️ **THE WARPED-GRID SHADER EXECUTES FINE — this is not a non-terminating
+shader.** In probe 3's log, 15 `backgrounds_item132`/`warp_tunnel` tests passed
+cleanly at 16:51:43–16:51:58, **six minutes before** the wedge at 16:57:43; same
+story in `30732589551`. Combined with no unbounded loop in the WGSL and
+`warpgrid.rs` touching no wgpu at all, the obvious candidate is ruled out.
 
-**Determinism so far:** five BADs across four distinct trees, three of them
-independent commits, all reproducing the same hang; the 54–75 min spread is
-fully accounted for by WHO KILLS THE JOB (runner reaped at ~54–59, job ceiling
-at 75 when the VM survived). **No re-run has yet disagreed with a first
-reading — but no re-run has yet been done,** which is exactly what probe 6 is
-for.
+**HYPOTHESIS, labelled as such:** cumulative exhaustion of a driver-internal
+resource in the virtualised Metal stack — compiled-pipeline slots or
+shader-compiler memory — under the added compile churn, after which submits
+never retire and every `read_pixels` parks in `poll(wait_indefinitely())`. It
+fits the varying victim, the simultaneous three-thread park, and the unkillable
+`awl-…`/`cargo` orphans that survive SIGTERM. **The vitals cut only one way:**
+`free_bytes` steady at ~2.37 GB rules out RAM exhaustion but says nothing about
+a driver-internal table.
 
-**Superseded bisect state:** window `7bca59d6` GOOD .. `d1e997b9` BAD. Real candidates are
+**PRODUCT OR CI? The lane's read is CI/test-harness-amplified, NOT a product
+defect — with a caveat, and the distinction decides who owns the fix.** The
+per-frame pipeline rebuild that supplies the churn exists **only in the test
+helpers**. The live app builds `BackgroundPipeline` once at construction and
+`prepare()` thereafter merely uploads uniforms *including the shader id*, so
+**switching themes does not rebuild the pipeline**. A user selecting Kite on a
+VM pays one `background.wgsl` compile per launch and then ordinary draws, and
+the shader is shown to execute correctly. **Caveat:** that rests on the churn
+hypothesis being right; if the true cause is the WarpedGrid draw accumulating
+device state, the product IS exposed on a VM. Lower on the evidence, not
+excludable from here.
+
+**Determinism:** five BADs across five distinct trees, four of them independent
+commits, all reproducing the same hang; no re-run has contradicted a first
+reading. Probe 6 is the first genuine re-measurement and deliberately on the
+GOOD side — the uncorroborated direction. **If probe 6 returns BAD the bisect
+is INVALID**, the defect predates item 194, and every verdict above needs
+rethinking; the lane is instructed to report that rather than rationalise it.
+
+**Superseded bisect state:****Superseded bisect state:** window `7bca59d6` GOOD .. `d1e997b9` BAD. Real candidates are
 just three — `8207e519` (37 files, shader), `94211bb6` (6, shader), `c325fdad`
 (4, no shader). `bbb3c2f7` and `d1e997b9` touch no code and cannot be
 first-bad. Probes 1–3 all BAD; probe 4 (`94211bb6`) running. **A GOOD reading
