@@ -162,11 +162,17 @@ fn potoroo_pane_edges_separate_from_the_real_striped_frame_on_all_sides() {
         let lower = fills[1];
         let authored = theme::base_200();
         for (name, fill) in [("header", upper), ("body", lower)] {
+            // Sampled just inside each surface's OWN TOP edge, which is card
+            // ground on both by construction (the upper surface's query line
+            // starts a full pad below its top; the lower surface's first row
+            // starts a beat's tail below its own). The surface's vertical CENTRE
+            // is not ground on either: the seam hugs the query bar, so the lower
+            // surface's midpoint falls on the selected row's own band.
             let face = avg(
                 &px,
                 w,
-                (fill[0] + 8.0 * dpi).round() as i32,
-                (fill[1] + fill[3] * 0.5).round() as i32,
+                (fill[0] + fill[2] * 0.5).round() as i32,
+                (fill[1] + 6.0 * dpi).round() as i32,
             );
             assert!(
                 redmean(face, authored) < 8.0,

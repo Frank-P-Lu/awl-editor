@@ -241,29 +241,38 @@ impl TextPipeline {
         let candidate_rows = self.overlay_row_plan(geom).candidate_rows();
         let primary_flip = super::overlay_selected_primary_ink();
         let secondary_flip = super::overlay_selected_secondary_ink();
-        let rows_of = |buf: &GlyphBuffer, want: Option<glyphon::Color>| -> Vec<usize> {
-            let Some(want) = want else {
-                return Vec::new();
+        // The PRIMARY buffer may carry the beat's own glyph-free line between the
+        // header and the candidates (`OverlayGeom::shaped_first_row_line`); the
+        // SECONDARY buffer is built from `right_bind_lines`' leading empties and
+        // never does, so each is asked for its own first candidate line.
+        let rows_of =
+            |buf: &GlyphBuffer, first: usize, want: Option<glyphon::Color>| -> Vec<usize> {
+                let Some(want) = want else {
+                    return Vec::new();
+                };
+                let mut out = Vec::new();
+                for run in buf.layout_runs() {
+                    if run.line_i < first {
+                        continue;
+                    }
+                    let row = run.line_i - first;
+                    if row >= candidate_rows {
+                        continue;
+                    }
+                    if run.glyphs.iter().any(|g| g.color_opt == Some(want)) && !out.contains(&row) {
+                        out.push(row);
+                    }
+                }
+                out.sort_unstable();
+                out
             };
-            let mut out = Vec::new();
-            for run in buf.layout_runs() {
-                if run.line_i < geom.header_rows {
-                    continue;
-                }
-                let row = run.line_i - geom.header_rows;
-                if row >= candidate_rows {
-                    continue;
-                }
-                if run.glyphs.iter().any(|g| g.color_opt == Some(want)) && !out.contains(&row) {
-                    out.push(row);
-                }
-            }
-            out.sort_unstable();
-            out
-        };
         (
-            rows_of(&self.panel_buffer, primary_flip),
-            rows_of(&self.panel_bind_buffer, secondary_flip),
+            rows_of(
+                &self.panel_buffer,
+                geom.shaped_first_row_line(),
+                primary_flip,
+            ),
+            rows_of(&self.panel_bind_buffer, geom.header_rows, secondary_flip),
         )
     }
 

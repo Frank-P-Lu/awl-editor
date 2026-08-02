@@ -87,6 +87,8 @@ mod selection_clip_law;
 mod settings_row_reach_law;
 mod split_pane;
 mod stars;
+mod surfaces_item219;
+mod surfaces_item225;
 mod syntax_ligatures;
 mod syntax_roles;
 mod tables;

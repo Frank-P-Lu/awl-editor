@@ -178,9 +178,11 @@ fn quokka_card_top_left_corner_is_genuinely_chamfered() {
         "5px inward from Quokka's card corner still reads as card fill {card_fill:?} \
          (got {corner_5:?}) — the chamfer isn't cutting the corner"
     );
-    // Well past the chamfer (25,25 inward, sum 50 >> 11): must be filled —
-    // the cut is a CORNER treatment, not a shrunk card.
-    let deep = px_at(&pixels, w, (cx + 25.0) as i64, (cy + 25.0) as i64);
+    // Well past the chamfer (60 + 8 inward, sum 68 >> 11): must be filled —
+    // the cut is a CORNER treatment, not a shrunk card. Sampled ALONG THE TOP
+    // EDGE rather than down the diagonal: a flat picker's query glyphs ride
+    // their own line's centre, which the (25, 25) diagonal probe runs into.
+    let deep = px_at(&pixels, w, (cx + 60.0) as i64, (cy + 8.0) as i64);
     assert!(
         near(deep, card_fill),
         "25px inward from the corner must be the card fill (got {deep:?})"

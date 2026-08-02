@@ -121,6 +121,22 @@ fn inline_shortcut_rows(
     (rows, items.iter().map(tail).collect())
 }
 
+/// THE QUERY BEAT'S OWN GLYPH-FREE LINE, when the band plans one — one space at
+/// the planned beat's height. A LINE, not line height on a line that has glyphs:
+/// cosmic-text centres a glyph run in its box, so a beat folded into the query
+/// field's line draws the field's text half a beat below its own bar.
+fn push_beat_spacer<'a>(
+    spans: &mut Vec<(&'a str, glyphon::Attrs<'a>)>,
+    attrs: glyphon::Attrs<'a>,
+    font_size: f32,
+    beat: Option<f32>,
+) {
+    if let Some(beat) = beat {
+        spans.push(("\n", attrs.clone()));
+        spans.push((" ", attrs.metrics(GlyphMetrics::new(font_size, beat))));
+    }
+}
+
 fn right_bind_lines<'a>(header_rows: usize, labels: impl Iterator<Item = &'a str>) -> Vec<String> {
     labels
         .enumerate()
@@ -650,8 +666,7 @@ impl TextPipeline {
         let title_prefix = self.overlay_title_prefix(geom);
         let sigil = "› ";
         let name_fs = self.overlay_metrics().font_size;
-        // The query field's own PLANNED box height, read rather than re-summed:
-        // the DRAWN box and the planned one are then the same object.
+        // The field's own PLANNED box height, read rather than re-summed.
         let header_lh = plan
             .query_band()
             .map_or_else(|| self.overlay_lh(), |field| field.height);
@@ -678,9 +693,8 @@ impl TextPipeline {
             }
             spans.push((self.overlay_query.as_str(), hk(ink)));
         }
-        let slant_italic = crate::render::overlay_slant()
-            .map(|s| s.italic)
-            .unwrap_or(false);
+        push_beat_spacer(&mut spans, mk(muted), name_fs, plan.beat_line());
+        let slant_italic = crate::render::overlay_slant().is_some_and(|s| s.italic);
         let rk = |c| {
             if slant_italic {
                 mk(c).style(glyphon::cosmic_text::Style::Italic)
@@ -811,7 +825,7 @@ impl TextPipeline {
     }
 
     fn widest_candidate_px(&self, geom: &OverlayGeom, plan: &OverlayRowPlan) -> f32 {
-        let first = geom.header_rows;
+        let first = geom.shaped_first_row_line();
         let last = first + plan.candidate_rows();
         let mut w = 0.0f32;
         for run in self.panel_buffer.layout_runs() {
@@ -835,9 +849,10 @@ impl TextPipeline {
         geom: &OverlayGeom,
     ) -> std::collections::BTreeMap<usize, f32> {
         let mut m = std::collections::BTreeMap::new();
+        let first = geom.shaped_first_row_line();
         for run in self.panel_buffer.layout_runs() {
-            if run.line_i >= geom.header_rows {
-                m.insert(run.line_i - geom.header_rows, run.line_w);
+            if run.line_i >= first {
+                m.insert(run.line_i - first, run.line_w);
             }
         }
         m
@@ -861,7 +876,7 @@ impl TextPipeline {
         geom: &OverlayGeom,
         content_rows: usize,
     ) -> f32 {
-        let first = geom.header_rows + content_rows;
+        let first = geom.shaped_first_row_line() + content_rows;
         let mut w = 0.0f32;
         for run in self.panel_buffer.layout_runs() {
             if run.line_i >= first {

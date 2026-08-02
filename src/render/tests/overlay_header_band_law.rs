@@ -380,27 +380,30 @@ fn the_drawn_query_field_the_pointer_band_and_the_caret_are_one_planned_box() {
     );
 }
 
-/// NON-VACUITY, BY NAME: the formula this family retired genuinely missed the
-/// field it was supposed to describe.
+/// **THE QUERY BAR HOLDS THE QUERY FIELD AND NOTHING ELSE**, and a beat folded
+/// into that field genuinely displaces its own glyphs.
 ///
-/// The pre-fix band is reconstructed INLINE from the documented old expression
-/// (`text_top .. text_top + lh`) — never read back out of the fix — and asserted
-/// to exclude the caret and the shaped baseline on the FLAT family while the
-/// planned box contains both. The GROUPED family is asserted UNAFFECTED, which
-/// is the point: a parallel calculation survives review by agreeing on the arm
-/// somebody looked at.
+/// The claim, over the whole roster: the field's planned box ends exactly one
+/// breathe above the split seam, so the upper surface closes below the bar's own
+/// line and the ink sits inside it with a top pad and a bottom pad. The
+/// NON-VACUITY half reconstructs the folded-beat box INLINE
+/// (`text_top .. text_top + lh + header_gap`) — never read back out of the fix —
+/// and asserts that on the FLAT family that box would run PAST the seam, so the
+/// bar could not close above the gap and the glyphs it centres would land most
+/// of a beat below the bar's own top pad. The GROUPED family is asserted
+/// UNAFFECTED by the change, which is the point: the two arms disagreed, and the
+/// arm nobody looked at is the one that was wrong.
 ///
-/// Swept over the whole world roster and both DPIs, because the miss scales with
-/// the row pitch: the reported specimen is 7.4px at 1x and 14.8px at 2x on the
-/// default world, and no world may be quietly exempt.
+/// Swept over the whole world roster and both DPIs, because the displacement
+/// scales with the row pitch and no world may be quietly exempt.
 #[test]
-fn the_pre_plan_query_band_genuinely_missed_the_field() {
+fn the_query_bar_closes_below_the_field_and_the_folded_beat_would_overrun_it() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping the_pre_plan_query_band_genuinely_missed_the_field: no adapter");
+        eprintln!("skipping the_query_bar_closes_below_the_field...: no adapter");
         return;
     };
-    let mut worst_flat_miss = 0.0f32;
+    let mut worst_flat_overrun = 0.0f32;
     let mut flat_cells = 0usize;
     let mut grouped_cells = 0usize;
 
@@ -420,50 +423,57 @@ fn the_pre_plan_query_band_genuinely_missed_the_field() {
                 let plan = p.overlay_row_plan(&geom);
                 let pr = p.overlay_row_y_probe();
                 let field = plan.query_band().expect("both kinds draw a query line");
+                let (seam_top, seam_bottom) = plan
+                    .split_bounds()
+                    .expect("a card with a header and a beat splits");
                 let ctx = format!("{world}/{kind:?}/{fam:?} dpi={dpi}");
 
-                // THE RETIRED FORMULA, written out here rather than called.
-                let pre_fix_bottom = geom.text_top + plan.lh();
-
-                // The plan contains the ink either way — that is the fix.
+                // --- THE CLAIM -----------------------------------------------
+                // The bar closes below the field, and the field's own ink is
+                // inside the bar with room on both sides of it.
                 assert!(
-                    field.contains(pr.query_baseline) && field.contains(pr.caret_center),
-                    "{ctx}: the planned field must contain both the shaped baseline \
-                     ({}) and the caret ({}) — box [{}, {}]",
-                    pr.query_baseline,
-                    pr.caret_center,
+                    field.bottom() <= seam_top + 0.01,
+                    "{ctx}: the query field's box [{}, {}] runs past the surface seam \
+                     at {seam_top} — the bar cannot close above the gap it belongs to",
                     field.top,
                     field.bottom()
                 );
+                assert!(
+                    pr.query_baseline < seam_top && pr.caret_center < seam_top,
+                    "{ctx}: the field's shaped baseline ({}) / caret ({}) fall at or \
+                     below the seam ({seam_top}) — its own ink is drawn onto the gap",
+                    pr.query_baseline,
+                    pr.caret_center
+                );
 
+                // --- NON-VACUITY: THE FOLDED-BEAT BOX, WRITTEN OUT HERE -------
+                let folded_bottom = geom.text_top + plan.lh() + p.overlay_header_gap();
                 match fam {
                     Family::Flat => {
                         flat_cells += 1;
                         assert!(
-                            pr.caret_center > pre_fix_bottom,
-                            "{ctx}: the fixture must reproduce the reported defect — \
-                             the caret ({}) has to fall BELOW the retired band's end \
-                             ({pre_fix_bottom}) for this law to mean anything",
-                            pr.caret_center
+                            folded_bottom > seam_bottom,
+                            "{ctx}: the fixture must reproduce the reported defect — a \
+                             field folded to {folded_bottom} has to run past the seam's \
+                             own end ({seam_bottom}) for this law to mean anything"
                         );
-                        assert!(
-                            pr.query_baseline > pre_fix_bottom,
-                            "{ctx}: …and so must the shaped baseline ({})",
-                            pr.query_baseline
-                        );
-                        worst_flat_miss = worst_flat_miss.max(pr.caret_center - pre_fix_bottom);
+                        // Its glyph run would centre HERE, most of a beat below
+                        // the bar's own top pad.
+                        let folded_center = (geom.text_top + folded_bottom) * 0.5;
+                        worst_flat_overrun = worst_flat_overrun.max(folded_center - field.center());
                     }
                     Family::Grouped => {
                         grouped_cells += 1;
-                        // The retired formula was RIGHT here, which is exactly why
-                        // it survived: this arm must stay unchanged.
+                        // The grouped card's own beat still rides its STRIP, so
+                        // its field and its seam are untouched: the folded box IS
+                        // the strip's box here.
+                        let strip = plan.strip_band().expect("a grouped card draws a strip");
                         assert!(
-                            (field.bottom() - pre_fix_bottom).abs() < 0.75,
-                            "{ctx}: the grouped family's query box is a plain row — \
-                             the planned box [{}, {}] must still end where the retired \
-                             formula did ({pre_fix_bottom})",
-                            field.top,
-                            field.bottom()
+                            (strip.bottom() - (folded_bottom + plan.lh())).abs() < 0.75,
+                            "{ctx}: a grouped card's beat must still inflate its strip \
+                             — strip box [{}, {}]",
+                            strip.top,
+                            strip.bottom()
                         );
                     }
                     Family::Contextual => unreachable!("neither kind is contextual"),
@@ -478,9 +488,10 @@ fn the_pre_plan_query_band_genuinely_missed_the_field() {
         "both arms must be swept"
     );
     assert!(
-        worst_flat_miss > 5.0,
-        "the retired band's worst miss across the roster was only {worst_flat_miss}px — \
-         too small to be the reported defect; the fixture has stopped reproducing it"
+        worst_flat_overrun > 5.0,
+        "the folded beat's worst glyph displacement across the roster was only \
+         {worst_flat_overrun}px — too small to be the reported blank band; the \
+         fixture has stopped reproducing it"
     );
 }
 
@@ -537,9 +548,12 @@ fn the_workspace_header_band_still_agrees_with_the_planned_header_boxes() {
                     .expect("a workspace draws its own search line");
                 let last = *heads.last().expect("a workspace has a header band");
                 // THE ORACLE IS THE PLANNED BOXES, not the same expression again:
-                // the band's run is the last planned box's bottom measured back to
-                // `text_top`, which is where the first candidate row begins.
-                let planned = last.bottom() - field.top;
+                // the band's run is the last planned box's bottom PLUS whatever
+                // beat stands on its own after it (`beat_line` — a one-line
+                // workspace puts the beat after its search line rather than inside
+                // it), measured back to `text_top`, which is where the first
+                // candidate row begins.
+                let planned = last.bottom() + plan.beat_line().unwrap_or(0.0) - field.top;
                 let band = p.workspace_header_band();
                 assert!(
                     (band - planned).abs() < 1e-3,

@@ -201,7 +201,8 @@ pub(super) struct OverlayGeom {
     /// contextual spell popup (no header to divide from). The candidate band, the
     /// selected-row highlight, the pointer hit-test, and the card height all fold
     /// it in through the scene planner, so they can't drift; the shaper realizes it
-    /// by inflating the last header line's height by exactly this.
+    /// either by inflating the last header line's height by exactly this or, when
+    /// that line is the query field itself, as its own glyph-free line.
     pub(super) header_gap: f32,
     empty: Option<String>,
     card_x: f32,
@@ -262,6 +263,19 @@ impl OverlayGeom {
             pane_w: 0.0,
             rows_focused: false,
         }
+    }
+
+    /// WHICH `panel_buffer` LINE CARRIES CANDIDATE ROW 0 — the one owner every
+    /// reader of a shaped candidate line goes through. NOT always `header_rows`:
+    /// a beat that stands on its own (`plan::beat_stands_alone`) takes a
+    /// glyph-free line between the header and the candidates, and a reader that
+    /// re-derived `header_rows` would measure that spacer as a candidate row.
+    pub(super) fn shaped_first_row_line(&self) -> usize {
+        self.header_rows
+            + usize::from(crate::render::plan::beat_stands_alone(
+                self.header_rows,
+                self.header_gap,
+            ))
     }
 }
 

@@ -42,20 +42,25 @@ impl TextPipeline {
         // the one the pixels came from.
         let plan = self.overlay_row_plan(&geom);
         let lh = plan.lh();
+        // The PRIMARY buffer may carry the query beat's own glyph-free line
+        // between the header and the candidates, so its first candidate line is
+        // `shaped_first_row_line`, not `header_rows`. The SECONDARY buffer is
+        // built from `right_bind_lines`' leading empties and never carries one,
+        // so each buffer is asked for its own first line.
+        let first_primary = geom.shaped_first_row_line();
         let header_rows = geom.header_rows;
-        let last = header_rows + plan.candidate_rows();
         let mut primary = BTreeMap::new();
         for run in self.panel_buffer.layout_runs() {
             let li = run.line_i;
-            if li >= header_rows && li < last {
-                primary.insert(li - header_rows, geom.text_top + run.line_top);
+            if li >= first_primary && li < first_primary + plan.candidate_rows() {
+                primary.insert(li - first_primary, geom.text_top + run.line_top);
             }
         }
         let sec_top = plan.secondary_top();
         let mut secondary = BTreeMap::new();
         for run in self.panel_bind_buffer.layout_runs() {
             let li = run.line_i;
-            if li >= header_rows && li < last {
+            if li >= header_rows && li < header_rows + plan.candidate_rows() {
                 secondary.insert(li - header_rows, sec_top + run.line_top);
             }
         }
