@@ -27,7 +27,7 @@ To RUN it on macOS use `scripts/dev-app.sh`, not `cargo run`: a bare binary has 
 cargo run -- --screenshot OUT.png [file]    # writes OUT.png + OUT.json sidecar
 ```
 
-Flags compose: `--keys` (chord replay through the real keymap), `--theme <World>`, `--caret-mode`, `--measure`, `--screenshot-motion[-v|-d]`, `--screenshot-app` (the same chords into a real headless `App`), `--root/--workspace/--default-folder`, `--config`, `--debug`, `--hud`. Schema + semantics: CAPTURE.md. The schema number is one const, `capture::SCHEMA_VERSION`.
+Flags compose: `--keys` (chord replay through the real keymap), `--theme <World>`, `--caret-mode`, `--measure`, `--screenshot-motion[-v|-d]`, `--screenshot-app` (the same chords into a real headless `App`), `--semantic-json` (that App's accessibility tree, no PNG), `--root/--workspace/--default-folder`, `--config`, `--debug`, `--hud`. Schema + semantics: CAPTURE.md. The schema number is one const, `capture::SCHEMA_VERSION`.
 
 The sidecar is the source of truth for state; the PNG for geometry and appearance. The harness verifies state, geometry, colors, and deterministic single-frame trajectories; it cannot verify timing, feel over real time, or taste — flag those for live human confirmation rather than claiming them verified.
 

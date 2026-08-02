@@ -197,7 +197,25 @@ cargo run -- --screenshot-app OUT.png --root /some/proj \
 **Same schema, same writer, same blocks.** There is one sidecar writer
 (`capture::sidecar::write_sidecar`) and one per-frame fold
 (`run::fold_capture_state`, shared with the storyboard stepper); this mode adds
-neither. The only difference in the artifact is the top-level `driver` field.
+neither. The only differences in the artifact are the top-level `driver` field
+and the `semantic` tree, which only a live `App` can fold.
+
+## Semantic state without a GPU (`--semantic-json`)
+
+```sh
+cargo run -- --semantic-json [file] --keys "s-p t y p e"
+```
+
+Prints the same semantic tree the native AccessKit adapter projects and a
+live-`App` sidecar embeds — roles, accessible names, values, the ONE focus
+owner, relationships and the actions each node really supports — as pretty
+JSON on stdout, with no window, no surface and no GPU. Hermetic on the same
+`scenario` sandbox `--screenshot-app` uses, and it composes with `--keys`,
+`--root`, `--workspace` and `--config`. It is a state door, not a capture
+door: it writes no PNG, so it does not compose with `--screenshot*`.
+
+This is how an agent reads awl's UI without a display. The field-by-field
+shape is documented with the sidecar's `semantic` field below.
 
 **Hermetic, and for a stronger reason than a strict replay.** A live `App`
 *performs* the writes a replay only records — a settings persist, an autosave, a
@@ -586,7 +604,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/198` (`/199` timeline, `/200` held)
+## The sidecar JSON — schema `awl-capture/196` (`/197` timeline, `/198` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
@@ -594,6 +612,45 @@ Schema `/195` adds **`overlay.context_anchor`**, the physical-pixel click
 anchor `[x, y]` for the awl-rendered contextual menu, or `null` for every
 other summoned surface. The rendered `overlay.window` remains the clamped
 appearance geometry; the anchor is the input/state oracle.
+
+Schema `/196` adds the top-level **`semantic`** field, immediately after
+`driver`: the exact renderer-independent semantic tree an assistive technology
+is given, or `null`.
+
+It is `null` for every `"replay"` capture, and an object for a `"live-app"`
+one — the tree is a live-`App` fold (`App::semantic_snapshot`), and the shared
+core has no surfaces, focus owner or action roster to fold. It is the SAME
+value `awl --semantic-json` prints and the SAME value the native AccessKit
+adapter projects, so a sidecar assertion about accessibility is an assertion
+about what a screen reader actually receives, not about a model of it
+(`semantic::native::tests::json_and_accesskit_are_projections_of_the_same_snapshot`).
+
+The object is `{ schema, root_id, focus_id, nodes }`. `schema` is its own
+version string, `awl-semantic/1`, independent of the capture schema — the
+semantic tree is consumed on its own by `--semantic-json` as well. `focus_id`
+names the ONE node with `focused: true`; that is an invariant, not a
+convention, and it holds no matter how many passive surfaces are up. Each node
+in `nodes` carries `id`, `role`, `name`, and only the properties that apply:
+`value`, `description`, `children`, `controls`, `actions`, `selection`
+(`{anchor, focus}`, in GRAPHEME offsets — never chars, never bytes),
+`character_lengths`, `focusable`, `focused`, `editable`, `multiline`,
+`selected`, `checked`, `expanded`. Absent means "does not apply"; the writer
+omits empty and false-valued keys rather than spelling them out.
+
+Ids are stable across edits AND across filtering: a picker row is keyed by its
+CORPUS position, so typing a query narrows the visible rows without renaming
+the survivors.
+
+**What a live-`App` capture's `semantic` does NOT contain.** The summoned
+cards (About, Lifetime, Streaks, the stats HUD, the shortcut peek) announce
+through `crate::card::content`, whose live figures are gathered by the render
+pipeline. A `--screenshot-app` `App` has no pipeline of its own — the harness
+renders its buffer through a separate offscreen one — so a card that is DRAWN
+in the PNG has no node in that sidecar's `semantic`. This is the same
+live-only boundary that already makes `hud.saved`, the `lifetime` odometer and
+the `streaks` grid read as placeholders in a capture; it is a real gap and it
+is named here rather than papered over. The which-key panel and the rendered
+menu bar have no such dependency and DO appear.
 
 Schema `/193` adds the top-level **`driver`** field, immediately after `schema`:
 which TIER produced this sidecar. `"replay"` — the shared core
@@ -1306,6 +1363,7 @@ world.)
 | field          | meaning |
 |----------------|---------|
 | `schema`       | sidecar format version; bump if the shape changes |
+| `semantic`     | ACCESSIBILITY (schema `/196`): the renderer-independent semantic tree, or `null` on a `"replay"` capture. The same value `--semantic-json` prints and the native AccessKit adapter projects — see the narrative above for its shape, its grapheme-offset selections, and the card-content gap a pipeline-less live-`App` capture has |
 | `canvas`       | render target size in pixels |
 | `font`         | active theme's chosen font family plus `zoom`, effective `size`, and effective `line_height` used for layout. `size` and `line_height` are physical pixels after zoom × capture DPI, in the same coordinate space as `text_origin`, `page.column`, and the PNG; therefore `top + n * font.line_height` addresses the correct ordinary row at every zoom. `zoom` is the clamped user zoom factor (DPI remains separately reported by `canvas.dpi` when explicitly set). `cjk` = `{ family, bundled }` — the world's resolved Japanese fallback face (bundled Noto Serif/Sans JP first, system Hiragino/Noto-CJK trailing — see the Japanese-bundle-round schema `/86` note above), or `null` if neither is present; `scripts` = `{ ja, zh_hans, zh_hant, ko }` (i18n round, schema `/92`) — `cjk`'s shape for all four non-Latin scripts; `ja` **is** `cjk` (one snapshot, same bytes), the other three may be `null` (no bundled asset yet, machine-dependent) |
 | `theme`        | active color world: `name`, `font_family`, `mode` (light/dark), `base100`, `primary` (hex) |
