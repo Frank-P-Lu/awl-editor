@@ -105,6 +105,8 @@ pulldown-cmark = { version = "0.12", default-features = false }
 # gives. `simd` is kept for the index-math speedup. See the "Line endings" section
 # of CLAUDE.md.
 ropey = { version = "1.6.1", default-features = false, features = ["simd"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.150"
 spellbook = "0.4.2"
 toml = { version = "0.8", default-features = false, features = ["parse"] }
 # UAX #29 extended grapheme cluster boundaries — the ONE owner of the caret's
@@ -123,6 +125,8 @@ winit = "0.30"
 # native-only dependency; `app.rs` swaps in a no-op `Clipboard` stub on wasm
 # (the editor runs on the internal kill-ring there). Native is untouched.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+accesskit = "0.24.1"
+accesskit_winit = "0.33.2"
 # wayland-data-control pulls in wl-clipboard-rs so arboard can talk to a pure
 # Wayland compositor's data-control protocol (Hyprland, Sway, ...) — without
 # it arboard defaults to X11-only on Linux and Clipboard::new() fails outright
@@ -305,7 +309,6 @@ web-sys = { version = "0.3", features = [
 ] }
 
 [dev-dependencies]
-serde_json = "1.0.150"
 # PNG decode for the RENDERED-PIXEL frost regression (`tests/frost_rail_pixels.rs`,
 # the appearance-oracle guard CLAUDE.md's tripwire demands). Same version + feature
 # set as the runtime `image` dependency above, so no extra crate is compiled — a

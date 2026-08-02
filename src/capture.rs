@@ -10,8 +10,9 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 /// `/193` — top-level `driver`.
 /// `/194` — `page.background`'s `warped-grid` arm: authored dials and travel.
 /// `/195` — pointer-anchored context menus add `overlay.context_anchor`.
+/// `/198` — top-level `semantic` snapshot (`null` except for live-App captures).
 /// History lives in Git. Bump this row with the const.
-pub const SCHEMA_VERSION: u32 = 195;
+pub const SCHEMA_VERSION: u32 = 198;
 /// Plain single-frame schema; timeline and held take the next two versions.
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")

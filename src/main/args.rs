@@ -134,6 +134,17 @@ pub(crate) enum Mode {
         workspace: Option<PathBuf>,
         config: Config,
     },
+    /// Print the exact renderer-independent semantic snapshot produced by a
+    /// real headless `App`. Native accessibility is intentionally separate
+    /// from the browser DOM contract.
+    #[cfg(not(target_arch = "wasm32"))]
+    SemanticJson {
+        file: Option<PathBuf>,
+        keys: Vec<keyspec::Chord>,
+        root: Option<PathBuf>,
+        workspace: Option<PathBuf>,
+        config: Config,
+    },
     /// DETERMINISTIC TIMELINE capture: after the `--keys` replay sets up a
     /// NAVIGATION caret move (a glide, not an edit-snap), advance a VIRTUAL clock
     /// by the given cumulative-ms `steps` with an INJECTED dt, writing a frame
@@ -264,6 +275,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
     // native-only, and the only door that photographs live-`App`-only state.
     #[cfg(not(target_arch = "wasm32"))]
     let mut live_app = false;
+    let mut semantic_json = false;
     #[cfg(not(target_arch = "wasm32"))]
     let mut frame_step_ms: Option<u64> = None;
     // Every capture-mode flag seen, in order. More than one is a conflict (each
@@ -430,6 +442,11 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 out = Some(PathBuf::from(p));
                 live_app = true;
                 capture_modes.push("--screenshot-app");
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            "--semantic-json" => {
+                semantic_json = true;
+                capture_modes.push("--semantic-json");
             }
             #[cfg(not(target_arch = "wasm32"))]
             "--screenshot-frames" => {
@@ -909,7 +926,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
     //     normal launch flags (file/--theme/--config/--root/…) and with nothing
     //     headless (the whole point is the real window; a capture mode would
     //     silently swallow the script).
-    if live_script.is_some() && (out.is_some() || storyboard_arg.is_some()) {
+    if live_script.is_some() && (out.is_some() || storyboard_arg.is_some() || semantic_json) {
         bail!("--live-script drives the real windowed app; it does not compose with capture modes");
     }
     if live_shots.is_some() && live_script.is_none() {
@@ -1028,7 +1045,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
     // `--screenshot-app`, whose claim is the strongest — it drives a real `App`,
     // which PERFORMS the writes a replay only records.
     #[cfg(not(target_arch = "wasm32"))]
-    if strict_replay || storyboard.is_some() || live_app {
+    if strict_replay || storyboard.is_some() || live_app || semantic_json {
         crate::scenario::install_hermetic_fs(
             crate::scenario::seed_document(
                 storyboard.is_some(),
@@ -1070,13 +1087,13 @@ pub(crate) fn parse_args() -> Result<Mode> {
     // `--keys` only makes sense with a capture mode (it mutates the buffer for a
     // one-frame capture); refuse it for the windowed editor where live typing is
     // the input path.
-    if keys_spec.is_some() && out.is_none() {
+    if keys_spec.is_some() && out.is_none() && !semantic_json {
         bail!("--keys requires a capture mode (e.g. --screenshot OUT.png)");
     }
     // `--wait` is a windowed-editor-only concern (the single-instance daemon's
     // handoff); a capture mode has no daemon to wait on (see `crate::daemon`'s
     // CAPTURE GATE).
-    if wait_flag && out.is_some() {
+    if wait_flag && (out.is_some() || semantic_json) {
         bail!("--wait only applies to the windowed editor (no capture mode)");
     }
     // STRUCTURAL parse only — a garbled token still errors right here. The
@@ -1125,6 +1142,16 @@ pub(crate) fn parse_args() -> Result<Mode> {
             default_folder: default_folder_resolved,
             config,
             km,
+        });
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    if semantic_json {
+        return Ok(Mode::SemanticJson {
+            file,
+            keys,
+            root,
+            workspace: workspace_folded,
+            config,
         });
     }
     Ok(match out {

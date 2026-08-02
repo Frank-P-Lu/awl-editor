@@ -333,6 +333,10 @@ pub struct CaptureOpts {
     /// top-level `driver` field. Defaults to `Replay`, so every existing capture
     /// path is unchanged; only `--screenshot-app` sets `LiveApp`.
     pub driver: CaptureDriver,
+    /// The exact renderer-independent semantic tree owned by a live `App`.
+    /// Replay captures leave this `None`; `--screenshot-app` embeds the same
+    /// value `--semantic-json` and AccessKit consume.
+    pub semantic: Option<crate::semantic::SemanticSnapshot>,
     /// FORCE the format popover over the current `selection` (the deterministic
     /// in-test equivalent of the CLI's `AWL_POPOVER` env probe — the live summon is
     /// a mouse gesture the headless path has no pointer for). Default false, so an

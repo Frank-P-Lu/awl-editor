@@ -79,6 +79,25 @@ pub(crate) fn capture_live_app(
     Ok(())
 }
 
+/// Print the same semantic snapshot the AccessKit adapter and live-App
+/// sidecar consume, after driving optional real keymap actions headlessly.
+pub(crate) fn print_semantic_json(
+    file: Option<PathBuf>,
+    keys: Vec<crate::keyspec::Chord>,
+    root: Option<PathBuf>,
+    workspace: Option<PathBuf>,
+    config: Config,
+) -> Result<()> {
+    let active_root = super::resolve_root(&root, &file);
+    let mut app = App::new_headless_capture(file, active_root, workspace, config);
+    let _exit_requested = app.press_chords_headless(&keys);
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&app.semantic_snapshot())?
+    );
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

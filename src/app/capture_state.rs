@@ -74,6 +74,7 @@ impl App {
         );
         let mut opts = crate::run::fold_capture_state(self, project);
         opts.driver = crate::capture::CaptureDriver::LiveApp;
+        opts.semantic = Some(self.semantic_snapshot());
         opts
     }
 }

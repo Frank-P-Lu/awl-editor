@@ -372,6 +372,8 @@ mod location;
 /// drive — one `WaitUntil` each, lifted out of the trait method (a thin
 /// delegate now) so the file's #1 collision seam has its own home.
 mod schedule;
+#[cfg(not(target_arch = "wasm32"))]
+mod semantic;
 mod startup;
 /// ITEM 202's leading-edge-plus-trailing-coalesce rule for the theme-picker
 /// preview's deferred font reshape — a pure scheduling decision, extracted

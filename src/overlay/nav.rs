@@ -369,6 +369,14 @@ impl OverlayState {
         self.items.get(self.selected).copied()
     }
 
+    /// Stable corpus identities for the currently visible rows, parallel to
+    /// [`Self::item_strings`]. A semantic consumer must never key a row by its
+    /// filtered display position: typing one character would rename every row
+    /// below the first match and make assistive focus jump to another control.
+    pub fn item_corpus_indices(&self) -> &[usize] {
+        &self.items
+    }
+
     pub fn selected_line(&self) -> Option<usize> {
         let i = self.selected_corpus_index()?;
         match self.rows.get(i)?.meta {
