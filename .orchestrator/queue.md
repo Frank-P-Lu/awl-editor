@@ -283,7 +283,50 @@ run.
   photographed nothing; and `live-probe.sh` tests the lock only in preflight,
   never at the end, so it would have passed at 12:52 three minutes before the
   lock landed.
-- **116d** — 🟢 COMPOSITING ROUND LANDED; the flip is deliberately NOT done.
+- **204** — 🟡 IN PROGRESS — claude (deep owner; data loss, so routed above the
+  item's stated production tier), branch `claude/item-204-external-changes`,
+  worktree `../awl-next-worktrees/item-204-external-changes`. **UNBLOCKED by
+  116d's flip:** its three views map directly onto the typed `ComparisonView`
+  (`Differences` | `Mine` | `Theirs`), so it adds a producer beside
+  `history::comparison_prose` rather than the one-off renderer its premise audit
+  forbade. Briefed that mtime + length CANNOT detect the same-time/same-size
+  rewrite its own Verify clause requires — a byte fingerprint or retained
+  baseline is mandatory — and that the prohibitions (no watcher service, no
+  second editable buffer, no side-by-side renderer, no auto-merge, no duplicate
+  user file) are as binding as the requirements.
+- **116d** — ✅ COMPLETE. Merged and pushed; worktree removed. Receipt
+  `native-gate-receipt commit=86d73aa3… conventions=mac,linux scope=all-targets`.
+  History is the timeline/comparison workspace: the flip, the lens in the header,
+  both deep links, the restore notice, and the payload generalisation.
+  **`workspace_header_beat` was FOLDED** into `plan::header_band_height` — the
+  previous owner left it deliberately, reasoning that it was a fourth copy of a
+  ONE-LINE header and would become *wrong* rather than merely duplicated once
+  `header_rows` became 2, which is exactly what happened. The row band IS the
+  timeline column, so the ordinary candidate-row hit-test is the timeline
+  hit-test. **Six defects the new laws found, each red before green:** the
+  capture path drew the OTHER SHAPE because a sidecar carries a mode and not a
+  shape, so replay never set `overlay_rows_primary` while every unit law stayed
+  green; an empty timeline relocated the LIVE DOCUMENT into the comparison's
+  place — the third readable layer item 116 exists to remove; Mangrove/Magpie's
+  selected-row overhang had nowhere to go on a workspace; two footer clips, one
+  from a LABEL-scaled measurement under-measuring Potoroo by 1.2px; a latent
+  item-114 `Bars` footer plate 450px tall; and the narrow timeline stage frosted
+  the PARKED TRANSCRIPT into the backdrop, caught by vision smoke on Firetail at
+  900×520. ⚠️ **TWO ORCHESTRATOR PREMISES WERE WRONG, both material:** (a) an
+  ordinary `--keys` `--screenshot` DOES reach the comparison fully with a store
+  seeded under `XDG_DATA_HOME`, and it is **`--screenshot-app` that cannot** —
+  its hermetic FS has no store; the brief claimed the reverse, and the seeded
+  ordinary capture is what found two of the six defects. (b)
+  `the_workspace_beat_still_agrees_with_the_planned_query_box` did **not** fail
+  when broken — it compared the band to the *query box*, which is
+  `lh + header_gap` on BOTH shapes, so a two-line header slid straight past it;
+  re-aimed to sweep both shapes with a non-vacuity floor. **Left explicitly:**
+  the narrow COMPARISON stage draws no footer (`show_rows` false → `hint_rows` 0),
+  so nothing teaches `tab back` / `esc close` at ~900×520 and below — a
+  discoverability hole rather than a trap, since you reach it by `Tab` from a
+  timeline that did teach both and one Esc always leaves; and on Mangrove/Magpie
+  the narrow timeline column now elides mid-word, which item 131e owns.
+- **116d (compositing round)** — 🟢 LANDED; the flip is deliberately NOT done.
   Merged to `main`; worktree removed. **The owner stopped at a clean boundary
   and that is the correct outcome** — the comparison can now be SEEN, and
   `workspace_shape(History)` is still `None`, which is now safe to change.
