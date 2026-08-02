@@ -50,7 +50,7 @@ mod overlay_header;
 mod overlay_row_plan;
 mod overlay_rows;
 
-pub(in crate::render) use overlay_header::PlannedHeader;
+pub(in crate::render) use overlay_header::{PlannedHeader, header_band_height};
 pub(in crate::render) use overlay_rows::plan_witness;
 pub(in crate::render) use overlay_rows::{
     OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, RowSpan, fit_item_rows,

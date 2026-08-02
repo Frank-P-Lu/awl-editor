@@ -702,11 +702,13 @@ const RETIRED_TERMS: &[&str] = &[
     // DISCLOSED LIMIT: this catches the sum written against `geom`, which is how
     // every retired copy was written. A copy that first binds the gap to a local
     // and sums THAT is invisible to it — which is why the DELETION, not this
-    // sweep, is the real enforcement. One member of the family is knowingly
-    // outside both: `comparison.rs::workspace_header_beat`, whose consumer is
-    // called ~45 times a frame and so cannot afford a plan; it is pinned equal
-    // to the planned box by `overlay_header_band_law.rs`'s
-    // `the_workspace_beat_still_agrees_with_the_planned_query_box` instead.
+    // sweep, is the real enforcement. The last member of the family outside it,
+    // `comparison.rs::workspace_header_beat`, MERGED in item 116d: its consumer
+    // is called ~45 times a frame and still cannot afford a plan, but it now
+    // calls the planner's own `header_band_height` rather than re-summing, and
+    // `overlay_header_band_law.rs`'s
+    // `the_workspace_header_band_still_agrees_with_the_planned_header_boxes`
+    // grades it against the planned boxes over both workspace shapes.
     "+ geom.header_gap",
     "geom.header_gap +",
 ];
@@ -721,8 +723,19 @@ fn steps_off_the_band_origin(line: &str) -> bool {
     line.contains("first_top") && line.contains("as f32")
 }
 
-/// The ONLY place the arithmetic may live.
-const ARITHMETIC_OWNERS: &[&str] = &["plan/overlay_rows.rs", "plan/overlay_row_plan.rs"];
+/// The ONLY place the arithmetic may live — the planner's own files.
+///
+/// ITEM 116d added `plan/overlay_header.rs`: `header_band_height` is the one
+/// owner of "how far below `text_top` the candidate band begins", and both the
+/// planner's `row_top` and the workspace's relocated document viewport now read
+/// it instead of each summing `header_rows * lh + header_gap` for themselves. It
+/// is planner arithmetic living in a planner file, which is exactly what this
+/// list is for.
+const ARITHMETIC_OWNERS: &[&str] = &[
+    "plan/overlay_rows.rs",
+    "plan/overlay_row_plan.rs",
+    "plan/overlay_header.rs",
+];
 
 fn re_derives_a_row_y(line: &str) -> bool {
     let trimmed = line.trim_start();

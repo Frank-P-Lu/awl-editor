@@ -508,7 +508,7 @@ impl TextPipeline {
             overlay_detail_focus: false,
             overlay_workspace: false,
             overlay_rows_primary: false,
-            workspace_rail_w: 0.0,
+            workspace_primary_w: 0.0,
             workspace_rail_buffer,
             workspace_rail_mark: None,
             workspace_rail_placement: None,

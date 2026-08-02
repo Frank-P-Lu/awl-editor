@@ -3,7 +3,7 @@ use super::*;
 // ── The HISTORY TIMELINE live preview (App-level, InMemoryFs seam) ───────
 //
 // The preview is DERIVED at ViewState-build time — these tests pin the
-// resolver (`history_preview_text`) and the close contract
+// resolver (`comparison_transcript`) and the close contract
 // (`history_overlay_closed`) directly, buffer untouched throughout.
 
 /// Seed two history versions for `p` and open the History overlay on `app`,
@@ -32,7 +32,7 @@ fn history_preview_resolves_without_touching_buffer() {
     // DIFF-AS-PREVIEW: row 0 (newest, identical to the buffer) previews a
     // folds-only transcript; row 1 (older) previews a transcript CARRYING the
     // change marks (the reworded paragraph shows surgery / a rewrite).
-    let newest = app.history_preview_text().expect("row 0 previews");
+    let newest = app.comparison_transcript().expect("row 0 previews");
     assert!(
         newest.starts_with("# Comparing with "),
         "a titled transcript: {newest}"
@@ -42,7 +42,7 @@ fn history_preview_resolves_without_touching_buffer() {
         "identical content diffs to no marks: {newest}"
     );
     app.workspace_state.overlay_mut().unwrap().move_sel(1);
-    let older = app.history_preview_text().expect("row 1 previews");
+    let older = app.comparison_transcript().expect("row 1 previews");
     assert!(
         older.contains("~~") || older.contains("=="),
         "arrowing to the older version previews ITS diff (marks present): {older}"
@@ -61,7 +61,7 @@ fn history_preview_resolves_without_touching_buffer() {
         let _ = mem.rename(&entry.path, std::path::Path::new("/gone"));
     }
     assert_eq!(
-        app.history_preview_text().as_deref(),
+        app.comparison_transcript().as_deref(),
         Some(older.as_str()),
         "a repeat on the same id is a cache hit"
     );
@@ -77,7 +77,7 @@ fn preview_cache_invalidates_on_selection_move() {
     crate::history::record(&p, "v2\n", &Config::empty());
     let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
     open_history_overlay(&mut app, &p);
-    assert!(app.history_preview_text().is_some());
+    assert!(app.comparison_transcript().is_some());
     let cached_id = app.document.history_preview_value().map(|(id, _)| id);
     // Moving the selection to another row (a different id) re-renders: the
     // cache is keyed by id, never by "an overlay is open". (The selection
@@ -89,7 +89,7 @@ fn preview_cache_invalidates_on_selection_move() {
         0,
         "a new version tops the diff out"
     );
-    assert!(app.history_preview_text().is_some());
+    assert!(app.comparison_transcript().is_some());
     assert_ne!(
         app.document.history_preview_value().map(|(id, _)| id),
         cached_id,
@@ -167,7 +167,7 @@ fn diff_preview_renders_marked_up_transcript_without_touching_buffer() {
     let text_before = app.document.buffer().text();
     open_history_overlay(&mut app, &p);
     let transcript = app
-        .history_preview_text()
+        .comparison_transcript()
         .expect("the diff preview is live");
     // The transcript speaks awl's diff vocabulary: a struck deletion (REAL
     // `~~` markdown) AND a highlight-washed insertion (`==`), under a title
@@ -213,7 +213,7 @@ fn diff_preview_read_only_law_typing_edits_the_query_never_the_buffer() {
     let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
     let version_before = app.document.buffer().version();
     open_history_overlay(&mut app, &p);
-    assert!(app.history_preview_text().is_some(), "preview live");
+    assert!(app.comparison_transcript().is_some(), "preview live");
     // Drive the modal intercept exactly as a keypress would (the core seam).
     for act in [
         Action::InsertChar('z'),
@@ -285,7 +285,7 @@ fn scratch_buffer_lists_its_stash_history() {
         .install_overlay_for_test(crate::overlay::OverlayState::new_history(rows, None, None));
     // DIFF-AS-PREVIEW: the stash's newest snapshot is identical to the
     // buffer, so the preview is a titled folds-only transcript.
-    let transcript = app.history_preview_text().expect("the stash previews");
+    let transcript = app.comparison_transcript().expect("the stash previews");
     assert!(transcript.starts_with("# Comparing with "), "{transcript}");
 }
 

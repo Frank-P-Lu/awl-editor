@@ -39,13 +39,27 @@ fn workspace_shape_roster_is_exact() {
         let shape = kind.workspace_shape();
         let expected = match kind {
             OverlayKind::Settings => Some(WorkspaceShape::RailOverRows),
+            OverlayKind::History => Some(WorkspaceShape::TimelineOverComparison),
             _ => None,
         };
         assert_eq!(shape, expected, "{kind:?} workspace_shape() drifted");
     }
-    // Named directly, so a reader does not have to trust the loop above to
-    // Make History's current card presentation explicit.
-    assert_eq!(OverlayKind::History.workspace_shape(), None);
+    // Named directly, so a reader does not have to trust the loop above: the
+    // workspace roster is exactly the two members DESIGN.md §5 names, and each
+    // draws the shape that section describes for it (item 116d flipped History
+    // from `None` — a contextual card — onto its timeline/comparison shape).
+    assert_eq!(
+        OverlayKind::History.workspace_shape(),
+        Some(WorkspaceShape::TimelineOverComparison)
+    );
+    assert_eq!(
+        OverlayKind::ALL
+            .iter()
+            .filter(|k| k.workspace_shape().is_some())
+            .count(),
+        2,
+        "the workspace roster is deliberately short (DESIGN.md §5)"
+    );
 }
 
 /// THE BYPASS IS MODULE-PRIVATE. `rows_are_primary`'s match over

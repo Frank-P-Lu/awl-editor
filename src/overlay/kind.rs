@@ -187,6 +187,52 @@ impl OverlayKind {
             OverlayKind::KeepName => vec![enter("keep"), key("esc", "cancel")],
         }
     }
+    /// THE DETAIL STAGE'S OWN LINE — what the footer teaches while a summoned
+    /// workspace's CONTENT region holds focus. Its sibling is
+    /// [`super::workspace::OverlayKind::rail_hint_actions`], the PRIMARY list's
+    /// line; between them a workspace advertises the stage you are standing on.
+    ///
+    /// ITEM 116d — this is a WHOLE line, not [`Self::hint_actions`] with cells
+    /// swapped, because the two workspace members' detail stages are not the same
+    /// kind of thing. Settings' rows ARE the picker: you type to filter them and
+    /// `↵` edits one, so its detail line is exactly its picker line. A COMPARISON
+    /// is read-only prose: typing does not filter it, `↵` does nothing (item 116c
+    /// put restore behind `⇧↵` deliberately), and `↑/↓` scrolls the transcript
+    /// rather than moving a selection. Reusing the picker line there would
+    /// advertise three keys that do not do what it says.
+    ///
+    /// Wildcard-free like its neighbours; unreachable for a kind that is not
+    /// drawn as a workspace, because [`super::OverlayState::foot_hint`] gates on
+    /// [`Self::workspace_shape`].
+    pub fn detail_hint_actions(self) -> Vec<HintAction> {
+        let key = |glyph, label| HintAction { glyph, label };
+        match self {
+            OverlayKind::History => vec![
+                key(ARROWS_UD, "scroll"),
+                key("\u{21E7}\u{21B5}", "restore"),
+                key(super::workspace::TAB_GLYPH, "back"),
+            ],
+            OverlayKind::Settings
+            | OverlayKind::Goto
+            | OverlayKind::Project
+            | OverlayKind::Browse
+            | OverlayKind::Theme
+            | OverlayKind::Caret
+            | OverlayKind::Dictionary
+            | OverlayKind::CjkLang
+            | OverlayKind::Date
+            | OverlayKind::MoveDest
+            | OverlayKind::Command
+            | OverlayKind::Spell
+            | OverlayKind::Keybindings
+            | OverlayKind::Assets
+            | OverlayKind::Rename
+            | OverlayKind::InsertLink
+            | OverlayKind::KeepName
+            | OverlayKind::Context => self.hint_actions(),
+        }
+    }
+
     pub fn hint(self) -> String {
         format_hint(&self.hint_actions())
     }
@@ -305,6 +351,10 @@ pub struct HintAction {
 
 pub const HINT_SEP: &str = "   ";
 pub const ARROWS_LR: &str = "\u{2190}/\u{2192}";
+/// The vertical arrow pair. Shared hint vocabulary since item 116d: a
+/// workspace's PRIMARY list advertises a vertical step as its headline key, and
+/// so does a comparison, whose `\u{2191}/\u{2193}` scrolls the transcript.
+pub const ARROWS_UD: &str = "\u{2191}/\u{2193}";
 pub const RANGE_LR_LABEL: &str = "adjust";
 pub const PIN_TAG: &str = "pinned";
 

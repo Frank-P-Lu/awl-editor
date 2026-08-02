@@ -65,10 +65,7 @@
 
 use super::{HintAction, OverlayKind, OverlayState};
 
-/// The vertical arrow pair, for a rail's own foot hint. Lives beside its one
-/// consumer rather than in `kind.rs`'s shared hint vocabulary — only a
-/// workspace's primary list advertises a vertical step as its headline key.
-const ARROWS_UD: &str = "\u{2191}/\u{2193}";
+use super::ARROWS_UD;
 
 /// The FOCUS-TRANSFER key, as the footer spells it. One spelling shared by both
 /// workspace members' detail-stage lines, so "the key that takes you back" reads
@@ -86,13 +83,14 @@ pub enum WorkspaceShape {
     /// Settings, today: the primary (narrow) column is a rail of category
     /// LABELS; the workspace's own rows live in the wide content pane.
     RailOverRows,
-    /// A timeline beside a comparison: the primary (narrow)
-    /// column IS the workspace's row list — a timeline — and the wide region
-    /// is a comparison this module does not draw into (item 116b).
+    /// Version History: the primary (narrow) column IS the workspace's row list
+    /// — a timeline of versions — and the wide region is a read-only COMPARISON
+    /// the document layer itself relocates into (item 116b's
+    /// `comparison_viewport`), composited onto the workspace surface.
     ///
-    /// No current `OverlayKind` produces this shape. Keep that explicit so an
-    /// unused variant cannot be mistaken for a wired presentation.
-    #[allow(dead_code)]
+    /// The LENS has nowhere to live in the primary column here, because that
+    /// column carries the rows; it moves into the header instead, on the same
+    /// strip line the grouped card family already owns.
     TimelineOverComparison,
 }
 
@@ -128,9 +126,7 @@ impl OverlayKind {
     pub fn workspace_shape(self) -> Option<WorkspaceShape> {
         match self {
             OverlayKind::Settings => Some(WorkspaceShape::RailOverRows),
-            // History remains a card until its timeline/comparison workspace is
-            // presented as a complete surface.
-            OverlayKind::History => None,
+            OverlayKind::History => Some(WorkspaceShape::TimelineOverComparison),
             OverlayKind::Goto
             | OverlayKind::Project
             | OverlayKind::Browse
@@ -175,8 +171,18 @@ impl OverlayKind {
                 enter("settings"),
                 key("esc", "close"),
             ],
-            OverlayKind::History
-            | OverlayKind::Goto
+            // THE TIMELINE STAGE. `↑/↓` steps versions and the comparison follows
+            // immediately; `←/→` cycles the lens now visible in the header; `⇧↵`
+            // is item 116c's deliberate restore, the one key here that changes the
+            // document. `tab` (INTO the comparison) is taught by the comparison's
+            // own line, which is where you need to know how to come back from.
+            OverlayKind::History => vec![
+                key(ARROWS_UD, "version"),
+                key(super::ARROWS_LR, "lens"),
+                key("\u{21E7}\u{21B5}", "restore"),
+                key("esc", "close"),
+            ],
+            OverlayKind::Goto
             | OverlayKind::Project
             | OverlayKind::Browse
             | OverlayKind::Theme

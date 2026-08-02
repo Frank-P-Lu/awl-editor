@@ -166,7 +166,9 @@ pub(in crate::render) fn plan_witness() -> (u64, u64) {
 /// point of item 174 is that a consumer cannot re-derive a row's y from loose
 /// scalars, only read it off the plan that drew it.
 fn row_top(text_top: f32, header_rows: usize, header_gap: f32, row: usize, lh: f32) -> f32 {
-    text_top + header_rows as f32 * lh + header_gap + row as f32 * lh
+    text_top
+        + super::overlay_header::header_band_height(header_rows, lh, header_gap)
+        + row as f32 * lh
 }
 
 /// THE ONE HEIGHT-CLAMP OWNER (item 181). Before item 181 the GROUPED family

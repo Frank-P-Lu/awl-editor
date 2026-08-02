@@ -501,9 +501,9 @@ impl TextPipeline {
         // is the rail's clip, its mark rect and its pointer hit band. Same
         // `&mut FontSystem` window as the item-51 measurement above; `0.0` for
         // every card that is not a workspace, so the geometry is untouched there.
-        self.workspace_rail_w = 0.0;
+        self.workspace_primary_w = 0.0;
         if self.overlay_active && self.overlay_is_workspace() {
-            self.workspace_rail_w = self.measure_workspace_rail_w();
+            self.workspace_primary_w = self.measure_workspace_primary_w();
         }
         self.caret_preview = view.caret_preview;
         match view.caret_preview {

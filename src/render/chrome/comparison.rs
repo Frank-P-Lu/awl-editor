@@ -79,18 +79,18 @@ impl WorkspaceRegions {
         self.wide || self.content_focused
     }
 
-    /// The y a region's own content begins at — below the workspace's search
-    /// line and the query beat that follows it.
+    /// The y a region's own content begins at — below the workspace's HEADER
+    /// BAND: its search line, the lens strip when the shape puts one there, and
+    /// the query beat that closes the band.
     ///
-    /// Derived here rather than read off `OverlayRowPlan` because
-    /// `comparison_viewport` is called from `column_left()`, which cannot afford
-    /// to build a plan, and because a document viewport is not a ROW (item 174's
-    /// arithmetic ban is about a candidate row's slot, which this is not). The
-    /// two are held to agree by
-    /// `render::tests::comparison_viewport_item116b`'s
+    /// `header_band` comes from the plan module's own
+    /// [`crate::render::plan::header_band_height`] rather than being re-summed
+    /// here: `comparison_viewport` is called from `column_left()`, which cannot
+    /// afford to build a plan, but it can afford the plan's own arithmetic owner.
+    /// The two are held to agree by `render::tests::comparison_viewport_item116b`'s
     /// `the_comparison_viewport_opens_on_the_same_line_the_rows_do`.
-    fn content_top(&self, header_beat: f32) -> f32 {
-        self.card[1] + WORKSPACE_PAD + header_beat
+    fn content_top(&self, header_band: f32) -> f32 {
+        self.card[1] + WORKSPACE_PAD + header_band
     }
 
     /// The y a region's own content ends at — the same bottom
@@ -109,7 +109,7 @@ impl TextPipeline {
         let cw = self.overlay_char_width();
         let margin = self.workspace_margin();
         let hpad = self.overlay_text_hpad();
-        let rail_w = self.workspace_rail_w;
+        let rail_w = self.workspace_primary_w;
         let gap = RAIL_GAP_CHARS * cw;
 
         let card_x = margin;
@@ -163,15 +163,27 @@ impl TextPipeline {
         if !r.content_visible() {
             return None;
         }
-        let top = r.content_top(self.workspace_header_beat());
+        let top = r.content_top(self.workspace_header_band());
         let h = r.content_bottom() - top;
         (r.pane[1] > 0.0 && h > 0.0).then_some([r.pane[0], top, r.pane[1], h])
     }
 
-    /// The vertical run of the workspace's header — its `settings › query` search
-    /// line plus the beat below it. One line, one owner, read by both regions.
-    pub(in crate::render) fn workspace_header_beat(&self) -> f32 {
-        self.overlay_lh() + self.overlay_header_gap()
+    /// The vertical run of the workspace's HEADER BAND — from `text_top` down to
+    /// the line its own candidate rows begin on.
+    ///
+    /// ITEM 116d: this used to be a bare `overlay_lh() + overlay_header_gap()`,
+    /// which was a fourth copy of a ONE-LINE header's height and therefore
+    /// correct only for as long as every workspace had exactly one header line.
+    /// The moment the timeline shape moved its lens into the header the copy
+    /// became WRONG rather than merely duplicated, so it now asks the plan
+    /// module's own owner, over this workspace's own
+    /// [`Self::workspace_header_rows`].
+    pub(in crate::render) fn workspace_header_band(&self) -> f32 {
+        crate::render::plan::header_band_height(
+            self.workspace_header_rows(),
+            self.overlay_lh(),
+            self.overlay_header_gap(),
+        )
     }
 
     /// **THE DOCUMENT LAYER'S GLYPH CLIP.** Every text renderer the document
