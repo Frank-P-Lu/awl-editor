@@ -150,6 +150,25 @@ jobs:
     # macOS; keep measured completion time well clear of the hang ceiling.
     timeout-minutes: 75
     steps:
+      # ── The clock that is actually killing this job ──────────────────────
+      # `AWL_NATIVE_GATE_BUDGET_SECONDS` starts when the gate starts. The thing
+      # racing it — a hosted macOS runner that stops talking to the server,
+      # upstream actions/runner-images#13882, annotated "The hosted runner lost
+      # communication with the server" — is on the RUNNER's clock, which starts
+      # here. The five losses so far came at job-minute 47, 53, 55, 56 and 62.
+      # Steps 1-7 are wildly variable (9m51s on 2026-08-01's green run, where
+      # `Install sccache` alone paid 6m36s; 96 SECONDS on run 30742490207,
+      # where a hot cache made `cargo build` 14s), so a duration measured from
+      # the gate expires at an unpredictable point on the clock that matters:
+      # run 30742490207's 2400 s budget came due at job-minute 42 and the
+      # runner was gone at 53 with no log at all. This deadline pins the gate's
+      # end to job-minute 35 — 12 minutes inside the earliest loss, and 8
+      # minutes past the 26m51s that the last fully green mac job took end to
+      # end. The job's own 75-minute `timeout-minutes` is untouched; raising it
+      # was never the fix, since the runner dies well inside it.
+      - name: Runner death clock
+        run: echo "AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( $(date +%s) + 2100 ))" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@stable
@@ -188,19 +207,18 @@ jobs:
       - name: cargo build
         run: cargo build
 
-      # The budget is set BELOW this job's timeout-minutes on purpose. When the
-      # hosted runner is starved to death the job uploads no log at all — the
+      # Two bounds, and the gate takes whichever comes first. This duration is
+      # 25 minutes, ~1.5x the 16m54s this step measured on its last green run
+      # (30686231377). The absolute deadline the first step set is the backstop
+      # for what a duration cannot see: the earlier steps eating the runner's
+      # own clock before the gate ever starts. Neither is a ceiling being
+      # raised; both exist so that a dying runner still leaves a LOG. The
       # step-8 deaths on 2026-08-01/02 (runs 30706851397, 30715372469,
-      # 30721529191, 30727349406) each left an HTTP 404 where the log should
-      # be, which is why they took four runs to characterise and never named a
-      # test. A gate that ends ITSELF first exits normally, so its log
-      # survives and says how far it got and on what machine. 40 minutes is
-      # ~2.4x the 16m54s this step measured on its last green run
-      # (30686231377) and lands ahead of the 49-54 minute deaths. It is not a
-      # ceiling being raised: the job's own 75-minute limit is untouched.
+      # 30721529191, 30727349406, 30742490207) each left an HTTP 404 where the
+      # log should be, which is why five runs never named a single test.
       - name: native full suite
         env:
-          AWL_NATIVE_GATE_BUDGET_SECONDS: 2400
+          AWL_NATIVE_GATE_BUDGET_SECONDS: 1500
         run: scripts/native-gate.sh
 
   # ── The mac live-probe (free mac-VM tier — now GATING) ──────────────────────

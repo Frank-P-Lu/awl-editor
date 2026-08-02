@@ -568,6 +568,14 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
     script = "\n".join(
         line for line in script.splitlines() if not line.lstrip().startswith("#")
     )
+    # The workflow gets the same treatment, and for the same reason. This audit
+    # first shipped without it and was VACUOUS on its own first mutation: the
+    # mac job's `AWL_NATIVE_GATE_BUDGET_SECONDS: 1500` could be deleted outright
+    # and the requirement still passed, satisfied by a neighbouring comment that
+    # merely mentioned the variable by name.
+    ci = "\n".join(
+        line for line in ci.splitlines() if not line.lstrip().startswith("#")
+    )
     required_script_lines = {
         'canary_command=(cargo test --test native_gate_canary)':
             "native-gate-audit: missing named integration-only canary",
@@ -581,6 +589,14 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
             "native-gate-audit: gate must state the machine and bound it is about to load",
         'if [[ -f "$gate_budget_marker" ]]; then':
             "native-gate-audit: an exhausted budget must suppress the receipt",
+        'AWL_NATIVE_GATE_DEADLINE_EPOCH - gate_started_epoch':
+            "native-gate-audit: the budget must honour an absolute caller deadline, not only its own duration",
+        'kill "-$signal" "-$pgid"':
+            "native-gate-audit: an exhausted budget must end whole process groups, not lone pids",
+        '"$@" 2>&1 | gate_stamp_phases "$label"':
+            "native-gate-audit: every convention's output must pass through the gate's own filter",
+        "printf 'native-gate-phase label=%s event=%s elapsed_seconds=%s %s\\n'":
+            "native-gate-audit: the gate must stamp its phase boundaries with elapsed time",
         'start_commit="$(git rev-parse HEAD)"':
             "native-gate-audit: receipt must capture HEAD before the suites",
         'end_commit="$(git rev-parse HEAD)"':
@@ -620,6 +636,14 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
         )
     if "if (( $# != 0 )); then" not in script:
         failures.append("native-gate-audit: gate must reject target-selection and test-name arguments")
+    # A watchdog armed after the canary has returned cannot reach the phase that
+    # compiles every dependency — the slowest thing on a cold hosted runner, and
+    # the phase whose silence has no log at all.
+    armed = script.find("gate_sleep_then \"$gate_budget_seconds\" gate_budget_expired")
+    if armed < 0 or canary < 0 or not armed < canary:
+        failures.append(
+            "native-gate-audit: the budget must be armed before the canary, so it covers every phase"
+        )
 
     for job in ("linux", "mac"):
         marker = f"  {job}:\n"
@@ -632,6 +656,21 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
         body = ci[start:end]
         if "run: scripts/native-gate.sh" not in body:
             failures.append(f"native-gate-audit: CI {job} job must call scripts/native-gate.sh")
+        # Only the mac runner has the death this defends against: five losses at
+        # job-minute 47-62, upstream actions/runner-images#13882, each of which
+        # published no log. Both bounds must be present, because each is blind
+        # to what the other sees — the duration cannot see earlier steps eating
+        # the runner's clock, and the deadline cannot see a gate that starts
+        # late but hangs early.
+        if job == "mac":
+            for setting, failure in (
+                ("AWL_NATIVE_GATE_BUDGET_SECONDS",
+                 "native-gate-audit: CI mac job must bound the gate's own duration"),
+                ("AWL_NATIVE_GATE_DEADLINE_EPOCH",
+                 "native-gate-audit: CI mac job must anchor the gate to the runner's clock"),
+            ):
+                if setting not in body:
+                    failures.append(failure)
     return failures
 
 
@@ -1075,6 +1114,11 @@ linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)
 start_commit="$(git rev-parse HEAD)"
 export RUST_TEST_THREADS
 printf 'native-gate-env cpus=%s\\n' "$gate_cpus"
+gate_budget_seconds=$(( AWL_NATIVE_GATE_DEADLINE_EPOCH - gate_started_epoch ))
+printf 'native-gate-phase label=%s event=%s elapsed_seconds=%s %s\\n' "$1" "$2" "$(gate_elapsed)" "${3:-}"
+"$@" 2>&1 | gate_stamp_phases "$label"
+kill "-$signal" "-$pgid"
+gate_launch budget_pid untracked gate_sleep_then "$gate_budget_seconds" gate_budget_expired
 "${canary_command[@]}"
 "${mac_command[@]}" &
 mac_pid=$!
@@ -1100,7 +1144,10 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
       - run: scripts/native-gate.sh
   mac:
     steps:
-      - run: scripts/native-gate.sh
+      - run: echo "AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( $(date +%s) + 2100 ))" >> "$GITHUB_ENV"
+      - env:
+          AWL_NATIVE_GATE_BUDGET_SECONDS: 1500
+        run: scripts/native-gate.sh
 '''
     if native_gate_audit(script, ci):
         raise AssertionError("canonical native-gate shape must pass its external audit")
@@ -1130,6 +1177,44 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
                   .replace('linux_pid=$!\n', 'linux_pid=$!\nexport RUST_TEST_THREADS\n'),
             ci,
             "thread bound and the machine receipt must precede both suites"),
+        # The 2026-08-02 repairs. Each mutation is the shape the defect actually
+        # had on a real runner, not an invented one.
+        "budget blind to the runner's clock": (
+            script.replace("gate_budget_seconds=$(( AWL_NATIVE_GATE_DEADLINE_EPOCH - gate_started_epoch ))\n", ""),
+            ci,
+            "must honour an absolute caller deadline"),
+        "budget armed after the canary": (
+            script.replace('gate_launch budget_pid untracked gate_sleep_then "$gate_budget_seconds" gate_budget_expired\n', "")
+                  .replace('linux_pid=$!\n',
+                           'linux_pid=$!\ngate_launch budget_pid untracked gate_sleep_then "$gate_budget_seconds" gate_budget_expired\n'),
+            ci,
+            "budget must be armed before the canary"),
+        "kills lone pids": (
+            script.replace('kill "-$signal" "-$pgid"', 'kill "-$signal" "$pgid"'), ci,
+            "must end whole process groups, not lone pids"),
+        "unfiltered convention output": (
+            script.replace('"$@" 2>&1 | gate_stamp_phases "$label"', '"$@"'), ci,
+            "output must pass through the gate's own filter"),
+        "unstamped phases": (
+            script.replace(
+                """printf 'native-gate-phase label=%s event=%s elapsed_seconds=%s %s\\n' "$1" "$2" "$(gate_elapsed)" "${3:-}"\n""",
+                ""),
+            ci,
+            "must stamp its phase boundaries with elapsed time"),
+        "mac duration bound dropped": (
+            script, ci.replace("          AWL_NATIVE_GATE_BUDGET_SECONDS: 1500\n", ""),
+            "CI mac job must bound the gate's own duration"),
+        "mac runner clock dropped": (
+            script, ci.replace(
+                '      - run: echo "AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( $(date +%s) + 2100 ))" >> "$GITHUB_ENV"\n', ""),
+            "CI mac job must anchor the gate to the runner's clock"),
+        # The mutation this audit failed on its first run: a deleted bound that
+        # a comment mentioning the same variable silently stood in for.
+        "mac bound demoted to a comment": (
+            script, ci.replace(
+                "          AWL_NATIVE_GATE_BUDGET_SECONDS: 1500",
+                "          # AWL_NATIVE_GATE_BUDGET_SECONDS: 1500"),
+            "CI mac job must bound the gate's own duration"),
     }
     for mutation, (bad_script, bad_ci, expected) in mutations.items():
         failures = native_gate_audit(bad_script, bad_ci)

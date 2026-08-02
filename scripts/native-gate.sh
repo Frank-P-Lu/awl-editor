@@ -14,6 +14,12 @@ AWL_DISK_PREFLIGHT_CALLER=native-gate "$gate_root/.orchestrator/disk-preflight.s
 
 start_commit="$(git rev-parse HEAD)"
 
+gate_started_epoch="$(date +%s)"
+gate_run_dir="$(mktemp -d "${TMPDIR:-/tmp}/awl-native-gate.XXXXXX")"
+trap 'rm -rf "$gate_run_dir"' EXIT
+
+gate_elapsed() { printf '%s\n' $(( $(date +%s) - gate_started_epoch )); }
+
 # Two conventions run at once below, so every bound here is per convention and
 # the machine sees twice it.
 readonly gate_conventions=2
@@ -66,14 +72,44 @@ if [[ -z "${RUST_TEST_THREADS:-}" ]]; then
 fi
 export RUST_TEST_THREADS
 
+# ── The budget, and why it is two numbers ────────────────────────────────────
+# The budget exists to convert an OUTCOME NOBODY CAN READ into one anybody can.
+# Left unset it does nothing, so no local run inherits a new way to fail.
+#
+# A duration alone was not enough. `AWL_NATIVE_GATE_BUDGET_SECONDS` starts when
+# THIS SCRIPT starts, but the thing racing it — a hosted macOS runner that stops
+# talking to the server, upstream actions/runner-images#13882 — is on the
+# RUNNER's clock, which started at job step 1. Run 30742490207's mac job entered
+# this script 96 seconds into the job (a hot cache made `cargo build` 14 s) and
+# the runner was lost at job-minute 53; run 30732589551's entered at job-minute
+# 6.6. The same duration therefore expires at two very different points on the
+# clock that actually kills the job. `AWL_NATIVE_GATE_DEADLINE_EPOCH` is an
+# ABSOLUTE unix time, set by the caller from the job's own start, and the gate
+# takes whichever of the two comes first.
+gate_budget_seconds=""
+gate_budget_source="none"
+if [[ -n "${AWL_NATIVE_GATE_BUDGET_SECONDS:-}" ]]; then
+  gate_budget_seconds="$AWL_NATIVE_GATE_BUDGET_SECONDS"
+  gate_budget_source="duration"
+fi
+if [[ -n "${AWL_NATIVE_GATE_DEADLINE_EPOCH:-}" ]]; then
+  gate_deadline_remaining=$(( AWL_NATIVE_GATE_DEADLINE_EPOCH - gate_started_epoch ))
+  (( gate_deadline_remaining < 1 )) && gate_deadline_remaining=1
+  if [[ -z "$gate_budget_seconds" ]] || (( gate_deadline_remaining < gate_budget_seconds )); then
+    gate_budget_seconds="$gate_deadline_remaining"
+    gate_budget_source="deadline"
+  fi
+fi
+
 # A hosted runner that is starved to death uploads NO log at all — the mac job's
 # step-8 deaths on 2026-08-01/02 left an HTTP 404 where the log should be — so
 # the gate states the machine it is about to load BEFORE it loads it, and keeps
 # saying what that machine is doing while it runs. Both lines are unconditional:
 # evidence that only appears on failure is evidence nobody has ever read.
-printf 'native-gate-env cpus=%s mem_bytes=%s conventions=%s test_threads=%s budget_seconds=%s\n' \
+printf 'native-gate-env cpus=%s mem_bytes=%s conventions=%s test_threads=%s budget_seconds=%s budget_source=%s deadline_epoch=%s\n' \
   "$gate_cpus" "$gate_mem_bytes_value" "$gate_conventions" "$RUST_TEST_THREADS" \
-  "${AWL_NATIVE_GATE_BUDGET_SECONDS:-none}"
+  "${gate_budget_seconds:-none}" "$gate_budget_source" \
+  "${AWL_NATIVE_GATE_DEADLINE_EPOCH:-none}"
 
 gate_free_bytes() {
   if [[ -r /proc/meminfo ]]; then
@@ -99,6 +135,66 @@ gate_swap_bytes() {
 
 gate_vitals_interval="${AWL_NATIVE_GATE_VITALS_SECONDS:-60}"
 
+# ── Per-phase timing, and naming the line a hang stopped on ──────────────────
+# Run 30732589551 is the only surviving log of this failure, and reconstructing
+# it took line-by-line archaeology: both conventions write to one stdout, so
+# "which convention got where" was not readable at all. Every convention line
+# now carries its own label, and the phase boundaries Cargo already announces
+# get a timestamped marker — which answers, without a second run, whether a
+# 40-minute step is COMPILING test harnesses or RUNNING tests. (In 30732589551
+# it was neither: compilation finished 113 s in, tests ran for 3.5 minutes, and
+# then output stopped dead for 35 minutes.)
+#
+# The per-convention progress file is APPEND-only on purpose: a truncating
+# writer races the heartbeat that reads it, and `tail -1` of an append-only file
+# always yields a whole line.
+gate_phase() {
+  printf 'native-gate-phase label=%s event=%s elapsed_seconds=%s %s\n' \
+    "$1" "$2" "$(gate_elapsed)" "${3:-}"
+}
+
+gate_progress_file() { printf '%s\n' "$gate_run_dir/progress-$1"; }
+
+gate_last_progress() {
+  local file
+  file="$(gate_progress_file "$1")"
+  [[ -s "$file" ]] || { printf 'none\n'; return; }
+  tail -n 1 "$file"
+}
+
+gate_stamp_phases() {
+  local label="$1" line target progress compiled=0 running=0
+  progress="$(gate_progress_file "$label")"
+  : >"$progress"
+  # `|| [[ -n "$line" ]]` flushes a final partial line. libtest prints
+  # "test NAME ... " BEFORE running the test and its result after, so on a clean
+  # EOF that trailing fragment is the exact name of the test that never
+  # returned — the single most valuable line in the whole log.
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    printf '%s| %s\n' "$label" "$line"
+    # "test result:" is matched BEFORE the bare "test " arm that swallows every
+    # per-test line, and that arm exists so a test whose NAME contains
+    # "Running (…)" cannot forge a phase marker.
+    case "$line" in
+      "test result:"*)
+        gate_phase "$label" target-end "detail=${line#test result: }" ;;
+      "test "*) : ;;
+      "running "*)
+        (( running )) || { gate_phase "$label" first-tests-running; running=1; } ;;
+      *"Finished"*"target(s) in"*)
+        (( compiled )) || { gate_phase "$label" compile-finished; compiled=1; } ;;
+      *"Running"*"("*")"*)
+        target="${line##*/}"
+        gate_phase "$label" target-start "target=${target%%)*}" ;;
+    esac
+    case "$line" in
+      "test "*|"running "*|"test result:"*|*"Compiling"*|*"Running"*|*"error"*|*"panicked"*)
+        printf '%s\n' "${line:0:160}" >>"$progress" ;;
+    esac
+    line=""
+  done
+}
+
 # Both helpers below outlive nothing: each sleeps in a child it can name, so the
 # TERM that retires it also retires the sleep. An orphaned `sleep` would keep
 # the gate's inherited stdout open, and a caller capturing this script's output
@@ -114,17 +210,65 @@ gate_sleep_then() {
 }
 
 gate_vitals_loop() {
-  local started elapsed sleeper=""
-  started="$(date +%s)"
+  local elapsed sleeper=""
   trap '[[ -n "$sleeper" ]] && kill "$sleeper" 2>/dev/null; exit 0' TERM
   while :; do
     sleep "$gate_vitals_interval" &
     sleeper=$!
     wait "$sleeper" 2>/dev/null || exit 0
-    elapsed=$(( $(date +%s) - started ))
-    printf 'native-gate-vitals elapsed_seconds=%s free_bytes=%s swap_used_bytes=%s\n' \
-      "$elapsed" "$(gate_free_bytes)" "$(gate_swap_bytes)"
+    elapsed="$(gate_elapsed)"
+    printf 'native-gate-vitals elapsed_seconds=%s free_bytes=%s swap_used_bytes=%s mac_last=[%s] linux_last=[%s]\n' \
+      "$elapsed" "$(gate_free_bytes)" "$(gate_swap_bytes)" \
+      "$(gate_last_progress mac)" "$(gate_last_progress linux)"
   done
+}
+
+# ── Ending a phase that will not end itself ──────────────────────────────────
+# `kill $pid` retires `env … cargo test` and NOTHING BELOW IT: run 30732589551's
+# own job cleanup had to reap two survivors by hand ("Terminate orphan process:
+# pid (43065) (awl-a623f1caab4)") AFTER this gate had already exited. Those
+# orphans inherit the step's stdout, and a GitHub step does not conclude while
+# anything still holds that pipe — which is the shape of run 30742490207, whose
+# step 8 has conclusion `null` even though its budget came due eleven minutes
+# before the runner was lost.
+#
+# So every phase is launched under `set -m`, making it a process-group leader,
+# and the budget kills the GROUP. The per-convention output filter lives inside
+# that group too, which is what makes this safe: Cargo's descendants hold the
+# filter's pipe, never the step's stdout, so even a descendant that refuses to
+# die cannot keep the step open once the filter is gone.
+#
+# The group list lives in a FILE, not a variable. The watchdog is forked before
+# the phases it has to be able to end, so a shell variable would hand it a
+# snapshot that is empty exactly when it matters. The file also keeps the
+# watchdog's OWN group off the list: reading its own pgid back would make its
+# first `kill` a suicide, and the abort message would never be written.
+gate_pgid_file="$gate_run_dir/phase-pgids"
+: >"$gate_pgid_file"
+
+gate_launch() {
+  local var="$1" tracked="$2"
+  shift 2
+  set -m
+  "$@" &
+  local launched=$!
+  set +m
+  [[ "$tracked" == tracked ]] && printf '%s\n' "$launched" >>"$gate_pgid_file"
+  eval "$var=$launched"
+}
+
+gate_kill_groups() {
+  local signal="$1" pgid
+  while read -r pgid; do
+    [[ -n "$pgid" ]] || continue
+    kill "-$signal" "-$pgid" 2>/dev/null || true
+  done <"$gate_pgid_file"
+}
+
+gate_run_convention() {
+  local label="$1"
+  shift
+  "$@" 2>&1 | gate_stamp_phases "$label"
 }
 
 # This is deliberately an integration target, outside the binary unit-test
@@ -133,42 +277,90 @@ canary_command=(cargo test --test native_gate_canary)
 mac_command=(env AWL_CONVENTION_FORCE=mac cargo test)
 linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)
 
+gate_budget_marker="$gate_run_dir/budget-expired"
+
+gate_budget_expired() {
+  printf 'exceeded\n' >"$gate_budget_marker"
+  printf 'native-gate: budget of %ss (%s) exceeded at %ss; free_bytes=%s swap_used_bytes=%s; terminating every phase group\n' \
+    "$gate_budget_seconds" "$gate_budget_source" "$(gate_elapsed)" \
+    "$(gate_free_bytes)" "$(gate_swap_bytes)" >&2
+  printf 'native-gate-budget-last label=mac line=[%s]\n' "$(gate_last_progress mac)" >&2
+  printf 'native-gate-budget-last label=linux line=[%s]\n' "$(gate_last_progress linux)" >&2
+  # A hung suite is a hung PROCESS; name it and its age before killing it, so
+  # the next reader gets the binary and its elapsed time rather than a silence.
+  ps -A -o pid=,ppid=,pgid=,etime=,rss=,stat=,comm= 2>/dev/null \
+    | awk -v groups="$(tr '\n' ' ' <"$gate_pgid_file")" '
+        BEGIN { n = split(groups, g, " "); for (i = 1; i <= n; i++) want[g[i]] = 1 }
+        want[$3] { print "native-gate-budget-proc " $0 }
+      ' >&2 || true
+  gate_kill_groups TERM
+  sleep 5
+  gate_kill_groups KILL
+}
+
+# The budget is armed HERE, before the canary, and covers every phase to the
+# receipt. Arming it after the canary — as the first draft did — left the whole
+# dependency-and-library compile, the slowest phase on a cold runner, with no
+# watchdog at all: a canary that hung would have run to the job's ceiling and
+# published nothing.
+budget_pid=""
+if [[ -n "$gate_budget_seconds" ]]; then
+  gate_launch budget_pid untracked gate_sleep_then "$gate_budget_seconds" gate_budget_expired
+fi
+
+gate_launch vitals_pid untracked gate_vitals_loop
+
+gate_aborted_on_budget() { [[ -f "$gate_budget_marker" ]]; }
+
+gate_abort_report() {
+  printf 'native-gate: ABORTED on its %ss budget with %s; no receipt issued\n' \
+    "${gate_budget_seconds:-unset}" "$1" >&2
+}
+
+# The gate must not exit while its watchdog is still escalating. A convention
+# subshell dies on the TERM, so the parent's `wait` returns immediately — five
+# seconds BEFORE the follow-up KILL that retires anything which ignored the
+# TERM. Exiting in that window is precisely the failure this whole change
+# exists to remove: the gate would be gone and the survivor would still be
+# holding the step's output open. So the parent joins the escalation, then
+# re-runs it itself, and only then exits.
+gate_finish_abort() {
+  [[ -n "$budget_pid" ]] && { wait "$budget_pid" 2>/dev/null || true; }
+  gate_kill_groups KILL
+  kill -TERM "$vitals_pid" 2>/dev/null || true
+  sleep 1
+  gate_abort_report "$1"
+  exit 1
+}
+
 echo "==> native integration canary"
-"${canary_command[@]}"
+gate_phase canary begin
+# The canary runs in the BACKGROUND and is waited on, rather than in the
+# foreground, for one reason: bash defers a trap and cannot be interrupted while
+# a foreground child runs, so a foreground canary is a phase the budget cannot
+# reach. Everything the gate spends time in must be a group it can end.
+gate_launch canary_pid tracked gate_run_convention canary "${canary_command[@]}"
+set +e
+wait "$canary_pid"
+canary_status=$?
+set -e
+gate_phase canary end "status=$canary_status"
+
+if gate_aborted_on_budget; then
+  gate_finish_abort "canary_status=$canary_status (budget expired during the canary phase)"
+fi
+if (( canary_status != 0 )); then
+  printf 'native-gate: integration canary failed (status=%s); no receipt issued\n' "$canary_status" >&2
+  kill -TERM "$vitals_pid" 2>/dev/null || true
+  exit 1
+fi
 
 # The canary fronts dependency and library compilation. Cargo's shared-target
 # lock prevents duplicate remaining compilation when these siblings start; in
 # worker lanes both also inherit the orchestration-owned Cargo cap.
 echo "==> native suites (mac and linux conventions, concurrent)"
-gate_vitals_loop &
-vitals_pid=$!
-"${mac_command[@]}" &
-mac_pid=$!
-"${linux_command[@]}" &
-linux_pid=$!
-
-# The budget exists to convert an OUTCOME NOBODY CAN READ into one anybody can.
-# Left unset it does nothing, so no local run inherits a new way to fail; CI
-# sets it under the job's own `timeout-minutes`, because a job that trips its
-# GitHub ceiling — or gets its runner killed — publishes no log, while a gate
-# that trips its own budget exits normally and its log survives to say why.
-gate_budget_marker="$(mktemp "${TMPDIR:-/tmp}/awl-native-gate-budget.XXXXXX")"
-rm -f "$gate_budget_marker"
-
-gate_budget_expired() {
-  printf 'exceeded\n' >"$gate_budget_marker"
-  printf 'native-gate: budget of %ss exceeded; free_bytes=%s swap_used_bytes=%s; terminating both conventions\n' \
-    "$AWL_NATIVE_GATE_BUDGET_SECONDS" "$(gate_free_bytes)" "$(gate_swap_bytes)" >&2
-  kill -TERM "$mac_pid" "$linux_pid" 2>/dev/null || true
-  sleep 5
-  kill -KILL "$mac_pid" "$linux_pid" 2>/dev/null || true
-}
-
-budget_pid=""
-if [[ -n "${AWL_NATIVE_GATE_BUDGET_SECONDS:-}" ]]; then
-  gate_sleep_then "$AWL_NATIVE_GATE_BUDGET_SECONDS" gate_budget_expired &
-  budget_pid=$!
-fi
+gate_launch mac_pid tracked gate_run_convention mac "${mac_command[@]}"
+gate_launch linux_pid tracked gate_run_convention linux "${linux_command[@]}"
 
 # `wait` is allowed to report failure without set -e ending the gate before the
 # sibling has finished. Preserve both statuses; neither convention can hide the
@@ -179,17 +371,15 @@ mac_status=$?
 wait "$linux_pid"
 linux_status=$?
 set -e
+gate_phase mac suite-end "status=$mac_status"
+gate_phase linux suite-end "status=$linux_status"
+
+if [[ -f "$gate_budget_marker" ]]; then
+  gate_finish_abort "mac_status=$mac_status linux_status=$linux_status"
+fi
 
 kill -TERM "$vitals_pid" 2>/dev/null || true
 [[ -n "$budget_pid" ]] && { kill -TERM "$budget_pid" 2>/dev/null || true; }
-
-if [[ -f "$gate_budget_marker" ]]; then
-  rm -f "$gate_budget_marker"
-  printf 'native-gate: ABORTED on its %ss budget with mac_status=%s linux_status=%s; no receipt issued\n' \
-    "${AWL_NATIVE_GATE_BUDGET_SECONDS:-unset}" "$mac_status" "$linux_status" >&2
-  exit 1
-fi
-rm -f "$gate_budget_marker"
 
 if (( mac_status != 0 || linux_status != 0 )); then
   printf 'native-gate: suite failure mac_status=%s linux_status=%s; no receipt issued\n' \
