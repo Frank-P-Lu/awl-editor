@@ -425,6 +425,30 @@ run.
 
 **Overnight results, newest first.**
 
+- **231** — 🟡 IN PROGRESS — claude (deep), branch `claude/item-231-ci-fix`. The
+  CI fix. Briefed to run the two ~10-minute discriminators FIRST
+  (`--test-threads=1`: does the wedge need concurrency? and a `render::tests::`
+  restriction: does it localise?) before committing to a repair, reusing
+  `scripts/ci-mac-bisect.sh` rather than rebuilding the probe machinery. **The
+  constraint that shapes it:** a helper that stops rebuilding the pipeline must
+  still give each test the world it asked for and the roster sweeps must still
+  sweep — if sharing a device would let one test's state leak into another's,
+  that trades this defect for item 233's and is not a fix.
+- **219 + 225** — 🟡 IN PROGRESS — claude (production), branch
+  `claude/item-219-225-surfaces`. Both "an unintended surface appears" defects,
+  given to ONE owner because both are likely a shared layout owner rather than
+  world-specific dead space. Briefed that 219 must not be hand-tuned per world
+  and 225 must not be masked by overlaying another rectangle, and pointed at
+  `PlannedHeader` (item 174's landed header-band owner) as the likely home of a
+  blank band, plus the recently-moved workspace geometry for the black bar.
+- **233** — 🟡 IN PROGRESS — claude (production), branch
+  `claude/item-233-serialguard`. Briefed to prefer making the leak IMPOSSIBLE
+  over finding the leaker, to extend the one process-wide reentrant guard rather
+  than add a second lock (CLAUDE.md: three rounds of ABBA deadlocks retired the
+  ordered per-module locks), and to match the existing enforcement pattern where
+  `write_sidecar` and `fs::active` assert the hold under `cfg(test)` so an
+  unguarded caller panics by name on its first run.
+
 - **230** — ✅ COMPLETE. Receipt `native-gate-receipt commit=a37d741f…
   conventions=mac,linux scope=all-targets`. `ViewState::substitute_text` is the
   ONE door that replaces shaped text, recording the document *and the caret's
