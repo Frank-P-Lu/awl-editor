@@ -162,6 +162,13 @@ impl OverlayState {
         self.refilter();
     }
 
+    pub(crate) fn set_query_text(&mut self, value: &str) {
+        self.query = crate::textbox::TextBox::seeded(value);
+        self.selected = 0;
+        self.scroll = 0;
+        self.refilter();
+    }
+
     pub fn pop(&mut self) {
         self.query.delete_back();
         self.selected = 0;

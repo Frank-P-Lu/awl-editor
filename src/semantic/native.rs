@@ -73,7 +73,7 @@ fn project_node(snapshot: &SemanticSnapshot, semantic: &SemanticNode) -> Node {
     if let Some(expanded) = semantic.expanded {
         node.set_expanded(expanded);
     }
-    if !semantic.character_lengths.is_empty() {
+    if semantic.role == SemanticRole::Text && !semantic.character_lengths.is_empty() {
         node.set_character_lengths(expanded_lengths(&semantic.character_lengths));
     }
     if let Some(selection) = semantic.selection

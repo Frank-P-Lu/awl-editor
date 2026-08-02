@@ -7,6 +7,169 @@ use crate::semantic::{
 };
 
 impl App {
+    pub(in crate::app) fn handle_accessibility_event(&mut self, event: accesskit_winit::Event) {
+        match event.window_event {
+            accesskit_winit::WindowEvent::InitialTreeRequested => {
+                let snapshot = self.semantic_snapshot();
+                self.frame.update_accessibility(snapshot, true);
+            }
+            accesskit_winit::WindowEvent::ActionRequested(request) => {
+                let snapshot = self.semantic_snapshot();
+                if let Some(request) = crate::semantic::native::decode_request(&snapshot, request) {
+                    self.apply_semantic_request(request);
+                }
+            }
+            accesskit_winit::WindowEvent::AccessibilityDeactivated => {}
+        }
+    }
+
+    fn apply_semantic_request(&mut self, request: crate::semantic::SemanticRequest) {
+        use crate::semantic::SemanticRequest;
+        match request {
+            SemanticRequest::Focus { id } => self.focus_semantic_node(&id),
+            SemanticRequest::Click { id } => self.click_semantic_node(&id),
+            SemanticRequest::SetTextSelection { id, anchor, focus } if id == DOCUMENT_ID => {
+                let text = self.document.buffer().text();
+                let anchor = crate::semantic::grapheme_to_char(&text, anchor);
+                let focus = crate::semantic::grapheme_to_char(&text, focus);
+                self.document.clear_mark();
+                self.document.set_anchor(anchor);
+                self.document.set_cursor(focus);
+                self.sync_view(true);
+                self.request_frame();
+            }
+            SemanticRequest::ReplaceSelectedText { id, value } if id == DOCUMENT_ID => {
+                self.document.insert_text(&value);
+                self.sync_view(true);
+                self.request_frame();
+            }
+            SemanticRequest::SetValue { id, value } if id == DOCUMENT_ID => {
+                let len = self.document.buffer().text().chars().count();
+                self.document.replace_char_range(0, len, &value);
+                self.sync_view(true);
+                self.request_frame();
+            }
+            SemanticRequest::SetValue { id, value } => {
+                self.set_semantic_value(&id, &value);
+            }
+            SemanticRequest::Increment { id } => {
+                self.focus_semantic_node(&id);
+                self.apply_semantic_action(Action::ForwardChar);
+            }
+            SemanticRequest::Decrement { id } => {
+                self.focus_semantic_node(&id);
+                self.apply_semantic_action(Action::BackwardChar);
+            }
+            SemanticRequest::Expand { id } => {
+                self.focus_semantic_node(&id);
+                self.apply_semantic_action(Action::Newline);
+            }
+            SemanticRequest::Collapse { .. } => self.apply_semantic_action(Action::Cancel),
+            SemanticRequest::SetTextSelection { .. }
+            | SemanticRequest::ReplaceSelectedText { .. } => {}
+        }
+    }
+
+    fn apply_semantic_action(&mut self, action: Action) {
+        let exit = schedule::RecordingExit::new();
+        self.apply(action, false, &exit, crate::stats::Door::Menu);
+    }
+
+    fn overlay_target_position(&self, id: &str) -> Option<usize> {
+        let overlay = self.workspace_state.journey().card()?;
+        let kind = overlay.kind.as_str();
+        overlay
+            .item_corpus_indices()
+            .iter()
+            .position(|corpus| id == format!("overlay.{kind}.row.{corpus}"))
+    }
+
+    fn focus_semantic_node(&mut self, id: &str) {
+        if id == DOCUMENT_ID {
+            return;
+        }
+        if id == "search.query" || id == "search.replacement" {
+            if let Some(search) = self.workspace_state.search_mut() {
+                if id == "search.replacement" {
+                    search.focus_replacement();
+                } else {
+                    search.focus_query();
+                }
+                self.sync_view(true);
+                self.request_frame();
+            }
+            return;
+        }
+        let Some(target) = self.overlay_target_position(id) else {
+            return;
+        };
+        let current = self
+            .workspace_state
+            .journey()
+            .card()
+            .map(|overlay| overlay.selected)
+            .unwrap_or(0);
+        let (action, count) = if target >= current {
+            (Action::NextLine, target - current)
+        } else {
+            (Action::PreviousLine, current - target)
+        };
+        for _ in 0..count {
+            self.apply_semantic_action(action.clone());
+        }
+    }
+
+    fn click_semantic_node(&mut self, id: &str) {
+        if id == "search.case-sensitive" {
+            let text = self.document.buffer().text();
+            if let Some(search) = self.workspace_state.search_mut() {
+                search.toggle_case(&text);
+                self.sync_view(true);
+                self.request_frame();
+            }
+            return;
+        }
+        if let Some(name) = id.strip_prefix("format-popover.") {
+            let button = match name {
+                "bold" => crate::popover::PopoverButton::Bold,
+                "italic" => crate::popover::PopoverButton::Italic,
+                "highlight" => crate::popover::PopoverButton::Highlight,
+                "code" => crate::popover::PopoverButton::Code,
+                "strike" => crate::popover::PopoverButton::Strike,
+                "heading" => crate::popover::PopoverButton::Heading,
+                "link" => crate::popover::PopoverButton::Link,
+                _ => return,
+            };
+            self.apply_semantic_action(button.action());
+            return;
+        }
+        if self.overlay_target_position(id).is_some() {
+            self.focus_semantic_node(id);
+            self.apply_semantic_action(Action::Newline);
+        }
+    }
+
+    fn set_semantic_value(&mut self, id: &str, value: &str) {
+        let document_text = self.document.buffer().text();
+        if id == "search.query" {
+            if let Some(search) = self.workspace_state.search_mut() {
+                search.set_query_text(value, &document_text);
+            }
+        } else if id == "search.replacement" {
+            if let Some(search) = self.workspace_state.search_mut() {
+                search.set_replacement_text(value);
+            }
+        } else if id.ends_with(".query")
+            && let Some(overlay) = self.workspace_state.overlay_mut()
+        {
+            overlay.set_query_text(value);
+        } else {
+            return;
+        }
+        self.sync_view(true);
+        self.request_frame();
+    }
+
     pub(crate) fn semantic_snapshot(&self) -> SemanticSnapshot {
         let buffer = self.document.buffer();
         let text = buffer.text();
@@ -58,20 +221,6 @@ impl App {
             nodes.push(SemanticNode::new(&notice_id, SemanticRole::Status, message));
             nodes[0].children.push(notice_id);
         }
-        let existing_root_children = nodes[0].children.clone();
-        let surface_ids = nodes
-            .iter()
-            .skip(3)
-            .filter(|node| {
-                matches!(
-                    node.role,
-                    SemanticRole::Dialog | SemanticRole::Status | SemanticRole::MenuBar
-                )
-            })
-            .map(|node| node.id.clone())
-            .filter(|id| !existing_root_children.contains(id))
-            .collect::<Vec<_>>();
-        nodes[0].children.extend(surface_ids);
 
         debug_assert_eq!(nodes.iter().filter(|node| node.focused).count(), 1);
         SemanticSnapshot {
@@ -139,6 +288,7 @@ impl App {
             None => "No matches".to_string(),
         });
         nodes.push(dialog);
+        nodes[0].children.push(dialog_id.to_string());
         if query_focused {
             query_id.to_string()
         } else {
@@ -205,9 +355,13 @@ impl App {
         }
         dialog.children.push(query_id.clone());
         dialog.children.push(list_id.clone());
+        if labels.is_empty() {
+            query.focused = true;
+        }
         nodes.push(query);
         nodes.push(list);
         nodes.push(dialog);
+        nodes[0].children.push(dialog_id.clone());
 
         overlay
             .selected_corpus_index()
@@ -244,6 +398,7 @@ impl App {
             node.focused = true;
         }
         nodes.push(dialog);
+        nodes[0].children.push(dialog_id.to_string());
         focus
     }
 

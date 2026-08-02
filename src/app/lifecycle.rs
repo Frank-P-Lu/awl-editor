@@ -16,6 +16,7 @@ impl ApplicationHandler<AwlEvent> for App {
             #[cfg(target_os = "macos")]
             AwlEvent::Menu(id) => self.handle_menu_event(id, _event_loop),
             AwlEvent::Probe(e) => self.handle_probe_event(_event_loop, e),
+            AwlEvent::Accessibility(e) => self.handle_accessibility_event(e),
         }
     }
 
@@ -82,7 +83,7 @@ impl ApplicationHandler<AwlEvent> for App {
                 } else {
                     title
                 })
-                .with_visible(true);
+                .with_visible(false);
             // LIVE PROBE: a small, corner-anchored, DETERMINISTIC window
             // (`crate::probe::PROBE_LOGICAL_*`). Overrides any restored session
             // frame — a probe run is isolated (temp HOME) and must land in a
@@ -154,6 +155,11 @@ impl ApplicationHandler<AwlEvent> for App {
             attrs.with_canvas(canvas)
         };
         let window = Arc::new(event_loop.create_window(attrs).expect("create window"));
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.frame.install_accessibility(event_loop, &window);
+            window.set_visible(true);
+        }
         self.frame.bind_window(window.clone());
         // Ask the platform to deliver IME events so CJK (Japanese) composition
         // works: without this, WindowEvent::Ime is never sent and the user can
@@ -234,6 +240,11 @@ impl ApplicationHandler<AwlEvent> for App {
         _id: winit::window::WindowId,
         event: WindowEvent,
     ) {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(window) = self.frame.recovery_window().cloned() {
+            self.frame
+                .process_accessibility_window_event(&window, &event);
+        }
         // WASM: install the GPU the async init parked in the shared slot (its
         // trailing `request_redraw` is what delivered us here). The first frame
         // after init lands here with `gpu` still `None` but the slot full.

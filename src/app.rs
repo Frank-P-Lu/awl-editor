@@ -1073,6 +1073,13 @@ pub(crate) enum AwlEvent {
     /// `crate::probe`'s module doc) — a scripted chord for the real dispatch
     /// tail, a compositor-side window shot, or the terminating quit.
     Probe(crate::probe::ProbeEvent),
+    Accessibility(accesskit_winit::Event),
+}
+#[cfg(not(target_arch = "wasm32"))]
+impl From<accesskit_winit::Event> for AwlEvent {
+    fn from(event: accesskit_winit::Event) -> Self {
+        Self::Accessibility(event)
+    }
 }
 #[cfg(target_arch = "wasm32")]
 type AwlEvent = ();
@@ -1334,6 +1341,7 @@ pub fn run(
     #[cfg(not(target_arch = "wasm32"))]
     {
         app.soak = soak.map(crate::soak_gpu::Controller::new);
+        app.frame.set_accessibility_proxy(proxy.clone());
     }
     #[cfg(target_os = "macos")]
     {

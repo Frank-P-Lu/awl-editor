@@ -314,6 +314,17 @@ impl SearchState {
         self.query.caret()
     }
 
+    pub(crate) fn set_query_text(&mut self, value: &str, haystack: &str) {
+        self.query = TextBox::seeded(value);
+        self.editing_replacement = false;
+        self.recompute(haystack);
+    }
+
+    pub(crate) fn set_replacement_text(&mut self, value: &str) {
+        self.replacement = TextBox::seeded(value);
+        self.editing_replacement = true;
+    }
+
     pub fn replacement_caret(&self) -> usize {
         self.replacement.caret()
     }
