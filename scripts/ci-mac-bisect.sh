@@ -190,13 +190,38 @@ cmd_verdict() {
   printf 'gate step: %s/%s | gate seconds: %s | job seconds: %s | job log: %s\n' \
     "$gate_status" "$gate_conc" "$gate_secs" "$job_secs" "$loghttp"
 
-  if [ "$gate_status" = "absent" ]; then
-    printf 'VERDICT: INVALID (the gate step never ran — re-run)\n'
-  elif [ "$gate_status" != "completed" ]; then
-    printf 'VERDICT: BAD (job over, gate step still %s — it hung)\n' "$gate_status"
-  else
-    printf 'VERDICT: GOOD (gate concluded %s in %ss)\n' "$gate_conc" "$gate_secs"
-  fi
+  # THREE terminal shapes, not two. The hang reaches the API three different
+  # ways depending on who kills it first, and only the third one looks like a
+  # normal ending:
+  #
+  #   runner reaped mid-step   status=in_progress conclusion=""        log 404
+  #     (30750073308, probes 1 and 2 — the VM stopped answering)
+  #   job ceiling fires        status=completed   conclusion=cancelled log 200
+  #     (probe 3, run 30756807172 — the runner SURVIVED, so post steps ran,
+  #      the cache saved, and a log exists)
+  #   gate exits on its own    status=completed   conclusion=success|failure
+  #     (the only GOOD shape)
+  #
+  # The middle one is why `status != "completed"` is not sufficient: a step
+  # GitHub kills at the ceiling is `completed`, and reading only status scores
+  # a 64-minute hang as GOOD. Same class of bug as the `conclusion:""` trap —
+  # an unfinished step wearing a finished step's field. So the test is on the
+  # CONCLUSION, allow-listed: only success and failure mean the suite ran to
+  # an answer. Anything else is the suite not finishing.
+  case "$gate_status/$gate_conc" in
+    absent/*)
+      printf 'VERDICT: INVALID (the gate step never ran — re-run)\n' ;;
+    completed/success|completed/failure)
+      printf 'VERDICT: GOOD (gate concluded %s in %ss)\n' "$gate_conc" "$gate_secs" ;;
+    completed/cancelled|completed/timed_out)
+      printf 'VERDICT: BAD (gate step %s after %ss — killed by a ceiling, never finished)\n' \
+        "$gate_conc" "$gate_secs" ;;
+    completed/*)
+      printf 'VERDICT: INVALID (unrecognised gate conclusion %s — score by hand)\n' "$gate_conc" ;;
+    *)
+      printf 'VERDICT: BAD (job over, gate step still %s — the runner was reaped mid-step)\n' \
+        "$gate_status" ;;
+  esac
 }
 
 # Next probe, from the boundaries established so far. The window is a DAG, not
