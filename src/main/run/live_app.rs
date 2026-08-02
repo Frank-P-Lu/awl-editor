@@ -51,7 +51,6 @@ use anyhow::Result;
 use crate::app::App;
 use crate::args::LiveAppSpec;
 use crate::capture;
-use crate::config::Config;
 
 /// Drive `keys` into a real headless [`App`] rooted at `root`, then capture the
 /// resulting editor state to `out` + its sidecar. Returns after both artifacts
@@ -104,6 +103,7 @@ pub(crate) fn print_semantic_json(spec: LiveAppSpec) -> Result<()> {
 mod tests {
     use super::*;
     use crate::capture::CaptureOpts;
+    use crate::config::Config;
     use crate::settings::SettingId;
     use crate::testscratch::ScratchDir;
     use std::sync::Arc;

@@ -8,7 +8,8 @@ use crate::config::Config;
 use crate::keymap::KeymapState;
 use crate::keyspec;
 
-// A command mode is parsed once and immediately consumed, so boxing would add indirection without benefit.
+// A command mode is parsed once and immediately consumed, so boxing would
+// add indirection without benefit.
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum Mode {
     Windowed {
@@ -27,7 +28,7 @@ pub(crate) enum Mode {
         workspace: Option<PathBuf>,
         /// The RAW `--default-folder` flag (None = unset). Folded with the config
         /// (flag > config > `~/notes`) inside `App::new`; kept raw so reload keeps
-        /// flag wins. The FIRST-RUN fallback only (item 76) — never the active
+        /// flag wins. The FIRST-RUN fallback only — never the active
         /// folder once running.
         default_folder: Option<PathBuf>,
         /// The loaded persistent config (keybinding overrides + folder defaults +
@@ -60,8 +61,8 @@ pub(crate) enum Mode {
         /// switch-project candidates a replayed `C-x p` lists (with git markers).
         workspace: Option<PathBuf>,
         /// The EFFECTIVE default folder (`--default-folder`), surfaced ONLY in the
-        /// sidecar `project.default_folder` field (item 76 — no longer scopes the
-        /// `C-x m` move-dest picker, which now walks the ACTIVE root like Browse).
+        /// sidecar `project.default_folder` field. It does not scope the `C-x m`
+        /// move-dest picker, which walks the ACTIVE root like Browse.
         default_folder: PathBuf,
         /// The loaded persistent config: supplies the `[keys]` overrides reflected in
         /// the palette's effective bindings, and the Settings-open target.
@@ -117,7 +118,7 @@ pub(crate) enum Mode {
         frames: u32,
         step_ms: u64,
     },
-    /// ITEM 188 — THE LIVE-`App` CAPTURE (`--screenshot-app OUT.png [file]`): the
+    /// THE LIVE-`App` CAPTURE (`--screenshot-app OUT.png [file]`): the
     /// only capture door that can photograph a live-`App`-only transition. Hermetic
     /// and native-only; contract in `main/run/live_app.rs`.
     #[cfg(not(target_arch = "wasm32"))]
@@ -214,13 +215,13 @@ pub(crate) enum Mode {
     /// per-input reflow with latest-wins present-boundary coalescing. Opens no
     /// window.
     BenchZoomBurst,
-    /// Hidden performance harness: the FROST steady-frame profiler (item 32) — the
+    /// Hidden performance harness: the FROST steady-frame profiler — the
     /// organic glyph-seeded frost field's real workload over a heading-rich
     /// page-mode lava fixture with a populated outline + gutter, for both lava
     /// worlds, witnessing a nonzero seed field + zero-rebuild steady frames + one
     /// rebuild after a zoom / margin-text change. Opens no window.
     BenchFrost,
-    /// Hidden performance harness: the CARET LOOKUP WITNESS (item 57) — places the
+    /// Hidden performance harness: the CARET LOOKUP WITNESS — places the
     /// caret at the document top/middle/tail on a long fixture and records, per
     /// position, the prefix runs a whole-doc walk would touch (grows), the
     /// target-line-local glyph count the fixed lookup visits (nonzero, constant), and
