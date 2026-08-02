@@ -8,7 +8,7 @@ which invariant). Queue item 172.
 ## The defect this map exists to close
 
 The initial census found `pub struct App` with 107 fields; the extracted
-owners have reduced the root to 65. Every root field is private to `crate::app`,
+owners have reduced the root to 28. Every root field is private to `crate::app`,
 which means every one of the ~24 `impl App` blocks under `src/app/` can still
 read and write it. The physical file split (item 56) made the code
 navigable without making any invariant *owned*: a rule spread across four
@@ -56,9 +56,8 @@ Names follow queue item 172, with two corrections the census forced (see
 | `InputRuntime` | 27 | 164 | 13 | extracted — slice 4 |
 | `ConfigurationRuntime` | 4 | 87 | 16 | extracted — slice 3 |
 | `ProjectLocation` | 6 | 51 | 9 | extracted — slice 3 |
-| `RenderRuntime` | 25 | 277 | 23 | mapped — held by item 174 |
-| `FrameScheduler` | 12 | 123 | 12 | mapped |
-| host / lifecycle (stays on `App`) | 22 | 210 | 19 | stays |
+| `FrameRuntime` | 38 | 400 | 23 | extracted |
+| host / lifecycle (stays on `App`) | 21 | 210 | 19 | stays |
 
 At census time: 107 fields and 1,310 production references, with no field in
 two owners and none unassigned — the classification is exhaustive by
@@ -84,7 +83,7 @@ popover-button press, the summon-on-release, and the overlay-before-search
 
 Highest dispersion per field in the whole struct: 33 production references per
 field, spread over 14 files (`gpu` has more references but is one repeated
-shape, see `RenderRuntime`).
+shape, see `FrameRuntime`).
 
 **Item 173 replaced the `overlay` slot with `overlay::Journey`** — the closed
 summoned-UI LIFECYCLE — and added the ladder's fourth rung, `Layer::Workspace`,
@@ -201,40 +200,39 @@ transition is the one obvious place for it.
 The CLI inputs and `default_folder` live in `ConfigurationRuntime`, not in this
 owner: first-run policy must never be mistaken for the running project's root.
 
-### `RenderRuntime` — held by item 174
+### `FrameRuntime`
 
 `gpu` · `recovery_window` · `gpu_lifecycle` · `gpu_retry_at` ·
 `gpu_timeout_streak` · `gpu_pending` · `present_sync_on` · `present_sync_valid` ·
 `dpi` · `zoom` · `zoom_reflow` · `zoom_anchor` · `theme_font_at` ·
-`theme_switch_at` · `theme_settle` · `theme_switches` · `caret_edit_streaks` ·
+`theme_font_last_reshape_at` · `theme_switch_at` · `theme_settle` ·
+`theme_switches` · `caret_edit_streaks` ·
 `caret_held` · `caret_impact` · `caret_recoil` · `frame_costs` · `debug_still` ·
 `redraw_count` · `last_latency_ms` · `input_stamp`
-
-`gpu` alone is 160 production references across 23 files — the single most
-dispersed field in the struct — but nearly every one is the same shape:
-`if let Some(gpu) = self.gpu.as_ref() { gpu.window.request_redraw() }`, i.e. a
-*redraw request*, not GPU state. That is a `FrameScheduler` verb hiding inside a
-`RenderRuntime` field. Item 174 owns the render-planning restructure; this
-domain waits for it rather than racing it.
-
-### `FrameScheduler`
 
 `clock` · `last_frame` · `lava_tick_at` · `resize_settle_at` ·
 `move_settle_at` · `crossing_settle_at` · `crossing_teardown_pending` ·
 `focused` · `notice` · `notice_kind` · `notice_expires_at` · `zoom_persist_at`
 
-Every debounce/settle deadline plus the notice's own expiry. `theme_font_at`,
-`theme_switch_at` and `theme_settle` are the boundary cases: the *stamp* is
-scheduling and the *effect* is rendering. The map assigns them to
-`RenderRuntime` because their consumers (`retint_theme_preview`,
-`retint_theme_now`) are render transitions; item 174's cut may move them, and
-the classification gate is where that decision gets recorded.
+One `app::frame::FrameRuntime` owns the GPU/surface lifecycle, presentation
+bookkeeping, render-affecting feedback, deadlines, the injected clock, and the
+notice lifetime. These are one lifecycle: input arms work, the idle poll settles
+it, and a presented frame retires it. Theme and crossing stamps remain beside
+the effects they schedule.
 
-`clock` is already owned in the way this item wants every field owned: one
-`Box<dyn Clock>`, a grep law (`app/clock_law.rs`) fencing the module against a
-raw `Instant::now()`, and a `VirtualClock` swap behind the same field. It is the
-template — the difference between `clock` and `notice` is not the number of call
-sites, it is that `clock` has a law and `notice` has a convention.
+`frame/poll.rs` accepts copyable input, document, and configuration scheduling
+snapshots and returns a fixed `PollOutcome`: redraw, reshape, persist zoom,
+expire notice, retry, and the next deadline. It is not a message bus.
+`frame/surface.rs` privately owns recovery, timeout, retry, and present-sync
+state. GPU replacement invalidates the present-sync shadow before equality may
+elide the platform write. `frame/presentation.rs` holds the private presentation
+ledger.
+
+The root exposes one `frame` handle. The API-width law in
+`app/tests/domains.rs` prevents one-field accessors from recreating the old
+field bag; lifecycle changes use named transitions and read-only facts cross as
+typed snapshots. Raw GPU loans remain for render-pipeline consumers until the
+planner/execution split is complete.
 
 ### Host / lifecycle — stays on `App`
 
@@ -272,8 +270,7 @@ nothing from a wrapper. Configuration is no longer host lifecycle state:
    rule. The initial map correctly prioritized `WorkspaceState`; the later
    `InputRuntime` extraction is deliberately a locality-preserving handle plus
    the typed pointer snapshot, not a second interaction system.
-3. **`RenderRuntime` is mostly not a render domain.** `gpu`'s 146 references
-   are dominated by "request a redraw", which belongs to scheduling. A
-   `RenderRuntime` extraction that moved `gpu` without first separating the
-   redraw verb would drag 22 files into item 174's blast radius for no
-   invariant.
+3. **Render and scheduling are one frame lifecycle.** Theme/crossing stamps,
+   present-sync claims, GPU recovery, and redraw retirement cross the proposed
+   render/scheduler line. `FrameRuntime` therefore owns the lifecycle as one
+   domain; render planning remains separately owned by the planner work.
