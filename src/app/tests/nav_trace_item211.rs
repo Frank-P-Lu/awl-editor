@@ -81,12 +81,15 @@ fn trace_lines(path: &std::path::Path) -> Vec<String> {
 /// its trace. Panics rather than returning an error: a spec that will not parse
 /// is a broken law, not a finding.
 fn traced(spec: &str) -> Vec<String> {
-    let path = std::env::temp_dir().join(format!(
-        "awl-item211-{}-{:?}.log",
+    // The recorder writes to the REAL disk (it is the user's black box, not an
+    // `fs::FileSystem` consumer), so its file lives in a `ScratchDir` that
+    // cleans up on every path, panic included.
+    let scratch = crate::testscratch::ScratchDir::new(std::env::temp_dir().join(format!(
+        "awl-nav-trace-{}-{:?}",
         std::process::id(),
         std::thread::current().id()
-    ));
-    let _ = std::fs::remove_file(&path);
+    )));
+    let path = scratch.join("flight.log");
     let _fs = crate::fs::FsGuard::install(Arc::new(seeded_fs()));
     let mut app = nav_app();
     crate::probe::arm_flight_for_test(&path);
@@ -95,7 +98,7 @@ fn traced(spec: &str) -> Vec<String> {
         trace_lines(&path)
     }));
     crate::probe::disarm_flight_for_test();
-    let _ = std::fs::remove_file(&path);
+    drop(scratch);
     out.unwrap_or_else(|e| std::panic::resume_unwind(e))
 }
 
