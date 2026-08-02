@@ -20,7 +20,7 @@ use crate::render::{Metrics, TEXT_LEFT, TEXT_TOP};
 /// Drive the selection-state seam after the separately-tested live pipeline has
 /// resolved a pointer to document column `col`.
 fn press_at_col(app: &mut App, col: usize, shift: bool) {
-    let m = Metrics::with_dpi(app.zoom, app.dpi);
+    let m = Metrics::with_dpi(app.frame.zoom(), app.frame.dpi());
     app.input.pointer.cursor_px = (TEXT_LEFT + col as f32 * m.char_width, TEXT_TOP);
     app.press_at_char(col, shift);
 }
@@ -61,7 +61,7 @@ fn gutter_press_never_moves_or_selects_document_text() {
 
     // Moving well past the normal drag slop after that ignored press remains a
     // no-op: the gutter cannot become a delayed selection start.
-    let m = Metrics::with_dpi(app.zoom, app.dpi);
+    let m = Metrics::with_dpi(app.frame.zoom(), app.frame.dpi());
     move_by(&mut app, m.char_width * 4.0, 0.0);
     assert_eq!(app.document.buffer().cursor_char(), before_cursor);
     assert_eq!(app.document.buffer().selection_range(), before_selection);
@@ -261,7 +261,7 @@ fn move_by(app: &mut App, dx: f32, dy: f32) {
         (y + dy) as f64,
     ));
     if app.input.pointer.drag_armed {
-        let m = Metrics::with_dpi(app.zoom, app.dpi);
+        let m = Metrics::with_dpi(app.frame.zoom(), app.frame.dpi());
         let line =
             ((app.input.pointer.cursor_px.1 - TEXT_TOP).max(0.0) / m.line_height).floor() as usize;
         let col =
@@ -302,7 +302,7 @@ fn sub_slop_jitter_does_not_arm_a_selection_even_across_a_column_boundary() {
     // travel, not on whatever the hit-test now returns.
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
     app.document.set_text("hello world");
-    let m = Metrics::with_dpi(app.zoom, app.dpi);
+    let m = Metrics::with_dpi(app.frame.zoom(), app.frame.dpi());
     // Half a cell short of column 6's boundary: rounds to column 6 today,
     // but a nudge of less than half a cell tips it to column 7.
     app.input.pointer.cursor_px = (TEXT_LEFT + 6.0 * m.char_width - 0.5, TEXT_TOP);
@@ -333,7 +333,7 @@ fn real_drag_past_the_slop_arms_and_extends_the_selection() {
     app.document.set_text("hello world");
     press_at_col(&mut app, 0, false);
     assert!(!app.document.buffer().has_selection());
-    let m = Metrics::with_dpi(app.zoom, app.dpi);
+    let m = Metrics::with_dpi(app.frame.zoom(), app.frame.dpi());
     move_by(&mut app, 6.0 * m.char_width, 0.0);
     assert!(
         app.document.buffer().has_selection(),
@@ -350,7 +350,7 @@ fn once_armed_a_drag_stays_armed_through_further_sub_slop_moves() {
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
     app.document.set_text("hello world");
     press_at_col(&mut app, 0, false);
-    let m = Metrics::with_dpi(app.zoom, app.dpi);
+    let m = Metrics::with_dpi(app.frame.zoom(), app.frame.dpi());
     move_by(&mut app, 6.0 * m.char_width, 0.0); // arms the drag
     assert_eq!(app.document.buffer().selection_range(), Some((0, 6)));
     // A tiny further nudge (well under the slop) still extends, because the
@@ -384,7 +384,7 @@ fn a_drag_past_the_pages_left_edge_clamps_to_the_rows_first_column() {
 
     // Drag the pointer far LEFT of the writing column's own origin — well past
     // the page's left edge, deep in the margin — but keep it on the SAME row.
-    let m = Metrics::with_dpi(app.zoom, app.dpi);
+    let m = Metrics::with_dpi(app.frame.zoom(), app.frame.dpi());
     let (x, y) = app.input.pointer.cursor_px;
     move_by(
         &mut app,
@@ -425,7 +425,7 @@ fn release_disarms_so_the_next_press_is_slop_gated_again() {
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
     app.document.set_text("hello world");
     press_at_col(&mut app, 0, false);
-    let m = Metrics::with_dpi(app.zoom, app.dpi);
+    let m = Metrics::with_dpi(app.frame.zoom(), app.frame.dpi());
     move_by(&mut app, 6.0 * m.char_width, 0.0);
     assert!(app.document.buffer().has_selection());
     // This is the one release transition, not a mirror of its statements:
@@ -456,7 +456,7 @@ const FOLD_DOC: &str = "# A\na1\na2\n# B\nb1";
 /// Drive selection state at a filtered document row after a live hit test has
 /// resolved the row and column.
 fn press_at_row_col(app: &mut App, row: usize, col: usize, shift: bool) {
-    let m = Metrics::with_dpi(app.zoom, app.dpi);
+    let m = Metrics::with_dpi(app.frame.zoom(), app.frame.dpi());
     app.input.pointer.cursor_px = (
         TEXT_LEFT + col as f32 * m.char_width,
         TEXT_TOP + (row as f32 + 0.5) * m.line_height,
@@ -599,7 +599,7 @@ fn a_drag_across_a_collapsed_section_reveals_every_fold_it_crosses() {
         app.document.buffer().folds().contains(&0),
         "the press alone does not reveal"
     );
-    let m = Metrics::with_dpi(app.zoom, app.dpi);
+    let m = Metrics::with_dpi(app.frame.zoom(), app.frame.dpi());
     // Travel two visible rows down (well past the slop) onto the b1 row.
     move_by(&mut app, 0.0, 2.0 * m.line_height);
     assert!(

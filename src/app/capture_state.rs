@@ -87,7 +87,7 @@ impl crate::run::CaptureSubject for App {
         self.document.buffer()
     }
     fn zoom(&self) -> f32 {
-        self.zoom
+        self.frame.zoom()
     }
     fn search(&self) -> Option<&crate::search::SearchState> {
         self.workspace_state.search()

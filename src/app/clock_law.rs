@@ -5,7 +5,7 @@
 //! `Clock` seam exists: every debounce/settle deadline (`app::schedule`), the
 //! caret-spring frame `dt`, the ambient tick, toast expiry, GPU-retry timing, and
 //! the App's own sense-of-time stamps (session origin, save marks, key→px input
-//! receipt) now read `self.clock.now()`, so a future deterministic clock can STEP
+//! receipt) now read `self.frame.now()`, so a future deterministic clock can STEP
 //! the whole path frame-by-frame under the headless harness. A new raw
 //! `Instant::now` there would be a silent hole in that seam.
 //!
@@ -56,7 +56,7 @@ const ALLOWED: &[(&str, usize)] = &[
 /// Count raw `Instant::now` needles on this line — matches both the call form
 /// `Instant::now()` and the fn-pointer form `Instant::now` (and the fully
 /// qualified `std::time::Instant::now`), the same substring in every case.
-/// `self.clock.now()` does NOT contain the needle, so a routed read never
+/// `self.frame.now()` does NOT contain the needle, so a routed read never
 /// counts. Returns 0 for a doc/plain comment line (prose, not code).
 fn needle_count(line: &str) -> usize {
     if line.trim_start().starts_with("//") {
@@ -186,7 +186,7 @@ fn app_module_reads_time_only_through_the_clock_seam() {
         counts, expected,
         "a raw `Instant::now` appeared in the `app` module outside the allow-listed \
          real-work-measurement sites (or an allow-listed count changed) — the scheduling / \
-         animation path must read `self.clock.now()` so a deterministic clock can step it. \
+         animation path must read `self.frame.now()` so a deterministic clock can step it. \
          Route it through `self.clock`, or (only if it genuinely measures real elapsed work) \
          add it to `clock_law::ALLOWED` with a reason. See this module's doc comment."
     );
@@ -206,7 +206,7 @@ fn needle_count_matches_both_call_and_fn_pointer_forms_and_skips_comments() {
         needle_count("        let t0 = std::time::Instant::now();"),
         1
     );
-    assert_eq!(needle_count("        self.x = Some(self.clock.now());"), 0);
+    assert_eq!(needle_count("        self.x = Some(self.frame.now());"), 0);
     assert_eq!(
         needle_count("    /// reads `Instant::now()` — history prose"),
         0

@@ -26,10 +26,10 @@ impl App {
         let hot = crate::warpgrid::should_travel(
             config.ambient_motion_on(),
             crate::motion::reduced(),
-            self.focused,
+            self.frame.focused(),
             crate::lava::lava_paused(
-                self.resize_settle_at.is_some(),
-                self.move_settle_at.is_some(),
+                self.frame.resize_settle_at().is_some(),
+                self.frame.move_settle_at().is_some(),
                 self.gpu
                     .as_ref()
                     .is_some_and(|gpu| gpu.pipeline.lava_blur_active()),
@@ -172,23 +172,23 @@ impl App {
     ) {
         if let Some(pending) = input.prefix_pending_at {
             let deadline = pending + crate::whichkey::PAUSE;
-            let elapsed = self.clock.now() >= deadline;
+            let elapsed = self.frame.now() >= deadline;
             if crate::whichkey::should_summon(true, input.whichkey_shown, elapsed) {
                 self.summon_whichkey();
-            } else if !input.whichkey_shown && !elapsed && self.last_frame.is_none() {
+            } else if !input.whichkey_shown && !elapsed && self.frame.last_frame().is_none() {
                 event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
             }
         }
         if let Some(armed) = input.peek_armed_at {
             let deadline = armed + Duration::from_millis(crate::peek::HOLD_PEEK_MS);
-            if self.clock.now() >= deadline {
+            if self.frame.now() >= deadline {
                 let stimulus = if crate::peek::peek_allowed(self.zoom_in_flight()) {
                     crate::peek::PeekStimulus::Elapsed
                 } else {
                     crate::peek::PeekStimulus::ArmBroken
                 };
                 self.feed_peek(stimulus);
-            } else if self.last_frame.is_none() {
+            } else if self.frame.last_frame().is_none() {
                 event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
             }
         }
@@ -196,15 +196,15 @@ impl App {
 
     fn schedule_autosaves(&mut self, event_loop: &impl Scheduler) {
         if let Some(deadline) = self.persistence.note_debounce_deadline(AUTOSAVE_DEBOUNCE) {
-            if self.clock.now() >= deadline {
+            if self.frame.now() >= deadline {
                 self.persistence.disarm_note_debounce();
                 self.autosave_note();
                 self.request_frame();
-            } else if self.last_frame.is_none() {
+            } else if self.frame.last_frame().is_none() {
                 event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
             }
         }
-        match self.document.poll_autosave(self.clock.now(), AUTOSAVE_IDLE) {
+        match self.document.poll_autosave(self.frame.now(), AUTOSAVE_IDLE) {
             document::AutosavePoll::Due => {
                 self.autosave_flush();
                 #[cfg(not(target_arch = "wasm32"))]
@@ -213,7 +213,7 @@ impl App {
                 self.streaks_flush();
                 self.request_frame();
             }
-            document::AutosavePoll::WaitingUntil(deadline) if self.last_frame.is_none() => {
+            document::AutosavePoll::WaitingUntil(deadline) if self.frame.last_frame().is_none() => {
                 event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
             }
             document::AutosavePoll::Idle | document::AutosavePoll::WaitingUntil(_) => {}
@@ -221,48 +221,52 @@ impl App {
     }
 
     fn schedule_render_settles(&mut self, event_loop: &impl Scheduler) {
-        if let Some(dirty) = self.theme_font_at {
+        if let Some(dirty) = self.frame.theme_font_at() {
             let debounce = theme_font_debounce();
-            match debounce_due(dirty, debounce, self.clock.now()) {
+            match debounce_due(dirty, debounce, self.frame.now()) {
                 true => self.apply_deferred_theme_font(),
-                false if self.last_frame.is_none() => {
+                false if self.frame.last_frame().is_none() => {
                     event_loop.set_control_flow(ControlFlow::WaitUntil(dirty + debounce));
                 }
                 false => {}
             }
         }
-        if let Some(dirty) = self.zoom_persist_at.filter(|_| !self.zoom_persist_held()) {
-            match debounce_due(dirty, ZOOM_PERSIST_DEBOUNCE, self.clock.now()) {
+        if let Some(dirty) = self
+            .frame
+            .zoom_persist_at()
+            .filter(|_| !self.zoom_persist_held())
+        {
+            match debounce_due(dirty, ZOOM_PERSIST_DEBOUNCE, self.frame.now()) {
                 true => self.settle_zoom_persist(),
-                false if self.last_frame.is_none() => {
+                false if self.frame.last_frame().is_none() => {
                     event_loop
                         .set_control_flow(ControlFlow::WaitUntil(dirty + ZOOM_PERSIST_DEBOUNCE));
                 }
                 false => {}
             }
         }
-        if let Some(dirty) = self.resize_settle_at {
-            match debounce_due(dirty, RESIZE_SYNC_SETTLE, self.clock.now()) {
+        if let Some(dirty) = self.frame.resize_settle_at() {
+            match debounce_due(dirty, RESIZE_SYNC_SETTLE, self.frame.now()) {
                 true => self.finish_resize_settle(),
-                false if self.last_frame.is_none() => {
+                false if self.frame.last_frame().is_none() => {
                     event_loop.set_control_flow(ControlFlow::WaitUntil(dirty + RESIZE_SYNC_SETTLE));
                 }
                 false => {}
             }
         }
-        if let Some(dirty) = self.move_settle_at {
-            match debounce_due(dirty, MOVE_SETTLE, self.clock.now()) {
+        if let Some(dirty) = self.frame.move_settle_at() {
+            match debounce_due(dirty, MOVE_SETTLE, self.frame.now()) {
                 true => self.finish_move_settle(),
-                false if self.last_frame.is_none() => {
+                false if self.frame.last_frame().is_none() => {
                     event_loop.set_control_flow(ControlFlow::WaitUntil(dirty + MOVE_SETTLE));
                 }
                 false => {}
             }
         }
-        if let Some(dirty) = self.crossing_settle_at {
-            match debounce_due(dirty, CROSSING_SYNC_SETTLE, self.clock.now()) {
+        if let Some(dirty) = self.frame.crossing_settle_at() {
+            match debounce_due(dirty, CROSSING_SYNC_SETTLE, self.frame.now()) {
                 true => self.finish_crossing_settle(),
-                false if self.last_frame.is_none() => {
+                false if self.frame.last_frame().is_none() => {
                     event_loop
                         .set_control_flow(ControlFlow::WaitUntil(dirty + CROSSING_SYNC_SETTLE));
                 }
@@ -344,8 +348,8 @@ impl App {
         // ZERO ambient frames — preserving 0% idle CPU there.
         let lava_active = crate::theme::active().has_ambient_tick();
         let lava_paused = crate::lava::lava_paused(
-            self.resize_settle_at.is_some(),
-            self.move_settle_at.is_some(),
+            self.frame.resize_settle_at().is_some(),
+            self.frame.move_settle_at().is_some(),
             self.gpu
                 .as_ref()
                 .is_some_and(|gpu| gpu.pipeline.lava_blur_active()),
@@ -354,11 +358,11 @@ impl App {
             lava_active,
             config_schedule.ambient_motion_on(),
             crate::motion::reduced(),
-            self.focused,
+            self.frame.focused(),
             lava_paused,
         ) {
-            let now = self.clock.now();
-            match self.lava_tick_at {
+            let now = self.frame.now();
+            match self.frame.lava_tick_at() {
                 Some(last) if now.saturating_duration_since(last) >= LAVA_TICK => {
                     // Due: hand the elapsed time to the bounded ambient advance
                     // (`lava::ambient_tick_dt` clamps it to one fixed tick), so a
@@ -366,7 +370,7 @@ impl App {
                     // The follow-up `about_to_wait` pass (after the redraw) re-arms
                     // the single `WaitUntil` via the `_` arm below.
                     let dt = (now - last).as_secs_f32();
-                    self.lava_tick_at = Some(now);
+                    self.frame.arm_lava_tick(now);
                     if let Some(gpu) = self.gpu.as_mut() {
                         gpu.pipeline.advance_lava(dt);
                         self.request_frame();
@@ -378,8 +382,8 @@ impl App {
                     // loop (guard on `last_frame`, like every sibling debounce) —
                     // during a caret glide the lava still advances above at ~10 fps
                     // while the frame itself redraws at full refresh.
-                    let last = *self.lava_tick_at.get_or_insert(now);
-                    if self.last_frame.is_none() {
+                    let last = self.frame.lava_tick_at_or_arm(now);
+                    if self.frame.last_frame().is_none() {
                         event_loop.set_control_flow(control_flow_with_deadline(
                             event_loop.control_flow(),
                             last + LAVA_TICK,
@@ -393,7 +397,7 @@ impl App {
             // the focus edge, which merely HOLDS the phase). Stop ticking;
             // hard-freeze the shared phase to the settled frame so a later
             // resume restarts cleanly rather than from a stale mid-breath.
-            self.lava_tick_at = None;
+            self.frame.clear_lava_tick();
             if (crate::motion::reduced() || !config_schedule.ambient_motion_on())
                 && let Some(gpu) = self.gpu.as_mut()
             {
@@ -403,11 +407,11 @@ impl App {
         // EVENT TOAST expiry: one live-only deadline, consumed once. This runs
         // after sibling timers so it can choose the EARLIER deadline instead of
         // delaying a lava tick (or being delayed by one). Poll always wins.
-        if let Some(deadline) = self.notice_expires_at {
-            if notice_expired(self.notice_kind, Some(deadline), self.clock.now()) {
+        if let Some(deadline) = self.frame.notice_expires_at() {
+            if notice_expired(self.frame.notice_kind(), Some(deadline), self.frame.now()) {
                 self.clear_notice();
                 self.request_frame();
-            } else if self.last_frame.is_none() {
+            } else if self.frame.last_frame().is_none() {
                 event_loop.set_control_flow(control_flow_with_deadline(
                     event_loop.control_flow(),
                     deadline,
@@ -419,10 +423,10 @@ impl App {
         // input, lava, or probe wake is the next opportunity. Timeout and
         // surface reconfiguration arrive here after their bounded delay.
         if let Some(deadline) = self.gpu_retry_at {
-            if self.clock.now() >= deadline {
+            if self.frame.now() >= deadline {
                 self.gpu_retry_at = None;
                 self.request_frame();
-            } else if self.last_frame.is_none() {
+            } else if self.frame.last_frame().is_none() {
                 event_loop.set_control_flow(control_flow_with_deadline(
                     event_loop.control_flow(),
                     deadline,
@@ -460,7 +464,7 @@ impl App {
     /// `whichkey::PAUSE` to witness the summon fire EXACTLY at its deadline step.
     #[cfg(any(test, not(target_arch = "wasm32")))]
     pub(crate) fn arm_whichkey_prefix(&mut self) {
-        self.input.arm_prefix(self.clock.now());
+        self.input.arm_prefix(self.frame.now());
     }
 
     /// Whether the which-key continuation panel is currently summoned — the pure App
@@ -489,6 +493,6 @@ impl App {
     /// one swap re-times all of it deterministically.
     #[cfg(any(test, not(target_arch = "wasm32")))]
     pub(crate) fn set_clock(&mut self, clock: Box<dyn crate::clock::Clock>) {
-        self.clock = clock;
+        self.frame.set_clock(clock);
     }
 }

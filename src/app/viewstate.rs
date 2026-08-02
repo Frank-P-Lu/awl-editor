@@ -6,7 +6,7 @@ impl App {
         if self.sync_menu_context_and_gpu_absent() {
             return;
         }
-        self.zoom_reflow.clear();
+        self.frame.clear_zoom_reflow();
         let height = self.gpu.as_ref().unwrap().config.height as f32;
         debug_assert!(height.is_finite());
         let (cursor_line, cursor_col) = self.document.buffer().cursor_line_col();
@@ -31,7 +31,7 @@ impl App {
                 .persistence
                 .note_write_owed(self.document.buffer().version())
         {
-            let now = self.clock.now();
+            let now = self.frame.now();
             self.persistence.arm_note_debounce(now);
         }
         // Arm the DOCUMENT AUTOSAVE idle timer (config-gated, default ON) when a
@@ -46,7 +46,7 @@ impl App {
                 self.document.scratch_saved_version() != Some(self.document.buffer().version())
             };
             if unsaved {
-                self.document.arm_doc_autosave(self.clock.now());
+                self.document.arm_doc_autosave(self.frame.now());
             }
         }
         // DIFF-AS-PREVIEW: while the History picker is open, the page below the
@@ -85,12 +85,14 @@ impl App {
         let follow = follow && preview.is_none();
 
         let version = self.document.buffer().version();
-        let streak_override = std::mem::take(&mut self.caret_edit_streaks);
+        let streak_override = self.frame.caret_edit_streaks();
+        self.frame.set_caret_edit_streaks(false);
         let is_edit_move = self.document.caret_was_synced_at(version) && !streak_override;
         // Was the keypress driving this sync an OS auto-repeat (a HELD arrow)?
         // One-shot, like `caret_edit_streaks`: consumed here so a following
         // non-keyboard sync (IME/wheel) doesn't inherit a stale held flag.
-        let held = std::mem::take(&mut self.caret_held);
+        let held = self.frame.caret_held();
+        self.frame.set_caret_held(false);
 
         let popover = if self.workspace_state.popover_holds_attention()
             && crate::popover::popover_on()
@@ -149,7 +151,7 @@ impl App {
             // visually belongs to at a shared soft-wrap boundary.
             caret_affinity: self.document.buffer().affinity(),
             scroll: scroll::resolved_scroll(diff_scroll, self.document.scroll()),
-            zoom: self.zoom,
+            zoom: self.frame.zoom(),
             selection: self.document.buffer().selection_line_col(),
             preedit: self.input.preedit().to_owned(),
             misspelled,
@@ -233,7 +235,7 @@ impl App {
                 .filter(|o| o.kind == crate::overlay::OverlayKind::Spell)
                 .and_then(|o| o.spell_target),
             overlay_context_anchor: ov.and_then(|o| o.context_anchor),
-            notice: self.notice.clone().unwrap_or_default(),
+            notice: self.frame.notice_owned().unwrap_or_default(),
             cjk_priority: self.config.cjk_priority_or_default(),
             eol: self.document.buffer().eol(),
             popover,
@@ -298,7 +300,7 @@ impl App {
         }
 
         let prev_scroll = self.document.scroll();
-        if let Some(anchor) = self.zoom_anchor.take() {
+        if let Some(anchor) = self.frame.take_zoom_anchor() {
             // ZOOM ANCHOR wins this sync: this `set_view` just reshaped to the newly
             // changed zoom, so re-solve the scroll that keeps the anchored document
             // point at its captured screen y (the ONE owner does the variable-row
@@ -504,7 +506,7 @@ impl App {
     }
 
     fn apply_caret_impulses(&mut self) {
-        if let Some(imp) = self.caret_impact.take()
+        if let Some(imp) = self.frame.take_caret_impact()
             && let Some(gpu) = self.gpu.as_mut()
         {
             match imp {
@@ -517,7 +519,7 @@ impl App {
         }
         // BLOCKED-ACTION RECOIL: a motion/scroll/undo/delete that couldn't proceed
         // bumps the visual caret away from the wall (every caret look).
-        if let Some(dir) = self.caret_recoil.take()
+        if let Some(dir) = self.frame.take_caret_recoil()
             && let Some(gpu) = self.gpu.as_mut()
         {
             gpu.pipeline.caret_recoil(dir);

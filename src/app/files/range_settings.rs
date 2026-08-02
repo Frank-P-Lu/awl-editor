@@ -49,7 +49,7 @@ impl App {
             self.range_apply_live(cell.id, spec.value_of_step(cell.step));
         }
         if key == "zoom" {
-            self.zoom_reflow.queue();
+            self.frame.queue_zoom_reflow();
         } else if key == "scroll_sensitivity" {
             self.input
                 .set_scroll_sensitivity(crate::settings::scroll_sensitivity());

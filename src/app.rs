@@ -359,6 +359,9 @@ struct ThemeSettleInFlight {
 
 /// GPU surface + frame loop (device/queue/surface, prepare/render).
 mod files;
+/// The one live owner of frame timing, presentation bookkeeping, render state,
+/// surface lifecycle, and notices.
+mod frame;
 mod gpu;
 mod gpu_recovery;
 mod input;
@@ -430,6 +433,9 @@ pub struct App {
     /// typed owner keeps its independent substates from leaking back onto
     /// root `App`; see `app/input/mod.rs`.
     input: input::InputRuntime,
+    /// One frame lifecycle. Render-affecting state and the deadlines which
+    /// settle it cannot drift as separate root field bags.
+    frame: frame::FrameRuntime,
     gpu: Option<Gpu>,
     recovery_window: Option<Arc<Window>>,
     gpu_lifecycle: GpuLifecycle,
@@ -455,173 +461,15 @@ pub struct App {
     /// because the future and the App share it on the (single) wasm main thread.
     #[cfg(target_arch = "wasm32")]
     gpu_pending: std::rc::Rc<std::cell::RefCell<Option<Result<Gpu, String>>>>,
-    last_frame: Option<Instant>,
-    /// THE ONE TIME OWNER for scheduling + animation (see `crate::clock::Clock`).
-    /// Every debounce/settle deadline, the frame `dt`, the ambient tick, toast
-    /// expiry, GPU-retry timing, and the App's sense-of-time stamps read
-    /// `self.clock.now()` — never the free `Instant::now()`. `RealClock` on the
-    /// shipped app (a pure pass-through, so captures stay byte-identical);
-    /// `Box<dyn>` so a deterministic clock can slot in behind the same field.
-    /// The `app::clock_law` grep-test fences the module against a raw read.
-    clock: Box<dyn crate::clock::Clock>,
-    frame_costs: crate::debug::CostRing,
-    theme_switches: crate::themeswitch::SwitchHistory,
-    input_stamp: Option<Instant>,
-    last_latency_ms: Option<f32>,
-    redraw_count: u64,
-    debug_still: crate::debug::DebugStill,
-    zoom: f32,
-    /// The window's display DPI `scale_factor` (1.0 on a 1:1 screen, 2.0 on a 2x
-    /// Retina panel). The window width and the cursor position arrive in PHYSICAL
-    /// pixels, but the glyph metrics are tuned for a 1:1 canvas, so this factor is
-    /// folded into them (pipeline `set_dpi` + the local scroll/page math below) to
-    /// keep the live page proportioned like the capture. Updated on creation and on
-    /// `ScaleFactorChanged` (a monitor move). The headless capture never sets it.
-    dpi: f32,
-    caret_edit_streaks: bool,
-    caret_held: bool,
-    caret_impact: Option<CaretImpact>,
-    /// BLOCKED-ACTION RECOIL bump requested by `apply` for the ONE next `sync_view`:
-    /// a motion into a wall / a page that can't page / an exhausted undo-redo / a
-    /// delete with nothing to remove bumps the VISUAL caret away from the wall. Fires
-    /// in EVERY caret look (Block/Morph/I-beam), and is mutually exclusive with the
-    /// edit flinch (a blocked edit recoils away from the wall; a successful edit
-    /// flinches). Consumed by the next `sync_view`. `None` = no recoil.
-    caret_recoil: Option<crate::caret::RecoilDir>,
     clipboard: Option<Clipboard>,
     clipboard_last_written: Option<String>,
     /// The live root plus its derived project state and persisted MRUs.
     project_location: location::ProjectLocation,
-    /// When the open DOCUMENT last changed and an idle AUTOSAVE is pending, the
-    /// buffer version known ON DISK, the CLOBBER-GUARD stat baselines (doc +
-    /// scratch), and the scratch-stash's own saved-version — ALL buffer-scoped,
-    /// so they now live in `document::BufferExtra`
-    /// instead of here: see `doc_autosave_at`/`doc_saved_version`/`disk_mtime`/
-    /// `scratch_saved_version`/`scratch_mtime` on that type.
-    /// When the AUTOSAVE ENGINE last wrote successfully THIS session (the doc
-    /// autosave OR the scratch stash) — stamped ONLY inside `autosave_doc_now` /
-    /// `stash_scratch_now`'s `Ok` arms (i.e. exclusively through
-    /// `App::autosave_flush`'s one door, past its clobber-guard check), so the
-    /// debug panel's `autosave saved · Ns ago` line can never claim a write the
-    /// engine didn't just make. `None` before the first successful write. Feeds
-    /// `crate::debug::autosave_state` at redraw time (gated on `debug_on()`, like
-    /// every other clock read the panel takes) — never read otherwise.
-    notice: Option<String>,
-    notice_kind: NoticeKind,
-    notice_expires_at: Option<Instant>,
     /// Newest unacknowledged crash-log filename. It never occupies the center
     /// notice: About and Settings surface it passively until Report a Problem
     /// acknowledges it.
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pending_crash: Option<String>,
-    /// SAVE-FEEDBACK round: the dirty-state the window title/titlebar last
-    /// rendered — the cheapest honest hook for "on dirty-state transitions"
-    /// (`CLAUDE.md`'s own phrasing): `sync_view` (already called on nearly
-    /// every edit/cursor-move, gated on the gpu-present check) compares
-    /// `buffer.is_dirty()` against this cache and only re-titles on an actual
-    /// FLIP, so typing doesn't re-format the title string or make a
-    /// `set_title`/`set_document_edited` OS call every keystroke — only when
-    /// clean↔dirty actually changes. `App::update_title` is the ONE place
-    /// that writes it back in step (so ANY caller of `update_title`, not just
-    /// `sync_view`'s own comparison, keeps this cache honest).
-    /// DIFF-AS-PREVIEW cache (`history_preview`) + the pre-open scroll
-    /// (`history_scroll_before`): buffer-scoped (item 56), folded into
-    /// `document::BufferExtra` — see that type for the full
-    /// doc, unchanged from here.
-    /// When the zoom last changed and a STICKY-ZOOM write is pending; the debounced
-    /// write fires after `ZOOM_PERSIST_DEBOUNCE` of quiet in `about_to_wait`, so a
-    /// rapid Cmd-=/Cmd-- run persists the SETTLED value once instead of per step.
-    /// `None` = nothing pending (live only — headless never schedules this).
-    zoom_persist_at: Option<Instant>,
-    zoom_reflow: ZoomReflow,
-    zoom_anchor: Option<ZoomAnchor>,
-    /// When the theme-picker live PREVIEW last landed on a world whose display face
-    /// differs from the shaped one, and the deferred FONT reshape is pending; the
-    /// debounced `sync_theme_font` fires after `theme_font_debounce()` of quiet in
-    /// `about_to_wait` (each further arrow re-stamps it, sliding the deadline).
-    /// Cleared by the settle itself and by every SYNCHRONOUS retint (commit /
-    /// revert — `retint_theme_now`), so Esc can never leave a stray reshape to land
-    /// after the picker closed. `None` = nothing pending (live only — the headless
-    /// replay applies theme fonts synchronously through the pure core + a fresh
-    /// pipeline, so captures are untouched).
-    theme_font_at: Option<Instant>,
-    /// ITEM 202 — the LEADING edge's own clock: when the font last actually
-    /// reshaped (via the immediate path below or the coalesced settle),
-    /// `None` before any reshape this session. `theme_font_reshape_decision`
-    /// reads it to tell an ISOLATED preview step (nothing reshaped recently —
-    /// reshape now, matching item 37b's own ~39ms single-step figure) from a
-    /// BURST continuation (a reshape is recent or already pending — coalesce
-    /// into `theme_font_at` instead, so a rapid run of steps pays one
-    /// trailing reshape, not one per step).
-    theme_font_last_reshape_at: Option<Instant>,
-    /// LIVE-ONLY (DEBUG settle readout): the `Instant` of the input that triggered the
-    /// current theme switch — re-stamped by each preview arrow (`retint_theme_preview`)
-    /// so the settle measures from the LAST input, and stamped afresh by a direct/commit
-    /// retint (`retint_theme_now`). Read only when `debug_on()`, only to time the
-    /// once-per-switch settle readout (`crate::themeswitch`); `None` = no switch pending.
-    /// Off the headless path — the deterministic replay never routes through the live
-    /// retint seams, so a capture never stamps it.
-    theme_switch_at: Option<Instant>,
-    theme_settle: Option<ThemeSettleInFlight>,
-    /// AMBIENT TICK — the slow shared clock for animated grounds
-    /// (`crate::lava`). `Some(when)` = the last tick instant, driving the single
-    /// `WaitUntil(when + LAVA_TICK)` in `about_to_wait` that advances the phase by
-    /// one FIXED/CLAMPED ambient step +
-    /// requests one redraw + re-arms — a SLOW sparse cadence, NEVER the caret
-    /// spring's hot per-frame loop. Armed ONLY while `lava::lava_should_tick` holds
-    /// (an ambient world active, `ambient_motion` on, motion not reduced, the window
-    /// focused), so a static world schedules ZERO frames and idles at 0% CPU.
-    /// Cleared on blur or whenever the active ground goes static. `None` =
-    /// not ticking (live only — a headless capture never constructs this, so it can
-    /// never advance the phase; a capture is always the frozen t=0 phase).
-    lava_tick_at: Option<Instant>,
-    focused: bool,
-    /// LIVE-RESIZE settle state (all platforms; macOS additionally synchronizes
-    /// the Core Animation transaction): when the last genuine
-    /// `WindowEvent::Resized` tick landed. While present, lava holds its last
-    /// settled field geometry; on macOS the CAMetalLayer's
-    /// `presentsWithTransaction` is armed ON. Metal's surface presents
-    /// ASYNCHRONOUSLY by default, so during a FAST drag the window's own
-    /// resize animation (a Core Animation transaction AppKit commits on every
-    /// tick) can commit before our next frame presents — the compositor then
-    /// has nothing fresh to show and instead SCALES the last-presented
-    /// (stale-size) drawable to cover the new bounds, the classic macOS
-    /// "content stretches while dragging fast" artifact (user-reported: a
-    /// SLOW, one-pixel-at-a-time drag was already fine after the rail-ramp
-    /// fix; a FAST drag still visibly stretched). `presentsWithTransaction
-    /// (true)` makes our present JOIN that same transaction instead of racing
-    /// it. `about_to_wait`'s `RESIZE_SYNC_SETTLE` debounce flips it back OFF
-    /// once ticks stop arriving (Apple's own documented trade-off: a
-    /// transaction-synced present costs a touch of throughput, so it's armed
-    /// only while genuinely dragging, not left on permanently). `None` =
-    /// not currently resizing (live only; a headless capture never resizes a
-    /// real window, so this is structurally unreachable there).
-    resize_settle_at: Option<Instant>,
-    move_settle_at: Option<Instant>,
-    /// A THEME-PREVIEW step just crossed the lava boundary (a ticking lava world
-    /// THE PREVIEW-SETTLE debounce: stamped by `App::retint_theme_preview` on
-    /// EVERY theme-picker preview step (arrow / hover / wheel), re-stamped on each
-    /// further step so it fires `CROSSING_SYNC_SETTLE` after the user STOPS
-    /// navigating. Its presence arms the present-transaction bracket
-    /// (`present_sync_armed`'s third source), so every preview frame — including
-    /// the LANDING frame — joins the compositor's transaction rather than racing
-    /// it (the vanishing-page fix, 2026-07-18: the old `preview_crossing`
-    /// conditional bracketed only the transient boundary crossed mid-nav and left
-    /// the actual landing frame unbracketed — three widenings never caught it, so
-    /// the classification was RETIRED for unconditional arming). Structurally
-    /// unreachable in a headless capture (the shared replay never previews).
-    crossing_settle_at: Option<Instant>,
-    /// EVENT-ORDERED bracket teardown: set by `finish_crossing_settle` once the
-    /// preview settle elapses (the deferred font reshape has just been APPLIED in
-    /// the same `about_to_wait` pass but not yet PRESENTED). It HOLDS the
-    /// present-transaction bracket ON (a second source in `sync_present_txn`'s OR)
-    /// until the next present — the one carrying the reshaped frame — completes
-    /// INSIDE the bracket; the post-present hook in `on_redraw_requested` then
-    /// clears it and disarms. This replaces the old timer-race (settle turned the
-    /// bracket off in the SAME pass the reshape redraw was requested, so the
-    /// heaviest frame coalesced into one UNBRACKETED present) with a mechanical
-    /// happens-after: reshape present ⇒ THEN teardown. Live-only.
-    crossing_teardown_pending: bool,
     /// Shadow of the CAMetalLayer's `presentsWithTransaction` flag — the ONE
     /// owner of its composition is `App::sync_present_txn`, which arms it while
     /// ANY live source (resize OR move stream, OR a theme-preview lava-boundary
@@ -818,7 +666,7 @@ impl App {
             workspace_state: workspace::WorkspaceState::default(),
             persistence: persistence::PersistenceRuntime::default(),
             input: input::InputRuntime::new(keymap, scroll_sensitivity),
-            clock,
+            frame: frame::FrameRuntime::new(zoom, clock),
             gpu: None,
             recovery_window: None,
             gpu_lifecycle: GpuLifecycle::AwaitingWindow,
@@ -834,19 +682,6 @@ impl App {
             probe_ready: None,
             #[cfg(target_arch = "wasm32")]
             gpu_pending: std::rc::Rc::new(std::cell::RefCell::new(None)),
-            last_frame: None,
-            frame_costs: crate::debug::CostRing::default(),
-            theme_switches: crate::themeswitch::SwitchHistory::default(),
-            input_stamp: None,
-            last_latency_ms: None,
-            redraw_count: 0,
-            debug_still: crate::debug::DebugStill::Active,
-            zoom,
-            dpi: 1.0,
-            caret_edit_streaks: false,
-            caret_held: false,
-            caret_impact: None,
-            caret_recoil: None,
             clipboard: match Clipboard::new() {
                 Ok(c) => Some(c),
                 Err(e) => {
@@ -856,23 +691,7 @@ impl App {
             },
             clipboard_last_written: None,
             project_location,
-            notice: None,
-            notice_kind: NoticeKind::Sticky,
-            notice_expires_at: None,
             pending_crash: None,
-            zoom_persist_at: None,
-            zoom_reflow: ZoomReflow::default(),
-            zoom_anchor: None,
-            theme_font_at: None,
-            theme_font_last_reshape_at: None,
-            theme_switch_at: None,
-            theme_settle: None,
-            lava_tick_at: None,
-            focused: true,
-            resize_settle_at: None,
-            move_settle_at: None,
-            crossing_settle_at: None,
-            crossing_teardown_pending: false,
             present_sync_on: false,
             present_sync_valid: false,
             config,
@@ -958,27 +777,23 @@ impl App {
     /// This is deliberately separate from transient editor feedback.
     ///
     fn set_sticky_notice(&mut self, text: impl Into<String>) {
-        self.notice = Some(text.into());
-        self.notice_kind = NoticeKind::Sticky;
-        self.notice_expires_at = None;
+        self.frame.set_sticky_notice(text.into());
     }
 
     fn set_toast_notice(&mut self, text: impl Into<String>) {
-        self.notice = Some(text.into());
-        self.notice_kind = NoticeKind::Toast;
         // A real window is the live/capture boundary: unit tests and headless
         // replay keep the text deterministic but never arm a wall-clock expiry.
-        self.notice_expires_at = self.gpu.as_ref().map(|_| self.clock.now() + TOAST_LIFETIME);
+        let expires_at = self.gpu.as_ref().map(|_| self.frame.now() + TOAST_LIFETIME);
+        self.frame.set_toast_notice(text.into(), expires_at);
     }
 
     fn clear_notice(&mut self) {
-        self.notice = None;
-        self.notice_kind = NoticeKind::Sticky;
-        self.notice_expires_at = None;
+        self.frame.clear_notice();
     }
 
     fn clobber_notice_active(&self) -> bool {
-        self.notice_kind == NoticeKind::Sticky && self.notice.as_deref() == Some(CLOBBER_NOTICE)
+        self.frame.notice_kind() == NoticeKind::Sticky
+            && self.frame.notice_text() == Some(CLOBBER_NOTICE)
     }
 }
 
@@ -1109,7 +924,7 @@ impl App {
         self.gpu_timeout_streak = 0;
         let Some(gpu) = self.gpu.as_ref() else { return };
         let sf = gpu.window.scale_factor() as f32;
-        self.dpi = sf;
+        self.frame.set_dpi(sf);
         if let Some(gpu) = self.gpu.as_mut() {
             gpu.pipeline.set_dpi(sf);
         }
@@ -1164,7 +979,7 @@ impl App {
         if self.soak_passed.is_some() {
             return;
         }
-        let now = self.clock.now();
+        let now = self.frame.now();
         let metal = self.gpu.as_ref().and_then(Gpu::current_gpu_bytes);
         let (finished, stimuli) = {
             let Some(soak) = self.soak.as_mut() else {
@@ -1259,7 +1074,7 @@ impl App {
         // `soak.finished` can flip on schedule completion. `finished` is false
         // here (the finished branch returned above).
         self.request_frame();
-        if self.last_frame.is_none() {
+        if !self.frame.frame_is_hot() {
             event_loop.set_control_flow(control_flow_with_deadline(
                 event_loop.control_flow(),
                 now + if stimuli.len() == 32 {
@@ -1273,8 +1088,8 @@ impl App {
 
     fn stamp_input(&mut self) {
         if crate::debug::debug_on() {
-            let now = self.clock.now();
-            self.input_stamp.get_or_insert(now);
+            let now = self.frame.now();
+            self.frame.stamp_input_if_absent(now);
         }
     }
 }

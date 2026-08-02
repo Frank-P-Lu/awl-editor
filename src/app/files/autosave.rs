@@ -53,7 +53,7 @@ impl App {
         } else {
             self.persistence
                 .last_save_at()
-                .map(|t| crate::hud::HudSaved::Saved(self.clock.now().duration_since(t).as_secs()))
+                .map(|t| crate::hud::HudSaved::Saved(self.frame.now().duration_since(t).as_secs()))
         };
         let Some(gpu) = self.gpu.as_mut() else {
             return;
@@ -177,7 +177,7 @@ impl App {
             // skipped inside).
             self.snapshot_after_save();
             // NOTES VERBS round: the held HUD's SAVED stat.
-            let now = self.clock.now();
+            let now = self.frame.now();
             self.persistence.record_save(now);
         }
     }
@@ -317,7 +317,7 @@ impl App {
                 // the engine's own "last wrote successfully" clock and the
                 // any-kind save clock moved in lockstep at both engine sites,
                 // so `record_engine_write` is now the only spelling.
-                let now = self.clock.now();
+                let now = self.frame.now();
                 self.persistence.record_engine_write(now);
                 // Every save records a snapshot (dedup + the git gate live inside).
                 self.snapshot_after_save();
@@ -363,7 +363,7 @@ impl App {
                 // the engine's own "last wrote successfully" clock and the
                 // any-kind save clock moved in lockstep at both engine sites,
                 // so `record_engine_write` is now the only spelling.
-                let now = self.clock.now();
+                let now = self.frame.now();
                 self.persistence.record_engine_write(now);
                 // The persistent scratch grows a timeline of its own.
                 crate::history::record(&path, &text, &self.config);

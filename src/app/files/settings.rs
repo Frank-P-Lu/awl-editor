@@ -166,7 +166,7 @@ impl App {
         let values = crate::settings::SettingsValues::gather(
             &self.config,
             &self.project_location.root,
-            self.zoom,
+            self.frame.zoom(),
             crate::dateformat::today_from_system_clock(),
         );
         if let Some(ov) = self.workspace_state.overlay_mut()
@@ -285,7 +285,7 @@ impl App {
     }
 
     fn persist_zoom_now(&mut self) {
-        let z = self.zoom;
+        let z = self.frame.zoom();
         self.persist_pref("zoom", &format!("{z:.3}"));
     }
 
@@ -308,7 +308,7 @@ impl App {
     /// `RedrawRequested` handler re-decide control flow (Wait, now that this is settled)
     /// instead of leaving an elapsed `WaitUntil` to busy-spin the loop (DESIGN §6).
     pub(in crate::app) fn settle_zoom_persist(&mut self) {
-        self.zoom_persist_at = None;
+        self.frame.clear_zoom_persist();
         self.persist_zoom_now();
         if let Some(gpu) = self.gpu.as_mut() {
             gpu.pipeline.set_zoom_readout(None);

@@ -11,13 +11,14 @@ fn debug_off_clears_theme_transaction_history_without_a_frame_sample() {
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
     let mut phases = crate::themeswitch::SwitchPhases::default();
     phases.record(crate::themeswitch::SwitchPhase::Reshape, 7.0);
-    app.theme_switches.insert(app.clock.now(), 9.0, phases);
+    let now = app.frame.now();
+    app.frame.theme_switches_mut().insert(now, 9.0, phases);
     assert!(
-        app.frame_costs.last().is_none(),
+        app.frame.frame_costs().last().is_none(),
         "precondition: no frame sample"
     );
     assert!(
-        !app.theme_switches.is_empty(),
+        !app.frame.theme_switches_mut().is_empty(),
         "precondition: transaction recorded"
     );
 
@@ -27,7 +28,7 @@ fn debug_off_clears_theme_transaction_history_without_a_frame_sample() {
         "the production Debug-off predicate recognizes history-only state"
     );
     assert!(
-        app.theme_switches.is_empty(),
+        app.frame.theme_switches_mut().is_empty(),
         "Debug off clears the transaction window"
     );
     crate::debug::set_debug_on(false);
@@ -196,7 +197,7 @@ fn present_transaction_sync_composes_over_every_source() {
 fn gpu_replacement_invalidates_and_reestablishes_the_present_sync_shadow() {
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
 
-    app.crossing_settle_at = Some(Instant::now());
+    app.frame.arm_crossing_settle(Instant::now());
     app.sync_present_txn();
     assert!(app.present_sync_on);
     assert!(app.present_sync_valid);
@@ -231,16 +232,19 @@ fn moved_stream_holds_the_lamp_and_syncs_presents_until_settle() {
     crate::theme::set_active_by_name("Mangrove").unwrap();
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
     // An ambient tick was armed before the drag started.
-    app.lava_tick_at = Some(Instant::now());
+    app.frame.arm_lava_tick(Instant::now());
     assert!(!app.present_sync_on, "idle: presents run async");
 
     // The burst: every event re-stamps the hold and clears the tick arm;
     // the first arms the present-transaction sync for the whole stream.
     for _ in 0..5 {
         app.on_moved(winit::dpi::PhysicalPosition::new(40, 40));
-        assert!(app.move_settle_at.is_some(), "the stream holds the stamp");
         assert!(
-            app.lava_tick_at.is_none(),
+            app.frame.move_settle_at().is_some(),
+            "the stream holds the stamp"
+        );
+        assert!(
+            app.frame.lava_tick_at().is_none(),
             "no ambient tick may be armed mid-stream"
         );
         assert!(
@@ -255,7 +259,7 @@ fn moved_stream_holds_the_lamp_and_syncs_presents_until_settle() {
                 true,
                 false,
                 true,
-                crate::lava::lava_paused(false, app.move_settle_at.is_some(), false),
+                crate::lava::lava_paused(false, app.frame.move_settle_at().is_some(), false),
             ),
             "the tick gate is closed while the stream is live: phase held"
         );
@@ -265,9 +269,12 @@ fn moved_stream_holds_the_lamp_and_syncs_presents_until_settle() {
     // is what makes the `about_to_wait` arm (gated on the stamp) unable to
     // fire again — exactly ONE settle redraw per stream.
     app.finish_move_settle();
-    assert!(app.move_settle_at.is_none(), "settle clears the hold once");
     assert!(
-        app.lava_tick_at.is_none(),
+        app.frame.move_settle_at().is_none(),
+        "settle clears the hold once"
+    );
+    assert!(
+        app.frame.lava_tick_at().is_none(),
         "the tick re-arms fresh after settle (no catch-up dt)"
     );
     assert!(
@@ -295,7 +302,7 @@ fn one_streams_settle_never_strips_the_other_streams_present_sync() {
     // Resize settles first (its window is the shorter one): the move
     // stream is still live, so presents STAY transaction-synced.
     app.finish_resize_settle();
-    assert!(app.resize_settle_at.is_none());
+    assert!(app.frame.resize_settle_at().is_none());
     assert!(
         app.present_sync_on,
         "the move stream still owns a claim on the sync"
@@ -319,7 +326,7 @@ fn a_non_lava_world_takes_a_moved_stream_as_a_total_no_op() {
         app.on_moved(winit::dpi::PhysicalPosition::new(40, 40));
     }
     assert!(
-        app.move_settle_at.is_none(),
+        app.frame.move_settle_at().is_none(),
         "no hold: the settle arm can never fire, zero redraws scheduled"
     );
     assert!(!app.present_sync_on, "no stream, no transaction sync");
@@ -362,14 +369,14 @@ fn every_preview_step_brackets_and_teardown_waits_for_the_reshape_present() {
         (galah, "Magpie", "static->static LANDING"),
         (mangrove, "Firetail", "lava->lava"),
     ] {
-        app.crossing_settle_at = None;
-        app.crossing_teardown_pending = false;
+        app.frame.clear_crossing_settle();
+        app.frame.finish_crossing_teardown();
         app.sync_present_txn();
         assert!(!app.present_sync_on, "{label}: starts disarmed");
         crate::theme::set_active_by_name(to).unwrap();
         app.retint_theme_preview(from);
         assert!(
-            app.crossing_settle_at.is_some(),
+            app.frame.crossing_settle_at().is_some(),
             "{label}: the preview stamps the settle"
         );
         assert!(
@@ -383,11 +390,11 @@ fn every_preview_step_brackets_and_teardown_waits_for_the_reshape_present() {
     // because the deferred reshape's present has not happened yet.
     app.finish_crossing_settle();
     assert!(
-        app.crossing_settle_at.is_none(),
+        app.frame.crossing_settle_at().is_none(),
         "phase 1 clears the settle debounce"
     );
     assert!(
-        app.crossing_teardown_pending,
+        app.frame.crossing_teardown_pending(),
         "phase 1 hands off to the pending teardown"
     );
     assert!(
@@ -398,7 +405,7 @@ fn every_preview_step_brackets_and_teardown_waits_for_the_reshape_present() {
     // is the ONLY thing that disarms.
     app.finish_crossing_teardown();
     assert!(
-        !app.crossing_teardown_pending,
+        !app.frame.crossing_teardown_pending(),
         "phase 2 clears the pending teardown"
     );
     assert!(
@@ -435,13 +442,13 @@ fn a_crossing_settle_never_strips_a_live_resize_streams_present_sync() {
     // still owns a claim through EACH phase — the disarm belongs to the one
     // owner, never to a single source's settle.
     app.finish_crossing_settle();
-    assert!(app.crossing_settle_at.is_none());
+    assert!(app.frame.crossing_settle_at().is_none());
     assert!(
         app.present_sync_on,
         "resize still owns a claim after phase 1"
     );
     app.finish_crossing_teardown();
-    assert!(!app.crossing_teardown_pending);
+    assert!(!app.frame.crossing_teardown_pending());
     assert!(
         app.present_sync_on,
         "resize still owns a claim after phase 2"

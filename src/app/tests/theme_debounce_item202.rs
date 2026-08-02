@@ -48,18 +48,18 @@ use crate::clock::Clock as _;
 /// question these laws pin (a hermetic `App` has no `gpu`; see the module doc).
 fn simulate_preview_step(app: &mut App, now: crate::clock::Instant) -> ThemeFontReshapeDecision {
     let decision = theme_font_reshape_decision(
-        app.theme_font_at,
-        app.theme_font_last_reshape_at,
+        app.frame.theme_font_at(),
+        app.frame.theme_font_last_reshape_at(),
         now,
         theme_font_debounce(),
     );
     match decision {
         ThemeFontReshapeDecision::Immediate => {
-            app.theme_font_last_reshape_at = Some(now);
-            app.theme_font_at = None;
+            app.frame.mark_theme_font_reshaped(now);
+            app.frame.clear_theme_font();
         }
         ThemeFontReshapeDecision::Coalesce => {
-            app.theme_font_at = Some(now);
+            app.frame.arm_theme_font(now);
         }
     }
     decision
@@ -86,7 +86,7 @@ fn an_isolated_step_reshapes_immediately_and_never_schedules_a_trailing_settle()
          shape that punished every step equally"
     );
     assert!(
-        app.theme_font_at.is_none(),
+        app.frame.theme_font_at().is_none(),
         "an immediate reshape leaves nothing pending"
     );
 
@@ -95,7 +95,7 @@ fn an_isolated_step_reshapes_immediately_and_never_schedules_a_trailing_settle()
     sched.begin_step();
     app.step_scheduling(&sched);
     assert!(
-        app.theme_font_at.is_none(),
+        app.frame.theme_font_at().is_none(),
         "an isolated step's settle must not schedule a redundant trailing reshape"
     );
 }
@@ -131,7 +131,7 @@ fn a_rapid_burst_pays_one_leading_reshape_and_one_trailing_settle_not_six() {
          (0, 6)"
     );
     assert!(
-        app.theme_font_at.is_some(),
+        app.frame.theme_font_at().is_some(),
         "the burst's tail must still be pending immediately after its last step"
     );
 
@@ -140,11 +140,11 @@ fn a_rapid_burst_pays_one_leading_reshape_and_one_trailing_settle_not_six() {
     sched.begin_step();
     app.step_scheduling(&sched);
     assert!(
-        app.theme_font_at.is_none(),
+        app.frame.theme_font_at().is_none(),
         "the coalesced tail must settle once the burst goes quiet"
     );
     assert!(
-        app.theme_font_last_reshape_at.is_some(),
+        app.frame.theme_font_last_reshape_at().is_some(),
         "the trailing settle counts as a real reshape for the NEXT step's leading-edge decision"
     );
     // Total reshapes for this 6-step burst: 1 (leading) + 1 (trailing) = 2 —

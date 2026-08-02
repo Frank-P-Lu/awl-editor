@@ -58,7 +58,7 @@ impl App {
     /// double-click reads the same wherever the pointer lands — one owner, so the
     /// two can't drift apart on what counts as "a double-click".
     pub(in crate::app) fn bump_click_count(&mut self) -> u32 {
-        self.input.pointer.bump_click_count(self.clock.now())
+        self.input.pointer.bump_click_count(self.frame.now())
     }
 
     /// THE PHANTOM-SELECTION-CLICK FIX: whether the pointer has traveled far
@@ -1006,15 +1006,15 @@ impl App {
         } else if zoom_mod {
             if lines.abs() >= 1.0 {
                 let dir = lines.signum();
-                let before = self.zoom;
+                let before = self.frame.zoom();
                 // ITEM 94: one AUTHORED step per notch, through the range spec (the
                 // same owner ⌘± and the Settings rail step through).
-                self.set_zoom(crate::range::ZOOM.stepped(self.zoom, dir as i32));
+                self.set_zoom(crate::range::ZOOM.stepped(self.frame.zoom(), dir as i32));
                 // Anchor the wheel zoom on the POINTER (captured against the OLD
                 // geometry before the deferred reflow) — the doc point under the mouse
                 // holds its screen position. Only when the zoom actually moved, so a
                 // step against the min/max clamp leaves no stale anchor behind.
-                if self.zoom != before {
+                if self.frame.zoom() != before {
                     self.arm_zoom_anchor_pointer();
                 }
                 self.feed_peek(crate::peek::PeekStimulus::Interrupt);
@@ -1026,7 +1026,11 @@ impl App {
             ));
             self.sync_view(false);
         } else if let MouseScrollDelta::LineDelta(_, y) = delta {
-            self.wheel_scroll_px(line_wheel_document_px(y, self.zoom, self.dpi));
+            self.wheel_scroll_px(line_wheel_document_px(
+                y,
+                self.frame.zoom(),
+                self.frame.dpi(),
+            ));
             self.sync_view(false);
         }
         self.request_frame();

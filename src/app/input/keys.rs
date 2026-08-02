@@ -51,7 +51,7 @@ impl App {
         self.input.keyboard.peek_arm = after;
         use crate::peek::PeekArm::*;
         match after {
-            Pending => self.input.keyboard.peek_armed_at = Some(self.clock.now()),
+            Pending => self.input.keyboard.peek_armed_at = Some(self.frame.now()),
             Open => {
                 self.input.keyboard.peek_armed_at = None;
                 crate::peek::set_open(true);
@@ -81,7 +81,7 @@ impl App {
         );
         match transition {
             crate::whichkey::PrefixTransition::Arm => {
-                self.input.keyboard.prefix_pending_at = Some(self.clock.now());
+                self.input.keyboard.prefix_pending_at = Some(self.frame.now());
             }
             // The prefix just resolved or aborted: put the panel down at once (summoned
             // + transient — it never lingers past the chord).
@@ -140,14 +140,14 @@ impl App {
             .document
             .intercept_search_key(search, logical, mods.state())
         {
-            self.caret_recoil = Some(dir);
+            self.frame.set_caret_recoil(Some(dir));
         }
     }
 
     pub(in crate::app) fn set_zoom(&mut self, z: f32) {
         let clamped = render::clamp_zoom(z);
-        if clamped != self.zoom {
-            self.zoom = clamped;
+        if clamped != self.frame.zoom() {
+            self.frame.set_zoom(clamped);
             self.mark_zoom_dirty();
         }
     }
@@ -161,7 +161,7 @@ impl App {
         let Some(gpu) = self.gpu.as_ref() else { return };
         let (px, py) = self.input.pointer.cursor_px;
         let (line, col) = gpu.pipeline.hit_test_scroll(px, py, self.document.scroll());
-        self.zoom_anchor = Some(ZoomAnchor {
+        self.frame.set_zoom_anchor(ZoomAnchor {
             line,
             col,
             screen_y: py,
@@ -181,33 +181,34 @@ impl App {
         let caret_y = gpu
             .pipeline
             .char_screen_top_scroll(cl, cc, self.document.scroll());
-        self.zoom_anchor = Some(if caret_y >= top && caret_y < height {
-            ZoomAnchor {
-                line: cl,
-                col: cc,
-                screen_y: caret_y,
-            }
-        } else {
-            let cx = (gpu.config.width as f32) * 0.5;
-            let cy = (top + height) * 0.5;
-            let (line, col) = gpu.pipeline.hit_test_scroll(cx, cy, self.document.scroll());
-            ZoomAnchor {
-                line,
-                col,
-                screen_y: cy,
-            }
-        });
+        self.frame
+            .set_zoom_anchor(if caret_y >= top && caret_y < height {
+                ZoomAnchor {
+                    line: cl,
+                    col: cc,
+                    screen_y: caret_y,
+                }
+            } else {
+                let cx = (gpu.config.width as f32) * 0.5;
+                let cy = (top + height) * 0.5;
+                let (line, col) = gpu.pipeline.hit_test_scroll(cx, cy, self.document.scroll());
+                ZoomAnchor {
+                    line,
+                    col,
+                    screen_y: cy,
+                }
+            });
     }
 
     pub(in crate::app) fn mark_zoom_dirty(&mut self) {
-        self.zoom_persist_at = Some(self.clock.now());
-        self.zoom_reflow.queue();
+        self.frame.arm_zoom_persist(self.frame.now());
+        self.frame.queue_zoom_reflow();
         // ZOOM READOUT: a quiet muted percentage near the pointer while the gesture is
         // in flight (mirrors the page-drag readout). Armed on EVERY zoom step (this is
         // the ONE owner both the keyboard ⌘± and wheel ⌘-scroll paths funnel through),
         // floated at the last pointer position; cleared on settle in `about_to_wait`.
         let (px, py) = self.input.pointer.cursor_px;
-        let zoom = self.zoom;
+        let zoom = self.frame.zoom();
         if let Some(gpu) = self.gpu.as_mut() {
             gpu.pipeline.set_zoom_readout(Some((px, py, zoom)));
             self.request_frame();
@@ -221,7 +222,7 @@ impl App {
     /// hold-⌘ shortcut peek's zoom-suppression gate ([`crate::peek::peek_allowed`]) so
     /// the frosted card never pops up over the very text the user is zooming to read.
     pub(in crate::app) fn zoom_in_flight(&self) -> bool {
-        self.zoom_persist_at.is_some()
+        self.frame.zoom_persist_at().is_some()
     }
 
     /// Is the debounced sticky-zoom write HELD because a GESTURE owns its own end?
@@ -255,7 +256,7 @@ impl App {
     /// measure, so one row is the only honest answer.
     pub(in crate::app) fn page_scroll_rows(&self) -> usize {
         let visible = if let Some(gpu) = self.gpu.as_ref() {
-            let line_height = render::LINE_HEIGHT * self.zoom * self.dpi;
+            let line_height = render::LINE_HEIGHT * self.frame.zoom() * self.frame.dpi();
             render::visible_lines_z(gpu.config.height as f32, line_height)
         } else {
             1
@@ -443,7 +444,7 @@ impl App {
                 return;
             }
         }
-        self.caret_held = repeat;
+        self.frame.set_caret_held(repeat);
         // macOS OPTION DEAD-KEY FIX (LIVE path only): Option composes a
         // letter into a glyph (Option-f -> 'ƒ'), so the raw `logical_key` is the
         // composed char. Since the identity round retired the built-in Option-letter

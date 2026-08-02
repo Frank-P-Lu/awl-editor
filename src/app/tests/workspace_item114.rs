@@ -81,7 +81,7 @@ fn readout(app: &App, row: &SettingRow) -> String {
     let values = crate::settings::SettingsValues::gather(
         &app.config,
         &app.project_location.root,
-        app.zoom,
+        app.frame.zoom(),
         crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
     );
     crate::settings::value_for(row, &values)

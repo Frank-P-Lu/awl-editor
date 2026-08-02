@@ -40,7 +40,7 @@ impl App {
         // same `self.clock`), so a deterministic clock would govern the active-
         // writing odometer too. `RealClock` makes this `stats_origin.elapsed()`.
         let now_ms = self
-            .clock
+            .frame
             .now()
             .duration_since(self.stats_origin)
             .as_millis() as u64;

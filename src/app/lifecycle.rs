@@ -228,12 +228,8 @@ impl ApplicationHandler<AwlEvent> for App {
     fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
         self.gpu = None;
         self.gpu_lifecycle = GpuLifecycle::Suspended;
-        self.last_frame = None;
-        self.input_stamp = None;
-        self.resize_settle_at = None;
-        self.move_settle_at = None;
-        self.crossing_settle_at = None;
-        self.crossing_teardown_pending = false;
+        self.frame.suspend();
+        self.frame.take_input_stamp();
         self.present_sync_on = false;
         self.present_sync_valid = false;
     }

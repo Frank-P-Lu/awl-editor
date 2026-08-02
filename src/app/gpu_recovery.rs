@@ -11,10 +11,10 @@ impl App {
         };
         self.gpu = None;
         self.gpu_lifecycle = GpuLifecycle::Rebuilding;
-        self.last_frame = None;
+        self.frame.set_last_frame(None);
         self.gpu_retry_at = None;
         self.gpu_timeout_streak = 0;
-        self.input_stamp = None;
+        self.frame.take_input_stamp();
         self.set_sticky_notice(format!("{reason} — rebuilding graphics…"));
         let display_handle = event_loop.owned_display_handle();
         #[cfg(not(target_arch = "wasm32"))]
