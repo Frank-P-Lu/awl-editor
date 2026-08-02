@@ -22,6 +22,18 @@ the thing to delete and replace** with the containment-and-visibility law its
 own message asks for. Painter's order gains a second document pass; the region
 must be proven to contain it, in every world.
 
+**Items 114 + 116d — 2026-08-02, the workspace Esc, settled once for BOTH
+members as item 114 asked.** **One Esc always leaves.** Esc dismisses the
+workspace from anywhere inside it; focus moves between the rail/timeline and
+the content pane on `Tab`/`Shift-Tab` alone. A child audition summoned *out of*
+a workspace (Settings → Theme picker) is a genuinely different rung and keeps
+its own Esc-returns-to-parent behaviour. The rejected arm — Esc unwinds one
+rung, so leaving History from the comparison takes two presses — was rejected
+because the comparison is exactly where a reader spends their time, and Esc
+would then mean two different things depending on where focus sits. **116d owes
+History an explicit Back affordance in the footer**; 116c's `⇧↵`/`open_keep_version`
+groundwork is already shaped for it.
+
 **Item 132 / item 118 — 2026-08-02, the contradiction is RESOLVED in favour of
 132.** **Kite is a 5/5.** The roster's target distribution is amended from
 `1, 7, 7, 4, 1` (mean 2.85) to **`1, 7, 6, 4, 2` (mean 2.90)** — two deliberate
@@ -154,69 +166,121 @@ run.
 
 ## Active claims — 2026-08-02 wave
 
-- **207** — 🟡 IN PROGRESS — claude (deep owner), branch
-  `codex/item-207-semantic-owner`, worktree
-  `../awl-next-worktrees/item-207-semantic-owner`. Stage 1 is committed at
-  `4044c2cb`; compiling stage-2 AccessKit event-loop wiring is checkpointed at
-  `9006f573`. The worktree is clean. Do not delete it. **Stage-2 defect fixed at
-  `2921d446`:** `request_frame` built a whole-rope snapshot plus a UAX #29 pass
-  on EVERY redraw request and deduped only afterwards, so animation frames paid
-  O(document) for a tree nobody read. The AccessKit activation/deactivation
-  edges now gate the build, deactivation drops the remembered snapshot so a
-  reattaching screen reader is not deduped out of its own initial tree, and an
-  enumerated call-site law (mutation-proved against `redraw.rs`) keeps a second
-  frame-side caller from reintroducing it.
-- **174** — 🟡 IN PROGRESS — claude (deep owner), branch
-  `claude/item-174-strip-band`, worktree
-  `../awl-next-worktrees/item-174-strip-band`. The next family named by the
-  landed slice: fold `overlay_secondary_top` / `overlay_split_bounds` /
-  `overlay_strip_band` into the one deterministic planner.
-- **211** — 🟡 IN PROGRESS — claude (deep owner), branch
-  `claude/item-211-present-trace`, worktree
-  `../awl-next-worktrees/item-211-present-trace`. **The display is unlocked and
-  the user has released it for a live sitting (2026-08-02)** — item 113's
-  unlocked session no longer held, and item 118 recorded the lock as the reason
-  every ambient score stayed provisional. ⚠️ **The host is not quiet:** three
-  build lanes are running, and item 174's own bench notes record what
-  concurrent workers did to its numbers ("the whole S tier moved on every
-  scenario including ones this change cannot touch"). 211 is the most
-  load-sensitive measurement on the board — an intermittent dropped frame is
-  exactly what host contention manufactures — so the lane must confirm a quiet
-  host before it times anything.
+- **207** — ✅ COMPLETE. Merged to `main`; worktree removed. Native awl has one
+  semantic UI owner: `SemanticSnapshot` feeds the AccessKit tree, `--semantic-json`
+  and the live-App sidecar from one description. **The orchestrator's trap call
+  held** — card text was being composed inside the renderer, so it moved to
+  `src/card/content.rs` (`CardInputs` → `open_card` → `CardContent::spans`) and
+  `hud.rs` went 539 → 489 lines composing no card text of its own, under a source
+  law. ⚠️ **The branch had NEVER been gated:** code health was red — two files
+  over the 500-line ceiling, nine stale Clippy exceptions, four failing
+  native-gate census laws — repaired by decomposition rather than line-golf.
+  **Two real stage-1 defects the new laws found and inspection had not:** the
+  overlay query node advertised `SemanticAction::Focus` with nothing routing it
+  (every arm now returns `handled`), and `schema` was `&'static str`, which serde
+  can only fill from a `&'static` input — **the JSON handed to an agent could not
+  be parsed back at all.** Two of the lane's own laws were vacuous and mutation
+  proof is what found them. 55 new crates, all permissive; `cargo deny check bans`
+  needed four narrow skips for the AT-SPI stack's forked `syn`/`toml_edit`/
+  `toml_datetime`/`winnow`, each with a removal condition. 🔵 **Real VoiceOver and
+  AT-SPI journeys were NOT run and are NOT claimed** — everything is proven at
+  the snapshot and projection tier; whether a screen reader *reads it well*
+  (announcement order, verbosity, live-region politeness) is unproven and needs a
+  human at an unlocked display. Web accessibility remains a separate DOM-backed
+  round. Follow-up: item **215**.
+- **174** — 🟢 SECOND FAMILY LANDED, item remains OPEN. Merged to `main`;
+  worktree removed. `PlannedHeader` owns the overlay header band, with the query
+  beat folded into the LAST header line's box exactly as the shaper folds it into
+  that line's glyph metrics. **Deleted from `render/chrome`, not banned by law:**
+  `overlay_secondary_top`, `overlay_split_bounds`, `overlay_strip_band`,
+  `overlay_query_center` — the previous slice's standard, met again. ⚠️ **It
+  found a shipping pointer defect of exactly the predicted class:** `over_overlay_query`
+  tested the bare row pitch, but on the FLAT family the beat inflates the query
+  line itself, so at the shipping default the field draws `[64.0, 133.2]` while
+  the pointer band ended at `91.2` — **the I-beam sat in empty air ABOVE the
+  query text and the text itself took the plain arrow.** 13 of 19 `OverlayKind`s,
+  Settings-as-workspace included; worst case 33.0px at 2×. The GROUPED family was
+  right *by accident* (its beat inflates the lens strip instead), which is how a
+  parallel calculation survives review — it agrees on the arm somebody looked at.
+  Identity 840/840 PNG and 840/840 sidecar, zero differing; the cursor icon is
+  the only changed output. **Left explicitly:** `workspace_header_beat` did not
+  merge — its consumer is reached ~45× a frame through the four relocated
+  document owners, so planning inside it would trade one parallel calculation for
+  45 plans a frame; a law fails by name if they drift. Follow-up: item **214**.
+- **211** — 🟢 DIAGNOSED AND FIXED; one live confirmation still OWED. Merged to
+  `main`; worktree removed. **It was never a lost input.** `advance(dt)` runs
+  BEFORE `Gpu::redraw()`, and `prepare` — inside that call — is where the
+  selection band is retargeted. The band is the ONE animator whose target is set
+  at draw time; every other spring is armed at the apply seam where the next
+  `advance` sees it. So on the frame a settled band is retargeted the pre-prepare
+  answer is "nothing animating", the loop parks on `Wait` and requests no
+  follow-up frame; the ease never gets a second frame, the band stays drawn on
+  the row the selection LEFT, and the next input's single `dt` puts it back in
+  flight so `chase_or_snap` takes its SNAP branch to the freshest row — two
+  inputs, one jump of two rows, no transition. **Shipping on the default path:**
+  `awl_living_band()` defaults to `Morph`; `arm_live_juice`'s "no world ships
+  one" was true of `MotionJuice` and false of the living band, corrected in
+  place. **Why items 104 and 106 stayed green through three sightings:** their
+  laws hand-drive `p.advance(dt)` between retargets, which is precisely what the
+  live loop was failing to do. Trace: 7 inputs, indices 1..6 exactly +1 each,
+  none doubled or lost, `hover_took_selection` 0. 🔵 **OWED, and it needs the
+  user:** the display auto-locked at 12:55:42 JST seven minutes into the sitting,
+  so all 10 presents read `Occluded` — the diagnosis is CPU-side and
+  occlusion-independent, but **no frame was photographed, there is no 60 fps
+  video, and the sweep arms (held-repeat, pointer parked above/on/below, scrolled
+  and fresh windows, focus/occlusion return, Settings and the other picker kinds,
+  Bars worlds, 1×/2×) were never reached.** ⚠️ **Two harness facts worth more
+  than the item:** `--live-script` forces a Prohibited, non-activating window, so
+  under any lock it writes successful-looking `LIVE-PROBE shot … ok` lines while
+  presenting ZERO frames — a probe run can look like it worked and have
+  photographed nothing; and `live-probe.sh` tests the lock only in preflight,
+  never at the end, so it would have passed at 12:52 three minutes before the
+  lock landed.
 - **116d** — 🟢 UNBLOCKED, unclaimed. The compositing call is made (see Latest
   design decisions). Ready to dispatch the moment a lane returns; the
   concurrent-worker budget is four and all four are in use.
 
-## Remaining work — handoff order (2026-08-02)
+## Remaining work — handoff order (2026-08-02, after the evening wave)
 
-1. **Finish 207 first.** Stage 1 adds the single serializable
-   `SemanticSnapshot`, `--semantic-json`, live-App sidecar embedding, stable
-   document/row IDs, grapheme selection, every current overlay/control/notice,
-   and semantic→AccessKit projection laws. Finish native adapter installation
-   before window visibility; route AccessKit requests through `AwlEvent` and
-   existing App/Action owners; deduplicate identical snapshots; update
-   accessibility/licensing docs; add the passive/global surfaces (About,
-   Lifetime, Streaks, HUD, Peek, Which-key, rendered Linux menu); prove explicit
-   action effects, parity, no-animation-churn, and a >255-byte grapheme bridge;
-   then run code health, warning-free web, and exact native gate. Real
-   VoiceOver/AT-SPI journeys remain an explicit human/unlocked-display check.
-2. **Finish 174.** The first overlay-row plan family landed; migrate the
-   remaining render surface families one coherent family at a time through the
-   shared deterministic planner, with plan↔draw↔hit-test↔sidecar laws,
-   O(visible)/reshape witnesses, vision smoke, and full gates.
-3. **Resolve and finish 116d.** 116a–c are landed. The remaining product choice
-   is whether History comparison prose sits *on* the workspace surface or is a
-   window *through* it; implement compositing, flip History to
-   `TimelineOverComparison`, and complete the local/git/narrow/wide journeys.
-4. **Then build 204.** It is blocked on 116d's composited general read-only
-   payload. Preserve the one editable buffer; add disk fingerprinting, recovery
+1. **116d — dispatch first; it is UNBLOCKED and everything behind it waits.**
+   116a–c are landed and both of its owed decisions are now made: the comparison
+   sits ON the workspace surface, and one Esc always leaves. Do the compositing
+   round FIRST — delete `the_relocated_document_is_geometrically_placed_but_not_yet_composited`
+   and replace it with the containment-and-visibility law its own message asks
+   for — then flip `workspace_shape(History)` to `TimelineOverComparison`, add
+   the footer Back affordance, move the lens to the header, deep-link
+   `Version history…` / `Compare with version…`, and run the split Verify sweep
+   (tier 1 replays `overlay_accept:History`; tier 2 owns the store, git, the
+   pruned ladder, renamed timelines, `KeepVersion` and the restore's disk read).
+   116a's handoff still applies: reuse the ordinary candidate-row hit-test for
+   the timeline rather than extending the rail functions — `geom.rail` is `None`
+   whenever rows are primary. ⚠️ **It writes `render/chrome/overlay_draw.rs`,
+   `overlay_rows.rs` and `chrome/mod.rs`, which item 174's next family also
+   writes — do not run the two concurrently.**
+2. **Then 204.** Unblocked the moment 116d's composited general read-only payload
+   exists. Preserve the one editable buffer; add disk fingerprinting (mtime plus
+   length cannot detect the required same-time/same-size rewrite), the recovery
    record, three read-only conflict views, gated-action resolution, and align
    Guide/welcome/site prose.
-5. **Human/live closures:** 118 needs the user's world-loudness confirmation
-   and an unlocked `--release` sitting; 211 needs an unlocked real event→present
-   trace to diagnose the intermittent picker frame loss. Item 213 is complete
-   and user-approved. Items 131 and 172 are complete despite older historical
-   prose retained below; the latest receipts above are authoritative.
+3. **174's next family**, whenever it is not racing 116d. `workspace_header_beat`
+   is the named remainder but is its own slice — its consumer is reached ~45× a
+   frame through the four relocated document owners.
+4. **Follow-ups queued by this wave:** items **214** (`--bench-suite`'s plan-count
+   witness vs the diagonal re-plan; not urgent, and must not be fixed by
+   weakening the witness) and **215** (extract word count / language / percent
+   into pure owners so a live-App capture carries card semantics).
+5. **Human/live closures, all needing an unlocked and FOREGROUNDED display:**
+   118's world-loudness confirmation and its `--release` ambient sitting; 211's
+   one unoccluded confirmation that the fixed build presents the glide, plus its
+   unreached sweep arms; and item 207's real VoiceOver / AT-SPI journeys, which
+   no test tier can stand in for. ⚠️ **The machine's idle lock fired seven
+   minutes into the 2026-08-02 sitting and silently invalidated it** — disable
+   the idle lock before the next one, and re-check the lock at BOTH ends of the
+   run, because `live-probe.sh` only checks it in preflight.
+
+Items 131, 172, 207 and 213 are complete; 174 has two families landed and stays
+open. Older historical prose below is retained but the receipts above are
+authoritative.
 
 After each landed item: update this board, exact combined-main code-health +
 web + native receipt, push `main`, remove only the completed worktree, and run
@@ -285,5 +349,9 @@ user authorization.
 
 211. **Picker selection intermittently appears to advance only every second input, with no transition.** **Defect:** the user reports the alternating-row failure again in the live Commands palette on 2026-08-01 (Quokka screenshot: Switch project selected) and adds that the selection animation sometimes does not play. This is the third report of the shape: Firetail on 2026-07-17, Settings/Mopoke on 2026-07-26 (item 104), now Commands/Quokka. Item 104's exhaustive logical-step and pixel/hit-test laws stayed green and found no fix; item 106 later guarded keyboard selection from stationary-pointer hover. Their green state does not exonerate the live-only seam. **Diagnose before fixing:** instrument one navigation input from winit receipt through `App::apply`, `OverlayState.selected`, redraw request, prepared highlight endpoint, animation scheduling, acquired frame and present. Determine whether the missing visible step is a dropped/repeated input, stationary-pointer takeover, state advancing twice, stale render state, or a redraw/present gap; do not tune animation constants until that chain names the break. Sweep tap, held-repeat and rapid alternating Up/Down; pointer outside/parked above/on/below the row; freshly opened and scrolled windows; focus/occlusion return; Commands, Settings and every picker kind; representative Pane/Bars worlds at 1×/2×. **Done:** every accepted navigation input produces exactly one reachable selection and a presented visual response; Reduce Motion may snap but never suppress the state change. **Verify:** add a live-App event→present trace assertion plus the missing law at the failing owner; retain item 104/106 laws; mutation proof recreates the diagnosed lost/every-other frame; real release run records inputs, selected indices, requested/acquired/presented frames and a 60 fps video or frame sequence. Headless settled captures cannot close this item alone. **Routing:** production tier with deep live-render review. **User-reported with screenshot 2026-08-01.**
 
+
+214. **`--bench-suite` is broken on `main`, and the witness is arguing with a real re-plan.** **Defect:** the suite aborts with `the scene planner must run exactly once per timed frame (10 plans over 5)`. `prepare_overlay` builds the row plan TWICE — once before `resolve_diagonal_cluster` and once after, because the cluster changes the plan's `dx`/`dw` — while item 174's first-family witness asserts exactly one plan per frame. Both sides are defensible, which is why this is an item and not a patch: the witness exists so that "a consumer grew its own plan" fails loudly, and it is doing its job; the second plan is genuine work the diagonal composition requires. **Decide between:** rebuilding once *after* the cluster resolves (one plan, but the cluster then needs its inputs before the plan exists), or teaching the witness the real per-frame count with the diagonal arm named, so a THIRD plan still fails. Do not simply raise the number. **Scope:** `--bench-suite` is a hidden dev tool, is not in the native gate, and CI is unaffected — this is not urgent and must not be fixed by weakening the witness. **Verify:** the suite runs green on a diagonal world and a non-diagonal one; the witness still fails by name when a consumer adds a plan; the O(visible) and reshape-count witnesses are unchanged. **Found by item 174's second family, 2026-08-02, identically on base and branch — it is pre-existing, not that slice's doing.**
+
+215. **Give the live-App capture the card semantics it currently cannot carry.** **Defect:** item 207's passive-surface fold takes its content rather than deriving it, because the render pipeline is the only holder of the live figures — word count, frontmatter language, and through-doc percent. So a `--screenshot-app` capture, which has no pipeline, writes a sidecar whose `semantic` has NO node for a card that is plainly DRAWN in the PNG. Which-key and the menu bar have no such dependency and do appear, so the gap is silent and partial rather than obvious. **Build:** extract those three figures into pure owners over `&str` (plus the buffer facts they already have), so both the renderer and the semantic fold read one owner. **The forbidden alternative, named so nobody re-derives it:** having the `App` recompute word count / language / percent for the snapshot would be a second description of the same fact, which is the exact drift item 207 exists to prevent. **Done:** a live-App capture's `semantic` contains a node for every card its PNG draws, and CAPTURE.md's honesty note about the gap is deleted rather than reworded. **Verify:** a no-wildcard sweep over the card roster asserting PNG-drawn ⇔ node-present; grapheme and CJK word counts through the extracted owner; mutation proof that removing a card from the fold fails by name. **Routing:** production tier. **Follow-up from item 207, 2026-08-02.**
 
 213. **Optically center the logo cursor inside every app icon.** ✅ **COMPLETE — `f8d023e1`; user approved the 3 px lift on 2026-08-02.** The canonical macOS icon, complete world roster, paired favicon assets, and all Block/Pill/Narrow galleries were regenerated together; exporter/container laws and raster-clearance sweeps passed before review.
