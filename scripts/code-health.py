@@ -656,9 +656,9 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
         body = ci[start:end]
         if "run: scripts/native-gate.sh" not in body:
             failures.append(f"native-gate-audit: CI {job} job must call scripts/native-gate.sh")
-        # Only the mac runner has the death this defends against: five losses at
-        # job-minute 47-62, upstream actions/runner-images#13882, each of which
-        # published no log. Both bounds must be present, because each is blind
+        # Only the mac runner has the death this defends against: four losses at
+        # job-minute 53-62, upstream actions/runner-images#13882, none of which
+        # published a log. Both bounds must be present, because each is blind
         # to what the other sees — the duration cannot see earlier steps eating
         # the runner's clock, and the deadline cannot see a gate that starts
         # late but hangs early.

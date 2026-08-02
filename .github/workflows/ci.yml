@@ -158,17 +158,23 @@ jobs:
   # device. That is one observation, not a diagnosis; the phase markers and the
   # last-progress heartbeat exist to make the next occurrence say it outright.
   #
-  # The obvious narrowing is deliberately NOT taken yet. This job runs BOTH
-  # keymap conventions concurrently, the linux job runs the identical script
-  # over the same two conventions and passes in ~18 minutes, and a keymap
-  # convention is not an OS property — what is genuinely mac-only here is the
-  # suite running against real Metal, CoreText and AppKit. Halving this job to
-  # one convention is therefore free coverage-wise and would remove the
-  # contention. But selecting a smaller tier while a test hangs would HIDE the
-  # hang, so the instrumentation lands first. If that narrowing is taken later
-  # it must issue a differently named, honestly scoped receipt: only
-  # `native-gate.sh`'s receipt, naming both conventions and the exact commit, is
-  # authorised to say "full native suite".
+  # The obvious narrowing — one keymap convention here instead of two, since a
+  # convention is not an OS property and the linux job proves both — is NOT on
+  # the table (user decision, 2026-08-02). If the suite genuinely cannot fit,
+  # mac stays red rather than losing coverage. The two acceptable outcomes are
+  # to make it fit, or to say plainly that it does not.
+  #
+  # `a972eafc` ("speed up the full native gate": `[profile.test] opt-level = 1`
+  # plus concurrent conventions) is NOT the cause and must not be reverted for
+  # CI. Two runs carrying this exact signature — step 8 conclusion `null`, no
+  # log, post-cache `null` — predate it: 30706851397 (edc89757, 15:51 UTC) and
+  # 30715372469 (eea3118a, 19:43). And on HOSTED hardware it is a clear win
+  # rather than a cost paid for the dev host's benefit: the linux job runs the
+  # identical script on a comparably small runner, and its gate step measures a
+  # median 916 s across the seven runs since (707-937) against a median 1270 s
+  # across the thirty before (1019-2076). Its compile cost on the mac runner is
+  # measured too, from 30732589551's own log: 30 s of canary plus an 82 s
+  # concurrent-convention compile — 113 s of a 2436 s step.
   mac:
     name: mac (build + test)
     runs-on: macos-latest
@@ -181,14 +187,17 @@ jobs:
       # racing it — a hosted macOS runner that stops talking to the server,
       # upstream actions/runner-images#13882, annotated "The hosted runner lost
       # communication with the server" — is on the RUNNER's clock, which starts
-      # here. The five losses so far came at job-minute 47, 53, 55, 56 and 62.
+      # here. The four runner losses came at job-minute 53, 55, 56 and 62 (runs
+      # 30742490207, 30721529191, 30727349406, 30715372469); the one run that
+      # ended itself on its own budget instead, 30732589551, finished at 47.9
+      # and is the only one that left a log.
       # Steps 1-7 are wildly variable (9m51s on 2026-08-01's green run, where
       # `Install sccache` alone paid 6m36s; 96 SECONDS on run 30742490207,
       # where a hot cache made `cargo build` 14s), so a duration measured from
       # the gate expires at an unpredictable point on the clock that matters:
       # run 30742490207's 2400 s budget came due at job-minute 42 and the
       # runner was gone at 53 with no log at all. This deadline pins the gate's
-      # end to job-minute 35 — 12 minutes inside the earliest loss, and 8
+      # end to job-minute 35 — 18 minutes inside the earliest loss, and 8
       # minutes past the 26m51s that the last fully green mac job took end to
       # end. The job's own 75-minute `timeout-minutes` is untouched; raising it
       # was never the fix, since the runner dies well inside it.
