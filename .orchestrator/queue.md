@@ -10,7 +10,7 @@ Consolidated 2026-08-02/03 so they are not scattered through the item bodies.
 Every one has been taken as far as an agent can take it; what remains genuinely
 needs a human. **None of them blocks any other work.**
 
-**All four of these need an unlocked and FOREGROUNDED display.** ⚠️ The
+**This remaining item needs an unlocked and FOREGROUNDED display.** ⚠️ The
 machine's idle lock fired seven minutes into the 2026-08-02 sitting and
 silently invalidated it — **disable the idle lock before the next one**, and
 re-check the lock at BOTH ends of the run, because `live-probe.sh` only checks
@@ -19,31 +19,11 @@ window, so under a lock it writes successful-looking
 `LIVE-PROBE shot … ok backend=window-server` lines while presenting **zero**
 frames — a probe run can look like it worked and have photographed nothing.
 
-1. **211 — one unoccluded confirmation that the fixed build presents the
-   glide.** The diagnosis is complete and the fix is landed, law-covered and
-   mutation-proved; the state chain is CPU-side and occlusion-independent, so
-   the *diagnosis* holds. But **no frame was ever photographed and there is no
-   60 fps video**, which its own Verify clause asks for. Also unreached: held
-   key-repeat, pointer parked outside/above/on/below the row, scrolled and
-   freshly-opened windows, focus and occlusion return, Settings and the other
-   picker kinds, Bars worlds, 1×/2×.
-2. **207 — real VoiceOver and AT-SPI journeys.** Everything is verified at the
-   snapshot and projection tier. Whether a screen reader *reads it well* —
-   announcement order, verbosity, live-region politeness — is unproven and no
-   test tier can stand in for it.
-3. **118 — the world-loudness map and the `--release` ambient sitting.** The
+1. **118 — the world-loudness map and the `--release` ambient sitting.** The
    item's own Done clause requires a USER-CONFIRMED map and states that pixel
    arithmetic may prove territory and contrast but never claims the taste
    score. An independent agent map exists (`1, 10, 3, 4, 1`, mean 2.68) to diff
    against rather than re-derive.
-4. **131c — the chrome pixel-space decision.** Overlay chrome already mixes
-   both spaces: row pitch scales with DPI while `BAR_SIDE_INSET`, the text hpad
-   and `CARD_MAX_W` are raw device px. A diagonal pitch authored like its
-   neighbours would be **physical by inheritance**, which is exactly what item
-   186 exists to stop; making it logical would make it the first chrome
-   quantity to declare its space, which either extends `ground_space` past
-   `Background` or opens a sibling registry. **A design decision owed a human
-   eye, not a line of code.** 131d and 131e are unclaimed behind it.
 
 ## Latest design decisions
 
@@ -194,8 +174,13 @@ the abort report. It is a **delta of `ps -o time=`, not `pcpu`** — pcpu is a
 lifetime average on Linux and a decayed one on macOS, and the CI shape (3.5 min
 hot, then 35 min hung) reads ~9% on one and ~0% on the other. Unparseable
 prints `unavailable`; zero tracked processes prints `none`; never a confident
-`0.0`. ⚠️ **Its Linux branches are written and reasoned but NEVER EXECUTED** —
-no Linux host here; CI's linux job is their first real test.
+`0.0`. ✅ **Its Linux branches are now CONFIRMED WORKING** — they were shipped
+written-and-reasoned but never executed (no Linux host locally), and CI's linux
+job in run `30754462965` is their first real exercise: `load1=2.13 cpu_count=4
+tracked_procs=8 tracked_cpu_pct=91.3 busiest=[rustc:6107=91.3]`, rising to
+`358.3` under multithreaded rustc (100 = one core, so >100 is correct), with
+each convention's last line captured. No `unavailable`, no `none`, no confident
+zero. The one caveat that shipped unproven is closed.
 
 **Two more laws that were vacuous when written, both caught by mutating the
 REAL script rather than the synthetic self-test** — the running tally for this
@@ -295,7 +280,8 @@ run.
   merge — its consumer is reached ~45× a frame through the four relocated
   document owners, so planning inside it would trade one parallel calculation for
   45 plans a frame; a law fails by name if they drift. Follow-up: item **217**.
-- **211** — 🟢 DIAGNOSED AND FIXED; one live confirmation still OWED. Merged to
+- **211** — ✅ COMPLETE; user confirmed one-row glides in Commands, Settings,
+  and Themes on the fixed release build, 2026-08-03. Merged to
   `main`; worktree removed. **It was never a lost input.** `advance(dt)` runs
   BEFORE `Gpu::redraw()`, and `prepare` — inside that call — is where the
   selection band is retargeted. The band is the ONE animator whose target is set
