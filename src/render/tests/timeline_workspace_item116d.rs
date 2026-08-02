@@ -333,3 +333,81 @@ fn a_timeline_with_nothing_to_compare_leaves_the_document_where_it_was() {
         "every world must be graded"
     );
 }
+
+/// LAW 5 — A TRANSCRIPT WITH NOWHERE TO BE IS DRAWN NOWHERE.
+///
+/// The substitution and the region are two facts, and the narrow stage separates
+/// them: with the timeline focused, the comparison is off screen while the pushed
+/// text is still the transcript. Left alone the document layer falls back to the
+/// PAGE column and draws it there — behind a workspace that is not showing a
+/// comparison at all — and, on a blur-eligible world, frosts it into the backdrop
+/// as well, which on a bare-plates world is the most prominent thing on screen.
+///
+/// The oracle is a differential in the transcript's own PROSE, so every differing
+/// pixel is transcript ink and the card, the rows and the ground all cancel. The
+/// claim is that there are none: not "the viewport is `None`", which the fallback
+/// would satisfy while drawing.
+#[test]
+fn a_parked_transcript_reaches_no_pixel_of_the_frame() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping a_parked_transcript_reaches_no_pixel: no adapter");
+        return;
+    };
+    // A canvas narrow enough to STAGE the two regions: the timeline holds focus,
+    // so the comparison is not on screen and the transcript is parked.
+    let (cw, ch) = (620u32, 720u32);
+    let mut graded = 0usize;
+    let mut blur_worlds = 0usize;
+    for world in crate::theme::THEMES {
+        crate::theme::set_active_by_name(world.name).expect("a roster world");
+        p.sync_theme();
+        p.set_size(cw as f32, ch as f32);
+        let arm = |body: &str| {
+            let mut v = timeline_view(6);
+            v.text = format!("# {body}\n\n{body} {body} {body}\n\n{body} again\n");
+            v.is_markdown = true;
+            v
+        };
+        p.set_view(&arm("Paragraph"));
+        p.prepare(&device, &queue, cw, ch).unwrap();
+        if p.comparison_viewport().is_some() {
+            // This world's metrics still fit both regions here; the parked state
+            // is the one under test, so skip rather than grade the wrong thing.
+            continue;
+        }
+        assert!(
+            p.document_is_a_transcript(),
+            "{}: precondition — the substitution must be in force",
+            world.name
+        );
+        let a = super::pixeldiff::render_frame(&mut p, &device, &queue, cw, ch);
+        if p.backdrop_blur() {
+            blur_worlds += 1;
+        }
+        p.set_view(&arm("Zzzzzzzzz"));
+        p.prepare(&device, &queue, cw, ch).unwrap();
+        let b = super::pixeldiff::render_frame(&mut p, &device, &queue, cw, ch);
+        let differing = a.iter().zip(&b).filter(|(x, y)| x != y).count();
+        assert_eq!(
+            differing, 0,
+            "{}: {differing} pixels changed when the PARKED transcript's prose changed. \
+             A transcript whose region is off screen must not be drawn — not at the page \
+             column it falls back to, and not into the offscreen capture the blur frosts",
+            world.name
+        );
+        graded += 1;
+    }
+    p.set_size(1200.0, 800.0);
+    crate::theme::set_active(crate::theme::DEFAULT_THEME);
+    assert!(
+        graded >= crate::theme::THEMES.len() / 2,
+        "the staged geometry must be reached on most of the roster, got {graded}"
+    );
+    // NON-VACUITY on the axis that hides: the frosted-backdrop half only means
+    // something if blur-eligible worlds are actually among the graded cells.
+    assert!(
+        blur_worlds >= 2,
+        "the frosted-backdrop arm must see blur-eligible worlds, got {blur_worlds}"
+    );
+}

@@ -191,6 +191,34 @@ impl TextPipeline {
         )
     }
 
+    /// **IS THE PUSHED TEXT A TRANSCRIPT RATHER THAN THE USER'S DOCUMENT?**
+    ///
+    /// A timeline workspace with a resolved payload substitutes the comparison's
+    /// prose for the document's own text — the substitution is a view, and the
+    /// buffer is never touched. This says the substitution is in force, which is
+    /// NOT the same question as [`Self::comparison_viewport`]: the region can be
+    /// off screen while the substitution stands, which is exactly the narrow
+    /// stage with the timeline focused.
+    pub(in crate::render) fn document_is_a_transcript(&self) -> bool {
+        self.overlay_active
+            && self.overlay_comparison
+            && self.overlay_rows_primary
+            && self.overlay_is_workspace()
+    }
+
+    /// **IS THE TRANSCRIPT PARKED THIS FRAME?** The substitution is in force but
+    /// its region is not on screen, so there is nowhere the transcript belongs.
+    ///
+    /// It must then not be drawn AT ALL — not at the page column it would
+    /// otherwise fall back to, and not into the offscreen capture the blur frosts.
+    /// The narrow stage is where this bites: with the timeline focused, a drawn
+    /// transcript reads as a ghost of a comparison the user is not looking at,
+    /// and on a world whose surface is bare plates rather than a filled card it is
+    /// the most prominent thing on screen.
+    pub(in crate::render) fn transcript_parked(&self) -> bool {
+        self.document_is_a_transcript() && self.comparison_viewport().is_none()
+    }
+
     /// **THE DOCUMENT LAYER'S GLYPH CLIP.** Every text renderer the document
     /// layer owns uploads its `TextBounds` through this one door.
     ///
@@ -226,13 +254,18 @@ impl TextPipeline {
     /// comparison of two versions the user is not editing. So they yield, exactly
     /// as item 34 already yields them to a summoned overlay.
     ///
-    /// The outline and the gutter reach this conclusion through their own
-    /// `overlay_active` gate, which strictly SUBSUMES this one (a comparison
-    /// viewport requires `overlay_active`); the law
+    /// The question is whether the document LAYER is a transcript, not whether its
+    /// region is on screen — those differ on the narrow stage, and a margin
+    /// surface has just as little to say about a transcript nobody can see. Read
+    /// against the region alone, the outline listed the TRANSCRIPT's headings in
+    /// the frame beside a workspace showing no comparison at all.
+    ///
+    /// The outline and the gutter also reach this conclusion through their own
+    /// `overlay_active` gate, which strictly SUBSUMES this one; the law
     /// `every_margin_orientation_surface_yields_to_a_relocated_document` proves
     /// that rather than trusting it, over the whole roster.
     pub(in crate::render) fn margin_orientation_yields(&self) -> bool {
-        self.comparison_viewport().is_some()
+        self.document_is_a_transcript()
     }
 
     /// WHAT THE BOTTOM-RIGHT "how much?" READOUT SAYS THIS FRAME — one owner,
