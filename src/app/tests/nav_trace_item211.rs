@@ -30,6 +30,40 @@
 //! measurement rather than by assumption.
 
 use super::*;
+use std::sync::Arc;
+
+/// A hermetic `App` over an `InMemoryFs` — never the real disk, and never a
+/// real root to index (item 211's first draft handed `App::new` `/` and walked
+/// the whole filesystem).
+fn seeded_fs() -> crate::fs::InMemoryFs {
+    crate::fs::InMemoryFs::new()
+        .with_dir("/ws")
+        .with_dir("/ws/proj")
+        .with_dir("/cfg")
+}
+
+/// The palette chord for the convention this pass runs under — `native-gate.sh`
+/// runs the suite once per convention and the binding differs.
+fn palette_chord() -> &'static str {
+    match crate::convention::Convention::current() {
+        crate::convention::Convention::Mac => "s-p",
+        crate::convention::Convention::Linux => "C-p",
+    }
+}
+
+fn nav_app() -> App {
+    app_on(
+        None,
+        "/ws/proj",
+        Config {
+            path: std::path::PathBuf::from("/cfg/config.toml"),
+            workspace: Some(std::path::PathBuf::from("/ws")),
+            session_restore: Some(false),
+            reduce_motion: Some(false),
+            ..Config::empty()
+        },
+    )
+}
 
 /// Read the recorder's lines back, trimming the `+<ms> ` stamp each carries.
 fn trace_lines(path: &std::path::Path) -> Vec<String> {
@@ -53,7 +87,8 @@ fn traced(spec: &str) -> Vec<String> {
         std::thread::current().id()
     ));
     let _ = std::fs::remove_file(&path);
-    let mut app = app_on(None, "/", Config::empty());
+    let _fs = crate::fs::FsGuard::install(Arc::new(seeded_fs()));
+    let mut app = nav_app();
     crate::probe::arm_flight_for_test(&path);
     let out = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         app.press_spec_headless(spec).expect("the spec parses");
@@ -96,7 +131,7 @@ fn every_navigation_tap_resolves_once_and_advances_exactly_one_reachable_row() {
     let downs = std::iter::repeat_n("Down", TAPS)
         .collect::<Vec<_>>()
         .join(" ");
-    let lines = traced(&format!("s-p {downs}"));
+    let lines = traced(&format!("{} {downs}", palette_chord()));
 
     assert!(
         lines.iter().any(|l| l.starts_with("resolve -> OpenCommandPalette")),
@@ -140,12 +175,12 @@ fn every_navigation_tap_resolves_once_and_advances_exactly_one_reachable_row() {
 #[test]
 fn rapid_alternating_up_down_moves_exactly_one_row_per_input_and_never_drifts() {
     let _g = crate::testlock::serial();
-    let lines = traced("s-p Down Down Down Up Down Up Down Up");
+    let lines = traced(&format!("{} Down Down Down Up Down Up Down Up", palette_chord()));
 
     let mut at: Option<usize> = None;
     let mut inputs = 0usize;
     for line in &lines {
-        for action in ["NextLine", "PrevLine"] {
+        for action in ["NextLine", "PreviousLine"] {
             let Some(rest) = line.strip_prefix(&format!("apply {action} sel ")) else {
                 continue;
             };
@@ -184,8 +219,9 @@ fn rapid_alternating_up_down_moves_exactly_one_row_per_input_and_never_drifts() 
     assert_eq!(inputs, 8, "every one of the eight inputs was accepted");
     assert_eq!(
         at,
-        Some(1),
-        "three Down then three alternating Up/Down pairs lands back on row 1"
+        Some(2),
+        "three Down (row 3) then Up/Down/Up/Down/Up lands on row 2 — every input \
+         counted, none doubled, none lost"
     );
 }
 
@@ -200,10 +236,13 @@ fn the_chain_is_written_only_while_the_recorder_is_armed() {
         !crate::probe::recording(),
         "no probe or recorder is armed in a plain unit test"
     );
-    let mut app = app_on(None, "/", Config::empty());
-    app.press_spec_headless("s-p Down").expect("parses");
+    let _fs = crate::fs::FsGuard::install(Arc::new(seeded_fs()));
+    let mut app = nav_app();
+    app.press_spec_headless(&format!("{} Down", palette_chord()))
+        .expect("parses");
+    drop(_fs);
 
-    let lines = traced("s-p Down");
+    let lines = traced(&format!("{} Down", palette_chord()));
     for needle in ["resolve -> OpenCommandPalette", "resolve -> NextLine", "apply NextLine sel "] {
         assert!(
             lines.iter().any(|l| l.starts_with(needle)),
