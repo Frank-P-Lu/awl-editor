@@ -171,8 +171,9 @@ jobs:
   # 30715372469 (eea3118a, 19:43). And on HOSTED hardware it is a clear win
   # rather than a cost paid for the dev host's benefit: the linux job runs the
   # identical script on a comparably small runner, and its gate step measures a
-  # median 916 s across the seven runs since (707-937) against a median 1270 s
-  # across the thirty before (1019-2076). Its compile cost on the mac runner is
+  # median 916 s across the seven successful runs since (707-937) against a
+  # median 1272 s across the sixteen before it in the same window (1019-2076).
+  # Its compile cost on the mac runner is
   # measured too, from 30732589551's own log: 30 s of canary plus an 82 s
   # concurrent-convention compile — 113 s of a 2436 s step.
   mac:
