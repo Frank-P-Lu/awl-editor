@@ -199,6 +199,42 @@ cmd_verdict() {
   fi
 }
 
+# Next probe, from the boundaries established so far. The window is a DAG, not
+# a line — main was fast-forwarded onto tmp/simd-search, so 46 commits sit on
+# only 6 first-parent steps, with item 194's render work arriving on the SECOND
+# parent of the merge 97cc62f0. `git rev-list --bisect` is the thing that knows
+# how to halve that; hand-picking along --first-parent would skip the 40 commits
+# where the render work actually lives.
+#
+#   scripts/ci-mac-bisect.sh next BAD_REF GOOD_REF [GOOD_REF...]
+#
+# e.g. after c5b8399e reads GOOD:
+#   scripts/ci-mac-bisect.sh next edc89757 7bca59d6 c5b8399e
+cmd_next() {
+  local bad="${1:-}"; shift || true
+  [ -n "$bad" ] || die "next needs a BAD ref and at least one GOOD ref"
+  [ "$#" -gt 0 ] || die "next needs at least one GOOD ref"
+
+  local excludes=()
+  local g
+  for g in "$@"; do excludes+=("^$g"); done
+
+  local remaining
+  remaining="$(git rev-list --count "$bad" "${excludes[@]}")"
+  if [ "$remaining" -le 1 ]; then
+    printf 'converged: first bad commit is %s\n  %s\n' \
+      "$(git rev-parse --short=8 "$bad")" "$(git log -1 --format=%s "$bad")"
+    return
+  fi
+
+  git rev-list --bisect-vars "$bad" "${excludes[@]}" | sed 's/^/  /'
+  local rev
+  rev="$(git rev-list --bisect "$bad" "${excludes[@]}")"
+  printf 'candidates remaining: %s\nnext probe: %s  %s\n' \
+    "$remaining" "$(git rev-parse --short=8 "$rev")" "$(git log -1 --format=%s "$rev")"
+  printf 'run: scripts/ci-mac-bisect.sh probe %s\n' "$(git rev-parse --short=8 "$rev")"
+}
+
 cmd_cleanup() {
   git push origin --delete "$BRANCH" 2>/dev/null || true
   git branch -D "$BRANCH" 2>/dev/null || true
@@ -208,6 +244,7 @@ cmd_cleanup() {
 case "${1:-}" in
   probe)   shift; cmd_probe "$@" ;;
   verdict) shift; cmd_verdict "$@" ;;
+  next)    shift; cmd_next "$@" ;;
   cleanup) shift; cmd_cleanup "$@" ;;
-  *) die "usage: $0 {probe <commit-ish>|verdict [run-id]|cleanup}" ;;
+  *) die "usage: $0 {probe <commit-ish>|verdict [run-id]|next <bad> <good...>|cleanup}" ;;
 esac
