@@ -175,93 +175,110 @@ fn a_workspace_rows_text_sits_inside_its_own_plate_on_every_world() {
     );
 }
 
-/// **THE REPORTED SYMPTOM, IN PIXELS.** Cassowary's Caret style row shows the
-/// widest value the Settings roster carries at its default (`Block`), and its
-/// plate is the one that cut the final `k`. Every ink column of that value must
-/// now lie inside the plate that backs it.
+/// **THE REPORTED SYMPTOM, PER ROW, IN THE SHAPER'S OWN GLYPH WIDTHS.**
+/// Cassowary's Caret style row shows `Block` and its plate is the one that cut
+/// the final `k`. This is that claim for EVERY `SettingId` of every category, at
+/// the widths where it bites, on every world that draws plates: the value run
+/// the shaper laid out must sit inside the plate the frame drew behind it, with
+/// `BAR_TEXT_PAD` of air at each edge.
+///
+/// THE ORACLE IS THE EMITTER'S OWN QUADS, not the geometry under test: the
+/// plates come from `overlay_bar_rects_probe`, which runs the real
+/// `overlay_bar_selection`/`append_chord_plates` emitters, and the claim is the
+/// one that broke — an accessory plate's right edge must REACH the right-aligned
+/// value column it backs, plus its pad. Before the fix that edge was clamped to
+/// `bar_full_span`'s inset and landed `BAR_SIDE_INSET` SHORT of the column.
+///
+/// AN ABSOLUTE PIXEL SCAVENGE WAS TRIED FIRST AND RETIRED: "ink near the plate"
+/// cannot tell a value's glyph from a rail, a card edge or a neighbouring
+/// descender, and it reported a clip on Galah under the full suite that no
+/// value's glyph had caused. The pixel evidence for this round is the
+/// before/after capture matrix and the live-`App` shot, not a scavenging oracle.
 ///
 /// THE ROSTER IS THE WORLDS THAT DRAW PLATES, WHICH IS NOT THE BARE-PLATE
 /// ROSTER. `list_backing == BarePlates` has five members and two of them —
 /// Mangrove and Magpie — are `ListStyle::Diagonal`, which draws a spine and no
-/// plate at all; `overlay_bar_rects_probe` SYNTHESIZES bar rects for them at
-/// invented dials so other laws can reason about a row's span. Grading real ink
-/// against a rect that is never drawn measures nothing, and reports a clip on a
-/// world with no plate to clip against.
+/// plate at all; `overlay_bar_rects_probe` SYNTHESIZES rects for them at
+/// invented dials so other laws can reason about a row's span.
 #[test]
-fn the_widest_settings_value_draws_no_ink_outside_its_plate_on_any_plated_world() {
+fn every_settings_value_sits_inside_its_own_plate_on_every_plated_world() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping workspace value-ink law: no wgpu adapter");
+        eprintln!("skipping workspace value-plate law: no wgpu adapter");
         return;
     };
-    let bare: Vec<&'static str> = theme::THEMES
+    let plated: Vec<&'static str> = theme::THEMES
         .iter()
         .filter(|t| matches!(t.render_caps.list_style, theme::ListStyle::Bars { .. }))
         .map(|t| t.name)
         .collect();
-    assert_eq!(bare, ["Galah", "Firetail", "Cassowary"]);
+    assert_eq!(plated, ["Galah", "Firetail", "Cassowary"]);
+    let lenses = crate::facets::scheme(OverlayKind::Settings)
+        .expect("Settings facets")
+        .strip
+        .len();
 
-    let luma = |c: [u8; 4]| 0.2126 * c[0] as f32 + 0.7152 * c[1] as f32 + 0.0722 * c[2] as f32;
-    let mut graded: Vec<String> = Vec::new();
-    for world in &bare {
+    let mut graded = 0usize;
+    let mut tightest = f32::MAX;
+    for world in &plated {
         theme::set_active_by_name(world).unwrap();
         p.sync_theme();
-        p.set_size(1200.0, 800.0);
-        p.set_view(&settings_view(0));
-        p.prepare(&device, &queue, 1200, 800).unwrap();
-        let geom = p.overlay_geometry(1200);
-        let plan = p.overlay_row_plan(&geom);
-        let Some(first) = plan.rows().iter().find(|r| r.item == Some(0)) else {
-            continue;
-        };
-        let (sel, unsel) = p.overlay_bar_rects_probe();
-        // The VALUE plate on this row: the right-most plate whose band is the row's.
-        let Some(value_plate) = sel
-            .iter()
-            .chain(unsel.iter())
-            .copied()
-            .filter(|r| (r[1] - first.top).abs() < first.height)
-            .filter(|r| r[0] > geom.band_x_probe() + geom.band_w_probe() * 0.5)
-            .max_by(|a, b| a[0].total_cmp(&b[0]))
-        else {
-            continue;
-        };
-        let (texture, tview) = super::dither::offscreen(&device, 1200, 800);
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("awl item234 value ink encoder"),
-        });
-        p.render(&mut encoder, &tview).unwrap();
-        queue.submit(Some(encoder.finish()));
-        let pixels = super::dither::read_pixels(&device, &queue, &texture, 1200, 800);
-
-        let y0 = value_plate[1].round().max(0.0) as usize;
-        let y1 = (value_plate[1] + value_plate[3]).round().min(799.0) as usize;
-        let plate_right = value_plate[0] + value_plate[2];
-        // Card ground just beyond the plate, on the same rows.
-        let gx = (plate_right + 14.0).round().min(1199.0) as usize;
-        let ground: f32 = ((y0 + y1) / 2..(y0 + y1) / 2 + 1)
-            .map(|y| luma(pixels[y * 1200 + gx]))
-            .sum();
-        let mut outside = Vec::new();
-        for x in (plate_right.ceil() as usize + 1)..(plate_right as usize + 13).min(1199) {
-            for y in y0..y1 {
-                if (luma(pixels[y * 1200 + x]) - ground).abs() > 24.0 {
-                    outside.push(x);
-                    break;
+        for logical_w in [900.0f32, 1200.0, 1600.0] {
+            p.set_size(logical_w, 800.0);
+            let cw = logical_w as u32;
+            for lens in 0..lenses {
+                p.set_view(&settings_view(lens));
+                p.prepare(&device, &queue, cw, 800).unwrap();
+                let geom = p.overlay_geometry(cw);
+                let plan = p.overlay_row_plan(&geom);
+                let (sel, unsel) = p.overlay_bar_rects_probe();
+                let plates: Vec<[f32; 4]> = sel.into_iter().chain(unsel).collect();
+                let column_right = geom.text_left + geom.text_w;
+                let band_right = geom.band_x_probe() + geom.band_w_probe();
+                for row in plan.rows().iter().filter(|r| r.item.is_some()) {
+                    // The ACCESSORY plate on this row: the one in the band's right
+                    // half, which is the value column's own.
+                    let Some(plate) = plates
+                        .iter()
+                        .copied()
+                        .filter(|r| (r[1] - row.top).abs() < row.height)
+                        .filter(|r| r[0] > geom.band_x_probe() + geom.band_w_probe() * 0.5)
+                        .max_by(|a, b| a[0].total_cmp(&b[0]))
+                    else {
+                        continue;
+                    };
+                    let ctx = format!("{world}@{logical_w}/lens{lens}/row{}", row.display);
+                    let reach = plate[0] + plate[2] - column_right;
+                    tightest = tightest.min(reach);
+                    assert!(
+                        reach >= crate::render::chrome::BAR_TEXT_PAD - 0.51,
+                        "{ctx}: the value column's right edge is {column_right:.1} and its \
+                         plate ends at {:.1} — {reach:.1}px where the plate owes it {:.1}. \
+                         This is the plate measured against the wrong right bound, and it \
+                         is the reported clipped glyph.",
+                        plate[0] + plate[2],
+                        crate::render::chrome::BAR_TEXT_PAD
+                    );
+                    assert!(
+                        plate[0] + plate[2] <= band_right + 0.51,
+                        "{ctx}: the plate runs past the content band's own edge \
+                         ({:.1} > {band_right:.1})",
+                        plate[0] + plate[2]
+                    );
+                    graded += 1;
                 }
             }
         }
-        assert!(
-            outside.is_empty(),
-            "{world}: the value's ink reaches columns {outside:?}, outside its own plate \
-             which ends at {plate_right:.1} — this is the reported clipped glyph"
-        );
-        graded.push((*world).to_string());
     }
+    p.set_size(1200.0, 800.0);
     theme::set_active(theme::DEFAULT_THEME);
-    assert_eq!(
-        graded.len(),
-        3,
-        "the value-ink law must grade every plate-drawing world: {graded:?}"
+    assert!(
+        graded >= 300,
+        "the value-plate law graded only {graded} rows — it must reach every \
+         SettingId of every category at every swept width"
+    );
+    assert!(
+        tightest.is_finite(),
+        "nothing was measured; tightest clearance {tightest}"
     );
 }

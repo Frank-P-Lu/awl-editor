@@ -556,7 +556,7 @@ fn preview_glyph_key_at(buf: &GlyphBuffer, text: &str, idx: usize) -> Option<Cac
 
 pub(super) const BAR_SIDE_INSET: f32 = 8.0;
 
-pub(super) const BAR_TEXT_PAD: f32 = 13.0;
+pub(in crate::render) const BAR_TEXT_PAD: f32 = 13.0;
 
 pub(super) const INLINE_SHORTCUT_GAP: &str = "   ";
 
