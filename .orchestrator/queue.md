@@ -59,7 +59,65 @@ the combined tree (8 passed) before the train gate rather than trusting two
 receipts taken on different bases. CI is green on `f47028d0` under the raised
 mac ceiling.
 
-## 🔴 CI RED — top priority, blocks integration
+## CI RED — repair LANDED `191e1c06`, awaiting the first real mac run
+
+✅ **The diagnosis below was WRONG on its central claim, and the lane falsified
+it by measurement rather than accepting it.** Peak RSS over a `--test-threads`
+1/3/10 sweep is 448/486/667 MB, every integration target is ≤169 MB, and wall
+time is FLAT across the sweep because `testlock::serial` already serialises the
+1190 global-touching call sites. A test phase peaking near 1.3 GB across both
+conventions cannot starve a 7 GB runner, so "bound the width" was never the fix
+— though the bound landed anyway, because it costs nothing (207s/172s bounded
+vs 173s/167s unbounded, indistinguishable).
+
+**The real cause is a RATCHET, and it is self-reinforcing.**
+`Swatinem/rust-cache` saves only on success. Once the mac job first died it
+never saved again, so every later run restored a `target/` frozen at the last
+green commit and rebuilt that growing delta *inside step 8* on 3 vCPUs. Step 8:
+`16m54s` green → `32m48s` → `53m50s` → `49m28s` → `49m06s` → dead VM. **Every
+run since the first failure was strictly harder than the one before it.**
+Verified independently at the board: the green run's `Post Run
+Swatinem/rust-cache@v2` is `success`; on both red runs neither the suite nor
+the post step completed at all.
+
+**The repair works from both ends** (`3e078359`, `ac1c879e`, `f1d1568e`):
+`cache-on-failure: true` covers a job that merely fails, and a self-imposed
+`AWL_NATIVE_GATE_BUDGET_SECONDS: 2400` covers one that would otherwise be
+killed — a gate that ends *itself* exits normally, so its log survives AND the
+post step still saves a fresh cache. A killed runner uploads nothing, which is
+why all four red job logs are `BlobNotFound`/404. `native-gate.sh` also now
+emits an always-on `native-gate-env` machine receipt and a 60 s
+`native-gate-vitals` heartbeat, so the next occurrence is legible in one look.
+
+⚠️ **Two honest limits.** (1) **What tripped the FIRST failure — `edc89757`,
+15:51 UTC, with a still-fresh cache — is UNKNOWN.** The ratchet explains every
+failure after it, not the origin. Upstream `actions/runner-images#13882`
+reports this exact annotation on this image at ~1 hour and is unresolved. (2)
+**Nothing here reproduces on a 10-core/64 GB host,** so whether the repair
+breaks the spiral is unproven until a real mac run. Expect the first run after
+landing to still be slow — it inherits the 130-commit-stale cache — but it
+should now either finish or abort at 40 minutes *with a readable log*, and
+either way save a fresh cache so the run after it is warm.
+
+**Three findings the lane returned unprompted, all from laws breaking on it:**
+`worker-build.sh`'s owner law rejected a draft for merely *naming* its token in
+a comment; the new static audit was substring-matching raw text, so
+**commenting out a requirement satisfied it** — proven by watching the auditor
+stay green while the behavioural law went red, fixed at `ac1c879e`; and the
+vitals heartbeat shipped reporting `free_bytes=0` through a full green gate
+(macOS puts the page size mid-header), caught only because the lane read its
+own output rather than its exit status.
+
+Candidate `191e1c06` differs from the receipted `f1d1568e` by `queue.md` alone
+— zero code, script or workflow delta — so that receipt covers this code.
+Board-side on the candidate: `test-native-gate.sh` 4/4, `code-health.sh` clean
+(baseline `f12d04a`, 101 Clippy exceptions), `cargo-machete` clean.
+Receipts on `f1d1568e`:
+`native-gate-env cpus=10 mem_bytes=68719476736 conventions=2 test_threads=5`,
+`native-gate-receipt commit=f1d1568e… conventions=mac,linux scope=all-targets`,
+`web-smoke.sh` OK.
+
+### The superseded diagnosis, kept because the correction is the lesson
 
 **`main` has had no successful CI run since `7bca59d6` (2026-08-01 05:38).**
 130 commits have landed since. Eight consecutive runs are `failure` or
@@ -85,8 +143,12 @@ ceiling again will not help; the runner is being starved, not guillotined.
 `--test-threads`, no `CARGO_BUILD_JOBS` — so on a hosted macOS VM it runs the
 whole GPU/glyphon suite at host-adaptive width under both conventions.
 
-Claimed — 🟡 IN PROGRESS — claude (deep), branch `claude/ci-red-mac-runner`,
-worktree `../awl-next-worktrees/ci-red-mac-runner`.
+~~Claimed — claude (deep), branch `claude/ci-red-mac-runner`.~~ Landed; the
+worktree is removed. **The standing lesson: a local green train says nothing
+about the remote, and this board carried "CI is green" for 130 commits on the
+strength of local receipts alone.** Check `gh run list --branch main` before
+AND after every push, and check the last *successful* sha rather than the last
+run.
 
 ## Ready — current user-visible wave
 
