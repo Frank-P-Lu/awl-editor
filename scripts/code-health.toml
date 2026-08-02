@@ -27,8 +27,8 @@
 
 [[file_size_mark]]
 file = "src/actions.rs"
-lines = 782
-reason = "item 114: +1 line — the `workspace_nav` module declaration, at the one module list. Item 116c: +1 line — `Action::AcceptAlternate` classified in the one exhaustive `classify_action_family!` macro (a new `Action` variant must be placed there to compile); the Newline/OpenHistory/KeepVersion doc-comment growth elsewhere was trimmed back to net zero, and `KeepVersion`'s own arm now delegates to `workspace_nav::open_keep_version`, whose body lives there instead."
+lines = 791
+reason = "item 114: +1 line — the `workspace_nav` module declaration, at the one module list. Item 116c: +1 line — `Action::AcceptAlternate` classified in the one exhaustive `classify_action_family!` macro (a new `Action` variant must be placed there to compile); the Newline/OpenHistory/KeepVersion doc-comment growth elsewhere was trimmed back to net zero, and `KeepVersion`'s own arm now delegates to `workspace_nav::open_keep_version`, whose body lives there instead. The Compare-with-version deep link enters the History workspace at its COMPARISON focus rather than its timeline, through the lifecycle, declining when there is nothing to compare (+9)."
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
@@ -78,8 +78,8 @@ lines = 500
 
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
-lines = 530
-reason = "item 114: +1 line — the `overlay_workspace` projection at the one exhaustive `ViewState` construction site. Item 116a: +10 lines net — the `overlay_rows_primary` projection (`WorkspaceShape::rows_are_primary`) at the same one exhaustive construction site, which must fail to compile on a new field by design."
+lines = 539
+reason = "item 114: +1 line — the `overlay_workspace` projection at the one exhaustive `ViewState` construction site. Item 116a: +10 lines net — the `overlay_rows_primary` projection (`WorkspaceShape::rows_are_primary`) at the same one exhaustive construction site, which must fail to compile on a new field by design. sync_view projects the workspace's comparison payload (`overlay_comparison`) beside its shape, and History left the crisp-backdrop exception (+9)."
 
 [[file_size_mark]]
 file = "src/app/window.rs"
@@ -110,8 +110,8 @@ reason = "The capture schema const and its append-only history ledger intentiona
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
-lines = 550
-reason = "item 114: +4 lines net — the workspace/detail-focus projection, minus the hand-copied per-kind window-row table this item replaced with the one `OverlayKind::window_rows` owner."
+lines = 563
+reason = "item 114: +4 lines net — the workspace/detail-focus projection, minus the hand-copied per-kind window-row table this item replaced with the one `OverlayKind::window_rows` owner. The capture path derives a summoned workspace's SHAPE and whether its comparison region carries prose; a sidecar carries a mode, not a shape (+13)."
 
 [[file_size_mark]]
 file = "src/capture/sidecar.rs"
@@ -187,7 +187,8 @@ reason = "item 116c: +8 lines — the new `Action::AcceptAlternate` variant (a 4
 
 [[file_size_mark]]
 file = "src/keyspec.rs"
-lines = 814
+lines = 864
+reason = "`undo_chord_label`: Undo has no palette command to resolve a label from, and the restore notice has to name a key that fires on the reader's own convention (+17), and its law resolves each spec through the real keymap on its own convention rather than trusting a comment (+33)."
 
 [[file_size_mark]]
 file = "src/lava.rs"
@@ -225,8 +226,8 @@ lines = 761
 
 [[file_size_mark]]
 file = "src/overlay/kind.rs"
-lines = 317
-reason = "item 114: +12 lines at the per-kind statement site — the Settings foot-hint cells that now name a category and a back, and the workspace's canvas-bounded `window_rows` arm. Both are single no-wildcard matches over `OverlayKind`; splitting one would be splitting the exhaustiveness. Item 116c: +3 lines — the History `kind_actions` arm's third hint cell (the new ⇧↵ restore glyph) no longer fits one line, at the same no-wildcard match."
+lines = 321
+reason = "item 114: +12 lines at the per-kind statement site — the Settings foot-hint cells that now name a category and a back, and the workspace's canvas-bounded `window_rows` arm. Both are single no-wildcard matches over `OverlayKind`; splitting one would be splitting the exhaustiveness. Item 116c: +3 lines — the History `kind_actions` arm's third hint cell (the new ⇧↵ restore glyph) no longer fits one line, at the same no-wildcard match. The comparison stage's `↑/↓ scroll` cell needs the vertical arrow pair in the shared hint vocabulary beside `ARROWS_LR` (+4)."
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
@@ -235,8 +236,8 @@ reason = "item 114: +12 lines. `item_sections` gained the workspace's empty-sect
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
-lines = 653
-reason = "item 114: +13 lines in `foot_hint`, the ONE owner of what a summoned surface advertises; a workspace has two stages and each must say its own keys (ACCESSIBILITY.md — the footer is awl's only such statement). Item 116c: +1 line — a one-line note at the same owner's detail-focused arm, whose ↵ glyph changed to ⇧↵ (restore moved behind the alternate accept)."
+lines = 642
+reason = "item 114: +13 lines in `foot_hint`, the ONE owner of what a summoned surface advertises; a workspace has two stages and each must say its own keys (ACCESSIBILITY.md — the footer is awl's only such statement). Item 116c: +1 line — a one-line note at the same owner's detail-focused arm, whose ↵ glyph changed to ⇧↵ (restore moved behind the alternate accept). History's comparison hint moved out of `foot_hint` into the per-kind detail-stage line beside its sibling (-11)."
 
 [[file_size_mark]]
 file = "src/peek.rs"
@@ -257,8 +258,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2469
-reason = "The renderer's GPU state floor: workspace mirrors, Kite's forward-travel accumulator, and the diagonal cluster's per-frame measured layout live beside the sibling state consumed by the same frame pipeline."
+lines = 2474
+reason = "The renderer's GPU state floor: workspace mirrors, Kite's forward-travel accumulator, and the diagonal cluster's per-frame measured layout live beside the sibling state consumed by the same frame pipeline. The `overlay_comparison` mirror field, beside the `overlay_rows_primary` one it gates with (+5)."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -287,8 +288,8 @@ lines = 536
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 967
-reason = "The chrome module owns the resolved overlay geometry record and its single sibling re-export for the measured diagonal row span; workspace, rail, and two-sided slant consumers share that seam. The header band's four y-owners (secondary origin, split bounds, strip band, query centre) left for the scene planner."
+lines = 968
+reason = "The chrome module owns the resolved overlay geometry record and its single sibling re-export for the measured diagonal row span; workspace, rail, and two-sided slant consumers share that seam. The header band's four y-owners (secondary origin, split bounds, strip band, query centre) left for the scene planner. One `mod workspace_column;` declaration: the primary column's measurement extracted so `chrome/workspace.rs` stays under the 500-line ceiling (+1)."
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
@@ -306,8 +307,8 @@ reason = "+1 line. The one text-upload batch places diagonal labels and accessor
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_rows.rs"
-lines = 304
-reason = "`overlay_prepare_facet_marks` carries the workspace's own arm — two lines of dispatch plus its argument; the arm's body lives in `chrome/workspace.rs`. The split-pane gap is now read off the row plan rather than re-derived here."
+lines = 306
+reason = "`overlay_prepare_facet_marks` carries the workspace's own arm — two lines of dispatch plus its argument; the arm's body lives in `chrome/workspace.rs`. The split-pane gap is now read off the row plan rather than re-derived here. The facet-mark owner routes a workspace whose lens lives in its header to the grouped strip mark instead of the rail mark (+2)."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_shape.rs"
@@ -347,13 +348,13 @@ lines = 579
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 544
-reason = "The one `TextPipeline` initializer spells out workspace state, the diagonal cluster cache, and the warp accumulator beside the state they initialize."
+lines = 545
+reason = "The one `TextPipeline` initializer spells out workspace state, the diagonal cluster cache, and the warp accumulator beside the state they initialize. The `overlay_comparison` mirror's inert default in the one initializer (+1)."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 604
-reason = "`set_view` is the one ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, and invalidates item 131's measured diagonal cluster with the other view-derived geometry before publishing a new frame."
+lines = 605
+reason = "`set_view` is the one ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, and invalidates item 131's measured diagonal cluster with the other view-derived geometry before publishing a new frame. The `overlay_comparison` mirror's assignment in `set_view` (+1)."
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
@@ -480,8 +481,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 line = 5
-message = "this function has too many lines (248/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The document-session extraction replaced direct buffer and cache fields with explicit read projections, adding four counted lines while preserving the one exhaustive ViewState construction site."
+message = "this function has too many lines (247/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The document-session extraction replaced direct buffer and cache fields with explicit read projections, adding four counted lines while preserving the one exhaustive ViewState construction site. -1 line net: the `overlay_comparison` projection, against a shorter crisp-backdrop match once History left it."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -543,8 +544,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/capture/modes.rs"
 line = 201
-message = "this function has too many lines (213/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 116b: -1 line. The history-preview fold no longer lights `vstate.diff_panel`."
+message = "this function has too many lines (221/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 116b: -1 line. The history-preview fold no longer lights `vstate.diff_panel`. +8 lines: the capture path must derive a summoned workspace's SHAPE (a sidecar carries a mode, not a shape) and whether its comparison region carries prose, or a replayed workspace draws the other shape."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -767,8 +768,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 line = 6
-message = "this function has too many lines (486/100)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer."
+message = "this function has too many lines (487/100)"
+reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer. +1 line: the `overlay_comparison` mirror field's inert default, beside the `overlay_rows_primary` one it pairs with."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -894,9 +895,9 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 1735
-message = "this function has too many lines (139/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field). Item 116b: +12 lines. Item 84's cross-world diff-panel DRESSING law is re-aimed as `history_preview_renders_the_transcript_as_the_document_in_every_world`: the dressing claim moved to the render tier (where the relocated viewport exists), and what stays here is the content half — the transcript IS the captured document, it renders undressed (a differential against the same transcript captured plainly, with an ink floor so the band cannot go vacuous), and `detail_focus` moves no pixel. Each of the three arms needs its own capture, which is what the growth is."
+line = 1733
+message = "this function has too many lines (130/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field). Item 116b: +12 lines. Item 84's cross-world diff-panel DRESSING law is re-aimed as `history_preview_renders_the_transcript_as_the_document_in_every_world`: the dressing claim moved to the render tier (where the relocated viewport exists), and what stays here is the content half — the transcript IS the captured document, it renders undressed (a differential against the same transcript captured plainly, with an ink floor so the band cannot go vacuous), and `detail_focus` moves no pixel. The History workspace's own composition then retired the two dressing arms outright — 'undressed at the page column' and 'detail_focus moves nothing' describe a composition that no longer exists — and what stays is the sidecar's transcript plus a differential proving the CAPTURE PATH's own workspace-shape derivation places the comparison in the content pane (-11 lines)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

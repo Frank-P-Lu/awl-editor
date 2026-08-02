@@ -72,6 +72,10 @@ const TEXT_INK_FLOOR: DistinguishFloor = DistinguishFloor {
 /// continuation rows — which reads as "the document is not drawn here" when it
 /// plainly is. This law's own DPI/zoom sweep failed on exactly that band, twice,
 /// on two successively less naive fixtures.
+pub(super) fn sample_transcript() -> String {
+    transcript(ARM_A)
+}
+
 fn transcript(body: &str) -> String {
     let words = |n: usize| -> String {
         (0..n)

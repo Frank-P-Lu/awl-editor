@@ -274,6 +274,7 @@ mod panel;
 // DOCUMENT VIEWPORT one of them can become (`comparison_viewport`).
 mod comparison;
 mod workspace;
+mod workspace_column;
 pub(in crate::render) use overlay::OVERLAY_UI_SCALE;
 #[cfg(test)]
 pub(in crate::render) use overlay::{

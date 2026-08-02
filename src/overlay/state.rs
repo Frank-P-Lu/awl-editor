@@ -464,9 +464,15 @@ impl OverlayState {
             return self.notice.clone();
         }
         // ITEM 114 — a summoned WORKSPACE advertises the stage that holds focus.
-        // Its PRIMARY list is the navigation rail; its DETAIL stage is the rows
-        // pane, whose keys are the picker's ordinary row keys (including the
-        // per-row range variant below), because the rows really are the picker.
+        // Its PRIMARY list is the navigation rail or the timeline; its DETAIL
+        // stage is the rows pane or the comparison, whose keys are that stage's
+        // own ([`OverlayKind::hint_actions`], including the per-row range variant
+        // below).
+        //
+        // Both stages' hints are per-kind statements, and both live in `kind.rs`.
+        // Spelling one of them inline here — under a bare `detail_focus` test —
+        // only reads as correct while exactly one kind has a detail stage: a
+        // second kind reaching it would silently take the first one's line.
         if self.workspace_shape().is_some() {
             if !self.detail_focus {
                 return super::format_hint(&self.kind.rail_hint_actions());
@@ -474,24 +480,7 @@ impl OverlayState {
             if self.selected_range().is_some() {
                 return self.kind.range_row_hint();
             }
-            return self.kind.hint();
-        }
-        if self.detail_focus {
-            // Item 116c: bare ↵ no longer restores while comparing; ⇧↵ does.
-            return super::format_hint(&[
-                super::HintAction {
-                    glyph: "\u{2191}/\u{2193}",
-                    label: "scroll",
-                },
-                super::HintAction {
-                    glyph: "\u{21E7}\u{21B5}",
-                    label: "restore",
-                },
-                super::HintAction {
-                    glyph: super::workspace::TAB_GLYPH,
-                    label: "back",
-                },
-            ]);
+            return super::format_hint(&self.kind.detail_hint_actions());
         }
         if self.selected_range().is_some() {
             return self.kind.range_row_hint();

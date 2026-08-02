@@ -207,3 +207,94 @@ fn the_driven_esc_lands_where_the_table_says_for_both_stages() {
         }
     }
 }
+
+/// THE TWO DEEP LINKS ENTER THE SAME WORKSPACE AT DIFFERENT FOCUS.
+///
+/// "Version history…" asks WHICH version and lands on the timeline; "Compare with
+/// version…" asks WHAT CHANGED and lands in the comparison. One surface, two
+/// doors, and the difference between them is the focus — which is what makes the
+/// second door worth keeping rather than an alias of the first.
+///
+/// Driven through `apply_transition`, so this is the real dispatch and not a
+/// hand-built card: a deep link that wrote `detail_focus` behind the lifecycle's
+/// back would leave the journey's own stage disagreeing with the card's bit.
+#[test]
+fn version_history_lands_on_the_timeline_and_compare_lands_in_the_comparison() {
+    for (action, want_detail, what) in [
+        (Action::OpenHistory, false, "Version history…"),
+        (Action::CompareVersion, true, "Compare with version…"),
+    ] {
+        let mut journey = Journey::seeded(None);
+        drive_with_history(&mut journey, &action, card_for(OverlayKind::History));
+        let card = journey
+            .card()
+            .unwrap_or_else(|| panic!("{what} must open the History workspace"));
+        assert_eq!(card.kind, OverlayKind::History, "{what} opens History");
+        assert_eq!(
+            card.detail_focus,
+            want_detail,
+            "{what} must land {}",
+            match want_detail {
+                true => "in the COMPARISON — it is a question about what changed",
+                false => "on the TIMELINE — it is a question about which version",
+            }
+        );
+        // The LIFECYCLE agrees, not just the bit: a deep link that wrote the
+        // focus flag directly would pass the assertion above and still leave the
+        // journey standing on the wrong surface, so `Esc` and `Tab` would answer
+        // for a stage nothing is on.
+        assert_eq!(
+            journey.state(),
+            crate::overlay::State::Summoned {
+                surface: match want_detail {
+                    true => crate::overlay::Surface::WorkspaceDetail,
+                    false => crate::overlay::Surface::Workspace,
+                },
+                beneath: crate::overlay::Beneath::Editor,
+            },
+            "{what}: the journey's own stage must be the focus it claims"
+        );
+    }
+
+    // AN EMPTY HISTORY DEGRADES TO THE TIMELINE rather than handing the keyboard
+    // to a blank region — the same `comparison_request()` fact the intercept
+    // reads, exercised from the other end.
+    let mut journey = Journey::seeded(None);
+    drive_with_history(
+        &mut journey,
+        &Action::CompareVersion,
+        OverlayState::new_history(Vec::new(), None, None),
+    );
+    assert!(
+        journey
+            .card()
+            .is_some_and(|o| o.kind == OverlayKind::History && !o.detail_focus),
+        "with nothing to compare, the Compare deep link must land on the timeline"
+    );
+}
+
+/// Dispatch `action` with `card` available to `make_overlay`, exactly as the live
+/// `App` supplies one from the gathered timeline.
+fn drive_with_history(journey: &mut Journey, action: &Action, card: OverlayState) {
+    let mut buffer = crate::buffer::Buffer::scratch();
+    let mut shift = false;
+    let mut zoom = 1.0;
+    let mut search = None;
+    let mut make_overlay = |k: OverlayKind| match k {
+        OverlayKind::History => Some(card.clone()),
+        _ => None,
+    };
+    let mut browse_to = |_k: OverlayKind, _r: Option<String>| None;
+    let mut ctx = ActionCtx {
+        buffer: &mut buffer,
+        shift_selecting: &mut shift,
+        zoom: &mut zoom,
+        search: &mut search,
+        scroll_page_lines: 1,
+        journey,
+        make_overlay: &mut make_overlay,
+        browse_to: &mut browse_to,
+        oracle: None,
+    };
+    let _ = apply_transition(&mut ctx, action, false).primary();
+}

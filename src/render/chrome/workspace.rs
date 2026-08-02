@@ -193,47 +193,6 @@ impl TextPipeline {
         self.overlay_workspace && !self.overlay_lens.is_empty()
     }
 
-    /// MEASURE the navigation rail's column width (device px) from the rail's own
-    /// shaped labels — the same `&mut FontSystem` measurement item 51 already
-    /// makes for a content-hugging card, and for the same reason: a
-    /// character-count estimate over a proportional display face is not a width.
-    /// Cached into `workspace_rail_w` at `set_view`, so the geometry stays `&self`
-    /// and the drawn column, the clip and the hit band all read one number.
-    pub(in crate::render) fn measure_workspace_rail_w(&mut self) -> f32 {
-        if self.overlay_lens.is_empty() {
-            return 0.0;
-        }
-        self.overlay_remetric();
-        let ui_metrics = self.overlay_metrics();
-        self.workspace_rail_buffer
-            .set_metrics(&mut self.font_system, ui_metrics);
-        self.workspace_rail_buffer
-            .set_size(&mut self.font_system, None, None);
-        self.workspace_rail_buffer
-            .set_wrap(&mut self.font_system, Wrap::None);
-        let text = self
-            .overlay_lens
-            .iter()
-            .map(|(label, _)| label.as_str())
-            .collect::<Vec<_>>()
-            .join("\n");
-        let ink = theme::base_content().to_glyphon();
-        self.workspace_rail_buffer.set_text(
-            &mut self.font_system,
-            &text,
-            &panel_attrs().color(ink),
-            Shaping::Advanced,
-            None,
-        );
-        self.workspace_rail_buffer
-            .shape_until_scroll(&mut self.font_system, false);
-        let mut widest = 0.0_f32;
-        for run in self.workspace_rail_buffer.layout_runs() {
-            widest = widest.max(run.line_w);
-        }
-        widest + 2.0 * self.overlay_text_hpad()
-    }
-
     /// TEST-ONLY readers for the item-114 law probe.
     #[cfg(test)]
     pub(in crate::render) fn overlay_lens_len(&self) -> usize {
@@ -254,8 +213,23 @@ impl TextPipeline {
         let hpad = self.overlay_text_hpad();
         let interior = (width as f32 - 2.0 * self.workspace_margin() - 2.0 * hpad).max(0.0);
         let cw = self.overlay_char_width();
-        self.workspace_rail_w > 0.0
-            && interior - self.workspace_rail_w - RAIL_GAP_CHARS * cw >= MIN_PANE_CHARS * cw
+        self.workspace_primary_w > 0.0
+            && interior - self.workspace_primary_w - RAIL_GAP_CHARS * cw >= MIN_PANE_CHARS * cw
+    }
+
+    /// HOW MANY DISPLAY LINES A WORKSPACE DRAWS ABOVE ITS CANDIDATE BAND — one
+    /// owner, because two consumers need it and they cannot be allowed to
+    /// disagree: [`Self::workspace_geometry`], which plans them, and
+    /// [`Self::comparison_viewport`], which opens the relocated document on the
+    /// line they close.
+    ///
+    /// A `RailOverRows` workspace draws one — its `settings › query` search line —
+    /// with its LENS living in the primary column as a rail of labels. A
+    /// `TimelineOverComparison` workspace has no label rail to put a lens in (its
+    /// primary column carries the timeline itself), so the lens moves into the
+    /// HEADER as a second line, exactly the grouped card's own composition.
+    pub(in crate::render) fn workspace_header_rows(&self) -> usize {
+        1 + usize::from(self.overlay_rows_primary)
     }
 
     /// THE WORKSPACE'S GEOMETRY — the third overlay family, beside the flat
@@ -301,7 +275,9 @@ impl TextPipeline {
             None
         };
         let empty_rows = empty.is_some() as usize;
-        let header_rows = 1; // the `settings › query` search line
+        // The `settings › query` search line, plus — when the primary column
+        // carries the rows — the LENS STRIP that has nowhere else to live.
+        let header_rows = self.workspace_header_rows();
         let header_gap = self.overlay_header_gap();
 
         let [card_x, card_y, card_w, card_h] = regions.card;
@@ -335,6 +311,21 @@ impl TextPipeline {
             false => (0, 0),
         };
 
+        // A LENS IN THE HEADER IS THE GROUPED CARD'S OWN COMPOSITION,
+        // so it takes the grouped card's own shaper rather than a second one.
+        // `theme` here means "this card draws a lens STRIP on its last header
+        // line", which is exactly what a `TimelineOverComparison` workspace needs
+        // and exactly what the grouped family already owns end to end (shaping,
+        // the active mark, the strip's own pointer hit-test). The display-line
+        // sequence it consumes is the FLAT window this geometry already resolved
+        // — a timeline has no section headers — so the plan, the shaped lines and
+        // the hit-test stay one object.
+        let strip_in_header = rows_primary;
+        let lines: Vec<PlanLine> = match strip_in_header {
+            true => (top_idx..top_idx + visible).map(PlanLine::Item).collect(),
+            false => Vec::new(),
+        };
+
         OverlayGeom {
             visible,
             top_idx,
@@ -343,6 +334,12 @@ impl TextPipeline {
             hint_rows,
             header_rows,
             header_gap,
+            theme: strip_in_header,
+            strip: match strip_in_header {
+                true => self.overlay_lens.clone(),
+                false => Vec::new(),
+            },
+            plan: lines,
             empty: show_rows.then_some(empty).flatten(),
             card_x,
             card_y,
@@ -357,8 +354,14 @@ impl TextPipeline {
             card_narrow: false,
             workspace: true,
             rail,
-            pane_x,
-            pane_w,
+            // THE CONTENT BAND IS THE ROW LIST'S BOX, not "the wide region": every
+            // band consumer (the row plan, the selected-row quads, the bar plates,
+            // the pointer hit-test) reads `band_x`/`band_w`, and on the timeline
+            // shape the rows live in the PRIMARY column. Pointing this at the
+            // comparison instead would draw the selected-version band across the
+            // transcript and make the timeline clickable nowhere it is drawn.
+            pane_x: text_left,
+            pane_w: text_w,
             rows_focused,
             ..OverlayGeom::base()
         }

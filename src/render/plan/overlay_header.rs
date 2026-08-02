@@ -23,21 +23,48 @@ pub(super) const SPLIT_GAP_FRAC: f32 = 0.4;
 /// flush against the first candidate row) and takes no breathe.
 pub(super) const FACETED_BREATHE_FRAC: f32 = 0.2;
 
+/// **THE HEADER BAND'S OWN RUN** — the distance from a card's `text_top` down to
+/// its candidate band's `first_top`, for a card with `header_rows` display lines
+/// above the band at pitch `lh` and a query beat of `header_gap`.
+///
+/// ONE owner, because this number is asked for from three unrelated places and
+/// used to be re-summed at each: the row planner's forward y arithmetic
+/// (`row_top`), the header boxes below (whose LAST box closes exactly on it), and
+/// and a summoned workspace's relocated document viewport, which opens at the
+/// same line the candidate band does. A workspace whose lens moved into
+/// its header carries TWO header lines, so a consumer that re-summed `lh +
+/// header_gap` for itself would seat the comparison a whole line high the moment
+/// that second line appeared.
+///
+/// `header_rows == 0` (the contextual spell popup) still carries its own zero
+/// beat, so this stays the plain offset in every family.
+pub(in crate::render) fn header_band_height(header_rows: usize, lh: f32, header_gap: f32) -> f32 {
+    header_rows as f32 * lh + header_gap
+}
+
 /// Lay out one box per header display line, stacked from `text_top` at the
 /// candidate band's own pitch, with the query BEAT folded into the LAST box
 /// exactly as the shaper folds it into that line's own glyph metrics — so the
 /// band closes on `first_top` and the query field, the lens strip and the first
 /// candidate row cannot disagree about where one ends and the next begins.
+///
+/// The last box's height is whatever [`header_band_height`] has left over rather
+/// than a second `lh + header_gap`, so the boxes and the band's run are one
+/// derivation.
 pub(super) fn plan_header_band(input: &OverlayRowPlanInput<'_>) -> Vec<PlannedHeader> {
-    (0..input.header_rows)
-        .map(|line| PlannedHeader {
-            line,
-            top: input.text_top + line as f32 * input.lh,
-            height: if line + 1 == input.header_rows {
-                input.lh + input.header_gap
-            } else {
-                input.lh
-            },
+    let n = input.header_rows;
+    let band_bottom = input.text_top + header_band_height(n, input.lh, input.header_gap);
+    (0..n)
+        .map(|line| {
+            let top = input.text_top + line as f32 * input.lh;
+            PlannedHeader {
+                line,
+                top,
+                height: match line + 1 == n {
+                    true => band_bottom - top,
+                    false => input.lh,
+                },
+            }
         })
         .collect()
 }

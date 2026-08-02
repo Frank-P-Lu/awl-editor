@@ -188,9 +188,17 @@ pub(super) fn history_preview_for(
     ov: &crate::overlay::OverlayState,
     buffer: &Buffer,
 ) -> Option<(String, String, crate::prosediff::DiffCounts)> {
-    // DIFF-AS-PREVIEW: the preview IS the writer's diff of the current buffer vs
-    // the highlighted version — built by the SAME one owner the live App renders
-    // through (`history::diff_preview`), synchronously (the live debounce is a
-    // wall-clock concern the deterministic capture never has).
-    crate::history::diff_preview(ov, buffer.path(), buffer.is_unnamed_fresh(), &buffer.text())
+    // THE SAME TYPED REQUEST the live App resolves (`OverlayState::
+    // comparison_request` -> `history::comparison_prose`), synchronously — the
+    // live debounce is a wall-clock concern the deterministic capture never has.
+    // Routing the capture through the request rather than a parallel History
+    // lookup is what keeps live and `--keys` replay unable to disagree.
+    let request = ov.comparison_request()?;
+    crate::history::comparison_prose(
+        ov,
+        &request,
+        buffer.path(),
+        buffer.is_unnamed_fresh(),
+        &buffer.text(),
+    )
 }

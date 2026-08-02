@@ -200,9 +200,11 @@ impl TextPipeline {
         } else {
             Vec::new()
         };
-        // ITEM 114 — a WORKSPACE'S RAIL takes this same "active lens mark" slot,
-        // and takes it whole: see `workspace::prepare_rail_mark`.
-        if geom.workspace {
+        // A WORKSPACE'S LABEL RAIL takes this same "active lens mark" slot whole
+        // (`workspace::prepare_rail_mark`). A workspace whose lens lives in its
+        // HEADER (`geom.theme`) has no rail to mark and takes the grouped card's
+        // own strip mark below instead.
+        if geom.workspace && !geom.theme {
             self.prepare_rail_mark(device, queue, width, height, geom);
             return;
         }

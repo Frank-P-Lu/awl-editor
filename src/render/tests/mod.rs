@@ -91,6 +91,10 @@ mod syntax_roles;
 mod tables;
 mod theme;
 mod theme_caps_law;
+/// The TIMELINE half of the comparison workspace: the two regions never
+/// overlap, every row is clickable where it is drawn, and the footer fits the
+/// narrow column it rides.
+mod timeline_workspace_item116d;
 mod visual_selection_law;
 mod warp_tunnel_item194;
 mod washes;
@@ -153,17 +157,21 @@ pub(super) fn view(text: &str, line: usize, col: usize) -> ViewState {
 /// PRIMARY column, so the CONTENT pane becomes the RELOCATED DOCUMENT VIEWPORT
 /// (`TextPipeline::comparison_viewport`) and the document layer draws there.
 ///
-/// No `OverlayKind` produces this shape until item 116d flips History onto
-/// `WorkspaceShape::TimelineOverComparison` — `workspace_shape(History)` is
-/// still `None`. The three fields set here are exactly the ones `sync_view`
-/// will then set for real (`overlay_workspace` / `overlay_rows_primary` are its
-/// flat projections of `workspace_shape` / `rows_are_primary`), so a law that
-/// drives them is driving the production seam rather than a test-only door.
+/// The fields set here are exactly the ones `sync_view` sets for a real History
+/// workspace (`overlay_workspace` / `overlay_rows_primary` are its flat
+/// projections of `workspace_shape` / `rows_are_primary`, and
+/// `overlay_comparison` its projection of "a `ComparisonRequest` resolved"), so
+/// a law that drives them is driving the production seam rather than a test-only
+/// door.
 pub(super) fn comparison_view(text: &str, line: usize, col: usize) -> ViewState {
     let mut v = view(text, line, col);
     v.overlay_active = true;
     v.overlay_workspace = true;
     v.overlay_rows_primary = true;
+    // The shape has a comparison region AND there is prose in it.
+    // Both halves are `sync_view`'s own projections, and the second is what makes
+    // the document relocate: the timeline can be up with nothing to compare.
+    v.overlay_comparison = true;
     v.overlay_title = "Version history";
     v.overlay_lens = vec![
         ("All".into(), true),

@@ -38,17 +38,18 @@ use super::*;
 /// exception here prevents kind checks from spreading through the handler.
 pub(super) fn workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     let ov = ctx.journey.card().unwrap();
-    let rows_primary = match ov.workspace_shape() {
-        Some(shape) => shape.rows_are_primary(),
-        // History's card presentation still uses comparison keyboard controls.
-        // An empty history has no selected version for those controls.
-        None if ov.kind == crate::overlay::OverlayKind::History
-            && ov.selected_history_id().is_some() =>
-        {
-            true
-        }
-        None => return None,
-    };
+    let rows_primary = ov.workspace_shape()?.rows_are_primary();
+    // IS THERE A CONTENT REGION TO GO INTO? On the timeline shape the content is
+    // read-only prose that has to come from somewhere — a version selected in the
+    // timeline — and an empty history (or a query that filters every version away)
+    // has none. `comparison_request()` is that fact, typed and kind-neutral; with
+    // no payload this intercept declines every key it would otherwise own, so
+    // `Enter` falls through to the ordinary close and `Tab` cannot hand the
+    // keyboard to a blank region. A `RailOverRows` workspace's rows always exist.
+    let has_content = !rows_primary || ov.comparison_request().is_some();
+    if !has_content {
+        return None;
+    }
     // Tab AND Shift-Tab move focus between the two regions at any width, in
     // either shape. Both do the same thing because there are exactly two regions,
     // and the user's Esc decision (2026-08-02) makes them the ONLY way across:

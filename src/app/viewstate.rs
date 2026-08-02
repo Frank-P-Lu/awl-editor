@@ -54,7 +54,7 @@ impl App {
         // "back to now exactly". `None` whenever the picker isn't open / the row
         // is the empty-state one. (The old plain-content preview and the separate
         // Compare takeover both retired into this one surface.)
-        let preview = self.history_preview_text();
+        let preview = self.comparison_transcript();
         // DIFF-AS-PREVIEW scroll: while the diff preview is up, the page shows the
         // OVERLAY's own `diff_scroll` (PgUp/PgDn / panel-focus ↑/↓ / the wheel over
         // the page all mutate it) — and `self.document.scroll()`, the DOCUMENT's
@@ -164,13 +164,17 @@ impl App {
             // straight through — read verbatim every frame, so a live theme-preview
             // crossing never recomputes it and the open card holds its placement.
             overlay_align: ov.map(|o| o.align),
+            // CRISP-BACKDROP exception: the THEME / CARET pickers preview live
+            // DOCUMENT state behind their card, so frosting it would defeat the
+            // preview. History is deliberately NOT here: its comparison is
+            // composited inside the workspace's own content region, so what is
+            // left behind the card is the user's untouched document — a quiet
+            // backdrop, which DESIGN.md §5 says recedes.
             overlay_crisp: ov
                 .map(|o| {
                     matches!(
                         o.kind,
-                        crate::overlay::OverlayKind::Theme
-                            | crate::overlay::OverlayKind::Caret
-                            | crate::overlay::OverlayKind::History
+                        crate::overlay::OverlayKind::Theme | crate::overlay::OverlayKind::Caret
                     )
                 })
                 .unwrap_or(false),
@@ -208,6 +212,11 @@ impl App {
                 o.workspace_shape()
                     .is_some_and(crate::overlay::workspace::WorkspaceShape::rows_are_primary)
             }),
+            // …and is there anything IN that comparison region? Exactly when the
+            // text pushed above is a transcript rather than the user's own
+            // document, so an empty timeline leaves the live document where it
+            // was instead of standing it up inside the workspace.
+            overlay_comparison: preview.is_some(),
             overlay_sections: ov.map(|o| o.item_sections()).unwrap_or_default(),
             caret_preview: ov
                 .filter(|o| o.kind == crate::overlay::OverlayKind::Caret)
@@ -404,13 +413,18 @@ impl App {
         self.document.sync_text()
     }
 
-    /// DIFF-AS-PREVIEW: the History picker's live-preview TRANSCRIPT (the writer's
-    /// diff of the current buffer vs the highlighted version — see the one owner
-    /// [`crate::history::diff_preview`]), or `None` when no preview applies (other
-    /// overlays / no overlay / the empty-state row / an unresolvable id — the
-    /// document then just shows the buffer, a calm degrade). Rendered ONCE per id
-    /// into the `history_preview` cache, so an arrow/hover/wheel burst re-diffs
-    /// nothing. Reads only; the buffer is never touched.
+    /// **THE ONE RESOLVER OF READ-ONLY COMPARISON PROSE** — what the comparison
+    /// region shows this frame, or `None` when nothing does (no overlay, a card
+    /// with no comparison, a timeline on its empty-state row, an unresolvable
+    /// subject — the document then just shows the buffer, a calm degrade).
+    ///
+    /// The REQUEST is typed and kind-neutral ([`crate::overlay::ComparisonRequest`],
+    /// whose module doc says why); the ANSWER needs the buffer, its path and the
+    /// store, which is why it is resolved here and not in the overlay content
+    /// model. Rendered ONCE per request into the `history_preview` cache, keyed by
+    /// [`crate::overlay::ComparisonRequest::cache_key`] — VIEW and subject, so a
+    /// surface offering several read-only views of one subject cannot be served
+    /// the wrong one. Reads only; the buffer is never touched.
     ///
     /// SYNCHRONOUS (no per-arrow debounce): the round's release perf probe measured
     /// ~1-2 ms per diff at contract-document scale — the diff FOLDS unchanged regions, so the
@@ -418,27 +432,22 @@ impl App {
     /// (~15 ms of compute at 6k lines, still well inside a single stepped selection).
     /// So no measured demand for the theme-font-style debounce; the cost is paid
     /// straight, and live == the deterministic headless capture (`main/run.rs`).
-    pub(super) fn history_preview_text(&mut self) -> Option<String> {
-        let ov = self
-            .workspace_state
-            .overlay()
-            .filter(|o| o.kind == crate::overlay::OverlayKind::History)?;
-        let id = ov.selected_history_id()?.to_string();
-        if let Some(transcript) = self.document.history_preview(&id) {
+    pub(super) fn comparison_transcript(&mut self) -> Option<String> {
+        let request = self.workspace_state.overlay()?.comparison_request()?;
+        let key = request.cache_key();
+        if let Some(transcript) = self.document.history_preview(&key) {
             return Some(transcript.to_string());
         }
         let current = self.view_text();
-        let ov = self
-            .workspace_state
-            .overlay()
-            .filter(|o| o.kind == crate::overlay::OverlayKind::History)?;
-        let (id, transcript, _counts) = crate::history::diff_preview(
+        let ov = self.workspace_state.overlay()?;
+        let (_, transcript, _counts) = crate::history::comparison_prose(
             ov,
+            &request,
             self.document.buffer().path(),
             self.document.buffer().is_unnamed_fresh(),
             &current,
         )?;
-        self.document.set_history_preview(id, transcript.clone());
+        self.document.set_history_preview(key, transcript.clone());
         Some(transcript)
     }
 

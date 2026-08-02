@@ -229,6 +229,16 @@ impl App {
     /// `buffer.path()`, else the persistent scratch's stash path — so the scratch
     /// timeline restores too). A no-op for an unnamed note, or an unknown /
     /// unresolvable id (best-effort — a failed restore must never disrupt the buffer).
+    /// AND ONE CALM NOTICE, naming both the version and the way back.
+    /// A restore replaces the whole document silently; DESIGN.md's calm bias makes
+    /// that the one place a toast earns its keep, because the alternative is a
+    /// user who cannot tell whether the workspace did anything and does not know
+    /// that `⌘Z` covers it. `notice_readout_text` returns the moment the workspace
+    /// closes, so it lands on exactly the frame the document changed.
+    ///
+    /// `Esc` deliberately emits NOTHING: it undoes a view substitution and the
+    /// document never changed, and a toast confirming a no-op is the nagging the
+    /// same bias forbids.
     pub(in crate::app) fn restore_history(&mut self, id: &str) {
         let path = crate::history::source_path(
             self.document.buffer().path(),
@@ -238,6 +248,13 @@ impl App {
             && let Some(content) = crate::history::load(&path, id)
         {
             self.document.set_text(&content);
+            let label = crate::history::version_label(&path, id, crate::history::now_millis());
+            if let Some(label) = label {
+                self.set_toast_notice(format!(
+                    "restored \"{label}\" · {} to undo",
+                    crate::keyspec::undo_chord_label()
+                ));
+            }
         }
     }
 

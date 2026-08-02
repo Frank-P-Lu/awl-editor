@@ -305,6 +305,10 @@ pub struct HintAction {
 
 pub const HINT_SEP: &str = "   ";
 pub const ARROWS_LR: &str = "\u{2190}/\u{2192}";
+/// The vertical arrow pair. Shared hint vocabulary: a workspace's PRIMARY list
+/// advertises a vertical step as its headline key, and so does a comparison,
+/// whose `\u{2191}/\u{2193}` scrolls the transcript.
+pub const ARROWS_UD: &str = "\u{2191}/\u{2193}";
 pub const RANGE_LR_LABEL: &str = "adjust";
 pub const PIN_TAG: &str = "pinned";
 

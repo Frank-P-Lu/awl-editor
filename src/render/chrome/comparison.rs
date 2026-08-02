@@ -79,18 +79,18 @@ impl WorkspaceRegions {
         self.wide || self.content_focused
     }
 
-    /// The y a region's own content begins at — below the workspace's search
-    /// line and the query beat that follows it.
+    /// The y a region's own content begins at — below the workspace's HEADER
+    /// BAND: its search line, the lens strip when the shape puts one there, and
+    /// the query beat that closes the band.
     ///
-    /// Derived here rather than read off `OverlayRowPlan` because
-    /// `comparison_viewport` is called from `column_left()`, which cannot afford
-    /// to build a plan, and because a document viewport is not a ROW (item 174's
-    /// arithmetic ban is about a candidate row's slot, which this is not). The
-    /// two are held to agree by
-    /// `render::tests::comparison_viewport_item116b`'s
+    /// `header_band` comes from the plan module's own
+    /// [`crate::render::plan::header_band_height`] rather than being re-summed
+    /// here: `comparison_viewport` is called from `column_left()`, which cannot
+    /// afford to build a plan, but it can afford the plan's own arithmetic owner.
+    /// The two are held to agree by `render::tests::comparison_viewport_item116b`'s
     /// `the_comparison_viewport_opens_on_the_same_line_the_rows_do`.
-    fn content_top(&self, header_beat: f32) -> f32 {
-        self.card[1] + WORKSPACE_PAD + header_beat
+    fn content_top(&self, header_band: f32) -> f32 {
+        self.card[1] + WORKSPACE_PAD + header_band
     }
 
     /// The y a region's own content ends at — the same bottom
@@ -109,7 +109,7 @@ impl TextPipeline {
         let cw = self.overlay_char_width();
         let margin = self.workspace_margin();
         let hpad = self.overlay_text_hpad();
-        let rail_w = self.workspace_rail_w;
+        let rail_w = self.workspace_primary_w;
         let gap = RAIL_GAP_CHARS * cw;
 
         let card_x = margin;
@@ -143,35 +143,80 @@ impl TextPipeline {
     ///
     /// `Some([x, y, w, h])` — the workspace CONTENT pane, when this frame's
     /// summoned workspace puts its own rows in the PRIMARY column
-    /// (`WorkspaceShape::rows_are_primary`, item 116a's single fact) and that
-    /// content region is on screen. `None` on every other frame, including every
-    /// frame any `OverlayKind` can reach today: `workspace_shape` returns
-    /// `Some(RailOverRows)` for Settings alone, whose rows live in the pane, and
-    /// `None` for History until item 116d. So this is a structural relocation
-    /// with **zero pixel change** — proven, not asserted, by the world × surface
-    /// fingerprint matrix this item landed with.
+    /// (`WorkspaceShape::rows_are_primary`, the shape's single fact), that content
+    /// region is on screen, and there is READ-ONLY COMPARISON PROSE to put in it
+    /// (`overlay_comparison`). `None` on every other frame — including every frame
+    /// of Settings, whose rows live in the pane.
+    ///
+    /// The payload gate is not belt-and-braces. The timeline shape can
+    /// be up with nothing to compare (an empty history; a query that filters every
+    /// version away), and on those frames the pushed text is the user's OWN
+    /// document. Relocating it into the comparison's place would put the live
+    /// document up as a third readable layer inside the workspace — three
+    /// competing readable layers, which is what this whole composition removes.
     ///
     /// [`Self::column_left`], [`Self::column_width`], `doc_top` and
     /// `doc_clip_band` are the four readers; everything downstream of them —
     /// caret, selection, washes, wrap width, hit-test, the content clip — follows
     /// without knowing this exists.
     pub(in crate::render) fn comparison_viewport(&self) -> Option<[f32; 4]> {
-        if !self.overlay_active || !self.overlay_rows_primary || !self.overlay_is_workspace() {
+        if !self.overlay_active
+            || !self.overlay_rows_primary
+            || !self.overlay_comparison
+            || !self.overlay_is_workspace()
+        {
             return None;
         }
         let r = self.workspace_regions(self.window_w as u32);
         if !r.content_visible() {
             return None;
         }
-        let top = r.content_top(self.workspace_header_beat());
+        let top = r.content_top(self.workspace_header_band());
         let h = r.content_bottom() - top;
         (r.pane[1] > 0.0 && h > 0.0).then_some([r.pane[0], top, r.pane[1], h])
     }
 
-    /// The vertical run of the workspace's header — its `settings › query` search
-    /// line plus the beat below it. One line, one owner, read by both regions.
-    pub(in crate::render) fn workspace_header_beat(&self) -> f32 {
-        self.overlay_lh() + self.overlay_header_gap()
+    /// The vertical run of the workspace's HEADER BAND — from `text_top` down to
+    /// the line its own candidate rows begin on.
+    ///
+    /// It asks the plan module's own owner over this workspace's own
+    /// [`Self::workspace_header_rows`] rather than re-summing `lh + header_gap`:
+    /// that sum describes a ONE-LINE header, and the timeline shape's header
+    /// carries two, so a local copy would not be duplicated but simply wrong.
+    pub(in crate::render) fn workspace_header_band(&self) -> f32 {
+        crate::render::plan::header_band_height(
+            self.workspace_header_rows(),
+            self.overlay_lh(),
+            self.overlay_header_gap(),
+        )
+    }
+
+    /// **IS THE PUSHED TEXT A TRANSCRIPT RATHER THAN THE USER'S DOCUMENT?**
+    ///
+    /// A timeline workspace with a resolved payload substitutes the comparison's
+    /// prose for the document's own text — the substitution is a view, and the
+    /// buffer is never touched. This says the substitution is in force, which is
+    /// NOT the same question as [`Self::comparison_viewport`]: the region can be
+    /// off screen while the substitution stands, which is exactly the narrow
+    /// stage with the timeline focused.
+    pub(in crate::render) fn document_is_a_transcript(&self) -> bool {
+        self.overlay_active
+            && self.overlay_comparison
+            && self.overlay_rows_primary
+            && self.overlay_is_workspace()
+    }
+
+    /// **IS THE TRANSCRIPT PARKED THIS FRAME?** The substitution is in force but
+    /// its region is not on screen, so there is nowhere the transcript belongs.
+    ///
+    /// It must then not be drawn AT ALL — not at the page column it would
+    /// otherwise fall back to, and not into the offscreen capture the blur frosts.
+    /// The narrow stage is where this bites: with the timeline focused, a drawn
+    /// transcript reads as a ghost of a comparison the user is not looking at,
+    /// and on a world whose surface is bare plates rather than a filled card it is
+    /// the most prominent thing on screen.
+    pub(in crate::render) fn transcript_parked(&self) -> bool {
+        self.document_is_a_transcript() && self.comparison_viewport().is_none()
     }
 
     /// **THE DOCUMENT LAYER'S GLYPH CLIP.** Every text renderer the document
@@ -209,13 +254,18 @@ impl TextPipeline {
     /// comparison of two versions the user is not editing. So they yield, exactly
     /// as item 34 already yields them to a summoned overlay.
     ///
-    /// The outline and the gutter reach this conclusion through their own
-    /// `overlay_active` gate, which strictly SUBSUMES this one (a comparison
-    /// viewport requires `overlay_active`); the law
+    /// The question is whether the document LAYER is a transcript, not whether its
+    /// region is on screen — those differ on the narrow stage, and a margin
+    /// surface has just as little to say about a transcript nobody can see. Read
+    /// against the region alone, the outline listed the TRANSCRIPT's headings in
+    /// the frame beside a workspace showing no comparison at all.
+    ///
+    /// The outline and the gutter also reach this conclusion through their own
+    /// `overlay_active` gate, which strictly SUBSUMES this one; the law
     /// `every_margin_orientation_surface_yields_to_a_relocated_document` proves
     /// that rather than trusting it, over the whole roster.
     pub(in crate::render) fn margin_orientation_yields(&self) -> bool {
-        self.comparison_viewport().is_some()
+        self.document_is_a_transcript()
     }
 
     /// WHAT THE BOTTOM-RIGHT "how much?" READOUT SAYS THIS FRAME — one owner,

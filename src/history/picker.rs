@@ -266,34 +266,46 @@ pub fn auto_description(prev: &str, cur: &str) -> String {
     excerpt
 }
 
-/// DIFF-AS-PREVIEW: the History picker's live preview, built in ONE place. The
-/// highlighted row's version resolves (via its restore id) to that version's
-/// content, and the preview shown in the page below the card is the WRITER'S
-/// DIFF of it against the CURRENT buffer — the marked-up-manuscript transcript
-/// ([`crate::prosediff::diff_and_render`], the shipping SENTENCE × 0.5 recipe)
-/// — not the raw version content (the old plain-content preview is a LOGGED v1
-/// TRIM of the diff-as-preview round: the diff IS the preview). The transcript
-/// title names the row the user is looking at ("Comparing with <row>", the
-/// picker row's own display text — a NAMED save point reads as its name).
+/// **THE PRODUCER** of the read-only prose a comparison region shows — the one
+/// place a [`crate::overlay::ComparisonRequest`] becomes text.
 ///
-/// Returns `(id, transcript, counts)`; `None` for a non-History overlay, the
-/// empty-state row, or an unresolvable id (the document then shows the buffer —
-/// a calm degrade). Reads only; the buffer is NEVER touched. THE ONE OWNER both
-/// the live App (`App::history_preview_text`, which caches per id) and the
-/// headless capture (`main/run.rs::history_preview_for`) build from, so live
-/// and `--keys` replay can never disagree on what a preview shows.
-pub fn diff_preview(
+/// The `Differences` view of a version resolves the request's subject (a restore
+/// id) to that version's content and renders the WRITER'S DIFF of it against the
+/// CURRENT buffer — the marked-up-manuscript transcript
+/// ([`crate::prosediff::diff_and_render`], the shipping SENTENCE × 0.5 recipe) —
+/// not the raw version content (the old plain-content preview is a LOGGED v1 TRIM
+/// of the diff-as-preview round: the diff IS the preview). The transcript title
+/// names the row the user is looking at ("Comparing with <row>", the picker row's
+/// own display text — a NAMED save point reads as its name).
+///
+/// Returns `(subject, transcript, counts)` — the request's own subject, echoed
+/// back so the capture sidecar's `preview_id` keeps naming the VERSION rather
+/// than the cache slot it landed in (the cache key is the caller's concern:
+/// `App::comparison_transcript` builds it from the request it already holds).
+/// `None` for an overlay that shows no
+/// comparison, an empty-state row, or an unresolvable subject (the document then
+/// shows the buffer — a calm degrade). Reads only; the buffer is NEVER touched.
+/// THE ONE OWNER both the live App (`App::comparison_transcript`, which caches per
+/// request) and the headless capture (`main/run.rs::history_preview_for`) build
+/// from, so live and `--keys` replay can never disagree on what a comparison shows.
+///
+/// The `Mine`/`Theirs` views have no producer here and this returns `None`
+/// rather than pretending. The point of routing through the typed request is
+/// that adding one is an arm HERE, not a second mechanism.
+pub fn comparison_prose(
     ov: &crate::overlay::OverlayState,
+    request: &crate::overlay::ComparisonRequest,
     buffer_path: Option<&Path>,
     is_unnamed_fresh: bool,
     current: &str,
 ) -> Option<(String, String, crate::prosediff::DiffCounts)> {
-    if ov.kind != crate::overlay::OverlayKind::History {
+    if request.view != crate::overlay::ComparisonView::Differences
+        || ov.kind != crate::overlay::OverlayKind::History
+    {
         return None;
     }
-    let id = ov.selected_history_id()?.to_string();
     let path = source_path(buffer_path, is_unnamed_fresh)?;
-    let old = load(&path, &id)?;
+    let old = load(&path, &request.subject)?;
     let label = ov.selected_value().unwrap_or("an earlier version");
     let title = format!("Comparing with {label}");
     let (transcript, counts) = crate::prosediff::diff_and_render(
@@ -302,7 +314,24 @@ pub fn diff_preview(
         crate::prosediff::Params::shipping(),
         &title,
     );
-    Some((id, transcript, counts))
+    Some((request.subject.clone(), transcript, counts))
+}
+
+/// THE SHORT NAME OF ONE VERSION — what a sentence ABOUT a version calls it:
+/// the user's own name for a kept version, else its relative `when` label.
+///
+/// The same `name`-else-`when` rule [`crate::overlay::OverlayState::new_history`]
+/// leads a timeline row with, so the restore notice names the version the way the
+/// row the user was standing on did. It deliberately stops there — a row also
+/// carries its `which` description and its changed counts, and a notice that
+/// repeated the whole row would be a second copy of the timeline rather than a
+/// confirmation. `None` for an id this file's history does not contain.
+pub fn version_label(path: &Path, id: &str, now_ms: u64) -> Option<String> {
+    let snap = list(path).into_iter().find(|s| s.id == id)?;
+    Some(
+        snap.name
+            .unwrap_or_else(|| relative_label(now_ms, snap.timestamp)),
+    )
 }
 
 /// Clamp a live `(line, col)` cursor into `text`'s geometry — the HISTORY

@@ -3,7 +3,7 @@ use super::*;
 // ── The HISTORY TIMELINE live preview (App-level, InMemoryFs seam) ───────
 //
 // The preview is DERIVED at ViewState-build time — these tests pin the
-// resolver (`history_preview_text`) and the close contract
+// resolver (`comparison_transcript`) and the close contract
 // (`history_overlay_closed`) directly, buffer untouched throughout.
 
 /// Seed two history versions for `p` and open the History overlay on `app`,
@@ -32,7 +32,7 @@ fn history_preview_resolves_without_touching_buffer() {
     // DIFF-AS-PREVIEW: row 0 (newest, identical to the buffer) previews a
     // folds-only transcript; row 1 (older) previews a transcript CARRYING the
     // change marks (the reworded paragraph shows surgery / a rewrite).
-    let newest = app.history_preview_text().expect("row 0 previews");
+    let newest = app.comparison_transcript().expect("row 0 previews");
     assert!(
         newest.starts_with("# Comparing with "),
         "a titled transcript: {newest}"
@@ -42,7 +42,7 @@ fn history_preview_resolves_without_touching_buffer() {
         "identical content diffs to no marks: {newest}"
     );
     app.workspace_state.overlay_mut().unwrap().move_sel(1);
-    let older = app.history_preview_text().expect("row 1 previews");
+    let older = app.comparison_transcript().expect("row 1 previews");
     assert!(
         older.contains("~~") || older.contains("=="),
         "arrowing to the older version previews ITS diff (marks present): {older}"
@@ -61,7 +61,7 @@ fn history_preview_resolves_without_touching_buffer() {
         let _ = mem.rename(&entry.path, std::path::Path::new("/gone"));
     }
     assert_eq!(
-        app.history_preview_text().as_deref(),
+        app.comparison_transcript().as_deref(),
         Some(older.as_str()),
         "a repeat on the same id is a cache hit"
     );
@@ -77,7 +77,7 @@ fn preview_cache_invalidates_on_selection_move() {
     crate::history::record(&p, "v2\n", &Config::empty());
     let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
     open_history_overlay(&mut app, &p);
-    assert!(app.history_preview_text().is_some());
+    assert!(app.comparison_transcript().is_some());
     let cached_id = app.document.history_preview_value().map(|(id, _)| id);
     // Moving the selection to another row (a different id) re-renders: the
     // cache is keyed by id, never by "an overlay is open". (The selection
@@ -89,7 +89,7 @@ fn preview_cache_invalidates_on_selection_move() {
         0,
         "a new version tops the diff out"
     );
-    assert!(app.history_preview_text().is_some());
+    assert!(app.comparison_transcript().is_some());
     assert_ne!(
         app.document.history_preview_value().map(|(id, _)| id),
         cached_id,
@@ -167,7 +167,7 @@ fn diff_preview_renders_marked_up_transcript_without_touching_buffer() {
     let text_before = app.document.buffer().text();
     open_history_overlay(&mut app, &p);
     let transcript = app
-        .history_preview_text()
+        .comparison_transcript()
         .expect("the diff preview is live");
     // The transcript speaks awl's diff vocabulary: a struck deletion (REAL
     // `~~` markdown) AND a highlight-washed insertion (`==`), under a title
@@ -213,7 +213,7 @@ fn diff_preview_read_only_law_typing_edits_the_query_never_the_buffer() {
     let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
     let version_before = app.document.buffer().version();
     open_history_overlay(&mut app, &p);
-    assert!(app.history_preview_text().is_some(), "preview live");
+    assert!(app.comparison_transcript().is_some(), "preview live");
     // Drive the modal intercept exactly as a keypress would (the core seam).
     for act in [
         Action::InsertChar('z'),
@@ -285,7 +285,7 @@ fn scratch_buffer_lists_its_stash_history() {
         .install_overlay_for_test(crate::overlay::OverlayState::new_history(rows, None, None));
     // DIFF-AS-PREVIEW: the stash's newest snapshot is identical to the
     // buffer, so the preview is a titled folds-only transcript.
-    let transcript = app.history_preview_text().expect("the stash previews");
+    let transcript = app.comparison_transcript().expect("the stash previews");
     assert!(transcript.starts_with("# Comparing with "), "{transcript}");
 }
 
@@ -309,5 +309,112 @@ fn notes_keep_their_own_autosave() {
             .map(|v| v.is_empty())
             .unwrap_or(true),
         "autosave_flush does not write note files"
+    );
+}
+
+// ── THE RESTORE NOTICE, and the silence beside it ────────────────────────
+//
+// A restore replaces the whole document in one atomic edit and says nothing on
+// its own; DESIGN.md's calm bias makes that the one place a toast earns its
+// keep, because without it a user cannot tell whether the workspace did
+// anything and does not know that undo covers it. `Esc` is the mirror image and
+// must stay silent: it undoes a view substitution, the document never changed,
+// and a toast confirming a no-op is the nagging the same bias forbids.
+//
+// Tier 2 (hermetic `App`) by necessity, not by preference — the restore reads
+// the store off disk, which `docs/harness-reach.md` puts outside the capture
+// tier's reach.
+
+/// Both claims, over BOTH row shapes a timeline carries: an ordinary version
+/// (whose short name is its relative `when` label) and a KEPT one (whose short
+/// name is the user's own). The kept arm is the one a `when`-only notice would
+/// get wrong while the ordinary arm stayed green.
+#[test]
+fn restoring_names_the_version_and_the_undo_while_esc_says_nothing() {
+    use crate::fs::InMemoryFs;
+    let _g = crate::testlock::serial();
+    let p = PathBuf::from("/notes/draft.md");
+    let mem = InMemoryFs::new().with_file(&p, "the newest words\n");
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    crate::history::record(&p, "the oldest words\n", &Config::empty());
+    crate::history::record_pinned(
+        &p,
+        "a kept draft\n",
+        &Config::empty(),
+        Some("before the cut"),
+    );
+    crate::history::record(&p, "the newest words\n", &Config::empty());
+
+    let snaps = crate::history::list(&p);
+    assert_eq!(snaps.len(), 3, "three versions were recorded");
+    let kept = snaps
+        .iter()
+        .find(|s| s.name.as_deref() == Some("before the cut"))
+        .expect("the kept version is in the store");
+    let plain = snaps
+        .iter()
+        .find(|s| s.name.is_none() && s.id != snaps[0].id)
+        .expect("an unnamed older version is in the store");
+
+    let undo = crate::keyspec::undo_chord_label();
+    assert!(!undo.is_empty(), "the notice must name a real key");
+
+    for (id, expect_label) in [
+        (kept.id.clone(), "before the cut".to_string()),
+        (
+            plain.id.clone(),
+            crate::history::relative_label(crate::history::now_millis(), plain.timestamp),
+        ),
+    ] {
+        let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
+        app.emit_notice(crate::actions::NoticeEffect::Clear);
+        open_history_overlay(&mut app, &p);
+        app.restore_history(&id);
+        let notice = app.frame.notice().owned().unwrap_or_default();
+        assert!(
+            notice.contains(&expect_label),
+            "the restore notice must NAME the version restored — the row the user was \
+             standing on reads {expect_label:?}, the notice reads {notice:?}"
+        );
+        assert!(
+            notice.contains(&undo),
+            "the restore notice must name the way BACK ({undo}), not only what happened: \
+             {notice:?}"
+        );
+        assert!(
+            notice.starts_with("restored"),
+            "one calm sentence, leading with what it did: {notice:?}"
+        );
+    }
+
+    // ESC SAYS NOTHING. The whole journey — open, move, leave — must leave the
+    // notice channel exactly as it found it, because nothing about the document
+    // changed. Driven through the real transition table, not by asserting on the
+    // absence of a call.
+    let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
+    app.emit_notice(crate::actions::NoticeEffect::Clear);
+    open_history_overlay(&mut app, &p);
+    let before = app.document.buffer().text();
+    for act in [
+        crate::keymap::Action::NextLine,
+        crate::keymap::Action::InsertTab,
+        crate::keymap::Action::Cancel,
+    ] {
+        app.apply_transition_for_test(&act);
+    }
+    // …including the App-level close hook the live dispatch runs after the
+    // transition, which `apply_transition_for_test` deliberately does not reach.
+    // Without it a notice emitted on CLOSE would sail past this law.
+    app.history_overlay_closed(false);
+    assert_eq!(
+        app.frame.notice().owned().unwrap_or_default(),
+        String::new(),
+        "leaving the workspace changed nothing about the document, so it must say nothing \
+         — a toast confirming a no-op is exactly the nagging DESIGN.md's calm bias forbids"
+    );
+    assert_eq!(
+        app.document.buffer().text(),
+        before,
+        "…and the buffer really is untouched, so the silence is honest"
     );
 }

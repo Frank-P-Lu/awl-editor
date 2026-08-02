@@ -2256,12 +2256,17 @@ pub struct TextPipeline {
     overlay_workspace: bool,
     /// Mirror of [`ViewState::overlay_rows_primary`] (item 116a) — within a
     /// workspace, does the primary column carry rows rather than labels?
-    /// `false` for every kind that routes here today.
+    /// `false` for Settings; `true` for the History timeline.
     overlay_rows_primary: bool,
-    /// The workspace navigation rail's MEASURED column width (device px),
-    /// measured at `set_view` with a `&mut FontSystem` in hand — the item-51
-    /// `overlay_content_w` pattern, for the same reason. `0.0` off a workspace.
-    workspace_rail_w: f32,
+    /// Mirror of [`ViewState::overlay_comparison`] — the second half of the
+    /// relocation gate: the shape says there IS a comparison region, this says
+    /// there is something in it.
+    overlay_comparison: bool,
+    /// The workspace PRIMARY column's MEASURED width (device px) — a rail of
+    /// category labels, or a timeline of versions — measured at `set_view` with a
+    /// `&mut FontSystem` in hand: the item-51 `overlay_content_w` pattern, for the
+    /// same reason. `0.0` off a workspace.
+    workspace_primary_w: f32,
     workspace_rail_buffer: GlyphBuffer,
     /// The rail's ACTIVE entry's mark rect for this frame, recorded by the rail
     /// shaper and drawn by the shared facet-mark owner. `None` when no rail is

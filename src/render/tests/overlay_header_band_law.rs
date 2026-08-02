@@ -484,28 +484,33 @@ fn the_pre_plan_query_band_genuinely_missed_the_field() {
     );
 }
 
-/// THE ONE MEMBER OF THIS FAMILY THAT DID NOT MERGE THIS SLICE.
+/// THE LAST MEMBER OF THIS FAMILY TO MERGE — and the reason it had to (item
+/// 116d).
 ///
-/// `TextPipeline::workspace_header_beat` (`render/chrome/comparison.rs`) is a
-/// fourth copy of "the last header line's height" — the workspace's own
-/// `settings › query` line plus its beat. It could not route through the plan
-/// here: its consumer is `comparison_viewport`, which the FOUR relocated
-/// document owners (`column_left`, `column_width`, `doc_top`, `doc_clip_band`)
-/// call from ~45 sites per frame, so planning inside it would trade one parallel
-/// calculation for ~45 plans a frame and break the O(visible) budget this item
-/// exists to protect. Threading the plan down to those owners is its own slice.
+/// `TextPipeline::workspace_header_band` (`render/chrome/comparison.rs`) answers
+/// "how far below `text_top` does a workspace's content begin", for the relocated
+/// document viewport. It used to be a bare `overlay_lh() + overlay_header_gap()`:
+/// a fourth copy of the header's height, tolerable only while every workspace had
+/// exactly ONE header line. The timeline shape moved its LENS into the header, so
+/// that copy stopped being a duplicate and became simply WRONG — a whole line
+/// high. It now calls the plan module's own `header_band_height`.
 ///
-/// Until then the two may not silently disagree: this pins them equal against a
-/// real workspace card, over the world roster and both DPIs, so a change to
-/// either side fails HERE by name rather than mis-seating the comparison pane.
+/// It still cannot BUILD a plan: its consumer is `comparison_viewport`, which the
+/// four relocated document owners (`column_left`, `column_width`, `doc_top`,
+/// `doc_clip_band`) reach from ~45 sites per frame, and planning there would
+/// trade one parallel calculation for ~45 plans a frame. So the law is that the
+/// arithmetic OWNER it calls and the PLAN the pixels came from agree — over the
+/// world roster, both DPIs, and **both workspace shapes**, because the one-line
+/// shape alone is exactly the sweep that would have gone green over this bug.
 #[test]
-fn the_workspace_beat_still_agrees_with_the_planned_query_box() {
+fn the_workspace_header_band_still_agrees_with_the_planned_header_boxes() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping the_workspace_beat_still_agrees_...: no wgpu adapter");
+        eprintln!("skipping the_workspace_header_band_still_agrees_...: no wgpu adapter");
         return;
     };
     let mut graded = 0usize;
+    let mut two_line_cells = 0usize;
     for dpi in [1.0f32, 2.0] {
         p.set_dpi(dpi);
         let (cw, ch) = ((1200.0 * dpi) as u32, (800.0 * dpi) as u32);
@@ -513,51 +518,86 @@ fn the_workspace_beat_still_agrees_with_the_planned_query_box() {
         for world in crate::theme::world_names() {
             theme::set_active_by_name(world).unwrap();
             p.sync_theme();
-            let mut v = overlay_view(OverlayKind::Settings, 12);
-            v.overlay_workspace = true;
-            p.set_view(&v);
-            p.prepare(&device, &queue, cw, ch).unwrap();
-            let geom = p.overlay_geometry(cw);
-            let plan = p.overlay_row_plan(&geom);
-            let field = plan
-                .query_band()
-                .expect("a workspace draws its own search line");
-            let beat = p.workspace_header_beat();
-            assert!(
-                (beat - field.height).abs() < 1e-3,
-                "{world} dpi={dpi}: `workspace_header_beat` ({beat}) has drifted from \
-                 the planned query box's height ({}) — the comparison pane would be \
-                 seated off the line the search field actually draws",
-                field.height
-            );
-            // …and the workspace's own search line gets the SAME drawn/pointer/
-            // caret grading the takeover cards get. The headline sweep cannot
-            // reach it: `Settings` is the only kind presented as a workspace and
-            // its geometry is chosen by `overlay_workspace`, which that sweep's
-            // fixture leaves off, so `Settings` is graded there as the GROUPED
-            // card it becomes when it is NOT relocated. This shape carries one
-            // header line with the beat inside it — the flat layout, and so the
-            // layout the retired pointer band missed.
-            let pr = p.overlay_row_y_probe();
-            let ctx = format!("{world} dpi={dpi} workspace");
-            let (mut fields, mut strips) = (0usize, 0usize);
-            grade_header_band(
-                &p,
-                &plan,
-                &geom,
-                &pr,
-                Family::Flat,
-                &ctx,
-                (&mut fields, &mut strips),
-            );
-            assert_eq!(fields, 1, "{ctx}: the workspace's field must be graded");
-            graded += 1;
+            // BOTH SHAPES. `rows_primary` is `sync_view`'s own projection of
+            // `WorkspaceShape::rows_are_primary`, so driving it here drives the
+            // production seam: `false` is Settings' rail-over-rows (one header
+            // line), `true` is History's timeline-over-comparison (two — the
+            // search line and the lens strip that has nowhere else to live).
+            for rows_primary in [false, true] {
+                let mut v = overlay_view(OverlayKind::Settings, 12);
+                v.overlay_workspace = true;
+                v.overlay_rows_primary = rows_primary;
+                p.set_view(&v);
+                p.prepare(&device, &queue, cw, ch).unwrap();
+                let geom = p.overlay_geometry(cw);
+                let plan = p.overlay_row_plan(&geom);
+                let heads = plan.header_lines();
+                let field = plan
+                    .query_band()
+                    .expect("a workspace draws its own search line");
+                let last = *heads.last().expect("a workspace has a header band");
+                // THE ORACLE IS THE PLANNED BOXES, not the same expression again:
+                // the band's run is the last planned box's bottom measured back to
+                // `text_top`, which is where the first candidate row begins.
+                let planned = last.bottom() - field.top;
+                let band = p.workspace_header_band();
+                assert!(
+                    (band - planned).abs() < 1e-3,
+                    "{world} dpi={dpi} rows_primary={rows_primary}: \
+                     `workspace_header_band` ({band}) has drifted from the planned header \
+                     band ({planned}, {} lines) — the comparison pane would be seated off \
+                     the line the workspace's own rows begin on",
+                    heads.len()
+                );
+                assert!(
+                    (plan.first_top() - (field.top + planned)).abs() < 1e-3,
+                    "{world} dpi={dpi} rows_primary={rows_primary}: the header band must \
+                     close exactly on the candidate band's first row"
+                );
+                assert_eq!(
+                    heads.len(),
+                    1 + usize::from(rows_primary),
+                    "{world} dpi={dpi}: a timeline workspace carries its lens as a SECOND \
+                     header line; a rail workspace carries it in the rail"
+                );
+                if rows_primary {
+                    two_line_cells += 1;
+                }
+                // …and the workspace's own search line gets the SAME drawn/pointer/
+                // caret grading the takeover cards get. The headline sweep cannot
+                // reach it: its fixture leaves `overlay_workspace` off, so Settings
+                // is graded there as the GROUPED card it becomes when it is NOT
+                // relocated.
+                let pr = p.overlay_row_y_probe();
+                let ctx = format!("{world} dpi={dpi} workspace rows_primary={rows_primary}");
+                let (mut fields, mut strips) = (0usize, 0usize);
+                grade_header_band(
+                    &p,
+                    &plan,
+                    &geom,
+                    &pr,
+                    match rows_primary {
+                        true => Family::Grouped,
+                        false => Family::Flat,
+                    },
+                    &ctx,
+                    (&mut fields, &mut strips),
+                );
+                assert_eq!(fields, 1, "{ctx}: the workspace's field must be graded");
+                graded += 1;
+            }
         }
     }
     p.set_dpi(1.0);
     theme::set_active(theme::DEFAULT_THEME);
     assert!(
-        graded > 20,
+        graded > 40,
         "the roster sweep must actually run, got {graded}"
+    );
+    // NON-VACUITY on the axis that broke: a sweep that never reached the TWO-line
+    // header would have gone green over the very drift this law is named for.
+    assert!(
+        two_line_cells > 20,
+        "the sweep must reach the two-line header shape, got {two_line_cells}"
     );
 }

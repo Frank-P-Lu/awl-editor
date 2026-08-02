@@ -70,6 +70,12 @@ impl TextPipeline {
         // Is the document layer relocated into a workspace's content region this
         // frame? Asked ONCE here; both paths below read the answer.
         let relocated = self.comparison_viewport().is_some();
+        // …and the other half of the same question: the substitution can be in
+        // force with its region off screen (the narrow stage, timeline focused).
+        // The transcript then has nowhere to be, so it is drawn nowhere — neither
+        // at the page column it would fall back to nor into the capture the blur
+        // frosts, where it would ghost a comparison the user is not looking at.
+        let parked = self.transcript_parked();
         if self.backdrop_blur() {
             // 1) Capture the document into the offscreen texture + blur it — but ONLY
             //    when the cached backdrop is stale (a fresh open / resize / doc or
@@ -78,7 +84,7 @@ impl TextPipeline {
             if self.blur_recompute {
                 if let Some(doc_view) = self.blur.doc_view() {
                     let mut pass = Self::begin_clear_pass(encoder, doc_view);
-                    match relocated {
+                    match relocated || parked {
                         true => self.draw_document_ground(&mut pass),
                         false => self.draw_document_layers(&mut pass)?,
                     }
@@ -96,7 +102,7 @@ impl TextPipeline {
         }
 
         let mut pass = Self::begin_clear_pass(encoder, view);
-        match relocated {
+        match relocated || parked {
             true => self.draw_document_ground(&mut pass),
             false => self.draw_document_layers(&mut pass)?,
         }

@@ -1705,38 +1705,34 @@ fn popover_labels_demonstrate_their_own_effects() {
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 }
 
-/// HISTORY PREVIEW, the capture tier (item 84's dressing law, re-aimed by item
-/// 116b). While the History picker's writer's-diff preview is up
-/// (`opts.preview_text` set) the DOCUMENT itself becomes the transcript: the
-/// same substitution the live `sync_view` performs, with the same caret park on
-/// the transcript's blank line 1 so no line's WYSIWYG conceal reveals.
+/// HISTORY'S COMPARISON, the capture tier. While the History workspace is open with a
+/// version selected, the DOCUMENT itself becomes the writer's-diff transcript:
+/// the same substitution the live `sync_view` performs, with the same caret park
+/// on the transcript's blank line 1 so no line's WYSIWYG conceal reveals.
 ///
-/// **WHAT ITEM 116b CHANGED.** The claim this law used to make was about the
-/// diff panel's own CARD DRESSING — a `base_300` fill under a raised rim, drawn
-/// around the page column, its rim strengthening when Tab moved focus in. That
-/// composition is gone: the dressing, `diff_panel_rect`, `prepare_diff_panel`
-/// and their three GPU pipelines were removed with it, because the transcript
-/// no longer wants a card drawn around the page column — it wants to be
-/// RELOCATED into a workspace's content region
-/// (`TextPipeline::comparison_viewport`), which is a different composition, not
-/// a differently-dressed one. What survives at THIS tier is the content half,
-/// which is exactly what the removal must not have broken:
+/// **WHY TWO ARMS WENT AWAY.** This law once graded the transcript as an
+/// ORDINARY document drawn at the page column with no dressing — the composition
+/// between the diff panel's removal and the flip. History is now a summoned
+/// workspace: the transcript is RELOCATED into
+/// its content region and composited onto its surface, the backdrop behind the
+/// card frosts like every other workspace's, and `detail_focus` legitimately
+/// changes the focus cue. "Undressed at the page column" and "`detail_focus`
+/// moves nothing" were claims about a composition that no longer exists, and the
+/// relocation's own pixel claims — containment, visibility, the whole world
+/// roster, the whole geometry range — live at the render tier in
+/// `render::tests::comparison_composite_item116d`.
 ///
-/// 1. the transcript really is what got shaped and captured, in every world;
-/// 2. it draws at the ordinary page column, undressed — no rim, no card fill,
-///    the page margin either side reading as plain background;
-/// 3. and `detail_focus` no longer moves a single pixel of the document layer,
-///    which is the removal stated as an outcome rather than as an absence.
-///
-/// The relocation's own pixel claims live at the render tier, where the
-/// workspace state that reaches them exists:
-/// `render::tests::comparison_viewport_item116b`.
+/// What is left here is what only THIS tier can see: the capture path's own
+/// derivation of the workspace shape. A sidecar carries `workspace` and a mode,
+/// not a shape, so `capture::modes` re-derives `overlay_rows_primary` /
+/// `overlay_comparison` from `OverlayKind::workspace_shape` and the preview it
+/// was handed. Get that wrong and a replayed History workspace draws the OTHER
+/// shape while every unit law stays green — which is exactly what happened on
+/// this item's first capture.
 #[test]
-fn history_preview_renders_the_transcript_as_the_document_in_every_world() {
+fn history_comparison_is_relocated_by_the_capture_path_in_every_world() {
     if !adapter_available() {
-        eprintln!(
-            "skipping history_preview_renders_the_transcript_as_the_document: no wgpu adapter"
-        );
+        eprintln!("skipping history_comparison_is_relocated_by_the_capture_path: no wgpu adapter");
         return;
     }
     let _tg = crate::testlock::serial();
@@ -1782,18 +1778,29 @@ fn history_preview_renders_the_transcript_as_the_document_in_every_world() {
         ranges: Vec::new(),
         git: Vec::new(),
         selected_index: 0,
-        hint: crate::overlay::OverlayKind::History.hint(),
+        // The TIMELINE stage's own line, which is what `foot_hint` gives a
+        // workspace standing on its primary list — not the picker line.
+        hint: crate::overlay::format_hint(
+            &crate::overlay::OverlayKind::History.rail_hint_actions(),
+        ),
         browse_dir: None,
         return_to: None,
         spell_target: None,
         context_anchor: None,
         capture: None,
         notice: String::new(),
-        lens: None,
-        lens_strip: Vec::new(),
+        lens: Some("all"),
+        // A workspace draws its lens (`overlay_is_workspace` reads the strip);
+        // History's is its real All / Session / Today facet scheme, and on this
+        // shape it rides the HEADER rather than a rail.
+        lens_strip: vec![
+            ("All".into(), true),
+            ("Session".into(), false),
+            ("Today".into(), false),
+        ],
         sections: Vec::new(),
         preview_id: Some("1700000000000".into()),
-        workspace: false,
+        workspace: true,
         detail_focus,
         diff_scroll: 0,
         empty: None,
@@ -1825,88 +1832,78 @@ fn history_preview_renders_the_transcript_as_the_document_in_every_world() {
             "{world}: the previewed version's TRANSCRIPT must be the captured document"
         );
 
+        // ARM 2 — THE CAPTURE PATH DERIVED THE TIMELINE SHAPE, asserted in real
+        // pixels rather than from the flag that caused them: the transcript's ink
+        // must fall inside the workspace's CONTENT region and nowhere else.
+        //
+        // The oracle is a DIFFERENTIAL against the same frame carrying a
+        // different transcript, so the card, the timeline rows, the lens strip
+        // and the frosted backdrop all cancel and every differing pixel is
+        // relocated document ink. If the derivation were wrong the shape would
+        // draw rail-over-rows: the transcript would land at the page column,
+        // under the card, and the differing pixels would be somewhere else
+        // entirely (or nowhere at all, hidden by the card).
         let img = image::open(&png)
             .expect("decode history-preview PNG")
             .to_rgba8();
         let (w, h) = img.dimensions();
+        let (other, _) = crate::prosediff::diff_and_render(
+            old,
+            &new.replace("reworded completely", "rephrased quite utterly"),
+            crate::prosediff::Params::shipping(),
+            "Comparing with 2 hr ago",
+        );
+        let mut opts_b = fixture_opts();
+        opts_b.preview_text = Some(other);
+        opts_b.overlay = Some(history_overlay(false));
+        let png_b = dir.join(format!("{world}_other.png"));
+        capture_with(&png_b, &Buffer::from_str(new), &opts_b).expect("control capture");
+        let img_b = image::open(&png_b).expect("decode control PNG").to_rgba8();
 
-        // ARM 2 — UNDRESSED, differentially against the SAME transcript captured
-        // as an ORDINARY document. Below the History card (the bottom third of
-        // the canvas, where no overlay quad reaches) the two frames must agree
-        // pixel for pixel: the transcript is a plain document at the plain page
-        // column now, with no card fill under it, no rim beside it and no
-        // vertical clip band cutting it. An absolute rim scan cannot make this
-        // claim — page mode's own ground punch draws a continuous value step at
-        // `column_left` on every document, dressed or not, and that edge is what
-        // a from-the-left scan finds first.
-        let mut plain_opts = fixture_opts();
-        plain_opts.overlay = None;
-        let png_plain = dir.join(format!("{world}_plain.png"));
-        capture_with(&png_plain, &Buffer::from_str(&transcript), &plain_opts)
-            .expect("plain transcript capture");
-        let img_plain = image::open(&png_plain)
-            .expect("decode plain PNG")
-            .to_rgba8();
-        // Bounded to the page COLUMN itself: the left/right margins carry the
-        // orientation chrome a summoned overlay deliberately yields (item 34's
-        // outline + bottom-left gutter), which is a difference about the open
-        // picker, not about the document.
-        let col_left = sidecar["page"]["column"]["left"]
-            .as_f64()
-            .expect("page.column.left") as u32;
-        let col_w = sidecar["page"]["column"]["width"]
-            .as_f64()
-            .expect("page.column.width") as u32;
-        // NON-VACUITY: the graded band must actually carry document INK in the
-        // plain frame, or "identical" would only mean "both empty" — the exact
-        // way this arm went quiet when its fixture transcript was short.
-        let ground = *img_plain.get_pixel(col_left + col_w / 2, h - 4);
-        let mut inked = 0u32;
+        // WHERE the transcript's ink landed, as a bounding box over the
+        // differing pixels. The sidecar's `page.column` is deliberately NOT the
+        // oracle here: it reports the PAGE's own column (the named,
+        // never-relocating second idea of "the writing column"), so it answers 16
+        // on this frame and would grade nothing.
+        let (mut x0, mut x1, mut y0, mut y1) = (u32::MAX, 0u32, u32::MAX, 0u32);
         let mut differing = 0u32;
-        for y in (h * 2 / 3)..h {
-            for x in col_left..(col_left + col_w).min(w) {
-                if img.get_pixel(x, y) != img_plain.get_pixel(x, y) {
-                    differing += 1;
+        for y in 0..h {
+            for x in 0..w {
+                if img.get_pixel(x, y) == img_b.get_pixel(x, y) {
+                    continue;
                 }
-                if *img_plain.get_pixel(x, y) != ground {
-                    inked += 1;
-                }
+                differing += 1;
+                x0 = x0.min(x);
+                x1 = x1.max(x);
+                y0 = y0.min(y);
+                y1 = y1.max(y);
             }
         }
         assert!(
-            inked > 2_000,
-            "{world}: the graded band carries almost no document ink ({inked} px) — the \
-             transcript fixture is too short for this arm to mean anything"
+            differing > 500,
+            "{world}: two different transcripts rendered only {differing} differing \
+             pixels — the comparison is not reaching the screen at all"
         );
-        assert_eq!(
-            differing, 0,
-            "{world}: {differing} pixels below the History card differ between the \
-             previewed transcript and the same transcript captured as an ordinary \
-             document. The transcript must render as a plain document — any dressing \
-             (a card fill, a rim, a clip band) is the diff-as-preview composition item \
-             116b retired."
+        // IN THE CONTENT PANE, not at the page column. The timeline is bounded to
+        // roughly a third of the workspace's interior, so a comparison that opened
+        // at the page column (the rail shape's placement, or no relocation at all)
+        // would start in the left third.
+        assert!(
+            x0 as f32 > w as f32 * 0.35,
+            "{world}: transcript ink starts at x={x0} on a {w}px canvas — that is the \
+             page column, not the workspace's CONTENT pane. The capture path's own
+             `overlay_rows_primary` / `overlay_comparison` derivation is what places it"
         );
-
-        // ARM 3 — `detail_focus` moves NOTHING. It used to widen and re-ink the
-        // panel rim; with the dressing gone the document layer must not read it
-        // at all, and the two frames are byte-identical.
-        let mut opts_f = fixture_opts();
-        opts_f.preview_text = Some(transcript.clone());
-        opts_f.overlay = Some(history_overlay(true));
-        let png_f = dir.join(format!("{world}_focus.png"));
-        capture_with(&png_f, &Buffer::from_str(new), &opts_f).expect("focused preview capture");
-        let img_f = image::open(&png_f).expect("decode focused PNG").to_rgba8();
-        let focus_diff = img
-            .pixels()
-            .zip(img_f.pixels())
-            .filter(|(a, b)| a != b)
-            .count();
-        assert_eq!(
-            focus_diff, 0,
-            "{world}: Tab-into-the-content moved {focus_diff} pixels. It must not move a \
-             pixel of the document layer — the focus cue it used to strengthen was the \
-             diff panel's rim, and the rim is gone. A difference here means something in \
-             the document layer grew a `detail_focus` read."
+        // AND NOWHERE NEAR THE FRAME. The workspace's inset is at least
+        // `WORKSPACE_MARGIN_MIN`; nothing of the relocated document may reach it,
+        // or a glyph has escaped onto the frame the backdrop frosts.
+        const FRAME: u32 = 14;
+        assert!(
+            x0 >= FRAME && x1 < w - FRAME && y0 >= FRAME && y1 < h - FRAME,
+            "{world}: transcript ink spans x {x0}..{x1}, y {y0}..{y1} on a {w}x{h} canvas \
+             and reaches the frame around the workspace. The content is submitted AFTER \
+             the card, so anything that escapes the region lands on the card's face or \
+             in the frame"
         );
     }
 
