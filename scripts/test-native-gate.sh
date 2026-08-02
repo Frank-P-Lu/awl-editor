@@ -12,7 +12,40 @@ set -euo pipefail
 convention="${AWL_CONVENTION_FORCE:-canary}"
 printf 'start %s\n' "$convention" >>"$AWL_NATIVE_GATE_PROBE_LOG"
 printf 'threads %s %s\n' "$convention" "${RUST_TEST_THREADS:-unset}" >>"$AWL_NATIVE_GATE_PROBE_LOG"
-if [[ "$convention" != canary ]]; then
+# Cargo and libtest emit these lines with SGR colour on a GitHub runner (the
+# 2026-08-02 mac log is full of them), so the fixture emits them coloured too:
+# a phase matcher anchored to a bare "Finished" would pass here and see nothing
+# in CI. The deliberately hostile test NAME carries the words a phase marker
+# keys on — a per-test line must never be able to forge one.
+if [[ -n "${AWL_NATIVE_GATE_PROBE_CARGO_OUTPUT:-}" ]]; then
+  printf '\033[1m\033[92m   Compiling\033[0m awl v0.1.0\n'
+  printf '\033[1m\033[92m    Finished\033[0m `test` profile [optimized + debuginfo] target(s) in 1m 22s\n'
+  printf '\033[1m\033[92m     Running\033[0m unittests src/main.rs (target/debug/deps/awl-a623f1caab4)\n'
+  printf '\nrunning 3484 tests\n'
+  printf 'test render::Running_tests::a_name_with_(parens) ... ok\n'
+  printf 'test render::a_name_with_Finished_and_target(s) in_it ... ok\n'
+  printf 'test result: ok. 3484 passed; 0 failed; 0 ignored; 0 measured\n'
+  printf '\033[1m\033[92m     Running\033[0m tests/harness.rs (target/debug/deps/harness-0f0f0f0f)\n'
+  printf 'running 2 tests\n'
+  printf 'test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured\n'
+fi
+# libtest prints "test NAME ... " BEFORE running the test and its result after,
+# so a test that never returns leaves an UNTERMINATED line naming itself. That
+# fragment is the single most valuable line in a hung run's log, and it is only
+# ever flushed when the pipe closes.
+if [[ -n "${AWL_NATIVE_GATE_PROBE_HANG_LINE:-}" ]]; then
+  printf 'test the_test_that_never_returned ... '
+fi
+# A grandchild that a bare `kill $cargo_pid` cannot reach. On a real runner this
+# is the test binary itself, and it is what the 2026-08-02 job cleanup had to
+# reap by hand after the gate had already exited.
+if [[ -n "${AWL_NATIVE_GATE_PROBE_ORPHAN_FILE:-}" ]]; then
+  ( trap '' TERM; sleep 600 ) &
+  printf '%s\n' "$!" >>"$AWL_NATIVE_GATE_PROBE_ORPHAN_FILE"
+fi
+if [[ "$convention" == canary ]]; then
+  sleep "${AWL_NATIVE_GATE_PROBE_CANARY_SLEEP:-0}"
+else
   sleep "${AWL_NATIVE_GATE_PROBE_SLEEP:-0.2}"
 fi
 printf 'finish %s\n' "$convention" >>"$AWL_NATIVE_GATE_PROBE_LOG"
@@ -128,6 +161,207 @@ if grep -Fq 'native-gate-receipt' "$WORK/output-budget"; then
 fi
 
 echo "test-native-gate: an exhausted budget ends the run in band, by name, with no receipt"
+
+# A general probe runner for the phase/budget laws below. Every one of them
+# asserts against the gate's real output, on this host, with a fixture that
+# emits the exact line shapes the 2026-08-02 mac runner emitted.
+probe() {
+  local label="$1" probe_started
+  shift
+  : >"$WORK/events"
+  probe_started="$(date +%s)"
+  set +e
+  env -u RUST_TEST_THREADS -u AWL_NATIVE_GATE_BUDGET_SECONDS -u AWL_NATIVE_GATE_DEADLINE_EPOCH \
+    PATH="$WORK:$PATH" \
+    AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
+    AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+    AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
+    AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-$label" \
+    "$@" \
+    "$ROOT/scripts/native-gate.sh" >"$WORK/output-$label" 2>&1
+  probe_status=$?
+  set -e
+  probe_elapsed=$(( $(date +%s) - probe_started ))
+  probe_output="$WORK/output-$label"
+}
+
+require() {
+  grep -Fq "$2" "$probe_output" || {
+    echo "test-native-gate: $1 — missing from the gate's output: $2" >&2
+    exit 1
+  }
+}
+
+refuse() {
+  if grep -Fq "$2" "$probe_output"; then
+    echo "test-native-gate: $1 — the gate emitted what it must not: $2" >&2
+    exit 1
+  fi
+}
+
+# ── Per-phase timing ─────────────────────────────────────────────────────────
+# The question this exists to answer is whether a 40-minute step is COMPILING
+# test harnesses or RUNNING tests. Cargo already announces both boundaries; the
+# gate must stamp them, per convention, and it must not be possible for a per-
+# test line to forge one — the fixture's test is named
+# `Running_tests::a_name_with_(parens)_and_Finished_target(s) in`, which
+# contains every token the matchers key on.
+probe phases AWL_NATIVE_GATE_PROBE_CARGO_OUTPUT=1
+(( probe_status == 0 )) || { echo "test-native-gate: phase probe failed ($probe_status)" >&2; exit 1; }
+for convention in mac linux; do
+  require "phase timing" "native-gate-phase label=$convention event=compile-finished elapsed_seconds="
+  require "phase timing" "native-gate-phase label=$convention event=first-tests-running elapsed_seconds="
+  require "phase timing" "native-gate-phase label=$convention event=suite-end elapsed_seconds="
+  require "phase timing" "target=awl-a623f1caab4"
+  require "phase timing" "target=harness-0f0f0f0f"
+  require "phase timing" "detail=ok. 3484 passed"
+  # Both conventions write one stdout. Without a label, "which convention got
+  # where" is not recoverable from the log at all — which is what made the one
+  # surviving mac log take line-by-line archaeology to read.
+  require "convention labelling" "$convention| running 3484 tests"
+done
+require "phase timing" "native-gate-phase label=canary event=begin"
+require "phase timing" "native-gate-phase label=canary event=end elapsed_seconds="
+# The fixture runs two real targets and prints two hostile test names: one
+# carrying "Running_tests" and "(parens)", one carrying "Finished" and
+# "target(s) in". Counting is the assertion — a marker that exists is not the
+# same as a marker that is right, and an over-count is exactly how a per-test
+# line quietly becomes a phase boundary.
+for convention in mac linux; do
+  for event in target-start:2 compile-finished:1 first-tests-running:1; do
+    seen="$(grep -c "native-gate-phase label=$convention event=${event%%:*} " "$probe_output" || true)"
+    [[ "$seen" == "${event##*:}" ]] || {
+      echo "test-native-gate: $convention stamped $seen ${event%%:*} markers over ${event##*:} real ones — a test NAME forged a phase boundary" >&2
+      exit 1
+    }
+  done
+done
+
+echo "test-native-gate: every phase boundary is stamped per convention, and a test name cannot forge one"
+
+# ── The line a hang leaves behind ────────────────────────────────────────────
+# The only thing that identified 2026-08-02's hang was libtest's unterminated
+# "test NAME ... " fragment, and it survived by luck: an interleaved heartbeat
+# write happened to flush it. The gate must produce it on purpose.
+probe hang-line AWL_NATIVE_GATE_BUDGET_SECONDS=2 AWL_NATIVE_GATE_PROBE_SLEEP=30 \
+  AWL_NATIVE_GATE_PROBE_CARGO_OUTPUT=1 AWL_NATIVE_GATE_PROBE_HANG_LINE=1
+(( probe_status == 1 )) || { echo "test-native-gate: hang-line probe returned $probe_status" >&2; exit 1; }
+for convention in mac linux; do
+  require "hang line" "$convention| test the_test_that_never_returned ... "
+done
+
+echo "test-native-gate: a killed convention still flushes the unterminated line naming the test that hung"
+
+# ── The budget covers the canary ─────────────────────────────────────────────
+# The first draft armed the budget only after the canary had returned, leaving
+# the whole dependency-and-library compile — the slowest phase on a cold hosted
+# runner — with no watchdog at all.
+probe canary-budget AWL_NATIVE_GATE_BUDGET_SECONDS=2 AWL_NATIVE_GATE_PROBE_CANARY_SLEEP=30
+(( probe_status == 1 )) || {
+  echo "test-native-gate: a canary that outran the budget returned $probe_status, expected 1" >&2
+  exit 1
+}
+require "canary budget" "budget expired during the canary phase"
+refuse "canary budget" "native-gate-receipt"
+grep -Fq 'finish canary' "$WORK/events" && {
+  echo "test-native-gate: the budget did not actually end the canary — it ran to completion" >&2
+  exit 1
+}
+# The fixture hangs for 30 s. A gate whose watchdog does not reach this phase
+# does not fail — it WAITS, which is the whole defect, so the law is stated in
+# wall-clock: a 2 s budget plus its 5 s escalation must land nowhere near 30.
+(( probe_elapsed < 20 )) || {
+  echo "test-native-gate: the gate took ${probe_elapsed}s to end a 2s budget — it waited out the hang instead of ending it" >&2
+  exit 1
+}
+
+echo "test-native-gate: the budget reaches the canary phase, not only the concurrent suites"
+
+# ── The budget ends the whole process GROUP ──────────────────────────────────
+# `kill $cargo_pid` retires `env … cargo test` and nothing below it. On
+# 2026-08-02 run 30732589551 the job's own cleanup had to reap two survivors by
+# hand AFTER this gate exited; a survivor holds the step's stdout, and a GitHub
+# step does not conclude while that pipe is open. The fixture's grandchild
+# IGNORES SIGTERM on purpose, so only a group-directed KILL can retire it — a
+# gate that merely signalled its direct children would leave it running.
+: >"$WORK/orphans"
+probe group-kill AWL_NATIVE_GATE_BUDGET_SECONDS=2 AWL_NATIVE_GATE_PROBE_SLEEP=30 \
+  AWL_NATIVE_GATE_PROBE_ORPHAN_FILE="$WORK/orphans"
+(( probe_status == 1 )) || {
+  echo "test-native-gate: the group-kill probe returned $probe_status, expected 1" >&2
+  exit 1
+}
+[[ -s "$WORK/orphans" ]] || {
+  echo "test-native-gate: the fixture spawned no grandchild, so this law proved nothing" >&2
+  exit 1
+}
+survivors=""
+while read -r orphan; do
+  [[ -n "$orphan" ]] || continue
+  if kill -0 "$orphan" 2>/dev/null; then
+    survivors="$survivors $orphan"
+    kill -KILL "$orphan" 2>/dev/null || true
+  fi
+done <"$WORK/orphans"
+[[ -z "$survivors" ]] || {
+  echo "test-native-gate: the budget left grandchildren alive ($survivors) — they hold the CI step's stdout open" >&2
+  exit 1
+}
+require "group kill" "native-gate-budget-proc"
+
+echo "test-native-gate: an exhausted budget retires every descendant, not just the process it launched"
+
+# ── The budget is anchored to the caller's clock, not only to the gate's ─────
+# The runner's death clock starts at job step 1; this script's starts whenever
+# the earlier steps happen to have finished. On 2026-08-02 the same 2400 s
+# duration meant job-minute 41 on a cold cache and job-minute 42 on a hot one —
+# and the runner was lost at 53. An absolute deadline pins the end of the gate
+# to the clock that is actually killing it.
+now="$(date +%s)"
+probe deadline-only AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( now + 2 )) AWL_NATIVE_GATE_PROBE_SLEEP=30
+(( probe_status == 1 )) || {
+  echo "test-native-gate: an absolute deadline alone did not end the gate (status $probe_status)" >&2
+  exit 1
+}
+require "deadline" "budget_source=deadline"
+refuse "deadline" "native-gate-receipt"
+
+now="$(date +%s)"
+probe deadline-wins AWL_NATIVE_GATE_BUDGET_SECONDS=3600 \
+  AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( now + 2 )) AWL_NATIVE_GATE_PROBE_SLEEP=30
+(( probe_status == 1 )) || {
+  echo "test-native-gate: a near deadline lost to a distant duration (status $probe_status)" >&2
+  exit 1
+}
+require "deadline" "budget_source=deadline"
+
+probe duration-wins AWL_NATIVE_GATE_BUDGET_SECONDS=2 \
+  AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( now + 3600 )) AWL_NATIVE_GATE_PROBE_SLEEP=30
+(( probe_status == 1 )) || {
+  echo "test-native-gate: a near duration lost to a distant deadline (status $probe_status)" >&2
+  exit 1
+}
+require "deadline" "budget_seconds=2 budget_source=duration"
+
+echo "test-native-gate: the budget takes whichever of its duration and its absolute deadline comes first"
+
+# ── The heartbeat and the abort both name where each convention got to ───────
+# Reconstructing the one surviving mac log meant reading 6500 interleaved lines
+# to find the test that never returned. The gate must say it outright, while it
+# is still running and again when it gives up.
+probe last-progress AWL_NATIVE_GATE_VITALS_SECONDS=1 AWL_NATIVE_GATE_PROBE_SLEEP=4 \
+  AWL_NATIVE_GATE_PROBE_CARGO_OUTPUT=1
+(( probe_status == 0 )) || { echo "test-native-gate: last-progress probe failed ($probe_status)" >&2; exit 1; }
+require "heartbeat progress" "mac_last=[test result: ok. 2 passed"
+require "heartbeat progress" "linux_last=[test result: ok. 2 passed"
+
+probe abort-progress AWL_NATIVE_GATE_BUDGET_SECONDS=2 AWL_NATIVE_GATE_PROBE_SLEEP=30 \
+  AWL_NATIVE_GATE_PROBE_CARGO_OUTPUT=1
+(( probe_status == 1 )) || { echo "test-native-gate: abort-progress probe returned $probe_status" >&2; exit 1; }
+require "abort progress" "native-gate-budget-last label=mac line=[test result: ok. 2 passed"
+require "abort progress" "native-gate-budget-last label=linux line=[test result: ok. 2 passed"
+
+echo "test-native-gate: the heartbeat and the abort both name the last line each convention reached"
 
 # The heartbeat is the only thing that will describe the machine while a slow
 # gate is still alive, so a heartbeat carrying a placeholder is worse than
