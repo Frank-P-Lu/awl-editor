@@ -3,7 +3,10 @@ const EXPECTED: &[(&str, usize)] = &[
     // usable window (spell dictionary / clipboard / render-state init, the
     // daemon socket) — none has a `self.notice` seam to route through this
     // early, and each is a one-time, non-recurring condition.
-    ("app.rs", 4),
+    ("app.rs", 3),
+    // The document owner constructs the shared spell checker before an App
+    // notice seam exists, so dictionary-load failure remains a startup note.
+    ("app/document.rs", 1),
     ("app/gpu_recovery.rs", 1),
     ("app/lifecycle.rs", 1),
     // LIVE PROBE harness protocol/diagnostic lines (fate (c), CLI harness
@@ -48,7 +51,10 @@ const EXPECTED: &[(&str, usize)] = &[
     ("app/files/settings.rs", 2),
     ("app/files/rebind.rs", 2),
     ("app/files/autosave.rs", 2),
-    ("app/files/dictionary.rs", 3),
+    ("app/files/dictionary.rs", 2),
+    // Switching the session's spell checker is owned with that checker; its
+    // rare load failure remains the same best-effort diagnostic class.
+    ("app/document/cache.rs", 1),
     // GPU/render-pipeline errors (`prepare`/`render`) retain a stderr
     // diagnostic while App-owned recovery also paints the calm notice.
     ("app/gpu.rs", 2),
