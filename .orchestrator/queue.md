@@ -416,44 +416,54 @@ run.
   and the focus transfer declines. The comparison's capture-tier probes need
   `--screenshot-app` or a seeded store.
 
-## Remaining work — handoff order (2026-08-02, after the evening wave)
+## Remaining work — handoff order (2026-08-03, overnight wave)
 
-1. **116d — dispatch first; it is UNBLOCKED and everything behind it waits.**
-   116a–c are landed and both of its owed decisions are now made: the comparison
-   sits ON the workspace surface, and one Esc always leaves. Do the compositing
-   round FIRST — delete `the_relocated_document_is_geometrically_placed_but_not_yet_composited`
-   and replace it with the containment-and-visibility law its own message asks
-   for — then flip `workspace_shape(History)` to `TimelineOverComparison`, add
-   the footer Back affordance, move the lens to the header, deep-link
-   `Version history…` / `Compare with version…`, and run the split Verify sweep
-   (tier 1 replays `overlay_accept:History`; tier 2 owns the store, git, the
-   pruned ladder, renamed timelines, `KeepVersion` and the restore's disk read).
-   116a's handoff still applies: reuse the ordinary candidate-row hit-test for
-   the timeline rather than extending the rail functions — `geom.rail` is `None`
-   whenever rows are primary. ⚠️ **It writes `render/chrome/overlay_draw.rs`,
-   `overlay_rows.rs` and `chrome/mod.rs`, which item 174's next family also
-   writes — do not run the two concurrently.**
-2. **Then 204.** Unblocked the moment 116d's composited general read-only payload
-   exists. Preserve the one editable buffer; add disk fingerprinting (mtime plus
-   length cannot detect the required same-time/same-size rewrite), the recovery
-   record, three read-only conflict views, gated-action resolution, and align
-   Guide/welcome/site prose.
-3. **174's next family**, whenever it is not racing 116d. `workspace_header_beat`
-   is the named remainder but is its own slice — its consumer is reached ~45× a
-   frame through the four relocated document owners.
-4. **Follow-ups queued by this wave:** item **218** first (the newly live
-   VoiceOver path can stall while typing), then **217** (`--bench-suite`'s
-   plan-count witness vs the diagonal re-plan; not urgent, and must not be fixed
-   by weakening the witness) and **215** (extract word count / language / percent
-   into pure owners so a live-App capture carries card semantics).
-5. **Human/live closures, all needing an unlocked and FOREGROUNDED display:**
-   118's world-loudness confirmation and its `--release` ambient sitting; 211's
-   one unoccluded confirmation that the fixed build presents the glide, plus its
-   unreached sweep arms; and item 207's real VoiceOver / AT-SPI journeys, which
-   no test tier can stand in for. ⚠️ **The machine's idle lock fired seven
-   minutes into the 2026-08-02 sitting and silently invalidated it** — disable
-   the idle lock before the next one, and re-check the lock at BOTH ends of the
-   run, because `live-probe.sh` only checks it in preflight.
+**In flight:** the mac-CI bisect (probes on `ci-probe/mac`), **204**, **216**,
+**217**. That is the four-worker budget; nothing else may start until one
+returns.
+
+**⚠️ COLLISION MAP — items 219–225 are NOT independent and must not be
+dispatched as a batch.** Most of them write the same overlay/chrome files, and
+two are explicitly coupled. Dispatch in these groups, one group at a time:
+
+1. **220 + 221 together, one owner.** 221 says outright that it "reuse[s] the
+   shared hierarchy data from item 220, with Cassowary's expression supplied as
+   theme data rather than a new palette code path" — splitting them buys a
+   handoff bug and nothing else.
+2. **219 and 225 as one owner.** Both are "an unintended surface appears"
+   defects (a blank band above the theme picker in five worlds; a large black
+   rectangle under Cassowary Settings' sub-settings). Both are most likely a
+   shared layout owner rather than world-specific dead space, and 225 forbids
+   masking it by overlaying another rectangle. One owner is likely to find one
+   cause.
+3. **223 alone** (Mangrove palette keybindings — routes labels through the
+   shared palette presentation owner, no local special case).
+4. **222 + 224 together** — both are Mangrove/Magpie diagonal-language work and
+   both touch the diagonal composition items 131a/b own. **Check item 131e's
+   scope before starting:** 131e owns selection composition and the
+   `Choreo::TwoShape` echo-band question, and 222's "anchor the gradient to its
+   intended stationary surface" is adjacent to it.
+
+**Then, in order:** **215** (extract word count / language / percent into pure
+owners so a live-App capture carries card semantics — it touches
+`src/card/content.rs`, which item 207 created, so keep it away from anything
+else in `app/semantic/`); **174's next family**; and **131d/131e**, which are
+behind the 131c decision now recorded in the user-blocked section.
+
+**226 (first GitHub Release) is DISPATCHABLE ONLY AS A DRY RUN.** Its own text
+asks to "exercise the current release workflow as a dry run … diagnose any
+publication, provenance, or archive-layout failure before a tag is considered."
+That much is agent work. **The tag and the release itself require the user's
+explicit word, every time** — see `.orchestrator/README.md` §Gates and
+`CLAUDE.md`. Do not create a tag, do not publish, and do not deploy the site.
+
+**Standing merge-train procedure, learned the hard way 2026-08-02:** run the
+train gate from a DETACHED WORKTREE pinned at the candidate commit
+(`git worktree add --detach ../awl-next-worktrees/train-gate <sha>`). A second
+orchestrator commits board updates to `main` continuously, and
+`native-gate.sh` correctly refuses a receipt if HEAD moves under it — two full
+native runs were thrown away this way in one evening before the pinned worktree
+fixed it. The pinned tree's HEAD cannot be moved by anything on `main`.
 
 Items 131, 172, 207 and 213 are complete; 174 has two families landed and stays
 open. Older historical prose below is retained but the receipts above are
