@@ -47,6 +47,16 @@ pub(in crate::app) struct DocumentSession {
     spell: Option<crate::spell::SpellChecker>,
 }
 
+/// The document-owned result of polling its autosave timer. A due result has
+/// already consumed the arm, so the scheduler cannot fire the same deadline
+/// twice or mutate a buffer-scoped cache directly.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::app) enum AutosavePoll {
+    Idle,
+    WaitingUntil(Instant),
+    Due,
+}
+
 impl DocumentSession {
     pub(in crate::app) fn new(
         buffer: Buffer,
@@ -77,6 +87,22 @@ impl DocumentSession {
             registry: Default::default(),
             previous: None,
             spell,
+        }
+    }
+
+    pub(in crate::app) fn poll_autosave(
+        &mut self,
+        now: Instant,
+        idle: std::time::Duration,
+    ) -> AutosavePoll {
+        let Some(dirty) = self.active.extra.doc_autosave_at else {
+            return AutosavePoll::Idle;
+        };
+        if now.saturating_duration_since(dirty) >= idle {
+            self.active.extra.doc_autosave_at = None;
+            AutosavePoll::Due
+        } else {
+            AutosavePoll::WaitingUntil(dirty + idle)
         }
     }
 

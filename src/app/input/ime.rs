@@ -25,8 +25,6 @@ impl App {
     pub(in crate::app) fn on_ime(&mut self, ime: Ime) {
         self.handle_ime(ime);
         self.sync_view(true);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 }

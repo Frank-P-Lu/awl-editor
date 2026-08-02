@@ -393,6 +393,58 @@ fn count_substr_in_dir(dir: &std::path::Path, needle: &str, total: &mut usize) {
     }
 }
 
+/// The raw winit redraw verb has exactly one source-level owner. Callers use
+/// `App::request_frame`; window-assembly paths use that module's narrow
+/// window-taking helper. Any restored direct call fails this law by name.
+#[test]
+fn redraw_requests_have_zero_bypasses_around_the_one_request_door() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let needle = [".", "request_", "redraw", "()"].concat();
+    let mut hits: std::collections::BTreeMap<String, usize> = Default::default();
+    scan_dir_collapsed(&root, &root, &needle, &mut hits);
+    assert_eq!(
+        hits,
+        std::collections::BTreeMap::from([("app/redraw.rs".to_string(), 1)]),
+        "redraw request bypassed the one app/redraw.rs door: {hits:?}"
+    );
+}
+
+/// The frame poll consumes value snapshots/outcomes from runtime owners. These
+/// retired reader names are the loose reach-throughs this seam replaced.
+#[test]
+fn scheduling_reads_runtime_owners_through_typed_poll_boundaries() {
+    let schedule = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/app/schedule.rs"),
+    )
+    .expect("read scheduler source");
+    for retired in [
+        "prefix_schedule()",
+        "peek_armed_at()",
+        "doc_autosave_at()",
+        "disarm_doc_autosave()",
+    ] {
+        assert!(
+            !schedule.contains(retired),
+            "scheduler reached through a runtime owner via retired `{retired}`"
+        );
+    }
+    assert!(
+        !schedule.contains("self.config.ambient_motion_on()"),
+        "scheduler must consume ConfigurationRuntime's scheduling snapshot"
+    );
+    let collapsed: String = schedule.chars().filter(|c| !c.is_whitespace()).collect();
+    for required in [
+        "self.input.scheduling_snapshot()",
+        ".poll_autosave(self.clock.now(),AUTOSAVE_IDLE)",
+        "self.config.scheduling_snapshot()",
+    ] {
+        assert!(
+            collapsed.contains(required),
+            "scheduler lost typed runtime boundary `{required}`"
+        );
+    }
+}
+
 // ── ITEM 76: the two-desk project-flip command + the old quick-notes-home
 // config key are COMPLETELY retired — a grep-forced law, same source-scan
 // shape as the guard above. NOTE ON THE NEEDLES: built from concatenated

@@ -55,9 +55,7 @@ impl App {
         if id == "awl.open" {
             if let Some(path) = crate::mac_chrome::pick_file_to_open() {
                 self.load_path(path);
-                if let Some(gpu) = self.gpu.as_ref() {
-                    gpu.window.request_redraw();
-                }
+                self.request_frame();
             }
             return;
         }

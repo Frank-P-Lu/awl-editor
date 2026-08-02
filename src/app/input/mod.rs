@@ -31,6 +31,16 @@ pub(in crate::app) struct InputRuntime {
     pointer: PointerInput,
 }
 
+/// The timer facts the frame scheduler may observe from live input state.
+/// Copying them at the poll boundary prevents the scheduler from reaching
+/// through `InputRuntime` while it is also driving input-owned transitions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::app) struct SchedulingSnapshot {
+    pub(in crate::app) prefix_pending_at: Option<crate::clock::Instant>,
+    pub(in crate::app) whichkey_shown: bool,
+    pub(in crate::app) peek_armed_at: Option<crate::clock::Instant>,
+}
+
 /// Key resolution and the transient keyboard surfaces coupled to it.
 struct KeyboardInput {
     keymap: crate::keymap::KeymapState,
@@ -143,11 +153,12 @@ impl InputRuntime {
         &self.keyboard.preedit
     }
 
-    pub(in crate::app) fn prefix_schedule(&self) -> (Option<crate::clock::Instant>, bool) {
-        (
-            self.keyboard.prefix_pending_at,
-            self.keyboard.whichkey_shown,
-        )
+    pub(in crate::app) fn scheduling_snapshot(&self) -> SchedulingSnapshot {
+        SchedulingSnapshot {
+            prefix_pending_at: self.keyboard.prefix_pending_at,
+            whichkey_shown: self.keyboard.whichkey_shown,
+            peek_armed_at: self.keyboard.peek_armed_at,
+        }
     }
 
     #[cfg(any(not(target_arch = "wasm32"), test))]
@@ -158,10 +169,6 @@ impl InputRuntime {
     #[cfg(any(not(target_arch = "wasm32"), test))]
     pub(in crate::app) fn whichkey_shown(&self) -> bool {
         self.keyboard.whichkey_shown
-    }
-
-    pub(in crate::app) fn peek_armed_at(&self) -> Option<crate::clock::Instant> {
-        self.keyboard.peek_armed_at
     }
 
     pub(in crate::app) fn selecting_drag(&self) -> bool {

@@ -52,9 +52,7 @@ impl App {
         // match that convention here too (currently masked live by the
         // keyboard/mouse input handlers' own unconditional post-apply
         // redraw, but this door should not silently depend on that).
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// REBIND MENU commit: persist a captured `binding` to the command `slug`'s

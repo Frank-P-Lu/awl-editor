@@ -150,10 +150,6 @@ impl DocumentSession {
         self.active.extra.scratch_mtime = None;
     }
 
-    pub(in crate::app) fn doc_autosave_at(&self) -> Option<Instant> {
-        self.active.extra.doc_autosave_at
-    }
-
     pub(in crate::app) fn arm_doc_autosave(&mut self, at: Instant) {
         self.active.extra.doc_autosave_at = Some(at);
     }

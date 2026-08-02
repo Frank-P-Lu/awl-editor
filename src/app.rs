@@ -400,6 +400,9 @@ mod persistence;
 #[cfg(any(test, not(target_arch = "wasm32")))]
 mod press;
 mod probe;
+/// The one redraw-request door. GPU ownership stays on `App`; callers ask for
+/// a frame without reaching through that owner to winit's window verb.
+mod redraw;
 mod session;
 mod stats;
 mod streaks;
@@ -1131,9 +1134,7 @@ impl App {
             }
         }
         self.sync_view(true);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
         // LIVE PROBE ready signal: the window + GPU exist, so the driver thread
         // may start feeding scripted input. FIRST make the window unoccludable:
         // the wgpu macOS occlusion gate returns `SurfaceError::Occluded` before
@@ -1257,9 +1258,7 @@ impl App {
         // loop must keep waking so those `observe_*` calls land and
         // `soak.finished` can flip on schedule completion. `finished` is false
         // here (the finished branch returned above).
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
         if self.last_frame.is_none() {
             event_loop.set_control_flow(control_flow_with_deadline(
                 event_loop.control_flow(),

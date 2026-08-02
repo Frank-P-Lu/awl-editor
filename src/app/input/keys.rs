@@ -30,9 +30,7 @@ impl App {
         self.input.keyboard.hud_key = None;
         self.input.keyboard.hud_mods = ModifiersState::empty();
         self.sync_view(false);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// Feed ONE stimulus to the HOLD-⌘ SHORTCUT PEEK machine and apply its side
@@ -58,9 +56,7 @@ impl App {
                 self.input.keyboard.peek_armed_at = None;
                 crate::peek::set_open(true);
                 self.sync_view(false);
-                if let Some(gpu) = self.gpu.as_ref() {
-                    gpu.window.request_redraw();
-                }
+                self.request_frame();
             }
             // Any cancellation (broken hold / joined key / click / blur): disarm + close.
             // Only re-sync/redraw when the card was actually up, so a pending-cancel
@@ -71,9 +67,7 @@ impl App {
                 crate::peek::set_open(false);
                 if was_open {
                     self.sync_view(false);
-                    if let Some(gpu) = self.gpu.as_ref() {
-                        gpu.window.request_redraw();
-                    }
+                    self.request_frame();
                 }
             }
         }
@@ -104,7 +98,7 @@ impl App {
             .collect();
         if let Some(gpu) = self.gpu.as_mut() {
             gpu.pipeline.set_whichkey(Some(rows));
-            gpu.window.request_redraw();
+            self.request_frame();
         }
     }
 
@@ -118,7 +112,7 @@ impl App {
         if let Some(gpu) = self.gpu.as_mut() {
             gpu.pipeline.set_whichkey(None);
             if was_shown {
-                gpu.window.request_redraw();
+                self.request_frame();
             }
         }
     }
@@ -216,7 +210,7 @@ impl App {
         let zoom = self.zoom;
         if let Some(gpu) = self.gpu.as_mut() {
             gpu.pipeline.set_zoom_readout(Some((px, py, zoom)));
-            gpu.window.request_redraw();
+            self.request_frame();
         }
     }
 
@@ -412,9 +406,7 @@ impl App {
             let mods = self.input.keyboard.mods;
             self.handle_search_key(&raw, &mods, exit);
             self.sync_view(true);
-            if let Some(gpu) = self.gpu.as_ref() {
-                gpu.window.request_redraw();
-            }
+            self.request_frame();
             return;
         }
         // REBIND MENU live CAPTURE: while the menu is RECORDING, the next press
@@ -447,9 +439,7 @@ impl App {
                     self.rebind_commit(slug, binding, false);
                 }
                 self.sync_view(true);
-                if let Some(gpu) = self.gpu.as_ref() {
-                    gpu.window.request_redraw();
-                }
+                self.request_frame();
                 return;
             }
         }

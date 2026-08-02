@@ -49,6 +49,19 @@ pub(in crate::app) struct ConfigurationRuntime {
     cli_workspace: Option<PathBuf>,
 }
 
+/// Configuration facts consumed by the frame scheduler, detached from the
+/// mutable persisted configuration owner for the duration of one poll.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::app) struct SchedulingSnapshot {
+    ambient_motion_on: bool,
+}
+
+impl SchedulingSnapshot {
+    pub(in crate::app) fn ambient_motion_on(self) -> bool {
+        self.ambient_motion_on
+    }
+}
+
 impl ConfigurationRuntime {
     pub(in crate::app) fn new(
         config: Config,
@@ -70,6 +83,12 @@ impl ConfigurationRuntime {
 
     pub(in crate::app) fn location_policy(&self) -> LocationPolicy {
         LocationPolicy::from_sources(&self.cli_workspace, &self.config)
+    }
+
+    pub(in crate::app) fn scheduling_snapshot(&self) -> SchedulingSnapshot {
+        SchedulingSnapshot {
+            ambient_motion_on: self.config.ambient_motion_on(),
+        }
     }
 
     pub(in crate::app) fn apply_loaded(&mut self, config: Config) -> ReloadOutcome {

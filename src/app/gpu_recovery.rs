@@ -41,7 +41,7 @@ impl App {
                         .await
                         .map_err(|error| error.to_string()),
                 );
-                wake.request_redraw();
+                super::redraw::request_window(&wake);
             });
         }
     }

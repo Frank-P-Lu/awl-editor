@@ -237,9 +237,7 @@ impl App {
         self.sync_page_measure();
         self.update_title();
         self.sync_view(true);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// i18n WRITE-BACK-ONCE: on a fresh (first-time-this-session) open of an
@@ -293,9 +291,7 @@ impl App {
         self.document.reveal_placement();
         self.document.set_shift_selecting(false);
         self.sync_view(true);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// Re-scan `self.root`'s file index through the `FileSystem` trait (git
@@ -369,9 +365,7 @@ impl App {
         self.project_location.root = new_root;
         self.resync_project_location(self.config.location_policy());
         self.sync_view(false);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
         true
     }
 

@@ -172,9 +172,7 @@ impl App {
                 "deferred_reshape applied (bracketed present to follow)"
             ));
         }
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     // MIRROR-ON-COPY/KILL. Call AFTER a buffer mutation that may have changed
@@ -949,9 +947,7 @@ impl App {
                 self.mark_zoom_dirty();
             }
             actions::RenderEffect::Redraw => {
-                if let Some(gpu) = self.gpu.as_ref() {
-                    gpu.window.request_redraw();
-                }
+                self.request_frame();
             }
             actions::RenderEffect::EditStreak => self.caret_edit_streaks = true,
         }

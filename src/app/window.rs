@@ -29,9 +29,7 @@ impl App {
             GpuFaultAction::RetryOneFrame => {
                 self.gpu_lifecycle = GpuLifecycle::Active { oom_skips: 1 };
                 self.set_sticky_notice("graphics memory pressure — skipped one frame");
-                if let Some(gpu) = self.gpu.as_ref() {
-                    gpu.window.request_redraw();
-                }
+                self.request_frame();
             }
             GpuFaultAction::NoticeOnly => {
                 self.set_sticky_notice("graphics rejected one frame — editing is safe")
@@ -157,9 +155,7 @@ impl App {
         }
         self.focused = true;
         self.lava_tick_at = None;
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// `WindowEvent::Occluded`: the window's compositor visibility changed.
@@ -178,10 +174,8 @@ impl App {
         if crate::probe::recording() {
             crate::probe::trace(format_args!("occluded={occluded}"));
         }
-        if occluded_change_wants_redraw(occluded)
-            && let Some(gpu) = self.gpu.as_ref()
-        {
-            gpu.window.request_redraw();
+        if occluded_change_wants_redraw(occluded) {
+            self.request_frame();
         }
     }
 
@@ -281,8 +275,8 @@ impl App {
                     .is_ok_and(|(_, presented)| presented);
             }
         }
-        if request_redraw && let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
+        if request_redraw {
+            self.request_frame();
         }
     }
 
@@ -380,9 +374,7 @@ impl App {
                 .settle_lava_field_viewport(gpu.config.width, gpu.config.height);
         }
         self.sync_present_txn();
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// The MOVE stream's settle (the `MOVE_SETTLE` debounce elapsed with no
@@ -403,9 +395,7 @@ impl App {
         self.move_settle_at = None;
         self.lava_tick_at = None;
         self.sync_present_txn();
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// The PREVIEW SETTLE (the `CROSSING_SYNC_SETTLE` debounce elapsed with no
@@ -434,9 +424,7 @@ impl App {
         self.crossing_settle_at = None;
         self.crossing_teardown_pending = true;
         self.sync_present_txn(); // no-op transition: was ON via the debounce, stays ON via the hold.
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// PHASE 2 of the event-ordered bracket teardown, fired from the post-present
@@ -456,9 +444,7 @@ impl App {
         }
         self.crossing_teardown_pending = false;
         self.sync_present_txn();
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     pub(super) fn on_scale_factor_changed(&mut self, scale_factor: f64) {
@@ -468,9 +454,7 @@ impl App {
             gpu.pipeline.set_dpi(sf);
         }
         self.sync_view(true);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// `WindowEvent::RedrawRequested`: advance the caret spring by the real
@@ -642,7 +626,7 @@ impl App {
             if let Some(gpu) = self.gpu.as_mut() {
                 gpu.pipeline
                     .set_debug_theme_settle(self.theme_switches.report(settled_at));
-                gpu.window.request_redraw();
+                self.request_frame();
             }
         }
 
@@ -664,9 +648,7 @@ impl App {
         self.last_frame = if keep_hot { Some(now) } else { None };
         if keep_hot {
             event_loop.set_control_flow(ControlFlow::Poll);
-            if let Some(gpu) = self.gpu.as_ref() {
-                gpu.window.request_redraw();
-            }
+            self.request_frame();
         } else {
             event_loop.set_control_flow(ControlFlow::Wait);
         }
@@ -679,8 +661,8 @@ impl App {
         if crate::debug::debug_on() {
             let (next, request_stamp) = crate::debug::still_settle(self.debug_still, animating);
             self.debug_still = next;
-            if request_stamp && let Some(gpu) = self.gpu.as_ref() {
-                gpu.window.request_redraw();
+            if request_stamp {
+                self.request_frame();
             }
         }
     }

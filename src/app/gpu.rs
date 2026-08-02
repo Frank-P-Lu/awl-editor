@@ -77,7 +77,7 @@ impl GpuFaultInbox {
         };
         *slot = Some(fault.message);
         drop(slots);
-        self.window.request_redraw();
+        super::redraw::request_window(&self.window);
     }
     fn drain(&self) -> Vec<GpuFault> {
         let mut s = self.slots.lock().unwrap_or_else(|e| e.into_inner());
@@ -342,7 +342,7 @@ impl Gpu {
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn inject_surface_loss(&mut self) {
         self.inject_surface_loss = true;
-        self.window.request_redraw();
+        super::redraw::request_window(&self.window);
     }
 
     fn recover_surface(&mut self) -> Result<(), GpuFault> {

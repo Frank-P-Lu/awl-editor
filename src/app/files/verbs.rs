@@ -189,9 +189,7 @@ impl App {
                 )));
             }
         }
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// THE CONSCIOUS MARK ("Keep version…"): record the CURRENT buffer state as a
@@ -308,9 +306,7 @@ impl App {
         self.update_title();
         self.rescan_file_index();
         self.set_toast_notice("moved");
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// NOTES VERBS round: RENAME the current file to `new_name` (a bare filename,
@@ -366,9 +362,7 @@ impl App {
         self.update_title();
         self.rescan_file_index();
         self.set_toast_notice(format!("renamed to {trimmed}"));
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// NOTES VERBS round: DUPLICATE the current file — copy the CURRENT buffer
@@ -413,8 +407,6 @@ impl App {
                 self.set_sticky_notice(format!("duplicate failed: {e}"));
             }
         }
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 }

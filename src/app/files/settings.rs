@@ -114,9 +114,7 @@ impl App {
             "typewriter_scroll" => self.sync_view(true),
             _ => {}
         }
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
         self.refresh_settings_overlay();
     }
 
@@ -136,9 +134,7 @@ impl App {
         crate::dateformat::set_active_format(next);
         self.persist_pref("date_format", &format!("\"{}\"", next.config_name()));
         self.refresh_settings_overlay();
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// "Insert Date" (`Effect::InsertDate`): insert TODAY'S date at the caret,
@@ -316,7 +312,7 @@ impl App {
         self.persist_zoom_now();
         if let Some(gpu) = self.gpu.as_mut() {
             gpu.pipeline.set_zoom_readout(None);
-            gpu.window.request_redraw();
+            self.request_frame();
         }
     }
 

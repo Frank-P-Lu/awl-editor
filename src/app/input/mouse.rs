@@ -274,9 +274,7 @@ impl App {
             self.retint_theme_preview(prev);
         }
         self.sync_view(false);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     pub(in crate::app) fn overlay_wheel(&mut self, lines: f32) {
@@ -316,9 +314,7 @@ impl App {
             self.retint_theme_preview(prev);
         }
         self.sync_view(false);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// A LEFT-CLICK while a picker is open, resolved against the overlay card:
@@ -375,9 +371,7 @@ impl App {
             }
             self.workspace_state.focus_workspace_detail();
             self.sync_view(true);
-            if let Some(gpu) = self.gpu.as_ref() {
-                gpu.window.request_redraw();
-            }
+            self.request_frame();
             return;
         }
 
@@ -394,17 +388,13 @@ impl App {
             }
             self.retint_theme_preview(prev);
             self.sync_view(false);
-            if let Some(gpu) = self.gpu.as_ref() {
-                gpu.window.request_redraw();
-            }
+            self.request_frame();
             return;
         }
 
         if self.begin_range_drag() {
             self.sync_view(true);
-            if let Some(gpu) = self.gpu.as_ref() {
-                gpu.window.request_redraw();
-            }
+            self.request_frame();
             return;
         }
 
@@ -429,9 +419,7 @@ impl App {
                 .unwrap_or(false);
             if is_range {
                 self.sync_view(true);
-                if let Some(gpu) = self.gpu.as_ref() {
-                    gpu.window.request_redraw();
-                }
+                self.request_frame();
                 return;
             }
             self.apply(Action::Newline, false, exit, crate::stats::Door::Chord);
@@ -445,9 +433,7 @@ impl App {
             self.apply(Action::Cancel, false, exit, crate::stats::Door::Chord);
         }
         self.sync_view(true);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// A LEFT-CLICK inside the summoned find/replace panel: CLICK-TO-SWITCH-FIELD
@@ -491,9 +477,7 @@ impl App {
             None => return false,
         }
         self.sync_view(true);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
         true
     }
 
@@ -768,9 +752,7 @@ impl App {
             if self.input.pointer.arm_text_drag_if_moved() {
                 self.on_drag();
                 self.sync_view(true);
-                if let Some(gpu) = self.gpu.as_ref() {
-                    gpu.window.request_redraw();
-                }
+                self.request_frame();
             }
         }
         self.update_fold_hover();
@@ -801,7 +783,7 @@ impl App {
             None
         };
         if gpu.pipeline.set_hover_line(line) {
-            gpu.window.request_redraw();
+            self.request_frame();
         }
     }
 
@@ -828,9 +810,7 @@ impl App {
             && crate::card::dismiss_summoned_card()
         {
             self.sync_view(true);
-            if let Some(gpu) = self.gpu.as_ref() {
-                gpu.window.request_redraw();
-            }
+            self.request_frame();
             return;
         }
         if button == MouseButton::Right {
@@ -847,9 +827,7 @@ impl App {
             ElementState::Pressed => {
                 if self.menubar_press(exit) {
                     self.sync_cursor_icon();
-                    if let Some(gpu) = self.gpu.as_ref() {
-                        gpu.window.request_redraw();
-                    }
+                    self.request_frame();
                     return;
                 }
                 // Cmd-click follows a bare-document link and swallows the press.
@@ -876,9 +854,7 @@ impl App {
                     if let Some(button) = hit {
                         let _ = self.apply(button.action(), false, exit, crate::stats::Door::Chord);
                         self.sync_view(true);
-                        if let Some(gpu) = self.gpu.as_ref() {
-                            gpu.window.request_redraw();
-                        }
+                        self.request_frame();
                         return;
                     }
                     if self
@@ -959,9 +935,7 @@ impl App {
                 self.sync_view(true);
             }
         }
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     pub(in crate::app) fn on_mouse_wheel(&mut self, delta: MouseScrollDelta) {
@@ -985,7 +959,7 @@ impl App {
                 if let Some(gpu) = self.gpu.as_mut()
                     && gpu.pipeline.try_table_pan(px, py, scroll, dx)
                 {
-                    gpu.window.request_redraw();
+                    self.request_frame();
                     return;
                 }
             }
@@ -1055,8 +1029,6 @@ impl App {
             self.wheel_scroll_px(line_wheel_document_px(y, self.zoom, self.dpi));
             self.sync_view(false);
         }
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 }

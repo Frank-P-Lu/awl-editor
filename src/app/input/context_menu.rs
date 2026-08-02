@@ -124,8 +124,6 @@ impl App {
 
     fn finish_context_summon(&mut self) {
         self.sync_view(true);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 }

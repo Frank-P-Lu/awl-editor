@@ -34,9 +34,7 @@ impl App {
             }
             _ => {}
         }
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
         self.refresh_settings_overlay();
     }
 
@@ -58,9 +56,7 @@ impl App {
         }
         self.range_persist(key);
         self.sync_view(true);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
         self.refresh_settings_overlay();
     }
 

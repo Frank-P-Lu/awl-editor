@@ -214,11 +214,11 @@ impl ApplicationHandler<AwlEvent> for App {
                 match Gpu::new(window, display_handle).await {
                     Ok(gpu) => {
                         *slot.borrow_mut() = Some(Ok(gpu));
-                        win.request_redraw();
+                        super::redraw::request_window(&win);
                     }
                     Err(e) => {
                         *slot.borrow_mut() = Some(Err(e.to_string()));
-                        win.request_redraw();
+                        super::redraw::request_window(&win);
                     }
                 }
             });

@@ -115,3 +115,22 @@ fn every_buffer_extra_field_round_trips_a_b_a_b_c_a() {
     assert_eq!(session.open_path(&a, None), OpenPath::Reactivated);
     assert_eq!(session.active.extra, expected, "A -> B -> C -> A");
 }
+
+#[test]
+fn autosave_poll_waits_then_consumes_the_due_arm_once() {
+    let _guard = crate::testlock::serial();
+    let armed = Instant::now();
+    let idle = std::time::Duration::from_secs(1);
+    let mut session = DocumentSession::new(Buffer::scratch(), None, None);
+    session.arm_doc_autosave(armed);
+
+    assert_eq!(
+        session.poll_autosave(armed, idle),
+        AutosavePoll::WaitingUntil(armed + idle)
+    );
+    assert_eq!(session.poll_autosave(armed + idle, idle), AutosavePoll::Due);
+    assert_eq!(
+        session.poll_autosave(armed + idle, idle),
+        AutosavePoll::Idle
+    );
+}

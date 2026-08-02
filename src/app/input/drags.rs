@@ -153,9 +153,7 @@ impl App {
             ov.set_selected_range(step, readout);
         }
         self.sync_view(true);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// ITEM 94 — FINISH a rail scrub on button RELEASE: drop the drag state and
@@ -171,9 +169,7 @@ impl App {
             self.range_persist(key);
         }
         self.refresh_settings_overlay();
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// If a left press landed ON a page-column edge, begin a DIRECT page-width resize
@@ -282,7 +278,7 @@ impl App {
             // whole gesture (press through every move); cleared on release.
             gpu.pipeline
                 .set_page_drag_readout(Some((px, py, crate::page::measure())));
-            gpu.window.request_redraw();
+            self.request_frame();
         }
     }
 
@@ -296,7 +292,7 @@ impl App {
         if let Some(gpu) = self.gpu.as_mut() {
             // Drop the drag readout — gone the instant the edge is released.
             gpu.pipeline.set_page_drag_readout(None);
-            gpu.window.request_redraw();
+            self.request_frame();
         }
         // The context flipped off "dragging the edge" WITHOUT any mouse motion:
         // recompute now (usually resumes the edge-hover or plain-text shape rather
@@ -378,9 +374,7 @@ impl App {
                 .set_image_preview(Some((drag.range.0, drag.range.1, width)));
         }
         self.sync_view(false);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 
     /// Finish an image drag-resize on button RELEASE: clear the drag flag + the
@@ -399,8 +393,6 @@ impl App {
         self.sync_view(false);
         // The context flipped off "dragging an image" WITHOUT any mouse motion.
         self.sync_cursor_icon();
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.request_frame();
     }
 }

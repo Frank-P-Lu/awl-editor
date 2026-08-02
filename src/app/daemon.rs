@@ -32,7 +32,7 @@ impl App {
                     gpu.window.request_user_attention(Some(
                         winit::window::UserAttentionType::Informational,
                     ));
-                    gpu.window.request_redraw();
+                    self.request_frame();
                 }
                 if let Some(w) = waiter {
                     match crate::buffers::BufferKey::of(self.document.buffer()) {
