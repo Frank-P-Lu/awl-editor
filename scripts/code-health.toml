@@ -41,17 +41,17 @@ reason = "item 114: +8 lines net. The workspace's own two-region keyboard and it
 
 [[file_size_mark]]
 file = "src/app.rs"
-lines = 1621
+lines = 1620
 reason = "item 202 repair round, DOWN 36 from the prior 1876 mark: `theme_font_reshape_decision`, its `ThemeFontReshapeDecision` enum, and their four pure laws moved out to the new `src/app/theme_font_debounce.rs` (a pure fn with no `self`, no GPU, no clock of its own — the scheduling seam's own module, not `App`'s; orchestrator review, 2026-08-01). `app.rs` keeps only the `theme_font_last_reshape_at` field, the shared window constant, and the two call sites that execute whichever verdict the extracted fn returns — the same 'extract rather than raise' call already made for `framebench.rs`'s bench-witness helper this same item. Net across the whole item-202 field: +24 lines — the theme-picker movement-latency regression fix. `THEME_FONT_DEBOUNCE_DEFAULT_MS` gained a concise mechanism doc-comment plus a compile-time `const _: () = assert!(..)` regression pin (the old value, 0, let the deferred font reshape fire synchronously on the SAME `about_to_wait` pass that armed it — see the constant's own doc, and docs/fonts.md for the measured numbers this file no longer carries as changelog prose); `theme_font_debounce_ms_env_parse` now asserts against the named constant instead of a bare `0` literal; `RESIZE_SYNC_SETTLE`'s doc dropped its now-inaccurate \"mirrors THEME_FONT_DEBOUNCE's value\" claim (the two diverged at this item). Previously: item 188: +7 lines — the theme-picker movement-latency regression fix. `THEME_FONT_DEBOUNCE_DEFAULT_MS` gained a concise mechanism doc-comment plus a compile-time `const _: () = assert!(..)` regression pin (the old value, 0, let the deferred font reshape fire synchronously on the SAME `about_to_wait` pass that armed it — see the constant's own doc, and docs/fonts.md for the measured numbers this file no longer carries as changelog prose); `theme_font_debounce_ms_env_parse` now asserts against the named constant instead of a bare `0` literal; `RESIZE_SYNC_SETTLE`'s doc dropped its now-inaccurate \"mirrors THEME_FONT_DEBOUNCE's value\" claim (the two diverged at this item). Previously: item 188: +7 lines — the `capture_state` and `press` module declarations at the one module list, each with the `#[cfg]` naming where it exists (`capture_state` is native-only like the `--screenshot-app` mode it serves; `press` is native-or-test). `capture_state.rs` carries the live-`App` capture constructor and the `CaptureSubject` impl (it needs `App`'s private fields); `press.rs` is item 183's headless press door, moved out of `app/tests/` because the `--screenshot-app` mode is now a production caller. Both bodies live in their own files precisely to keep them off this one."
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 1001
+lines = 997
 reason = "The live action owner remains above the natural ceiling; item 172b moved post-action overlay/pointer synchronization into apply/overlay_sync.rs, lowering this mark rather than raising it."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
-lines = 352
+lines = 348
 reason = "item 193: -24 lines — App::setting_toggle's hand-copied read/negate/set match pair is gone, replaced by one call into the new shared owner crate::settings::flip_toggle_global (src/settings/toggle_core.rs), the same core the replay interpreter now also routes through."
 
 [[file_size_mark]]
@@ -60,11 +60,11 @@ lines = 645
 
 [[file_size_mark]]
 file = "src/app/input/keys.rs"
-lines = 516
+lines = 506
 
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
-lines = 1062
+lines = 1034
 reason = "item 114: +23 lines in `overlay_click`, the ONE pointer-dispatch owner — a click in the navigation rail resolves through the picker's own lens setter and the lifecycle's named focus transition, so the pointer and the keyboard reach one state."
 
 [[file_size_mark]]
@@ -82,7 +82,7 @@ reason = "item 114: +1 line — the `overlay_workspace` projection at the one ex
 
 [[file_size_mark]]
 file = "src/app/window.rs"
-lines = 687
+lines = 669
 
 [[file_size_mark]]
 file = "src/background.rs"
@@ -468,8 +468,8 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/input/mouse.rs"
-line = 808
-message = "this function has too many lines (116/100)"
+line = 790
+message = "this function has too many lines (108/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172b made the private pointer and keyboard substate projections explicit; behavior and branch structure are unchanged."
 
 [[clippy_exception]]
@@ -482,22 +482,22 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/window.rs"
-line = 482
-message = "this function has too many lines (131/100)"
+line = 466
+message = "this function has too many lines (129/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 routed the autosave clock through PersistenceRuntime (-1). Item 199 gave the travelling ground its own hot-loop advance and put the gate + advance behind one call in app::ambient, collapsing the redraw tail (-1)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 729
+line = 732
 message = "this function has too many lines (155/100)"
 reason = "Existing constructor owner and exhaustive App construction site. DocumentSession moved the active slot, registry, previous target, spell checker, and buffer extras behind one initializer, reducing the constructor by twenty counted lines."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1159
-message = "this function has too many lines (106/100)"
+line = 1160
+message = "this function has too many lines (104/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. DocumentSession removed root fields and shifted this unchanged function upward."
 
 [[clippy_exception]]
@@ -510,7 +510,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1418
+line = 1417
 message = "this function has too many lines (102/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. DocumentSession removed root fields and shifted this unchanged function upward."
 
