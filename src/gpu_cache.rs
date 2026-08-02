@@ -49,8 +49,13 @@
 
 use std::cell::Cell;
 use std::collections::HashMap;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Mutex, OnceLock};
+// `OnceLock` backs the process-wide table, which only the native arm builds —
+// wasm's `programs()` is an `unreachable!` stub that still names `Mutex` in its
+// signature, so `Mutex` stays unconditional and only this one is gated.
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::OnceLock;
 
 /// The WGSL sources, one variant each. Owning every `include_str!` here is what
 /// makes `create_shader_module` a single-owner call — `gpu_cache_law` greps
@@ -144,7 +149,10 @@ static BUILDS: AtomicU64 = AtomicU64::new(0);
 /// hit depends on: that everything built inside `f` is built on the ONE
 /// process-wide shared test device. Arming this around a closure that touches
 /// any other device would hand that device another's programs.
-#[cfg(test)]
+///
+/// Native-only alongside its one caller: `test_gpu::with_shared_programs` is
+/// `None` on wasm, so a bare `cfg(test)` here is dead code there and warns.
+#[cfg(all(test, not(target_arch = "wasm32")))]
 pub(crate) fn scoped<R>(f: impl FnOnce() -> R) -> R {
     let was = ARMED.with(|a| a.replace(true));
     let out = f();
