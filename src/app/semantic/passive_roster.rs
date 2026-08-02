@@ -1,17 +1,16 @@
 //! THE PASSIVE-SURFACE ROSTER LAW: drawn in the PNG ⇔ present in `semantic`.
 //!
-//! Item 207 gave the summoned cards one content owner but left the semantic
-//! fold unable to DERIVE a card — the render pipeline held three of its figures
-//! — so a `--screenshot-app` capture, which owns no pipeline, wrote a sidecar
-//! whose `semantic` had no node for a card its own PNG plainly drew. The gap was
-//! silent and partial: which-key and the menu bar have no such dependency and
-//! did appear.
+//! A surface that the frame paints and the tree does not name is a surface an
+//! assistive technology cannot know about, and nothing else in the suite would
+//! notice: the tree would still be well-formed, still single-focus, still full
+//! of the surfaces that DO announce. That failure is invisible from either side
+//! alone, so this law holds both sides at once.
 //!
-//! This sweep is the axis that gap lived on. For every passive surface, in one
-//! wildcard-free roster, it drives a real `--screenshot-app`-shaped capture —
-//! the App's own `capture_opts` (PNG + `semantic` from one call, exactly the
-//! production door) — and asserts BOTH directions with pixel arithmetic on one
-//! side and node presence on the other. A sixth card added to
+//! For every passive surface, in one wildcard-free roster, it drives a real
+//! live-`App`-shaped capture — the App's own `capture_opts`, so the PNG and the
+//! `semantic` tree come from one call through the production door — and asserts
+//! the equivalence in both directions, with pixel arithmetic on one side and
+//! node presence on the other. A sixth card added to
 //! [`crate::card::content::CardKind`] and forgotten here fails by name.
 
 use super::*;
@@ -130,7 +129,7 @@ fn announced(opts: &CaptureOpts, id: &str) -> bool {
 /// pixels would let an antialiasing wobble pass for a drawn panel.
 const DRAWN_FLOOR: usize = 500;
 
-/// **The item-215 law.** For every passive surface: summoned ⇒ the PNG changes
+/// For every passive surface: summoned ⇒ the PNG changes
 /// and the tree carries its node; dismissed ⇒ the PNG is byte-identical to the
 /// calm room and the node is gone. Both directions, one roster, no wildcard.
 #[test]

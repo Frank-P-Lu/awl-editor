@@ -26,6 +26,49 @@
 pub mod content;
 pub mod figures;
 
+use crate::hud::{HudSaved, HudStats};
+use crate::peek::PeekRow;
+use crate::streaks::StreaksView;
+
+/// The figures a card can show that ONLY a running App can gather — a lifetime
+/// odometer, a streak year, a save clock, a learned shortcut ledger, an update
+/// marker. They reach a drawn card by being pushed into the render pipeline, so
+/// the honest reading wherever no pipeline has been fed is the all-absent
+/// [`Default`]: every one of them then composes its documented placeholder,
+/// which is exactly what a headless capture draws.
+#[derive(Debug, Clone, Default)]
+pub struct CardLive {
+    /// Lifetime odometer figures; `None` off the live App (every row reads as
+    /// the placeholder).
+    pub stats: Option<HudStats>,
+    /// The streak card's year view, already folded to the placeholder off the
+    /// live App.
+    pub streaks: Option<StreaksView>,
+    /// The SAVED figure; `None` off the live App.
+    pub saved: Option<HudSaved>,
+    /// The peek card's rows; empty means the ledger has taught nothing and the
+    /// starter six show instead.
+    pub peek_rows: Vec<PeekRow>,
+    /// The About card's "last checked" marker; `None` off the live App.
+    pub update_checked: Option<crate::updates::UpdateChecked>,
+    /// A previous run left a crash log the About card should mention.
+    pub pending_crash: bool,
+}
+
+/// The stats HUD DRAWS when its hold is live and no summoned overlay is up: the
+/// two are mutually exclusive, so a still-held Option-Cmd-I never lays its card
+/// over an open picker. One owner for the renderer's draw gate and the semantic
+/// fold's announce gate, so the drawn card and the announced card can never
+/// disagree about whether there is one.
+pub fn hud_shown(overlay_active: bool) -> bool {
+    crate::hud::hud_held() && !overlay_active
+}
+
+/// The hold-⌘ shortcut peek's twin of [`hud_shown`], same rule, same reason.
+pub fn peek_shown(overlay_active: bool) -> bool {
+    crate::peek::peek_open() && !overlay_active
+}
+
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// A summoned-card OPEN flag: the process-global drawn-boolean every card wants,

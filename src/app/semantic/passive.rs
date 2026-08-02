@@ -62,8 +62,8 @@ impl App {
         let (cursor_line, cursor_col) = buffer.cursor_line_col();
         let overlay_active = self.workspace_state.overlay_open();
         crate::card::content::CardInputs {
-            hud_held: crate::card::content::hud_shown(overlay_active),
-            peek_shown: crate::card::content::peek_shown(overlay_active),
+            hud_held: crate::card::hud_shown(overlay_active),
+            peek_shown: crate::card::peek_shown(overlay_active),
             streaks_page: crate::streaks::card_view(),
             doc: crate::card::figures::DocFigures::of(
                 text,

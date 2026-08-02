@@ -47,16 +47,6 @@ impl TextPipeline {
         self.keybindings_tips = tips;
     }
 
-    /// The three DOCUMENT figures for the shaped frame, from their one owner.
-    fn doc_figures(&self) -> crate::card::figures::DocFigures {
-        crate::card::figures::DocFigures::of(
-            &self.doc_text(),
-            self.md_enabled,
-            self.cursor_line,
-            self.cursor_col,
-        )
-    }
-
     pub fn hud_report(&self) -> HudReport {
         let text = self.doc_text();
         HudReport {
@@ -109,43 +99,6 @@ impl TextPipeline {
             open: crate::peek::peek_open(),
             rows: self.peek_effective_rows(),
         }
-    }
-
-    /// The LIVE-only card figures as they were last pushed in. A running `App`
-    /// is their one gatherer and the pipeline is the courier; reading them back
-    /// out is how the semantic fold announces the same figures the frame draws,
-    /// including the all-absent placeholders of a pipeline nobody has fed.
-    pub fn card_live(&self) -> crate::card::content::CardLive {
-        crate::card::content::CardLive {
-            stats: self.hud_stats.clone(),
-            streaks: self.streaks_view.clone(),
-            saved: self.hud_saved,
-            peek_rows: self.peek_rows.clone(),
-            update_checked: self.hud_update_checked,
-            pending_crash: self.hud_pending_crash,
-        }
-    }
-
-    /// Everything a summoned card can say, gathered for
-    /// [`crate::card::content`] — the ONE owner of the content. Composition,
-    /// captions and phrasing live there, not here; the three document figures
-    /// come from [`crate::card::figures`], which the semantic fold reads too.
-    pub fn card_inputs(&self) -> crate::card::content::CardInputs {
-        crate::card::content::CardInputs {
-            hud_held: self.hud_showing(),
-            peek_shown: self.peek_showing(),
-            streaks_page: crate::streaks::card_view(),
-            doc: self.doc_figures(),
-            eol: self.eol,
-            live: self.card_live(),
-        }
-    }
-
-    /// The summoned card this frame, as CONTENT. The semantic tree reads this
-    /// same value, so an assistive technology hears exactly the card that is
-    /// drawn rather than a second description of it.
-    pub fn card_content(&self) -> Option<crate::card::content::CardContent> {
-        crate::card::content::open_card(&self.card_inputs())
     }
 
     pub(in crate::render) fn prepare_hud(

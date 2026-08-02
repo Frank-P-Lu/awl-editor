@@ -279,8 +279,8 @@ lines = 982
 
 [[file_size_mark]]
 file = "src/render/chrome/hud.rs"
-lines = 489
-reason = "item 207, DOWN 50: every summoned card's TEXT moved out to `src/card/content.rs`, the one owner both this renderer and the semantic tree read. This file keeps what is genuinely the renderer's — style, metrics, geometry — and composes no card text of its own; a law in `app/semantic/tests.rs` asserts that."
+lines = 450
+reason = "DOWN 39: the card's INPUT gathering (`doc_text`, `card_live`, `card_inputs`, `card_content`) moved out to `src/render/chrome/card.rs`, beside the earlier move of the card's TEXT to `src/card/content.rs`. This file is now the draw path alone — style, metrics, geometry — and knows neither what a card says nor which figures it shows."
 
 [[file_size_mark]]
 file = "src/render/chrome/menubar.rs"
@@ -288,8 +288,8 @@ lines = 536
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 968
-reason = "The chrome module owns the resolved overlay geometry record and its single sibling re-export for the measured diagonal row span; workspace, rail, and two-sided slant consumers share that seam. The header band's four y-owners (secondary origin, split bounds, strip band, query centre) left for the scene planner. One `mod workspace_column;` declaration: the primary column's measurement extracted so `chrome/workspace.rs` stays under the 500-line ceiling (+1)."
+lines = 969
+reason = "The chrome module owns the resolved overlay geometry record and its single sibling re-export for the measured diagonal row span; workspace, rail, and two-sided slant consumers share that seam. The header band's four y-owners (secondary origin, split bounds, strip band, query centre) left for the scene planner. One `mod workspace_column;` declaration: the primary column's measurement extracted so `chrome/workspace.rs` stays under the 500-line ceiling (+1). One `mod card;` declaration on the same module-list seam: the card's input gathering extracted so `chrome/hud.rs` drops 39 lines and holds only the draw path (+1)."
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
@@ -321,7 +321,8 @@ lines = 630
 
 [[file_size_mark]]
 file = "src/render/chrome/readout.rs"
-lines = 634
+lines = 604
+reason = "DOWN 30: the word-count and reading-time derivation moved out to `src/card/figures.rs`, the pure owner over the document text that the semantic fold reads too; what is left here delegates to it."
 
 [[file_size_mark]]
 file = "src/render/chrome/theme_picker.rs"
@@ -655,14 +656,14 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/hud.rs"
-line = 143
+line = 104
 message = "this function has too many lines (159/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/hud.rs"
-line = 324
+line = 285
 message = "this function has too many lines (150/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
@@ -944,7 +945,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/readout.rs"
-line = 490
+line = 460
 message = "this function has too many lines (112/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
