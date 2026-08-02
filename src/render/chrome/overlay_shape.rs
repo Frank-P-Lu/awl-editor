@@ -121,6 +121,22 @@ fn inline_shortcut_rows(
     (rows, items.iter().map(tail).collect())
 }
 
+/// THE QUERY BEAT'S OWN GLYPH-FREE LINE, when the band plans one — one space at
+/// the planned beat's height. A LINE, not line height on a line that has glyphs:
+/// cosmic-text centres a glyph run in its box, so a beat folded into the query
+/// field's line draws the field's text half a beat below its own bar.
+fn push_beat_spacer<'a>(
+    spans: &mut Vec<(&'a str, glyphon::Attrs<'a>)>,
+    attrs: glyphon::Attrs<'a>,
+    font_size: f32,
+    beat: Option<f32>,
+) {
+    if let Some(beat) = beat {
+        spans.push(("\n", attrs.clone()));
+        spans.push((" ", attrs.metrics(GlyphMetrics::new(font_size, beat))));
+    }
+}
+
 fn right_bind_lines<'a>(header_rows: usize, labels: impl Iterator<Item = &'a str>) -> Vec<String> {
     labels
         .enumerate()
@@ -650,9 +666,7 @@ impl TextPipeline {
         let title_prefix = self.overlay_title_prefix(geom);
         let sigil = "› ";
         let name_fs = self.overlay_metrics().font_size;
-        // The query field's own PLANNED box height, read rather than re-summed:
-        // the DRAWN box and the planned one are then the same object. The BEAT is
-        // not part of it — see `plan.beat_line()` below.
+        // The field's own PLANNED box height, read rather than re-summed.
         let header_lh = plan
             .query_band()
             .map_or_else(|| self.overlay_lh(), |field| field.height);
@@ -679,24 +693,8 @@ impl TextPipeline {
             }
             spans.push((self.overlay_query.as_str(), hk(ink)));
         }
-        // THE BEAT'S OWN LINE. On this family the one header line IS the query
-        // field, so the beat cannot ride its glyph metrics: cosmic-text centres a
-        // line's glyph run in its box, and a field inflated to `lh + header_gap`
-        // draws its own text most of a row BELOW the query bar it sits on, leaving
-        // a blank strip above it. The beat is emitted instead as a line with no
-        // ink on it — one space at the planned beat's own height — so the field's
-        // glyphs stay centred in the field's box and the negative space lands
-        // where it was authored: after the query, before the first candidate.
-        // Height comes from the PLAN, so a spacer the band did not plan is
-        // unreachable; `OverlayGeom::shaped_first_row_line` is the one owner of
-        // the line index it shifts.
-        if let Some(beat) = plan.beat_line() {
-            spans.push(("\n", mk(muted)));
-            spans.push((" ", mk(muted).metrics(GlyphMetrics::new(name_fs, beat))));
-        }
-        let slant_italic = crate::render::overlay_slant()
-            .map(|s| s.italic)
-            .unwrap_or(false);
+        push_beat_spacer(&mut spans, mk(muted), name_fs, plan.beat_line());
+        let slant_italic = crate::render::overlay_slant().is_some_and(|s| s.italic);
         let rk = |c| {
             if slant_italic {
                 mk(c).style(glyphon::cosmic_text::Style::Italic)

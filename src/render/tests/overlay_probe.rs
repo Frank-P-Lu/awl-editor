@@ -42,7 +42,7 @@ impl TextPipeline {
         // the one the pixels came from.
         let plan = self.overlay_row_plan(&geom);
         let lh = plan.lh();
-        // ITEM 219 — the PRIMARY buffer may carry the beat's own glyph-free line
+        // The PRIMARY buffer may carry the query beat's own glyph-free line
         // between the header and the candidates, so its first candidate line is
         // `shaped_first_row_line`, not `header_rows`. The SECONDARY buffer is
         // built from `right_bind_lines`' leading empties and never carries one,

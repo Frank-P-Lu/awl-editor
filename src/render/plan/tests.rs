@@ -608,11 +608,10 @@ fn the_secondary_origin_lands_every_label_on_its_own_planned_row() {
 /// field, and is exactly `SPLIT_GAP_FRAC` of the beat tall, on BOTH families.
 ///
 /// **THE UPPER SURFACE IS THE QUERY BAR AND NOTHING ELSE**, which is the claim
-/// that fails on item 219's defect: with the beat folded into a lone query
-/// line's box, the field's box ran all the way to the first candidate and
-/// SWALLOWED the seam — the bar could not close above the gap, so it closed
-/// below it and the query's glyphs, centred in that tall box, left a blank strip
-/// above them.
+/// a refolded beat fails: with the beat inside a lone query line's box, the
+/// field's box runs all the way to the first candidate and SWALLOWS the seam —
+/// the bar cannot close above the gap, so it closes below it and the query's
+/// glyphs, centred in that tall box, leave a blank strip above them.
 ///
 /// The containment oracle is the header band accumulated independently (as
 /// above), not `split_bounds`' own inputs.
@@ -673,16 +672,14 @@ fn a_contextual_popup_plans_no_header_band() {
     }
 }
 
-/// **THE QUERY FIELD'S BOX IS EXACTLY ONE ROW PITCH, ON EVERY FAMILY** — item
-/// 219's arithmetic claim, and the sweep the previous shape of this law had
-/// inverted.
+/// **THE QUERY FIELD'S BOX IS EXACTLY ONE ROW PITCH, ON EVERY FAMILY.**
 ///
 /// A picker's query field is one line of text in a bar. Whatever negative space
 /// a card wants before its first candidate is the BEAT, and a beat folded into
 /// the field's own box does not sit below the field — cosmic-text CENTRES a
 /// line's glyph run in its box, so a field inflated to `lh + header_gap` draws
-/// its own ink `header_gap/2` lower than the bar's own top pad, which is the
-/// blank strip above the picker's content that item 219 names.
+/// its own ink `header_gap/2` lower than the bar's own top pad — a blank strip
+/// above the picker's own content.
 ///
 /// The sweep is every header count a picker reaches × the beats and pitches the
 /// zoom band spans, and the assertion is stated as an INVARIANT over that whole

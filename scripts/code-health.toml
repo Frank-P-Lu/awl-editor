@@ -288,8 +288,8 @@ lines = 536
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 974
-reason = "items 217 + 204 slice 2 reconciled at the merge train: 969 + 5. Neither branch could compute this — 204 was cut before 217 landed, so its 973 measured a tree without 217's re-export and main's 969 measured one without the gutter change. The gutter block became variable-height, so `GutterLayout` gained the affordance line every consumer reads through one owner (+5). Previously: The chrome module owns the resolved overlay geometry record and its single sibling re-export for the measured diagonal row span; workspace, rail, and two-sided slant consumers share that seam. The header band's four y-owners (secondary origin, split bounds, strip band, query centre) left for the scene planner. One `mod workspace_column;` declaration: the primary column's measurement extracted so `chrome/workspace.rs` stays under the 500-line ceiling (+1). One `mod card;` declaration on the same module-list seam: the card's input gathering extracted so `chrome/hud.rs` drops 39 lines and holds only the draw path (+1)."
+lines = 988
+reason = "+14 lines. `OverlayGeom::shaped_first_row_line` is the one owner of which shaped `panel_buffer` line carries candidate row 0 — not always `header_rows`, because a query beat that stands on its own takes a glyph-free line between the header and the candidates, and the five readers that used to re-derive `header_rows` would each measure that spacer as a candidate row. Previously: items 217 + 204 slice 2 reconciled at the merge train: 969 + 5. Neither branch could compute this — 204 was cut before 217 landed, so its 973 measured a tree without 217's re-export and main's 969 measured one without the gutter change. The gutter block became variable-height, so `GutterLayout` gained the affordance line every consumer reads through one owner (+5). Previously: The chrome module owns the resolved overlay geometry record and its single sibling re-export for the measured diagonal row span; workspace, rail, and two-sided slant consumers share that seam. The header band's four y-owners (secondary origin, split bounds, strip band, query centre) left for the scene planner. One `mod workspace_column;` declaration: the primary column's measurement extracted so `chrome/workspace.rs` stays under the 500-line ceiling (+1). One `mod card;` declaration on the same module-list seam: the card's input gathering extracted so `chrome/hud.rs` drops 39 lines and holds only the draw path (+1)."
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
@@ -312,8 +312,8 @@ reason = "`overlay_prepare_facet_marks` carries the workspace's own arm — two 
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_shape.rs"
-lines = 873
-reason = "+7 lines. Faceted diagonal rows must shape against their measured side territory and re-fit real glyph widths before the accessory column is granted. The row plan is now threaded to the two shapers so the inflated header line's height IS the query field's planned box (read, not re-summed) and the secondary column's leading-empty count comes from the same object as its upload origin."
+lines = 888
+reason = "+15 lines. `push_beat_spacer` emits the query beat as its own glyph-free line rather than as line height on a line that has glyphs — cosmic-text centres a glyph run in its box, so a folded beat drew the query field's text half a beat below its own bar. Extracted as a free function so the flat shaper itself stays under the 100-line bar. Previously: +7 lines. Faceted diagonal rows must shape against their measured side territory and re-fit real glyph widths before the accessory column is granted. The row plan is now threaded to the two shapers so the inflated header line's height IS the query field's planned box (read, not re-summed) and the secondary column's leading-empty count comes from the same object as its upload origin."
 
 [[file_size_mark]]
 file = "src/render/chrome/popover.rs"
@@ -974,7 +974,7 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/chrome_panels.rs"
-line = 1315
+line = 1319
 message = "this function has too many lines (124/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
@@ -1089,8 +1089,22 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/render/tests/overlay_rhythm_item112.rs"
 line = 61
-message = "this function has too many lines (159/100)"
+message = "this function has too many lines (160/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/surfaces_item219.rs"
+line = 83
+message = "this function has too many lines (109/100)"
+reason = "One roster sweep with a differential two-shot oracle: the second render and its readback cannot be split from the comparison they exist for."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/surfaces_item225.rs"
+line = 56
+message = "this function has too many lines (114/100)"
+reason = "One roster sweep with a geometry arm and a pixel arm over the same rendered frame; splitting them would render each world twice."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

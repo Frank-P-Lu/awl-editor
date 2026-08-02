@@ -166,9 +166,8 @@ fn potoroo_pane_edges_separate_from_the_real_striped_frame_on_all_sides() {
             // ground on both by construction (the upper surface's query line
             // starts a full pad below its top; the lower surface's first row
             // starts a beat's tail below its own). The surface's vertical CENTRE
-            // is not ground on either: item 219 moved the seam up to hug the
-            // query bar, so the lower surface's midpoint now falls on the
-            // selected row's own band.
+            // is not ground on either: the seam hugs the query bar, so the lower
+            // surface's midpoint falls on the selected row's own band.
             let face = avg(
                 &px,
                 w,

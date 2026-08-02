@@ -180,9 +180,8 @@ fn quokka_card_top_left_corner_is_genuinely_chamfered() {
     );
     // Well past the chamfer (60 + 8 inward, sum 68 >> 11): must be filled —
     // the cut is a CORNER treatment, not a shrunk card. Sampled ALONG THE TOP
-    // EDGE rather than down the diagonal: item 219 seats a flat picker's query
-    // glyphs at their own line's centre instead of half a beat lower, and the
-    // old (25, 25) probe now lands on the title's own ink rather than on ground.
+    // EDGE rather than down the diagonal: a flat picker's query glyphs ride
+    // their own line's centre, which the (25, 25) diagonal probe runs into.
     let deep = px_at(&pixels, w, (cx + 60.0) as i64, (cy + 8.0) as i64);
     assert!(
         near(deep, card_fill),

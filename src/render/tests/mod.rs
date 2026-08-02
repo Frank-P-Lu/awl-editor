@@ -69,9 +69,6 @@ mod overlay_height_clamp_law;
 mod overlay_hover_stability_law;
 mod overlay_personality;
 mod overlay_plan_law;
-// ITEMS 219 & 225 — two unintended surfaces: a picker's blank query band and a
-// workspace's oversized footer plate.
-mod surfaces_item219_225;
 pub(super) mod overlay_probe;
 mod overlay_rail_thirds_law;
 mod overlay_rhythm_item112;
@@ -90,6 +87,8 @@ mod selection_clip_law;
 mod settings_row_reach_law;
 mod split_pane;
 mod stars;
+mod surfaces_item219;
+mod surfaces_item225;
 mod syntax_ligatures;
 mod syntax_roles;
 mod tables;

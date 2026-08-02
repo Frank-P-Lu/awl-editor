@@ -227,7 +227,10 @@ impl OverlayRowPlan {
             return None;
         }
         let upper_bottom = field.bottom() + self.header_gap * BREATHE_FRAC;
-        Some((upper_bottom, upper_bottom + self.header_gap * SPLIT_GAP_FRAC))
+        Some((
+            upper_bottom,
+            upper_bottom + self.header_gap * SPLIT_GAP_FRAC,
+        ))
     }
 
     /// Invert a planned row slot without re-deriving its y arithmetic.

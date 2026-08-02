@@ -380,13 +380,13 @@ fn the_drawn_query_field_the_pointer_band_and_the_caret_are_one_planned_box() {
     );
 }
 
-/// **ITEM 219 — THE QUERY BAR HOLDS THE QUERY FIELD AND NOTHING ELSE**, and the
-/// beat it used to swallow genuinely displaced the field's own glyphs.
+/// **THE QUERY BAR HOLDS THE QUERY FIELD AND NOTHING ELSE**, and a beat folded
+/// into that field genuinely displaces its own glyphs.
 ///
 /// The claim, over the whole roster: the field's planned box ends exactly one
 /// breathe above the split seam, so the upper surface closes below the bar's own
 /// line and the ink sits inside it with a top pad and a bottom pad. The
-/// NON-VACUITY half reconstructs item 174's folded-beat box INLINE
+/// NON-VACUITY half reconstructs the folded-beat box INLINE
 /// (`text_top .. text_top + lh + header_gap`) — never read back out of the fix —
 /// and asserts that on the FLAT family that box would run PAST the seam, so the
 /// bar could not close above the gap and the glyphs it centres would land most
@@ -465,8 +465,8 @@ fn the_query_bar_closes_below_the_field_and_the_folded_beat_would_overrun_it() {
                     Family::Grouped => {
                         grouped_cells += 1;
                         // The grouped card's own beat still rides its STRIP, so
-                        // its field is untouched by item 219 and its seam did not
-                        // move: the folded box IS the strip's box here.
+                        // its field and its seam are untouched: the folded box IS
+                        // the strip's box here.
                         let strip = plan.strip_band().expect("a grouped card draws a strip");
                         assert!(
                             (strip.bottom() - (folded_bottom + plan.lh())).abs() < 0.75,
@@ -549,10 +549,10 @@ fn the_workspace_header_band_still_agrees_with_the_planned_header_boxes() {
                 let last = *heads.last().expect("a workspace has a header band");
                 // THE ORACLE IS THE PLANNED BOXES, not the same expression again:
                 // the band's run is the last planned box's bottom PLUS whatever
-                // beat stands on its own after it (`beat_line`, item 219 —
-                // one-line Settings puts the beat after its search line rather
-                // than inside it), measured back to `text_top`, which is where the
-                // first candidate row begins.
+                // beat stands on its own after it (`beat_line` — a one-line
+                // workspace puts the beat after its search line rather than inside
+                // it), measured back to `text_top`, which is where the first
+                // candidate row begins.
                 let planned = last.bottom() + plan.beat_line().unwrap_or(0.0) - field.top;
                 let band = p.workspace_header_band();
                 assert!(

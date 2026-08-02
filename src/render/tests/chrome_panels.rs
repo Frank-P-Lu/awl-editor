@@ -1264,8 +1264,8 @@ fn overlay_right_column_yields_before_names_elide() {
         "narrow + oversized right column: the right column must YIELD"
     );
     // Candidate 0's shaped line is production's own `shaped_first_row_line`: a
-    // flat card's query BEAT takes a glyph-free line of its own (item 219), so
-    // indexing from a bare header-row count reads the spacer as a name.
+    // flat card's query BEAT takes a glyph-free line of its own, so indexing
+    // from a bare header-row count reads that spacer as a name.
     let first = p.overlay_geometry(464).shaped_first_row_line();
     let line = |p: &TextPipeline, i: usize| p.panel_buffer.lines[i].text().to_string();
     assert_eq!(line(&p, first), "Block", "a 5-char name is NEVER elided");
