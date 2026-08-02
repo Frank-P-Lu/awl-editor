@@ -179,9 +179,9 @@ impl TextPipeline {
     /// Exposed so the capture sidecar can report exactly what the readout shows.
     ///
     /// Derived by [`crate::card::figures::readout_figures`] — the ONE owner the
-    /// semantic fold reads too, so a card announces the count it draws.
+    /// semantic fold reads too — over [`figure_source`], never the shaped page.
     pub fn readout_report(&self) -> Option<(usize, usize)> {
-        crate::card::figures::readout_figures(&self.doc_text(), self.md_enabled)
+        crate::card::figures::readout_figures(&self.figure_source().0, self.md_enabled)
     }
 
     /// The readout string for the bottom-right corner, e.g. `"240 words · 2 min"`.
@@ -191,7 +191,7 @@ impl TextPipeline {
     /// lives on for the calm corner notice. The held HUD's own WORD COUNT
     /// figure comes from `crate::card::figures`, not from here.
     pub(in crate::render) fn wordcount_text(&self) -> String {
-        crate::card::figures::words_readout(&self.doc_text(), self.md_enabled)
+        crate::card::figures::words_readout(&self.figure_source().0, self.md_enabled)
     }
 
     /// Shape + upload the quiet word-count / reading-time readout. Drawn DIM and

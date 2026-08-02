@@ -409,6 +409,7 @@ impl TextPipeline {
         self.image_base_dir = view.doc_dir.clone();
         self.selection = view.selection;
         self.fold_tails = view.fold_tails.clone();
+        self.doc_source = view.doc_source.clone();
         self.preedit = view.preedit.clone();
         // Mirror the spell list ONLY when it actually changed (a rescan landing),
         // bumping its version so the cached squiggle protos rebuild; the common

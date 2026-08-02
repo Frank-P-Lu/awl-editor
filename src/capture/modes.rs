@@ -494,7 +494,7 @@ pub(super) fn settled_viewstate(
     // spans (selection / squiggles / search) are cleared. `None` (default) leaves
     // a plain `--screenshot` byte-identical.
     if let Some(p) = &opts.preview_text {
-        vstate.text = p.clone();
+        vstate.substitute_text(p.clone()); // the ONE door, as `sync_view` does
         // DIFF-AS-PREVIEW: the previewed text is the writer's-diff TRANSCRIPT —
         // park the caret on its blank line 1 (between `# title` and the first
         // block) so no line's WYSIWYG conceal reveals, mirroring the live

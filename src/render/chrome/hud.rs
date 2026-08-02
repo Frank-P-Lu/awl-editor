@@ -47,17 +47,17 @@ impl TextPipeline {
         self.keybindings_tips = tips;
     }
 
+    /// Every DOCUMENT figure is over [`TextPipeline::figure_source`], so the `hud`
+    /// block reports what the card draws under a fold or a preview. `lang` is
+    /// deliberately NOT `doc_lang_report()`: that is the SHAPED text's language,
+    /// which the per-script font ladder follows; the sidecar reports it as `doc_lang`.
     pub fn hud_report(&self) -> HudReport {
-        let text = self.doc_text();
+        let (text, cursor_line, cursor_col) = self.figure_source();
         HudReport {
             held: crate::hud::hud_held(),
             words: crate::card::figures::readout_figures(&text, self.md_enabled),
-            percent: crate::card::figures::through_doc_percent(
-                &text,
-                self.cursor_line,
-                self.cursor_col,
-            ),
-            lang: self.doc_lang_report(),
+            percent: crate::card::figures::through_doc_percent(&text, cursor_line, cursor_col),
+            lang: crate::card::figures::frontmatter_lang(&text),
             eol: self.eol,
             saved: crate::hud::saved_readout(self.hud_saved),
         }

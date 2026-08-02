@@ -114,6 +114,69 @@ pub fn through_doc_percent(text: &str, cursor_line: usize, cursor_col: usize) ->
     (((offset.min(denom) as f32) / denom as f32) * 100.0).round() as u32
 }
 
+/// THE fixture the drawn⇔announced figure laws share: one document, one caret,
+/// and the figures HAND-DERIVED from them — never by calling the code those laws
+/// test.
+///
+/// It lives here, beside the owner, so the pure `fold` law, the GPU pipeline law
+/// and the capture-level History-preview law cannot drift apart on what the
+/// document is or what it should read. Every number below is written out with
+/// its arithmetic, because an oracle that recomputes the figure through
+/// `DocFigures::of` would agree with any bug the derivation has.
+#[cfg(test)]
+pub(crate) mod fixture {
+    /// A markdown document with a frontmatter language and two sibling
+    /// sections. Nine logical lines (the trailing newline makes an empty ninth),
+    /// 77 characters.
+    pub const DOC: &str =
+        "---\nlang: ja\n---\n# Alpha\nalpha one two\nalpha three four\n# Beta\nbeta five six\n";
+
+    /// The logical line of `# Alpha`, whose section is lines 4–5.
+    pub const FOLD_HEADING: usize = 3;
+
+    /// [`DOC`] with `# Alpha` collapsed: lines 4 and 5 are gone, so the caret's
+    /// line 7 sits at filtered line 5. 46 characters.
+    pub const FOLDED: &str = "---\nlang: ja\n---\n# Alpha\n# Beta\nbeta five six\n";
+
+    /// The caret, in `DOC`'s own line/column space — the start of `beta five
+    /// six`, 63 characters in: 4 + 9 + 4 + 8 + 14 + 17 + 7 for the seven lines
+    /// before it, each counted with its own newline.
+    pub const CARET: (usize, usize) = (7, 0);
+
+    /// The caret's line once `# Alpha` is folded: 7 minus the 2 hidden lines.
+    pub const FOLDED_CARET_LINE: usize = 5;
+
+    /// The DOCUMENT's readout. The frontmatter block is metadata, so the
+    /// manuscript is `# Alpha / alpha one two / alpha three four / # Beta /
+    /// beta five six` — 2 + 3 + 3 + 2 + 3 = 13 whitespace-separated tokens (the
+    /// `#`s are tokens; that is what awl's tokenizer counts), and 13 words at
+    /// 200 wpm rounds up to 1 minute.
+    pub const WORDS: &str = "13 words · 1 min";
+    /// [`WORDS`] as the `(words, reading_minutes)` pair the sidecar reports.
+    pub const WORDS_PAIR: (usize, usize) = (13, 1);
+
+    /// The DOCUMENT's through-doc percent: 63 characters into 77 is 81.81%,
+    /// which rounds to 82.
+    pub const PERCENT: u32 = 82;
+
+    /// The VISIBLE-only readout, if the figures were derived from the folded
+    /// text: the manuscript falls to `# Alpha / # Beta / beta five six`, which
+    /// is 2 plus 2 plus 3 = 7 tokens. Asserted so the laws prove the two
+    /// readings really differ; a fixture where they agreed would go green over
+    /// the bug.
+    pub const FOLDED_WORDS: &str = "7 words · 1 min";
+
+    /// The VISIBLE-only percent: 32 characters into 46 is 69.56%, rounding to
+    /// 70.
+    pub const FOLDED_PERCENT: u32 = 70;
+
+    /// A History preview's diff transcript — what the renderer is asked to shape
+    /// while the picker previews an older version. It is not the user's
+    /// document: no frontmatter, and its own six tokens have nothing to do with
+    /// the manuscript's thirteen.
+    pub const TRANSCRIPT: &str = "# beta five six\n\n~~alpha one~~ ==alpha two==\n";
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -207,6 +270,115 @@ mod tests {
         assert_eq!(through_doc_percent(ja, 2, 4), 100);
         // A caret past the end is clamped rather than overflowing the figure.
         assert_eq!(through_doc_percent(doc, 99, 99), 100);
+    }
+
+    /// The shared [`fixture`] is arithmetic done BY HAND, and the
+    /// fold / preview laws lean on it as their oracle. This is where that
+    /// arithmetic meets the owner: if the hand-derivation in `fixture`'s doc
+    /// comments and this module's code ever disagree, one of them is wrong and
+    /// every law built on the fixture is worth less than it looks.
+    #[test]
+    fn the_shared_fixture_arithmetic_matches_the_owner() {
+        assert_eq!(fixture::DOC.chars().count(), 77);
+        assert_eq!(fixture::FOLDED.chars().count(), 46);
+        let doc = DocFigures::of(fixture::DOC, true, fixture::CARET.0, fixture::CARET.1);
+        assert_eq!(doc.words, fixture::WORDS);
+        assert_eq!(doc.percent, fixture::PERCENT);
+        assert_eq!(doc.lang, Some(Lang::Ja));
+        assert_eq!(
+            readout_figures(fixture::DOC, true),
+            Some(fixture::WORDS_PAIR)
+        );
+        let folded = DocFigures::of(fixture::FOLDED, true, fixture::FOLDED_CARET_LINE, 0);
+        assert_eq!(folded.words, fixture::FOLDED_WORDS);
+        assert_eq!(folded.percent, fixture::FOLDED_PERCENT);
+        // The transcript is a THIRD reading again, so a preview law that reads it
+        // by mistake cannot accidentally land on either of the other two.
+        let transcript = DocFigures::of(fixture::TRANSCRIPT, true, 0, 0);
+        assert_eq!(
+            transcript.lang, None,
+            "a diff transcript has no frontmatter"
+        );
+        assert_ne!(transcript.words, fixture::WORDS);
+        assert_ne!(transcript.words, fixture::FOLDED_WORDS);
+    }
+
+    /// THE OWNER'S INPUT IS THE DOCUMENT, and only one door may say otherwise.
+    ///
+    /// Two production paths replace what the renderer shapes with something that
+    /// is NOT the user's document: a fold drops the hidden lines, a History
+    /// preview substitutes a diff transcript. Both now go through
+    /// [`crate::render::ViewState::substitute_text`], which records the document
+    /// behind them so these figures stay over it. A THIRD such path added later
+    /// would have no test of its own yet, and would silently reintroduce exactly
+    /// this bug — so the assignment itself is enumerated.
+    ///
+    /// Counted exactly per file (the `app/tests/source_audit.rs` shape) rather
+    /// than filtered down to things that look like a `ViewState` — a site that
+    /// never spells the type would dodge that filter, and the whole crate has
+    /// only two such assignments in production, so the curated roster costs
+    /// almost nothing to keep honest. The needle is assembled at runtime so this
+    /// law's own source cannot match itself.
+    #[test]
+    fn only_the_substitution_door_replaces_a_view_states_text() {
+        let needle = format!("{}{}", ".text", " = ");
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut counts: std::collections::BTreeMap<String, usize> = Default::default();
+        let mut stack = vec![root.clone()];
+        while let Some(dir) = stack.pop() {
+            for entry in std::fs::read_dir(&dir).expect("src is readable") {
+                let path = entry.expect("dir entry").path();
+                if path.is_dir() {
+                    stack.push(path);
+                    continue;
+                }
+                let rel = path
+                    .strip_prefix(&root)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                if !rel.ends_with(".rs") || rel.ends_with("tests.rs") || rel.contains("/tests/") {
+                    continue;
+                }
+                let source = std::fs::read_to_string(&path).expect("source is utf-8");
+                // Test code inside a production file is free to build whatever
+                // document it likes; the rule is about frames.
+                let production = source
+                    .split_once("#[cfg(test)]")
+                    .map_or(source.as_str(), |(before, _)| before);
+                let hits = production
+                    .lines()
+                    .filter(|line| !line.trim_start().starts_with("//"))
+                    .filter(|line| line.contains(&needle))
+                    .count();
+                if hits > 0 {
+                    counts.insert(rel, hits);
+                }
+            }
+        }
+        let expected: &[(&str, usize)] = &[
+            // The frame NOTICE's own text — a different type entirely, and never
+            // anything the renderer shapes as the document.
+            ("app/frame/poll.rs", 2),
+            // The bench scenarios BUILD a document into a fresh view (empty, then
+            // the scenario's own text). Nothing is substituted for anything, so
+            // the shaped text is the document and the figures come off it — the
+            // `None` reading `substitute_text` leaves alone.
+            ("render/benchsuite/scenarios.rs", 2),
+        ];
+        let expected: std::collections::BTreeMap<String, usize> = expected
+            .iter()
+            .map(|(f, n)| ((*f).to_string(), *n))
+            .collect();
+        assert_eq!(
+            counts, expected,
+            "a production site replaced a ViewState's text outside \
+             `ViewState::substitute_text`. If it is a SUBSTITUTION (a fold, a \
+             preview, anything that shapes less or other than the user's \
+             document), route it through that door so the card's document \
+             figures keep reading the document; if it is really CONSTRUCTING a \
+             document, account for it here.",
+        );
     }
 
     /// The gathered struct is exactly its three owners, so nothing can fill one

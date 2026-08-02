@@ -258,8 +258,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2474
-reason = "The renderer's GPU state floor: workspace mirrors, Kite's forward-travel accumulator, and the diagonal cluster's per-frame measured layout live beside the sibling state consumed by the same frame pipeline. The `overlay_comparison` mirror field, beside the `overlay_rows_primary` one it gates with (+5)."
+lines = 2476
+reason = "The renderer's GPU state floor: workspace mirrors, Kite's forward-travel accumulator, and the diagonal cluster's per-frame measured layout live beside the sibling state consumed by the same frame pipeline. The `overlay_comparison` mirror field, beside the `overlay_rows_primary` one it gates with (+5). The `doc_source` mirror field and its one-line doc (+2): the pipeline must know when the text it shapes is a substitute for the user's document, or the card figures are over the wrong text."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -349,13 +349,13 @@ lines = 579
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 545
-reason = "The one `TextPipeline` initializer spells out workspace state, the diagonal cluster cache, and the warp accumulator beside the state they initialize. The `overlay_comparison` mirror's inert default in the one initializer (+1)."
+lines = 546
+reason = "The one `TextPipeline` initializer spells out workspace state, the diagonal cluster cache, and the warp accumulator beside the state they initialize. The `overlay_comparison` mirror's inert default in the one initializer (+1). The `doc_source` mirror's inert default in the same initializer (+1)."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 605
-reason = "`set_view` is the one ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, and invalidates item 131's measured diagonal cluster with the other view-derived geometry before publishing a new frame. The `overlay_comparison` mirror's assignment in `set_view` (+1)."
+lines = 606
+reason = "`set_view` is the one ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, and invalidates item 131's measured diagonal cluster with the other view-derived geometry before publishing a new frame. The `overlay_comparison` mirror's assignment in `set_view` (+1). The `doc_source` mirror's assignment beside it (+1)."
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
@@ -482,8 +482,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 line = 5
-message = "this function has too many lines (247/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The document-session extraction replaced direct buffer and cache fields with explicit read projections, adding four counted lines while preserving the one exhaustive ViewState construction site. -1 line net: the `overlay_comparison` projection, against a shorter crisp-backdrop match once History left it."
+message = "this function has too many lines (241/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The document-session extraction replaced direct buffer and cache fields with explicit read projections, adding four counted lines while preserving the one exhaustive ViewState construction site. -1 line net: the `overlay_comparison` projection, against a shorter crisp-backdrop match once History left it. -6 lines: routing the History preview through `ViewState::substitute_text` collapsed the two-branch preview/buffer text choice and the matching two-branch spell-cache key into one each."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -769,8 +769,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 line = 6
-message = "this function has too many lines (487/100)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer. +1 line: the `overlay_comparison` mirror field's inert default, beside the `overlay_rows_primary` one it pairs with."
+message = "this function has too many lines (488/100)"
+reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer. +1 line: the `overlay_comparison` mirror field's inert default, beside the `overlay_rows_primary` one it pairs with. +1: the `doc_source` mirror's inert default."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -924,9 +924,9 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 905
+line = 1012
 message = "this function has too many lines (114/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field). Line shifted again by the History-preview card-figure law added above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"

@@ -113,7 +113,7 @@ pub mod caretbench;
 /// home (pure data, no `&self`, no GPU types — see the module doc). Re-exported
 /// here so `crate::render::ViewState` resolves unchanged for every caller.
 mod viewstate_def;
-pub use viewstate_def::{FoldTail, ViewState};
+pub use viewstate_def::{DocSource, FoldTail, ViewState};
 
 mod pipeline_draw;
 mod pipeline_geometry;
@@ -2301,6 +2301,8 @@ pub struct TextPipeline {
     syn_lang: Option<crate::syntax::Lang>,
     syn_spans: Vec<(std::ops::Range<usize>, crate::syntax::SynKind)>,
     doc_lang: Option<crate::frontmatter::Lang>,
+    /// Mirrored from [`ViewState::doc_source`]; read only by `figure_source`.
+    doc_source: Option<DocSource>,
     cjk_priority: Vec<crate::frontmatter::Lang>,
     eol: crate::buffer::Eol,
     /// COPY PULSE: progress of the selection-tint brighten/decay pulse played on a

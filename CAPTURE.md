@@ -648,7 +648,12 @@ PNG carries their pixels, and none when it does not. The cards' three document
 figures — word count, frontmatter language, through-doc percent — are derived
 by `crate::card::figures`, a pure owner over the document text that the
 renderer and the fold both read, so the announced card is the drawn card rather
-than a second description of it. Their LIVE-only figures (`hud.saved`, the
+than a second description of it. Over the USER'S DOCUMENT, specifically: a
+collapsed fold and a History preview each substitute something else for what
+the renderer shapes, and both go through `ViewState::substitute_text`, which
+keeps the document behind them — so folding a section does not change the word
+count either surface reports, and a preview counts the manuscript rather than
+the diff transcript on the page. Their LIVE-only figures (`hud.saved`, the
 `lifetime` odometer, the `streaks` grid, the peek's learned rows, the About
 card's update marker) read as their documented placeholders in a capture, in
 the tree exactly as in the PNG — that determinism boundary is unchanged. The
@@ -835,8 +840,11 @@ DESIGN (metadata, not manuscript — see the `wysiwyg`/`md_spans` note below and
 SAME block-scoped WYSIWYG conceal a fenced code block does (`wysiwyg.concealed`
 reports it tagged `"frontmatter"`, revealed only when the caret sits anywhere
 inside the block — reuses the `Fence` seam verbatim, no new machinery). The
-held stats HUD also gains a `lang` field (`hud.lang`, mirroring `doc_lang`
-exactly) — deterministic, so it's capture-safe like every other HUD figure.
+held stats HUD also gains a `lang` field (`hud.lang`) — deterministic, so it's
+capture-safe like every other HUD figure. It reads the DOCUMENT's frontmatter,
+which is the shaped text's own on every ordinary frame; see the sidecar table's
+`hud` row for the two states where the shaped text is a substitute and this
+field parts company with `doc_lang`.
 
 Config gains `cjk_priority` (a TOML array of BCP 47 tags, default `["ja",
 "zh-Hans", "zh-Hant", "ko"]`): the tiebreak ladder for an AMBIGUOUS Han-only
@@ -1386,7 +1394,7 @@ world.)
 | `gutter`       | PAGE-MODE GUTTER: `{ visible, name, project }` — the left-margin orientation label (filename muted over project faint, LABEL size). `visible` is true only when drawn (page mode + a name + a margin past the hard floor, `render::rowlayout::GUTTER_MIN_NAME_CHARS`); `name` and `project` are each **exactly as drawn** — independently fit to ONE line, middle-elided (extension preserved) only once the margin can't hold that line whole (`render::rowlayout::gutter_plan`/`fit_primary`, the same door the picker rows use). Neither line yields to the other from width pressure; `project` is `""` only when there is genuinely no project to show |
 | `dim_overlay`  | `true` when a FULL-takeover overlay dims the document behind it (the scrim); `false` for the search SPLIT panel / no overlay (DESIGN §5) |
 | `debug`        | DEBUG panel (renamed from the old `fps` counter): `{ enabled, text, frame_ms, worst_ms, budget_ms, key_px_ms, redraws, still, autosave_state, autosave_since_s }`. OFF by default (empty `text` → byte-identical). `text` is the full stacked readout; `frame_ms`/`worst_ms`/`budget_ms`/`key_px_ms`/`redraws`/`still` are the machine-readable perf triad (all `null` + `still: true` in a capture — no clock runs headlessly). `autosave_state` (`"off"`/`"held"`/`"saved"`, else `null`) + `autosave_since_s` (whole seconds since the last successful autosave write, else `null`) mirror the panel's `autosave …` line, fed EXCLUSIVELY through `App::autosave_flush`'s one door — both `null` in every capture (the engine is structurally live-App-only) |
-| `hud`          | HELD STATS HUD: `{ held, words, reading_min, percent, lang }`. `held` is the summon state (false by default → byte-identical); `words`/`reading_min` null for non-markdown; `percent` = cursor %-through-doc; `lang` (i18n round, schema `/92`) mirrors the top-level `doc_lang` exactly. Every figure is a pure function of the doc + cursor — no clock, fully capture-safe |
+| `hud`          | HELD STATS HUD: `{ held, words, reading_min, percent, lang }`. `held` is the summon state (false by default → byte-identical); `words`/`reading_min` null for non-markdown; `percent` = cursor %-through-doc; `lang` (i18n round, schema `/92`) is the document's frontmatter language. Every figure is a pure function of the USER'S DOCUMENT + cursor — the whole buffer, never the shaped page — so a collapsed fold or an open History preview leaves them unmoved (`readout` likewise). It follows that `lang` and the top-level `doc_lang` can differ: `doc_lang` is the SHAPED text's language, which is what the per-script font ladder must follow, and a diff transcript carries no frontmatter. No clock, fully capture-safe |
 | `about`        | SUMMONED ABOUT CARD (schema `/99`): `{ open }`. `false` by default (byte-identical); `true` after the palette "About" command (or the macOS menu bar's App ▸ "About Awl") opens it. Shares the HUD's float-card pipeline (`about.rs` + `render/chrome.rs::prepare_hud`) rather than owning a parallel one |
 | `line_count`   | total logical lines in the buffer |
 | `scroll_lines` | top visual-row anchor (0 on load; retained for row-oriented diagnostics) |

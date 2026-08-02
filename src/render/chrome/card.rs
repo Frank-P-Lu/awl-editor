@@ -3,8 +3,8 @@
 //!
 //! Two kinds of fact meet here and nowhere else. The DOCUMENT figures — word
 //! count, frontmatter language, through-doc percent — are derived from the
-//! shaped text by `crate::card::figures`, the pure owner the semantic fold
-//! derives them through as well. The LIVE-only figures are whatever a running
+//! user's own document by `crate::card::figures`, the pure owner the semantic
+//! fold derives them through as well. The LIVE-only figures are whatever a running
 //! `App` last pushed into this pipeline; the pipeline is their courier, not
 //! their gatherer, so reading them back out is how a consumer with no pipeline
 //! of its own learns which placeholders a frame will show.
@@ -34,6 +34,30 @@ impl TextPipeline {
         out
     }
 
+    /// THE text the document figures are derived from, and the caret's place in
+    /// it — the user's own document, which is the shaped text only when nothing
+    /// has been substituted for it.
+    ///
+    /// A fold drops the hidden lines from what is shaped and a History preview
+    /// replaces it with a diff transcript; neither changes the document. So each
+    /// records the real thing in [`crate::render::ViewState::doc_source`] on its
+    /// way past, and this is the ONE seam that chooses between them — every
+    /// figure below reads it, so none of them can be over a different text than
+    /// its neighbour, and none can disagree with the semantic snapshot, which
+    /// derives the same figures from the buffer.
+    pub(in crate::render) fn figure_source(&self) -> (String, usize, usize) {
+        match &self.doc_source {
+            Some(doc) => (doc.text.clone(), doc.cursor_line, doc.cursor_col),
+            None => (self.doc_text(), self.cursor_line, self.cursor_col),
+        }
+    }
+
+    /// The three DOCUMENT figures this frame, through their one pure owner.
+    pub(in crate::render) fn doc_figures(&self) -> crate::card::figures::DocFigures {
+        let (text, cursor_line, cursor_col) = self.figure_source();
+        crate::card::figures::DocFigures::of(&text, self.md_enabled, cursor_line, cursor_col)
+    }
+
     /// The LIVE-only card figures as they were last pushed in, including the
     /// all-absent reading of a pipeline nobody has fed.
     pub fn card_live(&self) -> crate::card::CardLive {
@@ -53,12 +77,7 @@ impl TextPipeline {
             hud_held: self.hud_showing(),
             peek_shown: self.peek_showing(),
             streaks_page: crate::streaks::card_view(),
-            doc: crate::card::figures::DocFigures::of(
-                &self.doc_text(),
-                self.md_enabled,
-                self.cursor_line,
-                self.cursor_col,
-            ),
+            doc: self.doc_figures(),
             eol: self.eol,
             live: self.card_live(),
         }
