@@ -425,6 +425,45 @@ run.
 
 **Overnight results, newest first.**
 
+- **230** — ✅ COMPLETE. Receipt `native-gate-receipt commit=a37d741f…
+  conventions=mac,linux scope=all-targets`. `ViewState::substitute_text` is the
+  ONE door that replaces shaped text, recording the document *and the caret's
+  place in it*; both seams route through it and `TextPipeline::figure_source()`
+  is the single seam saying which text the figures are over. `doc_source: None`
+  on every ordinary frame is byte-identical.
+  ⚠️ **THE BRIEF'S CENTRAL SPLIT WAS WRONG.** I said fixing `WORD COUNT` alone
+  was a complete outcome with `THROUGH DOC` left as a possible product call.
+  **That option did not structurally exist:** `DocFigures::of` derives all three
+  figures from ONE text and ONE caret, and item 215 gathered them precisely so a
+  caller cannot take one from the owner and another by hand. **215's gather is
+  load-bearing on WHAT QUESTIONS CAN BE ASKED SEPARATELY, not merely on how they
+  are filled** — worth remembering when briefing anything near it. `THROUGH DOC`
+  derives from the CARET, not the scroll position, so it is not a scrollbar; the
+  old value jumped when the reader folded a section the caret was not in.
+  **Three figures were affected, not two** — LANGUAGE vanished under a History
+  preview, a transcript carrying no frontmatter — **and the blast radius reached
+  past the card**: the sidecar's `readout` block and `wordcount_text`, the calm
+  corner notice's feeder, were wrong in the same two states. **`hud_report()`
+  was ALREADY mixing owners** in exactly the way 215 forbids, agreeing only
+  because both paths happened to read the shaped text. One deliberate contract
+  break: `hud.lang` no longer mirrors top-level `doc_lang` — the latter is the
+  SHAPED text's language, which the per-script font ladder must follow.
+  🔵 **Parked for the user:** should the card gain a separately-named
+  `THROUGH VIEW` figure? That is the only shape in which "how far through what I
+  can see" can exist without reintroducing the drift. Cheap to add, needs no
+  rework. **Known gap, named:** the live `sync_view` preview substitution has no
+  behavioural law — `hermetic()` has no GPU so `sync_view` returns early — and
+  its guard is the source-scan roster law, which mutation proof showed does
+  fire. Closing it properly needs a `--screenshot-app`-driven harness.
+  ⚠️ **The merge hit the hazard `CLAUDE.md` names:** item 204 slice 2 added
+  `preview_view` to `OverlayInfo`, 230 added a fixture constructing one, **git
+  merged both cleanly and the tree did not compile.** Filled with `Some("diff")`
+  rather than the `None` its siblings use, because a History preview IS a
+  comparison and the real path emits `request.map(|r| r.view.tag())` — `None`
+  would contradict the `preview_text` the fixture sets. Six further mark hunks
+  reconciled by MEASURING: `render.rs` 2477, `pipeline_draw.rs` 547,
+  `pipeline_geometry.rs` 607, each **+1 over both branches**.
+
 - **204** — ✅ COMPLETE, both slices. Receipt `native-gate-receipt commit=8d5565c5…
   conventions=mac,linux scope=all-targets`, 3637 passed per convention.
   `comparison::prose_for` is the ONE dispatch — History's producer where the
