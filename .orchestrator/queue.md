@@ -123,11 +123,47 @@ mac job took 26m51s end to end, so job-minute 35 sits 18 min inside the
 earliest loss and 8 past the green run. `timeout-minutes` is untouched at 75 —
 the runner dies well inside it, so the ceiling was never the mechanism.
 
-🟡 **IN PROGRESS — claude, branch `claude/ci-heartbeat-load`:** steady memory
-and zero swap are equally consistent with a **deadlock** (idle, blocked on a
-GPU fence or a lock) and a **livelock** (pegged, spinning), which want
-completely different fixes. Adding per-tracked-process CPU to the heartbeat so
-the next failure separates them.
+⚠️ **THE IN-GATE BUDGET DOES NOT FIRE ON THE REAL RUNNER — proved, not
+suspected.** Run `30746762499` wired everything correctly: the "Runner death
+clock" step ran at 11:56:18 (deadline 12:31:18) and step 9 started 11:58:23
+(gate budget 12:23:23). **The job died at 12:49:18 — 26 minutes after the
+earlier of the two should have ended it.** Step 9 `null`, both Post steps
+`null`, log 404. **The step never concluded, so the gate never exited, so the
+budget never fired**, despite 9/9 runtime mutation proofs locally. Log
+availability tracks "did the step conclude", which is why `30732589551` — the
+one run whose budget did fire — is the only one that ever produced a log.
+
+Two candidates remain and the board cannot separate them: **(a)** the watchdog
+is broken on the runner (starved, killed with the group it should outlive, or
+blocked on whatever the suite is blocked on); or **(b)** the whole VM freezes
+before the budget and GitHub's timestamp is only when it gave up reaping — in
+which case **no in-process watchdog can ever work and the self-abort strategy
+is unsound**.
+
+**The discriminator landed** (`timeout-minutes: 40` on the mac gate STEP,
+enforced by the runner agent rather than by our shell; job-level 75 and the
+in-gate budget both kept): a log from the step timeout means the watchdog is
+broken; nothing at all means the VM freezes and we stop trying to self-abort.
+**Unproven until a real mac run — if the VM is frozen, a step timeout is as
+dead as our watchdog.**
+
+**The heartbeat now separates deadlock from livelock**: `load1`, `cpu_count`,
+per-tracked-process CPU and the busiest pid, plus CPU time beside elapsed in
+the abort report. It is a **delta of `ps -o time=`, not `pcpu`** — pcpu is a
+lifetime average on Linux and a decayed one on macOS, and the CI shape (3.5 min
+hot, then 35 min hung) reads ~9% on one and ~0% on the other. Unparseable
+prints `unavailable`; zero tracked processes prints `none`; never a confident
+`0.0`. ⚠️ **Its Linux branches are written and reasoned but NEVER EXECUTED** —
+no Linux host here; CI's linux job is their first real test.
+
+**Two more laws that were vacuous when written, both caught by mutating the
+REAL script rather than the synthetic self-test** — the running tally for this
+CI work is now five: the audit pinned `load1=`/`cpu_count=` names that the
+*abort report* also carries, so the heartbeat's copy could be deleted or
+commented out entirely with the audit clean; and the probe itself reported
+`tracked_procs=0` while both suites burned a core, because Cargo had moved to
+integration binaries younger than the sample window — indistinguishable from an
+idle machine, and exactly the confident-zero class that shipped once already.
 
 **The user's standing decision (2026-08-02): coverage is NOT cut.** Both
 conventions stay. If the suite genuinely cannot fit the runner, `main` stays
@@ -321,9 +357,10 @@ run.
 3. **174's next family**, whenever it is not racing 116d. `workspace_header_beat`
    is the named remainder but is its own slice — its consumer is reached ~45× a
    frame through the four relocated document owners.
-4. **Follow-ups queued by this wave:** items **217** (`--bench-suite`'s plan-count
-   witness vs the diagonal re-plan; not urgent, and must not be fixed by
-   weakening the witness) and **215** (extract word count / language / percent
+4. **Follow-ups queued by this wave:** item **218** first (the newly live
+   VoiceOver path can stall while typing), then **217** (`--bench-suite`'s
+   plan-count witness vs the diagonal re-plan; not urgent, and must not be fixed
+   by weakening the witness) and **215** (extract word count / language / percent
    into pure owners so a live-App capture carries card semantics).
 5. **Human/live closures, all needing an unlocked and FOREGROUNDED display:**
    118's world-loudness confirmation and its `--release` ambient sitting; 211's
@@ -411,5 +448,7 @@ user authorization.
 216. **The file-size-mark raise audit skips at both places drift actually appears.** **Defect:** `scripts/code-health.sh` disables its raise audit whenever HEAD is already `main`'s commit, announcing *"the audit only has force on a worktree branch checked before landing."* That is true, and it means the audit never runs on **CI's push-to-`main` job** or on **the merge train's post-merge candidate** — the two places where CROSS-BRANCH mark drift is created and is visible nowhere else. A branch computes its marks against the tree it was cut from; two branches cut from the same base each land green and their combined tree can be over a mark that neither could see. Item 207 demonstrated it: cut from `73d35118`, it carried marks describing a tree that items 174 and 211 had already changed, and the combined `app.rs` matched neither side's number. **This was caught by accident** — health happened to be run while the merge was still uncommitted, so HEAD was still the pre-merge commit and the audit fired. That is not a procedure. **Build:** give the audit a real baseline at the merge candidate instead of skipping — the merge's first parent is exactly the prior `main`, so `HEAD^1` is the comparison the skip claims does not exist. Keep the skip only where it is genuinely true (a plain push whose parent is its own predecessor is still a valid diff; the degenerate case is a root commit). Do not weaken the audit to make it pass. **Done:** a combined tree that exceeds a mark fails at the merge train and in CI, not by luck. **Verify:** a two-branch fixture cut from one base, each green alone and over a mark together, fails by name at the merge; the existing worktree-branch behaviour is unchanged; mutation proof restores the unconditional skip and watches the fixture go green when it should be red. **Routing:** production tier. **Found at the 2026-08-02 merge train.**
 
 217. **`--bench-suite` is broken on `main`, and the witness is arguing with a real re-plan.** **Defect:** the suite aborts with `the scene planner must run exactly once per timed frame (10 plans over 5)`. `prepare_overlay` builds the row plan TWICE — once before `resolve_diagonal_cluster` and once after, because the cluster changes the plan's `dx`/`dw` — while item 174's first-family witness asserts exactly one plan per frame. Both sides are defensible, which is why this is an item and not a patch: the witness exists so that "a consumer grew its own plan" fails loudly, and it is doing its job; the second plan is genuine work the diagonal composition requires. **Decide between:** rebuilding once *after* the cluster resolves (one plan, but the cluster then needs its inputs before the plan exists), or teaching the witness the real per-frame count with the diagonal arm named, so a THIRD plan still fails. Do not simply raise the number. **Scope:** `--bench-suite` is a hidden dev tool, is not in the native gate, and CI is unaffected — this is not urgent and must not be fixed by weakening the witness. **Verify:** the suite runs green on a diagonal world and a non-diagonal one; the witness still fails by name when a consumer adds a plan; the O(visible) and reshape-count witnesses are unchanged. **Found by item 174's second family, 2026-08-02, identically on base and branch — it is pre-existing, not that slice's doing.**
+
+218. **Make native screen-reader editing incremental so VoiceOver never reports awl as unresponsive.** **Defect:** The first real VoiceOver sitting found that editing basically works and that spoken characters/words are ordinary VoiceOver typing echo, but VoiceOver intermittently says “awl is not responding.” Inspection names a credible hot path: while AT is attached, every redraw clones the whole rope, runs UAX #29 over the entire document, projects every semantic node, includes `Tree` metadata, and republishes one monolithic document `TextRun`. AccessKit explicitly expects full trees only at activation and recommends changed-node updates afterward; awl uses the event-loop-only adapter path whose asynchronous activation forces the full-tree form. **Build:** use a synchronous mixed/direct activation handler backed by a thread-safe latest snapshot, then retain native projection state and emit atomic incremental `TreeUpdate`s. Represent document text as stable line or paragraph runs so an ordinary edit updates only affected runs, parent children when structure changes, selection, and focus. Keep `SemanticSnapshot` the one semantic owner; do not create a second document model, manually announce keystrokes, override VoiceOver typing echo, or run App transitions from an accessibility callback. **Done:** typing, deleting, selection, navigation, paste, undo, and surface changes remain correctly announced without stalls on small or large documents. **Verify:** latency/allocation witnesses across document sizes prove a one-character edit does not scan or publish the whole document; full-tree-only-on-activation and changed-node laws; Unicode/grapheme and multiline-selection round trips across run boundaries; mutation proofs restore the monolithic/full-tree paths; real unlocked VoiceOver typing and navigation sitting with no “not responding” report. **Routing:** deep accessibility/performance owner with a production-tier outcome audit. **User-reported and researched against Apple + AccessKit primary documentation, 2026-08-02.**
 
 213. **Optically center the logo cursor inside every app icon.** ✅ **COMPLETE — `f8d023e1`; user approved the 3 px lift on 2026-08-02.** The canonical macOS icon, complete world roster, paired favicon assets, and all Block/Pill/Narrow galleries were regenerated together; exporter/container laws and raster-clearance sweeps passed before review.
