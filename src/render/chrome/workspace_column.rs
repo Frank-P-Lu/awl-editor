@@ -68,24 +68,27 @@ impl TextPipeline {
         // measurement. On the rail shape the footer rides the wide pane beside the
         // rail, so its width is never the rail's problem; on the timeline shape it
         // rides the timeline itself, and a column measured from the rows alone
-        // clips the very line that teaches the keys — the exact failure the last
-        // slice's vision smoke caught on a footer running off a card. It is shaped
-        // at the UI face here and scaled by `LABEL`, which is the size the footer
-        // really draws at (`push_overlay_hint_spans`).
+        // clips the very line that teaches the keys. It is shaped at the footer's
+        // OWN metrics rather than at the UI face scaled by `LABEL`: glyph advances
+        // do not scale linearly, and the approximation under-measured a real
+        // shipping world's footer by a pixel.
         let hint = match self.overlay_hint.is_empty() {
             true => 0.0,
-            false => {
-                self.measure_workspace_column_px(&self.overlay_hint.clone())
-                    * crate::markdown::type_scale::LABEL
-            }
+            false => self.measure_workspace_hint_px(),
         };
         // A timeline is BOUNDED, never merely measured — and it keeps its floor
         // even when the corpus is empty ("no history yet"), so an empty timeline
         // is still a timeline beside a comparison rather than a collapsed column.
         let cw = self.overlay_char_width();
         let interior = (self.window_w - 2.0 * self.workspace_margin() - 2.0 * hpad).max(0.0);
-        let floor = TIMELINE_MIN_CHARS * cw;
-        (widest.max(hint) + 2.0 * hpad).clamp(floor, (interior * TIMELINE_MAX_FRAC).max(floor))
+        // THE FOOTER IS A HARD FLOOR, not merely part of the corpus: the width cap
+        // is a composition preference (a narrow timeline beside a large
+        // comparison) and legibility outranks it (DESIGN.md §8 rule 1 — preserve
+        // readable type and honest control sizes before anything else). A world
+        // whose display face shapes the footer wider than the cap gets a slightly
+        // wider timeline, not a cut footer.
+        let floor = (TIMELINE_MIN_CHARS * cw).max(hint + 2.0 * hpad);
+        (widest + 2.0 * hpad).clamp(floor, (interior * TIMELINE_MAX_FRAC).max(floor))
     }
 
     /// Shape `text` into the primary column's own buffer and report its widest
@@ -114,5 +117,37 @@ impl TextPipeline {
             widest = widest.max(run.line_w);
         }
         widest
+    }
+
+    /// Shape the FOOTER at its own metrics and report its width — the size
+    /// `push_overlay_hint_spans` really draws it at, so the column is measured
+    /// against the line it has to hold rather than a scaled approximation of it.
+    fn measure_workspace_hint_px(&mut self) -> f32 {
+        self.overlay_remetric();
+        let name_fs = self.overlay_metrics().font_size;
+        let metrics = GlyphMetrics::new(
+            name_fs * crate::markdown::type_scale::LABEL,
+            self.overlay_hint_h(),
+        );
+        let hint = self.overlay_hint.clone();
+        self.workspace_rail_buffer
+            .set_metrics(&mut self.font_system, metrics);
+        self.workspace_rail_buffer
+            .set_size(&mut self.font_system, None, None);
+        self.workspace_rail_buffer
+            .set_wrap(&mut self.font_system, Wrap::None);
+        let ink = theme::base_content().to_glyphon();
+        self.workspace_rail_buffer.set_text(
+            &mut self.font_system,
+            &hint,
+            &panel_attrs().color(ink),
+            Shaping::Advanced,
+            None,
+        );
+        self.workspace_rail_buffer
+            .shape_until_scroll(&mut self.font_system, false);
+        self.workspace_rail_buffer
+            .layout_runs()
+            .fold(0.0_f32, |w, run| w.max(run.line_w))
     }
 }

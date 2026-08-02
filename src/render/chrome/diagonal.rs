@@ -110,9 +110,20 @@ impl DiagonalClusterRail {
         // label can be wider than a narrow card's attachment-side budget, so
         // include that measured overhang in the SAME span rather than clipping
         // ink at one edge while a pointer still reads the old card bounds.
-        let overhang = (inset + composition.connector + cluster_w + composition.selected_outward
-            - geom.band_w())
-        .max(0.0);
+        //
+        // A WORKSPACE HAS NO ROOM TO OVERHANG INTO. A contextual card floats with
+        // its own padding around it, so a row that outgrows the band spills into
+        // space nothing else owns. A workspace's band is one of TWO coordinated
+        // regions and its far edge is the other one's near edge — a row that
+        // overhangs there is drawn, and clickable, on top of the region beside it.
+        // So the cluster yields instead: `diagonal_cluster_budget` already caps the
+        // shaping width to the band, and the shaper elides into it.
+        let overhang = match geom.workspace {
+            true => 0.0,
+            false => (inset + composition.connector + cluster_w - geom.band_w()
+                + composition.selected_outward)
+                .max(0.0),
+        };
         let (spine_start, spine_step, span) = match composition.direction {
             theme::DiagonalDirection::Descending => (
                 band_x + inset,

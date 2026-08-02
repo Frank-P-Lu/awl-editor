@@ -1778,7 +1778,11 @@ fn history_comparison_is_relocated_by_the_capture_path_in_every_world() {
         ranges: Vec::new(),
         git: Vec::new(),
         selected_index: 0,
-        hint: crate::overlay::OverlayKind::History.hint(),
+        // The TIMELINE stage's own line, which is what `foot_hint` gives a
+        // workspace standing on its primary list — not the picker line.
+        hint: crate::overlay::format_hint(
+            &crate::overlay::OverlayKind::History.rail_hint_actions(),
+        ),
         browse_dir: None,
         return_to: None,
         spell_target: None,

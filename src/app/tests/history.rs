@@ -311,3 +311,106 @@ fn notes_keep_their_own_autosave() {
         "autosave_flush does not write note files"
     );
 }
+
+// ── THE RESTORE NOTICE, and the silence beside it ────────────────────────
+//
+// A restore replaces the whole document in one atomic edit and says nothing on
+// its own; DESIGN.md's calm bias makes that the one place a toast earns its
+// keep, because without it a user cannot tell whether the workspace did
+// anything and does not know that undo covers it. `Esc` is the mirror image and
+// must stay silent: it undoes a view substitution, the document never changed,
+// and a toast confirming a no-op is the nagging the same bias forbids.
+//
+// Tier 2 (hermetic `App`) by necessity, not by preference — the restore reads
+// the store off disk, which `docs/harness-reach.md` puts outside the capture
+// tier's reach.
+
+/// Both claims, over BOTH row shapes a timeline carries: an ordinary version
+/// (whose short name is its relative `when` label) and a KEPT one (whose short
+/// name is the user's own). The kept arm is the one a `when`-only notice would
+/// get wrong while the ordinary arm stayed green.
+#[test]
+fn restoring_names_the_version_and_the_undo_while_esc_says_nothing() {
+    use crate::fs::InMemoryFs;
+    let _g = crate::testlock::serial();
+    let p = PathBuf::from("/notes/draft.md");
+    let mem = InMemoryFs::new().with_file(&p, "the newest words\n");
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    crate::history::record(&p, "the oldest words\n", &Config::empty());
+    crate::history::record_pinned(
+        &p,
+        "a kept draft\n",
+        &Config::empty(),
+        Some("before the cut"),
+    );
+    crate::history::record(&p, "the newest words\n", &Config::empty());
+
+    let snaps = crate::history::list(&p);
+    assert_eq!(snaps.len(), 3, "three versions were recorded");
+    let kept = snaps
+        .iter()
+        .find(|s| s.name.as_deref() == Some("before the cut"))
+        .expect("the kept version is in the store");
+    let plain = snaps
+        .iter()
+        .find(|s| s.name.is_none() && s.id != snaps[0].id)
+        .expect("an unnamed older version is in the store");
+
+    let undo = crate::keyspec::undo_chord_label();
+    assert!(!undo.is_empty(), "the notice must name a real key");
+
+    for (id, expect_label) in [
+        (kept.id.clone(), "before the cut".to_string()),
+        (
+            plain.id.clone(),
+            crate::history::relative_label(crate::history::now_millis(), plain.timestamp),
+        ),
+    ] {
+        let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
+        app.emit_notice(crate::actions::NoticeEffect::Clear);
+        open_history_overlay(&mut app, &p);
+        app.restore_history(&id);
+        let notice = app.frame.notice().owned().unwrap_or_default();
+        assert!(
+            notice.contains(&expect_label),
+            "the restore notice must NAME the version restored — the row the user was \
+             standing on reads {expect_label:?}, the notice reads {notice:?}"
+        );
+        assert!(
+            notice.contains(&undo),
+            "the restore notice must name the way BACK ({undo}), not only what happened: \
+             {notice:?}"
+        );
+        assert!(
+            notice.starts_with("restored"),
+            "one calm sentence, leading with what it did: {notice:?}"
+        );
+    }
+
+    // ESC SAYS NOTHING. The whole journey — open, move, leave — must leave the
+    // notice channel exactly as it found it, because nothing about the document
+    // changed. Driven through the real transition table, not by asserting on the
+    // absence of a call.
+    let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
+    app.emit_notice(crate::actions::NoticeEffect::Clear);
+    open_history_overlay(&mut app, &p);
+    let before = app.document.buffer().text();
+    for act in [
+        crate::keymap::Action::NextLine,
+        crate::keymap::Action::InsertTab,
+        crate::keymap::Action::Cancel,
+    ] {
+        app.apply_transition_for_test(&act);
+    }
+    assert_eq!(
+        app.frame.notice().owned().unwrap_or_default(),
+        String::new(),
+        "leaving the workspace changed nothing about the document, so it must say nothing \
+         — a toast confirming a no-op is exactly the nagging DESIGN.md's calm bias forbids"
+    );
+    assert_eq!(
+        app.document.buffer().text(),
+        before,
+        "…and the buffer really is untouched, so the silence is honest"
+    );
+}

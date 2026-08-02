@@ -132,3 +132,122 @@ impl OverlayState {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// THE ROSTER: exactly one kind asks for read-only prose today, and it asks
+    /// for the DIFF. Wildcard-free at the source; this pins what the roster
+    /// currently reads so a kind that quietly grows a comparison is noticed.
+    #[test]
+    fn exactly_the_timeline_asks_for_read_only_prose() {
+        let _g = crate::testlock::serial();
+        let mut asked = 0usize;
+        for kind in OverlayKind::ALL {
+            let card = OverlayState::new(kind, vec!["a row".into()], vec![], vec![]);
+            match kind {
+                OverlayKind::History => {
+                    // A generic card carries no History row meta, so its subject
+                    // is absent and it correctly asks for nothing — which is the
+                    // empty-timeline case, and the reason the focus transfer can
+                    // decline. The populated case is covered below.
+                    assert!(card.comparison_request().is_none());
+                    asked += 1;
+                }
+                _ => assert!(
+                    card.comparison_request().is_none(),
+                    "{kind:?} is not a comparison surface and must ask for nothing"
+                ),
+            }
+        }
+        assert_eq!(asked, 1, "the roster must contain the timeline");
+
+        let rows = vec![crate::history::TimelineRow {
+            when: "2 hr ago".into(),
+            which: "edited \"Title\"".into(),
+            counts: "+1 −1".into(),
+            id: "1700000000000".into(),
+            timestamp: 1_700_000_000_000,
+            pinned: false,
+            name: None,
+        }];
+        let card = OverlayState::new_history(rows, None, None);
+        let req = card
+            .comparison_request()
+            .expect("a timeline standing on a version asks for its diff");
+        assert_eq!(req.view, ComparisonView::Differences);
+        assert_eq!(req.subject, "1700000000000");
+    }
+
+    /// THE CACHE KEY NAMES THE VIEW, NOT ONLY THE SUBJECT.
+    ///
+    /// This is the whole reason the request is typed, and it is the one claim a
+    /// second consumer's correctness rests on: a surface offering several
+    /// read-only views of ONE subject must get several cache entries. Keyed on the
+    /// bare subject, all three views would be served whichever was rendered first
+    /// — the cache-key discipline's own failure mode, and silent.
+    #[test]
+    fn two_views_of_one_subject_are_two_cache_entries() {
+        let subject = "the-same-file".to_string();
+        let keys: Vec<String> = [
+            ComparisonView::Differences,
+            ComparisonView::Mine,
+            ComparisonView::Theirs,
+        ]
+        .into_iter()
+        .map(|view| {
+            ComparisonRequest {
+                view,
+                subject: subject.clone(),
+            }
+            .cache_key()
+        })
+        .collect();
+        let unique: std::collections::BTreeSet<&String> = keys.iter().collect();
+        assert_eq!(
+            unique.len(),
+            keys.len(),
+            "three views of one subject collided in the cache: {keys:?}"
+        );
+        for key in &keys {
+            assert!(
+                key.ends_with(&subject),
+                "the key must still carry the subject whole, so a producer can read it \
+                 back: {key}"
+            );
+        }
+        // …and two SUBJECTS under one view stay distinct too, which is the
+        // property the old bare-id key already had and this must not lose.
+        assert_ne!(
+            ComparisonRequest {
+                view: ComparisonView::Differences,
+                subject: "a".into()
+            }
+            .cache_key(),
+            ComparisonRequest {
+                view: ComparisonView::Differences,
+                subject: "b".into()
+            }
+            .cache_key()
+        );
+    }
+
+    /// Every view's tag is distinct and stable — the cache key and the producer's
+    /// own dispatch both read it, so two views sharing a tag would collide at
+    /// both ends at once.
+    #[test]
+    fn every_view_tag_is_distinct() {
+        let tags: Vec<&str> = [
+            ComparisonView::Differences,
+            ComparisonView::Mine,
+            ComparisonView::Theirs,
+        ]
+        .into_iter()
+        .map(ComparisonView::tag)
+        .collect();
+        let unique: std::collections::BTreeSet<&&str> = tags.iter().collect();
+        assert_eq!(unique.len(), tags.len(), "view tags collided: {tags:?}");
+        assert!(tags.iter().all(|t| !t.is_empty()));
+    }
+}

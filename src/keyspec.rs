@@ -824,6 +824,39 @@ mod tests {
         );
     }
 
+    /// THE CHORD THE RESTORE NOTICE TEACHES IS THE ONE THAT FIRES.
+    ///
+    /// `undo_chord_label` renders a spec per convention, and a sentence that names
+    /// a key which does nothing is worse than one that names no key at all. The
+    /// oracle is the REAL keymap, resolved on each convention in turn — not a
+    /// second copy of the spec, which would agree with itself forever.
+    #[test]
+    fn the_taught_undo_chord_is_the_one_that_fires() {
+        let _g = crate::testlock::serial();
+        for (convention, spec) in [
+            (crate::convention::Convention::Mac, UNDO_SPEC_MAC),
+            (crate::convention::Convention::Linux, UNDO_SPEC_LINUX),
+        ] {
+            let mut km = crate::keymap::KeymapState::new_with_convention(convention);
+            let (key, mods) = parse_chord(spec).expect("the taught spec parses");
+            assert_eq!(
+                km.resolve(&key, &mods),
+                Action::Undo,
+                "{convention:?}: the restore notice teaches {spec:?}, which must actually \
+                 undo on that convention"
+            );
+            let label = match convention {
+                crate::convention::Convention::Mac => mac_glyph_chord(spec),
+                crate::convention::Convention::Linux => linux_glyph_chord(spec),
+            };
+            assert!(
+                !label.is_empty() && label != spec,
+                "{convention:?}: the label must be rendered for a reader, not the raw spec \
+                 ({label:?})"
+            );
+        }
+    }
+
     #[test]
     fn empty_spec_is_empty() {
         assert_eq!(parse_keys("   ").unwrap(), Vec::<Action>::new());

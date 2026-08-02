@@ -187,8 +187,8 @@ reason = "item 116c: +8 lines — the new `Action::AcceptAlternate` variant (a 4
 
 [[file_size_mark]]
 file = "src/keyspec.rs"
-lines = 831
-reason = "`undo_chord_label`: Undo has no palette command to resolve a label from, and the restore notice has to name a key that fires on the reader's own convention (+17)."
+lines = 864
+reason = "`undo_chord_label`: Undo has no palette command to resolve a label from, and the restore notice has to name a key that fires on the reader's own convention (+17), and its law resolves each spec through the real keymap on its own convention rather than trusting a comment (+33)."
 
 [[file_size_mark]]
 file = "src/lava.rs"
@@ -896,7 +896,7 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
 line = 1733
-message = "this function has too many lines (128/100)"
+message = "this function has too many lines (130/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field). Item 116b: +12 lines. Item 84's cross-world diff-panel DRESSING law is re-aimed as `history_preview_renders_the_transcript_as_the_document_in_every_world`: the dressing claim moved to the render tier (where the relocated viewport exists), and what stays here is the content half — the transcript IS the captured document, it renders undressed (a differential against the same transcript captured plainly, with an ink floor so the band cannot go vacuous), and `detail_focus` moves no pixel. The History workspace's own composition then retired the two dressing arms outright — 'undressed at the page column' and 'detail_focus moves nothing' describe a composition that no longer exists — and what stays is the sidecar's transcript plus a differential proving the CAPTURE PATH's own workspace-shape derivation places the comparison in the content pane (-11 lines)."
 
 [[clippy_exception]]

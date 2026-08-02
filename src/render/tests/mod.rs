@@ -91,6 +91,10 @@ mod syntax_roles;
 mod tables;
 mod theme;
 mod theme_caps_law;
+/// The TIMELINE half of the comparison workspace: the two regions never
+/// overlap, every row is clickable where it is drawn, and the footer fits the
+/// narrow column it rides.
+mod timeline_workspace_item116d;
 mod visual_selection_law;
 mod warp_tunnel_item194;
 mod washes;
