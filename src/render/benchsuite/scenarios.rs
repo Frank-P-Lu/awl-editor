@@ -13,7 +13,7 @@ use crate::clock::Instant;
 use crate::search::{Direction, SearchState};
 
 use super::corpus::{self, Tier};
-use super::cx::{Cx, differing_pixels, ms};
+use super::cx::{Cx, FramePasses, differing_pixels, ms};
 use super::{HEIGHT, WIDTH};
 
 enum_with_all! {
@@ -381,11 +381,11 @@ fn apply_search_view(cx: &mut Cx, s: &SearchState, query: &str) -> Result<()> {
     cx.sync_frame()
 }
 
-/// PALETTE OPEN: build the real command palette (catalog ∪ settings rows, the
-/// same `overlay::build` the live app and the replay share) and draw it over
-/// the document — scrim, frosted backdrop, card, rows. WITNESS: the palette
-/// has rows, the row pipeline uploaded instances, the card visibly drew, and the
-/// SCENE PLANNER ran exactly once per frame and stayed O(visible) ([`PlanWitness`]).
+/// PALETTE OPEN: build the real command palette (catalog ∪ settings rows, the same
+/// `overlay::build` the live app and the replay share) and draw it over the
+/// document — scrim, frosted backdrop, card, rows. WITNESS: the palette has rows,
+/// this world's row surface uploaded, the card drew, and the planner ran exactly
+/// its named passes, O(visible).
 fn palette(cx: &mut Cx) -> Result<CellOut> {
     const SAMPLES: usize = 5;
     let plan_witness = super::cx::PlanWitness::mark();
@@ -394,7 +394,7 @@ fn palette(cx: &mut Cx) -> Result<CellOut> {
     let temp_root = std::env::temp_dir();
     let mut samples = Vec::with_capacity(SAMPLES);
     let mut items_len = 0u64;
-    let mut instances = 0u64;
+    let (mut instances, mut passes) = (0u64, FramePasses { content_hug: false });
     let mut open_frame: Option<image::RgbaImage> = None;
     for i in 0..SAMPLES {
         let build_ctx = crate::overlay::BuildCtx {
@@ -425,7 +425,8 @@ fn palette(cx: &mut Cx) -> Result<CellOut> {
         cx.sync_frame()?;
         samples.push(ms(t0));
         items_len = cx.view.overlay_items.len() as u64;
-        instances = cx.p.overlay_rows.instance_count() as u64;
+        instances = super::cx::selected_row_surface_instances(cx);
+        passes = FramePasses::observe(&cx.p); // named passes, card still OPEN
         if i == 0 {
             open_frame = Some(cx.snapshot()?);
         }
@@ -434,10 +435,10 @@ fn palette(cx: &mut Cx) -> Result<CellOut> {
         cx.sync_frame()?;
     }
     ensure!(items_len > 0, "the command palette must carry rows");
-    ensure!(instances > 0, "the palette rows must upload row instances");
+    ensure!(instances > 0, "the palette must upload a row surface");
     let window_rows = cx.view.overlay_window_rows.max(1);
     let (plans_per_frame, mean_rows) =
-        plan_witness.settle(SAMPLES as u64, window_rows, items_len)?;
+        plan_witness.settle(SAMPLES as u64, &passes, window_rows, items_len)?;
     let changed = differing_pixels(&baseline_frame, &open_frame.expect("snapshotted above"));
     ensure!(
         changed > 0,
@@ -528,8 +529,7 @@ fn theme(cx: &mut Cx) -> Result<CellOut> {
             );
         }
     }
-    // Restore the suite's pinned world (untimed).
-    crate::theme::set_active(crate::theme::DEFAULT_THEME);
+    crate::theme::set_active(cx.world); // the POSTURE world, never a constant
     cx.p.sync_theme();
     cx.sync_frame()?;
     Ok(CellOut {

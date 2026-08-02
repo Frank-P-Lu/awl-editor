@@ -9,6 +9,7 @@
 //! rows down) — so "which display line is item 3" has exactly one answer.
 
 use super::PlannedHeader;
+use super::row_extent::{RowExtent, RowSpan, apply_row_extent};
 
 /// One DISPLAY line in an overlay card's candidate area: a faint uppercase
 /// section header, or a candidate row carrying its index into `overlay_items`.
@@ -119,17 +120,6 @@ pub(in crate::render) struct OverlayRowPlanInput<'a> {
     pub selected_display: Option<usize>,
 }
 
-/// The row-side span for a measured diagonal cluster.  The cluster owner
-/// resolves this from the same shaped label/accessory measurements that draw
-/// the text; the planner is still the one place that turns it into row bounds.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(in crate::render) struct RowSpan {
-    pub dx: f32,
-    pub dw: f32,
-    pub dx_per_row: f32,
-    pub dw_per_row: f32,
-}
-
 /// THE PLANNED CANDIDATE BAND. Built once per overlay frame; read by the draw
 /// emitters, the pointer hit-test, and the sidecar report.
 #[derive(Clone, Debug)]
@@ -144,6 +134,9 @@ pub(in crate::render) struct OverlayRowPlan {
     pub(super) rows: Vec<PlannedRow>,
     pub(super) empty_rows: usize,
     pub(super) selected_display: Option<usize>,
+    /// The composition's own signed step, constant for the frame — so completing
+    /// this plan's extent needs only the MEASURED half.
+    pub(super) dx_per_row: f32,
 }
 
 /// PLAN WORK WITNESSES, counted by the planner itself so no consumer can dodge
@@ -331,28 +324,6 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
         input.lh,
     );
     let headers = super::overlay_header::plan_header_band(input);
-    // A row's horizontal extent is planned exactly like its vertical one, off
-    // the same display index, so a composition that staggers rows cannot end up
-    // with the draw and the hit-test reading two different arithmetics.
-    //
-    // ITEM 131a — the ONE signed step splits into the two-sided extent here,
-    // and only here: the positive part grows `dx` (left edge steps in), the
-    // negative part grows `dw` (right edge steps in). Exactly one of the two is
-    // ever nonzero for a given `dx_per_row`, which is what lets both mirrored
-    // compositions share one input without a second knob.
-    let (base_dx, base_dw, dx_step, dw_step) = input.cluster_span.map_or_else(
-        || {
-            (
-                0.0,
-                0.0,
-                input.dx_per_row.max(0.0),
-                input.dx_per_row.min(0.0),
-            )
-        },
-        |span| (span.dx, span.dw, span.dx_per_row, span.dw_per_row),
-    );
-    let dx = |display: usize| base_dx + dx_step * display as f32;
-    let dw = |display: usize| base_dw + dw_step * display as f32;
     let mut rows: Vec<PlannedRow> = match input.lines {
         Some(lines) => lines
             .iter()
@@ -365,8 +336,8 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
                 },
                 top: first_top + display as f32 * input.lh,
                 height: input.lh,
-                dx: dx(display),
-                dw: dw(display),
+                dx: 0.0,
+                dw: 0.0,
             })
             .collect(),
         None => (0..input.visible)
@@ -377,20 +348,13 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
                     item: (idx < input.n_items).then_some(idx),
                     top: first_top + display as f32 * input.lh,
                     height: input.lh,
-                    dx: dx(display),
-                    dw: dw(display),
+                    dx: 0.0,
+                    dw: 0.0,
                 }
             })
             .collect(),
     };
-    if let Some((dx, dw)) = input.selected_offset
-        && let Some(row) = rows
-            .iter_mut()
-            .find(|row| Some(row.display) == input.selected_display)
-    {
-        row.dx += dx;
-        row.dw += dw;
-    }
+    apply_row_extent(&mut rows, &RowExtent::of(input));
     // THE LOGICAL SELECTED DISPLAY LINE — the row Enter or a click activates.
     // Two families: a grouped plan's selected item sits at its POSITION in the
     // line sequence (headers push it down); a flat window's is its offset in the
@@ -438,5 +402,6 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
         rows,
         empty_rows: input.empty_rows,
         selected_display,
+        dx_per_row: input.dx_per_row,
     }
 }

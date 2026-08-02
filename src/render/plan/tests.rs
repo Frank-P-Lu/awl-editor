@@ -700,3 +700,149 @@ fn the_flat_query_box_is_taller_than_the_row_pitch_and_the_grouped_one_is_not() 
     assert!(!flat_field.contains(flat_field.bottom()));
     assert!(!flat_field.contains(flat_field.top - 0.01));
 }
+
+// ---------------------------------------------------------------------------
+// COMPLETING A PLAN'S ROW EXTENT, instead of building a second plan.
+// ---------------------------------------------------------------------------
+
+/// Every row extent a shipping composition can ask for, as a sweep: no cluster
+/// at all (the upright worlds), the descending mirror, the ascending mirror,
+/// each with and without a selected row stepped outward. The axis a
+/// single-representative law would miss is the SIGN — `dx` and `dw` are two
+/// fields precisely because one offset could not express both mirrors, so an
+/// extent law that only exercised Mangrove's shape would pass on a completion
+/// that dropped `dw` entirely.
+fn extents() -> Vec<(&'static str, super::RowExtent)> {
+    use super::{RowExtent, RowSpan};
+    let descending = RowSpan {
+        dx: 44.0,
+        dw: 0.0,
+        dx_per_row: 7.0,
+        dw_per_row: 0.0,
+    };
+    let ascending = RowSpan {
+        dx: 0.0,
+        dw: -44.0,
+        dx_per_row: 0.0,
+        dw_per_row: -7.0,
+    };
+    let mut out = vec![
+        (
+            "upright",
+            RowExtent {
+                dx_per_row: 0.0,
+                cluster_span: None,
+                selected_offset: None,
+                selected_display: None,
+            },
+        ),
+        (
+            "probe stagger",
+            RowExtent {
+                dx_per_row: 5.0,
+                cluster_span: None,
+                selected_offset: None,
+                selected_display: None,
+            },
+        ),
+        (
+            "probe stagger, mirrored",
+            RowExtent {
+                dx_per_row: -5.0,
+                cluster_span: None,
+                selected_offset: None,
+                selected_display: None,
+            },
+        ),
+    ];
+    for (name, span) in [("descending", descending), ("ascending", ascending)] {
+        out.push((
+            name,
+            RowExtent {
+                dx_per_row: 0.0,
+                cluster_span: Some(span),
+                selected_offset: None,
+                selected_display: None,
+            },
+        ));
+        out.push((
+            name,
+            RowExtent {
+                dx_per_row: 0.0,
+                cluster_span: Some(span),
+                selected_offset: Some((4.0, 4.0)),
+                selected_display: Some(3),
+            },
+        ));
+    }
+    out
+}
+
+/// THE PROPERTY THE FRAME RELIES ON. `prepare_overlay` builds its one plan
+/// BEFORE the measured diagonal cluster can exist (the cluster is derived from
+/// rows shaped against that very plan) and completes it in place afterwards. So
+/// completing a plan that already carries extent A with extent B must land on
+/// exactly what building it with extent B would have — otherwise the retired
+/// second plan was doing work the completion silently drops.
+///
+/// Swept over EVERY ordered pair of extents, so the law grades the transitions a
+/// live frame actually makes (`None` -> measured on the frame a card opens,
+/// measured -> re-measured when the selection moves) rather than one imagined one.
+#[test]
+fn completing_a_plans_extent_lands_where_rebuilding_it_would() {
+    for (from_name, from) in extents() {
+        for (to_name, to) in extents() {
+            // The composition step is a property of the plan, so the FROM plan is
+            // built at the TO step: what a frame completes is the measured half.
+            let mut built = plan_overlay_rows(&OverlayRowPlanInput {
+                dx_per_row: to.dx_per_row,
+                cluster_span: from.cluster_span,
+                selected_offset: from.selected_offset,
+                selected_display: from.selected_display,
+                ..flat(6, 0, 20, 1)
+            });
+            built.complete_row_extent((to.cluster_span, to.selected_offset, to.selected_display));
+            let rebuilt = plan_overlay_rows(&OverlayRowPlanInput {
+                dx_per_row: to.dx_per_row,
+                cluster_span: to.cluster_span,
+                selected_offset: to.selected_offset,
+                selected_display: to.selected_display,
+                ..flat(6, 0, 20, 1)
+            });
+            assert_eq!(
+                built.rows(),
+                rebuilt.rows(),
+                "completing {from_name} -> {to_name} must equal a rebuild at {to_name}"
+            );
+        }
+    }
+}
+
+/// NON-VACUITY for the law above: the extents it sweeps really do differ from
+/// one another, on BOTH edges. Without this, a completion that zeroed every
+/// extent would satisfy the equality above on a sweep that was itself inert.
+#[test]
+fn the_swept_extents_move_both_edges() {
+    let mut saw_dx = false;
+    let mut saw_dw = false;
+    for (name, extent) in extents() {
+        let plan = plan_overlay_rows(&OverlayRowPlanInput {
+            dx_per_row: extent.dx_per_row,
+            cluster_span: extent.cluster_span,
+            selected_offset: extent.selected_offset,
+            selected_display: extent.selected_display,
+            ..flat(6, 0, 20, 1)
+        });
+        let last = plan.rows().last().copied().unwrap();
+        assert!(
+            plan.rows().len() == 6,
+            "{name}: the sweep must plan a full window"
+        );
+        saw_dx |= last.dx > 0.0;
+        saw_dw |= last.dw < 0.0;
+    }
+    assert!(
+        saw_dx && saw_dw,
+        "the extent sweep must move the LEFT edge on one arm and the RIGHT edge on the other"
+    );
+}

@@ -30,6 +30,14 @@ mod cx;
 mod report;
 mod scenarios;
 
+// The plan-count witness is DEFINED here (the bench cell is its first consumer)
+// and re-run under `cargo test` by `render/tests/plan_pass_law.rs`, because
+// `--bench-suite` is a hidden dev tool and is deliberately NOT in the native
+// gate. One owner, two callers: a law carrying its own copy of "how many plans a
+// frame is entitled to" would drift from the bench the moment either changed.
+#[cfg(test)]
+pub(in crate::render) use cx::{FramePasses, PlanWitness};
+
 use std::path::PathBuf;
 
 use anyhow::{Result, ensure};
@@ -56,20 +64,41 @@ pub fn run(baseline: Option<PathBuf>) -> Result<()> {
     pollster::block_on(run_async(baseline))
 }
 
+/// PIN THE SUITE'S POSTURE and answer with its world: page ON (the product's
+/// default), debug OFF, and ONE world for the whole matrix — whatever `--theme`
+/// already set (the flag moves the process-global active theme before the mode
+/// runs), defaulting to the product default when the flag is absent, so a plain
+/// `--bench-suite` is unchanged.
+///
+/// A world is not decoration here: card anchor and list style change WHICH
+/// per-frame work an overlay cell measures, and the diagonal compositions are the
+/// only place the row extent is measured rather than inert. `bench.json` carries
+/// no world field, so a cross-world baseline diff would silently compare two
+/// different workloads — refused outright.
+fn pin_posture(diffing: bool) -> Result<usize> {
+    crate::debug::set_debug_on(false);
+    crate::page::set_page_on(true);
+    let world = crate::theme::active_index();
+    ensure!(
+        !diffing || world == crate::theme::DEFAULT_THEME,
+        "--bench-baseline only diffs the default world; this run is posed on {} \
+         (drop --theme, or diff by hand)",
+        crate::theme::active().name
+    );
+    Ok(world)
+}
+
 async fn run_async(baseline: Option<PathBuf>) -> Result<()> {
     let wall0 = Instant::now();
     let (device, queue) = crate::capture::gpu::headless_device().await?;
     let cache = Cache::new(&device);
 
-    // The pinned suite posture: page ON (the product's default), debug OFF,
-    // the default world. Scenarios that move a global (theme) restore it.
-    crate::debug::set_debug_on(false);
-    crate::page::set_page_on(true);
-    crate::theme::set_active(crate::theme::DEFAULT_THEME);
+    let posture_world = pin_posture(baseline.is_some())?;
     let config = Config::load(PathBuf::new()); // pure defaults, no file
 
     println!(
-        "bench suite — {WIDTH}x{HEIGHT} @{DPI}x · page ON · debug OFF · schema {}",
+        "bench suite — {WIDTH}x{HEIGHT} @{DPI}x · page ON · debug OFF · world {} · schema {}",
+        crate::theme::active().name,
         report::SCHEMA
     );
     println!("(headless: submit+poll SERIALIZES GPU cost; witnesses are hard failures, not notes)");
@@ -100,8 +129,8 @@ async fn run_async(baseline: Option<PathBuf>) -> Result<()> {
             "corpus tier {} must regenerate byte-identically",
             tier.name()
         );
-        // Reset the per-tier posture: default world, the tier's own page measure.
-        crate::theme::set_active(crate::theme::DEFAULT_THEME);
+        // Reset the per-tier posture: the posture world, the tier's own page measure.
+        crate::theme::set_active(posture_world);
         crate::page::set_measure(config.measure_for(tier.class()));
         let misspelled = spell.misspellings_for(&text, tier.syn_lang());
         let mut cx = cx::Cx::new(&device, &queue, &cache, &config, tier, text, misspelled)?;
