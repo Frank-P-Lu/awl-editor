@@ -49,15 +49,18 @@
 mod overlay_header;
 mod overlay_row_plan;
 mod overlay_rows;
+mod row_extent;
 
 pub(in crate::render) use overlay_header::{PlannedHeader, header_band_height};
 pub(in crate::render) use overlay_rows::plan_witness;
 pub(in crate::render) use overlay_rows::{
-    OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, RowSpan, fit_item_rows,
-    plan_overlay_rows,
+    OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, fit_item_rows, plan_overlay_rows,
 };
 #[cfg(test)]
 pub(in crate::render) use overlay_rows::{test_header_plan, test_row_top, test_rows};
+#[cfg(test)]
+pub(in crate::render) use row_extent::RowExtent;
+pub(in crate::render) use row_extent::{ClusterExtent, RowSpan};
 
 #[cfg(test)]
 mod tests;

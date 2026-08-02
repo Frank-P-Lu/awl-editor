@@ -21,7 +21,7 @@ impl TextPipeline {
         let ink = theme::base_content().to_glyphon();
         let muted = theme::muted().to_glyphon();
         let geom = self.overlay_geometry(width);
-        let plan = self.overlay_row_plan(&geom);
+        let mut plan = self.overlay_row_plan(&geom);
         let placard = self.overlay_shape_placard(&geom);
         let stipple = matches!(
             crate::render::effective_title_style(),
@@ -49,7 +49,7 @@ impl TextPipeline {
         let has_rail = self.workspace_shape_rail(&geom, &plan);
         let has_right = self.overlay_shape_text(&geom, &plan, ink, muted, selected_ink, &vis, true);
         self.diagonal_cluster = self.resolve_diagonal_cluster(&geom, &plan, &vis);
-        let plan = self.overlay_row_plan(&geom);
+        plan.complete_row_extent(self.diagonal_row_extent()); // completed, not rebuilt
         self.overlay_upload_text(
             device, queue, width, height, &geom, &plan, has_right, has_rail, ink, muted, placard,
         )?;

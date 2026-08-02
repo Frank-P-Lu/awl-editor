@@ -563,10 +563,7 @@ impl TextPipeline {
     /// `prepare_overlay` and threaded down, and freshly (still O(visible)) by the
     /// standalone pointer/report entry points, which have no frame to ride.
     pub(in crate::render) fn overlay_row_plan(&self, geom: &OverlayGeom) -> OverlayRowPlan {
-        let (cluster_span, selected_offset, selected_display) = self.diagonal_cluster.map_or(
-            (None, None, None),
-            crate::render::chrome::diagonal::DiagonalClusterRail::row_plan,
-        );
+        let (cluster_span, selected_offset, selected_display) = self.diagonal_row_extent();
         plan_overlay_rows(&OverlayRowPlanInput {
             card_x: geom.band_x(),
             card_w: geom.band_w(),

@@ -5,8 +5,8 @@ use super::*;
 // consumer here reads (its forward/inverse row<->y arithmetic stays private to
 // `crate::render::plan`); item 181 adds the shared item-row HEIGHT clamp.
 pub(super) use crate::render::plan::{
-    OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, RowSpan, fit_item_rows,
-    plan_overlay_rows,
+    ClusterExtent, OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, RowSpan,
+    fit_item_rows, plan_overlay_rows,
 };
 
 const PREFIX_HEADER: &str = "C-x";

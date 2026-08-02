@@ -76,6 +76,7 @@ mod overlay_right_hug_law;
 mod page_frame;
 mod paperbark_retina_item201;
 mod pixeldiff;
+mod plan_pass_law;
 mod popover;
 pub(in crate::render) mod potoroo_pane;
 mod range_rail;

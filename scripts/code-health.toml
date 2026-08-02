@@ -297,7 +297,7 @@ lines = 894
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay.rs"
-lines = 738
+lines = 735
 reason = "The overlay owns the one shared row plan and pointer geometry; the measured diagonal span and Range rail read remain at that seam alongside the workspace dispatch and row-offset inputs. The lens strip's Y band left for the scene planner."
 
 [[file_size_mark]]
@@ -753,8 +753,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/benchsuite/mod.rs"
-line = 59
-message = "this function has too many lines (110/100)"
+line = 91
+message = "this function has too many lines (109/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]

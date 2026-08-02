@@ -253,6 +253,16 @@ impl TextPipeline {
         )
     }
 
+    /// THE ONE READ of the measured cluster AS PLAN INPUT — its row span, its
+    /// selected row's outward step, and which display line that is. A frame builds
+    /// its plan BEFORE the cluster exists and completes it after; the standalone
+    /// pointer/report entry points, with no frame to ride, plan against whatever
+    /// the last drawn frame measured. Both doors ask this one question.
+    pub(in crate::render) fn diagonal_row_extent(&self) -> ClusterExtent {
+        self.diagonal_cluster
+            .map_or((None, None, None), DiagonalClusterRail::row_plan)
+    }
+
     pub(super) fn resolve_diagonal_cluster(
         &self,
         geom: &OverlayGeom,

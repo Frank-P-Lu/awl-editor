@@ -17,32 +17,93 @@ use super::corpus::{self, Tier};
 use super::{DPI, DT, HEIGHT, WIDTH};
 use crate::render::{TextPipeline, ViewState};
 
-/// ITEM 174 — the SCENE-PLAN witness for a scenario that opens an overlay, so a
-/// bench cannot "measure" a card while the planner does nothing (the theme bench
-/// that once reported ~5 ms with zero reshapes). Marked before the timed samples
-/// and settled after, against the two invariants the planner promises.
-pub(super) struct PlanWitness {
+/// THE NAMED PLANNING PASSES one timed overlay frame is entitled to.
+///
+/// Deliberately NOT a number. "Some number of plans is fine" protects nothing;
+/// every pass is named, carries its owner, and is decided by an oracle derived
+/// from that pass's own OUTCOME rather than from the predicate the pipeline
+/// branches on. A pass nobody named is a third plan, and a third plan is the
+/// defect this witness exists to catch.
+pub(in crate::render) struct FramePasses {
+    /// A RIGHT-ANCHORED card HUGS its content, so before the drawn geometry can
+    /// be resolved the pipeline shapes the candidate rows against a PROVISIONAL
+    /// wide-cap geometry and measures their widest ink
+    /// (`measure_overlay_content_w`, inside `set_view`). That measurement plans
+    /// its own provisional card — a genuinely different card from the one this
+    /// frame draws, and it cannot be the frame's plan, because the frame's
+    /// geometry is downstream of its result.
+    ///
+    /// The oracle is the measurement's own PRODUCT — the hug width it shaped and
+    /// cached — not `overlay_right_anchored()`, the predicate the pipeline itself
+    /// branches on. An oracle reading the same switch as the code agrees with it
+    /// by construction: the planner's own device law was once satisfied because
+    /// the sidecar and the plan both read `selected_display()`, so a planner that
+    /// forgot grouped headers kept them in perfect agreement while pointing at
+    /// the wrong row.
+    pub content_hug: bool,
+}
+
+impl FramePasses {
+    /// Read on a frame with the card OPEN — the hug width is cleared the moment
+    /// the overlay closes.
+    pub(in crate::render) fn observe(p: &TextPipeline) -> Self {
+        Self {
+            content_hug: p.overlay_content_w > 0.0,
+        }
+    }
+
+    /// The frame's OWN drawn plan, always, plus whichever named pass this world
+    /// really ran.
+    fn per_frame(&self) -> u64 {
+        1 + u64::from(self.content_hug)
+    }
+
+    fn names(&self) -> String {
+        let mut named = vec!["the frame's own drawn plan"];
+        if self.content_hug {
+            named.push("the right-anchored content-hug measurement (`measure_overlay_content_w`)");
+        }
+        named.join(" + ")
+    }
+}
+
+/// The SCENE-PLAN witness for a scenario that opens an overlay, so a bench cannot
+/// "measure" a card while the planner does nothing (the theme bench that once
+/// reported ~5 ms with zero reshapes). Marked before the timed samples and
+/// settled after, against the two invariants the planner promises.
+pub(in crate::render) struct PlanWitness {
     plans: u64,
     rows: u64,
 }
 
 impl PlanWitness {
-    pub(super) fn mark() -> Self {
+    pub(in crate::render) fn mark() -> Self {
         let (plans, rows) = crate::render::plan::plan_witness();
         Self { plans, rows }
     }
 
-    /// `(plans, mean planned rows per plan)` since the mark. EXACTLY one plan per
-    /// timed frame — zero means nothing planned, more than one means a consumer
-    /// grew its own plan instead of reading the frame's — and each plan bounded by
-    /// the drawn window rather than the `items`-row corpus.
-    pub(super) fn settle(&self, frames: u64, window_rows: usize, items: u64) -> Result<(u64, u64)> {
+    /// `(plans per frame, mean planned rows per plan)` since the mark. Exactly
+    /// the NAMED passes per timed frame — zero means nothing planned, an
+    /// unnamed extra means a consumer grew its own plan instead of reading the
+    /// frame's — and each plan bounded by the drawn window rather than the
+    /// `items`-row corpus.
+    pub(in crate::render) fn settle(
+        &self,
+        frames: u64,
+        passes: &FramePasses,
+        window_rows: usize,
+        items: u64,
+    ) -> Result<(u64, u64)> {
         let (plans_now, rows_now) = crate::render::plan::plan_witness();
         let plans = plans_now - self.plans;
         let rows = rows_now - self.rows;
+        let per_frame = passes.per_frame();
         ensure!(
-            plans == frames,
-            "the scene planner must run exactly once per timed frame ({plans} plans over {frames})"
+            plans == frames * per_frame,
+            "the scene planner must run exactly once per timed frame per NAMED pass \
+             ({plans} plans over {frames} frames, expected {per_frame} each: {}) — \
+             an extra plan is a consumer that grew its own instead of reading the frame's",
+            passes.names()
         );
         let mean = rows / plans.max(1);
         ensure!(
@@ -72,6 +133,11 @@ pub(super) struct Cx<'a> {
     pub words: u64,
     /// The canvas width currently fed to `prepare` (the resize scenario steps it).
     pub width: u32,
+    /// THE POSTURE WORLD this context was built under — the suite's one world for
+    /// the whole matrix. A scenario that moves the global theme restores THIS,
+    /// never a constant, or every cell after it in the tier would silently
+    /// measure the default world instead of the posed one.
+    pub world: usize,
 }
 
 impl<'a> Cx<'a> {
@@ -141,6 +207,7 @@ impl<'a> Cx<'a> {
             lines,
             words,
             width: WIDTH,
+            world: crate::theme::active_index(),
         };
         // Warm the atlas + caches like an editor sitting on the open document.
         for _ in 0..3 {
@@ -179,6 +246,26 @@ impl<'a> Cx<'a> {
     /// Read the offscreen target back for a pixel witness.
     pub(super) fn snapshot(&mut self) -> Result<image::RgbaImage> {
         crate::capture::gpu::read_frame(self.device, self.queue, &self.texture, WIDTH, HEIGHT)
+    }
+}
+
+/// THE SELECTED ROW'S OWN SURFACE, uploaded — whichever pipeline this world's
+/// list style draws it with. A no-wildcard match, so a new `ListStyle` cannot
+/// quietly fall through to a pipeline it never fills.
+///
+/// The suite ran only the default world until the posture world became settable,
+/// so this used to read `overlay_rows` outright. That is the flat/poster
+/// families' band quad; a DIAGONAL world deliberately draws no row fill at all
+/// (`overlay_prepare_selection`'s `Diagonal` arm) and carries focus on the bright
+/// local spine segment instead — so on a diagonal world the old read was
+/// structurally zero and the cell failed on a witness looking at the wrong
+/// surface.
+pub(super) fn selected_row_surface_instances(cx: &Cx) -> u64 {
+    match crate::render::effective_list_style() {
+        crate::theme::ListStyle::Pane | crate::theme::ListStyle::Bars { .. } => {
+            cx.p.overlay_rows.instance_count() as u64
+        }
+        crate::theme::ListStyle::Diagonal(_) => cx.p.overlay_spine_selected.instance_count() as u64,
     }
 }
 
