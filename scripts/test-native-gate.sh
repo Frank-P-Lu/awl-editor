@@ -129,6 +129,40 @@ fi
 
 echo "test-native-gate: an exhausted budget ends the run in band, by name, with no receipt"
 
+# The heartbeat is the only thing that will describe the machine while a slow
+# gate is still alive, so a heartbeat carrying a placeholder is worse than
+# none — it reads as real. This asserts the probe against THIS host's real
+# kernel counters: the first draft parsed macOS's page size out of the wrong
+# field and every sample reported free_bytes=0 through a full green gate.
+: >"$WORK/events"
+set +e
+env -u RUST_TEST_THREADS \
+  PATH="$WORK:$PATH" \
+  AWL_NATIVE_GATE_VITALS_SECONDS=1 \
+  AWL_NATIVE_GATE_PROBE_SLEEP=3 \
+  AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+  AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
+  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-vitals" \
+  "$ROOT/scripts/native-gate.sh" >"$WORK/output-vitals" 2>&1
+vitals_status=$?
+set -e
+(( vitals_status == 0 )) || {
+  echo "test-native-gate: vitals probe failed ($vitals_status)" >&2
+  exit 1
+}
+vitals_free="$(awk '/^native-gate-vitals/ { for (i = 1; i <= NF; i++) if ($i ~ /^free_bytes=/) { sub(/free_bytes=/, "", $i); print $i; exit } }' "$WORK/output-vitals")"
+[[ -n "$vitals_free" ]] || {
+  echo "test-native-gate: a running suite emitted no vitals heartbeat at all" >&2
+  exit 1
+}
+[[ "$vitals_free" =~ ^[0-9]+$ ]] && (( vitals_free > 0 )) || {
+  echo "test-native-gate: the vitals heartbeat reported free_bytes=$vitals_free — the memory probe does not work on this host" >&2
+  exit 1
+}
+
+echo "test-native-gate: the vitals heartbeat reaches this host's real memory counters while the suite runs"
+
 assert_concurrent_and_complete() {
   local first_two
   first_two="$(grep -E '^(start|finish) (mac|linux)$' "$WORK/events" | sed -n '1,2p' | sort)"

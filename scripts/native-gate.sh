@@ -80,8 +80,10 @@ gate_free_bytes() {
     awk '/^MemAvailable:/ { print $2 * 1024; exit }' /proc/meminfo
     return
   fi
+  # The page size lives mid-header ("… (page size of 16384 bytes)"), not in the
+  # last field: reading $NF there yields "bytes)" and every sample reports zero.
   vm_stat 2>/dev/null | awk '
-    NR == 1 { gsub(/[^0-9]/, "", $NF); page = $NF }
+    NR == 1 { size = $0; sub(/.*page size of /, "", size); sub(/[^0-9].*/, "", size); page = size + 0 }
     /^Pages free/ || /^Pages inactive/ || /^Pages speculative/ { gsub(/\./, "", $NF); pages += $NF }
     END { print pages * page }
   '
