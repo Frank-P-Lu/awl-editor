@@ -211,7 +211,41 @@ run.
 
 ## Ready — current user-visible wave
 
-## Active claims — 2026-08-02 wave
+## Active claims — 2026-08-02/03 wave
+
+**Overnight results, newest first.**
+
+- **217** — ✅ COMPLETE. `--bench-suite` runs green again. **BOTH of the brief's
+  premises were wrong, and they pointed at two different plans.** (a) The second
+  plan was NOT the diagonal's: `prepare_overlay` rebuilt the plan
+  UNCONDITIONALLY after `resolve_diagonal_cluster`, so **Saltpan — the default
+  world, upright, with no cluster at all — paid a full second plan every overlay
+  frame.** That is what the bench was hitting, and it is eliminated: the frame
+  builds ONE plan and completes its measured half in place through the same
+  `apply_row_extent` a fresh build runs. (b) There IS a genuine second plan and
+  it belongs to **item 51's right-anchored content-hug measurement**, which
+  shapes a provisional card to learn how wide to hug — Cassowary (right-anchored,
+  upright) shows 2, Magpie (left-anchored, diagonal) shows 1. **THE AXIS NOBODY
+  HAD SWEPT WAS THE CARD ANCHOR, NOT THE LIST STYLE.** So it is *named* rather
+  than numbered: `FramePasses` names each pass and asserts the sum, a third plan
+  fails by name, and its oracle is the measurement's own cached hug width rather
+  than `overlay_right_anchored()`, so it cannot agree with the code by
+  construction. Two witnesses were pointed at the wrong surface — the palette's
+  row witness read `overlay_rows`, the flat/poster band quad a diagonal world
+  deliberately never fills, and the theme scenario restored the posture world
+  instead of `DEFAULT_THEME`. Because `--bench-suite` is outside the native
+  gate, `render/tests/plan_pass_law.rs` re-runs the same witness under
+  `cargo test` across the roster. **An honest negative, kept out of the tree:** a
+  first device-tier completion law compared the opening frame's pixels to the
+  settled frame's and **stayed green under the no-op mutation**, because on a
+  diagonal world the drawn ink is placed by `cluster.label_left(...)` and not
+  `row.dx` — the plan's extent drives hit-test and clip, not the glyphs. Deleted
+  rather than shipped vacuous. Two marks moved, **neither raised**:
+  `chrome/overlay.rs` lowered 738→735, and a `too_many_lines` exception lowered
+  110→109 after extracting `pin_posture`.
+- **216** — ✅ COMPLETE. The mark-audit skip is closed; see the CI section above.
+- **211** — ✅ Presence confirmed on a real screen; see the blocked section for
+  the three arms still owed.
 
 - **207** — ✅ COMPLETE. Merged to `main`; worktree removed. Native awl has one
   semantic UI owner: `SemanticSnapshot` feeds the AccessKit tree, `--semantic-json`
