@@ -151,11 +151,11 @@ impl App {
                     ))
             }
             "search" => {
-                let (search, _) = self.workspace_state.core_slots();
-                *search = Some(crate::search::SearchState::start(
-                    0,
-                    crate::search::Direction::Forward,
-                ));
+                self.workspace_state
+                    .install_search_for_test(crate::search::SearchState::start(
+                        0,
+                        crate::search::Direction::Forward,
+                    ));
             }
             other => panic!("unknown semantic fixture {other}"),
         }

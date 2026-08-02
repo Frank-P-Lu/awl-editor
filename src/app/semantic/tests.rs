@@ -332,11 +332,11 @@ fn every_ladder_rung_names_exactly_one_focus_owner() {
             workspace::Layer::Editor => {}
             workspace::Layer::Popover => app.workspace_state.summon_popover(true),
             workspace::Layer::Search => {
-                let (search, _) = app.workspace_state.core_slots();
-                *search = Some(crate::search::SearchState::start(
-                    0,
-                    crate::search::Direction::Forward,
-                ));
+                app.workspace_state
+                    .install_search_for_test(crate::search::SearchState::start(
+                        0,
+                        crate::search::Direction::Forward,
+                    ));
             }
             workspace::Layer::Workspace => app
                 .workspace_state
@@ -375,11 +375,11 @@ fn passive_surfaces_announce_without_stealing_focus() {
             workspace::Layer::Editor => {}
             workspace::Layer::Popover => app.workspace_state.summon_popover(true),
             workspace::Layer::Search => {
-                let (search, _) = app.workspace_state.core_slots();
-                *search = Some(crate::search::SearchState::start(
-                    0,
-                    crate::search::Direction::Forward,
-                ));
+                app.workspace_state
+                    .install_search_for_test(crate::search::SearchState::start(
+                        0,
+                        crate::search::Direction::Forward,
+                    ));
             }
             workspace::Layer::Workspace => app
                 .workspace_state
@@ -489,15 +489,11 @@ fn a_settings_range_row_increments_the_real_setting() {
         .expect("Settings ships at least one range row");
     // The REAL workspace, through its real chord: a hand-built Settings
     // overlay would not carry the category rail the row walk depends on.
-    let mut app = App::new(
+    let mut app = App::new_hermetic(
         None,
         PathBuf::from("/ws"),
-        None,
-        None,
         Config {
             path: PathBuf::from("/cfg/config.toml"),
-            session_restore: Some(false),
-            reduce_motion: Some(false),
             ..Config::empty()
         },
     );
@@ -575,31 +571,28 @@ fn every_advertised_action_drives_a_real_transition() {
     for fixture in fixtures {
         // A fresh App per (node, action): applying one action changes the
         // tree, and the claim under test is about the tree as advertised.
-        let build = |fixture: &Fixture| {
-            calm_globals();
-            let mut app = App::new_hermetic(None, PathBuf::from("/ws"), Config::empty());
-            app.set_semantic_text_for_test("some prose to select");
-            match fixture {
-                Fixture::Editor => {}
-                Fixture::Popover => {
-                    app.document.set_anchor(0);
-                    app.document.set_cursor(4);
-                    app.workspace_state.summon_popover(true);
+        let build =
+            |fixture: &Fixture| {
+                calm_globals();
+                let mut app = App::new_hermetic(None, PathBuf::from("/ws"), Config::empty());
+                app.set_semantic_text_for_test("some prose to select");
+                match fixture {
+                    Fixture::Editor => {}
+                    Fixture::Popover => {
+                        app.document.set_anchor(0);
+                        app.document.set_cursor(4);
+                        app.workspace_state.summon_popover(true);
+                    }
+                    Fixture::Search => app.workspace_state.install_search_for_test(
+                        crate::search::SearchState::start(0, crate::search::Direction::Forward),
+                    ),
+                    Fixture::MenuBar => crate::menubar::set_menu_bar_on(true),
+                    Fixture::Overlay(kind) => app
+                        .workspace_state
+                        .install_overlay_for_test(seeded_overlay(*kind)),
                 }
-                Fixture::Search => {
-                    let (search, _) = app.workspace_state.core_slots();
-                    *search = Some(crate::search::SearchState::start(
-                        0,
-                        crate::search::Direction::Forward,
-                    ));
-                }
-                Fixture::MenuBar => crate::menubar::set_menu_bar_on(true),
-                Fixture::Overlay(kind) => app
-                    .workspace_state
-                    .install_overlay_for_test(seeded_overlay(*kind)),
-            }
-            app
-        };
+                app
+            };
         let advertised: Vec<(String, Vec<SemanticAction>)> = build(&fixture)
             .semantic_snapshot()
             .nodes

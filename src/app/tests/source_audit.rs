@@ -600,6 +600,13 @@ fn the_active_event_loop_census_is_exact_and_the_input_chain_is_free_of_it() {
     let expected: &[(&str, usize)] = &[
         // `drive_gpu_soak` owns a real window and its control flow.
         ("app.rs", 1),
+        // The AccessKit adapter must be constructed against the real event
+        // loop and the real window, BEFORE the window becomes visible: on
+        // macOS VoiceOver caches a newly ordered-in window's accessibility
+        // parent, so an adapter installed afterwards is never asked for a
+        // tree. `FrameRuntime::install_accessibility` and the runtime's own
+        // `install` are the two sites, and neither is on the input chain.
+        ("app/frame/accessibility.rs", 2),
         // `rebuild_gpu` recreates the window-bound renderer.
         ("app/gpu_recovery.rs", 1),
         // The winit `ApplicationHandler` trait's own six callbacks — their
