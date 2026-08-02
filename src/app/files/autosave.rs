@@ -5,8 +5,8 @@
 //! save-hook. Split out of the former `app/files.rs` monolith (item 56).
 
 use super::window_title;
+use super::{SCRATCH_CHANGED_NOTICE, WritePermission};
 use crate::app::*;
-use std::path::Path;
 
 impl App {
     /// Set the window title from the active file + theme (kept in one place so
@@ -162,8 +162,11 @@ impl App {
             // `Some` on this arm.
             let p = self.document.buffer().path().map(|p| p.to_path_buf());
             let version = self.document.buffer().version();
-            let mtime = p.as_deref().and_then(Self::disk_mtime_of);
-            self.document.record_document_saved(version, mtime);
+            let seen = p
+                .as_deref()
+                .map(crate::external::Seen::at)
+                .unwrap_or_default();
+            self.document.record_document_saved(version, seen);
             // SAVE-FEEDBACK round: no terminal echo — a background
             // autosave naming a fresh document is silent chatter (the
             // window title already renders the new name). `Buffer::save`
@@ -228,38 +231,6 @@ impl App {
         }
     }
 
-    /// The current on-disk STAT (mtime + byte length) of `path` via the FS trait,
-    /// or `None` when the file doesn't exist. The clobber guard's stat — wasm-safe
-    /// (the times are `crate::clock::SystemTime`).
-    pub(in crate::app) fn disk_mtime_of(path: &Path) -> Option<crate::fs::Metadata> {
-        crate::fs::active().metadata(path).ok()
-    }
-
-    /// CLOBBER-GUARD truth table: has `path` changed on disk since `last` (our
-    /// last-known stat)? `(current, last)`:
-    ///   * `(None, None)`  → false — the file never existed; our write CREATES it.
-    ///   * `(Some, Some)`  → changed iff the MTIME moved OR the SIZE differs. The
-    ///     size guard catches an external edit that lands within the SAME mtime
-    ///     tick as our last stat (equal mtime, changed content → changed length),
-    ///     which a bare mtime compare would silently overwrite.
-    ///   * `(Some, None)`  → true — the file APPEARED externally since we looked.
-    ///   * `(None, Some)`  → true — the file was DELETED externally.
-    ///     Pure over the stat, so the four arms are unit-testable.
-    pub(in crate::app) fn disk_changed(path: &Path, last: Option<crate::fs::Metadata>) -> bool {
-        match (Self::disk_mtime_of(path), last) {
-            (None, None) => false,
-            (Some(c), Some(l)) => {
-                c.modified != l.modified
-                    || match (c.len, l.len) {
-                        (Some(cl), Some(ll)) => cl != ll,
-                        _ => false,
-                    }
-            }
-            (Some(_), None) => true,
-            (None, Some(_)) => true,
-        }
-    }
-
     /// The AUTOSAVE ENGINE's flush — the one door every trigger goes through
     /// (idle, window blur, file switch, quit). Config-gated (`autosave`, default
     /// ON). Routes by buffer kind: a NOTE keeps its own 400ms flow (untouched); a
@@ -283,12 +254,17 @@ impl App {
     }
 
     /// Quietly SAVE the open document NOW (the autosave engine's pathed-buffer
-    /// arm): skip when the buffer version is already on disk; hold the write —
-    /// with a calm notice — when the file changed on disk outside awl (the
-    /// CLOBBER GUARD; a manual Cmd-S still force-writes per the locked
-    /// contract); otherwise write atomically, re-stat the mtime, clear the
-    /// notice, and record a history snapshot (the store's git gate + dedup +
-    /// ladder decide what's kept). Errors go to stderr, never disrupt.
+    /// arm): skip when the buffer version is already on disk; route through the
+    /// one external-change guard ([`Self::settle_external_change`]), which may
+    /// reload a clean buffer or latch a conflict instead of letting the write
+    /// through; otherwise write atomically, take a fresh baseline from the bytes
+    /// just written, clear the notice, and record a history snapshot (the
+    /// store's git gate + dedup + ladder decide what's kept). Errors go to
+    /// stderr, never disrupt.
+    ///
+    /// While a conflict is latched the engine keeps running — it just writes to
+    /// the RECOVERY RECORD instead of to the user's file, which is what makes
+    /// carrying on editing an unresolved document safe.
     fn autosave_doc_now(&mut self) {
         let Some(path) = self.document.buffer().path().map(|p| p.to_path_buf()) else {
             return;
@@ -297,19 +273,28 @@ impl App {
         if self.document.doc_saved_version() == Some(version) {
             return; // nothing new to write
         }
-        if Self::disk_changed(&path, self.document.disk_mtime()) {
-            self.set_sticky_notice(CLOBBER_NOTICE);
-            // Mark the version handled so the idle timer doesn't spin on the
-            // same content; the next edit re-arms (and the notice recurs calmly).
-            self.document.acknowledge_document_version(version);
-            return;
+        match self.settle_external_change() {
+            WritePermission::Clear => {}
+            // The buffer was clean and has already been replaced by the disk's
+            // own text; there is nothing of the user's left to write.
+            WritePermission::Reloaded => return,
+            WritePermission::Held => {
+                self.write_recovery_record(&path);
+                // Mark the version handled so the idle timer doesn't spin on the
+                // same content; the next edit re-arms (and the record refreshes).
+                self.document.acknowledge_document_version(version);
+                return;
+            }
         }
         // Restore the buffer's remembered line ending on the way out (CRLF files
         // round-trip byte-for-byte; LF is byte-identical to `text().as_bytes()`).
-        match crate::fs::write_atomic(&path, &self.document.buffer().disk_bytes()) {
+        let bytes = self.document.buffer().disk_bytes();
+        match crate::fs::write_atomic(&path, &bytes) {
             Ok(()) => {
-                self.document
-                    .record_document_saved(version, Self::disk_mtime_of(&path));
+                self.document.record_document_saved(
+                    version,
+                    crate::external::Seen::after_write(&path, &bytes),
+                );
                 if self.clobber_notice_active() {
                     self.clear_notice();
                 }
@@ -338,12 +323,14 @@ impl App {
             return; // stash already holds this content
         }
         let path = crate::fs::scratch_stash_path();
-        if Self::disk_changed(&path, self.document.scratch_mtime()) {
-            self.set_sticky_notice(CLOBBER_NOTICE);
+        let (change, seen) = crate::external::look(&path, &self.document.scratch_baseline());
+        if change.is_change() {
+            self.set_sticky_notice(SCRATCH_CHANGED_NOTICE);
             self.document
-                .record_scratch_saved(version, self.document.scratch_mtime());
+                .record_scratch_saved(version, self.document.scratch_baseline());
             return;
         }
+        let _ = seen;
         let text = self.document.buffer().text();
         let fs = crate::fs::active();
         if let Some(parent) = path.parent() {
@@ -352,10 +339,13 @@ impl App {
         // A true scratch buffer is always Lf, but route the write through the ONE
         // encoder for uniformity; the history snapshot stays the internal pure-`\n`
         // `text` (awl's own store — see the "Line endings" note in CLAUDE.md).
-        match crate::fs::write_atomic(&path, &self.document.buffer().disk_bytes()) {
+        let bytes = self.document.buffer().disk_bytes();
+        match crate::fs::write_atomic(&path, &bytes) {
             Ok(()) => {
-                self.document
-                    .record_scratch_saved(version, Self::disk_mtime_of(&path));
+                self.document.record_scratch_saved(
+                    version,
+                    crate::external::Seen::after_write(&path, &bytes),
+                );
                 if self.clobber_notice_active() {
                     self.clear_notice();
                 }

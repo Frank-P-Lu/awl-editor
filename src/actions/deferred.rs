@@ -29,6 +29,12 @@ pub(super) fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Opt
             Effect::None
         }
         Action::FinishBuffer => Effect::Persistence(PersistenceEffect::Save(SaveKind::Finish)),
+        Action::ResolveKeepMine => Effect::Persistence(PersistenceEffect::ResolveExternalChange(
+            Resolution::KeepMine,
+        )),
+        Action::ResolveTakeTheirs => Effect::Persistence(PersistenceEffect::ResolveExternalChange(
+            Resolution::TakeTheirs,
+        )),
         Action::FollowLink => {
             crate::markdown::link_at(&ctx.buffer.text(), ctx.buffer.cursor_byte())
                 .map(Effect::FollowLink)

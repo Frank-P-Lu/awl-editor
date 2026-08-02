@@ -56,6 +56,8 @@ const COMMAND_TASK_CATEGORIES: &[(&str, TaskCategory)] = &[
     ("Compare with version…", Files),
     ("Clean unused assets…", Tools),
     ("Keep version…", Files),
+    ("Save your version", Files),
+    ("Use disk version", Files),
     ("Last file", Navigate),
     ("New document", Files),
     ("Keep tutorial…", Files),

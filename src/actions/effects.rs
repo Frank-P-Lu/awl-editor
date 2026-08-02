@@ -22,10 +22,26 @@ pub enum PreferenceEffect {
     WritingStreaks,
 }
 
+/// WHICH WAY an unresolved external change is being settled. Both arms destroy
+/// nothing: one writes the buffer over the file, the other replaces the buffer
+/// as a single undoable edit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Resolution {
+    /// Write the buffer over the file — after rechecking that the file is still
+    /// what the user was shown.
+    KeepMine,
+    /// Replace the buffer with the file, as one undoable edit.
+    TakeTheirs,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PersistenceEffect {
     Save(SaveKind),
     Preference(PreferenceEffect),
+    /// Settle the one unresolved external change. Distinct from `Save` because
+    /// it is not one: it is the door out of a state in which saving is refused,
+    /// and only one of its two arms writes anything at all.
+    ResolveExternalChange(Resolution),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

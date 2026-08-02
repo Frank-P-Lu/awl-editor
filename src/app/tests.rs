@@ -13,6 +13,10 @@ mod domains;
 // Native-only, like `crate::app_icon` itself — a browser tab has no Dock.
 #[cfg(not(target_arch = "wasm32"))]
 mod dock_icon;
+/// Every door that could write to, leave, or rename a file that changed
+/// underneath awl, plus both resolutions and relaunch recovery. Why this tier
+/// and not a capture: that file's own module doc.
+mod external_item204;
 mod files;
 mod history;
 mod lifecycle;

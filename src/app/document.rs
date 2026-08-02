@@ -26,8 +26,12 @@ struct BufferExtra {
     caret_synced_version: u64,
     doc_saved_version: Option<u64>,
     scratch_saved_version: Option<u64>,
-    disk_mtime: Option<crate::fs::Metadata>,
-    scratch_mtime: Option<crate::fs::Metadata>,
+    /// What awl last SAW at the buffer's own path — stat AND content digest
+    /// (`crate::external`). A stat alone cannot answer the question this field
+    /// exists for; see that module's doc.
+    disk_baseline: crate::external::Seen,
+    /// The same observation for the persistent scratch stash.
+    scratch_baseline: crate::external::Seen,
     doc_autosave_at: Option<Instant>,
     history_preview: Option<(String, String)>,
     history_scroll_before: Option<crate::render::ScrollPos>,
@@ -66,8 +70,8 @@ pub(in crate::app) struct SchedulingSnapshot {
 impl DocumentSession {
     pub(in crate::app) fn new(
         buffer: Buffer,
-        disk_mtime: Option<crate::fs::Metadata>,
-        scratch_mtime: Option<crate::fs::Metadata>,
+        disk_baseline: crate::external::Seen,
+        scratch_baseline: crate::external::Seen,
     ) -> Self {
         let initial_version = buffer.version();
         let active = crate::buffers::Entry {
@@ -75,9 +79,9 @@ impl DocumentSession {
             extra: BufferExtra {
                 caret_synced_version: initial_version,
                 doc_saved_version: Some(initial_version),
-                disk_mtime,
+                disk_baseline,
                 scratch_saved_version: Some(initial_version),
-                scratch_mtime,
+                scratch_baseline,
                 ..Default::default()
             },
         };
@@ -154,7 +158,7 @@ impl DocumentSession {
     pub(in crate::app) fn open_path(
         &mut self,
         path: &Path,
-        disk_mtime: Option<crate::fs::Metadata>,
+        disk_baseline: crate::external::Seen,
     ) -> OpenPath {
         let key = crate::buffers::BufferKey::path(path);
         if self
@@ -176,13 +180,52 @@ impl DocumentSession {
         self.active = crate::buffers::Entry {
             buffer,
             extra: BufferExtra {
-                disk_mtime,
+                disk_baseline,
                 doc_saved_version: Some(version),
                 caret_synced_version: version,
                 ..Default::default()
             },
         };
         OpenPath::Fresh
+    }
+
+    /// RELOAD the active buffer from its own file, keeping the caret's LINE and
+    /// COLUMN and the scroll position. The clean-buffer arm of the external
+    /// change guard: nothing of the user's is at stake, so the disk simply wins.
+    ///
+    /// The undo timeline goes with the old buffer, deliberately. It described
+    /// edits against text that is no longer what the file says, so replaying it
+    /// would reconstruct a document that never existed on either side. A clean
+    /// buffer had nothing on that timeline the user could want back anyway.
+    ///
+    /// Returns `false` for a path-less buffer, which has no file to reload from.
+    pub(in crate::app) fn reload_active_from_disk(&mut self, seen: crate::external::Seen) -> bool {
+        let Some(path) = self.active.buffer.path().map(Path::to_path_buf) else {
+            return false;
+        };
+        let (line, col) = self
+            .active
+            .buffer
+            .char_to_line_col(self.active.buffer.cursor_char());
+        let scroll = self.active.extra.scroll;
+        let mut buffer = Buffer::from_file(&path);
+        // Both are clamped by the buffer, so a file that shrank leaves the
+        // caret at the new end rather than past it.
+        let idx = buffer.line_col_to_char(line, col);
+        buffer.clear_mark();
+        buffer.set_cursor(idx);
+        let version = buffer.version();
+        self.active = crate::buffers::Entry {
+            buffer,
+            extra: BufferExtra {
+                scroll,
+                doc_saved_version: Some(version),
+                disk_baseline: seen,
+                caret_synced_version: version,
+                ..Default::default()
+            },
+        };
+        true
     }
 
     pub(in crate::app) fn start_fresh_document(&mut self, root: PathBuf) {

@@ -115,21 +115,30 @@ impl DocumentSession {
         self.active.extra.scratch_saved_version
     }
 
-    pub(in crate::app) fn disk_mtime(&self) -> Option<crate::fs::Metadata> {
-        self.active.extra.disk_mtime
+    pub(in crate::app) fn disk_baseline(&self) -> crate::external::Seen {
+        self.active.extra.disk_baseline
     }
 
-    pub(in crate::app) fn scratch_mtime(&self) -> Option<crate::fs::Metadata> {
-        self.active.extra.scratch_mtime
+    pub(in crate::app) fn scratch_baseline(&self) -> crate::external::Seen {
+        self.active.extra.scratch_baseline
+    }
+
+    /// ADOPT a fresh observation of the document's path WITHOUT claiming the
+    /// buffer was saved. The clean-reload and the conflict-resolution doors both
+    /// need this: they have looked at the disk and must not be told about the
+    /// same change twice, but the buffer's saved-version bookkeeping is theirs
+    /// to set separately.
+    pub(in crate::app) fn adopt_disk_baseline(&mut self, seen: crate::external::Seen) {
+        self.active.extra.disk_baseline = seen;
     }
 
     pub(in crate::app) fn record_document_saved(
         &mut self,
         version: u64,
-        mtime: Option<crate::fs::Metadata>,
+        seen: crate::external::Seen,
     ) {
         self.active.extra.doc_saved_version = Some(version);
-        self.active.extra.disk_mtime = mtime;
+        self.active.extra.disk_baseline = seen;
         self.active.extra.caret_synced_version = version;
     }
 
@@ -140,15 +149,15 @@ impl DocumentSession {
     pub(in crate::app) fn record_scratch_saved(
         &mut self,
         version: u64,
-        mtime: Option<crate::fs::Metadata>,
+        seen: crate::external::Seen,
     ) {
         self.active.extra.scratch_saved_version = Some(version);
-        self.active.extra.scratch_mtime = mtime;
+        self.active.extra.scratch_baseline = seen;
     }
 
     pub(in crate::app) fn clear_scratch_saved(&mut self) {
         self.active.extra.scratch_saved_version = None;
-        self.active.extra.scratch_mtime = None;
+        self.active.extra.scratch_baseline = crate::external::Seen::Absent;
     }
 
     pub(in crate::app) fn arm_doc_autosave(&mut self, at: Instant) {

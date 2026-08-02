@@ -584,7 +584,7 @@ fn empty_build_ctx<'a>(config_keys: &'a [(String, Vec<String>)]) -> BuildCtx<'a>
         history_session_start: None,
         settings_values: Default::default(),
         assets: Vec::new(),
-        has_waiter: false,
+        row_gates: Default::default(),
     }
 }
 
@@ -600,7 +600,7 @@ fn command_palette_hides_finish_buffer_without_a_waiter_and_shows_it_with_one() 
     // live App with nothing waiting): "Finish file" is absent from what's
     // rankable/selectable...
     let ctx_idle = BuildCtx {
-        has_waiter: false,
+        row_gates: Default::default(),
         ..empty_build_ctx(&[])
     };
     let ov_idle = crate::overlay::build(OverlayKind::Command, &ctx_idle)
@@ -624,7 +624,10 @@ fn command_palette_hides_finish_buffer_without_a_waiter_and_shows_it_with_one() 
 
     // A waiter IS active: the row reappears...
     let ctx_waiting = BuildCtx {
-        has_waiter: true,
+        row_gates: crate::commands::RowGates {
+            has_waiter: true,
+            ..Default::default()
+        },
         ..empty_build_ctx(&[])
     };
     let mut ov_waiting = crate::overlay::build(OverlayKind::Command, &ctx_waiting)
@@ -3107,7 +3110,7 @@ fn command_palette_settings_rows_keep_key_and_value_across_refilter() {
     let mut ov = OverlayState::new_command(
         crate::commands::visible_names(),
         crate::commands::visible_effective_bindings(&[], &[]),
-        crate::commands::visible_hidden_mask(false),
+        crate::commands::visible_hidden_mask(Default::default()),
     );
     ov.attach_settings_rows(
         crate::settings::palette_rows(),

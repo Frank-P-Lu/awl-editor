@@ -457,7 +457,7 @@ impl<'a> ReplaySession<'a> {
                 // imports `crate::daemon` — the daemon capture gate, docs/platform.md):
                 // there is no waiter to have, so "Finish file" is deterministically
                 // hidden from every `--keys`/`--screenshot` palette.
-                has_waiter: false,
+                row_gates: Default::default(),
             };
             let mut make_overlay =
                 |kind: crate::overlay::OverlayKind| crate::overlay::build(kind, &build_ctx);

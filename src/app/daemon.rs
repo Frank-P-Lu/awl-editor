@@ -53,12 +53,31 @@ impl App {
 
     /// Live persistence interpreter for Finish file. It runs before the
     /// separately typed daemon-notify and previous-buffer effects.
+    ///
+    /// Finish is a save AND a switch away, so it is gated twice over by the one
+    /// external-change guard: an unresolved file must neither be written nor
+    /// left behind. The refusal keeps the buffer and the waiting client exactly
+    /// where they are — a `--wait` client parked on a conflicted file waits a
+    /// little longer, which is the correct trade against finishing a file with
+    /// the wrong version in it.
     pub(super) fn save_finished_buffer(&mut self) {
+        match self.settle_external_change() {
+            crate::app::files::WritePermission::Clear => {}
+            crate::app::files::WritePermission::Reloaded => return,
+            crate::app::files::WritePermission::Held => {
+                if let Some(path) = self.document.buffer().path().map(|p| p.to_path_buf()) {
+                    self.write_recovery_record(&path);
+                }
+                return;
+            }
+        }
         let _ = self.document.save();
         self.snapshot_after_save();
         if let Some(p) = self.document.buffer().path().map(|p| p.to_path_buf()) {
-            self.document
-                .record_document_saved(self.document.buffer().version(), Self::disk_mtime_of(&p));
+            self.document.record_document_saved(
+                self.document.buffer().version(),
+                crate::external::Seen::at(&p),
+            );
             self.emit_notice(crate::actions::NoticeEffect::Clear);
         }
     }

@@ -17,21 +17,18 @@
 # break the exhaustiveness or ownership property the seam exists for. Such a
 # raise is only legitimate with a `reason` field naming the seam and the size
 # delta; it is never a substitute for extraction the file can actually afford.
-# A raise recorded relative to the prior state with no `reason` fails the gate
-# (code-health.py: check_mark_raises). On a worker's worktree branch that
-# prior state is the fork point. Where HEAD already IS `main` — CI's
-# push-to-`main` job, and the merge train's post-merge candidate — it is
-# HEAD's first parent, which at a merge is exactly the prior `main`: two
-# branches cut from one base can each be green against their own fork point
-# and raise a mark together, and that is the only place it is visible
-# (code-health.py: resolve_merge_base). The audit is skipped only when there
-# is no prior state at all — a root commit, or a checkout where neither
-# `main`/`origin/main` nor HEAD's first parent resolves.
+# A raise recorded relative to `main` with no `reason` fails the gate
+# (code-health.py: check_mark_raises). That comparison only has force where
+# HEAD differs from `main` — a worker's worktree branch, checked before
+# landing. HEAD-is-`main` (CI's push-to-`main` job, and the merge train's
+# post-merge candidate) is a vacuous comparison-to-itself and is reported as
+# SKIPPED, not as a clean audit (code-health.py: previous_marks). Do not read
+# "the ledger enforces raise reasons" as something CI verifies generally.
 
 [[file_size_mark]]
 file = "src/actions.rs"
-lines = 791
-reason = "item 114: +1 line — the `workspace_nav` module declaration, at the one module list. Item 116c: +1 line — `Action::AcceptAlternate` classified in the one exhaustive `classify_action_family!` macro (a new `Action` variant must be placed there to compile); the Newline/OpenHistory/KeepVersion doc-comment growth elsewhere was trimmed back to net zero, and `KeepVersion`'s own arm now delegates to `workspace_nav::open_keep_version`, whose body lives there instead. The Compare-with-version deep link enters the History workspace at its COMPARISON focus rather than its timeline, through the lifecycle, declining when there is nothing to compare (+9)."
+lines = 793
+reason = "Two arms in the one exhaustive `classify_action_family!` macro: an `Action` variant must be placed there to compile, and the external-change resolutions are Deferred effects like every other live-App verb (+2)."
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
@@ -44,13 +41,13 @@ reason = "item 114: +8 lines net. The workspace's own two-region keyboard and it
 
 [[file_size_mark]]
 file = "src/app.rs"
-lines = 1398
-reason = "items 207 + 211 combined at the merge train, DOWN 14 from main's 1412: item 207 moved the winit user-event type out to `src/app/awl_event.rs` (-29), and item 211 added `keep_gpu_loop_hot`'s second animation term plus the mechanism doc that explains why the follow-up-frame decision needs two (+15). Reconciled here rather than on either branch because neither could see the other: both were cut from `73d35118`, so each computed a mark against a tree the other had already changed. `AwlEvent` grows a variant per posted-event source (daemon, macOS menu, live probe, and now AccessKit), and each one is exactly the kind of growth that should not land on the root file; the enum's own module also holds the `From<accesskit_winit::Event>` impl the event-loop proxy needs. Item 207, DOWN 14: the winit user-event type moved out to `src/app/awl_event.rs`. `AwlEvent` grows a variant per posted-event source (daemon, macOS menu, live probe, and now AccessKit), and each one is exactly the kind of growth that should not land on the root file; the enum's own module also holds the `From<accesskit_winit::Event>` impl the event-loop proxy needs. `app.rs` keeps the module declaration and the re-export."
+lines = 1401
+reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` beside the constants it matches (-5); what remains is the disk-baseline construction at the one exhaustive `App::new` site now taking a `crate::external::Seen` rather than a bare stat (+4), the one-line relaunch-recovery call after the startup buffer decisions settle (+2), and a test-gated re-export of the notice constant so prose laws read the running app's own string instead of a retyped copy (+3). Net +3."
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 1024
-reason = "The live action owner remains above the natural ceiling; item 172b moved post-action overlay/pointer synchronization into apply/overlay_sync.rs, lowering this mark rather than raising it."
+lines = 1031
+reason = "The live effect interpreter is an exhaustive dispatch site: two arms for the typed `ResolveExternalChange` effect (+2). The remaining +5 is the `OverlayInputs`/`BuildCtx` seam carrying `commands::RowGates` instead of a bare `has_waiter` bool, gathered once at the one place the live palette facts are collected; the Quit deferral itself lives in `app/files/external.rs` and costs three lines here."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -86,8 +83,8 @@ reason = "item 114: +1 line — the `overlay_workspace` projection at the one ex
 
 [[file_size_mark]]
 file = "src/app/window.rs"
-lines = 682
-reason = "The redraw owner gained the post-prepare animation term the keep-hot decision depends on, plus the scheduling trace point that makes the ordering readable; the debug-panel feed moved into its own method in the same round, which is what took `on_redraw_requested` back under the function-line ceiling."
+lines = 685
+reason = "The external-change check at focus return (+3, comment included). This is the boundary that replaces a filesystem watcher, and it belongs at the winit focus callback's own owner."
 
 [[file_size_mark]]
 file = "src/background.rs"
@@ -131,8 +128,8 @@ lines = 539
 
 [[file_size_mark]]
 file = "src/commands.rs"
-lines = 586
-reason = "item 24: LOWERED by 159. The convention/platform chord resolver moved to src/commands/chords.rs. Item 210 lowered this mark again by moving the command palette's complete task taxonomy and facet scheme to src/commands/task_category.rs."
+lines = 610
+reason = "+24 for `RowGates` and `row_hidden` — the ONE place a runtime-gated palette row is written down. It replaces a bare `has_waiter: bool` parameter that a second gate would otherwise have doubled into two positional bools, and the predicate is a wildcard-free match so which rows are conditional is answerable by reading one function rather than grepping for `Action::` comparisons."
 
 [[file_size_mark]]
 file = "src/config/model.rs"
@@ -185,8 +182,8 @@ lines = 841
 
 [[file_size_mark]]
 file = "src/keymap.rs"
-lines = 1098
-reason = "item 116c: +8 lines — the new `Action::AcceptAlternate` variant (a 4-line doc + itself, at the one `Action` enum), its `is_edit()` classification (the one exhaustive match), and its `resolve_named` Shift+Enter arm (the one dispatch site for `NamedKey::Enter`). Trimmed twice already; each site is a single-owner exhaustive seam a new keymap Action structurally cannot avoid."
+lines = 1105
+reason = "Two `Action` variants with their docs (+7). `Action` is the exhaustive input vocabulary; a palette-only command still needs its variant here, and the docs state the one thing the name cannot — that each row is hidden unless a conflict is open."
 
 [[file_size_mark]]
 file = "src/keyspec.rs"
@@ -490,14 +487,14 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 573
-message = "this function has too many lines (117/100)"
+line = 576
+message = "this function has too many lines (121/100)"
 reason = "Existing constructor owner and exhaustive App construction site. DocumentSession moved the active slot, registry, previous target, spell checker, and buffer extras behind one initializer, reducing the constructor by twenty counted lines."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 956
+line = 959
 message = "this function has too many lines (104/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. DocumentSession removed root fields and shifted this unchanged function upward."
 
@@ -511,7 +508,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1194
+line = 1197
 message = "this function has too many lines (103/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. DocumentSession removed root fields and shifted this unchanged function upward."
 
@@ -826,7 +823,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/picker_misc_smoke.rs"
-line = 749
+line = 761
 message = "this function has too many lines (122/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Item 116b: line moved only — the diff-panel CARD it was named for is retired, so the test's name and note now say `comparison`; the body is unchanged. Item 116c: line shifted +41 by the new restore/bare-Enter History tests added above it; this function's own body is unchanged."
 
@@ -834,27 +831,27 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
 line = 532
-message = "this function has too many lines (111/100)"
+message = "this function has too many lines (113/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line/size moved by queue item 114's summoned Settings workspace. Item 116c: +1 line — the `AcceptAlternate` arm alongside `Newline` in the not-a-delete list. Item 116d: line shifted +1 by one `mod` declaration added above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 738
-message = "this function has too many lines (112/100)"
+line = 740
+message = "this function has too many lines (114/100)"
 reason = "The no-wildcard Action roster match is the compile-time coverage owner. KeepTutorial adds one unavoidable exhaustive arm; the duplicate 222-line list owner was split into two sub-100-line rosters. Item 116d: line shifted +1 by one `mod` declaration added above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 1010
-message = "this function has too many lines (111/100)"
+line = 1016
+message = "this function has too many lines (113/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 114's summoned Settings workspace. Item 116c: +1 line — the `AcceptAlternate` arm (`NotCatalog`, alongside `Newline`). Item 116d: line shifted +1 by one `mod` declaration added above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/tests/files.rs"
-line = 1659
+line = 1675
 message = "this function has too many lines (109/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Explicit DocumentSession test transitions shifted this unchanged scenario downward."
 
@@ -940,7 +937,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/keymap/tests.rs"
-line = 1515
+line = 1517
 message = "this function has too many lines (103/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
@@ -1190,35 +1187,35 @@ reason = "Pure relocation from the inline src/commands.rs test module; this exac
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 767
+line = 769
 text = "                        \"{}: {:?}'s resolved native chord {resolved:?} must parse via parse_binding\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 774
+line = 776
 text = "                        \"{}: {:?}'s resolved native chord {resolved:?} must resolve to the catalog action\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 1599
+line = 1641
 text = "                        \"{}: reserved native chord {native_resolved:?} still shown verbatim ({convention:?}/{platform:?})\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 1617
+line = 1659
 text = "                            \"{}: no alternate defined, label should be blank ({convention:?}/{platform:?})\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 1628
+line = 1670
 text = "                        \"{}: displaced emacs default {:?} still shown ({convention:?}/{platform:?}) — label was {label:?}\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 

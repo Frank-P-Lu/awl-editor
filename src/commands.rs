@@ -486,26 +486,50 @@ pub fn visible_recent_indices() -> Vec<usize> {
         .collect()
 }
 
+/// THE LIVE FACTS a conditional palette row is gated on. Gathered by the caller
+/// (the live App), defaulted to "nothing is true" everywhere else — the headless
+/// capture/replay path has no daemon and no per-buffer disk baseline, so its
+/// palette is deterministically built without any of these rows.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct RowGates {
+    /// Is a daemon `--wait` client actively parked on the CURRENT buffer?
+    pub has_waiter: bool,
+    /// Is there an unresolved external change on the current document?
+    pub change_unresolved: bool,
+}
+
+/// Is this catalog row hidden right now, given the live facts? The ONE place a
+/// runtime gate is written down, so "which rows are conditional" is answerable
+/// by reading one function rather than by grepping for `Action::` comparisons.
+///
+/// Not a roster: the fall-through is every unconditional row, which is most of
+/// the catalog, and enumerating them here would be a second copy of the catalog
+/// that could disagree with it.
+fn row_hidden(action: &Action, gates: RowGates) -> bool {
+    match action {
+        // "Finish file" (C-x #) only makes sense mid a daemon `--wait`
+        // round-trip (`crate::daemon`'s module doc) — with no terminal actively
+        // waiting there is nothing to finish.
+        Action::FinishBuffer => !gates.has_waiter,
+        // The two conflict resolutions exist only while there is a conflict.
+        // Offering them otherwise would advertise an action that does nothing,
+        // which is the exact defect the retired "reopen for theirs" notice was.
+        Action::ResolveKeepMine | Action::ResolveTakeTheirs => !gates.change_unresolved,
+        _ => false,
+    }
+}
+
 /// RUNTIME-gated rows, parallel to [`visible`]/[`visible_names`] — `true` at index
 /// `i` iff `visible()[i]` should be HIDDEN from selection right now for a reason
 /// that is NOT the compile-time `Platform` axis (`native_only`/`web_only`) but a
-/// live fact the caller gathers. Today exactly one row is runtime-gated: "Finish
-/// file" (`Action::FinishBuffer`, C-x #) only makes sense mid a daemon `--wait`
-/// round-trip (`crate::daemon`'s module doc) — with no terminal actively waiting
-/// there is nothing to finish, so it stays out of the palette. `has_waiter` is the
-/// ONE live fact the caller passes (the live App's `wait_conns`; always `false` in
-/// the headless capture/replay path, which has no daemon at all — the daemon
-/// capture gate — so a `--keys`/`--screenshot` palette is deterministically built
-/// WITHOUT this row). A pure fn of that one bool: `has_waiter` true unmasks every
-/// row (an empty mask, byte-identical to before this round existed); false masks
-/// exactly the one `FinishBuffer` row. Consumed by `OverlayState::new_command`'s
-/// `hidden` parameter, which `refilter` reads to drop masked rows from what's
-/// SELECTABLE while leaving `corpus` itself (and every index into it that
-/// `visible_action_of` relies on) untouched.
-pub fn visible_hidden_mask(has_waiter: bool) -> Vec<bool> {
+/// live fact the caller gathers ([`RowGates`], through [`row_hidden`]). Consumed
+/// by `OverlayState::new_command`'s `hidden` parameter, which `refilter` reads to
+/// drop masked rows from what's SELECTABLE while leaving `corpus` itself (and
+/// every index into it that `visible_action_of` relies on) untouched.
+pub fn visible_hidden_mask(gates: RowGates) -> Vec<bool> {
     visible()
         .iter()
-        .map(|c| c.action == Action::FinishBuffer && !has_waiter)
+        .map(|c| row_hidden(&c.action, gates))
         .collect()
 }
 

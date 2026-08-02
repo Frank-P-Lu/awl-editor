@@ -75,7 +75,7 @@ pub struct BuildCtx<'a> {
     /// at all — the daemon capture gate) and on wasm/`mas` (no daemon compiled),
     /// so a default palette build hides the row deterministically everywhere but
     /// a real `EDITOR=awl --wait` round-trip.
-    pub has_waiter: bool,
+    pub row_gates: crate::commands::RowGates,
 }
 
 /// Build the SUMMONED overlay for a non-navigable picker kind (Goto / Theme /
@@ -150,7 +150,7 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
                 crate::commands::visible_effective_bindings(ctx.config_keys, ctx.config_linux_keep),
                 // RUNTIME gate: "Finish file" only shows while a daemon `--wait`
                 // client is actively waiting (see `BuildCtx::has_waiter`'s doc).
-                crate::commands::visible_hidden_mask(ctx.has_waiter),
+                crate::commands::visible_hidden_mask(ctx.row_gates),
             );
             // The Recent lens reads the in-memory recently-run MRU (empty in a fresh
             // process, so headless Recent is inert), translated into VISIBLE-CORPUS

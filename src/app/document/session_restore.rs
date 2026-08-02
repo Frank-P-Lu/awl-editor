@@ -39,7 +39,7 @@ impl DocumentSession {
         &mut self,
         path: &Path,
         pos: crate::session::BufferPos,
-        mtime: Option<crate::fs::Metadata>,
+        seen: crate::external::Seen,
     ) {
         let mut buffer = Buffer::from_file(path);
         apply_restored_pos(&mut buffer, pos);
@@ -52,7 +52,7 @@ impl DocumentSession {
                     px_q: pos.scroll_px_q,
                 },
                 doc_saved_version: Some(version),
-                disk_mtime: mtime,
+                disk_baseline: seen,
                 caret_synced_version: version,
                 ..Default::default()
             },
@@ -63,7 +63,7 @@ impl DocumentSession {
         &mut self,
         path: &Path,
         pos: crate::session::BufferPos,
-        mtime: Option<crate::fs::Metadata>,
+        seen: crate::external::Seen,
     ) {
         let mut buffer = Buffer::from_file(path);
         apply_restored_pos(&mut buffer, pos);
@@ -74,7 +74,7 @@ impl DocumentSession {
                 px_q: pos.scroll_px_q,
             },
             doc_saved_version: Some(version),
-            disk_mtime: mtime,
+            disk_baseline: seen,
             caret_synced_version: version,
             ..Default::default()
         };

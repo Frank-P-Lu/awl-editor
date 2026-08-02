@@ -20,6 +20,9 @@
 //!    debounced ONE-SHOT auto-name save, save-feedback dirty/title/HUD sync.
 //!  - [`verbs`] — rename/move/duplicate/convert-scratch/manual-save-finish/
 //!    trash/the two local-history bridges.
+//!  - [`external`] — what awl does when the file changed underneath it: the
+//!    one guard every write door asks, the clean-buffer reload, the conflict
+//!    latch + its recovery record, and the two resolutions.
 //!  - [`settings`] — the sticky-preference writes + Settings-menu doors +
 //!    page-width pair + config reload (dictionary persistence peeled to
 //!    [`dictionary`], the rebind-menu capture peeled to [`rebind`]).
@@ -31,6 +34,7 @@
 mod autosave;
 mod dictionary;
 mod document;
+mod external;
 mod open;
 mod range_settings;
 mod rebind;
@@ -38,6 +42,10 @@ mod settings;
 mod tutorial;
 mod verbs;
 
+#[cfg(test)]
+pub(crate) use external::CHANGED_ELSEWHERE_NOTICE;
+pub(in crate::app) use external::SCRATCH_CHANGED_NOTICE;
+pub(in crate::app) use external::WritePermission;
 pub(in crate::app) use tutorial::TutorialFolderIntent;
 
 // Only `tests` (below, via `use super::*`) needs the App-scope glob now that

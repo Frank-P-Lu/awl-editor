@@ -43,7 +43,7 @@ gitignored `.env`, the note in a work repo.
 - A dozen-odd curated theme worlds — each its own ink, face, and character.
 - WYSIWYG markdown with reveal-on-cursor: the markup shows only on the caret's
   own line, the styled content everywhere else.
-- Autosave + a local-history timeline; session restore (reopen where you left
+- Autosave that never replaces an outside change; a local-history timeline; session restore (reopen where you left
   off).
 - Config as a text file you edit *inside awl* and save.
 

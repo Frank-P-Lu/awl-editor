@@ -127,7 +127,7 @@ impl App {
         };
         if let Some((path, pos)) = &active_path {
             self.document
-                .restore_active(path, *pos, Self::disk_mtime_of(path));
+                .restore_active(path, *pos, crate::external::Seen::at(path));
         }
         for (path, pos) in &survivors {
             if active_path.as_ref().map(|(p, _)| p) == Some(path) {
@@ -137,7 +137,7 @@ impl App {
                 continue; // already this launch's CLI-argument file
             }
             self.document
-                .restore_background(path, *pos, Self::disk_mtime_of(path));
+                .restore_background(path, *pos, crate::external::Seen::at(path));
         }
     }
 }

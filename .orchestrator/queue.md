@@ -4,74 +4,6 @@
 > (`git log -p .orchestrator/queue.md`). Protocol, claiming, worktrees, and
 > execution hygiene live in `.orchestrator/README.md`.
 
-## 🔵 BLOCKED ON THE USER — nothing else can close these
-
-Consolidated 2026-08-02/03 so they are not scattered through the item bodies.
-Every one has been taken as far as an agent can take it; what remains genuinely
-needs a human. **None of them blocks any other work.**
-
-**This remaining item needs an unlocked and FOREGROUNDED display.** ⚠️ The
-machine's idle lock fired seven minutes into the 2026-08-02 sitting and
-silently invalidated it — **disable the idle lock before the next one**, and
-re-check the lock at BOTH ends of the run, because `live-probe.sh` only checks
-it in preflight. Worse, `--live-script` forces a Prohibited, non-activating
-window, so under a lock it writes successful-looking
-`LIVE-PROBE shot … ok backend=window-server` lines while presenting **zero**
-frames — a probe run can look like it worked and have photographed nothing.
-
-1. **118 — the world-loudness map and the `--release` ambient sitting.** The
-   item's own Done clause requires a USER-CONFIRMED map and states that pixel
-   arithmetic may prove territory and contrast but never claims the taste
-   score. An independent agent map exists (`1, 10, 3, 4, 1`, mean 2.68) to diff
-   against rather than re-derive.
-2. **207 — real VoiceOver and AT-SPI journeys.** Everything is verified at the
-   snapshot and projection tier. Whether a screen reader *reads it well* —
-   announcement order, verbosity, live-region politeness — is unproven and no
-   test tier can stand in for it.
-3. **131c — the chrome pixel-space decision.** Overlay chrome already mixes
-   both spaces: row pitch scales with DPI while `BAR_SIDE_INSET`, the text hpad
-   and `CARD_MAX_W` are raw device px. A diagonal pitch authored like its
-   neighbours would be **physical by inheritance**, which is exactly what item
-   186 exists to stop; making it logical would make it the first chrome
-   quantity to declare its space, which either extends `ground_space` past
-   `Background` or opens a sibling registry. **A design decision owed a human
-   eye, not a line of code.** 131d and 131e are unclaimed behind it.
-4. **211 — ✅ PRESENCE CONFIRMED ON A REAL SCREEN 2026-08-03; only FEEL and two
-   arms remain.** Frames were photographed at last: a 10 s capture of the awl
-   window alone, 110 frames, band top measured per frame by pixel arithmetic —
-   one row per input over ~9–10 frames with the `out_back` overshoot and the
-   two-row morph stretch mid-flight. **No input moved two rows; none snapped
-   without a transition.** ~1,072 presented frames over 22 release launches,
-   exactly 2 `Occluded` per launch (startup, before `occluded=false`) and zero
-   after — the previous sitting's 10/10 `Occluded` was the lock and nothing
-   else. **The defect was reproduced ON SCREEN and restored:** reverting
-   `keep_gpu_loop_hot` to `stepped && frame_presented` parked the band on the
-   row the selection left, then snapped two rows — distinct drawn band tops
-   across four inputs, **2 mutated vs 34 fixed**, the user's report verbatim.
-   17 sweep cells covered. 🔵 **Owed, and all three need a human:** whether the
-   glide *reads* as calm (pacing was deliberately NOT characterised — the host
-   ran at load 19→57 and the lane refused to offer its 16.7 ms intervals as
-   evidence of smoothness); **1×**, since no 1× display was available; and
-   **focus loss/regain and occlusion return**, which `--live-script`
-   structurally cannot test — it forces a Prohibited, `AlwaysOnTop` window that
-   can neither lose focus nor be occluded, so that arm needs a normal
-   activating launch. **Scope note:** the Settings-as-workspace CATEGORY band
-   moves one row per input and presents (253→297→340→384 px, verified by pixel
-   arithmetic) but does not go through the living-band animator — it snaps,
-   `prepare_highlight` never reports it, and 211's fix neither applies nor is
-   needed there. Evidence in the gitignored `gallery/item-211-live-2026-08-03/`.
-
-⚠️ **A SHARED-WORKING-TREE HAZARD, found by causing it.** Commit `47b9e40f`
-carries a message about the heartbeat's Linux branches and ALSO silently
-deleted items 211, 207 and 131c from this section. The mechanism: **two
-orchestrators edit this file in the SAME working tree, so `git add -A` sweeps
-whatever the other one has in flight into your commit under your message.**
-`.orchestrator/README.md` §5 already says to reread at HEAD and diff before
-committing — that is necessary but NOT sufficient, because the other tool's
-edit can land between your read and your commit. **Stage `queue.md`
-deliberately and read `git diff --cached` before every board commit; never
-`git add -A` in the shared tree.**
-
 ## Latest design decisions
 
 **Item 116d — 2026-08-02, THE COMPOSITING CALL, and 116d is now UNBLOCKED.**
@@ -221,13 +153,8 @@ the abort report. It is a **delta of `ps -o time=`, not `pcpu`** — pcpu is a
 lifetime average on Linux and a decayed one on macOS, and the CI shape (3.5 min
 hot, then 35 min hung) reads ~9% on one and ~0% on the other. Unparseable
 prints `unavailable`; zero tracked processes prints `none`; never a confident
-`0.0`. ✅ **Its Linux branches are now CONFIRMED WORKING** — they were shipped
-written-and-reasoned but never executed (no Linux host locally), and CI's linux
-job in run `30754462965` is their first real exercise: `load1=2.13 cpu_count=4
-tracked_procs=8 tracked_cpu_pct=91.3 busiest=[rustc:6107=91.3]`, rising to
-`358.3` under multithreaded rustc (100 = one core, so >100 is correct), with
-each convention's last line captured. No `unavailable`, no `none`, no confident
-zero. The one caveat that shipped unproven is closed.
+`0.0`. ⚠️ **Its Linux branches are written and reasoned but NEVER EXECUTED** —
+no Linux host here; CI's linux job is their first real test.
 
 **Two more laws that were vacuous when written, both caught by mutating the
 REAL script rather than the synthetic self-test** — the running tally for this
@@ -327,8 +254,7 @@ run.
   merge — its consumer is reached ~45× a frame through the four relocated
   document owners, so planning inside it would trade one parallel calculation for
   45 plans a frame; a law fails by name if they drift. Follow-up: item **217**.
-- **211** — ✅ COMPLETE; user confirmed one-row glides in Commands, Settings,
-  and Themes on the fixed release build, 2026-08-03. Merged to
+- **211** — 🟢 DIAGNOSED AND FIXED; one live confirmation still OWED. Merged to
   `main`; worktree removed. **It was never a lost input.** `advance(dt)` runs
   BEFORE `Gpu::redraw()`, and `prepare` — inside that call — is where the
   selection band is retargeted. The band is the ONE animator whose target is set
@@ -357,50 +283,7 @@ run.
   photographed nothing; and `live-probe.sh` tests the lock only in preflight,
   never at the end, so it would have passed at 12:52 three minutes before the
   lock landed.
-- **204** — 🟡 IN PROGRESS — claude (deep owner; data loss, so routed above the
-  item's stated production tier), branch `claude/item-204-external-changes`,
-  worktree `../awl-next-worktrees/item-204-external-changes`. **UNBLOCKED by
-  116d's flip:** its three views map directly onto the typed `ComparisonView`
-  (`Differences` | `Mine` | `Theirs`), so it adds a producer beside
-  `history::comparison_prose` rather than the one-off renderer its premise audit
-  forbade. Briefed that mtime + length CANNOT detect the same-time/same-size
-  rewrite its own Verify clause requires — a byte fingerprint or retained
-  baseline is mandatory — and that the prohibitions (no watcher service, no
-  second editable buffer, no side-by-side renderer, no auto-merge, no duplicate
-  user file) are as binding as the requirements.
-- **116d** — ✅ COMPLETE. Merged and pushed; worktree removed. Receipt
-  `native-gate-receipt commit=86d73aa3… conventions=mac,linux scope=all-targets`.
-  History is the timeline/comparison workspace: the flip, the lens in the header,
-  both deep links, the restore notice, and the payload generalisation.
-  **`workspace_header_beat` was FOLDED** into `plan::header_band_height` — the
-  previous owner left it deliberately, reasoning that it was a fourth copy of a
-  ONE-LINE header and would become *wrong* rather than merely duplicated once
-  `header_rows` became 2, which is exactly what happened. The row band IS the
-  timeline column, so the ordinary candidate-row hit-test is the timeline
-  hit-test. **Six defects the new laws found, each red before green:** the
-  capture path drew the OTHER SHAPE because a sidecar carries a mode and not a
-  shape, so replay never set `overlay_rows_primary` while every unit law stayed
-  green; an empty timeline relocated the LIVE DOCUMENT into the comparison's
-  place — the third readable layer item 116 exists to remove; Mangrove/Magpie's
-  selected-row overhang had nowhere to go on a workspace; two footer clips, one
-  from a LABEL-scaled measurement under-measuring Potoroo by 1.2px; a latent
-  item-114 `Bars` footer plate 450px tall; and the narrow timeline stage frosted
-  the PARKED TRANSCRIPT into the backdrop, caught by vision smoke on Firetail at
-  900×520. ⚠️ **TWO ORCHESTRATOR PREMISES WERE WRONG, both material:** (a) an
-  ordinary `--keys` `--screenshot` DOES reach the comparison fully with a store
-  seeded under `XDG_DATA_HOME`, and it is **`--screenshot-app` that cannot** —
-  its hermetic FS has no store; the brief claimed the reverse, and the seeded
-  ordinary capture is what found two of the six defects. (b)
-  `the_workspace_beat_still_agrees_with_the_planned_query_box` did **not** fail
-  when broken — it compared the band to the *query box*, which is
-  `lh + header_gap` on BOTH shapes, so a two-line header slid straight past it;
-  re-aimed to sweep both shapes with a non-vacuity floor. **Left explicitly:**
-  the narrow COMPARISON stage draws no footer (`show_rows` false → `hint_rows` 0),
-  so nothing teaches `tab back` / `esc close` at ~900×520 and below — a
-  discoverability hole rather than a trap, since you reach it by `Tab` from a
-  timeline that did teach both and one Esc always leaves; and on Mangrove/Magpie
-  the narrow timeline column now elides mid-word, which item 131e owns.
-- **116d (compositing round)** — 🟢 LANDED; the flip is deliberately NOT done.
+- **116d** — 🟢 COMPOSITING ROUND LANDED; the flip is deliberately NOT done.
   Merged to `main`; worktree removed. **The owner stopped at a clean boundary
   and that is the correct outcome** — the comparison can now be SEEN, and
   `workspace_shape(History)` is still `None`, which is now safe to change.
@@ -449,54 +332,44 @@ run.
   and the focus transfer declines. The comparison's capture-tier probes need
   `--screenshot-app` or a seeded store.
 
-## Remaining work — handoff order (2026-08-03, overnight wave)
+## Remaining work — handoff order (2026-08-02, after the evening wave)
 
-**In flight:** the mac-CI bisect (probes on `ci-probe/mac`), **204**, **216**,
-**217**. That is the four-worker budget; nothing else may start until one
-returns.
-
-**⚠️ COLLISION MAP — items 219–225 are NOT independent and must not be
-dispatched as a batch.** Most of them write the same overlay/chrome files, and
-two are explicitly coupled. Dispatch in these groups, one group at a time:
-
-1. **220 + 221 together, one owner.** 221 says outright that it "reuse[s] the
-   shared hierarchy data from item 220, with Cassowary's expression supplied as
-   theme data rather than a new palette code path" — splitting them buys a
-   handoff bug and nothing else.
-2. **219 and 225 as one owner.** Both are "an unintended surface appears"
-   defects (a blank band above the theme picker in five worlds; a large black
-   rectangle under Cassowary Settings' sub-settings). Both are most likely a
-   shared layout owner rather than world-specific dead space, and 225 forbids
-   masking it by overlaying another rectangle. One owner is likely to find one
-   cause.
-3. **223 alone** (Mangrove palette keybindings — routes labels through the
-   shared palette presentation owner, no local special case).
-4. **222 + 224 together** — both are Mangrove/Magpie diagonal-language work and
-   both touch the diagonal composition items 131a/b own. **Check item 131e's
-   scope before starting:** 131e owns selection composition and the
-   `Choreo::TwoShape` echo-band question, and 222's "anchor the gradient to its
-   intended stationary surface" is adjacent to it.
-
-**Then, in order:** **215** (extract word count / language / percent into pure
-owners so a live-App capture carries card semantics — it touches
-`src/card/content.rs`, which item 207 created, so keep it away from anything
-else in `app/semantic/`); **174's next family**; and **131d/131e**, which are
-behind the 131c decision now recorded in the user-blocked section.
-
-**226 (first GitHub Release) is DISPATCHABLE ONLY AS A DRY RUN.** Its own text
-asks to "exercise the current release workflow as a dry run … diagnose any
-publication, provenance, or archive-layout failure before a tag is considered."
-That much is agent work. **The tag and the release itself require the user's
-explicit word, every time** — see `.orchestrator/README.md` §Gates and
-`CLAUDE.md`. Do not create a tag, do not publish, and do not deploy the site.
-
-**Standing merge-train procedure, learned the hard way 2026-08-02:** run the
-train gate from a DETACHED WORKTREE pinned at the candidate commit
-(`git worktree add --detach ../awl-next-worktrees/train-gate <sha>`). A second
-orchestrator commits board updates to `main` continuously, and
-`native-gate.sh` correctly refuses a receipt if HEAD moves under it — two full
-native runs were thrown away this way in one evening before the pinned worktree
-fixed it. The pinned tree's HEAD cannot be moved by anything on `main`.
+1. **116d — dispatch first; it is UNBLOCKED and everything behind it waits.**
+   116a–c are landed and both of its owed decisions are now made: the comparison
+   sits ON the workspace surface, and one Esc always leaves. Do the compositing
+   round FIRST — delete `the_relocated_document_is_geometrically_placed_but_not_yet_composited`
+   and replace it with the containment-and-visibility law its own message asks
+   for — then flip `workspace_shape(History)` to `TimelineOverComparison`, add
+   the footer Back affordance, move the lens to the header, deep-link
+   `Version history…` / `Compare with version…`, and run the split Verify sweep
+   (tier 1 replays `overlay_accept:History`; tier 2 owns the store, git, the
+   pruned ladder, renamed timelines, `KeepVersion` and the restore's disk read).
+   116a's handoff still applies: reuse the ordinary candidate-row hit-test for
+   the timeline rather than extending the rail functions — `geom.rail` is `None`
+   whenever rows are primary. ⚠️ **It writes `render/chrome/overlay_draw.rs`,
+   `overlay_rows.rs` and `chrome/mod.rs`, which item 174's next family also
+   writes — do not run the two concurrently.**
+2. **Then 204.** Unblocked the moment 116d's composited general read-only payload
+   exists. Preserve the one editable buffer; add disk fingerprinting (mtime plus
+   length cannot detect the required same-time/same-size rewrite), the recovery
+   record, three read-only conflict views, gated-action resolution, and align
+   Guide/welcome/site prose.
+3. **174's next family**, whenever it is not racing 116d. `workspace_header_beat`
+   is the named remainder but is its own slice — its consumer is reached ~45× a
+   frame through the four relocated document owners.
+4. **Follow-ups queued by this wave:** item **218** first (the newly live
+   VoiceOver path can stall while typing), then **217** (`--bench-suite`'s
+   plan-count witness vs the diagonal re-plan; not urgent, and must not be fixed
+   by weakening the witness) and **215** (extract word count / language / percent
+   into pure owners so a live-App capture carries card semantics).
+5. **Human/live closures, all needing an unlocked and FOREGROUNDED display:**
+   118's world-loudness confirmation and its `--release` ambient sitting; 211's
+   one unoccluded confirmation that the fixed build presents the glide, plus its
+   unreached sweep arms; and item 207's real VoiceOver / AT-SPI journeys, which
+   no test tier can stand in for. ⚠️ **The machine's idle lock fired seven
+   minutes into the 2026-08-02 sitting and silently invalidated it** — disable
+   the idle lock before the next one, and re-check the lock at BOTH ends of the
+   run, because `live-probe.sh` only checks it in preflight.
 
 Items 131, 172, 207 and 213 are complete; 174 has two families landed and stays
 open. Older historical prose below is retained but the receipts above are

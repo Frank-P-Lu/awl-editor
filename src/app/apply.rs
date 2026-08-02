@@ -11,7 +11,7 @@ struct OverlayInputs {
     spell_target: Option<SpellTarget>,
     history_entries: Vec<crate::history::TimelineRow>,
     assets: Vec<crate::assets::Orphan>,
-    has_waiter: bool,
+    row_gates: crate::commands::RowGates,
 }
 
 struct GotoInputs {
@@ -360,7 +360,9 @@ impl App {
             ));
         }
 
-        let quit = quit || nested_quit;
+        // Quit routes back through an unresolved external change once; see
+        // `defer_quit_once_for_conflict`.
+        let quit = (quit || nested_quit) && !self.defer_quit_once_for_conflict();
         if quit {
             exit.exit();
         }
@@ -522,7 +524,10 @@ impl App {
             spell_target,
             history_entries,
             assets,
-            has_waiter,
+            row_gates: crate::commands::RowGates {
+                has_waiter,
+                change_unresolved: self.change_unresolved(),
+            },
         }
     }
 
@@ -553,7 +558,7 @@ impl App {
             spell_target,
             history_entries,
             assets,
-            has_waiter,
+            row_gates,
         } = self.gather_overlay_inputs(action);
         let location = &self.project_location;
         let build_ctx = crate::overlay::BuildCtx {
@@ -575,7 +580,7 @@ impl App {
                 crate::dateformat::today_from_system_clock(),
             ),
             assets,
-            has_waiter,
+            row_gates,
         };
         let mut make_overlay =
             |kind: crate::overlay::OverlayKind| crate::overlay::build(kind, &build_ctx);
@@ -907,6 +912,8 @@ impl App {
         match effect {
             Save(actions::SaveKind::Manual) => self.manual_save(),
             Save(actions::SaveKind::Finish) => self.save_finished_buffer(),
+            ResolveExternalChange(actions::Resolution::KeepMine) => self.resolve_keep_mine(),
+            ResolveExternalChange(actions::Resolution::TakeTheirs) => self.resolve_take_theirs(),
             Preference(CaretMode) => self.persist_caret_mode(),
             Preference(PageMode) => self.persist_page_mode(),
             Preference(PageWidth) => self.persist_page_width(),

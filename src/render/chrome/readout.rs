@@ -274,7 +274,7 @@ impl TextPipeline {
 
     /// Shape + upload the CALM NOTICE — one quiet LABEL-sized line in the muted
     /// ink at the BOTTOM-CENTER of the writing column (today: the autosave
-    /// clobber guard's "changed on disk outside awl — autosave held"). Mirrors
+    /// external-change guard's "changed elsewhere"). Mirrors
     /// [`Self::prepare_wordcount`] through the shared corner-label body; an
     /// EMPTY notice parks it off-screen, so every capture (which can never have
     /// a notice — autosave is live-only) stays byte-identical.

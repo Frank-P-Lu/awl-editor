@@ -47,11 +47,37 @@ something. An explicitly configured `default_folder` is used as that initial
 folder; otherwise awl asks before the first real file is created.
 
 **Autosave runs on four triggers:** idle (about a second after you
-stop typing), window blur, buffer switch, quit. Writes are atomic (a
-temp file, then a rename) and never clobber an external edit — if the
-file changed on disk since awl last touched it, the write is held and
-a notice appears at the bottom of the screen. Editing again re-arms
-it. A manual {{key:save}} always force-writes.
+stop typing), window blur, buffer switch, quit. Writes are atomic — a
+temp file, then a rename.
+
+**Nothing awl writes ever replaces a change made outside it.** awl
+remembers the exact bytes it last saw in each open file, so a rewrite
+that keeps the same timestamp and the same length is still noticed.
+It re-checks when you return to the window, when you switch or open a
+file, and before every write.
+
+| what awl finds | what happens |
+|---|---|
+| the file is unchanged | the write goes through |
+| the file changed, and you have no unsaved edits | awl reloads it, keeping your cursor and scroll |
+| the file changed and you have unsaved edits | both are kept — see below |
+
+**When both changed, you choose.** awl keeps your text as the one
+document you are editing and stops writing to the file, so neither
+version can be lost. A `changed elsewhere` notice appears at the
+bottom of the screen, and your unsaved text is copied to awl's own
+data folder — so it survives a crash, and comes back when you reopen
+the file. Two commands settle it:
+
+| command | what it does |
+|---|---|
+| **Save your version** | re-checks the file, then writes your text over it |
+| **Use disk version** | replaces your text with the file's, as one edit {{key:undo}} takes back |
+
+Saving, switching files, renaming, moving and Finish file all wait
+until you have chosen. {{key:save}} does **not** force-write over an
+external change; **Save your version** is the explicit way to keep
+yours.
 
 **A small dot (•) in the window title marks an unsaved buffer**,
 clearing the instant it's written. The stats HUD ({{key:stats_hud}})
@@ -218,6 +244,8 @@ drift into this page silently.
 | Export as PDF… |  |  |
 | Insert link… | ⌘K |  |
 | Save | ⌘S | Ctrl+S |
+| Save your version |  |  |
+| Use disk version |  |  |
 | Quit | ⌘Q | Ctrl+Q |
 | Search forward | ⌘F · C-s | Ctrl+F |
 | Search backward | ⌘⇧F · C-r | Ctrl+Shift+F |

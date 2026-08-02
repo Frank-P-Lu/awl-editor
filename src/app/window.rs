@@ -141,6 +141,9 @@ impl App {
         }
         self.frame.set_focused(true);
         self.frame.clear_lava_tick();
+        // EXTERNAL CHANGE ON RETURN — the check that replaces a filesystem
+        // watcher, at the one instant it changes anything (`files/external.rs`).
+        self.settle_external_change();
         self.request_frame();
     }
 

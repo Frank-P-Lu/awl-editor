@@ -1014,10 +1014,11 @@ fn notice_parked_offscreen_when_empty() {
     p.set_view(&v);
     assert!(p.notice.is_empty(), "default view carries no notice");
     let mut warned = view("hello\n", 0, 0);
-    warned.notice = "changed on disk outside awl — ⌘S keeps yours · reopen for theirs".to_string();
+    warned.notice = crate::app::CHANGED_ELSEWHERE_NOTICE.to_string();
     p.set_view(&warned);
     assert_eq!(
-        p.notice, "changed on disk outside awl — ⌘S keeps yours · reopen for theirs",
+        p.notice,
+        crate::app::CHANGED_ELSEWHERE_NOTICE,
         "a live notice mirrors into the pipeline"
     );
     p.set_view(&v);
