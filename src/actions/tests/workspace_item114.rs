@@ -72,21 +72,35 @@ fn the_workspaces_keys_land_where_the_transition_table_says() {
     settings_drive(&mut journey, &Action::InsertTab);
     assert_eq!(surface(&journey), Some(Surface::WorkspaceDetail));
 
-    // ESC ON THE CONTENT IS A BACK, never a close.
+    // SHIFT-TAB crosses too — `Action::Outdent` in the document, and the other
+    // half of the key pair the 2026-08-02 Esc decision names as the only way
+    // between the regions.
+    settings_drive(&mut journey, &Action::Outdent);
+    assert_eq!(
+        surface(&journey),
+        Some(Surface::Workspace),
+        "Shift-Tab crosses back too"
+    );
+    settings_drive(&mut journey, &Action::Outdent);
+    assert_eq!(surface(&journey), Some(Surface::WorkspaceDetail));
+
+    // ONE ESC ALWAYS LEAVES — including from the content pane, which is the
+    // 2026-08-02 decision. The Back is Tab, above, and the footer says so.
     let before = journey_state(&journey);
     settings_drive(&mut journey, &Action::Cancel);
     assert_eq!(
         landing_of(before, Event::Cancel),
-        crate::overlay::Landing::Primary,
-        "the table says a cancel on the detail stage lands on the primary list"
+        crate::overlay::Landing::Editor,
+        "the table says a cancel on the detail stage leaves the workspace"
     );
     assert_eq!(
-        surface(&journey),
-        Some(Surface::Workspace),
-        "so Esc off the content pane comes back to the rail — it does not close"
+        journey_state(&journey),
+        State::Editor,
+        "so Esc off the content pane closes outright — no second press"
     );
 
-    // ESC ON THE PRIMARY LIST LEAVES.
+    // AND FROM THE PRIMARY LIST, the same one press.
+    let mut journey = crate::overlay::Journey::seeded(Some(settings_overlay()));
     let before = journey_state(&journey);
     settings_drive(&mut journey, &Action::Cancel);
     assert_eq!(

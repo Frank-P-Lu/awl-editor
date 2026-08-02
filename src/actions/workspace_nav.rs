@@ -16,7 +16,7 @@ use super::*;
 /// that costs at the action layer — everything else a workspace does is the
 /// picker it already was.
 ///
-///   * `Tab` moves focus between the two regions, at any width.
+///   * `Tab` and `Shift-Tab` move focus between the two regions, at any width.
 ///   * While the RAIL holds focus, the vertical keys step CATEGORIES (through the
 ///     picker's own lens owner, so there is no second category state), `→` / `↵`
 ///     enter the rows, and typing hands focus to the rows because what you are
@@ -49,12 +49,17 @@ pub(super) fn workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Optio
         }
         None => return None,
     };
-    // Tab moves focus between the two regions at any width, in either shape;
-    // on the timeline shape, `CompareVersion` is History's own long-standing
+    // Tab AND Shift-Tab move focus between the two regions at any width, in
+    // either shape. Both do the same thing because there are exactly two regions,
+    // and the user's Esc decision (2026-08-02) makes them the ONLY way across:
+    // `Esc` now leaves the workspace from either stage, so `Shift-Tab` — which is
+    // `Action::Outdent` in the document — has to answer here or the footer's
+    // advertised Back would be true for one of the two keys the decision names.
+    // On the timeline shape, `CompareVersion` is History's own long-standing
     // second door to the same toggle (its palette command, "Compare with
     // version…"). Checked before either region's own keys so it can never be
     // shadowed by them.
-    if matches!(action, Action::InsertTab)
+    if matches!(action, Action::InsertTab | Action::Outdent)
         || (rows_primary && matches!(action, Action::CompareVersion))
     {
         ctx.journey.toggle_detail();

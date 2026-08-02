@@ -187,11 +187,27 @@ pub fn landing_of(state: State, event: Event) -> Landing {
         (F::Workspace, B::Launcher, E::Descend) => L::Suspend,
         (F::Workspace, B::Launcher, E::ToggleDetail) => L::Detail,
         (F::Workspace, B::Launcher, E::Dismiss) => L::Editor,
-        // ── THE DETAIL STAGE. Esc is a BACK, never a close, at every parent
-        //    policy — the arm that used to be an exceptional `Esc` branch
-        //    inside `history_intercept`, and the one item 114's narrow stage
-        //    depends on.
-        (F::WorkspaceDetail, B::Editor, E::Cancel) => L::Primary,
+        // ── THE DETAIL STAGE. **ONE ESC ALWAYS LEAVES** (user decision
+        //    2026-08-02, settled once for BOTH workspace members as item 114
+        //    asked). A cancel on the detail stage lands exactly where a cancel on
+        //    the primary list lands — the three `E::Cancel` arms below are
+        //    character-for-character their `F::Workspace` siblings, and
+        //    `journey::tests`' focus-invariance law holds them there.
+        //
+        //    The rejected arm — Esc unwinds one rung, so leaving History from the
+        //    comparison takes two presses — was rejected because the comparison is
+        //    exactly where a reader spends their time, and Esc would then mean two
+        //    different things depending on where focus sits. What moves focus
+        //    between the two regions is `Tab`/`Shift-Tab` alone
+        //    (`E::ToggleDetail`), and the footer names it: a workspace that no
+        //    longer overloads Esc owes an explicit Back affordance
+        //    (`OverlayState::foot_hint`).
+        //
+        //    A CHILD AUDITION summoned out of a workspace is a genuinely
+        //    different rung and keeps its own Esc-returns-to-parent behaviour —
+        //    that is the `(F::Contextual, B::Workspace, E::Cancel) => L::Resume`
+        //    arm above, deliberately untouched.
+        (F::WorkspaceDetail, B::Editor, E::Cancel) => L::Editor,
         (F::WorkspaceDetail, B::Editor, E::AcceptNavigate) => L::Editor,
         (F::WorkspaceDetail, B::Editor, E::AcceptValue) => L::Primary,
         (F::WorkspaceDetail, B::Editor, E::AcceptStayOpen) => L::Stay,
@@ -199,7 +215,7 @@ pub fn landing_of(state: State, event: Event) -> Landing {
         (F::WorkspaceDetail, B::Editor, E::Descend) => L::Suspend,
         (F::WorkspaceDetail, B::Editor, E::ToggleDetail) => L::Primary,
         (F::WorkspaceDetail, B::Editor, E::Dismiss) => L::Editor,
-        (F::WorkspaceDetail, B::Workspace, E::Cancel) => L::Primary,
+        (F::WorkspaceDetail, B::Workspace, E::Cancel) => L::Resume,
         (F::WorkspaceDetail, B::Workspace, E::AcceptNavigate) => L::Editor,
         (F::WorkspaceDetail, B::Workspace, E::AcceptValue) => L::Resume,
         (F::WorkspaceDetail, B::Workspace, E::AcceptStayOpen) => L::Stay,
@@ -207,7 +223,7 @@ pub fn landing_of(state: State, event: Event) -> Landing {
         (F::WorkspaceDetail, B::Workspace, E::Descend) => L::Suspend,
         (F::WorkspaceDetail, B::Workspace, E::ToggleDetail) => L::Primary,
         (F::WorkspaceDetail, B::Workspace, E::Dismiss) => L::Editor,
-        (F::WorkspaceDetail, B::Launcher, E::Cancel) => L::Primary,
+        (F::WorkspaceDetail, B::Launcher, E::Cancel) => L::Resume,
         (F::WorkspaceDetail, B::Launcher, E::AcceptNavigate) => L::Editor,
         (F::WorkspaceDetail, B::Launcher, E::AcceptValue) => L::Editor,
         (F::WorkspaceDetail, B::Launcher, E::AcceptStayOpen) => L::Stay,

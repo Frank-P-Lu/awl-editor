@@ -24,6 +24,9 @@ mod pickers_nav;
 mod recoil_flinch;
 mod save_feedback;
 mod settings_reach;
+/// ITEM 116d — the workspace Esc, settled once for both members: one Esc always
+/// leaves, `Tab`/`Shift-Tab` are the Back, and the footer names it.
+mod workspace_esc_item116d;
 /// ITEM 114 — the summoned workspace's state, focus and back, in the lifecycle's
 /// own vocabulary. Tier 1, fully capturable (`docs/harness-reach.md`).
 mod workspace_item114;

@@ -173,12 +173,18 @@ impl OverlayKind {
                 key("\u{21E7}\u{21B5}", "restore"),
                 key(ARROWS_LR, "lens"),
             ],
-            // Settings uses Esc for the rail and arrows for categories.
+            // THE ROWS PANE of the Settings workspace. `esc` CLOSES from here —
+            // one Esc always leaves, at either stage (user decision 2026-08-02) —
+            // so the way back to the category rail is named explicitly rather
+            // than left to an overloaded Esc. `←/→` still cycles the category
+            // without moving focus; `tab` moves it. The rail's own line is
+            // `rail_hint_actions`.
             OverlayKind::Settings => {
                 vec![
                     enter("edit"),
                     key(ARROWS_LR, "category"),
-                    key("esc", "back"),
+                    key(TAB_GLYPH, "back"),
+                    key("esc", "close"),
                 ]
             }
             OverlayKind::Assets => vec![enter("trash"), key("esc", "close")],
@@ -305,6 +311,10 @@ pub struct HintAction {
 
 pub const HINT_SEP: &str = "   ";
 pub const ARROWS_LR: &str = "\u{2190}/\u{2192}";
+/// The focus-transfer key, as the footer spells it. One spelling, shared by the
+/// workspace members' detail-stage lines, so "the key that takes you back" reads
+/// the same on Settings and on History.
+pub const TAB_GLYPH: &str = "tab";
 pub const RANGE_LR_LABEL: &str = "adjust";
 pub const PIN_TAG: &str = "pinned";
 

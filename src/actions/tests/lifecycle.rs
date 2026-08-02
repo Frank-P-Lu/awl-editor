@@ -113,16 +113,14 @@ fn the_whole_journey_leaves_the_document_byte_identical() {
         journey.card().unwrap().detail_focus,
         "resumed in the content pane, where the row it descended from lives"
     );
-    // And leave: back to the rail, then out (item 114 — a workspace's detail
-    // stage takes a BACK before it takes an exit; the table's own arm).
+    // And leave: ONE Esc, from the content pane (user decision 2026-08-02 — one
+    // Esc always leaves a workspace, from either of its regions; `Tab` is the
+    // Back, and the footer names it).
     drive_on(&mut journey, &mut buffer, &Action::Cancel);
-    assert_eq!(
-        journey.card().map(|o| o.kind),
-        Some(OverlayKind::Settings),
-        "the first Esc off the content pane is a BACK to the rail, not an exit"
+    assert!(
+        journey.card().is_none(),
+        "one Esc off the content pane ended the journey in the editor"
     );
-    drive_on(&mut journey, &mut buffer, &Action::Cancel);
-    assert!(journey.card().is_none(), "the journey ended in the editor");
 
     assert_eq!(
         EditorState::of(&buffer),

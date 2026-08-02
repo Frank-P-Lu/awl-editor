@@ -89,9 +89,9 @@ Contextual/Launcher       Resume   Editor   Editor   Stay     Editor   Suspend  
 Workspace/Editor          Editor   Editor   Primary  Stay     Stay     Suspend  Detail   Editor
 Workspace/Workspace       Resume   Editor   Resume   Stay     Stay     Suspend  Detail   Editor
 Workspace/Launcher        Resume   Editor   Editor   Stay     Stay     Suspend  Detail   Editor
-WorkspaceDetail/Editor    Primary  Editor   Primary  Stay     Stay     Suspend  Primary  Editor
-WorkspaceDetail/Workspace Primary  Editor   Resume   Stay     Stay     Suspend  Primary  Editor
-WorkspaceDetail/Launcher  Primary  Editor   Editor   Stay     Stay     Suspend  Primary  Editor
+WorkspaceDetail/Editor    Editor   Editor   Primary  Stay     Stay     Suspend  Primary  Editor
+WorkspaceDetail/Workspace Resume   Editor   Resume   Stay     Stay     Suspend  Primary  Editor
+WorkspaceDetail/Launcher  Resume   Editor   Editor   Stay     Stay     Suspend  Primary  Editor
 ";
     assert_eq!(rendered_table(), expect, "the transition table changed");
 }
@@ -223,29 +223,48 @@ fn only_a_sustained_surface_reaches_a_focus_stage() {
     }
 }
 
-/// WIDE AND NARROW AGREE. A workspace's detail stage sits BESIDE the list when
-/// there is room and is PUSHED OVER it when there is not; Back means the same
-/// thing in both. The lifecycle achieves that by having no width input at all,
-/// so this law states the consequence over the whole `Beneath` axis: a cancel
-/// or a Tab from the detail stage returns to the primary list and NEVER leaves
-/// the workspace — no matter what is parked beneath it.
+/// WIDE AND NARROW AGREE, AND SO DO THE TWO REGIONS. A workspace's detail stage
+/// sits BESIDE the list when there is room and is PUSHED OVER it when there is
+/// not; the lifecycle achieves that by having no width input at all.
+///
+/// **ONE ESC ALWAYS LEAVES** (user decision 2026-08-02). The consequence stated
+/// over the whole `Beneath` axis: a cancel from the DETAIL stage lands EXACTLY
+/// where a cancel from the PRIMARY list lands. This is the invariance law, not a
+/// restatement of the arms — it compares the two rows of the table against each
+/// other, so a future edit that changes one and forgets the other fails here
+/// rather than shipping an Esc that means two things depending on where focus
+/// sits. `ToggleDetail` is what moves between the regions, and it still does.
 #[test]
-fn back_from_the_detail_stage_never_leaves_the_workspace() {
+fn one_esc_leaves_from_either_region_of_a_workspace() {
     for &beneath in Beneath::ALL {
-        let state = State::Summoned {
+        let primary = State::Summoned {
+            surface: Surface::Workspace,
+            beneath,
+        };
+        let detail = State::Summoned {
             surface: Surface::WorkspaceDetail,
             beneath,
         };
-        for event in [Event::Cancel, Event::ToggleDetail] {
-            assert_eq!(
-                landing_of(state, event),
-                Landing::Primary,
-                "{event:?} from the detail stage over {beneath:?} must go back, not out"
-            );
-        }
+        assert_eq!(
+            landing_of(detail, Event::Cancel),
+            landing_of(primary, Event::Cancel),
+            "over {beneath:?}: Esc must land in the same place from the detail stage as from \
+             the primary list — one Esc always leaves, and a reader spends their time in the \
+             detail stage"
+        );
+        assert_ne!(
+            landing_of(detail, Event::Cancel),
+            Landing::Primary,
+            "over {beneath:?}: Esc from the detail stage must NOT be a Back — Tab is"
+        );
+        assert_eq!(
+            landing_of(detail, Event::ToggleDetail),
+            Landing::Primary,
+            "over {beneath:?}: Tab is what returns to the primary list, and the footer says so"
+        );
     }
-    // And a second Back — now from the primary list — is the one that leaves,
-    // so the two presses are never collapsed into one.
+    // NON-VACUITY: the primary list's own cancel really does leave from the
+    // plainest case, so the invariance above is "both leave", not "both stay".
     assert_eq!(
         landing_of(
             State::Summoned {
@@ -256,12 +275,26 @@ fn back_from_the_detail_stage_never_leaves_the_workspace() {
         ),
         Landing::Editor,
     );
+    // …and a CHILD AUDITION over a parked workspace is the one rung that keeps
+    // Esc-returns-to-parent, which is what makes "one Esc always leaves" a
+    // statement about the workspace rather than about every summoned surface.
+    assert_eq!(
+        landing_of(
+            State::Summoned {
+                surface: Surface::Contextual,
+                beneath: Beneath::Workspace
+            },
+            Event::Cancel
+        ),
+        Landing::Resume,
+    );
 }
 
 // ── DRIVING A REAL JOURNEY ────────────────────────────────────────────────
 
-/// FOCUS TRANSFER, driven. Tab moves into the detail stage, Esc comes back, and
-/// the workspace is still up with its selection intact.
+/// FOCUS TRANSFER, driven. Tab moves into the detail stage, Tab comes back, and
+/// the workspace is still up with its selection intact — then ONE Esc leaves,
+/// from either region.
 #[test]
 fn focus_transfers_into_the_detail_stage_and_back_without_closing() {
     let mut journey = Journey::seeded(Some(card(OverlayKind::History, &["yesterday", "today"])));
@@ -279,7 +312,8 @@ fn focus_transfers_into_the_detail_stage_and_back_without_closing() {
         "still the workspace"
     );
 
-    assert_eq!(journey.cancel(&mut rebuilder()), Landing::Primary);
+    // TAB is the Back — the footer's advertised affordance, and now the only one.
+    assert_eq!(journey.toggle_detail(), Landing::Primary);
     assert!(!journey.card().unwrap().detail_focus, "focus came back");
     assert_eq!(
         journey.card().unwrap().selected,
@@ -287,9 +321,19 @@ fn focus_transfers_into_the_detail_stage_and_back_without_closing() {
         "the primary list kept its row across the round trip"
     );
 
-    // The NEXT Esc is the one that leaves.
+    // ONE ESC LEAVES from the primary list…
     assert_eq!(journey.cancel(&mut rebuilder()), Landing::Editor);
     assert!(journey.card().is_none());
+
+    // …and ONE Esc leaves from the DETAIL stage too, which is the whole of the
+    // 2026-08-02 decision: no second press, no "it depends where focus is".
+    let mut journey = Journey::seeded(Some(card(OverlayKind::History, &["yesterday", "today"])));
+    assert_eq!(journey.toggle_detail(), Landing::Detail);
+    assert_eq!(journey.cancel(&mut rebuilder()), Landing::Editor);
+    assert!(
+        journey.card().is_none(),
+        "Esc from the comparison must leave outright, not unwind one rung"
+    );
 }
 
 /// POSITION RESTORATION — the defect the breadcrumb could not express. Move
