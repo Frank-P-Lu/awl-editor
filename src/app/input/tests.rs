@@ -462,14 +462,16 @@ fn press_at_row_col(app: &mut App, row: usize, col: usize, shift: bool) {
         TEXT_TOP + (row as f32 + 0.5) * m.line_height,
     );
     let full = app.document.buffer().visible_line_to_full(row);
-    app.press_at_char(app.document.buffer().line_col_to_char(full, col), shift);
+    let char_idx = app.document.buffer().line_col_to_char(full, col);
+    app.press_at_char(char_idx, shift);
 }
 
 fn folded_app() -> App {
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
     app.document.set_text(FOLD_DOC);
     app.document.set_cursor(0); // on # A
-    app.document.toggle_fold_at_cursor(); // fold # A -> hides a1,a2 (filtered: 0 # A / 1 # B / 2 b1)
+    // Fold # A -> hide a1,a2 (filtered: 0 # A / 1 # B / 2 b1).
+    app.document.toggle_fold_at_cursor();
     assert!(
         app.document.buffer().folds().contains(&0),
         "precondition: # A is folded"

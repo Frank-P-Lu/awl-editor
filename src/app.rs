@@ -491,8 +491,8 @@ pub struct App {
     project_location: location::ProjectLocation,
     /// When the open DOCUMENT last changed and an idle AUTOSAVE is pending, the
     /// buffer version known ON DISK, the CLOBBER-GUARD stat baselines (doc +
-    /// scratch), and the scratch-stash's own saved-version — ALL buffer-scoped
-    /// (item 56), so they now live in `document::BufferExtra`
+    /// scratch), and the scratch-stash's own saved-version — ALL buffer-scoped,
+    /// so they now live in `document::BufferExtra`
     /// instead of here: see `doc_autosave_at`/`doc_saved_version`/`disk_mtime`/
     /// `scratch_saved_version`/`scratch_mtime` on that type.
     /// When the AUTOSAVE ENGINE last wrote successfully THIS session (the doc

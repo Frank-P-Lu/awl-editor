@@ -292,7 +292,8 @@ fn source_audit_the_active_slot_has_one_owner() {
     assert_eq!(
         take_hits.keys().collect::<Vec<_>>(),
         vec!["app/document.rs"],
-        "raw buffer_registry.take() must appear ONLY inside document.rs's private activate, found in: {take_hits:?}"
+        "raw registry.take() must appear ONLY inside document.rs's private activate; \
+         found in: {take_hits:?}"
     );
     assert_eq!(take_hits.get("app/document.rs"), Some(&1));
 
@@ -308,7 +309,8 @@ fn source_audit_the_active_slot_has_one_owner() {
     assert_eq!(
         park_hits.keys().collect::<Vec<_>>(),
         vec!["app/document.rs", "app/document/session_restore.rs"],
-        "raw registry.park() must appear ONLY in the private document owner, found in: {park_hits:?}"
+        "raw registry.park() must appear ONLY in the private document owner; \
+         found in: {park_hits:?}"
     );
     assert_eq!(park_hits.get("app/document.rs"), Some(&1));
     assert_eq!(park_hits.get("app/document/session_restore.rs"), Some(&1));
