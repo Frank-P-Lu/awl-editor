@@ -28,7 +28,7 @@
 // `new_hermetic` because it needs `Buffer::from_file` to see genuine
 // bytes), or a test already wrapped in `fs::with_fs`/`FsGuard::install`
 // with a controlled fake `InMemoryFs` (hermetic by construction,
-// independent of `session_restore`'s value — `app/document.rs`'s own
+// independent of `session_restore`'s value — `app/session.rs`'s own
 // tests, which specifically exercise session restore, cannot use
 // `new_hermetic` at all since it forces `session_restore: Some(false)`).
 // A test that only needs a plain, don't-care-about-disk `App` must go
@@ -68,14 +68,14 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // that switches + flushes, a second bare-launch App that resumes from
         // the flushed state) — so they can't use a constructor that forces
         // `session_restore` off.
-        ("app/document.rs", 8),
+        ("app/session.rs", 8),
         // 3 store tests (2 recent-projects + 1 recent-files), each inside its
         // own `fs::with_fs(fake, ..)` closure seeded with an `InMemoryFs` — they
         // exist specifically to prove what `App::switch_project` / `App::load_path`
         // / `App::new` write to and read back from the recent-projects /
         // recent-files stores, so they need to CONTROL + INSPECT the injected fs
         // (which `new_hermetic`'s private internal fs hides), never real disk.
-        // Same treatment as `app/document.rs` above. Plus 3 NO-PATH-PASTE-SAVES-
+        // Same treatment as `app/session.rs` above. Plus 3 NO-PATH-PASTE-SAVES-
         // FIRST tests (`ensure_note_named_before_paste_*`), each also inside its
         // own `fs::with_fs(fake, ..)` closure with an `InMemoryFs` handle kept by
         // the test — they exist specifically to prove what
@@ -127,7 +127,7 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // `ledger_note_dispatch` + `stats_flush` write to and read back from
         // `stats.toml`, so they need to CONTROL + INSPECT the injected fs (which
         // `new_hermetic`'s private internal fs hides). Same treatment as
-        // `app/document.rs` / `app/files/tests.rs` above. (The 3 added by the ledger:
+        // `app/session.rs` / `app/files/tests.rs` above. (The 3 added by the ledger:
         // door-attribution round-trip, graduation-candidate ranking, kill-switch;
         // the 2 added by the discoverability round: peek/footer ranking from a fake
         // ledger, and the fresh-ledger-empty case.)
@@ -228,7 +228,7 @@ fn scan_dir_for_app_new(
     }
 }
 
-// ── ITEM 56 LAW: `document.rs` IS THE SOLE OWNER OF THE SLOT ────────
+// ── DOCUMENT SLOT OWNERSHIP LAW ──────────────────────────────────────
 //
 // The manual field-by-field EXTRA-STATE copy-out/copy-back pair this round
 // RETIRED (the two former per-buffer-bookkeeping helpers this module's own
@@ -297,22 +297,21 @@ fn source_audit_the_active_slot_has_one_owner() {
     assert_eq!(take_hits.get("app/document.rs"), Some(&1));
 
     // `BufferRegistry::park` — the PARK-OUT half of the swap — is called raw
-    // in exactly TWO places: `document.rs`'s own `private park_active`
-    // (parks the buffer being REPLACED as active), and `app/document.rs`'s
-    // `apply_session_restore` (parks the OTHER, never-active survivors read
-    // straight from the session file — a distinct, pre-existing mechanism
-    // that never touches `self.active` at all, so it is not a bypass of the
-    // slot's ownership law). Any THIRD site is the bypass this law exists to
-    // catch.
+    // in exactly TWO places inside the private document owner: `document.rs`'s
+    // `park_active` parks the buffer being replaced, while
+    // `document/session_restore.rs` parks the other never-active survivors
+    // read straight from the session file. Any third site is the bypass this
+    // law exists to catch.
     let mut park_hits: std::collections::BTreeMap<String, usize> = Default::default();
     let park_needle = ["self.reg", "istry.park("].concat();
     scan_dir_collapsed(&root, &app_root, &park_needle, &mut park_hits);
     assert_eq!(
         park_hits.keys().collect::<Vec<_>>(),
-        vec!["app/document.rs"],
-        "raw registry.park() must appear ONLY in document.rs, found in: {park_hits:?}"
+        vec!["app/document.rs", "app/document/session_restore.rs"],
+        "raw registry.park() must appear ONLY in the private document owner, found in: {park_hits:?}"
     );
-    assert_eq!(park_hits.get("app/document.rs"), Some(&2));
+    assert_eq!(park_hits.get("app/document.rs"), Some(&1));
+    assert_eq!(park_hits.get("app/document/session_restore.rs"), Some(&1));
 
     let mut loan_hits: std::collections::BTreeMap<String, usize> = Default::default();
     let loan_needle = ["action_buffer", "_mut("].concat();

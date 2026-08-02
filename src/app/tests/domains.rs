@@ -706,7 +706,7 @@ fn the_root_app_field_parser_is_not_vacuous() {
     // Spot-check three fields of very different declaration shapes: a plain
     // one, a `#[cfg]`-gated one, and one whose type carries a generic
     // parameter list (the bracket-depth tracking).
-    for expect in ["input", "wait_conns", "buffer_registry"] {
+    for expect in ["input", "wait_conns", "document"] {
         assert!(
             fields.iter().any(|f| f == expect),
             "the parser missed `{expect}`, so its declaration shape is not covered: {fields:?}"
@@ -721,7 +721,7 @@ fn the_root_app_field_parser_is_not_vacuous() {
     }
 }
 
-// ── THE SUMMONED-LAYER BYPASS COUNT (item 172, slice 1) ─────────────────
+// ── THE SUMMONED-LAYER BYPASS COUNT ─────────────────────────────────────
 //
 // `WorkspaceState` hands out two escape hatches from its own ladder, each
 // justified in its own doc, and each is only justified while it has ONE call
@@ -730,7 +730,7 @@ fn the_root_app_field_parser_is_not_vacuous() {
 //  - `popover_summon_bit()` — the raw summon flag, ladder-free, for the
 //    cursor-icon composition's byte-identity.
 //  - `core_slots()` — `&mut` on both slots, for the shared `ActionCtx` seam
-//    (item 171). Production has exactly two: `App::apply`'s `run_action_core`
+//    for the shared action core. Production has exactly two: `App::apply`'s `run_action_core`
 //    and its palette re-dispatch's `stamp_return_to`; the live search-key
 //    intercept is the third, since `search::keys::intercept` is the seam
 //    shared verbatim with the headless replay.
@@ -792,13 +792,9 @@ fn the_summoned_layer_bypasses_have_the_call_sites_they_claim() {
             // `run_action_core` (1) + the palette `RunAction` re-dispatch's
             // `stamp_return_to` (1).
             ("app/apply.rs", 2),
-            // `finish_buffer`'s test driver, which mirrors `run_action_core`.
-            ("app/daemon.rs", 1),
             // The live search-key intercept — the seam shared verbatim with the
             // headless `--keys` replay.
             ("app/input/keys.rs", 1),
-            // `apply_transition_for_test`, the tests' own `ActionCtx` driver.
-            ("app/tests/common.rs", 1),
         ],
         "the summoned-layer slot lend must stay confined to the shared action-core \
          seam. A new site means something outside `actions::apply_transition` is \
