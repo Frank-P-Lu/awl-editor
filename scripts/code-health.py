@@ -598,7 +598,7 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
         # outright — or commented out whole — with the audit still green.
         'native-gate-vitals elapsed_seconds=%s free_bytes=%s swap_used_bytes=%s load1=%s cpu_count=%s %s':
             "native-gate-audit: the heartbeat must report the system load beside the core count that makes it readable",
-        'ps -A -o pid=,pgid=,time=,comm=':
+        'ps -A -o pid=,pgid=,etime=,time=,comm=':
             "native-gate-audit: the heartbeat must sample cumulative per-process CPU time, which means the same thing on macOS and Linux; ps pcpu does not",
         '"$(gate_load1)" "$gate_cpus" "$(gate_cpu_report)"':
             "native-gate-audit: the heartbeat must carry per-tracked-process CPU, not only the machine's load average",
@@ -1140,7 +1140,7 @@ linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)
 start_commit="$(git rev-parse HEAD)"
 export RUST_TEST_THREADS
 printf 'native-gate-env cpus=%s\\n' "$gate_cpus"
-ps -A -o pid=,pgid=,time=,comm=
+ps -A -o pid=,pgid=,etime=,time=,comm=
 ps -A -o pid=,ppid=,pgid=,etime=,time=,rss=,stat=,comm=
 gate_cpu_sample >"$gate_cpu_prev"
 printf 'native-gate-vitals elapsed_seconds=%s free_bytes=%s swap_used_bytes=%s load1=%s cpu_count=%s %s mac_last=[%s]\\n' "$elapsed" "$(gate_free_bytes)" "$(gate_swap_bytes)" "$(gate_load1)" "$gate_cpus" "$(gate_cpu_report)"
@@ -1257,10 +1257,10 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
         # macOS: a suite that ran hot then hung reads ~9% on one and ~0% on the
         # other, and neither is about the interval in question.
         "per-process CPU replaced by ps pcpu": (
-            script.replace("ps -A -o pid=,pgid=,time=,comm=", "ps -A -o pid=,pgid=,pcpu=,comm="), ci,
+            script.replace("ps -A -o pid=,pgid=,etime=,time=,comm=", "ps -A -o pid=,pgid=,etime=,pcpu=,comm="), ci,
             "must sample cumulative per-process CPU time"),
         "per-process CPU sample demoted to a comment": (
-            script.replace("ps -A -o pid=,pgid=,time=,comm=", "# ps -A -o pid=,pgid=,time=,comm="), ci,
+            script.replace("ps -A -o pid=,pgid=,etime=,time=,comm=", "# ps -A -o pid=,pgid=,etime=,time=,comm="), ci,
             "must sample cumulative per-process CPU time"),
         # Load alone cannot say WHICH process is spinning, which is the whole
         # difference between "the runner is oversubscribed" and "attach a

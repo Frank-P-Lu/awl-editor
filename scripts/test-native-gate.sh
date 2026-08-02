@@ -473,6 +473,20 @@ awk -v peak="$spin_peak" 'BEGIN { exit !(peak >= 50) }' || {
   echo "test-native-gate: two conventions spun for 9s and the busiest tracked process peaked at ${spin_peak}% ($spin_who) — the CPU probe cannot see a livelock" >&2
   exit 1
 }
+# The FIRST heartbeat is the one that has to work, and it is the hardest: its
+# baseline was taken before the conventions existed, so every tracked process is
+# a NEWCOMER to it. The first draft dropped newcomers outright, and the receipt
+# run of 2026-08-02 shows what that cost — two heartbeats reporting
+# `tracked_procs=0 tracked_cpu_pct=none` and `0.6%` while two test binaries were
+# burning a core each, because Cargo had moved from one test target to the next
+# inside the window. A probe that only measures processes older than a minute is
+# blind to exactly the minute anybody is asking about.
+first_new="$(awk '/^native-gate-vitals/ { for (i = 1; i <= NF; i++) if (index($i, "new_procs=") == 1) { print substr($i, 11) + 0; exit } }' "$probe_output")"
+first_busy="$(awk '/^native-gate-vitals/ { for (i = 1; i <= NF; i++) if (index($i, "busiest=[") == 1) { v = $i; sub(/.*=/, "", v); sub(/\]$/, "", v); print v + 0; exit } }' "$probe_output")"
+awk -v new="$first_new" -v busy="$first_busy" 'BEGIN { exit !(new >= 1 && busy >= 50) }' || {
+  echo "test-native-gate: the first heartbeat of a spinning run reported new_procs=$first_new busiest=${first_busy}% — a process that appeared inside the window is dropped instead of measured over its own age" >&2
+  exit 1
+}
 spin_pid="${spin_who##*:}"; spin_pid="${spin_pid%%=*}"
 grep -Fxq "$spin_pid" "$WORK/spinners" || {
   echo "test-native-gate: the heartbeat blamed pid $spin_pid ($spin_who) but the processes actually spinning were $(tr '\n' ' ' <"$WORK/spinners")— a load number nobody can attribute is not a diagnosis" >&2

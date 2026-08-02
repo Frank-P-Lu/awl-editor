@@ -170,37 +170,48 @@ gate_load1() {
 
 gate_cpu_prev="$gate_run_dir/cpu-prev"
 
-# One sample: the epoch it was taken at, then `pid cpu_seconds name` for every
-# process in a tracked group. macOS prints `mm:ss.ff` with hundredths and Linux
-# `[[dd-]hh:]mm:ss` whole seconds; both are colon-scaled, so one parser reads
-# both and the Linux quantum is 1 s against a 60 s window.
+# One sample: the epoch it was taken at, then `pid cpu_seconds age_seconds name`
+# for every process in a tracked group. macOS prints `mm:ss.ff` with hundredths
+# and Linux `[[dd-]hh:]mm:ss` whole seconds; both are colon-scaled, so one
+# parser reads both, and the Linux quantum is 1 s against a 60 s window.
 gate_cpu_sample() {
   date +%s
-  ps -A -o pid=,pgid=,time=,comm= 2>/dev/null \
+  ps -A -o pid=,pgid=,etime=,time=,comm= 2>/dev/null \
     | awk -v groups="$(tr '\n' ' ' <"$gate_pgid_file")" '
+        function seconds(t,   days, parts, p, i, out) {
+          days = 0
+          if (t ~ /-/) { split(t, p, "-"); days = p[1] + 0; t = p[2] }
+          parts = split(t, p, ":")
+          out = 0
+          for (i = 1; i <= parts; i++) out = out * 60 + (p[i] + 0)
+          return out + days * 86400
+        }
         BEGIN { n = split(groups, g, " "); for (i = 1; i <= n; i++) if (g[i] != "") want[g[i]] = 1 }
         !want[$2] { next }
         {
-          t = $3; days = 0
-          if (t ~ /-/) { split(t, dt, "-"); days = dt[1] + 0; t = dt[2] }
-          parts = split(t, p, ":")
-          secs = 0
-          for (i = 1; i <= parts; i++) secs = secs * 60 + (p[i] + 0)
-          secs += days * 86400
-          name = $4
-          for (i = 5; i <= NF; i++) name = name " " $i
+          name = $5
+          for (i = 6; i <= NF; i++) name = name " " $i
           sub(/.*\//, "", name)
           if (name == "") name = "unnamed"
-          print $1, secs, name
+          print $1, seconds($4), seconds($3), name
         }
       '
 }
 
-# Only a pid present in BOTH samples gets a percentage: one that appeared inside
-# the window has no baseline, and crediting it its whole lifetime would report a
-# fresh `ps` at several hundred percent. `tracked_procs=0` therefore prints
-# `tracked_cpu_pct=none`, never a confident `0.0` — no measurement and an idle
-# machine are the two answers this heartbeat exists to tell apart.
+# A pid present in both samples is measured over the window between them. A pid
+# that appeared inside the window is measured over its own age instead, and
+# counted in `new_procs` so a reader knows which readings those are.
+#
+# Dropping the newcomers, as the first draft did, was the same confident zero
+# this heartbeat exists to avoid, one level in: on the receipt run of
+# 2026-08-02 the unit-test binary finished and the integration binaries started
+# inside one window, and two heartbeats reported `tracked_procs=0` and `0.6%`
+# while two test binaries were burning a core each. Crediting a newcomer the
+# whole window it was not alive for is the opposite lie, so it gets its own age.
+#
+# `tracked_procs=0` still prints `tracked_cpu_pct=none` rather than `0.0`: no
+# measurement and an idle machine are exactly the two answers this heartbeat
+# exists to tell apart.
 gate_cpu_report() {
   local now="$gate_run_dir/cpu-now"
   gate_cpu_sample >"$now"
@@ -214,22 +225,29 @@ gate_cpu_report() {
     }
     file == 1 { was[$1] = $2 + 0; seen[$1] = 1; next }
     {
-      if (!($1 in seen)) next
-      delta = ($2 + 0) - was[$1]
+      if ($1 in seen) {
+        span = window
+        delta = ($2 + 0) - was[$1]
+      } else {
+        fresh++
+        span = ($3 + 0 < window) ? $3 + 0 : window
+        if (span < 1) span = 1
+        delta = $2 + 0
+      }
       if (delta < 0) delta = 0
-      pct = delta * 100 / window
+      pct = delta * 100 / span
       matched++
       total += pct
-      if (pct > best_pct) { best_pct = pct; best = $3 ":" $1 }
+      if (pct > best_pct) { best_pct = pct; best = $4 ":" $1 }
     }
     END {
       if (file < 2) {
-        print "cpu_probe=broken window_seconds=0 tracked_procs=0 tracked_cpu_pct=none busiest=[none]"
+        print "cpu_probe=broken window_seconds=0 tracked_procs=0 new_procs=0 tracked_cpu_pct=none busiest=[none]"
       } else if (matched == 0) {
-        printf "window_seconds=%d tracked_procs=0 tracked_cpu_pct=none busiest=[none]\n", window
+        printf "window_seconds=%d tracked_procs=0 new_procs=0 tracked_cpu_pct=none busiest=[none]\n", window
       } else {
-        printf "window_seconds=%d tracked_procs=%d tracked_cpu_pct=%.1f busiest=[%s=%.1f]\n", \
-          window, matched, total, best, best_pct
+        printf "window_seconds=%d tracked_procs=%d new_procs=%d tracked_cpu_pct=%.1f busiest=[%s=%.1f]\n", \
+          window, matched, fresh + 0, total, best, best_pct
       }
     }
   ' "$gate_cpu_prev" "$now"
