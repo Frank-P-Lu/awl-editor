@@ -31,11 +31,43 @@ impl TextPipeline {
     /// blur-eligible full overlay the document is rendered ONCE to an offscreen
     /// texture, blurred (only when [`Self::blur_recompute`] — else the cache stands),
     /// and the frosted result is composited behind the overlay card in the final pass.
+    ///
+    /// # ITEM 116d — THE COMPARISON SITS *ON* THE WORKSPACE SURFACE
+    ///
+    /// Item 116b relocated the document layer's GEOMETRY into a workspace's content
+    /// region ([`Self::comparison_viewport`]) but left its place in painter's order
+    /// alone, so the card drew straight over it. The user's compositing call
+    /// (2026-08-02) is that the comparison sits ON the workspace's own surface rather
+    /// than being a window THROUGH it: the card stays ONE OPAQUE SURFACE
+    /// (`overlay_pane_fills` is still its whole box) and the document's CONTENT is
+    /// submitted AFTER it, into the carved region, **without re-drawing its own
+    /// ground**. That is why the document layer splits in two here:
+    ///
+    ///   * [`Self::draw_document_ground`] — the backdrop's own ground (the world's
+    ///     margin field, lava, stars, the page frame). It is the QUIET FRAME around
+    ///     the workspace and it never moves.
+    ///   * [`Self::draw_document_content`] — the prose and everything hung off it
+    ///     (washes, selection, underlines, caret, text, ornaments, tables). This is
+    ///     what relocates, and on a comparison frame it is drawn LAST.
+    ///
+    /// The ordinary frame concatenates the two in their original order, so every
+    /// non-comparison frame in the tree is byte-identical BY CONSTRUCTION rather than
+    /// by measurement.
+    ///
+    /// **The blur path captures the GROUND ALONE while a comparison is up.** The
+    /// offscreen capture is what gets frosted into the frame AROUND the workspace, and
+    /// a relocated transcript has no business appearing there — that was the exact
+    /// defect 116b's boundary law named ("the transcript's ghost appears exactly where
+    /// the region is not"). Every margin-orientation surface already yields on such a
+    /// frame (`margin_orientation_yields`); the frosted backdrop now yields with them.
     pub fn render(
         &self,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
     ) -> anyhow::Result<()> {
+        // ITEM 116d — is the document layer relocated into a workspace's content
+        // region this frame? Asked ONCE here; both paths below read the answer.
+        let relocated = self.comparison_viewport().is_some();
         if self.backdrop_blur() {
             // 1) Capture the document into the offscreen texture + blur it — but ONLY
             //    when the cached backdrop is stale (a fresh open / resize / doc or
@@ -44,24 +76,38 @@ impl TextPipeline {
             if self.blur_recompute {
                 if let Some(doc_view) = self.blur.doc_view() {
                     let mut pass = Self::begin_clear_pass(encoder, doc_view);
-                    self.draw_document_layers(&mut pass)?;
+                    match relocated {
+                        true => self.draw_document_ground(&mut pass),
+                        false => self.draw_document_layers(&mut pass)?,
+                    }
                 }
                 self.blur.encode_blur(encoder);
             }
             let mut pass = Self::begin_clear_pass(encoder, view);
             self.blur.draw_backdrop(&mut pass);
             self.draw_overlay_card(&mut pass)?;
+            if relocated {
+                self.draw_document_content(&mut pass)?;
+            }
             self.draw_chrome_tail(&mut pass)?;
             return Ok(());
         }
 
         let mut pass = Self::begin_clear_pass(encoder, view);
-        self.draw_document_layers(&mut pass)?;
+        match relocated {
+            true => self.draw_document_ground(&mut pass),
+            false => self.draw_document_layers(&mut pass)?,
+        }
         // The search panel / crisp overlay composites OVER the document text. There is
         // no depth buffer (depth_stencil: None everywhere) so painter's order == draw
         // submission order.
         if self.overlay_active {
             self.draw_overlay_card(&mut pass)?;
+            // …and the COMPARISON composites over the card, into the region the card
+            // carved for it. `relocated` already implies `overlay_active`.
+            if relocated {
+                self.draw_document_content(&mut pass)?;
+            }
         } else if self.search_active {
             self.float_shadow.draw(&mut pass);
             self.float_border.draw(&mut pass);
@@ -85,10 +131,28 @@ impl TextPipeline {
     /// to recolour it the accent. Shared by the common path and the blur path's
     /// offscreen doc capture, so the captured backdrop matches the live document.
     fn draw_document_layers<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>) -> anyhow::Result<()> {
+        self.draw_document_ground(pass);
+        self.draw_document_content(pass)
+    }
+
+    /// THE BACKDROP'S OWN GROUND (item 116d's split): the world's margin field, the
+    /// lava blobs, the star band and the writing page's frame. It describes the
+    /// CANVAS, not the prose — nothing here reads the four relocated document-geometry
+    /// owners except through the module-private page column, which deliberately never
+    /// moves ([`Self::page_column_left`]). So it stays the quiet frame around a
+    /// summoned workspace and is the only thing a comparison frame frosts.
+    fn draw_document_ground<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>) {
         self.background_pipeline.draw(pass);
         self.lava_pipeline.draw(pass);
         self.stars_pipeline.draw(pass);
         self.page_frame_pipeline.draw(pass);
+    }
+
+    /// THE DOCUMENT'S CONTENT (item 116d's split): the prose and everything hung off
+    /// it. Every emitter here composes off the four relocated geometry owners, so this
+    /// whole block travels into a workspace's comparison region as one piece — which
+    /// is what lets `render` submit it AFTER the card without re-drawing any ground.
+    fn draw_document_content<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>) -> anyhow::Result<()> {
         self.fence_panel_pipeline.draw(pass);
         self.code_pill_pipeline.draw(pass);
         self.table_rule_pipeline.draw(pass);

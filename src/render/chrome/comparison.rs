@@ -174,6 +174,32 @@ impl TextPipeline {
         self.overlay_lh() + self.overlay_header_gap()
     }
 
+    /// **ITEM 116d — THE DOCUMENT LAYER'S GLYPH CLIP.** Every text renderer the
+    /// document layer owns uploads its `TextBounds` through this one door.
+    ///
+    /// Off a comparison it returns the caller's own bounds UNCHANGED, so every
+    /// ordinary frame in the tree is byte-identical by construction. While the
+    /// document is relocated it returns those bounds INTERSECTED with the region —
+    /// which is what makes containment structural rather than incidental. It matters
+    /// only now: before 116d the card was drawn OVER the document, so a glyph that
+    /// escaped the region was hidden by the surface anyway; the content is now drawn
+    /// AFTER the card, and an escaping glyph would land on the workspace's own face.
+    ///
+    /// The quads have their own owner — item 84's `content_clip` /
+    /// `clip_rects_to_band`, re-aimed by 116b — and this is its glyph twin: the two
+    /// resolve the same region from the same [`Self::comparison_viewport`].
+    pub(in crate::render) fn clip_text_bounds(&self, bounds: TextBounds) -> TextBounds {
+        let Some([x, y, w, h]) = self.comparison_viewport() else {
+            return bounds;
+        };
+        TextBounds {
+            left: bounds.left.max(x as i32),
+            top: bounds.top.max(y as i32),
+            right: bounds.right.min((x + w).ceil() as i32),
+            bottom: bounds.bottom.min((y + h).ceil() as i32),
+        }
+    }
+
     /// **DOES A MARGIN-ORIENTATION SURFACE YIELD THIS FRAME?** The persistent
     /// chrome DESIGN.md §5 bounds to answering "where am I?" — the outline, the
     /// bottom-left gutter, the corner readouts, the page frame and the draggable

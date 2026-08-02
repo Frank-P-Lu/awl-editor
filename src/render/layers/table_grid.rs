@@ -266,12 +266,12 @@ impl TextPipeline {
                         left: box_left + off,
                         top,
                         scale: 1.0,
-                        bounds: TextBounds {
+                        bounds: self.clip_text_bounds(TextBounds {
                             left: clip_left,
                             top: 0,
                             right: clip_right,
                             bottom: height as i32,
-                        },
+                        }),
                         default_color: content,
                         custom_glyphs: &[],
                     });
@@ -327,12 +327,12 @@ impl TextPipeline {
                     left: box_left + off,
                     top,
                     scale: 1.0,
-                    bounds: TextBounds {
+                    bounds: self.clip_text_bounds(TextBounds {
                         left: clip_left,
                         top: 0,
                         right: clip_right,
                         bottom: height as i32,
-                    },
+                    }),
                     default_color: content,
                     custom_glyphs: &[],
                 });
@@ -377,12 +377,12 @@ impl TextPipeline {
                 left: text_left - pan,
                 top: float_top,
                 scale: 1.0,
-                bounds: TextBounds {
+                bounds: self.clip_text_bounds(TextBounds {
                     left: text_left.max(0.0) as i32,
                     top: 0,
                     right: (text_left + view_w).clamp(0.0, width as f32) as i32,
                     bottom: height as i32,
-                },
+                }),
                 default_color: muted,
                 custom_glyphs: &[],
             });
