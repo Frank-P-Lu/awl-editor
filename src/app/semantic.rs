@@ -10,6 +10,7 @@ impl App {
     pub(in crate::app) fn handle_accessibility_event(&mut self, event: accesskit_winit::Event) {
         match event.window_event {
             accesskit_winit::WindowEvent::InitialTreeRequested => {
+                self.frame.set_accessibility_active(true);
                 let snapshot = self.semantic_snapshot();
                 self.frame.update_accessibility(snapshot, true);
             }
@@ -19,8 +20,23 @@ impl App {
                     self.apply_semantic_request(request);
                 }
             }
-            accesskit_winit::WindowEvent::AccessibilityDeactivated => {}
+            accesskit_winit::WindowEvent::AccessibilityDeactivated => {
+                self.frame.set_accessibility_active(false);
+            }
         }
+    }
+
+    /// The ONE live door from a scheduled frame to the platform tree. The gate
+    /// sits here rather than inside the runtime because BUILDING the snapshot
+    /// is the expense being avoided, and only the caller can decline to build
+    /// it: a snapshot is a whole-rope `String` plus a UAX #29 pass over it,
+    /// which an ordinary no-screen-reader frame must never pay.
+    pub(in crate::app) fn refresh_accessibility(&mut self) {
+        if !self.frame.accessibility_wants_snapshot() {
+            return;
+        }
+        let snapshot = self.semantic_snapshot();
+        self.frame.update_accessibility(snapshot, false);
     }
 
     fn apply_semantic_request(&mut self, request: crate::semantic::SemanticRequest) {
@@ -482,6 +498,55 @@ mod tests {
             .find(|node| node.id == DOCUMENT_ID)
             .unwrap();
         assert_eq!(document.selection.unwrap().focus, 5);
+    }
+
+    /// A second frame-side caller of `semantic_snapshot()` would reintroduce
+    /// the per-frame whole-document cost that `refresh_accessibility`'s gate
+    /// exists to prevent — and it would do so silently, because the equality
+    /// dedup downstream still suppresses the *update*, just not the *build*.
+    /// So the call sites are enumerated: three are the snapshot's declared
+    /// consumers, and the fourth is the gate itself.
+    #[test]
+    fn semantic_snapshot_has_no_ungated_frame_side_caller() {
+        let mut found: Vec<String> = Vec::new();
+        let mut stack = vec![PathBuf::from("src")];
+        while let Some(dir) = stack.pop() {
+            for entry in std::fs::read_dir(&dir).expect("src is readable") {
+                let path = entry.expect("dir entry").path();
+                if path.is_dir() {
+                    stack.push(path);
+                    continue;
+                }
+                if path.extension().is_none_or(|ext| ext != "rs") {
+                    continue;
+                }
+                let source = std::fs::read_to_string(&path).expect("source is utf-8");
+                // Only production lines: a test may build a snapshot freely,
+                // and prose naming the function is not a call.
+                let production = source
+                    .split_once("#[cfg(test)]")
+                    .map_or(source.as_str(), |(before, _)| before);
+                if production.lines().any(|line| {
+                    line.contains("semantic_snapshot()") && !line.trim().starts_with("//")
+                }) {
+                    found.push(path.to_string_lossy().replace('\\', "/"));
+                }
+            }
+        }
+        found.sort();
+        let mut sanctioned = vec![
+            // The live-App sidecar embeds the same snapshot.
+            "src/app/capture_state.rs".to_string(),
+            // The gate, plus the AccessKit activation and action handlers.
+            "src/app/semantic.rs".to_string(),
+            // `--semantic-json` prints it.
+            "src/main/run/live_app.rs".to_string(),
+        ];
+        sanctioned.sort();
+        assert_eq!(
+            found, sanctioned,
+            "a new caller of semantic_snapshot() must justify its per-frame cost",
+        );
     }
 
     #[test]

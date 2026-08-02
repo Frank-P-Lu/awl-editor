@@ -125,6 +125,16 @@ impl FrameRuntime {
         self.accessibility.update(snapshot, force);
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn set_accessibility_active(&mut self, active: bool) {
+        self.accessibility.set_active(active);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn accessibility_wants_snapshot(&self) -> bool {
+        self.accessibility.wants_snapshot()
+    }
+
     pub(in crate::app) fn gpu(&self) -> Option<&Gpu> {
         self.surface.gpu()
     }

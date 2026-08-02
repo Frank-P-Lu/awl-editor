@@ -6,6 +6,12 @@ pub(super) struct AccessibilityRuntime {
     proxy: Option<winit::event_loop::EventLoopProxy<AwlEvent>>,
     adapter: Option<accesskit_winit::Adapter>,
     last: Option<crate::semantic::SemanticSnapshot>,
+    /// Is an assistive technology listening? `false` until the platform asks
+    /// for an initial tree, and `false` again the moment it lets go. A
+    /// snapshot costs a whole-rope `String` plus a UAX #29 pass over it, so
+    /// the ordinary no-AT frame must not build one — this bit, not the
+    /// equality dedup below, is what keeps per-frame work off the document.
+    active: bool,
 }
 
 impl AccessibilityRuntime {
@@ -14,7 +20,20 @@ impl AccessibilityRuntime {
             proxy: None,
             adapter: None,
             last: None,
+            active: false,
         }
+    }
+
+    pub(super) fn set_active(&mut self, active: bool) {
+        self.active = active;
+        if !active {
+            self.last = None;
+        }
+    }
+
+    /// The one question a frame asks before paying for a snapshot.
+    pub(super) fn wants_snapshot(&self) -> bool {
+        self.active
     }
 
     pub(super) fn set_proxy(&mut self, proxy: winit::event_loop::EventLoopProxy<AwlEvent>) {
@@ -25,6 +44,10 @@ impl AccessibilityRuntime {
         let Some(proxy) = self.proxy.take() else {
             return;
         };
+        // AccessKit must own the window before the platform can see it: on
+        // macOS VoiceOver caches the accessibility parent of a newly ordered-in
+        // window, so an adapter installed after `set_visible(true)` is not
+        // asked for a tree until the window is cycled.
         self.adapter = Some(accesskit_winit::Adapter::with_event_loop_proxy(
             event_loop, window, proxy,
         ));
@@ -67,5 +90,33 @@ mod tests {
         assert!(semantic_update_needed(None, &snapshot, false));
         assert!(!semantic_update_needed(Some(&snapshot), &snapshot, false));
         assert!(semantic_update_needed(Some(&snapshot), &snapshot, true));
+    }
+
+    /// The dedup above runs AFTER a snapshot exists, so it cannot answer "did
+    /// this frame pay for one". `wants_snapshot` is the gate that can, and it
+    /// follows the platform's own two signals rather than a heuristic.
+    #[test]
+    fn a_frame_pays_for_a_snapshot_only_while_an_assistive_technology_listens() {
+        let mut runtime = AccessibilityRuntime::new();
+        assert!(!runtime.wants_snapshot());
+        runtime.set_active(true);
+        assert!(runtime.wants_snapshot());
+        runtime.set_active(false);
+        assert!(!runtime.wants_snapshot());
+    }
+
+    /// Deactivation must forget the last snapshot, or a reattached screen
+    /// reader whose first frame happens to be state-identical would be handed
+    /// the initial tree and then nothing — the dedup would suppress the very
+    /// update that repopulates the adapter.
+    #[test]
+    fn deactivation_forgets_the_last_snapshot_so_a_reattach_is_not_deduped_away() {
+        let _guard = crate::testlock::serial();
+        let app = App::new_hermetic(None, PathBuf::from("/"), Config::empty());
+        let mut runtime = AccessibilityRuntime::new();
+        runtime.set_active(true);
+        runtime.last = Some(app.semantic_snapshot());
+        runtime.set_active(false);
+        assert!(runtime.last.is_none());
     }
 }

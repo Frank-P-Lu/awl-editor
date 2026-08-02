@@ -9,10 +9,7 @@ use super::*;
 impl App {
     pub(in crate::app) fn request_frame(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
-        {
-            let snapshot = self.semantic_snapshot();
-            self.frame.update_accessibility(snapshot, false);
-        }
+        self.refresh_accessibility();
         if let Some(gpu) = self.frame.gpu() {
             request_window(&gpu.window);
         }
