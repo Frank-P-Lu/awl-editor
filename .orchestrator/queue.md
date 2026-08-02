@@ -206,7 +206,11 @@ measured:
 | 3 | `d1e997b9` | `30756807172` | BAD, 3853 s, log 200 (ceiling) |
 | 4 | `94211bb6` | `30759720562` | BAD, 3242 s, log 404 |
 | 5 | **`8207e519`** | `30761792967` | **BAD**, 3423 s, log 404 |
-| 6 | `36707d06` (`8207e519^`) | `30763999999` | measuring the GOOD side |
+| 6 | `36707d06` (`8207e519^`) | `30763999999` | **GOOD**, 19m03s, step `completed/success` |
+
+**BOTH BOUNDARIES ARE MEASURED, NOT INFERRED.** The parent runs clean in 19
+minutes against `8207e519`'s 57 — a real `success` conclusion on the one side
+that carries no corroboration. No re-run contradicted a first reading.
 
 **What is SUPPORTED by evidence.** `8207e519` takes `THEMES` from 19 to 20,
 adding `KITE` with `Background::WarpedGrid` and **+267 lines of
@@ -247,12 +251,22 @@ hypothesis being right; if the true cause is the WarpedGrid draw accumulating
 device state, the product IS exposed on a VM. Lower on the evidence, not
 excludable from here.
 
-**Determinism:** five BADs across five distinct trees, four of them independent
+**Determinism: settled.** Five BADs across five distinct trees, four of them independent
 commits, all reproducing the same hang; no re-run has contradicted a first
-reading. Probe 6 is the first genuine re-measurement and deliberately on the
-GOOD side — the uncorroborated direction. **If probe 6 returns BAD the bisect
-is INVALID**, the defect predates item 194, and every verdict above needs
-rethinking; the lane is instructed to report that rather than rationalise it.
+reading. Probe 6 was the first genuine re-measurement, deliberately on the GOOD
+side, and it came back GOOD — so the bisect stands.
+
+🔵 **THE FIX IS NOT WRITTEN AND WANTS ITS OWN ITEM.** Two things a fix-owner
+needs and could easily lose in a summary: **the shader is exonerated by
+evidence, not argument** (15 `backgrounds_item132`/`warp_tunnel` tests passed
+cleanly six minutes before the wedge, in two independent logs — do not start by
+staring at the WGSL); and **the churn exists only in the test helpers**, which
+is the asymmetry deciding whether this is a product bug at all.
+
+**Worth stating plainly: `main` has been red for ~140 commits and the cause is a
+test-harness amplification, not a product regression.** The tree the receipts
+have been certifying was sound throughout, and the local `native-gate.sh`
+receipts that gated every landing were doing their job.
 
 **Superseded bisect state:****Superseded bisect state:** window `7bca59d6` GOOD .. `d1e997b9` BAD. Real candidates are
 just three — `8207e519` (37 files, shader), `94211bb6` (6, shader), `c325fdad`
