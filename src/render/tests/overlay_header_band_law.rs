@@ -173,9 +173,12 @@ fn grade_header_band(
             field.bottom()
         );
     }
-    // …and off the card horizontally it is never the field.
+    // …and off the CARD horizontally it is never the field. Probed against the
+    // card's own left edge, not the content band's: a workspace's band starts
+    // after its navigation rail, and the field's x-bound is the card (which this
+    // slice deliberately left alone — its subject is the band's Y).
     assert!(
-        !p.over_overlay_query(x0 - 40.0, field.center()),
+        !p.over_overlay_query(geom.card_probe()[0] - 40.0, field.center()),
         "{ctx}: a pointer left of the card is not on the field"
     );
 
@@ -527,6 +530,27 @@ fn the_workspace_beat_still_agrees_with_the_planned_query_box() {
                  seated off the line the search field actually draws",
                 field.height
             );
+            // …and the workspace's own search line gets the SAME drawn/pointer/
+            // caret grading the takeover cards get. The headline sweep cannot
+            // reach it: `Settings` is the only kind presented as a workspace and
+            // its geometry is chosen by `overlay_workspace`, which that sweep's
+            // fixture leaves off, so `Settings` is graded there as the GROUPED
+            // card it becomes when it is NOT relocated. This shape carries one
+            // header line with the beat inside it — the flat layout, and so the
+            // layout the retired pointer band missed.
+            let pr = p.overlay_row_y_probe();
+            let ctx = format!("{world} dpi={dpi} workspace");
+            let (mut fields, mut strips) = (0usize, 0usize);
+            grade_header_band(
+                &p,
+                &plan,
+                &geom,
+                &pr,
+                Family::Flat,
+                &ctx,
+                (&mut fields, &mut strips),
+            );
+            assert_eq!(fields, 1, "{ctx}: the workspace's field must be graded");
             graded += 1;
         }
     }
