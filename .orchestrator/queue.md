@@ -4,6 +4,47 @@
 > (`git log -p .orchestrator/queue.md`). Protocol, claiming, worktrees, and
 > execution hygiene live in `.orchestrator/README.md`.
 
+## 🔵 BLOCKED ON THE USER — nothing else can close these
+
+Consolidated 2026-08-02/03 so they are not scattered through the item bodies.
+Every one has been taken as far as an agent can take it; what remains genuinely
+needs a human. **None of them blocks any other work.**
+
+**All four of these need an unlocked and FOREGROUNDED display.** ⚠️ The
+machine's idle lock fired seven minutes into the 2026-08-02 sitting and
+silently invalidated it — **disable the idle lock before the next one**, and
+re-check the lock at BOTH ends of the run, because `live-probe.sh` only checks
+it in preflight. Worse, `--live-script` forces a Prohibited, non-activating
+window, so under a lock it writes successful-looking
+`LIVE-PROBE shot … ok backend=window-server` lines while presenting **zero**
+frames — a probe run can look like it worked and have photographed nothing.
+
+1. **211 — one unoccluded confirmation that the fixed build presents the
+   glide.** The diagnosis is complete and the fix is landed, law-covered and
+   mutation-proved; the state chain is CPU-side and occlusion-independent, so
+   the *diagnosis* holds. But **no frame was ever photographed and there is no
+   60 fps video**, which its own Verify clause asks for. Also unreached: held
+   key-repeat, pointer parked outside/above/on/below the row, scrolled and
+   freshly-opened windows, focus and occlusion return, Settings and the other
+   picker kinds, Bars worlds, 1×/2×.
+2. **207 — real VoiceOver and AT-SPI journeys.** Everything is verified at the
+   snapshot and projection tier. Whether a screen reader *reads it well* —
+   announcement order, verbosity, live-region politeness — is unproven and no
+   test tier can stand in for it.
+3. **118 — the world-loudness map and the `--release` ambient sitting.** The
+   item's own Done clause requires a USER-CONFIRMED map and states that pixel
+   arithmetic may prove territory and contrast but never claims the taste
+   score. An independent agent map exists (`1, 10, 3, 4, 1`, mean 2.68) to diff
+   against rather than re-derive.
+4. **131c — the chrome pixel-space decision.** Overlay chrome already mixes
+   both spaces: row pitch scales with DPI while `BAR_SIDE_INSET`, the text hpad
+   and `CARD_MAX_W` are raw device px. A diagonal pitch authored like its
+   neighbours would be **physical by inheritance**, which is exactly what item
+   186 exists to stop; making it logical would make it the first chrome
+   quantity to declare its space, which either extends `ground_space` past
+   `Background` or opens a sibling registry. **A design decision owed a human
+   eye, not a line of code.** 131d and 131e are unclaimed behind it.
+
 ## Latest design decisions
 
 **Item 116d — 2026-08-02, THE COMPOSITING CALL, and 116d is now UNBLOCKED.**
