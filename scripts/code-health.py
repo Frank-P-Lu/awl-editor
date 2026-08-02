@@ -587,6 +587,17 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
             "native-gate-audit: gate must bound per-convention test-thread concurrency",
         'native-gate-env cpus=':
             "native-gate-audit: gate must state the machine and bound it is about to load",
+        # Flat memory and zero swap describe a deadlock and a livelock equally
+        # well. CPU is the discriminator, and the load average alone is only
+        # half of it: it says the box is busy, never which process is busy.
+        'load1=%s cpu_count=%s':
+            "native-gate-audit: the heartbeat must report the system load beside the core count that makes it readable",
+        'ps -A -o pid=,pgid=,time=,comm=':
+            "native-gate-audit: the heartbeat must sample cumulative per-process CPU time, which means the same thing on macOS and Linux; ps pcpu does not",
+        '"$(gate_cpu_report)"':
+            "native-gate-audit: the heartbeat must carry per-tracked-process CPU, not only the machine's load average",
+        'ps -A -o pid=,ppid=,pgid=,etime=,time=,rss=,stat=,comm=':
+            "native-gate-audit: the abort's process dump must carry CPU time beside elapsed time, or it cannot say whether the hung process was spinning",
         'if [[ -f "$gate_budget_marker" ]]; then':
             "native-gate-audit: an exhausted budget must suppress the receipt",
         'AWL_NATIVE_GATE_DEADLINE_EPOCH - gate_started_epoch':
@@ -636,6 +647,15 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
         )
     if "if (( $# != 0 )); then" not in script:
         failures.append("native-gate-audit: gate must reject target-selection and test-name arguments")
+    # A CPU reading is a DELTA between two samples, so the first heartbeat is
+    # blind unless a baseline was taken before it. Sixty seconds of blindness
+    # covers the whole canary phase on a warm runner.
+    cpu_baseline = script.find('gate_cpu_sample >"$gate_cpu_prev"')
+    cpu_report = script.find('"$(gate_cpu_report)"')
+    if cpu_baseline < 0 or cpu_report < 0 or not cpu_baseline < cpu_report:
+        failures.append(
+            "native-gate-audit: the CPU baseline must be sampled before the first heartbeat, or that heartbeat reports no delta"
+        )
     # A watchdog armed after the canary has returned cannot reach the phase that
     # compiles every dependency — the slowest thing on a cold hosted runner, and
     # the phase whose silence has no log at all.
@@ -1114,6 +1134,10 @@ linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)
 start_commit="$(git rev-parse HEAD)"
 export RUST_TEST_THREADS
 printf 'native-gate-env cpus=%s\\n' "$gate_cpus"
+ps -A -o pid=,pgid=,time=,comm=
+ps -A -o pid=,ppid=,pgid=,etime=,time=,rss=,stat=,comm=
+gate_cpu_sample >"$gate_cpu_prev"
+printf 'native-gate-vitals load1=%s cpu_count=%s %s\\n' "$(gate_load1)" "$gate_cpus" "$(gate_cpu_report)"
 gate_budget_seconds=$(( AWL_NATIVE_GATE_DEADLINE_EPOCH - gate_started_epoch ))
 printf 'native-gate-phase label=%s event=%s elapsed_seconds=%s %s\\n' "$1" "$2" "$(gate_elapsed)" "${3:-}"
 "$@" 2>&1 | gate_stamp_phases "$label"
@@ -1208,6 +1232,58 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
             script, ci.replace(
                 '      - run: echo "AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( $(date +%s) + 2100 ))" >> "$GITHUB_ENV"\n', ""),
             "CI mac job must anchor the gate to the runner's clock"),
+        # Deadlock against livelock. Each requirement is mutated TWICE — deleted
+        # outright, and merely commented out — because a substring matcher that
+        # reads the raw text is satisfied by the comment, and that is how this
+        # auditor was green over a disabled bound once already.
+        "no load average": (
+            script.replace("""printf 'native-gate-vitals load1=%s cpu_count=%s %s\\n' "$(gate_load1)" "$gate_cpus" "$(gate_cpu_report)"\n""", ""),
+            ci,
+            "must report the system load beside the core count"),
+        "load average demoted to a comment": (
+            script.replace(
+                """printf 'native-gate-vitals load1=%s cpu_count=%s""",
+                """# printf 'native-gate-vitals load1=%s cpu_count=%s"""),
+            ci,
+            "must report the system load beside the core count"),
+        # `ps -o pcpu` is a lifetime average on Linux and a decayed one on
+        # macOS: a suite that ran hot then hung reads ~9% on one and ~0% on the
+        # other, and neither is about the interval in question.
+        "per-process CPU replaced by ps pcpu": (
+            script.replace("ps -A -o pid=,pgid=,time=,comm=", "ps -A -o pid=,pgid=,pcpu=,comm="), ci,
+            "must sample cumulative per-process CPU time"),
+        "per-process CPU sample demoted to a comment": (
+            script.replace("ps -A -o pid=,pgid=,time=,comm=", "# ps -A -o pid=,pgid=,time=,comm="), ci,
+            "must sample cumulative per-process CPU time"),
+        # Load alone cannot say WHICH process is spinning, which is the whole
+        # difference between "the runner is oversubscribed" and "attach a
+        # debugger to this pid".
+        "load average without per-process attribution": (
+            script.replace(""" "$(gate_cpu_report)"\n""", "\n"), ci,
+            "must carry per-tracked-process CPU"),
+        "per-process CPU report demoted to a comment": (
+            script.replace(
+                """printf 'native-gate-vitals load1=%s cpu_count=%s %s\\n'""",
+                """# printf 'native-gate-vitals load1=%s cpu_count=%s %s\\n'"""),
+            ci,
+            "must carry per-tracked-process CPU"),
+        "CPU baseline taken after the first heartbeat": (
+            script.replace('gate_cpu_sample >"$gate_cpu_prev"\n', "")
+                  .replace('linux_pid=$!\n', 'linux_pid=$!\ngate_cpu_sample >"$gate_cpu_prev"\n'),
+            ci,
+            "CPU baseline must be sampled before the first heartbeat"),
+        "CPU baseline demoted to a comment": (
+            script.replace('gate_cpu_sample >"$gate_cpu_prev"', '# gate_cpu_sample >"$gate_cpu_prev"'),
+            ci,
+            "CPU baseline must be sampled before the first heartbeat"),
+        "abort dump without CPU time": (
+            script.replace("pid=,ppid=,pgid=,etime=,time=,rss=,stat=,comm=", "pid=,ppid=,pgid=,etime=,rss=,stat=,comm="),
+            ci,
+            "abort's process dump must carry CPU time beside elapsed time"),
+        "abort dump demoted to a comment": (
+            script.replace("ps -A -o pid=,ppid=,pgid=,etime=,time=", "# ps -A -o pid=,ppid=,pgid=,etime=,time="),
+            ci,
+            "abort's process dump must carry CPU time beside elapsed time"),
         # The mutation this audit failed on its first run: a deleted bound that
         # a comment mentioning the same variable silently stood in for.
         "mac bound demoted to a comment": (
