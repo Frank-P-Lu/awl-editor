@@ -1,8 +1,8 @@
 //! ITEM 116d — **ONE ESC ALWAYS LEAVES**, and the footer says what the Back is.
 //!
-//! The user settled this once for BOTH workspace members on 2026-08-02, exactly
-//! as item 114 asked: `Esc` dismisses a summoned workspace from anywhere inside
-//! it, and focus moves between its two regions on `Tab` / `Shift-Tab` alone. The
+//! The user settled this once for BOTH workspace members on 2026-08-02: `Esc`
+//! dismisses a summoned workspace from anywhere inside it, and focus moves
+//! between its two regions on `Tab` / `Shift-Tab` alone. The
 //! rejected arm — Esc unwinds one rung, so leaving History from the comparison
 //! takes two presses — was rejected because the comparison is exactly where a
 //! reader spends their time, and Esc would then mean two different things
@@ -23,7 +23,8 @@
 //! third workspace member cannot join without answering it.
 
 use super::*;
-use crate::overlay::{Journey, Landing, OverlayKind, OverlayState, TAB_GLYPH};
+use crate::overlay::workspace::TAB_GLYPH;
+use crate::overlay::{Journey, Landing, OverlayKind, OverlayState};
 
 /// Every kind that is a SUSTAINED surface — the members this decision binds.
 /// Derived from the roster rather than hand-listed, and floored below, because

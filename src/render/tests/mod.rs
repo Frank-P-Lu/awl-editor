@@ -31,9 +31,6 @@ mod caret_visual_body;
 mod chrome_overlay;
 mod chrome_panels;
 mod cjk;
-/// ITEM 116d — the COMPOSITING round: the comparison sits ON the workspace
-/// surface, so the document's content is submitted after the card into the
-/// carved region. Containment and visibility, in real pixels.
 mod comparison_composite_item116d;
 /// ITEM 116b — the RELOCATED DOCUMENT VIEWPORT: the one owner all four
 /// document-geometry owners read, the private page-column bypass, the total

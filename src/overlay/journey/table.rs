@@ -188,8 +188,8 @@ pub fn landing_of(state: State, event: Event) -> Landing {
         (F::Workspace, B::Launcher, E::ToggleDetail) => L::Detail,
         (F::Workspace, B::Launcher, E::Dismiss) => L::Editor,
         // ── THE DETAIL STAGE. **ONE ESC ALWAYS LEAVES** (user decision
-        //    2026-08-02, settled once for BOTH workspace members as item 114
-        //    asked). A cancel on the detail stage lands exactly where a cancel on
+        //    2026-08-02, settled once for BOTH workspace members). A cancel on
+        //    the detail stage lands exactly where a cancel on
         //    the primary list lands — the three `E::Cancel` arms below are
         //    character-for-character their `F::Workspace` siblings, and
         //    `journey::tests`' focus-invariance law holds them there.

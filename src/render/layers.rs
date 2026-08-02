@@ -430,9 +430,6 @@ impl TextPipeline {
             Some((t, b)) => (t as i32, b as i32),
             None => (0, height as i32),
         };
-        // ITEM 116d — and the region's HORIZONTAL arm too, through the one glyph-clip
-        // owner: the content is now drawn AFTER the workspace card, so a glyph that
-        // ran past the region would land on the card's own face.
         let bounds = self.clip_text_bounds(TextBounds {
             left: 0,
             top: clip_top,

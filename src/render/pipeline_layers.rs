@@ -32,16 +32,18 @@ impl TextPipeline {
     /// texture, blurred (only when [`Self::blur_recompute`] — else the cache stands),
     /// and the frosted result is composited behind the overlay card in the final pass.
     ///
-    /// # ITEM 116d — THE COMPARISON SITS *ON* THE WORKSPACE SURFACE
+    /// # THE COMPARISON SITS *ON* THE WORKSPACE SURFACE
     ///
-    /// Item 116b relocated the document layer's GEOMETRY into a workspace's content
-    /// region ([`Self::comparison_viewport`]) but left its place in painter's order
-    /// alone, so the card drew straight over it. The user's compositing call
-    /// (2026-08-02) is that the comparison sits ON the workspace's own surface rather
-    /// than being a window THROUGH it: the card stays ONE OPAQUE SURFACE
+    /// A summoned workspace can relocate the document layer's GEOMETRY into its
+    /// content region ([`Self::comparison_viewport`]); its place in painter's order
+    /// is a separate decision, and the user's compositing call (2026-08-02) is that
+    /// the comparison sits ON the workspace's own surface rather than being a window
+    /// THROUGH it: the card stays ONE OPAQUE SURFACE
     /// (`overlay_pane_fills` is still its whole box) and the document's CONTENT is
     /// submitted AFTER it, into the carved region, **without re-drawing its own
-    /// ground**. That is why the document layer splits in two here:
+    /// ground**. A window through the card would have shown the BACKDROP's ground —
+    /// the punch is at the page column, not at the region. That is why the document
+    /// layer splits in two here:
     ///
     ///   * [`Self::draw_document_ground`] — the backdrop's own ground (the world's
     ///     margin field, lava, stars, the page frame). It is the QUIET FRAME around
@@ -55,18 +57,18 @@ impl TextPipeline {
     /// by measurement.
     ///
     /// **The blur path captures the GROUND ALONE while a comparison is up.** The
-    /// offscreen capture is what gets frosted into the frame AROUND the workspace, and
-    /// a relocated transcript has no business appearing there — that was the exact
-    /// defect 116b's boundary law named ("the transcript's ghost appears exactly where
-    /// the region is not"). Every margin-orientation surface already yields on such a
-    /// frame (`margin_orientation_yields`); the frosted backdrop now yields with them.
+    /// offscreen capture is what gets frosted into the frame AROUND the workspace,
+    /// and a relocated transcript has no business appearing there — the ghost would
+    /// land exactly where the region is not. Every margin-orientation surface already
+    /// yields on such a frame (`margin_orientation_yields`); the frosted backdrop now
+    /// yields with them.
     pub fn render(
         &self,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
     ) -> anyhow::Result<()> {
-        // ITEM 116d — is the document layer relocated into a workspace's content
-        // region this frame? Asked ONCE here; both paths below read the answer.
+        // Is the document layer relocated into a workspace's content region this
+        // frame? Asked ONCE here; both paths below read the answer.
         let relocated = self.comparison_viewport().is_some();
         if self.backdrop_blur() {
             // 1) Capture the document into the offscreen texture + blur it — but ONLY
@@ -135,8 +137,8 @@ impl TextPipeline {
         self.draw_document_content(pass)
     }
 
-    /// THE BACKDROP'S OWN GROUND (item 116d's split): the world's margin field, the
-    /// lava blobs, the star band and the writing page's frame. It describes the
+    /// THE BACKDROP'S OWN GROUND: the world's margin field, the lava blobs, the
+    /// star band and the writing page's frame. It describes the
     /// CANVAS, not the prose — nothing here reads the four relocated document-geometry
     /// owners except through the module-private page column, which deliberately never
     /// moves ([`Self::page_column_left`]). So it stays the quiet frame around a
@@ -148,8 +150,8 @@ impl TextPipeline {
         self.page_frame_pipeline.draw(pass);
     }
 
-    /// THE DOCUMENT'S CONTENT (item 116d's split): the prose and everything hung off
-    /// it. Every emitter here composes off the four relocated geometry owners, so this
+    /// THE DOCUMENT'S CONTENT: the prose and everything hung off it. Every emitter
+    /// here composes off the four relocated geometry owners, so this
     /// whole block travels into a workspace's comparison region as one piece — which
     /// is what lets `render` submit it AFTER the card without re-drawing any ground.
     fn draw_document_content<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>) -> anyhow::Result<()> {

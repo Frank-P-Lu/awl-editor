@@ -182,8 +182,8 @@ impl TextPipeline {
         self.metrics.zoom.to_bits().hash(&mut h);
         self.md_enabled.hash(&mut h);
         self.lava_render_phase().to_bits().hash(&mut h);
-        // ITEM 116d — WHAT the offscreen capture contains, not merely how it looks:
-        // while the document is relocated into a workspace's comparison region the
+        // WHAT the offscreen capture contains, not merely how it looks: while
+        // the document is relocated into a workspace's comparison region the
         // backdrop is the GROUND ALONE (`render`'s comparison arm). Crossing that
         // line changes the captured pixels without changing anything above it —
         // Settings' workspace and History's, at one scroll and one size, would

@@ -173,20 +173,14 @@ impl OverlayKind {
                 key("\u{21E7}\u{21B5}", "restore"),
                 key(ARROWS_LR, "lens"),
             ],
-            // THE ROWS PANE of the Settings workspace. `esc` CLOSES from here —
-            // one Esc always leaves, at either stage (user decision 2026-08-02) —
-            // so the way back to the category rail is named explicitly rather
-            // than left to an overloaded Esc. `←/→` still cycles the category
-            // without moving focus; `tab` moves it. The rail's own line is
-            // `rail_hint_actions`.
-            OverlayKind::Settings => {
-                vec![
-                    enter("edit"),
-                    key(ARROWS_LR, "category"),
-                    key(TAB_GLYPH, "back"),
-                    key("esc", "close"),
-                ]
-            }
+            // The rows pane. `esc` CLOSES from either stage, so the way back to
+            // the category rail is named rather than left to an overloaded Esc.
+            OverlayKind::Settings => vec![
+                enter("edit"),
+                key(ARROWS_LR, "category"),
+                key(super::workspace::TAB_GLYPH, "back"),
+                key("esc", "close"),
+            ],
             OverlayKind::Assets => vec![enter("trash"), key("esc", "close")],
             OverlayKind::Rename => vec![enter("rename"), key("esc", "cancel")],
             OverlayKind::InsertLink => vec![enter("insert link"), key("esc", "cancel")],
@@ -311,10 +305,6 @@ pub struct HintAction {
 
 pub const HINT_SEP: &str = "   ";
 pub const ARROWS_LR: &str = "\u{2190}/\u{2192}";
-/// The focus-transfer key, as the footer spells it. One spelling, shared by the
-/// workspace members' detail-stage lines, so "the key that takes you back" reads
-/// the same on Settings and on History.
-pub const TAB_GLYPH: &str = "tab";
 pub const RANGE_LR_LABEL: &str = "adjust";
 pub const PIN_TAG: &str = "pinned";
 

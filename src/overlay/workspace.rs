@@ -70,6 +70,12 @@ use super::{HintAction, OverlayKind, OverlayState};
 /// workspace's primary list advertises a vertical step as its headline key.
 const ARROWS_UD: &str = "\u{2191}/\u{2193}";
 
+/// The FOCUS-TRANSFER key, as the footer spells it. One spelling shared by both
+/// workspace members' detail-stage lines, so "the key that takes you back" reads
+/// the same on a settings pane and on a comparison — it is the only way back now
+/// that `Esc` leaves outright from either region.
+pub(crate) const TAB_GLYPH: &str = "tab";
+
 /// Which of a summoned workspace's two coordinated regions is its PRIMARY
 /// list — DESIGN.md §5's "categories beside controls, or a timeline beside a
 /// comparison" — named rather than left as a bool because the two shapes

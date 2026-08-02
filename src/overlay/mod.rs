@@ -43,7 +43,7 @@ pub use journey::{
 // used by overlay::tests (format_hint/HintAction directly; PIN_TAG below)
 pub use kind::{
     ARROWS_LR, AcceptDisposition, HINT_SEP, HintAction, OverlayKind, PIN_TAG, RANGE_LR_LABEL,
-    TAB_GLYPH, format_hint,
+    format_hint,
 };
 #[allow(unused_imports)]
 // OverlayRow/RowMeta/RowMetaTag: used by overlay::tests + item 55's follow-up

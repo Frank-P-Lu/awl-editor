@@ -1,4 +1,4 @@
-use super::{Capture, KeepEdit, LinkEdit, OverlayKind, PIN_TAG, RenameEdit, TAB_GLYPH, ValueEdit};
+use super::{Capture, KeepEdit, LinkEdit, OverlayKind, PIN_TAG, RenameEdit, ValueEdit};
 use crate::textbox::TextBox;
 
 pub fn add_to_dictionary_label(word: &str) -> String {
@@ -488,7 +488,7 @@ impl OverlayState {
                     label: "restore",
                 },
                 super::HintAction {
-                    glyph: TAB_GLYPH,
+                    glyph: super::workspace::TAB_GLYPH,
                     label: "back",
                 },
             ]);

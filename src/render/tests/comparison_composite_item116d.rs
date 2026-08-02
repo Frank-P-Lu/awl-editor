@@ -246,6 +246,20 @@ fn assert_contained_and_visible(pair: &Pair, label: &str) -> bool {
         );
     }
 
+    assert_nothing_escaped(pair, label);
+    gradeable
+}
+
+/// The CONTAINMENT half: every pixel OUTSIDE the region is byte-identical
+/// between the two arms.
+///
+/// The outside is graded as FOUR bands (above / below / left / right of the
+/// region) rather than as "the canvas minus the region", because a whole-canvas
+/// diff cannot be expressed as one `Region` and a hand-rolled mask would be a
+/// second implementation of the thing under test.
+fn assert_nothing_escaped(pair: &Pair, label: &str) {
+    let [rx, ry, rw, rh] = pair.region;
+    let (cw, ch) = (pair.w as i64, pair.h as i64);
     // THE SEAM. The region's own boundary ROW/COLUMN is excluded from the
     // outside bands: the clip is a float edge and the rasterizer resolves a quad
     // ending exactly on it with partial coverage, which can tint the boundary
@@ -312,7 +326,6 @@ fn assert_contained_and_visible(pair: &Pair, label: &str) -> bool {
             ),
         );
     }
-    gradeable
 }
 
 /// CLAIM 1 — THE CARD DID NOT GROW A HOLE.

@@ -174,20 +174,21 @@ impl TextPipeline {
         self.overlay_lh() + self.overlay_header_gap()
     }
 
-    /// **ITEM 116d — THE DOCUMENT LAYER'S GLYPH CLIP.** Every text renderer the
-    /// document layer owns uploads its `TextBounds` through this one door.
+    /// **THE DOCUMENT LAYER'S GLYPH CLIP.** Every text renderer the document
+    /// layer owns uploads its `TextBounds` through this one door.
     ///
     /// Off a comparison it returns the caller's own bounds UNCHANGED, so every
     /// ordinary frame in the tree is byte-identical by construction. While the
     /// document is relocated it returns those bounds INTERSECTED with the region —
     /// which is what makes containment structural rather than incidental. It matters
-    /// only now: before 116d the card was drawn OVER the document, so a glyph that
-    /// escaped the region was hidden by the surface anyway; the content is now drawn
-    /// AFTER the card, and an escaping glyph would land on the workspace's own face.
+    /// only once the comparison is composited: while the card was drawn OVER the
+    /// document a glyph that escaped the region was hidden by the surface anyway.
+    /// The content is now drawn AFTER the card, and an escaping glyph would land on
+    /// the workspace's own face.
     ///
-    /// The quads have their own owner — item 84's `content_clip` /
-    /// `clip_rects_to_band`, re-aimed by 116b — and this is its glyph twin: the two
-    /// resolve the same region from the same [`Self::comparison_viewport`].
+    /// The quads have their own owner — `content_clip` / `clip_rects_to_band` —
+    /// and this is its glyph twin: the two resolve the same region from the same
+    /// [`Self::comparison_viewport`].
     pub(in crate::render) fn clip_text_bounds(&self, bounds: TextBounds) -> TextBounds {
         let Some([x, y, w, h]) = self.comparison_viewport() else {
             return bounds;
