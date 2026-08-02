@@ -53,6 +53,14 @@ jobs:
         with:
           key: web
 
+      # .cargo/config.toml sets `rustc-wrapper = "sccache"` for every build in
+      # this checkout, so the wrapper has to exist before the first cargo
+      # invocation below or it dies on `rustc -vV` with "could not execute
+      # process sccache (never executed)". Installed after the cache restore,
+      # exactly as ci.yml does it.
+      - name: Install sccache
+        run: scripts/install-sccache.sh
+
       # Matches ci.yml's web job exactly — wasm-bindgen-cli's version must
       # match the crate's pinned wasm-bindgen (Cargo.toml: 0.2.121, WEB.md).
       - name: Install wasm-bindgen-cli + trunk

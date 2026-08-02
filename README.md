@@ -66,6 +66,34 @@ editing, yes; the IDE zoo, no.
   in awl and save; an absent config is just the current defaults, and what you
   change is remembered.
 
+## Download
+
+| Platform | What to get |
+|---|---|
+| Linux x86_64 | `awl-linux-x86_64.tar.gz` from [Releases](https://github.com/Frank-P-Lu/awl-next/releases) |
+| macOS | build from source below — a signed, notarized build is not ready yet |
+| Windows | the browser build |
+
+Unpack and run — the archive contains one directory and installs nothing:
+
+```sh
+tar xzf awl-linux-x86_64.tar.gz
+cd awl-linux-x86_64
+./awl notes.md
+```
+
+Verify the download against the release's `SHA256SUMS` first:
+
+```sh
+sha256sum -c SHA256SUMS
+```
+
+Put it on your PATH with `install -Dm755 awl ~/.local/bin/awl`. The binary needs
+a working Vulkan driver plus fontconfig, libxkbcommon, and the Wayland or X11
+client libraries; the archive's `README.txt` lists the package names per distro
+and `GLIBC.txt` records the glibc version that build requires. Fonts and
+dictionaries are compiled in — awl never fetches anything at runtime.
+
 ## Build & run
 
 Requires a Rust stable toolchain. Run from the repo root:

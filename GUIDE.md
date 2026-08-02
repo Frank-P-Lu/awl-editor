@@ -352,5 +352,5 @@ resolve to a working alternate chord on web automatically; every
 command is also reachable by name through {{key:command_palette}}.
 
 The desktop build has no storage cap, real OS clipboard paste, and the
-commands above — see the project's releases page for macOS and Linux
-downloads.
+commands above. The releases page carries the Linux x86_64 download;
+macOS builds from source until a signed build is ready.

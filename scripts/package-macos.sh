@@ -259,6 +259,18 @@ for doc in LICENSE NOTICE CREDITS.md THIRD-PARTY-LICENSES.md; do
   fi
 done
 
+# The fonts (SIL OFL 1.1) and Hunspell dictionaries are `include_bytes!`d into
+# the binary, so their audits belong beside the binary that contains them —
+# the same pair scripts/package-linux.sh puts in the tarball's licenses/.
+mkdir -p "$CONTENTS/Resources/licenses"
+for pair in fonts dict; do
+  if [ -f "$ROOT/assets/$pair/LICENSES.md" ]; then
+    cp "$ROOT/assets/$pair/LICENSES.md" "$CONTENTS/Resources/licenses/$pair-LICENSES.md"
+  else
+    echo "warning: $ROOT/assets/$pair/LICENSES.md not found — skipping (bundle built without it)" >&2
+  fi
+done
+
 cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
