@@ -541,7 +541,7 @@ impl App {
         // HOT while the caret spring animates — and, since item 199, while a
         // TRAVELLING ground runs (`App::advance_travelling_ground`).
         let warp_hot = self.advance_travelling_ground(dt);
-        let (animating, outcome) = if let Some(gpu) = self.frame.gpu_mut() {
+        let (stepped, outcome) = if let Some(gpu) = self.frame.gpu_mut() {
             // Drive the virtual-clock seam (caret spring + any future live
             // animator) so the timeline capture and the live loop advance
             // animation through the SAME entry point.
@@ -549,6 +549,15 @@ impl App {
         } else {
             return;
         };
+        // ITEM 211 — the SECOND animation term, and it can only be read HERE.
+        // `gpu.redraw()` above ran `prepare`, and `prepare` is the one place the
+        // selection band is retargeted, so an ease that started this frame is
+        // strictly after the `advance` that produced `stepped`. See
+        // `keep_gpu_loop_hot`'s doc and `TextPipeline::take_band_ease_started`.
+        let band_ease_started = self
+            .frame
+            .gpu_mut()
+            .is_some_and(|gpu| gpu.pipeline.take_band_ease_started());
         let (presented, frame_presented) = match self.handle_gpu_frame_outcome(event_loop, outcome)
         {
             Ok(result) => result,
@@ -624,16 +633,15 @@ impl App {
         // A failed acquire never drives the animation Poll loop. The spring
         // simply resumes from the next OS/input/timed wake; otherwise an
         // occluded window can allocate and prepare thousands of unseen frames.
-        let keep_hot = keep_gpu_loop_hot(animating, frame_presented);
-        // FLIGHT RECORDER / PROBE (item 211): the ANIMATION-SCHEDULING link. `dt`
-        // and `animating` are read BEFORE `gpu.redraw()` runs `prepare` — so an
-        // animator whose target is set inside `prepare` cannot be seen by the
-        // `keep_hot` decision on the frame that retargets it. This line is what
-        // makes that ordering visible instead of inferred.
+        let keep_hot = keep_gpu_loop_hot(stepped, band_ease_started, frame_presented);
+        // FLIGHT RECORDER / PROBE (item 211): the ANIMATION-SCHEDULING link. Both
+        // animation terms are logged separately, because which of the two is true
+        // is exactly what tells a redraw/present gap apart from a settled frame:
+        // `stepped` is the PRE-prepare answer, `band_started` the POST-prepare one.
         #[cfg(not(target_arch = "wasm32"))]
         if crate::probe::recording() {
             crate::probe::trace(format_args!(
-                "redraw dt={:.1}ms animating={animating} presented={frame_presented} keep_hot={keep_hot}",
+                "redraw dt={:.1}ms stepped={stepped} band_started={band_ease_started} presented={frame_presented} keep_hot={keep_hot}",
                 dt * 1000.0
             ));
         }
@@ -651,7 +659,11 @@ impl App {
         // machine goes fully quiet (the stamp itself requests nothing).
         // Control flow stays `Wait`; `request_redraw` alone delivers the
         // one frame. New input meanwhile simply wins (see `still_wake`).
-        if crate::debug::debug_on() && self.frame.settle_debug_panel(animating) {
+        // The stamp frame is "the first redraw that ends SETTLED", so it reads the
+        // SAME composed animation state the keep-hot decision does (item 211) —
+        // otherwise the panel would stamp `still ·` on a frame that had just
+        // started a band ease and was about to run hot again.
+        if crate::debug::debug_on() && self.frame.settle_debug_panel(stepped || band_ease_started) {
             self.request_frame();
         }
     }

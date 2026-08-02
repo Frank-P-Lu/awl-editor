@@ -473,6 +473,7 @@ impl TextPipeline {
             overlay_band_from: 0.0,
             overlay_band_t: 1.0,
             overlay_band_last: None,
+            band_ease_started: false,
             page_drag_readout: None,
             zoom_readout: None,
             debug_frame_cost: None,

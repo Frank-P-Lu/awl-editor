@@ -286,8 +286,23 @@ fn gpu_skip_action(skip: gpu::GpuFrameSkip, timeout_streak: u8) -> GpuSkipAction
         }
     }
 }
-fn keep_gpu_loop_hot(animating: bool, frame_presented: bool) -> bool {
-    animating && frame_presented
+/// THE FOLLOW-UP-FRAME DECISION, and why it takes TWO animation terms.
+///
+/// `stepped` is what [`crate::render::TextPipeline::advance`] reported — read
+/// BEFORE `Gpu::redraw`, because the spring must advance by this frame's `dt`
+/// before the frame is drawn. `band_ease_started` is what `prepare` — which runs
+/// INSIDE that same `Gpu::redraw` call — did afterwards: the selection band is
+/// the one animator whose target is set at draw time rather than at the apply
+/// seam, so the frame that starts its ease is invisible to `stepped` by
+/// construction (item 211; see
+/// [`crate::render::TextPipeline::take_band_ease_started`] for the full
+/// mechanism and the user-visible symptom). Dropping the second term parks the
+/// loop on the very frame an ease began, which is the every-other-input defect.
+///
+/// `frame_presented` still gates both: a failed acquire must never drive the
+/// Poll loop, or an occluded window prepares thousands of unseen frames.
+fn keep_gpu_loop_hot(stepped: bool, band_ease_started: bool, frame_presented: bool) -> bool {
+    (stepped || band_ease_started) && frame_presented
 }
 /// Map a live GPU skip cause onto the soak probe's [`crate::soak_gpu::SkipKind`]
 /// so each cause is counted SEPARATELY (the collapse into one `skipped` total is

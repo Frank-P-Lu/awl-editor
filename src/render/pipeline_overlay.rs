@@ -96,6 +96,7 @@ impl TextPipeline {
                 self.overlay_band_from = cur;
                 self.overlay_band_t = 0.0;
                 self.overlay_band_last = Some(target);
+                self.band_ease_started = true;
             }
             None => {
                 self.overlay_band_from = target;
@@ -149,9 +150,37 @@ impl TextPipeline {
             self.overlay_band_from = target;
             self.overlay_band_last = Some(target);
             self.overlay_band_t = 0.0;
+            self.band_ease_started = true;
         } else {
             self.retarget_band(target);
         }
+    }
+
+    /// ITEM 211 — THE PREPARE-ORDERING BRIDGE. Did THIS `prepare` pass re-zero
+    /// the band's ease (a glide start or a snap re-zero)? Taken exactly once, by
+    /// the live redraw loop, immediately after `Gpu::redraw` returns.
+    ///
+    /// THE BUG THIS CLOSED (the every-other-input report, three sightings:
+    /// Firetail 2026-07-17, Settings 2026-07-26, Commands 2026-08-01). The band
+    /// is the ONE animator retargeted inside `prepare` — every other one
+    /// (entrance spring, caret spring, copy pulse) is armed at the apply seam,
+    /// where the next `advance` sees it. `App::on_redraw_requested` reads
+    /// `advance(dt)` BEFORE calling `Gpu::redraw`, and `prepare` runs INSIDE
+    /// that call, so on the frame a settled band is retargeted `advance` has
+    /// already returned `false`. The loop then parked on `ControlFlow::Wait`
+    /// with `last_frame = None` and requested no follow-up frame, so the ease it
+    /// had just started never got a second frame: the band stayed drawn at
+    /// `overlay_band_from` — the row the selection LEFT — while
+    /// `VisualSelection::logical` had already moved. The NEXT input's redraw
+    /// advanced the timer by one `dt`, found `overlay_band_t < 1.0`, and took
+    /// [`Self::chase_or_snap`]'s in-flight SNAP branch straight to the freshest
+    /// row. Two inputs, one visible jump of two rows, no transition.
+    ///
+    /// Live-only in effect: a settled/unarmed/Reduce-Motion pipeline never
+    /// reaches `chase_or_snap` at all (both callers gate first), so every
+    /// capture takes this as a constant `false` and schedules nothing.
+    pub fn take_band_ease_started(&mut self) -> bool {
+        std::mem::take(&mut self.band_ease_started)
     }
 
     /// The selection BAND's drawn row-top for a target `row_top` this frame —
