@@ -69,6 +69,12 @@ impl DiagonalClusterProbe {
     pub(in crate::render) fn selected_offset(self) -> (f32, f32) {
         self.rail.selected_offset()
     }
+
+    /// Where display row `display`'s SPINE segment stands — the composition's
+    /// stationary surface, independent of anything a row measures.
+    pub(in crate::render) fn spine_x(self, display: usize) -> f32 {
+        self.rail.spine_x(display)
+    }
 }
 
 impl DiagonalClusterRail {
@@ -242,6 +248,40 @@ impl DiagonalComposition {
 }
 
 impl TextPipeline {
+    /// THE SIDE TERRITORY a diagonal card owes its composition, beyond the row
+    /// cluster itself: the attachment inset the spine stands on, the connector
+    /// from spine to cluster, the selected row's outward step, and the travel the
+    /// deepest row is stepped by.
+    ///
+    /// A content-hugging card (item 51) sizes itself from its measured rows, and
+    /// a card measured from rows ALONE is exactly one cluster wide — leaving the
+    /// composition nothing. `DiagonalClusterRail::new` then spends the card's
+    /// whole band on inset + connector + cluster, so `available_travel` collapses
+    /// to zero and the spine stands upright, and the shaper's own
+    /// `diagonal_cluster_budget` cuts the same territory back out of `text_w`, so
+    /// `rowlayout::fits` fails and the secondary column — the key chords — yields
+    /// entirely. Reserving it here is what makes a hugged diagonal card able to
+    /// hold what the composition draws into it.
+    ///
+    /// `0.0` on every upright world, so their hug width is untouched.
+    /// `rows` is the plan's own drawn row count — the SAME count
+    /// [`DiagonalClusterRail::new`] divides its travel across, so the reserve and
+    /// the spend can never be derived from two different windows.
+    pub(in crate::render) fn diagonal_side_reserve_px(&self, rows: usize) -> f32 {
+        let Some(composition) = active(self) else {
+            return 0.0;
+        };
+        let rows = rows.saturating_sub(1) as f32;
+        composition.attachment_inset
+            + composition.connector
+            + composition.selected_outward
+            + composition.row_step.abs() * rows
+    }
+
+    pub(in crate::render) fn diagonal_is_active(&self) -> bool {
+        active(self).is_some()
+    }
+
     pub(super) fn diagonal_cluster_budget(&self, geom: &OverlayGeom) -> Option<f32> {
         let composition = active(self)?;
         let inset = composition
@@ -277,11 +317,15 @@ impl TextPipeline {
             .iter()
             .map(|row| primary.get(&row.display).copied().unwrap_or(0.0))
             .fold(0.0, f32::max);
+        // THE RESERVED ACCESSORY EXTENT — the roster's widest secondary cell, not
+        // the visible window's. The visible maximum made the rail (and, on an
+        // ascending world, the whole cluster it anchors) step sideways whenever a
+        // longer chord scrolled into view.
         let mut accessory_w = plan
             .rows()
             .iter()
             .map(|row| secondary.get(&row.display).copied().unwrap_or(0.0))
-            .fold(0.0, f32::max);
+            .fold(self.overlay_roster_secondary_w, f32::max);
         for row in plan.rows() {
             let Some(item) = row.item else {
                 continue;

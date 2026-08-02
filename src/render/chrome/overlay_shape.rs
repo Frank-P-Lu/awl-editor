@@ -469,6 +469,17 @@ impl TextPipeline {
         false
     }
 
+    /// ITEM 51's content-hug width — measured over the WHOLE candidate roster.
+    ///
+    /// A hug width is a property of the picker's CONTENT, and the scroll position
+    /// is not content. Measuring the visible window alone made a right-anchored
+    /// card RESIZE — and, its right edge being pinned to the rail, therefore
+    /// TRANSLATE — every time a wider row or a longer chord scrolled into view:
+    /// the whole card and everything composed against it slid sideways while the
+    /// list moved underneath it. The roster is measured the same way the workspace
+    /// column measures its own ([`Self::measure_workspace_primary_w`]): one joined
+    /// shaping pass over the raw rows, so the frame's planning budget stays
+    /// O(visible) and no second plan is created.
     pub(in crate::render) fn measure_overlay_content_w(&mut self) -> f32 {
         let ink = theme::base_content().to_glyphon();
         let muted = theme::muted().to_glyphon();
@@ -480,13 +491,16 @@ impl TextPipeline {
         let vis = VisualSelection::default();
         let plan = self.overlay_row_plan(&geom);
         let has_right = self.overlay_shape_text(&geom, &plan, ink, muted, None, &vis, false);
+        // The card's own CHROME lines — query, lens strip, footer — are shaped by
+        // that pass and are not row content, so they are read before the roster
+        // measurement reuses the same buffer.
         let mut left = 0.0_f32;
         for run in self.panel_buffer.layout_runs() {
             left = left.max(run.line_w);
         }
-        let primary = self.widest_candidate_px(&geom, &plan) + self.overlay_char_width();
+        let primary = self.measure_roster_primary_px(&geom) + self.overlay_char_width();
         let secondary = if has_right {
-            self.widest_right_px()
+            self.measure_roster_secondary_px()
         } else {
             0.0
         };
@@ -496,7 +510,43 @@ impl TextPipeline {
             0.0
         };
         let content_text = left.max(primary + gap + secondary);
-        content_text + 2.0 * self.overlay_text_hpad()
+        content_text
+            + 2.0 * self.overlay_text_hpad()
+            + self.diagonal_side_reserve_px(plan.rows().len())
+    }
+
+    /// The widest UNELIDED candidate in the whole roster, in shaped pixels.
+    ///
+    /// COST GUARD: shaping is linear in the roster, and a file picker can hold
+    /// thousands of rows. A roster whose widest row cannot possibly hug — its
+    /// character estimate is already twice the card's own text column — is
+    /// answered by that column directly, because every such card lands on the cap
+    /// regardless. The 2x margin is what keeps a MEAN-glyph-width estimate from
+    /// ever short-circuiting a roster that would genuinely have hugged.
+    fn measure_roster_primary_px(&mut self, geom: &OverlayGeom) -> f32 {
+        let Some(widest_chars) = self.overlay_items.iter().map(|s| s.chars().count()).max() else {
+            return 0.0;
+        };
+        if widest_chars as f32 * self.overlay_char_width() >= 2.0 * geom.text_w {
+            return geom.text_w;
+        }
+        let text = self.overlay_items.join("\n");
+        let metrics = self.overlay_metrics();
+        self.measure_panel_roster_px(super::RosterSlot::Candidates, &text, metrics)
+    }
+
+    /// The widest secondary cell — key chord, time, git tag — in the whole
+    /// roster, shaped at the right column's OWN recessive metrics.
+    pub(in crate::render) fn measure_roster_secondary_px(&mut self) -> f32 {
+        let text = self.overlay_right_labels().join("\n");
+        let m = self.metrics;
+        let metrics = GlyphMetrics::new(
+            m.font_size
+                * crate::render::effective_overlay_scale()
+                * crate::markdown::type_scale::LABEL,
+            self.overlay_lh(),
+        );
+        self.measure_panel_roster_px(super::RosterSlot::Secondary, &text, metrics)
     }
 
     #[allow(clippy::too_many_arguments)]

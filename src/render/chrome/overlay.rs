@@ -328,20 +328,52 @@ impl TextPipeline {
         }
     }
 
-    pub(in crate::render) fn measure_spell_content_w(&mut self) -> f32 {
-        if self.overlay_items.is_empty() {
+    /// THE ONE ROSTER-WIDTH MEASUREMENT: the widest shaped line of `text` at
+    /// `metrics`, with no width bound so nothing wraps or elides. Every
+    /// "how wide is this whole list" question — the contextual spell popup's
+    /// suggestions, a content-hugging card's candidates and its secondary column
+    /// — asks it here, against the real shaper rather than a character estimate.
+    ///
+    /// MEMOIZED per `slot`, because the shaping is linear in the roster while its
+    /// answer depends on nothing a scroll or a selection touches. The key carries
+    /// exactly what the shaping pass below reads: the text, the metrics, and the
+    /// panel face ([`crate::render::panel_attrs`] — the world's display family
+    /// plus the ligature toggle).
+    ///
+    /// It borrows the shared panel buffer as scratch; the frame's own
+    /// `overlay_shape_text` re-shapes it before anything is drawn.
+    pub(super) fn measure_panel_roster_px(
+        &mut self,
+        slot: RosterSlot,
+        text: &str,
+        metrics: GlyphMetrics,
+    ) -> f32 {
+        if text.is_empty() {
             return 0.0;
         }
-        let ui_metrics = self.overlay_metrics();
+        let key = {
+            use std::hash::{Hash, Hasher};
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            text.hash(&mut h);
+            metrics.font_size.to_bits().hash(&mut h);
+            metrics.line_height.to_bits().hash(&mut h);
+            (theme::active().font.as_ptr() as usize).hash(&mut h);
+            crate::render::code_ligatures_on().hash(&mut h);
+            h.finish()
+        };
+        if let Some((cached, w)) = self.roster_memo[slot as usize]
+            && cached == key
+        {
+            return w;
+        }
         self.panel_buffer
-            .set_metrics(&mut self.font_system, ui_metrics);
+            .set_metrics(&mut self.font_system, metrics);
         self.panel_buffer
             .set_size(&mut self.font_system, None, None);
-        let text = self.overlay_items.join("\n");
         let ink = theme::base_content().to_glyphon();
         self.panel_buffer.set_text(
             &mut self.font_system,
-            &text,
+            text,
             &panel_attrs().color(ink),
             Shaping::Advanced,
             None,
@@ -352,7 +384,14 @@ impl TextPipeline {
         for run in self.panel_buffer.layout_runs() {
             max_w = max_w.max(run.line_w);
         }
+        self.roster_memo[slot as usize] = Some((key, max_w));
         max_w
+    }
+
+    pub(in crate::render) fn measure_spell_content_w(&mut self) -> f32 {
+        let ui_metrics = self.overlay_metrics();
+        let text = self.overlay_items.join("\n");
+        self.measure_panel_roster_px(RosterSlot::Spell, &text, ui_metrics)
     }
 
     /// Geometry for the contextual SPELL panel: a small floating popup anchored just

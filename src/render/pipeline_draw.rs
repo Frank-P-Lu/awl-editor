@@ -515,6 +515,8 @@ impl TextPipeline {
             workspace_rail_placement: None,
             overlay_spell_w: 0.0,
             overlay_content_w: 0.0,
+            roster_memo: [None; chrome::ROSTER_SLOTS],
+            overlay_roster_secondary_w: 0.0,
             caret_preview: None,
             caret_demo: crate::caret::CaretDemo::new(),
             caret_preview_mask_to: None,

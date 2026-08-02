@@ -554,6 +554,22 @@ fn preview_glyph_key_at(buf: &GlyphBuffer, text: &str, idx: usize) -> Option<Cac
     None
 }
 
+/// The questions [`TextPipeline::measure_panel_roster_px`] answers in one frame,
+/// each with its own memo slot so they never evict one another. Named rather
+/// than indexed: a fourth roster measurement gets a name and a slot here, not a
+/// silent share of somebody else's.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum RosterSlot {
+    /// A content-hugging card's CANDIDATE rows, unelided.
+    Candidates = 0,
+    /// The same card's SECONDARY column — key chords, times, git tags.
+    Secondary = 1,
+    /// The contextual spell popup's suggestions.
+    Spell = 2,
+}
+
+pub(super) const ROSTER_SLOTS: usize = 3;
+
 pub(super) const BAR_SIDE_INSET: f32 = 8.0;
 
 pub(super) const BAR_TEXT_PAD: f32 = 13.0;

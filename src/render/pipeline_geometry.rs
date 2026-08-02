@@ -497,6 +497,13 @@ impl TextPipeline {
         if self.overlay_active && self.overlay_spell.is_none() && self.overlay_right_anchored() {
             self.overlay_content_w = self.measure_overlay_content_w();
         }
+        // The diagonal composition's accessory RAIL is reserved across the whole
+        // roster for the same reason the hug width is: a rail re-derived from the
+        // visible window is a rail that moves when the window does.
+        self.overlay_roster_secondary_w = 0.0;
+        if self.overlay_active && self.overlay_spell.is_none() && self.diagonal_is_active() {
+            self.overlay_roster_secondary_w = self.measure_roster_secondary_px();
+        }
         // ITEM 114 — the workspace rail's column is MEASURED, never estimated
         // from a mean character width: its labels are display-face words and the
         // column has to hold the widest of them exactly, because that same number

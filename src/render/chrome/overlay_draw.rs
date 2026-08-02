@@ -385,10 +385,19 @@ impl TextPipeline {
                     right: bounds.right,
                     bottom: (bottom.min(height as f32)) as i32,
                 };
+                // The secondary column is shaped RIGHT-ALIGNED inside a buffer as
+                // wide as the card's text column, so a row's chord sits at that
+                // buffer's far edge — never at its origin. Seating the buffer at
+                // the cluster's accessory LEFT therefore pushed every chord a
+                // whole text column further right, off the card and into the
+                // clip, and a diagonal world drew no shortcuts at all. Seat it so
+                // the buffer's own right edge lands on the cluster's accessory
+                // right edge, which is where the rail is measured to be.
+                let bind_w = self.panel_bind_buffer.size().0.unwrap_or(0.0);
                 for row in plan.rows() {
                     areas.push(TextArea {
                         buffer: &self.panel_bind_buffer,
-                        left: cluster.accessory_left(row.display),
+                        left: cluster.accessory_right(row.display) - bind_w,
                         top: plan.secondary_top(),
                         scale: 1.0,
                         bounds: clip(row.top, row.bottom()),

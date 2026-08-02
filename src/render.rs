@@ -2277,6 +2277,21 @@ pub struct TextPipeline {
     workspace_rail_placement: Option<(f32, f32)>,
     overlay_spell_w: f32,
     overlay_content_w: f32,
+    /// PROTO-CACHE for [`chrome::TextPipeline::measure_panel_roster_px`], one slot
+    /// per question a frame asks it (see [`chrome::RosterSlot`]). A roster-width
+    /// answer is linear in the roster and a file picker can hold thousands of
+    /// rows, while the answer itself changes only when the rows, the face, or the
+    /// metrics do — never when the list is merely scrolled or re-selected. Keyed
+    /// on exactly the inputs the shaping pass reads.
+    roster_memo: [Option<(u64, f32)>; chrome::ROSTER_SLOTS],
+    /// The widest SECONDARY cell in the whole candidate roster (device px),
+    /// measured at `set_view` while a diagonal composition is active. The
+    /// composition's accessory rail is a reserved EXTENT, not a running maximum:
+    /// derived from the visible window alone it slid sideways every time a longer
+    /// chord scrolled into view, taking the row cluster it anchors with it.
+    /// `0.0` on every upright world, whose secondary column is right-aligned to
+    /// the card and never read this.
+    overlay_roster_secondary_w: f32,
     caret_preview: Option<CaretMode>,
     caret_demo: crate::caret::CaretDemo,
     caret_preview_mask_to: Option<GlyphMask>,
