@@ -115,6 +115,14 @@ scripts/package-linux.sh path/to/linux/awl dist-linux
 It stages the payload, writes the tarball and its `.sha256`, and prints the
 archive listing. A missing licence file is a hard failure, not a warning.
 
+**Which Linux build is the release build.** Three exist; only one ships.
+
+| Path | What it is |
+|---|---|
+| `release.yml`'s `linux` job | **the release build.** A native x86_64 `cargo build --release` on `ubuntu-latest`, so the artifact's glibc floor is that runner image's |
+| `Dockerfile.linux` + `scripts/build-linux.sh` | a developer convenience — cross-builds on a Mac against Debian bookworm (glibc 2.36) for a personal laptop. Never packaged, never released |
+| `run-linux.sh` | a from-source bootstrap on the target machine. Installs system packages and compiles; not a download |
+
 ### What lands where
 
 | Artifact | Where |
