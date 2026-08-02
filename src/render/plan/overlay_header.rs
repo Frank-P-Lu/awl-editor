@@ -10,13 +10,13 @@ use super::OverlayRowPlan;
 use super::overlay_rows::OverlayRowPlanInput;
 
 /// The visible-BACKGROUND strip between a split Pane card's two surfaces is this
-/// fraction of the query BEAT tall (item 50). Glyph-free by the half-leading
+/// fraction of the query BEAT tall. Glyph-free by the half-leading
 /// CENTRING bound: an inflated line box centres its glyph run, so the run's far
 /// edge clears the band's near edge as long as its own font height stays under
 /// `lh + header_gap·(1 - 2·frac)` — comfortably true for every body face at 0.4.
 pub(super) const SPLIT_GAP_FRAC: f32 = 0.4;
 
-/// ITEM 83 — a GROUPED card's upper surface borrows this fraction of the SAME
+/// A GROUPED card's upper surface borrows this fraction of the SAME
 /// already-proven-safe slack as symmetric breathing room below the query box
 /// before the visible gap starts, so the query stops reading bottom-heavy inside
 /// its own small strip. The FLAT arm is already at its ceiling (its gap sits
@@ -138,7 +138,7 @@ impl OverlayRowPlan {
         self.text_top + self.header_gap
     }
 
-    /// SPLIT-PANE COMPOSITION (item 50) — the vertical bounds `(gap_top,
+    /// SPLIT-PANE COMPOSITION — the vertical bounds `(gap_top,
     /// gap_bottom)` of the visible-BACKGROUND strip between a split Pane card's
     /// two surfaces, or `None` when there is no header to split off (the
     /// contextual spell popup, or a zero query beat). The UPPER surface owns
@@ -158,7 +158,7 @@ impl OverlayRowPlan {
     ///   * GROUPED (query line + lens strip): the beat is the BOTTOM of the STRIP
     ///     box, but the surface seam belongs above the strip, so the band hangs
     ///     from the strip box's TOP edge — plus [`FACETED_BREATHE_FRAC`] of the
-    ///     beat as symmetric breathing below the query box (item 83).
+    ///     beat as symmetric breathing below the query box.
     pub(in crate::render) fn split_bounds(&self) -> Option<(f32, f32)> {
         let head = self.headers.last()?;
         if self.header_gap <= 0.0 {
