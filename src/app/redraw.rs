@@ -9,6 +9,14 @@ use super::*;
 impl App {
     pub(in crate::app) fn request_frame(&self) {
         if let Some(gpu) = self.frame.gpu() {
+            // FLIGHT RECORDER / PROBE: the REDRAW-REQUEST link of the
+            // event→present chain. A navigation input that changes `selected` but
+            // never reaches here has lost its frame at the scheduling seam, not at
+            // the GPU — the two are indistinguishable from the outside.
+            #[cfg(not(target_arch = "wasm32"))]
+            if crate::probe::recording() {
+                crate::probe::trace(format_args!("request_frame"));
+            }
             request_window(&gpu.window);
         }
     }

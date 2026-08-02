@@ -108,10 +108,48 @@ fn un_occlusion_wakes_a_repaint_and_occlusion_does_not() {
 
 #[test]
 fn skipped_surface_frame_never_drives_the_animation_poll_loop() {
-    assert!(!keep_gpu_loop_hot(true, false));
-    assert!(!keep_gpu_loop_hot(false, false));
-    assert!(!keep_gpu_loop_hot(false, true));
-    assert!(keep_gpu_loop_hot(true, true));
+    for stepped in [false, true] {
+        for band in [false, true] {
+            assert!(
+                !keep_gpu_loop_hot(stepped, band, false),
+                "a frame that never presented must not drive the Poll loop \
+                 (stepped={stepped} band_ease_started={band})"
+            );
+        }
+    }
+    assert!(!keep_gpu_loop_hot(false, false, true));
+    assert!(keep_gpu_loop_hot(true, false, true));
+}
+
+/// THE PREPARE-ORDERING CELL. `stepped` is read BEFORE `Gpu::redraw`
+/// and `band_ease_started` reports what `prepare` did INSIDE it, so
+/// `(stepped=false, band_ease_started=true, presented=true)` is a real, routinely
+/// reached frame: the one where a settled selection band is retargeted by a
+/// navigation input. Reading only `stepped` parks the loop on `Wait` there, the
+/// ease never gets its second frame, the band stays drawn on the row the
+/// selection LEFT, and the NEXT input snaps two rows at once — the every-other-
+/// input report (Firetail 2026-07-17, Settings 2026-07-26, Commands 2026-08-01).
+///
+/// The whole eight-cell product is swept, not just that cell, so the composition
+/// cannot be "fixed" by special-casing the symptom.
+#[test]
+fn a_band_ease_started_inside_prepare_keeps_the_loop_hot_by_itself() {
+    assert!(
+        keep_gpu_loop_hot(false, true, true),
+        "a presented frame whose `prepare` STARTED a selection-band ease must \
+         schedule the follow-up frame — `advance` ran before `prepare` and \
+         cannot have seen it (item 211)"
+    );
+    for stepped in [false, true] {
+        for band in [false, true] {
+            assert_eq!(
+                keep_gpu_loop_hot(stepped, band, true),
+                stepped || band,
+                "either animation term alone must keep a PRESENTED frame hot \
+                 (stepped={stepped} band_ease_started={band})"
+            );
+        }
+    }
 }
 
 #[test]

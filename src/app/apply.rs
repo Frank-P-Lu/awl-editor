@@ -28,6 +28,20 @@ impl App {
         self.document.recompute_spell_cache();
     }
 
+    /// FLIGHT RECORDER / PROBE — the open picker's LOGICAL selection
+    /// as `(kind, selected, reachable_items, scroll)`, or `None` with no card up.
+    /// `reachable_items` is `items.len()` (the refiltered, selectable rows), so a
+    /// trace line distinguishes "the selection did not move" from "there was
+    /// nowhere left to move to".
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn overlay_selection_probe(
+        &self,
+    ) -> Option<(crate::overlay::OverlayKind, usize, usize, usize)> {
+        self.workspace_state
+            .overlay()
+            .map(|o| (o.kind, o.selected, o.items.len(), o.scroll))
+    }
+
     pub(super) fn run_spellcheck_now(&mut self) {
         self.recompute_spell_cache();
         self.sync_view(false);
@@ -274,6 +288,12 @@ impl App {
         let action = self.prepare_tutorial_action(action);
         self.pre_apply(&action, door);
 
+        // FLIGHT RECORDER / PROBE: the STATE link of the event→present
+        // chain, sampled either side of the shared core so one trace line answers
+        // "did this input advance the selection, advance it twice, or not at all".
+        #[cfg(not(target_arch = "wasm32"))]
+        let sel_before = self.overlay_selection_probe();
+
         let CoreRun {
             transition,
             theme_overlay_before,
@@ -331,6 +351,14 @@ impl App {
             self.history_overlay_closed(history_accepted);
         }
         self.post_transition_effects(theme_overlay_before, theme_committed, theme_before);
+
+        #[cfg(not(target_arch = "wasm32"))]
+        if crate::probe::recording() {
+            let after = self.overlay_selection_probe();
+            crate::probe::trace(format_args!(
+                "apply {action:?} sel {sel_before:?} -> {after:?}"
+            ));
+        }
 
         let quit = quit || nested_quit;
         if quit {

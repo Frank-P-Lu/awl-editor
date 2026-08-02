@@ -209,6 +209,25 @@ fn arm_flight(path: &std::path::Path) {
     }
 }
 
+/// TEST-ONLY: arm the flight recorder at `path` and, [`disarm_flight_for_test`],
+/// put it away again. The two doors exist so a law can READ the trace this file
+/// writes instead of re-describing it — the item-211 event→present chain is
+/// asserted over the recorder's own lines, which is the only oracle that cannot
+/// be satisfied by a parallel reimplementation of the chain. Both statics are
+/// process-global, so every caller holds `crate::testlock::serial()`.
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub(crate) fn arm_flight_for_test(path: &std::path::Path) {
+    arm_flight(path);
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub(crate) fn disarm_flight_for_test() {
+    FLIGHT_ACTIVE.store(false, std::sync::atomic::Ordering::Relaxed);
+    if let Ok(mut sink) = FLIGHT_SINK.lock() {
+        *sink = None;
+    }
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 pub fn flight_active() -> bool {
     FLIGHT_ACTIVE.load(std::sync::atomic::Ordering::Relaxed)

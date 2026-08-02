@@ -321,3 +321,190 @@ fn rapid_snap_holds_under_left_center_right_anchors() {
     livingband::set_motion_test_override(None);
     crate::motion::set_reduced(saved);
 }
+
+// --- The frames the glide needs must actually be SCHEDULED -----------------
+//
+// The laws above fix the band's chase ARITHMETIC. Every one of them
+// hand-drives the clock — `p.advance(dt)` between re-targets — which is exactly
+// why they all stayed green over the every-other-input defect: the live loop only calls `advance`
+// when a frame is scheduled, and on the frame that STARTS an ease nothing
+// scheduled one. The band's target is set inside `prepare`, and
+// `App::on_redraw_requested` reads `TextPipeline::advance` BEFORE `Gpu::redraw`
+// runs `prepare`, so the pre-prepare answer is "settled" on precisely the frame
+// an ease begins. The loop then parked on `ControlFlow::Wait`, the band stayed
+// drawn at `overlay_band_from` (the row the selection LEFT) while the logical
+// selection had already moved, and the next input's single `dt` put the band
+// back in flight so `chase_or_snap` SNAPPED two rows at once: "the selection
+// advances only every second input, with no transition".
+//
+// `take_band_ease_started` is the bridge across that ordering, and these laws
+// sweep the axis the item-48 laws did not: not "where is the band drawn", but
+// "did this prepare tell the loop it owes another frame".
+
+/// The exact ordering the live loop uses: `advance` first (what
+/// `on_redraw_requested` reads into `stepped`), then the retarget that `prepare`
+/// performs, then the take. Returns `(stepped, band_ease_started)`.
+fn one_live_frame(
+    p: &mut TextPipeline,
+    dt: f32,
+    retarget: impl FnOnce(&mut TextPipeline),
+) -> (bool, bool) {
+    let stepped = p.advance(dt);
+    retarget(p);
+    (stepped, p.take_band_ease_started())
+}
+
+/// THE ITEM-211 LAW, both band seams. A move that arrives on a SETTLED band is
+/// invisible to the `advance` that ran before `prepare` — that is the whole
+/// defect — so the retarget must report itself, or the ease it just started
+/// never gets a second frame.
+#[test]
+fn a_move_onto_a_settled_band_reports_the_ease_advance_could_not_see() {
+    let Some((mut p, saved)) = armed() else {
+        eprintln!("skipping settled_band_reports_the_ease: no wgpu adapter");
+        return;
+    };
+    let _g = crate::testlock::serial();
+    let lh = 30.0f32;
+    let row = |k: usize| 100.0 + k as f32 * lh;
+    let dt = 1.0 / 60.0;
+
+    // --- Pane (living-band morph) -------------------------------------------
+    // Fresh overlay: settles, and must NOT claim a frame is owed.
+    let (_, fresh) = one_live_frame(&mut p, dt, |p| {
+        let _ = pane_band_top(p, row(0), lh);
+    });
+    assert!(!fresh, "a fresh overlay SETTLES the band; it owes no frame");
+    let (stepped, started) = one_live_frame(&mut p, dt, |p| {
+        let _ = pane_band_top(p, row(1), lh);
+    });
+    assert!(
+        !stepped,
+        "NON-VACUITY: the pre-prepare `advance` must report SETTLED here — if it \
+         ever sees this move on its own, this law is proving nothing"
+    );
+    assert!(
+        started,
+        "Pane: a move onto a settled band must report the ease `advance` could \
+         not see (item 211 — otherwise the loop parks and the band freezes on \
+         the row the selection left)"
+    );
+    // The ease is now in flight, so the ORDINARY term carries it home and the
+    // bridge must go quiet — it reports a START, never a continuation.
+    let (stepped, started) = one_live_frame(&mut p, dt, |p| {
+        let _ = pane_band_top(p, row(1), lh);
+    });
+    assert!(stepped, "mid-glide, `advance` itself keeps the loop hot");
+    assert!(
+        !started,
+        "no new move: the bridge reports a START, not a continuation (it must \
+         not manufacture a perpetual hot loop)"
+    );
+
+    // In-flight move (auto-repeat): `chase_or_snap`'s SNAP branch re-zeroes the
+    // timer too, so it owes a frame just as much as a glide start does.
+    let (_, started) = one_live_frame(&mut p, dt, |p| {
+        let _ = pane_band_top(p, row(4), lh);
+    });
+    assert!(
+        started,
+        "Pane: an in-flight SNAP re-zeroes the ease and owes a frame"
+    );
+
+    // --- Bars (ordinary slide) ----------------------------------------------
+    set_motion_test_override(Some(theme::MotionJuice {
+        entrance: theme::OverlayEntrance::Instant,
+        band: theme::BandResponse::Slide,
+    }));
+    let mut q = match headless_pipeline() {
+        Some(q) => q,
+        None => {
+            set_motion_test_override(None);
+            crate::motion::set_reduced(saved);
+            return;
+        }
+    };
+    q.arm_live_juice();
+    let (_, fresh) = one_live_frame(&mut q, dt, |q| {
+        let _ = q.overlay_band_drawn(row(0));
+    });
+    assert!(!fresh, "Bars: a fresh overlay settles and owes no frame");
+    // Let it rest a full glide so the next move is a SETTLED-cadence glide.
+    q.advance(3.0 * GLIDE_S);
+    let _ = q.overlay_band_drawn(row(0));
+    let _ = q.take_band_ease_started();
+    let (stepped, started) = one_live_frame(&mut q, dt, |q| {
+        let _ = q.overlay_band_drawn(row(1));
+    });
+    assert!(
+        !stepped,
+        "NON-VACUITY (Bars): the pre-prepare advance reports settled"
+    );
+    assert!(
+        started,
+        "Bars: a move onto a settled slide must report the ease `advance` could not see"
+    );
+    set_motion_test_override(None);
+
+    crate::motion::set_reduced(saved);
+}
+
+/// The accessibility + determinism half. Reduce Motion may SNAP the selection
+/// but must never suppress the state change — and it must also not schedule a
+/// frame for an ease it refused to play. An UNARMED pipeline (every headless
+/// capture, bench and test that does not call `arm_live_juice`) is the same
+/// story by construction: it never reaches `chase_or_snap` at all, so the live
+/// loop's second animation term is a constant `false` off-window and the
+/// byte-identity gates stand.
+#[test]
+fn reduce_motion_and_unarmed_pipelines_owe_no_frame_but_still_move_the_band() {
+    let Some((mut p, saved)) = armed() else {
+        eprintln!("skipping reduce_motion_owes_no_frame: no wgpu adapter");
+        return;
+    };
+    let _g = crate::testlock::serial();
+    let lh = 30.0f32;
+    let row = |k: usize| 100.0 + k as f32 * lh;
+    let dt = 1.0 / 60.0;
+
+    crate::motion::set_reduced(true);
+    let _ = one_live_frame(&mut p, dt, |p| {
+        let _ = pane_band_top(p, row(0), lh);
+    });
+    for k in 1..=4 {
+        let (_, started) = one_live_frame(&mut p, dt, |p| {
+            let _ = pane_band_top(p, row(k), lh);
+        });
+        assert!(
+            !started,
+            "Reduce Motion plays no ease, so it owes no follow-up frame (row {k})"
+        );
+        // …but the band is ON the selection immediately — the state change is
+        // never suppressed, only its transition.
+        let top = pane_band_top(&mut p, row(k), lh);
+        assert!(
+            (top - row(k)).abs() < EPS,
+            "Reduce Motion SNAPS the band onto row {k} (got {top}, want {})",
+            row(k)
+        );
+    }
+    crate::motion::set_reduced(false);
+
+    let Some(mut u) = headless_pipeline() else {
+        crate::motion::set_reduced(saved);
+        return;
+    };
+    // Deliberately NOT `arm_live_juice()` — the capture/bench shape.
+    for k in 0..=4 {
+        let (_, started) = one_live_frame(&mut u, dt, |u| {
+            let _ = pane_band_top(u, row(k), lh);
+        });
+        assert!(
+            !started,
+            "an unarmed pipeline never eases, so it can never ask the live loop \
+             for a frame (row {k})"
+        );
+    }
+
+    crate::motion::set_reduced(saved);
+}

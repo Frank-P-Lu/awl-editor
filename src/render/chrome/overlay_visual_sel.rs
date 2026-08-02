@@ -206,6 +206,18 @@ impl TextPipeline {
             }
         };
         let rows = livingband::covered_rows(&bands, plan.rows());
+        // FLIGHT RECORDER / PROBE: the PREPARED-HIGHLIGHT-ENDPOINT link
+        // of the event→present chain. This is the last place the selection is a
+        // number and the first place it is geometry, so a `logical` that has moved
+        // while `band_top`/`rows` have not is a STALE-RENDER break, distinct from a
+        // state break upstream or a present break downstream.
+        #[cfg(not(target_arch = "wasm32"))]
+        if crate::probe::recording() {
+            crate::probe::trace(format_args!(
+                "prepare_highlight logical={sel} target={target:.1} \
+                 band_top={band_top:?} reads={rows:?}"
+            ));
+        }
         VisualSelection {
             logical,
             band_top,
