@@ -212,6 +212,7 @@ impl WorkspaceState {
     /// Read-only; `core_slots` stays the only way to mutate it. Native/test only,
     /// like the `--screenshot-app` capture that is its consumer.
     #[cfg(any(test, not(target_arch = "wasm32")))]
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(in crate::app) fn journey(&self) -> &Journey {
         &self.journey
     }

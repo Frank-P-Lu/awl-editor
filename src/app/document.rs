@@ -193,6 +193,7 @@ impl DocumentSession {
         crate::search::keys::intercept(search, &mut self.active.buffer, logical, mods)
     }
 
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(in crate::app) fn open_count(&self) -> usize {
         self.registry.len() + 1
     }

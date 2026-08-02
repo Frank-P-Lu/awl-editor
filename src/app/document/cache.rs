@@ -46,6 +46,7 @@ impl DocumentSession {
     }
 
     #[cfg(test)]
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(in crate::app) fn spell_check(&self, word: &str) -> Option<bool> {
         self.spell.as_ref().map(|spell| spell.check(word))
     }

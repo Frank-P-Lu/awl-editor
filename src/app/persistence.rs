@@ -153,6 +153,7 @@ impl PersistenceRuntime {
     }
 
     /// When any write last landed (the held HUD's SAVED stat).
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(in crate::app) fn last_save_at(&self) -> Option<Instant> {
         self.last_save_at
     }
