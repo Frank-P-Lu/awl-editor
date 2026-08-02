@@ -166,6 +166,14 @@ gate_stamp_phases() {
   local label="$1" line target progress compiled=0 running=0
   progress="$(gate_progress_file "$label")"
   : >"$progress"
+  # This filter deliberately IGNORES SIGTERM. The budget's TERM is aimed at
+  # Cargo; when Cargo dies the pipe closes, and the filter's last act is to
+  # flush the unterminated line libtest left behind — "test NAME ... " with no
+  # result, which is the exact name of the test that never returned. Killing
+  # the filter alongside Cargo would throw that line away, and it is the one
+  # line worth the whole exercise. The escalation's follow-up KILL retires the
+  # filter if it does not leave on its own.
+  trap '' TERM
   # `|| [[ -n "$line" ]]` flushes a final partial line. libtest prints
   # "test NAME ... " BEFORE running the test and its result after, so on a clean
   # EOF that trailing fragment is the exact name of the test that never

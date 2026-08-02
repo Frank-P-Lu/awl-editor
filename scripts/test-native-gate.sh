@@ -22,11 +22,19 @@ if [[ -n "${AWL_NATIVE_GATE_PROBE_CARGO_OUTPUT:-}" ]]; then
   printf '\033[1m\033[92m    Finished\033[0m `test` profile [optimized + debuginfo] target(s) in 1m 22s\n'
   printf '\033[1m\033[92m     Running\033[0m unittests src/main.rs (target/debug/deps/awl-a623f1caab4)\n'
   printf '\nrunning 3484 tests\n'
-  printf 'test render::Running_tests::a_name_with_(parens)_and_Finished_target(s) in ... ok\n'
+  printf 'test render::Running_tests::a_name_with_(parens) ... ok\n'
+  printf 'test render::a_name_with_Finished_and_target(s) in_it ... ok\n'
   printf 'test result: ok. 3484 passed; 0 failed; 0 ignored; 0 measured\n'
   printf '\033[1m\033[92m     Running\033[0m tests/harness.rs (target/debug/deps/harness-0f0f0f0f)\n'
   printf 'running 2 tests\n'
   printf 'test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured\n'
+fi
+# libtest prints "test NAME ... " BEFORE running the test and its result after,
+# so a test that never returns leaves an UNTERMINATED line naming itself. That
+# fragment is the single most valuable line in a hung run's log, and it is only
+# ever flushed when the pipe closes.
+if [[ -n "${AWL_NATIVE_GATE_PROBE_HANG_LINE:-}" ]]; then
+  printf 'test the_test_that_never_returned ... '
 fi
 # A grandchild that a bare `kill $cargo_pid` cannot reach. On a real runner this
 # is the test binary itself, and it is what the 2026-08-02 job cleanup had to
@@ -158,9 +166,10 @@ echo "test-native-gate: an exhausted budget ends the run in band, by name, with 
 # asserts against the gate's real output, on this host, with a fixture that
 # emits the exact line shapes the 2026-08-02 mac runner emitted.
 probe() {
-  local label="$1"
+  local label="$1" probe_started
   shift
   : >"$WORK/events"
+  probe_started="$(date +%s)"
   set +e
   env -u RUST_TEST_THREADS -u AWL_NATIVE_GATE_BUDGET_SECONDS -u AWL_NATIVE_GATE_DEADLINE_EPOCH \
     PATH="$WORK:$PATH" \
@@ -172,6 +181,7 @@ probe() {
     "$ROOT/scripts/native-gate.sh" >"$WORK/output-$label" 2>&1
   probe_status=$?
   set -e
+  probe_elapsed=$(( $(date +%s) - probe_started ))
   probe_output="$WORK/output-$label"
 }
 
@@ -212,19 +222,41 @@ for convention in mac linux; do
 done
 require "phase timing" "native-gate-phase label=canary event=begin"
 require "phase timing" "native-gate-phase label=canary event=end elapsed_seconds="
-forged="$(grep -c 'native-gate-phase label=mac event=target-start' "$probe_output" || true)"
-[[ "$forged" == 2 ]] || {
-  echo "test-native-gate: the mac convention stamped $forged target-start markers over 2 real targets — a test NAME forged one" >&2
-  exit 1
-}
+# The fixture runs two real targets and prints two hostile test names: one
+# carrying "Running_tests" and "(parens)", one carrying "Finished" and
+# "target(s) in". Counting is the assertion — a marker that exists is not the
+# same as a marker that is right, and an over-count is exactly how a per-test
+# line quietly becomes a phase boundary.
+for convention in mac linux; do
+  for event in target-start:2 compile-finished:1 first-tests-running:1; do
+    seen="$(grep -c "native-gate-phase label=$convention event=${event%%:*} " "$probe_output" || true)"
+    [[ "$seen" == "${event##*:}" ]] || {
+      echo "test-native-gate: $convention stamped $seen ${event%%:*} markers over ${event##*:} real ones — a test NAME forged a phase boundary" >&2
+      exit 1
+    }
+  done
+done
 
 echo "test-native-gate: every phase boundary is stamped per convention, and a test name cannot forge one"
+
+# ── The line a hang leaves behind ────────────────────────────────────────────
+# The only thing that identified 2026-08-02's hang was libtest's unterminated
+# "test NAME ... " fragment, and it survived by luck: an interleaved heartbeat
+# write happened to flush it. The gate must produce it on purpose.
+probe hang-line AWL_NATIVE_GATE_BUDGET_SECONDS=2 AWL_NATIVE_GATE_PROBE_SLEEP=30 \
+  AWL_NATIVE_GATE_PROBE_CARGO_OUTPUT=1 AWL_NATIVE_GATE_PROBE_HANG_LINE=1
+(( probe_status == 1 )) || { echo "test-native-gate: hang-line probe returned $probe_status" >&2; exit 1; }
+for convention in mac linux; do
+  require "hang line" "$convention| test the_test_that_never_returned ... "
+done
+
+echo "test-native-gate: a killed convention still flushes the unterminated line naming the test that hung"
 
 # ── The budget covers the canary ─────────────────────────────────────────────
 # The first draft armed the budget only after the canary had returned, leaving
 # the whole dependency-and-library compile — the slowest phase on a cold hosted
 # runner — with no watchdog at all.
-probe canary-budget AWL_NATIVE_GATE_BUDGET_SECONDS=2 AWL_NATIVE_GATE_PROBE_CANARY_SLEEP=600
+probe canary-budget AWL_NATIVE_GATE_BUDGET_SECONDS=2 AWL_NATIVE_GATE_PROBE_CANARY_SLEEP=30
 (( probe_status == 1 )) || {
   echo "test-native-gate: a canary that outran the budget returned $probe_status, expected 1" >&2
   exit 1
@@ -233,6 +265,13 @@ require "canary budget" "budget expired during the canary phase"
 refuse "canary budget" "native-gate-receipt"
 grep -Fq 'finish canary' "$WORK/events" && {
   echo "test-native-gate: the budget did not actually end the canary — it ran to completion" >&2
+  exit 1
+}
+# The fixture hangs for 30 s. A gate whose watchdog does not reach this phase
+# does not fail — it WAITS, which is the whole defect, so the law is stated in
+# wall-clock: a 2 s budget plus its 5 s escalation must land nowhere near 30.
+(( probe_elapsed < 20 )) || {
+  echo "test-native-gate: the gate took ${probe_elapsed}s to end a 2s budget — it waited out the hang instead of ending it" >&2
   exit 1
 }
 
@@ -246,7 +285,7 @@ echo "test-native-gate: the budget reaches the canary phase, not only the concur
 # IGNORES SIGTERM on purpose, so only a group-directed KILL can retire it — a
 # gate that merely signalled its direct children would leave it running.
 : >"$WORK/orphans"
-probe group-kill AWL_NATIVE_GATE_BUDGET_SECONDS=2 AWL_NATIVE_GATE_PROBE_SLEEP=600 \
+probe group-kill AWL_NATIVE_GATE_BUDGET_SECONDS=2 AWL_NATIVE_GATE_PROBE_SLEEP=30 \
   AWL_NATIVE_GATE_PROBE_ORPHAN_FILE="$WORK/orphans"
 (( probe_status == 1 )) || {
   echo "test-native-gate: the group-kill probe returned $probe_status, expected 1" >&2
@@ -279,7 +318,7 @@ echo "test-native-gate: an exhausted budget retires every descendant, not just t
 # and the runner was lost at 53. An absolute deadline pins the end of the gate
 # to the clock that is actually killing it.
 now="$(date +%s)"
-probe deadline-only AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( now + 2 )) AWL_NATIVE_GATE_PROBE_SLEEP=600
+probe deadline-only AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( now + 2 )) AWL_NATIVE_GATE_PROBE_SLEEP=30
 (( probe_status == 1 )) || {
   echo "test-native-gate: an absolute deadline alone did not end the gate (status $probe_status)" >&2
   exit 1
@@ -289,7 +328,7 @@ refuse "deadline" "native-gate-receipt"
 
 now="$(date +%s)"
 probe deadline-wins AWL_NATIVE_GATE_BUDGET_SECONDS=3600 \
-  AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( now + 2 )) AWL_NATIVE_GATE_PROBE_SLEEP=600
+  AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( now + 2 )) AWL_NATIVE_GATE_PROBE_SLEEP=30
 (( probe_status == 1 )) || {
   echo "test-native-gate: a near deadline lost to a distant duration (status $probe_status)" >&2
   exit 1
@@ -297,7 +336,7 @@ probe deadline-wins AWL_NATIVE_GATE_BUDGET_SECONDS=3600 \
 require "deadline" "budget_source=deadline"
 
 probe duration-wins AWL_NATIVE_GATE_BUDGET_SECONDS=2 \
-  AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( now + 3600 )) AWL_NATIVE_GATE_PROBE_SLEEP=600
+  AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( now + 3600 )) AWL_NATIVE_GATE_PROBE_SLEEP=30
 (( probe_status == 1 )) || {
   echo "test-native-gate: a near duration lost to a distant deadline (status $probe_status)" >&2
   exit 1
@@ -316,7 +355,7 @@ probe last-progress AWL_NATIVE_GATE_VITALS_SECONDS=1 AWL_NATIVE_GATE_PROBE_SLEEP
 require "heartbeat progress" "mac_last=[test result: ok. 2 passed"
 require "heartbeat progress" "linux_last=[test result: ok. 2 passed"
 
-probe abort-progress AWL_NATIVE_GATE_BUDGET_SECONDS=2 AWL_NATIVE_GATE_PROBE_SLEEP=600 \
+probe abort-progress AWL_NATIVE_GATE_BUDGET_SECONDS=2 AWL_NATIVE_GATE_PROBE_SLEEP=30 \
   AWL_NATIVE_GATE_PROBE_CARGO_OUTPUT=1
 (( probe_status == 1 )) || { echo "test-native-gate: abort-progress probe returned $probe_status" >&2; exit 1; }
 require "abort progress" "native-gate-budget-last label=mac line=[test result: ok. 2 passed"
