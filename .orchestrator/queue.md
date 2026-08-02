@@ -441,14 +441,33 @@ run.
   and 225 must not be masked by overlaying another rectangle, and pointed at
   `PlannedHeader` (item 174's landed header-band owner) as the likely home of a
   blank band, plus the recently-moved workspace geometry for the black bar.
-- **233** — 🟡 IN PROGRESS — claude (production), branch
-  `claude/item-233-serialguard`. Briefed to prefer making the leak IMPOSSIBLE
-  over finding the leaker, to extend the one process-wide reentrant guard rather
-  than add a second lock (CLAUDE.md: three rounds of ABBA deadlocks retired the
-  ordered per-module locks), and to match the existing enforcement pattern where
-  `write_sidecar` and `fs::active` assert the hold under `cfg(test)` so an
-  unguarded caller panics by name on its first run.
-
+- **233** — ✅ COMPLETE. Receipt `native-gate-receipt commit=e5d520d2…
+  conventions=mac,linux scope=all-targets`. `SerialGuard` now snapshots
+  `render::overrides::pins()` on entry and restores on exit beside
+  world/page/spellcheck — **including on the UNWINDING path**, which is the part
+  a reset at the end of a test body cannot buy. A dirty exit that did not panic
+  still fails by name, listing every knob that changed.
+  ⚠️ **THE BRIEF'S PREMISE WAS WRONG and the lane explained the leak anyway.**
+  `list_surfaces.rs:909` is NOT the only site with that value: its helper
+  `bars(6.0, 8.0, 24.0)` expands to exactly the longhand in
+  `chrome_overlay.rs`'s `list_style_override_reader_writer_are_serialized`,
+  **whose worker thread exits its `serial()` window without resetting** and
+  whose main thread released `outer` still holding `Some(Pane)`. The forced
+  value survived both windows and the next thread through the mutex read it.
+  **A grep for the literal struct misses the helper call and vice versa** —
+  which is exactly why it read as a single site. Fixed at the source too, and
+  the new guard found it on its FIRST run, the only failure in a 3619-test
+  parallel sweep.
+  **An ELEVENTH forced knob was found:** the living-band motion probe lived in
+  `livingband.rs` with **no write assert at all** — the one genuinely unpoliced
+  override, invisible to an item that named ten. Now under the same snapshot,
+  its writer asserting the hold, with an alias keeping its nine call sites
+  untouched. `leaked_knobs` destructures both sides exhaustively, so a new
+  `RenderOverrides` field must be named there or the build breaks.
+  **The proof was built on the axis that matters:** 3619 tests green at
+  `--test-threads=16` and again at 24. Under the mutation the headline test's
+  first assertion **passed spuriously** because the sibling law had already
+  poisoned it — the defect reproducing inside its own proof.
 - **230** — ✅ COMPLETE. Receipt `native-gate-receipt commit=a37d741f…
   conventions=mac,linux scope=all-targets`. `ViewState::substitute_text` is the
   ONE door that replaces shaped text, recording the document *and the caret's
