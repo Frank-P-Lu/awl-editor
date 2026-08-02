@@ -234,6 +234,21 @@ will name.
 | Cut a public tag at all | no tag has ever been pushed; `gh release list` is empty | the user, explicitly (CLAUDE.md §Branches) |
 | macOS artifacts | none of the five Apple secrets in §1 are set; the mac job is skipped on a tag so an unsigned `.app` cannot publish | the user — needs a paid Apple Developer Program membership |
 | Version + prerelease flag | `Cargo.toml` says `0.1.0`; queue item 228 proposes `v0.9.0` marked prerelease. `release.yml` does not pass `prerelease:` and `deploy-web.yml`'s `version.json` sets `prerelease: false` for any tag it finds — so a beta would currently read as stable on both surfaces | queue item 228 |
-| glibc floor | `ubuntu-latest` builds against glibc 2.39, which excludes Debian 12, Ubuntu 22.04 and RHEL 9; the tarball records its own floor in `GLIBC.txt` | open — building in a `debian:bookworm` container would drop the floor to 2.36 |
+| glibc floor | **measured, not estimated.** `ubuntu-latest` is Ubuntu 24.04, so the binary's highest referenced symbol is `GLIBC_2.39`. Verified by running the produced tarball on Debian 12: `libc.so.6: version 'GLIBC_2.39' not found`. See the table below | the user — it is a support-matrix choice, and item 227's AppImage may answer it instead |
 | Web download | `awl-web-dist.zip` builds on dry runs and is not attached; the site is the web distribution | settled unless a self-host story is wanted |
 | Asset filename | `awl-linux-x86_64.tar.gz` carries no version, which is what keeps `/releases/latest/download/awl-linux-x86_64.tar.gz` a stable URL the site and docs can hardcode. Queue item 228 asks for `0.9.0` in artifact names — the two cannot both hold | the user, when 228 lands |
+
+#### What the build base costs, for the glibc decision
+
+Where the release binary is built decides which systems can run it. Nothing
+else in the pipeline changes.
+
+| Build base | glibc | Reaches |
+|---|---|---|
+| `ubuntu-latest` (Ubuntu 24.04) — **today** | 2.39 | Ubuntu 24.04+, Fedora 40+, Arch. **Not** Debian 12, **not** Ubuntu 22.04 LTS, **not** RHEL 9 |
+| `ubuntu-22.04` runner | 2.35 | adds Ubuntu 22.04 LTS and Debian 12. Runner image is on GitHub's retirement track |
+| `container: debian:bookworm` | 2.36 | adds Debian 12. Matches `Dockerfile.linux`'s existing, stated choice |
+| `container: debian:bullseye` | 2.31 | adds Ubuntu 20.04, Debian 11, RHEL 9. Oldest toolchain and headers, so the highest build risk |
+
+Item 227's AppImage may make this moot for the friendly download while the
+tarball stays technical — decide the two together.

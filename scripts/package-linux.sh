@@ -97,7 +97,9 @@ PATH, move or symlink the binary:
 WHAT IT NEEDS
 
     x86_64                a 64-bit Intel/AMD CPU
-    glibc                 see GLIBC.txt for the exact floor this build needs
+    glibc                 GLIBC.txt names the exact version this build needs.
+                          Check yours with `ldd --version`. An older system
+                          cannot run this binary and says so by name.
     Vulkan                a working Vulkan 1.x driver (Mesa covers most GPUs)
     fontconfig, libxkbcommon, and the Wayland or X11 client libraries
 
@@ -134,15 +136,24 @@ chmod 0644 "$STAGE/README.txt"
 # constant, so it is recorded rather than asserted. `objdump -T` lists the
 # versioned symbol references the dynamic linker must satisfy.
 if command -v objdump >/dev/null 2>&1 && objdump -T "$STAGE/awl" >/dev/null 2>&1; then
+  versions="$(objdump -T "$STAGE/awl" 2>/dev/null \
+    | sed -n 's/.*GLIBC_\([0-9][0-9.]*\).*/\1/p' \
+    | sort -u -t. -k1,1n -k2,2n -k3,3n)"
+  floor="$(printf '%s\n' "$versions" | tail -1)"
   {
-    echo "Minimum glibc for this build, from the versioned symbols it references."
+    echo "This build requires glibc $floor or newer."
     echo
-    objdump -T "$STAGE/awl" 2>/dev/null \
-      | sed -n 's/.*GLIBC_\([0-9][0-9.]*\).*/\1/p' \
-      | sort -u -t. -k1,1n -k2,2n -k3,3n \
-      | sed 's/^/  GLIBC_/'
+    echo "That is the highest versioned symbol it references, so a system with an"
+    echo "older glibc refuses to start it — the error names the version:"
+    echo "  libc.so.6: version \`GLIBC_$floor' not found"
+    echo "Check yours with \`ldd --version\`. A too-old system needs a build from"
+    echo "source; see the repository."
+    echo
+    echo "Every glibc version referenced:"
+    printf '%s\n' "$versions" | sed 's/^/  GLIBC_/'
   } > "$STAGE/GLIBC.txt"
   chmod 0644 "$STAGE/GLIBC.txt"
+  echo "==> glibc floor: $floor"
 else
   echo "package-linux: objdump cannot read $STAGE/awl — no GLIBC.txt in this archive" >&2
 fi

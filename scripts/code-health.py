@@ -735,6 +735,118 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
     return failures
 
 
+def _workflow_run_commands(job: str) -> list[tuple[str, int]]:
+    """Every shell command a workflow job runs, with its offset in the job.
+
+    A workflow step's `run:` is either inline (`run: some command`) or a
+    block scalar (`run: |` followed by more-indented lines). Everything
+    else in the file — step names, cache keys, `with:` values — is YAML
+    prose that happens to contain the same words.
+    """
+    commands: list[tuple[str, int]] = []
+    lines = job.splitlines(keepends=True)
+    offsets: list[int] = []
+    position = 0
+    for line in lines:
+        offsets.append(position)
+        position += len(line)
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        match = re.match(r"^(\s*)-?\s*run:[ \t]*(.*?)\s*$", line)
+        if match is None:
+            index += 1
+            continue
+        indent, inline = len(match.group(1)), match.group(2)
+        if inline and inline not in ("|", ">", "|-", ">-", "|+", ">+"):
+            commands.append((inline, offsets[index] + line.index(inline)))
+            index += 1
+            continue
+        index += 1
+        while index < len(lines):
+            body = lines[index]
+            if body.strip() and len(body) - len(body.lstrip()) <= indent:
+                break
+            commands.append((body, offsets[index]))
+            index += 1
+    return commands
+
+
+def workflow_wrapper_bootstrap_audit(
+    cargo_config: str, workflows: dict[str, str]
+) -> list[str]:
+    """Every workflow job that runs Cargo must first install Cargo's wrapper.
+
+    `.cargo/config.toml`'s `rustc-wrapper` applies to every build in this
+    checkout, a hosted runner's included, and a wrapper cannot install
+    itself: Cargo invokes it to answer `rustc -vV` before it compiles
+    anything, so a missing one is an immediate `could not execute process
+    <wrapper> (never executed)`. `scripts/install-sccache.sh` is the
+    bootstrap, and it has to run BEFORE the job's first Cargo line.
+
+    The sweep is per JOB across every workflow file, not per file and not
+    over the one workflow that was broken. release.yml carried the defect in
+    all three of its jobs for three weeks after the wrapper landed, while
+    ci.yml had the step in each of four — a check that read only the file
+    that CI exercises would have been green the whole time, and only a tag
+    push would have found it.
+
+    Inert by construction when no wrapper is configured: the requirement is
+    read from the config, so removing `rustc-wrapper` retires the law with
+    it rather than leaving a stale rule behind.
+    """
+    failures: list[str] = []
+    try:
+        wrapper = tomllib.loads(cargo_config).get("build", {}).get("rustc-wrapper")
+    except tomllib.TOMLDecodeError as error:
+        return [f"workflow-bootstrap-audit: .cargo/config.toml does not parse: {error}"]
+    if not wrapper:
+        return failures
+
+    bootstrap = "scripts/install-sccache.sh"
+    # Only SHELL text counts. Matching the whole job body reads `name: web
+    # (trunk dist, zipped)` as a trunk invocation and reports a job that is
+    # correctly wired — a false positive is how an audit gets switched off.
+    # A Cargo line a job reaches indirectly, through a script it calls, is
+    # invisible here; what this audit can see, it must see exactly.
+    invokes_cargo = re.compile(r"(?<![\w./-])(cargo|trunk)[ \t]+\S")
+
+    for name, text in sorted(workflows.items()):
+        body = "\n".join(
+            line for line in text.splitlines() if not line.lstrip().startswith("#")
+        )
+        starts = [
+            match for match in re.finditer(r"^  ([A-Za-z][\w-]*):\s*$", body, re.M)
+        ]
+        if not starts:
+            continue
+        for index, match in enumerate(starts):
+            end = starts[index + 1].start() if index + 1 < len(starts) else len(body)
+            job = body[match.start():end]
+            cargo = None
+            for shell, offset in _workflow_run_commands(job):
+                found = invokes_cargo.search(shell)
+                if found is not None:
+                    cargo = (found.group(0).strip(), offset + found.start())
+                    break
+            if cargo is None:
+                continue
+            install = job.find(bootstrap)
+            if install < 0:
+                failures.append(
+                    f"workflow-bootstrap-audit: {name} job `{match.group(1)}` runs "
+                    f"`{cargo[0]}` with no `{bootstrap}` step, and "
+                    f".cargo/config.toml sets rustc-wrapper = \"{wrapper}\""
+                )
+            elif install > cargo[1]:
+                failures.append(
+                    f"workflow-bootstrap-audit: {name} job `{match.group(1)}` "
+                    f"installs the wrapper after its first Cargo line, which has "
+                    f"already failed by then"
+                )
+    return failures
+
+
 def self_test() -> int:
     main = (ROOT / "src/main.rs").read_text()
     mas_gate = '#[cfg(all(feature = "mas", target_os = "macos"))]\nmod mas;'
@@ -1440,6 +1552,15 @@ def main() -> int:
         native_gate_audit(
             (ROOT / "scripts/native-gate.sh").read_text(),
             (ROOT / ".github/workflows/ci.yml").read_text(),
+        )
+    )
+    failures.extend(
+        workflow_wrapper_bootstrap_audit(
+            (ROOT / ".cargo/config.toml").read_text(),
+            {
+                path.name: path.read_text()
+                for path in sorted((ROOT / ".github/workflows").glob("*.yml"))
+            },
         )
     )
     failures.extend(check_clippy(run_metric_clippy(), expected))
