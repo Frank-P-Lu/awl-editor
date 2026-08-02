@@ -144,11 +144,19 @@ fn invert_blend() -> wgpu::BlendState {
 /// not a module one — so a single module serves them all, and the WGSL is
 /// translated to the backend's shading language once per device instead of
 /// once per pipeline. Every `SelectionPipeline` constructor takes the module
-/// by reference so there is no path that recompiles it. `gpu_cache` holds the
-/// same rule across the whole process: the translation now happens once per
-/// device rather than once per `TextPipeline`.
+/// by reference so there is no path that recompiles it, and `gpu_cache` holds
+/// that same rule across the process rather than per `TextPipeline`.
 pub fn selection_shader(device: &wgpu::Device) -> wgpu::ShaderModule {
     crate::gpu_cache::shader(device, crate::gpu_cache::Shader::Selection)
+}
+
+/// What the two flavors differ on that is BAKED INTO the compiled program, so
+/// `key` (what `gpu_cache` stores it under) must change whenever the other two
+/// do. Color, corner radius and dither are uniforms, not pipeline state.
+struct Flavor {
+    key: &'static str,
+    entry_point: &'static str,
+    blend: wgpu::BlendState,
 }
 
 impl SelectionPipeline {
@@ -163,10 +171,12 @@ impl SelectionPipeline {
             shader,
             format,
             srgba,
-            "selection.ordinary",
-            "fs_main",
+            Flavor {
+                key: "selection.ordinary",
+                entry_point: "fs_main",
+                blend: ordinary_blend(),
+            },
             CORNER_RADIUS,
-            ordinary_blend(),
         )
     }
 
@@ -195,10 +205,12 @@ impl SelectionPipeline {
             shader,
             format,
             [255, 255, 255, 255],
-            "selection.invert",
-            "fs_invert",
+            Flavor {
+                key: "selection.invert",
+                entry_point: "fs_invert",
+                blend: invert_blend(),
+            },
             0.0,
-            invert_blend(),
         )
     }
 
@@ -212,16 +224,14 @@ impl SelectionPipeline {
         shader: &wgpu::ShaderModule,
         format: wgpu::TextureFormat,
         srgba: [u8; 4],
-        // `key` names the PROGRAM this flavor compiles to, and must change
-        // whenever anything baked into the `wgpu::RenderPipeline` changes —
-        // the entry point and the blend state, here. Everything else the two
-        // flavors differ on (color, corner radius, dither) is a uniform, not
-        // pipeline state, so it stays per-instance and out of the key.
-        key: &'static str,
-        entry_point: &str,
+        flavor: Flavor,
         corner: f32,
-        blend: wgpu::BlendState,
     ) -> Self {
+        let Flavor {
+            key,
+            entry_point,
+            blend,
+        } = flavor;
         let bind_group_layout = crate::gpu_cache::bind_group_layout("selection", || {
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("selection globals layout"),
@@ -254,41 +264,41 @@ impl SelectionPipeline {
             }],
         });
 
+        let instance_layout = wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<SelInstance>() as u64,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x2,
+                    offset: 0,
+                    shader_location: 0,
+                },
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x2,
+                    offset: 8,
+                    shader_location: 1,
+                },
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x4,
+                    offset: 16,
+                    shader_location: 2,
+                },
+                // ITEM 131b — `axis`, at the END of the struct so every offset
+                // above is untouched (no existing attribute moves).
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x2,
+                    offset: 32,
+                    shader_location: 3,
+                },
+            ],
+        };
+
         let pipeline = crate::gpu_cache::render_pipeline(key, format, || {
             let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("selection pipeline layout"),
                 bind_group_layouts: &[Some(&bind_group_layout)],
                 immediate_size: 0,
             });
-
-            let instance_layout = wgpu::VertexBufferLayout {
-                array_stride: std::mem::size_of::<SelInstance>() as u64,
-                step_mode: wgpu::VertexStepMode::Instance,
-                attributes: &[
-                    wgpu::VertexAttribute {
-                        format: wgpu::VertexFormat::Float32x2,
-                        offset: 0,
-                        shader_location: 0,
-                    },
-                    wgpu::VertexAttribute {
-                        format: wgpu::VertexFormat::Float32x2,
-                        offset: 8,
-                        shader_location: 1,
-                    },
-                    wgpu::VertexAttribute {
-                        format: wgpu::VertexFormat::Float32x4,
-                        offset: 16,
-                        shader_location: 2,
-                    },
-                    // ITEM 131b — `axis`, at the END of the struct so every offset
-                    // above is untouched (no existing attribute moves).
-                    wgpu::VertexAttribute {
-                        format: wgpu::VertexFormat::Float32x2,
-                        offset: 32,
-                        shader_location: 3,
-                    },
-                ],
-            };
 
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("selection pipeline"),

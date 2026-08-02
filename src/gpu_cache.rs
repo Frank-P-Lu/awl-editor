@@ -144,6 +144,7 @@ static BUILDS: AtomicU64 = AtomicU64::new(0);
 /// hit depends on: that everything built inside `f` is built on the ONE
 /// process-wide shared test device. Arming this around a closure that touches
 /// any other device would hand that device another's programs.
+#[cfg(test)]
 pub(crate) fn scoped<R>(f: impl FnOnce() -> R) -> R {
     let was = ARMED.with(|a| a.replace(true));
     let out = f();
@@ -155,6 +156,7 @@ fn armed() -> bool {
     ARMED.with(|a| a.get())
 }
 
+#[cfg(test)]
 pub(crate) fn builds() -> u64 {
     BUILDS.load(Ordering::Relaxed)
 }

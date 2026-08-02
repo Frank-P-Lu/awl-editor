@@ -67,7 +67,7 @@ pub(crate) fn shared_device_queue() -> Option<(wgpu::Device, wgpu::Queue)> {
 ///
 /// The shared device is created once and never dropped, so the programs cached
 /// against it stay valid for the process.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 pub(crate) fn with_shared_programs<R>(
     f: impl FnOnce(&wgpu::Device, &wgpu::Queue) -> R,
 ) -> Option<R> {
@@ -75,7 +75,7 @@ pub(crate) fn with_shared_programs<R>(
     Some(crate::gpu_cache::scoped(|| f(device, queue)))
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(test, target_arch = "wasm32"))]
 pub(crate) fn with_shared_programs<R>(
     _f: impl FnOnce(&wgpu::Device, &wgpu::Queue) -> R,
 ) -> Option<R> {

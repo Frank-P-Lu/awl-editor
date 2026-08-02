@@ -273,7 +273,6 @@ impl CaretGlyphPipeline {
                 bind_group_layouts: &[Some(&bind_group_layout)],
                 immediate_size: 0,
             });
-
             let instance_layout = wgpu::VertexBufferLayout {
                 array_stride: std::mem::size_of::<GlyphInstance>() as u64,
                 step_mode: wgpu::VertexStepMode::Instance,

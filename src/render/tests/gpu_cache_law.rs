@@ -16,7 +16,7 @@
 //!    `shared_device_queue`, or a new pipeline family is built raw);
 //! 2. a new shader is compiled outside the one owner;
 //! 3. the cache "works" by handing every world the same program state — which
-//!    would trade a CI hang for the cross-test leak of item 233's shape.
+//!    would trade a CI hang for a cross-test state leak.
 //!
 //! Law 3 is the one worth the most: it does not check that the cache is FAST,
 //! it checks that a world rendered through the shared programs is BYTE-IDENTICAL
@@ -167,15 +167,16 @@ fn every_render_pipeline_is_built_inside_the_cache() {
 /// world correctly when each is drawn alone, because each `prepare` would
 /// overwrite the last in time. Standing all twenty up FIRST, preparing all
 /// twenty, and only then drawing them is what makes one world's state visible
-/// in another's picture — the same cross-test leak item 233 is closing for the
-/// render overrides, which is not a trade worth making to fix a CI hang.
+/// in another's picture — a cross-test state leak, which is not a trade worth
+/// making to fix a CI hang.
 #[test]
 fn every_world_renders_identically_through_cached_and_fresh_programs() {
     let _g = crate::testlock::serial();
     let (w, h) = (72u32, 96u32);
     let Some((device, queue)) = crate::test_gpu::shared_device_queue() else {
         eprintln!(
-            "skipping every_world_renders_identically_through_cached_and_fresh_programs: no wgpu adapter"
+            "skipping every_world_renders_identically_through_cached_and_fresh_programs: \
+             no wgpu adapter"
         );
         return;
     };

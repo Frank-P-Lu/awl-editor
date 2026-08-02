@@ -48,7 +48,7 @@ mod frost;
 mod geometry;
 mod geometry_reshape;
 mod glide_anchor_law;
-/// ITEM 231 — the GPU program cache: amortised, single-owner, and world-neutral.
+/// The GPU program cache: amortised, single-owner, and world-neutral.
 mod gpu_cache_law;
 mod grapheme_click;
 mod ground_space_item186;
