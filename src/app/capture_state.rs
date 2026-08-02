@@ -84,7 +84,7 @@ impl App {
 /// sidecar reports the editor rather than a model of it.
 impl crate::run::CaptureSubject for App {
     fn buffer(&self) -> &crate::buffer::Buffer {
-        &self.document.buffer()
+        self.document.buffer()
     }
     fn zoom(&self) -> f32 {
         self.zoom

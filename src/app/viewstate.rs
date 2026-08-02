@@ -131,9 +131,9 @@ impl App {
         // transcript it would never match anyway.
         let misspelled = if preview.is_some() {
             let buffer_text = self.view_text();
-            crate::spell::visible(&self.document.spell_cache(), &buffer_text)
+            crate::spell::visible(self.document.spell_cache(), &buffer_text)
         } else {
-            crate::spell::visible(&self.document.spell_cache(), &text)
+            crate::spell::visible(self.document.spell_cache(), &text)
         };
 
         // The summoned picker, bound ONCE for the whole projection below (item

@@ -45,6 +45,7 @@ impl DocumentSession {
         self.spell.is_some()
     }
 
+    #[cfg(test)]
     pub(in crate::app) fn spell_check(&self, word: &str) -> Option<bool> {
         self.spell.as_ref().map(|spell| spell.check(word))
     }

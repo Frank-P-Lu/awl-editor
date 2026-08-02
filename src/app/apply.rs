@@ -824,7 +824,7 @@ impl App {
             let (target, show_full) = match self.document.buffer().path() {
                 Some(p) => (p.with_extension(format.ext()), false),
                 None => {
-                    let stem = crate::web_export::export_stem(&self.document.buffer());
+                    let stem = crate::web_export::export_stem(self.document.buffer());
                     (
                         self.project_location
                             .root
