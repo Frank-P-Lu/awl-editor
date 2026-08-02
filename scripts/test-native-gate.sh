@@ -423,7 +423,8 @@ echo "test-native-gate: the vitals heartbeat reaches this host's real memory cou
 # across every heartbeat of a run is one awk pass. The MAX is the statistic that
 # matters: a spin only has to show up in one heartbeat to be diagnosed.
 busiest_peak() {
-  awk '/^native-gate-vitals/ {
+  awk 'BEGIN { peak = -1 }
+    /^native-gate-vitals/ {
       for (i = 1; i <= NF; i++) if (index($i, "busiest=[") == 1) {
         value = $i; sub(/.*=/, "", value); sub(/\]$/, "", value)
         if (value + 0 > peak) { peak = value + 0; who = $i }
@@ -432,7 +433,8 @@ busiest_peak() {
 }
 
 vitals_peak() {
-  awk -v key="$1=" '/^native-gate-vitals/ {
+  awk -v key="$1=" 'BEGIN { peak = -1 }
+    /^native-gate-vitals/ {
       for (i = 1; i <= NF; i++) if (index($i, key) == 1) {
         value = substr($i, length(key) + 1) + 0
         if (value > peak) peak = value
@@ -488,7 +490,8 @@ awk -v peak="$spin_peak" 'BEGIN { exit !(peak >= 50) }' || {
 #
 # The fixture's spinner is born mid-run for exactly this, so the heartbeat that
 # first sees it is deterministically a newcomer reading.
-read -r new_peak new_who <<<"$(awk '/^native-gate-vitals/ {
+read -r new_peak new_who <<<"$(awk 'BEGIN { peak = -1 }
+    /^native-gate-vitals/ {
       fresh = -1; value = -1; who = ""
       for (i = 1; i <= NF; i++) {
         if (index($i, "new_procs=") == 1) fresh = substr($i, 11) + 0
