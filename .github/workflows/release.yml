@@ -1,7 +1,8 @@
 name: release
 
-# Cuts a GitHub Release: a macOS universal (.app + .dmg), a Linux tar.gz, and
-# a zipped web (trunk) bundle.
+# Cuts a GitHub Release. Builds three things — a macOS universal (.app +
+# .dmg), a Linux tar.gz, and a zipped web (trunk) bundle — and publishes one
+# of them; see WHAT A TAG PUBLISHES TODAY below.
 #
 # Triggers:
 #   - push of a `v*` tag        -> real release, artifacts attached to the tag's GH Release
