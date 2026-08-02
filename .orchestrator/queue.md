@@ -71,7 +71,64 @@ the combined tree (8 passed) before the train gate rather than trusting two
 receipts taken on different bases. CI is green on `f47028d0` under the raised
 mac ceiling.
 
-## CI RED — the mac gate HANGS; observability landed, cause still open
+## CI RED — THE MECHANISM IS NOW KNOWN: the shared wgpu device wedges
+
+**Probe 3 of the bisect left a log, and it is the most informative artifact in
+this investigation.** From run `30756807172`:
+
+```
+16:56:43  ...split_pane::split_draws_two_surfaces_unified_draws_one ... ok
+16:57:43  split_pane::split_shows_ground_across_the_gap_and_no_glyph_escapes  has been running for over 60 seconds
+16:57:43  split_pane::split_stays_valid_narrow_and_empty                      has been running for over 60 seconds
+16:57:43  stars::currawong_star_field_is_dpi_invariant_in_logical_space       has been running for over 60 seconds
+17:46:15  ##[error]The operation was canceled.
+```
+
+**Exactly THREE tests — the runner's three vCPUs, i.e. EVERY libtest worker
+thread — wedge at the same instant and never move again for 49 minutes.** Left
+behind: `Terminate orphan process: awl-69f18644050` and `cargo`, unkillable.
+
+**This is not one bad test. It is the SHARED WGPU DEVICE wedging**, after which
+every test that touches it parks forever in `read_pixels`'
+`poll(PollType::wait_indefinitely())` — which is also why the process survives
+SIGTERM. Control: three `app_icon` tests tripped the same 60-second warning
+earlier at 16:47 and **recovered**, so slow-but-alive is normal on this runner
+and the final three are categorically different.
+
+⚠️ **The victim varies; the wedge is constant.** Here it is `split_pane` and
+`stars`; in run `30732589551` it was `scroll_pos`, at a different point —
+**none of them item 194's warp tests.** So the culprit commit **poisons the
+device rather than owning the hanging test**, and no amount of staring at the
+hung test name will find it. Also: this window's `native-gate.sh` runs
+conventions **sequentially**, so this is a single-process hang and the
+two-convention concurrency at HEAD is NOT required to produce it.
+
+**The duration spread is explained and is NOT evidence against determinism.**
+Probes 1–2 ran 58–59 min because the VM died and GitHub reaped it; probe 3 ran
+75 min because the VM SURVIVED and the job ceiling fired — which is exactly why
+probe 3 left a log (runner alive → post steps ran → HTTP 200). Same hang,
+different killer.
+
+⚠️ **The oracle mis-scored probe 3 as GOOD and would have sent the bisect to
+the wrong commit.** `gh` reported `gate step: completed/cancelled`, and a
+`status != "completed"` test scored a 64-minute hang as a pass — the same class
+as the earlier `conclusion:""` trap, an unfinished step wearing a finished
+step's field. Fixed at `c336cc1a`: the test now allow-lists the **conclusion**
+(`success`/`failure` GOOD; `cancelled`/`timed_out` BAD; anything unrecognised
+is INVALID and scored by hand rather than guessed), re-validated across all six
+runs on record. **Two oracle bugs of the same shape in one investigation — a
+harness that reads a status field must enumerate what it accepts, never test
+for inequality.**
+
+**Bisect state:** window `7bca59d6` GOOD .. `d1e997b9` BAD. Real candidates are
+just three — `8207e519` (37 files, shader), `94211bb6` (6, shader), `c325fdad`
+(4, no shader). `bbb3c2f7` and `d1e997b9` touch no code and cannot be
+first-bad. Probes 1–3 all BAD; probe 4 (`94211bb6`) running. **A GOOD reading
+at the boundary is the dangerous one** — a BAD is corroborated by duration and
+the 404/ceiling, a GOOD is corroborated by nothing but completing — so the
+confirmation re-run is owed hardest there.
+
+## CI RED — earlier rounds: the mac gate HANGS; observability landed
 
 **`main` has had no successful CI run since `7bca59d6` (2026-08-01 05:38).**
 Only `mac (build + test)` fails; `linux`, `web` and `mac live-probe` pass on
