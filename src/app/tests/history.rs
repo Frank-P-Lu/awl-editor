@@ -234,20 +234,21 @@ fn diff_preview_read_only_law_typing_edits_the_query_never_the_buffer() {
         version_before,
         "no version bump"
     );
-    // Esc from panel focus returns to the LIST; a second Esc closes — two
-    // Escs total from panel to home, and the buffer text is back untouched.
-    app.apply_transition_for_test(&Action::InsertTab); // focus the panel
+    // TAB returns to the LIST; ONE Esc closes from either region (user decision
+    // 2026-08-02) — and the buffer text is back untouched either way.
+    app.apply_transition_for_test(&Action::InsertTab); // focus the comparison
+    assert!(app.workspace_state.overlay().unwrap().detail_focus);
+    app.apply_transition_for_test(&Action::InsertTab);
+    assert!(
+        !app.workspace_state.overlay().unwrap().detail_focus,
+        "Tab is the Back: it returns to the timeline without closing"
+    );
+    app.apply_transition_for_test(&Action::InsertTab); // back into the comparison
     assert!(app.workspace_state.overlay().unwrap().detail_focus);
     app.apply_transition_for_test(&Action::Cancel);
     assert!(
-        app.workspace_state.overlay_open(),
-        "first Esc: back to LIST focus, not home"
-    );
-    assert!(!app.workspace_state.overlay().unwrap().detail_focus);
-    app.apply_transition_for_test(&Action::Cancel);
-    assert!(
         !app.workspace_state.overlay_open(),
-        "second Esc closes the picker"
+        "one Esc from the comparison closes outright — no second press"
     );
     assert_eq!(
         app.document.buffer().version(),

@@ -623,16 +623,11 @@ fn leaving_the_workspace_returns_the_editor_untouched() {
     let row = crate::settings::row_of(SettingId::PageMode);
     stand_on(&mut app, &row);
     app.press_spec_headless("Enter").expect("Enter parses");
-    // Back to the rail, then out — the workspace's two Escs, both from the table.
-    app.press_spec_headless("Escape").expect("Escape parses");
-    assert!(
-        app.workspace_state.overlay_open(),
-        "the first Escape off the content pane is a BACK to the rail"
-    );
+    // ONE Escape, from the content pane, and the workspace is gone (2026-08-02).
     app.press_spec_headless("Escape").expect("Escape parses");
     assert!(
         !app.workspace_state.overlay_open(),
-        "the second Escape leaves for the editor"
+        "one Escape off the content pane leaves the workspace outright"
     );
 
     assert_eq!(

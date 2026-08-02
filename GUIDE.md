@@ -283,8 +283,9 @@ no reliable cross-desktop signal yet.
 overlay.** It takes the viewport: a category rail — All, Editor,
 Appearance, Writing, Files, Keybindings, Advanced — beside the rows it
 governs. Up/Down moves the category, Enter transfers focus into the
-settings, Esc there is a *back* to the rail, and Esc on the rail returns
-to the editor exactly where you left it. Every change applies live; a
+settings, Tab moves focus between the rail and the settings either way,
+and Esc leaves for the editor from wherever you are — exactly where you
+left it. Every change applies live; a
 sticky one is written to the config in the same step.
 
 **The settings are a plain text file, and you can edit it directly.**

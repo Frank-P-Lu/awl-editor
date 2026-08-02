@@ -462,3 +462,68 @@ fn a_contextual_overlay_never_enters_the_workspace_family() {
         (cw * ch) / (w as f32 * h as f32) * 100.0
     );
 }
+
+/// THE WORKSPACE'S FOOTER FITS ITS OWN CARD — every world, every stage, the
+/// narrow canvases included.
+///
+/// The general footer no-clip law (`chrome_panels`'s
+/// `jump_hint_is_present_and_never_clips_for_every_kind`) measures the FLAT
+/// card at one canvas over three worlds. That is the tightest budget for a
+/// contextual picker and says nothing about a workspace, whose card comes from
+/// the CANVAS and whose two stages advertise two different lines — so a
+/// narrow canvas on a world with a wide chrome face is a budget nothing was
+/// watching. A vision-smoke pass over this round's own captures found exactly
+/// that: a footer cell added to the rows line ran off the card on Firetail at
+/// 900x520 while the whole suite stayed green. This is the law that was missing.
+///
+/// Both STAGES are graded, because they carry different sentences (the rail's
+/// `rail_hint_actions`, the rows pane's `hint_actions`), and the measurement is
+/// the shaped run through the ONE footer-measure owner, never the hint STRING.
+#[test]
+fn the_workspace_footer_fits_its_card_on_every_world_at_every_stage() {
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping the_workspace_footer_fits_its_card: no wgpu adapter");
+        return;
+    };
+    let _g = crate::testlock::serial();
+    let mut graded = 0usize;
+    for world in crate::theme::THEMES {
+        crate::theme::set_active_by_name(world.name).expect("a roster world");
+        p.sync_theme();
+        for (cw, ch) in [(1200u32, 800u32), (900, 520), (760, 620), (1600, 1000)] {
+            for detail in [false, true] {
+                p.set_size(cw as f32, ch as f32);
+                // The card is built through the real lifecycle, so each stage's
+                // own sentence comes from `foot_hint` rather than a literal.
+                let mut v = workspace_view(&workspace_card(0, detail));
+                // The config-default render zoom, which is what `--screenshot`
+                // captures at and therefore what a user sees.
+                v.zoom = 0.8;
+                p.set_view(&v);
+                p.prepare(&device, &queue, cw, ch).unwrap();
+                let (footer_px, text_w) = p.overlay_footer_fit_probe(cw);
+                let stage = if detail { "rows" } else { "rail" };
+                assert!(
+                    footer_px > 1.0,
+                    "{}/{cw}x{ch}/{stage}: precondition — the footer must shape real glyphs",
+                    world.name
+                );
+                assert!(
+                    footer_px <= text_w,
+                    "{}/{cw}x{ch}/{stage}: the workspace footer shapes {footer_px:.1}px but \
+                     its own region is {text_w:.1}px wide — the line is clipped, and the \
+                     footer is awl's only statement of what a key does",
+                    world.name
+                );
+                graded += 1;
+            }
+        }
+    }
+    p.set_size(1200.0, 800.0);
+    assert_eq!(
+        graded,
+        crate::theme::THEMES.len() * 8,
+        "every world x canvas x stage cell must be graded"
+    );
+    crate::theme::set_active(crate::theme::DEFAULT_THEME);
+}

@@ -31,6 +31,7 @@ mod caret_visual_body;
 mod chrome_overlay;
 mod chrome_panels;
 mod cjk;
+mod comparison_composite_item116d;
 /// ITEM 116b — the RELOCATED DOCUMENT VIEWPORT: the one owner all four
 /// document-geometry owners read, the private page-column bypass, the total
 /// relocation, and the margin-orientation surfaces that yield to it.

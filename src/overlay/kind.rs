@@ -173,14 +173,14 @@ impl OverlayKind {
                 key("\u{21E7}\u{21B5}", "restore"),
                 key(ARROWS_LR, "lens"),
             ],
-            // Settings uses Esc for the rail and arrows for categories.
-            OverlayKind::Settings => {
-                vec![
-                    enter("edit"),
-                    key(ARROWS_LR, "category"),
-                    key("esc", "back"),
-                ]
-            }
+            // The rows pane. `esc` no longer goes back — it leaves — so this names
+            // the key that does; `esc close` stays on the rail's line, because a
+            // fifth cell overruns the card on a narrow Bars world.
+            OverlayKind::Settings => vec![
+                enter("edit"),
+                key(ARROWS_LR, "category"),
+                key(super::workspace::TAB_GLYPH, "back"),
+            ],
             OverlayKind::Assets => vec![enter("trash"), key("esc", "close")],
             OverlayKind::Rename => vec![enter("rename"), key("esc", "cancel")],
             OverlayKind::InsertLink => vec![enter("insert link"), key("esc", "cancel")],

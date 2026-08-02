@@ -430,12 +430,12 @@ impl TextPipeline {
             Some((t, b)) => (t as i32, b as i32),
             None => (0, height as i32),
         };
-        let bounds = TextBounds {
+        let bounds = self.clip_text_bounds(TextBounds {
             left: 0,
             top: clip_top,
             right: width as i32,
             bottom: clip_bottom,
-        };
+        });
         let doc_top = self.doc_top();
 
         let default_color = theme::base_content().to_glyphon();
@@ -874,12 +874,12 @@ impl TextPipeline {
             Some((top, bottom)) => (top as i32, bottom as i32),
             None => (0, height as i32),
         };
-        let bounds = TextBounds {
+        let bounds = self.clip_text_bounds(TextBounds {
             left: 0,
             top,
             right: width as i32,
             bottom,
-        };
+        });
         let areas = frame.text_areas(self, bounds);
         self.ornament_renderer
             .prepare(
@@ -1125,12 +1125,12 @@ impl TextPipeline {
                 buffers.push((alt_buf, box_left, start_y + line_h, faint));
             }
         }
-        let bounds = TextBounds {
+        let bounds = self.clip_text_bounds(TextBounds {
             left: 0,
             top: 0,
             right: width as i32,
             bottom: height as i32,
-        };
+        });
         let areas: Vec<TextArea> = buffers
             .iter()
             .map(|(buf, left, top, color)| TextArea {

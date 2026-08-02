@@ -20,6 +20,12 @@
 //!    84's diff-panel dressing law, re-aimed at the composition that replaced
 //!    it).
 //!
+//! COMPOSITION — whether any of it reaches the screen — is item 116d's, in
+//! `render/tests/comparison_composite_item116d.rs`. This file's own boundary
+//! law (`the_relocated_document_is_geometrically_placed_but_not_yet_composited`)
+//! asked to be deleted and replaced by a containment-and-visibility law the day
+//! the workspace drew comparison content; that day is 116d, and it was.
+//!
 //! **NOTHING REACHES THIS TODAY.** `OverlayKind::workspace_shape` is
 //! `Some(RailOverRows)` for Settings alone and `None` for History until item
 //! 116d, and `RailOverRows::rows_are_primary()` is `false` — so
@@ -519,125 +525,6 @@ fn every_margin_orientation_surface_yields_to_a_relocated_document() {
         frost_worlds >= 2,
         "the frost arm must actually see the lava worlds' seeds on the control frame, got \
          {frost_worlds}"
-    );
-    crate::theme::set_active(crate::theme::DEFAULT_THEME);
-}
-
-/// The relocated document currently draws beneath the workspace surface, so no
-/// pixel of it reaches the screen.
-///
-/// Geometry and painter's order have independent owners.
-/// `TextPipeline::render` draws `draw_document_layers` first and
-/// `draw_overlay_card` over it (there is no depth buffer — submission order IS
-/// painter's order), and a workspace's card fill is its whole box by design
-/// ("A WORKSPACE IS ONE SURFACE", `overlay_pane_fills`). On a blur-eligible
-/// world the document is additionally captured offscreen and frosted before the
-/// card composites over it. So a comparison region carved out of that card is a
-/// composition decision with its own arms — does the comparison sit ON the
-/// workspace's surface (the document content must then draw after the card,
-/// without re-drawing its own ground) or is it a window through it (the ground
-/// punch is at the page column, not the region, so a hole would show the
-/// backdrop's ground, which is wrong).
-///
-/// This law asserts BOTH halves of today's honest state, so the day one changes
-/// without the other it fails BY NAME:
-///
-/// * the relocation genuinely happened — the document's own emitted geometry
-///   (text origin, wrap, caret, selection) is inside the region;
-/// * and the workspace's own surface is still drawn straight over it —
-///   `overlay_pane_fills` returns the workspace's whole card box, and
-///   `TextPipeline::render` submits `draw_document_layers` before
-///   `draw_overlay_card`. What a reader sees through that surface is
-///   world-dependent, and every variant is the same missing decision: an opaque
-///   card hides the region outright (Tawny), a translucent one shows a muddled
-///   ghost (Mangrove), and on a blur-eligible world `backdrop_blur()` frosts
-///   the whole document layer into the frame AROUND the workspace, so the
-///   transcript's ghost appears exactly where the region is not.
-///
-/// A workspace that draws comparison content must replace this with a
-/// containment and visibility law (`capture/tests/panels.rs`'s
-/// `history_preview_renders_the_transcript_as_the_document_in_every_world`
-/// carries the capture-tier half in the meantime).
-#[test]
-fn the_relocated_document_is_geometrically_placed_but_not_yet_composited() {
-    let _g = crate::testlock::serial();
-    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping the_relocated_document_is_geometrically_placed: no wgpu adapter");
-        return;
-    };
-    let text: String = (0..60)
-        .map(|i| format!("A line of the compared manuscript, number {i}.\n"))
-        .collect();
-
-    let mut graded = 0usize;
-    for world in crate::theme::THEMES {
-        crate::theme::set_active_by_name(world.name).expect("a roster world");
-        p.sync_theme();
-        let w = world.name;
-
-        let mut with_doc = comparison_view(&text, 8, 3);
-        with_doc.selection = Some(((8, 0), (10, 6)));
-        // HALF ONE — the relocation is real, read off the frame that has a
-        // document. Every piece of the document layer's own geometry is inside
-        // the comparison region.
-        p.set_view(&with_doc);
-        p.prepare(&device, &queue, 1200, 800).unwrap();
-        let [vx, vy, vw, vh] = p
-            .comparison_viewport()
-            .unwrap_or_else(|| panic!("{w}: the document must be relocated"));
-        assert!(
-            p.text_left() >= vx && p.text_left() + p.text_wrap_width() <= vx + vw + 0.01,
-            "{w}: the document's own text column ({}..{}) must sit inside the comparison \
-             region ({vx}..{})",
-            p.text_left(),
-            p.text_left() + p.text_wrap_width(),
-            vx + vw
-        );
-        let quads: Vec<[f32; 4]> = p.selection_rects();
-        assert!(
-            !quads.is_empty(),
-            "{w}: precondition — the fixture's selection must emit quads"
-        );
-        for r in quads {
-            assert!(
-                r[0] >= vx - 0.01
-                    && r[0] + r[2] <= vx + vw + 0.01
-                    && r[1] >= vy - 0.01
-                    && r[1] + r[3] <= vy + vh + 0.01,
-                "{w}: a document quad {r:?} escaped the comparison region \
-                 {:?}",
-                [vx, vy, vw, vh]
-            );
-        }
-
-        // HALF TWO — and the workspace's own surface is still drawn OVER it.
-        // Structural rather than per-pixel on purpose: what a reader actually
-        // sees through the card is world-dependent (an opaque card hides the
-        // region outright — Tawny; a translucent one shows a muddled ghost —
-        // Mangrove; and on a blur-eligible world `backdrop_blur` additionally
-        // frosts the whole document layer into the backdrop frame AROUND the
-        // workspace, so the transcript's ghost appears exactly where the region
-        // is not). Every one of those is the same one missing decision, and
-        // this is the fact that decides them all.
-        let geom = p.workspace_geometry(1200);
-        let plan = p.overlay_row_plan(&geom);
-        let fills = p.overlay_pane_fills(&geom, &plan);
-        assert!(
-            fills.iter().any(|&[fx, fy, fw, fh]| fx <= vx
-                && fy <= vy
-                && fx + fw >= vx + vw
-                && fy + fh >= vy + vh),
-            "{w}: no workspace surface covers the comparison region any more (fills \
-             {fills:?}, region {:?}) — replace this backdrop law with a containment and \
-             visibility law when the workspace draws comparison content.",
-            [vx, vy, vw, vh]
-        );
-        graded += 1;
-    }
-    assert_eq!(
-        graded,
-        crate::theme::THEMES.len(),
-        "every world must be graded"
     );
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 }

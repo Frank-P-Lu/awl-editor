@@ -829,23 +829,23 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 531
+line = 532
 message = "this function has too many lines (111/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line/size moved by queue item 114's summoned Settings workspace. Item 116c: +1 line — the `AcceptAlternate` arm alongside `Newline` in the not-a-delete list."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line/size moved by queue item 114's summoned Settings workspace. Item 116c: +1 line — the `AcceptAlternate` arm alongside `Newline` in the not-a-delete list. Item 116d: line shifted +1 by one `mod` declaration added above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 737
+line = 738
 message = "this function has too many lines (112/100)"
-reason = "The no-wildcard Action roster match is the compile-time coverage owner. KeepTutorial adds one unavoidable exhaustive arm; the duplicate 222-line list owner was split into two sub-100-line rosters."
+reason = "The no-wildcard Action roster match is the compile-time coverage owner. KeepTutorial adds one unavoidable exhaustive arm; the duplicate 222-line list owner was split into two sub-100-line rosters. Item 116d: line shifted +1 by one `mod` declaration added above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 1009
+line = 1010
 message = "this function has too many lines (111/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 114's summoned Settings workspace. Item 116c: +1 line — the `AcceptAlternate` arm (`NotCatalog`, alongside `Newline`)."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 114's summoned Settings workspace. Item 116c: +1 line — the `AcceptAlternate` arm (`NotCatalog`, alongside `Newline`). Item 116d: line shifted +1 by one `mod` declaration added above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

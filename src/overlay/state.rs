@@ -488,7 +488,7 @@ impl OverlayState {
                     label: "restore",
                 },
                 super::HintAction {
-                    glyph: "tab",
+                    glyph: super::workspace::TAB_GLYPH,
                     label: "back",
                 },
             ]);
