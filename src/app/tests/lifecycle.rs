@@ -121,7 +121,7 @@ fn skipped_surface_frame_never_drives_the_animation_poll_loop() {
     assert!(keep_gpu_loop_hot(true, false, true));
 }
 
-/// ITEM 211 — THE PREPARE-ORDERING CELL. `stepped` is read BEFORE `Gpu::redraw`
+/// THE PREPARE-ORDERING CELL. `stepped` is read BEFORE `Gpu::redraw`
 /// and `band_ease_started` reports what `prepare` did INSIDE it, so
 /// `(stepped=false, band_ease_started=true, presented=true)` is a real, routinely
 /// reached frame: the one where a settled selection band is retargeted by a

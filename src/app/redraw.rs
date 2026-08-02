@@ -9,7 +9,7 @@ use super::*;
 impl App {
     pub(in crate::app) fn request_frame(&self) {
         if let Some(gpu) = self.frame.gpu() {
-            // FLIGHT RECORDER / PROBE (item 211): the REDRAW-REQUEST link of the
+            // FLIGHT RECORDER / PROBE: the REDRAW-REQUEST link of the
             // event→present chain. A navigation input that changes `selected` but
             // never reaches here has lost its frame at the scheduling seam, not at
             // the GPU — the two are indistinguishable from the outside.

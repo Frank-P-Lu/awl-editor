@@ -18,7 +18,7 @@
 //! `request_frame` (gated on a live window), `prepare_highlight` (emitted from
 //! `prepare`, which only a real `Gpu::redraw` runs) and `present` — cannot
 //! appear here and are NOT asserted here. They are covered at their own owners:
-//! `render::tests::hybrid_band_snap::a_move_onto_a_settled_band_reports_the_ease_advance_could_not_see`
+//! `hybrid_band_snap::a_move_onto_a_settled_band_reports_the_ease_advance_could_not_see`
 //! (the prepared highlight endpoint + the ease the pre-prepare `advance` cannot
 //! see) and
 //! `app::tests::lifecycle::a_band_ease_started_inside_prepare_keeps_the_loop_hot_by_itself`
@@ -134,7 +134,9 @@ fn every_navigation_tap_resolves_once_and_advances_exactly_one_reachable_row() {
     let lines = traced(&format!("{} {downs}", palette_chord()));
 
     assert!(
-        lines.iter().any(|l| l.starts_with("resolve -> OpenCommandPalette")),
+        lines
+            .iter()
+            .any(|l| l.starts_with("resolve -> OpenCommandPalette")),
         "the palette chord reached the keymap; trace was:\n{}",
         lines.join("\n")
     );
@@ -143,7 +145,8 @@ fn every_navigation_tap_resolves_once_and_advances_exactly_one_reachable_row() {
         .filter(|l| l.starts_with("resolve -> NextLine"))
         .count();
     assert_eq!(
-        resolves, TAPS,
+        resolves,
+        TAPS,
         "exactly one keymap resolve per tap — no dropped and no repeated input; trace:\n{}",
         lines.join("\n")
     );
@@ -175,7 +178,10 @@ fn every_navigation_tap_resolves_once_and_advances_exactly_one_reachable_row() {
 #[test]
 fn rapid_alternating_up_down_moves_exactly_one_row_per_input_and_never_drifts() {
     let _g = crate::testlock::serial();
-    let lines = traced(&format!("{} Down Down Down Up Down Up Down Up", palette_chord()));
+    let lines = traced(&format!(
+        "{} Down Down Down Up Down Up Down Up",
+        palette_chord()
+    ));
 
     let mut at: Option<usize> = None;
     let mut inputs = 0usize;
@@ -243,7 +249,11 @@ fn the_chain_is_written_only_while_the_recorder_is_armed() {
     drop(_fs);
 
     let lines = traced(&format!("{} Down", palette_chord()));
-    for needle in ["resolve -> OpenCommandPalette", "resolve -> NextLine", "apply NextLine sel "] {
+    for needle in [
+        "resolve -> OpenCommandPalette",
+        "resolve -> NextLine",
+        "apply NextLine sel ",
+    ] {
         assert!(
             lines.iter().any(|l| l.starts_with(needle)),
             "the armed recorder writes {needle:?}; trace:\n{}",

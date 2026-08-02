@@ -28,7 +28,7 @@ impl App {
         self.document.recompute_spell_cache();
     }
 
-    /// FLIGHT RECORDER / PROBE (item 211) — the open picker's LOGICAL selection
+    /// FLIGHT RECORDER / PROBE — the open picker's LOGICAL selection
     /// as `(kind, selected, reachable_items, scroll)`, or `None` with no card up.
     /// `reachable_items` is `items.len()` (the refiltered, selectable rows), so a
     /// trace line distinguishes "the selection did not move" from "there was
@@ -288,7 +288,7 @@ impl App {
         let action = self.prepare_tutorial_action(action);
         self.pre_apply(&action, door);
 
-        // FLIGHT RECORDER / PROBE (item 211): the STATE link of the event→present
+        // FLIGHT RECORDER / PROBE: the STATE link of the event→present
         // chain, sampled either side of the shared core so one trace line answers
         // "did this input advance the selection, advance it twice, or not at all".
         #[cfg(not(target_arch = "wasm32"))]

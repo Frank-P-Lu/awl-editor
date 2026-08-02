@@ -16,7 +16,7 @@ impl TextPipeline {
     ///   STRUCTURALLY (the determinism law's "live-only animation renders its
     ///   settled state in capture", enforced by construction rather than by a
     ///   per-frame check). What arming enables is NOT uniform across the three,
-    ///   and item 211 was missed for wanting it to be: the entrance spring and
+    ///   and a reader who wants it to be will misjudge the band: the entrance spring and
     ///   the `BandResponse::Slide` band additionally require a non-CALM
     ///   effective [`theme::MotionJuice`] (no world ships one — the
     ///   `AWL_MOTION_FORCE` probe is the only door), but the Pane LIVING BAND
@@ -161,7 +161,7 @@ impl TextPipeline {
         }
     }
 
-    /// ITEM 211 — THE PREPARE-ORDERING BRIDGE. Did THIS `prepare` pass re-zero
+    /// THE PREPARE-ORDERING BRIDGE. Did THIS `prepare` pass re-zero
     /// the band's ease (a glide start or a snap re-zero)? Taken exactly once, by
     /// the live redraw loop, immediately after `Gpu::redraw` returns.
     ///

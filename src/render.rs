@@ -2201,7 +2201,7 @@ pub struct TextPipeline {
     overlay_band_from: f32,
     overlay_band_t: f32,
     overlay_band_last: Option<f32>,
-    /// ITEM 211 — set by [`TextPipeline::chase_or_snap`] whenever a `prepare`
+    /// Set by [`TextPipeline::chase_or_snap`] whenever a `prepare`
     /// pass RE-ZEROES the band's ease, and taken by the live redraw loop right
     /// after `prepare` returns. The band is the one animator whose target is set
     /// during `prepare` rather than at the apply seam, and `prepare` runs INSIDE

@@ -277,7 +277,7 @@ impl App {
         exit: &dyn schedule::Exit,
         event: winit::event::KeyEvent,
     ) {
-        // FLIGHT RECORDER / PROBE (item 211): the WINIT-RECEIPT link of the
+        // FLIGHT RECORDER / PROBE: the WINIT-RECEIPT link of the
         // event→present chain — logged BEFORE every guard below, so a press the
         // preedit / lone-modifier / release filters swallow is visibly received
         // and visibly dropped, rather than simply absent from the trace.
@@ -491,7 +491,7 @@ impl App {
             .state()
             .contains(ModifiersState::SHIFT)
             && motion_honors_shift_select(&action, &logical);
-        // FLIGHT RECORDER / PROBE (item 211): the KEYMAP-RESOLVE link — what the
+        // FLIGHT RECORDER / PROBE: the KEYMAP-RESOLVE link — what the
         // press actually became. A chord that resolved to something other than the
         // navigation action is a DROPPED input; the same action twice for one
         // physical press is a REPEATED one.

@@ -322,11 +322,11 @@ fn rapid_snap_holds_under_left_center_right_anchors() {
     crate::motion::set_reduced(saved);
 }
 
-// --- ITEM 211: the frames the glide needs must actually be SCHEDULED ---------
+// --- The frames the glide needs must actually be SCHEDULED -----------------
 //
-// Item 48 (above) fixed the band's chase ARITHMETIC. Every law in this file
+// The laws above fix the band's chase ARITHMETIC. Every one of them
 // hand-drives the clock — `p.advance(dt)` between re-targets — which is exactly
-// why they all stayed green over item 211: the live loop only calls `advance`
+// why they all stayed green over the every-other-input defect: the live loop only calls `advance`
 // when a frame is scheduled, and on the frame that STARTS an ease nothing
 // scheduled one. The band's target is set inside `prepare`, and
 // `App::on_redraw_requested` reads `TextPipeline::advance` BEFORE `Gpu::redraw`
@@ -344,7 +344,11 @@ fn rapid_snap_holds_under_left_center_right_anchors() {
 /// The exact ordering the live loop uses: `advance` first (what
 /// `on_redraw_requested` reads into `stepped`), then the retarget that `prepare`
 /// performs, then the take. Returns `(stepped, band_ease_started)`.
-fn one_live_frame(p: &mut TextPipeline, dt: f32, retarget: impl FnOnce(&mut TextPipeline)) -> (bool, bool) {
+fn one_live_frame(
+    p: &mut TextPipeline,
+    dt: f32,
+    retarget: impl FnOnce(&mut TextPipeline),
+) -> (bool, bool) {
     let stepped = p.advance(dt);
     retarget(p);
     (stepped, p.take_band_ease_started())
@@ -402,7 +406,10 @@ fn a_move_onto_a_settled_band_reports_the_ease_advance_could_not_see() {
     let (_, started) = one_live_frame(&mut p, dt, |p| {
         let _ = pane_band_top(p, row(4), lh);
     });
-    assert!(started, "Pane: an in-flight SNAP re-zeroes the ease and owes a frame");
+    assert!(
+        started,
+        "Pane: an in-flight SNAP re-zeroes the ease and owes a frame"
+    );
 
     // --- Bars (ordinary slide) ----------------------------------------------
     set_motion_test_override(Some(theme::MotionJuice {
@@ -429,7 +436,10 @@ fn a_move_onto_a_settled_band_reports_the_ease_advance_could_not_see() {
     let (stepped, started) = one_live_frame(&mut q, dt, |q| {
         let _ = q.overlay_band_drawn(row(1));
     });
-    assert!(!stepped, "NON-VACUITY (Bars): the pre-prepare advance reports settled");
+    assert!(
+        !stepped,
+        "NON-VACUITY (Bars): the pre-prepare advance reports settled"
+    );
     assert!(
         started,
         "Bars: a move onto a settled slide must report the ease `advance` could not see"

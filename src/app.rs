@@ -294,7 +294,7 @@ fn gpu_skip_action(skip: gpu::GpuFrameSkip, timeout_streak: u8) -> GpuSkipAction
 /// INSIDE that same `Gpu::redraw` call — did afterwards: the selection band is
 /// the one animator whose target is set at draw time rather than at the apply
 /// seam, so the frame that starts its ease is invisible to `stepped` by
-/// construction (item 211; see
+/// construction (see
 /// [`crate::render::TextPipeline::take_band_ease_started`] for the full
 /// mechanism and the user-visible symptom). Dropping the second term parks the
 /// loop on the very frame an ease began, which is the every-other-input defect.

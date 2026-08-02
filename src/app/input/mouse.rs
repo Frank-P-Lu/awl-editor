@@ -257,7 +257,7 @@ impl App {
             }
             None => return,
         };
-        // FLIGHT RECORDER / PROBE (item 211): a hover that got PAST item 106's
+        // FLIGHT RECORDER / PROBE: a hover that got PAST the
         // movement-slop gate and re-highlighted a row. If a navigation input's
         // selection is being overwritten by a stationary pointer, this line lands
         // between the `apply` line and the `prepare_highlight` line that disagrees
@@ -265,7 +265,9 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         if crate::probe::recording() {
             let sel = self.overlay_selection_probe();
-            crate::probe::trace(format_args!("hover_took_selection at=({px:.1},{py:.1}) {sel:?}"));
+            crate::probe::trace(format_args!(
+                "hover_took_selection at=({px:.1},{py:.1}) {sel:?}"
+            ));
         }
         let prev = crate::theme::active();
         if let Some(ov) = self.workspace_state.overlay() {
