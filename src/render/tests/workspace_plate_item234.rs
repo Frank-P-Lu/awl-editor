@@ -178,10 +178,17 @@ fn a_workspace_rows_text_sits_inside_its_own_plate_on_every_world() {
 /// **THE REPORTED SYMPTOM, IN PIXELS.** Cassowary's Caret style row shows the
 /// widest value the Settings roster carries at its default (`Block`), and its
 /// plate is the one that cut the final `k`. Every ink column of that value must
-/// now lie inside the plate that backs it, on every world whose plates an
-/// absolute oracle can see.
+/// now lie inside the plate that backs it.
+///
+/// THE ROSTER IS THE WORLDS THAT DRAW PLATES, WHICH IS NOT THE BARE-PLATE
+/// ROSTER. `list_backing == BarePlates` has five members and two of them —
+/// Mangrove and Magpie — are `ListStyle::Diagonal`, which draws a spine and no
+/// plate at all; `overlay_bar_rects_probe` SYNTHESIZES bar rects for them at
+/// invented dials so other laws can reason about a row's span. Grading real ink
+/// against a rect that is never drawn measures nothing, and reports a clip on a
+/// world with no plate to clip against.
 #[test]
-fn the_widest_settings_value_draws_no_ink_outside_its_plate_on_any_bare_plate_world() {
+fn the_widest_settings_value_draws_no_ink_outside_its_plate_on_any_plated_world() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping workspace value-ink law: no wgpu adapter");
@@ -189,13 +196,10 @@ fn the_widest_settings_value_draws_no_ink_outside_its_plate_on_any_bare_plate_wo
     };
     let bare: Vec<&'static str> = theme::THEMES
         .iter()
-        .filter(|t| t.render_caps.list_style.list_backing(false) == theme::ListBacking::BarePlates)
+        .filter(|t| matches!(t.render_caps.list_style, theme::ListStyle::Bars { .. }))
         .map(|t| t.name)
         .collect();
-    assert_eq!(
-        bare,
-        ["Mangrove", "Galah", "Magpie", "Firetail", "Cassowary"]
-    );
+    assert_eq!(bare, ["Galah", "Firetail", "Cassowary"]);
 
     let luma = |c: [u8; 4]| 0.2126 * c[0] as f32 + 0.7152 * c[1] as f32 + 0.0722 * c[2] as f32;
     let mut graded: Vec<String> = Vec::new();
@@ -255,8 +259,9 @@ fn the_widest_settings_value_draws_no_ink_outside_its_plate_on_any_bare_plate_wo
         graded.push((*world).to_string());
     }
     theme::set_active(theme::DEFAULT_THEME);
-    assert!(
-        graded.len() >= 4,
-        "the value-ink law graded only {graded:?}"
+    assert_eq!(
+        graded.len(),
+        3,
+        "the value-ink law must grade every plate-drawing world: {graded:?}"
     );
 }
