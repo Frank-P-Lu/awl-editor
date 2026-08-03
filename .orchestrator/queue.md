@@ -557,6 +557,53 @@ ask git.**
   DRAWN text" pointed at the plate, and reading the plate ALONE is itself the
   trap. The oracle has to read the text's own position.
 
+🔴🔴 **CI RED 2026-08-04, CAUSED BY THIS SESSION'S OWN BRIEFS. Repaired at
+`f8121f45`, pushed. READ THIS BEFORE WRITING ANOTHER BRIEF.**
+
+Run `30830772892` failed **both** gating arms — `mac (build + test, minus
+render::tests)` and `linux` — at the step "Rust code health", on six clippy
+errors from items 218 and 229: three test-only helpers reported never-used
+(`stats`, `accessibility_stats` in `app/frame/accessibility.rs`,
+`incremental_tree_update` in `semantic/native.rs`), three
+`doc_lazy_continuation` in `card/figures/mod.rs`, and one `map_clone` in
+`semantic/native/tests.rs`.
+
+‼ **THE CAUSE IS THE WRONG GATE COMMAND, AND IT IS THE ORCHESTRATOR'S FAULT.
+CI runs `bash scripts/code-health.sh`. Every brief in this wave — and every
+check the orchestrator ran itself — used `python3 scripts/code-health.py`.**
+The `.py` is real but **NARROWER**: it carries the structural and Clippy
+ratchets and genuinely caught two defects today (a 104-column line, four
+queue-item citations in comments). The `.sh` additionally runs the clippy arms,
+**including the mac-only cfg arm**, which is where all six of these lived.
+**Two lanes reported "code-health clean" in good faith while running the wrong
+entry point, because the brief told them to.** An earlier note in this section
+says the briefs "omitted code-health" — that was only half the story, and the
+half that followed was worse, because naming the wrong command reads as
+coverage. **THE PRE-LANDING COMMAND IS `bash scripts/code-health.sh`. Say that,
+not the `.py`.**
+
+Repair: the three helpers are genuinely test-only (verified by grep — their only
+callers are `tests.rs` files), so they are `cfg(test)`-gated rather than
+silenced with `allow(dead_code)`. That stranded `ProjectionStats` as an unused
+import twice, so its re-export is split rather than deleted —
+`SemanticProjection` still has non-test consumers and `ProjectionStats` no
+longer does. Reproduced with the `.sh` before fixing and verified with it;
+`native-gate-receipt commit=f8121f4503d82dd62c726a62667bde0adfa35744 conventions=mac,linux scope=all-targets`,
+`web-smoke: OK`.
+
+✅ **WORTH SAYING PLAINLY: ITEM 243's SPLIT IS WHAT CAUGHT THIS, on its second
+real run.** Before the split these six errors would have landed inside a job
+that was already red for item 231's wedge, and nothing would have distinguished
+them from the known hang. That distinction is the entire rationale of the item,
+and it paid within hours.
+
+✅ **AND THE WEDGE REPAIR (`da70df93`) IS PROVEN AT THE JOB LEVEL:** in run
+`30830772892`, `mac (render::tests)` concluded **`failure`**, not `cancelled`,
+after 64m05s — the 2×1500 s budget plus build, as designed. `ci-wedge-budget.sh`
+converts the hang into an ordinary failure exactly as intended. **What is still
+owed is one run where the gating arms PASS and a wedge failure alone leaves the
+workflow green** — that is run `30836476858` on `f8121f45`, in flight.
+
 ⚠️ **A BRIEF DEFECT THIS WAVE PAID FOR — fix it in the next brief template.**
 Items 240 and 243 were each green alone and **red together**: 240's new file
 carried a 104-column line and was not `rustfmt`-clean, and combined `main`
