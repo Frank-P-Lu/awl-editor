@@ -162,9 +162,9 @@ impl TextPipeline {
             } => {
                 self.overlay_bar_selection(geom, plan, vis, radius, gap, grow_px, extent, coverage)
             }
-            // Diagonal selection is the bright local spine segment and connector
-            // prepared by its measured composition owner. It deliberately has no
-            // row-fill fallback: the planned outward span remains the pointer and
+            // Diagonal selection is the bright CHEVRON prepared by its measured
+            // composition owner (`diagonal::selected_chevron`). It deliberately has
+            // no row-fill fallback: the planned outward span remains the pointer and
             // text truth while the line, rather than a poster bar, carries focus.
             theme::ListStyle::Diagonal(_) => OverlaySelectionRects::default(),
         }

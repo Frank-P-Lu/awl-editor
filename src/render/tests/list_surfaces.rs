@@ -876,7 +876,8 @@ fn spell_popup_floats_bare_on_bars_keeps_the_card_on_pane() {
                 assert_eq!(
                     p.overlay_spine_selected.instance_count(),
                     2,
-                    "{}: diagonal popup selects with local spine plus connector",
+                    "{}: diagonal popup selects with the mark's two chevron arms \
+                     (item 247; SHAPE is graded by diagonal_composition's own law)",
                     t.name
                 );
             }

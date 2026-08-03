@@ -215,7 +215,8 @@ fn every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_wor
                         assert_eq!(
                             p.overlay_spine_selected.instance_count(),
                             2,
-                            "{ctx}: selected row must draw one bright local spine and one connector"
+                            "{ctx}: selected row must draw the mark's two chevron arms \
+                             (item 247; SHAPE is graded by diagonal_composition's own law)"
                         );
                         assert_eq!(
                             p.overlay_rows.instance_count(),

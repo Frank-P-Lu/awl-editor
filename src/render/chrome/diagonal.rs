@@ -231,6 +231,34 @@ fn spine_travel(composition: DiagonalComposition, geom: &OverlayGeom, rows: usiz
     (composition.row_step.abs() * steps).min(room * TRAVEL_MAX_BAND_FRACTION)
 }
 
+/// THE SELECTED ROW'S MARK — a CHEVRON, and the one owner of its geometry.
+///
+/// Its vertex sits on the spine at `spine_x`, midway between the two arm ends,
+/// and its arms open to `arm_x` at `top` and `bottom`. Deriving the vertex FROM
+/// the arm ends (rather than taking a row centre as a third argument) makes the
+/// mirror structural: the two arms cannot drift out of symmetry, because there
+/// is no second quantity that could disagree.
+///
+/// Pure — no device, no clock, no theme — so a law can grade the shape this
+/// frame would actually draw. The property that identifies the mark is that
+/// NEITHER arm is axis-aligned for any row of nonzero height and nonzero reach;
+/// the tick-plus-connector pair this replaced drew one vertical segment and one
+/// horizontal one, and both spanned the same bounding box, so a law that counts
+/// instances or measures extent cannot tell the two shapes apart.
+pub(in crate::render) fn selected_chevron(
+    spine_x: f32,
+    arm_x: f32,
+    top: f32,
+    bottom: f32,
+    thickness: f32,
+) -> [([f32; 2], [f32; 2], [f32; 2]); 2] {
+    let vertex = [spine_x, (top + bottom) * 0.5];
+    [
+        crate::selection::spine_segment(vertex, [arm_x, top], thickness),
+        crate::selection::spine_segment(vertex, [arm_x, bottom], thickness),
+    ]
+}
+
 impl DiagonalComposition {
     /// Resolve every authored quantity at the single logical→device boundary.
     pub fn resolve(direction: theme::DiagonalDirection, dpi: f32) -> Self {
@@ -407,13 +435,10 @@ impl TextPipeline {
             .iter()
             .filter(|row| vis.reads_selected(row.display))
             .flat_map(|row| {
-                let spine_x = cluster.spine_x(row.display);
-                let mid_y = row.top + row.height * 0.5;
-                // THE MARK IS A CHEVRON: its vertex sits ON the spine and its two
-                // arms open toward the cluster. It inscribes exactly the bounding
-                // box the previous tick-plus-connector pair spanned — the same
-                // outward reach, the same row inset at both ends — so every term
-                // that reserves territory for this mark (`diagonal_side_reserve_px`,
+                // The chevron inscribes exactly the bounding box the previous
+                // tick-plus-connector pair spanned — the same outward reach, the
+                // same row inset at both ends — so every term that reserves
+                // territory for this mark (`diagonal_side_reserve_px`,
                 // `diagonal_cluster_budget`, `spine_travel`) still describes the
                 // drawn shape and needs no compensating adjustment.
                 //
@@ -426,19 +451,13 @@ impl TextPipeline {
                     theme::DiagonalDirection::Descending => cluster.label_left(row.display),
                     theme::DiagonalDirection::Ascending => cluster.accessory_right(row.display),
                 };
-                let vertex = [spine_x, mid_y];
-                [
-                    crate::selection::spine_segment(
-                        vertex,
-                        [arm_x, row.top + 2.0],
-                        composition.selected_spine_weight,
-                    ),
-                    crate::selection::spine_segment(
-                        vertex,
-                        [arm_x, row.bottom() - 2.0],
-                        composition.selected_spine_weight,
-                    ),
-                ]
+                selected_chevron(
+                    cluster.spine_x(row.display),
+                    arm_x,
+                    row.top + 2.0,
+                    row.bottom() - 2.0,
+                    composition.selected_spine_weight,
+                )
             })
             .collect::<Vec<_>>();
         self.overlay_spine_selected
