@@ -409,24 +409,33 @@ impl TextPipeline {
             .flat_map(|row| {
                 let spine_x = cluster.spine_x(row.display);
                 let mid_y = row.top + row.height * 0.5;
-                let local = crate::selection::spine_segment(
-                    [spine_x, row.top + 2.0],
-                    [spine_x, row.bottom() - 2.0],
-                    composition.selected_spine_weight,
-                );
-                let connector_end = match composition.direction {
-                    theme::DiagonalDirection::Descending => {
-                        [cluster.label_left(row.display), mid_y]
-                    }
-                    theme::DiagonalDirection::Ascending => {
-                        [cluster.accessory_right(row.display), mid_y]
-                    }
+                // THE MARK IS A CHEVRON: its vertex sits ON the spine and its two
+                // arms open toward the cluster. It inscribes exactly the bounding
+                // box the previous tick-plus-connector pair spanned — the same
+                // outward reach, the same row inset at both ends — so every term
+                // that reserves territory for this mark (`diagonal_side_reserve_px`,
+                // `diagonal_cluster_budget`, `spine_travel`) still describes the
+                // drawn shape and needs no compensating adjustment.
+                //
+                // The arm reach is READ FROM the cluster rather than re-derived, so
+                // it keeps the selected row's own outward shift; and because the
+                // cluster already mirrors on `direction`, the chevron mirrors with
+                // it — opening right on a Descending world, left on an Ascending
+                // one — without a second sign living here.
+                let arm_x = match composition.direction {
+                    theme::DiagonalDirection::Descending => cluster.label_left(row.display),
+                    theme::DiagonalDirection::Ascending => cluster.accessory_right(row.display),
                 };
+                let vertex = [spine_x, mid_y];
                 [
-                    local,
                     crate::selection::spine_segment(
-                        [spine_x, mid_y],
-                        connector_end,
+                        vertex,
+                        [arm_x, row.top + 2.0],
+                        composition.selected_spine_weight,
+                    ),
+                    crate::selection::spine_segment(
+                        vertex,
+                        [arm_x, row.bottom() - 2.0],
                         composition.selected_spine_weight,
                     ),
                 ]

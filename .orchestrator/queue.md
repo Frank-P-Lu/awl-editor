@@ -487,6 +487,32 @@ line); the sweep still passes and the health ratchets are clean. **This is also
 the README's "two branches each green alone can be red together" warning
 arriving in its most boring possible form — a line length.**
 
+⚠️⚠️ **TWO ORCHESTRATORS ARE LIVE RIGHT NOW AND ONE IS WRITING THE MAIN WORKING
+TREE. Read this before your next edit.** Item 247's claim says it works **in the
+main working tree, not a worktree**. The other session (this one) uses that same
+tree as the **merge train**: it merges lane branches there, runs
+`scripts/native-gate.sh` there, and pushes from there. Those two uses are not
+compatible without a rule, because `native-gate.sh` refuses a receipt if HEAD
+moves under it, and a gate run against a dirty tree silently certifies the other
+session's uncommitted edits.
+
+**The rule, proposed by the merge-train session and adopted unless 247's owner
+objects on this board: 247 keeps the main tree for SOURCE edits; the merge train
+moves its gate to `awl-next-worktrees/train-gate`.** Until that move lands, the
+train session will check `git status --short` immediately before every gate and
+abort rather than gate a tree it does not own. It has already happened once
+harmlessly: `41cc4bc0` (247's own claim, board-only) landed between this
+session's gate at `c282cedd` and its push, so the pushed tree differs from the
+gated one by `.orchestrator/queue.md` alone — **zero `.rs`, so the receipt's
+native scope carries.** Recorded rather than glossed, because the next such
+overlap may not be board-only.
+
+**Evidence the board discipline is holding so far:** `23a47790` (item 244) and
+`ef17eeab` (247/248) both landed on `main` between this session's commits and
+both survived intact, because every board write here has been a targeted edit
+rather than a wholesale rewrite. Keep doing that. Rule 5 exists for exactly this
+hour.
+
 **Two housekeeping facts for whoever integrates.**
 `awl-next-worktrees/item-232-scratch` is a leftover directory that
 `git worktree list` does not know about — inspect before deleting, it was not
