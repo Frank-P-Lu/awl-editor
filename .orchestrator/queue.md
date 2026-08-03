@@ -635,6 +635,28 @@ converts the hang into an ordinary failure exactly as intended. **What is still
 owed is one run where the gating arms PASS and a wedge failure alone leaves the
 workflow green** — that is run `30836476858` on `f8121f45`, in flight.
 
+✅ **THE CI RED IS REPAIRED, CONFIRMED ON THE AXIS THAT FOUND IT.** Run
+`30836476858` (`f8121f45`) came back with **`mac (build + test, minus
+render::tests)` = success and `linux` = success**, plus `web` and
+`mac live-probe` green. That run's own conclusion reads `cancelled`, but for a
+reason that is not a verdict on the code: **this session pushed into it**, and
+`ci.yml`'s concurrency group cancels in progress, so the wedge job was killed
+mid-budget rather than timing out. Item 243's clause 2 therefore rides run
+`30838810157` (`76903fc1`).
+
+⚠️ **A `pgrep -f` WAIT THAT MATCHES ITSELF — new trap, cost one lane an
+unbounded stall, worth a line in every future brief.** The item-239 lane armed
+`until ! pgrep -f 'native-gate.sh'; do sleep …; done`. **The watcher's own shell
+command line contains the string `native-gate.sh`, so `pgrep -f` matches the
+watcher, the condition is permanently true, and the loop can never exit.** Two
+processes matched `native-gate` on this host and both were that watcher; no gate
+and no cargo were running at all. Use the bracket trick the README already uses
+for `ps aux | grep "[c]argo"` — `pgrep -f '[n]ative-gate\.sh'` — or `pgrep -x
+cargo`, or just watch the log stop growing. **And the deeper point this proves
+concretely: a wait that never terminates is indistinguishable from a wait that
+terminates and is never noticed, because nothing wakes a worker but the
+orchestrator. Neither is a wake-up source.**
+
 ⚠️ **TWO ORCHESTRATOR MISTAKES ON 2026-08-04, BOTH ALREADY WRITTEN DOWN
 SOMEWHERE AND BOTH MADE ANYWAY. Recorded so the next session does better than
 re-read them.**
