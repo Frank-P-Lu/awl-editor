@@ -115,7 +115,8 @@ pub(crate) fn run() -> anyhow::Result<()> {
         let mono_ms = median(mono);
         let inc_ms = median(inc);
         println!(
-            "{lines:>7} | {mono_ms:>9.3} ms | {inc_ms:>9.3} ms | {:>9.0}x | {:>7} | {:>11} | {:>10}",
+            "{lines:>7} | {mono_ms:>9.3} ms | {inc_ms:>9.3} ms | \
+             {:>9.0}x | {:>7} | {:>11} | {:>10}",
             mono_ms / inc_ms.max(f64::MIN_POSITIVE),
             (stats.runs_rebuilt - base.runs_rebuilt) as f64 / KEYSTROKES as f64,
             (stats.bytes_read - base.bytes_read) / KEYSTROKES as u64,
