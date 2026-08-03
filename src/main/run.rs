@@ -1020,6 +1020,8 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
         Mode::BenchPerf => crate::render::perfbench::run(),
         Mode::BenchFrame => crate::render::framebench::run(),
         Mode::BenchThemeBurst => crate::render::framebench::run_theme_burst(),
+        #[cfg(not(target_arch = "wasm32"))]
+        Mode::BenchA11y => crate::app::semantic::bench::run(),
         Mode::BenchZoomBurst => crate::render::framebench::run_zoom_burst(),
         Mode::BenchFrost => crate::render::framebench::run_frost(),
         Mode::BenchCaret => crate::render::caretbench::run(),

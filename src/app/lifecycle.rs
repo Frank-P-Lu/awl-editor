@@ -157,6 +157,10 @@ impl ApplicationHandler<AwlEvent> for App {
         let window = Arc::new(event_loop.create_window(attrs).expect("create window"));
         #[cfg(not(target_arch = "wasm32"))]
         {
+            // Seeded BEFORE the adapter exists: the synchronous activation
+            // handler answers from this, on whatever thread the platform asks
+            // from, and it cannot build a tree itself.
+            self.seed_accessibility_tree();
             self.frame.install_accessibility(event_loop, &window);
             window.set_visible(true);
         }

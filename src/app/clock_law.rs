@@ -41,6 +41,11 @@ const ALLOWED: &[(&str, usize)] = &[
     // fictional GPU cost, and the determinism contract already makes these
     // capture-invisible (fixed placeholders headless).
     ("app/gpu.rs", 3),
+    // `--bench-a11y`'s two stopwatches around the accessibility projection.
+    // They measure real elapsed CPU work and print it; a virtual clock would
+    // report a fictional cost, which is the whole thing the bench exists to
+    // avoid. No scheduling and no animation reads them.
+    ("app/semantic/bench.rs", 2),
     // `set_dictionary`'s parse-cost measurement (`parsed in {:.2}ms`): times the
     // real dictionary reconstruction — wall-clock by necessity, a diagnostic,
     // not a scheduled deadline. Item 56: `set_dictionary` now lives in

@@ -77,7 +77,7 @@ that drift is invisible until it hurts someone.
 
 | surface | what it exposes |
 |---|---|
-| The document | One multiline editable text node, its full text, and the caret/selection as GRAPHEME offsets — a combining sequence, a ZWJ family emoji or a flag is one position, never half of one. Supports focus, set-selection, replace-selected-text and set-value. |
+| The document | One multiline editable text node whose children are STABLE LINE RUNS — one text run per line, carrying that line's text including its newline — and the caret/selection as GRAPHEME offsets over the whole document: a combining sequence, a ZWJ family emoji or a flag is one position, never half of one. A selection that crosses a line break names two different runs, which is the ordinary case and round-trips both ways. Supports focus, set-selection, replace-selected-text and set-value. |
 | Summoned pickers (all 19 kinds) | A dialog with its title and footer hint, its query field, and one option per visible row with its binding value and selected state. Row identity is keyed to the corpus, so filtering never renames a row under an assistive cursor. |
 | Settings rows | The control each row actually is — check box, slider, text field or button — not a generic list option, with the actions that control really supports. |
 | Find and replace | Both fields with their carets, the match-count description, and the case-sensitivity check box. |
@@ -103,8 +103,11 @@ main loop.
 
 ### The honest limits
 
-- **No real VoiceOver or AT-SPI journey has been run.** Those are a human
-  check on an unlocked display, and they have not happened. Everything above is
+- **One real VoiceOver sitting has been run; the follow-up has not.** The first
+  sitting (2026-08-02) is what found the "not responding" report above. Whether
+  the fix holds — a full typing and navigation journey with no stall — needs a
+  second sitting on an unlocked, foregrounded display, and that has not
+  happened. No AT-SPI journey has been run at all. Everything else is
   verified by unit and law tests over the snapshot and its AccessKit
   projection — that the tree is correct and complete, that JSON and AccessKit
   say the same thing, that actions really fire. Whether a screen reader
@@ -114,10 +117,23 @@ main loop.
   adapter, so this round is native-only by construction. A browser story needs
   a DOM mirror behind the canvas, which is a separate round with a separate
   design; it is not a port of this one.
-- **Announcement cost is gated, not free.** Building a snapshot walks the whole
-  document, so a frame pays for one only while an assistive technology is
-  actually attached, and identical snapshots emit no update — a gliding caret
-  does not re-announce the document.
+- **Announcement cost is gated, and incremental.** A frame with no assistive
+  technology attached builds nothing at all — the only work is one integer
+  compare. While one IS attached, the projection is retained between frames and
+  updated in place: an ordinary keystroke re-reads the one line it touched and
+  publishes two nodes (the changed run, and the document node whose selection
+  moved), measured identical at 100, 1 000 and 20 000 lines. A gliding caret
+  publishes nothing.
+
+  This was a real defect, not a tidy-up. The first VoiceOver sitting
+  (2026-08-02) found awl intermittently reported as **"not responding"** while
+  editing: every redraw was cloning the whole rope, running UAX #29 over the
+  entire document, projecting every node and republishing one monolithic
+  document text run. AccessKit expects a full tree only at ACTIVATION and
+  changed nodes afterwards, and awl's event-loop-proxy adapter — whose
+  activation cannot answer synchronously — forced the full-tree form on every
+  update. Item 218 replaced it with a synchronous mixed activation handler
+  backed by a thread-safe parked tree, and changed-node updates from then on.
 - **Reading order is the tree's order.** awl does not model spatial navigation,
   and there is no bounding-box geometry in the tree yet, so a screen reader's
   cursor-tracking and mouse-over modes have nothing to work with.
@@ -157,7 +173,11 @@ What tier 3 is for, in order of how much it would matter:
 
 1. **A real screen-reader sitting.** VoiceOver on macOS and Orca on Linux,
    driven by a person, on an unlocked display. Nothing below is worth designing
-   before that says what actually reads badly.
+   before that says what actually reads badly. The first VoiceOver sitting
+   happened and produced item 218; the confirming one is still owed. Note for
+   whoever runs it: check `displaysleep` and the screensaver `idleTime` first —
+   a display that sleeps mid-sitting silently invalidates it, as it did seven
+   minutes into the 2026-08-02 attempt.
 2. **Web.** A DOM mirror behind the canvas — the same snapshot, a different
    adapter.
 3. **Geometry in the tree.** Bounding boxes, so cursor tracking and

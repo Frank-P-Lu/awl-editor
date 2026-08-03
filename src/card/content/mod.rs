@@ -195,20 +195,28 @@ impl Default for CardInputs {
 /// card wins outright (it has its own geometry), then About, then Lifetime,
 /// then the shortcut peek, and the stats HUD is what a bare hold shows.
 pub fn open_card(inputs: &CardInputs) -> Option<CardContent> {
-    let kind = if crate::streaks::streaks_open() {
-        CardKind::Streaks
+    open_kind(inputs.hud_held, inputs.peek_shown).map(|kind| card(kind, inputs))
+}
+
+/// WHICH card is open, from the two gate bits and the process globals alone.
+/// Split out of [`open_card`] so a caller can ask before paying for the answer:
+/// [`CardInputs`] carries [`crate::card::figures::DocFigures`], which walks the
+/// whole document, and the accessibility projection must not walk one to learn
+/// that no card is up. The precedence lives here alone, so both callers agree.
+pub fn open_kind(hud_held: bool, peek_shown: bool) -> Option<CardKind> {
+    if crate::streaks::streaks_open() {
+        Some(CardKind::Streaks)
     } else if crate::about::about_open() {
-        CardKind::About
+        Some(CardKind::About)
     } else if crate::lifetime::lifetime_open() {
-        CardKind::Lifetime
-    } else if inputs.peek_shown {
-        CardKind::Peek
-    } else if inputs.hud_held {
-        CardKind::Hud
+        Some(CardKind::Lifetime)
+    } else if peek_shown {
+        Some(CardKind::Peek)
+    } else if hud_held {
+        Some(CardKind::Hud)
     } else {
-        return None;
-    };
-    Some(card(kind, inputs))
+        None
+    }
 }
 
 /// Compose one card by name. Public so a law can sweep [`CardKind::ALL`]

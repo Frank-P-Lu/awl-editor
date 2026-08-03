@@ -47,7 +47,7 @@ fn raw_markdown_snapshot_has_one_focus_and_grapheme_selection() {
     let text = snapshot
         .nodes
         .iter()
-        .find(|node| node.id == DOCUMENT_TEXT_ID)
+        .find(|node| crate::semantic::is_run_id(&node.id))
         .unwrap();
     assert_eq!(text.character_lengths.len(), 5);
     let document = snapshot
@@ -58,12 +58,15 @@ fn raw_markdown_snapshot_has_one_focus_and_grapheme_selection() {
     assert_eq!(document.selection.unwrap().focus, 5);
 }
 
-/// A second frame-side caller of `semantic_snapshot()` would reintroduce
-/// the per-frame whole-document cost that `refresh_accessibility`'s gate
-/// exists to prevent — and it would do so silently, because the equality
-/// dedup downstream still suppresses the *update*, just not the *build*.
-/// So the call sites are enumerated: three are the snapshot's declared
-/// consumers, and the fourth is the gate itself.
+/// `semantic_snapshot()` builds a WHOLE snapshot: every line of the document
+/// read out of the rope and segmented under UAX #29. That is the right shape
+/// for a one-shot consumer and the wrong shape for a frame, so the call sites
+/// are enumerated.
+///
+/// The live frame path is deliberately absent: `refresh_accessibility` drives
+/// the RETAINED `SemanticProjection`, which re-reads only the lines an edit
+/// touched, so `app/semantic/mod.rs` naming this function again would mean the
+/// per-frame whole-document cost had come back.
 #[test]
 fn semantic_snapshot_has_no_ungated_frame_side_caller() {
     let mut found: Vec<String> = Vec::new();
@@ -103,8 +106,9 @@ fn semantic_snapshot_has_no_ungated_frame_side_caller() {
     let mut sanctioned = vec![
         // The live-App sidecar embeds the same snapshot.
         "src/app/capture_state.rs".to_string(),
-        // The gate, plus the AccessKit activation and action handlers.
-        "src/app/semantic/mod.rs".to_string(),
+        // `--bench-a11y` times the RETIRED whole-document path against the
+        // retained one; measuring the old cost is the point of the mode.
+        "src/app/semantic/bench.rs".to_string(),
         // `--semantic-json` prints it.
         "src/main/run/live_app.rs".to_string(),
     ];

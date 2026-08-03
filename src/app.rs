@@ -395,7 +395,7 @@ mod location;
 mod schedule;
 pub(crate) use awl_event::AwlEvent;
 #[cfg(not(target_arch = "wasm32"))]
-mod semantic;
+pub(crate) mod semantic;
 mod startup;
 /// ITEM 202's leading-edge-plus-trailing-coalesce rule for the theme-picker
 /// preview's deferred font reshape — a pure scheduling decision, extracted

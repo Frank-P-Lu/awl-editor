@@ -210,6 +210,16 @@ pub(crate) enum Mode {
     /// after each switch (the new face's atlas rasterization), two laps
     /// (cold/warm) to expose atlas retention. Opens no window.
     BenchThemeBurst,
+    /// Hidden performance harness: the ACCESSIBILITY PROJECTION WITNESS — one
+    /// keystroke mid-document at 100 / 1 000 / 10 000 / 50 000 lines, timed
+    /// through the retired monolithic path (whole snapshot + whole
+    /// `TreeUpdate` on every redraw) and through the retained incremental
+    /// projection, printing the counts — runs re-read, document bytes read,
+    /// nodes published — beside the milliseconds. Opens no window. Native
+    /// only: the projection it measures is, because AccessKit has no canvas
+    /// adapter and the browser build carries no accessibility tree at all.
+    #[cfg(not(target_arch = "wasm32"))]
+    BenchA11y,
     /// Hidden performance harness: replay a rapid adjacent-level zoom burst at
     /// the reported 3538x2610 @2x / 60% posture, comparing the old eager
     /// per-input reflow with latest-wins present-boundary coalescing. Opens no

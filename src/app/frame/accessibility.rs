@@ -1,17 +1,123 @@
 //! Window-lifecycle owner for the native AccessKit adapter.
+//!
+//! Two things live here that a screen reader's responsiveness depends on.
+//!
+//! **A synchronous activation handler.** The event-loop-proxy adapter cannot
+//! answer `request_initial_tree` on the spot — it posts an event and returns
+//! `None` — so a platform adapter holds a placeholder tree, and every update
+//! afterwards is required to carry a FULL tree. `with_mixed_handlers` lets the
+//! activation handler answer from a thread-safe slot the main loop filled
+//! before the window was shown, which is the ordinary case for a VoiceOver user
+//! (the screen reader is already running when awl launches).
+//!
+//! **Incremental updates afterwards.** AccessKit expects a full tree once, at
+//! activation, and changed nodes from then on. Republishing the whole document
+//! on every redraw is what a user hears as a stall: while an assistive
+//! technology is attached, a one-character edit would clone the rope, run
+//! UAX #29 over the entire document and re-send every node — enough, on a book,
+//! for VoiceOver to report the app as not responding.
+//!
+//! **The activation handler runs on a platform thread and touches no `App`.**
+//! It reads a mutex and posts one winit event; every transition still happens
+//! on the main loop, which is the same rule the action handler has always
+//! followed.
 
 use super::*;
+use crate::app::semantic::{ProjectionStats, SemanticProjection};
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+/// The tree an assistive technology may ask for at any moment, on any thread.
+struct SharedTree {
+    slot: Mutex<Option<crate::semantic::SemanticSnapshot>>,
+    /// Does `slot` still describe the live `App`? Maintained by the main loop
+    /// with one integer compare per frame; never by anything that builds.
+    fresh: AtomicBool,
+    /// Did the activation handler serve a real tree? When it did, the platform
+    /// holds exactly what the retained projection published and the first
+    /// update may be a diff. When it did not, the platform holds a placeholder
+    /// and AccessKit requires the next update to be a full tree.
+    served: AtomicBool,
+}
+
+impl SharedTree {
+    fn new() -> Self {
+        Self {
+            slot: Mutex::new(None),
+            fresh: AtomicBool::new(false),
+            served: AtomicBool::new(false),
+        }
+    }
+}
+
+/// The synchronous activation handler. Deliberately tiny, and deliberately
+/// unable to reach an `App`: a platform callback that ran a transition would be
+/// a re-entrancy bug on whatever thread the platform chose.
+struct AwlActivationHandler {
+    shared: Arc<SharedTree>,
+    proxy: winit::event_loop::EventLoopProxy<AwlEvent>,
+    window_id: winit::window::WindowId,
+}
+
+/// The activation decision, with no winit in it, so a law can drive the real
+/// one rather than a re-implementation: serve the parked tree when it still
+/// describes the app, otherwise `None` — and record which branch was taken,
+/// because that is what decides whether the first update owes a full tree.
+fn serve_initial_tree(shared: &SharedTree) -> Option<accesskit::TreeUpdate> {
+    let tree = if shared.fresh.load(Ordering::SeqCst) {
+        shared
+            .slot
+            .lock()
+            .ok()
+            .and_then(|slot| slot.as_ref().map(crate::semantic::native::tree_update))
+    } else {
+        None
+    };
+    shared.served.store(tree.is_some(), Ordering::SeqCst);
+    tree
+}
+
+impl accesskit::ActivationHandler for AwlActivationHandler {
+    fn request_initial_tree(&mut self) -> Option<accesskit::TreeUpdate> {
+        let tree = serve_initial_tree(&self.shared);
+        // Wake the main loop so frames begin refreshing the tree. The winit
+        // adapter's own proxy path posts this same event; reusing it keeps one
+        // door into `App::handle_accessibility_event`.
+        self.proxy
+            .send_event(AwlEvent::from(accesskit_winit::Event {
+                window_id: self.window_id,
+                window_event: accesskit_winit::WindowEvent::InitialTreeRequested,
+            }))
+            .ok();
+        tree
+    }
+}
 
 pub(super) struct AccessibilityRuntime {
     proxy: Option<winit::event_loop::EventLoopProxy<AwlEvent>>,
     adapter: Option<accesskit_winit::Adapter>,
-    last: Option<crate::semantic::SemanticSnapshot>,
+    shared: Arc<SharedTree>,
+    /// The retained projection. Moved out for the duration of a refresh so the
+    /// refresh can borrow the whole `App` immutably.
+    projection: Option<SemanticProjection>,
+    /// The retained NATIVE half — the document's child ids, which travel with
+    /// the document node on every keystroke and are the one document-sized
+    /// thing an incremental update would otherwise rebuild.
+    projector: crate::semantic::native::TreeProjector,
+    /// The document state the slot's snapshot was built from — identity AND
+    /// revision, so a buffer swap that restarts `version` at 0 cannot be
+    /// mistaken for the same document.
+    published_state: (u64, u64),
+    /// The focus this runtime last published, so a focus move with no node
+    /// change still reaches the platform.
+    published_focus: String,
     /// Is an assistive technology listening? `false` until the platform asks
-    /// for an initial tree, and `false` again the moment it lets go. A
-    /// snapshot costs a whole-rope `String` plus a UAX #29 pass over it, so
-    /// the ordinary no-AT frame must not build one — this bit, not the
-    /// equality dedup below, is what keeps per-frame work off the document.
+    /// for an initial tree, and `false` again the moment it lets go.
     active: bool,
+    /// Does the platform hold a placeholder rather than something this
+    /// projection published? Then it is owed a full tree, once.
+    owes_full: bool,
 }
 
 impl AccessibilityRuntime {
@@ -19,37 +125,123 @@ impl AccessibilityRuntime {
         Self {
             proxy: None,
             adapter: None,
-            last: None,
+            shared: Arc::new(SharedTree::new()),
+            projection: None,
+            projector: crate::semantic::native::TreeProjector::default(),
+            published_state: (0, 0),
+            published_focus: String::new(),
             active: false,
+            owes_full: true,
         }
     }
 
     pub(super) fn set_active(&mut self, active: bool) {
+        if self.active == active {
+            return;
+        }
         self.active = active;
-        if !active {
-            self.last = None;
+        if active {
+            if !self.shared.served.load(Ordering::SeqCst) {
+                // A placeholder tree: the diff would be against something the
+                // platform never saw.
+                self.invalidate();
+            }
+        } else {
+            // A reattach gets a platform adapter that never saw what we
+            // published, so nothing retained may be diffed against.
+            self.invalidate();
+            self.shared.served.store(false, Ordering::SeqCst);
+            self.shared.fresh.store(false, Ordering::SeqCst);
         }
     }
 
-    /// The one question a frame asks before paying for a snapshot.
+    fn invalidate(&mut self) {
+        if let Some(projection) = self.projection.as_mut() {
+            projection.invalidate();
+        }
+        self.projector.invalidate();
+        self.published_focus.clear();
+        self.owes_full = true;
+    }
+
+    /// The one question a frame asks before paying for a refresh.
     pub(super) fn wants_snapshot(&self) -> bool {
         self.active
+    }
+
+    /// Record whether the tree published for a future activation still
+    /// describes the live `App`. One atomic store; nothing is built.
+    pub(super) fn note_published_currency(&self, current: bool) {
+        self.shared.fresh.store(current, Ordering::SeqCst);
+    }
+
+    pub(super) fn published_state(&self) -> (u64, u64) {
+        self.published_state
+    }
+
+    pub(super) fn take_projection(&mut self) -> SemanticProjection {
+        self.projection.take().unwrap_or_default()
+    }
+
+    pub(super) fn projection(&self) -> Option<&SemanticProjection> {
+        self.projection.as_ref()
+    }
+
+    pub(super) fn stats(&self) -> ProjectionStats {
+        self.projection
+            .as_ref()
+            .map(SemanticProjection::stats)
+            .unwrap_or_default()
     }
 
     pub(super) fn set_proxy(&mut self, proxy: winit::event_loop::EventLoopProxy<AwlEvent>) {
         self.proxy = Some(proxy);
     }
 
+    /// Park a freshly built projection and hand its snapshot to the activation
+    /// handler. Called once, before the window is shown, so the handler has a
+    /// real tree to serve the instant the platform asks.
+    pub(super) fn seed(&mut self, projection: SemanticProjection, state: (u64, u64)) {
+        if let Ok(mut slot) = self.shared.slot.lock() {
+            *slot = Some(projection.snapshot().clone());
+        }
+        self.published_state = state;
+        self.shared.fresh.store(true, Ordering::SeqCst);
+        // A tree is parked for the handler to serve, so a first update that
+        // finds it was served owes a diff, not another whole document.
+        self.owes_full = false;
+        self.projection = Some(projection);
+    }
+
+    /// Drive the REAL activation decision without a window, so the laws
+    /// exercise `serve_initial_tree` rather than a second copy of it.
+    #[cfg(test)]
+    pub(super) fn activate_for_test(&mut self) -> Option<accesskit::TreeUpdate> {
+        let tree = serve_initial_tree(&self.shared);
+        self.set_active(true);
+        tree
+    }
+
     pub(super) fn install(&mut self, event_loop: &ActiveEventLoop, window: &Window) {
         let Some(proxy) = self.proxy.take() else {
             return;
+        };
+        let activation = AwlActivationHandler {
+            shared: Arc::clone(&self.shared),
+            proxy: proxy.clone(),
+            window_id: window.id(),
         };
         // AccessKit must own the window before the platform can see it: on
         // macOS VoiceOver caches the accessibility parent of a newly ordered-in
         // window, so an adapter installed after `set_visible(true)` is not
         // asked for a tree until the window is cycled.
-        self.adapter = Some(accesskit_winit::Adapter::with_event_loop_proxy(
-            event_loop, window, proxy,
+        //
+        // MIXED handlers, not the proxy constructor: the action and
+        // deactivation events are fine asynchronously, but activation is the
+        // one call whose answer has to be synchronous, because returning `None`
+        // is what forces every later update to carry a full tree.
+        self.adapter = Some(accesskit_winit::Adapter::with_mixed_handlers(
+            event_loop, window, activation, proxy,
         ));
     }
 
@@ -59,14 +251,37 @@ impl AccessibilityRuntime {
         }
     }
 
-    pub(super) fn update(&mut self, snapshot: crate::semantic::SemanticSnapshot, force: bool) {
-        if !semantic_update_needed(self.last.as_ref(), &snapshot, force) {
+    /// Hand a refreshed projection back, publishing whatever it changed.
+    pub(super) fn publish(&mut self, mut projection: SemanticProjection) {
+        if !self.active {
+            self.projection = Some(projection);
             return;
         }
-        if let Some(adapter) = self.adapter.as_mut() {
-            adapter.update_if_active(|| crate::semantic::native::tree_update(&snapshot));
+        let focus_moved = projection.snapshot().focus_id != self.published_focus;
+        let full = self.owes_full || !projection.is_seeded();
+        let shape = projection.shape_rev();
+        // Disjoint field borrows: the projector is `&mut` inside the closure
+        // while the adapter is `&mut` around it.
+        let Self {
+            adapter, projector, ..
+        } = self;
+        if full {
+            if let Some(adapter) = adapter.as_mut() {
+                adapter.update_if_active(|| projector.full(projection.snapshot(), shape));
+            }
+            projection.note_full_tree();
+        } else if !projection.changed().is_empty() || focus_moved {
+            let count = projection.changed().len();
+            if let Some(adapter) = adapter.as_mut() {
+                adapter.update_if_active(|| {
+                    projector.incremental(projection.snapshot(), projection.changed(), shape)
+                });
+            }
+            projection.note_incremental(count);
         }
-        self.last = Some(snapshot);
+        self.owes_full = false;
+        self.published_focus = projection.snapshot().focus_id.clone();
+        self.projection = Some(projection);
     }
 }
 
@@ -101,15 +316,6 @@ impl FrameRuntime {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(in crate::app) fn update_accessibility(
-        &mut self,
-        snapshot: crate::semantic::SemanticSnapshot,
-        force: bool,
-    ) {
-        self.accessibility.update(snapshot, force);
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
     pub(in crate::app) fn set_accessibility_active(&mut self, active: bool) {
         self.accessibility.set_active(active);
     }
@@ -118,55 +324,53 @@ impl FrameRuntime {
     pub(in crate::app) fn accessibility_wants_snapshot(&self) -> bool {
         self.accessibility.wants_snapshot()
     }
-}
 
-fn semantic_update_needed(
-    previous: Option<&crate::semantic::SemanticSnapshot>,
-    next: &crate::semantic::SemanticSnapshot,
-    force: bool,
-) -> bool {
-    force || previous != Some(next)
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn note_published_tree_currency(&self, current: bool) {
+        self.accessibility.note_published_currency(current);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn published_document_state(&self) -> (u64, u64) {
+        self.accessibility.published_state()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn take_accessibility_projection(&mut self) -> SemanticProjection {
+        self.accessibility.take_projection()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn accessibility_projection(&self) -> Option<&SemanticProjection> {
+        self.accessibility.projection()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn accessibility_stats(&self) -> ProjectionStats {
+        self.accessibility.stats()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn publish_accessibility(&mut self, projection: SemanticProjection) {
+        self.accessibility.publish(projection);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn seed_accessibility(
+        &mut self,
+        projection: SemanticProjection,
+        state: (u64, u64),
+    ) {
+        self.accessibility.seed(projection, state);
+    }
+
+    #[cfg(test)]
+    pub(in crate::app) fn activate_accessibility_for_test(
+        &mut self,
+    ) -> Option<accesskit::TreeUpdate> {
+        self.accessibility.activate_for_test()
+    }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn animation_only_frames_do_not_emit_semantic_updates() {
-        let _guard = crate::testlock::serial();
-        let app = App::new_hermetic(None, PathBuf::from("/"), Config::empty());
-        let snapshot = app.semantic_snapshot();
-        assert!(semantic_update_needed(None, &snapshot, false));
-        assert!(!semantic_update_needed(Some(&snapshot), &snapshot, false));
-        assert!(semantic_update_needed(Some(&snapshot), &snapshot, true));
-    }
-
-    /// The dedup above runs AFTER a snapshot exists, so it cannot answer "did
-    /// this frame pay for one". `wants_snapshot` is the gate that can, and it
-    /// follows the platform's own two signals rather than a heuristic.
-    #[test]
-    fn a_frame_pays_for_a_snapshot_only_while_an_assistive_technology_listens() {
-        let mut runtime = AccessibilityRuntime::new();
-        assert!(!runtime.wants_snapshot());
-        runtime.set_active(true);
-        assert!(runtime.wants_snapshot());
-        runtime.set_active(false);
-        assert!(!runtime.wants_snapshot());
-    }
-
-    /// Deactivation must forget the last snapshot, or a reattached screen
-    /// reader whose first frame happens to be state-identical would be handed
-    /// the initial tree and then nothing — the dedup would suppress the very
-    /// update that repopulates the adapter.
-    #[test]
-    fn deactivation_forgets_the_last_snapshot_so_a_reattach_is_not_deduped_away() {
-        let _guard = crate::testlock::serial();
-        let app = App::new_hermetic(None, PathBuf::from("/"), Config::empty());
-        let mut runtime = AccessibilityRuntime::new();
-        runtime.set_active(true);
-        runtime.last = Some(app.semantic_snapshot());
-        runtime.set_active(false);
-        assert!(runtime.last.is_none());
-    }
-}
+mod tests;

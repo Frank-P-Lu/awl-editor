@@ -26,6 +26,9 @@ const EXPECTED: &[(&str, usize)] = &[
     // (`ProbeEvent::Latency`) — the movement-latency distribution report,
     // mirroring the existing per-shot line's fate (c) exactly.
     ("app/probe.rs", 7),
+    // `--bench-a11y`'s report table — hidden CLI performance harness output,
+    // like the `render/*bench.rs` entries below.
+    ("app/semantic/bench.rs", 7),
     ("app/apply.rs", 1),
     // Best-effort background bookkeeping failures (config/credits/guide
     // write, a sticky-pref/rebind write, the recent-files/projects MRU

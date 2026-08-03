@@ -263,6 +263,10 @@ mod tests {
         "main/tests.rs",
         "probe.rs",
         "render/benchsuite/scenarios.rs",
+        // `--bench-a11y` only READS `temp_dir()` as an App root; it creates no
+        // directory and writes nothing, so there is nothing to clean up. Live
+        // CLI code, not a test-owned directory.
+        "app/semantic/bench.rs",
         "daemon.rs",
     ];
 
