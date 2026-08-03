@@ -262,9 +262,20 @@ combined candidate —
 0 failures, plus `web-smoke: OK` and code-health clean. **CI run `30825396088`
 confirms item 243's split is LIVE**: the job list now reads
 `mac (build + test, minus render::tests)` and
-`mac (render::tests) — allowed failure, item 231`, which is 243's Verify clause 1
-being paid. Watch that run for the gating arm's conclusion; the tolerated arm may
-burn its 90-minute ceiling and that is by design, not a new signal.
+`mac (render::tests) — allowed failure, item 231`.
+
+✅ **243's VERIFY CLAUSE 1 IS PAID, and this is the wave's headline result.**
+On run `30825396088`, `mac (build + test, minus render::tests)` completed
+**success** on a hosted runner. **That is the first hosted-mac arm to pass and
+gate in ~140 commits.** `linux`, `web` and `mac live-probe` are green alongside
+it. The tolerated `mac (render::tests)` was still running when the gating arm
+finished — expected; it may burn its 90-minute ceiling, and that is by design,
+not a new signal. **What this buys, starting now: real virtualised-Metal
+coverage over ~95% of the suite, and a red that names its own cause from the
+workflow file alone.** Clause 2 end-to-end — that the tolerated job's red does
+not fail the workflow — is settled by that run's final conclusion; the YAML
+shape was already proved by parse (job-level `continue-on-error`, gating job
+carrying none at any level).
 
 ⚠️ **THE SAME ANTI-PATTERN APPEARED TWICE IN ONE WAVE, in different costumes —
 this is the wave's most reusable finding.** A hand-kept roster standing in for a
