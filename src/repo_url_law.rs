@@ -53,20 +53,6 @@ fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
-/// Directories never worth descending into: VCS internals, build output, and
-/// dependency/tooling caches — never hand-authored text.
-const SKIP_DIRS: &[&str] = &[
-    ".git",
-    "target",
-    "dist",
-    "dist-linux",
-    "gallery",
-    "tmp",
-    "coverage",
-    "node_modules",
-    "__pycache__",
-];
-
 /// Individual files excluded for a stated, deliberate reason (see module doc).
 /// `src/repo_url_law.rs` excludes ITSELF — its own doc comments and the
 /// needle string literal necessarily quote the banned reference, the same
@@ -77,43 +63,56 @@ const SKIP_FILES: &[&str] = &[".orchestrator/queue.md", "src/repo_url_law.rs"];
 /// (see module doc).
 const SKIP_PATH_PREFIXES: &[&str] = &["site/editor/"];
 
-fn walk(dir: &Path, root: &Path, out: &mut Vec<PathBuf>) {
-    let Ok(rd) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in rd.flatten() {
-        // `file_type()` does NOT follow symlinks (unlike `path.is_dir()`).
-        // Skip symlinks entirely rather than following them: this repo
-        // aliases `.orchestrator` at `.claude/orchestrator` and
-        // `.codex/orchestrator`, and following those would rescan
-        // `queue.md` under a path this law's exclusion list doesn't name —
-        // a duplicate-scan bug, not a real second copy of the file. Every
-        // real file is still reached once, via its own canonical directory
-        // (`AGENTS.md` -> `CLAUDE.md` is the same shape and the same reason).
-        let Ok(ft) = entry.file_type() else { continue };
-        if ft.is_symlink() {
-            continue;
-        }
-        let path = entry.path();
-        let name = entry.file_name();
-        let name = name.to_string_lossy();
-        if ft.is_dir() {
-            if SKIP_DIRS.contains(&name.as_ref()) {
-                continue;
-            }
-            walk(&path, root, out);
-        } else {
-            let rel = path.strip_prefix(root).unwrap_or(&path);
-            let rel_str = rel.to_string_lossy();
-            if SKIP_FILES.contains(&rel_str.as_ref()) {
-                continue;
-            }
-            if SKIP_PATH_PREFIXES.iter().any(|p| rel_str.starts_with(p)) {
-                continue;
-            }
-            out.push(path);
-        }
-    }
+/// The tracked tree, asked of git rather than reconstructed by walking the
+/// filesystem.
+///
+/// A `read_dir` walk cannot express "tracked": it sees ignored build debris and
+/// scratch output too, so it needs a hand-kept skip list that must be manually
+/// held in sync with `.gitignore` and silently rots when the two drift. That
+/// drift is not hypothetical — this law shipped as a filesystem walk and went
+/// red on `.playwright-mcp/`, gitignored browser snapshots holding pre-rename
+/// URLs that no release artifact has ever contained. Worse, the failure was
+/// invisible where it would have been caught: CI checks out a clean tree and
+/// passed, so only developers with local debris saw it.
+///
+/// `git ls-files` is definitionally the set the law's own name and panic
+/// message claim, needs no skip list, and cannot drift from `.gitignore`.
+/// Deleted-but-not-staged paths are filtered by the `read_to_string` below.
+/// Symlinks need no special case either: git tracks `AGENTS.md` and
+/// `.claude/orchestrator` as link objects, not as second copies of their
+/// targets, so nothing is scanned twice.
+fn tracked_files(root: &Path) -> Vec<PathBuf> {
+    let out = std::process::Command::new("git")
+        .args(["-C"])
+        .arg(root)
+        .args(["ls-files", "-z"])
+        .output()
+        .expect("`git ls-files` must run: this law reads the tracked tree");
+    assert!(
+        out.status.success(),
+        "`git ls-files` failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let mut files: Vec<PathBuf> = String::from_utf8_lossy(&out.stdout)
+        .split('\0')
+        .filter(|rel| !rel.is_empty())
+        .filter(|rel| !SKIP_FILES.contains(rel))
+        .filter(|rel| !SKIP_PATH_PREFIXES.iter().any(|p| rel.starts_with(p)))
+        .map(|rel| root.join(rel))
+        .collect();
+    files.sort();
+
+    // A tracked tree is never empty. If it were, every offender would be
+    // filtered out and the law would pass vacuously — the exact failure mode
+    // this file exists to prevent elsewhere.
+    assert!(
+        files.len() > 100,
+        "expected the tracked tree, got {} files — enumeration is broken and \
+         this law would pass vacuously",
+        files.len()
+    );
+    files
 }
 
 /// THE LAW. No tracked file — excluding the two documented carve-outs above —
@@ -121,9 +120,7 @@ fn walk(dir: &Path, root: &Path, out: &mut Vec<PathBuf>) {
 #[test]
 fn no_tracked_file_spells_the_old_repository_reference() {
     let root = repo_root();
-    let mut files = Vec::new();
-    walk(&root, &root, &mut files);
-    files.sort();
+    let files = tracked_files(&root);
 
     let needle = "Frank-P-Lu/awl-next";
     let mut offenders: Vec<String> = Vec::new();
