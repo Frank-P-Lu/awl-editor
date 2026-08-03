@@ -1,9 +1,9 @@
-//! ITEM 223 — EVERY WORLD'S COMMAND PALETTE DRAWS ITS KEY CHORDS.
+//! EVERY WORLD'S COMMAND PALETTE DRAWS ITS KEY CHORDS.
 //!
 //! Mangrove's `⌘P` palette shipped with no visible shortcuts at all. The cause
 //! was not Mangrove: it was the shared presentation owner. A right-anchored card
-//! HUGS its measured content (item 51), and the hug measurement counted the rows
-//! alone — while the diagonal composition (item 131) then spends the card's band
+//! HUGS its measured content, and that measurement counted the rows
+//! alone — while the diagonal composition then spends the card's band
 //! on its attachment inset, its spine-to-cluster connector and its selected
 //! row's outward step before a row is laid at all. The card came out exactly one
 //! cluster wide, `diagonal_cluster_budget` cut that same territory back out of
@@ -78,6 +78,47 @@ fn row_bands(p: &TextPipeline, w: u32) -> Vec<(usize, pixeldiff::Region)> {
         .collect()
 }
 
+type Verdicts<'a> = (&'a mut Vec<String>, &'a mut Vec<String>);
+
+/// Blanking row `display`'s chord must change that row's own band and no other.
+#[allow(clippy::too_many_arguments)]
+fn grade_row(
+    world: &theme::Theme,
+    display: usize,
+    chord: &str,
+    bands: &[(usize, pixeldiff::Region)],
+    (with_chords, without): (&[[u8; 4]], &[[u8; 4]]),
+    (w, h): (u32, u32),
+    (silent, misplaced): Verdicts<'_>,
+) {
+    let style = style_name(world.render_caps.list_style);
+    let own = bands
+        .iter()
+        .find(|(d, _)| *d == display)
+        .map(|(_, r)| *r)
+        .expect("the probed row's own band");
+    if pixeldiff::diff_region(with_chords, without, w as i64, h as i64, own).differing == 0 {
+        silent.push(format!(
+            "{} ({style}): row {display} owns chord {chord:?} and drew nothing for it",
+            world.name,
+        ));
+    }
+    for (d, band) in bands {
+        if *d == display {
+            continue;
+        }
+        let other = pixeldiff::diff_region(with_chords, without, w as i64, h as i64, *band);
+        if other.differing > 0 {
+            misplaced.push(format!(
+                "{} ({style}): blanking row {display}'s chord changed row {d} \
+                 ({} px) — a chord drawn off its own row",
+                world.name, other.differing,
+            ));
+            break;
+        }
+    }
+}
+
 /// EVERY WORLD DRAWS THE CHORD OF EVERY ROW THAT HAS ONE — and draws it on that
 /// row. Swept over the WHOLE roster with the real command palette; the verdict
 /// per world is pixel arithmetic over two real frames, and every failure is
@@ -146,36 +187,15 @@ fn every_world_draws_its_palette_key_chords_on_the_owning_row() {
             continue;
         }
 
-        let own = bands
-            .iter()
-            .find(|(d, _)| *d == display)
-            .map(|(_, r)| *r)
-            .expect("the probed row's own band");
-        let own_diff = pixeldiff::diff_region(&with_chords, &without, w as i64, h as i64, own);
-        if own_diff.differing == 0 {
-            silent.push(format!(
-                "{} ({}): row {display} owns chord {:?} and drew nothing for it",
-                world.name,
-                style_name(world.render_caps.list_style),
-                base.overlay_bindings[item],
-            ));
-        }
-        for (d, band) in &bands {
-            if *d == display {
-                continue;
-            }
-            let other = pixeldiff::diff_region(&with_chords, &without, w as i64, h as i64, *band);
-            if other.differing > 0 {
-                misplaced.push(format!(
-                    "{} ({}): blanking row {display}'s chord changed row {d} \
-                     ({} px) — a chord drawn off its own row",
-                    world.name,
-                    style_name(world.render_caps.list_style),
-                    other.differing,
-                ));
-                break;
-            }
-        }
+        grade_row(
+            &world,
+            display,
+            &base.overlay_bindings[item],
+            &bands,
+            (&with_chords, &without),
+            (w, h),
+            (&mut silent, &mut misplaced),
+        );
     }
     theme::set_active(theme::DEFAULT_THEME);
 

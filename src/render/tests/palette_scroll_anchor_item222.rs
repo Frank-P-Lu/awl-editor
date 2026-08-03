@@ -1,4 +1,4 @@
-//! ITEM 222 — SCROLLING A PICKER MOVES THE LIST, AND NOTHING ELSE.
+//! SCROLLING A PICKER MOVES THE LIST, AND NOTHING ELSE.
 //!
 //! Mangrove's diagonal spine swung sideways whenever a picker's list scrolled.
 //! Nothing about the spine was drawn wrong: its whole GEOMETRY was derived from
@@ -9,7 +9,7 @@
 //! and every row moved with it. Both diagonal worlds had it, in mirror image.
 //! Its two smaller siblings had the same shape: the accessory rail and, on an
 //! ascending world, the whole cluster hanging off it, stepped sideways when a
-//! longer chord scrolled in; and a right-anchored card's content hug (item 51)
+//! longer chord scrolled in; and a right-anchored card's content hug
 //! re-measured the visible window, translating the whole card by a measured
 //! 31.1 px on Mangrove and Cassowary alike whenever its width bound.
 //!
@@ -135,6 +135,59 @@ fn split_row(p: &TextPipeline, w: u32, d: usize) -> (pixeldiff::Region, pixeldif
     }
 }
 
+/// The per-cell verdict: the card held still, every row's SURFACE strip is
+/// byte-identical at every scroll position, and the LIST halves really moved.
+fn assert_still(
+    at: &str,
+    rects: &[[f32; 4]],
+    frames: &[Vec<[u8; 4]>],
+    splits: &[(pixeldiff::Region, pixeldiff::Region)],
+    w: u32,
+    h: u32,
+) {
+    for (i, rect) in rects.iter().enumerate().skip(1) {
+        assert_eq!(
+            *rect, rects[0],
+            "{at}: the card moved between scroll {} and {} — {:?} -> {rect:?}",
+            TRAJECTORY[0], TRAJECTORY[i], rects[0],
+        );
+    }
+    let mut moved_rows = 0usize;
+    for (d, (surface, list)) in splits.iter().enumerate() {
+        for (i, frame) in frames.iter().enumerate().skip(1) {
+            let report = pixeldiff::diff_region(&frames[0], frame, w as i64, h as i64, *surface);
+            assert_eq!(
+                report.differing,
+                0,
+                "{at}: row {d}'s SURFACE strip changed between scroll {} and {} \
+                 ({} of {} px, max channel delta {}) — the ground, border or spine \
+                 moved with the list",
+                TRAJECTORY[0],
+                TRAJECTORY[i],
+                report.differing,
+                report.total,
+                report.max_channel_delta,
+            );
+        }
+        let listed = pixeldiff::diff_region(
+            &frames[0],
+            frames.last().unwrap(),
+            w as i64,
+            h as i64,
+            *list,
+        );
+        moved_rows += usize::from(listed.differing > 0);
+    }
+    // NON-VACUITY: the list really did scroll. Without this the law would pass
+    // just as happily on a picker that ignored every scroll key.
+    assert!(
+        moved_rows >= splits.len() / 2,
+        "{at}: only {moved_rows} of {} rows changed content over the trajectory — \
+         the list did not scroll, so the surface claim above proves nothing",
+        splits.len(),
+    );
+}
+
 /// The headline law, over a diagonal world AND an upright control that shares
 /// the same right-anchored hug mechanism, AND a plain centred world.
 ///
@@ -218,53 +271,7 @@ fn scrolling_a_picker_moves_only_its_list_never_its_surface() {
                     .fold(f32::NEG_INFINITY, f32::max);
                 visible_width_swings += usize::from(hi - lo > 40.0);
 
-                // 1. THE CARD ITSELF DOES NOT MOVE OR RESIZE.
-                for (i, rect) in rects.iter().enumerate().skip(1) {
-                    assert_eq!(
-                        *rect, rects[0],
-                        "{at}: the card moved between scroll {} and {} — {:?} -> {rect:?}",
-                        TRAJECTORY[0], TRAJECTORY[i], rects[0],
-                    );
-                }
-
-                // 2. EVERY ROW'S SURFACE STRIP IS BYTE-IDENTICAL AT EVERY SCROLL POSITION.
-                let mut moved_rows = 0usize;
-                for (d, (surface, list)) in splits.iter().enumerate() {
-                    for (i, frame) in frames.iter().enumerate().skip(1) {
-                        let report =
-                            pixeldiff::diff_region(&frames[0], frame, w as i64, h as i64, *surface);
-                        assert_eq!(
-                            report.differing,
-                            0,
-                            "{at}: row {d}'s SURFACE strip changed between scroll {} and {} \
-                         ({} of {} px, max channel delta {}) — the ground, border or spine \
-                         moved with the list",
-                            TRAJECTORY[0],
-                            TRAJECTORY[i],
-                            report.differing,
-                            report.total,
-                            report.max_channel_delta,
-                        );
-                    }
-                    let listed = pixeldiff::diff_region(
-                        &frames[0],
-                        frames.last().unwrap(),
-                        w as i64,
-                        h as i64,
-                        *list,
-                    );
-                    moved_rows += usize::from(listed.differing > 0);
-                }
-
-                // 3. NON-VACUITY: the list really did scroll. Without this the law
-                //    would pass just as happily on a picker that ignored every
-                //    scroll key.
-                assert!(
-                    moved_rows >= splits.len() / 2,
-                    "{at}: only {moved_rows} of {} rows changed content over the trajectory — \
-                 the list did not scroll, so the surface claim above proves nothing",
-                    splits.len(),
-                );
+                assert_still(&at, &rects, &frames, &splits, w, h);
             }
         }
     }
@@ -335,14 +342,16 @@ fn the_diagonal_spine_geometry_does_not_read_the_scroll_position() {
                     None => {
                         assert!(
                             probe.span.dx_per_row != 0.0 || probe.span.dw_per_row != 0.0,
-                            "{fixture} / {world} @ {w}x{h}: the spine has no rake at all — a zero step makes every \
-                         scroll-invariance claim below vacuous"
+                            "{fixture} / {world} @ {w}x{h}: the spine has no rake \
+                             at all — a zero step makes every scroll-invariance \
+                             claim below vacuous"
                         );
                         seen = Some(now);
                     }
                     Some(first) => assert_eq!(
                         now, first,
-                        "{fixture} / {world} @ {w}x{h}: the diagonal moved at scroll {scroll} — {first:?} -> {now:?}"
+                        "{fixture} / {world} @ {w}x{h}: the diagonal moved at \
+                         scroll {scroll} — {first:?} -> {now:?}"
                     ),
                 }
             }

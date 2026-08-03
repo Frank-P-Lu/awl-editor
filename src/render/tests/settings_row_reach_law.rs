@@ -166,13 +166,12 @@ fn every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_wor
                                     < 0.01,
                             "{ctx}: planner row bounds must read the measured cluster span"
                         );
-                        // ITEM 222 moved the rail's OWNER: a row's territory is
-                        // the cluster BUDGET — a property of the card — with the
-                        // label running from the spine end and the accessory
-                        // right-aligned into the far end, exactly as an upright
-                        // card right-aligns its chord to its own text edge. The
-                        // rail was previously sized from the widest row on
-                        // screen, which made it step sideways on every scroll.
+                        // A row's territory is the cluster BUDGET — a property
+                        // of the card — with the label running from the spine end
+                        // and the accessory right-aligned into the far end, as an
+                        // upright card right-aligns its chord to its own text
+                        // edge. Sized from the widest row on SCREEN instead, the
+                        // rail stepped sideways on every scroll.
                         assert!(
                             (cluster.accessory_right(row.display)
                                 - cluster.label_left(row.display)

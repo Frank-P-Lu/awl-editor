@@ -37,6 +37,7 @@ mod comparison_composite_item116d;
 /// relocation, and the margin-orientation surfaces that yield to it.
 mod comparison_viewport_item116b;
 mod date_picker_ink;
+mod diagonal_composition;
 mod distinguishability;
 mod dither;
 mod facepitch;
