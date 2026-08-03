@@ -508,6 +508,31 @@ assert was added on the enumeration, because a broken listing would have
 filtered every offender out and passed silently. **When a law says "tracked",
 ask git.**
 
+- **237** — ✅ **COMPLETE.** Merged `72d08422`. Receipt
+  `native-gate-receipt commit=459911d86031d8a01a3c340210a43fdcac406b52 conventions=mac,linux scope=all-targets`,
+  `web-smoke: OK`, code-health and fmt clean. Arm 2 **re-aimed, not deleted**:
+  it now reads `geom.text_left` against the left edge of what
+  `overlay_bar_rects_probe` actually emitted, so it fails on item 234's defect
+  directly **and** on a decoupling of `bar_hug_span`'s left edge from
+  `bar_full_span`'s — which arm 1 structurally cannot see. Arm 1 untouched; the
+  item-236 scrim gate confirmed untouched too.
+  ⚠️ **THE MOST INSTRUCTIVE PART: the owner's FIRST redesign was the same class
+  of defect it was sent to fix.** Non-tautological, but blind to the bug it
+  named — it graded the drawn plate's placement against itself, never reading
+  `geom.text_left`, and **passed clean with item 234's original mutation live.**
+  What exposed it was isolating arm 1 and re-running the mutation. **That is the
+  generalisable technique: to test whether arm N is real, neuter the other arms
+  and re-run the original defect.** A law suite can hide a dead arm behind a
+  live one indefinitely otherwise.
+  A real product feature nearly became a false positive: taking the minimum x
+  across plates picked up the SELECTED plate, whose left edge
+  `overlay_selected_bar_rects` mirrors by `grow_px` on `TopRight`/
+  `mirrors_growth` worlds (Cassowary, Firetail). Restricted to grow-immune
+  unselected/footer plates.
+  **Brief correction worth carrying:** the phrasing "the oracle must read the
+  DRAWN text" pointed at the plate, and reading the plate ALONE is itself the
+  trap. The oracle has to read the text's own position.
+
 ⚠️ **A BRIEF DEFECT THIS WAVE PAID FOR — fix it in the next brief template.**
 Items 240 and 243 were each green alone and **red together**: 240's new file
 carried a 104-column line and was not `rustfmt`-clean, and combined `main`
