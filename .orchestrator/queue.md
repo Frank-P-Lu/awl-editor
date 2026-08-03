@@ -151,10 +151,44 @@ but it is also exactly the uninformative red item 243 exists to end, which is
 why 243 is in this wave. Local `main` is 6 board-only commits ahead of origin;
 they ride this wave's first train.
 
-- **116d (the flip slice)** — 🟡 IN PROGRESS — claude (opus, high), branch
-  `claude/item-116d-flip`, worktree `awl-next-worktrees/item-116d-flip`.
-  Holds `render/chrome/overlay_draw.rs`, `overlay_rows.rs`, `chrome/mod.rs` —
-  **174's next family must not run against this wave.**
+- **116d (the flip slice)** — ⛔ **CLAIM WITHDRAWN: THE WORK WAS ALREADY DONE.**
+  Dispatched off stale board text, returned without writing product code, which
+  is the correct outcome. **The file hold is RELEASED** — `overlay_draw.rs`,
+  `overlay_rows.rs` and `chrome/mod.rs` were never touched, so **174 is not
+  blocked by this wave.** The one commit is docs-only and is merged at
+  `1bb20071`; see the board-integrity note below, which is the real finding.
+- **218 (incremental screen-reader editing)** — 🟡 IN PROGRESS — claude (opus,
+  high), branch `claude/item-218-a11y-incremental`, worktree
+  `awl-next-worktrees/item-218-a11y-incremental`, based on `1bb20071`. Took the
+  lane 116d freed. Deep tier per the item's own routing clause; its final Done
+  clause needs a real unlocked VoiceOver sitting and therefore cannot close
+  headlessly.
+
+⚠️ **BOARD-INTEGRITY DEFECT — this wave's first lane was spent on it, so it is
+worth reading before the next compression.** `16b4e8c2` cleared finished items,
+which the board's own header sanctions. But for 116d it **kept the superseded
+intermediate bullet (`🟢 COMPOSITING ROUND LANDED; the flip is deliberately NOT
+done`) and dropped the `✅ COMPLETE` entry that replaced it** — and then stated
+in its own commit message that "231, 174 and 116d are open and kept verbatim."
+116d was not open. Item 116's parent entry was likewise kept verbatim in its
+pre-flip state, still reading "116d CANNOT flip `workspace_shape(History)`."
+Claim `0a1dd593` was written off that text in good faith and was wrong.
+**Verified against the tree, not the log:** `workspace_shape(History)` is
+`TimelineOverComparison` at `src/overlay/workspace.rs:129`, and
+`workspace_header_beat` is absent from `src/` entirely. The rule this breaks is
+not "don't compress" — it is that **clearing an item must clear ALL of its
+bullets, or the oldest survivor becomes the board's answer.**
+
+⚠️ **THE RECEIPT GAP IS WIDER THAN THE NOTE BELOW SAYS — 116d joins it, and its
+string is UNRECOVERABLE.** The compression deleted six `native-gate-receipt`
+strings that appear in no commit message. Most are recoverable from
+`git log -p .orchestrator/queue.md`; 116d's was **already truncated when written**
+(`native-gate-receipt commit=86d73aa3… conventions=mac,linux scope=all-targets`),
+so the full string is gone for good. `86d73aa3` is real and is a descendant of
+116d's merge `a8eef4ee`, so a gate did cover a tree containing the work.
+**Standing fix, cheap and permanent: put the receipt in the MERGE COMMIT
+MESSAGE, not only on the board.** Every recurrence of this gap has the same
+cause — the board is the only copy, and the board gets compressed.
 - **243 (split the hosted-mac CI job)** — 🟡 IN PROGRESS — claude (sonnet,
   medium), branch `claude/item-243-mac-split`, worktree
   `awl-next-worktrees/item-243-mac-split`. Touches `CLAUDE.md`, which lane 238
@@ -262,7 +296,46 @@ not retro-fit a receipt string from memory.
   and the focus transfer declines. The comparison's capture-tier probes need
   `--screenshot-app` or a seeded store.
 
-## Remaining work — handoff order (2026-08-02, after the evening wave)
+## Remaining work — handoff order (RE-DERIVED 2026-08-03 afternoon)
+
+⚠️ **The 2026-08-02 list below this one is STALE and is retained only as
+history — do not dispatch from it.** Verified against the tree: its #1 (116d)
+is landed, its #2 (204) is landed **both slices**, its #3's named remainder
+(`workspace_header_beat`) is already folded and gone from `src/`, and of its #4
+the 217 and 215 members are landed. Their `✅ COMPLETE` entries were cleared
+into history by `16b4e8c2`, which is sanctioned; what was not sanctioned is
+that the handoff list itself was never re-derived afterward, so it kept
+pointing at finished work. **A compression that clears completions must
+re-derive this section in the same commit.**
+
+**Live order, after this afternoon's wave:**
+
+1. **218 — dispatched this wave.** The VoiceOver stall is user-reported and is
+   the only open item that degrades a shipping accessibility path.
+2. **243, 240, 238 — dispatched this wave.** 243 first among them at
+   integration: it is what ends the uninformative `main` red.
+3. **174 — genuinely open, and NOT blocked** now that 116d's hold is released.
+   But its named remainder is gone, so **re-scope it before dispatching**;
+   do not brief it off the 2026-08-02 text.
+4. **Then, unblocked and unclaimed:** 237 (the vacuous law arm — small), 229
+   (CJK word count, user decision made), 222/131d (Magpie's mirrored cluster,
+   user decision made), 221 and 224 (both were blocked on 235's capability,
+   which landed), 239, 241, 242.
+5. **Human/live closures, all needing an unlocked and FOREGROUNDED display:**
+   118's world-loudness confirmation and its `--release` ambient sitting; 211's
+   unoccluded confirmation and its unreached sweep arms; 207's real VoiceOver /
+   AT-SPI journeys; and now **218's own final Done clause**, which no test tier
+   can stand in for. ⚠️ `displaysleep` is 10 and screensaver `idleTime` is 300 —
+   this silently invalidated the 2026-08-02 sitting seven minutes in. Hold the
+   display with `caffeinate -d -i -t <seconds>` and re-check the lock at BOTH
+   ends; `live-probe.sh` only checks in preflight.
+
+**Item 116's parent entry should now be closed outright** — it is kept verbatim
+in a pre-flip state that is no longer true. Left open deliberately rather than
+edited mid-wave, because it is a long entry and rewriting it while three lanes
+run risks exactly the drop this section is about.
+
+## Remaining work — STALE, 2026-08-02, retained as history only
 
 1. **116d — dispatch first; it is UNBLOCKED and everything behind it waits.**
    116a–c are landed and both of its owed decisions are now made: the comparison
