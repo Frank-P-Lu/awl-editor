@@ -136,6 +136,7 @@ pub fn tree_update(snapshot: &SemanticSnapshot) -> TreeUpdate {
     TreeProjector::default().full(snapshot, 0)
 }
 
+#[cfg(test)]
 pub fn incremental_tree_update(snapshot: &SemanticSnapshot, changed: &[String]) -> TreeUpdate {
     TreeProjector::default().incremental(snapshot, changed, 0)
 }

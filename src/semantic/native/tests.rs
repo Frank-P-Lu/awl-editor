@@ -326,7 +326,7 @@ fn an_oversized_cluster_round_trips_through_a_real_selection_request() {
     let runs = runs_of(&snapshot);
     assert_eq!(runs.len(), 3, "the fixture must be three runs");
     assert_eq!(
-        runs[1].character_lengths.iter().map(|n| *n).sum::<usize>(),
+        runs[1].character_lengths.iter().copied().sum::<usize>(),
         2 + cluster.len() + 1,
         "the middle run carries the cluster, its neighbours and its newline",
     );

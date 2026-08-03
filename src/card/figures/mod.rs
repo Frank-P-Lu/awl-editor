@@ -118,6 +118,7 @@ fn is_unspaced(script: Script) -> bool {
 ///     scaffold that predates this figure), and a reader of its WORD COUNT
 ///     line wants a count of the words on the page, not a label chosen by a
 ///     tag that has nothing to do with the visible prose.
+///
 /// A character majority answers the only question this figure actually
 /// asks — "does this document's prose have words to count, or not" — from
 /// the prose itself.
