@@ -207,19 +207,27 @@ an ordinary capture sees only the settled state. Sweep BOTH directions and the
 wrap, in both worlds. **Routing:** Deep tier (Opus, high) — authoring the symbol
 is taste work and the README routes taste above production. Follow with a Fable
 visual-judge pass over real gallery captures.
-🔵 **PARKED SUB-DECISION — USER ONLY: which symbol.** The user's call was
-"a special symbol to replace the marker", without naming it. The grammar
-constrains it: it must read at rest AND at every angle of the turn, and it must
-be built from stroked segments rather than a font glyph (see 248's reasoning —
-`panel_attrs()` is the active world's face, so a glyph's shape would vary across
-worlds). **Options:** (i) a stroked chevron whose vertex sits on the spine and
-whose arms open toward the label — the turn then reads as the mark pivoting to
-point at what you selected; (ii) keep the `⊢` topology but let the connector
-alone swing, so the tick stays a fixed anchor on the spine; (iii) a three-arm
-mark that reads as directional at rest. **Recommendation: (i).** It is the one
-that makes the rotation MEAN something rather than decorate — a chevron that
-points is already an up/down instrument, which is the whole reason the idea
-started. Leave the item landable at (i) so the answer costs one command.
+✅ **SUB-DECISION RESOLVED — USER CALL 2026-08-04: THE SYMBOL IS THE STROKED
+CHEVRON** (option (i) as recommended). Vertex on the spine, arms opening toward
+the label. **The derivation is worth keeping, because it is arithmetic rather
+than taste and it constrains any future revisit.** The drawable alphabet is
+fixed by the primitive: `spine_segment` yields ONE rotated ROUNDED RECT, and
+`set_corner`'s radius is clamped by the shader to `min(hsize.x, hsize.y)` — so
+the vocabulary is straight strokes plus, at `length == thickness` with full
+corner, dots. **No curves, no arcs, no fills, no glyphs.** The canvas is
+~`10.0` logical px of connector reach at `3.0` weight against a row-tall tick —
+about three strokes before it turns to mud. And the read-at-every-angle
+requirement eliminates candidates ARITHMETICALLY, not by preference: **a plain
+bar has 180° rotational symmetry, so half a turn is indistinguishable from no
+turn** — which also kills the plus, cross, diamond, square and asterisk. The
+chevron is the simplest mark with NO rotational symmetry, and it is directional
+AT REST, which is what the Reduce Motion clause above actually requires.
+**Rejected: the arrow** (shaft + two barbs) — most explicitly directional, but
+three strokes at `3.0` weight inside `10.0` px puts each barb near 4px and it
+muds at 1× DPI. **Rejected: tick + orbiting dot** — calmest, but a dot is too
+weak a direction cue at this weight. **Rejected: `⊢` with the connector alone
+swinging** — most conservative, but a horizontal connector says nothing at rest
+and so fails the Reduce Motion clause unless the resting angle itself tilts.
 
 248. **The fold chevron tells you which way it goes, and animates the change —
 every world.** **Build:** `render/layers/fold_chevron.rs` is direction-blind
@@ -305,6 +313,16 @@ they ride this wave's first train.
   lane 116d freed. Deep tier per the item's own routing clause; its final Done
   clause needs a real unlocked VoiceOver sitting and therefore cannot close
   headlessly.
+- **247 (the STATIC chevron mark only)** — 🟡 IN PROGRESS — claude (opus, high),
+  **in the MAIN working tree, not a worktree** (this session is configured to
+  work in place; recorded here because the standing protocol assumes a worktree
+  and the divergence should not have to be inferred). Scope is deliberately the
+  RESTING mark alone — replace the two-segment `⊢` with the decided stroked
+  chevron in `render/chrome/diagonal.rs` and capture it at real size in both
+  Mangrove and Magpie. **The turn, the travel phase and the `advance()` OR-fold
+  are NOT in this slice** and 247 stays open after it: the symbol was chosen from
+  a description, and the user should see pixels before motion is built on top.
+  File hold: `render/chrome/diagonal.rs`.
 
 ⚠️ **BOARD-INTEGRITY DEFECT — this wave's first lane was spent on it, so it is
 worth reading before the next compression.** `16b4e8c2` cleared finished items,
