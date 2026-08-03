@@ -189,19 +189,70 @@ so the full string is gone for good. `86d73aa3` is real and is a descendant of
 **Standing fix, cheap and permanent: put the receipt in the MERGE COMMIT
 MESSAGE, not only on the board.** Every recurrence of this gap has the same
 cause — the board is the only copy, and the board gets compressed.
-- **243 (split the hosted-mac CI job)** — 🟡 IN PROGRESS — claude (sonnet,
-  medium), branch `claude/item-243-mac-split`, worktree
-  `awl-next-worktrees/item-243-mac-split`. Touches `CLAUDE.md`, which lane 238
-  also touches on a different line; integrate them on separate trains.
-- **240 (WebGL2 shader validation sweep)** — 🟡 IN PROGRESS — claude (sonnet,
-  medium), branch `claude/item-240-shader-sweep`, worktree
-  `awl-next-worktrees/item-240-shader-sweep`.
+- **243** — ✅ **COMPLETE.** Merged `1833757b`. `mac (build + test, minus
+  render::tests)` gates with no `continue-on-error` at any level;
+  `mac (render::tests)` carries it at the **job** key and names item 231 in its
+  own job title, so the red is attributable from the workflow file alone.
+  No Rust changed, so applicable arms only — code-health, actionlint, a YAML
+  parse, and one targeted test. **No native tier claimed, correctly.**
+  Clause 3's real sub-claim was proved the right way: the gating job's own step,
+  run character-for-character, included and failed a broken `dateformat` test
+  (2865 passed, 1 failed), so `--skip render::tests` demonstrably does not
+  shield it — "cargo test fails" alone would not have proved "the job fails".
+  ⚠️ **CLAUSE 1 IS OWED and can only be paid by the first `main` run after this
+  lands**, because `ci.yml`'s push trigger is `branches: [main]` and worktree
+  branches never push. **Check it on the next push.**
+  ⚠️ **Consequence to absorb, not lose: NO hosted-mac arm prints a
+  `native-gate-receipt` anymore.** `native-gate.sh` forbids filtered invocation
+  by design, and both new jobs are filtered. Nothing parses that string from CI,
+  so nothing breaks — but a human could previously read it as informal
+  confirmation that the exact commit passed the full suite on virtualised Metal,
+  and that no longer exists in any form. This is a **different** gap from the
+  RECEIPT GAP below (which is about local pre-push receipts); it is a candidate
+  for its own item, deliberately not absorbed silently.
+  One brief correction from the lane, worth carrying: pushing a worktree branch
+  runs **nothing** — `on.push.branches` is `[main]` only.
+- **240** — ✅ **COMPLETE.** Merged `174f570d`; worktree removed. Receipt, and it
+  is **in the merge commit message, not only here** —
+  `native-gate-receipt commit=f0e8b46670e49979611278652bcf60454c1c0974 conventions=mac,linux scope=all-targets`,
+  plus web smoke `16 passed`. The gate named `f0e8b466`, whose base differs from
+  the merge candidate by two markdown files and **zero `.rs`**, so the native
+  scope carries; that reasoning is recorded in the merge message rather than
+  asserted here. The hand-kept 4-of-9 list is now one directory-driven sweep
+  that reads `shaders/` and extracts entry points from each source's own
+  `@vertex`/`@fragment` attributes, so a tenth shader **or an eleventh entry
+  point** cannot be added without validation. **No live web defect: all 9
+  shaders / 21 entry points pass GLSL ES 300** — the five uncovered ones
+  (`blur`, `caret`, `caret_glyph`, `image`, `spellunderline`) are clean, so this
+  is a coverage fix, not a defect fix. Mutation-proved **twice**: a real
+  GLES-310-only construct (`pack4x8snorm`) in the previously-uncovered
+  `caret.wgsl`, and a throwaway shader named in no list, which the sweep caught
+  with no test-code change. The orchestrator re-ran the sweep on the merge
+  candidate rather than taking the report on trust.
+- **229 (CJK word count)** — 🟡 IN PROGRESS — claude (sonnet, medium), branch
+  `claude/item-229-cjk-count`, worktree `awl-next-worktrees/item-229-cjk-count`,
+  based on `174f570d`. Took 240's freed lane; the user's product call is made,
+  so it is implementation. Surface is `src/card/figures.rs` and the sidecar —
+  disjoint from all three running lanes.
 - **238 (the `awl-editor` rename)** — 🟡 IN PROGRESS — claude (sonnet, medium),
   branch `claude/item-238-rename`, worktree `awl-next-worktrees/item-238-rename`.
   ✅ **`git remote` IS REPOINTED** — the orchestrator did it before dispatch and
   verified it without a redirect (`git ls-remote --heads origin main` →
   `69f379f7`). It is config, not a commit, so it appears in no diff; the worker
   owns only the tracked-file surface and the law.
+
+⚠️ **A BRIEF DEFECT THIS WAVE PAID FOR — fix it in the next brief template.**
+Items 240 and 243 were each green alone and **red together**: 240's new file
+carried a 104-column line and was not `rustfmt`-clean, and combined `main`
+failed `code-health` the moment 243's merge landed on top of it. Neither lane
+was at fault — **the orchestrator's briefs named `native-gate.sh` and
+`web-smoke.sh` but never `code-health`**, so a lane could run everything it was
+asked and still land a health failure. The README already says the pre-landing
+set is *code health, native gate, wasm smoke*; the briefs dropped the first one.
+Repaired in the same commit as this note (`cargo fmt` plus a wrapped panic
+line); the sweep still passes and the health ratchets are clean. **This is also
+the README's "two branches each green alone can be red together" warning
+arriving in its most boring possible form — a line length.**
 
 **Two housekeeping facts for whoever integrates.**
 `awl-next-worktrees/item-232-scratch` is a leftover directory that

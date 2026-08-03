@@ -85,16 +85,18 @@ fn entry_points(source: &str) -> Vec<(naga::ShaderStage, String)> {
             _ => continue,
         };
         // Skip any further stacked attribute lines to reach the `fn` line.
-        while lines.peek().is_some_and(|next| next.trim().starts_with('@')) {
+        while lines
+            .peek()
+            .is_some_and(|next| next.trim().starts_with('@'))
+        {
             lines.next();
         }
         let fn_line = lines
             .next()
             .unwrap_or_else(|| panic!("entry-point attribute with no following `fn` line"));
-        let rest = fn_line
-            .trim()
-            .strip_prefix("fn ")
-            .unwrap_or_else(|| panic!("expected `fn` after entry-point attribute, found: {fn_line:?}"));
+        let rest = fn_line.trim().strip_prefix("fn ").unwrap_or_else(|| {
+            panic!("expected `fn` after entry-point attribute, found: {fn_line:?}")
+        });
         let name = rest
             .split(['(', '<'])
             .next()
@@ -116,12 +118,15 @@ fn every_shader_under_shaders_dir_targets_webgl2() {
         .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("wgsl"))
         .collect();
     files.sort();
-    assert!(!files.is_empty(), "no .wgsl files found under {}", dir.display());
+    assert!(
+        !files.is_empty(),
+        "no .wgsl files found under {}",
+        dir.display()
+    );
 
     for path in &files {
         let file = path.file_name().unwrap().to_string_lossy().to_string();
-        let source =
-            fs::read_to_string(path).unwrap_or_else(|e| panic!("cannot read {file}: {e}"));
+        let source = fs::read_to_string(path).unwrap_or_else(|e| panic!("cannot read {file}: {e}"));
         let points = entry_points(&source);
         assert!(
             !points.is_empty(),
