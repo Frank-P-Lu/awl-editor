@@ -745,7 +745,7 @@ pub(super) fn scroll_window(
 
 pub struct HudReport {
     pub held: bool,
-    pub words: Option<(usize, usize)>,
+    pub words: Option<(usize, usize, crate::card::figures::CountUnit)>,
     pub percent: u32,
     pub lang: Option<crate::frontmatter::Lang>,
     pub eol: crate::buffer::Eol,

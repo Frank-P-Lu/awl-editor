@@ -180,7 +180,9 @@ impl TextPipeline {
     ///
     /// Derived by [`crate::card::figures::readout_figures`] — the ONE owner the
     /// semantic fold reads too — over [`figure_source`], never the shaped page.
-    pub fn readout_report(&self) -> Option<(usize, usize)> {
+    /// The third element is the unit that number is in — words for a script
+    /// that spaces them, characters for one that doesn't (`CountUnit`).
+    pub fn readout_report(&self) -> Option<(usize, usize, crate::card::figures::CountUnit)> {
         crate::card::figures::readout_figures(&self.figure_source().0, self.md_enabled)
     }
 

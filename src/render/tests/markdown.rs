@@ -949,7 +949,7 @@ fn wordcount_readout_gated_to_markdown() {
     p.set_view(&md);
     assert_eq!(
         p.readout_report(),
-        Some((5, 1)),
+        Some((5, 1, crate::card::figures::CountUnit::Words)),
         "5 words => `5 words · 1 min`"
     );
 
@@ -982,7 +982,7 @@ fn readout_excludes_frontmatter_block() {
     p.set_view(&md);
     assert_eq!(
         p.readout_report(),
-        Some((5, 1)),
+        Some((5, 1, crate::card::figures::CountUnit::Words)),
         "the frontmatter's own words must not count toward the readout"
     );
 

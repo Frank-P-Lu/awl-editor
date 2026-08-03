@@ -581,8 +581,11 @@ fn span_array_json<S: AsRef<str>>(spans: &[(usize, usize, S)]) -> String {
 
 fn readout_json(pipeline: &TextPipeline) -> String {
     match pipeline.readout_report() {
-        Some((words, reading_min)) => {
-            format!("{{ \"words\": {words}, \"reading_min\": {reading_min} }}")
+        Some((words, reading_min, unit)) => {
+            format!(
+                "{{ \"words\": {words}, \"reading_min\": {reading_min}, \"unit\": {} }}",
+                json_string(unit.tag())
+            )
         }
         None => "null".to_string(),
     }
@@ -664,8 +667,11 @@ fn whichkey_json(pipeline: &TextPipeline) -> String {
 fn hud_json(pipeline: &TextPipeline) -> String {
     let hud = pipeline.hud_report();
     let hud_words = match hud.words {
-        Some((w, m)) => format!("\"words\": {w}, \"reading_min\": {m}"),
-        None => "\"words\": null, \"reading_min\": null".to_string(),
+        Some((w, m, unit)) => format!(
+            "\"words\": {w}, \"reading_min\": {m}, \"unit\": {}",
+            json_string(unit.tag())
+        ),
+        None => "\"words\": null, \"reading_min\": null, \"unit\": null".to_string(),
     };
     let lang = match hud.lang {
         Some(l) => json_string(l.code()),
