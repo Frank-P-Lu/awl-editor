@@ -635,6 +635,64 @@ converts the hang into an ordinary failure exactly as intended. **What is still
 owed is one run where the gating arms PASS and a wedge failure alone leaves the
 workflow green** — that is run `30836476858` on `f8121f45`, in flight.
 
+- **239** — ✅ **COMPLETE, and its headline is a NEGATIVE RESULT that is the
+  deliverable rather than a shortfall.** Merged `52b1b313`. Receipt
+  `native-gate-receipt commit=45fee36af80270fa54f1fb024a69e79fd58bc8b8 conventions=mac,linux scope=all-targets`,
+  `web-smoke: OK`, `bash scripts/code-health.sh` clean, fmt clean.
+  **The portable counter does NOT reproduce item 232's container split.**
+  Objects per test: good `36707d06` **242.4**, bad `8207e519` **243.3** — a ratio
+  of **1.0039** where the container's own was **1.244**. Wrong order of
+  magnitude, not a weak signal. **So wgpu object allocation is not what the
+  4 GiB container was exhausting**, and item 231's named residual suspects
+  accumulate badly but do not accumulate *differently* between the two trees.
+  Guarded against item 232's own error: separate worktrees per boundary, with a
+  compile-time provenance stamp asserted identical across samples.
+  **Mechanism correction for item 231's entry:** the suspect class is misnamed.
+  It is not "reclaimed only on poll" — `Queue::write_buffer`/`write_texture`
+  park an `Arc` in `PendingWrites`, drained in exactly one place, `pre_submit`.
+  A caller that stages writes and never submits pins them **however often it
+  polls**, and most render tests `prepare()` and return. **This matters twice: a
+  fix aimed at polling would not have worked, and the live app submits every
+  frame, so on this resource class the product is not exposed and the harness
+  is.** Bound: an empty submit plus a non-blocking poll in `test_gpu::arrive` —
+  no roster of tests, no roster of resources. Live objects went from a 160,201
+  climb to `kept` median 7 / p90 231.
+  Oracle counts objects, not bytes, and that is measured: `buffers`/`textures`/
+  `texture_views` are maintained by metal, vulkan, gles **and** dx12, while
+  `buffer_memory`/`texture_memory` are vulkan and dx12 only — a byte-valued law
+  would read **flat zero on two of awl's four backends**.
+  ⚠️ **The third law is the one that keeps the other two honest:** drop wgpu's
+  `counters` feature and it fails **by name**, instead of every counter silently
+  reading zero and both allocation laws going vacuous forever. That is the
+  anti-vacuity arm this board keeps asking for, written without being asked.
+  ⚠️ **Item 237's trap caught one of the author's own, in this file.** The first
+  workload submitted a pass, so law 3 stayed **GREEN** under its own mutation —
+  `Queue::submit` maintains the device on its way out, so the workload was doing
+  the reclaiming its law existed to check. Both hazards are documented in the
+  workload's doc comment.
+  ⚠️ **Known limit, reported rather than hidden:** a constant bounded pool (30
+  extra buffers held in a thread-local each call *replaces*) leaves all three
+  laws green. These laws bound GROWTH, not absolute ceiling.
+
+🔵 **ITEM 231 — A CHEAP, FALSIFIABLE LEAD FROM THE 239 LANE. Two ratios, and the
+lane flagged it as correlation rather than dressing it as a finding.**
+`background.wgsl` is **72,896** bytes at `8207e519` against **58,687** at
+`36707d06` — ratio **1.2421**. The container's own test-count ratio, 199/160, is
+**1.2437**. They differ by **0.13%**. Both boundaries predate `gpu_cache.rs`, so
+every `TextPipeline::new` translated that whole file through naga and then the
+backend compiler, and under lavapipe the result is LLVM IR and machine code held
+in the llvmpipe context. **If the OOM budget is dominated by per-translation
+shader-compilation memory, it would be spent in inverse proportion to shader
+source size — which is what those two numbers say.**
+**The falsification is ONE container run:** `gpu_cache` cut program builds 9.3×
+and landed after both boundaries, so if this is right, HEAD under the same 4 GiB
+ceiling should get dramatically further than 199, or not OOM at all. This does
+**not** contradict 231's elimination (e) — that cut failed to clear the *hang*,
+and the OOM is explicitly a different failure mode. ⚠️ **Two data points and a
+coincidence-grade match. Nothing here shows that bounding allocation growth
+would prevent the hosted-mac hang, and no commit, comment or law name in the
+239 branch implies item 231 is fixed or explained.**
+
 ✅ **THE CI RED IS REPAIRED, CONFIRMED ON THE AXIS THAT FOUND IT.** Run
 `30836476858` (`f8121f45`) came back with **`mac (build + test, minus
 render::tests)` = success and `linux` = success**, plus `web` and
