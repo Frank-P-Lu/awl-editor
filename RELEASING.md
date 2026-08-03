@@ -216,7 +216,7 @@ will name.
 
 | # | Step | Done when |
 |---|---|---|
-| 1 | `scripts/native-gate.sh` on combined main | receipt names the tag's commit |
+| 1 | `scripts/native-gate.sh` on combined main | receipt names the tag's commit (see the note below on what it does *not* cover) |
 | 2 | `scripts/audit.sh` | cargo-deny clean, or a recorded narrow ignore |
 | 3 | `scripts/release-profile-gate.sh` | all 8 action families match debug↔release |
 | 4 | `cargo about generate about.hbs -o THIRD-PARTY-LICENSES.md` | regenerated, diff reviewed, committed |
@@ -226,6 +226,25 @@ will name.
 | 8 | `Cargo.toml`'s `package.version` matches the tag | `v<version>` — no stale `0.1.0` |
 | 9 | `git tag`, `git push origin <tag>` | **user's explicit word, every time** |
 | 10 | After the tag: `gh workflow run deploy-web.yml` | **user's explicit word too.** `version.json` comes from `git describe --tags`, so until the site is redeployed at or after the tag, Check for Updates keeps reporting "no tagged release yet" |
+
+#### What step 1's receipt does not certify
+
+A `native-gate.sh` receipt is **hardware-bounded**: it certifies "sound on the
+hardware the receipts run on, with virtualised-GPU behaviour untested by any
+local gate." The gate uses the host's own adapter — real Apple Silicon Metal on
+the dev machine — and a shipped binary will run on machines that have no such
+thing: VMs, remote desktops, and hosted CI. Item 231's wedge was green under
+that receipt for ~140 commits while the hosted-macOS CI job hung on virtualised
+Metal, so **a green receipt is not evidence about this axis and never was.**
+
+A software adapter does not close the gap (measured, item 232 — see the CI
+workflow's `mac` job comment). CI's `linux` job runs this same gate against
+Mesa lavapipe on every push and stayed green through the entire streak, and a
+local lavapipe container reproduces nothing either. **The hosted-mac
+`mac (build + test)` job is the only arm awl has on virtualised-GPU behaviour.**
+Before a tag, confirm it is green on the tag's commit — not merely "not worse
+than usual" — and read a red one as a release blocker, since a user on a VM is
+inside its blast radius.
 
 ### Still open — decisions, not tasks
 

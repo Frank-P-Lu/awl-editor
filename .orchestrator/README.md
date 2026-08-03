@@ -174,7 +174,14 @@ once, at landing.
 - **Before landing, on the exact combined-main candidate:** code health,
   `scripts/native-gate.sh`, wasm smoke, and the item's required captures. Only
   that script's receipt authorizes “full native suite”; it names the exact
-  commit and both conventions. `cargo test --bin awl` is “binary unit tests”;
+  commit and both conventions. **What it does not name is the GPU.** The gate
+  runs on the host's own adapter — real Apple Silicon Metal here — so a receipt
+  certifies “sound on the hardware the receipts run on, with virtualised-GPU
+  behaviour untested by any local gate” (item 232). Item 231's wedge sat green
+  under that receipt for ~140 commits while hosted macOS was red. No local arm
+  covers the axis and a software adapter cannot supply one, so **the hosted-mac
+  `mac (build + test)` CI job is the only arm that sees it and is gating, not
+  tolerated red.** `cargo test --bin awl` is “binary unit tests”;
   every filtered Cargo invocation is “targeted tests.” Counts never prove
   scope. Repair failures on the candidate, rerun the failed slice, then the
   full set once.

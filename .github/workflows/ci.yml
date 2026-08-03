@@ -29,6 +29,20 @@ jobs:
       # mesa-vulkan-drivers so the wgpu-backed capture tests have a software
       # Vulkan adapter to run against on a headless GitHub runner (there is
       # no real GPU here).
+      #
+      # ‼ THIS IS NOT A VIRTUALISED-GPU ARM, and item 232 measured that rather
+      # than assuming it. lavapipe is a CPU rasteriser: each process gets its
+      # own llvmpipe in its own address space, with no driver-internal pipeline
+      # table and nothing shared between processes. Item 231's wedge is a
+      # SYSTEM-WIDE contention (two processes with two separate wgpu devices
+      # stopped within 10 ms of each other), so there is no resource here for
+      # it to exhaust. The evidence, not the argument: this job ran the same
+      # `scripts/native-gate.sh` — full suite, both conventions, all 719
+      # `render::tests::` — green on the very commits where `mac` hung, for the
+      # whole ~140-commit red streak. A local arm64 lavapipe container on the
+      # dev host at `8207e519` and at its parent `36707d06` agrees. So this arm
+      # buys real Linux/Vulkan coverage and buys NOTHING on the virtualised-GPU
+      # axis; do not cite it as that axis's arm. The `mac` job below is it.
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -143,6 +157,21 @@ jobs:
           path: dist/
           retention-days: 14
 
+  # ── This job is awl's ONLY virtualised-GPU arm (item 232) ───────────────────
+  # Not a preference — a measured finding. `scripts/native-gate.sh` runs on the
+  # dev host's real Apple Silicon Metal, so a local receipt certifies "sound on
+  # the hardware the receipts run on, with virtualised-GPU behaviour untested by
+  # any local gate", and item 231's wedge lived under green receipts for ~140
+  # commits. Item 232 asked whether a portable software adapter could stand in
+  # and measured NO on two independent stacks: the `linux` job's x86_64 lavapipe
+  # (green on the exact commits where this job hung, all streak long) and a
+  # local arm64 lavapipe container at `8207e519`/`36707d06`. A CPU rasteriser
+  # has no system-wide GPU resource for a cross-process wedge to exhaust.
+  # So: **this job is gating, not tolerated red.** A red `mac` blocks the train
+  # the way a red `linux` does, and reproducing its class means a real
+  # virtualised Metal stack — this runner, or a local macOS guest VM — never a
+  # container.
+  #
   # ── What the one surviving log says, and what has NOT been done about it ────
   # Run 30732589551 is the only mac failure of this streak that left a log, and
   # it falsifies both standing hypotheses. Step 8 began 04:40:25; both
