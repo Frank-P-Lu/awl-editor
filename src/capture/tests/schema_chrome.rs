@@ -308,6 +308,11 @@ fn assert_plain_details(obj: &serde_json::Map<String, serde_json::Value>) {
     assert!(obj["hud"]["percent"].is_number());
     assert!(obj["hud"].get("file_created").is_none());
     assert!(obj["hud"].get("session").is_none());
+    // The fixture is plain Latin prose, so the readout's own unit reads
+    // "words" — present alongside the count on both the `hud` block and
+    // the top-level `readout` block, never a second copy.
+    assert_eq!(obj["hud"]["unit"], serde_json::json!("words"));
+    assert_eq!(obj["readout"]["unit"], serde_json::json!("words"));
     assert!(
         !obj["md_spans"]
             .as_array()

@@ -706,3 +706,86 @@ fn hud_reports_the_doc_lang_tag() {
 
     crate::hud::set_held(false);
 }
+
+/// THE SIDECAR AND THE DRAWN READOUT AGREE, end to end through the
+/// real capture pipeline. A CJK-dominant document (no frontmatter, so nothing
+/// but the prose itself decides the unit) must report `"characters"` on both
+/// the `readout` block and the held `hud` block, at the EXACT count/unit pair
+/// [`crate::card::figures::readout_figures`] — the pure owner both the drawn
+/// held-HUD row and the sidecar are derived from — computes for the SAME
+/// text. A Latin document alongside it proves the label really moves rather
+/// than defaulting to one value regardless of input.
+#[test]
+fn cjk_and_latin_documents_agree_on_readout_unit_between_sidecar_and_owner() {
+    if !adapter_available() {
+        eprintln!(
+            "skipping cjk_and_latin_documents_agree_on_readout_unit_between_sidecar_and_owner: \
+             no wgpu adapter"
+        );
+        return;
+    }
+    let _hg = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_i18n_unit_test_{}", std::process::id())),
+    );
+
+    let ja_text = "今日はいい天気ですね。".repeat(20); // decisively CJK, no frontmatter
+    let latin_text = "The quick brown fox jumps over the lazy dog many times over.\n";
+
+    crate::hud::set_held(true);
+    for (name, text) in [("ja", ja_text.as_str()), ("latin", latin_text)] {
+        let mut buf = Buffer::from_str(text);
+        buf.set_path(dir.join(format!("{name}.md")));
+        let png = dir.join(format!("{name}.png"));
+        capture_with(&png, &buf, &CaptureOpts::default()).expect("capture renders");
+        let j: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
+                .unwrap();
+        let expected = crate::card::figures::readout_figures(text, true)
+            .expect("both fixtures have at least one token");
+        assert_eq!(
+            j["readout"]["words"],
+            serde_json::json!(expected.0),
+            "{name}: readout count"
+        );
+        assert_eq!(
+            j["readout"]["reading_min"],
+            serde_json::json!(expected.1),
+            "{name}: readout reading time"
+        );
+        assert_eq!(
+            j["readout"]["unit"],
+            serde_json::json!(expected.2.tag()),
+            "{name}: readout unit"
+        );
+        assert_eq!(
+            j["hud"]["words"],
+            serde_json::json!(expected.0),
+            "{name}: hud count"
+        );
+        assert_eq!(
+            j["hud"]["reading_min"],
+            serde_json::json!(expected.1),
+            "{name}: hud reading time"
+        );
+        assert_eq!(
+            j["hud"]["unit"],
+            serde_json::json!(expected.2.tag()),
+            "{name}: hud unit"
+        );
+    }
+
+    // The two documents really do disagree on the label — else this proves
+    // nothing about the axis it claims to sweep.
+    let ja_unit = crate::card::figures::readout_figures(&ja_text, true)
+        .unwrap()
+        .2;
+    let latin_unit = crate::card::figures::readout_figures(latin_text, true)
+        .unwrap()
+        .2;
+    assert_eq!(ja_unit, crate::card::figures::CountUnit::Characters);
+    assert_eq!(latin_unit, crate::card::figures::CountUnit::Words);
+    assert_ne!(ja_unit, latin_unit);
+
+    crate::hud::set_held(false);
+}

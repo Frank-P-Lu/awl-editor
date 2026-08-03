@@ -994,6 +994,11 @@ fn a_history_preview_leaves_the_card_figures_over_the_users_document() {
         "the drawn reading time followed the transcript's count",
     );
     assert_eq!(
+        j["hud"]["unit"],
+        serde_json::json!(fixture::WORDS_PAIR.2.tag()),
+        "the transcript is plain Latin prose, so the unit stays words",
+    );
+    assert_eq!(
         j["hud"]["percent"],
         serde_json::json!(fixture::PERCENT),
         "the drawn THROUGH DOC measured the transcript, not the document",
@@ -1007,6 +1012,11 @@ fn a_history_preview_leaves_the_card_figures_over_the_users_document() {
         j["readout"]["words"],
         serde_json::json!(fixture::WORDS_PAIR.0),
         "the quiet readout counted the diff transcript, not the document",
+    );
+    assert_eq!(
+        j["readout"]["unit"],
+        serde_json::json!(fixture::WORDS_PAIR.2.tag()),
+        "the quiet readout's unit follows the same Latin transcript",
     );
 }
 

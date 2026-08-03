@@ -296,7 +296,7 @@ fn profile_doc(
         "==== {name}: {lines} lines · {} misspellings (live SpellChecker scan) ====",
         misspelled.len()
     );
-    if let Some((words, mins)) = p.readout_report() {
+    if let Some((words, mins, _unit)) = p.readout_report() {
         println!("     ({words} words · {mins} min read)");
     }
     println!(

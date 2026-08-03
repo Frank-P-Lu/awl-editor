@@ -625,9 +625,26 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/197` (`/198` timeline, `/199` held)
+## The sidecar JSON — schema `awl-capture/198` (`/199` timeline, `/200` held)
 
 Field order is stable; consumers may parse positionally or by key.
+
+Schema `/198` adds **`unit`** to the `readout` block and the `hud` block —
+`"words"` or `"characters"`, alongside the count each block already carried.
+Japanese and Chinese prose has no inter-word spaces, so the old whitespace
+tokenizer saw a whole unspaced CJK document as ONE token; the readout now
+counts an ideograph (Kana/Han/Bopomofo — Hangul spaces its own words and is
+untouched) as a token of its own, and `unit` names which kind of token the
+number beside it is. `"words"` for a script that spaces its words, else
+`"characters"` — decided by a strict majority of the manuscript's own
+characters that carry an unspaced script (a tie reads `"words"`); the
+frontmatter `lang:` tag is deliberately NOT consulted for this — it is a
+declared intent, not a report of what is actually written, and a body of
+plain English tagged `lang: ja` must not read "characters". `unit` is `null`
+exactly when `words`/`reading_min` are (a non-markdown or wordless buffer).
+One owner, `crate::card::figures::{readout_figures, CountUnit}`, feeds both
+blocks and the drawn HUD card's WORD COUNT row, so a capture's `readout.unit`
+and `hud.unit` always agree with each other and with what the row draws.
 
 Schema `/195` adds **`overlay.context_anchor`**, the physical-pixel click
 anchor `[x, y]` for the awl-rendered contextual menu, or `null` for every
@@ -1401,11 +1418,11 @@ world.)
   "md_spans": [[0, 2, "markup"], [2, 13, "h1"]],
   "syn_lang": null,
   "syn_spans": [[0, 17, "comment"], [21, 24, "definition"]],
-  "readout": { "words": 58, "reading_min": 1 },
+  "readout": { "words": 58, "reading_min": 1, "unit": "words" },
   "gutter": { "visible": true, "name": "notes.md", "project": "repo", "changed": false },
   "dim_overlay": false,
   "debug": { "enabled": false, "text": "", "frame_ms": null, "worst_ms": null, "budget_ms": null, "key_px_ms": null, "redraws": null, "still": true, "autosave_state": null, "autosave_since_s": null },
-  "hud": { "held": false, "file_created": "—", "session": "—", "words": 58, "reading_min": 1, "percent": 0 },
+  "hud": { "held": false, "file_created": "—", "session": "—", "words": 58, "reading_min": 1, "unit": "words", "percent": 0 },
   "line_count": 17,
   "scroll_lines": 0,
   "cursor": { "line": 0, "col": 0 },
@@ -1437,11 +1454,11 @@ world.)
 | `md_spans`     | MARKDOWN STYLING: array of `[start_byte, end_byte, "tag"]` styled spans (`markup`/`h1`..`h6`/`bold`/`italic`/`bold_italic`/`code`/`quote`/`list_marker`/`link_text`/`task_open`/`task_checked`/`task_done`/`rule`/`highlight`); empty for non-`.md` buffers. A frontmatter block's span also reports plain `"markup"` here (the conceal STATE lives in `wysiwyg` instead — see above). UNCHANGED by the WYSIWYG round — a concealable span still reports its ordinary tag here regardless of the caret |
 | `syn_lang`     | SYNTAX HIGHLIGHTING: the DETECTED code language name (`"rust"`, `"go"`, …) or `null` for a non-CODE buffer; agrees with `syn_spans` (`null` ⇔ empty) |
 | `syn_spans`    | SYNTAX HIGHLIGHTING: array of `[start_byte, end_byte, "tag"]` Alabaster role spans (`comment`/`string`/`constant`/`definition`); empty for non-CODE buffers (`.env`/`.md`/`.txt`/unknown). Mutually exclusive with `md_spans` |
-| `readout`      | QUIET word-count readout: `{ words, reading_min }` (reading_min = ceil(words/200), min 1), or `null` for a non-markdown / wordless buffer. NO LONGER drawn (moved to the held HUD); kept as the HUD's source |
+| `readout`      | QUIET word/character-count readout: `{ words, reading_min, unit }` (reading_min = ceil(words/200), min 1; `unit` is `"words"` or `"characters"`, item 229 — see the schema `/198` narrative above), or `null` for a non-markdown / wordless buffer. NO LONGER drawn (moved to the held HUD); kept as the HUD's source |
 | `gutter`       | PAGE-MODE GUTTER: `{ visible, name, project, changed }` — the left-margin orientation label (filename muted over project faint, LABEL size). `visible` is true only when drawn (page mode + a name + a margin past the hard floor, `render::rowlayout::GUTTER_MIN_NAME_CHARS`); `name` and `project` are each **exactly as drawn** — independently fit to ONE line, middle-elided (extension preserved) only once the margin can't hold that line whole (`render::rowlayout::gutter_plan`/`fit_primary`, the same door the picker rows use). Neither line yields to the other from width pressure; `project` is `""` only when there is genuinely no project to show. `changed` (schema `/197`) is the persistent `changed elsewhere` affordance — `true` only on a `driver: "live-app"` capture whose document holds an unresolved external change, in which case the block draws a THIRD line above the filename in a stronger ink |
 | `dim_overlay`  | `true` when a FULL-takeover overlay dims the document behind it (the scrim); `false` for the search SPLIT panel / no overlay (DESIGN §5) |
 | `debug`        | DEBUG panel (renamed from the old `fps` counter): `{ enabled, text, frame_ms, worst_ms, budget_ms, key_px_ms, redraws, still, autosave_state, autosave_since_s }`. OFF by default (empty `text` → byte-identical). `text` is the full stacked readout; `frame_ms`/`worst_ms`/`budget_ms`/`key_px_ms`/`redraws`/`still` are the machine-readable perf triad (all `null` + `still: true` in a capture — no clock runs headlessly). `autosave_state` (`"off"`/`"held"`/`"saved"`, else `null`) + `autosave_since_s` (whole seconds since the last successful autosave write, else `null`) mirror the panel's `autosave …` line, fed EXCLUSIVELY through `App::autosave_flush`'s one door — both `null` in every capture (the engine is structurally live-App-only) |
-| `hud`          | HELD STATS HUD: `{ held, words, reading_min, percent, lang }`. `held` is the summon state (false by default → byte-identical); `words`/`reading_min` null for non-markdown; `percent` = cursor %-through-doc; `lang` (i18n round, schema `/92`) is the document's frontmatter language. Every figure is a pure function of the USER'S DOCUMENT + cursor — the whole buffer, never the shaped page — so a collapsed fold or an open History preview leaves them unmoved (`readout` likewise). It follows that `lang` and the top-level `doc_lang` can differ: `doc_lang` is the SHAPED text's language, which is what the per-script font ladder must follow, and a diff transcript carries no frontmatter. No clock, fully capture-safe |
+| `hud`          | HELD STATS HUD: `{ held, words, reading_min, unit, percent, lang }`. `held` is the summon state (false by default → byte-identical); `words`/`reading_min`/`unit` null for non-markdown (`unit` is `"words"`/`"characters"`, item 229, schema `/198` — see the narrative above; always agrees with the top-level `readout` block, one owner); `percent` = cursor %-through-doc; `lang` (i18n round, schema `/92`) is the document's frontmatter language. Every figure is a pure function of the USER'S DOCUMENT + cursor — the whole buffer, never the shaped page — so a collapsed fold or an open History preview leaves them unmoved (`readout` likewise). It follows that `lang` and the top-level `doc_lang` can differ: `doc_lang` is the SHAPED text's language, which is what the per-script font ladder must follow, and a diff transcript carries no frontmatter. No clock, fully capture-safe |
 | `about`        | SUMMONED ABOUT CARD (schema `/99`): `{ open }`. `false` by default (byte-identical); `true` after the palette "About" command (or the macOS menu bar's App ▸ "About Awl") opens it. Shares the HUD's float-card pipeline (`about.rs` + `render/chrome.rs::prepare_hud`) rather than owning a parallel one |
 | `line_count`   | total logical lines in the buffer |
 | `scroll_lines` | top visual-row anchor (0 on load; retained for row-oriented diagnostics) |

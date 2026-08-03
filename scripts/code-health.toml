@@ -105,7 +105,7 @@ lines = 567
 
 [[file_size_mark]]
 file = "src/capture.rs"
-lines = 57
+lines = 58
 reason = "One `/N` row in the schema ledger, which must move in the same commit as `SCHEMA_VERSION` (+1)."
 
 [[file_size_mark]]
@@ -115,8 +115,8 @@ reason = "+4 lines. The headless snapshot carries a serialized lens strip and no
 
 [[file_size_mark]]
 file = "src/capture/sidecar.rs"
-lines = 847
-reason = "Two new sidecar keys — `gutter.changed` and `overlay.preview_view` — in the ONE serializer, whose no-overlay literal must stay in lockstep with its populated arm (+9)."
+lines = 853
+reason = "Two new sidecar keys — `gutter.changed` and `overlay.preview_view` — in the ONE serializer, whose no-overlay literal must stay in lockstep with its populated arm (+9). Item 229: `readout_json`/`hud_json` each grow a `unit` field alongside the count they already carried, the one owner both blocks read from (+6)."
 
 [[file_size_mark]]
 file = "src/caret.rs"
@@ -323,8 +323,8 @@ lines = 630
 
 [[file_size_mark]]
 file = "src/render/chrome/readout.rs"
-lines = 604
-reason = "DOWN 30: the word-count and reading-time derivation moved out to `src/card/figures.rs`, the pure owner over the document text that the semantic fold reads too; what is left here delegates to it."
+lines = 606
+reason = "DOWN 30: the word-count and reading-time derivation moved out to `src/card/figures.rs`, the pure owner over the document text that the semantic fold reads too; what is left here delegates to it. Item 229: `readout_report`'s return type grows a third element (the count's unit), plus its own doc comment naming what it means (+2)."
 
 [[file_size_mark]]
 file = "src/render/chrome/theme_picker.rs"
@@ -877,30 +877,30 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 742
+line = 752
 message = "this function has too many lines (107/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted +10 by two new `unit` assertions added to the HUD readout test above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 1266
+line = 1276
 message = "this function has too many lines (138/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace. Line shifted +10 by two new `unit` assertions added to the HUD readout test far above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 1569
+line = 1579
 message = "this function has too many lines (111/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace. Line shifted +10 by two new `unit` assertions added to the HUD readout test far above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 1737
+line = 1747
 message = "this function has too many lines (131/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field). Item 116b: +12 lines. Item 84's cross-world diff-panel DRESSING law is re-aimed as `history_preview_renders_the_transcript_as_the_document_in_every_world`: the dressing claim moved to the render tier (where the relocated viewport exists), and what stays here is the content half — the transcript IS the captured document, it renders undressed (a differential against the same transcript captured plainly, with an ink floor so the band cannot go vacuous), and `detail_focus` moves no pixel. The History workspace's own composition then retired the two dressing arms outright — 'undressed at the page column' and 'detail_focus moves nothing' describe a composition that no longer exists — and what stays is the sidecar's transcript plus a differential proving the CAPTURE PATH's own workspace-shape derivation places the comparison in the content pane (-11 lines)."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field). Item 116b: +12 lines. Item 84's cross-world diff-panel DRESSING law is re-aimed as `history_preview_renders_the_transcript_as_the_document_in_every_world`: the dressing claim moved to the render tier (where the relocated viewport exists), and what stays here is the content half — the transcript IS the captured document, it renders undressed (a differential against the same transcript captured plainly, with an ink floor so the band cannot go vacuous), and `detail_focus` moves no pixel. The History workspace's own composition then retired the two dressing arms outright — 'undressed at the page column' and 'detail_focus moves nothing' describe a composition that no longer exists — and what stays is the sidecar's transcript plus a differential proving the CAPTURE PATH's own workspace-shape derivation places the comparison in the content pane (-11 lines). Line shifted +10 by two new `unit` assertions added to the HUD readout test far above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -926,9 +926,9 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 1022
+line = 1032
 message = "this function has too many lines (114/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field). Line shifted again by the History-preview card-figure law added above it; this function's own body is unchanged."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field). Line shifted again by the History-preview card-figure law added above it; this function's own body is unchanged. Shifted a further +10 by two new `unit` assertions added inside that PRECEDING function (`a_history_preview_leaves_the_card_figures_over_the_users_document`), not this one — this function's own body and line count are unchanged."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
@@ -947,9 +947,9 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/readout.rs"
-line = 460
+line = 462
 message = "this function has too many lines (112/100)"
-reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
+reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line shifted by `readout_report`'s doc comment gaining a line naming its new third return element (the count's unit); the function's own body and line count are unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

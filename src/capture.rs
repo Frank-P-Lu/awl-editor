@@ -11,8 +11,9 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 /// `/195` — pointer-anchored context menus add `overlay.context_anchor`.
 /// `/196` — top-level `semantic`: the live-App semantic tree, else `null`.
 /// `/197` — `overlay.preview_view`; `gutter.changed`.
+/// `/198` — `readout.unit` / `hud.unit`: `"words"` or `"characters"`.
 /// History lives in Git. Bump this row with the const.
-pub const SCHEMA_VERSION: u32 = 197;
+pub const SCHEMA_VERSION: u32 = 198;
 /// Plain single-frame schema; timeline and held take the next two versions.
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")

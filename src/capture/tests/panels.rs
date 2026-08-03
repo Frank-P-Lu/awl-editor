@@ -297,6 +297,11 @@ fn hud_absent_by_default_and_held_shows_writer_stats() {
         off["hud"]["words"].is_number(),
         "markdown buffer reports a word count"
     );
+    assert_eq!(
+        off["hud"]["unit"],
+        serde_json::json!("words"),
+        "plain Latin prose reads in words"
+    );
     assert!(
         off["hud"]["percent"].is_number(),
         "percent is always present"
@@ -352,6 +357,11 @@ fn hud_absent_by_default_and_held_shows_writer_stats() {
         cv["hud"]["words"],
         serde_json::json!(null),
         "non-markdown omits the word count"
+    );
+    assert_eq!(
+        cv["hud"]["unit"],
+        serde_json::json!(null),
+        "no count, no unit either"
     );
 
     crate::hud::set_held(false);
