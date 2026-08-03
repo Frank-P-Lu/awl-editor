@@ -425,18 +425,41 @@ run.
 
 **Overnight results, newest first.**
 
-- **220 + 221 + 224 + 234** — 🟡 IN PROGRESS — claude (deep), branch
-  `claude/items-220-221-224-location`. ⚠️ **THE COLLISION MAP RECORDED EARLIER
-  WAS WRONG and is corrected here.** It grouped 220+221 and put 224 with 222,
-  but **221 and 224 are two WORLDS' EXPRESSIONS of the very hierarchy datum 220
-  introduces** — Cassowary's rotated flush-left label and Magpie's slanted
-  mirrored cue are the same feature, and splitting them guarantees three
-  different ideas of what that datum is. 234 rides along as the same
-  "plate measured against the wrong bound" shape. **The governing constraint:**
-  221 says the world expression must be **theme data, not a palette code path**,
-  and `CLAUDE.md` is blunt that a theme needing its own code path means the
-  design is wrong — so if both expressions cannot come from one data mechanism,
-  the lane is told to STOP and say so rather than branch per world.
+- **220 + 234** — ✅ COMPLETE. **221 + 224 argued and DEFERRED to item 235.**
+  Receipt `native-gate-receipt commit=c2cfac75… conventions=mac,linux
+  scope=all-targets`, 3627 passed.
+  **The theme-data constraint HOLDS — it is not what blocks 221/224.** Both
+  expressions are a `RenderCaps` variant over 220's single `overlay_location`
+  datum, the same shape `Background`/`CardTexture`/`FacetStyle`/
+  `TitleStyle::Placard` already have. **A capability gap blocks them:** glyphon
+  0.11 has **no transform, no rotation, no skew anywhere in the crate**, and the
+  tree's only rotation turns rounded-rect QUADS, not glyphs. See item **235** —
+  world-neutral, and both become data on top of it.
+  ⚠️ **FIVE BRIEF PREMISES WERE WRONG.** **220 is universal, not the Files
+  filter's problem:** every non-All lens of every faceting picker groups into
+  exactly ONE section whose label is character-for-character the lens's own —
+  6 pickers, 22 lenses, 20 worlds; that line was never a section header
+  anywhere. **234 is not a right-edge defect:** the row box was the bare band,
+  so text sat `BAR_SIDE_INSET` (8.00 px, measured) **outside its plate at BOTH
+  edges**, and the LEFT half — the first glyph of every row label cut by its
+  plate — was the more widespread symptom **nobody had reported**. **224's
+  premise does not hold at all:** after 220, Magpie's cue is already on the
+  LEFT, riding the diagonal cluster's own row stagger; there is no right-side
+  indicator to mirror, only the slant and gradient are missing. **No second
+  header line was needed** — the location inherits the section header's existing
+  planned slot, which is why all 1200 sidecars are byte-identical. And **a
+  latent parallel calculation surfaced:** the timeline column measured its
+  footer by shaping the raw string in one face while the drawn footer is
+  symbol-split, under-measuring by 1.3 px on Mopoke; two unspent pads hid it.
+  **Captures per-surface, as this class requires:** 840 PNGs byte-identical
+  across 14 surfaces, 360 differing across exactly the six the two items touch,
+  **all 1200 sidecars byte-identical**.
+  ⚠️ **The gate caught TWO defects in the lane's OWN laws that filtered runs had
+  shown green:** a roster that included two plate-less worlds, and an oracle
+  that scavenged "ink near the plate" — which **cannot attribute a pixel to a
+  glyph**. The rewrite compares the emitter's own quads against the column edge
+  and upgraded the sweep from one row of one lens to every `SettingId` of every
+  category × three widths × every plated world. Follow-up: item **236**.
 - **222 + 223** — 🟡 IN PROGRESS — claude (production), branch
   `claude/items-222-223-mangrove`. Both briefed with the lesson 219/225 just
   taught: **assume universal until measured otherwise.** For 223 especially,
@@ -904,6 +927,10 @@ user authorization.
 233. **`SerialGuard` restores globals but does not police the render overrides.** **Defect:** found by item 204 slice 2, whose extra test only changed the scheduling and exposed a pre-existing hole. `jump_hint_is_present_and_never_clips_for_every_kind` built its pipeline **before** taking the serial guard and never pinned the list style it measures against, so a leaked `Bars { gap: 8.0, FullWidth }` override made it report a clip that was not one — **green single-threaded, red in a wide parallel run.** The reader's end is closed (guard hoisted, style pinned). **The producer is not:** `list_surfaces.rs:909` is the only site with that exact value and it *does* reset, so the leak path is unexplained. **The real gap: `SerialGuard` restores world, page and spellcheck but leaves the render overrides unpoliced**, so any test that sets one and dies — or resets on a path an early `?` skips — poisons whatever runs next, and the victim is a *different* test in a *different* file. Same shape as the CI wedge item 231 diagnosed: a shared resource corrupted by one actor, failing somewhere unrelated. **Build:** bring the render overrides under the same restore discipline as the other globals; prefer making the leak impossible over finding the leaker. **Verify:** a fixture that sets an override and panics must not affect the next test; the whole suite green under a wide `--test-threads`; mutation proof that removing the restore fails by name. ⚠️ **A green single-threaded run proves nothing here** — the defect only appears under parallelism, the axis a local reproduction is least likely to sweep. **Found 2026-08-03; the leak path is a named unknown, not a solved problem.**
 
 234. **Cassowary's Settings clips its own value plates.** **Defect:** in the Settings workspace on Cassowary, the "Block" value plate cuts the final `k` at the panel's right edge. **Confirmed PRE-EXISTING on the base binary** by the item 219/225 lane, which found it while capturing and deliberately did not widen its scope. **Same class as items 220/221's palette work** — a value/accessory plate measured against the wrong right bound — so it may share an owner with them and should be looked at together rather than patched alone. **Build:** find the one owner of the value plate's right bound in the workspace's content pane and make it read the pane's real extent; do not special-case Cassowary and do not shrink the type. **Verify:** the full `SettingId × SettingKind` sweep at the widths where it bites, across the roster rather than the world it was noticed on — items 219 and 225 were both reported as world-specific and both turned out to be universal, so **assume universal until measured otherwise**; exact before/after captures with every unaffected surface byte-identical; a pixel law that fails on the clipped glyph. **Found 2026-08-03 by the 219/225 lane, not fixed.**
+
+235. **Give awl a rotated glyph run, so a world can slant or turn a label.** **Defect:** items **221** (Cassowary's `Files` as a 90°-rotated flush-left secondary heading) and **224** (Magpie's location cue given the world's slant and gradient) are both blocked, and **not by the design.** The item-220 lane proved the theme-data constraint holds — both expressions are a `RenderCaps` variant over 220's single `overlay_location` datum, exactly the shape `Background`, `CardTexture`, `FacetStyle` and `TitleStyle::Placard` already have, and neither needs a palette code path. **What blocks them is a capability gap:** awl draws text only through glyphon 0.11, whose `TextArea` exposes `left/top/scale/bounds/default_color/custom_glyphs` and whose `CustomGlyph` is `left/top/width/height` — **no transform, no rotation, no skew anywhere in the crate.** The only rotation in the tree is `SelectionPipeline::prepare_rotated`, which rotates **rounded-rect quads, not glyphs**. **Build:** a rotated glyph-run pipeline — the shape already exists in the tree as a mask cache (`caret_glyph.rs`) plus the axis rotation `shaders/caret.wgsl` performs. **It is world-neutral: build it once and both 221 and 224 become theme data.** **Scope:** this is a text-rendering capability, not a palette feature. It must not become a second prose renderer — CLAUDE.md's "infrastructure complexity is a smell" applies, and the document layer stays the one prose renderer. **Done:** a label can be drawn at an arbitrary axis through one owner, legibly at 1× and 2×, and 221/224 land as data on top of it. **Verify:** rotation at the axes both worlds need, at both DPIs; legibility measured rather than eyeballed; hit-test agreement if the rotated run is ever interactive; exact identity for every surface that draws no rotated text. **Blocks 221 and 224. Found by the item-220 lane 2026-08-03, which correctly deferred rather than branching the palette per world.**
+
+236. **Item 225's footer-plate law grades two worlds' fabricated plates.** **Defect:** found by the item-220 lane while working nearby, and worth a second look because it is a law defect rather than a product one. `a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world` sweeps the `list_backing == BarePlates` roster, which has five members — but **two of them, Mangrove and Magpie, are `ListStyle::Diagonal` and draw no plate at all.** `overlay_bar_rects_probe` *synthesizes* rects for them, so the law's quad arm grades fabricated geometry. **Its pixel arm self-skips, so the law is not lying about pixels** — but a law that grades a shape the product never draws proves nothing on those two cells and could go green over a real defect there. **"Bare-plate roster" is not "plate-drawing roster", and the two have been used interchangeably.** **Build:** give the law the roster it actually means, and check whether any sibling law makes the same substitution. **Verify:** the law still fails on item 225's original defect; mutation proof on a plate-drawing world; the two diagonal worlds either excluded by name with a reason or covered by a law that grades what they really draw. **Found 2026-08-03.**
 
 213. **Optically center the logo cursor inside every app icon.** ✅ **COMPLETE — `f8d023e1`; user approved the 3 px lift on 2026-08-02.** The canonical macOS icon, complete world roster, paired favicon assets, and all Block/Pill/Narrow galleries were regenerated together; exporter/container laws and raster-clearance sweeps passed before review.
 
