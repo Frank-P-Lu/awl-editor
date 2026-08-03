@@ -63,8 +63,9 @@ pub(crate) fn waves_drift_radians(phase: f32) -> f32 {
 // `AWL_STARS_PHASE` exactly (read once, memoized, a total no-op unless set —
 // a headless capture never ticks the clock, so this never touches
 // determinism there). Drives BOTH consumers of `waves_render_phase` — Bombora's
-// wave drift and Bowerbird's organic drift — one shared clock, one
-// knob. Lets a gallery/before-after shot reach a real mid-drift composition.
+// wave drift and Bowerbird's companion value-breathe (the ground itself no
+// longer translates) — one shared clock, one knob. Lets a gallery/before-after
+// shot reach a real mid-cycle composition.
 fn parse_waves_phase(raw: &str) -> Option<f32> {
     let p: f32 = raw.trim().parse().ok()?;
     p.is_finite().then_some(p)

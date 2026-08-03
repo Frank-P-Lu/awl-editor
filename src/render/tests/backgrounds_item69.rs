@@ -97,9 +97,10 @@ pub(super) fn render_bg_scaled(
     drift: f32,
     scale: f32,
 ) -> Vec<[u8; 4]> {
-    let mut bg = crate::background::BackgroundPipeline::new(device, super::dither::FMT, desc);
-    bg.prepare(
+    render_bg_ambient(
+        device,
         queue,
+        desc,
         width,
         height,
         col_left,
@@ -109,7 +110,28 @@ pub(super) fn render_bg_scaled(
             ..Default::default()
         },
         scale,
-    );
+    )
+}
+
+/// [`render_bg_scaled`] generalized to the FULL [`crate::background::AmbientUpload`]
+/// — the direct-injection seam every ambient consumer's own real-pixel
+/// wrap-continuity law needs, since `render_bg`/`render_bg_scaled` only ever
+/// expose the single `drift` (radians) field. `render_bg_scaled` itself is
+/// now a thin wrapper over this.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn render_bg_ambient(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    desc: BgDesc,
+    width: u32,
+    height: u32,
+    col_left: f32,
+    col_w: f32,
+    ambient: crate::background::AmbientUpload,
+    scale: f32,
+) -> Vec<[u8; 4]> {
+    let mut bg = crate::background::BackgroundPipeline::new(device, super::dither::FMT, desc);
+    bg.prepare(queue, width, height, col_left, col_w, ambient, scale);
     let (texture, tview) = super::dither::offscreen(device, width, height);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("awl item69-bg-test encoder"),

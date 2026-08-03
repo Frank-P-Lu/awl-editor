@@ -557,6 +557,37 @@ ask git.**
   DRAWN text" pointed at the plate, and reading the plate ALONE is itself the
   trap. The oracle has to read the text's own position.
 
+- **244** — ✅ **COMPLETE except its live sitting.** Merged `0d0a8b1b`. Receipt
+  `native-gate-receipt commit=5d17b676471646be9380eed0fb2b1209c150c6a9 conventions=mac,linux scope=all-targets`,
+  `web-smoke: OK` (16 passed), **`bash scripts/code-health.sh`** clean, fmt
+  clean. The field translation is **deleted outright**, both terms; the
+  companion breathe reuses `stars.rs`'s envelope verbatim so the integer-cycles
+  law covers the new motion and the pop cannot return through a different
+  variable. The vacuous law is **deleted, not edited** — verified absent by grep
+  and by a 0-test run.
+  **Numbers, because this item's Verify clause is unusually falsifiable:**
+  wrap pair **0 of 960000 pixels differ** across the wrap and **2413 differ
+  mid-cycle**, so the field is provably still AND the probe is provably not
+  vacuous. Byte-identity **19/20 PNG** (only Bowerbird differs) and **20/20
+  sidecars**.
+  ⚠️ **Two pieces of method worth stealing.** It mutation-proved **one arm at a
+  time** — item 237's technique, applied unprompted a few hours after 237
+  established it — and the replacement law **names the consumer it caught**
+  (`Bowerbird (organic companion breathe): … 15 channel levels`;
+  `Bombora (waves): … 33 channel levels`) rather than merely going red. And it
+  **caught its own confound**: a naive same-worktree byte-identity comparison
+  reported a spurious `dirty` sidecar diff, so it re-measured from a
+  matched-basename worktree at the parent commit, because the gutter renders the
+  project name and a different basename changes the pixels.
+  ⚠️ **It also cherry-picked `f8121f45` into its branch** rather than leaving the
+  red for integration — its base predated the clippy repair, so its own
+  `code-health.sh` inherited main's failure. Merged without conflict.
+  🔵 **OWED, and nothing above implies it:** the `--release` sitting — whether
+  the pop is gone by eye, the amplitude (`ORGANIC_BREATHE_AMOUNT = 1.2`, tuned
+  to a ~17-level peak channel swing after a first value proved sub-perceptible),
+  and whether it reads as a flash. Both constants are marked taste-tunable in
+  the shader. **The display is locked; no sitting was attempted.**
+
 🔴🔴 **CI RED 2026-08-04, CAUSED BY THIS SESSION'S OWN BRIEFS. Repaired at
 `f8121f45`, pushed. READ THIS BEFORE WRITING ANOTHER BRIEF.**
 
@@ -603,6 +634,56 @@ after 64m05s — the 2×1500 s budget plus build, as designed. `ci-wedge-budget.
 converts the hang into an ordinary failure exactly as intended. **What is still
 owed is one run where the gating arms PASS and a wedge failure alone leaves the
 workflow green** — that is run `30836476858` on `f8121f45`, in flight.
+
+✅ **THE CI RED IS REPAIRED, CONFIRMED ON THE AXIS THAT FOUND IT.** Run
+`30836476858` (`f8121f45`) came back with **`mac (build + test, minus
+render::tests)` = success and `linux` = success**, plus `web` and
+`mac live-probe` green. That run's own conclusion reads `cancelled`, but for a
+reason that is not a verdict on the code: **this session pushed into it**, and
+`ci.yml`'s concurrency group cancels in progress, so the wedge job was killed
+mid-budget rather than timing out. Item 243's clause 2 therefore rides run
+`30838810157` (`76903fc1`).
+
+⚠️ **A `pgrep -f` WAIT THAT MATCHES ITSELF — new trap, cost one lane an
+unbounded stall, worth a line in every future brief.** The item-239 lane armed
+`until ! pgrep -f 'native-gate.sh'; do sleep …; done`. **The watcher's own shell
+command line contains the string `native-gate.sh`, so `pgrep -f` matches the
+watcher, the condition is permanently true, and the loop can never exit.** Two
+processes matched `native-gate` on this host and both were that watcher; no gate
+and no cargo were running at all. Use the bracket trick the README already uses
+for `ps aux | grep "[c]argo"` — `pgrep -f '[n]ative-gate\.sh'` — or `pgrep -x
+cargo`, or just watch the log stop growing. **And the deeper point this proves
+concretely: a wait that never terminates is indistinguishable from a wait that
+terminates and is never noticed, because nothing wakes a worker but the
+orchestrator. Neither is a wake-up source.**
+
+⚠️ **TWO ORCHESTRATOR MISTAKES ON 2026-08-04, BOTH ALREADY WRITTEN DOWN
+SOMEWHERE AND BOTH MADE ANYWAY. Recorded so the next session does better than
+re-read them.**
+
+**1. Committed a board note WHILE the merge-train gate ran, and threw away a
+full native run.** `native-gate.sh` refused correctly:
+`native-gate: HEAD changed while the suite ran (start=0d0a8b1b… end=76903fc1…);
+no receipt issued`. Every test had passed, both conventions, zero failures —
+and none of it counted. This is the README's own §Gates rule, and the identical
+incident it already records from 2026-07-31. **The failure mode is sequencing:
+folding a landing note in right after a merge is correct BETWEEN gates and wrong
+DURING one.** Re-run gave
+`native-gate-receipt commit=76903fc1dcd13a1755eb55677bc504b554e1c87d conventions=mac,linux scope=all-targets`.
+The gate catching its own invalidation is the only reason the loss was visible
+rather than a receipt naming a tree that had moved underneath it.
+
+**2. Pushed while a CI run was still in flight, cancelling the exact
+verification that was owed.** `ci.yml`'s concurrency group is
+`cancel-in-progress: true`, so pushing `76903fc1` killed run `30836476858`
+mid-flight — the run that was going to pay item 243's clause 2. Nothing is lost
+permanently (the next run does the same job) but ~65 minutes are. ⚠️ **THIS IS
+NOW STRUCTURALLY WORSE THAN IT USED TO BE AND THE BOARD SHOULD SAY SO: since
+`da70df93`, a full CI cycle is ~65 MINUTES**, because the tolerated wedge burns
+its 2×1500 s budget before failing. **So the README's "let one run finish before
+pushing the next" is no longer a politeness — it is a 65-minute window in which
+any push destroys the evidence.** Batch the train, or accept that clause-2-style
+end-to-end CI evidence needs a quiet window nobody pushes into.
 
 ⚠️ **A BRIEF DEFECT THIS WAVE PAID FOR — fix it in the next brief template.**
 Items 240 and 243 were each green alone and **red together**: 240's new file

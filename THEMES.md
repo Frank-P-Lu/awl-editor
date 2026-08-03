@@ -108,7 +108,32 @@ swatch. Twenty ship today (eleven dark, nine light; `theme::THEMES`), each with:
   measured as the WORST nearest-neighbour gap between surviving collections
   rather than an inscribed circle or a re-derived lattice grid — see that
   file's own module doc for the two approaches tried and rejected first, on
-  real measurements).
+  real measurements). **Item 163 (2026-07)** gave the field a very slow whole-
+  field DRIFT (translation), mirroring `Waves`' own phase drift below — later
+  found DISCONTINUOUS across the shared clock's wrap (`cos(g.drift * 0.73)`
+  jumped 1.125 normalised units, ~22px vertically, once every ~67s) and, even
+  where continuous, imperceptibly small at the amplitude it first shipped.
+  **Item 244 (2026-08, USER DESIGN DECISION) deleted the drift outright**,
+  both terms, rather than retuning it: every other ambient ground earns its
+  motion from its subject (Bombora is a sea, Currawong a star field, Kite a
+  travelling grid), but Bowerbird's ground is `Finds`, a COLLECTED-TREASURE
+  arrangement — objects deliberately placed and then left alone, which a pan
+  disturbs rather than decorates. In its place, the COMPANION role alone
+  (`kind_b`) gained a per-element VALUE breathe — a `mix` between two of the
+  world's existing three tones (no new palette data), enveloped by the exact
+  shape `stars.rs`'s twinkle uses (`(rate * phase / LAVA_LOOP_CYCLES +
+  offset).fract()`, an INTEGER rate, a seeded per-element phase offset so
+  neighbours desynchronise), multiplicative on the authored density so
+  `density: 0.0` still collapses to the flat ground exactly. Selection by
+  SHAPE KIND (kinds clump, and triangles are the highest-salience shape) and
+  the CUT-OUT role (smallest elements, risks falling under perceptible) were
+  both considered and rejected. Laws: `render::tests::ambient_wrap_law` (the
+  UNCONDITIONAL wrap-continuity law every ambient ground's own drift-to-
+  shader term is held to, real GPU pixels, replacing a vacuous item-117 law
+  that guarded the wrong owner and never rendered a single pixel) and
+  `render::tests::bowerbird_breathe_item244` (the field never translates, the
+  breathe is visible, and neighbouring companions desynchronise — all real
+  pixels).
   **Item 87 (2026-07)** gave `Waves` alone a very slow, seamless horizontal
   PHASE DRIFT on top of that otherwise-static shape (palette, band count, and
   the settled/theme-crossing composition stay byte-identical) — see "The

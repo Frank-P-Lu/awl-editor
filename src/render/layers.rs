@@ -84,8 +84,13 @@ impl TextPipeline {
         };
         let drift = if self.effective_background().is_waves() {
             crate::background::waves_drift_radians(self.waves_render_phase())
-        } else if self.effective_background().is_organic() {
-            self.waves_render_phase() * std::f32::consts::TAU / crate::lava::LAVA_LOOP_CYCLES
+        } else {
+            0.0
+        };
+        // Organic no longer translates the field; its one ambient input is
+        // the companion's own breathe phase, raw CYCLES (never radians).
+        let organic_phase = if self.effective_background().is_organic() {
+            self.waves_render_phase()
         } else {
             0.0
         };
@@ -98,6 +103,7 @@ impl TextPipeline {
             crate::background::AmbientUpload {
                 drift,
                 warp_travel: self.warp_travel(),
+                organic_phase,
             },
             self.dpi,
         );
