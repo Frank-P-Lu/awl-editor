@@ -126,7 +126,7 @@ Not for main. Adds only $WORKFLOW; the tree under test is untouched.")"
 
   printf '\nprobe pushed: %s (%s)\n  %s\n' \
     "$(git rev-parse --short=8 "$sha")" "$(git log -1 --format=%s "$sha")" \
-    "https://github.com/Frank-P-Lu/awl-next/actions?query=branch%3A$BRANCH"
+    "https://github.com/Frank-P-Lu/awl-editor/actions?query=branch%3A$BRANCH"
 }
 
 # Classify a finished run against the fixed oracle.
@@ -181,10 +181,10 @@ cmd_verdict() {
   gate_status="$(printf '%s' "$json" | jq -r '[.jobs[].steps[] | select(.name=="native full suite") | .status] | first // "absent"')"
   gate_conc="$(printf '%s' "$json" | jq -r '[.jobs[].steps[] | select(.name=="native full suite") | .conclusion] | first // ""')"
   job_secs="$(printf '%s' "$json" | jq -r '.jobs[] | select(.name|startswith("mac (")) | (( .completedAt|fromdateiso8601 ) - ( .startedAt|fromdateiso8601 ))' 2>/dev/null || echo '?')"
-  gate_secs="$(gh api "repos/Frank-P-Lu/awl-next/actions/jobs/$jobid" \
+  gate_secs="$(gh api "repos/Frank-P-Lu/awl-editor/actions/jobs/$jobid" \
                  -q '[.steps[]|select(.name=="native full suite")][0] | if .completed_at then ((.completed_at|fromdateiso8601)-(.started_at|fromdateiso8601)) else "unfinished" end' \
                  2>/dev/null || echo '?')"
-  loghttp="$(gh api "repos/Frank-P-Lu/awl-next/actions/jobs/$jobid/logs" \
+  loghttp="$(gh api "repos/Frank-P-Lu/awl-editor/actions/jobs/$jobid/logs" \
                --include --silent 2>&1 | head -1 || true)"
 
   printf 'gate step: %s/%s | gate seconds: %s | job seconds: %s | job log: %s\n' \
