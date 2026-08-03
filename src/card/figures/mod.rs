@@ -69,6 +69,25 @@ pub enum CountUnit {
     Characters,
 }
 
+/// Characters-per-minute silent-reading pace for a script this readout counts
+/// in [`CountUnit::Characters`] (Kana/Han/Bopomofo — see [`is_unspaced`]).
+/// Deliberately not [`crate::markdown::READING_WPM`]: that figure is a
+/// WORDS-per-minute rate, and applying it to a raw character count reads two
+/// to three times too slow, because one CJK "word" of meaning is one to a
+/// few characters while an English word averages ~5 — the same document
+/// would read as slower prose purely because its tokens got smaller.
+/// Published silent-reading-rate studies for Japanese
+/// cluster roughly 400-600 characters/minute; 500 is this figure's own round
+/// midpoint of that span, picked the same way 200 is the round conventional
+/// figure for English silent prose (itself a midpoint of a cited 200-250 wpm
+/// range, not a single study's number). Lives here, beside [`CountUnit`],
+/// rather than in `markdown::spans` next to `READING_WPM` — a second
+/// constant beside that one would leave the pace decision outside the unit
+/// it belongs to, so a future caller could compute a words-count reading
+/// time with the CJK pace (or vice versa) by picking the wrong constant by
+/// hand. [`CountUnit::pace_per_minute`] is the one door.
+const CJK_CHARS_PER_MINUTE: usize = 500;
+
 impl CountUnit {
     /// The singular/plural label for `n`, e.g. `"word"` / `"words"`.
     fn label(self, n: usize) -> &'static str {
@@ -87,6 +106,19 @@ impl CountUnit {
         match self {
             CountUnit::Words => "words",
             CountUnit::Characters => "characters",
+        }
+    }
+
+    /// The silent-reading pace, in units-per-minute, this unit's own count
+    /// should be measured against — a property OF the unit rather than a
+    /// second constant a caller must remember to pick to match it. Whichever
+    /// `CountUnit` [`dominant_unit`] resolves for a document supplies that
+    /// same document's pace, so the label on screen and the minutes beside it
+    /// can never come from two different rates.
+    pub fn pace_per_minute(self) -> usize {
+        match self {
+            CountUnit::Words => crate::markdown::READING_WPM,
+            CountUnit::Characters => CJK_CHARS_PER_MINUTE,
         }
     }
 }
@@ -190,7 +222,14 @@ pub fn word_count(text: &str) -> usize {
 /// null. `unit` is [`dominant_unit`]'s call over the manuscript body — the ONE
 /// owner both the drawn readout ([`words_readout`]) and the sidecar
 /// (`capture::sidecar::readout_json`/`hud_json`) take their label from, so
-/// neither can independently mislabel the other's number.
+/// neither can independently mislabel the other's number. `reading_minutes`
+/// is measured at THAT SAME unit's own pace
+/// ([`CountUnit::pace_per_minute`]) — a mixed document takes its dominant
+/// script's pace outright rather than interpolating a blend of two rates,
+/// exactly matching how the unit label already resolves (one majority
+/// decides both the noun and the pace, so one rule explains both and the
+/// same no-flicker guarantee `dominant_unit` already gives the label covers
+/// the pace for free).
 pub fn readout_figures(text: &str, is_markdown: bool) -> Option<(usize, usize, CountUnit)> {
     if !is_markdown {
         return None;
@@ -200,7 +239,8 @@ pub fn readout_figures(text: &str, is_markdown: bool) -> Option<(usize, usize, C
         return None;
     }
     let unit = dominant_unit(manuscript(text));
-    Some((words, crate::markdown::reading_time_min(words), unit))
+    let minutes = crate::markdown::reading_time_min(words, unit.pace_per_minute());
+    Some((words, minutes, unit))
 }
 
 /// The readout LINE, e.g. `"240 words · 2 min"` or `"5500 characters · 28

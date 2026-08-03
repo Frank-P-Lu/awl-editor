@@ -647,6 +647,19 @@ One owner, `crate::card::figures::{readout_figures, CountUnit}`, feeds both
 blocks and the drawn HUD card's WORD COUNT row, so a capture's `readout.unit`
 and `hud.unit` always agree with each other and with what the row draws.
 
+Vocabulary note (item 245 — **no schema bump**; the shape is unchanged, only
+the existing `reading_min` field gains a corrected VALUE, per `capture.rs`'s
+"bump once per sidecar-SHAPE change" criterion): `/198`'s own landing left
+`reading_min` computed at 200 units/minute for BOTH `unit`s — a WORDS-per-minute
+figure applied unchanged to a CHARACTERS count, so a 5,500-character Japanese
+manuscript read `28 min`, two to three times slower than published Japanese
+silent-reading rates (roughly 400-600 characters/minute). `reading_min` is now
+paced by the SAME `CountUnit` the block already carries
+(`CountUnit::pace_per_minute`): 200 wpm for `"words"`, 500 cpm for
+`"characters"` — the same 5,500-character document now reads `11 min`. A mixed
+document takes its dominant script's pace outright, matching how `unit` itself
+already resolves, rather than interpolating a blended rate.
+
 Schema `/195` adds **`overlay.context_anchor`**, the physical-pixel click
 anchor `[x, y]` for the awl-rendered contextual menu, or `null` for every
 other summoned surface. The rendered `overlay.window` remains the clamped

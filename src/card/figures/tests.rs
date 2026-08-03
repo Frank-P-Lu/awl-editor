@@ -94,8 +94,10 @@ fn cjk_prose_counts_ideographs_as_tokens() {
     assert_eq!(word_count(&long_ja), 5_500, "5,500 characters, not 1 word");
     assert_eq!(
         readout_figures(&long_ja, true),
-        Some((5_500, 28, CountUnit::Characters)),
-        "ceil(5500 / 200) = 28, not the old flat 1 min"
+        Some((5_500, 11, CountUnit::Characters)),
+        "ceil(5500 / 500) = 11 at the CJK characters-per-minute pace — not \
+         ceil(5500 / 200) = 28 (the WORDS pace wrongly applied to a \
+         character count), and not a flat 1 min either"
     );
 }
 
@@ -175,6 +177,56 @@ fn dominant_unit_does_not_flicker_on_a_single_character_at_a_decisive_majority()
             "a single ideograph must not flip a decisive Latin majority"
         );
     }
+}
+
+/// MIXED-DOMINANCE READING PACE follows the unit LABEL outright, rather than
+/// interpolating a blended rate — and, like the label itself, does not
+/// flicker: an edit short of the crossing never anticipates the other pace,
+/// and past it the pace never reverts.
+/// Reuses the exact-majority construction above, scaled up so the two paces
+/// (200 wpm vs 500 cpm) actually produce different minute figures rather
+/// than both flooring to the shared `1 min`, which would hide a flip.
+#[test]
+fn mixed_document_reading_pace_follows_the_label_and_does_not_flicker() {
+    // 5,000 Latin characters (1,000 "word " tokens) is the fixed floor;
+    // appending `m` bare ideographs (each its own character AND its own
+    // token) brings the body to 5000 + m characters, m of them unspaced.
+    // `dominant_unit` reads `Characters` iff `m*2 > 5000+m`, i.e. `m >
+    // 5000` — `m=5000` is the last tie (Words) and `m=5001` the first real
+    // majority (Characters), the same crossing shape as the test above,
+    // scaled so the pace difference actually shows up in the minutes.
+    let latin_floor = "word ".repeat(1000); // 5,000 chars, 1,000 Latin tokens
+
+    for m in [4990usize, 4999, 5000] {
+        let body = format!("{latin_floor}{}", "字".repeat(m));
+        let (words, minutes, unit) = readout_figures(&body, true).unwrap();
+        assert_eq!(unit, CountUnit::Words, "m={m}: at/short of the crossing");
+        assert_eq!(unit.pace_per_minute(), 200, "the label's own pace, wpm");
+        assert_eq!(minutes, words.div_ceil(200), "m={m}: paced at 200 wpm");
+    }
+    for m in [5001usize, 5002, 5010, 6000] {
+        let body = format!("{latin_floor}{}", "字".repeat(m));
+        let (words, minutes, unit) = readout_figures(&body, true).unwrap();
+        assert_eq!(unit, CountUnit::Characters, "m={m}: past the crossing");
+        assert_eq!(unit.pace_per_minute(), 500, "the label's own pace, cpm");
+        assert_eq!(minutes, words.div_ceil(500), "m={m}: paced at 500 cpm");
+    }
+
+    // The crossing itself, side by side: one more ideograph both flips the
+    // LABEL and re-paces the MINUTES in the same edit — never one without
+    // the other, which is what "the pace must follow the label" means.
+    let tie = format!("{latin_floor}{}", "字".repeat(5000));
+    let just_past = format!("{latin_floor}{}", "字".repeat(5001));
+    let (tie_words, tie_min, tie_unit) = readout_figures(&tie, true).unwrap();
+    let (past_words, past_min, past_unit) = readout_figures(&just_past, true).unwrap();
+    assert_eq!(tie_unit, CountUnit::Words);
+    assert_eq!(past_unit, CountUnit::Characters);
+    assert_eq!(tie_min, tie_words.div_ceil(200));
+    assert_eq!(past_min, past_words.div_ceil(500));
+    assert_ne!(
+        tie_min, past_min,
+        "the crossing edit visibly re-paces the readout, not just relabels it"
+    );
 }
 
 /// The percent is over the document's CHARACTER length, newlines included,
