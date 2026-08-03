@@ -234,12 +234,56 @@ cause — the board is the only copy, and the board gets compressed.
   based on `174f570d`. Took 240's freed lane; the user's product call is made,
   so it is implementation. Surface is `src/card/figures.rs` and the sidecar —
   disjoint from all three running lanes.
-- **238 (the `awl-editor` rename)** — 🟡 IN PROGRESS — claude (sonnet, medium),
-  branch `claude/item-238-rename`, worktree `awl-next-worktrees/item-238-rename`.
+- **238** — ✅ **COMPLETE.** Merged `c1a9d5ce`. Receipt
+  `native-gate-receipt commit=7c89c07e2f09350c7abb2d4efc3a47bff39b13db conventions=mac,linux scope=all-targets`
+  (in the merge message too), web smoke `16 passed` / `web-smoke: OK`,
+  `site-links.sh` green on 12 + 12. **The GPLv3 §6(d) source offer in every
+  release tarball no longer depends on GitHub's redirect staying up** — that was
+  the highest-stakes line in the item. 30 sites fixed, matching the survey floor
+  exactly, including `site/check.js`'s `RELEASES_URL` and 8 in `site/llms.txt`
+  that the item named nowhere and no HTML sweep would have caught.
+  **Both traps were established, not concluded:** `ci-mac-bisect.sh` was fixed
+  on its own unmerged branch (`584b4a7b`) and proved not to be a trap by copying
+  the *original unfixed* file in and watching the law fail by name on all three
+  lines; `site/editor/` was cleared by reading `deploy-web.yml`'s assemble step
+  (`rm -rf` then fresh `trunk` output) and the `flyctl` working directory, so the
+  live deployment never serves the stale bundle.
+  ⚠️ **Its own code-health run caught a real defect before integration** — four
+  doc comments citing "item 238", against the comments-aren't-history
+  convention. Fixed at `1549a6fd`.
   ✅ **`git remote` IS REPOINTED** — the orchestrator did it before dispatch and
   verified it without a redirect (`git ls-remote --heads origin main` →
   `69f379f7`). It is config, not a commit, so it appears in no diff; the worker
   owns only the tracked-file surface and the law.
+
+✅ **TRAIN PUSHED 2026-08-03/04: `69f379f7..3b354d3a`.** Green train on the exact
+combined candidate —
+`native-gate-receipt commit=3b354d3af731c50533bd898a92483bd3e3719e84 conventions=mac,linux scope=all-targets`,
+0 failures, plus `web-smoke: OK` and code-health clean. **CI run `30825396088`
+confirms item 243's split is LIVE**: the job list now reads
+`mac (build + test, minus render::tests)` and
+`mac (render::tests) — allowed failure, item 231`, which is 243's Verify clause 1
+being paid. Watch that run for the gating arm's conclusion; the tolerated arm may
+burn its 90-minute ceiling and that is by design, not a new signal.
+
+⚠️ **THE SAME ANTI-PATTERN APPEARED TWICE IN ONE WAVE, in different costumes —
+this is the wave's most reusable finding.** A hand-kept roster standing in for a
+derived one. Item **240** removed it from the shader sweep (a hand-kept list
+covering 4 of 9 shaders → a directory-driven sweep). Item **238's new law then
+reintroduced it**: `no_tracked_file_spells_the_old_repository_reference` walked
+the filesystem behind a hand-kept `SKIP_DIRS` list that has to be held in sync
+with `.gitignore` by hand. It went red on combined `main` over
+`.playwright-mcp/` — gitignored browser snapshots holding pre-rename URLs no
+shipped artifact has ever contained. **The asymmetry is the instructive part: CI
+checks out a clean tree and would have passed, so only developers with local
+debris would ever have seen it, each rediscovering it separately.** Repaired at
+`3b354d3a` with `git ls-files -z`, which is definitionally the set the law's own
+name and panic message claim and cannot drift. Mutation-proved both directions —
+red by name at `README.md:73` on reintroduction, and green with the untracked
+snapshots still present on disk, which is the actual regression. A non-vacuity
+assert was added on the enumeration, because a broken listing would have
+filtered every offender out and passed silently. **When a law says "tracked",
+ask git.**
 
 ⚠️ **A BRIEF DEFECT THIS WAVE PAID FOR — fix it in the next brief template.**
 Items 240 and 243 were each green alone and **red together**: 240's new file
