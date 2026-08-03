@@ -125,11 +125,29 @@ pub enum ListStyle {
 }
 
 impl ListStyle {
+    /// What backs the CARD — a filled panel, or nothing at all. This says
+    /// nothing about what backs a ROW: see [`ListStyle::draws_row_plates`].
     pub fn list_backing(self, _spell: bool) -> ListBacking {
         match self {
             ListStyle::Pane => ListBacking::Card,
             ListStyle::Diagonal(_) => ListBacking::BarePlates,
             ListStyle::Bars { .. } => ListBacking::BarePlates,
+        }
+    }
+
+    /// Whether this style backs its ROWS with plates.
+    ///
+    /// THE BARE-PLATE ROSTER IS NOT THE PLATE-DRAWING ROSTER, and the two read
+    /// alike enough that two laws swept the wrong one. `BarePlates` is a
+    /// statement about the CARD: it has no panel, no shadow and no border, so
+    /// the rows sit bare on the canvas. `Diagonal` is bare in exactly that
+    /// sense and yet draws no plate anywhere — its selection is a bright spine
+    /// segment and a connector, and `overlay_bar_selection` is never reached on
+    /// its production path. A law about plates asks THIS question.
+    pub fn draws_row_plates(self) -> bool {
+        match self {
+            ListStyle::Bars { .. } => true,
+            ListStyle::Pane | ListStyle::Diagonal(_) => false,
         }
     }
 }

@@ -129,7 +129,29 @@ impl TextPipeline {
             false => band_color.rgba_bytes(),
         };
         self.overlay_rows.set_color(rgba);
-        let rects = match list_style {
+        let rects = self.overlay_selection_rects(geom, plan, vis, list_style);
+        if backing == theme::ListBacking::BarePlates {
+            self.overlay_prepare_bar_scrims(device, queue, width, height, list_style, &rects);
+        }
+        self.overlay_bars
+            .prepare(device, queue, width, height, &rects.unselected);
+        self.overlay_rows
+            .prepare(device, queue, width, height, &rects.selected);
+        self.overlay_cross
+            .prepare(device, queue, width, height, &rects.cross);
+    }
+
+    /// THE ONE PLACE a list style becomes row surfaces. `overlay_prepare_selection`
+    /// and the test probe both come through here, so a law cannot grade a shape
+    /// this frame would not have drawn.
+    pub(super) fn overlay_selection_rects(
+        &mut self,
+        geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
+        vis: &VisualSelection,
+        list_style: theme::ListStyle,
+    ) -> OverlaySelectionRects {
+        match list_style {
             theme::ListStyle::Pane => self.overlay_pane_selection(geom, plan, vis),
             theme::ListStyle::Bars {
                 radius,
@@ -145,16 +167,7 @@ impl TextPipeline {
             // row-fill fallback: the planned outward span remains the pointer and
             // text truth while the line, rather than a poster bar, carries focus.
             theme::ListStyle::Diagonal(_) => OverlaySelectionRects::default(),
-        };
-        if backing == theme::ListBacking::BarePlates {
-            self.overlay_prepare_bar_scrims(device, queue, width, height, list_style, &rects);
         }
-        self.overlay_bars
-            .prepare(device, queue, width, height, &rects.unselected);
-        self.overlay_rows
-            .prepare(device, queue, width, height, &rects.selected);
-        self.overlay_cross
-            .prepare(device, queue, width, height, &rects.cross);
     }
 
     /// ITEM 164 — the Pane band's quads for this frame, from the ALREADY-RESOLVED
@@ -401,6 +414,13 @@ impl TextPipeline {
         rects: &OverlaySelectionRects,
     ) {
         const PAD: f32 = 2.0;
+        // The `BarePlates` gate above is the CARD's question, not the row's, and
+        // that is deliberate here even though the name misleads elsewhere (item
+        // 236): every bare-plate world must have `panel_card` prepared each
+        // frame, or a stale instance from the previous world survives into it.
+        // `Diagonal` therefore arrives with an EMPTY `rects`, so its radius is a
+        // corner for no scrim at all — never let that number be read as an
+        // authored dial.
         let radius = match list_style {
             theme::ListStyle::Bars { radius, .. } => radius.max(0.0),
             theme::ListStyle::Diagonal(_) => 6.0,
