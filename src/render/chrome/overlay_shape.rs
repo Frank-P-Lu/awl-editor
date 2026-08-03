@@ -401,9 +401,10 @@ impl TextPipeline {
         let slant_tax = slant
             .map(|s| crate::render::slant_max_offset(&s, plan.candidate_rows()))
             .unwrap_or(0.0);
-        let slant_text_w = (geom.text_w - slant_tax)
-            .max(0.0)
-            .min(self.diagonal_cluster_budget(geom).unwrap_or(f32::INFINITY));
+        let slant_text_w = (geom.text_w - slant_tax).max(0.0).min(
+            self.diagonal_cluster_budget(geom, plan.rows().len())
+                .unwrap_or(f32::INFINITY),
+        );
         let char_w = self.overlay_char_width();
         let total_chars = if char_w > 0.0 {
             (slant_text_w / char_w).floor() as usize
@@ -469,36 +470,6 @@ impl TextPipeline {
         false
     }
 
-    pub(in crate::render) fn measure_overlay_content_w(&mut self) -> f32 {
-        let ink = theme::base_content().to_glyphon();
-        let muted = theme::muted().to_glyphon();
-        let geom = self.overlay_geometry(self.window_w as u32);
-        self.overlay_remetric();
-        // A pure WIDTH measurement: `selected_ink: None` means no row can flip at
-        // all, so this pass wants NO visual selection — and must not touch the
-        // band's chase state (measuring may never advance an animation).
-        let vis = VisualSelection::default();
-        let plan = self.overlay_row_plan(&geom);
-        let has_right = self.overlay_shape_text(&geom, &plan, ink, muted, None, &vis, false);
-        let mut left = 0.0_f32;
-        for run in self.panel_buffer.layout_runs() {
-            left = left.max(run.line_w);
-        }
-        let primary = self.widest_candidate_px(&geom, &plan) + self.overlay_char_width();
-        let secondary = if has_right {
-            self.widest_right_px()
-        } else {
-            0.0
-        };
-        let gap = if secondary > 0.0 {
-            rowlayout::GAP_CHARS as f32 * self.overlay_char_width()
-        } else {
-            0.0
-        };
-        let content_text = left.max(primary + gap + secondary);
-        content_text + 2.0 * self.overlay_text_hpad()
-    }
-
     #[allow(clippy::too_many_arguments)]
     fn shape_faceted(
         &mut self,
@@ -515,7 +486,7 @@ impl TextPipeline {
         // a secondary cell fits, so narrow cards elide/yield instead of drawing
         // a measured cluster through the spine or off its planned span.
         let mut shaped_geom = geom.clone();
-        if let Some(budget) = self.diagonal_cluster_budget(geom) {
+        if let Some(budget) = self.diagonal_cluster_budget(geom, plan.rows().len()) {
             shaped_geom.text_w = shaped_geom.text_w.min(budget);
         }
         let right_labels = self.overlay_right_labels();
@@ -562,7 +533,7 @@ impl TextPipeline {
         // side territory is a hard pixel bound. A display face can be wider than
         // that estimate (especially at 2×), so re-shape once against the actual
         // widest label ratio before seating its fixed accessory column.
-        if let Some(budget) = self.diagonal_cluster_budget(geom) {
+        if let Some(budget) = self.diagonal_cluster_budget(geom, plan.rows().len()) {
             let measured = self.widest_candidate_px(&shaped_geom, plan);
             if measured > budget && measured > 0.0 {
                 shaped_geom.text_w *= budget / measured;

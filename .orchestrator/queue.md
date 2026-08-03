@@ -46,29 +46,12 @@ writes. **After every merge, verify this heading still exists.** If it is
 missing, `git log -S"BLOCKED ON THE USER" -- .orchestrator/queue.md` finds who
 took it.
 
-1. **118 — the world-loudness map and the `--release` ambient sitting.** The
+1. **118 — the world-loudness map and the `--release` ambient sitting.** This
+   blocks no development or integration; it is a pre-release taste check. The
    Done clause requires a USER-CONFIRMED map; pixel arithmetic may prove
    territory and contrast but never the taste score. An independent agent map
    exists (`1, 10, 3, 4, 1`, mean 2.68) to diff against rather than re-derive.
-2. **207 — real VoiceOver and AT-SPI journeys.** Verified at the snapshot and
-   projection tier. Whether a screen reader *reads it well* — announcement
-   order, verbosity, live-region politeness — is unproven and no test tier
-   substitutes.
-3. **131c — the chrome pixel-space decision.** Overlay chrome mixes both
-   spaces: row pitch scales with DPI while `BAR_SIDE_INSET`, the text hpad and
-   `CARD_MAX_W` are raw device px. A diagonal pitch authored like its neighbours
-   would be **physical by inheritance**, which item 186 exists to stop; making
-   it logical makes it the first chrome quantity to declare its space, either
-   extending `ground_space` past `Background` or opening a sibling registry.
-   **Owed a human eye, not a line of code.** 131d/131e are behind it.
-4. **211 — three narrow arms.** Presence is ✅ confirmed on a real screen
-   (2026-08-03) and the defect was reproduced live and restored. Still owed, all
-   needing a human: whether the glide **reads as calm** (pacing deliberately
-   uncharacterised — the host ran at load 19→57 and the lane refused to offer
-   its 16.7 ms intervals as evidence); **1×**, no 1× display was available; and
-   **focus loss/regain and occlusion return**, which `--live-script`
-   structurally cannot test since it forces a Prohibited `AlwaysOnTop` window.
-5. **The tag itself, and the site deploy.** Both are the user's explicit word,
+2. **The tag itself, and the site deploy.** Both are the user's explicit word,
    every time. See the release section above for what must be true first.
 
 ⚠️ **Before any live sitting: `displaysleep` is 10 and screensaver `idleTime`
@@ -675,8 +658,8 @@ redirect, but tooling that reconstructs URLs by hand will point at the old name
   `chrome/overlay.rs` lowered 738→735, and a `too_many_lines` exception lowered
   110→109 after extracting `pin_posture`.
 - **216** — ✅ COMPLETE. The mark-audit skip is closed; see the CI section above.
-- **211** — ✅ Presence confirmed on a real screen; see the blocked section for
-  the three arms still owed.
+- **211** — ✅ COMPLETE. The user confirmed one-row glides in Commands,
+  Settings, and Themes on the fixed release build, 2026-08-03.
 
 - **207** — ✅ COMPLETE. Merged to `main`; worktree removed. Native awl has one
   semantic UI owner: `SemanticSnapshot` feeds the AccessKit tree, `--semantic-json`
@@ -694,12 +677,11 @@ redirect, but tooling that reconstructs URLs by hand will point at the old name
   be parsed back at all.** Two of the lane's own laws were vacuous and mutation
   proof is what found them. 55 new crates, all permissive; `cargo deny check bans`
   needed four narrow skips for the AT-SPI stack's forked `syn`/`toml_edit`/
-  `toml_datetime`/`winnow`, each with a removal condition. 🔵 **Real VoiceOver and
-  AT-SPI journeys were NOT run and are NOT claimed** — everything is proven at
-  the snapshot and projection tier; whether a screen reader *reads it well*
-  (announcement order, verbosity, live-region politeness) is unproven and needs a
-  human at an unlocked display. Web accessibility remains a separate DOM-backed
-  round. Follow-up: item **215**.
+  `toml_datetime`/`winnow`, each with a removal condition. **The real VoiceOver
+  journey was run on 2026-08-02:** basic reading and editing work, and it exposed
+  intermittent “awl is not responding” stalls now owned by item **218**. AT-SPI
+  remains a future Linux check, not a user blocker; web accessibility remains a
+  separate DOM-backed round. Follow-up: item **215**.
 - **174** — 🟢 SECOND FAMILY LANDED, item remains OPEN. Merged to `main`;
   worktree removed. `PlannedHeader` owns the overlay header band, with the query
   beat folded into the LAST header line's box exactly as the shaper folds it into
@@ -719,7 +701,8 @@ redirect, but tooling that reconstructs URLs by hand will point at the old name
   merge — its consumer is reached ~45× a frame through the four relocated
   document owners, so planning inside it would trade one parallel calculation for
   45 plans a frame; a law fails by name if they drift. Follow-up: item **217**.
-- **211** — 🟢 DIAGNOSED AND FIXED; one live confirmation still OWED. Merged to
+- **211** — ✅ COMPLETE; user-confirmed in Commands, Settings, and Themes on
+  2026-08-03. Merged to
   `main`; worktree removed. **It was never a lost input.** `advance(dt)` runs
   BEFORE `Gpu::redraw()`, and `prepare` — inside that call — is where the
   selection band is retargeted. The band is the ONE animator whose target is set
@@ -735,19 +718,9 @@ redirect, but tooling that reconstructs URLs by hand will point at the old name
   place. **Why items 104 and 106 stayed green through three sightings:** their
   laws hand-drive `p.advance(dt)` between retargets, which is precisely what the
   live loop was failing to do. Trace: 7 inputs, indices 1..6 exactly +1 each,
-  none doubled or lost, `hover_took_selection` 0. 🔵 **OWED, and it needs the
-  user:** the display auto-locked at 12:55:42 JST seven minutes into the sitting,
-  so all 10 presents read `Occluded` — the diagnosis is CPU-side and
-  occlusion-independent, but **no frame was photographed, there is no 60 fps
-  video, and the sweep arms (held-repeat, pointer parked above/on/below, scrolled
-  and fresh windows, focus/occlusion return, Settings and the other picker kinds,
-  Bars worlds, 1×/2×) were never reached.** ⚠️ **Two harness facts worth more
-  than the item:** `--live-script` forces a Prohibited, non-activating window, so
-  under any lock it writes successful-looking `LIVE-PROBE shot … ok` lines while
-  presenting ZERO frames — a probe run can look like it worked and have
-  photographed nothing; and `live-probe.sh` tests the lock only in preflight,
-  never at the end, so it would have passed at 12:52 three minutes before the
-  lock landed.
+  none doubled or lost, `hover_took_selection` 0. The first sitting was invalid
+  after the display auto-locked; the subsequent user check confirmed the fixed
+  one-row glide on all three shared picker paths.
 - **116d** — 🟢 COMPOSITING ROUND LANDED; the flip is deliberately NOT done.
   Merged to `main`; worktree removed. **The owner stopped at a clean boundary
   and that is the correct outcome** — the comparison can now be SEEN, and

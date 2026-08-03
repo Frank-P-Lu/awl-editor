@@ -385,10 +385,13 @@ impl TextPipeline {
                     right: bounds.right,
                     bottom: (bottom.min(height as f32)) as i32,
                 };
+                // The chord column is shaped RIGHT-ALIGNED in a text-column-wide
+                // buffer, so a chord sits at its far edge, never at its origin.
+                let bind_w = self.panel_bind_buffer.size().0.unwrap_or(0.0);
                 for row in plan.rows() {
                     areas.push(TextArea {
                         buffer: &self.panel_bind_buffer,
-                        left: cluster.accessory_left(row.display),
+                        left: cluster.accessory_right(row.display) - bind_w,
                         top: plan.secondary_top(),
                         scale: 1.0,
                         bounds: clip(row.top, row.bottom()),

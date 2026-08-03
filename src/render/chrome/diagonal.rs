@@ -14,6 +14,14 @@ const CLUSTER_CONNECTOR_LOGICAL: f32 = 10.0;
 const SELECTED_OUTWARD_LOGICAL: f32 = 4.0;
 const SELECTED_SPINE_WEIGHT_LOGICAL: f32 = 3.0;
 
+/// THE RESPONSIVE BOUND on the spine's total travel, as a fraction of the side
+/// territory the card has. A bound, never the travel itself: an ordinary card
+/// affords the authored per-row step outright, a cramped one gives up rake
+/// proportionally rather than collapsing to an upright line. A property of the
+/// SURFACE alone — sized from the widest row on screen, the spine's whole ANGLE
+/// became a function of the scroll position.
+const TRAVEL_MAX_BAND_FRACTION: f32 = 0.35;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(in crate::render) struct DiagonalComposition {
     pub direction: theme::DiagonalDirection,
@@ -31,9 +39,12 @@ pub(in crate::render) struct DiagonalComposition {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(in crate::render) struct DiagonalClusterRail {
     direction: theme::DiagonalDirection,
-    label_w: f32,
+    /// The row's whole territory beside the spine — the cluster BUDGET, a
+    /// property of the card alone. The label runs from the spine end and the
+    /// accessory right-aligns into the far end, as an upright world's name and
+    /// chord share one text column. Sized from the rows, a scroll moved it.
+    cluster_w: f32,
     accessory_w: f32,
-    gap: f32,
     connector: f32,
     spine_start: f32,
     spine_step: f32,
@@ -45,9 +56,8 @@ pub(in crate::render) struct DiagonalClusterRail {
 #[cfg(test)]
 #[derive(Clone, Copy, Debug)]
 pub(in crate::render) struct DiagonalClusterProbe {
-    pub label_w: f32,
+    pub cluster_w: f32,
     pub accessory_w: f32,
-    pub gap: f32,
     pub span: RowSpan,
     rail: DiagonalClusterRail,
 }
@@ -69,6 +79,12 @@ impl DiagonalClusterProbe {
     pub(in crate::render) fn selected_offset(self) -> (f32, f32) {
         self.rail.selected_offset()
     }
+
+    /// Where display row `display`'s SPINE segment stands — the composition's
+    /// stationary surface, independent of anything a row measures.
+    pub(in crate::render) fn spine_x(self, display: usize) -> f32 {
+        self.rail.spine_x(display)
+    }
 }
 
 impl DiagonalClusterRail {
@@ -77,52 +93,22 @@ impl DiagonalClusterRail {
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
         selected_display: Option<usize>,
-        label_w: f32,
+        cluster_w: f32,
         accessory_w: f32,
-        gap: f32,
     ) -> Self {
         let band_x = geom.band_x();
         let band_right = band_x + geom.band_w();
-        let label_w = label_w.max(0.0);
-        let accessory_w = accessory_w.max(0.0);
-        let gap = if accessory_w > 0.0 { gap.max(0.0) } else { 0.0 };
-        let cluster_w = label_w + gap + accessory_w;
+        let cluster_w = cluster_w.max(0.0);
+        let accessory_w = accessory_w.max(0.0).min(cluster_w);
         let rows = plan.rows().len().saturating_sub(1) as f32;
-        let inset = composition
-            .attachment_inset
-            .min((geom.band_w() * 0.5 - composition.connector).max(0.0));
-        // A selected cluster takes one small outward step. Reserve that room at
-        // the far end before deriving the per-row diagonal travel, otherwise a
-        // last visible selected row could push its measured accessory past the
-        // card clip.
-        let available_travel = (geom.band_w()
-            - inset
-            - composition.connector
-            - cluster_w
-            - composition.selected_outward)
-            .max(0.0);
+        let inset = attachment_inset(composition, geom);
+        // THE SPINE IS A FIXED SURFACE-RELATIVE LINE: its travel is reserved off
+        // the card's own side territory, never off the rows in front of it, and
+        // the cluster elides into what is left.
         let step = if rows > 0.0 {
-            composition.row_step.abs().min(available_travel / rows)
+            spine_travel(composition, geom, plan.rows().len()) / rows
         } else {
             0.0
-        };
-        // The row plan is also the text clip and pointer extent. A contextual
-        // label can be wider than a narrow card's attachment-side budget, so
-        // include that measured overhang in the SAME span rather than clipping
-        // ink at one edge while a pointer still reads the old card bounds.
-        //
-        // A WORKSPACE HAS NO ROOM TO OVERHANG INTO. A contextual card floats with
-        // its own padding around it, so a row that outgrows the band spills into
-        // space nothing else owns. A workspace's band is one of TWO coordinated
-        // regions and its far edge is the other one's near edge — a row that
-        // overhangs there is drawn, and clickable, on top of the region beside it.
-        // So the cluster yields instead: `diagonal_cluster_budget` already caps the
-        // shaping width to the band, and the shaper elides into it.
-        let overhang = match geom.workspace {
-            true => 0.0,
-            false => (inset + composition.connector + cluster_w - geom.band_w()
-                + composition.selected_outward)
-                .max(0.0),
         };
         let (spine_start, spine_step, span) = match composition.direction {
             theme::DiagonalDirection::Descending => (
@@ -130,7 +116,7 @@ impl DiagonalClusterRail {
                 step,
                 RowSpan {
                     dx: inset,
-                    dw: overhang,
+                    dw: 0.0,
                     dx_per_row: step,
                     dw_per_row: 0.0,
                 },
@@ -139,7 +125,7 @@ impl DiagonalClusterRail {
                 band_right - inset,
                 -step,
                 RowSpan {
-                    dx: -overhang,
+                    dx: 0.0,
                     dw: -inset,
                     dx_per_row: 0.0,
                     dw_per_row: -step,
@@ -148,9 +134,8 @@ impl DiagonalClusterRail {
         };
         Self {
             direction: composition.direction,
-            label_w,
+            cluster_w,
             accessory_w,
-            gap,
             connector: composition.connector,
             spine_start,
             spine_step,
@@ -205,23 +190,45 @@ impl DiagonalClusterRail {
         let spine = self.spine_x(display) + self.shift(display);
         match self.direction {
             theme::DiagonalDirection::Descending => spine + self.connector,
-            theme::DiagonalDirection::Ascending => {
-                spine - self.connector - self.label_w - self.gap - self.accessory_w
-            }
+            theme::DiagonalDirection::Ascending => spine - self.connector - self.cluster_w,
         }
     }
 
-    pub(in crate::render) fn accessory_left(self, display: usize) -> f32 {
-        self.label_left(display) + self.label_w + self.gap
+    /// The far end of the row's territory, where the accessory column's ink
+    /// ends — an upright card's own right-aligned chord edge, mirrored.
+    pub(in crate::render) fn accessory_right(self, display: usize) -> f32 {
+        self.label_left(display) + self.cluster_w
     }
 
-    pub(in crate::render) fn accessory_right(self, display: usize) -> f32 {
-        self.accessory_left(display) + self.accessory_w
+    #[cfg(test)]
+    pub(in crate::render) fn accessory_left(self, display: usize) -> f32 {
+        self.accessory_right(display) - self.accessory_w
     }
 
     pub(in crate::render) fn accessory_w(self) -> f32 {
         self.accessory_w
     }
+}
+
+/// The attachment band's inset, yielding on a card too narrow to seat it and
+/// still leave the far half free.
+fn attachment_inset(composition: DiagonalComposition, geom: &OverlayGeom) -> f32 {
+    composition
+        .attachment_inset
+        .min((geom.band_w() * 0.5 - composition.connector).max(0.0))
+}
+
+/// The spine's TOTAL horizontal travel across the drawn rows: the authored
+/// per-row step, bounded by [`TRAVEL_MAX_BAND_FRACTION`] of the card's side
+/// territory. No row, no label and no scroll position enters it.
+fn spine_travel(composition: DiagonalComposition, geom: &OverlayGeom, rows: usize) -> f32 {
+    let steps = rows.saturating_sub(1) as f32;
+    let room = (geom.band_w()
+        - attachment_inset(composition, geom)
+        - composition.connector
+        - composition.selected_outward)
+        .max(0.0);
+    (composition.row_step.abs() * steps).min(room * TRAVEL_MAX_BAND_FRACTION)
 }
 
 impl DiagonalComposition {
@@ -242,14 +249,51 @@ impl DiagonalComposition {
 }
 
 impl TextPipeline {
-    pub(super) fn diagonal_cluster_budget(&self, geom: &OverlayGeom) -> Option<f32> {
+    /// THE SIDE TERRITORY a diagonal card owes its composition beyond the row
+    /// cluster: the attachment inset the spine stands on, the connector, the
+    /// selected row's outward step and the deepest row's travel.
+    ///
+    /// A card that hugs its measured ROWS is exactly one cluster wide and leaves
+    /// the composition nothing: the travel collapses to zero (an upright spine)
+    /// and `diagonal_cluster_budget` cuts the same territory back out of `text_w`
+    /// until `rowlayout::fits` drops the key chords entirely. `0.0` on every
+    /// upright world, so their hug width is untouched. `rows` is the plan's own
+    /// drawn count — the same one the travel is divided across.
+    pub(in crate::render) fn diagonal_side_reserve_px(&self, rows: usize) -> f32 {
+        let Some(composition) = active(self) else {
+            return 0.0;
+        };
+        let rows = rows.saturating_sub(1) as f32;
+        composition.attachment_inset
+            + composition.connector
+            + composition.selected_outward
+            + composition.row_step.abs() * rows
+    }
+
+    /// The width a diagonal row's CLUSTER may occupy — the band less the
+    /// attachment inset, the connector, the reserved travel and the selected
+    /// row's outward step. Every term is a property of the card, so a row's
+    /// elision is the same number at every scroll position and every filter.
+    pub(in crate::render) fn diagonal_cluster_budget(
+        &self,
+        geom: &OverlayGeom,
+        rows: usize,
+    ) -> Option<f32> {
         let composition = active(self)?;
-        let inset = composition
-            .attachment_inset
-            .min((geom.band_w() * 0.5 - composition.connector).max(0.0));
+        let inset = attachment_inset(composition, geom);
+        // Anchored to the BAND (the spine stands on `band_x + inset`), clipped by
+        // the TEXT column, one `hpad` narrower at each edge — without that term
+        // the deepest row's accessory lost its last glyph to the clip.
         Some(
-            geom.text_w
-                .min((geom.band_w() - inset - composition.connector).max(0.0)),
+            geom.text_w.min(
+                (geom.band_w()
+                    - inset
+                    - composition.connector
+                    - spine_travel(composition, geom, rows)
+                    - composition.selected_outward
+                    - self.overlay_text_hpad())
+                .max(0.0),
+            ),
         )
     }
 
@@ -270,13 +314,11 @@ impl TextPipeline {
         vis: &VisualSelection,
     ) -> Option<DiagonalClusterRail> {
         let composition = active(self)?;
-        let primary = self.overlay_row_primary_px(geom);
+        let cluster_w = self.diagonal_cluster_budget(geom, plan.rows().len())?;
+        // The accessory column's own INK width — how far in from the rail's far
+        // edge a chord, value or Range readout reaches. Only rails and hit bands
+        // read it; the column's outer edge is the rail's, and does not move.
         let secondary = self.overlay_row_secondary_px(geom);
-        let label_w = plan
-            .rows()
-            .iter()
-            .map(|row| primary.get(&row.display).copied().unwrap_or(0.0))
-            .fold(0.0, f32::max);
         let mut accessory_w = plan
             .rows()
             .iter()
@@ -298,18 +340,16 @@ impl TextPipeline {
             geom,
             plan,
             vis.rows().first().copied(),
-            label_w,
+            cluster_w,
             accessory_w,
-            rowlayout::GAP_CHARS as f32 * self.overlay_char_width(),
         ))
     }
 
     #[cfg(test)]
     pub(in crate::render) fn diagonal_cluster_probe(&self) -> Option<DiagonalClusterProbe> {
         self.diagonal_cluster.map(|rail| DiagonalClusterProbe {
-            label_w: rail.label_w,
+            cluster_w: rail.cluster_w,
             accessory_w: rail.accessory_w,
-            gap: rail.gap,
             span: rail.span,
             rail,
         })
@@ -403,82 +443,5 @@ impl TextPipeline {
             height,
             &selected_segments,
         );
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn logical_registry_scales_every_diagonal_quantity_once_with_dpi() {
-        let one = DiagonalComposition::resolve(theme::DiagonalDirection::Descending, 1.0);
-        let two = DiagonalComposition::resolve(theme::DiagonalDirection::Descending, 2.0);
-        assert_eq!(two.row_step, one.row_step * 2.0);
-        assert_eq!(two.spine_weight, one.spine_weight * 2.0);
-        assert_eq!(two.spine_corner, one.spine_corner * 2.0);
-        assert_eq!(two.attachment_inset, one.attachment_inset * 2.0);
-        assert_eq!(two.selected_outward, one.selected_outward * 2.0);
-        assert_eq!(two.selected_spine_weight, one.selected_spine_weight * 2.0);
-        assert!(
-            one.row_step > 0.0,
-            "the diagonal law must not pass on an inert composition"
-        );
-    }
-
-    #[test]
-    fn one_composition_owns_the_two_mirrored_orientations() {
-        let down = DiagonalComposition::resolve(theme::DiagonalDirection::Descending, 1.0);
-        let up = DiagonalComposition::resolve(theme::DiagonalDirection::Ascending, 1.0);
-        assert_eq!(down.row_step, -up.row_step);
-        assert_eq!(down.spine_weight, up.spine_weight);
-        assert_eq!(down.spine_corner, up.spine_corner);
-        assert_eq!(down.attachment_inset, up.attachment_inset);
-        assert_eq!(down.selected_outward, up.selected_outward);
-        assert_eq!(down.selected_spine_weight, up.selected_spine_weight);
-        assert!(
-            down.selected_spine_weight > down.spine_weight,
-            "the selected local spine must visibly thicken over its resting stroke"
-        );
-    }
-
-    #[test]
-    fn only_world_data_names_mangrove_and_magpie() {
-        let _g = crate::testlock::serial();
-        let renderer = include_str!("diagonal.rs")
-            .split("#[cfg(test)]")
-            .next()
-            .unwrap();
-        assert!(!renderer.contains("Mangrove"));
-        assert!(!renderer.contains("Magpie"));
-
-        let mut diagonal = Vec::new();
-        for world in theme::THEMES {
-            match world.render_caps.list_style {
-                theme::ListStyle::Diagonal(direction) => diagonal.push((world.name, direction)),
-                theme::ListStyle::Pane | theme::ListStyle::Bars { .. } => {}
-            }
-        }
-        assert_eq!(
-            diagonal,
-            vec![
-                ("Mangrove", theme::DiagonalDirection::Descending),
-                ("Magpie", theme::DiagonalDirection::Ascending),
-            ]
-        );
-        for name in ["Mangrove", "Magpie"] {
-            theme::set_active_by_name(name).unwrap();
-            assert_ne!(
-                theme::muted(),
-                theme::primary(),
-                "{name}: spine ink is never the accent"
-            );
-            assert_ne!(
-                theme::muted(),
-                theme::base_content(),
-                "{name}: the selected local spine must brighten over the resting muted ink"
-            );
-        }
-        theme::set_active(theme::DEFAULT_THEME);
     }
 }

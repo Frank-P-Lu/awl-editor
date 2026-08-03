@@ -2281,6 +2281,8 @@ pub struct TextPipeline {
     workspace_rail_placement: Option<(f32, f32)>,
     overlay_spell_w: f32,
     overlay_content_w: f32,
+    /// PROTO-CACHE for the roster-width measurements, one slot per question.
+    roster_memo: [Option<(u64, f32)>; chrome::roster::ROSTER_SLOTS],
     caret_preview: Option<CaretMode>,
     caret_demo: crate::caret::CaretDemo,
     caret_preview_mask_to: Option<GlyphMask>,

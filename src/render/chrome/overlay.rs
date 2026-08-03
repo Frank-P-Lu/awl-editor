@@ -328,33 +328,6 @@ impl TextPipeline {
         }
     }
 
-    pub(in crate::render) fn measure_spell_content_w(&mut self) -> f32 {
-        if self.overlay_items.is_empty() {
-            return 0.0;
-        }
-        let ui_metrics = self.overlay_metrics();
-        self.panel_buffer
-            .set_metrics(&mut self.font_system, ui_metrics);
-        self.panel_buffer
-            .set_size(&mut self.font_system, None, None);
-        let text = self.overlay_items.join("\n");
-        let ink = theme::base_content().to_glyphon();
-        self.panel_buffer.set_text(
-            &mut self.font_system,
-            &text,
-            &panel_attrs().color(ink),
-            Shaping::Advanced,
-            None,
-        );
-        self.panel_buffer
-            .shape_until_scroll(&mut self.font_system, false);
-        let mut max_w = 0.0_f32;
-        for run in self.panel_buffer.layout_runs() {
-            max_w = max_w.max(run.line_w);
-        }
-        max_w
-    }
-
     /// Geometry for the contextual SPELL panel: a small floating popup anchored just
     /// below the misspelled `(line, start_col, end_col)` word — no query line, no foot
     /// hint, just the suggestion rows. The card's LEFT edge aligns to the word start

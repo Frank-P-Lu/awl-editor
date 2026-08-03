@@ -138,7 +138,10 @@ fn every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_wor
                         let cluster = p.diagonal_cluster_probe().unwrap_or_else(|| {
                             panic!("{ctx}: diagonal world must resolve a cluster")
                         });
-                        assert!(cluster.label_w > 0.0, "{ctx}: labels must reserve a column");
+                        assert!(
+                            cluster.cluster_w > cluster.accessory_w,
+                            "{ctx}: the rail must leave the label a column beside its accessory"
+                        );
                         assert!(
                             cluster.accessory_w >= 0.0,
                             "{ctx}: an accessory reservation is never negative"
@@ -163,28 +166,40 @@ fn every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_wor
                                     < 0.01,
                             "{ctx}: planner row bounds must read the measured cluster span"
                         );
+                        // A row's territory is the cluster BUDGET — a property
+                        // of the card — with the label running from the spine end
+                        // and the accessory right-aligned into the far end, as an
+                        // upright card right-aligns its chord to its own text
+                        // edge. Sized from the widest row on SCREEN instead, the
+                        // rail stepped sideways on every scroll.
                         assert!(
-                            (cluster.accessory_left(row.display)
-                                - (cluster.label_left(row.display)
-                                    + cluster.label_w
-                                    + cluster.gap))
+                            (cluster.accessory_right(row.display)
+                                - cluster.label_left(row.display)
+                                - cluster.cluster_w)
                                 .abs()
                                 < 0.01,
-                            "{ctx}: label + fixed gap + accessory must be one measured cluster"
+                            "{ctx}: a row's rail must span exactly the cluster budget"
+                        );
+                        assert!(
+                            (cluster.accessory_right(row.display)
+                                - cluster.accessory_left(row.display)
+                                - cluster.accessory_w)
+                                .abs()
+                                < 0.01,
+                            "{ctx}: the accessory column right-aligns into the rail's far end"
                         );
                         let (left, right) = plan.card_x_span();
                         assert!(
                             cluster.label_left(row.display) >= left + row.dx - 0.01
                                 && cluster.accessory_right(row.display) <= right + row.dw + 0.01,
                             "{ctx}: measured cluster exceeds its row span \
-                             (cluster={}..{}, span={}..{}, label_w={} accessory_w={} gap={})",
+                             (cluster={}..{}, span={}..{}, cluster_w={} accessory_w={})",
                             cluster.label_left(row.display),
                             cluster.accessory_right(row.display),
                             left + row.dx,
                             right + row.dw,
-                            cluster.label_w,
+                            cluster.cluster_w,
                             cluster.accessory_w,
-                            cluster.gap,
                         );
                         let y = row.top + row.height * 0.5;
                         assert_eq!(
