@@ -80,18 +80,39 @@ fn settings_view(lens: usize) -> ViewState {
 ///     pad on every world. `bar_full_span` is arithmetic over the band, not
 ///     emitter output, so no cell here grades a synthesized plate — but only the
 ///     plate-bearing cells count toward `graded`.
-///  2. NON-VACUITY, the retired rule written out inline: the row box WAS the
-///     bare band, and that box overruns the plate at both edges by
-///     `BAR_SIDE_INSET` — the measured 8px of the report. **This arm is weaker
-///     than it reads**: `bar_full_span` is `(band_x + INSET, band_w - 2*INSET)`,
-///     so the overrun it measures is `BAR_SIDE_INSET` identically, in every
-///     cell, with no world, width, lens or DPI entering it. It pins the
-///     report's 8px against the constant and nothing else; arm 1 is what
-///     actually sweeps.
+///  2. THE BOUND AGAIN, AGAINST THE DRAWN PLATE — arm 1's own claim, on the
+///     plate-drawing worlds only (`bars`, `ListStyle::draws_row_plates()`'s
+///     roster), re-graded against `overlay_bar_rects_probe`'s real emitted
+///     quad instead of arm 1's `bar_full_span_probe` re-derivation.
+///     **Why arm 1 alone cannot see this defect's shape:** the arm this
+///     replaces computed an "overrun" from `bar_full_span(band_x, band_w)` a
+///     SECOND time — the exact same pure function arm 1 already calls with the
+///     exact same inputs — so it was a tautology (`BAR_SIDE_INSET` identically,
+///     no world/width/lens/DPI entering it) that could not fail on any product
+///     change except editing the constant, and — because it built its own
+///     hypothetical "retired" box from `band_x`/`band_w` rather than reading
+///     `geom.text_left`/`text_w` — it would not even have fired had the
+///     original bug this file names still been live (proven below: with arm 1
+///     masked out, the mutated build passed clean). This arm fixes both: it
+///     reads `geom.text_left` (the LIVE, current text position — so a
+///     reintroduced regression of this file's own shape fails it directly)
+///     against the plate `overlay_bar_rects_probe` actually drew (a different
+///     code path than
+///     `bar_full_span_probe`, so a regression that decouples a plate's real
+///     left edge from the band it insets from — e.g. `bar_hug_span` drifting
+///     from `bar_full_span`'s `x` — fails here where arm 1 structurally cannot
+///     see it). **UNSELECTED/footer plates only**: `overlay_selected_bar_rects`
+///     mirrors `grow_px` onto the left edge on a `TopRight`/`mirrors_growth`
+///     world (Cassowary, Firetail — measured, this moves a selected plate's
+///     left edge 24px further out), a real product feature this arm must not
+///     mistake for the defect.
 ///
-/// The pixel evidence for this claim is the sibling law below, which grades the
-/// shaper's own glyph runs against the emitter's own quads on the worlds that
-/// really draw plates.
+/// The pixel evidence for the RIGHT-edge half of the report (the value column
+/// hanging past its own accessory plate) is the sibling law below, which grades
+/// the shaper's own glyph runs against the emitter's own quads on the worlds
+/// that really draw plates — arm 2 above stays LEFT-edge-only because a hug
+/// plate's right edge is content-width-dependent and does not clear by a fixed
+/// constant, so pinning it here would reintroduce a different vacuity.
 #[test]
 fn a_workspace_rows_text_sits_inside_its_own_plate_on_every_world() {
     let _g = crate::testlock::serial();
@@ -105,15 +126,11 @@ fn a_workspace_rows_text_sits_inside_its_own_plate_on_every_world() {
         .len();
     assert!(lenses >= 7, "the Settings category roster shrank: {lenses}");
 
-    let mut retired_overrun = 0.0f32;
     let mut graded = 0usize;
     for world in theme::THEMES.iter().map(|t| t.name) {
         theme::set_active_by_name(world).unwrap();
         p.sync_theme();
-        let bars = matches!(
-            theme::active().render_caps.list_style,
-            theme::ListStyle::Bars { .. }
-        );
+        let bars = theme::active().render_caps.list_style.draws_row_plates();
         for dpi in [1.0f32, 2.0] {
             p.set_dpi(dpi);
             for logical_w in [900.0f32, 1200.0, 1600.0] {
@@ -155,18 +172,31 @@ fn a_workspace_rows_text_sits_inside_its_own_plate_on_every_world() {
                         bar_x + bar_w
                     );
 
-                    // --- ARM 2: THE RETIRED RULE ----------------------------
-                    // `text_left`/`text_w` used to BE the band, with no pad at all.
-                    let (retired_left, retired_w) = (geom.band_x_probe(), geom.band_w_probe());
-                    let overrun =
-                        (bar_x - retired_left).max(retired_left + retired_w - (bar_x + bar_w));
-                    retired_overrun = retired_overrun.max(overrun / dpi);
-                    assert!(
-                        overrun > 1.0,
-                        "{ctx}: the retired rule no longer overruns the plate — this cell \
-                         cannot witness the defect"
-                    );
+                    // --- ARM 2: THE BOUND AGAIN, AGAINST THE DRAWN PLATE ----
+                    // Only a plate-drawing world has a real plate quad to grade
+                    // against; `overlay_bar_rects_probe` REFUSES otherwise, so
+                    // this arm is scoped to `bars` on purpose. UNSELECTED/footer
+                    // plates only: the SELECTED one can grow past this exact
+                    // left edge on a `TopRight`/`mirrors_growth` world
+                    // (Cassowary, Firetail) — `overlay_selected_bar_rects`
+                    // mirrors `grow_px` onto the left edge there, a real,
+                    // unrelated product feature this arm must not trip on.
                     if bars {
+                        let (_sel, unsel) = p.overlay_bar_rects_probe();
+                        let plate_left = unsel.iter().map(|r| r[0]).fold(f32::MAX, f32::min);
+                        assert!(
+                            plate_left.is_finite(),
+                            "{ctx}: a plate-drawing world prepared no unselected/footer plate \
+                             this frame — the sweep needs a grow-immune plate to grade against"
+                        );
+                        assert!(
+                            geom.text_left >= plate_left + pad - 0.51,
+                            "{ctx}: the row text starts at {:.1}, left of the DRAWN plate's \
+                             own {plate_left:.1} + its pad {pad:.1} — arm 1's bound used the \
+                             pure `bar_full_span` formula, this one uses what the emitter \
+                             actually drew",
+                            geom.text_left
+                        );
                         graded += 1;
                     }
                 }
@@ -179,11 +209,6 @@ fn a_workspace_rows_text_sits_inside_its_own_plate_on_every_world() {
     assert!(
         graded >= 100,
         "the bound graded only {graded} plate-bearing cells"
-    );
-    assert!(
-        (retired_overrun - 8.0).abs() < 0.51,
-        "the retired rule's overrun measured {retired_overrun:.2} logical px; the report \
-         and the code both say it is BAR_SIDE_INSET (8.0)"
     );
 }
 
