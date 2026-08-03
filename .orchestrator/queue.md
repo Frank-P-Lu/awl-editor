@@ -176,7 +176,9 @@ the combined tree (8 passed) before the train gate rather than trusting two
 receipts taken on different bases. CI is green on `f47028d0` under the raised
 mac ceiling.
 
-## CI RED — THE MECHANISM IS NOW KNOWN: the shared wgpu device wedges
+## CI RED — the bisect, and a diagnosis that was LATER FALSIFIED
+
+⚠️ **READ ITEM 231'S ENTRY FIRST. The headline this section was written under — "the shared wgpu device wedges" — IS DEAD**, killed by 231's own post-fix probes: the mac and linux conventions are **two separate processes with two separate wgpu devices**, and they stopped within **10 milliseconds** of each other. They share no device. **The contended resource is SYSTEM-WIDE — the VM's virtualised Metal stack itself.** The bisect below (`8207e519`, both boundaries measured) still stands and is the durable part; the mechanism reasoning that follows it does not. Kept rather than deleted because the correction is the lesson, and because a fix-owner who re-derives the dead diagnosis will waste the same week twice.
 
 **Probe 3 of the bisect left a log, and it is the most informative artifact in
 this investigation.** From run `30756807172`:
@@ -304,7 +306,7 @@ virtualised GPU**, so their greenness never was evidence about this axis. The
 honest statement is "sound on the hardware the receipts run on, with
 virtualised-GPU behaviour untested by any local gate". That gap is item **232**.
 
-**Superseded bisect state:****Superseded bisect state:** window `7bca59d6` GOOD .. `d1e997b9` BAD. Real candidates are
+**Superseded bisect state:** window `7bca59d6` GOOD .. `d1e997b9` BAD. Real candidates are
 just three — `8207e519` (37 files, shader), `94211bb6` (6, shader), `c325fdad`
 (4, no shader). `bbb3c2f7` and `d1e997b9` touch no code and cannot be
 first-bad. Probes 1–3 all BAD; probe 4 (`94211bb6`) running. **A GOOD reading
@@ -417,7 +419,7 @@ bisect `7bca59d6..edc89757` (~50 commits, including two vectorized-search
 commits confined to `src/search/mod.rs` + `src/buffer.rs`) — each mac run costs
 ~50 minutes and nothing reproduces locally, where the suite passes in 182 s.
 
-### The superseded diagnosis, kept because the correction is the lesson### The superseded diagnosis, kept because the correction is the lesson
+### The superseded diagnosis, kept because the correction is the lesson
 
 **`main` has had no successful CI run since `7bca59d6` (2026-08-01 05:38).**
 130 commits have landed since. Eight consecutive runs are `failure` or
@@ -467,213 +469,11 @@ a health run surfaces — so this is very likely a recording failure rather than
 skipped gate. **Re-issue the three receipts on the merged tree, or leave these
 entries marked unverified.** Do not retro-fit a receipt string from memory.
 
-- **232** — ✅ COMPLETE — merge `5bc771ca` (`7f88b379`, `96106575`, `008f6703`).
-  **THE ANSWER IS NO, AND THE NEGATIVE IS THE RESULT.** Two independent lavapipe
-  stacks ran `render::tests::` at both bisect boundaries and **neither ever
-  hung**: x86_64 Mesa 25.2.8 (CI's own `linux` job, which installs
-  `mesa-vulkan-drivers` and puts the identical `scripts/native-gate.sh` through
-  it — green across all ~140 red-streak commits, on trees containing
-  `8207e519`) and arm64 Mesa 22.3.6 (a local Debian bookworm container at
-  `8207e519` and parent `36707d06`). **So a software-adapter arm covers real
-  Linux/Vulkan and covers NOTHING on the axis that actually broke** — a CPU
-  rasteriser has no system-wide GPU resource for a cross-process wedge to
-  exhaust, which is exactly what item 231 measured when two processes with two
-  separate devices stopped within 10 ms of each other.
-  **What the container DID see is worth more than the negative, and belongs to
-  item 231:** under a fixed 4 GiB ceiling at `--test-threads=1`, `render::tests::`
-  walks RSS monotonically to an OOM kill, and how far it gets is
-  commit-correlated — good parent reaches test **199** twice, `8207e519` reaches
-  test **160** twice, alternated good/bad/good/bad to control for drift. **The
-  bad tree spends the same budget 20% sooner**, in ~4 local minutes rather than
-  a 50-minute CI cycle. Queued as item **239**. ⚠️ Every container termination
-  was a prompt SIGKILL with `OOMKilled=true` — **never** the hosted runner's
-  park-forever-in-poll with memory flat, so this is a different failure mode and
-  is **not** evidence that bounding the growth would prevent the hang.
-  ⚠️ **A PROBE-INTEGRITY BUG every future cross-commit lane needs:** the first
-  pass **silently scored the same binary twice**. Both trees came out of
-  `git archive | tar -x` in the same second, so Cargo's mtime fingerprint said
-  "Finished in 0.63s" and reused the other tree's artifacts — two runs labelled
-  BAD were the GOOD tree. Fixed with a target dir per tree plus a provenance
-  assertion (counting Kite's `warped_grid` tests, 2/719 vs 0/704) that aborts on
-  mismatch. Same class as this investigation's two oracle bugs.
-  ⚠️ **THE LANE WROTE THE USER'S DECISION INTO THE BINDING DOCS AND THEN WALKED
-  IT BACK — the walk-back is the right outcome and is why this is trustworthy.**
-  Its first commit put "this job is gating, not tolerated red" into `CLAUDE.md`,
-  `.orchestrator/README.md`, `RELEASING.md` and `ci.yml`. That is the decision
-  the item explicitly reserved for the user. The docs now state **only the
-  measured coverage fact**, with the policy marked parked.
-  🔵 **STILL PARKED FOR THE USER — recommendation C:** declare the hosted-mac
-  job the arm and gate on it. **A rejected on measurement** (1.67 GB image, ~14
-  GiB of Docker VM disk that did not return, zero coverage of the target axis);
-  **B rejected because it already exists.** Note what accepting C costs today:
-  the mac job is red, so gating on it blocks `main`.
-- **235** — ✅ COMPLETE — merge `df630ad9` (`25820220`, `ac74429c`).
-  **221 and 224 are UNBLOCKED and both are now theme data.** One short shaped run
-  → one CPU-composed R8 coverage image → one quad rotated onto a unit axis,
-  reusing `caret.wgsl`'s existing axis rotation.
-  ⚠️ **THE BRIEF UNDERSTATED THE DESIGN, in the direction that mattered.** It
-  said "a mask cache like `caret_glyph.rs`", which reads as **one mask per
-  glyph**. Composing the **whole run** into one mask is what makes the quadrant
-  angles a **lossless texel transpose** rather than a resample — a per-glyph
-  scheme would have carried per-glyph seams and **could never have been exact at
-  90°**, which is precisely what item 221 needs. It is also one draw call and one
-  bind group.
-  **Measured, not asserted:** at 0/90/180/270° and both DPIs, ink **1.0000**, mae
-  **0.0000**, contrast **1.0000** — so 221's 90° heading costs nothing at any
-  DPI. At Magpie's slant the round trip is contrast 0.65 at 1× and 0.83 at 2×,
-  **and because "is 0.65 good?" is unanswerable alone**, a second law compares
-  the render against the canvas an *ideal bilinear rigid rotation* would produce
-  from the composed image and angle alone: worst-case departure **0.0046** of
-  full coverage, exactly 0.0000 at every quadrant. **So the softening is the
-  unavoidable price of rotating a raster, not ink the pipeline loses** — a
-  genuinely independent oracle rather than the code agreeing with itself.
-  Supersampling was **deliberately not added**: it would buy the slant what 2×
-  already gives, at the cost of letterforms no longer matching their upright
-  siblings.
-  **The no-prose-renderer bound is structural, not a promise:** `LabelMask::compose`
-  reads `layout_runs().next()` and stops — no line breaking, no wrapping, no
-  per-line alignment, no selection — and that is law-tested.
-  **Identity is structural AND empirical:** 1724 insertions, **zero deletions**,
-  no existing production file gained a call, and 15 frames across five worlds
-  hash identically at base and branch.
-  ⚠️ **The gate caught a law targeted runs structurally could not:** `gpu_cache_law`
-  pins the pipeline-family count by name and went red at "found 9, expected 8" —
-  a filter on the new module's own name cannot reach a law that sweeps `src/`.
-  **Handoff to 221/224:** `label_hit` exists and is law-tested even though
-  neither expression is pressed, deriving from the run's own frame rather than
-  axis-aligned bounds (which at 45° over-claims its corners and would steal
-  presses from neighbouring rows). A **baseline gradient** was added as a flagged
-  scope addition — one instance field plus one `mix()`, cheaper now than 224
-  adding it later. **Magpie's 77.66° is a derivation, not a spec** — 224's author
-  picks the real number, and the capability sweeps every angle regardless.
-  Follow-up queued: item **240**.
-- **236** — ✅ COMPLETE — merge `ef6f87ca` (`9f7a230f`, `6a1d2b99`).
-  **BOTH halves, rather than either.** `ListStyle::draws_row_plates()` is the one
-  owner of "does this style back its rows with plates", placed beside
-  `list_backing` — **whose doc now says outright that it is a claim about the
-  CARD, not the ROW**, which is where the confusion started.
-  `overlay_selection_rects` is now the one place a list style becomes row
-  surfaces, so a probe can no longer be a **copy** of the production match that
-  drifts from it, and `overlay_bar_rects_probe` **REFUSES** on a plateless world
-  with its synthesis deleted — the item-233 lesson applied.
-  ⚠️ **THE PATTERN WAS REAL, and the second instance is worse than the first.**
-  Item 174's `an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world`
-  makes the identical substitution — **and its `!plates.is_empty()` guard,
-  written specifically to prove the arm non-vacuous, was SATISFIED BY THE
-  FABRICATION** on the two diagonal worlds. A non-vacuity guard graded by
-  invented geometry is the sharpest instance of this class yet recorded. A sweep
-  of the whole tree found **no third instance**.
-  **The exclusions are EARNED BY MEASUREMENT, not by a name list:** on each
-  plateless world, at the same fixture and DPIs, the frame must emit **no row
-  surface at all** — so a world that starts drawing plates fails there instead of
-  quietly dodging the sweep.
-  ⚠️ **A NEAR-REGRESSION, caught and recorded rather than shipped:** the scrim
-  gate reads `backing == BarePlates` — **the same substitution, in SHIPPING
-  code** — and "fixing" it to `draws_row_plates()` would have been **wrong**,
-  because `overlay_prepare_bar_scrims` is the only thing that clears `panel_card`
-  on a bare-plate world, so gating it out would let a stale instance survive into
-  a Diagonal frame. The gate is correct as-is. **The written source of the
-  conflation was a doc:** `docs/render.md` said "the same slab is on all five
-  bare-plate worlds", listed the Bars roster wrongly on three of four entries,
-  and omitted Diagonal from its `ListStyle` summary entirely — all corrected.
-  **Non-vacuity re-proved on the right cell:** item 225's original defect still
-  fails the law, and **now fails on Galah, a world that actually draws the
-  plate**, where before the first cell reached was Mangrove, which draws nothing.
-  Health debt paid deliberately: `theme/model.rs` +13 for the new accessor.
-  Follow-up queued: item **237**.
-
-- **220 + 234** — ✅ COMPLETE. **221 + 224 argued and DEFERRED to item 235.**
-  Receipt `native-gate-receipt commit=c2cfac75… conventions=mac,linux
-  scope=all-targets`, 3627 passed.
-  **The theme-data constraint HOLDS — it is not what blocks 221/224.** Both
-  expressions are a `RenderCaps` variant over 220's single `overlay_location`
-  datum, the same shape `Background`/`CardTexture`/`FacetStyle`/
-  `TitleStyle::Placard` already have. **A capability gap blocks them:** glyphon
-  0.11 has **no transform, no rotation, no skew anywhere in the crate**, and the
-  tree's only rotation turns rounded-rect QUADS, not glyphs. See item **235** —
-  world-neutral, and both become data on top of it.
-  ⚠️ **FIVE BRIEF PREMISES WERE WRONG.** **220 is universal, not the Files
-  filter's problem:** every non-All lens of every faceting picker groups into
-  exactly ONE section whose label is character-for-character the lens's own —
-  6 pickers, 22 lenses, 20 worlds; that line was never a section header
-  anywhere. **234 is not a right-edge defect:** the row box was the bare band,
-  so text sat `BAR_SIDE_INSET` (8.00 px, measured) **outside its plate at BOTH
-  edges**, and the LEFT half — the first glyph of every row label cut by its
-  plate — was the more widespread symptom **nobody had reported**. **224's
-  premise does not hold at all:** after 220, Magpie's cue is already on the
-  LEFT, riding the diagonal cluster's own row stagger; there is no right-side
-  indicator to mirror, only the slant and gradient are missing. **No second
-  header line was needed** — the location inherits the section header's existing
-  planned slot, which is why all 1200 sidecars are byte-identical. And **a
-  latent parallel calculation surfaced:** the timeline column measured its
-  footer by shaping the raw string in one face while the drawn footer is
-  symbol-split, under-measuring by 1.3 px on Mopoke; two unspent pads hid it.
-  **Captures per-surface, as this class requires:** 840 PNGs byte-identical
-  across 14 surfaces, 360 differing across exactly the six the two items touch,
-  **all 1200 sidecars byte-identical**.
-  ⚠️ **The gate caught TWO defects in the lane's OWN laws that filtered runs had
-  shown green:** a roster that included two plate-less worlds, and an oracle
-  that scavenged "ink near the plate" — which **cannot attribute a pixel to a
-  glyph**. The rewrite compares the emitter's own quads against the column edge
-  and upgraded the sweep from one row of one lens to every `SettingId` of every
-  category × three widths × every plated world. Follow-up: item **236**.
-- **222 + 223** — ✅ COMPLETE. Receipt `native-gate-receipt commit=57dd7794…
-  conventions=mac,linux scope=all-targets`. **NEITHER WAS MANGROVE'S.**
-  **223 had TWO independent causes, both in shared owners.** (a) The
-  right-anchored content hug measured the ROWS ALONE, while the diagonal
-  composition then spends the card's band on its attachment inset, connector and
-  selected outward step before a row is laid — the card came out exactly one
-  cluster wide, `diagonal_cluster_budget` cut that same territory back out of
-  `text_w`, `rowlayout::fits` failed, and the whole chord column yielded.
-  **Mangrove is simply the only world that is BOTH right-anchored AND
-  diagonal.** (b) The chord column is shaped right-aligned in a buffer as wide
-  as the card's text column, and the diagonal upload seated it at the cluster's
-  accessory **left** — pushing every chord a whole text column right, into the
-  clip. **BOTH diagonal worlds drew no chords at all**, while
-  `overlay_right_shown` read `true` throughout: only a pixel oracle could find
-  it.
-  ⚠️ **222's STATED CAUSE WAS WRONG.** A 31.1 px card translation "reproduced"
-  on Mangrove and Cassowary was **falsified by real captures** — the palette's
-  lens strip alone spends the width cap, so its card never hugs and nothing
-  translated. What actually moves is **the spine's RAKE**:
-  `DiagonalClusterRail::new` sized per-row travel from the territory left after
-  the **widest VISIBLE row's** cluster, so a long filename scrolling out of a
-  Go-to-file list swung the line from near-upright to a full rake and carried
-  every row with it. The card-hug coupling is real and fixed, but it is the
-  smaller sibling.
-  **Found en route: Mangrove's spine had `dx_per_row == 0.0` — standing
-  UPRIGHT, the silent Pane/Bars fallback item 131 forbids.**
-  ⚠️ **A LAW THAT SURVIVED ITS OWN REGRESSION.** The first scroll law ran at one
-  canvas with the real palette and stayed GREEN under mutation, because that
-  palette never hugs at any window size so every claim held for free. It now
-  sweeps three canvases × two fixtures — one whose widest rows sit at the TOP,
-  the empirical worst case — and **refuses to pass unless the widest visible row
-  actually swings by >40 px somewhere in the sweep.**
-  Identity measured per-surface: the palette captured on all 20 worlds at base
-  and tip, **18/20 byte-identical in PNG and sidecar**, Mangrove and Magpie
-  changed by design.
-  **Premise corrections:** 222 is **not** a ground-space/`Background` question
-  (item 186's registry untouched); 223 was **not** an elision or budget question
-  (the labels were never elided — the chords were drawn off the card); and
-  "assume universal" was right in spirit but **the universe was THE DIAGONAL
-  COMPOSITION, two worlds** — only learnable by measuring all twenty.
-  ✅ **THE TASTE CALL IS MADE — user, 2026-08-03.** Making the rail a property
-  of the card left-aligns labels within it, and on Magpie (ascending, clusters
-  hang left of the spine) that leaves a visible gap between a short label and
-  its chord; Mangrove reads correctly. **The decision: RIGHT-ALIGN the name text
-  for ascending worlds, and MIRROR THE WHOLE CLUSTER rather than only the rail**
-  — label, gap and accessory move together as one unit, which is the same
-  reading item 131 already asks for ("anchor the whole cluster to the spine
-  instead of independently nudging text"). **It belongs to item 131d's measured
-  cluster rail, NOT to a patch on 222**, and it is adjacent to 224 — so whoever
-  takes 131d owns it. **Two things to hold while building it:** Mangrove
-  (descending, right-anchored) must come out byte-identical, since only the
-  ascending mirror changes; and the `SettingId × SettingKind` sweep is where
-  this bites, because a right-aligned name against a fixed accessory rail is
-  exactly where an honest gap turns into a collision at narrow widths.
-  ⚠️ **The merge needed marks RE-MEASURED, never summed** — the combined tree
-  came out `render.rs` **2483** where the branch said 2479 and `main` said 2481,
-  `chrome/mod.rs` **996** against 989 and 995.
+- **232** — ✅ COMPLETE — merge `5bc771ca`. **No portable software adapter reproduces the wedge**: two lavapipe stacks ran `render::tests::` at both bisect boundaries and neither hung, and CI's `linux` job has been running that exact arm green all streak. The gating policy is **parked for the user** (see BLOCKED ON THE USER). Its container find — RSS to an OOM kill, 20% sooner on the bad tree — became item **239**, and is explicitly NOT evidence that bounding it would prevent the hang.
+- **235** — ✅ COMPLETE — merge `df630ad9`. The rotated glyph run exists and **221/224 are unblocked as theme data**; their handoffs are hoisted into those two items. Lossless at the quadrant angles (ink 1.0000, mae 0.0000, both DPIs); cannot become a prose renderer (`LabelMask::compose` reads `layout_runs().next()` and stops, law-tested). Follow-up: item **240**.
+- **236** — ✅ COMPLETE — merge `ef6f87ca`. `ListStyle::draws_row_plates()` is the one owner and `overlay_bar_rects_probe` now REFUSES on a plateless world. **The pattern was real** — item 174's sibling law made the same substitution, and its `!plates.is_empty()` non-vacuity guard was itself satisfied by the fabrication. The shipping scrim gate makes the same substitution and is **correct as-is**; that warning is carried in item **237**.
+- **220 + 234** — ✅ COMPLETE. Receipt `native-gate-receipt commit=c2cfac75… conventions=mac,linux scope=all-targets`. **The theme-data constraint HOLDS**; what blocked 221/224 was a capability gap, since closed by item 235. Premise corrections that outlived the round are hoisted into items **221** and **224**.
+- **222 + 223** — ✅ COMPLETE. Receipt `native-gate-receipt commit=57dd7794… conventions=mac,linux scope=all-targets`. **Neither was Mangrove's** — both were shared-owner defects, and **222's stated cause was wrong** (the card-hug coupling is real but small; what actually moves is the spine's RAKE, sized from the widest VISIBLE row). Mangrove is simply the only world that is both right-anchored AND diagonal. Its parked label-alignment taste call is now **decided** (see Latest design decisions) and belongs to item **131d**.
 - **231** — 🔴 STILL OPEN. **The fix did NOT clear the hang, and the probes
   FALSIFIED the recorded diagnosis.** Receipt for the landed improvement:
   `native-gate-receipt commit=3e3db0c6… conventions=mac,linux scope=all-targets`.
@@ -724,189 +524,14 @@ entries marked unverified.** Do not retro-fit a receipt string from memory.
 still says `awl-next.git` and every push tonight succeeded through GitHub's
 redirect, but tooling that reconstructs URLs by hand will point at the old name
 — `scripts/ci-mac-bisect.sh` already does.
-- **219 + 225** — ✅ COMPLETE. Receipt `native-gate-receipt commit=d7709def…
-  conventions=mac,linux scope=all-targets`.
-  ⚠️ **NEITHER DEFECT WAS WORLD-SPECIFIC, and that inverts what both items
-  asked for — a per-world nudge would have left FIFTEEN WORLDS BROKEN.**
-  **219 is on all twenty worlds**, byte for byte identically: the query beat was
-  folded into the last header line's box, and cosmic-text **centres** a line's
-  glyph run in its box, so on the flat family — whose one header line IS the
-  query field — the glyphs drew `header_gap/2` low. Measured at 1200×800: query
-  ink centres at **98.0** where its own line box centres at **77.6** — a
-  **20.4 px blank strip at the top of every takeover picker**.
-  Mopoke/Currawong/Gumtree/Bilby/Bowerbird were simply the five clicked through.
-  **225 is on all five bare-plate worlds:** the `Bars` footer plate ran to the
-  card's bottom edge — right for a card that hugs its content, wrong for a
-  workspace whose card comes from the canvas. **Cassowary's plate ink is
-  `base_100` `#050506`, which is why it reads BLACK there; on Galah it is pale
-  pink and invisible.** 52 px of plate for 19 px of ink.
-  **Fixes, one sentence each:** the query field's box is always exactly one
-  line, `plan::beat_stands_alone` owning whether the beat rides the last header
-  line's glyph metrics or closes the band as its own glyph-free line —
-  `split_bounds` collapsed from two arms to one and the seam hangs from the
-  field's own bottom edge, byte-identical arithmetic on the grouped family; and
-  the workspace footer takes its own band via `overlay_footer_reclaim`, the
-  existing owner the card height already reads. No overlay rectangle, no
-  per-world anything, rowlayout untouched.
-  **A law was DELETED rather than repaired**, per item 217's precedent: item
-  174's `the_pre_plan_query_band_genuinely_missed_the_field` reconstructed the
-  RETIRED formula, which after 219 is the CORRECT one on both families, so it
-  could no longer fail on anything. 174's user-visible outcome is still held by
-  its own headline law, which passed unmodified.
-  **A constraint in the brief was unsatisfiable:** "other worlds must remain
-  byte-identical" cannot hold for a correct fix here. What IS byte-identical is
-  every other **surface** — 840 probes, **840/840 sidecars identical**, 480/840
-  PNGs identical, all 360 differing the same deliberate class (the six
-  one-header-line surfaces × 20 worlds × 3 canvases). **State the constraint
-  per-surface in future briefs of this class.** Follow-up: item **234**.
-- **233** — ✅ COMPLETE. Receipt `native-gate-receipt commit=e5d520d2…
-  conventions=mac,linux scope=all-targets`. `SerialGuard` now snapshots
-  `render::overrides::pins()` on entry and restores on exit beside
-  world/page/spellcheck — **including on the UNWINDING path**, which is the part
-  a reset at the end of a test body cannot buy. A dirty exit that did not panic
-  still fails by name, listing every knob that changed.
-  ⚠️ **THE BRIEF'S PREMISE WAS WRONG and the lane explained the leak anyway.**
-  `list_surfaces.rs:909` is NOT the only site with that value: its helper
-  `bars(6.0, 8.0, 24.0)` expands to exactly the longhand in
-  `chrome_overlay.rs`'s `list_style_override_reader_writer_are_serialized`,
-  **whose worker thread exits its `serial()` window without resetting** and
-  whose main thread released `outer` still holding `Some(Pane)`. The forced
-  value survived both windows and the next thread through the mutex read it.
-  **A grep for the literal struct misses the helper call and vice versa** —
-  which is exactly why it read as a single site. Fixed at the source too, and
-  the new guard found it on its FIRST run, the only failure in a 3619-test
-  parallel sweep.
-  **An ELEVENTH forced knob was found:** the living-band motion probe lived in
-  `livingband.rs` with **no write assert at all** — the one genuinely unpoliced
-  override, invisible to an item that named ten. Now under the same snapshot,
-  its writer asserting the hold, with an alias keeping its nine call sites
-  untouched. `leaked_knobs` destructures both sides exhaustively, so a new
-  `RenderOverrides` field must be named there or the build breaks.
-  **The proof was built on the axis that matters:** 3619 tests green at
-  `--test-threads=16` and again at 24. Under the mutation the headline test's
-  first assertion **passed spuriously** because the sibling law had already
-  poisoned it — the defect reproducing inside its own proof.
-- **230** — ✅ COMPLETE. Receipt `native-gate-receipt commit=a37d741f…
-  conventions=mac,linux scope=all-targets`. `ViewState::substitute_text` is the
-  ONE door that replaces shaped text, recording the document *and the caret's
-  place in it*; both seams route through it and `TextPipeline::figure_source()`
-  is the single seam saying which text the figures are over. `doc_source: None`
-  on every ordinary frame is byte-identical.
-  ⚠️ **THE BRIEF'S CENTRAL SPLIT WAS WRONG.** I said fixing `WORD COUNT` alone
-  was a complete outcome with `THROUGH DOC` left as a possible product call.
-  **That option did not structurally exist:** `DocFigures::of` derives all three
-  figures from ONE text and ONE caret, and item 215 gathered them precisely so a
-  caller cannot take one from the owner and another by hand. **215's gather is
-  load-bearing on WHAT QUESTIONS CAN BE ASKED SEPARATELY, not merely on how they
-  are filled** — worth remembering when briefing anything near it. `THROUGH DOC`
-  derives from the CARET, not the scroll position, so it is not a scrollbar; the
-  old value jumped when the reader folded a section the caret was not in.
-  **Three figures were affected, not two** — LANGUAGE vanished under a History
-  preview, a transcript carrying no frontmatter — **and the blast radius reached
-  past the card**: the sidecar's `readout` block and `wordcount_text`, the calm
-  corner notice's feeder, were wrong in the same two states. **`hud_report()`
-  was ALREADY mixing owners** in exactly the way 215 forbids, agreeing only
-  because both paths happened to read the shaped text. One deliberate contract
-  break: `hud.lang` no longer mirrors top-level `doc_lang` — the latter is the
-  SHAPED text's language, which the per-script font ladder must follow.
-  ✅ **ANSWERED 2026-08-03 — DECLINED, and closed rather than deferred.** The
-  card does NOT gain a separately-named `THROUGH VIEW` figure. Item 230 is
-  complete exactly as it stands. The recorded reason, so this is not
-  re-proposed as a fresh idea: the card earns its calm by carrying few figures,
-  and "how far through what I can see" is a second answer to a question the
-  reader already has one answer for. Re-opening it needs a new argument, not a
-  restatement of the old one. **Known gap, named:** the live `sync_view` preview substitution has no
-  behavioural law — `hermetic()` has no GPU so `sync_view` returns early — and
-  its guard is the source-scan roster law, which mutation proof showed does
-  fire. Closing it properly needs a `--screenshot-app`-driven harness.
-  ⚠️ **The merge hit the hazard `CLAUDE.md` names:** item 204 slice 2 added
-  `preview_view` to `OverlayInfo`, 230 added a fixture constructing one, **git
-  merged both cleanly and the tree did not compile.** Filled with `Some("diff")`
-  rather than the `None` its siblings use, because a History preview IS a
-  comparison and the real path emits `request.map(|r| r.view.tag())` — `None`
-  would contradict the `preview_text` the fixture sets. Six further mark hunks
-  reconciled by MEASURING: `render.rs` 2477, `pipeline_draw.rs` 547,
-  `pipeline_geometry.rs` 607, each **+1 over both branches**.
-
-- **204** — ✅ COMPLETE, both slices. Receipt `native-gate-receipt commit=8d5565c5…
-  conventions=mac,linux scope=all-targets`, 3637 passed per convention.
-  `comparison::prose_for` is the ONE dispatch — History's producer where the
-  store is, the conflict's beside the two texts it reads, both consumers routed
-  through it, no second renderer and no parallel cache. `--seed-data` closes the
-  harness gap slice 1 measured: the affordance and all three previews are
-  reachable at capture tier 2, proved on the real binary **both ways round**,
-  with a canary that a bait record in the real `XDG_DATA_HOME` is neither read
-  nor written. Schema `/197` adds `gutter.changed` and `overlay.preview_view`;
-  **a `notice` sidecar field was deliberately NOT added** — a single transient
-  slot cleared by any toast expiry is the wrong thing to build a state oracle
-  on, which is the very gap this slice replaces. ⚠️ **A real defect from the
-  roster audit:** the wheel-region predicate asked
-  `o.kind == OverlayKind::History` — a fact about one SURFACE rather than the
-  SHAPE both share — so wheeling over a conflict's manuscript flipped its three
-  rows instead of scrolling the prose. All five hand-pinned "exactly N"
-  assertions were decided consciously and **two were made STRONGER**, spelling
-  their members out by name instead of counting, so a fourth must still be
-  argued. **Vision smoke called the affordance "subtle" and arithmetic overruled
-  it** — a clean three-step luminance ladder, 29.7 / 110.7 / 163.3 / 251: the
-  Wagtail tripwire running the other way, where the eye was wrong and the pixels
-  decided. **Premise corrections:** THREE hand-kept arrays omitted `Date`, not
-  two, all now derived from `OverlayKind::ALL`; and Esc takes TWO presses from a
-  palette-launched workspace, because the first returns to the parked palette —
-  the standing grammar every palette-opened picker has. Follow-up: item **233**.
-
-- **217** — ✅ COMPLETE. `--bench-suite` runs green again. **BOTH of the brief's
-  premises were wrong, and they pointed at two different plans.** (a) The second
-  plan was NOT the diagonal's: `prepare_overlay` rebuilt the plan
-  UNCONDITIONALLY after `resolve_diagonal_cluster`, so **Saltpan — the default
-  world, upright, with no cluster at all — paid a full second plan every overlay
-  frame.** That is what the bench was hitting, and it is eliminated: the frame
-  builds ONE plan and completes its measured half in place through the same
-  `apply_row_extent` a fresh build runs. (b) There IS a genuine second plan and
-  it belongs to **item 51's right-anchored content-hug measurement**, which
-  shapes a provisional card to learn how wide to hug — Cassowary (right-anchored,
-  upright) shows 2, Magpie (left-anchored, diagonal) shows 1. **THE AXIS NOBODY
-  HAD SWEPT WAS THE CARD ANCHOR, NOT THE LIST STYLE.** So it is *named* rather
-  than numbered: `FramePasses` names each pass and asserts the sum, a third plan
-  fails by name, and its oracle is the measurement's own cached hug width rather
-  than `overlay_right_anchored()`, so it cannot agree with the code by
-  construction. Two witnesses were pointed at the wrong surface — the palette's
-  row witness read `overlay_rows`, the flat/poster band quad a diagonal world
-  deliberately never fills, and the theme scenario restored the posture world
-  instead of `DEFAULT_THEME`. Because `--bench-suite` is outside the native
-  gate, `render/tests/plan_pass_law.rs` re-runs the same witness under
-  `cargo test` across the roster. **An honest negative, kept out of the tree:** a
-  first device-tier completion law compared the opening frame's pixels to the
-  settled frame's and **stayed green under the no-op mutation**, because on a
-  diagonal world the drawn ink is placed by `cluster.label_left(...)` and not
-  `row.dx` — the plan's extent drives hit-test and clip, not the glyphs. Deleted
-  rather than shipped vacuous. Two marks moved, **neither raised**:
-  `chrome/overlay.rs` lowered 738→735, and a `too_many_lines` exception lowered
-  110→109 after extracting `pin_posture`.
-- **216** — ✅ COMPLETE. The mark-audit skip is closed; see the CI section above.
-- **211** — ✅ COMPLETE. The user confirmed one-row glides in Commands,
-  Settings, and Themes on the fixed release build, 2026-08-03.
-
-- **207** — ✅ COMPLETE. Merged to `main`; worktree removed. Native awl has one
-  semantic UI owner: `SemanticSnapshot` feeds the AccessKit tree, `--semantic-json`
-  and the live-App sidecar from one description. **The orchestrator's trap call
-  held** — card text was being composed inside the renderer, so it moved to
-  `src/card/content.rs` (`CardInputs` → `open_card` → `CardContent::spans`) and
-  `hud.rs` went 539 → 489 lines composing no card text of its own, under a source
-  law. ⚠️ **The branch had NEVER been gated:** code health was red — two files
-  over the 500-line ceiling, nine stale Clippy exceptions, four failing
-  native-gate census laws — repaired by decomposition rather than line-golf.
-  **Two real stage-1 defects the new laws found and inspection had not:** the
-  overlay query node advertised `SemanticAction::Focus` with nothing routing it
-  (every arm now returns `handled`), and `schema` was `&'static str`, which serde
-  can only fill from a `&'static` input — **the JSON handed to an agent could not
-  be parsed back at all.** Two of the lane's own laws were vacuous and mutation
-  proof is what found them. 55 new crates, all permissive; `cargo deny check bans`
-  needed four narrow skips for the AT-SPI stack's forked `syn`/`toml_edit`/
-  `toml_datetime`/`winnow`, each with a removal condition. **The real VoiceOver
-  journey was run on 2026-08-02:** basic reading and editing work, and it exposed
-  intermittent “awl is not responding” stalls now owned by item **218**. AT-SPI
-  remains a future Linux check, not a user blocker; web accessibility remains a
-  separate DOM-backed round. Follow-up: item **215**.
+- **219 + 225** — ✅ COMPLETE. Receipt `native-gate-receipt commit=d7709def… conventions=mac,linux scope=all-targets`. ⚠️ **NEITHER DEFECT WAS WORLD-SPECIFIC — a per-world nudge would have left fifteen worlds broken.** 219 was on all twenty (a 20.4 px blank strip atop every takeover picker); 225 on all five bare-plate worlds. **The standing lesson: assume universal until measured otherwise**, and state byte-identity constraints PER-SURFACE, because "other worlds unchanged" was unsatisfiable for a correct fix.
+- **233** — ✅ COMPLETE. Receipt `native-gate-receipt commit=e5d520d2… conventions=mac,linux scope=all-targets`. `SerialGuard` now snapshots and restores the render overrides **including on the unwinding path**. The mechanism is in CLAUDE.md's tripwires; the durable lesson is that **a grep for a literal struct misses a helper call and vice versa**, which is why the leak read as a single site.
+- **230** — ✅ COMPLETE. Receipt `native-gate-receipt commit=a37d741f… conventions=mac,linux scope=all-targets`. `ViewState::substitute_text` is the one door that replaces shaped text; drawn and announced figures now agree. Its parked `THROUGH VIEW` question is **declined and closed** (see Latest design decisions). What a future lane needs is hoisted into item **215**.
+- **204** — ✅ COMPLETE, both slices. Receipt `native-gate-receipt commit=8d5565c5… conventions=mac,linux scope=all-targets`, 3637 passed per convention. `comparison::prose_for` is the one dispatch; `--seed-data` closed the harness gap. **Vision smoke called the affordance "subtle" and arithmetic overruled it** — a clean luminance ladder 29.7/110.7/163.3/251, the Wagtail tripwire running the other way. Follow-up: item **233**.
+- **217** — ✅ COMPLETE. `--bench-suite` runs green. **Both brief premises were wrong**: the second plan was not the diagonal's (Saltpan, upright, paid a full second plan every overlay frame) and the genuine second plan belongs to item 51's right-anchored content hug — **the unswept axis was the CARD ANCHOR, not the list style.** `FramePasses` now names each pass and a third fails by name. An honest negative was kept out of the tree: a device-tier completion law that stayed green under its own no-op mutation was deleted rather than shipped vacuous.
+- **216** — ✅ COMPLETE. The mark-audit skip is closed at the merge candidate and in CI; see the CI section above.
+- **211** — ✅ COMPLETE; user-confirmed in Commands, Settings and Themes on 2026-08-03. **It was never a lost input:** the selection band is the one animator retargeted at draw time, so the pre-prepare answer was "nothing animating", the loop parked on `Wait`, and the ease never got a second frame. Items 104/106 stayed green through three sightings because their laws hand-drive `advance(dt)` between retargets — **precisely what the live loop was failing to do.**
+- **207** — ✅ COMPLETE. Native awl has one semantic UI owner: `SemanticSnapshot` feeds the AccessKit tree, `--semantic-json` and the live-App sidecar from one description. ⚠️ **The branch had NEVER been gated** — code health was red, repaired by decomposition rather than line-golf. Two real defects its new laws found: an overlay query node advertising an unrouted `Focus`, and a `&'static str` schema field **serde could never fill, so the JSON handed to an agent could not be parsed back at all.** Follow-ups: items **215** and **218**.
 - **174** — 🟢 SECOND FAMILY LANDED, item remains OPEN. Merged to `main`;
   worktree removed. `PlannedHeader` owns the overlay header band, with the query
   beat folded into the LAST header line's box exactly as the shaper folds it into
@@ -926,26 +551,7 @@ redirect, but tooling that reconstructs URLs by hand will point at the old name
   merge — its consumer is reached ~45× a frame through the four relocated
   document owners, so planning inside it would trade one parallel calculation for
   45 plans a frame; a law fails by name if they drift. Follow-up: item **217**.
-- **211** — ✅ COMPLETE; user-confirmed in Commands, Settings, and Themes on
-  2026-08-03. Merged to
-  `main`; worktree removed. **It was never a lost input.** `advance(dt)` runs
-  BEFORE `Gpu::redraw()`, and `prepare` — inside that call — is where the
-  selection band is retargeted. The band is the ONE animator whose target is set
-  at draw time; every other spring is armed at the apply seam where the next
-  `advance` sees it. So on the frame a settled band is retargeted the pre-prepare
-  answer is "nothing animating", the loop parks on `Wait` and requests no
-  follow-up frame; the ease never gets a second frame, the band stays drawn on
-  the row the selection LEFT, and the next input's single `dt` puts it back in
-  flight so `chase_or_snap` takes its SNAP branch to the freshest row — two
-  inputs, one jump of two rows, no transition. **Shipping on the default path:**
-  `awl_living_band()` defaults to `Morph`; `arm_live_juice`'s "no world ships
-  one" was true of `MotionJuice` and false of the living band, corrected in
-  place. **Why items 104 and 106 stayed green through three sightings:** their
-  laws hand-drive `p.advance(dt)` between retargets, which is precisely what the
-  live loop was failing to do. Trace: 7 inputs, indices 1..6 exactly +1 each,
-  none doubled or lost, `hover_took_selection` 0. The first sitting was invalid
-  after the display auto-locked; the subsequent user check confirmed the fixed
-  one-row glide on all three shared picker paths.
+- **211** — ✅ COMPLETE; user-confirmed in Commands, Settings and Themes on 2026-08-03. **It was never a lost input:** the selection band is the one animator retargeted at draw time, so the pre-prepare answer was "nothing animating", the loop parked on `Wait`, and the ease never got a second frame. Items 104/106 stayed green through three sightings because their laws hand-drive `advance(dt)` between retargets — **precisely what the live loop was failing to do.**
 - **116d** — 🟢 COMPOSITING ROUND LANDED; the flip is deliberately NOT done.
   Merged to `main`; worktree removed. **The owner stopped at a clean boundary
   and that is the correct outcome** — the comparison can now be SEEN, and
@@ -1099,38 +705,15 @@ user authorization.
 
 - Apple signing secrets and Fly deployment token; see `RELEASING.md`.
 - Tags and releases require the user’s explicit word. A dry run may precede them.
-204. **Resolve external file changes without silent overwrite or a second document model.** **Defect:** awl checks disk metadata only while flushing a dirty buffer, then holds autosave behind a sticky notice whose promised “reopen for theirs” path does not exist; clean buffers never refresh, manual Save force-overwrites the external version, and session restore records no held content. **Build:** extend the existing clobber guard at focus return, buffer activation, and every persistence/identity boundary. A clean buffer reloads from disk with cursor/scroll preserved. When both sides changed, keep the awl buffer as the sole editable document, stop writes to the original path, and atomically maintain one recovery record under awl’s data root using the scratch-stash pattern. Show a persistent `changed elsewhere` affordance beside the filename. Its conflict overlay reuses History’s preview substitution to show, one at a time, **Differences**, **Your version**, and **Version on disk**; previews are read-only and never replace the buffer. Esc returns to editing unresolved; Save, switch, rename/move, Finish File, and Quit route back through resolution. Explicit **Save your version** rechecks disk before writing; **Use disk version** becomes one undoable replacement. No filesystem watcher service, second editable buffer, side-by-side renderer, auto-merge, duplicate user file, or general recovery/versioning system. Update `GUIDE.md`, the welcome document, and any generated site copy in the same change: none may keep promising that manual Save force-overwrites or advertise a conflict action that does not exist. **Done:** neither version can be silently lost, unresolved state survives a crash/relaunch, and every user-facing statement of the save/conflict model matches the shipped paths. **Verify:** pure content/stat truth tables including same-mtime/same-length changes, deletion and repeated external writes; tier-2 hermetic `App` sweeps for every gated action and relaunch recovery; `--screenshot-app` state/pixel captures for indicator, three previews, Esc return and both resolutions; token/source laws pinning the Guide, welcome, and generated site to the live save vocabulary; new-surface roster audit plus vision smoke; mutation proofs restore the false reopen path, forced Save clobber, missing recovery write, and obsolete Guide promise. **Routing:** production owner (`gpt-5.6-terra` medium) with deep independent review for the data-loss/state-ownership seam. **User design decision 2026-08-01.** 🔵 **BLOCKED ON 116d — premise audit 2026-08-01.** History's geometry seam exists, but its comparison is deliberately not composited and `History` still has no workspace shape; the only current preview substitution is a selected-history-row cache and cannot carry typed ours/disk/diff payloads. Building 204 now would require the prohibited one-off renderer. Resume after History's timeline/comparison workspace owns compositing and a general read-only payload. The implementation must also add a byte fingerprint or retained baseline, because mtime plus length cannot detect the required same-time/same-size rewrite.
-
-207. **Give native awl one semantic UI owner feeding both AccessKit and agent JSON.** **Defect:** the custom wgpu UI has no platform accessibility tree, so VoiceOver/AT-SPI cannot read the document, caret, selection or summoned surfaces; meanwhile the capture sidecar describes internal/render state but not roles, accessible names, focus ownership or valid actions. Building those as two parallel descriptions would guarantee drift. **Build:** introduce a renderer-independent, serializable `SemanticSnapshot` derived from the live `Buffer`, active surface/Journey, search and settings state. Stable semantic IDs, roles, names, values, selection, focus, relationships and supported actions live here once. Add two adapters: native `accesskit_winit` tree updates and `awl --semantic-json`; embed the same snapshot in live-app capture sidecars without replacing their geometry/pixel or replay fields. Route AccessKit action requests back through the winit event loop and existing `Action`/buffer transition owners—never mutate the rope or overlays from a callback and never create a shadow text model. Stage delivery: exact raw-Markdown multiline editing first; then every summoned-surface kind, controls and important notices. Web accessibility is a separate DOM-backed follow-up because AccessKit has no canvas/web adapter today. **Done:** with the display obscured, a VoiceOver user can read, navigate, select, edit, undo/save and operate Commands/Settings; an agent reads the byte-equivalent semantic state headlessly without a GPU. **Verify:** Unicode/grapheme selection round-trips; stable IDs across edits/filtering; one focus owner; no-wildcard surface roster; every advertised action drives the real transition; animation-only frames emit no update; JSON↔AccessKit parity laws; real VoiceOver and Linux AT-SPI journeys. **Routing:** deep architecture owner (`gpt-5.6-sol` high), staged commits with independent accessibility review. **User-approved 2026-08-01.**
-
-211. **Picker selection intermittently appears to advance only every second input, with no transition.** **Defect:** the user reports the alternating-row failure again in the live Commands palette on 2026-08-01 (Quokka screenshot: Switch project selected) and adds that the selection animation sometimes does not play. This is the third report of the shape: Firetail on 2026-07-17, Settings/Mopoke on 2026-07-26 (item 104), now Commands/Quokka. Item 104's exhaustive logical-step and pixel/hit-test laws stayed green and found no fix; item 106 later guarded keyboard selection from stationary-pointer hover. Their green state does not exonerate the live-only seam. **Diagnose before fixing:** instrument one navigation input from winit receipt through `App::apply`, `OverlayState.selected`, redraw request, prepared highlight endpoint, animation scheduling, acquired frame and present. Determine whether the missing visible step is a dropped/repeated input, stationary-pointer takeover, state advancing twice, stale render state, or a redraw/present gap; do not tune animation constants until that chain names the break. Sweep tap, held-repeat and rapid alternating Up/Down; pointer outside/parked above/on/below the row; freshly opened and scrolled windows; focus/occlusion return; Commands, Settings and every picker kind; representative Pane/Bars worlds at 1×/2×. **Done:** every accepted navigation input produces exactly one reachable selection and a presented visual response; Reduce Motion may snap but never suppress the state change. **Verify:** add a live-App event→present trace assertion plus the missing law at the failing owner; retain item 104/106 laws; mutation proof recreates the diagnosed lost/every-other frame; real release run records inputs, selected indices, requested/acquired/presented frames and a 60 fps video or frame sequence. Headless settled captures cannot close this item alone. **Routing:** production tier with deep live-render review. **User-reported with screenshot 2026-08-01.**
-
-
-215. **Give the live-App capture the card semantics it currently cannot carry.** **Defect:** item 207's passive-surface fold takes its content rather than deriving it, because the render pipeline is the only holder of the live figures — word count, frontmatter language, and through-doc percent. So a `--screenshot-app` capture, which has no pipeline, writes a sidecar whose `semantic` has NO node for a card that is plainly DRAWN in the PNG. Which-key and the menu bar have no such dependency and do appear, so the gap is silent and partial rather than obvious. **Build:** extract those three figures into pure owners over `&str` (plus the buffer facts they already have), so both the renderer and the semantic fold read one owner. **The forbidden alternative, named so nobody re-derives it:** having the `App` recompute word count / language / percent for the snapshot would be a second description of the same fact, which is the exact drift item 207 exists to prevent. **Done:** a live-App capture's `semantic` contains a node for every card its PNG draws, and CAPTURE.md's honesty note about the gap is deleted rather than reworded. **Verify:** a no-wildcard sweep over the card roster asserting PNG-drawn ⇔ node-present; grapheme and CJK word counts through the extracted owner; mutation proof that removing a card from the fold fails by name. **Routing:** production tier. **Follow-up from item 207, 2026-08-02.**
-
-216. **The file-size-mark raise audit skips at both places drift actually appears.** **Defect:** `scripts/code-health.sh` disables its raise audit whenever HEAD is already `main`'s commit, announcing *"the audit only has force on a worktree branch checked before landing."* That is true, and it means the audit never runs on **CI's push-to-`main` job** or on **the merge train's post-merge candidate** — the two places where CROSS-BRANCH mark drift is created and is visible nowhere else. A branch computes its marks against the tree it was cut from; two branches cut from the same base each land green and their combined tree can be over a mark that neither could see. Item 207 demonstrated it: cut from `73d35118`, it carried marks describing a tree that items 174 and 211 had already changed, and the combined `app.rs` matched neither side's number. **This was caught by accident** — health happened to be run while the merge was still uncommitted, so HEAD was still the pre-merge commit and the audit fired. That is not a procedure. **Build:** give the audit a real baseline at the merge candidate instead of skipping — the merge's first parent is exactly the prior `main`, so `HEAD^1` is the comparison the skip claims does not exist. Keep the skip only where it is genuinely true (a plain push whose parent is its own predecessor is still a valid diff; the degenerate case is a root commit). Do not weaken the audit to make it pass. **Done:** a combined tree that exceeds a mark fails at the merge train and in CI, not by luck. **Verify:** a two-branch fixture cut from one base, each green alone and over a mark together, fails by name at the merge; the existing worktree-branch behaviour is unchanged; mutation proof restores the unconditional skip and watches the fixture go green when it should be red. **Routing:** production tier. **Found at the 2026-08-02 merge train.**
-
-217. **`--bench-suite` is broken on `main`, and the witness is arguing with a real re-plan.** **Defect:** the suite aborts with `the scene planner must run exactly once per timed frame (10 plans over 5)`. `prepare_overlay` builds the row plan TWICE — once before `resolve_diagonal_cluster` and once after, because the cluster changes the plan's `dx`/`dw` — while item 174's first-family witness asserts exactly one plan per frame. Both sides are defensible, which is why this is an item and not a patch: the witness exists so that "a consumer grew its own plan" fails loudly, and it is doing its job; the second plan is genuine work the diagonal composition requires. **Decide between:** rebuilding once *after* the cluster resolves (one plan, but the cluster then needs its inputs before the plan exists), or teaching the witness the real per-frame count with the diagonal arm named, so a THIRD plan still fails. Do not simply raise the number. **Scope:** `--bench-suite` is a hidden dev tool, is not in the native gate, and CI is unaffected — this is not urgent and must not be fixed by weakening the witness. **Verify:** the suite runs green on a diagonal world and a non-diagonal one; the witness still fails by name when a consumer adds a plan; the O(visible) and reshape-count witnesses are unchanged. **Found by item 174's second family, 2026-08-02, identically on base and branch — it is pre-existing, not that slice's doing.**
+215. **Give the live-App capture the card semantics it currently cannot carry.** **Defect:** item 207's passive-surface fold takes its content rather than deriving it, because the render pipeline is the only holder of the live figures — word count, frontmatter language, and through-doc percent. So a `--screenshot-app` capture, which has no pipeline, writes a sidecar whose `semantic` has NO node for a card that is plainly DRAWN in the PNG. Which-key and the menu bar have no such dependency and do appear, so the gap is silent and partial rather than obvious. **Build:** extract those three figures into pure owners over `&str` (plus the buffer facts they already have), so both the renderer and the semantic fold read one owner. **The forbidden alternative, named so nobody re-derives it:** having the `App` recompute word count / language / percent for the snapshot would be a second description of the same fact, which is the exact drift item 207 exists to prevent. **Done:** a live-App capture's `semantic` contains a node for every card its PNG draws, and CAPTURE.md's honesty note about the gap is deleted rather than reworded. **Verify:** a no-wildcard sweep over the card roster asserting PNG-drawn ⇔ node-present; grapheme and CJK word counts through the extracted owner; mutation proof that removing a card from the fold fails by name. **Routing:** production tier. **Follow-up from item 207, 2026-08-02.** ⚠️ **ITEM 230 HAS SINCE LANDED IN THIS EXACT SEAM AND CHANGES THE JOB — read it before starting.** `ViewState::substitute_text` is now the ONE door that replaces shaped text, recording the document *and the caret's place in it*, and `TextPipeline::figure_source()` is the single seam saying which text the figures are over. **So the extraction this item asks for must route through those owners, not around them.** ⚠️ **And 230 proved this item's own gather is load-bearing on MORE than it claims:** `DocFigures::of` derives all three figures from ONE text and ONE caret, which is what makes it structurally impossible to take one figure from the owner and another by hand — **215's gather constrains WHAT QUESTIONS CAN BE ASKED SEPARATELY, not merely how they are filled.** Do not relax it to make the extraction easier. **Three figures, not two:** LANGUAGE vanishes under a History preview (a transcript carries no frontmatter), and the blast radius reaches past the card into the sidecar's `readout` block and `wordcount_text`. **One contract break already made deliberately:** `hud.lang` no longer mirrors top-level `doc_lang` — the latter is the SHAPED text's language, which the per-script font ladder must follow. **A named gap this item inherits:** the live `sync_view` preview substitution still has no behavioural law, because `hermetic()` has no GPU so `sync_view` returns early; closing it properly needs a `--screenshot-app`-driven harness. **Sequencing:** item 229 also rewrites `card::figures` (ideograph counting plus a unit label). Whoever goes second inherits the other's owner — do not run them concurrently.
 
 218. **Make native screen-reader editing incremental so VoiceOver never reports awl as unresponsive.** **Defect:** The first real VoiceOver sitting found that editing basically works and that spoken characters/words are ordinary VoiceOver typing echo, but VoiceOver intermittently says “awl is not responding.” Inspection names a credible hot path: while AT is attached, every redraw clones the whole rope, runs UAX #29 over the entire document, projects every semantic node, includes `Tree` metadata, and republishes one monolithic document `TextRun`. AccessKit explicitly expects full trees only at activation and recommends changed-node updates afterward; awl uses the event-loop-only adapter path whose asynchronous activation forces the full-tree form. **Build:** use a synchronous mixed/direct activation handler backed by a thread-safe latest snapshot, then retain native projection state and emit atomic incremental `TreeUpdate`s. Represent document text as stable line or paragraph runs so an ordinary edit updates only affected runs, parent children when structure changes, selection, and focus. Keep `SemanticSnapshot` the one semantic owner; do not create a second document model, manually announce keystrokes, override VoiceOver typing echo, or run App transitions from an accessibility callback. **Done:** typing, deleting, selection, navigation, paste, undo, and surface changes remain correctly announced without stalls on small or large documents. **Verify:** latency/allocation witnesses across document sizes prove a one-character edit does not scan or publish the whole document; full-tree-only-on-activation and changed-node laws; Unicode/grapheme and multiline-selection round trips across run boundaries; mutation proofs restore the monolithic/full-tree paths; real unlocked VoiceOver typing and navigation sitting with no “not responding” report. **Routing:** deep accessibility/performance owner with a production-tier outcome audit. **User-reported and researched against Apple + AccessKit primary documentation, 2026-08-02.**
 
 229. **A Japanese or Chinese manuscript's WORD COUNT is meaningless.** **Defect:** `card::figures::word_count` is `split_whitespace` over the manuscript body, and Japanese and Chinese put no spaces between words. Measured, not assumed: `今日はいい天気ですね。` — 11 characters — reports **1 word**, and `"今日はいい天気ですね。".repeat(500)` — **5,500 characters** — still reports `1 word · 1 min`. **The divergence is script-specific, not "CJK"-wide, and that is the assumption most worth pinning:** Korean is fine (`오늘 날씨가 좋네요` → 3, it spaces its words), mixed text is undercounted by its CJK half (`The title is 今日は…` → 4), and an ideographic space `U+3000` IS Unicode whitespace and does split. Graphemes already hold — ZWJ families, regional-indicator flags and decomposed `é` each stay one token. **Build:** give the readout a script-aware count through the ONE owner `src/card/figures.rs` — do not add a second counter beside it, which is the drift item 215 exists to prevent. A character/ideograph count for unspaced scripts is the conventional answer; whether the readout says "words" for such a document is a product decision, not a mechanical one. **Scope:** the count feeds the HUD readout and the semantic snapshot through one owner, so both move together or neither does. **Verify:** the pinned table above as a regression floor; a mixed-script document; `U+3000`; the grapheme cases unchanged; the sidecar and the drawn readout agreeing. **Found by item 215's measurement 2026-08-03, pinned rather than changed because changing the figure is a product call with sidecar consequences.** ✅ **USER DECISION 2026-08-03, so the product call is made and this is now buildable: COUNT IDEOGRAPHS AS TOKENS, and let the UNIT LABEL FOLLOW THE DOCUMENT'S DOMINANT SCRIPT** — the readout says **"words"** for a script that spaces its words and **"characters"** for one that does not. It does not claim a word count for a script that has none; it changes what it counts and renames the unit to match. **What that decision still leaves the owner to settle, named so it is not discovered late:** (a) **"dominant script" needs a definition and a threshold** — the pinned mixed case `The title is 今日は…` counts 4 today and is a real document shape, so decide whether dominance is a majority of counted tokens, a majority of characters, or the frontmatter `lang` (`docs/fonts.md`) when present, and pin the tie; (b) the label is a **second** thing the figure now carries, so `card::figures` returns a unit alongside the number and **both the drawn readout and the semantic snapshot must take it from that one owner** — item 215 exists to stop exactly the second description this invites, and item 230 has already routed both sides through one owner, so do not reopen that seam; (c) the sidecar's `readout`/`wordcount_text` change shape for such a document, which is a **CAPTURE.md-visible** change and may be a schema bump — check `capture::SCHEMA_VERSION` rather than assuming. **Verify additionally:** the pinned table with its expected units, a document that flips dominance across an edit (the label must follow, and must not flicker on a single character), and the `U+3000` and grapheme cases unchanged. ⚠️ **Renumbered from 227 on 2026-08-03: two orchestrators minted 227/228 independently within minutes. Theirs (AppImage, `v0.9.0`) were already cited in `RELEASING.md`, so these moved instead.**
 
-230. **Under a fold, the drawn word count and the announced one disagree.** **Defect:** the renderer derives its figures from the SHAPED text, and `fold::apply_to_view` filters that down to visible lines under a fold — and replaces it entirely with the diff transcript under a History preview. So with a section folded, the DRAWN `WORD COUNT` and `THROUGH DOC` are over the visible document while the ANNOUNCED ones are over the whole buffer. **Pre-existing, not introduced by item 215** — the old `word_count` summed the same filtered pipeline lines — and **the semantic side's answer is the more correct one**. **The question is a product call, which is why this is an item:** should folding a section change the document's word count? Almost certainly not, but the counter-argument is that THROUGH DOC is a position within what you can currently see. Decide, then make both sides read the one owner over the one text. **Verify:** a document with a folded section and a History preview open, asserting drawn ⇔ announced for both figures; mutation proof that filtering the input to the owner fails by name. **Found by item 215, deliberately left open rather than absorbed 2026-08-03.**
-
 231. **Fix the hosted-macOS gate hang introduced by `8207e519`.** **Defect:** `main`'s `mac (build + test)` job has been red for ~140 commits. Bisected to **`8207e519`** ("item 194: one camera, one projected cylinder, cropped at the page") with **both boundaries measured** — parent `36707d06` GOOD in 1092 s, `8207e519` BAD — over six sequential probes, deterministic, no re-run contradicting a first reading. **Evidenced mechanism:** the commit takes `THEMES` from 19 to 20, adding `KITE` with `Background::WarpedGrid` and +267 lines of `background.wgsl`; 42 test files reference `THEMES`, and the tests that wedge are **roster sweeps** (`split_pane.rs` sweeps EVERY shipped world). All three libtest workers — the runner's 3 vCPUs — park at the same instant, **the victim differs between runs** (`scroll_pos` in one log, `split_pane`/`stars` in another), and the orphans survive SIGTERM: the **shared wgpu device wedges** and every later `read_pixels` parks in `poll(PollType::wait_indefinitely())`. ⚠️ **THE SHADER IS EXONERATED BY EVIDENCE, NOT ARGUMENT — do not start by staring at the WGSL.** 15 `backgrounds_item132`/`warp_tunnel` tests passed cleanly **six minutes before** the wedge, in two independent logs; there is no unbounded loop in it and `warpgrid.rs` touches no wgpu at all. **Hypothesis, explicitly unconfirmed:** cumulative exhaustion of a driver-internal resource in the virtualised Metal stack — compiled-pipeline slots or shader-compiler memory — after which submits never retire. `free_bytes` steady at ~2.37 GB rules out RAM exhaustion but says nothing about a driver-internal table. **The asymmetry that decides ownership:** the per-frame `create_shader_module` + `create_render_pipeline` churn exists **only in the test helpers** (3 sites); the live app builds `BackgroundPipeline` **once** at construction (`pipeline_draw.rs:32`) and `prepare()` thereafter only uploads uniforms *including the shader id*, so switching themes never rebuilds the pipeline and a user pays one compile per launch. **So this reads as test-harness-amplified rather than a product defect — but that rests on the churn hypothesis being right; if device state accumulates from the WarpedGrid draw itself, a user on a VM is exposed.** **The cheapest next discriminators, ~10 minutes each and already supported by the harness:** a hosted-mac run at `--test-threads=1` (does the wedge need concurrency?) and one restricted to `render::tests::` (does it localise?). **Tooling:** `scripts/ci-mac-bisect.sh` on branch `claude/ci-mac-bisect` (`c336cc1a`, never pushed) has `probe`/`verdict`/`next`/`cleanup`. **Two harness bugs to carry, both of which scored a 60-minute hang as a PASS and both the same shape — an unfinished step wearing a finished step's field:** `gh` encodes an unfinished step as `conclusion:""` (never `null`), and a step killed by the job ceiling reports `status:"completed"` with `conclusion:"cancelled"`. **A harness reading a status field must enumerate what it accepts, never test for inequality.** **Diagnosis complete 2026-08-03; the fix is unstarted.**
 
-232. **No local gate exercises a virtualised GPU, and that blind spot just cost ~140 commits of red CI.** **Defect:** `scripts/native-gate.sh` runs on the dev host's real Apple Silicon Metal. Nothing in the local gate set exercises a virtualised GPU, so a receipt's greenness never was evidence about that axis — and item 231's defect is green on real Metal and red on virtualised Metal. **This is not a harness artifact of no consequence:** it left unkillable processes and took down whole VMs, and it went unnoticed for 140 commits because the only signal that could see it was the CI job everyone had stopped believing. **The honest statement of what a receipt certifies today is "sound on the hardware the receipts run on, with virtualised-GPU behaviour untested by any local gate."** **Build:** decide whether awl wants a virtualised-GPU arm at all, and if so where — a container with a software adapter (lavapipe/SwiftShader) in the local gate, a CI job that is allowed to be slow, or an explicit declaration that the hosted-mac CI job IS that arm and must therefore be treated as gating rather than tolerated red. **Do not answer it by making the local gate slower for every developer without deciding that consciously.** **Done:** the tier a receipt certifies is stated accurately wherever receipts are described (`CLAUDE.md`, `.orchestrator/README.md`, `RELEASING.md`), and either an arm covers the axis or its absence is a recorded decision. **Verify:** the chosen arm reproduces item 231's wedge before its fix and passes after. **Routing:** deep tier — this is a testing-strategy decision, not a script change. **Found by item 231's bisect owner, correcting this orchestrator's claim that "the tree the receipts were certifying was sound" 2026-08-03.**
-
-233. **`SerialGuard` restores globals but does not police the render overrides.** **Defect:** found by item 204 slice 2, whose extra test only changed the scheduling and exposed a pre-existing hole. `jump_hint_is_present_and_never_clips_for_every_kind` built its pipeline **before** taking the serial guard and never pinned the list style it measures against, so a leaked `Bars { gap: 8.0, FullWidth }` override made it report a clip that was not one — **green single-threaded, red in a wide parallel run.** The reader's end is closed (guard hoisted, style pinned). **The producer is not:** `list_surfaces.rs:909` is the only site with that exact value and it *does* reset, so the leak path is unexplained. **The real gap: `SerialGuard` restores world, page and spellcheck but leaves the render overrides unpoliced**, so any test that sets one and dies — or resets on a path an early `?` skips — poisons whatever runs next, and the victim is a *different* test in a *different* file. Same shape as the CI wedge item 231 diagnosed: a shared resource corrupted by one actor, failing somewhere unrelated. **Build:** bring the render overrides under the same restore discipline as the other globals; prefer making the leak impossible over finding the leaker. **Verify:** a fixture that sets an override and panics must not affect the next test; the whole suite green under a wide `--test-threads`; mutation proof that removing the restore fails by name. ⚠️ **A green single-threaded run proves nothing here** — the defect only appears under parallelism, the axis a local reproduction is least likely to sweep. **Found 2026-08-03; the leak path is a named unknown, not a solved problem.**
-
-234. **Cassowary's Settings clips its own value plates.** **Defect:** in the Settings workspace on Cassowary, the "Block" value plate cuts the final `k` at the panel's right edge. **Confirmed PRE-EXISTING on the base binary** by the item 219/225 lane, which found it while capturing and deliberately did not widen its scope. **Same class as items 220/221's palette work** — a value/accessory plate measured against the wrong right bound — so it may share an owner with them and should be looked at together rather than patched alone. **Build:** find the one owner of the value plate's right bound in the workspace's content pane and make it read the pane's real extent; do not special-case Cassowary and do not shrink the type. **Verify:** the full `SettingId × SettingKind` sweep at the widths where it bites, across the roster rather than the world it was noticed on — items 219 and 225 were both reported as world-specific and both turned out to be universal, so **assume universal until measured otherwise**; exact before/after captures with every unaffected surface byte-identical; a pixel law that fails on the clipped glyph. **Found 2026-08-03 by the 219/225 lane, not fixed.**
-
-235. **Give awl a rotated glyph run, so a world can slant or turn a label.** **Defect:** items **221** (Cassowary's `Files` as a 90°-rotated flush-left secondary heading) and **224** (Magpie's location cue given the world's slant and gradient) are both blocked, and **not by the design.** The item-220 lane proved the theme-data constraint holds — both expressions are a `RenderCaps` variant over 220's single `overlay_location` datum, exactly the shape `Background`, `CardTexture`, `FacetStyle` and `TitleStyle::Placard` already have, and neither needs a palette code path. **What blocks them is a capability gap:** awl draws text only through glyphon 0.11, whose `TextArea` exposes `left/top/scale/bounds/default_color/custom_glyphs` and whose `CustomGlyph` is `left/top/width/height` — **no transform, no rotation, no skew anywhere in the crate.** The only rotation in the tree is `SelectionPipeline::prepare_rotated`, which rotates **rounded-rect quads, not glyphs**. **Build:** a rotated glyph-run pipeline — the shape already exists in the tree as a mask cache (`caret_glyph.rs`) plus the axis rotation `shaders/caret.wgsl` performs. **It is world-neutral: build it once and both 221 and 224 become theme data.** **Scope:** this is a text-rendering capability, not a palette feature. It must not become a second prose renderer — CLAUDE.md's "infrastructure complexity is a smell" applies, and the document layer stays the one prose renderer. **Done:** a label can be drawn at an arbitrary axis through one owner, legibly at 1× and 2×, and 221/224 land as data on top of it. **Verify:** rotation at the axes both worlds need, at both DPIs; legibility measured rather than eyeballed; hit-test agreement if the rotated run is ever interactive; exact identity for every surface that draws no rotated text. **Blocks 221 and 224. Found by the item-220 lane 2026-08-03, which correctly deferred rather than branching the palette per world.**
-
-236. **Item 225's footer-plate law grades two worlds' fabricated plates.** **Defect:** found by the item-220 lane while working nearby, and worth a second look because it is a law defect rather than a product one. `a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world` sweeps the `list_backing == BarePlates` roster, which has five members — but **two of them, Mangrove and Magpie, are `ListStyle::Diagonal` and draw no plate at all.** `overlay_bar_rects_probe` *synthesizes* rects for them, so the law's quad arm grades fabricated geometry. **Its pixel arm self-skips, so the law is not lying about pixels** — but a law that grades a shape the product never draws proves nothing on those two cells and could go green over a real defect there. **"Bare-plate roster" is not "plate-drawing roster", and the two have been used interchangeably.** **Build:** give the law the roster it actually means, and check whether any sibling law makes the same substitution. **Verify:** the law still fails on item 225's original defect; mutation proof on a plate-drawing world; the two diagonal worlds either excluded by name with a reason or covered by a law that grades what they really draw. **Found 2026-08-03.**
-
-237. **Item 234's first law has a CONSTANT arm that cannot fail on any product change.** **Defect:** found by the item-236 lane while sweeping for fabricated-geometry laws, and left deliberately rather than taken mid-item. `a_workspace_rows_text_sits_inside_its_own_plate_on_every_world`'s **arm 2** computes `overrun` from `bar_full_span(band_x, band_w)`, which is pure `(band_x + 8, band_w - 16)` — **so the overrun is `BAR_SIDE_INSET` identically in every cell.** No world, width, lens or DPI enters it. Per cell it asserts `8.0 > 1.0`; at the end it asserts `max(8.0, 4.0) == 8.0`. **It cannot fail on any product change except editing the constant itself.** Arm 1 is what actually sweeps and is sound. The law's doc also promised a third arm the body does not have (the phantom bullet is already removed). **Decide, then act:** this is the shape item 217 faced when its device law stayed green under its own no-op mutation, and the precedent there was to **delete rather than ship vacuous**. Either delete arm 2, or re-aim it at something the product can actually change — if the intent was "the plate's inset is what the drawn text respects", the oracle must read the DRAWN text, not re-derive the same constant. **Do not simply leave it**: a law that always passes is worse than no law, because it reads as coverage. **Verify:** whatever replaces it must fail by name on item 234's original defect — text sitting `BAR_SIDE_INSET` outside its plate at either edge — and be mutation-proved on a plate-drawing world. **Found 2026-08-03; arm 1 is unaffected and still guards the item.**
+237. **Item 234's first law has a CONSTANT arm that cannot fail on any product change.** **Defect:** found by the item-236 lane while sweeping for fabricated-geometry laws, and left deliberately rather than taken mid-item. `a_workspace_rows_text_sits_inside_its_own_plate_on_every_world`'s **arm 2** computes `overrun` from `bar_full_span(band_x, band_w)`, which is pure `(band_x + 8, band_w - 16)` — **so the overrun is `BAR_SIDE_INSET` identically in every cell.** No world, width, lens or DPI enters it. Per cell it asserts `8.0 > 1.0`; at the end it asserts `max(8.0, 4.0) == 8.0`. **It cannot fail on any product change except editing the constant itself.** Arm 1 is what actually sweeps and is sound. The law's doc also promised a third arm the body does not have (the phantom bullet is already removed). **Decide, then act:** this is the shape item 217 faced when its device law stayed green under its own no-op mutation, and the precedent there was to **delete rather than ship vacuous**. Either delete arm 2, or re-aim it at something the product can actually change — if the intent was "the plate's inset is what the drawn text respects", the oracle must read the DRAWN text, not re-derive the same constant. **Do not simply leave it**: a law that always passes is worse than no law, because it reads as coverage. **Verify:** whatever replaces it must fail by name on item 234's original defect — text sitting `BAR_SIDE_INSET` outside its plate at either edge — and be mutation-proved on a plate-drawing world. **Found 2026-08-03; arm 1 is unaffected and still guards the item.** ⚠️ **CARRY THIS FROM ITEM 236, which fixed the sibling class and is the reason to look here at all: `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the SAME card-vs-row substitution, in SHIPPING code — and it is CORRECT AS-IS. Do not "fix" it to `draws_row_plates()`.** That scrim pass is the only thing that clears `panel_card` on a bare-plate world, so gating it out would let a stale instance survive into a Diagonal frame. It looks exactly like the defect this item is about and is not one; 236 caught it as a near-regression and recorded it rather than shipping it. **Also from 236, and directly useful here:** `ListStyle::draws_row_plates()` now exists as the one owner of "does this style back its rows with plates", `overlay_selection_rects` is the one place a list style becomes row surfaces, and `overlay_bar_rects_probe` **refuses** on a plateless world — so a replacement arm has a real oracle to grade against and cannot fabricate one. **Prefer 236's pattern for the exclusion too:** earn it by measurement (the frame must emit no row surface at all on the excluded world, at the same fixture and DPIs) rather than by a name list, so a world that starts drawing plates fails instead of dodging the sweep.
 
 238. **The GitHub rename left stale URLs in shipped artifacts — including the GPLv3 source offer.** **Defect:** the repository is now `Frank-P-Lu/awl-editor`; `git remote` still says `awl-next.git` and every push works **through GitHub's redirect**, which is exactly what makes this latent rather than loud (verified: `gh api repos/Frank-P-Lu/awl-next -q .full_name` returns `Frank-P-Lu/awl-editor`). **The surface is wider than tooling.** ⚠️ **`scripts/package-linux.sh:126` is the GPLv3 §6(d) SOURCE OFFER** — a licence obligation pointing at a name that survives only by redirect, and item 226 added it to every release tarball. Also `src/mac_about/facts.rs:47` (`GITHUB_URL`, shipped in the About window), `README.md:73`, **16 links across `site/index.html`, `site/check.html`, `site/credits.html`, `site/guide.html`**, and `scripts/ci-mac-bisect.sh` lines 129/184/187 on the unmerged branch `claude/ci-mac-bisect`. **Build:** one owner for the repository URL wherever a shipped artifact names it, and a law that fails if a tracked file spells the old name. Decide deliberately whether `git remote` is repointed — a redirect that works is not a reason to keep a wrong name in a licence notice. **Verify:** grep-law over tracked files; the tarball's source offer resolves without redirect; the About window's link resolves; `scripts/site-links.sh` still passes. **Touches Rust and the site, so it needs the full native gate and web smoke. Found by the item-232 lane 2026-08-03; none of it was in that lane's diff.** ✅ **USER DECISION 2026-08-03: ADOPT `awl-editor` everywhere, and REPOINT `git remote`** — "awl-editor is much better." The deliberate-decision clause is answered; a redirect that works is not a reason to keep a wrong name in a licence notice. ⚠️ **THE ITEM'S OWN LAW CLAUSE IS WRONG AS WRITTEN, corrected here by survey before anyone builds it.** "A law that fails if a tracked file spells the old name" would fail on legitimate content: **the local working directory is still `awl-next`**, and `src/render/rowlayout.rs:238` — **inside `#[cfg(test)] mod tests`, verified** — plus `src/capture/tests/schema_chrome.rs:188`, `src/render/tests/chrome_overlay.rs:510` and `src/render/framebench.rs:103` all use `"awl-next"` as a **sample project name in a fixture**, which is realistic test data precisely because it is the real directory. **The law must ban the old repository URL (`github.com/Frank-P-Lu/awl-next`), not the bare token** — and if the token is ever banned outright, those fixtures are the thing to rename first, deliberately. ⚠️ **The surface is also LARGER than the item states.** Measured: not "16 links across `site/*.html`" but **18** (`check.html` 4, `credits.html` 8, `guide.html` 2, `index.html` 4) — **plus `site/check.js:47`'s `RELEASES_URL` and 8 in `site/llms.txt`**, which the item names nowhere and which no HTML sweep would catch, for **27 in `site/` alone**. Two more outside it: **`CLAUDE.md:1`** and **`run-linux.sh:2`** name the repo in prose. ⚠️ **And one is a BUILT artifact:** `site/editor/awl-347842567538f209_bg.wasm` contains the string twice, so it only clears on a wasm rebuild — a grep-law scoped to tracked files must either exclude built artifacts by path or the web build must be run before the law can go green. **`scripts/ci-mac-bisect.sh` lines 129/184/187 are on the unmerged branch `claude/ci-mac-bisect` and cannot be fixed from `main`** — either land that branch first or fix it there and record which. **One owner is achievable in Rust only** (`src/mac_about/facts.rs::GITHUB_URL` already is one); shell, HTML, JS and txt cannot share it, so **the cross-language enforcement IS the law** — say so rather than implying a single constant reaches all 30-odd sites.
 
@@ -1142,21 +725,9 @@ user authorization.
 
 242. **Chrome has no default pixel space, so every hand-authored constant is an independent coin flip — and the boundary that fixes it already exists.** **Defect:** awl draws in device pixels and nothing else; "logical" here means only "multiplied by `dpi` on its way in". The text and caret families already pass through ONE boundary — `Metrics::with_dpi` (`src/render.rs:226`) scales 13 base constants by `s = zoom * dpi`. **Chrome was never enrolled, and its constants are mixed three different ways.** Measured, not assumed: (a) `overlay_text_hpad` (`src/render/chrome/overlay.rs:91`) returns `BAR_SIDE_INSET + BAR_TEXT_PAD` (8.0 + 13.0) for `Bars` and a bare `12.0` for `Pane`/`Diagonal`, multiplied by nothing — **truly physical**; (b) `CARD_MAX_W` is **NOT** raw, as the 131 finding recorded, but a **GROW-ONLY HYBRID** — `overlay_desired_w` multiplies it by `overlay_pixel_scale()` under `scale.max(1.0)`, so it is physical at scale ≤ 1 and logical above, deliberately, to fix a zoom-blind card collapse (documented at `chrome/overlay.rs:124`); (c) **`overlay_lh` is itself mixed** — `metrics.line_height * effective_overlay_scale()` (dpi-scaled) **+** `effective_overlay_leading()` **+** `overlay_row_gap()` (both raw, the latter a theme-authored `ListStyle::Bars { gap }`). So the one quantity the tree treats as logical already drifts out of proportion across displays, today, on shipping worlds. The `_LOGICAL` suffixes sitting in `src/render/chrome/` (`ROW_STEP_LOGICAL`, `SPINE_WEIGHT_LOGICAL`, `SPINE_CORNER_LOGICAL`, `ATTACHMENT_BAND_INSET_LOGICAL`, `SELECTED_OUTWARD_LOGICAL`, `SELECTED_SPINE_WEIGHT_LOGICAL`, `CLUSTER_CONNECTOR_LOGICAL`) are the 131 lane reaching for exactly this by naming convention — the right instinct with an unenforceable mechanism, because **a suffix is not a type**. ⚠️ **A live appearance bug is implied and must be established FIRST, before any migration:** `chrome/overlay.rs:124` says the caps are "tuned for the 1:1 capture canvas". If that is also true of the raw insets, chrome padding renders at **half its tuned physical size on every Retina display**, including the dev machine — structurally invisible because `opts.dpi.unwrap_or(1.0)` (`src/capture/opts.rs:305`) means every capture, law and gallery shot runs at the one scale where the bug cannot exist. Capture the palette at `--capture-dpi 2` and compare the padding-to-text ratio against 1×; record the answer either way, because a negative result is what licenses treating this as pure hygiene. **Build:** enroll chrome in the EXISTING boundary. **Do not extend `theme::ground_space` and do not build a chrome sibling of it** — item 186's per-variant declaration table is right for GROUNDS, where physical is genuinely common (a stipple or dither must land on the physical grid or it moirés, hence `wagtail_stipple_cell_px(dpi)`); chrome wants the opposite default, and copying 186's shape would import the wrong answer with more machinery. Give chrome one scaled owner with **logical as the default and physical as the annotated exception**, enforced by the compiler or a no-wildcard law rather than by a name — a bare `f32` length reaching a draw call without passing the owner should fail by name. **Classify before migrating: only one of chrome's four unit families moves.** Device-px lengths (`BAR_SIDE_INSET`, `BAR_TEXT_PAD`, `HPAD`, `VPAD`, `PLACARD_INSET`, `CHIP_HPAD`/`CHIP_VPAD`, `CARD_EDGE_INSET_FLOOR`, `ANCHOR_GAP`) migrate; character units (`RAIL_GAP_CHARS`, `MIN_PANE_CHARS`, `MARGIN_COLUMN_GAP_CHARS`) and row units (`OVERLAY_HINT_ROW`, `OUTLINE_GAP_ROWS`) are already correct by construction and must not be double-scaled; pure ratios (`OVERLAY_UI_SCALE`, `WORKSPACE_MARGIN_FRAC`, `TIMELINE_MAX_FRAC`, `PLACARD_SIZE_STEP`, the alphas) must NOT scale and the law must not force them. `CARD_MAX_W` gets an **honest third classification** — a worker who records it as plain physical will "fix" it and reintroduce the zoom-blind collapse its own comment describes. **Glyphs still rasterize at device resolution:** shaping at logical size and scaling the raster blurs text, which is why every solution to this problem sizes the backing store separately from layout. `Metrics` keeps handing glyphon physical sizes; only the LAYOUT side gains a logical view, and that seam stays inside `Metrics`. **Scope:** chrome only. There remains exactly ONE coordinate system — device px — and this decides which constants are multiplied on the way into it; it is not a coordinate-system rewrite. The document/caret/text families already pass the boundary; `src/theme/` ground space is untouched; other worlds' output stays byte-identical at the capture scale. **Done:** a new chrome length cannot be authored in the wrong space without a compile error or a named law failure; the four unit families are recorded where the constants live; and the DPI tier a capture certifies is stated accurately — `--capture-dpi 1` is the identity path and is evidence about nothing else. **Verify:** byte-identity at dpi 1.0 across the full surface roster — the 19-world × 5-surface, 95-capture PNG+sidecar hash 131a/b already ran (190 files) — since the multiply is the identity there and every existing law must be untouched. **The value is entirely in laws that do not exist yet:** sweep `dpi ∈ {1.0, 2.0}` and assert that every migrated quantity holds its ratio to `line_height`, that the ratio family does NOT scale, and that `overlay_lh`'s three terms scale together. Mutation proof per family — break one constant's enrollment, watch the sweep go red by name, paste the panic. A Retina taste pass across the world roster once padding doubles, plus affordance-locating vision smoke over the palette at 2×, because this DOES change the Retina look and that is the point. **This retires item 131c's blocker instead of answering it** — 131c is BLOCKED on the chrome pixel-space decision in item 131's finding (d); with a default in place the diagonal authors its numbers like every other quantity and no design call is owed. **Sequence BEFORE 131c**; 131d/e follow. **Routing:** deep tier, one owner end to end — a classification and typing decision, not a mechanical sweep. **User design decision 2026-08-03, from the 131c chrome-space discussion; the measurements above were taken during it.**
 
-213. **Optically center the logo cursor inside every app icon.** ✅ **COMPLETE — `f8d023e1`; user approved the 3 px lift on 2026-08-02.** The canonical macOS icon, complete world roster, paired favicon assets, and all Block/Pill/Narrow galleries were regenerated together; exporter/container laws and raster-clearance sweeps passed before review.
+221. **Make Cassowary’s active Files category cue a vertical secondary heading.** **Defect:** the generic Files treatment does not use Cassowary’s left edge and strong Commands heading to establish its intended two-level hierarchy. **Build:** when Files is active in Cassowary, render “Files” as a smaller secondary-colour counterpart to the bold Commands heading, rotated 90 degrees and aligned flush with the far-left border; show none under All. Reuse the shared hierarchy data from item 220, with Cassowary’s expression supplied as theme data rather than a new palette code path. **Done:** Cassowary presents primary Commands plus a legible, subordinate vertical Files cue without crowding commands. **Verify:** Cassowary All/Files captures at representative canvas sizes and scale factors; geometry/contrast laws for left-edge placement, rotation, and non-overlap; mutation proof removes the cue; visual review confirms hierarchy. **Depends on item 220. Routing:** production tier with visual-judge review. **User design decision 2026-08-02.** 🟢 **UNBLOCKED — item 235 landed the capability (`df630ad9`), and 221 is now theme data on top of it.** **The 90° case costs nothing:** the rotation is a **lossless texel transpose** at the quadrant angles — ink 1.0000, mae 0.0000, contrast 1.0000 at 0/90/180/270°, **both DPIs**, pixel-exact against an ideal rigid rotation. So the "legible at 1× and 2×" clause is already measured for this item's exact angle; do not re-derive it. **Both premises the 220 lane corrected still apply here:** the shared datum is 220's single `overlay_location`, expressed as a `RenderCaps` variant (the same shape `Background`/`CardTexture`/`FacetStyle`/`TitleStyle::Placard` already have), and **the location inherits the section header's existing planned slot — no second header line is needed.** **The cue is not interactive** (it is read, not pressed), but `label_hit` exists and is law-tested if that ever changes; it derives from the run's own rotated frame rather than axis-aligned bounds, which over-claim at a slant and would steal presses from neighbouring rows.
 
-219. **Remove the stray blank band above the theme picker across affected worlds.** **Defect:** the top-right theme picker shows an unwanted empty strip above its content in Mopoke, Currawong, Gumtree, Bilby, and Bowerbird. The same control must not acquire world-specific vertical dead space. **Build:** locate the shared picker/header layout owner and remove the erroneous gap without hand-tuning individual worlds or changing the rowlayout contract. **Done:** the picker begins at its intended top boundary in every world, while its selected row, query, keyboard navigation, and dismissal geometry remain correct. **Verify:** roster sweep of theme-picker captures across all worlds, with pixel/geometry law proving no unexplained blank header band; mutation proof restores the gap; vision smoke locates the selected row. **Routing:** production tier. **User-reported in a 2026-08-02 design session.**
-
-220. **Give the command palette a deliberate two-level location hierarchy instead of a duplicate Files title.** **Defect:** the Files filter currently repeats “Files” in a small, low-contrast label, while the palette needs to distinguish the primary content heading (“Commands”) from the active category. **Build:** retain Commands as the prominent primary heading; show no secondary category label for All; when Files is active, replace the duplicated label with a clear secondary location treatment positioned with the command list. Keep hierarchy, contrast, and spacing coherent without changing command order or key behaviour. **Done:** a reader can tell both the current content level and active category at a glance, with no repeated title. **Verify:** All and Files captures across the full world roster; sidecar/replay coverage of filter selection; pixel/semantic geometry laws for heading order and contrast; mutation proof restores the duplicate; vision smoke identifies the active category. **Routing:** production tier with visual-judge review. **User design decision 2026-08-02.**
-
-221. **Make Cassowary’s active Files category cue a vertical secondary heading.** **Defect:** the generic Files treatment does not use Cassowary’s left edge and strong Commands heading to establish its intended two-level hierarchy. **Build:** when Files is active in Cassowary, render “Files” as a smaller secondary-colour counterpart to the bold Commands heading, rotated 90 degrees and aligned flush with the far-left border; show none under All. Reuse the shared hierarchy data from item 220, with Cassowary’s expression supplied as theme data rather than a new palette code path. **Done:** Cassowary presents primary Commands plus a legible, subordinate vertical Files cue without crowding commands. **Verify:** Cassowary All/Files captures at representative canvas sizes and scale factors; geometry/contrast laws for left-edge placement, rotation, and non-overlap; mutation proof removes the cue; visual review confirms hierarchy. **Depends on item 220. Routing:** production tier with visual-judge review. **User design decision 2026-08-02.**
-
-222. **Keep Mangrove’s diagonal-line gradient fixed while its item list scrolls.** **Defect:** scrolling the command list shifts the diagonal gradient, producing a conspicuous, jarring motion unrelated to the list movement. **Build:** anchor the gradient to its intended stationary surface while list rows scroll independently; preserve the world’s diagonal treatment and all scroll/input behaviour. **Done:** only the list content moves during scrolling; the diagonal gradient remains visually fixed. **Verify:** deterministic scroll trajectory captures for Mangrove plus a comparable non-diagonal control world; pixel arithmetic across frames proves the gradient does not translate; mutation proof restores scroll-coupled movement; live release confirmation of feel. **Routing:** production tier. **User-reported in a 2026-08-02 design session.**
-
-223. **Restore Mangrove command-palette keybindings.** **Defect:** Mangrove’s Command-P palette omits visible keyboard shortcuts that comparable themes show. **Build:** route keybinding labels through the shared palette presentation owner so Mangrove preserves the same keyboard affordances, with world-appropriate contrast and no local special case. **Done:** every command that exposes a shortcut elsewhere exposes the same shortcut in Mangrove, legibly and in the correct row. **Verify:** command-palette shortcut roster sweep across all worlds, with no-wildcard sidecar/pixel law for label presence and row association; mutation proof hides a Mangrove label; visual smoke reads shortcuts. **Routing:** production tier. **User-reported in a 2026-08-02 design session.**
-
-224. **Redesign Magpie’s command-palette location indicator as a mirrored diagonal cue.** **Defect:** Magpie’s new right-side location indicator looks poor and does not belong to the world’s diagonal visual language. **Build:** prefer the indicator on the left. If a layout places it on the right, mirror its form. In either position, give it a slant and gradient matching Magpie’s diagonal line, while preserving legibility, palette hit targets, and command geometry. **Done:** the indicator clearly communicates location and reads as part of Magpie rather than a detached marker. **Verify:** Magpie captures across left/right layout conditions, canvas sizes, and scale factors; geometry laws prove mirroring and no overlap; gradient/angle law ties it to the diagonal line; mutation proof restores the unmirrored right-side form; visual-judge review. **Routing:** production tier with visual-judge review. **User design decision 2026-08-02.**
-
-225. **Remove Cassowary Settings’ oversized black sub-settings bar.** **Defect:** Cassowary’s Settings panel renders a large black rectangle beneath the sub-settings content. **Build:** identify the shared settings/workspace layout or Cassowary render-cap cause and eliminate the unintended surface without masking it by overlaying another rectangle. Preserve Settings categories, focus, scrolling, and detail controls. **Done:** the panel ends at its intended content boundary with no black bar, and other worlds remain unchanged. **Verify:** Settings captures across the full roster and all Cassowary sub-settings states; pixel/geometry law for the panel’s bottom boundary; mutation proof recreates the black bar; vision smoke confirms controls remain visible. **Routing:** production tier. **User-reported in a 2026-08-02 design session.**
+224. **Redesign Magpie’s command-palette location indicator as a mirrored diagonal cue.** **Defect:** Magpie’s new right-side location indicator looks poor and does not belong to the world’s diagonal visual language. **Build:** prefer the indicator on the left. If a layout places it on the right, mirror its form. In either position, give it a slant and gradient matching Magpie’s diagonal line, while preserving legibility, palette hit targets, and command geometry. **Done:** the indicator clearly communicates location and reads as part of Magpie rather than a detached marker. **Verify:** Magpie captures across left/right layout conditions, canvas sizes, and scale factors; geometry laws prove mirroring and no overlap; gradient/angle law ties it to the diagonal line; mutation proof restores the unmirrored right-side form; visual-judge review. **Routing:** production tier with visual-judge review. **User design decision 2026-08-02.** ⚠️ **THIS ITEM'S PREMISE DOES NOT HOLD AS WRITTEN — measured by the 220 lane, and it shrinks the item substantially.** **After item 220, Magpie's cue is ALREADY on the LEFT**, riding the diagonal cluster's own row stagger. **There is no right-side indicator to mirror.** The "prefer the indicator on the left / if a layout places it on the right, mirror its form" clause is therefore already satisfied, and **the only things genuinely missing are the SLANT and the GRADIENT.** Build those; do not build a mirroring mechanism for a case that does not occur. 🟢 **UNBLOCKED — item 235 landed the capability (`df630ad9`).** **The gradient is already there:** 235 added a baseline gradient as a flagged scope addition — one instance field plus one `mix()` — specifically so this item would not have to. ⚠️ **Magpie's 77.66° is a DERIVATION, not a spec** — 235 computed it to have something to test; **this item's author picks the real number**, and the capability sweeps every angle regardless. Expect a resample at a non-quadrant angle: the round trip measures contrast 0.65 at 1× and 0.83 at 2×, with worst-case departure from an ideal bilinear rigid rotation of **0.0046** of full coverage — **that softening is the price of rotating a raster, not ink the pipeline loses**, and supersampling was deliberately declined because it would buy at 1× what 2× already gives while making letterforms stop matching their upright siblings. **Legibility here must be judged against that measured floor, not against an upright control.** ⚠️ **Do not confuse this with 222/131d's parked taste call** — right-aligning ascending worlds' name text is item 131d's, and it is adjacent to but not part of this cue.
 
 226. **Prepare awl’s first GitHub Release around the existing Linux tarball.** **Build:** retain `awl-linux-x86_64.tar.gz` as the technical Linux download, make it discoverable from the release/download surfaces with concise unpack-and-run guidance, and attach a checksum manifest for every downloadable release artifact. Exercise the current release workflow as a dry run, including the release-profile parity gate and Linux packaging path; diagnose any publication, provenance, or archive-layout failure before a tag is considered. Configure the first public beta to publish **Linux only**; do not attach unsigned macOS or web artifacts. **Scope:** this is release preparation, not authority to tag or publish. A public tag/release remains an explicit user decision; macOS waits for Apple signing and notarization. **Done:** a dry run yields an inspectable Linux tarball and checksums, the release page has an unambiguous technical install path, and the release checklist names the still-required public-release and mac-signing decisions. **Verify:** unpack the produced archive in a clean Linux environment, run a headless smoke and launch check, verify checksums, and confirm the dry run created no tag or Release. **Routing:** production tier. **User design decision 2026-08-03.**
 
