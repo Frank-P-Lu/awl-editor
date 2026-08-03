@@ -44,7 +44,7 @@ pub const ATTRIBUTION: &str = "Frank Lu · GPL-3.0";
 pub const DOCS_URL: &str = "https://awl-editor.fly.dev/guide.html";
 
 /// The "GitHub" button's fixed destination — the source repository.
-pub const GITHUB_URL: &str = "https://github.com/Frank-P-Lu/awl-next";
+pub const GITHUB_URL: &str = "https://github.com/Frank-P-Lu/awl-editor";
 
 /// What the running process could learn about its own `.app` bundle. Both
 /// fields are `None` outside a bundle (a bare `cargo run`, a CLI launch from

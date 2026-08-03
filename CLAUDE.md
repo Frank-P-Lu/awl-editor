@@ -1,4 +1,4 @@
-# CLAUDE.md / AGENTS.md — working on awl-next
+# CLAUDE.md / AGENTS.md — working on awl-editor
 
 > Lean core (halved 2026-07-22, queue item 17). Per-feature mechanism detail lives in `docs/` — each file names when to read it; read the matching doc before working in that area. Round-by-round history: `git log -p CLAUDE.md`. AGENTS.md is a symlink to this file; edit here.
 

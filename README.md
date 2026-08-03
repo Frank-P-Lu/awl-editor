@@ -70,7 +70,7 @@ editing, yes; the IDE zoo, no.
 
 | Platform | What to get |
 |---|---|
-| Linux x86_64 | `awl-linux-x86_64.tar.gz` from [Releases](https://github.com/Frank-P-Lu/awl-next/releases) |
+| Linux x86_64 | `awl-linux-x86_64.tar.gz` from [Releases](https://github.com/Frank-P-Lu/awl-editor/releases) |
 | macOS | build from source below — a signed, notarized build is not ready yet |
 | Windows | the browser build |
 
