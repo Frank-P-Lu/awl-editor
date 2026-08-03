@@ -250,6 +250,21 @@ job already blocked `main` from reaching this point, and a red `render::tests`
 job is item 231's known wedge, not a hard release gate by itself — but a user
 on a VM is inside its blast radius, so know *why* it's red before tagging.
 
+**Neither mac job prints a `native-gate-receipt`, and no replacement exists.**
+`native-gate.sh` refuses a filtered invocation by construction — that refusal is
+what makes its receipt mean "the full suite, both conventions, every target" —
+and both mac jobs are filtered by definition of the split. Before item 243 a
+reader could see a receipt in the mac job's log and take it as informal
+confirmation that *that exact commit* passed the full suite on virtualised
+Metal. **That confirmation no longer exists in any form, and nothing was built
+to replace it.** Nothing consumes the string, so nothing is broken; this note
+exists so no one goes looking for a signal that is gone.
+
+Read the two mac jobs' own conclusions instead. They are individually
+meaningful, which is the point of the split — a synthesised combined receipt
+would re-bundle exactly what was deliberately unbundled, and would have to lie
+about scope to call itself a receipt.
+
 ### Still open — decisions, not tasks
 
 | Decision | State today | Owner |
