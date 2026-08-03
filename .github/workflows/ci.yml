@@ -268,15 +268,23 @@ jobs:
   # entry has the full diagnosis-in-progress).
   #
   # `continue-on-error` is set at the JOB level and is the whole point: a red
-  # run here must never fail this workflow. `timeout-minutes` (job and step)
-  # exist only so a hang still leaves a log instead of the hosted runner
-  # silently losing communication with the server (upstream
-  # actions/runner-images#13882) — the same failure mode the old unsplit job
-  # fought at job-minute 53-62. It is a plain runner-enforced timeout rather
-  # than `native-gate.sh`'s own budget/heartbeat watchdog, because that
-  # watchdog's rich phase-and-process reporting is coupled to the script this
-  # job deliberately does not call; a future lane may want to rebuild an
-  # equivalent for this job specifically; not attempted here.
+  # run here must never fail this workflow.
+  #
+  # ‼ IT TOLERATES A FAILED JOB, NOT A CANCELLED ONE, AND A STEP THAT EXCEEDS
+  # `timeout-minutes` IS CANCELLED RATHER THAN FAILED. Cancellation propagates
+  # to the workflow's conclusion, so relying on the runner's timeout to bound
+  # the hang defeats the split. Measured, not reasoned: the first run after the
+  # split (30825396088) had all four gating jobs green — `mac (build + test,
+  # minus render::tests)`, `linux`, `web`, `mac live-probe` — and still
+  # concluded `cancelled`, because this job hit its step timeout at 60m33s.
+  #
+  # So the hang is bounded INSIDE the step by `scripts/ci-wedge-budget.sh`,
+  # which kills the run and exits non-zero — an ordinary failure, which
+  # `continue-on-error` does tolerate. `timeout-minutes` stays as a BACKSTOP,
+  # set ABOVE that budget, for the different failure it was written for: the
+  # hosted runner losing communication with the server (upstream
+  # actions/runner-images#13882, the same mode the old unsplit job fought at
+  # job-minute 53-62), which no in-process watchdog can survive.
   mac-render-tests:
     name: "mac (render::tests) — allowed failure, item 231"
     runs-on: macos-latest
@@ -307,12 +315,12 @@ jobs:
       # run, and inside the runner-loss window observed on the old unsplit
       # job (job-minute 53-62).
       - name: render::tests (mac convention) — allowed to hang or fail
-        timeout-minutes: 40
-        run: "env AWL_CONVENTION_FORCE=mac cargo test render::tests::"
+        timeout-minutes: 35
+        run: "scripts/ci-wedge-budget.sh mac render::tests:: 1500"
 
       - name: render::tests (linux convention) — allowed to hang or fail
-        timeout-minutes: 40
-        run: "env AWL_CONVENTION_FORCE=linux cargo test render::tests::"
+        timeout-minutes: 35
+        run: "scripts/ci-wedge-budget.sh linux render::tests:: 1500"
 
   # ── The mac live-probe (free mac-VM tier — now GATING) ──────────────────────
   # GitHub's macos-latest runners are real macOS VMs with a WindowServer, and
