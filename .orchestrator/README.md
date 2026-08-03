@@ -180,8 +180,10 @@ once, at landing.
   behaviour untested by any local gate” (item 232). Item 231's wedge sat green
   under that receipt for ~140 commits while hosted macOS was red. No local arm
   covers the axis and a software adapter cannot supply one, so **the hosted-mac
-  `mac (build + test)` CI job is the only arm that sees it and is gating, not
-  tolerated red.** `cargo test --bin awl` is “binary unit tests”;
+  `mac (build + test)` CI job is the only arm that sees it.** Whether it is
+  therefore *gating* rather than tolerated red is a parked user decision (item
+  232, recommendation: gating); this note records the coverage fact, not the
+  policy. `cargo test --bin awl` is “binary unit tests”;
   every filtered Cargo invocation is “targeted tests.” Counts never prove
   scope. Repair failures on the candidate, rerun the failed slice, then the
   full set once.

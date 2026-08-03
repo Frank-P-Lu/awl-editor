@@ -187,10 +187,12 @@ jobs:
   # once. A CPU rasteriser has no system-wide GPU resource for a cross-process
   # wedge to exhaust — which is what item 231 measured when two processes with
   # two separate wgpu devices stopped within 10 ms of each other.
-  # So: **this job is gating, not tolerated red.** A red `mac` blocks the train
-  # the way a red `linux` does, and reproducing its class means a real
-  # virtualised Metal stack — this runner, or a local macOS guest VM — never a
-  # container.
+  # So this job is the ONLY place awl looks at that axis. Whether that makes it
+  # gating rather than tolerated red is a parked user decision (item 232; the
+  # lane's recommendation is gating, with its costs on the board) — do not read
+  # this comment as having settled it. What is settled is the reproduction
+  # route: this class needs a real virtualised Metal stack — this runner, or a
+  # local macOS guest VM — never a container.
   #
   # ── What the one surviving log says, and what has NOT been done about it ────
   # Run 30732589551 is the only mac failure of this streak that left a log, and

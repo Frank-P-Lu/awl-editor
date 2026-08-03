@@ -242,9 +242,10 @@ workflow's `mac` job comment). CI's `linux` job runs this same gate against
 Mesa lavapipe on every push and stayed green through the entire streak, and a
 local lavapipe container never hung at either bisect boundary. **The hosted-mac
 `mac (build + test)` job is the only arm awl has on virtualised-GPU behaviour.**
-Before a tag, confirm it is green on the tag's commit — not merely "not worse
-than usual" — and read a red one as a release blocker, since a user on a VM is
-inside its blast radius.
+Before a tag, check it on the tag's exact commit rather than assuming, and if it
+is red, know *why* before tagging: a user on a VM is inside its blast radius.
+Whether a red `mac` is a hard release blocker is a parked user decision (item
+232; the recommendation is yes).
 
 ### Still open — decisions, not tasks
 
