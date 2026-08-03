@@ -1,4 +1,4 @@
-//! ITEM 244's wrap-continuity law — the owed, UNCONDITIONAL replacement for
+//! The ambient wrap-continuity law — the owed, UNCONDITIONAL replacement for
 //! `backgrounds_item117.rs`'s deleted `organic_phase_moves_and_wraps_without_
 //! a_catchup_jump`.
 //!
