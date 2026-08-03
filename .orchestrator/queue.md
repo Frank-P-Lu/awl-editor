@@ -466,6 +466,20 @@ confirms item 243's split is LIVE**: the job list now reads
 `mac (build + test, minus render::tests)` and
 `mac (render::tests) — allowed failure, item 231`.
 
+✅✅ **ITEM 243 IS COMPLETE — CLAUSE 2 PAID, AND `main` IS GREEN FOR THE FIRST
+TIME IN THE RECORDED WINDOW.** Run `30838810157` (`76903fc1`) concluded
+**`success`** with `mac (render::tests)` at **`failure`** and all four gating
+arms green. **A tolerated wedge failure now leaves the workflow green, which is
+the whole thing the split was for.** Checked rather than assumed:
+`gh run list --branch main --limit 25 --json headSha,conclusion` returns
+**exactly one** success, and it is this run — so after the ~140-commit red
+streak and everything since, this is `main`'s first green.
+**Both of item 243's owed clauses are now closed by real runs, not by parse:**
+clause 1 on `30825396088` (the gating arm passing on a hosted runner) and
+clause 2 here. **When item 231 lands, `mac (render::tests)` goes green and is
+promoted to gating with no further decision needed** — that is why the shape
+only had to be decided once.
+
 🔴 **243's VERIFY CLAUSE 2 FAILED ON ITS FIRST REAL RUN — repaired at
 `da70df93`, and the mechanism is worth knowing repo-wide.** Run `30825396088`
 concluded **`cancelled`** with **every gating arm green**:
