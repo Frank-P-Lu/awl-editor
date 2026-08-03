@@ -149,6 +149,9 @@ mod recents;
 mod recovery;
 mod render;
 mod replay;
+// The ROTATED LABEL capability: one short shaped run painted at an arbitrary
+// screen axis, which glyphon 0.11 has no transform to express.
+mod rotated_label;
 // The SAVE-MODEL PROSE LAW: the user-facing sentences about what saving does,
 // pinned to the live notice constant and the live catalog. Test-only by its own
 // inner `cfg`, beside `docs_catalog_law` which pins chords and command names.

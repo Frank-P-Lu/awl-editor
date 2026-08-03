@@ -68,6 +68,7 @@ pub(crate) enum Shader {
     CaretGlyph,
     Image,
     Lava,
+    RotatedLabel,
     Selection,
     SpellUnderline,
 }
@@ -81,6 +82,7 @@ impl Shader {
             Shader::CaretGlyph => "caret glyph shader",
             Shader::Image => "image shader",
             Shader::Lava => "lava shader",
+            Shader::RotatedLabel => "rotated label shader",
             Shader::Selection => "selection shader",
             Shader::SpellUnderline => "spell underline shader",
         }
@@ -94,6 +96,7 @@ impl Shader {
             Shader::CaretGlyph => include_str!("../shaders/caret_glyph.wgsl"),
             Shader::Image => include_str!("../shaders/image.wgsl"),
             Shader::Lava => include_str!("../shaders/lava.wgsl"),
+            Shader::RotatedLabel => include_str!("../shaders/rotated_label.wgsl"),
             Shader::Selection => include_str!("../shaders/selection.wgsl"),
             Shader::SpellUnderline => include_str!("../shaders/spellunderline.wgsl"),
         }

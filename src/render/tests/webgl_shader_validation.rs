@@ -120,3 +120,21 @@ fn lava_wgsl_fs_main_targets_webgl2() {
     let src = include_str!("../../../shaders/lava.wgsl");
     validate_and_glsl(src, naga::ShaderStage::Fragment, "fs_main");
 }
+
+// ── rotated_label.wgsl (the rotated LABEL quad) ────────────────────────────
+// A new pipeline is exactly the shape of change that compiles natively and
+// breaks the browser build, and awl is one core with two of them. Both stages
+// carry real risk here: the vertex stage builds a rotation basis and the
+// fragment stage does an explicit-LOD texture sample against a filtering
+// sampler, which is the construct a GLSL-ES backend is most likely to reject.
+#[test]
+fn rotated_label_wgsl_vs_main_targets_webgl2() {
+    let src = include_str!("../../../shaders/rotated_label.wgsl");
+    validate_and_glsl(src, naga::ShaderStage::Vertex, "vs_main");
+}
+
+#[test]
+fn rotated_label_wgsl_fs_main_targets_webgl2() {
+    let src = include_str!("../../../shaders/rotated_label.wgsl");
+    validate_and_glsl(src, naga::ShaderStage::Fragment, "fs_main");
+}
