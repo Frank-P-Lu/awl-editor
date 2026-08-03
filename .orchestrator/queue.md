@@ -557,6 +557,37 @@ ask git.**
   DRAWN text" pointed at the plate, and reading the plate ALONE is itself the
   trap. The oracle has to read the text's own position.
 
+- **244** — ✅ **COMPLETE except its live sitting.** Merged `0d0a8b1b`. Receipt
+  `native-gate-receipt commit=5d17b676471646be9380eed0fb2b1209c150c6a9 conventions=mac,linux scope=all-targets`,
+  `web-smoke: OK` (16 passed), **`bash scripts/code-health.sh`** clean, fmt
+  clean. The field translation is **deleted outright**, both terms; the
+  companion breathe reuses `stars.rs`'s envelope verbatim so the integer-cycles
+  law covers the new motion and the pop cannot return through a different
+  variable. The vacuous law is **deleted, not edited** — verified absent by grep
+  and by a 0-test run.
+  **Numbers, because this item's Verify clause is unusually falsifiable:**
+  wrap pair **0 of 960000 pixels differ** across the wrap and **2413 differ
+  mid-cycle**, so the field is provably still AND the probe is provably not
+  vacuous. Byte-identity **19/20 PNG** (only Bowerbird differs) and **20/20
+  sidecars**.
+  ⚠️ **Two pieces of method worth stealing.** It mutation-proved **one arm at a
+  time** — item 237's technique, applied unprompted a few hours after 237
+  established it — and the replacement law **names the consumer it caught**
+  (`Bowerbird (organic companion breathe): … 15 channel levels`;
+  `Bombora (waves): … 33 channel levels`) rather than merely going red. And it
+  **caught its own confound**: a naive same-worktree byte-identity comparison
+  reported a spurious `dirty` sidecar diff, so it re-measured from a
+  matched-basename worktree at the parent commit, because the gutter renders the
+  project name and a different basename changes the pixels.
+  ⚠️ **It also cherry-picked `f8121f45` into its branch** rather than leaving the
+  red for integration — its base predated the clippy repair, so its own
+  `code-health.sh` inherited main's failure. Merged without conflict.
+  🔵 **OWED, and nothing above implies it:** the `--release` sitting — whether
+  the pop is gone by eye, the amplitude (`ORGANIC_BREATHE_AMOUNT = 1.2`, tuned
+  to a ~17-level peak channel swing after a first value proved sub-perceptible),
+  and whether it reads as a flash. Both constants are marked taste-tunable in
+  the shader. **The display is locked; no sitting was attempted.**
+
 🔴🔴 **CI RED 2026-08-04, CAUSED BY THIS SESSION'S OWN BRIEFS. Repaired at
 `f8121f45`, pushed. READ THIS BEFORE WRITING ANOTHER BRIEF.**
 
