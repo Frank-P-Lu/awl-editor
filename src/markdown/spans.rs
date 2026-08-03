@@ -395,9 +395,9 @@ pub fn frontmatter_end(md_spans: &[(Range<usize>, MdKind)]) -> Option<usize> {
     })
 }
 
-/// The words-per-minute used to turn a word count into a reading-time estimate.
-/// 200 wpm is the conventional silent-prose reading rate; this is the SINGLE place
-/// it is defined, so the readout and its test agree.
+/// The words-per-minute used to turn a WORD count into a reading-time estimate
+/// (200 wpm, the conventional silent-prose rate) — the SINGLE place it's
+/// defined; a character count paces itself via `CountUnit::pace_per_minute`.
 pub const READING_WPM: usize = 200;
 
 /// Count words in `text` — whitespace-separated tokens. A blank document is 0.
@@ -407,13 +407,13 @@ pub fn word_count(text: &str) -> usize {
     text.split_whitespace().count()
 }
 
-/// Estimate reading time in WHOLE minutes for `words` at [`READING_WPM`], rounded
-/// UP so any prose reads as at least `1 min`. Zero words → `0` (nothing to read).
-pub fn reading_time_min(words: usize) -> usize {
+/// Estimate reading time in WHOLE minutes for `words` at `pace_per_minute`,
+/// rounded UP so any prose reads `1 min` minimum; 0 words → `0`.
+pub fn reading_time_min(words: usize, pace_per_minute: usize) -> usize {
     if words == 0 {
         0
     } else {
-        words.div_ceil(READING_WPM)
+        words.div_ceil(pace_per_minute)
     }
 }
 

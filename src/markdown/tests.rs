@@ -1399,11 +1399,15 @@ fn word_count_and_reading_time() {
     assert_eq!(word_count("one two three"), 3);
     assert_eq!(word_count("line one\nline two\n"), 4);
     // Reading time rounds UP and floors at 1 min for any prose; 0 for empty.
-    assert_eq!(reading_time_min(0), 0);
-    assert_eq!(reading_time_min(1), 1);
-    assert_eq!(reading_time_min(READING_WPM), 1);
-    assert_eq!(reading_time_min(READING_WPM + 1), 2);
-    assert_eq!(reading_time_min(READING_WPM * 3), 3);
+    assert_eq!(reading_time_min(0, READING_WPM), 0);
+    assert_eq!(reading_time_min(1, READING_WPM), 1);
+    assert_eq!(reading_time_min(READING_WPM, READING_WPM), 1);
+    assert_eq!(reading_time_min(READING_WPM + 1, READING_WPM), 2);
+    assert_eq!(reading_time_min(READING_WPM * 3, READING_WPM), 3);
+    // The pace is caller-supplied, not hardcoded: the SAME word count reads
+    // faster against a higher pace and slower against a lower one.
+    assert_eq!(reading_time_min(1000, 500), 2);
+    assert_eq!(reading_time_min(1000, 100), 10);
 }
 
 #[test]
