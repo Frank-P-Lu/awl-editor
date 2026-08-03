@@ -25,9 +25,11 @@ struct Globals {
     /// leaves every SAMPLING quantity alone; `theme::ground`'s
     /// `Background::authored_quantities` is the table that says which is which.
     scale: f32,
+    /// Organic's companion breathe phase, in CYCLES (not radians); see `organic_finds_rgb`.
+    organic_phase: f32,
     /// std140 tail padding: a uniform struct is rounded up to a multiple of its
     /// 16-byte alignment, and wgpu validates the binding against that size.
-    _pad: [f32; 2],
+    _pad: f32,
 }
 
 /// A flat, host-side descriptor of a world's [`crate::theme::Background`] — the
@@ -63,10 +65,12 @@ pub struct BgDesc {
 /// so a static world's upload is byte-identical whatever the clock holds.
 #[derive(Clone, Copy, Default)]
 pub struct AmbientUpload {
-    /// WAVES / ORGANIC phase drift, in radians (item 87 / item 163).
+    /// WAVES phase drift, in radians.
     pub drift: f32,
     /// WARPED GRID's forward travel in minor cells.
     pub warp_travel: f32,
+    /// ORGANIC's companion breathe phase, in CYCLES (raw shared-clock phase).
+    pub organic_phase: f32,
 }
 
 /// The margin-gradient render pipeline: a single fullscreen triangle alpha-blended
@@ -223,7 +227,8 @@ impl BackgroundPipeline {
             params: self.params,
             warp_travel: ambient.warp_travel,
             scale,
-            _pad: [0.0; 2],
+            organic_phase: ambient.organic_phase,
+            _pad: 0.0,
         };
         queue.write_buffer(&self.globals_buf, 0, bytemuck_lite::bytes_of(&globals));
     }

@@ -159,17 +159,18 @@ pub(super) const ZIGZAG: &[GroundQuantity] = &[
     ),
 ];
 
+// Both arrangements' "drift floors" entry is GONE, not renamed: `organic_rgb`
+// no longer computes a field-translation `drift` at all (both terms deleted
+// outright — a bower is an arrangement, deliberately placed and left alone).
+// Masses is otherwise untouched; Finds gained a companion value-breathe
+// instead, whose own dials (`ORGANIC_BREATHE_AMOUNT`, the integer rate band)
+// are density-MIX quantities, not px-space composition or sampling ones, so
+// this file's px-space table has nothing to say about them.
 pub(super) const ORGANIC_MASSES: &[GroundQuantity] = &[
     logical(
         "scale_px (the cell)",
         "the collage's cell SIZE — how many masses a margin holds and how large \
          each reads. The quantity item 176 made countable",
-    ),
-    logical(
-        "the drift floors (12px x, 9px y)",
-        "a displacement the eye measures against the collage it moves; in \
-         physical px a 2x display would slide the field half as far, reopening \
-         item 163's \"could not see it move\" defect on the best displays",
     ),
     logical(
         "the mass/island/hole radii and their soft edges",
@@ -198,11 +199,6 @@ pub(super) const ORGANIC_FINDS: &[GroundQuantity] = &[
         "the anchor/companion/cut-out radii, offsets, jitter and lattice angle",
         "authored in CELL units, so the role hierarchy item 176 proves holds at \
          any scale and any density",
-    ),
-    logical(
-        "the drift floors (12px x, 9px y)",
-        "as Masses — both arrangements share one whole-field translation, and a \
-         displacement is measured against the collage it moves",
     ),
     physical(
         "FINDS_EDGE_AA_PX (the 0.75px crisp edge)",

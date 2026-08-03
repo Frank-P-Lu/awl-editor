@@ -88,8 +88,8 @@ reason = "The external-change check at focus return (+3, comment included). This
 
 [[file_size_mark]]
 file = "src/background.rs"
-lines = 283
-reason = "The grouped per-frame AmbientUpload keeps the prepare call below the argument ceiling; Globals remains the uniform's single Rust mirror, including Kite's forward-travel scalar. The one construction site each pipeline family has now sits inside gpu_cache::render_pipeline's build closure — the seam that makes a GPU program once-per-process instead of once-per-instance, which is what the hosted-macOS gate wedged on. The growth is that closure's own indent (+1)."
+lines = 288
+reason = "The grouped per-frame AmbientUpload keeps the prepare call below the argument ceiling; Globals remains the uniform's single Rust mirror, including Kite's forward-travel scalar. The one construction site each pipeline family has now sits inside gpu_cache::render_pipeline's build closure — the seam that makes a GPU program once-per-process instead of once-per-instance, which is what the hosted-macOS gate wedged on. The growth is that closure's own indent (+1). Organic's field-translation drift is replaced by a companion breathe phase, one new Globals/AmbientUpload scalar each (+5)."
 
 [[file_size_mark]]
 file = "src/buffer.rs"
@@ -343,8 +343,8 @@ lines = 1465
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
-lines = 1333
-reason = "The affordance is part of the drawn gutter block, so it joins that block's own cache key (+3)."
+lines = 1339
+reason = "The affordance is part of the drawn gutter block, so it joins that block's own cache key (+3). Organic's ambient branch splits into two owners (drift for Waves, breathe phase for Organic) now that the deleted field-translation drift no longer shares one variable with the new companion breathe (+6)."
 
 [[file_size_mark]]
 file = "src/render/livingband.rs"
@@ -736,7 +736,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/layers.rs"
-line = 951
+line = 957
 message = "this function has too many lines (170/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 

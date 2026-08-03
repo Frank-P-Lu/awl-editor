@@ -1,7 +1,8 @@
 //! Item 117's GPU laws: the organic ground is Bowerbird-only, stays outside
 //! the page column, and remains visibly-but-quietly populated at dashboard
 //! narrow/wide Room geometries.
-use super::backgrounds_item69::{bg_desc_for, headless_dq, render_bg};
+use super::backgrounds_item69::{bg_desc_for, headless_dq, render_bg, render_bg_ambient};
+use crate::background::AmbientUpload;
 use crate::theme;
 
 #[test]
@@ -61,18 +62,25 @@ fn organic_occupies_dashboard_margins_but_never_the_page() {
     }
 }
 
-#[test]
-fn organic_phase_moves_and_wraps_without_a_catchup_jump() {
-    let p0 = crate::background::waves_drift_radians(0.0);
-    let p1 = crate::background::waves_drift_radians(crate::lava::LAVA_LOOP_CYCLES);
-    assert!(
-        (p0.sin() - p1.sin()).abs() < 1e-5 && (p0.cos() - p1.cos()).abs() < 1e-5,
-        "shared settled phase wraps exactly"
-    );
-}
+// `organic_phase_moves_and_wraps_without_a_catchup_jump` — DELETED. It was
+// the sharpest vacuous law found in this repo, and the reason Bowerbird's
+// field-translation pop shipped unguarded. Three compounding reasons it
+// could never fail: (a) it called `waves_drift_radians`, a function Organic
+// never read (Organic computed its own drift inline, `render/layers.rs`'s
+// `is_organic()` arm); (b) it never applied the `0.73` term that actually
+// broke; and (c) what remained asserted the 2*pi-periodicity of `sin`/`cos`
+// themselves, which cannot fail for any value of any constant in this repo.
+// Its replacement — `every_ambient_consumers_shader_term_is_continuous_
+// across_the_wrap`, sweeping every ambient ground's own drift-to-shader term
+// through the REAL shader, mutation-proven against a reintroduced non-integer
+// rate — lives in `render/tests/ambient_wrap_law.rs`. Organic's own
+// translation is gone outright: a bower is an arrangement, deliberately
+// placed and then left alone; see
+// `organic_phase_sweep_stays_cool_at_every_breathe_phase` below for what
+// replaced this test's density-mutation half.
 
 #[test]
-fn organic_phase_sweep_stays_cool_and_the_density_mutation_goes_red() {
+fn organic_phase_sweep_stays_cool_at_every_breathe_phase() {
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -80,8 +88,12 @@ fn organic_phase_sweep_stays_cool_and_the_density_mutation_goes_red() {
     let bg = theme::BOWERBIRD.background;
     let (w, h, left, col) = (1200, 800, 350.0, 500.0);
     let mut peak_marks = 0usize;
-    for phase in [0.0, 0.13, 0.37, 0.71, 1.0] {
-        let pixels = render_bg(
+    // The sweep drives `organic_phase` (raw cycles, the companion breathe's
+    // own input), not `drift` (radians): the ground no longer reads
+    // `g.drift` at all, so sweeping THAT would silently sweep nothing and
+    // this law would go vacuous exactly the way its deleted predecessor did.
+    for phase in [0.0, 0.37, 1.0, 1.63, 1.9999] {
+        let pixels = render_bg_ambient(
             &device,
             &queue,
             bg_desc_for(bg),
@@ -89,7 +101,11 @@ fn organic_phase_sweep_stays_cool_and_the_density_mutation_goes_red() {
             h,
             left,
             col,
-            phase * std::f32::consts::TAU,
+            AmbientUpload {
+                organic_phase: phase,
+                ..Default::default()
+            },
+            1.0,
         );
         for (i, p) in pixels.iter().enumerate() {
             let x = (i as u32) % w;

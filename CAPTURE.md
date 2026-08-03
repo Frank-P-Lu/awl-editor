@@ -525,8 +525,9 @@ clock, so a time-varying ground renders its settled frame and nothing else. Four
 dev-only env knobs exist for exactly that gap, each read once at startup,
 memoized, and a TOTAL no-op unless set: `AWL_LAVA=<palette>:<phase>[:edge][:dither]`
 (the lava lamp), `AWL_STARS_PHASE=<cycles>` (the twinkling stars),
-`AWL_WAVES_PHASE=<cycles>` (Bombora's wave drift and Bowerbird's organic drift —
-one shared clock, one knob), and `AWL_WARP_PHASE=still|settled|start|wrap|<seconds>`
+`AWL_WAVES_PHASE=<cycles>` (Bombora's wave drift and Bowerbird's companion
+value-breathe — one shared clock, one knob), and
+`AWL_WARP_PHASE=still|settled|start|wrap|<seconds>`
 (Kite's linear forward-travel phase). None of them
 is a user setting, and none appears in `--help`.
 
