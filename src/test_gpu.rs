@@ -86,13 +86,21 @@ pub(crate) fn shared_device_queue() -> Option<(wgpu::Device, wgpu::Queue)> {
 /// `OOMKilled=true`. See [`crate::gpu_alloc`].
 #[cfg(not(target_arch = "wasm32"))]
 fn arrive(device: &wgpu::Device, queue: &wgpu::Queue) {
-    trace(device);
+    let held = traced().then(|| crate::gpu_alloc::live(device));
     crate::gpu_alloc::reclaim(device, queue);
+    if let Some(held) = held {
+        trace(device, held);
+    }
 }
 
 /// One line per device acquisition on `AWL_GPU_ALLOC_TRACE=1`, and nothing at
 /// all otherwise — the raw material for the accumulation measurement item 239
 /// is built on.
+///
+/// `held` is what the PREVIOUS test left on the device; `kept` is what survives
+/// [`arrive`]'s sweep. The pair is the whole diagnostic: `held` large and `kept`
+/// small is one heavy test being cleaned up after, which is fine; `kept`
+/// climbing across acquisitions is the suite accumulating, which is not.
 ///
 /// Every render test reaches the shared device through this function or through
 /// [`with_shared_programs`], so a trace indexed by call number is a trace
@@ -109,21 +117,25 @@ fn arrive(device: &wgpu::Device, queue: &wgpu::Queue) {
 /// worlds, `8207e519` has 20 and a `background.wgsl` 267 lines longer), so a
 /// trace that claims to be from the other tree says so in its own first field.
 #[cfg(not(target_arch = "wasm32"))]
-fn trace(device: &wgpu::Device) {
-    use std::sync::atomic::{AtomicU64, Ordering};
+fn traced() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("AWL_GPU_ALLOC_TRACE").is_some())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn trace(device: &wgpu::Device, held: crate::gpu_alloc::GpuLive) {
+    use std::sync::atomic::{AtomicU64, Ordering};
     static N: AtomicU64 = AtomicU64::new(0);
-    if !*ON.get_or_init(|| std::env::var_os("AWL_GPU_ALLOC_TRACE").is_some()) {
-        return;
-    }
-    let live = crate::gpu_alloc::live(device);
+    let kept = crate::gpu_alloc::live(device);
     println!(
-        "gpu-alloc-trace acquire={} total={} buffers={} textures={} views={} themes={} bgwgsl={}",
+        "gpu-alloc-trace acquire={} held={} kept={} buffers={} textures={} views={} \
+         themes={} bgwgsl={}",
         N.fetch_add(1, Ordering::Relaxed) + 1,
-        live.total(),
-        live.buffers,
-        live.textures,
-        live.texture_views,
+        held.total(),
+        kept.total(),
+        kept.buffers,
+        kept.textures,
+        kept.texture_views,
         crate::theme::THEMES.len(),
         include_str!("../shaders/background.wgsl").len(),
     );
