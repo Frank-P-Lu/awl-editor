@@ -635,6 +635,34 @@ converts the hang into an ordinary failure exactly as intended. **What is still
 owed is one run where the gating arms PASS and a wedge failure alone leaves the
 workflow green** — that is run `30836476858` on `f8121f45`, in flight.
 
+⚠️ **TWO ORCHESTRATOR MISTAKES ON 2026-08-04, BOTH ALREADY WRITTEN DOWN
+SOMEWHERE AND BOTH MADE ANYWAY. Recorded so the next session does better than
+re-read them.**
+
+**1. Committed a board note WHILE the merge-train gate ran, and threw away a
+full native run.** `native-gate.sh` refused correctly:
+`native-gate: HEAD changed while the suite ran (start=0d0a8b1b… end=76903fc1…);
+no receipt issued`. Every test had passed, both conventions, zero failures —
+and none of it counted. This is the README's own §Gates rule, and the identical
+incident it already records from 2026-07-31. **The failure mode is sequencing:
+folding a landing note in right after a merge is correct BETWEEN gates and wrong
+DURING one.** Re-run gave
+`native-gate-receipt commit=76903fc1dcd13a1755eb55677bc504b554e1c87d conventions=mac,linux scope=all-targets`.
+The gate catching its own invalidation is the only reason the loss was visible
+rather than a receipt naming a tree that had moved underneath it.
+
+**2. Pushed while a CI run was still in flight, cancelling the exact
+verification that was owed.** `ci.yml`'s concurrency group is
+`cancel-in-progress: true`, so pushing `76903fc1` killed run `30836476858`
+mid-flight — the run that was going to pay item 243's clause 2. Nothing is lost
+permanently (the next run does the same job) but ~65 minutes are. ⚠️ **THIS IS
+NOW STRUCTURALLY WORSE THAN IT USED TO BE AND THE BOARD SHOULD SAY SO: since
+`da70df93`, a full CI cycle is ~65 MINUTES**, because the tolerated wedge burns
+its 2×1500 s budget before failing. **So the README's "let one run finish before
+pushing the next" is no longer a politeness — it is a 65-minute window in which
+any push destroys the evidence.** Batch the train, or accept that clause-2-style
+end-to-end CI evidence needs a quiet window nobody pushes into.
+
 ⚠️ **A BRIEF DEFECT THIS WAVE PAID FOR — fix it in the next brief template.**
 Items 240 and 243 were each green alone and **red together**: 240's new file
 carried a 104-column line and was not `rustfmt`-clean, and combined `main`
