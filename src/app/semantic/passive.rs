@@ -83,7 +83,7 @@ impl App {
     /// WHICH card is open, asked from the gates alone. The gate is cheap; the
     /// INPUTS behind it are not — [`crate::card::figures::DocFigures::of`]
     /// walks the whole document — so a frame with no card up must be able to
-    /// find that out without walking one (item 218).
+    /// find that out without walking one.
     pub(in crate::app) fn card_kind_open(&self) -> Option<crate::card::content::CardKind> {
         let overlay_active = self.workspace_state.overlay_open();
         crate::card::content::open_kind(

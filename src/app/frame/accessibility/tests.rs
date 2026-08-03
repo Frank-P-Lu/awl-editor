@@ -1,4 +1,4 @@
-//! The incremental-update laws (item 218).
+//! The incremental-update laws.
 //!
 //! Every one of these asserts a COUNT, not a duration. A latency number cannot
 //! tell "one line was re-read" apart from "nothing was re-read", and CLAUDE.md
@@ -160,7 +160,10 @@ fn a_one_character_edit_costs_the_same_at_every_document_size() {
     }
 
     for (lines, runs, _, _, nodes) in &measured {
-        assert_eq!(*runs, 1, "{lines} lines: an edit rebuilt {runs} runs, not 1");
+        assert_eq!(
+            *runs, 1,
+            "{lines} lines: an edit rebuilt {runs} runs, not 1"
+        );
         assert_eq!(
             *nodes, 2,
             "{lines} lines: an edit published {nodes} nodes; it must be the \

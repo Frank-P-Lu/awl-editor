@@ -63,11 +63,10 @@ fn raw_markdown_snapshot_has_one_focus_and_grapheme_selection() {
 /// for a one-shot consumer and the wrong shape for a frame, so the call sites
 /// are enumerated.
 ///
-/// Item 218 shortened this list rather than lengthening it. The live frame path
-/// no longer appears at all: `refresh_accessibility` drives the RETAINED
-/// `SemanticProjection`, which re-reads only the lines an edit touched, so
-/// `app/semantic/mod.rs` naming this function again would mean the per-frame
-/// whole-document cost had come back.
+/// The live frame path is deliberately absent: `refresh_accessibility` drives
+/// the RETAINED `SemanticProjection`, which re-reads only the lines an edit
+/// touched, so `app/semantic/mod.rs` naming this function again would mean the
+/// per-frame whole-document cost had come back.
 #[test]
 fn semantic_snapshot_has_no_ungated_frame_side_caller() {
     let mut found: Vec<String> = Vec::new();
@@ -107,6 +106,9 @@ fn semantic_snapshot_has_no_ungated_frame_side_caller() {
     let mut sanctioned = vec![
         // The live-App sidecar embeds the same snapshot.
         "src/app/capture_state.rs".to_string(),
+        // `--bench-a11y` times the RETIRED whole-document path against the
+        // retained one; measuring the old cost is the point of the mode.
+        "src/app/semantic/bench.rs".to_string(),
         // `--semantic-json` prints it.
         "src/main/run/live_app.rs".to_string(),
     ];

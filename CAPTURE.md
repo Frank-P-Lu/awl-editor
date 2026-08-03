@@ -673,8 +673,9 @@ about what a screen reader actually receives, not about a model of it
 (`semantic::native::tests::json_and_accesskit_are_projections_of_the_same_snapshot`).
 
 The object is `{ schema, root_id, focus_id, nodes }`. `schema` is its own
-version string, `awl-semantic/1`, independent of the capture schema — the
-semantic tree is consumed on its own by `--semantic-json` as well. `focus_id`
+version string, **`awl-semantic/2`** (item 218 split the document into line
+runs — see below), independent of the capture schema, because the semantic tree
+is consumed on its own by `--semantic-json` as well. `focus_id`
 names the ONE node with `focused: true`; that is an invariant, not a
 convention, and it holds no matter how many passive surfaces are up. Each node
 in `nodes` carries `id`, `role`, `name`, and only the properties that apply:
@@ -687,6 +688,20 @@ omits empty and false-valued keys rather than spelling them out.
 Ids are stable across edits AND across filtering: a picker row is keyed by its
 CORPUS position, so typing a query narrows the visible rows without renaming
 the survivors.
+
+**The document is a sequence of LINE RUNS** (`awl-semantic/2`, item 218), not
+one node holding the whole rope. The document node's `children` are
+`document.run.<id>` nodes in reading order, one per line, each carrying that
+line's text as its `value` — INCLUDING its trailing newline, so the runs
+concatenate to the document byte for byte and the document node's
+grapheme-offset `selection` is the sum of the run counts before it plus the
+offset within. The ids come from `crate::semantic::runs::RunTable` and are
+stable in the same sense a picker row's is: a run keeps its id through edits to
+its own line and to every other, so a screen reader's cursor does not move when
+a line is inserted above it. That is what lets the live adapter publish CHANGED
+nodes after activation instead of the whole tree on every redraw. A sidecar
+assertion about document text therefore reads the runs, not a single
+`document.text` node — which no longer exists.
 
 **Every passive surface a live-`App` capture DRAWS, it also announces.** The
 summoned cards (About, Lifetime, Streaks, the stats HUD, the shortcut peek),

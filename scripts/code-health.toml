@@ -93,7 +93,8 @@ reason = "The grouped per-frame AmbientUpload keeps the prepare call below the a
 
 [[file_size_mark]]
 file = "src/buffer.rs"
-lines = 892
+lines = 885
+reason = "DOWN 7. The run table's accessors moved to the new `buffer/runs.rs` and `set_text` moved beside the `apply_edit` choke point it drives in `buffer/undo.rs`; what stays here is the `runs` field itself and its one `from_rope` construction site, which the struct definition cannot delegate."
 
 [[file_size_mark]]
 file = "src/buffer/edit.rs"
@@ -198,13 +199,13 @@ reason = "The one construction site each pipeline family has now sits inside gpu
 
 [[file_size_mark]]
 file = "src/main/args.rs"
-lines = 1264
-reason = "`parse_args` is the ONE flag-parsing owner AND the ONE hermetic-sandbox install site: the `--seed-data` slot needs an arm, a help line, and the refusal that keeps it from being a silent no-op outside a scenario door (+39)."
+lines = 1271
+reason = "`parse_args` is the ONE flag-parsing owner AND the ONE hermetic-sandbox install site: the `--seed-data` slot needs an arm, a help line, and the refusal that keeps it from being a silent no-op outside a scenario door (+39). `--bench-a11y` costs the irreducible three pieces a hidden bench flag costs in this parser — a local, a match arm, a mode return (+7); there is no second place a flag is read."
 
 [[file_size_mark]]
 file = "src/main/run.rs"
-lines = 1057
-reason = "item 207, DOWN 5: the two live-`App` dispatch arms collapsed to one line each when `--screenshot-app` and `--semantic-json` started carrying the shared `args::LiveAppSpec` payload instead of five destructured fields apiece."
+lines = 1058
+reason = "The `Mode::BenchA11y` dispatch arm is one line in the ONE mode dispatch, which the design keeps singular (+1). item 207, DOWN 5: the two live-`App` dispatch arms collapsed to one line each when `--screenshot-app` and `--semantic-json` started carrying the shared `args::LiveAppSpec` payload instead of five destructured fields apiece."
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
@@ -505,8 +506,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app/lifecycle.rs"
 line = 23
-message = "this function has too many lines (122/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+message = "this function has too many lines (123/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. +1: the accessibility tree must be parked BEFORE the adapter is constructed and the adapter before the window is shown, so the seed call has exactly one place it can stand in `resumed`."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -519,8 +520,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/main/args.rs"
 line = 22
-message = "this function has too many lines (786/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 121 added one minimal --ground-audition arm (+13 lines). Item 188 added one CLI flag arm, one Mode variant selection arm and its `live_app` flag to the one parser (+20), and MERGED the two hermetic-fs installs into one unconditional call (-1, after routing its one branch through the new `scenario::seed_document` owner) — the net is the smallest a new capture mode can cost in a single-owner arg parser."
+message = "this function has too many lines (793/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 121 added one minimal --ground-audition arm (+13 lines). Item 188 added one CLI flag arm, one Mode variant selection arm and its `live_app` flag to the one parser (+20), and MERGED the two hermetic-fs installs into one unconditional call (-1, after routing its one branch through the new `scenario::seed_document` owner) — the net is the smallest a new capture mode can cost in a single-owner arg parser. `--bench-a11y` adds the same irreducible three pieces every hidden bench flag here adds (+7)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -540,8 +541,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
 line = 764
-message = "this function has too many lines (287/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Item 188 added the `Mode::ScreenshotApp` dispatch arm — a struct destructure plus a one-line delegate into `run/live_app.rs`, where the mode itself lives (+9). Item 24 REDUCED it 330 -> 292: `run`'s `Mode::Windowed` arm is now a one-line delegate into `run/location.rs::launch_windowed`, beside the launch-precedence law it opens with."
+message = "this function has too many lines (288/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Item 188 added the `Mode::ScreenshotApp` dispatch arm — a struct destructure plus a one-line delegate into `run/live_app.rs`, where the mode itself lives (+9). Item 24 REDUCED it 330 -> 292: `run`'s `Mode::Windowed` arm is now a one-line delegate into `run/location.rs::launch_windowed`, beside the launch-precedence law it opens with. `Mode::BenchA11y` is one more one-line delegate in the same exhaustive match (+1)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

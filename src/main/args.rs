@@ -57,6 +57,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
     let mut bench_perf = false;
     let mut bench_frame = false;
     let mut bench_theme_burst = false;
+    let mut bench_a11y = false;
     let mut bench_zoom_burst = false;
     let mut bench_frost = false;
     let mut bench_caret = false;
@@ -120,6 +121,9 @@ pub(crate) fn parse_args() -> Result<Mode> {
             }
             "--bench-theme-burst" => {
                 bench_theme_burst = true;
+            }
+            "--bench-a11y" => {
+                bench_a11y = true;
             }
             "--bench-zoom-burst" => {
                 bench_zoom_burst = true;
@@ -682,6 +686,9 @@ pub(crate) fn parse_args() -> Result<Mode> {
     }
     if bench_theme_burst {
         return Ok(Mode::BenchThemeBurst);
+    }
+    if bench_a11y {
+        return Ok(Mode::BenchA11y);
     }
     if bench_zoom_burst {
         return Ok(Mode::BenchZoomBurst);

@@ -13,6 +13,8 @@ use crate::semantic::{
     SemanticSelection, SemanticSnapshot,
 };
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod bench;
 mod passive;
 mod projection;
 mod requests;
@@ -154,9 +156,7 @@ impl App {
     /// actually served, so a law can tell the synchronous branch from the
     /// placeholder one.
     #[cfg(test)]
-    pub(crate) fn attach_assistive_technology_for_test(
-        &mut self,
-    ) -> Option<accesskit::TreeUpdate> {
+    pub(crate) fn attach_assistive_technology_for_test(&mut self) -> Option<accesskit::TreeUpdate> {
         self.seed_accessibility_tree();
         let served = self.frame.activate_accessibility_for_test();
         // What `handle_accessibility_event(InitialTreeRequested)` does next.

@@ -254,13 +254,9 @@ pub struct Buffer {
     /// section extent + auto-expand rules live in [`crate::fold`]; this buffer owns
     /// only the set + the caret-relative gestures over it.
     folds: std::collections::BTreeSet<usize>,
-    /// STABLE LINE IDENTITY for the accessibility projection
-    /// ([`crate::semantic::runs`]). Ids and revisions only — never text; the
-    /// rope above stays the one document. It lives on the buffer because the
-    /// three rope-mutation sites in `buffer/undo.rs` are the only places that
-    /// know which lines an edit touched, and a projection that had to work
-    /// that out for itself would have to diff the whole document every frame —
-    /// which is the defect this field exists to retire.
+    /// STABLE LINE IDENTITY for the accessibility projection (`buffer/runs.rs`).
+    /// Ids and revisions only — never text; the rope above stays the one
+    /// document.
     runs: crate::semantic::runs::RunTable,
 }
 
@@ -323,51 +319,12 @@ impl Buffer {
         self.version
     }
 
-    /// This buffer's stable per-line run identity (see [`crate::semantic::runs`]).
-    pub fn runs(&self) -> &crate::semantic::runs::RunTable {
-        &self.runs
-    }
-
-    /// The lines an edit over the char range `start..end` covers, as table
-    /// indices, read BEFORE the rope is mutated.
-    pub(super) fn line_span_of(&self, start: usize, end: usize) -> (usize, usize) {
-        let clamp = |char_index: usize| self.rope.char_to_line(char_index.min(self.rope.len_chars()));
-        let first = clamp(start);
-        (first, clamp(end).max(first))
-    }
-
-    /// Record, on the run table, that the lines `first..=last` were replaced by
-    /// the text `inserted`. Called from the three rope-mutation sites only.
-    pub(super) fn resplice_runs(&mut self, first: usize, last: usize, inserted: &str) {
-        self.runs
-            .splice(first, last, inserted.matches('\n').count() + 1);
-        debug_assert_eq!(
-            self.runs.runs().len(),
-            self.rope.len_lines().max(1),
-            "the run table drifted from the rope's line count",
-        );
-    }
-
     pub fn text(&self) -> String {
         self.rope.to_string()
     }
 
     pub fn line_count(&self) -> usize {
         self.rope.len_lines().max(1)
-    }
-
-    /// One accessibility RUN's text: the line INCLUDING its trailing `\n` where
-    /// it has one. That is what makes the concatenation of every run the
-    /// document byte for byte, so adding up per-run grapheme counts gives the
-    /// same answer as segmenting the whole document — the identity the
-    /// projection's offset arithmetic rests on. Distinct from
-    /// [`Self::line_text`], which stops before the newline because
-    /// smart-newline wants the block prefix, not the break.
-    pub fn run_text(&self, line: usize) -> String {
-        if line >= self.rope.len_lines() {
-            return String::new();
-        }
-        self.rope.line(line).to_string()
     }
 
     pub fn path(&self) -> Option<&Path> {
@@ -826,22 +783,6 @@ impl Buffer {
         (start, end)
     }
 
-    /// Replace the ENTIRE buffer contents with `new` as ONE atomic, undoable edit,
-    /// then seal the group so it is its own undo step. The cursor lands at the end
-    /// of the inserted text (callers that care reposition it afterward). Used by
-    /// find-and-replace, which computes the post-replace document wholesale; a
-    /// no-op replacement (identical text) is the caller's to skip.
-    pub fn set_text(&mut self, new: &str) {
-        self.clear_kill_flag();
-        self.goal_col = None;
-        self.anchor = None;
-        let before = self.cursor;
-        let len = self.rope.len_chars();
-        let after = new.chars().count();
-        self.apply_edit(0, len, new, before, after);
-        self.seal_undo_group();
-    }
-
     pub fn select_range(&mut self, start: usize, end: usize) {
         self.clear_kill_flag();
         self.goal_col = None;
@@ -937,5 +878,8 @@ pub use edit::is_url;
 mod notes;
 pub use notes::*;
 
+#[cfg(test)]
+mod run_law;
+mod runs;
 #[cfg(test)]
 mod tests;

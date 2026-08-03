@@ -199,12 +199,10 @@ pub fn open_card(inputs: &CardInputs) -> Option<CardContent> {
 }
 
 /// WHICH card is open, from the two gate bits and the process globals alone.
-///
-/// Split out of [`open_card`] so a caller can ask the question before paying
-/// for the answer: [`CardInputs`] carries [`crate::card::figures::DocFigures`],
-/// which walks the whole document, and the accessibility projection must not
-/// walk a document to discover that no card is up (item 218). The precedence
-/// lives here and only here, so both callers agree by construction.
+/// Split out of [`open_card`] so a caller can ask before paying for the answer:
+/// [`CardInputs`] carries [`crate::card::figures::DocFigures`], which walks the
+/// whole document, and the accessibility projection must not walk one to learn
+/// that no card is up. The precedence lives here alone, so both callers agree.
 pub fn open_kind(hud_held: bool, peek_shown: bool) -> Option<CardKind> {
     if crate::streaks::streaks_open() {
         Some(CardKind::Streaks)

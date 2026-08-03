@@ -12,10 +12,10 @@
 //!
 //! **Incremental updates afterwards.** AccessKit expects a full tree once, at
 //! activation, and changed nodes from then on. Republishing the whole document
-//! on every redraw is what item 218 was raised for: while an assistive
-//! technology is attached, a one-character edit was cloning the rope, running
-//! UAX #29 over the entire document and re-sending every node, which VoiceOver
-//! reports as "awl is not responding".
+//! on every redraw is what a user hears as a stall: while an assistive
+//! technology is attached, a one-character edit would clone the rope, run
+//! UAX #29 over the entire document and re-send every node — enough, on a book,
+//! for VoiceOver to report the app as not responding.
 //!
 //! **The activation handler runs on a platform thread and touches no `App`.**
 //! It reads a mutex and posts one winit event; every transition still happens
@@ -101,6 +101,10 @@ pub(super) struct AccessibilityRuntime {
     /// The retained projection. Moved out for the duration of a refresh so the
     /// refresh can borrow the whole `App` immutably.
     projection: Option<SemanticProjection>,
+    /// The retained NATIVE half — the document's child ids, which travel with
+    /// the document node on every keystroke and are the one document-sized
+    /// thing an incremental update would otherwise rebuild.
+    projector: crate::semantic::native::TreeProjector,
     /// The document state the slot's snapshot was built from — identity AND
     /// revision, so a buffer swap that restarts `version` at 0 cannot be
     /// mistaken for the same document.
@@ -123,6 +127,7 @@ impl AccessibilityRuntime {
             adapter: None,
             shared: Arc::new(SharedTree::new()),
             projection: None,
+            projector: crate::semantic::native::TreeProjector::default(),
             published_state: (0, 0),
             published_focus: String::new(),
             active: false,
@@ -154,6 +159,7 @@ impl AccessibilityRuntime {
         if let Some(projection) = self.projection.as_mut() {
             projection.invalidate();
         }
+        self.projector.invalidate();
         self.published_focus.clear();
         self.owes_full = true;
     }
@@ -253,20 +259,22 @@ impl AccessibilityRuntime {
         }
         let focus_moved = projection.snapshot().focus_id != self.published_focus;
         let full = self.owes_full || !projection.is_seeded();
+        let shape = projection.shape_rev();
+        // Disjoint field borrows: the projector is `&mut` inside the closure
+        // while the adapter is `&mut` around it.
+        let Self {
+            adapter, projector, ..
+        } = self;
         if full {
-            if let Some(adapter) = self.adapter.as_mut() {
-                adapter
-                    .update_if_active(|| crate::semantic::native::tree_update(projection.snapshot()));
+            if let Some(adapter) = adapter.as_mut() {
+                adapter.update_if_active(|| projector.full(projection.snapshot(), shape));
             }
             projection.note_full_tree();
         } else if !projection.changed().is_empty() || focus_moved {
             let count = projection.changed().len();
-            if let Some(adapter) = self.adapter.as_mut() {
+            if let Some(adapter) = adapter.as_mut() {
                 adapter.update_if_active(|| {
-                    crate::semantic::native::incremental_tree_update(
-                        projection.snapshot(),
-                        projection.changed(),
-                    )
+                    projector.incremental(projection.snapshot(), projection.changed(), shape)
                 });
             }
             projection.note_incremental(count);

@@ -120,6 +120,12 @@ impl SemanticProjection {
         self.stats
     }
 
+    /// The run SEQUENCE's revision — the cache key for anything derived from
+    /// the document's child list.
+    pub(crate) fn shape_rev(&self) -> u64 {
+        self.shape_rev
+    }
+
     /// Has this projection ever been built? A projection that has not is owed a
     /// full tree, because the platform is holding a placeholder.
     pub(crate) fn is_seeded(&self) -> bool {
