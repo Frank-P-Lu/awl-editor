@@ -82,14 +82,23 @@ struct Globals {
     // is not. See `to_logical` / `sampling_feather` and the classification table
     // in `src/theme/ground.rs`, which is the authority this file mirrors.
     scale: f32,
+    // ITEM 244 — Organic's own per-frame breathe phase, in CYCLES (the raw
+    // shared-clock phase, NOT radians — unlike `drift` above, nothing
+    // pre-multiplies this by TAU). `0.0` for every non-Organic ground and
+    // every settled/headless frame. Read directly by `organic_finds_rgb`'s
+    // companion (`kind_b`) value-breathe, whose envelope shape matches
+    // `stars.rs:185`'s `rate * phase / LAVA_LOOP_CYCLES`. Must byte-match
+    // `Globals.organic_phase` in src/background.rs. Replaces the field
+    // TRANSLATION `organic_rgb` used to compute from `drift` (item 163) —
+    // deleted outright, so the ground no longer translates at all.
+    organic_phase: f32,
     // std140 tail padding — a uniform struct is rounded up to its 16-byte
-    // alignment, and the Rust mirror must allocate the same bytes. THREE
-    // SCALARS, never a `vec3<f32>`: a vec3 carries 16-byte alignment, which
-    // would push the tail to offset 112 and the struct to 128, and wgpu
-    // validates the binding against that size (it does, by name, the moment
-    // this drifts).
+    // alignment, and the Rust mirror must allocate the same bytes. A LONE
+    // SCALAR, never folded into a `vec2`/`vec3`: a vec2 carries 8-byte
+    // alignment and a vec3 16-byte, either of which would move this tail and
+    // the struct's total size, and wgpu validates the binding against that
+    // size (it does, by name, the moment this drifts).
     pad0: f32,
-    pad1: f32,
 };
 
 @group(0) @binding(0) var<uniform> g: Globals;
@@ -426,46 +435,15 @@ fn tri_tone_mix(coord: f32, b1: f32, b2: f32, aa: f32) -> vec3<f32> {
     return mix(tone01, g.c_to.rgb, m2);
 }
 
-// ITEM 163: the shipped drift translated the whole field by only ~5x4px
-// (`sin(g.drift)*5.0, cos(g.drift*0.73)*4.0`) — against a `scale_px` cell of
-// 156px that reads as under 4% of a cell, so a live user glancing back after
-// a minute genuinely could not see it move even though every phase-motion
-// law (below) already passed: those laws proved SOME pixel changed, never
-// that the change was big enough to register. `ORGANIC_DRIFT_X_FRAC`/`_Y`
-// scale the drift to a FRACTION of the cell size `s` instead of a fixed
-// pixel count, so the authored displacement stays proportionate if a future
-// Organic world ever ships a different `scale_px`. Both fractions stay well
-// under 0.5 (never sliding a whole cell's width in one throw) and the two
-// axes keep DIFFERENT magnitudes/frequencies (`sin(g.drift)` vs
-// `cos(g.drift * 0.73)`, unchanged) so the composition reads as one cohesive
-// collage sliding a lazy, slightly elliptical path — never a rigid ping-pong
-// on a single line. `cell`/`local` are translated TOGETHER (both read
-// `px + drift`), the same "pan an infinite tiled field" shape as before: a
-// blob's identity is a hash of its (translated) integer cell, so panning
-// only ever reveals more of the SAME static authored composition — no blob
-// spawns, dissolves, or deforms; the shapes are pure functions of position,
-// exactly as before, just sampled through a bigger window.
+// ITEM 244 — THE FIELD TRANSLATION IS GONE. Item 163's `drift` vec2 (a
+// `sin(g.drift)`/`cos(g.drift * 0.73)` field pan, both terms) is deleted
+// outright, not retuned: the `0.73` term was DISCONTINUOUS across the shared
+// clock's wrap (`cos(0.73*TAU) != cos(0.0)`, a 1.125-normalised-unit jump —
+// ~22px vertically at Bowerbird's `scale_px`), and the user's own design call
+// (2026-08-04) was that a bower's ARRANGEMENT reads better held still than
+// panned: "objects deliberately placed and then left alone." The ground's one
+// remaining ambient input is the FINDS companion's own value breathe, below.
 //
-// `ORGANIC_DRIFT_MIN_X_PX`/`_Y` are a FLOOR under that same fraction, not a
-// second independent tunable: a pure fraction alone reintroduces item 163's
-// own bug at a small `s` — `s`'s own defensive clamp above bottoms out at
-// 32.0, where `32.0 * ORGANIC_DRIFT_X_FRAC` is a ~4px flashback to the
-// pre-163 amplitude. The floor guarantees a real, on-screen displacement at
-// ANY reachable `s` (Bowerbird's shipped 156px included, where the fraction
-// alone already clears it and wins the `max`), so a future Organic world
-// authored with a smaller cell can't silently ship the exact defect this
-// item fixed.
-//
-// ITEM 186: both the fractions and the two floors are COMPOSITION — a drift is
-// a displacement the eye measures against the collage it moves, so the floors
-// are LOGICAL px. In physical px a 2x display would slide the field half as far
-// as a 1x one, re-opening item 163's "genuinely could not see it move" defect
-// on exactly the displays that show the most detail.
-const ORGANIC_DRIFT_X_FRAC: f32 = 0.13;
-const ORGANIC_DRIFT_Y_FRAC: f32 = 0.10;
-const ORGANIC_DRIFT_MIN_X_PX: f32 = 12.0;
-const ORGANIC_DRIFT_MIN_Y_PX: f32 = 9.0;
-
 // --- FINDS: the COLLECTED-TREASURE arrangement (`theme::Arrangement::Finds`,
 // params.z >= 0.5). One cell draws one deliberately arranged collection of
 // THREE crisp objects — a large ANCHOR, a smaller COMPANION offset across its
@@ -561,6 +539,56 @@ const FINDS_EDGE_AA_PX: f32 = 0.75;
 // is strictly more resolution than the number was calibrated against.
 const FINDS_MIN_SCALE_PX: f32 = 96.0;
 
+// ITEM 244 — THE COMPANION'S VALUE BREATHE, replacing the deleted field
+// translation (`organic_rgb`'s own comment). Only the COMPANION role
+// (`kind_b`, drawn as `ink_b` below) breathes; the anchor and cut-out stay
+// static — selection by SHAPE KIND and the cut-out role were both
+// considered and rejected (queue item 244: kinds clump because they are
+// seeded per element, triangles are the highest-salience shape, and the
+// cut-out is the smallest element and risks falling under perceptible).
+//
+// The breathe is a `mix` between the SAME two of the world's three tones
+// `ink_b` already draws from (`c_from` and whichever of `c_to`/`c_pat` the
+// per-cell `swap` roll picked) — no new palette data — by scaling the
+// authored density fraction `d` by a small multiplier instead of introducing
+// a second blend axis. MULTIPLICATIVE, not additive, on purpose: it is what
+// keeps `density == 0.0` collapsing to the flat ground EXACTLY (`d * mult ==
+// 0` for any `mult`), the same differential-oracle invariant every other
+// ground family in this file holds
+// (`render::tests::bowerbird_finds_item176::finds_density_zero_is_exactly_
+// the_flat_ground`) — an ADDITIVE nudge would have let a live breathe phase
+// draw a companion at `density: 0.0`, silently breaking that law.
+//
+// The envelope reuses `stars.rs:185`'s own shape: a cycle position
+// `u = fract(rate * phase / LAVA_LOOP_CYCLES + offset)`, with an INTEGER
+// `rate` (so `u` meets its own endpoint exactly at the shared clock's wrap —
+// the house law this item's own defect broke) and a decorrelated per-cell
+// `offset` (so neighbouring companions never breathe in unison). A raised
+// cosine turns `u` into a smooth 0..1 pulse — continuous at the wrap because
+// `cos` of a 2*pi-periodic argument cannot jump — slow and soft by
+// construction, so it reads as a breathe, never a flash.
+//
+// `ORGANIC_LOOP_CYCLES` MUST byte-match `crate::lava::LAVA_LOOP_CYCLES`
+// (2.0) — the same shared-clock loop length `g.organic_phase` wraps at.
+const ORGANIC_LOOP_CYCLES: f32 = 2.0;
+// The same seconds-scale cadence `stars.rs`'s `TWINKLE_RATE_MIN`/`_STEPS`
+// authors (3..=8 whole cycles per ~67s loop = one breath every ~8-22s):
+// TASTE TUNABLE, reusing an already-validated "seconds-scale, never
+// flicker" band rather than a fresh, untested one.
+const ORGANIC_BREATHE_RATE_MIN: f32 = 3.0;
+const ORGANIC_BREATHE_RATE_STEPS: f32 = 6.0;
+// The density MULTIPLIER's peak-to-peak swing (`d_b` ranges
+// `d * [1 - AMOUNT/2, 1 + AMOUNT/2]`) — a fraction of the authored density,
+// itself a fraction of the tone gap. TASTE TUNABLE, flagged for live review:
+// measured peak per-channel movement at Bowerbird's shipped tones/density is
+// a real but modest ~17 sRGB levels (never the full tone gap, and reached
+// only at a companion's own breathe peak, once every ~8-22s) — comfortably
+// past "I literally don't see it" (item 163's own measured failure mode at a
+// ~2-level swing) while a raised-cosine envelope over a multi-second cycle
+// keeps it a breathe, not a flash. The live `--release` sitting is what
+// actually settles this number, not the pixel floor alone.
+const ORGANIC_BREATHE_AMOUNT: f32 = 1.2;
+
 // ITEM 191 — THE VOID-BOUND DROPOUT. The item-176 mechanism drew a cell empty
 // on an UNCONSTRAINED per-cell coin flip (`hash21(cell) < 0.10`), independent
 // cell to cell. Independent flips have no memory of their neighbours, so nothing
@@ -641,11 +669,13 @@ fn finds_fill(sd_cell: f32, s: f32) -> f32 {
     return 1.0 - smoothstep(-aa, aa, sd_cell * s);
 }
 
-fn organic_finds_rgb(px: vec2<f32>, s: f32, d: f32, drift: vec2<f32>) -> vec3<f32> {
+fn organic_finds_rgb(px: vec2<f32>, s: f32, d: f32) -> vec3<f32> {
     // The lattice is ROTATED and then per-row sheared: the scattered rhythm
     // survives, its rows and columns do not, so the field never resolves into
-    // the visible grid a plain `floor(px / s)` would draw.
-    let w = px + drift;
+    // the visible grid a plain `floor(px / s)` would draw. ITEM 244: no
+    // longer translated by any per-frame drift — a bower is an arrangement,
+    // deliberately placed and then left alone.
+    let w = px;
     let ca = cos(FINDS_LATTICE_ANGLE);
     let sa = sin(FINDS_LATTICE_ANGLE);
     let q = vec2<f32>(w.x * ca - w.y * sa, w.x * sa + w.y * ca) / s;
@@ -701,7 +731,24 @@ fn organic_finds_rgb(px: vec2<f32>, s: f32, d: f32, drift: vec2<f32>) -> vec3<f3
     // arrangement of cut objects, and the exact haze this arrangement replaces.
     // `density == 0.0` still collapses both inks onto the ground exactly.
     let ink_a = mix(g.c_from.rgb, select(g.c_pat.rgb, g.c_to.rgb, swap), d);
-    let ink_b = mix(g.c_from.rgb, select(g.c_to.rgb, g.c_pat.rgb, swap), d);
+
+    // ITEM 244 — THE COMPANION'S OWN VALUE BREATHE (see the constants' doc
+    // above). A decorrelated per-cell roll off `h6` (a fresh salt, clear of
+    // every other draw this cell already made) picks an INTEGER rate and a
+    // phase offset; `breathe` is a smooth 0..1 pulse of that roll against the
+    // shared clock's raw phase (`g.organic_phase`, cycles — never radians).
+    // Nudging `d` by it (never swapping which tone `ink_b` targets) keeps the
+    // breathe on the SAME two tones `ink_a`'s sibling companion already mixes.
+    let h6 = hash21(cell + vec2<f32>(43.0, 97.0));
+    let breathe_offset = fract(h6 * 61.8034);
+    let breathe_rate = ORGANIC_BREATHE_RATE_MIN
+        + floor(fract(h6 * 7.0) * ORGANIC_BREATHE_RATE_STEPS);
+    let breathe_u = fract(breathe_rate * g.organic_phase / ORGANIC_LOOP_CYCLES + breathe_offset);
+    let breathe = 0.5 - 0.5 * cos(breathe_u * FINDS_TAU);
+    let breathe_mult = 1.0 + (breathe - 0.5) * ORGANIC_BREATHE_AMOUNT;
+    let d_b = clamp(d * breathe_mult, 0.0, 1.0);
+    let ink_b = mix(g.c_from.rgb, select(g.c_to.rgb, g.c_pat.rgb, swap), d_b);
+
     var rgb = mix(g.c_from.rgb, ink_a, cov_a * keep);
     return mix(rgb, ink_b, cov_b * keep);
 }
@@ -710,25 +757,22 @@ fn organic_finds_rgb(px: vec2<f32>, s: f32, d: f32, drift: vec2<f32>) -> vec3<f3
 // (0.0) is cut-paper blobs: three differently-offset rounded cell fields make
 // large masses, islands, and droplets, and subtracting a small inner field
 // leaves occasional holes. FINDS (1.0) is the crisp collected-treasure field
-// above. The only time input either takes is the shared, slow ambient phase,
-// and it enters as ONE whole-field translation before the lattice is derived —
-// so a shape is a pure function of its cell, and the field can only pan, never
-// morph, spawn, dissolve, or animate one object of a collection on its own.
-// `px` is LOGICAL (item 186), so `s` — the authored cell — is a logical cell,
-// and every fraction-of-a-cell threshold in both arms follows it for free.
+// above. ITEM 244 — the field is now entirely STATIC: a shape is a pure
+// function of its cell and nothing pans, morphs, spawns, or dissolves it. The
+// FINDS arm's one remaining ambient input is the companion's own per-element
+// value breathe (`organic_finds_rgb`'s own doc), which changes a drawn
+// object's TONE, never its position. `px` is LOGICAL (item 186), so `s` —
+// the authored cell — is a logical cell, and every fraction-of-a-cell
+// threshold in both arms follows it for free.
 fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
     let finds = g.params.z >= 0.5;
     let s = max(g.params.x, select(32.0, FINDS_MIN_SCALE_PX, finds));
     let d = clamp(g.params.y, 0.0, 1.0);
-    let drift = vec2<f32>(
-        sin(g.drift) * max(s * ORGANIC_DRIFT_X_FRAC, ORGANIC_DRIFT_MIN_X_PX),
-        cos(g.drift * 0.73) * max(s * ORGANIC_DRIFT_Y_FRAC, ORGANIC_DRIFT_MIN_Y_PX),
-    );
     if (finds) {
-        return organic_finds_rgb(px, s, d, drift);
+        return organic_finds_rgb(px, s, d);
     }
-    let cell = floor((px + drift) / s);
-    let local = fract((px + drift) / s) - vec2<f32>(0.5);
+    let cell = floor(px / s);
+    let local = fract(px / s) - vec2<f32>(0.5);
     let jitter = vec2<f32>(hash21(cell), hash21(cell + vec2<f32>(7.0, 3.0))) - vec2<f32>(0.5);
     let mass = 1.0 - smoothstep(0.20, 0.42, length(local - jitter * 0.22));
     let island = 1.0 - smoothstep(0.09, 0.22, length(local + jitter * 0.35));

@@ -79,17 +79,89 @@ pub(super) fn plateau_tones(pixels: &[[u8; 4]]) -> [[u8; 4]; 3] {
     [ground, three[1], three[2]]
 }
 
-/// Label every pixel: `GROUND`, `1`/`2` for the two object tones, `EDGE` for
-/// anything else (the antialiased skirt).
-pub(super) fn label_field(pixels: &[[u8; 4]], tones: [[u8; 4]; 3]) -> Vec<u8> {
-    pixels
+/// Sum of absolute per-channel (R/G/B) differences.
+fn sad(a: [u8; 4], b: [u8; 4]) -> i32 {
+    (0..3).map(|k| (a[k] as i32 - b[k] as i32).abs()).sum()
+}
+
+/// A pixel counts as GROUND if it lands within this many [`sad`] levels of
+/// the field's single most frequent colour. TIGHT on purpose: the open
+/// ground is a flat authored value with no per-pixel variation of its own,
+/// so a genuine ground pixel sits at distance 0 and only ITS OWN
+/// antialiased fringe (blending toward some piece's ink) sits slightly off
+/// it — loosening this would swallow the very first step of a genuine
+/// ground-to-ink transition as "still ground".
+const GROUND_TOLERANCE: i32 = 1;
+
+/// Within ONE connected ink region, a pixel counts as that region's own
+/// major/minor role if it lands within this many [`sad`] levels of
+/// whichever of the region's own two most frequent colours it is nearer.
+/// TIGHT for the same reason as [`GROUND_TOLERANCE`]: within a single flat
+/// SDF-filled shape the fill is perfectly uniform (`organic_finds_rgb`'s
+/// `d_b` is a per-CELL scalar, not per-pixel), so only device/quantization
+/// jitter needs covering here — a real antialiased transition moves through
+/// most of the tone gap in very few pixels (this arrangement's `FINDS_EDGE_
+/// AA_PX` is a crisp 0.75px sub-pixel feather) and must still read as EDGE.
+const LOCAL_ROLE_TOLERANCE: i32 = 1;
+
+/// Label every pixel `GROUND`, `1`/`2`, or `EDGE` — the general replacement
+/// for the former `label_field(pixels, plateau_tones(pixels))` pair, which
+/// classified against ONE GLOBAL pair of object tones. The companion's own
+/// per-cell value breathe (`organic_finds_rgb`'s `d_b`) means there is no
+/// longer one shared pair: each collection draws its OWN anchor/companion
+/// ink, cell-seeded. This reads each connected ink region's own two most
+/// frequent colours instead — a general fix, not a loosened tolerance: a GLOBAL bound
+/// wide enough to absorb the breathe's own visible swing would, at this
+/// arrangement's deliberately crisp antialiasing, also be wide enough to
+/// swallow a genuine short transition (measured: it did, at a tolerance of
+/// 12 — 92% of boundary crossings lost their intermediate pixel). Reading
+/// the plateau LOCALLY, per region, needs no such tradeoff: a region's own
+/// fill is exact regardless of what any OTHER region's breathe is doing.
+fn local_ink_labels(pixels: &[[u8; 4]], w: u32, h: u32) -> Vec<u8> {
+    let (wi, hi) = (w as usize, h as usize);
+    let ground_tone = plateau_tones(pixels)[0];
+    let ink_mask: Vec<bool> = pixels
         .iter()
-        .map(|p| match tones.iter().position(|t| t == p) {
-            Some(0) => GROUND,
-            Some(i) => i as u8,
-            None => EDGE,
+        .map(|p| sad(*p, ground_tone) > GROUND_TOLERANCE)
+        .collect();
+    let (id, count) = components(&ink_mask, wi, hi);
+
+    let mut hist: Vec<std::collections::HashMap<[u8; 4], usize>> =
+        vec![std::collections::HashMap::new(); count];
+    for (i, &c) in id.iter().enumerate() {
+        if c != usize::MAX {
+            *hist[c].entry(pixels[i]).or_default() += 1;
+        }
+    }
+    let absent1 = [1u8, 1, 1, 0];
+    let absent2 = [2u8, 2, 2, 0];
+    let plateaus: Vec<[[u8; 4]; 2]> = hist
+        .iter()
+        .map(|hmap| {
+            let mut top: Vec<([u8; 4], usize)> = hmap.iter().map(|(&c, &n)| (c, n)).collect();
+            top.sort_by_key(|(c, n)| (std::cmp::Reverse(*n), *c));
+            [
+                top.first().map_or(absent1, |(c, _)| *c),
+                top.get(1).map_or(absent2, |(c, _)| *c),
+            ]
         })
-        .collect()
+        .collect();
+
+    let mut labels = vec![GROUND; pixels.len()];
+    for (i, &c) in id.iter().enumerate() {
+        let Some(&[p1, p2]) = (c != usize::MAX).then(|| &plateaus[c]) else {
+            continue;
+        };
+        let (d1, d2) = (sad(pixels[i], p1), sad(pixels[i], p2));
+        labels[i] = if d1 <= LOCAL_ROLE_TOLERANCE && d1 <= d2 {
+            1
+        } else if d2 <= LOCAL_ROLE_TOLERANCE {
+            2
+        } else {
+            EDGE
+        };
+    }
+    labels
 }
 
 /// One rendered COLLECTION: the connected run of ink one cell drew, with the
@@ -217,8 +289,7 @@ fn outside_ground(labels: &[u8], w: usize, h: usize) -> Vec<bool> {
 /// by the grammar, and a cropped collection has no honest role areas.
 pub(super) fn read_collections(pixels: &[[u8; 4]], w: u32, h: u32) -> Vec<Collection> {
     let (wi, hi) = (w as usize, h as usize);
-    let tones = plateau_tones(pixels);
-    let labels = label_field(pixels, tones);
+    let labels = local_ink_labels(pixels, w, h);
     let ink: Vec<bool> = labels.iter().map(|l| *l != GROUND).collect();
     let (id, count) = components(&ink, wi, hi);
     let mut out = vec![Collection::default(); count];
@@ -299,12 +370,9 @@ const FIELD_H: u32 = 1200;
 /// went vacuous.
 const MIN_COLLECTIONS: usize = 25;
 
-/// The drift law's own canvas: several cells across in both axes, small enough
-/// that an exhaustive shift search stays cheap.
-const DRIFT_W: u32 = 900;
-const DRIFT_H: u32 = 700;
-
-fn finds_field(device: &wgpu::Device, queue: &wgpu::Queue, scale: f32, drift: f32) -> Vec<[u8; 4]> {
+// The field no longer translates at all, so this reader has no phase left
+// to inject (its every caller already passed a literal `0.0`).
+fn finds_field(device: &wgpu::Device, queue: &wgpu::Queue, scale: f32) -> Vec<[u8; 4]> {
     let bg = organic_bg(theme::Arrangement::Finds, scale);
     render_bg(
         device,
@@ -314,7 +382,7 @@ fn finds_field(device: &wgpu::Device, queue: &wgpu::Queue, scale: f32, drift: f3
         FIELD_H,
         0.0,
         0.0,
-        drift,
+        0.0,
     )
 }
 
@@ -328,7 +396,7 @@ fn finds_every_collection_shows_the_three_role_hierarchy() {
         return;
     };
     let _g = crate::testlock::serial();
-    let pixels = finds_field(&device, &queue, 156.0, 0.0);
+    let pixels = finds_field(&device, &queue, 156.0);
     let found = read_collections(&pixels, FIELD_W, FIELD_H);
     assert!(
         found.len() >= MIN_COLLECTIONS,
@@ -446,7 +514,7 @@ fn finds_holds_the_three_role_grammar_at_every_reachable_cell_scale() {
         312.0,
         400.0,
     ] {
-        let pixels = finds_field(&device, &queue, scale, 0.0);
+        let pixels = finds_field(&device, &queue, scale);
         let found = read_collections(&pixels, FIELD_W, FIELD_H);
         // A 400px cell fits far fewer whole collections than a 96px one, so the
         // floor scales with the cell rather than pinning one number.
@@ -480,7 +548,7 @@ fn finds_variation_does_not_repeat_and_the_scatter_is_not_a_grid() {
         return;
     };
     let _g = crate::testlock::serial();
-    let pixels = finds_field(&device, &queue, 156.0, 0.0);
+    let pixels = finds_field(&device, &queue, 156.0);
     let found = read_collections(&pixels, FIELD_W, FIELD_H);
     assert!(found.len() >= MIN_COLLECTIONS, "vacuous: {}", found.len());
 
@@ -530,136 +598,20 @@ fn finds_variation_does_not_repeat_and_the_scatter_is_not_a_grid() {
 
 // --- Motion, gates and the ground it sits on --------------------------------
 
-/// The share of pixels that match `b` within `tol` after shifting `b` by
-/// `(sx, sy)`, over the overlapping region only.
-#[allow(clippy::too_many_arguments)]
-fn agreement(
-    a: &[[u8; 4]],
-    b: &[[u8; 4]],
-    w: u32,
-    h: u32,
-    sx: i32,
-    sy: i32,
-    tol: i32,
-    step: i32,
-) -> f64 {
-    let (mut hit, mut total) = (0usize, 0usize);
-    for y in (0..h as i32).step_by(step as usize) {
-        for x in (0..w as i32).step_by(step as usize) {
-            let (bx, by) = (x + sx, y + sy);
-            if bx < 0 || by < 0 || bx >= w as i32 || by >= h as i32 {
-                continue;
-            }
-            let p = a[(y as u32 * w + x as u32) as usize];
-            let q = b[(by as u32 * w + bx as u32) as usize];
-            total += 1;
-            if (0..3).all(|k| (p[k] as i32 - q[k] as i32).abs() <= tol) {
-                hit += 1;
-            }
-        }
-    }
-    hit as f64 / total.max(1) as f64
-}
+// `finds_drift_is_one_rigid_whole_field_translation` is DELETED: the
+// field-translation `drift` it proved rigid no longer exists at all —
+// `organic_rgb` deletes the `drift` vec2 outright, both terms, so the field
+// never translates. Its replacement claim — the field's own silhouette must
+// be IDENTICAL at every ambient phase, with only the companion's own VALUE
+// free to change — is proved in `bowerbird_breathe_item244.rs`'s
+// `bowerbird_organic_field_never_translates_across_the_ambient_clock`.
 
-/// The share of INK-bearing positions (non-ground in either frame) that agree
-/// exactly once `b` is shifted by `at`.
-fn ink_agreement(
-    a: &[[u8; 4]],
-    b: &[[u8; 4]],
-    w: u32,
-    h: u32,
-    at: (i32, i32),
-    ground: [u8; 4],
-) -> f64 {
-    let (mut hit, mut total) = (0usize, 0usize);
-    for y in 0..h as i32 {
-        for x in 0..w as i32 {
-            let (bx, by) = (x + at.0, y + at.1);
-            if bx < 0 || by < 0 || bx >= w as i32 || by >= h as i32 {
-                continue;
-            }
-            let p = a[(y as u32 * w + x as u32) as usize];
-            let q = b[(by as u32 * w + bx as u32) as usize];
-            if p == ground && q == ground {
-                continue;
-            }
-            total += 1;
-            if (0..3).all(|k| (p[k] as i32 - q[k] as i32).abs() <= 2) {
-                hit += 1;
-            }
-        }
-    }
-    hit as f64 / total.max(1) as f64
-}
-
-/// LAW: the ambient drift moves the WHOLE field as one rigid translation. It
-/// never morphs, spawns, dissolves, or animates one object of a collection
-/// against its neighbours — the property the item asks be preserved, and the
-/// one a per-object animation would break while every "some pixel changed"
-/// witness stayed green. Proved by finding the single integer offset that best
-/// aligns the two phases and showing the field agrees with itself almost
-/// everywhere there, and NOT at rest.
-#[test]
-fn finds_drift_is_one_rigid_whole_field_translation() {
-    let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping finds_drift_is_one_rigid_whole_field_translation");
-        return;
-    };
-    let _g = crate::testlock::serial();
-    let bg = bg_desc_for(organic_bg(theme::Arrangement::Finds, 156.0));
-    let field = |drift: f32| render_bg(&device, &queue, bg, DRIFT_W, DRIFT_H, 0.0, 0.0, drift);
-    let settled = field(0.0);
-    let phase = std::f32::consts::FRAC_PI_2;
-    let moved = field(phase);
-
-    // The authored displacement BETWEEN the two phases, straight from the
-    // shader's own formula. The settled frame already sits at a nonzero y
-    // offset (`cos(0) == 1`), so the prediction is the delta, not the endpoint.
-    let (ax, ay) = ((156.0f32 * 0.13).max(12.0), (156.0f32 * 0.10).max(9.0));
-    let dx = -(phase.sin() * ax - 0.0f32.sin() * ax);
-    let dy = -((phase * 0.73).cos() * ay - 1.0 * ay);
-    // Coarse search over every candidate whole-field shift, on a 1-in-9 sample
-    // (the field's own features are tens of pixels across, so a subsample
-    // cannot hide the peak), then measured at full resolution where it lands.
-    let (mut peak, mut best_at) = (0.0f64, (0i32, 0i32));
-    for sy in -24..=24 {
-        for sx in -32..=32 {
-            let a = agreement(&settled, &moved, DRIFT_W, DRIFT_H, sx, sy, 2, 3);
-            if a > peak {
-                peak = a;
-                best_at = (sx, sy);
-            }
-        }
-    }
-    assert!(
-        (best_at.0 as f32 - dx).abs() <= 1.5 && (best_at.1 as f32 - dy).abs() <= 1.5,
-        "the field's best alignment is {best_at:?}, but the authored drift predicts \
-         ({dx:.1}, {dy:.1}) — the field is not translating by the amount the shader asks for"
-    );
-    // Measured over INK, not over the whole canvas: the arrangement leaves most
-    // of the ground open, so two unshifted phases already agree on ~90% of ALL
-    // pixels and a whole-canvas figure could never tell travel from stillness.
-    let ground = plateau_tones(&settled)[0];
-    let best = ink_agreement(&settled, &moved, DRIFT_W, DRIFT_H, best_at, ground);
-    assert!(
-        best >= 0.90,
-        "after its best whole-field shift the drifted field agrees with the settled one on \
-         only {:.1}% of its ink — objects are changing shape, not travelling",
-        best * 100.0
-    );
-    let at_rest = ink_agreement(&settled, &moved, DRIFT_W, DRIFT_H, (0, 0), ground);
-    assert!(
-        at_rest < 0.60,
-        "the two phases' ink already agrees {:.1}% WITHOUT shifting — the drift is not \
-         moving the field, so the rigid-translation claim above is vacuous",
-        at_rest * 100.0
-    );
-}
-
-/// LAW (the worst-phase sweep, re-stated for the new arrangement): the field
-/// stays inside Bowerbird's cool navy value band and out of the writing column
-/// at EVERY point of the ambient cycle — a crisp field with hard edges cannot
-/// be allowed to push a worst-phase pixel warm, bright, or onto the page.
+/// LAW (the worst-phase sweep, re-stated for the new arrangement: now
+/// sweeping the companion's own breathe phase rather than the deleted
+/// field-translation drift): the field stays inside Bowerbird's cool navy
+/// value band and out of the writing column at EVERY point of the ambient
+/// cycle — a crisp field with hard edges cannot be allowed to push a
+/// worst-phase pixel warm, bright, or onto the page.
 #[test]
 fn finds_worst_phase_stays_cool_and_off_the_page() {
     let Some((device, queue)) = headless_dq() else {
@@ -669,22 +621,36 @@ fn finds_worst_phase_stays_cool_and_off_the_page() {
     let _g = crate::testlock::serial();
     let bg = organic_bg(theme::Arrangement::Finds, 156.0);
     let (w, h, left, col) = (900u32, 600u32, 220.0f32, 460.0f32);
+    let wrap = crate::lava::LAVA_LOOP_CYCLES;
     for i in 0..24 {
-        let drift = (i as f32 / 24.0) * std::f32::consts::TAU;
-        let pixels = render_bg(&device, &queue, bg_desc_for(bg), w, h, left, col, drift);
+        let phase = wrap * (i as f32) / 24.0;
+        let pixels = super::backgrounds_item69::render_bg_ambient(
+            &device,
+            &queue,
+            bg_desc_for(bg),
+            w,
+            h,
+            left,
+            col,
+            crate::background::AmbientUpload {
+                organic_phase: phase,
+                ..Default::default()
+            },
+            1.0,
+        );
         for (idx, p) in pixels.iter().enumerate() {
             let x = (idx as u32) % w;
             if (x as f32) >= left && (x as f32) < left + col {
                 assert_eq!(
                     [p[0], p[1], p[2]],
                     [0, 0, 0],
-                    "drift {drift}: collected ink entered the page column at x={x}"
+                    "phase {phase}: collected ink entered the page column at x={x}"
                 );
                 continue;
             }
             assert!(
                 p[2] >= p[0] && p[0] < 90,
-                "drift {drift}: warm/bright margin pixel {p:?} — the ground must stay cool"
+                "phase {phase}: warm/bright margin pixel {p:?} — the ground must stay cool"
             );
         }
     }
@@ -734,7 +700,7 @@ fn finds_leaves_a_generous_open_ground() {
         return;
     };
     let _g = crate::testlock::serial();
-    let pixels = finds_field(&device, &queue, 156.0, 0.0);
+    let pixels = finds_field(&device, &queue, 156.0);
     let tones = plateau_tones(&pixels);
     let ground = pixels.iter().filter(|p| **p == tones[0]).count() as f64 / pixels.len() as f64;
     assert!(
@@ -751,8 +717,7 @@ fn finds_leaves_a_generous_open_ground() {
 /// crossings the field draws, how many of them jump with NO intermediate pixel
 /// (a hard, aliased step), and the mean width of the antialiased ones.
 fn edge_stats(pixels: &[[u8; 4]], w: u32, h: u32) -> (usize, usize, f64) {
-    let tones = plateau_tones(pixels);
-    let labels = label_field(pixels, tones);
+    let labels = local_ink_labels(pixels, w, h);
     let (mut crossings, mut hard) = (0usize, 0usize);
     let mut runs: Vec<usize> = Vec::new();
     for y in 0..h as usize {
@@ -866,7 +831,7 @@ fn organic_arrangement_roster_is_bowerbird_finds_only_and_the_profile_slot_stays
 /// freeze truth table already pinned by
 /// `theme::tests::bowerbird_organic_schedules_zero_frames_under_every_freeze_
 /// condition` (Reduce Motion, `ambient_motion = false`, focus lost, paused) and
-/// the real-pixel Reduce Motion proof in `bowerbird_drift_item163` apply to
+/// the real-pixel Reduce Motion proof in `bowerbird_breathe_item244` apply to
 /// either one unchanged. A revival that quietly armed a second clock, or that
 /// dropped out of the shared one, would show up right here.
 #[test]
