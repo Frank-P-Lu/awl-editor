@@ -53,18 +53,7 @@ took it.
    exists (`1, 10, 3, 4, 1`, mean 2.68) to diff against rather than re-derive.
 2. **The tag itself, and the site deploy.** Both are the user's explicit word,
    every time. See the release section above for what must be true first.
-3. **232 — where the virtualised-GPU arm lives.** The MEASUREMENT is done and
-   landed (`5bc771ca`); only the policy is open. **No portable software adapter
-   reproduces the wedge** — two independent lavapipe stacks ran `render::tests::`
-   at both bisect boundaries and neither ever hung, and CI's `linux` job has been
-   running that exact arm, green, through the whole ~140-commit red streak. **The
-   lane's recommendation is C: declare the hosted-mac job THE arm and gate on
-   it.** A was rejected on measurement (1.67 GB image, ~14 GiB of Docker VM disk
-   that did not return, zero coverage of the target axis); B was rejected because
-   it already exists. ⚠️ **What accepting C costs today: the mac job is RED, so
-   gating on it blocks `main` until item 231 is fixed.** That is the trade, and
-   it is the whole decision.
-4. **The release support matrix (item 226 §5) — the glibc floor.** Measured: the
+3. **The release support matrix (item 226 §5) — the glibc floor.** Measured: the
    binary needs `GLIBC_2.39`, which excludes Debian 12, Ubuntu 22.04 LTS and
    RHEL 9. `RELEASING.md` §5 has the four build bases and what each reaches.
    **Decide it together with item 227's AppImage**, which may make it moot for
@@ -149,389 +138,30 @@ theme-park bell curve) stands. Recorded here because item 118's own audit found
 these two user decisions could not both hold and asked for the call before Kite
 was built rather than after.
 
-**Item 213 — 2026-08-02:** The user approved the **3 px optical lift** for the
-app-icon cursor across the complete world roster and all three cursor shapes.
-The canonical assets were already regenerated at `f8d023e1`; item 213 is
-complete.
-
-## Latest integration receipt
-
-**2026-08-02:** Item **131** is complete through final slice `3d5cbbbf` and
-animation-transaction repair `eac5b4f7`. Item **172b**'s private input-runtime
-substates are complete at `328bff0a`. Item **172c**'s `DocumentSession` landed
-at `9e52f35e` with whole-slot cache ownership and mutation-proven
-A→B→A→B→C→A restoration. Item **172d**'s single redraw door and typed scheduler
-poll boundary landed at `85ac839e`. Item **172e** completed the one-owner
-`FrameRuntime` at `5dda9de8`; its branch carried exact native, web, and
-code-health receipts and is merged on `main`.
-
-**2026-08-01, the current train.** Items **201** (Paperbark's Deckle density on
-Retina) and **200** (the caret's punctuation knockback colour) are landed on
-`main` in that order. The combined candidate is
-`a4f35a43c64a8ea20de3d0e67b35467ce21722e7`, receipt
-`native-gate-receipt commit=a4f35a43… conventions=mac,linux scope=all-targets`,
-web/wasm 16/16, code health clean. Item 200's own receipt predated item 201, and
-its laws measure Paperbark pixels as the Kite analogue, so all 8 were re-run on
-the combined tree (8 passed) before the train gate rather than trusting two
-receipts taken on different bases. CI is green on `f47028d0` under the raised
-mac ceiling.
-
-## CI RED — the bisect, and a diagnosis that was LATER FALSIFIED
-
-⚠️ **READ ITEM 231'S ENTRY FIRST. The headline this section was written under — "the shared wgpu device wedges" — IS DEAD**, killed by 231's own post-fix probes: the mac and linux conventions are **two separate processes with two separate wgpu devices**, and they stopped within **10 milliseconds** of each other. They share no device. **The contended resource is SYSTEM-WIDE — the VM's virtualised Metal stack itself.** The bisect below (`8207e519`, both boundaries measured) still stands and is the durable part; the mechanism reasoning that follows it does not. Kept rather than deleted because the correction is the lesson, and because a fix-owner who re-derives the dead diagnosis will waste the same week twice.
-
-**Probe 3 of the bisect left a log, and it is the most informative artifact in
-this investigation.** From run `30756807172`:
-
-```
-16:56:43  ...split_pane::split_draws_two_surfaces_unified_draws_one ... ok
-16:57:43  split_pane::split_shows_ground_across_the_gap_and_no_glyph_escapes  has been running for over 60 seconds
-16:57:43  split_pane::split_stays_valid_narrow_and_empty                      has been running for over 60 seconds
-16:57:43  stars::currawong_star_field_is_dpi_invariant_in_logical_space       has been running for over 60 seconds
-17:46:15  ##[error]The operation was canceled.
-```
-
-**Exactly THREE tests — the runner's three vCPUs, i.e. EVERY libtest worker
-thread — wedge at the same instant and never move again for 49 minutes.** Left
-behind: `Terminate orphan process: awl-69f18644050` and `cargo`, unkillable.
-
-**This is not one bad test. It is the SHARED WGPU DEVICE wedging**, after which
-every test that touches it parks forever in `read_pixels`'
-`poll(PollType::wait_indefinitely())` — which is also why the process survives
-SIGTERM. Control: three `app_icon` tests tripped the same 60-second warning
-earlier at 16:47 and **recovered**, so slow-but-alive is normal on this runner
-and the final three are categorically different.
-
-⚠️ **The victim varies; the wedge is constant.** Here it is `split_pane` and
-`stars`; in run `30732589551` it was `scroll_pos`, at a different point —
-**none of them item 194's warp tests.** So the culprit commit **poisons the
-device rather than owning the hanging test**, and no amount of staring at the
-hung test name will find it. Also: this window's `native-gate.sh` runs
-conventions **sequentially**, so this is a single-process hang and the
-two-convention concurrency at HEAD is NOT required to produce it.
-
-**The duration spread is explained and is NOT evidence against determinism.**
-Probes 1–2 ran 58–59 min because the VM died and GitHub reaped it; probe 3 ran
-75 min because the VM SURVIVED and the job ceiling fired — which is exactly why
-probe 3 left a log (runner alive → post steps ran → HTTP 200). Same hang,
-different killer.
-
-⚠️ **The oracle mis-scored probe 3 as GOOD and would have sent the bisect to
-the wrong commit.** `gh` reported `gate step: completed/cancelled`, and a
-`status != "completed"` test scored a 64-minute hang as a pass — the same class
-as the earlier `conclusion:""` trap, an unfinished step wearing a finished
-step's field. Fixed at `c336cc1a`: the test now allow-lists the **conclusion**
-(`success`/`failure` GOOD; `cancelled`/`timed_out` BAD; anything unrecognised
-is INVALID and scored by hand rather than guessed), re-validated across all six
-runs on record. **Two oracle bugs of the same shape in one investigation — a
-harness that reads a status field must enumerate what it accepts, never test
-for inequality.**
-
-**✅ CONVERGED: the first bad commit is `8207e519`** — "item 194: one camera,
-one projected cylinder, cropped at the page". Six probes, every boundary
-measured:
-
-| probe | commit | run | verdict |
-|---|---|---|---|
-| baseline | `7bca59d6` | `30686231377` | GOOD, gate 1014 s, log 200 |
-| 1 | `c5b8399e` | `30752286816` | BAD, 3543 s, log 404 |
-| 2 | `10cd49e0` | `30754550500` | BAD, 3482 s, log 404 |
-| 3 | `d1e997b9` | `30756807172` | BAD, 3853 s, log 200 (ceiling) |
-| 4 | `94211bb6` | `30759720562` | BAD, 3242 s, log 404 |
-| 5 | **`8207e519`** | `30761792967` | **BAD**, 3423 s, log 404 |
-| 6 | `36707d06` (`8207e519^`) | `30763999999` | **GOOD**, 19m03s, step `completed/success` |
-
-**BOTH BOUNDARIES ARE MEASURED, NOT INFERRED.** The parent runs clean in 19
-minutes against `8207e519`'s 57 — a real `success` conclusion on the one side
-that carries no corroboration. No re-run contradicted a first reading.
-
-**What is SUPPORTED by evidence.** `8207e519` takes `THEMES` from 19 to 20,
-adding `KITE` with `Background::WarpedGrid` and **+267 lines of
-`background.wgsl`**; 42 test files reference `THEMES`. The tests that wedge are
-**roster sweeps** — `split_pane.rs` carries "sweep EVERY shipped world" over
-`theme::THEMES.iter()`. All three libtest workers (3 vCPUs) park at the same
-instant and **the victim differs between runs**, so the shared device wedges
-rather than any specific test. `BackgroundPipeline::new` calls
-`create_shader_module` on the whole grown file **plus** `create_render_pipeline`
-— and the **test** helpers do this **once per rendered frame** (3 sites) while
-the **live app does it exactly once** (`pipeline_draw.rs:32`, stored as a
-field).
-
-⚠️ **THE WARPED-GRID SHADER EXECUTES FINE — this is not a non-terminating
-shader.** In probe 3's log, 15 `backgrounds_item132`/`warp_tunnel` tests passed
-cleanly at 16:51:43–16:51:58, **six minutes before** the wedge at 16:57:43; same
-story in `30732589551`. Combined with no unbounded loop in the WGSL and
-`warpgrid.rs` touching no wgpu at all, the obvious candidate is ruled out.
-
-**HYPOTHESIS, labelled as such:** cumulative exhaustion of a driver-internal
-resource in the virtualised Metal stack — compiled-pipeline slots or
-shader-compiler memory — under the added compile churn, after which submits
-never retire and every `read_pixels` parks in `poll(wait_indefinitely())`. It
-fits the varying victim, the simultaneous three-thread park, and the unkillable
-`awl-…`/`cargo` orphans that survive SIGTERM. **The vitals cut only one way:**
-`free_bytes` steady at ~2.37 GB rules out RAM exhaustion but says nothing about
-a driver-internal table.
-
-**PRODUCT OR CI? The lane's read is CI/test-harness-amplified, NOT a product
-defect — with a caveat, and the distinction decides who owns the fix.** The
-per-frame pipeline rebuild that supplies the churn exists **only in the test
-helpers**. The live app builds `BackgroundPipeline` once at construction and
-`prepare()` thereafter merely uploads uniforms *including the shader id*, so
-**switching themes does not rebuild the pipeline**. A user selecting Kite on a
-VM pays one `background.wgsl` compile per launch and then ordinary draws, and
-the shader is shown to execute correctly. **Caveat:** that rests on the churn
-hypothesis being right; if the true cause is the WarpedGrid draw accumulating
-device state, the product IS exposed on a VM. Lower on the evidence, not
-excludable from here.
-
-**Determinism: settled.** Five BADs across five distinct trees, four of them independent
-commits, all reproducing the same hang; no re-run has contradicted a first
-reading. Probe 6 was the first genuine re-measurement, deliberately on the GOOD
-side, and it came back GOOD — so the bisect stands.
-
-🔵 **THE FIX IS NOT WRITTEN AND WANTS ITS OWN ITEM.** Two things a fix-owner
-needs and could easily lose in a summary: **the shader is exonerated by
-evidence, not argument** (15 `backgrounds_item132`/`warp_tunnel` tests passed
-cleanly six minutes before the wedge, in two independent logs — do not start by
-staring at the WGSL); and **the churn exists only in the test helpers**, which
-is the asymmetry deciding whether this is a product bug at all.
-
-⚠️ **This orchestrator wrote that "the tree the receipts were certifying was
-sound" and the bisect owner correctly REFUSED to sign it.** Two reasons, both
-better than the reassurance: the CI-only conclusion rests on an unconfirmed
-hypothesis, so "not a product regression" is a best read and not an established
-fact; and **the receipts have a structural blind spot** — `native-gate.sh` runs
-on the dev host's real Apple Silicon Metal and **nothing local exercises a
-virtualised GPU**, so their greenness never was evidence about this axis. The
-honest statement is "sound on the hardware the receipts run on, with
-virtualised-GPU behaviour untested by any local gate". That gap is item **232**.
-
-**Superseded bisect state:** window `7bca59d6` GOOD .. `d1e997b9` BAD. Real candidates are
-just three — `8207e519` (37 files, shader), `94211bb6` (6, shader), `c325fdad`
-(4, no shader). `bbb3c2f7` and `d1e997b9` touch no code and cannot be
-first-bad. Probes 1–3 all BAD; probe 4 (`94211bb6`) running. **A GOOD reading
-at the boundary is the dangerous one** — a BAD is corroborated by duration and
-the 404/ceiling, a GOOD is corroborated by nothing but completing — so the
-confirmation re-run is owed hardest there.
-
-## CI RED — earlier rounds: the mac gate HANGS; observability landed
-
-**`main` has had no successful CI run since `7bca59d6` (2026-08-01 05:38).**
-Only `mac (build + test)` fails; `linux`, `web` and `mac live-probe` pass on
-every red run.
-
-⚠️ **TWO diagnoses have now been made and BOTH were wrong. Read that before
-proposing a third.** The first was memory starvation — falsified by
-measurement (peak RSS 448–667 MB over a 1/3/10 `--test-threads` sweep, wall
-time FLAT because `testlock::serial` already serialises the global-touching
-tests; and in the real environment, vitals held 2.371–2.386 GB free with
-`swap_used_bytes=0` across 34 consecutive heartbeats). The second was
-compile-bound, **and it was this orchestrator's error**: `Compiling libc /
-proc-macro2 / quote / syn` was read out of the one surviving log and attributed
-to step 8, but those lines are in **step 5** — `Install sccache` is a real
-`cargo install`. Step 7's `cargo build` took **12 seconds** on a warm cache and
-step 8's compile phase is **113 s, 4.6% of the step**. Check timestamps against
-step boundaries before attributing a log line to a step.
-
-**What step 8 actually does is HANG.** After `04:45:56` there are 34 heartbeats
-and not one other line. The last thing printed is libtest's unterminated prefix
-with no result:
-`test render::tests::scroll_pos::subpixel_semantics_do_not_change_settled_pixels_or_render_hash ... `
-— a test that builds a real wgpu device and reads a frame back, while the
-sibling convention does the same on the same **virtualised Metal** device.
-**n=1. A lead, not a diagnosis.**
-
-**`a972eafc` ("speed up the full native gate") is VERIFIED and must NOT be
-reverted.** Two failures with the identical signature predate it, and on hosted
-hardware it is a win rather than a tax: linux gate step, successful runs only,
-**n=16 median 1272 s before (1019–2076) vs n=7 median 916 s after (707–937)** —
-~28% faster. Its compile cost on the mac runner is the 113 s above. An
-orchestrator message proposing to revert it for CI was wrong and was correctly
-refused by the lane with this evidence.
-
-**Why six failures produced only one log — four budget defects, all fixed**
-(`0f779a81`): the budget armed *after* the canary, so the compile phase had no
-watchdog; it killed two **pids** rather than two **process groups**, and a
-surviving child holds the step's stdout open, which is exactly why a step
-concludes `null` with no uploaded log; it exited ~5 s before its own KILL
-escalation; and it timed from gate start while steps 1–7 varied from 96 s to
-9m51s across runs, so a gate-relative budget expires at an unpredictable point
-on the clock that kills the job. Now: every phase is its own process group
-under `set -m`; each convention's output flows through an in-gate filter that
-labels every line, stamps phase boundaries, and ignores TERM so it drains the
-unterminated line naming the hung test; and the budget takes whichever of a
-1500 s gate clock or a job-anchored 2100 s deadline (`AWL_NATIVE_GATE_DEADLINE_EPOCH`)
-comes first. Runner losses were at job-minute 53/55/56/62 and the last green
-mac job took 26m51s end to end, so job-minute 35 sits 18 min inside the
-earliest loss and 8 past the green run. `timeout-minutes` is untouched at 75 —
-the runner dies well inside it, so the ceiling was never the mechanism.
-
-⚠️ **THE IN-GATE BUDGET DOES NOT FIRE ON THE REAL RUNNER — proved, not
-suspected.** Run `30746762499` wired everything correctly: the "Runner death
-clock" step ran at 11:56:18 (deadline 12:31:18) and step 9 started 11:58:23
-(gate budget 12:23:23). **The job died at 12:49:18 — 26 minutes after the
-earlier of the two should have ended it.** Step 9 `null`, both Post steps
-`null`, log 404. **The step never concluded, so the gate never exited, so the
-budget never fired**, despite 9/9 runtime mutation proofs locally. Log
-availability tracks "did the step conclude", which is why `30732589551` — the
-one run whose budget did fire — is the only one that ever produced a log.
-
-Two candidates remain and the board cannot separate them: **(a)** the watchdog
-is broken on the runner (starved, killed with the group it should outlive, or
-blocked on whatever the suite is blocked on); or **(b)** the whole VM freezes
-before the budget and GitHub's timestamp is only when it gave up reaping — in
-which case **no in-process watchdog can ever work and the self-abort strategy
-is unsound**.
-
-**The discriminator landed** (`timeout-minutes: 40` on the mac gate STEP,
-enforced by the runner agent rather than by our shell; job-level 75 and the
-in-gate budget both kept): a log from the step timeout means the watchdog is
-broken; nothing at all means the VM freezes and we stop trying to self-abort.
-**Unproven until a real mac run — if the VM is frozen, a step timeout is as
-dead as our watchdog.**
-
-**The heartbeat now separates deadlock from livelock**: `load1`, `cpu_count`,
-per-tracked-process CPU and the busiest pid, plus CPU time beside elapsed in
-the abort report. It is a **delta of `ps -o time=`, not `pcpu`** — pcpu is a
-lifetime average on Linux and a decayed one on macOS, and the CI shape (3.5 min
-hot, then 35 min hung) reads ~9% on one and ~0% on the other. Unparseable
-prints `unavailable`; zero tracked processes prints `none`; never a confident
-`0.0`. ⚠️ **Its Linux branches are written and reasoned but NEVER EXECUTED** —
-no Linux host here; CI's linux job is their first real test.
-
-**Two more laws that were vacuous when written, both caught by mutating the
-REAL script rather than the synthetic self-test** — the running tally for this
-CI work is now five: the audit pinned `load1=`/`cpu_count=` names that the
-*abort report* also carries, so the heartbeat's copy could be deleted or
-commented out entirely with the audit clean; and the probe itself reported
-`tracked_procs=0` while both suites burned a core, because Cargo had moved to
-integration binaries younger than the sample window — indistinguishable from an
-idle machine, and exactly the confident-zero class that shipped once already.
-
-**The user's standing decision (2026-08-02): coverage is NOT cut.** Both
-conventions stay. If the suite genuinely cannot fit the runner, `main` stays
-red and we say so — narrowing the mac job's scope is not an acceptable fix.
-
-**Next, in order:** read the next mac failure, which will now name the phase,
-convention, target and hung test; add a per-test watchdog so one hung test
-fails by name instead of taking the runner down; and only as a last resort
-bisect `7bca59d6..edc89757` (~50 commits, including two vectorized-search
-commits confined to `src/search/mod.rs` + `src/buffer.rs`) — each mac run costs
-~50 minutes and nothing reproduces locally, where the suite passes in 182 s.
-
-### The superseded diagnosis, kept because the correction is the lesson
-
-**`main` has had no successful CI run since `7bca59d6` (2026-08-01 05:38).**
-130 commits have landed since. Eight consecutive runs are `failure` or
-`cancelled`, and the previous orchestrator's train notes claim green from local
-receipts alone — no one checked the remote, which is exactly the check
-`.orchestrator/README.md` §Gates makes mandatory before AND after a push.
-
-**The failure is one job and one cause.** `linux`, `web` and `mac live-probe`
-pass on every red run. Only `mac (build + test)` fails, always in step 8
-(`scripts/native-gate.sh`), always with a `null` step conclusion and the
-GitHub annotation *"The hosted runner lost communication with the server.
-Anything in your workflow that terminates the runner process, starves it for
-CPU/Memory, or blocks its network access can cause this error."* Confirmed
-identical on runs `30727349406` (04bef696, 55m), `30721529191` (9111aed4, 56m)
-and `30715372469` (eea3118a, 62m). Job logs 404 — the runner dies before
-uploading them, which is itself evidence of a hard kill rather than a test
-failure.
-
-**This is NOT the timeout class item 196 diagnosed.** `timeout-minutes` is 75
-and all three deaths happened at 55–62 minutes, well inside it. Raising the
-ceiling again will not help; the runner is being starved, not guillotined.
-`scripts/native-gate.sh` sets no parallelism or memory bound at all — no
-`--test-threads`, no `CARGO_BUILD_JOBS` — so on a hosted macOS VM it runs the
-whole GPU/glyphon suite at host-adaptive width under both conventions.
-
-~~Claimed — claude (deep), branch `claude/ci-red-mac-runner`.~~ Landed; the
-worktree is removed. **The standing lesson: a local green train says nothing
-about the remote, and this board carried "CI is green" for 130 commits on the
-strength of local receipts alone.** Check `gh run list --branch main` before
-AND after every push, and check the last *successful* sha rather than the last
-run.
-
 ## Ready — current user-visible wave
 
 ## Active claims — 2026-08-02/03 wave
 
 **Overnight results, newest first.**
 
-⚠️ **RECEIPT GAP ACROSS ALL THREE OF THE ENTRIES BELOW, stated rather than
-papered over.** None of the three merge commits (`5bc771ca`, `df630ad9`,
-`ef6f87ca`) records a `native-gate-receipt` string, so by this repo's own rule
-— *the receipt is the only authorization to call the native tier "full native
-suite"* — **their native scope is UNVERIFIED on the board.** A gate demonstrably
-ran for 235 (it is what caught `gpu_cache_law` at "found 9, expected 8", which a
-targeted run structurally could not reach), and 236 paid a health debt that only
-a health run surfaces — so this is very likely a recording failure rather than a
-skipped gate. **Re-issue the three receipts on the merged tree, or leave these
-entries marked unverified.** Do not retro-fit a receipt string from memory.
+⚠️ **RECEIPT GAP — items 232, 235 and 236, whose completion entries have been cleared as history.**
+None of the three merge commits (`5bc771ca`, `df630ad9`, `ef6f87ca`) records a
+`native-gate-receipt` string, so by this repo's own rule — *the receipt is the
+only authorization to call the native tier "full native suite"* — **their native
+scope is UNVERIFIED.** A gate demonstrably ran for 235 (it is what caught
+`gpu_cache_law` at "found 9, expected 8", which a targeted run structurally
+could not reach), and 236 paid a health debt only a health run surfaces, so this
+is very likely a recording failure rather than a skipped gate. **Re-issue the
+three receipts on the merged tree, or leave them recorded as unverified.** Do
+not retro-fit a receipt string from memory.
 
-- **232** — ✅ COMPLETE — merge `5bc771ca`. **No portable software adapter reproduces the wedge**: two lavapipe stacks ran `render::tests::` at both bisect boundaries and neither hung, and CI's `linux` job has been running that exact arm green all streak. The gating policy is **parked for the user** (see BLOCKED ON THE USER). Its container find — RSS to an OOM kill, 20% sooner on the bad tree — became item **239**, and is explicitly NOT evidence that bounding it would prevent the hang.
-- **235** — ✅ COMPLETE — merge `df630ad9`. The rotated glyph run exists and **221/224 are unblocked as theme data**; their handoffs are hoisted into those two items. Lossless at the quadrant angles (ink 1.0000, mae 0.0000, both DPIs); cannot become a prose renderer (`LabelMask::compose` reads `layout_runs().next()` and stops, law-tested). Follow-up: item **240**.
-- **236** — ✅ COMPLETE — merge `ef6f87ca`. `ListStyle::draws_row_plates()` is the one owner and `overlay_bar_rects_probe` now REFUSES on a plateless world. **The pattern was real** — item 174's sibling law made the same substitution, and its `!plates.is_empty()` non-vacuity guard was itself satisfied by the fabrication. The shipping scrim gate makes the same substitution and is **correct as-is**; that warning is carried in item **237**.
-- **220 + 234** — ✅ COMPLETE. Receipt `native-gate-receipt commit=c2cfac75… conventions=mac,linux scope=all-targets`. **The theme-data constraint HOLDS**; what blocked 221/224 was a capability gap, since closed by item 235. Premise corrections that outlived the round are hoisted into items **221** and **224**.
-- **222 + 223** — ✅ COMPLETE. Receipt `native-gate-receipt commit=57dd7794… conventions=mac,linux scope=all-targets`. **Neither was Mangrove's** — both were shared-owner defects, and **222's stated cause was wrong** (the card-hug coupling is real but small; what actually moves is the spine's RAKE, sized from the widest VISIBLE row). Mangrove is simply the only world that is both right-anchored AND diagonal. Its parked label-alignment taste call is now **decided** (see Latest design decisions) and belongs to item **131d**.
-- **231** — 🔴 STILL OPEN. **The fix did NOT clear the hang, and the probes
-  FALSIFIED the recorded diagnosis.** Receipt for the landed improvement:
+- **231** — 🔴 OPEN, and **REFRAMED to a diagnosis item** by user decision
+  2026-08-03: name the cause first, then decide who owns the fix. The full
+  evidence — what is eliminated, what is still unknown, the local-repro plan and
+  the carry-forward traps — now lives in **item 231's own entry**, which is
+  authoritative. The `src/gpu_cache.rs` round landed (`52,083 → 5,577` program
+  builds, 9.3×) and **did not clear the hang** (run `30770296246`); its receipt is
   `native-gate-receipt commit=3e3db0c6… conventions=mac,linux scope=all-targets`.
-  **Four discriminating arms over one grafted workflow** (run `30766842071`):
-  control **WEDGED**; `RUST_TEST_THREADS=1` **WEDGED** — so **it does not need
-  concurrency**, which kills the "three workers race" reading; `render::tests::`
-  **WEDGED**; `--skip render::tests::` **COMPLETED**, 2860 tests per convention
-  in 110 s *while standing up its own device per test and building ~80,000 GPU
-  programs in aggregate*. **So it is not how many programs a process builds — it
-  is how many against ONE long-lived device.**
-  ⚠️ **THE "SHARED WGPU DEVICE WEDGES" DIAGNOSIS IS DEAD.** In the post-fix log
-  the mac and linux conventions — **two separate processes with two separate
-  wgpu devices** — stopped **within 10 MILLISECONDS** of each other and never
-  moved. They share no device. **The contended resource is SYSTEM-WIDE: the VM's
-  virtualised Metal stack itself.** That also explains why the no-render arm
-  survives while doing far more total GPU work — its tests create AND DESTROY
-  devices, forcing driver-side reclamation, where `render::tests::` piles
-  transient resources onto one device never torn down.
-  **The landed work still earns its place** (`src/gpu_cache.rs`): `render::tests::`
-  GPU program builds **52,083 → 5,577**, `TextPipeline::new` 44 ms → 23 ms,
-  `cargo test --bin awl` 133.8 s → 116.6 s, 3616 passing either side. Only
-  objects that are pure code are shared; everything writable stays per-instance.
-  **A 9.3× cut in churn did not clear it** (run `30770296246`).
-  ⚠️ **A DANGEROUS wgpu FACT, measured (29.0.3): `wgpu::Device`'s `PartialEq`
-  reports two separately requested, simultaneously live devices as EQUAL.** A
-  device-keyed cache is therefore impossible — the first draft trusted it and
-  648/3616 tests died with `BindGroupLayout does not exist`. Identity is a
-  property of the CALL SHAPE instead. The cache also **must not be
-  thread-local**: libtest gives every test its own thread, which left builds at
-  86,061, i.e. no change at all.
-  **One law initially PASSED its own leak mutation** — drawing one world at a
-  time lets each `prepare` overwrite the last; only building and preparing all
-  twenty BEFORE any draws exposes it.
-  **Where to look next, per the lane:** the residual ~5,577 builds are dominated
-  by the direct `BackgroundPipeline`/`SelectionPipeline` helpers (~1,800 calls,
-  55 call sites) — but more promising given the system-wide finding, the
-  per-call `glyphon::Cache` + `TextAtlas` and every `offscreen()` texture and
-  readback buffer, which are **allocations, not programs**, and which wgpu only
-  reclaims on poll. Probe driver at `~/.awl-item231/probe.sh`.
-  **Item 232's virtualised-GPU arm would have caught all of this locally in
-  minutes rather than 50 per cycle** — that item is now the higher-value one.
-  ⚠️ **The merge shipped two wasm warnings the branch could not have seen**
-  (`OnceLock` native-only, `scoped` whose caller is `None` on wasm); fixed at
-  `3e3db0c6`, and an over-gate of `Mutex` broke the wasm build in between —
-  the wasm `programs()` is an `unreachable!` stub that still names it.
-
-**⚠️ THE GITHUB REPO HAS BEEN RENAMED to `Frank-P-Lu/awl-editor`.** `git remote`
-still says `awl-next.git` and every push tonight succeeded through GitHub's
-redirect, but tooling that reconstructs URLs by hand will point at the old name
-— `scripts/ci-mac-bisect.sh` already does.
-- **219 + 225** — ✅ COMPLETE. Receipt `native-gate-receipt commit=d7709def… conventions=mac,linux scope=all-targets`. ⚠️ **NEITHER DEFECT WAS WORLD-SPECIFIC — a per-world nudge would have left fifteen worlds broken.** 219 was on all twenty (a 20.4 px blank strip atop every takeover picker); 225 on all five bare-plate worlds. **The standing lesson: assume universal until measured otherwise**, and state byte-identity constraints PER-SURFACE, because "other worlds unchanged" was unsatisfiable for a correct fix.
-- **233** — ✅ COMPLETE. Receipt `native-gate-receipt commit=e5d520d2… conventions=mac,linux scope=all-targets`. `SerialGuard` now snapshots and restores the render overrides **including on the unwinding path**. The mechanism is in CLAUDE.md's tripwires; the durable lesson is that **a grep for a literal struct misses a helper call and vice versa**, which is why the leak read as a single site.
-- **230** — ✅ COMPLETE. Receipt `native-gate-receipt commit=a37d741f… conventions=mac,linux scope=all-targets`. `ViewState::substitute_text` is the one door that replaces shaped text; drawn and announced figures now agree. Its parked `THROUGH VIEW` question is **declined and closed** (see Latest design decisions). What a future lane needs is hoisted into item **215**.
-- **204** — ✅ COMPLETE, both slices. Receipt `native-gate-receipt commit=8d5565c5… conventions=mac,linux scope=all-targets`, 3637 passed per convention. `comparison::prose_for` is the one dispatch; `--seed-data` closed the harness gap. **Vision smoke called the affordance "subtle" and arithmetic overruled it** — a clean luminance ladder 29.7/110.7/163.3/251, the Wagtail tripwire running the other way. Follow-up: item **233**.
-- **217** — ✅ COMPLETE. `--bench-suite` runs green. **Both brief premises were wrong**: the second plan was not the diagonal's (Saltpan, upright, paid a full second plan every overlay frame) and the genuine second plan belongs to item 51's right-anchored content hug — **the unswept axis was the CARD ANCHOR, not the list style.** `FramePasses` now names each pass and a third fails by name. An honest negative was kept out of the tree: a device-tier completion law that stayed green under its own no-op mutation was deleted rather than shipped vacuous.
-- **216** — ✅ COMPLETE. The mark-audit skip is closed at the merge candidate and in CI; see the CI section above.
-- **211** — ✅ COMPLETE; user-confirmed in Commands, Settings and Themes on 2026-08-03. **It was never a lost input:** the selection band is the one animator retargeted at draw time, so the pre-prepare answer was "nothing animating", the loop parked on `Wait`, and the ease never got a second frame. Items 104/106 stayed green through three sightings because their laws hand-drive `advance(dt)` between retargets — **precisely what the live loop was failing to do.**
-- **207** — ✅ COMPLETE. Native awl has one semantic UI owner: `SemanticSnapshot` feeds the AccessKit tree, `--semantic-json` and the live-App sidecar from one description. ⚠️ **The branch had NEVER been gated** — code health was red, repaired by decomposition rather than line-golf. Two real defects its new laws found: an overlay query node advertising an unrouted `Focus`, and a `&'static str` schema field **serde could never fill, so the JSON handed to an agent could not be parsed back at all.** Follow-ups: items **215** and **218**.
 - **174** — 🟢 SECOND FAMILY LANDED, item remains OPEN. Merged to `main`;
   worktree removed. `PlannedHeader` owns the overlay header band, with the query
   beat folded into the LAST header line's box exactly as the shaper folds it into
@@ -551,7 +181,6 @@ redirect, but tooling that reconstructs URLs by hand will point at the old name
   merge — its consumer is reached ~45× a frame through the four relocated
   document owners, so planning inside it would trade one parallel calculation for
   45 plans a frame; a law fails by name if they drift. Follow-up: item **217**.
-- **211** — ✅ COMPLETE; user-confirmed in Commands, Settings and Themes on 2026-08-03. **It was never a lost input:** the selection band is the one animator retargeted at draw time, so the pre-prepare answer was "nothing animating", the loop parked on `Wait`, and the ease never got a second frame. Items 104/106 stayed green through three sightings because their laws hand-drive `advance(dt)` between retargets — **precisely what the live loop was failing to do.**
 - **116d** — 🟢 COMPOSITING ROUND LANDED; the flip is deliberately NOT done.
   Merged to `main`; worktree removed. **The owner stopped at a clean boundary
   and that is the correct outcome** — the comparison can now be SEEN, and
@@ -711,7 +340,7 @@ user authorization.
 
 229. **A Japanese or Chinese manuscript's WORD COUNT is meaningless.** **Defect:** `card::figures::word_count` is `split_whitespace` over the manuscript body, and Japanese and Chinese put no spaces between words. Measured, not assumed: `今日はいい天気ですね。` — 11 characters — reports **1 word**, and `"今日はいい天気ですね。".repeat(500)` — **5,500 characters** — still reports `1 word · 1 min`. **The divergence is script-specific, not "CJK"-wide, and that is the assumption most worth pinning:** Korean is fine (`오늘 날씨가 좋네요` → 3, it spaces its words), mixed text is undercounted by its CJK half (`The title is 今日は…` → 4), and an ideographic space `U+3000` IS Unicode whitespace and does split. Graphemes already hold — ZWJ families, regional-indicator flags and decomposed `é` each stay one token. **Build:** give the readout a script-aware count through the ONE owner `src/card/figures.rs` — do not add a second counter beside it, which is the drift item 215 exists to prevent. A character/ideograph count for unspaced scripts is the conventional answer; whether the readout says "words" for such a document is a product decision, not a mechanical one. **Scope:** the count feeds the HUD readout and the semantic snapshot through one owner, so both move together or neither does. **Verify:** the pinned table above as a regression floor; a mixed-script document; `U+3000`; the grapheme cases unchanged; the sidecar and the drawn readout agreeing. **Found by item 215's measurement 2026-08-03, pinned rather than changed because changing the figure is a product call with sidecar consequences.** ✅ **USER DECISION 2026-08-03, so the product call is made and this is now buildable: COUNT IDEOGRAPHS AS TOKENS, and let the UNIT LABEL FOLLOW THE DOCUMENT'S DOMINANT SCRIPT** — the readout says **"words"** for a script that spaces its words and **"characters"** for one that does not. It does not claim a word count for a script that has none; it changes what it counts and renames the unit to match. **What that decision still leaves the owner to settle, named so it is not discovered late:** (a) **"dominant script" needs a definition and a threshold** — the pinned mixed case `The title is 今日は…` counts 4 today and is a real document shape, so decide whether dominance is a majority of counted tokens, a majority of characters, or the frontmatter `lang` (`docs/fonts.md`) when present, and pin the tie; (b) the label is a **second** thing the figure now carries, so `card::figures` returns a unit alongside the number and **both the drawn readout and the semantic snapshot must take it from that one owner** — item 215 exists to stop exactly the second description this invites, and item 230 has already routed both sides through one owner, so do not reopen that seam; (c) the sidecar's `readout`/`wordcount_text` change shape for such a document, which is a **CAPTURE.md-visible** change and may be a schema bump — check `capture::SCHEMA_VERSION` rather than assuming. **Verify additionally:** the pinned table with its expected units, a document that flips dominance across an edit (the label must follow, and must not flicker on a single character), and the `U+3000` and grapheme cases unchanged. ⚠️ **Renumbered from 227 on 2026-08-03: two orchestrators minted 227/228 independently within minutes. Theirs (AppImage, `v0.9.0`) were already cited in `RELEASING.md`, so these moved instead.**
 
-231. **Fix the hosted-macOS gate hang introduced by `8207e519`.** **Defect:** `main`'s `mac (build + test)` job has been red for ~140 commits. Bisected to **`8207e519`** ("item 194: one camera, one projected cylinder, cropped at the page") with **both boundaries measured** — parent `36707d06` GOOD in 1092 s, `8207e519` BAD — over six sequential probes, deterministic, no re-run contradicting a first reading. **Evidenced mechanism:** the commit takes `THEMES` from 19 to 20, adding `KITE` with `Background::WarpedGrid` and +267 lines of `background.wgsl`; 42 test files reference `THEMES`, and the tests that wedge are **roster sweeps** (`split_pane.rs` sweeps EVERY shipped world). All three libtest workers — the runner's 3 vCPUs — park at the same instant, **the victim differs between runs** (`scroll_pos` in one log, `split_pane`/`stars` in another), and the orphans survive SIGTERM: the **shared wgpu device wedges** and every later `read_pixels` parks in `poll(PollType::wait_indefinitely())`. ⚠️ **THE SHADER IS EXONERATED BY EVIDENCE, NOT ARGUMENT — do not start by staring at the WGSL.** 15 `backgrounds_item132`/`warp_tunnel` tests passed cleanly **six minutes before** the wedge, in two independent logs; there is no unbounded loop in it and `warpgrid.rs` touches no wgpu at all. **Hypothesis, explicitly unconfirmed:** cumulative exhaustion of a driver-internal resource in the virtualised Metal stack — compiled-pipeline slots or shader-compiler memory — after which submits never retire. `free_bytes` steady at ~2.37 GB rules out RAM exhaustion but says nothing about a driver-internal table. **The asymmetry that decides ownership:** the per-frame `create_shader_module` + `create_render_pipeline` churn exists **only in the test helpers** (3 sites); the live app builds `BackgroundPipeline` **once** at construction (`pipeline_draw.rs:32`) and `prepare()` thereafter only uploads uniforms *including the shader id*, so switching themes never rebuilds the pipeline and a user pays one compile per launch. **So this reads as test-harness-amplified rather than a product defect — but that rests on the churn hypothesis being right; if device state accumulates from the WarpedGrid draw itself, a user on a VM is exposed.** **The cheapest next discriminators, ~10 minutes each and already supported by the harness:** a hosted-mac run at `--test-threads=1` (does the wedge need concurrency?) and one restricted to `render::tests::` (does it localise?). **Tooling:** `scripts/ci-mac-bisect.sh` on branch `claude/ci-mac-bisect` (`c336cc1a`, never pushed) has `probe`/`verdict`/`next`/`cleanup`. **Two harness bugs to carry, both of which scored a 60-minute hang as a PASS and both the same shape — an unfinished step wearing a finished step's field:** `gh` encodes an unfinished step as `conclusion:""` (never `null`), and a step killed by the job ceiling reports `status:"completed"` with `conclusion:"cancelled"`. **A harness reading a status field must enumerate what it accepts, never test for inequality.** **Diagnosis complete 2026-08-03; the fix is unstarted.**
+231. **Name the CAUSE of the hosted-macOS gate hang. The fix is a SECOND item, scoped only once the cause has a name.** ⚠️ **REFRAMED BY USER DECISION 2026-08-03, from "fix the hang" to "diagnose it" — and the reframe is the most important line in this item.** One fix has already been attempted and **failed**: the `src/gpu_cache.rs` round cut `render::tests::` GPU program builds **52,083 → 5,577 (9.3×)**, `TextPipeline::new` 44 ms → 23 ms, `cargo test --bin awl` 133.8 s → 116.6 s, 3616 passing either side — and **the hang did not clear** (run `30770296246`). A second speculative fix would be worse than the first, because **the strongest remaining candidate is a SYMPTOM MASK**: `src/test_gpu.rs:27` holds a process-wide `OnceLock<(Device, Queue)>` whose own doc says it is "created once and never dropped", and recycling or periodically tearing it down would very likely turn CI green **without anyone learning what was exhausted**. The product's exposure is still an open question (see the ownership gate below), so a harness fix that greens the board **destroys the only instrument that can currently see whether a user on a VM is affected.** Diagnose, name the cause, THEN decide who owns the fix. **Defect:** `main`'s `mac (build + test)` job has been red for ~140 commits; `linux`, `web` and `mac live-probe` pass on every red run. It **HANGS, it does not fail** — exactly three tests (the runner's 3 vCPUs, i.e. every libtest worker thread) park at the same instant and never move, the job dies at its ceiling or the VM dies, and the `cargo`/`awl-…` orphans **survive SIGTERM** because they are parked in `poll(PollType::wait_indefinitely())`. Bisected over six sequential probes to **`8207e519`** ("item 194: one camera, one projected cylinder, cropped at the page"), **both boundaries measured** — parent `36707d06` GOOD, `8207e519` BAD, no re-run contradicting a first reading. That commit takes `THEMES` 19 → 20, adding `KITE` with `Background::WarpedGrid` and **+267 lines of `background.wgsl`**; the tests that wedge are roster sweeps. **ELIMINATED — do not re-derive; each was killed by measurement.** (a) **The shader:** 15 `backgrounds_item132`/`warp_tunnel` tests pass cleanly **six minutes before** the wedge, in two independent logs; no unbounded loop in the WGSL and `warpgrid.rs` touches no wgpu at all — **do not start by staring at it.** (b) **A single bad test:** the victim varies between runs (`scroll_pos` in one log, `split_pane`/`stars` in another), so the commit poisons the device rather than owning the hanging test. (c) **Concurrency:** `RUST_TEST_THREADS=1` **WEDGES**. (d) **A per-device resource:** the mac and linux conventions — **two separate processes with two separate wgpu devices** — stopped **within 10 MILLISECONDS** of each other and never moved, so **the contended resource is SYSTEM-WIDE: the VM's virtualised Metal stack itself.** (e) **Program-build volume:** the 9.3× cut did not clear it, and `--skip render::tests::` **COMPLETED** — 2860 tests per convention in 110 s while standing up its own device per test and building **~80,000 GPU programs in aggregate**, i.e. far MORE total GPU work. Those tests create AND DESTROY devices, forcing driver-side reclamation, where `render::tests::` piles transient resources onto one device never torn down. **It is not how much you build — it is how much you pile on a device the driver never reclaims.** (f) **RAM:** `free_bytes` steady at ~2.37 GB. (g) **Software adapters as a stand-in:** two independent lavapipe stacks ran `render::tests::` at both bisect boundaries and neither ever hung (item 232) — a software rasteriser has no system-wide GPU resource for a cross-process wedge to exhaust, so it cannot reproduce this class even in principle. **STILL UNKNOWN, AND THIS IS THE WHOLE ITEM:** WHICH resource in the virtualised Metal stack is exhausted. "Cumulative exhaustion of a driver-internal table — compiled-pipeline slots, or allocations wgpu only reclaims on poll" remains a **labelled hypothesis with no confirming measurement.** **FIRST DELIVERABLE — a LOCAL REPRODUCTION**, because without one every hypothesis costs a ~50-minute CI cycle and the last one that looked excellent was wrong. ⚠️ **The untried arm is a macOS GUEST VM on the Apple Silicon host** (Virtualization.framework — `tart`, or UTM). **Item 232's negative result does not apply to it:** that measured *software rasterisers on Linux*, whereas a macOS guest gets genuine **paravirtualised Metal**, the same class of stack as the hosted runner, and nothing local has ever exercised that axis. Measured preconditions 2026-08-03: **179 GiB free** on the dev host and **no VM tooling installed** (`tart`, `utm`, `qemu-system-aarch64` all absent), so the setup cost is real — state it rather than assuming it is free. **A negative here is a publishable result too**, and either way it directly feeds item 232. **SECOND — instrument the resource class, using the fast local oracle that already exists.** Item **239** measured that under a fixed 4 GiB ceiling at `--test-threads=1`, `render::tests::` walks RSS **monotonically to an OOM kill**, commit-correlated (good parent reaches test **199** twice, `8207e519` reaches **160** twice, alternated to control for drift) — **~4 local minutes against a 50-minute CI cycle.** ⚠️ **Carry 239's own caveat: every container death was a prompt SIGKILL with `OOMKilled=true`, NEVER the hosted runner's park-forever-with-memory-flat, so this is a DIFFERENT failure mode and bounding the growth is NOT proven to prevent the hang.** It is a fast proxy for *a* leak, not evidence about *the* hang. **The suspects, in the lane's own order of promise:** the per-call `glyphon::Cache` + `TextAtlas` (`render/tests/mod.rs:140,155`, `images.rs:598`, `chrome_panels.rs:1703,1750,1802`) and every `offscreen()` texture and readback buffer — **allocations, not programs**, which wgpu reclaims only on poll; the residual ~5,577 program builds are dominated by the direct `BackgroundPipeline`/`SelectionPipeline` helpers (~1,800 calls, 55 call sites). **THE DECISION GATE — what "then decide" means, and the item is not done without it.** Once the cause is named, answer: **is the PRODUCT exposed, or is this test-harness-only?** The asymmetry that decides it: the per-frame `create_shader_module` + `create_render_pipeline` churn exists **only in the test helpers** (3 sites); the live app builds `BackgroundPipeline` **once** at construction (`pipeline_draw.rs:32`) and `prepare()` thereafter only uploads uniforms *including the shader id*, so switching themes never rebuilds the pipeline and a user pays one compile per launch. **But that rests on the churn hypothesis, which the 9.3× null result has now WEAKENED** — if state accumulates from the WarpedGrid draw itself, or from allocations rather than programs, **a user on a VM IS exposed** and the fix belongs to the product, not the harness. Only after that answer does a fix get scoped. **Do NOT land a fix under this item.** Specifically: do not recycle or tear down the shared test device, do not bound the allocation growth (that is item 239's scope and it is explicitly not a fix for this), and do not tune anything, until the cause has a name and the product/harness question has an answer. **If the diagnosis converges early and the fix then looks obvious, it still lands as a SEPARATE item so the causal claim and the change stay separately reviewable.** **Carry-forward facts a new owner would otherwise lose.** ⚠️ **wgpu 29.0.3: `wgpu::Device`'s `PartialEq` reports two separately requested, simultaneously live devices as EQUAL** (measured) — a device-keyed cache is therefore impossible; the first draft trusted it and 648/3616 tests died with `BindGroupLayout does not exist`. A `cfg(test)` cache also **must not be thread-local**: libtest gives every test its own thread, which left builds at 86,061 — no change at all. **One law initially PASSED its own leak mutation**: drawing one world at a time lets each `prepare` overwrite the last, and only building and preparing all twenty BEFORE any draws exposes it. **Tooling:** probe driver at `~/.awl-item231/probe.sh` (outside the repo); `scripts/ci-mac-bisect.sh` on branch `claude/ci-mac-bisect` (`c336cc1a`, never pushed) carries `probe`/`verdict`/`next`/`cleanup`. ⚠️ **Two harness bugs, both of which scored a 60-minute hang as a PASS, both the same shape — an unfinished step wearing a finished step's field:** `gh` encodes an unfinished step as `conclusion:""` (never `null`), and a step killed by the job ceiling reports `status:"completed"` with `conclusion:"cancelled"`. **A harness reading a status field must enumerate what it accepts, never test for inequality.** ⚠️ **And a probe-integrity trap from item 232's lane:** a cross-commit pass **silently scored the same binary twice** — both trees extracted within the same second, so Cargo's mtime fingerprint reused the other tree's artifacts. Use a target dir per tree plus a provenance assertion that fails on mismatch. **Done:** the exhausted resource is NAMED with a confirming measurement rather than a hypothesis; the product/harness question has an evidenced answer; and the fix is scoped as its own item. **Verify:** whatever names the cause must also PREDICT THE BOUNDARY — it has to explain why `36707d06` survives and `8207e519` does not, why `--skip render::tests::` survives while doing more total GPU work, and why two processes on separate devices stop within 10 ms of each other. **Routing:** deep tier, one owner end to end. **Reframed by user decision 2026-08-03; the earlier "shared wgpu device wedges" mechanism is FALSIFIED and must not be carried forward.**
 
 237. **Item 234's first law has a CONSTANT arm that cannot fail on any product change.** **Defect:** found by the item-236 lane while sweeping for fabricated-geometry laws, and left deliberately rather than taken mid-item. `a_workspace_rows_text_sits_inside_its_own_plate_on_every_world`'s **arm 2** computes `overrun` from `bar_full_span(band_x, band_w)`, which is pure `(band_x + 8, band_w - 16)` — **so the overrun is `BAR_SIDE_INSET` identically in every cell.** No world, width, lens or DPI enters it. Per cell it asserts `8.0 > 1.0`; at the end it asserts `max(8.0, 4.0) == 8.0`. **It cannot fail on any product change except editing the constant itself.** Arm 1 is what actually sweeps and is sound. The law's doc also promised a third arm the body does not have (the phantom bullet is already removed). **Decide, then act:** this is the shape item 217 faced when its device law stayed green under its own no-op mutation, and the precedent there was to **delete rather than ship vacuous**. Either delete arm 2, or re-aim it at something the product can actually change — if the intent was "the plate's inset is what the drawn text respects", the oracle must read the DRAWN text, not re-derive the same constant. **Do not simply leave it**: a law that always passes is worse than no law, because it reads as coverage. **Verify:** whatever replaces it must fail by name on item 234's original defect — text sitting `BAR_SIDE_INSET` outside its plate at either edge — and be mutation-proved on a plate-drawing world. **Found 2026-08-03; arm 1 is unaffected and still guards the item.** ⚠️ **CARRY THIS FROM ITEM 236, which fixed the sibling class and is the reason to look here at all: `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the SAME card-vs-row substitution, in SHIPPING code — and it is CORRECT AS-IS. Do not "fix" it to `draws_row_plates()`.** That scrim pass is the only thing that clears `panel_card` on a bare-plate world, so gating it out would let a stale instance survive into a Diagonal frame. It looks exactly like the defect this item is about and is not one; 236 caught it as a near-regression and recorded it rather than shipping it. **Also from 236, and directly useful here:** `ListStyle::draws_row_plates()` now exists as the one owner of "does this style back its rows with plates", `overlay_selection_rects` is the one place a list style becomes row surfaces, and `overlay_bar_rects_probe` **refuses** on a plateless world — so a replacement arm has a real oracle to grade against and cannot fabricate one. **Prefer 236's pattern for the exclusion too:** earn it by measurement (the frame must emit no row surface at all on the excluded world, at the same fixture and DPIs) rather than by a name list, so a world that starts drawing plates fails instead of dodging the sweep.
 
@@ -724,6 +353,8 @@ user authorization.
 241. **A theme switch takes ~100 ms to settle while doing ~2 ms of work — and the instrument built to name the dominant cost cannot see it.** **Defect:** user-reported live on 2026-08-03 with a `--debug` HUD photograph, switching **from Kite to Mulga**: `theme latest 103.6 ms · theme worst 117.2 ms`, on an otherwise healthy frame (`frame 3.9 ms · worst 10.3`, `key→px 6.0 ms`, 4530×2756 @2.0x). **The breakdown line is the finding.** `src/themeswitch.rs` exists so "the dominant cost NAMES ITSELF instead of being guessed", and for that same worst transaction it reads `font 0.0 · reshape 0.1 · rowgeom 0.0 · atlas 1.8 · present 0.2` — **2.1 ms across all five phases, 1.8% of 117.2 ms.** Whatever costs the other ~115 ms is outside every phase the instrument covers. **This is the symptom item 202's repair round was supposed to have closed:** `docs/fonts.md` records the flat-100 ms landing as punishing an isolated step at "settle ~124ms, reopening the exact 'felt theme-switch freeze' item 37b's own commit was about", which is what the leading-edge-plus-trailing-coalesce rule was built to fix. **Diagnose before fixing — three candidates, and the item must not assume one.** (a) **The debounce is being paid on a step that should be immediate.** `THEME_FONT_DEBOUNCE_DEFAULT_MS` is **100**, and 103.6 − 2.1 ≈ **101.5**; if `theme_font_reshape_decision` returns `Coalesce` here, the transaction is ~98% deliberate waiting. (b) **The classification is correct by its own letter and wrong for the felt act.** Arrowing through the theme picker genuinely IS a burst — every step lands within `window` of the last reshape — so every step coalesces and every step costs the full trailing settle, even though `--bench-theme-burst`'s reshape cost is 10–35 ms and the measured reshape here was **0.1 ms**. The rule's cost model was calibrated when an isolated reshape cost ~39 ms; a world pair needing no font change has nothing to coalesce and the leading-edge test should reflect the work, not the clock. (c) **The residual is not the debounce at all and the instrument is simply blind.** Nothing between input and the five phases is timed, **including anything Kite's `Background::WarpedGrid` does** — and the user's report is specifically about leaving Kite. ⚠️ **The board's item-231 claim that "switching themes does not rebuild the pipeline" was made about the CI wedge and has never been verified against this readout; do not carry it in as an established fact.** **The cheap discriminator already exists and costs one live run:** `AWL_THEME_FONT_DEBOUNCE_MS=0` is item 202's own A/B escape hatch. If the settle collapses to single-digit ms, it is (a)/(b) and the fix is in the scheduling rule; if it stays ~100 ms, it is (c) and **the first deliverable is extending `SwitchPhases` to cover the gap**, because a five-phase breakdown that accounts for 1.8% of its own headline is worse than none. Run it from Kite and from a quiet world to test the Kite-specific claim, and on both an isolated commit and a stepped burst. **Build:** whichever the discriminator names — do not tune the constant before the chain names the break, and do not close this by widening the debounce's A/B override into a user setting. If it is the scheduling rule, the leading-edge test should key on whether real reshape work is pending rather than on elapsed time alone; `sync_theme_font_timed`'s own early `None` ("no reshape work — nothing to time") is evidence the path can already tell. **Scope:** the readout is DEBUG-mode and LIVE-ONLY by construction (`settle_lines` returns empty for `None`, the only value a capture holds), so no headless probe can close this alone and none should be faked. Preserve item 202's burst coalescing — an N-step run must not go back to N reshapes, which is the regression 37b's zero-window landing caused. **Done:** committing a theme change settles in a time proportional to the work it actually does, the breakdown line accounts for the bulk of its own headline number, and a rapid picker run still coalesces. **Verify:** live `--release` before/after on the reported pair and at least one font-changing pair, recorded from the same HUD; the movement-latency distribution (`docs/render.md`, `--live-script`'s `latency` step) across an isolated commit and a 30 ms-apart burst, so the burst arm cannot regress unnoticed; a unit law over `theme_font_reshape_decision` for whatever new input it gains; a `SwitchPhases` law that fails when recorded phases fall below a stated fraction of the transaction, so this blind spot cannot silently reopen; `--bench-theme-burst` with its reshape-count witness intact (CLAUDE.md: one theme bench "measured" 5ms while nothing reshaped). **Needs an unlocked, foregrounded display — see the idle-lock warning at the top of this board.** **Routing:** production tier with deep live-render review. **User-reported with a HUD photograph 2026-08-03.**
 
 242. **Chrome has no default pixel space, so every hand-authored constant is an independent coin flip — and the boundary that fixes it already exists.** **Defect:** awl draws in device pixels and nothing else; "logical" here means only "multiplied by `dpi` on its way in". The text and caret families already pass through ONE boundary — `Metrics::with_dpi` (`src/render.rs:226`) scales 13 base constants by `s = zoom * dpi`. **Chrome was never enrolled, and its constants are mixed three different ways.** Measured, not assumed: (a) `overlay_text_hpad` (`src/render/chrome/overlay.rs:91`) returns `BAR_SIDE_INSET + BAR_TEXT_PAD` (8.0 + 13.0) for `Bars` and a bare `12.0` for `Pane`/`Diagonal`, multiplied by nothing — **truly physical**; (b) `CARD_MAX_W` is **NOT** raw, as the 131 finding recorded, but a **GROW-ONLY HYBRID** — `overlay_desired_w` multiplies it by `overlay_pixel_scale()` under `scale.max(1.0)`, so it is physical at scale ≤ 1 and logical above, deliberately, to fix a zoom-blind card collapse (documented at `chrome/overlay.rs:124`); (c) **`overlay_lh` is itself mixed** — `metrics.line_height * effective_overlay_scale()` (dpi-scaled) **+** `effective_overlay_leading()` **+** `overlay_row_gap()` (both raw, the latter a theme-authored `ListStyle::Bars { gap }`). So the one quantity the tree treats as logical already drifts out of proportion across displays, today, on shipping worlds. The `_LOGICAL` suffixes sitting in `src/render/chrome/` (`ROW_STEP_LOGICAL`, `SPINE_WEIGHT_LOGICAL`, `SPINE_CORNER_LOGICAL`, `ATTACHMENT_BAND_INSET_LOGICAL`, `SELECTED_OUTWARD_LOGICAL`, `SELECTED_SPINE_WEIGHT_LOGICAL`, `CLUSTER_CONNECTOR_LOGICAL`) are the 131 lane reaching for exactly this by naming convention — the right instinct with an unenforceable mechanism, because **a suffix is not a type**. ⚠️ **A live appearance bug is implied and must be established FIRST, before any migration:** `chrome/overlay.rs:124` says the caps are "tuned for the 1:1 capture canvas". If that is also true of the raw insets, chrome padding renders at **half its tuned physical size on every Retina display**, including the dev machine — structurally invisible because `opts.dpi.unwrap_or(1.0)` (`src/capture/opts.rs:305`) means every capture, law and gallery shot runs at the one scale where the bug cannot exist. Capture the palette at `--capture-dpi 2` and compare the padding-to-text ratio against 1×; record the answer either way, because a negative result is what licenses treating this as pure hygiene. **Build:** enroll chrome in the EXISTING boundary. **Do not extend `theme::ground_space` and do not build a chrome sibling of it** — item 186's per-variant declaration table is right for GROUNDS, where physical is genuinely common (a stipple or dither must land on the physical grid or it moirés, hence `wagtail_stipple_cell_px(dpi)`); chrome wants the opposite default, and copying 186's shape would import the wrong answer with more machinery. Give chrome one scaled owner with **logical as the default and physical as the annotated exception**, enforced by the compiler or a no-wildcard law rather than by a name — a bare `f32` length reaching a draw call without passing the owner should fail by name. **Classify before migrating: only one of chrome's four unit families moves.** Device-px lengths (`BAR_SIDE_INSET`, `BAR_TEXT_PAD`, `HPAD`, `VPAD`, `PLACARD_INSET`, `CHIP_HPAD`/`CHIP_VPAD`, `CARD_EDGE_INSET_FLOOR`, `ANCHOR_GAP`) migrate; character units (`RAIL_GAP_CHARS`, `MIN_PANE_CHARS`, `MARGIN_COLUMN_GAP_CHARS`) and row units (`OVERLAY_HINT_ROW`, `OUTLINE_GAP_ROWS`) are already correct by construction and must not be double-scaled; pure ratios (`OVERLAY_UI_SCALE`, `WORKSPACE_MARGIN_FRAC`, `TIMELINE_MAX_FRAC`, `PLACARD_SIZE_STEP`, the alphas) must NOT scale and the law must not force them. `CARD_MAX_W` gets an **honest third classification** — a worker who records it as plain physical will "fix" it and reintroduce the zoom-blind collapse its own comment describes. **Glyphs still rasterize at device resolution:** shaping at logical size and scaling the raster blurs text, which is why every solution to this problem sizes the backing store separately from layout. `Metrics` keeps handing glyphon physical sizes; only the LAYOUT side gains a logical view, and that seam stays inside `Metrics`. **Scope:** chrome only. There remains exactly ONE coordinate system — device px — and this decides which constants are multiplied on the way into it; it is not a coordinate-system rewrite. The document/caret/text families already pass the boundary; `src/theme/` ground space is untouched; other worlds' output stays byte-identical at the capture scale. **Done:** a new chrome length cannot be authored in the wrong space without a compile error or a named law failure; the four unit families are recorded where the constants live; and the DPI tier a capture certifies is stated accurately — `--capture-dpi 1` is the identity path and is evidence about nothing else. **Verify:** byte-identity at dpi 1.0 across the full surface roster — the 19-world × 5-surface, 95-capture PNG+sidecar hash 131a/b already ran (190 files) — since the multiply is the identity there and every existing law must be untouched. **The value is entirely in laws that do not exist yet:** sweep `dpi ∈ {1.0, 2.0}` and assert that every migrated quantity holds its ratio to `line_height`, that the ratio family does NOT scale, and that `overlay_lh`'s three terms scale together. Mutation proof per family — break one constant's enrollment, watch the sweep go red by name, paste the panic. A Retina taste pass across the world roster once padding doubles, plus affordance-locating vision smoke over the palette at 2×, because this DOES change the Retina look and that is the point. **This retires item 131c's blocker instead of answering it** — 131c is BLOCKED on the chrome pixel-space decision in item 131's finding (d); with a default in place the diagonal authors its numbers like every other quantity and no design call is owed. **Sequence BEFORE 131c**; 131d/e follow. **Routing:** deep tier, one owner end to end — a classification and typing decision, not a mechanical sweep. **User design decision 2026-08-03, from the 131c chrome-space discussion; the measurements above were taken during it.**
+
+243. **Split the hosted-macOS CI job so the arm that PASSES gates today, and the one that hangs is tolerated by name.** ⚠️ **This is the resolution of item 232, and it is NOT that item's recommendation — the lane recommended C (declare the whole hosted-mac job the arm and gate on it); the USER CHOSE THE SPLIT on 2026-08-03. Do not read C as the decision.** **Why C was rejected:** gating on a red job blocks `main` until item 231 is fixed, and 231 is now a DIAGNOSIS item with no promised fix date. **Why A and B were rejected (item 232's measurement, already landed at `5bc771ca`):** A — a local container with a software adapter — cost a 1.67 GB image and ~14 GiB of Docker VM disk that did not return, for **zero coverage of the target axis**, because no portable software rasteriser reproduces the wedge (two independent lavapipe stacks ran `render::tests::` at both bisect boundaries and neither ever hung); B — a slow CI job — **already exists** as the `linux` job, which has run that exact arm green through the whole ~140-commit red streak. **Build:** split `mac (build + test)` into two jobs. **`mac (build + test, minus render::tests)` becomes GATING immediately** — item 231's discriminating probes measured this arm **COMPLETING**, 2860 tests per convention in 110 s, while standing up its own device per test and building ~80,000 GPU programs in aggregate, so it passes today at no cost. **`mac (render::tests)` becomes a separate ALLOWED-FAILURE job, pinned by name to item 231** in the workflow file itself, not only on this board. **What it buys:** real virtualised-GPU signal over ~95% of the suite starting now, the tolerated red shrinks from "the whole mac job" to one named subset with an open item behind it, and **`main` is not blocked**. When 231 lands, the second job goes green and is promoted to gating — no further decision needed, which is why this shape needs deciding only once. **The rationale, because it is the actual lesson of the streak:** the failure was never that a job was red — it was that a red job carried no information anyone consumed, so nothing distinguished "the known wedge" from "a new regression". The split restores that distinction mechanically. **Also in scope, and the other half of item 232's Done clause:** state the tier a receipt certifies accurately wherever receipts are described — `CLAUDE.md`, `.orchestrator/README.md`, `RELEASING.md` — namely *"sound on the hardware the receipts run on, with virtualised-GPU behaviour untested by any local gate"*. `CLAUDE.md` already carries a version of this sentence; make the three agree. **Scope:** CI configuration and docs. Do **not** add a local software-adapter arm (measured negative, twice) and do **not** make every developer's local gate slower — item 232 refused that explicitly. **Done:** a green `main` means the non-render mac arm passed on virtualised Metal; a red `render::tests` mac job is attributable to item 231 by name from the workflow file alone; and no doc claims a receipt covers an axis it has never exercised. **Verify:** the gating job passes on a hosted runner; the allowed-failure job's red does not fail the workflow; a deliberately broken test in the gating half DOES fail it (mutation proof — an allowed-failure misconfiguration that silently tolerates everything is the obvious way to get this wrong); the three docs say the same thing. **Routing:** production tier. **User decision 2026-08-03, resolving item 232.**
 
 221. **Make Cassowary’s active Files category cue a vertical secondary heading.** **Defect:** the generic Files treatment does not use Cassowary’s left edge and strong Commands heading to establish its intended two-level hierarchy. **Build:** when Files is active in Cassowary, render “Files” as a smaller secondary-colour counterpart to the bold Commands heading, rotated 90 degrees and aligned flush with the far-left border; show none under All. Reuse the shared hierarchy data from item 220, with Cassowary’s expression supplied as theme data rather than a new palette code path. **Done:** Cassowary presents primary Commands plus a legible, subordinate vertical Files cue without crowding commands. **Verify:** Cassowary All/Files captures at representative canvas sizes and scale factors; geometry/contrast laws for left-edge placement, rotation, and non-overlap; mutation proof removes the cue; visual review confirms hierarchy. **Depends on item 220. Routing:** production tier with visual-judge review. **User design decision 2026-08-02.** 🟢 **UNBLOCKED — item 235 landed the capability (`df630ad9`), and 221 is now theme data on top of it.** **The 90° case costs nothing:** the rotation is a **lossless texel transpose** at the quadrant angles — ink 1.0000, mae 0.0000, contrast 1.0000 at 0/90/180/270°, **both DPIs**, pixel-exact against an ideal rigid rotation. So the "legible at 1× and 2×" clause is already measured for this item's exact angle; do not re-derive it. **Both premises the 220 lane corrected still apply here:** the shared datum is 220's single `overlay_location`, expressed as a `RenderCaps` variant (the same shape `Background`/`CardTexture`/`FacetStyle`/`TitleStyle::Placard` already have), and **the location inherits the section header's existing planned slot — no second header line is needed.** **The cue is not interactive** (it is read, not pressed), but `label_hit` exists and is law-tested if that ever changes; it derives from the run's own rotated frame rather than axis-aligned bounds, which over-claim at a slant and would steal presses from neighbouring rows.
 
