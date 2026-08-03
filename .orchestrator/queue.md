@@ -408,6 +408,30 @@ run.
 
 **Overnight results, newest first.**
 
+- **232** — 🟡 IN PROGRESS — claude (deep), branch `claude/item-232-virt-gpu`.
+  **Now the highest-value CI item**: the 231 lane closed with *"item 232's
+  virtualised-GPU arm would have caught all of this locally in minutes rather
+  than 50 per cycle."* Its primary job is a MEASUREMENT, not a decision — can a
+  software adapter (lavapipe / SwiftShader, in a container) reproduce the wedge
+  at `8207e519` and pass at `36707d06`? **A plain "no portable adapter
+  reproduces this" is a complete and valuable result** and the lane is told not
+  to manufacture a positive. The placement question (local container arm / slow
+  CI job / declare the hosted-mac job IS the arm and gate on it) comes back as a
+  recommendation with measured costs, **parked for the user** — and it must not
+  be answered by silently making every developer's gate slower.
+- **235** — 🟡 IN PROGRESS — claude (deep), branch
+  `claude/item-235-rotated-glyphs`. The rotated glyph run that unblocks 221 and
+  224. Briefed that it must NOT become a second prose renderer — it is a LABEL
+  capability, short runs at an arbitrary axis, and if it could render a
+  paragraph the lane is told to stop. Landing it with no consumer is correct
+  here; 221/224 are separately specified.
+- **236** — 🟡 IN PROGRESS — claude (production), branch
+  `claude/item-236-plate-roster`. Briefed that the real value is finding whether
+  the substitution is a **class** rather than one law, and to consider making
+  `overlay_bar_rects_probe` REFUSE to synthesize for a world that draws no
+  plate — **making the misuse impossible beats finding each misuse**, which is
+  the lesson item 233 landed tonight.
+
 - **220 + 234** — ✅ COMPLETE. **221 + 224 argued and DEFERRED to item 235.**
   Receipt `native-gate-receipt commit=c2cfac75… conventions=mac,linux
   scope=all-targets`, 3627 passed.
