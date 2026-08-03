@@ -81,8 +81,8 @@ pub(crate) fn shared_device_queue() -> Option<(wgpu::Device, wgpu::Queue)> {
 /// mechanism.
 ///
 /// ⚠️ Bounding this is worth doing on its own terms and is **not** a fix for,
-/// or evidence about, item 231's hosted-macOS hang — that is a park-forever
-/// with memory flat, a different failure mode from item 232's prompt
+/// or evidence about, the hosted-macOS CI hang — that is a park-forever with
+/// memory flat, a different failure mode from the container's prompt
 /// `OOMKilled=true`. See [`crate::gpu_alloc`].
 #[cfg(not(target_arch = "wasm32"))]
 fn arrive(device: &wgpu::Device, queue: &wgpu::Queue) {
@@ -94,8 +94,8 @@ fn arrive(device: &wgpu::Device, queue: &wgpu::Queue) {
 }
 
 /// One line per device acquisition on `AWL_GPU_ALLOC_TRACE=1`, and nothing at
-/// all otherwise — the raw material for the accumulation measurement item 239
-/// is built on.
+/// all otherwise — the raw material every accumulation measurement in this
+/// module's doc is built on.
 ///
 /// `held` is what the PREVIOUS test left on the device; `kept` is what survives
 /// [`arrive`]'s sweep. The pair is the whole diagnostic: `held` large and `kept`
@@ -109,13 +109,13 @@ fn arrive(device: &wgpu::Device, queue: &wgpu::Queue) {
 /// --test-threads=1 --nocapture` and the samples interleave with libtest's own
 /// `test … ok` lines on one stream, in order.
 ///
-/// The `themes`/`bgwgsl` stamp is a PROVENANCE ASSERTION, not decoration: item
-/// 232's lane once scored the same binary twice across a cross-commit pass
-/// because two trees extracted within the same second and Cargo reused the
-/// artifacts. Both fields are compile-time constants of the tree that built the
-/// binary, and both differ across item 231's bisect boundary (`36707d06` has 19
-/// worlds, `8207e519` has 20 and a `background.wgsl` 267 lines longer), so a
-/// trace that claims to be from the other tree says so in its own first field.
+/// The `themes`/`bgwgsl` stamp is a PROVENANCE ASSERTION, not decoration. A
+/// cross-commit pass here has already scored the same binary twice, because two
+/// trees extracted within the same second and Cargo reused the artifacts. Both
+/// fields are compile-time constants of the tree that built the binary, and the
+/// world roster and the size of `background.wgsl` are exactly what a cross-commit
+/// comparison of this suite tends to vary — so a trace that claims to come from
+/// a tree it did not says so in its own first field.
 #[cfg(not(target_arch = "wasm32"))]
 fn traced() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();

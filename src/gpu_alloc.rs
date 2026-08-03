@@ -4,13 +4,13 @@
 //!
 //! ## Why this exists at all
 //!
-//! Item 232 measured the render suite's growth with RSS under a 4 GiB
-//! container: `render::tests::` walks memory monotonically to an OOM kill, and
-//! how far it gets is commit-correlated. That is a real signal and a fast one,
-//! but **RSS is not an oracle**. The same suite peaks at 448 MiB on the dev
-//! host's Metal and never dies, so a law written against RSS grades the
-//! container's ceiling and the host allocator, not the product. It also cannot
-//! run at all where there is no container.
+//! Under a fixed 4 GiB container ceiling at `--test-threads=1`, `render::tests::`
+//! walks RSS monotonically to an OOM kill, and how far it gets is
+//! commit-correlated. That is a real signal and a fast one, but **RSS is not an
+//! oracle**. The same suite peaks at 448 MiB on the dev host's Metal and never
+//! dies, so a law written against RSS grades the container's ceiling and the
+//! host allocator, not the product. It also cannot run at all where there is no
+//! container.
 //!
 //! What travels is the object count wgpu-hal itself keeps. Every backend
 //! increments a counter when it creates a buffer, a texture or a texture view
@@ -46,9 +46,8 @@
 //!
 //! ## What actually holds them — measured against wgpu-core 29.0.3
 //!
-//! Item 231 names the suspect class as "allocations wgpu reclaims only on
-//! poll". A poll is **half** of it, and on its own it is not the half that
-//! matters here:
+//! The obvious answer is "allocations wgpu reclaims only on poll". A poll is
+//! **half** of it, and on its own it is not the half that matters here:
 //!
 //! - `Queue::write_buffer` and `Queue::write_texture` put an `Arc` of the
 //!   DESTINATION into `wgpu_core`'s `PendingWrites` (`device/queue.rs`,
@@ -67,10 +66,10 @@
 //! 22 → 136 live objects; with both, they stay flat.
 //!
 //! ⚠️ This module is an INSTRUMENT for the suite's accumulation, not evidence
-//! about the hosted-macOS hang (item 231). Every container death item 232
-//! measured was a prompt SIGKILL with `OOMKilled=true`; the hosted runner parks
-//! forever with memory flat. Different failure mode. Bounding what this counts
-//! is worth doing on its own terms and is not a fix for that.
+//! about the hosted-macOS CI hang. Every container death measured under the
+//! ceiling above was a prompt SIGKILL with `OOMKilled=true`; the hosted runner
+//! parks forever with memory flat. Different failure mode. Bounding what this
+//! counts is worth doing on its own terms and is not a fix for that.
 
 /// The wgpu-hal objects alive on one device at one instant — the three classes
 /// every backend counts. Signed because [`wgpu_types::InternalCounter`] is, and
@@ -149,7 +148,7 @@ pub(crate) fn live(device: &wgpu::Device) -> GpuLive {
 ///    fence has passed.
 ///
 /// The poll is non-blocking on purpose. `PollType::wait_indefinitely()` is
-/// where item 231's hosted-macOS threads park forever, and this runs on the
+/// where the hosted-macOS CI job's threads park forever, and this runs on the
 /// path of every render test; a sweep that cannot complete now simply completes
 /// at the next call, one workload later.
 pub(crate) fn reclaim(device: &wgpu::Device, queue: &wgpu::Queue) {

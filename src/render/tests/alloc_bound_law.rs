@@ -1,11 +1,11 @@
 //! THE ALLOCATION LAWS — what the render suite may hold on the shared device,
 //! measured in a number that travels across backends.
 //!
-//! Item 232 found the growth with RSS under a 4 GiB container: `render::tests::`
-//! walks memory monotonically to an OOM kill, and how far it gets is
-//! commit-correlated. RSS cannot be the oracle — the same suite peaks at 448 MiB
-//! on the dev host's Metal and never dies, so a law written against it grades
-//! the container's ceiling and refuses to run where there is no container.
+//! The growth was first found with RSS under a fixed 4 GiB container ceiling:
+//! `render::tests::` walks memory monotonically to an OOM kill. RSS cannot be
+//! the oracle — the same suite peaks at 448 MiB on the dev host's Metal and
+//! never dies, so a law written against it grades the container's ceiling and
+//! refuses to run where there is no container.
 //! [`crate::gpu_alloc`] supplies the replacement: wgpu-hal's own live
 //! buffer/texture/texture-view counts, which every backend awl ships maintains.
 //!
@@ -35,10 +35,10 @@
 //! law 3 stayed GREEN with the reclaim it exists to check deleted. See
 //! [`one_test_shaped_workload`] for what it must therefore not do.
 //!
-//! ⚠️ None of this is evidence about item 231's hosted-macOS hang. Item 232's
-//! container deaths were prompt `OOMKilled=true` SIGKILLs; the hosted runner
-//! parks forever with memory flat. Different failure mode, and bounding this is
-//! not proven to prevent that.
+//! ⚠️ None of this is evidence about the hosted-macOS CI hang. The container
+//! deaths were prompt `OOMKilled=true` SIGKILLs; the hosted runner parks forever
+//! with memory flat. Different failure mode, and bounding this is not proven to
+//! prevent that.
 
 use super::super::*;
 use super::{dither, headless_dqp};
@@ -102,12 +102,12 @@ fn one_test_shaped_workload(bg: theme::Background) {
 /// process left in flight.
 ///
 /// The wait is BOUNDED and lives only here, in the law's own setup.
-/// `gpu_alloc::reclaim` — the thing on the product path — stays non-blocking on
-/// purpose (item 231's hosted-macOS threads park in an *indefinite* wait), but a
-/// non-blocking sweep cannot free what an unfinished submission still owns, and
-/// a floor that still contains the previous workload's pending objects made this
-/// law's first draft measure a footprint of **-1**. So: wait for the queue to
-/// drain, then sweep, then read.
+/// `gpu_alloc::reclaim` — the thing on the shared path — stays non-blocking on
+/// purpose (an *indefinite* wait is where the hosted-macOS CI threads park), but
+/// a non-blocking sweep cannot free what an unfinished submission still owns,
+/// and a floor that still contains the previous workload's pending objects made
+/// this law's first draft measure a footprint of **-1**. So: wait for the queue
+/// to drain, then sweep, then read.
 fn settled(device: &wgpu::Device, queue: &wgpu::Queue) -> i64 {
     gpu_alloc::reclaim(device, queue);
     let _ = device.poll(wgpu::PollType::Wait {
@@ -218,11 +218,11 @@ fn one_render_test_allocates_a_bounded_number_of_gpu_objects() {
 ///
 /// The sweep is over the whole `THEMES` roster rather than a world someone
 /// picked, so a twenty-first world is measured the day it lands and cannot dodge
-/// this by not being on a list. The roster is also the axis item 231's bisect
-/// boundary moved (19 worlds to 20), which makes it the axis worth sweeping
-/// even though the bound itself is roster-size independent: it compares the end
-/// of the sweep against the START of the same sweep, so adding worlds cannot
-/// loosen or tighten it.
+/// this by not being on a list. The roster is also the axis the commit that
+/// first showed the growth moved, which makes it the axis worth sweeping even
+/// though the bound itself is roster-size independent: it compares the end of
+/// the sweep against the START of the same sweep, so adding worlds cannot loosen
+/// or tighten it.
 #[test]
 fn the_render_suite_does_not_accumulate_gpu_objects_across_tests() {
     let _g = crate::testlock::serial();
