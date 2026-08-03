@@ -146,11 +146,12 @@ fn every_render_pipeline_is_built_inside_the_cache() {
          rather than once per process:\n{}",
         bad.join("\n")
     );
-    // NON-VACUOUS: the eight pipeline families really are there to be checked.
+    // NON-VACUOUS: the nine pipeline families really are there to be checked.
     assert_eq!(
-        cached_files, 8,
-        "expected the eight pipeline families (background, blur, caret, caret_glyph, image, \
-         lava, selection, spellunderline) to build through the cache; found {cached_files}"
+        cached_files, 9,
+        "expected the nine pipeline families (background, blur, caret, caret_glyph, image, \
+         lava, rotated_label, selection, spellunderline) to build through the cache; found \
+         {cached_files}"
     );
 }
 
