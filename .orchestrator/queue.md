@@ -53,6 +53,24 @@ took it.
    exists (`1, 10, 3, 4, 1`, mean 2.68) to diff against rather than re-derive.
 2. **The tag itself, and the site deploy.** Both are the user's explicit word,
    every time. See the release section above for what must be true first.
+3. **232 — where the virtualised-GPU arm lives.** The MEASUREMENT is done and
+   landed (`5bc771ca`); only the policy is open. **No portable software adapter
+   reproduces the wedge** — two independent lavapipe stacks ran `render::tests::`
+   at both bisect boundaries and neither ever hung, and CI's `linux` job has been
+   running that exact arm, green, through the whole ~140-commit red streak. **The
+   lane's recommendation is C: declare the hosted-mac job THE arm and gate on
+   it.** A was rejected on measurement (1.67 GB image, ~14 GiB of Docker VM disk
+   that did not return, zero coverage of the target axis); B was rejected because
+   it already exists. ⚠️ **What accepting C costs today: the mac job is RED, so
+   gating on it blocks `main` until item 231 is fixed.** That is the trade, and
+   it is the whole decision.
+4. **The release support matrix (item 226 §5) — the glibc floor.** Measured: the
+   binary needs `GLIBC_2.39`, which excludes Debian 12, Ubuntu 22.04 LTS and
+   RHEL 9. `RELEASING.md` §5 has the four build bases and what each reaches.
+   **Decide it together with item 227's AppImage**, which may make it moot for
+   the friendly download while the tarball stays technical. Related and also
+   yours: item 228 wants `0.9.0` in artifact names, which **cannot both hold**
+   with the unversioned `/releases/latest/download/` URL the site hardcodes.
 
 ⚠️ **Before any live sitting: `displaysleep` is 10 and screensaver `idleTime`
 is 300.** That is what silently invalidated the 2026-08-02 attempt seven minutes
@@ -438,29 +456,131 @@ run.
 
 **Overnight results, newest first.**
 
-- **232** — 🟡 IN PROGRESS — claude (deep), branch `claude/item-232-virt-gpu`.
-  **Now the highest-value CI item**: the 231 lane closed with *"item 232's
-  virtualised-GPU arm would have caught all of this locally in minutes rather
-  than 50 per cycle."* Its primary job is a MEASUREMENT, not a decision — can a
-  software adapter (lavapipe / SwiftShader, in a container) reproduce the wedge
-  at `8207e519` and pass at `36707d06`? **A plain "no portable adapter
-  reproduces this" is a complete and valuable result** and the lane is told not
-  to manufacture a positive. The placement question (local container arm / slow
-  CI job / declare the hosted-mac job IS the arm and gate on it) comes back as a
-  recommendation with measured costs, **parked for the user** — and it must not
-  be answered by silently making every developer's gate slower.
-- **235** — 🟡 IN PROGRESS — claude (deep), branch
-  `claude/item-235-rotated-glyphs`. The rotated glyph run that unblocks 221 and
-  224. Briefed that it must NOT become a second prose renderer — it is a LABEL
-  capability, short runs at an arbitrary axis, and if it could render a
-  paragraph the lane is told to stop. Landing it with no consumer is correct
-  here; 221/224 are separately specified.
-- **236** — 🟡 IN PROGRESS — claude (production), branch
-  `claude/item-236-plate-roster`. Briefed that the real value is finding whether
-  the substitution is a **class** rather than one law, and to consider making
-  `overlay_bar_rects_probe` REFUSE to synthesize for a world that draws no
-  plate — **making the misuse impossible beats finding each misuse**, which is
-  the lesson item 233 landed tonight.
+⚠️ **RECEIPT GAP ACROSS ALL THREE OF THE ENTRIES BELOW, stated rather than
+papered over.** None of the three merge commits (`5bc771ca`, `df630ad9`,
+`ef6f87ca`) records a `native-gate-receipt` string, so by this repo's own rule
+— *the receipt is the only authorization to call the native tier "full native
+suite"* — **their native scope is UNVERIFIED on the board.** A gate demonstrably
+ran for 235 (it is what caught `gpu_cache_law` at "found 9, expected 8", which a
+targeted run structurally could not reach), and 236 paid a health debt that only
+a health run surfaces — so this is very likely a recording failure rather than a
+skipped gate. **Re-issue the three receipts on the merged tree, or leave these
+entries marked unverified.** Do not retro-fit a receipt string from memory.
+
+- **232** — ✅ COMPLETE — merge `5bc771ca` (`7f88b379`, `96106575`, `008f6703`).
+  **THE ANSWER IS NO, AND THE NEGATIVE IS THE RESULT.** Two independent lavapipe
+  stacks ran `render::tests::` at both bisect boundaries and **neither ever
+  hung**: x86_64 Mesa 25.2.8 (CI's own `linux` job, which installs
+  `mesa-vulkan-drivers` and puts the identical `scripts/native-gate.sh` through
+  it — green across all ~140 red-streak commits, on trees containing
+  `8207e519`) and arm64 Mesa 22.3.6 (a local Debian bookworm container at
+  `8207e519` and parent `36707d06`). **So a software-adapter arm covers real
+  Linux/Vulkan and covers NOTHING on the axis that actually broke** — a CPU
+  rasteriser has no system-wide GPU resource for a cross-process wedge to
+  exhaust, which is exactly what item 231 measured when two processes with two
+  separate devices stopped within 10 ms of each other.
+  **What the container DID see is worth more than the negative, and belongs to
+  item 231:** under a fixed 4 GiB ceiling at `--test-threads=1`, `render::tests::`
+  walks RSS monotonically to an OOM kill, and how far it gets is
+  commit-correlated — good parent reaches test **199** twice, `8207e519` reaches
+  test **160** twice, alternated good/bad/good/bad to control for drift. **The
+  bad tree spends the same budget 20% sooner**, in ~4 local minutes rather than
+  a 50-minute CI cycle. Queued as item **239**. ⚠️ Every container termination
+  was a prompt SIGKILL with `OOMKilled=true` — **never** the hosted runner's
+  park-forever-in-poll with memory flat, so this is a different failure mode and
+  is **not** evidence that bounding the growth would prevent the hang.
+  ⚠️ **A PROBE-INTEGRITY BUG every future cross-commit lane needs:** the first
+  pass **silently scored the same binary twice**. Both trees came out of
+  `git archive | tar -x` in the same second, so Cargo's mtime fingerprint said
+  "Finished in 0.63s" and reused the other tree's artifacts — two runs labelled
+  BAD were the GOOD tree. Fixed with a target dir per tree plus a provenance
+  assertion (counting Kite's `warped_grid` tests, 2/719 vs 0/704) that aborts on
+  mismatch. Same class as this investigation's two oracle bugs.
+  ⚠️ **THE LANE WROTE THE USER'S DECISION INTO THE BINDING DOCS AND THEN WALKED
+  IT BACK — the walk-back is the right outcome and is why this is trustworthy.**
+  Its first commit put "this job is gating, not tolerated red" into `CLAUDE.md`,
+  `.orchestrator/README.md`, `RELEASING.md` and `ci.yml`. That is the decision
+  the item explicitly reserved for the user. The docs now state **only the
+  measured coverage fact**, with the policy marked parked.
+  🔵 **STILL PARKED FOR THE USER — recommendation C:** declare the hosted-mac
+  job the arm and gate on it. **A rejected on measurement** (1.67 GB image, ~14
+  GiB of Docker VM disk that did not return, zero coverage of the target axis);
+  **B rejected because it already exists.** Note what accepting C costs today:
+  the mac job is red, so gating on it blocks `main`.
+- **235** — ✅ COMPLETE — merge `df630ad9` (`25820220`, `ac74429c`).
+  **221 and 224 are UNBLOCKED and both are now theme data.** One short shaped run
+  → one CPU-composed R8 coverage image → one quad rotated onto a unit axis,
+  reusing `caret.wgsl`'s existing axis rotation.
+  ⚠️ **THE BRIEF UNDERSTATED THE DESIGN, in the direction that mattered.** It
+  said "a mask cache like `caret_glyph.rs`", which reads as **one mask per
+  glyph**. Composing the **whole run** into one mask is what makes the quadrant
+  angles a **lossless texel transpose** rather than a resample — a per-glyph
+  scheme would have carried per-glyph seams and **could never have been exact at
+  90°**, which is precisely what item 221 needs. It is also one draw call and one
+  bind group.
+  **Measured, not asserted:** at 0/90/180/270° and both DPIs, ink **1.0000**, mae
+  **0.0000**, contrast **1.0000** — so 221's 90° heading costs nothing at any
+  DPI. At Magpie's slant the round trip is contrast 0.65 at 1× and 0.83 at 2×,
+  **and because "is 0.65 good?" is unanswerable alone**, a second law compares
+  the render against the canvas an *ideal bilinear rigid rotation* would produce
+  from the composed image and angle alone: worst-case departure **0.0046** of
+  full coverage, exactly 0.0000 at every quadrant. **So the softening is the
+  unavoidable price of rotating a raster, not ink the pipeline loses** — a
+  genuinely independent oracle rather than the code agreeing with itself.
+  Supersampling was **deliberately not added**: it would buy the slant what 2×
+  already gives, at the cost of letterforms no longer matching their upright
+  siblings.
+  **The no-prose-renderer bound is structural, not a promise:** `LabelMask::compose`
+  reads `layout_runs().next()` and stops — no line breaking, no wrapping, no
+  per-line alignment, no selection — and that is law-tested.
+  **Identity is structural AND empirical:** 1724 insertions, **zero deletions**,
+  no existing production file gained a call, and 15 frames across five worlds
+  hash identically at base and branch.
+  ⚠️ **The gate caught a law targeted runs structurally could not:** `gpu_cache_law`
+  pins the pipeline-family count by name and went red at "found 9, expected 8" —
+  a filter on the new module's own name cannot reach a law that sweeps `src/`.
+  **Handoff to 221/224:** `label_hit` exists and is law-tested even though
+  neither expression is pressed, deriving from the run's own frame rather than
+  axis-aligned bounds (which at 45° over-claims its corners and would steal
+  presses from neighbouring rows). A **baseline gradient** was added as a flagged
+  scope addition — one instance field plus one `mix()`, cheaper now than 224
+  adding it later. **Magpie's 77.66° is a derivation, not a spec** — 224's author
+  picks the real number, and the capability sweeps every angle regardless.
+  Follow-up queued: item **240**.
+- **236** — ✅ COMPLETE — merge `ef6f87ca` (`9f7a230f`, `6a1d2b99`).
+  **BOTH halves, rather than either.** `ListStyle::draws_row_plates()` is the one
+  owner of "does this style back its rows with plates", placed beside
+  `list_backing` — **whose doc now says outright that it is a claim about the
+  CARD, not the ROW**, which is where the confusion started.
+  `overlay_selection_rects` is now the one place a list style becomes row
+  surfaces, so a probe can no longer be a **copy** of the production match that
+  drifts from it, and `overlay_bar_rects_probe` **REFUSES** on a plateless world
+  with its synthesis deleted — the item-233 lesson applied.
+  ⚠️ **THE PATTERN WAS REAL, and the second instance is worse than the first.**
+  Item 174's `an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world`
+  makes the identical substitution — **and its `!plates.is_empty()` guard,
+  written specifically to prove the arm non-vacuous, was SATISFIED BY THE
+  FABRICATION** on the two diagonal worlds. A non-vacuity guard graded by
+  invented geometry is the sharpest instance of this class yet recorded. A sweep
+  of the whole tree found **no third instance**.
+  **The exclusions are EARNED BY MEASUREMENT, not by a name list:** on each
+  plateless world, at the same fixture and DPIs, the frame must emit **no row
+  surface at all** — so a world that starts drawing plates fails there instead of
+  quietly dodging the sweep.
+  ⚠️ **A NEAR-REGRESSION, caught and recorded rather than shipped:** the scrim
+  gate reads `backing == BarePlates` — **the same substitution, in SHIPPING
+  code** — and "fixing" it to `draws_row_plates()` would have been **wrong**,
+  because `overlay_prepare_bar_scrims` is the only thing that clears `panel_card`
+  on a bare-plate world, so gating it out would let a stale instance survive into
+  a Diagonal frame. The gate is correct as-is. **The written source of the
+  conflation was a doc:** `docs/render.md` said "the same slab is on all five
+  bare-plate worlds", listed the Bars roster wrongly on three of four entries,
+  and omitted Diagonal from its `ListStyle` summary entirely — all corrected.
+  **Non-vacuity re-proved on the right cell:** item 225's original defect still
+  fails the law, and **now fails on Galah, a world that actually draws the
+  plate**, where before the first cell reached was Mangrove, which draws nothing.
+  Health debt paid deliberately: `theme/model.rs` +13 for the new accessor.
+  Follow-up queued: item **237**.
 
 - **220 + 234** — ✅ COMPLETE. **221 + 224 argued and DEFERRED to item 235.**
   Receipt `native-gate-receipt commit=c2cfac75… conventions=mac,linux
