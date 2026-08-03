@@ -212,7 +212,7 @@ fails if these rows drift from them, so this table cannot go stale.
 | `zoom_changed` | Applied |
 <!-- reach-table:end -->
 
-### Two asymmetries the table will not shout at you
+### Three asymmetries the table will not shout at you
 
 **The same setting has two doors with two different reaches — narrower now,
 closed by item 190.** Flipping typewriter scroll through its own command
@@ -256,6 +256,38 @@ end to end, both keymap conventions, by
 the same-parent and no-parent (filesystem-root) edges item 180 named are swept
 by `run::tests::resync_project_location_same_parent_switch_still_rebuilds_the_corpus`
 and `run::tests::resync_project_location_no_parent_root_falls_back_to_itself_not_the_old_workspace`.
+
+**History's COMPARISON inverts the usual tier ordering: the ORDINARY capture
+reaches it and `--screenshot-app` cannot.** Everywhere else the live-`App` door
+is the wider one, so this reads backwards and has already been briefed
+backwards once (item 116d, 2026-08-03). `overlay_accept:History` is Applied, and
+the timeline is reachable by `--keys` alone; but the COMPARISON only renders
+when `selected_history_id()` resolves, which needs a real history STORE. The two
+doors get one from opposite directions:
+
+- **Ordinary `--keys` / `--screenshot` reads the ambient data root**, so
+  pointing `XDG_DATA_HOME` at a prepared store gives a capture the full
+  timeline *and* comparison. This is the working route, and it is what found two
+  of item 116d's six defects. Note it must be the PLAIN door: `args::parse_args`
+  computes `hermetic = strict_replay || storyboard || live_app || semantic_json`,
+  so adding `--strict-replay` swaps in the sandbox and loses the store along
+  with the other three modes.
+- **`--screenshot-app` cannot get one at all.** The mode is hermetic by
+  construction, and its only data-root seed slot, `--seed-data DIR`
+  (`scenario::data_root_seeds`), is **flat** — it `read`s each direntry and
+  writes it at `data_root().join(file_name)`, so a directory silently yields
+  nothing. The history store is one level DOWN — `history::store::history_root()`
+  is `data_root().join("history")` and a file's log is
+  `<history_root>/<fnv1a>.log` — so no `--seed-data` layout can place a log
+  where `history::list` looks.
+
+So follow-up #3's "every consumer of the data root puts a plain file directly
+under it" is not true, and `history` is the counter-example. Teaching
+`data_root_seeds` to recurse would close the gap; nothing has needed it yet,
+and it is named here rather than absorbed. Until then, a Verify clause wanting
+a *live-`App`* sidecar over a History comparison is asking for something that
+does not exist — use the seeded ordinary capture, or assert at tier 2 in Rust
+(`app::tests::history`).
 
 ## What went wrong here once, so it does not again
 
@@ -406,9 +438,15 @@ Named here rather than quietly absorbed:
    where they look. It is a narrowing, not a stub: the harness NAMES the store
    on the command line rather than reading the machine's real one, so a
    capture's starting state is written down in its own invocation and a
-   developer's remembered session can never leak into it. Flat by design —
-   entries one directory deep, directories skipped — because every consumer of
-   the data root puts a plain file directly under it. Refused outside a hermetic
+   developer's remembered session can never leak into it. Flat — entries one
+   directory deep, directories skipped — which covers every consumer this item
+   needed (`recovery`, the scratch stash, `session.toml`) but **not every
+   consumer there is**: `history::store::history_root()` is
+   `data_root().join("history")`, a SUBDIRECTORY, so the history store is
+   structurally unseedable through this slot. See
+   "Three asymmetries" above; that is why a History comparison is the one
+   surface an ordinary capture photographs and `--screenshot-app` does not.
+   Refused outside a hermetic
    door rather than silently ignored, since a run that named a store and did not
    get one would photograph the wrong starting state.
 
