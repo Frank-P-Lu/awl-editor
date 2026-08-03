@@ -23,7 +23,9 @@
 //! followed.
 
 use super::*;
-use crate::app::semantic::{ProjectionStats, SemanticProjection};
+#[cfg(test)]
+use crate::app::semantic::ProjectionStats;
+use crate::app::semantic::SemanticProjection;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -187,6 +189,7 @@ impl AccessibilityRuntime {
         self.projection.as_ref()
     }
 
+    #[cfg(test)]
     pub(super) fn stats(&self) -> ProjectionStats {
         self.projection
             .as_ref()
@@ -345,7 +348,7 @@ impl FrameRuntime {
         self.accessibility.projection()
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(test, not(target_arch = "wasm32")))]
     pub(in crate::app) fn accessibility_stats(&self) -> ProjectionStats {
         self.accessibility.stats()
     }
