@@ -140,7 +140,39 @@ was built rather than after.
 
 ## Ready — current user-visible wave
 
-## Active claims — 2026-08-02/03 wave
+## Active claims — 2026-08-03 afternoon wave
+
+**Dispatched 2026-08-03, four lanes. `main` CI is red on the KNOWN item-231
+wedge and nothing else** — run `30778330964` (`69f379f7`): `web`, `linux` and
+`mac live-probe` all green; `mac (build + test)` alone died as
+`native-gate: ABORTED on its 1500s budget with mac_status=143 linux_status=143`.
+That is 231's signature, not a new regression, so integration is not blocked —
+but it is also exactly the uninformative red item 243 exists to end, which is
+why 243 is in this wave. Local `main` is 6 board-only commits ahead of origin;
+they ride this wave's first train.
+
+- **116d (the flip slice)** — 🟡 IN PROGRESS — claude (opus, high), branch
+  `claude/item-116d-flip`, worktree `awl-next-worktrees/item-116d-flip`.
+  Holds `render/chrome/overlay_draw.rs`, `overlay_rows.rs`, `chrome/mod.rs` —
+  **174's next family must not run against this wave.**
+- **243 (split the hosted-mac CI job)** — 🟡 IN PROGRESS — claude (sonnet,
+  medium), branch `claude/item-243-mac-split`, worktree
+  `awl-next-worktrees/item-243-mac-split`. Touches `CLAUDE.md`, which lane 238
+  also touches on a different line; integrate them on separate trains.
+- **240 (WebGL2 shader validation sweep)** — 🟡 IN PROGRESS — claude (sonnet,
+  medium), branch `claude/item-240-shader-sweep`, worktree
+  `awl-next-worktrees/item-240-shader-sweep`.
+- **238 (the `awl-editor` rename)** — 🟡 IN PROGRESS — claude (sonnet, medium),
+  branch `claude/item-238-rename`, worktree `awl-next-worktrees/item-238-rename`.
+  ✅ **`git remote` IS REPOINTED** — the orchestrator did it before dispatch and
+  verified it without a redirect (`git ls-remote --heads origin main` →
+  `69f379f7`). It is config, not a commit, so it appears in no diff; the worker
+  owns only the tracked-file surface and the law.
+
+**Two housekeeping facts for whoever integrates.**
+`awl-next-worktrees/item-232-scratch` is a leftover directory that
+`git worktree list` does not know about — inspect before deleting, it was not
+touched by this wave. And the RECEIPT GAP below is still open.
 
 **Overnight results, newest first.**
 
