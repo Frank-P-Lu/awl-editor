@@ -37,12 +37,30 @@ jobs:
       # SYSTEM-WIDE contention (two processes with two separate wgpu devices
       # stopped within 10 ms of each other), so there is no resource here for
       # it to exhaust. The evidence, not the argument: this job ran the same
-      # `scripts/native-gate.sh` — full suite, both conventions, all 719
+      # `scripts/native-gate.sh` — full suite, both conventions, every
       # `render::tests::` — green on the very commits where `mac` hung, for the
-      # whole ~140-commit red streak. A local arm64 lavapipe container on the
-      # dev host at `8207e519` and at its parent `36707d06` agrees. So this arm
-      # buys real Linux/Vulkan coverage and buys NOTHING on the virtualised-GPU
-      # axis; do not cite it as that axis's arm. The `mac` job below is it.
+      # whole ~140-commit red streak. Run 30770386873 (`00199724`, which
+      # contains `8207e519`) is the clean pair: `linux` issued
+      # `native-gate-receipt … conventions=mac,linux scope=all-targets` off a
+      # Mesa 25.2.8 lavapipe runner in 971 s while `mac` failed at 58m03s. A
+      # local arm64 lavapipe container (Debian bookworm, Mesa 22.3.6) agrees:
+      # `render::tests::` at `8207e519` and at `36707d06` never once hung —
+      # every termination was a prompt, diagnosable SIGKILL, never the hosted
+      # runner's park-forever-in-poll. So this arm buys real Linux/Vulkan
+      # coverage and buys NOTHING on the virtualised-GPU axis; do not cite it as
+      # that axis's arm. The `mac` job below is it.
+      #
+      # ‼ WHAT THAT CONTAINER *DID* SEE, and item 231 should have it: under a
+      # FIXED 4 GiB ceiling at `--test-threads=1`, `render::tests::` walks RSS
+      # up monotonically and is OOM-killed — and how far it gets is exactly
+      # commit-correlated. `36707d06` reaches test 199; `8207e519` reaches test
+      # 160. Twice each, identical both times. The same suite peaks at 448 MiB
+      # on the dev host's Metal (CLAUDE.md's gate note), so this is not portable
+      # as an RSS number — but it is item 231's own residual suspects
+      # (per-call `glyphon::Cache` + `TextAtlas`, `offscreen()` textures and
+      # readback buffers, reclaimed only on poll) made visible and deterministic
+      # in ~4 local minutes. It does NOT prove that bounding the growth would
+      # have prevented the hang; nothing measured here says that.
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -165,8 +183,10 @@ jobs:
   # commits. Item 232 asked whether a portable software adapter could stand in
   # and measured NO on two independent stacks: the `linux` job's x86_64 lavapipe
   # (green on the exact commits where this job hung, all streak long) and a
-  # local arm64 lavapipe container at `8207e519`/`36707d06`. A CPU rasteriser
-  # has no system-wide GPU resource for a cross-process wedge to exhaust.
+  # local arm64 lavapipe container at `8207e519`/`36707d06`, which never hung
+  # once. A CPU rasteriser has no system-wide GPU resource for a cross-process
+  # wedge to exhaust — which is what item 231 measured when two processes with
+  # two separate wgpu devices stopped within 10 ms of each other.
   # So: **this job is gating, not tolerated red.** A red `mac` blocks the train
   # the way a red `linux` does, and reproducing its class means a real
   # virtualised Metal stack — this runner, or a local macOS guest VM — never a

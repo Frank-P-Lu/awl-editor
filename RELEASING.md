@@ -240,7 +240,7 @@ Metal, so **a green receipt is not evidence about this axis and never was.**
 A software adapter does not close the gap (measured, item 232 — see the CI
 workflow's `mac` job comment). CI's `linux` job runs this same gate against
 Mesa lavapipe on every push and stayed green through the entire streak, and a
-local lavapipe container reproduces nothing either. **The hosted-mac
+local lavapipe container never hung at either bisect boundary. **The hosted-mac
 `mac (build + test)` job is the only arm awl has on virtualised-GPU behaviour.**
 Before a tag, confirm it is green on the tag's commit — not merely "not worse
 than usual" — and read a red one as a release blocker, since a user on a VM is
