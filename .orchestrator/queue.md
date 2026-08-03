@@ -649,6 +649,47 @@ converts the hang into an ordinary failure exactly as intended. **What is still
 owed is one run where the gating arms PASS and a wedge failure alone leaves the
 workflow green** — that is run `30836476858` on `f8121f45`, in flight.
 
+- **245** — ✅ **COMPLETE.** Merged `5635b5e2`. Receipt
+  `native-gate-receipt commit=3763064e76aab3a10c3e93dd7b3f1bef80d026c9 conventions=mac,linux scope=all-targets`,
+  `web-smoke: OK`, `bash scripts/code-health.sh` clean, fmt clean. The 5,500-
+  character Japanese fixture now reads **11 min** — it was 28 after item 229 and
+  a flat 1 before it.
+  **The rate is LANDED, not parked: 500 characters/minute**, the round midpoint
+  of the published ~400–600 cpm Japanese silent-reading range, chosen the way
+  200 wpm is the round conventional English figure. 🔵 **It is one constant,
+  `CJK_CHARS_PER_MINUTE`, and it is a taste-checkable number — if the user wants
+  a different pace it is a one-line change, not a rebuild.**
+  **The structural part is better than the number:** `markdown::reading_time_min`
+  now **takes the pace as an argument** instead of hardcoding `READING_WPM`, so
+  no caller can silently apply the wrong rate — the defect cannot recur through
+  a second call site. The pace lives on `CountUnit::pace_per_minute`, beside the
+  enum, and `readout_figures` just asks the unit; item 229/215's single seam was
+  not reopened. Mixed documents take the dominant script's pace outright, so
+  `dominant_unit`'s strict-majority rule decides label and pace in one edit and
+  its no-flicker guarantee covers the pace for free.
+  **`SCHEMA_VERSION` checked and deliberately NOT moved** (stays 198):
+  `reading_min` is an existing field gaining a corrected value, not a new shape,
+  which is `capture.rs`'s own stated bump criterion.
+
+⚠️ **THE 245 LANE INDEPENDENTLY HIT BOTH OF THE ORCHESTRATOR'S OWN MISTAKES
+FROM TODAY, ONE OF THEM DESPITE AN EXPLICIT WARNING. That makes them process
+defects rather than individual lapses, and they belong in the brief template.**
+- **It committed while its own gate ran** — "commit before any wait" taken
+  literally, mid-suite — and `native-gate.sh` refused the receipt exactly as it
+  refused this session's (`start=d0c1dfc3… end=3763064e`). A clean full run
+  thrown away, for the second time today, by two different actors. **The rule
+  has to be stated as an ORDER, not a duty: commit BEFORE launching the gate,
+  never during it.** "Commit before pausing" and "do not commit during the gate"
+  read as compatible right up until the gate is the thing you are pausing on.
+- **It hit a variant of the self-matching `pgrep` trap the brief had warned it
+  about.** It correctly used the bracket form `pgrep -f '[n]ative-gate\.sh'` —
+  and still matched itself, because its own wait loop contained
+  `echo "native-gate.sh finished"`, an UNBRACKETED occurrence elsewhere on the
+  same command line. **So the bracket trick is not sufficient; any occurrence of
+  the literal string anywhere in the watcher's command line defeats it.** It
+  recovered by switching to `kill -0 <pid>` on the known launch PID, which has
+  no such failure mode. **Prefer the PID.**
+
 - **239** — ✅ **COMPLETE, and its headline is a NEGATIVE RESULT that is the
   deliverable rather than a shortfall.** Merged `52b1b313`. Receipt
   `native-gate-receipt commit=45fee36af80270fa54f1fb024a69e79fd58bc8b8 conventions=mac,linux scope=all-targets`,
