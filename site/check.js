@@ -44,7 +44,7 @@ function compareVersions(a, b) {
   return 0;
 }
 
-var RELEASES_URL = "https://github.com/Frank-P-Lu/awl-next/releases";
+var RELEASES_URL = "https://github.com/Frank-P-Lu/awl-editor/releases";
 
 /**
  * The ONE decision this page makes, as a pure function of its three inputs —

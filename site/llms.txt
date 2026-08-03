@@ -6,17 +6,17 @@ awl is for people who want to create Markdown files, especially people who enjoy
 
 ## Docs
 
-- [README](https://github.com/Frank-P-Lu/awl-next/blob/main/README.md): what awl is, build & run, status, and font/license notes.
-- [Philosophy](https://github.com/Frank-P-Lu/awl-next/blob/main/PHILOSOPHY.md): the identity, priorities, and product boundary — fun, beauty, calm; WYSIWYG plain text; offline single-player; no word-processor or IDE machinery.
-- [Design](https://github.com/Frank-P-Lu/awl-next/blob/main/DESIGN.md): the visual and interaction contract — coherent worlds, typography, tactile performance, one-primary-task surfaces, and keyboard-native pointer support.
-- [Themes](https://github.com/Frank-P-Lu/awl-next/blob/main/THEMES.md): the world contract — every measurable law a theme must satisfy, the ink-ladder / role-tint derivation, and the add-a-world process.
-- [Worlds](https://github.com/Frank-P-Lu/awl-next/blob/main/WORLDS.md): the human reference for the twenty theme worlds — each one's flavour, faces, and section-break ornament.
+- [README](https://github.com/Frank-P-Lu/awl-editor/blob/main/README.md): what awl is, build & run, status, and font/license notes.
+- [Philosophy](https://github.com/Frank-P-Lu/awl-editor/blob/main/PHILOSOPHY.md): the identity, priorities, and product boundary — fun, beauty, calm; WYSIWYG plain text; offline single-player; no word-processor or IDE machinery.
+- [Design](https://github.com/Frank-P-Lu/awl-editor/blob/main/DESIGN.md): the visual and interaction contract — coherent worlds, typography, tactile performance, one-primary-task surfaces, and keyboard-native pointer support.
+- [Themes](https://github.com/Frank-P-Lu/awl-editor/blob/main/THEMES.md): the world contract — every measurable law a theme must satisfy, the ink-ladder / role-tint derivation, and the add-a-world process.
+- [Worlds](https://github.com/Frank-P-Lu/awl-editor/blob/main/WORLDS.md): the human reference for the twenty theme worlds — each one's flavour, faces, and section-break ornament.
 
 ## Concepts
 
-- [Earned expression](https://github.com/Frank-P-Lu/awl-next/blob/main/DESIGN.md): a world may be quiet, loud, colorful, or animated when its expression forms a coherent and beautiful environment for writing rather than novelty alone.
-- [Syntax highlighting — Alabaster](https://github.com/Frank-P-Lu/awl-next/blob/main/docs/syntax.md): a code buffer keeps everything in the default ink and distinguishes only four quiet roles — comment, string, constant, and definition.
-- [WYSIWYG markdown](https://github.com/Frank-P-Lu/awl-next/blob/main/PHILOSOPHY.md): reveal-on-cursor — if the caret is on that line, show the actual markdown; otherwise show the styled preview.
+- [Earned expression](https://github.com/Frank-P-Lu/awl-editor/blob/main/DESIGN.md): a world may be quiet, loud, colorful, or animated when its expression forms a coherent and beautiful environment for writing rather than novelty alone.
+- [Syntax highlighting — Alabaster](https://github.com/Frank-P-Lu/awl-editor/blob/main/docs/syntax.md): a code buffer keeps everything in the default ink and distinguishes only four quiet roles — comment, string, constant, and definition.
+- [WYSIWYG markdown](https://github.com/Frank-P-Lu/awl-editor/blob/main/PHILOSOPHY.md): reveal-on-cursor — if the caret is on that line, show the actual markdown; otherwise show the styled preview.
 
 ## Try it
 

@@ -123,7 +123,7 @@ awl is free software under the GNU General Public License, version 3 only.
 The full text is in LICENSE; NOTICE names the copyright holder. The complete
 corresponding source for this binary is the public repository:
 
-    https://github.com/Frank-P-Lu/awl-next
+    https://github.com/Frank-P-Lu/awl-editor
 
 THIRD-PARTY-LICENSES.md lists every Rust crate compiled in. licenses/ holds
 the audits for the assets embedded in the binary: fonts-LICENSES.md (SIL Open

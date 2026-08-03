@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run-linux.sh — one-shot bootstrap to build & run awl-next on Linux.
+# run-linux.sh — one-shot bootstrap to build & run awl-editor on Linux.
 # Installs the system libs winit/wgpu/cosmic-text need, ensures Rust, then runs.
 #
 #   ./run-linux.sh                 # open samples/welcome.md
