@@ -254,6 +254,14 @@ pub struct Buffer {
     /// section extent + auto-expand rules live in [`crate::fold`]; this buffer owns
     /// only the set + the caret-relative gestures over it.
     folds: std::collections::BTreeSet<usize>,
+    /// STABLE LINE IDENTITY for the accessibility projection
+    /// ([`crate::semantic::runs`]). Ids and revisions only — never text; the
+    /// rope above stays the one document. It lives on the buffer because the
+    /// three rope-mutation sites in `buffer/undo.rs` are the only places that
+    /// know which lines an edit touched, and a projection that had to work
+    /// that out for itself would have to diff the whole document every frame —
+    /// which is the defect this field exists to retire.
+    runs: crate::semantic::runs::RunTable,
 }
 
 impl Buffer {
@@ -286,6 +294,7 @@ impl Buffer {
     }
 
     fn from_rope(rope: Rope, path: Option<PathBuf>) -> Self {
+        let runs = crate::semantic::runs::RunTable::new(rope.len_lines().max(1));
         Self {
             rope,
             cursor: 0,
@@ -306,11 +315,37 @@ impl Buffer {
             undo_group_open: false,
             last_edit_kind: None,
             folds: std::collections::BTreeSet::new(),
+            runs,
         }
     }
 
     pub fn version(&self) -> u64 {
         self.version
+    }
+
+    /// This buffer's stable per-line run identity (see [`crate::semantic::runs`]).
+    pub fn runs(&self) -> &crate::semantic::runs::RunTable {
+        &self.runs
+    }
+
+    /// The lines an edit over the char range `start..end` covers, as table
+    /// indices, read BEFORE the rope is mutated.
+    pub(super) fn line_span_of(&self, start: usize, end: usize) -> (usize, usize) {
+        let clamp = |char_index: usize| self.rope.char_to_line(char_index.min(self.rope.len_chars()));
+        let first = clamp(start);
+        (first, clamp(end).max(first))
+    }
+
+    /// Record, on the run table, that the lines `first..=last` were replaced by
+    /// the text `inserted`. Called from the three rope-mutation sites only.
+    pub(super) fn resplice_runs(&mut self, first: usize, last: usize, inserted: &str) {
+        self.runs
+            .splice(first, last, inserted.matches('\n').count() + 1);
+        debug_assert_eq!(
+            self.runs.runs().len(),
+            self.rope.len_lines().max(1),
+            "the run table drifted from the rope's line count",
+        );
     }
 
     pub fn text(&self) -> String {
@@ -319,6 +354,20 @@ impl Buffer {
 
     pub fn line_count(&self) -> usize {
         self.rope.len_lines().max(1)
+    }
+
+    /// One accessibility RUN's text: the line INCLUDING its trailing `\n` where
+    /// it has one. That is what makes the concatenation of every run the
+    /// document byte for byte, so adding up per-run grapheme counts gives the
+    /// same answer as segmenting the whole document — the identity the
+    /// projection's offset arithmetic rests on. Distinct from
+    /// [`Self::line_text`], which stops before the newline because
+    /// smart-newline wants the block prefix, not the break.
+    pub fn run_text(&self, line: usize) -> String {
+        if line >= self.rope.len_lines() {
+            return String::new();
+        }
+        self.rope.line(line).to_string()
     }
 
     pub fn path(&self) -> Option<&Path> {

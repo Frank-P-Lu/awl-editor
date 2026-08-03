@@ -9,13 +9,16 @@
 
 use super::*;
 use crate::semantic::{
-    DOCUMENT_ID, DOCUMENT_TEXT_ID, ROOT_ID, SemanticAction, SemanticNode, SemanticRequest,
-    SemanticRole, SemanticSelection, SemanticSnapshot,
+    DOCUMENT_ID, ROOT_ID, SemanticAction, SemanticNode, SemanticRequest, SemanticRole,
+    SemanticSelection, SemanticSnapshot,
 };
 
 mod passive;
+mod projection;
 mod requests;
 mod surfaces;
+
+pub(in crate::app) use projection::{ProjectionStats, SemanticProjection};
 
 /// Ids that both a fold and a request arm must spell identically.
 const SEARCH_ID: &str = "search";
@@ -29,14 +32,27 @@ const NOTICE_ID: &str = "notice";
 impl App {
     pub(in crate::app) fn handle_accessibility_event(&mut self, event: accesskit_winit::Event) {
         match event.window_event {
+            // Posted by our own activation handler (see `frame/accessibility.rs`)
+            // the moment the platform asks for a tree, from whatever thread it
+            // asked on. The handler itself touches no `App` state; this is
+            // where the main loop learns an assistive technology attached.
             accesskit_winit::WindowEvent::InitialTreeRequested => {
                 self.frame.set_accessibility_active(true);
-                let snapshot = self.semantic_snapshot();
-                self.frame.update_accessibility(snapshot, true);
+                self.refresh_accessibility();
             }
             accesskit_winit::WindowEvent::ActionRequested(request) => {
-                let snapshot = self.semantic_snapshot();
-                if let Some(request) = crate::semantic::native::decode_request(&snapshot, request) {
+                // The retained projection IS the tree the platform is holding,
+                // so the request is decoded against exactly the node ids that
+                // were published — never against a freshly built snapshot that
+                // might already name different runs.
+                let decoded = self
+                    .frame
+                    .accessibility_projection()
+                    .map(|projection| projection.snapshot())
+                    .and_then(|snapshot| {
+                        crate::semantic::native::decode_request(snapshot, request)
+                    });
+                if let Some(request) = decoded {
                     self.apply_semantic_request(request);
                 }
             }
@@ -46,91 +62,125 @@ impl App {
         }
     }
 
-    /// The ONE live door from a scheduled frame to the platform tree. The gate
-    /// sits here rather than inside the runtime because BUILDING the snapshot
-    /// is the expense being avoided, and only the caller can decline to build
-    /// it: a snapshot is a whole-rope `String` plus a UAX #29 pass over it,
-    /// which an ordinary no-screen-reader frame must never pay.
+    /// The ONE live door from a scheduled frame to the platform tree.
+    ///
+    /// The gate sits here rather than inside the runtime because the projection
+    /// work is the expense being avoided, and only the caller can decline to do
+    /// it. With no assistive technology attached the frame pays a single
+    /// integer compare — enough to know the tree published for a future
+    /// activation has gone stale, and nothing more.
     pub(in crate::app) fn refresh_accessibility(&mut self) {
         if !self.frame.accessibility_wants_snapshot() {
+            self.frame
+                .note_published_tree_currency(self.published_tree_is_current());
             return;
         }
-        let snapshot = self.semantic_snapshot();
-        self.frame.update_accessibility(snapshot, false);
+        let mut projection = self.frame.take_accessibility_projection();
+        projection.refresh(self);
+        self.frame.publish_accessibility(projection);
     }
 
-    pub(crate) fn semantic_snapshot(&self) -> SemanticSnapshot {
-        let buffer = self.document.buffer();
-        let text = buffer.text();
-        let layer = self.workspace_state.layer();
-        let document_focused = matches!(layer, workspace::Layer::Editor);
-        let document_name = buffer
-            .path()
-            .and_then(|path| path.file_name())
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "Untitled document".to_string());
+    /// Is the snapshot handed to the synchronous activation handler still a
+    /// truthful description of this `App`?
+    ///
+    /// All cheap reads — a version counter and a handful of surface gates — so
+    /// an ordinary no-screen-reader frame can answer it without building
+    /// anything. A `false` here is not a bug: activation then returns `None`,
+    /// the platform shows a placeholder for one frame, and the first update is
+    /// a full tree, which is AccessKit's documented other branch.
+    fn published_tree_is_current(&self) -> bool {
+        let quiet_surface = matches!(self.workspace_state.layer(), workspace::Layer::Editor)
+            && self.card_kind_open().is_none()
+            && self.whichkey_panel_rows().is_none()
+            && !crate::menubar::menu_bar_on()
+            && self.frame.notice().text().is_none();
+        quiet_surface
+            && self.frame.published_document_state() == self.document.buffer().runs().state_key()
+    }
 
-        let anchor_char = buffer.anchor_char().unwrap_or(buffer.cursor_char());
-        let selection = SemanticSelection {
-            anchor: crate::semantic::char_to_grapheme(&text, anchor_char),
-            focus: crate::semantic::char_to_grapheme(&text, buffer.cursor_char()),
-        };
-        let mut text_node = SemanticNode::new(DOCUMENT_TEXT_ID, SemanticRole::Text, "Markdown");
-        text_node.value = Some(text.clone());
-        text_node.character_lengths = crate::semantic::grapheme_lengths(&text);
+    /// Build the tree the synchronous activation handler will serve, and park
+    /// it. Called once, from `resumed`, BEFORE the adapter exists — a screen
+    /// reader that is already running when awl launches asks for a tree the
+    /// instant the adapter is constructed, and the handler cannot build one on
+    /// a platform thread.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn seed_accessibility_tree(&mut self) {
+        let mut projection = self.frame.take_accessibility_projection();
+        projection.refresh(self);
+        let state = self.document.buffer().runs().state_key();
+        self.frame.seed_accessibility(projection, state);
+    }
 
-        let mut document = SemanticNode::new(DOCUMENT_ID, SemanticRole::Document, document_name);
-        document.children.push(DOCUMENT_TEXT_ID.to_string());
-        document.selection = Some(selection);
-        document.focusable = true;
-        document.focused = document_focused;
-        document.editable = true;
-        document.multiline = true;
-        document.actions = vec![
-            SemanticAction::Focus,
-            SemanticAction::SetTextSelection,
-            SemanticAction::ReplaceSelectedText,
-            SemanticAction::SetValue,
-        ];
-        let mut root = SemanticNode::new(ROOT_ID, SemanticRole::Application, "awl");
-        root.children.push(DOCUMENT_ID.to_string());
-        let mut nodes = vec![root, document, text_node];
-
+    /// Everything that is NOT the retained document: the active surface named
+    /// by the `Layer` ladder, the passive surfaces that ride on top of it, and
+    /// the notice. Bounded by what is on screen. `nodes[0]` is the root, whose
+    /// `children` the folds append to.
+    pub(in crate::app) fn fold_surfaces(&self, nodes: &mut Vec<SemanticNode>) -> String {
         // Exactly one ACTIVE surface owns the keyboard, and the ladder — not a
         // field — is what says which. No wildcard arm: a sixth rung must be
         // placed here before it compiles.
-        let focus_id = match layer {
+        let focus_id = match self.workspace_state.layer() {
             workspace::Layer::Editor => DOCUMENT_ID.to_string(),
-            workspace::Layer::Popover => self.fold_popover(&mut nodes),
-            workspace::Layer::Search => self.fold_search(&mut nodes),
-            workspace::Layer::Workspace | workspace::Layer::Overlay => {
-                self.fold_overlay(&mut nodes)
-            }
+            workspace::Layer::Popover => self.fold_popover(nodes),
+            workspace::Layer::Search => self.fold_search(nodes),
+            workspace::Layer::Workspace | workspace::Layer::Overlay => self.fold_overlay(nodes),
         };
 
         // PASSIVE surfaces ride on top of whatever holds focus and never take
         // it: any number may be up at once without disturbing the invariant
-        // below.
-        self.fold_passive(&mut nodes, &text);
+        // the projection asserts.
+        self.fold_passive(nodes);
 
         if let Some(message) = self.frame.notice().text() {
             nodes.push(SemanticNode::new(NOTICE_ID, SemanticRole::Status, message));
             nodes[0].children.push(NOTICE_ID.to_string());
         }
+        focus_id
+    }
 
-        debug_assert_eq!(nodes.iter().filter(|node| node.focused).count(), 1);
-        SemanticSnapshot {
-            schema: crate::semantic::SCHEMA.to_string(),
-            root_id: ROOT_ID.to_string(),
-            focus_id,
-            nodes,
-        }
+    /// A one-shot snapshot for the consumers that want a whole value rather
+    /// than a live tree: `--semantic-json` and the live-`App` capture sidecar.
+    /// O(document) by construction and correct to be — those are single
+    /// invocations, not frames.
+    pub(crate) fn semantic_snapshot(&self) -> SemanticSnapshot {
+        let mut projection = SemanticProjection::new();
+        projection.refresh(self);
+        projection.into_snapshot()
+    }
+
+    /// The whole attach sequence a real screen reader drives, minus the window:
+    /// `resumed` parks a tree, the platform asks the activation handler for it,
+    /// and the posted event turns frames on. Returns whatever the handler
+    /// actually served, so a law can tell the synchronous branch from the
+    /// placeholder one.
+    #[cfg(test)]
+    pub(crate) fn attach_assistive_technology_for_test(
+        &mut self,
+    ) -> Option<accesskit::TreeUpdate> {
+        self.seed_accessibility_tree();
+        let served = self.frame.activate_accessibility_for_test();
+        // What `handle_accessibility_event(InitialTreeRequested)` does next.
+        self.refresh_accessibility();
+        served
+    }
+
+    #[cfg(test)]
+    pub(crate) fn accessibility_stats(&self) -> ProjectionStats {
+        self.frame.accessibility_stats()
     }
 
     #[cfg(test)]
     pub(crate) fn set_semantic_text_for_test(&mut self, text: &str) {
         self.document.set_text(text);
         self.document.set_cursor(text.chars().count());
+    }
+
+    /// A real selection over the document, in CHAR offsets — the projection
+    /// laws in `semantic::native` cannot reach `DocumentSession` themselves.
+    #[cfg(test)]
+    pub(crate) fn set_semantic_selection_for_test(&mut self, anchor: usize, cursor: usize) {
+        self.document.set_anchor(anchor);
+        self.document.set_cursor(cursor);
     }
 
     /// Put this App on a named surface. The projection laws live in

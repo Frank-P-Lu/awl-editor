@@ -34,12 +34,15 @@ impl Buffer {
         } else {
             String::new()
         };
+        // The lines this edit covers, read while the rope still holds them.
+        let (first_line, last_line) = self.line_span_of(start, end);
         if remove_len > 0 {
             self.rope.remove(start..end);
         }
         if !insert.is_empty() {
             self.rope.insert(start, insert);
         }
+        self.resplice_runs(first_line, last_line, insert);
         self.cursor = cursor_after;
         // Any content edit ends a visual vertical run (the wrap geometry just
         // moved), so the next C-n/C-p recomputes the sticky visual goal-x — and
@@ -178,6 +181,11 @@ impl Buffer {
         // Invert in reverse application order.
         for edit in group.iter().rev() {
             let ins_len = edit.inserted.chars().count();
+            // Undo and redo edit the rope directly rather than through
+            // `apply_edit`, so each inversion has to resplice the run table
+            // itself — exactly as the forward edit did, with the two texts
+            // swapped.
+            let (first_line, last_line) = self.line_span_of(edit.start, edit.start + ins_len);
             // Remove what this edit inserted.
             if ins_len > 0 {
                 self.rope.remove(edit.start..edit.start + ins_len);
@@ -186,6 +194,7 @@ impl Buffer {
             if !edit.removed.is_empty() {
                 self.rope.insert(edit.start, &edit.removed);
             }
+            self.resplice_runs(first_line, last_line, &edit.removed);
         }
         // Restore the cursor to the start of the group's first edit's "before".
         self.cursor = group
@@ -216,12 +225,14 @@ impl Buffer {
         };
         for edit in group.iter() {
             let rem_len = edit.removed.chars().count();
+            let (first_line, last_line) = self.line_span_of(edit.start, edit.start + rem_len);
             if rem_len > 0 {
                 self.rope.remove(edit.start..edit.start + rem_len);
             }
             if !edit.inserted.is_empty() {
                 self.rope.insert(edit.start, &edit.inserted);
             }
+            self.resplice_runs(first_line, last_line, &edit.inserted);
         }
         self.cursor = group.last().map(|e| e.cursor_after).unwrap_or(self.cursor);
         self.anchor = None;

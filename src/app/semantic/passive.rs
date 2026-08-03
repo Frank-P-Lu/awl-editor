@@ -18,8 +18,8 @@
 use super::*;
 
 impl App {
-    pub(super) fn fold_passive(&self, nodes: &mut Vec<SemanticNode>, text: &str) {
-        self.fold_card(nodes, self.card_content(text));
+    pub(super) fn fold_passive(&self, nodes: &mut Vec<SemanticNode>) {
+        self.fold_card(nodes, self.card_content());
         self.fold_whichkey(nodes);
         self.fold_menu_bar(nodes);
     }
@@ -80,10 +80,25 @@ impl App {
         }
     }
 
+    /// WHICH card is open, asked from the gates alone. The gate is cheap; the
+    /// INPUTS behind it are not — [`crate::card::figures::DocFigures::of`]
+    /// walks the whole document — so a frame with no card up must be able to
+    /// find that out without walking one (item 218).
+    pub(in crate::app) fn card_kind_open(&self) -> Option<crate::card::content::CardKind> {
+        let overlay_active = self.workspace_state.overlay_open();
+        crate::card::content::open_kind(
+            crate::card::hud_shown(overlay_active),
+            crate::card::peek_shown(overlay_active),
+        )
+    }
+
     /// The card this frame, as CONTENT — composed by the same
-    /// [`crate::card::content::open_card`] the renderer draws from.
-    fn card_content(&self, text: &str) -> Option<crate::card::content::CardContent> {
-        crate::card::content::open_card(&self.card_inputs(text))
+    /// [`crate::card::content::card`] the renderer draws from, and only when
+    /// one is actually open.
+    fn card_content(&self) -> Option<crate::card::content::CardContent> {
+        let kind = self.card_kind_open()?;
+        let text = self.document.buffer().text();
+        Some(crate::card::content::card(kind, &self.card_inputs(&text)))
     }
 
     /// The which-key panel's rows when it is up, `None` when it is not — the

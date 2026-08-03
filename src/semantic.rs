@@ -17,11 +17,32 @@ use unicode_segmentation::UnicodeSegmentation;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native;
+pub mod runs;
 
-pub const SCHEMA: &str = "awl-semantic/1";
+pub const SCHEMA: &str = "awl-semantic/2";
 pub const ROOT_ID: &str = "app";
 pub const DOCUMENT_ID: &str = "document";
-pub const DOCUMENT_TEXT_ID: &str = "document.text";
+
+/// The document's text is a sequence of stable LINE RUNS, not one node holding
+/// the whole rope. `document.run.<id>` names one line; the id comes from
+/// [`runs::RunTable`] and survives edits to its own line and to every other, so
+/// an ordinary keystroke republishes one run instead of the document.
+///
+/// A run's value carries its line's trailing `\n` where the line has one, so
+/// the concatenation of every run is the document byte for byte and a
+/// document-wide grapheme offset is the sum of the run counts before it plus
+/// the offset within. `crate::semantic::tests` pins that identity across
+/// combining marks, ZWJ sequences and flags, which is the axis a run-based
+/// representation actually breaks on.
+pub const DOCUMENT_RUN_PREFIX: &str = "document.run.";
+
+pub fn run_node_id(id: runs::RunId) -> String {
+    format!("{DOCUMENT_RUN_PREFIX}{}", id.0)
+}
+
+pub fn is_run_id(id: &str) -> bool {
+    id.starts_with(DOCUMENT_RUN_PREFIX)
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SemanticSnapshot {

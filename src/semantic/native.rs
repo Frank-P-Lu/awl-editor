@@ -5,10 +5,7 @@ use accesskit::{
     Tree, TreeId, TreeUpdate,
 };
 
-use super::{
-    SemanticAction, SemanticNode, SemanticRequest, SemanticRole, SemanticSelection,
-    SemanticSnapshot,
-};
+use super::{SemanticAction, SemanticNode, SemanticRequest, SemanticRole, SemanticSnapshot};
 
 pub fn node_id(id: &str) -> NodeId {
     // Stable FNV-1a; identity must survive process restarts and filtering.
@@ -20,11 +17,21 @@ pub fn node_id(id: &str) -> NodeId {
     NodeId(hash)
 }
 
+/// THE FULL TREE — every node, plus the `Tree` metadata that declares the root.
+///
+/// AccessKit wants this exactly once per activation: it is what a platform
+/// adapter needs before it can hold anything, and it is what
+/// [`accesskit_winit::Adapter::update_if_active`] requires when the activation
+/// handler returned `None`. Publishing it on every REDRAW instead is the defect
+/// item 218 exists to retire — on a large document it re-projects every node
+/// and re-sends the whole rope while a user is typing, which is what VoiceOver
+/// reports as "awl is not responding".
 pub fn tree_update(snapshot: &SemanticSnapshot) -> TreeUpdate {
+    let runs = document_runs(snapshot);
     let nodes = snapshot
         .nodes
         .iter()
-        .map(|semantic| (node_id(&semantic.id), project_node(snapshot, semantic)))
+        .map(|semantic| (node_id(&semantic.id), project_node(&runs, semantic)))
         .collect();
     let mut tree = Tree::new(node_id(&snapshot.root_id));
     tree.toolkit_name = Some("awl".to_string());
@@ -36,7 +43,95 @@ pub fn tree_update(snapshot: &SemanticSnapshot) -> TreeUpdate {
     }
 }
 
-fn project_node(snapshot: &SemanticSnapshot, semantic: &SemanticNode) -> Node {
+/// THE CHANGED NODES, and nothing else.
+///
+/// `tree` is `None`: AccessKit treats an update without it as a change to a
+/// tree the platform already holds, and a node the update does not name keeps
+/// the state it already had. A node dropped from its parent's `children` is
+/// released by that parent's own update, so removals need no entry here.
+pub fn incremental_tree_update(snapshot: &SemanticSnapshot, changed: &[String]) -> TreeUpdate {
+    // Only pay for the run index when a node that reads it is actually being
+    // published; the document node is the only one that does.
+    let runs = if changed.iter().any(|id| id == super::DOCUMENT_ID) {
+        document_runs(snapshot)
+    } else {
+        Vec::new()
+    };
+    let mut nodes = Vec::with_capacity(changed.len());
+    let mut seen: Vec<&str> = Vec::with_capacity(changed.len());
+    for id in changed {
+        if seen.contains(&id.as_str()) {
+            continue;
+        }
+        let Some(semantic) = snapshot.nodes.iter().find(|node| node.id == *id) else {
+            continue;
+        };
+        seen.push(id.as_str());
+        nodes.push((node_id(id), project_node(&runs, semantic)));
+    }
+    TreeUpdate {
+        nodes,
+        tree: None,
+        tree_id: TreeId::ROOT,
+        focus: node_id(&snapshot.focus_id),
+    }
+}
+
+/// The document's text runs, in reading order.
+///
+/// They are contiguous and already ordered in `snapshot.nodes` — the projection
+/// builds them that way, and `the_document_runs_are_contiguous_and_in_reading_order`
+/// holds it — so this is one filtered pass rather than a lookup per child.
+fn document_runs(snapshot: &SemanticSnapshot) -> Vec<&SemanticNode> {
+    snapshot
+        .nodes
+        .iter()
+        .filter(|node| super::is_run_id(&node.id))
+        .collect()
+}
+
+/// A document-wide GRAPHEME offset as the AccessKit position it names: which
+/// run holds it, and where inside that run's expanded character space.
+///
+/// Selections that cross a run boundary are the ordinary case here, not an edge
+/// one — every multi-line selection is one — so the anchor and the focus are
+/// located independently and may name different nodes.
+fn locate(runs: &[&SemanticNode], offset: usize) -> Option<TextPosition> {
+    let mut consumed = 0;
+    for run in runs {
+        let length = run.character_lengths.len();
+        if offset < consumed + length {
+            return Some(TextPosition {
+                node: node_id(&run.id),
+                character_index: expanded_index(&run.character_lengths, offset - consumed),
+            });
+        }
+        consumed += length;
+    }
+    // The end of the document: the last run's end, never a position in a node
+    // that does not exist.
+    runs.last().map(|run| TextPosition {
+        node: node_id(&run.id),
+        character_index: expanded_index(&run.character_lengths, run.character_lengths.len()),
+    })
+}
+
+/// The inverse of [`locate`]: an AccessKit position back to a document-wide
+/// grapheme offset. A position INSIDE a grapheme that had to be split across
+/// several `character_lengths` slots clamps to that grapheme's start, exactly
+/// as it did when the document was one run.
+fn delocate(runs: &[&SemanticNode], position: &TextPosition) -> Option<usize> {
+    let mut consumed = 0;
+    for run in runs {
+        if node_id(&run.id) == position.node {
+            return Some(consumed + semantic_index(&run.character_lengths, position.character_index));
+        }
+        consumed += run.character_lengths.len();
+    }
+    None
+}
+
+fn project_node(runs: &[&SemanticNode], semantic: &SemanticNode) -> Node {
     let mut node = Node::new(role(semantic));
     if !semantic.name.is_empty() {
         node.set_label(semantic.name.clone());
@@ -77,13 +172,10 @@ fn project_node(snapshot: &SemanticSnapshot, semantic: &SemanticNode) -> Node {
         node.set_character_lengths(expanded_lengths(&semantic.character_lengths));
     }
     if let Some(selection) = semantic.selection
-        && let Some(text) = semantic
-            .children
-            .iter()
-            .filter_map(|id| snapshot.nodes.iter().find(|node| node.id == *id))
-            .find(|node| node.role == SemanticRole::Text)
+        && let Some(anchor) = locate(runs, selection.anchor)
+        && let Some(focus) = locate(runs, selection.focus)
     {
-        node.set_text_selection(text_selection(text, selection));
+        node.set_text_selection(TextSelection { anchor, focus });
     }
     node
 }
@@ -156,20 +248,6 @@ fn semantic_index(lengths: &[usize], expanded: usize) -> usize {
     lengths.len()
 }
 
-fn text_selection(text: &SemanticNode, selection: SemanticSelection) -> TextSelection {
-    let id = node_id(&text.id);
-    TextSelection {
-        anchor: TextPosition {
-            node: id,
-            character_index: expanded_index(&text.character_lengths, selection.anchor),
-        },
-        focus: TextPosition {
-            node: id,
-            character_index: expanded_index(&text.character_lengths, selection.focus),
-        },
-    }
-}
-
 pub fn decode_request(
     snapshot: &SemanticSnapshot,
     request: ActionRequest,
@@ -197,18 +275,15 @@ pub fn decode_request(
             value: value.into(),
         }),
         (Action::SetTextSelection, Some(ActionData::SetTextSelection(selection))) => {
-            let text = node
-                .children
-                .iter()
-                .filter_map(|id| snapshot.nodes.iter().find(|candidate| candidate.id == *id))
-                .find(|candidate| node_id(&candidate.id) == selection.anchor.node)?;
-            if selection.anchor.node != selection.focus.node {
-                return None;
-            }
+            // A multi-line selection names two DIFFERENT run nodes, so the two
+            // ends are resolved independently. Requiring one shared node — as
+            // this did while the document was a single run — would silently
+            // drop every selection a screen reader made across a line break.
+            let runs = document_runs(snapshot);
             Some(SemanticRequest::SetTextSelection {
                 id,
-                anchor: semantic_index(&text.character_lengths, selection.anchor.character_index),
-                focus: semantic_index(&text.character_lengths, selection.focus.character_index),
+                anchor: delocate(&runs, &selection.anchor)?,
+                focus: delocate(&runs, &selection.focus)?,
             })
         }
         (Action::SetValue, Some(ActionData::NumericValue(value))) => {
@@ -221,10 +296,61 @@ pub fn decode_request(
     }
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::semantic::{DOCUMENT_ID, DOCUMENT_TEXT_ID};
+    use crate::semantic::DOCUMENT_ID;
+
+    fn app_with(text: &str) -> crate::app::App {
+        let mut app = crate::app::App::new_hermetic(
+            None,
+            std::path::PathBuf::from("/"),
+            crate::config::Config::empty(),
+        );
+        app.set_semantic_text_for_test(text);
+        app
+    }
+
+    fn runs_of(snapshot: &SemanticSnapshot) -> Vec<&SemanticNode> {
+        document_runs(snapshot)
+    }
+
+    /// Ask the production locator where a document-wide grapheme offset lives.
+    /// A test that computed the position itself would only be checking its own
+    /// arithmetic against itself.
+    fn position(snapshot: &SemanticSnapshot, offset: usize) -> TextPosition {
+        locate(&runs_of(snapshot), offset).expect("every offset names a run")
+    }
+
+    fn selection_request(snapshot: &SemanticSnapshot, anchor: usize, focus: usize) -> ActionRequest {
+        ActionRequest {
+            action: Action::SetTextSelection,
+            target_tree: TreeId::ROOT,
+            target_node: node_id(DOCUMENT_ID),
+            data: Some(ActionData::SetTextSelection(TextSelection {
+                anchor: position(snapshot, anchor),
+                focus: position(snapshot, focus),
+            })),
+        }
+    }
+
+    /// Unicode that a run split can actually break: a combining sequence, a ZWJ
+    /// family, a regional-indicator flag — placed ON both sides of line breaks
+    /// and at a line's first and last position, because the interior cases are
+    /// the ones a run representation never gets wrong.
+    fn boundary_fixture() -> String {
+        [
+            "e\u{301}dge at the start",
+            "👨‍👩‍👧‍👦",
+            "ends with a flag 🇯🇵",
+            "🇯🇵 starts with a flag",
+            "",
+            "e\u{301}",
+            "plain tail",
+        ]
+        .join("\n")
+    }
 
     #[test]
     fn accesskit_projection_preserves_every_semantic_node_role_action_and_focus() {
@@ -238,6 +364,7 @@ mod tests {
         let update = tree_update(&snapshot);
         assert_eq!(update.nodes.len(), snapshot.nodes.len());
         assert_eq!(update.focus, node_id(&snapshot.focus_id));
+        let runs = runs_of(&snapshot);
         for semantic in &snapshot.nodes {
             let projected = update
                 .nodes
@@ -250,37 +377,103 @@ mod tests {
                 assert!(projected.supports_action(action_to_accesskit(*action)));
             }
         }
+        assert!(!runs.is_empty(), "the document announced no text run");
+    }
+
+    /// THE identity a run-based document rests on: the runs, concatenated, are
+    /// the document, and their grapheme counts add up to the document's. If
+    /// this drifts, every offset a screen reader sends lands in the wrong
+    /// place — silently, because both sides are internally consistent.
+    #[test]
+    fn the_runs_reproduce_the_document_byte_for_byte_and_grapheme_for_grapheme() {
+        let _guard = crate::testlock::serial();
+        for text in [
+            "",
+            "one line",
+            "a\nb\nc",
+            "trailing newline\n",
+            "\n\n\n",
+            &boundary_fixture(),
+        ] {
+            let app = app_with(text);
+            let snapshot = app.semantic_snapshot();
+            let runs = runs_of(&snapshot);
+            let joined: String = runs
+                .iter()
+                .map(|run| run.value.clone().unwrap_or_default())
+                .collect();
+            assert_eq!(joined, text, "the runs are not the document: {text:?}");
+            let per_run: usize = runs.iter().map(|run| run.character_lengths.len()).sum();
+            assert_eq!(
+                per_run,
+                crate::semantic::grapheme_lengths(text).len(),
+                "run grapheme counts disagree with the document's: {text:?}",
+            );
+        }
+    }
+
+    /// The axis a run representation actually breaks on: every offset, swept,
+    /// including the ones that sit exactly ON a run boundary and the one past
+    /// the last grapheme.
+    #[test]
+    fn every_grapheme_offset_round_trips_across_run_boundaries() {
+        let _guard = crate::testlock::serial();
+        let text = boundary_fixture();
+        let app = app_with(&text);
+        let snapshot = app.semantic_snapshot();
+        let runs = runs_of(&snapshot);
+        let total = crate::semantic::grapheme_lengths(&text).len();
+        assert!(runs.len() > 5, "the fixture must really be multi-run");
+        for offset in 0..=total {
+            let there = locate(&runs, offset).expect("every offset names a run");
+            let back = delocate(&runs, &there).expect("every position names a run");
+            assert_eq!(
+                back, offset,
+                "grapheme {offset} of {total} did not survive the run bridge",
+            );
+        }
+    }
+
+    /// The runs must be contiguous and in reading order in `snapshot.nodes` —
+    /// `document_runs` reads them positionally, and the document node's own
+    /// `children` list is what a screen reader walks.
+    #[test]
+    fn the_document_runs_are_contiguous_and_in_reading_order() {
+        let _guard = crate::testlock::serial();
+        let app = app_with(&boundary_fixture());
+        let snapshot = app.semantic_snapshot();
+        let indices: Vec<usize> = snapshot
+            .nodes
+            .iter()
+            .enumerate()
+            .filter(|(_, node)| crate::semantic::is_run_id(&node.id))
+            .map(|(index, _)| index)
+            .collect();
+        assert!(!indices.is_empty());
+        assert_eq!(
+            indices.last().unwrap() - indices[0] + 1,
+            indices.len(),
+            "a non-run node was interleaved with the document's runs",
+        );
+        let document = snapshot
+            .nodes
+            .iter()
+            .find(|node| node.id == DOCUMENT_ID)
+            .expect("the document node");
+        let ordered: Vec<&String> = indices.iter().map(|i| &snapshot.nodes[*i].id).collect();
+        assert_eq!(
+            ordered,
+            document.children.iter().collect::<Vec<_>>(),
+            "the document's children are not its runs in reading order",
+        );
     }
 
     #[test]
     fn document_selection_request_round_trips_graphemes() {
         let _guard = crate::testlock::serial();
-        let mut app = crate::app::App::new_hermetic(
-            None,
-            std::path::PathBuf::from("/"),
-            crate::config::Config::empty(),
-        );
-        app.set_semantic_text_for_test("e\u{301} 👨‍👩‍👧‍👦 🇯🇵");
+        let app = app_with("e\u{301} 👨‍👩‍👧‍👦 🇯🇵");
         let snapshot = app.semantic_snapshot();
-        let selection = TextSelection {
-            anchor: TextPosition {
-                node: node_id(DOCUMENT_TEXT_ID),
-                character_index: 1,
-            },
-            focus: TextPosition {
-                node: node_id(DOCUMENT_TEXT_ID),
-                character_index: 3,
-            },
-        };
-        let decoded = decode_request(
-            &snapshot,
-            ActionRequest {
-                action: Action::SetTextSelection,
-                target_tree: TreeId::ROOT,
-                target_node: node_id(DOCUMENT_ID),
-                data: Some(ActionData::SetTextSelection(selection)),
-            },
-        );
+        let decoded = decode_request(&snapshot, selection_request(&snapshot, 1, 3));
         assert_eq!(
             decoded,
             Some(SemanticRequest::SetTextSelection {
@@ -288,6 +481,63 @@ mod tests {
                 anchor: 1,
                 focus: 3,
             })
+        );
+    }
+
+    /// A MULTILINE selection names two different run nodes. The single-run
+    /// decoder rejected exactly this — `anchor.node != focus.node` returned
+    /// `None` — so every selection a screen reader made across a line break was
+    /// silently dropped.
+    #[test]
+    fn a_selection_spanning_run_boundaries_round_trips_both_ways() {
+        let _guard = crate::testlock::serial();
+        let text = boundary_fixture();
+        let app = app_with(&text);
+        let snapshot = app.semantic_snapshot();
+        let total = crate::semantic::grapheme_lengths(&text).len();
+        let runs = runs_of(&snapshot);
+
+        // Sweep every ordered pair of run STARTS and ENDS: those are the
+        // offsets a boundary bug hides at.
+        let mut edges = vec![0usize];
+        let mut consumed = 0;
+        for run in &runs {
+            consumed += run.character_lengths.len();
+            edges.push(consumed);
+        }
+        for anchor in &edges {
+            for focus in &edges {
+                let decoded = decode_request(&snapshot, selection_request(&snapshot, *anchor, *focus));
+                assert_eq!(
+                    decoded,
+                    Some(SemanticRequest::SetTextSelection {
+                        id: DOCUMENT_ID.to_string(),
+                        anchor: (*anchor).min(total),
+                        focus: (*focus).min(total),
+                    }),
+                    "a selection from {anchor} to {focus} did not survive",
+                );
+            }
+        }
+
+        // And the projected direction: the document node's own text selection
+        // must name the two runs the two ends really live in.
+        let mut app = app_with(&text);
+        app.set_semantic_selection_for_test(0, text.chars().count());
+        let snapshot = app.semantic_snapshot();
+        let update = tree_update(&snapshot);
+        let document = update
+            .nodes
+            .iter()
+            .find(|(id, _)| *id == node_id(DOCUMENT_ID))
+            .map(|(_, node)| node)
+            .expect("the document node is projected");
+        let selection = document
+            .text_selection()
+            .expect("a whole-document selection is announced");
+        assert_ne!(
+            selection.anchor.node, selection.focus.node,
+            "a selection over a multi-line document collapsed into one run",
         );
     }
 
@@ -362,60 +612,40 @@ mod tests {
         }
     }
 
+    /// The same oversized cluster, now with a LINE BREAK on each side of it, so
+    /// the slot-splitting arithmetic and the run-boundary arithmetic have to be
+    /// right at the same time.
     #[test]
     fn an_oversized_cluster_round_trips_through_a_real_selection_request() {
         let _guard = crate::testlock::serial();
-        let mut app = crate::app::App::new_hermetic(
-            None,
-            std::path::PathBuf::from("/"),
-            crate::config::Config::empty(),
-        );
         let cluster = oversized_cluster();
-        app.set_semantic_text_for_test(&format!("a{cluster}z"));
+        let text = format!("before\na{cluster}z\nafter");
+        let app = app_with(&text);
         let snapshot = app.semantic_snapshot();
-        let update = tree_update(&snapshot);
-        let text_node = update
-            .nodes
-            .iter()
-            .find(|(id, _)| *id == node_id(DOCUMENT_TEXT_ID))
-            .map(|(_, node)| node)
-            .expect("the document text node is projected");
+        let runs = runs_of(&snapshot);
+        assert_eq!(runs.len(), 3, "the fixture must be three runs");
         assert_eq!(
-            text_node
-                .character_lengths()
+            runs[1]
+                .character_lengths
                 .iter()
-                .map(|n| usize::from(*n))
+                .map(|n| *n)
                 .sum::<usize>(),
-            2 + cluster.len(),
+            2 + cluster.len() + 1,
+            "the middle run carries the cluster, its neighbours and its newline",
         );
 
-        // Select from just before the cluster to just after it, expressed in
-        // AccessKit's expanded character space, and decode it back.
-        let selection = TextSelection {
-            anchor: TextPosition {
-                node: node_id(DOCUMENT_TEXT_ID),
-                character_index: 1,
-            },
-            focus: TextPosition {
-                node: node_id(DOCUMENT_TEXT_ID),
-                character_index: 3,
-            },
-        };
+        // "before\n" is 7 graphemes; the cluster is the 9th grapheme overall.
+        let before = crate::semantic::grapheme_lengths("before\n").len();
         let decoded = decode_request(
             &snapshot,
-            ActionRequest {
-                action: Action::SetTextSelection,
-                target_tree: TreeId::ROOT,
-                target_node: node_id(DOCUMENT_ID),
-                data: Some(ActionData::SetTextSelection(selection)),
-            },
+            selection_request(&snapshot, before + 1, before + 2),
         );
         assert_eq!(
             decoded,
             Some(SemanticRequest::SetTextSelection {
                 id: DOCUMENT_ID.to_string(),
-                anchor: 1,
-                focus: 2,
+                anchor: before + 1,
+                focus: before + 2,
             }),
             "the split cluster must decode to ONE grapheme, not two",
         );
@@ -429,12 +659,7 @@ mod tests {
     fn json_and_accesskit_are_projections_of_the_same_snapshot() {
         let _guard = crate::testlock::serial();
         for surface in ["editor", "overlay", "search"] {
-            let mut app = crate::app::App::new_hermetic(
-                None,
-                std::path::PathBuf::from("/"),
-                crate::config::Config::empty(),
-            );
-            app.set_semantic_text_for_test("e\u{301} 👨‍👩‍👧‍👦 prose");
+            let mut app = app_with("e\u{301} 👨‍👩‍👧‍👦 prose\nand a second line");
             app.install_semantic_fixture_for_test(surface);
             let snapshot = app.semantic_snapshot();
 
@@ -467,5 +692,32 @@ mod tests {
                 "{surface}: focus_id names a node neither view contains",
             );
         }
+    }
+
+    /// An incremental update carries the changed nodes and NO `Tree`: AccessKit
+    /// reads a `Tree` as "this is a whole new tree", which is the very shape
+    /// item 218 removed from the per-frame path.
+    #[test]
+    fn an_incremental_update_names_only_what_changed_and_declares_no_tree() {
+        let _guard = crate::testlock::serial();
+        let app = app_with("alpha\nbeta\ngamma");
+        let snapshot = app.semantic_snapshot();
+        let run = snapshot
+            .nodes
+            .iter()
+            .find(|node| crate::semantic::is_run_id(&node.id))
+            .expect("a run")
+            .id
+            .clone();
+        let update = incremental_tree_update(&snapshot, &[run.clone(), DOCUMENT_ID.to_string()]);
+        assert!(
+            update.tree.is_none(),
+            "an incremental update declared a whole tree",
+        );
+        assert_eq!(update.nodes.len(), 2);
+        assert_eq!(update.focus, node_id(&snapshot.focus_id));
+        let ids: Vec<NodeId> = update.nodes.iter().map(|(id, _)| *id).collect();
+        assert!(ids.contains(&node_id(&run)));
+        assert!(ids.contains(&node_id(DOCUMENT_ID)));
     }
 }
