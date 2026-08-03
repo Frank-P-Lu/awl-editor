@@ -32,6 +32,20 @@ impl OverlayState {
             .map(|f| f.id)
     }
 
+    /// **WHERE THIS PICKER IS, at the SECONDARY level** — the active
+    /// lens's label, or `None` at the All home and for a non-faceting picker.
+    ///
+    /// The picker's PRIMARY level is its [`OverlayKind::title`]; this is the
+    /// category inside it. It is the one datum a world's own location cue is an
+    /// expression of, which is why it is asked of the scheme rather than
+    /// re-read off the strip: a reader that scanned [`Self::lens_strip`] for its
+    /// active entry would be a second answer to the same question, free to
+    /// disagree with the mark the strip itself draws.
+    pub fn location(&self) -> Option<&'static str> {
+        self.facet_scheme()
+            .and_then(|sc| sc.location(self.facet_lens))
+    }
+
     /// The lens STRIP for rendering + the sidecar — each lens's label with a flag
     /// marking the ACTIVE one (emphasized by VALUE, never amber). In the scheme's
     /// [`crate::facets::FacetScheme::strip`] order (All parked at the far left).

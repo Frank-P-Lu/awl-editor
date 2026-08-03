@@ -291,14 +291,23 @@ impl TextPipeline {
         // the content pane's rows do today.
         let rail = (!rows_primary && primary_visible).then_some([primary_x, primary_w]);
 
-        // THE ROW LIST'S OWN BOX follows `rows_primary`: the primary column's
+        // THE ROW LIST'S OWN BAND follows `rows_primary`: the primary column's
         // when it owns the rows, the content pane's otherwise — today's rule,
         // and the only one any kind currently reaches.
-        let (text_left, text_w) = if rows_primary {
+        let (band_x, band_w) = if rows_primary {
             (primary_x, primary_w)
         } else {
             (pane_x, pane_w)
         };
+        // **THE ROW TEXT SITS INSIDE ITS OWN PLATE.** Both other overlay families
+        // put their row text `overlay_text_hpad()` inside the band the row
+        // surfaces span, and that number is not decoration: on a `Bars` world it
+        // is `BAR_SIDE_INSET + BAR_TEXT_PAD`, so the plate — which `bar_full_span`
+        // insets `BAR_SIDE_INSET` from the same band — brackets the glyphs with
+        // `BAR_TEXT_PAD` of air. Laying rows out on the bare band puts the text
+        // `BAR_SIDE_INSET` OUTSIDE its own plate at both edges.
+        let hpad = self.overlay_text_hpad();
+        let (text_left, text_w) = (band_x + hpad, (band_w - 2.0 * hpad).max(1.0));
 
         // On a stage that is not showing its list, no rows are windowed at
         // all — the search line still rides above at `text_left`/`text_top`:
@@ -360,8 +369,8 @@ impl TextPipeline {
             // shape the rows live in the PRIMARY column. Pointing this at the
             // comparison instead would draw the selected-version band across the
             // transcript and make the timeline clickable nowhere it is drawn.
-            pane_x: text_left,
-            pane_w: text_w,
+            pane_x: band_x,
+            pane_w: band_w,
             rows_focused,
             ..OverlayGeom::base()
         }

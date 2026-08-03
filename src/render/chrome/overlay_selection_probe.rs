@@ -76,3 +76,25 @@ impl TextPipeline {
         }
     }
 }
+
+impl OverlayGeom {
+    /// TEST-ONLY readers for the palette-location laws: the card's candidate
+    /// DISPLAY LINES tagged by kind, and how many there are — so a law can
+    /// assert what the band opens on without a render path exposing its plan.
+    #[cfg(test)]
+    pub(in crate::render) fn plan_labels_probe(&self) -> Vec<String> {
+        self.plan
+            .iter()
+            .filter_map(|l| match l {
+                PlanLine::Location(s) => Some(format!("loc:{s}")),
+                PlanLine::Header(s) => Some(format!("hdr:{s}")),
+                PlanLine::Item(_) => None,
+            })
+            .collect()
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn plan_len_probe(&self) -> usize {
+        self.plan.len()
+    }
+}

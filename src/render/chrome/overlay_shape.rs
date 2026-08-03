@@ -531,7 +531,7 @@ impl TextPipeline {
                         }
                         _ => String::new(),
                     },
-                    PlanLine::Header(_) => String::new(),
+                    PlanLine::Location(_) | PlanLine::Header(_) => String::new(),
                 })
                 .collect()
         } else {
@@ -542,7 +542,7 @@ impl TextPipeline {
                 plan.header_rows(),
                 geom.plan.iter().map(|line| match line {
                     PlanLine::Item(i) => right_labels.get(*i).map(|s| s.as_str()).unwrap_or(""),
-                    PlanLine::Header(_) => "",
+                    PlanLine::Location(_) | PlanLine::Header(_) => "",
                 }),
             )
         } else {

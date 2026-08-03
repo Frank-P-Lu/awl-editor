@@ -88,7 +88,7 @@ pub(super) fn window_plan(full: &[PlanLine], lo: usize, hi: usize) -> Vec<PlanLi
     let mut pending: Option<&PlanLine> = None;
     for line in full {
         match line {
-            PlanLine::Header(_) => pending = Some(line),
+            PlanLine::Location(_) | PlanLine::Header(_) => pending = Some(line),
             PlanLine::Item(i) => {
                 if *i >= lo && *i < hi {
                     if let Some(h) = pending.take() {
@@ -121,6 +121,7 @@ mod tests {
     fn shape(plan: &[PlanLine]) -> Vec<String> {
         plan.iter()
             .map(|l| match l {
+                PlanLine::Location(l) => format!("@{l}"),
                 PlanLine::Header(h) => format!("#{h}"),
                 PlanLine::Item(i) => format!("i{i}"),
             })

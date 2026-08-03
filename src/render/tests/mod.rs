@@ -76,6 +76,7 @@ mod overlay_rail_thirds_law;
 mod overlay_rhythm_item112;
 mod overlay_right_hug_law;
 mod page_frame;
+mod palette_location_item220;
 mod paperbark_retina_item201;
 mod pixeldiff;
 mod plan_pass_law;
@@ -109,6 +110,7 @@ mod webgl_shader_validation;
 /// ITEM 114 — the summoned workspace's presentation: two regions, wide/narrow
 /// staging, drawn-equals-clickable, and a focus cue asserted in real pixels.
 mod workspace_item114;
+mod workspace_plate_item234;
 /// ITEM 116a — the shape: `workspace_shape() -> Option<WorkspaceShape>`'s
 /// roster and the `rows_are_primary()` bypass-is-module-private law.
 mod workspace_shape_item116a;

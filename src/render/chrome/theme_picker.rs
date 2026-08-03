@@ -6,6 +6,11 @@ use super::*;
 /// the baseline for every chrome/mono/display face without striking the glyphs.
 const UNDERLINE_BASELINE_DROP: f32 = 2.0;
 
+/// The SECONDARY LOCATION heading's font size, as a fraction of the overlay's
+/// own UI size — above `type_scale::LABEL` (a section header's whisper), below a
+/// candidate row, so the hierarchy reads by size as well as by ink.
+const LOCATION_SCALE: f32 = 0.92;
+
 impl TextPipeline {
     /// THEME PICKER display plan: the candidate-area sequence of section HEADERS +
     /// world ROWS, from the parallel `overlay_sections`. A header is emitted before a
@@ -13,9 +18,17 @@ impl TextPipeline {
     /// get one header each); the All lens / non-grouped rows emit no headers. Section
     /// labels are uppercased for the faint header display. Shared by the geometry,
     /// shaping, selected-band, and hit-test so they can never disagree.
+    ///
+    /// **A SECTION WHOSE LABEL IS THE CARD'S OWN LOCATION IS NOT A SECTION.**
+    /// When the group being headed is the very place the picker is
+    /// (`overlay_location`, the active lens), that line is the SECOND LEVEL of
+    /// the card's heading hierarchy rather than chrome dividing a list into
+    /// parts, and is planned as [`PlanLine::Location`] so the shaper can say so.
+    /// Its SLOT is unchanged: the defect was a heading in a list's voice.
     pub(in crate::render) fn theme_plan(&self) -> Vec<PlanLine> {
         let mut out = Vec::with_capacity(self.overlay_items.len());
         let mut prev: Option<String> = None;
+        let location = self.overlay_location.as_deref();
         for i in 0..self.overlay_items.len() {
             let sect = self
                 .overlay_sections
@@ -23,7 +36,10 @@ impl TextPipeline {
                 .map(|s| s.as_str())
                 .unwrap_or("");
             if !sect.is_empty() && prev.as_deref() != Some(sect) {
-                out.push(PlanLine::Header(sect.to_uppercase()));
+                out.push(match location == Some(sect) {
+                    true => PlanLine::Location(sect.to_string()),
+                    false => PlanLine::Header(sect.to_uppercase()),
+                });
             }
             out.push(PlanLine::Item(i));
             prev = if sect.is_empty() {
@@ -412,6 +428,9 @@ impl TextPipeline {
         let ui = crate::render::effective_overlay_scale();
         let lh = self.overlay_lh();
         let header_metrics = GlyphMetrics::new(m.font_size * ui * label, lh);
+        // The row pitch stays the shared `lh`, so the location can no more move
+        // the band than the section header it replaces.
+        let location_metrics = GlyphMetrics::new(m.font_size * ui * LOCATION_SCALE, lh);
         let base = panel_attrs();
         let mk = |c| base.clone().color(c);
         let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
@@ -432,7 +451,7 @@ impl TextPipeline {
             .plan
             .iter()
             .map(|line| match line {
-                PlanLine::Header(_) => None,
+                PlanLine::Location(_) | PlanLine::Header(_) => None,
                 PlanLine::Item(i) => {
                     let name = self.overlay_items.get(*i).map(|s| s.as_str()).unwrap_or("");
                     Some(if elide {
@@ -509,6 +528,18 @@ impl TextPipeline {
         for (idx, (line, fit)) in geom.plan.iter().zip(fitted.iter()).enumerate() {
             spans.push(("\n", mk(ink)));
             match line {
+                // THE SECOND LEVEL, in the HEADING's voice. Three deliberate
+                // differences from the section header, each of which stops it
+                // reading as a repeat of the title: the CHROME face the title
+                // prefix and the lens strip are set in, the label's own authored
+                // case, and `muted` rather than `faint` — subordinate to the
+                // primary, but a statement rather than a whisper.
+                PlanLine::Location(l) => {
+                    spans.push((
+                        l.as_str(),
+                        chrome_attrs().color(muted).metrics(location_metrics),
+                    ));
+                }
                 PlanLine::Header(h) => {
                     spans.push((h.as_str(), mk(faint).metrics(header_metrics)));
                 }

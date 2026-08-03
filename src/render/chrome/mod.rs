@@ -556,7 +556,7 @@ fn preview_glyph_key_at(buf: &GlyphBuffer, text: &str, idx: usize) -> Option<Cac
 
 pub(super) const BAR_SIDE_INSET: f32 = 8.0;
 
-pub(super) const BAR_TEXT_PAD: f32 = 13.0;
+pub(in crate::render) const BAR_TEXT_PAD: f32 = 13.0;
 
 pub(super) const INLINE_SHORTCUT_GAP: &str = "   ";
 
@@ -565,6 +565,13 @@ pub(super) fn bars_inline_shortcut() -> bool {
         crate::render::effective_list_style(),
         theme::ListStyle::Bars { extent, .. } if extent.inline_shortcut()
     )
+}
+
+/// TEST-ONLY reader for the item-234 law, which has to compare the plate's own
+/// span against the row box without re-deriving either.
+#[cfg(test)]
+pub(in crate::render) fn bar_full_span_probe(card_x: f32, card_w: f32) -> (f32, f32) {
+    bar_full_span(card_x, card_w)
 }
 
 pub(super) fn bar_full_span(card_x: f32, card_w: f32) -> (f32, f32) {
