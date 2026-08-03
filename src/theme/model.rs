@@ -125,11 +125,24 @@ pub enum ListStyle {
 }
 
 impl ListStyle {
+    /// What backs the CARD — a filled panel, or nothing at all. This says
+    /// nothing about what backs a ROW: see [`ListStyle::draws_row_plates`].
     pub fn list_backing(self, _spell: bool) -> ListBacking {
         match self {
             ListStyle::Pane => ListBacking::Card,
             ListStyle::Diagonal(_) => ListBacking::BarePlates,
             ListStyle::Bars { .. } => ListBacking::BarePlates,
+        }
+    }
+
+    /// Whether this style backs its ROWS with plates. THE BARE-PLATE ROSTER IS
+    /// NOT THE PLATE-DRAWING ROSTER: `Diagonal` is `BarePlates` and yet draws
+    /// no plate anywhere, its selection being a spine segment and a connector.
+    /// A law or a probe about plates asks THIS question, not `list_backing`.
+    pub fn draws_row_plates(self) -> bool {
+        match self {
+            ListStyle::Bars { .. } => true,
+            ListStyle::Pane | ListStyle::Diagonal(_) => false,
         }
     }
 }

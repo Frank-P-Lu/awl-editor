@@ -499,8 +499,14 @@ fn a_huge_picker_corpus_still_plans_only_the_rows_on_screen() {
 /// matches" row: the notice sat on a plated band a whole row above the footer's
 /// own glyphs.
 ///
-/// TWO ARMS, over the WHOLE shipping bare-plate roster (read through the shared
-/// backing owner, so a new bare-plate world joins the sweep):
+/// THE ROSTER IS THE WORLDS THAT DRAW PLATES, WHICH IS NOT THE BARE-PLATE
+/// ROSTER. `list_backing == BarePlates` is a claim about the CARD, not about
+/// rows: Mangrove and Magpie are `ListStyle::Diagonal`, bare in that sense and
+/// drawing no plate at all. A plate claim graded on them is a claim about
+/// nothing, so the sweep asks `draws_row_plates` and arm 3 EARNS the exclusion
+/// of the other two by measurement rather than by name.
+///
+/// THREE ARMS:
 ///
 /// 1. GEOMETRY, from the quads the emitter actually produces
 ///    (`overlay_bar_rects_probe`) — not from arithmetic and not from the sidecar:
@@ -510,6 +516,8 @@ fn a_huge_picker_corpus_still_plans_only_the_rows_on_screen() {
 ///    authors ink through that ground, so its appearance is not a Bars oracle.
 ///    Absolute luminance grades only Bars worlds whose plate it can genuinely see
 ///    (`plate_delta > VISIBLE_PLATE_LUMA`); arm 1 covers the rest.
+/// 3. THE EXCLUSION, on the bare-plate worlds arms 1 and 2 do not reach: the
+///    frame must emit NO row surface at all, so no plate can sit on the notice.
 #[test]
 fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world() {
     let _g = crate::testlock::serial();
@@ -518,19 +526,30 @@ fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world() 
         return;
     };
 
-    let bare_plate_worlds: Vec<&'static str> = theme::THEMES
+    let (plated, plateless): (Vec<&'static str>, Vec<&'static str>) = theme::THEMES
         .iter()
         .filter(|t| t.render_caps.list_style.list_backing(false) == theme::ListBacking::BarePlates)
-        .map(|t| t.name)
-        .collect();
+        .map(|t| (t.name, t.render_caps.list_style.draws_row_plates()))
+        .fold((Vec::new(), Vec::new()), |mut acc, (name, draws)| {
+            match draws {
+                true => acc.0.push(name),
+                false => acc.1.push(name),
+            }
+            acc
+        });
     assert_eq!(
-        bare_plate_worlds,
-        ["Mangrove", "Galah", "Magpie", "Firetail", "Cassowary"],
-        "the bare-plate law must follow the exact shipping roster"
+        (plated.as_slice(), plateless.as_slice()),
+        (
+            ["Galah", "Firetail", "Cassowary"].as_slice(),
+            ["Mangrove", "Magpie"].as_slice()
+        ),
+        "the shipping bare-plate roster splits exactly this way — a new world joins \
+         one arm or the other, never neither"
     );
 
     let mut pixel_graded: Vec<&str> = Vec::new();
-    for world in &bare_plate_worlds {
+    let mut plateless_graded: Vec<&str> = Vec::new();
+    for world in plated.iter().chain(&plateless) {
         theme::set_active_by_name(world).unwrap();
         p.sync_theme();
 
@@ -565,6 +584,22 @@ fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world() 
             (footer_top - (notice_top + lh)).abs() < 0.01,
             "{world}: the footer must start exactly one row below the notice"
         );
+
+        // ARM 3 — the exclusion, measured. A bare-plate world outside the plated
+        // roster is excused from arms 1 and 2 for one reason only: it draws no
+        // row surface at all, so nothing can be seated over the notice.
+        if !plated.contains(world) {
+            let surfaces = p.overlay_row_surfaces_probe();
+            assert!(
+                surfaces.is_empty(),
+                "{world}: this world is excluded from the plate arms because it draws no \
+                 row surface, but the frame emitted {surfaces:?}. Either it now draws \
+                 plates — in which case it belongs in the plated roster and must be \
+                 graded by arm 1 — or the exclusion is wrong."
+            );
+            plateless_graded.push(world);
+            continue;
+        }
 
         // ARM 1 — the emitted quads.
         let (sel, unsel) = p.overlay_bar_rects_probe();
@@ -612,6 +647,10 @@ fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world() 
         pixel_graded,
         ["Firetail"],
         "the Bars appearance arm must grade its one empirically visible plate"
+    );
+    assert_eq!(
+        plateless_graded, plateless,
+        "the exclusion arm must reach every plateless world"
     );
 }
 

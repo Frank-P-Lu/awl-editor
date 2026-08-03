@@ -7,8 +7,8 @@
 //! paints a slab as tall as whatever vertical space the rows did not use, hanging
 //! below the footer's own glyphs with nothing in it. On Cassowary, whose plate
 //! ink is very nearly black, that slab is the reported "oversized black
-//! sub-settings bar"; on the four other bare-plate worlds it is the same slab in
-//! a paler ink, which is why this sweeps the roster and not the report.
+//! sub-settings bar"; on the two other PLATE-DRAWING worlds it is the same slab
+//! in a paler ink, which is why this sweeps a roster and not the report.
 
 use super::super::*;
 use super::{headless_dqp, view};
@@ -40,10 +40,18 @@ fn shoot(
 /// paints a slab as tall as whatever vertical space the rows did not use, hanging
 /// below the footer's own glyphs with nothing in it. On Cassowary, whose plate
 /// ink is very nearly black, that slab is the reported "oversized black
-/// sub-settings bar"; on the four other bare-plate worlds it is the same slab in
-/// a paler ink, which is why this sweeps the roster and not the report.
+/// sub-settings bar"; on the two other PLATE-DRAWING worlds it is the same slab
+/// in a paler ink, which is why this sweeps a roster and not the report.
 ///
-/// TWO ARMS, over the WHOLE shipping bare-plate roster:
+/// THE ROSTER IS THE WORLDS THAT DRAW PLATES, WHICH IS NOT THE BARE-PLATE
+/// ROSTER. `list_backing == BarePlates` is a claim about the CARD — no panel, no
+/// shadow, no border — and not about rows. Two of its five members, Mangrove and
+/// Magpie, are `ListStyle::Diagonal`: bare in exactly that sense and yet drawing
+/// no plate anywhere, so a plate claim graded on them is a claim about nothing
+/// and could go green over a real defect. The sweep asks `draws_row_plates`, and
+/// arm 3 below EARNS the other two worlds' exclusion by measurement.
+///
+/// THREE ARMS:
 ///
 /// 1. GEOMETRY, from the quads the emitter actually produces: no plate a
 ///    workspace draws may be taller than one row of its own list — and the
@@ -52,6 +60,9 @@ fn shoot(
 /// 2. APPEARANCE, from the frame's own pixels: the band the retired rule would
 ///    have painted — reconstructed INLINE from that rule, never read back out of
 ///    the fix — must now read as workspace card ground.
+/// 3. THE EXCLUSION, on the bare-plate worlds arms 1 and 2 do not reach: the
+///    frame must emit NO row surface at all. A world that starts drawing one
+///    fails here and has to join the plated roster above.
 #[test]
 fn a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world() {
     let _g = crate::testlock::serial();
@@ -59,24 +70,34 @@ fn a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world() {
         eprintln!("skipping a_workspace_footer_plate_ends_with_its_footer: no wgpu adapter");
         return;
     };
-    let bare_plate_worlds: Vec<&'static str> = theme::THEMES
+    let (plated, plateless): (Vec<&'static str>, Vec<&'static str>) = theme::THEMES
         .iter()
         .filter(|t| t.render_caps.list_style.list_backing(false) == theme::ListBacking::BarePlates)
-        .map(|t| t.name)
-        .collect();
+        .map(|t| (t.name, t.render_caps.list_style.draws_row_plates()))
+        .fold((Vec::new(), Vec::new()), |mut acc, (name, draws)| {
+            match draws {
+                true => acc.0.push(name),
+                false => acc.1.push(name),
+            }
+            acc
+        });
     assert_eq!(
-        bare_plate_worlds,
-        ["Mangrove", "Galah", "Magpie", "Firetail", "Cassowary"],
-        "the bare-plate law must follow the exact shipping roster"
+        (plated.as_slice(), plateless.as_slice()),
+        (
+            ["Galah", "Firetail", "Cassowary"].as_slice(),
+            ["Mangrove", "Magpie"].as_slice()
+        ),
+        "the shipping bare-plate roster splits exactly this way — a new world joins \
+         one arm or the other, never neither"
     );
-
     let mut pixel_graded: Vec<String> = Vec::new();
+    let mut plateless_graded: Vec<String> = Vec::new();
     let mut retired_overrun = 0.0f32;
     for dpi in [1.0f32, 2.0] {
         p.set_dpi(dpi);
         let (cw, ch) = ((1200.0 * dpi) as u32, (800.0 * dpi) as u32);
         p.set_size(cw as f32, ch as f32);
-        for world in &bare_plate_worlds {
+        for world in plated.iter().chain(&plateless) {
             theme::set_active_by_name(world).unwrap();
             p.sync_theme();
 
@@ -105,6 +126,25 @@ fn a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world() {
                 "{ctx}: the fixture must leave real unused space below the footer, or \
                  neither arm can see the defect"
             );
+
+            // --- ARM 3: THE EXCLUSION -------------------------------------
+            // A bare-plate world outside the plated roster is excused from arms
+            // 1 and 2 for one reason only: it draws no row surface at all, so
+            // there is no plate that could outlive its footer. That reason is
+            // measured here from the same production emitter, at the same
+            // fixture, and not taken on trust.
+            if !plated.contains(world) {
+                let surfaces = p.overlay_row_surfaces_probe();
+                assert!(
+                    surfaces.is_empty(),
+                    "{ctx}: this world is excluded from the footer-plate arms because it \
+                     draws no row surface, but the frame emitted {surfaces:?}. Either it \
+                     now draws plates — in which case it belongs in the plated roster and \
+                     must be graded by arms 1 and 2 — or the exclusion is wrong."
+                );
+                plateless_graded.push(ctx);
+                continue;
+            }
 
             // --- ARM 1: THE EMITTED QUADS ---------------------------------
             let (sel, unsel) = p.overlay_bar_rects_probe();
@@ -182,6 +222,12 @@ fn a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world() {
         pixel_graded.len() >= 4,
         "the appearance arm graded only {pixel_graded:?} — too few visible plates for \
          the pixels to carry any world"
+    );
+    assert_eq!(
+        plateless_graded.len(),
+        plateless.len() * 2,
+        "the exclusion arm must reach every plateless world at both DPIs, got \
+         {plateless_graded:?}"
     );
     assert!(
         retired_overrun > 10.0,

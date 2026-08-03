@@ -70,16 +70,28 @@ fn settings_view(lens: usize) -> ViewState {
 /// clip bites — including the narrowest the workspace still draws both regions
 /// at.
 ///
-/// THREE ARMS:
+/// TWO ARMS:
 ///  1. THE BOUND, from the geometry owner: the row box must clear the plate's
 ///     own span by `BAR_TEXT_PAD` at both edges, exactly as a contextual card's
-///     does. On a `Pane` world there is no plate and the same `overlay_text_hpad`
-///     owner supplies that world's own pad, so the bound is stated once.
+///     does. `Pane` and `Diagonal` worlds draw no plate — the bare-plate roster
+///     is not the plate-drawing roster, and Mangrove and Magpie are `Diagonal`
+///     — and there the same claim degenerates to the pure one it always was:
+///     `text_left` clears the BAND by `overlay_text_hpad`, the one owner of that
+///     pad on every world. `bar_full_span` is arithmetic over the band, not
+///     emitter output, so no cell here grades a synthesized plate — but only the
+///     plate-bearing cells count toward `graded`.
 ///  2. NON-VACUITY, the retired rule written out inline: the row box WAS the
 ///     bare band, and that box overruns the plate at both edges by
-///     `BAR_SIDE_INSET` — the measured 8px of the report.
-///  3. THE PIXELS, on the reported symptom: no ink of the value column may fall
-///     outside the plate that backs it.
+///     `BAR_SIDE_INSET` — the measured 8px of the report. **This arm is weaker
+///     than it reads**: `bar_full_span` is `(band_x + INSET, band_w - 2*INSET)`,
+///     so the overrun it measures is `BAR_SIDE_INSET` identically, in every
+///     cell, with no world, width, lens or DPI entering it. It pins the
+///     report's 8px against the constant and nothing else; arm 1 is what
+///     actually sweeps.
+///
+/// The pixel evidence for this claim is the sibling law below, which grades the
+/// shaper's own glyph runs against the emitter's own quads on the worlds that
+/// really draw plates.
 #[test]
 fn a_workspace_rows_text_sits_inside_its_own_plate_on_every_world() {
     let _g = crate::testlock::serial();
@@ -198,8 +210,9 @@ fn a_workspace_rows_text_sits_inside_its_own_plate_on_every_world() {
 /// THE ROSTER IS THE WORLDS THAT DRAW PLATES, WHICH IS NOT THE BARE-PLATE
 /// ROSTER. `list_backing == BarePlates` has five members and two of them —
 /// Mangrove and Magpie — are `ListStyle::Diagonal`, which draws a spine and no
-/// plate at all; `overlay_bar_rects_probe` SYNTHESIZES rects for them at
-/// invented dials so other laws can reason about a row's span.
+/// plate at all. `overlay_bar_rects_probe` REFUSES on those worlds rather than
+/// synthesizing, so the substitution this paragraph warns about is a panic at
+/// the ask rather than a warning to be read.
 #[test]
 fn every_settings_value_sits_inside_its_own_plate_on_every_plated_world() {
     let _g = crate::testlock::serial();

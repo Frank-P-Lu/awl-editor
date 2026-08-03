@@ -450,8 +450,8 @@ lines = 315
 
 [[file_size_mark]]
 file = "src/theme/model.rs"
-lines = 537
-reason = "items 132/194: +2 lines — has_ambient_motion gained the warped-grid arm, so the new ground inherits the page-mode force and the move-stream present hold rather than re-implementing them. The match is no-wildcard by design; the arm cannot live anywhere else."
+lines = 550
+reason = "items 132/194 (+2): has_ambient_motion gained the warped-grid arm, so the new ground inherits the page-mode force and the move-stream present hold rather than re-implementing them. Item 236 (+13): ListStyle::draws_row_plates, the one owner of 'does this style back its rows with plates' — the question two laws and a test probe were asking list_backing, which answers a different one (whether the CARD has a backing). It is an inherent method on ListStyle and belongs beside the accessor it disambiguates; anywhere else and the confusion it exists to end is a file apart from its cause. Both matches are no-wildcard by design."
 
 [[file_size_mark]]
 file = "src/theme/worlds.rs"
@@ -1104,9 +1104,16 @@ reason = "One roster sweep with a differential two-shot oracle: the second rende
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/surfaces_item225.rs"
-line = 56
-message = "this function has too many lines (114/100)"
-reason = "One roster sweep with a geometry arm and a pixel arm over the same rendered frame; splitting them would render each world twice."
+line = 67
+message = "this function has too many lines (143/100)"
+reason = "One roster sweep with a geometry arm, a pixel arm and an exclusion arm over the same rendered frame; splitting them would render each world twice, and the exclusion arm exists precisely to be measured at the same fixture the other two are graded at."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/overlay_plan_law.rs"
+line = 522
+message = "this function has too many lines (117/100)"
+reason = "One roster sweep with a geometry arm, a pixel arm and an exclusion arm over the same rendered frame; splitting them would render each world twice, and the exclusion arm exists precisely to be measured at the same fixture the other two are graded at."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
