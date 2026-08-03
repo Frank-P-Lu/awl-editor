@@ -443,15 +443,56 @@ run.
   glyph**. The rewrite compares the emitter's own quads against the column edge
   and upgraded the sweep from one row of one lens to every `SettingId` of every
   category × three widths × every plated world. Follow-up: item **236**.
-- **222 + 223** — 🟡 IN PROGRESS — claude (production), branch
-  `claude/items-222-223-mangrove`. Both briefed with the lesson 219/225 just
-  taught: **assume universal until measured otherwise.** For 223 especially,
-  "Mangrove omits shortcuts other themes show" may mean the SHARED owner drops
-  them under a condition Mangrove happens to meet — and if the labels are
-  ELIDED rather than omitted, that is a rowlayout budget question, not a missing
-  feature. 222 is warned off pre-empting item 131e, which still owns selection
-  composition on the diagonal machinery.
-
+- **222 + 223** — ✅ COMPLETE. Receipt `native-gate-receipt commit=57dd7794…
+  conventions=mac,linux scope=all-targets`. **NEITHER WAS MANGROVE'S.**
+  **223 had TWO independent causes, both in shared owners.** (a) The
+  right-anchored content hug measured the ROWS ALONE, while the diagonal
+  composition then spends the card's band on its attachment inset, connector and
+  selected outward step before a row is laid — the card came out exactly one
+  cluster wide, `diagonal_cluster_budget` cut that same territory back out of
+  `text_w`, `rowlayout::fits` failed, and the whole chord column yielded.
+  **Mangrove is simply the only world that is BOTH right-anchored AND
+  diagonal.** (b) The chord column is shaped right-aligned in a buffer as wide
+  as the card's text column, and the diagonal upload seated it at the cluster's
+  accessory **left** — pushing every chord a whole text column right, into the
+  clip. **BOTH diagonal worlds drew no chords at all**, while
+  `overlay_right_shown` read `true` throughout: only a pixel oracle could find
+  it.
+  ⚠️ **222's STATED CAUSE WAS WRONG.** A 31.1 px card translation "reproduced"
+  on Mangrove and Cassowary was **falsified by real captures** — the palette's
+  lens strip alone spends the width cap, so its card never hugs and nothing
+  translated. What actually moves is **the spine's RAKE**:
+  `DiagonalClusterRail::new` sized per-row travel from the territory left after
+  the **widest VISIBLE row's** cluster, so a long filename scrolling out of a
+  Go-to-file list swung the line from near-upright to a full rake and carried
+  every row with it. The card-hug coupling is real and fixed, but it is the
+  smaller sibling.
+  **Found en route: Mangrove's spine had `dx_per_row == 0.0` — standing
+  UPRIGHT, the silent Pane/Bars fallback item 131 forbids.**
+  ⚠️ **A LAW THAT SURVIVED ITS OWN REGRESSION.** The first scroll law ran at one
+  canvas with the real palette and stayed GREEN under mutation, because that
+  palette never hugs at any window size so every claim held for free. It now
+  sweeps three canvases × two fixtures — one whose widest rows sit at the TOP,
+  the empirical worst case — and **refuses to pass unless the widest visible row
+  actually swings by >40 px somewhere in the sweep.**
+  Identity measured per-surface: the palette captured on all 20 worlds at base
+  and tip, **18/20 byte-identical in PNG and sidecar**, Mangrove and Magpie
+  changed by design.
+  **Premise corrections:** 222 is **not** a ground-space/`Background` question
+  (item 186's registry untouched); 223 was **not** an elision or budget question
+  (the labels were never elided — the chords were drawn off the card); and
+  "assume universal" was right in spirit but **the universe was THE DIAGONAL
+  COMPOSITION, two worlds** — only learnable by measuring all twenty.
+  🔵 **A taste call deliberately NOT made:** making the rail a property of the
+  card left-aligns labels within it, and on Magpie (ascending, clusters hang
+  left of the spine) that leaves a visible gap between a short label and its
+  chord. Mangrove reads correctly. Fixing it means right-aligning the name text
+  for ascending worlds — **the measured cluster rail, which is item 131d's
+  slice** and adjacent to 224. Flagged rather than pre-empted; wants a
+  visual-judge look.
+  ⚠️ **The merge needed marks RE-MEASURED, never summed** — the combined tree
+  came out `render.rs` **2483** where the branch said 2479 and `main` said 2481,
+  `chrome/mod.rs` **996** against 989 and 995.
 - **231** — 🔴 STILL OPEN. **The fix did NOT clear the hang, and the probes
   FALSIFIED the recorded diagnosis.** Receipt for the landed improvement:
   `native-gate-receipt commit=3e3db0c6… conventions=mac,linux scope=all-targets`.
