@@ -20,7 +20,9 @@ mod projection;
 mod requests;
 mod surfaces;
 
-pub(in crate::app) use projection::{ProjectionStats, SemanticProjection};
+#[cfg(test)]
+pub(in crate::app) use projection::ProjectionStats;
+pub(in crate::app) use projection::SemanticProjection;
 
 /// Ids that both a fold and a request arm must spell identically.
 const SEARCH_ID: &str = "search";
