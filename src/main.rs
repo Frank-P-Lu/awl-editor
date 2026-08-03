@@ -149,10 +149,9 @@ mod recents;
 mod recovery;
 mod render;
 mod replay;
-// The REPO-URL RENAME law (item 238): no tracked file spells the pre-rename
-// GitHub repository reference (see the module doc for the exact needle, not
-// quoted here — this comment would trip the law's own scan). Test-only by
-// its own inner cfg.
+// Bans the pre-rename GitHub repository reference from the tracked tree
+// (see the module doc for the exact needle, not quoted here — this comment
+// would trip the law's own scan). Test-only by its own inner cfg.
 mod repo_url_law;
 // The ROTATED LABEL capability: one short shaped run painted at an arbitrary
 // screen axis, which glyphon 0.11 has no transform to express.

@@ -1,4 +1,5 @@
-//! src/repo_url_law.rs — the REPO-URL RENAME law (queue item 238).
+//! src/repo_url_law.rs — bans the pre-rename GitHub repository reference
+//! from the tracked tree.
 //!
 //! GitHub's rename to `Frank-P-Lu/awl-editor` left the OLD name spelled out
 //! in shipped artifacts: the GPLv3 §6(d) source offer in
@@ -15,18 +16,17 @@
 //! `src/render/framebench.rs`, `src/capture/tests/schema_chrome.rs` and
 //! `src/render/tests/chrome_overlay.rs` all use `"awl-next"` as a realistic
 //! sample project-name fixture PRECISELY BECAUSE it is the real directory
-//! name. Banning the token outright would fail on that legitimate content
-//! (queue item 238's own survey correction). The law instead bans the
-//! REPOSITORY REFERENCE `Frank-P-Lu/awl-next`, with or without a
-//! `github.com/` prefix — so it also catches a bare `gh api
+//! name. Banning the token outright would fail on that legitimate content.
+//! The law instead bans the REPOSITORY REFERENCE `Frank-P-Lu/awl-next`, with
+//! or without a `github.com/` prefix — so it also catches a bare `gh api
 //! repos/Frank-P-Lu/awl-next/…` call, not just an `https://` link.
 //!
 //! TWO DELIBERATE EXCLUSIONS, both named here rather than silently:
 //!  - `.orchestrator/queue.md` — the orchestration board's append-only
-//!    history. Item 238's own entry quotes the bad reference verbatim while
-//!    describing the defect, and always will (as will any future item that
-//!    cites this one) — banning it there would make the law fail on its own
-//!    bug report. Board content is orchestrator-owned, not this law's.
+//!    history. A board entry describing a stale-URL defect necessarily
+//!    quotes the bad reference verbatim, and always will — banning it there
+//!    would make the law fail on its own bug reports. Board content is
+//!    orchestrator-owned, not this law's.
 //!  - `site/editor/` — the checked-in, LEGACY wasm demo bundle (e.g.
 //!    `awl-347842567538f209_bg.wasm`). It is a BUILT artifact, not authored
 //!    text: `deploy-web.yml` assembles a fresh build over a COPY of `site/`
