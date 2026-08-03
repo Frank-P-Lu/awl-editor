@@ -70,6 +70,29 @@ frames under a lock.
 
 ## Latest design decisions
 
+**TWO USER CALLS — 2026-08-04, the rotating-mark session. Items 247 and 248.**
+The session started from a real elevator's up/down chevron, which spins in 3D.
+It was refined against the tree rather than accepted as a look, and the refining
+is the part worth keeping: **(1)** the first proposed home — the fold chevron —
+was rejected as the SITE for the spin because `chevron_revealed` puts the mark on
+the caret's own row by construction, so the flourish would compete with the one
+element DESIGN.md grants motion; **(2)** the user then identified the real site
+from a screenshot, the diagonal palette marker, which turned out to already BE
+two rotated quads on `prepare_rotated` with genuine up/down selection semantics —
+eliminating the font, shader, tofu, contrast-floor and caret-collision hazards
+the first siting carried, and reducing the work to animating endpoints. **The
+call: 247 gets an authored symbol that turns (Mangrove and Magpie only); 248
+animates the existing `›` on fold/unfold in ALL worlds.** 248 keeps the marker
+glyph the user named, so its axis is the in-plane quarter turn `›`→`⌄` — the
+only axis that works on a mark that is not left-right symmetric, and the one that
+fixes the chevron's direction-blindness at the same time. ⚠️ Both items are
+gated on the same rotatable stroked-mark primitive; whichever lands first owns
+it. A third axis discussed and deliberately NOT queued: a `v → | → v` spin about
+the vertical axis, which returns the mark to itself and would therefore read as
+"acknowledged, nothing changed". It has no referent in awl today — zero-network
+is a design invariant and nothing is ever loading — so it is parked rather than
+invented a use for. Revisit only if a genuine indeterminate state appears.
+
 **FOUR USER CALLS — 2026-08-03. All four were the open questions the 2026-08-03
 queue review put to the user; each is recorded in its own item's body too.**
 
@@ -139,6 +162,125 @@ these two user decisions could not both hold and asked for the call before Kite
 was built rather than after.
 
 ## Ready — current user-visible wave
+
+247. **Mangrove and Magpie: the diagonal selection marker becomes an authored
+symbol that TURNS as the selection travels, and its turn direction says which
+way you moved.** **Build:** `render/chrome/diagonal.rs::prepare_diagonal_spine`
+draws the selected row's marker as two `crate::selection::spine_segment` calls —
+a vertical tick at `spine_x` spanning the row, plus a horizontal connector out to
+`label_left` (Descending) or `accessory_right` (Ascending) — which composes to a
+`⊢`. Replace it with an authored mark built from the SAME primitive, and rotate
+that mark about its own pivot while the selection travels: one way for down, the
+other for up, settling to rest on arrival. A wrap (last row → first) takes the
+long way round, so a wrap stops being silent. **The turn direction is
+information that does not exist today** — in a long filtered list you currently
+just appear somewhere else. **Scope:** These two worlds only. `ListStyle::Pane`
+and `ListStyle::Bars` have no spine and are untouched, so this is world
+expression, not universal grammar. `DiagonalDirection::sign()` is the existing
+per-world dial and already returns ±1.0 — Mangrove's `\` and Magpie's `/` get
+mirrored turns from it rather than from a second authored constant. **The
+marker has no travel animator today:** `overlay_selection_rects` returns
+`OverlaySelectionRects::default()` for `ListStyle::Diagonal` and the spine path
+reads `vis.reads_selected(row.display)`, a bool — so the mark TELEPORTS while
+Pane worlds get `VisualSelection::living()`'s interpolated `(from, to, t)` band.
+Give Diagonal a travel phase **through that same `VisualSelection`**, never a
+second animator: the Pane band's own doc explains that re-running an animator
+lets the fill land on a different row from the ink shaped against it.
+⚠️ **Traps, all pre-existing and all load-bearing here.** (a) A new dt-consuming
+stepper MUST join `TextPipeline::advance`'s OR-fold — `motion.rs`'s own doc
+warns that a fourth animator outside that seam is silently ungated by Reduce
+Motion. (b) `narrowed_spine_corner_px` exists precisely to cap a segment's corner
+radius by its half-length; a foreshortening arm that bypasses it will over-round
+as it shortens. (c) `spine_segment` guards zero length — an arm passing through
+zero must not yield a NaN axis. (d) Reduce Motion settles instantly to the SAME
+final state, so the mark's RESTING orientation must carry everything the turn
+says; if the direction cue only exists mid-flight, the animation is load-bearing
+and `motion.rs`'s law is broken. **Done:** Moving the selection in Mangrove or
+Magpie turns the marker in the direction of travel and settles it; a wrap is
+visibly distinct from a single step; Reduce Motion shows the same settled marker
+with no in-between frames; the other 18 worlds are byte-identical. **Verify:**
+Sidecar for the marker's settled orientation and the selected index (state);
+pixel arithmetic over `--screenshot` PNGs for the mark's geometry and its ink
+contrast against Mangrove's and Magpie's own grounds (the sidecar is a state
+oracle, not an appearance oracle). In-flight frames need `--screenshot-motion`;
+an ordinary capture sees only the settled state. Sweep BOTH directions and the
+wrap, in both worlds. **Routing:** Deep tier (Opus, high) — authoring the symbol
+is taste work and the README routes taste above production. Follow with a Fable
+visual-judge pass over real gallery captures.
+🔵 **PARKED SUB-DECISION — USER ONLY: which symbol.** The user's call was
+"a special symbol to replace the marker", without naming it. The grammar
+constrains it: it must read at rest AND at every angle of the turn, and it must
+be built from stroked segments rather than a font glyph (see 248's reasoning —
+`panel_attrs()` is the active world's face, so a glyph's shape would vary across
+worlds). **Options:** (i) a stroked chevron whose vertex sits on the spine and
+whose arms open toward the label — the turn then reads as the mark pivoting to
+point at what you selected; (ii) keep the `⊢` topology but let the connector
+alone swing, so the tick stays a fixed anchor on the spine; (iii) a three-arm
+mark that reads as directional at rest. **Recommendation: (i).** It is the one
+that makes the rotation MEAN something rather than decorate — a chevron that
+points is already an up/down instrument, which is the whole reason the idea
+started. Leave the item landable at (i) so the answer costs one command.
+
+248. **The fold chevron tells you which way it goes, and animates the change —
+every world.** **Build:** `render/layers/fold_chevron.rs` is direction-blind
+today: `FOLD_CHEVRON` is one const (`"\u{203A}"`, `›`) and
+`fold_chevron_geometries` filters only on `fold::chevron_revealed` and
+`line_ornament_visible`. Nothing reads fold state, so a collapsed heading and an
+expanded one draw the IDENTICAL mark — the only collapsed signal is the separate
+"… N lines" tail, which by construction only exists once you have already
+folded. **Fix the information first:** `›` while the section is hidden, `⌄`
+while it is showing. Then animate the quarter turn between them on fold/unfold.
+⚠️ **glyphon 0.11 carries no transform of any kind** — `TextArea` exposes
+`left/top/scale/bounds/default_color/custom_glyphs` and nothing else, so a
+shaped run CANNOT rotate. The mark must leave the text pipeline. Build it from
+`spine_segment` + `prepare_rotated` — two arms meeting at a vertex, rotated
+about that vertex — the SAME primitive item 247 uses. Same behavior ⇒ same code:
+whichever item lands first owns the shared rotatable-mark primitive and the
+other consumes it; do not grow two. **This also retires three latent problems
+the glyph carried:** `panel_attrs()` is the ACTIVE WORLD'S FACE
+(`chrome/panel.rs:111` says so outright), so a functional affordance's SHAPE
+currently varies across 20 worlds; `⌄`/`⌃` are the same tofu class that already
+forced `panel.rs`'s `SYMBOL_FAMILY` escape hatch for ⌘/⌥; and an authored stroke
+weight sidesteps the IBM Plex Mono weight-300 tripwire entirely. **Scope:** All
+worlds — user decision. The direction information is universal grammar and never
+varies; the turn's duration and character may be a per-world dial, the way the
+ink already routes through `theme::fold_afford_chevron_ink()`.
+⚠️ **THE CARET COLLISION, recorded so it is not rediscovered mid-build.**
+`fold::chevron_revealed(line, cursor_line, hover_line)` reveals the mark when the
+caret is ON that heading's row, or on hover. So on the KEYBOARD path the mark and
+the caret are co-present BY CONSTRUCTION, a few characters apart in one row — and
+the caret is the one thing DESIGN.md grants motion (`motion.rs`'s own doc calls
+it "deliberately the one thing"). Value separation handles the static case
+correctly; motion is not separated by value. **Recommended mechanism, not a
+scope change:** animate on the POINTER path and snap on the KEYBOARD path. That
+is DESIGN.md §"Motion follows importance" applied literally — keyboard folding is
+the frequent path and gets zero delay, pointer folding is occasional and
+exploratory and gets the expression — and it means the turn only ever plays when
+it is the only moving thing on the row. If a live `--release` sitting says the
+co-present animation reads fine, promote it; that call is the user's.
+⚠️ **The contrast law is the non-vacuity proof.** `capture/tests/folds.rs`
+already pins this mark's ink against the page ground it actually renders on — an
+audit found Mangrove's chevron at ~1.5:1 and Firetail's tail at ~1.4:1,
+effectively invisible, and fixed exactly those. A turning mark passes through its
+THINNEST coverage mid-turn, which is precisely where it will fall back under the
+floor. **Run the arithmetic at the thinnest frame, not only the settled ones,**
+and prove non-vacuity by breaking the mark and watching the law go red. **Also:**
+join `TextPipeline::advance`'s OR-fold (`motion.rs`), and make DIRECTION sidecar
+STATE rather than an animation artifact — a capture with zero animation frames
+must still report which way the chevron points, or Reduce Motion loses the
+information the item exists to add. Check that the mark's row box is resolved
+AFTER the fold's own `row_geom` invalidation: `fold_chevron_geometries` reads
+`visual_rows(h.line).first()`, and folding changes row geometry. **Done:** A
+heading's chevron says whether its section is hidden or showing, before the
+first click; toggling turns it; Reduce Motion shows the correct settled
+direction with no in-between frames; every world renders the same mark shape.
+**Verify:** Sidecar for chevron direction per heading (state, and the Reduce
+Motion arm); `--screenshot` pixel arithmetic for shape and for the contrast
+sweep across the full world roster at the thinnest frame. `--keys` drives
+`C-c C-f` through the real keymap. ⚠️ The pointer path is live-only — check
+`docs/harness-reach.md` before promising a capture over hover state.
+**Routing:** Production tier (Sonnet medium) for the implementation; the
+contrast sweep is an audit and gets its own probe per the standing policy.
 
 ## Active claims — 2026-08-03 afternoon wave
 
