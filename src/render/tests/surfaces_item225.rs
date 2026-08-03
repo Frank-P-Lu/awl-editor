@@ -43,14 +43,13 @@ fn shoot(
 /// sub-settings bar"; on the two other PLATE-DRAWING worlds it is the same slab
 /// in a paler ink, which is why this sweeps a roster and not the report.
 ///
-/// THE ROSTER IS THE WORLDS THAT DRAW PLATES (item 236). This law first swept
-/// `list_backing == BarePlates`, which is a claim about the CARD — no panel, no
+/// THE ROSTER IS THE WORLDS THAT DRAW PLATES, WHICH IS NOT THE BARE-PLATE
+/// ROSTER. `list_backing == BarePlates` is a claim about the CARD — no panel, no
 /// shadow, no border — and not about rows. Two of its five members, Mangrove and
 /// Magpie, are `ListStyle::Diagonal`: bare in exactly that sense and yet drawing
-/// no plate anywhere. The old `overlay_bar_rects_probe` synthesized rects for
-/// them at dials no world authors, so arm 1 graded an invention on those two
-/// cells and could have gone green over a real defect. Arm 3 below EARNS their
-/// exclusion by measurement instead of asserting it.
+/// no plate anywhere, so a plate claim graded on them is a claim about nothing
+/// and could go green over a real defect. The sweep asks `draws_row_plates`, and
+/// arm 3 below EARNS the other two worlds' exclusion by measurement.
 ///
 /// THREE ARMS:
 ///

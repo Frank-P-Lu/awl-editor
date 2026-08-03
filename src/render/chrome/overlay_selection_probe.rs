@@ -61,15 +61,14 @@ impl TextPipeline {
 
     /// THE PLATES A PLATED WORLD DREW, and only a plated world's.
     ///
-    /// This used to SYNTHESIZE for `Diagonal` at invented dials — calling
-    /// `overlay_bar_selection` with hardcoded radius/gap/grow/extent/coverage
-    /// that no world authors and no frame ever draws. Two laws swept the
-    /// `BarePlates` roster believing it meant "draws plates", and so graded
-    /// fabricated geometry on Mangrove and Magpie (item 236). Refusing is what
-    /// makes that mistake impossible rather than merely findable: a law asking
-    /// for plates on a world that draws none now fails by name at the ask.
-    /// The honest question for those worlds is
-    /// [`Self::overlay_row_surfaces_probe`], which returns what they draw.
+    /// Refusing is the point. `BarePlates` reads like "draws plates" and is not
+    /// — it is the CARD's backing — so a law sweeping that roster reaches
+    /// `Diagonal` worlds, which draw no plate at all. Answering them would mean
+    /// synthesizing: calling `overlay_bar_selection` at hardcoded dials no world
+    /// authors and no frame draws, and every claim graded against those quads
+    /// would be a claim about an invention. A law asking for plates on a world
+    /// that draws none fails here, by name, instead of going green. The honest
+    /// question for those worlds is [`Self::overlay_row_surfaces_probe`].
     pub(in crate::render) fn overlay_bar_rects_probe(&mut self) -> (Vec<[f32; 4]>, Vec<[f32; 4]>) {
         let style = crate::render::effective_list_style();
         assert!(

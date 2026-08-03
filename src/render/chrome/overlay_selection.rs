@@ -415,8 +415,8 @@ impl TextPipeline {
     ) {
         const PAD: f32 = 2.0;
         // The `BarePlates` gate above is the CARD's question, not the row's, and
-        // that is deliberate here even though the name misleads elsewhere (item
-        // 236): every bare-plate world must have `panel_card` prepared each
+        // that is deliberate here even though the same name misleads a plate
+        // claim: every bare-plate world must have `panel_card` prepared each
         // frame, or a stale instance from the previous world survives into it.
         // `Diagonal` therefore arrives with an EMPTY `rects`, so its radius is a
         // corner for no scrim at all — never let that number be read as an

@@ -73,13 +73,13 @@ fn settings_view(lens: usize) -> ViewState {
 /// TWO ARMS:
 ///  1. THE BOUND, from the geometry owner: the row box must clear the plate's
 ///     own span by `BAR_TEXT_PAD` at both edges, exactly as a contextual card's
-///     does. `Pane` and `Diagonal` worlds draw no plate (item 236 — the
-///     bare-plate roster is not the plate-drawing roster, and Mangrove and
-///     Magpie are `Diagonal`), and there the same claim degenerates to the pure
-///     one it always was: `text_left` clears the BAND by `overlay_text_hpad`,
-///     the one owner of that pad on every world. `bar_full_span` is arithmetic
-///     over the band, not emitter output, so no cell here grades a synthesized
-///     plate — but only the plate-bearing cells count toward `graded`.
+///     does. `Pane` and `Diagonal` worlds draw no plate — the bare-plate roster
+///     is not the plate-drawing roster, and Mangrove and Magpie are `Diagonal`
+///     — and there the same claim degenerates to the pure one it always was:
+///     `text_left` clears the BAND by `overlay_text_hpad`, the one owner of that
+///     pad on every world. `bar_full_span` is arithmetic over the band, not
+///     emitter output, so no cell here grades a synthesized plate — but only the
+///     plate-bearing cells count toward `graded`.
 ///  2. NON-VACUITY, the retired rule written out inline: the row box WAS the
 ///     bare band, and that box overruns the plate at both edges by
 ///     `BAR_SIDE_INSET` — the measured 8px of the report. **This arm is weaker
@@ -210,9 +210,9 @@ fn a_workspace_rows_text_sits_inside_its_own_plate_on_every_world() {
 /// THE ROSTER IS THE WORLDS THAT DRAW PLATES, WHICH IS NOT THE BARE-PLATE
 /// ROSTER. `list_backing == BarePlates` has five members and two of them —
 /// Mangrove and Magpie — are `ListStyle::Diagonal`, which draws a spine and no
-/// plate at all. `overlay_bar_rects_probe` used to SYNTHESIZE rects for them at
-/// invented dials; item 236 made it refuse, so the substitution this comment
-/// warned about is now a panic rather than a warning.
+/// plate at all. `overlay_bar_rects_probe` REFUSES on those worlds rather than
+/// synthesizing, so the substitution this paragraph warns about is a panic at
+/// the ask rather than a warning to be read.
 #[test]
 fn every_settings_value_sits_inside_its_own_plate_on_every_plated_world() {
     let _g = crate::testlock::serial();

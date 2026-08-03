@@ -499,14 +499,12 @@ fn a_huge_picker_corpus_still_plans_only_the_rows_on_screen() {
 /// matches" row: the notice sat on a plated band a whole row above the footer's
 /// own glyphs.
 ///
-/// THE ROSTER IS THE WORLDS THAT DRAW PLATES (item 236). This law swept
-/// `list_backing == BarePlates`, which is a claim about the CARD and not about
+/// THE ROSTER IS THE WORLDS THAT DRAW PLATES, WHICH IS NOT THE BARE-PLATE
+/// ROSTER. `list_backing == BarePlates` is a claim about the CARD, not about
 /// rows: Mangrove and Magpie are `ListStyle::Diagonal`, bare in that sense and
-/// drawing no plate at all, and the old `overlay_bar_rects_probe` synthesized
-/// rects for them at dials no world authors. Arm 1's "no intruder overlaps the
-/// notice" therefore held over an invention on those two cells, and its
-/// `!plates.is_empty()` non-vacuity guard was satisfied by the invention too.
-/// Arm 3 EARNS their exclusion by measurement.
+/// drawing no plate at all. A plate claim graded on them is a claim about
+/// nothing, so the sweep asks `draws_row_plates` and arm 3 EARNS the exclusion
+/// of the other two by measurement rather than by name.
 ///
 /// THREE ARMS:
 ///
