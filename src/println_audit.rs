@@ -130,13 +130,6 @@ const EXPECTED: &[(&str, usize)] = &[
     // in the report submodule; `soak_gpu/mod.rs` (the schedule/observe half)
     // prints nothing, so it does not appear here.
     ("soak_gpu/report.rs", 8),
-    // The shared test device's allocation trace, printed only when
-    // `AWL_GPU_ALLOC_TRACE` is set in the environment. It is a diagnostic for
-    // the render suite's own GPU accounting, not product output: the module is
-    // `#[cfg(test)]`, so this line cannot exist in a shipping binary, and with
-    // the variable unset it never runs. stdout on purpose — it has to interleave
-    // in order with libtest's own `test … ok` lines to be readable at all.
-    ("test_gpu.rs", 1),
 ];
 
 /// The pure per-line needle counter: matches `println!(` / `eprintln!(` as a

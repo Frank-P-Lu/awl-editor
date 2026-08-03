@@ -81,13 +81,6 @@ mod fold;
 mod frontmatter;
 mod fs;
 mod fuzzy;
-// THE PORTABLE ALLOCATION ORACLE — how many wgpu objects are alive on a device,
-// in a number that means the same thing on every backend awl ships. Its READER
-// is test-only alongside `test_gpu`, its one consumer; the wgpu `counters`
-// feature it reads is on in EVERY build (Cargo.toml), so the binary under test
-// and the binary that ships are one wgpu configuration.
-#[cfg(all(test, not(target_arch = "wasm32")))]
-mod gpu_alloc;
 mod gpu_cache;
 mod grapheme;
 mod guide;

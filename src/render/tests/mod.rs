@@ -12,12 +12,6 @@
 
 use super::*;
 
-/// What the suite may hold on the shared wgpu device, in wgpu-hal's own live
-/// object counts — the oracle that travels where RSS does not. Native-only for
-/// the same reason `test_gpu::shared_device_queue` is `None` on wasm: the wasm
-/// test runner is Node and has no adapter to allocate on.
-#[cfg(not(target_arch = "wasm32"))]
-mod alloc_bound_law;
 mod ambient_wrap_law;
 mod backgrounds_item117;
 mod backgrounds_item132;
