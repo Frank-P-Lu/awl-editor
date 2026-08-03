@@ -37,6 +37,30 @@ Found BEFORE a tag was attempted, which is the whole point of the item.
 **Linux-only beta is structural now:** `mac` and `web` build on a dry run and
 are SKIPPED on a tag, so an unsigned `.app` cannot reach a Release.
 
+## 🔒 MEASURED 2026-08-04: THE DISPLAY IS LOCKED, SO EVERY LIVE ARM IS BLOCKED
+
+**Checked, not assumed:** `ioreg -n Root -d1 -a | grep -A1 CGSSessionScreenIsLocked`
+returns **`<true/>`**. `caffeinate` is already running (`pmset -g` shows
+`sleep 0 (sleep prevented by caffeinate)`), and that is the trap worth naming:
+**`caffeinate` prevents sleep and CANNOT unlock a locked screen.** Offering
+caffeinate does not unblock a live sitting; only unlocking does. Screensaver
+`idleTime` is still **300** and `disksleep` is 10.
+
+**What this blocks right now, all of it needing one unlock rather than one
+decision:** 118's world-loudness confirmation and its `--release` ambient
+sitting; 211's unoccluded glide confirmation and its unreached sweep arms;
+207's real VoiceOver / AT-SPI journeys; **218's VoiceOver sitting** (new this
+wave); **241's one-run discriminator** — `AWL_THEME_FONT_DEBOUNCE_MS=0` from
+Kite, which is the cheapest thing on this board and decides between three
+candidate causes; and **244's `--release` judgement** of whether the new
+companion breathe reads as a flash.
+
+⚠️ **Do not let a lane "run" any of these under the lock.** `--live-script`
+writes successful-looking `LIVE-PROBE shot … ok` lines while presenting **zero
+frames** under a lock, and `live-probe.sh` only checks the lock in preflight —
+which is exactly how the 2026-08-02 sitting was silently invalidated seven
+minutes in. **Re-check the lock at BOTH ends of any live run.**
+
 ## 🔵 BLOCKED ON THE USER — nothing else can close these
 
 ⚠️ **This section has now been silently deleted TWICE** — once by an
