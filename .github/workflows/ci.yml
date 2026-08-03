@@ -175,104 +175,57 @@ jobs:
           path: dist/
           retention-days: 14
 
-  # ── This job is awl's ONLY virtualised-GPU arm (item 232) ───────────────────
-  # Not a preference — a measured finding. `scripts/native-gate.sh` runs on the
-  # dev host's real Apple Silicon Metal, so a local receipt certifies "sound on
-  # the hardware the receipts run on, with virtualised-GPU behaviour untested by
-  # any local gate", and item 231's wedge lived under green receipts for ~140
-  # commits. Item 232 asked whether a portable software adapter could stand in
-  # and measured NO on two independent stacks: the `linux` job's x86_64 lavapipe
-  # (green on the exact commits where this job hung, all streak long) and a
-  # local arm64 lavapipe container at `8207e519`/`36707d06`, which never hung
-  # once. A CPU rasteriser has no system-wide GPU resource for a cross-process
-  # wedge to exhaust — which is what item 231 measured when two processes with
-  # two separate wgpu devices stopped within 10 ms of each other.
-  # So this job is the ONLY place awl looks at that axis. Whether that makes it
-  # gating rather than tolerated red is a parked user decision (item 232; the
-  # lane's recommendation is gating, with its costs on the board) — do not read
-  # this comment as having settled it. What is settled is the reproduction
-  # route: this class needs a real virtualised Metal stack — this runner, or a
-  # local macOS guest VM — never a container.
+  # ── mac, split in two by item 243 (user decision 2026-08-03) ────────────────
+  # Item 232 asked whether a portable software adapter could stand in for
+  # hosted macOS's virtualised Metal and measured NO on two independent
+  # stacks: the `linux` job's x86_64 lavapipe (green on the exact commits
+  # where this job hung, all streak long) and a local arm64 lavapipe
+  # container at `8207e519`/`36707d06`, which never hung once. A CPU
+  # rasteriser has no system-wide GPU resource for a cross-process wedge to
+  # exhaust — which is what item 231 measured when two processes with two
+  # separate wgpu devices stopped within 10 ms of each other. So a hosted-mac
+  # job stays the ONLY place awl looks at that axis; no local arm, and no
+  # slower local gate, can substitute (item 232's explicit refusals).
   #
-  # ── What the one surviving log says, and what has NOT been done about it ────
-  # Run 30732589551 is the only mac failure of this streak that left a log, and
-  # it falsifies both standing hypotheses. Step 8 began 04:40:25; both
-  # conventions finished COMPILING 113 seconds later; tests then ran normally
-  # for three and a half minutes; and at 04:45:56 output stopped dead for the
-  # remaining 35 minutes, with `free_bytes` steady at ~2.38 GB and
-  # `swap_used_bytes=0` on every heartbeat through to the budget. So this job is
-  # not memory-starved and it is not compile-bound. Something HANGS. The last
-  # thing either convention printed was libtest's unterminated prefix for
-  # `render::tests::scroll_pos::subpixel_semantics_do_not_change_settled_pixels_or_render_hash`,
-  # which builds a real wgpu device and reads a rendered frame back — while the
-  # sibling convention was doing the same thing on the same virtualised Metal
-  # device. That is one observation, not a diagnosis; the phase markers and the
-  # last-progress heartbeat exist to make the next occurrence say it outright.
+  # Item 232's lane recommended declaring the whole job the arm and gating on
+  # it (option C). The USER CHOSE THE SPLIT instead, 2026-08-03 (item 243):
+  # gating on a red job would have blocked `main` until item 231 is fixed,
+  # and 231 is now a diagnosis item with no promised fix date. Item 231's own
+  # discriminating probe measured that `render::tests::` is the one module
+  # that hangs — `--skip render::tests::` COMPLETED at 2860 tests per
+  # convention in 110 s, while standing up its own device per test and
+  # building ~80,000 GPU programs in aggregate, i.e. doing MORE total GPU
+  # work than the module that hangs. So the split below restores the
+  # distinction the whole red streak erased: a red run now says WHICH half,
+  # by name, instead of "the mac job is red" meaning nothing anyone could act
+  # on.
   #
-  # The obvious narrowing — one keymap convention here instead of two, since a
-  # convention is not an OS property and the linux job proves both — is NOT on
-  # the table (user decision, 2026-08-02). If the suite genuinely cannot fit,
-  # mac stays red rather than losing coverage. The two acceptable outcomes are
-  # to make it fit, or to say plainly that it does not.
+  # `mac` gates immediately: it is `mac (build + test)` minus the one module
+  # item 231 is still diagnosing, and it passes today at no cost. The
+  # isolated module lives in `mac-render-tests` below — tolerated red,
+  # pinned by name to item 231 in this file, not only on the board. When 231
+  # lands, that job goes green and is promoted to gating; no further
+  # decision is needed, which is why this shape needs deciding only once.
   #
-  # `a972eafc` ("speed up the full native gate": `[profile.test] opt-level = 1`
-  # plus concurrent conventions) is NOT the cause and must not be reverted for
-  # CI. Two runs carrying this exact signature — step 8 conclusion `null`, no
-  # log, post-cache `null` — predate it: 30706851397 (edc89757, 15:51 UTC) and
-  # 30715372469 (eea3118a, 19:43). And on HOSTED hardware it is a clear win
-  # rather than a cost paid for the dev host's benefit: the linux job runs the
-  # identical script on a comparably small runner, and its gate step measures a
-  # median 916 s across the seven successful runs since (707-937) against a
-  # median 1272 s across the sixteen before it in the same window (1019-2076).
-  # Its compile cost on the mac runner is
-  # measured too, from 30732589551's own log: 30 s of canary plus an 82 s
-  # concurrent-convention compile — 113 s of a 2436 s step.
+  # `scripts/native-gate.sh` forbids any filter by construction (its receipt
+  # means "unfiltered, both conventions, every target" and nothing else), so
+  # neither job below calls it: each runs `cargo test` directly and neither
+  # claims a "native-gate-receipt". Per CLAUDE.md/README, any filtered
+  # invocation is "targeted tests", never "full native suite" — that
+  # authorization still comes only from a developer's own local run.
   mac:
-    name: mac (build + test)
+    name: mac (build + test, minus render::tests)
     runs-on: macos-latest
-    # The same exhaustive gate is markedly slower and more variable on hosted
-    # macOS; keep measured completion time well clear of the hang ceiling.
-    timeout-minutes: 75
+    # Both conventions filtered to ~95% of the suite measured at 110 s each
+    # (item 231); this ceiling is headroom over cold-cache compile, not a
+    # bound this job is expected to approach.
+    timeout-minutes: 30
     steps:
-      # ── The clock that is actually killing this job ──────────────────────
-      # `AWL_NATIVE_GATE_BUDGET_SECONDS` starts when the gate starts. The thing
-      # racing it — a hosted macOS runner that stops talking to the server,
-      # upstream actions/runner-images#13882, annotated "The hosted runner lost
-      # communication with the server" — is on the RUNNER's clock, which starts
-      # here. The four runner losses came at job-minute 53, 55, 56 and 62 (runs
-      # 30742490207, 30721529191, 30727349406, 30715372469); the one run that
-      # ended itself on its own budget instead, 30732589551, finished at 47.9
-      # and is the only one that left a log.
-      # Steps 1-7 are wildly variable (9m51s on 2026-08-01's green run, where
-      # `Install sccache` alone paid 6m36s; 96 SECONDS on run 30742490207,
-      # where a hot cache made `cargo build` 14s), so a duration measured from
-      # the gate expires at an unpredictable point on the clock that matters:
-      # run 30742490207's 2400 s budget came due at job-minute 42 and the
-      # runner was gone at 53 with no log at all. This deadline pins the gate's
-      # end to job-minute 35 — 18 minutes inside the earliest loss, and 8
-      # minutes past the 26m51s that the last fully green mac job took end to
-      # end. The job's own 75-minute `timeout-minutes` is untouched; raising it
-      # was never the fix, since the runner dies well inside it.
-      - name: Runner death clock
-        run: echo "AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( $(date +%s) + 2100 ))" >> "$GITHUB_ENV"
-
       - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@stable
 
-      # `cache-on-failure` is what stops a red mac job from making the NEXT one
-      # harder. rust-cache saves only on success by default, and this job's
-      # post step has not run since the last green build — so every run after
-      # the first failure restored a target/ frozen at that commit and had to
-      # rebuild the whole accumulated delta inside the native-gate step, on
-      # three vCPUs. That ratchet is why step 8 went from 17 minutes green to
-      # over 49 minutes and a dead runner. Saving on failure means a run that
-      # ends badly still leaves the next one no worse off than itself. It
-      # cannot rescue a runner that is KILLED (no post step runs at all) —
-      # that is what the gate's own budget below is for.
       - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
 
       # sccache installs after the cache restore — see the linux job's
       # comment (item 196): a full `cargo install sccache` ahead of the
@@ -294,41 +247,72 @@ jobs:
       - name: cargo build
         run: cargo build
 
-      # Two bounds, and the gate takes whichever comes first. This duration is
-      # 25 minutes, ~1.5x the 16m54s this step measured on its last green run
-      # (30686231377). The absolute deadline the first step set is the backstop
-      # for what a duration cannot see: the earlier steps eating the runner's
-      # own clock before the gate ever starts. Neither is a ceiling being
-      # raised; both exist so that a dying runner still leaves a LOG. The
-      # step-8 deaths on 2026-08-01/02 (runs 30706851397, 30715372469,
-      # 30721529191, 30727349406, 30742490207) each left an HTTP 404 where the
-      # log should be, which is why five runs never named a single test.
-      #
-      # And a THIRD bound, which is not ours. Run 30746762499 (mac job
-      # 91493566597) had every bound above wired correctly and still died with
-      # no log: step 2 ran at 11:56:18 so the deadline was 12:31:18, the gate
-      # started at 11:58:23 so its duration expired 12:23:23, whichever-first
-      # was 12:23:23 — and the job was lost at 12:49:18, twenty-six minutes
-      # later. Step 9 concluded `null`, both Post steps `null`, the log 404. A
-      # step that never concludes means a gate that never exited, which means
-      # the in-gate budget did not fire, on a runner where it had passed every
-      # local mutation. Either the watchdog was starved or killed, or the whole
-      # VM froze before 12:23 and 12:49 is only when GitHub gave up reaping it.
-      #
-      # `timeout-minutes` on the STEP is enforced by the runner agent, not by
-      # our shell, so it survives both of those. 40 minutes puts it 15 past the
-      # in-gate duration — so a healthy gate still wins and still emits the
-      # rich abort naming the phase, convention and hung test — and 11 minutes
-      # inside the 12:49 loss, at job-minute ~42 against the earliest observed
-      # loss at 53. It also discriminates the two candidates for free: if this
-      # produces a log where the in-gate budget did not, the watchdog is
-      # broken; if even this produces nothing, the VM is freezing and no
-      # in-process self-abort can ever work.
-      - name: native full suite
+      - name: cargo test, minus render::tests (mac convention)
+        run: env AWL_CONVENTION_FORCE=mac cargo test -- --skip render::tests
+
+      - name: cargo test, minus render::tests (linux convention)
+        run: env AWL_CONVENTION_FORCE=linux cargo test -- --skip render::tests
+
+  # ── The isolated wedge, tolerated red and pinned to item 231 by name ────────
+  # This is the ONLY thing this job runs, so a red run here is attributable
+  # to item 231 from this file alone: the hosted macOS runner's virtualised
+  # Metal stack HANGS — does not fail, hangs — inside `render::tests::`,
+  # every libtest worker parking at the same instant and never moving. Signal
+  # run 30778330964 (`69f379f7`): `web`, `linux` and `mac live-probe` all
+  # green, `mac (build + test)` alone failed with "native-gate: ABORTED on
+  # its 1500s budget with mac_status=143 linux_status=143; no receipt
+  # issued". That is item 231's signature; do not read a red run here as a
+  # new regression without checking that item first, and do not read a green
+  # run here as item 231 fixed without confirming it stays green — the
+  # exhausted resource still has no confirming measurement (item 231's own
+  # entry has the full diagnosis-in-progress).
+  #
+  # `continue-on-error` is set at the JOB level and is the whole point: a red
+  # run here must never fail this workflow. `timeout-minutes` (job and step)
+  # exist only so a hang still leaves a log instead of the hosted runner
+  # silently losing communication with the server (upstream
+  # actions/runner-images#13882) — the same failure mode the old unsplit job
+  # fought at job-minute 53-62. It is a plain runner-enforced timeout rather
+  # than `native-gate.sh`'s own budget/heartbeat watchdog, because that
+  # watchdog's rich phase-and-process reporting is coupled to the script this
+  # job deliberately does not call; a future lane may want to rebuild an
+  # equivalent for this job specifically; not attempted here.
+  mac-render-tests:
+    name: "mac (render::tests) — allowed failure, item 231"
+    runs-on: macos-latest
+    timeout-minutes: 90
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # `cache-on-failure` stops a red (or hung) run here from making the
+      # NEXT one harder: rust-cache saves only on success by default, and
+      # without this a target/ frozen at a stale commit would force a full
+      # rebuild of the accumulated delta on every subsequent run.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Install sccache
+        run: scripts/install-sccache.sh
+
+      - name: cargo build
+        run: cargo build
+
+      # `timeout-minutes` here is enforced by the runner agent, not our
+      # shell, so it survives a genuinely hung process. 40 minutes puts each
+      # step comfortably inside the job's 90-minute ceiling with both steps
+      # run, and inside the runner-loss window observed on the old unsplit
+      # job (job-minute 53-62).
+      - name: render::tests (mac convention) — allowed to hang or fail
         timeout-minutes: 40
-        env:
-          AWL_NATIVE_GATE_BUDGET_SECONDS: 1500
-        run: scripts/native-gate.sh
+        run: "env AWL_CONVENTION_FORCE=mac cargo test render::tests::"
+
+      - name: render::tests (linux convention) — allowed to hang or fail
+        timeout-minutes: 40
+        run: "env AWL_CONVENTION_FORCE=linux cargo test render::tests::"
 
   # ── The mac live-probe (free mac-VM tier — now GATING) ──────────────────────
   # GitHub's macos-latest runners are real macOS VMs with a WindowServer, and

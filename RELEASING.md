@@ -238,14 +238,17 @@ that receipt for ~140 commits while the hosted-macOS CI job hung on virtualised
 Metal, so **a green receipt is not evidence about this axis and never was.**
 
 A software adapter does not close the gap (measured, item 232 — see the CI
-workflow's `mac` job comment). CI's `linux` job runs this same gate against
+workflow's `mac` job comments). CI's `linux` job runs this same gate against
 Mesa lavapipe on every push and stayed green through the entire streak, and a
 local lavapipe container never hung at either bisect boundary. **The hosted-mac
-`mac (build + test)` job is the only arm awl has on virtualised-GPU behaviour.**
-Before a tag, check it on the tag's exact commit rather than assuming, and if it
-is red, know *why* before tagging: a user on a VM is inside its blast radius.
-Whether a red `mac` is a hard release blocker is a parked user decision (item
-232; the recommendation is yes).
+jobs are the only arm awl has on virtualised-GPU behaviour**, and since item 243
+(user decision 2026-08-03, resolving item 232's parked question) that arm is
+split: `mac (build + test, minus render::tests)` gates every push, and
+`mac (render::tests)` is tolerated red, pinned by name to item 231. Before a
+tag, check both on the tag's exact commit rather than assuming: a red gating
+job already blocked `main` from reaching this point, and a red `render::tests`
+job is item 231's known wedge, not a hard release gate by itself — but a user
+on a VM is inside its blast radius, so know *why* it's red before tagging.
 
 ### Still open — decisions, not tasks
 

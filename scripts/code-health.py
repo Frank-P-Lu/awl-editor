@@ -671,7 +671,14 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
             "native-gate-audit: the budget must be armed before the canary, so it covers every phase"
         )
 
-    for job in ("linux", "mac"):
+    # `mac` no longer calls this script (item 243, 2026-08-03): the job was
+    # split so the ~95% of the suite that passes today gates immediately,
+    # and native-gate.sh forbids the filter that split requires (its receipt
+    # means "unfiltered, both conventions, every target" and nothing else —
+    # see the `$# != 0` check above). `linux` remains the one CI job that
+    # still exercises the real, unfiltered gate; the mac split is audited
+    # separately by `mac_split_audit` below.
+    for job in ("linux",):
         marker = f"  {job}:\n"
         start = ci.find(marker)
         if start < 0:
@@ -682,56 +689,77 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
         body = ci[start:end]
         if "run: scripts/native-gate.sh" not in body:
             failures.append(f"native-gate-audit: CI {job} job must call scripts/native-gate.sh")
-        # Only the mac runner has the death this defends against: four losses at
-        # job-minute 53-62, upstream actions/runner-images#13882, none of which
-        # published a log. Both bounds must be present, because each is blind
-        # to what the other sees — the duration cannot see earlier steps eating
-        # the runner's clock, and the deadline cannot see a gate that starts
-        # late but hangs early.
-        if job == "mac":
-            for setting, failure in (
-                ("AWL_NATIVE_GATE_BUDGET_SECONDS",
-                 "native-gate-audit: CI mac job must bound the gate's own duration"),
-                ("AWL_NATIVE_GATE_DEADLINE_EPOCH",
-                 "native-gate-audit: CI mac job must anchor the gate to the runner's clock"),
-            ):
-                if setting not in body:
-                    failures.append(failure)
-            # A third bound, and the only one that does not depend on the
-            # gate's own shell being alive. Run 30746762499 had both bounds
-            # above wired correctly and still died with no log: the step never
-            # concluded, so the gate never exited, so the in-gate budget never
-            # fired. `timeout-minutes` on the step is enforced by the runner
-            # agent, so it survives a starved watchdog and a frozen shell.
-            step = next(
-                (chunk for chunk in body.split("\n      - ")
-                 if chunk.startswith("name: native full suite")),
-                None,
+    return failures
+
+
+def mac_split_audit(ci: str) -> list[str]:
+    """The hosted-mac job stays split the way item 243 (2026-08-03) decided:
+    one job gating on everything minus `render::tests`, one job tolerated
+    red and pinned by name to item 231 in this file — not only on the board.
+
+    A misconfigured `continue-on-error` is the obvious way to get this
+    wrong: silently tolerating everything (job-level, applied to the WRONG
+    job) or tolerating nothing (never applied at all) both look identical
+    from the workflow summary until something breaks for real.
+
+    Comments are stripped before scanning, same as `native_gate_audit` and
+    for the same reason (that audit's own history: it first shipped without
+    this and was vacuous on its first mutation, satisfied by a neighbouring
+    comment that merely mentioned the required text). Prose ABOUT the
+    tolerated job's `continue-on-error` sits, by this file's own convention,
+    in a comment block ahead of that job's own `mac-render-tests:` line —
+    which a naive job-body slice (marker to the next job's marker) attributes
+    to the PRECEDING job, exactly the false positive a raw-text scan would
+    produce here without stripping.
+    """
+    ci = "\n".join(
+        line for line in ci.splitlines() if not line.lstrip().startswith("#")
+    )
+    failures: list[str] = []
+
+    def job_body(job: str) -> str | None:
+        marker = f"  {job}:\n"
+        start = ci.find(marker)
+        if start < 0:
+            return None
+        next_job = re.search(r"\n  [A-Za-z][^:\n]*:", ci[start + len(marker):])
+        end = start + len(marker) + next_job.start() if next_job else len(ci)
+        return ci[start:end]
+
+    gating = job_body("mac")
+    if gating is None:
+        failures.append("mac-split-audit: CI lacks the mac (gating, minus render::tests) job")
+    else:
+        if "--skip render::tests" not in gating:
+            failures.append(
+                "mac-split-audit: the gating mac job must filter out render::tests, "
+                "or it re-imports the exact hang item 231 is still diagnosing"
             )
-            if step is None:
-                failures.append(
-                    "native-gate-audit: CI mac job must run the gate as a named step"
-                )
-            else:
-                stated = re.search(r"^        timeout-minutes:\s*(\d+)\s*$", step, re.M)
-                budget = re.search(r"AWL_NATIVE_GATE_BUDGET_SECONDS:\s*(\d+)", step)
-                if stated is None:
-                    failures.append(
-                        "native-gate-audit: CI mac job's gate step must carry a runner-enforced timeout-minutes, which does not depend on the gate's own shell being healthy"
-                    )
-                elif int(stated.group(1)) >= 50:
-                    # The step starts around job-minute 2; the four runner
-                    # losses came at job-minute 53, 55, 56 and 62.
-                    failures.append(
-                        "native-gate-audit: CI mac job's gate step timeout must land inside the earliest observed runner loss at job-minute 53"
-                    )
-                elif budget is not None and int(stated.group(1)) * 60 <= int(budget.group(1)):
-                    # If the runner's blunt kill always wins, the in-gate abort
-                    # — the only one that names the phase, the convention and
-                    # the test that never returned — can never be seen.
-                    failures.append(
-                        "native-gate-audit: CI mac job's gate step timeout must outlast the in-gate budget, or the rich in-band abort can never win"
-                    )
+        if "continue-on-error" in gating:
+            failures.append(
+                "mac-split-audit: the gating mac job must NOT tolerate failure — "
+                "it is the one that certifies the non-render arm on every push"
+            )
+
+    tolerated = job_body("mac-render-tests")
+    if tolerated is None:
+        failures.append("mac-split-audit: CI lacks the mac-render-tests (tolerated, item 231) job")
+    else:
+        if "item 231" not in tolerated:
+            failures.append(
+                "mac-split-audit: the render::tests job must be pinned by name to item 231 "
+                "in this file, not only on the board"
+            )
+        if re.search(r"^    continue-on-error:\s*true\s*$", tolerated, re.M) is None:
+            failures.append(
+                "mac-split-audit: the render::tests job must set job-level "
+                "`continue-on-error: true`, or its red fails the workflow"
+            )
+        if "render::tests::" not in tolerated:
+            failures.append(
+                "mac-split-audit: the render::tests job must actually scope its "
+                "test invocation to render::tests, not the whole suite"
+            )
     return failures
 
 
@@ -1319,14 +1347,6 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
     ci = '''  linux:
     steps:
       - run: scripts/native-gate.sh
-  mac:
-    steps:
-      - run: echo "AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( $(date +%s) + 2100 ))" >> "$GITHUB_ENV"
-      - name: native full suite
-        timeout-minutes: 40
-        env:
-          AWL_NATIVE_GATE_BUDGET_SECONDS: 1500
-        run: scripts/native-gate.sh
 '''
     if native_gate_audit(script, ci):
         raise AssertionError("canonical native-gate shape must pass its external audit")
@@ -1380,13 +1400,6 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
                 ""),
             ci,
             "must stamp its phase boundaries with elapsed time"),
-        "mac duration bound dropped": (
-            script, ci.replace("          AWL_NATIVE_GATE_BUDGET_SECONDS: 1500\n", ""),
-            "CI mac job must bound the gate's own duration"),
-        "mac runner clock dropped": (
-            script, ci.replace(
-                '      - run: echo "AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( $(date +%s) + 2100 ))" >> "$GITHUB_ENV"\n', ""),
-            "CI mac job must anchor the gate to the runner's clock"),
         # Deadlock against livelock. Each requirement is mutated TWICE — deleted
         # outright, and merely commented out — because a substring matcher that
         # reads the raw text is satisfied by the comment, and that is how this
@@ -1442,32 +1455,56 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
             script.replace("ps -A -o pid=,ppid=,pgid=,etime=,time=", "# ps -A -o pid=,ppid=,pgid=,etime=,time="),
             ci,
             "abort's process dump must carry CPU time beside elapsed time"),
-        # The runner-enforced step bound. Run 30746762499 proved every bound
-        # that lives inside our own shell can fail to fire at all.
-        "mac gate step with no runner-enforced timeout": (
-            script, ci.replace("        timeout-minutes: 40\n", ""),
-            "gate step must carry a runner-enforced timeout-minutes"),
-        "mac gate step timeout demoted to a comment": (
-            script, ci.replace("        timeout-minutes: 40", "        # timeout-minutes: 40"),
-            "gate step must carry a runner-enforced timeout-minutes"),
-        "mac gate step timeout past the observed runner loss": (
-            script, ci.replace("timeout-minutes: 40", "timeout-minutes: 55"),
-            "gate step timeout must land inside the earliest observed runner loss"),
-        "mac gate step timeout shorter than the in-gate budget": (
-            script, ci.replace("timeout-minutes: 40", "timeout-minutes: 10"),
-            "gate step timeout must outlast the in-gate budget"),
-        # The mutation this audit failed on its first run: a deleted bound that
-        # a comment mentioning the same variable silently stood in for.
-        "mac bound demoted to a comment": (
-            script, ci.replace(
-                "          AWL_NATIVE_GATE_BUDGET_SECONDS: 1500",
-                "          # AWL_NATIVE_GATE_BUDGET_SECONDS: 1500"),
-            "CI mac job must bound the gate's own duration"),
     }
     for mutation, (bad_script, bad_ci, expected) in mutations.items():
         failures = native_gate_audit(bad_script, bad_ci)
         if not any(expected in failure for failure in failures):
             raise AssertionError(f"native-gate audit mutation {mutation!r} did not fail by name: {failures}")
+
+    # mac_split_audit (item 243): the gating half must exclude render::tests
+    # and must never tolerate failure; the tolerated half must be pinned by
+    # name to item 231, scoped to render::tests, and set job-level
+    # continue-on-error. Prove each by mutation, not just by shape.
+    split_ci = '''  mac:
+    name: mac (build + test, minus render::tests)
+    steps:
+      - run: env AWL_CONVENTION_FORCE=mac cargo test -- --skip render::tests
+  mac-render-tests:
+    name: "mac (render::tests) — allowed failure, item 231"
+    continue-on-error: true
+    steps:
+      - run: env AWL_CONVENTION_FORCE=mac cargo test render::tests::
+'''
+    if mac_split_audit(split_ci):
+        raise AssertionError("canonical mac-split shape must pass its own audit")
+    split_mutations = {
+        "gating job re-imports render::tests": (
+            split_ci.replace(" -- --skip render::tests", ""),
+            "must filter out render::tests"),
+        "gating job silently tolerant": (
+            split_ci.replace(
+                "    name: mac (build + test, minus render::tests)\n    steps:",
+                "    name: mac (build + test, minus render::tests)\n    continue-on-error: true\n    steps:"),
+            "must NOT tolerate failure"),
+        "tolerated job unpinned": (
+            split_ci.replace(
+                'name: "mac (render::tests) — allowed failure, item 231"',
+                'name: "mac (render::tests) — allowed failure"'),
+            "pinned by name to item 231"),
+        "tolerated job missing continue-on-error": (
+            split_ci.replace("    continue-on-error: true\n", ""),
+            "must set job-level `continue-on-error: true`"),
+        "tolerated job runs the whole suite": (
+            split_ci.replace(
+                "run: env AWL_CONVENTION_FORCE=mac cargo test render::tests::",
+                "run: env AWL_CONVENTION_FORCE=mac cargo test"),
+            "must actually scope its test invocation to render::tests"),
+    }
+    for mutation, (bad_ci, expected) in split_mutations.items():
+        failures = mac_split_audit(bad_ci)
+        if not any(expected in failure for failure in failures):
+            raise AssertionError(f"mac-split audit mutation {mutation!r} did not fail by name: {failures}")
+
     print("code-health: self-test clean")
     return 0
 
@@ -1495,6 +1532,9 @@ def main() -> int:
         failures = native_gate_audit(
             (ROOT / "scripts/native-gate.sh").read_text(),
             (ROOT / ".github/workflows/ci.yml").read_text(),
+        )
+        failures.extend(
+            mac_split_audit((ROOT / ".github/workflows/ci.yml").read_text())
         )
         if failures:
             print("\n".join(failures), file=sys.stderr)
@@ -1553,6 +1593,9 @@ def main() -> int:
             (ROOT / "scripts/native-gate.sh").read_text(),
             (ROOT / ".github/workflows/ci.yml").read_text(),
         )
+    )
+    failures.extend(
+        mac_split_audit((ROOT / ".github/workflows/ci.yml").read_text())
     )
     failures.extend(
         workflow_wrapper_bootstrap_audit(
