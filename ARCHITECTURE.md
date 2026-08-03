@@ -114,6 +114,18 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   `mem::replace`/assignment on park/activate, never a field-by-field
   snapshot/restore; the replay's `buffer` local is its own, unchanged.
 - `selection.rs` — the selection / region model (C-Space mark, kill/copy, drag).
+- `rotated_label/` — THE ROTATED LABEL: the one way awl can draw text at an
+  axis other than upright. glyphon 0.11 has no transform (`TextArea` is
+  left/top/scale/bounds/colour, `CustomGlyph` is left/top/width/height), so a
+  world that wants a turned or slanted cue cannot express it through the
+  document layer at all. One short shaped run is composed on the CPU into a
+  single R8 coverage image (`mask.rs`, the same swash cache glyphon rasterises
+  from) and painted through one quad rotated onto a unit axis — the axis
+  rotation `shaders/caret.wgsl` already performs, applied to a glyph mask. Its
+  frame (`geometry.rs`) is pure: axis, quad, tight bounds and a hit test in the
+  run's own coordinates. It reads no theme, and it composes exactly ONE layout
+  run, so it cannot grow into a second prose renderer; the document layer stays
+  the one. See docs/render.md.
 - `range.rs` — the RANGE SPEC owner (item 94): one typed description of a bounded,
   stepped setting (`min`/`max`/`step`/`default`, a display unit, and a linear or
   logarithmic rail mapping) plus every derivation from it — quantization, the step
