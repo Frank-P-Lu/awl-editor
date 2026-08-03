@@ -215,7 +215,10 @@ pub(crate) enum Mode {
     /// through the retired monolithic path (whole snapshot + whole
     /// `TreeUpdate` on every redraw) and through the retained incremental
     /// projection, printing the counts — runs re-read, document bytes read,
-    /// nodes published — beside the milliseconds. Opens no window.
+    /// nodes published — beside the milliseconds. Opens no window. Native
+    /// only: the projection it measures is, because AccessKit has no canvas
+    /// adapter and the browser build carries no accessibility tree at all.
+    #[cfg(not(target_arch = "wasm32"))]
     BenchA11y,
     /// Hidden performance harness: replay a rapid adjacent-level zoom burst at
     /// the reported 3538x2610 @2x / 60% posture, comparing the old eager
