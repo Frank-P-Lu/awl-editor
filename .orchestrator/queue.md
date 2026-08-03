@@ -893,9 +893,27 @@ re-derive this section in the same commit.**
    the only open item that degrades a shipping accessibility path.
 2. **243, 240, 238 — dispatched this wave.** 243 first among them at
    integration: it is what ends the uninformative `main` red.
-3. **174 — genuinely open, and NOT blocked** now that 116d's hold is released.
-   But its named remainder is gone, so **re-scope it before dispatching**;
-   do not brief it off the 2026-08-02 text.
+3. **174 — RE-SCOPED 2026-08-04 by survey, not by the stale text. Open, not
+   blocked.** Its named remainder `workspace_header_beat` is **gone** — folded
+   into `plan::header_band_height` by the 116d flip slice — so the 2026-08-02
+   handoff pointed at work that no longer exists.
+   **What the planner actually owns today** (`src/render/plan/`, five modules):
+   `overlay_header` (`PlannedHeader`, `beat_stands_alone`, `header_band_height`),
+   `overlay_rows` (+`plan_witness`), `overlay_row_plan`, and `row_extent`
+   (`RowExtent`, `ClusterExtent`, `RowSpan`). That is **two families migrated —
+   the overlay row family and the header band** — against the item's goal of
+   every surface.
+   **What still owns its own geometry, from a grep for hand-computed bounds in
+   `render/chrome/`:** `mod.rs`, `gutter.rs`, `overlay_selection.rs`,
+   `preview.rs`, `overlay.rs`, `workspace.rs`. That list is the candidate set
+   for the next slice — **it is a survey, not a plan.** ⚠️ **Pick the next
+   family by measurement rather than by that ordering**, and pick it against a
+   live check of `render/chrome/`, because this item's remainder has now gone
+   stale twice.
+   ⚠️ **Scheduling constraint, live right now:** `overlay_selection.rs` and
+   `diagonal.rs` are item **247**'s working set (branch
+   `claude/item-247-chevron-prototype`). Do not dispatch a 174 slice over those
+   two until 247 lands. `gutter.rs` and `preview.rs` are clear of it.
 4. **Then, unblocked and unclaimed:** 237 (the vacuous law arm — small), 229
    (CJK word count, user decision made), 222/131d (Magpie's mirrored cluster,
    user decision made), 221 and 224 (both were blocked on 235's capability,
