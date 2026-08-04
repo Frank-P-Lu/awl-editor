@@ -143,22 +143,25 @@ jobs:
   # feels. Item 251 still owns that, and still needs a human at a real Linux
   # desktop.
   #
-  # TOLERATED, not gating (a deliberate choice, following item 243's lesson
-  # rather than repeating its precedent verbatim): this is BRAND NEW CI
-  # infrastructure — Xvfb, a window manager, D-Bus session-bus activation,
-  # at-spi2-registryd, and a hand-written AT-SPI client — none of which this
-  # repo's CI has ever exercised before, unlike item 243's split where the
-  # gating half was already measured completing reliably. Item 243's lesson
-  # was that a red carrying no information is worse than no arm at all;
-  # gating `main` on a brand-new four-layer stack's first runs would risk
-  # blocking unrelated work on infra flakiness this job has not yet proven it
-  # lacks, not on real accessibility regressions. `continue-on-error` is set
-  # at the JOB level, mirroring `mac-render-tests`' shape: a red run here is
-  # attributable to item 252 by name from this file alone. Promote to gating
-  # once it has run green on `main` for a stretch — a conscious decision, not
-  # automatic, exactly as item 231's fix promotes `mac-render-tests`.
+  # TOLERATED, not gating — and after eight runs to get here, no longer
+  # "while it beds in": this arm found a REAL, REPRODUCIBLE DEFECT on its
+  # first complete run (item 257 — a Linux-only gap in item 218's run-based
+  # document, pinned by name here exactly as `mac (render::tests)` is pinned
+  # to item 231 below). `document.get_child_count()` stays 0 under real
+  # AT-SPI on Linux even after a bounded retry with the handle re-fetched
+  # fresh each iteration (ruling out client-side property caching) and a
+  # direct `GetChildAtIndex(0)` agreeing there is nothing there (ruling out a
+  # ChildCount-vs-GetChildAtIndex client enumeration mismatch) — see
+  # scripts/ci-atspi-probe.py's own comments for the full mechanism trail.
+  # Gating `main` on item 257 before it has a fix would block unrelated work
+  # on a known, already-diagnosed defect with no promised fix date — the
+  # exact situation item 243 designed this split for. `continue-on-error` is
+  # set at the JOB level: a red run here is attributable to item 257 by name
+  # from this file alone. Promote to gating once item 257 lands and this job
+  # runs green on `main` for a stretch — a conscious decision, not automatic,
+  # exactly as item 231's eventual fix promotes `mac-render-tests`.
   atspi:
-    name: "atspi (AT-SPI2 bridge liveness, item 252) — allowed failure while it beds in"
+    name: "atspi (AT-SPI2 bridge liveness, item 252) — allowed failure, item 257"
     runs-on: ubuntu-latest
     # BACKSTOP only (item 243's distinction, reused here after run 30887479906
     # hit it directly): `continue-on-error` tolerates a job that FAILS, not

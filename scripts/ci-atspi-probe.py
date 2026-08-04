@@ -452,19 +452,49 @@ def main() -> None:
         # kind of propagation lag the document-node lookup already retries
         # for. A run count read the instant the document itself first
         # appears can race that queue being drained.
+        #
+        # The document handle is RE-FETCHED fresh each iteration (a new
+        # find_role call, not `.get_child_count()` called again on the same
+        # Python/GI object) — a stale per-object property cache on the
+        # ORIGINAL handle would make a naive retry vacuous, retrying nothing.
         run_deadline = time.time() + RUN_CHILDREN_TIMEOUT_S
         run_count = document.get_child_count()
         while run_count != len(EXPECTED_RUN_TEXT) and time.time() < run_deadline:
             time.sleep(POLL_S)
+            document = find_role(app, Atspi.Role.ENTRY) or document
             run_count = document.get_child_count()
         if run_count != len(EXPECTED_RUN_TEXT):
+            # Mechanism check before failing: "awl does not publish the runs"
+            # and "this probe cannot enumerate published runs" are different
+            # defects. ChildCount is a property (possibly cached client-side);
+            # GetChildAtIndex is a live method call. If the two disagree, the
+            # failure is in this probe's enumeration, not in what awl
+            # published — worth knowing before reporting either way.
+            direct_child = None
+            direct_child_error = None
+            try:
+                direct_child = document.get_child_at_index(0)
+            except GLib.Error as exc:
+                direct_child_error = str(exc)
+            if direct_child is not None:
+                fail(
+                    f"document.get_child_count() reports {run_count} (expected "
+                    f"{len(EXPECTED_RUN_TEXT)}) but GetChildAtIndex(0) DIRECTLY "
+                    f"returned a real child (role {direct_child.get_role_name()!r}) "
+                    "— ChildCount disagrees with GetChildAtIndex, so this looks "
+                    "like a probe/client enumeration defect, not proof awl "
+                    "publishes no runs"
+                )
             fail(
                 f"document has {run_count} children, expected "
                 f"{len(EXPECTED_RUN_TEXT)} stable line runs (item 218's shape) "
-                f"for the 3-line fixture, even after waiting {RUN_CHILDREN_TIMEOUT_S}s — "
-                "a monolithic single-node document (the pre-218 shape) would "
-                "fail this exact check, and so would a real Linux gap in "
-                "item 218's run-publishing path"
+                f"for the 3-line fixture, even after waiting {RUN_CHILDREN_TIMEOUT_S}s "
+                "with the handle re-fetched fresh each retry — GetChildAtIndex(0) "
+                f"directly agrees there is nothing there "
+                f"({('error: ' + direct_child_error) if direct_child_error else 'returned None'}). "
+                "A monolithic single-node document (the pre-218 shape) would fail "
+                "this exact check, and so does whatever is happening here in "
+                "item 218's run-publishing path on Linux"
             )
 
         for i, want in enumerate(EXPECTED_RUN_TEXT):
