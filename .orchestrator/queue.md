@@ -489,6 +489,45 @@ live, and that half is fixed with OFL 1.1 §2 quoted. **The lesson to carry: an
 orchestrator's own measurement is not privileged, and a licence claim built on
 one host's tooling gets re-measured with a parser, not a text scanner.**
 
+🟡 **SECOND WAVE — 260 running; 266, 267, 269 LANDED.**
+- ✅ **266 — LANDED, merge `ac548c51`** (`77db975e`). Setext filtered at the
+  SOURCE (`spans.rs`'s `Tag::Heading` Start arm), so all four surfaces inherit
+  the rule from one owner; `headings.rs`'s now-redundant filter dropped
+  deliberately. The documented growing-row companion gap is closed in the same
+  round (`md_line_scale` gains `confirmed_rule`). **The hard boundary is tested,
+  not asserted:** a round-trip law proves byte-identity through load and a
+  no-edit save over one document carrying ATX, dash-setext, equals-setext and a
+  real thematic break. `spans.rs` was **trimmed to its frozen ceiling rather
+  than raised.**
+- ✅ **267 — LANDED, merge `9fa3cb46`** (`37357a2b`). 🔴 **PREMISE FALSIFIED —
+  THE FOURTH THIS WAVE, and no fix was needed.** The item's source read was
+  literally true and still not the mechanism: `render.rs`'s `caret_h` constant
+  and `caret.rs`'s centring are the caret's **spring target**, not its drawn
+  geometry — `caret_geometry()` overrides both through `caret_cell_vertical()`,
+  whose arms read the row's own shaped layout. Measured **1.60 against an
+  expected `heading_scale(1)` of 1.6.** ⚠️ **AND THE ITEM'S CITED EVIDENCE WAS
+  NEVER IN THE TREE:** it named `11e20069` ("decoupled space-above
+  line-height") as what inflates rows; **that commit is on the unmerged
+  `heading-ab` branch and is not an ancestor of `main`** — verified
+  independently. The reported case reproduces as body height, because the ladder
+  keys off a line's own leading `#` run. **What landed is three regression laws
+  pinning behaviour that was correct all along.**
+  ⚠️ **TWO THINGS CAME OUT OF REVIEW, NOT THE FIRST REPORT** — recorded because
+  both would have shipped: the ratio drifted 1.60 at 1× to 1.52 at 2× and was
+  presented without comment (it resolved as **PNG scan noise**; exact internal
+  floats hold caret-to-ink within **0.2%** across tiers), and **the laws swept
+  ONE DPI only**, so a real drift would have been invisible to them by
+  construction. They now loop both tiers with the mutation proof re-run.
+- ✅ **269 — LANDED, merge `a7a192fe`** (`184cfd77`). Enrolment is roster-derived
+  through a single `find_map`, so a world changing its ground can **retarget**
+  the representative but cannot **un-enrol** it. ⚠️ **Review caught a second
+  silent-skip path in the first attempt** — the roster scan and a surviving
+  `if let` were two predicates that had to agree — collapsed to one match site.
+  ✅ **The first-contact green was NOT trusted:** mutating the `edge`-only
+  shader branch turned **only** the new representative red while its siblings
+  stayed green, proving the arm exercises real previously-uncovered code.
+  **No product defect behind the dead branch.**
+
 Every worktree from the previous wave was merged, removed, and pruned before this
 one was claimed. The items below are ready, unblocked, and ordered; their full
 briefs are in the item bodies further down, except item 247 whose brief is kept
