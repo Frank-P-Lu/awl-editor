@@ -47,6 +47,10 @@ impl TextPipeline {
         self.prepare_caret_layer(device, queue, width, height);
         self.prepare_selection_layer(device, queue, width, height);
         self.prepare_ornaments(device, queue, width, height)?;
+        // THE FOLD CHEVRON: rotated-quad arms, drawn OUTSIDE the glyphon ornament
+        // pipeline above because it must turn a quarter turn on fold/unfold and
+        // glyphon 0.11 has no transform (`layers::fold_chevron`'s module doc).
+        self.prepare_fold_chevron_marks(device, queue, width, height);
         self.prepare_table_grid(device, queue, width, height)?;
         // INLINE IMAGES: the tall rows are reserved at reshape (the per-line height
         // override in `build_line_attrs`); this decodes each visible off-cursor image

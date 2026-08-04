@@ -1,10 +1,52 @@
-//! Shared fold-chevron geometry, raster-ink placement, and hit-testing.
+//! Shared fold-chevron geometry, direction, motion, and hit-testing.
+//!
+//! **The mark carries direction, not just presence.** `fold::chevron_revealed`
+//! answers whether a mark should show at all; `TextPipeline::folded_headings`
+//! (mirrored from `ViewState::folded_headings`) answers which way it points: `›`
+//! while a heading's section is hidden, `⌄` while it is showing. A collapsed
+//! heading and an expanded one must never draw the identical mark — the "… N
+//! lines" tail is a separate, unconditional signal that by construction exists
+//! only once a section is already folded, so it cannot stand in for the
+//! chevron's own direction. The mark turns a quarter turn between the two states
+//! on fold/unfold.
+//!
+//! **The mark lives outside the glyphon text pipeline.** glyphon 0.11 carries no
+//! transform of any kind — `TextArea` exposes `left/top/scale/bounds/default_color/
+//! custom_glyphs` and nothing else — so a shaped run cannot rotate (`docs/render.md`'s
+//! "Rotated labels" section). The mark is built instead from two `spine_segment` arms
+//! meeting at a vertex, uploaded through `SelectionPipeline::prepare_rotated` — the
+//! same primitive `chrome::diagonal::selected_chevron` uses for the overlay's own
+//! selected-row chevron (read as the pattern; `render/chrome/` is owned elsewhere, so
+//! this module keeps its own copy of the shape rather than sharing a call). `rotated_label/`
+//! and `render/rotated_location.rs` are the other two rotation precedents in this
+//! codebase; this is not a third — it rides `prepare_rotated`, the same
+//! axis-rotated-quad primitive `chrome::diagonal` rides, not a new transform mechanism.
 
 use super::*;
 
 const GAP_CHARS: f32 = 0.3;
 const WIDTH_CHARS: f32 = 1.0;
-const FOLD_CHEVRON: &str = "\u{203A}";
+
+/// Half the mark's reach along its pointing axis, and its half-spread across —
+/// both fractions of `char_width` (so the mark scales with zoom/dpi exactly as
+/// the glyph it replaces did). Sized to stay inside the mark's own hit box
+/// (`WIDTH_CHARS` wide) at ANY turn angle: at `turn=0°` the shape's horizontal
+/// extent is `2*reach` and its vertical extent `2*spread`; at `turn=90°` the two
+/// SWAP. Both stay comfortably under `WIDTH_CHARS * char_width` with room left
+/// for the stroke's own half-thickness. Deliberately UNEQUAL (not a square): a
+/// collapsed `›` reads WIDER than tall, an expanded `⌄` reads TALLER than wide —
+/// so the mark's own ink footprint, not merely its vertex angle, carries the
+/// direction cue, and a law can grade that swap directly off rendered pixels.
+const REACH_CHARS: f32 = 0.30;
+const SPREAD_CHARS: f32 = 0.22;
+const STROKE_CHARS: f32 = 0.14;
+
+/// The quarter turn's duration — a snappy, occasional-choice motion (DESIGN.md
+/// §4: "Menu navigation and other occasional choices may use visible transitions,
+/// provided they remain responsive"), in the same ballpark as the overlay
+/// entrance/band motions (`OVERLAY_BAND_SLIDE_MS` = 110, `OVERLAY_ENTRANCE_MS` =
+/// 200) rather than the copy pulse's longer decay.
+const FOLD_CHEVRON_TURN_MS: f32 = 140.0;
 
 /// One chevron's exact shaped-row box. Paint centres the visible mark within it;
 /// hit-testing deliberately keeps the whole row height as a generous target.
@@ -15,6 +57,12 @@ pub(in crate::render) struct FoldChevronGeom {
     pub(in crate::render) width: f32,
     pub(in crate::render) row_top: f32,
     pub(in crate::render) row_height: f32,
+    /// Is this heading's section currently HIDDEN? The chevron's one bit of
+    /// direction: `true` paints `›`, `false` paints `⌄`. Sourced from
+    /// `TextPipeline::folded_headings` — NOT `fold_tails` (whose membership is
+    /// gated on a nonzero hidden count, so a heading folded over an EMPTY section
+    /// would misreport as expanded there).
+    pub(in crate::render) collapsed: bool,
 }
 
 impl FoldChevronGeom {
@@ -28,6 +76,46 @@ impl FoldChevronGeom {
             && py >= self.row_top
             && py < self.row_top + self.row_height
     }
+}
+
+/// Both arms of the fold chevron — two `spine_segment` bars meeting at a vertex
+/// DERIVED from the arm ends, the same "mirror is structural" shape
+/// `chrome::diagonal::selected_chevron` uses (read as the pattern; this module
+/// keeps its own copy since `render/chrome/` is owned elsewhere).
+///
+/// `turn_deg` is the ONE input that decides which way the mark points. At `0.0`
+/// it traces `›`: the vertex sits `reach` to the RIGHT of `center`, and the two
+/// arms trail back to `reach` on the LEFT, `spread` apart vertically — collapsed,
+/// pointing INTO the hidden section. At `90.0` it traces `⌄`: the vertex sits
+/// `reach` BELOW `center`, arms trailing back UP, `spread` apart horizontally —
+/// expanded, pointing DOWN at the now-visible body. Every value in between glides
+/// the quarter turn continuously (`u`/`p` are the direction/perpendicular unit
+/// vectors of a plain rotation, so the vertex and both arm ends sweep smoothly).
+///
+/// Pure — no device, no clock, no theme — so a law can grade the exact shape a
+/// frame would draw at any turn, and prove the collapsed/expanded pair are
+/// genuinely different shapes rather than the same extent read two ways (the
+/// item's own named trap: `instance_count() == 2` stays true at every turn, so a
+/// law must grade the ANGLE, not the count).
+pub(in crate::render) fn fold_chevron_arms(
+    center: [f32; 2],
+    reach: f32,
+    spread: f32,
+    turn_deg: f32,
+    thickness: f32,
+) -> [([f32; 2], [f32; 2], [f32; 2]); 2] {
+    let theta = turn_deg.to_radians();
+    let (s, c) = theta.sin_cos();
+    let u = [c, s];
+    let p = [-s, c];
+    let vertex = [center[0] + u[0] * reach, center[1] + u[1] * reach];
+    let back = [center[0] - u[0] * reach, center[1] - u[1] * reach];
+    let arm_a = [back[0] + p[0] * spread, back[1] + p[1] * spread];
+    let arm_b = [back[0] - p[0] * spread, back[1] - p[1] * spread];
+    [
+        crate::selection::spine_segment(vertex, arm_a, thickness),
+        crate::selection::spine_segment(vertex, arm_b, thickness),
+    ]
 }
 
 impl TextPipeline {
@@ -47,7 +135,8 @@ impl TextPipeline {
     }
 
     /// One geometry owner for paint and hit-test: each currently summoned mark
-    /// resolves to the exact first shaped-row box of its heading.
+    /// resolves to the exact first shaped-row box of its heading, PLUS whether
+    /// that heading is currently folded (the mark's direction).
     pub(in crate::render) fn fold_chevron_geometries(&self) -> Vec<FoldChevronGeom> {
         if self.outline_headings.is_empty() || !self.fold_chevron_has_room() {
             return Vec::new();
@@ -68,6 +157,7 @@ impl TextPipeline {
                     width,
                     row_top: self.doc_top() + row.line_top,
                     row_height: row.line_height,
+                    collapsed: self.folded_headings.contains(&h.line),
                 })
             })
             .collect()
@@ -89,128 +179,114 @@ impl TextPipeline {
             .into_iter()
             .find_map(|g| g.hit(px, py).then_some(g.line))
     }
-}
 
-pub(super) struct FoldChevrons {
-    marks: Vec<FoldChevronGeom>,
-    buffers: Vec<GlyphBuffer>,
-    ink_centers: Vec<f32>,
-    color: glyphon::Color,
-    fallback_line_y: f32,
-}
-
-impl FoldChevrons {
-    pub(super) fn shape(pipeline: &mut TextPipeline, metrics: Metrics, col_w: f32) -> Self {
-        let marks = pipeline.fold_chevron_geometries();
-        let color = theme::fold_afford_chevron_ink().to_glyphon();
-        let mark_h = metrics.line_height * crate::markdown::type_scale::LABEL;
-        let glyph_metrics = GlyphMetrics::new(
-            metrics.font_size * crate::markdown::type_scale::LABEL,
-            mark_h,
-        );
-        let attrs = panel_attrs().color(color);
-        let buffers: Vec<GlyphBuffer> = marks
-            .iter()
-            .map(|_| {
-                let mut buffer = GlyphBuffer::new(&mut pipeline.font_system, glyph_metrics);
-                buffer.set_size(&mut pipeline.font_system, Some(col_w), Some(mark_h));
-                buffer.set_text(
-                    &mut pipeline.font_system,
-                    FOLD_CHEVRON,
-                    &attrs,
-                    Shaping::Advanced,
-                    None,
-                );
-                buffer.shape_until_scroll(&mut pipeline.font_system, false);
-                buffer
-            })
-            .collect();
-        let fallback_line_y = mark_h * 0.8;
-        let ink_centers = buffers
-            .iter()
-            .map(|buffer| Self::ink_center(pipeline, buffer, fallback_line_y))
-            .collect();
-        Self {
-            marks,
-            buffers,
-            ink_centers,
-            color,
-            fallback_line_y,
-        }
+    /// The fold chevron's CURRENT turn fraction for `line` (`0.0` = settled `›`,
+    /// `1.0` = settled `⌄`), eased through the same `smoothstep` the copy pulse's
+    /// own settle read applies. A pure READ — never a mutation — so it is safe to
+    /// call from paint every frame whether or not `Self::advance` (the per-frame
+    /// stepper) has ever run: a fresh/headless pipeline has an empty
+    /// `fold_chevron_turn` map, so this falls straight to `target` — the exact
+    /// settled state, matching every other live-only animator's headless
+    /// contract (the caret spring, the copy pulse: "the headless path has no
+    /// clock, animation, or randomness; live-only animation captures its settled
+    /// state"). `collapsed` is the SAME bit `FoldChevronGeom::collapsed` carries.
+    pub(in crate::render) fn fold_chevron_turn_fraction(
+        &self,
+        line: usize,
+        collapsed: bool,
+    ) -> f32 {
+        let target = if collapsed { 0.0 } else { 1.0 };
+        let t = self.fold_chevron_turn.get(&line).copied().unwrap_or(target);
+        crate::ease::smoothstep(t)
     }
 
-    /// The visible mark's centre in its shaped-buffer coordinates, measured from
-    /// the actual nonzero swash-mask rows rather than the font baseline.
-    fn ink_center(pipeline: &mut TextPipeline, buffer: &GlyphBuffer, fallback_line_y: f32) -> f32 {
-        let glyphs: Vec<(CacheKey, f32)> = buffer
-            .layout_runs()
-            .flat_map(|run| {
-                run.glyphs
-                    .iter()
-                    .map(move |g| (g.physical((0.0, 0.0), 1.0).cache_key, run.line_y))
-            })
-            .collect();
-        let (mut top, mut bottom) = (f32::MAX, f32::MIN);
-        let TextPipeline {
-            swash_cache,
-            font_system,
-            ..
-        } = pipeline;
-        for (key, baseline) in glyphs {
-            let Some(image) = swash_cache.get_image(font_system, key).as_ref() else {
-                continue;
+    /// Advance every currently-live fold chevron's turn by `dt` seconds toward
+    /// its settled target (`0.0` collapsed / `1.0` expanded — see
+    /// `fold_chevron_turn_fraction`), and drop any entry whose heading no longer
+    /// appears in this frame's outline. Pruning matters: a fold/unfold ANYWHERE
+    /// earlier in the document shifts every later heading's FILTERED line, so a
+    /// stale key is the common case after an edit, not a rare one — without this,
+    /// the map would accumulate one dead entry per such shift for the life of the
+    /// pipeline.
+    ///
+    /// ACCESSIBILITY TIER 1 — REDUCE MOTION: every entry settles INSTANTLY (same
+    /// final angle, zero glide frames), mirroring `step_copy_pulse`'s gate
+    /// exactly. Returns true while any mark is still turning — OR-folded into
+    /// [`Self::advance`] alongside the caret spring, the caret preview, and the
+    /// copy pulse, so the live redraw loop stays hot exactly as long as a turn
+    /// plays and goes idle once every mark settles. The ORDINARY `--screenshot`
+    /// capture path never calls this (it drives `prepare()` alone, so it always
+    /// renders the settled state); `dt` is an INJECTED delta rather than a real
+    /// clock, so a direct call — the same shape `--capture-timeline`/
+    /// `--capture-held` drive the caret spring with — steps it deterministically
+    /// (see `render/tests/fold_chevron_direction_item248.rs`'s injected-dt law).
+    /// What that cannot reach is the real-time GLIDE's FEEL — flagged for human
+    /// confirmation, not claimed verified by any capture.
+    pub(in crate::render) fn step_fold_chevrons(&mut self, dt: f32) -> bool {
+        let lines: Vec<usize> = self.outline_headings.iter().map(|h| h.line).collect();
+        if lines.is_empty() {
+            if !self.fold_chevron_turn.is_empty() {
+                self.fold_chevron_turn.clear();
+            }
+            return false;
+        }
+        let reduced = crate::motion::reduced();
+        let mut hot = false;
+        for &line in &lines {
+            let target = if self.folded_headings.contains(&line) {
+                0.0
+            } else {
+                1.0
             };
-            if image.content != SwashContent::Mask
-                || image.placement.width == 0
-                || image.placement.height == 0
-            {
+            let t = self.fold_chevron_turn.entry(line).or_insert(target);
+            if reduced {
+                *t = target;
                 continue;
             }
-            let width = image.placement.width as usize;
-            let mut first_ink_row = None;
-            let mut last_ink_row = None;
-            for (row, coverage) in image.data.chunks_exact(width).enumerate() {
-                if coverage.iter().any(|&alpha| alpha != 0) {
-                    first_ink_row.get_or_insert(row);
-                    last_ink_row = Some(row);
-                }
-            }
-            let (Some(first), Some(last)) = (first_ink_row, last_ink_row) else {
+            if (*t - target).abs() <= f32::EPSILON {
                 continue;
+            }
+            let step = dt * 1000.0 / FOLD_CHEVRON_TURN_MS;
+            *t = if *t < target {
+                (*t + step).min(target)
+            } else {
+                (*t - step).max(target)
             };
-            let glyph_top = baseline - image.placement.top as f32 + first as f32;
-            let glyph_bottom = baseline - image.placement.top as f32 + (last + 1) as f32;
-            top = top.min(glyph_top);
-            bottom = bottom.max(glyph_bottom);
+            hot |= (*t - target).abs() > f32::EPSILON;
         }
-        if bottom > top {
-            (top + bottom) * 0.5
-        } else {
-            fallback_line_y
-        }
+        self.fold_chevron_turn
+            .retain(|line, _| lines.contains(line));
+        hot
     }
 
-    pub(super) fn len(&self) -> usize {
-        self.marks.len()
-    }
-
-    pub(super) fn append_areas<'a>(&'a self, areas: &mut Vec<TextArea<'a>>, bounds: TextBounds) {
-        for (i, &mark) in self.marks.iter().enumerate() {
-            let buffer = &self.buffers[i];
-            let ink_center = self
-                .ink_centers
-                .get(i)
-                .copied()
-                .unwrap_or(self.fallback_line_y);
-            areas.push(TextArea {
-                buffer,
-                left: mark.left,
-                top: mark.row_center() - ink_center,
-                scale: 1.0,
-                bounds,
-                default_color: self.color,
-                custom_glyphs: &[],
-            });
-        }
+    /// Build + upload this frame's fold-chevron arms (`fold_chevron_arms`, two
+    /// per mark) through `SelectionPipeline::prepare_rotated`. The pipeline's
+    /// color is NOT set here — it re-tints in `sync_theme_colors`, matching every
+    /// other document-layer `SelectionPipeline`'s construction-time /
+    /// theme-sync-only convention (`wash_comment_pipeline` et al.), never a
+    /// per-frame re-set. Empty when nothing is summoned, so a default (no
+    /// hover/caret-on-heading) capture uploads zero instances.
+    pub(in crate::render) fn prepare_fold_chevron_marks(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        width: u32,
+        height: u32,
+    ) {
+        let marks = self.fold_chevron_geometries();
+        let reach = self.metrics.char_width * REACH_CHARS;
+        let spread = self.metrics.char_width * SPREAD_CHARS;
+        let thickness = (self.metrics.char_width * STROKE_CHARS).max(1.0);
+        let quads: Vec<([f32; 2], [f32; 2], [f32; 2])> = marks
+            .iter()
+            .flat_map(|g| {
+                let center = [g.left + g.width * 0.5, g.row_center()];
+                let turn_deg = 90.0 * self.fold_chevron_turn_fraction(g.line, g.collapsed);
+                fold_chevron_arms(center, reach, spread, turn_deg, thickness)
+            })
+            .collect();
+        self.fold_chevron_pipeline.set_corner(thickness * 0.5);
+        self.fold_chevron_pipeline
+            .prepare_rotated(device, queue, width, height, &quads);
     }
 }

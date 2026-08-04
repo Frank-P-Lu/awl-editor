@@ -242,6 +242,7 @@ impl App {
             overlay_detail_focus: ov.map(|o| o.detail_focus).unwrap_or(false),
             folds: Vec::new(),
             fold_tails: Vec::new(),
+            folded_headings: Vec::new(),
             // `text` above IS the document; the two substitutions below (preview
             // transcript, fold filter) each record it via `substitute_text`.
             doc_source: None,
@@ -300,6 +301,7 @@ impl App {
                 &mut view,
                 &self.document.buffer().hidden_lines(),
                 &self.document.buffer().fold_tails(),
+                self.document.buffer().folds(),
             );
         }
         {

@@ -220,7 +220,7 @@ fn outline_collapsed_parent_retained_descendant_suppressed_with_a_state_marker()
     );
 
     let mut view = view_md(text, 0, 0);
-    crate::fold::apply_to_view(&mut view, &hidden, &tails);
+    crate::fold::apply_to_view(&mut view, &hidden, &tails, &folds);
     p.set_view(&view);
 
     let lines = p
@@ -338,7 +338,7 @@ fn outline_click_target_maps_the_fold_filtered_row_back_to_the_raw_heading_line(
     let tails = crate::fold::fold_tails(&levels, &folds);
 
     let mut view = view_md(text, 0, 0);
-    crate::fold::apply_to_view(&mut view, &hidden, &tails);
+    crate::fold::apply_to_view(&mut view, &hidden, &tails, &folds);
     p.set_view(&view);
 
     // Real geometry: the drawn row for "Section B" — EXACTLY the `line`

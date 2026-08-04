@@ -544,7 +544,7 @@ pub(super) fn settled_viewstate(
         if filter.visible(sc_line) {
             sc_line = filter.line(sc_line);
         }
-        crate::fold::apply_to_view(&mut vstate, &hidden, &buffer.fold_tails());
+        crate::fold::apply_to_view(&mut vstate, &hidden, &buffer.fold_tails(), buffer.folds());
     }
     pipeline.set_view(&vstate);
 

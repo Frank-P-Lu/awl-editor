@@ -12,14 +12,16 @@ use std::collections::BTreeSet;
 //   0 # A / 1 a1 / 2 a2 / 3 # B / 4 b1
 const DOC: &str = "# A\na1\na2\n# B\nb1";
 
-/// Fold the given heading lines of `DOC` and return the `(hidden mask, tails)` the
-/// live `sync_view` / capture builders feed [`crate::fold::apply_to_view`].
-fn fold(headings: &[usize]) -> (Vec<bool>, Vec<(usize, usize)>) {
+/// Fold the given heading lines of `DOC` and return the `(hidden mask, tails,
+/// folds)` the live `sync_view` / capture builders feed
+/// [`crate::fold::apply_to_view`].
+fn fold(headings: &[usize]) -> (Vec<bool>, Vec<(usize, usize)>, BTreeSet<usize>) {
     let levels = crate::fold::heading_levels(DOC, true);
     let folds: BTreeSet<usize> = headings.iter().copied().collect();
     (
         crate::fold::hidden_lines(&levels, &folds),
         crate::fold::fold_tails(&levels, &folds),
+        folds,
     )
 }
 
@@ -38,9 +40,9 @@ fn a_folded_section_contributes_zero_visual_rows() {
 
     // FOLD # A (line 0): its section is lines 1..=2 (a1, a2). Feed the hidden mask
     // through the shared fold seam — exactly what the app/capture builders do.
-    let (hidden, tails) = fold(&[0]);
+    let (hidden, tails, folds) = fold(&[0]);
     let mut folded = view_md(DOC, 0, 0);
-    crate::fold::apply_to_view(&mut folded, &hidden, &tails);
+    crate::fold::apply_to_view(&mut folded, &hidden, &tails, &folds);
     // The two hidden lines are gone from the shaped text (so they cannot lay out).
     assert_eq!(folded.text, "# A\n# B\nb1");
     p.set_view(&folded);
@@ -67,9 +69,9 @@ fn fold_tail_rides_the_heading_row_with_the_correct_count() {
     };
 
     // FOLD # A (line 0): hides a1, a2 → the tail reads "… 2 lines" on the heading.
-    let (hidden, tails) = fold(&[0]);
+    let (hidden, tails, folds) = fold(&[0]);
     let mut folded = view_md(DOC, 0, 0);
-    crate::fold::apply_to_view(&mut folded, &hidden, &tails);
+    crate::fold::apply_to_view(&mut folded, &hidden, &tails, &folds);
     // The view records the tail on the heading's FILTERED row (0) with count 2.
     assert_eq!(folded.fold_tails, vec![FoldTail { line: 0, hidden: 2 }]);
 
@@ -114,9 +116,9 @@ fn fold_tail_count_tracks_the_hidden_extent() {
 
     // FOLD # B (line 3): its section is line 4 (b1) only → "… 1 line". Only that one
     // line below it hides, so # B keeps its full-doc row 3 in the filtered document.
-    let (hidden, tails) = fold(&[3]);
+    let (hidden, tails, folds) = fold(&[3]);
     let mut folded = view_md(DOC, 0, 0);
-    crate::fold::apply_to_view(&mut folded, &hidden, &tails);
+    crate::fold::apply_to_view(&mut folded, &hidden, &tails, &folds);
     assert_eq!(folded.fold_tails, vec![FoldTail { line: 3, hidden: 1 }]);
     p.set_view(&folded);
     let marks = p.fold_tail_marks();
@@ -168,7 +170,7 @@ fn fold_tail_hangs_after_the_first_visual_row_when_the_heading_wraps() {
     let tails = crate::fold::fold_tails(&levels, &folds);
 
     let mut view = view_md(doc, 0, 0);
-    crate::fold::apply_to_view(&mut view, &hidden, &tails);
+    crate::fold::apply_to_view(&mut view, &hidden, &tails, &folds);
     p.set_view(&view);
 
     // Fixture self-check: the heading genuinely wraps to more than one visual row
@@ -249,12 +251,12 @@ fn fold_chevron_reveals_only_when_the_caret_is_on_the_collapsed_heading() {
     // restore the default so a later test never inherits this one's setting.
     let _g = crate::testlock::serial();
     crate::page::set_page_on(true);
-    let (hidden, tails) = fold(&[0]); // fold # A; its tail hangs on filtered row 0
+    let (hidden, tails, folds) = fold(&[0]); // fold # A; its tail hangs on filtered row 0
 
     // Caret ON the collapsed heading (# A, full line 0 → filtered row 0, where folding
     // parks it): the chevron reveals on that row, LEFT of the heading text.
     let mut on = view_md(DOC, 0, 0);
-    crate::fold::apply_to_view(&mut on, &hidden, &tails);
+    crate::fold::apply_to_view(&mut on, &hidden, &tails, &folds);
     assert_eq!(
         on.cursor_line, 0,
         "caret on the folded heading's filtered row"
@@ -284,7 +286,7 @@ fn fold_chevron_reveals_only_when_the_caret_is_on_the_collapsed_heading() {
     // Caret OFF the heading (on b1, full line 4 → a different filtered row): NO chevron,
     // but the tail is still shown — the tail is unconditional, the chevron summoned.
     let mut off = view_md(DOC, 4, 0);
-    crate::fold::apply_to_view(&mut off, &hidden, &tails);
+    crate::fold::apply_to_view(&mut off, &hidden, &tails, &folds);
     assert_ne!(off.cursor_line, 0, "caret is not on the collapsed heading");
     p.set_view(&off);
     assert!(
@@ -320,11 +322,11 @@ fn fold_chevron_reveal_never_shifts_the_heading_glyph_positions() {
     };
     let _g = crate::testlock::serial();
     crate::page::set_page_on(true);
-    let (hidden, tails) = fold(&[0]); // fold # A
+    let (hidden, tails, folds) = fold(&[0]); // fold # A
     // Caret parked away from the heading for BOTH states (line 4, "b1") — WYSIWYG
     // conceal on the heading line is therefore identical in both; only hover varies.
     let mut view = view_md(DOC, 4, 0);
-    crate::fold::apply_to_view(&mut view, &hidden, &tails);
+    crate::fold::apply_to_view(&mut view, &hidden, &tails, &folds);
 
     // REST: no hover, chevron absent.
     p.set_view(&view);
@@ -376,9 +378,9 @@ fn fold_chevron_hides_gracefully_with_no_room_edge_to_edge() {
     };
     let _g = crate::testlock::serial();
     crate::page::set_page_on(false); // edge-to-edge: text_left == column_left, zero pad
-    let (hidden, tails) = fold(&[0]);
+    let (hidden, tails, folds) = fold(&[0]);
     let mut on = view_md(DOC, 0, 0);
-    crate::fold::apply_to_view(&mut on, &hidden, &tails);
+    crate::fold::apply_to_view(&mut on, &hidden, &tails, &folds);
     p.set_view(&on);
     assert!(
         (p.text_left() - p.column_left()).abs() < 0.01,
@@ -546,7 +548,7 @@ fn fold_chevron_hit_toggles_through_one_owner_both_directions() {
     let tails = crate::fold::fold_tails(&levels, &folds);
     let hidden = crate::fold::hidden_lines(&levels, &folds);
     let mut folded_view = view_md(DOC, 4, 0);
-    crate::fold::apply_to_view(&mut folded_view, &hidden, &tails);
+    crate::fold::apply_to_view(&mut folded_view, &hidden, &tails, &folds);
     p.set_view(&folded_view);
     p.set_hover_line(Some(0));
     let marks2 = p.fold_chevron_marks();
@@ -649,6 +651,7 @@ fn a_folded_section_never_moves_the_card_figures_the_pipeline_draws() {
         &mut v,
         &crate::fold::hidden_lines(&levels, &set),
         &crate::fold::fold_tails(&levels, &set),
+        &set,
     );
     p.set_view(&v);
 

@@ -150,6 +150,20 @@ pub struct ViewState {
     /// nothing is folded, so a default capture is byte-identical.
     pub folds: Vec<usize>,
     pub fold_tails: Vec<FoldTail>,
+    /// The FILTERED-line-space lines of every currently FOLDED heading —
+    /// [`Self::folds`]'s own set, remapped through the SAME [`crate::fold::Filter`]
+    /// `fold_tails` rides, so both land in the space [`Self::text`] actually shapes
+    /// (and the space `outline_headings`' own `Heading::line` is built from). Unlike
+    /// `fold_tails`, this is NOT gated on a nonzero hidden count — a heading folded
+    /// over an EMPTY section (immediately followed by a sibling-or-shallower
+    /// heading) still belongs here, because "is this heading collapsed" is a fact
+    /// about the fold set, not about how much it hides. This is the one signal the
+    /// fold chevron reads to choose its shape: `›` while collapsed, `⌄` while
+    /// expanded — [`crate::fold::chevron_revealed`] answers WHETHER the mark shows,
+    /// this answers which way it points. Empty when nothing is folded (or during a
+    /// History preview, which substitutes a diff transcript unrelated to any real
+    /// fold), so a default capture stays byte-identical.
+    pub folded_headings: Vec<usize>,
     /// The user's OWN document, when `text` above is a SUBSTITUTE for it rather
     /// than the document itself — a fold has dropped the hidden lines, or a
     /// History preview has replaced the whole thing with a diff transcript.
@@ -267,6 +281,7 @@ impl ViewState {
             overlay_detail_focus: false,
             folds: Vec::new(),
             fold_tails: Vec::new(),
+            folded_headings: Vec::new(),
             doc_source: None,
         }
     }

@@ -1770,6 +1770,15 @@ pub struct TextPipeline {
     /// rectangle, exactly right for a selection range.
     pub caret_invert: SelectionPipeline,
     pub ornament_renderer: TextRenderer,
+    /// THE FOLD CHEVRON — `›`/`⌄`, two rotated-quad arms meeting at a vertex
+    /// ([`layers::fold_chevron::fold_chevron_arms`]), drawn OUTSIDE the glyphon
+    /// text pipeline (glyphon 0.11 carries no transform, so a shaped run cannot
+    /// rotate — `docs/render.md`'s "Rotated labels" section). Built + uploaded by
+    /// `TextPipeline::prepare_fold_chevron_marks`, drawn in `draw_document_content`
+    /// alongside `ornament_renderer` (the mark's other document-margin siblings —
+    /// rule glyphs, bullets, the fold TAIL — stay glyphon; only the chevron, which
+    /// must turn, left that pipeline).
+    pub fold_chevron_pipeline: SelectionPipeline,
     pub table_renderer: TextRenderer,
     pub table_rule_pipeline: SelectionPipeline,
     pub panel_card: SelectionPipeline,
@@ -1848,6 +1857,25 @@ pub struct TextPipeline {
     /// Active selection endpoints (ordered), or `None`.
     selection: Option<((usize, usize), (usize, usize))>,
     fold_tails: Vec<FoldTail>,
+    /// The FILTERED-line-space lines of every currently folded heading — a mirror
+    /// of [`crate::render::ViewState::folded_headings`] (see its own doc for why
+    /// this is not merely `fold_tails`' key set: an empty-section fold has no
+    /// tail). The fold chevron's ONE source of direction: `›` (collapsed) while a
+    /// heading's line is in here, `⌄` (expanded) otherwise.
+    folded_headings: Vec<usize>,
+    /// Per-heading fold-chevron TURN progress, keyed on the heading's CURRENT
+    /// filtered line: `0.0` draws fully `›` (pointing right, collapsed), `1.0`
+    /// draws fully `⌄` (pointing down, expanded) — see `fold_chevron::fold_chevron_arms`.
+    /// A heading with no entry yet (freshly scrolled into view, or seen for the
+    /// first time this session) paints at its settled target directly with no
+    /// glide — see the read-only accessor `fold_chevron_turn_fraction`, which
+    /// `prepare_fold_chevron_marks` and every capture path use. Only
+    /// [`Self::advance`]'s per-frame `step_fold_chevrons` mutates this map, so a
+    /// headless capture (which never calls `advance`) always renders the settled
+    /// state — the determinism law every other live-only animator in this file
+    /// already honours (the caret spring, the copy pulse). Live-only: the
+    /// quarter-turn GLIDE itself needs a real clock to witness.
+    fold_chevron_turn: std::collections::HashMap<usize, f32>,
     hover_line: Option<usize>,
     preedit: String,
     misspelled: Vec<Misspelling>,
