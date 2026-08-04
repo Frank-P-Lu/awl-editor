@@ -207,6 +207,7 @@ const CANVASES: [(u32, u32); 3] = [(1200, 800), (1400, 900), (1040, 760)];
 
 #[test]
 fn scrolling_a_picker_moves_only_its_list_never_its_surface() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping scrolling_a_picker_moves_only_its_list: no wgpu adapter");
         return;
@@ -301,6 +302,7 @@ fn scrolling_a_picker_moves_only_its_list_never_its_surface() {
 /// an ascending one.
 #[test]
 fn the_diagonal_spine_geometry_does_not_read_the_scroll_position() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping the_diagonal_spine_geometry_does_not_read_scroll: no wgpu adapter");
         return;

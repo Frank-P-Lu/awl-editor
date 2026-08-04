@@ -281,6 +281,7 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))]
     fn missing_file_decodes_to_missing_state() {
+        let _g = crate::testlock::serial();
         let Some((device, queue)) = try_device() else {
             eprintln!("skipping missing_file_decodes_to_missing_state: no wgpu adapter");
             return;
@@ -296,6 +297,7 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))]
     fn bundled_png_decodes_ready_with_intrinsic_dims() {
+        let _g = crate::testlock::serial();
         let Some((device, queue)) = try_device() else {
             eprintln!("skipping bundled_png_decodes_ready_with_intrinsic_dims: no wgpu adapter");
             return;
@@ -337,6 +339,7 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))]
     fn stale_mtime_forces_a_redecode() {
+        let _g = crate::testlock::serial();
         let Some((device, queue)) = try_device() else {
             eprintln!("skipping stale_mtime_forces_a_redecode: no wgpu adapter");
             return;

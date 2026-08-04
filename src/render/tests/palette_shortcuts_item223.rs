@@ -125,6 +125,7 @@ fn grade_row(
 /// collected so the panic names the worlds rather than the first one.
 #[test]
 fn every_world_draws_its_palette_key_chords_on_the_owning_row() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1400u32, 900u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping every_world_draws_its_palette_key_chords: no wgpu adapter");
@@ -228,6 +229,7 @@ fn every_world_draws_its_palette_key_chords_on_the_owning_row() {
 /// every capture of it, is untouched).
 #[test]
 fn only_diagonal_worlds_reserve_side_territory_and_they_reserve_all_of_it() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1400u32, 900u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping only_diagonal_worlds_reserve_side_territory: no wgpu adapter");

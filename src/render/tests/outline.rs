@@ -7,6 +7,7 @@ use super::{headless_dqp, headless_pipeline, view, view_md};
 
 #[test]
 fn outline_headings_stashed_and_current_is_nearest_at_or_above_caret() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping outline_headings_stashed: no wgpu adapter");
         return;
@@ -58,6 +59,7 @@ fn outline_headings_stashed_and_current_is_nearest_at_or_above_caret() {
 
 #[test]
 fn outline_current_is_none_above_the_first_heading() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping outline_current_none_above: no wgpu adapter");
         return;

@@ -357,6 +357,7 @@ fn selected_bar_grows_wider_toward_the_open_margin_and_mirrors() {
 
 #[test]
 fn list_and_facet_default_are_inert_no_bars_no_chips_no_gap() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping list_and_facet_default_are_inert: no wgpu adapter");
         return;
@@ -404,6 +405,7 @@ fn list_and_facet_default_are_inert_no_bars_no_chips_no_gap() {
 /// legitimately diverges from). Both sides carry the same beat, so it cancels.
 #[test]
 fn list_and_facet_probe_off_matches_world_default() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping list_and_facet_probe_off_matches_world_default: no wgpu adapter");
@@ -465,6 +467,7 @@ fn list_and_facet_probe_off_matches_world_default() {
 /// from quietly returning beneath the plates.
 #[test]
 fn bars_float_bounded_plates_pane_keeps_its_card() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping bars_float_bounded_plates_pane_keeps_its_card: no wgpu adapter");
         return;
@@ -553,6 +556,7 @@ fn redmean(a: theme::Srgb, b: theme::Srgb) -> f32 {
 
 #[test]
 fn bars_draw_a_findable_surface_per_row() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping bars_draw_a_findable_surface_per_row: no wgpu adapter");
@@ -701,6 +705,7 @@ fn bars_draw_a_findable_surface_per_row() {
 ///     `one_bit.rs`.)
 #[test]
 fn spell_popup_floats_bare_on_bars_keeps_the_card_on_pane() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!(
@@ -908,6 +913,7 @@ fn spell_popup_floats_bare_on_bars_keeps_the_card_on_pane() {
 /// the probe both compute.
 #[test]
 fn bars_query_caret_overlaps_the_query_text() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping bars_query_caret_overlaps_the_query_text: no wgpu adapter");
@@ -1078,6 +1084,7 @@ fn overlay_query_caret_places_at_begin_mid_end_char_index() {
 /// regime before this outcome law can compile.
 #[test]
 fn poster_bars_centered_lists_preserve_page_and_distinguish_plates() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!(
@@ -1259,6 +1266,7 @@ fn poster_bars_centered_lists_preserve_page_and_distinguish_plates() {
 ///     a masquerading duplicate.
 #[test]
 fn facet_band_draws_and_differs_from_text_in_the_strip() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping facet_band_draws_and_differs: no wgpu adapter");
@@ -1344,6 +1352,7 @@ fn facet_band_draws_and_differs_from_text_in_the_strip() {
 ///     is — the structural guard against a future per-kind card special case.
 #[test]
 fn bars_float_bounded_plates_for_every_overlay_kind() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping bars_float_bounded_plates_for_every_overlay_kind: no wgpu adapter");
@@ -1500,6 +1509,7 @@ fn bars_float_bounded_plates_for_every_overlay_kind() {
 ///     leaks straight through, and this delta blows past the floor.
 #[test]
 fn bars_footer_stays_legible_over_a_giant_placard() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping bars_footer_stays_legible_over_a_giant_placard: no wgpu adapter");
@@ -1708,6 +1718,7 @@ fn footer_plate_hugs_content_under_hug_bars() {
 /// extents — the ragged look is real, not a silent duplicate of full width.
 #[test]
 fn hug_extent_leaves_room_to_the_right_where_full_width_fills_it() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping hug_extent_leaves_room_to_the_right: no wgpu adapter");
@@ -1767,6 +1778,7 @@ fn hug_extent_leaves_room_to_the_right_where_full_width_fills_it() {
 /// same row fills edge-to-edge.
 #[test]
 fn hug_shortcut_rows_hug_inline_and_leave_room() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping hug_shortcut_rows_hug_inline: no wgpu adapter");
@@ -1841,6 +1853,7 @@ fn hug_shortcut_rows_hug_inline_and_leave_room() {
 ///      chord floats in bare room past the plate (a perceptible pixel diff).
 #[test]
 fn huglabel_hybrid_hugs_label_and_keeps_chord_in_the_right_column() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping huglabel_hybrid_hugs_label: no wgpu adapter");
@@ -1930,6 +1943,7 @@ fn huglabel_hybrid_hugs_label_and_keeps_chord_in_the_right_column() {
 /// bar region renders as ROOM under `SelectedOnly` vs a bar under `All`.
 #[test]
 fn selected_only_coverage_drops_unselected_bars_but_keeps_the_selected() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping selected_only_coverage: no wgpu adapter");
@@ -2033,6 +2047,7 @@ fn command_facet_view(active: usize) -> ViewState {
 /// count) AND a PIXEL DELTA vs the `Text` skin over the strip.
 #[test]
 fn facet_chips_render_a_pill_per_label_and_differ_from_text() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping facet_chips_render_a_pill_per_label: no wgpu adapter");
@@ -2128,6 +2143,7 @@ fn facet_chips_render_a_pill_per_label_and_differ_from_text() {
 /// POSITIVE breathing gap (≥ 4px — the 6-8px target with float/rounding margin).
 #[test]
 fn facet_chips_leave_a_breathing_gap_between_pills() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping facet_chips_leave_a_breathing_gap: no wgpu adapter");
@@ -2173,6 +2189,7 @@ fn facet_chips_leave_a_breathing_gap_between_pills() {
 /// real overlay geometry across every world and both common scale factors.
 #[test]
 fn context_menu_anchor_clamps_and_hits_across_world_dpi_and_edges() {
+    let _g = crate::testlock::serial();
     let (w, h) = (720.0f32, 480.0f32);
     let Some((device, queue, mut p)) = headless_dqp(w, h) else {
         eprintln!("skipping context menu anchor sweep: no wgpu adapter");
@@ -2238,6 +2255,7 @@ fn context_menu_anchor_clamps_and_hits_across_world_dpi_and_edges() {
 /// bare backdrop, a full step from the wash, so the "header ≈ wash" match would fail.
 #[test]
 fn faceted_section_header_sits_on_a_plate_on_every_bars_world() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!(
@@ -2365,6 +2383,7 @@ fn faceted_section_header_sits_on_a_plate_on_every_bars_world() {
 /// the bare backdrop (redmean ~0 from it), so "step off backdrop" would fail.
 #[test]
 fn faceted_lens_strip_tabs_sit_on_plates_on_every_bars_world() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!(

@@ -7,6 +7,7 @@ use super::{headless_pipeline, view};
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn hud_report_figures_and_held_tracks_the_global() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping hud_report_figures_and_held_tracks_the_global: no wgpu adapter");
         return;
@@ -105,6 +106,7 @@ fn hud_report_figures_and_held_tracks_the_global() {
 /// live bug.)
 #[test]
 fn hud_showing_yields_to_an_open_overlay() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping hud_showing_yields_to_an_open_overlay: no wgpu adapter");
         return;
@@ -155,6 +157,7 @@ fn hud_showing_yields_to_an_open_overlay() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn peek_report_folds_empty_to_starter_and_yields_to_an_open_overlay() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping peek_report_folds_empty_to_starter_and_yields_to_an_open_overlay: no wgpu adapter"

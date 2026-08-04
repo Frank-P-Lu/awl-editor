@@ -124,6 +124,7 @@ fn overlay_card_box_stays_on_canvas_across_the_width_sweep() {
 /// always runs.
 #[test]
 fn overlay_card_width_is_zoom_aware_no_elision_when_the_window_has_room() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping overlay_card_width_is_zoom_aware: no wgpu adapter");
         return;
@@ -213,6 +214,7 @@ fn overlay_card_width_is_zoom_aware_no_elision_when_the_window_has_room() {
 /// standing guard so the class can never regress silently.
 #[test]
 fn overlay_row_elements_agree_in_y_flat_and_faceted_every_world() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping overlay_row_elements_agree_in_y: no wgpu adapter");
         return;
@@ -448,6 +450,7 @@ fn gutter_visible_only_in_page_mode_and_dim_overlay_tracks_takeover() {
 /// the removal of the old overlay-motion round.
 #[test]
 fn overlay_appears_and_closes_instantly_no_motion() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping overlay_appears_and_closes_instantly_no_motion: no wgpu adapter");
         return;
@@ -672,6 +675,7 @@ fn blur_signature_invalidates_on_page_geometry_change_not_on_a_no_op_frame() {
 }
 #[test]
 fn blur_signature_invalidates_when_the_live_world_phase_changes() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping blur_signature phase law: no wgpu adapter");
         return;

@@ -116,7 +116,10 @@ pub(super) fn held_run_keeps_steady_streak(dir: HeldDir, lens: &[usize], origin:
 /// True when a wgpu adapter is present, so the GPU-dependent capture tests can
 /// skip gracefully on a headless/CI box (mirrors `render::tests::headless_pipeline`).
 pub(super) fn adapter_available() -> bool {
-    crate::test_gpu::shared_device_queue().is_some()
+    // `adapter_present`, not `shared_device_queue`: this is asked before the
+    // caller has taken `testlock::serial()`, and the second door would reach the
+    // shared device — sweeping it and moving its counters — outside every guard.
+    crate::test_gpu::adapter_present()
 }
 
 /// Extract the integer/float that follows `"key":` AFTER the first occurrence of

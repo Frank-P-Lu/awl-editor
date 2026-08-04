@@ -98,6 +98,7 @@ fn wagtail_disables_the_frosted_blur_backdrop_for_the_held_hud_too() {
 /// REAL-PIXEL proof that the invert math itself flips black<->white.
 #[test]
 fn wagtail_selection_uses_the_invert_pipeline_other_worlds_use_the_ordinary_fill() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping wagtail_selection_uses_the_invert_pipeline_other_worlds_use_the_ordinary_fill: no wgpu adapter"
@@ -163,6 +164,7 @@ fn wagtail_selection_uses_the_invert_pipeline_other_worlds_use_the_ordinary_fill
 /// stretch, legible black-on-white text on the other two rows).
 #[test]
 fn wagtail_multiline_selection_with_empty_line_reaches_invert_pipeline_entirely() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping wagtail_multiline_selection_with_empty_line_reaches_invert_pipeline_entirely: no wgpu adapter"
@@ -213,6 +215,7 @@ fn wagtail_multiline_selection_with_empty_line_reaches_invert_pipeline_entirely(
 /// proof that the flip actually keeps a glyph legible.
 #[test]
 fn wagtail_caret_uses_the_invert_pipeline_other_worlds_use_the_ordinary_block() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping wagtail_caret_uses_the_invert_pipeline_other_worlds_use_the_ordinary_block: no wgpu adapter"
@@ -269,6 +272,7 @@ fn wagtail_caret_uses_the_invert_pipeline_other_worlds_use_the_ordinary_block() 
 /// degrade is theme-specific, not a global regression to Morph itself.
 #[test]
 fn wagtail_morph_caret_falls_back_to_the_inverted_block_not_the_invisible_silhouette() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping wagtail_morph_caret_falls_back_to_the_inverted_block_not_the_invisible_silhouette: no wgpu adapter"
@@ -330,6 +334,7 @@ fn wagtail_morph_caret_falls_back_to_the_inverted_block_not_the_invisible_silhou
 /// seam — does the theme switch actually flip the mode at all.
 #[test]
 fn wagtail_turns_on_highlight_and_match_dither_mode_other_worlds_leave_it_off() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping wagtail_turns_on_highlight_and_match_dither_mode_other_worlds_leave_it_off: no wgpu adapter"
@@ -392,6 +397,7 @@ fn wagtail_turns_on_highlight_and_match_dither_mode_other_worlds_leave_it_off() 
 /// black, proving this is a crisp RING, not a wide wash.
 #[test]
 fn wagtail_palette_card_real_pixels_show_a_white_border_ring_black_interior() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping wagtail_palette_card_real_pixels_show_a_white_border_ring_black_interior: no wgpu adapter"
@@ -499,6 +505,7 @@ fn wagtail_palette_card_real_pixels_show_a_white_border_ring_black_interior() {
 /// band region is unambiguous.
 #[test]
 fn wagtail_living_band_ink_rides_the_band_on_the_faceted_palette() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping wagtail_living_band_ink_rides_the_band_on_the_faceted_palette: no wgpu adapter"
@@ -662,6 +669,7 @@ fn wagtail_living_band_ink_rides_the_band_on_the_faceted_palette() {
 /// at ZERO on Tawny (the ordinary-world byte-identity guarantee).
 #[test]
 fn every_overlay_kind_is_classified_and_the_two_families_render_as_declared() {
+    let _g = crate::testlock::serial();
     use crate::overlay::OverlayKind;
 
     #[derive(PartialEq, Eq)]
@@ -779,6 +787,7 @@ fn every_overlay_kind_is_classified_and_the_two_families_render_as_declared() {
 /// the Wagtail lesson).
 #[test]
 fn light_worlds_carry_the_summoned_card_border() {
+    let _g = crate::testlock::serial();
     // STRUCTURAL: every light-ground world is Bordered (Wagtail is dark/one-bit,
     // so the `dark == false` gate excludes it — it carries its own border via
     // the one-bit path already law-tested above).
@@ -843,6 +852,7 @@ fn light_worlds_carry_the_summoned_card_border() {
 /// closed by construction (there is only one pipeline left to prepare).
 #[test]
 fn wagtail_picker_selected_band_rides_the_one_fill_pipeline_like_every_world() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping wagtail_picker_selected_band_rides_the_one_fill_pipeline_like_every_world: no wgpu adapter"
@@ -892,6 +902,7 @@ fn wagtail_picker_selected_band_rides_the_one_fill_pipeline_like_every_world() {
 ///      row loses its white band and the new row picks it up.
 #[test]
 fn wagtail_picker_selected_row_is_crisp_black_on_a_solid_white_band() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping wagtail_picker_selected_row_is_crisp_black_on_a_solid_white_band: no wgpu adapter"
@@ -1007,6 +1018,7 @@ fn wagtail_picker_selected_row_is_crisp_black_on_a_solid_white_band() {
 /// for lives in one place, not scattered.
 #[test]
 fn hud_about_and_menu_dropdown_already_carry_unconditional_elevation() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping hud_about_and_menu_dropdown_already_carry_unconditional_elevation: no wgpu adapter"

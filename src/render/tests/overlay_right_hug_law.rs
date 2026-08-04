@@ -63,6 +63,7 @@ fn hug_label_bars() -> theme::ListStyle {
 
 #[test]
 fn plain_and_secondary_right_anchored_cards_share_one_right_edge() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping plain_and_secondary_share_one_right_edge: no wgpu adapter");
@@ -111,6 +112,7 @@ fn plain_and_secondary_right_anchored_cards_share_one_right_edge() {
 
 #[test]
 fn right_anchored_card_hugs_content_far_narrower_than_left_sprawl() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping right_anchored_card_hugs_content: no wgpu adapter");
@@ -174,6 +176,7 @@ fn right_anchored_card_hugs_content_far_narrower_than_left_sprawl() {
 
 #[test]
 fn right_anchored_secondary_survives_shrink_and_stays_content_bounded() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping right_anchored_secondary_survives_shrink: no wgpu adapter");
@@ -284,6 +287,7 @@ fn right_anchored_primaries_stay_inside_their_plates_wide_and_narrow() {
 
 #[test]
 fn non_right_anchored_cards_keep_the_fixed_wide_cap() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping non_right_anchored_cards_keep_the_fixed_wide_cap: no wgpu adapter");
@@ -331,6 +335,7 @@ fn non_right_anchored_cards_keep_the_fixed_wide_cap() {
 #[test]
 fn right_anchored_long_primary_with_no_secondary_of_its_own_is_not_squeezed_by_another_rows_long_chord()
  {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!(
@@ -419,6 +424,7 @@ fn right_anchored_long_primary_with_no_secondary_of_its_own_is_not_squeezed_by_a
 #[test]
 fn right_anchored_content_driven_by_its_own_widest_primary_is_not_squeezed_by_the_fallback_reserve()
 {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!(

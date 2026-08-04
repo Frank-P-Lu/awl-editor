@@ -53,6 +53,35 @@
 //! accumulation law stayed GREEN with the reclaim it exists to check deleted.
 //! See [`one_test_shaped_workload`] for what it must therefore not do.
 //!
+//! ## The fifth way, which is not about allocation at all: A POLLUTED BASELINE
+//!
+//! Every bound here is a DELTA against a reading of counters that belong to the
+//! whole process, so the laws are only measuring the suite if the suite is
+//! holding still while they read. It was not. Some 245 render tests reached
+//! `crate::test_gpu`'s shared device without taking `crate::testlock::serial()`,
+//! and against these two laws they were a rolling corruption of the number under
+//! the bound: laws 3 and 4 passed ALONE, passed in the FULL suite, and failed
+//! under `cargo test render::` with a *varying* count of failures. Law 4's trace
+//! stepped from 6 objects to 158 between two consecutive workloads of a sweep
+//! that allocates about four apiece — a reading with nothing in it about GPU
+//! footprint, reported as a footprint violation.
+//!
+//! Two things came out of that, and the second is the one that generalises:
+//!
+//! - **Exclusivity is enforced at the door.** `test_gpu::arrive` — the one choke
+//!   point both ways to the shared device pass through — now asserts the caller
+//!   holds `testlock::serial()`, so an unguarded test panics by name on its first
+//!   run instead of flaking a measurement in another file. That is what makes
+//!   these laws order-independent, and it is why they can be green under a
+//!   filter.
+//! - **The laws no longer take that on trust.** [`refuse_unless_exclusive`]
+//!   counts arrivals at the shared device across each measurement window and
+//!   compares them with the arrivals the law made itself. A law that cannot get
+//!   a clean baseline REFUSES BY NAME rather than reporting a bound it cannot
+//!   substantiate. The two are different guarantees: the assertion speaks only
+//!   for callers that use the door, and a wrong baseline is otherwise
+//!   indistinguishable from a real regression.
+//!
 //! ⚠️ None of this is evidence about the hosted-macOS CI hang. The container
 //! deaths were prompt `OOMKilled=true` SIGKILLs; the hosted runner parks forever
 //! with memory flat. Different failure mode, and bounding this is not proven to
@@ -137,6 +166,59 @@ fn settled(device: &wgpu::Device, queue: &wgpu::Queue) -> gpu_alloc::GpuLive {
     });
     gpu_alloc::reclaim(device, queue);
     gpu_alloc::live(device)
+}
+
+/// REFUSE to grade a measurement window that something else was allocating
+/// into — by name, and before any bound below is reported.
+///
+/// `mark` is [`crate::test_gpu::arrivals`] read at the start of the window and
+/// `mine` is the number of times the law itself reached the shared device inside
+/// it (one per [`one_test_shaped_workload`]). Anything else that arrived in
+/// between moved the very counters the bound is a delta of.
+///
+/// Both directions are failures and they are different failures, so they say
+/// different things:
+///
+/// - **more arrivals than the law made** means a concurrent test was allocating
+///   on the shared device. The bound cannot be substantiated, and reporting it
+///   as a bound violation is a message about GPU footprint attached to a reading
+///   that contains none.
+/// - **fewer** is vacuity: the workload stopped reaching the shared device at
+///   all, so every bound below is being met by a law that measured nothing. This
+///   is the same class as law 1's dead-instrument arm, one layer up.
+///
+/// This is a BACKSTOP, not the fix. `test_gpu::arrive` asserting the
+/// `testlock::serial()` hold is what makes the first case unreachable; this is
+/// what notices if that ever stops being true, because a wrong baseline and a
+/// real regression look identical from inside a bound.
+fn refuse_unless_exclusive(law: &str, mark: u64, mine: u64) {
+    let seen = crate::test_gpu::arrivals() - mark;
+    assert!(
+        seen <= mine,
+        "REFUSING TO GRADE `{law}`: the shared test device was reached {seen} times during this \
+         law's measurement window, and this law reached it {mine} times itself — so at least {} \
+         arrival(s) came from another test running CONCURRENTLY on the same process-global \
+         wgpu-hal counters. Every bound in this file is a DELTA against those counters, so the \
+         baseline is not this law's to read and the bound below would be a claim about GPU \
+         footprint made from a number that contains none — the shape that once made this file \
+         pass alone, pass unfiltered, and fail under `cargo test render::`. The fix is \
+         EXCLUSIVITY, not \
+         slack: every test that reaches `crate::test_gpu`'s shared device must hold \
+         `crate::testlock::serial()` for as long as it holds anything allocated there, and \
+         `test_gpu::arrive` asserts exactly that — so seeing this message means that assertion \
+         has been weakened, bypassed, or outflanked by a path that does not use the door.",
+        seen - mine,
+    );
+    assert!(
+        seen == mine,
+        "`{law}` reached the shared test device {seen} times where its own workloads should have \
+         reached it {mine} times. The bounds below are then being graded over a window in which \
+         this law allocated less than it thinks it did — at the limit, nothing at all — which is \
+         law 1's dead-instrument failure one layer up: a green result that never measured its \
+         subject. Check that `one_test_shaped_workload` still goes through \
+         `super::headless_dqp`, which is the only thing that makes the bound under test the one \
+         on the REAL door.",
+    );
 }
 
 /// The shared device plus a measurement of what its counters actually do here,
@@ -274,6 +356,9 @@ fn one_render_test_allocates_a_bounded_number_of_gpu_objects() {
     one_test_shaped_workload(theme::THEMES[theme::DEFAULT_THEME].background);
     let base = settled(&device, &queue).portable();
 
+    // The window opens with the baseline and closes with the reading it is
+    // subtracted from; one workload, so one arrival at the shared device.
+    let mark = crate::test_gpu::arrivals();
     one_test_shaped_workload(theme::THEMES[theme::DEFAULT_THEME].background);
     let footprint = gpu_alloc::live(&device).portable() - base;
     // On every run, for the same reason law 1 reports its probe: the measured
@@ -283,6 +368,13 @@ fn one_render_test_allocates_a_bounded_number_of_gpu_objects() {
         "awl gpu-alloc footprint: one workload = {footprint} portable objects \
          (base {base}, ceiling {PER_TEST_CEILING}, floor {MIN_FOOTPRINT}); held now: {}",
         gpu_alloc::live(&device)
+    );
+    // BEFORE either bound: a footprint measured against a baseline someone else
+    // was writing to is not a footprint, and must not be reported as one.
+    refuse_unless_exclusive(
+        "one_render_test_allocates_a_bounded_number_of_gpu_objects",
+        mark,
+        1,
     );
 
     assert!(
@@ -325,6 +417,9 @@ fn the_render_suite_does_not_accumulate_gpu_objects_across_tests() {
     };
     let worlds = theme::THEMES;
     let mut samples: Vec<i64> = Vec::with_capacity(worlds.len());
+    // One arrival per workload, and the whole sweep is the window: the bound
+    // compares the end of it against the start of it.
+    let mark = crate::test_gpu::arrivals();
     for t in worlds.iter() {
         one_test_shaped_workload(t.background);
         samples.push(gpu_alloc::live(&device).portable());
@@ -337,6 +432,13 @@ fn the_render_suite_does_not_accumulate_gpu_objects_across_tests() {
          (slack {ACCUMULATION_SLACK}); held now: {}; trace {samples:?}",
         worlds.len(),
         gpu_alloc::live(&device),
+    );
+    // BEFORE any bound: the step from 6 objects to 158 this sweep once reported
+    // was another test allocating into it, not this sweep accumulating.
+    refuse_unless_exclusive(
+        "the_render_suite_does_not_accumulate_gpu_objects_across_tests",
+        mark,
+        worlds.len() as u64,
     );
 
     // NON-VACUOUS: the sweep really did allocate. If every workload were a

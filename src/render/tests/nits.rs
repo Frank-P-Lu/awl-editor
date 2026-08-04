@@ -15,6 +15,7 @@ use super::{headless_dqp, headless_pipeline, view};
 /// distinguishes it from the wavy spell squiggle.
 #[test]
 fn nit_underlines_flag_mechanical_typos_straight_and_gate_on_the_toggle() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping nit_underlines_flag_mechanical_typos_straight_and_gate_on_the_toggle: no wgpu adapter"
@@ -61,6 +62,7 @@ fn nit_underlines_flag_mechanical_typos_straight_and_gate_on_the_toggle() {
 /// still flags, proving the exemption is scoped to table rows, not blanket.
 #[test]
 fn nit_underlines_exempt_table_row_column_alignment() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping nit_underlines_exempt_table_row_column_alignment: no wgpu adapter");
         return;
@@ -105,6 +107,7 @@ fn nit_underlines_exempt_table_row_column_alignment() {
 /// between the two reads).
 #[test]
 fn nit_underlines_suppress_the_entire_caret_line_only() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping nit_underlines_suppress_the_entire_caret_line_only: no wgpu adapter");
         return;
@@ -148,6 +151,7 @@ fn nit_underlines_suppress_the_entire_caret_line_only() {
 /// squiggles (the taste call the queue flagged explicitly).
 #[test]
 fn spell_squiggles_suppress_only_the_caret_word_not_the_whole_line() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping spell_squiggles_suppress_only_the_caret_word_not_the_whole_line: no wgpu adapter"
@@ -209,6 +213,7 @@ fn spell_squiggles_suppress_only_the_caret_word_not_the_whole_line() {
 /// prose comment still does.
 #[test]
 fn nit_underlines_scope_to_prose_spans_in_a_code_buffer() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping nit_underlines_scope_to_prose_spans_in_a_code_buffer: no wgpu adapter");
         return;
@@ -247,6 +252,7 @@ fn nit_underlines_scope_to_prose_spans_in_a_code_buffer() {
 /// manuscript, mirroring the word-count/spell exclusions exactly.
 #[test]
 fn nit_underlines_exclude_frontmatter_block() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping nit_underlines_exclude_frontmatter_block: no wgpu adapter");
         return;
@@ -546,6 +552,7 @@ fn squiggle_scroll_culls_offscreen_and_reveals_on_scroll() {
 /// zoom 1.6 too).
 #[test]
 fn spell_squiggle_thickens_at_default_zoom_matching_the_old_200pct_look() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping spell_squiggle_thickens_at_default_zoom_matching_the_old_200pct_look: no wgpu adapter"
@@ -613,6 +620,7 @@ fn spell_squiggle_thickens_at_default_zoom_matching_the_old_200pct_look() {
 /// live DATA driving real geometry, not a comment.
 #[test]
 fn spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default: no wgpu adapter"

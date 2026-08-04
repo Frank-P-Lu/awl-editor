@@ -53,6 +53,7 @@ fn latin_and_ja_always_resolve_to_an_embedded_face() {
 /// star / underscore each read as their own symbol, never a shared fallback).
 #[test]
 fn ornament_glyphs_resolve_in_each_worlds_assigned_face() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping ornament_glyphs_resolve_in_each_worlds_assigned_face: no wgpu adapter");
         return;
@@ -142,6 +143,7 @@ fn zh_hans_and_ko_always_resolve_to_an_embedded_face() {
 /// surfacing as a confusing tofu box downstream.
 #[test]
 fn zh_ko_faces_register_under_their_expected_family_names() {
+    let _g = crate::testlock::serial();
     let Some(p) = headless_pipeline() else {
         eprintln!(
             "skipping zh_ko_faces_register_under_their_expected_family_names: no wgpu adapter"
@@ -170,6 +172,7 @@ fn zh_ko_faces_register_under_their_expected_family_names() {
 /// or corrupted a face fails HERE, not as a downstream tofu box.
 #[test]
 fn ja_variety_faces_register_under_their_expected_family_names() {
+    let _g = crate::testlock::serial();
     let Some(p) = headless_pipeline() else {
         eprintln!(
             "skipping ja_variety_faces_register_under_their_expected_family_names: no wgpu adapter"
@@ -231,6 +234,7 @@ fn ja_variety_worlds_resolve_their_new_bundled_face() {
 /// downstream tofu box.
 #[test]
 fn ko_companion_face_registers_under_its_family_name() {
+    let _g = crate::testlock::serial();
     let Some(p) = headless_pipeline() else {
         eprintln!("skipping ko_companion_face_registers_under_its_family_name: no wgpu adapter");
         return;

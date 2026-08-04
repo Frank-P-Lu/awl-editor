@@ -391,6 +391,7 @@ fn finds_field(device: &wgpu::Device, queue: &wgpu::Queue, scale: f32) -> Vec<[u
 /// the OTHER tone, and a tiny cut-out enclosed by their own ink.
 #[test]
 fn finds_every_collection_shows_the_three_role_hierarchy() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping finds_every_collection_shows_the_three_role_hierarchy: no adapter");
         return;
@@ -502,6 +503,7 @@ fn the_collection_reader_rejects_two_object_and_equal_object_fields() {
 /// aliasing into speckle, so it is swept here deliberately.
 #[test]
 fn finds_holds_the_three_role_grammar_at_every_reachable_cell_scale() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping finds_holds_the_three_role_grammar_at_every_reachable_cell_scale");
         return;
@@ -543,6 +545,7 @@ fn finds_holds_the_three_role_grammar_at_every_reachable_cell_scale() {
 /// lattice spreads them across it).
 #[test]
 fn finds_variation_does_not_repeat_and_the_scatter_is_not_a_grid() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping finds_variation_does_not_repeat_and_the_scatter_is_not_a_grid");
         return;
@@ -614,6 +617,7 @@ fn finds_variation_does_not_repeat_and_the_scatter_is_not_a_grid() {
 /// worst-phase pixel warm, bright, or onto the page.
 #[test]
 fn finds_worst_phase_stays_cool_and_off_the_page() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping finds_worst_phase_stays_cool_and_off_the_page");
         return;
@@ -661,6 +665,7 @@ fn finds_worst_phase_stays_cool_and_off_the_page() {
 /// the property that keeps a future world's `density` dial honest.
 #[test]
 fn finds_density_zero_is_exactly_the_flat_ground() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping finds_density_zero_is_exactly_the_flat_ground");
         return;
@@ -695,6 +700,7 @@ fn finds_density_zero_is_exactly_the_flat_ground() {
 /// what reads as camouflage), nor thin out into an isolated constellation.
 #[test]
 fn finds_leaves_a_generous_open_ground() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping finds_leaves_a_generous_open_ground");
         return;
@@ -760,6 +766,7 @@ fn edge_stats(pixels: &[[u8; 4]], w: u32, h: u32) -> (usize, usize, f64) {
 /// as an edge rather than a blur.
 #[test]
 fn finds_edges_stay_antialiased_and_crisp_at_1x_and_2x() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping finds_edges_stay_antialiased_and_crisp_at_1x_and_2x");
         return;

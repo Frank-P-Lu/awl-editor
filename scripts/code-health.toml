@@ -971,17 +971,17 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/chrome_overlay.rs"
-line = 215
-message = "this function has too many lines (128/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+line = 216
+message = "this function has too many lines (129/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/chrome_panels.rs"
-line = 1319
+line = 1324
 message = "this function has too many lines (124/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -993,60 +993,60 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/distinguishability.rs"
-line = 642
+line = 645
 message = "this function has too many lines (125/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/images.rs"
-line = 1739
+line = 1740
 message = "this function has too many lines (105/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
-line = 703
+line = 707
+message = "this function has too many lines (148/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/list_surfaces.rs"
+line = 1086
 message = "this function has too many lines (147/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
-line = 1080
-message = "this function has too many lines (146/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+line = 1354
+message = "this function has too many lines (112/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
-line = 1346
-message = "this function has too many lines (111/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/render/tests/list_surfaces.rs"
-line = 2367
-message = "this function has too many lines (117/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by the command-facet roster law above it."
+line = 2385
+message = "this function has too many lines (118/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by the command-facet roster law above it. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/markdown.rs"
-line = 260
+line = 264
 message = "this function has too many lines (132/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/one_bit.rs"
-line = 501
-message = "this function has too many lines (108/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+line = 507
+message = "this function has too many lines (109/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
@@ -1065,23 +1065,23 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/render/tests/outline.rs"
-line = 1150
+line = 1152
 message = "the function has a cognitive complexity of (27/25)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/outline.rs"
-line = 1150
+line = 1152
 message = "this function has too many lines (125/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/overlay_personality.rs"
-line = 1282
-message = "this function has too many lines (120/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+line = 1294
+message = "this function has too many lines (121/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
@@ -1094,8 +1094,8 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/render/tests/overlay_rhythm_item112.rs"
 line = 61
-message = "this function has too many lines (160/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+message = "this function has too many lines (161/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1194,6 +1194,20 @@ file = "src/theme/tests.rs"
 line = 2986
 message = "this function has too many lines (163/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. +2: item 221 added Cassowary's `location_style: LocationStyle::RotatedRail` (plus a one-line comment) to this file's no-wildcard per-world `render_caps` expectation table; Wagtail's exhaustive arm took the paired `LocationStyle::Inline` line, absorbed by an existing comment line it replaced."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/distinguishability.rs"
+line = 835
+message = "this function has too many lines (101/100)"
+reason = "Crossed the threshold by exactly one line, and that line is the `testlock::serial()` guard every test reaching the shared wgpu device now takes — the shared device is process-global state and an unguarded caller races every other test on it. The body is unchanged and this is not a decomposition signal; splitting a per-world sweep to buy back one counted line would be metric-only churn."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/dither.rs"
+line = 303
+message = "this function has too many lines (101/100)"
+reason = "Crossed the threshold by exactly one line, and that line is the `testlock::serial()` guard every test reaching the shared wgpu device now takes — the shared device is process-global state and an unguarded caller races every other test on it. The body is unchanged and this is not a decomposition signal; splitting a real-pixel dither law to buy back one counted line would be metric-only churn."
 
 # Add structural exceptions only for intentional URL/unbreakable/rustfmt-skip/generated/architectural cases.
 # Each entry must pin the exact line text so removal or movement is stale.

@@ -367,6 +367,7 @@ mod tests {
     /// pipeline that actually crashed; until now only the color helper was tested.
     #[test]
     fn grow_sizes_buffer_to_capacity_not_contents() {
+        let _g = crate::testlock::serial();
         let Some((device, queue)) = crate::test_gpu::shared_device_queue() else {
             return; // no GPU adapter available — skip
         };

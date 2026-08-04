@@ -240,6 +240,7 @@ fn measure_bowerbird_finds_distributions() {
 /// role being retuned alone.
 #[test]
 fn finds_composition_grew_about_fifteen_percent_and_kept_its_ratios() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping finds_composition_grew_about_fifteen_percent_and_kept_its_ratios");
         return;
@@ -317,6 +318,7 @@ const MAX_NN_CELLS: f32 = 1.10;
 
 #[test]
 fn finds_dropout_never_opens_a_gap_much_larger_than_ordinary_spacing() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping finds_dropout_never_opens_a_gap_much_larger_than_ordinary_spacing");
         return;
@@ -361,6 +363,7 @@ fn finds_dropout_never_opens_a_gap_much_larger_than_ordinary_spacing() {
 /// item 176.
 #[test]
 fn finds_tuned_density_zero_is_still_exactly_the_flat_ground() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping finds_tuned_density_zero_is_still_exactly_the_flat_ground");
         return;

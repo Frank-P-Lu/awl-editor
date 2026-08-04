@@ -54,6 +54,7 @@ fn rel_lum(px: [u8; 4]) -> f32 {
 /// world's own `muted`-rung luminance (the quiet-band ceiling, at real pixels).
 #[test]
 fn currawong_stars_twinkle_in_the_margins_only_at_real_pixels() {
+    let _g = crate::testlock::serial();
     const W: u32 = 900;
     const H: u32 = 600;
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
@@ -291,6 +292,7 @@ fn currawong_star_field_is_dpi_invariant_in_logical_space() {
 /// frames the instant it landed on a differently-sized star).
 #[test]
 fn currawong_stars_are_pixel_identical_across_two_captures_of_the_same_phase() {
+    let _g = crate::testlock::serial();
     const W: u32 = 900;
     const H: u32 = 600;
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
@@ -345,6 +347,7 @@ fn currawong_stars_are_pixel_identical_across_two_captures_of_the_same_phase() {
 /// pass's own collapse).
 #[test]
 fn starless_worlds_and_page_off_upload_zero_star_instances() {
+    let _g = crate::testlock::serial();
     const W: u32 = 500;
     const H: u32 = 360;
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {

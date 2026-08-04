@@ -207,6 +207,7 @@ fn parse_overlay_selrow_force_grammar() {
 /// exercises the real shaping path end-to-end.
 #[test]
 fn placard_corners_place_the_wordmark_in_four_screen_quadrants() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping placard_corners_place_the_wordmark_in_four_screen_quadrants: no wgpu adapter"
@@ -336,6 +337,7 @@ fn derived_placard_corner_is_complementary_to_the_card_anchor() {
 /// derived corner against the ONE pure owner.
 #[test]
 fn every_shipped_placard_world_wordmark_stays_on_canvas() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping every_shipped_placard_world_wordmark_stays_on_canvas: no wgpu adapter");
         return;
@@ -454,6 +456,7 @@ fn snap_placard_size_anchors_the_reference_and_floors_fit_targets() {
 /// bound fails — the guard the user-reported live bug lacked.
 #[test]
 fn placard_resize_sweep_stays_atlas_bounded_and_error_free() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping placard_resize_sweep_stays_atlas_bounded_and_error_free: no wgpu adapter"
@@ -510,6 +513,7 @@ fn placard_resize_sweep_stays_atlas_bounded_and_error_free() {
 /// `None` and uploads nothing extra.
 #[test]
 fn no_placard_when_title_style_is_inline_prefix_the_default_on_every_world() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping no_placard_when_title_style_is_inline_prefix: no wgpu adapter");
         return;
@@ -534,6 +538,7 @@ fn no_placard_when_title_style_is_inline_prefix_the_default_on_every_world() {
 /// anchor).
 #[test]
 fn forced_placard_shapes_a_wordmark_inside_the_canvas_corner() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping forced_placard_shapes_a_wordmark_inside_the_canvas_corner: no wgpu adapter"
@@ -623,6 +628,7 @@ fn forced_placard_shapes_a_wordmark_inside_the_canvas_corner() {
 /// was the actual bug).
 #[test]
 fn forced_placard_is_inert_on_the_spell_popup_no_title_line() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping forced_placard_is_inert_on_the_spell_popup_no_title_line: no wgpu adapter"
@@ -676,6 +682,7 @@ fn forced_placard_is_inert_on_the_spell_popup_no_title_line() {
 /// Cmd-P palette / Settings menu take once either shows more than one lens).
 #[test]
 fn forced_placard_composes_with_a_faceted_picker_lens_strip_set() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping forced_placard_composes_with_a_faceted_picker_lens_strip_set: no wgpu adapter"
@@ -747,6 +754,7 @@ fn forced_placard_composes_with_a_faceted_picker_lens_strip_set() {
 /// mechanism gives; this test pins the (justified) decision to include it.
 #[test]
 fn forced_placard_composes_with_the_literal_theme_picker_too() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping forced_placard_composes_with_the_literal_theme_picker_too: no wgpu adapter"
@@ -819,6 +827,7 @@ fn overlay_row_region(p: &TextPipeline, header_rows: usize, row: usize) -> Regio
 /// machinery makes it reachable" instruction.
 #[test]
 fn selected_row_stays_distinguishable_with_a_forced_placard_behind_it() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping selected_row_stays_distinguishable_with_a_forced_placard_behind_it: no wgpu adapter"
@@ -870,6 +879,7 @@ fn selected_row_stays_distinguishable_with_a_forced_placard_behind_it() {
 /// independent of the corner watermark on the faceted branch.
 #[test]
 fn selected_row_stays_distinguishable_with_a_forced_placard_behind_it_on_a_faceted_picker() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping selected_row_stays_distinguishable_with_a_forced_placard_behind_it_on_a_faceted_picker: no wgpu adapter"
@@ -936,6 +946,7 @@ fn selected_row_stays_distinguishable_with_a_forced_placard_behind_it_on_a_facet
 /// `overlay_query` empty).
 #[test]
 fn forced_placard_suppresses_the_inline_title_prefix_on_both_shapers() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping forced_placard_suppresses_the_inline_title_prefix_on_both_shapers: no wgpu adapter"
@@ -1175,6 +1186,7 @@ fn placard_size_is_window_scaled_not_zoom_scaled() {
 /// the Bayer cut is pure position.
 #[test]
 fn mangrove_stipple_placard_paints_only_ladder_ink_pixels_at_real_density() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping mangrove_stipple_placard_paints_only_ladder_ink_pixels_at_real_density: no wgpu adapter"
@@ -1280,6 +1292,7 @@ fn mangrove_stipple_placard_paints_only_ladder_ink_pixels_at_real_density() {
 ///     position, and the whole thing is a byte diff of two headless frames.
 #[test]
 fn every_shipping_placard_world_paints_visible_wordmark_ink_pixels() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping every_shipping_placard_world_paints_visible_wordmark_ink_pixels: no wgpu adapter"
@@ -1441,6 +1454,7 @@ fn every_shipping_placard_world_paints_visible_wordmark_ink_pixels() {
 /// that Currawong/Mangrove/Firetail carry non-default caps.)
 #[test]
 fn selected_row_stays_distinguishable_with_a_forced_stipple_placard_behind_it() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping selected_row_stays_distinguishable_with_a_forced_stipple_placard_behind_it: no wgpu adapter"
@@ -1534,6 +1548,7 @@ fn selected_row_stays_distinguishable_with_a_forced_stipple_placard_behind_it() 
 /// the enforcing law; do not loosen its bound.
 #[test]
 fn placard_wordmark_stays_in_bounds_at_the_apps_own_minimum_window_size() {
+    let _g = crate::testlock::serial();
     use crate::overlay::OverlayKind;
 
     let Some(mut p) = headless_pipeline() else {

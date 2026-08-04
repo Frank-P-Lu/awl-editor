@@ -163,6 +163,7 @@ fn px_at(pixels: &[[u8; 4]], w: i64, x: i64, y: i64) -> [u8; 4] {
 /// Rectangular-shaped world's card must land on the CARD'S OWN fill.
 #[test]
 fn quokka_card_top_left_corner_is_genuinely_chamfered() {
+    let _g = crate::testlock::serial();
     let Some((pixels, w, _h, card)) = render_theme_picker("Quokka") else {
         eprintln!("skipping quokka_card_top_left_corner_is_genuinely_chamfered: no wgpu adapter");
         return;
@@ -195,6 +196,7 @@ fn quokka_card_top_left_corner_is_genuinely_chamfered() {
 /// small rounded corner, and that Rectangular worlds are untouched.
 #[test]
 fn non_quokka_card_corner_is_not_chamfered() {
+    let _g = crate::testlock::serial();
     let Some((pixels, w, _h, card)) = render_theme_picker("Bombora") else {
         eprintln!("skipping non_quokka_card_corner_is_not_chamfered: no wgpu adapter");
         return;
@@ -218,6 +220,7 @@ fn non_quokka_card_corner_is_not_chamfered() {
 /// rolling off before the left-aligned content-heavy side".
 #[test]
 fn quokka_halftone_rolls_off_toward_the_left_content_side() {
+    let _g = crate::testlock::serial();
     let Some((pixels, w, _h, card)) = render_theme_picker("Quokka") else {
         eprintln!(
             "skipping quokka_halftone_rolls_off_toward_the_left_content_side: no wgpu adapter"
@@ -263,6 +266,7 @@ fn quokka_halftone_rolls_off_toward_the_left_content_side() {
 /// would collapse this count toward zero.
 #[test]
 fn quokka_selected_row_text_stays_legible_over_the_dot_texture() {
+    let _g = crate::testlock::serial();
     let Some((pixels, w, h, card)) = render_theme_picker("Quokka") else {
         eprintln!(
             "skipping quokka_selected_row_text_stays_legible_over_the_dot_texture: no wgpu adapter"
@@ -299,6 +303,7 @@ fn quokka_selected_row_text_stays_legible_over_the_dot_texture() {
 /// [`non_quokka_card_corner_is_not_chamfered`] does generically.
 #[test]
 fn bowerbird_card_corner_is_not_chamfered() {
+    let _g = crate::testlock::serial();
     let Some((pixels, w, _h, card)) = render_theme_picker("Bowerbird") else {
         eprintln!("skipping bowerbird_card_corner_is_not_chamfered: no wgpu adapter");
         return;

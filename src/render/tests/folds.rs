@@ -27,6 +27,7 @@ fn fold(headings: &[usize]) -> (Vec<bool>, Vec<(usize, usize)>, BTreeSet<usize>)
 
 #[test]
 fn a_folded_section_contributes_zero_visual_rows() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("no GPU adapter; skipping fold render law");
         return;
@@ -63,6 +64,7 @@ fn a_folded_section_contributes_zero_visual_rows() {
 // the zero-height hidden-row law), and hangs to the RIGHT of the heading text.
 #[test]
 fn fold_tail_rides_the_heading_row_with_the_correct_count() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("no GPU adapter; skipping fold-tail law");
         return;
@@ -109,6 +111,7 @@ fn fold_tail_rides_the_heading_row_with_the_correct_count() {
 // suppressed while its parent is folded (the parent's count already covers it).
 #[test]
 fn fold_tail_count_tracks_the_hidden_extent() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("no GPU adapter; skipping fold-tail count law");
         return;
@@ -243,6 +246,7 @@ fn retina_measure_predecessor_cannot_contaminate_fold_tail_victim() {
 // never hides.
 #[test]
 fn fold_chevron_reveals_only_when_the_caret_is_on_the_collapsed_heading() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("no GPU adapter; skipping fold-chevron law");
         return;
@@ -316,6 +320,7 @@ fn fold_chevron_reveals_only_when_the_caret_is_on_the_collapsed_heading() {
 // read ([`TextPipeline::line_glyph_xs`]), not re-derived pixels.
 #[test]
 fn fold_chevron_reveal_never_shifts_the_heading_glyph_positions() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("no GPU adapter; skipping fold-chevron no-overlap law");
         return;
@@ -372,6 +377,7 @@ fn fold_chevron_reveal_never_shifts_the_heading_glyph_positions() {
 // collapsed state stays legible either way.
 #[test]
 fn fold_chevron_hides_gracefully_with_no_room_edge_to_edge() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("no GPU adapter; skipping fold-chevron no-room law");
         return;
@@ -405,6 +411,7 @@ fn fold_chevron_hides_gracefully_with_no_room_edge_to_edge() {
 // against that old behavior.
 #[test]
 fn fold_chevron_reveals_and_hits_on_an_expanded_heading_too() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("no GPU adapter; skipping fold-chevron expanded-heading law");
         return;
@@ -461,6 +468,7 @@ fn fold_chevron_reveals_and_hits_on_an_expanded_heading_too() {
 // the shaped text run, exactly like the collapsed case.
 #[test]
 fn fold_chevron_reveal_on_an_expanded_heading_never_shifts_glyph_positions() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("no GPU adapter; skipping fold-chevron expanded no-overlap law");
         return;
@@ -513,6 +521,7 @@ fn fold_chevron_reveal_on_an_expanded_heading_never_shifts_glyph_positions() {
 // so this test fails before the fix exactly like the reveal law above.
 #[test]
 fn fold_chevron_hit_toggles_through_one_owner_both_directions() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("no GPU adapter; skipping fold-chevron one-owner law");
         return;
@@ -573,6 +582,7 @@ fn fold_chevron_hit_toggles_through_one_owner_both_directions() {
 // Non-heading rows and non-Markdown files show no fold affordance at all.
 #[test]
 fn no_chevron_off_a_heading_or_off_a_markdown_buffer() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("no GPU adapter; skipping fold-chevron gating law");
         return;
@@ -620,6 +630,7 @@ fn no_chevron_off_a_heading_or_off_a_markdown_buffer() {
 /// on the two sides being wrong in the same way.
 #[test]
 fn a_folded_section_never_moves_the_card_figures_the_pipeline_draws() {
+    let _g = crate::testlock::serial();
     use crate::card::figures::{DocFigures, fixture};
 
     let Some(mut p) = headless_pipeline() else {

@@ -349,6 +349,7 @@ const MIN_COMPOSITION_CORRELATION: f32 = 0.90;
 
 #[test]
 fn every_procedural_ground_composes_identically_at_1x_and_2x() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping every_procedural_ground_composes_identically_at_1x_and_2x: no wgpu adapter"
@@ -509,6 +510,7 @@ pub(super) fn mean_edge_ramp_px(
 
 #[test]
 fn the_crisp_edge_feather_stays_physical_so_2x_resolves_the_same_composition_more_finely() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping the_crisp_edge_feather_stays_physical_so_2x_resolves_the_same_\

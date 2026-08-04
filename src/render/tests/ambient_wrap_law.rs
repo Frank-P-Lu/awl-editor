@@ -87,6 +87,7 @@ fn assert_wrap_is_continuous(a: &[[u8; 4]], b: &[[u8; 4]], label: &str) {
 
 #[test]
 fn every_ambient_consumers_shader_term_is_continuous_across_the_wrap() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping every_ambient_consumers_shader_term_is_continuous_across_the_wrap: \

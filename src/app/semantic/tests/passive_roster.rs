@@ -134,7 +134,10 @@ const DRAWN_FLOOR: usize = 500;
 /// calm room and the node is gone. Both directions, one roster, no wildcard.
 #[test]
 fn every_passive_surface_drawn_in_the_png_is_present_in_the_semantic_tree() {
-    if crate::test_gpu::shared_device_queue().is_none() {
+    // `adapter_present`, not `shared_device_queue`: the skip is a question about
+    // the machine, asked before the guard below exists, and the other door would
+    // reach the shared device outside it.
+    if !crate::test_gpu::adapter_present() {
         eprintln!(
             "skipping every_passive_surface_drawn_in_the_png_is_present_in_the_semantic_tree: \
              no wgpu adapter"

@@ -331,6 +331,7 @@ pub(super) fn margins(w: u32, col_left: f32, col_w: f32) -> [(u32, u32); 2] {
 /// exactly that residual instead of leaving it unspoken.
 #[test]
 fn zigzag_field_covers_every_margin_cell_across_a_viewport_sweep_on_both_worlds() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!(
             "skipping zigzag_field_covers_every_margin_cell_across_a_viewport_sweep_on_both_worlds: no wgpu adapter"
@@ -422,6 +423,7 @@ fn zigzag_field_covers_every_margin_cell_across_a_viewport_sweep_on_both_worlds(
 /// never produces. Graded by the same cells, from the same live owner.
 #[test]
 fn zigzag_field_covers_every_margin_cell_in_the_outline_rail_regime_too() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!(
             "skipping zigzag_field_covers_every_margin_cell_in_the_outline_rail_regime_too: no wgpu adapter"
@@ -597,6 +599,7 @@ fn widest_blank_ry_lane(field: &[i32], w: u32, h: u32, angle: f32, core: i32) ->
 /// law is proven capable of failing.
 #[test]
 fn the_zigzag_family_leaves_no_blank_lane_across_its_travel_axis() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping the_zigzag_family_leaves_no_blank_lane_across_its_travel_axis: no wgpu adapter"
@@ -643,6 +646,7 @@ fn the_zigzag_family_leaves_no_blank_lane_across_its_travel_axis() {
 /// against 320px.
 #[test]
 fn the_no_lane_guarantee_is_bounded_by_the_tooth_the_viewport_can_hold() {
+    let _g = crate::testlock::serial();
     // The data half needs no GPU, so it runs on an adapter-less machine too.
     let travel = |w: u32, h: u32, a: f32| w as f32 * a.cos().abs() + h as f32 * a.sin().abs();
     let mut seen = 0usize;
@@ -751,6 +755,7 @@ const MAX_SUB_PITCH_VOID_FRAC: f32 = 0.08;
 /// them every run.
 #[test]
 fn zigzag_sub_pitch_voids_stay_isolated_pockets_never_a_lane() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!(
             "skipping zigzag_sub_pitch_voids_stay_isolated_pockets_never_a_lane: no wgpu adapter"
@@ -856,6 +861,7 @@ fn zigzag_sub_pitch_voids_stay_isolated_pockets_never_a_lane() {
 /// width per scanline; count the longest run with no material anywhere on it).
 #[test]
 fn zigzag_margin_bands_stay_even_across_the_sweep() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!("skipping zigzag_margin_bands_stay_even_across_the_sweep: no wgpu adapter");
         return;
@@ -923,6 +929,7 @@ fn zigzag_margin_bands_stay_even_across_the_sweep() {
 /// 100 — a stale record of a dial pair that never shipped.)
 #[test]
 fn zigzag_reads_as_broad_rows_on_gumtree_and_a_tighter_field_on_quokka() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping zigzag_reads_as_broad_rows_on_gumtree_and_a_tighter_field_on_quokka: no wgpu adapter"
@@ -966,6 +973,7 @@ fn zigzag_reads_as_broad_rows_on_gumtree_and_a_tighter_field_on_quokka() {
 
 #[test]
 fn quokka_filled_bands_alternate_over_real_pixels_and_match_the_host_phase() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -1013,6 +1021,7 @@ fn quokka_filled_bands_alternate_over_real_pixels_and_match_the_host_phase() {
 
 #[test]
 fn gumtree_outline_upload_remains_byte_identical_to_the_unbanded_descriptor() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -1065,6 +1074,7 @@ fn gumtree_outline_upload_remains_byte_identical_to_the_unbanded_descriptor() {
 /// height it is given: doubling the canvas must roughly double the rows.
 #[test]
 fn zigzag_row_count_scales_with_the_canvas_height() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping zigzag_row_count_scales_with_the_canvas_height: no wgpu adapter");
         return;
@@ -1101,6 +1111,7 @@ fn zigzag_row_count_scales_with_the_canvas_height() {
 /// empty render.
 #[test]
 fn zigzag_contributes_zero_ink_inside_the_writing_column_on_both_worlds() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping zigzag_contributes_zero_ink_inside_the_writing_column_on_both_worlds: no wgpu adapter"
@@ -1150,6 +1161,7 @@ fn zigzag_contributes_zero_ink_inside_the_writing_column_on_both_worlds() {
 /// single-size version.
 #[test]
 fn zigzag_renders_byte_identically_across_independent_draws_at_two_canvas_sizes() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping zigzag_renders_byte_identically_across_independent_draws_at_two_canvas_sizes: no wgpu adapter"
@@ -1368,6 +1380,7 @@ fn the_first_cuts_pitch_rule_reopens_the_verified_blank_band_and_abutment_closes
 /// longer ships.
 #[test]
 fn the_host_mirror_agrees_with_the_gpus_own_row_rhythm() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping the_host_mirror_agrees_with_the_gpus_own_row_rhythm: no wgpu adapter");
         return;

@@ -7,6 +7,35 @@
 //! `None` on a machine with no adapter — cached too, so the probe runs once and
 //! callers keep their existing skip. A test needing non-default features/limits,
 //! or exercising device loss, must create its own device instead.
+//!
+//! ## The shared device is PROCESS-GLOBAL STATE, and is guarded like the rest
+//!
+//! One device shared by every render test is one population of live wgpu
+//! objects and one set of wgpu-hal counters, mutated by whichever tests happen
+//! to be running. `cargo test` runs in parallel, so that is the same race as
+//! the active theme or the swappable fs backend, and it gets the same cure:
+//! [`arrive`] — the single choke point both doors go through — ASSERTS that the
+//! caller holds [`crate::testlock::serial`], so an unguarded caller panics by
+//! name on its first run instead of flaking someone else's measurement.
+//!
+//! The assertion is measured, not precautionary. Two hundred and forty-five
+//! render tests reached this device without the guard, and against the two
+//! allocation laws in `render/tests/alloc_bound_law.rs` — which read those
+//! process-global counters as a baseline — they were a rolling corruption of
+//! the number being measured. The symptom was a law that passed ALONE, passed
+//! in the FULL suite, and failed under `cargo test render::` with a *varying*
+//! count of failures: the accumulation trace stepped from 6 live objects to 158
+//! between two consecutive workloads of a sweep that allocates four apiece.
+//! Nothing in that reading was about the suite's GPU footprint. Such a law can
+//! never fail CI, which runs unfiltered, and fails a developer every time,
+//! because a filter is how you work inside a directory.
+//!
+//! **The guard must be held for as long as the test holds anything allocated
+//! here, not merely across the call to a door.** A `TextPipeline` dropped at the
+//! closing brace still moves these counters when it drops; that is why the
+//! obligation is on the test (`let _g = crate::testlock::serial();` first line,
+//! so it drops last) and cannot be discharged by having the door take the lock
+//! and give it back.
 
 /// No shared device on wasm: the test runner is Node, which has no adapter to
 /// hand out, and `wgpu`'s handles are not `Sync` there — so the cache below
@@ -42,6 +71,27 @@ fn cached() -> &'static Option<(wgpu::Device, wgpu::Queue)> {
                 .ok()
         })
     })
+}
+
+/// Is there an adapter on this machine at all — asked WITHOUT reaching the
+/// device.
+///
+/// The `skipping …: no wgpu adapter` guard clause at the top of a GPU test is a
+/// question about the machine, not a use of the device, and it is asked BEFORE
+/// the test takes [`crate::testlock::serial`] (there is nothing to serialize
+/// yet). Answering it through [`shared_device_queue`] would run [`arrive`] —
+/// a submit, a poll and a counter mutation — outside every guard in the process,
+/// on some sixty capture tests. This answers it from the cache alone: no
+/// arrival, no sweep, nothing for a concurrent measurement to see.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn adapter_present() -> bool {
+    cached().is_some()
+}
+
+/// No adapter on wasm — see [`shared_device_queue`].
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn adapter_present() -> bool {
+    false
 }
 
 /// A cloned handle to the shared test device+queue, or `None` on a GPU-less
@@ -86,11 +136,48 @@ pub(crate) fn shared_device_queue() -> Option<(wgpu::Device, wgpu::Queue)> {
 /// `OOMKilled=true`. See [`crate::gpu_alloc`].
 #[cfg(not(target_arch = "wasm32"))]
 fn arrive(device: &wgpu::Device, queue: &wgpu::Queue) {
+    assert!(
+        crate::testlock::currently_held(),
+        "a test reached the process-wide shared wgpu device without holding \
+         `crate::testlock::serial()`. The shared device is process-global state — one object \
+         population and one set of wgpu-hal counters — so an unguarded caller races every other \
+         test on it exactly as an unguarded theme or fs caller would, and the allocation laws in \
+         `render/tests/alloc_bound_law.rs` read those counters as their baseline. Add \
+         `let _g = crate::testlock::serial();` as this test's FIRST statement, so it drops LAST \
+         and the guard still covers the drop of everything allocated here — a `TextPipeline` \
+         dropped at the closing brace moves these counters on its way out. (If this test needs \
+         a device of its own — non-default features or limits, or device loss — build one \
+         rather than taking this door; see the module doc.)"
+    );
+    ARRIVALS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     let held = traced().then(|| crate::gpu_alloc::live(device));
     crate::gpu_alloc::reclaim(device, queue);
     if let Some(held) = held {
         trace(device, held);
     }
+}
+
+/// Every arrival at the shared device, counted — the WITNESS that lets a law
+/// which reads the process-global counters prove it had them to itself.
+///
+/// The assertion in [`arrive`] is what makes exclusivity true; this is what lets
+/// a measurement CHECK that it was, instead of trusting it. The two are not the
+/// same guarantee: the assertion can only speak for callers that come through
+/// this door, and a law whose baseline is quietly wrong reports a bound
+/// violation it cannot substantiate — indistinguishable, from inside the bound,
+/// from a real regression.
+#[cfg(not(target_arch = "wasm32"))]
+static ARRIVALS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// How many times any test has reached the shared device in this process.
+///
+/// A caller reads this before and after a measurement window and compares the
+/// difference against the number of arrivals it made itself; anything else came
+/// from somewhere the caller does not control. See
+/// `render::tests::alloc_bound_law`'s `refuse_unless_exclusive`.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn arrivals() -> u64 {
+    ARRIVALS.load(std::sync::atomic::Ordering::SeqCst)
 }
 
 /// One line per device acquisition on `AWL_GPU_ALLOC_TRACE=1`, and nothing at

@@ -306,6 +306,7 @@ fn measure_change_alone_invalidates_row_geometry_on_the_next_set_size() {
 
 #[test]
 fn total_visual_rows_is_cached_between_reads() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping total_visual_rows_is_cached_between_reads: no wgpu adapter");
         return;
@@ -323,6 +324,7 @@ fn total_visual_rows_is_cached_between_reads() {
 
 #[test]
 fn editing_text_reshapes_exactly_once_per_change() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping editing_text_reshapes_exactly_once_per_change: no wgpu adapter");
         return;
@@ -384,6 +386,7 @@ fn incremental_matches_full_shape_geometry() {
 
 #[test]
 fn cursor_move_does_not_reshape() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping cursor_move_does_not_reshape: no wgpu adapter");
         return;
@@ -607,6 +610,7 @@ fn variable_height_scroll_reaches_the_last_row() {
 /// content (characterized buffer-side).
 #[test]
 fn crlf_buffer_and_pipeline_line_models_agree_on_count() {
+    let _g = crate::testlock::serial();
     use crate::buffer::{Buffer, Eol};
     use std::sync::Arc;
     let Some(mut p) = headless_pipeline() else {

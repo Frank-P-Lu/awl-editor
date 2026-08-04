@@ -38,6 +38,7 @@ fn render_frame(
 /// deterministic phase" and "deterministic headless capture freezes it".
 #[test]
 fn bombora_settled_captures_are_byte_identical() {
+    let _g = crate::testlock::serial();
     const W: u32 = 900;
     const H: u32 = 600;
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
@@ -88,6 +89,7 @@ fn bombora_settled_captures_are_byte_identical() {
 /// this round), never a new instance per glyph or per doc line.
 #[test]
 fn bombora_waves_visibly_drift_after_the_ambient_clock_advances_and_stay_bounded() {
+    let _g = crate::testlock::serial();
     const W: u32 = 900;
     const H: u32 = 600;
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {

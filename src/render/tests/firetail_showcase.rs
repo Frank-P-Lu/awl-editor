@@ -85,6 +85,7 @@ fn parse_overlay_anchor_force_inset_grammar() {
 /// corner open (the shipped-placard interplay the board round names).
 #[test]
 fn inset_anchor_sweeps_from_topleft_through_center_to_right_pinned() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping inset_anchor_sweeps: no wgpu adapter");
         return;
@@ -183,6 +184,7 @@ fn chrome_attrs_is_panel_attrs_under_body_and_swaps_only_under_named() {
 /// compile until it is brought under this law.
 #[test]
 fn every_chrome_voice_registers_and_no_world_names_an_unregistered_one() {
+    let _g = crate::testlock::serial();
     let Some(p) = headless_pipeline() else {
         eprintln!("skipping chrome-voice registration law: no wgpu adapter");
         return;
@@ -258,6 +260,7 @@ fn parse_motion_force_grammar() {
 /// construction rather than by a per-frame check.
 #[test]
 fn unarmed_pipeline_never_kicks_the_entrance() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping unarmed_pipeline_never_kicks_the_entrance: no wgpu adapter");
         return;
@@ -288,6 +291,7 @@ fn unarmed_pipeline_never_kicks_the_entrance() {
 /// pure-time-compression contract), mirroring `step_copy_pulse`'s gate.
 #[test]
 fn armed_entrance_kicks_then_reduce_motion_folds_instantly() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping armed_entrance_kicks_then_reduce_motion_folds_instantly: no wgpu adapter"
@@ -355,6 +359,7 @@ fn armed_entrance_kicks_then_reduce_motion_folds_instantly() {
 /// the previous row and settles ON the target (never elsewhere).
 #[test]
 fn band_slide_snaps_by_default_slides_when_asked_and_folds_under_reduce_motion() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping band_slide_snaps_by_default: no wgpu adapter");
         return;
@@ -427,6 +432,7 @@ fn band_slide_snaps_by_default_slides_when_asked_and_folds_under_reduce_motion()
 /// intermediate. A single deliberate move (from a SETTLED band) still glides.
 #[test]
 fn living_band_phase_snaps_onto_the_selection_when_a_move_outruns_the_glide() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping living_band_phase_snaps_onto_the_selection_when_a_move_outruns_the_glide: no wgpu adapter"
@@ -600,6 +606,7 @@ fn slant_offset_math_is_a_stair_with_row_zero_unshifted() {
 /// are read back and compared across the two states.
 #[test]
 fn slant_width_tax_makes_rowlayout_elide_what_no_longer_fits() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping slant_width_tax_makes_rowlayout_elide: no wgpu adapter");
         return;
@@ -685,6 +692,7 @@ fn slant_width_tax_makes_rowlayout_elide_what_no_longer_fits() {
 /// parked/transparent bug shape, checked at real pixels).
 #[test]
 fn slanted_overlay_renders_and_differs_from_the_straight_one() {
+    let _g = crate::testlock::serial();
     use super::pixeldiff;
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping slanted_overlay_renders_and_differs: no wgpu adapter");
@@ -789,6 +797,7 @@ fn overlay_density_default_is_the_shipped_scale_and_no_leading() {
 /// hit-test) — this pins that the dial actually moves the pitch owner.
 #[test]
 fn overlay_density_scales_the_row_pitch_owner() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping overlay_density_scales_the_row_pitch_owner: no wgpu adapter");
         return;
@@ -890,6 +899,7 @@ fn slant_bar_span_cascades_without_overrunning_the_card() {
 /// the plates genuinely cascade (not a silent no-op), checked at real pixels.
 #[test]
 fn slanted_bars_render_and_differ_from_straight_bars() {
+    let _g = crate::testlock::serial();
     use super::pixeldiff;
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping slanted_bars_render_and_differ: no wgpu adapter");
@@ -944,6 +954,7 @@ fn slanted_bars_render_and_differ_from_straight_bars() {
 /// motion frame-dump probe is `None` by default.
 #[test]
 fn motion_progresses_are_settled_by_default_and_probe_is_none() {
+    let _g = crate::testlock::serial();
     let Some(p) = headless_pipeline() else {
         eprintln!("skipping motion_progresses_are_settled_by_default: no wgpu adapter");
         return;
@@ -1004,6 +1015,7 @@ fn parse_overlay_motion_force_grammar() {
 /// round-trip. Also the reduce-motion + settled folds via the live timers.
 #[test]
 fn motion_frame_dump_probe_pins_phase_and_settles() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping motion_frame_dump_probe_pins_phase: no wgpu adapter");
         return;
@@ -1108,6 +1120,7 @@ fn motion_frame_dump_probe_pins_phase_and_settles() {
 /// spring; Reduce Motion + the default Snap world keep it full (byte-identical).
 #[test]
 fn grow_pop_rides_the_band_timer_and_folds() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping grow_pop_rides_the_band_timer: no wgpu adapter");
         return;

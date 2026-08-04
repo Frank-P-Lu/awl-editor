@@ -15,6 +15,7 @@ use super::{headless_dqp, headless_pipeline, pixeldiff, view};
 /// overlay to prove the geometry actually differs.
 #[test]
 fn spell_panel_floats_at_the_word_not_center_screen() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping spell_panel_floats_at_the_word_not_center_screen: no wgpu adapter");
         return;
@@ -657,6 +658,7 @@ fn panel_caret_places_at_begin_mid_end_char_index_both_fields() {
 /// the purest seam of `App::panel_click`'s find↔replace decision.
 #[test]
 fn panel_hit_maps_the_pointer_to_the_find_or_replace_field() {
+    let _g = crate::testlock::serial();
     // The top-right panel card is anchored to the window's right edge, not the
     // page-mode writing column, so no page-global geometry is folded (no lock).
     let Some(mut p) = headless_pipeline() else {
@@ -774,6 +776,7 @@ fn aa_cell_center(p: &TextPipeline, text_left: f32) -> f32 {
 /// here is a reachable pointer live.
 #[test]
 fn every_panel_hit_variant_is_reachable_by_a_click() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping every_panel_hit_variant_is_reachable_by_a_click: no wgpu adapter");
         return;
@@ -827,6 +830,7 @@ fn every_panel_hit_variant_is_reachable_by_a_click() {
 /// bar-OFF frame keeps the exact pre-existing `margin` top.
 #[test]
 fn panel_card_yields_to_shown_menu_bar() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping panel_card_yields_to_shown_menu_bar: no wgpu adapter");
         return;
@@ -882,6 +886,7 @@ fn panel_card_yields_to_shown_menu_bar() {
 /// `margin + 40.0` (byte-identical).
 #[test]
 fn overlay_and_theme_picker_cards_yield_to_shown_menu_bar() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping overlay_and_theme_picker_cards_yield_to_shown_menu_bar: no wgpu adapter"
@@ -1522,6 +1527,7 @@ fn overlay_card_spans_nearly_the_full_narrow_window() {
 /// bundled AwlSymbols face actually COVERS both codepoints.
 #[test]
 fn keycap_glyphs_are_symbols_and_bundled() {
+    let _g = crate::testlock::serial();
     // Classification: both keycaps are symbols; a plain letter is not.
     assert!(is_symbol('\u{21B5}'), "↵ Return is a symbol keycap");
     assert!(is_symbol('\u{21E5}'), "⇥ Tab is a symbol keycap");
@@ -1690,6 +1696,7 @@ fn menubar_test_read_pixels(
 /// never DISCRIMINATE this bug by color alone.
 #[test]
 fn menu_bar_row_zero_is_pure_ground_never_a_blend_with_content_underneath() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = crate::test_gpu::shared_device_queue() else {
         eprintln!(
             "skipping menu_bar_row_zero_is_pure_ground_never_a_blend_with_content_underneath: no wgpu adapter"
@@ -1738,6 +1745,7 @@ fn menu_bar_row_zero_is_pure_ground_never_a_blend_with_content_underneath() {
 /// covering the fix's OTHER two bled edges.
 #[test]
 fn menu_bar_left_and_right_columns_are_pure_ground_across_the_bar_height() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = crate::test_gpu::shared_device_queue() else {
         eprintln!(
             "skipping menu_bar_left_and_right_columns_are_pure_ground_across_the_bar_height: no wgpu adapter"
@@ -1790,6 +1798,7 @@ fn menu_bar_left_and_right_columns_are_pure_ground_across_the_bar_height() {
 /// a THIRD non-pure value at row 0 either — the one-bit law holds regardless.
 #[test]
 fn menu_bar_row_zero_stays_pure_black_or_white_on_a_one_bit_world() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = crate::test_gpu::shared_device_queue() else {
         eprintln!(
             "skipping menu_bar_row_zero_stays_pure_black_or_white_on_a_one_bit_world: no wgpu adapter"
@@ -1870,6 +1879,7 @@ fn card_fit_probe(
 
 #[test]
 fn overlay_card_fits_its_content_no_fat_bottom_lip() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping overlay_card_fits_its_content_no_fat_bottom_lip: no wgpu adapter");
         return;
@@ -1978,6 +1988,7 @@ fn footer_contract(kind: crate::overlay::OverlayKind) -> FooterContract {
 /// private `card_h` formula (the Wagtail lesson).
 #[test]
 fn overlay_hint_footer_is_compact_and_identical_across_kinds() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping overlay_hint_footer_is_compact_and_identical_across_kinds: no wgpu adapter"
@@ -2155,6 +2166,7 @@ fn jump_hint_is_present_and_never_clips_for_every_kind() {
 
 #[test]
 fn overlay_card_anchor_is_data_center_default_top_left_for_statement_worlds() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping overlay_card_anchor_is_data_top_left_default_center_reachable: no wgpu adapter"
@@ -2271,6 +2283,7 @@ fn card_pad_for(kind: crate::overlay::OverlayKind) -> f32 {
 /// the owner, its value drifts from `overlay_card_h`'s and this fails.
 #[test]
 fn overlay_card_h_owner_reproduces_every_kinds_card_height() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping overlay_card_h_owner_reproduces_every_kinds_card_height: no wgpu adapter"

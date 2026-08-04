@@ -28,6 +28,7 @@ fn organic_is_bowerbird_alone_no_wildcard() {
 
 #[test]
 fn organic_occupies_dashboard_margins_but_never_the_page() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -81,6 +82,7 @@ fn organic_occupies_dashboard_margins_but_never_the_page() {
 
 #[test]
 fn organic_phase_sweep_stays_cool_at_every_breathe_phase() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };

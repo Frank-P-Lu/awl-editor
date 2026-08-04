@@ -197,6 +197,7 @@ const RESTORED_PERIOD_PX: f32 = 47.0;
 
 #[test]
 fn paperbark_contour_separation_matches_the_restored_density_at_1x_and_2x() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping paperbark_contour_separation_matches_the_restored_density: no wgpu adapter"
@@ -332,6 +333,7 @@ fn mean_transition_run_px(field: &[i32], w: u32, h: u32, mx0: u32, mx1: u32, min
 
 #[test]
 fn paperbark_edge_run_length_widens_with_device_ratio_because_it_is_composition() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping paperbark_edge_run_length_widens_with_device_ratio: no wgpu adapter");
         return;
@@ -382,6 +384,7 @@ fn paperbark_edge_run_length_widens_with_device_ratio_because_it_is_composition(
 
 #[test]
 fn paperbark_lane_density_is_stable_across_page_width_at_1x_and_2x() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping paperbark_lane_density_is_stable_across_page_width: no wgpu adapter");
         return;
@@ -434,6 +437,7 @@ fn paperbark_lane_density_is_stable_across_page_width_at_1x_and_2x() {
 /// panic text that produced).
 #[test]
 fn pre_201_dial_would_fail_the_separation_law() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping pre_201_dial_would_fail_the_separation_law: no wgpu adapter");
         return;
@@ -501,6 +505,7 @@ fn save(pixels: &[[u8; 4]], w: u32, h: u32, path: &str) {
 
 #[test]
 fn paperbark_retina_before_after_sheet() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping paperbark_retina_before_after_sheet: no wgpu adapter");
         return;
