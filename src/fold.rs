@@ -399,12 +399,23 @@ impl Filter {
 /// each entry's heading is remapped into filtered space here and recorded as a
 /// [`crate::render::FoldTail`] so the render can hang the quiet "… N lines" glyph on
 /// the collapsed heading's own row (the count is fold-derived, not re-shaped).
+///
+/// `folds` is the FULL-document folded-heading set ([`crate::buffer::Buffer::folds`])
+/// remapped through the SAME `filter` into [`crate::render::ViewState::folded_headings`]
+/// — the fold CHEVRON's one source of direction (`›` collapsed / `⌄` expanded). This
+/// remap happens BEFORE the `any_hidden` short-circuit below (and `Filter::line` is
+/// the identity when nothing is hidden), so an all-empty-section fold set — every
+/// folded heading immediately followed by a sibling-or-shallower heading, hiding
+/// nothing — still reports correctly collapsed even though `filter` never touches
+/// the text.
 pub fn apply_to_view(
     view: &mut crate::render::ViewState,
     hidden: &[bool],
     tails: &[(usize, usize)],
+    folds: &BTreeSet<usize>,
 ) {
     let mut filter = Filter::new(&view.text, hidden);
+    view.folded_headings = folds.iter().map(|&h| filter.line(h)).collect();
     if !filter.any_hidden() {
         return;
     }

@@ -71,6 +71,8 @@ impl TextPipeline {
             .set_color(theme::image_reveal_scrim().rgba_bytes());
         self.table_rule_pipeline
             .set_color(theme::muted().rgba_bytes());
+        self.fold_chevron_pipeline
+            .set_color(theme::fold_afford_chevron_ink().rgba_bytes());
         self.panel_card
             .set_color(theme::pane_surface(effective_card_elevation()).rgba_bytes());
         self.panel_shadow.set_color(float_shadow_srgba());
@@ -409,6 +411,7 @@ impl TextPipeline {
         self.image_base_dir = view.doc_dir.clone();
         self.selection = view.selection;
         self.fold_tails = view.fold_tails.clone();
+        self.folded_headings = view.folded_headings.clone();
         self.doc_source = view.doc_source.clone();
         self.preedit = view.preedit.clone();
         // Mirror the spell list ONLY when it actually changed (a rescan landing),

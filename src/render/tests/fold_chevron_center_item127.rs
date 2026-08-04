@@ -81,7 +81,7 @@ fn fold_view_for(text: &str, collapsed: bool, cursor_on_heading: bool) -> crate:
         let folds: BTreeSet<usize> = [0].into_iter().collect();
         let hidden = crate::fold::hidden_lines(&levels, &folds);
         let tails = crate::fold::fold_tails(&levels, &folds);
-        crate::fold::apply_to_view(&mut v, &hidden, &tails);
+        crate::fold::apply_to_view(&mut v, &hidden, &tails, &folds);
     }
     v
 }

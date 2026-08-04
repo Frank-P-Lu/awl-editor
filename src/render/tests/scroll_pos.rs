@@ -145,7 +145,7 @@ fn table_and_fold_views_keep_nonzero_remainders_on_production_scroll_paths() {
     let hidden = crate::fold::hidden_lines(&levels, &collapsed);
     let tails = crate::fold::fold_tails(&levels, &collapsed);
     let mut folded = view_md(&folded_doc, 0, 0);
-    crate::fold::apply_to_view(&mut folded, &hidden, &tails);
+    crate::fold::apply_to_view(&mut folded, &hidden, &tails, &collapsed);
     p.set_view(&folded);
     let fold_scroll =
         p.scroll_to_show_row_pos(p.visual_row_of(10, 0), ScrollPos { row: 3, px_q: 17 }, H);

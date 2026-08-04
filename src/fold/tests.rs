@@ -413,7 +413,7 @@ fn a_fold_keeps_the_whole_document_for_the_card_figures() {
         is_markdown: true,
         ..crate::render::ViewState::base()
     };
-    apply_to_view(&mut view, &hidden, &tails);
+    apply_to_view(&mut view, &hidden, &tails, &f);
 
     // The substitution really happened: the shaped text lost the two hidden
     // lines and the caret really moved into filtered space.
@@ -470,6 +470,7 @@ fn an_unfolded_view_records_no_substitute_document() {
         &mut view,
         &hidden_lines(&levels, &f),
         &fold_tails(&levels, &f),
+        &f,
     );
     assert_eq!(view.text, fixture::DOC);
     assert_eq!(view.cursor_line, fixture::CARET.0);

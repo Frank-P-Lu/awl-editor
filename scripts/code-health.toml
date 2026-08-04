@@ -78,8 +78,8 @@ lines = 500
 
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
-lines = 548
-reason = "+3 lines. `sync_view` gains the summoned picker's SECONDARY LOCATION at the one exhaustive construction site, so a new hierarchy datum forces a conscious render decision here rather than defaulting silently. Previously: The persistent `changed elsewhere` affordance is a new `ViewState` field, and `sync_view` is the ONE exhaustive construction site that must fail to compile on it (+6)."
+lines = 550
+reason = "+2 lines. The fold chevron's direction needs the real fold set, not merely `fold_tails`'s own key set (a heading folded over an empty section has no tail): a new `folded_headings` field joins the one exhaustive `ViewState` construction site, and `fold::apply_to_view` gains the buffer's folds set as an argument at its one call site here. Previously: +3 lines. `sync_view` gains the summoned picker's SECONDARY LOCATION at the one exhaustive construction site, so a new hierarchy datum forces a conscious render decision here rather than defaulting silently. Previously: The persistent `changed elsewhere` affordance is a new `ViewState` field, and `sync_view` is the ONE exhaustive construction site that must fail to compile on it (+6)."
 
 [[file_size_mark]]
 file = "src/app/window.rs"
@@ -261,8 +261,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2498
-reason = "+2: one memoization field for the roster-width measurements and its one-line doc — a card that sizes itself from its content must measure the whole roster, and shaping one is linear in it. The renderer's GPU state floor: workspace mirrors, Kite's forward-travel accumulator, and the diagonal cluster's per-frame measured layout live beside the sibling state consumed by the same frame pipeline. The `overlay_comparison` mirror field, beside the `overlay_rows_primary` one it gates with (+5). The `doc_source` mirror field and its one-line doc (+2): the pipeline must know when the text it shapes is a substitute for the user's document, or the card figures are over the wrong text. Reconciled at the merge train with item 204 slice 2: neither branch could compute this — each measured a tree without the other's line. Re-measured on the combined candidate with items 220/234: neither branch could compute this and the two deltas must never be summed — main and this branch each moved the file for their own reasons. +1 line: one `mod rotated_location;` declaration, the rotated secondary-location cue's own file. +14: two new `TextPipeline` fields (the rotated-label pipeline, its compose-once mask cache) plus their doc comments, joining the one exhaustive GPU-state struct and its one `Self { .. }` construction site beside every other pipeline field here."
+lines = 2526
+reason = "+28: the fold chevron gained direction and a rotated-quad paint pipeline (it must turn a quarter turn on fold/unfold, and glyphon carries no transform). Three new `TextPipeline` fields join the one exhaustive GPU-state struct: `folded_headings` (mirrors the real fold set, not merely `fold_tails`'s own key set), `fold_chevron_turn` (per-heading turn progress), and `fold_chevron_pipeline` (the `SelectionPipeline` that replaced the mark's glyphon shaping) — each with its own doc comment. Previously: +2: one memoization field for the roster-width measurements and its one-line doc — a card that sizes itself from its content must measure the whole roster, and shaping one is linear in it. The renderer's GPU state floor: workspace mirrors, Kite's forward-travel accumulator, and the diagonal cluster's per-frame measured layout live beside the sibling state consumed by the same frame pipeline. The `overlay_comparison` mirror field, beside the `overlay_rows_primary` one it gates with (+5). The `doc_source` mirror field and its one-line doc (+2): the pipeline must know when the text it shapes is a substitute for the user's document, or the card figures are over the wrong text. Reconciled at the merge train with item 204 slice 2: neither branch could compute this — each measured a tree without the other's line. Re-measured on the combined candidate with items 220/234: neither branch could compute this and the two deltas must never be summed — main and this branch each moved the file for their own reasons. +1 line: one `mod rotated_location;` declaration, the rotated secondary-location cue's own file. +14: two new `TextPipeline` fields (the rotated-label pipeline, its compose-once mask cache) plus their doc comments, joining the one exhaustive GPU-state struct and its one `Self { .. }` construction site beside every other pipeline field here."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -352,18 +352,18 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 556
-reason = "+1: the roster memo's inert default in the one initializer. The one `TextPipeline` initializer spells out workspace state, the diagonal cluster cache, and the warp accumulator beside the state they initialize. The `overlay_comparison` mirror's inert default in the one initializer (+1). The `doc_source` mirror's inert default in the same initializer (+1). Reconciled at the merge train with item 204 slice 2: neither branch could compute this — each measured a tree without the other's line. Re-measured on the combined candidate with items 220/234: neither branch could compute this and the two deltas must never be summed — main and this branch each moved the file for their own reasons. +7: the rotated secondary-location cue's pipeline joins the one exhaustive `TextPipeline` initializer (its `RotatedLabelPipeline::new` construction, a one-line comment, and its two field initializers in `Self { .. }`) beside every other GPU pipeline field here."
+lines = 568
+reason = "+12: the fold chevron's own rotated-quad `SelectionPipeline` construction beside a short comment (+9) and its field initializer (+1) in the one exhaustive `TextPipeline` `Self { .. }`, plus the two inert-default initializers `folded_headings`/`fold_chevron_turn` (+2) beside every other pipeline field here. Previously: +1: the roster memo's inert default in the one initializer. The one `TextPipeline` initializer spells out workspace state, the diagonal cluster cache, and the warp accumulator beside the state they initialize. The `overlay_comparison` mirror's inert default in the one initializer (+1). The `doc_source` mirror's inert default in the same initializer (+1). Reconciled at the merge train with item 204 slice 2: neither branch could compute this — each measured a tree without the other's line. Re-measured on the combined candidate with items 220/234: neither branch could compute this and the two deltas must never be summed — main and this branch each moved the file for their own reasons. +7: the rotated secondary-location cue's pipeline joins the one exhaustive `TextPipeline` initializer (its `RotatedLabelPipeline::new` construction, a one-line comment, and its two field initializers in `Self { .. }`) beside every other GPU pipeline field here."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 608
-reason = "+1 line. One `sync_view` mirror for the new secondary-location projection. Previously: `set_view` is the one ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, and invalidates item 131's measured diagonal cluster with the other view-derived geometry before publishing a new frame. The `overlay_comparison` mirror's assignment in `set_view` (+1). The `doc_source` mirror's assignment beside it (+1). Reconciled at the merge train with item 204 slice 2: neither branch could compute this — each measured a tree without the other's line."
+lines = 611
+reason = "+3: the fold chevron's ink re-tints from `sync_theme_colors` like every other document-layer `SelectionPipeline`, a two-line call (+2), and `set_view`'s mirror gains the `folded_headings` projection beside `fold_tails` (+1). Previously: +1 line. One `sync_view` mirror for the new secondary-location projection. Previously: `set_view` is the one ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, and invalidates item 131's measured diagonal cluster with the other view-derived geometry before publishing a new frame. The `overlay_comparison` mirror's assignment in `set_view` (+1). The `doc_source` mirror's assignment beside it (+1). Reconciled at the merge train with item 204 slice 2: neither branch could compute this — each measured a tree without the other's line."
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
-lines = 463
-reason = "Overlay composition and ambient resolvers live here because they read the pipeline's own settled state; Kite shares that ambient ownership seam."
+lines = 464
+reason = "+1: the fold chevron's per-frame turn stepper joins the one `advance` OR-fold beside the caret spring, the caret preview, and the copy pulse. Previously: Overlay composition and ambient resolvers live here because they read the pipeline's own settled state; Kite shares that ambient ownership seam."
 
 [[file_size_mark]]
 file = "src/render/rects.rs"
@@ -486,8 +486,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 line = 5
-message = "this function has too many lines (245/100)"
-reason = "+3: the summoned picker's secondary location joins the one exhaustive projection site. Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The document-session extraction replaced direct buffer and cache fields with explicit read projections, adding four counted lines while preserving the one exhaustive ViewState construction site. -1 line net: the `overlay_comparison` projection, against a shorter crisp-backdrop match once History left it. -6 lines: routing the History preview through `ViewState::substitute_text` collapsed the two-branch preview/buffer text choice and the matching two-branch spell-cache key into one each."
+message = "this function has too many lines (247/100)"
+reason = "+2: the fold chevron's direction needs the real fold set, not merely `fold_tails`'s own key set — a new `folded_headings` field joins the one exhaustive `ViewState` construction site, and `fold::apply_to_view` gains the buffer's folds set as an argument at its one call site here. Previously: +3: the summoned picker's secondary location joins the one exhaustive projection site. Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The document-session extraction replaced direct buffer and cache fields with explicit read projections, adding four counted lines while preserving the one exhaustive ViewState construction site. -1 line net: the `overlay_comparison` projection, against a shorter crisp-backdrop match once History left it. -6 lines: routing the History preview through `ViewState::substitute_text` collapsed the two-branch preview/buffer text choice and the matching two-branch spell-cache key into one each."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -773,8 +773,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 line = 6
-message = "this function has too many lines (495/100)"
-reason = "+1: the roster memo's inert default. Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer. +1 line: the `overlay_comparison` mirror field's inert default, beside the `overlay_rows_primary` one it pairs with. +1: the `doc_source` mirror's inert default. +4: item 221's rotated-location-cue pipeline joins the one exhaustive `TextPipeline::new` construction site (the pipeline's own construction call plus its two field initializers in `Self { .. }`), the same shape every other GPU pipeline field here already takes."
+message = "this function has too many lines (504/100)"
+reason = "+9: the fold chevron's own rotated-quad `SelectionPipeline` construction beside a short comment, joining the one exhaustive `TextPipeline::new` construction site. +1: its field initializer in `Self { .. }`, the same shape every other GPU pipeline field here already takes. +2: the two inert-default initializers, `folded_headings` and `fold_chevron_turn`. Previously: +1: the roster memo's inert default. Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer. +1 line: the `overlay_comparison` mirror field's inert default, beside the `overlay_rows_primary` one it pairs with. +1: the `doc_source` mirror's inert default. +4: item 221's rotated-location-cue pipeline joins the one exhaustive `TextPipeline::new` construction site (the pipeline's own construction call plus its two field initializers in `Self { .. }`), the same shape every other GPU pipeline field here already takes."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

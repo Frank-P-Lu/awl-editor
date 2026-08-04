@@ -196,6 +196,9 @@ impl TextPipeline {
         self.ornament_renderer
             .render(&self.atlas, &self.viewport, pass)
             .map_err(|e| anyhow::anyhow!("glyphon ornament render failed: {e:?}"))?;
+        // THE FOLD CHEVRON: the ornament family's one rotated-quad member — see
+        // `layers::fold_chevron`'s module doc for why it left glyphon.
+        self.fold_chevron_pipeline.draw(pass);
         self.table_renderer
             .render(&self.atlas, &self.viewport, pass)
             .map_err(|e| anyhow::anyhow!("glyphon table render failed: {e:?}"))?;

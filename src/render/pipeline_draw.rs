@@ -100,6 +100,15 @@ impl TextPipeline {
         // a default capture stays byte-identical.
         let ornament_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
+        // THE FOLD CHEVRON — leaves the glyphon pipeline entirely (it must rotate a
+        // quarter turn on fold/unfold; glyphon 0.11 has no transform). Two
+        // `spine_segment` arms per mark, uploaded through `prepare_rotated`.
+        let fold_chevron_pipeline = SelectionPipeline::new(
+            device,
+            &sel_shader,
+            format,
+            theme::fold_afford_chevron_ink().rgba_bytes(),
+        );
         let table_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let table_rule_pipeline =
@@ -315,6 +324,7 @@ impl TextPipeline {
             selection_invert,
             caret_invert,
             ornament_renderer,
+            fold_chevron_pipeline,
             table_renderer,
             table_rule_pipeline,
             panel_card,
@@ -352,6 +362,8 @@ impl TextPipeline {
             window_h: crate::capture::CANVAS_HEIGHT as f32,
             selection: None,
             fold_tails: Vec::new(),
+            folded_headings: Vec::new(),
+            fold_chevron_turn: std::collections::HashMap::new(),
             hover_line: None,
             preedit: String::new(),
             misspelled: Vec::new(),

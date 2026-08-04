@@ -1,5 +1,10 @@
-//! Six shaped-buffer families owned through one ornament-frame upload.
-use super::fold_chevron::FoldChevrons;
+//! Five shaped-buffer families owned through one ornament-frame upload. The
+//! fold CHEVRON is not a sixth: it must rotate a quarter turn on fold/unfold,
+//! and glyphon 0.11 carries no transform, so it is built from rotated-quad arms
+//! and drawn through its own `SelectionPipeline`
+//! (`render/layers/fold_chevron.rs`'s `prepare_fold_chevron_marks`, called
+//! alongside `prepare_ornaments`, not from within it). The fold TAIL ("… N
+//! lines") stays here; only the chevron lives outside this glyphon pipeline.
 use super::*;
 
 struct RuleOrnaments {
@@ -388,7 +393,6 @@ pub(super) struct OrnamentFrame {
     quotes: QuoteOrnaments,
     fence_labels: FenceLabels,
     fold_tails: FoldTails,
-    fold_chevrons: FoldChevrons,
     muted: glyphon::Color,
     text_left: f32,
     col_w: f32,
@@ -406,7 +410,6 @@ impl OrnamentFrame {
             quotes: QuoteOrnaments::shape(pipeline, metrics),
             fence_labels: FenceLabels::shape(pipeline, metrics, muted, col_w),
             fold_tails: FoldTails::shape(pipeline, metrics, col_w),
-            fold_chevrons: FoldChevrons::shape(pipeline, metrics, col_w),
             muted,
             text_left,
             col_w,
@@ -422,8 +425,7 @@ impl OrnamentFrame {
             + self.bullets.marks.len()
             + self.quotes.tops.len()
             + self.fence_labels.marks.len()
-            + self.fold_tails.marks.len()
-            + self.fold_chevrons.len();
+            + self.fold_tails.marks.len();
         let mut areas = Vec::with_capacity(capacity);
         self.rules
             .append_areas(&mut areas, self.text_left, bounds, self.muted);
@@ -433,7 +435,6 @@ impl OrnamentFrame {
             .append_areas(&mut areas, self.text_left, bounds, self.muted);
         self.fold_tails
             .append_areas(&mut areas, pipeline, self.text_left + self.col_w, bounds);
-        self.fold_chevrons.append_areas(&mut areas, bounds);
         areas
     }
 }
