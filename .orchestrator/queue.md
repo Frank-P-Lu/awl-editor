@@ -766,6 +766,49 @@ defects rather than individual lapses, and they belong in the brief template.**
   recovered by switching to `kill -0 <pid>` on the known launch PID, which has
   no such failure mode. **Prefer the PID.**
 
+## Active claims — 2026-08-04 second wave
+
+✅ **The first wave is fully landed and CI-green at `367a22ec`** — every job
+success except the tolerated wedge. Thirteen items: 240, 243, 238, 218, 229,
+237, 244, 245, 246, 249, 250, 247's static slice, 221; plus 174 re-scoped, 116
+closed, the receipt gap resolved, and five CI repairs.
+
+- **242 (chrome's default pixel space)** — 🟡 IN PROGRESS — claude (opus, high),
+  branch `claude/item-242-chrome-pixels`. **File hold: `src/render/chrome/` and
+  `src/render.rs`'s `Metrics` boundary.**
+- **248 (the fold chevron's direction, then its turn)** — 🟡 IN PROGRESS —
+  claude (sonnet, medium), branch `claude/item-248-fold-chevron`. **File hold:
+  `src/render/layers/fold_chevron.rs`.** Reads `chrome/diagonal.rs`'s
+  `selected_chevron` as the pattern; briefed not to write chrome.
+
+⚠️ **ONLY TWO LANES, AND THAT IS THE HONEST MAXIMUM — not a lack of work.**
+**242 holds most of `render/chrome/`, which is the same surface 224, 222/131d,
+247's motion slice and every one of 174's re-scoped candidates need.** Those
+five are ready and unblocked in every sense except this one, and they queue
+behind 242 rather than racing it. Sequencing, not scarcity.
+
+🔵 **ITEM 252 IS NOW BLOCKED AGAIN, BY A DECISION WORKING CORRECTLY.** It needs
+to push an evidence branch to reach CI's Linux runner — and the exception that
+allowed that was **scoped to item 249 and removed by item 250** once 249's
+lavapipe evidence landed. That is the rule behaving exactly as designed, not a
+regression. **252 needs a fresh grant, and it is a smaller ask than 249's was:**
+one PR, one run, branch deleted, to prove awl's AT-SPI bridge comes up on real
+Linux — a path **no local gate on this Mac can reach**, under code item 218
+rewrote today and whose own report said the Linux behaviour is untested.
+**Recommendation: grant it on the same terms.** Parked rather than assumed.
+
+🔵 **ITEM 231's LEAD IS NOW CHEAP TO FALSIFY, AND THE COST IS THE DECISION.**
+Item 249 measured `background.wgsl`'s size ratio across the bisect boundary at
+**1.2421** against the container's own test-count ratio of **1.2437** — 0.13%
+apart. If per-translation shader-compilation memory dominates the OOM budget,
+one container run at HEAD should get dramatically further than test 199, or not
+OOM at all, because `gpu_cache` cut program builds 9.3× after both boundaries.
+⚠️ **The cost is what item 232 already measured and refused: a 1.67 GB image and
+~14 GiB of Docker VM disk that did not return.** 168 GiB is free now, so it is
+affordable — but 232's refusal was a deliberate call and re-opening it is the
+user's, not a lane's. **Recommendation: worth one run**, because a two-data-point
+coincidence at 0.13% either becomes a real lead or dies cheaply.
+
 - **221** — ✅ **COMPLETE.** Merged `751c385f`. Receipt
   `native-gate-receipt commit=cb00cae1662259278b0360d64209b9a47bba4084 conventions=mac,linux scope=all-targets`,
   `web-smoke: OK`, `code-health.sh` clean, fmt clean. Cassowary's active lens
