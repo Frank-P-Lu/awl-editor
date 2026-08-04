@@ -331,12 +331,36 @@ they ride this wave's first train.
   `overlay_rows.rs` and `chrome/mod.rs` were never touched, so **174 is not
   blocked by this wave.** The one commit is docs-only and is merged at
   `1bb20071`; see the board-integrity note below, which is the real finding.
-- **218 (incremental screen-reader editing)** — 🟡 IN PROGRESS — claude (opus,
-  high), branch `claude/item-218-a11y-incremental`, worktree
-  `awl-next-worktrees/item-218-a11y-incremental`, based on `1bb20071`. Took the
-  lane 116d freed. Deep tier per the item's own routing clause; its final Done
-  clause needs a real unlocked VoiceOver sitting and therefore cannot close
-  headlessly.
+- **218** — ✅ **COMPLETE except its live sitting.** Merged `c282cedd`, pushed,
+  CI green. Receipt
+  `native-gate-receipt commit=441fdf141c87707706bf02c7864f8b0bfdba2e41 conventions=mac,linux scope=all-targets`,
+  `web-smoke: OK`. ⚠️ **This entry sat stale at 🟡 IN PROGRESS for the rest of
+  the session — the orchestrator merged the work and never wrote the landing
+  note, and the USER caught it, not the board.** Same class as `16b4e8c2`'s 116d
+  drop earlier today: **a merge is not done until its board entry says so.**
+  **Measured, with the pre-change path timed live in the same run rather than
+  remembered — per keystroke, release:**
+  100 lines `0.175 → 0.005 ms`; 1 000 `1.789 → 0.009`; 10 000 `18.07 → 0.072`;
+  **50 000 `93.33 → 0.476 ms`.** 93 ms/keystroke at 50k lines is the "awl is not
+  responding". Runs rebuilt and nodes published are **flat at every size**, and
+  the laws assert those counts rather than the clock.
+  **Two things the item did not anticipate, both found by the owner:**
+  incremental updates alone were not the fix — the snapshot *build* was also
+  O(document) per frame, so the run table had to reach into `Buffer` at its
+  three rope-mutation sites; and a third O(document) term hid in `fold_passive`,
+  computing whole-document card figures every frame **even with no card open**.
+  Ten laws, each watched failing by name, two of which catch a stale run being
+  read aloud — swept over every offset and every ordered pair of run edges in a
+  fixture with combining marks, a ZWJ family and flags across line breaks, plus
+  a 2 000-step random walk. Semantic schema `awl-semantic/1 → /2`.
+  **The wasm gate earned its keep exactly as the standing rule predicts:** the
+  change looked native-only and broke the wasm build; nothing else would have
+  caught it.
+  🔵 **OWED — a real unlocked VoiceOver typing and navigation sitting.** No test
+  tier stands in for it; `ACCESSIBILITY.md` records it as owed rather than done.
+  Honest residual for whoever runs it: 0.476 ms at 50 000 lines still grows with
+  the document, and whether that is perceptible to a VoiceOver user is
+  unmeasurable without the sitting.
 - **247 (the STATIC chevron mark only)** — 🟡 IN PROGRESS — claude (opus, high),
   **in the MAIN working tree, not a worktree** (this session is configured to
   work in place; recorded here because the standing protocol assumes a worktree
