@@ -57,17 +57,18 @@ pub(in crate::render) struct PopoverGeom {
 }
 
 /// Inner horizontal pad from the card edge to the first/last button glyph.
-const HPAD: f32 = 12.0;
+const HPAD: Logical = Logical(12.0);
 /// Inner vertical pad above/below the button GLYPH INK BAND — the ONE pad token
-/// the card hugs the row with (uniform top and bottom). Exposed `pub(crate)` (re-
-/// exported as `render::POPOVER_VPAD`) so the card-fits law asserts against the
-/// SAME token the layout uses, never a hand-copied literal.
-pub(crate) const VPAD: f32 = 7.0;
+/// the card hugs the row with (uniform top and bottom). Exposed `pub(crate)` (as
+/// `render::POPOVER_VPAD`) so the card-fits law asserts the SAME token.
+pub(crate) const VPAD: Logical = Logical(7.0);
 /// The two-space separator shaped BETWEEN buttons — its width becomes the visible
 /// inter-button gap (the hit-test splits it at the midpoint, so no dead zone).
 const SEP: &str = "   ";
-/// Breath between the card and the selection it points at.
-const ANCHOR_GAP: f32 = 8.0;
+/// Breath between the card and the selection it points at (`ANCHOR_GAP`), and
+/// between the card and the canvas's own left/right edges (`EDGE_PAD`).
+const ANCHOR_GAP: Logical = Logical(8.0);
+const EDGE_PAD: Logical = Logical(6.0);
 
 /// SELF-DEMONSTRATING label attrs: the per-button `Attrs` transform that makes a
 /// button PREVIEW ITS OWN EFFECT — the same transforms the document's `md_attrs`
@@ -348,8 +349,11 @@ impl TextPipeline {
         }
         let band_h = band_bot_rel - band_top_rel;
 
-        let card_w = total_w + 2.0 * HPAD;
-        let card_h = band_h + 2.0 * VPAD;
+        let hpad = self.metrics.px(HPAD);
+        let vpad = self.metrics.px(VPAD);
+        let gap = self.metrics.px(ANCHOR_GAP);
+        let card_w = total_w + 2.0 * hpad;
+        let card_h = band_h + 2.0 * vpad;
 
         // Anchor: the selection's first endpoint, in screen space.
         let sel_x = self.text_left() + self.col_x_and_advance(line0, col0).0;
@@ -357,25 +361,23 @@ impl TextPipeline {
         let sel_row_h = self.row_height_px(self.visual_row_of(line0, col0));
 
         // Prefer ABOVE the selection; drop BELOW when there's no room.
-        let mut card_y = sel_top - ANCHOR_GAP - card_h;
-        if card_y < ANCHOR_GAP {
-            card_y = sel_top + sel_row_h + ANCHOR_GAP;
+        let mut card_y = sel_top - gap - card_h;
+        if card_y < gap {
+            card_y = sel_top + sel_row_h + gap;
         }
         // Clamp within the canvas (never off the bottom either).
-        card_y = card_y
-            .min(height as f32 - card_h - ANCHOR_GAP)
-            .max(ANCHOR_GAP);
+        card_y = card_y.min(height as f32 - card_h - gap).max(gap);
 
         // Center horizontally over the selection start, clamped to the canvas.
-        let pad = 6.0;
+        let pad = self.metrics.px(EDGE_PAD);
         let card_x = (sel_x - card_w * 0.5)
             .min(width as f32 - card_w - pad)
             .max(pad);
 
-        let text_left = card_x + HPAD;
+        let text_left = card_x + hpad;
         // The glyph ink band sits a uniform `VPAD` below the card top; the label
         // buffer uploads at an origin chosen so `band_top_rel` lands exactly there.
-        let band_top = card_y + VPAD;
+        let band_top = card_y + vpad;
         let text_top = band_top - band_top_rel;
 
         let buttons = model
@@ -428,7 +430,7 @@ impl TextPipeline {
         };
         let area = TextArea {
             buffer: &self.popover_buffer,
-            left: geom.card[0] + HPAD,
+            left: geom.card[0] + self.metrics.px(HPAD),
             top: geom.text_top,
             scale: 1.0,
             bounds,

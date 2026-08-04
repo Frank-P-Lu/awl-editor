@@ -197,6 +197,60 @@ pub fn clamp_zoom(z: f32) -> f32 {
     crate::range::ZOOM.quantize(z)
 }
 
+/// A length authored in LOGICAL pixels — chrome's DEFAULT space, and the only
+/// one a new chrome dimension should ever be written in.
+///
+/// awl draws in device pixels and nothing else; "logical" here means exactly
+/// "multiplied by [`Metrics::scale`] on its way in", which is the same `s` the
+/// text and caret families already pass through. The newtype IS the enrollment:
+/// a `Logical` has no arithmetic of its own, so it cannot reach a draw call
+/// without going through [`Metrics::px`], and a hand-authored constant cannot
+/// silently stay physical by forgetting a multiply.
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+pub struct Logical(pub f32);
+
+impl Logical {
+    /// The one multiply. [`Metrics::px`] is the door that supplies `scale`;
+    /// this exists for the geometry POLICIES that take a scale rather than a
+    /// whole `Metrics` (they are pure and unit-tested without one).
+    pub fn px(self, scale: f32) -> f32 {
+        self.0 * scale
+    }
+}
+
+impl LogicalGrowOnly {
+    pub fn px(self, scale: f32) -> f32 {
+        self.0 * scale.max(1.0)
+    }
+}
+
+/// A length in DEVICE pixels that deliberately does NOT scale — the ANNOTATED
+/// exception. Constructing one is the annotation; every declaration site states
+/// what makes the device grid, rather than the reader's eye, the right
+/// reference (a device resource bound, a quantity already derived from device
+/// geometry, a rasterization feather).
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+pub struct Physical(pub f32);
+
+/// A logical length that only ever GROWS: physical at `scale <= 1`, logical
+/// above it. The HONEST third classification for a width CAP — recording one of
+/// these as plainly physical reintroduces the zoom-blind collapse the grow-only
+/// form exists to fix, and recording it as plainly logical shrinks it below the
+/// value it was tuned at. See [`Metrics::px_grow_only`].
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+pub struct LogicalGrowOnly(pub f32);
+
+/// A length in multiples of the overlay CHARACTER cell. Already correct by
+/// construction — the char width it resolves against is itself scaled — so it
+/// must never also pass [`Metrics::px`], or it doubles.
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+pub struct Chars(pub f32);
+
+/// A length in multiples of the overlay ROW pitch. Correct by construction for
+/// the same reason [`Chars`] is, and double-scaled by the same mistake.
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+pub struct Rows(pub f32);
+
 /// Zoom-derived layout metrics. This is the SINGLE SOURCE OF TRUTH for every
 /// pixel dimension that depends on zoom: the renderer, the caret quad, the
 /// selection rectangles, and mouse hit-testing all read these, so a click lands
@@ -204,6 +258,9 @@ pub fn clamp_zoom(z: f32) -> f32 {
 #[derive(Clone, Copy, Debug)]
 pub struct Metrics {
     pub zoom: f32,
+    /// `zoom * dpi` — the ONE factor every enrolled quantity is multiplied by,
+    /// stored rather than re-derived so a consumer cannot invent a second one.
+    pub scale: f32,
     pub font_size: f32,
     pub line_height: f32,
     pub char_width: f32,
@@ -229,6 +286,7 @@ impl Metrics {
         let s = zoom * dpi;
         Self {
             zoom,
+            scale: s,
             font_size: FONT_SIZE * s,
             line_height: LINE_HEIGHT * s,
             char_width: CHAR_WIDTH * s,
@@ -247,6 +305,28 @@ impl Metrics {
 
     fn glyph_metrics(&self) -> GlyphMetrics {
         GlyphMetrics::new(self.font_size, self.line_height)
+    }
+
+    /// THE LOGICAL→DEVICE BOUNDARY, for chrome as for everything else. The same
+    /// `s` that produced [`Self::font_size`] and [`Self::line_height`], so an
+    /// enrolled length holds its ratio to the text at every zoom and DPI.
+    ///
+    /// Glyphs still rasterize at device resolution: this is the LAYOUT side of
+    /// the seam only, and nothing here changes the sizes handed to the shaper.
+    pub fn px(&self, l: Logical) -> f32 {
+        l.px(self.scale)
+    }
+
+    /// Resolve a [`LogicalGrowOnly`] cap: `scale.max(1.0)`, so the authored
+    /// value is a FLOOR the cap only ever widens away from.
+    pub fn px_grow_only(&self, l: LogicalGrowOnly) -> f32 {
+        l.px(self.scale)
+    }
+
+    /// Resolve a [`Physical`] length. The identity — it exists so the annotated
+    /// exception still passes the owner and is greppable as a choice.
+    pub fn px_physical(&self, p: Physical) -> f32 {
+        p.0
     }
 
     /// Length (px) of the fully-in-motion trailing streak for a given horizontal
