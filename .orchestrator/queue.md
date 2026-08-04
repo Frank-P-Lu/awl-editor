@@ -372,7 +372,22 @@ they ride this wave's first train.
   Honest residual for whoever runs it: 0.476 ms at 50 000 lines still grows with
   the document, and whether that is perceptible to a VoiceOver user is
   unmeasurable without the sitting.
-- **247 (the STATIC chevron mark only)** — 🟡 IN PROGRESS — claude (opus, high),
+- **247 (the STATIC chevron mark only)** — 🟡 **RECLAIMED 2026-08-04 by the
+  merge-train session, with the prior owner's consent (the user reported that
+  session finished).** Branch `claude/item-247-finish`, worktree
+  `awl-next-worktrees/item-247-finish`, off the prototype `60266f9d`. **The
+  prototype is sound and is NOT being redone** — it is ungated, and the pixels
+  the slice exists to produce were never captured. Takeover work is: drop the
+  swept `queue.md` hunk, gate it, and capture at real size in Mangrove and
+  Magpie. ⚠️ **The prototype's own finding is the valuable part and must survive
+  into the landing note:** the three shipping laws that touch this mark
+  (`list_surfaces`, `settings_row_reach_law`, `row_offset_item131`) all assert
+  `instance_count() == 2`, and **a chevron is also two segments spanning the same
+  bounding box — so all three stayed GREEN across a total change of shape.**
+  That is the same vacuous-law class as items 237, 244 and 234, found a fourth
+  time in one day, and the prototype already wrote the angle-grading law that
+  closes it.
+  **Original claim follows.** — claude (opus, high),
   **in the MAIN working tree, not a worktree** (this session is configured to
   work in place; recorded here because the standing protocol assumes a worktree
   and the divergence should not have to be inferred). Scope is deliberately the
