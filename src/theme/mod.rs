@@ -10,11 +10,16 @@
 //! [`color`] (the [`Srgb`] primitive), [`model`] (the [`Theme`]/[`Background`]/
 //! [`Lens`] data model), [`ornament`] (the section-break + list-bullet trios),
 //! [`cjk`] (the per-script fallback ladders + [`FontId`]), [`worlds`] (the
-//! shipped [`Theme`] literals) plus [`worlds_gallery`] (authored auditions that
-//! are deliberately never enrolled), and [`derive`] (the active-theme
+//! shipped [`Theme`] literals), and [`derive`] (the active-theme
 //! index + every derived-from-active-theme accessor). Every external path
 //! (`theme::Theme`, `theme::THEMES`, `theme::CJK_MINCHO`, …) is unchanged —
 //! this file only re-exports.
+//!
+//! [`THEMES`] is the SINGLE ENROLLMENT DOOR, and that is a load-bearing fact
+//! rather than a description: nothing else constructs a world, so an authored
+//! [`Theme`] absent from it cannot reach the picker, a capture, the icon roster
+//! or a law sweep by accident. It is what lets `worlds.rs` be a roster a reader
+//! can count instead of a pile a reader must filter.
 //!
 //! Naming follows DaisyUI: base-100/200/300 are the base planes (100 = the
 //! canvas; on a dark world that is the deepest plane, on a light world the
@@ -46,8 +51,6 @@ mod icon_ground;
 mod model;
 mod ornament;
 mod worlds;
-// Authored `Theme` values that are deliberately NOT enrolled in `THEMES`.
-mod worlds_gallery;
 
 pub(crate) use cjk::EMBEDDED_CJK_FAMILIES;
 pub use cjk::FontId;
