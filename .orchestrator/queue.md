@@ -375,11 +375,29 @@ was built rather than after.
   is corroboration, not the instrument.
 - **258 — 🟡 IN PROGRESS — claude, branch `claude/item-258-mulga-ground`.** Deep
   tier (Opus, high), with a visual-judge pass owed after.
-- **255 — 🟡 IN PROGRESS — claude, branch `claude/item-255-font-licences`.**
-  Production tier (Sonnet, medium).
-- **256 — 🟡 IN PROGRESS — claude, branch `claude/item-256-health-pins`.**
-  Production tier (Sonnet, medium). **Merges FIRST when it returns**, so the
-  other three rebase onto the fixed mechanism rather than re-paying its conflict.
+- ✅ **255 — LANDED, merge `dc179897`** (`ba57dafe`, `bb221aa0`). Full native
+  receipt at `bb221aa0`, both conventions, all targets.
+- ✅ **256 — LANDED, merge `027a098b`** (`c4baffa9`). Scripts-only; **no receipt
+  claimed and none owed.**
+- ✅ **265 — LANDED, merge `41ce2ae8`** (`c9ee0ecc`), orchestrator-direct as the
+  item invited.
+
+🔴 **ITEM 255'S PREMISE WAS FALSE, AND THE ORCHESTRATOR AUTHORED THE FALSE
+FIGURE.** The board recorded "only 7 of 45 bundled faces carry a copyright
+string", measured with `strings` and `strings -e b`. A `ttf_parser` measurement
+finds **all 45 carry one — 43 at nameID 0, 2 at nameID 7, zero missing.**
+**Independently re-verified by the orchestrator against the raw `name` tables
+before the merge: 45 / 43 / 2 / 0**, and **Sour Gummy — the face named on this
+board as carrying none — carries it plainly.** The cause: macOS ships **BSD
+`strings`, which has no `-e`**, so the UTF-16 pass silently measured nothing,
+and three glyph-name substrings supplied false positives on top. **No font needs
+restoring; no build-pipeline item is queued; awl was compliant the whole time.**
+⚠️ **This is CLAUDE.md's own rule arriving from the licence side — "a check runs
+in one configuration, and that configuration is itself an untested
+hypothesis."** The document was still genuinely wrong about *where* its notices
+live, and that half is fixed with OFL 1.1 §2 quoted. **The lesson to carry: an
+orchestrator's own measurement is not privileged, and a licence claim built on
+one host's tooling gets re-measured with a parser, not a text scanner.**
 
 Every worktree from the previous wave was merged, removed, and pruned before this
 one was claimed. The items below are ready, unblocked, and ordered; their full
@@ -395,13 +413,15 @@ inline here because only its motion slice remains.
    Deep tier (taste + a mechanical retirement). User decision; the item names
    the five traps verified in the tree, of which the two numbering spaces are
    the one that will bite.
-3. **255 — the font licence document is false for 38 of 45 faces.** Production
-   tier. **Release-relevant: it rides item 226**, so whatever it says is what
-   ships to users.
-4. **256 — `code-health.toml`'s line pins conflict on every `render.rs` merge.**
-   Production tier. Pure friction, but it has now cost four consecutive merges a
-   hand-resolution, and the standing temptation is to guess a number instead of
-   measuring one.
+3. ✅ **255 — LANDED** (see above; its premise was falsified).
+4. ✅ **256 — LANDED.** ⚠️ **Its ceiling is worth knowing before anyone expects
+   more from it:** the clippy half is now genuinely conflict-FREE (function
+   anchors), but `file_size_mark`'s line count is conflict-**mechanical**, not
+   conflict-free — the number does not exist until the merge happens, which is
+   the item's own finding that no measured value is any sum of its branch
+   inputs. Arm (a) was rejected for that reason. On the next `render.rs` merge
+   conflict, the tool now prints the exact block to paste; **paste it, do not
+   guess it.**
 5. **222 / 131d — Magpie's mirrored cluster.** The user's taste call is made
    (right-align the name text for ascending worlds; **mirror the whole cluster**,
    not just the rail). **Unblocked now that item 242 has released
@@ -565,23 +585,50 @@ at 218/243/240/238 as "dispatched this wave" long after all four had landed. The
 rule that produced that staleness: **a compression that clears completions must
 re-derive this section in the same commit.**
 
-**No lane is running and nothing is claimed.** Order:
+⚠️ **RE-DERIVED AGAIN 2026-08-04 late, against the tree.** The previous list
+carried **`116d's flip` as remaining when it had landed** — verified at
+`src/overlay/workspace.rs`, where `workspace_shape(History)` returns
+`TimelineOverComparison`. Items **237** and **240** were likewise still readable
+as open; both are landed (237's vacuous arm is gone, 240's shader sweep is
+directory-driven off `read_dir`). **This is the third time this section has gone
+stale in the same way, so the rule is restated as an instruction rather than a
+lesson: whoever clears a completion re-derives THIS list in the SAME commit, by
+grepping the tree for the thing the item promised — not by editing the previous
+list.**
 
-1. **257** — the only open item that degrades a shipping path for a real user,
-   and it gates 251. Deep tier.
-2. **258**, then **255**, then **256** — 258 because it is a made user decision
-   waiting on nobody, 255 because it rides the release, 256 because it is
-   costing every merge.
-3. **222 / 131d** — unblocked by 242's landing; the taste call is already made.
-4. **247's motion slice** — the shared rotatable-mark primitive already exists
+**Running: 257+259 and 258. Landed this wave: 255, 256, 265.** Order:
+
+1. **257 + 259** — 🟡 RUNNING as one lane. The only open work that degrades a
+   shipping path for a real user, on two platforms. Gates **251**.
+2. **258** — 🟡 RUNNING. ⚠️ **`Bands` was reassigned to Magpie (item 260) while
+   258 was in flight**; the amendment was pushed to the lane, not merely written
+   here, which is the only reason it was not discovered at merge time.
+3. **The theme-surface prune, 260–267** — the new wave, and it has REAL
+   SEQUENCING that must not be flattened: **260 after 258** (both move grounds
+   in `worlds.rs`); **264 after 258** (Mulga's selection band is `selection`
+   composited over a page that 258 is replacing, so measuring first would aim
+   the fix at a page that no longer exists); **263 LAST** (it touches the most
+   call sites of anything here); **262 read through 268**, which says 262's
+   fill-versus-stretch framing was incomplete. **266, 267 and 265 are
+   independent of all of that** and can run any time — 265 is already landed.
+4. **222 / 131d** — unblocked by 242's landing; the taste call is already made.
+   Scouted: the measured cluster rail already exists in
+   `render/chrome/diagonal.rs` (`cluster_w`, `label_left`, `accessory_right`),
+   so this consumes a rail rather than building one.
+5. **247's motion slice** — the shared rotatable-mark primitive already exists
    (item 248 landed it and owns it), so this consumes rather than grows one.
-5. **174 and 172** — open, structural, and neither is urgent. 174 has two
+6. **174 and 172** — open, structural, and neither is urgent. 174 has two
    families migrated of every surface; 172 has two domains of six extracted.
-6. **116d's flip**, and **231** as a diagnosis item with no live lead.
-7. **Human/live closures, all reachable while the display stays unlocked:**
-   118's map and ambient sitting, 211's glide, 218's and 207's VoiceOver
-   journeys, 244's breathe judgement, 241's own-window numbers.
-8. **251** — blocked behind **257**, and separately needs a human at a Linux
+7. **231** — a diagnosis item with **no live lead**; its shader-size hypothesis
+   was falsified and nothing has replaced it. Its named first deliverable is a
+   **macOS guest VM**, and this host has **no VM tooling installed** (`tart`,
+   `utm`, `qemu` all absent), so the next step carries a real setup cost that
+   should be a deliberate decision rather than absorbed by a lane.
+8. **Human/live closures, all reachable while the display stays unlocked:**
+   118's direction call and ambient sitting, 211's defect (⚠️ **a
+   thrice-reported user defect, not a look-and-agree**), 259's VoiceOver
+   sitting, 241's own-window numbers.
+9. **251** — blocked behind **257**, and separately needs a human at a Linux
    desktop with Orca. A hosted runner has no ears; item 252's arm reaches the
    bridge's liveness and structure, and nothing more.
 
