@@ -173,12 +173,23 @@ jobs:
       # activation), at-spi2-core (at-spi-bus-launcher + at-spi2-registryd),
       # xdotool (drives the live selection keystroke), and the GI Atspi
       # client bindings the probe script uses.
+      #
+      # libxkbcommon-x11-0 is NOT pulled in by libxkbcommon-dev: it's a
+      # separate runtime package for the X11 keymap module, which winit's X11
+      # backend dlopens at startup (the xkbcommon-dl crate). `linux` never
+      # needed it — that job runs headless, with no X11 display, so the
+      # dlopen path is never reached. This job is the first arm to put a
+      # built awl in front of a real X server, and its first real run found
+      # the gap the hard way: `awl` panicked instantly with `Library
+      # libxkbcommon-x11.so could not be loaded` (run 30883984186). Also
+      # added to run-linux.sh and package-linux.sh's shipped README.txt,
+      # which have the same gap for anyone running awl on a bare X11 session.
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             pkg-config \
-            libfontconfig1-dev libxkbcommon-dev libwayland-dev \
+            libfontconfig1-dev libxkbcommon-dev libxkbcommon-x11-0 libwayland-dev \
             libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
             mesa-vulkan-drivers \
             xvfb fluxbox dbus at-spi2-core xdotool \
