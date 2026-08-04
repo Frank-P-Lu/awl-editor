@@ -41,13 +41,13 @@ reason = "item 114: +8 lines net. The workspace's own two-region keyboard and it
 
 [[file_size_mark]]
 file = "src/app.rs"
-lines = 1401
-reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` beside the constants it matches (-5); what remains is the disk-baseline construction at the one exhaustive `App::new` site now taking a `crate::external::Seen` rather than a bare stat (+4), the one-line relaunch-recovery call after the startup buffer decisions settle (+2), and a test-gated re-export of the notice constant so prose laws read the running app's own string instead of a retyped copy (+3). Net +3."
+lines = 1433
+reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` beside the constants it matches (-5); what remains is the disk-baseline construction at the one exhaustive `App::new` site now taking a `crate::external::Seen` rather than a bare stat (+4), the one-line relaunch-recovery call after the startup buffer decisions settle (+2), and a test-gated re-export of the notice constant so prose laws read the running app's own string instead of a retyped copy (+3). Net +3. +32: the theme-font CHEAP-RESHAPE threshold, its compile-time guard and the measured provenance that places it, beside the debounce constant this file already owns as the one scheduling-constant seam; plus the reshape-completion stamp on `ThemeSettleInFlight` that lets the settled-present fold measure the scheduling phase."
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 1037
-reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6)."
+lines = 1071
+reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path now runs through so the leading edge can read the work it is deciding about — the alternative is the same measurement duplicated at the immediate, commit and deferred call sites, which is exactly the drift a single owner exists to prevent."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -83,8 +83,8 @@ reason = "+3 lines. `sync_view` gains the summoned picker's SECONDARY LOCATION a
 
 [[file_size_mark]]
 file = "src/app/window.rs"
-lines = 685
-reason = "The external-change check at focus return (+3, comment included). This is the boundary that replaces a filesystem watcher, and it belongs at the winit focus callback's own owner."
+lines = 703
+reason = "The external-change check at focus return (+3, comment included). This is the boundary that replaces a filesystem watcher, and it belongs at the winit focus callback's own owner. +18: `fold_settled_theme_switch`, the settled-present transaction fold carved OUT of the redraw handler (which it kept over the 100-line clippy ceiling) into its own named owner, plus the scheduling and acquire phases it now records."
 
 [[file_size_mark]]
 file = "src/background.rs"
@@ -491,16 +491,16 @@ reason = "+3: the summoned picker's secondary location joins the one exhaustive 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 576
+line = 608
 message = "this function has too many lines (121/100)"
-reason = "Existing constructor owner and exhaustive App construction site. DocumentSession moved the active slot, registry, previous target, spell checker, and buffer extras behind one initializer, reducing the constructor by twenty counted lines."
+reason = "Existing constructor owner and exhaustive App construction site. DocumentSession moved the active slot, registry, previous target, spell checker, and buffer extras behind one initializer, reducing the constructor by twenty counted lines. Shifted +32 lines, unchanged, by the theme-font cheap-reshape constant and its compile-time guard."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 959
+line = 991
 message = "this function has too many lines (104/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. DocumentSession removed root fields and shifted this unchanged function upward."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. DocumentSession removed root fields and shifted this unchanged function upward. Shifted +32 lines, unchanged, by the theme-font cheap-reshape constant and its compile-time guard."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -512,9 +512,9 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1197
+line = 1229
 message = "this function has too many lines (103/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. DocumentSession removed root fields and shifted this unchanged function upward."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. DocumentSession removed root fields and shifted this unchanged function upward. Shifted +32 lines, unchanged, by the theme-font cheap-reshape constant and its compile-time guard."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
