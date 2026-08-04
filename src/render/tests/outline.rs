@@ -418,7 +418,7 @@ fn outline_hides_below_the_narrow_margin_floor() {
     // gutter's, at the LABEL scale it renders at. Reads the SAME adaptive policy
     // `column_left` itself now runs (outline wants the rail — page on, outline on,
     // md_enabled, headings present).
-    let gap = CHAR_WIDTH * chrome::MARGIN_COLUMN_GAP_CHARS;
+    let gap = CHAR_WIDTH * chrome::MARGIN_COLUMN_GAP_CHARS.0;
     let label_char_w = CHAR_WIDTH * crate::markdown::type_scale::LABEL;
     let pref_px = rowlayout::OUTLINE_PREFERRED_CHARS as f32 * label_char_w;
     let min_px = rowlayout::OUTLINE_MIN_CHARS as f32 * label_char_w;
@@ -689,7 +689,7 @@ fn column_left_is_pixel_stable_across_a_one_px_resize_sweep() {
     // the final left, and the raw desired_left here (244.96) is fractional.
     let pref =
         rowlayout::OUTLINE_PREFERRED_CHARS as f32 * CHAR_WIDTH * crate::markdown::type_scale::LABEL;
-    let gap = CHAR_WIDTH * crate::render::chrome::MARGIN_COLUMN_GAP_CHARS;
+    let gap = CHAR_WIDTH * crate::render::chrome::MARGIN_COLUMN_GAP_CHARS.0;
     let full_rail_left = (pref + gap + TEXT_LEFT).floor();
     let pinned: Vec<(u32, f32)> = widths
         .iter()

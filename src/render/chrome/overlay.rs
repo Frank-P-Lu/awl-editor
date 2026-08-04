@@ -1,6 +1,8 @@
 use super::*;
 
 /// Dense chrome size; every overlay geometry owner consumes this scale.
+/// A RATIO, not a length: the whole-menu type scale. Never multiplied by the
+/// pixel-space owner — it multiplies a length that already passed one.
 pub(in crate::render) const OVERLAY_UI_SCALE: f32 = 0.85;
 
 pub(in crate::render) const CARD_EDGE_INSET_FLOOR: Logical = Logical(10.0);
@@ -116,7 +118,9 @@ impl TextPipeline {
     /// right-aligned chords all inset together.
     pub(in crate::render) fn overlay_text_hpad(&self) -> f32 {
         let l = match crate::render::effective_list_style() {
-            theme::ListStyle::Bars { .. } => Logical(BAR_SIDE_INSET.0 + BAR_TEXT_PAD.0),
+            theme::ListStyle::Bars { .. } => {
+                return self.metrics.px(BAR_SIDE_INSET) + self.metrics.px(BAR_TEXT_PAD);
+            }
             theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) => PANE_TEXT_HPAD,
         };
         self.metrics.px(l)

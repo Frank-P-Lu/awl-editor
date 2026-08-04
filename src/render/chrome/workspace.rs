@@ -35,17 +35,17 @@ use super::*;
 /// around the workspace rather than being erased by it, small enough that
 /// attention has plainly moved.
 const WORKSPACE_MARGIN_FRAC: f32 = 0.055;
-const WORKSPACE_MARGIN_MIN: f32 = 14.0;
-const WORKSPACE_MARGIN_MAX: f32 = 72.0;
+const WORKSPACE_MARGIN_MIN: Logical = Logical(14.0);
+const WORKSPACE_MARGIN_MAX: Logical = Logical(72.0);
 
 /// The breathing room between the rail column and the content pane, in overlay
 /// character widths — the same currency `rowlayout::GAP_CHARS` spends between a
 /// row's primary and secondary cells, so the workspace's internal rhythm is the
 /// picker's own.
-pub(in crate::render) const RAIL_GAP_CHARS: f32 = 3.0;
+pub(in crate::render) const RAIL_GAP_CHARS: Chars = Chars(3.0);
 
 /// The workspace's inner padding, between its own edge and its regions.
-pub(in crate::render) const WORKSPACE_PAD: f32 = 12.0;
+pub(in crate::render) const WORKSPACE_PAD: Logical = Logical(12.0);
 
 /// The narrowest content pane that still deserves a rail beside it, in overlay
 /// character widths — wide enough for a row's NAME and its VALUE together, with
@@ -57,7 +57,7 @@ pub(in crate::render) const WORKSPACE_PAD: f32 = 12.0;
 /// list that shows what a setting is called but not what it is set to is not a
 /// settings list. DESIGN.md §8 rule 4 says to stage the regions at that point
 /// rather than compress them, which is exactly what falling below this does.
-const MIN_PANE_CHARS: f32 = 46.0;
+const MIN_PANE_CHARS: Chars = Chars(46.0);
 
 /// How much presence the UNFOCUSED region's marker keeps, as a fraction of the
 /// focused one's alpha. It is the same rect in the same place — only its
@@ -172,7 +172,7 @@ impl TextPipeline {
         };
         self.overlay_lens_underline.set_color(rgba);
         self.overlay_lens_underline
-            .set_corner(super::overlay_rows::FACET_CHIP_RADIUS);
+            .set_corner(self.metrics.px(super::overlay_rows::FACET_CHIP_RADIUS));
         self.overlay_lens_underline.set_stroke(0.0);
         let marks: Vec<[f32; 4]> = self.workspace_rail_mark.into_iter().collect();
         self.overlay_lens_underline
@@ -185,7 +185,10 @@ impl TextPipeline {
     /// canvas, read by the geometry and by the laws that check it.
     pub(in crate::render) fn workspace_margin(&self) -> f32 {
         let smaller = self.window_w.min(self.window_h).max(0.0);
-        (smaller * WORKSPACE_MARGIN_FRAC).clamp(WORKSPACE_MARGIN_MIN, WORKSPACE_MARGIN_MAX)
+        (smaller * WORKSPACE_MARGIN_FRAC).clamp(
+            self.metrics.px(WORKSPACE_MARGIN_MIN),
+            self.metrics.px(WORKSPACE_MARGIN_MAX),
+        )
     }
 
     /// Is the summoned card drawn as a workspace this frame?
@@ -214,7 +217,7 @@ impl TextPipeline {
         let interior = (width as f32 - 2.0 * self.workspace_margin() - 2.0 * hpad).max(0.0);
         let cw = self.overlay_char_width();
         self.workspace_primary_w > 0.0
-            && interior - self.workspace_primary_w - RAIL_GAP_CHARS * cw >= MIN_PANE_CHARS * cw
+            && interior - self.workspace_primary_w - RAIL_GAP_CHARS.0 * cw >= MIN_PANE_CHARS.0 * cw
     }
 
     /// HOW MANY DISPLAY LINES A WORKSPACE DRAWS ABOVE ITS CANDIDATE BAND — one
@@ -239,7 +242,7 @@ impl TextPipeline {
     /// place to float.
     pub(in crate::render) fn workspace_geometry(&self, width: u32) -> OverlayGeom {
         let lh = self.overlay_lh();
-        let pad = WORKSPACE_PAD;
+        let pad = self.metrics.px(WORKSPACE_PAD);
         let n_items = self.overlay_items.len();
         // ITEM 116b — the POSITIONAL half lives in `comparison.rs`, so the row
         // geometry below and the relocated document viewport read ONE
@@ -386,7 +389,7 @@ impl TextPipeline {
     ) -> Option<[f32; 4]> {
         let [x, w] = geom.rail?;
         let top = plan.first_top();
-        let bottom = geom.card_y + geom.card_h - WORKSPACE_PAD;
+        let bottom = geom.card_y + geom.card_h - self.metrics.px(WORKSPACE_PAD);
         (bottom > top).then_some([x, top, w, bottom - top])
     }
 

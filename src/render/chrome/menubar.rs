@@ -30,14 +30,14 @@ const TITLE_SEP: &str = "    ";
 
 /// A dropdown row's height as a multiple of the LABEL-scaled line height — a touch of
 /// vertical breathing room around each item so the rows read as clickable, not cramped.
-const DROP_ROW_SCALE: f32 = 1.4;
+const DROP_ROW_SCALE: Rows = Rows(1.4);
 
 /// Slack factor + floor on the estimated dropdown content width (label + gap + chord).
 /// The card is sized generously from a char-count estimate (no second shaping pass);
 /// Align-left labels + Align-right chords then position exactly within it, so a small
 /// over-estimate just widens the calm card and never overlaps the two columns.
 const DROP_WIDTH_SLACK: f32 = 1.15;
-const DROP_MIN_WIDTH: f32 = 150.0;
+const DROP_MIN_WIDTH: Logical = Logical(150.0);
 
 impl TextPipeline {
     /// Shape + upload the whole WEB/LINUX MENU BAR for this frame: the bar ground
@@ -247,13 +247,19 @@ impl TextPipeline {
     ) -> anyhow::Result<()> {
         let m = self.metrics;
         let label_lh = m.line_height * label;
-        let row_h = label_lh * DROP_ROW_SCALE;
+        let row_h = label_lh * DROP_ROW_SCALE.0;
         let menus = crate::menu::roster();
         let rendered_items = crate::menu::dropdown_items(&menus[menu_i]);
         let items = &rendered_items;
 
         let label_char_w = m.char_width * label;
-        let plan = dropdown::DropdownPlan::new(items, row_h, label_char_w, self.md_enabled);
+        let plan = dropdown::DropdownPlan::new(
+            items,
+            row_h,
+            label_char_w,
+            self.md_enabled,
+            self.metrics.scale,
+        );
         let geometry =
             self.prepare_dropdown_card(device, queue, [width, height], menu_i, bar_h, &plan);
         let inner_left = geometry.inner_left;

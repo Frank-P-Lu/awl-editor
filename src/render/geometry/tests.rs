@@ -98,7 +98,7 @@ fn outline_min_px() -> f32 {
     rowlayout::OUTLINE_MIN_CHARS as f32 * CW * crate::markdown::type_scale::LABEL
 }
 fn margin_gap() -> f32 {
-    CW * crate::render::chrome::MARGIN_COLUMN_GAP_CHARS
+    CW * crate::render::chrome::MARGIN_COLUMN_GAP_CHARS.0
 }
 const ADAPTIVE_LEFT_PAD: f32 = TEXT_LEFT;
 

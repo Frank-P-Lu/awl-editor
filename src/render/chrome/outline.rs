@@ -2,7 +2,7 @@ use super::*;
 
 const OUTLINE_TOP_LEVEL_MAX: u8 = 2;
 
-const OUTLINE_GAP_ROWS: f32 = 0.5;
+const OUTLINE_GAP_ROWS: Rows = Rows(0.5);
 
 fn is_top_level(level: u8) -> bool {
     level <= OUTLINE_TOP_LEVEL_MAX
@@ -201,7 +201,7 @@ impl TextPipeline {
         }
         let label = crate::markdown::type_scale::LABEL;
         let left_pad = crate::render::TEXT_LEFT;
-        let gap = self.metrics.char_width * MARGIN_COLUMN_GAP_CHARS;
+        let gap = self.metrics.char_width * MARGIN_COLUMN_GAP_CHARS.0;
         let right_edge = self.column_left() - gap;
         let avail = right_edge - left_pad;
         if avail <= 0.0 {
@@ -250,7 +250,7 @@ impl TextPipeline {
         let (win_top, count) = loop {
             let (wt, cnt) = super::scroll_window(len, sel, 0, budget);
             let gaps = (wt + 1..wt + cnt).filter(|&j| gap_full[j]).count();
-            let used = cnt as f32 * row_h + gaps as f32 * row_h * OUTLINE_GAP_ROWS;
+            let used = cnt as f32 * row_h + gaps as f32 * row_h * OUTLINE_GAP_ROWS.0;
             if used <= avail_h || cnt <= 1 || budget <= 1 {
                 break (wt, cnt);
             }
@@ -350,7 +350,7 @@ impl TextPipeline {
         let mut y = layout.top;
         for (i, row) in layout.lines.iter().enumerate() {
             if row.gap_before {
-                y += row_h * OUTLINE_GAP_ROWS;
+                y += row_h * OUTLINE_GAP_ROWS.0;
             }
             bands.push(OutlineBand {
                 left,
@@ -459,7 +459,7 @@ impl TextPipeline {
         let mut y = layout.top;
         for row in &layout.lines {
             if row.gap_before {
-                y += row_h * OUTLINE_GAP_ROWS;
+                y += row_h * OUTLINE_GAP_ROWS.0;
             }
             if py >= y && py < y + row_h {
                 return Some(row.line);
@@ -550,7 +550,7 @@ impl TextPipeline {
         // — which keys each row's height off its glyphs' line heights — collapses that
         // line to a half-row breath while the label rows stay full LABEL height).
         let row_h = m.line_height * label;
-        let gap_metrics = GlyphMetrics::new(m.font_size * label, row_h * OUTLINE_GAP_ROWS);
+        let gap_metrics = GlyphMetrics::new(m.font_size * label, row_h * OUTLINE_GAP_ROWS.0);
         let mut vlines: Vec<(String, glyphon::Color, bool)> = Vec::new();
         for row in &layout.lines {
             if row.gap_before {
@@ -583,7 +583,7 @@ impl TextPipeline {
                 (t.as_str(), attrs)
             })
             .collect();
-        let total_h = n_rows as f32 * row_h + gap_count as f32 * row_h * OUTLINE_GAP_ROWS + 1.0;
+        let total_h = n_rows as f32 * row_h + gap_count as f32 * row_h * OUTLINE_GAP_ROWS.0 + 1.0;
         self.outline_buffer
             .set_size(&mut self.font_system, Some(layout.avail), Some(total_h));
         let default_attrs = base.clone().color(faint);

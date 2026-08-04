@@ -7,7 +7,11 @@
 //! pure physical carve — the chrome pixels are byte-identical. See [`super`].
 
 use super::*;
-pub(super) const FACET_CHIP_RADIUS: f32 = 6.0;
+pub(super) const FACET_CHIP_RADIUS: Logical = Logical(6.0);
+
+/// The `ChipVariant::Underline` skin's own corner — a near-hairline rounding on
+/// a rule, not a pill's radius, which is why it is not [`FACET_CHIP_RADIUS`].
+const CHIP_UNDERLINE_CORNER: Logical = Logical(1.75);
 
 impl TextPipeline {
     /// TEST HOOK: total shaped glyphs the overlay text renderer would draw this
@@ -218,6 +222,9 @@ impl TextPipeline {
         // SAME shaped strip glyphs (in `overlay_shape_theme`), so the skin can't
         // disagree with the hit-test.
         let facet_style = crate::render::effective_facet_style();
+        let chip_radius = self.metrics.px(FACET_CHIP_RADIUS);
+        let bar_stroke = self.metrics.px(crate::render::BAR_OUTLINE_STROKE);
+        let underline_corner = self.metrics.px(CHIP_UNDERLINE_CORNER);
         let mut ghosts: Vec<[f32; 4]> = Vec::new();
         let band = match theme::active()
             .highlight_treatment(crate::render::effective_overlay_selrow_band())
@@ -229,29 +236,27 @@ impl TextPipeline {
             theme::FacetStyle::Text => {}
             theme::FacetStyle::Band => {
                 self.overlay_lens_underline.set_color(band.rgba_bytes());
-                self.overlay_lens_underline.set_corner(FACET_CHIP_RADIUS);
+                self.overlay_lens_underline.set_corner(chip_radius);
                 self.overlay_lens_underline.set_stroke(0.0);
             }
             theme::FacetStyle::Chips(v) => {
                 use theme::ChipVariant as V;
                 let content = theme::base_content();
                 let muted = theme::muted();
-                let stroke = crate::render::BAR_OUTLINE_STROKE_PX;
+                let stroke = bar_stroke;
                 let (a_fill, a_corner, a_stroke): ([u8; 4], f32, f32) = match v {
-                    V::Hairline => (band.rgba_bytes(), FACET_CHIP_RADIUS, 0.0),
-                    V::FilledActive => (content.rgba_bytes(), FACET_CHIP_RADIUS, 0.0),
-                    V::Underline => (content.rgba_bytes(), 1.75, 0.0),
+                    V::Hairline => (band.rgba_bytes(), chip_radius, 0.0),
+                    V::FilledActive => (content.rgba_bytes(), chip_radius, 0.0),
+                    V::Underline => (content.rgba_bytes(), underline_corner, 0.0),
                     V::Bracket => (content.rgba_bytes(), 0.0, 0.0),
                 };
                 self.overlay_lens_underline.set_color(a_fill);
                 self.overlay_lens_underline.set_corner(a_corner);
                 self.overlay_lens_underline.set_stroke(a_stroke);
                 let (g_color, g_corner, g_stroke): ([u8; 4], f32, f32) = match v {
-                    V::Hairline => (muted.rgba_bytes(), FACET_CHIP_RADIUS, stroke),
+                    V::Hairline => (muted.rgba_bytes(), chip_radius, stroke),
                     V::Bracket => (content.rgba_bytes(), 0.0, 0.0),
-                    V::FilledActive | V::Underline => {
-                        (muted.rgba_bytes(), FACET_CHIP_RADIUS, stroke)
-                    }
+                    V::FilledActive | V::Underline => (muted.rgba_bytes(), chip_radius, stroke),
                 };
                 self.overlay_facet_ghost.set_color(g_color);
                 self.overlay_facet_ghost.set_corner(g_corner);
@@ -264,9 +269,8 @@ impl TextPipeline {
         self.overlay_lens_underline
             .prepare(device, queue, width, height, &underline);
         if !matches!(facet_style, theme::FacetStyle::Chips(_)) {
-            self.overlay_facet_ghost.set_corner(FACET_CHIP_RADIUS);
-            self.overlay_facet_ghost
-                .set_stroke(crate::render::BAR_OUTLINE_STROKE_PX);
+            self.overlay_facet_ghost.set_corner(chip_radius);
+            self.overlay_facet_ghost.set_stroke(bar_stroke);
         }
         self.overlay_facet_ghost
             .prepare(device, queue, width, height, &ghosts);

@@ -23,7 +23,7 @@ use super::*;
 /// it can never COLLAPSE below a floor that keeps a `yesterday 12:34` label
 /// readable — the case a bare hug gets wrong is an empty history, whose corpus is
 /// one notice rather than a list.
-const TIMELINE_MIN_CHARS: f32 = 12.0;
+const TIMELINE_MIN_CHARS: Chars = Chars(12.0);
 const TIMELINE_MAX_FRAC: f32 = 0.34;
 
 impl TextPipeline {
@@ -90,7 +90,7 @@ impl TextPipeline {
         // CEIL, because the two shapings agree to the pixel but not to the last
         // bit of an `f32`, and a column short by a ten-thousandth of a pixel cuts
         // a glyph exactly as thoroughly as one short by ten.
-        let floor = (TIMELINE_MIN_CHARS * cw).max(hint.ceil() + 2.0 * hpad);
+        let floor = (TIMELINE_MIN_CHARS.0 * cw).max(hint.ceil() + 2.0 * hpad);
         (widest + 2.0 * hpad).clamp(floor, (interior * TIMELINE_MAX_FRAC).max(floor))
     }
 

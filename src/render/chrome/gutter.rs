@@ -10,7 +10,7 @@ use super::*;
 /// its local lava corner — a half-row so the feathered top face clears the top
 /// glyph. Read by [`TextPipeline::gutter_carve_rect`] and pinned by the
 /// gutter-corner bounds law (`theme::tests`).
-pub(in crate::render) const GUTTER_CARVE_BREATH: f32 = 0.5;
+pub(in crate::render) const GUTTER_CARVE_BREATH: Rows = Rows(0.5);
 
 /// THE PERSISTENT AFFORDANCE'S WORDS — the same two the conflict workspace
 /// titles itself with (`OverlayKind::Conflict::title`), so the thing you notice
@@ -88,7 +88,7 @@ impl TextPipeline {
         if self.overlay_active {
             return None;
         }
-        let gap = self.metrics.char_width * MARGIN_COLUMN_GAP_CHARS;
+        let gap = self.metrics.char_width * MARGIN_COLUMN_GAP_CHARS.0;
         let avail = self.column_left() - gap;
         // Char budget at the LABEL scale the gutter actually renders at (the doc's
         // own `metrics.char_width` is the FULL-size advance; the gutter's glyphs
@@ -319,7 +319,7 @@ impl TextPipeline {
         let block_h = self.metrics.line_height * label * lines;
         // `prepare_gutter` anchors the block bottom 8px up from the canvas bottom.
         let block_top = height as f32 - block_h - 8.0;
-        let breath = self.metrics.line_height * label * GUTTER_CARVE_BREATH;
+        let breath = self.metrics.line_height * label * GUTTER_CARVE_BREATH.0;
         let top = (block_top - breath).max(0.0);
         Some([0.0, top, layout.avail, height as f32])
     }

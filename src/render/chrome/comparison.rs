@@ -89,14 +89,14 @@ impl WorkspaceRegions {
     /// afford to build a plan, but it can afford the plan's own arithmetic owner.
     /// The two are held to agree by `render::tests::comparison_viewport_item116b`'s
     /// `the_comparison_viewport_opens_on_the_same_line_the_rows_do`.
-    fn content_top(&self, header_band: f32) -> f32 {
-        self.card[1] + WORKSPACE_PAD + header_band
+    fn content_top(&self, header_band: f32, pad: f32) -> f32 {
+        self.card[1] + pad + header_band
     }
 
     /// The y a region's own content ends at — the same bottom
     /// `workspace_rail_box` runs its column to.
-    fn content_bottom(&self) -> f32 {
-        self.card[1] + self.card[3] - WORKSPACE_PAD
+    fn content_bottom(&self, pad: f32) -> f32 {
+        self.card[1] + self.card[3] - pad
     }
 }
 
@@ -110,7 +110,7 @@ impl TextPipeline {
         let margin = self.workspace_margin();
         let hpad = self.overlay_text_hpad();
         let rail_w = self.workspace_primary_w;
-        let gap = RAIL_GAP_CHARS * cw;
+        let gap = RAIL_GAP_CHARS.0 * cw;
 
         let card_x = margin;
         let card_w = (width as f32 - 2.0 * margin).max(0.0);
@@ -171,8 +171,9 @@ impl TextPipeline {
         if !r.content_visible() {
             return None;
         }
-        let top = r.content_top(self.workspace_header_band());
-        let h = r.content_bottom() - top;
+        let pad = self.metrics.px(WORKSPACE_PAD);
+        let top = r.content_top(self.workspace_header_band(), pad);
+        let h = r.content_bottom(pad) - top;
         (r.pane[1] > 0.0 && h > 0.0).then_some([r.pane[0], top, r.pane[1], h])
     }
 

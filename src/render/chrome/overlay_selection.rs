@@ -420,7 +420,12 @@ impl TextPipeline {
         list_style: theme::ListStyle,
         rects: &OverlaySelectionRects,
     ) {
-        const PAD: f32 = 2.0;
+        /// The scrim's own outward bleed past each plate edge.
+        const SCRIM_PAD: Logical = Logical(2.0);
+        /// A corner for no scrim at all on `Diagonal` (it emits no plates), kept
+        /// so the shared pipeline is still prepared each frame.
+        const DIAGONAL_SCRIM_CORNER: Logical = Logical(6.0);
+        let pad = self.metrics.px(SCRIM_PAD);
         // The `BarePlates` gate above is the CARD's question, not the row's, and
         // that is deliberate here even though the same name misleads a plate
         // claim: every bare-plate world must have `panel_card` prepared each
@@ -430,16 +435,16 @@ impl TextPipeline {
         // authored dial.
         let radius = match list_style {
             theme::ListStyle::Bars { radius, .. } => radius.max(0.0),
-            theme::ListStyle::Diagonal(_) => 6.0,
+            theme::ListStyle::Diagonal(_) => self.metrics.px(DIAGONAL_SCRIM_CORNER),
             theme::ListStyle::Pane => 0.0,
         };
         let scrims = rects
             .unselected
             .iter()
             .chain(rects.selected.iter())
-            .map(|&[x, y, width, height]| [x - PAD, y - PAD, width + 2.0 * PAD, height + 2.0 * PAD])
+            .map(|&[x, y, width, height]| [x - pad, y - pad, width + 2.0 * pad, height + 2.0 * pad])
             .collect::<Vec<_>>();
-        self.panel_card.set_corner(radius + PAD);
+        self.panel_card.set_corner(radius + pad);
         self.panel_card
             .set_color(theme::overlay_bars_scrim().rgba_bytes());
         self.panel_card

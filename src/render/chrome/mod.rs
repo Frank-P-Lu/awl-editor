@@ -11,7 +11,7 @@ pub(super) use crate::render::plan::{
 
 const PREFIX_HEADER: &str = "C-x";
 
-pub(in crate::render) const MARGIN_COLUMN_GAP_CHARS: f32 = 1.5;
+pub(in crate::render) const MARGIN_COLUMN_GAP_CHARS: Chars = Chars(1.5);
 
 #[derive(Clone, Copy)]
 pub(in crate::render) struct CardHalftone {

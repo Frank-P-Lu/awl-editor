@@ -1540,7 +1540,7 @@ pub(crate) fn slant_max_offset(slant: &SlantProbe, n_rows: usize) -> f32 {
     slant.px_per_row.abs() * n_rows.saturating_sub(1) as f32
 }
 
-pub(crate) const BAR_OUTLINE_STROKE_PX: f32 = 1.5;
+pub(crate) const BAR_OUTLINE_STROKE: Logical = Logical(1.5);
 
 pub(crate) fn effective_list_style() -> theme::ListStyle {
     match overrides::current().list_style {
