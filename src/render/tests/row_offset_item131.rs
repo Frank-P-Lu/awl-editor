@@ -425,8 +425,8 @@ fn an_upright_composition_plans_no_offset_and_keeps_the_cards_own_span() {
 }
 
 /// The diagonal is selection by attachment, not a hidden Bars variant. Every
-/// contextual picker receives one bright local spine and one connector at its
-/// selected row, while every non-diagonal world remains byte-for-byte upright.
+/// contextual picker receives the bright two-armed chevron at its selected row,
+/// while every non-diagonal world remains byte-for-byte upright.
 /// This crosses the complete picker roster, the two authored directions, both
 /// supported DPIs, and the narrow/wide widths where clipping and row reach are
 /// most likely to disagree.
@@ -479,7 +479,8 @@ fn assert_diagonal_selection(
     assert_eq!(
         p.overlay_spine_selected.instance_count(),
         2,
-        "{ctx}: selected local spine plus connector"
+        "{ctx}: the selected mark's two chevron arms (item 247; SHAPE is graded by \
+         diagonal_composition's own law — this counts instances only)"
     );
     assert_eq!(
         p.overlay_rows.instance_count(),
