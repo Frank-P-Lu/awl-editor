@@ -53,6 +53,7 @@ impl TextPipeline {
         self.overlay_upload_text(
             device, queue, width, height, &geom, &plan, has_right, has_rail, ink, muted, placard,
         )?;
+        self.prepare_overlay_rotated_location(device, queue, width, height, &geom, &plan);
         self.overlay_draw_card(device, queue, width, height, &geom, &plan, &vis);
         self.overlay_place_caret(queue, width, height, &geom, &plan);
         Ok(())
@@ -114,6 +115,10 @@ impl TextPipeline {
         // stipple-world overlay closes carries zero stale wordmark pixels.
         self.placard_stipple
             .prepare(device, queue, width, height, &[]);
+        // The rotated location cue parks too, so the frame after a
+        // `RotatedRail` world's overlay closes (or a lens change drops it)
+        // carries no stale vertical run.
+        self.rotated_label_pipeline.clear();
         // The Bars behind-the-bars placard pass: parked (no areas) so a closed
         // picker carries no stale wordmark into the next frame.
         self.placard_renderer

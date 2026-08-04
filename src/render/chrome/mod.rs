@@ -310,6 +310,7 @@ mod overlay_selection;
 mod overlay_selection_probe;
 mod overlay_shape;
 pub(in crate::render) mod roster;
+mod rotated_location;
 // ITEM 164 — the ONE visual-selection transaction every selected visual reads.
 mod overlay_visual_sel;
 #[cfg(test)]

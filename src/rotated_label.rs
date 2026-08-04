@@ -29,10 +29,16 @@
 //! expression — which string, which axis, which colours, where — is theme data
 //! its caller supplies.
 
-// NO NON-TEST CALLER YET, by design — see [`RotatedLabelPipeline`]. The
-// allowance covers the whole capability rather than every item in it, and comes
-// off wholesale the moment a world's expression lands on top; the same shape
-// [`crate::selection::spine_segment`] carries item by item.
+// The rotated secondary-location heading is the first real (non-test)
+// caller and reaches `draw`/`prepare`/`clear`/`ink`/`matches`/`compose`/
+// `label_axis_deg`/`label_bounds` directly. The rest of the surface
+// (`is_drawn`, `label_local`, `label_hit`, `LabelMask::size`) is genuinely
+// unused by product code today: it belongs to a still-pending slanted
+// location-cue expression, or (`label_hit`) to making a rotated cue
+// interactive, which nothing asks for yet. Kept as an allowance on the whole
+// module rather than piece-by-piece so this doesn't have to be
+// re-litigated on every partial landing; trim it once every piece here has
+// a real caller.
 #![allow(dead_code)]
 
 pub mod geometry;
@@ -74,11 +80,13 @@ struct Globals {
 
 /// One rotated label: a single instanced quad sampling one composed run mask.
 ///
-/// No non-test caller yet. This is the CAPABILITY slice — the two world
-/// expressions that need it (a 90° flush-left secondary heading, a slanted
-/// location cue) are separately specified and separately verifiable, and
-/// landing the capability without either is what keeps the surfaces that draw
-/// no rotated text byte-identical.
+/// This is the CAPABILITY slice — the two world expressions that need it (a
+/// 90° flush-left secondary heading, a faceted picker's active-lens cue; a
+/// slanted location cue, a still-pending expression on a diagonal world) are
+/// separately specified and separately verifiable. Every world that draws no
+/// rotated text stays byte-identical: `render/rotated_location.rs`'s
+/// `prepare_rotated_location_label` parks this pipeline (`clear()`) whenever
+/// `theme::LocationStyle` is not `RotatedRail`.
 pub struct RotatedLabelPipeline {
     pipeline: wgpu::RenderPipeline,
     bind_group_layout: wgpu::BindGroupLayout,

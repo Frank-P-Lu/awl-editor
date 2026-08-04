@@ -189,6 +189,26 @@ pub enum FacetStyle {
     Chips(ChipVariant),
 }
 
+/// **THE SECONDARY-LOCATION HEADING'S OWN TREATMENT** — the shared row
+/// planner's `PlanLine::Location` (the active facet's name, the second level
+/// of a summoned card's title hierarchy) is data every world reads the SAME
+/// plan line through; this says how a world DRAWS it, never whether it
+/// exists.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LocationStyle {
+    /// The default: the label shapes inline, in the row-plan slot it already
+    /// occupies (`render/chrome/theme_picker.rs`'s `shape_theme_spans`).
+    Inline,
+    /// The line stays glyph-free; the label instead draws as a small, muted
+    /// run turned 90° and seated flush with the card's own left border — a
+    /// subordinate vertical counterpart to a loud primary title (Cassowary's
+    /// Archivo Black "Commands" placard). Still the SAME one planned slot;
+    /// only the paint differs. Reuses the world-neutral rotated-label
+    /// capability — no second rotation path
+    /// (`render/rotated_location.rs`'s `prepare_rotated_location_label`).
+    RotatedRail,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ChipVariant {
     Hairline,
@@ -294,6 +314,7 @@ pub struct RenderCaps {
     pub motion: MotionJuice,
     pub list_style: ListStyle,
     pub facet_style: FacetStyle,
+    pub location_style: LocationStyle,
     pub pane_split: PaneSplit,
     pub ambient: AmbientStyle,
     pub spell_underline_gap: f32,
@@ -373,6 +394,7 @@ impl RenderCaps {
         motion: MotionJuice::CALM,
         list_style: ListStyle::Pane,
         facet_style: FacetStyle::Text,
+        location_style: LocationStyle::Inline,
         pane_split: PaneSplit::Split,
         ambient: AmbientStyle::None,
         spell_underline_gap: SPELL_UNDERLINE_GAP_DEFAULT,
