@@ -10,9 +10,16 @@ file is the index; the full OFL 1.1 text travels with the fonts as
 [`OFL.txt`](./OFL.txt), and the per-foundry copyright lines are preserved in the
 `OFL-*.txt` files for the CJK faces.
 
-Each row's copyright holder + license is taken from the face's **own embedded
-`name` table** (nameID 0 = copyright, 13 = license description, 14 = license
-URL) — the authoritative ground truth, not an assumption.
+Each row's copyright holder is taken from the face's **own embedded `name`
+table** (nameID 0 = copyright; nameID 7 = trademark for the one documented
+Monaspace Xenon exception in the table below) — the authoritative ground
+truth, not an assumption, and confirmed present for **all 45** bundled `.ttf`
+files by a direct `name`-table read (item 255, 2026-08-04;
+`render::tests::font_licence_item255` holds this permanently — see below).
+The `license` column is taken from the same embedded fields (nameID 13/14)
+where the face carries them, and otherwise from the upstream project's own
+published grant, the same pattern the exception note below spells out in
+full for iA Writer Quattro S.
 
 > This file covers the bundled FONTS only. It makes **no claim** about the
 > license of awl's own source code, which is a separate, still-undecided matter.
@@ -54,7 +61,7 @@ URL) — the authoritative ground truth, not an assumption.
 | `NotoSerifJP-Regular.ttf` | Noto Serif JP | Adobe | — | SIL OFL 1.1 | github.com/notofonts / Google Fonts |
 | `NotoSerifSC-Regular.ttf` | Noto Serif SC | Adobe | — | SIL OFL 1.1 | github.com/notofonts / Google Fonts |
 | `ShipporiMincho-Regular.ttf` | Shippori Mincho | The Shippori Mincho Project Authors | — | SIL OFL 1.1 | github.com/fontdasu/ShipporiMincho / Google Fonts (static Regular, subset to JIS X 0208) |
-| `ZenMaruGothic-Regular.ttf` | Zen Maru Gothic | The Zen Maru Gothic Project Authors | Zen | SIL OFL 1.1 | github.com/googlefonts/zen-marugothic / Google Fonts (static Regular, subset to JIS X 0208) |
+| `ZenMaruGothic-Regular.ttf` | Zen Maru Gothic | The Zen Maru Gothic Authors | Zen | SIL OFL 1.1 | github.com/googlefonts/zen-marugothic / Google Fonts (static Regular, subset to JIS X 0208) |
 | `KleeOne-Regular.ttf` | Klee One | The Klee Project Authors (Fontworks) | Klee | SIL OFL 1.1 | github.com/fontworks-fonts/Klee / Google Fonts (static Regular, subset to JIS X 0208) |
 | `GowunBatang-Regular.ttf` | Gowun Batang | The Gowun Batang Project Authors (Yanghee Ryu) | — | SIL OFL 1.1 | github.com/yangheeryu/Gowun-Batang / Google Fonts (static Regular, subset to KS X 1001) |
 | `Bitter-Bold.ttf` | Bitter | The Bitter Project Authors | — | SIL OFL 1.1 | github.com/solmatas/BitterPro (variable, instanced `wght=700`) |
@@ -236,10 +243,44 @@ carries 33 codepoints (the original 18 + these 15).
 
 ## license texts in this directory
 
-- [`OFL.txt`](./OFL.txt) — the full SIL Open Font License 1.1, canonical text
-  (applies to every OFL face above; the copyright line for each is in its
-  `name` table and, for the CJK faces, in the matching `OFL-*.txt`).
+- [`OFL.txt`](./OFL.txt) — the full SIL Open Font License 1.1, canonical
+  text, applying to every OFL face above.
 - `OFL-NotoSansJP.txt`, `OFL-NotoSansKR.txt`, `OFL-NotoSansSC.txt`,
   `OFL-NotoSerifJP.txt`, `OFL-NotoSerifSC.txt`, `OFL-LXGWWenKai.txt`,
   `OFL-GowunBatang.txt` — the per-foundry OFL copies as shipped upstream (kept
   verbatim; LXGW's carries an additional-permission clause).
+
+**Where OFL §2's copyright notice actually lives, and why that satisfies it
+(item 255).** OFL 1.1 §2 permits redistribution "provided that each copy
+contains the above copyright notice and this license," and says explicitly
+that these "can be included either as stand-alone text files, human-readable
+headers or in the appropriate machine-readable metadata fields within text
+or binary files as long as those fields can be easily viewed by the user."
+awl ships the stand-alone-text-file form: `OFL.txt` above is the license
+text, and this file's per-face table is the copyright notice, naming the
+holder for every bundled face once per distributed package — not once per
+font file. **That satisfies §2 on its own**, independent of what any single
+`.ttf`'s own `name` table carries. A prior version of this sentence
+conflated the two mechanisms, claiming the copyright notice's location WAS
+each face's embedded `name` table, which put the compliance story on a
+foundation this document had never actually re-checked against the shipped
+files.
+
+**A 2026-08-04 audit (item 255) found that foundation sound anyway, once
+measured correctly.** A first pass reported only 7 of 45 bundled faces
+carrying a copyright string, using `strings`/`strings -e b` over the raw
+file bytes — but macOS's `strings` has no `-e` flag, so the UTF-16BE pass
+silently produced nothing for every file, and 3 of the 7 ASCII hits it did
+get were `post`-table glyph names like `copyright.sc` (a small-caps variant
+name), not `name`-table records at all. A direct read of every face's
+`name` table via `ttf_parser::Face::names()` — the same table `fontdb` and
+`skrifa` decode at load time — found the opposite: **all 45 bundled `.ttf`
+files carry a real copyright-bearing record**, nameID 0 for 43 of them and
+nameID 7 for Monaspace Xenon's two instances (already flagged in the
+per-face table above). Nothing needs restoring in the build pipeline.
+[`render::tests::font_licence_item255`](../../src/render/tests/font_licence_item255.rs)
+holds both facts permanently — every bundled `.ttf`, read from the directory
+rather than a hand-kept list, has a `LICENSES.md` row AND a decodable
+copyright/trademark record — so a face added without an entry, or a future
+re-subset that strips the record, fails it by name instead of waiting for
+another manual audit to (mis-)measure it.
