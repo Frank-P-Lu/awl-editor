@@ -119,6 +119,20 @@ main loop.
   say the same thing, that actions really fire. Whether a screen reader
   *reads it well* — announcement order, verbosity, live-region politeness — is
   unproven and stated here as unproven.
+- **awl's AT-SPI tree has no Frame/Window node at any level — and whether
+  that matters is UNKNOWN, not settled.** The tree is Application ->
+  Document, by construction: awl's own root is built once as
+  `SemanticRole::Application` (`src/app/semantic/projection.rs:172`), mapped
+  to `accesskit::Role::Application` (`src/semantic/native.rs:261`), never
+  `Role::Window` — and `accesskit_atspi_common` 0.19.1 does not synthesize a
+  Frame from anything else (confirmed from its source: `add_node`'s
+  window-registration path and its AT-SPI role mapping both key strictly off
+  `Role::Window`, which nothing in awl's tree ever uses). That is a fact
+  about the tree, not a verdict on it: whether AT-SPI/Orca can navigate an
+  application that publishes no Frame is left explicitly open here — item
+  252's CI probe correctly stopped asserting a node the tree was never going
+  to publish, but that is a probe correction, not evidence the gap is
+  harmless. Only a real Orca session can answer it — item 251's job.
 - **The web build has no accessibility tree.** AccessKit has no canvas or web
   adapter, so this round is native-only by construction. A browser story needs
   a DOM mirror behind the canvas, which is a separate round with a separate
@@ -183,7 +197,11 @@ What tier 3 is for, in order of how much it would matter:
    happened and produced item 218; the confirming one is still owed. Note for
    whoever runs it: check `displaysleep` and the screensaver `idleTime` first —
    a display that sleeps mid-sitting silently invalidates it, as it did seven
-   minutes into the 2026-08-02 attempt.
+   minutes into the 2026-08-02 attempt. **For the Orca half specifically
+   (item 251): awl's AT-SPI tree has no Frame/Window node** (see the honest
+   limits above) — check whether Orca can find, announce, and navigate the
+   awl window at all without one, since nothing before a real sitting can
+   answer that.
 2. **Web.** A DOM mirror behind the canvas — the same snapshot, a different
    adapter.
 3. **Geometry in the tree.** Bounding boxes, so cursor tracking and

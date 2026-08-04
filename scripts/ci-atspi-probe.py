@@ -53,12 +53,20 @@ at `src/app/semantic/projection.rs:172`
 Application (accesskit_atspi_common's own synthetic per-process object,
 `node.rs`'s `PlatformRoot`, always role Application) -> awl's own root
 (role Application again, awl's tree) -> Document -> runs — genuinely no
-Frame at any depth, not something a longer wait would ever find. Whether
-Orca or other real ATs need a ROLE_FRAME to track/announce awl's window
-properly is a real, open, product-level question this item's scope does not
-answer (it would be a Rust/semantic-tree change, not CI configuration) —
-worth its own queue item, named as such in this item's landing report rather
-than guessed at here.
+Frame at any depth, not something a longer wait would ever find.
+
+THAT IS A FACT ABOUT THE TREE, NOT A CLAIM THAT NO FRAME IS NEEDED — those
+are two different questions and this probe answers only the first. Whether
+AT-SPI/Orca can navigate an application that publishes no Frame is left
+explicitly UNKNOWN here: this item's scope is bridge liveness and tree
+structure, not the screen-reader experience, and settling it would take a
+real Orca session — item 251's job, not this probe's. Not asserting
+ROLE_FRAME is the correct probe behavior regardless of that answer (it
+should never fail on a node the product was never going to publish) — but
+that correction must not be read as "so a missing Frame is fine". It is
+recorded as open, not resolved, in ACCESSIBILITY.md and item 252's landing
+report, precisely so item 251 has something to check rather than an
+assumption nobody wrote down.
 
 THIS IS NOT ITEM 251. It says nothing about what a screen reader user would
 hear or how navigation feels — only that the bridge is live and shaped right.
