@@ -766,6 +766,49 @@ defects rather than individual lapses, and they belong in the brief template.**
   recovered by switching to `kill -0 <pid>` on the known launch PID, which has
   no such failure mode. **Prefer the PID.**
 
+- **249** — ✅ **COMPLETE, and it found an UPSTREAM BUG.** Merged `66738bb9`.
+  Receipt
+  `native-gate-receipt commit=028fdc0ac7bb24114c8d40b01fba8b63d1f5995b conventions=mac,linux scope=all-targets`,
+  `web-smoke: OK`, `code-health.sh` clean.
+  **The cause of item 239's revert, verified in the vendored source:**
+  wgpu-hal 29.0.3's **Vulkan** backend never increments `textures` on
+  `create_texture` — its only `textures.add(1)` is `add_raw_texture`, for
+  externally-owned images — while `destroy_texture` still decrements. Metal,
+  gles and dx12 all balance. **So on every Vulkan device the live texture count
+  starts at zero and walks negative**, and `delta 0` and `textures -8` were the
+  same missing line seen from two angles. Item 239's table was right about three
+  rows and wrong about the fourth.
+  ⚠️ **THE LESSON IS THE METHOD, NOT THE BUG.** 239 read the source carefully
+  and still shipped a non-portable oracle. 249 **stopped reading source**:
+  `gpu_alloc::probe` creates one object of each class on the device actually
+  present and the laws assert only over classes that **responded**. Unit is
+  `buffers + texture_views`; `textures` is dropped from the unit and kept in
+  reporting. **Ask the device, not the docs** — now a `CLAUDE.md` tripwire.
+  **Proved on lavapipe BEFORE landing**, which is the clause the item existed
+  for: run `30870887402`, adapter llvmpipe / Mesa 25.2.8, linux job green on all
+  four laws under both conventions, and the portable unit read **identically to
+  Metal** while textures marched negative as predicted.
+  `CoreCounters` is empty in 29.0.3, so the wgpu-level candidate is a dead end —
+  killed by source rather than by argument. Five mutation proofs, all red by
+  name; 239's third law survives as the instrument-responds arm.
+  🔵 **STATED COST, measured not argued:** nothing in `PendingWrites` pins a
+  *view*, so the unit sees the buffer half of the pin and not the texture half —
+  **a leak pinning only textures would be invisible.** That is the price of a
+  unit that means the same thing on a backend whose texture counter runs
+  backwards.
+  **Two process notes worth carrying:** `code-health.sh` only sees **tracked**
+  files, so run it after `git add`, not before — a local pass hid a 111-column
+  line that CI then caught; and the lane hit the commit-during-gate trap itself,
+  costing one clean run.
+
+- **250** — ✅ **COMPLETE.** The temporary push exception is **removed from
+  `CLAUDE.md`** now that 249's evidence is in hand. The rule reads
+  "Worktree branches never push" again, with a one-sentence parenthetical
+  recording that the exception existed, what it bought (run `30870887402`), that
+  the branch was deleted, and that **needing that arm again is a fresh decision,
+  not a precedent.** Working exactly as designed: granted narrow, used once,
+  removed.
+
 - **239** — ⚠️ **PARTLY REVERTED. Its FINDINGS stand; its ORACLE did not.** The oracle landed `52b1b313` and was reverted `b2f27143` after CI went red — all three `alloc_bound_law` tests failed in the **linux** job under both conventions, on the exact portability the design chose itself on. **Requeued as item 249**, which carries the full evidence and everything worth keeping. **The findings below need no re-measurement and must not be re-derived.** Original entry: **its headline is a NEGATIVE RESULT that is the
   deliverable rather than a shortfall.** Merged `52b1b313`. Receipt
   `native-gate-receipt commit=45fee36af80270fa54f1fb024a69e79fd58bc8b8 conventions=mac,linux scope=all-targets`,
