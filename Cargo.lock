@@ -424,6 +424,7 @@ name = "awl"
 version = "0.1.0"
 dependencies = [
  "accesskit",
+ "accesskit_consumer",
  "accesskit_winit",
  "anyhow",
  "arboard",

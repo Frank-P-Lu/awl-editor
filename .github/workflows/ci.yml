@@ -143,23 +143,30 @@ jobs:
   # feels. Item 251 still owns that, and still needs a human at a real Linux
   # desktop.
   #
-  # TOLERATED, not gating — and after eight runs to get here, no longer
-  # "while it beds in": this arm found a REAL, REPRODUCIBLE DEFECT on its
-  # first complete run (item 257 — a Linux-only gap in item 218's run-based
-  # document, pinned by name here exactly as `mac (render::tests)` is pinned
-  # to item 231 below). `document.get_child_count()` stays 0 under real
-  # AT-SPI on Linux even after a bounded retry with the handle re-fetched
-  # fresh each iteration (ruling out client-side property caching) and a
-  # direct `GetChildAtIndex(0)` agreeing there is nothing there (ruling out a
-  # ChildCount-vs-GetChildAtIndex client enumeration mismatch) — see
-  # scripts/ci-atspi-probe.py's own comments for the full mechanism trail.
-  # Gating `main` on item 257 before it has a fix would block unrelated work
-  # on a known, already-diagnosed defect with no promised fix date — the
-  # exact situation item 243 designed this split for. `continue-on-error` is
-  # set at the JOB level: a red run here is attributable to item 257 by name
-  # from this file alone. Promote to gating once item 257 lands and this job
-  # runs green on `main` for a stretch — a conscious decision, not automatic,
-  # exactly as item 231's eventual fix promotes `mac-render-tests`.
+  # TOLERATED, not gating. ‼ ITEM 257 WAS NOT A PRODUCT DEFECT — IT WAS THIS
+  # PROBE ASSERTING A SHAPE ACCESSKIT DELIBERATELY DOES NOT PUBLISH. The arm
+  # asserted `document.get_child_count() == 4` and went red on every run;
+  # `accesskit_consumer::common_filter` returns ExcludeNode for
+  # `Role::TextRun`, and BOTH backends compute their exposed tree with that
+  # same function, so a document whose children are all text runs correctly
+  # exposes ZERO accessible children on Linux and on macOS alike. Its text
+  # reaches a screen reader through the text interface instead, which is what
+  # the probe now asserts, at LINE granularity so it still fails on the
+  # pre-218 monolith. `GetChildAtIndex(0)` returning None agreed with
+  # ChildCount because the filter applies through both doors — corroboration
+  # of the filter, not of a defect.
+  #
+  # It stays tolerated for one more reason only: the repaired probe has never
+  # run. No local gate on macOS reaches AT-SPI, so this job is its own first
+  # instrument. Promote to gating once it runs GREEN on `main` for a stretch —
+  # a conscious decision, not automatic, exactly as item 231's eventual fix
+  # promotes `mac-render-tests`. `continue-on-error` is set at the JOB level.
+  #
+  # The awl-side half of this contract is pinned by a law that measures it
+  # against accesskit_consumer rather than reading it off the source:
+  # `the_platform_filters_text_runs_out_of_the_documents_accessible_children`
+  # in src/app/frame/accessibility/tests.rs. If accesskit ever stops filtering
+  # Role::TextRun, that law goes red and this comment is what explains why.
   atspi:
     name: "atspi (AT-SPI2 bridge liveness, item 252) — allowed failure, item 257"
     runs-on: ubuntu-latest
