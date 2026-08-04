@@ -79,6 +79,31 @@ trip and buys nothing. When the orchestrator needs to know whether a lane's
 gate is still alive, the honest check is the host itself — `ps aux | grep
 cargo` — not the lane's own account of it.
 
+**‼ STOP WRITING THAT RULE AND START WRITING THE ORDER INSTEAD. On 2026-08-04
+SEVEN lanes in one wave ended a turn on a status line, every one of them
+carrying the rule verbatim in its brief.** An instruction that loses seven times
+out of seven is not being ignored; it is unfollowable as written, and the reason
+is mechanical. A lane launches the final gate, the harness auto-backgrounds it,
+and the lane now has *nothing left to do* — ending the turn is not a choice it
+makes, it is what happens when there are no more tool calls. Telling it "do not
+end the turn" asks for the impossible; what we actually want is that **the
+findings already exist when that moment arrives.**
+
+**So brief the ORDER, not the prohibition:**
+
+1. Do the work, commit it.
+2. **Write the full report FIRST** — everything except the receipt: what was
+   built, the premise check, the captures and their arithmetic, the mutation
+   panic text, what is owed to a human.
+3. **Then** launch `native-gate.sh` / `web-smoke.sh`.
+4. When woken, **append the receipt** to a report that is already written.
+
+This also fixes the failure the older text describes, because a lane that has
+already written its findings cannot end a turn without them. And it removes the
+temptation to commit mid-gate — step 1 finishes before step 3 begins, which is
+the other thing three separate actors got wrong on 2026-08-04, each throwing
+away a clean full native run to a `HEAD changed while the suite ran` refusal.
+
 ## Disk-pressure preflight
 
 `.orchestrator/disk-preflight.sh` is the one serialized disk-recovery door.
