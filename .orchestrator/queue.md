@@ -105,6 +105,69 @@ frames under a lock.
 
 ## Latest design decisions
 
+**THREE USER CALLS — 2026-08-04 evening, all GRANTED, all three asked for by the
+board and answered together.** Recorded by a user-facing session at the user's
+explicit instruction ("just write on board"), which is why this is not an
+orchestrator-authored entry; the orchestrator owns dispatch from here.
+
+1. **ITEM 252 — THE PUSH EXCEPTION IS GRANTED AGAIN, FRESHLY AND ON THE SAME
+   TERMS: one PR, one run, branch deleted.** This is a NEW grant, not a revival
+   of 249's — item 250 removed that one as designed, and the board was right to
+   stop rather than infer permission. Scope is identical in shape and smaller in
+   size: reach CI's `linux` job (the only trigger a branch can use is
+   `pull_request`) to prove awl's AT-SPI2 bridge comes up on real Linux and
+   exposes the tree item 218 rewrote today. ⚠️ **The undo is scheduled in the
+   same breath, exactly as item 250 taught:** the exception dies when 252's run
+   is recorded, the remote branch is deleted, and `CLAUDE.md` returns to the
+   absolute sentence. Whoever lands 252 owns that cleanup in the same commit —
+   do not queue a second 250. **252 still does not close 251**, which needs a
+   human at a Linux desktop with Orca; a runner has no ears.
+2. **ITEM 231 — THE CONTAINER RUN IS AUTHORISED; item 232's refusal is
+   re-opened deliberately for this one question.** Spend the 1.67 GB image and
+   the ~14 GiB of Docker VM disk to run the suite at HEAD in the container and
+   settle 249's coincidence — `background.wgsl`'s 1.2421 size ratio against the
+   container's 1.2437 test-count ratio, 0.13% apart. `gpu_cache` cut program
+   builds 9.3× after both bisect boundaries, so the prediction is sharp: HEAD
+   should get dramatically past test 199 or not OOM at all. **If it dies at
+   about the same place the lead is dead — record that too**, because a
+   falsified lead is the point of running it. Headroom checked at grant time:
+   **167 GiB free**, Docker holding ~26 GB with ~14 GB reclaimable.
+   ⚠️ **232's refusal stands for every other purpose** — this authorises one
+   run for one question, not a standing licence to reach for a container.
+3. **THE GLIBC FLOOR (item 226 §5) — MEASURE BEFORE DECIDING.** One
+   `workflow_dispatch` dry run with `release.yml`'s linux job on an older build
+   base, then read the produced `GLIBC.txt`. **This is now a much smaller
+   decision than `RELEASING.md`'s table implies, and the measurement is already
+   half done:** the 2026-08-04 dry run's artifact was parsed for its ELF version
+   requirements, and **exactly two symbols need 2.39 — `pidfd_spawnp` and
+   `pidfd_getpid`.** Everything else in the binary tops out at **GLIBC_2.35**
+   (one symbol; 15 at 2.34, the rest below). Those two are Rust std's OPTIONAL
+   pidfd spawn path, picked up because the build host had glibc 2.39 — std falls
+   back to fork/exec without them. So `ubuntu-22.04` (2.35) or
+   `debian:bookworm` (2.36) plausibly costs no feature at all while adding
+   Ubuntu 22.04 LTS and Debian 12. ⚠️ **Bounded honestly: that is what the
+   binary REQUIRES, not proof that an older base BUILDS, and no 2.35-built
+   binary has been run anywhere.** The dry run is what closes both gaps. If it
+   comes back clean the support-matrix question may not need item 227's AppImage
+   to answer it, which retires the "decide the two together" coupling.
+
+⚠️ **RELEASE PIPELINE STATUS CHANGED 2026-08-04 — the section at the top of this
+board is now STALE and should be rewritten by the orchestrator rather than read
+as current.** All four of item 226's defects are fixed in the tree AND proved by
+execution: dry run `30877600332` (`workflow_dispatch`, the FIRST run of
+`release.yml` since 2026-07-11 and therefore the first since the repairs
+landed at `3160e309`) came back **green on all four jobs** — `plan`, `linux`,
+`mac`, `web` — with `publish` correctly SKIPPED and one expected annotation
+(no Apple secrets → unsigned `.app`). **The artifact was downloaded and opened
+rather than trusted:** `sha256sum -c` OK, and the tarball carries `LICENSE`,
+`NOTICE`, `CREDITS.md`, `THIRD-PARTY-LICENSES.md`, `GLIBC.txt`, `README.txt`
+and both `licenses/{fonts,dict}-LICENSES.md`, with the GPLv3 §6(d) source offer
+at `README.txt:43`. ⚠️ **ONE DEFECT REMAINS STRUCTURALLY UNPROVEN AND MUST RIDE
+TO THE TAG AS A KNOWN:** `publish`'s `contents: write` is correct in the file
+but is exercised only by a real tag push, because dry runs skip that job. That
+is the same blind spot that hid it originally — it was found by reading the API,
+and nothing but a tag can confirm the fix.
+
 **TWO USER CALLS — 2026-08-04, the rotating-mark session. Items 247 and 248.**
 The session started from a real elevator's up/down chevron, which spins in 3D.
 It was refined against the tree rather than accepted as a look, and the refining
