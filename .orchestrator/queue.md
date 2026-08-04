@@ -105,6 +105,63 @@ frames under a lock.
 
 ## Latest design decisions
 
+**FOUR WORLD CALLS — 2026-08-04 evening, from the user directly, while the
+display was unlocked. These are ITEM 118 INPUT, and they are NOT item 118's
+Done clause.** ⚠️ **Do not mark 118 complete on these.** Its Done requires a
+user-confirmed map across the whole roster; what follows is four answers to the
+four questions the 118 lane raised by name. The remaining worlds are still
+unscored by the user, and the lane's independent map (`1, 10, 3, 4, 1`, mean
+2.68) is still a proposal, not a confirmation.
+
+1. **KITE IS A 5/5 — CONFIRMED, and this was ALREADY DECIDED.** The call was
+   made 2026-08-02 in favour of item 132, amending the roster shape to
+   **`1, 7, 6, 4, 2` (mean 2.90)** — two deliberate statement worlds, Firetail
+   and Kite. ⚠️ **The real finding is a board-integrity bug, not a decision:**
+   that resolution sits in this section, but **item 118's own body still carries
+   the contradiction as OPEN** ("either the shape becomes `1,7,6,4,2` or Kite is
+   not a 5… This needs answering as part of the Kite decision"), so the 118 lane
+   re-raised a settled question and the user answered it twice. **Same class as
+   the 116d drop: a decision recorded in one place and not copied into the item
+   body becomes invisible where it is actually read.** Fix 118's body.
+2. **FIRETAIL AND MANGROVE STAY AS THEY ARE — the inversion proposal is CLOSED,
+   on purpose.** The user's words: "theyre fine as is". **Keep the measurement
+   as a known rather than deleting it:** Mangrove measures louder than Firetail
+   on every static and motion column while ranking a step below it. That is now
+   a recorded, accepted divergence between measurement and taste — which is
+   exactly what item 118 says pixel arithmetic may never overrule. Do not
+   re-propose without a new reason.
+3. **GALAH IS A 2/5 — user-confirmed, agreeing with the lane's independent
+   score.** The queued plan stands: raise the ground density. **The arithmetic
+   backs it — Galah's `density: 0.10` is the SPARSEST ground of all twenty
+   worlds**, with the next faintest at 0.20 and the bulk between 0.30 and 0.62
+   (`src/theme/worlds.rs:637`). ⚠️ **Two things a lane must not walk past.**
+   (a) **The sparseness was deliberate** — the commit is `1aca3493 feat: give
+   Galah sparse fibres` — so this REVERSES an intentional choice rather than
+   fixing an oversight, and the round owes a reason why the original call was
+   wrong. (b) **The cited precedent is unproven:** item 108 did exactly this to
+   Gumtree, and the 118 lane measured Gumtree as STILL second-faintest at its
+   shipped density — so 108 may never have met its own Done condition.
+   **Verify 108 actually worked before repeating its recipe**, or Galah becomes
+   the second world bumped and still too quiet.
+4. **MULGA'S GROUND IS REPLACED, AND `Starfield` IS RETIRED WITH IT — new user
+   decision, and it supersedes the queued Mulga proposal.** The board's standing
+   Mulga item was "reject its promotion on purpose"; **that is not what this
+   is.** The user does not like the ground itself ("i don't like the bacground
+   for mulga that muhc"), which is a taste finding about the world, not a
+   loudness score. **Chosen arm: give Mulga a different ground from the existing
+   vocabulary** (Deckle / Zigzag / Dots / Grain / …) suited to a dark olive
+   slab-serif world, and **retire `Background::Starfield` entirely.**
+   ⚠️ **The retirement is the cheap part and the reason the arm was chosen:**
+   `grep` confirms **Mulga is the ONLY world using `Starfield`**
+   (`src/theme/worlds.rs:331` is its sole construction site), so this is a whole
+   ground capability serving one world the user does not want — precisely the
+   "infrastructure complexity is a smell" case in CLAUDE.md's engineering
+   principles. Current value being replaced:
+   `Starfield { from #161F0F, to #1E2916, dir (0,1), tint #7C8068 }`.
+   **Done must include the capability actually being GONE** — the enum arm, its
+   renderer path, and any RenderCaps plumbing — not merely unused, or the smell
+   survives the round that was supposed to remove it. Needs its own queue item.
+
 **THREE USER CALLS — 2026-08-04 evening, all GRANTED, all three asked for by the
 board and answered together.** Recorded by a user-facing session at the user's
 explicit instruction ("just write on board"), which is why this is not an
@@ -1561,3 +1618,5 @@ satisfy its Verify clause otherwise.**
 251. **Item 207's AT-SPI journey needs a LINUX machine, and has been queued behind a macOS screen lock instead.** **Defect:** the board's live-closure list groups "207's real VoiceOver / AT-SPI journeys" under *needs an unlocked and FOREGROUNDED display*, alongside 118, 211, 218 and 244. **That is true of the VoiceOver half and false of the AT-SPI half.** AT-SPI2 is the **Linux** accessibility API (`ACCESSIBILITY.md:65` — NSAccessibility on macOS, AT-SPI2 on Linux, UIA on Windows), so no amount of unlocking the dev Mac reaches it; it needs a Linux desktop session with Orca. Filed as its own item because a blocker misattributed to the wrong cause **never gets cleared** — the arm will keep appearing in every "one unlock closes these" list, and each unlock will keep leaving it open, with nobody noticing that the list was wrong rather than the sitting. `ACCESSIBILITY.md:110` already states plainly that **no AT-SPI journey has been run at all**, so the honest limits section is correct today and must stay correct. **Build:** nothing to build until the hardware exists — this item's first job is to record what the journey requires (a Linux desktop session, Orca, the native build, and the same journeys the VoiceOver sitting runs: document read, caret and selection announcement, overlay summon/dismiss, and an editing burst that would surface the item-218 stall class on the other adapter). **Scope:** does NOT include shipping a fix for whatever it finds; a defect found here earns its own item, exactly as item 218 did from the first VoiceOver sitting. **Done:** either the journey has been run on a real Linux session and its findings recorded in `ACCESSIBILITY.md`'s honest-limits section, or the item stands parked with its hardware requirement stated — and in the meantime the board's live-closure list no longer implies an unlock will close it. **Verify:** human journey; there is no headless stand-in, and AccessKit law tests already cover the projection, which is precisely the layer this item exists to look past. **Routing:** human, on Linux. **Split out of item 207 on 2026-08-04 after the live-closure list was found to conflate two different blockers.**
 
 252. **Prove the AT-SPI bridge on CI's Linux runner — the mechanical half of 207 that the evidence-branch exception DOES reach.** ⚠️ **This is NOT item 251 and does not close it.** 251 needs a human at a Linux desktop driving Orca and listening; a hosted runner has no desktop session, no Orca and no ears, and item 207 is explicit that the real journeys are what no test tier stands in for. **What this item claims is narrower and honest: that the AT-SPI2 bridge comes up on real Linux and exposes the tree.** **Why it is now worth doing, and why the timing matters:** awl reaches AT-SPI2 through AccessKit's Unix adapter (`ACCESSIBILITY.md:65` — NSAccessibility on macOS, AT-SPI2 on Linux, UIA on Windows), and **no local gate on this Mac can reach that path at all** — which is precisely the scope of the evidence-branch exception the user granted 2026-08-04 for item 249. **Item 218 (landed `c282cedd`) rewrote the activation handler and replaced the monolithic document node with stable line runs, and its own report closed with the gap in plain words: "Whether AT-SPI/Orca behaves the same under mixed handlers: untested, no Linux screen reader run here."** So freshly-changed accessibility code has an entire platform backend behind it that nothing has exercised. **Build:** a CI arm that stands up `Xvfb` + `dbus` + `at-spi2-core`, launches awl, and asserts from an AT-SPI client that the tree appears with the roles and structure `SemanticSnapshot` intends — the document, its line runs, focus and selection. Keep it a **separate job**, not a widening of the `linux` gate, and decide deliberately whether it gates or is tolerated while it beds in; item 243's split is the precedent and its lesson is that a red carrying no information is worse than no arm. **Verify:** the arm fails by name when the bridge is broken — **mutation-prove it by disabling the adapter and watching it go red**, since an accessibility smoke that silently passes with no bridge at all is the obvious way to get this wrong and would read as coverage. Confirm 218's run-based tree specifically, not just that *a* tree exists. **Scope:** this is a bridge-liveness and structure check. It does **not** claim speech output, navigation feel, or anything a screen-reader user would call working — 251 still owns that. ⚠️ **It uses the temporary push exception, so it is subject to item 250's cleanup: never merged from, remote branch deleted once the run is recorded.** **Routing:** production tier. **Queued 2026-08-04 after the user asked whether the exception unblocked 251 — it does not, but it reaches this.**
+
+253. **Quokka's curly quotes are drawn BACKWARDS — the bug is in the font file, not in our code.** **Defect:** user-reported 2026-08-04 from a Quokka blockquote screenshot: the hanging pull-quote mark renders as a CLOSING mark. `render/layers.rs:47` asks for `U+201C` and is correct; **Sour Gummy ships both raised quote pairs' outlines transposed.** Two independent proofs, neither needing a build. **(a) `glyf` bboxes:** `quoteleft` is `(46, 437, 164, 641)` — the same x-extent as `comma` `(46, -102, 164, 102)` and `quotesinglbase`, i.e. the raised comma, which IS the closing 9-shape; `quoteright` carries the mirrored `43..161` outline. Same for `quotedblleft`/`quotedblright`, and **identically in all three instances** (Regular/Bold/Black). `cmap` is right — the outlines sit behind the wrong names upstream. **(b) roster raster:** rasterise `U+201C` for every bundled face and compare ink in the top vs bottom quarter; 24 of 25 come out heavy-bottom (the rotated opening form) and `SourGummy-*` is the only one heavy-top. ⚠️ **This is not just the ornament.** Sour Gummy `wght=400` is **Quokka's prose face**, so every apostrophe in Quokka prose renders as a rotated 6-shape — louder in ordinary text than the pull-quote that reported it. **Build:** swap the `cmap` entries for both pairs — `U+2018`↔`U+2019` and `U+201C`↔`U+201D` — in all three shipped `SourGummy-{Regular,Bold,Black}.ttf` (Black is reachable via `AWL_SOURGUMMY_HEAVY_FORCE=900`, so it is in scope). The remap is **metrically free**: left and right advances are identical within each weight (207/207 single, 384/384 double at Regular), and the advance travels with the outline. **Do NOT touch `U+201A`/`U+201E`** — the low quotes sit correctly at the baseline with the comma's own extents, and moving them would invent a second bug. **Record the deviation in `assets/fonts/LICENSES.md`'s Sour Gummy provenance note:** OFL 1.1 with NO reserved font name, so modification is permitted, but a glyph remap is **not** one of the instancing/subsetting steps that note already covers and must be named as its own change, with the upstream defect described so a future re-fetch does not silently undo the repair. **Rejected alternative, recorded so it is not re-proposed:** drawing `U+201D` for Quokka only in the ornament — a per-world code path (`CLAUDE.md`: a theme needing its own code path means the design is wrong) that would fix one glyph on screen and leave every apostrophe in the world broken. **Verify:** the axis is the ROSTER, not Quokka — a law over **every** bundled display face asserting `U+201C`'s outline is the rotated form and `U+201D`'s is the raised comma, so the next face with this defect fails on arrival rather than being noticed in a screenshot. Mutation-prove by restoring one file's original mapping and watching the law name that file. Add a Quokka blockquote capture asserting the mark's ink distribution, since the ornament is the reported surface. **Done:** Quokka's pull-quote reads as an opening mark, Quokka apostrophes read correctly, the roster law exists and fails by name, and the licence note records the repair. **Owed to a human:** the defect is upstream at `github.com/eifetx/Sour-Gummy-Fonts` (via `google/fonts` `ofl/sourgummy`) and worth filing there; awl's zero-network invariant makes that a person's action, not the app's. **Also decided in the same sitting, and deliberately NOT built: the pull-quote gets no closing mark.** Blockquote text is already dim for the block's whole extent (`markdown/spans.rs:69`), so the end is legible without a second glyph, and a closing mark has no honest anchor — the last line's right edge is ragged, so it would float at an arbitrary x or hang in a margin that holds nothing. Hanging pull-quote marks are conventionally single, and DESIGN's value-only restraint agrees. **Routing:** production tier — bounded, already diagnosed, but the law is the real deliverable. **User-reported 2026-08-04.**
