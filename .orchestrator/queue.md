@@ -4,73 +4,86 @@
 > (`git log -p .orchestrator/queue.md`). Protocol, claiming, worktrees, and
 > execution hygiene live in `.orchestrator/README.md`.
 
-## ⚠️ RELEASE IS NOT SHIPPABLE TODAY — item 226's dry run, 2026-08-03
+## ✅ RELEASE PIPELINE — REPAIRED, AND PROVED BY EXECUTION 2026-08-04
 
-**The release pipeline could not have built anything.** Landed at `3160e309`.
-Found BEFORE a tag was attempted, which is the whole point of the item.
+**All four of item 226's defects are fixed in the tree AND proved by a real
+run, not by reading.** Dry run `30877600332` (`workflow_dispatch`) was the FIRST
+run of `release.yml` since 2026-07-11, and therefore the first since the repairs
+landed at `3160e309`: **green on all four jobs** — `plan`, `linux`, `mac`,
+`web` — with `publish` correctly SKIPPED and one expected annotation (no Apple
+secrets → unsigned `.app`).
 
-1. **The whole pipeline was dead.** `.cargo/config.toml` gained
-   `rustc-wrapper = "sccache"` on 2026-07-30 (`d76eaaaa`) — **after** the last
-   dry run on 2026-07-11. `ci.yml` installs sccache in all four jobs;
-   `release.yml` in **none**. Reproduced in a clean container: `could not
-   execute process sccache (never executed)`, exit 101, at `rustc -vV`. The
-   first tag ever pushed would have failed to compile, publicly.
-2. **`publish` could never publish.** The repo's default workflow permission is
-   `read` and the job declared none. **Only a tag exercises that path, so no dry
-   run could ever have found it** — it took reading the API.
-3. **`deploy-web.yml` has the identical hole.** Found by the new law, not by
-   looking. That law sweeps the axis a release-only check would have missed:
-   every workflow JOB running cargo or trunk must install the wrapper first,
-   across all workflow files — `ci.yml` was correct throughout, so a
-   release-scoped check would have gone green.
-4. **The tarball would have shipped with no `LICENSE`, silently.** Fonts
-   (OFL 1.1) and Hunspell dictionaries (LGPL-2.1) are `include_bytes!`d into the
-   binary; neither packaging path copied their audits while `RELEASING.md`
-   asserted all five docs rode the artifacts — `cp X 2>/dev/null || true`
-   swallowed it. No GPLv3 §6(d) source offer either. Now a **hard packaging
-   failure**, mutation-proved.
-5. **Portability, measured not estimated:** the binary requires `GLIBC_2.39`,
-   proved by running the produced tarball on `debian:12`. **Excludes Debian 12,
-   Ubuntu 22.04 LTS and RHEL 9.** Build base deliberately unchanged — a
-   support-matrix decision; `RELEASING.md` §5 has the four options.
+**The artifact was downloaded and opened rather than trusted:** `sha256sum -c`
+OK, and the tarball carries `LICENSE`, `NOTICE`, `CREDITS.md`,
+`THIRD-PARTY-LICENSES.md`, `GLIBC.txt`, `README.txt` and both
+`licenses/{fonts,dict}-LICENSES.md`, with the GPLv3 §6(d) source offer at
+`README.txt:43`.
 
-**Linux-only beta is structural now:** `mac` and `web` build on a dry run and
-are SKIPPED on a tag, so an unsigned `.app` cannot reach a Release.
+⚠️ **ONE DEFECT RIDES TO THE TAG AS A KNOWN, and it cannot be otherwise.**
+`publish`'s `contents: write` is correct in the file but is exercised **only by
+a real tag push**, because dry runs skip that job. That is the same blind spot
+that hid it originally — it was found by reading the API, and nothing but a tag
+can confirm the fix. **Watch that job on the first tag.**
 
-## 🔒 MEASURED 2026-08-04: THE DISPLAY IS LOCKED, SO EVERY LIVE ARM IS BLOCKED
+**What a tag ships TODAY: Linux only, by design.** `mac` and `web` build on a
+dry run — that is what keeps the pipeline honest — and are SKIPPED on a tag, so
+an unsigned `.app` can never reach a public Release by accident. macOS ships
+once Apple signing + notarization are configured (`RELEASING.md` §1).
+
+**Three things must still be decided before a tag, all the user's** — they are
+in the BLOCKED ON THE USER section below: the glibc support matrix (much smaller
+than it was; see there), item 228's versioned artifact names against the site's
+hardcoded unversioned URL, and the word itself.
+
+*(The four original defects — a dead sccache wrapper, `publish`'s missing
+permission, `deploy-web.yml`'s identical hole, and a tarball that would have
+shipped with no `LICENSE` — are in `git log -p` at `3160e309`. This section said
+RELEASE IS NOT SHIPPABLE TODAY until 2026-08-04; that text is history now.)*
+
+## 🔓 THE DISPLAY IS UNLOCKED — measured 2026-08-04, so the live arms are REACHABLE
 
 **Checked, not assumed:** `ioreg -n Root -d1 -a | grep -A1 CGSSessionScreenIsLocked`
-returns **`<true/>`**. `caffeinate` is already running (`pmset -g` shows
-`sleep 0 (sleep prevented by caffeinate)`), and that is the trap worth naming:
-**`caffeinate` prevents sleep and CANNOT unlock a locked screen.** Offering
-caffeinate does not unblock a live sitting; only unlocking does. Screensaver
-`idleTime` is still **300** and `disksleep` is 10.
+returns **nothing** — the key is absent, which is the unlocked state. This
+section read LOCKED for most of 2026-08-04 and blocked five arms; **that is no
+longer true, and the unlock is the most perishable thing on this board.**
 
-**What this blocks right now, all of it needing one unlock rather than one
-decision:** 118's world-loudness confirmation and its `--release` ambient
-sitting; 211's unoccluded glide confirmation and its unreached sweep arms;
-**207's real VoiceOver journey**; **218's VoiceOver sitting** (new this
-wave); **241's one-run discriminator** — `AWL_THEME_FONT_DEBOUNCE_MS=0` from
-Kite, which is the cheapest thing on this board and decides between three
-candidate causes; and **244's `--release` judgement** of whether the new
-companion breathe reads as a flash.
+**Reachable right now:** 118's `--release` ambient sitting; 211's unoccluded
+glide confirmation; 218's and 207's VoiceOver journeys; and 244's `--release`
+judgement of whether Bowerbird's companion breathe reads as a flash.
+**241's discriminator already RAN and named its cause** — see 241's entry; its
+only residual is the user's own 4530×2756 window.
 
-⚠️ **TWO CORRECTIONS TO THAT LIST, both made 2026-08-04, because a
-misattributed blocker never gets cleared.** (1) **207's AT-SPI journey is NOT on
-it** — AT-SPI2 is the *Linux* accessibility API (`ACCESSIBILITY.md:65`), so no
-unlock of this Mac can reach it; it needs a Linux session with Orca and is now
-**item 251**. Only 207's VoiceOver half belongs here. (2) **241's discriminator
-is not a perception arm** — it is one run of `AWL_THEME_FONT_DEBOUNCE_MS=0` and
-a HUD reading, so an AGENT can do it the moment the screen is awake; it sits in
-this list only because it needs presented frames. The genuinely human arms are
-118, 211, 218 and 244, of which only 118 has a head start (an independent agent
-map, `1, 10, 3, 4, 1`, mean 2.68, to diff against rather than re-derive).
+⚠️ **THE TRIPWIRES SURVIVE THE UNLOCK — they are facts about the machinery, not
+about today's state, and every one of them has already cost a sitting.**
+- `displaysleep` is **10** and screensaver `idleTime` is **300**. Hold the
+  display with `caffeinate -d -i -t <seconds>`.
+- **`caffeinate` prevents sleep and CANNOT unlock a locked screen.** Offering it
+  is never a substitute for unlocking.
+- **RE-CHECK THE LOCK AT BOTH ENDS OF ANY LIVE RUN.** `--live-script` writes
+  successful-looking `LIVE-PROBE shot … ok` lines while presenting **zero
+  frames** under a lock, and `live-probe.sh` only checks in **preflight** —
+  which is exactly how the 2026-08-02 sitting was silently invalidated seven
+  minutes in.
+- **Judge feel in `--release`.** `scripts/dev-app.sh` builds release by default
+  (`--debug` is the opt-out) and is the supported way to run on macOS;
+  `--theme <World>` sets the process-global startup world and composes with it,
+  so `scripts/dev-app.sh -- --theme Bowerbird` is the whole invocation.
 
-⚠️ **Do not let a lane "run" any of these under the lock.** `--live-script`
-writes successful-looking `LIVE-PROBE shot … ok` lines while presenting **zero
-frames** under a lock, and `live-probe.sh` only checks the lock in preflight —
-which is exactly how the 2026-08-02 sitting was silently invalidated seven
-minutes in. **Re-check the lock at BOTH ends of any live run.**
+⚠️ **SIX WORLDS MOVE, NOT FIVE — corrected 2026-08-04 against the roster.**
+`has_ambient_tick()` is lava (**Firetail**, **Mangrove**), waves (**Bombora**),
+organic (**Bowerbird**), animated stars (**Currawong**) **and WarpedGrid
+(`Kite`)**. Older prose on this board and the comment atop
+`scripts/capture-ambient-118.sh` name only the first five — they predate Kite's
+commissioning. **The script itself is correct** (it asks the binary rather than
+hard-coding the list); only the prose was stale. This matters to item 118,
+because ambient motion counts as loudness and Kite is one of the two deliberate
+5s.
+
+⚠️ **207's AT-SPI half is NOT on this list, and no unlock of this Mac reaches
+it** — AT-SPI2 is the *Linux* accessibility API (`ACCESSIBILITY.md:65`). It is
+**item 251**, and **item 257 now says 251 should not be attempted until the
+bridge defect is fixed**: there is no point putting a person in front of a
+document that exposes no content.
 
 ## 🔵 BLOCKED ON THE USER — nothing else can close these
 
@@ -81,27 +94,39 @@ writes. **After every merge, verify this heading still exists.** If it is
 missing, `git log -S"BLOCKED ON THE USER" -- .orchestrator/queue.md` finds who
 took it.
 
-1. **118 — the world-loudness map and the `--release` ambient sitting.** This
-   blocks no development or integration; it is a pre-release taste check. The
-   Done clause requires a USER-CONFIRMED map; pixel arithmetic may prove
+1. **118 — the world-loudness map and the `--release` ambient sitting.** Blocks
+   no development or integration; it is a pre-release taste check. The Done
+   clause requires a **USER-CONFIRMED** map; pixel arithmetic may prove
    territory and contrast but never the taste score. An independent agent map
-   exists (`1, 10, 3, 4, 1`, mean 2.68) to diff against rather than re-derive.
+   exists (`1, 10, 3, 4, 1`, mean 2.68) **to diff against rather than
+   re-derive**, and the target shape is `1, 7, 6, 4, 2` (mean 2.90). Four worlds
+   are already user-confirmed (Kite 5, Galah 2, Firetail and Mangrove unchanged);
+   the rest are unscored. Tooling: `scripts/capture-loudness-118.sh` (static,
+   four canvas/measure combos) and `scripts/capture-ambient-118.sh` (the moving
+   worlds). **The display is unlocked — this is reachable now.**
 2. **The tag itself, and the site deploy.** Both are the user's explicit word,
-   every time. See the release section above for what must be true first.
-3. **The release support matrix (item 226 §5) — the glibc floor.** Measured: the
-   binary needs `GLIBC_2.39`, which excludes Debian 12, Ubuntu 22.04 LTS and
-   RHEL 9. `RELEASING.md` §5 has the four build bases and what each reaches.
-   **Decide it together with item 227's AppImage**, which may make it moot for
-   the friendly download while the tarball stays technical. Related and also
-   yours: item 228 wants `0.9.0` in artifact names, which **cannot both hold**
-   with the unversioned `/releases/latest/download/` URL the site hardcodes.
-
-⚠️ **Before any live sitting: `displaysleep` is 10 and screensaver `idleTime`
-is 300.** That is what silently invalidated the 2026-08-02 attempt seven minutes
-in. Hold the display with `caffeinate -d -i -t <seconds>` and re-check the lock
-at BOTH ends — `live-probe.sh` only checks in preflight, and `--live-script`
-writes successful-looking `LIVE-PROBE shot … ok` lines while presenting zero
-frames under a lock.
+   every time. The release section above says what is true today and what one
+   defect necessarily rides to the tag unproven.
+3. **The release support matrix (item 226 §5) — the glibc floor. MUCH SMALLER
+   THAN `RELEASING.md`'s TABLE IMPLIES, and half-measured already.** The
+   2026-08-04 dry run's artifact was parsed for ELF version requirements:
+   **exactly two symbols need 2.39 — `pidfd_spawnp` and `pidfd_getpid`** — and
+   everything else tops out at **GLIBC_2.35**. Those two are Rust std's
+   **OPTIONAL** pidfd spawn path, picked up only because the build host had
+   glibc 2.39; std falls back to fork/exec without them. So `ubuntu-22.04`
+   (2.35) or `debian:bookworm` (2.36) plausibly costs **no feature at all**
+   while adding Ubuntu 22.04 LTS and Debian 12. ⚠️ **Bounded honestly: that is
+   what the binary REQUIRES, not proof that an older base BUILDS, and no
+   2.35-built binary has been run anywhere.** One `workflow_dispatch` dry run on
+   an older build base closes both gaps — but `release.yml`'s only input is
+   `dry_run`, so **the base change must land first**; then
+   `gh workflow run release.yml -f dry_run=true` and read the produced
+   `GLIBC.txt`. If it comes back clean, the "decide it together with item 227's
+   AppImage" coupling retires.
+4. **Item 228 versus the site's download URL — these cannot both hold.** 228
+   wants `0.9.0` in artifact names; the site hardcodes the unversioned
+   `/releases/latest/download/` URL. One of them changes; which is the user's
+   call, and it is cheapest to make before the first tag rather than after.
 
 ## Latest design decisions
 
@@ -208,9 +233,9 @@ orchestrator-authored entry; the orchestrator owns dispatch from here.
    comes back clean the support-matrix question may not need item 227's AppImage
    to answer it, which retires the "decide the two together" coupling.
 
-⚠️ **RELEASE PIPELINE STATUS CHANGED 2026-08-04 — the section at the top of this
-board is now STALE and should be rewritten by the orchestrator rather than read
-as current.** All four of item 226's defects are fixed in the tree AND proved by
+✅ **RELEASE PIPELINE STATUS CHANGED 2026-08-04, and the top section HAS NOW
+BEEN REWRITTEN to match — read it as current.** This entry is kept as the
+decision record behind that rewrite. All four of item 226's defects are fixed in the tree AND proved by
 execution: dry run `30877600332` (`workflow_dispatch`, the FIRST run of
 `release.yml` since 2026-07-11 and therefore the first since the repairs
 landed at `3160e309`) came back **green on all four jobs** — `plan`, `linux`,
@@ -318,6 +343,36 @@ was built rather than after.
 
 ## Ready — current user-visible wave
 
+**NOTHING IS CLAIMED AND NO LANE IS RUNNING as of 2026-08-04.** Every worktree
+is merged and clean. The items below are ready, unblocked, and ordered; their
+full briefs are in the item bodies further down, except item 247 whose brief is
+kept inline here because only its motion slice remains.
+
+1. **257 — the AT-SPI line runs never reach the bridge.** Deep tier. The only
+   open item that is a **live defect on a shipping accessibility path**: a Linux
+   screen reader sees a document with no content structure. Mechanism already
+   settled (the runs exist in `SemanticSnapshot` and are lost before the wire),
+   so this is a fix, not an investigation. **It also gates item 251.**
+2. **258 — Mulga's ground is replaced and `Background::Starfield` retired.**
+   Deep tier (taste + a mechanical retirement). User decision; the item names
+   the five traps verified in the tree, of which the two numbering spaces are
+   the one that will bite.
+3. **255 — the font licence document is false for 38 of 45 faces.** Production
+   tier. **Release-relevant: it rides item 226**, so whatever it says is what
+   ships to users.
+4. **256 — `code-health.toml`'s line pins conflict on every `render.rs` merge.**
+   Production tier. Pure friction, but it has now cost four consecutive merges a
+   hand-resolution, and the standing temptation is to guess a number instead of
+   measuring one.
+5. **222 / 131d — Magpie's mirrored cluster.** The user's taste call is made
+   (right-align the name text for ascending worlds; **mirror the whole cluster**,
+   not just the rail). **Unblocked now that item 242 has released
+   `render/chrome/`** — that file hold is what queued this behind, and it is
+   gone.
+6. **247's motion slice** — brief inline below.
+7. **174, 172, 116d's flip, 231** — open, long-running, and none is urgent. 231
+   is a **diagnosis** item only: its shader-size lead is dead and the cause is
+   neither known nor narrowed.
 247. **Mangrove and Magpie: the diagonal selection marker becomes an authored
 symbol that TURNS as the selection travels, and its turn direction says which
 way you moved.** **Build:** `render/chrome/diagonal.rs::prepare_diagonal_spine`
@@ -384,1191 +439,89 @@ weak a direction cue at this weight. **Rejected: `⊢` with the connector alone
 swinging** — most conservative, but a horizontal connector says nothing at rest
 and so fails the Reduce Motion clause unless the resting angle itself tilts.
 
-248. **The fold chevron tells you which way it goes, and animates the change —
-every world.** **Build:** `render/layers/fold_chevron.rs` is direction-blind
-today: `FOLD_CHEVRON` is one const (`"\u{203A}"`, `›`) and
-`fold_chevron_geometries` filters only on `fold::chevron_revealed` and
-`line_ornament_visible`. Nothing reads fold state, so a collapsed heading and an
-expanded one draw the IDENTICAL mark — the only collapsed signal is the separate
-"… N lines" tail, which by construction only exists once you have already
-folded. **Fix the information first:** `›` while the section is hidden, `⌄`
-while it is showing. Then animate the quarter turn between them on fold/unfold.
-⚠️ **glyphon 0.11 carries no transform of any kind** — `TextArea` exposes
-`left/top/scale/bounds/default_color/custom_glyphs` and nothing else, so a
-shaped run CANNOT rotate. The mark must leave the text pipeline. Build it from
-`spine_segment` + `prepare_rotated` — two arms meeting at a vertex, rotated
-about that vertex — the SAME primitive item 247 uses. Same behavior ⇒ same code:
-whichever item lands first owns the shared rotatable-mark primitive and the
-other consumes it; do not grow two. **This also retires three latent problems
-the glyph carried:** `panel_attrs()` is the ACTIVE WORLD'S FACE
-(`chrome/panel.rs:111` says so outright), so a functional affordance's SHAPE
-currently varies across 20 worlds; `⌄`/`⌃` are the same tofu class that already
-forced `panel.rs`'s `SYMBOL_FAMILY` escape hatch for ⌘/⌥; and an authored stroke
-weight sidesteps the IBM Plex Mono weight-300 tripwire entirely. **Scope:** All
-worlds — user decision. The direction information is universal grammar and never
-varies; the turn's duration and character may be a per-world dial, the way the
-ink already routes through `theme::fold_afford_chevron_ink()`.
-⚠️ **THE CARET COLLISION, recorded so it is not rediscovered mid-build.**
-`fold::chevron_revealed(line, cursor_line, hover_line)` reveals the mark when the
-caret is ON that heading's row, or on hover. So on the KEYBOARD path the mark and
-the caret are co-present BY CONSTRUCTION, a few characters apart in one row — and
-the caret is the one thing DESIGN.md grants motion (`motion.rs`'s own doc calls
-it "deliberately the one thing"). Value separation handles the static case
-correctly; motion is not separated by value. **Recommended mechanism, not a
-scope change:** animate on the POINTER path and snap on the KEYBOARD path. That
-is DESIGN.md §"Motion follows importance" applied literally — keyboard folding is
-the frequent path and gets zero delay, pointer folding is occasional and
-exploratory and gets the expression — and it means the turn only ever plays when
-it is the only moving thing on the row. If a live `--release` sitting says the
-co-present animation reads fine, promote it; that call is the user's.
-⚠️ **The contrast law is the non-vacuity proof.** `capture/tests/folds.rs`
-already pins this mark's ink against the page ground it actually renders on — an
-audit found Mangrove's chevron at ~1.5:1 and Firetail's tail at ~1.4:1,
-effectively invisible, and fixed exactly those. A turning mark passes through its
-THINNEST coverage mid-turn, which is precisely where it will fall back under the
-floor. **Run the arithmetic at the thinnest frame, not only the settled ones,**
-and prove non-vacuity by breaking the mark and watching the law go red. **Also:**
-join `TextPipeline::advance`'s OR-fold (`motion.rs`), and make DIRECTION sidecar
-STATE rather than an animation artifact — a capture with zero animation frames
-must still report which way the chevron points, or Reduce Motion loses the
-information the item exists to add. Check that the mark's row box is resolved
-AFTER the fold's own `row_geom` invalidation: `fold_chevron_geometries` reads
-`visual_rows(h.line).first()`, and folding changes row geometry. **Done:** A
-heading's chevron says whether its section is hidden or showing, before the
-first click; toggling turns it; Reduce Motion shows the correct settled
-direction with no in-between frames; every world renders the same mark shape.
-**Verify:** Sidecar for chevron direction per heading (state, and the Reduce
-Motion arm); `--screenshot` pixel arithmetic for shape and for the contrast
-sweep across the full world roster at the thinnest frame. `--keys` drives
-`C-c C-f` through the real keymap. ⚠️ The pointer path is live-only — check
-`docs/harness-reach.md` before promising a capture over hover state.
-**Routing:** Production tier (Sonnet medium) for the implementation; the
-contrast sweep is an audit and gets its own probe per the standing policy.
-
-## Active claims — 2026-08-03 afternoon wave
-
-**Dispatched 2026-08-03, four lanes. `main` CI is red on the KNOWN item-231
-wedge and nothing else** — run `30778330964` (`69f379f7`): `web`, `linux` and
-`mac live-probe` all green; `mac (build + test)` alone died as
-`native-gate: ABORTED on its 1500s budget with mac_status=143 linux_status=143`.
-That is 231's signature, not a new regression, so integration is not blocked —
-but it is also exactly the uninformative red item 243 exists to end, which is
-why 243 is in this wave. Local `main` is 6 board-only commits ahead of origin;
-they ride this wave's first train.
-
-- **116d (the flip slice)** — ⛔ **CLAIM WITHDRAWN: THE WORK WAS ALREADY DONE.**
-  Dispatched off stale board text, returned without writing product code, which
-  is the correct outcome. **The file hold is RELEASED** — `overlay_draw.rs`,
-  `overlay_rows.rs` and `chrome/mod.rs` were never touched, so **174 is not
-  blocked by this wave.** The one commit is docs-only and is merged at
-  `1bb20071`; see the board-integrity note below, which is the real finding.
-- **218** — ✅ **COMPLETE except its live sitting.** Merged `c282cedd`, pushed,
-  CI green. Receipt
-  `native-gate-receipt commit=441fdf141c87707706bf02c7864f8b0bfdba2e41 conventions=mac,linux scope=all-targets`,
-  `web-smoke: OK`. ⚠️ **This entry sat stale at 🟡 IN PROGRESS for the rest of
-  the session — the orchestrator merged the work and never wrote the landing
-  note, and the USER caught it, not the board.** Same class as `16b4e8c2`'s 116d
-  drop earlier today: **a merge is not done until its board entry says so.**
-  **Measured, with the pre-change path timed live in the same run rather than
-  remembered — per keystroke, release:**
-  100 lines `0.175 → 0.005 ms`; 1 000 `1.789 → 0.009`; 10 000 `18.07 → 0.072`;
-  **50 000 `93.33 → 0.476 ms`.** 93 ms/keystroke at 50k lines is the "awl is not
-  responding". Runs rebuilt and nodes published are **flat at every size**, and
-  the laws assert those counts rather than the clock.
-  **Two things the item did not anticipate, both found by the owner:**
-  incremental updates alone were not the fix — the snapshot *build* was also
-  O(document) per frame, so the run table had to reach into `Buffer` at its
-  three rope-mutation sites; and a third O(document) term hid in `fold_passive`,
-  computing whole-document card figures every frame **even with no card open**.
-  Ten laws, each watched failing by name, two of which catch a stale run being
-  read aloud — swept over every offset and every ordered pair of run edges in a
-  fixture with combining marks, a ZWJ family and flags across line breaks, plus
-  a 2 000-step random walk. Semantic schema `awl-semantic/1 → /2`.
-  **The wasm gate earned its keep exactly as the standing rule predicts:** the
-  change looked native-only and broke the wasm build; nothing else would have
-  caught it.
-  🔵 **OWED — a real unlocked VoiceOver typing and navigation sitting.** No test
-  tier stands in for it; `ACCESSIBILITY.md` records it as owed rather than done.
-  Honest residual for whoever runs it: 0.476 ms at 50 000 lines still grows with
-  the document, and whether that is perceptible to a VoiceOver user is
-  unmeasurable without the sitting.
-- **247's STATIC SLICE** — ✅ **COMPLETE; item 247 stays OPEN for the motion.**
-  Merged `2e23a226`'s parent. Receipt
-  `native-gate-receipt commit=ff4dd60b1d80337f174c79a366e418171510b755 conventions=mac,linux scope=all-targets`,
-  `web-smoke: OK`. **Captures, which are what this slice existed to produce:**
-  `$CLAUDE_JOB_DIR/tmp/item247-captures/{mangrove,magpie}.png`. Arms measured
-  off-axis by least-squares fit — Mangrove ±1.14, Magpie ±1.20 — mirrored about
-  the row centre (slope sums 0.010 and −0.016), opening in opposite directions
-  per `Descending` vs `Ascending`, and inside the 14 logical px reserved reach.
-  ⚠️ **THE FOURTH VACUOUS-LAW INSTANCE OF THE DAY, and it was re-proved rather
-  than asserted:** with the emitter reverted to the axis-aligned pair, the new
-  angle-grading law fails by name (`the upper arm must start at the vertex
-  (64, 6), got (64, 2)`) while `list_surfaces`, `settings_row_reach_law` and
-  `row_offset_item131` **all stay green** — they only ever check
-  `instance_count() == 2`, and a chevron is also two segments spanning the same
-  box. **A law that counts instances or measures extent frequently cannot see
-  the thing it is named for.**
-  Follow-up landed with it: `2e23a226` repins four `list_surfaces` exceptions
-  the merge shifted by one line.
-  **Still open in 247:** the turn, the travel phase, the `advance()` OR-fold.
-
-- **247 (the STATIC chevron mark only)** — 🟡 **RECLAIMED 2026-08-04 by the
-  merge-train session, with the prior owner's consent (the user reported that
-  session finished).** Branch `claude/item-247-finish`, worktree
-  `awl-next-worktrees/item-247-finish`, off the prototype `60266f9d`. **The
-  prototype is sound and is NOT being redone** — it is ungated, and the pixels
-  the slice exists to produce were never captured. Takeover work is: drop the
-  swept `queue.md` hunk, gate it, and capture at real size in Mangrove and
-  Magpie. ⚠️ **The prototype's own finding is the valuable part and must survive
-  into the landing note:** the three shipping laws that touch this mark
-  (`list_surfaces`, `settings_row_reach_law`, `row_offset_item131`) all assert
-  `instance_count() == 2`, and **a chevron is also two segments spanning the same
-  bounding box — so all three stayed GREEN across a total change of shape.**
-  That is the same vacuous-law class as items 237, 244 and 234, found a fourth
-  time in one day, and the prototype already wrote the angle-grading law that
-  closes it.
-  **Original claim follows.** — claude (opus, high),
-  **in the MAIN working tree, not a worktree** (this session is configured to
-  work in place; recorded here because the standing protocol assumes a worktree
-  and the divergence should not have to be inferred). Scope is deliberately the
-  RESTING mark alone — replace the two-segment `⊢` with the decided stroked
-  chevron in `render/chrome/diagonal.rs` and capture it at real size in both
-  Mangrove and Magpie. **The turn, the travel phase and the `advance()` OR-fold
-  are NOT in this slice** and 247 stays open after it: the symbol was chosen from
-  a description, and the user should see pixels before motion is built on top.
-  File hold: `render/chrome/diagonal.rs`.
-
-⚠️ **BOARD-INTEGRITY DEFECT — this wave's first lane was spent on it, so it is
-worth reading before the next compression.** `16b4e8c2` cleared finished items,
-which the board's own header sanctions. But for 116d it **kept the superseded
-intermediate bullet (`🟢 COMPOSITING ROUND LANDED; the flip is deliberately NOT
-done`) and dropped the `✅ COMPLETE` entry that replaced it** — and then stated
-in its own commit message that "231, 174 and 116d are open and kept verbatim."
-116d was not open. Item 116's parent entry was likewise kept verbatim in its
-pre-flip state, still reading "116d CANNOT flip `workspace_shape(History)`."
-Claim `0a1dd593` was written off that text in good faith and was wrong.
-**Verified against the tree, not the log:** `workspace_shape(History)` is
-`TimelineOverComparison` at `src/overlay/workspace.rs:129`, and
-`workspace_header_beat` is absent from `src/` entirely. The rule this breaks is
-not "don't compress" — it is that **clearing an item must clear ALL of its
-bullets, or the oldest survivor becomes the board's answer.**
-
-⚠️ **THE RECEIPT GAP IS WIDER THAN THE NOTE BELOW SAYS — 116d joins it, and its
-string is UNRECOVERABLE.** The compression deleted six `native-gate-receipt`
-strings that appear in no commit message. Most are recoverable from
-`git log -p .orchestrator/queue.md`; 116d's was **already truncated when written**
-(`native-gate-receipt commit=86d73aa3… conventions=mac,linux scope=all-targets`),
-so the full string is gone for good. `86d73aa3` is real and is a descendant of
-116d's merge `a8eef4ee`, so a gate did cover a tree containing the work.
-**Standing fix, cheap and permanent: put the receipt in the MERGE COMMIT
-MESSAGE, not only on the board.** Every recurrence of this gap has the same
-cause — the board is the only copy, and the board gets compressed.
-- **243** — ✅ **COMPLETE.** Merged `1833757b`. `mac (build + test, minus
-  render::tests)` gates with no `continue-on-error` at any level;
-  `mac (render::tests)` carries it at the **job** key and names item 231 in its
-  own job title, so the red is attributable from the workflow file alone.
-  No Rust changed, so applicable arms only — code-health, actionlint, a YAML
-  parse, and one targeted test. **No native tier claimed, correctly.**
-  Clause 3's real sub-claim was proved the right way: the gating job's own step,
-  run character-for-character, included and failed a broken `dateformat` test
-  (2865 passed, 1 failed), so `--skip render::tests` demonstrably does not
-  shield it — "cargo test fails" alone would not have proved "the job fails".
-  ⚠️ **CLAUSE 1 IS OWED and can only be paid by the first `main` run after this
-  lands**, because `ci.yml`'s push trigger is `branches: [main]` and worktree
-  branches never push. **Check it on the next push.**
-  ⚠️ **Consequence to absorb, not lose: NO hosted-mac arm prints a
-  `native-gate-receipt` anymore.** `native-gate.sh` forbids filtered invocation
-  by design, and both new jobs are filtered. Nothing parses that string from CI,
-  so nothing breaks — but a human could previously read it as informal
-  confirmation that the exact commit passed the full suite on virtualised Metal,
-  and that no longer exists in any form. This is a **different** gap from the
-  RECEIPT GAP below (which is about local pre-push receipts); it is a candidate
-  for its own item, deliberately not absorbed silently.
-  One brief correction from the lane, worth carrying: pushing a worktree branch
-  runs **nothing** — `on.push.branches` is `[main]` only.
-- **240** — ✅ **COMPLETE.** Merged `174f570d`; worktree removed. Receipt, and it
-  is **in the merge commit message, not only here** —
-  `native-gate-receipt commit=f0e8b46670e49979611278652bcf60454c1c0974 conventions=mac,linux scope=all-targets`,
-  plus web smoke `16 passed`. The gate named `f0e8b466`, whose base differs from
-  the merge candidate by two markdown files and **zero `.rs`**, so the native
-  scope carries; that reasoning is recorded in the merge message rather than
-  asserted here. The hand-kept 4-of-9 list is now one directory-driven sweep
-  that reads `shaders/` and extracts entry points from each source's own
-  `@vertex`/`@fragment` attributes, so a tenth shader **or an eleventh entry
-  point** cannot be added without validation. **No live web defect: all 9
-  shaders / 21 entry points pass GLSL ES 300** — the five uncovered ones
-  (`blur`, `caret`, `caret_glyph`, `image`, `spellunderline`) are clean, so this
-  is a coverage fix, not a defect fix. Mutation-proved **twice**: a real
-  GLES-310-only construct (`pack4x8snorm`) in the previously-uncovered
-  `caret.wgsl`, and a throwaway shader named in no list, which the sweep caught
-  with no test-code change. The orchestrator re-ran the sweep on the merge
-  candidate rather than taking the report on trust.
-- **229** — ✅ **COMPLETE.** Merged `d8ae72c9`. Receipt
-  `native-gate-receipt commit=e5c353775b72697959d7d9f5c6b3ee9b81418c0d conventions=mac,linux scope=all-targets`,
-  `web-smoke: OK`, code-health and `cargo fmt --check` clean. A 5,500-character
-  Japanese manuscript reported `1 word · 1 min`; it now reports
-  `5500 characters · 28 min`.
-  **Dominant script (decision a) = a strict majority of the BODY's own
-  characters carrying an unspaced script** — Kana/Han/Bopomofo, **Hangul
-  deliberately excluded** because Korean spaces its words. A tie, including an
-  empty document, reads `Words`. **Both rejected alternatives are recorded in
-  the doc comment rather than silently dropped:** a token-majority rule would
-  label a document "characters" over one short inserted phrase, since every
-  ideograph is its own token; and the frontmatter `lang:` tag is declared intent,
-  not a report of what is written — the existing fixture tags `lang: ja` on
-  space-separated English and must not read "characters". The counting rule runs
-  regardless of the label, so the mixed pinned case goes **4 → 14** tokens while
-  staying labeled "words", which is exactly what the user's decision asks for.
-  **`SCHEMA_VERSION` 197 → 198** (decision c): `readout` and `hud` each gain a
-  `unit` field, both fed by the one owner `card::figures::{readout_figures,
-  CountUnit}` per item 230's seam. No second counter — decision (b) held.
-  Mutation-proved twice, across the figures, HUD-row and sidecar-agreement laws.
-  **Unanticipated and handled well:** `card/figures.rs` and `card/content.rs`
-  crossed the 500-line production ceiling with no grandfathered escape, so each
-  decomposed into a directory with a sibling `tests.rs`.
-- **238** — ✅ **COMPLETE.** Merged `c1a9d5ce`. Receipt
-  `native-gate-receipt commit=7c89c07e2f09350c7abb2d4efc3a47bff39b13db conventions=mac,linux scope=all-targets`
-  (in the merge message too), web smoke `16 passed` / `web-smoke: OK`,
-  `site-links.sh` green on 12 + 12. **The GPLv3 §6(d) source offer in every
-  release tarball no longer depends on GitHub's redirect staying up** — that was
-  the highest-stakes line in the item. 30 sites fixed, matching the survey floor
-  exactly, including `site/check.js`'s `RELEASES_URL` and 8 in `site/llms.txt`
-  that the item named nowhere and no HTML sweep would have caught.
-  **Both traps were established, not concluded:** `ci-mac-bisect.sh` was fixed
-  on its own unmerged branch (`584b4a7b`) and proved not to be a trap by copying
-  the *original unfixed* file in and watching the law fail by name on all three
-  lines; `site/editor/` was cleared by reading `deploy-web.yml`'s assemble step
-  (`rm -rf` then fresh `trunk` output) and the `flyctl` working directory, so the
-  live deployment never serves the stale bundle.
-  ⚠️ **Its own code-health run caught a real defect before integration** — four
-  doc comments citing "item 238", against the comments-aren't-history
-  convention. Fixed at `1549a6fd`.
-  ✅ **`git remote` IS REPOINTED** — the orchestrator did it before dispatch and
-  verified it without a redirect (`git ls-remote --heads origin main` →
-  `69f379f7`). It is config, not a commit, so it appears in no diff; the worker
-  owns only the tracked-file surface and the law.
-
-✅ **TRAIN PUSHED 2026-08-03/04: `69f379f7..3b354d3a`.** Green train on the exact
-combined candidate —
-`native-gate-receipt commit=3b354d3af731c50533bd898a92483bd3e3719e84 conventions=mac,linux scope=all-targets`,
-0 failures, plus `web-smoke: OK` and code-health clean. **CI run `30825396088`
-confirms item 243's split is LIVE**: the job list now reads
-`mac (build + test, minus render::tests)` and
-`mac (render::tests) — allowed failure, item 231`.
-
-✅ **`main` IS GREEN AND STAYED GREEN THROUGH A RED AND A REVERT.** Second
-confirmed green: run `30848110830` (`37098cb4`, item 245 plus the 239 revert) —
-all four gating arms success, `mac (render::tests)` failure and tolerated. The
-split has now correctly reported three distinct states in one session: a real
-regression (the clippy arms), a bad new law (239's oracle), and green.
-
-✅✅ **ITEM 243 IS COMPLETE — CLAUSE 2 PAID, AND `main` IS GREEN FOR THE FIRST
-TIME IN THE RECORDED WINDOW.** Run `30838810157` (`76903fc1`) concluded
-**`success`** with `mac (render::tests)` at **`failure`** and all four gating
-arms green. **A tolerated wedge failure now leaves the workflow green, which is
-the whole thing the split was for.** Checked rather than assumed:
-`gh run list --branch main --limit 25 --json headSha,conclusion` returns
-**exactly one** success, and it is this run — so after the ~140-commit red
-streak and everything since, this is `main`'s first green.
-**Both of item 243's owed clauses are now closed by real runs, not by parse:**
-clause 1 on `30825396088` (the gating arm passing on a hosted runner) and
-clause 2 here. **When item 231 lands, `mac (render::tests)` goes green and is
-promoted to gating with no further decision needed** — that is why the shape
-only had to be decided once.
-
-🔴 **243's VERIFY CLAUSE 2 FAILED ON ITS FIRST REAL RUN — repaired at
-`da70df93`, and the mechanism is worth knowing repo-wide.** Run `30825396088`
-concluded **`cancelled`** with **every gating arm green**:
-`mac (build + test, minus render::tests)`, `linux`, `web` and `mac live-probe`
-all success; only the tolerated `mac (render::tests)` was non-success, at
-`cancelled` after 60m33s. **`continue-on-error: true` tolerates a job that
-FAILS. A step or job exceeding `timeout-minutes` is CANCELLED, not failed, and
-cancellation propagates to the run's conclusion regardless.** So `main` still
-did not read green — the exact uninformative signal the split existed to end.
-**This is precisely why the 243 lane refused to claim clause 2 from a YAML parse
-and named it owed; the parse was right about the shape and the shape was
-insufficient.** Fix: `scripts/ci-wedge-budget.sh` bounds the hang INSIDE the
-step and exits non-zero, an ordinary failure `continue-on-error` does tolerate;
-`timeout-minutes` stays as a backstop above it for the runner-loses-comms case
-(`actions/runner-images#13882`) that no in-process watchdog survives. The test
-filter is passed FROM the workflow so the scope stays readable there — 243's own
-promise — and `mac-split-audit` keeps grading the real invocation; that audit
-caught the first attempt at exactly this and was re-proved to still bite.
-Watchdog proved in isolation (137 on overrun, 0 otherwise) since the hang only
-reproduces on hosted macOS. **Clause 2 end-to-end is owed to `da70df93`'s run.**
-
-⚠️ **TO ITEM 247's OWNER — your commit `60266f9d` carries 21 lines of BOARD text
-you did not write, and this paragraph is the third recurrence of that class.**
-The merge-train session had this CI-RED note **staged but not committed** in the
-main working tree when you branched to `claude/item-247-chevron-prototype`; a
-`git checkout -b` carries staged changes across, so your commit swept it. **No
-harm done and nothing was lost** — it was recovered from your commit and
-re-applied here, which is why you are reading it. **Two asks:** drop the
-`.orchestrator/queue.md` hunk from `60266f9d` before landing 247, or expect a
-conflict against this text; and going forward, `git add` explicit paths in a
-shared tree rather than `-A`/`-u`. Thank you for moving 247 onto a branch — that
-resolves the collision the previous paragraph proposed, and the main tree is
-free for the train again.
-
-✅ **243's VERIFY CLAUSE 1 IS PAID, and this is the wave's headline result.**
-On run `30825396088`, `mac (build + test, minus render::tests)` completed
-**success** on a hosted runner. **That is the first hosted-mac arm to pass and
-gate in ~140 commits.** `linux`, `web` and `mac live-probe` are green alongside
-it. The tolerated `mac (render::tests)` was still running when the gating arm
-finished — expected; it may burn its 90-minute ceiling, and that is by design,
-not a new signal. **What this buys, starting now: real virtualised-Metal
-coverage over ~95% of the suite, and a red that names its own cause from the
-workflow file alone.** Clause 2 end-to-end — that the tolerated job's red does
-not fail the workflow — is settled by that run's final conclusion; the YAML
-shape was already proved by parse (job-level `continue-on-error`, gating job
-carrying none at any level).
-
-⚠️ **THE SAME ANTI-PATTERN APPEARED TWICE IN ONE WAVE, in different costumes —
-this is the wave's most reusable finding.** A hand-kept roster standing in for a
-derived one. Item **240** removed it from the shader sweep (a hand-kept list
-covering 4 of 9 shaders → a directory-driven sweep). Item **238's new law then
-reintroduced it**: `no_tracked_file_spells_the_old_repository_reference` walked
-the filesystem behind a hand-kept `SKIP_DIRS` list that has to be held in sync
-with `.gitignore` by hand. It went red on combined `main` over
-`.playwright-mcp/` — gitignored browser snapshots holding pre-rename URLs no
-shipped artifact has ever contained. **The asymmetry is the instructive part: CI
-checks out a clean tree and would have passed, so only developers with local
-debris would ever have seen it, each rediscovering it separately.** Repaired at
-`3b354d3a` with `git ls-files -z`, which is definitionally the set the law's own
-name and panic message claim and cannot drift. Mutation-proved both directions —
-red by name at `README.md:73` on reintroduction, and green with the untracked
-snapshots still present on disk, which is the actual regression. A non-vacuity
-assert was added on the enumeration, because a broken listing would have
-filtered every offender out and passed silently. **When a law says "tracked",
-ask git.**
-
-- **237** — ✅ **COMPLETE.** Merged `72d08422`. Receipt
-  `native-gate-receipt commit=459911d86031d8a01a3c340210a43fdcac406b52 conventions=mac,linux scope=all-targets`,
-  `web-smoke: OK`, code-health and fmt clean. Arm 2 **re-aimed, not deleted**:
-  it now reads `geom.text_left` against the left edge of what
-  `overlay_bar_rects_probe` actually emitted, so it fails on item 234's defect
-  directly **and** on a decoupling of `bar_hug_span`'s left edge from
-  `bar_full_span`'s — which arm 1 structurally cannot see. Arm 1 untouched; the
-  item-236 scrim gate confirmed untouched too.
-  ⚠️ **THE MOST INSTRUCTIVE PART: the owner's FIRST redesign was the same class
-  of defect it was sent to fix.** Non-tautological, but blind to the bug it
-  named — it graded the drawn plate's placement against itself, never reading
-  `geom.text_left`, and **passed clean with item 234's original mutation live.**
-  What exposed it was isolating arm 1 and re-running the mutation. **That is the
-  generalisable technique: to test whether arm N is real, neuter the other arms
-  and re-run the original defect.** A law suite can hide a dead arm behind a
-  live one indefinitely otherwise.
-  A real product feature nearly became a false positive: taking the minimum x
-  across plates picked up the SELECTED plate, whose left edge
-  `overlay_selected_bar_rects` mirrors by `grow_px` on `TopRight`/
-  `mirrors_growth` worlds (Cassowary, Firetail). Restricted to grow-immune
-  unselected/footer plates.
-  **Brief correction worth carrying:** the phrasing "the oracle must read the
-  DRAWN text" pointed at the plate, and reading the plate ALONE is itself the
-  trap. The oracle has to read the text's own position.
-
-- **244** — ✅ **COMPLETE except its live sitting.** Merged `0d0a8b1b`. Receipt
-  `native-gate-receipt commit=5d17b676471646be9380eed0fb2b1209c150c6a9 conventions=mac,linux scope=all-targets`,
-  `web-smoke: OK` (16 passed), **`bash scripts/code-health.sh`** clean, fmt
-  clean. The field translation is **deleted outright**, both terms; the
-  companion breathe reuses `stars.rs`'s envelope verbatim so the integer-cycles
-  law covers the new motion and the pop cannot return through a different
-  variable. The vacuous law is **deleted, not edited** — verified absent by grep
-  and by a 0-test run.
-  **Numbers, because this item's Verify clause is unusually falsifiable:**
-  wrap pair **0 of 960000 pixels differ** across the wrap and **2413 differ
-  mid-cycle**, so the field is provably still AND the probe is provably not
-  vacuous. Byte-identity **19/20 PNG** (only Bowerbird differs) and **20/20
-  sidecars**.
-  ⚠️ **Two pieces of method worth stealing.** It mutation-proved **one arm at a
-  time** — item 237's technique, applied unprompted a few hours after 237
-  established it — and the replacement law **names the consumer it caught**
-  (`Bowerbird (organic companion breathe): … 15 channel levels`;
-  `Bombora (waves): … 33 channel levels`) rather than merely going red. And it
-  **caught its own confound**: a naive same-worktree byte-identity comparison
-  reported a spurious `dirty` sidecar diff, so it re-measured from a
-  matched-basename worktree at the parent commit, because the gutter renders the
-  project name and a different basename changes the pixels.
-  ⚠️ **It also cherry-picked `f8121f45` into its branch** rather than leaving the
-  red for integration — its base predated the clippy repair, so its own
-  `code-health.sh` inherited main's failure. Merged without conflict.
-  🔵 **OWED, and nothing above implies it:** the `--release` sitting — whether
-  the pop is gone by eye, the amplitude (`ORGANIC_BREATHE_AMOUNT = 1.2`, tuned
-  to a ~17-level peak channel swing after a first value proved sub-perceptible),
-  and whether it reads as a flash. Both constants are marked taste-tunable in
-  the shader. **The display is locked; no sitting was attempted.**
-
-🔴🔴 **CI RED 2026-08-04, CAUSED BY THIS SESSION'S OWN BRIEFS. Repaired at
-`f8121f45`, pushed. READ THIS BEFORE WRITING ANOTHER BRIEF.**
-
-Run `30830772892` failed **both** gating arms — `mac (build + test, minus
-render::tests)` and `linux` — at the step "Rust code health", on six clippy
-errors from items 218 and 229: three test-only helpers reported never-used
-(`stats`, `accessibility_stats` in `app/frame/accessibility.rs`,
-`incremental_tree_update` in `semantic/native.rs`), three
-`doc_lazy_continuation` in `card/figures/mod.rs`, and one `map_clone` in
-`semantic/native/tests.rs`.
-
-‼ **THE CAUSE IS THE WRONG GATE COMMAND, AND IT IS THE ORCHESTRATOR'S FAULT.
-CI runs `bash scripts/code-health.sh`. Every brief in this wave — and every
-check the orchestrator ran itself — used `python3 scripts/code-health.py`.**
-The `.py` is real but **NARROWER**: it carries the structural and Clippy
-ratchets and genuinely caught two defects today (a 104-column line, four
-queue-item citations in comments). The `.sh` additionally runs the clippy arms,
-**including the mac-only cfg arm**, which is where all six of these lived.
-**Two lanes reported "code-health clean" in good faith while running the wrong
-entry point, because the brief told them to.** An earlier note in this section
-says the briefs "omitted code-health" — that was only half the story, and the
-half that followed was worse, because naming the wrong command reads as
-coverage. **THE PRE-LANDING COMMAND IS `bash scripts/code-health.sh`. Say that,
-not the `.py`.**
-
-Repair: the three helpers are genuinely test-only (verified by grep — their only
-callers are `tests.rs` files), so they are `cfg(test)`-gated rather than
-silenced with `allow(dead_code)`. That stranded `ProjectionStats` as an unused
-import twice, so its re-export is split rather than deleted —
-`SemanticProjection` still has non-test consumers and `ProjectionStats` no
-longer does. Reproduced with the `.sh` before fixing and verified with it;
-`native-gate-receipt commit=f8121f4503d82dd62c726a62667bde0adfa35744 conventions=mac,linux scope=all-targets`,
-`web-smoke: OK`.
-
-✅ **WORTH SAYING PLAINLY: ITEM 243's SPLIT IS WHAT CAUGHT THIS, on its second
-real run.** Before the split these six errors would have landed inside a job
-that was already red for item 231's wedge, and nothing would have distinguished
-them from the known hang. That distinction is the entire rationale of the item,
-and it paid within hours.
-
-✅ **AND THE WEDGE REPAIR (`da70df93`) IS PROVEN AT THE JOB LEVEL:** in run
-`30830772892`, `mac (render::tests)` concluded **`failure`**, not `cancelled`,
-after 64m05s — the 2×1500 s budget plus build, as designed. `ci-wedge-budget.sh`
-converts the hang into an ordinary failure exactly as intended. **What is still
-owed is one run where the gating arms PASS and a wedge failure alone leaves the
-workflow green** — that is run `30836476858` on `f8121f45`, in flight.
-
-- **245** — ✅ **COMPLETE.** Merged `5635b5e2`. Receipt
-  `native-gate-receipt commit=3763064e76aab3a10c3e93dd7b3f1bef80d026c9 conventions=mac,linux scope=all-targets`,
-  `web-smoke: OK`, `bash scripts/code-health.sh` clean, fmt clean. The 5,500-
-  character Japanese fixture now reads **11 min** — it was 28 after item 229 and
-  a flat 1 before it.
-  **The rate is LANDED, not parked: 500 characters/minute**, the round midpoint
-  of the published ~400–600 cpm Japanese silent-reading range, chosen the way
-  200 wpm is the round conventional English figure. 🔵 **It is one constant,
-  `CJK_CHARS_PER_MINUTE`, and it is a taste-checkable number — if the user wants
-  a different pace it is a one-line change, not a rebuild.**
-  **The structural part is better than the number:** `markdown::reading_time_min`
-  now **takes the pace as an argument** instead of hardcoding `READING_WPM`, so
-  no caller can silently apply the wrong rate — the defect cannot recur through
-  a second call site. The pace lives on `CountUnit::pace_per_minute`, beside the
-  enum, and `readout_figures` just asks the unit; item 229/215's single seam was
-  not reopened. Mixed documents take the dominant script's pace outright, so
-  `dominant_unit`'s strict-majority rule decides label and pace in one edit and
-  its no-flicker guarantee covers the pace for free.
-  **`SCHEMA_VERSION` checked and deliberately NOT moved** (stays 198):
-  `reading_min` is an existing field gaining a corrected value, not a new shape,
-  which is `capture.rs`'s own stated bump criterion.
-
-⚠️ **THE 245 LANE INDEPENDENTLY HIT BOTH OF THE ORCHESTRATOR'S OWN MISTAKES
-FROM TODAY, ONE OF THEM DESPITE AN EXPLICIT WARNING. That makes them process
-defects rather than individual lapses, and they belong in the brief template.**
-- **It committed while its own gate ran** — "commit before any wait" taken
-  literally, mid-suite — and `native-gate.sh` refused the receipt exactly as it
-  refused this session's (`start=d0c1dfc3… end=3763064e`). A clean full run
-  thrown away, for the second time today, by two different actors. **The rule
-  has to be stated as an ORDER, not a duty: commit BEFORE launching the gate,
-  never during it.** "Commit before pausing" and "do not commit during the gate"
-  read as compatible right up until the gate is the thing you are pausing on.
-- **It hit a variant of the self-matching `pgrep` trap the brief had warned it
-  about.** It correctly used the bracket form `pgrep -f '[n]ative-gate\.sh'` —
-  and still matched itself, because its own wait loop contained
-  `echo "native-gate.sh finished"`, an UNBRACKETED occurrence elsewhere on the
-  same command line. **So the bracket trick is not sufficient; any occurrence of
-  the literal string anywhere in the watcher's command line defeats it.** It
-  recovered by switching to `kill -0 <pid>` on the known launch PID, which has
-  no such failure mode. **Prefer the PID.**
-
-## Active claims — 2026-08-04 second wave
-
-✅ **The first wave is fully landed and CI-green at `367a22ec`** — every job
-success except the tolerated wedge. Thirteen items: 240, 243, 238, 218, 229,
-237, 244, 245, 246, 249, 250, 247's static slice, 221; plus 174 re-scoped, 116
-closed, the receipt gap resolved, and five CI repairs.
-
-- **242** — ✅ **COMPLETE, and it was a LIVE APPEARANCE BUG, not the consistency
-  cleanup it was filed as.** Merged `be2d328f`. Receipt
-  `native-gate-receipt commit=7b7a6ff83f75871223e9caea3d6eb2699df1a4ee conventions=mac,linux scope=all-targets`,
-  `web-smoke: OK`, `code-health.sh` clean, fmt clean.
-  **Measured before any migration, on the shipping default at matched logical
-  size:** the drawn text inset inside the card is **11 device px at BOTH dpi 1
-  and dpi 2** while `line_height` goes 32 → 64. Pad-to-text ratio **0.3438 →
-  0.1719, exactly 0.500.** ⚠️ **Chrome padding has been rendering at half its
-  tuned size on every Retina display — and `--capture-dpi 1` is the one scale
-  where that cannot show, so every capture in the repo missed it by
-  construction.**
-  **Six corrections to the item's own measurements; two matter beyond this
-  round.** "Mixed three different ways" **undercounted — there were four**:
-  `diagonal.rs`'s `_LOGICAL` set had a *mechanism*, not just a naming
-  convention, multiplying by `dpi.max(1.0)` — a third scale, DPI-only and
-  grow-only, never zoom. And **`PLACARD_INSET` is on the item's migrate list and
-  MUST NOT BE** — migrating it breaks the existing named law
-  `placard_size_is_window_scaled_not_zoom_scaled`, measured at a scale-4.5
-  poster shrinking 1163.6 → 1129.7px at zoom 2. The placard is **frame, not
-  text**; the family is chrome's annotated `Physical` exception with reasons at
-  each declaration site.
-  **The largest single residual was not a constant**, so no constant list could
-  have named it: `theme_overlay_geometry` carried a verbatim second copy of the
-  flat family's literals. Found by the capture matrix, not by reading.
-  **Evidence, 720 probes × 2 trees, compared in place:** dpi 1 **byte-identical**
-  (0 of 960 files, 20 worlds × 12 surfaces × 2 canvases); dpi 2 differs in all
-  480, and the deltas are corrections **toward** exact proportionality — mean
-  deviation from `2×` the dpi-1 value falls **50.45px → 0.15px**, worst 1.00px,
-  **zero cells farther from proportional than base.**
-  Five laws, five isolated arms. Claim 1 grades placement and pad **separately**,
-  which is item 248's trap exactly. Two vacuity traps were caught during
-  authoring: a const parser matching only bare `const` (would have skipped every
-  `pub(super) const`) and a pixel probe reading the card's rim on bordered
-  worlds (would have measured zero everywhere).
-  **Merge note:** `code-health.toml`'s `render.rs` mark conflicted with 248, as
-  the lane predicted. Re-measured on the combined tree rather than summed —
-  **2606, not 2578+28**. Both reason strings merged.
-  **Named residual, left deliberately:** the declaration law covers authored
-  `const`s and **not inline literals**; seven chrome pixel lengths remain
-  physical inline (`gutter.rs:262,321,355,404`, `outline.rs:221,796`,
-  `diagonal.rs:460-461`), all in margin chrome, none in the summoned-overlay
-  families the item measured. 🔵 **Also not done: the formal affordance-locating
-  vision smoke over ~5 gallery shots.** The lane did an eyes-on retina pass and
-  reported it as such; the standing policy asks for the structured version.
-
-- **248** — ✅ **COMPLETE except the motion's live feel.** Merged `bb78321c`.
-  Receipt
-  `native-gate-receipt commit=843986fdadf6cf6254a419c4665f577a545e8c80 conventions=mac,linux scope=all-targets`,
-  `web-smoke: OK`, `code-health.sh` clean, fmt clean. **The affordance told you
-  nothing before you used it** — collapsed and expanded drew the identical `›`,
-  and the only collapsed signal was the "… N lines" tail that by construction
-  appears only after folding. The mark now leaves the text pipeline entirely
-  (glyphon 0.11 exposes no transform, so a shaped run cannot rotate) and is
-  built from `spine_segment`, following `chrome::diagonal::selected_chevron` as
-  a pattern without depending on it.
-  **Still-frame proof is an aspect INVERSION on real GPU pixels:** collapsed
-  spans 8×6, expanded 6×8. `REACH_CHARS`/`SPREAD_CHARS` are deliberately unequal
-  **so that footprint signal exists at all** — a considered choice, not a
-  coincidence.
-  ⚠️ **FOURTH CONFIRMATION OF THIS WAVE'S LESSON, and the sharpest statement of
-  it yet.** Reverting the state read to `collapsed: false` — the original defect
-  exactly — turned the two **state-reading** laws red while **both arm-shape
-  laws stayed green**, because they pass an explicit `turn_deg` and bypass the
-  state read entirely. **A suite carrying only the shape law would have shipped
-  this regression silently.** Same shape as 237, 244 and 247: the law graded
-  something adjacent to the defect rather than the defect.
-  **The animation is verified, not stubbed** — injected `dt`, the same mechanism
-  the caret spring uses, with a genuine mid-glide value strictly between the
-  endpoints and an exact settle. 🔵 **Owed:** the 140 ms quarter turn's
-  real-time *feel* at 60 fps, which no capture can reach.
-
-- **242 (chrome's default pixel space)** — 🟡 IN PROGRESS — claude (opus, high),
-  branch `claude/item-242-chrome-pixels`. **File hold: `src/render/chrome/` and
-  `src/render.rs`'s `Metrics` boundary.**
-- **248 (the fold chevron's direction, then its turn)** — 🟡 IN PROGRESS —
-  claude (sonnet, medium), branch `claude/item-248-fold-chevron`. **File hold:
-  `src/render/layers/fold_chevron.rs`.** Reads `chrome/diagonal.rs`'s
-  `selected_chevron` as the pattern; briefed not to write chrome.
-
-⚠️ **ONLY TWO LANES, AND THAT IS THE HONEST MAXIMUM — not a lack of work.**
-**242 holds most of `render/chrome/`, which is the same surface 224, 222/131d,
-247's motion slice and every one of 174's re-scoped candidates need.** Those
-five are ready and unblocked in every sense except this one, and they queue
-behind 242 rather than racing it. Sequencing, not scarcity.
-
-🔵 **ITEM 252 IS NOW BLOCKED AGAIN, BY A DECISION WORKING CORRECTLY.** It needs
-to push an evidence branch to reach CI's Linux runner — and the exception that
-allowed that was **scoped to item 249 and removed by item 250** once 249's
-lavapipe evidence landed. That is the rule behaving exactly as designed, not a
-regression. **252 needs a fresh grant, and it is a smaller ask than 249's was:**
-one PR, one run, branch deleted, to prove awl's AT-SPI bridge comes up on real
-Linux — a path **no local gate on this Mac can reach**, under code item 218
-rewrote today and whose own report said the Linux behaviour is untested.
-**Recommendation: grant it on the same terms.** Parked rather than assumed.
-
-☠️ **ITEM 231's SHADER-SIZE LEAD IS DEAD — falsified 2026-08-04, merged
-`ee7353e5`. And the ORCHESTRATOR'S OWN FALSIFICATION CRITERION WAS WRONG, which
-is the part worth carrying.**
-
-The brief set a binary rule: *if HEAD gets dramatically further than test 199,
-the lead survives.* **HEAD got 2.6× further — 160 → 413–418 — so that rule would
-have CONFIRMED it.** The lane ignored the rule and tested the hypothesis
-directly, which is what killed it:
-- **HEAD carries the LARGEST `background.wgsl` of the three trees, 76,769 B.**
-  The size law predicts `160 × 72896/76769 = 152` tests. Measured **413–418**,
-  off by **2.7×**.
-- The 0.13% match required something HEAD disproves. Fit
-  `budget/test = C + K·shader_bytes` across the two boundaries: `39C = −15,353K`,
-  so **C is negative** — the coincidence is only available if the non-shader
-  residual is **zero**, and HEAD measures that residual directly at
-  **12.3 MB/test**, monotonic, to the same kill.
-**A single-number pass/fail test can confirm a false hypothesis when the
-quantity moves for another reason. Prefer testing the mechanism's own
-prediction.**
-
-**Rig fidelity proved, not asserted:** at `8207e519` it reproduces item 232's own
-provenance markers (719 tests, 2 `warped_grid`) and dies on the identical test
-three times; binary sha256 identical within an arm and different across arms;
-seven runs alternated head/bad/head/bad and all reported.
-
-**A real improvement was measured, at a matched point so differing test sets
-cannot explain it:** at the last test `8207e519` finished, the boundary held
-**4,094 MB** and HEAD **2,005 MB** — 2.04× less, having run three MORE tests. An
-opt-level-0 control rules out the profile. ⚠️ **The lane refuses to credit
-`gpu_cache` for it** — HEAD is many commits past the boundary and still carries
-~1,800 uncached pipeline builds, so the 2.04× **cannot be apportioned**. That
-refusal is correct; do not let a later reader turn it into a claim.
-
-⚠️ **ITEM 231 IS NOT FIXED, NOT EXPLAINED, AND NOT NARROWED.** Every death here
-was a prompt SIGKILL with `oom_kill=1`; the hang is the runner parking forever
-in poll with memory flat. **What died is one hypothesis about the container's
-OOM, which is a proxy and not the defect.**
-
-**Cost, corrected:** the board said ~168 GiB free; the host reported **142**.
-Docker's data dir was **48 G before and after** — it peaked at 54 G and the
-sparse `Docker.raw` returned the blocks, which item 232's ~14 GiB did not.
-Residual **~170 MB** of build-cache layers, left deliberately rather than run a
-prune that would have deleted other lanes' entries. **The rig is now
-`scripts/oom-budget-container.sh`**, labelled in its own header as a diagnostic
-reproducer and **not a gate** — it existed only as prose in two items that both
-called it "the fast local oracle that already exists", and rebuilding it from
-that prose cost a rediscovery of the sccache-wrapper trap.
-
-
-Item 249 measured `background.wgsl`'s size ratio across the bisect boundary at
-**1.2421** against the container's own test-count ratio of **1.2437** — 0.13%
-apart. If per-translation shader-compilation memory dominates the OOM budget,
-one container run at HEAD should get dramatically further than test 199, or not
-OOM at all, because `gpu_cache` cut program builds 9.3× after both boundaries.
-⚠️ **The cost is what item 232 already measured and refused: a 1.67 GB image and
-~14 GiB of Docker VM disk that did not return.** 168 GiB is free now, so it is
-affordable — but 232's refusal was a deliberate call and re-opening it is the
-user's, not a lane's. **Recommendation: worth one run**, because a two-data-point
-coincidence at 0.13% either becomes a real lead or dies cheaply.
-
-- **221** — ✅ **COMPLETE.** Merged `751c385f`. Receipt
-  `native-gate-receipt commit=cb00cae1662259278b0360d64209b9a47bba4084 conventions=mac,linux scope=all-targets`,
-  `web-smoke: OK`, `code-health.sh` clean, fmt clean. Cassowary's active lens
-  name — Files / Navigate / Settings — now reads bottom-to-top, rotated 90°,
-  flush to the card's left edge; none under All. Reuses item 235's rotated glyph
-  run rather than adding a second rotation path, and Cassowary's expression is
-  **theme data**, not a palette code path.
-  ⚠️ **The shrink-to-fit budget exists because pixel arithmetic caught a real
-  defect, not because it seemed prudent:** the first centred placement
-  measurably bled "Settings" and "Navigate" into the next command row's plate,
-  and bottom-anchoring alone then measurably touched the lens strip's pill
-  above. Budget is `row_height + header_gap·0.55` with a legibility floor.
-  **The law is a differential GPU-pixel oracle** — the cue's frame against the
-  same frame with `overlay_location: None` — swept over 2 DPIs × 3 lenses, each
-  cell asserting ink present in the permitted band (non-vacuous), leftmost
-  differing pixel within `2·inset` of `card_x`, and zero pixels past the budget
-  either way. The All-lens companion proves the oracle is **not merely silent by
-  construction**, which is the failure mode four laws hit today.
-  **Isolation measured:** of 960,000 pixels exactly **2,225 differ**, all inside
-  an 81×47 box. Byte-identity **14/14 PNG and 14/14 sidecar** across six other
-  worlds — compared **in place via stash**, deliberately not a second worktree,
-  so item 244's basename trap could not apply. Mutation-proved with the arm
-  isolated: removing the wiring left the three pure-geometry laws green (they
-  call `rotated_location_origin` directly) while the real-pixel law went red.
-
-🔴 **A THIRD VARIANT OF THE SAME ORCHESTRATOR ERROR CLASS, 2026-08-04 — and this
-one is the least obvious, so it is the one most worth writing down.** Two board
-commits meant for `main` (`69ebe46d`, item 116's closure; `cb00cae1`, the
-receipt-gap resolution) **landed on `claude/item-221-cassowary-files` instead.**
-Cause: **the Bash tool's working directory PERSISTS between calls.** The
-orchestrator ran `cd` into 221's worktree to check its status, then committed
-twice without returning — so both commits went to whatever branch that worktree
-had checked out. The 221 lane noticed and reported it accurately; its first gate
-run was invalidated by it (`HEAD changed while the suite ran (start=a15a538e…
-end=cb00cae1…)`), costing a clean 388 s run.
-**All three of today's variants share one root — not verifying WHERE you are or
-WHAT you are staging before committing:**
-1. `git add -u` in a shared tree, sweeping another session's source (`f0e0f5b3`).
-2. Staged changes carried across by `git checkout -b` (`60266f9d`).
-3. **A persistent `cd` putting commits on another lane's branch.**
-**The habit that prevents all three: `pwd` and `git rev-parse --abbrev-ref HEAD`
-immediately before any commit, and `git add` explicit paths — never `-u`, never
-`-A`.** No harm here beyond the wasted gate; the commits were markdown-only and
-came home with 221's merge.
-
-- **241** — ✅ **COMPLETE except a live confirmation on the user's own window.**
-  Merged `378495d3`. Receipt
-  `native-gate-receipt commit=bd0b09f31c66a374120116a3210253171226ac16 conventions=mac,linux scope=all-targets`,
-  `web-smoke: OK`, code-health and fmt clean, `--bench-theme-burst` witnesses
-  intact. **Live, release, same HUD, screen re-checked unlocked at BOTH ends:**
-  Kite→Mulga 30 ms burst **105.4 → 10.1 ms** (99.3% accounted); Tawny→Mulga
-  **105.8 → 9.9**; the isolated arm went from **no readout at all** → 13.6.
-  **The discriminator did its job and named (b).** The headline tracked the
-  constant one-for-one (0/50/100/250 ms → none/64.1/105.4/262.1), so the settle
-  was almost entirely deliberate waiting — and **Tawny, a quiet static world,
-  measured the same 105.8 ms, which EXCLUDES Kite's `WarpedGrid` outright.**
-  (c) is excluded too: no hidden ~100 ms outside the phases.
-  **Two premise corrections worth keeping.** The instrument's blindness was real
-  but a *different shape* — `retint_theme_preview`'s `Immediate` arm ran the
-  **untimed** `sync_theme_font()` and armed no transaction, so the readout could
-  **only ever report a coalesced settle**. That is why 1.8% was the normal
-  reading: the instrument only ever showed the case that was 96% waiting. And
-  there WAS a genuine unaccounted gap, just not a 100 ms one — the commit arm's
-  **23.5 ms was the surface-acquire wait**, excluded from both neighbouring
-  spans, now named `Acquire` and `Schedule`. `MIN_PHASE_COVERAGE` (0.80) makes
-  any future gap self-reporting.
-  **Item 202 is preserved and PROVED, not asserted:** a 1896-line document still
-  shows one leading reshape and one trailing settle (`wait 106.7 · reshape
-  27.1`), because a 27 ms reshape is worth deferring. The 4 ms threshold sits on
-  the measured spread (0.2 / 12.0 / 24.4 ms by document), not a round number,
-  and an **unmeasured** cost falls back to item 202's clock rule rather than
-  opening the cheap gate — mutation-proved.
-  🔵 **OWED, and small:** every live number came from a 900×600 probe window;
-  the user's 4530×2756 @2x window will show larger `atlas`/`acquire`. The
-  mechanism is window-independent, but the absolute after-numbers on that
-  machine are unmeasured. Also untested live: a dense pointer/wheel sweep, which
-  shares `retint_theme_preview` so the rule applies but the cadence is unproven.
-
-- **249** — ✅ **COMPLETE, and it found an UPSTREAM BUG.** Merged `66738bb9`.
-  Receipt
-  `native-gate-receipt commit=028fdc0ac7bb24114c8d40b01fba8b63d1f5995b conventions=mac,linux scope=all-targets`,
-  `web-smoke: OK`, `code-health.sh` clean.
-  **The cause of item 239's revert, verified in the vendored source:**
-  wgpu-hal 29.0.3's **Vulkan** backend never increments `textures` on
-  `create_texture` — its only `textures.add(1)` is `add_raw_texture`, for
-  externally-owned images — while `destroy_texture` still decrements. Metal,
-  gles and dx12 all balance. **So on every Vulkan device the live texture count
-  starts at zero and walks negative**, and `delta 0` and `textures -8` were the
-  same missing line seen from two angles. Item 239's table was right about three
-  rows and wrong about the fourth.
-  ⚠️ **THE LESSON IS THE METHOD, NOT THE BUG.** 239 read the source carefully
-  and still shipped a non-portable oracle. 249 **stopped reading source**:
-  `gpu_alloc::probe` creates one object of each class on the device actually
-  present and the laws assert only over classes that **responded**. Unit is
-  `buffers + texture_views`; `textures` is dropped from the unit and kept in
-  reporting. **Ask the device, not the docs** — now a `CLAUDE.md` tripwire.
-  **Proved on lavapipe BEFORE landing**, which is the clause the item existed
-  for: run `30870887402`, adapter llvmpipe / Mesa 25.2.8, linux job green on all
-  four laws under both conventions, and the portable unit read **identically to
-  Metal** while textures marched negative as predicted.
-  `CoreCounters` is empty in 29.0.3, so the wgpu-level candidate is a dead end —
-  killed by source rather than by argument. Five mutation proofs, all red by
-  name; 239's third law survives as the instrument-responds arm.
-  🔵 **STATED COST, measured not argued:** nothing in `PendingWrites` pins a
-  *view*, so the unit sees the buffer half of the pin and not the texture half —
-  **a leak pinning only textures would be invisible.** That is the price of a
-  unit that means the same thing on a backend whose texture counter runs
-  backwards.
-  **Two process notes worth carrying:** `code-health.sh` only sees **tracked**
-  files, so run it after `git add`, not before — a local pass hid a 111-column
-  line that CI then caught; and the lane hit the commit-during-gate trap itself,
-  costing one clean run.
-
-- **250** — ✅ **COMPLETE.** The temporary push exception is **removed from
-  `CLAUDE.md`** now that 249's evidence is in hand. The rule reads
-  "Worktree branches never push" again, with a one-sentence parenthetical
-  recording that the exception existed, what it bought (run `30870887402`), that
-  the branch was deleted, and that **needing that arm again is a fresh decision,
-  not a precedent.** Working exactly as designed: granted narrow, used once,
-  removed.
-
-- **239** — ⚠️ **PARTLY REVERTED. Its FINDINGS stand; its ORACLE did not.** The oracle landed `52b1b313` and was reverted `b2f27143` after CI went red — all three `alloc_bound_law` tests failed in the **linux** job under both conventions, on the exact portability the design chose itself on. **Requeued as item 249**, which carries the full evidence and everything worth keeping. **The findings below need no re-measurement and must not be re-derived.** Original entry: **its headline is a NEGATIVE RESULT that is the
-  deliverable rather than a shortfall.** Merged `52b1b313`. Receipt
-  `native-gate-receipt commit=45fee36af80270fa54f1fb024a69e79fd58bc8b8 conventions=mac,linux scope=all-targets`,
-  `web-smoke: OK`, `bash scripts/code-health.sh` clean, fmt clean.
-  **The portable counter does NOT reproduce item 232's container split.**
-  Objects per test: good `36707d06` **242.4**, bad `8207e519` **243.3** — a ratio
-  of **1.0039** where the container's own was **1.244**. Wrong order of
-  magnitude, not a weak signal. **So wgpu object allocation is not what the
-  4 GiB container was exhausting**, and item 231's named residual suspects
-  accumulate badly but do not accumulate *differently* between the two trees.
-  Guarded against item 232's own error: separate worktrees per boundary, with a
-  compile-time provenance stamp asserted identical across samples.
-  **Mechanism correction for item 231's entry:** the suspect class is misnamed.
-  It is not "reclaimed only on poll" — `Queue::write_buffer`/`write_texture`
-  park an `Arc` in `PendingWrites`, drained in exactly one place, `pre_submit`.
-  A caller that stages writes and never submits pins them **however often it
-  polls**, and most render tests `prepare()` and return. **This matters twice: a
-  fix aimed at polling would not have worked, and the live app submits every
-  frame, so on this resource class the product is not exposed and the harness
-  is.** Bound: an empty submit plus a non-blocking poll in `test_gpu::arrive` —
-  no roster of tests, no roster of resources. Live objects went from a 160,201
-  climb to `kept` median 7 / p90 231.
-  Oracle counts objects, not bytes, and that is measured: `buffers`/`textures`/
-  `texture_views` are maintained by metal, vulkan, gles **and** dx12, while
-  `buffer_memory`/`texture_memory` are vulkan and dx12 only — a byte-valued law
-  would read **flat zero on two of awl's four backends**.
-  ⚠️ **The third law is the one that keeps the other two honest:** drop wgpu's
-  `counters` feature and it fails **by name**, instead of every counter silently
-  reading zero and both allocation laws going vacuous forever. That is the
-  anti-vacuity arm this board keeps asking for, written without being asked.
-  ⚠️ **Item 237's trap caught one of the author's own, in this file.** The first
-  workload submitted a pass, so law 3 stayed **GREEN** under its own mutation —
-  `Queue::submit` maintains the device on its way out, so the workload was doing
-  the reclaiming its law existed to check. Both hazards are documented in the
-  workload's doc comment.
-  ⚠️ **Known limit, reported rather than hidden:** a constant bounded pool (30
-  extra buffers held in a thread-local each call *replaces*) leaves all three
-  laws green. These laws bound GROWTH, not absolute ceiling.
-
-🔵 **ITEM 231 — A CHEAP, FALSIFIABLE LEAD FROM THE 239 LANE. Two ratios, and the
-lane flagged it as correlation rather than dressing it as a finding.**
-`background.wgsl` is **72,896** bytes at `8207e519` against **58,687** at
-`36707d06` — ratio **1.2421**. The container's own test-count ratio, 199/160, is
-**1.2437**. They differ by **0.13%**. Both boundaries predate `gpu_cache.rs`, so
-every `TextPipeline::new` translated that whole file through naga and then the
-backend compiler, and under lavapipe the result is LLVM IR and machine code held
-in the llvmpipe context. **If the OOM budget is dominated by per-translation
-shader-compilation memory, it would be spent in inverse proportion to shader
-source size — which is what those two numbers say.**
-**The falsification is ONE container run:** `gpu_cache` cut program builds 9.3×
-and landed after both boundaries, so if this is right, HEAD under the same 4 GiB
-ceiling should get dramatically further than 199, or not OOM at all. This does
-**not** contradict 231's elimination (e) — that cut failed to clear the *hang*,
-and the OOM is explicitly a different failure mode. ⚠️ **Two data points and a
-coincidence-grade match. Nothing here shows that bounding allocation growth
-would prevent the hosted-mac hang, and no commit, comment or law name in the
-239 branch implies item 231 is fixed or explained.**
-
-✅ **THE CI RED IS REPAIRED, CONFIRMED ON THE AXIS THAT FOUND IT.** Run
-`30836476858` (`f8121f45`) came back with **`mac (build + test, minus
-render::tests)` = success and `linux` = success**, plus `web` and
-`mac live-probe` green. That run's own conclusion reads `cancelled`, but for a
-reason that is not a verdict on the code: **this session pushed into it**, and
-`ci.yml`'s concurrency group cancels in progress, so the wedge job was killed
-mid-budget rather than timing out. Item 243's clause 2 therefore rides run
-`30838810157` (`76903fc1`).
-
-⚠️ **A `pgrep -f` WAIT THAT MATCHES ITSELF — new trap, cost one lane an
-unbounded stall, worth a line in every future brief.** The item-239 lane armed
-`until ! pgrep -f 'native-gate.sh'; do sleep …; done`. **The watcher's own shell
-command line contains the string `native-gate.sh`, so `pgrep -f` matches the
-watcher, the condition is permanently true, and the loop can never exit.** Two
-processes matched `native-gate` on this host and both were that watcher; no gate
-and no cargo were running at all. Use the bracket trick the README already uses
-for `ps aux | grep "[c]argo"` — `pgrep -f '[n]ative-gate\.sh'` — or `pgrep -x
-cargo`, or just watch the log stop growing. **And the deeper point this proves
-concretely: a wait that never terminates is indistinguishable from a wait that
-terminates and is never noticed, because nothing wakes a worker but the
-orchestrator. Neither is a wake-up source.**
-
-⚠️ **TWO ORCHESTRATOR MISTAKES ON 2026-08-04, BOTH ALREADY WRITTEN DOWN
-SOMEWHERE AND BOTH MADE ANYWAY. Recorded so the next session does better than
-re-read them.**
-
-**1. Committed a board note WHILE the merge-train gate ran, and threw away a
-full native run.** `native-gate.sh` refused correctly:
-`native-gate: HEAD changed while the suite ran (start=0d0a8b1b… end=76903fc1…);
-no receipt issued`. Every test had passed, both conventions, zero failures —
-and none of it counted. This is the README's own §Gates rule, and the identical
-incident it already records from 2026-07-31. **The failure mode is sequencing:
-folding a landing note in right after a merge is correct BETWEEN gates and wrong
-DURING one.** Re-run gave
-`native-gate-receipt commit=76903fc1dcd13a1755eb55677bc504b554e1c87d conventions=mac,linux scope=all-targets`.
-The gate catching its own invalidation is the only reason the loss was visible
-rather than a receipt naming a tree that had moved underneath it.
-
-**2. Pushed while a CI run was still in flight, cancelling the exact
-verification that was owed.** `ci.yml`'s concurrency group is
-`cancel-in-progress: true`, so pushing `76903fc1` killed run `30836476858`
-mid-flight — the run that was going to pay item 243's clause 2. Nothing is lost
-permanently (the next run does the same job) but ~65 minutes are. ⚠️ **THIS IS
-NOW STRUCTURALLY WORSE THAN IT USED TO BE AND THE BOARD SHOULD SAY SO: since
-`da70df93`, a full CI cycle is ~65 MINUTES**, because the tolerated wedge burns
-its 2×1500 s budget before failing. **So the README's "let one run finish before
-pushing the next" is no longer a politeness — it is a 65-minute window in which
-any push destroys the evidence.** Batch the train, or accept that clause-2-style
-end-to-end CI evidence needs a quiet window nobody pushes into.
-
-⚠️ **A BRIEF DEFECT THIS WAVE PAID FOR — fix it in the next brief template.**
-Items 240 and 243 were each green alone and **red together**: 240's new file
-carried a 104-column line and was not `rustfmt`-clean, and combined `main`
-failed `code-health` the moment 243's merge landed on top of it. Neither lane
-was at fault — **the orchestrator's briefs named `native-gate.sh` and
-`web-smoke.sh` but never `code-health`**, so a lane could run everything it was
-asked and still land a health failure. The README already says the pre-landing
-set is *code health, native gate, wasm smoke*; the briefs dropped the first one.
-Repaired in the same commit as this note (`cargo fmt` plus a wrapped panic
-line); the sweep still passes and the health ratchets are clean. **This is also
-the README's "two branches each green alone can be red together" warning
-arriving in its most boring possible form — a line length.**
-
-🔴 **AND THE COMMIT THAT WARNED ABOUT THIS SWEPT SOURCE CODE ITSELF. Found by
-the item-247 lane 2026-08-04; the orchestrator verified it and owns it.**
-`f0e0f5b3` — the commit immediately below, whose entire subject is *"two
-sessions are live and one writes the main tree"* — **also carries 39 lines of
-`src/render/chrome/diagonal.rs`**, the other session's in-progress chevron
-geometry. Its message never mentions `diagonal.rs`. **The cause was `git add -u`
-in a shared tree**, which is precisely what this session told the other session
-not to do an hour later. **So the ⊢→chevron geometry change actually landed in a
-board-coordination commit, ungated and undescribed**, and `60266f9d`'s real
-isolated contribution was narrower than it appeared: extracting the already-
-chevron inline code into the pure owner `selected_chevron`, adding the
-angle-grading law, and correcting stale assertion messages.
-
-**What is and is not damaged.** The code is **gate-covered** — several full
-native receipts have since run over trees containing it, including
-`f8121f45` and `76903fc1`. What is damaged is **provenance**: `git log -p
-src/render/chrome/diagonal.rs` attributes a deliberate shape change to a commit
-about board coordination, and `CLAUDE.md` is explicit that the commit message is
-where that history is supposed to live. **Not rewritten** — the history is
-public and pushed, and a rewrite would cost more than the defect. This note is
-the record instead.
-
-**The rule, stated so it survives:** in a shared tree, `git add` explicit paths.
-Never `-u`, never `-A`. Three board sweeps and now one source sweep in a single
-session, and the source sweep was committed by the session writing the warning.
-
-⚠️⚠️ **TWO ORCHESTRATORS ARE LIVE RIGHT NOW AND ONE IS WRITING THE MAIN WORKING
-TREE. Read this before your next edit.** Item 247's claim says it works **in the
-main working tree, not a worktree**. The other session (this one) uses that same
-tree as the **merge train**: it merges lane branches there, runs
-`scripts/native-gate.sh` there, and pushes from there. Those two uses are not
-compatible without a rule, because `native-gate.sh` refuses a receipt if HEAD
-moves under it, and a gate run against a dirty tree silently certifies the other
-session's uncommitted edits.
-
-**The rule, proposed by the merge-train session and adopted unless 247's owner
-objects on this board: 247 keeps the main tree for SOURCE edits; the merge train
-moves its gate to `awl-next-worktrees/train-gate`.** Until that move lands, the
-train session will check `git status --short` immediately before every gate and
-abort rather than gate a tree it does not own. It has already happened once
-harmlessly: `41cc4bc0` (247's own claim, board-only) landed between this
-session's gate at `c282cedd` and its push, so the pushed tree differs from the
-gated one by `.orchestrator/queue.md` alone — **zero `.rs`, so the receipt's
-native scope carries.** Recorded rather than glossed, because the next such
-overlap may not be board-only.
-
-**Evidence the board discipline is holding so far:** `23a47790` (item 244) and
-`ef17eeab` (247/248) both landed on `main` between this session's commits and
-both survived intact, because every board write here has been a targeted edit
-rather than a wholesale rewrite. Keep doing that. Rule 5 exists for exactly this
-hour.
-
-**Two housekeeping facts for whoever integrates.**
-`awl-next-worktrees/item-232-scratch` is a leftover directory that
-`git worktree list` does not know about — inspect before deleting, it was not
-touched by this wave. And the RECEIPT GAP below is still open.
-
-**Overnight results, newest first.**
-
-✅ **RECEIPT GAP — RESOLVED 2026-08-04 BY DESCENT, not by retro-fitting. Read what this does and does not certify.**
-All three merges (`5bc771ca`, `df630ad9`, `ef6f87ca`) are **ancestors of HEAD**,
-verified with `git merge-base --is-ancestor`. Since then the tree containing all
-three has passed the full suite repeatedly, most recently
-`native-gate-receipt commit=e1c2656d2b23502bf1230df1f38ba62131e02a98 conventions=mac,linux scope=all-targets`
-(0 failures, both conventions), with `52b1b313`, `0d0a8b1b`, `d0c1dfc3` and
-`5635b5e2` carrying their own receipts in between.
-
-**What that establishes:** the CODE those three merges introduced passes the full
-native suite, as integrated, on this hardware. **What it does NOT establish:**
-that each merge was individually green at the moment it landed. A descendant's
-receipt cannot isolate an ancestor — if one of the three had shipped a defect
-that a later commit incidentally fixed, this reasoning would not see it. **For a
-merge train that is the right standard** (the shipped tree is what ships), and it
-is **not** the right standard for bisect attribution, so anyone bisecting across
-that range should not read these as per-commit green.
-
-**No receipt string was fabricated**, which was the one hard rule on this gap.
-The lost strings stay lost; 116d's was already truncated when written and is
-unrecoverable. **The standing fix that stops recurrence is already in force:
-receipts go in the MERGE COMMIT MESSAGE, not only on the board** — every merge
-from the 2026-08-03/04 wave onward carries one, because the board is the only
-copy otherwise and the board gets compressed.
-
-**Original entry follows.** ⚠️ **RECEIPT GAP — items 232, 235 and 236, whose completion entries have been cleared as history.**
-None of the three merge commits (`5bc771ca`, `df630ad9`, `ef6f87ca`) records a
-`native-gate-receipt` string, so by this repo's own rule — *the receipt is the
-only authorization to call the native tier "full native suite"* — **their native
-scope is UNVERIFIED.** A gate demonstrably ran for 235 (it is what caught
-`gpu_cache_law` at "found 9, expected 8", which a targeted run structurally
-could not reach), and 236 paid a health debt only a health run surfaces, so this
-is very likely a recording failure rather than a skipped gate. **Re-issue the
-three receipts on the merged tree, or leave them recorded as unverified.** Do
-not retro-fit a receipt string from memory.
-
-- **231** — 🔴 OPEN, and **REFRAMED to a diagnosis item** by user decision
-  2026-08-03: name the cause first, then decide who owns the fix. The full
-  evidence — what is eliminated, what is still unknown, the local-repro plan and
-  the carry-forward traps — now lives in **item 231's own entry**, which is
-  authoritative. The `src/gpu_cache.rs` round landed (`52,083 → 5,577` program
-  builds, 9.3×) and **did not clear the hang** (run `30770296246`); its receipt is
-  `native-gate-receipt commit=3e3db0c6… conventions=mac,linux scope=all-targets`.
-- **174** — 🟢 SECOND FAMILY LANDED, item remains OPEN. Merged to `main`;
-  worktree removed. `PlannedHeader` owns the overlay header band, with the query
-  beat folded into the LAST header line's box exactly as the shaper folds it into
-  that line's glyph metrics. **Deleted from `render/chrome`, not banned by law:**
-  `overlay_secondary_top`, `overlay_split_bounds`, `overlay_strip_band`,
-  `overlay_query_center` — the previous slice's standard, met again. ⚠️ **It
-  found a shipping pointer defect of exactly the predicted class:** `over_overlay_query`
-  tested the bare row pitch, but on the FLAT family the beat inflates the query
-  line itself, so at the shipping default the field draws `[64.0, 133.2]` while
-  the pointer band ended at `91.2` — **the I-beam sat in empty air ABOVE the
-  query text and the text itself took the plain arrow.** 13 of 19 `OverlayKind`s,
-  Settings-as-workspace included; worst case 33.0px at 2×. The GROUPED family was
-  right *by accident* (its beat inflates the lens strip instead), which is how a
-  parallel calculation survives review — it agrees on the arm somebody looked at.
-  Identity 840/840 PNG and 840/840 sidecar, zero differing; the cursor icon is
-  the only changed output. **Left explicitly:** `workspace_header_beat` did not
-  merge — its consumer is reached ~45× a frame through the four relocated
-  document owners, so planning inside it would trade one parallel calculation for
-  45 plans a frame; a law fails by name if they drift. Follow-up: item **217**.
-- **116d** — 🟢 COMPOSITING ROUND LANDED; the flip is deliberately NOT done.
-  Merged to `main`; worktree removed. **The owner stopped at a clean boundary
-  and that is the correct outcome** — the comparison can now be SEEN, and
-  `workspace_shape(History)` is still `None`, which is now safe to change.
-  `draw_document_layers` splits into `draw_document_ground` (background, lava,
-  stars, page frame — the quiet frame, never relocated) and
-  `draw_document_content`; on a comparison frame the content is submitted AFTER
-  `draw_overlay_card` into the carved region without re-drawing its ground, and
-  the ordinary frame concatenates the two in their original order so **every
-  non-comparison frame is byte-identical by construction**. The blur path now
-  captures the ground alone while a comparison is up (116b's frosted-ghost
-  defect), and `blur_signature` hashes the comparison flag — otherwise Settings'
-  workspace and History's sign identically at one scroll and keep the wrong
-  frost. `clip_text_bounds` is the glyph twin of item 84's quad clip. The old
-  boundary law is deleted as its own message asked and replaced by four
-  containment-and-visibility laws. **The Esc decision landed for BOTH members**;
-  `Shift-Tab` was not wired at all and had to be added, and `GUIDE.md` plus
-  `site/guide.html` both promised "Esc there is a *back* to the rail" and were
-  fixed. Captures 1320 files: 1080 byte-identical, 240 differing — all the
-  `settings-detail` probes, one sidecar field, `esc back` → `tab back`.
-  ⚠️ **The vision smoke found a defect the whole green suite missed:** the
-  five-cell workspace footer ran off the card on Firetail at 900×520. The
-  pre-existing no-clip law measured the FLAT card at one canvas over three
-  worlds and was structurally blind to the workspace; the missing law is now
-  written over the whole roster at four canvases and both stages.
-  **Premise corrections worth keeping:** 116c's `⇧↵`/`open_keep_version` is the
-  *restore* and the *keep* prompt, NOT groundwork for the Back affordance — the
-  orchestrator's brief said otherwise and was wrong; and History's Back was
-  already half-present (`foot_hint`'s `detail_focus` branch said `tab back`) —
-  the debt was **Settings'**, whose line said `esc back`, the reverse of how the
-  brief framed it. `workspace_header_beat` was deliberately left unfolded: it is
-  a fourth copy of a ONE-LINE header today, and the moment the lens moves to the
-  header `header_rows` becomes 2 and that copy becomes **wrong** rather than
-  merely duplicated — so folding it belongs inside the lens-to-header slice.
-  **The restore notice is CALLED but not implemented:** restore emits one calm
-  notice naming the version and the undo (`restored "2 hr ago" · ⌘Z to undo`);
-  Esc emits none, because it undoes a view substitution and a toast confirming a
-  no-op is the nagging DESIGN's calm bias forbids. It belongs with the restore
-  journey the flip owns.
-  **Left for the next slice:** flip History to `TimelineOverComparison`; move the
-  lens to the header (inside `PlannedHeader`, folding `workspace_header_beat` in
-  as part of it); reuse the ordinary candidate-row hit-test for the timeline;
-  deep-link `Version history…` and `Compare with version…`; implement the restore
-  notice; and the tier-2 hermetic work. ⚠️ **One harness fact for that slice:**
-  `--keys` captures reach History's timeline but **not** its comparison — a
-  headless capture has no history store, so `selected_history_id()` is `None`
-  and the focus transfer declines. The comparison's capture-tier probes need
-  `--screenshot-app` or a seeded store.
-
-## Remaining work — handoff order (RE-DERIVED 2026-08-03 afternoon)
-
-⚠️ **The 2026-08-02 list below this one is STALE and is retained only as
-history — do not dispatch from it.** Verified against the tree: its #1 (116d)
-is landed, its #2 (204) is landed **both slices**, its #3's named remainder
-(`workspace_header_beat`) is already folded and gone from `src/`, and of its #4
-the 217 and 215 members are landed. Their `✅ COMPLETE` entries were cleared
-into history by `16b4e8c2`, which is sanctioned; what was not sanctioned is
-that the handoff list itself was never re-derived afterward, so it kept
-pointing at finished work. **A compression that clears completions must
+## Landed — 2026-08-03 and 2026-08-04 waves, compressed 2026-08-04
+
+**The completion reports for these items were cleared into git history on
+2026-08-04** (`git log -p .orchestrator/queue.md`), per this board's own rule
+that it holds live execution state only. ⚠️ **What was NOT cleared, and must
+never be:** every 🔵 OWED clause below, because owed work is live work; and the
+process lessons, which were promoted into `CLAUDE.md` in the same commit rather
+than deleted. **A compression that clears completions must re-derive the handoff
+section in the same commit** — that is why the section below this one is dated
+today.
+
+**Landed and fully closed** — 116 (all four slices), 174's second family
+(item stays open), 204, 215, 217, 218, 220, 221, 224, 229, 235, 237, 238, 239's
+findings, 240, 241, 242, 243, 244, 245, 246, 247's static slice, 248, 249, 250,
+252, 253, 254. Plus five CI repairs and the receipt-gap resolution.
+
+**🔵 OWED — carried forward verbatim, because nothing above implies these.**
+- **218 — a real unlocked VoiceOver typing and navigation sitting.** No test
+  tier stands in for it. **Reachable now.**
+- **244 — the `--release` sitting:** whether the pop is gone by eye, whether
+  `ORGANIC_BREATHE_AMOUNT = 1.2` (tuned to a ~17-level peak channel swing after
+  a first value proved sub-perceptible) reads as a **flash**. Both constants are
+  marked taste-tunable in the shader. **Reachable now.**
+- **248 — the 140 ms quarter turn's real-time feel at 60 fps**, which no capture
+  can reach. The animation itself is verified with injected `dt` (a genuine
+  mid-glide value strictly between the endpoints, and an exact settle).
+- **242 — the formal affordance-locating vision smoke** over ~5 gallery shots.
+  The lane did an eyes-on retina pass and reported it as such; the standing
+  policy asks for the structured version. **Also named as a deliberate
+  residual:** the declaration law covers authored `const`s and **not inline
+  literals** — seven chrome pixel lengths remain physical inline
+  (`gutter.rs:262,321,355,404`, `outline.rs:221,796`, `diagonal.rs:460-461`),
+  all in margin chrome, none in the summoned-overlay families it measured.
+- **241 — the user's own window.** Every live number came from a 900×600 probe
+  window; the 4530×2756 @2x window will show larger `atlas`/`acquire`. The
+  mechanism is window-independent; the absolute after-numbers on that machine
+  are unmeasured. Also untested live: a dense pointer/wheel sweep, which shares
+  `retint_theme_preview`, so the rule applies but the cadence is unproven.
+- **249 — a stated cost, measured not argued.** Nothing in `PendingWrites` pins
+  a *view*, so the portable unit sees the buffer half of the pin and not the
+  texture half: **a leak pinning only textures would be invisible.** That is the
+  price of a unit that means the same thing on a backend whose texture counter
+  runs backwards.
+- **245 — one constant**, 200 wpm, the round conventional English figure.
+
+**⚠️ 231 IS NOT FIXED, NOT EXPLAINED, AND NOT NARROWED.** Its shader-size lead
+was **falsified** 2026-08-04 (`ee7353e5`): HEAD carries the LARGEST
+`background.wgsl` of the three trees and got **2.6× further** (413–418 tests vs
+a predicted 152), and fitting `budget/test = C + K·shader_bytes` across the two
+boundaries makes `C` negative — the 0.13% coincidence needed a zero non-shader
+residual, which HEAD measures directly at 12.3 MB/test. **The orchestrator's own
+falsification criterion was WRONG and would have CONFIRMED the dead lead**; the
+lane ignored it and tested the mechanism's own prediction instead. **A
+single-number pass/fail test can confirm a false hypothesis when the quantity
+moves for another reason.** The rig is `scripts/oom-budget-container.sh`,
+labelled in its own header as a diagnostic reproducer and **not a gate**.
+
+## Remaining work — handoff order (RE-DERIVED 2026-08-04, after the compression)
+
+⚠️ **Re-derived against the tree, not against the previous list**, which pointed
+at 218/243/240/238 as "dispatched this wave" long after all four had landed. The
+rule that produced that staleness: **a compression that clears completions must
 re-derive this section in the same commit.**
 
-**Live order, after this afternoon's wave:**
+**No lane is running and nothing is claimed.** Order:
 
-1. **218 — dispatched this wave.** The VoiceOver stall is user-reported and is
-   the only open item that degrades a shipping accessibility path.
-2. **243, 240, 238 — dispatched this wave.** 243 first among them at
-   integration: it is what ends the uninformative `main` red.
-3. **174 — RE-SCOPED 2026-08-04 by survey, not by the stale text. Open, not
-   blocked.** Its named remainder `workspace_header_beat` is **gone** — folded
-   into `plan::header_band_height` by the 116d flip slice — so the 2026-08-02
-   handoff pointed at work that no longer exists.
-   **What the planner actually owns today** (`src/render/plan/`, five modules):
-   `overlay_header` (`PlannedHeader`, `beat_stands_alone`, `header_band_height`),
-   `overlay_rows` (+`plan_witness`), `overlay_row_plan`, and `row_extent`
-   (`RowExtent`, `ClusterExtent`, `RowSpan`). That is **two families migrated —
-   the overlay row family and the header band** — against the item's goal of
-   every surface.
-   **What still owns its own geometry, from a grep for hand-computed bounds in
-   `render/chrome/`:** `mod.rs`, `gutter.rs`, `overlay_selection.rs`,
-   `preview.rs`, `overlay.rs`, `workspace.rs`. That list is the candidate set
-   for the next slice — **it is a survey, not a plan.** ⚠️ **Pick the next
-   family by measurement rather than by that ordering**, and pick it against a
-   live check of `render/chrome/`, because this item's remainder has now gone
-   stale twice.
-   ⚠️ **Scheduling constraint, live right now:** `overlay_selection.rs` and
-   `diagonal.rs` are item **247**'s working set (branch
-   `claude/item-247-chevron-prototype`). Do not dispatch a 174 slice over those
-   two until 247 lands. `gutter.rs` and `preview.rs` are clear of it.
-4. **Then, unblocked and unclaimed:** 222/131d (Magpie's mirrored cluster, user
-   decision made), 221 and 224 (both were blocked on 235's capability, which
-   landed), 241, 242, and **249** (unblocked 2026-08-04 — see the evidence-branch
-   decision at the foot of this board; **250** retires the exception it needed).
-   ⚠️ **Corrected 2026-08-04:** this line previously also named 237, 229 and 239.
-   **237 and 229 are COMPLETE** (`72d08422`, `d8ae72c9`) and **239's oracle was
-   REVERTED and requeued as 249** — dispatching from the old text would have
-   re-done finished work, which is the exact defect the header of this section
-   complains about, recurring one wave later.
-5. **Human/live closures, all needing an unlocked and FOREGROUNDED display:**
-   118's world-loudness confirmation and its `--release` ambient sitting; 211's
-   unoccluded confirmation and its unreached sweep arms; **207's real VoiceOver
-   journey** — its **AT-SPI half is item 251 and needs a LINUX machine, not an
-   unlock**; and now **218's own final Done clause**, which no test tier
-   can stand in for. ⚠️ `displaysleep` is 10 and screensaver `idleTime` is 300 —
-   this silently invalidated the 2026-08-02 sitting seven minutes in. Hold the
-   display with `caffeinate -d -i -t <seconds>` and re-check the lock at BOTH
-   ends; `live-probe.sh` only checks in preflight.
-
-**Item 116's parent entry should now be closed outright** — it is kept verbatim
-in a pre-flip state that is no longer true. Left open deliberately rather than
-edited mid-wave, because it is a long entry and rewriting it while three lanes
-run risks exactly the drop this section is about.
-
-## Remaining work — STALE, 2026-08-02, retained as history only
-
-1. **116d — dispatch first; it is UNBLOCKED and everything behind it waits.**
-   116a–c are landed and both of its owed decisions are now made: the comparison
-   sits ON the workspace surface, and one Esc always leaves. Do the compositing
-   round FIRST — delete `the_relocated_document_is_geometrically_placed_but_not_yet_composited`
-   and replace it with the containment-and-visibility law its own message asks
-   for — then flip `workspace_shape(History)` to `TimelineOverComparison`, add
-   the footer Back affordance, move the lens to the header, deep-link
-   `Version history…` / `Compare with version…`, and run the split Verify sweep
-   (tier 1 replays `overlay_accept:History`; tier 2 owns the store, git, the
-   pruned ladder, renamed timelines, `KeepVersion` and the restore's disk read).
-   116a's handoff still applies: reuse the ordinary candidate-row hit-test for
-   the timeline rather than extending the rail functions — `geom.rail` is `None`
-   whenever rows are primary. ⚠️ **It writes `render/chrome/overlay_draw.rs`,
-   `overlay_rows.rs` and `chrome/mod.rs`, which item 174's next family also
-   writes — do not run the two concurrently.**
-2. **Then 204.** Unblocked the moment 116d's composited general read-only payload
-   exists. Preserve the one editable buffer; add disk fingerprinting (mtime plus
-   length cannot detect the required same-time/same-size rewrite), the recovery
-   record, three read-only conflict views, gated-action resolution, and align
-   Guide/welcome/site prose.
-3. **174's next family**, whenever it is not racing 116d. `workspace_header_beat`
-   is the named remainder but is its own slice — its consumer is reached ~45× a
-   frame through the four relocated document owners.
-4. **Follow-ups queued by this wave:** item **218** first (the newly live
-   VoiceOver path can stall while typing), then **217** (`--bench-suite`'s
-   plan-count witness vs the diagonal re-plan; not urgent, and must not be fixed
-   by weakening the witness) and **215** (extract word count / language / percent
-   into pure owners so a live-App capture carries card semantics).
-5. **Human/live closures, all needing an unlocked and FOREGROUNDED display:**
-   118's world-loudness confirmation and its `--release` ambient sitting; 211's
-   one unoccluded confirmation that the fixed build presents the glide, plus its
-   unreached sweep arms; and item 207's real VoiceOver / AT-SPI journeys, which
-   no test tier can stand in for. ⚠️ **The machine's idle lock fired seven
-   minutes into the 2026-08-02 sitting and silently invalidated it** — disable
-   the idle lock before the next one, and re-check the lock at BOTH ends of the
-   run, because `live-probe.sh` only checks it in preflight.
-
-Items 131, 172, 207 and 213 are complete; 174 has two families landed and stays
-open. Older historical prose below is retained but the receipts above are
-authoritative.
-
-After each landed item: update this board, exact combined-main code-health +
-web + native receipt, push `main`, remove only the completed worktree, and run
-`scripts/sweep.sh 1`. Tags/releases and site deployment still require explicit
-user authorization.
+1. **257** — the only open item that degrades a shipping path for a real user,
+   and it gates 251. Deep tier.
+2. **258**, then **255**, then **256** — 258 because it is a made user decision
+   waiting on nobody, 255 because it rides the release, 256 because it is
+   costing every merge.
+3. **222 / 131d** — unblocked by 242's landing; the taste call is already made.
+4. **247's motion slice** — the shared rotatable-mark primitive already exists
+   (item 248 landed it and owns it), so this consumes rather than grows one.
+5. **174 and 172** — open, structural, and neither is urgent. 174 has two
+   families migrated of every surface; 172 has two domains of six extracted.
+6. **116d's flip**, and **231** as a diagnosis item with no live lead.
+7. **Human/live closures, all reachable while the display stays unlocked:**
+   118's map and ambient sitting, 211's glide, 218's and 207's VoiceOver
+   journeys, 244's breathe judgement, 241's own-window numbers.
+8. **251** — blocked behind **257**, and separately needs a human at a Linux
+   desktop with Orca. A hosted runner has no ears; item 252's arm reaches the
+   bridge's liveness and structure, and nothing more.
 
 116. ✅ **COMPLETE 2026-08-04 — all four slices landed; the entry below is kept ONLY as the decomposition record and is STALE IN ITS PREMISE.** ⚠️ **Do not brief anything off its text.** It still reads "116d CANNOT flip `workspace_shape(History)` before that compositing round", which stopped being true when the compositing round landed and stopped being relevant when the flip landed. **Verified against the tree, not the log:** `workspace_shape(History)` is `TimelineOverComparison` at `src/overlay/workspace.rs:129`, and `workspace_header_beat` is absent from `src/` entirely. Slices: **116a** the shape, **116b** the comparison viewport, **116c** the alternate accept, **116d** the compositing round (`a8eef4ee`) then the flip. Item **204** landed both slices on top of it, which was only possible because 116d's typed `ComparisonRequest`/`ComparisonView` payload exists. **Two gaps its own completion note left deliberately, recorded here so closing this entry does not bury them:** (a) the **narrow comparison stage draws no footer** (`show_rows` false → `hint_rows` 0), so nothing teaches `tab back` / `esc close` at ~900×520 and below — a discoverability hole, arguably a 🔵 taste call about spending vertical space; (b) on Mangrove/Magpie the **narrow timeline column elides mid-word**, owned by item 131e. ⚠️ **This entry was left open for hours after the work finished, and was the direct cause of a wasted dispatch** — `16b4e8c2` kept its stale text verbatim while dropping 116d's `✅ COMPLETE` bullet, and the next claim was written off it in good faith. **Original entry follows, for the decomposition reasoning only.** **Move Version History into the shared summoned workspace — timeline and prose diff become one readable task, never three competing layers.** **Build:** Preserve the existing history store, git backend, pruning, facets, descriptions, kept versions, and prose-diff engine, but replace the current History overlay/diff-as-preview composition with item 114’s workspace. On wide windows, show a narrow timeline/navigation pane beside a large read-only comparison pane; moving through versions updates the comparison immediately. On narrow windows, show the timeline first and enter the comparison as a second stage with an explicit return path. The current editor is backdrop/state, not a third readable layer. **Scope:** Keep local loose-file snapshots and git-managed history behind the same UI with only a quiet source label. Preserve independent diff scrolling and a clear focus transfer between timeline and comparison. `Esc` leaves the current buffer byte-for-byte unchanged; restore must be a deliberate, footer-taught action rather than bare `Enter`, and remains undoable. `Version history…` and `Compare with version…` deep-link into the same workspace at the appropriate focus; `Keep version…` retains its brief naming prompt and returns coherently. Remove the old History overlay, document-under-card preview composition, and feature-specific diff-panel dressing only when their last consumer is gone—retain the generic prose-diff machinery and do not strand parallel disabled paths. **Done:** A user can answer “which version, what changed, and do I want it back?” without overlapping titles, hidden prose, or ambiguity about whether the editor is active; the same flow works for local and git history; exiting is a true no-op and restoring is deliberate and undoable. **Verify:** Timeline→live comparison→focus/scroll→back/exit/restore journeys for local snapshots, named/pinned versions, git commits, empty history, renamed files, and pruned ladders; narrow/wide/zoom/DPI captures across representative light/dark, Pane/Bars, and Wagtail worlds; pixel laws proving timeline and comparison never overlap and the original document does not remain a competing readable layer; restore undo law; capture/replay parity; dashboard vision smoke; native, both conventions, and wasm gates. **Depends on the completed item 114 Settings workspace (landed `60477e7c`); user design decision 2026-07-26.** ⚠️ **DECOMPOSED 2026-07-31 after inventory — the owner stopped at a clean boundary rather than half-land it, which is the correct outcome and the brief's stated escape hatch.** It began the content-model change, then reverted deliberately: the first edit flips History's shell predicate on, and committing that without the content is precisely the empty workspace item 114 forbids. **This is not "big like 114" — it is four independent 114-sized changes, three of which were invisible from the item text.** **(1) The comparison has no renderer.** awl has exactly one prose renderer — the document layer. The transcript is markdown from `prosediff::render_markdown_blocks`, so relocating it into the content pane means giving `column_left()`, `column_width()`, `doc_top()` and `doc_clip_band()` — the four owners every document consumer routes through, ~45 call sites across `rects.rs`, `layers.rs`, `text.rs`, `geometry.rs`, `scroll.rs` — a viewport override, then gating every margin-orientation surface composed off them. Item 114 added a third geometry family beside two others and never touched the document layer; this is a second structural change of the same size in the most load-bearing geometry in the tree. A second prose renderer inside the overlay pane is the "infrastructure complexity is a smell" CLAUDE.md forbids. **(2) The removal is wider than the build,** and the item's hedge resolves toward caution: the diff-panel dressing's last consumer really is History (`scripts/review.sh` sets `opts.diff` but never `opts.preview_text`, the only thing lighting `vstate.diff_panel`), so `diff_panel`, `diff_panel_rect`, `prepare_diff_panel` and three pipelines all go — but item 84's `doc_clip_band` must **survive and be re-owned** by the comparison viewport, and its law files re-aimed rather than deleted. **(3) ~60 History test functions across ~25 files assert the CARD presentation** — each a judgment call, not a rename. **(4) Restore needs a new input primitive:** `CompareVersion`/`KeepVersion` have no default chord, and "deliberate, footer-taught, not bare Enter" cannot be a named chord because `HintAction.glyph` is `&'static str` while a chord glyph is convention-dependent — so the footer-honest option is a shift-held accept delegating to `Newline` in the editor. **Two premise corrections.** `workspace_shell()` as a **bool is insufficient**: 114's shell puts facet labels in the rail and rows in the pane, but History wants the timeline as the primary list, so flipping the bool yields the wrong composition. It must become a shape — and **DESIGN.md §5 already sanctions exactly this** ("categories beside controls, or a timeline beside a comparison"), so it is a reading 114 deferred, not an invention. Separately, **two "Done" clauses are already true and cost nothing**: Esc leaves the buffer byte-identical (the transcript is a view substitution, never a buffer write) and restore is already undoable (`App::restore_history` goes through one atomic `Buffer::set_text`). Neither emits a notice, which is worth deciding — a silent document replacement is the one place a toast earns its keep. **THE DECOMPOSITION, in dependency order.** **116a — the shape:** `workspace_shell()` becomes `workspace_shape() -> Option<WorkspaceShape>` (`RailOverRows` | `TimelineOverComparison`) with `rows_are_primary()` as the single fact geometry/keyboard/hints reduce to; History still returns `None`, so nothing is presented. Tier 1, fully capturable, lands green and changes no pixel. **116b — the relocated document viewport:** `comparison_viewport` as the one owner, read by the four geometry owners; margin surfaces gated; `diff_panel` and its pipelines structurally removed; the clip/wash/panel laws re-aimed. **This is the risky half and deserves to fail alone.** ✅ **116c LANDED — merge `7ea5cd78`** (`f3da0d07`, `1254a7b9`). `Action::AcceptAlternate` (Shift+Enter) resolved directly in `KeymapState::resolve_named`, needing no catalog chord because **Shift reads identically on both conventions** — proved by a Mac×Linux × native×emacs sweep rather than asserted, plus a law confirming it is absent from the Linux keep-list. **The delegation is the literal same code path, not a copy:** `apply_buffer_action`'s arm is now `Action::Newline | Action::AcceptAlternate`, and byte-identity is proved over `Buffer::disk_bytes()` across **ten** smart-newline shapes — bullet/numbered/task continuation, the empty-item provenance flag across four mixed step-orders, blockquote continue/end, bare-indent carry, non-markdown bypass, active-selection override — not the plain-prose case anyone would have thought to check. `history_intercept` folded into `workspace_intercept`, routed through 116a's `rows_are_primary()` rather than a kind branch; `overlay_nav.rs`'s mark **lowered** to 768 as it went. `KeepVersion` now descends through `overlay::Journey` rather than entering over a card. **Honest about reachability:** the descend branch is not reachable through today's live dispatch (the palette closes itself first), so it was proved by a direct unit test "rather than a fictional re-dispatch". ⚠️ **Merge-train note:** the lane reported "`code-health.py`: clean" — the python arm alone, not `code-health.sh` with its clippy pass — and the candidate failed `clippy::type_complexity` on its new fixture tuple. Third lane this run whose branch-level health claim did not survive the train, and the same defect class the run has been about: a check whose stated scope exceeds what it ran. Fixed with a `type Fixture` alias. **116d inherits:** the intercept is ready for `TimelineOverComparison`, `⇧↵` and `open_keep_version` are ready for a real in-workspace hint, and `workspace_shape(History)` is still `None`, waiting on 116b's compositing question. an alternate-accept action delegating to `Newline` in the editor with a byte-identity law, plus shape-aware intercept. **116d — the flip and the journeys:** History becomes `TimelineOverComparison`, deep links, the lens moved to the header, and the full Verify sweep. **Verification split, written against `docs/harness-reach.md`:** tier 1 covers entry, focus transfer, Back, exit, parked-parent position, timeline selection, lens cycling, staging, zoom/DPI and every pixel law — `overlay_accept:History` is Applied, so the restore journey replays. Tier 2 covers anything touching the store or git: snapshot recording, the pruned ladder, renamed-file timelines, `KeepVersion` (Unsupported) and the restore's disk read. **The item's Verify clause reads as though the whole thing were capturable; it is not, and asking for a sidecar over `KeepVersion` would repeat item 180's mistake.** **Owed a human, and it compounds item 114's open question:** from the comparison the first `Esc` is a Back to the timeline, so leaving History from the content region takes two — the same interaction decision 114 flagged, and it should be settled once for both members before 116d lands. ✅ **116a LANDED — merge `6202205c`** (`bff81da9`): `workspace_shape() -> Option<WorkspaceShape>` with `rows_are_primary()` as the one fact, `TimelineOverComparison` defined but routed nowhere, Settings byte-identical (identical PNG sha256; the only sidecar delta was `project.dirty` from the stash procedure). Its mutation broke **three pre-existing item-114 laws**, proving the re-route is real rather than inert, and a grep-law bans matching the shape enum outside its defining file. **Handoff worth keeping:** the geometry seam is already in place, so 116b's comparison viewport just reads the content rect; 116d's timeline hit-test should reuse the ordinary candidate-row hit-test rather than extend the rail functions, since `geom.rail` is `None` whenever rows are primary; and **`chrome/workspace.rs` is at 497/500 with no mark escape** — it postdates the frozen baseline, so 116b must extract a submodule before adding to it. ✅ **116b LANDED — merge `350aed68`** (`80527ae0`). `TextPipeline::comparison_viewport()` is the one owner; `column_left`/`column_width`/`doc_top`/`doc_clip_band` read it and everything downstream follows without knowing. Extracting `workspace_regions()` first took `chrome/workspace.rs` from 497 to **479**, off the ceiling 116a warned about. The bypass is named and enumerated in `render/geometry/page.rs` with a law pinning its consumers to that file plus exactly two fallback arms. **98 captures byte-identical**, PNG and sidecar, verified three times. `diff_panel` and its three pipelines removed after the owner verified the last-consumer reading itself; item 84's `doc_clip_band` **survived and was re-owned**, its laws re-aimed rather than deleted, and its X arm is genuinely exercised for the first time. **Mutation-proofing found two fixtures that would have gone quiet instead of red** — one searched for its straddling canvas by asking the very clip under test whether it had trimmed anything, the other graded a band its transcript never inked; both now derive independently with non-vacuity floors. **No mark raised; seven lowered.** ⚠️ **The boundary it stopped at, pinned as a law rather than absorbed:** the relocation moved the document's geometry but **not its place in painter's order**, so the workspace card still draws over it — opaque hides it, translucent ghosts it, and a blur-eligible world frosts the document into the frame around the region. `the_relocated_document_is_geometrically_placed_but_not_yet_composited` asserts both halves over the whole roster and its own message tells 116d to delete and replace it. **116d CANNOT flip `workspace_shape(History)` before that compositing round — it would present an invisible comparison.** The open design question is whether the comparison sits *on* the workspace surface or is a window *through* it.
 
@@ -1608,7 +561,7 @@ user authorization.
 
 **Follow-up routed:** item 181.
 
-118. **Pre-release world-loudness audit — repeat the 1–5 idle Room/Frame check before release.** **Audit definition:** “idle loudness” is how strongly a world asks for attention while the user is simply writing in page mode: palette, typography, margin pattern, and ambient motion count; summoned overlays do not. `1/5` is the quiet pole (Wagtail), `3/5` is recognizable/alive but comfortable for hours, and `5/5` is a deliberately rare statement world (Firetail). **Baseline from the 2026-07-26 design session, eighteen shipping worlds:** `1/5: 1`, `2/5: 10`, `3/5: 2`, `4/5: 4`, `5/5: 1` (mean 2.67). Bowerbird item 117 intentionally changes that to `1, 9, 3, 4, 1` (mean 2.72). **Direction for a twenty-world roster:** hover around 3 with awl’s calm bias; the provisional healthy shape is `1, 7, 7, 4, 1` (mean 2.85), not a symmetric theme-park bell curve. The current gap is the middle, not more 5s. This is a diagnostic distribution, never permission to turn up a world merely to fill a bin—each world still earns its own identity. Bilby/Brolga/Tawny/Saltpan are valuable quiet anchors; Galah and Mulga are candidates to inspect, not pre-decided promotions. **Run:** Immediately before release preparation, review every shipping world’s current Room in item 20’s dashboard at representative page widths, then observe every ambient world live in `--release`; independently assign 1–5 before looking at the baseline, reconcile the roster together, and record any chosen changes as separate concrete queue items. Include any nineteenth/twentieth worlds that have graduated by then; do not graduate Cassowary Light or any other candidate merely to hit twenty. **Done:** The final roster has a user-confirmed loudness map, its mean/distribution and outliers are explicit, near-duplicate intensity poles are named, and every proposed rebalance is either rejected on purpose or queued with a world-specific reason. **Verify:** Affordance-locating vision smoke over all Room captures; live-only confirmation of speed/calmness for Lava, Currawong stars, Bombora waves, Bowerbird cutouts, and any later ambient world. Pixel/sidecar arithmetic may prove territory and contrast but never claims the taste score. **Timed before release preparation; user design decision 2026-07-26. ✅ **PREPARATION LANDED — merge on `main`** (scripts only; no Rust, shader, Cargo or CI file touched, so **no full-native-suite receipt is claimed** — code-health and web-smoke clean). 🔵 **STILL AWAITING THE USER: the confirmed map, and the live `--release` sitting.** **The lane scored all nineteen worlds before opening anything baseline-related, and that search became the finding: the 2026-07-26 per-world map was NEVER WRITTEN DOWN.** Only the histogram survives — `queue.md` and its history, ROADMAP, THEMES, PHILOSOPHY and the design-session commits were all searched. **Independent map: `1, 10, 3, 4, 1`, mean 2.68.** Excluding Paperbark (which post-dates the baseline): `1, 10, 2, 4, 1`, **mean 2.67 — the baseline's exact aggregate**, arrived at blind. Corroboration: both stated anchors match (Wagtail 1, Firetail 5); the four 4/5s recoverable by inference from item 117 are **exactly the four it independently chose**; and **Bowerbird scored 3**, the first independent confirmation that item 191's `Finds` swap plus tuning hit its target rather than overshooting. **One unresolvable disagreement:** the baseline's second 3/5 is one of Currawong/Gumtree/Magpie/Mopoke and no record says which. ⚠️ **A CONTRADICTION BETWEEN TWO USER DECISIONS, found here and material to the pending Kite call:** item 132 commissions Kite as a **second 5/5**, while item 118's own target shape `1,7,7,4,1` carries **one** 5 and states *"the gap is the middle, not more 5s"*. Both cannot hold — either the shape becomes `1,7,6,4,2` (mean 2.90) or Kite is not a 5. **This needs answering as part of the Kite decision, not after it.** ⚠️ **The live `--release` observation was NOT run and was explicitly not claimed: the screen is LOCKED** (`CGSSessionScreenIsLocked: true`, checked at both ends of the session with the same probe `live-probe.sh` uses). Under the occlusion tripwire a live window presents zero frames, so a sitting now would produce a false result — item 113's unlocked session no longer holds. **Every ambient world's score is provisional on that check.** Offered instead, honestly bounded: deterministic phase trajectories converted to real seconds via the product's own `LAVA_SPEED` — fraction of right margin moved past 3 L\* at ten seconds is **Mangrove 0.351 · Firetail 0.344 · Bowerbird 0.077 · Bombora 0.027 · Currawong 0.002**, proving trajectory only, never cadence or calmness. **Premise corrections:** item 20's dashboard has **no width parameter** (fixed 1600×1000), so "representative page widths" required a new sweep; **item 132 calls Kite the nineteenth world when Paperbark already is** (Kite would be twentieth); and **in a code buffer the map does not describe what ships** — at `page_width_code = 100` a 1600px window leaves a 16px margin, the ground effectively vanishes and the roster's spread collapses toward palette alone. **Two metric repairs recorded because they nearly produced false findings:** linear luminance called every dark world's ground flat while the captures plainly showed shapes (gamma, not a finding) — CIE L\* is now the headline column; and `ink_cr` took a *percentile of the column*, whose area changes with the measure while the ink does not, so it moved between arms for one palette (Paperbark 10.75 vs 4.42) until a fixed extreme-pixel count made it arm-invariant. **Vision smoke 19/19 on every affordance except inline code, which is not locatable in Wagtail** — pixel-checked as byte-identical background, which is the 1-bit law's own sanctioned answer (THEMES.md) and therefore declared behaviour rather than a defect, though the affordance genuinely does not exist there. **Near-duplicate poles, named as the item asked:** Tawny/Mopoke (tightest — same `Dots{edge:false}`, edge 0.0000 both, L\* σ within 0.15), Magpie/Saltpan (edge **0.4444 on both to four decimals**), Bilby/Brolga (deliberate mirror per THEMES.md), and **Firetail/Mangrove inverted** — Mangrove measures louder on every static and motion column while ranking a step lower. **Six proposals, all labelled as proposals:** Galah's ground density (item 108's Gumtree precedent; the cheapest 2→3), re-verifying item 108 actually met its Done condition (Gumtree measures second-faintest at its shipped density), rejecting Mulga's promotion on purpose and recording why, resolving the Firetail/Mangrove inversion, making ROADMAP's "merge the tightest near-pair" call on the now-named pair, and **recording the confirmed map as durable data so the next run diffs instead of re-deriving four scores by inference.** Captures in `gallery/worlds/`, `gallery/item-118-loudness/` and `gallery/item-118-ambient/`. Dispatched now because the roster is momentarily STABLE at nineteen worlds — Bowerbird's `Finds` and item 186's ground space both landed, and Kite is held off main — so a distribution taken now describes what actually ships. Only the preparation is dispatchable: the item's Done requires a USER-CONFIRMED map and states that pixel arithmetic may prove territory and contrast but never claims the taste score. The lane produces captures, a vision smoke, and its own independent 1–5 proposal; the confirmation and any rebalance remain the user's.**
+118. **Pre-release world-loudness audit — repeat the 1–5 idle Room/Frame check before release.** **Audit definition:** “idle loudness” is how strongly a world asks for attention while the user is simply writing in page mode: palette, typography, margin pattern, and ambient motion count; summoned overlays do not. `1/5` is the quiet pole (Wagtail), `3/5` is recognizable/alive but comfortable for hours, and `5/5` is a deliberately rare statement world (Firetail). **Baseline from the 2026-07-26 design session, eighteen shipping worlds:** `1/5: 1`, `2/5: 10`, `3/5: 2`, `4/5: 4`, `5/5: 1` (mean 2.67). Bowerbird item 117 intentionally changes that to `1, 9, 3, 4, 1` (mean 2.72). **Direction for a twenty-world roster:** hover around 3 with awl’s calm bias; the provisional healthy shape is `1, 7, 7, 4, 1` (mean 2.85), not a symmetric theme-park bell curve. The current gap is the middle, not more 5s. This is a diagnostic distribution, never permission to turn up a world merely to fill a bin—each world still earns its own identity. Bilby/Brolga/Tawny/Saltpan are valuable quiet anchors; Galah and Mulga are candidates to inspect, not pre-decided promotions. **Run:** Immediately before release preparation, review every shipping world’s current Room in item 20’s dashboard at representative page widths, then observe every ambient world live in `--release`; independently assign 1–5 before looking at the baseline, reconcile the roster together, and record any chosen changes as separate concrete queue items. Include any nineteenth/twentieth worlds that have graduated by then; do not graduate Cassowary Light or any other candidate merely to hit twenty. **Done:** The final roster has a user-confirmed loudness map, its mean/distribution and outliers are explicit, near-duplicate intensity poles are named, and every proposed rebalance is either rejected on purpose or queued with a world-specific reason. **Verify:** Affordance-locating vision smoke over all Room captures; live-only confirmation of speed/calmness for Lava, Currawong stars, Bombora waves, Bowerbird cutouts, and any later ambient world. Pixel/sidecar arithmetic may prove territory and contrast but never claims the taste score. **Timed before release preparation; user design decision 2026-07-26. ✅ **PREPARATION LANDED — merge on `main`** (scripts only; no Rust, shader, Cargo or CI file touched, so **no full-native-suite receipt is claimed** — code-health and web-smoke clean). 🔵 **STILL AWAITING THE USER: the confirmed map, and the live `--release` sitting.** **The lane scored all nineteen worlds before opening anything baseline-related, and that search became the finding: the 2026-07-26 per-world map was NEVER WRITTEN DOWN.** Only the histogram survives — `queue.md` and its history, ROADMAP, THEMES, PHILOSOPHY and the design-session commits were all searched. **Independent map: `1, 10, 3, 4, 1`, mean 2.68.** Excluding Paperbark (which post-dates the baseline): `1, 10, 2, 4, 1`, **mean 2.67 — the baseline's exact aggregate**, arrived at blind. Corroboration: both stated anchors match (Wagtail 1, Firetail 5); the four 4/5s recoverable by inference from item 117 are **exactly the four it independently chose**; and **Bowerbird scored 3**, the first independent confirmation that item 191's `Finds` swap plus tuning hit its target rather than overshooting. **One unresolvable disagreement:** the baseline's second 3/5 is one of Currawong/Gumtree/Magpie/Mopoke and no record says which. ⚠️ **A CONTRADICTION BETWEEN TWO USER DECISIONS, found here and material to the pending Kite call:** item 132 commissions Kite as a **second 5/5**, while item 118's own target shape `1,7,7,4,1` carries **one** 5 and states *"the gap is the middle, not more 5s"*. Both cannot hold — either the shape becomes `1,7,6,4,2` (mean 2.90) or Kite is not a 5. ✅ **RESOLVED 2026-08-02 IN FAVOUR OF ITEM 132, AND RE-CONFIRMED BY THE USER 2026-08-04: KITE IS A 5/5, and the target shape is amended to `1, 7, 6, 4, 2` (mean 2.90)** — two deliberate statement worlds, Firetail and Kite. The clause above ("the gap is the middle, not more 5s") was written before Kite was commissioned and is superseded **on that one clause only**; the rest of this item's direction — calm bias, hover around 3, no theme-park bell curve — stands. ⚠️ **This resolution sat in the decisions section for two days while THIS BODY still read as open, so the 118 lane re-raised a settled question and the user answered it twice. A decision recorded in one place and not copied into the item body becomes invisible where it is actually read** — the same class as the 116d drop. Corrected here 2026-08-04. ⚠️ **The live `--release` observation was NOT run and was explicitly not claimed: at the time the screen was LOCKED** (`CGSSessionScreenIsLocked: true`, checked at both ends of the session with the same probe `live-probe.sh` uses). ✅ **THE SCREEN IS UNLOCKED AS OF 2026-08-04 and the sitting is REACHABLE** — see the board's display section for the invocation and for the both-ends re-check that a run under a lock will otherwise pass falsely. Under the occlusion tripwire a live window presents zero frames, so a sitting now would produce a false result — item 113's unlocked session no longer holds. **Every ambient world's score is provisional on that check.** Offered instead, honestly bounded: deterministic phase trajectories converted to real seconds via the product's own `LAVA_SPEED` — fraction of right margin moved past 3 L\* at ten seconds is **Mangrove 0.351 · Firetail 0.344 · Bowerbird 0.077 · Bombora 0.027 · Currawong 0.002**, proving trajectory only, never cadence or calmness. **Premise corrections:** item 20's dashboard has **no width parameter** (fixed 1600×1000), so "representative page widths" required a new sweep; **item 132 calls Kite the nineteenth world when Paperbark already is** (Kite would be twentieth); and **in a code buffer the map does not describe what ships** — at `page_width_code = 100` a 1600px window leaves a 16px margin, the ground effectively vanishes and the roster's spread collapses toward palette alone. **Two metric repairs recorded because they nearly produced false findings:** linear luminance called every dark world's ground flat while the captures plainly showed shapes (gamma, not a finding) — CIE L\* is now the headline column; and `ink_cr` took a *percentile of the column*, whose area changes with the measure while the ink does not, so it moved between arms for one palette (Paperbark 10.75 vs 4.42) until a fixed extreme-pixel count made it arm-invariant. **Vision smoke 19/19 on every affordance except inline code, which is not locatable in Wagtail** — pixel-checked as byte-identical background, which is the 1-bit law's own sanctioned answer (THEMES.md) and therefore declared behaviour rather than a defect, though the affordance genuinely does not exist there. **Near-duplicate poles, named as the item asked:** Tawny/Mopoke (tightest — same `Dots{edge:false}`, edge 0.0000 both, L\* σ within 0.15), Magpie/Saltpan (edge **0.4444 on both to four decimals**), Bilby/Brolga (deliberate mirror per THEMES.md), and **Firetail/Mangrove inverted** — Mangrove measures louder on every static and motion column while ranking a step lower. **Six proposals, all labelled as proposals:** Galah's ground density (item 108's Gumtree precedent; the cheapest 2→3), re-verifying item 108 actually met its Done condition (Gumtree measures second-faintest at its shipped density), rejecting Mulga's promotion on purpose and recording why, resolving the Firetail/Mangrove inversion, making ROADMAP's "merge the tightest near-pair" call on the now-named pair, and **recording the confirmed map as durable data so the next run diffs instead of re-deriving four scores by inference.** Captures in `gallery/worlds/`, `gallery/item-118-loudness/` and `gallery/item-118-ambient/`. Dispatched now because the roster is momentarily STABLE at nineteen worlds — Bowerbird's `Finds` and item 186's ground space both landed, and Kite is held off main — so a distribution taken now describes what actually ships. Only the preparation is dispatchable: the item's Done requires a USER-CONFIRMED map and states that pixel arithmetic may prove territory and contrast but never claims the taste score. The lane produces captures, a vision smoke, and its own independent 1–5 proposal; the confirmation and any rebalance remain the user's.**
 
 ## Parked — explicit gate or future design
 
