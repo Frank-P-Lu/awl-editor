@@ -49,11 +49,22 @@ caffeinate does not unblock a live sitting; only unlocking does. Screensaver
 **What this blocks right now, all of it needing one unlock rather than one
 decision:** 118's world-loudness confirmation and its `--release` ambient
 sitting; 211's unoccluded glide confirmation and its unreached sweep arms;
-207's real VoiceOver / AT-SPI journeys; **218's VoiceOver sitting** (new this
+**207's real VoiceOver journey**; **218's VoiceOver sitting** (new this
 wave); **241's one-run discriminator** — `AWL_THEME_FONT_DEBOUNCE_MS=0` from
 Kite, which is the cheapest thing on this board and decides between three
 candidate causes; and **244's `--release` judgement** of whether the new
 companion breathe reads as a flash.
+
+⚠️ **TWO CORRECTIONS TO THAT LIST, both made 2026-08-04, because a
+misattributed blocker never gets cleared.** (1) **207's AT-SPI journey is NOT on
+it** — AT-SPI2 is the *Linux* accessibility API (`ACCESSIBILITY.md:65`), so no
+unlock of this Mac can reach it; it needs a Linux session with Orca and is now
+**item 251**. Only 207's VoiceOver half belongs here. (2) **241's discriminator
+is not a perception arm** — it is one run of `AWL_THEME_FONT_DEBOUNCE_MS=0` and
+a HUD reading, so an AGENT can do it the moment the screen is awake; it sits in
+this list only because it needs presented frames. The genuinely human arms are
+118, 211, 218 and 244, of which only 118 has a head start (an independent agent
+map, `1, 10, 3, 4, 1`, mean 2.68, to diff against rather than re-derive).
 
 ⚠️ **Do not let a lane "run" any of these under the lock.** `--live-script`
 writes successful-looking `LIVE-PROBE shot … ok` lines while presenting **zero
@@ -999,14 +1010,20 @@ re-derive this section in the same commit.**
    `diagonal.rs` are item **247**'s working set (branch
    `claude/item-247-chevron-prototype`). Do not dispatch a 174 slice over those
    two until 247 lands. `gutter.rs` and `preview.rs` are clear of it.
-4. **Then, unblocked and unclaimed:** 237 (the vacuous law arm — small), 229
-   (CJK word count, user decision made), 222/131d (Magpie's mirrored cluster,
-   user decision made), 221 and 224 (both were blocked on 235's capability,
-   which landed), 239, 241, 242.
+4. **Then, unblocked and unclaimed:** 222/131d (Magpie's mirrored cluster, user
+   decision made), 221 and 224 (both were blocked on 235's capability, which
+   landed), 241, 242, and **249** (unblocked 2026-08-04 — see the evidence-branch
+   decision at the foot of this board; **250** retires the exception it needed).
+   ⚠️ **Corrected 2026-08-04:** this line previously also named 237, 229 and 239.
+   **237 and 229 are COMPLETE** (`72d08422`, `d8ae72c9`) and **239's oracle was
+   REVERTED and requeued as 249** — dispatching from the old text would have
+   re-done finished work, which is the exact defect the header of this section
+   complains about, recurring one wave later.
 5. **Human/live closures, all needing an unlocked and FOREGROUNDED display:**
    118's world-loudness confirmation and its `--release` ambient sitting; 211's
-   unoccluded confirmation and its unreached sweep arms; 207's real VoiceOver /
-   AT-SPI journeys; and now **218's own final Done clause**, which no test tier
+   unoccluded confirmation and its unreached sweep arms; **207's real VoiceOver
+   journey** — its **AT-SPI half is item 251 and needs a LINUX machine, not an
+   unlock**; and now **218's own final Done clause**, which no test tier
    can stand in for. ⚠️ `displaysleep` is 10 and screensaver `idleTime` is 300 —
    this silently invalidated the 2026-08-02 sitting seven minutes in. Hold the
    display with `caffeinate -d -i -t <seconds>` and re-check the lock at BOTH
@@ -1159,10 +1176,23 @@ user authorization.
 
 246. ✅ **RESOLVED 2026-08-04 by option (a), landed in `RELEASING.md` — accept the loss in writing.** The receipt section now states that neither mac job prints a `native-gate-receipt`, that `native-gate.sh`'s refusal to run filtered is exactly what makes its receipt mean anything, and that nothing was built to replace the signal — so no reader goes hunting for one that is gone. It directs the reader to the two jobs' own conclusions, which are individually meaningful, that being the point of the split. Option (b), a synthesised combined statement, was declined on the recorded ground that it would re-bundle what item 243 deliberately unbundled and would have to misstate scope to call itself a receipt. Implemented by the orchestrator directly rather than dispatched: the brief would have cost more than the change. **Original entry follows.** **No hosted-mac CI arm prints a `native-gate-receipt` anymore, and nothing replaced the signal.** **Defect:** item 243 (landed `1833757b`) split `mac (build + test)` into a gating filtered arm and a tolerated `render::tests` arm. `scripts/native-gate.sh` **refuses any filtered invocation by construction** — that is its contract and the reason its receipt means what it means — so neither new job can call it, and neither prints a receipt. **This is intended and is NOT a regression to undo**: a filtered run was never entitled to claim the full suite, and the item-243 lane both chose this deliberately and flagged it rather than absorbing it. **What was actually lost:** before the split, a human reading CI's mac job log could see `native-gate-receipt commit=… conventions=mac,linux scope=all-targets` and take it as informal confirmation that *that exact commit* passed the full suite **on hosted virtualised Metal** — the one axis no local gate reaches. That confirmation now exists in no form. ⚠️ **This is a DIFFERENT gap from the board's RECEIPT GAP**, which is about local pre-push receipts going unrecorded in commit messages; do not merge the two, they have different owners and different fixes. **Nothing currently consumes the CI string** — `scripts/test-native-gate.sh` tests the script itself and `code-health.py`'s audits check the script's shape and the `linux` job's use of it — so nothing is broken today. **Decide, then act:** either (a) accept the loss and say so in `RELEASING.md` where receipts are described, so no reader looks for a signal that is gone; or (b) have the two mac jobs jointly emit one honest combined statement naming what each half covered, which is **not** a `native-gate-receipt` and must not be spelled like one. **Recommend (a)** — the split's whole value is that each arm's conclusion is now individually meaningful, and a synthesised receipt re-bundles what was just deliberately unbundled. **Do not** relax `native-gate.sh`'s no-filtering contract to make a receipt reachable; that contract is load-bearing. **Found by the item-243 lane 2026-08-03/04.**
 
-⚠️ **ITEM 249 IS BLOCKED ON A RULE, NOT ON EFFORT — and the decision is the
-user's. Read this before dispatching it.** 249 requires its oracle be **proved
-on lavapipe before it lands**, since validating only on this host's Metal is the
-exact gap that produced it. There are only two routes and **both are currently
+✅ **ITEM 249 IS UNBLOCKED — USER DECISION 2026-08-04: THE EVIDENCE BRANCH IS
+ALLOWED, AND `CLAUDE.md` NOW SAYS SO.** The recommendation below was taken. A
+branch may be pushed **solely to collect CI evidence on an arm no local gate can
+reach**, opened as a PR for that purpose alone, never merged from, and **deleted
+from the remote once the run is recorded** — the run and its logs outlive the
+branch, which is what makes the deletion safe. The rule in `CLAUDE.md`
+("Worktree branches never push") was absolute and is what actually blocked this;
+a board note could not have cleared it, because a worker reads `CLAUDE.md` and
+stops. ⚠️ **The exception is TEMPORARY and self-retiring — item 250 removes it**
+once 249's evidence is in hand. Two mechanics for the lane: pushing the branch
+alone runs **nothing** (`ci.yml`'s push trigger is `branches: [main]`), so the
+PR is what fires the `linux` job; and `workflow_dispatch` is not a push-free
+route, since it needs the ref on the remote too. **Original note follows.**
+
+⚠️ **ITEM 249 WAS BLOCKED ON A RULE, NOT ON EFFORT.** 249 requires its oracle be
+**proved on lavapipe before it lands**, since validating only on this host's
+Metal is the exact gap that produced it. There are only two routes and **both were
 closed:**
 - **A local lavapipe container.** Item 232 measured this and refused it: a
   1.67 GB image and ~14 GiB of Docker VM disk that did not come back, for zero
@@ -1187,3 +1217,7 @@ should not be dispatched until it is made, because a lane cannot honestly
 satisfy its Verify clause otherwise.**
 
 249. **Item 239's portable allocation oracle was NOT portable — redesign the oracle, keep the findings.** ⚠️ **This supersedes item 239's Build clause. 239's substantive findings are NOT in question and must not be re-derived; only the oracle is.** **Defect:** the oracle landed at `52b1b313` and was reverted at `b2f27143` because `main` went red — run `30844149209`, all three `alloc_bound_law` tests FAILED in the **linux** job under **both** conventions while every other arm passed. The law's own message named the cause: `creating one wgpu texture moved wgpu-hal's live texture count by 0 instead of 1 (before: -5 objects (buffers 3, textures -8, views 0); after: -4 ...)`. **Two separate facts in that line, and the second is the stranger one.** The delta is **0**, so on CI's backend creating a texture does not move the counter at all; and the absolute reading is **NEGATIVE** (`textures -8`), which no create/destroy accounting should ever produce. ⚠️ **The failure is precisely the axis the design chose itself on.** 239 picked counts over bytes because `buffers`/`textures`/`texture_views` are maintained by metal, vulkan, gles **and** dx12 while `buffer_memory`/`texture_memory` are vulkan and dx12 only — read off wgpu-hal 29.0.3 source. It was then validated only on this host's real Metal, and lavapipe falsified it on first contact. **A portable oracle that is not portable is worse than none, because the bound it guards reads as covered.** **Build:** decide what a cross-backend allocation oracle can actually assert, with **CI's lavapipe as a first-class target rather than an afterthought** — the negative absolute count needs explaining before any law is written on top of it, because a counter that can go negative cannot support a bound in either direction. Candidates worth weighing: read counters only as *deltas within one owned device* rather than as absolutes; use a wgpu-level rather than hal-level accounting point; or accept that the oracle is backend-specific and gate the law by backend, which is honest but forfeits the item's original purpose. **Verify:** whatever lands must be **proved on lavapipe before it lands** — a local container or CI-on-a-branch, not the dev host's Metal alone, since that is the exact gap that produced this item. Mutation proof as always, plus a non-vacuity arm equivalent to 239's third law (drop the `counters` feature and fail by name), which was well-designed and should survive the redesign. **Carry forward, all still true and none needing re-measurement:** the counter does **not** reproduce item 232's 199-vs-160 split (242.4 vs 243.3 objects per test, 0.4% against the container's 24%), so wgpu object allocation is not what the 4 GiB ceiling was exhausting; the suspects are pinned by `PendingWrites` until a **submit**, not by a poll, so a poll-targeted fix would not have worked and the live app which submits every frame is not exposed; and `background.wgsl`'s size ratio across the bisect boundary (1.2421) matches the container's test-count ratio (1.2437) to 0.13%, which one container run at HEAD would falsify. **The bound itself** — an empty submit plus a non-blocking poll in `test_gpu::arrive` — went out with the revert and is worth restoring **with** whatever law can honestly guard it. **Routing:** deep tier. **Found by CI 2026-08-04; the reverted work is in `52b1b313` for reference.**
+
+250. **Restore the absolute "worktree branches never push" rule once item 249 has its lavapipe evidence.** **Defect:** by user decision 2026-08-04, `CLAUDE.md`'s push rule carries a temporary exception permitting an evidence-only branch, because item 249's oracle must be proved on an arm no local gate reaches and CI-on-a-branch was the cheap route. **An exception that outlives its reason becomes a standing loophole** — the rule's value is that it is absolute and needs no judgement call at 2am, and every reader after today will find a paragraph inviting them to weigh whether their push qualifies. **Build:** delete the exception paragraph from `CLAUDE.md`'s "Branches & pushing" section and restore the plain sentence, once 249 has landed with its evidence recorded. **Keep what was learned, in one sentence rather than a carve-out:** that CI's `linux` job is reachable from a branch only via `pull_request`, that the `push` trigger is `branches: [main]` and fires on nothing else, and that a run's logs outlive a deleted branch — those are facts about the repo worth keeping wherever the rule lives, and none of them require permission to be granted in advance. **Also confirm the evidence branch was actually deleted from the remote** (`git ls-remote --heads origin` names no leftover), since the deletion is half of what made the exception safe to grant. **Done:** `CLAUDE.md` states the rule absolutely again, no remote branch survives from 249's run, and the CI-reachability facts are recorded without a standing exemption. **Verify:** grep `CLAUDE.md` for the exception text and find nothing; `git ls-remote --heads origin` is clean of the evidence branch. **Depends on item 249. Routing:** orchestrator-direct — this is a documentation edit, and briefing it would cost more than doing it. **User decision 2026-08-04, made in the same breath as the exception itself, which is the right time to schedule an undo.**
+
+251. **Item 207's AT-SPI journey needs a LINUX machine, and has been queued behind a macOS screen lock instead.** **Defect:** the board's live-closure list groups "207's real VoiceOver / AT-SPI journeys" under *needs an unlocked and FOREGROUNDED display*, alongside 118, 211, 218 and 244. **That is true of the VoiceOver half and false of the AT-SPI half.** AT-SPI2 is the **Linux** accessibility API (`ACCESSIBILITY.md:65` — NSAccessibility on macOS, AT-SPI2 on Linux, UIA on Windows), so no amount of unlocking the dev Mac reaches it; it needs a Linux desktop session with Orca. Filed as its own item because a blocker misattributed to the wrong cause **never gets cleared** — the arm will keep appearing in every "one unlock closes these" list, and each unlock will keep leaving it open, with nobody noticing that the list was wrong rather than the sitting. `ACCESSIBILITY.md:110` already states plainly that **no AT-SPI journey has been run at all**, so the honest limits section is correct today and must stay correct. **Build:** nothing to build until the hardware exists — this item's first job is to record what the journey requires (a Linux desktop session, Orca, the native build, and the same journeys the VoiceOver sitting runs: document read, caret and selection announcement, overlay summon/dismiss, and an editing burst that would surface the item-218 stall class on the other adapter). **Scope:** does NOT include shipping a fix for whatever it finds; a defect found here earns its own item, exactly as item 218 did from the first VoiceOver sitting. **Done:** either the journey has been run on a real Linux session and its findings recorded in `ACCESSIBILITY.md`'s honest-limits section, or the item stands parked with its hardware requirement stated — and in the meantime the board's live-closure list no longer implies an unlock will close it. **Verify:** human journey; there is no headless stand-in, and AccessKit law tests already cover the projection, which is precisely the layer this item exists to look past. **Routing:** human, on Linux. **Split out of item 207 on 2026-08-04 after the live-closure list was found to conflate two different blockers.**
