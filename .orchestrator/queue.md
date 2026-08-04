@@ -442,27 +442,6 @@ confirms item 243's split is LIVE**: the job list now reads
 `mac (build + test, minus render::tests)` and
 `mac (render::tests) — allowed failure, item 231`.
 
-🔴 **243's VERIFY CLAUSE 2 FAILED ON ITS FIRST REAL RUN — repaired at
-`da70df93`, and the mechanism is worth knowing repo-wide.** Run `30825396088`
-concluded **`cancelled`** with **every gating arm green**:
-`mac (build + test, minus render::tests)`, `linux`, `web` and `mac live-probe`
-all success; only the tolerated `mac (render::tests)` was non-success, at
-`cancelled` after 60m33s. **`continue-on-error: true` tolerates a job that
-FAILS. A step or job exceeding `timeout-minutes` is CANCELLED, not failed, and
-cancellation propagates to the run's conclusion regardless.** So `main` still
-did not read green — the exact uninformative signal the split existed to end.
-**This is precisely why the 243 lane refused to claim clause 2 from a YAML
-parse and named it owed; the parse was right about the shape and the shape was
-insufficient.** Fix: `scripts/ci-wedge-budget.sh` bounds the hang INSIDE the
-step and exits non-zero, an ordinary failure `continue-on-error` does tolerate;
-`timeout-minutes` stays as a backstop above it for the runner-loses-comms case
-(`actions/runner-images#13882`) that no in-process watchdog survives. The test
-filter is passed FROM the workflow so the scope stays readable there — 243's own
-promise — and `mac-split-audit` keeps grading the real invocation; the audit
-caught the first attempt at exactly this and was re-proved to still bite.
-Watchdog proved in isolation (137 on overrun, 0 otherwise) since the hang only
-reproduces on hosted macOS. **Clause 2 end-to-end is owed to `da70df93`'s run.**
-
 ✅ **243's VERIFY CLAUSE 1 IS PAID, and this is the wave's headline result.**
 On run `30825396088`, `mac (build + test, minus render::tests)` completed
 **success** on a hosted runner. **That is the first hosted-mac arm to pass and
