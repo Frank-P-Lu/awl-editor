@@ -286,3 +286,200 @@ fn a_reattach_is_owed_a_full_tree_rather_than_a_diff() {
         "a reattached screen reader was handed a diff against a tree it never saw",
     );
 }
+
+// ── the platform mirror ────────────────────────────────────────────────────
+struct Mirror {
+    nodes: std::collections::HashMap<accesskit::NodeId, accesskit::Node>,
+    root: Option<accesskit::NodeId>,
+}
+
+impl Mirror {
+    fn of(app: &App) -> Self {
+        let mut mirror = Self {
+            nodes: std::collections::HashMap::new(),
+            root: None,
+        };
+        for entry in app.frame.published_accessibility_trees() {
+            // An activation that could not be served leaves the platform
+            // holding a PLACEHOLDER, not the tree it had a moment ago.
+            let Some(update) = entry else {
+                mirror.nodes.clear();
+                mirror.root = None;
+                continue;
+            };
+            if let Some(tree) = update.tree.as_ref() {
+                mirror.nodes.clear();
+                mirror.root = Some(tree.root);
+            }
+            for (id, node) in &update.nodes {
+                mirror.nodes.insert(*id, node.clone());
+            }
+        }
+        mirror
+    }
+
+    fn document(&self) -> Option<&accesskit::Node> {
+        let root = self.nodes.get(&self.root?)?;
+        root.children().iter().find_map(|id| {
+            let node = self.nodes.get(id)?;
+            matches!(
+                node.role(),
+                accesskit::Role::MultilineTextInput | accesskit::Role::Document
+            )
+            .then_some(node)
+        })
+    }
+
+    /// Do the document's selection endpoints name nodes the platform HAS?
+    /// `None` when no selection was published at all.
+    fn selection_resolves(&self) -> Option<bool> {
+        let d = self.document()?;
+        let sel = d.text_selection()?;
+        Some(self.nodes.contains_key(&sel.anchor.node) && self.nodes.contains_key(&sel.focus.node))
+    }
+
+    /// The text the platform would read back, run by run.
+    fn run_texts(&self) -> Vec<String> {
+        self.document()
+            .map(|d| {
+                d.children()
+                    .iter()
+                    .filter_map(|id| self.nodes.get(id))
+                    .map(|n| n.value().unwrap_or_default().to_string())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+}
+
+/// What a fresh O(document) snapshot says the runs hold — the one-shot builder
+/// is the independent oracle for the retained projection.
+fn truth(app: &App) -> Vec<String> {
+    app.semantic_snapshot()
+        .nodes
+        .iter()
+        .filter(|n| crate::semantic::is_run_id(&n.id))
+        .map(|n| n.value.clone().unwrap_or_default())
+        .collect()
+}
+
+/// THE ITEM-259 LAW. A screen reader may ask for an INITIAL tree again in the
+/// middle of a session — macOS re-asks whenever a window is cycled, which is the
+/// user's exact trigger — and the answer comes from a slot parked before the
+/// window was ever shown. The tree it is handed must describe the document as it
+/// is NOW.
+///
+/// The axis swept is the one counting could not see: the run TEXT, not the run
+/// count. Every earlier law here asserts a `ProjectionStats` counter, and a
+/// counter says an update was published, never what was in it — a platform
+/// holding the whole document as it stood at launch has exactly the right number
+/// of runs in it.
+#[test]
+fn a_reasked_initial_tree_describes_the_document_as_it_is_now() {
+    for edit in ["in-line", "newline", "selection"] {
+        let _guard = crate::testlock::serial();
+        calm_globals();
+        let mut app = hermetic();
+        app.set_semantic_text_for_test("alpha\nbeta\ngamma");
+        app.document.set_cursor(0);
+        app.seed_accessibility_tree();
+        app.frame.activate_accessibility_for_test();
+        app.refresh_accessibility();
+
+        match edit {
+            // An ordinary keystroke: the run sequence does not move.
+            "in-line" => {
+                for ch in "XYZ".chars() {
+                    app.document.insert_char(ch);
+                    app.refresh_accessibility();
+                }
+            }
+            // A STRUCTURAL change, where a stale child list bites hardest: the
+            // platform's document would name runs that no longer exist.
+            "newline" => {
+                for ch in "one\ntwo\n".chars() {
+                    app.document.insert_char(ch);
+                    app.refresh_accessibility();
+                }
+            }
+            // No edit at all — only a selection, which is the half of item 259
+            // the user reported as no longer being read out.
+            "selection" => {
+                app.set_semantic_selection_for_test(2, 9);
+                app.refresh_accessibility();
+            }
+            _ => unreachable!(),
+        }
+
+        // The window is cycled: the platform asks for an initial tree again.
+        app.frame.activate_accessibility_for_test();
+        app.refresh_accessibility();
+
+        let mirror = Mirror::of(&app);
+        assert_eq!(
+            mirror.run_texts(),
+            truth(&app),
+            "{edit}: a re-asked initial tree handed the screen reader the \
+             document as it stood at launch",
+        );
+        assert_eq!(
+            mirror.selection_resolves(),
+            Some(true),
+            "{edit}: the document's selection names run nodes the platform \
+             does not hold, so there is nothing for it to be announced against",
+        );
+    }
+}
+
+/// THE CONTRACT ITEM 257 MISREAD, pinned so it is not re-filed.
+///
+/// `Role::TextRun` is EXCLUDED from a node's accessible children by
+/// `accesskit_consumer::common_filter`, which `accesskit_macos` and
+/// `accesskit_atspi_common` each re-export as their own `filter`. So a document
+/// whose children are all text runs correctly exposes ZERO accessible children
+/// on both platforms, and its text reaches a screen reader through the text
+/// interface instead. An AT-SPI probe asserting "the document has one child per
+/// line" is asserting a shape AccessKit deliberately does not publish.
+///
+/// Measured against that code rather than read off it: no local gate reaches
+/// AT-SPI or VoiceOver, and this repo has been burned before by an oracle
+/// derived from a careful source read.
+#[test]
+fn the_platform_filters_text_runs_out_of_the_documents_accessible_children() {
+    let _guard = crate::testlock::serial();
+    calm_globals();
+    let mut app = hermetic();
+    app.set_semantic_text_for_test(&document(3));
+    app.document.set_cursor(0);
+    let update = crate::semantic::native::tree_update(&app.semantic_snapshot());
+    let tree = accesskit_consumer::Tree::new(update, true);
+    let state = tree.state();
+    let root = state.root();
+    let doc = root
+        .filtered_children(&accesskit_consumer::common_filter)
+        .next()
+        .expect("the document must survive the platform's own filter");
+    assert!(
+        matches!(
+            doc.role(),
+            accesskit::Role::MultilineTextInput | accesskit::Role::Document
+        ),
+        "the node under the root is not awl's document: {:?}",
+        doc.role(),
+    );
+    // Unfiltered, the runs are there — awl really does publish them, and the
+    // text interface is built from them.
+    assert_eq!(
+        doc.child_ids().count(),
+        3,
+        "awl stopped publishing its line runs at all",
+    );
+    assert_eq!(
+        doc.filtered_children(&accesskit_consumer::common_filter)
+            .count(),
+        0,
+        "a text run reached a screen reader as an accessible CHILD; if \
+         accesskit's common_filter no longer excludes Role::TextRun, item \
+         257's probe assertion becomes correct and this law is what says so",
+    );
+}

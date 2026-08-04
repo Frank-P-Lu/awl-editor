@@ -120,6 +120,14 @@ pub(super) struct AccessibilityRuntime {
     /// Does the platform hold a placeholder rather than something this
     /// projection published? Then it is owed a full tree, once.
     owes_full: bool,
+    /// What the platform was handed, in order: `Some(update)` for each tree
+    /// published, and `None` where an activation could not be served — which is
+    /// not nothing, it is the platform DROPPING what it held for a placeholder
+    /// (`AdapterState::Pending` carries no tree, on both backends). A law
+    /// replays these the way an adapter does and asks what a screen reader would
+    /// find, which is the one question `ProjectionStats` cannot answer.
+    #[cfg(test)]
+    published: Vec<Option<accesskit::TreeUpdate>>,
 }
 
 impl AccessibilityRuntime {
@@ -134,21 +142,29 @@ impl AccessibilityRuntime {
             published_focus: String::new(),
             active: false,
             owes_full: true,
+            #[cfg(test)]
+            published: Vec::new(),
         }
     }
 
     pub(super) fn set_active(&mut self, active: bool) {
-        if self.active == active {
-            return;
-        }
-        self.active = active;
         if active {
+            // Keyed on what the handler SERVED, never on the transition. An
+            // activation can arrive while this runtime already believes an
+            // assistive technology is attached — a re-asked initial tree, which
+            // macOS issues when a window is cycled — and a repeat request that
+            // could not be served leaves the platform holding a placeholder
+            // exactly as a first one does. Early-returning on `active == true`
+            // skipped that bookkeeping and left the platform holding whatever
+            // it had, with every later update a diff against it.
             if !self.shared.served.load(Ordering::SeqCst) {
                 // A placeholder tree: the diff would be against something the
                 // platform never saw.
                 self.invalidate();
             }
-        } else {
+            self.active = true;
+        } else if self.active {
+            self.active = false;
             // A reattach gets a platform adapter that never saw what we
             // published, so nothing retained may be diffed against.
             self.invalidate();
@@ -221,8 +237,17 @@ impl AccessibilityRuntime {
     #[cfg(test)]
     pub(super) fn activate_for_test(&mut self) -> Option<accesskit::TreeUpdate> {
         let tree = serve_initial_tree(&self.shared);
+        // The handler's answer reaches the platform exactly as an update does,
+        // and its ABSENCE reaches it too — so both branches are recorded.
+        self.published.push(tree.clone());
         self.set_active(true);
         tree
+    }
+
+    /// Every tree the platform has been handed, in order.
+    #[cfg(test)]
+    pub(super) fn published_trees(&self) -> &[Option<accesskit::TreeUpdate>] {
+        &self.published
     }
 
     pub(super) fn install(&mut self, event_loop: &ActiveEventLoop, window: &Window) {
@@ -263,28 +288,49 @@ impl AccessibilityRuntime {
         let focus_moved = projection.snapshot().focus_id != self.published_focus;
         let full = self.owes_full || !projection.is_seeded();
         let shape = projection.shape_rev();
-        // Disjoint field borrows: the projector is `&mut` inside the closure
-        // while the adapter is `&mut` around it.
-        let Self {
-            adapter, projector, ..
-        } = self;
-        if full {
-            if let Some(adapter) = adapter.as_mut() {
-                adapter.update_if_active(|| projector.full(projection.snapshot(), shape));
-            }
+        // Built eagerly rather than inside `update_if_active`'s closure. The
+        // expensive half — reading the rope and re-segmenting it — already
+        // happened in the projection; what is left is projecting the nodes this
+        // update actually names, which is the whole document only once per
+        // activation and two nodes per keystroke. Paying that in the rare frame
+        // where the platform adapter has gone inactive under us buys the thing
+        // the closure form cannot give: the update is a VALUE, so one door can
+        // see every byte that reaches the platform.
+        let update = if full {
+            let update = self.projector.full(projection.snapshot(), shape);
             projection.note_full_tree();
+            Some(update)
         } else if !projection.changed().is_empty() || focus_moved {
             let count = projection.changed().len();
-            if let Some(adapter) = adapter.as_mut() {
-                adapter.update_if_active(|| {
-                    projector.incremental(projection.snapshot(), projection.changed(), shape)
-                });
-            }
+            let update =
+                self.projector
+                    .incremental(projection.snapshot(), projection.changed(), shape);
             projection.note_incremental(count);
+            Some(update)
+        } else {
+            None
+        };
+        if let Some(update) = update {
+            self.emit(update);
         }
         self.owes_full = false;
         self.published_focus = projection.snapshot().focus_id.clone();
         self.projection = Some(projection);
+    }
+
+    /// The ONE door from this runtime to the platform's tree.
+    ///
+    /// Every update goes through here, so "what does the screen reader actually
+    /// hold" is answerable by recording at a single point rather than by
+    /// reasoning about the adapter. Without a door, the laws could only assert
+    /// on projection COUNTERS — and a counter says an update was published, not
+    /// what was in it.
+    fn emit(&mut self, update: accesskit::TreeUpdate) {
+        #[cfg(test)]
+        self.published.push(Some(update.clone()));
+        if let Some(adapter) = self.adapter.as_mut() {
+            adapter.update_if_active(move || update);
+        }
     }
 }
 
@@ -372,6 +418,11 @@ impl FrameRuntime {
         &mut self,
     ) -> Option<accesskit::TreeUpdate> {
         self.accessibility.activate_for_test()
+    }
+
+    #[cfg(test)]
+    pub(in crate::app) fn published_accessibility_trees(&self) -> &[Option<accesskit::TreeUpdate>] {
+        self.accessibility.published_trees()
     }
 }
 

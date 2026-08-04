@@ -77,7 +77,7 @@ that drift is invisible until it hurts someone.
 
 | surface | what it exposes |
 |---|---|
-| The document | One multiline editable text node whose children are STABLE LINE RUNS — one text run per line, carrying that line's text including its newline — and the caret/selection as GRAPHEME offsets over the whole document: a combining sequence, a ZWJ family emoji or a flag is one position, never half of one. A selection that crosses a line break names two different runs, which is the ordinary case and round-trips both ways. Supports focus, set-selection, replace-selected-text and set-value. |
+| The document | One multiline editable text node whose children are STABLE LINE RUNS — one text run per line, carrying that line's text including its newline. Those runs are how a screen reader gets the text, but they are not ACCESSIBLE children: AccessKit's `common_filter` excludes `Role::TextRun`, and both platform backends use it, so the document correctly reports zero children on macOS and on Linux and exposes its lines through the text interface at line granularity instead — and the caret/selection as GRAPHEME offsets over the whole document: a combining sequence, a ZWJ family emoji or a flag is one position, never half of one. A selection that crosses a line break names two different runs, which is the ordinary case and round-trips both ways. Supports focus, set-selection, replace-selected-text and set-value. |
 | Summoned pickers (all 19 kinds) | A dialog with its title and footer hint, its query field, and one option per visible row with its binding value and selected state. Row identity is keyed to the corpus, so filtering never renames a row under an assistive cursor. |
 | Settings rows | The control each row actually is — check box, slider, text field or button — not a generic list option, with the actions that control really supports. |
 | Find and replace | Both fields with their carets, the match-count description, and the case-sensitivity check box. |
@@ -104,14 +104,22 @@ main loop.
 ### The honest limits
 
 - **One real VoiceOver sitting has been run; the follow-up has not.** The first
-  sitting (2026-08-02) is what found the "not responding" report above. Whether
-  the fix holds — a full typing and navigation journey with no stall — needs a
-  second sitting on an unlocked, foregrounded display, and that has not
-  happened. **No AT-SPI journey has been run at all, and item 252's CI arm
+  sitting (2026-08-02) is what found the "not responding" report above. A
+  second sitting (2026-08-04) came back NEGATIVE: the symptom is unchanged when
+  VoiceOver is turned on mid-session, and VoiceOver also stopped reading out
+  the highlighted selection. That found a real defect — a screen reader that
+  re-asks for an initial tree mid-session (macOS does this when a window is
+  cycled) was served the document as it stood at LAUNCH, and nothing repaired
+  it — now fixed and pinned by
+  `a_reasked_initial_tree_describes_the_document_as_it_is_now`. **Whether that
+  closes what the user heard is still unconfirmed:** a capture cannot hear a
+  screen reader, so it needs a third sitting on an unlocked, foregrounded
+  display, and that has not happened. **No AT-SPI journey has been run at all, and item 252's CI arm
   does not change that sentence** — it is a mechanical check, on every
   push/PR, that AccessKit's Unix adapter registers on the AT-SPI2 bus and
-  publishes the tree's shape (the document, item 218's stable line runs,
-  focus, a live selection); it has no Orca, no human, and no ears, so it says
+  publishes the tree's shape (the document, item 218's stable line runs read
+  through the text interface, focus, a live selection); it has no Orca, no
+  human, and no ears, so it says
   nothing about what a screen reader user would hear or how navigation feels.
   That journey is item 251, parked on a Linux desktop with Orca. Everything
   else is verified by unit and law tests over the snapshot and its AccessKit

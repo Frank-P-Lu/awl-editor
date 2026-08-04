@@ -11,11 +11,15 @@ ordinary assistive-technology client would, and asserts that the tree
     means this alone never appears — that is the mutation-proof case);
   - the editable multiline document (ROLE_ENTRY, EDITABLE, MULTI_LINE,
     eventually FOCUSED) as a descendant of the application node;
-  - item 218's STABLE LINE RUNS as its children, one per rope line plus the
-    trailing empty run, each ROLE_STATIC with the exact expected text — a
-    monolithic single-node document (the pre-218 shape) fails this exact
+  - item 218's STABLE LINE RUNS, read through the document's TEXT INTERFACE
+    at LINE granularity — one entry per rope line plus the trailing empty run,
+    with the exact expected text. A monolithic single-node document (the
+    pre-218 shape) reports the whole document as one line and fails this exact
     check, which is the point: this confirms the RUN-BASED tree specifically,
-    not merely that *a* tree exists;
+    not merely that *a* tree exists. It is NOT asked as a child count: text
+    runs are deliberately excluded from a node's accessible children by
+    accesskit's own common_filter, so the document correctly has zero (see the
+    long note beside the assertion);
   - a real caret/selection: the initial caret at offset 0, and — driven by an
     actual Shift+Right keypress delivered through X11, not synthesized — a
     live AT-SPI selection afterwards.
@@ -398,121 +402,77 @@ def main() -> None:
         # any depth, confirmed structurally, not by timing. The document is
         # searched directly under the application node instead.
         #
-        # Retried, not a single shot: finding `app` on the desktop and
-        # RegisterInterfaces for every one of its descendants reaching the
-        # bus are two different steps (adapter.rs's `register_interfaces` per
-        # node vs. the AT-SPI Socket embedding), and an earlier run's ~0.65s
-        # gap between "app found" and "document searched" was fast enough to
-        # be a legitimate open question about whether this was racing that
-        # propagation — closed here rather than left ambiguous again.
-        document_deadline = time.time() + DOCUMENT_TIMEOUT_S
-        document = None
-        while time.time() < document_deadline:
-            document = find_role(app, Atspi.Role.ENTRY)
-            if document is not None:
-                break
-            time.sleep(POLL_S)
-        if document is None:
-            fail(
-                "no ROLE_ENTRY under the awl application node within "
-                f"{DOCUMENT_TIMEOUT_S}s — SemanticSnapshot's editable "
-                "multiline document node did not cross the bridge"
-            )
-
-        state = document.get_state_set()
-        if not state.contains(Atspi.StateType.EDITABLE):
-            fail("document node is missing STATE_EDITABLE")
-        if not state.contains(Atspi.StateType.MULTI_LINE):
-            fail("document node is missing STATE_MULTI_LINE")
-
-        focus_deadline = time.time() + FOCUS_TIMEOUT_S
-        while (
-            not state.contains(Atspi.StateType.FOCUSED)
-            and time.time() < focus_deadline
-        ):
-            time.sleep(POLL_S)
-            state = document.get_state_set()
-        if not state.contains(Atspi.StateType.FOCUSED):
-            fail(
-                "document node never reports STATE_FOCUSED — focus did not "
-                "cross the bridge"
-            )
-
-        # Retried, not a single shot — same reasoning as the document lookup
-        # above, not "maybe no frame has drawn yet". Confirmed from source
-        # (src/app/semantic/projection.rs:168's `seed`): every run is built
-        # from `buffer.runs()`, the rope's own line table, with no rendering
-        # involved at all, and `seed_accessibility_tree` runs in `resumed()`
-        # BEFORE the window is even shown — so the runs exist in the Rust
-        # tree from the first instant, frame or no frame. What genuinely
-        # takes real wall-clock time is downstream of that: accesskit_unix's
-        # `register_interfaces` call per node is an ASYNC message sent
-        # through a channel to its own background thread, which then makes
-        # the actual `bus.register_interfaces(...)` D-Bus call — the exact
-        # kind of propagation lag the document-node lookup already retries
-        # for. A run count read the instant the document itself first
-        # appears can race that queue being drained.
+        # ‼ THE RUNS ARE NOT ACCESSIBLE CHILDREN, AND THAT IS CORRECT.
+        # This block used to assert `document.get_child_count() == 4` and
+        # failed on every run (item 257). The expectation was wrong, not awl:
+        # `accesskit_consumer::common_filter` returns `FilterResult::ExcludeNode`
+        # for `Role::TextRun`, and BOTH backends compute their exposed tree with
+        # it — `accesskit_macos::filters` and `accesskit_atspi_common::filters`
+        # are each a one-line re-export of that same function. So a document
+        # whose children are all text runs correctly exposes ZERO accessible
+        # children, on Linux and on macOS alike, and its text reaches a screen
+        # reader through the TEXT INTERFACE instead. `GetChildAtIndex(0)`
+        # returning None agreed with `ChildCount` because the filter is applied
+        # consistently through both doors, not because anything was missing.
         #
-        # The document handle is RE-FETCHED fresh each iteration (a new
-        # find_role call, not `.get_child_count()` called again on the same
-        # Python/GI object) — a stale per-object property cache on the
-        # ORIGINAL handle would make a naive retry vacuous, retrying nothing.
-        run_deadline = time.time() + RUN_CHILDREN_TIMEOUT_S
-        run_count = document.get_child_count()
-        while run_count != len(EXPECTED_RUN_TEXT) and time.time() < run_deadline:
+        # awl's side of that contract is pinned by
+        # `the_platform_filters_text_runs_out_of_the_documents_accessible_children`
+        # (src/app/frame/accessibility/tests.rs), which measures it against
+        # accesskit_consumer itself rather than reading it off the source.
+        #
+        # What this arm asserts instead is what a screen reader actually
+        # consumes. The retry stays, for the reason it always had: accesskit_
+        # unix registers interfaces through an async channel to its own thread,
+        # so the text can lag the document node's appearance.
+        want_text = "".join(EXPECTED_RUN_TEXT)
+        deadline = time.time() + RUN_CHILDREN_TIMEOUT_S
+        got_text = text_of(document)
+        while got_text != want_text and time.time() < deadline:
             time.sleep(POLL_S)
             document = find_role(app, Atspi.Role.ENTRY) or document
-            run_count = document.get_child_count()
-        if run_count != len(EXPECTED_RUN_TEXT):
-            # Mechanism check before failing: "awl does not publish the runs"
-            # and "this probe cannot enumerate published runs" are different
-            # defects. ChildCount is a property (possibly cached client-side);
-            # GetChildAtIndex is a live method call. If the two disagree, the
-            # failure is in this probe's enumeration, not in what awl
-            # published — worth knowing before reporting either way.
-            direct_child = None
-            direct_child_error = None
-            try:
-                direct_child = document.get_child_at_index(0)
-            except GLib.Error as exc:
-                direct_child_error = str(exc)
-            if direct_child is not None:
-                fail(
-                    f"document.get_child_count() reports {run_count} (expected "
-                    f"{len(EXPECTED_RUN_TEXT)}) but GetChildAtIndex(0) DIRECTLY "
-                    f"returned a real child (role {direct_child.get_role_name()!r}) "
-                    "— ChildCount disagrees with GetChildAtIndex, so this looks "
-                    "like a probe/client enumeration defect, not proof awl "
-                    "publishes no runs"
-                )
+            got_text = text_of(document)
+        if got_text != want_text:
             fail(
-                f"document has {run_count} children, expected "
-                f"{len(EXPECTED_RUN_TEXT)} stable line runs (item 218's shape) "
-                f"for the 3-line fixture, even after waiting {RUN_CHILDREN_TIMEOUT_S}s "
-                "with the handle re-fetched fresh each retry — GetChildAtIndex(0) "
-                f"directly agrees there is nothing there "
-                f"({('error: ' + direct_child_error) if direct_child_error else 'returned None'}). "
-                "A monolithic single-node document (the pre-218 shape) would fail "
-                "this exact check, and so does whatever is happening here in "
-                "item 218's run-publishing path on Linux"
+                f"document text is {got_text!r}, expected {want_text!r} after "
+                f"waiting {RUN_CHILDREN_TIMEOUT_S}s with the handle re-fetched "
+                "fresh each retry — the document's text did not cross the "
+                "AT-SPI bridge intact"
             )
 
+        child_count = document.get_child_count()
+        if child_count != 0:
+            fail(
+                f"document exposes {child_count} accessible children, expected "
+                "0 — accesskit's common_filter excludes Role::TextRun, so a "
+                "non-zero count means awl is publishing the lines under some "
+                "OTHER role and a screen reader will navigate them as objects "
+                "instead of as text"
+            )
+
+        # ITEM 218'S SHAPE, THROUGH THE INTERFACE THAT ACTUALLY EXPOSES IT.
+        # AccessKit derives LINE boundaries from the text runs, so a monolithic
+        # single-run document (the pre-218 shape) reports the WHOLE document as
+        # one line and fails here. This is the assertion the child-count check
+        # was reaching for, asked of the layer that answers it.
+        offset = 0
         for i, want in enumerate(EXPECTED_RUN_TEXT):
-            run = document.get_child_at_index(i)
-            if run is None:
-                fail(f"line run {i} is missing")
-            if run.get_role() != Atspi.Role.STATIC:
+            try:
+                got = document.get_string_at_offset(
+                    offset, Atspi.TextGranularity.LINE
+                ).content
+            except (AttributeError, GLib.Error) as exc:
                 fail(
-                    f"line run {i} has role {run.get_role_name()!r}, expected "
-                    "'static' (accesskit's Role::TextRun -> AtspiRole::Static "
-                    "mapping)"
+                    "could not read LINE granularity from the document's text "
+                    f"interface ({exc}) — this probe cannot assert item 218's "
+                    "per-line shape, so it must not report success"
                 )
-            got = text_of(run)
             if got != want:
                 fail(
-                    f"line run {i} text is {got!r}, expected {want!r} — item "
-                    "218's per-line run text did not cross the bridge intact"
+                    f"line {i} reads {got!r}, expected {want!r} — item 218's "
+                    "per-line run text did not cross the bridge intact (a "
+                    "monolithic single-run document fails exactly here)"
                 )
+            offset += len(want)
 
         caret = caret_offset_of(document)
         if caret != 0:

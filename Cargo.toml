@@ -329,3 +329,11 @@ naga = { version = "=29.0.3", features = ["wgsl-in", "glsl-out"] }
 # The wasm32 core smoke suite (src/websmoke.rs). Compatible with the pinned
 # wasm-bindgen 0.2.121; used only under `#[cfg(all(test, target_arch = "wasm32"))]`.
 wasm-bindgen-test = "0.3"
+# The shared layer BOTH platform accessibility backends compute their exposed
+# tree with: `accesskit_macos` and `accesskit_atspi_common` each re-export
+# `accesskit_consumer::common_filter` as their own `filter`. Same version
+# accesskit_winit 0.33.2 already pulls in transitively, pinned exact so the law
+# can never drift from what actually ships. dev-only; not a runtime dependency.
+# It exists so a claim about what a screen reader SEES is measured against that
+# code rather than read off it — no local gate reaches AT-SPI or VoiceOver.
+accesskit_consumer = "=0.38.0"

@@ -74,9 +74,17 @@ impl App {
     /// integer compare — enough to know the tree published for a future
     /// activation has gone stale, and nothing more.
     pub(in crate::app) fn refresh_accessibility(&mut self) {
+        // The parked activation tree's currency is maintained on EVERY frame,
+        // not only the ones with nobody listening. A screen reader may ask for
+        // an INITIAL tree again in the middle of a session — macOS does exactly
+        // this when a window is cycled, which is why the adapter is installed
+        // before the window is shown — and that request is answered from the
+        // parked slot. A currency flag that stopped being maintained the moment
+        // an assistive technology attached would answer it with the document as
+        // it stood at launch.
+        self.frame
+            .note_published_tree_currency(self.published_tree_is_current());
         if !self.frame.accessibility_wants_snapshot() {
-            self.frame
-                .note_published_tree_currency(self.published_tree_is_current());
             return;
         }
         let mut projection = self.frame.take_accessibility_projection();
