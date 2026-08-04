@@ -900,7 +900,31 @@ touched by this wave. And the RECEIPT GAP below is still open.
 
 **Overnight results, newest first.**
 
-⚠️ **RECEIPT GAP — items 232, 235 and 236, whose completion entries have been cleared as history.**
+✅ **RECEIPT GAP — RESOLVED 2026-08-04 BY DESCENT, not by retro-fitting. Read what this does and does not certify.**
+All three merges (`5bc771ca`, `df630ad9`, `ef6f87ca`) are **ancestors of HEAD**,
+verified with `git merge-base --is-ancestor`. Since then the tree containing all
+three has passed the full suite repeatedly, most recently
+`native-gate-receipt commit=e1c2656d2b23502bf1230df1f38ba62131e02a98 conventions=mac,linux scope=all-targets`
+(0 failures, both conventions), with `52b1b313`, `0d0a8b1b`, `d0c1dfc3` and
+`5635b5e2` carrying their own receipts in between.
+
+**What that establishes:** the CODE those three merges introduced passes the full
+native suite, as integrated, on this hardware. **What it does NOT establish:**
+that each merge was individually green at the moment it landed. A descendant's
+receipt cannot isolate an ancestor — if one of the three had shipped a defect
+that a later commit incidentally fixed, this reasoning would not see it. **For a
+merge train that is the right standard** (the shipped tree is what ships), and it
+is **not** the right standard for bisect attribution, so anyone bisecting across
+that range should not read these as per-commit green.
+
+**No receipt string was fabricated**, which was the one hard rule on this gap.
+The lost strings stay lost; 116d's was already truncated when written and is
+unrecoverable. **The standing fix that stops recurrence is already in force:
+receipts go in the MERGE COMMIT MESSAGE, not only on the board** — every merge
+from the 2026-08-03/04 wave onward carries one, because the board is the only
+copy otherwise and the board gets compressed.
+
+**Original entry follows.** ⚠️ **RECEIPT GAP — items 232, 235 and 236, whose completion entries have been cleared as history.**
 None of the three merge commits (`5bc771ca`, `df630ad9`, `ef6f87ca`) records a
 `native-gate-receipt` string, so by this repo's own rule — *the receipt is the
 only authorization to call the native tier "full native suite"* — **their native
