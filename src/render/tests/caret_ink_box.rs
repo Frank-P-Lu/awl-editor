@@ -893,8 +893,7 @@ fn heading_line_cell_caret_on_a_mono_world_also_tracks_the_row_not_the_bare_cons
     // `x` has no descender to extend), so this ratio can be pinned tightly
     // against the SAME formula `cursor_scale` reads from.
     for (level, h) in [(1u8, h1), (2, h2), (3, h3)] {
-        let want =
-            crate::markdown::heading_scale(level) * crate::markdown::heading_row_lead(level);
+        let want = crate::markdown::heading_scale(level) * crate::markdown::heading_row_lead(level);
         let ratio = h / body;
         assert!(
             (ratio - want).abs() < 0.05,
