@@ -105,7 +105,13 @@ fn dormant_bands_and_dots() -> Vec<Ground> {
     let (from, to, dir, tint) = theme::THEMES
         .iter()
         .find_map(|t| match t.background {
-            Background::Dots { from, to, dir, tint, .. } => Some((from, to, dir, tint)),
+            Background::Dots {
+                from,
+                to,
+                dir,
+                tint,
+                ..
+            } => Some((from, to, dir, tint)),
             _ => None,
         })
         .expect(
