@@ -123,6 +123,121 @@ jobs:
         if: github.event_name == 'push'
         run: scripts/release-profile-gate.sh
 
+  # ── AT-SPI bridge liveness (item 252) — separate from `linux`, deliberately ──
+  # Question this answers, narrowly: does AccessKit's Unix adapter actually
+  # register with the AT-SPI2 accessibility bus on real Linux and publish the
+  # tree `SemanticSnapshot` intends — the document, item 218's STABLE LINE
+  # RUNS, focus, and a live selection? `ACCESSIBILITY.md:65` names AT-SPI2 as
+  # the Linux half of AccessKit's platform backend and states plainly that no
+  # AT-SPI journey has ever been run against it, and item 218 (`c282cedd`)
+  # rewrote both the activation handler and the document's shape without any
+  # Linux gate able to see either change. This job is bridge LIVENESS AND
+  # STRUCTURE, mechanically, on every push/PR — `scripts/ci-atspi-probe.py`
+  # has the actual assertions and their rationale.
+  #
+  # ‼ THIS IS NOT ITEM 251 AND DOES NOT CLOSE IT. There is no Orca here, no
+  # human, no ears — a hosted runner has no desktop session for a screen
+  # reader to sit in front of. The probe asserts STRUCTURE over the AT-SPI
+  # wire (roles, children, text, focus, a keyboard-driven selection); it says
+  # nothing about what a screen reader user would hear or how navigation
+  # feels. Item 251 still owns that, and still needs a human at a real Linux
+  # desktop.
+  #
+  # TOLERATED, not gating — and after eight runs to get here, no longer
+  # "while it beds in": this arm found a REAL, REPRODUCIBLE DEFECT on its
+  # first complete run (item 257 — a Linux-only gap in item 218's run-based
+  # document, pinned by name here exactly as `mac (render::tests)` is pinned
+  # to item 231 below). `document.get_child_count()` stays 0 under real
+  # AT-SPI on Linux even after a bounded retry with the handle re-fetched
+  # fresh each iteration (ruling out client-side property caching) and a
+  # direct `GetChildAtIndex(0)` agreeing there is nothing there (ruling out a
+  # ChildCount-vs-GetChildAtIndex client enumeration mismatch) — see
+  # scripts/ci-atspi-probe.py's own comments for the full mechanism trail.
+  # Gating `main` on item 257 before it has a fix would block unrelated work
+  # on a known, already-diagnosed defect with no promised fix date — the
+  # exact situation item 243 designed this split for. `continue-on-error` is
+  # set at the JOB level: a red run here is attributable to item 257 by name
+  # from this file alone. Promote to gating once item 257 lands and this job
+  # runs green on `main` for a stretch — a conscious decision, not automatic,
+  # exactly as item 231's eventual fix promotes `mac-render-tests`.
+  atspi:
+    name: "atspi (AT-SPI2 bridge liveness, item 252) — allowed failure, item 257"
+    runs-on: ubuntu-latest
+    # BACKSTOP only (item 243's distinction, reused here after run 30887479906
+    # hit it directly): `continue-on-error` tolerates a job that FAILS, not
+    # one that is CANCELLED, and exceeding `timeout-minutes` cancels rather
+    # than fails. `scripts/ci-atspi-budget.sh` converts a hung probe into an
+    # ordinary non-zero exit well before this fires; this stays only for the
+    # different failure it exists for — the runner losing communication with
+    # the server — set generously above that script's own budget.
+    #
+    # 15 was wrong and inverted the whole point (run 30891737357 hit it
+    # directly, 15m15s against a 15-minute ceiling, no probe output at all —
+    # the job never reached the budget script). Measured, not guessed: run
+    # 30890502496's build alone ran from job start (~08:06) to the probe step
+    # starting at 08:17:05, roughly 11 minutes, before the 180s budget even
+    # begins — a 15-minute ceiling left it a coin flip on cargo's cache, not
+    # a backstop. 30, matching the shape of the other jobs, leaves real
+    # margin above build + budget.
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      # Build deps mirror the `linux` job's list (including mesa-vulkan-
+      # drivers — awl is a real wgpu/Vulkan window even under Xvfb) plus the
+      # AT-SPI stack: xvfb (virtual display), fluxbox (xdotool's keyboard
+      # injection needs real X11 input focus, which bare Xvfb does not
+      # reliably grant), dbus (dbus-run-session, for accessibility-bus
+      # activation), at-spi2-core (at-spi-bus-launcher + at-spi2-registryd),
+      # xdotool (drives the live selection keystroke), and the GI Atspi
+      # client bindings the probe script uses.
+      #
+      # libxkbcommon-x11-0 is NOT pulled in by libxkbcommon-dev: it's a
+      # separate runtime package for the X11 keymap module, which winit's X11
+      # backend dlopens at startup (the xkbcommon-dl crate). `linux` never
+      # needed it — that job runs headless, with no X11 display, so the
+      # dlopen path is never reached. This job is the first arm to put a
+      # built awl in front of a real X server, and its first real run found
+      # the gap the hard way: `awl` panicked instantly with `Library
+      # libxkbcommon-x11.so could not be loaded` (run 30883984186). Also
+      # added to run-linux.sh and package-linux.sh's shipped README.txt,
+      # which have the same gap for anyone running awl on a bare X11 session.
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config \
+            libfontconfig1-dev libxkbcommon-dev libxkbcommon-x11-0 libwayland-dev \
+            libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            mesa-vulkan-drivers \
+            xvfb fluxbox dbus at-spi2-core xdotool \
+            gir1.2-atspi-2.0 python3-gi
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: atspi
+
+      - name: Install sccache
+        run: scripts/install-sccache.sh
+
+      # Dev-profile build, matching the `linux` job — this arm is not
+      # `native-gate.sh` and claims no suite coverage; it exists only to
+      # produce a real binary for the probe to launch.
+      - name: cargo build
+        run: cargo build
+
+      # ci-atspi-budget.sh, not ci-atspi-probe.sh directly (item 243's
+      # wedge-budget pattern, reused): a hang inside the probe must become an
+      # ordinary failed step, never a cancelled one. 180s is generous — the
+      # probe's own internal deadlines (30s app-appears, 10s focus, 10s
+      # selection) sum to well under a minute, plus Xvfb/fluxbox startup and
+      # xdotool calls.
+      - name: AT-SPI bridge probe
+        run: scripts/ci-atspi-budget.sh target/debug/awl 180
+
   web:
     name: web (wasm build + smoke)
     runs-on: ubuntu-latest

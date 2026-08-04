@@ -106,9 +106,16 @@ WHAT IT NEEDS
 Fonts and dictionaries are compiled into the binary; nothing is downloaded
 at runtime, ever. Install the runtime libraries with your package manager:
 
-    Debian/Ubuntu   sudo apt install libfontconfig1 libxkbcommon0 libvulkan1 mesa-vulkan-drivers
+    Debian/Ubuntu   sudo apt install libfontconfig1 libxkbcommon0 libxkbcommon-x11-0 libvulkan1 mesa-vulkan-drivers
     Fedora          sudo dnf install fontconfig libxkbcommon vulkan-loader mesa-vulkan-drivers
     Arch            sudo pacman -S fontconfig libxkbcommon vulkan-icd-loader mesa
+
+    On X11 sessions specifically, winit dlopens libxkbcommon-x11.so at
+    startup; Debian/Ubuntu ship it in the separate libxkbcommon-x11-0
+    package above (confirmed: awl panics naming that exact library without
+    it). Fedora/Arch package it differently and are unconfirmed here — if
+    awl reports a missing libxkbcommon-x11.so on either, install that
+    distro's equivalent package.
 
 CHECK IT WORKS WITHOUT A WINDOW
 

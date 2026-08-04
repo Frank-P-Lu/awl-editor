@@ -18,9 +18,16 @@ install_deps() {
   echo "==> installing system dependencies (uses sudo)..."
   if command -v apt-get >/dev/null 2>&1; then
     sudo apt-get update -qq
+    # libxkbcommon-x11-0: NOT a dependency of libxkbcommon-dev on Debian/Ubuntu
+    # — it's a separate runtime package for the X11 keymap module, which
+    # winit's X11 backend dlopens at startup (xkbcommon-dl). Without it awl
+    # panics immediately on any X11 session (`Library libxkbcommon-x11.so
+    # could not be loaded`) — found via item 252's CI probe, the first arm to
+    # ever put a built awl in front of a real X server. Wayland-only sessions
+    # never hit this path, which is why it went unnoticed until now.
     sudo apt-get install -y --no-install-recommends \
       build-essential pkg-config curl ca-certificates \
-      libfontconfig1-dev libxkbcommon-dev libwayland-dev \
+      libfontconfig1-dev libxkbcommon-dev libxkbcommon-x11-0 libwayland-dev \
       libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
       libvulkan1 mesa-vulkan-drivers vulkan-tools
   elif command -v dnf >/dev/null 2>&1; then
