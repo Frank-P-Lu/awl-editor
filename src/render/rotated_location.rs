@@ -1,11 +1,21 @@
-//! The rotated secondary-location cue: a faceted picker's active-lens name,
-//! turned 90 degrees and seated flush with the card's own left border, for
-//! whichever world's `RenderCaps::location_style` asks for `RotatedRail`
-//! instead of the shared inline row every other world draws. Built entirely
-//! on the world-neutral rotated-label capability (`crate::rotated_label`);
-//! this file supplies only the WHERE (a pen origin, bottom-anchored and
-//! flush-left) and the WHAT (a shrink-to-fit budget so a long facet name
-//! never grows into a neighbouring row).
+//! The location cue's shared preparation: a faceted picker's active-lens
+//! name, painted through the rotated-label capability instead of the shared
+//! inline row, for whichever world's `RenderCaps::location_style` asks for
+//! it. TWO world expressions share this ONE owner rather than each getting a
+//! code path (`CLAUDE.md`'s "a theme needing its own code path is wrong"):
+//!
+//! - Cassowary's `RotatedRail` — turned 90°, seated flush with the card's own
+//!   left BORDER, a flat `muted` run.
+//! - Magpie's `Raked` — left where the row planner's own diagonal stagger
+//!   already puts it (the row's own TEXT column, unmoved), turned to the
+//!   diagonal spine's own rake, in a gradient between the spine's two
+//!   authored tones.
+//!
+//! Only the flush edge, the axis, and the two colours differ between the two
+//! callers (`render/chrome/rotated_location.rs`'s `prepare_overlay_rotated_
+//! location`); the mask compose, the caching, and the shrink-to-fit budget
+//! (so a long facet name never grows into a neighbouring row) are shared
+//! verbatim.
 
 use super::*;
 use crate::rotated_label::geometry::{InkBox, label_axis_deg, label_bounds};
@@ -30,15 +40,22 @@ pub(in crate::render) const ROTATED_LOCATION_MIN_SCALE: f32 = 0.55;
 /// it is a fraction rather than the whole gap.
 pub(in crate::render) const ROTATED_LOCATION_HEADER_GAP_FRAC: f32 = 0.55;
 
-/// Clearance (device px) between the card's own left border stroke and the
-/// rotated cue's nearest ink — "flush" without letting the run's mask border
-/// (or a rotated quad's own resample softening) read as touching the border.
+/// Clearance (device px) between the card's own left border stroke and
+/// Cassowary's `RotatedRail` cue — "flush" without letting the run's mask
+/// border (or a rotated quad's own resample softening) read as touching the
+/// border. Magpie's `Raked` cue passes `0.0` here instead: its flush edge is
+/// the row's own TEXT column, not a card border, so there is no stroke to
+/// clear.
 pub(in crate::render) const ROTATED_LOCATION_INSET_PX: f32 = 3.0;
 
 /// Solve the rotated label's PEN ORIGIN so its screen footprint — measured
 /// PURELY (no GPU): [`label_bounds`] at a trial origin of `[0, 0]`, then
-/// shifted by the same delta every axis produces — lands flush with the
-/// card's own left border and BOTTOM-anchored on the planned row band.
+/// shifted by the same delta every axis produces — lands flush with
+/// `flush_x + inset_px` and BOTTOM-anchored on the planned row band. `flush_x`
+/// is whatever edge the caller's world wants the run seated against (a card's
+/// own left border for Cassowary; the row's own text-column left edge,
+/// unmoved from its plain inline placement, for Magpie) — this function only
+/// ever solves the offset, never chooses the edge.
 ///
 /// BOTTOM, never centred: the row pitch this cue reuses is one line tall, but
 /// a facet name reading bottom-to-top is routinely several lines' worth of
@@ -51,36 +68,43 @@ pub(in crate::render) const ROTATED_LOCATION_INSET_PX: f32 = 3.0;
 /// above the row (the lens strip's own slack), and never downward into a row
 /// that isn't this one.
 pub(in crate::render) fn rotated_location_origin(
-    card_x: f32,
+    flush_x: f32,
+    inset_px: f32,
     row_top: f32,
     row_height: f32,
     axis: [f32; 2],
     ink: InkBox,
 ) -> [f32; 2] {
     let raw = label_bounds([0.0, 0.0], axis, ink);
-    let target_x = card_x + ROTATED_LOCATION_INSET_PX;
+    let target_x = flush_x + inset_px;
     let target_y = row_top + row_height - raw[3];
     [target_x - raw[0], target_y - raw[1]]
 }
 
 impl TextPipeline {
-    /// The rotated secondary-location cue's own preparation. Knows nothing
-    /// about facets, plans, or worlds: `text` is whatever the caller decided
-    /// to say, `card_x` is the card's own left edge, `(row_top, row_height)`
-    /// is the row band the shared row planner already reserved for this line
-    /// (no second row is planned — see `theme::LocationStyle`'s own doc), and
-    /// `header_gap` is the query beat's own calm divider — the ONE stretch
-    /// above the row a caller can promise stays blank on every frame.
-    /// `text.is_empty()` (no location this frame — the All lens, or an
-    /// `Inline` world that never calls this with real text) parks the
-    /// pipeline, so a default frame pays nothing.
+    /// The location cue's own preparation, shared by both world expressions.
+    /// Knows nothing about facets, plans, or worlds: `text` is whatever the
+    /// caller decided to say, `flush_x`/`inset_px` name the edge the run's
+    /// screen footprint seats against (`rotated_location_origin`'s own doc),
+    /// `(row_top, row_height)` is the row band the shared row planner already
+    /// reserved for this line (no second row is planned — see
+    /// `theme::LocationStyle`'s own doc), `header_gap` is the query beat's own
+    /// calm divider — the ONE stretch above the row a caller can promise stays
+    /// blank on every frame — `axis_deg` is the protractor angle the run reads
+    /// along (90° for Cassowary's vertical rail; Magpie's own diagonal rake
+    /// for `Raked`, from `diagonal::location_axis_deg`), and `color_a`/
+    /// `color_b` are the LINEAR colours the run's baseline gradient runs
+    /// between (equal values give Cassowary's flat run; Magpie's `Raked`
+    /// passes its spine's own two authored tones). `text.is_empty()` (no
+    /// location this frame — the All lens, or an `Inline` world that never
+    /// calls this with real text) parks the pipeline, so a default frame pays
+    /// nothing.
     ///
-    /// THE RUN READS BOTTOM-TO-TOP, flush with `card_x` plus a hairline
-    /// inset (clear of the card's own border stroke), BOTTOM-anchored on the
-    /// row band ([`rotated_location_origin`]'s own doc has the full reasoning
-    /// for why bottom, not centred). A short facet name ("Files") fits inside
-    /// `row_height` outright; a longer one grows upward, bounded by
-    /// `row_height + header_gap` — SHRUNK to fit that budget
+    /// THE RUN READS BOTTOM-TO-TOP, flush with `flush_x` plus `inset_px`,
+    /// BOTTOM-anchored on the row band ([`rotated_location_origin`]'s own doc
+    /// has the full reasoning for why bottom, not centred). A short facet name
+    /// ("Files") fits inside `row_height` outright; a longer one grows upward,
+    /// bounded by `row_height + header_gap` — SHRUNK to fit that budget
     /// ([`ROTATED_LOCATION_MIN_SCALE`] is the legibility floor that wins if
     /// even the shrunk run would still overflow) rather than left to invade
     /// the lens strip above. The mask is cached against the FINAL shaped
@@ -94,10 +118,14 @@ impl TextPipeline {
         width: u32,
         height: u32,
         text: &str,
-        card_x: f32,
+        flush_x: f32,
+        inset_px: f32,
         row_top: f32,
         row_height: f32,
         header_gap: f32,
+        axis_deg: f32,
+        color_a: [f32; 3],
+        color_b: [f32; 3],
     ) {
         if text.is_empty() {
             self.rotated_label_pipeline.clear();
@@ -106,7 +134,7 @@ impl TextPipeline {
         let m = self.metrics;
         let ui = crate::render::effective_overlay_scale();
         let natural_size = m.font_size * ui * LOCATION_SCALE;
-        let axis = label_axis_deg(90.0);
+        let axis = label_axis_deg(axis_deg);
         // `header_gap` is the STRIP LINE's own box inflation, not the blank
         // space below its drawn pill: cosmic-text centres the pill's glyphs
         // in that taller box, so roughly as much of the gap sits ABOVE the
@@ -160,11 +188,10 @@ impl TextPipeline {
         };
 
         let ink = mask.ink();
-        let origin = rotated_location_origin(card_x, row_top, row_height, axis, ink);
+        let origin = rotated_location_origin(flush_x, inset_px, row_top, row_height, axis, ink);
 
-        let color = srgb_u8_to_linear3(theme::muted().rgba_bytes());
         self.rotated_label_pipeline.prepare(
-            device, queue, width, height, mask, origin, axis, color, color, 1.0,
+            device, queue, width, height, mask, origin, axis, color_a, color_b, 1.0,
         );
     }
 

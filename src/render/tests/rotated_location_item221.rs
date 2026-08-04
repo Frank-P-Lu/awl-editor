@@ -65,7 +65,14 @@ fn geometry_fixtures() -> Vec<(f32, f32, f32, InkBox)> {
 fn rotated_location_origin_is_flush_left_and_bottom_anchored() {
     let axis = label_axis_deg(90.0);
     for (card_x, row_top, row_height, ink) in geometry_fixtures() {
-        let origin = rotated_location_origin(card_x, row_top, row_height, axis, ink);
+        let origin = rotated_location_origin(
+            card_x,
+            ROTATED_LOCATION_INSET_PX,
+            row_top,
+            row_height,
+            axis,
+            ink,
+        );
         let bounds = label_bounds(origin, axis, ink);
         let left = bounds[0];
         let bottom = bounds[1] + bounds[3];
@@ -99,7 +106,14 @@ fn rotated_location_origin_performs_a_genuine_quarter_turn_not_a_near_90_resampl
     let mut proved_non_vacuous = 0;
     for (card_x, row_top, row_height, ink) in geometry_fixtures() {
         let rotated = label_bounds(
-            rotated_location_origin(card_x, row_top, row_height, axis_90, ink),
+            rotated_location_origin(
+                card_x,
+                ROTATED_LOCATION_INSET_PX,
+                row_top,
+                row_height,
+                axis_90,
+                ink,
+            ),
             axis_90,
             ink,
         );
@@ -113,7 +127,14 @@ fn rotated_location_origin_performs_a_genuine_quarter_turn_not_a_near_90_resampl
         // itself square — proving this law can see a forgotten rotation.
         if (ink[2] - ink[3]).abs() > 1.0 {
             let upright = label_bounds(
-                rotated_location_origin(card_x, row_top, row_height, axis_upright, ink),
+                rotated_location_origin(
+                    card_x,
+                    ROTATED_LOCATION_INSET_PX,
+                    row_top,
+                    row_height,
+                    axis_upright,
+                    ink,
+                ),
                 axis_upright,
                 ink,
             );

@@ -87,6 +87,12 @@ impl DiagonalClusterProbe {
     pub(in crate::render) fn spine_x(self, display: usize) -> f32 {
         self.rail.spine_x(display)
     }
+
+    /// The row's own MEASURED horizontal step — see
+    /// [`DiagonalClusterRail::spine_step`]'s own doc.
+    pub(in crate::render) fn spine_step(self) -> f32 {
+        self.rail.spine_step()
+    }
 }
 
 impl DiagonalClusterRail {
@@ -210,6 +216,16 @@ impl DiagonalClusterRail {
     pub(in crate::render) fn accessory_w(self) -> f32 {
         self.accessory_w
     }
+
+    /// The row's own MEASURED horizontal step (device px, signed) —
+    /// `DiagonalComposition::row_step` narrowed by [`spine_travel`]'s
+    /// [`TRAVEL_MAX_BAND_FRACTION`] yield on a card too tight to afford the
+    /// authored step outright. A location cue that reads along the spine's
+    /// own rake reads THIS, not the authored constant, so a narrow card's
+    /// flattened spine and the cue beside it can never disagree.
+    pub(in crate::render) fn spine_step(self) -> f32 {
+        self.spine_step
+    }
 }
 
 /// The attachment band's inset, yielding on a card too narrow to seat it and
@@ -277,6 +293,9 @@ impl DiagonalComposition {
         }
     }
 }
+
+mod location;
+pub(in crate::render) use location::location_axis_deg;
 
 impl TextPipeline {
     /// THE SIDE TERRITORY a diagonal card owes its composition beyond the row

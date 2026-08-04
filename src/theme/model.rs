@@ -207,6 +207,33 @@ pub enum LocationStyle {
     /// capability — no second rotation path
     /// (`render/rotated_location.rs`'s `prepare_rotated_location_label`).
     RotatedRail,
+    /// The line stays glyph-free like `RotatedRail`, but the label keeps
+    /// `Inline`'s own POSITION — flush left wherever the row planner's
+    /// diagonal stagger already puts it (a `Diagonal` world carries no
+    /// attachment inset on its location row, so this is already the card's
+    /// own left edge) — and runs along the SAME rake the diagonal spine steps
+    /// through its rows instead of upright, in a gradient between the
+    /// spine's own two authored tones (`muted` at rest, `base_content`
+    /// selected). The angle is DERIVED from the spine's step/row-height
+    /// ratio (`render/chrome/diagonal.rs::location_axis_deg`), never pinned,
+    /// so the two cannot drift apart. Reuses the same rotated-label
+    /// capability and preparation owner as `RotatedRail` — only the flush
+    /// edge, the axis, and the two colours differ.
+    Raked,
+}
+
+impl LocationStyle {
+    /// Whether `PlanLine::Location` shapes into the panel's own inline
+    /// rich-text run. Every OTHER style paints the location itself, through
+    /// the rotated-label capability, and needs the inline slot left
+    /// glyph-free so the two attempts don't stack — exhaustive so a future
+    /// style is a conscious decision here, not a silent inline draw.
+    pub fn draws_inline(self) -> bool {
+        match self {
+            Self::Inline => true,
+            Self::RotatedRail | Self::Raked => false,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

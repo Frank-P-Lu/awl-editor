@@ -3030,6 +3030,10 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 // The mirrored editorial diagonal composition.
                 list_style: ListStyle::Diagonal(super::DiagonalDirection::Ascending),
                 facet_style: FacetStyle::Chips(ChipVariant::Underline),
+                // The location cue joins the diagonal line itself — slanted
+                // to the spine's own rake, gradient between its two authored
+                // tones — rather than sitting upright beside it.
+                location_style: model::LocationStyle::Raked,
                 ..RenderCaps::DEFAULT
             },
             "Mangrove" => RenderCaps {
