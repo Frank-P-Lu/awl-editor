@@ -21,6 +21,23 @@ ordinary assistive-technology client would, and asserts that the tree
     actual Shift+Right keypress delivered through X11, not synthesized — a
     live AT-SPI selection afterwards.
 
+ACTIVATION IS LAZY, AND THIS PROBE ACTS AS THE AT CLIENT THAT TRIGGERS IT.
+Read straight from the vendored `accesskit_unix` 0.22.1 source
+(`src/context.rs`): the adapter starts `Inactive` and only builds a tree once
+its background thread observes `org.a11y.Status`'s `IsEnabled` property (at
+`org.a11y.Bus`, path `/org/a11y/bus`, the session-bus object every real AT
+client — Orca included — sets on startup) read as true, via zbus's
+`receive_is_enabled_changed()` stream. That stream self-primes: zbus's
+`PropertyStream` fires once on the interface's very first cached `GetAll`
+(`zbus-5.18.0/src/proxy/mod.rs`'s `init()`/`update_cache()`), carrying
+whatever the CURRENT value is — so setting `IsEnabled=true` BEFORE awl even
+launches is enough, with no race against exactly when awl's own thread
+subscribes. A run of this probe (30886162170) hit exactly this: awl started
+cleanly (no panic, nothing to fix in awl) and simply never saw an AT ask for
+it, which is the correctly-lazy behavior, not a bridge defect — so
+`set_bus_enabled` below is not a workaround, it is the probe finally doing
+the one thing a real screen reader does that a passive tree-walk never did.
+
 THIS IS NOT ITEM 251. It says nothing about what a screen reader user would
 hear or how navigation feels — only that the bridge is live and shaped right.
 Item 251 still needs a human at a real Linux desktop running Orca.
@@ -40,7 +57,8 @@ import time
 import gi
 
 gi.require_version("Atspi", "2.0")
-from gi.repository import Atspi, GLib  # noqa: E402
+gi.require_version("Gio", "2.0")
+from gi.repository import Atspi, Gio, GLib  # noqa: E402
 
 APP_TIMEOUT_S = 30.0
 FOCUS_TIMEOUT_S = 10.0
@@ -95,6 +113,51 @@ def fail(msg: str) -> None:
     _dump_awl_log()
     print(f"ATSPI-PROBE FAIL: {msg}", file=sys.stderr)
     sys.exit(1)
+
+
+def set_bus_enabled(value: bool) -> None:
+    """Set org.a11y.Status.IsEnabled on the session bus's org.a11y.Bus object.
+
+    This IS the AT-registration handshake, not a workaround for one: it is
+    the exact property accesskit_unix's background thread subscribes to
+    (`context.rs::run_event_loop`) to decide whether to build a tree at all.
+    Real assistive technology (Orca included) sets this on startup; a probe
+    that only walks the tree afterward never performs the one call that
+    makes a correctly-lazy adapter do anything. `org.a11y.Bus` is D-Bus
+    service-activatable (at-spi2-core ships its `.service` file), so this
+    call also transparently starts `at-spi-bus-launcher` on first use if
+    nothing has touched the service yet.
+    """
+    proxy = Gio.DBusProxy.new_for_bus_sync(
+        Gio.BusType.SESSION,
+        Gio.DBusProxyFlags.NONE,
+        None,
+        "org.a11y.Bus",
+        "/org/a11y/bus",
+        "org.freedesktop.DBus.Properties",
+        None,
+    )
+    proxy.call_sync(
+        "Set",
+        GLib.Variant("(ssv)", ("org.a11y.Status", "IsEnabled", GLib.Variant("b", value))),
+        Gio.DBusCallFlags.NONE,
+        -1,
+        None,
+    )
+
+
+def bump_bus_enabled() -> None:
+    """Force a genuine false->true edge, for the retry path.
+
+    zbus's property-changed stream also fires on the first cached value
+    (see the module docstring), so setting `True` once before awl launches
+    is normally enough — but a plain `Set(True)` when the value is ALREADY
+    true may not emit a `PropertiesChanged` signal at all (server-dependent
+    on whether it compares old/new). A real edge is unambiguous either way.
+    """
+    set_bus_enabled(False)
+    time.sleep(0.1)
+    set_bus_enabled(True)
 
 
 def find_by_pid(node, pid, depth=0):
@@ -194,6 +257,14 @@ def main() -> None:
     _AWL_LOG_PATH = awl_log_path
     awl_log = open(awl_log_path, "wb")
 
+    # Enable accessibility on the session bus BEFORE awl exists at all. This
+    # is the actual AT-registration handshake (see set_bus_enabled's doc),
+    # not a delay: zbus's property-changed stream self-primes from whatever
+    # value IsEnabled already holds, so doing this first removes any race
+    # against exactly when awl's own background thread subscribes.
+    print("ATSPI-PROBE: enabling org.a11y.Status.IsEnabled before awl starts")
+    set_bus_enabled(True)
+
     print(f"ATSPI-PROBE: launching {binary} {fixture_path}")
     proc = subprocess.Popen(
         [binary, fixture_path],
@@ -211,6 +282,7 @@ def main() -> None:
 
         deadline = time.time() + APP_TIMEOUT_S
         app = None
+        last_bump = time.time()
         while time.time() < deadline:
             if proc.poll() is not None:
                 fail(
@@ -220,12 +292,23 @@ def main() -> None:
             app = find_by_pid(desktop, proc.pid)
             if app is not None:
                 break
+            # Retry path: force a genuine IsEnabled edge every few seconds,
+            # in case the pre-launch `set_bus_enabled(True)` above raced
+            # awl's own subscription in some way this probe's reading of the
+            # accesskit_unix source did not anticipate. A real screen reader
+            # only has to do this once; a probe that cannot assume it read
+            # the timing right does it defensively instead of assuming
+            # "still not there" means "broken".
+            if time.time() - last_bump > 5.0:
+                bump_bus_enabled()
+                last_bump = time.time()
             time.sleep(POLL_S)
         if app is None:
             fail(
                 f"no AT-SPI application for pid {proc.pid} appeared under the "
-                f"desktop within {APP_TIMEOUT_S}s — the bridge never registered "
-                "with the accessibility bus"
+                f"desktop within {APP_TIMEOUT_S}s, despite setting and "
+                "re-bumping org.a11y.Status.IsEnabled — the bridge never "
+                "registered with the accessibility bus"
             )
 
         frame = find_role(app, Atspi.Role.FRAME)
