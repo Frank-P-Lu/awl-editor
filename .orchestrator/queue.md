@@ -893,6 +893,51 @@ success except the tolerated wedge. Thirteen items: 240, 243, 238, 218, 229,
 237, 244, 245, 246, 249, 250, 247's static slice, 221; plus 174 re-scoped, 116
 closed, the receipt gap resolved, and five CI repairs.
 
+- **242** — ✅ **COMPLETE, and it was a LIVE APPEARANCE BUG, not the consistency
+  cleanup it was filed as.** Merged `be2d328f`. Receipt
+  `native-gate-receipt commit=7b7a6ff83f75871223e9caea3d6eb2699df1a4ee conventions=mac,linux scope=all-targets`,
+  `web-smoke: OK`, `code-health.sh` clean, fmt clean.
+  **Measured before any migration, on the shipping default at matched logical
+  size:** the drawn text inset inside the card is **11 device px at BOTH dpi 1
+  and dpi 2** while `line_height` goes 32 → 64. Pad-to-text ratio **0.3438 →
+  0.1719, exactly 0.500.** ⚠️ **Chrome padding has been rendering at half its
+  tuned size on every Retina display — and `--capture-dpi 1` is the one scale
+  where that cannot show, so every capture in the repo missed it by
+  construction.**
+  **Six corrections to the item's own measurements; two matter beyond this
+  round.** "Mixed three different ways" **undercounted — there were four**:
+  `diagonal.rs`'s `_LOGICAL` set had a *mechanism*, not just a naming
+  convention, multiplying by `dpi.max(1.0)` — a third scale, DPI-only and
+  grow-only, never zoom. And **`PLACARD_INSET` is on the item's migrate list and
+  MUST NOT BE** — migrating it breaks the existing named law
+  `placard_size_is_window_scaled_not_zoom_scaled`, measured at a scale-4.5
+  poster shrinking 1163.6 → 1129.7px at zoom 2. The placard is **frame, not
+  text**; the family is chrome's annotated `Physical` exception with reasons at
+  each declaration site.
+  **The largest single residual was not a constant**, so no constant list could
+  have named it: `theme_overlay_geometry` carried a verbatim second copy of the
+  flat family's literals. Found by the capture matrix, not by reading.
+  **Evidence, 720 probes × 2 trees, compared in place:** dpi 1 **byte-identical**
+  (0 of 960 files, 20 worlds × 12 surfaces × 2 canvases); dpi 2 differs in all
+  480, and the deltas are corrections **toward** exact proportionality — mean
+  deviation from `2×` the dpi-1 value falls **50.45px → 0.15px**, worst 1.00px,
+  **zero cells farther from proportional than base.**
+  Five laws, five isolated arms. Claim 1 grades placement and pad **separately**,
+  which is item 248's trap exactly. Two vacuity traps were caught during
+  authoring: a const parser matching only bare `const` (would have skipped every
+  `pub(super) const`) and a pixel probe reading the card's rim on bordered
+  worlds (would have measured zero everywhere).
+  **Merge note:** `code-health.toml`'s `render.rs` mark conflicted with 248, as
+  the lane predicted. Re-measured on the combined tree rather than summed —
+  **2606, not 2578+28**. Both reason strings merged.
+  **Named residual, left deliberately:** the declaration law covers authored
+  `const`s and **not inline literals**; seven chrome pixel lengths remain
+  physical inline (`gutter.rs:262,321,355,404`, `outline.rs:221,796`,
+  `diagonal.rs:460-461`), all in margin chrome, none in the summoned-overlay
+  families the item measured. 🔵 **Also not done: the formal affordance-locating
+  vision smoke over ~5 gallery shots.** The lane did an eyes-on retina pass and
+  reported it as such; the standing policy asks for the structured version.
+
 - **248** — ✅ **COMPLETE except the motion's live feel.** Merged `bb78321c`.
   Receipt
   `native-gate-receipt commit=843986fdadf6cf6254a419c4665f577a545e8c80 conventions=mac,linux scope=all-targets`,
