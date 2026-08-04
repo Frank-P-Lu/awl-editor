@@ -29,16 +29,17 @@
 //! expression — which string, which axis, which colours, where — is theme data
 //! its caller supplies.
 
-// The rotated secondary-location heading is the first real (non-test)
-// caller and reaches `draw`/`prepare`/`clear`/`ink`/`matches`/`compose`/
-// `label_axis_deg`/`label_bounds` directly. The rest of the surface
-// (`is_drawn`, `label_local`, `label_hit`, `LabelMask::size`) is genuinely
-// unused by product code today: it belongs to a still-pending slanted
-// location-cue expression, or (`label_hit`) to making a rotated cue
-// interactive, which nothing asks for yet. Kept as an allowance on the whole
-// module rather than piece-by-piece so this doesn't have to be
-// re-litigated on every partial landing; trim it once every piece here has
-// a real caller.
+// The rotated secondary-location heading (Cassowary's `RotatedRail`, Magpie's
+// `Raked`) is the real (non-test) caller and reaches
+// `draw`/`prepare`/`clear`/`ink`/`matches`/`compose`/`label_axis_deg`/
+// `label_bounds` directly, at both a quadrant angle and a slant. The rest of
+// the surface (`is_drawn`, `label_local`, `label_hit`, `LabelMask::size`) is
+// genuinely unused by product code today: `label_hit` belongs to making a
+// rotated cue interactive, which nothing asks for yet (both shipped
+// expressions are read, not pressed); the others simply have no caller who
+// needs them yet. Kept as an allowance on the whole module rather than
+// piece-by-piece so this doesn't have to be re-litigated on every partial
+// landing; trim it once every piece here has a real caller.
 #![allow(dead_code)]
 
 pub mod geometry;
@@ -80,13 +81,16 @@ struct Globals {
 
 /// One rotated label: a single instanced quad sampling one composed run mask.
 ///
-/// This is the CAPABILITY slice — the two world expressions that need it (a
-/// 90° flush-left secondary heading, a faceted picker's active-lens cue; a
-/// slanted location cue, a still-pending expression on a diagonal world) are
-/// separately specified and separately verifiable. Every world that draws no
-/// rotated text stays byte-identical: `render/rotated_location.rs`'s
-/// `prepare_rotated_location_label` parks this pipeline (`clear()`) whenever
-/// `theme::LocationStyle` is not `RotatedRail`.
+/// This is the CAPABILITY slice — the two world expressions that need it, a
+/// faceted picker's active-lens cue either way, are separately specified and
+/// separately verifiable: Cassowary's `RotatedRail` (a 90° flush-left
+/// secondary heading) and Magpie's `Raked` (a slant tied to the diagonal
+/// spine's own rake, in a gradient between its two authored tones).
+/// Every world that draws no rotated text stays byte-identical:
+/// `render/chrome/rotated_location.rs`'s `prepare_overlay_rotated_location`
+/// parks this pipeline (`clear()`) outright on any world whose
+/// `theme::LocationStyle::draws_inline()` is true, and on every world
+/// (inline or not) whenever the frame carries no location line to draw.
 pub struct RotatedLabelPipeline {
     pipeline: wgpu::RenderPipeline,
     bind_group_layout: wgpu::BindGroupLayout,

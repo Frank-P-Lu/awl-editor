@@ -540,16 +540,15 @@ impl TextPipeline {
                 // prefix and the lens strip are set in, the label's own authored
                 // case, and `muted` rather than `faint` — subordinate to the
                 // primary, but a statement rather than a whisper.
-                // A `RotatedRail` world draws NOTHING inline here: the line
-                // stays glyph-free, and `prepare_overlay_rotated_location`
-                // (called from `prepare_overlay`, after this shaping runs and
-                // the row plan is final) reads the SAME plan line and paints
-                // the vertical cue instead. Every other world keeps this
-                // inline row, unchanged.
+                // A style that answers `draws_inline() == false` (Cassowary's
+                // `RotatedRail`, Magpie's `Raked`) draws NOTHING inline here:
+                // the line stays glyph-free, and
+                // `prepare_overlay_rotated_location` (called from
+                // `prepare_overlay`, after this shaping runs and the row plan
+                // is final) reads the SAME plan line and paints its own cue
+                // instead. Every `Inline` world keeps this row, unchanged.
                 PlanLine::Location(l) => {
-                    if theme::active().render_caps.location_style
-                        != theme::LocationStyle::RotatedRail
-                    {
+                    if theme::active().render_caps.location_style.draws_inline() {
                         spans.push((
                             l.as_str(),
                             chrome_attrs().color(muted).metrics(location_metrics),

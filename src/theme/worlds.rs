@@ -723,6 +723,7 @@ pub const MAGPIE: Theme = Theme {
         elevation: Elevation::Bordered,
         list_style: ListStyle::Diagonal(super::diagonal::DiagonalDirection::Ascending),
         facet_style: FacetStyle::Chips(ChipVariant::Underline),
+        location_style: LocationStyle::Raked,
         ..RenderCaps::DEFAULT
     },
 };
