@@ -29,9 +29,9 @@ const OVERLAY_FOOTER_PAD: Logical = Logical(2.0);
 /// The flat takeover card's own inner pad, its breath from the window edge, the
 /// drop from the top of the canvas to its head, and the drop a CONTEXTUAL card
 /// takes below its anchor point.
-const CARD_PAD: Logical = Logical(12.0);
-const CARD_MARGIN: Logical = Logical(12.0);
-const CARD_TOP_DROP: Logical = Logical(40.0);
+pub(super) const CARD_PAD: Logical = Logical(12.0);
+pub(super) const CARD_MARGIN: Logical = Logical(12.0);
+pub(super) const CARD_TOP_DROP: Logical = Logical(40.0);
 const CONTEXT_ANCHOR_DROP: Logical = Logical(4.0);
 
 /// The Pane row-text inset from the card's layout bound. `Bars` insets

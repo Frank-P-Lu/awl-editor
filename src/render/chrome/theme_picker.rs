@@ -49,8 +49,12 @@ impl TextPipeline {
 
     pub(super) fn theme_overlay_geometry(&self, width: u32) -> OverlayGeom {
         let lh = self.overlay_lh();
-        let pad = 12.0;
-        let margin = 12.0;
+        // THE SAME THREE TOKENS THE FLAT FAMILY PLACES ITS CARD WITH — they were
+        // a second copy of the same literals here, which is how the grouped
+        // card kept a physical 24px of vertical pad on a retina panel while
+        // every other quantity in its own height doubled.
+        let pad = self.metrics.px(super::overlay::CARD_PAD);
+        let margin = self.metrics.px(super::overlay::CARD_MARGIN);
         let n_items = self.overlay_items.len();
         let full_plan = self.theme_plan();
         let hint = self.overlay_hint.clone();
@@ -64,7 +68,8 @@ impl TextPipeline {
         let empty_rows = empty.is_some() as usize;
         let header_rows = 2;
         let header_gap = self.overlay_header_gap();
-        let card_y = margin + 40.0 + self.menubar_reserve();
+        let card_y =
+            margin + self.metrics.px(super::overlay::CARD_TOP_DROP) + self.menubar_reserve();
         let total_headers = full_plan.len() - n_items;
         // ITEM 184 — strip + headers + footer count here; `min_items: 0`
         // empties the band rather than overrun it (`fit_item_rows`'s doc).
