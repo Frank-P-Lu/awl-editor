@@ -104,6 +104,40 @@ temptation to commit mid-gate — step 1 finishes before step 3 begins, which is
 the other thing three separate actors got wrong on 2026-08-04, each throwing
 away a clean full native run to a `HEAD changed while the suite ran` refusal.
 
+‼ **THE ORDER REWRITE IS STILL NOT ENOUGH, MEASURED 2026-08-05: three of four
+lanes carrying it verbatim still ended a turn on a status line.** But they
+failed *differently* from the 2026-08-04 wave, and the difference names the
+missing sentence. **Every one of them had already committed** — step 1 held. What
+they lost was only the REPORT, and they lost it to a harness property no
+amount of ordering can fix:
+
+> **ONLY A LANE'S FINAL MESSAGE REACHES THE ORCHESTRATOR.** Everything written
+> earlier in the same turn — however complete, however carefully assembled — is
+> not delivered. One lane said in as many words: "the full report is written
+> above (already delivered)". It was not. The orchestrator received that
+> sentence and nothing else.
+
+So "write the report first" is, read literally, the instruction that *causes*
+the loss: a lane writes its findings, then launches a gate, and the launch
+becomes the final message. **Say this instead, and say it in the brief rather
+than here, because a lane reads the brief:**
+
+- **Your report must BE your final message.** Not written earlier in the turn,
+  not split across messages, not summarised at the end of a longer one.
+- **If a gate is still running when you must stop, your last message is still
+  the whole report**, with the gate named as outstanding — not a status line
+  about waiting for it.
+- **Never arm a Monitor or background watcher to wake yourself.** Nothing
+  resumes a worker but the orchestrator; a self-armed watcher guarantees the
+  turn ends on a status line, which is exactly how two lanes lost their reports
+  on 2026-08-05.
+
+**The orchestrator's half of this contract:** when a lane returns a status line,
+do not ask "what happened" — check the host directly (`git log` on its branch,
+`ps` for its gates), then wake it with a numbered list of exactly what is
+missing. A lane that has done the work can restate it in one message; the round
+trip is only wasted if the orchestrator spends it asking an open question.
+
 ## Disk-pressure preflight
 
 `.orchestrator/disk-preflight.sh` is the one serialized disk-recovery door.
