@@ -372,6 +372,26 @@ they ride this wave's first train.
   Honest residual for whoever runs it: 0.476 ms at 50 000 lines still grows with
   the document, and whether that is perceptible to a VoiceOver user is
   unmeasurable without the sitting.
+- **247's STATIC SLICE** — ✅ **COMPLETE; item 247 stays OPEN for the motion.**
+  Merged `2e23a226`'s parent. Receipt
+  `native-gate-receipt commit=ff4dd60b1d80337f174c79a366e418171510b755 conventions=mac,linux scope=all-targets`,
+  `web-smoke: OK`. **Captures, which are what this slice existed to produce:**
+  `$CLAUDE_JOB_DIR/tmp/item247-captures/{mangrove,magpie}.png`. Arms measured
+  off-axis by least-squares fit — Mangrove ±1.14, Magpie ±1.20 — mirrored about
+  the row centre (slope sums 0.010 and −0.016), opening in opposite directions
+  per `Descending` vs `Ascending`, and inside the 14 logical px reserved reach.
+  ⚠️ **THE FOURTH VACUOUS-LAW INSTANCE OF THE DAY, and it was re-proved rather
+  than asserted:** with the emitter reverted to the axis-aligned pair, the new
+  angle-grading law fails by name (`the upper arm must start at the vertex
+  (64, 6), got (64, 2)`) while `list_surfaces`, `settings_row_reach_law` and
+  `row_offset_item131` **all stay green** — they only ever check
+  `instance_count() == 2`, and a chevron is also two segments spanning the same
+  box. **A law that counts instances or measures extent frequently cannot see
+  the thing it is named for.**
+  Follow-up landed with it: `2e23a226` repins four `list_surfaces` exceptions
+  the merge shifted by one line.
+  **Still open in 247:** the turn, the travel phase, the `advance()` OR-fold.
+
 - **247 (the STATIC chevron mark only)** — 🟡 **RECLAIMED 2026-08-04 by the
   merge-train session, with the prior owner's consent (the user reported that
   session finished).** Branch `claude/item-247-finish`, worktree
@@ -866,6 +886,32 @@ Repaired in the same commit as this note (`cargo fmt` plus a wrapped panic
 line); the sweep still passes and the health ratchets are clean. **This is also
 the README's "two branches each green alone can be red together" warning
 arriving in its most boring possible form — a line length.**
+
+🔴 **AND THE COMMIT THAT WARNED ABOUT THIS SWEPT SOURCE CODE ITSELF. Found by
+the item-247 lane 2026-08-04; the orchestrator verified it and owns it.**
+`f0e0f5b3` — the commit immediately below, whose entire subject is *"two
+sessions are live and one writes the main tree"* — **also carries 39 lines of
+`src/render/chrome/diagonal.rs`**, the other session's in-progress chevron
+geometry. Its message never mentions `diagonal.rs`. **The cause was `git add -u`
+in a shared tree**, which is precisely what this session told the other session
+not to do an hour later. **So the ⊢→chevron geometry change actually landed in a
+board-coordination commit, ungated and undescribed**, and `60266f9d`'s real
+isolated contribution was narrower than it appeared: extracting the already-
+chevron inline code into the pure owner `selected_chevron`, adding the
+angle-grading law, and correcting stale assertion messages.
+
+**What is and is not damaged.** The code is **gate-covered** — several full
+native receipts have since run over trees containing it, including
+`f8121f45` and `76903fc1`. What is damaged is **provenance**: `git log -p
+src/render/chrome/diagonal.rs` attributes a deliberate shape change to a commit
+about board coordination, and `CLAUDE.md` is explicit that the commit message is
+where that history is supposed to live. **Not rewritten** — the history is
+public and pushed, and a rewrite would cost more than the defect. This note is
+the record instead.
+
+**The rule, stated so it survives:** in a shared tree, `git add` explicit paths.
+Never `-u`, never `-A`. Three board sweeps and now one source sweep in a single
+session, and the source sweep was committed by the session writing the warning.
 
 ⚠️⚠️ **TWO ORCHESTRATORS ARE LIVE RIGHT NOW AND ONE IS WRITING THE MAIN WORKING
 TREE. Read this before your next edit.** Item 247's claim says it works **in the
