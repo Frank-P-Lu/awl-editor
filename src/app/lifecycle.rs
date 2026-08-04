@@ -161,13 +161,7 @@ impl ApplicationHandler<AwlEvent> for App {
             // handler answers from this, on whatever thread the platform asks
             // from, and it cannot build a tree itself.
             self.seed_accessibility_tree();
-            // MUTATION FOR ITEM 252's PROOF — TEMPORARY, WILL BE REVERTED.
-            // Disabling the AT-SPI adapter install here is the mutation
-            // proof that scripts/ci-atspi-probe.py fails BY NAME when the
-            // bridge itself is gone, distinct from item 257's real defect
-            // (missing line runs) which fails at a LATER assertion. Never
-            // land this line commented out.
-            // self.frame.install_accessibility(event_loop, &window);
+            self.frame.install_accessibility(event_loop, &window);
             window.set_visible(true);
         }
         self.frame.bind_window(window.clone());
