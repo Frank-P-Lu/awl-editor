@@ -276,7 +276,9 @@ impl TextPipeline {
         coverage: theme::BarCoverage,
     ) -> OverlayBarLayout {
         let line_height = plan.lh();
-        let gap = gap.max(0.0);
+        // The gap arrives as the theme AUTHORED it; the plate it separates is
+        // seated inside a row pitch that already resolved the same number.
+        let gap = self.metrics.px(Logical(gap.max(0.0)));
         let hugs = extent.hugs();
         let primary_px = if hugs {
             self.overlay_row_primary_px(geom)
@@ -289,8 +291,11 @@ impl TextPipeline {
             std::collections::BTreeMap::new()
         };
         OverlayBarLayout {
-            radius: radius.max(0.0),
-            grow_px,
+            // The plate's own corner and its outward growth are theme-authored
+            // LENGTHS, resolved at the same boundary the gap between the plates
+            // already passes — so a bar keeps its shape at every scale.
+            radius: self.metrics.px(Logical(radius.max(0.0))),
+            grow_px: self.metrics.px(Logical(grow_px)),
             extent,
             coverage,
             bar_height: (line_height - gap).max(1.0),
@@ -434,7 +439,7 @@ impl TextPipeline {
         // corner for no scrim at all — never let that number be read as an
         // authored dial.
         let radius = match list_style {
-            theme::ListStyle::Bars { radius, .. } => radius.max(0.0),
+            theme::ListStyle::Bars { radius, .. } => self.metrics.px(Logical(radius.max(0.0))),
             theme::ListStyle::Diagonal(_) => self.metrics.px(DIAGONAL_SCRIM_CORNER),
             theme::ListStyle::Pane => 0.0,
         };

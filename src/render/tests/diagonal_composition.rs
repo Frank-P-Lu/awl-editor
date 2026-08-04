@@ -13,6 +13,8 @@ fn logical_registry_scales_every_diagonal_quantity_once_with_dpi() {
     assert_eq!(two.spine_weight, one.spine_weight * 2.0);
     assert_eq!(two.spine_corner, one.spine_corner * 2.0);
     assert_eq!(two.attachment_inset, one.attachment_inset * 2.0);
+    // The connector was the one member the registry law never graded.
+    assert_eq!(two.connector, one.connector * 2.0);
     assert_eq!(two.selected_outward, one.selected_outward * 2.0);
     assert_eq!(two.selected_spine_weight, one.selected_spine_weight * 2.0);
     assert!(
@@ -29,6 +31,7 @@ fn one_composition_owns_the_two_mirrored_orientations() {
     assert_eq!(down.spine_weight, up.spine_weight);
     assert_eq!(down.spine_corner, up.spine_corner);
     assert_eq!(down.attachment_inset, up.attachment_inset);
+    assert_eq!(down.connector, up.connector);
     assert_eq!(down.selected_outward, up.selected_outward);
     assert_eq!(down.selected_spine_weight, up.selected_spine_weight);
     assert!(

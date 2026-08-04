@@ -83,12 +83,7 @@ impl TextPipeline {
     pub(in crate::render) fn overlay_metrics(&self) -> GlyphMetrics {
         let m = self.metrics;
         let scale = crate::render::effective_overlay_scale();
-        GlyphMetrics::new(
-            m.font_size * scale,
-            m.line_height * scale
-                + crate::render::effective_overlay_leading()
-                + self.overlay_row_gap(),
-        )
+        GlyphMetrics::new(m.font_size * scale, self.overlay_lh())
     }
 
     /// PER-ITEM LIST SURFACES round — the vertical GAP (device px) opened
@@ -101,10 +96,20 @@ impl TextPipeline {
     /// construction). The bar surfaces then draw `lh - gap` tall, leaving the
     /// gap as the space between them.
     pub(in crate::render) fn overlay_row_gap(&self) -> f32 {
-        match crate::render::effective_list_style() {
+        let gap = match crate::render::effective_list_style() {
             theme::ListStyle::Bars { gap, .. } => gap.max(0.0),
             theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) => 0.0,
-        }
+        };
+        self.metrics.px(Logical(gap))
+    }
+
+    /// The overlay's EXTRA leading, resolved. A theme-authored length like any
+    /// other: it is summed with a dpi-scaled line height inside
+    /// [`Self::overlay_lh`], so leaving it raw made the one quantity the tree
+    /// treats as logical drift out of proportion across displays.
+    pub(in crate::render) fn overlay_leading(&self) -> f32 {
+        self.metrics
+            .px(Logical(crate::render::effective_overlay_leading()))
     }
 
     /// PER-ITEM LIST SURFACES round — the horizontal inset (device px) the row
@@ -131,7 +136,7 @@ impl TextPipeline {
     /// selected-row band all read, so a click always lands on the row it highlights.
     pub(in crate::render) fn overlay_lh(&self) -> f32 {
         self.metrics.line_height * crate::render::effective_overlay_scale()
-            + crate::render::effective_overlay_leading()
+            + self.overlay_leading()
             + self.overlay_row_gap()
     }
 
