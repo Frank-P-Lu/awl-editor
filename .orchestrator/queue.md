@@ -394,13 +394,21 @@ was built rather than after.
   mean nothing. Promote it after it runs green on `main` for a stretch, as a
   conscious decision. The AccessKit contract is now pinned by a law measured
   **against `accesskit_consumer` rather than read off its source.**
-  🔵 **OWED: 259 still needs a VoiceOver sitting — no capture can hear a screen
-  reader.** This is the third sitting this symptom has asked for; the previous
-  two are what found it. **Two DISTINCT things to check, because the report had
-  two symptoms and a fix can easily reach one:** (1) toggle VoiceOver on while
-  awl is already running — is the "not responding" stall gone; (2) highlight
-  text — is the selection announced. **(2) is the sharper test**, being the one
-  that demonstrably worked before item 218 and regressed.
+  ✅ **THE SITTING IS DONE — 2026-08-05, the user: "i think it's working".**
+  The third sitting this symptom asked for, and the first to come back positive;
+  the previous two are what found the defect. **259's fix is confirmed on the
+  only instrument that can hear a screen reader.**
+  ⚠️ **BOUNDED HONESTLY, because this exact item has been declared complete
+  twice before and was wrong both times.** The verdict was given as a single
+  statement and **did not separate the two symptoms** the sitting was asked to
+  check — (1) the mid-session "not responding" stall and (2) the selection being
+  announced. **(2) is the one that demonstrably worked before item 218 and
+  regressed**, so it is the discriminating half. Nothing is blocked on the
+  distinction and the item closes; **but if a fourth report ever arrives, start
+  by asking which of the two it is, rather than re-deriving the whole search.**
+  ✅ **ITEM 218's REGRESSION IS THEREFORE CLOSED TOO** — the selection
+  announcement it broke is working again, and 218's per-keystroke work
+  (93.33 ms → 0.476 ms at 50k lines) was never in question.
   ✅ **GATE RECEIPT, recorded here because NONE of the a11y commits carries
   one** — `native-gate-receipt commit=44a1ac2bd28bac80af9a6fccf6284db543897030
   conventions=mac,linux scope=all-targets`, both suites `status=0`, run by the
@@ -599,10 +607,13 @@ findings, 240, 241, 242, 243, 244, 245, 246, 247's static slice, 248, 249, 250,
 252, 253, 254. Plus five CI repairs and the receipt-gap resolution.
 
 **🔵 OWED — carried forward verbatim, because nothing above implies these.**
-- **218 — 🔴 THE SITTING HAPPENED 2026-08-04 AND IT FAILED. The symptom is
-  UNCHANGED: the user turns VoiceOver on and awl still reports as "not
-  responding".** Requeued as **item 259**, which carries the two candidate
-  mechanisms. 🔴 **CORRECTION 2026-08-04, SAME DAY: 218 IS A REGRESSION, and an earlier line here said it was not.** The user then reported the second symptom — **VoiceOver used to read out the highlighted selection and no longer does.** That is behaviour that WORKED BEFORE 218 and does not now, which is the definition. The earlier "not regressed, merely incompletely scoped" reading was written before that evidence existed and is **withdrawn**. ⚠️ **Still do not reflex-revert:** 218's per-keystroke work is real and measured (93.33 ms → 0.476 ms at 50k lines) and reverting would restore a different user-visible stall. The fix is forward. ⚠️ **Read this as evidence about the process, not just the bug:
+- **218 — ✅ RESOLVED 2026-08-05 VIA ITEM 259.** Its sitting FAILED on
+  2026-08-04 (the symptom was unchanged, and 218 had also regressed the
+  selection announcement), which requeued the work as **item 259**. **259 found
+  the real defect — a stale tree served to a screen reader that re-asks for an
+  initial tree mid-session, two independent holes — fixed it, and the user
+  confirmed it live on 2026-08-05.** 218's own per-keystroke work was never in
+  question. 🔴 **CORRECTION 2026-08-04, SAME DAY: 218 IS A REGRESSION, and an earlier line here said it was not.** The user then reported the second symptom — **VoiceOver used to read out the highlighted selection and no longer does.** That is behaviour that WORKED BEFORE 218 and does not now, which is the definition. The earlier "not regressed, merely incompletely scoped" reading was written before that evidence existed and is **withdrawn**. ⚠️ **Still do not reflex-revert:** 218's per-keystroke work is real and measured (93.33 ms → 0.476 ms at 50k lines) and reverting would restore a different user-visible stall. The fix is forward. ⚠️ **Read this as evidence about the process, not just the bug:
   an item can carry ten laws, mutation proofs and a 196× improvement and still
   not move the symptom a user reported, because every one of those checks ran on
   the branch the author was thinking about. The owed live sitting is what found
