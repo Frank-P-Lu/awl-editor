@@ -275,7 +275,7 @@ fn topright_card_box_is_right_anchored_and_on_canvas_across_the_width_sweep() {
                     "{ctx}: right edge {right} keeps a floor margin inside {ww}"
                 );
                 // WIDE: the card's RIGHT edge sits one full interior-rail inset in from
-                // the canvas right (item 67 — the mirror of TopLeft's left inset). Only
+                // the canvas right — the mirror of TopLeft's own left inset. Only
                 // checked once the window is comfortably wide enough that NEITHER the
                 // width clamp (`desired <= ww - 2*floor`) NOR the rail's own floor
                 // (`rail >= floor`) is biting — a narrow `ww` can make the ideal
@@ -285,7 +285,8 @@ fn topright_card_box_is_right_anchored_and_on_canvas_across_the_width_sweep() {
                 if rail >= floor && desired + rail + floor <= ww {
                     assert!(
                         (right - (ww - rail)).abs() < 0.01,
-                        "{ctx}: wide window pins the right edge one rail inset in, got right={right}"
+                        "{ctx}: a wide window pins the right edge one rail inset in, \
+                         got right={right}"
                     );
                 }
             }

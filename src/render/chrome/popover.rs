@@ -349,11 +349,9 @@ impl TextPipeline {
         }
         let band_h = band_bot_rel - band_top_rel;
 
-        let hpad = self.metrics.px(HPAD);
-        let vpad = self.metrics.px(VPAD);
         let gap = self.metrics.px(ANCHOR_GAP);
-        let card_w = total_w + 2.0 * hpad;
-        let card_h = band_h + 2.0 * vpad;
+        let card_w = total_w + 2.0 * self.metrics.px(HPAD);
+        let card_h = band_h + 2.0 * self.metrics.px(VPAD);
 
         // Anchor: the selection's first endpoint, in screen space.
         let sel_x = self.text_left() + self.col_x_and_advance(line0, col0).0;
@@ -374,10 +372,10 @@ impl TextPipeline {
             .min(width as f32 - card_w - pad)
             .max(pad);
 
-        let text_left = card_x + hpad;
+        let text_left = card_x + self.metrics.px(HPAD);
         // The glyph ink band sits a uniform `VPAD` below the card top; the label
         // buffer uploads at an origin chosen so `band_top_rel` lands exactly there.
-        let band_top = card_y + vpad;
+        let band_top = card_y + self.metrics.px(VPAD);
         let text_top = band_top - band_top_rel;
 
         let buttons = model
