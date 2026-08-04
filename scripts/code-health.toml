@@ -1166,22 +1166,16 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::cognitive_complexity"
 file = "src/theme/tests.rs"
 function = "every_world_has_a_valid_background"
-message = "the function has a cognitive complexity of (30/25)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+message = "the function has a cognitive complexity of (29/25)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. MEASURED ON THE COMBINED TREE, not carried from either branch: item 258 TIGHTENED this from 30 by retiring a ground, which removed a per-world roster branch."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
 function = "every_world_has_a_valid_background"
-message = "this function has too many lines (155/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+message = "this function has too many lines (144/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. MEASURED ON THE COMBINED TREE, not carried from either branch: item 258 TIGHTENED this from 155 by deleting the retired ground's roster law outright and keeping its replacement as its own named test rather than folding it in here."
 
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/theme/tests.rs"
-function = "gutter_frost_pill_keeps_ink_contrast_on_every_lava_world"
-message = "this function has too many lines (101/100)"
-reason = "Item 132: a per-world roster sweep whose length IS the roster's, over a no-wildcard `Background` match that gained one arm for the warped grid. Its twin one function above (the outline rail) carries the same shape. The honest fix is merging the two frost-rail sweeps into one owner, a focused follow-up rather than metric-only churn here."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
