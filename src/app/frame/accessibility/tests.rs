@@ -363,7 +363,7 @@ fn truth(app: &App) -> Vec<String> {
         .collect()
 }
 
-/// THE ITEM-259 LAW. A screen reader may ask for an INITIAL tree again in the
+/// THE HEADLINE STALENESS LAW. A screen reader may ask for an INITIAL tree again in the
 /// middle of a session — macOS re-asks whenever a window is cycled, which is the
 /// user's exact trigger — and the answer comes from a slot parked before the
 /// window was ever shown. The tree it is handed must describe the document as it
@@ -402,8 +402,8 @@ fn a_reasked_initial_tree_describes_the_document_as_it_is_now() {
                     app.refresh_accessibility();
                 }
             }
-            // No edit at all — only a selection, which is the half of item 259
-            // the user reported as no longer being read out.
+            // No edit at all — only a selection, which is what a screen
+            // reader announces and what a stale tree silently breaks.
             "selection" => {
                 app.set_semantic_selection_for_test(2, 9);
                 app.refresh_accessibility();
@@ -431,7 +431,7 @@ fn a_reasked_initial_tree_describes_the_document_as_it_is_now() {
     }
 }
 
-/// THE CONTRACT ITEM 257 MISREAD, pinned so it is not re-filed.
+/// THE PLATFORM CONTRACT THAT READS AS A BUG, pinned so it is not re-filed.
 ///
 /// `Role::TextRun` is EXCLUDED from a node's accessible children by
 /// `accesskit_consumer::common_filter`, which `accesskit_macos` and
@@ -479,7 +479,8 @@ fn the_platform_filters_text_runs_out_of_the_documents_accessible_children() {
             .count(),
         0,
         "a text run reached a screen reader as an accessible CHILD; if \
-         accesskit's common_filter no longer excludes Role::TextRun, item \
-         257's probe assertion becomes correct and this law is what says so",
+         accesskit's common_filter no longer excludes Role::TextRun, an \
+         AT-SPI probe counting run children becomes correct and this law is \
+         what says so",
     );
 }
