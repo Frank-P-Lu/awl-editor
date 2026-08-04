@@ -10,6 +10,7 @@ use super::{headless_dqp, headless_pipeline, view};
 
 #[test]
 fn markdown_styling_gated_and_composed() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping markdown_styling_gated_and_composed: no wgpu adapter");
         return;
@@ -86,6 +87,7 @@ fn symbol_runs_isolate_modifier_and_ornament_glyphs() {
 
 #[test]
 fn symbol_face_registered_under_private_family() {
+    let _g = crate::testlock::serial();
     let Some(p) = headless_pipeline() else {
         eprintln!("skipping symbol_face_registered_under_private_family: no wgpu adapter");
         return;
@@ -106,6 +108,7 @@ fn symbol_face_registered_under_private_family() {
 
 #[test]
 fn horizontal_rule_ornament_gated_and_centered() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping horizontal_rule_ornament_gated_and_centered: no wgpu adapter");
         return;
@@ -139,6 +142,7 @@ fn horizontal_rule_ornament_gated_and_centered() {
 
 #[test]
 fn horizontal_rule_conceals_dashes_until_the_caret_lands() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping horizontal_rule_conceals_dashes_until_the_caret_lands: no wgpu adapter"
@@ -577,6 +581,7 @@ fn bullet_glyphs_swap_per_world() {
 /// addition) in its bundled ornament face.
 #[test]
 fn bullet_glyphs_resolve_in_each_worlds_assigned_face() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping bullet_glyphs_resolve_in_each_worlds_assigned_face: no wgpu adapter");
         return;
@@ -937,6 +942,7 @@ fn bullet_marks_placement_unchanged_and_geometry_is_o_visible() {
 
 #[test]
 fn wordcount_readout_gated_to_markdown() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping wordcount_readout_gated_to_markdown: no wgpu adapter");
         return;
@@ -970,6 +976,7 @@ fn wordcount_readout_gated_to_markdown() {
 /// `lang:`/etc. lines never inflate the word-count/reading-time readout.
 #[test]
 fn readout_excludes_frontmatter_block() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping readout_excludes_frontmatter_block: no wgpu adapter");
         return;
@@ -1000,6 +1007,7 @@ fn readout_excludes_frontmatter_block() {
 
 #[test]
 fn notice_parked_offscreen_when_empty() {
+    let _g = crate::testlock::serial();
     // The CALM NOTICE mirrors the ViewState field and defaults EMPTY — the
     // empty string routes through the shared corner-label body's park-off-
     // screen arm (the same gate the wordcount/gutter byte-identity rides),

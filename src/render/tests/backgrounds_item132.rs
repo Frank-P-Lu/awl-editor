@@ -270,6 +270,7 @@ fn warped_grid_is_kites_alone_no_wildcard() {
 /// its pixels would move between these two phases.
 #[test]
 fn no_other_worlds_ground_can_see_kites_travel() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -316,6 +317,7 @@ fn no_other_worlds_ground_can_see_kites_travel() {
 /// it the oracle silently measures the ground's own dither too.
 #[test]
 fn zero_density_is_an_exact_flat_ground_reference() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -367,6 +369,7 @@ fn zero_density_is_an_exact_flat_ground_reference() {
 /// column, at every swept geometry and sampled travel phase.
 #[test]
 fn the_grid_never_enters_the_writing_page_at_any_geometry_or_phase() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -416,6 +419,7 @@ fn sampled_phases() -> [f32; 5] {
 /// two slices, never one live margin and one blank one.
 #[test]
 fn both_margins_carry_a_real_field_at_every_swept_geometry() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -460,6 +464,7 @@ fn both_margins_carry_a_real_field_at_every_swept_geometry() {
 /// distinctly stronger band; a single-rung field (hierarchy lost) has no gap.
 #[test]
 fn the_major_minor_hierarchy_reads_as_two_distinct_rungs() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -504,6 +509,7 @@ fn the_major_minor_hierarchy_reads_as_two_distinct_rungs() {
 /// carries far less ink than the open margin further out.
 #[test]
 fn the_field_fades_toward_the_page_edge() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -564,6 +570,7 @@ fn the_field_fades_toward_the_page_edge() {
 /// the field produces anywhere.
 #[test]
 fn the_lattice_never_saturates_a_patch_of_margin_at_any_scale() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -629,6 +636,7 @@ fn the_lattice_never_saturates_a_patch_of_margin_at_any_scale() {
 /// order, and the item's "never squeeze a tiny illegible tunnel behind the page".
 #[test]
 fn a_narrow_margin_simplifies_to_the_major_scaffold_alone() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -684,6 +692,7 @@ fn a_narrow_margin_simplifies_to_the_major_scaffold_alone() {
 /// the field's strongest pixel by a wide contrast margin.
 #[test]
 fn the_field_stays_inside_the_grounds_value_band_and_the_ink_clears_it() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -762,6 +771,7 @@ fn the_field_stays_inside_the_grounds_value_band_and_the_ink_clears_it() {
 /// of the major modulus.
 #[test]
 fn a_whole_loop_of_forward_travel_is_byte_identical_at_real_pixels() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -864,6 +874,7 @@ fn a_whole_loop_of_forward_travel_is_byte_identical_at_real_pixels() {
 /// frame — the accessibility promise and byte-determinism are one fact.
 #[test]
 fn every_freeze_path_renders_the_one_composed_still() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };

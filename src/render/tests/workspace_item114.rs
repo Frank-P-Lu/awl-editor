@@ -481,6 +481,7 @@ fn a_contextual_overlay_never_enters_the_workspace_family() {
 /// the shaped run through the ONE footer-measure owner, never the hint STRING.
 #[test]
 fn the_workspace_footer_fits_its_card_on_every_world_at_every_stage() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping the_workspace_footer_fits_its_card: no wgpu adapter");
         return;

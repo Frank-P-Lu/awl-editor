@@ -280,6 +280,7 @@ fn assert_row_one_ink(img: &image::RgbaImage, region: (f32, f32, f32, f32), labe
 /// checked in both states).
 #[test]
 fn date_picker_examples_render_one_ink_across_worlds_and_states() {
+    let _g = crate::testlock::serial();
     if headless_dqp(1200.0, 800.0).is_none() {
         eprintln!(
             "skipping date_picker_examples_render_one_ink_across_worlds_and_states: no wgpu adapter"

@@ -267,6 +267,7 @@ fn region_widths(pixels: &[[u8; 4]], w: u32, y: u32, tones: [[u8; 4]; 3]) -> [u3
 /// degenerate flat fill).
 #[test]
 fn bands_canonical_mid_field_crosses_exactly_three_bands() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping bands_canonical_mid_field_crosses_exactly_three_bands: no wgpu adapter"
@@ -314,6 +315,7 @@ fn bands_canonical_mid_field_crosses_exactly_three_bands() {
 /// as the canvas grows — the opposite of what a scaled field does).
 #[test]
 fn bands_narrow_canonical_wide_still_show_exactly_three_bands_that_scale_not_tile() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping bands_narrow_canonical_wide_still_show_exactly_three_bands_that_scale_not_tile: no wgpu adapter"
@@ -371,6 +373,7 @@ fn bands_narrow_canonical_wide_still_show_exactly_three_bands_that_scale_not_til
 /// flat tones even though the mid-field scanline still read as three bands.
 #[test]
 fn bands_canonical_margin_slivers_each_catch_a_band_edge() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping bands_canonical_margin_slivers_each_catch_a_band_edge: no wgpu adapter"
@@ -408,6 +411,7 @@ fn bands_canonical_margin_slivers_each_catch_a_band_edge() {
 /// 3 — a `[0,1,0,2]`-shaped sequence, which this asserts against directly).
 #[test]
 fn bombora_canonical_mid_field_exposes_exactly_three_wave_tiers() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping bombora_canonical_mid_field_exposes_exactly_three_wave_tiers: no wgpu adapter"
@@ -440,6 +444,7 @@ fn bombora_canonical_mid_field_exposes_exactly_three_wave_tiers() {
 /// this rules out.
 #[test]
 fn bombora_wave_boundaries_are_phase_offset_scallops_not_a_grid() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping bombora_wave_boundaries_are_phase_offset_scallops_not_a_grid: no wgpu adapter"
@@ -530,6 +535,7 @@ fn assert_left_right_continuity_through_the_page(
 
 #[test]
 fn bands_are_continuous_left_and_right_of_the_hidden_page() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping bands_are_continuous_left_and_right_of_the_hidden_page: no wgpu adapter"
@@ -542,6 +548,7 @@ fn bands_are_continuous_left_and_right_of_the_hidden_page() {
 
 #[test]
 fn bombora_waves_are_continuous_left_and_right_of_the_hidden_page() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping bombora_waves_are_continuous_left_and_right_of_the_hidden_page: no wgpu adapter"
@@ -602,6 +609,7 @@ fn assert_boundary_scales_with_resolution(
 
 #[test]
 fn bands_boundary_scales_proportionally_with_physical_resolution() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping bands_boundary_scales_proportionally_with_physical_resolution: no wgpu adapter"
@@ -626,6 +634,7 @@ fn bands_boundary_scales_proportionally_with_physical_resolution() {
 /// already hold, generalized to a wobble amplitude instead of a grid period).
 #[test]
 fn bombora_wave_wobble_is_a_fixed_logical_pixel_amplitude_not_canvas_scaled() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping bombora_wave_wobble_is_a_fixed_logical_pixel_amplitude_not_canvas_scaled: \
@@ -684,6 +693,7 @@ fn bombora_wave_wobble_is_a_fixed_logical_pixel_amplitude_not_canvas_scaled() {
 /// byte-stable).
 #[test]
 fn bands_and_waves_render_byte_identically_across_two_independent_draws() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping bands_and_waves_render_byte_identically_across_two_independent_draws: no wgpu adapter"

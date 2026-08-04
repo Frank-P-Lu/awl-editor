@@ -166,6 +166,7 @@ fn quokka_alone_uses_horizontal_filled_zigzag_bands() {
 /// distinct) effect on ribbon thickness / marked area.
 #[test]
 fn quokka_zigzag_reads_higher_contrast_than_gumtrees_over_real_pixels() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping quokka_zigzag_reads_higher_contrast_than_gumtrees_over_real_pixels: no wgpu adapter"
@@ -210,6 +211,7 @@ fn gumtree_visibility_floor(field: &[i32]) -> i32 {
 
 #[test]
 fn gumtree_zigzag_is_visibly_present_across_dashboard_geometries() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping gumtree_zigzag_is_visibly_present_across_dashboard_geometries: \
@@ -238,6 +240,7 @@ fn gumtree_zigzag_is_visibly_present_across_dashboard_geometries() {
 
 #[test]
 fn gumtree_visibility_floor_rejects_the_imperceptible_density_mutation() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };

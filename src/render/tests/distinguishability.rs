@@ -395,6 +395,7 @@ fn selected_row_secondary_clears_contrast_floor_on_every_world() {
 /// cell per world.
 #[test]
 fn selected_row_secondary_survives_slant_on_bars_worlds() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping selected_row_secondary_survives_slant_on_bars_worlds: no wgpu adapter");
         return;
@@ -506,6 +507,7 @@ fn selected_row_secondary_survives_slant_on_bars_worlds() {
 /// uploads nothing.
 #[test]
 fn interactive_states_are_visible_in_every_world_real_pixels() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping interactive_states_are_visible_in_every_world_real_pixels: no wgpu adapter"
@@ -556,6 +558,7 @@ fn interactive_states_are_visible_in_every_world_real_pixels() {
 /// median delta was ~0; the plate is exactly what moves it.
 #[test]
 fn overlay_chord_sits_on_a_plate_on_every_bars_world() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping overlay_chord_sits_on_a_plate_on_every_bars_world: no wgpu adapter");
         return;
@@ -830,6 +833,7 @@ fn check_real_pixels(
 /// see `app::tests::every_preview_step_brackets_and_teardown_waits_for_the_reshape_present`).
 #[test]
 fn theme_preview_retint_regrounds_the_page_surface_on_every_world() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping theme_preview_retint_regrounds_the_page_surface_on_every_world: no wgpu adapter"

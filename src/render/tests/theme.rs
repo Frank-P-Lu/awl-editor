@@ -447,6 +447,7 @@ fn mono_world_shapes_uniform_pitch() {
 /// so the resolution tests below can't reach them through a theme switch).
 #[test]
 fn bold_display_faces_register_under_their_family_names_at_weight_700() {
+    let _g = crate::testlock::serial();
     let Some(p) = headless_pipeline() else {
         eprintln!(
             "skipping bold_display_faces_register_under_their_family_names_at_weight_700: no wgpu adapter"
@@ -867,6 +868,7 @@ fn markdown_emphasis_keeps_the_bundled_cjk_face_never_a_fallback() {
 /// could use it for a section break.)
 #[test]
 fn bundled_text_and_ornament_faces_register_under_their_family_names() {
+    let _g = crate::testlock::serial();
     let Some(p) = headless_pipeline() else {
         eprintln!(
             "skipping bundled_text_and_ornament_faces_register_under_their_family_names: no wgpu adapter"

@@ -143,6 +143,7 @@ fn picker(faceted: bool, n: usize) -> ViewState {
 /// the card, and leave exactly the `overlay_split_bounds` gap between them.
 #[test]
 fn split_draws_two_surfaces_unified_draws_one() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping split_draws_two_surfaces: no wgpu adapter");
@@ -288,6 +289,7 @@ fn split_stays_valid_narrow_and_empty() {
 /// world draw one — the same flip on all of them, no per-world code path.
 #[test]
 fn every_world_splits_by_its_cap_never_by_identity() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping every_world_splits_by_its_cap: no wgpu adapter");
@@ -426,6 +428,7 @@ fn redmean(a: theme::Srgb, b: theme::Srgb) -> f32 {
 ///     the query line).
 #[test]
 fn split_shows_ground_across_the_gap_and_no_glyph_escapes() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping split_shows_ground_across_the_gap: no wgpu adapter");

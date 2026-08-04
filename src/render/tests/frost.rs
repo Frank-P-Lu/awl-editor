@@ -19,6 +19,7 @@ use super::{headless_dqp, view_md};
 /// carry the adaptive rail's fixed physical floor and so are NOT asserted.)
 #[test]
 fn frost_pill_geometry_is_dpi_invariant_in_logical_space() {
+    let _g = crate::testlock::serial();
     const W: f32 = 960.0;
     const H: f32 = 640.0;
     const ZOOM: f32 = 1.25;
@@ -110,6 +111,7 @@ fn frost_pill_geometry_is_dpi_invariant_in_logical_space() {
 /// size and the field's logical topology would drift across displays.
 #[test]
 fn frost_seed_geometry_is_dpi_invariant_in_logical_space() {
+    let _g = crate::testlock::serial();
     const W: f32 = 960.0;
     const H: f32 = 640.0;
     const ZOOM: f32 = 1.25;
@@ -203,6 +205,7 @@ fn item61_seeds(p: &mut TextPipeline, height: u32) -> (Vec<[f32; 4]>, Vec<[f32; 
 /// width in, radius out).
 #[test]
 fn isolated_punctuation_run_radius_is_bounded_below_a_normal_runs() {
+    let _g = crate::testlock::serial();
     let Some((_device, _queue, mut p)) = headless_dqp(960.0, 640.0) else {
         eprintln!(
             "skipping isolated_punctuation_run_radius_is_bounded_below_a_normal_runs: no wgpu adapter"
@@ -308,6 +311,7 @@ fn long_run_end_pad_is_bounded_independent_of_row_height() {
 /// ceiling).
 #[test]
 fn nearby_ordinary_runs_still_merge_after_the_bounded_radius_round() {
+    let _g = crate::testlock::serial();
     let Some((_device, _queue, mut p)) = headless_dqp(960.0, 640.0) else {
         eprintln!(
             "skipping nearby_ordinary_runs_still_merge_after_the_bounded_radius_round: no wgpu adapter"

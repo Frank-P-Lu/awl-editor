@@ -92,6 +92,7 @@ fn organic_at(
 /// the pixel VALUES inside that mask are free to differ.
 #[test]
 fn bowerbird_organic_field_never_translates_across_the_ambient_clock() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping bowerbird_organic_field_never_translates_across_the_ambient_clock: \
@@ -192,6 +193,7 @@ fn bowerbird_organic_field_never_translates_across_the_ambient_clock() {
 /// per-cell tone/density scale, so their correlation is ~1.0 exactly).
 #[test]
 fn bowerbird_companion_breathe_is_visible_and_neighbours_desynchronise() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping bowerbird_companion_breathe_is_visible_and_neighbours_desynchronise: \
@@ -303,6 +305,7 @@ fn bowerbird_companion_breathe_is_visible_and_neighbours_desynchronise() {
 /// bump quietly pushing a companion's mixed value warm or bright.
 #[test]
 fn bowerbird_organic_worst_breathe_phase_stays_cool_and_off_the_page() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
             "skipping bowerbird_organic_worst_breathe_phase_stays_cool_and_off_the_page: \
@@ -344,6 +347,7 @@ fn bowerbird_organic_worst_breathe_phase_stays_cool_and_off_the_page() {
 /// gone; the companion breathe is what the clock now drives).
 #[test]
 fn bowerbird_organic_breathe_is_wired_end_to_end() {
+    let _g = crate::testlock::serial();
     const W: u32 = 900;
     const H: u32 = 600;
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
@@ -416,6 +420,7 @@ fn bowerbird_organic_breathe_is_wired_end_to_end() {
 /// in a session the user (or the Settings toggle) flips the preference.
 #[test]
 fn bowerbird_organic_reduce_motion_freezes_pixels_despite_an_advanced_clock() {
+    let _g = crate::testlock::serial();
     const W: u32 = 900;
     const H: u32 = 600;
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {

@@ -59,6 +59,7 @@ fn mid_in_row(rect: [f32; 4], row_h: f32) -> (f32, f32) {
 /// occupy exactly its own interactive (or deliberately inert) region.
 #[test]
 fn every_overlay_kind_orders_drawn_title_facet_candidates_footer_and_hits_the_same_regions() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!(
@@ -270,6 +271,7 @@ fn core_ink_y_band(
 /// against the measured glyph bands and must miss both improvements.
 #[test]
 fn footer_pixels_add_clear_air_above_trim_the_chin_and_reject_the_old_dials() {
+    let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!(

@@ -50,6 +50,7 @@ fn framing_samples(
 
 #[test]
 fn fixed_framing_is_room_owned_across_page_width_and_offset() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -69,6 +70,7 @@ fn fixed_framing_is_room_owned_across_page_width_and_offset() {
 
 #[test]
 fn page_owned_framing_mutations_break_the_width_invariant() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -130,6 +132,7 @@ fn ring_ladder(device: &wgpu::Device, queue: &wgpu::Queue, bg: theme::Background
 
 #[test]
 fn forward_travel_grows_the_projected_rings_at_the_authored_rate() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
@@ -152,6 +155,7 @@ fn forward_travel_grows_the_projected_rings_at_the_authored_rate() {
 
 #[test]
 fn reversed_travel_mutation_recedes() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };

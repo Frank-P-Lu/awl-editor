@@ -800,6 +800,7 @@ fn copy_pulse_ease_is_a_clamped_smoothstep() {
 
 #[test]
 fn copy_pulse_settles_at_construction_then_kicks_and_decays_back() {
+    let _g = crate::testlock::serial();
     // A freshly-built pipeline (and every headless capture, which never calls
     // `copy_pulse`) sits permanently at the settled fraction (1.0) — the
     // selection quad draws its plain theme tint, byte-identical to before this

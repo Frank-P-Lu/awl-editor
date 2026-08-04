@@ -125,6 +125,7 @@ fn fold_chevron_arms_turn_continuously_between_the_two_settled_angles() {
 /// reading would report this heading as EXPANDED (`fold_tails` is empty here).
 #[test]
 fn a_heading_folded_over_an_empty_section_still_reads_collapsed() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = super::headless_pipeline() else {
         eprintln!("no GPU adapter; skipping empty-section fold-direction law");
         return;
@@ -177,6 +178,7 @@ fn a_heading_folded_over_an_empty_section_still_reads_collapsed() {
 /// confirmation — this proves the math it rides is sound.
 #[test]
 fn fold_chevron_turn_progresses_on_injected_dt_and_settles_exactly() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = super::headless_pipeline() else {
         eprintln!("no GPU adapter; skipping fold-chevron injected-dt stepping law");
         return;

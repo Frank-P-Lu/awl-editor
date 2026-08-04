@@ -1662,6 +1662,7 @@ fn image_dense_doc_shapes_every_tall_row_doc_wide_no_scroll_jump() {
 /// first assertion.
 #[test]
 fn row_box_visible_law_a_tall_row_stays_visible_until_its_own_bottom_passes_the_margin() {
+    let _g = crate::testlock::serial();
     let Some(p) = headless_pipeline() else {
         eprintln!("skipping row_box_visible_law: no wgpu adapter");
         return;

@@ -193,6 +193,7 @@ fn deckle_roster_assigns_paperbark_strata_and_galah_fibres_no_wildcard() {
 /// the page is the figure.
 #[test]
 fn deckle_ink_never_enters_the_writing_page_at_any_swept_geometry() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping deckle_ink_never_enters_the_writing_page: no wgpu adapter");
         return;
@@ -238,6 +239,7 @@ fn deckle_ink_never_enters_the_writing_page_at_any_swept_geometry() {
 /// pass, so this grades plumage rather than its pink gradient.
 #[test]
 fn galah_fibres_are_sparse_present_and_deterministic_across_size_and_dpi() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping galah_fibres_are_sparse_present_and_deterministic: no wgpu adapter");
         return;
@@ -387,6 +389,7 @@ pub(super) fn margin_stats(field: &[i32], w: u32, h: u32, mx0: u32, mx1: u32) ->
 /// instead of quietly passing everywhere.
 #[test]
 fn deckle_strata_never_collapses_to_one_flat_tone_in_a_margin_that_can_hold_a_lane() {
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping deckle_strata_never_collapses_to_one_flat_tone: no wgpu adapter");
         return;
@@ -474,6 +477,7 @@ fn deckle_strata_never_collapses_to_one_flat_tone_in_a_margin_that_can_hold_a_la
 /// byte-identity assertion over a wholly-covered region.
 #[test]
 fn deckle_strata_stays_fixed_at_exposed_viewport_points_across_page_width_drags() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping deckle_strata_mirror_across_the_writing_page: no wgpu adapter");
         return;
@@ -567,6 +571,7 @@ fn deckle_strata_stays_fixed_at_exposed_viewport_points_across_page_width_drags(
 /// future Weave or DeckleAnchor variant cannot silently miss this law.
 #[test]
 fn deckle_mode_sweeps_every_weave_anchor_combination() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping deckle_mode_sweeps_every_weave_anchor_combination: no wgpu adapter");
         return;
@@ -650,6 +655,7 @@ fn deckle_mode_sweeps_every_weave_anchor_combination() {
 ///     paper rather than as a pattern demanding attention.
 #[test]
 fn deckle_material_whispers_and_keeps_clear_of_the_prose_ink() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping deckle_material_whispers: no wgpu adapter");
         return;
@@ -700,6 +706,7 @@ fn deckle_material_whispers_and_keeps_clear_of_the_prose_ink() {
 /// looks like numerically.
 #[test]
 fn deckle_pitch_floor_holds_the_field_smooth_below_its_own_minimum() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping deckle_pitch_floor_holds_the_field_smooth: no wgpu adapter");
         return;
@@ -861,6 +868,7 @@ fn boundary_wander(px: &[[u8; 4]]) -> f32 {
 ///     a printed rule.
 #[test]
 fn paperbark_reads_as_neither_saltpans_pinstripes_nor_bilbys_gradient() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping paperbark_reads_as_neither: no wgpu adapter");
         return;
@@ -936,6 +944,7 @@ fn paperbark_reads_as_neither_saltpans_pinstripes_nor_bilbys_gradient() {
 /// choice itself rather than Galah and Paperbark's authored parameters.
 #[test]
 fn weave_fibres_draws_a_real_field_distinct_from_strata() {
+    let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping weave_fibres_draws_a_real_field: no wgpu adapter");
         return;
