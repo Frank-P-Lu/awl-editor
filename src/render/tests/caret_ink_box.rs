@@ -773,15 +773,15 @@ fn layers_holds_no_caret_vertical_geometry_of_its_own() {
     );
 }
 
-/// ITEM 267 — "THE CARET IS TOO SHORT ON TALL ROWS", CONFIRMED FALSE BY CAPTURE.
+/// THE "CARET IS TOO SHORT ON TALL ROWS" CLAIM, CONFIRMED FALSE BY CAPTURE.
 ///
-/// User-reported with a screenshot, and read as a RECURRENCE of the punctuation
-/// ink-box fix (`6bc8ecd9`) — a different axis entirely. A source read of
+/// User-reported with a screenshot; not the same axis as the OTHER punctuation
+/// ink-box fix above (glyph shape, not row height). A source read of
 /// `render.rs`'s `caret_h: CARET_H * s` (zoom/DPI only, no row term) matched the
 /// reported shape exactly, but `caret_h` alone is never the FINAL drawn height:
 /// every consumer corrects it before a pixel lands — the CELL form through
-/// `caret_cell_vertical`'s ink-box arm (this file's item-91/105 laws, above),
-/// the BAR/mono-cell forms through `cursor_scale()`'s `row_height / line_height`
+/// `caret_cell_vertical`'s ink-box arm (this file's laws, above), the
+/// BAR/mono-cell forms through `cursor_scale()`'s `row_height / line_height`
 /// multiply (`ibeam_bar_dims`, and the mono arm of `caret_cell_vertical` itself).
 ///
 /// A capture sweep (screenshots + pixel arithmetic, not re-derived here) covered
@@ -790,14 +790,15 @@ fn layers_holds_no_caret_vertical_geometry_of_its_own() {
 /// heading's fully-glyphless synthetic fallback, a freshly-`Enter`ed blank line,
 /// list items/fences/blockquotes/thematic breaks — and found no case where the
 /// caret undershoots. The ink-box CELL form tracks the row's FONT SIZE (the
-/// quantity this item's own brief called "almost certainly right"); the
-/// bar/mono-cell forms track the row's fuller height (font size × the ladder's
-/// own row-height lead), if anything OVERSHOOTING. This law and the two below it
-/// pin that confirmed-correct outcome — nothing previously measured the CARET's
-/// own height against its row across heading levels (only the ROW's height was
-/// pinned, by `heading_rows_are_taller_and_gated_to_markdown` in
-/// `markdown_headings.rs`) — so a real future regression toward the bare
-/// constant fails here, by name, instead of shipping unnoticed a second time.
+/// quantity a caret should track — the row's cap/ascender box, not its full
+/// height including leading); the bar/mono-cell forms track the row's fuller
+/// height (font size × the heading ladder's own row-height lead), if anything
+/// OVERSHOOTING. This law and the two below it pin that confirmed-correct
+/// outcome — nothing previously measured the CARET's own height against its
+/// row across heading levels (only the ROW's height was pinned, by
+/// `heading_rows_are_taller_and_gated_to_markdown` in `markdown_headings.rs`)
+/// — so a real future regression toward the bare constant fails here, by name,
+/// instead of shipping unnoticed a second time.
 #[test]
 fn heading_cell_caret_grows_with_the_headings_own_font_size_not_the_bare_row_constant() {
     // Ink-box lookup folds the theme font AND the page wrap globals; the anchor
@@ -808,9 +809,7 @@ fn heading_cell_caret_grows_with_the_headings_own_font_size_not_the_bare_row_con
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Morph);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!(
-            "skipping heading_cell_caret_grows_with_the_headings_own_font_size_not_the_bare_row_constant: no wgpu adapter"
-        );
+        eprintln!("skipping heading cell caret font-size law: no wgpu adapter");
         return;
     };
     theme::set_active_by_name("Gumtree").unwrap(); // proportional (Literata)
@@ -853,10 +852,11 @@ fn heading_cell_caret_grows_with_the_headings_own_font_size_not_the_bare_row_con
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// The MONO-WORLD complement: item 97's uniform grid never reads an ink box, so
-/// the whole caret depends on `cursor_scale()` alone to track the row. Proves
-/// that arm ALSO clears the bug — a regression here would be invisible to the
-/// proportional law above.
+/// The MONO-WORLD complement: a mono world's uniform glyph grid never reads an
+/// ink box (every column shares one row-scaled line cell), so the whole caret
+/// depends on `cursor_scale()` alone to track the row. Proves that arm ALSO
+/// clears the bug — a regression here would be invisible to the proportional
+/// law above.
 #[test]
 fn heading_line_cell_caret_on_a_mono_world_also_tracks_the_row_not_the_bare_constant() {
     let _t = crate::testlock::serial();
@@ -864,9 +864,7 @@ fn heading_line_cell_caret_on_a_mono_world_also_tracks_the_row_not_the_bare_cons
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!(
-            "skipping heading_line_cell_caret_on_a_mono_world_also_tracks_the_row_not_the_bare_constant: no wgpu adapter"
-        );
+        eprintln!("skipping heading mono line-cell caret law: no wgpu adapter");
         return;
     };
     theme::set_active_by_name("Tawny").unwrap(); // mono (IBM Plex Mono)
@@ -886,14 +884,16 @@ fn heading_line_cell_caret_on_a_mono_world_also_tracks_the_row_not_the_bare_cons
     let (h1, h2, h3) = (heights[1], heights[2], heights[3]);
     assert!(
         h1 > h2 && h2 > h3 && h3 > body,
-        "the mono LINE-CELL caret (item 97's uniform grid — no ink box) must still \
-         grow with cursor_scale()'s row_height/line_height ratio: body={body} h3={h3} h2={h2} h1={h1}"
+        "the mono LINE-CELL caret (a uniform grid, no ink box) must still grow \
+         with cursor_scale()'s row_height/line_height ratio: body={body} h3={h3} h2={h2} h1={h1}"
     );
     // No additive pad complicates the mono arm (`caret_block_h * cursor_scale()`,
     // `x` has no descender to extend), so this ratio can be pinned tightly
     // against the SAME formula `cursor_scale` reads from.
     for (level, h) in [(1u8, h1), (2, h2), (3, h3)] {
-        let want = crate::markdown::heading_scale(level) * crate::markdown::heading_row_lead(level);
+        let scale = crate::markdown::heading_scale(level);
+        let lead = crate::markdown::heading_row_lead(level);
+        let want = scale * lead;
         let ratio = h / body;
         assert!(
             (ratio - want).abs() < 0.05,
@@ -906,20 +906,20 @@ fn heading_line_cell_caret_on_a_mono_world_also_tracks_the_row_not_the_bare_cons
     p.sync_theme();
 }
 
-/// The LITERAL scenario item 267's own diagnosis speculated about: a blank row
-/// sitting directly under a heading, inflated by the heading's "space-above"
-/// bleeding onto its neighbor. It doesn't happen on `main` — `heading_row_lead`
-/// and `md_line_scale` key off a line's OWN leading `#` run (see their doc
-/// comments in `markdown/headings.rs`), so a plain blank line next to a heading
-/// is untouched; the unmerged experiment that DID try literal space-above
-/// (`11e20069`, "decoupled space-above line-height") never landed on `main`.
+/// A tempting (but false) alternate diagnosis for "the caret is too short on
+/// tall rows": a blank row sitting directly under a heading, inflated by the
+/// heading's own "space above" bleeding onto its neighbor. That doesn't happen
+/// on `main` — `heading_row_lead` and `md_line_scale` key off a line's OWN
+/// leading `#` run (see their doc comments in `markdown/headings.rs`), so a
+/// plain blank line next to a heading is untouched; a decoupled-space-above
+/// experiment that would have produced exactly that inflation never landed.
 /// Pinned directly so a future "fix" for a caret that never undershot cannot
 /// reintroduce the inflation it would actually need to guard against.
 #[test]
 fn blank_row_directly_below_a_heading_stays_body_height() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping blank_row_directly_below_a_heading_stays_body_height: no wgpu adapter");
+        eprintln!("skipping blank row under heading law: no wgpu adapter");
         return;
     };
     let text = "# Heading\n\nBody one\nBody two\n";
