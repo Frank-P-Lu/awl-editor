@@ -773,6 +773,32 @@ success except the tolerated wedge. Thirteen items: 240, 243, 238, 218, 229,
 237, 244, 245, 246, 249, 250, 247's static slice, 221; plus 174 re-scoped, 116
 closed, the receipt gap resolved, and five CI repairs.
 
+- **248** — ✅ **COMPLETE except the motion's live feel.** Merged `bb78321c`.
+  Receipt
+  `native-gate-receipt commit=843986fdadf6cf6254a419c4665f577a545e8c80 conventions=mac,linux scope=all-targets`,
+  `web-smoke: OK`, `code-health.sh` clean, fmt clean. **The affordance told you
+  nothing before you used it** — collapsed and expanded drew the identical `›`,
+  and the only collapsed signal was the "… N lines" tail that by construction
+  appears only after folding. The mark now leaves the text pipeline entirely
+  (glyphon 0.11 exposes no transform, so a shaped run cannot rotate) and is
+  built from `spine_segment`, following `chrome::diagonal::selected_chevron` as
+  a pattern without depending on it.
+  **Still-frame proof is an aspect INVERSION on real GPU pixels:** collapsed
+  spans 8×6, expanded 6×8. `REACH_CHARS`/`SPREAD_CHARS` are deliberately unequal
+  **so that footprint signal exists at all** — a considered choice, not a
+  coincidence.
+  ⚠️ **FOURTH CONFIRMATION OF THIS WAVE'S LESSON, and the sharpest statement of
+  it yet.** Reverting the state read to `collapsed: false` — the original defect
+  exactly — turned the two **state-reading** laws red while **both arm-shape
+  laws stayed green**, because they pass an explicit `turn_deg` and bypass the
+  state read entirely. **A suite carrying only the shape law would have shipped
+  this regression silently.** Same shape as 237, 244 and 247: the law graded
+  something adjacent to the defect rather than the defect.
+  **The animation is verified, not stubbed** — injected `dt`, the same mechanism
+  the caret spring uses, with a genuine mid-glide value strictly between the
+  endpoints and an exact settle. 🔵 **Owed:** the 140 ms quarter turn's
+  real-time *feel* at 60 fps, which no capture can reach.
+
 - **242 (chrome's default pixel space)** — 🟡 IN PROGRESS — claude (opus, high),
   branch `claude/item-242-chrome-pixels`. **File hold: `src/render/chrome/` and
   `src/render.rs`'s `Metrics` boundary.**
