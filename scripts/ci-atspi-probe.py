@@ -91,6 +91,7 @@ from gi.repository import Atspi, GLib  # noqa: E402
 
 APP_TIMEOUT_S = 30.0
 DOCUMENT_TIMEOUT_S = 10.0
+RUN_CHILDREN_TIMEOUT_S = 10.0
 FOCUS_TIMEOUT_S = 10.0
 SELECTION_TIMEOUT_S = 10.0
 POLL_S = 0.5
@@ -437,13 +438,33 @@ def main() -> None:
                 "cross the bridge"
             )
 
+        # Retried, not a single shot — same reasoning as the document lookup
+        # above, not "maybe no frame has drawn yet". Confirmed from source
+        # (src/app/semantic/projection.rs:168's `seed`): every run is built
+        # from `buffer.runs()`, the rope's own line table, with no rendering
+        # involved at all, and `seed_accessibility_tree` runs in `resumed()`
+        # BEFORE the window is even shown — so the runs exist in the Rust
+        # tree from the first instant, frame or no frame. What genuinely
+        # takes real wall-clock time is downstream of that: accesskit_unix's
+        # `register_interfaces` call per node is an ASYNC message sent
+        # through a channel to its own background thread, which then makes
+        # the actual `bus.register_interfaces(...)` D-Bus call — the exact
+        # kind of propagation lag the document-node lookup already retries
+        # for. A run count read the instant the document itself first
+        # appears can race that queue being drained.
+        run_deadline = time.time() + RUN_CHILDREN_TIMEOUT_S
         run_count = document.get_child_count()
+        while run_count != len(EXPECTED_RUN_TEXT) and time.time() < run_deadline:
+            time.sleep(POLL_S)
+            run_count = document.get_child_count()
         if run_count != len(EXPECTED_RUN_TEXT):
             fail(
                 f"document has {run_count} children, expected "
                 f"{len(EXPECTED_RUN_TEXT)} stable line runs (item 218's shape) "
-                "for the 3-line fixture — a monolithic single-node document "
-                "(the pre-218 shape) would fail this exact check"
+                f"for the 3-line fixture, even after waiting {RUN_CHILDREN_TIMEOUT_S}s — "
+                "a monolithic single-node document (the pre-218 shape) would "
+                "fail this exact check, and so would a real Linux gap in "
+                "item 218's run-publishing path"
             )
 
         for i, want in enumerate(EXPECTED_RUN_TEXT):
