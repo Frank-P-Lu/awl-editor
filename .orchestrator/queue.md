@@ -466,8 +466,17 @@ findings, 240, 241, 242, 243, 244, 245, 246, 247's static slice, 248, 249, 250,
 252, 253, 254. Plus five CI repairs and the receipt-gap resolution.
 
 **🔵 OWED — carried forward verbatim, because nothing above implies these.**
-- **218 — a real unlocked VoiceOver typing and navigation sitting.** No test
-  tier stands in for it. **Reachable now.**
+- **218 — 🔴 THE SITTING HAPPENED 2026-08-04 AND IT FAILED. The symptom is
+  UNCHANGED: the user turns VoiceOver on and awl still reports as "not
+  responding".** Requeued as **item 259**, which carries the two candidate
+  mechanisms. ⚠️ **218 is NOT regressed and must not be reverted** — its
+  per-keystroke work is real and measured (93.33 ms → 0.476 ms at 50k lines).
+  **It was incompletely SCOPED: it fixed editing, and the user's trigger is
+  ACTIVATION.** ⚠️ **Read this as evidence about the process, not just the bug:
+  an item can carry ten laws, mutation proofs and a 196× improvement and still
+  not move the symptom a user reported, because every one of those checks ran on
+  the branch the author was thinking about. The owed live sitting is what found
+  it, and it is the only thing that could have.**
 - **244 — ✅ CLOSED 2026-08-04 BY THE USER: "bowerbird looks good".** The
   companion breathe reads as a breathe, not a flash;
   `ORGANIC_BREATHE_AMOUNT = 1.2` and the 3–8 cycles-per-loop rate band **stand
