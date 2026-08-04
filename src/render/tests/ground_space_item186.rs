@@ -89,25 +89,46 @@ fn dormant_bands_and_dots() -> Vec<Ground> {
             angle: 0.35,
         },
     }];
-    if let Background::Dots {
-        from,
-        to,
-        dir,
-        tint,
-        ..
-    } = theme::MULGA.background
-    {
-        out.push(Ground {
-            label: "dormant:dots-edge",
-            bg: Background::Dots {
+    // ROSTER-DERIVED, not a named world: pinning this to one world's field
+    // means that world's ground can change and silently un-enrol this
+    // representative while the sweep still reads as complete — a match
+    // against a moved literal just stops matching, with nothing to say so.
+    // Scanning `THEMES` for whichever world currently wears `Dots` means a
+    // world changing its ground can retarget this representative but cannot
+    // un-enrol it. The predicate and the destructure are the SAME match arm
+    // (`find_map`, not a `find` followed by a second `if let` on its result),
+    // so a future edit to what counts as a match cannot drift the two apart
+    // and reopen this exact hole in a new shape. If the roster ever carries
+    // NO `Dots` world at all, this fails loudly (a panic naming the gap)
+    // rather than quietly dropping the representative and going back to zero
+    // coverage unnoticed.
+    let (from, to, dir, tint) = theme::THEMES
+        .iter()
+        .find_map(|t| match t.background {
+            Background::Dots {
                 from,
                 to,
                 dir,
                 tint,
-                edge: true,
-            },
-        });
-    }
+                ..
+            } => Some((from, to, dir, tint)),
+            _ => None,
+        })
+        .expect(
+            "no world in THEMES wears Background::Dots — the dormant:dots-edge \
+             representative has nothing to derive from; give it a literal field \
+             until a Dots world returns to the roster",
+        );
+    out.push(Ground {
+        label: "dormant:dots-edge",
+        bg: Background::Dots {
+            from,
+            to,
+            dir,
+            tint,
+            edge: true,
+        },
+    });
     out
 }
 
