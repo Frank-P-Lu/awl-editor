@@ -160,7 +160,14 @@ jobs:
   atspi:
     name: "atspi (AT-SPI2 bridge liveness, item 252) — allowed failure while it beds in"
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # BACKSTOP only (item 243's distinction, reused here after run 30887479906
+    # hit it directly): `continue-on-error` tolerates a job that FAILS, not
+    # one that is CANCELLED, and exceeding `timeout-minutes` cancels rather
+    # than fails. `scripts/ci-atspi-budget.sh` converts a hung probe into an
+    # ordinary non-zero exit well before this fires; this stays only for the
+    # different failure it exists for — the runner losing communication with
+    # the server — set generously above that script's own budget.
+    timeout-minutes: 15
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
@@ -210,8 +217,14 @@ jobs:
       - name: cargo build
         run: cargo build
 
+      # ci-atspi-budget.sh, not ci-atspi-probe.sh directly (item 243's
+      # wedge-budget pattern, reused): a hang inside the probe must become an
+      # ordinary failed step, never a cancelled one. 180s is generous — the
+      # probe's own internal deadlines (30s app-appears, 10s focus, 10s
+      # selection) sum to well under a minute, plus Xvfb/fluxbox startup and
+      # xdotool calls.
       - name: AT-SPI bridge probe
-        run: scripts/ci-atspi-probe.sh target/debug/awl
+        run: scripts/ci-atspi-budget.sh target/debug/awl 180
 
   web:
     name: web (wasm build + smoke)

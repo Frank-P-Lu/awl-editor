@@ -57,14 +57,24 @@ import time
 import gi
 
 gi.require_version("Atspi", "2.0")
-gi.require_version("Gio", "2.0")
-from gi.repository import Atspi, Gio, GLib  # noqa: E402
+from gi.repository import Atspi, GLib  # noqa: E402
 
 APP_TIMEOUT_S = 30.0
 FOCUS_TIMEOUT_S = 10.0
 SELECTION_TIMEOUT_S = 10.0
 POLL_S = 0.5
 MAX_DEPTH = 12
+# Every external call this probe makes (dbus-send, xdotool) gets an explicit,
+# generous timeout. Run 30887479906's job hit its 20-minute CANCEL because an
+# earlier version of set_bus_enabled used `Gio.DBusProxy.new_for_bus_sync` —
+# a synchronous GI call with no timeout parameter at all — and something in
+# this sandboxed dbus-run-session/Xvfb stack made it block indefinitely. A
+# probe's own job is to never do that: every blocking call below is a
+# subprocess with a hard, catchable ceiling, not a library call whose
+# internal timeout behavior this script does not control. (The outer CI job
+# also wraps the whole probe in scripts/ci-atspi-budget.sh as a second,
+# independent backstop — belt and suspenders, not a substitute for either.)
+SUBPROCESS_TIMEOUT_S = 10.0
 
 FIXTURE_LINES = ["line one", "line two", "line three"]
 # item 218's shape: one run per rope line, PLUS a trailing empty run for the
@@ -127,23 +137,63 @@ def set_bus_enabled(value: bool) -> None:
     service-activatable (at-spi2-core ships its `.service` file), so this
     call also transparently starts `at-spi-bus-launcher` on first use if
     nothing has touched the service yet.
+
+    Uses the `dbus-send` CLI (part of the `dbus` package already installed
+    for `dbus-run-session`) under an explicit subprocess timeout, not
+    `Gio.DBusProxy` — a first version used the synchronous GI proxy call,
+    which takes no timeout parameter at all, and something in this sandboxed
+    dbus-run-session/Xvfb stack made it block indefinitely (run 30887479906
+    hit its job's 20-minute CANCEL this way). A bare `subprocess` call with a
+    hard ceiling is something this script fully controls; a GI library call's
+    internal blocking behavior is not.
     """
-    proxy = Gio.DBusProxy.new_for_bus_sync(
-        Gio.BusType.SESSION,
-        Gio.DBusProxyFlags.NONE,
-        None,
-        "org.a11y.Bus",
-        "/org/a11y/bus",
-        "org.freedesktop.DBus.Properties",
-        None,
-    )
-    proxy.call_sync(
-        "Set",
-        GLib.Variant("(ssv)", ("org.a11y.Status", "IsEnabled", GLib.Variant("b", value))),
-        Gio.DBusCallFlags.NONE,
-        -1,
-        None,
-    )
+    variant = "true" if value else "false"
+    try:
+        subprocess.run(
+            [
+                "dbus-send",
+                "--session",
+                "--type=method_call",
+                "--print-reply",
+                "--dest=org.a11y.Bus",
+                "/org/a11y/bus",
+                "org.freedesktop.DBus.Properties.Set",
+                "string:org.a11y.Status",
+                "string:IsEnabled",
+                f"variant:boolean:{variant}",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=SUBPROCESS_TIMEOUT_S,
+            check=True,
+        )
+    except subprocess.TimeoutExpired:
+        fail(
+            f"dbus-send Set IsEnabled={value} did not return within "
+            f"{SUBPROCESS_TIMEOUT_S}s — the session bus or org.a11y.Bus "
+            "service activation itself is wedged, not the AT-SPI bridge"
+        )
+    except subprocess.CalledProcessError as exc:
+        fail(
+            f"dbus-send Set IsEnabled={value} failed (exit {exc.returncode}): "
+            f"{exc.stderr.strip()!r}"
+        )
+
+
+def run_xdotool(args: list[str], check: bool) -> subprocess.CompletedProcess:
+    """A timeout-bounded xdotool call — see SUBPROCESS_TIMEOUT_S's doc."""
+    try:
+        return subprocess.run(
+            ["xdotool", *args],
+            capture_output=True,
+            text=True,
+            timeout=SUBPROCESS_TIMEOUT_S,
+            check=check,
+        )
+    except subprocess.TimeoutExpired:
+        fail(f"xdotool {' '.join(args)} did not return within {SUBPROCESS_TIMEOUT_S}s")
+    except subprocess.CalledProcessError as exc:
+        fail(f"xdotool {' '.join(args)} failed (exit {exc.returncode}): {exc.stderr.strip()!r}")
 
 
 def bump_bus_enabled() -> None:
@@ -376,11 +426,8 @@ def main() -> None:
 
         # Live selection: drive a real Shift+Right through X11 (not
         # synthesized on the AT-SPI side) and confirm it crosses the bridge.
-        found = subprocess.run(
-            ["xdotool", "search", "--name", "^awl - "],
-            capture_output=True,
-            text=True,
-        )
+        # Every call is timeout-bounded — see SUBPROCESS_TIMEOUT_S's doc.
+        found = run_xdotool(["search", "--name", "^awl - "], check=False)
         winids = [w for w in found.stdout.split() if w]
         if not winids:
             fail(
@@ -388,9 +435,9 @@ def main() -> None:
                 f"selection into (stderr: {found.stderr.strip()!r})"
             )
         winid = winids[0]
-        subprocess.run(["xdotool", "windowfocus", "--sync", winid], check=False)
-        subprocess.run(
-            ["xdotool", "key", "--window", winid, "--clearmodifiers", "shift+Right"],
+        run_xdotool(["windowfocus", "--sync", winid], check=False)
+        run_xdotool(
+            ["key", "--window", winid, "--clearmodifiers", "shift+Right"],
             check=False,
         )
 
