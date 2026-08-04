@@ -368,11 +368,35 @@ was built rather than after.
 ## Ready — current user-visible wave
 
 🟡 **WAVE CLAIMED 2026-08-04 evening — four lanes dispatched concurrently.**
-- **257 + 259 — 🟡 IN PROGRESS — claude, branch `claude/item-257-semantic-runs`.**
-  Dispatched as **ONE lane with one owner**, on this board's own finding that the
-  two are probably one bug in the layer above both platform adapters. Deep tier
-  (Opus, xhigh). 257's `atspi` CI arm is the anchoring oracle; the macOS symptom
-  is corroboration, not the instrument.
+- ✅ **257 + 259 — LANDED, merge `5dcd6f69`** (`30f341ed`, `0983d869`). Full
+  native receipt at `0983d869`, both conventions, all targets.
+  🔴 **257 CLOSES AS "PREMISE FALSE, ORACLE REPAIRED" — NOT AS FIXED.** Item
+  252's probe asserted a shape **AccessKit deliberately filters**:
+  `common_filter_base` returns `ExcludeNode` for `Role::TextRun`, and both
+  backends re-export that same function, **so a document of text runs having
+  zero ACCESSIBLE children is correct on Linux and on macOS.** Re-verified by
+  the orchestrator in `accesskit_consumer-0.38.0/src/filters.rs` before the
+  merge. The probe now asserts through the **text interface at line
+  granularity** and still fails on the pre-218 monolith, so it keeps the
+  discriminating power that made it worth building.
+  ✅ **259 IS THE REAL DEFECT, reproduced and fixed** — a stale tree served to a
+  screen reader that re-asks for an initial tree mid-session, held open by two
+  independent holes, each with its own mutation proof.
+  🔴 **AND THE "257 AND 259 ARE PROBABLY ONE BUG" CALL IS FALSIFIED.** The
+  structural argument — a fault visible on both AT-SPI2 and NSAccessibility must
+  live above both adapters — was sound reasoning resting on a false premise,
+  because **257 was never a fault.** Recorded because that argument reads
+  convincing and would otherwise be reached for again.
+  ⚠️ **THE `atspi` ARM STAYS TOLERATED AND WAS DELIBERATELY NOT PROMOTED**,
+  against this item's own instruction to promote it on landing. **The repaired
+  probe has never executed anywhere — CI is its first instrument**, and
+  promoting an arm on a probe nobody has watched run is how a green comes to
+  mean nothing. Promote it after it runs green on `main` for a stretch, as a
+  conscious decision. The AccessKit contract is now pinned by a law measured
+  **against `accesskit_consumer` rather than read off its source.**
+  🔵 **OWED: 259 still needs a VoiceOver sitting — no capture can hear a screen
+  reader.** This is the third sitting this symptom has asked for; the previous
+  two are what found it.
 - **258 — 🟡 IN PROGRESS — claude, branch `claude/item-258-mulga-ground`.** Deep
   tier (Opus, high), with a visual-judge pass owed after.
 - ✅ **255 — LANDED, merge `dc179897`** (`ba57dafe`, `bb221aa0`). Full native
