@@ -107,13 +107,19 @@ took it.
    merely to fill a bin, so amending the shape is a real answer.
    **(b) Magpie is "a one or a two"** — the one unresolved score; one word
    closes it.
-   **(c) The live `--release` ambient sitting is still not claimed.** Six worlds
-   move (Firetail, Mangrove, Bombora, Bowerbird, Currawong, **Kite**) and
-   whether these scores were formed live is unstated. Tooling:
-   `scripts/capture-loudness-118.sh` (static, four canvas/measure combos),
-   `scripts/capture-ambient-118.sh` (the moving worlds), and
-   `scripts/dev-app.sh -- --theme <World>` for the live look. **The display is
-   unlocked — this is reachable now.**
+   **(c) ✅ THE LIVE AMBIENT SITTING IS DONE, 2026-08-04: "the movement worlds
+   are good".** All six moving worlds — Firetail, Mangrove, Bombora, Bowerbird,
+   Currawong and Kite — confirmed in the live app, so the ambient worlds' scores
+   are formed live and are no longer provisional. **Item 118's remaining work is
+   therefore (a) alone**, plus dispositioning its six standing proposals.
+   ⚠️ **ONE THING CARRIED OUT OF THAT SITTING, USER-OWNED AND DELIBERATELY NOT
+   QUEUED: the user is "still not happy with Kite" and said "I'll fix that
+   later".** Recorded so it is neither lost nor acted on. **This is NOT a
+   loudness complaint** — Kite is a confirmed, deliberate 5/5 and one of the two
+   statement worlds, and that call has now been made three times. **What the user
+   is unhappy about is unspecified, and no lane should guess it or design a fix.**
+   If it becomes work it gets its own item, from the user's own words, exactly as
+   Mulga's ground did.
 2. **The tag itself, and the site deploy.** Both are the user's explicit word,
    every time. The release section above says what is true today and what one
    defect necessarily rides to the tag unproven.
@@ -505,9 +511,19 @@ findings, 240, 241, 242, 243, 244, 245, 246, 247's static slice, 248, 249, 250,
   not as a measurement. The invocation offered was `scripts/dev-app.sh --
   --theme Bowerbird`, which builds `--release` by default. **Item 244 now has
   no owed work.**
-- **248 — the 140 ms quarter turn's real-time feel at 60 fps**, which no capture
-  can reach. The animation itself is verified with injected `dt` (a genuine
-  mid-glide value strictly between the endpoints, and an exact settle).
+- **248 — ✅ CLOSED 2026-08-04 BY THE USER: "the chevrons are great".** The
+  140 ms quarter turn reads correctly at 60 fps; `FOLD_CHEVRON_TURN_MS = 140.0`
+  stands as shipped. ✅ **AND IT SETTLES A DESIGN QUESTION THE BRIEF EXPLICITLY
+  LEFT OPEN, so record it rather than leaving the recommendation lying around
+  for a future lane to "finish".** 248's brief recommended animating on the
+  POINTER path and SNAPPING on the KEYBOARD path, because `chevron_revealed`
+  puts the mark on the caret's own row by construction and the caret is the one
+  element DESIGN.md grants motion — so the two would be co-present and moving.
+  **That split was never implemented** (verified: `FOLD_CHEVRON_TURN_MS` applies
+  uniformly, with no branch on trigger), and the brief said the call was the
+  user's if a live sitting read fine. **It reads fine. The co-present animation
+  is PROMOTED as shipped and the pointer/keyboard split is CLOSED as
+  unnecessary** — do not build it.
 - **242 — the formal affordance-locating vision smoke** over ~5 gallery shots.
   The lane did an eyes-on retina pass and reported it as such; the standing
   policy asks for the structured version. **Also named as a deliberate
