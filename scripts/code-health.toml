@@ -1008,27 +1008,27 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
 line = 693
+message = "this function has too many lines (147/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/list_surfaces.rs"
+line = 1070
 message = "this function has too many lines (146/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
-line = 1069
-message = "this function has too many lines (146/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/render/tests/list_surfaces.rs"
-line = 1335
+line = 1336
 message = "this function has too many lines (111/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
-line = 2355
+line = 2356
 message = "this function has too many lines (117/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by the command-facet roster law above it."
 
