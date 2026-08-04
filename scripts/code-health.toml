@@ -1,6 +1,15 @@
 # Reviewed historical exceptions for the two metrics that run in code-health.py.
-# Identity is exact: lint + file + primary line + complete diagnostic text.
-# Removing, moving, or increasing a recorded function makes this entry stale.
+# Identity is lint + file + enclosing function (`Type::method` where the
+# diagnostic sits inside an impl, bare `function` otherwise) + complete
+# diagnostic text — deliberately NOT line number. A raw line pin shifts every
+# time unrelated code moves above it in the same file (a new `mod` line, an
+# earlier lane's own growth), so two branches that each grow the same file
+# produce genuinely unresolvable merge conflicts on a line number neither one
+# owns. Resolving by content instead removes that shift entirely: code-health.py
+# re-derives the anchor from the diagnostic's OWN current line every run
+# (`resolve_function_anchor`), so an entry keeps matching across any amount of
+# unrelated growth in the same file. Removing, shrinking back under the
+# threshold, or renaming a recorded function still makes its entry stale.
 #
 # The frozen file-size baseline is intentionally old: it is each file's size
 # at the pinned BASELINE commit, and a file may never exceed it — that is the
@@ -472,392 +481,392 @@ reason = "+6: item 221's Cassowary literal gains one `location_style: LocationSt
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "tests/caret_mono_grid_pixels.rs"
-line = 205
+function = "caret_cell_is_glyph_independent_on_every_mono_world"
 message = "this function has too many lines (141/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line/count shifted by queue item 168's testscratch::ScratchDir conversion."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/input/mouse.rs"
-line = 789
+function = "App::on_mouse_input"
 message = "this function has too many lines (108/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172b made the private pointer and keyboard substate projections explicit; behavior and branch structure are unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
-line = 5
+function = "App::sync_view"
 message = "this function has too many lines (247/100)"
 reason = "+2: the fold chevron's direction needs the real fold set, not merely `fold_tails`'s own key set — a new `folded_headings` field joins the one exhaustive `ViewState` construction site, and `fold::apply_to_view` gains the buffer's folds set as an argument at its one call site here. Previously: +3: the summoned picker's secondary location joins the one exhaustive projection site. Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The document-session extraction replaced direct buffer and cache fields with explicit read projections, adding four counted lines while preserving the one exhaustive ViewState construction site. -1 line net: the `overlay_comparison` projection, against a shorter crisp-backdrop match once History left it. -6 lines: routing the History preview through `ViewState::substitute_text` collapsed the two-branch preview/buffer text choice and the matching two-branch spell-cache key into one each."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 608
+function = "App::new"
 message = "this function has too many lines (121/100)"
 reason = "Existing constructor owner and exhaustive App construction site. DocumentSession moved the active slot, registry, previous target, spell checker, and buffer extras behind one initializer, reducing the constructor by twenty counted lines. Shifted +32 lines, unchanged, by the theme-font cheap-reshape constant and its compile-time guard."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 991
+function = "App::drive_gpu_soak"
 message = "this function has too many lines (104/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. DocumentSession removed root fields and shifted this unchanged function upward. Shifted +32 lines, unchanged, by the theme-font cheap-reshape constant and its compile-time guard."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/lifecycle.rs"
-line = 23
+function = "App::resumed"
 message = "this function has too many lines (123/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. +1: the accessibility tree must be parked BEFORE the adapter is constructed and the adapter before the window is shown, so the seed call has exactly one place it can stand in `resumed`."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1229
+function = "run"
 message = "this function has too many lines (103/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. DocumentSession removed root fields and shifted this unchanged function upward. Shifted +32 lines, unchanged, by the theme-font cheap-reshape constant and its compile-time guard."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/args.rs"
-line = 22
+function = "parse_args"
 message = "this function has too many lines (796/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 121 added one minimal --ground-audition arm (+13 lines). Item 188 added one CLI flag arm, one Mode variant selection arm and its `live_app` flag to the one parser (+20), and MERGED the two hermetic-fs installs into one unconditional call (-1, after routing its one branch through the new `scenario::seed_document` owner) — the net is the smallest a new capture mode can cost in a single-owner arg parser. `--bench-a11y` adds the same irreducible three pieces every hidden bench flag here adds, each `cfg`-gated native-only (+10)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 301
+function = "ReplaySession::apply_chord"
 message = "this function has too many lines (152/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Line shifted by item 188's `mod live_app;` declaration and the native-only `CaptureSubject` re-export landing earlier in the file (+8); count unchanged. Line shifted by item 24's `launch_windowed` re-export and its test-only `resolve_launch_context` sibling (+4); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 595
+function = "capture_screenshot"
 message = "this function has too many lines (112/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Line shifted by item 188's `mod live_app;` declaration and the native-only `CaptureSubject` re-export (+8); count unchanged. Line shifted by item 24's `launch_windowed` re-export and its test-only `resolve_launch_context` sibling (+4); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 764
+function = "run"
 message = "this function has too many lines (289/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Item 188 added the `Mode::ScreenshotApp` dispatch arm — a struct destructure plus a one-line delegate into `run/live_app.rs`, where the mode itself lives (+9). Item 24 REDUCED it 330 -> 292: `run`'s `Mode::Windowed` arm is now a one-line delegate into `run/location.rs::launch_windowed`, beside the launch-precedence law it opens with. `Mode::BenchA11y` is one more one-line delegate in the same exhaustive match, `cfg`-gated native-only (+2)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/modes.rs"
-line = 201
+function = "settled_viewstate"
 message = "this function has too many lines (224/100)"
 reason = "+2: the snapshot rebuilds the picker's secondary location from the strip it already carries. Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 116b: -1 line. The history-preview fold no longer lights `vstate.diff_panel`. +8 lines: the capture path must derive a summoned workspace's SHAPE (a sidecar carries a mode, not a shape) and whether its comparison region carries prose, or a replayed workspace draws the other shape."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
-line = 48
+function = "write_sidecar"
 message = "this function has too many lines (106/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 188 added the one `driver` argument to the one sidecar format call (+1)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
-line = 237
+function = "overlay_json"
 message = "this function has too many lines (148/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 114 added the `overlay.workspace` field to the one format string (+1). Line/size moved by queue item 114's summoned Settings workspace. Line shifted by item 188's `driver` argument + its comment (+2); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/caret_glyph.rs"
-line = 163
+function = "CaretGlyphPipeline::new"
 message = "this function has too many lines (214/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The construction now happens inside gpu_cache::render_pipeline's build closure, so the program is compiled once per process rather than once per pipeline instance; the added lines are that closure's own."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/config/model.rs"
-line = 149
+function = "Config::load"
 message = "this function has too many lines (111/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/export/pdf/writer.rs"
-line = 12
+function = "emit"
 message = "this function has too many lines (123/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/story.rs"
-line = 42
+function = "run_storyboard"
 message = "this function has too many lines (122/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 189 stopped pre-resolving `effective_workspace` (ReplaySession now resolves the raw flag itself) (-1)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/image_pipeline.rs"
-line = 75
+function = "ImageQuadPipeline::new"
 message = "this function has too many lines (134/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The construction now happens inside gpu_cache::render_pipeline's build closure, so the program is compiled once per process rather than once per pipeline instance; the added lines are that closure's own."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/markdown/spans.rs"
-line = 453
+function = "spans"
 message = "this function has too many lines (159/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/panel.rs"
-line = 62
+function = "TextPipeline::panel_shape_text"
 message = "this function has too many lines (119/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/overlay_draw.rs"
-line = 206
+function = "TextPipeline::overlay_upload_text"
 message = "this function has too many lines (207/100)"
 reason = "+1: the diagonal chord column reads the shaped buffer's own width to seat its right-aligned ink. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Item 114 added the workspace rail's own clipped text area (+17). Line/size moved by queue item 114's summoned Settings workspace. Line moved (not size) by item 221's own rotated-location call site above it; that cue's shaping/geometry moved to a dedicated chrome::rotated_location submodule rather than growing this function."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/menubar.rs"
-line = 51
+function = "TextPipeline::prepare_menubar"
 message = "this function has too many lines (131/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/outline.rs"
-line = 185
+function = "TextPipeline::outline_layout"
 message = "this function has too many lines (104/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/outline.rs"
-line = 472
+function = "TextPipeline::prepare_outline"
 message = "this function has too many lines (124/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/theme_picker.rs"
-line = 197
+function = "TextPipeline::overlay_shape_theme"
 message = "this function has too many lines (171/100)"
 reason = "Line moved by the location line kind added above it; the count is unchanged. The row plan is threaded to this shaper so the strip's active mark rides the planned strip box; +3 lines at an existing chrome draw owner. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line/size moved by queue item 114's summoned Settings workspace. Item 221 moved the module-level LOCATION_SCALE constant + its doc comment out of this file (to render::rotated_location), shifting this function's line 4 lines earlier; its own size is unchanged. Grew by four lines (167 -> 171): the grouped card's pad, margin and top drop stop being a second copy of the flat family's literals and resolve through the one owner instead."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/theme_picker.rs"
-line = 411
+function = "TextPipeline::shape_theme_spans"
 message = "this function has too many lines (133/100)"
 reason = "+7: the shaper gained the location heading's own metrics and span arm. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line/size moved by queue item 114's summoned Settings workspace. +4: item 221's RotatedRail world gates the location line's inline span behind a condition instead of drawing it unconditionally, so the PlanLine::Location arm gained an if/comment; the rotated treatment itself lives in a dedicated chrome::rotated_location submodule, not here. Item 224 (-2): the gate reads the new exhaustive `LocationStyle::draws_inline()` instead of a direct `!= RotatedRail` comparison and inline `if`, one condition covering both non-inline styles."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/hud.rs"
-line = 104
+function = "TextPipeline::prepare_hud"
 message = "this function has too many lines (159/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/hud.rs"
-line = 285
+function = "TextPipeline::prepare_streaks_card"
 message = "this function has too many lines (150/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/popover.rs"
-line = 237
+function = "TextPipeline::popover_layout"
 message = "this function has too many lines (134/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Shrank by one line (135 -> 134): the card's vertical clamp chain folded onto one line once the anchor gap became a resolved local."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/preview.rs"
-line = 56
+function = "TextPipeline::prepare_caret_preview_panel"
 message = "this function has too many lines (110/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/preview.rs"
-line = 243
+function = "TextPipeline::emit_preview_caret"
 message = "this function has too many lines (128/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/whichkey.rs"
-line = 33
+function = "TextPipeline::prepare_whichkey"
 message = "this function has too many lines (142/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/blur.rs"
-line = 119
+function = "BlurBackdrop::new"
 message = "this function has too many lines (106/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. The construction now happens inside gpu_cache::render_pipeline's build closure, so the program is compiled once per process rather than once per pipeline instance; the added lines are that closure's own."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/text.rs"
-line = 414
+function = "TextPipeline::compute_image_layout"
 message = "this function has too many lines (134/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/text.rs"
-line = 985
+function = "TextPipeline::refresh_rule_conceal"
 message = "this function has too many lines (140/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/rects.rs"
-line = 761
+function = "TextPipeline::ensure_wash_protos"
 message = "this function has too many lines (151/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/layers/table_grid.rs"
-line = 40
+function = "TextPipeline::prepare_table_grid"
 message = "this function has too many lines (310/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/layers.rs"
-line = 957
+function = "TextPipeline::prepare_images"
 message = "this function has too many lines (170/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/perfbench.rs"
-line = 68
+function = "run_async"
 message = "this function has too many lines (135/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/framebench.rs"
-line = 459
+function = "burst_doc"
 message = "this function has too many lines (133/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. Item 202: +21 lines net (function grew 112->133) — the shared `assert_reshape_witness` helper (defined just above `burst_doc`, see the file-size mark's reason above) plus its three call sites, replacing three inlined `ensure!` blocks; witnesses CLAUDE.md's tripwire (this bench once \"measured 5ms while nothing reshaped\")."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/benchsuite/mod.rs"
-line = 91
+function = "run_async"
 message = "this function has too many lines (109/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/caretbench.rs"
-line = 94
+function = "run_async"
 message = "this function has too many lines (111/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
-line = 6
+function = "TextPipeline::new"
 message = "this function has too many lines (504/100)"
 reason = "+9: the fold chevron's own rotated-quad `SelectionPipeline` construction beside a short comment, joining the one exhaustive `TextPipeline::new` construction site. +1: its field initializer in `Self { .. }`, the same shape every other GPU pipeline field here already takes. +2: the two inert-default initializers, `folded_headings` and `fold_chevron_turn`. Previously: +1: the roster memo's inert default. Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer. +1 line: the `overlay_comparison` mirror field's inert default, beside the `overlay_rows_primary` one it pairs with. +1: the `doc_source` mirror's inert default. +4: item 221's rotated-location-cue pipeline joins the one exhaustive `TextPipeline::new` construction site (the pipeline's own construction call plus its two field initializers in `Self { .. }`), the same shape every other GPU pipeline field here already takes."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render.rs"
-line = 1059
+function = "build_font_system"
 message = "this function has too many lines (105/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. Line moved (not size) by item 221's new `mod rotated_location;` declaration earlier in this file, then moved again (971 -> 979) by a later `mod quotecheck;` declaration earlier still."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/selection.rs"
-line = 222
+function = "SelectionPipeline::build"
 message = "this function has too many lines (120/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 131b added the `axis` vertex attribute (+5 lines) to the one shared pipeline-construction body both `new`/`new_invert` route through. The construction now happens inside gpu_cache::render_pipeline's build closure, so the program is compiled once per process rather than once per pipeline instance; the added lines are that closure's own."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/spellunderline.rs"
-line = 66
+function = "SpellUnderlinePipeline::new"
 message = "this function has too many lines (133/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The construction now happens inside gpu_cache::render_pipeline's build closure, so the program is compiled once per process rather than once per pipeline instance; the added lines are that closure's own."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/syntax/bash.rs"
-line = 39
+function = "spans"
 message = "this function has too many lines (127/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/syntax/html.rs"
-line = 40
+function = "spans"
 message = "this function has too many lines (123/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/syntax/ruby.rs"
-line = 46
+function = "spans"
 message = "this function has too many lines (137/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/syntax/toml.rs"
-line = 51
+function = "spans"
 message = "this function has too many lines (118/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/picker_misc_smoke.rs"
-line = 764
+function = "every_catalog_command_dispatches_without_panicking"
 message = "this function has too many lines (122/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Item 116b: line moved only — the diff-panel CARD it was named for is retired, so the test's name and note now say `comparison`; the body is unchanged. Item 116c: line shifted +41 by the new restore/bare-Enter History tests added above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 532
+function = "delete_flinch_fixture"
 message = "this function has too many lines (114/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line/size moved by queue item 114's summoned Settings workspace. Item 116c: +1 line — the `AcceptAlternate` arm alongside `Newline` in the not-a-delete list. Item 116d: line shifted +1 by one `mod` declaration added above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 741
+function = "assert_action_roster_covers"
 message = "this function has too many lines (115/100)"
 reason = "The no-wildcard Action roster match is the compile-time coverage owner. KeepTutorial adds one unavoidable exhaustive arm; the duplicate 222-line list owner was split into two sub-100-line rosters. Item 116d: line shifted +1 by one `mod` declaration added above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 1019
+function = "smoke_command_kind"
 message = "this function has too many lines (114/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 114's summoned Settings workspace. Item 116c: +1 line — the `AcceptAlternate` arm (`NotCatalog`, alongside `Newline`). Item 116d: line shifted +1 by one `mod` declaration added above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/tests/files.rs"
-line = 1675
+function = "a_paused_mid_drag_persists_nothing_until_the_release"
 message = "this function has too many lines (109/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Explicit DocumentSession test transitions shifted this unchanged scenario downward."
 
@@ -866,112 +875,112 @@ lint = "clippy::too_many_lines"
 file = "src/app_icon/tests.rs"
 # `roster_growth_does_not_dilute_a_known_erosion` — same function, same
 # size, position fixed up after the item-121/158/161/168 rebase.
-line = 1909
+function = "roster_growth_does_not_dilute_a_known_erosion"
 message = "this function has too many lines (117/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/folds.rs"
-line = 363
+function = "fold_tail_never_bleeds_past_the_text_column_edge_on_a_wrapped_heading"
 message = "this function has too many lines (126/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line/count shifted by queue item 168's testscratch::ScratchDir conversion."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 752
+function = "streaks_card_absent_by_default_and_summoned_shows_the_placeholder_year"
 message = "this function has too many lines (107/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted +10 by two new `unit` assertions added to the HUD readout test above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 1276
+function = "popover_card_hugs_the_button_row"
 message = "this function has too many lines (139/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace. Line shifted +10 by two new `unit` assertions added to the HUD readout test far above it; this function's own body is unchanged. Grew by one line (138 -> 139): the popover chin law resolves its pad token at the cell's own zoom x dpi, because the pad is a LOGICAL length now and the law's own retina cell asserted the physical value."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 1583
+function = "popover_labels_demonstrate_their_own_effects"
 message = "this function has too many lines (111/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace. Line shifted +10 by two new `unit` assertions added to the HUD readout test far above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 1751
+function = "history_comparison_is_relocated_by_the_capture_path_in_every_world"
 message = "this function has too many lines (131/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field). Item 116b: +12 lines. Item 84's cross-world diff-panel DRESSING law is re-aimed as `history_preview_renders_the_transcript_as_the_document_in_every_world`: the dressing claim moved to the render tier (where the relocated viewport exists), and what stays here is the content half — the transcript IS the captured document, it renders undressed (a differential against the same transcript captured plainly, with an ink floor so the band cannot go vacuous), and `detail_focus` moves no pixel. The History workspace's own composition then retired the two dressing arms outright — 'undressed at the page column' and 'detail_focus moves nothing' describe a composition that no longer exists — and what stays is the sidecar's transcript plus a differential proving the CAPTURE PATH's own workspace-shape derivation places the comparison in the content pane (-11 lines). Line shifted +10 by two new `unit` assertions added to the HUD readout test far above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 222
+function = "file_pickers_faceted_lens_render_and_report"
 message = "this function has too many lines (115/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 358
+function = "faceted_grouped_window_is_bounded_and_scrolls_to_selection"
 message = "this function has too many lines (130/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 519
+function = "command_and_history_pickers_faceted_lens_render_and_report"
 message = "this function has too many lines (162/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 1032
+function = "a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar"
 message = "this function has too many lines (114/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field). Line shifted again by the History-preview card-figure law added above it; this function's own body is unchanged. Shifted a further +10 by two new `unit` assertions added inside that PRECEDING function (`a_history_preview_leaves_the_card_figures_over_the_users_document`), not this one — this function's own body and line count are unchanged."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/export/pdf/tests.rs"
-line = 25
+function = "pdf_has_exact_classic_xref_object_plan_pages_and_a4_geometry"
 message = "the function has a cognitive complexity of (31/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/keymap/tests.rs"
-line = 1518
+function = "every_catalog_default_slot_dispatches_through_real_keymap_under_both_conventions_and_flavors"
 message = "this function has too many lines (103/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/readout.rs"
-line = 462
+function = "top_anchors_yield_to_the_menu_bar_bottom_anchors_do_not"
 message = "this function has too many lines (112/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line shifted by `readout_report`'s doc comment gaining a line naming its new third return element (the count's unit); the function's own body and line count are unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/rowlayout.rs"
-line = 228
+function = "rows_for"
 message = "this function has too many lines (109/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/caret_transition_item105.rs"
-line = 1257
+function = "glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar"
 message = "this function has too many lines (115/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/chrome_overlay.rs"
-line = 216
+function = "overlay_row_elements_agree_in_y_flat_and_faceted_every_world"
 message = "this function has too many lines (129/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
@@ -979,21 +988,21 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/chrome_panels.rs"
-line = 1324
+function = "faceted_palette_shapes_the_chord_column_aligned_to_its_rows"
 message = "this function has too many lines (124/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/distinguishability.rs"
-line = 155
+function = "check_color_math"
 message = "this function has too many lines (104/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/distinguishability.rs"
-line = 645
+function = "check_real_pixels"
 message = "this function has too many lines (125/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
@@ -1002,210 +1011,210 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/images.rs"
-line = 1740
+function = "tall_image_survives_the_viewport_top_boundary_then_culls_and_restores_on_scroll_up"
 message = "this function has too many lines (105/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
-line = 707
+function = "spell_popup_floats_bare_on_bars_keeps_the_card_on_pane"
 message = "this function has too many lines (148/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
-line = 1086
+function = "poster_bars_centered_lists_preserve_page_and_distinguish_plates"
 message = "this function has too many lines (147/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
-line = 1354
+function = "bars_float_bounded_plates_for_every_overlay_kind"
 message = "this function has too many lines (112/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
-line = 2385
+function = "faceted_lens_strip_tabs_sit_on_plates_on_every_bars_world"
 message = "this function has too many lines (118/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by the command-facet roster law above it. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/markdown.rs"
-line = 264
+function = "mulga_star_conceals_to_the_literal_asterism_item_88"
 message = "this function has too many lines (132/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/one_bit.rs"
-line = 507
+function = "wagtail_living_band_ink_rides_the_band_on_the_faceted_palette"
 message = "this function has too many lines (109/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/render/tests/oracle.rs"
-line = 303
+function = "assert_vertical_sweep_clean"
 message = "the function has a cognitive complexity of (28/25)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/oracle.rs"
-line = 303
+function = "assert_vertical_sweep_clean"
 message = "this function has too many lines (122/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/render/tests/outline.rs"
-line = 1152
+function = "lava_frost_pills_follow_outline_visibility"
 message = "the function has a cognitive complexity of (27/25)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/outline.rs"
-line = 1152
+function = "lava_frost_pills_follow_outline_visibility"
 message = "this function has too many lines (125/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/overlay_personality.rs"
-line = 1294
+function = "every_shipping_placard_world_paints_visible_wordmark_ink_pixels"
 message = "this function has too many lines (121/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/render/tests/overlay_rhythm_item112.rs"
-line = 61
+function = "every_overlay_kind_orders_drawn_title_facet_candidates_footer_and_hits_the_same_regions"
 message = "the function has a cognitive complexity of (27/25)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/overlay_rhythm_item112.rs"
-line = 61
+function = "every_overlay_kind_orders_drawn_title_facet_candidates_footer_and_hits_the_same_regions"
 message = "this function has too many lines (161/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/surfaces_item219.rs"
-line = 83
+function = "a_flat_pickers_query_ink_centres_on_its_own_line_in_every_world"
 message = "this function has too many lines (109/100)"
 reason = "One roster sweep with a differential two-shot oracle: the second render and its readback cannot be split from the comparison they exist for."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/surfaces_item225.rs"
-line = 67
+function = "a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world"
 message = "this function has too many lines (143/100)"
 reason = "One roster sweep with a geometry arm, a pixel arm and an exclusion arm over the same rendered frame; splitting them would render each world twice, and the exclusion arm exists precisely to be measured at the same fixture the other two are graded at."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/overlay_plan_law.rs"
-line = 522
+function = "an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world"
 message = "this function has too many lines (117/100)"
 reason = "One roster sweep with a geometry arm, a pixel arm and an exclusion arm over the same rendered frame; splitting them would render each world twice, and the exclusion arm exists precisely to be measured at the same fixture the other two are graded at."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/page_frame.rs"
-line = 89
+function = "wagtail_page_frame_draws_pure_ladder_white_in_bounds_and_none_worlds_draw_none"
 message = "this function has too many lines (183/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/render/tests/syntax_ligatures.rs"
-line = 80
+function = "font_features_owner_is_the_three_way_ligature_split"
 message = "the function has a cognitive complexity of (29/25)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/render/tests/syntax_roles.rs"
-line = 116
+function = "role_style_laws_hold_for_every_world"
 message = "the function has a cognitive complexity of (36/25)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/syntax_roles.rs"
-line = 116
+function = "role_style_laws_hold_for_every_world"
 message = "this function has too many lines (192/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/syntax/tests.rs"
-line = 123
+function = "extension_detection_covers_all_languages"
 message = "the function has a cognitive complexity of (29/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/theme/tests.rs"
-line = 214
+function = "every_world_has_a_valid_background"
 message = "the function has a cognitive complexity of (30/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
-line = 214
+function = "every_world_has_a_valid_background"
 message = "this function has too many lines (155/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
-line = 965
+function = "gutter_frost_pill_keeps_ink_contrast_on_every_lava_world"
 message = "this function has too many lines (101/100)"
 reason = "Item 132: a per-world roster sweep whose length IS the roster's, over a no-wildcard `Background` match that gained one arm for the warped grid. Its twin one function above (the outline rail) carries the same shape. The honest fix is merging the two frost-rail sweeps into one owner, a focused follow-up rather than metric-only churn here."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
-line = 625
+function = "ambient_stars_laws_hold_for_every_world"
 message = "this function has too many lines (130/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/theme/tests.rs"
-line = 1870
+function = "every_world_has_a_bullet_pair"
 message = "the function has a cognitive complexity of (27/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
-line = 2986
+function = "personality_assignments_are_exactly_the_decided_table"
 message = "this function has too many lines (164/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. +2: item 221 added Cassowary's `location_style: LocationStyle::RotatedRail` (plus a one-line comment) to this file's no-wildcard per-world `render_caps` expectation table; Wagtail's exhaustive arm took the paired `LocationStyle::Inline` line, absorbed by an existing comment line it replaced. Item 224 (+1): Magpie's own arm gains the paired `location_style: LocationStyle::Raked` line plus its comment."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/distinguishability.rs"
-line = 835
+function = "theme_preview_retint_regrounds_the_page_surface_on_every_world"
 message = "this function has too many lines (101/100)"
 reason = "Crossed the threshold by exactly one line, and that line is the `testlock::serial()` guard every test reaching the shared wgpu device now takes — the shared device is process-global state and an unguarded caller races every other test on it. The body is unchanged and this is not a decomposition signal; splitting a per-world sweep to buy back one counted line would be metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/dither.rs"
-line = 303
+function = "dither_mode_paints_only_pure_values_at_roughly_the_configured_density"
 message = "this function has too many lines (101/100)"
 reason = "Crossed the threshold by exactly one line, and that line is the `testlock::serial()` guard every test reaching the shared wgpu device now takes — the shared device is process-global state and an unguarded caller races every other test on it. The body is unchanged and this is not a decomposition signal; splitting a real-pixel dither law to buy back one counted line would be metric-only churn."
 

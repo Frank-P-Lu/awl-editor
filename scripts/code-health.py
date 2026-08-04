@@ -106,19 +106,129 @@ def production(path: str) -> bool:
     )
 
 
-def diagnostic_key(entry: dict[str, Any]) -> tuple[str, str, int, str]:
-    return (entry["lint"], entry["file"], entry["line"], entry["message"])
+IMPL_HEADER = re.compile(
+    r"^\s*(?:unsafe\s+)?impl(?:\s*<[^{}]*>)?\s+(?:[\w:]+(?:\s*<[^{}]*>)?\s+for\s+)?(&?\s*[\w:]+)"
+)
+FN_HEADER = re.compile(r"\bfn\s+(\w+)")
+
+
+def _brace_delta(line: str) -> int:
+    """Net brace-depth change contributed by one source line, for the
+    scope walk in `resolve_function_anchor`. Braces inside a `//` line
+    comment are excluded so a comment cannot desync the tracker; braces
+    inside a string/char literal are not (a real gap, absent from this
+    heuristic's actual targets: impl headers and their surrounding bodies).
+    """
+    comment = line.find("//")
+    if comment != -1:
+        line = line[:comment]
+    return line.count("{") - line.count("}")
+
+
+def resolve_function_anchor(file: str, line: int) -> str | None:
+    """The stable identity a `clippy_exception` is keyed on: the enclosing
+    function, qualified by its impl's Self type when it has one
+    (`TextPipeline::sync_view`), bare otherwise (`parse_args`).
+
+    Deliberately not a line number. A raw pin shifts every time unrelated code
+    moves above it in the same file — a new `mod` declaration, a sibling
+    lane's own growth — so two branches that each grow the same file produce
+    a merge conflict on a line neither one actually owns, four times running
+    on `src/render.rs` alone (item 256). Re-deriving this anchor from each
+    diagnostic's OWN current line, every run, removes that shift entirely:
+    unrelated growth anywhere else in the file never invalidates an entry.
+
+    `too_many_lines` and `cognitive_complexity` both point their primary span
+    at the function's own `fn` line — verified against every entry in this
+    manifest — so `line` is read directly rather than searched for.
+
+    Qualifying by the nearest `impl` header is a heuristic, not a parser, but
+    it must still respect scope: a large file carries many SIBLING impl
+    blocks (`render.rs` alone has dozens), so the nearest impl header found by
+    scanning upward line-by-line is very often one that already CLOSED before
+    reaching a later free function — the first version of this function did
+    exactly that and silently mis-qualified functions genuinely outside any
+    impl. This walks forward from the top of the file instead, tracking brace
+    depth, and only credits an impl whose own closing brace has not yet been
+    reached by `line`. An imperfect qualifier only ever costs a less specific
+    name, never a false match — `message` (encoding the violation's exact
+    magnitude) remains part of the full identity too.
+    """
+    try:
+        lines = (ROOT / file).read_text().splitlines()
+    except OSError:
+        return None
+    idx = line - 1
+    if idx < 0 or idx >= len(lines):
+        return None
+    fn_match = FN_HEADER.search(lines[idx])
+    if fn_match is None:
+        return None
+    fn_name = fn_match.group(1)
+    depth = 0
+    stack: list[tuple[int, str]] = []  # (depth just before this impl opened, Self type)
+    for i in range(idx):
+        text = lines[i]
+        impl_match = IMPL_HEADER.match(text)
+        if impl_match:
+            ty = re.sub(r"\s*<.*$", "", impl_match.group(1).strip().lstrip("&").strip())
+            stack.append((depth, ty))
+        depth += _brace_delta(text)
+        while stack and depth <= stack[-1][0]:
+            stack.pop()
+    return f"{stack[-1][1]}::{fn_name}" if stack else fn_name
+
+
+def format_file_size_mark_block(file: str, lines: int, reason: str | None = None) -> str:
+    """The exact `file_size_mark` stanza a failure asks the author to paste.
+
+    Unlike `format_clippy_exception_block`, `lines` is never a guess: the
+    friction this exists for is arithmetic that only resolves on the actual
+    tree in front of the caller (item 256 — two branches that both grow the
+    same file each measure a number correct for their own tree and wrong for
+    the merge; the standing fix has been "re-run this script on the merged
+    tree and record what it reports", which this block makes mechanical). An
+    existing `reason` is carried over as a starting point to extend, never
+    invented — a raise past the branch's fork point still needs a human
+    reason (`check_mark_raises`), a shrink or hold needs none.
+    """
+    block = "[[file_size_mark]]\n" f'file = "{file}"\n' f"lines = {lines}\n"
+    if reason:
+        block += f'reason = "{reason}"\n'
+    return block
+
+
+def format_clippy_exception_block(lint: str, file: str, function: str, message: str) -> str:
+    """The exact `clippy_exception` stanza a failure asks the author to paste.
+
+    `reason` is left as a prompt rather than guessed: whether a diagnostic is
+    a legitimate single-owner seam or real debt to fix is a judgment call this
+    tool cannot make, only stop the author from re-typing the surrounding
+    fields (and, previously, a line number) by hand.
+    """
+    return (
+        "[[clippy_exception]]\n"
+        f'lint = "{lint}"\n'
+        f'file = "{file}"\n'
+        f'function = "{function}"\n'
+        f'message = "{message}"\n'
+        'reason = "TODO: name the seam and why decomposition is not the answer here"\n'
+    )
+
+
+def diagnostic_key(entry: dict[str, Any]) -> tuple[str, str, str, str]:
+    return (entry["lint"], entry["file"], entry["function"], entry["message"])
 
 
 def load_manifest(
     path: Path = MANIFEST, target_os: str = TARGET_OS
-) -> tuple[set[tuple[str, str, int, str]], list[str]]:
+) -> tuple[set[tuple[str, str, str, str]], list[str]]:
     data = tomllib.loads(path.read_text())
     entries = data.get("clippy_exception", [])
     failures: list[str] = []
-    expected: set[tuple[str, str, int, str]] = set()
+    expected: set[tuple[str, str, str, str]] = set()
     for entry in entries:
-        missing = {"lint", "file", "line", "message", "reason"} - entry.keys()
+        missing = {"lint", "file", "function", "message", "reason"} - entry.keys()
         if missing:
             failures.append(f"code-health: malformed Clippy exception missing {sorted(missing)}")
             continue
@@ -130,12 +240,12 @@ def load_manifest(
                 f"code-health: unsupported Clippy exception target_os {entry_target!r}"
             )
         if not entry["reason"].strip():
-            failures.append(f"code-health: empty reason for {entry['lint']}:{entry['file']}:{entry['line']}")
+            failures.append(f"code-health: empty reason for {entry['lint']}:{entry['file']}:{entry['function']}")
         if entry_target is not None and entry_target != target_os:
             continue
         key = diagnostic_key(entry)
         if key in expected:
-            failures.append(f"code-health: duplicate Clippy exception {entry['lint']}:{entry['file']}:{entry['line']}")
+            failures.append(f"code-health: duplicate Clippy exception {entry['lint']}:{entry['file']}:{entry['function']}")
         expected.add(key)
     return expected, failures
 
@@ -290,7 +400,9 @@ def check_mark_raises(
             failures.append(
                 f"{file}: file-size mark raised from {prior} to {lines} lines with no "
                 "recorded reason (a raise is legitimate only below the frozen baseline, "
-                "for growth unavoidable at a single-owner seam, named by a `reason`)"
+                "for growth unavoidable at a single-owner seam, named by a `reason`)\n"
+                "  paste into scripts/code-health.toml, replacing the existing block for "
+                f"this file, once the reason is filled in:\n{format_file_size_mark_block(file, lines)}"
             )
     return failures
 
@@ -440,8 +552,13 @@ def comment_citation_backlog(paths: list[str] | None = None) -> dict[str, int]:
     return counts
 
 
-def clippy_diagnostics(output: str) -> set[tuple[str, str, int, str]]:
-    found: set[tuple[str, str, int, str]] = set()
+def clippy_diagnostics(output: str) -> dict[tuple[str, str, str, str], int]:
+    """Live high-signal diagnostics, keyed the same way the manifest is:
+    (lint, file, function, message) -> the diagnostic's own current line
+    (kept only for a human-readable failure message, never for identity —
+    see `resolve_function_anchor`).
+    """
+    found: dict[tuple[str, str, str, str], int] = {}
     for line in output.splitlines():
         try:
             message = json.loads(line).get("message", {})
@@ -458,20 +575,44 @@ def clippy_diagnostics(output: str) -> set[tuple[str, str, int, str]]:
             file_name = file_name.relative_to(ROOT)
         except ValueError:
             pass
-        found.add((lint, file_name.as_posix(), primary["line_start"], message["message"]))
+        file_str = file_name.as_posix()
+        primary_line = primary["line_start"]
+        function = resolve_function_anchor(file_str, primary_line)
+        if function is None:
+            # The span didn't resolve to a recognizable `fn` line — fall back
+            # to the raw line so the diagnostic still surfaces as new/unmatched
+            # rather than silently vanishing.
+            function = f"<unresolved:{primary_line}>"
+        found[(lint, file_str, function, message["message"])] = primary_line
     return found
 
 
-def check_clippy(current: set[tuple[str, str, int, str]], expected: set[tuple[str, str, int, str]]) -> list[str]:
+def check_clippy(
+    current: set[tuple[str, str, str, str]],
+    expected: set[tuple[str, str, str, str]],
+    current_lines: dict[tuple[str, str, str, str], int] | None = None,
+) -> list[str]:
+    current_lines = current_lines or {}
     failures: list[str] = []
-    for lint, path, line, message in sorted(current - expected):
-        failures.append(f"{path}:{line}: {lint}: {message} (new diagnostic; add no exception without review)")
-    for lint, path, line, message in sorted(expected - current):
-        failures.append(f"{path}:{line}: {lint}: stale exception for {message!r}; remove it")
+    for lint, path, function, message in sorted(current - expected):
+        line = current_lines.get((lint, path, function, message))
+        location = f"{path}:{line}" if line is not None else path
+        failures.append(
+            f"{location} (`{function}`): {lint}: {message} (new diagnostic; add no exception "
+            "without review)\n"
+            "  paste into scripts/code-health.toml to accept it deliberately, or fix the "
+            "diagnostic instead:\n"
+            f"{format_clippy_exception_block(lint, path, function, message)}"
+        )
+    for lint, path, function, message in sorted(expected - current):
+        failures.append(
+            f"{path} (`{function}`): {lint}: stale exception for {message!r}; remove this "
+            "[[clippy_exception]] block from scripts/code-health.toml"
+        )
     return failures
 
 
-def run_metric_clippy() -> set[tuple[str, str, int, str]]:
+def run_metric_clippy() -> dict[tuple[str, str, str, str], int]:
     command = [
         "cargo", "clippy", "--all-targets", "--all-features", "--message-format=json", "--",
         "-W", "clippy::too_many_lines", "-W", "clippy::cognitive_complexity",
@@ -512,8 +653,11 @@ def structural_exceptions(
 
 
 def check_structural(
-    allowed: set[tuple[str, int, str]], file_size_marks: dict[str, int]
+    allowed: set[tuple[str, int, str]],
+    file_size_marks: dict[str, int],
+    mark_reasons: dict[str, str] | None = None,
 ) -> list[str]:
+    mark_reasons = mark_reasons or {}
     failures: list[str] = []
     tracked = set(tracked_rust())
     for path in sorted(tracked):
@@ -534,17 +678,28 @@ def check_structural(
         if old_size > FILE_LIMIT:
             if mark is None:
                 failures.append(
-                    f"{path}: missing file-size mark for {old_size}-line grandfathered production file"
+                    f"{path}: missing file-size mark for {old_size}-line grandfathered production file\n"
+                    "  paste into scripts/code-health.toml:\n"
+                    f"{format_file_size_mark_block(path, len(current))}"
                 )
                 continue
             if mark > len(current):
                 failures.append(
-                    f"{path}: stored file-size mark is {mark} lines but current file is {len(current)}; marks may only decrease"
+                    f"{path}: stored file-size mark is {mark} lines but current file is "
+                    f"{len(current)}; marks may only decrease\n"
+                    "  paste into scripts/code-health.toml, replacing the existing block for "
+                    f"this file (the size genuinely shrank; no reason needed for a lower mark):\n"
+                    f"{format_file_size_mark_block(path, len(current), mark_reasons.get(path))}"
                 )
             if len(current) > min(old_size, mark):
                 failures.append(
                     f"{path}: {len(current)} lines (production limit is {FILE_LIMIT}; "
-                    f"high-water mark is {min(old_size, mark)}, must not grow)"
+                    f"high-water mark is {min(old_size, mark)}, must not grow)\n"
+                    "  this number is genuine only on the tree you are running against — on a "
+                    "merge candidate, re-run this script AFTER the merge and paste its answer, "
+                    "never a branch's own number. Paste into scripts/code-health.toml, replacing "
+                    f"the existing block for this file:\n"
+                    f"{format_file_size_mark_block(path, len(current), mark_reasons.get(path))}"
                 )
         elif len(current) > FILE_LIMIT:
             failures.append(f"{path}: {len(current)} lines (production limit is {FILE_LIMIT})")
@@ -883,27 +1038,55 @@ def self_test() -> int:
             "MAS must be gated to macOS so Linux --all-features does not compile dead platform code"
         )
     current = {
-        ("clippy::too_many_lines", "src/new.rs", 7, "this function has too many lines (101/100)"),
-        ("clippy::cognitive_complexity", "src/new.rs", 30, "the function has a cognitive complexity of (26/25)"),
+        ("clippy::too_many_lines", "src/new.rs", "new_fn", "this function has too many lines (101/100)"),
+        ("clippy::cognitive_complexity", "src/new.rs", "another_fn", "the function has a cognitive complexity of (26/25)"),
     }
     if len(check_clippy(current, set())) != 2:
         raise AssertionError("new high-signal diagnostics must fail")
     if len(check_clippy(set(), current)) != 2:
         raise AssertionError("missing metric diagnostics must make their exceptions stale")
+    # A function-anchored exception must keep matching after unrelated growth
+    # shifts its line number — the exact class of merge conflict item 256
+    # exists to remove. `fn shifted` sits at line 3 here; the manifest's
+    # historical `line` field is gone, so nothing about this entry can go
+    # stale merely because something was inserted above it.
+    with tempfile.TemporaryDirectory() as directory:
+        root = ROOT
+        try:
+            globals()["ROOT"] = Path(directory)
+            shifted = Path(directory) / "src/shifted.rs"
+            shifted.parent.mkdir()
+            shifted.write_text("// one\n// two\nfn shifted() {}\n")
+            anchor = resolve_function_anchor("src/shifted.rs", 3)
+            if anchor != "shifted":
+                raise AssertionError(f"expected a bare function anchor 'shifted', got {anchor!r}")
+            shifted.write_text("// one\n// two\n// three: an unrelated line inserted above\nfn shifted() {}\n")
+            anchor_after_shift = resolve_function_anchor("src/shifted.rs", 4)
+            if anchor_after_shift != "shifted":
+                raise AssertionError(
+                    f"the anchor must survive unrelated growth above it, got {anchor_after_shift!r}"
+                )
+            impl_file = Path(directory) / "src/impls.rs"
+            impl_file.write_text("impl Widget {\n    fn new() -> Self { Self }\n}\n")
+            qualified = resolve_function_anchor("src/impls.rs", 2)
+            if qualified != "Widget::new":
+                raise AssertionError(f"an impl method must qualify by its Self type, got {qualified!r}")
+        finally:
+            globals()["ROOT"] = root
     with tempfile.TemporaryDirectory() as directory:
         manifest = Path(directory) / "platform-health.toml"
         manifest.write_text(
             '[[clippy_exception]]\n'
             'lint = "clippy::cognitive_complexity"\n'
             'file = "src/apply.rs"\n'
-            'line = 1\n'
+            'function = "linux_only_fn"\n'
             'message = "linux metric"\n'
             'target_os = "linux"\n'
             'reason = "platform-gated branch"\n\n'
             '[[clippy_exception]]\n'
             'lint = "clippy::cognitive_complexity"\n'
             'file = "src/apply.rs"\n'
-            'line = 1\n'
+            'function = "macos_only_fn"\n'
             'message = "macOS metric"\n'
             'target_os = "macos"\n'
             'reason = "platform-gated branch"\n'
@@ -1550,7 +1733,7 @@ def main() -> int:
     failures.extend(mark_failures)
     allowed, structural_failures = structural_exceptions()
     failures.extend(structural_failures)
-    failures.extend(check_structural(allowed, file_size_marks))
+    failures.extend(check_structural(allowed, file_size_marks, mark_reasons))
     previous, previous_status = previous_marks()
     if previous_status == "unresolvable":
         print(
@@ -1606,7 +1789,8 @@ def main() -> int:
             },
         )
     )
-    failures.extend(check_clippy(run_metric_clippy(), expected))
+    live_clippy = run_metric_clippy()
+    failures.extend(check_clippy(set(live_clippy), expected, live_clippy))
     if failures:
         print("code-health: policy check failed", file=sys.stderr)
         print("\n".join(failures), file=sys.stderr)
