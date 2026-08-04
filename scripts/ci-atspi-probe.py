@@ -54,7 +54,45 @@ FIXTURE_LINES = ["line one", "line two", "line three"]
 EXPECTED_RUN_TEXT = [line + "\n" for line in FIXTURE_LINES] + [""]
 
 
+# Set once by main(), before anything can fail, so `fail()` can ALWAYS dump
+# awl's own output regardless of which assertion tripped. A probe that reports
+# failure without the failure's own output is undiagnosable by construction —
+# the earlier per-call-site `dump_awl_log()` calls missed most of the fail()
+# sites below, and the one helper that existed swallowed its own read error
+# silently (a bare `except OSError: pass` around a second `open()` of the same
+# path) instead of ever printing anything. This replaces both with one
+# unconditional path.
+_AWL_LOG_PATH: str | None = None
+
+
+def _dump_awl_log() -> None:
+    if _AWL_LOG_PATH is None:
+        return
+    try:
+        with open(_AWL_LOG_PATH, "rb") as f:
+            raw = f.read()
+    except OSError as exc:
+        # Loud, not swallowed: a failed read is itself diagnostic information,
+        # not a reason to print nothing.
+        print(f"ATSPI-PROBE: could not read {_AWL_LOG_PATH}: {exc}", file=sys.stderr)
+        return
+    text = raw.decode("utf-8", errors="replace")
+    lines = text.splitlines()
+    tail = lines[-80:]
+    print(
+        f"----- awl output ({len(tail)} of {len(lines)} lines"
+        f", {len(raw)} bytes total) -----",
+        file=sys.stderr,
+    )
+    if not lines:
+        print("(awl produced no captured stdout/stderr output at all)", file=sys.stderr)
+    for line in tail:
+        print(line, file=sys.stderr)
+    print("------------------------------", file=sys.stderr)
+
+
 def fail(msg: str) -> None:
+    _dump_awl_log()
     print(f"ATSPI-PROBE FAIL: {msg}", file=sys.stderr)
     sys.exit(1)
 
@@ -151,19 +189,10 @@ def main() -> None:
     with open(fixture_path, "w", encoding="utf-8") as f:
         f.write("".join(line + "\n" for line in FIXTURE_LINES))
 
+    global _AWL_LOG_PATH
     awl_log_path = os.path.join(fixture_dir, "awl.log")
+    _AWL_LOG_PATH = awl_log_path
     awl_log = open(awl_log_path, "wb")
-
-    def dump_awl_log():
-        awl_log.flush()
-        try:
-            with open(awl_log_path, "r", encoding="utf-8", errors="replace") as f:
-                tail = f.readlines()[-60:]
-            print("----- awl output (tail) -----", file=sys.stderr)
-            sys.stderr.writelines(tail)
-            print("------------------------------", file=sys.stderr)
-        except OSError:
-            pass
 
     print(f"ATSPI-PROBE: launching {binary} {fixture_path}")
     proc = subprocess.Popen(
@@ -184,7 +213,6 @@ def main() -> None:
         app = None
         while time.time() < deadline:
             if proc.poll() is not None:
-                dump_awl_log()
                 fail(
                     f"awl exited early with code {proc.returncode} before the "
                     "AT-SPI app node ever appeared"
@@ -194,7 +222,6 @@ def main() -> None:
                 break
             time.sleep(POLL_S)
         if app is None:
-            dump_awl_log()
             fail(
                 f"no AT-SPI application for pid {proc.pid} appeared under the "
                 f"desktop within {APP_TIMEOUT_S}s — the bridge never registered "
@@ -203,12 +230,10 @@ def main() -> None:
 
         frame = find_role(app, Atspi.Role.FRAME)
         if frame is None:
-            dump_awl_log()
             fail("no ROLE_FRAME (window) under the awl application node")
 
         document = find_role(frame, Atspi.Role.ENTRY)
         if document is None:
-            dump_awl_log()
             fail(
                 "no ROLE_ENTRY under the frame — SemanticSnapshot's editable "
                 "multiline document node did not cross the bridge"
@@ -323,4 +348,17 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception:  # noqa: BLE001 — a probe that dies quietly proves nothing
+        # An unanticipated exception (e.g. a wrong guess at the GI Atspi API
+        # shape) must still surface awl's own output, not just a bare
+        # traceback with none of the context that would explain it.
+        import traceback
+
+        _dump_awl_log()
+        print("ATSPI-PROBE FAIL: unexpected exception in the probe itself:", file=sys.stderr)
+        traceback.print_exc()
+        sys.exit(1)
