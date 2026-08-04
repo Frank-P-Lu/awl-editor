@@ -9,9 +9,8 @@ ordinary assistive-technology client would, and asserts that the tree
 
   - the application registers on the bus at all (a broken/disabled adapter
     means this alone never appears — that is the mutation-proof case);
-  - a window (ROLE_FRAME);
-  - inside it, the editable multiline document (ROLE_ENTRY, EDITABLE,
-    MULTI_LINE, eventually FOCUSED);
+  - the editable multiline document (ROLE_ENTRY, EDITABLE, MULTI_LINE,
+    eventually FOCUSED) as a descendant of the application node;
   - item 218's STABLE LINE RUNS as its children, one per rope line plus the
     trailing empty run, each ROLE_STATIC with the exact expected text — a
     monolithic single-node document (the pre-218 shape) fails this exact
@@ -38,6 +37,29 @@ it, which is the correctly-lazy behavior, not a bridge defect — so
 `set_bus_enabled` below is not a workaround, it is the probe finally doing
 the one thing a real screen reader does that a passive tree-walk never did.
 
+NO ROLE_FRAME EXISTS ANYWHERE IN AWL'S TREE, AND THAT IS NOT A TIMING BUG —
+an earlier version of this probe required one and failed within ~0.65s of
+launch, which read as ambiguous (a real gap, or just too fast a check?) until
+traced structurally, the same way the lazy-activation question was settled.
+Confirmed from source, not timing: `accesskit_atspi_common` 0.19.1's
+`add_node` (`adapter.rs:62`) only fires its window-registration path when
+`is_root() && role() == Role::Window`, and its AT-SPI role mapping
+(`node.rs`) only ever produces `AtspiRole::Frame` from `accesskit::Role::
+Window` — nothing else synthesizes one. Awl's own tree root is built once,
+at `src/app/semantic/projection.rs:172`
+(`SemanticNode::new(ROOT_ID, SemanticRole::Application, "awl")`), which
+`src/semantic/native.rs:261` maps to `accesskit::Role::Application`, never
+`Role::Window`. So the real, permanent AT-SPI shape is Desktop ->
+Application (accesskit_atspi_common's own synthetic per-process object,
+`node.rs`'s `PlatformRoot`, always role Application) -> awl's own root
+(role Application again, awl's tree) -> Document -> runs — genuinely no
+Frame at any depth, not something a longer wait would ever find. Whether
+Orca or other real ATs need a ROLE_FRAME to track/announce awl's window
+properly is a real, open, product-level question this item's scope does not
+answer (it would be a Rust/semantic-tree change, not CI configuration) —
+worth its own queue item, named as such in this item's landing report rather
+than guessed at here.
+
 THIS IS NOT ITEM 251. It says nothing about what a screen reader user would
 hear or how navigation feels — only that the bridge is live and shaped right.
 Item 251 still needs a human at a real Linux desktop running Orca.
@@ -60,6 +82,7 @@ gi.require_version("Atspi", "2.0")
 from gi.repository import Atspi, GLib  # noqa: E402
 
 APP_TIMEOUT_S = 30.0
+DOCUMENT_TIMEOUT_S = 10.0
 FOCUS_TIMEOUT_S = 10.0
 SELECTION_TIMEOUT_S = 10.0
 POLL_S = 0.5
@@ -361,14 +384,29 @@ def main() -> None:
                 "registered with the accessibility bus"
             )
 
-        frame = find_role(app, Atspi.Role.FRAME)
-        if frame is None:
-            fail("no ROLE_FRAME (window) under the awl application node")
-
-        document = find_role(frame, Atspi.Role.ENTRY)
+        # No ROLE_FRAME lookup here — see the module docstring: awl's tree has
+        # no accesskit::Role::Window anywhere, so no AT-SPI Frame exists at
+        # any depth, confirmed structurally, not by timing. The document is
+        # searched directly under the application node instead.
+        #
+        # Retried, not a single shot: finding `app` on the desktop and
+        # RegisterInterfaces for every one of its descendants reaching the
+        # bus are two different steps (adapter.rs's `register_interfaces` per
+        # node vs. the AT-SPI Socket embedding), and an earlier run's ~0.65s
+        # gap between "app found" and "document searched" was fast enough to
+        # be a legitimate open question about whether this was racing that
+        # propagation — closed here rather than left ambiguous again.
+        document_deadline = time.time() + DOCUMENT_TIMEOUT_S
+        document = None
+        while time.time() < document_deadline:
+            document = find_role(app, Atspi.Role.ENTRY)
+            if document is not None:
+                break
+            time.sleep(POLL_S)
         if document is None:
             fail(
-                "no ROLE_ENTRY under the frame — SemanticSnapshot's editable "
+                "no ROLE_ENTRY under the awl application node within "
+                f"{DOCUMENT_TIMEOUT_S}s — SemanticSnapshot's editable "
                 "multiline document node did not cross the bridge"
             )
 
@@ -461,9 +499,9 @@ def main() -> None:
             )
 
         print(
-            "ATSPI-PROBE PASS: awl registered with the AT-SPI2 bus; the frame, "
-            f"the editable multiline document (focused), its {run_count} "
-            "stable line runs with matching text, and a live keyboard-driven "
+            "ATSPI-PROBE PASS: awl registered with the AT-SPI2 bus; the "
+            f"editable multiline document (focused), its {run_count} stable "
+            "line runs with matching text, and a live keyboard-driven "
             "selection all crossed the bridge intact."
         )
     finally:
