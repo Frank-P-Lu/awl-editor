@@ -167,7 +167,16 @@ jobs:
     # ordinary non-zero exit well before this fires; this stays only for the
     # different failure it exists for — the runner losing communication with
     # the server — set generously above that script's own budget.
-    timeout-minutes: 15
+    #
+    # 15 was wrong and inverted the whole point (run 30891737357 hit it
+    # directly, 15m15s against a 15-minute ceiling, no probe output at all —
+    # the job never reached the budget script). Measured, not guessed: run
+    # 30890502496's build alone ran from job start (~08:06) to the probe step
+    # starting at 08:17:05, roughly 11 minutes, before the 180s budget even
+    # begins — a 15-minute ceiling left it a coin flip on cargo's cache, not
+    # a backstop. 30, matching the shape of the other jobs, leaves real
+    # margin above build + budget.
+    timeout-minutes: 30
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
