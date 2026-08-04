@@ -175,6 +175,61 @@ jobs:
           path: dist/
           retention-days: 14
 
+  # ── EVIDENCE ONLY — item 249. THIS JOB MUST NEVER REACH main. ───────────────
+  # It exists on a temporary evidence branch, under the one temporary exception
+  # CLAUDE.md carries by user decision 2026-08-04 (and which item 250 exists to
+  # remove): a worktree branch MAY be pushed solely to collect CI evidence on an
+  # arm no local gate can reach. The arm here is Mesa lavapipe — a Vulkan
+  # backend, which the dev host (real Apple Silicon Metal) cannot stand in for,
+  # and whose absence is exactly what let item 239's oracle land non-portable.
+  #
+  # The `linux` job above already runs these laws inside the full native gate;
+  # that is the pass/fail proof. This job exists only to make the NUMBERS
+  # readable: `--nocapture` so the probe's per-class create-deltas, the measured
+  # per-workload footprint and the accumulation trace are printed even when the
+  # tests pass, plus a traced slice of `render::tests::` showing what the shared
+  # device holds across acquisitions on this backend.
+  linux-alloc-evidence:
+    name: "EVIDENCE ONLY (item 249) — allocation oracle on lavapipe"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config \
+            libfontconfig1-dev libxkbcommon-dev libwayland-dev \
+            libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            mesa-vulkan-drivers vulkan-tools
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # `.cargo/config.toml` sets `rustc-wrapper = "sccache"` for every build in
+      # this checkout, so a job that runs cargo without installing it dies on
+      # `could not execute process \`sccache …\`` before compiling a line. Every
+      # other job here installs it after the cache restore for the same reason.
+      - name: Install sccache
+        run: scripts/install-sccache.sh
+
+      - name: Which Vulkan adapter is this?
+        run: vulkaninfo --summary || true
+
+      - name: allocation laws, mac convention (numbers printed)
+        run: env AWL_CONVENTION_FORCE=mac cargo test --bin awl alloc_bound_law -- --nocapture --test-threads=1
+
+      - name: allocation laws, linux convention (numbers printed)
+        run: env AWL_CONVENTION_FORCE=linux cargo test --bin awl alloc_bound_law -- --nocapture --test-threads=1
+
+      - name: shared-device allocation trace over a render::tests slice
+        run: |
+          env AWL_GPU_ALLOC_TRACE=1 cargo test --bin awl render::tests::backgrounds_item69 \
+            -- --nocapture --test-threads=1 | grep -E 'gpu-alloc-trace|test result' | head -40
+
   # ── mac, split in two by item 243 (user decision 2026-08-03) ────────────────
   # Item 232 asked whether a portable software adapter could stand in for
   # hosted macOS's virtualised Metal and measured NO on two independent
