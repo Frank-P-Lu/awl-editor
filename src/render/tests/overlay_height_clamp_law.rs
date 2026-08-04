@@ -624,7 +624,14 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 canvas: (700, 800),
                 zoom: 2.0,
             },
-            (692.0, (10.0, 690.0), 8, Some((29, 8, 7, 692.0, 800.0))),
+            // THE ONE CELL THE CHROME PIXEL-SPACE ROUND MOVED, and the only one
+            // above zoom 1. The card's edge-inset FLOOR and the footer's own pad
+            // are LOGICAL lengths now, so at zoom 2 the floor resolves to 20px
+            // rather than a physical 10 (the span narrows 10..690 -> 20..680) and
+            // the footer reclaims 2px less of its row (the card grows 692 -> 694).
+            // Both are the multiply this scenario always owed and never paid; the
+            // three cells at or below zoom 1 are untouched.
+            (694.0, (20.0, 680.0), 8, Some((29, 8, 7, 694.0, 800.0))),
         ),
         // This cell used to be `History`, which is no longer a GROUPED picker
         // either: it is presented as a summoned workspace, so its numbers here
@@ -639,11 +646,17 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 canvas: (1400, 1600),
                 zoom: 0.5,
             },
+            // The SUB-1 companion to the zoom-2 cell above: at zoom 0.5 the
+            // footer's logical 2px pad resolves to 1, so the footer reclaims one
+            // pixel MORE of its row and the card is one shorter. Enrolling chrome
+            // in `zoom * dpi` moves it at every scale away from 1, not only on
+            // retina; the card_x span is untouched here because the edge floor
+            // never binds at this width.
             (
-                261.0,
+                260.0,
                 (400.0, 1000.0),
                 13,
-                Some((25, 13, 12, 261.0, 1600.0)),
+                Some((25, 13, 12, 260.0, 1600.0)),
             ),
         ),
         // ITEM 114 — this fifth cell used to be `Settings`, which is no longer a

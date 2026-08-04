@@ -44,55 +44,64 @@ fn overlay_secondary_column_shares_the_band_row_origin() {
 /// runs. Samples very-narrow → wide.
 #[test]
 fn overlay_card_box_stays_on_canvas_across_the_width_sweep() {
-    let floor = chrome::CARD_EDGE_INSET_FLOOR;
     let anchors = [
         theme::CardAnchor::TopLeft,
         theme::CardAnchor::TopCenter,
         theme::CardAnchor::Inset { x_frac: 0.5 },
         theme::CardAnchor::Inset { x_frac: 1.0 },
     ];
-    // Widths from a tight editor window up to a big monitor, both card caps.
-    for &desired in &[chrome::CARD_MAX_W, chrome::CARD_MAX_W_FACETED] {
-        for ww in (320u32..=1800).step_by(40) {
-            let ww = ww as f32;
-            for &anchor in &anchors {
-                let (left, w) = chrome::overlay_card_box_policy(anchor, ww, desired);
-                let right = left + w;
-                let ctx = format!("ww={ww} desired={desired} anchor={anchor:?}");
-                assert!(w > 24.0, "{ctx}: card width {w} must leave room for text");
-                assert!(
-                    left >= floor - 0.01,
-                    "{ctx}: left margin {left} >= floor {floor}"
-                );
-                assert!(
-                    right <= ww - floor + 0.01,
-                    "{ctx}: right edge {right} must keep a floor margin inside {ww}"
-                );
-                assert!(
-                    w <= desired + 0.01,
-                    "{ctx}: never wider than desired {desired}"
-                );
-                // FILL REGIME: once the desired width can't seat with floor pads,
-                // the card fills (ww - 2*floor) and re-centers (symmetric margins).
-                if desired > ww - 2.0 * floor {
+    // Widths from a tight editor window up to a big monitor, both card caps, at
+    // both DPI tiers — the policy's floor is a LOGICAL length, so the whole
+    // sweep has to run at the scale it is resolved against.
+    for &scale in &[1.0f32, 2.0] {
+        let floor = chrome::CARD_EDGE_INSET_FLOOR.px(scale);
+        for &cap in &[chrome::CARD_MAX_W, chrome::CARD_MAX_W_FACETED] {
+            let desired = cap.px(scale);
+            for ww in (320u32..=1800).step_by(40) {
+                let ww = (ww as f32) * scale;
+                for &anchor in &anchors {
+                    let (left, w) = chrome::overlay_card_box_policy(anchor, ww, desired, scale);
+                    let right = left + w;
+                    let ctx = format!("scale={scale} ww={ww} desired={desired} anchor={anchor:?}");
+                    assert!(w > 24.0, "{ctx}: card width {w} must leave room for text");
                     assert!(
-                        (w - (ww - 2.0 * floor)).abs() < 0.01,
-                        "{ctx}: fill regime card must span the window minus floor pads"
+                        left >= floor - 0.01,
+                        "{ctx}: left margin {left} >= floor {floor}"
                     );
-                    let right_margin = ww - right;
                     assert!(
-                        (left - right_margin).abs() < 1.0,
-                        "{ctx}: fill regime re-centers (left {left} ~ right {right_margin})"
+                        right <= ww - floor + 0.01,
+                        "{ctx}: right edge {right} must keep a floor margin inside {ww}"
                     );
+                    assert!(
+                        w <= desired + 0.01,
+                        "{ctx}: never wider than desired {desired}"
+                    );
+                    // FILL REGIME: once the desired width can't seat with floor pads,
+                    // the card fills (ww - 2*floor) and re-centers (symmetric margins).
+                    if desired > ww - 2.0 * floor {
+                        assert!(
+                            (w - (ww - 2.0 * floor)).abs() < 0.01,
+                            "{ctx}: fill regime card must span the window minus floor pads"
+                        );
+                        let right_margin = ww - right;
+                        assert!(
+                            (left - right_margin).abs() < 1.0,
+                            "{ctx}: fill regime re-centers (left {left} ~ right {right_margin})"
+                        );
+                    }
                 }
             }
         }
     }
     // WIDE: the top-left card holds the FULL interior-rail inset (item 67 — the
     // card centers near the viewport's one-third mark).
-    let (left, _) =
-        chrome::overlay_card_box_policy(theme::CardAnchor::TopLeft, 1200.0, chrome::CARD_MAX_W);
-    let want_inset = chrome::overlay_rail_inset(1200.0);
+    let (left, _) = chrome::overlay_card_box_policy(
+        theme::CardAnchor::TopLeft,
+        1200.0,
+        chrome::CARD_MAX_W.px(1.0),
+        1.0,
+    );
+    let want_inset = chrome::overlay_rail_inset(1200.0, 1.0);
     assert!(
         (left - want_inset).abs() < 0.01,
         "a wide window seats the card one full rail inset ({want_inset}) in, got {left}"

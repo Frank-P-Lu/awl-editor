@@ -18,6 +18,9 @@ struct OverlayBarLayout {
     bar_offset: f32,
     primary_px: std::collections::BTreeMap<usize, f32>,
     chord_px: std::collections::BTreeMap<usize, f32>,
+    /// The frame's `zoom * dpi`, so every span this layout resolves reads the
+    /// one scale the card was placed at.
+    scale: f32,
 }
 
 /// Apply each travelling band's own planned two-sided span. This stays beside
@@ -42,9 +45,10 @@ impl OverlayBarLayout {
                 geom.band_w(),
                 geom.text_left,
                 self.primary_px.get(&row).copied().unwrap_or(0.0),
+                self.scale,
             )
         } else {
-            bar_full_span(geom.band_x(), geom.band_w())
+            bar_full_span(geom.band_x(), geom.band_w(), self.scale)
         }
     }
 
@@ -68,7 +72,8 @@ impl OverlayBarLayout {
         if self.chord_px.is_empty() {
             return;
         }
-        let (full_x, full_width) = bar_full_span(geom.band_x(), geom.band_w());
+        let (full_x, full_width) = bar_full_span(geom.band_x(), geom.band_w(), self.scale);
+        let text_pad = BAR_TEXT_PAD.px(self.scale);
         let full_right = full_x + full_width;
         let chord_right = geom.text_left + geom.text_w;
         for planned in plan.rows().iter().filter(|r| r.item.is_some()) {
@@ -76,8 +81,8 @@ impl OverlayBarLayout {
             let Some(width) = self.chord_px.get(&row).copied() else {
                 continue;
             };
-            let right = (chord_right + BAR_TEXT_PAD).min(full_right);
-            let plate_width = width + 2.0 * BAR_TEXT_PAD;
+            let right = (chord_right + text_pad).min(full_right);
+            let plate_width = width + 2.0 * text_pad;
             let left = (right - plate_width).max(full_x);
             let on_band = vis.reads_selected(row);
             let top = match (on_band, vis.band_top()) {
@@ -292,6 +297,7 @@ impl TextPipeline {
             bar_offset: gap * 0.5,
             primary_px,
             chord_px,
+            scale: self.metrics.scale,
         }
     }
 
@@ -347,6 +353,7 @@ impl TextPipeline {
                 geom.band_w(),
                 plate_bottom,
                 footer_hug,
+                self.metrics.scale,
             ));
         }
         if geom.theme {

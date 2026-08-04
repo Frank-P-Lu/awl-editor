@@ -92,7 +92,8 @@ impl TextPipeline {
         // `overlay_desired_w` owner), the wide `CARD_MAX_W_FACETED` cap otherwise.
         let desired_w = self.overlay_desired_w(super::overlay::CARD_MAX_W_FACETED);
         let (card_x, card_w) = self.overlay_card_box(width, desired_w);
-        let card_narrow = super::overlay::overlay_card_fill_regime(width as f32, desired_w);
+        let card_narrow =
+            super::overlay::overlay_card_fill_regime(width as f32, desired_w, self.metrics.scale);
         let hpad = self.overlay_text_hpad();
         let text_w = card_w - 2.0 * hpad;
         let card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, pad);

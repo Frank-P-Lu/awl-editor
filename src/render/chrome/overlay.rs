@@ -3,29 +3,55 @@ use super::*;
 /// Dense chrome size; every overlay geometry owner consumes this scale.
 pub(in crate::render) const OVERLAY_UI_SCALE: f32 = 0.85;
 
-pub(in crate::render) const CARD_EDGE_INSET_FLOOR: f32 = 10.0;
+pub(in crate::render) const CARD_EDGE_INSET_FLOOR: Logical = Logical(10.0);
 
-pub(in crate::render) fn overlay_rail_inset(ww: f32) -> f32 {
-    (ww / 3.0 - CARD_MAX_W * 0.5).max(0.0)
+/// The interior-rail inset, resolved at `scale`. A pure function of the window
+/// width and the scale ALONE — never the anchor, never the caller's actual
+/// `desired_w` — so the `TopLeft` and `TopRight` arms read the exact same
+/// number and the left/right mirror holds by construction. The reference cap is
+/// resolved GROW-ONLY, exactly as the card the inset is placing is.
+pub(in crate::render) fn overlay_rail_inset(ww: f32, scale: f32) -> f32 {
+    (ww / 3.0 - CARD_MAX_W.px(scale) * 0.5).max(0.0)
 }
-pub(in crate::render) const CARD_MAX_W: f32 = 520.0;
-pub(in crate::render) const CARD_MAX_W_FACETED: f32 = 600.0;
-pub(in crate::render) const CARD_CONTENT_MIN_W: f32 = 160.0;
+pub(in crate::render) const CARD_MAX_W: LogicalGrowOnly = LogicalGrowOnly(520.0);
+pub(in crate::render) const CARD_MAX_W_FACETED: LogicalGrowOnly = LogicalGrowOnly(600.0);
+pub(in crate::render) const CARD_CONTENT_MIN_W: LogicalGrowOnly = LogicalGrowOnly(160.0);
 
 /// Query-to-results breathing room, shared by flat and faceted cards.
-const OVERLAY_QUERY_BEAT: f32 = 1.55;
+const OVERLAY_QUERY_BEAT: Rows = Rows(1.55);
 
-const OVERLAY_HINT_ROW: f32 = 0.70;
+const OVERLAY_HINT_ROW: Rows = Rows(0.70);
 
-const OVERLAY_FOOTER_PAD: f32 = 2.0;
+const OVERLAY_FOOTER_PAD: Logical = Logical(2.0);
+
+/// The flat takeover card's own inner pad, its breath from the window edge, the
+/// drop from the top of the canvas to its head, and the drop a CONTEXTUAL card
+/// takes below its anchor point.
+const CARD_PAD: Logical = Logical(12.0);
+const CARD_MARGIN: Logical = Logical(12.0);
+const CARD_TOP_DROP: Logical = Logical(40.0);
+const CONTEXT_ANCHOR_DROP: Logical = Logical(4.0);
+
+/// The Pane row-text inset from the card's layout bound. `Bars` insets
+/// `BAR_SIDE_INSET + BAR_TEXT_PAD` instead, so the glyphs sit inside the plate.
+const PANE_TEXT_HPAD: Logical = Logical(12.0);
+
+/// The contextual spell popup's own pad, window breath, and the gap it keeps
+/// from the word it points at; then its content-width clamp band.
+const SPELL_PAD: Logical = Logical(10.0);
+const SPELL_MARGIN: Logical = Logical(8.0);
+const SPELL_WORD_GAP: Logical = Logical(6.0);
+const SPELL_MIN_W: LogicalGrowOnly = LogicalGrowOnly(140.0);
+const SPELL_MAX_W: LogicalGrowOnly = LogicalGrowOnly(520.0);
 
 pub(in crate::render) fn overlay_card_box_policy(
     anchor: theme::CardAnchor,
     ww: f32,
     desired_w: f32,
+    scale: f32,
 ) -> (f32, f32) {
-    let floor = CARD_EDGE_INSET_FLOOR;
-    let full = overlay_rail_inset(ww);
+    let floor = CARD_EDGE_INSET_FLOOR.px(scale);
+    let full = overlay_rail_inset(ww, scale);
     let cw = desired_w.min((ww - 2.0 * floor).max(0.0));
     let free = (ww - cw).max(0.0);
     let anchored_max = (ww - floor - cw).max(floor);
@@ -47,8 +73,8 @@ pub(in crate::render) fn overlay_card_box_policy(
     (left, cw)
 }
 
-pub(in crate::render) fn overlay_card_fill_regime(ww: f32, desired_w: f32) -> bool {
-    desired_w > (ww - 2.0 * CARD_EDGE_INSET_FLOOR).max(0.0)
+pub(in crate::render) fn overlay_card_fill_regime(ww: f32, desired_w: f32, scale: f32) -> bool {
+    desired_w > (ww - 2.0 * CARD_EDGE_INSET_FLOOR.px(scale)).max(0.0)
 }
 
 impl TextPipeline {
@@ -89,10 +115,11 @@ impl TextPipeline {
     /// read for `text_left`/`text_w`, so shaping, hit-test, caret, and the
     /// right-aligned chords all inset together.
     pub(in crate::render) fn overlay_text_hpad(&self) -> f32 {
-        match crate::render::effective_list_style() {
-            theme::ListStyle::Bars { .. } => BAR_SIDE_INSET + BAR_TEXT_PAD,
-            theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) => 12.0,
-        }
+        let l = match crate::render::effective_list_style() {
+            theme::ListStyle::Bars { .. } => Logical(BAR_SIDE_INSET.0 + BAR_TEXT_PAD.0),
+            theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) => PANE_TEXT_HPAD,
+        };
+        self.metrics.px(l)
     }
 
     /// The overlay row LINE HEIGHT — the single-owner metric the card height, the
@@ -113,11 +140,15 @@ impl TextPipeline {
             crate::render::resolve_overlay_anchor(self.overlay_align),
             width as f32,
             desired_w,
+            self.metrics.scale,
         )
     }
 
+    /// The ONE scale chrome resolves against — the same `zoom * dpi` that
+    /// produced the font size, read off [`Metrics`] rather than divided back
+    /// out of it.
     pub(in crate::render) fn overlay_pixel_scale(&self) -> f32 {
-        self.metrics.font_size / crate::render::FONT_SIZE
+        self.metrics.scale
     }
 
     /// THE ONE OWNER of the summoned card's WIDE desired width (device px) at the
@@ -144,18 +175,18 @@ impl TextPipeline {
     /// IDENTICAL to the pre-fix `base`-passthrough (so the 0.8 default look and
     /// every ≤1.0 capture/law are untouched; a slightly-roomier-than-proportional
     /// card at low zoom never clips).
-    pub(in crate::render) fn overlay_card_desired_w(&self, base: f32) -> f32 {
-        base * self.overlay_pixel_scale().max(1.0)
+    pub(in crate::render) fn overlay_card_desired_w(&self, base: LogicalGrowOnly) -> f32 {
+        self.metrics.px_grow_only(base)
     }
 
     pub(in crate::render) fn overlay_right_anchored(&self) -> bool {
         crate::render::resolve_overlay_anchor(self.overlay_align).mirrors_growth()
     }
 
-    pub(in crate::render) fn overlay_desired_w(&self, base_cap: f32) -> f32 {
+    pub(in crate::render) fn overlay_desired_w(&self, base_cap: LogicalGrowOnly) -> f32 {
         let scaled = self.overlay_card_desired_w(base_cap);
         if self.overlay_right_anchored() && self.overlay_content_w > 0.0 {
-            let floor = (CARD_CONTENT_MIN_W * self.overlay_pixel_scale().max(1.0)).min(scaled);
+            let floor = self.metrics.px_grow_only(CARD_CONTENT_MIN_W).min(scaled);
             self.overlay_content_w.clamp(floor, scaled)
         } else {
             scaled
@@ -196,15 +227,16 @@ impl TextPipeline {
     /// this; the contextual spell popup passes `0.0` (no header to divide from).
     /// LIVE-ONLY taste: whether the widened beat reads right needs a human eye.
     pub(in crate::render) fn overlay_header_gap(&self) -> f32 {
-        (self.overlay_lh() * OVERLAY_QUERY_BEAT).round()
+        (self.overlay_lh() * OVERLAY_QUERY_BEAT.0).round()
     }
 
     pub(in crate::render) fn overlay_hint_h(&self) -> f32 {
-        (self.overlay_lh() * OVERLAY_HINT_ROW).round()
+        (self.overlay_lh() * OVERLAY_HINT_ROW.0).round()
     }
 
     pub(in crate::render) fn overlay_footer_reclaim(&self, hint_rows: usize) -> f32 {
-        hint_rows as f32 * (self.overlay_lh() - self.overlay_hint_h() - OVERLAY_FOOTER_PAD).max(0.0)
+        let pad = self.metrics.px(OVERLAY_FOOTER_PAD);
+        hint_rows as f32 * (self.overlay_lh() - self.overlay_hint_h() - pad).max(0.0)
     }
 
     pub(in crate::render) fn overlay_card_h(
@@ -246,8 +278,8 @@ impl TextPipeline {
         if !self.overlay_lens.is_empty() {
             return self.theme_overlay_geometry(width);
         }
-        let pad = 12.0;
-        let margin = 12.0;
+        let pad = self.metrics.px(CARD_PAD);
+        let margin = self.metrics.px(CARD_MARGIN);
         let n_items = self.overlay_items.len();
 
         let hint = self.overlay_hint.clone();
@@ -274,8 +306,8 @@ impl TextPipeline {
         };
         let card_y = self
             .overlay_context_anchor
-            .map(|(_, y)| y + 4.0)
-            .unwrap_or(margin + 40.0 + self.menubar_reserve());
+            .map(|(_, y)| y + self.metrics.px(CONTEXT_ANCHOR_DROP))
+            .unwrap_or(margin + self.metrics.px(CARD_TOP_DROP) + self.menubar_reserve());
         // ITEM 181 — cap the item window to what the canvas fits, same owner the
         // grouped family reads (`theme_overlay_geometry`).
         let avail_px = if contextual {
@@ -289,12 +321,10 @@ impl TextPipeline {
         let desired_w = self.overlay_desired_w(CARD_MAX_W);
         let (mut card_x, card_w) = self.overlay_card_box(width, desired_w);
         if let Some((x, _)) = self.overlay_context_anchor {
-            card_x = x.clamp(
-                CARD_EDGE_INSET_FLOOR,
-                (width as f32 - card_w - CARD_EDGE_INSET_FLOOR).max(CARD_EDGE_INSET_FLOOR),
-            );
+            let floor = self.metrics.px(CARD_EDGE_INSET_FLOOR);
+            card_x = x.clamp(floor, (width as f32 - card_w - floor).max(floor));
         }
-        let card_narrow = overlay_card_fill_regime(width as f32, desired_w);
+        let card_narrow = overlay_card_fill_regime(width as f32, desired_w, self.metrics.scale);
         let hpad = self.overlay_text_hpad();
         let text_w = card_w - 2.0 * hpad;
         let card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, pad);
@@ -343,9 +373,9 @@ impl TextPipeline {
         end_col: usize,
     ) -> OverlayGeom {
         let m = self.metrics;
-        let pad = 10.0;
-        let margin = 8.0;
-        let gap = 6.0; // the breath between the word and the panel
+        let pad = self.metrics.px(SPELL_PAD);
+        let margin = self.metrics.px(SPELL_MARGIN);
+        let gap = self.metrics.px(SPELL_WORD_GAP);
         let n_items = self.overlay_items.len();
         let header_rows = 0;
         let hint = String::new();
@@ -412,9 +442,11 @@ impl TextPipeline {
         // (~24 mono cells) so it never elides at wide width (item 49); a genuinely
         // long adversarial word still overruns it and elides — a small popup, never a
         // takeover card.
-        let scale = self.overlay_pixel_scale().max(1.0);
         let card_w = (content_w + 2.0 * pad)
-            .clamp(140.0 * scale, 520.0 * scale)
+            .clamp(
+                self.metrics.px_grow_only(SPELL_MIN_W),
+                self.metrics.px_grow_only(SPELL_MAX_W),
+            )
             .min(width as f32 - 2.0 * margin);
         let text_w = card_w - 2.0 * pad;
         let rows = header_rows + visible.max(1) + hint_rows;

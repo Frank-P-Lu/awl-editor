@@ -556,9 +556,9 @@ fn preview_glyph_key_at(buf: &GlyphBuffer, text: &str, idx: usize) -> Option<Cac
     None
 }
 
-pub(super) const BAR_SIDE_INSET: f32 = 8.0;
+pub(super) const BAR_SIDE_INSET: Logical = Logical(8.0);
 
-pub(in crate::render) const BAR_TEXT_PAD: f32 = 13.0;
+pub(in crate::render) const BAR_TEXT_PAD: Logical = Logical(13.0);
 
 pub(super) const INLINE_SHORTCUT_GAP: &str = "   ";
 
@@ -572,15 +572,13 @@ pub(super) fn bars_inline_shortcut() -> bool {
 /// TEST-ONLY reader for the item-234 law, which has to compare the plate's own
 /// span against the row box without re-deriving either.
 #[cfg(test)]
-pub(in crate::render) fn bar_full_span_probe(card_x: f32, card_w: f32) -> (f32, f32) {
-    bar_full_span(card_x, card_w)
+pub(in crate::render) fn bar_full_span_probe(card_x: f32, card_w: f32, scale: f32) -> (f32, f32) {
+    bar_full_span(card_x, card_w, scale)
 }
 
-pub(super) fn bar_full_span(card_x: f32, card_w: f32) -> (f32, f32) {
-    (
-        card_x + BAR_SIDE_INSET,
-        (card_w - 2.0 * BAR_SIDE_INSET).max(1.0),
-    )
+pub(super) fn bar_full_span(card_x: f32, card_w: f32, scale: f32) -> (f32, f32) {
+    let inset = BAR_SIDE_INSET.px(scale);
+    (card_x + inset, (card_w - 2.0 * inset).max(1.0))
 }
 
 pub(super) fn bar_hug_span(
@@ -588,10 +586,11 @@ pub(super) fn bar_hug_span(
     card_w: f32,
     text_left: f32,
     primary_px: f32,
+    scale: f32,
 ) -> (f32, f32) {
-    let (x, full_w) = bar_full_span(card_x, card_w);
+    let (x, full_w) = bar_full_span(card_x, card_w, scale);
     let full_right = x + full_w;
-    let right = (text_left + primary_px + BAR_TEXT_PAD).min(full_right);
+    let right = (text_left + primary_px + BAR_TEXT_PAD.px(scale)).min(full_right);
     (x, (right - x).max(1.0))
 }
 
@@ -631,8 +630,14 @@ pub(super) fn slant_bar_span(x: f32, w: f32, hug: bool, dx: f32, dw: f32) -> (f3
 }
 
 #[cfg(test)]
-pub(super) fn bar_rect_unselected(card_x: f32, card_w: f32, top: f32, bar_h: f32) -> [f32; 4] {
-    let (x, w) = bar_full_span(card_x, card_w);
+pub(super) fn bar_rect_unselected(
+    card_x: f32,
+    card_w: f32,
+    top: f32,
+    bar_h: f32,
+    scale: f32,
+) -> [f32; 4] {
+    let (x, w) = bar_full_span(card_x, card_w, scale);
     [x, top, w, bar_h]
 }
 
@@ -644,8 +649,9 @@ pub(super) fn bar_rect_selected(
     bar_h: f32,
     grow_px: f32,
     mirror: bool,
+    scale: f32,
 ) -> [f32; 4] {
-    let (bx, bw) = bar_full_span(card_x, card_w);
+    let (bx, bw) = bar_full_span(card_x, card_w, scale);
     let (x, w) = grow_span(bx, bw, grow_px, mirror);
     [x, top, w.max(1.0), bar_h]
 }
@@ -660,10 +666,11 @@ pub(super) fn footer_plate_rect(
     card_w: f32,
     card_bottom: f32,
     hug: Option<(f32, f32)>,
+    scale: f32,
 ) -> [f32; 4] {
     let (x, w) = match hug {
-        Some((text_left, content_px)) => bar_hug_span(card_x, card_w, text_left, content_px),
-        None => bar_full_span(card_x, card_w),
+        Some((text_left, content_px)) => bar_hug_span(card_x, card_w, text_left, content_px, scale),
+        None => bar_full_span(card_x, card_w, scale),
     };
     [x, hint_top, w, (card_bottom - hint_top).max(1.0)]
 }

@@ -152,6 +152,7 @@ fn a_workspace_rows_text_sits_inside_its_own_plate_on_every_world() {
                     let (bar_x, bar_w) = crate::render::chrome::bar_full_span_probe(
                         geom.band_x_probe(),
                         geom.band_w_probe(),
+                        dpi,
                     );
                     let pad = hpad - (bar_x - geom.band_x_probe());
 
@@ -289,13 +290,13 @@ fn every_settings_value_sits_inside_its_own_plate_on_every_plated_world() {
                     let reach = plate[0] + plate[2] - column_right;
                     tightest = tightest.min(reach);
                     assert!(
-                        reach >= crate::render::chrome::BAR_TEXT_PAD - 0.51,
+                        reach >= crate::render::chrome::BAR_TEXT_PAD.px(1.0) - 0.51,
                         "{ctx}: the value column's right edge is {column_right:.1} and its \
                          plate ends at {:.1} — {reach:.1}px where the plate owes it {:.1}. \
                          This is the plate measured against the wrong right bound, and it \
                          is the reported clipped glyph.",
                         plate[0] + plate[2],
-                        crate::render::chrome::BAR_TEXT_PAD
+                        crate::render::chrome::BAR_TEXT_PAD.px(1.0)
                     );
                     assert!(
                         plate[0] + plate[2] <= band_right + 0.51,

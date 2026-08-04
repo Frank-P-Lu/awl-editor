@@ -121,7 +121,7 @@ fn inset_anchor_sweeps_from_topleft_through_center_to_right_pinned() {
     // viewport's two-thirds mark, generous breathing room over the old flush
     // ~28px edge-hug).
     let right = i1[0] + i1[2];
-    let want_right = 1200.0 - chrome::overlay_rail_inset(1200.0);
+    let want_right = 1200.0 - chrome::overlay_rail_inset(1200.0, 1.0);
     assert!(
         (right - want_right).abs() < 0.51,
         "Inset 1.0 pins the card's right edge one rail-inset in (right {right}, want {want_right})"

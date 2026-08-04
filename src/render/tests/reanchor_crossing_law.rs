@@ -92,7 +92,7 @@ const WW: f32 = 1200.0;
 /// arms below read the exact SAME inset regardless of the card's own width.
 fn assert_on_rail(rect: [f32; 4], anchor: theme::CardAnchor, world: &str) {
     let [cx, _, cw, _] = rect;
-    let inset = chrome::overlay_rail_inset(WW);
+    let inset = chrome::overlay_rail_inset(WW, 1.0);
     match anchor {
         theme::CardAnchor::TopLeft => assert!(
             (cx - inset).abs() < 0.5,
