@@ -766,6 +766,51 @@ defects rather than individual lapses, and they belong in the brief template.**
   recovered by switching to `kill -0 <pid>` on the known launch PID, which has
   no such failure mode. **Prefer the PID.**
 
+- **221** — ✅ **COMPLETE.** Merged `751c385f`. Receipt
+  `native-gate-receipt commit=cb00cae1662259278b0360d64209b9a47bba4084 conventions=mac,linux scope=all-targets`,
+  `web-smoke: OK`, `code-health.sh` clean, fmt clean. Cassowary's active lens
+  name — Files / Navigate / Settings — now reads bottom-to-top, rotated 90°,
+  flush to the card's left edge; none under All. Reuses item 235's rotated glyph
+  run rather than adding a second rotation path, and Cassowary's expression is
+  **theme data**, not a palette code path.
+  ⚠️ **The shrink-to-fit budget exists because pixel arithmetic caught a real
+  defect, not because it seemed prudent:** the first centred placement
+  measurably bled "Settings" and "Navigate" into the next command row's plate,
+  and bottom-anchoring alone then measurably touched the lens strip's pill
+  above. Budget is `row_height + header_gap·0.55` with a legibility floor.
+  **The law is a differential GPU-pixel oracle** — the cue's frame against the
+  same frame with `overlay_location: None` — swept over 2 DPIs × 3 lenses, each
+  cell asserting ink present in the permitted band (non-vacuous), leftmost
+  differing pixel within `2·inset` of `card_x`, and zero pixels past the budget
+  either way. The All-lens companion proves the oracle is **not merely silent by
+  construction**, which is the failure mode four laws hit today.
+  **Isolation measured:** of 960,000 pixels exactly **2,225 differ**, all inside
+  an 81×47 box. Byte-identity **14/14 PNG and 14/14 sidecar** across six other
+  worlds — compared **in place via stash**, deliberately not a second worktree,
+  so item 244's basename trap could not apply. Mutation-proved with the arm
+  isolated: removing the wiring left the three pure-geometry laws green (they
+  call `rotated_location_origin` directly) while the real-pixel law went red.
+
+🔴 **A THIRD VARIANT OF THE SAME ORCHESTRATOR ERROR CLASS, 2026-08-04 — and this
+one is the least obvious, so it is the one most worth writing down.** Two board
+commits meant for `main` (`69ebe46d`, item 116's closure; `cb00cae1`, the
+receipt-gap resolution) **landed on `claude/item-221-cassowary-files` instead.**
+Cause: **the Bash tool's working directory PERSISTS between calls.** The
+orchestrator ran `cd` into 221's worktree to check its status, then committed
+twice without returning — so both commits went to whatever branch that worktree
+had checked out. The 221 lane noticed and reported it accurately; its first gate
+run was invalidated by it (`HEAD changed while the suite ran (start=a15a538e…
+end=cb00cae1…)`), costing a clean 388 s run.
+**All three of today's variants share one root — not verifying WHERE you are or
+WHAT you are staging before committing:**
+1. `git add -u` in a shared tree, sweeping another session's source (`f0e0f5b3`).
+2. Staged changes carried across by `git checkout -b` (`60266f9d`).
+3. **A persistent `cd` putting commits on another lane's branch.**
+**The habit that prevents all three: `pwd` and `git rev-parse --abbrev-ref HEAD`
+immediately before any commit, and `git add` explicit paths — never `-u`, never
+`-A`.** No harm here beyond the wasted gate; the commits were markdown-only and
+came home with 221's merge.
+
 - **241** — ✅ **COMPLETE except a live confirmation on the user's own window.**
   Merged `378495d3`. Receipt
   `native-gate-receipt commit=bd0b09f31c66a374120116a3210253171226ac16 conventions=mac,linux scope=all-targets`,
