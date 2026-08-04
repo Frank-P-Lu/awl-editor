@@ -89,13 +89,30 @@ fn dormant_bands_and_dots() -> Vec<Ground> {
             angle: 0.35,
         },
     }];
+    // ROSTER-DERIVED, not a named world: pinning this to one world's field
+    // means that world's ground can change and silently un-enrol this
+    // representative while the sweep still reads as complete — an `if let`
+    // against a moved literal just stops matching, with nothing to say so.
+    // Scanning `THEMES` for whichever world currently wears `Dots` means a
+    // world changing its ground can retarget this representative but cannot
+    // un-enrol it; if the roster ever carries NO `Dots` world at all, this
+    // fails loudly (a panic naming the gap) rather than quietly dropping the
+    // representative and going back to zero coverage unnoticed.
+    let dots_world = theme::THEMES
+        .iter()
+        .find(|t| matches!(t.background, Background::Dots { .. }))
+        .expect(
+            "no world in THEMES wears Background::Dots — the dormant:dots-edge \
+             representative has nothing to derive from; give it a literal field \
+             until a Dots world returns to the roster",
+        );
     if let Background::Dots {
         from,
         to,
         dir,
         tint,
         ..
-    } = theme::MULGA.background
+    } = dots_world.background
     {
         out.push(Ground {
             label: "dormant:dots-edge",
