@@ -409,8 +409,54 @@ was built rather than after.
   is not being followed, so the tree was carrying an unverified accessibility
   fix on `main`. It verifies clean; the process gap is the finding, not the
   code.
-- **258 — 🟡 IN PROGRESS — claude, branch `claude/item-258-mulga-ground`.** Deep
-  tier (Opus, high), with a visual-judge pass owed after.
+- ✅ **258 — LANDED, merge `079417d8`** (`0cf63cce`). Full native receipt at
+  `0cf63cce`, both conventions, all targets. **Mulga takes `Pinstripe` on its
+  own `base_100/200/300` ladder; `Background::Starfield` is GONE** — grep clean
+  case-insensitively, shader id **2 vacated and left unissued** (wire value),
+  `roster_index` closed as a dense array (`ROSTER_LEN` 12→11), `SCHEMA_VERSION`
+  deliberately **held at 198** because the sidecar's shape is unchanged.
+  **The arithmetic that matters is the INCIDENT ratio, not the mean:** margin
+  peak/p99 went **6.65 → 1.00**. The old field was 99% dark ground plus scattered
+  sparks; the new one's p99, p99.9 and max are identical. **Root cause named:
+  the retired ground's `#7C8068` tint was authored OUTSIDE the world's own
+  ladder, past `base_300`** — which is why the replacement pins from/to/tint to
+  the ladder exactly, bounding loudness structurally rather than by taste.
+  ⚠️ **118 INPUT — Mulga's score is now stale.** Its map scores Mulga **1**, and
+  that describes a ground that no longer exists. **The "louder than Firetail on
+  every column" finding no longer holds on the incident axis** (peak/p99 now 1.00,
+  tied at the roster floor); on raw peak Mulga is still 1.58× Firetail and its
+  mean is higher, so it remains a more PRESENT ground, just not a spikier one.
+  **Re-score it.**
+  🔵 **OWED: a visual-judge pass** over six captures in the lane's worktree
+  `gallery/item-258/` (gitignored). **The question for the judge is the one
+  arithmetic cannot answer:** are fine vertical rules too fabric/corduroy for a
+  literary slab-serif world, and is there enough separation from the other three
+  Pinstripe worlds given that ground has no per-world dials beyond palette.
+  **Stated fallback if the verdict is "too technical": `Gradient`, one literal.**
+
+🔴 **ITEM 264'S PREMISE IS NOT REFUTED — the 258 lane's counter-measurement read
+the WRONG SURFACE, and this correction is being recorded rather than the
+correction it proposed.** The lane reported 264's `2.16:1` figure as a
+non-defect because `selected_row_ink` already implements the 3.0 floor as a
+fallback to `base_100` (effective 7.08:1), and because the number cannot move
+with the ground. **Both statements are true of the PICKER ROW and false of the
+subject 264 names.** Verified in the tree: `selected_row_ink` (`theme/derive.rs`)
+does carry that fallback and is fed by `surface_step_band`, which reads only
+`base_200`/`base_300` — **that is the picker row.** `theme::selection()` is
+`active().selection`, **a bare token with no floor, no fallback and no law**,
+and it is what `render/pipeline_draw.rs` and `pipeline_geometry.rs` hand to the
+document-selection and search-match pipelines. **264 says this itself** — it
+names the two surfaces as distinct and calls `selection` the only ink-adjacent
+token with no legibility law. Mulga's token is `rgba(0xFF,0xEF,0xAE,0x52)`, a
+translucent pale yellow at ~32% over a LIFTED page with near-white
+`base_content` on it, which is exactly the compression 264 describes. ⚠️ **So
+264 must measure `selection` over the RENDERED PAGE in PNG pixels, as its own
+body already insists, and must not be closed on a `surface_step_band`
+reading.** ✅ **What DOES survive from the lane, and is a genuine 264 input:**
+measured through the picker-row owner, **no world renders below the floor today
+because the fallback fires**, and the worst EFFECTIVE numbers are **Cassowary
+3.09, Firetail 3.61, Kite 3.63, Mangrove 4.26** — those four are the band 264's
+"record the next band and decide" clause should name.
 - ✅ **255 — LANDED, merge `dc179897`** (`ba57dafe`, `bb221aa0`). Full native
   receipt at `bb221aa0`, both conventions, all targets.
 - ✅ **256 — LANDED, merge `027a098b`** (`c4baffa9`). Scripts-only; **no receipt
@@ -913,3 +959,5 @@ satisfy its Verify clause otherwise.**
 🔵 **CHROME IS IN SCOPE — USER-CONFIRMED: "We need to update the chrome for kite as well."** ⚠️ **Measured, and it is the starkest asymmetry in the roster: Kite moves exactly ONE of the 22 `RenderCaps` dials (`elevation: Bordered`) — it is chrome-identical to Saltpan, Brolga, Gumtree, Paperbark and Potoroo, all QUIET worlds.** Its declared deliberate counterpart **Firetail moves seven** (a 4.5&times; `Bold` placard pinned `BL` in Archivo Black, `Bars` list, `Chips(FilledActive)`, `TopLeft` anchor, a lifted fold tail, `IconGround::Blend40`). **So Firetail states itself across the whole UI and Kite states itself only in the margins** — which is why the margin collapse above is fatal rather than merely a shame. **Build from the world's own words** (`worlds.rs:1043`: *cool / geometric / crisp / directional*): `CardShape::Chamfered` is literally crisp geometry, `PageFrame::Line` would echo the grid onto the page edge, a `Placard` corner opposite Firetail's `BL`, and a geometric-grotesque `ChromeFace` to answer Archivo Black. 💡 **This is also a chance to RESCUE dormant arms instead of deleting them: `BarExtent::FullWidth` and `BarCoverage::SelectedOnly` are on item 261's chopping block precisely because nothing uses them, and a crisp full-width bar with selected-only coverage is a very "technical panel" look that only Kite would plausibly want.** Decide 268's chrome BEFORE 261 deletes those two arms, or the option is gone.
 ⚠️ **ONE SMALL INCONSISTENCY WORTH FIXING IN THE SAME ROUND:** the doc comment calls Kite a *"technical room"* but its only facet tag is `voice: Modern` — **Technical belongs to Cassowary.** The prose identity and the picker facet disagree, which is the kind of thing that makes a world feel unresolved. **Changing it is a picker-facet decision (the bands are curated and capped), so it is the user's call, not a lane's.**
 **Done:** Kite reads as ONE tunnel with a single vanishing point behind the page; the world is still recognisably Kite at `page_width_code` with 17px margins; its chrome carries the world's personality rather than the default's. **Verify:** `--screenshot` at `--measure` 70 AND 100 and at two `--capture-dpi` tiers (262's DPI warning applies here identically); a pixel law that the two margins' arcs are continuous across the page — sample the grid's phase at matching y on both flanks and assert they agree, **which is the law that would have caught the two-axis bug and does not exist today**; and a legibility floor over body text for the under-page continuation. **Routing:** deep tier (Opus, high) — shader geometry plus taste plus a chrome authoring pass. **Owed to a human: the final look, every time.** **Queued 2026-08-04 late from the user's own words, which is exactly the condition the board set for Kite becoming work.**
+
+269. **A composition sweep has been silently vacuous since it was written — `ground_space_item186.rs`'s `dormant:dots-edge` representative never matched.** **Defect, found by the item-258 lane and reported rather than fixed, which was the right call.** `src/render/tests/ground_space_item186.rs:98` enrols its proximity-scaled-`Dots` representative behind `if let Background::Dots { .. } = theme::MULGA.background` — **and Mulga was `Starfield`, so that branch has never matched once.** Proximity-scaled `Dots` composition has therefore had **zero** coverage for the life of the law, while the sweep read as complete. ⚠️ **Item 258 did NOT fix it and said so:** Mulga is now `Pinstripe`, so the branch is still dead, and re-pointing it at a world that genuinely uses `Dots` (Tawny, Mopoke) would **wake an unproven arm in the middle of a taste round** — the lane declined to do that mid-item, correctly. **Build:** point the representative at a real `Dots` world and deal with whatever the newly-live arm reports. ⚠️ **Expect it to fail on first contact** — that is the point, and a green on the first run is itself suspicious and should be investigated rather than celebrated. **Verify:** the enrolment must be **derived from the roster** rather than pinned to a named world, so a world changing its ground cannot silently un-enrol the representative again; mutation-prove that removing the arm fails by name. **This is the same class as item 237's constant arm and item 244's trigonometry law — a green that could not fail — and it is worth stating plainly that the pattern keeps recurring: the enrolment condition, not the assertion, is where these die.** **Routing:** production tier. **Found 2026-08-04 by the item-258 lane.**
