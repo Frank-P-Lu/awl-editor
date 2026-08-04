@@ -123,6 +123,85 @@ jobs:
         if: github.event_name == 'push'
         run: scripts/release-profile-gate.sh
 
+  # ── AT-SPI bridge liveness (item 252) — separate from `linux`, deliberately ──
+  # Question this answers, narrowly: does AccessKit's Unix adapter actually
+  # register with the AT-SPI2 accessibility bus on real Linux and publish the
+  # tree `SemanticSnapshot` intends — the document, item 218's STABLE LINE
+  # RUNS, focus, and a live selection? `ACCESSIBILITY.md:65` names AT-SPI2 as
+  # the Linux half of AccessKit's platform backend and states plainly that no
+  # AT-SPI journey has ever been run against it, and item 218 (`c282cedd`)
+  # rewrote both the activation handler and the document's shape without any
+  # Linux gate able to see either change. This job is bridge LIVENESS AND
+  # STRUCTURE, mechanically, on every push/PR — `scripts/ci-atspi-probe.py`
+  # has the actual assertions and their rationale.
+  #
+  # ‼ THIS IS NOT ITEM 251 AND DOES NOT CLOSE IT. There is no Orca here, no
+  # human, no ears — a hosted runner has no desktop session for a screen
+  # reader to sit in front of. The probe asserts STRUCTURE over the AT-SPI
+  # wire (roles, children, text, focus, a keyboard-driven selection); it says
+  # nothing about what a screen reader user would hear or how navigation
+  # feels. Item 251 still owns that, and still needs a human at a real Linux
+  # desktop.
+  #
+  # TOLERATED, not gating (a deliberate choice, following item 243's lesson
+  # rather than repeating its precedent verbatim): this is BRAND NEW CI
+  # infrastructure — Xvfb, a window manager, D-Bus session-bus activation,
+  # at-spi2-registryd, and a hand-written AT-SPI client — none of which this
+  # repo's CI has ever exercised before, unlike item 243's split where the
+  # gating half was already measured completing reliably. Item 243's lesson
+  # was that a red carrying no information is worse than no arm at all;
+  # gating `main` on a brand-new four-layer stack's first runs would risk
+  # blocking unrelated work on infra flakiness this job has not yet proven it
+  # lacks, not on real accessibility regressions. `continue-on-error` is set
+  # at the JOB level, mirroring `mac-render-tests`' shape: a red run here is
+  # attributable to item 252 by name from this file alone. Promote to gating
+  # once it has run green on `main` for a stretch — a conscious decision, not
+  # automatic, exactly as item 231's fix promotes `mac-render-tests`.
+  atspi:
+    name: "atspi (AT-SPI2 bridge liveness, item 252) — allowed failure while it beds in"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      # Build deps mirror the `linux` job's list (including mesa-vulkan-
+      # drivers — awl is a real wgpu/Vulkan window even under Xvfb) plus the
+      # AT-SPI stack: xvfb (virtual display), fluxbox (xdotool's keyboard
+      # injection needs real X11 input focus, which bare Xvfb does not
+      # reliably grant), dbus (dbus-run-session, for accessibility-bus
+      # activation), at-spi2-core (at-spi-bus-launcher + at-spi2-registryd),
+      # xdotool (drives the live selection keystroke), and the GI Atspi
+      # client bindings the probe script uses.
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config \
+            libfontconfig1-dev libxkbcommon-dev libwayland-dev \
+            libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            mesa-vulkan-drivers \
+            xvfb fluxbox dbus at-spi2-core xdotool \
+            gir1.2-atspi-2.0 python3-gi
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: atspi
+
+      - name: Install sccache
+        run: scripts/install-sccache.sh
+
+      # Dev-profile build, matching the `linux` job — this arm is not
+      # `native-gate.sh` and claims no suite coverage; it exists only to
+      # produce a real binary for the probe to launch.
+      - name: cargo build
+        run: cargo build
+
+      - name: AT-SPI bridge probe
+        run: scripts/ci-atspi-probe.sh target/debug/awl
+
   web:
     name: web (wasm build + smoke)
     runs-on: ubuntu-latest

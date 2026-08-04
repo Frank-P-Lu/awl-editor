@@ -107,8 +107,14 @@ main loop.
   sitting (2026-08-02) is what found the "not responding" report above. Whether
   the fix holds — a full typing and navigation journey with no stall — needs a
   second sitting on an unlocked, foregrounded display, and that has not
-  happened. No AT-SPI journey has been run at all. Everything else is
-  verified by unit and law tests over the snapshot and its AccessKit
+  happened. **No AT-SPI journey has been run at all, and item 252's CI arm
+  does not change that sentence** — it is a mechanical check, on every
+  push/PR, that AccessKit's Unix adapter registers on the AT-SPI2 bus and
+  publishes the tree's shape (the document, item 218's stable line runs,
+  focus, a live selection); it has no Orca, no human, and no ears, so it says
+  nothing about what a screen reader user would hear or how navigation feels.
+  That journey is item 251, parked on a Linux desktop with Orca. Everything
+  else is verified by unit and law tests over the snapshot and its AccessKit
   projection — that the tree is correct and complete, that JSON and AccessKit
   say the same thing, that actions really fire. Whether a screen reader
   *reads it well* — announcement order, verbosity, live-region politeness — is
