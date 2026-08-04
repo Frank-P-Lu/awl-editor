@@ -219,7 +219,6 @@ fn warped_grid_is_kites_alone_no_wildcard() {
         let tunnel = match t.background {
             theme::Background::Gradient { .. } => None,
             theme::Background::Dots { .. } => None,
-            theme::Background::Starfield { .. } => None,
             theme::Background::Pinstripe { .. } => None,
             theme::Background::Stripes { .. } => None,
             theme::Background::Lava { .. } => None,

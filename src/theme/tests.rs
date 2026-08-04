@@ -227,9 +227,10 @@ fn every_world_has_a_valid_background() {
             "{} background tint must be opaque",
             t.name
         );
-        // 0..=4 the five original static grounds (Lava also degrades to 0 for
-        // this base-margin pass), 5=Bands, 6=Waves, 7=Zigzag, 8=Organic,
-        // 9=Deckle, 10=WarpedGrid.
+        // 0..=4 the original static grounds (Lava also degrades to 0 for this
+        // base-margin pass) minus the retired 2, 5=Bands, 6=Waves, 7=Zigzag,
+        // 8=Organic, 9=Deckle, 10=WarpedGrid. 2 is vacant and stays that way —
+        // see `Background::shader_id`.
         assert!(bg.shader_id() <= 10, "{} bad shader id", t.name);
     }
     // Every STATIC ground type STILL SHIPPING is exercised across the worlds.
@@ -237,12 +238,18 @@ fn every_world_has_a_valid_background() {
     // (reusable DATA, like `edge: true` Dots below — a feature may ship with
     // zero worlds until one wants it again), so it is deliberately NOT in
     // this roster; the dormancy is pinned directly, further down.
+    //
+    // The list SHRANK by one this round: the scattered-star ground was not
+    // moved to dormant but DELETED from `Background` outright, because it had
+    // exactly one assignee and that world no longer wanted it — a whole
+    // capability serving one world nobody wants is the infrastructure smell,
+    // not reusable data. Dormancy is for a variant a future world may want;
+    // retirement is for one the roster has finished with.
     let used: std::collections::HashSet<&str> =
         THEMES.iter().map(|t| t.background.as_str()).collect();
     for p in [
         "gradient",
         "dots",
-        "starfield",
         "pinstripe",
         "stripes",
         "waves",
@@ -276,18 +283,6 @@ fn every_world_has_a_valid_background() {
         zigzag,
         ["Gumtree", "Quokka"],
         "Zigzag ships on Gumtree and Quokka alone"
-    );
-    // Mulga is the roster's SOLE remaining shipping Starfield world — Bombora's
-    // former Starfield became Waves (item 69).
-    let starfield: Vec<&str> = THEMES
-        .iter()
-        .filter(|t| matches!(t.background, Background::Starfield { .. }))
-        .map(|t| t.name)
-        .collect();
-    assert_eq!(
-        starfield,
-        ["Mulga"],
-        "Starfield is Mulga's alone since item 69"
     );
     // ITEM 69 PALETTE LAW (Bombora's Waves alone, post item-86 — Gumtree's own
     // Zigzag carries its own, separately-checked, palette law below): `tones`
@@ -402,6 +397,46 @@ fn every_world_has_a_valid_background() {
         edge_dots.is_empty(),
         "proximity Dots is unassigned since Mangrove became lava, got {edge_dots:?}"
     );
+}
+
+/// MULGA'S GROUND-LADDER RESTRAINT — the same shape Gumtree's `Zigzag` and
+/// Bombora's `Waves` palette laws hold, and the reason Mulga's ground cannot
+/// drift loud again. `from`/`to`/`tint` are EXACTLY its own `base_100`/
+/// `base_200`/`base_300`, with no separately-authored mark tint, so the
+/// brightest ink the margin can reach is the top of this world's own ground
+/// ramp and the rules recede by construction.
+///
+/// The ground this replaced failed precisely here: its mark tint was authored
+/// OUTSIDE the ladder and well past `base_300`, which is what let a sparse
+/// field of lit points out-shine the page they framed — the user's own verdict
+/// on the room. Restoring that tint is what this law is mutation-proved
+/// against, so the regression it names is the one that actually happened.
+#[test]
+fn mulga_ground_stays_on_its_own_ladder() {
+    let _lock = crate::testlock::serial();
+    match MULGA.background {
+        Background::Pinstripe {
+            from,
+            to,
+            dir,
+            tint,
+        } => {
+            assert_eq!(
+                from, MULGA.base_100,
+                "Mulga's Pinstripe `from` must be its own base_100"
+            );
+            assert_eq!(
+                to, MULGA.base_200,
+                "Mulga's Pinstripe `to` must be its own base_200"
+            );
+            assert_eq!(
+                tint, MULGA.base_300,
+                "Mulga's Pinstripe `tint` must be its own base_300"
+            );
+            assert_eq!(dir, (0.0, 1.0), "Mulga's margin gradient runs downward");
+        }
+        _ => panic!("Mulga must ship Background::Pinstripe"),
+    }
 }
 
 /// THE LAVA-LAMP WORLDS round: EXACTLY two worlds ship a `Background::Lava` —
@@ -819,7 +854,6 @@ fn outline_frost_pills_keep_ink_contrast_on_every_lava_world() {
             // Every non-lava ground carries no lava — no frost.
             Background::Gradient { .. }
             | Background::Dots { .. }
-            | Background::Starfield { .. }
             | Background::Pinstripe { .. }
             | Background::Stripes { .. }
             | Background::Bands { .. }
@@ -969,7 +1003,6 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
         let (ground, blob_lo, blob_hi) = match t.background {
             Background::Gradient { .. }
             | Background::Dots { .. }
-            | Background::Starfield { .. }
             | Background::Pinstripe { .. }
             | Background::Stripes { .. }
             | Background::Bands { .. }

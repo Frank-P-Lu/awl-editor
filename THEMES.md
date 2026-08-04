@@ -34,11 +34,27 @@ swatch. Twenty ship today (eleven dark, nine light; `theme::THEMES`), each with:
   into a **true 1-bit world** ("only black or white, no gray") — see "The
   1-bit law" immediately below the monochrome law.
 - **A ground** (`Background`): the procedural margin pattern (Dots / Gradient /
-  Starfield / Pinstripe / Stripes / Bands / Waves / Zigzag / Organic / Deckle /
+  Pinstripe / Stripes / Bands / Waves / Zigzag / Organic / Deckle /
   WarpedGrid)
   drawn only in the page-mode margins, never the
   document column itself (`every_world_has_a_valid_background`,
-  `every_world_has_a_real_margin_gradient`). The sixteenth ground is **`Lava`** —
+  `every_world_has_a_real_margin_gradient`).
+  **A ground can also be RETIRED, and the vocabulary above is one shorter than
+  it was:** the scattered-star ground (deterministic dots, the brightest sixth
+  of them carrying a four-point sparkle) left `Background` entirely in 2026-08
+  when Mulga — by then its only assignee — moved to `Pinstripe` on the user's
+  own verdict about the room. This is deliberately NOT the `Bands` /
+  `Weave::Fibres` / `Arrangement::Masses` treatment. Those are DORMANT:
+  reusable shapes a future world may want, kept because the roster might reach
+  for them again. A capability that serves exactly one world, and that world
+  no longer wants it, is not dormant infrastructure — it is the infrastructure
+  smell `PHILOSOPHY.md` §6 names, so it goes. The distinction to apply when
+  the next ground loses its last world: **ask whether the shape is wanted, not
+  whether it is used.** Retirement VACATES the ground's `shader_id` (a wire
+  value the WGSL branches on — renumbering repaints worlds) and CLOSES its
+  `roster_index` (a dense array index — a hole there breaks the sweep's own
+  completeness check). The two numbering spaces take opposite answers, and
+  `Background::shader_id`'s doc comment is where that is written down. The sixteenth ground is **`Lava`** —
   awl's first TIME-VARYING background, a slow metaball "lava lamp" in the margins
   (Firetail warm, Mangrove cool) — see §3's "The `Background::Lava` law" and
   `DESIGN.md` §4's ambient-motion rule. Item 69 (2026-07) added two more
@@ -50,7 +66,7 @@ swatch. Twenty ship today (eleven dark, nine light; `theme::THEMES`), each with:
   tones (the ground ladder itself) rather than mixing a low-coverage mark
   over a two-color gradient. Item 86 (2026-07, the light-worlds taste round)
   added a ninth ground, **`Zigzag`** — a repeating chevron ("V") whisper-MARK
-  over the gradient, back in the `Dots`/`Pinstripe`/`Starfield` family rather
+  over the gradient, back in the `Dots`/`Pinstripe` whisper-mark family rather
   than `Bands`/`Waves`' own final-color shape. Quokka's dot grid AND
   Gumtree's `Bands` field both moved here, each with FOUR independently
   authored dials (repeat wavelength, peak excursion, travel angle, an extra
@@ -920,8 +936,8 @@ UNCHANGED — the drift is one added scalar, `0.0` at rest.
   Reduce Motion, a paused/blurred/moving/resizing window, and a non-Bombora
   active world all schedule ZERO ambient frames — the SAME freeze machinery
   lava/stars already have, inherited by construction. Deliberately NOT folded
-  into `has_ambient_motion` itself: unlike the lava lamp / starfield (which
-  live ENTIRELY in the margins and vanish outright without page mode, so THAT
+  into `has_ambient_motion` itself: unlike the lava lamp (which lives ENTIRELY
+  in the margins and vanishes outright without page mode, so THAT
   gate also forces page mode on at launch), Bombora's wave ground was already
   shipping (item 69) as an OPTIONAL margin decoration — so joining the shared
   TICK doesn't also force page mode or the move-stream present hold.
@@ -1069,7 +1085,7 @@ and typography of both worlds are untouched.
 ### The ground coordinate-space law (item 186, 2026-07-31)
 
 Every procedural ground authored its composition in PHYSICAL pixels — `scale_px`,
-`period_px`, Dots' 24px cell, Deckle's pitch, the starfield's cell — simply
+`period_px`, Dots' 24px cell, Deckle's pitch — simply
 because that is the coordinate a fragment shader runs in, and nothing said so.
 On a 2x display a ground therefore rendered at half its logical size and the
 user saw roughly twice as many elements. No law caught it in twelve rounds of
@@ -1748,7 +1764,7 @@ Checklist:
    `muted`, `faint`) and the accents (`primary`, `primary_content`, `error`,
    `selection`).
 3. Pick a `Background` ground and tags on all four lenses. Most worlds pick a
-   STATIC ground (Dots / Gradient / Starfield / Pinstripe / Stripes). A world may
+   STATIC ground (Dots / Gradient / Pinstripe / Stripes). A world may
    instead pick the animated `Background::Lava` (a statement world — the whole
    room is the lava lamp), but then it MUST satisfy "The `Background::Lava` law"
    (§3): `ground == base_100`, `blob_hi` inside the ground value band, blobs

@@ -12,7 +12,7 @@ use super::ground::{Arrangement, Background, Tunnel, Weave};
 mod tables;
 use tables::{
     BANDS, DECKLE_FIBRES, DECKLE_STRATA, DOTS, LAVA, ORGANIC_FINDS, ORGANIC_MASSES, PINSTRIPE,
-    STARFIELD, STRIPES, WARPED_GRID, WAVES, ZIGZAG,
+    STRIPES, WARPED_GRID, WAVES, ZIGZAG,
 };
 
 /// Which coordinate space one authored ground quantity lives in.
@@ -121,7 +121,6 @@ impl Background {
         match self {
             Background::Gradient { .. } => &[],
             Background::Dots { .. } => DOTS,
-            Background::Starfield { .. } => STARFIELD,
             Background::Pinstripe { .. } => PINSTRIPE,
             Background::Stripes { .. } => STRIPES,
             Background::Lava { .. } => LAVA,
@@ -165,24 +164,30 @@ impl Background {
     /// variant fails to compile here, and `ROSTER_LEN` then fails the sweep
     /// until a representative is enrolled. Never a shader discriminant —
     /// `shader_id` is that, and it deliberately maps two variants onto 0.
+    ///
+    /// This is a DENSE index into `[bool; ROSTER_LEN]`, which makes it the
+    /// exact opposite kind of number from `shader_id`: a hole here would leave
+    /// a slot no ground can ever set, and the sweep's own completeness check
+    /// would fail forever on an index that stands for nothing. So retiring a
+    /// ground CLOSES its gap and drops `ROSTER_LEN`, where retiring a
+    /// `shader_id` vacates one and touches nothing else.
     pub fn roster_index(&self) -> usize {
         match self {
             Background::Gradient { .. } => 0,
             Background::Dots { .. } => 1,
-            Background::Starfield { .. } => 2,
-            Background::Pinstripe { .. } => 3,
-            Background::Stripes { .. } => 4,
-            Background::Lava { .. } => 5,
-            Background::Bands { .. } => 6,
-            Background::Waves { .. } => 7,
-            Background::Zigzag { .. } => 8,
-            Background::Organic { .. } => 9,
-            Background::Deckle { .. } => 10,
-            Background::WarpedGrid { .. } => 11,
+            Background::Pinstripe { .. } => 2,
+            Background::Stripes { .. } => 3,
+            Background::Lava { .. } => 4,
+            Background::Bands { .. } => 5,
+            Background::Waves { .. } => 6,
+            Background::Zigzag { .. } => 7,
+            Background::Organic { .. } => 8,
+            Background::Deckle { .. } => 9,
+            Background::WarpedGrid { .. } => 10,
         }
     }
 
     /// How many members the `Background` roster has. Bumping this without
     /// enrolling a representative in the item-186 sweep fails that law by name.
-    pub const ROSTER_LEN: usize = 12;
+    pub const ROSTER_LEN: usize = 11;
 }

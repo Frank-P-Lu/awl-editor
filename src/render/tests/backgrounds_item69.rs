@@ -1,7 +1,7 @@
 //! ITEM 69 — REAL-PIXEL proofs for `Background::Bands` (three broad
 //! tone-on-tone diagonal bands) and Bombora's wave-TIERS
 //! (`Background::Waves`), the two grounds that replaced Gumtree's old
-//! uniform Dots grid and Bombora's static Starfield. Mirrors `dither.rs`'s
+//! uniform Dots grid and Bombora's old scattered-star ground. Mirrors `dither.rs`'s
 //! pattern — drive `BackgroundPipeline` directly (the purest reachable seam,
 //! no text/markdown involved) and read the real GPU output back.
 //!
@@ -630,8 +630,8 @@ fn bands_boundary_scales_proportionally_with_physical_resolution() {
 /// magnitude (max boundary row - min boundary row, sampled across x) must
 /// stay the SAME fixed number of physical pixels at a small canvas and at a
 /// @2x one — never silently doubling just because the canvas grew (the same
-/// "no hidden DPI multiplier" law Dots' 24px cell / Starfield's 34px cell
-/// already hold, generalized to a wobble amplitude instead of a grid period).
+/// "no hidden DPI multiplier" law Dots' 24px cell already holds, generalized
+/// to a wobble amplitude instead of a grid period).
 #[test]
 fn bombora_wave_wobble_is_a_fixed_logical_pixel_amplitude_not_canvas_scaled() {
     let _g = crate::testlock::serial();
@@ -732,7 +732,7 @@ fn every_world_reports_its_authored_shader_id() {
     // separately below, alongside Bombora's own item-69 id).
     let expected: &[(&str, u32)] = &[
         ("Potoroo", 4),   // Stripes — untouched
-        ("Mulga", 2),     // Starfield — the sole remaining Starfield world
+        ("Mulga", 3),     // Pinstripe — Mulga's ground since the star retirement
         ("Currawong", 0), // Gradient (+ separate ambient stars, unaffected)
         ("Bilby", 0),
         ("Magpie", 3),
@@ -754,12 +754,26 @@ fn every_world_reports_its_authored_shader_id() {
             .unwrap_or_else(|| panic!("world {name} not found"));
         assert_eq!(t.background.shader_id(), want, "{name}: shader id drifted");
     }
-    // The item-69 Waves world carries its NEW id, never the old Starfield one.
+    // The item-69 Waves world carries its OWN id and never recycled the one
+    // it migrated off. That id — 2, the retired scattered-star ground's — is
+    // now permanently VACANT (see `Background::shader_id`), and this assertion
+    // is part of why: it is only evidence that the migration did not reuse the
+    // number for as long as the number stays unissued. No world may report 2.
     assert_eq!(
         theme::BOMBORA.background.shader_id(),
         6,
-        "Bombora must be Waves (6), not the old Starfield (2)"
+        "Bombora must carry its own Waves id (6), never the id it migrated off"
     );
+    for t in theme::THEMES {
+        assert_ne!(
+            t.background.shader_id(),
+            2,
+            "{}: shader id 2 is retired and must stay unissued — a ground that \
+             claims it inherits the vacated branch, and this file's Bombora \
+             assertion silently stops meaning anything",
+            t.name
+        );
+    }
     // The item-86 Zigzag worlds carry their NEW id, never their old ones
     // (Quokka was Dots/1, Gumtree was Bands/5 — see `backgrounds_item86.rs`).
     assert_eq!(

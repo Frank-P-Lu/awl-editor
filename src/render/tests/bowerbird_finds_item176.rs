@@ -805,7 +805,6 @@ fn organic_arrangement_roster_is_bowerbird_finds_only_and_the_profile_slot_stays
         let arrangement = match t.background {
             theme::Background::Gradient { .. } => None,
             theme::Background::Dots { .. } => None,
-            theme::Background::Starfield { .. } => None,
             theme::Background::Pinstripe { .. } => None,
             theme::Background::Stripes { .. } => None,
             theme::Background::Lava { .. } => None,

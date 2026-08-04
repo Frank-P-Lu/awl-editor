@@ -1034,7 +1034,7 @@ fn every_monochrome_world_renders_zero_saturation_everywhere() {
 /// monochrome law had no reason to check: (1) `background.from() ==
 /// background.to()` — a flat gradient is the ONE `Background` variant
 /// mathematically guaranteed to introduce no interpolated grey (any
-/// `Dots`/`Starfield`/`Pinstripe`/`Stripes` mark tint, or a real two-endpoint
+/// `Dots`/`Pinstripe`/`Stripes` mark tint, or a real two-endpoint
 /// gradient, would); (2) every role's wash is `None` outright (not merely
 /// "grey if present" — a translucent wash of ANY color composites a forbidden
 /// grey over a differing ground, so 1-bit worlds carry no role washes at

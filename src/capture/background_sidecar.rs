@@ -15,7 +15,7 @@ pub(super) fn background_json(
 ) -> String {
     use crate::theme::Background;
     match bg {
-        Background::Gradient { .. } | Background::Dots { .. } | Background::Starfield { .. }
+        Background::Gradient { .. } | Background::Dots { .. }
         | Background::Pinstripe { .. } | Background::Stripes { .. } => simple_background_json(bg),
         _ => rich_background_json(bg, lava_phase, warp_travel),
     }
@@ -33,10 +33,6 @@ fn simple_background_json(bg: crate::theme::Background) -> String {
             concat!("{{ \"kind\": \"dots\", \"from\": {}, \"to\": {}, ",
                 "\"dir\": [{}, {}], \"tint\": {}, \"edge\": {} }}"),
             hex(from), hex(to), dir.0, dir.1, hex(tint), edge),
-        Background::Starfield { from, to, dir, tint } => format!(
-            concat!("{{ \"kind\": \"starfield\", \"from\": {}, \"to\": {}, ",
-                "\"dir\": [{}, {}], \"tint\": {} }}"),
-            hex(from), hex(to), dir.0, dir.1, hex(tint)),
         Background::Pinstripe { from, to, dir, tint } => format!(
             concat!("{{ \"kind\": \"pinstripe\", \"from\": {}, \"to\": {}, ",
                 "\"dir\": [{}, {}], \"tint\": {} }}"),

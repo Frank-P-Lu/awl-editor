@@ -48,7 +48,6 @@ fn zigzag_ships_on_quokka_and_gumtree_alone_no_wildcard() {
         let kind = match t.background {
             theme::Background::Gradient { .. } => "gradient",
             theme::Background::Dots { .. } => "dots",
-            theme::Background::Starfield { .. } => "starfield",
             theme::Background::Pinstripe { .. } => "pinstripe",
             theme::Background::Stripes { .. } => "stripes",
             theme::Background::Lava { .. } => "lava",

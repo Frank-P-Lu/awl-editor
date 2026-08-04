@@ -396,7 +396,19 @@ was built rather than after.
   **against `accesskit_consumer` rather than read off its source.**
   🔵 **OWED: 259 still needs a VoiceOver sitting — no capture can hear a screen
   reader.** This is the third sitting this symptom has asked for; the previous
-  two are what found it.
+  two are what found it. **Two DISTINCT things to check, because the report had
+  two symptoms and a fix can easily reach one:** (1) toggle VoiceOver on while
+  awl is already running — is the "not responding" stall gone; (2) highlight
+  text — is the selection announced. **(2) is the sharper test**, being the one
+  that demonstrably worked before item 218 and regressed.
+  ✅ **GATE RECEIPT, recorded here because NONE of the a11y commits carries
+  one** — `native-gate-receipt commit=44a1ac2bd28bac80af9a6fccf6284db543897030
+  conventions=mac,linux scope=all-targets`, both suites `status=0`, run by the
+  user-facing session before pushing. ⚠️ **Exactly ONE receipt appears in the
+  last 30 commits.** The standing fix — put the receipt in the MERGE COMMIT —
+  is not being followed, so the tree was carrying an unverified accessibility
+  fix on `main`. It verifies clean; the process gap is the finding, not the
+  code.
 - **258 — 🟡 IN PROGRESS — claude, branch `claude/item-258-mulga-ground`.** Deep
   tier (Opus, high), with a visual-judge pass owed after.
 - ✅ **255 — LANDED, merge `dc179897`** (`ba57dafe`, `bb221aa0`). Full native
