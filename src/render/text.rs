@@ -1319,10 +1319,16 @@ impl TextPipeline {
         if !self.md_enabled {
             return false;
         }
+        // A fast-path "does ANY line need zoom-driven restyle" check with no cheap
+        // per-line byte offset here, so `confirmed_rule: true` — a harmless
+        // over-approximation (a setext underline reads as scaled and triggers an
+        // extra restyle) that only ever widens WHEN to restyle, never the applied
+        // row geometry (`build_line_attrs` alone decides that, with the real
+        // ground truth — see `md_line_scale`'s doc).
         self.buffer
             .lines
             .iter()
-            .any(|l| md_line_scale(l.text(), true) != 1.0)
+            .any(|l| md_line_scale(l.text(), true, true) != 1.0)
     }
 }
 

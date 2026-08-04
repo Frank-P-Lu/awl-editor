@@ -244,6 +244,35 @@ fn setext_underline_is_not_a_heading_in_the_outline() {
     assert_eq!(atx[0].text, "Real Heading");
 }
 
+/// The SOURCE every consumer (heading STYLING, in particular) reads must never
+/// emit `MdKind::Heading` for a setext title — `headings_from_spans` filtering
+/// it OUT of the OUTLINE alone (the previous test) still lets the paragraph take
+/// heading ink/weight while never growing or joining the outline, the mixed
+/// state worse than either end. `spans()` must emit NO `MdKind::Heading` span
+/// anywhere in a setext heading's range — proof the fix lives at the ONE source
+/// every consumer inherits from, not just the outline's own (now-redundant,
+/// deliberately dropped) filter.
+#[test]
+fn spans_never_emits_heading_kind_for_a_setext_title() {
+    for underline in ["-", "---", "===", "=", "--------"] {
+        let doc = format!("Just a sentence.\n{underline}\n");
+        let s = spans(&doc);
+        assert!(
+            !s.iter().any(|(_, k)| matches!(k, MdKind::Heading(_))),
+            "a setext title must carry NO MdKind::Heading span (underline {underline:?}): {s:?}"
+        );
+    }
+    // ATX headings are unaffected — still a real `MdKind::Heading` span over
+    // the title text.
+    let atx_doc = "# Real Heading\n";
+    let atx = spans(atx_doc);
+    assert!(
+        atx.iter()
+            .any(|(r, k)| *k == MdKind::Heading(1) && &atx_doc[r.clone()] == "Real Heading"),
+        "an ATX heading still carries its MdKind::Heading span: {atx:?}"
+    );
+}
+
 #[test]
 fn headings_from_spans_core_matches_the_wrapper() {
     // The persistent margin outline distills headings from an ALREADY-parsed

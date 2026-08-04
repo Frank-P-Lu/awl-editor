@@ -218,7 +218,8 @@ reason = "The `Mode::BenchA11y` dispatch arm is one line in the ONE mode dispatc
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
-lines = 1057
+lines = 1063
+reason = "The `Tag::Heading` Start arm decides ATX vs SETEXT once, at the one place pulldown reports both forms as the same event, so no MdKind::Heading span is ever emitted for a setext title (+6, doc comment included) — trimmed to land exactly at the frozen baseline ceiling."
 
 [[file_size_mark]]
 file = "src/mas.rs"
@@ -386,11 +387,13 @@ reason = "The hand-kept `ALL_KINDS` array — which had silently omitted a shipp
 
 [[file_size_mark]]
 file = "src/render/spans.rs"
-lines = 1102
+lines = 1136
+reason = "A new `line_has_rule_span` helper (+19, matching the existing `line_has_image_span`/`line_has_code_span` family) plus a `confirmed_rule` parameter threaded through `md_line_scale` and its doc comment — the corroborating check that stops a setext heading's `---` underline from growing its row for an ornament that never draws."
 
 [[file_size_mark]]
 file = "src/render/text.rs"
-lines = 1440
+lines = 1446
+reason = "A doc-comment addition on `has_heading_lines` explaining why it passes `confirmed_rule: true` unconditionally to `md_line_scale` (+6): a harmless over-approximation for its zoom-restyle fast path, never the applied row geometry."
 
 [[file_size_mark]]
 file = "src/replay.rs"
@@ -615,8 +618,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/markdown/spans.rs"
 function = "spans"
-message = "this function has too many lines (159/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+message = "this function has too many lines (161/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The `Tag::Heading` Start arm grew (+15) to decide ATX vs SETEXT once, here, at the one place both forms arrive as the same pulldown event — every consumer (styling, outline, row-growth) now inherits the rule instead of re-deriving it."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

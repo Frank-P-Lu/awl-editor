@@ -185,19 +185,20 @@ fn pull_quote_hangs_in_the_column_gutter_never_the_margin() {
 fn md_line_scale_keys_off_leading_hash_count() {
     use crate::markdown::heading_scale;
     // Non-markdown buffer: always body size, whatever the text.
-    assert_eq!(md_line_scale("# heading", false), 1.0);
-    // Size by the leading-hash COUNT (valid ATX or not).
-    assert_eq!(md_line_scale("# h1", true), heading_scale(1));
-    assert_eq!(md_line_scale("## h2", true), heading_scale(2));
-    assert_eq!(md_line_scale("### h3", true), heading_scale(3));
-    assert_eq!(md_line_scale("###### deep", true), heading_scale(3)); // 4+ clamps
+    assert_eq!(md_line_scale("# heading", false, true), 1.0);
+    // Size by the leading-hash COUNT (valid ATX or not). `confirmed_rule` is
+    // irrelevant here — the heading branch always wins first.
+    assert_eq!(md_line_scale("# h1", true, true), heading_scale(1));
+    assert_eq!(md_line_scale("## h2", true, true), heading_scale(2));
+    assert_eq!(md_line_scale("### h3", true, true), heading_scale(3));
+    assert_eq!(md_line_scale("###### deep", true, true), heading_scale(3)); // 4+ clamps
     // Grows the instant you type `#`, before the space + title.
-    assert_eq!(md_line_scale("#", true), heading_scale(1));
-    assert_eq!(md_line_scale("#nospace", true), heading_scale(1));
-    assert_eq!(md_line_scale("  ## indented", true), heading_scale(2));
+    assert_eq!(md_line_scale("#", true, true), heading_scale(1));
+    assert_eq!(md_line_scale("#nospace", true, true), heading_scale(1));
+    assert_eq!(md_line_scale("  ## indented", true, true), heading_scale(2));
     // A `#` that is NOT the line's leading run is ignored (body size).
-    assert_eq!(md_line_scale("not a #heading", true), 1.0);
-    assert_eq!(md_line_scale("plain prose", true), 1.0);
+    assert_eq!(md_line_scale("not a #heading", true, true), 1.0);
+    assert_eq!(md_line_scale("plain prose", true, true), 1.0);
 }
 
 #[test]
@@ -208,14 +209,16 @@ fn md_line_scale_grows_thematic_break_rows_to_the_active_worlds_ornament_scale()
     // reads `theme::active().ornament_scale`, so hold the theme lock while flipping.
     let _t = crate::testlock::serial();
 
-    // A GEOMETRIC world (Currawong → 1.5): every break syntax grows to ITS scale.
+    // A GEOMETRIC world (Currawong → 1.5): every break syntax grows to ITS scale,
+    // GIVEN a confirmed real Rule (the ground-truth gate `md_line_scale` requires
+    // on top of the raw single-line scan — see its doc comment).
     crate::theme::set_active_by_name("Currawong").unwrap();
     let geo = crate::theme::active().ornament_scale;
     assert_eq!(geo, crate::theme::ORNAMENT_SCALE_GEOMETRIC);
-    assert_eq!(md_line_scale("---", true), geo);
-    assert_eq!(md_line_scale("***", true), geo);
-    assert_eq!(md_line_scale("___", true), geo);
-    assert_eq!(md_line_scale("- - -", true), geo);
+    assert_eq!(md_line_scale("---", true, true), geo);
+    assert_eq!(md_line_scale("***", true, true), geo);
+    assert_eq!(md_line_scale("___", true, true), geo);
+    assert_eq!(md_line_scale("- - -", true, true), geo);
 
     // An ORNATE world (Mopoke → 2.2): the SAME break lines now grow to the LARGER
     // scale — proof the row height is per-world, not a fixed rung.
@@ -226,14 +229,40 @@ fn md_line_scale_grows_thematic_break_rows_to_the_active_worlds_ornament_scale()
         ornate > geo,
         "the ornate world grows the break row more than a geometric one"
     );
-    assert_eq!(md_line_scale("---", true), ornate);
-    assert_eq!(md_line_scale("***", true), ornate);
+    assert_eq!(md_line_scale("---", true, true), ornate);
+    assert_eq!(md_line_scale("***", true, true), ornate);
 
     // Gated to markdown; a non-md buffer keeps the break at body size (per-world
     // scale never applies), and a dash LIST item (not a break) stays body size.
-    assert_eq!(md_line_scale("---", false), 1.0);
-    assert_eq!(md_line_scale("- item", true), 1.0);
+    assert_eq!(md_line_scale("---", false, true), 1.0);
+    assert_eq!(md_line_scale("- item", true, true), 1.0);
 
+    crate::theme::set_active(crate::theme::DEFAULT_THEME);
+}
+
+/// `is_thematic_break("---")` is a single-line scan and cannot tell a real
+/// thematic break from a SETEXT heading's `---` underline (the documented
+/// "KNOWN, ACCEPTED false positive" on that function) — so `md_line_scale`
+/// requires `confirmed_rule` (the REAL parse's ground truth) on TOP of the raw
+/// scan before it grows the row. Without the gate this line would go red the
+/// instant a setext underline's row was measured against the surrounding body
+/// text (see the real-pipeline row-height law below).
+#[test]
+fn md_line_scale_does_not_grow_an_unconfirmed_dash_line() {
+    let _t = crate::testlock::serial();
+    crate::theme::set_active_by_name("Currawong").unwrap();
+    let geo = crate::theme::active().ornament_scale;
+    // The raw scan alone says "grow" (matches the SAME `---` line the previous
+    // test proves DOES grow when confirmed) — but unconfirmed, it must not.
+    assert!(
+        crate::markdown::is_thematic_break("---"),
+        "sanity: the raw scan reads '---' as a break, exactly the false positive"
+    );
+    assert_eq!(
+        md_line_scale("---", true, false),
+        1.0,
+        "an UNCONFIRMED dash line (e.g. a setext underline) must stay body size, not {geo}"
+    );
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 }
 
@@ -292,6 +321,86 @@ fn heading_rows_are_taller_and_gated_to_markdown() {
     // is unchanged when nothing wraps even though rows differ in height.
     p.set_view(&md);
     assert_eq!(p.visual_row_of(2, 0), 2);
+}
+
+/// A setext heading (a paragraph underlined by `===`/`---`) must read as PLAIN
+/// BODY TEXT — same size (ink), same row height as the surrounding prose —
+/// while an ATX `#` heading and a REAL thematic break each still grow, over the
+/// REAL render pipeline (not a mirror of the arithmetic `md_line_scale` already
+/// proves in isolation above). Row HEIGHT is the direct proxy for the
+/// growing-row gap this pins shut; for SIZE, the body line and the setext title
+/// share the EXACT SAME TEXT ("Same Words Here") so their shaped `xs` (per-glyph
+/// pixel positions) are comparable glyph-for-glyph even under a PROPORTIONAL
+/// font (an `xs`-step diff alone would just measure "S" vs "B", not scale).
+#[test]
+fn setext_heading_reads_as_body_text_over_the_real_pipeline() {
+    let _t = crate::testlock::serial();
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping setext_heading_reads_as_body_text_over_the_real_pipeline: no wgpu adapter"
+        );
+        return;
+    };
+    // line: 0 ATX h1, 1 blank, 2 body ("Same Words Here"), 3 blank, 4 setext
+    // title (the IDENTICAL text "Same Words Here"), 5 setext underline, 6
+    // blank, 7 body, 8 blank, 9 REAL rule, 10 blank, 11 body.
+    let text = "# ATX Heading\n\nSame Words Here\n\nSame Words Here\n------------\n\n\
+                Body two\n\n---\n\nBody three\n";
+    let mut v = view(text, 0, 0);
+    v.is_markdown = true;
+    p.set_view(&v);
+
+    let body_h = p.row_height_px(2);
+    assert!(body_h > 0.0);
+    let row_width = |p: &TextPipeline, row: usize| {
+        let xs = p.visual_rows(row)[0].xs.clone();
+        *xs.last().unwrap()
+    };
+    let body_w = row_width(&p, 2);
+
+    // The ATX heading still grows: taller row, and its (differently-worded, but
+    // longer) row is wider than body's identical-length comparison would allow
+    // at body scale — checked precisely via row height, the unconfounded proxy.
+    assert!(
+        p.row_height_px(0) > body_h + 1.0,
+        "an ATX heading's row must still grow: {} vs body {body_h}",
+        p.row_height_px(0)
+    );
+
+    // The setext TITLE (row 4) matches body exactly — no promoted size. Same
+    // text on both rows, so the shaped LAST-glyph x-position (proportional to
+    // the whole run's width) must match glyph-for-glyph, not just in row height.
+    assert!(
+        (p.row_height_px(4) - body_h).abs() < 0.01,
+        "a setext title's row must equal a body row: {} vs {body_h}",
+        p.row_height_px(4)
+    );
+    assert!(
+        (row_width(&p, 4) - body_w).abs() < 0.01,
+        "a setext title's shaped width (identical text to the body row) must \
+         equal body's: {} vs {body_w}",
+        row_width(&p, 4)
+    );
+
+    // The setext UNDERLINE (row 5, "------------") — the growing-row gap this
+    // closes — must ALSO stay body height: `is_thematic_break` reads it as a
+    // break, but the real parse never rules it, so it must never reserve space
+    // for an ornament that `prepare_ornaments` will not draw.
+    assert!(
+        (p.row_height_px(5) - body_h).abs() < 0.01,
+        "a setext underline's row must stay body height, not grow for an \
+         ornament that never draws: {} vs {body_h}",
+        p.row_height_px(5)
+    );
+
+    // The REAL thematic break (row 9, "---" alone with blank lines on both
+    // sides) still grows — the ornament genuinely draws there.
+    assert!(
+        p.row_height_px(9) > body_h + 1.0,
+        "a REAL thematic break's row must still grow: {} vs body {body_h}",
+        p.row_height_px(9)
+    );
 }
 
 /// PER-WORLD HEADING WEIGHT — the DISTINGUISHABILITY law: in EVERY world,
