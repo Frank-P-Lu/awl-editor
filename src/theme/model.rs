@@ -189,10 +189,11 @@ pub enum FacetStyle {
     Chips(ChipVariant),
 }
 
-/// **THE SECONDARY-LOCATION HEADING'S OWN TREATMENT** — item 220's
-/// `PlanLine::Location` (the active facet's name, the second level of a
-/// summoned card's title hierarchy) is data every world reads the SAME plan
-/// line through; this says how a world DRAWS it, never whether it exists.
+/// **THE SECONDARY-LOCATION HEADING'S OWN TREATMENT** — the shared row
+/// planner's `PlanLine::Location` (the active facet's name, the second level
+/// of a summoned card's title hierarchy) is data every world reads the SAME
+/// plan line through; this says how a world DRAWS it, never whether it
+/// exists.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LocationStyle {
     /// The default: the label shapes inline, in the row-plan slot it already
@@ -201,10 +202,10 @@ pub enum LocationStyle {
     /// The line stays glyph-free; the label instead draws as a small, muted
     /// run turned 90° and seated flush with the card's own left border — a
     /// subordinate vertical counterpart to a loud primary title (Cassowary's
-    /// Archivo Black "Commands" placard). Still item 220's one planned slot;
-    /// only the paint differs. Reuses item 235's rotated-label capability —
-    /// no second rotation path (`render/layers.rs`'s
-    /// `prepare_rotated_location_label`).
+    /// Archivo Black "Commands" placard). Still the SAME one planned slot;
+    /// only the paint differs. Reuses the world-neutral rotated-label
+    /// capability — no second rotation path
+    /// (`render/rotated_location.rs`'s `prepare_rotated_location_label`).
     RotatedRail,
 }
 

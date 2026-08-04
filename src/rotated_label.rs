@@ -29,15 +29,16 @@
 //! expression — which string, which axis, which colours, where — is theme data
 //! its caller supplies.
 
-// ITEM 221 landed the first real (non-test) caller — the 90° flush-left
-// secondary heading — and reaches `draw`/`prepare`/`clear`/`ink`/`matches`/
-// `compose`/`label_axis_deg`/`label_bounds` directly. The rest of the surface
+// The rotated secondary-location heading is the first real (non-test)
+// caller and reaches `draw`/`prepare`/`clear`/`ink`/`matches`/`compose`/
+// `label_axis_deg`/`label_bounds` directly. The rest of the surface
 // (`is_drawn`, `label_local`, `label_hit`, `LabelMask::size`) is genuinely
-// unused by product code today: it belongs to item 224's still-pending
-// slanted Magpie expression, or (`label_hit`) to making the cue interactive,
-// which nothing asks for yet. Kept as an allowance on the whole module rather
-// than item-by-item so this doesn't have to be re-litigated on every partial
-// landing; trim it once every item here has a real caller.
+// unused by product code today: it belongs to a still-pending slanted
+// location-cue expression, or (`label_hit`) to making a rotated cue
+// interactive, which nothing asks for yet. Kept as an allowance on the whole
+// module rather than piece-by-piece so this doesn't have to be
+// re-litigated on every partial landing; trim it once every piece here has
+// a real caller.
 #![allow(dead_code)]
 
 pub mod geometry;
@@ -80,10 +81,10 @@ struct Globals {
 /// One rotated label: a single instanced quad sampling one composed run mask.
 ///
 /// This is the CAPABILITY slice — the two world expressions that need it (a
-/// 90° flush-left secondary heading, item 221's Cassowary Files/etc. cue; a
-/// slanted location cue, item 224's still-pending Magpie expression) are
+/// 90° flush-left secondary heading, a faceted picker's active-lens cue; a
+/// slanted location cue, a still-pending expression on a diagonal world) are
 /// separately specified and separately verifiable. Every world that draws no
-/// rotated text stays byte-identical: `render/layers.rs`'s
+/// rotated text stays byte-identical: `render/rotated_location.rs`'s
 /// `prepare_rotated_location_label` parks this pipeline (`clear()`) whenever
 /// `theme::LocationStyle` is not `RotatedRail`.
 pub struct RotatedLabelPipeline {

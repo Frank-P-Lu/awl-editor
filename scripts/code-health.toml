@@ -261,8 +261,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2483
-reason = "+2: one memoization field for the roster-width measurements and its one-line doc — a card that sizes itself from its content must measure the whole roster, and shaping one is linear in it. The renderer's GPU state floor: workspace mirrors, Kite's forward-travel accumulator, and the diagonal cluster's per-frame measured layout live beside the sibling state consumed by the same frame pipeline. The `overlay_comparison` mirror field, beside the `overlay_rows_primary` one it gates with (+5). The `doc_source` mirror field and its one-line doc (+2): the pipeline must know when the text it shapes is a substitute for the user's document, or the card figures are over the wrong text. Reconciled at the merge train with item 204 slice 2: neither branch could compute this — each measured a tree without the other's line. Re-measured on the combined candidate with items 220/234: neither branch could compute this and the two deltas must never be summed — main and this branch each moved the file for their own reasons."
+lines = 2498
+reason = "+2: one memoization field for the roster-width measurements and its one-line doc — a card that sizes itself from its content must measure the whole roster, and shaping one is linear in it. The renderer's GPU state floor: workspace mirrors, Kite's forward-travel accumulator, and the diagonal cluster's per-frame measured layout live beside the sibling state consumed by the same frame pipeline. The `overlay_comparison` mirror field, beside the `overlay_rows_primary` one it gates with (+5). The `doc_source` mirror field and its one-line doc (+2): the pipeline must know when the text it shapes is a substitute for the user's document, or the card figures are over the wrong text. Reconciled at the merge train with item 204 slice 2: neither branch could compute this — each measured a tree without the other's line. Re-measured on the combined candidate with items 220/234: neither branch could compute this and the two deltas must never be summed — main and this branch each moved the file for their own reasons. +1 line: one `mod rotated_location;` declaration, the rotated secondary-location cue's own file. +14: two new `TextPipeline` fields (the rotated-label pipeline, its compose-once mask cache) plus their doc comments, joining the one exhaustive GPU-state struct and its one `Self { .. }` construction site beside every other pipeline field here."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -291,8 +291,8 @@ lines = 536
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 996
-reason = "+1: one `pub(in crate::render) mod roster;` declaration — the roster-width measurements (a hugging card's candidates, its chord column, the spell popup's suggestions) left `overlay.rs` and `overlay_shape.rs` for their own owner, dropping both files well under their marks. +14 lines. `OverlayGeom::shaped_first_row_line` is the one owner of which shaped `panel_buffer` line carries candidate row 0 — not always `header_rows`, because a query beat that stands on its own takes a glyph-free line between the header and the candidates, and the five readers that used to re-derive `header_rows` would each measure that spacer as a candidate row. Previously: items 217 + 204 slice 2 reconciled at the merge train: 969 + 5. Neither branch could compute this — 204 was cut before 217 landed, so its 973 measured a tree without 217's re-export and main's 969 measured one without the gutter change. The gutter block became variable-height, so `GutterLayout` gained the affordance line every consumer reads through one owner (+5). Previously: The chrome module owns the resolved overlay geometry record and its single sibling re-export for the measured diagonal row span; workspace, rail, and two-sided slant consumers share that seam. The header band's four y-owners (secondary origin, split bounds, strip band, query centre) left for the scene planner. One `mod workspace_column;` declaration: the primary column's measurement extracted so `chrome/workspace.rs` stays under the 500-line ceiling (+1). One `mod card;` declaration on the same module-list seam: the card's input gathering extracted so `chrome/hud.rs` drops 39 lines and holds only the draw path (+1). Re-measured on the combined candidate with items 220/234: neither branch could compute this and the two deltas must never be summed — main and this branch each moved the file for their own reasons."
+lines = 997
+reason = "+1: one `pub(in crate::render) mod roster;` declaration — the roster-width measurements (a hugging card's candidates, its chord column, the spell popup's suggestions) left `overlay.rs` and `overlay_shape.rs` for their own owner, dropping both files well under their marks. +14 lines. `OverlayGeom::shaped_first_row_line` is the one owner of which shaped `panel_buffer` line carries candidate row 0 — not always `header_rows`, because a query beat that stands on its own takes a glyph-free line between the header and the candidates, and the five readers that used to re-derive `header_rows` would each measure that spacer as a candidate row. Previously: items 217 + 204 slice 2 reconciled at the merge train: 969 + 5. Neither branch could compute this — 204 was cut before 217 landed, so its 973 measured a tree without 217's re-export and main's 969 measured one without the gutter change. The gutter block became variable-height, so `GutterLayout` gained the affordance line every consumer reads through one owner (+5). Previously: The chrome module owns the resolved overlay geometry record and its single sibling re-export for the measured diagonal row span; workspace, rail, and two-sided slant consumers share that seam. The header band's four y-owners (secondary origin, split bounds, strip band, query centre) left for the scene planner. One `mod workspace_column;` declaration: the primary column's measurement extracted so `chrome/workspace.rs` stays under the 500-line ceiling (+1). One `mod card;` declaration on the same module-list seam: the card's input gathering extracted so `chrome/hud.rs` drops 39 lines and holds only the draw path (+1). Re-measured on the combined candidate with items 220/234: neither branch could compute this and the two deltas must never be summed — main and this branch each moved the file for their own reasons. +1: one `mod rotated_location;` declaration — the rotated secondary-location cue's own chrome-facing half (which planned line it is, and where its row sits) left for its own file; the mask compose/axis/shrink-to-fit live in an even further `render::rotated_location` sibling outside `chrome` entirely."
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
@@ -305,8 +305,8 @@ reason = "DOWN 27: the roster-width measurements moved to `chrome/roster.rs`. Th
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_draw.rs"
-lines = 515
-reason = "+3: the diagonal chord column is seated by the shaped buffer's own width, so its right-aligned ink lands on the rail's far edge instead of a whole text column further right, off the card. +1 line. The one text-upload batch places diagonal labels and accessories per measured planned row, and now takes the row plan for the query caret's own field box too — the caret is centred in the same planned box the pointer hit-test accepts, instead of a line height read back off the shaped run only the draw path could see."
+lines = 520
+reason = "+3: the diagonal chord column is seated by the shaped buffer's own width, so its right-aligned ink lands on the rail's far edge instead of a whole text column further right, off the card. +1 line. The one text-upload batch places diagonal labels and accessories per measured planned row, and now takes the row plan for the query caret's own field box too — the caret is centred in the same planned box the pointer hit-test accepts, instead of a line height read back off the shaped run only the draw path could see. +5: `prepare_overlay` gained the one call site that hands this frame's location line to the rotated-label capability; the cue's own logic (which plan line it is, where its row sits) moved to a dedicated `chrome::rotated_location` submodule rather than growing this file further."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_rows.rs"
@@ -329,8 +329,8 @@ reason = "DOWN 30: the word-count and reading-time derivation moved out to `src/
 
 [[file_size_mark]]
 file = "src/render/chrome/theme_picker.rs"
-lines = 592
-reason = "+31 lines. The grouped card's display plan gained a THIRD line kind: a section whose label is the card's own location is not a section, so it is planned and shaped as the second level of the heading hierarchy — its own scale const, its own metrics, its own span arm in the chrome face at `muted`, and the plan arm that chooses between the two. Previously: `theme_overlay_geometry` is an exhaustive `OverlayGeom` construction site, so every workspace field is spelled out here. The strip band now reads the row plan, which is threaded through the two shaping owners."
+lines = 598
+reason = "+31 lines. The grouped card's display plan gained a THIRD line kind: a section whose label is the card's own location is not a section, so it is planned and shaped as the second level of the heading hierarchy — its own scale const, its own metrics, its own span arm in the chrome face at `muted`, and the plan arm that chooses between the two. Previously: `theme_overlay_geometry` is an exhaustive `OverlayGeom` construction site, so every workspace field is spelled out here. The strip band now reads the row plan, which is threaded through the two shaping owners. Net +6: the location-scale constant moved out to `render::rotated_location` (shared with the rotated-rail treatment, -4 lines including its doc), and the inline span arm gained a `RotatedRail`-world guard so that world's own vertical cue is not drawn twice (+10)."
 
 [[file_size_mark]]
 file = "src/render/framebench.rs"
@@ -352,8 +352,8 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 549
-reason = "+1: the roster memo's inert default in the one initializer. The one `TextPipeline` initializer spells out workspace state, the diagonal cluster cache, and the warp accumulator beside the state they initialize. The `overlay_comparison` mirror's inert default in the one initializer (+1). The `doc_source` mirror's inert default in the same initializer (+1). Reconciled at the merge train with item 204 slice 2: neither branch could compute this — each measured a tree without the other's line. Re-measured on the combined candidate with items 220/234: neither branch could compute this and the two deltas must never be summed — main and this branch each moved the file for their own reasons."
+lines = 556
+reason = "+1: the roster memo's inert default in the one initializer. The one `TextPipeline` initializer spells out workspace state, the diagonal cluster cache, and the warp accumulator beside the state they initialize. The `overlay_comparison` mirror's inert default in the one initializer (+1). The `doc_source` mirror's inert default in the same initializer (+1). Reconciled at the merge train with item 204 slice 2: neither branch could compute this — each measured a tree without the other's line. Re-measured on the combined candidate with items 220/234: neither branch could compute this and the two deltas must never be summed — main and this branch each moved the file for their own reasons. +7: the rotated secondary-location cue's pipeline joins the one exhaustive `TextPipeline` initializer (its `RotatedLabelPipeline::new` construction, a one-line comment, and its two field initializers in `Self { .. }`) beside every other GPU pipeline field here."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
@@ -451,8 +451,8 @@ lines = 315
 
 [[file_size_mark]]
 file = "src/theme/model.rs"
-lines = 550
-reason = "items 132/194 (+2): has_ambient_motion gained the warped-grid arm, so the new ground inherits the page-mode force and the move-stream present hold rather than re-implementing them. Item 236 (+13): ListStyle::draws_row_plates, the one owner of 'does this style back its rows with plates' — the question two laws and a test probe were asking list_backing, which answers a different one (whether the CARD has a backing). It is an inherent method on ListStyle and belongs beside the accessor it disambiguates; anywhere else and the confusion it exists to end is a file apart from its cause. Both matches are no-wildcard by design."
+lines = 572
+reason = "items 132/194 (+2): has_ambient_motion gained the warped-grid arm, so the new ground inherits the page-mode force and the move-stream present hold rather than re-implementing them. Item 236 (+13): ListStyle::draws_row_plates, the one owner of 'does this style back its rows with plates' — the question two laws and a test probe were asking list_backing, which answers a different one (whether the CARD has a backing). It is an inherent method on ListStyle and belongs beside the accessor it disambiguates; anywhere else and the confusion it exists to end is a file apart from its cause. Both matches are no-wildcard by design. +22: item 221's `LocationStyle` enum (Inline/RotatedRail) plus its own doc comment, and the one `location_style` field it adds to the exhaustive `RenderCaps` struct and its `DEFAULT` — the same one-owner-capability shape every other `RenderCaps` field here already takes; a world's own paint-vs-existence question for the shared location line, not a second code path."
 
 [[file_size_mark]]
 file = "src/theme/worlds.rs"
@@ -465,7 +465,8 @@ file = "src/theme/worlds.rs"
 # (1110 -> 1099) on top of the rebased tree. Item 132 added Kite and moved the
 # never-enrolled gallery audition out to theme/worlds_gallery.rs, so this file
 # holds only the shipped roster (1124 -> 1123).
-lines = 1122
+lines = 1128
+reason = "+6: item 221's Cassowary literal gains one `location_style: LocationStyle::RotatedRail,` field plus its own short comment — the same one-field-per-world-capability shape `icon_ground`/`icon_cursor` above already take, irreducible without a second implicit default path."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -617,9 +618,9 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/overlay_draw.rs"
-line = 201
+line = 206
 message = "this function has too many lines (207/100)"
-reason = "+1: the diagonal chord column reads the shaped buffer's own width to seat its right-aligned ink. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Item 114 added the workspace rail's own clipped text area (+17). Line/size moved by queue item 114's summoned Settings workspace."
+reason = "+1: the diagonal chord column reads the shaped buffer's own width to seat its right-aligned ink. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Item 114 added the workspace rail's own clipped text area (+17). Line/size moved by queue item 114's summoned Settings workspace. Line moved (not size) by item 221's own rotated-location call site above it; that cue's shaping/geometry moved to a dedicated chrome::rotated_location submodule rather than growing this function."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -645,16 +646,16 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/theme_picker.rs"
-line = 195
+line = 191
 message = "this function has too many lines (167/100)"
-reason = "Line moved by the location line kind added above it; the count is unchanged. The row plan is threaded to this shaper so the strip's active mark rides the planned strip box; +3 lines at an existing chrome draw owner. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line/size moved by queue item 114's summoned Settings workspace."
+reason = "Line moved by the location line kind added above it; the count is unchanged. The row plan is threaded to this shaper so the strip's active mark rides the planned strip box; +3 lines at an existing chrome draw owner. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line/size moved by queue item 114's summoned Settings workspace. Item 221 moved the module-level LOCATION_SCALE constant + its doc comment out of this file (to render::rotated_location), shifting this function's line 4 lines earlier; its own size is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/theme_picker.rs"
-line = 405
-message = "this function has too many lines (131/100)"
-reason = "+7: the shaper gained the location heading's own metrics and span arm. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line/size moved by queue item 114's summoned Settings workspace."
+line = 401
+message = "this function has too many lines (135/100)"
+reason = "+7: the shaper gained the location heading's own metrics and span arm. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line/size moved by queue item 114's summoned Settings workspace. +4: item 221's RotatedRail world gates the location line's inline span behind a condition instead of drawing it unconditionally, so the PlanLine::Location arm gained an if/comment; the rotated treatment itself lives in a dedicated chrome::rotated_location submodule, not here."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -772,15 +773,15 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 line = 6
-message = "this function has too many lines (491/100)"
-reason = "+1: the roster memo's inert default. Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer. +1 line: the `overlay_comparison` mirror field's inert default, beside the `overlay_rows_primary` one it pairs with. +1: the `doc_source` mirror's inert default."
+message = "this function has too many lines (495/100)"
+reason = "+1: the roster memo's inert default. Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer. +1 line: the `overlay_comparison` mirror field's inert default, beside the `overlay_rows_primary` one it pairs with. +1: the `doc_source` mirror's inert default. +4: item 221's rotated-location-cue pipeline joins the one exhaustive `TextPipeline::new` construction site (the pipeline's own construction call plus its two field initializers in `Self { .. }`), the same shape every other GPU pipeline field here already takes."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render.rs"
-line = 970
+line = 971
 message = "this function has too many lines (105/100)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
+reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. Line moved (not size) by item 221's new `mod rotated_location;` declaration earlier in this file."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1190,8 +1191,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
 line = 2986
-message = "this function has too many lines (161/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+message = "this function has too many lines (163/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. +2: item 221 added Cassowary's `location_style: LocationStyle::RotatedRail` (plus a one-line comment) to this file's no-wildcard per-world `render_caps` expectation table; Wagtail's exhaustive arm took the paired `LocationStyle::Inline` line, absorbed by an existing comment line it replaced."
 
 # Add structural exceptions only for intentional URL/unbreakable/rustfmt-skip/generated/architectural cases.
 # Each entry must pin the exact line text so removal or movement is stale.

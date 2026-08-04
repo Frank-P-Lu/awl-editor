@@ -120,6 +120,7 @@ mod pipeline_geometry;
 mod pipeline_layers;
 mod pipeline_overlay;
 mod pipeline_prepare;
+mod rotated_location;
 
 pub const FONT_SIZE: f32 = 24.0;
 pub const LINE_HEIGHT: f32 = 32.0;
@@ -2088,13 +2089,14 @@ pub struct TextPipeline {
     /// placard's first-in-batch upload gives it); parked empty on every
     /// non-stipple world and whenever no overlay is up.
     pub placard_stipple: SelectionPipeline,
-    /// ITEM 221 — CASSOWARY'S VERTICAL SECOND-LEVEL HEADING: the active
-    /// facet's name (`theme::LocationStyle::RotatedRail`), turned 90° and
-    /// seated flush with the card's own left border, subordinate to the bold
-    /// title placard. Reuses item 235's rotated-label capability wholesale —
-    /// this pipeline draws nothing of its own shape, only a composed glyph
-    /// mask rotated onto an axis. Parked (`clear()`) for every world that
-    /// keeps the default `Inline` treatment, so those stay byte-identical.
+    /// THE ROTATED SECONDARY-LOCATION HEADING: a `RenderCaps::location_style
+    /// == LocationStyle::RotatedRail` world's active facet name, turned 90°
+    /// and seated flush with the card's own left border, subordinate to the
+    /// bold title placard. Reuses the world-neutral rotated-label capability
+    /// wholesale — this pipeline draws nothing of its own shape, only a
+    /// composed glyph mask rotated onto an axis. Parked (`clear()`) for
+    /// every world that keeps the default `Inline` treatment, so those stay
+    /// byte-identical.
     pub rotated_label_pipeline: crate::rotated_label::RotatedLabelPipeline,
     /// The rotated cue's own compose-once cache, keyed by
     /// [`crate::rotated_label::mask::LabelMask::matches`] against this

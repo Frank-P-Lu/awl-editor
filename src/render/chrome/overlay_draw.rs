@@ -59,59 +59,6 @@ impl TextPipeline {
         Ok(())
     }
 
-    /// ITEM 221 — read THIS frame's location line (item 220's
-    /// `PlanLine::Location`, still the row-plan's own single slot) and, on a
-    /// `RotatedRail` world, hand its text, its row band, and the ONE known
-    /// blank stretch above it (`geom.header_gap` — the "calm divider" the
-    /// query beat carves between the lens strip and the candidate band,
-    /// deliberately empty on every faceted card, item 4's own composition
-    /// round) to the rotated-label capability. `OverlayGeom`/`OverlayRowPlan`
-    /// are `chrome`-private, so this is the one place that reads them for the
-    /// cue; everything past this (the mask compose, the axis, the quad, the
-    /// shrink-to-fit) is `TextPipeline::prepare_rotated_location_label`
-    /// (`render/layers.rs`), which knows nothing about facets or plans —
-    /// only a string and a rectangle.
-    fn prepare_overlay_rotated_location(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        width: u32,
-        height: u32,
-        geom: &OverlayGeom,
-        plan: &OverlayRowPlan,
-    ) {
-        let cue = (theme::active().render_caps.location_style == theme::LocationStyle::RotatedRail)
-            .then(|| {
-                geom.plan
-                    .iter()
-                    .enumerate()
-                    .find_map(|(display, line)| match line {
-                        PlanLine::Location(l) => Some((display, l.clone())),
-                        _ => None,
-                    })
-            })
-            .flatten()
-            .and_then(|(display, label)| {
-                plan.rows()
-                    .get(display)
-                    .map(|row| (label, row.top, row.height))
-            });
-        match cue {
-            Some((label, row_top, row_height)) => self.prepare_rotated_location_label(
-                device,
-                queue,
-                width,
-                height,
-                &label,
-                geom.card_x,
-                row_top,
-                row_height,
-                geom.header_gap,
-            ),
-            None => self.rotated_label_pipeline.clear(),
-        }
-    }
-
     /// PARK every overlay pipeline empty for a frame with NO active overlay —
     /// the park-when-off discipline `prepare_hud` / `park_preview_text` already
     /// follow, applied to the summoned card. Without this the overlay TEXT
@@ -168,9 +115,9 @@ impl TextPipeline {
         // stipple-world overlay closes carries zero stale wordmark pixels.
         self.placard_stipple
             .prepare(device, queue, width, height, &[]);
-        // ITEM 221 — the rotated location cue parks too, so the frame after a
-        // Cassowary overlay closes (or a lens change drops it) carries no
-        // stale vertical run.
+        // The rotated location cue parks too, so the frame after a
+        // `RotatedRail` world's overlay closes (or a lens change drops it)
+        // carries no stale vertical run.
         self.rotated_label_pipeline.clear();
         // The Bars behind-the-bars placard pass: parked (no areas) so a closed
         // picker carries no stale wordmark into the next frame.

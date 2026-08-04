@@ -3125,8 +3125,8 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 // every world — the silent pole included.
                 list_style: model::ListStyle::Pane,
                 facet_style: model::FacetStyle::Text,
-                // ITEM 221: the silent pole keeps the shared inline treatment
-                // (only Cassowary opts to `RotatedRail`).
+                // The silent pole keeps the shared inline treatment (only
+                // Cassowary opts to `RotatedRail`).
                 location_style: model::LocationStyle::Inline,
                 // SPLIT-PANE COMPOSITION round: the silent pole takes the DEFAULT
                 // split like every Pane world (only Cassowary opts to `Unified`).
@@ -3213,9 +3213,9 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 elevation: Elevation::Bordered,
                 list_style: poster_bars,
                 facet_style: FacetStyle::Chips(ChipVariant::Bracket),
-                // ITEM 221: the active facet reads as a vertical secondary
-                // heading flush with the card's own left border, not the
-                // inline treatment every other world uses.
+                // The active facet reads as a vertical secondary heading
+                // flush with the card's own left border, not the inline
+                // treatment every other world uses.
                 location_style: model::LocationStyle::RotatedRail,
                 // SPLIT-PANE COMPOSITION round: the NERV console is the ONE Pane
                 // exception — a UNIFIED room (dormant under its poster Bars list).

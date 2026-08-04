@@ -241,10 +241,10 @@ impl TextPipeline {
         self.panel_renderer
             .render(&self.atlas, &self.viewport, pass)
             .map_err(|e| anyhow::anyhow!("glyphon overlay render failed: {e:?}"))?;
-        // ITEM 221 — the rotated secondary-location cue, drawn after the row
-        // text so it is never covered by it. It lives in the card's own left
-        // gutter (outside the text column), so ordinary rows never draw over
-        // it either way; this slot just keeps painter's order simple.
+        // The rotated secondary-location cue, drawn after the row text so it
+        // is never covered by it. It lives in the card's own left gutter
+        // (outside the text column), so ordinary rows never draw over it
+        // either way; this slot just keeps painter's order simple.
         self.rotated_label_pipeline.draw(pass);
         // CARET-STYLE PICKER: the animated demo caret (under the sample text, like the
         // document block caret), then the sample line, then — Morph only, settled on

@@ -967,8 +967,8 @@ pub const CASSOWARY: Theme = Theme {
         elevation: Elevation::Bordered,
         list_style: POSTER_BARS,
         facet_style: FacetStyle::Chips(ChipVariant::Bracket),
-        // ITEM 221 — the active facet (Files, Navigate, …) reads as a small
-        // vertical secondary heading flush with the card's own left border,
+        // The active facet (Files, Navigate, …) reads as a small vertical
+        // secondary heading flush with the card's own left border,
         // subordinate to the bold "Commands" placard, rather than repeating
         // the inline treatment every other world uses.
         location_style: LocationStyle::RotatedRail,

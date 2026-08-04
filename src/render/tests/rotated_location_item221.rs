@@ -1,18 +1,19 @@
 //! ITEM 221 — CASSOWARY'S VERTICAL SECOND-LEVEL HEADING.
 //!
-//! **Defect:** item 220 gave every faceting picker a location line (the
-//! active lens's own name, the second level of the card's title hierarchy),
-//! but drew it the same generic way on every world — including Cassowary,
-//! whose left edge and bold Archivo-Black "Commands" placard are its whole
-//! visual language, and which a horizontal line of chrome-face text in a
-//! bars plate does not use at all.
+//! **Defect:** the shared row planner gave every faceting picker a location
+//! line (the active lens's own name, the second level of the card's title
+//! hierarchy), but drew it the same generic way on every world — including
+//! Cassowary, whose left edge and bold Archivo-Black "Commands" placard are
+//! its whole visual language, and which a horizontal line of chrome-face
+//! text in a bars plate does not use at all.
 //!
 //! **Build:** on a `RotatedRail` world (Cassowary today, the ONLY world this
-//! item touches), the location renders NOTHING inline — the plan line
-//! item 220 built stays glyph-free — and instead a small muted run, turned
-//! 90°, flush with the card's own left border. It reuses item 220's single
-//! `PlanLine::Location` slot (no second row is planned) and item 235's
-//! rotated-label capability wholesale (no second rotation path).
+//! item touches), the location renders NOTHING inline — the planned line
+//! stays glyph-free — and instead a small muted run, turned 90°, flush with
+//! the card's own left border. It reuses the row planner's single
+//! `PlanLine::Location` slot (no second row is planned) and the
+//! world-neutral rotated-label capability wholesale (no second rotation
+//! path).
 //!
 //! Two families of law:
 //!
@@ -32,7 +33,7 @@
 
 use super::super::*;
 use super::{headless_dqp, view};
-use crate::render::layers::{
+use crate::render::rotated_location::{
     ROTATED_LOCATION_HEADER_GAP_FRAC, ROTATED_LOCATION_INSET_PX, rotated_location_origin,
 };
 use crate::rotated_label::geometry::{InkBox, label_axis_deg, label_bounds};
@@ -246,136 +247,148 @@ fn cassowary_rotated_location_cue_is_flush_left_and_never_crowds_a_neighbor() {
     let mut graded = 0usize;
     for dpi in [1.0f32, 2.0] {
         for &label in &["Files", "Navigate", "Settings"] {
-            p.sync_theme();
-            p.set_dpi(dpi);
-            let lens = lens_index(label);
-            let mut v = palette_view(lens);
-            assert_eq!(v.overlay_location.as_deref(), Some(label));
-
-            p.set_view(&v);
-            p.prepare(&device, &queue, 1200, 800).unwrap();
-            // THE REAL GEOMETRY THIS FRAME PLANNED — never re-derived, never
-            // eyeballed off a screenshot.
-            let geom = p.overlay_geometry(1200);
-            assert!(
-                p.overlay_geom_is_faceted(&geom),
-                "{label}: not a faceted card"
-            );
-            let plan = p.overlay_row_plan(&geom);
-            let loc_display = geom
-                .plan_labels_probe()
-                .iter()
-                .position(|s| s == &format!("loc:{label}"))
-                .unwrap_or_else(|| {
-                    panic!(
-                        "{label}: no location line planned ({:?})",
-                        geom.plan_labels_probe()
-                    )
-                });
-            let row = *plan
-                .rows()
-                .get(loc_display)
-                .unwrap_or_else(|| panic!("{label}: no planned row at display {loc_display}"));
-            assert!(
-                plan.strip_band().is_some(),
-                "{label}: Cassowary's command palette has no lens strip"
-            );
-            let card_x = geom.band_x_probe();
-            let text_left = geom.text_left;
-            let row_bottom = row.top + row.height;
-            // THE DESIGN'S OWN CEILING — `row_height` plus the fraction of
-            // the query beat's calm divider `prepare_rotated_location_label`
-            // treats as safely blank (never the WHOLE gap: most of it is
-            // the strip's own pill sitting centred in a taller box, not
-            // free space — see that function's own comment). A cue that
-            // reaches higher than this, for ANY reason (the shrink-to-fit
-            // call skipped, the wrong quantity fed it, a future edit to the
-            // budget formula), fails here independently of the internal
-            // formula: this is the REAL rendered footprint, read back from
-            // GPU pixels, held to the CONTRACT rather than re-trusted.
-            let budget = row.height + geom.header_gap.max(0.0) * ROTATED_LOCATION_HEADER_GAP_FRAC;
-
-            let with_loc = shoot(&device, &queue, &mut p, 1200, 800);
-            v.overlay_location = None;
-            let without_loc = render_view(&device, &queue, &mut p, &v);
-
-            // `set_dpi` changes glyph SCALE, not the framebuffer's own
-            // resolution (`set_size` alone owns that) — the capture stays a
-            // fixed 1200x800, and `dpi` is exercised through the geometry
-            // (`row`, `geom.header_gap`, `geom.band_x_probe()`) reading
-            // finer glyph metrics at the same canvas size, exactly like
-            // `render/tests/hover_slop_law.rs` and its neighbours sweep it.
-            let (w, h) = (1200i64, 800i64);
-            assert_eq!(
-                with_loc.len() as i64,
-                w * h,
-                "{label} at {dpi}x: capture size mismatch"
-            );
-
-            // `AA_PAD` absorbs anti-aliased edge softness AT THE BUDGET
-            // CEILING alone (a glyph's antialiased top row is real ink at
-            // partial coverage, not a design overflow) — never at the row's
-            // own bottom, which `rotated_location_origin` anchors EXACTLY:
-            // that edge staying zero-tolerance is the real "never crowds a
-            // command row" guarantee this law exists to hold.
-            const AA_PAD: f32 = 2.0;
-            let x0 = card_x.round().max(0.0) as i64;
-            let x1 = (text_left.round() as i64).min(w);
-            let y_lo = (row_bottom - budget - AA_PAD).round() as i64;
-            let y_hi = row_bottom.round() as i64;
-
-            let mut present = false;
-            let mut leftmost: Option<i64> = None;
-            let mut above_strip: Vec<(i64, i64)> = Vec::new();
-            let mut below_row: Vec<(i64, i64)> = Vec::new();
-            for y in 0..h {
-                for x in x0.max(0)..x1.max(x0) {
-                    let i = (y * w + x) as usize;
-                    if with_loc[i] == without_loc[i] {
-                        continue;
-                    }
-                    if y >= y_lo && y <= y_hi {
-                        present = true;
-                        leftmost = Some(leftmost.map_or(x, |l| l.min(x)));
-                    } else if y < y_lo {
-                        above_strip.push((x, y));
-                    } else {
-                        below_row.push((x, y));
-                    }
-                }
-            }
-            assert!(
-                present,
-                "{label} at {dpi}x: no differing pixel found in the cue's own permitted \
-                 gutter band (x [{x0},{x1}) y [{y_lo},{y_hi}]) — the cue did not draw"
-            );
-            let left_px = leftmost.expect("present implies a leftmost column");
-            let flush_target = card_x.round() as i64;
-            assert!(
-                (left_px - flush_target).abs() <= (2.0 * ROTATED_LOCATION_INSET_PX).round() as i64,
-                "{label} at {dpi}x: leftmost cue ink at x={left_px} is not flush with \
-                 card_x={flush_target}"
-            );
-            assert!(
-                above_strip.is_empty(),
-                "{label} at {dpi}x: {} differing pixels ABOVE the shrink-to-fit budget \
-                 (row_height + header_gap*frac, {budget:.1}px) ({:?}…) — the cue grew \
-                 past its own declared ceiling toward the lens strip",
-                above_strip.len(),
-                &above_strip[..above_strip.len().min(5)]
-            );
-            assert!(
-                below_row.is_empty(),
-                "{label} at {dpi}x: {} differing pixels BELOW the location row's own \
-                 bottom ({:?}…) — the cue crowds the first command row",
-                below_row.len(),
-                &below_row[..below_row.len().min(5)]
-            );
+            grade_one_facet_name(&device, &queue, &mut p, dpi, label);
             graded += 1;
         }
     }
     theme::set_active(theme::DEFAULT_THEME);
     assert_eq!(graded, 6, "the sweep over facet names x DPI moved");
+}
+
+/// One `(dpi, label)` cell of `cassowary_rotated_location_cue_is_flush_left_
+/// and_never_crowds_a_neighbor` — split out so the sweep above stays a
+/// visible loop over the cases graded, not entangled with the grading
+/// itself.
+fn grade_one_facet_name(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    p: &mut TextPipeline,
+    dpi: f32,
+    label: &str,
+) {
+    p.sync_theme();
+    p.set_dpi(dpi);
+    let lens = lens_index(label);
+    let mut v = palette_view(lens);
+    assert_eq!(v.overlay_location.as_deref(), Some(label));
+
+    p.set_view(&v);
+    p.prepare(device, queue, 1200, 800).unwrap();
+    // THE REAL GEOMETRY THIS FRAME PLANNED — never re-derived, never
+    // eyeballed off a screenshot.
+    let geom = p.overlay_geometry(1200);
+    assert!(
+        p.overlay_geom_is_faceted(&geom),
+        "{label}: not a faceted card"
+    );
+    let plan = p.overlay_row_plan(&geom);
+    let loc_display = geom
+        .plan_labels_probe()
+        .iter()
+        .position(|s| s == &format!("loc:{label}"))
+        .unwrap_or_else(|| {
+            panic!(
+                "{label}: no location line planned ({:?})",
+                geom.plan_labels_probe()
+            )
+        });
+    let row = *plan
+        .rows()
+        .get(loc_display)
+        .unwrap_or_else(|| panic!("{label}: no planned row at display {loc_display}"));
+    assert!(
+        plan.strip_band().is_some(),
+        "{label}: Cassowary's command palette has no lens strip"
+    );
+    let card_x = geom.band_x_probe();
+    let text_left = geom.text_left;
+    let row_bottom = row.top + row.height;
+    // THE DESIGN'S OWN CEILING — `row_height` plus the fraction of the query
+    // beat's calm divider `prepare_rotated_location_label` treats as safely
+    // blank (never the WHOLE gap: most of it is the strip's own pill
+    // sitting centred in a taller box, not free space — see that
+    // function's own comment). A cue that reaches higher than this, for ANY
+    // reason (the shrink-to-fit call skipped, the wrong quantity fed it, a
+    // future edit to the budget formula), fails here independently of the
+    // internal formula: this is the REAL rendered footprint, read back from
+    // GPU pixels, held to the CONTRACT rather than re-trusted.
+    let budget = row.height + geom.header_gap.max(0.0) * ROTATED_LOCATION_HEADER_GAP_FRAC;
+
+    let with_loc = shoot(device, queue, p, 1200, 800);
+    v.overlay_location = None;
+    let without_loc = render_view(device, queue, p, &v);
+
+    // `set_dpi` changes glyph SCALE, not the framebuffer's own resolution
+    // (`set_size` alone owns that) — the capture stays a fixed 1200x800,
+    // and `dpi` is exercised through the geometry (`row`, `geom.header_gap`,
+    // `geom.band_x_probe()`) reading finer glyph metrics at the same canvas
+    // size, exactly like `render/tests/hover_slop_law.rs` and its
+    // neighbours sweep it.
+    let (w, h) = (1200i64, 800i64);
+    assert_eq!(
+        with_loc.len() as i64,
+        w * h,
+        "{label} at {dpi}x: capture size mismatch"
+    );
+
+    // `AA_PAD` absorbs anti-aliased edge softness AT THE BUDGET CEILING
+    // alone (a glyph's antialiased top row is real ink at partial coverage,
+    // not a design overflow) — never at the row's own bottom, which
+    // `rotated_location_origin` anchors EXACTLY: that edge staying
+    // zero-tolerance is the real "never crowds a command row" guarantee
+    // this law exists to hold.
+    const AA_PAD: f32 = 2.0;
+    let x0 = card_x.round().max(0.0) as i64;
+    let x1 = (text_left.round() as i64).min(w);
+    let y_lo = (row_bottom - budget - AA_PAD).round() as i64;
+    let y_hi = row_bottom.round() as i64;
+
+    let mut present = false;
+    let mut leftmost: Option<i64> = None;
+    let mut above_strip: Vec<(i64, i64)> = Vec::new();
+    let mut below_row: Vec<(i64, i64)> = Vec::new();
+    for y in 0..h {
+        for x in x0.max(0)..x1.max(x0) {
+            let i = (y * w + x) as usize;
+            if with_loc[i] == without_loc[i] {
+                continue;
+            }
+            if y >= y_lo && y <= y_hi {
+                present = true;
+                leftmost = Some(leftmost.map_or(x, |l| l.min(x)));
+            } else if y < y_lo {
+                above_strip.push((x, y));
+            } else {
+                below_row.push((x, y));
+            }
+        }
+    }
+    assert!(
+        present,
+        "{label} at {dpi}x: no differing pixel found in the cue's own permitted \
+         gutter band (x [{x0},{x1}) y [{y_lo},{y_hi}]) — the cue did not draw"
+    );
+    let left_px = leftmost.expect("present implies a leftmost column");
+    let flush_target = card_x.round() as i64;
+    assert!(
+        (left_px - flush_target).abs() <= (2.0 * ROTATED_LOCATION_INSET_PX).round() as i64,
+        "{label} at {dpi}x: leftmost cue ink at x={left_px} is not flush with card_x={flush_target}"
+    );
+    assert!(
+        above_strip.is_empty(),
+        "{label} at {dpi}x: {} differing pixels ABOVE the shrink-to-fit budget \
+         (row_height + header_gap*frac, {budget:.1}px) ({:?}…) — the cue grew \
+         past its own declared ceiling toward the lens strip",
+        above_strip.len(),
+        &above_strip[..above_strip.len().min(5)]
+    );
+    assert!(
+        below_row.is_empty(),
+        "{label} at {dpi}x: {} differing pixels BELOW the location row's own bottom \
+         ({:?}…) — the cue crowds the first command row",
+        below_row.len(),
+        &below_row[..below_row.len().min(5)]
+    );
 }
 
 /// **THE ALL HOME SHOWS NO CUE — same gutter-column differential, real
