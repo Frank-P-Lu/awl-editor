@@ -530,8 +530,14 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
         match ev {
             Event::Start(tag) => match tag {
                 Tag::Heading { level, .. } => {
-                    heading = Some(level_u8(level));
-                    push_heading_markers(&mut body, text, &range);
+                    // ATX vs SETEXT: the Start-tag `range` opens on the line's
+                    // first non-indent byte for both, so `#` there means ATX.
+                    // awl is ATX-only (`headings.rs`); a `None` heading here lets
+                    // `inline_kind` fall through, so a setext title styles plain.
+                    if text[range.start..].starts_with('#') {
+                        heading = Some(level_u8(level));
+                        push_heading_markers(&mut body, text, &range);
+                    }
                 }
                 Tag::Strong => {
                     strong += 1;

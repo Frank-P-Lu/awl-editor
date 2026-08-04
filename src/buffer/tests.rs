@@ -1434,6 +1434,37 @@ fn crlf_file_normalizes_on_load_and_round_trips_byte_for_byte() {
 }
 
 #[test]
+fn setext_headings_round_trip_byte_for_byte() {
+    // The file is plain text and setext is valid CommonMark — a setext heading
+    // not reading as a heading (nor growing its underline's row) changes what awl
+    // DRAWS, never what it STORES. Load a document mixing an ATX heading, a
+    // setext heading (`===` underline), a real thematic break, and a
+    // setext-underline that's a bare `---` (the dash form is the one
+    // `is_thematic_break`'s documented false positive can confuse with a real
+    // break) — then a no-edit save must reproduce the EXACT original bytes.
+    use crate::fs::FileSystem;
+    use std::sync::Arc;
+    let path = std::path::PathBuf::from("/docs/setext.md");
+    let raw = "# ATX Heading\n\nSetext Title\n------------\n\nAnother Setext\n\
+               ==============\n\n---\n\nbody\n";
+    let mem = crate::fs::InMemoryFs::new().with_file(&path, raw);
+    crate::fs::with_fs(Arc::new(mem.clone()), || {
+        let mut buf = Buffer::from_file(&path);
+        assert_eq!(
+            buf.disk_bytes(),
+            raw.as_bytes(),
+            "load produces byte-identical disk_bytes with no edits"
+        );
+        buf.save().unwrap();
+        assert_eq!(
+            mem.read(&path).unwrap(),
+            raw.as_bytes(),
+            "a no-edit save of a setext-bearing document reproduces the exact original bytes"
+        );
+    });
+}
+
+#[test]
 fn mixed_eol_file_picks_dominant_and_normalizes_all_lines() {
     // 3 CRLF vs 1 lone LF → dominant CRLF. On load, EVERY ending (the lone LF
     // included) becomes '\n' in the rope; on save, EVERY line is re-emitted

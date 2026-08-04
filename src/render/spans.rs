@@ -419,6 +419,26 @@ pub(super) fn image_line_has_other_content(
         .any(|i| !(b[i].is_ascii_whitespace() || i >= image_local.start && i < image_local.end))
 }
 
+/// True when the REAL parse (`md_spans`, ground truth) rules this line a
+/// genuine `MdKind::Rule` — the thematic-break ornament layer's own source of
+/// truth (`prepare_ornaments` reads `md_spans`, never the bare-text scan). The
+/// single-line heuristic [`crate::markdown::is_thematic_break`] cannot tell a
+/// real `---` break from a SETEXT heading's `---` underline (documented
+/// "KNOWN, ACCEPTED false positive" on that function); this is the corroborating
+/// check [`md_line_scale`] requires before growing a `---` row, so a setext
+/// underline's row never reserves space for an ornament that `prepare_ornaments`
+/// will never draw.
+pub(super) fn line_has_rule_span(
+    md_spans: &[(std::ops::Range<usize>, crate::markdown::MdKind)],
+    line_doc_start: usize,
+    line_end: usize,
+) -> bool {
+    use crate::markdown::MdKind;
+    md_spans
+        .iter()
+        .any(|(cr, ck)| *ck == MdKind::Rule && cr.start < line_end && cr.end > line_doc_start)
+}
+
 pub(super) fn line_has_code_span(
     md_spans: &[(std::ops::Range<usize>, crate::markdown::MdKind)],
     line_doc_start: usize,
@@ -911,12 +931,24 @@ pub(super) fn add_syn_line_spans(
 /// DIM-markup + bold-weight styling still comes from the pulldown spans in
 /// [`md_attrs`]; this governs SIZE alone, so an in-progress `#foo` is big but not yet
 /// bold until it becomes a real heading.
-pub(super) fn md_line_scale(line_text: &str, md: bool) -> f32 {
+///
+/// `confirmed_rule` gates the thematic-break growth alone (the heading branch above
+/// is untouched — still the eager raw-hash-count heuristic on purpose). Callers that
+/// can afford to check the real parse (`build_line_attrs`, via [`line_has_rule_span`])
+/// pass the ground truth: `is_thematic_break` is a single-line scan that cannot tell
+/// a real break from a SETEXT heading's `---` underline (that function's documented
+/// "KNOWN, ACCEPTED false positive"), so without this second gate a setext
+/// underline's row grew to reserve space for an ornament `prepare_ornaments` — which
+/// reads the real spans — never draws. A caller with no cheap access to `md_spans`
+/// (the zoom-restyle fast path in `has_heading_lines`) may pass `true` unconditionally:
+/// that's a harmless over-approximation there (it only widens when a restyle runs),
+/// never the applied row geometry.
+pub(super) fn md_line_scale(line_text: &str, md: bool, confirmed_rule: bool) -> f32 {
     let level = md_line_heading_level(line_text, md);
     if level > 0 {
         return crate::markdown::heading_scale(level);
     }
-    if md && crate::markdown::is_thematic_break(line_text) {
+    if md && confirmed_rule && crate::markdown::is_thematic_break(line_text) {
         return crate::theme::active().ornament_scale;
     }
     1.0
@@ -1041,7 +1073,9 @@ pub(super) fn build_line_attrs(
     // stack source-above-image is geometrically impossible with one layout line per
     // row (cosmic-text gives each line ONE vertically-centred baseline), so we lean
     // into the centering rather than fight it.
-    let scale = md_line_scale(line_text, md);
+    let confirmed_rule =
+        md && line_has_rule_span(md_spans, line_doc_start, line_doc_start + line_text.len());
+    let scale = md_line_scale(line_text, md, confirmed_rule);
     // ROW-HEIGHT LEAD (theme-QA round): a heading's row grows a further,
     // DECOUPLED amount beyond `scale` alone gives its font — vertical
     // breathing room, a second axis (besides size/weight) for the hierarchy

@@ -184,11 +184,14 @@ impl Heading {
 /// The document's headings in document order, for the SUMMONED outline picker.
 /// Derived from [`spans`]: every `MdKind::Heading(level)` span marks a heading's
 /// TITLE text by byte range, so the title is `text[range]` (trimmed) and the line
-/// is the count of newlines before the span. ATX (`# …`) headings ONLY — a
-/// SETEXT heading (a paragraph underlined by `===`/`---`) is filtered OUT
-/// (`headings_from_spans`), matching heading-SIZE + the WYSIWYG conceal, both of
-/// which key off the leading `#`; without the filter a stray `-` typed under a
-/// paragraph promotes it to an outline heading. One entry per
+/// is the count of newlines before the span. ATX (`# …`) headings ONLY — `spans`
+/// itself is the ATX-ONLY gate now (it never emits `MdKind::Heading` for a SETEXT
+/// heading, a paragraph underlined by `===`/`---`; see its `Tag::Heading` arm),
+/// matching heading-SIZE + the WYSIWYG conceal, both of which key off the leading
+/// `#`. Without that source-level filter a stray `-` typed under a paragraph
+/// promoted it to an outline heading (the reported bug) — and, worse, styled it
+/// as a heading everywhere else too, since this function is downstream of the
+/// same span list every other consumer reads. One entry per
 /// heading line — a title built from several runs (e.g. `# a *b*`) emits multiple
 /// Heading spans on the same line, so we keep the first. A heading whose title is
 /// ENTIRELY styled (e.g. `# *all italic*`) yields no plain Heading span and is the
@@ -205,6 +208,14 @@ pub fn headings(text: &str) -> Vec<Heading> {
 /// `text` (the summoned outline picker + tests). `spans` MUST be the whole
 /// document's span list in document byte coords (as [`spans`] returns) or the
 /// per-span newline count is wrong.
+///
+/// NO ATX filter lives here (deliberate — dropped when the source-level fix
+/// landed): every `MdKind::Heading` this function ever sees already came through
+/// `spans()`, which is now the ONE place that decides ATX vs SETEXT, so a
+/// second filter here could only ever be dead code (unreachable given a
+/// `spans()`-produced input, and this function's own doc requires exactly that
+/// input). Re-deriving the same rule here would be the "four consumers
+/// re-deriving one rule" shape this round explicitly closed.
 pub fn headings_from_spans(text: &str, spans: &[(Range<usize>, MdKind)]) -> Vec<Heading> {
     let mut out: Vec<Heading> = Vec::new();
     for (range, kind) in spans {
@@ -213,18 +224,6 @@ pub fn headings_from_spans(text: &str, spans: &[(Range<usize>, MdKind)]) -> Vec<
         let MdKind::Heading(level) = kind else {
             continue;
         };
-        // ATX-ONLY. A SETEXT heading (a paragraph underlined by `===`/`---`) is a
-        // `Tag::Heading` to pulldown too, but awl treats ONLY leading-`#` (ATX)
-        // lines as headings everywhere else — heading SIZE counts `#`s
-        // (`md_line_scale`) and the WYSIWYG conceal hides `#`s — so the outline
-        // must agree, or a stray `-` typed under a paragraph silently promotes it
-        // to a heading (the reported bug). The title span starts AFTER any `# `
-        // markers, so the on-line prefix before it is indent + markers: it's ATX
-        // iff that prefix (leading whitespace trimmed) opens with `#`.
-        let line_start = text[..range.start].rfind('\n').map(|i| i + 1).unwrap_or(0);
-        if !text[line_start..range.start].trim_start().starts_with('#') {
-            continue;
-        }
         let line = text[..range.start].bytes().filter(|&b| b == b'\n').count();
         // One row per heading line: later spans on the SAME line are extra runs of
         // the same title (the spans arrive in document order), so skip them.
