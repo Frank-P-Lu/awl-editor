@@ -297,8 +297,8 @@ mod workspace_column;
 pub(in crate::render) use overlay::OVERLAY_UI_SCALE;
 #[cfg(test)]
 pub(in crate::render) use overlay::{
-    CARD_EDGE_INSET_FLOOR, CARD_MAX_W, CARD_MAX_W_FACETED, overlay_card_box_policy,
-    overlay_card_fill_regime, overlay_rail_inset,
+    CARD_EDGE_INSET_FLOOR, CARD_MAX_W, CARD_MAX_W_FACETED, OVERLAY_HINT_ROW, OVERLAY_QUERY_BEAT,
+    overlay_card_box_policy, overlay_card_fill_regime, overlay_rail_inset,
 };
 // The card-DRAW half of the summoned overlay (shape + upload + composite): the
 // geometry/hit-test owner is `overlay`, this turns that settled geometry into GPU

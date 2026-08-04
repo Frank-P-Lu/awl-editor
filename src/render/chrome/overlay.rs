@@ -20,9 +20,9 @@ pub(in crate::render) const CARD_MAX_W_FACETED: LogicalGrowOnly = LogicalGrowOnl
 pub(in crate::render) const CARD_CONTENT_MIN_W: LogicalGrowOnly = LogicalGrowOnly(160.0);
 
 /// Query-to-results breathing room, shared by flat and faceted cards.
-const OVERLAY_QUERY_BEAT: Rows = Rows(1.55);
+pub(in crate::render) const OVERLAY_QUERY_BEAT: Rows = Rows(1.55);
 
-const OVERLAY_HINT_ROW: Rows = Rows(0.70);
+pub(in crate::render) const OVERLAY_HINT_ROW: Rows = Rows(0.70);
 
 const OVERLAY_FOOTER_PAD: Logical = Logical(2.0);
 
@@ -153,16 +153,9 @@ impl TextPipeline {
         )
     }
 
-    /// The ONE scale chrome resolves against — the same `zoom * dpi` that
-    /// produced the font size, read off [`Metrics`] rather than divided back
-    /// out of it.
-    pub(in crate::render) fn overlay_pixel_scale(&self) -> f32 {
-        self.metrics.scale
-    }
-
     /// THE ONE OWNER of the summoned card's WIDE desired width (device px) at the
     /// CURRENT zoom/DPI: the base cap ([`CARD_MAX_W`] / [`CARD_MAX_W_FACETED`],
-    /// tuned for the 1:1 capture canvas) GROWN by [`Self::overlay_pixel_scale`] so
+    /// tuned for the 1:1 capture canvas) GROWN by [`Metrics::scale`] so
     /// the card widens WITH the glyphs.
     ///
     /// Without this the cap stayed an unzoomed 520/600 while the overlay text
@@ -442,7 +435,7 @@ impl TextPipeline {
             char_grid_w
         };
         // The MIN/MAX bounds are tuned for the 1:1 capture canvas; GROW them with the
-        // current zoom/DPI (the SAME grow-only `overlay_pixel_scale` the takeover
+        // current zoom/DPI (the SAME grow-only `LogicalGrowOnly` the takeover
         // card's width uses) so a long correction isn't clamped to an unzoomed cap
         // while its shaped `content_w` doubled under zoom — the zoom-blind card bug,
         // contextual sibling. Grow-only (`scale.max(1.0)`): byte-identical at every
