@@ -353,10 +353,24 @@ was built rather than after.
 
 ## Ready — current user-visible wave
 
-**NOTHING IS CLAIMED AND NO LANE IS RUNNING as of 2026-08-04.** Every worktree
-is merged and clean. The items below are ready, unblocked, and ordered; their
-full briefs are in the item bodies further down, except item 247 whose brief is
-kept inline here because only its motion slice remains.
+🟡 **WAVE CLAIMED 2026-08-04 evening — four lanes dispatched concurrently.**
+- **257 + 259 — 🟡 IN PROGRESS — claude, branch `claude/item-257-semantic-runs`.**
+  Dispatched as **ONE lane with one owner**, on this board's own finding that the
+  two are probably one bug in the layer above both platform adapters. Deep tier
+  (Opus, xhigh). 257's `atspi` CI arm is the anchoring oracle; the macOS symptom
+  is corroboration, not the instrument.
+- **258 — 🟡 IN PROGRESS — claude, branch `claude/item-258-mulga-ground`.** Deep
+  tier (Opus, high), with a visual-judge pass owed after.
+- **255 — 🟡 IN PROGRESS — claude, branch `claude/item-255-font-licences`.**
+  Production tier (Sonnet, medium).
+- **256 — 🟡 IN PROGRESS — claude, branch `claude/item-256-health-pins`.**
+  Production tier (Sonnet, medium). **Merges FIRST when it returns**, so the
+  other three rebase onto the fixed mechanism rather than re-paying its conflict.
+
+Every worktree from the previous wave was merged, removed, and pruned before this
+one was claimed. The items below are ready, unblocked, and ordered; their full
+briefs are in the item bodies further down, except item 247 whose brief is kept
+inline here because only its motion slice remains.
 
 1. **257 — the AT-SPI line runs never reach the bridge.** Deep tier. The only
    open item that is a **live defect on a shipping accessibility path**: a Linux
