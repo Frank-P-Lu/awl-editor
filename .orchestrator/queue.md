@@ -988,7 +988,55 @@ Linux — a path **no local gate on this Mac can reach**, under code item 218
 rewrote today and whose own report said the Linux behaviour is untested.
 **Recommendation: grant it on the same terms.** Parked rather than assumed.
 
-🔵 **ITEM 231's LEAD IS NOW CHEAP TO FALSIFY, AND THE COST IS THE DECISION.**
+☠️ **ITEM 231's SHADER-SIZE LEAD IS DEAD — falsified 2026-08-04, merged
+`ee7353e5`. And the ORCHESTRATOR'S OWN FALSIFICATION CRITERION WAS WRONG, which
+is the part worth carrying.**
+
+The brief set a binary rule: *if HEAD gets dramatically further than test 199,
+the lead survives.* **HEAD got 2.6× further — 160 → 413–418 — so that rule would
+have CONFIRMED it.** The lane ignored the rule and tested the hypothesis
+directly, which is what killed it:
+- **HEAD carries the LARGEST `background.wgsl` of the three trees, 76,769 B.**
+  The size law predicts `160 × 72896/76769 = 152` tests. Measured **413–418**,
+  off by **2.7×**.
+- The 0.13% match required something HEAD disproves. Fit
+  `budget/test = C + K·shader_bytes` across the two boundaries: `39C = −15,353K`,
+  so **C is negative** — the coincidence is only available if the non-shader
+  residual is **zero**, and HEAD measures that residual directly at
+  **12.3 MB/test**, monotonic, to the same kill.
+**A single-number pass/fail test can confirm a false hypothesis when the
+quantity moves for another reason. Prefer testing the mechanism's own
+prediction.**
+
+**Rig fidelity proved, not asserted:** at `8207e519` it reproduces item 232's own
+provenance markers (719 tests, 2 `warped_grid`) and dies on the identical test
+three times; binary sha256 identical within an arm and different across arms;
+seven runs alternated head/bad/head/bad and all reported.
+
+**A real improvement was measured, at a matched point so differing test sets
+cannot explain it:** at the last test `8207e519` finished, the boundary held
+**4,094 MB** and HEAD **2,005 MB** — 2.04× less, having run three MORE tests. An
+opt-level-0 control rules out the profile. ⚠️ **The lane refuses to credit
+`gpu_cache` for it** — HEAD is many commits past the boundary and still carries
+~1,800 uncached pipeline builds, so the 2.04× **cannot be apportioned**. That
+refusal is correct; do not let a later reader turn it into a claim.
+
+⚠️ **ITEM 231 IS NOT FIXED, NOT EXPLAINED, AND NOT NARROWED.** Every death here
+was a prompt SIGKILL with `oom_kill=1`; the hang is the runner parking forever
+in poll with memory flat. **What died is one hypothesis about the container's
+OOM, which is a proxy and not the defect.**
+
+**Cost, corrected:** the board said ~168 GiB free; the host reported **142**.
+Docker's data dir was **48 G before and after** — it peaked at 54 G and the
+sparse `Docker.raw` returned the blocks, which item 232's ~14 GiB did not.
+Residual **~170 MB** of build-cache layers, left deliberately rather than run a
+prune that would have deleted other lanes' entries. **The rig is now
+`scripts/oom-budget-container.sh`**, labelled in its own header as a diagnostic
+reproducer and **not a gate** — it existed only as prose in two items that both
+called it "the fast local oracle that already exists", and rebuilding it from
+that prose cost a rediscovery of the sccache-wrapper trap.
+
+
 Item 249 measured `background.wgsl`'s size ratio across the bisect boundary at
 **1.2421** against the container's own test-count ratio of **1.2437** — 0.13%
 apart. If per-translation shader-compilation memory dominates the OOM budget,
