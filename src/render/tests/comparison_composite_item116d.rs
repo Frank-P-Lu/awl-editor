@@ -119,6 +119,9 @@ struct Pair {
     /// below is expressed in, so the same law reads correctly at zoom 0.7 on a 1x
     /// panel and at zoom 1.9 on a 2x one.
     lh: f32,
+    /// The DOCUMENT's own character width on this frame — the scale the region's
+    /// WIDTH is judged in, for the same reason.
+    cw: f32,
     w: u32,
     h: u32,
 }
@@ -169,6 +172,7 @@ fn render_pair(
         other,
         region,
         lh: p.metrics.line_height,
+        cw: p.metrics.char_width,
         w,
         h,
     })
@@ -192,7 +196,18 @@ fn render_pair(
 fn assert_contained_and_visible(pair: &Pair, label: &str) -> bool {
     let [rx, ry, rw, rh] = pair.region;
     let (cw, ch) = (pair.w as i64, pair.h as i64);
-    let gradeable = pair.lh > 0.0 && rh >= 4.0 * pair.lh;
+    // THE SPREAD CLAIM NEEDS A REGION THAT CAN HOLD PROSE — in BOTH axes.
+    //
+    // Height was already guarded. Width was not, and the sweep visits a cell
+    // where the pane is under thirteen characters wide (a 450x700 LOGICAL window
+    // at 190% zoom on a 2x panel): there the fixture's own nine-letter word
+    // breaks across three rows of a giant heading and the top of the region is
+    // occupied by the blockquote's open-quote ORNAMENT, which is arm-identical
+    // by construction — so "the first DIFFERING pixel" lands wherever that
+    // decoration happens to end, and the claim is grading the fixture's wrap,
+    // not whether the document was composited. Twenty characters is a short
+    // prose line; below it the spread claim says nothing this law means.
+    let gradeable = pair.lh > 0.0 && rh >= 4.0 * pair.lh && rw >= 20.0 * pair.cw;
     // THE VISIBILITY HALF, in TWO independent claims.
     //
     // (a) MAGNITUDE — the region's pixels differ at all. Prose is sparse (a page

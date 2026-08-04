@@ -175,12 +175,12 @@ fn awl_overlay_align_knob_parses_left_center_right() {
 #[test]
 fn right_anchor_hugs_the_right_edge_left_hugs_the_left() {
     let ww = 1200.0_f32;
-    let desired = chrome::CARD_MAX_W; // comfortable — no fill regime
-    let inset = chrome::overlay_rail_inset(ww);
+    let desired = chrome::CARD_MAX_W.px(1.0); // comfortable — no fill regime
+    let inset = chrome::overlay_rail_inset(ww, 1.0);
 
-    let (lx, lw) = chrome::overlay_card_box_policy(theme::CardAnchor::TopLeft, ww, desired);
-    let (cx, cw) = chrome::overlay_card_box_policy(theme::CardAnchor::TopCenter, ww, desired);
-    let (rx, rw) = chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, desired);
+    let (lx, lw) = chrome::overlay_card_box_policy(theme::CardAnchor::TopLeft, ww, desired, 1.0);
+    let (cx, cw) = chrome::overlay_card_box_policy(theme::CardAnchor::TopCenter, ww, desired, 1.0);
+    let (rx, rw) = chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, desired, 1.0);
 
     // Same width in every regime — alignment moves the card, never resizes it.
     assert!(
@@ -301,7 +301,7 @@ fn frozen_right_alignment_renders_against_the_right_edge() {
         return;
     };
     let ww = 1200.0_f32;
-    let inset = chrome::overlay_rail_inset(ww);
+    let inset = chrome::overlay_rail_inset(ww, 1.0);
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
     v.overlay_items = vec!["Alpha".into(), "Beta".into()];
@@ -364,7 +364,7 @@ fn fable_right_picks_ship_right_anchor_and_render_against_the_right_edge() {
         return;
     };
     let ww = 1200.0_f32;
-    let inset = chrome::overlay_rail_inset(ww);
+    let inset = chrome::overlay_rail_inset(ww, 1.0);
     let restore = theme::active().name;
     set_card_anchor_test_override(None); // the world's OWN data drives placement
 

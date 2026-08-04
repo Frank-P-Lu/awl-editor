@@ -1,8 +1,20 @@
 use super::*;
 
-const PLACARD_INSET: f32 = 12.0;
+/// PHYSICAL, and the placard family is chrome's one honest exception.
+///
+/// The wordmark is FRAME, not text: its size comes from the window's own short
+/// side and is deliberately independent of zoom (`render::tests::
+/// overlay_personality::placard_size_is_window_scaled_not_zoom_scaled` fails by
+/// name if that changes). Its inset from the canvas corner is part of that same
+/// frame, in the same device space as the canvas it insets from — enrolling it
+/// in `zoom * dpi` would make the poster's margin chase the text zoom while the
+/// poster itself held still.
+const PLACARD_INSET: Physical = Physical(12.0);
 
-const PLACARD_REFERENCE_SHORT_SIDE: f32 = crate::capture::CANVAS_HEIGHT as f32;
+/// PHYSICAL, and the only honest reading: it is the byte-stable capture
+/// canvas's own device height, the fixed point the placard ladder is anchored
+/// at. Scaling a reference would move the fixed point it exists to hold still.
+const PLACARD_REFERENCE_SHORT_SIDE: Physical = Physical(crate::capture::CANVAS_HEIGHT as f32);
 
 /// PROPORTIONAL PLACARD SIZING — the FROZEN calibration anchor: the value of the
 /// markdown TITLE rung at the moment the placard fractions were calibrated by eye
@@ -13,12 +25,18 @@ const PLACARD_REFERENCE_SHORT_SIDE: f32 = crate::capture::CANVAS_HEIGHT as f32;
 /// document reads the live rung.
 const PLACARD_CALIBRATION_TITLE: f32 = 1.8;
 
+/// A RATIO (placard height per unit of window short side), not a length.
 const PLACARD_HEIGHT_PER_SCALE: f32 =
-    crate::render::FONT_SIZE * PLACARD_CALIBRATION_TITLE / PLACARD_REFERENCE_SHORT_SIDE;
+    crate::render::FONT_SIZE * PLACARD_CALIBRATION_TITLE / PLACARD_REFERENCE_SHORT_SIDE.0;
 
-const PLACARD_MIN_HEIGHT: f32 = 56.0;
+/// PHYSICAL for [`PLACARD_INSET`]'s reason: a floor on a size that is already
+/// derived from the device canvas, in that same space.
+const PLACARD_MIN_HEIGHT: Physical = Physical(56.0);
 
-const PLACARD_MAX_HEIGHT: f32 = 512.0;
+/// PHYSICAL: this ceiling exists to bound the GLYPH ATLAS, and atlas capacity
+/// is a device resource measured in device pixels. Doubling it on a 2x panel
+/// would double the rasterized mask this bound was chosen to cap.
+const PLACARD_MAX_HEIGHT: Physical = Physical(512.0);
 
 /// PLACARD ATLAS-SAFETY (AtlasFull fix, 2026-07-17) — the geometric step the
 /// wordmark's font size is SNAPPED to. The proportional sizing above tracks the
@@ -219,7 +237,9 @@ impl TextPipeline {
             crate::render::resolve_overlay_anchor(self.overlay_align),
         );
         let short_side = self.window_w.min(self.window_h);
-        let reference_size = scale * PLACARD_HEIGHT_PER_SCALE * PLACARD_REFERENCE_SHORT_SIDE;
+        let reference_size = scale
+            * PLACARD_HEIGHT_PER_SCALE
+            * self.metrics.px_physical(PLACARD_REFERENCE_SHORT_SIDE);
         // ATLAS-SAFETY: snap the continuous window-tracked size to the ladder BEFORE the
         // clamp, so a live resize sweep produces a BOUNDED set of distinct giant sizes
         // (never a fresh atlas entry per drag pixel — the AtlasFull fix).
@@ -228,7 +248,10 @@ impl TextPipeline {
             reference_size,
             false,
         )
-        .clamp(PLACARD_MIN_HEIGHT, PLACARD_MAX_HEIGHT);
+        .clamp(
+            self.metrics.px_physical(PLACARD_MIN_HEIGHT),
+            self.metrics.px_physical(PLACARD_MAX_HEIGHT),
+        );
         let mut line_height = font_size * 1.1;
         let metrics = GlyphMetrics::new(font_size, line_height);
         self.placard_buffer
@@ -268,7 +291,8 @@ impl TextPipeline {
         // policy with no config knob, the `adaptive_column_left` idiom; the
         // stipple rasterizer reads the same re-shaped buffer, so it fits for
         // free.
-        let avail = anchor.2 - 2.0 * PLACARD_INSET;
+        let inset = self.metrics.px_physical(PLACARD_INSET);
+        let avail = anchor.2 - 2.0 * inset;
         if avail > 0.0 && w > avail {
             // ATLAS-SAFETY: snap the fit target DOWN to the same ladder the main size
             // rode. Flooring guarantees the shrunk mark still fits `avail` (the snapped
@@ -286,7 +310,7 @@ impl TextPipeline {
                 .shape_until_scroll(&mut self.font_system, false);
             w = widest_run(&self.placard_buffer);
         }
-        let (x, y) = placard_origin(corner, anchor, w, line_height, PLACARD_INSET);
+        let (x, y) = placard_origin(corner, anchor, w, line_height, inset);
         Some((x, y, w, line_height))
     }
 

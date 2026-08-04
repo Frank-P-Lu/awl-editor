@@ -84,6 +84,7 @@ impl DropdownPlan {
         row_h: f32,
         label_char_w: f32,
         is_markdown: bool,
+        scale: f32,
     ) -> Self {
         let mut labels = String::new();
         let mut chords = String::new();
@@ -130,7 +131,7 @@ impl DropdownPlan {
         let content_w = ((widest_label + rowlayout::GAP_CHARS + widest_chord) as f32
             * label_char_w
             * DROP_WIDTH_SLACK)
-            .max(DROP_MIN_WIDTH);
+            .max(DROP_MIN_WIDTH.px(scale));
         Self {
             labels,
             chords,

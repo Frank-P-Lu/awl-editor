@@ -37,6 +37,7 @@ mod caret_transition_item105;
 mod caret_visual_body;
 mod chrome_overlay;
 mod chrome_panels;
+mod chrome_pixel_space_item242;
 mod cjk;
 mod comparison_composite_item116d;
 /// ITEM 116b — the RELOCATED DOCUMENT VIEWPORT: the one owner all four

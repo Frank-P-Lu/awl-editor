@@ -18,6 +18,9 @@ struct OverlayBarLayout {
     bar_offset: f32,
     primary_px: std::collections::BTreeMap<usize, f32>,
     chord_px: std::collections::BTreeMap<usize, f32>,
+    /// The frame's `zoom * dpi`, so every span this layout resolves reads the
+    /// one scale the card was placed at.
+    scale: f32,
 }
 
 /// Apply each travelling band's own planned two-sided span. This stays beside
@@ -42,9 +45,10 @@ impl OverlayBarLayout {
                 geom.band_w(),
                 geom.text_left,
                 self.primary_px.get(&row).copied().unwrap_or(0.0),
+                self.scale,
             )
         } else {
-            bar_full_span(geom.band_x(), geom.band_w())
+            bar_full_span(geom.band_x(), geom.band_w(), self.scale)
         }
     }
 
@@ -68,7 +72,8 @@ impl OverlayBarLayout {
         if self.chord_px.is_empty() {
             return;
         }
-        let (full_x, full_width) = bar_full_span(geom.band_x(), geom.band_w());
+        let (full_x, full_width) = bar_full_span(geom.band_x(), geom.band_w(), self.scale);
+        let text_pad = BAR_TEXT_PAD.px(self.scale);
         let full_right = full_x + full_width;
         let chord_right = geom.text_left + geom.text_w;
         for planned in plan.rows().iter().filter(|r| r.item.is_some()) {
@@ -76,8 +81,8 @@ impl OverlayBarLayout {
             let Some(width) = self.chord_px.get(&row).copied() else {
                 continue;
             };
-            let right = (chord_right + BAR_TEXT_PAD).min(full_right);
-            let plate_width = width + 2.0 * BAR_TEXT_PAD;
+            let right = (chord_right + text_pad).min(full_right);
+            let plate_width = width + 2.0 * text_pad;
             let left = (right - plate_width).max(full_x);
             let on_band = vis.reads_selected(row);
             let top = match (on_band, vis.band_top()) {
@@ -271,7 +276,9 @@ impl TextPipeline {
         coverage: theme::BarCoverage,
     ) -> OverlayBarLayout {
         let line_height = plan.lh();
-        let gap = gap.max(0.0);
+        // The gap arrives as the theme AUTHORED it; the plate it separates is
+        // seated inside a row pitch that already resolved the same number.
+        let gap = self.metrics.px(Logical(gap.max(0.0)));
         let hugs = extent.hugs();
         let primary_px = if hugs {
             self.overlay_row_primary_px(geom)
@@ -284,14 +291,18 @@ impl TextPipeline {
             std::collections::BTreeMap::new()
         };
         OverlayBarLayout {
-            radius: radius.max(0.0),
-            grow_px,
+            // The plate's own corner and its outward growth are theme-authored
+            // LENGTHS, resolved at the same boundary the gap between the plates
+            // already passes — so a bar keeps its shape at every scale.
+            radius: self.metrics.px(Logical(radius.max(0.0))),
+            grow_px: self.metrics.px(Logical(grow_px)),
             extent,
             coverage,
             bar_height: (line_height - gap).max(1.0),
             bar_offset: gap * 0.5,
             primary_px,
             chord_px,
+            scale: self.metrics.scale,
         }
     }
 
@@ -347,6 +358,7 @@ impl TextPipeline {
                 geom.band_w(),
                 plate_bottom,
                 footer_hug,
+                self.metrics.scale,
             ));
         }
         if geom.theme {
@@ -413,7 +425,12 @@ impl TextPipeline {
         list_style: theme::ListStyle,
         rects: &OverlaySelectionRects,
     ) {
-        const PAD: f32 = 2.0;
+        /// The scrim's own outward bleed past each plate edge.
+        const SCRIM_PAD: Logical = Logical(2.0);
+        /// A corner for no scrim at all on `Diagonal` (it emits no plates), kept
+        /// so the shared pipeline is still prepared each frame.
+        const DIAGONAL_SCRIM_CORNER: Logical = Logical(6.0);
+        let pad = self.metrics.px(SCRIM_PAD);
         // The `BarePlates` gate above is the CARD's question, not the row's, and
         // that is deliberate here even though the same name misleads a plate
         // claim: every bare-plate world must have `panel_card` prepared each
@@ -422,17 +439,17 @@ impl TextPipeline {
         // corner for no scrim at all — never let that number be read as an
         // authored dial.
         let radius = match list_style {
-            theme::ListStyle::Bars { radius, .. } => radius.max(0.0),
-            theme::ListStyle::Diagonal(_) => 6.0,
+            theme::ListStyle::Bars { radius, .. } => self.metrics.px(Logical(radius.max(0.0))),
+            theme::ListStyle::Diagonal(_) => self.metrics.px(DIAGONAL_SCRIM_CORNER),
             theme::ListStyle::Pane => 0.0,
         };
         let scrims = rects
             .unselected
             .iter()
             .chain(rects.selected.iter())
-            .map(|&[x, y, width, height]| [x - PAD, y - PAD, width + 2.0 * PAD, height + 2.0 * PAD])
+            .map(|&[x, y, width, height]| [x - pad, y - pad, width + 2.0 * pad, height + 2.0 * pad])
             .collect::<Vec<_>>();
-        self.panel_card.set_corner(radius + PAD);
+        self.panel_card.set_corner(radius + pad);
         self.panel_card
             .set_color(theme::overlay_bars_scrim().rgba_bytes());
         self.panel_card

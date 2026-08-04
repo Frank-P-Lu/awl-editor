@@ -82,7 +82,7 @@ fn plain_and_secondary_right_anchored_cards_share_one_right_edge() {
     let (plain_right, plain_w) = right_edge(&mut p, &right_flat(&items, &[]));
     let (sec_right, sec_w) = right_edge(&mut p, &right_flat(&items, &["C-x", "C-c", "M-x"]));
 
-    let want = w as f32 - chrome::overlay_rail_inset(w as f32);
+    let want = w as f32 - chrome::overlay_rail_inset(w as f32, 1.0);
     assert!(
         (plain_right - want).abs() < 0.5,
         "plain right-anchored card hugs the right edge: right={plain_right}, want {want}"
@@ -137,7 +137,7 @@ fn right_anchored_card_hugs_content_far_narrower_than_left_sprawl() {
 
     // The card is genuinely SHRUNK — far below the fixed wide cap (no sprawl).
     assert!(
-        rw < chrome::CARD_MAX_W - 120.0,
+        rw < chrome::CARD_MAX_W.px(1.0) - 120.0,
         "a right-anchored card of short rows hugs content, far under CARD_MAX_W: card_w={rw}"
     );
     // NO DEAD MIDDLE — the widest primary plate sits right against the group's right

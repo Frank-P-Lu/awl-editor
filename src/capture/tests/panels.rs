@@ -1393,8 +1393,12 @@ fn popover_card_hugs_the_button_row() {
         // OUTCOME: the card hugs the row -- a uniform pad token above and below the glyph
         // ink, within antialias tolerance. (Pre-fix this was ~12 above / ~14 below -- the
         // lopsided slab of dead card that was the "fat chin".)
-        let pad = crate::render::POPOVER_VPAD;
-        let tol = 2.5_f32;
+        // THE PAD IS LOGICAL: the token is resolved at this cell's own
+        // `zoom * dpi`, so the card's breathing room holds its ratio to the
+        // glyphs at every scale instead of staying a physical 7px on retina.
+        let scale = zoom.unwrap_or(1.0) * dpi.unwrap_or(1.0);
+        let pad = crate::render::POPOVER_VPAD.px(scale);
+        let tol = 2.5_f32 * scale;
         assert!(
             (pad_above - pad).abs() <= tol,
             "[{label}] top pad {pad_above:.2} must hug within {tol} of the pad token {pad} (card {card:?})"

@@ -624,7 +624,21 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 canvas: (700, 800),
                 zoom: 2.0,
             },
-            (692.0, (10.0, 690.0), 8, Some((29, 8, 7, 692.0, 800.0))),
+            // THE CELL THE CHROME PIXEL-SPACE ROUND MOVED MOST. Three logical
+            // lengths bind here at zoom 2 and every one of them used to be a
+            // physical number sitting beside doubled text. The card's edge-inset
+            // FLOOR resolves to 20px rather than 10 (the span narrows 10..690 ->
+            // 20..680); the grouped card's own pad and its drop from the canvas
+            // top resolve to 24 and 80 rather than 12 and 40, which is 84px less
+            // vertical room, so the height clamp seats six item rows where it
+            // used to seat eight (694.0 -> 609.2). At 200% zoom a card whose
+            // padding stayed at 100% was the defect, not the baseline.
+            (
+                609.199_95,
+                (20.0, 680.0),
+                6,
+                Some((31, 6, 5, 609.199_95, 800.0)),
+            ),
         ),
         // This cell used to be `History`, which is no longer a GROUPED picker
         // either: it is presented as a summoned workspace, so its numbers here
@@ -639,11 +653,17 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 canvas: (1400, 1600),
                 zoom: 0.5,
             },
+            // The SUB-1 companion: at zoom 0.5 the same lengths resolve DOWN,
+            // so the card is 13px shorter (261 -> 248) at the same thirteen
+            // rows — the footer's 2px pad reclaims one pixel more, and the
+            // grouped card's own 12px pad is 6. Enrolling chrome in `zoom * dpi`
+            // moves it at every scale away from 1, not only on retina; the
+            // card_x span is untouched because the edge floor never binds here.
             (
-                261.0,
+                248.0,
                 (400.0, 1000.0),
                 13,
-                Some((25, 13, 12, 261.0, 1600.0)),
+                Some((25, 13, 12, 248.0, 1600.0)),
             ),
         ),
         // ITEM 114 — this fifth cell used to be `Settings`, which is no longer a
@@ -662,15 +682,26 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
             (331.8, (150.0, 750.0), 7, Some((31, 7, 6, 331.8, 460.0))),
         ),
     ];
+    // EVERY cell is reported, not just the first to move: a pinned-fingerprint
+    // law that stops at the first mismatch tells a reader one number when the
+    // change in front of them moved three, and each round then costs a rerun to
+    // learn the next one.
+    let mut moved = Vec::new();
     for (scenario, expected) in &cases {
         let got = fingerprint(&device, &queue, &mut p, scenario);
-        assert_eq!(
-            got, *expected,
-            "{:?} sectioned={} {:?} zoom={}: this already-fitting grouped scenario changed \
-             (card_h, card_x_span, plan_len, report) from {expected:?} to {got:?} — item \
-             184's floor fix must be a no-op here",
-            scenario.kind, scenario.sectioned, scenario.canvas, scenario.zoom
-        );
+        if got != *expected {
+            moved.push(format!(
+                "{:?} sectioned={} {:?} zoom={}: (card_h, card_x_span, plan_len, report) \
+                 {expected:?} -> {got:?}",
+                scenario.kind, scenario.sectioned, scenario.canvas, scenario.zoom
+            ));
+        }
     }
+    assert!(
+        moved.is_empty(),
+        "already-fitting grouped scenarios changed — item 184's floor fix must be \
+         a no-op here:\n{}",
+        moved.join("\n")
+    );
     p.set_dpi(1.0);
 }

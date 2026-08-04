@@ -252,33 +252,43 @@ fn parse_overlay_anchor_force_accepts_topright_as_the_mirror() {
 
 #[test]
 fn topright_card_box_is_right_anchored_and_on_canvas_across_the_width_sweep() {
-    let floor = chrome::CARD_EDGE_INSET_FLOOR;
-    for &desired in &[chrome::CARD_MAX_W, chrome::CARD_MAX_W_FACETED] {
-        for ww in (320u32..=1800).step_by(40) {
-            let ww = ww as f32;
-            let (left, w) =
-                chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, desired);
-            let right = left + w;
-            let ctx = format!("ww={ww} desired={desired}");
-            assert!(w > 24.0, "{ctx}: card width {w} must leave room for text");
-            assert!(left >= floor - 0.01, "{ctx}: left {left} >= floor {floor}");
-            assert!(
-                right <= ww - floor + 0.01,
-                "{ctx}: right edge {right} keeps a floor margin inside {ww}"
-            );
-            // WIDE: the card's RIGHT edge sits one full interior-rail inset in from
-            // the canvas right (item 67 — the mirror of TopLeft's left inset). Only
-            // checked once the window is comfortably wide enough that NEITHER the
-            // width clamp (`desired <= ww - 2*floor`) NOR the rail's own floor
-            // (`rail >= floor`) is biting — a narrow `ww` can make the ideal
-            // one-third rail collapse to 0, which the general on-canvas asserts
-            // above already cover.
-            let rail = chrome::overlay_rail_inset(ww);
-            if rail >= floor && desired + rail + floor <= ww {
-                assert!(
-                    (right - (ww - rail)).abs() < 0.01,
-                    "{ctx}: wide window pins the right edge one rail inset in, got right={right}"
+    // Both DPI tiers: the floor and the reference cap are LOGICAL lengths, so
+    // the mirror has to hold at the scale they are resolved against.
+    for &scale in &[1.0f32, 2.0] {
+        let floor = chrome::CARD_EDGE_INSET_FLOOR.px(scale);
+        for &cap in &[chrome::CARD_MAX_W, chrome::CARD_MAX_W_FACETED] {
+            let desired = cap.px(scale);
+            for ww in (320u32..=1800).step_by(40) {
+                let ww = (ww as f32) * scale;
+                let (left, w) = chrome::overlay_card_box_policy(
+                    theme::CardAnchor::TopRight,
+                    ww,
+                    desired,
+                    scale,
                 );
+                let right = left + w;
+                let ctx = format!("scale={scale} ww={ww} desired={desired}");
+                assert!(w > 24.0, "{ctx}: card width {w} must leave room for text");
+                assert!(left >= floor - 0.01, "{ctx}: left {left} >= floor {floor}");
+                assert!(
+                    right <= ww - floor + 0.01,
+                    "{ctx}: right edge {right} keeps a floor margin inside {ww}"
+                );
+                // WIDE: the card's RIGHT edge sits one full interior-rail inset in from
+                // the canvas right — the mirror of TopLeft's own left inset. Only
+                // checked once the window is comfortably wide enough that NEITHER the
+                // width clamp (`desired <= ww - 2*floor`) NOR the rail's own floor
+                // (`rail >= floor`) is biting — a narrow `ww` can make the ideal
+                // one-third rail collapse to 0, which the general on-canvas asserts
+                // above already cover.
+                let rail = chrome::overlay_rail_inset(ww, scale);
+                if rail >= floor && desired + rail + floor <= ww {
+                    assert!(
+                        (right - (ww - rail)).abs() < 0.01,
+                        "{ctx}: a wide window pins the right edge one rail inset in, \
+                         got right={right}"
+                    );
+                }
             }
         }
     }
@@ -290,9 +300,9 @@ fn topright_card_box_is_right_anchored_and_on_canvas_across_the_width_sweep() {
 fn selected_bar_grows_wider_toward_the_open_margin_and_mirrors() {
     // A card at x=100, width=500, one row at top=200, bar 20 tall, grow 6.
     let (cx, cw, top, bh, g) = (100.0, 500.0, 200.0, 20.0, 6.0);
-    let unsel = chrome::bar_rect_unselected(cx, cw, top, bh);
-    let def = chrome::bar_rect_selected(cx, cw, top, bh, g, false);
-    let mir = chrome::bar_rect_selected(cx, cw, top, bh, g, true);
+    let unsel = chrome::bar_rect_unselected(cx, cw, top, bh, 1.0);
+    let def = chrome::bar_rect_selected(cx, cw, top, bh, g, false, 1.0);
+    let mir = chrome::bar_rect_selected(cx, cw, top, bh, g, true, 1.0);
 
     // Both selected bars are WIDER than the unselected one by exactly `g`.
     assert!(
@@ -327,12 +337,12 @@ fn selected_bar_grows_wider_toward_the_open_margin_and_mirrors() {
     // therefore extends the jut fully (no `card_w` clamp capping it at
     // `BAR_SIDE_INSET`). Only the LEADING edge is floored at the canvas (0.0) so a
     // mirrored jut never runs off the left side.
-    let big_def = chrome::bar_rect_selected(cx, cw, top, bh, 999.0, false);
+    let big_def = chrome::bar_rect_selected(cx, cw, top, bh, 999.0, false, 1.0);
     assert!(
         big_def[0] + big_def[2] > cx + cw,
         "a large default grow juts past the card's right edge into the room: {big_def:?}"
     );
-    let big_mir = chrome::bar_rect_selected(cx, cw, top, bh, 999.0, true);
+    let big_mir = chrome::bar_rect_selected(cx, cw, top, bh, 999.0, true, 1.0);
     assert!(
         big_mir[0] >= -1e-3,
         "a mirrored jut is floored at the canvas left edge: {big_mir:?}"
@@ -916,7 +926,7 @@ fn bars_query_caret_overlaps_the_query_text() {
     // rail inset (the card's left edge moved from the old flat ~28px edge-hug to
     // the wider interior-rail inset at this window width).
     crate::render::set_card_anchor_test_override(Some(theme::CardAnchor::TopLeft));
-    let card_left = chrome::overlay_rail_inset(w as f32);
+    let card_left = chrome::overlay_rail_inset(w as f32, 1.0);
     let old_card_left = 28.0_f32; // the pre-item-67 flat edge-hug this test was tuned against
     let dx = (card_left - old_card_left).round() as i64;
     let mut v = view("hello world\n", 0, 0);
@@ -1545,7 +1555,7 @@ fn bars_footer_stays_legible_over_a_giant_placard() {
 
     let (wi, hi) = (w as i64, h as i64);
     // FOOTER band: from the hint row's top down to the card bottom (the plate).
-    let inset = chrome::BAR_SIDE_INSET as i64;
+    let inset = chrome::BAR_SIDE_INSET.px(1.0) as i64;
     let fx = card_x as i64 + inset + 2;
     let fy = hint_top as i64;
     let fw = (card_w as i64 - 2 * inset - 4).max(2);
@@ -1594,11 +1604,11 @@ fn bars_footer_stays_legible_over_a_giant_placard() {
 fn bar_hug_span_hugs_content_and_rags_by_length() {
     let (cx, cw) = (100.0, 500.0);
     // text_left = card_x + BAR_SIDE_INSET + BAR_TEXT_PAD (what the renderer feeds).
-    let text_left = cx + chrome::BAR_SIDE_INSET + chrome::BAR_TEXT_PAD;
-    let full = chrome::bar_full_span(cx, cw);
+    let text_left = cx + chrome::BAR_SIDE_INSET.px(1.0) + chrome::BAR_TEXT_PAD.px(1.0);
+    let full = chrome::bar_full_span(cx, cw, 1.0);
 
     // A short primary → a bar much narrower than full width, same left edge.
-    let short = chrome::bar_hug_span(cx, cw, text_left, 60.0);
+    let short = chrome::bar_hug_span(cx, cw, text_left, 60.0, 1.0);
     assert!(
         short.1 < full.1 - 100.0,
         "a short-text hug bar is much narrower than full width: {short:?} vs full {full:?}"
@@ -1610,7 +1620,7 @@ fn bar_hug_span_hugs_content_and_rags_by_length() {
 
     // A LONGER primary (e.g. label + inline shortcut) → a wider bar (ragged:
     // widths track content), still short of full width.
-    let longer = chrome::bar_hug_span(cx, cw, text_left, 200.0);
+    let longer = chrome::bar_hug_span(cx, cw, text_left, 200.0, 1.0);
     assert!(
         longer.1 > short.1 + 100.0,
         "a longer content widens its hug bar (ragged edges)"
@@ -1621,7 +1631,7 @@ fn bar_hug_span_hugs_content_and_rags_by_length() {
     );
 
     // A very long primary clamps at the full-width right edge (never juts past).
-    let long = chrome::bar_hug_span(cx, cw, text_left, 9999.0);
+    let long = chrome::bar_hug_span(cx, cw, text_left, 9999.0, 1.0);
     assert!(
         long.0 + long.1 <= full.0 + full.1 + 1e-3,
         "a long primary clamps at the full-width right edge, never past the card: {long:?}"
@@ -1640,7 +1650,7 @@ fn footer_plate_hugs_content_under_hug_bars() {
     let (text_top, header_rows, header_gap) = (100.0, 1usize, 12.0);
     let (content_rows, lh) = (8usize, 30.0);
     let (card_x, card_w, card_bottom) = (60.0, 620.0, 520.0);
-    let text_left = card_x + chrome::BAR_SIDE_INSET + chrome::BAR_TEXT_PAD;
+    let text_left = card_x + chrome::BAR_SIDE_INSET.px(1.0) + chrome::BAR_TEXT_PAD.px(1.0);
     let content_px = 240.0; // a footer narrower than the full card width
 
     // ITEM 174 — the plate's TOP is the planned footer seam, read through the one
@@ -1648,17 +1658,18 @@ fn footer_plate_hugs_content_under_hug_bars() {
     let hint_top =
         crate::render::plan::test_row_top(text_top, header_rows, header_gap, content_rows, lh);
 
-    let full = chrome::footer_plate_rect(hint_top, card_x, card_w, card_bottom, None);
+    let full = chrome::footer_plate_rect(hint_top, card_x, card_w, card_bottom, None, 1.0);
     let hug = chrome::footer_plate_rect(
         hint_top,
         card_x,
         card_w,
         card_bottom,
         Some((text_left, content_px)),
+        1.0,
     );
 
     // Full-width arm is the historical `card_w`-spanning plate, inset each side.
-    let (fx, fw) = chrome::bar_full_span(card_x, card_w);
+    let (fx, fw) = chrome::bar_full_span(card_x, card_w, 1.0);
     assert!(
         (full[0] - fx).abs() < 1e-3 && (full[2] - fw).abs() < 1e-3,
         "None → full-width plate"

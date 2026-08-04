@@ -5,7 +5,7 @@ use crate::render::rotated_location::LOCATION_SCALE;
 /// Pixels the active-lens UNDERLINE sits BELOW the strip run's shaped baseline
 /// (`overlay_shape_theme`). Small so the rule hugs the label — enough to clear
 /// the baseline for every chrome/mono/display face without striking the glyphs.
-const UNDERLINE_BASELINE_DROP: f32 = 2.0;
+const UNDERLINE_BASELINE_DROP: Logical = Logical(2.0);
 
 impl TextPipeline {
     /// THEME PICKER display plan: the candidate-area sequence of section HEADERS +
@@ -49,8 +49,12 @@ impl TextPipeline {
 
     pub(super) fn theme_overlay_geometry(&self, width: u32) -> OverlayGeom {
         let lh = self.overlay_lh();
-        let pad = 12.0;
-        let margin = 12.0;
+        // THE SAME THREE TOKENS THE FLAT FAMILY PLACES ITS CARD WITH — they were
+        // a second copy of the same literals here, which is how the grouped
+        // card kept a physical 24px of vertical pad on a retina panel while
+        // every other quantity in its own height doubled.
+        let pad = self.metrics.px(super::overlay::CARD_PAD);
+        let margin = self.metrics.px(super::overlay::CARD_MARGIN);
         let n_items = self.overlay_items.len();
         let full_plan = self.theme_plan();
         let hint = self.overlay_hint.clone();
@@ -64,7 +68,8 @@ impl TextPipeline {
         let empty_rows = empty.is_some() as usize;
         let header_rows = 2;
         let header_gap = self.overlay_header_gap();
-        let card_y = margin + 40.0 + self.menubar_reserve();
+        let card_y =
+            margin + self.metrics.px(super::overlay::CARD_TOP_DROP) + self.menubar_reserve();
         let total_headers = full_plan.len() - n_items;
         // ITEM 184 — strip + headers + footer count here; `min_items: 0`
         // empties the band rather than overrun it (`fit_item_rows`'s doc).
@@ -92,7 +97,8 @@ impl TextPipeline {
         // `overlay_desired_w` owner), the wide `CARD_MAX_W_FACETED` cap otherwise.
         let desired_w = self.overlay_desired_w(super::overlay::CARD_MAX_W_FACETED);
         let (card_x, card_w) = self.overlay_card_box(width, desired_w);
-        let card_narrow = super::overlay::overlay_card_fill_regime(width as f32, desired_w);
+        let card_narrow =
+            super::overlay::overlay_card_fill_regime(width as f32, desired_w, self.metrics.scale);
         let hpad = self.overlay_text_hpad();
         let text_w = card_w - 2.0 * hpad;
         let card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, pad);
@@ -303,13 +309,16 @@ impl TextPipeline {
             (max_x > min_x && baseline > f32::MIN).then_some((min_x, max_x, baseline))
         };
         let facet_style = crate::render::effective_facet_style();
-        const CHIP_HPAD: f32 = 6.0;
-        const CHIP_VPAD: f32 = 2.0;
+        let scale = self.metrics.scale;
+        const CHIP_HPAD: Logical = Logical(6.0);
+        const CHIP_VPAD: Logical = Logical(2.0);
+        let chip_hpad = self.metrics.px(CHIP_HPAD);
+        let underline_drop = self.metrics.px(UNDERLINE_BASELINE_DROP);
         let mark_cy = plan
             .strip_band()
             .map_or(geom.text_top, |strip| strip.center());
         let strip_text_lh = self.metrics.line_height * crate::render::effective_overlay_scale();
-        let chip_h = (strip_text_lh - 2.0 * CHIP_VPAD).max(1.0);
+        let chip_h = (strip_text_lh - 2.0 * self.metrics.px(CHIP_VPAD)).max(1.0);
         let pill_px = |left: f32, right: f32| -> [f32; 4] {
             [
                 geom.text_left + left,
@@ -319,21 +328,22 @@ impl TextPipeline {
             ]
         };
         let corner_ticks = |l: f32, r: f32| -> Vec<[f32; 4]> {
-            const TICK: f32 = 6.0; // arm length
-            const TH: f32 = 1.6; // arm thickness
+            const TICK_L: Logical = Logical(6.0); // arm length
+            const TH_L: Logical = Logical(1.6); // arm thickness
+            let (tick, th) = (TICK_L.px(scale), TH_L.px(scale));
             let top = mark_cy - chip_h * 0.5;
             let bot = mark_cy + chip_h * 0.5;
             let x0 = geom.text_left + l;
             let x1 = geom.text_left + r;
             vec![
-                [x0, top, TICK, TH],
-                [x0, top, TH, TICK], // TL
-                [x1 - TICK, top, TICK, TH],
-                [x1 - TH, top, TH, TICK], // TR
-                [x0, bot - TH, TICK, TH],
-                [x0, bot - TICK, TH, TICK], // BL
-                [x1 - TICK, bot - TH, TICK, TH],
-                [x1 - TH, bot - TICK, TH, TICK], // BR
+                [x0, top, tick, th],
+                [x0, top, th, tick], // TL
+                [x1 - tick, top, tick, th],
+                [x1 - th, top, th, tick], // TR
+                [x0, bot - th, tick, th],
+                [x0, bot - tick, th, tick], // BL
+                [x1 - tick, bot - th, tick, th],
+                [x1 - th, bot - tick, th, tick], // BR
             ]
         };
         // The active mark rect (single-rect skins) + the ghost/tick collection. THE
@@ -347,7 +357,7 @@ impl TextPipeline {
                     continue;
                 }
                 if let Some((min_x, max_x, _)) = span_of(&self.panel_buffer, r) {
-                    v.push(pill_px(min_x - CHIP_HPAD, max_x + CHIP_HPAD));
+                    v.push(pill_px(min_x - chip_hpad, max_x + chip_hpad));
                 }
             }
             v
@@ -356,23 +366,23 @@ impl TextPipeline {
             let (min_x, max_x, baseline) = span_of(&self.panel_buffer, ar)?;
             match facet_style {
                 theme::FacetStyle::Text => {
-                    let y = geom.text_top + baseline + UNDERLINE_BASELINE_DROP;
+                    let y = geom.text_top + baseline + underline_drop;
                     Some([geom.text_left + min_x, y, max_x - min_x, 1.5])
                 }
-                theme::FacetStyle::Band => Some(pill_px(min_x - CHIP_HPAD, max_x + CHIP_HPAD)),
+                theme::FacetStyle::Band => Some(pill_px(min_x - chip_hpad, max_x + chip_hpad)),
                 theme::FacetStyle::Chips(v) => match v {
                     theme::ChipVariant::Hairline | theme::ChipVariant::FilledActive => {
                         if matches!(v, theme::ChipVariant::Hairline) {
                             ghosts = inactive_pills();
                         }
-                        Some(pill_px(min_x - CHIP_HPAD, max_x + CHIP_HPAD))
+                        Some(pill_px(min_x - chip_hpad, max_x + chip_hpad))
                     }
                     theme::ChipVariant::Underline => {
-                        let y = geom.text_top + baseline + UNDERLINE_BASELINE_DROP;
+                        let y = geom.text_top + baseline + underline_drop;
                         Some([geom.text_left + min_x, y, max_x - min_x, 3.5])
                     }
                     theme::ChipVariant::Bracket => {
-                        ghosts = corner_ticks(min_x - CHIP_HPAD, max_x + CHIP_HPAD);
+                        ghosts = corner_ticks(min_x - chip_hpad, max_x + chip_hpad);
                         None
                     }
                 },
@@ -388,7 +398,7 @@ impl TextPipeline {
                 .iter()
                 .filter_map(|(r, _active)| {
                     span_of(&self.panel_buffer, r)
-                        .map(|(min_x, max_x, _)| pill_px(min_x - CHIP_HPAD, max_x + CHIP_HPAD))
+                        .map(|(min_x, max_x, _)| pill_px(min_x - chip_hpad, max_x + chip_hpad))
                 })
                 .collect()
         } else {

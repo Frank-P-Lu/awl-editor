@@ -51,7 +51,7 @@ impl TextPipeline {
             self.outline_wants_rail(),
             rowlayout::OUTLINE_PREFERRED_CHARS as f32 * self.metrics.char_width * label,
             rowlayout::OUTLINE_MIN_CHARS as f32 * self.metrics.char_width * label,
-            self.metrics.char_width * crate::render::chrome::MARGIN_COLUMN_GAP_CHARS,
+            self.metrics.char_width * crate::render::chrome::MARGIN_COLUMN_GAP_CHARS.0,
             crate::render::TEXT_LEFT,
         )
     }

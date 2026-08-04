@@ -1,18 +1,20 @@
 //! Shared diagonal row composition for summoned row surfaces.
 //!
-//! The authored quantities below are logical pixels. This module is their one
-//! logical-to-device boundary: layout and line geometry multiply by display DPI
-//! together, while rasterization remains the selection shader's concern.
+//! The authored quantities below are logical pixels — and they now say so in
+//! their TYPE rather than in a `_LOGICAL` suffix, which was the right instinct
+//! with an unenforceable mechanism. They resolve through the one owner every
+//! other chrome length passes, so the spine tracks zoom as well as DPI instead
+//! of carrying a second, DPI-only, grow-only scale of its own.
 
 use super::*;
 
-const ROW_STEP_LOGICAL: f32 = 7.0;
-const SPINE_WEIGHT_LOGICAL: f32 = 1.5;
-const SPINE_CORNER_LOGICAL: f32 = 0.75;
-const ATTACHMENT_BAND_INSET_LOGICAL: f32 = 44.0;
-const CLUSTER_CONNECTOR_LOGICAL: f32 = 10.0;
-const SELECTED_OUTWARD_LOGICAL: f32 = 4.0;
-const SELECTED_SPINE_WEIGHT_LOGICAL: f32 = 3.0;
+const ROW_STEP: Logical = Logical(7.0);
+const SPINE_WEIGHT: Logical = Logical(1.5);
+const SPINE_CORNER: Logical = Logical(0.75);
+const ATTACHMENT_BAND_INSET: Logical = Logical(44.0);
+const CLUSTER_CONNECTOR: Logical = Logical(10.0);
+const SELECTED_OUTWARD: Logical = Logical(4.0);
+const SELECTED_SPINE_WEIGHT: Logical = Logical(3.0);
 
 /// THE RESPONSIVE BOUND on the spine's total travel, as a fraction of the side
 /// territory the card has. A bound, never the travel itself: an ordinary card
@@ -260,18 +262,18 @@ pub(in crate::render) fn selected_chevron(
 }
 
 impl DiagonalComposition {
-    /// Resolve every authored quantity at the single logical→device boundary.
-    pub fn resolve(direction: theme::DiagonalDirection, dpi: f32) -> Self {
-        let scale = dpi.max(1.0);
+    /// Resolve every authored quantity at the ONE logical→device boundary
+    /// (`zoom * dpi`), the same `scale` the text beside the spine was sized at.
+    pub fn resolve(direction: theme::DiagonalDirection, scale: f32) -> Self {
         Self {
             direction,
-            row_step: direction.sign() * ROW_STEP_LOGICAL * scale,
-            spine_weight: SPINE_WEIGHT_LOGICAL * scale,
-            spine_corner: SPINE_CORNER_LOGICAL * scale,
-            attachment_inset: ATTACHMENT_BAND_INSET_LOGICAL * scale,
-            connector: CLUSTER_CONNECTOR_LOGICAL * scale,
-            selected_outward: SELECTED_OUTWARD_LOGICAL * scale,
-            selected_spine_weight: SELECTED_SPINE_WEIGHT_LOGICAL * scale,
+            row_step: direction.sign() * ROW_STEP.px(scale),
+            spine_weight: SPINE_WEIGHT.px(scale),
+            spine_corner: SPINE_CORNER.px(scale),
+            attachment_inset: ATTACHMENT_BAND_INSET.px(scale),
+            connector: CLUSTER_CONNECTOR.px(scale),
+            selected_outward: SELECTED_OUTWARD.px(scale),
+            selected_spine_weight: SELECTED_SPINE_WEIGHT.px(scale),
         }
     }
 }
@@ -386,9 +388,10 @@ impl TextPipeline {
 
 pub(in crate::render) fn active(pipeline: &TextPipeline) -> Option<DiagonalComposition> {
     match crate::render::effective_list_style() {
-        theme::ListStyle::Diagonal(direction) => {
-            Some(DiagonalComposition::resolve(direction, pipeline.dpi))
-        }
+        theme::ListStyle::Diagonal(direction) => Some(DiagonalComposition::resolve(
+            direction,
+            pipeline.metrics.scale,
+        )),
         theme::ListStyle::Pane | theme::ListStyle::Bars { .. } => None,
     }
 }
