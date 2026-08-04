@@ -2088,6 +2088,19 @@ pub struct TextPipeline {
     /// placard's first-in-batch upload gives it); parked empty on every
     /// non-stipple world and whenever no overlay is up.
     pub placard_stipple: SelectionPipeline,
+    /// ITEM 221 — CASSOWARY'S VERTICAL SECOND-LEVEL HEADING: the active
+    /// facet's name (`theme::LocationStyle::RotatedRail`), turned 90° and
+    /// seated flush with the card's own left border, subordinate to the bold
+    /// title placard. Reuses item 235's rotated-label capability wholesale —
+    /// this pipeline draws nothing of its own shape, only a composed glyph
+    /// mask rotated onto an axis. Parked (`clear()`) for every world that
+    /// keeps the default `Inline` treatment, so those stay byte-identical.
+    pub rotated_label_pipeline: crate::rotated_label::RotatedLabelPipeline,
+    /// The rotated cue's own compose-once cache, keyed by
+    /// [`crate::rotated_label::mask::LabelMask::matches`] against this
+    /// frame's shaped run — so an unchanged facet name (the common case: the
+    /// same lens held across many frames) re-uploads no texture.
+    rotated_location_mask: Option<crate::rotated_label::mask::LabelMask>,
     overlay_theme_underline: Option<[f32; 4]>,
     /// V6 P5 round — the INACTIVE ghost-pill rects `[x, y, w, h]` recorded during
     /// theme-strip shaping under [`theme::FacetStyle::Chips`] (one per non-active

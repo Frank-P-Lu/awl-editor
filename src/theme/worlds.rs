@@ -7,8 +7,8 @@ use super::ground::{Arrangement, Background, DeckleAnchor, LavaEdge, Tunnel, Wea
 use super::model::{
     AmbientStyle, Backdrop, CardAnchor, CardShape, CardTexture, CaretBlockStyle, ChipVariant,
     ChromeFace, DecorativeWash, Elevation, FacetStyle, FoldAfford, Frost, HighlightTexture,
-    IconCursor, IconGround, ImageReveal, ListStyle, MotionJuice, PageFrame, PaneSplit,
-    PlacardCorner, PlacardInk, RenderCaps, RoleOverrides, SPELL_UNDERLINE_GAP_DEFAULT,
+    IconCursor, IconGround, ImageReveal, ListStyle, LocationStyle, MotionJuice, PageFrame,
+    PaneSplit, PlacardCorner, PlacardInk, RenderCaps, RoleOverrides, SPELL_UNDERLINE_GAP_DEFAULT,
     SelectionStyle, Theme, ThemeTags, TitleStyle, WashOverride,
 };
 use super::ornament::{
@@ -837,6 +837,7 @@ pub const WAGTAIL: Theme = Theme {
         motion: MotionJuice::CALM,
         list_style: ListStyle::Pane,
         facet_style: FacetStyle::Text,
+        location_style: LocationStyle::Inline,
         pane_split: PaneSplit::Split,
         ambient: AmbientStyle::None,
         spell_underline_gap: SPELL_UNDERLINE_GAP_DEFAULT,
@@ -966,6 +967,11 @@ pub const CASSOWARY: Theme = Theme {
         elevation: Elevation::Bordered,
         list_style: POSTER_BARS,
         facet_style: FacetStyle::Chips(ChipVariant::Bracket),
+        // ITEM 221 — the active facet (Files, Navigate, …) reads as a small
+        // vertical secondary heading flush with the card's own left border,
+        // subordinate to the bold "Commands" placard, rather than repeating
+        // the inline treatment every other world uses.
+        location_style: LocationStyle::RotatedRail,
         pane_split: PaneSplit::Unified,
         ..RenderCaps::DEFAULT
     },

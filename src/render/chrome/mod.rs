@@ -13,6 +13,15 @@ const PREFIX_HEADER: &str = "C-x";
 
 pub(in crate::render) const MARGIN_COLUMN_GAP_CHARS: f32 = 1.5;
 
+/// The SECONDARY LOCATION heading's font size, as a fraction of the overlay's
+/// own UI size — above `type_scale::LABEL` (a section header's whisper), below
+/// a candidate row, so the hierarchy reads by size as well as by ink. Shared
+/// by BOTH treatments a world can pick (`theme::LocationStyle`): the inline
+/// row (`theme_picker.rs`'s `shape_theme_spans`) and the rotated rail
+/// (`render/layers.rs`'s `prepare_rotated_location_label`, item 221) — one
+/// loudness dial, so the two never drift apart.
+pub(in crate::render) const LOCATION_SCALE: f32 = 0.92;
+
 #[derive(Clone, Copy)]
 pub(in crate::render) struct CardHalftone {
     pub density: f32,

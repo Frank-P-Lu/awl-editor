@@ -89,6 +89,7 @@ pub(in crate::render) mod potoroo_pane;
 mod range_rail;
 mod reanchor_crossing_law;
 mod rotated_label_item235;
+mod rotated_location_item221;
 mod row_offset_item131;
 mod scroll_pos;
 mod selection_clip_law;

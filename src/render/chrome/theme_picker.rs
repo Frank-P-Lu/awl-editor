@@ -6,10 +6,9 @@ use super::*;
 /// the baseline for every chrome/mono/display face without striking the glyphs.
 const UNDERLINE_BASELINE_DROP: f32 = 2.0;
 
-/// The SECONDARY LOCATION heading's font size, as a fraction of the overlay's
-/// own UI size — above `type_scale::LABEL` (a section header's whisper), below a
-/// candidate row, so the hierarchy reads by size as well as by ink.
-const LOCATION_SCALE: f32 = 0.92;
+// LOCATION_SCALE moved to `super::LOCATION_SCALE` (chrome/mod.rs, item 221):
+// shared by this inline treatment and the rotated-rail one, so a world's
+// secondary-heading loudness dial can't drift between the two.
 
 impl TextPipeline {
     /// THEME PICKER display plan: the candidate-area sequence of section HEADERS +
@@ -534,11 +533,22 @@ impl TextPipeline {
                 // prefix and the lens strip are set in, the label's own authored
                 // case, and `muted` rather than `faint` — subordinate to the
                 // primary, but a statement rather than a whisper.
+                // ITEM 221 — `RotatedRail` worlds (Cassowary) draw NOTHING
+                // inline here: the line stays glyph-free, and
+                // `prepare_overlay_rotated_location` (called from
+                // `prepare_overlay`, after this shaping runs and the row plan
+                // is final) reads the SAME plan line and paints the vertical
+                // cue instead. Every other world keeps this inline row,
+                // unchanged.
                 PlanLine::Location(l) => {
-                    spans.push((
-                        l.as_str(),
-                        chrome_attrs().color(muted).metrics(location_metrics),
-                    ));
+                    if theme::active().render_caps.location_style
+                        != theme::LocationStyle::RotatedRail
+                    {
+                        spans.push((
+                            l.as_str(),
+                            chrome_attrs().color(muted).metrics(location_metrics),
+                        ));
+                    }
                 }
                 PlanLine::Header(h) => {
                     spans.push((h.as_str(), mk(faint).metrics(header_metrics)));

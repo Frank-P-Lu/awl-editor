@@ -175,6 +175,11 @@ impl TextPipeline {
             theme::placard_ink(theme::PlacardInk::Stipple).rgba_bytes(),
         );
         placard_stipple.set_dither(theme::placard_stipple_density());
+        // ITEM 221 — the rotated secondary-location cue. Shares the same
+        // rotation shader every world's data can reach; parked (zero
+        // instances) until a `RotatedRail` world's frame actually prepares one.
+        let rotated_label_pipeline =
+            crate::rotated_label::RotatedLabelPipeline::new(device, format);
         let wordcount_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let wordcount_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
@@ -405,6 +410,8 @@ impl TextPipeline {
             overlay_range_track,
             overlay_range_thumb,
             placard_stipple,
+            rotated_label_pipeline,
+            rotated_location_mask: None,
             overlay_theme_underline: None,
             overlay_theme_facet_ghosts: Vec::new(),
             overlay_strip_tab_plates: Vec::new(),
