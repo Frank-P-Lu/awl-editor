@@ -14,12 +14,24 @@ pub(super) struct PresentationState {
     pub(super) zoom_anchor: Option<ZoomAnchor>,
     pub(super) theme_font_at: Option<Instant>,
     pub(super) theme_font_last_reshape_at: Option<Instant>,
+    /// The RESHAPE-SIDE cost of the last real reshape — the leading-edge test's
+    /// work input beside its clock (`theme_font_debounce`).
+    pub(super) theme_font_last_reshape_cost: Option<Duration>,
     pub(super) theme_switch_at: Option<Instant>,
     pub(super) theme_settle: Option<ThemeSettleInFlight>,
     pub(super) caret_edit_streaks: bool,
     pub(super) caret_held: bool,
     pub(super) caret_impact: Option<CaretImpact>,
     pub(super) caret_recoil: Option<crate::caret::RecoilDir>,
+}
+
+/// The theme-preview font reshape's whole scheduling state, read as one value —
+/// `theme_font_debounce::theme_font_reshape_decision` takes all three at once.
+#[derive(Clone, Copy)]
+pub(in crate::app) struct ThemeFontSchedule {
+    pub(in crate::app) pending: Option<Instant>,
+    pub(in crate::app) last_reshape_at: Option<Instant>,
+    pub(in crate::app) last_reshape_cost: Option<Duration>,
 }
 
 pub(in crate::app) struct DebugPanelSnapshot {

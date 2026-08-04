@@ -402,6 +402,7 @@ fn retired_field_names(domain: Domain) -> &'static [&'static str] {
             "zoom_anchor",
             "theme_font_at",
             "theme_font_last_reshape_at",
+            "theme_font_last_reshape_cost",
             "theme_switch_at",
             "theme_settle",
             "theme_switches",
@@ -517,7 +518,7 @@ fn frame_runtime_api_does_not_regrow_into_a_field_bag() {
         let source = std::fs::read_to_string(root.join(file)).expect("frame source");
         count += visible_impl_method_count(&source, "FrameRuntime");
     }
-    const CEILING: usize = 79;
+    const CEILING: usize = 78;
     assert_eq!(
         count, CEILING,
         "FrameRuntime's visible API changed ({count} vs {CEILING}). A larger API \

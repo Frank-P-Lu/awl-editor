@@ -487,7 +487,7 @@ impl Gpu {
         if let Some(fault) = self.take_faults().into_iter().next() {
             return GpuFrameOutcome::Fault(fault);
         }
-        // Prepare's span ends here; the acquire wait below is excluded.
+        // Prepare's span ends here; the acquire wait below is its own span.
         let prepare_ms = t0.map(|t| t.elapsed().as_secs_f32() * 1000.0);
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -574,14 +574,14 @@ impl Gpu {
         // presented-time), stamped before the off-frame atlas trim.
         let done = debug.then(Instant::now);
         self.pipeline.atlas.trim();
-        match (prepare_ms, t2, done) {
-            (Some(prep), Some(t2), Some(done)) => {
-                // The SPLIT the theme-switch settle readout attributes to its atlas
-                // (prepare) + first-present phases — the SAME two spans that sum to the
-                // panel's frame cost, from the stamps already read above (no new clock).
-                let present_ms = (done - t2).as_secs_f32() * 1000.0;
-                self.debug_frame_split = Some((prep, present_ms));
-                GpuFrameOutcome::Presented(Some((prep + present_ms, done)))
+        match (prepare_ms, t0, t2, done) {
+            (Some(prep), Some(t0), Some(t2), Some(done)) => {
+                // The SPLIT the settle readout attributes to atlas (prepare), ACQUIRE
+                // (the drawable wait, belonging to neither neighbour) and first-present
+                // — from stamps already read above, no new clock.
+                let pres = (done - t2).as_secs_f32() * 1000.0;
+                self.debug_frame_split = Some((prep, (t2 - t0).as_secs_f32() * 1e3 - prep, pres));
+                GpuFrameOutcome::Presented(Some((prep + pres, done)))
             }
             _ => {
                 self.debug_frame_split = None;

@@ -89,6 +89,33 @@ fn theme_font_debounce() -> Duration {
     Duration::from_millis(ms)
 }
 
+/// THE COST BELOW WHICH COALESCING BUYS NOTHING. A reshape measured cheaper than
+/// this reads ISOLATED whatever the clock says
+/// (`theme_font_debounce::theme_font_reshape_decision`): the queueing hazard the
+/// trailing coalesce exists to avoid does not exist at that cost.
+///
+/// PLACED ON MEASUREMENT, not on a round number. `--bench-theme-burst` times one
+/// `sync_theme_font` at 0.2 ms on a seven-line document, 12.0 ms on CLAUDE.md and
+/// 24.4 ms on a 1896-line fixture; 4 ms sits in the empty middle of that spread —
+/// 20x above the cheap case, 3x below the cheapest case coalescing was built for.
+/// It is also a quarter of a 60Hz frame, which is why repeating the cheap side is
+/// safe: at macOS's fastest key repeat (~15 ms) reshaping on EVERY step of a burst
+/// still leaves two thirds of each interval free, and the live movement-latency
+/// distributions across the change confirm it (docs/fonts.md).
+const THEME_FONT_CHEAP_RESHAPE_MS: u64 = 4;
+
+// The gate must sit STRICTLY below the cheapest cost the coalescing was built for
+// (12ms on CLAUDE.md, the smallest measured real document), or it would swallow
+// the burst rule whole rather than carve one case out of it.
+const _: () = assert!(
+    THEME_FONT_CHEAP_RESHAPE_MS > 0 && THEME_FONT_CHEAP_RESHAPE_MS < 12,
+    "the cheap-reshape gate must be nonzero and below the cheapest measured reshape"
+);
+
+pub(crate) fn theme_font_cheap_reshape() -> Duration {
+    Duration::from_millis(THEME_FONT_CHEAP_RESHAPE_MS)
+}
+
 #[cfg(test)]
 #[test]
 fn theme_font_debounce_ms_env_parse() {
@@ -357,18 +384,23 @@ struct Gpu {
     #[cfg(not(target_arch = "wasm32"))]
     probe_mirror: Option<wgpu::Texture>,
     /// LIVE-ONLY (DEBUG): the last presented frame's cost SPLIT — `(prepare_ms,
-    /// present_ms)` — recorded by `Gpu::redraw` from the perf stamps it already reads
-    /// (no new clock read; `None` when the debug panel is off, or on a skipped frame).
-    /// The frame loop reads it right after a settled theme-switch present to attribute
-    /// the atlas (prepare) + first-present phases of the settle readout
-    /// (`crate::themeswitch`). Off the headless path — `redraw`'s stamps are gated on
-    /// `debug_on()`, so a capture never sets it.
-    debug_frame_split: Option<(f32, f32)>,
+    /// acquire_ms, present_ms)` — recorded by `Gpu::redraw` from the perf stamps it
+    /// already reads (no new clock read; `None` when the debug panel is off, or on a
+    /// skipped frame). The frame loop reads it right after a settled theme-switch
+    /// present to attribute the atlas (prepare), acquire and first-present phases of
+    /// the settle readout (`crate::themeswitch`). Off the headless path — `redraw`'s
+    /// stamps are gated on `debug_on()`, so a capture never sets it.
+    debug_frame_split: Option<(f32, f32, f32)>,
 }
 
 struct ThemeSettleInFlight {
     input_at: Instant,
     phases: crate::themeswitch::SwitchPhases,
+    /// When the reshape-side work finished. The settled-present fold subtracts
+    /// this from the carrying frame's own start to measure
+    /// `SwitchPhase::Schedule` — the redraw request's trip through the event
+    /// loop, which nothing timed before.
+    work_done_at: Instant,
 }
 
 /// The winit USER EVENT type, and the conversions the event loop needs to

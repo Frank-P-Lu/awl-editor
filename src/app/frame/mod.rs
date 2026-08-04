@@ -15,7 +15,7 @@ mod surface;
 #[cfg(not(target_arch = "wasm32"))]
 use accessibility::AccessibilityRuntime;
 use poll::{Deadlines, NoticeState};
-use presentation::{DebugPanelSnapshot, PresentationState};
+use presentation::{DebugPanelSnapshot, PresentationState, ThemeFontSchedule};
 use surface::SurfaceState;
 
 pub(in crate::app) struct FrameRuntime {
@@ -67,6 +67,7 @@ impl FrameRuntime {
                 zoom_anchor: None,
                 theme_font_at: None,
                 theme_font_last_reshape_at: None,
+                theme_font_last_reshape_cost: None,
                 theme_switch_at: None,
                 theme_settle: None,
                 caret_edit_streaks: false,
@@ -267,10 +268,6 @@ impl FrameRuntime {
         self.deadlines.zoom_persist_at = None;
     }
 
-    pub(in crate::app) fn theme_font_at(&self) -> Option<Instant> {
-        self.presentation.theme_font_at
-    }
-
     pub(in crate::app) fn arm_theme_font(&mut self, now: Instant) {
         self.presentation.theme_font_at = Some(now);
     }
@@ -279,12 +276,25 @@ impl FrameRuntime {
         self.presentation.theme_font_at = None;
     }
 
-    pub(in crate::app) fn theme_font_last_reshape_at(&self) -> Option<Instant> {
-        self.presentation.theme_font_last_reshape_at
+    /// Stamp a real reshape, with the RESHAPE-SIDE cost when the caller could
+    /// measure one. An UNMEASURED reshape (`None` — no GPU, or a guard that found
+    /// no work) leaves the previous measurement standing: it is the best estimate
+    /// available, and a `None` here would read back as "unmeasured" and cost the
+    /// user a needless settle.
+    pub(in crate::app) fn mark_theme_font_reshaped(&mut self, at: Instant, cost: Option<Duration>) {
+        self.presentation.theme_font_last_reshape_at = Some(at);
+        if cost.is_some() {
+            self.presentation.theme_font_last_reshape_cost = cost;
+        }
     }
 
-    pub(in crate::app) fn mark_theme_font_reshaped(&mut self, now: Instant) {
-        self.presentation.theme_font_last_reshape_at = Some(now);
+    /// The three facts the reshape decision asks for, as ONE typed snapshot.
+    pub(in crate::app) fn theme_font_schedule(&self) -> ThemeFontSchedule {
+        ThemeFontSchedule {
+            pending: self.presentation.theme_font_at,
+            last_reshape_at: self.presentation.theme_font_last_reshape_at,
+            last_reshape_cost: self.presentation.theme_font_last_reshape_cost,
+        }
     }
 
     pub(in crate::app) fn stamp_theme_switch(&mut self, now: Instant) {

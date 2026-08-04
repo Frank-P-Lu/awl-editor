@@ -109,6 +109,57 @@ impl App {
             }
         }
     }
+    /// Close out a theme-switch transaction on the frame that PRESENTED its
+    /// reshape: record the three frame-side phases, compute the felt
+    /// input→settled total, and hand the report to the panel (a stamp redraw
+    /// then draws it). `frame_started` is this frame's own start on the App
+    /// clock, which is what makes `SwitchPhase::Schedule` measurable.
+    ///
+    /// Structurally off the headless path — a capture never arms `theme_settle`,
+    /// because only the live App's reshape doors do.
+    fn fold_settled_theme_switch(&mut self, frame_started: Instant) {
+        use crate::themeswitch::SwitchPhase;
+        if !crate::debug::debug_on() || !self.frame.theme_settle_pending() {
+            return;
+        }
+        let mut settle = self
+            .frame
+            .take_theme_settle()
+            .expect("just checked is_some");
+        // The SCHEDULE phase: the reshape finished on an earlier turn and this
+        // frame — the one carrying it — began at `frame_started`, so the
+        // difference is the redraw request's own trip through the event loop.
+        // Measured, not derived by subtraction: a residual computed from the
+        // total would make the coverage law vacuously true.
+        settle.phases.record(
+            SwitchPhase::Schedule,
+            frame_started
+                .saturating_duration_since(settle.work_done_at)
+                .as_secs_f32()
+                * 1000.0,
+        );
+        if let Some((prep_ms, acquire_ms, present_ms)) =
+            self.frame.gpu().and_then(|g| g.debug_frame_split)
+        {
+            settle.phases.record(SwitchPhase::Atlas, prep_ms);
+            settle.phases.record(SwitchPhase::Acquire, acquire_ms);
+            settle.phases.record(SwitchPhase::Present, present_ms);
+        }
+        // The App clock is the one scheduling/animation time seam. Its timestamp
+        // gives this higher-level transaction a deterministic fake-clock test
+        // path, while the GPU's own `done` stamp stays reserved for the per-frame
+        // measurement its caller already recorded.
+        let settled_at = self.frame.now();
+        let total_ms = (settled_at - settle.input_at).as_secs_f32() * 1000.0;
+        let theme_settle = self
+            .frame
+            .record_theme_switch(settled_at, total_ms, settle.phases);
+        if let Some(gpu) = self.frame.gpu_mut() {
+            gpu.pipeline.set_debug_theme_settle(theme_settle);
+            self.request_frame();
+        }
+    }
+
     /// `WindowEvent::Focused(false)`: the window lost focus. ROBUST AUTOSAVE —
     /// flush a pending note write, the document autosave / scratch stash, and
     /// (native only) the session restore state on the same blur trigger. Also
@@ -592,45 +643,12 @@ impl App {
             self.frame.record_present_cost(cost_ms, done, is_stamp);
         }
 
-        // THEME-SWITCH SETTLE readout (DEBUG, live-only): the reshape was timed on an
-        // earlier frame and THIS present carried it to the screen — so this is the
-        // settled present. Fold in the atlas (prepare) + first-present phases from the
-        // split `Gpu::redraw` just recorded, compute the felt input→settled total, and
-        // feed the panel; a stamp redraw then draws the three new lines. Gated on a real
-        // present (`frame_presented`) so a skipped/occluded frame keeps the switch in
-        // flight until a real present lands. Structurally off the headless path (armed
-        // only behind `debug_on()`; a capture never arms `theme_settle`).
-        if crate::debug::debug_on()
-            && frame_presented
-            && self.frame.theme_settle_pending()
-            && let Some((_, _done)) = presented
-        {
-            let mut settle = self
-                .frame
-                .take_theme_settle()
-                .expect("just checked is_some");
-            if let Some((prep_ms, present_ms)) = self.frame.gpu().and_then(|g| g.debug_frame_split)
-            {
-                settle
-                    .phases
-                    .record(crate::themeswitch::SwitchPhase::Atlas, prep_ms);
-                settle
-                    .phases
-                    .record(crate::themeswitch::SwitchPhase::Present, present_ms);
-            }
-            // The App clock is the one scheduling/animation time seam. Its
-            // timestamp gives this higher-level transaction a deterministic
-            // fake-clock test path, while `done` remains reserved for the
-            // per-frame GPU measurement above.
-            let settled_at = self.frame.now();
-            let total_ms = (settled_at - settle.input_at).as_secs_f32() * 1000.0;
-            let theme_settle = self
-                .frame
-                .record_theme_switch(settled_at, total_ms, settle.phases);
-            if let Some(gpu) = self.frame.gpu_mut() {
-                gpu.pipeline.set_debug_theme_settle(theme_settle);
-                self.request_frame();
-            }
+        // THEME-SWITCH SETTLE readout (DEBUG, live-only): this present carried a
+        // timed reshape to the screen, so it is the settled present. Gated on a
+        // REAL present (`frame_presented`) so a skipped/occluded frame keeps the
+        // switch in flight until one lands.
+        if frame_presented && presented.is_some() {
+            self.fold_settled_theme_switch(now);
         }
 
         if frame_presented && self.frame.settles().crossing_teardown_pending {

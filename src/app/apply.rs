@@ -79,17 +79,28 @@ impl App {
             let now = self.frame.now();
             // An isolated step reshapes immediately; a rapid run coalesces into
             // one trailing reshape.
+            let schedule = self.frame.theme_font_schedule();
             match theme_font_reshape_decision(
-                self.frame.theme_font_at(),
-                self.frame.theme_font_last_reshape_at(),
+                schedule.pending,
+                schedule.last_reshape_at,
+                schedule.last_reshape_cost,
                 now,
                 theme_font_debounce(),
+                theme_font_cheap_reshape(),
             ) {
                 ThemeFontReshapeDecision::Immediate => {
-                    if let Some(gpu) = self.frame.gpu_mut() {
-                        gpu.pipeline.sync_theme_font();
-                    }
-                    self.frame.mark_theme_font_reshaped(now);
+                    // The IMMEDIATE arm is MEASURED too. An untimed reshape here
+                    // would leave the settle readout able to report only the
+                    // COALESCED path — the one that includes a deliberate wait —
+                    // so a genuinely isolated arrow run drew no theme lines at
+                    // all, which is how a breakdown covering a fraction of its
+                    // own headline became the normal reading. The measurement is
+                    // also the leading edge's own cost input.
+                    let input_at = crate::debug::debug_on()
+                        .then(|| self.frame.theme_switch_at())
+                        .flatten();
+                    let cost = self.sync_theme_font_measured(input_at);
+                    self.frame.mark_theme_font_reshaped(now, cost);
                     self.frame.clear_theme_font();
                 }
                 ThemeFontReshapeDecision::Coalesce => {
@@ -136,43 +147,66 @@ impl App {
         if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.sync_theme_colors();
         }
-        self.sync_theme_font_maybe_timed(input_at);
+        let cost = self.sync_theme_font_measured(input_at);
         // ITEM 202: a commit/revert reshapes for real, so it counts as the most
         // recent reshape for the NEXT summon's leading-edge decision.
-        self.frame.mark_theme_font_reshaped(self.frame.now());
+        self.frame.mark_theme_font_reshaped(self.frame.now(), cost);
         self.update_title();
     }
 
-    /// Apply one theme-font reshape. Debug mode records the measured phases;
-    /// the ordinary and headless paths stay clock-free.
-    fn sync_theme_font_maybe_timed(&mut self, input_at: Option<Instant>) {
-        let Some(gpu) = self.frame.gpu_mut() else {
-            return;
-        };
-        let armed = match input_at {
-            Some(input_at) => gpu
-                .pipeline
-                .sync_theme_font_timed()
-                .map(|phases| ThemeSettleInFlight { input_at, phases }),
-            None => {
-                gpu.pipeline.sync_theme_font();
-                None
-            }
-        };
-        if armed.is_some() {
-            self.frame.set_theme_settle(armed);
+    /// Apply one theme-font reshape and return the RESHAPE-SIDE cost it took
+    /// (`SwitchPhase::RESHAPE_SIDE`), or `None` when the guard found no work.
+    ///
+    /// THE LIVE APP ALWAYS MEASURES. The cost is not a diagnostic: it is the
+    /// leading-edge test's own work input
+    /// (`theme_font_debounce`), so gating the measurement on `debug_on()` would
+    /// gate the fix on the debug panel being open. Every live reshape therefore
+    /// runs the same `sync_theme_font_timed` door — identical work to the plain
+    /// variant plus a forced row-geom walk the next prepare would do anyway (that
+    /// method's own doc: the rendered frame stays byte-identical). The plain
+    /// `sync_theme_font` remains the headless path's only variant, so a capture
+    /// still touches no `Instant`, and a headless `App` has no GPU to reach this
+    /// at all.
+    ///
+    /// `input_at` additionally arms the DEBUG settle transaction, and is where
+    /// `SwitchPhase::Wait` is measured: input → the start of the work is the
+    /// deliberate interval, zero on the immediate path and the whole debounce
+    /// window on a coalesced one.
+    fn sync_theme_font_measured(&mut self, input_at: Option<Instant>) -> Option<Duration> {
+        use crate::themeswitch::SwitchPhase;
+        let started = input_at.map(|_| self.frame.now());
+        let mut phases = self.frame.gpu_mut()?.pipeline.sync_theme_font_timed()?;
+        let cost = phases
+            .reshape_side_ms()
+            .map(|ms| Duration::from_secs_f32(ms / 1000.0));
+        if let (Some(input_at), Some(started)) = (input_at, started) {
+            let work_done_at = self.frame.now();
+            phases.record(
+                SwitchPhase::Wait,
+                started.saturating_duration_since(input_at).as_secs_f32() * 1000.0,
+            );
+            self.frame.set_theme_settle(Some(ThemeSettleInFlight {
+                input_at,
+                phases,
+                work_done_at,
+            }));
         }
+        cost
     }
 
     pub(super) fn apply_deferred_theme_font(&mut self) {
         self.frame.clear_theme_font();
         // ITEM 202: this IS a reshape (the coalesced-burst settle), so the next
         // preview step's leading-edge decision must see it as recent, not stale.
-        self.frame.mark_theme_font_reshaped(self.frame.now());
+        // Stamped BEFORE the GPU-gated reshape (a hermetic App has no GPU, so the
+        // trailing half stays exercised for real in `theme_debounce_item202.rs`);
+        // the measured cost lands on the same mark a moment later.
+        self.frame.mark_theme_font_reshaped(self.frame.now(), None);
         let input_at = crate::debug::debug_on()
             .then_some(self.frame.theme_switch_at())
             .flatten();
-        self.sync_theme_font_maybe_timed(input_at);
+        let cost = self.sync_theme_font_measured(input_at);
+        self.frame.mark_theme_font_reshaped(self.frame.now(), cost);
         self.sync_view(false);
         // The reshape is now APPLIED into the view but not yet PRESENTED. This
         // redraw carries it to the screen; because the present-transaction bracket
