@@ -178,6 +178,42 @@ unless the dev-only `AWL_SOURGUMMY_HEAVY_FORCE=900` knob (mirrors
 through to the 900 file instead — the mechanism the round's 700-vs-900 taste
 captures were shot through.
 
+**DEVIATION (item 253, all three instances): the upstream `cmap` shipped both
+raised quote pairs transposed, and the fix touches `cmap` only.** The `glyf`
+outlines were never wrong — `quoteleft`/`quoteright` and
+`quotedblleft`/`quotedblright` each carry one correct shape (the rotated
+opening "6" and the raised-comma closing "9") — but upstream's `cmap` pointed
+`U+2018`/`U+201C` (opening single/double) at the CLOSING "9" outline and
+`U+2019`/`U+201D` (closing) at the mirrored opening "6", identically across
+Regular/Bold/Black. This is not one of the instancing/subsetting steps
+described above; it is a separate, independent repair, recorded here so a
+future re-fetch of `ofl/sourgummy` does not silently reintroduce it. The fix
+swaps ONLY the four `cmap` entries (`U+2018`↔`U+2019`, `U+201C`↔`U+201D`) in
+every subtable that carries them, via `fonttools` (`fontTools.ttLib.TTFont`,
+mutating each subtable's decompiled `cmap` dict once — subtables sharing a
+dict object after decompile must be swapped only once — then clearing
+`subtable.data` to force a recompile, since `cmap_format_4.compile()`
+otherwise returns its cached raw bytes verbatim and silently ignores the
+mutation). `glyf`, `hmtx`, `name`, `post`, `OS/2`, `GDEF`/`GPOS`/`GSUB`,
+`STAT`, `gasp`, `prep`, `loca` and `maxp` are byte-identical before and after,
+per-glyph, in all three files; `head` differs only in the mandatory whole-font
+`checkSumAdjustment` (`modified` was pinned via `recalcTimestamp=False` to
+avoid a gratuitous timestamp bump for a four-codepoint change). The remap is
+metrically free — `U+2018`/`U+2019` share one advance and `U+201C`/`U+201D`
+share another, within each weight (207/207 and 384/384 at Regular, 239/239
+and 454/454 at Bold, 261/261 and 501/501 at Black) — because the advance
+travels with the glyph, not the codepoint, so swapping which codepoint names
+which glyph moves no line-breaking geometry. `U+201A`/`U+201E` (the low
+single/double quotes, which sit correctly at the baseline sharing the comma's
+own extents) are untouched. `render::tests::quote_orientation_item253` is the
+permanent roster law over every bundled display face
+(`render::bundled_display_faces`) asserting the orientation this note
+describes, so the next face shipping this exact upstream defect fails on
+arrival. The defect is upstream at
+`github.com/eifetx/Sour-Gummy-Fonts` (via `google/fonts` `ofl/sourgummy`) and
+is worth filing there; awl's zero-network invariant makes that a person's
+action, not the app's.
+
 **`AwlMarks.ttf` provenance (composed from OFL sources):** the rebuilt symbol /
 ornament face is a hand-merged subset — decomposed glyph outlines copied from
 four SIL-OFL faces (all UPM 1000, so metrics align) into one face renamed to the
