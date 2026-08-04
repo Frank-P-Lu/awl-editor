@@ -328,11 +328,11 @@ pub const MULGA: Theme = Theme {
     primary_content: Srgb::rgb(0x2A, 0x14, 0x10),
     error: Srgb::rgb(0xFF, 0x6B, 0x5C),
     selection: Srgb::rgba(0xFF, 0xEF, 0xAE, 0x52),
-    background: Background::Starfield {
+    background: Background::Pinstripe {
         from: Srgb::rgb(0x16, 0x1F, 0x0F),
         to: Srgb::rgb(0x1E, 0x29, 0x16),
         dir: (0.0, 1.0),
-        tint: Srgb::rgb(0x7C, 0x80, 0x68),
+        tint: Srgb::rgb(0x3E, 0x4A, 0x31),
     },
     font: "Zilla Slab",
     mono: "Monaspace Xenon",

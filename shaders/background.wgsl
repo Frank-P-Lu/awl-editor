@@ -34,10 +34,13 @@ struct Globals {
     // For Stripes this is (cos angle, sin angle), so the gradient runs ALONG the
     // stripe angle.
     dir: vec2<f32>,
-    // Procedural margin ground: 0=plain gradient, 1=dots, 2=starfield,
+    // Procedural margin ground: 0=plain gradient, 1=dots, 2=VACANT (the
+    // retired scattered-star ground; an unissued id draws the plain gradient),
     // 3=pinstripe, 4=stripes, 5=bands, 6=waves, 7=zigzag, 8=organic,
     // 9=deckle, 10=warped-grid. Matches `Background::shader_id` in
-    // src/theme/ground.rs.
+    // src/theme/ground.rs, which explains why a retired id is vacated rather
+    // than reused: every number here is a WIRE value, so renumbering repaints
+    // worlds.
     shader: u32,
     // WAVES phase-drift, in radians (item 87) — a DEDICATED scalar in what was
     // `pad` after `shader`. `0.0` for every non-Waves ground and every
@@ -174,7 +177,7 @@ fn vs_main(@builtin(vertex_index) vid: u32) -> VsOut {
 }
 
 // A scalar hash in [0,1) from a 2D integer-ish cell id. Deterministic (no clock),
-// so the starfield is byte-stable across captures.
+// so every seeded field built on it is byte-stable across captures.
 fn hash21(p: vec2<f32>) -> f32 {
     let h = dot(p, vec2<f32>(127.1, 311.7));
     return fract(sin(h) * 43758.5453123);
@@ -281,34 +284,9 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
         let x = abs(fract(px.x / period) - 0.5) * period; // logical px to a line
         return 1.0 - smoothstep(0.5, 0.5 + sampling_feather(0.7), x);
     }
-    // --- 2: STARFIELD — scattered dots + the occasional 4-point sparkle. ---
-    if (g.shader == 2u) {
-        // COMPOSITION: the star lattice pitch, the dot radius, and the
-        // sparkle's arm half-thickness AND arm length — the cross's long taper
-        // is its drawn SHAPE, not a sample-grid skirt, so it scales with the
-        // star. SAMPLING: only the two rim feathers (1.0px, 0.6px).
-        let cell = 34.0;
-        let id = floor(px / cell);
-        let local = fract(px / cell);
-        // Per-cell jittered star position + a presence roll (only some cells lit).
-        let jx = hash21(id + vec2<f32>(1.0, 0.0));
-        let jy = hash21(id + vec2<f32>(0.0, 7.0));
-        let present = hash21(id + vec2<f32>(3.0, 5.0));
-        let star = vec2<f32>(jx, jy);
-        let dpx = (local - star) * cell;
-        let r = length(dpx);
-        // A small round dot for every lit cell.
-        var cov = (1.0 - smoothstep(0.7, 0.7 + sampling_feather(1.0), r)) * step(0.55, present);
-        // The brightest ~1/6 cells also get a thin 4-point sparkle cross.
-        if (present > 0.84) {
-            let arm_w = 0.4;
-            let arm_aa = arm_w + sampling_feather(0.6);
-            let cross = (1.0 - smoothstep(arm_w, arm_aa, abs(dpx.x))) * (1.0 - smoothstep(2.5, 4.5, abs(dpx.y)))
-                      + (1.0 - smoothstep(arm_w, arm_aa, abs(dpx.y))) * (1.0 - smoothstep(2.5, 4.5, abs(dpx.x)));
-            cov = max(cov, clamp(cross, 0.0, 1.0));
-        }
-        return cov;
-    }
+    // --- 2: VACANT. The scattered-star ground that held this id is retired;
+    // the id stays unissued rather than being handed to a neighbour, because
+    // every id below is a wire value (see `Background::shader_id`). ---
     // --- 7: ZIGZAG — a TILED field of repeating chevron ("V") rows,
     // whisper-composited over the gradient like Dots/Pinstripe (item 86;
     // FIELD-tiled by item 89). Four independently authored dials (see

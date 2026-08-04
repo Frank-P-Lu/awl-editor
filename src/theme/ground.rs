@@ -88,7 +88,6 @@ pub const ORGANIC_FINDS_DROPOUT: f32 = 0.226;
 pub enum Background {
     Gradient { from: Srgb, to: Srgb, dir: (f32, f32) },
     Dots { from: Srgb, to: Srgb, dir: (f32, f32), tint: Srgb, edge: bool },
-    Starfield { from: Srgb, to: Srgb, dir: (f32, f32), tint: Srgb },
     Pinstripe { from: Srgb, to: Srgb, dir: (f32, f32), tint: Srgb },
     Stripes { from: Srgb, to: Srgb, band: Srgb, angle: f32 },
     Lava {
@@ -271,11 +270,28 @@ impl LavaEdge {
 }
 
 impl Background {
+    /// The WIRE value `shaders/background.wgsl` branches on. Every number here
+    /// is matched by a literal `g.shader == Nu` test in that file, so an id is
+    /// a protocol constant, not an ordinal: **renumbering repaints worlds.**
+    ///
+    /// `2` IS DELIBERATELY VACANT — it belonged to the retired scattered-star
+    /// ground. The hole costs nothing (the shader simply carries no `== 2u`
+    /// branch, and an unissued id falls through to the plain gradient), while
+    /// closing it would have to renumber Pinstripe(3) through WarpedGrid(10),
+    /// every one of them a live wire value. It also keeps a piece of evidence
+    /// standing: `render::tests::backgrounds_item69` pins that Bombora carries
+    /// its OWN id `6` rather than recycling the star ground's `2`, and that
+    /// claim only means anything while `2` stays unissued. **Retiring a ground
+    /// vacates its id; it never renumbers its neighbours.**
+    ///
+    /// Contrast `ground_space::roster_index`, which is the opposite kind of
+    /// number: a DENSE array index bounded by `ROSTER_LEN`, where a hole is
+    /// what costs.
     pub fn shader_id(&self) -> u32 {
         match self {
             Background::Gradient { .. } => 0,
             Background::Dots { .. } => 1,
-            Background::Starfield { .. } => 2,
+            // 2 — vacant, see above.
             Background::Pinstripe { .. } => 3,
             Background::Stripes { .. } => 4,
             Background::Lava { .. } => 0,
@@ -291,7 +307,6 @@ impl Background {
         match self {
             Background::Gradient { .. } => "gradient",
             Background::Dots { .. } => "dots",
-            Background::Starfield { .. } => "starfield",
             Background::Pinstripe { .. } => "pinstripe",
             Background::Stripes { .. } => "stripes",
             Background::Lava { .. } => "lava",
@@ -307,7 +322,6 @@ impl Background {
         match self {
             Background::Gradient { from, .. }
             | Background::Dots { from, .. }
-            | Background::Starfield { from, .. }
             | Background::Pinstripe { from, .. }
             | Background::Stripes { from, .. }
             | Background::Zigzag { from, .. } => *from,
@@ -323,7 +337,6 @@ impl Background {
         match self {
             Background::Gradient { to, .. }
             | Background::Dots { to, .. }
-            | Background::Starfield { to, .. }
             | Background::Pinstripe { to, .. }
             | Background::Stripes { to, .. }
             | Background::Zigzag { to, .. } => *to,
@@ -339,7 +352,6 @@ impl Background {
         match self {
             Background::Gradient { dir, .. }
             | Background::Dots { dir, .. }
-            | Background::Starfield { dir, .. }
             | Background::Pinstripe { dir, .. }
             | Background::Zigzag { dir, .. } => *dir,
             Background::Stripes { angle, .. } | Background::Bands { angle, .. } => {
@@ -355,7 +367,6 @@ impl Background {
     pub fn tint(&self) -> Srgb {
         match self {
             Background::Dots { tint, .. }
-            | Background::Starfield { tint, .. }
             | Background::Pinstripe { tint, .. }
             | Background::Zigzag { tint, .. } => *tint,
             Background::Stripes { band, .. } => *band,

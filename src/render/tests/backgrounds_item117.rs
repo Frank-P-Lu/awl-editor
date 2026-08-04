@@ -11,7 +11,6 @@ fn organic_is_bowerbird_alone_no_wildcard() {
         let organic = match t.background {
             theme::Background::Gradient { .. } => false,
             theme::Background::Dots { .. } => false,
-            theme::Background::Starfield { .. } => false,
             theme::Background::Pinstripe { .. } => false,
             theme::Background::Stripes { .. } => false,
             theme::Background::Lava { .. } => false,

@@ -28,7 +28,7 @@ is). Cohesion is "does this all agree with one line of prose," nothing fancier.
 | **Potoroo**    | dark burnt-orange           | Stripes           | Monaspace Xenon     | Monaspace Xenon | Awl Marks · ✶ ✦ ◆                             | Dusk  | Humble   | Technical | Warm    |
 | **Mopoke**     | warm charcoal               | Dots              | iA Writer Quattro S | IBM Plex Mono   | Junicode · damask / candelabra / damask-tile  | Dusk  | Humble   | Modern    | Warm    |
 | **Bombora**    | dark violet                 | Waves             | EB Garamond         | Monaspace Xenon | EB Garamond · ☙ ❧ ❦                           | Night | Refined  | Literary  | Cool    |
-| **Mulga**      | blackish-olive              | Starfield         | Zilla Slab          | Monaspace Xenon | Junicode · ⁑ ⁂ ❦                              | Night | Everyday | Literary  | Cool    |
+| **Mulga**      | blackish-olive              | Pinstripe         | Zilla Slab          | Monaspace Xenon | Junicode · ⁑ ⁂ ❦                              | Night | Everyday | Literary  | Cool    |
 | **Bowerbird**  | midnight-navy               | Dots              | IBM Plex Sans       | JetBrains Mono  | Awl Marks · ❂ ✴ ◈                             | Night | Everyday | Modern    | Cool    |
 | **Brolga**     | pale sky-blue               | Gradient          | IBM Plex Sans       | IBM Plex Mono   | Awl Marks · ✧ ✴ ⬥                             | Day   | —        | —         | Cool    |
 | **Mangrove**   | dark tidal-teal             | Lava · dithered   | JetBrains Mono      | JetBrains Mono  | Awl Marks · ❖ ◈ ⬥                             | Night | Humble   | Technical | Cool    |
@@ -65,8 +65,7 @@ uses the world's own quiet palette, and never spends the caret accent.
 | ---------- | ------------- | --------------- |
 | **Gradient** | A directional colour blend with no built-in marks. | Bilby, Currawong, Galah, Brolga, Wagtail |
 | **Dots** | A regular grid of small round dots over a gradient. All shipping dot worlds currently use the uniform form; the available page-edge proximity form is unassigned. | Mopoke, Bowerbird, Tawny |
-| **Starfield** | Deterministically scattered dots with occasional four-point sparkles. Static in captures and independent of the caret. | Mulga |
-| **Pinstripe** | Fine parallel print/ledger lines over a gradient. | Magpie, Saltpan, Cassowary |
+| **Pinstripe** | Fine parallel print/ledger lines over a gradient. | Magpie, Saltpan, Cassowary, Mulga |
 | **Stripes** | A diagonal striped band concentrated at the page boundary and dissolved outward into the margin. | Potoroo |
 | **Lava** | A slow metaball field in the margins. Reduce Motion can still it; deterministic captures use a fixed phase. Firetail is smooth wine; Mangrove is dithered deep-sea blue. | Firetail, Mangrove |
 | **Bands** (item 69) | Exactly three large, tone-on-tone diagonal bands spanning the WHOLE margin field — cut-paper grass, not a repeating stripe-tile. Static; the ONLY colors are the world's own ground-ladder rungs. Reusable infrastructure, currently DORMANT — Gumtree (its one-time assignee) moved to Zigzag in item 86. | *(none — dormant)* |
@@ -76,9 +75,11 @@ uses the world's own quiet palette, and never spends the caret accent.
 | **Waves** (item 69) | Exactly three stacked, non-overlapping shallow wave tiers — wide scalloped crests, horizontally phase-offset so they layer instead of gridding. Static; the world's own ground-ladder rungs. | Bombora |
 
 Currawong's base margin background is **Gradient**. Its slowly appearing and
-dying stars are a separate ambient Frame layer, not the static **Starfield**
-background used by Bombora and Mulga; the at-a-glance table writes
-“Gradient + stars” so the visible result is not misleading.
+dying stars are a separate ambient Frame layer (`AmbientStyle::Stars`), which
+composes over any ground; the at-a-glance table writes “Gradient + stars” so the
+visible result is not misleading. It is now the only star mechanism awl carries
+— the separate static scattered-star GROUND that Bombora and later Mulga wore
+was retired outright once its last world moved off it.
 
 ---
 

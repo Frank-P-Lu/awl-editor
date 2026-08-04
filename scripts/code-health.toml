@@ -1157,41 +1157,34 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::cognitive_complexity"
 file = "src/theme/tests.rs"
 line = 214
-message = "the function has a cognitive complexity of (30/25)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+message = "the function has a cognitive complexity of (29/25)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 258 TIGHTENED this from 30: retiring a ground removed a per-world roster branch, and the round's own new law was written as its own named test rather than folded in here."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
 line = 214
-message = "this function has too many lines (155/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+message = "this function has too many lines (144/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 258 TIGHTENED this from 155 by deleting the retired ground's roster law outright and keeping its replacement in a separate named test."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
-line = 965
-message = "this function has too many lines (101/100)"
-reason = "Item 132: a per-world roster sweep whose length IS the roster's, over a no-wildcard `Background` match that gained one arm for the warped grid. Its twin one function above (the outline rail) carries the same shape. The honest fix is merging the two frost-rail sweeps into one owner, a focused follow-up rather than metric-only churn here."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/theme/tests.rs"
-line = 625
+line = 660
 message = "this function has too many lines (130/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/theme/tests.rs"
-line = 1870
+line = 1903
 message = "the function has a cognitive complexity of (27/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
-line = 2986
+line = 3019
 message = "this function has too many lines (164/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. +2: item 221 added Cassowary's `location_style: LocationStyle::RotatedRail` (plus a one-line comment) to this file's no-wildcard per-world `render_caps` expectation table; Wagtail's exhaustive arm took the paired `LocationStyle::Inline` line, absorbed by an existing comment line it replaced. Item 224 (+1): Magpie's own arm gains the paired `location_style: LocationStyle::Raked` line plus its comment."
 

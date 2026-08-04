@@ -130,7 +130,6 @@ fn deckle_roster_assigns_paperbark_strata_and_galah_fibres_no_wildcard() {
         let weave = match t.background {
             Background::Gradient { .. } => None,
             Background::Dots { .. } => None,
-            Background::Starfield { .. } => None,
             Background::Pinstripe { .. } => None,
             Background::Stripes { .. } => None,
             Background::Lava { .. } => None,

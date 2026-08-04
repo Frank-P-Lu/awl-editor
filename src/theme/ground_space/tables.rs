@@ -27,25 +27,6 @@ pub(super) const DOTS: &[GroundQuantity] = &[
     ),
 ];
 
-pub(super) const STARFIELD: &[GroundQuantity] = &[
-    logical(
-        "the 34px star cell",
-        "the lattice PITCH — how sparse or crowded the night reads, which is \
-         the whole character of the field",
-    ),
-    logical(
-        "the star radius (0.7px) and the sparkle's arm half-width (0.4px) and \
-         length taper (2.5..4.5px)",
-        "the drawn SHAPE of a star. The long taper is a profile, not a rim: it \
-         is visible as a gradient, so it scales with the star rather than with \
-         the sample grid",
-    ),
-    physical(
-        "the star rim feather (1.0px) and the sparkle rim feather (0.6px)",
-        "the two skirts that resolve those shapes' edges",
-    ),
-];
-
 pub(super) const PINSTRIPE: &[GroundQuantity] = &[
     logical(
         "the 9px rule period",
