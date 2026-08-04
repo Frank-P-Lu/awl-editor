@@ -54,6 +54,14 @@ mod float_surface_law;
 mod fold_chevron_center_item127;
 mod fold_chevron_direction_item248;
 mod folds;
+/// `ttf_parser` (this law's `name`-table reader) and
+/// `embedded_docs::FONT_LICENSES_MD` are both `cfg(not(target_arch =
+/// "wasm32"))` — the former lives under Cargo's non-wasm target dependencies
+/// (native PDF export's own reason), the latter is test-only native tooling
+/// — so the roster read this law does (`std::fs::read_dir` over
+/// `assets/fonts`) has no wasm counterpart to be honest about either.
+#[cfg(not(target_arch = "wasm32"))]
+mod font_licence_item255;
 mod frost;
 mod geometry;
 mod geometry_reshape;
