@@ -766,6 +766,39 @@ defects rather than individual lapses, and they belong in the brief template.**
   recovered by switching to `kill -0 <pid>` on the known launch PID, which has
   no such failure mode. **Prefer the PID.**
 
+- **241** — ✅ **COMPLETE except a live confirmation on the user's own window.**
+  Merged `378495d3`. Receipt
+  `native-gate-receipt commit=bd0b09f31c66a374120116a3210253171226ac16 conventions=mac,linux scope=all-targets`,
+  `web-smoke: OK`, code-health and fmt clean, `--bench-theme-burst` witnesses
+  intact. **Live, release, same HUD, screen re-checked unlocked at BOTH ends:**
+  Kite→Mulga 30 ms burst **105.4 → 10.1 ms** (99.3% accounted); Tawny→Mulga
+  **105.8 → 9.9**; the isolated arm went from **no readout at all** → 13.6.
+  **The discriminator did its job and named (b).** The headline tracked the
+  constant one-for-one (0/50/100/250 ms → none/64.1/105.4/262.1), so the settle
+  was almost entirely deliberate waiting — and **Tawny, a quiet static world,
+  measured the same 105.8 ms, which EXCLUDES Kite's `WarpedGrid` outright.**
+  (c) is excluded too: no hidden ~100 ms outside the phases.
+  **Two premise corrections worth keeping.** The instrument's blindness was real
+  but a *different shape* — `retint_theme_preview`'s `Immediate` arm ran the
+  **untimed** `sync_theme_font()` and armed no transaction, so the readout could
+  **only ever report a coalesced settle**. That is why 1.8% was the normal
+  reading: the instrument only ever showed the case that was 96% waiting. And
+  there WAS a genuine unaccounted gap, just not a 100 ms one — the commit arm's
+  **23.5 ms was the surface-acquire wait**, excluded from both neighbouring
+  spans, now named `Acquire` and `Schedule`. `MIN_PHASE_COVERAGE` (0.80) makes
+  any future gap self-reporting.
+  **Item 202 is preserved and PROVED, not asserted:** a 1896-line document still
+  shows one leading reshape and one trailing settle (`wait 106.7 · reshape
+  27.1`), because a 27 ms reshape is worth deferring. The 4 ms threshold sits on
+  the measured spread (0.2 / 12.0 / 24.4 ms by document), not a round number,
+  and an **unmeasured** cost falls back to item 202's clock rule rather than
+  opening the cheap gate — mutation-proved.
+  🔵 **OWED, and small:** every live number came from a 900×600 probe window;
+  the user's 4530×2756 @2x window will show larger `atlas`/`acquire`. The
+  mechanism is window-independent, but the absolute after-numbers on that
+  machine are unmeasured. Also untested live: a dense pointer/wheel sweep, which
+  shares `retint_theme_preview` so the rule applies but the cadence is unproven.
+
 - **249** — ✅ **COMPLETE, and it found an UPSTREAM BUG.** Merged `66738bb9`.
   Receipt
   `native-gate-receipt commit=028fdc0ac7bb24114c8d40b01fba8b63d1f5995b conventions=mac,linux scope=all-targets`,
