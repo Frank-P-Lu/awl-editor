@@ -7,9 +7,24 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::toggle::Toggle;
 
+/// The drawn menu bar's default ON macOS: off, because macOS already has a real
+/// system bar. Split out of the `cfg!` below so BOTH arms stay readable from ANY
+/// build — the generated reference documents one `menu_bar` default for every
+/// platform, and a bare `cfg!` would make that document differ between the
+/// machine that writes it and the CI host that checks it.
+pub(crate) const MENU_BAR_DEFAULT_MACOS: bool = false;
+
+/// The drawn menu bar's default everywhere else: on, since there is no native
+/// bar to defer to.
+pub(crate) const MENU_BAR_DEFAULT_OTHER: bool = true;
+
 /// Whether the rendered menu bar is drawn. It defaults on where there is no native
 /// bar and off on macOS; config, command, and capture flags can override it.
-static MENU_BAR_ON: Toggle = Toggle::new(cfg!(not(target_os = "macos")));
+static MENU_BAR_ON: Toggle = Toggle::new(if cfg!(target_os = "macos") {
+    MENU_BAR_DEFAULT_MACOS
+} else {
+    MENU_BAR_DEFAULT_OTHER
+});
 
 const NONE: usize = usize::MAX;
 

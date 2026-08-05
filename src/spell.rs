@@ -17,7 +17,12 @@ enum_with_all! {
 }
 
 impl DictVariant {
-    fn as_u8(self) -> u8 {
+    /// The variant a fresh install spells with. The ONE owner of that fact —
+    /// `ACTIVE_VARIANT` below is initialised from it, and the generated
+    /// reference reads it rather than restating `en_us`.
+    pub const DEFAULT: DictVariant = DictVariant::EnUs;
+
+    const fn as_u8(self) -> u8 {
         match self {
             DictVariant::EnUs => 0,
             DictVariant::EnGb => 1,
@@ -56,7 +61,8 @@ impl DictVariant {
     }
 }
 
-static ACTIVE_VARIANT: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+static ACTIVE_VARIANT: std::sync::atomic::AtomicU8 =
+    std::sync::atomic::AtomicU8::new(DictVariant::DEFAULT.as_u8());
 
 pub fn active_variant() -> DictVariant {
     match ACTIVE_VARIANT.load(std::sync::atomic::Ordering::Relaxed) {
@@ -77,7 +83,11 @@ pub fn set_active_variant(v: DictVariant) {
 /// code-string/comment check alike — and turns the spell-suggest picker into a
 /// calm no-op, with zero duplicated gating at any call site (render, capture,
 /// the right-click seam).
-static SPELLCHECK_ON: crate::toggle::Toggle = crate::toggle::Toggle::new(true);
+/// The value this flag carries on a fresh install, before any config or
+/// settings write — the ONE owner of that fact, read both by the static
+/// below and by the generated reference (`settings::toggle_default`).
+pub(crate) const SPELLCHECK_DEFAULT: bool = true;
+static SPELLCHECK_ON: crate::toggle::Toggle = crate::toggle::Toggle::new(SPELLCHECK_DEFAULT);
 
 pub fn spellcheck_on() -> bool {
     SPELLCHECK_ON.on()

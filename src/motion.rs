@@ -62,7 +62,11 @@ use crate::toggle::Toggle;
 /// Whether every juice animator should settle INSTANTLY rather than ease over
 /// time. DEFAULT OFF — a plain launch (and every headless capture) keeps the
 /// full glide/flinch feel until [`apply_at_startup`] (live-only) says otherwise.
-static REDUCED_ON: Toggle = Toggle::new(false);
+/// The value this flag carries on a fresh install, before any config or
+/// settings write — the ONE owner of that fact, read both by the static
+/// below and by the generated reference (`settings::toggle_default`).
+pub(crate) const REDUCE_MOTION_DEFAULT: bool = false;
+static REDUCED_ON: Toggle = Toggle::new(REDUCE_MOTION_DEFAULT);
 
 /// True while reduce-motion is active (read by every animation-step seam).
 pub fn reduced() -> bool {

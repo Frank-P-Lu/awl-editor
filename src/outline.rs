@@ -33,7 +33,11 @@ use crate::toggle::Toggle;
 /// doc's 2026-07-09 taste reversal) — the calm room shows the outline's quiet
 /// orientation unless you turn it off (palette / `Cmd-Shift-O` / config
 /// `outline = false`).
-static OUTLINE_ON: Toggle = Toggle::new(true);
+/// The value this flag carries on a fresh install, before any config or
+/// settings write — the ONE owner of that fact, read both by the static
+/// below and by the generated reference (`settings::toggle_default`).
+pub(crate) const OUTLINE_DEFAULT: bool = true;
+static OUTLINE_ON: Toggle = Toggle::new(OUTLINE_DEFAULT);
 
 /// True when the margin outline is enabled (read by the renderer each reshape
 /// + by the capture sidecar's `outline` block, so the two can never disagree).

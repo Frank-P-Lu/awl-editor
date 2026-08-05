@@ -52,7 +52,7 @@ const CMD_PREFIX: &str = "cmd:";
 /// Non-catalog synthetic slugs: `(slug, mac spec, linux spec)`, each spec in
 /// the same terse form [`crate::keyspec::parse_chord`] accepts. See the module
 /// doc for why these two exist outside the catalog.
-const SYNTHETIC: &[(&str, &str, &str)] = &[
+pub(crate) const SYNTHETIC: &[(&str, &str, &str)] = &[
     // The command palette: its own dedicated Cmd-P/Ctrl-P, matched directly in
     // `keymap.rs::resolve` (never a catalog row, never rebindable via `[keys]`).
     ("command_palette", "Cmd-P", "C-p"),

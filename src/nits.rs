@@ -51,7 +51,11 @@ use crate::toggle::Toggle;
 
 /// Whether the writing-nits highlighter is active. DEFAULT ON: the app opens with
 /// the quiet underlines showing (like spellcheck); the toggle hides them all.
-static NITS_ON: Toggle = Toggle::new(true);
+/// The value this flag carries on a fresh install, before any config or
+/// settings write — the ONE owner of that fact, read both by the static
+/// below and by the generated reference (`settings::toggle_default`).
+pub(crate) const WRITING_NITS_DEFAULT: bool = true;
+static NITS_ON: Toggle = Toggle::new(WRITING_NITS_DEFAULT);
 
 /// True when the writing-nits highlighter is active (read each frame by the
 /// render pipeline to decide whether to build any nit underlines).

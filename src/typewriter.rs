@@ -30,7 +30,11 @@ use crate::toggle::Toggle;
 /// Whether typewriter scroll pins the caret row centered. DEFAULT OFF — the calm
 /// room scrolls with the ordinary cursor-follow until you ask for the pinned line
 /// (palette "Toggle typewriter scroll" / settings menu / config `typewriter_scroll = true`).
-static TYPEWRITER_ON: Toggle = Toggle::new(false);
+/// The value this flag carries on a fresh install, before any config or
+/// settings write — the ONE owner of that fact, read both by the static
+/// below and by the generated reference (`settings::toggle_default`).
+pub(crate) const TYPEWRITER_SCROLL_DEFAULT: bool = false;
+static TYPEWRITER_ON: Toggle = Toggle::new(TYPEWRITER_SCROLL_DEFAULT);
 
 /// True when typewriter scroll is enabled (read by `sync_view`'s cursor-follow +
 /// by the capture scroll computation, so the live app and a headless capture can

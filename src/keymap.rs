@@ -1055,23 +1055,25 @@ pub(crate) fn linux_keeps_chord(keep: &[String], chord_spec: &str) -> bool {
         .any(|k| crate::keyspec::canonical_binding(k).as_deref() == Some(want.as_str()))
 }
 
-/// THE KEYMAP FLAVOR ROUND — a config `keymap = "native" | "emacs"` PRESET,
-/// orthogonal to [`Convention`] (which decides whether slot 1 SPEAKS ⌘-chords
-/// or Ctrl-chords). `Native` (the default) is today's behavior byte-identical.
-/// `Emacs` widens the emacs-hands-on-Linux `linux_keep_emacs` PER-CHORD door
-/// (see [`KeymapState::apply_linux_keep`]/[`linux_keeps_chord`] above) into a
-/// whole-catalog PRESET: every chord [`LINUX_DISPLACED_LETTERS`] names keeps
-/// its emacs meaning, unioned with the user's own explicit `linux_keep_emacs`
-/// entries — see `crate::config::Config::effective_linux_keep`, THE ONE
-/// COMPOSITION OWNER (this module stays unaware of the config field entirely;
-/// it only ever sees the already-composed `keep` list `with_overrides_and_keep`/
-/// `apply_linux_keep` take). Inert on [`Convention::Mac`] structurally, same as
-/// `linux_keep_emacs` itself — no collisions exist there to keep.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum KeymapFlavor {
-    #[default]
-    Native,
-    Emacs,
+enum_with_all! {
+    /// THE KEYMAP FLAVOR ROUND — a config `keymap = "native" | "emacs"` PRESET,
+    /// orthogonal to [`Convention`] (which decides whether slot 1 SPEAKS ⌘-chords
+    /// or Ctrl-chords). `Native` (the default) is today's behavior byte-identical.
+    /// `Emacs` widens the emacs-hands-on-Linux `linux_keep_emacs` PER-CHORD door
+    /// (see [`KeymapState::apply_linux_keep`]/[`linux_keeps_chord`] above) into a
+    /// whole-catalog PRESET: every chord [`LINUX_DISPLACED_LETTERS`] names keeps
+    /// its emacs meaning, unioned with the user's own explicit `linux_keep_emacs`
+    /// entries — see `crate::config::Config::effective_linux_keep`, THE ONE
+    /// COMPOSITION OWNER (this module stays unaware of the config field entirely;
+    /// it only ever sees the already-composed `keep` list `with_overrides_and_keep`/
+    /// `apply_linux_keep` take). Inert on [`Convention::Mac`] structurally, same as
+    /// `linux_keep_emacs` itself — no collisions exist there to keep.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+    pub enum KeymapFlavor {
+        #[default]
+        Native,
+        Emacs,
+    }
 }
 
 impl KeymapFlavor {
