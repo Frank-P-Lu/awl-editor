@@ -515,8 +515,10 @@ fn a_huge_picker_corpus_still_plans_only_the_rows_on_screen() {
 /// 2. APPEARANCE, from the frame's own pixels: on `Bars`, the notice row's band
 ///    must read as plain card ground rather than as the footer's plate. Diagonal
 ///    authors ink through that ground, so its appearance is not a Bars oracle.
-///    Absolute luminance grades only Bars worlds whose plate it can genuinely see
-///    (`plate_delta > VISIBLE_PLATE_LUMA`); arm 1 covers the rest.
+///    The oracle reads MEDIANS over the drawn plate's OWN COLUMNS — see
+///    `notice_reads_as_ground` for why a card-wide mean measured plate width and
+///    glyph coverage instead of plate visibility — and EVERY plate-drawing world
+///    is graded, which the arm asserts rather than assumes.
 /// 3. THE EXCLUSION, on the bare-plate worlds arms 1 and 2 do not reach: the
 ///    frame must emit NO row surface at all, so no plate can sit on the notice.
 #[test]
@@ -625,29 +627,39 @@ fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world() 
              was left out of `content_rows`."
         );
         // …and the footer plate really is seated at the planned footer top.
-        assert!(
-            plates.iter().any(|r| (r[1] - footer_top).abs() < lh * 0.5),
-            "{world}: no drawn plate sits at the planned footer top {footer_top:.1} \
-             (plates {plates:?}) — arm 1 must be watching a real plate"
-        );
+        let footer_plate = *plates
+            .iter()
+            .find(|r| (r[1] - footer_top).abs() < lh * 0.5)
+            .unwrap_or_else(|| {
+                panic!(
+                    "{world}: no drawn plate sits at the planned footer top {footer_top:.1} \
+                     (plates {plates:?}) — arm 1 must be watching a real plate"
+                )
+            });
 
-        // ARM 2 — the pixels.
+        // ARM 2 — the pixels, graded over that plate's own columns.
         let pixels = shoot(&device, &queue, &mut p);
-        let bands = (geom.card_y, notice_top, footer_top, lh);
+        let bands = (notice_top, footer_top, lh);
         if matches!(
             theme::active().render_caps.list_style,
             theme::ListStyle::Bars
-        ) && notice_reads_as_ground(&pixels, plan.card_x_span(), bands, world)
-        {
+        ) {
+            notice_reads_as_ground(&pixels, footer_plate, bands, world);
             pixel_graded.push(world);
         }
     }
     crate::render::set_list_style_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
+    // ENROLMENT IS THE PLATED ROSTER, DERIVED FROM THEME DATA — never a hardcoded
+    // subset of it. A pixel oracle that grades "whichever worlds it happened to be
+    // able to see" hardcodes a property of the GPU: this set was once literally
+    // `["Firetail"]`, and the two worlds it omitted were omitted because a
+    // card-wide mean could not see their plates, one of them straddling the
+    // enrolment gate closely enough to flip between backends. The equality below
+    // is what makes a narrowing fail by name instead of going quietly green.
     assert_eq!(
-        pixel_graded,
-        ["Firetail"],
-        "the Bars appearance arm must grade its one empirically visible plate"
+        pixel_graded, plated,
+        "the Bars appearance arm must grade EVERY plate-drawing world"
     );
     assert_eq!(
         plateless_graded, plateless,
@@ -667,52 +679,116 @@ fn shoot(device: &wgpu::Device, queue: &wgpu::Queue, p: &mut TextPipeline) -> Ve
 }
 
 /// ARM 2 of the empty-state law: does the NOTICE row's band read as plain card
-/// ground rather than as the footer's plate? `bands` is `(card_y, notice_top,
-/// footer_top, lh)`. Returns whether this world's plate was visible enough for the
-/// absolute oracle to grade at all; a `false` here means arm 1 carries the world.
+/// ground rather than as the footer's plate?
+///
+/// THE STATISTIC IS A MEDIAN OVER THE DRAWN PLATE'S OWN COLUMNS, and both halves
+/// of that phrase are load-bearing.
+///
+/// * **The plate's columns, not the card's.** A plate HUGS its row's content, so
+///   it covers a fraction of the card that varies from ~20% (a wide card, a short
+///   hint) to ~80% (a narrow right-rail card). Averaging across the whole card
+///   therefore measures *how wide the plate is* as much as how visible it is —
+///   and it dilutes the plate's own contrast by that same fraction.
+/// * **A median, not a mean.** Inside the plate's columns the flat fill is the
+///   strict majority of pixels and glyph ink is the minority, so the median
+///   returns the FILL COLOUR ITSELF, exactly. A mean instead returns
+///   `coverage × contrast` summed over every surface in the band, which mixes
+///   three quantities that have nothing to do with each other: the plate's
+///   contrast, the plate's width, and the row's own glyph coverage. Two of those
+///   are set by the shaper and the card geometry, and the third by the palette.
+///
+/// That mixing is not academic. Under a card-wide mean the notice row's lift is
+/// `ink_coverage × ink_contrast`, and `ink_coverage` scales as `1 / card_width`:
+/// the same "no matches" string reads as a whisper on a 600px card and as a band
+/// on a 178px one, purely because the divisor changed. On the footer row the same
+/// mean subtracts the plate's darkening from the hint's ink lift — two comparable
+/// terms — so the enrolment number is a RESIDUAL, and a small shift in either
+/// input moves it by a large fraction of itself. That is how enrolment came to
+/// depend on which GPU rasterized the glyphs.
+///
+/// `bands` is `(notice_top, footer_top, lh)`; `plate` is the footer plate quad
+/// the emitter really produced (arm 1's own evidence), which supplies the
+/// columns. THERE IS NO "COULD NOT SEE IT" ANSWER: this used to hand one back and
+/// the caller counted it as an excuse, which is how a graded roster of one world
+/// came to look deliberate. Visibility is now an assertion like any other.
 fn notice_reads_as_ground(
     pixels: &[[u8; 4]],
-    card_x: (f32, f32),
-    bands: (f32, f32, f32, f32),
+    plate: [f32; 4],
+    bands: (f32, f32, f32),
     world: &str,
-) -> bool {
-    /// The luminance gap, against the card's own top-pad ground, at which the
-    /// footer plate becomes visible to an absolute pixel oracle. Below it a pale
-    /// world's plate is a whisper and only arm 1 can speak.
+) {
+    /// The luminance gap, between the plate's fill and the card's ground, at
+    /// which the plate is a surface an absolute pixel oracle can name. Both
+    /// sides are flat fills read as medians, so this compares two authored
+    /// palette entries: the only backend sensitivity is ±1 in the 8-bit
+    /// encoding of a blend, and the shipping roster clears the gate by 2.5×–5×.
     const VISIBLE_PLATE_LUMA: f64 = 7.0;
 
-    let (card_y, notice_top, footer_top, lh) = bands;
-    let x_lo = (card_x.0 + 2.0).max(0.0) as u32;
-    let x_hi = (card_x.1 - 2.0).min(1199.0) as u32;
-    let mean_luma = |y0: f32, y1: f32| -> f64 {
-        let (a, b) = (y0.ceil().max(0.0) as u32, y1.floor().min(800.0) as u32);
-        let (mut sum, mut n) = (0.0f64, 0u32);
-        for y in a..b {
-            for x in x_lo..x_hi {
-                let px = pixels[(y * 1200 + x) as usize];
-                sum += 0.2126 * px[0] as f64 + 0.7152 * px[1] as f64 + 0.0722 * px[2] as f64;
-                n += 1;
-            }
-        }
-        sum / n.max(1) as f64
+    let (notice_top, footer_top, lh) = bands;
+    let x_lo = (plate[0] + 2.0).max(0.0) as u32;
+    let x_hi = (plate[0] + plate[2] - 2.0).min(1199.0) as u32;
+    let luma = |x: u32, y: u32| -> f64 {
+        let px = pixels[(y * 1200 + x) as usize];
+        0.2126 * px[0] as f64 + 0.7152 * px[1] as f64 + 0.0722 * px[2] as f64
     };
-    // The card's own TOP PAD: pure ground, no glyph ink, on every world.
-    let ground = mean_luma(card_y + 1.0, card_y + 10.0);
+    let samples = |y0: f32, y1: f32| -> Vec<f64> {
+        let (a, b) = (y0.ceil().max(0.0) as u32, y1.floor().min(800.0) as u32);
+        let mut v: Vec<f64> = (a..b)
+            .flat_map(|y| (x_lo..x_hi).map(move |x| (x, y)))
+            .map(|(x, y)| luma(x, y))
+            .collect();
+        v.sort_by(|p, q| p.partial_cmp(q).expect("no NaN luminance"));
+        v
+    };
+    let median = |y0: f32, y1: f32| -> f64 {
+        let v = samples(y0, y1);
+        assert!(!v.is_empty(), "{world}: empty sample band {y0:.1}..{y1:.1}");
+        v[v.len() / 2]
+    };
     let pad = (lh * 0.25).max(4.0);
-    let notice = mean_luma(notice_top + pad, notice_top + lh - pad);
-    let footer = mean_luma(footer_top + pad, footer_top + lh - pad);
-    let plate_delta = (footer - ground).abs();
-    let notice_delta = (notice - ground).abs();
-    if plate_delta <= VISIBLE_PLATE_LUMA {
-        return false;
-    }
+
+    // THE GROUND REFERENCE is the gap directly above the first content row —
+    // adjacent to the band being graded, so no card-wide wash can tilt it, and
+    // above every row surface, so no plate can. The card's own TOP PAD is the
+    // wrong reference: two worlds shade their card's top edge, which biases it
+    // away from the ground that actually surrounds the notice row.
+    //
+    // That the gap IS plain ground is asserted rather than assumed: a header
+    // block that grew into it, or a world that washed it, would otherwise
+    // silently rebase every number below.
+    let (g0, g1) = (notice_top - pad - 2.0, notice_top - 2.0);
+    let gap = samples(g0, g1);
+    let ground = gap[gap.len() / 2];
+    let flat = gap.iter().filter(|l| (*l - ground).abs() <= 1.0).count() as f64 / gap.len() as f64;
     assert!(
-        notice_delta * 3.0 < plate_delta,
-        "{world}: the empty-state NOTICE row reads as a plated footer band rather than \
-         plain card ground (ground {ground:.2}, notice {notice:.2}, footer {footer:.2}; \
-         notice delta {notice_delta:.2} vs plate delta {plate_delta:.2})"
+        flat > 0.98,
+        "{world}: the ground reference strip (y {g0:.1}..{g1:.1}, the gap above the \
+         notice row) is not plain card ground — only {:.1}% of it sits within 1 luma \
+         of its median {ground:.2}. Something now draws there, so every number this \
+         oracle derives from it is rebased.",
+        flat * 100.0
     );
-    true
+
+    let notice = median(notice_top + pad, notice_top + lh - pad);
+    let footer = median(footer_top + pad, footer_top + lh - pad);
+    let plate_contrast = (footer - ground).abs();
+    let notice_lift = (notice - ground).abs();
+    assert!(
+        plate_contrast > VISIBLE_PLATE_LUMA,
+        "{world}: the footer plate's own fill is indistinguishable from card ground \
+         (ground {ground:.2}, plate {footer:.2}; contrast {plate_contrast:.2} ≤ \
+         {VISIBLE_PLATE_LUMA}), so arm 2 cannot see the surface it grades. Either this \
+         world's palette changed or the plate stopped drawing — ENROLMENT MUST NOT \
+         SILENTLY NARROW, and it must never depend on which GPU ran the test."
+    );
+    assert!(
+        notice_lift <= VISIBLE_PLATE_LUMA,
+        "{world}: the empty-state NOTICE row reads as a plated band rather than plain \
+         card ground (ground {ground:.2}, notice {notice:.2}, plate {footer:.2}; notice \
+         lift {notice_lift:.2} vs plate contrast {plate_contrast:.2}). The footer plate \
+         is seated a row too high — the notice line the card height paid for was left \
+         out of `content_rows`."
+    );
 }
 
 // --- The retired-arithmetic source law ---------------------------------------
