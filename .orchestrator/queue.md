@@ -1245,3 +1245,56 @@ conventions **on Metal only**, and said so, citing the same tripwire: a
 Metal-green result is not evidence about lavapipe. **This intelligence was
 forwarded to the repair lane**, because `MiscPins` converts "which leak masked
 this" from a search into a sweep.
+
+✅ **273 — COMPLETE, COMMITTED, HELD** — branch `claude/item-273-reference`, HEAD
+`0226691a`, 4 commits. **Native receipt claimed at final HEAD**; code-health,
+web-smoke and `site-links.sh` green. **Held only because `main` is CI RED.**
+`REFERENCE.md` + `site/reference.html`, **every table generated from awl's own
+rosters** — commands (93, both conventions asked explicitly), synthetic chords,
+settings (31), config keys (31) with numeric bands, worlds (20), markdown
+constructs and conceal — **held by 17 named drift laws.** The site page is **not
+a hand-mirror**: the same rows through an HTML emitter, so the two cannot
+disagree about a fact. **The user's two boundaries were held:** reference only —
+the tutorial is theirs — and cold register throughout.
+
+✅ **MUTATION-PROVEN FOUR WAYS, and two of them fail at COMPILE time**, which is
+stronger than a red test: changing a binding reddens both documents by name;
+adding a `Config` field fails to compile *pointing at the law*; adding a
+`ConcealKind` trips a non-exhaustive match; changing a world's face reddens the
+worlds section.
+
+🔴 **THE SPOT-CHECK FOUND THREE DEFECTS IN ITS OWN FIRST PASS, ALL THE SAME
+SHAPE THE BRIEF WARNED OF — GENERATED FROM THE WRONG OWNER.** Generation is not
+safety; it moves the error from transcription to sourcing. **(a) `project_root`
+was printed as a `config.toml` key** — `path_key` doubles as a dispatch route
+and `Config` has had no such field since it was retired, **so the table told a
+reader to write a line the loader never reads.** **(b) The Step column printed
+each band's MINIMUM**, because `RangeSpec::format` is the readout formatter and
+clamps first — zoom's 0.1 step formatted as "50%". **(c) The reveal column asked
+`wysiwyg_reveals` ONCE**, with the caller's precomputed flag, and reported the
+answer as the construct's property — **inverting every line-scoped row.** Each
+closed with the law that catches it; (c) now probes caret-inside *and*
+caret-outside and requires the pair to differ.
+
+⚠️ **A FLAGGED "DATA SMELL" THAT IS NOT ONE — CHECKED, AND RECORDED SO NOBODY
+"FIXES" IT.** The lane surfaced `theme/worlds.rs:142`'s
+`font: "Newsreader 16pt 16pt"` as a doubled optical-size suffix, truthfully
+reported into a user-facing table. **It is correct as written:** `render.rs:394`
+documents it as the **actual registered family name** — *"the static Newsreader
+master registers under this optical-size name"* — verified through fontdb, and
+`"Fraunces 9pt"` is the same shape. **Changing it would break Bilby's font
+resolution.** Right instinct to flag it; the answer was already in the tree.
+
+**🔵 SIX THINGS NAMED AS UNBUILT rather than implied complete:** (1) **CLI flags
+have no roster to generate from** — `main/args.rs` hand-parses 61 in one `match`
+and `--help` is one hand-written string, so that section needs the flag list
+lifted into data first; (2) **`Command` carries only `name`**, so the reference
+says what a command is called and bound to, never what it *does*; (3)
+**`WORLDS.md`'s Display/Mono/axis columns are still hand-written** and can drift
+— only membership is law-checked; (4) **no in-app door** (Guide and Credits have
+palette commands, the reference does not); (5) **the site page is visually
+unreviewed** — links pass and the CSS reuses `.credits-body`, but it was not
+rendered, and the lane flagged that rather than claiming it; (6) **the
+five-section structure was the lane's call**, not the user's — the item said the
+split was worth a human eye first, and re-sectioning is cheap since the marker
+pairs and `Section::ALL` are the only coupling.
