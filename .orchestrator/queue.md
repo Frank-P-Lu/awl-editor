@@ -1411,3 +1411,55 @@ probeable candidate the moment before its planned consumer.**
 `ListStyle` reuses `Diagonal`'s `BarePlates` plumbing, not `Bars`'s fields.
 
 278. **`native-gate.sh` LEAKS ITS VITALS HEARTBEAT ON AN ABNORMAL EXIT — five orphans were found alive on this host, the oldest at 2h25m.** **Measured 2026-08-05, not inferred.** `ps -ww` found five `bash scripts/native-gate.sh` processes in the **repo root**, all with **PPID 1** (reparented — their parent shell was gone), each with **one child sitting in `sleep 60`**, and each having burned **0.22–0.47 s of CPU over 1–2.4 hours**. They are the `gate_vitals_loop` heartbeat, still looping. ⚠️ **They cost almost no CPU — the finding is not a load problem.** The cost is that each holds the gate's inherited **stdout** open, which `native-gate.sh`'s own comment at `gate_sleep_then` says is exactly the failure to avoid: *"a caller capturing this script's output would block on it long after the receipt was printed."* **The orphan class the script documents is the one it is producing.** ⚠️ **THE NORMAL PATH IS ALREADY CORRECT — do not "fix" it there.** `vitals_pid` is killed at **three** sites (`:500`, `:524`, `:551`), and the receipt runs that produced these orphans printed their receipts and exited cleanly. **The gap is the EXIT trap** (`:44`), which removes `gate_run_dir` and item 270's marker but **never touches `vitals_pid`** — so any teardown that does not reach those three sites (a killed parent, a harness tearing down a background job, an interrupt) leaves the heartbeat looping forever. **Build:** make the heartbeat's retirement unconditional — the EXIT trap is the obvious home — so it dies on every path the way the marker already does. ⚠️ **This is subtler than one line and that is why it is an item rather than an orchestrator fix.** `gate_launch` deliberately places the two conventions in **separate process groups**, and the script carries explicit commentary (`:395`+) about `kill $pid` retiring a `cargo test` and **nothing below it**, citing a real CI run whose job cleanup had to reap survivors by hand. **A group signal will miss things and a bare `kill` will miss descendants** — item 277's `.orchestrator/reap-orphaned-gates.sh` already walks real `pgrep -P` ancestry for this reason and is the in-repo precedent to read first. **Verify:** start a gate, **kill the parent shell** (not the gate), and assert no `native-gate.sh` and no orphaned `sleep` survives; do the same for SIGINT and for a harness-style background teardown; confirm a **normal** completion still issues its receipt and still leaves nothing behind. **Mutation-prove** by removing the new teardown and watching the check fail by name. ⚠️ **Do not weaken the three existing kill sites and do not touch the receipt contract** — the HEAD comparison, the no-filtering refusal and the receipt line's format are read by other scripts and CI audits. **Routing:** production tier. **Found by the orchestrator 2026-08-05 while reaping the host; five orphans retired by hand, by exact PID after verifying each child was a `sleep` and no gate was live.**
+
+✅ **261 — LANDED, merge `1390f9db`** (`41fdbf42`, `ed057aa5`). Native receipt at
+`ed057aa5`; combined candidate re-gated here, **3742 passed**. **`Arrangement`,
+`LavaEdge` and `DeckleAnchor` are gone as COLUMNS, not as arms** — enum, scalar,
+struct field, shader branch and `ground_space` entry each. `grep` returns **zero
+hits** for every retired token; the only survivors are prose and two deliberate
+negative-assertion needles. **All 20 worlds byte-identical in PNG**, carriers
+included. Sidecar loses exactly **three keys on exactly five worlds**, each of
+which reported a constant.
+
+✅ **`Tunnel` LEFT ON PURPOSE — the correct outcome, not a shortfall**, and the
+lane did not decide it alone. Its three surplus arms are item 194's mutation
+arms; **262** says not to delete them until it lands, **268** supersedes 262's
+framing and wants the same `axis_x` line, and 261's own finding (d) says
+sequence 262 first. **`Tunnel` still carries all four arms — verified in the
+branch before merging.**
+
+✅ **THE NUMBERING CALL, PER SCALAR, AND IT FOUND A THIRD KIND.** `shader_id`
+(wire value) and `roster_index` (dense index) are **both untouched, because no
+ground was retired.** The three deleted scalars are neither: **a per-ground
+selector read at exactly one shader site**, so with one arm left there is
+nothing to select and the scalar goes rather than being renumbered or frozen to
+a constant. **Their slots are left INERT, not reused** — `params.z` packs `0.0`
+for Organic, Deckle's `params.w` carries the weave alone, lava's `margin.w` is
+documented reserved. `Weave::mode()` stays: two live arms.
+
+✅ **SCHEMA 198 → 199, AND THE ASYMMETRY AGAINST 258 IS RECORDED rather than left
+to be rediscovered:** 258 held at 198 because only a **value space** narrowed;
+this removes **keys**, which is a shape change. That distinction is now in the
+ledger row.
+
+🔵 **AN OPEN USER CALL WAS TAKEN, FLAGGED, AND IS ONE FUNCTION TO REVERSE.**
+`DeckleAnchor::Page` was the **mutation witness** for the wallpaper law. The
+board's standing recommendation is to keep such a witness behind a `cfg(test)`
+scalar — which means **keeping `deckle_page_distance` alive in shipped WGSL, and
+translated for WebGL2, to serve one test.** The lane took the other branch (its
+brief's "no dead branch for a removed mode") and **replaced the counterexample
+with a direct assertion**: a page-anchored Strata measures `d = col_left − x`,
+so a drag of `shift` makes the post-drag field at `x` equal the pre-drag field
+at `x + shift` exactly — asserting the field is **not** invariant under that
+offset is the same claim, needs no rejected code, and **cannot go vacuous.**
+⚠️ **The user has not ruled between delete-outright and a `cfg(test)` fixture.
+Reverting is re-adding one small shader function.**
+
+✅ **FOUR MUTATION PROOFS FIRED BY NAME, and the third is the one that matters:**
+flattening `deckle_strata` to a single tone **passes the byte-identity half**
+happily — only the new non-vacuity guard fired. That is precisely the hole the
+replaced arm used to cover.
+
+⚠️ **ONE HONEST LIMIT, restated by the lane:** headless captures pin the lava
+phase, so **the `LavaEdge` retirement rests on the user's verdict against a
+rendered still**, not on anything the harness can say about motion.
