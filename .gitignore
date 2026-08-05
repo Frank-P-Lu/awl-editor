@@ -36,3 +36,9 @@
 
 # Python bytecode from ad-hoc imports of the icon verifier
 __pycache__/
+
+# native-gate.sh's in-flight advisory marker (pid + start sha + start time),
+# written while the gate runs and removed on every exit path. A stale one is
+# harmless: its authority is the live PID inside it, checked with `kill -0`,
+# never the file's mere existence.
+/.orchestrator/native-gate.marker
