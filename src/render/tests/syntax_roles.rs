@@ -792,10 +792,10 @@ fn ink_ladder_and_selection_laws_hold_for_every_world() {
             );
             assert_eq!(
                 (
-                    th.selection.r,
-                    th.selection.g,
-                    th.selection.b,
-                    th.selection.a
+                    th.selection_document.r,
+                    th.selection_document.g,
+                    th.selection_document.b,
+                    th.selection_document.a
                 ),
                 (0xFF, 0xFF, 0xFF, 0xFF),
                 "{}: one-bit selection is pure OPAQUE white (legibility is the punch quad's job, not this token's alpha)",
@@ -848,7 +848,7 @@ fn ink_ladder_and_selection_laws_hold_for_every_world() {
 
         // (d) Selection COMPOSITED over the ground is a quiet, GLANCEABLE
         // highlight — measured on what the eye sees, not the opaque tint.
-        let eff = composite(th.selection, th.base_100);
+        let eff = composite(th.selection_document, th.base_100);
         let svb = redmean(eff, th.base_100);
         assert!(
             svb >= 35.0,
@@ -889,11 +889,15 @@ fn measure_ink_ladder() {
             redmean(th.faint, th.base_100),
             (y(th.faint) - y(th.base_100)).abs(),
             redmean(
-                theme::Srgb::rgb(th.selection.r, th.selection.g, th.selection.b),
+                theme::Srgb::rgb(
+                    th.selection_document.r,
+                    th.selection_document.g,
+                    th.selection_document.b
+                ),
                 th.base_100
             ),
         );
-        let sel_eff = composite(th.selection, th.base_100);
+        let sel_eff = composite(th.selection_document, th.base_100);
         let dl = (sel_eff.to_hsl().2 - th.base_100.to_hsl().2).abs();
         eprintln!("{:10} selection composited ΔL={:.3}", th.name, dl);
     }
@@ -988,7 +992,7 @@ fn every_monochrome_world_renders_zero_saturation_everywhere() {
         assert_grey(th.primary, th.name, "primary (THE CARET — no exceptions)");
         assert_grey(th.primary_content, th.name, "primary_content");
         assert_grey(th.error, th.name, "error");
-        assert_grey(th.selection, th.name, "selection");
+        assert_grey(th.selection_document, th.name, "selection");
 
         // The margin ground.
         assert_grey(th.background.from(), th.name, "background.from");
@@ -1071,7 +1075,7 @@ fn every_one_bit_world_renders_only_pure_black_or_white() {
         assert_pure_bw(th.primary, th.name, "primary (THE CARET — no exceptions)");
         assert_pure_bw(th.primary_content, th.name, "primary_content");
         assert_pure_bw(th.error, th.name, "error");
-        assert_pure_bw(th.selection, th.name, "selection");
+        assert_pure_bw(th.selection_document, th.name, "selection");
 
         // The margin ground: pure b/w endpoints, AND (1-bit-specific) the two
         // endpoints must be IDENTICAL — a flat gradient is the one variant

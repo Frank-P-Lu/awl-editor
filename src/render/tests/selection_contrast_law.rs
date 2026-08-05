@@ -370,7 +370,7 @@ fn probe(world: &'static str, w: u32, h: u32, measure: usize, page_on: bool) -> 
 /// becomes `base_content` and the ink `base_300`, and both are opaque, so both
 /// are predictable.
 fn expected(th: &theme::Theme) -> (Option<[u8; 4]>, [u8; 4]) {
-    match th.highlight_treatment(th.selection) {
+    match th.highlight_treatment(th.selection_document) {
         theme::HighlightTreatment::ValueBand(_) => (None, theme_px(th.base_content)),
         theme::HighlightTreatment::InverseFill { band, ink } => {
             (Some(theme_px(band)), theme_px(ink))
@@ -516,7 +516,7 @@ fn selection_contrast_report() {
                 pr.band,
                 pr.ink,
                 pr.page,
-                th.selection.rgba_bytes()
+                th.selection_document.rgba_bytes()
             ),
         ));
     }

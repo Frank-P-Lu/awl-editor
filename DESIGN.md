@@ -85,7 +85,8 @@ Text uses authored roles rather than arbitrary styling. The common grammar is:
 | `faint` | Orientation, counters, and metadata that should disappear from attention |
 | `primary` | The world's principal interactive presence, normally the caret |
 | `primary_content` | Legible ink drawn on `primary` |
-| `selection` | Selected or matched content |
+| `selection_document` | Selected or matched content — the wash that covers text |
+| `selection_ui` | The band under a selected row in a summoned surface. Derived as a value step off the surface ramp, so it is never a new hue by construction; a world may author it instead |
 | `error` | Failure or destructive warning, never decoration |
 
 These are semantic jobs, not fixed hues. Worlds author their own palettes and

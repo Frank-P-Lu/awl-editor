@@ -71,9 +71,9 @@ pub use derive::{
     active, active_index, background, base_100, base_200, base_300, base_content, card_texture_ink,
     error, faint, fold_afford_chevron_ink, fold_afford_tail_ink, heatmap_colors,
     image_reveal_scrim, muted, overlay_band_overlap, overlay_bar_unselected, overlay_bars_scrim,
-    overlay_selected_band, page_frame_ink, pane_surface, placard_ink, placard_stipple_density,
-    primary, selected_row_ink, selected_row_secondary_ink, selection, set_active,
-    set_active_by_name, surface_selected,
+    page_frame_ink, pane_surface, placard_ink, placard_stipple_density, primary, selected_row_ink,
+    selected_row_secondary_ink, selection_document, selection_ui, set_active, set_active_by_name,
+    surface_selected,
 };
 pub use diagonal::DiagonalDirection;
 pub use ground::Background;
