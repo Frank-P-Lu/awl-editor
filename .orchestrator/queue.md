@@ -139,10 +139,19 @@ took it.
    `gh workflow run release.yml -f dry_run=true` and read the produced
    `GLIBC.txt`. If it comes back clean, the "decide it together with item 227's
    AppImage" coupling retires.
-4. **Item 228 versus the site's download URL — these cannot both hold.** 228
-   wants `0.9.0` in artifact names; the site hardcodes the unversioned
-   `/releases/latest/download/` URL. One of them changes; which is the user's
-   call, and it is cheapest to make before the first tag rather than after.
+4. **✅ RESOLVED 2026-08-06 — item 228 takes the version, and the conflict that
+   gated it was FALSE.** The user chose `0.9.0` in artifact names. The claimed
+   collision with a hardcoded `/releases/latest/download/` URL **does not
+   exist**: no tracked file has ever hardcoded it — the site and README link to
+   the releases *page*, and the unversioned name lives only in the two producers
+   plus two `tar xzf` snippets. See §"Design decisions — user, 2026-08-06" and
+   the corrected `RELEASING.md:277`.
+   ⚠️ **228 is still not buildable, for a DIFFERENT reason — do not dispatch
+   it.** Its own body gates the build: *"update `Cargo.toml` and all
+   version-bearing release surfaces together **only when the release-preparation
+   work is green and the user authorizes the public tag**"*. That authorization
+   has not been given, and CLAUDE.md requires it every time. **What changed is
+   the reason, not the status.**
 
 ## Latest design decisions
 
