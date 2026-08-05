@@ -1789,3 +1789,49 @@ measurement.
 `claude/item-271-fourth-liststyle`. Deep tier (Opus, high) as the item routes.
 Runs in parallel with 282; the two touch different files, and 282 lands first
 because it is the gating red.
+
+---
+
+## Design decisions — user, 2026-08-06
+
+**1. Magpie's loudness score is 2.** Closes item 118(b), the last unscored
+world. The map is now complete for all twenty.
+
+**2. Item 118(a) — AMEND THE TARGET SHAPE; do NOT raise ~7 worlds.** The
+roster's confirmed mean of **2.15–2.20** against a target of **2.90** is read as
+the target having been drawn wrong, not the worlds being too quiet. Every world
+was individually confirmed by the user, and both 5s already sit exactly where
+the roster wants them; the item's own rule forbids turning a world up merely to
+fill a bin. **So the target shape is restated to describe awl's actual calm
+bias, and the eight-or-nine 1/5s stop reading as a deficit.** ⚠️ **This closes
+the direction call, not the item:** 118 still owes the dispositioning of its six
+standing proposals, and the amended shape must be written down as a shape rather
+than as "whatever we currently have" — a target that is merely descriptive of
+today cannot fail, and an unfalsifiable target is the same defect one layer up.
+
+**3. Item 228 — the version goes in the artifact names (`0.9.0`).**
+
+⚠️ **AND THE CONFLICT THAT BLOCKED IT WAS FALSE — an orchestrator-authored
+premise, retired by measurement.** Both this board (§BLOCKED ON THE USER item 4)
+and `RELEASING.md:277` asserted that unversioned names are "what keeps
+`/releases/latest/download/awl-linux-x86_64.tar.gz` a stable URL the site and
+docs can hardcode", and that the two "cannot both hold". **Measured across every
+tracked file: nothing has ever hardcoded that URL.**
+
+| where the asset name appears | what it is |
+|---|---|
+| `.github/workflows/release.yml` | the producer |
+| `scripts/package-linux.sh` | the producer |
+| `README.md:80`, `site/index.html` | instructional `tar xzf` snippets |
+| `RELEASING.md:277` | the false claim itself |
+
+`site/index.html` and `README.md:73` both link to the releases **page**
+(`/releases`), not to a direct asset. So versioning the artifacts costs the two
+snippets and nothing else — **no stable-URL dependency exists to break, and no
+per-release site edit is created.** `RELEASING.md:277` is corrected in the same
+commit.
+
+**This is the CLAUDE.md rule landing on the board itself:** the decision was
+gated for weeks on a conflict that dissolved the first time anyone grepped for
+the URL. The gating half closes as **premise false, oracle repaired**; the
+user's `0.9.0` call stands and is now cheap.
