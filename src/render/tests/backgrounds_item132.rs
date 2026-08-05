@@ -529,7 +529,7 @@ fn both_margins_carry_a_real_field_at_every_swept_geometry() {
             // lattice as a margin narrows — shipped, deliberate simplification —
             // so a margin inside that band is DESIGNED to be quiet and holding it
             // to the open-margin figure would assert against the design. It is
-            // also where item 268's centred axis costs most: a thin strip far
+            // also where the centred axis costs most: a thin strip far
             // from the axis runs nearly TANGENT to every ring, so its crossings
             // are short. Measured worst in this sweep is 1400x700/m86's 80px
             // flanks at 0.571%; every margin at or above the band's top clears 5%.
@@ -595,7 +595,7 @@ fn the_major_minor_hierarchy_reads_as_two_distinct_rungs() {
 /// THE FIELD QUIETS BESIDE THE PAGE — BUT NO LONGER TO NOTHING, AND BOTH HALVES
 /// OF THAT ARE ASSERTED. Nothing may compete with prose at the boundary the eye
 /// reads across, so the band immediately outside the column carries materially
-/// less ink than the open margin further out. What item 268 changed is the FLOOR
+/// less ink than the open margin further out. What the crossing changed is the FLOOR
 /// of that recession: it used to be zero, because the page edge was the end of
 /// the world; it is now `WARP_PAGE_VEIL`, because the field continues across. A
 /// ramp that still touched zero here would break every ring at exactly the one
@@ -1090,10 +1090,10 @@ fn the_warped_grid_wgsl_holds_its_repairs_and_names_no_world() {
         "WARP_SOLVE_STEPS",
         "per_margin",
         "g.pose",
-        // ITEM 268 — the per-margin window placement and the inset that sized it.
-        // These ARE the two tunnels: an axis owner taking `on_right` could only
-        // ever hand each margin its own vanishing point. Named so no later round
-        // reintroduces the shape by hand.
+        // THE PER-MARGIN WINDOW PLACEMENT AND THE INSET THAT SIZED IT. These ARE
+        // the two tunnels: an axis owner taking `on_right` could only ever hand
+        // each margin its own vanishing point. Named here so the shape cannot be
+        // reintroduced by hand.
         "warp_window_axis",
         "WARP_WINDOW_INSET",
     ] {

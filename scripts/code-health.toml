@@ -472,17 +472,8 @@ reason = "items 132/194 (+2): has_ambient_motion gained the warped-grid arm, so 
 
 [[file_size_mark]]
 file = "src/theme/worlds.rs"
-# item 121: one `icon_ground: IconGround::Base100,` field per shipped world
-# literal (the same per-world-explicit shape `icon_cursor` already has) —
-# irreducible without inventing a second, implicit default path the design
-# deliberately rejects (item 121's mechanism note: represent the capability
-# as theme-owned data, never a silent default a world could skip choosing).
-# Combined with item 158's Paperbark addition + Ornaments::of compaction
-# (1110 -> 1099) on top of the rebased tree. Item 132 added Kite and moved the
-# never-enrolled gallery audition out to theme/worlds_gallery.rs, so this file
-# holds only the shipped roster (1124 -> 1123).
-lines = 1131
-reason = "+6: item 221's Cassowary literal gains one `location_style: LocationStyle::RotatedRail,` field plus its own short comment — the same one-field-per-world-capability shape `icon_ground`/`icon_cursor` above already take, irreducible without a second implicit default path. Item 224 (+1): Magpie's literal gains the same one field, `location_style: LocationStyle::Raked,` — its location cue now reads along its own diagonal spine's rake instead of sitting upright beside it. +2: Magpie's ground moves from `Pinstripe` to `Bands`, whose shape is a three-element `tones` array plus one `angle` rather than four scalar fields — the two lines are the array's own delimiters, and flattening them would put three colours on one line against this file's every-field-on-its-own-line convention."
+lines = 1177
+reason = "+46: Kite's literal grows five `RenderCaps` fields (placard, card anchor, chrome face, page frame, facet band) with the one-field-per-line shape every other world's caps already take, and its doc comment records the two dials that were BUILT AND REJECTED on evidence — the Quokka-only chamfer exclusivity, and `Bars` `FullWidth`x`SelectedOnly` stranding the plated-chrome family because `BarExtent::hugs()` is false. That prose is the file's job: a later round that re-proposes either dial reads why it does not work before spending a lane on it, which a commit message six weeks back cannot do."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1187,7 +1178,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
 function = "personality_assignments_are_exactly_the_decided_table"
-message = "this function has too many lines (164/100)"
+message = "this function has too many lines (173/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. +2: item 221 added Cassowary's `location_style: LocationStyle::RotatedRail` (plus a one-line comment) to this file's no-wildcard per-world `render_caps` expectation table; Wagtail's exhaustive arm took the paired `LocationStyle::Inline` line, absorbed by an existing comment line it replaced. Item 224 (+1): Magpie's own arm gains the paired `location_style: LocationStyle::Raked` line plus its comment."
 
 [[clippy_exception]]

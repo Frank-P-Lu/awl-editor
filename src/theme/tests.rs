@@ -3345,9 +3345,9 @@ fn personality_assignments_are_exactly_the_decided_table() {
             },
             // KITE (the light warped-grid statement world). ⚠️ THE OLD ENTRY
             // HERE READ "loud in the FRAME, quiet in the chrome... a placard or
-            // a moved rail would compete with it", and item 268 overturned it on
-            // the user's own instruction ("we need to update the chrome for kite
-            // as well"). The reasoning had a measurable hole: Kite moved ONE of
+            // a moved rail would compete with it", and the user overturned it
+            // ("we need to update the chrome for kite as well"). The reasoning
+            // had a measurable hole: Kite moved ONE of
             // these twenty-two dials, which made it chrome-identical to five
             // QUIET worlds, while its declared deliberate counterpart Firetail
             // moved seven. A world that states itself only in its margins has

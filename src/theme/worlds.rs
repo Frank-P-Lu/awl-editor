@@ -1066,8 +1066,8 @@ pub const THEMES: [Theme; 20] = [
 /// because a filled band under one active category is what a technical panel
 /// does, not to use something up.
 ///
-/// ⚠️ TWO DIALS ITEM 268 PROPOSED WERE BUILT, RENDERED AND REJECTED ON EVIDENCE,
-/// and both rejections are findings rather than omissions.
+/// ⚠️ TWO FURTHER DIALS WERE BUILT, RENDERED AND REJECTED ON EVIDENCE, and both
+/// rejections are findings rather than omissions.
 ///
 /// `CardShape::Chamfered` reads as crisp geometry and it is — but it is
 /// QUOKKA'S. `card_texture_shape.rs` holds an exclusivity law by name: the
@@ -1075,8 +1075,8 @@ pub const THEMES: [Theme; 20] = [
 /// other world keeps the rectangular default. Diluting one world's identity is
 /// not a thing a different world's round gets to decide.
 ///
-/// `ListStyle::Bars` with `FullWidth` x `SelectedOnly` — item 272's "`Pane`
-/// without the card" — is worse than unavailable, it is incompatible.
+/// `ListStyle::Bars` with `FullWidth` x `SelectedOnly` — "`Pane` without the
+/// card" — is worse than unavailable, it is incompatible.
 /// `BarExtent::hugs()` is FALSE for `FullWidth`, and five shipped legibility
 /// laws gate the whole plated-chrome family on it: the shortcut chord, the
 /// lens-strip tabs, the faceted section header and the footer plate all vanish

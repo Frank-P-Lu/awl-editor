@@ -7,11 +7,11 @@ use crate::{theme, warpgrid};
 const OUTER_BAND: u32 = 180;
 const SECTION_ROOM_FRAC: f32 = 0.432;
 // Mirrors of `background.wgsl`. `WINDOW_INSET` went with the placement it
-// belonged to: item 268 replaced the two per-margin axes with ONE at the room's
-// own centre, so a radial scan sweeps about `(W/2, H/2)` and the axis is no
-// longer a function of the anchor at all. `RING_PITCH_AT` and `RPO_MAX` moved
-// with it — see the shader's own note on why the reference point had to follow
-// the axis outward.
+// belonged to: the two per-margin axes were replaced by ONE at the room's own
+// centre, so a radial scan sweeps about `(W/2, H/2)` and the axis is no longer a
+// function of the anchor at all. `RING_PITCH_AT` and `RPO_MAX` moved with it —
+// see the shader's own note on why the reference point had to follow the axis
+// outward.
 const RING_PITCH_AT: f32 = 0.8333333;
 const RPO_MIN: f32 = 3.0;
 const RPO_MAX: f32 = 20.0;
@@ -98,9 +98,9 @@ fn travel_phase(cells: f32) -> f32 {
 }
 
 fn strongest_major_ring_in(frame: &[i32], radii: std::ops::Range<i32>) -> f32 {
-    // THE ONE AXIS: the room's own centre, which is the whole of item 268's
-    // placement. A scan that still swept about a per-margin axis would be
-    // measuring a picture the shader no longer draws.
+    // THE ONE AXIS: the room's own centre, which is the whole of the placement.
+    // A scan that still swept about a per-margin axis would be measuring a
+    // picture the shader no longer draws.
     let axis = (W as f32 * 0.5, H as f32 * 0.5);
     let mut best = (f64::MIN, 0.0);
     for radius in radii {
@@ -131,7 +131,7 @@ fn ring_ladder(device: &wgpu::Device, queue: &wgpu::Queue, bg: theme::Background
         let frame = field(device, queue, bg, W, H, 324.0, 950.0, travel_phase(cells));
         // THE SCAN BAND MOVED OUTWARD WITH THE AXIS. With one axis at the room's
         // centre the near field is under the page at `WARP_PAGE_VEIL`, so a ladder
-        // read there would be grading a 13%-strength signal. This band sits where
+        // read there would be grading a veiled fraction of the field. This band sits where
         // the circle passes through BOTH margins at full strength, and its width
         // is set by the ring family's own spacing at that radius (~220px between
         // consecutive majors), so exactly one major can fall inside it.

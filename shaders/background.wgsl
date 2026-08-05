@@ -1163,8 +1163,8 @@ fn warp_is_major(coord: f32) -> f32 {
 
 // WHERE THE ONE AXIS SITS: the room's own centre, and nothing else is consulted.
 // The single owner of the placement. It takes no page argument, no margin
-// argument and — the point of item 268 — no SIDE argument, so there is exactly
-// one vanishing point in the room and both flanks are windows onto it.
+// argument and — the whole point — no SIDE argument, so there is exactly one
+// vanishing point in the room and both flanks are windows onto it.
 fn warp_room_axis(vp_x: f32) -> f32 {
     return vp_x * 0.5;
 }

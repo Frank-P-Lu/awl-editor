@@ -3,7 +3,7 @@
 //! The reported defect was not subtle and no law saw it: Kite drew a complete
 //! bullseye in each margin, each with its own vanishing point, because
 //! `axis_x` was a function of WHICH MARGIN a fragment fell in. Every existing
-//! law passed. They graded the field's SCALE (item 194's room-owned framing),
+//! law passed. They graded the field's SCALE (the room-owned framing),
 //! its DENSITY, its travel and its aliasing — all of which a second camera
 //! preserves perfectly. Nothing anywhere asserted that the two flanks were
 //! views of the SAME cylinder, which is the one thing a reader sees at a
@@ -24,8 +24,8 @@
 //! Everything here is pixel arithmetic on real GPU output. The sidecar is a
 //! state oracle and cannot see any of it.
 
-use super::backgrounds_item132::{COL_LEFT, COL_W, H, INK_FLOOR, W, field, kite};
 use super::backgrounds_item69::{bg_desc_for, headless_dq};
+use super::backgrounds_item132::{COL_LEFT, COL_W, H, INK_FLOOR, W, field, kite};
 use crate::theme;
 use crate::warpgrid;
 
@@ -102,10 +102,10 @@ fn axis_and_page_half(w: u32, h: u32, col_left: f32, col_w: f32) -> ((f32, f32),
 /// you looked from) and that the section is a CIRCLE (an ellipse would put the
 /// same ring at different radii at 0 deg and 90 deg).
 ///
-/// ⚠️ THE SWEPT AXIS IS THE ANGLE, and that is deliberate. Item 262 asked only
-/// for "two radii at 90 deg"; two angles cannot tell a circle from a square
-/// rotated onto them, and they are also exactly the two an author would pick.
-/// This sweeps twenty-four.
+/// ⚠️ THE SWEPT AXIS IS THE ANGLE, and that is deliberate. The obvious probe is
+/// "two radii at 90 deg"; two angles cannot tell a circle from a square rotated
+/// onto them, and they are also exactly the two an author would pick. This
+/// sweeps twenty-four.
 #[test]
 fn the_field_under_the_page_is_a_function_of_radius_alone() {
     let _g = crate::testlock::serial();
@@ -312,7 +312,7 @@ fn every_direction_finds_its_arc_where_one_tunnel_predicts_it() {
 
 /// THE SAME LADDER AT A SECOND SCALE FACTOR. A tunnel scaled off a margin box is
 /// exactly the quantity that ships correct at one DPI and wrong at the other
-/// (item 242's lesson), so the ring radii are re-measured in LOGICAL units on a
+/// so the ring radii are re-measured in LOGICAL units on a
 /// canvas of twice the physical size at `dpi 2` and must land on the same
 /// numbers.
 #[test]
@@ -336,10 +336,14 @@ fn the_ring_ladder_is_the_same_in_logical_units_at_both_scale_factors() {
             dpi,
         );
         let axis = (w as f32 * 0.5, h as f32 * 0.5);
-        peaks(&ray(&f, w, h, axis, 0.0, 60.0 * s, 400.0 * s), 60.0 * s, 0.5)
-            .into_iter()
-            .map(|r| r / s)
-            .collect()
+        peaks(
+            &ray(&f, w, h, axis, 0.0, 60.0 * s, 400.0 * s),
+            60.0 * s,
+            0.5,
+        )
+        .into_iter()
+        .map(|r| r / s)
+        .collect()
     };
     let one = ladder(1.0);
     let two = ladder(2.0);
@@ -412,7 +416,7 @@ fn field_at_dpi(
 /// One background pass. `clear` is the surface the ground composites ONTO — the
 /// legibility law passes the world's own `base_100`, so the page it measures is
 /// the real GPU composite through the real blend state rather than a contrast
-/// arithmetic done in the host (item 264's tripwire).
+/// arithmetic done in the host.
 #[allow(clippy::too_many_arguments)]
 fn raw(
     device: &wgpu::Device,
@@ -426,7 +430,8 @@ fn raw(
     dpi: f32,
     clear: Option<wgpu::Color>,
 ) -> Vec<[u8; 4]> {
-    let mut pipe = crate::background::BackgroundPipeline::new(device, super::dither::FMT, bg_desc_for(bg));
+    let mut pipe =
+        crate::background::BackgroundPipeline::new(device, super::dither::FMT, bg_desc_for(bg));
     pipe.prepare(
         queue,
         w,
@@ -497,7 +502,8 @@ fn contrast(a: f64, b: f64) -> f64 {
 /// world's own `base_100` through the real blend state and the floor is read off
 /// the resulting pixels. A host-side "veil alpha times the major tone over
 /// base_100" would be a second implementation of the shader's compositing, and
-/// item 264 records what that costs: a modelled composite is confidently wrong.
+/// and the repo has paid for that once already: a modelled composite is
+/// confidently wrong.
 #[test]
 fn the_under_page_crossing_clears_the_body_ink_legibility_floor() {
     let _g = crate::testlock::serial();

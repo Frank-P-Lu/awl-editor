@@ -347,7 +347,7 @@ fn fable_right_picks_ship_right_anchor_and_render_against_the_right_edge() {
         .map(|t| t.name)
         .collect();
     right.sort_unstable();
-    // KITE JOINED THEM IN ITEM 268, and deliberately: its card takes the
+    // KITE JOINED THEM DELIBERATELY: its card takes the
     // top-right corner and its placard the bottom-right, mirroring Firetail's
     // top-left card and bottom-left placard across the room. The roster is
     // pinned rather than derived so that a world arriving here is a conscious
