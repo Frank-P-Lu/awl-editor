@@ -106,7 +106,11 @@ pub const MAX_MEASURE: usize = 140;
 
 /// Whether page mode (the centered capped column) is active. DEFAULT ON: the app
 /// opens with the calm centered column; the toggle drops to edge-to-edge.
-static PAGE_ON: Toggle = Toggle::new(true);
+/// The value this flag carries on a fresh install, before any config or
+/// settings write — the ONE owner of that fact, read both by the static
+/// below and by the generated reference (`settings::toggle_default`).
+pub(crate) const PAGE_MODE_DEFAULT: bool = true;
+static PAGE_ON: Toggle = Toggle::new(PAGE_MODE_DEFAULT);
 
 /// The column's maximum width in CHARACTERS. The pixel width is this times the
 /// (zoomed) glyph advance, clamped to the window. Tunable via `--measure N` and

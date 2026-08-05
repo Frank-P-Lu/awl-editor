@@ -22,6 +22,26 @@
 /// The repo's `GUIDE.md` (the in-app Guide; carries the generated keys table).
 pub const GUIDE_MD: &str = include_str!("../GUIDE.md");
 
+/// The repo's `REFERENCE.md` — the COLD reference, whose every table is
+/// generated from the live rosters and diffed byte-for-byte against them by
+/// `reference::law`. Test-only: the reference ships as a file, and the binary
+/// never reads it back.
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub const REFERENCE_MD: &str = include_str!("../REFERENCE.md");
+
+/// `site/reference.html` — the marketing site's copy of the reference. NOT a
+/// hand-mirror (the arrangement `site/guide.html` carries against `GUIDE.md`):
+/// the same rows through an HTML emitter, held to the tree by the same law.
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub const SITE_REFERENCE_HTML: &str = include_str!("../site/reference.html");
+
+/// The repo's `WORLDS.md` — the hand-written flavour reference for the theme
+/// worlds. Only its MEMBERSHIP is law-checked against `theme::THEMES`
+/// (`reference::law::worlds_md_names_exactly_the_theme_roster`); the prose is
+/// the author's.
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub const WORLDS_MD: &str = include_str!("../WORLDS.md");
+
 /// The repo's `CREDITS.md` (the in-app Credits card source).
 pub const CREDITS_MD: &str = include_str!("../CREDITS.md");
 

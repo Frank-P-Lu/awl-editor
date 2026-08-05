@@ -352,7 +352,7 @@ pub(super) fn selection_touches(
 /// alongside the caret line, never duplicated: every caller computes
 /// `selection_touch` ONCE per reshape/refresh and passes the same reference
 /// through every span/line decision.
-pub(super) fn wysiwyg_reveals(
+pub(crate) fn wysiwyg_reveals(
     ck: crate::markdown::ConcealKind,
     conceal_off_cursor: bool,
     cursor_byte: usize,

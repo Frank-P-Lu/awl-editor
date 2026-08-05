@@ -47,7 +47,11 @@ use crate::toggle::Toggle;
 /// line (and a fenced block's markers hiding off the caret's whole block); OFF
 /// reproduces the always-visible markup this round shipped without, byte-for-byte
 /// (no conceal, no pill, no panel — just the pre-existing dim-the-markup styling).
-static WYSIWYG_ON: Toggle = Toggle::new(true);
+/// The value this flag carries on a fresh install, before any config or
+/// settings write — the ONE owner of that fact, read both by the static
+/// below and by the generated reference (`settings::toggle_default`).
+pub(crate) const WYSIWYG_DEFAULT: bool = true;
+static WYSIWYG_ON: Toggle = Toggle::new(WYSIWYG_DEFAULT);
 
 /// True when the WYSIWYG conceal is active (read by the renderer each reshape).
 pub fn wysiwyg_on() -> bool {
@@ -73,7 +77,11 @@ pub fn set_wysiwyg_on(on: bool) {
 /// [`inline_images_on`] is unconditionally `false` on `wasm32`, making the
 /// whole feature vanish there (the source renders plain, byte-identical to the
 /// native-off case). Mirrors the daemon/session native-only gate.
-static INLINE_IMAGES_ON: Toggle = Toggle::new(true);
+/// The value this flag carries on a fresh install, before any config or
+/// settings write — the ONE owner of that fact, read both by the static
+/// below and by the generated reference (`settings::toggle_default`).
+pub(crate) const INLINE_IMAGES_DEFAULT: bool = true;
+static INLINE_IMAGES_ON: Toggle = Toggle::new(INLINE_IMAGES_DEFAULT);
 
 /// True when inline images are active (read by [`spans`] to gate the image
 /// span + by the renderer to gate the tall row / draw). Always `false` on wasm

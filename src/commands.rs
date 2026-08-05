@@ -275,7 +275,7 @@ fn effective_binding_for(
 /// so this is BYTE-IDENTICAL to the old `join_slots(c.native, c.emacs)` there —
 /// the hard law this round must not break (see
 /// `tests::mac_native_label_truth_is_byte_identical_to_join_slots`).
-fn join_slots_truthful(
+pub(crate) fn join_slots_truthful(
     c: &Command,
     convention: Convention,
     platform: Platform,

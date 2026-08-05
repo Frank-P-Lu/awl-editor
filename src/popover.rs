@@ -32,7 +32,11 @@ use crate::toggle::Toggle;
 /// summons it, and a capture is byte-identical to a build without the feature.
 /// A process-global read by the live App's mouse path + the capture probe, set
 /// once at launch from the config sticky pref, flipped live by the settings menu.
-static POPOVER_ON: Toggle = Toggle::new(true);
+/// The value this flag carries on a fresh install, before any config or
+/// settings write — the ONE owner of that fact, read both by the static
+/// below and by the generated reference (`settings::toggle_default`).
+pub(crate) const POPOVER_DEFAULT: bool = true;
+static POPOVER_ON: Toggle = Toggle::new(POPOVER_DEFAULT);
 
 /// True when the format popover is active (read by the live App's summon path +
 /// the capture force-summon probe).

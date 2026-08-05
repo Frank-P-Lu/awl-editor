@@ -25,31 +25,33 @@ pub mod toml;
 pub mod typescript;
 pub mod yaml;
 
-/// One highlighted ROLE. These are the ONLY four roles awl colors (Alabaster
-/// philosophy); everything else in a code buffer stays the default ink.
-/// `Comment` is TWO-TIERED (the tonsky split): the lexers emit only `Comment`,
-/// and the central post-pass in [`spans`] reclassifies a comment whose body READS
-/// AS CODE (a disabled statement) to [`SynKind::CommentCode`] — prose comments
-/// stay `Comment` and render PROMINENT (full content ink + the comment wash;
-/// comments are the prose in the code), while commented-out code recedes to the
-/// muted grey it always had.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SynKind {
-    /// PROSE-tier comments (explanations, TODOs, doc prose). Renders PROMINENT:
-    /// full content ink + the per-world comment wash.
-    Comment,
-    /// COMMENTED-OUT CODE — a comment whose body reads as a disabled statement
-    /// ([`looks_like_code`], default-to-prose). Recedes to the muted ink, no wash
-    /// (today's grey exactly). Never emitted by a lexer; only the [`spans`]
-    /// post-pass produces it.
-    CommentCode,
-    /// String + char literals (incl. raw / triple where the language has them).
-    Str,
-    /// Numbers, booleans, and `nil`/`null`/`None`-style literals.
-    Constant,
-    /// The NAME being defined — the identifier right after a `fn`/`def`/`class`/
-    /// `struct`/`type`/… introducer (best-effort per language).
-    Definition,
+enum_with_all! {
+    /// One highlighted ROLE. These are the ONLY four roles awl colors (Alabaster
+    /// philosophy); everything else in a code buffer stays the default ink.
+    /// `Comment` is TWO-TIERED (the tonsky split): the lexers emit only `Comment`,
+    /// and the central post-pass in [`spans`] reclassifies a comment whose body READS
+    /// AS CODE (a disabled statement) to [`SynKind::CommentCode`] — prose comments
+    /// stay `Comment` and render PROMINENT (full content ink + the comment wash;
+    /// comments are the prose in the code), while commented-out code recedes to the
+    /// muted grey it always had.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum SynKind {
+        /// PROSE-tier comments (explanations, TODOs, doc prose). Renders PROMINENT:
+        /// full content ink + the per-world comment wash.
+        Comment,
+        /// COMMENTED-OUT CODE — a comment whose body reads as a disabled statement
+        /// ([`looks_like_code`], default-to-prose). Recedes to the muted ink, no wash
+        /// (today's grey exactly). Never emitted by a lexer; only the [`spans`]
+        /// post-pass produces it.
+        CommentCode,
+        /// String + char literals (incl. raw / triple where the language has them).
+        Str,
+        /// Numbers, booleans, and `nil`/`null`/`None`-style literals.
+        Constant,
+        /// The NAME being defined — the identifier right after a `fn`/`def`/`class`/
+        /// `struct`/`type`/… introducer (best-effort per language).
+        Definition,
+    }
 }
 
 impl SynKind {

@@ -510,6 +510,8 @@ pub fn toggle_key(id: SettingId) -> Option<&'static str> {
 // THE SHARED TOGGLE CORE (item 193): one owner both `App::setting_toggle`
 // and the replay interpreter route through — see `toggle_core`'s module doc.
 mod toggle_core;
+#[cfg(test)]
+pub(crate) use toggle_core::toggle_default;
 pub(crate) use toggle_core::{flip_toggle_global, is_core_toggle_key};
 
 pub fn range_spec(id: SettingId) -> Option<&'static crate::range::RangeSpec> {

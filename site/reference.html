@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reference — awl</title>
+  <meta name="description" content="The reference: every command, settings row, config.toml key, world, and markdown construct awl renders.">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+
+  <meta property="og:title" content="Reference — awl">
+  <meta property="og:description" content="Every command, settings row, config.toml key, world, and markdown construct — generated from awl's source and checked against it.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://awl-editor.fly.dev/reference.html">
+  <meta property="og:image" content="https://awl-editor.fly.dev/img/social.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="The awl wordmark in Firetail with its amber caret on the l, above write Markdown and now with lava lamps.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Reference — awl">
+  <meta name="twitter:description" content="Every command, settings row, config.toml key, world, and markdown construct — generated from awl's source and checked against it.">
+  <meta name="twitter:image" content="https://awl-editor.fly.dev/img/social.png">
+  <meta name="twitter:image:alt" content="The awl wordmark in Firetail with its amber caret on the l, above write Markdown and now with lava lamps.">
+  <link rel="stylesheet" href="style.css">
+  <script data-goatcounter="https://fluflu.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="hero" style="padding-bottom:1rem">
+    <div class="wrap">
+      <h1 class="wordmark" style="font-size:2.4rem"><a href="/" style="color:inherit;text-decoration:none">awl</a></h1>
+    </div>
+  </header>
+
+  <!-- ====================== REFERENCE ====================== -->
+  <!-- Every table between a GENERATED:reference-*:BEGIN/END marker pair is
+       emitted by src/reference/ from awl's own rosters and diffed byte-for-byte
+       against them by src/reference/law.rs. This page is NOT a hand-mirror of
+       REFERENCE.md (the accepted drift risk guide.html carries against
+       GUIDE.md): it is the same rows through an HTML emitter, so the two
+       documents cannot disagree about a fact. Do not edit a table here —
+       run scripts/regen-reference.sh. -->
+  <section class="credits-page">
+    <div class="wrap">
+      <p class="eyebrow">Reference</p>
+      <h2 class="section-title" style="margin-bottom:1.5rem">Every command, key, setting, world, and construct.</h2>
+
+      <div class="credits-body">
+        <p>Nothing on this page is transcribed by hand. Each table is built from
+        the same roster the running app reads, and a test rebuilds every table
+        on each run and fails if this page differs by a byte.</p>
+        <p><a href="https://github.com/Frank-P-Lu/awl-editor/blob/main/REFERENCE.md">REFERENCE.md</a>
+        is the same reference as a file in the repository.
+        <a href="/guide.html">The guide</a> explains how awl's pieces fit
+        together and is a separate document.</p>
+
+        <hr class="rule">
+
+        <h2 id="commands">Commands</h2>
+        <p>Every command carries up to two chord slots. Slot 1 is the
+        platform-native binding; slot 2 is an Emacs-style binding. Both fire. A
+        cell showing two chords shows both slots.</p>
+        <p>The chords below are the defaults; <code>[keys]</code> in
+        <code>config.toml</code> replaces them. An empty macOS or Linux cell
+        means the command has no default chord on that platform and is reached
+        from the command palette, which lists every command by name.</p>
+<!-- GENERATED:reference-commands:BEGIN -->
+<h3>Files</h3>
+<div class="table-scroll">
+<table>
+<thead>
+<tr><th>Command</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
+</thead>
+<tbody>
+<tr><td>Switch project…</td><td><code>⌘⇧P</code></td><td><code>Ctrl+Shift+P</code></td><td>Native, browser</td></tr>
+<tr><td>Recent projects…</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Browse files…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Version history…</td><td><code>⌘⇧H</code></td><td><code>Ctrl+Shift+H</code></td><td>Native</td></tr>
+<tr><td>Compare with version…</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Keep version…</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>New document</td><td><code>⌘N</code></td><td><code>Ctrl+N</code></td><td>Native, browser</td></tr>
+<tr><td>Keep tutorial…</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Move…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Rename note…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Duplicate note</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Finish file</td><td><code>⌘W</code></td><td><code>Ctrl+W</code></td><td>Native</td></tr>
+<tr><td>Download file</td><td>—</td><td>—</td><td>Browser</td></tr>
+<tr><td>Export as Word…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Export as HTML…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Export as PDF…</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Save</td><td><code>⌘S</code></td><td><code>Ctrl+S</code></td><td>Native, browser</td></tr>
+<tr><td>Review the change</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Save your version</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Use disk version</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Quit</td><td><code>⌘Q</code></td><td><code>Ctrl+Q</code></td><td>Native</td></tr>
+</tbody>
+</table>
+</div>
+<h3>Navigate</h3>
+<div class="table-scroll">
+<table>
+<thead>
+<tr><th>Command</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
+</thead>
+<tbody>
+<tr><td>Go to file…</td><td><code>⌘O</code></td><td><code>Ctrl+O</code></td><td>Native, browser</td></tr>
+<tr><td>Go to heading…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Last file</td><td><code>⌃Tab</code></td><td><code>Ctrl+Tab</code></td><td>Native, browser</td></tr>
+<tr><td>Follow link</td><td><code>C-c C-o</code></td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Copy link destination</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Search forward</td><td><code>⌘F · C-s</code></td><td><code>Ctrl+F</code></td><td>Native, browser</td></tr>
+<tr><td>Search backward</td><td><code>⌘⇧F · C-r</code></td><td><code>Ctrl+Shift+F</code></td><td>Native, browser</td></tr>
+<tr><td>Find and replace…</td><td><code>⌘R</code></td><td><code>Ctrl+R</code></td><td>Native, browser</td></tr>
+<tr><td>Forward word</td><td><code>⌥Right</code></td><td><code>Alt+Right</code></td><td>Native, browser</td></tr>
+<tr><td>Backward word</td><td><code>⌥Left</code></td><td><code>Alt+Left</code></td><td>Native, browser</td></tr>
+<tr><td>Line start</td><td><code>⌘Left · C-a</code></td><td><code>Home</code></td><td>Native, browser</td></tr>
+<tr><td>Line end</td><td><code>⌘Right · C-e</code></td><td><code>End</code></td><td>Native, browser</td></tr>
+<tr><td>Document start</td><td><code>⌘Up</code></td><td><code>Ctrl+Home</code></td><td>Native, browser</td></tr>
+<tr><td>Document end</td><td><code>⌘Down</code></td><td><code>Ctrl+End</code></td><td>Native, browser</td></tr>
+<tr><td>Forward char</td><td><code>C-f</code></td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Backward char</td><td><code>C-b</code></td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Next line</td><td><code>C-n</code></td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Previous line</td><td><code>C-p</code></td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Delete word forward</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Delete word backward</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+</tbody>
+</table>
+</div>
+<h3>Format</h3>
+<div class="table-scroll">
+<table>
+<thead>
+<tr><th>Command</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
+</thead>
+<tbody>
+<tr><td>Align table</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Insert Date</td><td><code>⌘⇧D · C-c .</code></td><td><code>Ctrl+Shift+D</code></td><td>Native, browser</td></tr>
+<tr><td>Blockquote</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Bullet list</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Numbered list</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Task list</td><td><code>⌘⇧L</code></td><td><code>Ctrl+Shift+L</code></td><td>Native, browser</td></tr>
+<tr><td>Heading</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Cycle heading</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Code block</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Bold</td><td><code>⌘B</code></td><td><code>Ctrl+B</code></td><td>Native, browser</td></tr>
+<tr><td>Italic</td><td><code>⌘I</code></td><td><code>Ctrl+I</code></td><td>Native, browser</td></tr>
+<tr><td>Inline code</td><td><code>⌘E</code></td><td><code>Ctrl+E</code></td><td>Native, browser</td></tr>
+<tr><td>Highlight</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Strikethrough</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Insert link…</td><td><code>⌘K</code></td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Undo</td><td><code>⌘Z · C-/</code></td><td><code>Ctrl+Z · C-/</code></td><td>Native, browser</td></tr>
+<tr><td>Redo</td><td><code>⌘⇧Z</code></td><td><code>Ctrl+Shift+Z</code></td><td>Native, browser</td></tr>
+<tr><td>Copy</td><td><code>⌘C</code></td><td><code>Ctrl+C</code></td><td>Native, browser</td></tr>
+<tr><td>Cut</td><td><code>⌘X · C-w</code></td><td><code>Ctrl+X</code></td><td>Native, browser</td></tr>
+<tr><td>Paste</td><td><code>⌘V · C-y</code></td><td><code>Ctrl+V · C-y</code></td><td>Native, browser</td></tr>
+<tr><td>Select all</td><td><code>⌘A</code></td><td><code>Ctrl+A</code></td><td>Native, browser</td></tr>
+</tbody>
+</table>
+</div>
+<h3>View</h3>
+<div class="table-scroll">
+<table>
+<thead>
+<tr><th>Command</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
+</thead>
+<tbody>
+<tr><td>Switch theme…</td><td><code>⌘T</code></td><td><code>Ctrl+T</code></td><td>Native, browser</td></tr>
+<tr><td>Toggle page mode</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Widen page</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Narrow page</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Reset page width</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Toggle debug</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Toggle outline</td><td><code>⌘⇧O</code></td><td><code>Ctrl+Shift+O</code></td><td>Native, browser</td></tr>
+<tr><td>Fold section</td><td><code>⌘⇧E · C-c C-f</code></td><td><code>Ctrl+Shift+E</code></td><td>Native, browser</td></tr>
+<tr><td>Collapse other sections</td><td><code>⌘⇧M · C-c C-t</code></td><td><code>Ctrl+Shift+M</code></td><td>Native, browser</td></tr>
+<tr><td>Toggle typewriter scroll</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Toggle menu bar</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Zoom in</td><td><code>⌘=</code></td><td><code>Ctrl+=</code></td><td>Native, browser</td></tr>
+<tr><td>Zoom out</td><td><code>⌘-</code></td><td><code>Ctrl+-</code></td><td>Native, browser</td></tr>
+<tr><td>Reset zoom</td><td><code>⌘0</code></td><td><code>Ctrl+0</code></td><td>Native, browser</td></tr>
+</tbody>
+</table>
+</div>
+<h3>Tools</h3>
+<div class="table-scroll">
+<table>
+<thead>
+<tr><th>Command</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
+</thead>
+<tbody>
+<tr><td>Spell suggestions…</td><td><code>⌘;</code></td><td><code>Ctrl+;</code></td><td>Native, browser</td></tr>
+<tr><td>Clean unused assets…</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>About</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Credits</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Guide</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Lifetime stats</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Writing streaks</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Line endings…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Report a Problem</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Check for Updates</td><td>—</td><td>—</td><td>Native</td></tr>
+</tbody>
+</table>
+</div>
+<h3>Settings</h3>
+<div class="table-scroll">
+<table>
+<thead>
+<tr><th>Command</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
+</thead>
+<tbody>
+<tr><td>Caret style…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Dictionary…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Toggle spellcheck</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Toggle caret style</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Toggle writing nits</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Settings…</td><td><code>⌘,</code></td><td><code>Ctrl+,</code></td><td>Native, browser</td></tr>
+<tr><td>Keybindings…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+</tbody>
+</table>
+</div>
+<h3>Chords with no command</h3>
+<p class="note">These two are matched by the keymap directly and cannot be rebound.</p>
+<div class="table-scroll">
+<table>
+<thead>
+<tr><th>Chord for</th><th>macOS</th><th>Linux</th></tr>
+</thead>
+<tbody>
+<tr><td>Command palette</td><td><code>⌘P</code></td><td><code>Ctrl+P</code></td></tr>
+<tr><td>Held stats HUD</td><td><code>⌘⌥I</code></td><td><code>Ctrl+Alt+I</code></td></tr>
+</tbody>
+</table>
+</div>
+<!-- GENERATED:reference-commands:END -->
+
+        <hr class="rule">
+
+        <h2 id="settings">Settings</h2>
+        <p>The Settings overlay edits the rows below. A row with a
+        <code>config.toml</code> key persists to that key on change; a row
+        without one does not persist.</p>
+<!-- GENERATED:reference-settings:BEGIN -->
+<div class="table-scroll">
+<table>
+<thead>
+<tr><th>Setting</th><th>Group</th><th>Control</th><th>config.toml key</th></tr>
+</thead>
+<tbody>
+<tr><td>Caret style</td><td>Editor</td><td>Opens a picker</td><td>—</td></tr>
+<tr><td>Page mode</td><td>Editor</td><td>On/off</td><td><code>page_mode</code></td></tr>
+<tr><td>Typewriter scroll</td><td>Editor</td><td>On/off</td><td><code>typewriter_scroll</code></td></tr>
+<tr><td>Reduce motion</td><td>Editor</td><td>On/off</td><td><code>reduce_motion</code></td></tr>
+<tr><td>Page width (prose)</td><td>Editor</td><td>Numeric rail</td><td><code>page_width_prose</code></td></tr>
+<tr><td>Page width (code)</td><td>Editor</td><td>Numeric rail</td><td><code>page_width_code</code></td></tr>
+<tr><td>Zoom</td><td>Editor</td><td>Numeric rail</td><td><code>zoom</code></td></tr>
+<tr><td>Scroll sensitivity</td><td>Editor</td><td>Numeric rail</td><td><code>scroll_sensitivity</code></td></tr>
+<tr><td>Date format</td><td>Editor</td><td>Opens a picker</td><td>—</td></tr>
+<tr><td>Theme</td><td>Appearance</td><td>Opens a picker</td><td>—</td></tr>
+<tr><td>WYSIWYG</td><td>Appearance</td><td>On/off</td><td><code>wysiwyg</code></td></tr>
+<tr><td>Format popover</td><td>Appearance</td><td>On/off</td><td><code>popover</code></td></tr>
+<tr><td>Inline images</td><td>Appearance</td><td>On/off</td><td><code>inline_images</code></td></tr>
+<tr><td>Code ligatures</td><td>Appearance</td><td>On/off</td><td><code>code_ligatures</code></td></tr>
+<tr><td>Outline</td><td>Appearance</td><td>On/off</td><td><code>outline</code></td></tr>
+<tr><td>Menu bar</td><td>Appearance</td><td>On/off</td><td><code>menu_bar</code></td></tr>
+<tr><td>Spellcheck</td><td>Writing</td><td>On/off</td><td><code>spellcheck</code></td></tr>
+<tr><td>Dictionary</td><td>Writing</td><td>Opens a picker</td><td>—</td></tr>
+<tr><td>Writing nits</td><td>Writing</td><td>On/off</td><td><code>writing_nits</code></td></tr>
+<tr><td>Ambiguous CJK reads as</td><td>Writing</td><td>Opens a picker</td><td>—</td></tr>
+<tr><td>Default folder</td><td>Files</td><td>Picks a folder</td><td><code>default_folder</code></td></tr>
+<tr><td>Projects folder</td><td>Files</td><td>Picks a folder</td><td><code>workspace</code></td></tr>
+<tr><td>Project root</td><td>Files</td><td>Picks a folder</td><td>—</td></tr>
+<tr><td>File visibility</td><td>Files</td><td>On/off</td><td><code>file_visibility</code></td></tr>
+<tr><td>Autosave</td><td>Files</td><td>On/off</td><td><code>autosave</code></td></tr>
+<tr><td>Local history</td><td>Files</td><td>On/off</td><td><code>history</code></td></tr>
+<tr><td>Session restore</td><td>Files</td><td>On/off</td><td><code>session_restore</code></td></tr>
+<tr><td>Keymap</td><td>Keybindings</td><td>On/off</td><td><code>keymap</code></td></tr>
+<tr><td>Keybindings</td><td>Keybindings</td><td>Opens a submenu</td><td>—</td></tr>
+<tr><td>Report a Problem</td><td>Advanced</td><td>Runs a command</td><td>—</td></tr>
+<tr><td>Edit config as text</td><td>Advanced</td><td>Runs a command</td><td>—</td></tr>
+</tbody>
+</table>
+</div>
+<!-- GENERATED:reference-settings:END -->
+
+        <hr class="rule">
+
+        <h2 id="configuration-file">Configuration file</h2>
+        <p>The config file is TOML at
+        <code>$XDG_CONFIG_HOME/awl/config.toml</code>, or
+        <code>~/.config/awl/config.toml</code> when <code>XDG_CONFIG_HOME</code>
+        is unset. awl opens it as ordinary text; saving it reloads it live.
+        Precedence is command-line flag, then file, then default.</p>
+<!-- GENERATED:reference-config:BEGIN -->
+<h3>Keys</h3>
+<p class="note">An absent key takes the default below. A command-line flag overrides the file; the file overrides the default.</p>
+<div class="table-scroll">
+<table>
+<thead>
+<tr><th>Key</th><th>Value</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>default_folder</code></td><td>path</td><td>—</td></tr>
+<tr><td><code>workspace</code></td><td>path</td><td>—</td></tr>
+<tr><td><code>theme</code></td><td>world name</td><td><code>Saltpan</code></td></tr>
+<tr><td><code>zoom</code></td><td>percent</td><td><code>100%</code></td></tr>
+<tr><td><code>scroll_sensitivity</code></td><td>percent</td><td><code>100%</code></td></tr>
+<tr><td><code>page_mode</code></td><td>true | false</td><td><code>true</code></td></tr>
+<tr><td><code>page_width_prose</code></td><td>whole columns</td><td><code>70</code></td></tr>
+<tr><td><code>page_width_code</code></td><td>whole columns</td><td><code>100</code></td></tr>
+<tr><td><code>caret_mode</code></td><td>block | morph | ibeam</td><td><code>morph</code></td></tr>
+<tr><td><code>dictionary</code></td><td>en_US | en_GB | en_AU</td><td><code>en_US</code></td></tr>
+<tr><td><code>writing_nits</code></td><td>true | false</td><td><code>true</code></td></tr>
+<tr><td><code>spellcheck</code></td><td>true | false</td><td><code>true</code></td></tr>
+<tr><td><code>history</code></td><td>true | false</td><td><code>true</code></td></tr>
+<tr><td><code>autosave</code></td><td>true | false</td><td><code>true</code></td></tr>
+<tr><td><code>wysiwyg</code></td><td>true | false</td><td><code>true</code></td></tr>
+<tr><td><code>popover</code></td><td>true | false</td><td><code>true</code></td></tr>
+<tr><td><code>inline_images</code></td><td>true | false</td><td><code>true</code></td></tr>
+<tr><td><code>code_ligatures</code></td><td>true | false</td><td><code>true</code></td></tr>
+<tr><td><code>cjk_priority</code></td><td>list of language codes</td><td>—</td></tr>
+<tr><td><code>session_restore</code></td><td>true | false</td><td><code>true</code></td></tr>
+<tr><td><code>outline</code></td><td>true | false</td><td><code>true</code></td></tr>
+<tr><td><code>menu_bar</code></td><td>true | false</td><td>false on macOS, true elsewhere</td></tr>
+<tr><td><code>typewriter_scroll</code></td><td>true | false</td><td><code>false</code></td></tr>
+<tr><td><code>file_visibility</code></td><td>true | false</td><td><code>false</code></td></tr>
+<tr><td><code>stats</code></td><td>true | false</td><td><code>true</code></td></tr>
+<tr><td><code>reduce_motion</code></td><td>true | false</td><td><code>false</code></td></tr>
+<tr><td><code>ambient_motion</code></td><td>true | false</td><td><code>true</code></td></tr>
+<tr><td><code>keymap</code></td><td>native | emacs</td><td><code>native</code></td></tr>
+<tr><td><code>date_format</code></td><td>ddmmyy | mmddyy | iso | yyyymmdd | dmonthyyyy</td><td><code>ddmmyy</code></td></tr>
+<tr><td><code>keys</code></td><td>table of chord lists</td><td>—</td></tr>
+<tr><td><code>linux_keep_emacs</code></td><td>list of chords</td><td>—</td></tr>
+</tbody>
+</table>
+</div>
+<h3>Numeric bands</h3>
+<p class="note">A value outside the band is clamped to it, then snapped to the step.</p>
+<div class="table-scroll">
+<table>
+<thead>
+<tr><th>Key</th><th>Minimum</th><th>Maximum</th><th>Step</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>zoom</code></td><td><code>50%</code></td><td><code>300%</code></td><td><code>10%</code></td><td><code>100%</code></td></tr>
+<tr><td><code>scroll_sensitivity</code></td><td><code>25%</code></td><td><code>400%</code></td><td><code>5%</code></td><td><code>100%</code></td></tr>
+<tr><td><code>page_width_prose</code></td><td><code>20</code></td><td><code>200</code></td><td><code>1</code></td><td><code>70</code></td></tr>
+<tr><td><code>page_width_code</code></td><td><code>20</code></td><td><code>200</code></td><td><code>1</code></td><td><code>100</code></td></tr>
+</tbody>
+</table>
+</div>
+<!-- GENERATED:reference-config:END -->
+
+        <h3>Rebinding</h3>
+        <p><code>[keys]</code> maps a command's slug to its chords. A slug is the
+        command's name lowercased, spaces replaced with <code>_</code>, and any
+        trailing ellipsis dropped.</p>
+        <table>
+          <thead><tr><th>line</th><th>effect</th></tr></thead>
+          <tbody>
+          <tr><td><code>save = ["Cmd-S", "C-x C-s"]</code></td><td>slot 1 native, slot 2 emacs</td></tr>
+          <tr><td><code>switch_theme = "Cmd-T"</code></td><td>a single chord binds slot 1 only</td></tr>
+          </tbody>
+        </table>
+        <p>A chord is written as <code>Modifier-Key</code>, modifiers joined by
+        <code>-</code>: <code>Cmd</code>, <code>C</code> (control),
+        <code>M</code> (alt), <code>S</code> (shift). A multi-chord sequence is
+        separated by a space. On Linux, <code>Cmd</code> in slot 1 resolves to
+        Ctrl. <code>linux_keep_emacs</code> lists chords that keep their Emacs
+        meaning on Linux where a native binding would otherwise displace
+        them.</p>
+
+        <hr class="rule">
+
+        <h2 id="worlds">Worlds</h2>
+        <p>A world is a complete visual environment: ground, ink ladder, display
+        face, mono face, section-break ornament, and background.
+        <a href="https://github.com/Frank-P-Lu/awl-editor/blob/main/THEMES.md">THEMES.md</a>
+        states the laws a world must satisfy;
+        <a href="https://github.com/Frank-P-Lu/awl-editor/blob/main/WORLDS.md">WORLDS.md</a>
+        describes each world's flavour.</p>
+<!-- GENERATED:reference-worlds:BEGIN -->
+<p class="note">The default world is Saltpan. `--list-worlds` prints this roster; `--theme &lt;World&gt;` selects one for a single run.</p>
+<div class="table-scroll">
+<table>
+<thead>
+<tr><th>World</th><th>Ground</th><th>Display face</th><th>Mono face</th></tr>
+</thead>
+<tbody>
+<tr><td>Tawny</td><td>Dark</td><td>IBM Plex Mono</td><td>IBM Plex Mono</td></tr>
+<tr><td>Mopoke</td><td>Dark</td><td>Bitter</td><td>IBM Plex Mono</td></tr>
+<tr><td>Currawong</td><td>Dark</td><td>Iosevka</td><td>Iosevka</td></tr>
+<tr><td>Potoroo</td><td>Dark</td><td>Monaspace Xenon</td><td>Monaspace Xenon</td></tr>
+<tr><td>Gumtree</td><td>Light</td><td>Literata</td><td>Monaspace Xenon</td></tr>
+<tr><td>Bilby</td><td>Light</td><td>Newsreader 16pt 16pt</td><td>Monaspace Xenon</td></tr>
+<tr><td>Saltpan</td><td>Light</td><td>Fraunces 9pt</td><td>Monaspace Xenon</td></tr>
+<tr><td>Quokka</td><td>Light</td><td>Sour Gummy</td><td>IBM Plex Mono</td></tr>
+<tr><td>Bombora</td><td>Dark</td><td>EB Garamond</td><td>Monaspace Xenon</td></tr>
+<tr><td>Bowerbird</td><td>Dark</td><td>IBM Plex Sans</td><td>JetBrains Mono</td></tr>
+<tr><td>Mulga</td><td>Dark</td><td>Zilla Slab</td><td>Monaspace Xenon</td></tr>
+<tr><td>Mangrove</td><td>Dark</td><td>JetBrains Mono</td><td>JetBrains Mono</td></tr>
+<tr><td>Galah</td><td>Light</td><td>Figtree</td><td>IBM Plex Mono</td></tr>
+<tr><td>Magpie</td><td>Light</td><td>Bitter</td><td>Monaspace Xenon</td></tr>
+<tr><td>Brolga</td><td>Light</td><td>IBM Plex Sans</td><td>IBM Plex Mono</td></tr>
+<tr><td>Wagtail</td><td>Dark</td><td>JetBrains Mono</td><td>JetBrains Mono</td></tr>
+<tr><td>Firetail</td><td>Dark</td><td>Monaspace Xenon</td><td>Monaspace Xenon</td></tr>
+<tr><td>Cassowary</td><td>Dark</td><td>Iosevka</td><td>Iosevka</td></tr>
+<tr><td>Paperbark</td><td>Light</td><td>EB Garamond</td><td>Monaspace Xenon</td></tr>
+<tr><td>Kite</td><td>Light</td><td>Fira Sans</td><td>JetBrains Mono</td></tr>
+</tbody>
+</table>
+</div>
+<!-- GENERATED:reference-worlds:END -->
+
+        <hr class="rule">
+
+        <h2 id="markdown">Markdown</h2>
+        <p>The file on disk stays plain text. awl renders it live and shows raw
+        markdown on whichever line the caret is on.</p>
+<!-- GENERATED:reference-markdown:BEGIN -->
+<h3>Constructs</h3>
+<p class="note">The file stays plain text. Only the render changes.</p>
+<div class="table-scroll">
+<table>
+<thead>
+<tr><th>Construct</th><th>Written as</th></tr>
+</thead>
+<tbody>
+<tr><td>Heading, levels 1–6</td><td><code># Heading</code></td></tr>
+<tr><td>Bold</td><td><code>**bold**</code></td></tr>
+<tr><td>Italic</td><td><code>*italic*</code></td></tr>
+<tr><td>Bold italic</td><td><code>***both***</code></td></tr>
+<tr><td>Inline code and code blocks</td><td><code>`code`</code></td></tr>
+<tr><td>Syntax highlighting in a fenced block</td><td><code>```rust</code></td></tr>
+<tr><td>Blockquote</td><td><code>&gt; quoted</code></td></tr>
+<tr><td>List, bulleted or numbered</td><td><code>- item</code></td></tr>
+<tr><td>Link</td><td><code>[text](target)</code></td></tr>
+<tr><td>Task list</td><td><code>- [ ] task</code></td></tr>
+<tr><td>Highlight</td><td><code>==highlight==</code></td></tr>
+<tr><td>Strikethrough</td><td><code>~~struck~~</code></td></tr>
+<tr><td>Thematic break</td><td><code>---</code></td></tr>
+<tr><td>Table</td><td><code>| a | b |</code></td></tr>
+<tr><td>Syntax characters of every construct above</td><td><code># * ` &gt; [ ] |</code></td></tr>
+</tbody>
+</table>
+</div>
+<h3>What hides off the caret</h3>
+<p class="note">With `wysiwyg = true`, the markup below hides while the caret and the selection are elsewhere.</p>
+<div class="table-scroll">
+<table>
+<thead>
+<tr><th>Construct</th><th>Hidden markup</th><th>Revealed by</th><th>Reveals in place</th></tr>
+</thead>
+<tbody>
+<tr><td>Heading</td><td>The leading `#` run</td><td>The line</td><td>Yes</td></tr>
+<tr><td>Bold and italic</td><td>The `*` or `_` delimiters</td><td>The line</td><td>Yes</td></tr>
+<tr><td>Inline code</td><td>The backticks</td><td>The line</td><td>Yes</td></tr>
+<tr><td>Highlight</td><td>The `==` delimiters</td><td>The line</td><td>Yes</td></tr>
+<tr><td>Strikethrough</td><td>The `~~` delimiters</td><td>The line</td><td>Yes</td></tr>
+<tr><td>Fenced code block</td><td>Both fence lines and the info string</td><td>The whole block</td><td>Yes</td></tr>
+<tr><td>Frontmatter</td><td>The whole `---` block</td><td>The whole block</td><td>Yes</td></tr>
+<tr><td>Table</td><td>The whole source, replaced by a drawn grid</td><td>The whole block</td><td>No</td></tr>
+<tr><td>Image</td><td>The whole `![alt](path)` source</td><td>The line</td><td>Yes</td></tr>
+<tr><td>Link</td><td>The brackets and the target</td><td>The line</td><td>Yes</td></tr>
+<tr><td>Blockquote</td><td>The `&gt;` marker</td><td>The line</td><td>Yes</td></tr>
+</tbody>
+</table>
+</div>
+<!-- GENERATED:reference-markdown:END -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================== FOOTER ====================== -->
+  <footer>
+    <div class="wrap">
+      <p class="foot-mark">awl</p>
+      <nav class="foot-links">
+        <a href="https://github.com/Frank-P-Lu/awl-editor">GitHub</a>
+        <a href="/editor/">Try the editor</a>
+        <a href="https://github.com/Frank-P-Lu/awl-editor/blob/main/PHILOSOPHY.md">Philosophy</a>
+        <a href="/guide.html">Guide</a>
+        <a href="/reference.html">Reference</a>
+      </nav>
+      <p class="foot-meta">
+        GPL-3.0<span class="sep">·</span>by Frank Lu<span class="sep">·</span>zero-network (native)<span class="sep">·</span>built in Rust on wgpu
+      </p>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -23,7 +23,11 @@ use crate::toggle::Toggle;
 
 /// Whether "All" is active (dotfiles + unsupported files both revealed).
 /// DEFAULT `false` (Text) — the calm, curated default a new install opens to.
-static ALL_ON: Toggle = Toggle::new(false);
+/// The value this flag carries on a fresh install, before any config or
+/// settings write — the ONE owner of that fact, read both by the static
+/// below and by the generated reference (`settings::toggle_default`).
+pub(crate) const FILE_VISIBILITY_DEFAULT: bool = false;
+static ALL_ON: Toggle = Toggle::new(FILE_VISIBILITY_DEFAULT);
 
 /// True when "All" visibility is active.
 pub fn all_on() -> bool {
