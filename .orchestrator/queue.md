@@ -1130,3 +1130,58 @@ satisfy its Verify clause otherwise.**
 **Item 270 is committed locally and deliberately UNPUSHED** — while `main` is red the repair is the only thing that ships, and 270 rides out with the fix.
 
 277. **THE CONCURRENT-WORKER BUDGET BOUNDS BUILDS AND NOT TESTS, SO FOUR LANES AT THE GATE PHASE OVERSUBSCRIBE THIS HOST FIVEFOLD.** **Measured 2026-08-05, not inferred: load average 49.6 on a 10-core host**, with four dispatched lanes each running `native-gate.sh`. A gate that normally issues its receipt in ~4 minutes was **48 minutes in and still running**. **The mechanism is a gap in an owner that already exists.** `.orchestrator/worker-build.sh` sets `CARGO_BUILD_JOBS=2` and the README states the intent plainly — "four workers schedule at most eight Cargo jobs in aggregate and leave interactive headroom." **`CARGO_BUILD_JOBS` bounds COMPILATION parallelism and says nothing about TEST-EXECUTION parallelism.** `native-gate.sh` runs **both keymap conventions concurrently**, and each `cargo test` defaults its harness thread count to the core count — so four lanes at the gate phase is `4 × 2 × 10 = 80` runnable test threads against 10 cores, plus the merge train's own. **The budget was honoured exactly as written and the host still thrashed**, which is the point: the wrapper is the sole budget owner and its budget covers half the cost. ⚠️ **The waste compounds rather than merely slowing things: every lane's wall clock stretches ~5×, the orchestrator's own merge-train gate is starved behind them, and a CI-RED repair — the one thing entitled to priority — queues behind four lanes it should preempt.** **Build:** give the wrapper a test-thread budget beside its build budget (`RUST_TEST_THREADS`, or the harness's `--test-threads`, whichever `native-gate.sh` can carry without changing what it claims), sized so that concurrent lanes plus the train stay near the core count rather than several times over. ⚠️ **Do NOT bound it by serialising the gates** — the lanes are meant to overlap, and a queue of four sequential five-minute gates is the same wall clock with none of the parallelism. ⚠️ **And do not set a competing value inside `native-gate.sh` or the repo's gate scripts**: the README is explicit that the wrapper is the sole budget owner and that the root's isolated merge-train gate, CI, and a developer's lone build stay hardware-adaptive. The seam is the launcher, not the script. **Verify:** run four concurrent wrapper-launched gates and record the load average and each gate's wall clock, before and after; assert the aggregate stays within a stated multiple of the core count. **Report the numbers rather than asserting improvement** — this item exists because a budget that was being honoured still produced a fivefold oversubscription. **Also worth fixing while here, found the same way:** a lane that had already reported complete left **four orphaned `native-gate.sh` processes** in its worktree, staggered 28–45 minutes, still consuming cores after its item had merged. They were identified with `ps -ww` (`ps -o command=` truncates and reports a confident nothing — CLAUDE.md's own tripwire) and terminated by exact PID. **A lane's gates should not outlive the lane**, and a merged worktree should not be reachable to spawn more. **Routing:** production tier. **Found by the orchestrator 2026-08-05 while four lanes and a CI-red repair contended.**
+
+✅ **264 — COMPLETE, COMMITTED, AND DELIBERATELY UNMERGED** — branch
+`claude/item-264-selection-contrast`, `62a4a346`, full native receipt on that
+sha, `cargo test --bin awl` 3721 passed. **Held only because `main` is CI RED
+and the repair is the only thing that ships.** Merge it once green.
+
+**The document-selection band now has a 20-world, PNG-measured 3.0:1 floor**,
+routed through `Theme::highlight_treatment()` with no wildcard on either
+`THEMES` or the treatment enum. **Mulga fixed: `#FFEFAE@0x52` → `#9B8B4B@0x52`,
+2.16 → 4.19:1** — it was the roster's only dark world wearing a near-white wash
+while every peer wears a mid-value one. **Mangrove (3.25) and Potoroo (4.26)
+accepted as authored, not re-tinted**, on the stated ground that a passing
+world's colour is its author's taste call; Mangrove's 8% margin is written into
+the file so a later move to its page, ink or wash fails there by name.
+
+🔴 **THE FINDING THAT GENERALISES, AND IT IS THE SAME CLASS THIS BOARD KEEPS
+HITTING: A CONTRAST FLOOR ALONE IS SATISFIABLE BY NOT DRAWING THE BAND.** Fading
+a wash toward the page moves it away from the ink on *every* world, so the law
+gets *happier* as the feature disappears. **Measured, not theorised:** the
+lane's own first mutation set alpha to `0x04`, leaving a band 4 bytes from the
+page, and the law **passed while reporting a HIGHER 5.84:1.** A presence floor
+(0.03, under the roster's tightest real value of 0.049) was added. ⚠️ **A law
+that applauds deleting its own subject is the fourth shape of vacuity found in
+two days** — after a constant arm, a trigonometry identity, and an enrolment
+predicate that never matched. **The common thread is still that the assertion
+was fine and something upstream of it was not.**
+
+⚠️ **THE BRIEF'S RE-MEASURE WARNING WAS RIGHT TO ISSUE AND DID NOT BITE.** Items
+258 and 260 moved each world's `Background`, which paints the **margin**; the
+prose substrate those grounds do not touch, so **no composite moved** and the
+board's figures reproduced exactly. Recorded because the opposite outcome was
+the reasonable expectation.
+
+💡 **A HYPOTHESIS THE LANE FLAGGED RATHER THAN ACTED ON, and it is worth a
+look:** the "lifted plane" is not a design-level lift — Tawny's substrate
+`#53565F` is **exactly `base_100` treated as linear and re-encoded by the sRGB
+target** (`enc(0x16/255)*255 == 83`, matching on every channel of every world
+checked), and **the wash blends in LINEAR space, not straight alpha.** A
+host-side model would not merely have been wrong, it would have **under-reported
+this exact defect.** Not a defect claim; not acted on.
+
+⚠️ **Two limits the lane named rather than hid.** (a) **It killed its own sweep
+axes**: three window geometries returned **byte-identical** composites — three
+copies of one configuration — and the page toggle was flat too. Both are
+recorded as *measured* flat and the invariance is now asserted, so a substrate
+that later becomes configuration-dependent says so. **DPI remains unswept and is
+named as the next cell.** (b) **Scope is `base_content` prose ink only** —
+dimmer document inks (the `muted` rung a code comment renders in) sit under the
+same band and are **not** covered. That is a second law, not a wider sweep.
+
+⚠️ **RISK TO WATCH WHEN THIS MERGES:** it is a new **pixel** law, and `main` is
+currently red on a **pixel** law that passes on Metal and fails on lavapipe.
+264's thresholds carry real margin (4.19 against 3.0; 0.049 against 0.03) rather
+than asserting byte-identity, so it is far less brittle than the failing one —
+**but CI's linux job is the first thing that will ever run it on lavapipe.**
