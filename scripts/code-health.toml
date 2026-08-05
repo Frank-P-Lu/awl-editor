@@ -1122,7 +1122,7 @@ reason = "One roster sweep with a geometry arm, a pixel arm and an exclusion arm
 lint = "clippy::too_many_lines"
 file = "src/render/tests/overlay_plan_law.rs"
 function = "an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world"
-message = "this function has too many lines (117/100)"
+message = "this function has too many lines (120/100)"
 reason = "One roster sweep with a geometry arm, a pixel arm and an exclusion arm over the same rendered frame; splitting them would render each world twice, and the exclusion arm exists precisely to be measured at the same fixture the other two are graded at."
 
 [[clippy_exception]]
@@ -1526,49 +1526,49 @@ reason = "Item 274's subject split of the former flat test monolith relocated th
 
 [[comment_citation_exception]]
 target = "src/main/tests/settings_persist.rs"
-line = 4
+line = 8
 text = "/// ITEM 190 — the settings trio's own hermetic proof, mirroring"
 reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
 
 [[comment_citation_exception]]
 target = "src/main/tests/settings_persist.rs"
-line = 85
+line = 89
 text = "/// ITEM 190's Unsupported half: ORDINARY `--keys` (no capability) still"
 reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
 
 [[comment_citation_exception]]
 target = "src/main/tests/settings_persist.rs"
-line = 118
+line = 122
 text = "/// ITEM 190 — the CONFIG-ONLY toggle branch (`autosave`/`history`/"
 reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
 
 [[comment_citation_exception]]
 target = "src/main/tests/settings_persist.rs"
-line = 157
+line = 161
 text = "/// ITEM 190 — `SettingValueCommit`'s own hermetic proof: the Zoom row's exact"
 reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
 
 [[comment_citation_exception]]
 target = "src/main/tests/settings_persist.rs"
-line = 160
+line = 164
 text = "/// field is cleared with Backspaces first, mirroring item 114's own sweep)."
 reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
 
 [[comment_citation_exception]]
 target = "src/main/tests/settings_persist.rs"
-line = 202
+line = 206
 text = "/// ITEM 190 — `SettingPathPick`'s own hermetic proof, over its simplest key"
 reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
 
 [[comment_citation_exception]]
 target = "src/main/tests/settings_persist.rs"
-line = 205
+line = 209
 text = "/// standing in — the exact interaction item 114's `sweep_path` drives live."
 reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
 
 [[comment_citation_exception]]
 target = "src/main/tests/settings_persist.rs"
-line = 219
+line = 223
 text = "    // same level item 114's own `sweep_path` picks from); `Up` reaches its"
 reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
 
