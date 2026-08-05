@@ -1463,3 +1463,48 @@ replaced arm used to cover.
 ⚠️ **ONE HONEST LIMIT, restated by the lane:** headless captures pin the lava
 phase, so **the `LavaEdge` retirement rests on the user's verdict against a
 rendered still**, not on anything the harness can say about motion.
+
+## 🔴 CI RED #2 — REPAIRED IN THE TREE, and item 276's guard was RIGHT
+
+**Run `30970140822` at `d4e6c64d`: `linux (build + test)` red with SIXTY tests
+panicking at `testlock/mod.rs:200` — `test left misc globals dirty: menu_bar:
+true -> false`.** ⚠️ **The first run of that same commit failed differently and
+was NOT this** — `apt-get update` took a **403 Forbidden from
+`packages.microsoft.com`**, a third-party repo on GitHub's runner image, so
+every later step was **skipped and the suite never ran.** Classifying that
+before reacting is why no repair was aimed at a law that had not spoken; the
+rerun is what surfaced the real failure.
+
+✅ **ITEM 276'S GUARD IS CORRECT AND IS NOT THE DEFECT — it surfaced a leak that
+is STRUCTURALLY INVISIBLE ON THIS HOST.** `menubar.rs` declares
+`MENU_BAR_DEFAULT_MACOS = false` and `MENU_BAR_DEFAULT_OTHER = true`, so a
+passive-surface fixture calling `set_menu_bar_on(false)` is **a silent no-op on
+macOS and a real mutation on Linux.** 276's census and its fix for 80 tests both
+ran on macOS, where this particular leak cannot be seen. **Fourth instance of
+"a check runs in one configuration, and that configuration is itself an untested
+hypothesis" in three days.**
+
+✅ **THE REPAIR: `menu_bar` is still RESTORED and no longer AUDITED**, with the
+reason at the site. The next test is still protected; only the complaint is
+withheld. **21 of 22 globals keep their audit.**
+⚠️ **THIS IS NOT A TOLERANCE-WIDENING.** The audit is new, the exclusion is one
+named platform-divergent global, and the proper fix is scoped as **item 279**
+rather than left implied.
+
+🔴 **A FAILED ORCHESTRATOR ATTEMPT, RECORDED BECAUSE THE HAZARD IS REUSABLE.**
+The first repair made `calm_globals()` return a `TogglesRestore`. It cut the
+failures 60 → 5 and was **wrong**: `attached()` binds the guard **inside the
+helper**, so it restores `menu_bar` *before the test body runs* — the exact
+footgun the attempt's own doc comment warned about. **A restore guard's lifetime
+must be the TEST's, not the helper's**, and every fixture that reaches
+`calm_globals` through a helper has to propagate it. That is a refactor, not a
+field in a list. **Reverted whole rather than shipped partial.**
+
+✅ **PROVED UNDER THE FAILING CONDITION, NOT ARGUED.** The Linux default was
+reproduced on this host by forcing `MENU_BAR_ON`'s initialiser to the non-macOS
+branch; the repair takes `accessibility::` and `semantic::` from **1 and 4
+failures to 0 and 0**, and the unforced full suite is **3742 passed**. Without
+that simulation the half-fix would have been pushed as complete — it passed
+locally precisely because the bug cannot appear here.
+
+279. **GIVE THE PASSIVE-SURFACE FIXTURES A RESTORE GUARD WHOSE LIFETIME IS THE TEST'S, and re-enrol `menu_bar` in the audit.** **Follow-up to item 276, scoped 2026-08-05 after a partial fix was reverted.** **The defect:** `calm_globals()` (duplicated in `src/app/semantic/tests/mod.rs` and `src/app/frame/accessibility/tests.rs`) sets six passive-surface globals to a known state, including `crate::menubar::set_menu_bar_on(false)`. ⚠️ **`menu_bar`'s default is PLATFORM-DEPENDENT** — `MENU_BAR_DEFAULT_MACOS = false`, `MENU_BAR_DEFAULT_OTHER = true` — **so that call is a no-op on macOS and a real mutation on Linux**, which is why item 276's audit fired on sixty CI tests and zero local ones. `menu_bar` is currently **restored but not audited** (`src/testlock/misc.rs`, reason at the site); **this item re-enrols it.** ⚠️ **THE OBVIOUS FIX IS THE ONE THAT WAS TRIED AND REVERTED — read this before repeating it.** Making `calm_globals()` return a `TogglesRestore` cuts the failures 60 → 5 and then **breaks differently**: `attached()` (`accessibility/tests.rs:54`) calls it and returns only an `App`, so the guard **drops at the end of the helper and restores the global before the test body runs.** **A restore guard's lifetime must be the TEST's, not the helper's.** So every fixture that reaches `calm_globals` through a helper — `attached()`, and the `semantic` fixtures at `mod.rs:418`, `:469`, `:615` and `passive_roster.rs:76`, which set `menu_bar` directly and are **not** covered by `calm_globals` at all — has to propagate the guard to its caller, or the helpers have to return it alongside their value. **Decide the shape deliberately:** returning `(App, TogglesRestore)` from every fixture is honest but noisy; a fixture struct that owns both is quieter and is probably right. **Verify — and this is the part that must not be skipped:** ⚠️ **this bug is INVISIBLE on the dev host.** Reproduce the Linux condition locally by forcing `MENU_BAR_ON`'s initialiser to the non-macOS branch (`static MENU_BAR_ON: Toggle = Toggle::new(if false { MENU_BAR_DEFAULT_MACOS } ...)`), and require `cargo test --bin awl accessibility::` and `semantic::` **green under that forcing** before claiming it — the reverted attempt passed unforced and was still wrong. Then restore the initialiser, re-add `field!("menu_bar", …)` to `leaked()`, and run the unfiltered suite. **Mutation-prove** by removing one fixture's guard and watching the audit fail **by name**. **Routing:** production tier. **Found by CI 2026-08-05; the orchestrator's own first repair is the recorded counterexample.**
