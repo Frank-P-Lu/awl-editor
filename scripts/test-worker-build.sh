@@ -14,6 +14,7 @@ never_sweep="$WORK/never-sweep.sh"
 cat >"$probe" <<'EOF'
 #!/usr/bin/env bash
 printf 'child-cargo-jobs=%s\n' "${CARGO_BUILD_JOBS:-unset}"
+printf 'child-test-threads=%s\n' "${RUST_TEST_THREADS:-unset}"
 EOF
 cat >"$free_oracle" <<'EOF'
 #!/usr/bin/env bash
@@ -27,22 +28,26 @@ EOF
 chmod +x "$probe"
 chmod +x "$free_oracle" "$never_sweep"
 
-output="$(CARGO_BUILD_JOBS=99 \
+output="$(CARGO_BUILD_JOBS=99 RUST_TEST_THREADS=99 \
   AWL_DISK_PREFLIGHT_TEST_MODE=1 \
   AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$free_oracle" \
   AWL_DISK_PREFLIGHT_SWEEP_COMMAND="$never_sweep" \
   AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock" \
   "$ROOT/.orchestrator/worker-build.sh" "$probe")"
-[[ "$output" == *"orchestrator-worker-budget cargo_jobs=2 command="* ]] \
+[[ "$output" == *"orchestrator-worker-budget cargo_jobs=2 test_threads=1 command="* ]] \
   || { echo "test-worker-build: wrapper did not issue its budget receipt" >&2; exit 1; }
 [[ "$output" == *"child-cargo-jobs=2"* ]] \
   || { echo "test-worker-build: child did not inherit CARGO_BUILD_JOBS=2" >&2; exit 1; }
+[[ "$output" == *"child-test-threads=1"* ]] \
+  || { echo "test-worker-build: child did not inherit RUST_TEST_THREADS=1" >&2; exit 1; }
+
+echo "test-worker-build: wrapper overrides a caller-set CARGO_BUILD_JOBS=99 and RUST_TEST_THREADS=99 with its own budget"
 
 # The canonical gate is intentionally not a worker-budget owner. Its argument
 # rejection is enough to execute only its pre-Cargo path while proving an
 # isolated caller's unset environment is left untouched.
-unset CARGO_BUILD_JOBS
-if [[ -n "${CARGO_BUILD_JOBS:-}" ]]; then
+unset CARGO_BUILD_JOBS RUST_TEST_THREADS
+if [[ -n "${CARGO_BUILD_JOBS:-}" || -n "${RUST_TEST_THREADS:-}" ]]; then
   echo "test-worker-build: isolated root gate caller retained a worker cap" >&2
   exit 1
 fi
@@ -60,16 +65,42 @@ else
   exit 1
 fi
 
-echo "test-worker-build: wrapper caps children at 2; isolated native gate caller stays uncapped"
+echo "test-worker-build: wrapper caps children at cargo_jobs=2 test_threads=1; isolated native gate caller stays uncapped"
 
 owners="$(rg --hidden -l 'CARGO_BUILD_JOBS' "$ROOT" \
   -g '!target' -g '!Cargo.lock' -g '!*.json' -g '!queue.md' | sort)"
+# oom-budget-container.sh only forwards an already-set CARGO_BUILD_JOBS (or a
+# local default of its own) into a disposable OOM-probe container; it is a
+# consumer of the ambient value, not a second setter competing with the
+# wrapper's fleet policy — same relationship as native-gate.sh's own
+# RUST_TEST_THREADS default below.
 expected="$ROOT/.orchestrator/README.md
 $ROOT/.orchestrator/worker-build.sh
+$ROOT/scripts/oom-budget-container.sh
 $ROOT/scripts/test-worker-build.sh"
 [[ "$owners" == "$expected" ]] || {
   echo "test-worker-build: competing CARGO_BUILD_JOBS owner(s): $owners" >&2
   exit 1
 }
 
-echo "test-worker-build: no repository script or Cargo config competes for the budget"
+echo "test-worker-build: no repository script or Cargo config competes for the build-job budget"
+
+# RUST_TEST_THREADS has one consumer that legitimately reads and re-exports
+# it (native-gate.sh's own hardware-adaptive default) plus its test fixture;
+# the wrapper's set is the only thing that OVERRIDES it ahead of a worker's
+# gate. code-health.py separately ratchets the export inside native-gate.sh
+# itself, so this sweep only needs to watch for a second SETTER elsewhere.
+test_thread_owners="$(rg --hidden -l 'RUST_TEST_THREADS' "$ROOT" \
+  -g '!target' -g '!Cargo.lock' -g '!*.json' -g '!queue.md' | sort)"
+expected_test_thread_owners="$ROOT/.orchestrator/README.md
+$ROOT/.orchestrator/worker-build.sh
+$ROOT/scripts/code-health.py
+$ROOT/scripts/native-gate.sh
+$ROOT/scripts/test-native-gate.sh
+$ROOT/scripts/test-worker-build.sh"
+[[ "$test_thread_owners" == "$expected_test_thread_owners" ]] || {
+  echo "test-worker-build: competing RUST_TEST_THREADS owner(s): $test_thread_owners" >&2
+  exit 1
+}
+
+echo "test-worker-build: no other repository script sets RUST_TEST_THREADS ahead of the wrapper or the gate's own default"
