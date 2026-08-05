@@ -638,12 +638,17 @@ fn bullet_glyphs_resolve_in_each_worlds_assigned_face() {
 #[test]
 fn bullet_glyph_never_touches_the_following_text_in_any_world() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping bullet_glyph_never_touches_the_following_text_in_any_world: no wgpu adapter"
         );
         return;
     };
+    // This law is about bullet-glyph spacing, not the menu bar — pin the bar off
+    // so the sampled row's y-band doesn't shift under a platform where the bar
+    // defaults on (`_misc_restore` above already restores whatever this found).
+    crate::menubar::set_menu_bar_on(false);
     let w = 1200u32;
     let h = 800u32;
     // Line 0 is the bullet ("- a"); the caret parks on the blank line 1 so

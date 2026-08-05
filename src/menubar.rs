@@ -279,7 +279,7 @@ mod tests {
     #[test]
     fn globals_toggle_and_open_close() {
         let _g = crate::testlock::serial();
-        // The default matches the platform: on for web/Linux, off for macOS.
+        let ambient = menu_bar_on(); // not `cfg!`: that reflects the host, not the initializer
         set_menu_bar_on(true);
         assert!(menu_bar_on());
         assert_eq!(toggle_open(2), Some(2));
@@ -297,7 +297,7 @@ mod tests {
         set_open(Some(0));
         assert!(!toggle(), "toggle from on -> off closes the dropdown");
         assert_eq!(open_menu(), None);
-        set_menu_bar_on(cfg!(not(target_os = "macos")));
+        set_menu_bar_on(ambient);
     }
 
     #[test]
