@@ -1,5 +1,10 @@
 use super::super::*;
-use super::{keyspec, replay_keys, replay_keys_mode, replay_keys_mode_isolated};
+use super::{keyspec, replay_keys, replay_keys_mode};
+// The isolated-filesystem helper is native-only, and so are the two tests here
+// that call it; the import carries the same gate or wasm32 fails to resolve it.
+#[cfg(not(target_arch = "wasm32"))]
+use super::replay_keys_mode_isolated;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::testscratch::ScratchDir;
 
 #[test]

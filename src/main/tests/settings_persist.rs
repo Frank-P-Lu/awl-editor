@@ -1,5 +1,9 @@
 use super::super::*;
-use super::{keyspec, replay_keys, replay_keys_mode_isolated};
+use super::{keyspec, replay_keys};
+// The isolated-filesystem helper is native-only, and so are the four tests here
+// that call it; the import carries the same gate or wasm32 fails to resolve it.
+#[cfg(not(target_arch = "wasm32"))]
+use super::replay_keys_mode_isolated;
 
 /// ITEM 190 — the settings trio's own hermetic proof, mirroring
 /// `hermetic_scenario_save_lands_in_the_sandbox_never_on_real_disk`'s shape
