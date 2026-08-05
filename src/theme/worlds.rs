@@ -685,11 +685,13 @@ pub const MAGPIE: Theme = Theme {
     primary_content: Srgb::rgb(0xFB, 0xEF, 0xE9),
     error: Srgb::rgb(0xC0, 0x39, 0x2B),
     selection: Srgb::rgba(0x46, 0x61, 0x8F, 0x52),
-    background: Background::Pinstripe {
-        from: Srgb::rgb(0xF1, 0xF1, 0xEF),
-        to: Srgb::rgb(0xE4, 0xE4, 0xE1),
-        dir: (0.0, 1.0),
-        tint: Srgb::rgb(0xC9, 0xC9, 0xC5),
+    background: Background::Bands {
+        tones: [
+            Srgb::rgb(0xFB, 0xFB, 0xFA),
+            Srgb::rgb(0xF1, 0xF1, 0xEF),
+            Srgb::rgb(0xE4, 0xE4, 0xE1),
+        ],
+        angle: 0.62,
     },
     font: "Bitter",
     mono: "Monaspace Xenon",
