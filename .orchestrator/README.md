@@ -29,6 +29,21 @@ through `.orchestrator/worker-build.sh`; it sets and receipts
 aggregate and leave interactive headroom. The wrapper is the sole budget owner:
 workers and repository gate scripts do not set a competing value.
 
+**`CARGO_BUILD_JOBS` bounds compilation only, not test-execution parallelism**
+(item 277, measured 2026-08-05: load average 49.6 on this ten-core host with
+four dispatched lanes each running `native-gate.sh`, one gate 48 minutes into
+a run that normally takes ~4). `native-gate.sh` runs both keymap conventions
+concurrently, and each `cargo test` defaults its harness thread count to the
+core count, so four lanes at the gate phase — the build budget fully honoured
+— still schedule `4 workers x 2 conventions x (core count)` runnable test
+threads. The wrapper also exports `RUST_TEST_THREADS=1`, so four workers'
+gates schedule at most eight test threads in aggregate (`4 x 2 x 1`), matching
+the build budget's own aggregate of eight instead of several times the host's
+core count. `native-gate.sh` already deferred to a caller-supplied
+`RUST_TEST_THREADS` before this item — it only computes its own core/memory-
+derived default when the variable is unset — so this needed no change inside
+the gate script itself; the wrapper remains the sole owner of both bounds.
+
 The root's isolated merge-train gate, CI, and a developer's lone build do not
 use the wrapper and remain hardware-adaptive. The wrapper is intentionally a
 launch seam, not `.cargo/config.toml`; it passes its environment through to
