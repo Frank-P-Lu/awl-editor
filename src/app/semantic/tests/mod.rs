@@ -19,6 +19,20 @@ fn calm_globals() {
     crate::menubar::set_menu_bar_on(false);
 }
 
+/// [`calm_globals`], but with a restore whose lifetime is the CALLER's: `menu_bar`'s
+/// default is platform-dependent (`false` on macOS, `true` elsewhere), so the bare
+/// `set_menu_bar_on(false)` above is a silent no-op on macOS and a real mutation on
+/// Linux — invisible until `testlock::misc::leaked` audits `menu_bar`, at which point
+/// every fixture that calls plain `calm_globals` and never restores it fails on Linux
+/// alone. Snapshot BEFORE mutating, and hand the guard to the caller, who binds it
+/// after their own `crate::testlock::serial()` guard so it drops first, while the lock
+/// is still held (`TogglesRestore`'s restore path asserts that).
+fn calm_globals_guarded() -> crate::testlock::misc::TogglesRestore {
+    let restore = crate::testlock::misc::TogglesRestore::capture();
+    calm_globals();
+    restore
+}
+
 fn seeded_overlay(kind: OverlayKind) -> OverlayState {
     let corpus = vec!["alpha".to_string(), "beta".to_string(), "gamma".to_string()];
     let mut overlay = OverlayState::new(kind, corpus.clone(), Vec::new(), Vec::new());
@@ -38,7 +52,7 @@ fn ids(snapshot: &SemanticSnapshot) -> Vec<String> {
 #[test]
 fn raw_markdown_snapshot_has_one_focus_and_grapheme_selection() {
     let _guard = crate::testlock::serial();
-    calm_globals();
+    let _restore = calm_globals_guarded();
     let mut app = hermetic();
     app.set_semantic_text_for_test("e\u{301} 👨‍👩‍👧‍👦 🇯🇵");
     let snapshot = app.semantic_snapshot();
@@ -152,7 +166,7 @@ fn the_renderer_composes_no_card_text_of_its_own() {
 #[test]
 fn animation_only_frames_produce_an_identical_snapshot() {
     let _guard = crate::testlock::serial();
-    calm_globals();
+    let _restore = calm_globals_guarded();
     let clock = crate::clock::VirtualClock::new();
     let mut app = hermetic();
     app.set_clock(Box::new(clock.clone()));
@@ -178,7 +192,7 @@ fn animation_only_frames_produce_an_identical_snapshot() {
 #[test]
 fn document_ids_survive_edits() {
     let _guard = crate::testlock::serial();
-    calm_globals();
+    let _restore = calm_globals_guarded();
     let mut app = hermetic();
     let before = ids(&app.semantic_snapshot());
     app.document.insert_text("# hello");
@@ -194,7 +208,7 @@ fn document_ids_survive_edits() {
 #[test]
 fn row_ids_survive_filtering() {
     let _guard = crate::testlock::serial();
-    calm_globals();
+    let _restore = calm_globals_guarded();
     let mut app = hermetic();
     let mut overlay = OverlayState::new(
         OverlayKind::Command,
@@ -257,7 +271,7 @@ fn row_ids_survive_filtering() {
 #[test]
 fn a_summoned_card_announces_every_drawn_line_and_takes_no_focus() {
     let _guard = crate::testlock::serial();
-    calm_globals();
+    let _restore = calm_globals_guarded();
     let app = hermetic();
     let inputs = crate::card::content::CardInputs {
         doc: crate::card::figures::DocFigures {
@@ -300,7 +314,7 @@ fn a_summoned_card_announces_every_drawn_line_and_takes_no_focus() {
 #[test]
 fn every_overlay_kind_produces_a_named_surface_with_stable_rows() {
     let _guard = crate::testlock::serial();
-    calm_globals();
+    let _restore = calm_globals_guarded();
     for kind in OverlayKind::ALL {
         let mut app = hermetic();
         app.workspace_state
@@ -335,7 +349,7 @@ fn every_overlay_kind_produces_a_named_surface_with_stable_rows() {
 #[test]
 fn every_ladder_rung_names_exactly_one_focus_owner() {
     let _guard = crate::testlock::serial();
-    calm_globals();
+    let _restore = calm_globals_guarded();
     for rung in workspace::Layer::ROSTER {
         let mut app = hermetic();
         app.set_semantic_text_for_test("some prose");
@@ -379,7 +393,7 @@ fn every_ladder_rung_names_exactly_one_focus_owner() {
 #[test]
 fn passive_surfaces_announce_without_stealing_focus() {
     let _guard = crate::testlock::serial();
-    calm_globals();
+    let _restore = calm_globals_guarded();
     for rung in workspace::Layer::ROSTER {
         let mut app = hermetic();
         match rung {
@@ -433,7 +447,7 @@ fn passive_surfaces_announce_without_stealing_focus() {
 #[test]
 fn every_card_kind_announces_the_composed_lines_verbatim() {
     let _guard = crate::testlock::serial();
-    calm_globals();
+    let _restore = calm_globals_guarded();
     let inputs = crate::card::content::CardInputs::default();
     for kind in crate::card::content::CardKind::ALL {
         let content = crate::card::content::card(kind, &inputs);
@@ -451,7 +465,7 @@ fn every_card_kind_announces_the_composed_lines_verbatim() {
 #[test]
 fn menu_bar_expand_and_collapse_drive_the_real_dropdown() {
     let _guard = crate::testlock::serial();
-    calm_globals();
+    let _restore = calm_globals_guarded();
     crate::menubar::set_menu_bar_on(true);
     let mut app = hermetic();
     let title = format!("{MENUBAR_ID}.0");
@@ -489,7 +503,7 @@ fn menu_bar_expand_and_collapse_drive_the_real_dropdown() {
 #[test]
 fn a_settings_range_row_increments_the_real_setting() {
     let _guard = crate::testlock::serial();
-    calm_globals();
+    let _restore = calm_globals_guarded();
     let mem = crate::fs::InMemoryFs::new()
         .with_dir("/ws")
         .with_dir("/cfg");

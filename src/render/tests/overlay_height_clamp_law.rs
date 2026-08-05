@@ -591,6 +591,7 @@ fn fingerprint(
 #[test]
 fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix: \
@@ -598,6 +599,11 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
         );
         return;
     };
+    // This law is about the floor fix's arithmetic being byte-identical, not the
+    // menu bar — pin the bar off so the card geometry doesn't shift under a
+    // platform where the bar defaults on (`_misc_restore` above already restores
+    // whatever this found).
+    crate::menubar::set_menu_bar_on(false);
     let cases: [(Scenario, Fingerprint); 5] = [
         (
             Scenario {

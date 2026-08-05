@@ -321,12 +321,17 @@ fn spell_add_to_dictionary_row_renders_whole_at_wide_width() {
 #[test]
 fn spell_add_row_ink_visually_separates_from_a_correction_real_pixels() {
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping spell_add_row_ink_visually_separates_from_a_correction_real_pixels: no wgpu adapter"
         );
         return;
     };
+    // This law is about spell-row ink, not the menu bar — pin the bar off so the
+    // pixel coordinates below don't shift under a platform where the bar defaults
+    // on (`_misc_restore` above already restores whatever this found).
+    crate::menubar::set_menu_bar_on(false);
     let w = 1200u32;
     let h = 800u32;
     theme::set_active_by_name("Gumtree").unwrap();
@@ -836,6 +841,9 @@ fn panel_card_yields_to_shown_menu_bar() {
         return;
     };
     let _mg = crate::testlock::serial();
+    // `menu_bar`'s default is platform-dependent, so restore the AMBIENT value the
+    // test found rather than a hardcoded `false`.
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
     let width = p.window_w as u32;
     let mut v = view("hello\nhello\n", 0, 0);
     v.search_active = true;
@@ -873,7 +881,7 @@ fn panel_card_yields_to_shown_menu_bar() {
         "the card yields by exactly the bar's own reserve"
     );
 
-    crate::menubar::set_menu_bar_on(false);
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
 }
 
 /// WEB/LINUX MENU BAR YIELD, the SWEEP's own two remaining stragglers: the centered
@@ -894,6 +902,9 @@ fn overlay_and_theme_picker_cards_yield_to_shown_menu_bar() {
         return;
     };
     let _mg = crate::testlock::serial();
+    // `menu_bar`'s default is platform-dependent, so restore the AMBIENT value the
+    // test found rather than a hardcoded `false`.
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
 
     // The FLAT command-palette/picker card.
     let mut v = view("hello\n", 0, 0);
@@ -957,7 +968,7 @@ fn overlay_and_theme_picker_cards_yield_to_shown_menu_bar() {
         "the theme picker yields by exactly the bar's own reserve"
     );
 
-    crate::menubar::set_menu_bar_on(false);
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
 }
 
 /// CLICK-AWAY on a summoned overlay: the three pointer regions `input.rs` resolves
@@ -1704,6 +1715,7 @@ fn menu_bar_row_zero_is_pure_ground_never_a_blend_with_content_underneath() {
         return;
     };
     let _g = crate::testlock::serial();
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
 
     let (w, h) = (300u32, 200u32);
     for theme_name in ["Tawny", "Gumtree"] {
@@ -1735,7 +1747,7 @@ fn menu_bar_row_zero_is_pure_ground_never_a_blend_with_content_underneath() {
             );
         }
 
-        crate::menubar::set_menu_bar_on(false);
+        crate::menubar::set_menu_bar_on(ambient_menu_bar);
         theme::set_active(theme::DEFAULT_THEME);
     }
 }
@@ -1753,6 +1765,7 @@ fn menu_bar_left_and_right_columns_are_pure_ground_across_the_bar_height() {
         return;
     };
     let _g = crate::testlock::serial();
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
 
     let (w, h) = (300u32, 200u32);
     let cache = Cache::new(&device);
@@ -1789,7 +1802,7 @@ fn menu_bar_left_and_right_columns_are_pure_ground_across_the_bar_height() {
         );
     }
 
-    crate::menubar::set_menu_bar_on(false);
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
     theme::set_active(theme::DEFAULT_THEME);
 }
 
@@ -1806,6 +1819,7 @@ fn menu_bar_row_zero_stays_pure_black_or_white_on_a_one_bit_world() {
         return;
     };
     let _g = crate::testlock::serial();
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
 
     let (w, h) = (300u32, 200u32);
     let cache = Cache::new(&device);
@@ -1834,7 +1848,7 @@ fn menu_bar_row_zero_stays_pure_black_or_white_on_a_one_bit_world() {
         );
     }
 
-    crate::menubar::set_menu_bar_on(false);
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
     theme::set_active(theme::DEFAULT_THEME);
 }
 

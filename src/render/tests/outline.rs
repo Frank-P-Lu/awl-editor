@@ -793,6 +793,10 @@ fn outline_edge_fade_dims_the_clipped_rows_but_not_the_current() {
     crate::outline::set_outline_on(true);
     crate::page::set_measure(40);
     crate::page::set_page_on(true);
+    // This law is about the fade rung, not the menu bar — pin the bar off so the
+    // clip/row-count geometry below doesn't shift under a platform where the bar
+    // defaults on (`_misc_restore` above already restores whatever this found).
+    crate::menubar::set_menu_bar_on(false);
     use chrome::OutlineRung;
 
     // CLIPPING: 40 top-level headings, a SHORT canvas, caret mid-doc (heading 20).
@@ -909,6 +913,10 @@ fn outline_hit_test_stays_aligned_past_a_wide_glyph_heading() {
     crate::outline::set_outline_on(true);
     crate::page::set_measure(40);
     crate::page::set_page_on(true);
+    // This law is about hit-test alignment past a wide glyph, not the menu bar — pin
+    // the bar off so the geometry below doesn't shift under a platform where the bar
+    // defaults on (`_misc_restore` above already restores whatever this found).
+    crate::menubar::set_menu_bar_on(false);
     p.set_size(1900.0, 900.0);
 
     // WARM UP `outline_buffer`'s metrics to the real LABEL scale (and `avail`'s

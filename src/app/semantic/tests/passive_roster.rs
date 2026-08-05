@@ -84,6 +84,17 @@ fn calm_every_passive_surface() {
     }
 }
 
+/// [`calm_every_passive_surface`], but with a restore whose lifetime is the
+/// CALLER's — see `calm_globals_guarded` in the sibling `tests/mod.rs` for why:
+/// `PassiveSurface::MenuBar`'s `set_summoned(false)` is a real mutation on Linux
+/// (menu_bar defaults on there), so a bare call that never restores fails the
+/// `testlock::misc` audit on that platform alone.
+fn calm_every_passive_surface_guarded() -> crate::testlock::misc::TogglesRestore {
+    let restore = crate::testlock::misc::TogglesRestore::capture();
+    calm_every_passive_surface();
+    restore
+}
+
 /// awl ships no `C-x` defaults, so the which-key panel only ever has rows a
 /// user RECLAIMED through `[keys]`. The sweep reclaims three, in both keymap
 /// conventions, so the panel it summons genuinely lists something — an empty
@@ -145,7 +156,7 @@ fn every_passive_surface_drawn_in_the_png_is_present_in_the_semantic_tree() {
         return;
     }
     let _guard = crate::testlock::serial();
-    calm_every_passive_surface();
+    let _restore = calm_every_passive_surface_guarded();
     let dir = ScratchDir::new(
         std::env::temp_dir().join(format!("awl_passive_roster_{}", std::process::id())),
     );
@@ -235,7 +246,7 @@ fn the_passive_roster_covers_every_card_kind_by_name() {
 #[test]
 fn the_whichkey_capture_rows_and_the_announced_panel_share_one_gate() {
     let _guard = crate::testlock::serial();
-    calm_every_passive_surface();
+    let _restore = calm_every_passive_surface_guarded();
     let app = App::new_hermetic(None, PathBuf::from("/"), config_with_reclaimed_cx());
     assert!(app.whichkey_panel_rows().is_none(), "calm: no panel");
     assert!(
@@ -279,7 +290,7 @@ fn the_whichkey_capture_rows_and_the_announced_panel_share_one_gate() {
 #[test]
 fn the_announced_card_carries_the_documents_own_figures() {
     let _guard = crate::testlock::serial();
-    calm_every_passive_surface();
+    let _restore = calm_every_passive_surface_guarded();
     let body = "alpha beta gamma delta\nepsilon zeta\n";
     let text = format!("---\nlang: zh-Hans\n---\n{body}");
 

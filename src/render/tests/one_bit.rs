@@ -400,6 +400,7 @@ fn wagtail_turns_on_highlight_and_match_dither_mode_other_worlds_leave_it_off() 
 #[test]
 fn wagtail_palette_card_real_pixels_show_a_white_border_ring_black_interior() {
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping wagtail_palette_card_real_pixels_show_a_white_border_ring_black_interior: no wgpu adapter"
@@ -407,6 +408,10 @@ fn wagtail_palette_card_real_pixels_show_a_white_border_ring_black_interior() {
         return;
     };
     let _g = crate::testlock::serial();
+    // This law is about the palette card's border ring, not the menu bar — pin the
+    // bar off so the card's y-position doesn't shift under a platform where the bar
+    // defaults on (`_misc_restore` above already restores whatever this found).
+    crate::menubar::set_menu_bar_on(false);
 
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
@@ -1054,6 +1059,9 @@ fn hud_about_and_menu_dropdown_already_carry_unconditional_elevation() {
     crate::about::set_open(false);
 
     // Menu-bar dropdown (the user's own confirmed-working reference case).
+    // `menu_bar`'s default is platform-dependent, so restore the AMBIENT value below
+    // rather than a hardcoded `false`.
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
     crate::menubar::set_menu_bar_on(true);
     crate::menubar::set_open(Some(0));
     p.set_view(&v);
@@ -1063,7 +1071,7 @@ fn hud_about_and_menu_dropdown_already_carry_unconditional_elevation() {
         "Wagtail: the menu-bar dropdown's border must draw (the pre-existing reference case)"
     );
     crate::menubar::set_open(None);
-    crate::menubar::set_menu_bar_on(false);
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
 
     theme::set_active(theme::DEFAULT_THEME);
 }

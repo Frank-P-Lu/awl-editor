@@ -25,6 +25,20 @@ fn calm_globals() {
     crate::menubar::set_menu_bar_on(false);
 }
 
+/// [`calm_globals`], but with a restore whose lifetime is the CALLER's: `menu_bar`'s
+/// default is platform-dependent (`false` on macOS, `true` elsewhere), so the bare
+/// `set_menu_bar_on(false)` above is a silent no-op on macOS and a real mutation on
+/// Linux — invisible until `testlock::misc::leaked` audits `menu_bar`, at which point
+/// every fixture that calls plain `calm_globals` and never restores it fails on Linux
+/// alone. Snapshot BEFORE mutating, and hand the guard to the caller, who binds it
+/// after their own `crate::testlock::serial()` guard so it drops first, while the lock
+/// is still held (`TogglesRestore`'s restore path asserts that).
+fn calm_globals_guarded() -> crate::testlock::misc::TogglesRestore {
+    let restore = crate::testlock::misc::TogglesRestore::capture();
+    calm_globals();
+    restore
+}
+
 /// A document of `lines` lines, each with real prose so a line is not a
 /// degenerate one-byte case — and each the SAME length, so a size sweep
 /// compares like with like. (A zero-padded counter, because `line {n}` made
@@ -37,13 +51,36 @@ fn document(lines: usize) -> String {
         .join("\n")
 }
 
-fn attached(lines: usize) -> App {
-    calm_globals();
+/// A calm, attached `App` plus the toggle restore that must outlive it. Bundled
+/// rather than returned as a `(App, TogglesRestore)` pair so every call site keeps
+/// writing `app.foo()` unchanged (`Deref`/`DerefMut` reach the wrapped `App`) while
+/// the guard's lifetime is still tied to THIS value, not to `attached`'s own — the
+/// shape the reverted fix got wrong by returning only the `App`.
+struct Attached {
+    app: App,
+    _restore: crate::testlock::misc::TogglesRestore,
+}
+
+impl std::ops::Deref for Attached {
+    type Target = App;
+    fn deref(&self) -> &App {
+        &self.app
+    }
+}
+
+impl std::ops::DerefMut for Attached {
+    fn deref_mut(&mut self) -> &mut App {
+        &mut self.app
+    }
+}
+
+fn attached(lines: usize) -> Attached {
+    let _restore = calm_globals_guarded();
     let mut app = hermetic();
     app.set_semantic_text_for_test(&document(lines));
     app.document.set_cursor(0);
     app.attach_assistive_technology_for_test();
-    app
+    Attached { app, _restore }
 }
 
 /// THE headline law. AccessKit expects a full tree at activation and changed
@@ -83,7 +120,7 @@ fn a_full_tree_is_published_only_at_activation() {
 #[test]
 fn a_placeholder_activation_is_owed_exactly_one_full_tree() {
     let _guard = crate::testlock::serial();
-    calm_globals();
+    let _restore = calm_globals_guarded();
     let mut app = hermetic();
     app.set_semantic_text_for_test(&document(50));
     // Seed, then move the document on: the parked tree no longer describes the
@@ -113,7 +150,7 @@ fn a_placeholder_activation_is_owed_exactly_one_full_tree() {
 #[test]
 fn an_activation_against_a_current_tree_is_served_synchronously_and_in_full() {
     let _guard = crate::testlock::serial();
-    calm_globals();
+    let _restore = calm_globals_guarded();
     let mut app = hermetic();
     app.set_semantic_text_for_test(&document(30));
     let served = app
@@ -250,7 +287,7 @@ fn frames_with_no_input_publish_nothing() {
 #[test]
 fn a_frame_with_no_screen_reader_attached_builds_nothing() {
     let _guard = crate::testlock::serial();
-    calm_globals();
+    let _restore = calm_globals_guarded();
     let mut app = hermetic();
     app.set_semantic_text_for_test(&document(5_000));
     for ch in "typing away with nobody listening".chars() {
@@ -378,7 +415,7 @@ fn truth(app: &App) -> Vec<String> {
 fn a_reasked_initial_tree_describes_the_document_as_it_is_now() {
     for edit in ["in-line", "newline", "selection"] {
         let _guard = crate::testlock::serial();
-        calm_globals();
+        let _restore = calm_globals_guarded();
         let mut app = hermetic();
         app.set_semantic_text_for_test("alpha\nbeta\ngamma");
         app.document.set_cursor(0);
@@ -447,7 +484,7 @@ fn a_reasked_initial_tree_describes_the_document_as_it_is_now() {
 #[test]
 fn the_platform_filters_text_runs_out_of_the_documents_accessible_children() {
     let _guard = crate::testlock::serial();
-    calm_globals();
+    let _restore = calm_globals_guarded();
     let mut app = hermetic();
     app.set_semantic_text_for_test(&document(3));
     app.document.set_cursor(0);

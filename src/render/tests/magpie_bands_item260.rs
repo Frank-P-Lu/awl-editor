@@ -369,11 +369,16 @@ fn magpie_margin_carries_all_three_of_its_own_band_tones() {
 #[test]
 fn magpie_margin_is_texture_not_incident() {
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     if !crate::test_gpu::adapter_present() {
         eprintln!("skipping magpie_margin_is_texture_not_incident: no wgpu adapter");
         return;
     }
     let _world = crate::theme::WorldPin::snapshot();
+    // This law is about the margin's own texture, not the menu bar — pin the bar
+    // off so the sampled band doesn't shift under a platform where the bar
+    // defaults on (`_misc_restore` above already restores whatever this found).
+    crate::menubar::set_menu_bar_on(false);
     // The ladder's structural bound: nothing in the margin is darker than the
     // bottom rung of the world's own ground ramp.
     let floor = theme_lum(theme::MAGPIE.base_300);

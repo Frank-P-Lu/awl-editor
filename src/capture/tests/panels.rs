@@ -385,6 +385,12 @@ fn menu_bar_hidden_by_default_shown_by_global_and_reports_dropdown() {
     // the menubar lock FIRST, then page — matching `menubar::tests`' own order.
     let _mg = crate::testlock::serial();
     let _pg = crate::testlock::serial();
+    // Captured rather than assumed from `cfg!(target_os = "macos")`: that macro
+    // reflects the HOST compiling this test, not necessarily `MENU_BAR_ON`'s actual
+    // initializer branch (a local forcing edit can flip the latter to reproduce the
+    // Linux default on macOS hardware), and restoring what was really there is
+    // correct either way.
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
     let dir = ScratchDir::new(
         std::env::temp_dir().join(format!("awl_menubar_test_{}", std::process::id())),
     );
@@ -461,7 +467,7 @@ fn menu_bar_hidden_by_default_shown_by_global_and_reports_dropdown() {
     );
 
     crate::menubar::set_open(None);
-    crate::menubar::set_menu_bar_on(cfg!(not(target_os = "macos")));
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
 }
 
 /// LINE ENDINGS (the VS Code EOL model's UI half): the held-stats `hud` block gains
