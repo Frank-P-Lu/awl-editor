@@ -794,59 +794,67 @@ single-number pass/fail test can confirm a false hypothesis when the quantity
 moves for another reason.** The rig is `scripts/oom-budget-container.sh`,
 labelled in its own header as a diagnostic reproducer and **not a gate**.
 
-## Remaining work — handoff order (RE-DERIVED 2026-08-04, after the compression)
+## Remaining work — handoff order (RE-DERIVED 2026-08-05, against the tree)
 
-⚠️ **Re-derived against the tree, not against the previous list**, which pointed
-at 218/243/240/238 as "dispatched this wave" long after all four had landed. The
-rule that produced that staleness: **a compression that clears completions must
-re-derive this section in the same commit.**
+⚠️ **This section has gone stale three times, each time by editing the previous
+list instead of re-checking the tree.** The rule, restated as an instruction:
+**grep the tree for the thing the item promised.** These were verified that way
+just now — `Tunnel` still carries 4 arms and `Arrangement` 2 (`theme/ground.rs`),
+`ListStyle` still has 3 (`theme/model.rs`), no `selection_document`/`selection_ui`
+exists, and `worker-build.sh` carries no test-thread budget.
 
-⚠️ **RE-DERIVED AGAIN 2026-08-04 late, against the tree.** The previous list
-carried **`116d's flip` as remaining when it had landed** — verified at
-`src/overlay/workspace.rs`, where `workspace_shape(History)` returns
-`TimelineOverComparison`. Items **237** and **240** were likewise still readable
-as open; both are landed (237's vacuous arm is gone, 240's shader sweep is
-directory-driven off `read_dir`). **This is the third time this section has gone
-stale in the same way, so the rule is restated as an instruction rather than a
-lesson: whoever clears a completion re-derives THIS list in the SAME commit, by
-grepping the tree for the thing the item promised — not by editing the previous
-list.**
+**Nothing is claimed and no lane is running.** Fourteen items landed 2026-08-04/05
+(255, 256, 257+259, 258, 260, 264, 265, 266, 267, 269, 270, 273, 276, and the CI
+repair), all pushed, all worktrees removed. Order:
 
-**Running: 257+259 and 258. Landed this wave: 255, 256, 265.** Order:
+1. **277 — the worker budget bounds builds and not tests.** Production tier.
+   **First because it is the multiplier on everything below it:** four lanes at
+   the gate phase measured load 49.6 on ten cores and stretched a four-minute
+   gate past forty. Every wave until it lands pays that.
+2. **The theme-surface prune, and its sequencing is REAL, not a preference.**
+   **261** (four dials collapse to one arm each, and the enums go with them),
+   then **262 read THROUGH 268** — 268 says 262's fill-versus-stretch framing was
+   incomplete, and 262 must not add a fifth `Tunnel` arm when the point is fewer.
+   **263 goes LAST of these**: it touches the most call sites of anything queued,
+   and byte-identity across twenty worlds is its whole oracle.
+3. **271 and 272** — the fourth `ListStyle` prototype (`Pane` carries fifteen of
+   twenty worlds, and it is `RenderCaps::DEFAULT`) and the `Bars` config whose
+   five authored fields carry exactly one value across the roster. Both are user
+   instructions from 2026-08-05.
+4. **274 and 275** — the test monoliths, and the history-removal pass over
+   comments. ⚠️ **275 touches roughly a thousand comment sites across the tree
+   and will conflict with EVERYTHING**; schedule it alone, against a quiet tree,
+   or it will cost more in merges than it saves in prose.
+5. **222 / 131d** — the taste call is already made (right-align the name text for
+   ascending worlds; mirror the whole cluster). Scouted: the measured cluster
+   rail already exists in `render/chrome/diagonal.rs` (`cluster_w`,
+   `label_left`, `accessory_right`), so this consumes a rail rather than
+   building one.
+6. **247's motion slice** — the rotatable-mark primitive already exists (item
+   248 owns it), so this consumes rather than grows one.
+7. **174 and 172** — open, structural, neither urgent. 174 has one surface family
+   migrated of every surface; 172 has two domains of six extracted.
+8. **231** — a diagnosis item with **no live lead**; its shader-size hypothesis
+   was falsified and nothing replaced it. Its named next step is a **macOS guest
+   VM**, and this host has **no VM tooling installed** — a spend decision, not
+   work to absorb.
+9. **🔵 HUMAN / LIVE, none of which a lane can close:** 118's direction call
+   (raise ~7 worlds toward 3, or amend the target shape — the board recommends
+   amending, and **Mulga's score of 1 is stale** since 258 replaced the ground it
+   described); the **visual judgement on Mulga's and Magpie's new grounds**
+   (⚠️ **260's captures went to a temp dir — re-capture, do not trust `/tmp`**);
+   **273's section structure**, which its own lane flagged as a call it made
+   where the item asked for a human eye; 211's thrice-reported picker defect;
+   241's own-window numbers.
+10. **251** — needs a human at a Linux desktop with Orca. ⚠️ **Item 257 closed as
+    "premise false, oracle repaired" rather than fixed**, so what unblocked here
+    is the *probe*, not a defect: the AT-SPI tree was correct all along, since
+    AccessKit filters `Role::TextRun` from accessible children by design.
+11. **226, 227, 228** — release decisions, all the user's word: the tag, the
+    glibc floor (measurement half-done — exactly two symbols need 2.39, both from
+    Rust std's optional pidfd path), and item 228's versioned artifact names
+    against the site's hardcoded unversioned URL.
 
-1. **257 + 259** — 🟡 RUNNING as one lane. The only open work that degrades a
-   shipping path for a real user, on two platforms. Gates **251**.
-2. **258** — 🟡 RUNNING. ⚠️ **`Bands` was reassigned to Magpie (item 260) while
-   258 was in flight**; the amendment was pushed to the lane, not merely written
-   here, which is the only reason it was not discovered at merge time.
-3. **The theme-surface prune, 260–267** — the new wave, and it has REAL
-   SEQUENCING that must not be flattened: **260 after 258** (both move grounds
-   in `worlds.rs`); **264 after 258** (Mulga's selection band is `selection`
-   composited over a page that 258 is replacing, so measuring first would aim
-   the fix at a page that no longer exists); **263 LAST** (it touches the most
-   call sites of anything here); **262 read through 268**, which says 262's
-   fill-versus-stretch framing was incomplete. **266, 267 and 265 are
-   independent of all of that** and can run any time — 265 is already landed.
-4. **222 / 131d** — unblocked by 242's landing; the taste call is already made.
-   Scouted: the measured cluster rail already exists in
-   `render/chrome/diagonal.rs` (`cluster_w`, `label_left`, `accessory_right`),
-   so this consumes a rail rather than building one.
-5. **247's motion slice** — the shared rotatable-mark primitive already exists
-   (item 248 landed it and owns it), so this consumes rather than grows one.
-6. **174 and 172** — open, structural, and neither is urgent. 174 has two
-   families migrated of every surface; 172 has two domains of six extracted.
-7. **231** — a diagnosis item with **no live lead**; its shader-size hypothesis
-   was falsified and nothing has replaced it. Its named first deliverable is a
-   **macOS guest VM**, and this host has **no VM tooling installed** (`tart`,
-   `utm`, `qemu` all absent), so the next step carries a real setup cost that
-   should be a deliberate decision rather than absorbed by a lane.
-8. **Human/live closures, all reachable while the display stays unlocked:**
-   118's direction call and ambient sitting, 211's defect (⚠️ **a
-   thrice-reported user defect, not a look-and-agree**), 259's VoiceOver
-   sitting, 241's own-window numbers.
-9. **251** — blocked behind **257**, and separately needs a human at a Linux
-   desktop with Orca. A hosted runner has no ears; item 252's arm reaches the
-   bridge's liveness and structure, and nothing more.
 
 116. ✅ **COMPLETE 2026-08-04 — all four slices landed; the entry below is kept ONLY as the decomposition record and is STALE IN ITS PREMISE.** ⚠️ **Do not brief anything off its text.** It still reads "116d CANNOT flip `workspace_shape(History)` before that compositing round", which stopped being true when the compositing round landed and stopped being relevant when the flip landed. **Verified against the tree, not the log:** `workspace_shape(History)` is `TimelineOverComparison` at `src/overlay/workspace.rs:129`, and `workspace_header_beat` is absent from `src/` entirely. Slices: **116a** the shape, **116b** the comparison viewport, **116c** the alternate accept, **116d** the compositing round (`a8eef4ee`) then the flip. Item **204** landed both slices on top of it, which was only possible because 116d's typed `ComparisonRequest`/`ComparisonView` payload exists. **Two gaps its own completion note left deliberately, recorded here so closing this entry does not bury them:** (a) the **narrow comparison stage draws no footer** (`show_rows` false → `hint_rows` 0), so nothing teaches `tab back` / `esc close` at ~900×520 and below — a discoverability hole, arguably a 🔵 taste call about spending vertical space; (b) on Mangrove/Magpie the **narrow timeline column elides mid-word**, owned by item 131e. ⚠️ **This entry was left open for hours after the work finished, and was the direct cause of a wasted dispatch** — `16b4e8c2` kept its stale text verbatim while dropping 116d's `✅ COMPLETE` bullet, and the next claim was written off it in good faith. **Original entry follows, for the decomposition reasoning only.** **Move Version History into the shared summoned workspace — timeline and prose diff become one readable task, never three competing layers.** **Build:** Preserve the existing history store, git backend, pruning, facets, descriptions, kept versions, and prose-diff engine, but replace the current History overlay/diff-as-preview composition with item 114’s workspace. On wide windows, show a narrow timeline/navigation pane beside a large read-only comparison pane; moving through versions updates the comparison immediately. On narrow windows, show the timeline first and enter the comparison as a second stage with an explicit return path. The current editor is backdrop/state, not a third readable layer. **Scope:** Keep local loose-file snapshots and git-managed history behind the same UI with only a quiet source label. Preserve independent diff scrolling and a clear focus transfer between timeline and comparison. `Esc` leaves the current buffer byte-for-byte unchanged; restore must be a deliberate, footer-taught action rather than bare `Enter`, and remains undoable. `Version history…` and `Compare with version…` deep-link into the same workspace at the appropriate focus; `Keep version…` retains its brief naming prompt and returns coherently. Remove the old History overlay, document-under-card preview composition, and feature-specific diff-panel dressing only when their last consumer is gone—retain the generic prose-diff machinery and do not strand parallel disabled paths. **Done:** A user can answer “which version, what changed, and do I want it back?” without overlapping titles, hidden prose, or ambiguity about whether the editor is active; the same flow works for local and git history; exiting is a true no-op and restoring is deliberate and undoable. **Verify:** Timeline→live comparison→focus/scroll→back/exit/restore journeys for local snapshots, named/pinned versions, git commits, empty history, renamed files, and pruned ladders; narrow/wide/zoom/DPI captures across representative light/dark, Pane/Bars, and Wagtail worlds; pixel laws proving timeline and comparison never overlap and the original document does not remain a competing readable layer; restore undo law; capture/replay parity; dashboard vision smoke; native, both conventions, and wasm gates. **Depends on the completed item 114 Settings workspace (landed `60477e7c`); user design decision 2026-07-26.** ⚠️ **DECOMPOSED 2026-07-31 after inventory — the owner stopped at a clean boundary rather than half-land it, which is the correct outcome and the brief's stated escape hatch.** It began the content-model change, then reverted deliberately: the first edit flips History's shell predicate on, and committing that without the content is precisely the empty workspace item 114 forbids. **This is not "big like 114" — it is four independent 114-sized changes, three of which were invisible from the item text.** **(1) The comparison has no renderer.** awl has exactly one prose renderer — the document layer. The transcript is markdown from `prosediff::render_markdown_blocks`, so relocating it into the content pane means giving `column_left()`, `column_width()`, `doc_top()` and `doc_clip_band()` — the four owners every document consumer routes through, ~45 call sites across `rects.rs`, `layers.rs`, `text.rs`, `geometry.rs`, `scroll.rs` — a viewport override, then gating every margin-orientation surface composed off them. Item 114 added a third geometry family beside two others and never touched the document layer; this is a second structural change of the same size in the most load-bearing geometry in the tree. A second prose renderer inside the overlay pane is the "infrastructure complexity is a smell" CLAUDE.md forbids. **(2) The removal is wider than the build,** and the item's hedge resolves toward caution: the diff-panel dressing's last consumer really is History (`scripts/review.sh` sets `opts.diff` but never `opts.preview_text`, the only thing lighting `vstate.diff_panel`), so `diff_panel`, `diff_panel_rect`, `prepare_diff_panel` and three pipelines all go — but item 84's `doc_clip_band` must **survive and be re-owned** by the comparison viewport, and its law files re-aimed rather than deleted. **(3) ~60 History test functions across ~25 files assert the CARD presentation** — each a judgment call, not a rename. **(4) Restore needs a new input primitive:** `CompareVersion`/`KeepVersion` have no default chord, and "deliberate, footer-taught, not bare Enter" cannot be a named chord because `HintAction.glyph` is `&'static str` while a chord glyph is convention-dependent — so the footer-honest option is a shift-held accept delegating to `Newline` in the editor. **Two premise corrections.** `workspace_shell()` as a **bool is insufficient**: 114's shell puts facet labels in the rail and rows in the pane, but History wants the timeline as the primary list, so flipping the bool yields the wrong composition. It must become a shape — and **DESIGN.md §5 already sanctions exactly this** ("categories beside controls, or a timeline beside a comparison"), so it is a reading 114 deferred, not an invention. Separately, **two "Done" clauses are already true and cost nothing**: Esc leaves the buffer byte-identical (the transcript is a view substitution, never a buffer write) and restore is already undoable (`App::restore_history` goes through one atomic `Buffer::set_text`). Neither emits a notice, which is worth deciding — a silent document replacement is the one place a toast earns its keep. **THE DECOMPOSITION, in dependency order.** **116a — the shape:** `workspace_shell()` becomes `workspace_shape() -> Option<WorkspaceShape>` (`RailOverRows` | `TimelineOverComparison`) with `rows_are_primary()` as the single fact geometry/keyboard/hints reduce to; History still returns `None`, so nothing is presented. Tier 1, fully capturable, lands green and changes no pixel. **116b — the relocated document viewport:** `comparison_viewport` as the one owner, read by the four geometry owners; margin surfaces gated; `diff_panel` and its pipelines structurally removed; the clip/wash/panel laws re-aimed. **This is the risky half and deserves to fail alone.** ✅ **116c LANDED — merge `7ea5cd78`** (`f3da0d07`, `1254a7b9`). `Action::AcceptAlternate` (Shift+Enter) resolved directly in `KeymapState::resolve_named`, needing no catalog chord because **Shift reads identically on both conventions** — proved by a Mac×Linux × native×emacs sweep rather than asserted, plus a law confirming it is absent from the Linux keep-list. **The delegation is the literal same code path, not a copy:** `apply_buffer_action`'s arm is now `Action::Newline | Action::AcceptAlternate`, and byte-identity is proved over `Buffer::disk_bytes()` across **ten** smart-newline shapes — bullet/numbered/task continuation, the empty-item provenance flag across four mixed step-orders, blockquote continue/end, bare-indent carry, non-markdown bypass, active-selection override — not the plain-prose case anyone would have thought to check. `history_intercept` folded into `workspace_intercept`, routed through 116a's `rows_are_primary()` rather than a kind branch; `overlay_nav.rs`'s mark **lowered** to 768 as it went. `KeepVersion` now descends through `overlay::Journey` rather than entering over a card. **Honest about reachability:** the descend branch is not reachable through today's live dispatch (the palette closes itself first), so it was proved by a direct unit test "rather than a fictional re-dispatch". ⚠️ **Merge-train note:** the lane reported "`code-health.py`: clean" — the python arm alone, not `code-health.sh` with its clippy pass — and the candidate failed `clippy::type_complexity` on its new fixture tuple. Third lane this run whose branch-level health claim did not survive the train, and the same defect class the run has been about: a check whose stated scope exceeds what it ran. Fixed with a `type Fixture` alias. **116d inherits:** the intercept is ready for `TimelineOverComparison`, `⇧↵` and `open_keep_version` are ready for a real in-workspace hint, and `workspace_shape(History)` is still `None`, waiting on 116b's compositing question. an alternate-accept action delegating to `Newline` in the editor with a byte-identity law, plus shape-aware intercept. **116d — the flip and the journeys:** History becomes `TimelineOverComparison`, deep links, the lens moved to the header, and the full Verify sweep. **Verification split, written against `docs/harness-reach.md`:** tier 1 covers entry, focus transfer, Back, exit, parked-parent position, timeline selection, lens cycling, staging, zoom/DPI and every pixel law — `overlay_accept:History` is Applied, so the restore journey replays. Tier 2 covers anything touching the store or git: snapshot recording, the pruned ladder, renamed-file timelines, `KeepVersion` (Unsupported) and the restore's disk read. **The item's Verify clause reads as though the whole thing were capturable; it is not, and asking for a sidecar over `KeepVersion` would repeat item 180's mistake.** **Owed a human, and it compounds item 114's open question:** from the comparison the first `Esc` is a Back to the timeline, so leaving History from the content region takes two — the same interaction decision 114 flagged, and it should be settled once for both members before 116d lands. ✅ **116a LANDED — merge `6202205c`** (`bff81da9`): `workspace_shape() -> Option<WorkspaceShape>` with `rows_are_primary()` as the one fact, `TimelineOverComparison` defined but routed nowhere, Settings byte-identical (identical PNG sha256; the only sidecar delta was `project.dirty` from the stash procedure). Its mutation broke **three pre-existing item-114 laws**, proving the re-route is real rather than inert, and a grep-law bans matching the shape enum outside its defining file. **Handoff worth keeping:** the geometry seam is already in place, so 116b's comparison viewport just reads the content rect; 116d's timeline hit-test should reuse the ordinary candidate-row hit-test rather than extend the rail functions, since `geom.rail` is `None` whenever rows are primary; and **`chrome/workspace.rs` is at 497/500 with no mark escape** — it postdates the frozen baseline, so 116b must extract a submodule before adding to it. ✅ **116b LANDED — merge `350aed68`** (`80527ae0`). `TextPipeline::comparison_viewport()` is the one owner; `column_left`/`column_width`/`doc_top`/`doc_clip_band` read it and everything downstream follows without knowing. Extracting `workspace_regions()` first took `chrome/workspace.rs` from 497 to **479**, off the ceiling 116a warned about. The bypass is named and enumerated in `render/geometry/page.rs` with a law pinning its consumers to that file plus exactly two fallback arms. **98 captures byte-identical**, PNG and sidecar, verified three times. `diff_panel` and its three pipelines removed after the owner verified the last-consumer reading itself; item 84's `doc_clip_band` **survived and was re-owned**, its laws re-aimed rather than deleted, and its X arm is genuinely exercised for the first time. **Mutation-proofing found two fixtures that would have gone quiet instead of red** — one searched for its straddling canvas by asking the very clip under test whether it had trimmed anything, the other graded a band its transcript never inked; both now derive independently with non-vacuity floors. **No mark raised; seven lowered.** ⚠️ **The boundary it stopped at, pinned as a law rather than absorbed:** the relocation moved the document's geometry but **not its place in painter's order**, so the workspace card still draws over it — opaque hides it, translucent ghosts it, and a blur-eligible world frosts the document into the frame around the region. `the_relocated_document_is_geometrically_placed_but_not_yet_composited` asserts both halves over the whole roster and its own message tells 116d to delete and replace it. **116d CANNOT flip `workspace_shape(History)` before that compositing round — it would present an invisible comparison.** The open design question is whether the comparison sits *on* the workspace surface or is a window *through* it.
 
