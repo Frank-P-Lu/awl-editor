@@ -77,6 +77,7 @@ mod hybrid_band_snap;
 mod images;
 mod layout_oracle;
 mod list_surfaces;
+mod magpie_bands_item260;
 mod markdown;
 mod markdown_headings;
 mod nits;

@@ -478,8 +478,8 @@ file = "src/theme/worlds.rs"
 # (1110 -> 1099) on top of the rebased tree. Item 132 added Kite and moved the
 # never-enrolled gallery audition out to theme/worlds_gallery.rs, so this file
 # holds only the shipped roster (1124 -> 1123).
-lines = 1129
-reason = "+6: item 221's Cassowary literal gains one `location_style: LocationStyle::RotatedRail,` field plus its own short comment — the same one-field-per-world-capability shape `icon_ground`/`icon_cursor` above already take, irreducible without a second implicit default path. Item 224 (+1): Magpie's literal gains the same one field, `location_style: LocationStyle::Raked,` — its location cue now reads along its own diagonal spine's rake instead of sitting upright beside it."
+lines = 1131
+reason = "+6: item 221's Cassowary literal gains one `location_style: LocationStyle::RotatedRail,` field plus its own short comment — the same one-field-per-world-capability shape `icon_ground`/`icon_cursor` above already take, irreducible without a second implicit default path. Item 224 (+1): Magpie's literal gains the same one field, `location_style: LocationStyle::Raked,` — its location cue now reads along its own diagonal spine's rake instead of sitting upright beside it. +2: Magpie's ground moves from `Pinstripe` to `Bands`, whose shape is a three-element `tones` array plus one `angle` rather than four scalar fields — the two lines are the array's own delimiters, and flattening them would put three colours on one line against this file's every-field-on-its-own-line convention."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1164,20 +1164,6 @@ file = "src/syntax/tests.rs"
 function = "extension_detection_covers_all_languages"
 message = "the function has a cognitive complexity of (29/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
-
-[[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/theme/tests.rs"
-function = "every_world_has_a_valid_background"
-message = "the function has a cognitive complexity of (29/25)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. MEASURED ON THE COMBINED TREE, not carried from either branch: item 258 TIGHTENED this from 30 by retiring a ground, which removed a per-world roster branch."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/theme/tests.rs"
-function = "every_world_has_a_valid_background"
-message = "this function has too many lines (144/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. MEASURED ON THE COMBINED TREE, not carried from either branch: item 258 TIGHTENED this from 155 by deleting the retired ground's roster law outright and keeping its replacement as its own named test rather than folding it in here."
 
 
 [[clippy_exception]]

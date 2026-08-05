@@ -43,10 +43,13 @@ swatch. Twenty ship today (eleven dark, nine light; `theme::THEMES`), each with:
   it was:** the scattered-star ground (deterministic dots, the brightest sixth
   of them carrying a four-point sparkle) left `Background` entirely in 2026-08
   when Mulga — by then its only assignee — moved to `Pinstripe` on the user's
-  own verdict about the room. This is deliberately NOT the `Bands` /
+  own verdict about the room. This is deliberately NOT the
   `Weave::Fibres` / `Arrangement::Masses` treatment. Those are DORMANT:
   reusable shapes a future world may want, kept because the roster might reach
-  for them again. A capability that serves exactly one world, and that world
+  for them again. `Bands` was in that category too until Magpie adopted it, and
+  the ROSTER now carries no dormant arm at all — eleven grounds, eleven worn,
+  a fact `theme::tests::every_world_has_a_valid_background` asserts over
+  `roster_index` rather than leaving to a grep. A capability that serves exactly one world, and that world
   no longer wants it, is not dormant infrastructure — it is the infrastructure
   smell `PHILOSOPHY.md` §6 names, so it goes. The distinction to apply when
   the next ground loses its last world: **ask whether the shape is wanted, not
@@ -87,8 +90,8 @@ swatch. Twenty ship today (eleven dark, nine light; `theme::THEMES`), each with:
   that field (Quokka 100px/24px unchanged, Gumtree 170px/60px: about six broad
   rows down an ordinary window on Gumtree, roughly twice as many on the tighter
   Quokka; angles, tints, densities and every palette rung unchanged). See "The
-  zigzag field law" below. `Bands` is now DORMANT
-  reusable infrastructure (Gumtree was its one assignee) — see §3's own note.
+  zigzag field law" below. `Bands` was left unworn by that move and stayed so
+  until 2026-08, when **Magpie** adopted it — see its own note below.
   **Item 176 (2026-07)** gave `Organic` — Bowerbird's ground, the tenth in this
   list — a theme-owned `Arrangement` dial of the same shape: `Masses` (the
   original rounded cut-paper blobs) or `Finds`, a crisp COLLECTED-TREASURE
@@ -210,7 +213,7 @@ by a fixed wander profile, with a single theme-owned `Weave` dial choosing
 between `Strata` (lanes indexed on distance from the page column, so the field
 gathers around and mirrors across the page — Paperbark's) and `Fibres` (lanes
 indexed on screen `y`, drawn as thin strokes plus a diagonal vein family —
-reusable, currently DORMANT, the `Bands` / `Dots { edge: true }` shape). The
+reusable, currently DORMANT, the `Dots { edge: true }` shape). The
 ground is entirely STATIC, so the world joins no ambient tick. `density: 0.0`
 collapses either weave to a flat ground exactly, which is what lets every pixel
 law here be differential. Paperbark leaves Temperature untagged: it is plainly

@@ -5,19 +5,27 @@
 //! pattern — drive `BackgroundPipeline` directly (the purest reachable seam,
 //! no text/markdown involved) and read the real GPU output back.
 //!
-//! **Post item-86 note:** Gumtree's OWN ground moved on again — from Bands
-//! to a repeating chevron `Background::Zigzag` (see `backgrounds_item86.rs`
-//! for that ground's own real-pixel laws) — so `Background::Bands` is now
-//! DORMANT reusable infrastructure with zero shipping worlds (exactly the
-//! "a feature may ship with zero worlds until one wants it" shape
-//! `theme::tests::every_world_has_a_valid_background` already documents for
-//! proximity Dots). The Bands-specific laws below still hold real value as
-//! REGRESSION coverage for that dormant variant, so rather than delete them
-//! they now drive an explicit literal `Background::Bands` value (Gumtree's
-//! OLD tones/angle, preserved verbatim) instead of reading a live world's
-//! `background` field — the geometry/continuity/determinism laws a variant
-//! must hold are about the SHAPE, never about which (if any) world currently
-//! wears it.
+//! **The Bands laws below drive a SYNTHETIC literal, and that is deliberate.**
+//! Gumtree's own ground moved from Bands to a repeating chevron
+//! `Background::Zigzag` (see `backgrounds_item86.rs` for that ground's own
+//! real-pixel laws), leaving Bands unworn for a time; the laws were repointed
+//! at an explicit literal — Gumtree's old tones/angle, preserved verbatim —
+//! rather than deleted, because the geometry/continuity/determinism properties
+//! a variant must hold are about the SHAPE, never about which world wears it.
+//!
+//! **Bands is worn again — Magpie took it — and the literal STAYS anyway.**
+//! Repointing these laws at Magpie was considered and rejected on two grounds,
+//! one structural and one measured. Structurally, a shape law pinned to a live
+//! world becomes a hostage: Magpie's angle and tones are taste, a future taste
+//! round will move them, and a geometry proof must not go red because a world
+//! was redecorated — that coupling is precisely what moving to a literal
+//! removed. Measured, these laws classify each pixel to its NEAREST tone, so
+//! their strength is the tone separation they run at: the literal's rungs are
+//! 21 and 24 apart on their dominant channel, Magpie's ladder rungs are 10 and
+//! 13, so running the shape proof on Magpie would halve the classifier's margin
+//! to buy nothing. Magpie's own instance is proved separately, at real pixels
+//! and at that narrow separation, by `magpie_bands_item260` — the two files ask
+//! different questions and both answers are wanted.
 //!
 //! Per the project tripwire (the sidecar is a STATE oracle, never an
 //! APPEARANCE oracle — it once reported a selected row that rendered fully
@@ -189,10 +197,11 @@ fn runs(labels: &[usize]) -> Vec<usize> {
     out
 }
 
-/// The DORMANT `Background::Bands` value under regression test here — Gumtree's
-/// OLD tones/angle (item 69, before item 86 moved Gumtree to `Zigzag`),
-/// preserved verbatim as a literal so this file's geometry laws keep proving
-/// the variant's own shape rather than a live world's current pick.
+/// The SYNTHETIC `Background::Bands` value under regression test here —
+/// Gumtree's old tones/angle, preserved verbatim as a literal so this file's
+/// geometry laws keep proving the variant's own shape rather than a live
+/// world's current pick. See this module's header for why it stayed a literal
+/// after Magpie adopted the ground.
 fn bands_test_bg() -> theme::Background {
     theme::Background::Bands {
         tones: [
@@ -735,7 +744,7 @@ fn every_world_reports_its_authored_shader_id() {
         ("Mulga", 3),     // Pinstripe — Mulga's ground since the star retirement
         ("Currawong", 0), // Gradient (+ separate ambient stars, unaffected)
         ("Bilby", 0),
-        ("Magpie", 3),
+        ("Magpie", 5), // Bands — the ground's one live assignee
         ("Saltpan", 3),
         ("Galah", 9), // Deckle/Fibres
         ("Mopoke", 1),
@@ -786,4 +795,13 @@ fn every_world_reports_its_authored_shader_id() {
         7,
         "Gumtree must be Zigzag (7), not Bands (5)"
     );
+    // Bands' id 5 is LIVE, and exactly one world reports it. The pairing with
+    // the Gumtree assertion just above is the point: 5 is not vacant like 2,
+    // it moved houses, and the roster must show it at exactly one address.
+    let bands: Vec<&str> = theme::THEMES
+        .iter()
+        .filter(|t| t.background.shader_id() == 5)
+        .map(|t| t.name)
+        .collect();
+    assert_eq!(bands, ["Magpie"], "shader id 5 (Bands) is Magpie's alone");
 }

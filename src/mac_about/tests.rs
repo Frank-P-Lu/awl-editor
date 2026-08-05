@@ -90,9 +90,23 @@ fn escape_and_command_w_dismiss_and_nothing_else_does() {
 #[test]
 fn exactly_about_requests_the_native_surface_through_the_shared_transition() {
     let _guard = crate::testlock::serial();
+    // ⚠️ THIS SWEEP APPLIES EVERY COMMAND'S ACTION, so it FIRES every toggle in
+    // the roster as a side effect and must put each one back. The restore list
+    // below is easy to under-fill in a way nothing reports: the three globals
+    // originally saved here are exactly the three the shared serial guard
+    // checks on exit, so the guard's coverage — not this sweep's actual reach —
+    // is what the list had been sized to. `debug` is outside that coverage, and
+    // it leaked ON into the rest of the suite, where it renders a readout stack
+    // down the right margin and silently changed what a margin pixel law
+    // measured. Anything added to the toggle roster belongs here too.
     let page_on = crate::page::page_on();
     let measure = crate::page::measure();
     let spellcheck_on = crate::spell::spellcheck_on();
+    let debug_on = crate::debug::debug_on();
+    let outline_on = crate::outline::outline_on();
+    let nits_on = crate::nits::nits_on();
+    let typewriter_on = crate::typewriter::typewriter_on();
+    let menu_bar_on = crate::menubar::menu_bar_on();
     let mut requesting = Vec::new();
     for command in crate::commands::COMMANDS.iter() {
         let mut buffer = crate::buffer::Buffer::scratch();
@@ -126,6 +140,11 @@ fn exactly_about_requests_the_native_surface_through_the_shared_transition() {
     crate::page::set_page_on(page_on);
     crate::page::set_measure(measure);
     crate::spell::set_spellcheck_on(spellcheck_on);
+    crate::debug::set_debug_on(debug_on);
+    crate::outline::set_outline_on(outline_on);
+    crate::nits::set_nits_on(nits_on);
+    crate::typewriter::set_typewriter_on(typewriter_on);
+    crate::menubar::set_menu_bar_on(menu_bar_on);
     assert_eq!(
         requesting,
         vec!["About"],

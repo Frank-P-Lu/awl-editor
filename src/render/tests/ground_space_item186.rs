@@ -59,50 +59,45 @@ fn roster() -> Vec<Ground> {
             bg: t.background,
         })
         .collect();
-    // The dormant shapes: reusable infrastructure with zero assignees today
-    // (`Bands`), and the two profile arms a world adopts with one word
+    // The dormant shapes: the profile arms a world adopts with one word
     // (`Dots { edge: true }`, `Arrangement::Finds`, `Weave::Fibres`). Each is a
     // distinct branch of the shader, so each is swept on its own.
+    //
+    // No whole ROSTER member is dormant any more — every `Background` variant
+    // is worn by a live world, so each arrives above with that world's own
+    // authored values rather than through a literal maintained here.
     out.extend(dormant());
     out
 }
 
 fn dormant() -> Vec<Ground> {
-    let mut out = dormant_bands_and_dots();
+    let mut out = dormant_edge_dots();
     out.extend(dormant_profile_arms());
     out
 }
 
-/// The variants no world wears at all: `Bands` (zero assignees since Gumtree
-/// moved to Zigzag) and proximity-scaled `Dots`.
-fn dormant_bands_and_dots() -> Vec<Ground> {
-    let mut out = vec![Ground {
-        label: "dormant:bands",
-        // Gumtree's retired grass tones, the literal `backgrounds_item69`
-        // keeps this variant's regression coverage alive with.
-        bg: Background::Bands {
-            tones: [
-                theme::Srgb::rgb(0x2C, 0x35, 0x2A),
-                theme::Srgb::rgb(0x35, 0x40, 0x31),
-                theme::Srgb::rgb(0x3E, 0x4B, 0x39),
-            ],
-            angle: 0.35,
-        },
-    }];
-    // ROSTER-DERIVED, not a named world: pinning this to one world's field
-    // means that world's ground can change and silently un-enrol this
-    // representative while the sweep still reads as complete — a match
-    // against a moved literal just stops matching, with nothing to say so.
-    // Scanning `THEMES` for whichever world currently wears `Dots` means a
-    // world changing its ground can retarget this representative but cannot
-    // un-enrol it. The predicate and the destructure are the SAME match arm
-    // (`find_map`, not a `find` followed by a second `if let` on its result),
-    // so a future edit to what counts as a match cannot drift the two apart
-    // and reopen this exact hole in a new shape. If the roster ever carries
-    // NO `Dots` world at all, this fails loudly (a panic naming the gap)
-    // rather than quietly dropping the representative and going back to zero
-    // coverage unnoticed.
-    let (from, to, dir, tint) = theme::THEMES
+/// Proximity-scaled `Dots` — the `edge: true` face of a ground whose worlds all
+/// wear `edge: false`.
+///
+/// ROSTER-DERIVED, NOT A NAMED WORLD. Pinning this representative to one
+/// world's field means that world's ground can change and silently un-enrol it
+/// while the sweep still reads as complete — a match against a moved literal
+/// just stops matching, with nothing to say so. That is not hypothetical: the
+/// previous shape named a single world and destructured it with an `if let`,
+/// and when that world took a different ground the arm stopped being swept and
+/// nothing reported it — a silent hole in a sweep whose whole job is to have
+/// no holes. Scanning `THEMES` for whichever world currently wears `Dots`
+/// means a world changing its ground can retarget this representative but
+/// cannot un-enrol it.
+///
+/// The predicate and the destructure are deliberately the SAME match arm
+/// (`find_map`, not a `find` followed by a second `if let` on its result): two
+/// sites that must agree are two sites that can drift, and the drift would
+/// reopen this exact hole in a new shape. If the roster ever carries no `Dots`
+/// world at all this fails loudly, naming the gap, rather than quietly
+/// dropping the representative back to zero coverage.
+fn dormant_edge_dots() -> Vec<Ground> {
+    let carrier = theme::THEMES
         .iter()
         .find_map(|t| match t.background {
             Background::Dots {
@@ -111,25 +106,24 @@ fn dormant_bands_and_dots() -> Vec<Ground> {
                 dir,
                 tint,
                 ..
-            } => Some((from, to, dir, tint)),
+            } => Some(Background::Dots {
+                from,
+                to,
+                dir,
+                tint,
+                edge: true,
+            }),
             _ => None,
         })
         .expect(
-            "no world in THEMES wears Background::Dots — the dormant:dots-edge \
-             representative has nothing to derive from; give it a literal field \
-             until a Dots world returns to the roster",
+            "no world in THEMES wears Background::Dots — the dormant:dots-edge representative \
+             has nothing to derive from; give it a literal field until a Dots world returns to \
+             the roster",
         );
-    out.push(Ground {
+    vec![Ground {
         label: "dormant:dots-edge",
-        bg: Background::Dots {
-            from,
-            to,
-            dir,
-            tint,
-            edge: true,
-        },
-    });
-    out
+        bg: carrier,
+    }]
 }
 
 /// The PROFILE arms — a shipping ground's other face, adopted by writing one
@@ -438,8 +432,8 @@ fn the_sweep_covers_every_member_of_the_background_roster() {
         missing.is_empty(),
         "the item-186 ground-space sweep does not reach every `Background` variant — roster \
          indices {missing:?} have no representative. A ground that no world wears is still a \
-         ground: enrol a literal for it in this file's `dormant()`, exactly as `Bands` and the \
-         three profile arms are, or the next world to adopt it inherits an unproven composition."
+         ground: enrol a literal for it in this file's `dormant()`, exactly as the profile arms \
+         are, or the next world to adopt it inherits an unproven composition."
     );
 }
 
@@ -464,9 +458,9 @@ fn finds_ground() -> Background {
 /// shipped whisper contrast a doubled-width ramp gets GENTLER per pixel and
 /// disappears under the noise floor instead of reading as wider — which is
 /// exactly how the first cut of this law passed its own mutation. Driving a
-/// high-contrast literal is the same move `backgrounds_item69` makes for
-/// dormant `Bands`: the geometric property a feather must hold belongs to the
-/// SHAPE, not to whichever tones a world happens to wear.
+/// high-contrast literal is the same move `backgrounds_item69` makes for its
+/// `Bands` geometry laws: the geometric property a feather must hold belongs to
+/// the SHAPE, not to whichever tones a world happens to wear.
 fn finds_high_contrast() -> Background {
     Background::Organic {
         tones: [
