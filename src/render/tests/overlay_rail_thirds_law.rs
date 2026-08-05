@@ -278,13 +278,14 @@ fn shipped_world_anchor_assignments_are_unchanged() {
     assert_eq!(anchor_of("Tawny"), theme::CardAnchor::TopCenter);
     assert_eq!(anchor_of("Cassowary"), theme::CardAnchor::TopRight);
     assert_eq!(anchor_of("Mangrove"), theme::CardAnchor::TopRight);
+    assert_eq!(anchor_of("Kite"), theme::CardAnchor::TopRight);
 
-    // And exactly those two worlds carry TopRight — nothing flipped sides.
+    // And exactly those three worlds carry TopRight — nothing flipped sides.
     let mut right: Vec<&str> = theme::THEMES
         .iter()
         .filter(|t| t.render_caps.card_anchor == theme::CardAnchor::TopRight)
         .map(|t| t.name)
         .collect();
     right.sort_unstable();
-    assert_eq!(right, vec!["Cassowary", "Mangrove"]);
+    assert_eq!(right, vec!["Cassowary", "Kite", "Mangrove"]);
 }

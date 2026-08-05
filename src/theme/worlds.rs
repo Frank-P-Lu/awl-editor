@@ -1038,12 +1038,49 @@ pub const THEMES: [Theme; 20] = [
 ];
 
 /// KITE — a loud light technical room. The stable mineral page glides through
-/// one cool warped-grid tunnel drawn in the two margins, and the caret is the
-/// bird's single vermilion eye: the deliberate light counterpart to Firetail's
-/// warm, organic, drifting lava (cool / geometric / crisp / directional against
-/// warm / organic / liquid / drifting). Temperature stays untagged even though
-/// the world is definitionally cool — the picker's Cool band is already at its
-/// curated cap of four, the same reason Paperbark leaves Warm untagged.
+/// ONE cool warped-grid tunnel whose vanishing point sits behind the page, and
+/// the caret is the bird's single vermilion eye: the deliberate light
+/// counterpart to Firetail's warm, organic, drifting lava (cool / geometric /
+/// crisp / directional against warm / organic / liquid / drifting). Temperature
+/// stays untagged even though the world is definitionally cool — the picker's
+/// Cool band is already at its curated cap of four, the same reason Paperbark
+/// leaves Warm untagged.
+///
+/// THE CHROME IS BUILT FROM THOSE FOUR WORDS, and it answers Firetail dial for
+/// dial rather than leaving this world stated only in its margins. GEOMETRIC:
+/// Figtree, a geometric grotesque, against Firetail's Archivo Black. CRISP: a
+/// hairline page frame drawn round the column, and the active facet on a filled
+/// `Band` rather than a chip — drawn edges and right angles, the grid's own
+/// grammar carried onto the chrome. DIRECTIONAL: the card takes the TOP-RIGHT
+/// corner and the placard the BOTTOM-RIGHT, mirroring Firetail's top-left card
+/// and bottom-left placard across the room; and the placard stays SMALL where
+/// Firetail's is a 4.5x poster — a label, not a shout, which is the whole
+/// difference between crisp and loud.
+///
+/// `FacetStyle::Band` had never been spent by any world. It is spent here
+/// because a filled band under one active category is what a technical panel
+/// does, not to use something up.
+///
+/// ⚠️ TWO FURTHER DIALS WERE BUILT, RENDERED AND REJECTED ON EVIDENCE, and both
+/// rejections are findings rather than omissions.
+///
+/// `CardShape::Chamfered` reads as crisp geometry and it is — but it is
+/// QUOKKA'S. `card_texture_shape.rs` holds an exclusivity law by name: the
+/// chamfer and the halftone together are that world's printed card, and every
+/// other world keeps the rectangular default. Diluting one world's identity is
+/// not a thing a different world's round gets to decide.
+///
+/// `ListStyle::Bars` with `FullWidth` x `SelectedOnly` — "`Pane` without the
+/// card" — is worse than unavailable, it is incompatible.
+/// `BarExtent::hugs()` is FALSE for `FullWidth`, and five shipped legibility
+/// laws gate the whole plated-chrome family on it: the shortcut chord, the
+/// lens-strip tabs, the faceted section header and the footer plate all vanish
+/// and their glyphs float bare over a blurred document. `SelectedOnly` then
+/// removes the row plates as well. `Pane` carries a card precisely so chrome is
+/// never read against a blurred page and `Bars` carries per-row plates for the
+/// same reason; removing both leaves nothing to read against. Shipping it would
+/// need a compensating scrim, which is new mechanism, and this wave's direction
+/// is fewer.
 pub const KITE: Theme = Theme {
     name: "Kite",
     dark: false,
@@ -1088,7 +1125,16 @@ pub const KITE: Theme = Theme {
     },
     role_overrides: RoleOverrides::NONE,
     render_caps: RenderCaps {
+        title_style: TitleStyle::Placard {
+            corner: PlacardCorner::BR,
+            scale: 1.4,
+            ink: PlacardInk::Muted,
+        },
+        card_anchor: CardAnchor::TopRight,
+        chrome_face: ChromeFace::Named("Figtree"),
         elevation: Elevation::Bordered,
+        page_frame: PageFrame::Line { weight_px: 1.0 },
+        facet_style: FacetStyle::Band,
         ..RenderCaps::DEFAULT
     },
 };

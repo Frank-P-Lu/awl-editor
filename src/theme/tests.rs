@@ -3330,13 +3330,29 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 elevation: Elevation::Bordered,
                 ..RenderCaps::DEFAULT
             },
-            // KITE (item 132, the light warped-grid statement world): loud in
-            // the FRAME, quiet in the chrome. It takes the same light-world card
-            // border as its light neighbours and nothing else — the whole
-            // personality is the travelling ground, so a placard or a moved rail
-            // would compete with it. Deliberately otherwise DEFAULT.
+            // KITE (the light warped-grid statement world). ⚠️ THE OLD ENTRY
+            // HERE READ "loud in the FRAME, quiet in the chrome... a placard or
+            // a moved rail would compete with it", and the user overturned it
+            // ("we need to update the chrome for kite as well"). The reasoning
+            // had a measurable hole: Kite moved ONE of
+            // these twenty-two dials, which made it chrome-identical to five
+            // QUIET worlds, while its declared deliberate counterpart Firetail
+            // moved seven. A world that states itself only in its margins has
+            // nothing left to state when the margins narrow — and at
+            // `page_width_code` they narrow to a stripe. Six dials now, each
+            // traceable to the world's own four words (cool / geometric / crisp
+            // / directional) and each mirroring Firetail rather than copying it.
             "Kite" => RenderCaps {
+                title_style: TitleStyle::Placard {
+                    corner: PlacardCorner::BR,
+                    scale: 1.4,
+                    ink: PlacardInk::Muted,
+                },
+                card_anchor: CardAnchor::TopRight,
+                chrome_face: ChromeFace::Named("Figtree"),
                 elevation: Elevation::Bordered,
+                page_frame: PageFrame::Line { weight_px: 1.0 },
+                facet_style: FacetStyle::Band,
                 ..RenderCaps::DEFAULT
             },
             other => panic!(
