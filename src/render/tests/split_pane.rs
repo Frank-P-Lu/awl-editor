@@ -321,7 +321,7 @@ fn every_world_splits_by_its_cap_never_by_identity() {
                     t.name
                 );
             }
-            theme::ListStyle::Bars { .. } => {
+            theme::ListStyle::Bars => {
                 let plates = p.overlay_bars.instance_count() + p.overlay_rows.instance_count();
                 assert!(plates > 0, "{}: Bars floats plates", t.name);
                 assert_eq!(
@@ -371,7 +371,7 @@ fn every_world_splits_by_its_cap_never_by_identity() {
                     "{}: forcing pane_split={forced:?} sets Pane fill count",
                     t.name
                 ),
-                theme::ListStyle::Bars { .. } => {}
+                theme::ListStyle::Bars => {}
                 theme::ListStyle::Diagonal(_) => assert_eq!(
                     p.overlay_bars.instance_count() + p.overlay_rows.instance_count(),
                     0,

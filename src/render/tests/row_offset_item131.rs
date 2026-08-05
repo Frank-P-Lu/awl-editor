@@ -91,10 +91,13 @@ fn staggered_view(kind: OverlayKind, n: usize) -> ViewState {
     v
 }
 
-/// A `Bars` style whose plates cover EVERY row (`BarCoverage::All`) at the band's
-/// full width, so each planned row has one drawn surface whose left edge is a
-/// direct reading of that row's own composition origin.
-const PLATED_BARS: theme::ListStyle = theme::ListStyle::Bars {
+const PLATED_BARS: theme::ListStyle = theme::ListStyle::Bars;
+
+/// The layout half of [`PLATED_BARS`], off `ListStyle::Bars` since it carries
+/// no fields of its own: plates cover EVERY row (`BarCoverage::All`) at the
+/// band's full width, so each planned row has one drawn surface whose left
+/// edge is a direct reading of that row's own composition origin.
+const PLATED_BARS_CONFIG: theme::BarConfig = theme::BarConfig {
     radius: 6.0,
     gap: 8.0,
     grow_px: 24.0,
@@ -250,6 +253,9 @@ fn a_staggered_row_is_clickable_exactly_where_its_composition_is_drawn() {
 
     let styles: [(&str, theme::ListStyle); 2] =
         [("pane", theme::ListStyle::Pane), ("bars", PLATED_BARS)];
+    // Harmless for the "pane" arm above (nothing reads it when the resolved
+    // style isn't `Bars`); set once rather than threading a second array.
+    crate::render::set_bar_config_test_override(Some(PLATED_BARS_CONFIG));
     let canvases: [(u32, u32); 4] = [(1200, 800), (700, 800), (900, 460), (1400, 1600)];
 
     let mut graded_rows = 0usize;
@@ -291,6 +297,7 @@ fn a_staggered_row_is_clickable_exactly_where_its_composition_is_drawn() {
     }
     crate::render::set_slant_test_override(None);
     crate::render::set_list_style_test_override(None);
+    crate::render::set_bar_config_test_override(None);
     crate::motion::set_reduced(saved_reduced);
     p.set_dpi(1.0);
     theme::set_active(theme::DEFAULT_THEME);

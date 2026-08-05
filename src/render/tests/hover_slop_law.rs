@@ -44,10 +44,11 @@ fn a_keyboard_scroll_moves_what_a_stationary_pixel_hits_and_the_gate_refuses_it(
     };
 
     let styles = [
-        ("pane", None),
+        ("pane", None, None),
         (
             "bars",
-            Some(theme::ListStyle::Bars {
+            Some(theme::ListStyle::Bars),
+            Some(theme::BarConfig {
                 radius: 6.0,
                 gap: 8.0,
                 grow_px: 24.0,
@@ -59,8 +60,9 @@ fn a_keyboard_scroll_moves_what_a_stationary_pixel_hits_and_the_gate_refuses_it(
 
     for dpi in [1.0f32, 2.0] {
         p.set_dpi(dpi);
-        for (sname, style) in styles {
+        for (sname, style, bar_cfg) in styles {
             crate::render::set_list_style_test_override(style);
+            crate::render::set_bar_config_test_override(bar_cfg);
             let ctx = format!("dpi={dpi} list={sname}");
 
             // 40 rows, window 12 (the flat-picker default). Establish a REAL,
@@ -155,4 +157,5 @@ fn a_keyboard_scroll_moves_what_a_stationary_pixel_hits_and_the_gate_refuses_it(
         }
     }
     crate::render::set_list_style_test_override(None);
+    crate::render::set_bar_config_test_override(None);
 }

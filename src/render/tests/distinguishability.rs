@@ -428,7 +428,7 @@ fn selected_row_secondary_survives_slant_on_bars_worlds() {
 
     let bars_worlds: Vec<&theme::Theme> = theme::THEMES
         .iter()
-        .filter(|t| matches!(t.render_caps.list_style, theme::ListStyle::Bars { .. }))
+        .filter(|t| matches!(t.render_caps.list_style, theme::ListStyle::Bars))
         .collect();
     assert!(
         !bars_worlds.is_empty(),
@@ -570,7 +570,7 @@ fn overlay_chord_sits_on_a_plate_on_every_bars_world() {
 
     let bars_worlds: Vec<&theme::Theme> = theme::THEMES
         .iter()
-        .filter(|t| matches!(t.render_caps.list_style, theme::ListStyle::Bars { .. }))
+        .filter(|t| matches!(t.render_caps.list_style, theme::ListStyle::Bars))
         .collect();
     assert!(
         !bars_worlds.is_empty(),

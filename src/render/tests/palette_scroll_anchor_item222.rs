@@ -178,7 +178,7 @@ fn split_row(
             let probe = p.diagonal_cluster_probe().expect("a diagonal cluster");
             (probe.accessory_right(d), false)
         }
-        theme::ListStyle::Pane | theme::ListStyle::Bars { .. } => {
+        theme::ListStyle::Pane | theme::ListStyle::Bars => {
             (geom.text_left + plan.row_dx(d), true)
         }
     };

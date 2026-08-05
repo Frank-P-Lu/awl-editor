@@ -259,11 +259,11 @@ fn the_ratio_family_holds_its_value_at_every_scale() {
 }
 
 /// **CLAIM 3 — `overlay_lh`'s THREE TERMS SCALE TOGETHER.** The row pitch is a
-/// dpi-scaled line height PLUS the overlay's extra leading PLUS the theme's own
-/// `ListStyle::Bars { gap }`, and the last two were raw. So on the three
-/// shipping `Bars` worlds the one quantity the tree treats as logical drifted
-/// out of proportion across displays — the gap's SHARE of the row pitch halved
-/// on every retina panel.
+/// dpi-scaled line height PLUS the overlay's extra leading PLUS `Bars`'s own
+/// `BarConfig::gap`, and the last two were raw. So on the three shipping
+/// `Bars` worlds the one quantity the tree treats as logical drifted out of
+/// proportion across displays — the gap's SHARE of the row pitch halved on
+/// every retina panel.
 ///
 /// Graded as the gap's share of the pitch, which is what a reader sees, and
 /// swept over every world that actually authors a gap. The `Pane` complement is

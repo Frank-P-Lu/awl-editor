@@ -17,13 +17,6 @@ use super::ornament::{
     ORNAMENT_MARKS, ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE,
     Ornaments,
 };
-pub(super) const POSTER_BARS: ListStyle = ListStyle::Bars {
-    radius: 6.0,
-    gap: 10.0,
-    grow_px: 24.0,
-    extent: super::model::BarExtent::HugLabel,
-    coverage: super::model::BarCoverage::All,
-};
 pub const GUMTREE: Theme = Theme {
     name: "Gumtree",
     dark: false,
@@ -676,7 +669,7 @@ pub const GALAH: Theme = Theme {
         },
         card_anchor: CardAnchor::TopLeft,
         elevation: Elevation::Bordered,
-        list_style: POSTER_BARS,
+        list_style: ListStyle::Bars,
         facet_style: FacetStyle::Chips(ChipVariant::Hairline),
         ..RenderCaps::DEFAULT
     },
@@ -920,7 +913,7 @@ pub const FIRETAIL: Theme = Theme {
         card_anchor: CardAnchor::TopLeft,
         chrome_face: ChromeFace::Named("Archivo Black"),
         elevation: Elevation::Bordered,
-        list_style: POSTER_BARS,
+        list_style: ListStyle::Bars,
         facet_style: FacetStyle::Chips(ChipVariant::FilledActive),
         fold_afford: FoldAfford {
             chevron_lift: 0.0,
@@ -982,7 +975,7 @@ pub const CASSOWARY: Theme = Theme {
         card_anchor: CardAnchor::TopRight,
         chrome_face: ChromeFace::Named("Archivo Black"),
         elevation: Elevation::Bordered,
-        list_style: POSTER_BARS,
+        list_style: ListStyle::Bars,
         facet_style: FacetStyle::Chips(ChipVariant::Bracket),
         // The active facet (Files, Navigate, …) reads as a small vertical
         // secondary heading flush with the card's own left border,
@@ -1089,17 +1082,18 @@ pub const THEMES: [Theme; 20] = [
 /// other world keeps the rectangular default. Diluting one world's identity is
 /// not a thing a different world's round gets to decide.
 ///
-/// `ListStyle::Bars` with `FullWidth` x `SelectedOnly` — "`Pane` without the
-/// card" — is worse than unavailable, it is incompatible.
-/// `BarExtent::hugs()` is FALSE for `FullWidth`, and five shipped legibility
-/// laws gate the whole plated-chrome family on it: the shortcut chord, the
-/// lens-strip tabs, the faceted section header and the footer plate all vanish
-/// and their glyphs float bare over a blurred document. `SelectedOnly` then
-/// removes the row plates as well. `Pane` carries a card precisely so chrome is
-/// never read against a blurred page and `Bars` carries per-row plates for the
-/// same reason; removing both leaves nothing to read against. Shipping it would
-/// need a compensating scrim, which is new mechanism, and this wave's direction
-/// is fewer.
+/// A `BarConfig` of `FullWidth` x `SelectedOnly` — "`Pane` without the card"
+/// — is worse than unavailable, it is incompatible. `BarExtent::hugs()` is
+/// FALSE for `FullWidth`, and five shipped legibility laws gate the whole
+/// plated-chrome family on it: the shortcut chord, the lens-strip tabs, the
+/// faceted section header and the footer plate all vanish and their glyphs
+/// float bare over a blurred document. `SelectedOnly` then removes the row
+/// plates as well. `Pane` carries a card precisely so chrome is never read
+/// against a blurred page and `Bars` carries per-row plates for the same
+/// reason; removing both leaves nothing to read against. Shipping it would
+/// need a compensating scrim, which is new mechanism, and this wave's
+/// direction is fewer. (This is why `ListStyle::Bars` itself carries no
+/// per-world fields any more — see `BarConfig`.)
 pub const KITE: Theme = Theme {
     name: "Kite",
     dark: false,

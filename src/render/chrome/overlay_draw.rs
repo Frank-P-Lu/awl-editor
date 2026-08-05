@@ -243,7 +243,7 @@ impl TextPipeline {
         // whenever it is not used, so a stale wordmark never lingers.
         let bars = matches!(
             crate::render::effective_list_style(),
-            theme::ListStyle::Bars { .. } | theme::ListStyle::Diagonal(_)
+            theme::ListStyle::Bars | theme::ListStyle::Diagonal(_)
         );
         let canvas_bounds = TextBounds {
             left: 0,

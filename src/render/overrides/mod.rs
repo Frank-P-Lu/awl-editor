@@ -30,12 +30,12 @@ mod tests;
 #[cfg(test)]
 pub(crate) use parsers::{ForcedKnob, classify_forced_knob};
 pub(crate) use parsers::{
-    OverlayMotionProbe, SlantProbe, TypeDensity, parse_facet_style_force, parse_list_style_force,
-    parse_motion_force, parse_overlay_align, parse_overlay_anchor_force,
+    OverlayMotionProbe, SlantProbe, TypeDensity, parse_bar_config_force, parse_facet_style_force,
+    parse_list_style_force, parse_motion_force, parse_overlay_align, parse_overlay_anchor_force,
     parse_overlay_density_force, parse_overlay_motion_force, parse_overlay_slant_force,
     parse_overlay_style_force,
 };
-use parsers::{parse_chrome_face_force, parse_pane_split_force, read_forced_knob};
+use parsers::{parse_chrome_face_force, parse_pane_split_force, read_forced_knob, read_forced_knob_from};
 
 // ---------------------------------------------------------------------------
 // THE CONSOLIDATED STRUCT
@@ -52,6 +52,10 @@ pub(crate) struct RenderOverrides {
     pub motion_juice: Option<theme::MotionJuice>,
     pub slant: Option<SlantProbe>,
     pub list_style: Option<theme::ListStyle>,
+    /// The `Bars` layout dials, forced independently of `list_style` since
+    /// `ListStyle::Bars` carries no fields of its own — `None` means
+    /// [`theme::BarConfig::SHIPPED`]. See `parse_bar_config_force`.
+    pub bar_config: Option<theme::BarConfig>,
     pub facet_style: Option<theme::FacetStyle>,
     pub pane_split: Option<theme::PaneSplit>,
     pub density: Option<TypeDensity>,
@@ -63,6 +67,14 @@ impl RenderOverrides {
     /// `AWL_OVERLAY_ANCHOR_FORCE` for `card_anchor`; see
     /// [`render_overrides_env_read_law`] below for the exclusivity check.
     pub(crate) fn from_env() -> Self {
+        // Read once: `list_style` and `bar_config` both resolve from this one
+        // var (`ListStyle::Bars` carries no fields, so its layout dials are a
+        // second field off the SAME string rather than a second var), and
+        // `render_overrides_env_read_law` checks the literal is named once.
+        let list_force_var = "AWL_OVERLAY_LIST_FORCE";
+        let list_force_grammar =
+            "pane | bars | bars:<radius>:<gap>:<grow>[:hug|huglabel|full][:selected|all]";
+        let list_force_raw = std::env::var(list_force_var).ok();
         RenderOverrides {
             title_style: std::env::var("AWL_OVERLAY_STYLE_FORCE")
                 .ok()
@@ -84,10 +96,17 @@ impl RenderOverrides {
             slant: std::env::var("AWL_OVERLAY_SLANT_FORCE")
                 .ok()
                 .and_then(|s| parse_overlay_slant_force(&s)),
-            list_style: read_forced_knob(
-                "AWL_OVERLAY_LIST_FORCE",
-                "pane | bars | bars:<radius>:<gap>:<grow>[:hug|huglabel|full][:selected|all]",
+            list_style: read_forced_knob_from(
+                list_force_var,
+                list_force_raw.as_deref(),
+                list_force_grammar,
                 parse_list_style_force,
+            ),
+            bar_config: read_forced_knob_from(
+                list_force_var,
+                list_force_raw.as_deref(),
+                list_force_grammar,
+                parse_bar_config_force,
             ),
             facet_style: read_forced_knob(
                 "AWL_FACET_STYLE_FORCE",
@@ -123,6 +142,7 @@ impl RenderOverrides {
             motion_juice: self.motion_juice.or(base.motion_juice),
             slant: self.slant.or(base.slant),
             list_style: self.list_style.or(base.list_style),
+            bar_config: self.bar_config.or(base.bar_config),
             facet_style: self.facet_style.or(base.facet_style),
             pane_split: self.pane_split.or(base.pane_split),
             density: self.density.or(base.density),
@@ -160,6 +180,7 @@ static TEST_OVERRIDE: std::sync::Mutex<RenderOverrides> = std::sync::Mutex::new(
     motion_juice: None,
     slant: None,
     list_style: None,
+    bar_config: None,
     facet_style: None,
     pane_split: None,
     density: None,
@@ -303,6 +324,7 @@ pub(crate) fn leaked_knobs(before: &OverridePins, after: &OverridePins) -> Vec<S
                 motion_juice: b_motion_juice,
                 slant: b_slant,
                 list_style: b_list_style,
+                bar_config: b_bar_config,
                 facet_style: b_facet_style,
                 pane_split: b_pane_split,
                 density: b_density,
@@ -319,6 +341,7 @@ pub(crate) fn leaked_knobs(before: &OverridePins, after: &OverridePins) -> Vec<S
                 motion_juice: a_motion_juice,
                 slant: a_slant,
                 list_style: a_list_style,
+                bar_config: a_bar_config,
                 facet_style: a_facet_style,
                 pane_split: a_pane_split,
                 density: a_density,
@@ -341,6 +364,7 @@ pub(crate) fn leaked_knobs(before: &OverridePins, after: &OverridePins) -> Vec<S
     knob!("motion_juice", b_motion_juice, a_motion_juice);
     knob!("slant", b_slant, a_slant);
     knob!("list_style", b_list_style, a_list_style);
+    knob!("bar_config", b_bar_config, a_bar_config);
     knob!("facet_style", b_facet_style, a_facet_style);
     knob!("pane_split", b_pane_split, a_pane_split);
     knob!("density", b_density, a_density);
@@ -380,6 +404,11 @@ pub(crate) fn set_slant_test_override(s: Option<SlantProbe>) {
 #[cfg(test)]
 pub(crate) fn set_list_style_test_override(s: Option<theme::ListStyle>) {
     set_field(|o| o.list_style = s);
+}
+
+#[cfg(test)]
+pub(crate) fn set_bar_config_test_override(c: Option<theme::BarConfig>) {
+    set_field(|o| o.bar_config = c);
 }
 
 #[cfg(test)]

@@ -391,7 +391,7 @@ impl TextPipeline {
         self.overlay_theme_facet_ghosts = ghosts;
         let bars = matches!(
             crate::render::effective_list_style(),
-            theme::ListStyle::Bars { .. } | theme::ListStyle::Diagonal(_)
+            theme::ListStyle::Bars | theme::ListStyle::Diagonal(_)
         );
         self.overlay_strip_tab_plates = if bars {
             label_ranges

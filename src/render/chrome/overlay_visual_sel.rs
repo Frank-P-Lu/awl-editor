@@ -47,7 +47,7 @@ use crate::render::livingband::{self, BandRect, MotionForce};
 /// today; the split is kept because it is a per-family question, not a global.
 fn selected_secondary_on_band() -> bool {
     match crate::render::effective_list_style() {
-        theme::ListStyle::Bars { .. } => true,
+        theme::ListStyle::Bars => true,
         theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) => true,
     }
 }

@@ -563,10 +563,8 @@ pub(in crate::render) const BAR_TEXT_PAD: Logical = Logical(13.0);
 pub(super) const INLINE_SHORTCUT_GAP: &str = "   ";
 
 pub(super) fn bars_inline_shortcut() -> bool {
-    matches!(
-        crate::render::effective_list_style(),
-        theme::ListStyle::Bars { extent, .. } if extent.inline_shortcut()
-    )
+    matches!(crate::render::effective_list_style(), theme::ListStyle::Bars)
+        && crate::render::effective_bar_config().extent.inline_shortcut()
 }
 
 /// TEST-ONLY reader for the item-234 law, which has to compare the plate's own

@@ -228,19 +228,16 @@ fn overlay_row_elements_agree_in_y_flat_and_faceted_every_world() {
     // Sweep BOTH list styles: `Pane` (default) and `Bars` (the no-pane layout,
     // where the flat picker inflates the query line by `header_gap` and cosmic-text
     // half-leads the glyphs down — the full-bleed caret bug lived here).
-    let styles = [
-        ("pane", None),
-        (
-            "bars",
-            Some(theme::ListStyle::Bars {
-                radius: 6.0,
-                gap: 8.0,
-                grow_px: 24.0,
-                extent: theme::BarExtent::FullWidth,
-                coverage: theme::BarCoverage::All,
-            }),
-        ),
-    ];
+    let styles = [("pane", None), ("bars", Some(theme::ListStyle::Bars))];
+    // Harmless for the "pane" arm above (nothing reads it when the resolved
+    // style isn't `Bars`); set once rather than threading a second array.
+    crate::render::set_bar_config_test_override(Some(theme::BarConfig {
+        radius: 6.0,
+        gap: 8.0,
+        grow_px: 24.0,
+        extent: theme::BarExtent::FullWidth,
+        coverage: theme::BarCoverage::All,
+    }));
     // Retina too: the report was on a HiDPI display, where the row `lh` (and the
     // unscaled Bars `gap` folded into it) shape at 2×. `set_dpi` rebuilds the
     // pipeline metrics exactly like the live app's monitor scale.
@@ -392,6 +389,7 @@ fn overlay_row_elements_agree_in_y_flat_and_faceted_every_world() {
         }
     }
     crate::render::set_list_style_test_override(None);
+    crate::render::set_bar_config_test_override(None);
     p.set_dpi(1.0);
     theme::set_active(theme::DEFAULT_THEME);
 }
@@ -803,17 +801,17 @@ fn caret_preview_float_owner_sweeps_world_style_and_dpi() {
     };
     let styles = [
         ("Pane", Some(theme::ListStyle::Pane)),
-        (
-            "Bars",
-            Some(theme::ListStyle::Bars {
-                radius: 6.0,
-                gap: 8.0,
-                grow_px: 24.0,
-                extent: theme::BarExtent::FullWidth,
-                coverage: theme::BarCoverage::All,
-            }),
-        ),
+        ("Bars", Some(theme::ListStyle::Bars)),
     ];
+    // Harmless for the "Pane" arm above (nothing reads it when the resolved
+    // style isn't `Bars`); set once rather than threading a second array.
+    crate::render::set_bar_config_test_override(Some(theme::BarConfig {
+        radius: 6.0,
+        gap: 8.0,
+        grow_px: 24.0,
+        extent: theme::BarExtent::FullWidth,
+        coverage: theme::BarCoverage::All,
+    }));
     for dpi in [1.0, 2.0] {
         p.set_dpi(dpi);
         for world in crate::theme::world_names() {
@@ -856,6 +854,7 @@ fn caret_preview_float_owner_sweeps_world_style_and_dpi() {
         }
     }
     crate::render::set_list_style_test_override(None);
+    crate::render::set_bar_config_test_override(None);
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 }
 
@@ -876,16 +875,10 @@ fn list_style_override_reader_writer_are_serialized() {
         std::thread::spawn(move || {
             barrier.wait();
             let _g = crate::testlock::serial();
-            crate::render::set_list_style_test_override(Some(theme::ListStyle::Bars {
-                radius: 6.0,
-                gap: 8.0,
-                grow_px: 24.0,
-                extent: theme::BarExtent::FullWidth,
-                coverage: theme::BarCoverage::All,
-            }));
+            crate::render::set_list_style_test_override(Some(theme::ListStyle::Bars));
             assert!(matches!(
                 crate::render::effective_list_style(),
-                theme::ListStyle::Bars { .. }
+                theme::ListStyle::Bars
             ));
             entered.store(true, Ordering::SeqCst);
             crate::render::set_list_style_test_override(None);

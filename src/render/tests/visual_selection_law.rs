@@ -74,6 +74,7 @@ fn armed_dqp() -> Option<(wgpu::Device, wgpu::Queue, TextPipeline, bool)> {
 fn disarm(saved: bool) {
     livingband::set_motion_test_override(None);
     crate::render::set_list_style_test_override(None);
+    crate::render::set_bar_config_test_override(None);
     crate::render::set_motion_test_override(None);
     crate::motion::set_reduced(saved);
     theme::set_active(theme::DEFAULT_THEME);
@@ -205,7 +206,8 @@ fn bars_family_selected_visuals_agree_across_a_whole_slide() {
         return;
     };
     theme::set_active_by_name("Wagtail").unwrap();
-    crate::render::set_list_style_test_override(Some(theme::ListStyle::Bars {
+    crate::render::set_list_style_test_override(Some(theme::ListStyle::Bars));
+    crate::render::set_bar_config_test_override(Some(theme::BarConfig {
         radius: 6.0,
         gap: 10.0,
         grow_px: 24.0,

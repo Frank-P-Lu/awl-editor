@@ -248,7 +248,7 @@ fn every_settings_value_sits_inside_its_own_plate_on_every_plated_world() {
     };
     let plated: Vec<&'static str> = theme::THEMES
         .iter()
-        .filter(|t| matches!(t.render_caps.list_style, theme::ListStyle::Bars { .. }))
+        .filter(|t| matches!(t.render_caps.list_style, theme::ListStyle::Bars))
         .map(|t| t.name)
         .collect();
     assert_eq!(plated, ["Galah", "Firetail", "Cassowary"]);

@@ -179,7 +179,14 @@ fn a_deliberately_dirty_spellcheck_window_fails_and_restores_before_the_next_rea
 /// The exact forced value that once escaped a test window and made an unrelated
 /// jump-hint law in another file report a clip that was not one.
 fn item_233_poison() -> crate::theme::ListStyle {
-    crate::theme::ListStyle::Bars {
+    crate::theme::ListStyle::Bars
+}
+
+/// The layout half of [`item_233_poison`] — off `ListStyle::Bars` since it
+/// carries no fields of its own, but still part of the same historical
+/// poison value (`Bars` alone does not reproduce it without these dials).
+fn item_233_poison_config() -> crate::theme::BarConfig {
+    crate::theme::BarConfig {
         radius: 6.0,
         gap: 8.0,
         grow_px: 24.0,
@@ -251,7 +258,7 @@ fn a_window_that_forces_a_knob_and_then_panics_cannot_poison_the_next_test() {
 fn every_forced_knob_is_restored_not_just_the_one_that_bit_us() {
     // The axis the reported leak did not name: it was `list_style`, but the
     // guard must sweep the WHOLE roster — a knob left out of the restore is the
-    // next expensive discovery. Force all eleven, die, require a pristine exit.
+    // next expensive discovery. Force all twelve, die, require a pristine exit.
     let before = {
         let _g = serial();
         crate::render::overrides::pins()
@@ -271,6 +278,7 @@ fn every_forced_knob_is_restored_not_just_the_one_that_bit_us() {
                 italic: true,
             }),
             list_style: Some(item_233_poison()),
+            bar_config: Some(item_233_poison_config()),
             facet_style: Some(crate::theme::FacetStyle::Band),
             pane_split: Some(crate::theme::PaneSplit::Split),
             density: Some(crate::render::TypeDensity {

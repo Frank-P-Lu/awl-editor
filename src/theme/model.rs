@@ -115,13 +115,12 @@ impl CardAnchor {
 pub enum ListStyle {
     Pane,
     Diagonal(DiagonalDirection),
-    Bars {
-        radius: f32,
-        gap: f32,
-        grow_px: f32,
-        extent: BarExtent,
-        coverage: BarCoverage,
-    },
+    /// Carries no fields: every `Bars` world has always shipped the identical
+    /// [`BarConfig::SHIPPED`], so the layout dials live on the renderer's own
+    /// default rather than being re-authored per world. A dev-only override
+    /// (`AWL_OVERLAY_LIST_FORCE`'s `bars:` suffix) can still replace that
+    /// default for exploration — see [`BarConfig`].
+    Bars,
 }
 
 impl ListStyle {
@@ -131,7 +130,7 @@ impl ListStyle {
         match self {
             ListStyle::Pane => ListBacking::Card,
             ListStyle::Diagonal(_) => ListBacking::BarePlates,
-            ListStyle::Bars { .. } => ListBacking::BarePlates,
+            ListStyle::Bars => ListBacking::BarePlates,
         }
     }
 
@@ -141,7 +140,7 @@ impl ListStyle {
     /// A law or a probe about plates asks THIS question, not `list_backing`.
     pub fn draws_row_plates(self) -> bool {
         match self {
-            ListStyle::Bars { .. } => true,
+            ListStyle::Bars => true,
             ListStyle::Pane | ListStyle::Diagonal(_) => false,
         }
     }
@@ -180,6 +179,35 @@ impl BarExtent {
 pub enum BarCoverage {
     All,
     SelectedOnly,
+}
+
+/// The `Bars` layout dials, off [`ListStyle::Bars`] since no world has ever
+/// varied them: [`BarConfig::SHIPPED`] is the one value every `Bars` world
+/// (and, by default, the dev probe) renders with. `radius`/`gap`/`grow_px`
+/// and the `extent`/`coverage` axes remain independently forceable
+/// (`AWL_OVERLAY_LIST_FORCE`'s `bars:` suffix) precisely because they are
+/// tested, working renderer behavior that nothing has disproven — only
+/// `BarExtent::FullWidth` combined with a plated-chrome world is proven
+/// incompatible (`worlds::KITE`'s own doc comment), which is a composition
+/// finding about one world's adoption, not a defect in the renderer axis
+/// itself.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BarConfig {
+    pub radius: f32,
+    pub gap: f32,
+    pub grow_px: f32,
+    pub extent: BarExtent,
+    pub coverage: BarCoverage,
+}
+
+impl BarConfig {
+    pub const SHIPPED: BarConfig = BarConfig {
+        radius: 6.0,
+        gap: 10.0,
+        grow_px: 24.0,
+        extent: BarExtent::HugLabel,
+        coverage: BarCoverage::All,
+    };
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

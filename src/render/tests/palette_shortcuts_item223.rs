@@ -51,7 +51,7 @@ fn palette_view() -> ViewState {
 fn style_name(style: theme::ListStyle) -> &'static str {
     match style {
         theme::ListStyle::Pane => "Pane",
-        theme::ListStyle::Bars { .. } => "Bars",
+        theme::ListStyle::Bars => "Bars",
         theme::ListStyle::Diagonal(theme::DiagonalDirection::Descending) => "Diagonal(Descending)",
         theme::ListStyle::Diagonal(theme::DiagonalDirection::Ascending) => "Diagonal(Ascending)",
     }
@@ -248,7 +248,7 @@ fn only_diagonal_worlds_reserve_side_territory_and_they_reserve_all_of_it() {
             let rows_planned = p.overlay_row_plan(&geom).rows().len();
             let reserve = p.diagonal_side_reserve_px(rows_planned);
             match world.render_caps.list_style {
-                theme::ListStyle::Pane | theme::ListStyle::Bars { .. } => assert_eq!(
+                theme::ListStyle::Pane | theme::ListStyle::Bars => assert_eq!(
                     reserve, 0.0,
                     "{}: an upright world reserves no side territory (dpi {dpi})",
                     world.name
