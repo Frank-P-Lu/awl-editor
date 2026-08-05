@@ -28,6 +28,19 @@
 //! ground, its border and the spine that rakes across it — must be byte-identical
 //! at every scroll position, while the strip that belongs to the LIST must
 //! actually change (or the law would pass on a picker that never scrolled).
+//!
+//! ⚠️ WHERE THAT STRIP ENDS IS THE WHOLE DIFFICULTY, and getting it wrong made
+//! this law untrue on a plated world rather than merely weak: it cut at the
+//! row's GLYPHS, while a `Bars` row is drawn on a plate — on a scrim — that
+//! begins fifteen pixels earlier, so the list's own ink sat inside the strip
+//! this law called the surface. The plate does not MOVE; it is hugged to its
+//! label, and a shader recovering a rounded cap from the quad's centre and
+//! half-size reaches the same analytic edge by cancelling different magnitudes
+//! as that label changes. The residue is ~1e-5 px of coverage — invisible until
+//! it lands beside a quantisation boundary, which is why this read
+//! byte-identical on Metal and two pixels of one channel step apart on
+//! lavapipe. [`split_row`] carries the mechanism; the cut now follows what the
+//! frame DREW ([`TextPipeline::overlay_row_ink_probe`]), not where text starts.
 
 use super::super::*;
 use super::{headless_dqp, pixeldiff, view};
@@ -90,11 +103,66 @@ fn palette_view() -> ViewState {
     v
 }
 
+/// A ONE-PIXEL SEAM at the boundary belongs to neither half: a glyph shaped
+/// hard against its column's edge antialiases a fraction past it, and a law
+/// that counted that as the surface moving would be reporting the list's own
+/// ink. The seam is smaller than any real translation this law exists to catch
+/// (the reported motion was 31 px).
+const SEAM: f32 = 2.0;
+
+/// The narrowest surface strip worth a byte-identity claim. Below this the
+/// row's own drawn ink has eaten the card's exposed surface and there is
+/// nothing left to make a claim ABOUT — the row reports UNGRADEABLE (counted
+/// and bounded by [`assert_still`]) rather than collapsing to a sliver that
+/// asserts almost nothing while reading green. The measured floor across this
+/// law's own sweep is 4 px, on `Bars`: a card side inset of 8 px, less the
+/// scrim's 2 px outward bleed, less the seam.
+const MIN_SURFACE_PX: f32 = 3.0;
+
 /// Split display row `d` into the SURFACE half and the LIST half, in canvas
 /// coordinates, with NO WILDCARD over the row compositions: a diagonal world's
 /// cluster sits on one side of its spine and the surface owns the other, an
-/// upright world's rows start at the card's own text edge.
-fn split_row(p: &TextPipeline, w: u32, d: usize) -> (pixeldiff::Region, pixeldiff::Region) {
+/// upright world's rows begin at the card's own text edge.
+///
+/// ⚠️ A ROW'S OWN INK DOES NOT BEGIN AT ITS GLYPHS, and reading the text edge as
+/// if it did is what made this law's surface claim untrue on a PLATED world. A
+/// `Bars` row is drawn on a plate starting `BAR_TEXT_PAD` to the LEFT of its
+/// text, so eleven pixels of that plate's rounded left cap sat inside the strip
+/// this law called the surface — and a `HugLabel` plate's width IS its row's
+/// label, which is exactly what a scroll changes. The cap does not MOVE (same
+/// left edge, top, height and radius at every scroll position), but the shader
+/// recovers it from the quad's CENTRE and HALF-SIZE (`selection.wgsl`,
+/// `sd_round_rect`), so a plate 332 px wide and one 87 px wide reach that same
+/// analytic edge by cancelling different magnitudes: identical in exact
+/// arithmetic, ~1e-5 apart in f32. Pixels inside the cap's ~1 px antialiased
+/// band therefore sit an ulp from a quantisation boundary and a backend is free
+/// to land on either side of it — this read byte-identical on Metal and
+/// differed by one channel step on two of 703 pixels on lavapipe. Interior
+/// pixels are saturated and feel nothing, which is why the SELECTED row, whose
+/// strip is deep inside its own grown plate, went on passing.
+///
+/// So the surface strip stops at whatever the frame actually DREW for this row.
+/// `row_ink` is the production owner's answer to that question
+/// ([`TextPipeline::overlay_row_ink_probe`]) — a plate GROWN BY ITS SCRIM on a
+/// `Bars` world, the selected band on a `Pane` one, and legitimately EMPTY on a
+/// diagonal world, which draws no row fill at all and whose spine therefore
+/// stays graded. It is the scrim rather than the plate deliberately: the ink
+/// begins two logical pixels before the plate, measured at x=679 against a
+/// plate at x=681.33, and the scrim inherits the plate's hugged width.
+///
+/// ⚠️ WHAT THIS STRIP GRADES IS NOT THE SAME THING ON EVERY WORLD, and a reader
+/// should not infer a card ground where there is none. `Pane` (`ListBacking::
+/// Card`) draws a real ground and border, and the strip measures them. `Bars`
+/// and `Diagonal` are `BarePlates`: they draw NO card fill, border or shadow,
+/// so a `Bars` strip is the world's own background, and the claim it carries is
+/// that nothing belonging to the list translated into it. A diagonal world's
+/// strip is the one that holds the spine — the ink this law was written for.
+fn split_row(
+    p: &TextPipeline,
+    w: u32,
+    d: usize,
+    row_ink: &[[f32; 4]],
+) -> (Option<pixeldiff::Region>, pixeldiff::Region) {
     let geom = p.overlay_geometry(w);
     let plan = p.overlay_row_plan(&geom);
     let row = plan.rows()[d];
@@ -114,34 +182,55 @@ fn split_row(p: &TextPipeline, w: u32, d: usize) -> (pixeldiff::Region, pixeldif
             (geom.text_left + plan.row_dx(d), true)
         }
     };
-    // A ONE-PIXEL SEAM at the boundary belongs to neither half: a glyph shaped
-    // hard against its column's edge antialiases a fraction past it, and a law
-    // that counted that as the surface moving would be reporting the list's own
-    // ink. The seam is smaller than any real translation this law exists to
-    // catch (the reported motion was 31 px).
-    const SEAM: f32 = 2.0;
+    // Every row ink this frame drew that shares vertical extent with the row.
+    // MEASURED, never assumed to sit at the text edge: a poster-bars world grows
+    // its SELECTED plate outward past the card's own left edge.
+    let (obj_lo, obj_hi) = row_ink
+        .iter()
+        .filter(|q| q[1] < top + height && q[1] + q[3] > top)
+        .fold((f32::INFINITY, f32::NEG_INFINITY), |(lo, hi), q| {
+            (lo.min(q[0]), hi.max(q[0] + q[2]))
+        });
     let (edge, surface_is_left) = cut;
     match surface_is_left {
         // Surface to the LEFT of the row's own content, list to the right.
-        true => (
-            pixeldiff::Region::new(x0, top, (edge - SEAM - x0).max(1.0), height),
-            pixeldiff::Region::new(edge, top, (x1 - edge).max(1.0), height),
-        ),
+        true => {
+            let edge = edge.min(obj_lo);
+            let strip = edge - SEAM - x0;
+            (
+                (strip >= MIN_SURFACE_PX).then(|| pixeldiff::Region::new(x0, top, strip, height)),
+                pixeldiff::Region::new(edge, top, (x1 - edge).max(1.0), height),
+            )
+        }
         // Mirrored: an ascending world's clusters hug the left of their spine.
-        false => (
-            pixeldiff::Region::new(edge + SEAM, top, (x1 - edge - SEAM).max(1.0), height),
-            pixeldiff::Region::new(x0, top, (edge - x0).max(1.0), height),
-        ),
+        false => {
+            let edge = edge.max(obj_hi);
+            let strip = x1 - edge - SEAM;
+            (
+                (strip >= MIN_SURFACE_PX)
+                    .then(|| pixeldiff::Region::new(edge + SEAM, top, strip, height)),
+                pixeldiff::Region::new(x0, top, (edge - x0).max(1.0), height),
+            )
+        }
     }
 }
 
-/// The per-cell verdict: the card held still, every row's SURFACE strip is
-/// byte-identical at every scroll position, and the LIST halves really moved.
+/// The per-cell verdict: the card held still, every GRADEABLE row's SURFACE
+/// strip is byte-identical at every scroll position, and the LIST halves really
+/// moved.
+///
+/// A row is ungradeable when its own drawn objects leave no exposed card ground
+/// (see [`split_row`]) — on this sweep exactly one row per plated cell, the
+/// SELECTED one, whose plate grows outward past the card's own edge. That is a
+/// real answer rather than a dodge, but it is BOUNDED: a change that quietly
+/// made most of a cell ungradeable would otherwise leave this law green over
+/// almost nothing, which is the failure mode the roster non-vacuity check below
+/// exists to catch.
 fn assert_still(
     at: &str,
     rects: &[[f32; 4]],
     frames: &[Vec<[u8; 4]>],
-    splits: &[(pixeldiff::Region, pixeldiff::Region)],
+    splits: &[(Option<pixeldiff::Region>, pixeldiff::Region)],
     w: u32,
     h: u32,
 ) {
@@ -153,22 +242,28 @@ fn assert_still(
         );
     }
     let mut moved_rows = 0usize;
+    let mut graded_rows = 0usize;
     for (d, (surface, list)) in splits.iter().enumerate() {
         for (i, frame) in frames.iter().enumerate().skip(1) {
-            let report = pixeldiff::diff_region(&frames[0], frame, w as i64, h as i64, *surface);
+            let Some(surface) = *surface else { continue };
+            let report = pixeldiff::diff_region(&frames[0], frame, w as i64, h as i64, surface);
             assert_eq!(
                 report.differing,
                 0,
                 "{at}: row {d}'s SURFACE strip changed between scroll {} and {} \
-                 ({} of {} px, max channel delta {}) — the ground, border or spine \
-                 moved with the list",
+                 ({} of {} px over a {}x{} px strip at x={}, max channel delta {}) \
+                 — the ground, border or spine moved with the list",
                 TRAJECTORY[0],
                 TRAJECTORY[i],
                 report.differing,
                 report.total,
+                surface.w,
+                surface.h,
+                surface.x,
                 report.max_channel_delta,
             );
         }
+        graded_rows += usize::from(surface.is_some());
         let listed = pixeldiff::diff_region(
             &frames[0],
             frames.last().unwrap(),
@@ -184,6 +279,16 @@ fn assert_still(
         moved_rows >= splits.len() / 2,
         "{at}: only {moved_rows} of {} rows changed content over the trajectory — \
          the list did not scroll, so the surface claim above proves nothing",
+        splits.len(),
+    );
+    // NON-VACUITY, the ungradeable end: at most ONE row per cell may have no
+    // exposed card ground. Every world in this sweep measures at 11 or 12 of 12;
+    // anything worse means the surface claim above was made over almost nothing.
+    assert!(
+        graded_rows + 1 >= splits.len(),
+        "{at}: only {graded_rows} of {} rows had any exposed card surface to \
+         grade — the byte-identity claim above covered too little of the card \
+         to mean anything",
         splits.len(),
     );
 }
@@ -237,7 +342,7 @@ fn scrolling_a_picker_moves_only_its_list_never_its_surface() {
 
                 let mut frames: Vec<Vec<[u8; 4]>> = Vec::new();
                 let mut rects: Vec<[f32; 4]> = Vec::new();
-                let mut splits: Option<Vec<(pixeldiff::Region, pixeldiff::Region)>> = None;
+                let mut splits: Option<Vec<(Option<pixeldiff::Region>, pixeldiff::Region)>> = None;
 
                 let mut widest_visible: Vec<f32> = Vec::new();
                 for scroll in TRAJECTORY {
@@ -257,11 +362,18 @@ fn scrolling_a_picker_moves_only_its_list_never_its_surface() {
                             .copied()
                             .fold(0.0, f32::max),
                     );
-                    if splits.is_none() {
-                        let rows = p.overlay_row_plan(&geom).rows().len();
-                        splits = Some((0..rows).map(|d| split_row(&p, w, d)).collect());
-                    }
                     frames.push(pixeldiff::render_frame(&mut p, &device, &queue, w, h));
+                    // AFTER the frame, deliberately: `overlay_row_ink_probe`
+                    // takes `&mut self` and re-runs the production selection
+                    // emitters, which set pipeline uniforms. Asking it before the
+                    // draw would risk grading a frame the question itself shaped —
+                    // and only the FIRST frame, which is the one every later frame
+                    // is compared against.
+                    if splits.is_none() {
+                        let ink = p.overlay_row_ink_probe();
+                        let rows = p.overlay_row_plan(&geom).rows().len();
+                        splits = Some((0..rows).map(|d| split_row(&p, w, d, &ink)).collect());
+                    }
                 }
                 let splits = splits.expect("the first frame's row split");
                 let at = format!("{fixture} / {world} @ {w}x{h}");
