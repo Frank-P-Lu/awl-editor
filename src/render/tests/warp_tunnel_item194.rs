@@ -6,10 +6,15 @@ use crate::{theme, warpgrid};
 
 const OUTER_BAND: u32 = 180;
 const SECTION_ROOM_FRAC: f32 = 0.432;
-const WINDOW_INSET: f32 = 0.4;
-const RING_PITCH_AT: f32 = 0.3333333;
+// Mirrors of `background.wgsl`. `WINDOW_INSET` went with the placement it
+// belonged to: item 268 replaced the two per-margin axes with ONE at the room's
+// own centre, so a radial scan sweeps about `(W/2, H/2)` and the axis is no
+// longer a function of the anchor at all. `RING_PITCH_AT` and `RPO_MAX` moved
+// with it — see the shader's own note on why the reference point had to follow
+// the axis outward.
+const RING_PITCH_AT: f32 = 0.8333333;
 const RPO_MIN: f32 = 3.0;
-const RPO_MAX: f32 = 14.0;
+const RPO_MAX: f32 = 20.0;
 
 fn outer_pixels(frame: &[i32], col_left: f32, col_w: f32) -> Vec<i32> {
     let col_right = col_left + col_w;
@@ -93,8 +98,10 @@ fn travel_phase(cells: f32) -> f32 {
 }
 
 fn strongest_major_ring_in(frame: &[i32], radii: std::ops::Range<i32>) -> f32 {
-    let anchor = SECTION_ROOM_FRAC * H as f32;
-    let axis = (WINDOW_INSET * anchor, H as f32 * 0.5);
+    // THE ONE AXIS: the room's own centre, which is the whole of item 268's
+    // placement. A scan that still swept about a per-margin axis would be
+    // measuring a picture the shader no longer draws.
+    let axis = (W as f32 * 0.5, H as f32 * 0.5);
     let mut best = (f64::MIN, 0.0);
     for radius in radii {
         let mut score = 0.0;
@@ -122,8 +129,14 @@ fn ring_ladder(device: &wgpu::Device, queue: &wgpu::Queue, bg: theme::Background
     let mut radii = Vec::new();
     for cells in [0.0, 0.4, 0.8] {
         let frame = field(device, queue, bg, W, H, 324.0, 950.0, travel_phase(cells));
-        let range = radii.last().map_or(34..90, |last: &f32| {
-            (*last as i32 - 9).max(1)..(*last as i32 + 10)
+        // THE SCAN BAND MOVED OUTWARD WITH THE AXIS. With one axis at the room's
+        // centre the near field is under the page at `WARP_PAGE_VEIL`, so a ladder
+        // read there would be grading a 13%-strength signal. This band sits where
+        // the circle passes through BOTH margins at full strength, and its width
+        // is set by the ring family's own spacing at that radius (~220px between
+        // consecutive majors), so exactly one major can fall inside it.
+        let range = radii.last().map_or(560..760, |last: &f32| {
+            (*last as i32 - 45).max(1)..(*last as i32 + 45)
         });
         radii.push(strongest_major_ring_in(&frame, range));
     }
@@ -173,11 +186,21 @@ fn shader_has_fixed_geometry_and_no_steering_path() {
     for present in [
         "let w = q;",
         "let travel = select(g.warp_travel, -g.warp_travel, reversed);",
-        "fn warp_window_axis(vp_x: f32, anchor: f32, on_right: bool)",
+        // The placement owner takes a viewport width and NOTHING else — no page,
+        // no margin, and above all no side. That signature is what makes "one
+        // vanishing point" a property of the code rather than of a tuning.
+        "fn warp_room_axis(vp_x: f32) -> f32 {",
     ] {
         assert!(wgsl.contains(present), "missing `{present}`");
     }
-    for absent in ["WARP_BEND_GAIN", "WARP_SOLVE_STEPS", "g.pose", "per_margin"] {
+    for absent in [
+        "WARP_BEND_GAIN",
+        "WARP_SOLVE_STEPS",
+        "g.pose",
+        "per_margin",
+        "warp_window_axis",
+        "WARP_WINDOW_INSET",
+    ] {
         assert!(
             !wgsl.contains(absent),
             "obsolete steering path `{absent}` remains"

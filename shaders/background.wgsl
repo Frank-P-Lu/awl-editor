@@ -998,27 +998,37 @@ fn waves_rgb(px: vec2<f32>) -> vec3<f32> {
 // tunnel is a closed-form ray cast done per fragment.
 //
 // The camera travels straight through a circular tube. A ring is a level set of
-// projected radius; a rail is a level set of polar angle. The two room-placed
-// windows keep one fixed scale and framing while the opaque page masks them.
+// projected radius; a rail is a level set of polar angle.
 //
 // The cylinder never rescales. `WARP_SECTION_ROOM_FRAC` sizes the anchor
 // ring against the ROOM's own height and nothing else, and the section is a
 // CIRCLE — no aspect, no affine fit, one isotropic space — so its projected
 // aspect ratio is the constant 1.00 at every page width the adaptive column can
-// reach. The page width moves the WINDOWS, never the world.
+// reach. The page width moves nothing at all.
 //
-// The placement reads the room and nothing else. Each margin's copy of the
-// axis sits `WARP_WINDOW_INSET` anchors in from the ROOM's own outer edge — a
-// constant offset between the two windows, fixed for a given room, with no term
-// from the page. The page column can then only MASK this field: widening it
-// covers the outer wall, narrowing it reveals more, and neither moves the
-// opening. The vanishing region stays in the margin at every width the column
-// leaves room for, which is what the review asked for at both ends of the band.
+// ONE AXIS, AT THE ROOM'S OWN CENTRE, AND THAT IS THE WHOLE OF THE PLACEMENT.
+// An axis that is a function of WHICH MARGIN a fragment falls in gives each
+// margin its own vanishing point, and a reader sees exactly what that is: two
+// tunnels, side by side, disagreeing across the page. One axis at `vp.x * 0.5`
+// is the whole fix, and it costs only the reason the old placement existed —
+// it puts the vanishing point BEHIND THE PAGE. That is the composition: the
+// thing you are travelling toward is hidden behind your own writing, and each
+// margin carries one flank of the single tube around it.
 //
-// The two windows overlap: the centre
-// appears in both because they are two windows onto ONE cylinder, offset by a
-// constant, not two cylinders. The placement is a TRANSLATION and nothing else:
-// one scale and one lattice.
+// The placement takes no page term and no margin term, so the page column can
+// only MASK this field. Both flanks are equidistant from the axis at every page
+// width, by construction rather than by tuning.
+//
+// THE FIELD CROSSES THE PAGE, SIMPLIFIED TO ITS SCAFFOLD. Two flanks with
+// nothing between them are still two pictures as far as the eye is concerned;
+// the evidence that they are ONE tube is that a ring leaving the left margin
+// ARRIVES in the right one at the same height. So the page column no longer
+// punches this ground away — it veils the field to `WARP_PAGE_VEIL` and retires
+// the minor lattice, leaving the major scaffold alone to make the crossing.
+// That simplification is not a new idea: it is the same one `WARP_NARROW_LO_PX`
+// already applies as a margin narrows. Prose keeps its figure/ground because
+// the veil is held by a legibility floor measured over the rendered page, not
+// by taste alone — see `render/tests/warp_one_tunnel_item268.rs`.
 
 // The anchor ring's projected RADIUS, as a fraction of the room's height. The
 // section is a circle, so this is the whole of its size and shape. 0.432 is
@@ -1026,28 +1036,23 @@ fn waves_rgb(px: vec2<f32>) -> vec3<f32> {
 // (`3 * page_half` at measure 20 = 432px), which is the composition the live
 // review approved.
 const WARP_SECTION_ROOM_FRAC: f32 = 0.432;
-// THE WINDOW PLACEMENT, in anchors in from the ROOM's own outer edge (see
-// above). One constant, no page term, no margin term — which is what makes "the
-// page only masks" true by construction rather than by tuning.
+// THE UNDER-PAGE VEIL: what fraction of its full strength the scaffold keeps
+// once it crosses onto the page. It is the only quantity in this ground that
+// draws where prose does, so it is the only one bounded by a LEGIBILITY floor
+// rather than by composition alone — `warp_one_tunnel_item268.rs` samples the
+// rendered page and asserts every pixel of it clears 4.5:1 against the world's
+// own body ink, which is the same floor the syntax roles are already held to.
 //
-// Its value has a FLOOR and a measured cost above it. The floor is
-// `WARP_CORE_FRAC * WARP_CORE_FADE_HI` = 0.22, the radius at which the far end's
-// haze has finished fading in: any smaller and the room's own edge cuts the
-// dissolving far end in half. 0.4 sits above that floor because at the floor the
-// opening is jammed against the room edge at every wide margin — rendered and
-// compared over the band, 0.22 crowded measures 20 through 104, which is most of
-// the range, to rescue one 139px margin at measure 140.
-//
-// THE COST, NAMED RATHER THAN HIDDEN. A margin narrower than this inset has its
-// axis behind the page and shows outer wall instead of the opening. awl's column
-// is not always centred, so on a 2560x1440 room at measure 140 the margins are
-// 405px and 139px and the right one falls under it. That margin is already
-// inside the world's own narrow-margin simplification band
-// (`WARP_NARROW_LO_PX`..`_HI_PX` = 84..210px), where the minor lattice has
-// retired by design, so a quiet field there is consistent rather than a
-// surprise — but it is a real limit of one fixed placement, and it is the reason
-// this constant is a floor plus a judgement rather than a derivation.
-const WARP_WINDOW_INSET: f32 = 0.4;
+// The floor is not what set this number, though; it has room to spare. The
+// number is set by what the crossing is FOR — it is evidence, not decoration.
+// A ring has to be traceable from one flank to the other and must not compete
+// with a line of text, and the minor lattice retiring at the page edge is what
+// buys the rest of the quiet.
+const WARP_PAGE_VEIL: f32 = 0.13;
+// How far the crossing takes, in LOGICAL px, measured from the page edge: the
+// distance over which the minor lattice retires and the veil settles. Composition
+// (the Pinstripe/Zigzag rule), so a 2x display draws the same crossing.
+const WARP_PAGE_EASE_PX: f32 = 52.0;
 // Round 2's own placement, alive only inside the `MarginPlaced` arm: the margin
 // widths, in anchors, between which its window slid, and how far in from the
 // page edge the axis landed once it had.
@@ -1059,9 +1064,25 @@ const WARP_WINDOW_STRADDLE: f32 = 0.4;
 // radius — a fixed place on the fixed section, so the lattice's own scale is as
 // constant as the section's. Bounded so a very short or very tall room cannot
 // drive the lattice into a knot or into three lonely rings.
-const WARP_RING_PITCH_AT: f32 = 0.3333333;
+//
+// THE REFERENCE POINT MOVED WHEN THE AXIS DID, and it had to. `spacing_px` is
+// only meaningful where the reader is actually looking. With an axis parked in
+// each margin, that was the near field — a third of the anchor. With ONE axis at
+// the room's centre the near field is behind the page, and what the margins show
+// is the band from the page edge out to the room's corner: roughly 1.1 to 2.2
+// anchors on the canonical canvas. Leaving the reference at a third of the anchor
+// honours the authored pitch at a radius no reader can see and hands the margins
+// three lonely arcs. So this is the same design re-derived against the geometry
+// that replaced it — the authored pitch is realised in the middle of the band
+// the reader has.
+const WARP_RING_PITCH_AT: f32 = 0.8333333;
 const WARP_RPO_MIN: f32 = 3.0;
-const WARP_RPO_MAX: f32 = 14.0;
+// The ceiling rises with the reference point, for the same reason: it exists to
+// bite at extreme rooms, and against the new reference the old value would begin
+// biting on an ordinary 4K-at-1x desktop. Ring DENSITY is not what makes a
+// converging lattice unsafe — `alias_fade` and `WARP_CORE_FRAC` are the moire
+// defences, and neither one reads this bound.
+const WARP_RPO_MAX: f32 = 20.0;
 const WARP_LN2: f32 = 0.6931472;
 // Every fifth line is the strong one. The polar angle's own seam is at +/-PI,
 // which maps to +/-WARP_RAILS_PER_HALF_TURN: unless that integer is a multiple
@@ -1140,14 +1161,12 @@ fn warp_is_major(coord: f32) -> f32 {
     return 1.0 - step(0.5, m);
 }
 
-// WHERE ONE MARGIN'S WINDOW SITS on the one projection: the x of that margin's
-// copy of the axis, measured from the ROOM's own outer edge on that side. The
-// single owner of the placement, and it takes no page and no margin argument at
-// all — which is the whole of round 3. Both windows are therefore the same
-// distance from their own room edge at every page width, by construction.
-fn warp_window_axis(vp_x: f32, anchor: f32, on_right: bool) -> f32 {
-    let inset = WARP_WINDOW_INSET * anchor;
-    return select(inset, vp_x - inset, on_right);
+// WHERE THE ONE AXIS SITS: the room's own centre, and nothing else is consulted.
+// The single owner of the placement. It takes no page argument, no margin
+// argument and — the point of item 268 — no SIDE argument, so there is exactly
+// one vanishing point in the room and both flanks are windows onto it.
+fn warp_room_axis(vp_x: f32) -> f32 {
+    return vp_x * 0.5;
 }
 
 // ROUND 2'S PLACEMENT, kept as data for the `MarginPlaced` arm: the distance the
@@ -1159,7 +1178,11 @@ fn warp_window_hide(span: f32, page_half: f32, anchor: f32) -> f32 {
     return mix(-WARP_WINDOW_STRADDLE * span, page_half, full);
 }
 
-fn warped_grid_rgb(p: vec2<f32>) -> vec3<f32> {
+// `in_page` is decided ONCE, by the caller, in the PHYSICAL space the host
+// measured the column in — the same test that punches every other ground away.
+// Re-deciding it here against the logical bounds would put a half-pixel seam
+// between the punch and the veil at any scale factor but 1.
+fn warped_grid_rgba(p: vec2<f32>, in_page: bool) -> vec4<f32> {
     let vp = viewport_l();
     let cl = col_left_l();
     let cw = col_w_l();
@@ -1182,17 +1205,18 @@ fn warped_grid_rgb(p: vec2<f32>) -> vec3<f32> {
         let flank = sqrt(max(anchor * anchor - page_half * page_half, 1.0));
         aspect = clamp(flank / max(WARP_PAGE_SCALED_FIT * vp.y, 1.0), 1.0, 4.0);
     }
-    // This margin's own window onto that fixed picture. Under the shipping
-    // profile the placement reads the ROOM alone, so the page column below is
-    // used for NOTHING but the side test and the legibility masks. The two
-    // page-derived placements are the mutation arms.
+    // THE ONE AXIS. Under the shipping profile the placement reads the ROOM
+    // alone — not the page, not the margin, and not which side this fragment
+    // fell on — so the page column below is used for NOTHING but the legibility
+    // masks and the crossing. The two page-derived placements, which DO give
+    // each margin its own axis, are the mutation arms.
     let col_right = cl + cw;
     let on_right = p.x >= col_right;
     let span = max(select(cl, vp.x - col_right, on_right), 1.0);
     let hide = select(warp_window_hide(span, page_half, anchor), page_half, page_scaled);
     let placed = select(cl + hide, col_right - hide, on_right);
     let axis_x = select(
-        warp_window_axis(vp.x, anchor, on_right),
+        warp_room_axis(vp.x),
         placed,
         page_scaled || margin_placed,
     );
@@ -1228,14 +1252,20 @@ fn warped_grid_rgb(p: vec2<f32>) -> vec3<f32> {
     let ring = rpo * log2(anchor / u) + travel;
     let rail = atan2(w.y, w.x) * (WARP_RAILS_PER_HALF_TURN / 3.14159265);
 
+    // The four families, kept APART until the masks have had their say — because
+    // only one of them crosses the page. A RING is the depth cue: it is a closed
+    // curve around the axis, so a ring that leaves the left flank has to arrive
+    // in the right one, and that arrival is the whole evidence that there is one
+    // tube. A RAIL is radial; it runs INTO the page rather than across it, and
+    // the two rails through the axis would draw a full-width horizontal and a
+    // full-height vertical straight through the prose — chrome, not depth. So
+    // the rails retire at the page edge with the minor lattice.
     let ring_major = warp_is_major(ring);
     let rail_major = warp_is_major(rail);
     let core_fade = smoothstep(core * WARP_CORE_FADE_LO, core * WARP_CORE_FADE_HI, u_raw);
-    let major = max(
-        warp_line(ring, WARP_MAJOR_HALF_PX) * ring_major,
-        warp_line(rail, WARP_MAJOR_HALF_PX) * rail_major,
-    ) * core_fade;
-    let minor = max(
+    let ring_hi = warp_line(ring, WARP_MAJOR_HALF_PX) * ring_major * core_fade;
+    let rail_hi = warp_line(rail, WARP_MAJOR_HALF_PX) * rail_major * core_fade;
+    let lattice = max(
         warp_line(ring, WARP_MINOR_HALF_PX) * (1.0 - ring_major),
         warp_line(rail, WARP_MINOR_HALF_PX) * (1.0 - rail_major),
     ) * core_fade;
@@ -1244,11 +1274,35 @@ fn warped_grid_rgb(p: vec2<f32>) -> vec3<f32> {
     // — how far into a margin this fragment is, and how wide that margin is.
     // Masks on one field, never a second camera.
     let edge_d = max(select(cl - p.x, p.x - col_right, on_right), 0.0);
-    let edge_fade = smoothstep(
-        WARP_EDGE_QUIET_PX,
-        WARP_EDGE_QUIET_PX + min(WARP_EDGE_FADE_MAX_PX, span * 0.5),
-        edge_d,
+    // THE CROSSING, as ONE signed profile over the whole room. `sd` is the
+    // distance to the nearer page edge: positive out in a margin, negative under
+    // the page. The margin ramp keeps its shape; what changed is its FLOOR. It
+    // used to reach zero at the page edge because the page edge was the end of
+    // the world — now the field continues past it, so the floor is the veil, and
+    // the stroke that leaves the left flank is the same stroke that arrives in
+    // the right one. A ramp that touched zero in between would break exactly the
+    // continuity this ground exists to show.
+    let depth_in = max(min(p.x - cl, col_right - p.x), 0.0);
+    let sd = select(edge_d, -depth_in, in_page);
+    // THE RAMP LIVES ENTIRELY IN THE MARGIN. It starts AT the page edge, so the
+    // page carries exactly the veil everywhere and nothing bleeds inward at half
+    // strength across the first inch of prose — where a line of text starts.
+    let edge_fade = mix(
+        WARP_PAGE_VEIL,
+        1.0,
+        smoothstep(
+            0.0,
+            WARP_EDGE_QUIET_PX + min(WARP_EDGE_FADE_MAX_PX, span * 0.5),
+            sd,
+        ),
     );
+    // WHAT CROSSES IS THE MAJOR RINGS ALONE: the minor lattice and the whole
+    // rail family are absent from the page entirely and fade in over the first
+    // `WARP_PAGE_EASE_PX` of MARGIN, so the only marks that ever share space
+    // with prose are the sparse concentric arcs.
+    let margin_only = smoothstep(0.0, WARP_PAGE_EASE_PX, sd);
+    let major = max(ring_hi, rail_hi * margin_only);
+    let minor = lattice * margin_only;
     // The projected spacing of whichever lattice is finer here. `fwidth` is a
     // device-grid derivative (see `warp_line`), so the reciprocal is physical and
     // is divided back into the LOGICAL space the bound is authored in.
@@ -1256,10 +1310,19 @@ fn warped_grid_rgb(p: vec2<f32>) -> vec3<f32> {
     let alias_fade = smoothstep(WARP_ALIAS_FADE_LO_PX, WARP_ALIAS_FADE_HI_PX, finest_px);
     let narrow_fade = smoothstep(WARP_NARROW_LO_PX, WARP_NARROW_HI_PX, span);
 
-    let minor_cov = clamp(minor * alias_fade * narrow_fade * edge_fade * density * 0.60, 0.0, 1.0);
+    let minor_cov =
+        clamp(minor * alias_fade * narrow_fade * edge_fade * density * 0.60, 0.0, 1.0);
     let major_cov = clamp(major * alias_fade * edge_fade * density * 0.88, 0.0, 1.0);
+    if (in_page) {
+        // OVER the page's own flat clear, in straight alpha — this ground is the
+        // one that does not punch. There is no `c_from` here: the page's tone is
+        // the page's business, and the field only tints it by the coverage it
+        // actually drew.
+        let a = clamp(minor_cov + major_cov, 0.0, 1.0);
+        return vec4<f32>(select(g.c_pat.rgb, g.c_to.rgb, major_cov >= minor_cov), a);
+    }
     let with_minor = mix(g.c_from.rgb, g.c_pat.rgb, minor_cov);
-    return mix(with_minor, g.c_to.rgb, major_cov);
+    return vec4<f32>(mix(with_minor, g.c_to.rgb, major_cov), 1.0);
 }
 
 // BANDING KILL — the classic 8x8 ordered (Bayer) dither matrix, values 0..64.
@@ -1318,7 +1381,12 @@ fn srgb_decode1(c: f32) -> f32 {
 @fragment
 fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // Inside the page column: punch a hole so the flat base_100 clear shows.
-    if (in.px.x >= g.col_left && in.px.x < g.col_left + g.col_w) {
+    // WARPED GRID is the one ground that declines the punch — its whole subject
+    // is a single tube whose axis is behind the page, so it VEILS the column
+    // instead of vanishing at it (see `warped_grid_rgba`). Every other ground
+    // keeps the hard punch, unchanged.
+    let in_page = in.px.x >= g.col_left && in.px.x < g.col_left + g.col_w;
+    if (in_page && g.shader != 10u) {
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
     // ITEM 186 — the ONE conversion. Every ground below composes in LOGICAL
@@ -1338,7 +1406,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     }
     if (g.shader == 8u) { return vec4<f32>(organic_rgb(lp), 1.0); }
     if (g.shader == 9u) { return vec4<f32>(deckle_rgb(lp), 1.0); }
-    if (g.shader == 10u) { return vec4<f32>(warped_grid_rgb(lp), 1.0); }
+    if (g.shader == 10u) { return warped_grid_rgba(lp, in_page); }
     // Margin: evaluate the gradient along `dir`. UV is centered so the diagonal
     // worlds read symmetrically; t is clamped to [0,1].
     let uv = in.px / g.viewport;
