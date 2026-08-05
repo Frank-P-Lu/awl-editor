@@ -81,6 +81,7 @@ fn outline_current_is_none_above_the_first_heading() {
 #[test]
 fn outline_draws_on_page_md_and_the_current_row_is_flagged() {
     let _o = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
@@ -194,6 +195,7 @@ fn outline_draws_on_page_md_and_the_current_row_is_flagged() {
 #[test]
 fn outline_collapsed_parent_retained_descendant_suppressed_with_a_state_marker() {
     let _o = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
@@ -304,6 +306,7 @@ fn outline_collapsed_parent_retained_descendant_suppressed_with_a_state_marker()
 #[test]
 fn outline_click_target_maps_the_fold_filtered_row_back_to_the_raw_heading_line() {
     let _o = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
@@ -397,6 +400,7 @@ fn outline_click_target_maps_the_fold_filtered_row_back_to_the_raw_heading_line(
 #[test]
 fn outline_hides_below_the_narrow_margin_floor() {
     let _o = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
@@ -452,6 +456,7 @@ fn outline_hides_below_the_narrow_margin_floor() {
 #[test]
 fn outline_shifts_the_column_right_under_pressure_and_gets_its_rail() {
     let _o = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
@@ -509,6 +514,7 @@ fn outline_shifts_the_column_right_under_pressure_and_gets_its_rail() {
 #[test]
 fn page_reset_does_not_rail_shift_the_column_for_a_hidden_outline() {
     let _o = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
@@ -585,6 +591,7 @@ fn page_reset_does_not_rail_shift_the_column_for_a_hidden_outline() {
 #[test]
 fn column_left_is_pixel_stable_across_a_one_px_resize_sweep() {
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
@@ -722,6 +729,7 @@ fn column_left_is_pixel_stable_across_a_one_px_resize_sweep() {
 #[test]
 fn outline_follow_keeps_the_current_heading_visible_on_a_long_doc() {
     let _o = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
@@ -775,6 +783,7 @@ fn outline_follow_keeps_the_current_heading_visible_on_a_long_doc() {
 #[test]
 fn outline_edge_fade_dims_the_clipped_rows_but_not_the_current() {
     let _o = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
@@ -888,6 +897,7 @@ fn outline_edge_fade_dims_the_clipped_rows_but_not_the_current() {
 #[test]
 fn outline_hit_test_stays_aligned_past_a_wide_glyph_heading() {
     let _o = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1900.0, 900.0) else {
@@ -978,6 +988,7 @@ fn outline_hit_test_stays_aligned_past_a_wide_glyph_heading() {
 #[test]
 fn outline_pixel_fit_never_leaves_a_label_wider_than_avail() {
     let _o = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
@@ -1025,6 +1036,7 @@ fn outline_pixel_fit_never_leaves_a_label_wider_than_avail() {
 #[test]
 fn outline_top_yields_to_shown_menu_bar_and_shrinks_row_budget() {
     let _mg = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     let _og = crate::testlock::serial();
     let _pg = crate::testlock::serial();
@@ -1086,6 +1098,7 @@ fn outline_top_yields_to_shown_menu_bar_and_shrinks_row_budget() {
 #[test]
 fn outline_hit_test_agrees_with_the_shifted_geometry_when_bar_shown() {
     let _mg = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     let _og = crate::testlock::serial();
     let _pg = crate::testlock::serial();
@@ -1151,6 +1164,7 @@ fn outline_hit_test_agrees_with_the_shifted_geometry_when_bar_shown() {
 #[test]
 fn lava_frost_pills_follow_outline_visibility() {
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping lava_frost_pills_follow_outline_visibility: no wgpu adapter");
@@ -1324,6 +1338,7 @@ fn lava_frost_pills_follow_outline_visibility() {
 #[test]
 fn gutter_frost_seeds_follow_gutter_visibility() {
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping gutter_frost_seeds_follow_gutter_visibility: no wgpu adapter");
@@ -1452,6 +1467,7 @@ fn gutter_frost_seeds_follow_gutter_visibility() {
 #[test]
 fn summoned_overlays_suppress_the_outline_and_gutter() {
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping summoned_overlays_suppress_the_outline_and_gutter: no wgpu adapter");

@@ -193,6 +193,7 @@ fn assert_bounded_wide(p: &TextPipeline, what: &str, cy0: f32, h0: f32, cy1: f32
 #[test]
 fn aaa_to_eol_transition_is_bounded_on_every_proportional_world() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -262,6 +263,7 @@ fn aaa_to_eol_transition_is_bounded_on_every_proportional_world() {
 #[test]
 fn aaa_to_eol_transition_is_exactly_zero_on_every_mono_world() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -320,6 +322,7 @@ fn aaa_to_eol_transition_is_exactly_zero_on_every_mono_world() {
 #[test]
 fn every_glyph_class_closes_exactly_at_the_literal_eol_seam() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -416,6 +419,7 @@ fn every_glyph_class_closes_exactly_at_the_literal_eol_seam() {
 #[test]
 fn ligature_to_plain_glyph_transition_is_bounded() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -480,6 +484,7 @@ fn ligature_to_plain_glyph_transition_is_bounded() {
 #[test]
 fn wrap_boundary_transition_is_bounded_on_a_proportional_world() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -533,6 +538,7 @@ fn wrap_boundary_transition_is_bounded_on_a_proportional_world() {
 #[test]
 fn leading_glyphless_column_at_col_zero_closes_against_the_next_real_glyph() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -620,6 +626,7 @@ fn leading_glyphless_column_at_col_zero_closes_against_the_next_real_glyph() {
 #[test]
 fn run_of_glyphless_columns_stays_bounded_end_to_end() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -724,6 +731,7 @@ fn run_of_glyphless_columns_stays_bounded_end_to_end() {
 #[test]
 fn empty_line_synthetic_cell_stays_reasonable_not_the_old_fixed_cap() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -809,6 +817,7 @@ fn empty_line_synthetic_cell_stays_reasonable_not_the_old_fixed_cap() {
 #[test]
 fn transition_stays_bounded_across_zoom_and_dpi() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -875,6 +884,7 @@ fn transition_stays_bounded_across_zoom_and_dpi() {
 #[test]
 fn morph_rest_transition_is_bounded_through_caret_geometry() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Morph);
@@ -951,6 +961,7 @@ fn morph_rest_transition_is_bounded_through_caret_geometry() {
 #[test]
 fn morph_travel_stays_a_thin_streak_on_every_proportional_world() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -1033,6 +1044,7 @@ fn morph_travel_stays_a_thin_streak_on_every_proportional_world() {
 #[test]
 fn caret_fallback_geometry_tracks_the_live_theme_not_the_lagging_shaped_font() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -1138,6 +1150,7 @@ fn caret_fallback_geometry_tracks_the_live_theme_not_the_lagging_shaped_font() {
 #[test]
 fn caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -1256,6 +1269,7 @@ fn caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent() {
 #[test]
 fn glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -1411,6 +1425,7 @@ fn glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar() {
 #[test]
 fn interior_run_between_two_different_letters_has_no_flip_step() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -1592,6 +1607,7 @@ fn endpoint_classes() -> Vec<(GlyphClass, &'static str)> {
 #[test]
 fn ordered_class_pair_transitions_stay_within_the_measured_bar_both_directions() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -1896,6 +1912,7 @@ fn assert_mono_glyphless_spaces(
 #[test]
 fn glyphless_row_transition_is_bounded_row_relatively_across_a_wrap() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);

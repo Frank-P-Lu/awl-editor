@@ -82,6 +82,7 @@ fn cell_caret_hugs_the_full_ink_box_on_ascenders_x_height_and_descenders() {
     // Ink-box lookup folds the theme font AND the page wrap globals; the anchor is
     // mode-keyed. Hold theme -> page -> caret (the suite-wide order), pin BLOCK.
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -197,6 +198,7 @@ fn cell_caret_hugs_the_full_ink_box_on_ascenders_x_height_and_descenders() {
 #[test]
 fn cell_caret_vertical_has_one_owner_across_every_caret_form() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
@@ -341,6 +343,7 @@ fn assert_punctuation_cell(
 #[test]
 fn punctuation_uses_the_rows_letter_height_across_forms_worlds_dpi_and_anchors() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
@@ -403,6 +406,7 @@ fn punctuation_uses_the_rows_letter_height_across_forms_worlds_dpi_and_anchors()
 #[test]
 fn mono_world_caret_grid_stays_uniform_and_line_box_sized() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -486,6 +490,7 @@ fn mono_world_caret_grid_stays_uniform_and_line_box_sized() {
 #[test]
 fn proportional_worlds_still_ink_align_with_a_per_letter_top() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
@@ -544,6 +549,7 @@ fn proportional_worlds_still_ink_align_with_a_per_letter_top() {
 #[test]
 fn moving_caret_streak_is_unaffected_by_the_ink_box() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -614,6 +620,7 @@ fn moving_caret_streak_is_unaffected_by_the_ink_box() {
 #[test]
 fn glyphless_fallbacks_use_the_synthetic_baseline_box_on_proportional_worlds() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
@@ -816,6 +823,7 @@ fn heading_cell_caret_grows_with_the_headings_own_font_size_not_the_bare_row_con
     // is mode-keyed. Hold theme -> page -> caret (the suite-wide order), pin
     // MORPH so a real letter anchors the CELL/ink-box arm.
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Morph);
@@ -882,6 +890,7 @@ fn heading_cell_caret_grows_with_the_headings_own_font_size_not_the_bare_row_con
 #[test]
 fn heading_line_cell_caret_on_a_mono_world_also_tracks_the_row_not_the_bare_constant() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);

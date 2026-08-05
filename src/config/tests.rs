@@ -1402,6 +1402,7 @@ fn apply_sticky_globals_restores_theme_page_caret_and_honours_flags() {
     // test acquires caret-then-theme, so this can't deadlock). Snapshot + restore so
     // the globals are left as found for the other tests.
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _p = crate::testlock::serial();
     let _c = crate::testlock::serial();
     let theme0 = crate::theme::active_index();

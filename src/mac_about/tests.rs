@@ -90,6 +90,7 @@ fn escape_and_command_w_dismiss_and_nothing_else_does() {
 #[test]
 fn exactly_about_requests_the_native_surface_through_the_shared_transition() {
     let _guard = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     // ⚠️ THIS SWEEP APPLIES EVERY COMMAND'S ACTION, so it FIRES every toggle in
     // the roster as a side effect and must put each one back. The restore list
     // below is easy to under-fill in a way nothing reports: the three globals

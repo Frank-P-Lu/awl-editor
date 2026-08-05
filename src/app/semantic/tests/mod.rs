@@ -555,6 +555,7 @@ fn a_settings_range_row_increments_the_real_setting() {
 #[test]
 fn every_advertised_action_drives_a_real_transition() {
     let _guard = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     // Every arm below really RUNS: a picker row's Click accepts the row, and
     // an accept can open, rename or trash a file. `new_hermetic` swaps the
     // filesystem only while CONSTRUCTING, so the sweep needs its own guard or

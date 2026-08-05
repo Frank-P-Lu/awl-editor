@@ -19,6 +19,7 @@ fn block_caret_width_tracks_glyph_advance() {
     // default follows the active font — proportional Gumtree would latch
     // Morph); hold the caret lock and pin BLOCK, the look under test.
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -106,6 +107,7 @@ fn block_caret_full_cell_on_wrap_boundary_space() {
     // follows the active font (proportional Gumtree would latch Morph); hold
     // the caret lock and pin BLOCK, the look under test.
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -183,6 +185,7 @@ fn block_caret_ink_aligns_on_kerned_glyph() {
     // anchor is mode-keyed. Hold theme -> page -> caret (the suite-wide
     // order), pin BLOCK, restore both globals after.
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
@@ -254,6 +257,7 @@ fn block_caret_ink_aligns_on_kerned_glyph() {
 #[test]
 fn caret_ink_box_off_for_mono_and_ligature_cluster() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
@@ -312,6 +316,7 @@ fn cosmetic_trail_anchor_follows_morph_linestart_bar() {
     // caret mode. Hold both shared test locks (page -> caret, the suite-wide
     // order).
     let _p = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Morph);
     let Some(mut p) = headless_pipeline() else {
@@ -390,6 +395,7 @@ fn cosmetic_trail_anchor_follows_morph_linestart_bar() {
 #[test]
 fn drag_selection_melts_caret_to_bar() {
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {

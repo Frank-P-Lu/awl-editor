@@ -508,6 +508,7 @@ fn selected_row_secondary_survives_slant_on_bars_worlds() {
 #[test]
 fn interactive_states_are_visible_in_every_world_real_pixels() {
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping interactive_states_are_visible_in_every_world_real_pixels: no wgpu adapter"
@@ -834,6 +835,7 @@ fn check_real_pixels(
 #[test]
 fn theme_preview_retint_regrounds_the_page_surface_on_every_world() {
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping theme_preview_retint_regrounds_the_page_surface_on_every_world: no wgpu adapter"

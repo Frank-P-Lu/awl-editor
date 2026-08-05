@@ -1883,6 +1883,7 @@ fn every_range_row_applies_and_persists_through_the_app_side_doors() {
     let mem = InMemoryFs::new();
     let _g2 = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let cfg = Config {
         path: PathBuf::from("/cfg/config.toml"),
         ..Config::empty()

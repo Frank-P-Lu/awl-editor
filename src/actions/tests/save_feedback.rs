@@ -304,6 +304,7 @@ fn platform_paging_about_and_image_paste_cannot_bypass_the_transition() {
 #[test]
 fn every_action_routes_every_emitted_effect_through_the_closed_headless_policy() {
     let _guard = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let caret0 = crate::caret::mode();
     let page0 = crate::page::page_on();
     let measure0 = crate::page::measure();

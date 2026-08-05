@@ -615,6 +615,7 @@ fn every_classified_motion_extends_shift_selection_and_no_mover_is_missing() {
     // whole call, so there is no acquire ORDER left to invert — a
     // page-then-about sequence here can't ABBA no matter which comes first.
     let _pg = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _ca = crate::testlock::serial();
     let _db = crate::testlock::serial();
     let _hu = crate::testlock::serial();
@@ -773,6 +774,7 @@ fn every_catalog_command_dispatches_without_panicking() {
     // no acquire ORDER left to invert — a page-then-about/lifetime sequence
     // here can't ABBA no matter which comes first.
     let _pg = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _ca = crate::testlock::serial();
     let _db = crate::testlock::serial();
     let _hu = crate::testlock::serial();

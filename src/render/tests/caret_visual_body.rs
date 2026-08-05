@@ -14,6 +14,7 @@ const PUNCTUATION: [char; 10] = [',', '.', '\'', ':', ';', '-', '(', '[', '—',
 #[test]
 fn proportional_punctuation_keeps_the_shared_horizontal_body_hug() {
     let _serial = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _world = theme::WorldPin::snapshot();
     let _caret = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
@@ -96,6 +97,7 @@ fn proportional_punctuation_keeps_the_shared_horizontal_body_hug() {
 #[test]
 fn mono_worlds_never_read_a_punctuation_ink_box() {
     let _serial = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _world = theme::WorldPin::snapshot();
     let _caret = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
