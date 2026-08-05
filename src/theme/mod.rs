@@ -120,7 +120,7 @@ pub use model::{
     CardTexture, CaretBlockStyle, ChipVariant, ChromeFace, DecorativeWash, Elevation, FacetStyle,
     FoldAfford, Frost, HighlightTexture, HighlightTreatment, IconCursor, ImageReveal, ListBacking,
     ListStyle, LocationStyle, MotionJuice, OverlayEntrance, PageFrame, PaneSplit, PlacardCorner,
-    PlacardInk, RenderCaps, SelectionStyle, TitleStyle,
+    PlacardInk, RenderCaps, RuleSelection, SelectionStyle, TitleStyle,
 };
 #[allow(unused_imports)] // the per-world ornament/bullet data: public API
 // surface, no NON-TEST in-crate caller today.

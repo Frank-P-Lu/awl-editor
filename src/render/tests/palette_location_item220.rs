@@ -189,6 +189,24 @@ fn a_category_heads_its_band_with_a_location_and_the_home_shows_none() {
 /// ground, texture, placard, strip and rows all cancel and what is left on that
 /// one line is the treatment. The location's strongest ink against the card's
 /// own ground must beat the faint whisper it replaced.
+/// Perceptual luma of a captured pixel.
+fn luma(c: [u8; 4]) -> f32 {
+    0.2126 * c[0] as f32 + 0.7152 * c[1] as f32 + 0.0722 * c[2] as f32
+}
+
+/// The strongest departure from `ground` anywhere in a 1200-wide capture's
+/// `x` by `y` window — the peak-of-|Δluma| oracle both arms of the heading
+/// comparison are measured with.
+fn peak_departure(pixels: &[[u8; 4]], ground: f32, x: (usize, usize), y: (usize, usize)) -> f32 {
+    let mut peak = 0.0f32;
+    for row in y.0..y.1 {
+        for col in x.0..x.1 {
+            peak = peak.max((luma(pixels[row * 1200 + col]) - ground).abs());
+        }
+    }
+    peak
+}
+
 #[test]
 fn the_location_heading_reads_stronger_than_the_faint_header_it_replaced_in_every_world() {
     let _g = crate::testlock::serial();
@@ -212,7 +230,6 @@ fn the_location_heading_reads_stronger_than_the_faint_header_it_replaced_in_ever
         queue.submit(Some(encoder.finish()));
         super::dither::read_pixels(device, queue, &texture, 1200, 800)
     };
-    let luma = |c: [u8; 4]| 0.2126 * c[0] as f32 + 0.7152 * c[1] as f32 + 0.0722 * c[2] as f32;
 
     let mut ratios: Vec<(String, f32)> = Vec::new();
     // A world whose `faint` and `muted` are the SAME ink cannot express this
@@ -253,15 +270,17 @@ fn the_location_heading_reads_stronger_than_the_faint_header_it_replaced_in_ever
             let ground = luma(pixels[gy * 1200 + gx]);
             let x0 = band[0].round().max(0.0) as usize;
             let x1 = (band[0] + band[1] * 0.5).round().min(1199.0) as usize;
-            let y0 = band[2].round().max(0.0) as usize;
-            let y1 = (band[2] + band[3]).round().min(799.0) as usize;
-            let mut peak = 0.0f32;
-            for y in y0..y1 {
-                for x in x0..x1 {
-                    peak = peak.max((luma(pixels[y * 1200 + x]) - ground).abs());
-                }
-            }
-            peaks[arm] = peak;
+            // ⚠️ THE SCANNED BAND IS THE ROW'S INTERIOR, NOT ITS WHOLE SLOT: a
+            // slot's outer edges belong to whatever a world draws BETWEEN rows,
+            // and a `Rules` world puts a rule there in full-strength ink — the
+            // same in both arms, saturating a peak-of-|Δluma| oracle at 211.0
+            // apiece so the heading was compared to nothing. Inset by the same
+            // half-gap the row-pitch owner folded in, zero on every world with
+            // no air between its rows.
+            let air = p.overlay_row_gap() * 0.5;
+            let y0 = (band[2] + air).round().max(0.0) as usize;
+            let y1 = (band[2] + band[3] - air).round().min(799.0) as usize;
+            peaks[arm] = peak_departure(&pixels, ground, (x0, x1), (y0, y1));
         }
         assert!(
             peaks[1] > 2.0,

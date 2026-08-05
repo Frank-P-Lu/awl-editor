@@ -54,6 +54,8 @@ fn style_name(style: theme::ListStyle) -> &'static str {
         theme::ListStyle::Bars => "Bars",
         theme::ListStyle::Diagonal(theme::DiagonalDirection::Descending) => "Diagonal(Descending)",
         theme::ListStyle::Diagonal(theme::DiagonalDirection::Ascending) => "Diagonal(Ascending)",
+        theme::ListStyle::Rules(theme::RuleSelection::Weight) => "Rules(Weight)",
+        theme::ListStyle::Rules(theme::RuleSelection::Gutter) => "Rules(Gutter)",
     }
 }
 
@@ -248,11 +250,17 @@ fn only_diagonal_worlds_reserve_side_territory_and_they_reserve_all_of_it() {
             let rows_planned = p.overlay_row_plan(&geom).rows().len();
             let reserve = p.diagonal_side_reserve_px(rows_planned);
             match world.render_caps.list_style {
-                theme::ListStyle::Pane | theme::ListStyle::Bars => assert_eq!(
-                    reserve, 0.0,
-                    "{}: an upright world reserves no side territory (dpi {dpi})",
-                    world.name
-                ),
+                // `Rules` is upright too: its rules run ALONG the rows rather
+                // than raking across them, so it reserves no side territory
+                // either. Its heavy rule does reach past the text measure, but
+                // only into the card band the composition already owns.
+                theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Rules(_) => {
+                    assert_eq!(
+                        reserve, 0.0,
+                        "{}: an upright world reserves no side territory (dpi {dpi})",
+                        world.name
+                    )
+                }
                 theme::ListStyle::Diagonal(direction) => {
                     let c = DiagonalComposition::resolve(direction, dpi);
                     let rows = rows_planned.saturating_sub(1) as f32;

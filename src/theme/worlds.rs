@@ -8,8 +8,8 @@ use super::model::{
     AmbientStyle, Backdrop, CardAnchor, CardShape, CardTexture, CaretBlockStyle, ChipVariant,
     ChromeFace, DecorativeWash, Elevation, FacetStyle, FoldAfford, Frost, HighlightTexture,
     IconCursor, IconGround, ImageReveal, ListStyle, LocationStyle, MotionJuice, PageFrame,
-    PaneSplit, PlacardCorner, PlacardInk, RenderCaps, RoleOverrides, SPELL_UNDERLINE_GAP_DEFAULT,
-    SelectionStyle, Theme, ThemeTags, TitleStyle, WashOverride,
+    PaneSplit, PlacardCorner, PlacardInk, RenderCaps, RoleOverrides, RuleSelection,
+    SPELL_UNDERLINE_GAP_DEFAULT, SelectionStyle, Theme, ThemeTags, TitleStyle, WashOverride,
 };
 use super::ornament::{
     BULLET_SCALE_GARAMOND, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN, BULLETS_PLAIN,
@@ -1040,6 +1040,17 @@ pub const PAPERBARK: Theme = Theme {
     role_overrides: RoleOverrides::NONE,
     render_caps: RenderCaps {
         elevation: Elevation::Bordered,
+        // ⚠️ THE ONE CARRIER OF THE `Rules` PROTOTYPE, and a prototype is what
+        // it is: the surface sweep, the Settings workspace and the pixel-law
+        // suite a real row composition owes are all still unwritten. Paperbark
+        // holds it because its ground is already a MATERIAL — Deckle's
+        // `Weave::Strata` lays contour lanes that gather around the writing
+        // column — so a card summoned over it reads as an object dropped on a
+        // sheet, while a ruled index reads as the same sheet one register up.
+        // The treatment named here is one of two the style can draw, and which
+        // one it should be is an open question; the other is reachable as
+        // `AWL_OVERLAY_LIST_FORCE=rules:gutter`.
+        list_style: ListStyle::Rules(RuleSelection::Weight),
         ..RenderCaps::DEFAULT
     },
 };

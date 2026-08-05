@@ -241,9 +241,12 @@ impl TextPipeline {
         // `panel_renderer` below (drawn behind the rows, over the opaque card — the
         // byte-identical historical slot). The dedicated pass is prepared empty
         // whenever it is not used, so a stale wordmark never lingers.
+        // The BARE-chrome question, answered identically by the gate of the same
+        // name in `pipeline_layers::draw_overlay_card` (this one picks the pass
+        // the placard is PREPARED into, that one the pass that is drawn).
         let bars = matches!(
             crate::render::effective_list_style(),
-            theme::ListStyle::Bars | theme::ListStyle::Diagonal(_)
+            theme::ListStyle::Bars | theme::ListStyle::Diagonal(_) | theme::ListStyle::Rules(_)
         );
         let canvas_bounds = TextBounds {
             left: 0,

@@ -178,7 +178,13 @@ fn split_row(
             let probe = p.diagonal_cluster_probe().expect("a diagonal cluster");
             (probe.accessory_right(d), false)
         }
-        theme::ListStyle::Pane | theme::ListStyle::Bars => (geom.text_left + plan.row_dx(d), true),
+        // `Rules` is upright like these two: its row content starts at the
+        // text edge, and the gutter to the left of it is surface. When a
+        // `Gutter` mark hangs there the `min(obj_lo)` below pulls the cut out
+        // to include it, so the mark is graded as LIST, never as surface.
+        theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Rules(_) => {
+            (geom.text_left + plan.row_dx(d), true)
+        }
     };
     // Every row ink this frame drew that shares vertical extent with the row.
     // MEASURED, never assumed to sit at the text edge: a poster-bars world grows

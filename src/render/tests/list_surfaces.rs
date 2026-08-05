@@ -200,6 +200,35 @@ fn parse_list_style_force_grammar() {
     assert_eq!(parse_list_style_force(""), None);
 }
 
+/// The `Rules` half of the same grammar, in its own test because that variant
+/// DOES carry its field in the forced value — the field is the open taste
+/// question, and forcing it is how both answers get captured against one world.
+#[test]
+fn parse_rules_force_grammar() {
+    use theme::RuleSelection::{Gutter, Weight};
+    // Bare `rules` takes the knob's own default, never a renderer default: a
+    // shipped world names its treatment in its own `RenderCaps`.
+    assert_eq!(
+        parse_list_style_force("rules"),
+        Some(theme::ListStyle::Rules(Weight))
+    );
+    assert_eq!(
+        parse_list_style_force("rules:weight"),
+        Some(theme::ListStyle::Rules(Weight))
+    );
+    assert_eq!(
+        parse_list_style_force("rules:gutter"),
+        Some(theme::ListStyle::Rules(Gutter))
+    );
+    for s in ["rules:", "rules:band", "rules:weight:gutter"] {
+        assert_eq!(parse_list_style_force(s), None, "{s}");
+    }
+    // The `bars:` half of the same var never claims a `rules` value.
+    for s in ["rules", "rules:weight", "rules:gutter"] {
+        assert_eq!(parse_bar_config_force(s), None, "{s}");
+    }
+}
+
 #[test]
 fn parse_facet_style_force_grammar() {
     assert_eq!(
@@ -953,6 +982,43 @@ fn spell_popup_floats_bare_on_bars_keeps_the_card_on_pane() {
                     2,
                     "{}: diagonal popup selects with the mark's two chevron arms \
                      (item 247; SHAPE is graded by diagonal_composition's own law)",
+                    t.name
+                );
+            }
+            // The `Rules` PROTOTYPE. Its claim is structural and negative — no
+            // card and no plate — so that is what this arm asserts, including
+            // the one thing neither selection treatment is allowed to do. The
+            // full pixel suite a shipped composition owes is not here, which is
+            // what keeps the style a prototype.
+            theme::ListStyle::Rules(_) => {
+                assert_eq!(
+                    float_n, 0,
+                    "{}: a Rules world floats no pane behind the popup — enclosure \
+                     is the one thing the style refuses",
+                    t.name
+                );
+                assert!(
+                    n_plates >= 2,
+                    "{}: the rules ride the row quad pipelines, so a popup with \
+                     suggestions draws several (got {n_plates})",
+                    t.name
+                );
+                assert_eq!(
+                    p.panel_card.instance_count(),
+                    0,
+                    "{}: a rule carries NO scrim — padding one out on every side is \
+                     exactly how it would become the plate this style refuses",
+                    t.name
+                );
+                let tall = p
+                    .overlay_row_surfaces_probe()
+                    .into_iter()
+                    .filter(|r| r[3] >= lh * 0.5)
+                    .count();
+                assert_eq!(
+                    tall, 0,
+                    "{}: no `Rules` quad may approach a row's own height (row pitch \
+                     {lh}) — a row-tall quad IS a filled band, whatever it is called",
                     t.name
                 );
             }

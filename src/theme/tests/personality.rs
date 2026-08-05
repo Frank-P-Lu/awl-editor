@@ -256,12 +256,18 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 ..RenderCaps::DEFAULT
             },
             // PAPERBARK (item 158, the handmade-paper studio): a LIGHT world, so
-            // it carries the composition round's light-world card border and
-            // nothing else — no placard, no rail move, no frame. The room's whole
-            // personality is its material ground; the summoned chrome stays out
-            // of the way. Deliberately otherwise DEFAULT.
+            // it carries the composition round's light-world card border, and
+            // ⚠️ THE ONE CARRIER OF THE `Rules` PROTOTYPE — the quiet fourth
+            // list style, organised by absence rather than by enclosure. The
+            // room's whole personality is its material ground, and a ruled index
+            // is that ground one register up where a floating card was an object
+            // dropped on it. Otherwise deliberately DEFAULT: no placard, no rail
+            // move, no frame. ⚠️ Which SELECTION treatment the style draws is an
+            // open taste question; the value here is a placeholder for that
+            // decision, not the decision.
             "Paperbark" => RenderCaps {
                 elevation: Elevation::Bordered,
+                list_style: model::ListStyle::Rules(model::RuleSelection::Weight),
                 ..RenderCaps::DEFAULT
             },
             // KITE (the light warped-grid statement world). ⚠️ THE OLD ENTRY

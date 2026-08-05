@@ -74,8 +74,8 @@ impl RenderOverrides {
         // second field off the SAME string rather than a second var), and
         // `render_overrides_env_read_law` checks the literal is named once.
         let list_force_var = "AWL_OVERLAY_LIST_FORCE";
-        let list_force_grammar =
-            "pane | bars | bars:<radius>:<gap>:<grow>[:hug|huglabel|full][:selected|all]";
+        let list_force_grammar = "pane | bars | rules[:weight|gutter] | \
+             bars:<radius>:<gap>:<grow>[:hug|huglabel|full][:selected|all]";
         let list_force_raw = std::env::var(list_force_var).ok();
         RenderOverrides {
             title_style: std::env::var("AWL_OVERLAY_STYLE_FORCE")

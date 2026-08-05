@@ -121,6 +121,32 @@ pub enum ListStyle {
     /// (`AWL_OVERLAY_LIST_FORCE`'s `bars:` suffix) can still replace that
     /// default for exploration — see [`BarConfig`].
     Bars,
+    /// ⚠️ **PROTOTYPE, NOT A SHIPPED FOURTH STYLE.** Organised by ABSENCE:
+    /// leading and hairline rules do the arranging, and nothing is drawn as an
+    /// object. Structurally it is neither a card ([`ListBacking::BarePlates`],
+    /// so no panel fill, border or shadow) nor a plate
+    /// ([`ListStyle::draws_row_plates`] is false, so no per-row surface and no
+    /// scrim) — the only ink the style owns is rules, and its selection mark is
+    /// a rule too. The field is the one open taste question: which of the two
+    /// credible selection treatments a `Rules` world draws. Reached today by one
+    /// carrier world and by `AWL_OVERLAY_LIST_FORCE=rules:<weight|gutter>`; the
+    /// full `OverlayKind` surface sweep, the Settings workspace and the pixel-law
+    /// suite are deliberately NOT done, which is what keeps this a prototype.
+    Rules(RuleSelection),
+}
+
+/// Which of the two credible selection treatments a [`ListStyle::Rules`] world
+/// draws. Neither may fill the row: a filled band is `Pane`'s answer, and
+/// borrowing it would make this style a restyle of that one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RuleSelection {
+    /// The two rules that bound the selected row THICKEN and run out past the
+    /// text measure to the card's full width. The row's interior is untouched
+    /// ground.
+    Weight,
+    /// The row and its rules are untouched; a short heavy rule segment — the
+    /// same substance the list is built from — hangs in the gutter beside it.
+    Gutter,
 }
 
 impl ListStyle {
@@ -131,6 +157,11 @@ impl ListStyle {
             ListStyle::Pane => ListBacking::Card,
             ListStyle::Diagonal(_) => ListBacking::BarePlates,
             ListStyle::Bars => ListBacking::BarePlates,
+            // Enclosure is the one thing this style refuses: a card is what it
+            // is defined against. The blurred backdrop every world already
+            // carries is what its chrome reads against, exactly as `Diagonal`'s
+            // does.
+            ListStyle::Rules(_) => ListBacking::BarePlates,
         }
     }
 
@@ -141,7 +172,9 @@ impl ListStyle {
     pub fn draws_row_plates(self) -> bool {
         match self {
             ListStyle::Bars => true,
-            ListStyle::Pane | ListStyle::Diagonal(_) => false,
+            // A rule is a boundary, not a surface — `Rules` joins `Diagonal` on
+            // the bare-plate roster that draws no plate.
+            ListStyle::Pane | ListStyle::Diagonal(_) | ListStyle::Rules(_) => false,
         }
     }
 }
