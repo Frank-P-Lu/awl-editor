@@ -159,12 +159,8 @@ fn interior_margin_px(scale: f32, density: u32) -> f32 {
 /// tracks whatever `worlds.rs` says.
 fn bowerbird_finds_scale() -> f32 {
     match theme::BOWERBIRD.background {
-        theme::Background::Organic {
-            arrangement: theme::Arrangement::Finds,
-            scale_px,
-            ..
-        } => scale_px,
-        _ => panic!("Bowerbird must ship Background::Organic{{ arrangement: Finds, .. }}"),
+        theme::Background::Organic { scale_px, .. } => scale_px,
+        _ => panic!("Bowerbird must ship Background::Organic"),
     }
 }
 
@@ -178,7 +174,7 @@ fn render_finds(
     density: u32,
     phase: f32,
 ) -> Vec<[u8; 4]> {
-    let bg = bg_desc_for(organic_bg(theme::Arrangement::Finds, scale));
+    let bg = bg_desc_for(organic_bg(scale));
     render_bg_scaled(
         device,
         queue,
@@ -370,7 +366,7 @@ fn finds_tuned_density_zero_is_still_exactly_the_flat_ground() {
     };
     let _g = crate::testlock::serial();
     let scale = bowerbird_finds_scale();
-    let mut flat = bg_desc_for(organic_bg(theme::Arrangement::Finds, scale));
+    let mut flat = bg_desc_for(organic_bg(scale));
     flat.density = 0.0;
     let pixels = render_bg_scaled(&device, &queue, flat, 600, 400, 0.0, 0.0, 0.0, 1.0);
     let first = pixels[0];

@@ -43,10 +43,16 @@ swatch. Twenty ship today (eleven dark, nine light; `theme::THEMES`), each with:
   it was:** the scattered-star ground (deterministic dots, the brightest sixth
   of them carrying a four-point sparkle) left `Background` entirely in 2026-08
   when Mulga — by then its only assignee — moved to `Pinstripe` on the user's
-  own verdict about the room. This is deliberately NOT the
-  `Weave::Fibres` / `Arrangement::Masses` treatment. Those are DORMANT:
-  reusable shapes a future world may want, kept because the roster might reach
-  for them again. `Bands` was in that category too until Magpie adopted it, and
+  own verdict about the room. **The same razor was then turned on the DIALS
+  a ground carries, and it cut deeper (2026-08):** `Arrangement`, `LavaEdge`
+  and `DeckleAnchor` had each collapsed to a single used arm, and the user's
+  verdict on a rendered A/B was to get rid of the other one in each case. What
+  went was NOT just the unused arm — the enum, its shader-facing scalar, its
+  shader branch and its `ground_space` table entry are all machinery serving
+  one answer once a dial has one arm, so the whole column went and the three
+  qualities became properties of their grounds, spelled once in the shader.
+  `Weave` (Strata on Paperbark, Fibres on Galah) and `Tunnel` are the dials
+  that still carry a real choice. `Bands` was in the dormant category too until Magpie adopted it, and
   the ROSTER now carries no dormant arm at all — eleven grounds, eleven worn,
   a fact `theme::tests::every_world_has_a_valid_background` asserts over
   `roster_index` rather than leaving to a grep. A capability that serves exactly one world, and that world
@@ -93,7 +99,8 @@ swatch. Twenty ship today (eleven dark, nine light; `theme::THEMES`), each with:
   zigzag field law" below. `Bands` was left unworn by that move and stayed so
   until 2026-08, when **Magpie** adopted it — see its own note below.
   **Item 176 (2026-07)** gave `Organic` — Bowerbird's ground, the tenth in this
-  list — a theme-owned `Arrangement` dial of the same shape: `Masses` (the
+  list — a theme-owned `Arrangement` dial of the same shape (RETIRED 2026-08,
+  see above — the ground draws `Finds` unconditionally now): `Masses` (the
   original rounded cut-paper blobs) or `Finds`, a crisp COLLECTED-TREASURE
   field where each cell draws one deliberately arranged collection of three
   objects, a large anchor with a smaller companion across its edge and a tiny
@@ -118,11 +125,12 @@ swatch. Twenty ship today (eleven dark, nine light; `theme::THEMES`), each with:
   own hash is the strict minimum of its full 3x3 neighbourhood
   (`finds_is_local_min`), which makes two lattice-adjacent cells both
   emptying at once impossible by construction (`h0(A) < h0(B)` and
-  `h0(B) < h0(A)` cannot both hold). `Masses` is now the DORMANT arrangement
+  `h0(B) < h0(A)` cannot both hold). `Masses` was then the DORMANT arrangement
   (item 191's swap retired it from every world's literal, the same "ships
-  until one wants it" shape `Finds` itself held a round earlier). `Weave` and
-  `LavaEdge` remain the roster's other examples of this one-word-in-a-literal
-  dial shape. Laws: `render::tests::bowerbird_spacing_item191` (the
+  until one wants it" shape `Finds` itself held a round earlier) — **and in
+  2026-08 it was deleted outright along with the `Arrangement` enum, on the
+  user's verdict that the two read too alike to keep both.** `Weave` is the
+  roster's surviving example of this one-word-in-a-literal dial shape. Laws: `render::tests::bowerbird_spacing_item191` (the
   composition-growth, separate-pitch, and void-bound claims, the last one
   measured as the WORST nearest-neighbour gap between surviving collections
   rather than an inscribed circle or a re-derived lattice grid — see that
@@ -213,7 +221,15 @@ by a fixed wander profile, with a single theme-owned `Weave` dial choosing
 between `Strata` (lanes indexed on distance from the page column, so the field
 gathers around and mirrors across the page — Paperbark's) and `Fibres` (lanes
 indexed on screen `y`, drawn as thin strokes plus a diagonal vein family —
-reusable, currently DORMANT, the `Dots { edge: true }` shape). The
+Galah's since it adopted the profile). `Weave` also carried a SECOND dial,
+`DeckleAnchor`, choosing whether Strata measured from the viewport centre or
+the page edge; it was retired in 2026-08 with one arm left. The Room-anchored
+coordinate is now unconditional, and the wallpaper law that used to prove
+itself by rendering the rejected page-anchored arm and watching it move
+states the property directly instead: the field is measurably NOT invariant
+under the exact translation a page-anchored owner would have applied, which is
+the same claim without keeping the rejected behaviour alive in the shipped
+shader. The
 ground is entirely STATIC, so the world joins no ambient tick. `density: 0.0`
 collapses either weave to a flat ground exactly, which is what lets every pixel
 law here be differential. Paperbark leaves Temperature untagged: it is plainly

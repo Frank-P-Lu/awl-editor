@@ -2498,7 +2498,6 @@ fn background_desc() -> BgDesc {
         density: bg.density(),
         banded: bg.zigzag_banded(),
         profile: bg.profile_mode(),
-        deckle_anchor: bg.deckle_anchor_mode(),
         tunnel: bg.tunnel_mode(),
     }
 }

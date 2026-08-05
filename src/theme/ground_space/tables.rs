@@ -140,26 +140,15 @@ pub(super) const ZIGZAG: &[GroundQuantity] = &[
     ),
 ];
 
-// Both arrangements' "drift floors" entry is GONE, not renamed: `organic_rgb`
-// no longer computes a field-translation `drift` at all (both terms deleted
-// outright — a bower is an arrangement, deliberately placed and left alone).
-// Masses is otherwise untouched; Finds gained a companion value-breathe
-// instead, whose own dials (`ORGANIC_BREATHE_AMOUNT`, the integer rate band)
-// are density-MIX quantities, not px-space composition or sampling ones, so
-// this file's px-space table has nothing to say about them.
-pub(super) const ORGANIC_MASSES: &[GroundQuantity] = &[
-    logical(
-        "scale_px (the cell)",
-        "the collage's cell SIZE — how many masses a margin holds and how large \
-         each reads. The quantity item 176 made countable",
-    ),
-    logical(
-        "the mass/island/hole radii and their soft edges",
-        "authored as FRACTIONS of the cell, so they follow it for free — the \
-         blobs' softness is their drawn character, not a resolve of the grid",
-    ),
-];
-
+// The "drift floors" entry is GONE, not renamed: `organic_rgb` no longer
+// computes a field-translation `drift` at all (both terms deleted outright — a
+// bower is an arrangement, deliberately placed and left alone). There is also
+// no longer a table PER ARRANGEMENT: the rounded cut-paper `Masses` field and
+// its own two entries went when the dial collapsed to one arm, so Organic has
+// exactly one answer below. The companion value-breathe Finds gained instead
+// has dials (`ORGANIC_BREATHE_AMOUNT`, the integer rate band) that are
+// density-MIX quantities, not px-space composition or sampling ones, so this
+// file's px-space table has nothing to say about them.
 pub(super) const ORGANIC_FINDS: &[GroundQuantity] = &[
     logical(
         "scale_px (the collection cell)",

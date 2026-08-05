@@ -612,33 +612,32 @@ fn delayed_ambient_ticks_advance_at_most_one_fixed_step() {
     assert!((ordinary - 0.4 - LAVA_TICK_SECONDS * LAVA_SPEED).abs() < 1e-6);
 }
 
+/// The gallery knob's grammar. The `<edge>` token (`hard` | `glow`) went with
+/// the dial it set — and it is REJECTED now rather than accepted-and-ignored,
+/// which is the half worth law-testing: a stale `AWL_LAVA=warm:0.5:hard` in
+/// someone's shell must fail loudly instead of quietly rendering the one
+/// treatment while appearing to ask for the other.
 #[test]
-fn parse_spec_reads_palette_phase_edge_and_dither() {
-    let (bg, phase) = parse_spec("deepsea:0.35:glow:dither").unwrap();
+fn parse_spec_reads_palette_phase_and_dither_and_rejects_the_retired_edge_token() {
+    let (bg, phase) = parse_spec("deepsea:0.35:dither").unwrap();
     assert_eq!(phase, 0.35);
     match bg {
-        Background::Lava { edge, dithered, .. } => {
-            assert_eq!(edge, LavaEdge::Glow);
-            assert!(dithered);
-        }
+        Background::Lava { dithered, .. } => assert!(dithered),
         _ => panic!("expected a Lava background"),
     }
     let (bg2, _) = parse_spec("warm:0.0").unwrap();
     match bg2 {
-        Background::Lava { edge, dithered, .. } => {
-            assert_eq!(edge, LavaEdge::Glow);
-            assert!(!dithered);
-        }
+        Background::Lava { dithered, .. } => assert!(!dithered),
         _ => panic!("expected a Lava background"),
     }
-    let (bg3, _) = parse_spec("warm:0.5:hard").unwrap();
-    assert!(matches!(
-        bg3,
-        Background::Lava {
-            edge: LavaEdge::Hard,
-            ..
-        }
-    ));
+    assert!(
+        parse_spec("warm:0.5:hard").is_none(),
+        "the retired `hard` edge token must be rejected, not silently ignored"
+    );
+    assert!(
+        parse_spec("deepsea:0.35:glow:dither").is_none(),
+        "the retired `glow` edge token must be rejected, not silently ignored"
+    );
     assert!(parse_spec("nope:0.0").is_none());
     assert!(parse_spec("warm:notanumber").is_none());
     assert!(parse_spec("warm:0.0:bogus").is_none());

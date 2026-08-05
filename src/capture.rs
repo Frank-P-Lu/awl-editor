@@ -12,8 +12,14 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 /// `/196` — top-level `semantic`: the live-App semantic tree, else `null`.
 /// `/197` — `overlay.preview_view`; `gutter.changed`.
 /// `/198` — `readout.unit` / `hud.unit`: `"words"` or `"characters"`.
+/// `/199` — `page.background` LOSES three keys with the ground dials that fed
+///          them: `organic.arrangement`, `deckle.anchor`, `lava.edge`. Each
+///          enum had collapsed to one arm, so the key reported a constant.
+///          A key REMOVAL is a shape change (a reader keying on it breaks),
+///          unlike `/198`'s predecessor, which only narrowed a value space.
+///          Every world's PNG is byte-identical across this bump.
 /// History lives in Git. Bump this row with the const.
-pub const SCHEMA_VERSION: u32 = 198;
+pub const SCHEMA_VERSION: u32 = 199;
 /// Plain single-frame schema; timeline and held take the next two versions.
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")

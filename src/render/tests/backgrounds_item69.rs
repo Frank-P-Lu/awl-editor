@@ -62,7 +62,6 @@ pub(super) fn bg_desc_for(bg: theme::Background) -> BgDesc {
         banded: bg.zigzag_banded(),
         profile: bg.profile_mode(),
         tunnel: bg.tunnel_mode(),
-        deckle_anchor: bg.deckle_anchor_mode(),
     }
 }
 

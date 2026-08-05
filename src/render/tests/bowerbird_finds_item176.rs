@@ -1,5 +1,8 @@
-//! ITEM 176 — the ORGANIC ground's crisp COLLECTED-TREASURE arrangement
-//! (`theme::Arrangement::Finds`), proved from real rendered pixels.
+//! ITEM 176 — the ORGANIC ground's crisp COLLECTED-TREASURE arrangement,
+//! proved from real rendered pixels. It arrived as one arm of a theme-owned
+//! `Arrangement` dial and is now the ground's only behaviour: the dial, its
+//! scalar and the rounded cut-paper arm it chose between all went once no
+//! world reached for the other one.
 //!
 //! **What the grammar claims.** One cell draws one deliberately arranged
 //! collection of THREE crisp objects: a large ANCHOR, a smaller COMPANION
@@ -29,17 +32,16 @@
 use super::backgrounds_item69::{bg_desc_for, headless_dq, render_bg};
 use crate::theme;
 
-/// A `Background::Organic` at an explicit arrangement and cell scale, on
-/// Bowerbird's own authored tones and density — the direct-injection seam, so
-/// every claim below is about the MECHANISM rather than one world's literal.
+/// A `Background::Organic` at an explicit cell scale, on Bowerbird's own
+/// authored tones and density — the direct-injection seam, so every claim
+/// below is about the MECHANISM rather than one world's literal.
 /// `pub(super)`: item 191's spacing/void laws (`bowerbird_spacing_item191.rs`)
 /// reuse this and the field reader below rather than duplicating them —
 /// same-behavior-same-code.
-pub(super) fn organic_bg(arrangement: theme::Arrangement, scale_px: f32) -> theme::Background {
+pub(super) fn organic_bg(scale_px: f32) -> theme::Background {
     match theme::BOWERBIRD.background {
         theme::Background::Organic { tones, density, .. } => theme::Background::Organic {
             tones,
-            arrangement,
             scale_px,
             density,
         },
@@ -373,7 +375,7 @@ const MIN_COLLECTIONS: usize = 25;
 // The field no longer translates at all, so this reader has no phase left
 // to inject (its every caller already passed a literal `0.0`).
 fn finds_field(device: &wgpu::Device, queue: &wgpu::Queue, scale: f32) -> Vec<[u8; 4]> {
-    let bg = organic_bg(theme::Arrangement::Finds, scale);
+    let bg = organic_bg(scale);
     render_bg(
         device,
         queue,
@@ -623,7 +625,7 @@ fn finds_worst_phase_stays_cool_and_off_the_page() {
         return;
     };
     let _g = crate::testlock::serial();
-    let bg = organic_bg(theme::Arrangement::Finds, 156.0);
+    let bg = organic_bg(156.0);
     let (w, h, left, col) = (900u32, 600u32, 220.0f32, 460.0f32);
     let wrap = crate::lava::LAVA_LOOP_CYCLES;
     for i in 0..24 {
@@ -671,7 +673,7 @@ fn finds_density_zero_is_exactly_the_flat_ground() {
         return;
     };
     let _g = crate::testlock::serial();
-    let mut flat = bg_desc_for(organic_bg(theme::Arrangement::Finds, 156.0));
+    let mut flat = bg_desc_for(organic_bg(156.0));
     flat.density = 0.0;
     let pixels = render_bg(&device, &queue, flat, 600, 400, 0.0, 0.0, 0.0);
     let first = pixels[0];
@@ -682,7 +684,7 @@ fn finds_density_zero_is_exactly_the_flat_ground() {
     let inked = render_bg(
         &device,
         &queue,
-        bg_desc_for(organic_bg(theme::Arrangement::Finds, 156.0)),
+        bg_desc_for(organic_bg(156.0)),
         600,
         400,
         0.0,
@@ -696,7 +698,7 @@ fn finds_density_zero_is_exactly_the_flat_ground() {
 }
 
 /// LAW: the open navy ground stays generous. A crisp field must not creep
-/// toward the wall-to-wall coverage the rounded masses draw (which is exactly
+/// toward the wall-to-wall coverage a soft blob field draws (which is exactly
 /// what reads as camouflage), nor thin out into an isolated constellation.
 #[test]
 fn finds_leaves_a_generous_open_ground() {
@@ -773,7 +775,7 @@ fn finds_edges_stay_antialiased_and_crisp_at_1x_and_2x() {
     };
     let _g = crate::testlock::serial();
     for (density, scale, w, h) in [(1u32, 156.0f32, 1200u32, 800u32), (2, 312.0, 2400, 1600)] {
-        let bg = organic_bg(theme::Arrangement::Finds, scale);
+        let bg = organic_bg(scale);
         let pixels = render_bg(&device, &queue, bg_desc_for(bg), w, h, 0.0, 0.0, 0.0);
         let (crossings, hard, mean) = edge_stats(&pixels, w, h);
         assert!(
@@ -795,82 +797,47 @@ fn finds_edges_stay_antialiased_and_crisp_at_1x_and_2x() {
 
 // --- The roster, and everything the arrangement must NOT touch --------------
 
-/// LAW (no-wildcard): item 191 shipped the crisp arrangement — Bowerbird alone
-/// carries `Finds` now, `Masses` rides on as dormant reusable infrastructure
-/// (no world's literal), and every ground without a profile still reports the
-/// inert scalar, so no other world's upload changes shape.
-#[test]
-fn organic_arrangement_roster_is_bowerbird_finds_only_and_the_profile_slot_stays_inert() {
-    for t in theme::THEMES {
-        let arrangement = match t.background {
-            theme::Background::Gradient { .. } => None,
-            theme::Background::Dots { .. } => None,
-            theme::Background::Pinstripe { .. } => None,
-            theme::Background::Stripes { .. } => None,
-            theme::Background::Lava { .. } => None,
-            theme::Background::Bands { .. } => None,
-            theme::Background::Waves { .. } => None,
-            theme::Background::Zigzag { .. } => None,
-            theme::Background::Organic { arrangement, .. } => Some(arrangement),
-            theme::Background::Deckle { .. } => None,
-            theme::Background::WarpedGrid { .. } => None,
-        };
-        assert_eq!(
-            arrangement,
-            (t.name == "Bowerbird").then_some(theme::Arrangement::Finds),
-            "{}: the crisp arrangement is not shipped where item 191 put it",
-            t.name
-        );
-        assert_eq!(
-            t.background.arrangement(),
-            arrangement,
-            "{}: the arrangement accessor disagrees with the literal",
-            t.name
-        );
-    }
-    assert_eq!(theme::Arrangement::Masses.mode(), 0.0);
-    assert_eq!(theme::Arrangement::Finds.mode(), 1.0);
-}
-
-/// LAW: the ambient gates belong to the GROUND, not to the arrangement. Both
-/// arrangements report the same `is_organic` / `has_ambient_tick`, so the whole
-/// freeze truth table already pinned by
+/// LAW: the ambient gates belong to the GROUND, and the gate is read off the
+/// ground's own identity rather than off any dial it carries — which is what
+/// keeps the whole freeze truth table already pinned by
 /// `theme::tests::bowerbird_organic_schedules_zero_frames_under_every_freeze_
 /// condition` (Reduce Motion, `ambient_motion = false`, focus lost, paused) and
-/// the real-pixel Reduce Motion proof in `bowerbird_breathe_item244` apply to
-/// either one unchanged. A revival that quietly armed a second clock, or that
-/// dropped out of the shared one, would show up right here.
+/// the real-pixel Reduce Motion proof in `bowerbird_breathe_item244` applicable
+/// to the field at any authored cell. This law used to sweep the two
+/// arrangements to make that point; with one arrangement left it sweeps the
+/// authored SCALE instead, which is the dial the ground still has — a revival
+/// that quietly armed a second clock, or that dropped out of the shared one,
+/// still shows up right here.
 #[test]
-fn both_arrangements_ride_the_one_shared_ambient_gate() {
-    for arrangement in [theme::Arrangement::Masses, theme::Arrangement::Finds] {
+fn the_organic_ground_rides_the_one_shared_ambient_gate() {
+    for scale_px in [96.0, 156.0, 195.0, 320.0] {
         let mut world = theme::BOWERBIRD;
-        world.background = organic_bg(arrangement, 156.0);
+        world.background = organic_bg(scale_px);
         assert!(
             world.background.is_organic(),
-            "{arrangement:?}: the ground must stay Organic to the renderer"
+            "{scale_px}: the ground must stay Organic to the renderer"
         );
         assert!(
             world.has_ambient_tick(),
-            "{arrangement:?}: the ground must stay enrolled in the ONE shared ambient tick"
+            "{scale_px}: the ground must stay enrolled in the ONE shared ambient tick"
         );
         assert!(
             !world.has_ambient_motion(),
-            "{arrangement:?}: the ground must not claim a lava world's motion budget"
+            "{scale_px}: the ground must not claim a lava world's motion budget"
         );
     }
 }
 
-/// LAW: every ground's `profile` slot carries exactly its own theme-owned
-/// dial (Deckle's `Weave`, Organic's `Arrangement`), or the inert `0.0` for a
-/// ground with none — checked at the packing seam every ground shares, never
-/// at one world's literal. Before item 191 shipped `Finds`, this doubled as
-/// "every Organic-ground world carries the dormant `Masses`"; that held only
-/// because no world had picked `Finds` yet, a coincidence of the roster
-/// rather than a property of the packing seam, so it is not asserted here any
-/// more (`organic_arrangement_roster_is_bowerbird_finds_only_and_the_profile_slot_stays_inert`
-/// is the law that pins the roster itself).
+/// LAW: every ground's `profile` slot carries exactly its own theme-owned dial
+/// (Deckle's `Weave` is the only one left), or the inert `0.0` for a ground
+/// with none — checked at the packing seam every ground shares, never at one
+/// world's literal. Organic is now in the second class: its arrangement dial
+/// collapsed to a single arm and went, so the slot it used to ride must read
+/// INERT for every organic world. That is asserted here rather than assumed,
+/// because a leftover non-zero would reach the shader as a mode selector on a
+/// ground that no longer has modes.
 #[test]
-fn the_arrangement_rides_only_organics_own_param_slot() {
+fn the_profile_slot_carries_only_a_grounds_own_dial() {
     for t in theme::THEMES {
         let desc = bg_desc_for(t.background);
         assert_eq!(
@@ -879,26 +846,21 @@ fn the_arrangement_rides_only_organics_own_param_slot() {
             "{}: the profile slot must carry this ground's own dial",
             t.name
         );
+        if t.background.is_organic() {
+            assert_eq!(
+                desc.profile, 0.0,
+                "{}: Organic has no profile dial any more — its slot must be inert",
+                t.name
+            );
+        }
     }
-    let finds = bg_desc_for(organic_bg(theme::Arrangement::Finds, 156.0));
-    let masses = bg_desc_for(organic_bg(theme::Arrangement::Masses, 156.0));
-    assert_eq!(finds.profile, 1.0);
-    assert_eq!(masses.profile, 0.0);
-    assert_eq!(
-        (
-            finds.period_px,
-            finds.density,
-            finds.angle,
-            finds.amplitude_px
-        ),
-        (
-            masses.period_px,
-            masses.density,
-            masses.angle,
-            masses.amplitude_px
-        ),
-        "the arrangement must be the ONLY difference between the two organic uploads"
-    );
+    for scale_px in [96.0, 156.0, 320.0] {
+        let desc = bg_desc_for(organic_bg(scale_px));
+        assert_eq!(
+            desc.profile, 0.0,
+            "{scale_px}: the organic upload must carry no arrangement scalar"
+        );
+    }
 }
 
 /// LAW (grep lockstep): the host-side mirrors this file's arithmetic depends on
@@ -935,7 +897,14 @@ fn the_finds_shader_still_reads_its_mirrored_constants() {
         );
     }
     assert!(
-        src.contains("let s = max(g.params.x, select(32.0, FINDS_MIN_SCALE_PX, finds));"),
-        "the arrangement's own cell floor is no longer enforced by the shader"
+        src.contains("let s = max(g.params.x, FINDS_MIN_SCALE_PX);"),
+        "the field's own cell floor is no longer enforced by the shader"
+    );
+    // The arrangement selector is GONE, not merely unused: a revived
+    // `params.z` branch inside `organic_rgb` would silently give this ground a
+    // second mode again, and the host packs `0.0` into that slot now.
+    assert!(
+        !src.contains("FINDS_MIN_SCALE_PX, finds"),
+        "the retired arrangement selector is back in `organic_rgb`"
     );
 }

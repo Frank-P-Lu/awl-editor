@@ -76,9 +76,7 @@ pub use derive::{
     set_active_by_name, surface_selected,
 };
 pub use diagonal::DiagonalDirection;
-#[allow(unused_imports)]
-// DeckleAnchor is public theme data; production literals use ground directly.
-pub use ground::{Arrangement, Background, DeckleAnchor, LavaEdge};
+pub use ground::Background;
 // ITEM 186 — the coordinate-space vocabulary every authored ground quantity
 // is classified in (`ground_space` holds the table; `Background`'s own
 // accessors are inherent, so they need no import).

@@ -2,7 +2,7 @@
 //! must stay aligned. Ticks run only for active lava worlds; reduced motion and
 //! headless capture use fixed phases for determinism.
 
-use crate::theme::{Background, LavaEdge, Srgb};
+use crate::theme::{Background, Srgb};
 use std::sync::OnceLock;
 
 // --- CADENCE / PHASE constants ------------------------------------------------
@@ -576,23 +576,25 @@ pub fn lava_phase_for(stored: f32, reduced: bool, env: Option<f32>) -> f32 {
 // background yet, this is the only way to render the lamp (it forces a
 // `Background::Lava` over whatever world is active, at a FIXED phase), so a
 // gallery capture can be produced for the human eyeball step. Format:
-//   AWL_LAVA=<palette>:<phase>[:<edge>][:<dither>]
+//   AWL_LAVA=<palette>:<phase>[:<dither>]
 //   <palette> = warm | deepsea            (the probe's tuned, legibility-checked palettes)
 //   <phase>   = a float (the frozen composition, e.g. 0.0 / 0.35)
-//   <edge>    = hard | glow               (optional; default glow — the probe's agent pick)
 //   <dither>  = dither                    (optional; the coarse Bayer print-grain)
-// e.g. AWL_LAVA=deepsea:0.35:glow:dither
+// e.g. AWL_LAVA=deepsea:0.35:dither
+//
+// The spec once carried an `<edge>` token too (`hard` | `glow`). Every lava
+// world picked the glow, so the treatment stopped being a choice and the token
+// went with the dial — an unrecognised token is REJECTED rather than ignored,
+// so a stale `AWL_LAVA=warm:0.0:glow` fails loudly instead of quietly meaning
+// something it no longer says.
 
 fn parse_spec(raw: &str) -> Option<(Background, f32)> {
     let mut parts = raw.split(':');
     let palette = parts.next()?;
     let phase: f32 = parts.next()?.parse().ok()?;
-    let mut edge = LavaEdge::Glow;
     let mut dithered = false;
     for tok in parts {
         match tok {
-            "hard" => edge = LavaEdge::Hard,
-            "glow" => edge = LavaEdge::Glow,
             "dither" | "dithered" => dithered = true,
             "" => {}
             _ => return None,
@@ -606,13 +608,12 @@ fn parse_spec(raw: &str) -> Option<(Background, f32)> {
         "deepsea" => crate::theme::MANGROVE.background,
         _ => return None,
     };
-    let (ground, blob_lo, blob_hi, _, _) = source.lava_params()?;
+    let (ground, blob_lo, blob_hi, _) = source.lava_params()?;
     Some((
         Background::Lava {
             ground,
             blob_lo,
             blob_hi,
-            edge,
             dithered,
         },
         phase,
@@ -696,8 +697,10 @@ struct Globals {
     /// mask while the rest of both margins keep the lamp. MUST match
     /// `shaders/lava.wgsl`'s `gutter` gate + [`gutter_corner_dist_outside`].
     gutter: u32,
-    /// `[col_left_px, col_right_px, gap_px, mask_mode]` — `mask_mode` from
-    /// [`LavaEdge::mask_mode`] (1.0 hard, 2.0 glow).
+    /// `[col_left_px, col_right_px, gap_px, _]` — the `w` slot is reserved
+    /// padding (a `vec4` is the uniform address space's alignment), written
+    /// `0.0`. It carried a mask-mode selector while the lamp had two edge
+    /// treatments; the edge-glow is now the lamp's own behaviour.
     margin: [f32; 4],
     /// `[phase, 0, 0, 0]` — phase in cycles.
     anim: [f32; 4],
@@ -857,10 +860,10 @@ impl LavaPipeline {
         gutter_rect: Option<[f32; 4]>,
         frost_seeds: &[[f32; 4]],
         frost_params: [f32; 3],
-        params: Option<(Srgb, Srgb, Srgb, LavaEdge, bool)>,
+        params: Option<(Srgb, Srgb, Srgb, bool)>,
         phase: f32,
     ) {
-        let (ground, blob_lo, blob_hi, edge, dithered) = match params {
+        let (ground, blob_lo, blob_hi, dithered) = match params {
             Some(p) => p,
             None => {
                 self.active = false;
@@ -879,7 +882,7 @@ impl LavaPipeline {
             dither: dithered as u32,
             rail: rail_carved as u32,
             gutter: gutter_rect.is_some() as u32,
-            margin: [col_left, col_left + col_w, MARGIN_GAP_PX, edge.mask_mode()],
+            margin: [col_left, col_left + col_w, MARGIN_GAP_PX, 0.0],
             anim: [phase, LAVA_HORIZONTAL_SWAY, 0.0, 0.0],
             ground: srgb_u8_to_linear(ground),
             blob_lo: srgb_u8_to_linear(blob_lo),

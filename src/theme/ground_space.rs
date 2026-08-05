@@ -7,12 +7,12 @@
 //! it. `Background::authored_quantities` below is the table; a no-wildcard
 //! match makes a new ground state its answer rather than inherit one.
 
-use super::ground::{Arrangement, Background, Tunnel, Weave};
+use super::ground::{Background, Tunnel, Weave};
 
 mod tables;
 use tables::{
-    BANDS, DECKLE_FIBRES, DECKLE_STRATA, DOTS, LAVA, ORGANIC_FINDS, ORGANIC_MASSES, PINSTRIPE,
-    STRIPES, WARPED_GRID, WAVES, ZIGZAG,
+    BANDS, DECKLE_FIBRES, DECKLE_STRATA, DOTS, LAVA, ORGANIC_FINDS, PINSTRIPE, STRIPES,
+    WARPED_GRID, WAVES, ZIGZAG,
 };
 
 /// Which coordinate space one authored ground quantity lives in.
@@ -127,13 +127,10 @@ impl Background {
             Background::Bands { .. } => BANDS,
             Background::Waves { .. } => WAVES,
             Background::Zigzag { .. } => ZIGZAG,
-            Background::Organic { arrangement, .. } => match arrangement {
-                Arrangement::Masses => ORGANIC_MASSES,
-                Arrangement::Finds => ORGANIC_FINDS,
-            },
-            Background::Deckle { weave, anchor, .. } => match (weave, anchor) {
-                (Weave::Strata, _) => DECKLE_STRATA,
-                (Weave::Fibres, _) => DECKLE_FIBRES,
+            Background::Organic { .. } => ORGANIC_FINDS,
+            Background::Deckle { weave, .. } => match weave {
+                Weave::Strata => DECKLE_STRATA,
+                Weave::Fibres => DECKLE_FIBRES,
             },
             // Every tunnel profile authors the same quantities in the same
             // spaces; the non-shipping arms change framing or travel direction.

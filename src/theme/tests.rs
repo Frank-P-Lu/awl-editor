@@ -540,23 +540,21 @@ fn exactly_firetail_and_mangrove_ship_lava() {
             t.name
         );
     }
-    // Firetail: WARM, undithered, Glow edge; ground == its own base_100 (seamless).
+    // Firetail: WARM, undithered; ground == its own base_100 (seamless).
     let f = set_active_by_name("Firetail").unwrap();
-    let (fg, _flo, _fhi, fe, fd) = f.background.lava_params().unwrap();
+    let (fg, _flo, _fhi, fd) = f.background.lava_params().unwrap();
     assert_eq!(
         fg, f.base_100,
         "Firetail lava ground == base_100 (seamless margin↔page)"
     );
-    assert_eq!(fe, ground::LavaEdge::Glow, "Firetail default edge is Glow");
     assert!(!fd, "Firetail is the SMOOTH warm lamp (undithered)");
-    // Mangrove: COOL deepsea, DITHERED, Glow edge; ground == its own base_100.
+    // Mangrove: COOL deepsea, DITHERED; ground == its own base_100.
     let m = set_active_by_name("Mangrove").unwrap();
-    let (mg, _mlo, _mhi, me, md) = m.background.lava_params().unwrap();
+    let (mg, _mlo, _mhi, md) = m.background.lava_params().unwrap();
     assert_eq!(
         mg, m.base_100,
         "Mangrove lava ground == base_100 (seamless margin↔page)"
     );
-    assert_eq!(me, ground::LavaEdge::Glow, "Mangrove default edge is Glow");
     assert!(md, "Mangrove is the DITHERED cool lamp (print-grain)");
     set_active(DEFAULT_THEME);
 }
@@ -593,7 +591,7 @@ fn lava_worlds_keep_figure_ground_at_the_worst_animation_phase() {
             .sqrt()
     }
     for t in THEMES.iter().filter(|t| t.background.is_lava()) {
-        let (ground, blob_lo, blob_hi, _edge, _dith) = t.background.lava_params().unwrap();
+        let (ground, blob_lo, blob_hi, _dith) = t.background.lava_params().unwrap();
         assert_eq!(
             ground, t.base_100,
             "{}: lava ground must be base_100",
@@ -675,7 +673,7 @@ fn lava_blob_hues_stay_clear_of_the_amber_caret() {
         d.min(360.0 - d)
     }
     for t in THEMES.iter().filter(|t| t.background.is_lava()) {
-        let (_ground, blob_lo, blob_hi, _edge, _dith) = t.background.lava_params().unwrap();
+        let (_ground, blob_lo, blob_hi, _dith) = t.background.lava_params().unwrap();
         let (ph, _ps, _pl) = t.primary.to_hsl();
         for (label, blob) in [("blob_lo", blob_lo), ("blob_hi", blob_hi)] {
             let (bh, bs, _bl) = blob.to_hsl();
@@ -1367,7 +1365,7 @@ fn firetail_is_oxblood_wine_and_ember_not_potoroo_rust_or_bombora_violet() {
         "Firetail base_100 must stay deep oxblood-charcoal, got h={base_h:.1}° s={base_s:.2} l={base_l:.2}"
     );
 
-    let (_ground, lo, hi, edge, dithered) = FIRETAIL.background.lava_params().unwrap();
+    let (_ground, lo, hi, dithered) = FIRETAIL.background.lava_params().unwrap();
     for (label, c) in [("blob_lo", lo), ("blob_hi", hi)] {
         let h = c.to_hsl().0;
         assert!(
@@ -1391,11 +1389,6 @@ fn firetail_is_oxblood_wine_and_ember_not_potoroo_rust_or_bombora_violet() {
     assert!(
         redmean(FIRETAIL.primary, FIRETAIL.base_100) >= 300.0,
         "Firetail ember caret must remain immediately visible over the ground"
-    );
-    assert_eq!(
-        edge,
-        ground::LavaEdge::Glow,
-        "Firetail keeps its authored glow"
     );
     assert!(
         !dithered,
@@ -1617,8 +1610,11 @@ fn every_pair_of_worlds_clears_the_roster_wide_distinctness_floor() {
 /// The `Background::Lava` DATA accessors (exercised via a literal, since no world
 /// ships it yet): it degrades to a FLAT margin ground (`from == to == ground`,
 /// shader 0) that the lava overlay overdraws, names itself `"lava"`, is the ONLY
-/// `is_lava()` variant, and surfaces its `(ground, blob_lo, blob_hi, edge,
-/// dithered)` params. Plus the `LavaEdge` mask-mode / name contract.
+/// `is_lava()` variant, and surfaces its `(ground, blob_lo, blob_hi, dithered)`
+/// params. The `LavaEdge` mask-mode / name contract that used to close this law
+/// is DELETED rather than reduced: the dial collapsed to one arm, so the
+/// selector it named no longer exists to have a contract, and asserting the
+/// surviving name against itself would be green forever.
 #[test]
 fn lava_background_accessors_are_a_flat_ground_plus_metaball_params() {
     let ground = Srgb::rgb(0x11, 0x27, 0x23);
@@ -1628,7 +1624,6 @@ fn lava_background_accessors_are_a_flat_ground_plus_metaball_params() {
         ground,
         blob_lo: lo,
         blob_hi: hi,
-        edge: ground::LavaEdge::Glow,
         dithered: true,
     };
     // Degrades to a FLAT ground of the lava `ground`, shader 0 (no margin marks).
@@ -1638,7 +1633,7 @@ fn lava_background_accessors_are_a_flat_ground_plus_metaball_params() {
     assert_eq!(bg.tint(), ground);
     assert!(
         !bg.edge(),
-        "the Dots proximity flag is unrelated to LavaEdge"
+        "the Dots proximity flag is unrelated to the lava ground"
     );
     assert_eq!(bg.as_str(), "lava");
     // The one is_lava variant + its params.
@@ -1651,10 +1646,7 @@ fn lava_background_accessors_are_a_flat_ground_plus_metaball_params() {
         }
         .is_lava()
     );
-    assert_eq!(
-        bg.lava_params(),
-        Some((ground, lo, hi, ground::LavaEdge::Glow, true))
-    );
+    assert_eq!(bg.lava_params(), Some((ground, lo, hi, true)));
     assert_eq!(
         Background::Gradient {
             from: ground,
@@ -1664,11 +1656,6 @@ fn lava_background_accessors_are_a_flat_ground_plus_metaball_params() {
         .lava_params(),
         None
     );
-    // LavaEdge contract (the shader mask-mode selector + sidecar names).
-    assert_eq!(ground::LavaEdge::Hard.mask_mode(), 1.0);
-    assert_eq!(ground::LavaEdge::Glow.mask_mode(), 2.0);
-    assert_eq!(ground::LavaEdge::Hard.as_str(), "hard");
-    assert_eq!(ground::LavaEdge::Glow.as_str(), "glow");
 }
 
 /// The JetBrains-Mono world (Mangrove) reports that font — the second bundled
@@ -3061,7 +3048,7 @@ fn stipple_placard_density_clears_the_legibility_floor_over_its_own_ground() {
         );
         // The lava arm: the ONLY moving ground a stipple placard can sit
         // over. Its brightest reachable pixel must not swallow the mark.
-        if let Some((_, _, blob_hi, _, _)) = t.background.lava_params() {
+        if let Some((_, _, blob_hi, _)) = t.background.lava_params() {
             let worst = rel_lum(blob_hi);
             assert!(
                 (mean - worst).abs() >= 0.05,
@@ -3762,7 +3749,7 @@ fn wcag_contrast(a: Srgb, b: Srgb) -> f32 {
 ///     above 1:1 (true invisibility).
 ///
 ///     CAVEAT (the Fable item 65 adjustment round): `base_100` is NOT the fold
-///     tail's real drawn ground on Mangrove/Firetail — `LavaEdge::Glow`'s own
+///     tail's real drawn ground on Mangrove/Firetail — the lamp's edge-glow
 ///     "soft light-spill under the column" lifts the WHOLE writing column, not
 ///     only the margin edge (a screenshot pixel probe found the real rendered
 ///     ground far brighter than `base_100`, e.g. Mangrove `(0x49,0x6D,0x68)` vs

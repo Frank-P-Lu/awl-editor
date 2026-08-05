@@ -626,7 +626,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/198` (`/199` timeline, `/200` held)
+## The sidecar JSON — schema `awl-capture/199` (`/200` timeline, `/201` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
@@ -823,7 +823,13 @@ theme-owned profile `"strata"`/`"fibres"`, `/189`); `page.background`'s
 `organic` arm gaining `arrangement` (item 176 — the ground's own theme-owned
 profile, `/190`; item 191 swapped Bowerbird's own literal to `"finds"`, the
 crisp three-object collected-treasure field — `"masses"`, the original rounded
-cut-paper field, rides on as reusable infrastructure carried by no world);
+cut-paper field, rode on as reusable infrastructure carried by no world).
+**Both of those keys, and `lava`'s `edge`, are GONE as of `/199`** — each named
+a dial that had collapsed to one arm, so the key reported a constant; the
+grounds themselves are unchanged and every world's PNG is byte-identical
+across that bump. Note the asymmetry with `/198`'s own predecessor: a key
+REMOVAL is a shape change because a reader keying on it breaks, while merely
+narrowing a value space is not;
 `overlay.workspace` + the `overlay.diff_focus` → `overlay.detail_focus` rename
 (item 114's summoned workspace, `/191`): `overlay.workspace` is `true` when the
 summoned surface is drawn as a WORKSPACE — it takes the viewport, carries a
@@ -1476,7 +1482,7 @@ world.)
 | `spellcheck`   | GLOBAL spell-check on/off; default `true`. `false` silences every squiggle (prose and scoped code strings/comments alike) and makes the spell-suggest picker a no-op. Set via `--config` (`spellcheck = false`) or the "Toggle Spellcheck" palette command |
 | `date_format`  | INSERT DATE (schema `/178`): `{ format, example }` — the active `crate::dateformat::DateFormat`'s persisted slug (`"ddmmyy"`/`"mmddyy"`/`"iso"`/`"yyyymmdd"`/`"dmonthyyyy"`; default `"ddmmyy"`) and that format rendered against the FIXED placeholder civil date (2009-03-07 — a headless capture has no clock, so "today" is always this same date). Set via `--config` (`date_format = "iso"`) or the Settings menu's "Date format" cycling row. `example` for the default is `"07/03/09"` |
 | `text_origin`  | top-left pixel of the first glyph row (`left` = the page column left, centered in page mode; `16.0` edge-to-edge) |
-| `page`         | PAGE MODE: `on` (centered column vs edge-to-edge), `measure` (column width in chars), `class` (schema `/98`: `"prose"`/`"code"` — which sticky measure, `page_width_prose`/`page_width_code`, is in effect for this document; see `crate::page::PageClass`), `column.{left,width}` (px), `background` (the active world's margin shader — a tagged `{kind, ...}` object, e.g. `{kind:"gradient", from, to, dir}`, `{kind:"dots", from, to, dir, tint, edge}`, `{kind:"bands", tones:[c0,c1,c2], angle}` (item 69, Gumtree), `{kind:"waves", tones:[c0,c1,c2]}` (item 69, Bombora), or `{kind:"deckle", ground, layer, deckle, weave, period_px, wander_px, density, static}` (item 158, Paperbark — `weave` is the theme-owned profile, `"strata"` today, `"fibres"` reserved), or `{kind:"organic", tones:[c0,c1,c2], arrangement, scale_px, density, phase}` (Bowerbird — `arrangement` is that ground's theme-owned profile, `"finds"` today since item 191, `"masses"` retired to reusable infrastructure carried by no world), or `{kind:"warped-grid", ground, minor, major, tunnel, spacing_px, density, forward_cells}` (items 132/194, Kite — `tunnel` is `"fixed"`; `"page-scaled"`, `"margin-placed"`, and `"reversed"` are mutation arms)) |
+| `page`         | PAGE MODE: `on` (centered column vs edge-to-edge), `measure` (column width in chars), `class` (schema `/98`: `"prose"`/`"code"` — which sticky measure, `page_width_prose`/`page_width_code`, is in effect for this document; see `crate::page::PageClass`), `column.{left,width}` (px), `background` (the active world's margin shader — a tagged `{kind, ...}` object, e.g. `{kind:"gradient", from, to, dir}`, `{kind:"dots", from, to, dir, tint, edge}`, `{kind:"bands", tones:[c0,c1,c2], angle}` (item 69, Gumtree), `{kind:"waves", tones:[c0,c1,c2]}` (item 69, Bombora), or `{kind:"deckle", ground, layer, deckle, weave, period_px, wander_px, density, static}` (item 158, Paperbark — `weave` is the theme-owned profile, `"strata"` on Paperbark and `"fibres"` on Galah; the `anchor` key was removed in `/199` when that dial collapsed to its viewport arm), or `{kind:"organic", tones:[c0,c1,c2], scale_px, density, phase}` (Bowerbird — the `arrangement` key was removed in `/199` for the same reason; the ground draws the crisp collected-treasure field and nothing else), or `{kind:"warped-grid", ground, minor, major, tunnel, spacing_px, density, forward_cells}` (items 132/194, Kite — `tunnel` is `"fixed"`; `"page-scaled"`, `"margin-placed"`, and `"reversed"` are mutation arms)) |
 | `focus`        | FOCUS MODE: `mode` (`off`/`paragraph`/`sentence`) + `active_start`/`active_end` (char offsets of the full-ink unit, `null` when off) |
 | `wysiwyg`      | WYSIWYG conceal: `{ on, concealed }`. `on` mirrors the sticky `wysiwyg` config pref (default `true`). `concealed` is `[start_byte, end_byte, "kind"]` ranges the renderer drew transparent THIS frame — `"heading"`/`"emphasis"`/`"code"`/`"highlight"` (LINE-scoped: revealed only on the caret's own line OR a line the active selection touches) or `"fence"`/`"frontmatter"` (BLOCK-scoped: revealed only with the caret anywhere inside the block, or the selection touching any line inside it — a frontmatter block reuses the `fence` rule verbatim, see schema `/92`; selection reveal, 2026-07-22, no schema bump — see `render::spans::wysiwyg_reveals`). `"table"` (schema `/163`-ish, see the `tables` narrative above) NEVER leaves `concealed` in place — a selected/caret-touched table row instead swaps to the `xray` float mechanism; `tables[].revealed` and the render-only `xray` state are the ones to check for a table. Empty when `on` is false or nothing is concealed this frame |
 | `doc_lang`     | i18n round (schema `/92`): the document's own frontmatter `lang:` tag (`"ja"`/`"zh-Hans"`/`"zh-Hant"`/`"ko"`/`"en"`), or `null` for an untagged/non-markdown document |

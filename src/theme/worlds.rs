@@ -3,7 +3,7 @@ use super::cjk::{
     CJK_ZH_HANS_KLEE, CJK_ZH_HANS_SANS, CJK_ZH_HANS_SERIF, CJK_ZH_HANT,
 };
 use super::color::Srgb;
-use super::ground::{Arrangement, Background, DeckleAnchor, LavaEdge, Tunnel, Weave};
+use super::ground::{Background, Tunnel, Weave};
 use super::model::{
     AmbientStyle, Backdrop, CardAnchor, CardShape, CardTexture, CaretBlockStyle, ChipVariant,
     ChromeFace, DecorativeWash, Elevation, FacetStyle, FoldAfford, Frost, HighlightTexture,
@@ -468,7 +468,6 @@ pub const BOWERBIRD: Theme = Theme {
             Srgb::rgb(0x13, 0x1D, 0x33),
             Srgb::rgb(0x1F, 0x2C, 0x49),
         ],
-        arrangement: Arrangement::Finds, // item 191: was Masses (item 176 preview)
         scale_px: 195.0,
         density: 0.46,
     },
@@ -569,7 +568,6 @@ pub const MANGROVE: Theme = Theme {
         ground: Srgb::rgb(0x11, 0x27, 0x23),
         blob_lo: Srgb::rgb(0x17, 0x23, 0x2B),
         blob_hi: Srgb::rgb(0x22, 0x3C, 0x4F),
-        edge: LavaEdge::Glow,
         dithered: true,
     },
     font: "JetBrains Mono",
@@ -625,13 +623,12 @@ pub const GALAH: Theme = Theme {
     primary_content: Srgb::rgb(0xFB, 0xEA, 0xEE),
     error: Srgb::rgb(0xC0, 0x39, 0x2B),
     selection: Srgb::rgba(0x9A, 0x6B, 0x86, 0x52),
-    // Sparse plumage in Galah's mauve ladder; the anchor is inert for Fibres.
+    // Sparse plumage in Galah's mauve ladder.
     background: Background::Deckle {
         ground: Srgb::rgb(0xF8, 0xE0, 0xE6),
         layer: Srgb::rgb(0xF1, 0xCF, 0xD9),
         deckle: Srgb::rgb(0xA9, 0x92, 0x98),
         weave: Weave::Fibres,
-        anchor: DeckleAnchor::Viewport,
         period_px: 64.0,
         wander_px: 8.0,
         density: 0.10,
@@ -868,7 +865,6 @@ pub const FIRETAIL: Theme = Theme {
         ground: Srgb::rgb(0x17, 0x09, 0x0C),
         blob_lo: Srgb::rgb(0x24, 0x0C, 0x14),
         blob_hi: Srgb::rgb(0x52, 0x18, 0x2C),
-        edge: LavaEdge::Glow,
         dithered: false,
     },
     font: "Monaspace Xenon",
@@ -1002,7 +998,6 @@ pub const PAPERBARK: Theme = Theme {
         layer: Srgb::rgb(0xD8, 0xB7, 0x7A),
         deckle: Srgb::rgb(0x9F, 0x69, 0x37),
         weave: Weave::Strata,
-        anchor: DeckleAnchor::Viewport,
         period_px: 47.0,
         wander_px: 6.5,
         density: 0.20,

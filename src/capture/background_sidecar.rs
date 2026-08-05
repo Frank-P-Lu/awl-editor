@@ -57,15 +57,13 @@ fn rich_background_json(
             ground,
             blob_lo,
             blob_hi,
-            edge,
             dithered,
         } => format!(
             concat!("{{ \"kind\": \"lava\", \"ground\": {}, \"blob_lo\": {}, \"blob_hi\": {}, ",
-                "\"edge\": \"{}\", \"dithered\": {}, \"phase\": {} }}"),
+                "\"dithered\": {}, \"phase\": {} }}"),
             hex(ground),
             hex(blob_lo),
             hex(blob_hi),
-            edge.as_str(),
             dithered,
             lava_phase
         ), Background::Bands { tones, angle } => format!(
@@ -104,20 +102,20 @@ fn rich_background_json(
             angle,
             density,
             banded
-        ), Background::Organic { tones, arrangement, scale_px, density } => format!(
+        ), Background::Organic { tones, scale_px, density } => format!(
             concat!(
                 "{{\"kind\":\"organic\",\"tones\":[{},{},{}],",
-                "\"arrangement\":\"{}\",\"scale_px\":{},\"density\":{},\"phase\":{}}}"
+                "\"scale_px\":{},\"density\":{},\"phase\":{}}}"
             ),
-            hex(tones[0]), hex(tones[1]), hex(tones[2]), arrangement.as_str(),
+            hex(tones[0]), hex(tones[1]), hex(tones[2]),
             scale_px, density, lava_phase
         ), Background::Deckle {
-            ground, layer, deckle, weave, anchor, period_px, wander_px, density
+            ground, layer, deckle, weave, period_px, wander_px, density
         } => format!(
             concat!("{{\"kind\":\"deckle\",\"ground\":{},\"layer\":{},",
-                "\"deckle\":{},\"weave\":\"{}\",\"anchor\":\"{}\",\"period_px\":{},",
+                "\"deckle\":{},\"weave\":\"{}\",\"period_px\":{},",
                 "\"wander_px\":{},\"density\":{},\"static\":true}}"),
-            hex(ground), hex(layer), hex(deckle), weave.as_str(), anchor.as_str(),
+            hex(ground), hex(layer), hex(deckle), weave.as_str(),
             period_px, wander_px, density
         ), Background::WarpedGrid {
             ground, minor, major, tunnel, spacing_px, density

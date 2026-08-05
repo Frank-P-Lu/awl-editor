@@ -165,12 +165,11 @@ impl TextPipeline {
         let params =
             self.effective_background()
                 .lava_params()
-                .map(|(ground, lo, hi, edge, dithered)| {
+                .map(|(ground, lo, hi, dithered)| {
                     (
                         ground,
                         lo,
                         hi,
-                        edge,
                         crate::lava::dither_for_blur(dithered, self.backdrop_blur()),
                     )
                 });

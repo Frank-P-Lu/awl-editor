@@ -38,7 +38,7 @@ use super::backgrounds_item69::{bg_desc_for, headless_dq, render_bg_scaled};
 use super::backgrounds_item89::margins;
 use super::backgrounds_item158::{MarginStats, margin_stats};
 use crate::background::BgDesc;
-use crate::theme::{self, Background, DeckleAnchor, Weave};
+use crate::theme::{self, Background, Weave};
 
 fn paperbark_bg() -> Background {
     theme::PAPERBARK.background
@@ -54,7 +54,6 @@ fn pre_201_dial() -> Background {
             layer,
             deckle,
             weave,
-            anchor,
             density,
             ..
         } => Background::Deckle {
@@ -62,7 +61,6 @@ fn pre_201_dial() -> Background {
             layer,
             deckle,
             weave,
-            anchor,
             period_px: 94.0,
             wander_px: 13.0,
             density,
@@ -284,7 +282,6 @@ fn deckle_high_contrast() -> Background {
         layer: theme::Srgb::rgb(0xF4, 0xF2, 0xEC),
         deckle: theme::Srgb::rgb(0x88, 0x86, 0x82),
         weave: Weave::Strata,
-        anchor: DeckleAnchor::Viewport,
         period_px: theme::DECKLE_MAX_PERIOD_PX,
         wander_px: theme::DECKLE_MAX_PERIOD_PX * 0.1383,
         density: 1.0,
