@@ -251,8 +251,9 @@ mod tests {
     /// - `fs/serialization_law.rs` reads the bare system temp root with
     ///   `fs::active().is_dir(..)` — nothing is ever created there.
     /// - `main/run.rs` is `--soak-gpu`, LIVE production code (not a test).
-    /// - `main/tests.rs` and `probe.rs` each build ONE loose FILE path (a PNG /
-    ///   log file, never a directory) directly under the OS temp root.
+    /// - `main/tests/caret_mode.rs`, `main/tests/visual_motion.rs`, and
+    ///   `probe.rs` each build loose FILE paths (a PNG / log file, never a
+    ///   directory) directly under the OS temp root.
     /// - `render/benchsuite/scenarios.rs` is `--bench-suite`, LIVE dev-tool
     ///   code (not a test), and only READS the bare temp root as a placeholder.
     /// - `daemon.rs` builds ONE loose `.sock` FILE path per test, cleaned via
@@ -260,7 +261,8 @@ mod tests {
     const UNWRAPPED_ALLOWLIST: &[&str] = &[
         "fs/serialization_law.rs",
         "main/run.rs",
-        "main/tests.rs",
+        "main/tests/caret_mode.rs",
+        "main/tests/visual_motion.rs",
         "probe.rs",
         "render/benchsuite/scenarios.rs",
         // `--bench-a11y` only READS `temp_dir()` as an App root; it creates no

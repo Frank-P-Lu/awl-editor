@@ -32,7 +32,7 @@ pub(crate) use capture_fold::CaptureSubject;
 use capture_fold::comparison_preview_for;
 pub(crate) use capture_fold::{fold_capture_state, overlay_capture_info};
 pub(crate) use location::{launch_windowed, project_info, resolve_root, resolve_workspace};
-// The launch-precedence law's own unit tests (`main/tests.rs`) drive it directly;
+// The launch-precedence law's own unit tests (`main/tests/launch_context.rs`) drive it directly;
 // production reaches it only through `launch_windowed`, in its own module.
 #[cfg(test)]
 pub(crate) use location::resolve_launch_context;

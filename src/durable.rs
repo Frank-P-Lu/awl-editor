@@ -395,7 +395,7 @@ mod tests {
     //     themselves.
     //   src/app/tests/buffers.rs, src/app/tests/lifecycle.rs,
     //   src/app/daemon.rs, src/buffers.rs, src/daemon.rs,
-    //   src/history/tests.rs, src/index.rs, src/main/tests.rs (26 combined)
+    //   src/history/tests.rs, src/index.rs, src/main/tests/*.rs (26 combined)
     //     — every one of these is INSIDE a `#[cfg(test)]` module, seeding a
     //     real temp-dir fixture file directly (never a durable app store) or
     //     (in `history/tests.rs`) deliberately planting garbage to exercise
@@ -446,7 +446,15 @@ mod tests {
             // Switch-project-then-Goto law adds two more: the launch and
             // accepted roots' marker files for its real-`capture_screenshot`
             // fixture tree.
-            ("main/tests.rs", 21),
+            // `main/tests.rs` split into `main/tests/<subject>.rs` (item 274);
+            // these seven subject files carry the same 21 sites, unmoved.
+            ("main/tests/buffer_switching.rs", 8),
+            ("main/tests/capture_scenarios.rs", 4),
+            ("main/tests/headless_safety.rs", 1),
+            ("main/tests/launch_context.rs", 2),
+            ("main/tests/page_measure.rs", 2),
+            ("main/tests/replay_warnings.rs", 2),
+            ("main/tests/visual_motion.rs", 2),
             // The storyboard runner's `trace.json` write (`write_trace`): a
             // HARNESS DELIVERABLE, not app state — a storyboard run's active
             // backend IS the hermetic sandbox, so routing this through

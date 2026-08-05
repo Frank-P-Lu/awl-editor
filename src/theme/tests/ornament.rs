@@ -1,0 +1,255 @@
+use super::super::*;
+
+/// Every world's [`Theme::ornament_face`] is exactly one of the THREE bundled
+/// ornament faces — no world ships an unregistered / typo'd family that would
+/// tofu the section-break fleuron. (The font-DB half — that each face actually
+/// COVERS its world's glyphs — is `render::tests::cjk::
+/// ornament_glyphs_resolve_in_each_worlds_assigned_face`, which needs a built
+/// `FontSystem`.) Also pins `ORNAMENT_MARKS == render::SYMBOL_FAMILY`, the one
+/// coupling `theme.rs` states as data rather than importing.
+#[test]
+fn every_world_ornament_face_is_a_registered_ornament_face() {
+    assert_eq!(
+        ORNAMENT_MARKS,
+        crate::render::SYMBOL_FAMILY,
+        "the geometric worlds' ornament face IS the merged marks face"
+    );
+    for t in THEMES.iter() {
+        assert!(
+            matches!(
+                t.ornament_face,
+                ORNAMENT_GARAMOND | ORNAMENT_JUNICODE | ORNAMENT_MARKS
+            ),
+            "{} has an unrecognized ornament_face {:?}",
+            t.name,
+            t.ornament_face
+        );
+        // The design-table contract: THREE DISTINCT symbols per world (dash /
+        // star / underscore), so a break's ornament tracks the syntax the author
+        // typed instead of collapsing to one shared mark. (The font-DB half —
+        // that each glyph actually resolves in `ornament_face` — is the render
+        // test `ornament_glyphs_resolve_in_each_worlds_assigned_face`.)
+        let (d, s, u) = (t.ornaments.dash, t.ornaments.star, t.ornaments.underscore);
+        assert!(
+            d != s && s != u && d != u,
+            "{} ornament trio is not three distinct glyphs: dash={:?} star={:?} underscore={:?}",
+            t.name,
+            d,
+            s,
+            u
+        );
+    }
+}
+
+/// NEVER-DRIFT law: every world ships an [`Theme::ornament_scale`], and it is
+/// exactly one of the three named tier constants — a world can't silently drift to
+/// a bare literal that neither reader (`md_line_scale` / `prepare_ornaments`) would
+/// then keep in lockstep. Also pins the three tier VALUES (the taste defaults) and
+/// a sample world per tier, keyed to the ornament's CHARACTER.
+#[test]
+fn every_world_has_an_ornament_scale() {
+    // The three tiers are the settled taste defaults.
+    assert_eq!(ORNAMENT_SCALE_ORNATE, 2.2, "ornate tier is 2.2");
+    assert_eq!(ORNAMENT_SCALE_FLEURON, 1.8, "fleuron tier is 1.8");
+    assert_eq!(ORNAMENT_SCALE_GEOMETRIC, 1.5, "geometric tier is 1.5");
+    assert!(
+        std::hint::black_box(ORNAMENT_SCALE_ORNATE) > ORNAMENT_SCALE_FLEURON
+            && ORNAMENT_SCALE_FLEURON > ORNAMENT_SCALE_GEOMETRIC,
+        "the tiers descend ornate > fleuron > geometric"
+    );
+
+    // Every world's scale IS one of the three tiers — no stray literal.
+    for t in THEMES.iter() {
+        assert!(
+            matches!(
+                t.ornament_scale,
+                ORNAMENT_SCALE_ORNATE | ORNAMENT_SCALE_FLEURON | ORNAMENT_SCALE_GEOMETRIC
+            ),
+            "{} has an off-tier ornament_scale {}",
+            t.name,
+            t.ornament_scale
+        );
+    }
+
+    // One sample per tier (the spec's pinned assignments).
+    let by = |name: &str| set_active_by_name(name).unwrap().ornament_scale;
+    let _t = crate::testlock::serial();
+    assert_eq!(by("Mopoke"), 2.2, "Mopoke (Junicode flowers) is ornate 2.2");
+    assert_eq!(
+        by("Bombora"),
+        1.8,
+        "Bombora (Garamond fleurons) is fleuron 1.8"
+    );
+    assert_eq!(
+        by("Currawong"),
+        1.5,
+        "Currawong (geometric marks) is geometric 1.5"
+    );
+    set_active(DEFAULT_THEME);
+}
+
+/// NEVER-DRIFT law (per-world LIST BULLETS): every world ships a three-glyph
+/// [`Theme::bullets`] triple (item 15's per-level rotation) whose three levels
+/// are PAIRWISE DISTINCT, and a [`Theme::bullet_scale`] that is exactly one of
+/// the two named tier constants (no stray literal). The font-DB half — that
+/// each glyph actually resolves in the world's [`Theme::ornament_face`] — is
+/// `render::tests::markdown::bullet_glyphs_resolve_in_each_worlds_assigned_face`.
+/// Also pins the geometric worlds to the plain byte-identical
+/// [`BULLETS_PLAIN`]/[`BULLET_SCALE_PLAIN`] (restraint) and the manicule
+/// showpiece (Bombora's level-1 ☞, exclusive to that one level).
+#[test]
+fn every_world_has_a_bullet_pair() {
+    assert_eq!(
+        BULLETS_PLAIN,
+        ('•', '◦', '▪'),
+        "the plain bullet triple is • / ◦ / ▪"
+    );
+    assert_eq!(BULLET_SCALE_PLAIN, 1.0, "plain bullets keep body size");
+    assert!(
+        std::hint::black_box(BULLET_SCALE_ORNAMENT) > 0.0
+            && BULLET_SCALE_ORNAMENT < BULLET_SCALE_PLAIN,
+        "ornament bullets shape smaller than the plain body-size bullets"
+    );
+    for t in THEMES.iter() {
+        assert_ne!(
+            t.bullets.0, t.bullets.1,
+            "{}: levels 1/2 must be distinct glyphs, got {:?}",
+            t.name, t.bullets
+        );
+        assert_ne!(
+            t.bullets.1, t.bullets.2,
+            "{}: levels 2/3 must be distinct glyphs, got {:?}",
+            t.name, t.bullets
+        );
+        assert_ne!(
+            t.bullets.0, t.bullets.2,
+            "{}: levels 1/3 must be distinct glyphs, got {:?}",
+            t.name, t.bullets
+        );
+        // OFF-TIER EXCEPTION (theme-QA padding round, EXACTLY one now, pinned by
+        // NAME and VALUE — never a loose "any float passes" escape hatch): the
+        // shared [`BULLET_SCALE_ORNAMENT`] tier is a byproduct of two unrelated
+        // font metrics (see that constant's own doc) that paired badly on
+        // Bombora's manicule (too wide, touched the following text), so Bombora
+        // carries its OWN literal instead. (Mopoke once needed one too — its
+        // rosette stranded in a canyon under iA Writer Quattro S's wide duospaced
+        // advance — but queue item 30 moved Mopoke's body face to the proportional
+        // Bitter, whose narrower marker advance lets the rosette sit right on the
+        // shared tier; that exception retired with the old face.) Every other
+        // world stays on a shared tier.
+        // FACE-DERIVED, not a world list (item 158). The shared tier is scaled
+        // against the concealed `"- "` prefix's advance in the world's OWN BODY
+        // font, so the world that needs a tighter dial is decided by that face:
+        // EB Garamond's narrow punctuation advance crowds a half-body fleuron
+        // into the following text. It read as a Bombora quirk while Bombora was
+        // the only EB-Garamond-BODY world; the nineteenth world reproduced it
+        // exactly, which is what turned it into a rule.
+        let off_tier_exception = (t.font == ORNAMENT_GARAMOND).then_some(BULLET_SCALE_GARAMOND);
+        assert!(
+            matches!(t.bullet_scale, BULLET_SCALE_PLAIN | BULLET_SCALE_ORNAMENT)
+                || off_tier_exception == Some(t.bullet_scale),
+            "{}: off-tier bullet_scale {} (not a logged theme-QA padding exception)",
+            t.name,
+            t.bullet_scale
+        );
+        // The geometric/technical worlds keep the plain pair AND body size, in
+        // lockstep — a characterful pair at body size (or plain at half) would be
+        // a taste drift; a geometric world is byte-identical to before this round.
+        // The two off-tier exceptions are excluded from this lockstep check (their
+        // whole POINT is a bullet_scale that differs from the shared ORNAMENT tier
+        // while keeping a characterful, non-plain pair).
+        let geometric = t.ornament_face == ORNAMENT_MARKS;
+        if off_tier_exception.is_none() {
+            assert_eq!(
+                t.bullets == BULLETS_PLAIN,
+                t.bullet_scale == BULLET_SCALE_PLAIN,
+                "{}: plain-pair and plain-scale must agree (geometric restraint)",
+                t.name
+            );
+        }
+        if geometric {
+            assert_eq!(
+                t.bullets, BULLETS_PLAIN,
+                "{}: an Awl-Marks world keeps the plain • / ◦ (restraint)",
+                t.name
+            );
+        } else {
+            assert_ne!(
+                t.bullets, BULLETS_PLAIN,
+                "{}: an antique/literary serif world draws a characterful bullet",
+                t.name
+            );
+        }
+    }
+    // The TRIPLE CYCLES every THREE levels (item 15's per-level rotation) —
+    // depth 0/1 land exactly where the pre-item-15 two-level cycle put them,
+    // depth 2 is the new third rung, and depth 3 wraps back to level 1.
+    assert_eq!(TAWNY.bullet_for_depth(0), '•');
+    assert_eq!(TAWNY.bullet_for_depth(1), '◦');
+    assert_eq!(TAWNY.bullet_for_depth(2), '▪');
+    assert_eq!(TAWNY.bullet_for_depth(3), '•');
+    assert_eq!(TAWNY.bullet_for_depth(4), '◦');
+    assert_eq!(TAWNY.bullet_for_depth(5), '▪');
+    assert_eq!(BOMBORA.bullet_for_depth(0), '☞');
+    assert_eq!(BOMBORA.bullet_for_depth(1), '❧');
+    assert_eq!(BOMBORA.bullet_for_depth(2), '❦');
+    assert_eq!(BOMBORA.bullet_for_depth(3), '☞');
+    // The manicule showpiece: Bombora alone rides the antique pointing hand,
+    // at its top level (level 1) — NEVER at level 3 either (the rotation
+    // composes with, never dilutes, item 7's "one world, one level" pick).
+    assert_eq!(
+        BOMBORA.bullets.0, '☞',
+        "Bombora's level-1 bullet is the manicule"
+    );
+    assert!(
+        THEMES
+            .iter()
+            .filter(|t| t.bullets.0 == '☞' || t.bullets.1 == '☞' || t.bullets.2 == '☞')
+            .count()
+            == 1,
+        "exactly one world uses the manicule bullet, at exactly one level (a hand everywhere is loud)"
+    );
+}
+
+/// NEVER-DRIFT law (item 15, per-world LIST-ITEM INDENT): every world's
+/// [`Theme::list_indent_scale`] is exactly one of the two named tier constants
+/// (no stray literal, mirroring [`every_world_has_a_bullet_pair`]'s
+/// `bullet_scale` sweep) and — since the shared tier IS the shared bullet-scale
+/// tier's own roster — agrees with the world's own bullet PAIR: a plain `•`/
+/// `◦`/`▪` world stays at the byte-identical [`LIST_INDENT_SCALE_PLAIN`], an
+/// antique/literary-serif world (hedera/fleuron/manicule) steps up to
+/// [`LIST_INDENT_SCALE_WIDE`]. `>= 1.0` on every world: item 15 only ever
+/// WIDENS the typed indent, never narrows it below what the raw spaces alone
+/// already give.
+#[test]
+fn every_world_has_a_list_indent_scale() {
+    assert_eq!(
+        LIST_INDENT_SCALE_PLAIN, 1.0,
+        "the plain tier is byte-identical"
+    );
+    assert!(
+        std::hint::black_box(LIST_INDENT_SCALE_WIDE) > LIST_INDENT_SCALE_PLAIN,
+        "the wide tier must actually widen the indent"
+    );
+    for t in THEMES.iter() {
+        assert!(
+            t.list_indent_scale == LIST_INDENT_SCALE_PLAIN
+                || t.list_indent_scale == LIST_INDENT_SCALE_WIDE,
+            "{}: off-tier list_indent_scale {}",
+            t.name,
+            t.list_indent_scale
+        );
+        assert!(
+            t.list_indent_scale >= 1.0,
+            "{}: indent scale must never shrink the typed indent",
+            t.name
+        );
+        let plain_pair = t.bullets == BULLETS_PLAIN;
+        assert_eq!(
+            t.list_indent_scale == LIST_INDENT_SCALE_PLAIN,
+            plain_pair,
+            "{}: plain-pair and plain-indent-scale must agree",
+            t.name
+        );
+    }
+}
