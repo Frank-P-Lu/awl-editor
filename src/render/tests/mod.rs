@@ -112,6 +112,9 @@ mod rotated_location_item221;
 mod row_offset_item131;
 mod scroll_pos;
 mod selection_clip_law;
+/// The document-selection band's own legibility floor — the only ink-adjacent
+/// token in the theme model that used to carry none.
+mod selection_contrast_law;
 mod settings_row_reach_law;
 mod split_pane;
 mod stars;
