@@ -1778,3 +1778,9 @@ that adopts (A) or (B) without first explaining that 8× gap is guessing.**
   depends on which GPU ran it.
 - Local green is not evidence here. **`main`'s gate is Metal; the only arm that
   has ever seen this is CI's lavapipe.**
+
+**CLAIMED** — worktree `item-282-notice-plate-oracle`, branch
+`claude/item-282-notice-plate-oracle`. Dispatched at deep tier (Opus, high
+effort): the discriminating question is a render-oracle judgement, and this
+session has already lost rounds to briefs whose premise dissolved on first
+measurement.
