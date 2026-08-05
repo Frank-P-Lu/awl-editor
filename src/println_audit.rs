@@ -111,6 +111,13 @@ const EXPECTED: &[(&str, usize)] = &[
     // design; the raw frames are always retained, so each note is advisory.
     ("main/story.rs", 5),
     ("menu.rs", 1),
+    // The reference's REGENERATION TOOL: an `#[ignore]`d test that prints each
+    // generated section fenced by a delimiter `scripts/regen-reference.sh`
+    // splices on. Stdout is the whole mechanism (the repo's regeneration
+    // convention — a test prints, a human-run script writes; no test ever
+    // writes a repo file), and the module is `cfg(test)`, so none of these can
+    // reach a shipped binary.
+    ("reference/law.rs", 4),
     // `AWL_FONT` + `AWL_CHROME_FACE_FILE` dev-only env var override
     // diagnostics (the second is the Firetail-showcase round's audition-font
     // loader: a missing/unreadable candidate file prints a note and is
