@@ -660,6 +660,7 @@ fn selection_invert_never_rounds_corners_stay_rectangular() {
 #[test]
 fn wagtail_caret_on_a_heading_glyph_keeps_the_glyph_legible_inside_the_block() {
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let Some((device, queue, mut p)) = headless_dqp(300.0, 160.0) else {
         eprintln!(
             "skipping wagtail_caret_on_a_heading_glyph_keeps_the_glyph_legible_inside_the_block: no wgpu adapter"

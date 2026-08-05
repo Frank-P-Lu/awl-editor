@@ -222,6 +222,7 @@ fn preedit_rect_never_paints_past_the_comparison_viewport() {
 #[test]
 fn caret_parks_when_its_row_scrolls_past_the_comparison_viewport() {
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping caret_parks_when_its_row_scrolls_past_the_viewport: no adapter");
         return;

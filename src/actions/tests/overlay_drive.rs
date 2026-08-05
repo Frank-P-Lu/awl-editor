@@ -27,6 +27,7 @@ fn caret_picker_previews_on_move_accepts_on_enter_reverts_on_cancel() {
     // Serialize on the caret global lock (the preview mutates the process-global
     // caret mode, like the theme picker mutates the active theme).
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     crate::caret::set_mode(CaretMode::Block);
 
     // SUMMON the caret picker (remembering Block as original), then NAVIGATE down:
@@ -1452,6 +1453,7 @@ fn the_pointer_and_the_keyboard_reach_exactly_the_same_values() {
 #[test]
 fn every_range_row_steps_through_the_core_and_signals_its_own_key() {
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let range_rows: Vec<crate::settings::SettingRow> = crate::settings::visible_rows()
         .into_iter()
         .filter(|r| r.kind == crate::settings::SettingKind::Range)
@@ -1531,6 +1533,7 @@ fn every_range_row_steps_through_the_core_and_signals_its_own_key() {
 #[test]
 fn the_foot_hint_names_what_left_right_actually_do_on_every_settings_row() {
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let rows = settings_overlay().items.len();
     assert!(rows > 1, "the Settings corpus must have rows to sweep");
     let mut rails = 0usize;

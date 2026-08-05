@@ -20,6 +20,7 @@ fn theme_font_switch_reshapes_document() {
     // guard covers theme + page + caret together; pin BLOCK so the x reads stay
     // on the cursor cell across the world switches.
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping theme_font_switch_reshapes_document: no wgpu adapter");
@@ -92,6 +93,7 @@ fn theme_preview_color_split_defers_reshape_and_revert_leaves_none() {
     // font — proportional Quokka would latch Morph and shift the x one cell);
     // hold the caret lock and pin BLOCK so both pipelines anchor identically.
     let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);

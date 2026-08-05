@@ -896,6 +896,7 @@ fn caret_picker_absent_by_default_and_open_reflects_selected_style() {
         return;
     }
     let _pg = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _cg = crate::testlock::serial();
     let dir = ScratchDir::new(
         std::env::temp_dir().join(format!("awl_caretpick_test_{}", std::process::id())),
@@ -1061,6 +1062,7 @@ fn caret_picker_morph_preview_paints_the_silhouette() {
         return;
     }
     let _pg = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _cg = crate::testlock::serial();
     let dir = ScratchDir::new(
         std::env::temp_dir().join(format!("awl_caretpick_morph_test_{}", std::process::id())),

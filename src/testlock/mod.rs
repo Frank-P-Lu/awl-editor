@@ -33,9 +33,10 @@
 //! old `theme::TEST_LOCK` / `fs::TEST_LOCK` / `page::test_lock` /
 //! `about`+`lifetime` composite / caret / debug / hud / … family.
 //!
-//! WORLD, PAGE, SPELLCHECK and RENDER-OVERRIDE CLEANLINESS are checked, not
-//! silently imposed. An outermost [`serial`] guard snapshots those globals and
-//! fails (after restoring them) if its test window exits dirty. The restore is
+//! WORLD, PAGE, SPELLCHECK, RENDER-OVERRIDE and (see [`misc`]) every other
+//! sticky/summoned-card/picker global CLEANLINESS are checked, not silently
+//! imposed. An outermost [`serial`] guard snapshots those globals and fails
+//! (after restoring them) if its test window exits dirty. The restore is
 //! what makes a leak IMPOSSIBLE rather than merely reported: it also runs while
 //! the window is UNWINDING, where the report is suppressed, so a fixture that
 //! forces a knob and then panics — or returns early past its own reset — cannot
@@ -48,9 +49,22 @@
 //! window, so it cannot punch a hole through the law. `theme::set_active` and the
 //! page setters independently acquire this lock at their runtime writer choke
 //! points.
+//!
+//! [`misc`] is the WIDER half of that same audit: a command sweep
+//! that applies every `Action` fires every sticky `Toggle`, every summoned
+//! card's `CardFlag`, and the caret-mode override as a side effect, and a
+//! restore list sized to what the guard's exit audit happened to check —
+//! rather than to the sweep's actual reach — is exactly how `debug` leaked ON
+//! into the rest of the suite once already. [`misc::pins`], [`misc::leaked`]
+//! and [`misc::restore`] share one field list, so the audit and the restore
+//! can no longer drift apart the way the world/page/spellcheck fields above
+//! and a test's own hand-restore once did.
 
 use std::cell::Cell;
 use std::sync::{Mutex, MutexGuard};
+
+#[cfg(test)]
+pub(crate) mod misc;
 
 /// The one mutex behind [`serial`]. Never touched outside this module.
 static TEST_MUTEX: Mutex<()> = Mutex::new(());
@@ -74,6 +88,8 @@ pub(crate) struct SerialGuard {
     spellcheck_at_entry: Option<bool>,
     #[cfg(test)]
     overrides_at_entry: Option<crate::render::overrides::OverridePins>,
+    #[cfg(test)]
+    misc_at_entry: Option<misc::MiscPins>,
 }
 
 impl Drop for SerialGuard {
@@ -134,6 +150,24 @@ impl Drop for SerialGuard {
                     }
                 }
             }
+            #[cfg(test)]
+            let mut misc_leak = None;
+            #[cfg(test)]
+            if let Some(before) = self.misc_at_entry.take() {
+                let after = misc::pins();
+                let leaked = misc::leaked(&before, &after);
+                if !leaked.is_empty() {
+                    // Restore before reporting, same reasoning as the render
+                    // overrides above: this arm runs on the UNWINDING path too,
+                    // so a fixture that flips a toggle (a full command sweep
+                    // fires EVERY one of them) and then dies cannot hand its
+                    // value to the next test in another file.
+                    misc::restore(&before);
+                    if !std::thread::panicking() {
+                        misc_leak = Some(leaked);
+                    }
+                }
+            }
             HELD.with(|h| h.set(false));
             if let Some((before, after)) = world_leak {
                 panic!(
@@ -160,6 +194,10 @@ impl Drop for SerialGuard {
             #[cfg(test)]
             if let Some(leaked) = override_leak {
                 panic!("test left render overrides dirty: {}", leaked.join("; "));
+            }
+            #[cfg(test)]
+            if let Some(leaked) = misc_leak {
+                panic!("test left misc globals dirty: {}", leaked.join("; "));
             }
         }
     }
@@ -196,6 +234,8 @@ fn acquire(check_world: bool) -> SerialGuard {
             spellcheck_at_entry: None,
             #[cfg(test)]
             overrides_at_entry: None,
+            #[cfg(test)]
+            misc_at_entry: None,
         };
     }
     let guard = TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
@@ -209,6 +249,8 @@ fn acquire(check_world: bool) -> SerialGuard {
         // doors, which assert the hold.
         #[cfg(test)]
         overrides_at_entry: check_world.then(crate::render::overrides::pins),
+        #[cfg(test)]
+        misc_at_entry: check_world.then(misc::pins),
     }
 }
 

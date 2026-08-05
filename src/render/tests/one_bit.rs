@@ -216,6 +216,7 @@ fn wagtail_multiline_selection_with_empty_line_reaches_invert_pipeline_entirely(
 #[test]
 fn wagtail_caret_uses_the_invert_pipeline_other_worlds_use_the_ordinary_block() {
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping wagtail_caret_uses_the_invert_pipeline_other_worlds_use_the_ordinary_block: no wgpu adapter"
@@ -273,6 +274,7 @@ fn wagtail_caret_uses_the_invert_pipeline_other_worlds_use_the_ordinary_block() 
 #[test]
 fn wagtail_morph_caret_falls_back_to_the_inverted_block_not_the_invisible_silhouette() {
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping wagtail_morph_caret_falls_back_to_the_inverted_block_not_the_invisible_silhouette: no wgpu adapter"

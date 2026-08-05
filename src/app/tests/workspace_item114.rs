@@ -427,6 +427,7 @@ fn every_setting_changes_and_persists_through_the_real_workspace_door() {
     let mem = seeded_fs();
     let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let _g = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _world = crate::theme::WorldPin::snapshot();
     // The sweep genuinely changes page mode and the page measure — that is what
     // it is for — so it restores them the way every other global-touching test

@@ -842,8 +842,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/picker_misc_smoke.rs"
 function = "every_catalog_command_dispatches_without_panicking"
-message = "this function has too many lines (122/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Item 116b: line moved only — the diff-panel CARD it was named for is retired, so the test's name and note now say `comparison`; the body is unchanged. Item 116c: line shifted +41 by the new restore/bare-Enter History tests added above it; this function's own body is unchanged."
+message = "this function has too many lines (123/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Item 116b: line moved only — the diff-panel CARD it was named for is retired, so the test's name and note now say `comparison`; the body is unchanged. Item 116c: line shifted +41 by the new restore/bare-Enter History tests added above it; this function's own body is unchanged. Crossed by one more line: the `testlock::misc::TogglesRestore` capture guard, added so this full-command-sweep test restores every process-global toggle a sweep can dirty, not only the subset it already named."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -977,8 +977,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/tests/caret_transition_item105.rs"
 function = "glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar"
-message = "this function has too many lines (115/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+message = "this function has too many lines (116/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Crossed by one more line: the `testlock::misc::TogglesRestore` capture guard, added so this test restores the process-global caret-mode override it forces, not only the concrete mode it happened to set."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1085,8 +1085,8 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/render/tests/outline.rs"
 function = "lava_frost_pills_follow_outline_visibility"
-message = "this function has too many lines (125/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
+message = "this function has too many lines (126/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged. Crossed by one more line: the `testlock::misc::TogglesRestore` capture guard, added so this test restores the outline flag it forces off, not just leaves it off for whatever runs next."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1191,8 +1191,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/render/tests/distinguishability.rs"
 function = "theme_preview_retint_regrounds_the_page_surface_on_every_world"
-message = "this function has too many lines (101/100)"
-reason = "Crossed the threshold by exactly one line, and that line is the `testlock::serial()` guard every test reaching the shared wgpu device now takes — the shared device is process-global state and an unguarded caller races every other test on it. The body is unchanged and this is not a decomposition signal; splitting a per-world sweep to buy back one counted line would be metric-only churn."
+message = "this function has too many lines (102/100)"
+reason = "Crossed the threshold by exactly one line, and that line is the `testlock::serial()` guard every test reaching the shared wgpu device now takes — the shared device is process-global state and an unguarded caller races every other test on it. The body is unchanged and this is not a decomposition signal; splitting a per-world sweep to buy back one counted line would be metric-only churn. Crossed by one more line since: the `testlock::misc::TogglesRestore` capture guard, added so this test restores the process-global caret-mode override it forces, not only the concrete mode it happened to set."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
