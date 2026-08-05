@@ -1111,7 +1111,7 @@ satisfy its Verify clause otherwise.**
 
 276. **A TEST'S RESTORE LIST GETS SIZED TO THE SERIAL GUARD'S COVERAGE, NOT TO ITS OWN REACH — and the guard's completeness is what makes the gap invisible.** ⚠️ **Found 2026-08-05 by item 260's merge-train rejection, on a leak of unknown age that nothing had ever been sensitive enough to notice.** **The instance, now fixed:** `src/mac_about/tests.rs`'s `exactly_about_requests_the_native_surface_through_the_shared_transition` **applies EVERY command's action**, so it fires every toggle in the roster as a side effect. It saved and restored exactly **three** globals — `page`, `measure`, `spellcheck` — and **those three are precisely the three `crate::testlock::serial()` audits on exit.** `debug` sits outside that audit, leaked **ON** into the rest of the suite, and renders a readout stack down the right margin, which silently changed what a margin pixel law measured (a pixel at luminance 0.72147 below the world's own `base_300` floor of 0.77417, in the full suite only). ⚠️ **THE MECHANISM IS THE POINT AND IT GENERALISES: a completeness check that covers a SUBSET teaches every author to restore that subset.** Everything the guard audited was restored; everything it did not audit was not. The guard was working exactly as designed and its design is what shaped the bug. **Build — census first, decide second.** **(1)** Enumerate every process-global toggle a test can flip (`debug`, `outline`, `nits`, `typewriter`, `menubar`, `page`, `measure`, `spellcheck`, and whatever else the roster carries — **derive this from the command roster rather than a hand list**, since the leak arrived through a command sweep). **(2)** Find every `cfg(test)` writer of one that does not restore it. ⚠️ **Expect more than one; item 260's was found by accident, not by search.** **(3)** Then decide the owner: either the guard's snapshot-and-restore widens to cover the full set — which makes the audit and the restore the same list by construction, and is the answer that stops this recurring — or each site restores its own and a law enforces that. **Recommend the first**, because the second reproduces exactly the failure mode above: it asks every future author to know a list nothing checks. ⚠️ **The guard already RESTORES what it snapshots on the unwinding path too, so widening it is an extension of an existing owner, not a new mechanism** — but measure the cost, because the guard is taken by every test and every `cfg(test)` global reader. **Verify:** a law that flips every enumerated toggle inside a guarded scope, drops the guard, and asserts every one is back; mutation-prove by removing one global from the restore set and watching it fail **by name**. **Do NOT close this by widening item 260's margin law** — that law is the instrument that found this and its threshold is load-bearing. **Routing:** production tier. **Found by the orchestrator's merge train 2026-08-05.**
 
-## 🔴 CI RED — TOP PRIORITY, BLOCKS ALL INTEGRATION
+## ✅ CI RED — REPAIRED (was: top priority, blocked all integration)
 
 **Run `https://github.com/Frank-P-Lu/awl-editor/actions/runs/30962987599`, first known bad commit `0cdec6dd`.** The previous run at `6805fe90` was green, so the regression is **item 260's merge** (`e38e699a` / `21774473`). 🟡 **IN PROGRESS — claude, branch `claude/ci-red-scroll-anchor`.**
 
@@ -1298,3 +1298,57 @@ rendered, and the lane flagged that rather than claiming it; (6) **the
 five-section structure was the lane's call**, not the user's — the item said the
 split was worth a human eye first, and re-sectioning is cheap since the marker
 pairs and `Section::ALL` are the only coupling.
+
+✅ **THE CI-RED REPAIR LANDED — merge `a632fb83`** (`92501f0b`). Full native
+receipt on that sha; code-health and web-smoke clean. **`main` is unblocked
+locally; CI's `linux` job is what confirms the axis.**
+
+🔴 **THE ORCHESTRATOR'S HYPOTHESIS WAS FALSIFIED BY MEASUREMENT — the fifth this
+wave, and again authored orchestrator-side.** The brief said item 260's
+`debug`-leak fix had unmasked a sub-pixel sensitivity. The lane forced `debug`
+and `outline` ON, OFF and both, rendered the failing cell, and got
+**byte-identical** card rect, `text_left` and `plate_x` in all four ambient
+states — **so no leaked toggle can have masked it.** It also confirmed 260's
+`worlds.rs` change is Magpie-only and cannot reach the Cassowary cell. **It then
+stopped chasing what flipped the two pixels between CI runs, on the correct
+ground that the defect did not need it** — attributing it to 260 was itself an
+unconfirmed hypothesis.
+
+✅ **THE REAL DEFECT: A MIS-CLASSIFIED BOUNDARY, NOT A TOLERANCE — and it had
+been wrong on every commit.** `split_row` cut an upright world's surface at
+`geom.text_left`, on the model that *"an upright world's rows start at the
+card's own text edge."* **A `Bars` row does not:** its plate starts 13px further
+left, on a scrim bleeding 2px further out again — measured on one scanline,
+background out to `x=678`, scrim ink at **679**, plate at **681**, cut at
+**692**. **Thirteen pixels of the LIST's own object had always been inside the
+strip called the SURFACE**, at all three canvases. Row 1's plate keeps the same
+left edge, top, height and radius across scroll; **only its WIDTH changes**,
+because a hugged plate follows its label and a long filename scrolled out —
+which is the row's content, which the law's own doc grants the list half.
+**Nothing moved.**
+
+✅ **WHY ONE BACKEND SAW IT, AND THE PREDICTION THAT CONFIRMS THE MODEL:**
+`selection.wgsl` uploads **centre + half-size**, and `sd_round_rect` recovers the
+left cap by cancellation — `164.83 − 166.0` wide against `42.5 − 43.6` narrow,
+the same analytic edge reached two ways, **~1e-5 apart in f32.** Only the cap's
+~1px antialiased band is exposed; interior pixels saturate and feel nothing.
+**That predicts the asymmetry the lane then verified: the SELECTED row, whose
+strip sits deep inside its own outward-grown plate, kept passing while row 1 did
+not.**
+
+✅ **NO TOLERANCE WAS WIDENED — `differing == 0` still stands**, verified in the
+diff before merging rather than taken on report. The cut now follows what the
+frame drew, via an ink probe, with `BAR_SCRIM_PAD`/`bar_scrim_rect` given one
+owner shared with the prepare. ⚠️ **And it refused the vacuity this repo kept
+finding all night:** where a row's ink leaves no exposed surface, the row reports
+**ungradeable** rather than collapsing to a `max(1.0)` sliver that would read
+green over nothing — bounded at one such row per cell, measured 11-or-12 of 12
+everywhere.
+
+⚠️ **LAVAPIPE IS NOT PROVED AND THE LANE SAID SO.** No lavapipe on this host, and
+it judged the container not worth item 232's measured cost **because the argument
+is backend-independent**: rasterisation is deterministic, so a same-backend diff
+across scroll positions can only come from differing inputs, and every quad now
+inside the strip has **bit-identical geometry at every scroll position.** **CI's
+`linux` job is the confirmation. Do not read the Metal green as evidence on that
+axis.**
