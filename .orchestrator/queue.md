@@ -1784,3 +1784,8 @@ that adopts (A) or (B) without first explaining that 8× gap is guessing.**
 effort): the discriminating question is a render-oracle judgement, and this
 session has already lost rounds to briefs whose premise dissolved on first
 measurement.
+
+**271 CLAIMED** — worktree `item-271-fourth-liststyle`, branch
+`claude/item-271-fourth-liststyle`. Deep tier (Opus, high) as the item routes.
+Runs in parallel with 282; the two touch different files, and 282 lands first
+because it is the gating red.
