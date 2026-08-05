@@ -421,9 +421,9 @@ impl TextPipeline {
         // corner for no scrim at all — never let that number be read as an
         // authored dial.
         let radius = match list_style {
-            theme::ListStyle::Bars => self
-                .metrics
-                .px(Logical(crate::render::effective_bar_config().radius.max(0.0))),
+            theme::ListStyle::Bars => self.metrics.px(Logical(
+                crate::render::effective_bar_config().radius.max(0.0),
+            )),
             theme::ListStyle::Diagonal(_) => self.metrics.px(DIAGONAL_SCRIM_CORNER),
             theme::ListStyle::Pane => 0.0,
         };

@@ -87,7 +87,11 @@ fn parse_list_style_force_grammar() {
     // Parametric radius:gap:grow — `list_style` is always just `Bars`; the
     // dials land on the independent `bar_config` parse.
     for s in ["bars:0:6:10", "bars:14.5:8:12"] {
-        assert_eq!(parse_list_style_force(s), Some(theme::ListStyle::Bars), "{s}");
+        assert_eq!(
+            parse_list_style_force(s),
+            Some(theme::ListStyle::Bars),
+            "{s}"
+        );
     }
     // Bare floats leave `extent`/`coverage` at `BarConfig::SHIPPED`'s own
     // values (`HugLabel`/`All`) — NOT `bars_config`'s `FullWidth` fixture

@@ -35,7 +35,9 @@ pub(crate) use parsers::{
     parse_overlay_density_force, parse_overlay_motion_force, parse_overlay_slant_force,
     parse_overlay_style_force,
 };
-use parsers::{parse_chrome_face_force, parse_pane_split_force, read_forced_knob, read_forced_knob_from};
+use parsers::{
+    parse_chrome_face_force, parse_pane_split_force, read_forced_knob, read_forced_knob_from,
+};
 
 // ---------------------------------------------------------------------------
 // THE CONSOLIDATED STRUCT
