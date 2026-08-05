@@ -279,13 +279,7 @@ mod tests {
     #[test]
     fn globals_toggle_and_open_close() {
         let _g = crate::testlock::serial();
-        // The default matches the platform: on for web/Linux, off for macOS — captured
-        // from the live global rather than assumed from `cfg!(target_os = "macos")`,
-        // because that macro reflects the HOST compiling this test, not the
-        // initializer's actual branch (which a local forcing edit, used to reproduce
-        // the Linux default on macOS hardware, can flip independently of the host);
-        // restoring to what was really there is correct either way.
-        let ambient = menu_bar_on();
+        let ambient = menu_bar_on(); // platform default; NOT `cfg!`, which reflects the host, not the initializer
         set_menu_bar_on(true);
         assert!(menu_bar_on());
         assert_eq!(toggle_open(2), Some(2));
