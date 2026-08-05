@@ -65,9 +65,9 @@ struct Globals {
     // shader 7's extra coverage multiplier `density`. Shader 9 (Deckle, item
     // 158) reads all four with its OWN meanings — lane pitch / wander
     // amplitude / density / weave; see `deckle_rgb`. Shader 8 (Organic) reads
-    // params.z as its own theme-owned ARRANGEMENT scalar (`theme::
-    // Arrangement`): `0.0` = the rounded MASSES field, `1.0` = the crisp
-    // three-object FINDS field; see `organic_rgb`. All four are 0 for
+    // x/y alone — it once read params.z as a theme-owned ARRANGEMENT scalar,
+    // but the ground draws ONE arrangement now and that slot is inert; see
+    // `organic_rgb`. All four are 0 for
     // every ground this round didn't touch, so those grounds take their
     // exact original code path. (Waves' item-87 drift is NOT here — it rides
     // the dedicated `drift` slot above.) Shader 10 (WarpedGrid, item 132) reads
@@ -422,8 +422,8 @@ fn tri_tone_mix(coord: f32, b1: f32, b2: f32, aa: f32) -> vec3<f32> {
 // panned: "objects deliberately placed and then left alone." The ground's one
 // remaining ambient input is the FINDS companion's own value breathe, below.
 //
-// --- FINDS: the COLLECTED-TREASURE arrangement (`theme::Arrangement::Finds`,
-// params.z >= 0.5). One cell draws one deliberately arranged collection of
+// --- FINDS: the COLLECTED-TREASURE arrangement, and the ONLY one this ground
+// draws. One cell draws one deliberately arranged collection of
 // THREE crisp objects — a large ANCHOR, a smaller COMPANION offset across its
 // edge, and a tiny CUT-OUT punched back to the open ground — mixed from
 // circles, squares and triangles. Scale hierarchy, offset, rotation, overlap
@@ -731,33 +731,24 @@ fn organic_finds_rgb(px: vec2<f32>, s: f32, d: f32) -> vec3<f32> {
     return mix(rgb, ink_b, cov_b * keep);
 }
 
-// 8: the ORGANIC ground, in either theme-owned arrangement (params.z). MASSES
-// (0.0) is cut-paper blobs: three differently-offset rounded cell fields make
-// large masses, islands, and droplets, and subtracting a small inner field
-// leaves occasional holes. FINDS (1.0) is the crisp collected-treasure field
-// above. ITEM 244 — the field is now entirely STATIC: a shape is a pure
-// function of its cell and nothing pans, morphs, spawns, or dissolves it. The
-// FINDS arm's one remaining ambient input is the companion's own per-element
-// value breathe (`organic_finds_rgb`'s own doc), which changes a drawn
-// object's TONE, never its position. `px` is LOGICAL (item 186), so `s` —
-// the authored cell — is a logical cell, and every fraction-of-a-cell
-// threshold in both arms follows it for free.
+// 8: the ORGANIC ground — the crisp collected-treasure FINDS field above, and
+// nothing else. It opened with a second arrangement, cut-paper MASSES (three
+// differently-offset rounded cell fields making large masses, islands and
+// droplets, with a small inner field subtracted to leave occasional holes),
+// selected by a `params.z` scalar. No world reached for it, so the arm, its
+// scalar and its dial enum went together — a shader branch serving zero worlds
+// is the same infrastructure smell as a one-arm enum, and deleting the enum
+// alone would have banked none of it. `params.z` is inert here now.
+// ITEM 244 — the field is entirely STATIC: a shape is a pure function of its
+// cell and nothing pans, morphs, spawns, or dissolves it. Its one remaining
+// ambient input is the companion's own per-element value breathe
+// (`organic_finds_rgb`'s own doc), which changes a drawn object's TONE, never
+// its position. `px` is LOGICAL (item 186), so `s` — the authored cell — is a
+// logical cell, and every fraction-of-a-cell threshold follows it for free.
 fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
-    let finds = g.params.z >= 0.5;
-    let s = max(g.params.x, select(32.0, FINDS_MIN_SCALE_PX, finds));
+    let s = max(g.params.x, FINDS_MIN_SCALE_PX);
     let d = clamp(g.params.y, 0.0, 1.0);
-    if (finds) {
-        return organic_finds_rgb(px, s, d);
-    }
-    let cell = floor(px / s);
-    let local = fract(px / s) - vec2<f32>(0.5);
-    let jitter = vec2<f32>(hash21(cell), hash21(cell + vec2<f32>(7.0, 3.0))) - vec2<f32>(0.5);
-    let mass = 1.0 - smoothstep(0.20, 0.42, length(local - jitter * 0.22));
-    let island = 1.0 - smoothstep(0.09, 0.22, length(local + jitter * 0.35));
-    let hole = 1.0 - smoothstep(0.045, 0.10, length(local - jitter * 0.52));
-    let tone = mix(g.c_from.rgb, g.c_pat.rgb, mass * d);
-    let with_island = mix(tone, g.c_to.rgb, island * d * 0.72);
-    return mix(with_island, g.c_from.rgb, hole * mass * 0.65);
+    return organic_finds_rgb(px, s, d);
 }
 
 // --- 9: DECKLE — THE HANDMADE-PAPER MATERIAL FIELD (item 158). ---
@@ -844,27 +835,21 @@ const DECKLE_MIN_PITCH_PX: f32 = 40.0;
 // The weave threshold `theme::Weave::mode` writes either side of.
 const DECKLE_WEAVE_FIBRES: f32 = 0.5;
 
-// Legacy mutation arm only: distance to the page edge is precisely the
-// border-decoration behaviour item 175 rejects. `deckle_strata` chooses the
-// stable viewport coordinate by default; this stays named so the pixel law can
-// restore the defect and prove it goes red.
-fn deckle_page_distance(px: vec2<f32>) -> f32 {
-    if (px.x > col_left_l() + col_w_l()) {
-        return px.x - (col_left_l() + col_w_l());
-    }
-    return col_left_l() - px.x;
-}
-
-// The Room/viewport owner: a page-width drag moves only the opaque mask above
-// this field. The viewport centre is stable under page-width dragging and under
-// the adaptive-column shift, so an exposed screen point cannot translate,
-// stretch, reseed, or reflow its paper contours.
+// The Room/viewport owner, and the ONLY one: a page-width drag moves only the
+// opaque mask above this field. The viewport centre is stable under page-width
+// dragging and under the adaptive-column shift, so an exposed screen point
+// cannot translate, stretch, reseed, or reflow its paper contours. Measuring
+// the distance from the PAGE EDGE instead is precisely the border-decoration
+// behaviour item 175 rejected; that arm is gone, and the wallpaper law now
+// states the property directly — the field is provably NOT invariant under the
+// displacement a page-anchored owner would have introduced — instead of
+// demonstrating it by keeping the rejected code alive to fail.
 fn deckle_viewport_distance(px: vec2<f32>) -> f32 {
     return abs(px.x - viewport_l().x * 0.5);
 }
 
 fn deckle_strata(px: vec2<f32>, pitch: f32, wander: f32, density: f32) -> vec3<f32> {
-    let d = select(deckle_viewport_distance(px), deckle_page_distance(px), g.params.w >= 1.5);
+    let d = deckle_viewport_distance(px);
     let torn = sin(px.y * DECKLE_WANDER_FREQ) * wander
         + sin(px.y * DECKLE_WANDER_FINE_FREQ + d * DECKLE_WANDER_SKEW)
             * wander * DECKLE_WANDER_FINE_FRAC;
@@ -907,7 +892,7 @@ fn deckle_rgb(px: vec2<f32>) -> vec3<f32> {
     let pitch = max(g.params.x, DECKLE_MIN_PITCH_PX);
     let wander = g.params.y;
     let density = g.params.z;
-    if (g.params.w >= DECKLE_WEAVE_FIBRES && g.params.w < 1.5) {
+    if (g.params.w >= DECKLE_WEAVE_FIBRES) {
         return deckle_fibres(px, pitch, wander, density);
     }
     return deckle_strata(px, pitch, wander, density);

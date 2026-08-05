@@ -206,7 +206,6 @@ fn flat_gradient_renders_byte_identical_pure_pixels_end_to_end() {
         density: 0.0,
         banded: false,
         profile: 0.0,
-        deckle_anchor: 0.0,
         tunnel: 0.0,
     };
     let pixels = render_background(&device, &queue, desc, 64, 128);
@@ -250,7 +249,6 @@ fn real_gradient_dither_stays_within_one_lsb_of_the_naive_value_and_is_actually_
         density: 0.0,
         banded: false,
         profile: 0.0,
-        deckle_anchor: 0.0,
         tunnel: 0.0,
     };
     let (w, h) = (48u32, 220u32);

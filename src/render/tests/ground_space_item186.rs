@@ -60,8 +60,10 @@ fn roster() -> Vec<Ground> {
         })
         .collect();
     // The dormant shapes: the profile arms a world adopts with one word
-    // (`Dots { edge: true }`, `Arrangement::Finds`, `Weave::Fibres`). Each is a
-    // distinct branch of the shader, so each is swept on its own.
+    // (`Dots { edge: true }`, `Weave::Fibres`). Each is a distinct branch of
+    // the shader, so each is swept on its own. Organic's own arrangement dial
+    // is NOT in this list any more — it collapsed to one arm, so the ground
+    // has no unadopted branch left to sweep and rides the roster entry alone.
     //
     // No whole ROSTER member is dormant any more — every `Background` variant
     // is worn by a live world, so each arrives above with that world's own
@@ -145,7 +147,6 @@ fn dormant_profile_arms() -> Vec<Ground> {
             label: "dormant:organic-finds",
             bg: Background::Organic {
                 tones,
-                arrangement: theme::Arrangement::Finds,
                 scale_px,
                 density,
             },
@@ -155,7 +156,6 @@ fn dormant_profile_arms() -> Vec<Ground> {
         ground,
         layer,
         deckle,
-        anchor,
         period_px,
         wander_px,
         density,
@@ -169,7 +169,6 @@ fn dormant_profile_arms() -> Vec<Ground> {
                 layer,
                 deckle,
                 weave: theme::Weave::Fibres,
-                anchor,
                 period_px,
                 wander_px,
                 density,
@@ -468,7 +467,6 @@ fn finds_high_contrast() -> Background {
             theme::Srgb::rgb(0xF2, 0xF0, 0xEA),
             theme::Srgb::rgb(0x86, 0x84, 0x80),
         ],
-        arrangement: theme::Arrangement::Finds,
         scale_px: 156.0,
         density: 1.0,
     }

@@ -153,7 +153,7 @@ fn brightest_in(img: &image::RgbaImage, x0: u32, y0: u32, x1: u32, y1: u32) -> [
 }
 
 /// ITEM 65's FABLE ADJUSTMENT — THE NAMED REAL-GROUND CONTRAST FLOOR: on a
-/// `Background::Lava` world (Mangrove, Firetail), `LavaEdge::Glow`'s own "soft
+/// `Background::Lava` world (Mangrove, Firetail), the lamp's edge-glow "soft
 /// light-spill under the column" lifts the WHOLE writing column off flat
 /// `base_100` — so `theme::tests::fold_tail_ink_clears_the_readable_floor_
 /// and_stays_quieter_than_heading_ink`'s theoretical `faint`-vs-`base_100`

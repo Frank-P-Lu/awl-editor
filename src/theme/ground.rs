@@ -2,10 +2,19 @@
 //!
 //! Carved out of `theme/model.rs` when item 158's Deckle family pushed that
 //! file past its own size mark: the ground is a self-contained vocabulary (one
-//! enum, its two dial enums, the shader mirrors the laws read) with exactly one
+//! enum, its dial enums, the shader mirrors the laws read) with exactly one
 //! consumer shape — `render::background_desc` flattens it into a `BgDesc`, and
 //! the WGSL in `shaders/background.wgsl` draws whatever `shader_id` names.
 //! Nothing here knows a world's name; a world picks a ground in its own literal.
+//!
+//! A DIAL EARNS ITS ENUM BY CARRYING MORE THAN ONE ARM. The moment a profile
+//! dial's roster collapses to a single value, the enum, its shader-facing
+//! scalar, its shader branch and its `ground_space` table entry are machinery
+//! serving one answer — so the whole column goes, not merely the unused arm.
+//! [`Weave`] and [`Tunnel`] are the dials that still carry a real choice.
+//! Organic's arrangement, Lava's edge treatment and Deckle's coordinate owner
+//! were each such a dial and are now properties of the ground itself, spelled
+//! once in the shader where a reader can see the only behaviour that ships.
 
 use super::color::Srgb;
 
@@ -94,15 +103,14 @@ pub enum Background {
         ground: Srgb,
         blob_lo: Srgb,
         blob_hi: Srgb,
-        edge: LavaEdge,
         dithered: bool,
     },
     Bands { tones: [Srgb; 3], angle: f32 },
     Waves { tones: [Srgb; 3] },
     Zigzag { from: Srgb, to: Srgb, dir: (f32, f32), tint: Srgb,
         period_px: f32, amplitude_px: f32, angle: f32, density: f32, banded: bool },
-    Organic { tones: [Srgb; 3], arrangement: Arrangement, scale_px: f32, density: f32 },
-    Deckle { ground: Srgb, layer: Srgb, deckle: Srgb, weave: Weave, anchor: DeckleAnchor,
+    Organic { tones: [Srgb; 3], scale_px: f32, density: f32 },
+    Deckle { ground: Srgb, layer: Srgb, deckle: Srgb, weave: Weave,
         period_px: f32, wander_px: f32, density: f32 },
     WarpedGrid { ground: Srgb, minor: Srgb, major: Srgb, tunnel: Tunnel,
         spacing_px: f32, density: f32 },
@@ -140,82 +148,11 @@ impl Tunnel {
     }
 }
 
-/// ORGANIC's one theme-owned profile dial. Both arrangements read the SAME
-/// three tones, the same cell scale, the same density and the same whole-field
-/// drift; they differ only in what one cell draws, and nothing in the renderer
-/// ever asks which world is active — a world adopts an arrangement by writing
-/// this word in its own literal, exactly as [`Weave`] and `LavaEdge` are
-/// chosen.
-///
-/// * [`Arrangement::Masses`] — rounded cut-paper blobs: large masses, small
-///   islands and occasional subtracted holes. Bowerbird's ORIGINAL ground;
-///   retired from any world's literal by item 191's swap to `Finds`, but kept
-///   as reusable infrastructure (the "ships until one wants it" shape) —
-///   `Weave::Fibres`/`Bands`/`Dots { edge: true }`'s own precedent.
-/// * [`Arrangement::Finds`] — the crisp COLLECTED-TREASURE grammar: one large
-///   anchor, one smaller companion offset across its edge, and one tiny
-///   cut-out, drawn from circles/squares/triangles with every proportion
-///   seeded from the cell's own identity. Bowerbird's shipped ground since
-///   item 191 (approved by the user off item 176's dormant preview; item 191
-///   also enlarged the composition ~15%, opened the cell pitch separately,
-///   and bounded the dropout's largest contiguous void).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Arrangement {
-    Masses,
-    Finds,
-}
-
-impl Arrangement {
-    /// The scalar the WGSL `organic_rgb` branches on (`params.z`). MUST match
-    /// `shaders/background.wgsl`'s own threshold.
-    pub fn mode(self) -> f32 {
-        match self {
-            Self::Masses => 0.0,
-            Self::Finds => 1.0,
-        }
-    }
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Masses => "masses",
-            Self::Finds => "finds",
-        }
-    }
-}
-
-/// The coordinate owner for Deckle's `Strata` weave. The material belongs to
-/// the Room, not to a movable page edge: `Viewport` keeps every exposed screen
-/// point on the same handmade-paper field while a page-width drag merely masks
-/// or reveals it. `Page` exists only as the explicit legacy/mutation arm; it
-/// remains useful to prove the law can name the regression. `Fibres` is
-/// screen-coordinate already and deliberately ignores this dial.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DeckleAnchor {
-    Viewport,
-    Page,
-}
-
-impl DeckleAnchor {
-    pub fn mode(self) -> f32 {
-        match self {
-            Self::Viewport => 0.0,
-            Self::Page => 1.0,
-        }
-    }
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Viewport => "viewport",
-            Self::Page => "page",
-        }
-    }
-}
-
 /// DECKLE's one theme-owned profile dial (item 158). The handmade-paper field
 /// draws quasi-random contour lanes; `Weave` picks WHICH lanes, and nothing
 /// else in the renderer ever asks which world is active — a second world adopts
-/// a profile by writing this word in its own literal, exactly as `LavaEdge`
-/// and `CardTexture` are chosen.
+/// a profile by writing this word in its own literal, exactly as `Tunnel` and
+/// `CardTexture` are chosen.
 ///
 /// * [`Weave::Strata`] — lanes indexed on DISTANCE FROM THE PAGE COLUMN, so the
 ///   contours gather around the writing page and mirror across it; each lane is
@@ -244,27 +181,6 @@ impl Weave {
         match self {
             Weave::Strata => "strata",
             Weave::Fibres => "fibres",
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum LavaEdge {
-    Hard,
-    Glow,
-}
-
-impl LavaEdge {
-    pub fn mask_mode(self) -> f32 {
-        match self {
-            LavaEdge::Hard => 1.0,
-            LavaEdge::Glow => 2.0,
-        }
-    }
-    pub fn as_str(self) -> &'static str {
-        match self {
-            LavaEdge::Hard => "hard",
-            LavaEdge::Glow => "glow",
         }
     }
 }
@@ -412,30 +328,14 @@ impl Background {
         }
     }
     /// The ground's own theme-owned PROFILE dial, as the scalar its shader
-    /// branches on — Deckle's [`Weave`], Organic's [`Arrangement`]. `0.0` (the
-    /// INERT default) for every ground that has no profile AND for each
-    /// profile's own default member, so nothing else in the pipeline changes
-    /// shape. One slot: exactly one ground is ever active at a time, and each
-    /// reads it through its own `params` position.
+    /// branches on — Deckle's [`Weave`] is the only one left. `0.0` (the INERT
+    /// default) for every ground that has no profile AND for the profile's own
+    /// default member, so nothing else in the pipeline changes shape. One
+    /// slot: exactly one ground is ever active at a time, and each reads it
+    /// through its own `params` position.
     pub fn profile_mode(&self) -> f32 {
         match self {
             Background::Deckle { weave, .. } => weave.mode(),
-            Background::Organic { arrangement, .. } => arrangement.mode(),
-            _ => 0.0,
-        }
-    }
-    /// ORGANIC's authored arrangement, or `None` off that ground.
-    pub fn arrangement(&self) -> Option<Arrangement> {
-        match self {
-            Background::Organic { arrangement, .. } => Some(*arrangement),
-            _ => None,
-        }
-    }
-    /// Deckle's coordinate owner. Inert `0.0` off Deckle; Fibres deliberately
-    /// keeps its screen-space field regardless of an authored anchor.
-    pub fn deckle_anchor_mode(&self) -> f32 {
-        match self {
-            Background::Deckle { anchor, .. } => anchor.mode(),
             _ => 0.0,
         }
     }
@@ -483,15 +383,14 @@ impl Background {
     pub fn is_organic(&self) -> bool {
         matches!(self, Background::Organic { .. })
     }
-    pub fn lava_params(&self) -> Option<(Srgb, Srgb, Srgb, LavaEdge, bool)> {
+    pub fn lava_params(&self) -> Option<(Srgb, Srgb, Srgb, bool)> {
         match self {
             Background::Lava {
                 ground,
                 blob_lo,
                 blob_hi,
-                edge,
                 dithered,
-            } => Some((*ground, *blob_lo, *blob_hi, *edge, *dithered)),
+            } => Some((*ground, *blob_lo, *blob_hi, *dithered)),
             _ => None,
         }
     }

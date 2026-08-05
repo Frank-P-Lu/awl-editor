@@ -51,8 +51,6 @@ pub struct BgDesc {
     pub banded: bool,
     /// The ground's theme-owned profile dial (`Background::profile_mode`).
     pub profile: f32,
-    /// Deckle's stable-room coordinate owner; inert off that ground.
-    pub deckle_anchor: f32,
     /// WARPED GRID's tunnel-placement scalar; INERT `0.0` off that ground
     /// (`Background::tunnel_mode`), so no other world's upload changes shape.
     pub tunnel: f32,

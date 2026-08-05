@@ -44,9 +44,13 @@ struct Globals {
     // sides). MUST match `lava::gutter_corner_dist_outside` / `lava_mask_2d`.
     gutter: u32,
     // MARGINS-ONLY mask, packed as one vec4 (16-byte aligned per WGSL's
-    // uniform-address-space rules): [col_left_px, col_right_px, gap_px,
-    // mask_mode] — mask_mode 1.0 = hard (fade before the edge), 2.0 = edge-glow
-    // (hard + a faint tail under the edge). See `LavaEdge::mask_mode`.
+    // uniform-address-space rules): [col_left_px, col_right_px, gap_px, _].
+    // The `w` slot is RESERVED PADDING the host writes 0.0 into — it carried a
+    // mask-mode selector while the lamp had two edge treatments, and the hard
+    // (fade before the edge) arm was retired once every lava world had picked
+    // the edge-glow. The glow is the ground's own behaviour now, not a dial,
+    // so nothing branches on this component; a vec4 is the alignment the
+    // uniform address space demands regardless.
     margin: vec4<f32>,
     // Animation, packed: x = phase (one unit is one vertical bob; the complete
     // field loops after two because horizontal sway runs at half-frequency), yzw
@@ -223,15 +227,14 @@ fn seed_bump(p: vec2<f32>, seed: vec4<f32>) -> f32 {
 @fragment
 fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     let x = in.px.x;
-    let mode = g.margin.w;
     // `dist_outside`: positive in a lava-bearing margin, <= 0 inside a no-lava
     // zone. Ordinarily the one zone is the writing column (both edges via
     // max()). The `g.rail == 1u` full-carve branch (the OLD whole-left-margin
     // treatment) stays wired for the one-line data revert (`lava::
     // FROST_RAIL_DEFAULT` false) — under the shipped FROST default it is never
     // set, so a headed doc keeps BOTH margins alive and the frost pills below
-    // carry legibility. The lava is ALWAYS margins-only (ship), so `mode` is 1.0
-    // (hard) or 2.0 (glow) — never 0. `mask` = 0 at the zone edge, ramping to
+    // carry legibility. The lava is ALWAYS margins-only. `mask` = 0 at the
+    // zone edge, ramping to
     // full strength `gap` px further out into the margin, so the field fades
     // entirely OUTSIDE the zones and the page (and a carved rail) stays a clean
     // flat ground. MUST match `lava::rail_dist_outside`/`lava::lava_mask`.
@@ -250,10 +253,11 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     }
 
     // EDGE-GLOW: within the short bleed distance INSIDE the column, a faint,
-    // field-driven tail may show (glow mode only). `x - g.margin.x < GLOW_BLEED_PX`
-    // is TRUE only for the LEFT-edge tail (the RIGHT edge sits a full column-width
-    // away), so both margins' edge-glow read symmetrically.
-    let could_glow = mode > 1.5 && dist_outside < 0.0 && dist_outside > -GLOW_BLEED_PX;
+    // field-driven tail may show. `x - g.margin.x < GLOW_BLEED_PX` is TRUE only
+    // for the LEFT-edge tail (the RIGHT edge sits a full column-width away), so
+    // both margins' edge-glow read symmetrically. Every lava world glows; the
+    // treatment is unconditional rather than selected.
+    let could_glow = dist_outside < 0.0 && dist_outside > -GLOW_BLEED_PX;
 
     // Deep inside the column with no glow possible: the fragment is fully
     // TRANSPARENT so the flat base_100 page clear shows through untouched — both

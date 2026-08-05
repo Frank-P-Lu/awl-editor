@@ -97,7 +97,7 @@ reason = "The external-change check at focus return (+3, comment included). This
 
 [[file_size_mark]]
 file = "src/background.rs"
-lines = 288
+lines = 286
 reason = "The grouped per-frame AmbientUpload keeps the prepare call below the argument ceiling; Globals remains the uniform's single Rust mirror, including Kite's forward-travel scalar. The one construction site each pipeline family has now sits inside gpu_cache::render_pipeline's build closure — the seam that makes a GPU program once-per-process instead of once-per-instance, which is what the hosted-macOS gate wedged on. The growth is that closure's own indent (+1). Organic's field-translation drift is replaced by a companion breathe phase, one new Globals/AmbientUpload scalar each (+5)."
 
 [[file_size_mark]]
@@ -115,8 +115,8 @@ lines = 567
 
 [[file_size_mark]]
 file = "src/capture.rs"
-lines = 58
-reason = "One `/N` row in the schema ledger, which must move in the same commit as `SCHEMA_VERSION` (+1)."
+lines = 64
+reason = "One `/N` row in the schema ledger, which must move in the same commit as `SCHEMA_VERSION`. The `/199` row runs six lines because it records a key REMOVAL and why that is a shape change where its predecessor's value-space narrowing was not — the asymmetry is the reusable part, and a one-line row cannot carry it (+6)."
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
@@ -203,7 +203,7 @@ reason = "`undo_chord_label`: Undo has no palette command to resolve a label fro
 
 [[file_size_mark]]
 file = "src/lava.rs"
-lines = 947
+lines = 946
 reason = "The one construction site each pipeline family has now sits inside gpu_cache::render_pipeline's build closure — the seam that makes a GPU program once-per-process instead of once-per-instance, which is what the hosted-macOS gate wedged on. The growth is that closure's own indent (+1)."
 
 [[file_size_mark]]
@@ -272,7 +272,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2620
+lines = 2619
 reason = "+6: `CODE_LIGATURES_DEFAULT`, the const `CODE_LIGATURES_ON` is now constructed from, so the flag's fresh-install value has one owner the reference can read instead of a literal retyped into a doc; plus a test-gated `pub(crate) use spans::wysiwyg_reveals`, one named door to the reveal rule that avoids widening the `spans` module itself."
 
 [[file_size_mark]]
@@ -355,7 +355,7 @@ lines = 1465
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
-lines = 1339
+lines = 1338
 reason = "The affordance is part of the drawn gutter block, so it joins that block's own cache key (+3). Organic's ambient branch splits into two owners (drift for Waves, breathe phase for Organic) now that the deleted field-translation drift no longer shares one variable with the new companion breathe (+6)."
 
 [[file_size_mark]]
@@ -481,7 +481,7 @@ file = "src/theme/worlds.rs"
 # (1110 -> 1099) on top of the rebased tree. Item 132 added Kite and moved the
 # never-enrolled gallery audition out to theme/worlds_gallery.rs, so this file
 # holds only the shipped roster (1124 -> 1123).
-lines = 1131
+lines = 1126
 reason = "+6: item 221's Cassowary literal gains one `location_style: LocationStyle::RotatedRail,` field plus its own short comment — the same one-field-per-world-capability shape `icon_ground`/`icon_cursor` above already take, irreducible without a second implicit default path. Item 224 (+1): Magpie's literal gains the same one field, `location_style: LocationStyle::Raked,` — its location cue now reads along its own diagonal spine's rake instead of sitting upright beside it. +2: Magpie's ground moves from `Pinstripe` to `Bands`, whose shape is a three-element `tones` array plus one `angle` rather than four scalar fields — the two lines are the array's own delimiters, and flattening them would put three colours on one line against this file's every-field-on-its-own-line convention."
 
 [[clippy_exception]]

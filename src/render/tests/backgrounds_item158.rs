@@ -27,7 +27,7 @@
 use super::backgrounds_item69::{bg_desc_for, headless_dq, render_bg};
 use super::backgrounds_item89::{SWEEP, margins, mark_field};
 use super::{headless_dqp, view};
-use crate::theme::{self, Background, DeckleAnchor, Weave};
+use crate::theme::{self, Background, Weave};
 
 /// Per-pixel total-channel deviation from the mark-free pass that counts as
 /// real material. The differential oracle cancels the dither exactly, so this
@@ -56,66 +56,15 @@ fn with_weave(weave: Weave, period_px: f32, wander_px: f32) -> Background {
             ground,
             layer,
             deckle,
-            anchor,
             ..
         } => Background::Deckle {
             ground,
             layer,
             deckle,
             weave,
-            anchor,
             period_px,
             wander_px,
             density: 0.20,
-        },
-        _ => unreachable!("Paperbark ships Background::Deckle"),
-    }
-}
-
-fn with_anchor(anchor: DeckleAnchor) -> Background {
-    match paperbark_bg() {
-        Background::Deckle {
-            ground,
-            layer,
-            deckle,
-            weave,
-            period_px,
-            wander_px,
-            density,
-            ..
-        } => Background::Deckle {
-            ground,
-            layer,
-            deckle,
-            weave,
-            anchor,
-            period_px,
-            wander_px,
-            density,
-        },
-        _ => unreachable!("Paperbark ships Background::Deckle"),
-    }
-}
-
-fn with_weave_and_anchor(weave: Weave, anchor: DeckleAnchor) -> Background {
-    match paperbark_bg() {
-        Background::Deckle {
-            ground,
-            layer,
-            deckle,
-            period_px,
-            wander_px,
-            density,
-            ..
-        } => Background::Deckle {
-            ground,
-            layer,
-            deckle,
-            weave,
-            anchor,
-            period_px,
-            wander_px,
-            density,
         },
         _ => unreachable!("Paperbark ships Background::Deckle"),
     }
@@ -153,38 +102,25 @@ fn deckle_roster_assigns_paperbark_strata_and_galah_fibres_no_wildcard() {
     }
     // The weave is a THEME-OWNED scalar, and the inert default is what every
     // ground with NO profile dial reports — the shader's own `params.w`/`.z`
-    // slot never changes shape for a world with none. `profile_mode` is
-    // shared with Organic's own `Arrangement` dial (item 176/191), so
-    // Bowerbird's own non-inert value is expected here too, not a Deckle
-    // exception — it carries `Finds` (item 191), never `Weave`.
+    // slot never changes shape for a world with none. `Weave` is the LAST
+    // profile dial: Organic's own `Arrangement` collapsed to one arm and went,
+    // so Bowerbird now reports the inert value here like every other world and
+    // this sweep is Deckle's alone.
     for t in theme::THEMES {
         let want = match t.name {
             "Paperbark" => Weave::Strata.mode(),
             "Galah" => Weave::Fibres.mode(),
-            "Bowerbird" => theme::Arrangement::Finds.mode(),
             _ => 0.0,
         };
         assert_eq!(
             t.background.profile_mode(),
             want,
-            "{}: profile_mode is inert off both Deckle and Organic",
+            "{}: profile_mode is inert off Deckle",
             t.name
         );
     }
     assert_eq!(Weave::Strata.mode(), 0.0);
     assert_eq!(Weave::Fibres.mode(), 1.0);
-    for t in theme::THEMES {
-        let want = match t.name {
-            "Paperbark" | "Galah" => DeckleAnchor::Viewport.mode(),
-            _ => 0.0,
-        };
-        assert_eq!(
-            t.background.deckle_anchor_mode(),
-            want,
-            "{}: Deckle anchor is inert outside Deckle assignees",
-            t.name
-        );
-    }
 }
 
 /// THE PAGE STAYS FLAT AND OPAQUE. Not one pixel of material may enter the
@@ -471,9 +407,29 @@ fn deckle_strata_never_collapses_to_one_flat_tone_in_a_margin_that_can_hold_a_la
 
 /// THE WALLPAPER LAW (item 175): a page-width drag changes only the opaque page
 /// mask. Any screen point exposed before AND after the drag is the SAME fixed
-/// Room wallpaper pixel. The `Page` mutation arm restores the old near-edge
-/// sampling and must produce a named mismatch, proving this is not a vacuous
-/// byte-identity assertion over a wholly-covered region.
+/// Room wallpaper pixel.
+///
+/// NON-VACUITY, AND WHY IT NO LONGER NEEDS A WRONG ARM TO SHIP. A byte-identity
+/// assertion is worthless if the region it compares is small, or flat, or
+/// insensitive to the very displacement the defect would introduce. This law
+/// used to answer that by rendering a second, deliberately page-anchored
+/// coordinate owner and watching it move — a real proof, bought by keeping the
+/// rejected behaviour alive in the shipped shader forever. It is stated
+/// DIRECTLY instead now, which is strictly stronger:
+///
+///   * the exposed intersection must be SUBSTANTIAL (a quarter of the frame),
+///     so the comparison is not over a wholly-covered region; and
+///   * the field must NOT be INVARIANT under the exact translation a
+///     page-anchored owner would have applied. A page-anchored Strata measures
+///     `d = col_left - x` in the left margin, so moving the column by `shift`
+///     makes the post-drag field at `x` equal the pre-drag field at
+///     `x + shift`, EXACTLY (the tear profile rides `d` too, so it translates
+///     with it). Asserting the pre-drag field differs from itself at that
+///     offset is therefore the same claim the mutation arm used to
+///     demonstrate — a page-anchored implementation cannot satisfy both
+///     bullets at once — and it can never go quietly vacuous, because it is a
+///     positive assertion about real rendered pixels rather than the absence
+///     of one.
 #[test]
 fn deckle_strata_stays_fixed_at_exposed_viewport_points_across_page_width_drags() {
     let _g = crate::testlock::serial();
@@ -487,7 +443,7 @@ fn deckle_strata_stays_fixed_at_exposed_viewport_points_across_page_width_drags(
         (1200, 800, (350.0, 500.0), (210.0, 780.0)),
     ];
     for (w, h, first_col, second_col) in geometry {
-        let stable = with_anchor(DeckleAnchor::Viewport);
+        let stable = paperbark_bg();
         let a = render_bg(
             &device,
             &queue,
@@ -530,118 +486,48 @@ fn deckle_strata_stays_fixed_at_exposed_viewport_points_across_page_width_drags(
             "{w}x{h}: intersection must be substantial"
         );
 
-        let legacy = with_anchor(DeckleAnchor::Page);
-        let legacy_a = render_bg(
-            &device,
-            &queue,
-            bg_desc_for(legacy),
-            w,
-            h,
-            first_col.0,
-            first_col.1,
-            0.0,
-        );
-        let legacy_b = render_bg(
-            &device,
-            &queue,
-            bg_desc_for(legacy),
-            w,
-            h,
-            second_col.0,
-            second_col.1,
-            0.0,
-        );
-        let moved = legacy_a
-            .iter()
-            .zip(&legacy_b)
-            .enumerate()
-            .filter(|(i, (left, right))| exposed((*i as u32 % w) as f32) && left != right)
-            .count();
-        assert!(
-            moved > (w * h / 100) as usize,
-            "mutation witness at {w}x{h}: page-relative Deckle moved only {moved} exposed pixels"
-        );
-    }
-}
-
-/// Deckle's packed mode is total over the two independent controls: Fibres is
-/// a screen-space material regardless of anchor, while Strata alone selects a
-/// coordinate owner. The exhaustive match is deliberately wildcard-free, so a
-/// future Weave or DeckleAnchor variant cannot silently miss this law.
-#[test]
-fn deckle_mode_sweeps_every_weave_anchor_combination() {
-    let _g = crate::testlock::serial();
-    let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping deckle_mode_sweeps_every_weave_anchor_combination: no wgpu adapter");
-        return;
-    };
-    let _g = crate::testlock::serial();
-    let (w, h, cl, cw) = (1400, 800, 350.0, 700.0);
-    let strata_viewport = render_bg(
-        &device,
-        &queue,
-        bg_desc_for(with_weave_and_anchor(Weave::Strata, DeckleAnchor::Viewport)),
-        w,
-        h,
-        cl,
-        cw,
-        0.0,
-    );
-    let strata_page = render_bg(
-        &device,
-        &queue,
-        bg_desc_for(with_weave_and_anchor(Weave::Strata, DeckleAnchor::Page)),
-        w,
-        h,
-        cl,
-        cw,
-        0.0,
-    );
-    let fibres_viewport = render_bg(
-        &device,
-        &queue,
-        bg_desc_for(with_weave_and_anchor(Weave::Fibres, DeckleAnchor::Viewport)),
-        w,
-        h,
-        cl,
-        cw,
-        0.0,
-    );
-    let fibres_page = render_bg(
-        &device,
-        &queue,
-        bg_desc_for(with_weave_and_anchor(Weave::Fibres, DeckleAnchor::Page)),
-        w,
-        h,
-        cl,
-        cw,
-        0.0,
-    );
-
-    for ((weave, anchor), pixels) in [
-        ((Weave::Strata, DeckleAnchor::Viewport), &strata_viewport),
-        ((Weave::Strata, DeckleAnchor::Page), &strata_page),
-        ((Weave::Fibres, DeckleAnchor::Viewport), &fibres_viewport),
-        ((Weave::Fibres, DeckleAnchor::Page), &fibres_page),
-    ] {
-        match (weave, anchor) {
-            (Weave::Strata, DeckleAnchor::Viewport) => assert_ne!(
-                pixels, &strata_page,
-                "viewport Strata must not fall through to page-relative Strata"
-            ),
-            (Weave::Strata, DeckleAnchor::Page) => assert_ne!(
-                pixels, &strata_viewport,
-                "page-relative Strata must select its own coordinate owner"
-            ),
-            (Weave::Fibres, DeckleAnchor::Viewport) => {
-                assert_eq!(pixels, &fibres_page, "Fibres must ignore its anchor")
-            }
-            (Weave::Fibres, DeckleAnchor::Page) => {
-                assert_eq!(pixels, &fibres_viewport, "Fibres must ignore its anchor")
+        // The sensitivity half. `shift` is the displacement a page-anchored
+        // owner would have applied to the LEFT margin's field; both `x` and
+        // `x + shift` are held inside the exposed left band, so this reads the
+        // MATERIAL at both ends and never the flat page under the mask.
+        let shift = (first_col.0 - second_col.0) as i64;
+        assert!(shift > 0, "the drag must move the left page edge outward");
+        let left_exposed_end = first_col.0.min(second_col.0) as i64;
+        let mut moved = 0usize;
+        let mut sampled = 0usize;
+        for y in 0..h as i64 {
+            for x in 0..(left_exposed_end - shift) {
+                let here = a[(y * w as i64 + x) as usize];
+                let there = a[(y * w as i64 + x + shift) as usize];
+                sampled += 1;
+                if here != there {
+                    moved += 1;
+                }
             }
         }
+        assert!(
+            sampled > 0,
+            "{w}x{h}: the swept geometry left no exposed left margin to sample"
+        );
+        assert!(
+            moved > sampled / 4,
+            "{w}x{h}: the Strata field is nearly invariant under a {shift}px shift \
+             ({moved}/{sampled} pixels differ) — byte-identity across the drag would then \
+             be satisfied by a page-anchored owner too, and this law would prove nothing"
+        );
     }
 }
+
+// `deckle_mode_sweeps_every_weave_anchor_combination` WAS HERE AND IS DELETED,
+// not repaired. Its subject was that the packed `params.w` is TOTAL over two
+// independent controls (Weave x DeckleAnchor) — with the coordinate owner gone
+// there is one control, so the claim has no content left to make. Its two
+// surviving halves each already have an owner: that Strata and Fibres are
+// genuinely different fields is `weave_fibres_draws_a_real_field_distinct_from_
+// strata` below, and that the slot carries the weave scalar and nothing else is
+// the roster law's own `profile_mode` sweep above. Rewriting it to sweep one
+// arm would have left a wildcard-free match with a single case — green forever,
+// asserting nothing.
 
 /// THE MATERIAL WHISPERS AND NEVER COMPETES WITH INK. Two bounds, both in real
 /// pixels over the fully composited margin (not the differential — the reader's
@@ -729,7 +615,6 @@ fn deckle_pitch_floor_holds_the_field_smooth_below_its_own_minimum() {
                 layer,
                 deckle,
                 weave,
-                anchor,
                 wander_px,
                 density,
                 ..
@@ -738,7 +623,6 @@ fn deckle_pitch_floor_holds_the_field_smooth_below_its_own_minimum() {
                 layer,
                 deckle,
                 weave,
-                anchor,
                 period_px: pitch,
                 wander_px,
                 density,
@@ -1043,14 +927,20 @@ fn deckle_shader_constants_match_their_host_mirrors() {
          property of the shader, not of a dial pair"
     );
     assert!(
-        wgsl.contains("g.params.w >= DECKLE_WEAVE_FIBRES && g.params.w < 1.5"),
-        "deckle_rgb must branch on the theme-owned weave scalar while reserving the legacy \
-         page-relative arm for this law's mutation proof"
+        wgsl.contains("g.params.w >= DECKLE_WEAVE_FIBRES"),
+        "deckle_rgb must branch on the theme-owned weave scalar"
     );
     assert!(
-        wgsl.contains("deckle_viewport_distance(px), deckle_page_distance(px), g.params.w >= 1.5"),
-        "Strata must default to stable viewport coordinates; page-relative sampling belongs only \
-         to the explicit mutation arm"
+        wgsl.contains("let d = deckle_viewport_distance(px);"),
+        "Strata must read the stable viewport coordinate, unconditionally"
+    );
+    // And the rejected owner is GONE from the shader, not merely unselected:
+    // measuring a Room wallpaper from a movable page edge is border
+    // decoration, and a named function is one `select` away from being
+    // reachable again.
+    assert!(
+        !wgsl.contains("deckle_page_distance"),
+        "the page-anchored coordinate owner is back in the shipped shader"
     );
     // And no world name reaches the DECKLE branch. (The file's older sections
     // name worlds in prose comments; this is the new ground's own contract.)
