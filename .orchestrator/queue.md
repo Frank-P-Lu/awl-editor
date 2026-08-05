@@ -1559,7 +1559,34 @@ tiers; DPI invariance **0.50 px** worst case; under-page legibility **14.61:1**
 against a 4.5:1 floor; the other 19 worlds **byte-identical**, PNG and sidecar.
 
 🔵 **OWED TO THE USER:** the **veil strength** (one constant, `WARP_PAGE_VEIL =
-0.20`) and whether the crossing reads as intended. Captures are durable in the
+**0.13**` — ⚠️ **item 268's report said `0.20`; the shader says `0.13`, verified
+by the item-280 lane and re-checked here. The figure owed to a taste call must
+be the one in the product**) and whether the crossing reads as intended. Captures are durable in the
 lane's worktree at `gallery/item-268/` — `final/room/Kite.png`,
 `final/frame/Kite.png`, the two-tunnel `baseline/k-m66-d1.png`, and the rejected
 chrome variants in `chrome/`.
+
+✅ **280 — LANDED, merge `d6fb9e2c`** (`764e1fd5`). Docs-only; **no receipt
+claimed and none owed.** Every drifted claim corrected against a **grep or a
+read**, never against the item's own account: `Tunnel::PerMargin` never existed
+as a name, the shipped arm is `Fixed` not `Shared`, `route_pose` is absent from
+`src/` and `Globals` carries no `pose` field (**two existing laws already assert
+that by the literal string**), and the parabolic axis with its bracketed
+bisection is not what the shader does — the axis is a **constant point** and the
+projection is **direct, with no inversion at all**.
+✅ **It found drift the item did not name:** the entry's struct signature carried
+a **`curvature`** field the enum does not have, doubly retired in the sidecar by
+its own test.
+🔴 **AND IT CORRECTED THIS ORCHESTRATOR.** The board recorded item 268's veil as
+`WARP_PAGE_VEIL = 0.20`, taken from that lane's report at face value. **The
+shader says `0.13`** — verified before merging. **That figure is the one owed to
+the user for a taste call**, so propagating it wrong would have put the question
+to them about a number not in the product. *A lane's report is not privileged
+either.*
+✅ **What was accurate is PRESERVED and re-cited against current law names**
+rather than tidied away — the room-owned scale, the circular section and
+aspect-1.00 invariance, `density == 0.0` collapsing to the flat ground tone
+exactly, and the hot-per-frame travel gate, corrected to name the function that
+owns it rather than the one it wraps.
+
+281. **`theme/ground_space/tables.rs` DOCUMENTS A SHADER CONSTANT THAT NO LONGER EXISTS.** **Found by the item-280 lane, which flagged it rather than reaching outside its own file — the right call, and the reason it gets reviewed instead of riding along.** **Verified here:** `src/theme/ground_space/tables.rs:234`'s `authored_quantities` table describes **`WARP_WINDOW_INSET`** *("where each margin's window sits on the one projection")*, and `grep -c WARP_WINDOW_INSET shaders/background.wgsl` returns **0** — item 268 replaced it with `WARP_WINDOW_FULL`/`WARP_WINDOW_TIGHT`/`WARP_WINDOW_STRADDLE` when the two per-margin windows became one room-centred axis. ⚠️ **This is a doc comment inside RUST SOURCE, not `docs/render.md`**, which is why 280 correctly left it: different file, different reviewer, and a lane that widens its diff to chase every stale string is a lane whose diff nobody can review. **Build:** correct the entry to name the constants that exist and describe what they now do. ⚠️ **Read the surrounding table first** — `authored_quantities` is item 186's ground-space declaration machinery, and the entry is doing real work beside the stale name; **this is a correction, not a deletion.** **Verify:** every constant named in that table exists in the shader — grep each one, and check the whole table rather than only the warped-grid row, since one stale name suggests others. **Do NOT add a law that greps prose for identifiers** — the 280 lane's own recommendation, and the orchestrator agrees: a doc comment is not a manifest, and **item 273's generated-reference machinery is the right home if mechanical enforcement is ever wanted.** **Routing:** production tier, and small. **Found 2026-08-05.**
