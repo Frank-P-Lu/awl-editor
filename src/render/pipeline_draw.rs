@@ -73,12 +73,15 @@ impl TextPipeline {
         // Translucent selection highlight quads, drawn under the text. On a
         // one-bit world `prepare_selection_layer` uploads ZERO rects here
         // (the true-inverse-video `selection_invert` pipeline takes over
-        // document selection entirely — see its own field doc), so this
-        // pipeline simply draws nothing there; its color still tracks
-        // `theme::selection()` for the other 14 worlds, unchanged.
-        let selection_pipeline =
-            SelectionPipeline::new(device, &sel_shader, format, theme::selection().rgba_bytes());
-        // Search-match highlights: `theme::selection()` tint on every ordinary
+        // document selection entirely — see its own field doc), so this draws
+        // nothing there; elsewhere it tracks `selection_document`, unchanged.
+        let selection_pipeline = SelectionPipeline::new(
+            device,
+            &sel_shader,
+            format,
+            theme::selection_document().rgba_bytes(),
+        );
+        // Search-match highlights: `theme::selection_document()` tint on every ordinary
         // world (unchanged). On a one-bit world this instead becomes THE ONE
         // WAGTAIL HIGHLIGHT TEXTURE — same dither mode + color as
         // `wash_highlight_pipeline` (search matches and `==highlight==` spans
@@ -152,10 +155,12 @@ impl TextPipeline {
         let preview_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let preview_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-        // The overlay's selected-row highlight: same rounded quad as selection,
-        // tinted with the muted selection token (amber stays the caret's alone).
+        // The overlay's selected-row highlight: same rounded quad as document
+        // selection, its OWN token (`selection_ui`, a value step off the surface
+        // ramp; amber stays the caret's alone), re-set from that same owner
+        // every `overlay_prepare_selection`.
         let overlay_quad = |color| SelectionPipeline::new(device, &sel_shader, format, color);
-        let overlay_rows = overlay_quad(theme::selection().rgba_bytes());
+        let overlay_rows = overlay_quad(theme::selection_ui().rgba_bytes());
         let overlay_bars = overlay_quad(theme::surface_selected().rgba_bytes());
         let overlay_spine = overlay_quad(theme::muted().rgba_bytes());
         let overlay_spine_selected = overlay_quad(theme::base_content().rgba_bytes());
@@ -212,8 +217,12 @@ impl TextPipeline {
         let outline_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
         let menubar_bg =
             SelectionPipeline::new(device, &sel_shader, format, theme::base_200().rgba_bytes());
-        let menubar_hi =
-            SelectionPipeline::new(device, &sel_shader, format, theme::selection().rgba_bytes());
+        let menubar_hi = SelectionPipeline::new(
+            device,
+            &sel_shader,
+            format,
+            theme::selection_document().rgba_bytes(),
+        );
         let menubar_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let menubar_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());

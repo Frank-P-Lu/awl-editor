@@ -36,7 +36,8 @@ pub const GUMTREE: Theme = Theme {
     primary: Srgb::rgb(0xDA, 0x52, 0x5D),
     primary_content: Srgb::rgb(0xFB, 0xEC, 0xEC),
     error: Srgb::rgb(0xC0, 0x39, 0x2B),
-    selection: Srgb::rgba(0x88, 0x8F, 0x5D, 0x52),
+    selection_document: Srgb::rgba(0x88, 0x8F, 0x5D, 0x52),
+    selection_ui: None,
     background: Background::Zigzag {
         from: Srgb::rgb(0xE4, 0xF8, 0xE2),
         to: Srgb::rgb(0xCF, 0xF3, 0xCC),
@@ -87,7 +88,8 @@ pub const POTOROO: Theme = Theme {
     primary: Srgb::rgb(0xFE, 0xAF, 0x69),
     primary_content: Srgb::rgb(0x2A, 0x14, 0x02),
     error: Srgb::rgb(0xFF, 0x6B, 0x5C),
-    selection: Srgb::rgba(0x7E, 0xB4, 0x7C, 0x52),
+    selection_document: Srgb::rgba(0x7E, 0xB4, 0x7C, 0x52),
+    selection_ui: None,
     background: Background::Stripes {
         from: Srgb::rgb(0x1F, 0x04, 0x00),
         to: Srgb::rgb(0x56, 0x28, 0x00),
@@ -133,7 +135,8 @@ pub const BILBY: Theme = Theme {
     primary: Srgb::rgb(0xBC, 0x7E, 0x16),
     primary_content: Srgb::rgb(0xFD, 0xF4, 0xE2),
     error: Srgb::rgb(0xC0, 0x39, 0x2B),
-    selection: Srgb::rgba(0x8F, 0x7B, 0xB8, 0x52),
+    selection_document: Srgb::rgba(0x8F, 0x7B, 0xB8, 0x52),
+    selection_ui: None,
     background: Background::Gradient {
         from: Srgb::rgb(0xFB, 0xED, 0xE6),
         to: Srgb::rgb(0xF3, 0xE1, 0xD6),
@@ -179,7 +182,8 @@ pub const SALTPAN: Theme = Theme {
     primary: Srgb::rgb(0x8D, 0x59, 0x25),
     primary_content: Srgb::rgb(0xFB, 0xF1, 0xE6),
     error: Srgb::rgb(0xB5, 0x45, 0x2B),
-    selection: Srgb::rgba(0xA5, 0x86, 0x50, 0x52),
+    selection_document: Srgb::rgba(0xA5, 0x86, 0x50, 0x52),
+    selection_ui: None,
     background: Background::Pinstripe {
         from: Srgb::rgb(0xFB, 0xF3, 0xDE),
         to: Srgb::rgb(0xF2, 0xE6, 0xC7),
@@ -225,7 +229,8 @@ pub const QUOKKA: Theme = Theme {
     primary: Srgb::rgb(0x07, 0x70, 0x73),
     primary_content: Srgb::rgb(0xE6, 0xF6, 0xF6),
     error: Srgb::rgb(0xC0, 0x39, 0x2B),
-    selection: Srgb::rgba(0xBB, 0x80, 0x20, 0x52),
+    selection_document: Srgb::rgba(0xBB, 0x80, 0x20, 0x52),
+    selection_ui: None,
     background: Background::Zigzag {
         from: Srgb::rgb(0xFF, 0xDF, 0xCF),
         to: Srgb::rgb(0xFF, 0xD2, 0xBD),
@@ -282,7 +287,8 @@ pub const BOMBORA: Theme = Theme {
     primary: Srgb::rgb(0xC5, 0x3C, 0x69),
     primary_content: Srgb::rgb(0x2A, 0x0A, 0x16),
     error: Srgb::rgb(0xFF, 0x6B, 0x5C),
-    selection: Srgb::rgba(0x60, 0x50, 0xA8, 0x60),
+    selection_document: Srgb::rgba(0x60, 0x50, 0xA8, 0x60),
+    selection_ui: None,
     background: Background::Waves {
         tones: [
             Srgb::rgb(0x15, 0x0A, 0x2C),
@@ -327,7 +333,8 @@ pub const MULGA: Theme = Theme {
     primary: Srgb::rgb(0xDE, 0x8E, 0x7F),
     primary_content: Srgb::rgb(0x2A, 0x14, 0x10),
     error: Srgb::rgb(0xFF, 0x6B, 0x5C),
-    selection: Srgb::rgba(0x9B, 0x8B, 0x4B, 0x52),
+    selection_document: Srgb::rgba(0x9B, 0x8B, 0x4B, 0x52),
+    selection_ui: None,
     background: Background::Pinstripe {
         from: Srgb::rgb(0x16, 0x1F, 0x0F),
         to: Srgb::rgb(0x1E, 0x29, 0x16),
@@ -371,7 +378,8 @@ pub const TAWNY: Theme = Theme {
     primary: Srgb::rgb(0xFF, 0xC0, 0x5E),
     primary_content: Srgb::rgb(0x26, 0x1A, 0x08),
     error: Srgb::rgb(0xE5, 0x4B, 0x4B),
-    selection: Srgb::rgba(0x3A, 0x6F, 0xD8, 0x52),
+    selection_document: Srgb::rgba(0x3A, 0x6F, 0xD8, 0x52),
+    selection_ui: None,
     background: Background::Dots {
         from: Srgb::rgb(0x16, 0x18, 0x1D),
         to: Srgb::rgb(0x20, 0x22, 0x28),
@@ -416,7 +424,8 @@ pub const MOPOKE: Theme = Theme {
     primary: Srgb::rgb(0xF5, 0x6E, 0x3D),
     primary_content: Srgb::rgb(0x26, 0x1A, 0x08),
     error: Srgb::rgb(0xE5, 0x4B, 0x4B),
-    selection: Srgb::rgba(0x7B, 0x39, 0xC6, 0x52),
+    selection_document: Srgb::rgba(0x7B, 0x39, 0xC6, 0x52),
+    selection_ui: None,
     background: Background::Dots {
         from: Srgb::rgb(0x1B, 0x18, 0x14),
         to: Srgb::rgb(0x25, 0x21, 0x1B),
@@ -461,7 +470,8 @@ pub const BOWERBIRD: Theme = Theme {
     primary: Srgb::rgb(0xF5, 0xA7, 0x42),
     primary_content: Srgb::rgb(0x2A, 0x1B, 0x06),
     error: Srgb::rgb(0xFF, 0x6B, 0x5C),
-    selection: Srgb::rgba(0x3D, 0x6B, 0xC4, 0x52),
+    selection_document: Srgb::rgba(0x3D, 0x6B, 0xC4, 0x52),
+    selection_ui: None,
     background: Background::Organic {
         tones: [
             Srgb::rgb(0x0C, 0x14, 0x26),
@@ -508,7 +518,8 @@ pub const CURRAWONG: Theme = Theme {
     primary: Srgb::rgb(0xF4, 0xC5, 0x34),
     primary_content: Srgb::rgb(0x1E, 0x1A, 0x06),
     error: Srgb::rgb(0xFF, 0x6B, 0x5C),
-    selection: Srgb::rgba(0x3E, 0x5C, 0x8A, 0x52),
+    selection_document: Srgb::rgba(0x3E, 0x5C, 0x8A, 0x52),
+    selection_ui: None,
     background: Background::Gradient {
         from: Srgb::rgb(0x06, 0x06, 0x07),
         to: Srgb::rgb(0x0E, 0x0F, 0x11),
@@ -563,7 +574,8 @@ pub const MANGROVE: Theme = Theme {
     primary: Srgb::rgb(0xF2, 0xA6, 0x5C),
     primary_content: Srgb::rgb(0x2A, 0x18, 0x04),
     error: Srgb::rgb(0xFF, 0x6B, 0x5C),
-    selection: Srgb::rgba(0x40, 0xA8, 0x9E, 0x60),
+    selection_document: Srgb::rgba(0x40, 0xA8, 0x9E, 0x60),
+    selection_ui: None,
     background: Background::Lava {
         ground: Srgb::rgb(0x11, 0x27, 0x23),
         blob_lo: Srgb::rgb(0x17, 0x23, 0x2B),
@@ -622,7 +634,8 @@ pub const GALAH: Theme = Theme {
     primary: Srgb::rgb(0xB2, 0x3A, 0x60),
     primary_content: Srgb::rgb(0xFB, 0xEA, 0xEE),
     error: Srgb::rgb(0xC0, 0x39, 0x2B),
-    selection: Srgb::rgba(0x9A, 0x6B, 0x86, 0x52),
+    selection_document: Srgb::rgba(0x9A, 0x6B, 0x86, 0x52),
+    selection_ui: None,
     // Sparse plumage in Galah's mauve ladder.
     background: Background::Deckle {
         ground: Srgb::rgb(0xF8, 0xE0, 0xE6),
@@ -681,7 +694,8 @@ pub const MAGPIE: Theme = Theme {
     primary: Srgb::rgb(0xDB, 0x5A, 0x2B),
     primary_content: Srgb::rgb(0xFB, 0xEF, 0xE9),
     error: Srgb::rgb(0xC0, 0x39, 0x2B),
-    selection: Srgb::rgba(0x46, 0x61, 0x8F, 0x52),
+    selection_document: Srgb::rgba(0x46, 0x61, 0x8F, 0x52),
+    selection_ui: None,
     background: Background::Bands {
         tones: [
             Srgb::rgb(0xFB, 0xFB, 0xFA),
@@ -739,7 +753,8 @@ pub const BROLGA: Theme = Theme {
     primary: Srgb::rgb(0xD7, 0x5B, 0x41),
     primary_content: Srgb::rgb(0xFC, 0xEE, 0xEA),
     error: Srgb::rgb(0xC0, 0x39, 0x2B),
-    selection: Srgb::rgba(0x35, 0x57, 0xA0, 0x60),
+    selection_document: Srgb::rgba(0x35, 0x57, 0xA0, 0x60),
+    selection_ui: None,
     background: Background::Gradient {
         from: Srgb::rgb(0xDC, 0xE6, 0xF8),
         to: Srgb::rgb(0xC7, 0xD7, 0xF2),
@@ -785,7 +800,8 @@ pub const WAGTAIL: Theme = Theme {
     primary: Srgb::rgb(0xFF, 0xFF, 0xFF),
     primary_content: Srgb::rgb(0x00, 0x00, 0x00),
     error: Srgb::rgb(0xFF, 0xFF, 0xFF),
-    selection: Srgb::rgba(0xFF, 0xFF, 0xFF, 0xFF),
+    selection_document: Srgb::rgba(0xFF, 0xFF, 0xFF, 0xFF),
+    selection_ui: None,
     background: Background::Gradient {
         from: Srgb::rgb(0x00, 0x00, 0x00),
         to: Srgb::rgb(0x00, 0x00, 0x00),
@@ -860,7 +876,8 @@ pub const FIRETAIL: Theme = Theme {
     primary: Srgb::rgb(0xF2, 0xB1, 0x40),
     primary_content: Srgb::rgb(0x23, 0x14, 0x05),
     error: Srgb::rgb(0xE6, 0x4E, 0x48),
-    selection: Srgb::rgba(0xB6, 0x5A, 0x6E, 0x60),
+    selection_document: Srgb::rgba(0xB6, 0x5A, 0x6E, 0x60),
+    selection_ui: None,
     background: Background::Lava {
         ground: Srgb::rgb(0x17, 0x09, 0x0C),
         blob_lo: Srgb::rgb(0x24, 0x0C, 0x14),
@@ -925,7 +942,8 @@ pub const CASSOWARY: Theme = Theme {
     primary: Srgb::rgb(0xA8, 0xEC, 0xBE),
     primary_content: Srgb::rgb(0x05, 0x05, 0x06),
     error: Srgb::rgb(0xFF, 0x44, 0x36),
-    selection: Srgb::rgba(0xD2, 0x45, 0x5F, 0x70),
+    selection_document: Srgb::rgba(0xD2, 0x45, 0x5F, 0x70),
+    selection_ui: None,
     background: Background::Pinstripe {
         from: Srgb::rgb(0x05, 0x05, 0x06),
         to: Srgb::rgb(0x0B, 0x0C, 0x0D),
@@ -992,7 +1010,8 @@ pub const PAPERBARK: Theme = Theme {
     primary: Srgb::rgb(0xD8, 0x5A, 0x42),
     primary_content: Srgb::rgb(0xFF, 0xF6, 0xE9),
     error: Srgb::rgb(0xB9, 0x3A, 0x2E),
-    selection: Srgb::rgba(0xC7, 0x7A, 0x4B, 0x52),
+    selection_document: Srgb::rgba(0xC7, 0x7A, 0x4B, 0x52),
+    selection_ui: None,
     background: Background::Deckle {
         ground: Srgb::rgb(0xF0, 0xDF, 0xBA),
         layer: Srgb::rgb(0xD8, 0xB7, 0x7A),
@@ -1093,7 +1112,8 @@ pub const KITE: Theme = Theme {
     primary: Srgb::rgb(0xFF, 0x3B, 0x14),
     primary_content: Srgb::rgb(0xFF, 0xF3, 0xEE),
     error: Srgb::rgb(0xC4, 0x2A, 0x32),
-    selection: Srgb::rgba(0x5A, 0x4F, 0xB4, 0x55),
+    selection_document: Srgb::rgba(0x5A, 0x4F, 0xB4, 0x55),
+    selection_ui: None,
     background: Background::WarpedGrid {
         ground: Srgb::rgb(0xE5, 0xDE, 0xF3),
         minor: Srgb::rgb(0xA9, 0xA2, 0xC8),

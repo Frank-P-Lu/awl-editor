@@ -189,7 +189,7 @@ fn check_color_math(th: &theme::Theme, s: Surface, floor: f32) {
                 }
             }
         }
-        Surface::MenubarOpenTitle => match th.highlight_treatment(th.selection) {
+        Surface::MenubarOpenTitle => match th.highlight_treatment(th.selection_document) {
             theme::HighlightTreatment::InverseFill { band, ink } => {
                 let d_band = redmean(band, th.base_100);
                 let d_ink = redmean(ink, band);
@@ -223,13 +223,13 @@ fn check_color_math(th: &theme::Theme, s: Surface, floor: f32) {
                 );
             }
             theme::HighlightTexture::Wash => {
-                let d = redmean(th.selection, th.base_100);
+                let d = redmean(th.selection_document, th.base_100);
                 assert!(
                     d >= floor,
                     "{}: SearchMatch wash {:?} vs ground {:?} only {d:.1} redmean apart \
                      (floor {floor})",
                     th.name,
-                    th.selection,
+                    th.selection_document,
                     th.base_100
                 );
             }
@@ -237,7 +237,7 @@ fn check_color_math(th: &theme::Theme, s: Surface, floor: f32) {
         Surface::DocumentSelection => match th.render_caps.selection_style {
             theme::SelectionStyle::InverseVideo => {}
             theme::SelectionStyle::Fill => {
-                let composited = composite(th.selection, th.base_100);
+                let composited = composite(th.selection_document, th.base_100);
                 let d = redmean(composited, th.base_100);
                 assert!(
                     d >= floor,

@@ -445,7 +445,7 @@ Enforced by `render::tests::syntax_roles::every_monochrome_world_renders_zero_sa
   automatically, never a hardcoded name), EVERY color it renders carries
   saturation `0.0` — no exceptions, **the caret included**. Swept: the palette
   struct's own tokens (`base_100/200/300`, `base_content`/`muted`/`faint`,
-  `primary`/`primary_content`/`error`/`selection`), the margin ground
+  `primary`/`primary_content`/`error`/`selection_document`), the margin ground
   (`background`'s `from`/`to`/`tint`), the EFFECTIVE syntax role styles
   (`role_style_for`'s fg + wash for all four roles, overrides included), and
   the dedicated `==highlight==` wash (`highlight_wash`).
@@ -490,7 +490,7 @@ value (a true 1-bit world has nothing else to step through — "comments/
 strings undifferentiated" is deliberate, not a gap); `primary`(caret) pure
 white, `primary_content` pure black; `error` pure white (shape/inversion
 carries urgency, since there's no brighter-than-white rung to escalate to);
-`selection` pure OPAQUE white (see "THE DITHER ROUND" below — a translucent
+`selection_document` pure OPAQUE white (see "THE DITHER ROUND" below — a translucent
 selection was the greyscale-era mechanism, retired since; the token today
 feeds a TRUE inverse-video pipeline, not a translucent fill);
 `background` a flat `Gradient` with `from == to` (the ONE `Background`
@@ -553,7 +553,7 @@ new pipeline-scale work; a `OneMinusDst` invert-blend pipeline (the classic
 1-bit "inverse video" trick) was judged mathematically real but needing its
 OWN new `wgpu::RenderPipeline` (blend state is baked in at construction) — "a
 renderer round, not a theme round." **That round's shipped v1 fallback**
-(kept here for the history, since the code itself is now deleted): `selection`
+(kept here for the history, since the code itself is now deleted): `selection_document`
 stayed the existing `selection_pipeline`/`match_pipeline` mechanism, authored
 pure opaque white, plus a second, otherwise-idle pipeline
 (`TextPipeline::selection_punch`, since removed) drawing each selected rect
@@ -637,9 +637,9 @@ LITERAL "inverted text" ask, not a fallback. The punch mechanism it replaces
 switched to real inversion, and no other world ever wanted an outline
 (same-behavior-same-code: a mechanism with no callers should not exist).
 `selection_pipeline` (the ordinary translucent fill) uploads ZERO rects for a
-one-bit world now — `selection`'s pure-white token no longer drives a render
+one-bit world now — `selection_document`'s pure-white token no longer drives a render
 directly there; the invert pipeline always writes its own fixed white
-regardless of any theme's `selection` value. AA edges under inversion: a
+regardless of any theme's `selection_document` value. AA edges under inversion: a
 glyph's antialiased ~50%-grey edge pixel inverts to `1 - 0.5 = 0.5`, i.e.
 stays ~50%-grey — the SAME AA-edge tolerance the one-bit pixel law already
 grants ordinary (non-inverted) text, not a new exception; verified as REAL
@@ -1781,7 +1781,10 @@ Checklist:
    `every_world_has_a_bundled_mono`).
 2. Author the base planes + ink ladder (`base_100/200/300`, `base_content`,
    `muted`, `faint`) and the accents (`primary`, `primary_content`, `error`,
-   `selection`).
+   `selection_document`). Leave `selection_ui` at `None` — the selected-row
+   band derives from the surface ramp, which is what makes it a value step and
+   never a new hue without anyone checking. Authoring it opts out of that, and
+   a law sweeps the roster so the opt-out has to be deliberate.
 3. Pick a `Background` ground and tags on all four lenses. Most worlds pick a
    STATIC ground (Dots / Gradient / Pinstripe / Stripes). A world may
    instead pick the animated `Background::Lava` (a statement world — the whole

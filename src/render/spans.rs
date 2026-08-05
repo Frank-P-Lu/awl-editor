@@ -845,7 +845,7 @@ fn stipple_cell_logical_override() -> Option<f32> {
     })
 }
 
-/// The ACTIVE world's SEARCH-MATCH quad rgba — `theme::selection()` on every
+/// The ACTIVE world's SEARCH-MATCH quad rgba — `theme::selection_document()` on every
 /// ordinary world (unchanged), but on a one-bit world this NO LONGER shares
 /// the (now true-inverse-video) document-selection token: it instead reads
 /// pure opaque white, the SAME single color [`highlight_wash_rgba_bytes`]
@@ -858,7 +858,7 @@ pub(super) fn search_match_rgba_bytes() -> [u8; 4] {
         theme::HighlightTexture::Stipple { color, .. } => {
             theme::Srgb::rgba(color.r, color.g, color.b, 0xFF).rgba_bytes()
         }
-        theme::HighlightTexture::Wash => theme::selection().rgba_bytes(),
+        theme::HighlightTexture::Wash => theme::selection_document().rgba_bytes(),
     }
 }
 

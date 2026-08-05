@@ -810,12 +810,12 @@ pub const TABLE_PAN_BAR_THICKNESS: f32 = 2.0;
 
 /// COPY PULSE (the M-w/Cmd-C in-world confirmation — "obvious and understated"):
 /// how much the selection quad's own tint LIFTS on a successful copy, expressed
-/// as an HSL LIGHTNESS delta added to `theme::selection()`'s own lightness — same
+/// as an HSL LIGHTNESS delta added to `theme::selection_document()`'s own lightness — same
 /// hue, same saturation, never a new color (DESIGN §3 — amber stays the
 /// caret's). TASTE TUNABLE, flagged for live review (mirrors `THEME_FONT_DEBOUNCE`
 /// in `app.rs`).
 pub const COPY_PULSE_LIFT_L: f32 = 0.18;
-/// The matching ALPHA lift (0..255 scale, added to `theme::selection()`'s own
+/// The matching ALPHA lift (0..255 scale, added to `theme::selection_document()`'s own
 /// alpha and clamped) — the pulse also nudges the wash a touch more opaque,
 /// decaying alongside the lightness. TASTE TUNABLE.
 pub const COPY_PULSE_LIFT_ALPHA: f32 = 55.0;
@@ -843,7 +843,7 @@ pub(crate) fn copy_pulse_ease(t: f32) -> f32 {
 /// 1.0` (settled/off) [`TextPipeline::prepare_selection_layer`] never reaches
 /// this value at all — see [`selection::SelectionPipeline::prepare_pulsed`].
 fn copy_pulse_peak_srgba() -> [u8; 4] {
-    let base = theme::selection();
+    let base = theme::selection_document();
     let (h, s, l) = base.to_hsl();
     let lifted = theme::Srgb::from_hsl(h, s, (l + COPY_PULSE_LIFT_L).min(1.0));
     let a = (base.a as f32 + COPY_PULSE_LIFT_ALPHA).min(255.0) as u8;
@@ -1518,7 +1518,7 @@ fn awl_overlay_selrow_force() -> &'static Option<bool> {
 pub(crate) fn effective_overlay_selrow_band() -> theme::Srgb {
     match awl_overlay_selrow_force() {
         Some(false) => theme::surface_selected(),
-        _ => theme::overlay_selected_band(),
+        _ => theme::selection_ui(),
     }
 }
 
@@ -2258,8 +2258,9 @@ pub struct TextPipeline {
     ///   * `menubar_bg` — the bar's ground strip (a value step off the room, `base_200`).
     ///   * `menubar_hi` — the OPEN title's highlight band (never amber). Its band
     ///     COLOR comes from the ONE `highlight_treatment` owner: the muted
-    ///     `selection` token on a `Fill` world (the same band the picker's
-    ///     selected row uses), or solid `base_content` (white) on a TRUE 1-BIT
+    ///     `selection_document` token on a `Fill` world — the DOCUMENT wash, NOT
+    ///     the picker row's `selection_ui` step; the two tokens make that
+    ///     difference visible — or solid `base_content` (white) on a TRUE 1-BIT
     ///     world, where the open title's own glyphs are recolored to solid
     ///     `base_300` (black) so black text lands crisp on the white band — the
     ///     SAME solid-fill + recolor answer the picker's selected row uses (see

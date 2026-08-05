@@ -108,8 +108,34 @@ pub fn primary_content() -> Srgb {
 pub fn error() -> Srgb {
     active().error
 }
-pub fn selection() -> Srgb {
-    active().selection
+/// The authored wash that covers TEXT — document selection, search matches, and
+/// the menu-title highlight that runs the same `highlight_treatment`.
+pub fn selection_document() -> Srgb {
+    active().selection_document
+}
+
+/// The band under a SELECTED ROW in a summoned surface. Derived unless the world
+/// authors an override: see [`super::model::Theme::selection_ui`] for why the
+/// derived shape is the default rather than twenty hand-picked colours.
+pub fn selection_ui() -> Srgb {
+    resolve_selection_ui(active().selection_ui, derived_selection_ui())
+}
+
+/// `selection_ui`'s default, alone. Product code reads [`selection_ui`] — this
+/// is the derivation the laws compare AGAINST, kept module-visible so the test
+/// and the accessor cannot drift into two copies of one expression.
+pub(super) fn derived_selection_ui() -> Srgb {
+    surface_step_band(OVERLAY_SELROW_EXTRA_STEPS)
+}
+
+/// Authored-over-derived, as a PURE function. The active world is a process
+/// global reached by INDEX into the static roster, so there is no way to make a
+/// hand-built `Theme` active — which would leave the authored arm unreachable
+/// from any test, and in this repo that means it would not exist. Splitting the
+/// two-line decision out gives it the purest seam it can have. Eager, because
+/// the derivation is a handful of integer steps with no side effects.
+pub(super) fn resolve_selection_ui(authored: Option<Srgb>, derived: Srgb) -> Srgb {
+    authored.unwrap_or(derived)
 }
 
 pub fn fold_afford_chevron_ink() -> Srgb {
@@ -229,9 +255,9 @@ pub fn overlay_band_overlap() -> Srgb {
     surface_step_band(OVERLAY_SELROW_EXTRA_STEPS + 1)
 }
 
-pub fn overlay_selected_band() -> Srgb {
-    surface_step_band(OVERLAY_SELROW_EXTRA_STEPS)
-}
+// The selected-row band has ONE owner, `selection_ui` — it is the token, and
+// the derivation is only its default. A second accessor returning the same
+// value is the alignment this repo merges away.
 
 fn contrast_ratio(a: Srgb, b: Srgb) -> f32 {
     let (la, lb) = (rel_lum(a), rel_lum(b));

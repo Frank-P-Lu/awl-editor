@@ -471,7 +471,18 @@ pub struct Theme {
     pub primary: Srgb,
     pub primary_content: Srgb,
     pub error: Srgb,
-    pub selection: Srgb,
+    /// The wash that covers TEXT: the document's own selection band, shared by
+    /// search-match highlights and by the menu-title highlight that reuses the
+    /// same `highlight_treatment`. Authored per world, translucent, and held to
+    /// a measured legibility floor against the ink it covers.
+    pub selection_document: Srgb,
+    /// The band under a SELECTED ROW in a summoned surface (picker, palette,
+    /// menu list). `None` — the shape every world ships — means DERIVED:
+    /// `base_200` climbed a fixed number of steps toward `base_300`, which is
+    /// what makes the band a value step and never a new hue (DESIGN §3/§5) BY
+    /// CONSTRUCTION rather than by a law someone has to write and enforce. A
+    /// world that authors a colour here opts out of that guarantee knowingly.
+    pub selection_ui: Option<Srgb>,
     pub background: Background,
     pub font: &'static str,
     pub mono: &'static str,

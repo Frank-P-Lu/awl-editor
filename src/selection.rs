@@ -362,6 +362,17 @@ impl SelectionPipeline {
         self.color = srgba_u8_to_linear(srgba);
     }
 
+    /// The colour this pipeline is currently carrying, in the same linear form
+    /// [`Self::set_color`] stores. Test-only, and it exists because a headless
+    /// capture builds its pipelines ONCE and never runs `sync_theme_colors`: a
+    /// token mis-routed in the SYNC half alone repaints nothing a capture can
+    /// see, and only surfaces after a LIVE theme switch. This is the seam a law
+    /// reads instead of the pixels.
+    #[cfg(test)]
+    pub(crate) fn test_color(&self) -> [f32; 4] {
+        self.color
+    }
+
     /// Switch DITHER MODE on/off (density `0.0` = off, the ordinary soft
     /// fill — else THE ONE WAGTAIL HIGHLIGHT TEXTURE at that density). Called
     /// from `sync_theme_colors` every theme switch (a switch FROM a one-bit
@@ -727,7 +738,7 @@ fn lerp4(a: [f32; 4], b: [f32; 4], t: f32) -> [f32; 4] {
 /// Convert an 8-bit sRGB RGBA quad to linear-light floats for the shader (the
 /// render target is sRGB, so the GPU expects linear color it re-encodes on
 /// write). Alpha is linear already.
-fn srgba_u8_to_linear(c: [u8; 4]) -> [f32; 4] {
+pub(crate) fn srgba_u8_to_linear(c: [u8; 4]) -> [f32; 4] {
     fn ch(u: u8) -> f32 {
         let s = u as f32 / 255.0;
         if s <= 0.04045 {

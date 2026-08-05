@@ -31,8 +31,8 @@ impl TextPipeline {
         self.caret_glyph_pipeline
             .set_color(theme::primary().rgb_bytes());
         self.selection_pipeline
-            .set_color(theme::selection().rgba_bytes());
-        // Search matches: `theme::selection()` on an ordinary world, THE ONE
+            .set_color(theme::selection_document().rgba_bytes());
+        // Search matches: `theme::selection_document()` on an ordinary world, THE ONE
         // WAGTAIL HIGHLIGHT TEXTURE's pure white + dither density on a
         // one-bit world — see `search_match_rgba_bytes`/`wagtail_dither_density`.
         // A switch AWAY from a one-bit world must reset the density back to
@@ -105,7 +105,8 @@ impl TextPipeline {
         // amber — figure/ground by value only (DESIGN §3/§4). The title/item text ink
         // (faint / muted / content) is re-read live at prepare time.
         self.menubar_bg.set_color(theme::base_200().rgba_bytes());
-        self.menubar_hi.set_color(theme::selection().rgba_bytes());
+        self.menubar_hi
+            .set_color(theme::selection_document().rgba_bytes());
         self.menu_drop_shadow.set_color(float_shadow_srgba());
         self.menu_drop_border
             .set_color(theme::surface_selected().rgba_bytes());
@@ -121,7 +122,8 @@ impl TextPipeline {
         self.float_border
             .set_color(theme::surface_selected().rgba_bytes());
         self.float_card.set_color(theme::base_300().rgba_bytes());
-        self.overlay_rows.set_color(theme::selection().rgba_bytes());
+        self.overlay_rows
+            .set_color(theme::selection_ui().rgba_bytes());
         self.overlay_bars
             .set_color(theme::surface_selected().rgba_bytes());
         self.overlay_spine.set_color(theme::muted().rgba_bytes());

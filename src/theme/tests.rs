@@ -8,13 +8,17 @@ use super::derive::{OVERLAY_SELROW_EXTRA_STEPS, SELECTED_BAND_STEPS};
 use super::*;
 
 /// PALETTE-COMPOSITION round (item 5): the picker's selected-row band
-/// ([`overlay_selected_band`]) is the shared [`surface_selected`] climbed
+/// ([`selection_ui`]) is the shared [`surface_selected`] climbed
 /// [`OVERLAY_SELROW_EXTRA_STEPS`] FURTHER up the SAME surface ramp — a stronger
 /// VALUE step, in the ramp's own direction, never a new hue (DESIGN §3/§5; the
 /// distinguishability sweep is the law that polices its visibility). The shared
 /// band the HUD/menu borders read is untouched.
+///
+/// This sweeps `selection_ui`'s DERIVED default, which is the shape every world
+/// ships; `selection_ui_authored_override_replaces_the_derivation` below covers
+/// the other arm.
 #[test]
-fn overlay_selected_band_is_a_stronger_value_step_never_a_hue() {
+fn selection_ui_is_a_stronger_value_step_never_a_hue() {
     let _g = crate::testlock::serial();
     assert!(
         std::hint::black_box(OVERLAY_SELROW_EXTRA_STEPS) > 0,
@@ -27,7 +31,7 @@ fn overlay_selected_band_is_a_stronger_value_step_never_a_hue() {
             "{world}: ordinary (non-collapsed) ramp"
         );
         let shared = surface_selected();
-        let band = overlay_selected_band();
+        let band = selection_ui();
         // Per channel: the overlay band moves in the SAME direction the ramp step
         // does (value-only, no hue reversal) and is at least as far as the shared
         // band (stronger-or-equal, gamut-clamp permitting).
@@ -54,9 +58,83 @@ fn overlay_selected_band_is_a_stronger_value_step_never_a_hue() {
     // STRICT (the extra step actually moves the band).
     set_active_by_name("Bowerbird").unwrap();
     assert_ne!(
-        overlay_selected_band(),
+        selection_ui(),
         surface_selected(),
         "Bowerbird: the strengthened band differs from the shared band"
+    );
+    set_active(DEFAULT_THEME);
+}
+
+/// THE DERIVED DEFAULT IS THE GUARANTEE, and this is the law that keeps it free.
+/// `selection_ui` is a value step off the surface ramp and never a new hue only
+/// because it is COMPUTED; the moment a world authors a colour there, that
+/// property stops holding by construction and becomes a taste claim someone has
+/// to defend. So the roster is swept with no wildcard: every world ships `None`,
+/// and this fails BY NAME on the first world that does not — which is the
+/// conscious look an override deserves, not an obstacle to it. A world that
+/// genuinely wants one moves itself out of this sweep on purpose.
+#[test]
+fn every_world_takes_the_derived_selection_ui_rather_than_authoring_one() {
+    let _g = crate::testlock::serial();
+    for (i, t) in THEMES.iter().enumerate() {
+        assert_eq!(
+            t.selection_ui, None,
+            "{}: authors a selection_ui override — the by-construction \
+             value-step guarantee no longer covers it, so say so deliberately \
+             (see the Theme::selection_ui doc) rather than landing it silently",
+            t.name
+        );
+        set_active(i);
+        assert_eq!(
+            selection_ui(),
+            derive::derived_selection_ui(),
+            "{}: with no override, selection_ui must BE the derivation",
+            t.name
+        );
+    }
+    set_active(DEFAULT_THEME);
+}
+
+/// The other arm of `selection_ui`: an authored override actually replaces the
+/// derivation. No shipping world takes it, so without this the `Some` branch is
+/// unreachable and therefore — in this repo's terms — does not exist. It is
+/// asserted at [`derive::resolve_selection_ui`], the pure seam, because the
+/// active world is reached by INDEX into a static roster and a hand-built
+/// `Theme` can never be made active.
+#[test]
+fn selection_ui_authored_override_replaces_the_derivation() {
+    let _g = crate::testlock::serial();
+    set_active_by_name("Tawny").unwrap();
+    let derived = derive::derived_selection_ui();
+    // A colour no ramp step could land on, so "it returned the override" and
+    // "it returned the derivation" can never be confused.
+    let authored = Srgb::rgb(0x12, 0xAB, 0x34);
+    assert_ne!(derived, authored, "fixture picks a colour off the ramp");
+    assert_eq!(
+        derive::resolve_selection_ui(Some(authored), derived),
+        authored,
+        "an authored selection_ui wins over the derivation"
+    );
+    assert_eq!(
+        derive::resolve_selection_ui(None, derived),
+        derived,
+        "and no override falls through to it"
+    );
+    // The live accessor agrees with the seam on the shipping (None) shape.
+    assert_eq!(
+        selection_ui(),
+        derive::resolve_selection_ui(TAWNY.selection_ui, derived),
+        "selection_ui() is that same decision, not a second copy of it"
+    );
+    // The two tokens are SEPARATE fields, not two names for one colour.
+    assert_ne!(
+        Srgb::rgb(
+            selection_document().r,
+            selection_document().g,
+            selection_document().b
+        ),
+        authored,
+        "selection_ui is not a second name for selection_document"
     );
     set_active(DEFAULT_THEME);
 }
@@ -68,7 +146,7 @@ fn overlay_selected_band_is_a_stronger_value_step_never_a_hue() {
 /// GROUND (`base_100`, the scrim/room), not in a card. So the reference is the
 /// GROUND, not the vanished card: the unselected bar ([`overlay_bar_unselected`]
 /// == `base_200`) is a WHISPER one gentle step off the ground in the ramp's own
-/// direction, and the selected bar's band ([`overlay_selected_band`]) sits
+/// direction, and the selected bar's band ([`selection_ui`]) sits
 /// further up still — AND the selected↔unselected value step is at least as large
 /// as the unselected↔ground step, so the selected bar's pop leads its whisper
 /// neighbours at least as strongly as a whisper leads the bare ground. The user's
@@ -101,7 +179,7 @@ fn bars_unselected_sits_a_quiet_rung_below_the_selected_band() {
         // reference the old card (base_300) used to be.
         let ground = t.base_100;
         let unsel = overlay_bar_unselected();
-        let sel = overlay_selected_band();
+        let sel = selection_ui();
         // Per channel: `unsel` moves in the ramp direction from the GROUND (a
         // whisper), and `sel` moves at least as far again (whisper strictly between
         // ground and selected in the ramp's own direction, value-only — no hue).
@@ -1422,7 +1500,11 @@ fn firetail_palette_is_numerically_distinct_from_every_other_world() {
             t.primary,
             t.primary_content,
             t.error,
-            Srgb::rgb(t.selection.r, t.selection.g, t.selection.b),
+            Srgb::rgb(
+                t.selection_document.r,
+                t.selection_document.g,
+                t.selection_document.b,
+            ),
         ]
     }
 
@@ -1475,7 +1557,11 @@ fn tawny_and_mopoke_carets_and_selections_are_now_numerically_distinct() {
             t.primary,
             t.primary_content,
             t.error,
-            Srgb::rgb(t.selection.r, t.selection.g, t.selection.b),
+            Srgb::rgb(
+                t.selection_document.r,
+                t.selection_document.g,
+                t.selection_document.b,
+            ),
         ]
     }
 
@@ -1484,12 +1570,20 @@ fn tawny_and_mopoke_carets_and_selections_are_now_numerically_distinct() {
         "the caret must no longer be byte-identical between Tawny and Mopoke"
     );
     assert_ne!(
-        (TAWNY.selection.r, TAWNY.selection.g, TAWNY.selection.b),
-        (MOPOKE.selection.r, MOPOKE.selection.g, MOPOKE.selection.b),
+        (
+            TAWNY.selection_document.r,
+            TAWNY.selection_document.g,
+            TAWNY.selection_document.b
+        ),
+        (
+            MOPOKE.selection_document.r,
+            MOPOKE.selection_document.g,
+            MOPOKE.selection_document.b
+        ),
         "the selection tint must no longer be byte-identical between Tawny and Mopoke"
     );
     assert_eq!(
-        TAWNY.selection.a, MOPOKE.selection.a,
+        TAWNY.selection_document.a, MOPOKE.selection_document.a,
         "the selection ALPHA is unchanged by this round — only the hue moved"
     );
 
@@ -1556,7 +1650,11 @@ fn every_pair_of_worlds_clears_the_roster_wide_distinctness_floor() {
             t.primary,
             t.primary_content,
             t.error,
-            Srgb::rgb(t.selection.r, t.selection.g, t.selection.b),
+            Srgb::rgb(
+                t.selection_document.r,
+                t.selection_document.g,
+                t.selection_document.b,
+            ),
         ]
     }
     const ROSTER_FLOOR: f32 = 40.0;
@@ -2480,14 +2578,14 @@ fn surface_selected_is_an_opaque_ramp_step_past_base_300() {
         // them with. See THEMES.md's "The 1-bit law".
         if t.is_one_bit() {
             assert_eq!(
-                band, t.selection,
+                band, t.selection_document,
                 "{}: one-bit surface_selected and selection are necessarily the same pure white",
                 t.name
             );
             continue;
         }
         assert_ne!(
-            band, t.selection,
+            band, t.selection_document,
             "{} band must not be the selection token",
             t.name
         );
@@ -2544,7 +2642,7 @@ fn selection_is_the_only_translucent_token() {
         // THEMES.md's "The 1-bit law".
         if t.is_one_bit() {
             assert_eq!(
-                t.selection.a, 0xFF,
+                t.selection_document.a, 0xFF,
                 "{}: one-bit selection must be fully OPAQUE",
                 t.name
             );
@@ -2556,10 +2654,10 @@ fn selection_is_the_only_translucent_token() {
         // selection would be sub-glance over its own ground lifts it (Bombora /
         // Mangrove → 0x60) to clear `ink_ladder_and_selection_laws_*`.
         assert!(
-            (0x40..0xA0).contains(&t.selection.a),
+            (0x40..0xA0).contains(&t.selection_document.a),
             "{} selection alpha {:#04x} outside the calm-translucent band [0x40, 0xA0)",
             t.name,
-            t.selection.a
+            t.selection_document.a
         );
     }
 }
@@ -2672,7 +2770,7 @@ fn hex_round_trips_known_values() {
     assert_eq!(TAWNY.base_content.hex(), "#e6e6e6");
     assert_eq!(TAWNY.primary.hex(), "#ffc05e");
     assert_eq!(TAWNY.error.hex(), "#e54b4b");
-    assert_eq!(TAWNY.selection.hex(), "#3a6fd8");
+    assert_eq!(TAWNY.selection_document.hex(), "#3a6fd8");
 }
 
 /// The sixteen worlds map onto at least SIX CLEARLY-distinct display faces

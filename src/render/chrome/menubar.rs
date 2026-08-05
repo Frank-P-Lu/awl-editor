@@ -92,7 +92,7 @@ impl TextPipeline {
         // invert of the antialiased title produced (see
         // `HighlightTreatment::InverseFill`). Ordinary worlds keep the muted
         // open title on a value-band fill, byte-identical.
-        let hi_treatment = theme::active().highlight_treatment(theme::selection());
+        let hi_treatment = theme::active().highlight_treatment(theme::selection_document());
         let (band_srgb, open_ink) = match hi_treatment {
             theme::HighlightTreatment::ValueBand(c) => (c, muted),
             theme::HighlightTreatment::InverseFill { band, ink } => (band, ink.to_glyphon()),
