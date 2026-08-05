@@ -178,9 +178,7 @@ fn split_row(
             let probe = p.diagonal_cluster_probe().expect("a diagonal cluster");
             (probe.accessory_right(d), false)
         }
-        theme::ListStyle::Pane | theme::ListStyle::Bars { .. } => {
-            (geom.text_left + plan.row_dx(d), true)
-        }
+        theme::ListStyle::Pane | theme::ListStyle::Bars => (geom.text_left + plan.row_dx(d), true),
     };
     // Every row ink this frame drew that shares vertical extent with the row.
     // MEASURED, never assumed to sit at the text edge: a poster-bars world grows

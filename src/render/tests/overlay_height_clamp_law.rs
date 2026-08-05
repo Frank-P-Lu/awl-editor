@@ -312,16 +312,17 @@ fn no_card_exceeds_its_canvas_for_any_overlay_kind() {
         return;
     };
 
-    let styles: [Option<theme::ListStyle>; 2] = [
-        Some(theme::ListStyle::Pane),
-        Some(theme::ListStyle::Bars {
-            radius: 6.0,
-            gap: 8.0,
-            grow_px: 24.0,
-            extent: theme::BarExtent::FullWidth,
-            coverage: theme::BarCoverage::All,
-        }),
-    ];
+    let styles: [Option<theme::ListStyle>; 2] =
+        [Some(theme::ListStyle::Pane), Some(theme::ListStyle::Bars)];
+    // Harmless for the `Pane` arm above (nothing reads it when the resolved
+    // style isn't `Bars`); set once rather than threading a second array.
+    crate::render::set_bar_config_test_override(Some(theme::BarConfig {
+        radius: 6.0,
+        gap: 8.0,
+        grow_px: 24.0,
+        extent: theme::BarExtent::FullWidth,
+        coverage: theme::BarCoverage::All,
+    }));
 
     let mut clamp_engaged = 0usize; // NON-VACUITY: the clamp must actually bind somewhere.
     let mut ink_checked = 0usize;
@@ -342,6 +343,7 @@ fn no_card_exceeds_its_canvas_for_any_overlay_kind() {
         }
     }
     crate::render::set_list_style_test_override(None);
+    crate::render::set_bar_config_test_override(None);
     p.set_dpi(1.0);
 
     assert!(

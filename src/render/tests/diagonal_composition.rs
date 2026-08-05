@@ -54,7 +54,7 @@ fn only_world_data_names_mangrove_and_magpie() {
     for world in theme::THEMES {
         match world.render_caps.list_style {
             theme::ListStyle::Diagonal(direction) => diagonal.push((world.name, direction)),
-            theme::ListStyle::Pane | theme::ListStyle::Bars { .. } => {}
+            theme::ListStyle::Pane | theme::ListStyle::Bars => {}
         }
     }
     assert_eq!(

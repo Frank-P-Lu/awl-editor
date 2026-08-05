@@ -280,19 +280,16 @@ fn every_editor_row_is_hoverable_at_its_own_y_center_across_the_world_roster() {
         return;
     };
 
-    let styles = [
-        ("pane", None),
-        (
-            "bars",
-            Some(theme::ListStyle::Bars {
-                radius: 6.0,
-                gap: 8.0,
-                grow_px: 24.0,
-                extent: theme::BarExtent::FullWidth,
-                coverage: theme::BarCoverage::All,
-            }),
-        ),
-    ];
+    let styles = [("pane", None), ("bars", Some(theme::ListStyle::Bars))];
+    // Harmless for the "pane" arm above (nothing reads it when the resolved
+    // style isn't `Bars`); set once rather than threading a second array.
+    crate::render::set_bar_config_test_override(Some(theme::BarConfig {
+        radius: 6.0,
+        gap: 8.0,
+        grow_px: 24.0,
+        extent: theme::BarExtent::FullWidth,
+        coverage: theme::BarCoverage::All,
+    }));
 
     let n = editor_overlay().items.len();
     assert!(
@@ -388,6 +385,7 @@ fn every_editor_row_is_hoverable_at_its_own_y_center_across_the_world_roster() {
         }
     }
     crate::render::set_list_style_test_override(None);
+    crate::render::set_bar_config_test_override(None);
     p.set_dpi(1.0);
     theme::set_active(theme::DEFAULT_THEME);
 }

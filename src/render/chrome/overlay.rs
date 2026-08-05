@@ -97,7 +97,7 @@ impl TextPipeline {
     /// gap as the space between them.
     pub(in crate::render) fn overlay_row_gap(&self) -> f32 {
         let gap = match crate::render::effective_list_style() {
-            theme::ListStyle::Bars { gap, .. } => gap.max(0.0),
+            theme::ListStyle::Bars => crate::render::effective_bar_config().gap.max(0.0),
             theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) => 0.0,
         };
         self.metrics.px(Logical(gap))
@@ -123,7 +123,7 @@ impl TextPipeline {
     /// right-aligned chords all inset together.
     pub(in crate::render) fn overlay_text_hpad(&self) -> f32 {
         let l = match crate::render::effective_list_style() {
-            theme::ListStyle::Bars { .. } => {
+            theme::ListStyle::Bars => {
                 return self.metrics.px(BAR_SIDE_INSET) + self.metrics.px(BAR_TEXT_PAD);
             }
             theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) => PANE_TEXT_HPAD,

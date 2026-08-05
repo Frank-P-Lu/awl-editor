@@ -152,12 +152,6 @@ pub(crate) fn parse_overlay_slant_force(s: &str) -> Option<SlantProbe> {
     }
 }
 
-const BARS_DEFAULT_RADIUS: f32 = 6.0;
-const BARS_DEFAULT_GAP: f32 = 10.0;
-const BARS_DEFAULT_GROW: f32 = 24.0;
-const BARS_DEFAULT_EXTENT: theme::BarExtent = theme::BarExtent::FullWidth;
-const BARS_DEFAULT_COVERAGE: theme::BarCoverage = theme::BarCoverage::All;
-
 #[derive(Debug)]
 pub(crate) enum ForcedKnob<T> {
     Unset,
@@ -185,8 +179,21 @@ pub(super) fn read_forced_knob<T>(
     grammar: &str,
     parse: impl Fn(&str) -> Option<T>,
 ) -> Option<T> {
-    let raw = std::env::var(var).ok();
-    match classify_forced_knob(raw.as_deref(), &parse) {
+    read_forced_knob_from(var, std::env::var(var).ok().as_deref(), grammar, parse)
+}
+
+/// Like [`read_forced_knob`] but takes an already-fetched raw value, for a
+/// var that resolves more than one field — `AWL_OVERLAY_LIST_FORCE` backs
+/// both `list_style` and `bar_config`, since `ListStyle::Bars` carries no
+/// fields of its own — so the environment is read exactly once per var, at
+/// the one call site `render_overrides_env_read_law` checks.
+pub(super) fn read_forced_knob_from<T>(
+    var: &str,
+    raw: Option<&str>,
+    grammar: &str,
+    parse: impl Fn(&str) -> Option<T>,
+) -> Option<T> {
+    match classify_forced_knob(raw, &parse) {
         ForcedKnob::Parsed(v) => Some(v),
         ForcedKnob::Unset => None,
         ForcedKnob::Retired => {
@@ -203,60 +210,64 @@ pub(super) fn read_forced_knob<T>(
 // LIST STYLE
 // ---------------------------------------------------------------------------
 
-/// `AWL_OVERLAY_LIST_FORCE` grammar: `"pane"`, bare `"bars"` (default radius/
-/// gap/grow/extent/coverage), or `"bars:"` followed by `:`-separated tokens —
-/// up to 3 non-negative floats (radius, gap, grow, positional) plus extent
-/// keywords (`full` | `hug` | `huglabel`/`hybrid`) and coverage keywords
-/// (`all` | `selected`), any order. A 4th float, unknown token, or
-/// negative/non-finite float → `None` (falls through to the world default).
+/// `AWL_OVERLAY_LIST_FORCE` grammar: `"pane"`, bare `"bars"`, or `"bars:"`
+/// followed by `:`-separated layout tokens (see [`parse_bar_config_force`]).
+/// This resolves ONLY which [`theme::ListStyle`] variant is forced — `Bars`
+/// carries no fields of its own any more, so the layout tokens (if any) are a
+/// second, independent override ([`parse_bar_config_force`]) rather than part
+/// of this value. A malformed `"bars:"` suffix rejects the WHOLE force (falls
+/// through to the world default), matching the un-split grammar's old
+/// behavior: `parse_bar_config_force` is the one parser for that suffix, so
+/// asking it to validate here can't drift from what it accepts when read for
+/// real.
 pub(crate) fn parse_list_style_force(s: &str) -> Option<theme::ListStyle> {
     let low = s.trim().to_ascii_lowercase();
-    if low == "pane" {
-        return Some(theme::ListStyle::Pane);
+    match low.as_str() {
+        "pane" => Some(theme::ListStyle::Pane),
+        "bars" => Some(theme::ListStyle::Bars),
+        _ if low.starts_with("bars:") => {
+            parse_bar_config_force(&low)?;
+            Some(theme::ListStyle::Bars)
+        }
+        _ => None,
     }
-    let rest = if low == "bars" {
-        ""
-    } else {
-        low.strip_prefix("bars:")?
-    };
-    let mut radius = BARS_DEFAULT_RADIUS;
-    let mut gap = BARS_DEFAULT_GAP;
-    let mut grow_px = BARS_DEFAULT_GROW;
-    let mut extent = BARS_DEFAULT_EXTENT;
-    let mut coverage = BARS_DEFAULT_COVERAGE;
+}
+
+/// The `"bars:"` suffix of `AWL_OVERLAY_LIST_FORCE`: up to 3 non-negative
+/// floats (radius, gap, grow, positional) plus extent keywords (`full` |
+/// `hug` | `huglabel`/`hybrid`) and coverage keywords (`all` | `selected`),
+/// any order, layered over [`theme::BarConfig::SHIPPED`]. `None` for `"pane"`
+/// or bare `"bars"` — no override, so [`theme::BarConfig::SHIPPED`] applies —
+/// and for a 4th float, an unknown token, or a negative/non-finite float.
+pub(crate) fn parse_bar_config_force(s: &str) -> Option<theme::BarConfig> {
+    let low = s.trim().to_ascii_lowercase();
+    let rest = low.strip_prefix("bars:")?;
+    let mut cfg = theme::BarConfig::SHIPPED;
     let mut floats_seen = 0usize;
-    if !rest.is_empty() {
-        for tok in rest.split(':') {
-            let tok = tok.trim();
-            match tok {
-                "full" => extent = theme::BarExtent::FullWidth,
-                "hug" => extent = theme::BarExtent::HugText,
-                "huglabel" | "hybrid" => extent = theme::BarExtent::HugLabel,
-                "all" => coverage = theme::BarCoverage::All,
-                "selected" => coverage = theme::BarCoverage::SelectedOnly,
-                _ => {
-                    let v: f32 = tok.parse().ok()?;
-                    if !v.is_finite() || v < 0.0 {
-                        return None;
-                    }
-                    match floats_seen {
-                        0 => radius = v,
-                        1 => gap = v,
-                        2 => grow_px = v,
-                        _ => return None, // a fourth float is malformed
-                    }
-                    floats_seen += 1;
+    for tok in rest.split(':') {
+        let tok = tok.trim();
+        match tok {
+            "full" => cfg.extent = theme::BarExtent::FullWidth,
+            "hug" => cfg.extent = theme::BarExtent::HugText,
+            "huglabel" | "hybrid" => cfg.extent = theme::BarExtent::HugLabel,
+            "all" => cfg.coverage = theme::BarCoverage::All,
+            "selected" => cfg.coverage = theme::BarCoverage::SelectedOnly,
+            _ => {
+                let v: f32 = tok.parse().ok()?;
+                if !v.is_finite() || v < 0.0 {
+                    return None;
                 }
+                match floats_seen {
+                    0 => cfg.radius = v,
+                    1 => cfg.gap = v,
+                    2 => cfg.grow_px = v,
+                    _ => return None, // a fourth float is malformed
+                }
+                floats_seen += 1;
             }
         }
     }
-    Some(theme::ListStyle::Bars {
-        radius,
-        gap,
-        grow_px,
-        extent,
-        coverage,
-    })
+    Some(cfg)
 }
 
 // ---------------------------------------------------------------------------

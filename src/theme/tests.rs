@@ -3178,20 +3178,17 @@ fn stipple_placard_density_clears_the_legibility_floor_over_its_own_ground() {
 #[test]
 fn personality_assignments_are_exactly_the_decided_table() {
     use model::{
-        BarCoverage, BarExtent, ChipVariant, Elevation, FacetStyle, ListStyle, PageFrame,
-        PlacardCorner, PlacardInk, RenderCaps, TitleStyle,
+        ChipVariant, Elevation, FacetStyle, ListStyle, PageFrame, PlacardCorner, PlacardInk,
+        RenderCaps, TitleStyle,
     };
     // FLIP ROUND (user FINAL PICKS 2026-07-17): the SHIPPING poster list surface
     // every statement world carries — the Bars HUG-ALL HYBRID (`HugLabel`: plate
     // hugs the LABEL, chord bare in the right column) at the gate's mid radius,
-    // every row a bar. Mirrors `worlds::POSTER_BARS` (the one owner).
-    let poster_bars = ListStyle::Bars {
-        radius: 6.0,
-        gap: 10.0,
-        grow_px: 24.0,
-        extent: BarExtent::HugLabel,
-        coverage: BarCoverage::All,
-    };
+    // every row a bar. `ListStyle::Bars` carries no fields of its own any
+    // more (nothing has ever varied them): `theme::BarConfig::SHIPPED`, read
+    // by the renderer rather than by any per-world `Theme`, is the one owner
+    // of that hug-all-hybrid shape now.
+    let poster_bars = ListStyle::Bars;
     let expected = |name: &str| -> RenderCaps {
         // COMPOSITION-C2: the placard worlds anchor their card TOP-LEFT and let
         // the poster corner DERIVE from that anchor (`Auto` → bottom-RIGHT),
@@ -3473,6 +3470,27 @@ fn personality_assignments_are_exactly_the_decided_table() {
     // + the data-sanity guard (`every_shipped_placard_world_has_sane_corner_and_scale`),
     // not a BL pin: the shrink-to-fit made every corner clip-safe, so the poster
     // corner DERIVES from the card anchor (complementary) with per-world overrides.
+}
+
+/// The FLIP-ROUND HUG-ALL HYBRID's own five dials, pinned by literal value —
+/// the coverage `personality_assignments_are_exactly_the_decided_table` lost
+/// when `ListStyle::Bars` stopped carrying them: that test now only checks
+/// EVERY Bars world resolves to the `Bars` variant, not what the shared
+/// layout actually is. `BarConfig::SHIPPED` is read by the renderer instead
+/// of any per-`Theme` field, so this is the one place left that fails if its
+/// values ever drift from the decided shape.
+#[test]
+fn bar_config_shipped_is_the_flip_round_hug_all_hybrid() {
+    assert_eq!(
+        model::BarConfig::SHIPPED,
+        model::BarConfig {
+            radius: 6.0,
+            gap: 10.0,
+            grow_px: 24.0,
+            extent: model::BarExtent::HugLabel,
+            coverage: model::BarCoverage::All,
+        }
+    );
 }
 
 fn expected_potoroo_caps() -> model::RenderCaps {

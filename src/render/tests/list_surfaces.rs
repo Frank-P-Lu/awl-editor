@@ -33,17 +33,27 @@
 use super::super::*;
 use super::{headless_dqp, pixeldiff, view};
 
-/// A `ListStyle::Bars` with the shipped-v5 DEFAULT axes (full-width, every row) —
+/// The shipped-v5 DEFAULT axes (full-width, every row) for a `BarConfig` —
 /// the fixture every pre-v6 test uses, so those tests stay concerned only with
 /// radius/gap/grow. The V6 axis variants have their own dedicated tests below.
-fn bars(radius: f32, gap: f32, grow_px: f32) -> theme::ListStyle {
-    theme::ListStyle::Bars {
+/// `ListStyle::Bars` itself carries no fields any more, so this is only the
+/// `bar_config` half of the override; pair it with `set_bars` below.
+fn bars_config(radius: f32, gap: f32, grow_px: f32) -> theme::BarConfig {
+    theme::BarConfig {
         radius,
         gap,
         grow_px,
         extent: theme::BarExtent::FullWidth,
         coverage: theme::BarCoverage::All,
     }
+}
+
+/// Installs BOTH halves of a shipped-v5-shaped `Bars` override: `list_style`
+/// itself and its layout dials, which live on the independent `bar_config`
+/// knob since `ListStyle::Bars` carries no fields.
+fn set_bars(radius: f32, gap: f32, grow_px: f32) {
+    set_list_style_test_override(Some(theme::ListStyle::Bars));
+    set_bar_config_test_override(Some(bars_config(radius, gap, grow_px)));
 }
 
 // --- RenderOverrides direct construction -------------------------------------
@@ -55,11 +65,13 @@ fn render_overrides_can_be_installed_as_a_struct_literal() {
     let _g = crate::testlock::serial();
     set_test_override(RenderOverrides {
         card_anchor: Some(theme::CardAnchor::TopLeft),
-        list_style: Some(bars(1.0, 2.0, 3.0)),
+        list_style: Some(theme::ListStyle::Bars),
+        bar_config: Some(bars_config(1.0, 2.0, 3.0)),
         ..Default::default()
     });
     assert_eq!(effective_card_anchor(), theme::CardAnchor::TopLeft);
-    assert_eq!(effective_list_style(), bars(1.0, 2.0, 3.0));
+    assert_eq!(effective_list_style(), theme::ListStyle::Bars);
+    assert_eq!(effective_bar_config(), bars_config(1.0, 2.0, 3.0));
     set_test_override(RenderOverrides::default());
 }
 
@@ -68,25 +80,50 @@ fn render_overrides_can_be_installed_as_a_struct_literal() {
 #[test]
 fn parse_list_style_force_grammar() {
     assert_eq!(parse_list_style_force("pane"), Some(theme::ListStyle::Pane));
-    // Bare `bars` → the default treatment (a real Bars value).
-    assert!(matches!(
-        parse_list_style_force("bars"),
-        Some(theme::ListStyle::Bars { .. })
-    ));
-    // Parametric radius:gap:grow.
+    // Bare `bars` → the default treatment (a real Bars value); no `bar_config`
+    // override, so `BarConfig::SHIPPED` applies.
+    assert_eq!(parse_list_style_force("bars"), Some(theme::ListStyle::Bars));
+    assert_eq!(parse_bar_config_force("bars"), None);
+    // Parametric radius:gap:grow — `list_style` is always just `Bars`; the
+    // dials land on the independent `bar_config` parse.
+    for s in ["bars:0:6:10", "bars:14.5:8:12"] {
+        assert_eq!(
+            parse_list_style_force(s),
+            Some(theme::ListStyle::Bars),
+            "{s}"
+        );
+    }
+    // Bare floats leave `extent`/`coverage` at `BarConfig::SHIPPED`'s own
+    // values (`HugLabel`/`All`) — NOT `bars_config`'s `FullWidth` fixture
+    // default, which is a deliberately different, pre-V6 shape kept only for
+    // the tests below that want it by name.
     assert_eq!(
-        parse_list_style_force("bars:0:6:10"),
-        Some(bars(0.0, 6.0, 10.0))
+        parse_bar_config_force("bars:0:6:10"),
+        Some(theme::BarConfig {
+            radius: 0.0,
+            gap: 6.0,
+            grow_px: 10.0,
+            ..theme::BarConfig::SHIPPED
+        })
     );
     assert_eq!(
-        parse_list_style_force("bars:14.5:8:12"),
-        Some(bars(14.5, 8.0, 12.0))
+        parse_bar_config_force("bars:14.5:8:12"),
+        Some(theme::BarConfig {
+            radius: 14.5,
+            gap: 8.0,
+            grow_px: 12.0,
+            ..theme::BarConfig::SHIPPED
+        })
     );
     // V6 P5 axis keywords fold into the SAME grammar word (any order, mixable
     // with the positional floats). A bare `bars` keeps the shipped-v5 defaults.
     assert_eq!(
         parse_list_style_force("bars:hug"),
-        Some(theme::ListStyle::Bars {
+        Some(theme::ListStyle::Bars)
+    );
+    assert_eq!(
+        parse_bar_config_force("bars:hug"),
+        Some(theme::BarConfig {
             radius: 6.0,
             gap: 10.0,
             grow_px: 24.0,
@@ -96,7 +133,11 @@ fn parse_list_style_force_grammar() {
     );
     assert_eq!(
         parse_list_style_force("bars:0:12:0:hug:selected"),
-        Some(theme::ListStyle::Bars {
+        Some(theme::ListStyle::Bars)
+    );
+    assert_eq!(
+        parse_bar_config_force("bars:0:12:0:hug:selected"),
+        Some(theme::BarConfig {
             radius: 0.0,
             gap: 12.0,
             grow_px: 0.0,
@@ -108,9 +149,15 @@ fn parse_list_style_force_grammar() {
     // + bare right-aligned chord). Both spellings parse; the rest of the axes keep
     // their defaults.
     for word in ["huglabel", "hybrid"] {
+        let s = format!("bars:{word}");
         assert_eq!(
-            parse_list_style_force(&format!("bars:{word}")),
-            Some(theme::ListStyle::Bars {
+            parse_list_style_force(&s),
+            Some(theme::ListStyle::Bars),
+            "{s}"
+        );
+        assert_eq!(
+            parse_bar_config_force(&s),
+            Some(theme::BarConfig {
                 radius: 6.0,
                 gap: 10.0,
                 grow_px: 24.0,
@@ -125,7 +172,11 @@ fn parse_list_style_force_grammar() {
     // outline-fill axis — `outline`/`filled` are no longer recognized keywords.)
     assert_eq!(
         parse_list_style_force("bars:selected:all:full"),
-        Some(theme::ListStyle::Bars {
+        Some(theme::ListStyle::Bars)
+    );
+    assert_eq!(
+        parse_bar_config_force("bars:selected:all:full"),
+        Some(theme::BarConfig {
             radius: 6.0,
             gap: 10.0,
             grow_px: 24.0,
@@ -133,11 +184,18 @@ fn parse_list_style_force_grammar() {
             coverage: theme::BarCoverage::All,
         })
     );
-    // Malformed / negative / wrong arity / unknown keyword → None (the world's own data).
-    assert_eq!(parse_list_style_force("bars:1:2:3:4"), None); // a fourth float
-    assert_eq!(parse_list_style_force("bars:-1:2:3"), None);
-    assert_eq!(parse_list_style_force("bars:wobble"), None); // unknown keyword
-    assert_eq!(parse_list_style_force("bars:outline"), None); // retired fill axis
+    // Malformed / negative / wrong arity / unknown keyword → None (the world's own data),
+    // for BOTH halves of the split grammar — `parse_list_style_force` delegates
+    // suffix validation to `parse_bar_config_force`, so the two can't drift.
+    for s in [
+        "bars:1:2:3:4", // a fourth float
+        "bars:-1:2:3",
+        "bars:wobble",  // unknown keyword
+        "bars:outline", // retired fill axis
+    ] {
+        assert_eq!(parse_list_style_force(s), None, "{s}");
+        assert_eq!(parse_bar_config_force(s), None, "{s}");
+    }
     assert_eq!(parse_list_style_force("capsule"), None);
     assert_eq!(parse_list_style_force(""), None);
 }
@@ -494,7 +552,7 @@ fn bars_float_bounded_plates_pane_keeps_its_card() {
 
     // BARS: the boxed pane vanishes — shadow + border park empty (no elevation) —
     // and `panel_card` carries only one local scrim per bar plate.
-    set_list_style_test_override(Some(bars(6.0, 10.0, 24.0)));
+    set_bars(6.0, 10.0, 24.0);
     p.set_view(&v);
     p.prepare(&device, &queue, 1200, 800).unwrap();
     let plates = p.overlay_bars.instance_count() + p.overlay_rows.instance_count();
@@ -519,6 +577,7 @@ fn bars_float_bounded_plates_pane_keeps_its_card() {
     );
 
     set_list_style_test_override(None);
+    set_bar_config_test_override(None);
     set_card_anchor_test_override(None);
 }
 
@@ -576,7 +635,7 @@ fn bars_draw_a_findable_surface_per_row() {
     v.overlay_selected = 2;
 
     // Sharp bars (radius 0 → a clean left edge to sample), a real gap, a real grow.
-    set_list_style_test_override(Some(bars(0.0, 8.0, 10.0)));
+    set_bars(0.0, 8.0, 10.0);
     set_card_anchor_test_override(Some(theme::CardAnchor::TopLeft));
     p.set_view(&v);
     p.prepare(&device, &queue, w, h).unwrap();
@@ -650,6 +709,7 @@ fn bars_draw_a_findable_surface_per_row() {
     let d_sel = redmean(sel, unsel);
     let d_bar = redmean(unsel, ground);
     set_list_style_test_override(None);
+    set_bar_config_test_override(None);
     set_card_anchor_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
     assert!(
@@ -755,7 +815,7 @@ fn spell_popup_floats_bare_on_bars_keeps_the_card_on_pane() {
         let base100 = theme::base_100();
 
         match t.render_caps.list_style {
-            theme::ListStyle::Bars { .. } => {
+            theme::ListStyle::Bars => {
                 assert_eq!(
                     float_n, 0,
                     "{}: a Bars world floats the spell plates BARE — no raised float pane",
@@ -923,7 +983,7 @@ fn bars_query_caret_overlaps_the_query_text() {
     // Bowerbird: an amber-accent, coloured-ground world where the bug was shot.
     theme::set_active_by_name("Bowerbird").unwrap();
     p.sync_theme();
-    crate::render::set_list_style_test_override(Some(bars(6.0, 8.0, 24.0)));
+    set_bars(6.0, 8.0, 24.0);
     // The full-bleed premise is a LEFT-placed card (pre-anchor default); pin the
     // anchor to TopLeft so the query line sits at the left INTERIOR RAIL where this
     // test's pixel windows expect it (the DEFAULT anchor is now `TopCenter` —
@@ -1003,6 +1063,7 @@ fn bars_query_caret_overlaps_the_query_text() {
 
     crate::render::set_card_anchor_test_override(None);
     crate::render::set_list_style_test_override(None);
+    set_bar_config_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 }
 
@@ -1107,7 +1168,7 @@ fn poster_bars_centered_lists_preserve_page_and_distinguish_plates() {
         assert!(
             matches!(
                 theme::active().render_caps.list_style,
-                theme::ListStyle::Bars { .. }
+                theme::ListStyle::Bars
             ),
             "{world} must remain a shipped Bars world for this poster treatment law"
         );
@@ -1360,7 +1421,7 @@ fn bars_float_bounded_plates_for_every_overlay_kind() {
     };
     let _g = crate::testlock::serial();
     set_card_anchor_test_override(Some(theme::CardAnchor::TopLeft));
-    set_list_style_test_override(Some(bars(6.0, 10.0, 24.0)));
+    set_bars(6.0, 10.0, 24.0);
 
     use crate::overlay::OverlayKind;
     for kind in OverlayKind::ALL {
@@ -1484,6 +1545,7 @@ fn bars_float_bounded_plates_for_every_overlay_kind() {
     }
 
     set_list_style_test_override(None);
+    set_bar_config_test_override(None);
     set_card_anchor_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 }
@@ -1520,7 +1582,7 @@ fn bars_footer_stays_legible_over_a_giant_placard() {
     // toward `base_content` (light) over the dark ground, the worst-case contrast.
     theme::set_active_by_name("Firetail").unwrap();
     set_card_anchor_test_override(Some(theme::CardAnchor::TopLeft));
-    set_list_style_test_override(Some(bars(6.0, 10.0, 24.0)));
+    set_bars(6.0, 10.0, 24.0);
 
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
@@ -1560,6 +1622,7 @@ fn bars_footer_stays_legible_over_a_giant_placard() {
     let b = render_with(&mut p, theme::TitleStyle::InlinePrefix);
     set_title_style_test_override(None);
     set_list_style_test_override(None);
+    set_bar_config_test_override(None);
     set_card_anchor_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 
@@ -1733,8 +1796,9 @@ fn hug_extent_leaves_room_to_the_right_where_full_width_fills_it() {
     v.overlay_items = (0..6).map(|i| format!("It{i}")).collect();
     v.overlay_selected = 2;
 
+    set_list_style_test_override(Some(theme::ListStyle::Bars));
     let frame = |p: &mut TextPipeline, ext: theme::BarExtent| {
-        set_list_style_test_override(Some(theme::ListStyle::Bars {
+        set_bar_config_test_override(Some(theme::BarConfig {
             radius: 6.0,
             gap: 10.0,
             grow_px: 0.0, // no selected jut — isolate the extent difference
@@ -1764,6 +1828,7 @@ fn hug_extent_leaves_room_to_the_right_where_full_width_fills_it() {
     );
 
     set_list_style_test_override(None);
+    set_bar_config_test_override(None);
     set_card_anchor_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 }
@@ -1795,8 +1860,9 @@ fn hug_shortcut_rows_hug_inline_and_leave_room() {
     v.overlay_bindings = (0..6).map(|_| "C-x".to_string()).collect();
     v.overlay_selected = 2;
 
+    set_list_style_test_override(Some(theme::ListStyle::Bars));
     let frame = |p: &mut TextPipeline, ext: theme::BarExtent| {
-        set_list_style_test_override(Some(theme::ListStyle::Bars {
+        set_bar_config_test_override(Some(theme::BarConfig {
             radius: 6.0,
             gap: 10.0,
             grow_px: 0.0, // isolate the extent difference
@@ -1834,6 +1900,7 @@ fn hug_shortcut_rows_hug_inline_and_leave_room() {
     );
 
     set_list_style_test_override(None);
+    set_bar_config_test_override(None);
     set_card_anchor_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 }
@@ -1869,8 +1936,9 @@ fn huglabel_hybrid_hugs_label_and_keeps_chord_in_the_right_column() {
     v.overlay_bindings = (0..6).map(|_| "C-x".to_string()).collect();
     v.overlay_selected = 2;
 
+    set_list_style_test_override(Some(theme::ListStyle::Bars));
     let frame = |p: &mut TextPipeline, ext: theme::BarExtent| {
-        set_list_style_test_override(Some(theme::ListStyle::Bars {
+        set_bar_config_test_override(Some(theme::BarConfig {
             radius: 6.0,
             gap: 10.0,
             grow_px: 0.0, // isolate the extent difference
@@ -1931,6 +1999,7 @@ fn huglabel_hybrid_hugs_label_and_keeps_chord_in_the_right_column() {
     );
 
     set_list_style_test_override(None);
+    set_bar_config_test_override(None);
     set_card_anchor_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 }
@@ -1957,8 +2026,9 @@ fn selected_only_coverage_drops_unselected_bars_but_keeps_the_selected() {
     v.overlay_items = (0..6).map(|i| format!("Item {i}")).collect();
     v.overlay_selected = 3;
 
+    set_list_style_test_override(Some(theme::ListStyle::Bars));
     let frame = |p: &mut TextPipeline, cov: theme::BarCoverage| {
-        set_list_style_test_override(Some(theme::ListStyle::Bars {
+        set_bar_config_test_override(Some(theme::BarConfig {
             radius: 6.0,
             gap: 10.0,
             grow_px: 0.0,
@@ -2011,6 +2081,7 @@ fn selected_only_coverage_drops_unselected_bars_but_keeps_the_selected() {
     );
 
     set_list_style_test_override(None);
+    set_bar_config_test_override(None);
     set_card_anchor_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 }
@@ -2267,7 +2338,7 @@ fn faceted_section_header_sits_on_a_plate_on_every_bars_world() {
 
     let bars_worlds: Vec<&theme::Theme> = theme::THEMES
         .iter()
-        .filter(|t| matches!(t.render_caps.list_style, theme::ListStyle::Bars { .. }))
+        .filter(|t| matches!(t.render_caps.list_style, theme::ListStyle::Bars))
         .collect();
     assert!(
         !bars_worlds.is_empty(),
@@ -2395,7 +2466,7 @@ fn faceted_lens_strip_tabs_sit_on_plates_on_every_bars_world() {
 
     let bars_worlds: Vec<&theme::Theme> = theme::THEMES
         .iter()
-        .filter(|t| matches!(t.render_caps.list_style, theme::ListStyle::Bars { .. }))
+        .filter(|t| matches!(t.render_caps.list_style, theme::ListStyle::Bars))
         .collect();
     assert!(
         !bars_worlds.is_empty(),

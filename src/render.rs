@@ -47,14 +47,14 @@ pub use chrome::PanelHit;
 pub(crate) mod overrides;
 #[cfg(test)]
 pub(crate) use overrides::{
-    ForcedKnob, RenderOverrides, classify_forced_knob, parse_facet_style_force,
-    parse_list_style_force, parse_motion_force, parse_overlay_align, parse_overlay_anchor_force,
-    parse_overlay_density_force, parse_overlay_motion_force, parse_overlay_slant_force,
-    parse_overlay_style_force, set_card_anchor_test_override, set_chrome_face_test_override,
-    set_facet_style_test_override, set_list_style_test_override, set_motion_test_override,
-    set_overlay_density_test_override, set_overlay_motion_test_override,
-    set_pane_split_test_override, set_slant_test_override, set_test_override,
-    set_title_style_test_override,
+    ForcedKnob, RenderOverrides, classify_forced_knob, parse_bar_config_force,
+    parse_facet_style_force, parse_list_style_force, parse_motion_force, parse_overlay_align,
+    parse_overlay_anchor_force, parse_overlay_density_force, parse_overlay_motion_force,
+    parse_overlay_slant_force, parse_overlay_style_force, set_bar_config_test_override,
+    set_card_anchor_test_override, set_chrome_face_test_override, set_facet_style_test_override,
+    set_list_style_test_override, set_motion_test_override, set_overlay_density_test_override,
+    set_overlay_motion_test_override, set_pane_split_test_override, set_slant_test_override,
+    set_test_override, set_title_style_test_override,
 };
 pub(crate) use overrides::{OverlayMotionProbe, SlantProbe, TypeDensity};
 
@@ -1561,6 +1561,16 @@ pub(crate) fn effective_list_style() -> theme::ListStyle {
         Some(s) => s,
         None => theme::active().render_caps.list_style,
     }
+}
+
+/// The `Bars` layout dials — never a per-`Theme` value (`ListStyle::Bars`
+/// carries none), so there is no world default to fall through to.
+/// [`theme::BarConfig::SHIPPED`] is the one owner of what every `Bars` world
+/// has ever rendered; a forced knob can still replace it for exploration.
+pub(crate) fn effective_bar_config() -> theme::BarConfig {
+    overrides::current()
+        .bar_config
+        .unwrap_or(theme::BarConfig::SHIPPED)
 }
 
 pub(crate) fn effective_facet_style() -> theme::FacetStyle {

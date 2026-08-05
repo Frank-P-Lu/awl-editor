@@ -171,7 +171,7 @@ fn deliberate_crossing_snaps_the_card_into_the_destination_rail() {
         // Surface treatment (Pane/Bars) crossed too — read live off the world.
         let bars = matches!(
             crate::render::effective_list_style(),
-            theme::ListStyle::Bars { .. }
+            theme::ListStyle::Bars
         );
         let world_bars = matches!(
             theme::THEMES
@@ -180,7 +180,7 @@ fn deliberate_crossing_snaps_the_card_into_the_destination_rail() {
                 .unwrap()
                 .render_caps
                 .list_style,
-            theme::ListStyle::Bars { .. }
+            theme::ListStyle::Bars
         );
         assert_eq!(
             bars, world_bars,

@@ -220,7 +220,7 @@ impl TextPipeline {
         self.panel_card.draw(pass);
         let bars = matches!(
             crate::render::effective_list_style(),
-            theme::ListStyle::Bars { .. } | theme::ListStyle::Diagonal(_)
+            theme::ListStyle::Bars | theme::ListStyle::Diagonal(_)
         );
         if bars {
             self.placard_stipple.draw(pass);

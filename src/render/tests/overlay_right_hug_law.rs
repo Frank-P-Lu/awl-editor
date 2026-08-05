@@ -46,15 +46,18 @@ fn right_flat(items: &[&str], bindings: &[&str]) -> ViewState {
 }
 
 /// The Bars extent the shipped right-rail worlds (Cassowary + Mangrove) use — the
-/// label plate hugs the label, the chord stays in the right column.
-fn hug_label_bars() -> theme::ListStyle {
-    theme::ListStyle::Bars {
+/// label plate hugs the label, the chord stays in the right column. Forces
+/// both halves of the override, since `ListStyle::Bars` carries no fields of
+/// its own any more: the style itself, and this test's own layout dials.
+fn force_hug_label_bars() {
+    set_list_style_test_override(Some(theme::ListStyle::Bars));
+    crate::render::set_bar_config_test_override(Some(theme::BarConfig {
         radius: 6.0,
         gap: 10.0,
         grow_px: 0.0,
         extent: theme::BarExtent::HugLabel,
         coverage: theme::BarCoverage::All,
-    }
+    }));
 }
 
 // ---------------------------------------------------------------------------
@@ -70,7 +73,7 @@ fn plain_and_secondary_right_anchored_cards_share_one_right_edge() {
         return;
     };
     let _g = crate::testlock::serial();
-    set_list_style_test_override(Some(hug_label_bars()));
+    force_hug_label_bars();
 
     let items = ["Alpha", "Beta", "Gamma"];
     let right_edge = |p: &mut TextPipeline, v: &ViewState| -> (f32, f32) {
@@ -103,6 +106,7 @@ fn plain_and_secondary_right_anchored_cards_share_one_right_edge() {
     );
 
     set_list_style_test_override(None);
+    set_bar_config_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 }
 
@@ -119,7 +123,7 @@ fn right_anchored_card_hugs_content_far_narrower_than_left_sprawl() {
         return;
     };
     let _g = crate::testlock::serial();
-    set_list_style_test_override(Some(hug_label_bars()));
+    force_hug_label_bars();
 
     let items = ["Alpha", "Beta", "Gamma", "Delta"];
 
@@ -167,6 +171,7 @@ fn right_anchored_card_hugs_content_far_narrower_than_left_sprawl() {
     );
 
     set_list_style_test_override(None);
+    set_bar_config_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 }
 
@@ -183,7 +188,7 @@ fn right_anchored_secondary_survives_shrink_and_stays_content_bounded() {
         return;
     };
     let _g = crate::testlock::serial();
-    set_list_style_test_override(Some(hug_label_bars()));
+    force_hug_label_bars();
 
     let items = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
     let binds = ["C-x", "C-c", "M-x", "C-s", "C-o"];
@@ -229,6 +234,7 @@ fn right_anchored_secondary_survives_shrink_and_stays_content_bounded() {
     );
 
     set_list_style_test_override(None);
+    set_bar_config_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 }
 
@@ -239,7 +245,7 @@ fn right_anchored_secondary_survives_shrink_and_stays_content_bounded() {
 #[test]
 fn right_anchored_primaries_stay_inside_their_plates_wide_and_narrow() {
     let _g = crate::testlock::serial();
-    set_list_style_test_override(Some(hug_label_bars()));
+    force_hug_label_bars();
 
     let items = [
         "Alpha",
@@ -253,6 +259,7 @@ fn right_anchored_primaries_stay_inside_their_plates_wide_and_narrow() {
                 "skipping right_anchored_primaries_stay_inside_their_plates: no wgpu adapter"
             );
             set_list_style_test_override(None);
+            set_bar_config_test_override(None);
             return;
         };
         p.set_view(&right_flat(&items, &["C-x", "C-c", "M-x", "C-s"]));
@@ -278,6 +285,7 @@ fn right_anchored_primaries_stay_inside_their_plates_wide_and_narrow() {
     }
 
     set_list_style_test_override(None);
+    set_bar_config_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 }
 
@@ -294,7 +302,7 @@ fn non_right_anchored_cards_keep_the_fixed_wide_cap() {
         return;
     };
     let _g = crate::testlock::serial();
-    set_list_style_test_override(Some(hug_label_bars()));
+    force_hug_label_bars();
 
     let items = ["Alpha", "Beta", "Gamma"];
     for anchor in [theme::CardAnchor::TopLeft, theme::CardAnchor::TopCenter] {
@@ -315,6 +323,7 @@ fn non_right_anchored_cards_keep_the_fixed_wide_cap() {
     }
 
     set_list_style_test_override(None);
+    set_bar_config_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 }
 
@@ -344,7 +353,7 @@ fn right_anchored_long_primary_with_no_secondary_of_its_own_is_not_squeezed_by_a
         return;
     };
     let _g = crate::testlock::serial();
-    set_list_style_test_override(Some(hug_label_bars()));
+    force_hug_label_bars();
 
     // "Compare with version…" carries NO chord of its own; "Toggle outline"
     // carries a genuinely long COMPOUND chord (13 chars) — the real keybindings
@@ -387,6 +396,7 @@ fn right_anchored_long_primary_with_no_secondary_of_its_own_is_not_squeezed_by_a
     );
 
     set_list_style_test_override(None);
+    set_bar_config_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 }
 
@@ -434,7 +444,7 @@ fn right_anchored_content_driven_by_its_own_widest_primary_is_not_squeezed_by_th
     };
     let _g = crate::testlock::serial();
     theme::set_active_by_name("Mangrove");
-    set_list_style_test_override(Some(hug_label_bars()));
+    force_hug_label_bars();
 
     let items = ["English (US)", "English (UK)", "English (Australia)"];
     let binds = [
@@ -462,5 +472,6 @@ fn right_anchored_content_driven_by_its_own_widest_primary_is_not_squeezed_by_th
     );
 
     set_list_style_test_override(None);
+    set_bar_config_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 }

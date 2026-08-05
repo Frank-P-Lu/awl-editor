@@ -38,7 +38,7 @@ impl TextPipeline {
         let vis = self.resolve_visual_selection(&geom, &plan);
         match crate::render::effective_list_style() {
             theme::ListStyle::Pane => self.overlay_pane_selection(&geom, &plan, &vis).selected,
-            theme::ListStyle::Bars { .. } | theme::ListStyle::Diagonal(_) => Vec::new(),
+            theme::ListStyle::Bars | theme::ListStyle::Diagonal(_) => Vec::new(),
         }
     }
 
@@ -78,7 +78,7 @@ impl TextPipeline {
         let plates = self.overlay_row_surfaces_probe();
         match style {
             // The scrim strictly CONTAINS its plate, so it alone is the extent.
-            theme::ListStyle::Bars { .. } => {
+            theme::ListStyle::Bars => {
                 let pad = self.metrics.px(super::BAR_SCRIM_PAD);
                 plates
                     .into_iter()

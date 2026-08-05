@@ -249,17 +249,17 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
 
     let styles: [(&str, Option<theme::ListStyle>); 2] = [
         ("pane", Some(theme::ListStyle::Pane)),
-        (
-            "bars",
-            Some(theme::ListStyle::Bars {
-                radius: 6.0,
-                gap: 8.0,
-                grow_px: 24.0,
-                extent: theme::BarExtent::FullWidth,
-                coverage: theme::BarCoverage::All,
-            }),
-        ),
+        ("bars", Some(theme::ListStyle::Bars)),
     ];
+    // Harmless for the "pane" arm above (nothing reads it when the resolved
+    // style isn't `Bars`); set once rather than threading a second array.
+    crate::render::set_bar_config_test_override(Some(theme::BarConfig {
+        radius: 6.0,
+        gap: 8.0,
+        grow_px: 24.0,
+        extent: theme::BarExtent::FullWidth,
+        coverage: theme::BarCoverage::All,
+    }));
     // The whole geometry range, not one window: a roomy canvas, a narrow one that
     // forces the card into its edge-inset floor, a short one that clamps the
     // grouped family's own row cap, and a tall one. LOGICAL sizes — physical is
@@ -318,6 +318,7 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
         }
     }
     crate::render::set_list_style_test_override(None);
+    crate::render::set_bar_config_test_override(None);
     p.set_dpi(1.0);
     theme::set_active(theme::DEFAULT_THEME);
 
@@ -635,7 +636,7 @@ fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world() 
         let bands = (geom.card_y, notice_top, footer_top, lh);
         if matches!(
             theme::active().render_caps.list_style,
-            theme::ListStyle::Bars { .. }
+            theme::ListStyle::Bars
         ) && notice_reads_as_ground(&pixels, plan.card_x_span(), bands, world)
         {
             pixel_graded.push(world);

@@ -158,14 +158,8 @@ impl TextPipeline {
     ) -> OverlaySelectionRects {
         match list_style {
             theme::ListStyle::Pane => self.overlay_pane_selection(geom, plan, vis),
-            theme::ListStyle::Bars {
-                radius,
-                gap,
-                grow_px,
-                extent,
-                coverage,
-            } => {
-                self.overlay_bar_selection(geom, plan, vis, radius, gap, grow_px, extent, coverage)
+            theme::ListStyle::Bars => {
+                self.overlay_bar_selection(geom, plan, vis, crate::render::effective_bar_config())
             }
             // Diagonal selection is the bright CHEVRON prepared by its measured
             // composition owner (`diagonal::selected_chevron`). It deliberately has
@@ -235,19 +229,14 @@ impl TextPipeline {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn overlay_bar_selection(
         &mut self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
         vis: &VisualSelection,
-        radius: f32,
-        gap: f32,
-        grow_px: f32,
-        extent: theme::BarExtent,
-        coverage: theme::BarCoverage,
+        cfg: theme::BarConfig,
     ) -> OverlaySelectionRects {
-        let layout = self.overlay_bar_layout(geom, plan, radius, gap, grow_px, extent, coverage);
+        let layout = self.overlay_bar_layout(geom, plan, cfg);
         self.overlay_rows.set_corner(layout.radius);
         self.overlay_bars.set_corner(layout.radius);
         self.overlay_rows.set_stroke(0.0);
@@ -264,40 +253,35 @@ impl TextPipeline {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn overlay_bar_layout(
         &self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
-        radius: f32,
-        gap: f32,
-        grow_px: f32,
-        extent: theme::BarExtent,
-        coverage: theme::BarCoverage,
+        cfg: theme::BarConfig,
     ) -> OverlayBarLayout {
         let line_height = plan.lh();
-        // The gap arrives as the theme AUTHORED it; the plate it separates is
+        // The gap arrives as the config's own dial; the plate it separates is
         // seated inside a row pitch that already resolved the same number.
-        let gap = self.metrics.px(Logical(gap.max(0.0)));
-        let hugs = extent.hugs();
+        let gap = self.metrics.px(Logical(cfg.gap.max(0.0)));
+        let hugs = cfg.extent.hugs();
         let primary_px = if hugs {
             self.overlay_row_primary_px(geom)
         } else {
             std::collections::BTreeMap::new()
         };
-        let chord_px = if hugs && !extent.inline_shortcut() && self.overlay_right_shown {
+        let chord_px = if hugs && !cfg.extent.inline_shortcut() && self.overlay_right_shown {
             self.overlay_row_secondary_px(geom)
         } else {
             std::collections::BTreeMap::new()
         };
         OverlayBarLayout {
-            // The plate's own corner and its outward growth are theme-authored
+            // The plate's own corner and its outward growth are config-owned
             // LENGTHS, resolved at the same boundary the gap between the plates
             // already passes — so a bar keeps its shape at every scale.
-            radius: self.metrics.px(Logical(radius.max(0.0))),
-            grow_px: self.metrics.px(Logical(grow_px)),
-            extent,
-            coverage,
+            radius: self.metrics.px(Logical(cfg.radius.max(0.0))),
+            grow_px: self.metrics.px(Logical(cfg.grow_px)),
+            extent: cfg.extent,
+            coverage: cfg.coverage,
             bar_height: (line_height - gap).max(1.0),
             bar_offset: gap * 0.5,
             primary_px,
@@ -437,7 +421,9 @@ impl TextPipeline {
         // corner for no scrim at all — never let that number be read as an
         // authored dial.
         let radius = match list_style {
-            theme::ListStyle::Bars { radius, .. } => self.metrics.px(Logical(radius.max(0.0))),
+            theme::ListStyle::Bars => self.metrics.px(Logical(
+                crate::render::effective_bar_config().radius.max(0.0),
+            )),
             theme::ListStyle::Diagonal(_) => self.metrics.px(DIAGONAL_SCRIM_CORNER),
             theme::ListStyle::Pane => 0.0,
         };

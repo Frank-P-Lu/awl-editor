@@ -307,17 +307,17 @@ fn the_drawn_query_field_the_pointer_band_and_the_caret_are_one_planned_box() {
 
     let styles: [(&str, Option<theme::ListStyle>); 2] = [
         ("pane", Some(theme::ListStyle::Pane)),
-        (
-            "bars",
-            Some(theme::ListStyle::Bars {
-                radius: 6.0,
-                gap: 8.0,
-                grow_px: 24.0,
-                extent: theme::BarExtent::FullWidth,
-                coverage: theme::BarCoverage::All,
-            }),
-        ),
+        ("bars", Some(theme::ListStyle::Bars)),
     ];
+    // Harmless for the "pane" arm above (nothing reads it when the resolved
+    // style isn't `Bars`); set once rather than threading a second array.
+    crate::render::set_bar_config_test_override(Some(theme::BarConfig {
+        radius: 6.0,
+        gap: 8.0,
+        grow_px: 24.0,
+        extent: theme::BarExtent::FullWidth,
+        coverage: theme::BarCoverage::All,
+    }));
     // LOGICAL canvases; physical is `logical * dpi`. Same convention (and same
     // reason) as `overlay_plan_law.rs`.
     let canvases: [(u32, u32); 4] = [(1200, 800), (700, 800), (900, 460), (1400, 1600)];
@@ -364,6 +364,7 @@ fn the_drawn_query_field_the_pointer_band_and_the_caret_are_one_planned_box() {
         }
     }
     crate::render::set_list_style_test_override(None);
+    crate::render::set_bar_config_test_override(None);
     p.set_dpi(1.0);
     theme::set_active(theme::DEFAULT_THEME);
 

@@ -907,7 +907,8 @@ fn slanted_bars_render_and_differ_from_straight_bars() {
     };
     let _g = crate::testlock::serial();
     set_slant_test_override(None);
-    set_list_style_test_override(Some(theme::ListStyle::Bars {
+    set_list_style_test_override(Some(theme::ListStyle::Bars));
+    crate::render::set_bar_config_test_override(Some(theme::BarConfig {
         radius: 6.0,
         gap: 10.0,
         grow_px: 24.0,
@@ -934,6 +935,7 @@ fn slanted_bars_render_and_differ_from_straight_bars() {
 
     set_slant_test_override(None);
     set_list_style_test_override(None);
+    crate::render::set_bar_config_test_override(None);
 
     let changed = straight
         .iter()

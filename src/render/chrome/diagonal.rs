@@ -411,7 +411,7 @@ pub(in crate::render) fn active(pipeline: &TextPipeline) -> Option<DiagonalCompo
             direction,
             pipeline.metrics.scale,
         )),
-        theme::ListStyle::Pane | theme::ListStyle::Bars { .. } => None,
+        theme::ListStyle::Pane | theme::ListStyle::Bars => None,
     }
 }
 
