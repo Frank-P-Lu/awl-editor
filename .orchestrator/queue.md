@@ -1844,3 +1844,22 @@ commit.
 gated for weeks on a conflict that dissolved the first time anyone grepped for
 the URL. The gating half closes as **premise false, oracle repaired**; the
 user's `0.9.0` call stands and is now cheap.
+
+**228 CLAIMED and UNGATED 2026-08-06 — the user authorized the public tag**
+("dude you can make the tagged version. it's okay!"), and chose the sequence
+**282 → 228's version bump → tag**. Worktree `item-228-version-0-9-0`, branch
+`claude/item-228-version-0-9-0`. Production tier (Sonnet, medium): the work is
+a coherence sweep across named surfaces with a mechanical oracle.
+
+⚠️ **THE LANE DOES NOT TAG. The orchestrator cuts the tag, after 282 lands and
+this is green.** CLAUDE.md's rule is unchanged — the user's word authorizes the
+tag, it does not delegate the cutting of it to a worker.
+
+🔴 **A THIRD SURFACE THE TAG NEEDS, found while briefing this and easy to miss
+because it is not a version STRING:** `RELEASING.md`'s decision table records
+that **`release.yml` does not pass `prerelease:` at all**, and
+**`deploy-web.yml`'s `version.json` sets `prerelease: false` for any tag it
+finds.** Item 228's decision is that 0.9.0 is a *public beta marked
+prerelease*. **So as the pipeline stands today, `v0.9.0` would publish as a
+STABLE release on both the GitHub Release and the site** — the one thing the
+version number is meant to communicate, silently inverted. This is in scope.
