@@ -489,6 +489,47 @@ live, and that half is fixed with OFL 1.1 §2 quoted. **The lesson to carry: an
 orchestrator's own measurement is not privileged, and a licence claim built on
 one host's tooling gets re-measured with a parser, not a text scanner.**
 
+🟡 **THIRD WAVE — dispatched 2026-08-05 after the second wave pushed clean.**
+- **264 — 🟡 IN PROGRESS — claude, branch `claude/item-264-selection-contrast`.**
+  Deep tier (Opus). ⚠️ **Its board numbers are STALE and it was told so:** 258 and
+  260 both moved a world's ground, and the band is `selection` composited over
+  the **page**, so Mulga's and Magpie's figures have both shifted. **A fresh
+  twenty-world measurement is its first deliverable**, and "Mulga now clears the
+  floor" is an acceptable finding.
+- **270 — ✅ LANDED, merge `8ca3ea22`** (`74e20fa9`). See below.
+- **276 — 🟡 IN PROGRESS — claude, branch `claude/item-276-guard-restore`.**
+- **273 — 🟡 IN PROGRESS — claude, branch `claude/item-273-reference`.** Deep
+  tier. Briefed with both of the user's boundaries held: **reference only — the
+  user writes the tutorial themselves** — and **generated or law-checked, never
+  transcribed**, because a hand-written manual is wrong the moment a binding
+  changes.
+
+✅ **270 — LANDED, merge `8ca3ea22`** (`74e20fa9`). `native-gate.sh` now writes a
+gitignored `.orchestrator/native-gate.marker` (**pid + start sha + start
+epoch**) and removes it on every trappable exit path; `.orchestrator/README.md`
+tells a second session to check it with `kill -0` before committing to `main`.
+**Scripts-only, so no native receipt is claimed and none is owed.**
+⚠️ **THE OLD RULE COULD NOT WORK, AND THE REASON IS STRUCTURAL:** "do not commit
+while the merge train's gate is running" binds **only the session that started
+the gate.** This board supports two concurrent orchestrators in one working
+tree, so the other session was being asked to obey a fact living in the first
+session's memory. **It cost a full green native run on 2026-08-05** — both
+conventions, 299 s, no receipt — **to a board-only markdown commit.**
+✅ **A PID FILE WAS CHOSEN OVER `disk-preflight.sh`'s FLOCK, deliberately.** That
+lock serializes **mutation**, where only the kernel can arbitrate who goes
+first. Nothing here contends: the gate is the only writer, and a reader wants a
+point-in-time answer. A blocking `LOCK_EX` fights the "never block a commit"
+requirement outright, and a non-blocking probe reimplements `kill -0` with extra
+machinery.
+✅ **THE SIGKILL PATH WAS TESTED, NOT ARGUED** — and it is the case that decides
+whether this fix is worse than the bug. An untrappable kill leaves the marker on
+disk, and the reader correctly reads it **DEAD**, because authority lives in the
+live PID **inside** the file and never in the file's existence. **A stale marker
+is therefore harmless.** SIGTERM and normal completion both remove it.
+**The receipt contract is untouched** — no change to the HEAD comparison, the
+no-filtering refusal, or the receipt line's format, all of which other scripts
+and CI audits read. **Verified in the diff before merging, not taken on report.**
+
 ✅ **SECOND WAVE — 260, 266, 267, 269 ALL LANDED.**
 - ✅ **260 — LANDED, merge `e38e699a`** (`21774473`). Magpie wears `Bands` on its
   own ladder — darkest margin pixel matches `base_300`'s luminance to **five
