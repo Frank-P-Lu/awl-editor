@@ -279,7 +279,7 @@ mod tests {
     #[test]
     fn globals_toggle_and_open_close() {
         let _g = crate::testlock::serial();
-        let ambient = menu_bar_on(); // platform default; NOT `cfg!`, which reflects the host, not the initializer
+        let ambient = menu_bar_on(); // not `cfg!`: that reflects the host, not the initializer
         set_menu_bar_on(true);
         assert!(menu_bar_on());
         assert_eq!(toggle_open(2), Some(2));
