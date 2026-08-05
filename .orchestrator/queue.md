@@ -1655,3 +1655,45 @@ regression laws; the **process-group teardown is manual**, with the reason
 stated — isolating real process-group signalling inside a non-interactive test
 reduces to the same gate's-own-pid path both encoded laws already cover.
 **Mutation-proved both ways by name.**
+
+✅ **279 — LANDED, merge `c28400c2`** (`b58b3aa3`, `1c83486b`). Health clean,
+full suite **3749 passed**. **`menu_bar` is re-enrolled in item 276's audit** —
+`field!` is back in `leaked()`, the orchestrator's placeholder is gone, **22 of
+22 globals audited again.**
+
+✅ **THE SHAPE IS THE ONE THE ITEM GUESSED WAS RIGHT:** `attached()` returns a
+struct owning **both** the `App` and the restore guard, so **the guard's
+lifetime is the TEST's, not the helper's** — structurally impossible to repeat
+the reverted attempt's failure. `calm_globals` stays, with
+`calm_globals_guarded()` capturing first and returning the guard, so the binding
+is explicit at the site that needs it.
+
+⚠️ **VERIFIED BY THE ORCHESTRATOR UNDER THE FAILING CONDITION, NOT ON REPORT.**
+The lane ended **three consecutive turns on a status line** without delivering
+findings, so rather than spend a fourth round trip the branch was checked
+directly: forcing `MENU_BAR_ON`'s initialiser to the non-macOS branch — the
+reproduction of Linux on this host — takes `accessibility::` and `semantic::` to
+**10/10 and 33/33**, where the reverted half-fix left **1 and 4 failures under
+the same forcing**. The forcing was then restored and the **production
+initialiser confirmed byte-identical to `main`**, with both remaining hunks
+inside `mod tests`.
+
+✅ **IT FIXED A DEFECT ONE LAYER DOWN THAT NOBODY ASKED FOR.** `menubar`'s own
+test restored the global with **`cfg!(not(target_os = "macos"))`** — which
+reflects **the host COMPILING the test**, not the initialiser's actual branch —
+so under any forcing, or any future change to the default, **it restored the
+wrong value.** It now captures the ambient value and restores that. **Same class
+as the item itself, found while fixing it.**
+
+⚠️ **A PROCESS NOTE THE BOARD SHOULD CARRY: `cancel-in-progress` MAKES A
+PREMATURE PUSH DESTRUCTIVE.** `ci.yml` sets `concurrency.cancel-in-progress:
+true`. The orchestrator pushed `c0f250da` while `cfed2509`'s run was still in
+flight — reading an **empty `conclusion` field as "nothing to see" rather than
+"still running"** — and the new run cancelled the old one five minutes later.
+**It cost nothing only by luck:** every gating job had already finished green
+(`linux` 06:50:19, `mac minus render::tests` 06:49:17), and the only job killed
+was item 231's tolerated hang. **Fifteen minutes earlier it would have killed
+`linux` mid-run — the one arm no local gate reaches, and the arm that caught
+both real regressions this run.** ⚠️ **The rule is not "wait a while"; it is
+that an absent conclusion is a STATUS, and the check must read `status`, not
+just `conclusion`.**
