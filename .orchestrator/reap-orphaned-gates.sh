@@ -16,10 +16,23 @@
 #   .orchestrator/reap-orphaned-gates.sh          # report only
 #   .orchestrator/reap-orphaned-gates.sh --kill    # report and retire
 #
-# The root checkout's own gate (the merge train's) is never a candidate here,
-# on purpose: it is the one gate allowed to run unbounded and outside worker
-# policy, and this script has no way to tell "the train's gate, running long"
-# from "an orphan" by evidence alone.
+# The root checkout's own gate (the merge train's) needs a DIFFERENT
+# discriminator than a worktree's: the repo root always exists, is always a
+# known worktree, and its branch is never "already merged into main" in the
+# way a lane's is, so none of the three worktree signals below can ever fire
+# there. Item 270's marker (.orchestrator/native-gate.marker) is what closes
+# that gap — it names the pid, start commit, and start time of whichever
+# root-tree gate is actually live, and is removed on every one of that
+# script's own trappable exits. So for a root-tree candidate: marker absent,
+# or present but naming a pid that is not alive (a killed run whose exit
+# outran the trap, or a stale leftover), means no root gate is live and any
+# native-gate.sh-tagged process found there — including a leaked vitals-loop
+# child, which is what "verified by hand" against ppid=1 orphans holding a
+# `sleep` child meant in practice — is an orphan by construction, exactly
+# like a worktree one. A marker naming a live pid is the one case this
+# script still declines to touch, for the same reason as before: it cannot
+# tell "the train's gate, running long" from "an orphan" once one IS
+# genuinely in flight.
 set -euo pipefail
 
 # Overridable for tests: a test must never let `ps -A` sweep in this HOST's
@@ -84,6 +97,25 @@ process_cwd() {
   lsof -p "$1" 2>/dev/null | awk '$4 == "cwd" { print $NF; exit }'
 }
 
+# Overridable for tests, same reasoning as AWL_REAP_GATES_ROOT: a test must
+# never let this read the real repo's live marker.
+gate_marker="${AWL_REAP_GATES_MARKER:-$ROOT/.orchestrator/native-gate.marker}"
+
+# Item 270's marker line is `pid=%s start_commit=%s start_epoch=%s`. Prints
+# nothing (and fails) when the marker is absent or unparseable — both read
+# as "no evidence of a live root gate" to the caller below, same as a marker
+# naming a pid that `kill -0` says is dead.
+marker_live_pid() {
+  local marker="$1" line pid
+  [[ -f "$marker" ]] || return 1
+  line="$(<"$marker")"
+  [[ "$line" == pid=* ]] || return 1
+  pid="${line#pid=}"; pid="${pid%% *}"
+  [[ -n "$pid" ]] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  printf '%s\n' "$pid"
+}
+
 # Every PID whose ancestry runs through $1, $1 included. Cargo's own children
 # (rustc, the compiled test binaries) are what actually hold the cores, and a
 # process-group signal would miss them: native-gate.sh deliberately launches
@@ -106,10 +138,21 @@ for line in "${gate_lines[@]}"; do
   [[ -n "$pid" ]] || continue
   cwd="$(process_cwd "$pid")"
   [[ -n "$cwd" ]] || continue
-  [[ -n "$main_worktree" && "$cwd" == "$main_worktree" ]] && continue
 
   reason=""
-  if [[ ! -d "$cwd" ]]; then
+  if [[ -n "$main_worktree" && "$cwd" == "$main_worktree" ]]; then
+    # The repo root always exists, is always a known worktree, and its
+    # branch is never "merged into main" the way a lane's is — none of the
+    # three worktree signals below can fire here. Item 270's marker is the
+    # only evidence available: absent or stale (naming a dead pid) means no
+    # root gate is live, so this candidate — main script or a leaked vitals-
+    # loop child, both tagged native-gate.sh — is an orphan by construction.
+    if marker_pid="$(marker_live_pid "$gate_marker")"; then
+      : # a live root gate is named; this candidate is left alone
+    else
+      reason="root gate marker absent or stale (item 270) — no live root gate"
+    fi
+  elif [[ ! -d "$cwd" ]]; then
     reason="worktree directory no longer exists"
   elif ! is_known_worktree "$cwd"; then
     reason="worktree no longer registered with git"
