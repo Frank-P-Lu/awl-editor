@@ -41,7 +41,32 @@ gate_marker="${AWL_NATIVE_GATE_MARKER:-$gate_root/.orchestrator/native-gate.mark
 printf 'pid=%s start_commit=%s start_epoch=%s\n' "$$" "$start_commit" "$gate_started_epoch" \
   >"$gate_marker"
 
-trap 'rm -rf "$gate_run_dir"; rm -f "$gate_marker"' EXIT
+# The vitals heartbeat launched below (`gate_vitals_loop`) is put in its own
+# process group by `gate_launch`, same as every phase, so a signal aimed only
+# at THIS script's pid never reaches it on its own. The three explicit
+# `kill -TERM "$vitals_pid"` sites further down only cover the exits they sit
+# on (a failed canary, an exhausted budget, a clean finish) — measured live:
+# a direct SIGTERM to this script's own pid (a killed background job, a
+# forwarded SIGINT, anything that ends the process outside those three
+# branches) skips all of them, and the loop is left running at ppid=1 with
+# its `sleep` child once its parent is gone — still holding this script's
+# inherited stdout open, the exact failure `gate_sleep_then` below warns
+# against. Killing it here, in the EXIT trap, makes retirement unconditional:
+# this trap already fires on every one of those paths (proven by the marker
+# it already removes on a killed run), so `vitals_pid` dying here too closes
+# the gap without touching the three existing sites. `vitals_pid=""` is
+# declared before the trap so a death before `gate_launch` assigns it still
+# finds a bound empty variable under `set -u`, and the kill is a bare PID —
+# not a group signal — because `gate_vitals_loop`'s own TERM trap already
+# relays to its one sleeper child by exact pid, the same mechanism the three
+# existing call sites already rely on.
+vitals_pid=""
+gate_kill_vitals() {
+  [[ -n "$vitals_pid" ]] || return 0
+  kill -TERM "$vitals_pid" 2>/dev/null || true
+}
+
+trap 'gate_kill_vitals; rm -rf "$gate_run_dir"; rm -f "$gate_marker"' EXIT
 
 gate_elapsed() { printf '%s\n' $(( $(date +%s) - gate_started_epoch )); }
 

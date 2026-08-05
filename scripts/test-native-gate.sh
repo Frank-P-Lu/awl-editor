@@ -213,6 +213,25 @@ refuse() {
   fi
 }
 
+# The direct child of $1 whose own child is a `sleep` process. No budget is
+# armed in the callers below, so gate_vitals_loop is the only child that ever
+# spawns one — this is the same evidence a live host's `ps -ww` showed for
+# the leaked orphans this item was opened against: a pid whose one child is
+# sitting in `sleep`. Bash-3.2-safe (no `mapfile`), matching this repo's
+# other portability notes.
+find_vitals_pid() {
+  local gate_pid="$1" child grandchild
+  for child in $(pgrep -P "$gate_pid" 2>/dev/null || true); do
+    for grandchild in $(pgrep -P "$child" 2>/dev/null || true); do
+      if ps -ww -o command= -p "$grandchild" 2>/dev/null | grep -q '^sleep '; then
+        printf '%s\n' "$child"
+        return 0
+      fi
+    done
+  done
+  return 1
+}
+
 # ── Per-phase timing ─────────────────────────────────────────────────────────
 # The question this exists to answer is whether a 40-minute step is COMPILING
 # test harnesses or RUNNING tests. Cargo already announces both boundaries; the
@@ -632,6 +651,16 @@ marker_commit="${marker_line#*start_commit=}"; marker_commit="${marker_commit%% 
 
 echo "test-native-gate: a reader checking the marker mid-run sees a live pid (kill -0 succeeds) and the correct start commit"
 
+# Captured BEFORE the kill below, while the loop is still alive to be found.
+# This is the process the item's live-host diagnosis kept finding at
+# ppid=1 with a `sleep` child: the vitals heartbeat, orphaned by a SIGTERM
+# that only ever reached the top-level script.
+vitals_pid="$(find_vitals_pid "$marker_gate_pid")" || {
+  echo "test-native-gate: could not find the running gate's vitals-loop child, so the leak law below would prove nothing" >&2
+  kill -TERM "$marker_gate_pid" 2>/dev/null || true
+  exit 1
+}
+
 # ── The kill path: the case that matters most ────────────────────────────────
 # A marker that outlives its process silently wedges every later session's
 # advisory check — worse than the defect this item exists to fix. SIGTERM is
@@ -650,7 +679,66 @@ set -e
   exit 1
 }
 
+# The marker disappearing proves the EXIT trap ran; it does not by itself
+# prove the trap retired vitals_pid too. Give the signal a moment to land —
+# gate_vitals_loop's own TERM trap does the actual dying — then check the
+# pid directly, the same evidence a live host's `ps -ww` supplied.
+sleep 1
+kill -0 "$vitals_pid" 2>/dev/null && {
+  echo "test-native-gate: the vitals heartbeat (pid=$vitals_pid) survived a SIGTERM to the gate's own pid — orphaned at ppid=1, still holding a sleep child and this script's inherited stdout open" >&2
+  kill -TERM "$vitals_pid" 2>/dev/null || true
+  exit 1
+}
+
+echo "test-native-gate: a SIGTERM to the gate's own pid retires the vitals heartbeat too, not only the marker"
+
 echo "test-native-gate: killing the gate removes the marker — a killed run cannot wedge a later session"
+
+# ── SIGINT reaches the same unconditional trap ────────────────────────────
+# Ctrl-C forwarded to a foregrounded gate is the other realistic teardown
+# shape, and it is worth proving separately rather than assumed to behave
+# like SIGTERM: bash's default disposition differs per signal, and the EXIT
+# trap is only guaranteed to fire on the ones actually exercised here.
+sigint_marker="$WORK/marker-sigint"
+: >"$WORK/events"
+PATH="$WORK:$PATH" \
+  AWL_NATIVE_GATE_MARKER="$sigint_marker" \
+  AWL_NATIVE_GATE_PROBE_SLEEP=4 \
+  AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+  AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
+  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-sigint" \
+  "$ROOT/scripts/native-gate.sh" >"$WORK/output-sigint" 2>&1 &
+sigint_gate_pid=$!
+
+sigint_seen=0
+for _ in $(seq 1 50); do
+  [[ -s "$sigint_marker" ]] && { sigint_seen=1; break; }
+  sleep 0.1
+done
+(( sigint_seen == 1 )) || {
+  echo "test-native-gate: no marker appeared for the SIGINT probe" >&2
+  kill -TERM "$sigint_gate_pid" 2>/dev/null || true
+  exit 1
+}
+sigint_vitals_pid="$(find_vitals_pid "$sigint_gate_pid")" || {
+  echo "test-native-gate: could not find the SIGINT probe's vitals-loop child, so this law would prove nothing" >&2
+  kill -TERM "$sigint_gate_pid" 2>/dev/null || true
+  exit 1
+}
+
+kill -INT "$sigint_gate_pid"
+set +e
+wait "$sigint_gate_pid" 2>/dev/null
+set -e
+sleep 1
+kill -0 "$sigint_vitals_pid" 2>/dev/null && {
+  echo "test-native-gate: the vitals heartbeat (pid=$sigint_vitals_pid) survived a SIGINT to the gate's own pid" >&2
+  kill -TERM "$sigint_vitals_pid" 2>/dev/null || true
+  exit 1
+}
+
+echo "test-native-gate: a SIGINT to the gate's own pid retires the vitals heartbeat too"
 
 # ── A clean run leaves nothing behind ─────────────────────────────────────────
 marker_clean="$WORK/marker-clean"
