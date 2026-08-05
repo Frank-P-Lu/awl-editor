@@ -190,7 +190,10 @@ mod tests {
         t.push(vec![Cell::text("<b> & </b>")]);
         let html = t.to_html();
         assert!(html.contains("&lt;b&gt; &amp; &lt;/b&gt;"), "{html}");
-        assert!(!html.contains("<b>"), "raw markup escaped into text: {html}");
+        assert!(
+            !html.contains("<b>"),
+            "raw markup escaped into text: {html}"
+        );
     }
 
     #[test]

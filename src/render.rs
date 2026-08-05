@@ -981,7 +981,8 @@ fn nit_underline_srgba() -> [u8; 4] {
 /// settings write — the ONE owner of that fact, read both by the static
 /// below and by the generated reference (`settings::toggle_default`).
 pub(crate) const CODE_LIGATURES_DEFAULT: bool = true;
-static CODE_LIGATURES_ON: crate::toggle::Toggle = crate::toggle::Toggle::new(CODE_LIGATURES_DEFAULT);
+static CODE_LIGATURES_ON: crate::toggle::Toggle =
+    crate::toggle::Toggle::new(CODE_LIGATURES_DEFAULT);
 
 pub(crate) fn code_ligatures_on() -> bool {
     CODE_LIGATURES_ON.on()

@@ -416,7 +416,9 @@ fn bolded_names(doc: &str) -> Vec<String> {
         .split_once("## The worlds at a glance")
         .expect("WORLDS.md carries its at-a-glance table")
         .1;
-    let at_a_glance = at_a_glance.split_once("\n## ").map_or(at_a_glance, |(a, _)| a);
+    let at_a_glance = at_a_glance
+        .split_once("\n## ")
+        .map_or(at_a_glance, |(a, _)| a);
     at_a_glance
         .lines()
         .filter(|l| l.trim_start().starts_with("| **"))
@@ -526,7 +528,9 @@ fn every_site_page_offers_the_same_navigation() {
 fn the_reference_is_reachable_from_every_site_page() {
     for (name, text) in site_pages() {
         assert!(
-            nav_hrefs(&text).iter().any(|h| h.ends_with("reference.html")),
+            nav_hrefs(&text)
+                .iter()
+                .any(|h| h.ends_with("reference.html")),
             "site/{name} does not link to the reference"
         );
     }

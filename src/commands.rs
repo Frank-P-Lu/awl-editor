@@ -21,9 +21,9 @@ pub(crate) use menu_section::menu_section;
 use menu_section::{EDIT_COMMANDS, FILE_COMMANDS, VIEW_COMMANDS};
 pub use task_category::COMMAND_FACETS;
 #[cfg(test)]
-pub(crate) use task_category::{TaskCategory, task_category_of};
-#[cfg(test)]
 use task_category::command_bucket;
+#[cfg(test)]
+pub(crate) use task_category::{TaskCategory, task_category_of};
 pub struct Command {
     pub name: &'static str,
     pub action: Action,

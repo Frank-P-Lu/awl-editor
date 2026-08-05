@@ -401,9 +401,7 @@ pub(super) fn config_default(key: &str) -> Cell {
         "scroll_sensitivity" => range_default(&crate::range::SCROLL_SENSITIVITY),
         "page_width_prose" => range_default(&crate::range::PAGE_WIDTH_PROSE),
         "page_width_code" => range_default(&crate::range::PAGE_WIDTH_CODE),
-        "caret_mode" => Cell::code(crate::config::caret_mode_name(
-            crate::caret::default_mode(),
-        )),
+        "caret_mode" => Cell::code(crate::config::caret_mode_name(crate::caret::default_mode())),
         "dictionary" => Cell::code(crate::config::dictionary_name(
             crate::spell::DictVariant::DEFAULT,
         )),
@@ -638,11 +636,7 @@ pub(super) fn conceal_facts_for(
             "Both fence lines and the info string",
             "The whole block",
         ),
-        ConcealKind::Frontmatter => (
-            "Frontmatter",
-            "The whole `---` block",
-            "The whole block",
-        ),
+        ConcealKind::Frontmatter => ("Frontmatter", "The whole `---` block", "The whole block"),
         ConcealKind::Table => (
             "Table",
             "The whole source, replaced by a drawn grid",
