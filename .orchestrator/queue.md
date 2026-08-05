@@ -1590,3 +1590,50 @@ exactly, and the hot-per-frame travel gate, corrected to name the function that
 owns it rather than the one it wraps.
 
 281. **`theme/ground_space/tables.rs` DOCUMENTS A SHADER CONSTANT THAT NO LONGER EXISTS.** **Found by the item-280 lane, which flagged it rather than reaching outside its own file — the right call, and the reason it gets reviewed instead of riding along.** **Verified here:** `src/theme/ground_space/tables.rs:234`'s `authored_quantities` table describes **`WARP_WINDOW_INSET`** *("where each margin's window sits on the one projection")*, and `grep -c WARP_WINDOW_INSET shaders/background.wgsl` returns **0** — item 268 replaced it with `WARP_WINDOW_FULL`/`WARP_WINDOW_TIGHT`/`WARP_WINDOW_STRADDLE` when the two per-margin windows became one room-centred axis. ⚠️ **This is a doc comment inside RUST SOURCE, not `docs/render.md`**, which is why 280 correctly left it: different file, different reviewer, and a lane that widens its diff to chase every stale string is a lane whose diff nobody can review. **Build:** correct the entry to name the constants that exist and describe what they now do. ⚠️ **Read the surrounding table first** — `authored_quantities` is item 186's ground-space declaration machinery, and the entry is doing real work beside the stale name; **this is a correction, not a deletion.** **Verify:** every constant named in that table exists in the shader — grep each one, and check the whole table rather than only the warped-grid row, since one stale name suggests others. **Do NOT add a law that greps prose for identifiers** — the 280 lane's own recommendation, and the orchestrator agrees: a doc comment is not a manifest, and **item 273's generated-reference machinery is the right home if mechanical enforcement is ever wanted.** **Routing:** production tier, and small. **Found 2026-08-05.**
+
+✅ **263 — LANDED, merge `00bbf862`** (`9c61d76a`). **281 — LANDED, merge
+`defbc10e`** (`fb0f4658`). Combined candidate: health clean, **3749 passed**.
+
+🔴 **263'S REAL FINDING IS ABOUT THE HARNESS, AND IT IS NOW IN
+`docs/harness-reach.md` WHERE BRIEFS READ IT.** Its byte-identity sweep was as
+strong as this repo gets — **twenty worlds × three surfaces, 120 files, PNG and
+sidecar, `diff -r` clean** — **and it would still have shipped a defect.**
+Crossing `sync_theme_colors`'s document seed the other way moved **ZERO of those
+120 files.** ⚠️ **Verified independently before it went in the doc:**
+`sync_theme_colors` is reached from `app/apply.rs` (the live switch) and from
+pipeline **construction**, and a capture only ever hits construction. **So a
+capture witnesses the state a pipeline was BUILT with, never the state it was
+later RE-SEEDED with** — a defect in the colour half of a theme switch repaints
+nothing any capture can see and reaches only a user who changes worlds while the
+app runs. The new routing law reads the pipelines' own colours after a sync and
+carries a **non-vacuity guard** that the two tokens differ somewhere.
+
+✅ **IT CHASED THE TWENTIETH WORLD INSTEAD OF EXPLAINING IT AWAY.** The
+picker-row mutation moved 19 of 20; **Wagtail did not, because `InverseVideo`
+returns a fixed band and ink from `base_content`/`base_300` and never consults
+the token** (confirmed at `theme/model.rs:500`). Structurally blind, not
+suspiciously quiet.
+
+✅ **The default was NOT upgraded to authored** — every world carries
+`selection_ui: None` on its own visible line rather than behind a spread
+default, with a no-wildcard roster sweep that fails by name on the first world
+to author one. **A conscious look, not a block.**
+**Two smaller results:** the **menu-bar open-title band reads the DOCUMENT
+wash** while its own doc claimed it used the picker-row band — comment
+corrected, **colour deliberately left**, because moving it is a taste call and
+not a rename; and `theme::overlay_selected_band()` retired as a second name for
+one value. **264's law now names `selection_document` explicitly**, which
+sharpens its subject: it was never measuring the picker row.
+🔵 **One check the lane deliberately DEFERRED rather than ran badly:** the
+construction-site document seed mutation, held back to avoid contending with a
+running gate — **citing item 277's own contention finding.** It follows from the
+sync mutation but is inferred rather than measured. **Worth closing.**
+
+✅ **281 checked the WHOLE file rather than the row it was sent to** — every
+constant across all eleven `GroundQuantity` arrays grepped with real hit counts
+— and `WARP_WINDOW_INSET` was the only stale name. It noticed that two law tests
+assert that constant's **absence** and left them: correct, pre-existing, a guard
+against reintroduction. ⚠️ **It also disclosed a mechanics slip rather than
+hiding it** — it edited in the main tree before creating its worktree, caught
+it, stashed, moved, and dropped the stash. **Independently verified: the main
+tree is clean and both surviving stashes are older, from other sessions.**

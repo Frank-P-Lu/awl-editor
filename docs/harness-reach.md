@@ -212,6 +212,30 @@ fails if these rows drift from them, so this table cannot go stale.
 | `zoom_changed` | Applied |
 <!-- reach-table:end -->
 
+### ⚠️ A CAPTURE BUILDS ITS PIPELINES ONCE, SO BYTE-IDENTITY CANNOT SEE A LIVE THEME SWITCH
+
+**Measured, not reasoned:** a token routed to the wrong pipeline *in the live
+theme-switch path* moved **zero of 120 capture files** — twenty worlds × three
+surfaces, PNG and sidecar. The mechanism is structural rather than a gap
+someone forgot to close: `sync_theme_colors` is reached from
+`app/apply.rs` (the live switch) and from pipeline **construction**, and a
+capture only ever hits construction. So the colour half of a theme switch is
+never exercised, and a defect there **repaints nothing any capture can see** —
+it reaches only a user who changes worlds while the app is running.
+
+**What this costs you:** byte-identity across the whole roster is the strongest
+oracle this repo has for a refactor, and it is **blind to this one axis**. A
+rename or re-route that touches pipeline colour seeding needs a law that reads
+**the pipelines' own colours after a sync**, not a capture diff. Give such a
+law a **non-vacuity guard** — that the two values being distinguished actually
+differ somewhere in the roster — or it passes on a tree where they happen to
+coincide.
+
+**Do not generalise this into "captures prove nothing".** They proved the other
+119 things in that same sweep. The rule is narrower and worth stating exactly:
+*a capture witnesses the state a pipeline was BUILT with, never the state it
+was later RE-SEEDED with.*
+
 ### Three asymmetries the table will not shout at you
 
 **The same setting has two doors with two different reaches — narrower now,
