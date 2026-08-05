@@ -3472,6 +3472,27 @@ fn personality_assignments_are_exactly_the_decided_table() {
     // corner DERIVES from the card anchor (complementary) with per-world overrides.
 }
 
+/// The FLIP-ROUND HUG-ALL HYBRID's own five dials, pinned by literal value —
+/// the coverage `personality_assignments_are_exactly_the_decided_table` lost
+/// when `ListStyle::Bars` stopped carrying them: that test now only checks
+/// EVERY Bars world resolves to the `Bars` variant, not what the shared
+/// layout actually is. `BarConfig::SHIPPED` is read by the renderer instead
+/// of any per-`Theme` field, so this is the one place left that fails if its
+/// values ever drift from the decided shape.
+#[test]
+fn bar_config_shipped_is_the_flip_round_hug_all_hybrid() {
+    assert_eq!(
+        model::BarConfig::SHIPPED,
+        model::BarConfig {
+            radius: 6.0,
+            gap: 10.0,
+            grow_px: 24.0,
+            extent: model::BarExtent::HugLabel,
+            coverage: model::BarCoverage::All,
+        }
+    );
+}
+
 fn expected_potoroo_caps() -> model::RenderCaps {
     model::RenderCaps {
         elevation: model::Elevation::Recessed,
