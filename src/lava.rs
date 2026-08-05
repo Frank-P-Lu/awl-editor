@@ -581,12 +581,8 @@ pub fn lava_phase_for(stored: f32, reduced: bool, env: Option<f32>) -> f32 {
 //   <phase>   = a float (the frozen composition, e.g. 0.0 / 0.35)
 //   <dither>  = dither                    (optional; the coarse Bayer print-grain)
 // e.g. AWL_LAVA=deepsea:0.35:dither
-//
-// The spec once carried an `<edge>` token too (`hard` | `glow`). Every lava
-// world picked the glow, so the treatment stopped being a choice and the token
-// went with the dial — an unrecognised token is REJECTED rather than ignored,
-// so a stale `AWL_LAVA=warm:0.0:glow` fails loudly instead of quietly meaning
-// something it no longer says.
+// The retired `<edge>` token (`hard`|`glow`) is REJECTED, not ignored, so a
+// stale spec fails loudly instead of quietly meaning something it no longer says.
 
 fn parse_spec(raw: &str) -> Option<(Background, f32)> {
     let mut parts = raw.split(':');

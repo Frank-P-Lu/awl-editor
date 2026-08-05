@@ -935,9 +935,9 @@ fn deckle_shader_constants_match_their_host_mirrors() {
         "Strata must read the stable viewport coordinate, unconditionally"
     );
     // And the rejected owner is GONE from the shader, not merely unselected:
-    // item 175's whole finding is that measuring a wallpaper from a movable
-    // page edge is border decoration, and a named function is one `select`
-    // away from being reachable again.
+    // measuring a Room wallpaper from a movable page edge is border
+    // decoration, and a named function is one `select` away from being
+    // reachable again.
     assert!(
         !wgsl.contains("deckle_page_distance"),
         "the page-anchored coordinate owner is back in the shipped shader"

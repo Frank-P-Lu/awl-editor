@@ -162,17 +162,17 @@ impl TextPipeline {
             crate::lava::frost_px(frost.blur_px, self.metrics.zoom, self.dpi),
             crate::lava::FROST_ISO,
         ];
-        let params =
-            self.effective_background()
-                .lava_params()
-                .map(|(ground, lo, hi, dithered)| {
-                    (
-                        ground,
-                        lo,
-                        hi,
-                        crate::lava::dither_for_blur(dithered, self.backdrop_blur()),
-                    )
-                });
+        let params = self
+            .effective_background()
+            .lava_params()
+            .map(|(ground, lo, hi, dithered)| {
+                (
+                    ground,
+                    lo,
+                    hi,
+                    crate::lava::dither_for_blur(dithered, self.backdrop_blur()),
+                )
+            });
         let phase = self.lava_render_phase();
         self.lava_pipeline.prepare(
             queue,
