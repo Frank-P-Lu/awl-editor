@@ -1697,3 +1697,84 @@ was item 231's tolerated hang. **Fifteen minutes earlier it would have killed
 both real regressions this run.** ⚠️ **The rule is not "wait a while"; it is
 that an absent conclusion is a STATUS, and the check must read `status`, not
 just `conclusion`.**
+
+---
+
+## 🔴 CI RED #3 — `an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world` fails on lavapipe (item 282)
+
+**Gating job `linux (build + test)` is RED on `main`.** First seen at `d6b6a8d8`;
+the two runs before it were `cancelled` by pushes, so the true onset is
+unestablished and **must not be assumed to be `d6b6a8d8`**.
+
+**This is NOT caused by item 274's split** — the split landed after, at
+`ac14c44e`, with a green local gate and a green wasm smoke.
+
+### The failure
+
+```
+render::tests::overlay_plan_law::an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world
+src/render/tests/overlay_plan_law.rs:708:5
+Cassowary: the empty-state NOTICE row reads as a plated footer band rather than
+plain card ground (ground 35.22, notice 50.55, footer 27.93;
+notice delta 15.33 vs plate delta 7.29)
+```
+
+### Measured by the orchestrator, on this host, with a temporary probe
+
+The probe printed every world's numbers from inside `notice_reads_as_ground`,
+then was reverted; the tree is clean. **These are measurements, not readings of
+the source.**
+
+| world | backend | ground | notice | **plate_delta** | notice_delta | graded? |
+|---|---|---|---|---|---|---|
+| Galah | Metal (local) | 247.53 | 243.06 | 6.098 | 4.471 | no |
+| Firetail | Metal (local) | 57.95 | 59.68 | 8.256 | 1.728 | **yes** |
+| Cassowary | Metal (local) | 34.29 | 48.92 | **4.540** | 14.635 | no |
+| Cassowary | lavapipe (CI) | 35.22 | 50.55 | **7.29** | 15.33 | **yes** |
+
+`VISIBLE_PLATE_LUMA = 7.0` is the enrolment gate: a world is graded only when
+`plate_delta > 7.0`.
+
+### What the numbers establish, and what they do not
+
+**ESTABLISHED — Cassowary's ENROLMENT is backend-dependent.** Its `plate_delta`
+is **4.540 on Metal and 7.29 on lavapipe**, straddling the 7.0 gate. This is a
+60% swing, not rounding noise. The law's `assert_eq!(pixel_graded, ["Firetail"])`
+therefore hardcodes a graded SET that is itself a property of the GPU — the
+exact shape CLAUDE.md names: *a check runs in one configuration, and that
+configuration is itself an untested hypothesis.*
+
+**ESTABLISHED — Cassowary's `notice_delta` is NOT backend noise: 14.635 on
+Metal, 15.33 on lavapipe.** It is stable and large on both. So Cassowary would
+fail this assertion on **any** backend that enrols it. Metal is not passing
+because Cassowary is fine; Metal is passing because Cassowary never gets graded.
+
+**NOT ESTABLISHED — the cause.** Two readings fit every number above and the
+board takes NO position between them:
+- **(A) the law is right and the product is wrong** — Cassowary's empty-state
+  notice row really does draw a band it should not; or
+- **(B) the measurement is wrong** — the notice band's mean luminance is
+  dominated by the notice's own GLYPH INK rather than by any plate, which on a
+  dark ground (34) reads as a large positive delta.
+
+⚠️ **The asymmetry that decides it is not yet explained, and it is the first
+thing to measure:** Firetail's ground is 57.95 and its `notice_delta` is
+**1.728**, while Cassowary's ground is 34.29 and its `notice_delta` is
+**14.635**. Both are dark worlds rendering the same notice string. Under
+reading (B) alone, Firetail should show the same ink lift and does not. **A lane
+that adopts (A) or (B) without first explaining that 8× gap is guessing.**
+
+### Rules for the lane
+
+- The orchestrator's measurement above carries **no privilege**. Re-measure.
+- The premise to test FIRST is whether the defect is in the product or the
+  oracle. **If it is the oracle, this closes as "premise false, oracle
+  repaired" — not as fixed.**
+- Do not tune `VISIBLE_PLATE_LUMA` to make the failure go away. A threshold
+  moved until this host is quiet is the same single-configuration error one
+  layer up, and lavapipe will find the next edge.
+- The repair must be provably **non-vacuous on the axis that broke it**: show
+  the law failing on the defect it names, and show that its enrolment no longer
+  depends on which GPU ran it.
+- Local green is not evidence here. **`main`'s gate is Metal; the only arm that
+  has ever seen this is CI's lavapipe.**
