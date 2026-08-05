@@ -1185,3 +1185,63 @@ currently red on a **pixel** law that passes on Metal and fails on lavapipe.
 264's thresholds carry real margin (4.19 against 3.0; 0.049 against 0.03) rather
 than asserting byte-identity, so it is far less brittle than the failing one —
 **but CI's linux job is the first thing that will ever run it on lavapipe.**
+
+✅ **276 — COMPLETE, COMMITTED, HELD** — branch `claude/item-276-guard-restore`,
+`de0effdc`, full native receipt on that sha, unfiltered suite **3726 passed**,
+filtered `render::` **960 passed** (checked deliberately, since this repo has
+laws that pass alone, pass unfiltered, and fail only under a filter).
+**Held only because `main` is CI RED.**
+
+🔴 **THE NUMBER IS THE FINDING: 80 TESTS WERE LEAKING GLOBALS PAST THEIR OWN
+WINDOW.** Item 260's instance was found by accident; this is what a search
+found. **66 of the 80 are in `src/render/tests/`** — 16 in `outline.rs` (all
+`outline: true → false`) and ~40 across `caret*.rs` (`caret::set_mode()` with no
+`clear_override()`). **All 80 fixed**, via a scoped `TogglesRestore` capture.
+**A SECOND, INDEPENDENTLY AUTHORED COMMAND SWEEP WITH ITEM 260'S EXACT SHAPE was
+found** — `actions::tests::picker_misc_smoke::every_catalog_command_dispatches_without_panicking`
+— which is the confirmation that 260's was a class and not an incident.
+⚠️ **AND ITEM 260'S OWN FIX WAS STILL INCOMPLETE**: even after it, that sweep
+still missed caret mode, `hud_held`, `lifetime_open`, `streaks_open` and
+`menu_dropdown_open`. A fix written against a symptom does not close a class.
+
+⚠️ **THE LANE REJECTED THIS ORCHESTRATOR'S CENSUS INSTRUCTION AND WAS RIGHT —
+the second time in this wave a brief was corrected on the evidence.** It was
+told to derive the census **from the command roster**, on the reasoning that the
+leak arrived through a command sweep. **Measured, that derivation is
+insufficient:** only ~11 globals are reachable from a bare `apply_transition`
+sweep, and `popover`, `file_visibility`, `motion::reduced`, `code_ligatures`,
+`wysiwyg`, `inline_images`, `whichkey::force_shown`, `spell::active_variant`,
+`dateformat::active_format` and `settings::scroll_sensitivity` are
+settings/picker-driven and **reachable from no single `Action` at all** — a
+command-roster census would have missed every one. **It derived from the storage
+mechanism instead** (every `Toggle::new(` site, every `CardFlag`, plus the two
+that predate `Toggle` — `caret::MODE_OVERRIDE` and `hud::HUD_HELD`).
+✅ **AND THE CENSUS IS ITSELF LAW-ENFORCED rather than a list:**
+`every_toggle_and_card_flag_site_is_covered_by_serial_guard_or_named_here`
+re-scans the source at test time and asserts the counts, so **a new sticky
+global anywhere in the tree fails by name until it is enrolled.** That is the
+difference between fixing this and closing it.
+
+**Owner chosen: (a), widen the guard** — so the audit and the restore are the
+same list by construction, which is the property that stops the recurrence.
+**Cost, stated honestly rather than asserted:** ~22 relaxed atomic loads once
+per *outermost* acquisition, never on reentrant or `product()` acquisitions,
+`#[cfg(test)]` only. Suite wall clock 136.7 s standalone vs 146.2 s under the
+concurrent gate, 3726 tests either way. ⚠️ **The lane explicitly declined to
+claim a percentage delta**, having taken no controlled before-measurement on
+unmodified `main`.
+
+**Deliberately left, with reasons:** `commands::recent_indices`,
+`search::last_query`, `frontmatter::CJK_PRIORITY`, `app_icon` — live-App seams
+with their own `cfg(test)` reset discipline, unreachable headlessly. Named as
+follow-up candidates, not silently skipped.
+
+⚠️ **ON THE CI RED, answered precisely and NOT overclaimed:**
+`palette_scroll_anchor_item222` is not in its diff, and its change moves ambient
+state in the direction of **more** restore, so it should only reduce how often a
+stray global reaches a downstream law — **it is not a fix for the red and not a
+way to restore the masking.** It ran that law's two tests green on both
+conventions **on Metal only**, and said so, citing the same tripwire: a
+Metal-green result is not evidence about lavapipe. **This intelligence was
+forwarded to the repair lane**, because `MiscPins` converts "which leak masked
+this" from a search into a sweep.
