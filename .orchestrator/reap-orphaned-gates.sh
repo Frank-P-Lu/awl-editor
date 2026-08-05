@@ -147,11 +147,10 @@ for line in "${gate_lines[@]}"; do
     # only evidence available: absent or stale (naming a dead pid) means no
     # root gate is live, so this candidate — main script or a leaked vitals-
     # loop child, both tagged native-gate.sh — is an orphan by construction.
-    if marker_pid="$(marker_live_pid "$gate_marker")"; then
-      : # a live root gate is named; this candidate is left alone
-    else
+    if ! marker_live_pid "$gate_marker" >/dev/null; then
       reason="root gate marker absent or stale (item 270) — no live root gate"
     fi
+    # else: a live root gate is named; this candidate is left alone.
   elif [[ ! -d "$cwd" ]]; then
     reason="worktree directory no longer exists"
   elif ! is_known_worktree "$cwd"; then
