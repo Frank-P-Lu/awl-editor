@@ -1373,3 +1373,39 @@ it. The two remaining red jobs are the standing tolerated pair —
 after each (3726 → 3727 → **3744 passed, 0 failed**). They were held unmerged
 for the duration of the red on the rule that the repair is the only thing that
 ships, and each was conflict-checked against the repaired `main` before landing.
+
+🔵 **272 — HANDED BACK UNBUILT, DELIBERATELY, AND THE HAND-BACK CORRECTED THE
+BOARD.** No worktree, no commit: the lane judged that nothing was safe to build
+that did not either destroy item 268's option or make an uninformed taste call,
+which is exactly the escape hatch the item offers. **Re-routed: 272 is PARKED
+BEHIND 268** (deep tier), which owns the decision that settles it.
+
+🔴 **THE CORRECTION — TWO ITEMS DISAGREE ABOUT WHAT A THIRD WILL DELETE, and the
+urgency 272 was dispatched under does not exist.** Item **268's own text** says
+*"`FullWidth` and `BarCoverage::SelectedOnly` are on item 261's chopping block
+precisely because nothing uses them."* **Item 261's body names four GROUND enums
+— `Arrangement`, `LavaEdge`, `DeckleAnchor`, `Tunnel`'s surplus arms — and never
+mentions `BarExtent`, `BarCoverage`, `FullWidth`, `HugText` or `SelectedOnly`
+anywhere.** Verified twice: by the lane grepping the whole queue, and by the
+orchestrator against 261's body **and against the brief 261 was actually
+dispatched with**, which scopes it to those four ground enums explicitly. **So
+261 will not delete the Bar dials, and "decide 272 before 261 runs" is
+unfounded.** Same class as the Kite contradiction and the 116d drop: **a claim
+about another item's scope, written into a body and never re-checked against
+it.**
+
+✅ **AND THE PREMISE "a knob nothing turns" IS TRUE OF THE ROSTER AND FALSE OF
+THE CODE.** The fields are **not** dead generality: `overlay_selection.rs`
+branches on every one (`extent.hugs()`, `coverage == All`, `grow_px`, `radius`,
+`extent.inline_shortcut()`), and `render/overrides/parsers.rs` implements a full
+dev probe — `AWL_OVERLAY_LIST_FORCE`, with grammar for every extent/coverage
+keyword — which is this repo's established "unshipped configuration, kept
+probeable" pattern (`AWL_CARD_CAPS_FORCE`, the retired `AWL_WAVE_FORCE`).
+**There is even a retirement precedent showing the team does delete genuinely
+dead axes:** the `outline`/`filled` fill axis was explored and retired in the V7
+taste gate, and the parser now rejects it by name — `extent`/`coverage` were
+kept through that same round. **So collapsing them would delete a live, tested,
+probeable candidate the moment before its planned consumer.**
+
+**Item 271 was checked and is NOT a blocker either way** — the fourth
+`ListStyle` reuses `Diagonal`'s `BarePlates` plumbing, not `Bars`'s fields.
