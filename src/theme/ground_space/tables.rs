@@ -231,15 +231,16 @@ pub(super) const WARPED_GRID: &[GroundQuantity] = &[
          lets the page column rescale and flatten the field",
     ),
     logical(
-        "WARP_WINDOW_INSET (where each margin's window sits on the one \
-         projection)",
-        "a distance from the ROOM's own outer edge, measured in ANCHORS — a \
-         dimensionless ratio of composition quantities, so it carries no pixel \
-         to convert. It reads neither the page nor the margin: the page column \
-         can only MASK the field, so the composition survives the adaptive \
-         column range and asymmetric margins cannot choose different regimes. \
-         `Tunnel::MarginPlaced` is the mutation arm that derives placement from \
-         each margin's width",
+        "WARP_WINDOW_FULL / WARP_WINDOW_TIGHT / WARP_WINDOW_STRADDLE (where a \
+         margin's window slides, inside the MarginPlaced arm)",
+        "round 2's own per-margin placement (`warp_window_hide`), kept alive \
+         only inside `Tunnel::MarginPlaced` — dimensionless ratios of the \
+         margin's own span against the anchor, so none carries a pixel to \
+         convert. Under the shipped `Fixed` profile the axis reads the ROOM's \
+         own centre instead (`warp_room_axis`) and consults neither the page \
+         nor which margin a fragment fell on, so these three constants are \
+         computed but never read there; `Tunnel::MarginPlaced` is the mutation \
+         arm that puts them back in charge",
     ),
     logical(
         "the ring/rail half-widths (0.45px minor, 1.00px major) and \
