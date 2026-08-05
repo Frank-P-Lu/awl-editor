@@ -507,42 +507,11 @@ pub fn toggle_key(id: SettingId) -> Option<&'static str> {
     })
 }
 
-/// The value a PROCESS-GLOBAL toggle key carries on a fresh install, before any
-/// config or settings write — the read-only sibling of
-/// [`toggle_core::toggle_core_now`], answering "what is this when nothing has
-/// set it" rather than "what is it right now".
-///
-/// Every arm reads the owning module's OWN default constant, the same one its
-/// `Toggle` static is constructed from, so this can never disagree with the
-/// running app. `None` for a key with no single process-global default:
-/// `autosave`, `history` and `session_restore` are config-only (their fallback
-/// is `Config::*_on()`'s `unwrap_or`), `menu_bar` is per-OS and carries two
-/// constants rather than one, and `keymap` is not a boolean at all — exactly
-/// the split `toggle_core_now`'s own doc records.
-///
-/// Read by the generated reference (`reference::rows::config_default`) so the
-/// documented default is derived from the owner rather than transcribed.
-#[allow(dead_code)] // Consumed by the reference generator, which is test-only.
-pub fn toggle_default(key: &str) -> Option<bool> {
-    Some(match key {
-        "page_mode" => crate::page::PAGE_MODE_DEFAULT,
-        "typewriter_scroll" => crate::typewriter::TYPEWRITER_SCROLL_DEFAULT,
-        "reduce_motion" => crate::motion::REDUCE_MOTION_DEFAULT,
-        "wysiwyg" => crate::markdown::WYSIWYG_DEFAULT,
-        "popover" => crate::popover::POPOVER_DEFAULT,
-        "inline_images" => crate::markdown::INLINE_IMAGES_DEFAULT,
-        "code_ligatures" => crate::render::CODE_LIGATURES_DEFAULT,
-        "outline" => crate::outline::OUTLINE_DEFAULT,
-        "spellcheck" => crate::spell::SPELLCHECK_DEFAULT,
-        "writing_nits" => crate::nits::WRITING_NITS_DEFAULT,
-        "file_visibility" => crate::file_visibility::FILE_VISIBILITY_DEFAULT,
-        _ => return None,
-    })
-}
-
 // THE SHARED TOGGLE CORE (item 193): one owner both `App::setting_toggle`
 // and the replay interpreter route through — see `toggle_core`'s module doc.
 mod toggle_core;
+#[cfg(test)]
+pub(crate) use toggle_core::toggle_default;
 pub(crate) use toggle_core::{flip_toggle_global, is_core_toggle_key};
 
 pub fn range_spec(id: SettingId) -> Option<&'static crate::range::RangeSpec> {

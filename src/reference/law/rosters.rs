@@ -1,111 +1,8 @@
-//! THE DRIFT LAWS. Each one regenerates a section from the live rosters and
-//! diffs it against what is checked in, so the reference cannot quietly stop
-//! being true.
-//!
-//! A law here fails BY NAME and says how to fix it. The fix is never "edit the
-//! table": it is `scripts/regen-reference.sh`, which re-runs
-//! [`print_generated_reference_blocks`] and splices the result into both
-//! documents.
+//! THE ROSTER LAWS: a new command, config key, world, span kind or conceal
+//! kind cannot land undocumented.
 
-use super::Section;
-
-const REFERENCE_MD: &str = crate::embedded_docs::REFERENCE_MD;
-const SITE_REFERENCE_HTML: &str = crate::embedded_docs::SITE_REFERENCE_HTML;
-
-const REGEN: &str = "regenerate with `scripts/regen-reference.sh` from the repo root";
-
-fn markers(s: Section) -> (String, String) {
-    (
-        format!("<!-- GENERATED:{}:BEGIN -->", s.marker()),
-        format!("<!-- GENERATED:{}:END -->", s.marker()),
-    )
-}
-
-/// The text strictly between a section's two markers, trimmed of the blank
-/// lines the surrounding document naturally carries. Panics by name when a
-/// marker is missing — which is exactly what a NEW [`Section`] variant with no
-/// block in the document does.
-fn extract<'a>(doc: &'a str, doc_name: &str, s: Section) -> &'a str {
-    let (begin, end) = markers(s);
-    let start = doc.find(&begin).unwrap_or_else(|| {
-        panic!(
-            "{doc_name} carries no `{begin}` — section `{}` is in \
-             `reference::Section::ALL` but has no block in the document; add \
-             the marker pair and {REGEN}",
-            s.marker()
-        )
-    }) + begin.len();
-    let stop = doc.find(&end).unwrap_or_else(|| {
-        panic!("{doc_name} carries `{begin}` but no matching `{end}`");
-    });
-    assert!(
-        stop > start,
-        "{doc_name}'s `{end}` precedes its `{begin}` — the markers are crossed"
-    );
-    doc[start..stop].trim_matches('\n')
-}
-
-/// THE CENTREPIECE, repo side: every generated section of `REFERENCE.md` is
-/// byte-identical to what the live rosters produce right now.
-#[test]
-fn every_generated_section_matches_the_tree() {
-    let _g = crate::testlock::serial();
-    for s in Section::ALL {
-        let checked_in = extract(REFERENCE_MD, "REFERENCE.md", s);
-        let fresh = s.markdown();
-        let fresh = fresh.trim_matches('\n');
-        assert_eq!(
-            checked_in,
-            fresh,
-            "REFERENCE.md's `{}` section has drifted from the tree it \
-             describes — {REGEN}",
-            s.marker()
-        );
-    }
-}
-
-/// THE CENTREPIECE, site side. The site copy is not a hand-mirror: it is the
-/// same rows through the HTML emitter, so this is the same law with a different
-/// renderer, and a roster change fails both together.
-#[test]
-fn every_generated_section_matches_the_tree_on_the_site() {
-    let _g = crate::testlock::serial();
-    for s in Section::ALL {
-        let checked_in = extract(SITE_REFERENCE_HTML, "site/reference.html", s);
-        let fresh = s.html();
-        let fresh = fresh.trim_matches('\n');
-        assert_eq!(
-            checked_in,
-            fresh,
-            "site/reference.html's `{}` section has drifted from the tree it \
-             describes — {REGEN}",
-            s.marker()
-        );
-    }
-}
-
-/// No section may be empty: a marker pair carrying nothing would satisfy the
-/// byte-diff above only if the roster it reads were also empty, but an author
-/// mid-edit can leave one blank and see green if the generator is stubbed.
-#[test]
-fn no_generated_section_is_empty() {
-    let _g = crate::testlock::serial();
-    for s in Section::ALL {
-        assert!(
-            s.markdown().lines().count() > 3,
-            "section `{}` generated no rows — a reference section with no \
-             content is a stub, not a document",
-            s.marker()
-        );
-        assert!(
-            s.html().contains("<td>"),
-            "section `{}` generated no HTML rows",
-            s.marker()
-        );
-    }
-}
-
-// ── THE ROSTER LAWS: a new member cannot land undocumented ────────────────────
+use super::REGEN;
+use crate::reference::{Section, rows};
 
 /// Every field of [`crate::config::Config`] is either a documented
 /// `config.toml` key or explicitly named as not being one.
@@ -162,8 +59,8 @@ fn every_config_field_is_documented() {
         path,
     );
 
-    let documented: Vec<&str> = super::rows::documented_config_keys();
-    let non_keys = super::rows::CONFIG_NON_KEYS;
+    let documented: Vec<&str> = rows::documented_config_keys();
+    let non_keys = rows::CONFIG_NON_KEYS;
 
     for f in &fields {
         assert!(
@@ -204,9 +101,9 @@ fn every_config_field_is_documented() {
 #[test]
 fn every_settings_row_key_is_a_real_config_key() {
     let _g = crate::testlock::serial();
-    let documented = super::rows::documented_config_keys();
+    let documented = rows::documented_config_keys();
     for row in crate::settings::SETTINGS {
-        let Some(key) = super::rows::config_key_of(row.id) else {
+        let Some(key) = rows::config_key_of(row.id) else {
             continue;
         };
         assert!(
@@ -218,7 +115,7 @@ fn every_settings_row_key_is_a_real_config_key() {
             row.name
         );
     }
-    for excused in super::rows::SETTINGS_DISPATCH_ONLY_KEYS {
+    for excused in rows::SETTINGS_DISPATCH_ONLY_KEYS {
         let still_routed = crate::settings::SETTINGS.iter().any(|r| {
             crate::settings::toggle_key(r.id) == Some(excused)
                 || crate::settings::value_key(r.id) == Some(excused)
@@ -244,8 +141,8 @@ fn every_settings_row_key_is_a_real_config_key() {
 #[test]
 fn every_documented_config_key_has_a_default_owner() {
     let _g = crate::testlock::serial();
-    for key in super::rows::documented_config_keys() {
-        let _ = super::rows::config_default(key);
+    for key in rows::documented_config_keys() {
+        let _ = rows::config_default(key);
     }
 }
 
@@ -256,7 +153,7 @@ fn every_documented_config_key_has_a_default_owner() {
 fn every_synthetic_chord_is_named() {
     let _g = crate::testlock::serial();
     for (slug, _, _) in crate::keytoken::SYNTHETIC {
-        let name = super::rows::synthetic_name(slug);
+        let name = rows::synthetic_name(slug);
         assert!(
             Section::Commands.markdown().contains(name),
             "synthetic chord `{slug}` renders as `{name}`, which does not \
@@ -277,7 +174,7 @@ fn every_synthetic_chord_is_named() {
 #[test]
 fn every_markdown_span_tag_is_documented() {
     let _g = crate::testlock::serial();
-    let documented = super::rows::documented_tags();
+    let documented = rows::documented_tags();
     for k in every_md_kind() {
         assert_md_kind_roster_covers(&k);
         let tag = k.tag();
@@ -373,7 +270,7 @@ fn every_conceal_kind_is_documented() {
     let _g = crate::testlock::serial();
     let rendered = Section::Markdown.markdown();
     for k in crate::markdown::ConcealKind::ALL {
-        let (name, _, _) = super::rows::conceal_facts_for(k);
+        let (name, _, _) = rows::conceal_facts_for(k);
         assert!(
             rendered.contains(name),
             "conceal kind {k:?} renders as `{name}`, which does not appear in \
@@ -428,141 +325,4 @@ fn bolded_names(doc: &str) -> Vec<String> {
             Some(name.to_string())
         })
         .collect()
-}
-
-// ── THE SITE LAWS ─────────────────────────────────────────────────────────────
-
-fn site_dir() -> std::path::PathBuf {
-    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("site")
-}
-
-/// The site's top-level pages. `editor/index.html` is the Trunk wasm shell, not
-/// an authored page, and is deliberately out of scope (the same boundary
-/// `docs_catalog_law.rs` already draws).
-fn site_pages() -> Vec<(String, String)> {
-    let mut out = Vec::new();
-    let mut entries: Vec<_> = std::fs::read_dir(site_dir())
-        .expect("site/ exists")
-        .flatten()
-        .collect();
-    entries.sort_by_key(std::fs::DirEntry::path);
-    for e in entries {
-        let path = e.path();
-        if path.extension().and_then(|x| x.to_str()) != Some("html") {
-            continue;
-        }
-        let name = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .expect("utf-8 filename")
-            .to_string();
-        let text = std::fs::read_to_string(&path).expect("readable page");
-        out.push((name, text));
-    }
-    assert!(out.len() >= 4, "site/ carries its authored pages");
-    out
-}
-
-/// Every `href="…"` inside a `<nav …>…</nav>` element of a page.
-fn nav_hrefs(page: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut rest = page;
-    while let Some(open) = rest.find("<nav") {
-        let after = &rest[open..];
-        let Some(close) = after.find("</nav>") else {
-            break;
-        };
-        let block = &after[..close];
-        let mut b = block;
-        while let Some(i) = b.find("href=\"") {
-            let tail = &b[i + 6..];
-            let Some(j) = tail.find('"') else { break };
-            out.push(tail[..j].to_string());
-            b = &tail[j..];
-        }
-        rest = &after[close + 6..];
-    }
-    out
-}
-
-/// THE NAV ROSTER LAW. The site has no nav partial — `index.html` carries a top
-/// nav and the document pages carry a footer nav, and both lists are
-/// hand-duplicated. This round kept the duplication (the site is static files
-/// served by Caddy with no build step, and introducing one to own four links
-/// costs more than it saves) and replaced the silence with this law: every page
-/// must offer the SAME set of destinations, so "add a link to the docs" is a
-/// change that fails loudly on the page it was forgotten on.
-///
-/// Link TEXT is deliberately not pinned — a compact top nav may say "Try" where
-/// a footer says "Try the editor". Paths ARE pinned, exactly: they were
-/// normalised to root-relative so the two copies can be compared as written.
-#[test]
-fn every_site_page_offers_the_same_navigation() {
-    let pages = site_pages();
-    let mut reference: Option<(String, Vec<String>)> = None;
-    for (name, text) in &pages {
-        let mut hrefs = nav_hrefs(text);
-        hrefs.sort();
-        hrefs.dedup();
-        assert!(
-            !hrefs.is_empty(),
-            "site/{name} carries no <nav> links — every page must reach the \
-             others"
-        );
-        match &reference {
-            None => reference = Some((name.clone(), hrefs)),
-            Some((first, want)) => assert_eq!(
-                &hrefs, want,
-                "site/{name}'s navigation offers different destinations than \
-                 site/{first}'s. The site has no nav partial, so every page \
-                 carries its own copy and all copies must agree — add the \
-                 missing link to site/{name}."
-            ),
-        }
-    }
-}
-
-/// A reader must be able to reach the reference from anywhere on the site —
-/// the requirement the user stated in so many words.
-#[test]
-fn the_reference_is_reachable_from_every_site_page() {
-    for (name, text) in site_pages() {
-        assert!(
-            nav_hrefs(&text)
-                .iter()
-                .any(|h| h.ends_with("reference.html")),
-            "site/{name} does not link to the reference"
-        );
-    }
-}
-
-/// `site/llms.txt` is a third enumeration of awl's documents. It goes stale the
-/// moment a document exists that it does not name.
-#[test]
-fn llms_txt_names_the_reference() {
-    let txt = std::fs::read_to_string(site_dir().join("llms.txt")).expect("site/llms.txt");
-    assert!(
-        txt.contains("REFERENCE.md"),
-        "site/llms.txt enumerates awl's documents and does not name \
-         REFERENCE.md — a machine reader offered every doc but the reference"
-    );
-}
-
-// ── THE REGENERATION TOOL ─────────────────────────────────────────────────────
-
-/// Not a test — the REGENERATION TOOL `scripts/regen-reference.sh` drives.
-/// Prints every section in both renderings, each fenced by a delimiter the
-/// script splices on. Run it through the script, not by hand.
-#[test]
-#[ignore]
-fn print_generated_reference_blocks() {
-    let _g = crate::testlock::serial();
-    for s in Section::ALL {
-        println!("===AWL-REFERENCE-BLOCK md {}===", s.marker());
-        print!("{}", s.markdown());
-        println!("===AWL-REFERENCE-BLOCK-END===");
-        println!("===AWL-REFERENCE-BLOCK html {}===", s.marker());
-        print!("{}", s.html());
-        println!("===AWL-REFERENCE-BLOCK-END===");
-    }
 }

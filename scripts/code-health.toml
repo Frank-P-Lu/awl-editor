@@ -193,8 +193,8 @@ lines = 841
 
 [[file_size_mark]]
 file = "src/keymap.rs"
-lines = 1112
-reason = "One `Action` variant with its doc comment; the enum is the one dispatch vocabulary and a catalog command cannot exist without an entry here (+7)."
+lines = 1114
+reason = "+2: `KeymapFlavor` joins `enum_with_all!`, which derives its `ALL` roster from the same variant list rather than from a second one. The generated reference reads that roster to document `keymap`'s accepted values, and the macro's wrapper is the whole cost — a hand-written `ALL` beside the enum would be longer and could drift."
 
 [[file_size_mark]]
 file = "src/keyspec.rs"
@@ -231,7 +231,8 @@ lines = 1058
 
 [[file_size_mark]]
 file = "src/menubar.rs"
-lines = 368
+lines = 380
+reason = "+12: the drawn bar's per-platform default, split out of a bare `cfg!` into two named consts at the single owner. The generated reference documents ONE `menu_bar` default for every platform; read through `cfg!` it would differ between the machine that writes the document and the CI host that checks it, so both arms must stay readable from any build."
 
 [[file_size_mark]]
 file = "src/overlay/capture.rs"
@@ -271,8 +272,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2614
-reason = "MEASURED ON THE COMBINED TREE, never summed — items 242, 248 and 253 each moved this file and none could measure the others. Item 253 (+8): one `mod quotecheck;` declaration, a cfg(test)-gated font-QA geometry check, beside its sibling `facepitch`, plus its five-line doc comment. MEASURED ON THE COMBINED TREE, not summed from two branches — items 242 and 248 both moved this file and each measured a tree without the other. Item 248 (+28): the fold chevron gained direction and a rotated-quad paint pipeline, since it must turn a quarter turn on fold/unfold and glyphon carries no transform; three new TextPipeline fields (folded_headings, fold_chevron_turn, fold_chevron_pipeline) join the one exhaustive GPU-state struct. +80: the chrome pixel-space boundary — five unit-family newtypes (`Logical`, `Physical`, `LogicalGrowOnly`, `Chars`, `Rows`) with the doc comments that record what each family means, plus `Metrics`'s own `scale` field and its three resolution methods. It sits inside `Metrics` because that IS the boundary the text and caret families already pass; a sibling module would be the second scaling mechanism the design forbids. +2: one memoization field for the roster-width measurements and its one-line doc — a card that sizes itself from its content must measure the whole roster, and shaping one is linear in it. The renderer's GPU state floor: workspace mirrors, Kite's forward-travel accumulator, and the diagonal cluster's per-frame measured layout live beside the sibling state consumed by the same frame pipeline. The `overlay_comparison` mirror field, beside the `overlay_rows_primary` one it gates with (+5). The `doc_source` mirror field and its one-line doc (+2): the pipeline must know when the text it shapes is a substitute for the user's document, or the card figures are over the wrong text. Reconciled at the merge train with item 204 slice 2: neither branch could compute this — each measured a tree without the other's line. Re-measured on the combined candidate with items 220/234: neither branch could compute this and the two deltas must never be summed — main and this branch each moved the file for their own reasons. +1 line: one `mod rotated_location;` declaration, the rotated secondary-location cue's own file. +14: two new `TextPipeline` fields (the rotated-label pipeline, its compose-once mask cache) plus their doc comments, joining the one exhaustive GPU-state struct and its one `Self { .. }` construction site beside every other pipeline field here."
+lines = 2620
+reason = "+6: `CODE_LIGATURES_DEFAULT`, the const `CODE_LIGATURES_ON` is now constructed from, so the flag's fresh-install value has one owner the reference can read instead of a literal retyped into a doc; plus a test-gated `pub(crate) use spans::wysiwyg_reveals`, one named door to the reveal rule that avoids widening the `spans` module itself."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -419,8 +420,8 @@ lines = 536
 
 [[file_size_mark]]
 file = "src/settings.rs"
-lines = 735
-reason = "item 193: +5 lines — the `mod toggle_core;` declaration and its `pub(crate) use` re-export, the one place a new submodule can be named. The shared toggle core itself (the read/negate/set behavior `App::setting_toggle` and the replay interpreter now both route through, ~90 lines) was extracted into its own file, `src/settings/toggle_core.rs`, precisely so this file's mark did not have to move by more than the unavoidable declaration line."
+lines = 737
+reason = "+2: a test-gated `pub(crate) use toggle_core::toggle_default`, the read-only sibling of `toggle_core_now` (\"what is this when nothing has set it\" rather than \"what is it now\"). The function itself lives in `settings/toggle_core.rs` beside the map it mirrors, so this file carries only the door the generated reference reads it through."
 
 [[file_size_mark]]
 file = "src/soak_gpu/mod.rs"
@@ -428,7 +429,8 @@ lines = 618
 
 [[file_size_mark]]
 file = "src/spell.rs"
-lines = 954
+lines = 962
+reason = "+8: `SPELLCHECK_DEFAULT` and `DictVariant::DEFAULT` — the two fresh-install values this file owns, each now a const its own static is initialised from (`SPELLCHECK_ON`, `ACTIVE_VARIANT`) rather than a bare literal, so the generated reference reads the owner instead of restating `true`/`en_us`."
 
 [[file_size_mark]]
 file = "src/stars.rs"
@@ -448,7 +450,8 @@ lines = 833
 
 [[file_size_mark]]
 file = "src/syntax/mod.rs"
-lines = 752
+lines = 754
+reason = "+2: `SynKind` joins `enum_with_all!`, deriving its `ALL` roster from its own variant list. The reference's markdown-span law sweeps every syntax role through it, so a new role cannot ship with an undocumented span tag; the macro's wrapper is the entire cost."
 
 [[file_size_mark]]
 file = "src/syntax/ruby.rs"

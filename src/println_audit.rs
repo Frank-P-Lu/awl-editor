@@ -117,7 +117,7 @@ const EXPECTED: &[(&str, usize)] = &[
     // convention — a test prints, a human-run script writes; no test ever
     // writes a repo file), and the module is `cfg(test)`, so none of these can
     // reach a shipped binary.
-    ("reference/law.rs", 4),
+    ("reference/law/mod.rs", 4),
     // `AWL_FONT` + `AWL_CHROME_FACE_FILE` dev-only env var override
     // diagnostics (the second is the Firetail-showcase round's audition-font
     // loader: a missing/unreadable candidate file prints a note and is

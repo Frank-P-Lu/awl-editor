@@ -977,9 +977,8 @@ fn nit_underline_srgba() -> [u8; 4] {
 /// from the config sticky pref (`config/`) and live by the settings menu. Gates
 /// ONLY code — PROSE standard fi/fl ligatures are uncontroversial and always on
 /// (see [`text::font_features`]).
-/// The value this flag carries on a fresh install, before any config or
-/// settings write — the ONE owner of that fact, read both by the static
-/// below and by the generated reference (`settings::toggle_default`).
+/// This flag's fresh-install value — the ONE owner, read by the static below
+/// and by the generated reference (`settings::toggle_default`).
 pub(crate) const CODE_LIGATURES_DEFAULT: bool = true;
 static CODE_LIGATURES_ON: crate::toggle::Toggle =
     crate::toggle::Toggle::new(CODE_LIGATURES_DEFAULT);

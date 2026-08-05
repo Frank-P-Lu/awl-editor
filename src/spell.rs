@@ -17,9 +17,8 @@ enum_with_all! {
 }
 
 impl DictVariant {
-    /// The variant a fresh install spells with. The ONE owner of that fact —
-    /// `ACTIVE_VARIANT` below is initialised from it, and the generated
-    /// reference reads it rather than restating `en_us`.
+    /// The variant a fresh install spells with — the ONE owner: `ACTIVE_VARIANT`
+    /// is initialised from it, and the reference reads it, never `en_us` retyped.
     pub const DEFAULT: DictVariant = DictVariant::EnUs;
 
     const fn as_u8(self) -> u8 {
@@ -83,9 +82,8 @@ pub fn set_active_variant(v: DictVariant) {
 /// code-string/comment check alike — and turns the spell-suggest picker into a
 /// calm no-op, with zero duplicated gating at any call site (render, capture,
 /// the right-click seam).
-/// The value this flag carries on a fresh install, before any config or
-/// settings write — the ONE owner of that fact, read both by the static
-/// below and by the generated reference (`settings::toggle_default`).
+/// This flag's fresh-install value — the ONE owner, read by the static below
+/// and by the generated reference (`settings::toggle_default`).
 pub(crate) const SPELLCHECK_DEFAULT: bool = true;
 static SPELLCHECK_ON: crate::toggle::Toggle = crate::toggle::Toggle::new(SPELLCHECK_DEFAULT);
 
