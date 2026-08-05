@@ -287,6 +287,26 @@ gate and threw away a full native run: every test passed, no receipt. Write the
 board note first or hold it until the receipt lands; the gate is the one thing
 that cannot be redone cheaply.
 
+**That rule only binds the session that started the gate — a second, concurrent
+orchestrator session cannot obey a fact it has no way to observe**, and this
+board explicitly supports two of them at once, so check before every commit to
+`main`: `.orchestrator/native-gate.marker` (gitignored) names the PID, start
+sha, and start time of any gate the root's `native-gate.sh` currently has in
+flight, written while it runs and removed on every exit path including
+failure and interrupt. Read it and test liveness with `kill -0`, since a
+marker can outlive a killed run and its mere existence carries no authority:
+
+```sh
+cat .orchestrator/native-gate.marker 2>/dev/null   # pid=… start_commit=… start_epoch=…
+kill -0 <pid> 2>/dev/null && echo "gate PID <pid> is alive" || echo "marker is stale"
+```
+
+This is advisory, not a lock — a gate is not entitled to freeze the
+repository. A live marker on the sha you're about to move means: wait, or
+commit deliberately and accept that the in-flight run's receipt will refuse
+itself (`HEAD changed while the suite ran`) and need a rerun. No marker, or a
+dead PID, means commit freely.
+
 Integrate one branch at a time. Two branches each green alone can be red
 together — a roster or ownership law is designed to cause exactly that. For
 structs with per-call-site initializers, grep the construction sites before

@@ -578,3 +578,100 @@ for failing in mac linux; do
 done
 
 echo "test-native-gate: both conventions overlap, both statuses survive, and either failure suppresses the receipt"
+
+# ── The in-flight marker: a signal a second orchestrator session can read ────
+# The board explicitly supports two concurrent orchestrator sessions in one
+# working tree, and only the session that started a gate can obey "don't
+# commit while it runs" — a second session has no way to observe that fact on
+# its own. The gate writes .orchestrator/native-gate.marker (redirected here
+# via AWL_NATIVE_GATE_MARKER so this test never touches the real one) naming
+# its pid, start commit, and start time, and removes it on every exit path.
+marker="$WORK/marker"
+: >"$WORK/events"
+PATH="$WORK:$PATH" \
+  AWL_NATIVE_GATE_MARKER="$marker" \
+  AWL_NATIVE_GATE_PROBE_SLEEP=4 \
+  AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+  AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
+  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-marker-live" \
+  "$ROOT/scripts/native-gate.sh" >"$WORK/output-marker-live" 2>&1 &
+marker_gate_pid=$!
+
+# Polled rather than a fixed sleep, so this is not flaky on a loaded runner —
+# the marker is written before the canary even starts, so it should appear
+# almost immediately.
+marker_seen=0
+for _ in $(seq 1 50); do
+  [[ -s "$marker" ]] && { marker_seen=1; break; }
+  sleep 0.1
+done
+(( marker_seen == 1 )) || {
+  echo "test-native-gate: no marker appeared while the gate was running" >&2
+  kill -TERM "$marker_gate_pid" 2>/dev/null || true
+  exit 1
+}
+marker_line="$(cat "$marker")"
+[[ "$marker_line" == pid=*' start_commit='*' start_epoch='* ]] || {
+  echo "test-native-gate: marker did not carry pid/start_commit/start_epoch: $marker_line" >&2
+  exit 1
+}
+marker_pid="${marker_line#pid=}"; marker_pid="${marker_pid%% *}"
+# Mutation proof: a reader checking the marker mid-run must actually see a
+# live process, not merely a file. `kill -0` is the exact check the README
+# tells an orchestrator to run.
+kill -0 "$marker_pid" 2>/dev/null || {
+  echo "test-native-gate: marker named pid=$marker_pid but that pid is not alive — kill -0 would wrongly call this run dead" >&2
+  exit 1
+}
+marker_commit="${marker_line#*start_commit=}"; marker_commit="${marker_commit%% *}"
+[[ "$marker_commit" == "$(git -C "$ROOT" rev-parse HEAD)" ]] || {
+  echo "test-native-gate: marker start_commit=$marker_commit did not match the actual HEAD" >&2
+  exit 1
+}
+
+echo "test-native-gate: a reader checking the marker mid-run sees a live pid (kill -0 succeeds) and the correct start commit"
+
+# ── The kill path: the case that matters most ────────────────────────────────
+# A marker that outlives its process silently wedges every later session's
+# advisory check — worse than the defect this item exists to fix. SIGTERM is
+# the realistic case: a human or an agent ending a gate deliberately.
+kill -TERM "$marker_gate_pid"
+set +e
+wait "$marker_gate_pid" 2>/dev/null
+marker_kill_status=$?
+set -e
+(( marker_kill_status != 0 )) || {
+  echo "test-native-gate: a SIGTERM'd gate reported success ($marker_kill_status)" >&2
+  exit 1
+}
+[[ ! -e "$marker" ]] || {
+  echo "test-native-gate: the marker survived SIGTERM — a killed gate would silently wedge a later commit's advisory check" >&2
+  exit 1
+}
+
+echo "test-native-gate: killing the gate removes the marker — a killed run cannot wedge a later session"
+
+# ── A clean run leaves nothing behind ─────────────────────────────────────────
+marker_clean="$WORK/marker-clean"
+: >"$WORK/events"
+set +e
+PATH="$WORK:$PATH" \
+  AWL_NATIVE_GATE_MARKER="$marker_clean" \
+  AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+  AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
+  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-marker-clean" \
+  "$ROOT/scripts/native-gate.sh" >"$WORK/output-marker-clean" 2>&1
+marker_clean_status=$?
+set -e
+(( marker_clean_status == 0 )) || {
+  echo "test-native-gate: the marker-cleanliness probe's own gate run failed ($marker_clean_status)" >&2
+  exit 1
+}
+[[ ! -e "$marker_clean" ]] || {
+  echo "test-native-gate: a normal completion left the marker behind" >&2
+  exit 1
+}
+
+echo "test-native-gate: a normal completion leaves no marker behind"

@@ -16,7 +16,32 @@ start_commit="$(git rev-parse HEAD)"
 
 gate_started_epoch="$(date +%s)"
 gate_run_dir="$(mktemp -d "${TMPDIR:-/tmp}/awl-native-gate.XXXXXX")"
-trap 'rm -rf "$gate_run_dir"' EXIT
+
+# ── The in-flight marker: a signal, not a lock ────────────────────────────────
+# The board explicitly supports two concurrent orchestrator sessions in the same
+# working tree, and only ONE of them can ever be the one that started a given
+# gate — so "don't commit while the gate you started is running" cannot bind
+# the other session; it has no way to observe a fact that lives only in the
+# first session's memory. This marker moves that fact onto disk where a second
+# session can read it before it commits.
+#
+# It is a plain file, not `disk-preflight.sh`'s flock, on purpose. That lock
+# exists to serialize MUTATION — several launchers about to run `sweep.sh`
+# against the same disk, where only the kernel can arbitrate who goes first.
+# Nothing here contends for a resource: this gate is the only writer, every
+# reader only wants a point-in-time answer to "is a run alive, and since when,
+# and on what commit", and the brief is explicit that a gate must never block a
+# commit outright. A flock's blocking acquire (`LOCK_EX`) fights that directly,
+# and a non-blocking probe would just reimplement `kill -0` on a PID with extra
+# steps. A stale marker left by a killed run carries no authority of its own —
+# same principle as the disk-preflight lock file — but the check that proves it
+# stale is simpler here: read the PID back out of the marker's own contents and
+# ask the kernel with `kill -0`, rather than compare file descriptors.
+gate_marker="${AWL_NATIVE_GATE_MARKER:-$gate_root/.orchestrator/native-gate.marker}"
+printf 'pid=%s start_commit=%s start_epoch=%s\n' "$$" "$start_commit" "$gate_started_epoch" \
+  >"$gate_marker"
+
+trap 'rm -rf "$gate_run_dir"; rm -f "$gate_marker"' EXIT
 
 gate_elapsed() { printf '%s\n' $(( $(date +%s) - gate_started_epoch )); }
 
