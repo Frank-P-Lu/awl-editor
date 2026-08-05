@@ -1510,3 +1510,56 @@ locally precisely because the bug cannot appear here.
 279. **GIVE THE PASSIVE-SURFACE FIXTURES A RESTORE GUARD WHOSE LIFETIME IS THE TEST'S, and re-enrol `menu_bar` in the audit.** **Follow-up to item 276, scoped 2026-08-05 after a partial fix was reverted.** **The defect:** `calm_globals()` (duplicated in `src/app/semantic/tests/mod.rs` and `src/app/frame/accessibility/tests.rs`) sets six passive-surface globals to a known state, including `crate::menubar::set_menu_bar_on(false)`. ⚠️ **`menu_bar`'s default is PLATFORM-DEPENDENT** — `MENU_BAR_DEFAULT_MACOS = false`, `MENU_BAR_DEFAULT_OTHER = true` — **so that call is a no-op on macOS and a real mutation on Linux**, which is why item 276's audit fired on sixty CI tests and zero local ones. `menu_bar` is currently **restored but not audited** (`src/testlock/misc.rs`, reason at the site); **this item re-enrols it.** ⚠️ **THE OBVIOUS FIX IS THE ONE THAT WAS TRIED AND REVERTED — read this before repeating it.** Making `calm_globals()` return a `TogglesRestore` cuts the failures 60 → 5 and then **breaks differently**: `attached()` (`accessibility/tests.rs:54`) calls it and returns only an `App`, so the guard **drops at the end of the helper and restores the global before the test body runs.** **A restore guard's lifetime must be the TEST's, not the helper's.** So every fixture that reaches `calm_globals` through a helper — `attached()`, and the `semantic` fixtures at `mod.rs:418`, `:469`, `:615` and `passive_roster.rs:76`, which set `menu_bar` directly and are **not** covered by `calm_globals` at all — has to propagate the guard to its caller, or the helpers have to return it alongside their value. **Decide the shape deliberately:** returning `(App, TogglesRestore)` from every fixture is honest but noisy; a fixture struct that owns both is quieter and is probably right. **Verify — and this is the part that must not be skipped:** ⚠️ **this bug is INVISIBLE on the dev host.** Reproduce the Linux condition locally by forcing `MENU_BAR_ON`'s initialiser to the non-macOS branch (`static MENU_BAR_ON: Toggle = Toggle::new(if false { MENU_BAR_DEFAULT_MACOS } ...)`), and require `cargo test --bin awl accessibility::` and `semantic::` **green under that forcing** before claiming it — the reverted attempt passed unforced and was still wrong. Then restore the initialiser, re-add `field!("menu_bar", …)` to `leaked()`, and run the unfiltered suite. **Mutation-prove** by removing one fixture's guard and watching the audit fail **by name**. **Routing:** production tier. **Found by CI 2026-08-05; the orchestrator's own first repair is the recorded counterexample.**
 
 280. **`docs/render.md`'s WARPED-GRID entry DESCRIBES CODE THAT IS NOT IN THE TREE — and `CLAUDE.md` sends every lane to read it before working in that area.** **Found by the item-268 lane, which deliberately corrected only what its OWN change falsified and flagged the rest rather than quietly widening its diff.** ⚠️ **That restraint was right, and it is why this is a separate item instead of a paragraph nobody reviewed.** **Verified against the tree by the orchestrator, not taken on report:** the entry names **`Tunnel::PerMargin`** — `grep` finds it in **no** Rust or WGSL file; it names the shipped profile **`Shared`** — the enum's arm is **`Fixed`** (`theme/ground.rs`, doc comment: *"`Fixed` is the shipped room-owned projection"*); and it describes a host-resolved steering pose uploaded through **`Globals.pose`** via **`crate::warpgrid::route_pose`** — **`route_pose` is absent from `src/` entirely**, and item 132's own law asserts `g.pose` is **not** present. It further describes the axis as **a parabolic arc** inverted by **bracketed bisection**, which the 268 lane reports does not match what the shader computes. **This is one ~1,400-word paragraph and the drift is interleaved with material that is still TRUE** — the room-owned scale, the circular section, the aspect-1.00 measurement, `density == 0.0` collapsing to the flat tone, the hot-loop travel gate — **so this is a read-and-correct job, not a rewrite, and certainly not a delete.** ⚠️ **AND IT MOVES AGAIN WHEN ITEM 268 LANDS:** 268 replaces `warp_window_axis` (per-margin, still in the shader at `background.wgsl:1133`) with a single `warp_room_axis`, retires the rail family at the page edge, and adds an under-page veil — so **sequence this AFTER 268 and describe the tree as it then is**, rather than fixing a paragraph twice. **Build:** correct every claim against the code, and **prefer naming a mechanism over narrating a round** — several of the drifted clauses are history ("round 1 did X, round 2 did Y"), which `CLAUDE.md` says belongs in `git log`, not in a doc that a lane reads as current fact. **Verify:** every identifier the entry names must exist — `grep` each one; every arm of `Tunnel` it lists must match the enum; and the claims a law already pins (the aspect invariance, the page exclusion, `g.pose`'s absence) must agree with those laws by name. ⚠️ **Do NOT add a law that greps prose for identifiers** — a doc is not a manifest, and item 273's generated-reference work is the right home for anything that genuinely wants mechanical enforcement. **Routing:** production tier. **Found 2026-08-05 by the item-268 lane; the specifics re-verified by the orchestrator before queueing.**
+
+✅ **268 — LANDED, merge `a97818bf`** (`d671bbbf`, `eefbd7f3`). Native receipt at
+`eefbd7f3`; combined candidate re-gated here, **3746 passed**.
+
+🔴 **"TWO TUNNELS" WAS LITERAL.** `background.wgsl` computed `axis_x` as a
+function of **which margin a fragment fell in**, so each margin got its own
+vanishing point — two cameras, a complete bullseye in each flank. **One axis at
+the room's centre** now puts the vanishing point behind the page. The page no
+longer **punches** the ground away; it **veils** it and retires the minor
+lattice **and the whole rail family** at the page edge. **Retiring the rails was
+not in the brief and was necessary** — the two rails through the axis drew a
+full-width horizontal and a full-height vertical straight through the text.
+
+✅ **262 IS SUBSUMED, NOT IMPLEMENTED — close it on that basis.** Its
+fill-versus-stretch dilemma ("a circular section in a tall rectangular margin
+either leaves dead space or must be stretched") was a **consequence of fitting a
+circle into each margin box.** With one axis at the room centre **nothing is
+fitted into a margin at all**, so the dilemma dissolves rather than being
+solved. **No fifth `Tunnel` arm was added**, and 194's mutation arms are
+untouched — which is what item 261 was told to preserve, and did.
+
+✅ **272 IS SETTLED — COLLAPSE, ON BUILT EVIDENCE RATHER THAN ARGUMENT.** Kite
+does **not** adopt `FullWidth × SelectedOnly`: it was built, rendered, and is
+**incompatible rather than merely unspent** — `BarExtent::hugs()` is false for
+`FullWidth`, and **five shipped legibility laws gate the entire plated-chrome
+family on it**, so adopting it strands the shortcut chord, the lens-strip tabs,
+the faceted section header and the footer plate bare over a blurred document.
+⚠️ **This corrects 272's own framing: the blocker is `FullWidth`, not
+`SelectedOnly`.** 272 is now a clean collapse decision with the evidence in hand.
+
+⚠️ **THE FINDING THAT GENERALISES: THE OBVIOUS LAW WOULD NOT HAVE CAUGHT THIS
+BUG.** The two per-margin axes were **symmetric about the room centre**, so
+*"both flanks show rings at the same radius from the room centre"* was **true of
+the defect.** The law that works asks the margins to be **the same tunnel as the
+one under the page.** Same family as this wave's four vacuity findings, arriving
+from a new direction: not an assertion that could not fail, but an assertion
+that was satisfied by the broken state.
+
+✅ **CHROME: 1 OFF-DEFAULT DIAL → 6**, each mirroring Firetail rather than
+copying it, and spending `FacetStyle::Band` — another dormant arm.
+**`CardShape::Chamfered` was REJECTED** on a named exclusivity law making the
+chamfer **Quokka's identity**: a Kite round does not get to dilute another
+world.
+
+**Arithmetic:** circularity **0.00 logical px** across four measures × two DPI
+tiers; DPI invariance **0.50 px** worst case; under-page legibility **14.61:1**
+against a 4.5:1 floor; the other 19 worlds **byte-identical**, PNG and sidecar.
+
+🔵 **OWED TO THE USER:** the **veil strength** (one constant, `WARP_PAGE_VEIL =
+0.20`) and whether the crossing reads as intended. Captures are durable in the
+lane's worktree at `gallery/item-268/` — `final/room/Kite.png`,
+`final/frame/Kite.png`, the two-tunnel `baseline/k-m66-d1.png`, and the rejected
+chrome variants in `chrome/`.
