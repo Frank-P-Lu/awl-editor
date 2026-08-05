@@ -425,12 +425,10 @@ impl TextPipeline {
         list_style: theme::ListStyle,
         rects: &OverlaySelectionRects,
     ) {
-        /// The scrim's own outward bleed past each plate edge.
-        const SCRIM_PAD: Logical = Logical(2.0);
         /// A corner for no scrim at all on `Diagonal` (it emits no plates), kept
         /// so the shared pipeline is still prepared each frame.
         const DIAGONAL_SCRIM_CORNER: Logical = Logical(6.0);
-        let pad = self.metrics.px(SCRIM_PAD);
+        let pad = self.metrics.px(BAR_SCRIM_PAD);
         // The `BarePlates` gate above is the CARD's question, not the row's, and
         // that is deliberate here even though the same name misleads a plate
         // claim: every bare-plate world must have `panel_card` prepared each
@@ -447,7 +445,7 @@ impl TextPipeline {
             .unselected
             .iter()
             .chain(rects.selected.iter())
-            .map(|&[x, y, width, height]| [x - pad, y - pad, width + 2.0 * pad, height + 2.0 * pad])
+            .map(|&plate| bar_scrim_rect(plate, pad))
             .collect::<Vec<_>>();
         self.panel_card.set_corner(radius + pad);
         self.panel_card

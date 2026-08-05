@@ -59,6 +59,36 @@ impl TextPipeline {
             .collect()
     }
 
+    /// EVERY ROW-OWNED RECT THIS FRAME WOULD DRAW, GROWN TO ITS DRAWN INK.
+    ///
+    /// [`Self::overlay_row_surfaces_probe`] answers the narrower question — the
+    /// row SURFACES themselves — and that is the wrong question for a law that
+    /// needs to know where the list stops and the card's own surface begins. A
+    /// plated world draws each plate on a SCRIM that bleeds
+    /// [`super::BAR_SCRIM_PAD`] outward on every side, so a
+    /// row's first ink lands two logical pixels before its plate does. A law
+    /// that cut at the plate would grade pixels inside the scrim's antialiased
+    /// edge — and a scrim inherits its plate's hugged width, which is exactly
+    /// what a scroll changes.
+    ///
+    /// Empty is a real answer: a `Diagonal` world draws no row fill and no
+    /// scrim, and a `Pane` world's card backing carries no scrim at all.
+    pub(in crate::render) fn overlay_row_ink_probe(&mut self) -> Vec<[f32; 4]> {
+        let style = crate::render::effective_list_style();
+        let plates = self.overlay_row_surfaces_probe();
+        match style {
+            // The scrim strictly CONTAINS its plate, so it alone is the extent.
+            theme::ListStyle::Bars { .. } => {
+                let pad = self.metrics.px(super::BAR_SCRIM_PAD);
+                plates
+                    .into_iter()
+                    .map(|plate| super::bar_scrim_rect(plate, pad))
+                    .collect()
+            }
+            theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) => plates,
+        }
+    }
+
     /// THE PLATES A PLATED WORLD DREW, and only a plated world's.
     ///
     /// Refusing is the point. `BarePlates` reads like "draws plates" and is not

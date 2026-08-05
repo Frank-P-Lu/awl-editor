@@ -594,6 +594,24 @@ pub(super) fn bar_hug_span(
     (x, (right - x).max(1.0))
 }
 
+/// A bar scrim's own outward bleed past each plate edge. A ROW'S DRAWN INK
+/// THEREFORE BEGINS HERE, not at the plate and certainly not at the glyphs —
+/// which is why this is a named constant with one owner rather than a literal
+/// inside the prepare: a law asking "where does the list stop and the surface
+/// start" has to get the same answer the frame draws.
+pub(in crate::render) const BAR_SCRIM_PAD: Logical = Logical(2.0);
+
+/// THE ONE SCRIM GEOMETRY — a plate grown by `pad` on every side. Shared by the
+/// prepare that draws it and the probe that reports it, so the two cannot drift.
+pub(in crate::render) fn bar_scrim_rect(plate: [f32; 4], pad: f32) -> [f32; 4] {
+    [
+        plate[0] - pad,
+        plate[1] - pad,
+        plate[2] + 2.0 * pad,
+        plate[3] + 2.0 * pad,
+    ]
+}
+
 pub(super) fn grow_span(x: f32, w: f32, grow: f32, mirror: bool) -> (f32, f32) {
     let g = grow.max(0.0);
     if mirror {
