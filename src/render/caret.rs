@@ -854,8 +854,8 @@ impl TextPipeline {
     /// `CARET_SPACE_BAR_W`, and CENTERED in the cell.
     ///
     /// The x position is the delicate part. The resting block (`caret_geometry`)
-    /// centers on the cell using the REAL advance (`caret_target_w`): `cx = pos.x
-    /// + advance*0.5`. Pinning the thin bar's LEFT edge at `pos.x` instead
+    /// centers on the cell using the REAL advance (`caret_target_w`): `cx = pos.x +
+    /// advance*0.5`. Pinning the thin bar's LEFT edge at `pos.x` instead
     /// (`cx = pos.x + w*0.5`) drops it against the cell's left
     /// edge — at the boundary BEFORE the space, not inside it — because it ignores
     /// the space's advance entirely. Here we center the thin bar on the same cell

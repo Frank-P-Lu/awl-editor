@@ -289,7 +289,7 @@ lines = 580
 
 [[file_size_mark]]
 file = "src/render/caret.rs"
-lines = 982
+lines = 977
 
 [[file_size_mark]]
 file = "src/render/chrome/hud.rs"
@@ -1365,14 +1365,14 @@ reason = "Item 274's subject split of the former flat test monolith moved this a
 [[structural_exception]]
 target = "src/theme/tests/frost.rs"
 kind = "architectural"
-line = 270
+line = 268
 text = "            \"{}: faint project ink only {:.1} redmean from the WORST gutter frost pill (phase-free bound)\","
 reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
 
 [[structural_exception]]
 target = "src/theme/tests/frost.rs"
 kind = "architectural"
-line = 300
+line = 298
 text = "                \"{}: frost leaked far from the gutter seed at x={x} y={y} (not local — a margin lost its lamp)\","
 reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
 
@@ -1386,7 +1386,7 @@ reason = "Item 274's subject split of the former flat test monolith moved this a
 [[structural_exception]]
 target = "src/theme/tests/ornament.rs"
 kind = "architectural"
-line = 210
+line = 203
 text = "        \"exactly one world uses the manicule bullet, at exactly one level (a hand everywhere is loud)\""
 reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
 
@@ -1400,14 +1400,14 @@ reason = "Item 274's subject split of the former flat test monolith moved this a
 [[structural_exception]]
 target = "src/theme/tests/selection_ui.rs"
 kind = "architectural"
-line = 203
+line = 202
 text = "                \"{}: selected band ({s}) must sit at least as far up the ramp as the unselected whisper ({u}) from the ground ({c})\","
 reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
 
 [[structural_exception]]
 target = "src/theme/tests/selection_ui.rs"
 kind = "architectural"
-line = 214
+line = 213
 text = "            \"{}: selected bar {sel:?} must lead the unselected whisper {unsel:?} (redmean {d_sel:.1}) at least as much as the whisper leads the ground {ground:?} (redmean {d_bar:.1})\","
 reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
 
@@ -1580,279 +1580,9 @@ text = "    // same level item 114's own `sweep_path` picks from); `Up` reaches 
 reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
 
 [[comment_citation_exception]]
-target = "src/theme/tests/ambient.rs"
-line = 92
-text = "                // SIZE SPREAD (item 62): even the WIDEST star the spread ever"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ambient.rs"
-line = 195
-text = "/// ITEM 87's SCHEDULING-GATE COMPOSITION law (mirrors `stars.rs`'s"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ambient.rs"
-line = 251
-text = "/// ITEM 87's SCHEDULING law (mirrors the lava/stars precedents in"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
 target = "src/theme/tests/distinctness.rs"
-line = 80
-text = "/// near-pair. Item 132 could not write it (Kite↔Brolga measured 38.8 and it"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/distinctness.rs"
-line = 81
-text = "/// would have failed on the day), and item 194 round 2's palette answer is what"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/distinctness.rs"
-line = 89
-text = "/// happens to measure would fail on the day, exactly as item 132's would have;"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/distinctness.rs"
-line = 90
+line = 88
 text = "/// setting it at a round 35 or 30 would bless pairs looser than anything that"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/distinctness.rs"
-line = 94
-text = "/// standing. Item 99's lesson is the reason it is written this way: the true"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/fonts.rs"
-line = 455
-text = "/// Queue item 30 (user + fable): Mopoke's body face is the warm slab Bitter"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/frost.rs"
-line = 385
-text = "/// ITEM 65's FOLD-AFFORDANCE CAPABILITY law (mirrors"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ground.rs"
-line = 22
-text = "    // Waves stays Bombora's alone (item 69 — reusable DATA, but only one"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ground.rs"
-line = 30
-text = "    // ITEM 86: Zigzag ships on EXACTLY Quokka and Gumtree, in THEMES order."
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ground.rs"
-line = 136
-text = "    // ITEM 69 PALETTE LAW (Bombora's Waves alone, post item-86 — Gumtree's own"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ground.rs"
-line = 154
-text = "    // ITEM 86 PALETTE LAW: Gumtree's Zigzag uses ONLY its own ground ladder —"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ground.rs"
-line = 174
-text = "    // ITEM 86 DISTINCTNESS LAW: Quokka and Gumtree's Zigzag fields must NOT"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/heatmap.rs"
-line = 122
-text = "/// Item 103's paired-load gate: the heatmap law was the compliant victim that"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/lava.rs"
-line = 7
-text = "/// 0..=6, item 69's Bands/Waves included) so the lava layer is dormant there"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ornament.rs"
-line = 92
-text = "/// [`Theme::bullets`] triple (item 15's per-level rotation) whose three levels"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ornament.rs"
-line = 136
-text = "        // advance — but queue item 30 moved Mopoke's body face to the proportional"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ornament.rs"
-line = 140
-text = "        // FACE-DERIVED, not a world list (item 158). The shared tier is scaled"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ornament.rs"
-line = 184
-text = "    // The TRIPLE CYCLES every THREE levels (item 15's per-level rotation) —"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ornament.rs"
-line = 199
-text = "    // composes with, never dilutes, item 7's \"one world, one level\" pick)."
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ornament.rs"
-line = 214
-text = "/// NEVER-DRIFT law (item 15, per-world LIST-ITEM INDENT): every world's"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ornament.rs"
-line = 221
-text = "/// [`LIST_INDENT_SCALE_WIDE`]. `>= 1.0` on every world: item 15 only ever"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/page_frame.rs"
-line = 93
-text = "/// item 65 NAMED TAIL CONTRAST FLOOR: the bare `theme::faint()` LADDER TOKEN"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/page_frame.rs"
-line = 108
-text = "///     CAVEAT (the Fable item 65 adjustment round): `base_100` is NOT the fold"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 14
-text = "/// motion, the six LIGHT worlds' pale-ground rim — composition round item 6),"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 35
-text = "        // ITEM 45 (2026-07-23): Cassowary + Mangrove are the fable RIGHT picks —"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 44
-text = "            // round's light-world border (item 6); C2 TopLeft anchor + Auto corner."
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 70
-text = "                // ITEM 45 fable pick (2026-07-23): the tidal margin flipped to a"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 77
-text = "                // ITEM 65 (Fable adjustment): both marks lifted — see"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 104
-text = "                // ITEM 65 (Fable adjustment): the tail alone is lifted — the"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 121
-text = "                    // ITEM 62 (2026-07-24): +10.8% chroma over the shipped"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 175
-text = "                // ITEM 65: dormant default (no lava ground — the silent pole's"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 178
-text = "                // ITEM 70: dormant default — a fractional-alpha halftone dot"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 199
-text = "            // LIGHT-WORLD BORDER (composition round item 6): the remaining"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 208
-text = "            // ITEM 70 — Quokka alone assigns the non-default printed-card caps"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 222
-text = "            // ITEM 86 — Bowerbird's item-71 woven `JaggedWave` card texture"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 242
-text = "                // ITEM 45 fable pick (2026-07-23): the terminal readout flipped to"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 258
-text = "            // PAPERBARK (item 158, the handmade-paper studio): a LIGHT world, so"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/placard.rs"
-line = 270
-text = "/// REPAIR ROUND 2's flagged gap, closed structurally — and extended by the"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/roster.rs"
-line = 14
-text = "    // (item 158) is the nineteenth, an additive LIGHT one — the handmade-paper"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/roster.rs"
-line = 15
-text = "    // studio, and the roster's only `Background::Deckle` ground; Kite (item 132)"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/roster.rs"
-line = 23
-text = "/// `world_names()` (item 68's one code-owned roster source, read by `--help`,"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/selection_ui.rs"
-line = 4
-text = "/// PALETTE-COMPOSITION round (item 5): the picker's selected-row band"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/world_pin_item254.rs"
-line = 3
-text = "/// THE WORLD PIN, at its own seam (item 94): [`WorldPin`] is the EXPLICIT tool a"
 reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
 
 [[comment_citation_exception]]
