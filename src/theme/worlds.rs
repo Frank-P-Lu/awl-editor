@@ -3,6 +3,7 @@ use super::cjk::{
     CJK_ZH_HANS_KLEE, CJK_ZH_HANS_SANS, CJK_ZH_HANS_SERIF, CJK_ZH_HANT,
 };
 use super::color::Srgb;
+use super::diagonal::{DiagonalMark, DiagonalSpine};
 use super::ground::{Background, Tunnel, Weave};
 use super::model::{
     AmbientStyle, Backdrop, CardAnchor, CardShape, CardTexture, CaretBlockStyle, ChipVariant,
@@ -605,7 +606,7 @@ pub const MANGROVE: Theme = Theme {
         },
         card_anchor: CardAnchor::TopRight,
         elevation: Elevation::Bordered,
-        list_style: ListStyle::Diagonal(super::diagonal::DiagonalDirection::Descending),
+        list_style: ListStyle::Diagonal(DiagonalSpine::descending(DiagonalMark::CRISP)),
         facet_style: FacetStyle::Chips(ChipVariant::Bracket),
         fold_afford: FoldAfford {
             chevron_lift: 0.60,
@@ -727,7 +728,7 @@ pub const MAGPIE: Theme = Theme {
         },
         card_anchor: CardAnchor::TopLeft,
         elevation: Elevation::Bordered,
-        list_style: ListStyle::Diagonal(super::diagonal::DiagonalDirection::Ascending),
+        list_style: ListStyle::Diagonal(DiagonalSpine::ascending(DiagonalMark::HAIRLINE)),
         facet_style: FacetStyle::Chips(ChipVariant::Underline),
         location_style: LocationStyle::Raked,
         ..RenderCaps::DEFAULT

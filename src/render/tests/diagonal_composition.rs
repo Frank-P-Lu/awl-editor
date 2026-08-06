@@ -5,10 +5,39 @@
 use super::super::*;
 use crate::render::chrome::diagonal::DiagonalComposition;
 
+/// A spine authored the way a world authors one, so every law below resolves
+/// through the same door `chrome::diagonal::active` uses. The MARK is a
+/// parameter rather than a fixture constant: a law that pinned one mark could
+/// not see a composition that ignored the world's authorship.
+fn spine(direction: theme::DiagonalDirection, mark: theme::DiagonalMark) -> theme::DiagonalSpine {
+    match direction {
+        theme::DiagonalDirection::Descending => theme::DiagonalSpine::descending(mark),
+        theme::DiagonalDirection::Ascending => theme::DiagonalSpine::ascending(mark),
+    }
+}
+
+/// Every diagonal world's own authored mark, read off the ROSTER rather than
+/// named — a third diagonal world joins these laws by shipping, not by being
+/// added to a list here.
+fn authored_marks() -> Vec<(&'static str, theme::DiagonalSpine)> {
+    let mut out = Vec::new();
+    for world in theme::THEMES {
+        match world.render_caps.list_style {
+            theme::ListStyle::Diagonal(spine) => out.push((world.name, spine)),
+            theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Rules(_) => {}
+        }
+    }
+    out
+}
+
 #[test]
 fn logical_registry_scales_every_diagonal_quantity_once_with_dpi() {
-    let one = DiagonalComposition::resolve(theme::DiagonalDirection::Descending, 1.0);
-    let two = DiagonalComposition::resolve(theme::DiagonalDirection::Descending, 2.0);
+    let authored = spine(
+        theme::DiagonalDirection::Descending,
+        theme::DiagonalMark::CRISP,
+    );
+    let one = DiagonalComposition::resolve(authored, 1.0);
+    let two = DiagonalComposition::resolve(authored, 2.0);
     assert_eq!(two.row_step, one.row_step * 2.0);
     assert_eq!(two.spine_weight, one.spine_weight * 2.0);
     assert_eq!(two.spine_corner, one.spine_corner * 2.0);
@@ -16,7 +45,16 @@ fn logical_registry_scales_every_diagonal_quantity_once_with_dpi() {
     // The connector was the one member the registry law never graded.
     assert_eq!(two.connector, one.connector * 2.0);
     assert_eq!(two.selected_outward, one.selected_outward * 2.0);
-    assert_eq!(two.selected_spine_weight, one.selected_spine_weight * 2.0);
+    // The world-authored mark passes the SAME boundary as the composition's own
+    // lengths — it is authored in logical pixels beside the world's face, not in
+    // device pixels.
+    assert_eq!(two.mark_weight, one.mark_weight * 2.0);
+    assert_eq!(two.mark_gap, one.mark_gap * 2.0);
+    assert_eq!(two.mark_reach, one.mark_reach * 2.0);
+    assert_eq!(two.mark_row_inset, one.mark_row_inset * 2.0);
+    assert_eq!(two.mark_lane(), one.mark_lane() * 2.0);
+    // And its APERTURE does not: a fraction of a row is not a length.
+    assert_eq!(two.mark_aperture, one.mark_aperture);
     assert!(
         one.row_step > 0.0,
         "the diagonal law must not pass on an inert composition"
@@ -25,19 +63,105 @@ fn logical_registry_scales_every_diagonal_quantity_once_with_dpi() {
 
 #[test]
 fn one_composition_owns_the_two_mirrored_orientations() {
-    let down = DiagonalComposition::resolve(theme::DiagonalDirection::Descending, 1.0);
-    let up = DiagonalComposition::resolve(theme::DiagonalDirection::Ascending, 1.0);
+    let mark = theme::DiagonalMark::CRISP;
+    let down = DiagonalComposition::resolve(spine(theme::DiagonalDirection::Descending, mark), 1.0);
+    let up = DiagonalComposition::resolve(spine(theme::DiagonalDirection::Ascending, mark), 1.0);
     assert_eq!(down.row_step, -up.row_step);
     assert_eq!(down.spine_weight, up.spine_weight);
     assert_eq!(down.spine_corner, up.spine_corner);
     assert_eq!(down.attachment_inset, up.attachment_inset);
     assert_eq!(down.connector, up.connector);
     assert_eq!(down.selected_outward, up.selected_outward);
-    assert_eq!(down.selected_spine_weight, up.selected_spine_weight);
+    // The MARK is world data, so the two orientations given the SAME mark must
+    // resolve it identically: the mirror lives in the sign of `row_step` and in
+    // the cluster's own outward dial, never in the mark's dimensions.
+    assert_eq!(down.mark_weight, up.mark_weight);
+    assert_eq!(down.mark_gap, up.mark_gap);
+    assert_eq!(down.mark_reach, up.mark_reach);
+    assert_eq!(down.mark_aperture, up.mark_aperture);
+}
+
+/// THE PRESENCE FLOOR the mark's own dimensions answer to — the companion a
+/// contrast or thickness claim needs, because "thinner" is satisfiable all the
+/// way down to nothing.
+///
+/// Enrolment is the ROSTER's, at the tightest real value it ships: every world
+/// that authors a diagonal spine must author a mark whose stroke still covers a
+/// device pixel at `scale == 1.0`, whose aperture still spans a real fraction of
+/// its row, and whose lane leaves the cluster's outer end genuinely clear. A
+/// mark tuned to a hairline for one world's face cannot fade to a mark nobody
+/// can see.
+#[test]
+fn every_authored_diagonal_mark_clears_the_presence_floor() {
+    let marks = authored_marks();
     assert!(
-        down.selected_spine_weight > down.spine_weight,
-        "the selected local spine must visibly thicken over its resting stroke"
+        marks.len() >= 2,
+        "the roster sweep found {} diagonal worlds — it is not reading the \
+         roster it thinks it is",
+        marks.len()
     );
+    for (name, authored) in marks {
+        let c = DiagonalComposition::resolve(authored, 1.0);
+        assert!(
+            c.mark_weight >= 1.0,
+            "{name}: an authored mark stroke of {} logical px cannot cover a \
+             device pixel at 1x — a mark that thin is not thinner, it is absent",
+            c.mark_weight
+        );
+        assert!(
+            c.mark_aperture > 0.25 && c.mark_aperture <= 1.0,
+            "{name}: aperture {} is outside the readable band (0.25, 1.0]",
+            c.mark_aperture
+        );
+        assert!(
+            c.mark_reach > 1.0 && c.mark_gap > 1.0,
+            "{name}: reach {} / gap {} — the mark must be a shape standing clear \
+             of the cluster, not a dot against it",
+            c.mark_reach,
+            c.mark_gap
+        );
+        assert!(
+            c.mark_lane() > c.mark_reach * 2.0,
+            "{name}: the reserved lane must exceed the mark's own extent, or the \
+             gap it stands off by is not reserved at all"
+        );
+    }
+}
+
+/// THE SPLIT THIS ROUND EXISTS FOR — one mark cannot serve two display faces,
+/// so the two shipping diagonal worlds must author DIFFERENT marks.
+///
+/// Derived from the roster and from each world's own `Theme::font`, never from a
+/// name: the claim is "worlds with different display faces carry different
+/// marks", and a shared renderer constant — the exact state this replaced —
+/// fails it by making every entry identical.
+#[test]
+fn diagonal_worlds_with_different_display_faces_author_different_marks() {
+    let mut by_face: Vec<(&str, &str, theme::DiagonalMark)> = Vec::new();
+    for world in theme::THEMES {
+        if let theme::ListStyle::Diagonal(spine) = world.render_caps.list_style {
+            by_face.push((world.name, world.font, spine.mark));
+        }
+    }
+    assert!(
+        by_face.len() >= 2,
+        "fewer than two diagonal worlds enrolled: {by_face:?}"
+    );
+    for (i, (a_name, a_face, a_mark)) in by_face.iter().enumerate() {
+        for (b_name, b_face, b_mark) in by_face.iter().skip(i + 1) {
+            if a_face == b_face {
+                continue;
+            }
+            assert_ne!(
+                a_mark, b_mark,
+                "{a_name} ({a_face}) and {b_name} ({b_face}) draw different \
+                 display faces and yet author the IDENTICAL selected-row mark. \
+                 A geometric mark right for a technical face contradicts an \
+                 editorial one; the weight and form are world data for exactly \
+                 this reason."
+            );
+        }
+    }
 }
 
 #[test]
@@ -53,7 +177,7 @@ fn only_world_data_names_mangrove_and_magpie() {
     let mut diagonal = Vec::new();
     for world in theme::THEMES {
         match world.render_caps.list_style {
-            theme::ListStyle::Diagonal(direction) => diagonal.push((world.name, direction)),
+            theme::ListStyle::Diagonal(s) => diagonal.push((world.name, s.direction)),
             theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Rules(_) => {}
         }
     }
@@ -119,15 +243,14 @@ fn the_selected_mark_is_an_off_axis_mirrored_chevron_at_every_row_and_reach() {
         for height in [12.0_f32, 27.5, 44.0, 88.0] {
             // BOTH signs: a Descending world reaches right, an Ascending one left.
             for reach in [-40.0_f32, -10.0, -3.0, 3.0, 10.0, 40.0] {
-                let spine_x = 64.0_f32;
+                let vertex_x = 64.0_f32;
                 let (t, b) = (top + 2.0, top + height - 2.0);
                 let arms = crate::render::chrome::diagonal::selected_chevron(
-                    spine_x,
-                    spine_x + reach,
+                    vertex_x,
+                    vertex_x + reach,
                     t,
                     b,
                     3.0,
-                    0.0,
                 );
                 let ctx = format!("top {top} height {height} reach {reach}");
                 let mid = (t + b) * 0.5;
@@ -135,14 +258,14 @@ fn the_selected_mark_is_an_off_axis_mirrored_chevron_at_every_row_and_reach() {
                 let (upper_start, upper_end) = ends(arms[0]);
                 let (lower_start, lower_end) = ends(arms[1]);
 
-                // Both arms START at the vertex, and the vertex sits ON the spine
-                // at the row's middle — this is what keeps the mark attached to
-                // the line the composition says carries focus.
+                // Both arms START at the vertex, at the row's middle — this is
+                // what keeps the mark pointing back into the row it marks
+                // rather than reading as loose ink in the margin.
                 for (name, start) in [("upper", upper_start), ("lower", lower_start)] {
                     assert!(
-                        (start[0] - spine_x).abs() < EPS && (start[1] - mid).abs() < EPS,
+                        (start[0] - vertex_x).abs() < EPS && (start[1] - mid).abs() < EPS,
                         "{ctx}: the {name} arm must start at the vertex \
-                         ({spine_x}, {mid}), got ({}, {})",
+                         ({vertex_x}, {mid}), got ({}, {})",
                         start[0],
                         start[1]
                     );
@@ -151,10 +274,10 @@ fn the_selected_mark_is_an_off_axis_mirrored_chevron_at_every_row_and_reach() {
                 // The arms reach the SAME x and the row's two inset ends — the
                 // bounding box the reservation terms still describe.
                 assert!(
-                    (upper_end[0] - (spine_x + reach)).abs() < EPS
-                        && (lower_end[0] - (spine_x + reach)).abs() < EPS,
+                    (upper_end[0] - (vertex_x + reach)).abs() < EPS
+                        && (lower_end[0] - (vertex_x + reach)).abs() < EPS,
                     "{ctx}: both arms must reach x {}",
-                    spine_x + reach
+                    vertex_x + reach
                 );
                 assert!(
                     (upper_end[1] - t).abs() < EPS && (lower_end[1] - b).abs() < EPS,
@@ -218,7 +341,7 @@ fn the_replaced_tick_and_connector_pair_fails_the_chevron_law() {
     // And it spans the same bounding box the chevron does, which is precisely why
     // an extent-based or count-based law cannot separate them.
     let chevron =
-        crate::render::chrome::diagonal::selected_chevron(spine_x, spine_x + reach, t, b, 3.0, 0.0);
+        crate::render::chrome::diagonal::selected_chevron(spine_x, spine_x + reach, t, b, 3.0);
     let xs = |segs: &[([f32; 2], [f32; 2], [f32; 2])]| {
         segs.iter().fold((f32::MAX, f32::MIN), |(lo, hi), &s| {
             let (a, z) = ends(s);

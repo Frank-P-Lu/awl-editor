@@ -89,10 +89,10 @@ mod markdown_headings;
 /// symbol with two entry points; the mark's turn is legible at rest because the
 /// shape has no rotational symmetry.
 mod marker_chevron_owner_item247;
-/// Wiring the diagonal marker's turn: the pinned-vertex derivation, the
-/// wrap-aware travel-direction source, and the settled Down/Up tilt, at real
-/// pixels on both diagonal worlds.
-mod marker_travel_item284;
+/// The selected-row mark stands on the row's OUTER edge, on the side the row
+/// planner's own signed inset names, and each diagonal world paints the mark its
+/// display face asks for.
+mod marker_side_item303;
 mod nits;
 mod one_bit;
 mod oracle;

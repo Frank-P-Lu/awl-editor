@@ -75,7 +75,11 @@ pub use derive::{
     selected_row_secondary_ink, selection_document, selection_ui, set_active, set_active_by_name,
     surface_selected,
 };
-pub use diagonal::DiagonalDirection;
+// `DiagonalMark` is authored in `worlds.rs` and reached by the renderer through
+// its `DiagonalSpine`, so the NAME is read only by the laws that assert the two
+// diagonal worlds author different marks — the whole point of the split.
+#[allow(unused_imports)]
+pub use diagonal::{DiagonalDirection, DiagonalMark, DiagonalSpine};
 pub use ground::Background;
 // ITEM 186 — the coordinate-space vocabulary every authored ground quantity
 // is classified in (`ground_space` holds the table; `Background`'s own

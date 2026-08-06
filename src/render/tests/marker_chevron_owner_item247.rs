@@ -9,6 +9,13 @@
 //! turning — a chevron is the simplest mark with no rotational symmetry, so its
 //! angle is legible AT REST — is a property of the shape, not of either caller.
 //!
+//! ⚠️ ONLY THE FOLD CHEVRON TURNS. The selected-row marker is upright: it says
+//! which row by standing beside it, and its DIRECTION is the mirror the whole
+//! diagonal cluster carries, not a rotation. Its parameterization is still swept
+//! by the revolution law below, because the shape it draws is still this owner's
+//! and a symmetry that folded the mark onto itself would make the FOLD
+//! chevron's turn unreadable at the marker's own proportions.
+//!
 //! Both laws below therefore grade the ANGLE and the POINTS, never the instance
 //! count: the mark is exactly two segments at every turn, which is precisely
 //! what a counting law cannot see.
@@ -114,7 +121,7 @@ fn the_diagonal_marker_is_the_shared_chevron_owner_at_a_derived_parameterization
                         let (t, b) = (top + 2.0, top + height - 2.0);
                         let arm_x = spine_x + reach;
                         let drawn = crate::render::chrome::diagonal::selected_chevron(
-                            spine_x, arm_x, t, b, thickness, 0.0,
+                            spine_x, arm_x, t, b, thickness,
                         );
                         let (center, owner_reach, owner_spread) =
                             marker_in_owner_terms(spine_x, arm_x, t, b);
