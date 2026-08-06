@@ -108,13 +108,14 @@ pub(in crate::render) fn notice_plate_padding(label_line_height: f32) -> (f32, f
 ///
 ///   * A world's ramp is authored data and some worlds collapse it. Potoroo puts
 ///     `base_300` within ΔL\* 0.87 of its own page.
-///   * The page's DRAWN ground is not `base_100`'s authored bytes. A quad drawn by
-///     a `SelectionPipeline` round-trips its sRGB value correctly, but the frame's
-///     `LoadOp::Clear` colour is consumed as LINEAR by an sRGB-format target, so
-///     the page renders as the sRGB *encode* of those bytes — Currawong's authored
-///     `#060607` draws as `#2A2A2E`, Potoroo's `#1F0400` as `#622200`, both
-///     verified against real pixels. So no fixed step off `base_100` predicts what
-///     the plate actually sits on.
+///   * A fixed VALUE STEP off `base_100` does not predict how far the plate reads
+///     from the page, because the sRGB curve is steep near black and shallow near
+///     white: the same step in bytes is a different distance to the eye at
+///     `#060607` than at `#FFF8E9`. That is why the presence floor is perceptual
+///     ΔE rather than a luminance step, and it stays perceptual now that the
+///     page's clear colour stores the authored token exactly
+///     (`theme::tests::clear`, `render::tests::page_ground_law`) — the curve is a
+///     property of the colour space, not of any one defect.
 ///   * A TRUE ONE-BIT world has no value steps to spend: on Wagtail `base_200`,
 ///     `base_300` and the page are all the same black and `muted` is
 ///     `base_content`, so a toast and a sticky came out byte-identical. Its second

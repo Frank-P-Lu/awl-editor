@@ -12,6 +12,9 @@
 use super::*;
 
 mod ambient;
+/// The page's CLEAR colour: the sRGB→linear decode `LoadOp::Clear` needs, and
+/// the one transfer function the whole tree shares.
+mod clear;
 mod distinctness;
 mod firetail;
 mod fonts;

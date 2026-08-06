@@ -112,6 +112,10 @@ mod overlay_rail_thirds_law;
 mod overlay_rhythm_item112;
 mod overlay_right_hug_law;
 mod page_frame;
+/// The drawn page IS the authored `base_100`, over the whole roster at 1×/2× —
+/// the PIXEL half of the clear colour's transfer function
+/// (`theme::tests::clear` is the arithmetic half).
+mod page_ground_law;
 mod palette_location_item220;
 mod palette_scroll_anchor_item222;
 mod palette_shortcuts_item223;
