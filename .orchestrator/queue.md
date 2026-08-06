@@ -900,7 +900,8 @@ Order for the next wave:
      tree — same blast radius as 275's ~1000 sites.
      **Verify:** each new law mutation-proved. **Routing:** production tier.
 
-303. **The diagonal selection marker sits on the wrong side.** It belongs on the
+303. 🟡 IN PROGRESS with 131e — claude, branch `claude/item-131e-diagonal-selection`.
+     **The diagonal selection marker sits on the wrong side.** It belongs on the
      row's OUTER edge, away from the spine, mirroring between the two worlds:
 
      ```
