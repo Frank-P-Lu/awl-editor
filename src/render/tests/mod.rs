@@ -121,6 +121,10 @@ mod reanchor_crossing_law;
 mod rotated_label_item235;
 mod rotated_location_item221;
 mod row_offset_item131;
+/// The `Rules` composition: the full `OverlayKind` row-surface sweep, the
+/// Settings workspace (both regions), every `SettingId × SettingKind`,
+/// drawn-equals-clickable at both DPIs, and the pixel laws.
+mod rules_composition_item283;
 mod scroll_pos;
 mod selection_clip_law;
 /// The document-selection band's own legibility floor — the only ink-adjacent

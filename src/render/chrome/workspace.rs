@@ -1,5 +1,6 @@
-//! THE SUMMONED WORKSPACE'S PRESENTATION (queue item 114) — geometry, the
-//! navigation rail's shaping and marks, and the rail's pointer hit-test.
+//! THE SUMMONED WORKSPACE'S PRESENTATION — its box, its two regions, and the
+//! one place width enters. The narrow region's own grid, shaping, mark and
+//! hit-test are `workspace_rail.rs`; how wide it is, `workspace_column.rs`.
 //!
 //! A contextual overlay is a card floating over a document the user still needs
 //! to see. A summoned WORKSPACE relocates attention: it takes the viewport,
@@ -118,69 +119,6 @@ impl OverlayGeom {
 }
 
 impl TextPipeline {
-    /// ITEM 114 — WHERE the navigation rail's shaped labels go, and the clip
-    /// that keeps them there: its measured column, so a label can never bleed
-    /// into the content pane it sits beside. Returns placement rather than a
-    /// `TextArea` so the caller's own field borrows stay disjoint from the
-    /// renderer it is about to prepare.
-    pub(super) fn workspace_rail_area(
-        &self,
-        geom: &OverlayGeom,
-        width: u32,
-        height: u32,
-    ) -> Option<(f32, f32, TextBounds)> {
-        let (left, top) = self.workspace_rail_placement?;
-        let rail_w = geom.rail.map(|[_, w]| w).unwrap_or(0.0);
-        Some((
-            left,
-            top,
-            TextBounds {
-                left: left.max(0.0) as i32,
-                top: 0,
-                right: ((left + rail_w).min(width as f32)) as i32,
-                bottom: height as i32,
-            },
-        ))
-    }
-
-    /// ITEM 114 — THE RAIL'S ACTIVE MARK, in the shared "active lens mark" slot,
-    /// because that is exactly what it is: the rail IS the facet strip stood on
-    /// its end, and its active entry is that strip's active label.
-    ///
-    /// It bypasses the `FacetStyle` skins on purpose — those describe a
-    /// horizontal chip run (a bracket, an underline hugging a baseline) and none
-    /// of them says anything about a column — and takes the world's own
-    /// selected-row band instead, at the same reduced presence the content pane's
-    /// band takes when IT is the unfocused region.
-    pub(super) fn prepare_rail_mark(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        width: u32,
-        height: u32,
-        geom: &OverlayGeom,
-    ) {
-        let band = match theme::active()
-            .highlight_treatment(crate::render::effective_overlay_selrow_band())
-        {
-            theme::HighlightTreatment::ValueBand(c) => c,
-            theme::HighlightTreatment::InverseFill { band, .. } => band,
-        };
-        let rgba = match geom.rows_focused {
-            true => super::workspace::dimmed(band, super::workspace::UNFOCUSED_MARK_ALPHA),
-            false => band.rgba_bytes(),
-        };
-        self.overlay_lens_underline.set_color(rgba);
-        self.overlay_lens_underline
-            .set_corner(self.metrics.px(super::overlay_rows::FACET_CHIP_RADIUS));
-        self.overlay_lens_underline.set_stroke(0.0);
-        let marks: Vec<[f32; 4]> = self.workspace_rail_mark.into_iter().collect();
-        self.overlay_lens_underline
-            .prepare(device, queue, width, height, &marks);
-        self.overlay_facet_ghost
-            .prepare(device, queue, width, height, &[]);
-    }
-
     /// The workspace inset for the current window — a pure function of the
     /// canvas, read by the geometry and by the laws that check it.
     pub(in crate::render) fn workspace_margin(&self) -> f32 {
@@ -200,11 +138,6 @@ impl TextPipeline {
     #[cfg(test)]
     pub(in crate::render) fn overlay_lens_len(&self) -> usize {
         self.overlay_lens.len()
-    }
-
-    #[cfg(test)]
-    pub(in crate::render) fn workspace_rail_mark_probe(&self) -> Option<[f32; 4]> {
-        self.workspace_rail_mark
     }
 
     /// IS THERE ROOM FOR BOTH REGIONS AT ONCE? The one width decision the whole
@@ -377,118 +310,5 @@ impl TextPipeline {
             rows_focused,
             ..OverlayGeom::base()
         }
-    }
-
-    /// The rail's full box `[x, y, w, h]` — its measured column, seated on the
-    /// row plan's own band origin so its first entry and the pane's first row
-    /// share a line, and running to the workspace's bottom pad.
-    pub(in crate::render) fn workspace_rail_box(
-        &self,
-        geom: &OverlayGeom,
-        plan: &OverlayRowPlan,
-    ) -> Option<[f32; 4]> {
-        let [x, w] = geom.rail?;
-        let top = plan.first_top();
-        let bottom = geom.card_y + geom.card_h - self.metrics.px(WORKSPACE_PAD);
-        (bottom > top).then_some([x, top, w, bottom - top])
-    }
-
-    /// The rect of rail entry `idx`, or `None` when no rail is drawn or the entry
-    /// would fall outside the rail's own box.
-    pub(in crate::render) fn workspace_rail_rect(
-        &self,
-        geom: &OverlayGeom,
-        plan: &OverlayRowPlan,
-        idx: usize,
-    ) -> Option<[f32; 4]> {
-        let [x, top, w, h] = self.workspace_rail_box(geom, plan)?;
-        let lh = self.overlay_lh();
-        let row_top = top + idx as f32 * lh;
-        (row_top + lh <= top + h + 0.5).then_some([x, row_top, w, lh])
-    }
-
-    /// HIT-TEST the navigation rail: which rail entry does `(px, py)` select?
-    /// `None` off the rail, off the card, or when this card has no rail — which
-    /// is what stops a pointer in the rail column from ever resolving to a
-    /// settings row (that lookup is bounded to `geom.pane_x`/`pane_w`).
-    pub fn workspace_rail_at(&self, px: f32, py: f32) -> Option<usize> {
-        if !self.overlay_active || !self.overlay_is_workspace() {
-            return None;
-        }
-        let geom = self.workspace_geometry(self.window_w as u32);
-        let plan = self.overlay_row_plan(&geom);
-        let [x, _, w, _] = self.workspace_rail_box(&geom, &plan)?;
-        if px < x || px >= x + w {
-            return None;
-        }
-        (0..self.overlay_lens.len()).find(|&i| {
-            self.workspace_rail_rect(&geom, &plan, i)
-                .is_some_and(|[_, ry, _, rh]| py >= ry && py < ry + rh)
-        })
-    }
-
-    /// SHAPE the rail's labels into their own buffer and record the ACTIVE
-    /// entry's mark rect. Returns whether a rail was shaped at all.
-    ///
-    /// The active entry takes content ink and the rest muted, the same
-    /// figure/ground grammar every picker row uses; the mark rect is handed to
-    /// [`super::overlay_rows`]'s facet-mark owner rather than drawn here, so the
-    /// rail's band and the content pane's band come out of the same treatment.
-    pub(in crate::render) fn workspace_shape_rail(
-        &mut self,
-        geom: &OverlayGeom,
-        plan: &OverlayRowPlan,
-    ) -> bool {
-        self.workspace_rail_mark = None;
-        let Some([x, top, w, _]) = self.workspace_rail_box(geom, plan) else {
-            self.workspace_rail_placement = None;
-            return false;
-        };
-        let ui_metrics = self.overlay_metrics();
-        self.workspace_rail_buffer
-            .set_metrics(&mut self.font_system, ui_metrics);
-        self.workspace_rail_buffer
-            .set_size(&mut self.font_system, Some(w), None);
-        self.workspace_rail_buffer
-            .set_wrap(&mut self.font_system, Wrap::None);
-        let content = theme::base_content().to_glyphon();
-        let muted = theme::muted().to_glyphon();
-        let base = panel_attrs();
-        let faint = theme::faint().to_glyphon();
-        let mut spans: Vec<(String, glyphon::Color)> = Vec::new();
-        let mut active: Option<usize> = None;
-        for (i, (label, is_active)) in self.overlay_lens.iter().enumerate() {
-            if *is_active {
-                active = Some(i);
-            }
-            let line = match i {
-                0 => label.clone(),
-                _ => format!("\n{label}"),
-            };
-            spans.push((line, if *is_active { content } else { muted }));
-        }
-        // The footer follows the list (see `workspace_geometry`): when the pane
-        // is drawing no rows it carries no hint either, so the rail carries it,
-        // one blank line below its last category.
-        if geom.hint_rows == 0 && !self.overlay_hint.is_empty() {
-            spans.push((format!("\n\n{}", self.overlay_hint), faint));
-        }
-        let rich: Vec<(&str, Attrs)> = spans
-            .iter()
-            .map(|(s, c)| (s.as_str(), base.clone().color(*c)))
-            .collect();
-        let default_attrs = base.clone().color(muted);
-        self.workspace_rail_buffer.set_rich_text(
-            &mut self.font_system,
-            rich,
-            &default_attrs,
-            Shaping::Advanced,
-            None,
-        );
-        self.workspace_rail_buffer
-            .shape_until_scroll(&mut self.font_system, false);
-        self.workspace_rail_placement = Some((x, top));
-        self.workspace_rail_mark = active.and_then(|i| self.workspace_rail_rect(geom, plan, i));
-        true
     }
 }

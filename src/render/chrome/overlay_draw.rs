@@ -106,7 +106,7 @@ impl TextPipeline {
         // ITEM 114 — the workspace rail's placement and its active mark park with
         // the card, so the frame after a workspace closes carries neither.
         self.workspace_rail_placement = None;
-        self.workspace_rail_mark = None;
+        self.workspace_rail_rows.clear();
         // V6 P5: the Chips ghost pills park empty too, so a closed picker carries
         // no stale ghost-pill quads into the next frame.
         self.overlay_facet_ghost

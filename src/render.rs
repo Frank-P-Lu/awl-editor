@@ -2431,10 +2431,13 @@ pub struct TextPipeline {
     /// same reason. `0.0` off a workspace.
     workspace_primary_w: f32,
     workspace_rail_buffer: GlyphBuffer,
-    /// The rail's ACTIVE entry's mark rect for this frame, recorded by the rail
-    /// shaper and drawn by the shared facet-mark owner. `None` when no rail is
-    /// drawn, so the mark parks with the rail.
-    workspace_rail_mark: Option<[f32; 4]>,
+    /// EVERY rail entry's rect for this frame, tagged with whether it is the
+    /// ACTIVE one — recorded by the rail shaper and consumed by the shared
+    /// facet-mark owner. Empty when no rail is drawn, so the marks park with the
+    /// rail. The whole list rather than the active entry alone because a rail IS
+    /// a list, and a composition that arranges rows by the boundaries between
+    /// them needs every neighbour to know where those boundaries fall.
+    workspace_rail_rows: Vec<([f32; 4], bool)>,
     /// Where the shaped rail buffer is placed (`(left, top)`), or `None` when no
     /// rail is drawn this frame.
     workspace_rail_placement: Option<(f32, f32)>,

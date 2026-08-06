@@ -294,6 +294,9 @@ mod panel;
 mod comparison;
 mod workspace;
 mod workspace_column;
+// The narrow region itself: its grid, shaping, active mark and hit-test —
+// including the one composition question a rail has, because a rail is a list.
+mod workspace_rail;
 pub(in crate::render) use overlay::OVERLAY_UI_SCALE;
 #[cfg(test)]
 pub(in crate::render) use overlay::{
@@ -305,9 +308,9 @@ pub(in crate::render) use overlay::{
 // work. A cohesive physical carve, byte-identical pixels — see the file's own doc.
 mod overlay_draw;
 mod overlay_rows;
-// The `Rules` PROTOTYPE's whole composition, in one file so it can graduate
-// or be lifted out as one thing.
-mod overlay_rules;
+// The `Rules` composition entire, in one file: its lengths, and the one owner
+// (`rules_ink`) both the picker rows and the workspace rail come out of.
+pub(in crate::render) mod overlay_rules;
 use overlay_rules::{RULE_ROW_AIR, RULES_TEXT_HPAD};
 mod overlay_selection;
 #[cfg(test)]

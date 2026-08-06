@@ -121,17 +121,16 @@ pub enum ListStyle {
     /// (`AWL_OVERLAY_LIST_FORCE`'s `bars:` suffix) can still replace that
     /// default for exploration — see [`BarConfig`].
     Bars,
-    /// ⚠️ **PROTOTYPE, NOT A SHIPPED FOURTH STYLE.** Organised by ABSENCE:
-    /// leading and hairline rules do the arranging, and nothing is drawn as an
-    /// object. Structurally it is neither a card ([`ListBacking::BarePlates`],
-    /// so no panel fill, border or shadow) nor a plate
-    /// ([`ListStyle::draws_row_plates`] is false, so no per-row surface and no
-    /// scrim) — the only ink the style owns is rules, and its selection mark is
-    /// a rule too. The field is the one open taste question: which of the two
-    /// credible selection treatments a `Rules` world draws. Reached today by one
-    /// carrier world and by `AWL_OVERLAY_LIST_FORCE=rules:<weight|gutter>`; the
-    /// full `OverlayKind` surface sweep, the Settings workspace and the pixel-law
-    /// suite are deliberately NOT done, which is what keeps this a prototype.
+    /// THE QUIET ONE, organised by ABSENCE: leading and hairline rules do the
+    /// arranging, and nothing is drawn as an object. Structurally it is neither
+    /// a card ([`ListBacking::BarePlates`], so no panel fill, border or shadow)
+    /// nor a plate ([`ListStyle::draws_row_plates`] is false, so no per-row
+    /// surface and no scrim) — the only ink the style owns is rules, and its
+    /// selection mark is a rule too, on the picker rows and on a summoned
+    /// workspace's navigation rail alike. The field carries the selection
+    /// treatment. Reached by one carrier world and by
+    /// `AWL_OVERLAY_LIST_FORCE=rules:<weight|gutter>`; which further worlds
+    /// adopt it is a taste call, not a capability gap.
     Rules(RuleSelection),
 }
 
