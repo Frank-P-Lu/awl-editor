@@ -2145,3 +2145,30 @@ sanctioned name and the actual subject disagree. **Verify:** every failure messa
 names a mechanism a reader can act on without the board. **Routing:** production
 tier, and it must be READ one message at a time exactly as 275 was — the counts
 are a scale estimate, never a worklist.
+
+288. **THREE IDENTIFIER-LEVEL CITATIONS — RECOMMENDED BY ITEM 287, DELIBERATELY
+NOT ACTED ON.** These are the same Conventions rule as 275/287, in the one place
+where fixing it is a *behaviour* change rather than a text edit: a test name is
+what `cargo test <substring>` filters on, and a filename is what `mod.rs`
+declares. **So each rename must move its declaration and any external filter with
+it, in one commit.**
+- `bar_config_shipped_is_the_flip_round_hug_all_hybrid` → drop the round name;
+  the doc's own language is "HUG-ALL HYBRID".
+- `theme::tests::fonts::mopoke_body_face_is_bitter_with_the_item_30_bullet_triple`
+  → same shape, found by 287 and not named in its brief.
+- `src/theme/tests/world_pin_item254.rs` → ⚠️ **this one is WRONG, not merely
+  stale.** `git log -S "struct WorldPin"` puts the type's origin in **item 94**;
+  item 254 is the unrelated flaky-`alloc_bound_law` item. `item94` stays inside
+  `code-health.py`'s `TEST_FILENAME_ITEM_INDEX` regex (`_item\d+[a-z]?\.rs$`), so
+  no tooling change is needed — but the citation should point somewhere real, or
+  be dropped for the mechanism.
+
+⚠️ **THE FINDING WORTH KEEPING, BIGGER THAN THE THREE RENAMES:
+`TEST_FILENAME_ITEM_INDEX` BLESSES THE FORM OF A CITATION WITHOUT CHECKING THAT
+IT POINTS ANYWHERE REAL.** `world_pin_item254.rs` passed that exemption for its
+whole life while naming the wrong item. An exemption that pattern-matches
+`_item\d+\.rs` cannot tell 94 from 254. **If these filenames are kept as a
+convention, the exemption should verify the number against the board — otherwise
+it is a check that runs in one configuration and cannot see its own subject, the
+same shape this session hit five times.** **Routing:** production tier; the
+renames are mechanical, the exemption question is a small design call.
