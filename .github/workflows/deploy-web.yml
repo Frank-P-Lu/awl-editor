@@ -99,6 +99,23 @@ jobs:
       # → "0.0.0" with prerelease: true, which the page renders as an honest
       # "no tagged release yet" rather than a real version claim. See
       # RELEASING.md for the same one-liner run manually for a local deploy.
+      #
+      # THIS `prerelease` FIELD IS NOT THE GITHUB RELEASE'S beta/stable FLAG.
+      # `site/check.js`'s own doc comment and
+      # `site/check.test.js`'s "no tagged release yet (prerelease flag
+      # honest)" case pin ONE meaning: true iff no tag has ever shipped
+      # (`git describe` found nothing, version stays the "0.0.0" placeholder).
+      # `checkState()` never renders a stable/beta claim at all — `render()`
+      # only sets `textContent` from `checkState`'s comparison text, so there
+      # is no "STABLE" framing on this page for this flag to invert. Flipping
+      # it to true for a real pre-1.0 tag (matching release.yml's major<1
+      # rule) would instead make the Check-for-Updates page falsely tell a
+      # v0.9.0 user "no tagged release yet" the moment the beta ships — a
+      # regression this field's own test suite already guards against. So
+      # this step is UNCHANGED: any real tag still writes prerelease: false,
+      # the only value consistent with "a tag exists." The GitHub Release's
+      # OWN prerelease flag is a separate field, fixed in release.yml's
+      # `plan`/`publish` jobs instead.
       - name: Write version.json
         run: |
           TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"

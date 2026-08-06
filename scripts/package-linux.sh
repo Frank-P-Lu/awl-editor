@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 #
-# package-linux.sh — assemble the Linux download: `awl-linux-x86_64.tar.gz`
+# package-linux.sh — assemble the Linux download: `awl-<version>-linux-x86_64.tar.gz`
 # plus its checksum, from an already-built Linux `awl` binary.
 #
 # Usage:
 #   scripts/package-linux.sh <path-to-linux-binary> <output-dir>
 #
-# Produces:
-#   <output-dir>/awl-linux-x86_64/            the staged payload
-#   <output-dir>/awl-linux-x86_64.tar.gz      the download
-#   <output-dir>/awl-linux-x86_64.tar.gz.sha256   its checksum, a build product
+# Produces (VERSION resolved as described below):
+#   <output-dir>/awl-<version>-linux-x86_64/            the staged payload
+#   <output-dir>/awl-<version>-linux-x86_64.tar.gz      the download
+#   <output-dir>/awl-<version>-linux-x86_64.tar.gz.sha256   its checksum, a build product
 #
 # WHY A SCRIPT. The layout used to be eight inline `cp` lines in
 # release.yml's linux job, which meant it could only ever be exercised by
@@ -25,12 +25,19 @@
 # macOS bundle's Resources/ copies are the same set. A missing file exits
 # non-zero rather than shipping an under-licensed archive.
 #
-# ARCHIVE SHAPE. One top-level directory (`awl-linux-x86_64/`) — never a
-# tarbomb, never a leading `./`, never an absolute path. Entries are owned
-# by uid/gid 0 with numeric ownership so a `tar xzf` as any user lands
+# ARCHIVE SHAPE. One top-level directory (`awl-<version>-linux-x86_64/`) —
+# never a tarbomb, never a leading `./`, never an absolute path. Entries are
+# owned by uid/gid 0 with numeric ownership so a `tar xzf` as any user lands
 # 0755 on the binary and 0644 on the docs, and are sorted by name with a
 # fixed mtime under GNU tar so two builds of the same tree produce the same
 # archive bytes.
+#
+# VERSION. Read from `$AWL_VERSION` if set (release.yml's linux job passes
+# the tag-derived version, exactly like package-macos.sh's own AWL_VERSION);
+# otherwise from Cargo.toml's package.version via `cargo metadata`, the same
+# fallback package-macos.sh uses, so a bare local invocation still produces a
+# correctly-named archive. This is the ONE place the Linux archive name is
+# assembled — nothing else hardcodes it.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -42,7 +49,17 @@ fi
 
 BINARY="$1"
 OUTDIR="$2"
-STAGE_NAME="awl-linux-x86_64"
+
+AWL_VERSION="${AWL_VERSION:-}"
+if [ -z "$AWL_VERSION" ]; then
+  if command -v cargo >/dev/null 2>&1; then
+    AWL_VERSION="$(cd "$ROOT" && cargo metadata --no-deps --format-version 1 2>/dev/null \
+      | grep -o '"version":"[^"]*"' | head -1 | cut -d'"' -f4)"
+  fi
+  AWL_VERSION="${AWL_VERSION:-0.0.0}"
+fi
+
+STAGE_NAME="awl-${AWL_VERSION}-linux-x86_64"
 TARBALL="$STAGE_NAME.tar.gz"
 
 if [ ! -f "$BINARY" ]; then
@@ -138,6 +155,13 @@ Font License 1.1) and dict-LICENSES.md (the Hunspell dictionaries).
 CREDITS.md is the human-readable thank-you.
 TXT
 chmod 0644 "$STAGE/README.txt"
+
+# The heredoc above is single-quote-delimited (a literal `ldd --version` in
+# its "WHAT IT NEEDS" section must never be shell-expanded as a backtick
+# command substitution), so the unpack instructions are written with the
+# unversioned placeholder and patched to the real, versioned name here.
+sed -i.bak "s/awl-linux-x86_64/$STAGE_NAME/g" "$STAGE/README.txt"
+rm -f "$STAGE/README.txt.bak"
 
 # The glibc floor is a property of the machine that built this binary, not a
 # constant, so it is recorded rather than asserted. `objdump -T` lists the

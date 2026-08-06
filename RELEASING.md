@@ -85,13 +85,16 @@ touches or commits `site/editor/`'s checked-in bundle (legacy — see below).
 scripts/release-profile-gate.sh
 # 2. bump Cargo.toml's package.version if this is a real version bump
 # 3. work §5's checklist, then tag and push
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.9.0
+git push origin v0.9.0
 ```
 
 The tag push triggers `release.yml`'s `linux` and `publish` jobs: a
 `cargo build --release`, the headless parity law again, `scripts/package-linux.sh`,
-and a new GitHub Release carrying `awl-linux-x86_64.tar.gz` and `SHA256SUMS`.
+and a new GitHub Release carrying `awl-<version>-linux-x86_64.tar.gz` and
+`SHA256SUMS` (e.g. `awl-0.9.0-linux-x86_64.tar.gz` for the `v0.9.0` tag —
+`scripts/package-linux.sh` derives the exact name from `Cargo.toml`'s
+version / the tag, never a separate hardcoded string; see item 228).
 The mac and web jobs do not run on a tag (see §5's open decisions), so no
 unsigned `.app` and no `dist/` zip can be attached. Rerunning the parity law
 inside the release job means a missed local pre-tag run still blocks publication.
@@ -127,8 +130,8 @@ archive listing. A missing licence file is a hard failure, not a warning.
 
 | Artifact | Where |
 |---|---|
-| `awl-linux-x86_64.tar.gz` + `SHA256SUMS` | GitHub Release (tag) |
-| `awl-linux-x86_64.tar.gz` + `.sha256` | workflow artifact `awl-linux` (dry run) |
+| `awl-<version>-linux-x86_64.tar.gz` + `SHA256SUMS` | GitHub Release (tag) |
+| `awl-<version>-linux-x86_64.tar.gz` + `.sha256` | workflow artifact `awl-linux` (dry run — `<version>` is `0.0.0-dryrun`) |
 | `Awl.app` (universal, unsigned until §1 is done) + `Awl.dmg` | workflow artifact `awl-macos` — **dry run only**, never attached to a Release |
 | `awl-web-dist.zip` (the `trunk build --release` output) | workflow artifact `awl-web` — **dry run only**, never attached to a Release |
 | the live website + `/editor/` demo | Fly.io (`awl-editor`, `site/fly.toml`) — via `deploy-web.yml`, separately |
@@ -271,7 +274,7 @@ about scope to call itself a receipt.
 |---|---|---|
 | Cut a public tag at all | no tag has ever been pushed; `gh release list` is empty | the user, explicitly (CLAUDE.md §Branches) |
 | macOS artifacts | none of the five Apple secrets in §1 are set; the mac job is skipped on a tag so an unsigned `.app` cannot publish | the user — needs a paid Apple Developer Program membership |
-| Version + prerelease flag | `Cargo.toml` says `0.1.0`; queue item 228 proposes `v0.9.0` marked prerelease. `release.yml` does not pass `prerelease:` and `deploy-web.yml`'s `version.json` sets `prerelease: false` for any tag it finds — so a beta would currently read as stable on both surfaces | queue item 228 |
+| Version + prerelease flag | **resolved by item 228 for the GitHub Release; the "and the site" half of the original premise was false.** `Cargo.toml` says `0.9.0`. `release.yml`'s `plan` job now computes `prerelease` from the tag's major version (`< 1` ⇒ true) and the `publish` step passes it to `softprops/action-gh-release`, so `v0.9.0` publishes correctly marked prerelease — verified against that action's own source (`INPUT_PRERELEASE == "true"`), not just its docs. `deploy-web.yml`'s `version.json` `prerelease` field is a DIFFERENT thing sharing a name: `site/check.js`'s `checkState()` (locked by `site/check.test.js`) reads it only as "no tag has ever shipped" — the page never renders a stable/beta claim at all, so there was nothing on the site for a beta tag to invert. That field stays `false` for any real tag, unchanged | settled |
 | glibc floor | **measured, not estimated.** `ubuntu-latest` is Ubuntu 24.04, so the binary's highest referenced symbol is `GLIBC_2.39`. Verified by running the produced tarball on Debian 12: `libc.so.6: version 'GLIBC_2.39' not found`. See the table below | the user — it is a support-matrix choice, and item 227's AppImage may answer it instead |
 | Web download | `awl-web-dist.zip` builds on dry runs and is not attached; the site is the web distribution | settled unless a self-host story is wanted |
 | Asset filename | **decided by the user 2026-08-06: the version goes in, per queue item 228.** The long-standing "these cannot both hold" conflict with `/releases/latest/download/` was false and is retired: **no tracked file has ever hardcoded that URL.** The site (`site/index.html`) and README both link to the releases *page*; the unversioned name appears only in the two producers (`release.yml`, `scripts/package-linux.sh`) and in two instructional `tar xzf` snippets. So versioning the asset costs those snippets and nothing else — there is no stable-URL dependency to break, and no per-release site edit | settled |

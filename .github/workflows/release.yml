@@ -63,15 +63,29 @@ jobs:
     outputs:
       is_release: ${{ steps.plan.outputs.is_release }}
       version: ${{ steps.plan.outputs.version }}
+      # Pre-1.0 is a beta, marked prerelease on the GitHub Release — the
+      # rule is "major version 0", the same discriminator a v1.0.0 launch
+      # flips by construction. Computed from the tag's own version rather
+      # than hand-set per release, so the flag can't drift from the version
+      # string it describes.
+      is_prerelease: ${{ steps.plan.outputs.is_prerelease }}
     steps:
       - id: plan
         run: |
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ startsWith(github.ref, 'refs/tags/v') }}" = "true" ]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
             echo "is_release=true" >> "$GITHUB_OUTPUT"
-            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            MAJOR="${VERSION%%.*}"
+            if [ "$MAJOR" -lt 1 ] 2>/dev/null; then
+              echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            fi
           else
             echo "is_release=false" >> "$GITHUB_OUTPUT"
             echo "version=0.0.0-dryrun" >> "$GITHUB_OUTPUT"
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
           fi
 
   mac:
@@ -287,14 +301,16 @@ jobs:
       # their `2>/dev/null || true` would have shipped a tarball with no
       # LICENSE in it without failing.
       - name: Package tar.gz + checksum
+        env:
+          AWL_VERSION: ${{ needs.plan.outputs.version }}
         run: scripts/package-linux.sh target/release/awl dist-linux
 
       - uses: actions/upload-artifact@v7
         with:
           name: awl-linux
           path: |
-            dist-linux/awl-linux-x86_64.tar.gz
-            dist-linux/awl-linux-x86_64.tar.gz.sha256
+            dist-linux/awl-${{ needs.plan.outputs.version }}-linux-x86_64.tar.gz
+            dist-linux/awl-${{ needs.plan.outputs.version }}-linux-x86_64.tar.gz.sha256
           retention-days: 14
 
   web:
@@ -365,21 +381,28 @@ jobs:
       # from the artifacts themselves rather than transcribed. `sha256sum -c
       # SHA256SUMS` in the download directory is the whole verification.
       - name: Build the checksum manifest
+        env:
+          TARBALL: awl-${{ needs.plan.outputs.version }}-linux-x86_64.tar.gz
         run: |
           mkdir -p release
-          cp artifacts/awl-linux/awl-linux-x86_64.tar.gz release/
-          (cd release && sha256sum awl-linux-x86_64.tar.gz > SHA256SUMS)
+          cp "artifacts/awl-linux/$TARBALL" release/
+          (cd release && sha256sum "$TARBALL" > SHA256SUMS)
           cat release/SHA256SUMS
 
       # The release body IS the install page — a reader arrives here from the
       # site's Download link and must not have to guess. `body` (not
       # `body_path`) keeps it beside the file list it describes;
       # `fail_on_unmatched_files` is the difference between a failed run and a
-      # published Release with nothing attached to it.
+      # published Release with nothing attached to it. `prerelease` is the
+      # ONLY thing on this step that is not a version string but must still
+      # track the version: pre-1.0 publishes marked prerelease, computed
+      # once in `plan` from the same tag so it can't disagree with the
+      # version above it.
       - name: softprops/action-gh-release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.plan.outputs.version }}
+          prerelease: ${{ needs.plan.outputs.is_prerelease }}
           fail_on_unmatched_files: true
           body: |
             **Linux x86_64.** macOS builds from source until Apple signing and
@@ -387,8 +410,8 @@ jobs:
 
             ```sh
             sha256sum -c SHA256SUMS
-            tar xzf awl-linux-x86_64.tar.gz
-            cd awl-linux-x86_64
+            tar xzf awl-${{ needs.plan.outputs.version }}-linux-x86_64.tar.gz
+            cd awl-${{ needs.plan.outputs.version }}-linux-x86_64
             ./awl notes.md
             ```
 
@@ -404,5 +427,5 @@ jobs:
             GPL-3.0-only. `LICENSE`, `NOTICE`, `CREDITS.md`,
             `THIRD-PARTY-LICENSES.md` and `licenses/` ride inside the archive.
           files: |
-            release/awl-linux-x86_64.tar.gz
+            release/awl-${{ needs.plan.outputs.version }}-linux-x86_64.tar.gz
             release/SHA256SUMS
