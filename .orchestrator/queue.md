@@ -125,6 +125,13 @@ decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
+- 🔵 **SHOULD EXPORTING BRING THE FINDER FORWARD AT ALL?** Item 301 wired
+  `NSWorkspace activateFileViewerSelectingURLs:` after a successful export, gated on a
+  real surface. **The lane flagged the product question rather than deciding it: the
+  reveal TAKES FOCUS from the editor**, which is DESIGN's no-nagging-chrome boundary,
+  and only a live look settles it. **If the answer is no, the honest alternative is a
+  palette row, not an automatic reveal.** Live-only — no capture can photograph it, and
+  none is claimed.
 - 🔵 **DOES THE REFERENCE BELONG IN THE HELP MENU?** 273's residual (4) added a
   palette command ("Reference", no chord) and its lane **deliberately did not** add it
   to `src/menu.rs`'s `HELP_ITEMS` — the native macOS Help menu, also consumed by the
@@ -984,8 +991,48 @@ Order for the next wave:
      already had two production sticky callers before that, so this was never a
      test-only channel.
 
-301. 🟡 IN PROGRESS — claude, branch `claude/item-301-export-picker`.
-     **Export through the platform's own picker.** `mac_chrome::pick_file_to_open`
+301. **PART-LANDED (merged 2026-08-06) — the DESTINATION OWNER, the REVEAL and a LAW
+     REPAIR shipped; THE PANEL ITSELF IS BLOCKED.**
+
+     🔴 **THE BLOCK, measured not guessed:** the `NSSavePanel`, the Linux save-role
+     picker and the ellipsis flip are **one bundle**. An `OverlayKind::ExportDest`
+     variant produces **10 `E0004` non-exhaustive-pattern errors, six in
+     `src/render/**`** (`rowlayout.rs` + five render tests) — the repo's own
+     no-wildcard roster style is what makes them errors. **It cannot ship half-done
+     because `Routed::label` feeds BOTH menu bars** (`menu::roster()` drives the
+     awl-drawn bar on Linux/web), so the ellipsis is a cross-platform promise on one
+     static string: a macOS-only panel lies to exactly one platform whichever way the
+     label goes — a fresh instance of the defect 295 fixed.
+
+     🔵 **TWO UNBLOCK ROUTES, and this is the decision to make:**
+     1. **Release the render hold** for six one-line match arms → a proper
+        `OverlayKind::ExportDest` with its own title and hint. **Clean, no taste
+        question.** ⚠️ Cheapest when no lane holds `render/**` — schedule it into a
+        quiet tree rather than a wave.
+     2. **No render edits at all:** reuse `OverlayKind::MoveDest` (already a
+        folders-only destination navigator) with the export role on a new
+        `OverlayState` field. **Cost: MoveDest's words must become role-neutral**
+        ("move note" → "destination"), because a role-aware title is itself blocked
+        in ≥3 held files — **a taste change to an existing verb's card.**
+     **Recommendation: route 1.** It buys the right surface and asks nothing of the
+     user; route 2 trades a held-file problem for a taste debt on an unrelated verb.
+
+     ⚠️ **A THIRD COST THE PARKED ESTIMATE MISSED:** `runModal` runs on the process
+     main thread, so a naive `Effect::Export` → panel makes `--screenshot-app` and
+     `cargo test` **hang forever on a modal.** Any wiring gates on a real surface, as
+     the reveal now does. (The panel call itself is ~12 lines of safe `objc2` fns — a
+     structural twin of the shipping `pick_file_to_open` — so it is not the cost.)
+
+     ✅ **`ellipsis_law` HAD A LIVE BLIND SPOT AND IT IS NOW CLOSED.** Its subject was
+     `journey.card().is_some()` — an **in-app** card — but an `NSOpenPanel` opens in
+     `App::handle_menu_event`, **above `apply_transition` entirely**. So `Browse
+     files…` was passing **for the wrong reason** on macOS, and any row popping a
+     modal with no ellipsis would have passed green. `NATIVE_PANEL_IDS` now declares
+     that door as data with one predicate, and a second law requires every claimed id
+     to sit on a row already promising a surface — **enrolment from the table, no
+     `cfg!` in the law.** The flip is structural in both directions now.
+
+     **Original:** **Export through the platform's own picker.** `mac_chrome::pick_file_to_open`
      already drives a real `NSOpenPanel`, wired at `app/menu.rs:56`, so the modal
      seam and its live-only caveat already ship — the parked save-dialog cost
      estimate should be re-derived, not inherited.
@@ -1126,7 +1173,15 @@ Order for the next wave:
      swept over the roster × selection state — the shape item 306's new
      `range_rail` law already uses. **Routing:** production tier.
 
-310. 🟡 IN PROGRESS — claude, branch `claude/item-310-eotf-owner`.
+310. ✅ **LANDED (merged 2026-08-06) — AND THERE WERE SIX, NOT FIVE.**
+     `src/spellunderline.rs` carried a sixth whose own doc already said *"Identical to
+     selection.rs"*. ⚠️ **The item's own byte-identity claim was FALSE as written:**
+     calling the f64 owner and casting to `f32` mismatches a pure-`f32` evaluation of the
+     same formula on **214 of 256 bytes, by up to 6 ULP**, because `powf` rounds
+     differently at each width. Keeping the *caller's* width is not enough when the OWNER
+     computes at another. Resolved by spelling the rule once in a `macro_rules!` body and
+     instantiating it at **both** widths a real caller needs — one source, two honest
+     numeric contracts. All 20 worlds' PNGs and sidecars byte-identical. **Original:**
      **FIVE COPIES OF THE sRGB EOTF, AND THE SCOPE IS ALREADY MEASURED.** `background.rs`,
      `lava.rs`, `render.rs`, `selection.rs`, `caret.rs`. Item 306's lane judged this a
      **bounded follow-up, not a wide refactor**, and gave the reason: each is one private
