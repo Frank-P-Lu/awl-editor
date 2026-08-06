@@ -1366,20 +1366,41 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      with it. Today it is drawn adjacent to the spine in both, which reads as
      belonging to the line rather than to the row.
 
-     ⚠️ **THIS REVISES SHIPPED DESIGN — IT IS NOT A BUG FIX, AND A LANE MUST KNOW
-     THAT.** Items 247 and 284 deliberately made this a SPINE element: 284's
-     whole achievement is a marker whose rotation says which way the selection
-     travelled, pinned to the spine's own angle with a vertex-pinned centre
-     derivation (`center = vertex - reach * (cos θ, sin θ)`), law-bound to
-     `chevron_arms` over 648 cases. **Moving it to the outer edge changes what
-     that mark is attached to.** So the open question the lane must answer FIRST,
-     and put to the user rather than deciding: **does the travel-direction turn
-     survive the move?** A mark at the outer edge, away from the spine, may have
-     no natural axis to rotate about — in which case either the turn is dropped
-     (and 284's mechanism becomes dead code to remove, not to strand) or the
-     rotation re-derives against something else. **Do not silently keep a
-     rotation that no longer means anything, and do not silently delete a
-     feature the user has not been asked about.**
+     ⚠️ **THIS REVISES SHIPPED DESIGN — IT IS NOT A BUG FIX.** Items 247 and 284
+     deliberately made this a SPINE element: 284's achievement is a marker whose
+     rotation says which way the selection travelled, pinned to the spine's own
+     angle with a vertex-pinned centre derivation
+     (`center = vertex - reach * (cos θ, sin θ)`), law-bound to `chevron_arms`
+     over 648 cases.
+
+     ✅ **THE TURN IS DROPPED — user, 2026-08-06: "i think it doesn't have to
+     turn? like just being `>` is okay... like that's just good enough."** A
+     plain, upright `>` at the outer edge is the target. **So 284's rotation
+     mechanism loses its consumer and must be REMOVED, not stranded** — the
+     `turn_deg` plumbing, the travel-direction source on `VisualSelection`, and
+     the `step_*` term in `TextPipeline::advance`'s OR-fold. ⚠️ **284's own brief
+     refused to ship unconsumed machinery in that hot OR-fold; leaving it there
+     unconsumed now would be the same mistake arrived at from the other
+     direction.** Retire its laws rather than deleting them blind — a law that
+     pinned a real derivation is evidence about what the code used to guarantee.
+
+     🔵 **BUT THE USER WANTS TO KEEP MOTION — "i kinda do like the animation
+     though... so if you think of anything that'll be good."** So the turn goes;
+     some motion should stay, and it is an open proposal rather than a decision.
+
+     **The orchestrator's proposal, offered as a starting point and not a
+     specification: let the mark RIDE THE SELECTION BAND'S EXISTING EASE** — it
+     glides vertically from the row it left to the row it arrived at, sharing
+     `chase_or_snap` (item 48's arbiter) rather than owning an animator. Three
+     reasons it is worth trying first: **the direction becomes self-evident from
+     the travel itself**, which is exactly what 284's rotation was for, so the
+     intent survives the mechanism; it adds **no new machinery** at all, where
+     the rotation needed a whole plumbing path; and the scheduling is already
+     proven — item 211's fix exists precisely to guarantee a band ease gets its
+     follow-up frame, so a mark on that ease inherits a path that has been
+     debugged live. **A small overshoot-and-settle is a cheap second option if
+     the plain glide reads flat.** ⚠️ **Feel is live-only: prototype, put it in
+     front of the user, and never claim it verified from a capture.**
 
      **Scope:** the two `Diagonal` worlds only; `Pane`, `Bars` and `Rules`
      selection treatments do not move. **Verify:** the mark's side is derived
