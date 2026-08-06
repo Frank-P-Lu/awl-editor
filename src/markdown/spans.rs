@@ -102,16 +102,12 @@ pub enum MdKind {
     /// ADDITIVELY over the context span (like [`Highlight`](Self::Highlight)), so
     /// struck text inside a heading/quote/bold run still dims + strikes.
     Strikethrough,
-    /// A horizontal rule line (`---`/`***`/`___` alone on a line). An hr is pure
-    /// MARKUP with no content, so the renderer drops a centered ornament on the row —
-    /// which ONE depends on the syntax the author typed (see [`BreakKind`]): `---` →
-    /// ❧, `***` → ⁂, `___` → ❦ by default — and — REVEAL-ON-CURSOR — CONCEALS the raw
-    /// `---` glyphs (transparent ink) whenever the caret is NOT on the line, so a
-    /// settled rule reads as a clean fine-press break. When the caret IS on the line
-    /// the raw characters REVEAL (dim markup, fully editable) and the ornament yields
-    /// to them. The conceal/reveal toggle lives in the renderer
-    /// (`spans::add_rule_conceal_span` + `TextPipeline::rule_lines`), keyed off the
-    /// cursor line; this span only marks WHERE the rule is.
+    /// A horizontal rule line (`---`/`***`/`___` alone on a line, INCLUDING a
+    /// qualifying SETEXT `-` underline — awl has no setext headings). REVEAL-ON-
+    /// CURSOR: the renderer drops a centered ornament (glyph per syntax, see
+    /// [`BreakKind`]) and CONCEALS the raw glyphs off the caret's line, revealing
+    /// them (dim, editable) on it (`spans::add_rule_conceal_span` +
+    /// `TextPipeline::rule_lines`); this span only marks WHERE the rule is.
     Rule,
     /// A GitHub-flavored TABLE's cell-delimiter `|` pipe → dim `Markup` styling.
     /// awl is a SOURCE editor: a table renders as styled SOURCE (the structural
@@ -211,17 +207,9 @@ pub fn fence_line_lang(line: &str) -> Option<crate::syntax::Lang> {
 /// [`crate::theme::Theme::ornament_scale`] — the size counterpart of the leading-`#`
 /// heading scan (a per-line grow that never needs the whole parse). Pure + total.
 ///
-/// NOT a false positive on a SETEXT-heading `---` underline: awl has no setext
-/// headings (the ladder is ATX-only, `#` alone), so a dash underline that
-/// independently reads as a break here is DECIDED to always draw as the rule,
-/// whatever precedes it — [`spans`]' `Tag::Heading` arm (via
-/// [`setext_break_range`]) pushes a real `MdKind::Rule` for exactly that case, so
-/// this scan and the real parse agree. The bare scan still over-approximates a
-/// genuinely DIFFERENT context the real parse excludes on purpose — e.g. a `---`
-/// line living inside a fenced code block's body reads as a break here but is
-/// `MdKind::Code`, never `MdKind::Rule`, in `md_spans` — which is why
-/// [`crate::render::spans::md_line_scale`] still requires the real-parse
-/// corroboration (`confirmed_rule`) on top of this scan before growing a row.
+/// A qualifying dash underline is NOT a false positive: awl has no setext
+/// headings, `spans` promotes it to a real `Rule` and this scan agrees. The
+/// remaining gap: `---` in a fenced code block, per `md_line_scale`'s `confirmed_rule`.
 pub fn is_thematic_break(line: &str) -> bool {
     let t = line.trim_matches(|c| c == ' ' || c == '\t');
     // The run char is the first non-space glyph; every non-space char must match it,
@@ -243,31 +231,6 @@ pub fn is_thematic_break(line: &str) -> bool {
         }
     }
     count >= 3
-}
-
-/// The BYTE RANGE of a SETEXT H2 heading's own UNDERLINE, if that underline
-/// independently qualifies as a thematic break ([`is_thematic_break`]) — the seam
-/// [`spans`]' `Tag::Heading` arm uses to promote `a\n---` to a real `Rule` span
-/// without touching the title line. `range` is pulldown's own heading range, which
-/// always ends on the underline's own line (its last line, whether the title is
-/// one physical line or several); walking back to the last `\n` finds it without
-/// re-deriving line boundaries from scratch. Leading indent on the underline is
-/// excluded from the returned range (matching a real `Event::Rule`'s own range),
-/// so [`crate::render::spans::add_rule_conceal_span`] conceals exactly the dashes,
-/// never the indent. `None` when the underline is too short to be a break —
-/// CommonMark accepts a bare single `-` for a setext H2, which stays plain body
-/// text, unchanged.
-fn setext_break_range(text: &str, range: &Range<usize>) -> Option<Range<usize>> {
-    let body = &text[range.clone()];
-    let core = body.strip_suffix('\n').unwrap_or(body);
-    let line_start = core.rfind('\n').map(|i| i + 1).unwrap_or(0);
-    let line = &core[line_start..];
-    if !is_thematic_break(line) {
-        return None;
-    }
-    let indent = line.len() - line.trim_start_matches([' ', '\t']).len();
-    let start = range.start + line_start + indent;
-    Some(start..range.start + core.len())
 }
 
 /// The number of leading-indent SPACES that make up ONE nesting level for a
@@ -465,20 +428,14 @@ pub fn strike_engaged(src: &str) -> bool {
 }
 
 /// Parse `text` into styling spans in DOCUMENT byte coordinates. Spans may
-/// overlap by DESIGN: a link or code-block first pushes a whole-range `Markup`
-/// span, then its inner text pushes a `LinkText`/`Code` span — applied in this
-/// order, the later (inner) span wins for its bytes while the brackets/URL/fence
-/// keep the dim `Markup`. The renderer adds them to the `AttrsList` in THIS
-/// order, relying on cosmic-text's "last span wins on overlap" semantics.
+/// overlap by DESIGN: a link/code-block first pushes a whole-range `Markup`
+/// span, then its inner text pushes a `LinkText`/`Code` span; the LATER (inner)
+/// span wins its bytes via cosmic-text's "last span wins on overlap" rule.
 ///
 /// A leading FRONTMATTER block ([`crate::frontmatter::detect`]) is carved off
-/// FIRST: its whole range becomes one `ConcealMarkup(Frontmatter)` span, and
-/// the REST of the document (past the block) is what pulldown actually parses
-/// — so a frontmatter block's `key: value` lines never confuse the markdown
-/// parser (no stray thematic-break/setext-heading reads), and every span this
-/// function would otherwise emit is simply offset by the block's byte length.
-/// A document with no (or no well-formed) frontmatter block parses exactly as
-/// before, byte-identically.
+/// first as one `ConcealMarkup(Frontmatter)` span; the rest of the document is
+/// what pulldown parses, with every span offset by the block's byte length. No
+/// (or malformed) frontmatter parses byte-identically to before.
 pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
     use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
@@ -566,20 +523,18 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
                     if text[range.start..].starts_with('#') {
                         heading = Some(level_u8(level));
                         push_heading_markers(&mut body, text, &range);
-                    } else if level == HeadingLevel::H2
-                        && let Some(r) = setext_break_range(text, &range)
-                    {
-                        // DECIDED: `---` always draws as the rule, whatever precedes
-                        // it — awl has no setext headings (ATX-only). A dash
-                        // underline that independently qualifies as a thematic
-                        // break (`is_thematic_break`, a real 3-or-more run) gets a
-                        // genuine `Rule` span over its own bytes; the title line
-                        // above is untouched (stays plain body via `heading`
-                        // staying `None`). `===` (H1) is not a thematic-break
-                        // syntax and is left alone. A too-short underline (a bare
-                        // `-`, valid CommonMark setext but not a break) stays plain
-                        // text too — `setext_break_range` returns `None` for it.
-                        body.push((r, MdKind::Rule));
+                    } else if level == HeadingLevel::H2 {
+                        // DECIDED: `---` always draws as the rule, whatever precedes it.
+                        let src = &text[range.clone()];
+                        let core = src.strip_suffix('\n').unwrap_or(src);
+                        let ul_start = core.rfind('\n').map(|i| i + 1).unwrap_or(0);
+                        let underline = &core[ul_start..];
+                        if is_thematic_break(underline) {
+                            let indent =
+                                underline.len() - underline.trim_start_matches([' ', '\t']).len();
+                            let start = range.start + ul_start + indent;
+                            body.push((start..range.start + core.len(), MdKind::Rule));
+                        }
                     }
                 }
                 Tag::Strong => {
