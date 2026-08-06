@@ -69,3 +69,38 @@ fn nonzero_drift_actually_moves_the_boundaries() {
     assert!((b1_0 - b1_d).abs() > 0.5, "b1 moves under drift");
     assert!((b2_0 - b2_d).abs() > 0.5, "b2 moves under drift");
 }
+
+/// **BIT-IDENTITY, OVER EVERY BYTE.** `srgba_u8_to_linear` used to carry its
+/// own inline per-channel loop; it now calls `theme::srgb_channel_to_linear_f32`.
+/// This is the pre-refactor formula, written out independently (the pattern
+/// `theme::tests::clear`'s own round-trip oracle uses) rather than re-imported,
+/// so a regression in the shared owner cannot also hide from the very test
+/// meant to catch it. `f32` throughout, matching every shader-side call site —
+/// a `f64`-computed-then-cast value is measurably NOT bit-identical here (up
+/// to 6 ULP apart on 214/256 bytes), which is exactly why the owner has an
+/// `f32`-width entry point at all rather than one shared `f64` function.
+#[test]
+fn srgba_u8_to_linear_is_bit_identical_to_the_pre_refactor_formula_over_every_byte() {
+    fn reference_channel(u: u8) -> f32 {
+        let s = u as f32 / 255.0;
+        if s <= 0.04045 {
+            s / 12.92
+        } else {
+            ((s + 0.055) / 1.055).powf(2.4)
+        }
+    }
+    for v in 0u8..=255 {
+        let want = reference_channel(v);
+        let c = srgba_u8_to_linear([v, v, v, v]);
+        for (i, ch) in c.iter().take(3).enumerate() {
+            assert_eq!(
+                ch.to_bits(),
+                want.to_bits(),
+                "byte {v} channel {i}: got {ch} ({:#010x}), want {want} ({:#010x})",
+                ch.to_bits(),
+                want.to_bits()
+            );
+        }
+        assert_eq!(c[3], v as f32 / 255.0, "alpha stays a linear passthrough");
+    }
+}

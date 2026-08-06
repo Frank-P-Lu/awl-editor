@@ -242,16 +242,10 @@ impl BackgroundPipeline {
 
 /// Convert an 8-bit sRGB RGBA quad to linear-light floats for the shader (the
 /// render target is sRGB, so the GPU expects linear color it re-encodes on
-/// write). Alpha is linear already. Same as the selection pipeline's converter.
+/// write). Alpha is linear already. Same as the selection pipeline's converter
+/// — both route through `theme`'s one `f32`-width sRGB EOTF.
 fn srgba_u8_to_linear(c: [u8; 4]) -> [f32; 4] {
-    fn ch(u: u8) -> f32 {
-        let s = u as f32 / 255.0;
-        if s <= 0.04045 {
-            s / 12.92
-        } else {
-            ((s + 0.055) / 1.055).powf(2.4)
-        }
-    }
+    let ch = crate::theme::srgb_channel_to_linear_f32;
     [ch(c[0]), ch(c[1]), ch(c[2]), c[3] as f32 / 255.0]
 }
 

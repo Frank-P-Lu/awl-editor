@@ -70,6 +70,11 @@ pub use color::Srgb;
 // `cargo test` never compiles.
 #[cfg(test)]
 pub(crate) use color::srgb_channel_to_linear;
+// THE `f32`-WIDTH SIBLING — every shader-side EOTF converter (`background`,
+// `caret`, `lava`, `render`, `selection`, `spellunderline`) routes through
+// this one, ungated, because those are real production callers, not a
+// `cfg(test)` oracle.
+pub(crate) use color::srgb_channel_to_linear_f32;
 #[allow(unused_imports)] // cycle/overlay_scrim/primary_content/tag_for/WorldPin:
 // public API surface, no NON-TEST in-crate caller today (tag_for's real callers
 // all live under `#[cfg(test)]`; `WorldPin` is the explicit world restore a test

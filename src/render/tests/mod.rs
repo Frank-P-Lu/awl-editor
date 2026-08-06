@@ -52,6 +52,7 @@ mod date_picker_ink;
 mod diagonal_composition;
 mod distinguishability;
 mod dither;
+mod eotf_bit_identity;
 mod facepitch;
 mod facet_mark_dpi_item289;
 mod firetail_showcase;

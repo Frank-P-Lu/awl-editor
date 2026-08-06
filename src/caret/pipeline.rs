@@ -349,16 +349,10 @@ impl CaretPipeline {
 /// Convert an 8-bit sRGB channel triple to linear-light floats for the shader.
 /// The render target is sRGB, so the GPU expects linear color which it encodes
 /// back to sRGB on write — this keeps the amber hue matching the glyphon caret.
-/// Shared with the glyph-silhouette caret pipeline so both carets tint identically.
+/// Shared with the glyph-silhouette caret pipeline so both carets tint
+/// identically, and routes through `theme`'s one `f32`-width sRGB EOTF.
 pub fn srgb_u8_to_linear(c: [u8; 3]) -> [f32; 3] {
-    fn ch(u: u8) -> f32 {
-        let s = u as f32 / 255.0;
-        if s <= 0.04045 {
-            s / 12.92
-        } else {
-            ((s + 0.055) / 1.055).powf(2.4)
-        }
-    }
+    let ch = crate::theme::srgb_channel_to_linear_f32;
     [ch(c[0]), ch(c[1]), ch(c[2])]
 }
 

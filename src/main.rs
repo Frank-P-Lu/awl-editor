@@ -185,6 +185,7 @@ mod settings;
 mod soak_gpu;
 mod spell;
 mod spellunderline;
+mod srgb_eotf_law;
 mod storyboard;
 // THE shared process-wide headless GPU device+queue for tests (see the module
 // doc) — cuts the per-test `request_adapter`/`request_device` stand-up that
