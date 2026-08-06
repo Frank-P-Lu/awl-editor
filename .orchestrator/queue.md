@@ -453,7 +453,8 @@ Order for the next wave:
      baseline was deliberately **not** re-banked so contention noise is not frozen
      into every cell.
 
-227. **Add a desktop-integrated AppImage as awl's friendly Linux download.**
+227. 🟡 IN PROGRESS — claude, branch `claude/item-227-appimage`.
+     **Add a desktop-integrated AppImage as awl's friendly Linux download.**
      **Defect:** the tarball is appropriate for technical early adopters but is
      not a normal Linux desktop application: it has no launcher metadata or icon
      integration. **Build:** package awl as an x86_64 AppImage in the release
@@ -722,7 +723,8 @@ Order for the next wave:
      world's users are on Retina by default — the strip's mark is the style's own
      selection vocabulary, and a half-weight rule is a half-legible affordance.
 
-292. **Kite's active lens chip collides with the card's top edge.** The filled
+292. 🟡 IN PROGRESS — claude, branch `claude/item-292-chip-inset`.
+     **Kite's active lens chip collides with the card's top edge.** The filled
      chip's plate runs flush into the strip band's top, reading as clipped.
      `strip_gap()` (`chrome/mod.rs:163`) is horizontal only and is not the owner;
      the vertical inset is. ⚠️ Confirm from drawn pixels which quantity is short,
@@ -913,7 +915,8 @@ Order for the next wave:
      byte-identity for 18 worlds. ⚠️ `diagonal.rs` is contended — check no claim
      before dispatch. **Routing:** deep tier.
 
-305. **THE TWO `spans.rs` FILES ARE ~2x THE CEILING, AND THE FROZEN MARK IS NOW
+305. 🟡 IN PROGRESS — claude, branch `claude/item-305-spans-decompose`.
+     **THE TWO `spans.rs` FILES ARE ~2x THE CEILING, AND THE FROZEN MARK IS NOW
      SHAPING THE CODE.** `src/markdown/spans.rs` is **1061** lines and
      `src/render/spans.rs` **1140**, against CLAUDE.md's *"~500 lines is a file's
      natural ceiling; past it, decompose into a submodule dir"*. `spans()` itself
