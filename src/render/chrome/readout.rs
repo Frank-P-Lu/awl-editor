@@ -36,12 +36,12 @@ pub(in crate::render) fn corner_origin(
         // Right-aligned to the CANVAS edge (8px inset), top row — clear of the top-left
         // margin the persistent outline owns. Never off the left edge on a tiny canvas.
         CornerAnchor::TopRight => (
-            (width - text_w - CANVAS_INSET).max(CANVAS_INSET),
-            CANVAS_INSET + menubar_reserve,
+            (width - text_w - CANVAS_INSET.0).max(CANVAS_INSET.0),
+            CANVAS_INSET.0 + menubar_reserve,
         ),
         CornerAnchor::BottomRight => {
             let left = (col_left + col_width - text_w).max(col_left);
-            (left, height - line_height - CANVAS_INSET)
+            (left, height - line_height - CANVAS_INSET.0)
         }
         // THE CALM NOTICE. Centred on the writing column and seated on the
         // document's OWN first-row origin — `crate::render::TEXT_TOP` plus the
@@ -67,7 +67,16 @@ pub(in crate::render) fn corner_origin(
 /// The inset every docked corner label keeps from a canvas edge, and the same one
 /// the notice plate is clamped to — one named value instead of the literal `8.0`
 /// repeated per anchor arm.
-pub(in crate::render) const CANVAS_INSET: f32 = 8.0;
+///
+/// `Physical` records what this already WAS rather than what it should be. The bare
+/// `8.0`s this replaces were device pixels, and naming them is what first brought
+/// them under the declaration law at all — that law reads authored `const`s and not
+/// inline literals, so the value was invisible to it while it was repeated. Promoting
+/// it to `Logical` would double the inset on a Retina display, which is almost
+/// certainly right and is a deliberate appearance change owing a 1x/2x sweep across
+/// every anchor arm; it is tracked with item 242's other inline physical lengths
+/// rather than made silently here.
+pub(in crate::render) const CANVAS_INSET: Physical = Physical(8.0);
 
 /// The CALM NOTICE plate's breathing room around its sentence, derived from the
 /// notice's own LABEL line height rather than pinned in pixels — so it is the same
@@ -463,10 +472,10 @@ impl TextPipeline {
         // use, so a sentence wider than its column can still not run off an edge.
         let rects: Vec<[f32; 4]> = placed
             .map(|[left, top, text_w, box_h]| {
-                let x = (left - pad_x).max(CANVAS_INSET);
-                let w = (text_w + 2.0 * pad_x).min(width as f32 - 2.0 * CANVAS_INSET);
+                let x = (left - pad_x).max(CANVAS_INSET.0);
+                let w = (text_w + 2.0 * pad_x).min(width as f32 - 2.0 * CANVAS_INSET.0);
                 [
-                    x.min(width as f32 - CANVAS_INSET - w),
+                    x.min(width as f32 - CANVAS_INSET.0 - w),
                     top - pad_y,
                     w,
                     box_h + 2.0 * pad_y,

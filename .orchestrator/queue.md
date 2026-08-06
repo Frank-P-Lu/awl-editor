@@ -227,6 +227,16 @@ decision recorded in one place was invisible in the place it gets read.**
   literals** — seven chrome pixel lengths remain physical inline
   (`gutter.rs:262,321,355,404`, `outline.rs:221,796`, `diagonal.rs:460-461`), all
   in margin chrome, none in the summoned-overlay families it measured.
+  ⚠️ **AND AN EIGHTH, NEWLY VISIBLE, WHICH SHOWS THE GAP IS LOAD-BEARING RATHER THAN
+  THEORETICAL.** `readout.rs`'s `CANVAS_INSET` was a bare `8.0` repeated per anchor
+  arm — invisible to this law for its whole life, because the law reads `const`s and
+  those were literals. Item 296's lane merely NAMED it, and that alone made the law
+  fire. It is declared `Physical` with its reason, recording what it already was.
+  **Promoting it to `Logical` doubles the inset on Retina, which is almost certainly
+  correct**, and it owes a 1×/2× sweep across every anchor arm plus the notice plate's
+  clamp — a deliberate appearance change, not a merge fixup. The lesson for whoever
+  closes this: **naming a literal is how you find these, so the cheapest way to shrink
+  the residual is to name the remaining seven and let the law tell you.**
 - **241 — the user's own window.** Every live number came from a 900×600 probe
   window; the 4530×2756 @2x window will show larger `atlas`/`acquire`. The
   mechanism is window-independent; the absolute after-numbers on that machine are
