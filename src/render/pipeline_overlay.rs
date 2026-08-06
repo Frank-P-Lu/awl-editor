@@ -7,6 +7,7 @@ impl TextPipeline {
             | self.step_copy_pulse(dt)
             | self.step_overlay_juice(dt)
             | self.step_fold_chevrons(dt)
+            | self.step_diagonal_marker(dt)
     }
 
     /// LIVE-APP-ONLY: arm the motion-juice animators (overlay entrance spring
