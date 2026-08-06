@@ -1,11 +1,10 @@
 use super::super::*;
 
-/// THE LAVA-LAMP WORLDS round: EXACTLY two worlds ship a `Background::Lava` —
-/// Firetail (warm, undithered) and Mangrove (cool deepsea, dithered), both with
-/// the Glow edge (the probe's agent pick). Pins the roster + each world's edge/
-/// dither config, and that every OTHER world stays a STATIC ground (shader id
-/// 0..=6, item 69's Bands/Waves included) so the lava layer is dormant there
-/// and their captures are unaffected.
+/// EXACTLY two worlds ship a `Background::Lava` — Firetail (warm, undithered)
+/// and Mangrove (cool deepsea, dithered), both with the Glow edge. Pins the
+/// roster + each world's edge/dither config, and that every OTHER world stays
+/// a STATIC ground (shader id 0..=10, Bands/Waves included) so the lava layer
+/// is dormant there and their captures are unaffected.
 #[test]
 fn exactly_firetail_and_mangrove_ship_lava() {
     let _lock = crate::testlock::serial();
@@ -177,14 +176,13 @@ fn lava_blob_hues_stay_clear_of_the_amber_caret() {
     }
 }
 
-/// The `Background::Lava` DATA accessors (exercised via a literal, since no world
-/// ships it yet): it degrades to a FLAT margin ground (`from == to == ground`,
-/// shader 0) that the lava overlay overdraws, names itself `"lava"`, is the ONLY
-/// `is_lava()` variant, and surfaces its `(ground, blob_lo, blob_hi, dithered)`
-/// params. The `LavaEdge` mask-mode / name contract that used to close this law
-/// is DELETED rather than reduced: the dial collapsed to one arm, so the
-/// selector it named no longer exists to have a contract, and asserting the
-/// surviving name against itself would be green forever.
+/// The `Background::Lava` DATA accessors, exercised via a literal so the
+/// coverage does not depend on which worlds ship it: it degrades to a FLAT
+/// margin ground (`from == to == ground`, shader 0) that the lava overlay
+/// overdraws, names itself `"lava"`, is the ONLY `is_lava()` variant, and
+/// surfaces its `(ground, blob_lo, blob_hi, dithered)` params. There is
+/// deliberately NO `LavaEdge` mask-mode / name assertion: the dial has one arm,
+/// so asserting the surviving name against itself would be green forever.
 #[test]
 fn lava_background_accessors_are_a_flat_ground_plus_metaball_params() {
     let ground = Srgb::rgb(0x11, 0x27, 0x23);

@@ -1,7 +1,7 @@
 use super::super::derive::OVERLAY_SELROW_EXTRA_STEPS;
 use super::super::*;
 
-/// PALETTE-COMPOSITION round (item 5): the picker's selected-row band
+/// THE PICKER'S SELECTED-ROW BAND
 /// ([`selection_ui`]) is the shared [`surface_selected`] climbed
 /// [`OVERLAY_SELROW_EXTRA_STEPS`] FURTHER up the SAME surface ramp — a stronger
 /// VALUE step, in the ramp's own direction, never a new hue (DESIGN §3/§5; the
@@ -169,8 +169,7 @@ fn bars_unselected_sits_a_quiet_rung_below_the_selected_band() {
             // drawn by `InverseFill`, not this fill. Declared exemption.
             continue;
         }
-        // The GROUND the bars float on now the pane is dropped (base_100), the
-        // reference the old card (base_300) used to be.
+        // The GROUND the bars float on, the pane being dropped: base_100.
         let ground = t.base_100;
         let unsel = overlay_bar_unselected();
         let sel = selection_ui();

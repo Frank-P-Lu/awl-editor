@@ -366,15 +366,15 @@ fn zh_hant_uniform_ko_splits_serif_from_sans() {
     );
 }
 
-/// AXIS COVERAGE RULER (the reason [`Lens`] + [`ThemeTags`] survive after the theme
-/// picker's runtime lens strip was retired, 2026-07-15): every declared axis SECTION
+/// AXIS COVERAGE RULER (the reason [`Lens`] + [`ThemeTags`] exist at all, with
+/// no runtime picker reading them): every declared axis SECTION
 /// stays covered by a curated band of worlds, so the axes remain a meaningful
 /// build-time description of the roster. A world may OPT OUT (`None`) of an axis, but
 /// any `Some(tag)` must be one of that axis's declared sections (no world under a
 /// header that doesn't exist); the name-keyed accessor [`tag_for`] agrees with the
 /// inline field; every world HEADLINES at least one axis; and `All` groups nothing.
 /// THIS is the coverage check meant by "the axes become a build-time ruler"
-/// (retired; decision recorded in THEMES.md) — no runtime picker consults it.
+/// (the decision is recorded in THEMES.md).
 #[test]
 fn axis_coverage_ruler() {
     for lens in [Lens::Time, Lens::Register, Lens::Voice, Lens::Temperature] {
@@ -452,7 +452,7 @@ fn at_least_six_distinct_faces() {
     assert_eq!(TAWNY.font, "IBM Plex Mono");
 }
 
-/// Queue item 30 (user + fable): Mopoke's body face is the warm slab Bitter
+/// Mopoke's body face is the warm slab Bitter
 /// (shared with Magpie — precedented face-sharing, no new asset) and its
 /// nested-bullet triple is a one-register, weight-descends-with-depth ornament
 /// set (a solid damask rosette → its open four-fold sibling → a small foliate

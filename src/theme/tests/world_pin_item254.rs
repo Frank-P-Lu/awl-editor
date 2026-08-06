@@ -1,6 +1,6 @@
 use super::super::*;
 
-/// THE WORLD PIN, at its own seam (item 94): [`WorldPin`] is the EXPLICIT tool a
+/// THE WORLD PIN, at its own seam: [`WorldPin`] is the EXPLICIT tool a
 /// test reaches for when it renders a specific world — it snapshots the active
 /// index on construction and stores it back on DROP, however the global moved in
 /// between (one swap, five swaps, a `cycle`). It is deliberately opt-in: the
@@ -18,7 +18,8 @@ fn a_world_pin_restores_the_active_world_however_it_moved() {
         let _pin = WorldPin::snapshot();
         set_active_by_name("Tawny");
         cycle(1);
-        // A world that is never `before`, whatever `before` is (18 worlds).
+        // A world that is never `before`, whatever `before` is (the roster is
+        // longer than 5).
         set_active(before + 5);
         assert_ne!(
             active_index(),
@@ -44,7 +45,7 @@ fn a_world_pin_restores_the_active_world_however_it_moved() {
     );
     assert_eq!(active_index(), before);
 
-    // AND ON THE UNWIND PATH: a law that fails mid-sweep (the 18-world rail
+    // AND ON THE UNWIND PATH: a law that fails mid-sweep (a roster-wide rail
     // sweep is exactly this shape) must still hand the next test a clean world —
     // the restore rides `Drop`, so a panic through the pin's scope restores it.
     let quiet = std::panic::take_hook();
@@ -148,8 +149,8 @@ fn a_world_a_production_action_sets_survives_that_action() {
 
     // Keep the ONE mutex held across arrange / action / observation / cleanup,
     // while `apply_transition` requests its own product guard reentrantly. This avoids
-    // the retired law's defect: it dropped the lock around its observation and
-    // briefly exposed its deliberately changed world to compliant sibling tests.
+    // dropping the lock around the observation, which would briefly expose this
+    // deliberately changed world to compliant sibling tests.
     let _probe = crate::testlock::product();
     let original = active_index();
     set_active(0);

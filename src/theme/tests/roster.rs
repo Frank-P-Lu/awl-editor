@@ -7,20 +7,18 @@ fn worlds_eleven_dark_nine_light() {
     let light = THEMES.iter().filter(|t| !t.dark).count();
     // 11 dark (Tawny/Mopoke/Currawong/Potoroo/Bombora/Bowerbird/Mulga/
     // Mangrove/Wagtail/Firetail/Cassowary) / 9 light (Gumtree/Bilby/Saltpan/
-    // Quokka/Galah/Magpie/Brolga/Paperbark/Kite). Brolga (the COOL LIGHT POLE) is a
-    // pale sky-blue light world filling the cool-light-blue hole the DAWN round
-    // vacated when Bilby turned warm rose-gold; Cassowary (the NERV-terminal
-    // statement world) was the eighteenth, an additive dark entry; Paperbark
-    // (item 158) is the nineteenth, an additive LIGHT one — the handmade-paper
-    // studio, and the roster's only `Background::Deckle` ground; Kite (item 132)
-    // is the twentieth and closes PHILOSOPHY.md's authored twenty-world target —
-    // the LIGHT statement world, travelling through a `Background::WarpedGrid`
-    // tunnel, and the deliberate counterpart to dark warm Firetail.
+    // Quokka/Galah/Magpie/Brolga/Paperbark/Kite). Brolga is the COOL LIGHT
+    // POLE, a pale sky-blue world; Cassowary is the NERV-terminal statement
+    // world; Paperbark is the handmade-paper studio and the roster's only
+    // `Background::Deckle` ground; Kite is the LIGHT statement world,
+    // travelling through a `Background::WarpedGrid` tunnel and the deliberate
+    // counterpart to dark warm Firetail. Twenty is PHILOSOPHY.md's authored
+    // roster target, and this roster sits exactly at it.
     assert_eq!(dark, 11);
     assert_eq!(light, 9);
 }
 
-/// `world_names()` (item 68's one code-owned roster source, read by `--help`,
+/// `world_names()` (the one code-owned roster source, read by `--help`,
 /// the unknown-`--theme` error, and `--list-worlds`) is exactly `THEMES`'
 /// names in `THEMES`' own order — no reordering, no drift, no duplicate.
 #[test]
@@ -124,7 +122,7 @@ fn roster_position_is_name_stable() {
     set_active(DEFAULT_THEME);
 }
 
-/// RETIRED-WORLD LENIENT FALLBACK (2026-07-18 rename: Outback→Mulga,
+/// RETIRED-WORLD LENIENT FALLBACK (the renames Outback→Mulga,
 /// Kingfisher→Bowerbird, Undertow→Bombora). A `config.toml` that still names one
 /// of the three RETIRED worlds — a user who upgrades with `theme = "Outback"`
 /// persisted — must not crash and must not resurface a neighbour by position:
