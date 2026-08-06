@@ -856,6 +856,59 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      the empty-state notice row shares this band and has produced a footer/plate
      collision before. **Routing:** production tier.
 
+294. **THE THEME PICKER IS UNREADABLE OVER A PLATELESS WORLD — BLUR ITS OWN
+     FOOTPRINT, AND ONLY ITS FOOTPRINT.** **User-reported with screenshot
+     2026-08-06 (Magpie): the document's prose and the world names interleave
+     glyph-for-glyph — "the world loudness map" through "Magpie", "pretty good?"
+     through "Kite" — two readable layers in one place, which DESIGN.md forbids.**
+
+     **Why it happens, and it is a deliberate decision rather than an oversight.**
+     `render/blur.rs`'s module doc: *"the THEME PICKER and the CARET-STYLE PICKER
+     stay CRISP (no backdrop at all) — their whole job is showing the live theme
+     colours"*; `pipeline_prepare.rs:82` names the frost as what *"would defeat
+     the theme picker's crisp live-color preview."* That holds for worlds with a
+     plate. It fails for **plateless compositions** — `Diagonal` (Mangrove,
+     Magpie) and now `Rules` (Paperbark) — because **frost is a property of the
+     plate, and those compositions deliberately draw none.** The picker is also
+     the ONE overlay whose backdrop is chosen by the row under the cursor rather
+     than by the user, so it drags a reader through worlds they never picked.
+
+     ✅ **THE EXCEPTION IS OVER-BROAD, AND THE SOURCE SAYS SO.** The blur
+     **already preserves hue** — "a defocus, not a desaturation — the whole
+     point". The only thing that shifts the palette is `DIM = 0.16`, documented
+     as "0 = pure blur, no recede". **The exception was protecting the colour
+     preview from `DIM` and discarded the hue-safe blur with it.**
+
+     **Build (the user's shape, given directly):** route the theme picker through
+     `BlurBackdrop` with **`DIM` at or near 0**, and **scope the composite to the
+     picker card's own footprint** so the surrounding page stays crisp and the
+     world's live colours remain judgeable — which is the whole reason the
+     exception existed. ⚠️ **The footprint scoping is the real work:**
+     `draw_backdrop` currently draws a **fullscreen triangle**, so this needs a
+     scissor rect or a rect uniform, not a flag. **`Pane` worlds are explicitly
+     unaffected** (user's words) — their plate already covers the document, so
+     blurring under it is invisible and wasteful; gate on the plateless
+     compositions rather than paying for it everywhere.
+
+     **Scope:** the THEME picker only. The caret picker shares the crisp
+     exception and the same preview rationale — **decide it consciously, do not
+     sweep it in**. The history picker's presence in that exception has no stated
+     rationale and is worth asking about, not changing here. Does NOT include a
+     general scrim: an earlier proposal to dim the document under every summoned
+     overlay was **rejected by the user** as unnecessary — do not re-propose it.
+
+     **Done:** on every plateless world the picker's own text is the only
+     readable text within its footprint, while the page outside it still shows
+     the previewed world's real colours. **Verify:** pixel arithmetic over the
+     footprint proving no document glyph survives as text, plus a hue check
+     outside it proving the preview is untouched; swept across `Diagonal` and
+     `Rules` worlds at 1×/2× DPI; byte-identity for every `Pane` world.
+     ⚠️ **Laws pin the current crisp behaviour in at least `render/tests/hud.rs`,
+     `one_bit.rs` and `outline.rs` — they must be RE-AIMED, not deleted**, and
+     one of them exists to stop the HUD forcing a frost that defeats the preview.
+     **Routing:** deep tier — it touches a GPU composite path and a design
+     decision with a written rationale.
+
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
