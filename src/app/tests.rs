@@ -32,11 +32,6 @@ mod openable;
 mod semantic_reach;
 mod source_audit;
 mod spell;
-/// ITEM 202: the shared `theme_font_at` debounce that decouples the
-/// colors-only preview present from the deferred font reshape. Pins the
-/// scheduling mechanism a `THEME_FONT_DEBOUNCE_DEFAULT_MS == 0` default broke
-/// (docs/fonts.md's "Theme-preview debounce").
-mod theme_debounce_item202;
 mod which_key;
 /// ITEM 114's TIER-2 SWEEP: every setting changed and persisted through the
 /// Settings WORKSPACE's own door, by real chords into the live `App`. Why this

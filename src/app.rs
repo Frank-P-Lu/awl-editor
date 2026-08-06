@@ -58,78 +58,6 @@ enum NoticeKind {
 
 const ZOOM_PERSIST_DEBOUNCE: Duration = Duration::from_millis(500);
 
-/// The LEADING-EDGE-PLUS-TRAILING-COALESCE window shared by both halves of
-/// `theme_font_debounce::theme_font_reshape_decision` (that module's own doc
-/// has the full mechanism story) — the isolated-vs-burst cooldown AND the
-/// trailing coalesce duration are the SAME window. Shared by every input
-/// modality that funnels through `App::retint_theme_preview` (keyboard nav,
-/// pointer hover, wheel). `AWL_THEME_FONT_DEBOUNCE_MS` is the A/B override;
-/// see docs/fonts.md for the live before/after numbers on both axes.
-const THEME_FONT_DEBOUNCE_DEFAULT_MS: u64 = 100;
-
-// A reversion to 0 fails the BUILD (item 202); `theme_debounce_item202.rs`
-// covers the non-const half — the real, env-overridable predicate also
-// doesn't fire at elapsed 0.
-const _: () = assert!(
-    THEME_FONT_DEBOUNCE_DEFAULT_MS > 0,
-    "item 202: must be nonzero"
-);
-
-fn parse_theme_font_debounce_ms(raw: Option<&str>) -> u64 {
-    raw.filter(|s| !s.is_empty())
-        .and_then(|s| s.parse::<u64>().ok())
-        .unwrap_or(THEME_FONT_DEBOUNCE_DEFAULT_MS)
-}
-
-fn theme_font_debounce() -> Duration {
-    static ONCE: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
-    let ms = *ONCE.get_or_init(|| {
-        parse_theme_font_debounce_ms(std::env::var("AWL_THEME_FONT_DEBOUNCE_MS").ok().as_deref())
-    });
-    Duration::from_millis(ms)
-}
-
-/// THE COST BELOW WHICH COALESCING BUYS NOTHING. A reshape measured cheaper than
-/// this reads ISOLATED whatever the clock says
-/// (`theme_font_debounce::theme_font_reshape_decision`): the queueing hazard the
-/// trailing coalesce exists to avoid does not exist at that cost.
-///
-/// PLACED ON MEASUREMENT, not on a round number. `--bench-theme-burst` times one
-/// `sync_theme_font` at 0.2 ms on a seven-line document, 12.0 ms on CLAUDE.md and
-/// 24.4 ms on a 1896-line fixture; 4 ms sits in the empty middle of that spread —
-/// 20x above the cheap case, 3x below the cheapest case coalescing was built for.
-/// It is also a quarter of a 60Hz frame, which is why repeating the cheap side is
-/// safe: at macOS's fastest key repeat (~15 ms) reshaping on EVERY step of a burst
-/// still leaves two thirds of each interval free, and the live movement-latency
-/// distributions across the change confirm it (docs/fonts.md).
-const THEME_FONT_CHEAP_RESHAPE_MS: u64 = 4;
-
-// The gate must sit STRICTLY below the cheapest cost the coalescing was built for
-// (12ms on CLAUDE.md, the smallest measured real document), or it would swallow
-// the burst rule whole rather than carve one case out of it.
-const _: () = assert!(
-    THEME_FONT_CHEAP_RESHAPE_MS > 0 && THEME_FONT_CHEAP_RESHAPE_MS < 12,
-    "the cheap-reshape gate must be nonzero and below the cheapest measured reshape"
-);
-
-pub(crate) fn theme_font_cheap_reshape() -> Duration {
-    Duration::from_millis(THEME_FONT_CHEAP_RESHAPE_MS)
-}
-
-#[cfg(test)]
-#[test]
-fn theme_font_debounce_ms_env_parse() {
-    let default = THEME_FONT_DEBOUNCE_DEFAULT_MS;
-    assert_eq!(parse_theme_font_debounce_ms(None), default);
-    assert_eq!(parse_theme_font_debounce_ms(Some("")), default);
-    // An explicit "0" is still honored as a real override (the A/B escape
-    // hatch item 202's own measurement rode) — only an ABSENT/empty/garbage
-    // value falls back to the default, never a deliberate zero.
-    assert_eq!(parse_theme_font_debounce_ms(Some("0")), 0);
-    assert_eq!(parse_theme_font_debounce_ms(Some("150")), 150);
-    assert_eq!(parse_theme_font_debounce_ms(Some("garbage")), default);
-}
-
 /// AMBIENT LAVA TICK period — the lava-lamp ground's slow drift cadence
 /// (`crate::lava::LAVA_TICK_MS`). A single `WaitUntil` this far out in
 /// `about_to_wait` advances the phase + requests one redraw + re-arms, so a lava
@@ -143,11 +71,10 @@ const LAVA_TICK: Duration = Duration::from_millis(crate::lava::LAVA_TICK_MS);
 /// transaction`) is flipped back OFF (debounce; macOS-only — see
 /// `resize_settle_at`'s doc for the full mechanism). A fast drag re-stamps the
 /// deadline on every tick (`App::arm_live_resize_sync`), so this only fires
-/// once the drag genuinely stops. TASTE TUNABLE (independent of the theme-font
-/// debounce below — the two diverged at item 202, which lowered the theme
-/// debounce off this same 150ms without this one needing to follow): short
-/// enough that the transaction-sync cost (Apple's own documented throughput
-/// trade-off for `presentsWithTransaction`) is paid only while actually
+/// once the drag genuinely stops. TASTE TUNABLE (stands on its own — no other
+/// constant shares this window): short enough that the transaction-sync cost
+/// (Apple's own documented throughput trade-off for `presentsWithTransaction`)
+/// is paid only while actually
 /// dragging, long enough that a brief pause mid-drag doesn't flap it on/off.
 const RESIZE_SYNC_SETTLE: Duration = Duration::from_millis(150);
 
@@ -174,7 +101,7 @@ const MOVE_SETTLE: Duration = Duration::from_millis(1000);
 /// drawable — the "writing surface vanishes" report. Each further crossing
 /// re-stamps the deadline (`retint_theme_preview`), so a rapid arrow burst
 /// through the boundary keeps it armed and settles once you rest — the same
-/// single-`WaitUntil` shape as `RESIZE_SYNC_SETTLE` / the theme-font debounce.
+/// single-`WaitUntil` shape as `RESIZE_SYNC_SETTLE`.
 /// Sized like `RESIZE_SYNC_SETTLE`: long enough to bracket the crossing frame +
 /// its follow-up, short enough that the sync cost is paid only around a crossing.
 const CROSSING_SYNC_SETTLE: Duration = Duration::from_millis(150);
@@ -429,10 +356,6 @@ pub(crate) use awl_event::AwlEvent;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod semantic;
 mod startup;
-/// ITEM 202's leading-edge-plus-trailing-coalesce rule for the theme-picker
-/// preview's deferred font reshape — a pure scheduling decision, extracted
-/// out of this file because it needs neither `App` nor a GPU.
-mod theme_font_debounce;
 mod viewstate;
 mod window;
 /// The SUMMONED-UI LAYER owner (item 172): the overlay/search/popover
@@ -440,7 +363,6 @@ mod window;
 mod workspace;
 #[cfg(any(test, not(target_arch = "wasm32")))]
 pub(crate) use schedule::RecordingScheduler;
-pub(crate) use theme_font_debounce::{ThemeFontReshapeDecision, theme_font_reshape_decision};
 mod apply;
 mod apply_context;
 /// ITEM 188 — the live `App`'s own SIDECAR FOLD + its capture constructor.

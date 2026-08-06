@@ -50,12 +50,12 @@ reason = "item 114: +8 lines net. The workspace's own two-region keyboard and it
 
 [[file_size_mark]]
 file = "src/app.rs"
-lines = 1397
+lines = 1319
 reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` beside the constants it matches (-5); what remains is the disk-baseline construction at the one exhaustive `App::new` site now taking a `crate::external::Seen` rather than a bare stat (+4), the one-line relaunch-recovery call after the startup buffer decisions settle (+2), and a test-gated re-export of the notice constant so prose laws read the running app's own string instead of a retyped copy (+3). Net +3. +32: the theme-font CHEAP-RESHAPE threshold, its compile-time guard and the measured provenance that places it, beside the debounce constant this file already owns as the one scheduling-constant seam; plus the reshape-completion stamp on `ThemeSettleInFlight` that lets the settled-present fold measure the scheduling phase."
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 1071
+lines = 1012
 reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path now runs through so the leading edge can read the work it is deciding about — the alternative is the same measurement duplicated at the immediate, commit and deferred call sites, which is exactly the drift a single owner exists to prevent."
 
 [[file_size_mark]]
@@ -273,7 +273,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2644
+lines = 2643
 reason = "+6: `CODE_LIGATURES_DEFAULT`, the const `CODE_LIGATURES_ON` is now constructed from, so the flag's fresh-install value has one owner the reference can read instead of a literal retyped into a doc; plus a test-gated `pub(crate) use spans::wysiwyg_reveals`, one named door to the reveal rule that avoids widening the `spans` module itself. Item 263 (+1): the `menubar_hi` field doc now states that the menu-title band reads `selection_document` — the DOCUMENT wash, not the picker row's `selection_ui` — correcting a claim that had said it shared the picker's band. The split is what made that claim checkable. Item 272 (+9): the renderer now owns `BarConfig` — the Bars dials that every world set identically moved off the theme model to the one place that reads them. Item 284 (+11): the diagonal marker's travel state — the row it last marked, its current turn and the turn it is easing toward — lives beside the other overlay easing state in the one `TextPipeline` struct that owns per-frame animation. +3: `workspace_rail_mark` becomes `workspace_rail_rows` — the WHOLE recorded rail rather than its active entry alone, with the active one derived from it — because a rail is a list, and the `Rules` composition arranges a list by the boundaries between its rows, which needs every neighbour. The added lines are that field's doc saying so."
 
 [[file_size_mark]]
@@ -347,8 +347,8 @@ reason = "`theme_overlay_geometry` is an exhaustive `OverlayGeom` construction s
 
 [[file_size_mark]]
 file = "src/render/framebench.rs"
-lines = 1173
-reason = "item 202: +52 lines — `--bench-theme-burst` gained the reshape-count WITNESS the item's own brief demanded (CLAUDE.md's tripwire: this exact bench once \"measured 5ms while nothing reshaped\"). One shared `assert_reshape_witness` helper (extracted rather than inlined three times — item 182) plus three call sites in `burst_doc`: every `BURST_WORLDS` hop must actually reshape (mirrors `benchsuite::scenarios::theme`'s already-fixed witness), every colors-only arrow step must NOT reshape (the split's whole point), and the deferred settle's `sync_theme_font` must reshape at least once. Mutation-proven: a mutation that skipped `sync_theme_font` inside `TextPipeline::sync_theme` made the bench exit 1 with the exact panic text; reverted before commit."
+lines = 1163
+reason = "item 202: +52 lines — `--bench-theme-burst` gained the reshape-count WITNESS the item's own brief demanded (CLAUDE.md's tripwire: this exact bench once \"measured 5ms while nothing reshaped\"). One shared `assert_reshape_witness` helper (extracted rather than inlined three times — item 182) plus three call sites in `burst_doc`: every `BURST_WORLDS` hop must actually reshape (mirrors `benchsuite::scenarios::theme`'s already-fixed witness), every colors-only arrow step must NOT reshape (the split's whole point), and the deferred settle's `sync_theme_font` must reshape at least once. Mutation-proven: a mutation that skipped `sync_theme_font` inside `TextPipeline::sync_theme` made the bench exit 1 with the exact panic text; reverted before commit. DOWN 10: the debounce this witness guarded against is gone (theme-font reshape is unconditional now), so the \"debounced preview\" section (colors-only steps + one deferred settle) became a shape the App no longer produces and was replaced by an \"eager preview\" section of the same size — every arrow step reshapes on its own, witnessed the same way; mutation-proven again the same way (flip `sync_theme` to `sync_theme_colors`, the bench exits 1 naming the exact step, reverted before commit)."
 
 [[file_size_mark]]
 file = "src/render/geometry.rs"
@@ -761,8 +761,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/framebench.rs"
 function = "burst_doc"
-message = "this function has too many lines (133/100)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. Item 202: +21 lines net (function grew 112->133) — the shared `assert_reshape_witness` helper (defined just above `burst_doc`, see the file-size mark's reason above) plus its three call sites, replacing three inlined `ensure!` blocks; witnesses CLAUDE.md's tripwire (this bench once \"measured 5ms while nothing reshaped\")."
+message = "this function has too many lines (121/100)"
+reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. Item 290: -12 lines net (function shrank 133->121) — the debounce this bench's own witness guarded against is gone, so the \"debounced preview\" section (colors-only steps asserted reshape-free, one deferred settle asserted to catch up) was replaced by an \"eager preview\" section of similar size (every step asserted to reshape on its own); still over the ceiling for the same reason as before."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

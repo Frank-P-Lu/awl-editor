@@ -557,52 +557,42 @@ fn burst_doc(
     }
 
     println!();
-    println!("---- debounced preview (colors per arrow, ONE deferred reshape at settle) ----");
+    println!("---- eager preview (colors + reshape together, no debounce) ----");
     println!(
         "{:>10} | {:>21} | {:>10} | {:>9}",
-        "world", "face", "colors", "frame"
+        "world", "face", "sync_thm", "frame"
     );
-    let mut worst_arrow: f64 = 0.0;
+    let mut total_eager: f64 = 0.0;
     for &name in &BURST_WORLDS[..BURST_WORLDS.len() - 1] {
         crate::theme::set_active_by_name(name);
         let face = crate::theme::active().font;
         let reshapes_before = p.reshape_count;
         let t0 = Instant::now();
-        p.sync_theme_colors();
-        let colors_ms = t0.elapsed().as_secs_f64() * 1e3;
-        // WITNESS (item 202): the colors-only arrow step must stay reshape-free
-        // — the entire point of the split (docs/fonts.md).
+        p.sync_theme();
+        let sync_ms = t0.elapsed().as_secs_f64() * 1e3;
+        // WITNESS: the debounce is gone, so EVERY arrow step that changes face
+        // must reshape on its own — the "colors-only, defer the reshape to one
+        // trailing settle" shape this bench used to assert here no longer exists
+        // as a real `App` code path (`retint_theme_preview` reshapes
+        // unconditionally now). Flip this `true` to `false` and this is the
+        // exact law that goes red on a reintroduced coalesce.
         assert_reshape_witness(
-            &format!("colors-only step to {name} ({face})"),
+            &format!("eager step to {name} ({face})"),
             reshapes_before,
             p.reshape_count,
-            false,
+            true,
         )?;
         p.set_view(&view);
         let s = burst_frame(&mut p, device, queue, &target_view, true)?;
-        worst_arrow = worst_arrow.max(colors_ms + s.total);
+        total_eager += sync_ms + s.total;
         println!(
             "{:>10} | {:>21} | {:>8.2}ms | {:>7.1}ms",
-            name, face, colors_ms, s.total
+            name, face, sync_ms, s.total
         );
     }
-    let reshapes_before = p.reshape_count;
-    let t0 = Instant::now();
-    p.sync_theme_font();
-    let settle_ms = t0.elapsed().as_secs_f64() * 1e3;
-    // WITNESS (item 202): the deferred settle must catch the font up — the
-    // reshape this "debounced preview" shape defers TO.
-    assert_reshape_witness(
-        "the deferred settle",
-        reshapes_before,
-        p.reshape_count,
-        true,
-    )?;
-    p.set_view(&view);
-    let s = burst_frame(&mut p, device, queue, &target_view, true)?;
     println!(
-        "  settle: sync_theme_font {settle_ms:.2}ms + first frame {:.1}ms (worst arrow step {worst_arrow:.1}ms)",
-        s.total
+        "  total eager burst ({} steps, sync_theme + frame each): {total_eager:.1}ms",
+        BURST_WORLDS.len() - 1
     );
 
     // Suspect #3: per-switch font resolution (resolve_cjk queries the font DB per

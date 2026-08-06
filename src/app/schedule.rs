@@ -248,20 +248,13 @@ impl App {
         // ~1s of idle. Armed ONLY by the live `sync_view` (behind its gpu-present
         // gate), consumed here via the same single-`WaitUntil` pattern as the note
         // autosave above — no hot loop, and structurally unreachable headlessly.
-        // Debounced theme-preview FONT reshape: while the theme picker's live preview
-        // arrows across worlds, only the COLORS applied per step; once the selection
-        // rests `theme_font_debounce()` the one deferred reshape lands here (the paused
-        // hover then shows the true face). Each further preview step RE-STAMPS
-        // `theme_font_at` (`retint_theme_preview`), sliding the deadline — the same
-        // single-`WaitUntil`, idle-safe pattern as the zoom persist below (no hot
-        // loop; commit/revert clear the stamp synchronously via `retint_theme_now`).
+        // Theme-preview font reshape is UNCONDITIONAL: `retint_theme_preview`
+        // reshapes synchronously in the input handler, so nothing about it is
+        // left to poll here.
         let now = self.frame.now();
         let outcome = self
             .frame
             .poll(now, input_schedule, document_schedule, config_schedule);
-        if outcome.reshape {
-            self.apply_deferred_theme_font();
-        }
         if outcome.persist_zoom {
             self.settle_zoom_persist();
         }

@@ -545,7 +545,7 @@ fn frame_runtime_api_does_not_regrow_into_a_field_bag() {
         let source = std::fs::read_to_string(root.join(file)).expect("frame source");
         count += visible_impl_method_count(&source, "FrameRuntime");
     }
-    const CEILING: usize = 78;
+    const CEILING: usize = 74;
     assert_eq!(
         count, CEILING,
         "FrameRuntime's visible API changed ({count} vs {CEILING}). A larger API \
