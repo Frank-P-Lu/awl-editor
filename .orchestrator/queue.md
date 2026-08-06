@@ -1863,3 +1863,29 @@ finds.** Item 228's decision is that 0.9.0 is a *public beta marked
 prerelease*. **So as the pipeline stands today, `v0.9.0` would publish as a
 STABLE release on both the GitHub Release and the site** — the one thing the
 version number is meant to communicate, silently inverted. This is in scope.
+
+---
+
+## ⚠️ TRIPWIRE — `git stash` DURING A MERGE SILENTLY TURNS IT INTO A SQUASH
+
+Item 274's merge commit `e44aff41` has **one parent, not two**. The content is
+fully in `main` — verified by file census (every branch file present, both split
+dirs at 17 and 20 files, both monoliths gone), by the suite (3750 passing) and by
+two `native-gate` receipts — but the branch never reads as merged to git.
+
+**Cause, found by inspection rather than guessed:** mid-merge, with `MERGE_HEAD`
+live, the orchestrator ran `git stash --keep-index` to count `#[test]`
+attributes in the staged tree, then `git stash pop`. **`git stash` clears
+`MERGE_HEAD`.** The subsequent `git commit` therefore recorded an ordinary
+single-parent commit. `--amend` was not the culprit; it preserves parents.
+
+**Consequences are historical, not functional:** `git log --graph` shows the
+split as a direct commit; `git merge-base --is-ancestor <branch> main` answers
+NO forever; and re-merging that branch would try to replay work already present.
+
+**The rule: never run `git stash` — or anything that resets the index wholesale —
+while `MERGE_HEAD` exists.** To inspect a merged-but-uncommitted tree, read the
+working tree directly, or `git show :<path>` / `git cat-file` the index entries.
+**And verify a merge landed as a merge:** `git log --format=%p -1 <sha>` must
+show two hashes. This one was caught only because a routine worktree-cleanup
+check asked whether the branch was an ancestor and got NO.
