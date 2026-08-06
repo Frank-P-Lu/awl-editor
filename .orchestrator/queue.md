@@ -1346,6 +1346,51 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      asserting a comment is worthless if it passes either way. **Routing:**
      production tier, read one at a time.
 
+303. **THE DIAGONAL SELECTION MARKER SITS ON THE WRONG SIDE OF THE ROW.**
+     **User decision 2026-08-06, with screenshot (Magpie): "the cursor is still
+     on the wrong side (like menu cursor)."** The mark should sit on the row's
+     OUTER edge — the side away from the spine — and mirror between the two
+     diagonal worlds. The user's own sketch, for Magpie (ascending `/` spine on
+     the RIGHT, rows right-aligned):
+
+     ```
+     > item |
+       item |
+     ```
+
+     — mark at the left, spine at the right. **"and reversed for mangrove"**:
+     Mangrove's descending `\` spine sits on the left with rows left-aligned, so
+     it mirrors to `| item <`. **The rule is the MIRROR, not "leading edge"** —
+     the whole cluster already mirrors between these two worlds (item 222/131d
+     landed exactly that), and the mark is the one element that did not come
+     with it. Today it is drawn adjacent to the spine in both, which reads as
+     belonging to the line rather than to the row.
+
+     ⚠️ **THIS REVISES SHIPPED DESIGN — IT IS NOT A BUG FIX, AND A LANE MUST KNOW
+     THAT.** Items 247 and 284 deliberately made this a SPINE element: 284's
+     whole achievement is a marker whose rotation says which way the selection
+     travelled, pinned to the spine's own angle with a vertex-pinned centre
+     derivation (`center = vertex - reach * (cos θ, sin θ)`), law-bound to
+     `chevron_arms` over 648 cases. **Moving it to the outer edge changes what
+     that mark is attached to.** So the open question the lane must answer FIRST,
+     and put to the user rather than deciding: **does the travel-direction turn
+     survive the move?** A mark at the outer edge, away from the spine, may have
+     no natural axis to rotate about — in which case either the turn is dropped
+     (and 284's mechanism becomes dead code to remove, not to strand) or the
+     rotation re-derives against something else. **Do not silently keep a
+     rotation that no longer means anything, and do not silently delete a
+     feature the user has not been asked about.**
+
+     **Scope:** the two `Diagonal` worlds only; `Pane`, `Bars` and `Rules`
+     selection treatments do not move. **Verify:** the mark's side is derived
+     from the same signed quantity that mirrors the cluster (`dx`/`dw`'s sign in
+     the row planner), not from a per-world branch — **one owner, so the two
+     worlds cannot disagree about which side is outer**; drawn↔hit-test agreement
+     preserved; swept at 1×/2× DPI across both worlds and every `OverlayKind`;
+     byte-identity for all eighteen non-diagonal worlds. ⚠️ **`diagonal.rs` is
+     the file 247 could not reach because 222/131d held it — check nothing else
+     is claiming it before dispatching.** **Routing:** deep tier.
+
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
