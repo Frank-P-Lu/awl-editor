@@ -20,6 +20,8 @@
 //!    debounced ONE-SHOT auto-name save, save-feedback dirty/title/HUD sync.
 //!  - [`verbs`] — rename/move/duplicate/convert-scratch/manual-save-finish/
 //!    trash/the two local-history bridges.
+//!  - [`export`] — WHERE an export lands: the ONE pure destination owner, the
+//!    atomic write, and the live-only reveal-in-file-viewer handoff.
 //!  - [`external`] — what awl does when the file changed underneath it: the
 //!    one guard every write door asks, the clean-buffer reload, the conflict
 //!    latch + its recovery record, and the two resolutions.
@@ -34,6 +36,7 @@
 mod autosave;
 mod dictionary;
 mod document;
+mod export;
 mod external;
 mod open;
 mod range_settings;

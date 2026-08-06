@@ -1,7 +1,8 @@
 //! Native macOS chrome: the MENU item whose macOS convention is a real AppKit
 //! panel rather than an in-app overlay (File ▸ "Open…" — the standard
 //! `NSOpenPanel` file picker), plus the small objc2/AppKit surface the
-//! menu-icon set, the Dock icon and the Asset Cleaner's recoverable trash lean
+//! menu-icon set, the Dock icon, the export's reveal-in-Finder and the Asset
+//! Cleaner's recoverable trash lean
 //! on. All live ONLY here, behind `cfg(target_os = "macos")` — every other
 //! platform keeps the existing in-app behavior (the `Action::OpenBrowse`
 //! overlay).
@@ -33,7 +34,7 @@ use objc2_app_kit::{
     NSImageSymbolScale, NSMenu, NSModalResponseOK, NSOpenPanel, NSWorkspace,
 };
 use objc2_foundation::{
-    NSData, NSFileManager, NSInteger, NSPoint, NSRect, NSSize, NSString, NSURL,
+    NSArray, NSData, NSFileManager, NSInteger, NSPoint, NSRect, NSSize, NSString, NSURL,
 };
 
 /// Run the standard macOS OPEN panel (files only, single selection) modally
@@ -119,6 +120,32 @@ pub fn trash_path(path: &std::path::Path) -> Result<(), String> {
         Ok(()) => Ok(()),
         Err(err) => Err(err.localizedDescription().to_string()),
     }
+}
+
+/// Reveal `path` in the Finder — select it inside its enclosing folder via
+/// `NSWorkspace activateFileViewerSelectingURLs:`, the platform's own "show me
+/// where that went" answer. The ONE caller is the export write's success arm
+/// (`app::files::export`), which asks only when a real window exists, so a
+/// headless `App` never brings the Finder forward mid-run.
+///
+/// Nothing is fetched and nothing is opened — the file viewer is handed a
+/// `file://` URL for a path awl just wrote, so this is the same OS-handoff
+/// class as [`trash_path`] and `App::follow_link`, not a document door. A path
+/// that is not valid UTF-8 is a calm no-op, never a panic: the export already
+/// landed, and failing to *point at* it must not raise anything.
+///
+/// **The window it activates belongs to the Finder, so no AppKit object here
+/// outlives the call** — the `Retained<NSURL>`/`Retained<NSArray>` are dropped
+/// at the closing brace and nothing is stored, which is what keeps this clear of
+/// the `releasedWhenClosed` / unretained-target ownership hazards the module
+/// doc's About-window sibling has to manage.
+pub fn reveal_in_file_viewer(path: &std::path::Path) {
+    let Some(s) = path.to_str() else {
+        return;
+    };
+    let url = NSURL::fileURLWithPath(&NSString::from_str(s));
+    let urls = NSArray::from_retained_slice(&[url]);
+    NSWorkspace::sharedWorkspace().activateFileViewerSelectingURLs(&urls);
 }
 
 /// Set the live DOCK / app-switcher image from a complete `.icns` in memory —

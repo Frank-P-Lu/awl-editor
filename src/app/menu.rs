@@ -45,14 +45,15 @@ impl App {
     /// The transition's typed render requests own the sync + redraw, exactly
     /// as on the keyboard door; this handler adds no trailing repaint path.
     pub(super) fn handle_menu_event(&mut self, id: String, exit: &dyn schedule::Exit) {
-        // File ▸ "Open…" (`awl.open`, routed to `Action::OpenBrowse` on other
-        // platforms) opens the NATIVE `NSOpenPanel` file picker instead — the
-        // macOS convention, and it dodges the in-app-overlay path entirely. On
-        // OK it loads the chosen path through the SAME `load_path` every open
-        // uses (which itself syncs); then paint, per the post-`apply` pattern
-        // below. Cancel / off-main-thread is a calm no-op. The keyboard `C-x j`
-        // in-app browse is UNCHANGED — only the MENU's Open item is redirected.
-        if id == "awl.open" {
+        // A row `crate::menu::NATIVE_PANEL_IDS` claims for the platform opens a
+        // real AppKit panel instead of dispatching its routed action — today
+        // File ▸ "Browse files…", whose `NSOpenPanel` is the macOS convention
+        // and dodges the in-app-overlay path entirely. On OK it loads the chosen
+        // path through the SAME `load_path` every open uses (which itself
+        // syncs); then paint, per the post-`apply` pattern below. Cancel /
+        // off-main-thread is a calm no-op. The keyboard `C-x j` in-app browse is
+        // UNCHANGED — only the MENU's row is redirected.
+        if crate::menu::opens_native_panel(&id) {
             if let Some(path) = crate::mac_chrome::pick_file_to_open() {
                 self.load_path(path);
                 self.request_frame();

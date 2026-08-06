@@ -7,6 +7,18 @@
 //! rather than a hand-kept table — a row that stops opening its surface, or
 //! starts silently opening one it never used to, is caught by what it
 //! actually DOES, not by what a second list claims about it.
+//!
+//! **THE SHARED CORE IS NOT THE ONLY DOOR ONTO THAT PROMISE, AND THE FIRST LAW
+//! HERE CANNOT SEE THE OTHER ONE.** A row [`super::opens_native_panel`] claims
+//! is answered by an AppKit panel from the macOS menu handler, above
+//! `apply_transition` entirely — so `Journey::card()` stays `None` for it no
+//! matter what the panel does, and a row that popped a modal open/save panel
+//! with no ellipsis on its label would pass the first law green. That is the
+//! "a law dies at its SUBJECT" shape, and the second law below closes it: every
+//! id the platform claims must sit on a row whose label already promises a
+//! surface. Together they read — the label agrees with the shared core on every
+//! platform, AND the platform's own panels only ever land on rows that promised
+//! one.
 
 use super::*;
 use crate::actions::{ActionCtx, apply_transition};
@@ -59,4 +71,55 @@ fn every_file_menu_row_s_ellipsis_matches_whether_it_opens_a_surface() {
             item.id, item.label,
         );
     }
+}
+
+/// THE PLATFORM-PANEL HALF. Every id the native menu answers with an AppKit
+/// panel of its own must name a `FILE_ITEMS` row whose label ends in "…" —
+/// because that panel IS a surface opening before anything happens, and the
+/// first law above is structurally blind to it (see the module doc).
+///
+/// Host-independent by construction: the enrolment is [`super::NATIVE_PANEL_IDS`]
+/// itself, read as data, so this law sweeps the same set on macOS, Linux and web
+/// rather than being a property of whichever OS compiled it. Nothing here calls
+/// `cfg!`.
+///
+/// MUTATION TARGET, and the reason this exists rather than a comment: add an
+/// export id to `NATIVE_PANEL_IDS` (wiring a save panel onto a row that still
+/// says it completes on its own) and this fails by name. It cannot be satisfied
+/// by restoring the ellipsis alone either — the first law then demands the
+/// shared core open a surface on EVERY platform for that row, so a half-finished
+/// platform split cannot land green in either direction.
+#[test]
+fn every_native_panel_row_promises_a_surface_and_names_a_real_file_row() {
+    let mut claimed = 0usize;
+    for item in FILE_ITEMS {
+        if !opens_native_panel(item.id) {
+            continue;
+        }
+        claimed += 1;
+        assert!(
+            item.label.ends_with('…'),
+            "{:?} (label {:?}): the native menu answers this row with an AppKit \
+             panel — a surface opening before anything happens — so its label must \
+             promise one",
+            item.id,
+            item.label,
+        );
+    }
+    // PRESENCE, not decoration: a law over a set is satisfied by emptying the
+    // set, and this one would go quietly vacuous the day an id is renamed out
+    // from under the roster. Enrol every claimed id, then require the count to
+    // account for all of them.
+    assert_eq!(
+        claimed,
+        NATIVE_PANEL_IDS.len(),
+        "every claimed id must name a real FILE_ITEMS row; claimed={claimed} of \
+         {:?}",
+        NATIVE_PANEL_IDS,
+    );
+    assert!(
+        !NATIVE_PANEL_IDS.is_empty(),
+        "the platform-panel door still exists; an empty roster would make this \
+         law sweep nothing",
+    );
 }

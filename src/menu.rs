@@ -152,6 +152,31 @@ const FILE_ITEMS: &[Routed] = &[
     },
 ];
 
+/// The menu ids native macOS answers with a REAL AppKit PANEL instead of
+/// dispatching the routed action — the platform's own convention winning over
+/// awl's in-app overlay for that one verb. Declared HERE, as data beside the
+/// roster it indexes, rather than as a literal inside the macOS event handler:
+/// the panel is a second door onto the same promise a label's ellipsis makes,
+/// and `menu::ellipsis_law` can only hold both doors to that promise if both
+/// are readable from any host. `crate::app::menu`'s handler is the one
+/// dispatcher; `opens_native_panel` is the one predicate.
+///
+/// Only the MENU is redirected. The keyboard chord and the Cmd-P palette row
+/// for the same command keep the in-app overlay on every platform, so the
+/// shared core's own behaviour is what a label has to agree with.
+const NATIVE_PANEL_IDS: &[&str] = &[
+    // File ▸ "Browse files…" → `NSOpenPanel`.
+    "awl.open",
+];
+
+/// Whether the native macOS menu answers `id` with an AppKit panel of its own.
+// Read by the macOS menu handler and by `ellipsis_law`; a Linux/web build routes
+// nothing through it, and the roster law still has to be able to ask.
+#[cfg_attr(not(any(target_os = "macos", test)), allow(dead_code))]
+pub fn opens_native_panel(id: &str) -> bool {
+    NATIVE_PANEL_IDS.contains(&id)
+}
+
 const EDIT_ITEMS: &[Routed] = &[
     r("awl.undo", "Undo"),
     r("awl.redo", "Redo"),
