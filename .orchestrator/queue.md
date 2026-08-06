@@ -81,6 +81,38 @@ took it.
 8. **The macOS release arm** — Apple signing secrets, per `RELEASING.md` §1.
 9. **Further tags and the site deploy.** Both are the user's explicit word, every
    time.
+10. **DOES THE DEBOUNCE RIP-OUT FEEL RIGHT? Item 290 is LANDED (`51302d50`) and
+   this is the confirmation it owes — a look-and-agree, not a defect.** The board
+   asked the lane to report back if removal regressed materially. It did, by
+   **two orders of magnitude more than the board's own figure**, so the number is
+   here rather than buried in a merge message.
+
+   | 9-step burst, release | before | after |
+   |---|---|---|
+   | CLAUDE.md (119 lines) | 74.6 ms, **1** reshape | 297.9 ms, **9** reshapes |
+   | 1896-line fixture | 82.9 ms, **1** reshape | 380.8 ms, **9** reshapes |
+
+   Reshape counts are witnessed, not inferred. ⚠️ **The board's old "12.3 ms /
+   n=1 for 8 inputs" carried item 291's bias signature verbatim** — 291 says a
+   burst reports `n=1` for 8 inputs because `probe::mark_movement_input`
+   overwrites a pending mark. `--bench-theme-burst` never touches that probe, so
+   the figures above are clean and the old one was measuring the instrument.
+
+   **Why it was landed rather than held:** per-step cost is **unchanged** at
+   ~20–30 ms. The debounce never made a reshape cheaper — it **skipped** it, so
+   eight of nine steps showed the WRONG FONT and the ninth paid a 141–151 ms
+   stall. The 4× is the cost of actually doing the work on every step, spread
+   evenly at ~33 ms (about two frames) instead of hidden behind a bimodal stall
+   whose boundary sat inside human key cadence. That is the trade the item was
+   opened to make, and PHILOSOPHY's calm bias prefers the even cost.
+
+   **The question, and it is only answerable live:** arrow quickly through the
+   faceted theme picker. Does each step feel like a small honest hitch with the
+   right font, or does the burst feel worse than the old "colours move, fonts
+   lag, then a freeze"? **Recommendation: keep it.** If it feels wrong the answer
+   is one command — `git revert 51302d50` — not a rebuild, and the alternative of
+   raising the window is already refuted (300 ms → 348 ms settle, 400 ms →
+   459 ms).
 
 ✅ **CLOSED HERE 2026-08-06 — item 118's direction call. THE TARGET SHAPE IS
 DROPPED.** The user's words: *"i think we just drop the target. it's fine, right
@@ -178,12 +210,12 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
 | `src/render/plan/` | overlay row family only (5 modules) |
 | item 288's three identifiers | all three still present, verbatim |
 
-**WAVE RUNNING — three lanes claimed: 290, 304, 289.** LANDED this wave: 288
-(`289d364c`, fast-forward) and 295 (merged `414e3b5a`). 172 is closed against its
-census. ⚠️ **`main` carries a merge that has NOT been gated as a combined
-candidate yet** — 295's receipt is for its own branch at `508b31e1`, taken before
-288 landed. **Do not push until one native/health/wasm set runs on the merged
-tree.** Order for the next wave:
+**WAVE RUNNING — three lanes claimed: 304, 289, 274.** LANDED this wave: 288
+(`289d364c`, fast-forward), 295 (merged `414e3b5a`), 290 (merged `51302d50`).
+172 is closed against its census. ⚠️ **`main` carries TWO merges that have NOT
+been gated as a combined candidate** — each lane's receipt is for its own branch,
+taken before the others landed. **Do not push until one native/health/wasm set
+runs on the merged tree.** Order for the next wave:
 
 1. **131e** — selection and the full Verify clause; 131a–d are landed and the
    measured cluster rail exists in `render/chrome/diagonal.rs`. ⚠️ It reaches
@@ -204,8 +236,9 @@ tree.** Order for the next wave:
    are still monoliths against the ~500-line ceiling, and only
    `app_icon/tests.rs` carries a declared exception. The verbatim-move contract
    and the per-filter verification are in 274's body.
-5. **291** — sequenced after 290 by its own clause; the harness bias and the 5 s
-   vanish survive the rip-out.
+5. **291** — now a HARNESS item, not a product one: 290 dissolved its primary
+   defect, leaving the `mark_movement_input` overwrite (which authored a wrong
+   number on this board), the 5 s vanish, and one stale comment.
 6. **296 with 300** — they may be one defect, and 300 says debug before
    redesigning.
 7. **273's six unbuilt residuals** — CLI flags have no roster to generate from,
@@ -719,39 +752,33 @@ tree.** Order for the next wave:
      ⚠️ **Confirm the premise with a capture before changing anything** — it is a
      lane's report, and a lane's report carries no privilege either.
 
-290. 🟡 IN PROGRESS — claude, branch `claude/item-290-debounce-ripout`.
-     **Rip out the theme-font debounce.** Delete `THEME_FONT_DEBOUNCE_DEFAULT_MS`
-     (`app.rs:68`), the `AWL_THEME_FONT_DEBOUNCE_MS` override,
-     `theme_font_reshape_decision` and its module, `THEME_FONT_CHEAP_RESHAPE_MS`
-     and its assert, and `apply_deferred_theme_font` once unused.
-     `retint_theme_preview` reshapes unconditionally.
-     **Why:** the mechanism is bimodal and its mode boundary sits inside human key
-     cadence. At the 100 ms window, arms per cadence (`I`mmediate/`C`oalesce):
-     60–95 ms → `ICCCC…` with a 141–151 ms stall; 100 ms → `IIIICCCC`; ≥105 ms →
-     all `I`. A ~4× latency gap decided by jitter. Coalescing also manufactures
-     work: 8 of 12 hops need a reshape, but a coalesced burst reports 12.
-     **Not the alternative:** raising the window is refuted — 300 ms gives a
-     348 ms settle, 400 ms gives 459 ms. p50 improves while felt settle degrades
-     8–10× (colour-only steps present fast and get sampled; stalled ones don't).
-     ⚠️ **Cost to measure, not assume:** removal regresses the burst case, today
-     12.3 ms / n=1 for 8 inputs. If it regresses materially, report back.
-     **Verify:** `--bench-theme-burst` asserting the reshape COUNT; both cadences.
-     Feel is live-only. **Routing:** production tier.
+291. **NARROWED BY 290 — its PRIMARY defect is dissolved, and what is left is the
+     HARNESS, not the product.** The original complaint was that a Coalesce step
+     reached only `arm_theme_font` and never `sync_theme_font_measured`, the sole
+     creator of `ThemeSettleInFlight`, so 12 reshaping inputs recorded 2
+     transactions. **Verified against the tree after 290 landed: `arm_theme_font`
+     no longer exists anywhere, and every preview step now reaches
+     `sync_theme_font_measured` (`app/apply.rs:82`, `:120`).** The settle readout
+     itself survives intact — `MIN_PHASE_COVERAGE`, the phase roster and the debug
+     lines are untouched; only `SwitchPhase::RESHAPE_SIDE`/`reshape_side_ms` went
+     with the deferred apply that produced them.
 
-291. **The settle instrument cannot see the stalls it measures.** A Coalesce step
-     creates no transaction: its arm calls only `arm_theme_font`, never reaching
-     `sync_theme_font_measured`, the sole creator of `ThemeSettleInFlight`. Only
-     `apply_deferred_theme_font` makes one, timed from the LAST input's stamp.
-     Measured: 12 reshaping inputs → 2 recorded transactions.
-     ⚠️ `MIN_PHASE_COVERAGE`/`unaccounted` cannot catch this — the floor guards
-     RECORDED transactions, and an absent one shows no shortfall.
-     ⚠️ Same bias in the harness: `probe::mark_movement_input` overwrites a
-     pending mark, so a burst reports `n=1` for 8 inputs. Fix both or neither.
-     Also: `SWITCH_WINDOW` is 5 s, so the lines vanish 5 s after the last switch.
-     **Build:** record per preview STEP, or surface a dropped count.
-     **Verify:** a 60–95 ms burst reports 12 of 12; mutation-prove the drop.
-     ⚠️ Sequence after 290 — no debounce, no Coalesce arm, but the harness bias
-     and the 5 s vanish survive. **Routing:** production tier.
+     **What actually remains, and it is worth doing because a biased instrument
+     has already put a wrong number on this board:**
+     - ⚠️ **The harness bias.** `probe::mark_movement_input` **overwrites** a
+       pending mark, so a burst reports `n=1` for 8 inputs. This is not
+       hypothetical damage: item 290's own "12.3 ms / n=1 for 8 inputs" figure was
+       this bias, and it under-reported the real burst cost by two orders of
+       magnitude. **Fix the overwrite, or surface a dropped count.**
+     - `SWITCH_WINDOW` is 5 s, so the readout lines vanish 5 s after the last
+       switch — an instrument that erases itself before it can be read.
+     - A **stale comment left deliberately** by 290's lane because `probe.rs` was
+       outside its partition: `src/probe.rs:316` still says it *"mirrors
+       `retint_theme_preview`'s own debounced-reshape deferral"*. There is no
+       longer a deferral to mirror. Item 302's class; fix it here.
+     **Verify:** a burst of N reshaping inputs reports N, not 1; mutation-prove
+     the drop by reinstating the overwrite and watching the law go red.
+     **Routing:** production tier.
 
 292. **Kite's active lens chip collides with the card's top edge.** The filled
      chip's plate runs flush into the strip band's top, reading as clipped.

@@ -315,6 +315,23 @@ once, at landing.
   linux job is the only thing that tests on real Linux, which no local gate
   covers — but do not assume a `cancelled` streak means "pushed too fast"
   without checking the clock first.
+- ⚠️ **A TOLERATED-RED JOB HAS TWO FAILURE CAUSES, AND ONLY ONE OF THEM FLIPS THE
+  RUN'S CONCLUSION.** `continue-on-error: true` is set at the JOB level for
+  `mac (render::tests)` and `atspi`, and it tolerates their **steps** failing —
+  which is why a run whose only failures are those two reads `success`. It does
+  **not** cover a failure in `Set up job`, before any step runs. Measured
+  2026-08-06 on `9c9d7da6`: all four gating jobs green, `atspi` red exactly as in
+  the last known-good run, and `mac (render::tests)` red with
+  `##[error]Service Unavailable` / `Failed to resolve action download info.` — a
+  GitHub Actions infrastructure failure that never reached a test. The run's
+  conclusion was `failure`; nothing in the tree was wrong. **So a red run
+  conclusion is classified by reading the FAILED STEP NAMES, not the job names:**
+  `gh run view <id> --json jobs -q '.jobs[] | select(.conclusion=="failure") |
+  "\(.name)" + (.steps[] | select(.conclusion=="failure") | "  step: \(.name)")'`.
+  A failed `Set up job` on a tolerated job is infrastructure — retry it; it is not
+  a `CI RED` item and it does not block integration. This is the same shape as the
+  `cancelled`-means-two-things rule above: the conclusion field is not the
+  diagnosis.
 - **Keep the local toolchain level with CI's** — `rustup check`. CI tracks
   floating stable; a stale local clippy cannot see the lint it is pushing.
 
