@@ -7,6 +7,18 @@ use crate::render::rotated_location::LOCATION_SCALE;
 /// the baseline for every chrome/mono/display face without striking the glyphs.
 const UNDERLINE_BASELINE_DROP: Logical = Logical(2.0);
 
+/// Stroke weight of the `FacetStyle::Text` active-lens hairline. `Logical` +
+/// `Metrics::px` is the same pixel-space boundary every other chrome length
+/// in this file crosses, so this stroke scales with every other term of its
+/// own rect (position, span) rather than staying a fixed device size.
+const TEXT_MARK_THICKNESS: Logical = Logical(1.5);
+
+/// Stroke weight of the `FacetStyle::Chips(ChipVariant::Underline)` active-lens
+/// mark — thicker than the plain `Text` hairline so it still reads as a chip
+/// rather than a rule, but crossing the same `Logical` + `Metrics::px`
+/// boundary.
+const UNDERLINE_CHIP_THICKNESS: Logical = Logical(3.5);
+
 impl TextPipeline {
     /// THEME PICKER display plan: the candidate-area sequence of section HEADERS +
     /// world ROWS, from the parallel `overlay_sections`. A header is emitted before a
@@ -367,7 +379,12 @@ impl TextPipeline {
             match facet_style {
                 theme::FacetStyle::Text => {
                     let y = geom.text_top + baseline + underline_drop;
-                    Some([geom.text_left + min_x, y, max_x - min_x, 1.5])
+                    Some([
+                        geom.text_left + min_x,
+                        y,
+                        max_x - min_x,
+                        self.metrics.px(TEXT_MARK_THICKNESS),
+                    ])
                 }
                 theme::FacetStyle::Band => Some(pill_px(min_x - chip_hpad, max_x + chip_hpad)),
                 theme::FacetStyle::Chips(v) => match v {
@@ -379,7 +396,12 @@ impl TextPipeline {
                     }
                     theme::ChipVariant::Underline => {
                         let y = geom.text_top + baseline + underline_drop;
-                        Some([geom.text_left + min_x, y, max_x - min_x, 3.5])
+                        Some([
+                            geom.text_left + min_x,
+                            y,
+                            max_x - min_x,
+                            self.metrics.px(UNDERLINE_CHIP_THICKNESS),
+                        ])
                     }
                     theme::ChipVariant::Bracket => {
                         ghosts = corner_ticks(min_x - chip_hpad, max_x + chip_hpad);
