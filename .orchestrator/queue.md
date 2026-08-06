@@ -236,40 +236,39 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
 | `src/render/plan/` | overlay row family only (5 modules) |
 | item 288's three identifiers | all three still present, verbatim |
 
-⚠️ **`main` IS AT `e2e40445` AND REMOTELY UNVERIFIED — GITHUB ACTIONS IS IN A
-MAJOR OUTAGE (2026-08-06).** Not red. Not green. Run `31122562571` reported
-`linux`, `web` and `atspi` all `cancelled` **at the identical second**, 15 minutes
-after queueing, with no push superseding them, while three sibling jobs stayed
-`queued`; `githubstatus.com/api/v2/status.json` returns `Actions: major_outage`.
-The run before it died on `Service Unavailable`. **`cancelled` is not a pass —
-record it as no verification at all.** The local combined-candidate receipt IS
-real (`native-gate-receipt commit=e2e40445 conventions=mac,linux scope=all-targets`,
-plus code-health and web-smoke on that same sha), but it certifies only this
-host's real Apple-Silicon Metal — **CI's `linux` job is the only real-Linux
-coverage and the hosted-mac jobs the only virtualised-GPU coverage, so those axes
-are currently uncovered.** ⚠️ **HOLD FURTHER PUSHES** until a run completes;
-rerunning during the outage is futile.
+⚠️ **`main` IS AT `8ea95f1b`, LOCALLY RECEIPTED AND REMOTELY UNVERIFIED — GITHUB
+ACTIONS HAS BEEN IN A MAJOR OUTAGE ALL DAY (2026-08-06).** Pushed deliberately: 15
+commits on one local disk is the larger risk, the batch carries a full receipt on its
+exact sha, a push cannot supersede a run that cannot start, and no tag is involved.
+**OWED THE MOMENT ACTIONS RECOVERS:** re-run CI on `main` and read it — `cancelled`
+is not a pass. Two axes stay uncovered until then: **CI's `linux` job is the only
+real-Linux coverage** and **the hosted-mac jobs the only virtualised-GPU coverage**,
+and a local receipt certifies neither. Also owed: `gh workflow run release.yml
+-f dry_run=true` for item 227's AppImage, which no worktree branch could run.
 
-**WAVE COMPLETE
-291, 274, plus 172 closed against its census and 305 queued from what 304 hit.
+**TEN ITEMS LANDED TODAY, NO LANE RUNNING.** Wave 1: 288, 295, 290, 304, 289, 291,
+274 (+172 closed against its census). Wave 2: 227, 292, 305. Plus **258 and 260
+judged and closed** in the OWED section.
 
-⚠️ **THREE OF THIS WAVE'S ITEMS HAD A FALSE OR STALE PREMISE, ALL THREE AUTHORED
-ON THIS BOARD, AND EVERY ONE WAS CAUGHT BY A LANE THAT MEASURED BEFORE BUILDING.**
-304's "renders as NOTHING" had already been fixed a day before the item was
-written; 290's "12.3 ms / n=1 for 8 inputs" was item 291's own documented
-instrument bias, low by two orders of magnitude; 289's "Wagtail's `Underline`
-chips" named the wrong world — Wagtail is `FacetStyle::Text` and **Magpie** is the
-sole `Underline` carrier. **So the premise-check-first clause earns its place in
-every brief**, and a board figure is quoted with its instrument named.
+⚠️ **SIX FALSE OR STALE PREMISES IN ONE DAY, EVERY ONE AUTHORED ON THIS BOARD OR BY
+THE ORCHESTRATOR, AND EVERY ONE CAUGHT BY MEASUREMENT RATHER THAN BY REVIEW.** This
+is the day's real finding, and it is a process fact, not a run of bad luck:
+- **304** — "renders as NOTHING" had already been fixed a day *before* the item was
+  written (`77db975e`). The report likely came from a binary predating the fix.
+- **290** — "12.3 ms / n=1 for 8 inputs" *was* item 291's own documented instrument
+  bias. A figure the board already knew to be untrustworthy became a premise.
+- **289** — "Wagtail's `Underline` chips": Wagtail is `FacetStyle::Text`, **Magpie**
+  is the sole carrier.
+- **292** — the item called Kite a `Chips` world; Kite is `FacetStyle::Band`.
+- **the orchestrator's own, twice** — "raise the file-size mark with a reason" is
+  not generally possible (the ceiling is `min(old_size, mark)` against the frozen
+  baseline, so a mark can only TIGHTEN); and a judge's brief said Magpie's `Bands`
+  were horizontal when `Background::Bands` carries an authored `angle`.
 
-⚠️ **AND A FOURTH FALSE PREMISE WAS THE ORCHESTRATOR'S OWN, CAUGHT BY A GATE.**
-"Raise the file-size mark with a reason" is not generally possible: the ceiling is
-`min(old_size, mark)` where `old_size` is the file's size at the frozen BASELINE,
-so **a mark can only ever tighten.** `src/probe.rs` was 861 at `f12d04a`, a cap no
-reason can lift. The remedy `production()`'s own comment anticipates — carve the
-inline `mod tests` out to a sibling `tests.rs`, which is exempt by design — took
-probe.rs to 628 and ratcheted its mark 825 → 628. **Trimming 291's law to fit would
-have been item 305's anti-pattern committed by the person who queued it.**
+**The rules this earns, and they belong in every brief:** state the premise-check
+first; **quote a board figure with its instrument named**; derive an enrolment from
+the roster rather than a name list; and **reproduce a user-reported defect against
+HEAD before briefing it**, because the reporter's build may predate a fix.
 
 Order for the next wave:
 
@@ -492,27 +491,6 @@ Order for the next wave:
      palette-specific signal, confirmation owed on a quiet host*, and the bench
      baseline was deliberately **not** re-banked so contention noise is not frozen
      into every cell.
-
-227. 🟡 IN PROGRESS — claude, branch `claude/item-227-appimage`.
-     **Add a desktop-integrated AppImage as awl's friendly Linux download.**
-     **Defect:** the tarball is appropriate for technical early adopters but is
-     not a normal Linux desktop application: it has no launcher metadata or icon
-     integration. **Build:** package awl as an x86_64 AppImage in the release
-     workflow, alongside — not instead of — the tarball. Include the binary, a
-     `.desktop` launcher entry, the canonical Linux PNG icon derived from the
-     existing icon pipeline, licenses/credits, and only the runtime libraries that
-     belong inside the package; **do not bundle GPU drivers.** Publish a checksum
-     and stable release-asset name. **Done:** a user can download one file from
-     GitHub Releases, mark it executable, launch awl, and receive correct desktop
-     name/icon integration where the desktop supports it; the tarball remains
-     available as fallback. **Verify:** AppImage structural validation; launch and
-     headless smoke on representative Debian/Ubuntu and Fedora-like environments;
-     Wayland and X11 launch checks; icon/desktop-entry law; GPU-adapter and
-     file-open smoke; mutation proof removes launcher/icon packaging; release dry
-     run uploads both Linux artifacts. **Routing:** production tier with a Linux
-     visual/compatibility audit. ⚠️ **Item 226 is complete and the glibc floor is
-     settled at 2.35, so the "decide it together with the support matrix" coupling
-     has retired.** Confirmed unstarted: nothing in the tree matches `AppImage`.
 
 231. **Name the CAUSE of the hosted-macOS gate hang. The fix is a SECOND item,
      scoped only once the cause has a name.** ⚠️ **REFRAMED BY USER DECISION from
@@ -763,15 +741,6 @@ Order for the next wave:
      world's users are on Retina by default — the strip's mark is the style's own
      selection vocabulary, and a half-weight rule is a half-legible affordance.
 
-292. 🟡 IN PROGRESS — claude, branch `claude/item-292-chip-inset`.
-     **Kite's active lens chip collides with the card's top edge.** The filled
-     chip's plate runs flush into the strip band's top, reading as clipped.
-     `strip_gap()` (`chrome/mod.rs:163`) is horizontal only and is not the owner;
-     the vertical inset is. ⚠️ Confirm from drawn pixels which quantity is short,
-     and whether this is Kite-only or every `FacetStyle::Chips` world.
-     **Verify:** the top inset scales with DPI, swept 1×/2× across `Chips` worlds;
-     byte-identity elsewhere. **Routing:** production tier.
-
 293. **The overlay footer crowds the last row.** The hint line sits hard against
      the last candidate row. `OverlayGeom::hint_rows` documents itself as
      `footer.len() + 1` — "a blank separator line" — so a separator is already
@@ -954,32 +923,6 @@ Order for the next wave:
      drawn↔hit-test agreement; 1×/2× across both worlds and every `OverlayKind`;
      byte-identity for 18 worlds. ⚠️ `diagonal.rs` is contended — check no claim
      before dispatch. **Routing:** deep tier.
-
-305. 🟡 IN PROGRESS — claude, branch `claude/item-305-spans-decompose`.
-     **THE TWO `spans.rs` FILES ARE ~2x THE CEILING, AND THE FROZEN MARK IS NOW
-     SHAPING THE CODE.** `src/markdown/spans.rs` is **1061** lines and
-     `src/render/spans.rs` **1140**, against CLAUDE.md's *"~500 lines is a file's
-     natural ceiling; past it, decompose into a submodule dir"*. `spans()` itself
-     carries a `clippy::too_many_lines` exception now reading **172/100**.
-
-     ⚠️ **THE EVIDENCE THIS IS NO LONGER JUST DEBT.** Item 304's lane needed a
-     helper, extracted it, and then **inlined it back into its single call site
-     for no reason but the line count** — its own `code-health.toml` reason says
-     so: *"inline, no second single-call-site helper — the file was already
-     sitting at its frozen ceiling"*. A ratchet that exists to push toward
-     decomposition instead bought a worse factoring. That is the signal to
-     decompose rather than to raise the mark again.
-
-     **Build:** decompose both into `spans/` submodule directories, splitting by
-     SUBJECT, and restore the helper 304 was forced to inline. **Production code,
-     so this is NOT item 274's verbatim-move contract** — but the same oracle
-     applies where it can: no behaviour change, and `cargo test --bin awl`
-     reports the same count. **Verify:** byte-identical rendering across the world
-     roster at 1x/2x — a decomposition that changes a pixel is a bug, and the
-     capture harness can prove it didn't. Retire the two file-size marks and the
-     `too_many_lines` exception rather than editing them.
-     ⚠️ Contends `src/markdown/**` and `src/render/spans.rs` — one lane, never
-     paired with a markdown or span item. **Routing:** production tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
