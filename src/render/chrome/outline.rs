@@ -218,10 +218,6 @@ impl TextPipeline {
         }
         let row_h = self.metrics.line_height * label;
         let top = crate::render::TEXT_TOP + self.menubar_reserve();
-        // The gutter's own worst-case footprint: its tallest block (changed +
-        // name + project, three LABEL rows) plus the SAME bottom-anchor inset
-        // `prepare_gutter` draws from — not a second reading of that 8px, so a
-        // margin retune can never let the outline's last row collide with it.
         let gutter_reserve = row_h * 3.0 + self.metrics.px_physical(readout::CANVAS_INSET);
         let avail_h = height as f32 - gutter_reserve - top;
         let max_rows = if row_h > 0.0 {

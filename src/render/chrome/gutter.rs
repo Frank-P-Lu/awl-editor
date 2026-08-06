@@ -321,7 +321,8 @@ impl TextPipeline {
         let block_h = self.metrics.line_height * label * lines;
         // `prepare_gutter` anchors the block bottom at the SAME named inset the
         // corner readouts use, not a second reading of the same 8px.
-        let block_top = height as f32 - block_h - self.metrics.px_physical(super::readout::CANVAS_INSET);
+        let block_top =
+            height as f32 - block_h - self.metrics.px_physical(super::readout::CANVAS_INSET);
         let breath = self.metrics.line_height * label * GUTTER_CARVE_BREATH.0;
         let top = (block_top - breath).max(0.0);
         Some([0.0, top, layout.avail, height as f32])
@@ -356,8 +357,9 @@ impl TextPipeline {
         // readouts): name over project. Each line is RIGHT-aligned within
         // `[0, avail]`, so its ink hugs the column at the right edge.
         let lines_n = layout.line_count();
-        let block_top =
-            height as f32 - row_h * lines_n - self.metrics.px_physical(super::readout::CANVAS_INSET);
+        let block_top = height as f32
+            - row_h * lines_n
+            - self.metrics.px_physical(super::readout::CANVAS_INSET);
         // The gutter's own LABEL advance (its glyphs are the doc advance × LABEL).
         let label_char_w = self.metrics.char_width * label;
         let push_line = |seeds: &mut Vec<[f32; 4]>, text: &str, row: f32| {
@@ -408,7 +410,8 @@ impl TextPipeline {
         let lines = layout.line_count();
         // The SAME bottom-anchor inset `prepare_gutter` draws from, so a hit-test
         // agrees with the pixels rather than re-deriving a second reading of it.
-        let top = height as f32 - row_h * lines - self.metrics.px_physical(super::readout::CANVAS_INSET);
+        let top =
+            height as f32 - row_h * lines - self.metrics.px_physical(super::readout::CANVAS_INSET);
         if px < 0.0 || px > layout.avail || py < top || py >= top + row_h * lines {
             return None;
         }
