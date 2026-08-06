@@ -263,7 +263,7 @@ mod tests {
         "main/run.rs",
         "main/tests/caret_mode.rs",
         "main/tests/visual_motion.rs",
-        "probe.rs",
+        "probe/tests.rs",
         "render/benchsuite/scenarios.rs",
         // `--bench-a11y` only READS `temp_dir()` as an App root; it creates no
         // directory and writes nothing, so there is nothing to clean up. Live
