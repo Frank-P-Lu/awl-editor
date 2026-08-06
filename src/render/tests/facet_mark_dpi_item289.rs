@@ -1,13 +1,13 @@
 //! ITEM 289 — `FacetStyle::Text` and `ChipVariant::Underline` drew their
 //! active-lens mark's THICKNESS in raw device pixels while every other term of
 //! the same rect (position, span) crossed the `Logical` -> `Metrics::px`
-//! boundary. Item 242 named this class and gave it one rule — author in
-//! logical units, multiply once at the boundary — and these two dials never
-//! got the memo: on a 2x panel the mark's x/y/width doubled and its height
-//! stayed put, so the mark rendered at half its tuned weight on every Retina
-//! display. `--capture-dpi 1` is the one scale every ordinary capture runs at,
-//! and it is the one scale at which the bug is invisible — so every claim here
-//! sweeps 1x AND 2x explicitly.
+//! boundary — the chrome-pixel-space rule (author in logical units, multiply
+//! once at the boundary; see `chrome_pixel_space_item242`) with two dials that
+//! never got the memo: on a 2x panel the mark's x/y/width doubled and its
+//! height stayed put, so the mark rendered at half its tuned weight on every
+//! Retina display. `--capture-dpi 1` is the one scale every ordinary capture
+//! runs at, and it is the one scale at which the bug is invisible — so every
+//! claim here sweeps 1x AND 2x explicitly.
 //!
 //! Two claims:
 //!   1. THE DRAWN RESULT — the actual rendered ink band, measured in PNG-frame
@@ -86,7 +86,7 @@ fn mark_rect(
 /// rather than a binary row count. A rasterizer's anti-aliasing kernel has a
 /// roughly FIXED width in device pixels, so it adds a near-constant halo to
 /// every stroke regardless of scale — negligible against a thick quantity
-/// (item 242's card-edge inset, tens of px) but not against a stroke only a
+/// (a card-edge inset measured in tens of px) but not against a stroke only a
 /// few px thick, where a binary "does this row differ from ground" threshold
 /// over- or under-counts the halo differently at each tier and never
 /// converges on a clean 2x ratio. Summing each row's fractional COVERAGE

@@ -7,18 +7,16 @@ use crate::render::rotated_location::LOCATION_SCALE;
 /// the baseline for every chrome/mono/display face without striking the glyphs.
 const UNDERLINE_BASELINE_DROP: Logical = Logical(2.0);
 
-/// Stroke weight of the `FacetStyle::Text` active-lens hairline. ITEM 289: this
-/// was a bare device-pixel literal, so on a 2x panel every other term of the
-/// mark's rect doubled (position, span) while the rule itself stayed at its 1x
-/// weight — half its tuned thickness on Retina. `Logical` + `Metrics::px` is
-/// the same boundary every other chrome length in this file already crosses.
+/// Stroke weight of the `FacetStyle::Text` active-lens hairline. `Logical` +
+/// `Metrics::px` is the same pixel-space boundary every other chrome length
+/// in this file crosses, so this stroke scales with every other term of its
+/// own rect (position, span) rather than staying a fixed device size.
 const TEXT_MARK_THICKNESS: Logical = Logical(1.5);
 
 /// Stroke weight of the `FacetStyle::Chips(ChipVariant::Underline)` active-lens
-/// mark. Same item, same bug, the OTHER dial: a chip skin's underline is
-/// drawn thicker than the plain `Text` hairline so it still reads as a chip
-/// rather than a rule, but it was authored as an equally bare device-pixel
-/// literal and needs the identical `Logical` + `Metrics::px` crossing.
+/// mark — thicker than the plain `Text` hairline so it still reads as a chip
+/// rather than a rule, but crossing the same `Logical` + `Metrics::px`
+/// boundary.
 const UNDERLINE_CHIP_THICKNESS: Logical = Logical(3.5);
 
 impl TextPipeline {
