@@ -295,6 +295,28 @@ on a routine refactor means the brief was wrong, not the code.
 4. **Landing notes are one or two sentences plus the sha.** Record a surprise if
    the item's premise was wrong — that is what a later reader needs. Do not
    restate the work; `git log -p` has it.
+5a. ⚠️ **THE "DIFF BEFORE COMMITTING" CHECK BELOW HAS A BLIND SPOT THAT HAS NOW
+   EATEN THE BOARD A THIRD TIME: it looks at ITEM lines, and what gets lost is
+   SECTIONS.** Measured 2026-08-06: a script retiring three closed item bodies
+   deleted the TRIPWIRE, Decided against, Parked, Monitoring and Release-blockers
+   sections in one go, because the last closed item was the last numbered item on
+   the board and the loop that skips a body "until the next numbered line" ran to
+   EOF. The diff was checked — for `^\d+\.` lines, exactly as §5 says — and that
+   filter is structurally incapable of showing a dropped `## ` heading.
+
+   **So the census is of HEADINGS, not items, and it runs after every board write:**
+
+   ```sh
+   grep -c '^## ' .orchestrator/queue.md      # expect the same count as before
+   grep '^## ' .orchestrator/queue.md         # and the same names
+   ```
+
+   And when restoring, **verify byte-identity of the restored region rather than its
+   mere presence** — a heading can come back with its body truncated. This is the
+   same failure as the BLOCKED heading's two silent deletions, from a third script;
+   prefer an anchored replacement of one known block over any loop that scans
+   forward for a terminator it might never find.
+
 5. **Reread at HEAD before every board write, and diff before committing.**
    Two orchestrators share this file, and a scripted rewrite drops items
    without saying so. Confirm the diff touches the lines you intended and no
