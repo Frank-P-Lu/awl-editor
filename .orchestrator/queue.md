@@ -1889,3 +1889,21 @@ working tree directly, or `git show :<path>` / `git cat-file` the index entries.
 **And verify a merge landed as a merge:** `git log --format=%p -1 <sha>` must
 show two hashes. This one was caught only because a routine worktree-cleanup
 check asked whether the branch was an ancestor and got NO.
+
+**PARALLEL WAVE 2026-08-06 — three lanes, partitioned by FILE, not by topic.**
+The partition is the reason they can run together, so it is written down:
+
+| lane | owns | tier |
+|---|---|---|
+| **228** — version 0.9.0 + prerelease flag | `Cargo.toml`, `.github/workflows/{release,deploy-web}.yml`, `RELEASING.md`, `README.md`, `site/**`, `scripts/package-linux.sh` | Sonnet, medium |
+| **226 §5** — glibc build base | Docker experiment; `Dockerfile.linux` if anything. **Explicitly barred from `release.yml`/`RELEASING.md`** — 228 holds them; its workflow diff is reported verbatim for the orchestrator to apply after | Sonnet, medium |
+| **172** — next `App` state domain | `src/app/**` and call sites. **Explicitly barred from `src/render/**` and `src/theme/**`** | Opus, high |
+
+⚠️ **`src/render/**` and `src/theme/**` are HELD by item 271's unmerged prototype
+branch (22 files).** That is the real cost of holding 271 pending the user's
+taste call, and it is why 222/131d, 247 and 174 were NOT dispatched this wave —
+every one of them lands in exactly those trees. **They unblock the moment 271 is
+merged or abandoned.**
+
+**275 remains unschedulable in parallel by its own terms** — ~1000 comment sites
+across the tree, conflicts with everything, must run alone against a quiet tree.
