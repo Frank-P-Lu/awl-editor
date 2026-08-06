@@ -14,8 +14,12 @@ COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 # assets/ (embedded fonts + dictionaries) and shaders/ (wgsl) are pulled in at
 # COMPILE time via include_bytes!/include_str! — the build fails without them.
+# So are these top-level docs, samples/, and two site/ pages (embedded_docs.rs).
 COPY assets ./assets
 COPY shaders ./shaders
+COPY samples ./samples
+COPY GUIDE.md REFERENCE.md WORLDS.md CREDITS.md CAPTURE.md PHILOSOPHY.md ./
+COPY site/reference.html site/guide.html ./site/
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
     cargo build --release && cp /src/target/release/awl /awl
