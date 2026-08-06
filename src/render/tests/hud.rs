@@ -104,6 +104,13 @@ fn hud_report_figures_and_held_tracks_the_global() {
 /// open theme picker nor forces the frost that would defeat the picker's crisp
 /// live-color preview. (Regression for the "HUD renders on top of the picker"
 /// live bug.)
+///
+/// THE FROST HALF IS ASKED OF THE WHOLE ROSTER, and about the FULL-canvas frost
+/// specifically. A crisp picker may now frost its OWN FOOTPRINT on a world whose list
+/// composition backs its rows with nothing, so "no frost at all" is a fact about the
+/// ambient world rather than about the HUD — and this law ran under whatever world the
+/// process happened to be in. What the HUD must never do, on any world, is force the
+/// full-canvas takeover frost over an open picker.
 #[test]
 fn hud_showing_yields_to_an_open_overlay() {
     let _g = crate::testlock::serial();
@@ -121,8 +128,8 @@ fn hud_showing_yields_to_an_open_overlay() {
     assert!(p.hud_showing(), "held + no overlay => the HUD shows");
 
     // HUD still held, but a CRISP overlay (the theme picker) is open => the HUD
-    // yields: nothing HUD-shaped draws, and it contributes NO backdrop blur, so
-    // the picker keeps its crisp live-color preview.
+    // yields: nothing HUD-shaped draws, and it contributes NO full-canvas frost, so
+    // the picker keeps the live colours around its card.
     let mut over = view("hello world\n", 0, 0);
     over.overlay_active = true;
     over.overlay_crisp = true;
@@ -131,10 +138,19 @@ fn hud_showing_yields_to_an_open_overlay() {
         !p.hud_showing(),
         "held + overlay open => the HUD is suppressed"
     );
-    assert!(
-        !p.backdrop_blur(),
-        "a crisp overlay + a suppressed HUD leaves the frame unblurred (crisp preview intact)"
-    );
+    let entry = crate::theme::active_index();
+    for t in crate::theme::THEMES.iter() {
+        crate::theme::set_active_by_name(t.name).unwrap();
+        p.set_view(&over);
+        assert!(
+            !p.full_frost(),
+            "{}: a crisp overlay + a suppressed HUD must never reach the FULL-canvas \
+             frost — the page around the card keeps its live colours",
+            t.name
+        );
+    }
+    crate::theme::set_active(entry);
+    p.set_view(&over);
 
     // Close the overlay while the key is STILL held => the HUD reappears.
     p.set_view(&plain);

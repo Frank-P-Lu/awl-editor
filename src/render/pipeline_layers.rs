@@ -25,12 +25,17 @@ impl TextPipeline {
 
     /// Record the clear + text/caret draw into `encoder`, targeting `view`.
     ///
-    /// Two paths. For the COMMON case (no overlay, the search SPLIT panel, OR a crisp
+    /// Two paths. For the COMMON case (no overlay, the search SPLIT panel, or a crisp
     /// THEME/CARET picker) everything composites in ONE pass over the cleared view —
     /// byte-identical to before, so a non-overlay document capture is unchanged. For a
     /// blur-eligible full overlay the document is rendered ONCE to an offscreen
     /// texture, blurred (only when [`Self::blur_recompute`] — else the cache stands),
     /// and the frosted result is composited behind the overlay card in the final pass.
+    ///
+    /// A crisp picker whose composition backs its rows with nothing takes the COMMON
+    /// path and then composites that same frosted capture over the crisp document,
+    /// scissored to the card's footprint (`blur::Frost::Footprint`): the document keeps
+    /// its live colours everywhere the card is not.
     ///
     /// # THE COMPARISON SITS *ON* THE WORKSPACE SURFACE
     ///
@@ -76,21 +81,26 @@ impl TextPipeline {
         // at the page column it would fall back to nor into the capture the blur
         // frosts, where it would ghost a comparison the user is not looking at.
         let parked = self.transcript_parked();
-        if self.backdrop_blur() {
-            // 1) Capture the document into the offscreen texture + blur it — but ONLY
-            //    when the cached backdrop is stale (a fresh open / resize / doc or
-            //    theme change). A settled overlay-open (or HUD-held) frame skips straight
-            //    to the composite, re-blurring nothing (DESIGN §6).
-            if self.blur_recompute {
-                if let Some(doc_view) = self.blur.doc_view() {
-                    let mut pass = Self::begin_clear_pass(encoder, doc_view);
-                    match relocated || parked {
-                        true => self.draw_document_ground(&mut pass),
-                        false => self.draw_document_layers(&mut pass)?,
-                    }
+        // 1) Capture the document into the offscreen texture + blur it — but ONLY when
+        //    the cached backdrop is stale (a fresh open / resize / doc or theme change).
+        //    A settled overlay-open (or HUD-held) frame skips straight to the composite,
+        //    re-blurring nothing (DESIGN §6). Shared by BOTH frost extents: a footprint
+        //    frost blurs the same whole-document capture and simply composites less of
+        //    it, so the capture arm has one shape rather than two.
+        let frosted = self.backdrop_blur();
+        if frosted && self.blur_recompute {
+            if let Some(doc_view) = self.blur.doc_view() {
+                let mut pass = Self::begin_clear_pass(encoder, doc_view);
+                match relocated || parked {
+                    true => self.draw_document_ground(&mut pass),
+                    false => self.draw_document_layers(&mut pass)?,
                 }
-                self.blur.encode_blur(encoder);
             }
+            self.blur.encode_blur(encoder);
+        }
+        if self.full_frost() {
+            // THE FULL TAKEOVER: the frosted backdrop REPLACES the document layer
+            // outright — the document is never drawn into the final view at all.
             let mut pass = Self::begin_clear_pass(encoder, view);
             self.blur.draw_backdrop(&mut pass);
             self.draw_overlay_card(&mut pass)?;
@@ -110,6 +120,15 @@ impl TextPipeline {
         // no depth buffer (depth_stencil: None everywhere) so painter's order == draw
         // submission order.
         if self.overlay_active {
+            // A FOOTPRINT FROST composites the frosted capture over the crisp document
+            // it was taken from, scissored to the card's own box — so the page outside
+            // that box is the live document, untouched, and the rows inside it no longer
+            // interleave with prose. Between the document and the card in painter's
+            // order, because it is the card's own backdrop. `full_frost` has already
+            // returned above, so a frost still standing here is a footprint.
+            if frosted {
+                self.blur.draw_backdrop(&mut pass);
+            }
             self.draw_overlay_card(&mut pass)?;
             // …and the COMPARISON composites over the card, into the region the card
             // carved for it. `relocated` already implies `overlay_active`.
