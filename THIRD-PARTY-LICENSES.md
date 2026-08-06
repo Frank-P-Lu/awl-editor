@@ -7461,7 +7461,7 @@ express Statement of Purpose.
 **SPDX identifier:** `GPL-3.0-only`
 
 **Used by:**
-- awl 0.1.0
+- awl 0.9.0
 
 <details>
 <summary>License text</summary>
