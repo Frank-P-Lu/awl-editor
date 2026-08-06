@@ -260,8 +260,8 @@ lines = 549
 
 [[file_size_mark]]
 file = "src/probe.rs"
-lines = 900
-reason = "Two test-only doors (arm/disarm) so a law can assert over the recorder's own lines rather than a reimplementation of them; the recorder is the one owner of every trace print. +75: the movement-latency recorder now QUEUES one pending mark per step instead of overwriting a single slot, and carries the swept law that pins it — a burst of N must report n=N, proven at N = 1, 2, 3, 8 and 9 under the zero-gap arrival order (every mark before any present), which is the only shape that can observe the collapse; the tidy alternating shape passes against the bug. The overwrite once reported n=1 for an 8-input burst and put a figure two orders of magnitude low on the board, so the law and the expanded doc comments explaining the arrival order are the deliverable, not overhead."
+lines = 628
+reason = "Two test-only doors (arm/disarm) so a law can assert over the recorder's own lines rather than a reimplementation of them; the recorder is the one owner of every trace print. The inline `mod tests` is carved out to the sibling `src/probe/tests.rs`, which `production()` exempts by design — its own comment notes that counting a sibling `tests.rs` as production would defeat the point of carving one out — so this mark now measures production code alone and ratchets 825 -> 628."
 
 [[file_size_mark]]
 file = "src/prosediff.rs"
