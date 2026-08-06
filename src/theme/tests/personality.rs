@@ -310,7 +310,7 @@ fn personality_assignments_are_exactly_the_decided_table() {
 /// per-`Theme` field — so this is the one place that fails if its values drift
 /// from the decided shape.
 #[test]
-fn bar_config_shipped_is_the_flip_round_hug_all_hybrid() {
+fn bar_config_shipped_is_the_hug_all_hybrid() {
     assert_eq!(
         model::BarConfig::SHIPPED,
         model::BarConfig {

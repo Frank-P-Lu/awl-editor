@@ -462,7 +462,7 @@ fn at_least_six_distinct_faces() {
 /// (they resolve) and `..::bullet_glyph_never_touches_the_following_text_in_any_world`
 /// (they never touch the text) cover the appearance half.
 #[test]
-fn mopoke_body_face_is_bitter_with_the_item_30_bullet_triple() {
+fn mopoke_body_face_is_bitter_with_the_bullet_triple() {
     assert_eq!(
         MOPOKE.font, "Bitter",
         "Mopoke's body face is the warm slab Bitter"

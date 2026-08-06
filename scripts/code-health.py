@@ -41,6 +41,27 @@ CITATION_KEYWORD = re.compile(r"\b(?:item|round)\s+\d+", re.IGNORECASE)
 CITATION_SHA = re.compile(r"`([0-9a-f]{7,40})`")
 # Index-named test modules may use their filename as a durable test-family key.
 TEST_FILENAME_ITEM_INDEX = re.compile(r"_item\d+[a-z]?\.rs$", re.IGNORECASE)
+# Same shape, capturing: the number itself, for checking it against real items.
+TEST_FILENAME_ITEM_NUMBER = re.compile(r"_item(\d+)[a-z]?\.rs$", re.IGNORECASE)
+# A still-open board entry, `.orchestrator/queue.md`'s own numbering.
+QUEUE_ITEM_HEADER = re.compile(r"^(\d+)\.", re.MULTILINE)
+# A closed item's compressed record: git log carries what queue.md no longer
+# does (CLAUDE.md: "git log -p ... is the history, and .orchestrator/queue.md
+# is the work"). Matches the whole numeric-list span after "item"/"items",
+# not just one number: measured against this repo's actual history, commit
+# prose cites items as "item 9", "items 108 and 127", "items 222 + 223",
+# "items 222/223", "items 140-144", "items 121, 161 and 132" — items 127 and
+# 223 are real and were NEVER once cited in the singular, only inside a
+# plural list, so a single-number pattern silently drops them (measured
+# false positive: this check failed on both, live, before this pattern
+# widened). A hyphenated range's own interior numbers are not expanded (they
+# are, empirically, always also cited individually elsewhere in this
+# history), and a stray unrelated number immediately following ("item 9 -
+# 300ms") can be swept in too — an over-inclusive real-item set only
+# weakens the floor this check raises, it can never turn a real citation
+# into a false failure, which is the direction that actually breaks a
+# developer's build.
+LOG_ITEM_LIST = re.compile(r"\bitems?\b(?:[\s,/+&-]*(?:and\s+)?\d+)+", re.IGNORECASE)
 # Capture schema rows are a live append-only protocol ledger.
 CAPTURE_SCHEMA_ROW = re.compile(r"^\s*///\s*`/\d+`")
 
@@ -62,7 +83,7 @@ def is_index_named_test_file(path: str) -> bool:
 def is_index_named_test_citation(path: str, text: str) -> bool:
     if not is_index_named_test_file(path) or CITATION_SHA.search(text):
         return False
-    filename_match = re.search(r"_item(\d+)[a-z]?\.rs$", Path(path).name, re.IGNORECASE)
+    filename_match = TEST_FILENAME_ITEM_NUMBER.search(Path(path).name)
     cited = re.findall(r"\bitem\s+(\d+)", text, re.IGNORECASE)
     return bool(filename_match and cited) and all(
         number == filename_match.group(1) for number in cited
@@ -88,6 +109,60 @@ def baseline(path: str) -> list[str]:
         return git("show", f"{BASELINE}:{path}").splitlines()
     except subprocess.CalledProcessError:
         return []
+
+
+def real_item_numbers() -> set[str]:
+    """Every item number the board has ever actually carried: still-open
+    entries in `.orchestrator/queue.md` (`QUEUE_ITEM_HEADER`), plus every
+    number git log's commit messages cite as an item (`LOG_ITEM_LIST`) — the
+    compressed record CLAUDE.md says a closed item moves to. Grepped, not
+    hardcoded: an invented allowlist would just be a second unverified source
+    of truth standing in for the first one.
+    """
+    numbers: set[str] = set()
+    queue_path = ROOT / ".orchestrator/queue.md"
+    if queue_path.exists():
+        numbers.update(QUEUE_ITEM_HEADER.findall(queue_path.read_text()))
+    try:
+        log_text = git("log", "--format=%B")
+    except subprocess.CalledProcessError:
+        log_text = ""
+    for match in LOG_ITEM_LIST.finditer(log_text):
+        numbers.update(re.findall(r"\d+", match.group()))
+    return numbers
+
+
+def check_index_named_test_files(real_items: set[str]) -> list[str]:
+    """`TEST_FILENAME_ITEM_INDEX` exempts an index-named test file's internal
+    citations from the comment-citation ratchet on the strength of the
+    filename alone, but the ratchet only ever looks at newly-ADDED comment
+    lines — a file whose citation lives ONLY in its filename, with no
+    in-body `item N` line to ratchet against, is invisible to it for its
+    entire life (`world_pin_item254.rs` carried no such line and so was
+    never checked by anything). This runs over every tracked index-named
+    test file, every run, and fails one whose number is not a real item
+    anywhere in the board's two halves. It cannot tell a wrong-but-real
+    number from the right one (94 vs. 254 are both real items) — that is a
+    semantic call about the file's own content, not a fact `git log` states;
+    it catches a fabricated or mistyped number, which the exemption
+    previously accepted unconditionally.
+    """
+    failures: list[str] = []
+    for path in sorted(tracked_rust()):
+        if not is_index_named_test_file(path):
+            continue
+        match = TEST_FILENAME_ITEM_NUMBER.search(Path(path).name)
+        if not match:
+            continue
+        number = match.group(1)
+        if number not in real_items:
+            failures.append(
+                f"{path}: filename cites item {number}, which is not a real item "
+                "number in .orchestrator/queue.md or git log — an index-named test "
+                "file's number must point at something real, not merely be a "
+                "well-formed digit string"
+            )
+    return failures
 
 
 def production(path: str) -> bool:
@@ -1371,6 +1446,61 @@ def self_test() -> int:
         "src/render/tests/backgrounds_item158.rs", "// item 99: unrelated history"
     ):
         raise AssertionError("an index-named test must not excuse a different item")
+    # `real_item_numbers()`/`check_index_named_test_files()`: the exemption's
+    # missing half. The self-consistency check above only tells whether a
+    # citation matches its OWN filename, never whether that number is real —
+    # `world_pin_item254.rs` was self-consistent (254 named itself) and
+    # wrong (94 was the item), a distinction this fixture proves the new
+    # check can draw for a fabricated number even though it cannot draw it
+    # between two real ones (94 vs. 254 both being real items is exactly
+    # the residual gap named in its docstring).
+    with tempfile.TemporaryDirectory() as directory:
+        root = ROOT
+        try:
+            globals()["ROOT"] = Path(directory)
+            git("init", "-q")
+            git("config", "user.email", "code-health-selftest@example.com")
+            git("config", "user.name", "code-health-selftest")
+            orch = Path(directory) / ".orchestrator"
+            orch.mkdir()
+            (orch / "queue.md").write_text("5. an open board item, still in queue.md\n")
+            tests_dir = Path(directory) / "src/widget/tests"
+            tests_dir.mkdir(parents=True)
+            (tests_dir / "open_item5.rs").write_text("// nothing to see\n")
+            (tests_dir / "closed_item7.rs").write_text("// nothing to see\n")
+            (tests_dir / "plural_item12.rs").write_text("// nothing to see\n")
+            (tests_dir / "invented_item999999.rs").write_text("// nothing to see\n")
+            (tests_dir / "nits.rs").write_text("// not index-named at all\n")
+            git("add", "-A")
+            git("commit", "-q", "-m", "fixture: item 7 closed and compressed to history only")
+            # A closed item cited only ever in a PLURAL list ("items 8 and
+            # 12") must still register — this is the exact shape that let
+            # real items 127 and 223 slip through an earlier, singular-only
+            # version of this pattern on the real repo.
+            git(
+                "commit",
+                "-q",
+                "--allow-empty",
+                "-m",
+                "fixture: items 8 and 12 landed together, never cited singly",
+            )
+            real_items = real_item_numbers()
+            if not {"5", "7", "8", "12"} <= real_items:
+                raise AssertionError(
+                    f"real_item_numbers must find the open queue.md entry, the singly-cited "
+                    f"closed one, and both halves of a plural list citation: {real_items!r}"
+                )
+            if "999999" in real_items:
+                raise AssertionError("real_item_numbers must not invent membership")
+            failures = check_index_named_test_files(real_items)
+            failing_paths = {f.split(":", 1)[0] for f in failures}
+            if failing_paths != {"src/widget/tests/invented_item999999.rs"}:
+                raise AssertionError(
+                    f"only the fabricated item number must fail, both the still-open and "
+                    f"the closed-and-compressed real numbers must pass: {failures}"
+                )
+        finally:
+            globals()["ROOT"] = root
     schema_row = "/// `/188` — permissive replay `replay_skips`."
     if not is_capture_schema_history_row("src/capture.rs", schema_row):
         raise AssertionError("capture.rs's own schema-history row shape must be recognized")
@@ -1734,6 +1864,7 @@ def main() -> int:
     allowed, structural_failures = structural_exceptions()
     failures.extend(structural_failures)
     failures.extend(check_structural(allowed, file_size_marks, mark_reasons))
+    failures.extend(check_index_named_test_files(real_item_numbers()))
     previous, previous_status = previous_marks()
     if previous_status == "unresolvable":
         print(
