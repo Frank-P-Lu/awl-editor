@@ -235,6 +235,17 @@ on a routine refactor means the brief was wrong, not the code.
    integration time, not only in a design session — where it was filed, it
    read as scoped to brainstorming and got missed.
 
+8. **Partition parallel lanes by FILE, but treat a hold as a DEBT, not a
+   boundary.** The partition is what lets several lanes run at once without
+   collision, and its bill is duplicated shapes: one lane duplicated a chrome
+   geometry because another held the file it would otherwise have called into,
+   and said so in its own module doc. A later lane could then not wire its
+   headline at all, because the call site sat in a held file — and it correctly
+   **reported the block rather than inventing a second owner.** A route around a
+   lock is a worse design adopted only to dodge the lock. **When a lane says it
+   needs a held file, sequence the two. Two lanes that both need one file are one
+   lane.**
+
 Only the orchestrator writes the board, from the main working tree. Workers
 report shas and outcomes.
 

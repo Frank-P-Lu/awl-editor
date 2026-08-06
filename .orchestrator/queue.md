@@ -1,2219 +1,836 @@
 # awl — live build queue
 
-> Live execution state only. Completed and superseded work is in git history
-> (`git log -p .orchestrator/queue.md`). Protocol, claiming, worktrees, and
-> execution hygiene live in `.orchestrator/README.md`.
-
-## ✅ RELEASE PIPELINE — REPAIRED, AND PROVED BY EXECUTION 2026-08-04
-
-**All four of item 226's defects are fixed in the tree AND proved by a real
-run, not by reading.** Dry run `30877600332` (`workflow_dispatch`) was the FIRST
-run of `release.yml` since 2026-07-11, and therefore the first since the repairs
-landed at `3160e309`: **green on all four jobs** — `plan`, `linux`, `mac`,
-`web` — with `publish` correctly SKIPPED and one expected annotation (no Apple
-secrets → unsigned `.app`).
-
-**The artifact was downloaded and opened rather than trusted:** `sha256sum -c`
-OK, and the tarball carries `LICENSE`, `NOTICE`, `CREDITS.md`,
-`THIRD-PARTY-LICENSES.md`, `GLIBC.txt`, `README.txt` and both
-`licenses/{fonts,dict}-LICENSES.md`, with the GPLv3 §6(d) source offer at
-`README.txt:43`.
-
-⚠️ **ONE DEFECT RIDES TO THE TAG AS A KNOWN, and it cannot be otherwise.**
-`publish`'s `contents: write` is correct in the file but is exercised **only by
-a real tag push**, because dry runs skip that job. That is the same blind spot
-that hid it originally — it was found by reading the API, and nothing but a tag
-can confirm the fix. **Watch that job on the first tag.**
-
-**What a tag ships TODAY: Linux only, by design.** `mac` and `web` build on a
-dry run — that is what keeps the pipeline honest — and are SKIPPED on a tag, so
-an unsigned `.app` can never reach a public Release by accident. macOS ships
-once Apple signing + notarization are configured (`RELEASING.md` §1).
-
-**Three things must still be decided before a tag, all the user's** — they are
-in the BLOCKED ON THE USER section below: the glibc support matrix (much smaller
-than it was; see there), item 228's versioned artifact names against the site's
-hardcoded unversioned URL, and the word itself.
-
-*(The four original defects — a dead sccache wrapper, `publish`'s missing
-permission, `deploy-web.yml`'s identical hole, and a tarball that would have
-shipped with no `LICENSE` — are in `git log -p` at `3160e309`. This section said
-RELEASE IS NOT SHIPPABLE TODAY until 2026-08-04; that text is history now.)*
-
-## 🔓 THE DISPLAY IS UNLOCKED — measured 2026-08-04, so the live arms are REACHABLE
-
-**Checked, not assumed:** `ioreg -n Root -d1 -a | grep -A1 CGSSessionScreenIsLocked`
-returns **nothing** — the key is absent, which is the unlocked state. This
-section read LOCKED for most of 2026-08-04 and blocked five arms; **that is no
-longer true, and the unlock is the most perishable thing on this board.**
-
-**Reachable right now:** 118's `--release` ambient sitting; 211's unoccluded
-glide confirmation; 218's and 207's VoiceOver journeys; and 244's `--release`
-judgement of whether Bowerbird's companion breathe reads as a flash.
-**241's discriminator already RAN and named its cause** — see 241's entry; its
-only residual is the user's own 4530×2756 window.
-
-⚠️ **THE TRIPWIRES SURVIVE THE UNLOCK — they are facts about the machinery, not
-about today's state, and every one of them has already cost a sitting.**
-- `displaysleep` is **10** and screensaver `idleTime` is **300**. Hold the
-  display with `caffeinate -d -i -t <seconds>`.
-- **`caffeinate` prevents sleep and CANNOT unlock a locked screen.** Offering it
-  is never a substitute for unlocking.
-- **RE-CHECK THE LOCK AT BOTH ENDS OF ANY LIVE RUN.** `--live-script` writes
-  successful-looking `LIVE-PROBE shot … ok` lines while presenting **zero
-  frames** under a lock, and `live-probe.sh` only checks in **preflight** —
-  which is exactly how the 2026-08-02 sitting was silently invalidated seven
-  minutes in.
-- **Judge feel in `--release`.** `scripts/dev-app.sh` builds release by default
-  (`--debug` is the opt-out) and is the supported way to run on macOS;
-  `--theme <World>` sets the process-global startup world and composes with it,
-  so `scripts/dev-app.sh -- --theme Bowerbird` is the whole invocation.
-
-⚠️ **SIX WORLDS MOVE, NOT FIVE — corrected 2026-08-04 against the roster.**
-`has_ambient_tick()` is lava (**Firetail**, **Mangrove**), waves (**Bombora**),
-organic (**Bowerbird**), animated stars (**Currawong**) **and WarpedGrid
-(`Kite`)**. Older prose on this board and the comment atop
-`scripts/capture-ambient-118.sh` name only the first five — they predate Kite's
-commissioning. **The script itself is correct** (it asks the binary rather than
-hard-coding the list); only the prose was stale. This matters to item 118,
-because ambient motion counts as loudness and Kite is one of the two deliberate
-5s.
-
-⚠️ **207's AT-SPI half is NOT on this list, and no unlock of this Mac reaches
-it** — AT-SPI2 is the *Linux* accessibility API (`ACCESSIBILITY.md:65`). It is
-**item 251**, and **item 257 now says 251 should not be attempted until the
-bridge defect is fixed**: there is no point putting a person in front of a
-document that exposes no content.
+> Live execution state only — **open work, owed work, and what only the user can
+> decide.** Nothing here describes something that already landed. Protocol,
+> claiming, worktrees and execution hygiene live in `.orchestrator/README.md`.
+>
+> **TO RECOVER ANYTHING THIS FILE NO LONGER CARRIES:** every completion report,
+> postmortem and closed decision through 2026-08-06 is in the board's own history
+> at `git show 0dc30706:.orchestrator/queue.md`; `git log -p
+> .orchestrator/queue.md` walks the rest, and `git log -S"<phrase>" --
+> .orchestrator/queue.md` finds who removed a given line. ⚠️ **A compression once
+> cleared an item's body while the item was still OPEN, and the reverse has also
+> happened — summary lines survived a fix that had landed underneath them. Decide
+> open-vs-done from the TREE and `git log --grep`, never from what this file says
+> about itself.**
 
 ## 🔵 BLOCKED ON THE USER — nothing else can close these
 
 ⚠️ **This section has now been silently deleted TWICE** — once by an
-orchestrator `git add -A` sweeping another tool's in-flight edit, once by the
-item-204 worker's own commit `1127673d` despite its brief forbidding board
-writes. **After every merge, verify this heading still exists.** If it is
+orchestrator `git add -A` sweeping another tool's in-flight edit, once by a
+worker's own commit despite its brief forbidding board writes. **After every
+merge and every compression, verify this heading still exists.** If it is
 missing, `git log -S"BLOCKED ON THE USER" -- .orchestrator/queue.md` finds who
 took it.
 
-1. **118 — ✅ THE MAP IS IN, given by the user directly 2026-08-04; the full
-   table and its analysis are in item 118's body.** All twenty worlds scored.
-   **Three things remain, and only the first is a blocker:**
-   **(a) 🔴 A DIRECTION CALL, and it is the real finding.** The confirmed map
-   means **2.15–2.20** against this item's own target shape of **2.90**, with
-   **eight or nine 1/5s where the target wants one** and **two 3/5s where it
-   wants six**. The item's diagnosis "the gap is the middle, not more 5s" is
-   confirmed and far larger than estimated. **Raise ~7 worlds toward 3, or amend
-   the target shape to match awl's actual calm bias?** Both 5s are already
-   exactly where the roster wants them. The item forbids turning up a world
-   merely to fill a bin, so amending the shape is a real answer.
-   **(b) Magpie is "a one or a two"** — the one unresolved score; one word
-   closes it.
-   **(c) ✅ THE LIVE AMBIENT SITTING IS DONE, 2026-08-04: "the movement worlds
-   are good".** All six moving worlds — Firetail, Mangrove, Bombora, Bowerbird,
-   Currawong and Kite — confirmed in the live app, so the ambient worlds' scores
-   are formed live and are no longer provisional. **Item 118's remaining work is
-   therefore (a) alone**, plus dispositioning its six standing proposals.
-   ⚠️ **ONE THING CARRIED OUT OF THAT SITTING, USER-OWNED AND DELIBERATELY NOT
-   QUEUED: the user is "still not happy with Kite" and said "I'll fix that
-   later".** Recorded so it is neither lost nor acted on. **This is NOT a
-   loudness complaint** — Kite is a confirmed, deliberate 5/5 and one of the two
-   statement worlds, and that call has now been made three times. **What the user
-   is unhappy about is unspecified, and no lane should guess it or design a fix.**
-   If it becomes work it gets its own item, from the user's own words, exactly as
-   Mulga's ground did.
-2. **The tag itself, and the site deploy.** Both are the user's explicit word,
-   every time. The release section above says what is true today and what one
-   defect necessarily rides to the tag unproven.
-3. **The release support matrix (item 226 §5) — the glibc floor. MUCH SMALLER
-   THAN `RELEASING.md`'s TABLE IMPLIES, and half-measured already.** The
-   2026-08-04 dry run's artifact was parsed for ELF version requirements:
-   **exactly two symbols need 2.39 — `pidfd_spawnp` and `pidfd_getpid`** — and
-   everything else tops out at **GLIBC_2.35**. Those two are Rust std's
-   **OPTIONAL** pidfd spawn path, picked up only because the build host had
-   glibc 2.39; std falls back to fork/exec without them. So `ubuntu-22.04`
-   (2.35) or `debian:bookworm` (2.36) plausibly costs **no feature at all**
-   while adding Ubuntu 22.04 LTS and Debian 12. ⚠️ **Bounded honestly: that is
-   what the binary REQUIRES, not proof that an older base BUILDS, and no
-   2.35-built binary has been run anywhere.** One `workflow_dispatch` dry run on
-   an older build base closes both gaps — but `release.yml`'s only input is
-   `dry_run`, so **the base change must land first**; then
-   `gh workflow run release.yml -f dry_run=true` and read the produced
-   `GLIBC.txt`. If it comes back clean, the "decide it together with item 227's
-   AppImage" coupling retires.
-4. **✅ RESOLVED 2026-08-06 — item 228 takes the version, and the conflict that
-   gated it was FALSE.** The user chose `0.9.0` in artifact names. The claimed
-   collision with a hardcoded `/releases/latest/download/` URL **does not
-   exist**: no tracked file has ever hardcoded it — the site and README link to
-   the releases *page*, and the unversioned name lives only in the two producers
-   plus two `tar xzf` snippets. See §"Design decisions — user, 2026-08-06" and
-   the corrected `RELEASING.md:277`.
-   ⚠️ **228 is still not buildable, for a DIFFERENT reason — do not dispatch
-   it.** Its own body gates the build: *"update `Cargo.toml` and all
-   version-bearing release surfaces together **only when the release-preparation
-   work is green and the user authorizes the public tag**"*. That authorization
-   has not been given, and CLAUDE.md requires it every time. **What changed is
-   the reason, not the status.**
+1. **THE SITE IS STALE AGAINST THE PUBLISHED RELEASE.** Measured 2026-08-06
+   straight off the live host: `curl -s https://awl.computer/version.json` returns
+   `{"version": "0.0.0", "prerelease": true}` — the "no tagged release yet"
+   placeholder — so the live Check-for-Updates page tells visitors no release
+   exists **while `v0.9.0` is public**. The landing page's `tar xzf` snippet is
+   stale too. ⚠️ **`deploy-web.yml` cannot be run: NO repository secrets are
+   configured at all** (`gh api …/actions/secrets` returns an empty list), so
+   `FLY_API_TOKEN` is absent and the workflow fails on its first step — which is
+   the deliberate design (RELEASING.md §2), not a bug. **One
+   `gh secret set FLY_API_TOKEN` and one `gh workflow run deploy-web.yml` closes
+   it**, and both are the user's to run. Once deployed, `version.json` picks up
+   `0.9.0` with `prerelease: false` — the correct value, since that field means
+   "a tag exists" rather than beta-vs-stable.
+2. **KITE'S VEIL STRENGTH, and whether the crossing reads as intended.** One
+   constant, `WARP_PAGE_VEIL = **0.13**` — ⚠️ **read out of the shader, not out
+   of the lane's report, which said `0.20`. A figure owed to a taste call must be
+   the one in the product.** Captures are in the lane's worktree at
+   `gallery/item-268/` (`final/room/Kite.png`, `final/frame/Kite.png`, the
+   two-tunnel `baseline/k-m66-d1.png`, rejected chrome variants in `chrome/`).
+3. **WHICH WORLD ADOPTS `ListStyle::Rules` NEXT** — deliberately out of item
+   283's scope. See item 283's handback below for what a second carrier needs
+   first.
+4. **ITEM 261's OPEN CALL: delete-outright vs a `cfg(test)` fixture.** The lane
+   took the delete branch for `DeckleAnchor::Page`'s mutation witness and
+   replaced the counterexample with a direct assertion that cannot go vacuous.
+   **The user has not ruled between the two shapes. Reverting is re-adding one
+   small shader function.**
+5. **THE MULGA AND MAGPIE GROUNDS WANT A VISUAL JUDGE** — see the 🔵 OWED
+   section; both are new grounds landed on arithmetic plus one taste call.
+6. **KITE'S FACET TAG.** Its doc comment calls Kite a *"technical room"* but its
+   only facet tag is `voice: Modern` — **Technical belongs to Cassowary.** The
+   prose identity and the picker facet disagree. Changing it is a picker-facet
+   decision (the bands are curated and capped), so it is the user's call.
+7. **THE NARROW HISTORY COMPARISON STAGE DRAWS NO FOOTER** — `show_rows` false →
+   `hint_rows` 0, so nothing teaches `tab back` / `esc close` at ~900×520 and
+   below. A discoverability hole left deliberately when the workspace landed, and
+   arguably a taste call about spending vertical space on a stage that has little.
+   *(Its sibling gap — the narrow timeline column eliding mid-word on
+   Mangrove/Magpie — is not a user call; it is owned by item 131e.)*
+8. **The macOS release arm** — Apple signing secrets, per `RELEASING.md` §1.
+9. **Further tags and the site deploy.** Both are the user's explicit word, every
+   time.
 
-## Latest design decisions
+✅ **CLOSED HERE 2026-08-06 — item 118's direction call. THE TARGET SHAPE IS
+DROPPED.** The user's words: *"i think we just drop the target. it's fine, right
+now."* The roster's measured mean of **2.20** is accepted as awl's shape rather
+than a shortfall against the aspirational 2.90, consistent with PHILOSOPHY's
+calm bias. **`1, 7, 6, 4, 2` / mean 2.90 is retired**; it is not amended, not
+restated, and not replaced by a descriptive one. Recorded in item 118's body as
+well as here — **this item has already been answered twice by the user because a
+decision recorded in one place was invisible in the place it gets read.**
 
-🔵 **THE THEME-SURFACE PRUNE — items 260–265, plus 266/267 — decided 2026-08-04 late, in a session that RENDERED every unshipped capability before ruling on it.** The user's summary call: *"we have too many things."* **Nine dormant things were patched into carrier worlds, built, captured and reverted**, and each decision below was made against a real frame with a measured pixel delta, not a description. **260** Bands → Magpie (pinstripe 3→2). **261** `Arrangement`, `LavaEdge`, `DeckleAnchor` and `Tunnel::Reversed` collapse to one arm each and the enums go. **262** Kite's tunnel fills the margin without stretching — a new shipping behaviour, not an existing arm. **263** the selection token splits into `selection_document` + `selection_ui`. **264** the document-selection contrast law, **already red on Mulga at 2.16:1**. **265** `worlds_gallery.rs` is deleted. **266** setext headings stop reading as headings. **267** the caret is too short on tall rows. ⚠️ **Two cross-cuts a dispatcher must honour: `Bands` is spoken for, so IN-FLIGHT ITEM 258 MUST NOT TAKE IT** (its body is amended), and **264 sequences after 258** because changing Mulga's ground moves the very number 264 measures. ⚠️ **One decision is still OPEN and is the user's:** in 261, whether the deleted mutation arms are removed outright or relocated to `cfg(test)` fixtures so items 158/194's laws keep their proof of non-vacuity. The recommendation is on the board; the call is not made.
+## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
-**FOUR WORLD CALLS — 2026-08-04 evening, from the user directly, while the
-display was unlocked. These are ITEM 118 INPUT, and they are NOT item 118's
-Done clause.** ⚠️ **Do not mark 118 complete on these.** Its Done requires a
-user-confirmed map across the whole roster; what follows is four answers to the
-four questions the 118 lane raised by name. The remaining worlds are still
-unscored by the user, and the lane's independent map (`1, 10, 3, 4, 1`, mean
-2.68) is still a proposal, not a confirmation.
-
-1. **KITE IS A 5/5 — CONFIRMED, and this was ALREADY DECIDED.** The call was
-   made 2026-08-02 in favour of item 132, amending the roster shape to
-   **`1, 7, 6, 4, 2` (mean 2.90)** — two deliberate statement worlds, Firetail
-   and Kite. ⚠️ **The real finding is a board-integrity bug, not a decision:**
-   that resolution sits in this section, but **item 118's own body still carries
-   the contradiction as OPEN** ("either the shape becomes `1,7,6,4,2` or Kite is
-   not a 5… This needs answering as part of the Kite decision"), so the 118 lane
-   re-raised a settled question and the user answered it twice. **Same class as
-   the 116d drop: a decision recorded in one place and not copied into the item
-   body becomes invisible where it is actually read.** Fix 118's body.
-2. **FIRETAIL AND MANGROVE STAY AS THEY ARE — the inversion proposal is CLOSED,
-   on purpose.** The user's words: "theyre fine as is". **Keep the measurement
-   as a known rather than deleting it:** Mangrove measures louder than Firetail
-   on every static and motion column while ranking a step below it. That is now
-   a recorded, accepted divergence between measurement and taste — which is
-   exactly what item 118 says pixel arithmetic may never overrule. Do not
-   re-propose without a new reason.
-3. **GALAH IS A 2/5 — user-confirmed, agreeing with the lane's independent
-   score.** The queued plan stands: raise the ground density. 🔵 **MAGNITUDE
-   PINNED BY THE USER 2026-08-04 late: "up it a tinnyyy bit".** That is a
-   constraint, not a mood — it rules out landing anywhere near the roster's
-   bulk (0.30–0.62) and points at a small step off `0.10`, in the
-   `0.12`–`0.16` neighbourhood. **Land the smallest value that reads as
-   different in a real capture, and show the arithmetic for the one below it
-   too**, so the round proves it chose a floor rather than a guess. **The arithmetic
-   backs it — Galah's `density: 0.10` is the SPARSEST ground of all twenty
-   worlds**, with the next faintest at 0.20 and the bulk between 0.30 and 0.62
-   (`src/theme/worlds.rs:637`). ⚠️ **Two things a lane must not walk past.**
-   (a) **The sparseness was deliberate** — the commit is `1aca3493 feat: give
-   Galah sparse fibres` — so this REVERSES an intentional choice rather than
-   fixing an oversight, and the round owes a reason why the original call was
-   wrong. (b) **The cited precedent is unproven:** item 108 did exactly this to
-   Gumtree, and the 118 lane measured Gumtree as STILL second-faintest at its
-   shipped density — so 108 may never have met its own Done condition.
-   **Verify 108 actually worked before repeating its recipe**, or Galah becomes
-   the second world bumped and still too quiet.
-4. **MULGA'S GROUND IS REPLACED, AND `Starfield` IS RETIRED WITH IT — new user
-   decision, and it supersedes the queued Mulga proposal.** The board's standing
-   Mulga item was "reject its promotion on purpose"; **that is not what this
-   is.** The user does not like the ground itself ("i don't like the bacground
-   for mulga that muhc"), which is a taste finding about the world, not a
-   loudness score. **Chosen arm: give Mulga a different ground from the existing
-   vocabulary** (Deckle / Zigzag / Dots / Grain / …) suited to a dark olive
-   slab-serif world, and **retire `Background::Starfield` entirely.**
-   ⚠️ **The retirement is the cheap part and the reason the arm was chosen:**
-   `grep` confirms **Mulga is the ONLY world using `Starfield`**
-   (`src/theme/worlds.rs:331` is its sole construction site), so this is a whole
-   ground capability serving one world the user does not want — precisely the
-   "infrastructure complexity is a smell" case in CLAUDE.md's engineering
-   principles. Current value being replaced:
-   `Starfield { from #161F0F, to #1E2916, dir (0,1), tint #7C8068 }`.
-   **Done must include the capability actually being GONE** — the enum arm, its
-   renderer path, and any RenderCaps plumbing — not merely unused, or the smell
-   survives the round that was supposed to remove it. Needs its own queue item.
-
-**THREE USER CALLS — 2026-08-04 evening, all GRANTED, all three asked for by the
-board and answered together.** Recorded by a user-facing session at the user's
-explicit instruction ("just write on board"), which is why this is not an
-orchestrator-authored entry; the orchestrator owns dispatch from here.
-
-1. **ITEM 252 — THE PUSH EXCEPTION IS GRANTED AGAIN, FRESHLY AND ON THE SAME
-   TERMS: one PR, one run, branch deleted.** This is a NEW grant, not a revival
-   of 249's — item 250 removed that one as designed, and the board was right to
-   stop rather than infer permission. Scope is identical in shape and smaller in
-   size: reach CI's `linux` job (the only trigger a branch can use is
-   `pull_request`) to prove awl's AT-SPI2 bridge comes up on real Linux and
-   exposes the tree item 218 rewrote today. ⚠️ **The undo is scheduled in the
-   same breath, exactly as item 250 taught:** the exception dies when 252's run
-   is recorded, the remote branch is deleted, and `CLAUDE.md` returns to the
-   absolute sentence. Whoever lands 252 owns that cleanup in the same commit —
-   do not queue a second 250. **252 still does not close 251**, which needs a
-   human at a Linux desktop with Orca; a runner has no ears.
-2. **ITEM 231 — THE CONTAINER RUN IS AUTHORISED; item 232's refusal is
-   re-opened deliberately for this one question.** Spend the 1.67 GB image and
-   the ~14 GiB of Docker VM disk to run the suite at HEAD in the container and
-   settle 249's coincidence — `background.wgsl`'s 1.2421 size ratio against the
-   container's 1.2437 test-count ratio, 0.13% apart. `gpu_cache` cut program
-   builds 9.3× after both bisect boundaries, so the prediction is sharp: HEAD
-   should get dramatically past test 199 or not OOM at all. **If it dies at
-   about the same place the lead is dead — record that too**, because a
-   falsified lead is the point of running it. Headroom checked at grant time:
-   **167 GiB free**, Docker holding ~26 GB with ~14 GB reclaimable.
-   ⚠️ **232's refusal stands for every other purpose** — this authorises one
-   run for one question, not a standing licence to reach for a container.
-3. **THE GLIBC FLOOR (item 226 §5) — MEASURE BEFORE DECIDING.** One
-   `workflow_dispatch` dry run with `release.yml`'s linux job on an older build
-   base, then read the produced `GLIBC.txt`. **This is now a much smaller
-   decision than `RELEASING.md`'s table implies, and the measurement is already
-   half done:** the 2026-08-04 dry run's artifact was parsed for its ELF version
-   requirements, and **exactly two symbols need 2.39 — `pidfd_spawnp` and
-   `pidfd_getpid`.** Everything else in the binary tops out at **GLIBC_2.35**
-   (one symbol; 15 at 2.34, the rest below). Those two are Rust std's OPTIONAL
-   pidfd spawn path, picked up because the build host had glibc 2.39 — std falls
-   back to fork/exec without them. So `ubuntu-22.04` (2.35) or
-   `debian:bookworm` (2.36) plausibly costs no feature at all while adding
-   Ubuntu 22.04 LTS and Debian 12. ⚠️ **Bounded honestly: that is what the
-   binary REQUIRES, not proof that an older base BUILDS, and no 2.35-built
-   binary has been run anywhere.** The dry run is what closes both gaps. If it
-   comes back clean the support-matrix question may not need item 227's AppImage
-   to answer it, which retires the "decide the two together" coupling.
-
-✅ **RELEASE PIPELINE STATUS CHANGED 2026-08-04, and the top section HAS NOW
-BEEN REWRITTEN to match — read it as current.** This entry is kept as the
-decision record behind that rewrite. All four of item 226's defects are fixed in the tree AND proved by
-execution: dry run `30877600332` (`workflow_dispatch`, the FIRST run of
-`release.yml` since 2026-07-11 and therefore the first since the repairs
-landed at `3160e309`) came back **green on all four jobs** — `plan`, `linux`,
-`mac`, `web` — with `publish` correctly SKIPPED and one expected annotation
-(no Apple secrets → unsigned `.app`). **The artifact was downloaded and opened
-rather than trusted:** `sha256sum -c` OK, and the tarball carries `LICENSE`,
-`NOTICE`, `CREDITS.md`, `THIRD-PARTY-LICENSES.md`, `GLIBC.txt`, `README.txt`
-and both `licenses/{fonts,dict}-LICENSES.md`, with the GPLv3 §6(d) source offer
-at `README.txt:43`. ⚠️ **ONE DEFECT REMAINS STRUCTURALLY UNPROVEN AND MUST RIDE
-TO THE TAG AS A KNOWN:** `publish`'s `contents: write` is correct in the file
-but is exercised only by a real tag push, because dry runs skip that job. That
-is the same blind spot that hid it originally — it was found by reading the API,
-and nothing but a tag can confirm the fix.
-
-**TWO USER CALLS — 2026-08-04, the rotating-mark session. Items 247 and 248.**
-The session started from a real elevator's up/down chevron, which spins in 3D.
-It was refined against the tree rather than accepted as a look, and the refining
-is the part worth keeping: **(1)** the first proposed home — the fold chevron —
-was rejected as the SITE for the spin because `chevron_revealed` puts the mark on
-the caret's own row by construction, so the flourish would compete with the one
-element DESIGN.md grants motion; **(2)** the user then identified the real site
-from a screenshot, the diagonal palette marker, which turned out to already BE
-two rotated quads on `prepare_rotated` with genuine up/down selection semantics —
-eliminating the font, shader, tofu, contrast-floor and caret-collision hazards
-the first siting carried, and reducing the work to animating endpoints. **The
-call: 247 gets an authored symbol that turns (Mangrove and Magpie only); 248
-animates the existing `›` on fold/unfold in ALL worlds.** 248 keeps the marker
-glyph the user named, so its axis is the in-plane quarter turn `›`→`⌄` — the
-only axis that works on a mark that is not left-right symmetric, and the one that
-fixes the chevron's direction-blindness at the same time. ⚠️ Both items are
-gated on the same rotatable stroked-mark primitive; whichever lands first owns
-it. A third axis discussed and deliberately NOT queued: a `v → | → v` spin about
-the vertical axis, which returns the mark to itself and would therefore read as
-"acknowledged, nothing changed". It has no referent in awl today — zero-network
-is a design invariant and nothing is ever loading — so it is parked rather than
-invented a use for. Revisit only if a genuine indeterminate state appears.
-
-**FOUR USER CALLS — 2026-08-03. All four were the open questions the 2026-08-03
-queue review put to the user; each is recorded in its own item's body too.**
-
-1. **238 — the rename is ADOPTED, `git remote` included.** "awl-editor is much
-   better." So this is no longer a should-we: every shipped artifact names
-   `Frank-P-Lu/awl-editor`, and the remote is repointed rather than left riding
-   GitHub's redirect. ⚠️ **The item's law clause needs correcting before anyone
-   writes it** — see 238's body: a grep-law over the bare token `awl-next` would
-   be WRONG, because the local working directory is still `awl-next` and four
-   Rust test fixtures legitimately use it as a sample project name. The law bans
-   the old **repository URL**.
-2. **222 / 131d — Magpie's labels: RIGHT-ALIGN the name text for ascending
-   worlds, and MIRROR THE WHOLE CLUSTER, not just the rail.** This closes the
-   taste call the 222+223 lane deliberately left open. The cluster is the unit
-   that mirrors — label, gap and accessory together — so a short label on Magpie
-   no longer leaves a gap between itself and its chord. It lands inside 131d's
-   measured cluster rail, not as a patch on 222.
-3. **230's residue — a separately-named `THROUGH VIEW` figure is DECLINED.**
-   Closed on purpose, not deferred. Item 230 is complete as it stands: one owner,
-   one text, drawn and announced agreeing. Do not re-propose it without a new
-   reason — the recorded reason for declining is that the card earns its calm by
-   carrying few figures, and "how far through what I can see" is a second answer
-   to a question the reader already has one answer for.
-4. **229 — CJK word count: COUNT IDEOGRAPHS AS TOKENS, and let the UNIT LABEL
-   FOLLOW THE DOCUMENT'S DOMINANT SCRIPT** — "words" when the script spaces its
-   words, "characters" when it does not. So the readout does not claim a word
-   count for a script that has no spaced words; it changes what it is counting
-   and says so. The mixed-script case now has a stated rule to satisfy rather
-   than being left to fall out of the implementation.
-
-**Item 116d — 2026-08-02, THE COMPOSITING CALL, and 116d is now UNBLOCKED.**
-The comparison sits **ON the workspace surface**, not as a window through it.
-The card stays one opaque surface — "A WORKSPACE IS ONE SURFACE" survives
-intact — and the relocated document layer draws **after** the card into the
-carved region, **without re-drawing its own ground**. The rejected arm was the
-one the code itself had already found the defect in: a hole punched in the card
-would show the *backdrop's* ground, because the ground punch is at the page
-column and not at the region, and on a blur-eligible world `backdrop_blur()`
-frosts the frame *around* the workspace — exactly where the region is not. So
-"through" would have meant fixing two compositing bugs to reach a worse answer.
-**116b's boundary law
-`the_relocated_document_is_geometrically_placed_but_not_yet_composited` is now
-the thing to delete and replace** with the containment-and-visibility law its
-own message asks for. Painter's order gains a second document pass; the region
-must be proven to contain it, in every world.
-
-**Items 114 + 116d — 2026-08-02, the workspace Esc, settled once for BOTH
-members as item 114 asked.** **One Esc always leaves.** Esc dismisses the
-workspace from anywhere inside it; focus moves between the rail/timeline and
-the content pane on `Tab`/`Shift-Tab` alone. A child audition summoned *out of*
-a workspace (Settings → Theme picker) is a genuinely different rung and keeps
-its own Esc-returns-to-parent behaviour. The rejected arm — Esc unwinds one
-rung, so leaving History from the comparison takes two presses — was rejected
-because the comparison is exactly where a reader spends their time, and Esc
-would then mean two different things depending on where focus sits. **116d owes
-History an explicit Back affordance in the footer**; 116c's `⇧↵`/`open_keep_version`
-groundwork is already shaped for it.
-
-**Item 132 / item 118 — 2026-08-02, the contradiction is RESOLVED in favour of
-132.** **Kite is a 5/5.** The roster's target distribution is amended from
-`1, 7, 7, 4, 1` (mean 2.85) to **`1, 7, 6, 4, 2` (mean 2.90)** — two deliberate
-statement worlds, Firetail and Kite. Item 118's "the gap is the middle, not more
-5s" was written before Kite was commissioned and is superseded on that one
-clause only; the rest of its direction (calm bias, hover around 3, no
-theme-park bell curve) stands. Recorded here because item 118's own audit found
-these two user decisions could not both hold and asked for the call before Kite
-was built rather than after.
-
-## Ready — current user-visible wave
-
-🟡 **WAVE CLAIMED 2026-08-04 evening — four lanes dispatched concurrently.**
-- ✅ **257 + 259 — LANDED, merge `5dcd6f69`** (`30f341ed`, `0983d869`). Full
-  native receipt at `0983d869`, both conventions, all targets.
-  🔴 **257 CLOSES AS "PREMISE FALSE, ORACLE REPAIRED" — NOT AS FIXED.** Item
-  252's probe asserted a shape **AccessKit deliberately filters**:
-  `common_filter_base` returns `ExcludeNode` for `Role::TextRun`, and both
-  backends re-export that same function, **so a document of text runs having
-  zero ACCESSIBLE children is correct on Linux and on macOS.** Re-verified by
-  the orchestrator in `accesskit_consumer-0.38.0/src/filters.rs` before the
-  merge. The probe now asserts through the **text interface at line
-  granularity** and still fails on the pre-218 monolith, so it keeps the
-  discriminating power that made it worth building.
-  ✅ **259 IS THE REAL DEFECT, reproduced and fixed** — a stale tree served to a
-  screen reader that re-asks for an initial tree mid-session, held open by two
-  independent holes, each with its own mutation proof.
-  🔴 **AND THE "257 AND 259 ARE PROBABLY ONE BUG" CALL IS FALSIFIED.** The
-  structural argument — a fault visible on both AT-SPI2 and NSAccessibility must
-  live above both adapters — was sound reasoning resting on a false premise,
-  because **257 was never a fault.** Recorded because that argument reads
-  convincing and would otherwise be reached for again.
-  ⚠️ **THE `atspi` ARM STAYS TOLERATED AND WAS DELIBERATELY NOT PROMOTED**,
-  against this item's own instruction to promote it on landing. **The repaired
-  probe has never executed anywhere — CI is its first instrument**, and
-  promoting an arm on a probe nobody has watched run is how a green comes to
-  mean nothing. Promote it after it runs green on `main` for a stretch, as a
-  conscious decision. The AccessKit contract is now pinned by a law measured
-  **against `accesskit_consumer` rather than read off its source.**
-  ✅ **THE SITTING IS DONE — 2026-08-05, the user: "i think it's working".**
-  The third sitting this symptom asked for, and the first to come back positive;
-  the previous two are what found the defect. **259's fix is confirmed on the
-  only instrument that can hear a screen reader.**
-  ⚠️ **BOUNDED HONESTLY, because this exact item has been declared complete
-  twice before and was wrong both times.** The verdict was given as a single
-  statement and **did not separate the two symptoms** the sitting was asked to
-  check — (1) the mid-session "not responding" stall and (2) the selection being
-  announced. **(2) is the one that demonstrably worked before item 218 and
-  regressed**, so it is the discriminating half. Nothing is blocked on the
-  distinction and the item closes; **but if a fourth report ever arrives, start
-  by asking which of the two it is, rather than re-deriving the whole search.**
-  ✅ **ITEM 218's REGRESSION IS THEREFORE CLOSED TOO** — the selection
-  announcement it broke is working again, and 218's per-keystroke work
-  (93.33 ms → 0.476 ms at 50k lines) was never in question.
-  ✅ **GATE RECEIPT, recorded here because NONE of the a11y commits carries
-  one** — `native-gate-receipt commit=44a1ac2bd28bac80af9a6fccf6284db543897030
-  conventions=mac,linux scope=all-targets`, both suites `status=0`, run by the
-  user-facing session before pushing. ⚠️ **Exactly ONE receipt appears in the
-  last 30 commits.** The standing fix — put the receipt in the MERGE COMMIT —
-  is not being followed, so the tree was carrying an unverified accessibility
-  fix on `main`. It verifies clean; the process gap is the finding, not the
-  code.
-- ✅ **258 — LANDED, merge `079417d8`** (`0cf63cce`). Full native receipt at
-  `0cf63cce`, both conventions, all targets. **Mulga takes `Pinstripe` on its
-  own `base_100/200/300` ladder; `Background::Starfield` is GONE** — grep clean
-  case-insensitively, shader id **2 vacated and left unissued** (wire value),
-  `roster_index` closed as a dense array (`ROSTER_LEN` 12→11), `SCHEMA_VERSION`
-  deliberately **held at 198** because the sidecar's shape is unchanged.
-  **The arithmetic that matters is the INCIDENT ratio, not the mean:** margin
-  peak/p99 went **6.65 → 1.00**. The old field was 99% dark ground plus scattered
-  sparks; the new one's p99, p99.9 and max are identical. **Root cause named:
-  the retired ground's `#7C8068` tint was authored OUTSIDE the world's own
-  ladder, past `base_300`** — which is why the replacement pins from/to/tint to
-  the ladder exactly, bounding loudness structurally rather than by taste.
-  ⚠️ **118 INPUT — Mulga's score is now stale.** Its map scores Mulga **1**, and
-  that describes a ground that no longer exists. **The "louder than Firetail on
-  every column" finding no longer holds on the incident axis** (peak/p99 now 1.00,
-  tied at the roster floor); on raw peak Mulga is still 1.58× Firetail and its
-  mean is higher, so it remains a more PRESENT ground, just not a spikier one.
-  **Re-score it.**
-  🔵 **OWED: a visual-judge pass** over six captures in the lane's worktree
-  `gallery/item-258/` (gitignored). **The question for the judge is the one
-  arithmetic cannot answer:** are fine vertical rules too fabric/corduroy for a
-  literary slab-serif world, and is there enough separation from the other three
-  Pinstripe worlds given that ground has no per-world dials beyond palette.
-  **Stated fallback if the verdict is "too technical": `Gradient`, one literal.**
-
-🔴 **ITEM 264'S PREMISE IS NOT REFUTED — the 258 lane's counter-measurement read
-the WRONG SURFACE, and this correction is being recorded rather than the
-correction it proposed.** The lane reported 264's `2.16:1` figure as a
-non-defect because `selected_row_ink` already implements the 3.0 floor as a
-fallback to `base_100` (effective 7.08:1), and because the number cannot move
-with the ground. **Both statements are true of the PICKER ROW and false of the
-subject 264 names.** Verified in the tree: `selected_row_ink` (`theme/derive.rs`)
-does carry that fallback and is fed by `surface_step_band`, which reads only
-`base_200`/`base_300` — **that is the picker row.** `theme::selection()` is
-`active().selection`, **a bare token with no floor, no fallback and no law**,
-and it is what `render/pipeline_draw.rs` and `pipeline_geometry.rs` hand to the
-document-selection and search-match pipelines. **264 says this itself** — it
-names the two surfaces as distinct and calls `selection` the only ink-adjacent
-token with no legibility law. Mulga's token is `rgba(0xFF,0xEF,0xAE,0x52)`, a
-translucent pale yellow at ~32% over a LIFTED page with near-white
-`base_content` on it, which is exactly the compression 264 describes. ⚠️ **So
-264 must measure `selection` over the RENDERED PAGE in PNG pixels, as its own
-body already insists, and must not be closed on a `surface_step_band`
-reading.** ✅ **What DOES survive from the lane, and is a genuine 264 input:**
-measured through the picker-row owner, **no world renders below the floor today
-because the fallback fires**, and the worst EFFECTIVE numbers are **Cassowary
-3.09, Firetail 3.61, Kite 3.63, Mangrove 4.26** — those four are the band 264's
-"record the next band and decide" clause should name.
-- ✅ **255 — LANDED, merge `dc179897`** (`ba57dafe`, `bb221aa0`). Full native
-  receipt at `bb221aa0`, both conventions, all targets.
-- ✅ **256 — LANDED, merge `027a098b`** (`c4baffa9`). Scripts-only; **no receipt
-  claimed and none owed.**
-- ✅ **265 — LANDED, merge `41ce2ae8`** (`c9ee0ecc`), orchestrator-direct as the
-  item invited.
-
-🔴 **ITEM 255'S PREMISE WAS FALSE, AND THE ORCHESTRATOR AUTHORED THE FALSE
-FIGURE.** The board recorded "only 7 of 45 bundled faces carry a copyright
-string", measured with `strings` and `strings -e b`. A `ttf_parser` measurement
-finds **all 45 carry one — 43 at nameID 0, 2 at nameID 7, zero missing.**
-**Independently re-verified by the orchestrator against the raw `name` tables
-before the merge: 45 / 43 / 2 / 0**, and **Sour Gummy — the face named on this
-board as carrying none — carries it plainly.** The cause: macOS ships **BSD
-`strings`, which has no `-e`**, so the UTF-16 pass silently measured nothing,
-and three glyph-name substrings supplied false positives on top. **No font needs
-restoring; no build-pipeline item is queued; awl was compliant the whole time.**
-⚠️ **This is CLAUDE.md's own rule arriving from the licence side — "a check runs
-in one configuration, and that configuration is itself an untested
-hypothesis."** The document was still genuinely wrong about *where* its notices
-live, and that half is fixed with OFL 1.1 §2 quoted. **The lesson to carry: an
-orchestrator's own measurement is not privileged, and a licence claim built on
-one host's tooling gets re-measured with a parser, not a text scanner.**
-
-🟡 **THIRD WAVE — dispatched 2026-08-05 after the second wave pushed clean.**
-- **264 — 🟡 IN PROGRESS — claude, branch `claude/item-264-selection-contrast`.**
-  Deep tier (Opus). ⚠️ **Its board numbers are STALE and it was told so:** 258 and
-  260 both moved a world's ground, and the band is `selection` composited over
-  the **page**, so Mulga's and Magpie's figures have both shifted. **A fresh
-  twenty-world measurement is its first deliverable**, and "Mulga now clears the
-  floor" is an acceptable finding.
-- **270 — ✅ LANDED, merge `8ca3ea22`** (`74e20fa9`). See below.
-- **276 — 🟡 IN PROGRESS — claude, branch `claude/item-276-guard-restore`.**
-- **273 — 🟡 IN PROGRESS — claude, branch `claude/item-273-reference`.** Deep
-  tier. Briefed with both of the user's boundaries held: **reference only — the
-  user writes the tutorial themselves** — and **generated or law-checked, never
-  transcribed**, because a hand-written manual is wrong the moment a binding
-  changes.
-
-✅ **270 — LANDED, merge `8ca3ea22`** (`74e20fa9`). `native-gate.sh` now writes a
-gitignored `.orchestrator/native-gate.marker` (**pid + start sha + start
-epoch**) and removes it on every trappable exit path; `.orchestrator/README.md`
-tells a second session to check it with `kill -0` before committing to `main`.
-**Scripts-only, so no native receipt is claimed and none is owed.**
-⚠️ **THE OLD RULE COULD NOT WORK, AND THE REASON IS STRUCTURAL:** "do not commit
-while the merge train's gate is running" binds **only the session that started
-the gate.** This board supports two concurrent orchestrators in one working
-tree, so the other session was being asked to obey a fact living in the first
-session's memory. **It cost a full green native run on 2026-08-05** — both
-conventions, 299 s, no receipt — **to a board-only markdown commit.**
-✅ **A PID FILE WAS CHOSEN OVER `disk-preflight.sh`'s FLOCK, deliberately.** That
-lock serializes **mutation**, where only the kernel can arbitrate who goes
-first. Nothing here contends: the gate is the only writer, and a reader wants a
-point-in-time answer. A blocking `LOCK_EX` fights the "never block a commit"
-requirement outright, and a non-blocking probe reimplements `kill -0` with extra
-machinery.
-✅ **THE SIGKILL PATH WAS TESTED, NOT ARGUED** — and it is the case that decides
-whether this fix is worse than the bug. An untrappable kill leaves the marker on
-disk, and the reader correctly reads it **DEAD**, because authority lives in the
-live PID **inside** the file and never in the file's existence. **A stale marker
-is therefore harmless.** SIGTERM and normal completion both remove it.
-**The receipt contract is untouched** — no change to the HEAD comparison, the
-no-filtering refusal, or the receipt line's format, all of which other scripts
-and CI audits read. **Verified in the diff before merging, not taken on report.**
-
-✅ **SECOND WAVE — 260, 266, 267, 269 ALL LANDED.**
-- ✅ **260 — LANDED, merge `e38e699a`** (`21774473`). Magpie wears `Bands` on its
-  own ladder — darkest margin pixel matches `base_300`'s luminance to **five
-  places**. Angle **0.62** derived by rendered sweep, not by eye. **With 258's
-  retirement, the ground roster now has ZERO dormant arms**, held by a law
-  (`every_ground_in_the_roster_is_worn_by_a_live_world`) rather than by a grep.
-  🔴 **THE MERGE TRAIN REJECTED THIS BRANCH ONCE, AND THAT IS THE ENTRY WORTH
-  READING.** It was **green alone and RED as a combined candidate** —
-  `magpie_margin_is_texture_not_incident` found a pixel at luminance **0.72147**,
-  below Magpie's own `base_300` floor of 0.77417, entering the margin-ground
-  population **only after other tests had run**. The merge was backed out, `main`
-  reset to the last pushed green commit, and the branch returned to its owner.
-  **The threshold was NOT widened** — that would have forfeited exactly what the
-  law is for.
-  🔴 **THE CAUSE IS A PRE-EXISTING LEAK OF UNKNOWN AGE, AND ITS SHAPE IS A
-  GENERAL WARNING.** `mac_about`'s
-  `exactly_about_requests_the_native_surface_through_the_shared_transition`
-  **applies EVERY command's action**, so it fires every toggle in the roster as a
-  side effect — and it restored exactly three globals: `page`, `measure`,
-  `spellcheck`. **Those three are precisely the three the shared serial guard
-  checks on exit.** So the restore list had been sized to **the guard's
-  coverage**, not to the sweep's own reach. `debug` sat outside that coverage,
-  leaked **ON**, and renders a readout stack down the right margin — silently
-  changing what a margin pixel law measured. ⚠️ **A completeness check made its
-  own gap invisible: everything it audited was restored, everything it did not
-  audit was not.** Nothing in the tree had ever been sensitive enough to one
-  stray margin pixel to notice. Now saves and restores `debug`, `outline`,
-  `nits`, `typewriter` and `menu_bar`. **Follow-up queued as item 276.**
-  ⚠️ **THE LANE CORRECTED THIS ORCHESTRATOR'S MEASUREMENT INSTRUCTION AND WAS
-  RIGHT.** It was told to report `peak/p99` as item 258 did. **Mulga is DARK**, so
-  that reads the bright tail that draws the eye; **Magpie is LIGHT**, so its
-  ground asserts itself by going *darker* and `peak/p99` is structurally pinned
-  at 1.0 whatever the ground does. **`min/p1` is the informative number here.**
-  **Do not transplant that statistic across the light/dark axis again.**
-  ⚠️ **Two configuration errors its own checks would have hidden**, both found by
-  widening rather than reasoning: a first cut ran at ONE geometry and stayed
-  **green with the angle mutated to 0.05** (the middle band still held 13% there;
-  the same mutation drives it to **exactly 0.00%** at another shape), and **the
-  margin is not all ground** — chrome draws in it, so the raw darkest margin
-  pixel is prose ink at 0.006 on old and new alike.
-  **Premise correction: Pinstripe drops 4→3, not 3→2** — 258 moved Mulga ONTO
-  Pinstripe after the brief was written. Now Saltpan, Mulga, Cassowary.
-  🔵 **OWED: visual judge.** The lane wrote its gallery shots to a temp dir;
-  **re-capture before judging rather than trusting `/tmp`.**
-- ✅ **266 — LANDED, merge `ac548c51`** (`77db975e`). Setext filtered at the
-  SOURCE (`spans.rs`'s `Tag::Heading` Start arm), so all four surfaces inherit
-  the rule from one owner; `headings.rs`'s now-redundant filter dropped
-  deliberately. The documented growing-row companion gap is closed in the same
-  round (`md_line_scale` gains `confirmed_rule`). **The hard boundary is tested,
-  not asserted:** a round-trip law proves byte-identity through load and a
-  no-edit save over one document carrying ATX, dash-setext, equals-setext and a
-  real thematic break. `spans.rs` was **trimmed to its frozen ceiling rather
-  than raised.**
-- ✅ **267 — LANDED, merge `9fa3cb46`** (`37357a2b`). 🔴 **PREMISE FALSIFIED —
-  THE FOURTH THIS WAVE, and no fix was needed.** The item's source read was
-  literally true and still not the mechanism: `render.rs`'s `caret_h` constant
-  and `caret.rs`'s centring are the caret's **spring target**, not its drawn
-  geometry — `caret_geometry()` overrides both through `caret_cell_vertical()`,
-  whose arms read the row's own shaped layout. Measured **1.60 against an
-  expected `heading_scale(1)` of 1.6.** ⚠️ **AND THE ITEM'S CITED EVIDENCE WAS
-  NEVER IN THE TREE:** it named `11e20069` ("decoupled space-above
-  line-height") as what inflates rows; **that commit is on the unmerged
-  `heading-ab` branch and is not an ancestor of `main`** — verified
-  independently. The reported case reproduces as body height, because the ladder
-  keys off a line's own leading `#` run. **What landed is three regression laws
-  pinning behaviour that was correct all along.**
-  ⚠️ **TWO THINGS CAME OUT OF REVIEW, NOT THE FIRST REPORT** — recorded because
-  both would have shipped: the ratio drifted 1.60 at 1× to 1.52 at 2× and was
-  presented without comment (it resolved as **PNG scan noise**; exact internal
-  floats hold caret-to-ink within **0.2%** across tiers), and **the laws swept
-  ONE DPI only**, so a real drift would have been invisible to them by
-  construction. They now loop both tiers with the mutation proof re-run.
-- ✅ **269 — LANDED, merge `a7a192fe`** (`184cfd77`). Enrolment is roster-derived
-  through a single `find_map`, so a world changing its ground can **retarget**
-  the representative but cannot **un-enrol** it. ⚠️ **Review caught a second
-  silent-skip path in the first attempt** — the roster scan and a surviving
-  `if let` were two predicates that had to agree — collapsed to one match site.
-  ✅ **The first-contact green was NOT trusted:** mutating the `edge`-only
-  shader branch turned **only** the new representative red while its siblings
-  stayed green, proving the arm exercises real previously-uncovered code.
-  **No product defect behind the dead branch.**
-
-Every worktree from the previous wave was merged, removed, and pruned before this
-one was claimed. The items below are ready, unblocked, and ordered; their full
-briefs are in the item bodies further down, except item 247 whose brief is kept
-inline here because only its motion slice remains.
-
-1. **257 — the AT-SPI line runs never reach the bridge.** Deep tier. The only
-   open item that is a **live defect on a shipping accessibility path**: a Linux
-   screen reader sees a document with no content structure. Mechanism already
-   settled (the runs exist in `SemanticSnapshot` and are lost before the wire),
-   so this is a fix, not an investigation. **It also gates item 251.**
-2. **258 — Mulga's ground is replaced and `Background::Starfield` retired.**
-   Deep tier (taste + a mechanical retirement). User decision; the item names
-   the five traps verified in the tree, of which the two numbering spaces are
-   the one that will bite.
-3. ✅ **255 — LANDED** (see above; its premise was falsified).
-4. ✅ **256 — LANDED.** ⚠️ **Its ceiling is worth knowing before anyone expects
-   more from it:** the clippy half is now genuinely conflict-FREE (function
-   anchors), but `file_size_mark`'s line count is conflict-**mechanical**, not
-   conflict-free — the number does not exist until the merge happens, which is
-   the item's own finding that no measured value is any sum of its branch
-   inputs. Arm (a) was rejected for that reason. On the next `render.rs` merge
-   conflict, the tool now prints the exact block to paste; **paste it, do not
-   guess it.**
-5. **222 / 131d — Magpie's mirrored cluster.** The user's taste call is made
-   (right-align the name text for ascending worlds; **mirror the whole cluster**,
-   not just the rail). **Unblocked now that item 242 has released
-   `render/chrome/`** — that file hold is what queued this behind, and it is
-   gone.
-6. **247's motion slice** — brief inline below.
-7. **174, 172, 116d's flip, 231** — open, long-running, and none is urgent. 231
-   is a **diagnosis** item only: its shader-size lead is dead and the cause is
-   neither known nor narrowed.
-247. **Mangrove and Magpie: the diagonal selection marker becomes an authored
-symbol that TURNS as the selection travels, and its turn direction says which
-way you moved.**
-🔵 **TWO USER NOTES 2026-08-04 late, from a real Magpie screenshot — both are CONSTRAINTS ON THE AUTHORED MARK, so read them before designing it.**
-**(1) THE MARK SITS ON THE WRONG SIDE. It must go on the side OPPOSITE the spine.** User's words: *"the `<` carret thing needs to go on the OPPOSITE side of where the `\` or `/` is"*. Today the mark is drawn AT `spine_x` (this item's own Build clause: a vertical tick at `spine_x` plus a connector out to the cluster), so on Magpie — `/` spine on the right, clusters right-aligned on the LEFT (item 131) — the mark lands **on top of the diagonal**, competing with the one line the whole composition is built around. **Per world that means: Magpie's mark moves to the LEFT of its cluster; Mangrove's (`\` spine left, clusters right-aligned on the RIGHT) moves to the RIGHT.** ⚠️ **This is a mirror, so derive it from the SAME signed quantity that already mirrors the cluster** (`dx_per_row`'s sign, per 131a) rather than adding a second per-world switch — two independent mirrors will drift apart the first time one is edited.
-**(2) THE GLYPH IS WRONG FOR MAGPIE — "it needs to be thinner and more elegant".** The shipped mark is a heavy geometric chevron, and **Magpie's display face is `Bitter`, an editorial slab serif** whose whole register is contradicted by it. ⚠️ **The real finding is that ONE glyph cannot serve both worlds: Mangrove is `JetBrains Mono`, a technical face where a crisp geometric mark is correct.** So the mark's WEIGHT and form belong in theme data beside the world's face, exactly as this item already says the symbol should be "authored" — **do not tune a single shared constant until Magpie looks right and call it done**, which is the shape this note exists to prevent. Magpie wants a hairline, high-contrast, typographically-sympathetic mark; Mangrove wants the crisp one it has. **Verify both worlds in the same round** — item 131 forbids a half-applied world and this inherits that rule. **Build:** `render/chrome/diagonal.rs::prepare_diagonal_spine`
-draws the selected row's marker as two `crate::selection::spine_segment` calls —
-a vertical tick at `spine_x` spanning the row, plus a horizontal connector out to
-`label_left` (Descending) or `accessory_right` (Ascending) — which composes to a
-`⊢`. Replace it with an authored mark built from the SAME primitive, and rotate
-that mark about its own pivot while the selection travels: one way for down, the
-other for up, settling to rest on arrival. A wrap (last row → first) takes the
-long way round, so a wrap stops being silent. **The turn direction is
-information that does not exist today** — in a long filtered list you currently
-just appear somewhere else. **Scope:** These two worlds only. `ListStyle::Pane`
-and `ListStyle::Bars` have no spine and are untouched, so this is world
-expression, not universal grammar. `DiagonalDirection::sign()` is the existing
-per-world dial and already returns ±1.0 — Mangrove's `\` and Magpie's `/` get
-mirrored turns from it rather than from a second authored constant. **The
-marker has no travel animator today:** `overlay_selection_rects` returns
-`OverlaySelectionRects::default()` for `ListStyle::Diagonal` and the spine path
-reads `vis.reads_selected(row.display)`, a bool — so the mark TELEPORTS while
-Pane worlds get `VisualSelection::living()`'s interpolated `(from, to, t)` band.
-Give Diagonal a travel phase **through that same `VisualSelection`**, never a
-second animator: the Pane band's own doc explains that re-running an animator
-lets the fill land on a different row from the ink shaped against it.
-⚠️ **Traps, all pre-existing and all load-bearing here.** (a) A new dt-consuming
-stepper MUST join `TextPipeline::advance`'s OR-fold — `motion.rs`'s own doc
-warns that a fourth animator outside that seam is silently ungated by Reduce
-Motion. (b) `narrowed_spine_corner_px` exists precisely to cap a segment's corner
-radius by its half-length; a foreshortening arm that bypasses it will over-round
-as it shortens. (c) `spine_segment` guards zero length — an arm passing through
-zero must not yield a NaN axis. (d) Reduce Motion settles instantly to the SAME
-final state, so the mark's RESTING orientation must carry everything the turn
-says; if the direction cue only exists mid-flight, the animation is load-bearing
-and `motion.rs`'s law is broken. **Done:** Moving the selection in Mangrove or
-Magpie turns the marker in the direction of travel and settles it; a wrap is
-visibly distinct from a single step; Reduce Motion shows the same settled marker
-with no in-between frames; the other 18 worlds are byte-identical. **Verify:**
-Sidecar for the marker's settled orientation and the selected index (state);
-pixel arithmetic over `--screenshot` PNGs for the mark's geometry and its ink
-contrast against Mangrove's and Magpie's own grounds (the sidecar is a state
-oracle, not an appearance oracle). In-flight frames need `--screenshot-motion`;
-an ordinary capture sees only the settled state. Sweep BOTH directions and the
-wrap, in both worlds. **Routing:** Deep tier (Opus, high) — authoring the symbol
-is taste work and the README routes taste above production. Follow with a Fable
-visual-judge pass over real gallery captures.
-✅ **SUB-DECISION RESOLVED — USER CALL 2026-08-04: THE SYMBOL IS THE STROKED
-CHEVRON** (option (i) as recommended). Vertex on the spine, arms opening toward
-the label. **The derivation is worth keeping, because it is arithmetic rather
-than taste and it constrains any future revisit.** The drawable alphabet is
-fixed by the primitive: `spine_segment` yields ONE rotated ROUNDED RECT, and
-`set_corner`'s radius is clamped by the shader to `min(hsize.x, hsize.y)` — so
-the vocabulary is straight strokes plus, at `length == thickness` with full
-corner, dots. **No curves, no arcs, no fills, no glyphs.** The canvas is
-~`10.0` logical px of connector reach at `3.0` weight against a row-tall tick —
-about three strokes before it turns to mud. And the read-at-every-angle
-requirement eliminates candidates ARITHMETICALLY, not by preference: **a plain
-bar has 180° rotational symmetry, so half a turn is indistinguishable from no
-turn** — which also kills the plus, cross, diamond, square and asterisk. The
-chevron is the simplest mark with NO rotational symmetry, and it is directional
-AT REST, which is what the Reduce Motion clause above actually requires.
-**Rejected: the arrow** (shaft + two barbs) — most explicitly directional, but
-three strokes at `3.0` weight inside `10.0` px puts each barb near 4px and it
-muds at 1× DPI. **Rejected: tick + orbiting dot** — calmest, but a dot is too
-weak a direction cue at this weight. **Rejected: `⊢` with the connector alone
-swinging** — most conservative, but a horizontal connector says nothing at rest
-and so fails the Reduce Motion clause unless the resting angle itself tilts.
-
-## Landed — 2026-08-03 and 2026-08-04 waves, compressed 2026-08-04
-
-**The completion reports for these items were cleared into git history on
-2026-08-04** (`git log -p .orchestrator/queue.md`), per this board's own rule
-that it holds live execution state only. ⚠️ **What was NOT cleared, and must
-never be:** every 🔵 OWED clause below, because owed work is live work; and the
-process lessons, which were promoted into `CLAUDE.md` in the same commit rather
-than deleted. **A compression that clears completions must re-derive the handoff
-section in the same commit** — that is why the section below this one is dated
-today.
-
-**Landed and fully closed** — 116 (all four slices), 174's second family
-(item stays open), 204, 215, 217, 218, 220, 221, 224, 229, 235, 237, 238, 239's
-findings, 240, 241, 242, 243, 244, 245, 246, 247's static slice, 248, 249, 250,
-252, 253, 254. Plus five CI repairs and the receipt-gap resolution.
-
-**🔵 OWED — carried forward verbatim, because nothing above implies these.**
-- **218 — ✅ RESOLVED 2026-08-05 VIA ITEM 259.** Its sitting FAILED on
-  2026-08-04 (the symptom was unchanged, and 218 had also regressed the
-  selection announcement), which requeued the work as **item 259**. **259 found
-  the real defect — a stale tree served to a screen reader that re-asks for an
-  initial tree mid-session, two independent holes — fixed it, and the user
-  confirmed it live on 2026-08-05.** 218's own per-keystroke work was never in
-  question. 🔴 **CORRECTION 2026-08-04, SAME DAY: 218 IS A REGRESSION, and an earlier line here said it was not.** The user then reported the second symptom — **VoiceOver used to read out the highlighted selection and no longer does.** That is behaviour that WORKED BEFORE 218 and does not now, which is the definition. The earlier "not regressed, merely incompletely scoped" reading was written before that evidence existed and is **withdrawn**. ⚠️ **Still do not reflex-revert:** 218's per-keystroke work is real and measured (93.33 ms → 0.476 ms at 50k lines) and reverting would restore a different user-visible stall. The fix is forward. ⚠️ **Read this as evidence about the process, not just the bug:
-  an item can carry ten laws, mutation proofs and a 196× improvement and still
-  not move the symptom a user reported, because every one of those checks ran on
-  the branch the author was thinking about. The owed live sitting is what found
-  it, and it is the only thing that could have.**
-- **244 — ✅ CLOSED 2026-08-04 BY THE USER: "bowerbird looks good".** The
-  companion breathe reads as a breathe, not a flash;
-  `ORGANIC_BREATHE_AMOUNT = 1.2` and the 3–8 cycles-per-loop rate band **stand
-  as shipped** and are no longer taste-open. **Bounded honestly:** this was an
-  eyes-on verdict on the live app, which is exactly the oracle the item asked
-  for — no capture can reach it — and it is recorded as the user's judgement,
-  not as a measurement. The invocation offered was `scripts/dev-app.sh --
-  --theme Bowerbird`, which builds `--release` by default. **Item 244 now has
-  no owed work.**
-- **248 — ✅ CLOSED 2026-08-04 BY THE USER: "the chevrons are great".** The
-  140 ms quarter turn reads correctly at 60 fps; `FOLD_CHEVRON_TURN_MS = 140.0`
-  stands as shipped. ✅ **AND IT SETTLES A DESIGN QUESTION THE BRIEF EXPLICITLY
-  LEFT OPEN, so record it rather than leaving the recommendation lying around
-  for a future lane to "finish".** 248's brief recommended animating on the
-  POINTER path and SNAPPING on the KEYBOARD path, because `chevron_revealed`
-  puts the mark on the caret's own row by construction and the caret is the one
-  element DESIGN.md grants motion — so the two would be co-present and moving.
-  **That split was never implemented** (verified: `FOLD_CHEVRON_TURN_MS` applies
-  uniformly, with no branch on trigger), and the brief said the call was the
-  user's if a live sitting read fine. **It reads fine. The co-present animation
-  is PROMOTED as shipped and the pointer/keyboard split is CLOSED as
-  unnecessary** — do not build it.
+- **258 — a visual-judge pass over Mulga's new `Pinstripe` ground.** Six captures
+  in the lane's worktree `gallery/item-258/` (gitignored). **The question for the
+  judge is the one arithmetic cannot answer:** are fine vertical rules too
+  fabric/corduroy for a literary slab-serif world, and is there enough separation
+  from the other Pinstripe worlds given that ground has no per-world dials beyond
+  palette. **Stated fallback if the verdict is "too technical": `Gradient`, one
+  literal.**
+- **260 — a visual-judge pass over Magpie's new `Bands` ground.** ⚠️ **The lane
+  wrote its gallery shots to a temp dir; re-capture before judging rather than
+  trusting `/tmp`.**
+- **211 — an unoccluded LIVE GLIDE CONFIRMATION. ⚠️ THIS IS A LOOK-AND-AGREE,
+  NOT A DEFECT: the every-other-input picker selection is FIXED** (`237f97d7`,
+  merged `50d6b532`), and the board's old "thrice-reported picker defect" prose
+  is stale and has cost a wrong call. **The break was a redraw-scheduling gap:**
+  `App::on_redraw_requested` read `TextPipeline::advance` **before**
+  `Gpu::redraw`, and the band's retarget happens inside `prepare`
+  (`chase_or_snap`) — the only animator whose target is set at draw time — so on
+  the frame a settled band was retargeted the pre-prepare answer was "nothing
+  animating", the loop parked on Wait, the ease never got its second frame, and
+  the next input's single dt drove `chase_or_snap`'s SNAP branch two rows.
+  `chase_or_snap` now reports the re-zero and the loop reads it straight after
+  `Gpu::redraw` returns; off-window the new term is a structural false, so no
+  capture moved. **What is owed is only the photograph:** the display locked
+  itself seven minutes into the sitting, so every present in the trace reads
+  Occluded. **The state chain is CPU-side and occlusion-independent, so the
+  diagnosis holds — but no frame was photographed and no video exists.** The
+  instrument is `scripts/`'s live band sweep (`54c027e1`, `52885c6e`), written so
+  it cannot look like success while photographing nothing.
+- **284 — the live glide's feel**, and `MARKER_TRAVEL_TILT_DEG = 20°` —
+  production-tier picks, not a taste-round decision the way the chevron's shape
+  was. **And an honest gap: a wrap settles in the correct direction but its
+  transient glide looks identical to an ordinary step**; whether a wrap deserves
+  a distinct flourish is a live judgement.
 - **242 — the formal affordance-locating vision smoke** over ~5 gallery shots.
   The lane did an eyes-on retina pass and reported it as such; the standing
   policy asks for the structured version. **Also named as a deliberate
   residual:** the declaration law covers authored `const`s and **not inline
   literals** — seven chrome pixel lengths remain physical inline
-  (`gutter.rs:262,321,355,404`, `outline.rs:221,796`, `diagonal.rs:460-461`),
-  all in margin chrome, none in the summoned-overlay families it measured.
+  (`gutter.rs:262,321,355,404`, `outline.rs:221,796`, `diagonal.rs:460-461`), all
+  in margin chrome, none in the summoned-overlay families it measured.
 - **241 — the user's own window.** Every live number came from a 900×600 probe
   window; the 4530×2756 @2x window will show larger `atlas`/`acquire`. The
-  mechanism is window-independent; the absolute after-numbers on that machine
-  are unmeasured. Also untested live: a dense pointer/wheel sweep, which shares
+  mechanism is window-independent; the absolute after-numbers on that machine are
+  unmeasured. Also untested live: a dense pointer/wheel sweep, which shares
   `retint_theme_preview`, so the rule applies but the cadence is unproven.
-- **249 — a stated cost, measured not argued.** Nothing in `PendingWrites` pins
-  a *view*, so the portable unit sees the buffer half of the pin and not the
+- **249 — a stated cost, measured not argued.** Nothing in `PendingWrites` pins a
+  *view*, so the portable unit sees the buffer half of the pin and not the
   texture half: **a leak pinning only textures would be invisible.** That is the
   price of a unit that means the same thing on a backend whose texture counter
   runs backwards.
 - **245 — one constant**, 200 wpm, the round conventional English figure.
+- **263 — one check the lane deliberately DEFERRED rather than ran badly:** the
+  construction-site document-seed mutation, held back to avoid contending with a
+  running gate. It follows from the sync mutation but is inferred rather than
+  measured. **Worth closing.**
+- **273 — the site page is visually unreviewed.** Links pass and the CSS reuses
+  `.credits-body`, but `site/reference.html` was never rendered, and the lane
+  flagged that rather than claiming it.
+- **271/283 — the graduated `Rules` style ships on ONE carrier world.** The
+  second-carrier requirements are recorded in `theme/tests/personality.rs` beside
+  Paperbark's entry (so the next author reads them there rather than here) and
+  are summarised under item 283 below.
 
-**⚠️ 231 IS NOT FIXED, NOT EXPLAINED, AND NOT NARROWED.** Its shader-size lead
-was **falsified** 2026-08-04 (`ee7353e5`): HEAD carries the LARGEST
-`background.wgsl` of the three trees and got **2.6× further** (413–418 tests vs
-a predicted 152), and fitting `budget/test = C + K·shader_bytes` across the two
-boundaries makes `C` negative — the 0.13% coincidence needed a zero non-shader
-residual, which HEAD measures directly at 12.3 MB/test. **The orchestrator's own
-falsification criterion was WRONG and would have CONFIRMED the dead lead**; the
-lane ignored it and tested the mechanism's own prediction instead. **A
-single-number pass/fail test can confirm a false hypothesis when the quantity
-moves for another reason.** The rig is `scripts/oom-budget-container.sh`,
-labelled in its own header as a diagnostic reproducer and **not a gate**.
-
-## Remaining work — handoff order (RE-DERIVED 2026-08-05, against the tree)
+## Remaining work — handoff order (RE-DERIVED 2026-08-06, against the tree)
 
 ⚠️ **This section has gone stale three times, each time by editing the previous
 list instead of re-checking the tree.** The rule, restated as an instruction:
-**grep the tree for the thing the item promised.** These were verified that way
-just now — `Tunnel` still carries 4 arms and `Arrangement` 2 (`theme/ground.rs`),
-`ListStyle` still has 3 (`theme/model.rs`), no `selection_document`/`selection_ui`
-exists, and `worker-build.sh` carries no test-thread budget.
+**grep the tree for the thing the item promised.** Verified that way just now:
 
-**Nothing is claimed and no lane is running.** Fourteen items landed 2026-08-04/05
-(255, 256, 257+259, 258, 260, 264, 265, 266, 267, 269, 270, 273, 276, and the CI
-repair), all pushed, all worktrees removed. Order:
+| claim | measured |
+|---|---|
+| `ListStyle` arms | **4** — `Pane`, `Diagonal(DiagonalDirection)`, `Bars`, `Rules(RuleSelection)` (`theme/model.rs`) |
+| `Tunnel` arms | still **4** — `Fixed`, `PageScaled`, `MarginPlaced`, `Reversed` (`theme/ground.rs`), item 194's mutation arms intact |
+| `Arrangement` / `LavaEdge` / `DeckleAnchor` | gone as columns; **4 surviving references, all prose or negative-assertion needles** |
+| `Starfield` / `worlds_gallery` / `CASSOWARY_LIGHT` | **0 references** in `src/` and `shaders/` |
+| `selection_document` / `selection_ui` | both exist (`theme/model.rs:538`, `:545`) |
+| `POSTER_BARS` | **0 references** — the dials collapsed onto `BarConfig::SHIPPED` |
+| `worker-build.sh` test budget | present — exports `CARGO_BUILD_JOBS` **and** `RUST_TEST_THREADS` |
+| the repo rename | `git remote` is `awl-editor`; `src/repo_url_law.rs` bans the old repository reference (not the bare token) |
+| `REFERENCE.md` + `site/reference.html` | both exist |
+| test monoliths | `theme/tests` and `main/tests` are dirs; **`overlay/tests.rs` 3433, `app_icon/tests.rs` 2368, `buffer/tests.rs` 2241 remain** |
+| `App` root | 107 fields → **20**; every owner in `docs/app-domains.md` reads "extracted" |
+| `src/render/plan/` | overlay row family only (5 modules) |
+| item 288's three identifiers | all three still present, verbatim |
 
-1. **277 — the worker budget bounds builds and not tests.** Production tier.
-   **First because it is the multiplier on everything below it:** four lanes at
-   the gate phase measured load 49.6 on ten cores and stretched a four-minute
-   gate past forty. Every wave until it lands pays that.
-2. **The theme-surface prune, and its sequencing is REAL, not a preference.**
-   **261** (four dials collapse to one arm each, and the enums go with them),
-   then **262 read THROUGH 268** — 268 says 262's fill-versus-stretch framing was
-   incomplete, and 262 must not add a fifth `Tunnel` arm when the point is fewer.
-   **263 goes LAST of these**: it touches the most call sites of anything queued,
-   and byte-identity across twenty worlds is its whole oracle.
-3. **271 and 272** — the fourth `ListStyle` prototype (`Pane` carries fifteen of
-   twenty worlds, and it is `RenderCaps::DEFAULT`) and the `Bars` config whose
-   five authored fields carry exactly one value across the roster. Both are user
-   instructions from 2026-08-05.
-4. **274 and 275** — the test monoliths, and the history-removal pass over
-   comments. ⚠️ **275 touches roughly a thousand comment sites across the tree
-   and will conflict with EVERYTHING**; schedule it alone, against a quiet tree,
-   or it will cost more in merges than it saves in prose.
-5. **222 / 131d** — the taste call is already made (right-align the name text for
-   ascending worlds; mirror the whole cluster). Scouted: the measured cluster
-   rail already exists in `render/chrome/diagonal.rs` (`cluster_w`,
-   `label_left`, `accessory_right`), so this consumes a rail rather than
-   building one.
-6. **247's motion slice** — the rotatable-mark primitive already exists (item
-   248 owns it), so this consumes rather than grows one.
-7. **174 and 172** — open, structural, neither urgent. 174 has one surface family
-   migrated of every surface; 172 has two domains of six extracted.
-8. **231** — a diagnosis item with **no live lead**; its shader-size hypothesis
+**Nothing is claimed and no lane is running.** Order:
+
+1. **290** — the theme-font debounce rip-out. A user decision with its measurement
+   already taken, and it deletes a constant that is rotting against a growing
+   fixture. ⚠️ **It does not fix the reported theme-switch lag and must not be
+   closed as though it had.**
+2. **288 and 289** — small, already diagnosed, and both are user-visible-rule
+   debt from the last wave. 289 moves fifteen worlds' 2× appearance, so it is the
+   larger of the two and gates a second `Rules` carrier.
+3. **131e** — selection and the full Verify clause; 131a–d are landed and the
+   measured cluster rail exists in `render/chrome/diagonal.rs`.
+4. **172's closure call.** Every domain in `docs/app-domains.md` reads
+   "extracted" and the root is 20 fields — **the Done clause reads met.** Either
+   close it deliberately with the census as its receipt, or name what remains.
+   **Do not leave it open by default** — an item left open after its work landed
+   is what wasted a dispatch on item 116 and what misfiled item 211 today.
+5. **274's residual** — `overlay/tests.rs` (3433) and `buffer/tests.rs` (2241)
+   are still monoliths against the ~500-line ceiling, and only
+   `app_icon/tests.rs` carries a declared exception. The verbatim-move contract
+   and the per-filter verification are in 274's body.
+6. **273's six unbuilt residuals** — CLI flags have no roster to generate from,
+   `Command` carries only `name`, `WORLDS.md`'s columns are hand-written, there
+   is no in-app door, the site page is visually unreviewed, and the five-section
+   structure was the lane's call rather than the user's.
+7. **174** — one surface family migrated of every surface; the rest still own
+   their geometry.
+8. **227** — the AppImage. Nothing in the tree matches `AppImage`; it is
+   unstarted and depends on 226, which is now complete.
+9. **231** — a diagnosis item with **no live lead**; its shader-size hypothesis
    was falsified and nothing replaced it. Its named next step is a **macOS guest
    VM**, and this host has **no VM tooling installed** — a spend decision, not
    work to absorb.
-9. **🔵 HUMAN / LIVE, none of which a lane can close:** 118's direction call
-   (raise ~7 worlds toward 3, or amend the target shape — the board recommends
-   amending, and **Mulga's score of 1 is stale** since 258 replaced the ground it
-   described); the **visual judgement on Mulga's and Magpie's new grounds**
-   (⚠️ **260's captures went to a temp dir — re-capture, do not trust `/tmp`**);
-   **273's section structure**, which its own lane flagged as a call it made
-   where the item asked for a human eye; 211's thrice-reported picker defect;
-   241's own-window numbers.
-10. **251** — needs a human at a Linux desktop with Orca. ⚠️ **Item 257 closed as
-    "premise false, oracle repaired" rather than fixed**, so what unblocked here
-    is the *probe*, not a defect: the AT-SPI tree was correct all along, since
-    AccessKit filters `Role::TextRun` from accessible children by design.
-11. **226, 227, 228** — release decisions, all the user's word: the tag, the
-    glibc floor (measurement half-done — exactly two symbols need 2.39, both from
-    Rust std's optional pidfd path), and item 228's versioned artifact names
-    against the site's hardcoded unversioned URL.
+10. **🔵 HUMAN / LIVE, none of which a lane can close** — see the BLOCKED and
+   OWED sections above. **251 is on that list and is hardware-gated**: it needs a
+   human at a Linux desktop with Orca, and no unlock of this Mac reaches it.
 
+---
 
-116. ✅ **COMPLETE 2026-08-04 — all four slices landed; the entry below is kept ONLY as the decomposition record and is STALE IN ITS PREMISE.** ⚠️ **Do not brief anything off its text.** It still reads "116d CANNOT flip `workspace_shape(History)` before that compositing round", which stopped being true when the compositing round landed and stopped being relevant when the flip landed. **Verified against the tree, not the log:** `workspace_shape(History)` is `TimelineOverComparison` at `src/overlay/workspace.rs:129`, and `workspace_header_beat` is absent from `src/` entirely. Slices: **116a** the shape, **116b** the comparison viewport, **116c** the alternate accept, **116d** the compositing round (`a8eef4ee`) then the flip. Item **204** landed both slices on top of it, which was only possible because 116d's typed `ComparisonRequest`/`ComparisonView` payload exists. **Two gaps its own completion note left deliberately, recorded here so closing this entry does not bury them:** (a) the **narrow comparison stage draws no footer** (`show_rows` false → `hint_rows` 0), so nothing teaches `tab back` / `esc close` at ~900×520 and below — a discoverability hole, arguably a 🔵 taste call about spending vertical space; (b) on Mangrove/Magpie the **narrow timeline column elides mid-word**, owned by item 131e. ⚠️ **This entry was left open for hours after the work finished, and was the direct cause of a wasted dispatch** — `16b4e8c2` kept its stale text verbatim while dropping 116d's `✅ COMPLETE` bullet, and the next claim was written off it in good faith. **Original entry follows, for the decomposition reasoning only.** **Move Version History into the shared summoned workspace — timeline and prose diff become one readable task, never three competing layers.** **Build:** Preserve the existing history store, git backend, pruning, facets, descriptions, kept versions, and prose-diff engine, but replace the current History overlay/diff-as-preview composition with item 114’s workspace. On wide windows, show a narrow timeline/navigation pane beside a large read-only comparison pane; moving through versions updates the comparison immediately. On narrow windows, show the timeline first and enter the comparison as a second stage with an explicit return path. The current editor is backdrop/state, not a third readable layer. **Scope:** Keep local loose-file snapshots and git-managed history behind the same UI with only a quiet source label. Preserve independent diff scrolling and a clear focus transfer between timeline and comparison. `Esc` leaves the current buffer byte-for-byte unchanged; restore must be a deliberate, footer-taught action rather than bare `Enter`, and remains undoable. `Version history…` and `Compare with version…` deep-link into the same workspace at the appropriate focus; `Keep version…` retains its brief naming prompt and returns coherently. Remove the old History overlay, document-under-card preview composition, and feature-specific diff-panel dressing only when their last consumer is gone—retain the generic prose-diff machinery and do not strand parallel disabled paths. **Done:** A user can answer “which version, what changed, and do I want it back?” without overlapping titles, hidden prose, or ambiguity about whether the editor is active; the same flow works for local and git history; exiting is a true no-op and restoring is deliberate and undoable. **Verify:** Timeline→live comparison→focus/scroll→back/exit/restore journeys for local snapshots, named/pinned versions, git commits, empty history, renamed files, and pruned ladders; narrow/wide/zoom/DPI captures across representative light/dark, Pane/Bars, and Wagtail worlds; pixel laws proving timeline and comparison never overlap and the original document does not remain a competing readable layer; restore undo law; capture/replay parity; dashboard vision smoke; native, both conventions, and wasm gates. **Depends on the completed item 114 Settings workspace (landed `60477e7c`); user design decision 2026-07-26.** ⚠️ **DECOMPOSED 2026-07-31 after inventory — the owner stopped at a clean boundary rather than half-land it, which is the correct outcome and the brief's stated escape hatch.** It began the content-model change, then reverted deliberately: the first edit flips History's shell predicate on, and committing that without the content is precisely the empty workspace item 114 forbids. **This is not "big like 114" — it is four independent 114-sized changes, three of which were invisible from the item text.** **(1) The comparison has no renderer.** awl has exactly one prose renderer — the document layer. The transcript is markdown from `prosediff::render_markdown_blocks`, so relocating it into the content pane means giving `column_left()`, `column_width()`, `doc_top()` and `doc_clip_band()` — the four owners every document consumer routes through, ~45 call sites across `rects.rs`, `layers.rs`, `text.rs`, `geometry.rs`, `scroll.rs` — a viewport override, then gating every margin-orientation surface composed off them. Item 114 added a third geometry family beside two others and never touched the document layer; this is a second structural change of the same size in the most load-bearing geometry in the tree. A second prose renderer inside the overlay pane is the "infrastructure complexity is a smell" CLAUDE.md forbids. **(2) The removal is wider than the build,** and the item's hedge resolves toward caution: the diff-panel dressing's last consumer really is History (`scripts/review.sh` sets `opts.diff` but never `opts.preview_text`, the only thing lighting `vstate.diff_panel`), so `diff_panel`, `diff_panel_rect`, `prepare_diff_panel` and three pipelines all go — but item 84's `doc_clip_band` must **survive and be re-owned** by the comparison viewport, and its law files re-aimed rather than deleted. **(3) ~60 History test functions across ~25 files assert the CARD presentation** — each a judgment call, not a rename. **(4) Restore needs a new input primitive:** `CompareVersion`/`KeepVersion` have no default chord, and "deliberate, footer-taught, not bare Enter" cannot be a named chord because `HintAction.glyph` is `&'static str` while a chord glyph is convention-dependent — so the footer-honest option is a shift-held accept delegating to `Newline` in the editor. **Two premise corrections.** `workspace_shell()` as a **bool is insufficient**: 114's shell puts facet labels in the rail and rows in the pane, but History wants the timeline as the primary list, so flipping the bool yields the wrong composition. It must become a shape — and **DESIGN.md §5 already sanctions exactly this** ("categories beside controls, or a timeline beside a comparison"), so it is a reading 114 deferred, not an invention. Separately, **two "Done" clauses are already true and cost nothing**: Esc leaves the buffer byte-identical (the transcript is a view substitution, never a buffer write) and restore is already undoable (`App::restore_history` goes through one atomic `Buffer::set_text`). Neither emits a notice, which is worth deciding — a silent document replacement is the one place a toast earns its keep. **THE DECOMPOSITION, in dependency order.** **116a — the shape:** `workspace_shell()` becomes `workspace_shape() -> Option<WorkspaceShape>` (`RailOverRows` | `TimelineOverComparison`) with `rows_are_primary()` as the single fact geometry/keyboard/hints reduce to; History still returns `None`, so nothing is presented. Tier 1, fully capturable, lands green and changes no pixel. **116b — the relocated document viewport:** `comparison_viewport` as the one owner, read by the four geometry owners; margin surfaces gated; `diff_panel` and its pipelines structurally removed; the clip/wash/panel laws re-aimed. **This is the risky half and deserves to fail alone.** ✅ **116c LANDED — merge `7ea5cd78`** (`f3da0d07`, `1254a7b9`). `Action::AcceptAlternate` (Shift+Enter) resolved directly in `KeymapState::resolve_named`, needing no catalog chord because **Shift reads identically on both conventions** — proved by a Mac×Linux × native×emacs sweep rather than asserted, plus a law confirming it is absent from the Linux keep-list. **The delegation is the literal same code path, not a copy:** `apply_buffer_action`'s arm is now `Action::Newline | Action::AcceptAlternate`, and byte-identity is proved over `Buffer::disk_bytes()` across **ten** smart-newline shapes — bullet/numbered/task continuation, the empty-item provenance flag across four mixed step-orders, blockquote continue/end, bare-indent carry, non-markdown bypass, active-selection override — not the plain-prose case anyone would have thought to check. `history_intercept` folded into `workspace_intercept`, routed through 116a's `rows_are_primary()` rather than a kind branch; `overlay_nav.rs`'s mark **lowered** to 768 as it went. `KeepVersion` now descends through `overlay::Journey` rather than entering over a card. **Honest about reachability:** the descend branch is not reachable through today's live dispatch (the palette closes itself first), so it was proved by a direct unit test "rather than a fictional re-dispatch". ⚠️ **Merge-train note:** the lane reported "`code-health.py`: clean" — the python arm alone, not `code-health.sh` with its clippy pass — and the candidate failed `clippy::type_complexity` on its new fixture tuple. Third lane this run whose branch-level health claim did not survive the train, and the same defect class the run has been about: a check whose stated scope exceeds what it ran. Fixed with a `type Fixture` alias. **116d inherits:** the intercept is ready for `TimelineOverComparison`, `⇧↵` and `open_keep_version` are ready for a real in-workspace hint, and `workspace_shape(History)` is still `None`, waiting on 116b's compositing question. an alternate-accept action delegating to `Newline` in the editor with a byte-identity law, plus shape-aware intercept. **116d — the flip and the journeys:** History becomes `TimelineOverComparison`, deep links, the lens moved to the header, and the full Verify sweep. **Verification split, written against `docs/harness-reach.md`:** tier 1 covers entry, focus transfer, Back, exit, parked-parent position, timeline selection, lens cycling, staging, zoom/DPI and every pixel law — `overlay_accept:History` is Applied, so the restore journey replays. Tier 2 covers anything touching the store or git: snapshot recording, the pruned ladder, renamed-file timelines, `KeepVersion` (Unsupported) and the restore's disk read. **The item's Verify clause reads as though the whole thing were capturable; it is not, and asking for a sidecar over `KeepVersion` would repeat item 180's mistake.** **Owed a human, and it compounds item 114's open question:** from the comparison the first `Esc` is a Back to the timeline, so leaving History from the content region takes two — the same interaction decision 114 flagged, and it should be settled once for both members before 116d lands. ✅ **116a LANDED — merge `6202205c`** (`bff81da9`): `workspace_shape() -> Option<WorkspaceShape>` with `rows_are_primary()` as the one fact, `TimelineOverComparison` defined but routed nowhere, Settings byte-identical (identical PNG sha256; the only sidecar delta was `project.dirty` from the stash procedure). Its mutation broke **three pre-existing item-114 laws**, proving the re-route is real rather than inert, and a grep-law bans matching the shape enum outside its defining file. **Handoff worth keeping:** the geometry seam is already in place, so 116b's comparison viewport just reads the content rect; 116d's timeline hit-test should reuse the ordinary candidate-row hit-test rather than extend the rail functions, since `geom.rail` is `None` whenever rows are primary; and **`chrome/workspace.rs` is at 497/500 with no mark escape** — it postdates the frozen baseline, so 116b must extract a submodule before adding to it. ✅ **116b LANDED — merge `350aed68`** (`80527ae0`). `TextPipeline::comparison_viewport()` is the one owner; `column_left`/`column_width`/`doc_top`/`doc_clip_band` read it and everything downstream follows without knowing. Extracting `workspace_regions()` first took `chrome/workspace.rs` from 497 to **479**, off the ceiling 116a warned about. The bypass is named and enumerated in `render/geometry/page.rs` with a law pinning its consumers to that file plus exactly two fallback arms. **98 captures byte-identical**, PNG and sidecar, verified three times. `diff_panel` and its three pipelines removed after the owner verified the last-consumer reading itself; item 84's `doc_clip_band` **survived and was re-owned**, its laws re-aimed rather than deleted, and its X arm is genuinely exercised for the first time. **Mutation-proofing found two fixtures that would have gone quiet instead of red** — one searched for its straddling canvas by asking the very clip under test whether it had trimmed anything, the other graded a band its transcript never inked; both now derive independently with non-vacuity floors. **No mark raised; seven lowered.** ⚠️ **The boundary it stopped at, pinned as a law rather than absorbed:** the relocation moved the document's geometry but **not its place in painter's order**, so the workspace card still draws over it — opaque hides it, translucent ghosts it, and a blur-eligible world frosts the document into the frame around the region. `the_relocated_document_is_geometrically_placed_but_not_yet_composited` asserts both halves over the whole roster and its own message tells 116d to delete and replace it. **116d CANNOT flip `workspace_shape(History)` before that compositing round — it would present an invisible comparison.** The open design question is whether the comparison sits *on* the workspace surface or is a window *through* it.
+## Open items
 
-131. **Give Mangrove and Magpie mirrored diagonal-line compositions across contextual menus and the real Settings workspace.** **Build:** Add one reusable theme-owned diagonal row composition through the shared rowlayout/surface machinery, then assign its two authored orientations: **Mangrove** draws a continuous descending `\` spine, with row clusters left-aligned on the RIGHT side; **Magpie** draws a continuous ascending `/` spine, with row clusters right-aligned on the LEFT side. The line is mandatory in both—the striking read comes from the drawn division and triangular negative space, not merely staggered text. It may visually bleed toward the surface corners, while row attachment points occupy an inset middle band so the first/last rows retain usable width. **Line treatment:** never amber/primary. Mangrove uses a crisp tidal-teal line derived from its muted ink; Magpie uses a crisp graphite line from its muted ink. Resting weight is clearly visible but subordinate to text; the selected row brightens and thickens only the local spine segment toward `base_content`, extends a short connector to the row, and steps the row outward by a few crisp pixels—no spring, pulse, or full-width selection bar. Existing bottom-left Mangrove stipple and bottom-right Magpie ghost placards occupy the opposite empty triangle rather than colliding with the rows. **Controls are in scope, not a fallback:** model each row as a measured `label + fixed gap + accessory/control` cluster. Reserve consistent label/accessory extents across the visible set so shortcuts, values, toggles, checkmarks, exact-entry fields, and Range sliders trace a stable parallel rail with honest spacing; anchor the whole cluster to the spine instead of independently nudging text. Query/title/category navigation/footer regions remain horizontal and stable—the diagonal owns the candidate/setting rows, not every glyph on the surface. Filtering and scrolling sample a fixed surface-relative line at fixed row y positions, so content changes never make the spine or surviving rows jump horizontally. **Surface reach:** enroll every contextual overlay’s row section that currently consumes theme list-style data, not Commands alone; non-row panels keep their existing geometry. After item 115 removes the old Settings overlay, apply the SAME diagonal owner to the Settings workspace’s main setting list for Mangrove/Magpie, while its category rail, search/title shell, child Theme/Caret auditions, and narrow-stage navigation remain item 115’s workspace behavior. The empty main-pane triangle may carry the existing active category/title typography, but never a duplicate decorative label. **Responsive bound:** size the slope from the real widest visible cluster and available side territory; widen within the existing surface limit first, then reduce horizontal travel while preserving a visibly diagonal direction. Never overlap, clip, shrink type/controls, introduce horizontal scrolling, or silently fall back to Pane/Bars. **Scope:** This is a third data-driven row composition, not Mangrove/Magpie branches and not permission to diagonalize the document, workspace shell, History comparison, native Mac menu, or web/Linux persistent menu bar. Other worlds and their Pane/Bars results remain byte-identical. Item 112 owns the shared overlay rhythm first; items 114/115 own the workspace and Settings migration first. **Done:** Mangrove reads like a tidal instrument panel and Magpie like an editorial spread in both brief menus and sustained Settings, with a visible line, deliberate negative space, readable controls, obvious selection, and no loss of keyboard/pointer usability at any supported width. **Verify:** Full no-wildcard `OverlayKind` row-surface sweep plus every `SettingId × SettingKind`; simple/long labels, chords, values, toggles, text entry, sliders, empty/short/full/filtered/scrolled lists, category changes, child-picker return, and narrow/wide staging; drawn line/row/control ↔ hit-test agreement at zoom and 1×/2× DPI; pixel laws for orientation, line continuity, inset attachment band, fixed label-control gap, local selected segment, placard/row non-overlap, non-primary ink, and no clipping; exact before/after identity for every non-assigned world; dashboard captures and affordance-locating vision smoke over Commands plus every Settings category in both worlds; native, both conventions, and wasm gates. **Depends on 112 (landed, `fa64a3a4`) + 114 (pending) — **there is no item 115**; it was folded into 114 by `d726c4bb`, so the references to "item 115" in this item's body mean 114. The one real blocker is 114, which LANDED `60477e7c`. Ambitious user design decision 2026-07-27.** ⚠️ **DECOMPOSED 2026-08-01 into 131a–e after its seam turned out to be missing — but the seam fix itself LANDED and closed a live defect.** ✅ **SEAM LANDED — merge `dbf33714`** (`6df426a5`). **The defect it found, which was already shipping:** the renderer could stagger overlay rows — the offset lived in the draw emitters — but `OverlayRowPlan::row_at` kept testing the card's **undisplaced** x-span. A staggered row was clickable across a strip where nothing was drawn, and the deeper the row the wider the lie. Draw and pointer answered "where is this row" separately, which DESIGN.md §8 forbids, and every law item 131 wants to write is a claim about where a row *is*. `PlannedRow::dx` is now the one owner, planned in `plan_overlay_rows` exactly as `top` is planned from `lh`; the text area, bar plate, Pane band, selected bar and `row_at` all read it. `dx == 0.0` for every shipping world, proved byte-identical across **19 worlds × 5 surfaces = 95 captures**, hashing PNG *and* sidecar, 95/95. A source law bans any third file from re-deriving row x. **Four premise corrections.** (a) The mirror needs a **signed two-sided extent** — Mangrove's `\` steps rows right (left edge moves), Magpie's `/` with right-aligned clusters steps left (right edge moves); one `dx` cannot express both, and generalising speculatively would have been the dormant path the item forbids. (b) **The spine has no primitive** — every overlay quad pipeline is axis-aligned — but `caret.wgsl` already carries a rotation axis, so the cheap route is an inert `axis` on the selection instance, not a new pipeline class. (c) **Neither world authors its placard corner**; both are `PlacardCorner::Auto`, derived from their anchors, so the "opposite empty triangle" requirement needs the derivation to learn about the spine — a change the item does not budget for. (d) **Item 186's registry is keyed on `Background` variants and a row composition is chrome, not a ground**, so there is no slot — and the real finding is that **overlay chrome already mixes both spaces**: row pitch scales with DPI while `BAR_SIDE_INSET`, the text hpad and `CARD_MAX_W` are raw device px. A diagonal pitch authored like its neighbours would be **physical by inheritance**, exactly what item 186 exists to stop. Making it logical would make it the first chrome quantity to declare its space, which either extends `ground_space` past `Background` or opens a sibling registry — **a design decision owed a human eye, not a line of code.** **Good news it found:** the Settings workspace comes free — `workspace_geometry` builds an ordinary `OverlayGeom` and the row planner reads its band, so one owner reaches contextual menus and the workspace through one path. `workspace_shape`/`workspace_geometry` were not touched, so item 116a's lane stayed clear. **Decomposition:** **131a** the two-sided span (`dx` → `[left, right]`, small now the seam exists); **131b** the spine primitive (inert `axis` on `SelectionPipeline` + a rotated rounded-rect emitter, byte-identical for all 15 existing consumers); **131c** the composition owner (`ListStyle::Diagonal`, both worlds in one commit since the item forbids a half-applied world, **including the logical/physical decision in (d)**); **131d** the measured cluster rail (where the `SettingId × SettingKind` sweep bites); **131e** selection and the full Verify clause. 131a and 131b are small enough to pair; 131c–e should not be attempted in one pass. ✅ **131a+131b LANDED — merge `dbf33714`..`f4340960`** (`307308d2`, `31d9a7b4`). `PlannedRow` gained `dw` (a width delta) beside `dx`, chosen over `[left_inset, right_inset]` because every consumer already manipulates `(x, width)` pairs; one signed `dx_per_row` still drives both mirrors, split by sign in the planner alone. `SelInstance`/`selection.wgsl` gained an inert `axis` mirroring `caret.wgsl`, plus `prepare_rotated` and the pure `spine_segment`/`narrowed_spine_corner_px` helpers — **no non-test consumer**, `src/theme/` zero diff, no world touched. Byte-identity proved across **190 files** (95 captures × PNG + sidecar). **A pre-existing defect on the SHIPPED DEFAULT path was found and half-fixed:** `overlay_pane_selection`'s living-band branch (`Choreo::Morph`, the default — not an opt-in probe) called `living_band_rects` and drew the result verbatim, **never reading any row's offset**; only the sibling non-living branch read `dx`. A real drawn/hit-test disagreement, invisible only because nothing had ever planned a nonzero offset. The single-shape case is fixed; **`Choreo::TwoShape`'s echo band can represent a different row mid-glide, and whose offset it inherits is a composition question left explicitly to 131e.** The owner also flagged, unprompted, that its rotation law is single-function parametric rather than cross-owner — "flagging that distinction rather than overstating it". Merge-train note: the lane's branch passed health carrying unformatted code that happened to fit `selection.rs`'s 768 mark; rustfmt on the candidate tripped it at 771, and the spine helpers were **extracted** to `selection/spine.rs` (mark down to 731) rather than raised. 131c is BLOCKED on the user's chrome pixel-space decision in finding (d). 131d–e unclaimed.** ✅ **THE (d) BLOCKER IS DISCHARGED BY ITEM 242, NOT BY A DECISION HERE — 2026-08-03.** The user chose the toolkit answer: author chrome in logical units and multiply once at the boundary, rather than open a registry. Item 242 owns it and **sequences before 131c**; once chrome has a default, the diagonal declares nothing special and 131c is ordinary work. 242's measurement also **corrects finding (d) on one point**: `CARD_MAX_W` is not raw device px but a grow-only hybrid (`scale.max(1.0)` in `overlay_desired_w`), and `overlay_lh` — the quantity (d) called logical — is itself a dpi-scaled term plus two raw ones. **222/131d's parked label-alignment taste call is unaffected and still owed.**
+118. **Pre-release world-loudness audit.** **Audit definition:** "idle loudness"
+     is how strongly a world asks for attention while the user is simply writing
+     in page mode: palette, typography, margin pattern, and ambient motion count;
+     summoned overlays do not. `1/5` is the quiet pole (Wagtail), `3/5` is
+     recognizable/alive but comfortable for hours, and `5/5` is a deliberately
+     rare statement world (Firetail, Kite). **This is a diagnostic distribution,
+     never permission to turn up a world merely to fill a bin** — each world
+     still earns its own identity. **Done:** the roster has a user-confirmed
+     loudness map, its mean/distribution and outliers are explicit, near-duplicate
+     intensity poles are named, and every proposed rebalance is either rejected
+     on purpose or queued with a world-specific reason. **Pixel/sidecar
+     arithmetic may prove territory and contrast but never claims the taste
+     score.**
 
-172. **Decompose the 107-field `App` into owned state domains with narrow transition APIs.** **Defect:** Physical file splits have kept individual implementation areas navigable, but more than twenty modules still extend `impl App` and can reach the whole live application state. Invariants for documents, input, workspaces, rendering, scheduling, and persistence therefore remain coupled by convention. **Build:** After item 171 establishes the effect boundary, migrate fields and their invariants incrementally into explicit owners: `DocumentSession`, `InputState`, `WorkspaceState`, `RenderRuntime`, `FrameScheduler`, and `PersistenceRuntime` (names may change if the ownership map proves a better cut). Each owner exposes domain transitions rather than public fields; cross-domain work travels through typed outcomes/effects, not back-references to `App`. Preserve the active-buffer whole-slot ownership law, fake-clock determinism, wasm gating, GPU recovery, and byte-identical behavior. Do not introduce a service locator, trait-per-method architecture, message bus, or flag-day rewrite; land coherent vertical slices with compile-time removal of the old field access. **Done:** `App` is lifecycle composition rather than the mutable home of every subsystem, and new workspace or persistence behavior has one obvious owner. **Verify:** First commit an ownership map and call-site census; add structural gates against direct cross-domain field access and growth of root `App`; run focused state/cache identity laws after each slice, then both conventions, full native, wasm, and the live scheduling/GPU probes. **Depends on 171 (landed). Routing:** deep owner plus independent ownership audit. **User-requested code-health work 2026-07-29.** 🟢 **TWO SLICES LANDED — merge `4821c63a`** (`73db7850` map/census, `ec94c743` WorkspaceState, `4399ebf0` PersistenceRuntime, `d56e8bb7` ratchets). **The item remains OPEN**: four domains are mapped and gated but not extracted.
+     ✅ **THE USER'S MAP — GIVEN DIRECTLY, all twenty worlds:**
 
-**The ownership map is a deliverable in its own right** — `docs/app-domains.md`, with the same table as executable data in `src/app/tests/domains.rs`. 1,310 production and 586 test references classified, exhaustive by construction (no field in two owners, none unassigned). Remaining, with production references: `DocumentSession` 4 fields/363 refs, `RenderRuntime` 25/277 (**held for item 174**), `InputState` 27/164, `FrameScheduler` 12/123, `ProjectLocation` 9/51, and 22 host/lifecycle fields that stay on `App`. `config` (88 refs, 16 files, one writer) is the best remaining single-field slice.
+     | 1/5 | 2/5 | 3/5 | 4/5 | 5/5 |
+     |---|---|---|---|---|
+     | Gumtree, Bilby, Mulga, Tawny, Mopoke, Currawong, Brolga, Wagtail | Potoroo, Saltpan, Bombora, Bowerbird, Galah, Magpie | Quokka, Paperbark | Mangrove, Cassowary | Firetail, Kite |
 
-**The map's own argument against the obvious next cut, worth keeping:** `gpu`'s 160 references across 23 files — the most dispersed field in the struct — are dominated by `gpu.window.request_redraw()`, which is a *scheduling verb wearing a render field*. Taking `RenderRuntime` first would pull 22 files into item 174's blast radius for no invariant. Relatedly, the item's `RenderRuntime`/`FrameScheduler` boundary is **not a real boundary**: for `theme_font_at`, `theme_switch_at`, `theme_settle`, `crossing_settle_at` the *stamp* is scheduling and the *effect* is rendering. The map assigns them to `RenderRuntime` and says so rather than pretending the line is clean; item 174 should move them and record the decision in the classification gate.
+     **Final distribution `8, 6, 2, 2, 2`, mean 2.20.** ✅ **THE LIVE `--release`
+     AMBIENT SITTING IS DONE: "the movement worlds are good"** — all six moving
+     worlds confirmed in the live app, so the ambient scores are formed live and
+     are no longer provisional.
 
-**Also worth knowing: `InputState` is the item's largest named owner and its lowest-value one.** 14 of its 27 fields are touched by exactly one file and `app/input/` accounts for 135 of 164 references; extracting it satisfies the item's letter and buys a struct rename. Its only genuine cross-domain leak is `cursor_px`, read at two sites in `apply.rs` — cheaper to pass the position than to move 27 fields. The map argues it should probably never be extracted as a 27-field struct.
+     ✅ **THE DIRECTION CALL IS MADE (user, 2026-08-06): THE TARGET SHAPE IS
+     DROPPED.** The user's words: *"i think we just drop the target. it's fine,
+     right now."* **`1, 7, 6, 4, 2` / mean 2.90 is RETIRED — not amended, not
+     restated as a descriptive shape, not replaced.** The roster's measured mean
+     of **2.20** is accepted as awl's shape rather than a shortfall, consistent
+     with PHILOSOPHY's calm bias: a roster that lands at 2.20 when its owner
+     scores it freely is reporting that the target was aspirational. Every world
+     was individually confirmed, both 5s sit exactly where the roster wants them,
+     and this item's own rule forbids turning a world up merely to fill a bin.
+     ⚠️ **Do not re-derive a target, and do not read the eight 1/5s as a deficit.**
 
-⚠️ **THE ITEM NAMED TWO DIFFERENT DOMAINS `WorkspaceState`, and they share no fields.** This item lists it beside `DocumentSession`/`PersistenceRuntime` and closes on "new **workspace** or **persistence** behavior", which reads as the project-folder domain; item 173 says "in item 172's `WorkspaceState`, define one closed lifecycle for editor, brief contextual overlay, sustained summoned workspace, and suspended child audition", which is the summoned-UI domain. **The name went to 173's meaning** — 173 is the downstream consumer and the critical path to 114 — and the project-folder domain is now `ProjectLocation`, with `App::workspace` renamed `workspace_root` so the two cannot be misread for each other. **This item's Done clause is therefore satisfied for persistence and NOT YET for project-folder behavior.** Recorded rather than quietly counted as met.
+     🔵 **WHAT REMAINS, and it is the whole of item 118's open work: the six
+     standing proposals, plus one stale score.**
+     **(a) Disposition the six standing proposals:** Galah's ground density
+     (magnitude pinned by the user: *"up it a tinnyyy bit"*, so a small step off
+     `0.10` in the `0.12`–`0.16` neighbourhood — **land the smallest value that
+     reads as different in a real capture, and show the arithmetic for the one
+     below it too**); re-verifying that item 108 actually met its Done condition
+     (Gumtree still measures second-faintest at its shipped density, so **verify
+     108 worked before repeating its recipe**); the recorded Firetail/Mangrove
+     inversion; ROADMAP's "merge the tightest near-pair" call; recording the map
+     as durable data so the next run diffs instead of re-deriving; and Mulga.
+     **(b) ⚠️ MULGA'S SCORE OF 1 IS STALE** — item 258 replaced the ground it
+     described. **Re-score it.**
 
-**The one place byte-identity was consciously chosen over consistency** is `sync_cursor_icon`'s raw `popover_summon_bit()` read: documented, single call site, and law-counted so a second consumer fails by name. A byte-identity refactor preserves pre-existing bugs, so if a second pair of eyes is spent anywhere on this branch, that is the spot.
+     ⚠️ **STANDING RULES THIS ITEM SETS AND THAT KEEP GETTING RE-LITIGATED.**
+     The user's map diverging from any measured column is **not a defect and
+     carries no obligation** — the roster already carries a recorded, accepted
+     divergence of exactly this kind (Mangrove measures louder than Firetail on
+     every static and motion column while ranking a step below it). **Do not
+     queue work to reconcile taste with measurement; that inverts the item.**
+     **Firetail and Mangrove stay as they are** — the inversion proposal is
+     CLOSED on purpose ("theyre fine as is"); do not re-propose without a new
+     reason. **Near-duplicate poles, named as the item asked:** Tawny/Mopoke
+     (tightest — same `Dots{edge:false}`, edge 0.0000 both, L\* σ within 0.15),
+     Magpie/Saltpan (edge **0.4444 on both to four decimals**), Bilby/Brolga (a
+     deliberate mirror per THEMES.md). **In a code buffer the map does not
+     describe what ships** — at `page_width_code = 100` a 1600px window leaves a
+     16px margin, the ground effectively vanishes and the roster's spread
+     collapses toward palette alone.
 
-174. **Separate pure render planning from shaping/cache mechanics and GPU execution.** **Defect:** `TextPipeline` and the render directory jointly own scene policy, document geometry, cache invalidation, hit-test inputs, sidecar-visible facts, GPU resources, and feature-specific drawing. Tests often have to infer planned geometry from pixels, while render-touching work can accidentally couple presentation rules to device state. **Build:** Introduce one deterministic scene/layout planner that consumes `ViewState`, measured text inputs, theme capabilities, and viewport data and emits inspectable primitives plus interaction geometry. Shaping and cache ownership remain a distinct measured stage; GPU execution consumes the plan without deciding feature layout. Route drawing, hit-testing, and sidecar geometry through the same planned objects, migrating one coherent surface family at a time. Preserve O(visible) frame work, buffer-identity cache keys, rowlayout ownership, deterministic capture, and exact output for migrated surfaces. Do not build a retained widget tree, general scene framework, duplicate CPU renderer, or allocate an entire document plan each frame. **Done:** presentation decisions are testable without a device; GPU code executes rather than invents layout; drawn and interactive geometry cannot drift through parallel calculations. **Verify:** Plan-level geometry laws, drawn↔hit-test↔sidecar identity, buffer-swap/resize/zoom invalidation, allocation and reshape-count witnesses, exact before/after capture probes across representative worlds and surfaces, release frame benchmarks, both conventions, full native, wasm/WebGL. Every render slice gets the standing vision smoke. **Independent of 171–173; schedule away from item 114’s overlapping render files. Routing:** deep owner (`gpt-5.6-sol` high) with production-tier outcome audit. **User-requested code-health work 2026-07-29.** 🟢 **FIRST FAMILY LANDED — branch `claude/item-174-render-plan`** (`a10944a8`, `5d97e140`, `3ef6d85d`, `15e3eede`, `a1674d1e`, `629eb937`). **The item remains OPEN**: one surface family is migrated, the rest still own their geometry.
+131. **Give Mangrove and Magpie mirrored diagonal-line compositions across
+     contextual menus and the real Settings workspace.** 131a–d are LANDED;
+     **131e is what remains: selection, and the full Verify clause.**
 
-**`src/render/plan/` is device-free** — shapes nothing, measures nothing, reads no clock — and `plan_overlay_rows` emits one `PlannedRow` per candidate display line plus the interaction geometry. **The forward `row -> y` arithmetic and its inverse are module-private, and `overlay_row_top`/`overlay_row_of`/`overlay_row_index` are DELETED from `render/chrome`: the bypass is compiler-enforced, not grep-enforced.** Routed through the one plan: hit-test, range rails (draw and hit), the visual-selection band target and coverage grid, Pane band, Bars plates, chord plates, footer plate, slant clip bands, shaped-row item mapping, and `overlay_window_report`. Item 164's arrangement is preserved and re-pointed, not weakened — the planner is now the sole owner of `selected_display()` and `overlay_row_at` deliberately stays outside the transaction.
+     **The composition, for 131e's reference.** **Mangrove** draws a continuous
+     descending `\` spine with row clusters left-aligned on the RIGHT side;
+     **Magpie** draws a continuous ascending `/` spine with clusters right-aligned
+     on the LEFT. The line is mandatory in both — the striking read comes from
+     the drawn division and triangular negative space, not merely staggered text.
+     Never amber/primary: Mangrove uses a crisp tidal-teal line derived from its
+     muted ink, Magpie a crisp graphite one. Resting weight is clearly visible but
+     subordinate to text; **the selected row brightens and thickens only the local
+     spine segment toward `base_content`, extends a short connector to the row,
+     and steps the row outward by a few crisp pixels — no spring, pulse, or
+     full-width selection bar.** Query/title/category/footer regions remain
+     horizontal and stable. Filtering and scrolling sample a fixed
+     surface-relative line at fixed row y positions, so content changes never make
+     the spine or surviving rows jump horizontally.
 
-**Why this family, from the census rather than the brief:** `overlay_row_top` was a free function taking five loose scalars, re-assembled at **eight** call sites, and `overlay_draw.rs` then abandoned it and re-derived `first_top + k*lh` inline. "How many candidate lines does this card have" was written out **five** times, and the fifth added `+ empty.is_some()` in only one arm — a live defect. "Which line is logically selected" had item 164's owner **and a second, differently-clamped copy inside the test y-probe**, i.e. the oracle itself was a parallel calculation.
+     **131e's Verify clause, which is the reason it was never folded into
+     131c/d:** full no-wildcard `OverlayKind` row-surface sweep plus every
+     `SettingId × SettingKind`; simple/long labels, chords, values, toggles, text
+     entry, sliders, empty/short/full/filtered/scrolled lists, category changes,
+     child-picker return, and narrow/wide staging; drawn line/row/control ↔
+     hit-test agreement at zoom and 1×/2× DPI; pixel laws for orientation, line
+     continuity, inset attachment band, fixed label-control gap, local selected
+     segment, placard/row non-overlap, non-primary ink, and no clipping; exact
+     before/after identity for every non-assigned world; dashboard captures and
+     affordance-locating vision smoke over Commands plus every Settings category
+     in both worlds; native, both conventions, and wasm gates.
 
-**Identity: 470 capture probes** (19 worlds × 10 overlay surfaces, plus 8 geometry axes over 7 worlds). **34 PNGs differ and every one is the deliberate fix; zero other PNG or sidecar bytes changed**, re-verified three times, with after-vs-after 0/470.
+     ⚠️ **THE ONE OPEN COMPOSITION QUESTION 131e INHERITS BY NAME.**
+     `Choreo::TwoShape`'s echo band can represent a **different row mid-glide**,
+     and whose offset it inherits was left explicitly to 131e. The single-shape
+     case is already fixed. **Do not re-run an animator to answer it** — the Pane
+     band's own doc explains that re-running one lets the fill land on a different
+     row from the ink shaped against it.
 
-**The deliberate output change is a real defect the migration exposed.** `content_rows` omitted the empty-state notice line the card height had already paid for, so a `Bars` world's picker filtered to zero matches drew its **footer plate over the "no matches" row**. The 34 differing cells are exactly the two zero-match states on the five shipping Bars worlds plus geometry variants — measured on Galah as 19,295 px in one band `y 242..300`, one row height, nothing else.
+     🔵 **A LIVE USER CONSTRAINT ON THE SELECTED-ROW MARK, STILL UNADDRESSED —
+     verified against the tree 2026-08-06.** From a real Magpie screenshot: *"it
+     needs to be thinner and more elegant"*. **The real finding is that ONE glyph
+     cannot serve both worlds:** Magpie's display face is `Bitter`, an editorial
+     slab serif whose whole register is contradicted by a heavy geometric mark,
+     while Mangrove is `JetBrains Mono`, a technical face where a crisp geometric
+     mark is correct. **So the mark's WEIGHT and form belong in theme data beside
+     the world's face.** Today they do not: `render/chrome/diagonal.rs` carries a
+     shared `SELECTED_SPINE_WEIGHT = Logical(3.0)` and `src/theme/` holds no
+     per-world marker weight at all. ⚠️ **Do not tune the single shared constant
+     until Magpie looks right and call it done** — that is the shape this note
+     exists to prevent. Magpie wants a hairline, high-contrast,
+     typographically-sympathetic mark; Mangrove wants the crisp one it has.
 
-**Two things mutation proof found that reading did not.** (a) `livingband::covered_rows` was stepping its own `first_top + k*lh` grid one module over from the plate with the same bug; the first source law's sentinels could not see a consumer *stepping off the band origin*, and adding that sentinel lit it up immediately. (b) **The device law's `sel_row` arm was tautological** — sidecar and plan both read `selected_display()`, so a planner that forgets grouped headers kept them in perfect agreement while pointing at the wrong row, and it was *watched staying green*. An independent oracle (the reported line must carry `overlay_selected`'s item) made it fail by name. This is the strongest instance yet of the repo's own lesson: agreement between two readers of one function proves nothing.
+     ⚠️ **131's own rule, which every consumer inherits: never ship a
+     half-applied world.** Both worlds move in one commit or neither does.
 
-**Witnesses:** `plans_per_frame = 1` and `plan_rows_per_plan = 12` for a **106-item** palette — one `Vec<PlannedRow>`, 384 bytes per overlay frame, with the bench asserting *exactly* one plan (zero means measuring nothing, more than one means a consumer grew its own). O(visible) proven at 200,000 items. Reshape counts unchanged.
+172. **Decompose the 107-field `App` into owned state domains with narrow
+     transition APIs.** **Build:** migrate fields and their invariants
+     incrementally into explicit owners; each owner exposes domain transitions
+     rather than public fields, and cross-domain work travels through typed
+     outcomes/effects rather than back-references to `App`. Preserve the
+     active-buffer whole-slot ownership law, fake-clock determinism, wasm gating,
+     GPU recovery, and byte-identical behavior. Do not introduce a service
+     locator, trait-per-method architecture, message bus, or flag-day rewrite.
+     **Done:** `App` is lifecycle composition rather than the mutable home of
+     every subsystem, and new workspace or persistence behavior has one obvious
+     owner.
 
-⚠️ **Two measurement honesty notes.** Release frames showed palette cells at median +8.1%, but the **untouched** cells moved median −0.2% across a −7.0%…+22.5% range on the same run — the whole S tier moved on every scenario including ones this change cannot touch, with five workers building concurrently. 0.17 ms is implausible for 384 bytes plus a ≤24-row scan, so the honest reading is *no palette-specific signal, confirmation owed on a quiet host*. Relatedly the **bench baseline was deliberately not re-banked**: re-banking tonight would freeze contention noise into every cell.
+     🟢 **EVERY OWNER IS NOW EXTRACTED.** The root is **107 fields → 20**, and
+     `docs/app-domains.md`'s table reads "extracted" for `WorkspaceState`,
+     `PersistenceRuntime`, `DocumentSession`, `InputRuntime`,
+     `ConfigurationRuntime`, `ProjectLocation`, `FrameRuntime` and `UsageLedger`,
+     with 12 host/lifecycle fields staying on `App` deliberately. **The map is a
+     deliverable in its own right** — `docs/app-domains.md`, with the same table
+     as executable data in `src/app/tests/domains.rs`, exhaustive by construction.
 
-**Left for later slices, stated rather than implied:** document-content surfaces, search panel, HUD, gutter, outline, popover, whichkey and readout still own their geometry; the spell popup's anchoring is untouched (its rows are planned, its anchor is not); `overlay_secondary_top`/`overlay_split_bounds`/`overlay_strip_band` remain separate owners and folding the strip band plus secondary column in is the natural next slice; **no sidecar schema change** — publishing planned row rects would let a test assert row geometry with no device at all, but that is a schema bump plus a CAPTURE.md edit.
+     🔵 **SO THE STANDING QUESTION IS WHETHER THIS CLOSES.** Read the census as
+     the receipt and close it, or name what remains — **do not leave it open by
+     default.** Two facts a closer needs: the item **named two different domains
+     `WorkspaceState`** and the name went to the summoned-UI meaning, with the
+     project-folder domain becoming `ProjectLocation`; and **the one place
+     byte-identity was consciously chosen over consistency** is
+     `sync_cursor_icon`'s raw `popover_summon_bit()` read — documented, single
+     call site, law-counted so a second consumer fails by name. **A byte-identity
+     refactor preserves pre-existing bugs**, so if a second pair of eyes is spent
+     anywhere on this work, that is the spot.
 
-**Two premise corrections worth keeping.** (a) The brief said overlay rows "already have `render/rowlayout` as a partial owner" — `rowlayout` owns *horizontal* cell layout (primary/secondary budget, elision, rails) and had nothing to do with the vertical row-Y duplication where all the drift lived. They are orthogonal owners and the planner correctly did not subsume it. (b) The theme picker **retired its lens strip** (user decision 2026-07-15) and is now flat, so the grouped/sections path is exercised by the **command palette** under a non-All lens. A brief reaching for the theme picker to test grouped behaviour would have tested a flat card.
+174. **Separate pure render planning from shaping/cache mechanics and GPU
+     execution.** **Defect:** `TextPipeline` and the render directory jointly own
+     scene policy, document geometry, cache invalidation, hit-test inputs,
+     sidecar-visible facts, GPU resources, and feature-specific drawing. Tests
+     often have to infer planned geometry from pixels, while render-touching work
+     can accidentally couple presentation rules to device state. **Build:** one
+     deterministic scene/layout planner consuming `ViewState`, measured text
+     inputs, theme capabilities and viewport data, emitting inspectable primitives
+     plus interaction geometry. Shaping and cache ownership remain a distinct
+     measured stage; GPU execution consumes the plan without deciding feature
+     layout. Route drawing, hit-testing and sidecar geometry through the same
+     planned objects, **migrating one coherent surface family at a time.**
+     Preserve O(visible) frame work, buffer-identity cache keys, rowlayout
+     ownership, deterministic capture, and exact output for migrated surfaces. Do
+     not build a retained widget tree, general scene framework, duplicate CPU
+     renderer, or allocate an entire document plan each frame. **Done:**
+     presentation decisions are testable without a device; GPU code executes
+     rather than invents layout; drawn and interactive geometry cannot drift
+     through parallel calculations. **Verify:** plan-level geometry laws,
+     drawn↔hit-test↔sidecar identity, buffer-swap/resize/zoom invalidation,
+     allocation and reshape-count witnesses, exact before/after capture probes,
+     release frame benchmarks, both conventions, full native, wasm/WebGL. Every
+     render slice gets the standing vision smoke. **Routing:** deep owner with a
+     production-tier outcome audit.
 
-**Follow-up routed:** item 181.
+     🟢 **ONE FAMILY LANDED — the item remains OPEN.** `src/render/plan/` is
+     device-free (shapes nothing, measures nothing, reads no clock) and
+     `plan_overlay_rows` emits one `PlannedRow` per candidate display line plus
+     the interaction geometry. **The forward `row -> y` arithmetic and its inverse
+     are module-private, and `overlay_row_top`/`overlay_row_of`/`overlay_row_index`
+     are DELETED from `render/chrome`: the bypass is compiler-enforced, not
+     grep-enforced.**
 
-118. **Pre-release world-loudness audit — repeat the 1–5 idle Room/Frame check before release.** **Audit definition:** “idle loudness” is how strongly a world asks for attention while the user is simply writing in page mode: palette, typography, margin pattern, and ambient motion count; summoned overlays do not. `1/5` is the quiet pole (Wagtail), `3/5` is recognizable/alive but comfortable for hours, and `5/5` is a deliberately rare statement world (Firetail). **Baseline from the 2026-07-26 design session, eighteen shipping worlds:** `1/5: 1`, `2/5: 10`, `3/5: 2`, `4/5: 4`, `5/5: 1` (mean 2.67). Bowerbird item 117 intentionally changes that to `1, 9, 3, 4, 1` (mean 2.72). **Direction for a twenty-world roster:** hover around 3 with awl’s calm bias; the provisional healthy shape is `1, 7, 7, 4, 1` (mean 2.85), not a symmetric theme-park bell curve. The current gap is the middle, not more 5s. This is a diagnostic distribution, never permission to turn up a world merely to fill a bin—each world still earns its own identity. Bilby/Brolga/Tawny/Saltpan are valuable quiet anchors; Galah and Mulga are candidates to inspect, not pre-decided promotions. **Run:** Immediately before release preparation, review every shipping world’s current Room in item 20’s dashboard at representative page widths, then observe every ambient world live in `--release`; independently assign 1–5 before looking at the baseline, reconcile the roster together, and record any chosen changes as separate concrete queue items. Include any nineteenth/twentieth worlds that have graduated by then; do not graduate Cassowary Light or any other candidate merely to hit twenty. **Done:** The final roster has a user-confirmed loudness map, its mean/distribution and outliers are explicit, near-duplicate intensity poles are named, and every proposed rebalance is either rejected on purpose or queued with a world-specific reason. **Verify:** Affordance-locating vision smoke over all Room captures; live-only confirmation of speed/calmness for Lava, Currawong stars, Bombora waves, Bowerbird cutouts, and any later ambient world. Pixel/sidecar arithmetic may prove territory and contrast but never claims the taste score. **Timed before release preparation; user design decision 2026-07-26. ✅ **PREPARATION LANDED — merge on `main`** (scripts only; no Rust, shader, Cargo or CI file touched, so **no full-native-suite receipt is claimed** — code-health and web-smoke clean). 🔵 **STILL AWAITING THE USER: the confirmed map, and the live `--release` sitting.** **The lane scored all nineteen worlds before opening anything baseline-related, and that search became the finding: the 2026-07-26 per-world map was NEVER WRITTEN DOWN.** Only the histogram survives — `queue.md` and its history, ROADMAP, THEMES, PHILOSOPHY and the design-session commits were all searched. **Independent map: `1, 10, 3, 4, 1`, mean 2.68.** Excluding Paperbark (which post-dates the baseline): `1, 10, 2, 4, 1`, **mean 2.67 — the baseline's exact aggregate**, arrived at blind. Corroboration: both stated anchors match (Wagtail 1, Firetail 5); the four 4/5s recoverable by inference from item 117 are **exactly the four it independently chose**; and **Bowerbird scored 3**, the first independent confirmation that item 191's `Finds` swap plus tuning hit its target rather than overshooting. **One unresolvable disagreement:** the baseline's second 3/5 is one of Currawong/Gumtree/Magpie/Mopoke and no record says which. ⚠️ **A CONTRADICTION BETWEEN TWO USER DECISIONS, found here and material to the pending Kite call:** item 132 commissions Kite as a **second 5/5**, while item 118's own target shape `1,7,7,4,1` carries **one** 5 and states *"the gap is the middle, not more 5s"*. Both cannot hold — either the shape becomes `1,7,6,4,2` (mean 2.90) or Kite is not a 5. ✅ **RESOLVED 2026-08-02 IN FAVOUR OF ITEM 132, AND RE-CONFIRMED BY THE USER 2026-08-04: KITE IS A 5/5, and the target shape is amended to `1, 7, 6, 4, 2` (mean 2.90)** — two deliberate statement worlds, Firetail and Kite. The clause above ("the gap is the middle, not more 5s") was written before Kite was commissioned and is superseded **on that one clause only**; the rest of this item's direction — calm bias, hover around 3, no theme-park bell curve — stands. ⚠️ **This resolution sat in the decisions section for two days while THIS BODY still read as open, so the 118 lane re-raised a settled question and the user answered it twice. A decision recorded in one place and not copied into the item body becomes invisible where it is actually read** — the same class as the 116d drop. Corrected here 2026-08-04. ⚠️ **The live `--release` observation was NOT run and was explicitly not claimed: at the time the screen was LOCKED** (`CGSSessionScreenIsLocked: true`, checked at both ends of the session with the same probe `live-probe.sh` uses). ✅ **THE SCREEN IS UNLOCKED AS OF 2026-08-04 and the sitting is REACHABLE** — see the board's display section for the invocation and for the both-ends re-check that a run under a lock will otherwise pass falsely. Under the occlusion tripwire a live window presents zero frames, so a sitting now would produce a false result — item 113's unlocked session no longer holds. **Every ambient world's score is provisional on that check.** Offered instead, honestly bounded: deterministic phase trajectories converted to real seconds via the product's own `LAVA_SPEED` — fraction of right margin moved past 3 L\* at ten seconds is **Mangrove 0.351 · Firetail 0.344 · Bowerbird 0.077 · Bombora 0.027 · Currawong 0.002**, proving trajectory only, never cadence or calmness. **Premise corrections:** item 20's dashboard has **no width parameter** (fixed 1600×1000), so "representative page widths" required a new sweep; **item 132 calls Kite the nineteenth world when Paperbark already is** (Kite would be twentieth); and **in a code buffer the map does not describe what ships** — at `page_width_code = 100` a 1600px window leaves a 16px margin, the ground effectively vanishes and the roster's spread collapses toward palette alone. **Two metric repairs recorded because they nearly produced false findings:** linear luminance called every dark world's ground flat while the captures plainly showed shapes (gamma, not a finding) — CIE L\* is now the headline column; and `ink_cr` took a *percentile of the column*, whose area changes with the measure while the ink does not, so it moved between arms for one palette (Paperbark 10.75 vs 4.42) until a fixed extreme-pixel count made it arm-invariant. **Vision smoke 19/19 on every affordance except inline code, which is not locatable in Wagtail** — pixel-checked as byte-identical background, which is the 1-bit law's own sanctioned answer (THEMES.md) and therefore declared behaviour rather than a defect, though the affordance genuinely does not exist there. **Near-duplicate poles, named as the item asked:** Tawny/Mopoke (tightest — same `Dots{edge:false}`, edge 0.0000 both, L\* σ within 0.15), Magpie/Saltpan (edge **0.4444 on both to four decimals**), Bilby/Brolga (deliberate mirror per THEMES.md), and **Firetail/Mangrove inverted** — Mangrove measures louder on every static and motion column while ranking a step lower. **Six proposals, all labelled as proposals:** Galah's ground density (item 108's Gumtree precedent; the cheapest 2→3), re-verifying item 108 actually met its Done condition (Gumtree measures second-faintest at its shipped density), rejecting Mulga's promotion on purpose and recording why, resolving the Firetail/Mangrove inversion, making ROADMAP's "merge the tightest near-pair" call on the now-named pair, and **recording the confirmed map as durable data so the next run diffs instead of re-deriving four scores by inference.** Captures in `gallery/worlds/`, `gallery/item-118-loudness/` and `gallery/item-118-ambient/`. Dispatched now because the roster is momentarily STABLE at nineteen worlds — Bowerbird's `Finds` and item 186's ground space both landed, and Kite is held off main — so a distribution taken now describes what actually ships. Only the preparation is dispatchable: the item's Done requires a USER-CONFIRMED map and states that pixel arithmetic may prove territory and contrast but never claims the taste score. The lane produces captures, a vision smoke, and its own independent 1–5 proposal; the confirmation and any rebalance remain the user's.**
+     **Left for later slices, stated rather than implied:** document-content
+     surfaces, search panel, HUD, gutter, outline, popover, whichkey and readout
+     still own their geometry; the spell popup's anchoring is untouched (its rows
+     are planned, its anchor is not); `overlay_secondary_top` /
+     `overlay_split_bounds` / `overlay_strip_band` remain separate owners and
+     **folding the strip band plus secondary column in is the natural next
+     slice**; **no sidecar schema change** — publishing planned row rects would
+     let a test assert row geometry with no device at all, but that is a schema
+     bump plus a CAPTURE.md edit.
 
-✅ **THE USER'S MAP — GIVEN DIRECTLY 2026-08-04, and it is the confirmation this item's Done clause has been waiting for.** Transcribed from dictation and matched against the roster (several names arrived garbled: "Tony"→Tawny, "Calm Tree"→Gumtree, "Sulpan"→Saltpan, "Mulka"→Mulga, "Carwong"→Currawong, "Umry"→Cassowary, "Paperbug"→Paperbark, "Carla"→Galah).
+     ⚠️ **A measurement-honesty note the next slice inherits:** the first slice's
+     release frames showed palette cells at median +8.1% while the **untouched**
+     cells moved median −0.2% across a −7.0%…+22.5% range on the same run, with
+     five workers building concurrently. The honest reading is *no
+     palette-specific signal, confirmation owed on a quiet host*, and the bench
+     baseline was deliberately **not** re-banked so contention noise is not frozen
+     into every cell.
 
-| 1/5 | 2/5 | 3/5 | 4/5 | 5/5 |
-|---|---|---|---|---|
-| Gumtree, Bilby, Mulga, Tawny, Mopoke, Currawong, Brolga, Wagtail | Potoroo, Saltpan, Bombora, Bowerbird, Galah | Quokka, Paperbark | Mangrove, Cassowary | Firetail, Kite |
+227. **Add a desktop-integrated AppImage as awl's friendly Linux download.**
+     **Defect:** the tarball is appropriate for technical early adopters but is
+     not a normal Linux desktop application: it has no launcher metadata or icon
+     integration. **Build:** package awl as an x86_64 AppImage in the release
+     workflow, alongside — not instead of — the tarball. Include the binary, a
+     `.desktop` launcher entry, the canonical Linux PNG icon derived from the
+     existing icon pipeline, licenses/credits, and only the runtime libraries that
+     belong inside the package; **do not bundle GPU drivers.** Publish a checksum
+     and stable release-asset name. **Done:** a user can download one file from
+     GitHub Releases, mark it executable, launch awl, and receive correct desktop
+     name/icon integration where the desktop supports it; the tarball remains
+     available as fallback. **Verify:** AppImage structural validation; launch and
+     headless smoke on representative Debian/Ubuntu and Fedora-like environments;
+     Wayland and X11 launch checks; icon/desktop-entry law; GPU-adapter and
+     file-open smoke; mutation proof removes launcher/icon packaging; release dry
+     run uploads both Linux artifacts. **Routing:** production tier with a Linux
+     visual/compatibility audit. ⚠️ **Item 226 is complete and the glibc floor is
+     settled at 2.35, so the "decide it together with the support matrix" coupling
+     has retired.** Confirmed unstarted: nothing in the tree matches `AppImage`.
 
-✅ **MAGPIE IS RECORDED AS A 2 — the user gave it as "a one or a two" and asked that the ambiguity be resolved rather than handed back, so it was resolved on the roster's own measured evidence, not by a coin flip.** The dictation self-corrected mid-sentence from Brolga to Magpie and left the value as a range; Brolga is a firm 1. **The tiebreak: this item's own near-duplicate-pole analysis names Magpie and Saltpan as a measured pair — `edge 0.4444` on BOTH to four decimals — and the user scored Saltpan a 2.** Splitting a measured near-duplicate pair across two bins would contradict the same analysis this item produced, so Magpie sits with Saltpan. **Final distribution `8, 6, 2, 2, 2`, mean 2.20.** ⚠️ If the user's instinct was the 1, this is a one-character change and nothing downstream depends on it — the direction finding below holds at either value (means 2.15 vs 2.20 against a 2.90 target).
+231. **Name the CAUSE of the hosted-macOS gate hang. The fix is a SECOND item,
+     scoped only once the cause has a name.** ⚠️ **REFRAMED BY USER DECISION from
+     "fix the hang" to "diagnose it" — and the reframe is the most important line
+     in this item.** One fix has already been attempted and **failed**: the
+     `src/gpu_cache.rs` round cut `render::tests::` GPU program builds
+     **52,083 → 5,577 (9.3×)** and **the hang did not clear**. A second
+     speculative fix would be worse than the first, because **the strongest
+     remaining candidate is a SYMPTOM MASK**: `src/test_gpu.rs` holds a
+     process-wide `OnceLock<(Device, Queue)>` "created once and never dropped",
+     and recycling it would very likely turn CI green **without anyone learning
+     what was exhausted** — destroying the only instrument that can currently see
+     whether a user on a VM is affected.
 
-⚠️ **FIRST, WHAT IS NOT A FINDING — because the previous draft of this entry got it wrong and the correction is the more useful half.** The user's map diverging from the **agent's independent map** (`1, 10, 3, 4, 1`, mean 2.68) or from any **measured column** (L\*, edge density, territory, motion trajectory) is **NOT a defect and carries no obligation.** This item states plainly that pixel arithmetic may prove territory and contrast but **never claims the taste score**, and the roster already carries a recorded, accepted divergence of exactly this kind — Mangrove measures louder than Firetail on every static and motion column while ranking a step below it. **The agent map's only legitimate use is as a CHECKLIST — did every world actually get looked at — never as a yardstick to be closed.** Do not queue work to reconcile taste with measurement; that inverts the item.
+     **Defect:** `main`'s `mac (render::tests)` job **HANGS, it does not fail** —
+     exactly three tests (the runner's 3 vCPUs) park at the same instant and never
+     move, and the `cargo`/`awl-…` orphans **survive SIGTERM** because they are
+     parked in `poll(PollType::wait_indefinitely())`. Bisected over six sequential
+     probes to **`8207e519`** (Kite, `Background::WarpedGrid`, +267 lines of
+     `background.wgsl`), **both boundaries measured**.
 
-🔴 **WHAT IS A REAL FINDING: THE USER'S SCORES DISAGREE WITH THE USER'S OWN STATED DIRECTION, and that is a question no metric raised.** The `1, 7, 6, 4, 2` (mean 2.90) target shape is not a measurement — it is **design intent set in a design session**. The confirmed scores mean **2.20**. **The shapes are not the same shape:** the target wants **one** 1/5 and the map gives **eight**; the target wants six 3/5s and the map gives **two**. ⚠️ **So item 118's own stated diagnosis — "the current gap is the middle, not more 5s" — is CONFIRMED and much larger than it estimated.** Both 5s are exactly where the roster wants them (Firetail and Kite, the two deliberate statement worlds), and the 4s are populated; the middle is nearly empty and the quiet pole holds nearly half the roster. **The open question is which way to close that gap — raise ~7 worlds toward 3, or amend the target shape to match awl's actual calm bias — and that is a user decision, not a lane's.** This item's own text forbids turning up a world merely to fill a bin, so **amending the shape is a real answer, and on the current evidence it is the LIKELIER one**: a roster that lands at 2.20 when its owner scores it freely is not failing a target so much as reporting that the target was aspirational. PHILOSOPHY's calm bias is the product's identity, not a shortfall against it. ⚠️ **Whichever arm is chosen, it is chosen ONCE and recorded here** — the failure mode this item keeps hitting is a direction question answered in conversation and never written into the body, which is how the Kite contradiction survived two days and got answered twice.
+     **ELIMINATED — do not re-derive; each was killed by measurement.**
+     (a) **The shader:** 15 `backgrounds_item132`/`warp_tunnel` tests pass cleanly
+     six minutes before the wedge, in two independent logs — **do not start by
+     staring at it.** (b) **A single bad test:** the victim varies between runs,
+     so the commit poisons the device rather than owning the hanging test.
+     (c) **Concurrency:** `RUST_TEST_THREADS=1` **WEDGES**. (d) **A per-device
+     resource:** the mac and linux conventions — two separate processes with two
+     separate wgpu devices — stopped **within 10 MILLISECONDS** of each other, so
+     **the contended resource is SYSTEM-WIDE: the VM's virtualised Metal stack
+     itself.** (e) **Program-build volume:** the 9.3× cut did not clear it, and
+     `--skip render::tests::` **COMPLETED** while building ~80,000 GPU programs in
+     aggregate — those tests create AND DESTROY devices, forcing driver-side
+     reclamation. **It is not how much you build — it is how much you pile on a
+     device the driver never reclaims.** (f) **RAM:** steady at ~2.37 GB.
+     (g) **Software adapters as a stand-in:** two independent lavapipe stacks ran
+     `render::tests::` at both bisect boundaries and neither ever hung — a
+     software rasteriser has no system-wide GPU resource for a cross-process wedge
+     to exhaust, so it cannot reproduce this class even in principle.
+     ☠️ **(h) The shader-source-size lead is DEAD.** HEAD carries the LARGEST
+     `background.wgsl` of the three trees and got **2.6× FURTHER** in the
+     container; fitting `budget/test = C + K·shader_bytes` across the boundaries
+     needs a **negative** constant term. ⚠️ **That eliminates a hypothesis about
+     the CONTAINER'S OOM, which is a PROXY — it says nothing about the hang.**
 
-✅ **FOUR INDEPENDENT CORROBORATIONS, none of them circular** — the user scored without reference to the earlier calls. **Wagtail 1** and **Firetail 5** are the two anchors this item's own definition names. **Kite 5** matches the 2026-08-02 resolution and the 2026-08-04 re-confirmation. **Galah 2** matches the already-confirmed Galah call and the queued ground-density bump. **Mangrove 4 against Firetail 5** independently reproduces the recorded divergence: Mangrove measures louder than Firetail on every static and motion column while ranking a step below it — taste over measurement, exactly as this item says it must be.
+     **STILL UNKNOWN, AND THIS IS THE WHOLE ITEM:** WHICH resource in the
+     virtualised Metal stack is exhausted. **FIRST DELIVERABLE — a LOCAL
+     REPRODUCTION**, because without one every hypothesis costs a ~50-minute CI
+     cycle. ⚠️ **The untried arm is a macOS GUEST VM on the Apple Silicon host**
+     (Virtualization.framework — `tart`, or UTM): a macOS guest gets genuine
+     **paravirtualised Metal**, the same class of stack as the hosted runner, and
+     nothing local has ever exercised that axis. **No VM tooling is installed**,
+     so the setup cost is real — state it rather than assuming it is free. **A
+     negative here is a publishable result too.**
 
-⚠️ **TWO THINGS THIS MAP DOES NOT YET CLOSE.** (1) **The live `--release` ambient sitting is NOT claimed by this entry** — the Done clause asks for every ambient world observed live, and the six that move are Firetail, Mangrove, Bombora, Bowerbird, Currawong and **Kite**. Whether these scores were formed live or from captures is unstated, and the difference matters most for **Bowerbird (scored 2)**, whose companion-breathe judgement is separately owed. (2) **Mulga scored 1, and its ground is about to be REPLACED** by the queued Starfield-retirement item — so its score is provisional on a ground that will not exist. Re-score it after that lands rather than treating this 1 as durable.
+     **THE DECISION GATE — the item is not done without it.** Once the cause is
+     named, answer: **is the PRODUCT exposed, or is this test-harness-only?** The
+     asymmetry that decides it: the per-frame `create_shader_module` +
+     `create_render_pipeline` churn exists **only in the test helpers**; the live
+     app builds `BackgroundPipeline` once at construction and `prepare()`
+     thereafter only uploads uniforms including the shader id. **But that rests on
+     the churn hypothesis, which the 9.3× null result has WEAKENED** — if state
+     accumulates from the WarpedGrid draw itself, or from allocations rather than
+     programs, **a user on a VM IS exposed.**
 
-**Recorded as durable data so the next run diffs instead of re-deriving**, which this item asked for after finding that the 2026-07-26 per-world map was never written down and only its histogram survived.
+     **Do NOT land a fix under this item.** Specifically: do not recycle or tear
+     down the shared test device, and do not tune anything, until the cause has a
+     name and the product/harness question has an answer. **If the diagnosis
+     converges early and the fix then looks obvious, it still lands as a SEPARATE
+     item so the causal claim and the change stay separately reviewable.**
 
+     **Carry-forward facts a new owner would otherwise lose.** ⚠️ **wgpu 29.0.3:
+     `wgpu::Device`'s `PartialEq` reports two separately requested, simultaneously
+     live devices as EQUAL** (measured) — a device-keyed cache is impossible. A
+     `cfg(test)` cache also **must not be thread-local**: libtest gives every test
+     its own thread. **One law initially PASSED its own leak mutation** — drawing
+     one world at a time lets each `prepare` overwrite the last; only building and
+     preparing all twenty BEFORE any draws exposes it. ⚠️ **Two harness bugs, both
+     of which scored a 60-minute hang as a PASS, both the same shape — an
+     unfinished step wearing a finished step's field:** `gh` encodes an unfinished
+     step as `conclusion:""` (never `null`), and a step killed by the job ceiling
+     reports `status:"completed"` with `conclusion:"cancelled"`. **A harness
+     reading a status field must enumerate what it accepts, never test for
+     inequality.** ⚠️ **And a probe-integrity trap:** a cross-commit pass
+     **silently scored the same binary twice** — both trees extracted within the
+     same second, so Cargo's mtime fingerprint reused the other tree's artifacts.
+     Use a target dir per tree plus a provenance assertion that fails on mismatch.
+
+     **Done:** the exhausted resource is NAMED with a confirming measurement
+     rather than a hypothesis; the product/harness question has an evidenced
+     answer; and the fix is scoped as its own item. **Verify:** whatever names the
+     cause must also PREDICT THE BOUNDARY — why `36707d06` survives and
+     `8207e519` does not, why `--skip render::tests::` survives while doing more
+     total GPU work, and why two processes on separate devices stop within 10 ms
+     of each other. **Routing:** deep tier, one owner end to end. The rig is
+     `scripts/oom-budget-container.sh`, labelled in its own header as a diagnostic
+     reproducer and **not a gate**.
+
+251. **Item 207's AT-SPI journey needs a LINUX machine.** **Defect:** the board's
+     live-closure lists kept grouping "207's real VoiceOver / AT-SPI journeys"
+     under *needs an unlocked display*. **That is true of the VoiceOver half and
+     false of the AT-SPI half** — AT-SPI2 is the **Linux** accessibility API, so
+     no amount of unlocking the dev Mac reaches it. Filed as its own item because
+     **a blocker misattributed to the wrong cause never gets cleared.**
+     `ACCESSIBILITY.md:110` states plainly that **no AT-SPI journey has been run
+     at all**, and that honest-limits section must stay correct. **Build:** record
+     what the journey requires — a Linux desktop session, Orca, the native build,
+     and the same journeys the VoiceOver sitting runs: document read, caret and
+     selection announcement, overlay summon/dismiss, and an editing burst.
+     **Scope:** does NOT include shipping a fix for whatever it finds; a defect
+     found here earns its own item. **Done:** either the journey has been run on a
+     real Linux session and its findings recorded in `ACCESSIBILITY.md`, or the
+     item stands parked with its hardware requirement stated. **Verify:** human
+     journey; there is no headless stand-in, and AccessKit law tests already cover
+     the projection, which is precisely the layer this item exists to look past.
+     **Routing:** human, on Linux. ⚠️ **What unblocked here is the PROBE, not a
+     defect:** the AT-SPI tree was correct all along, since AccessKit filters
+     `Role::TextRun` from accessible children by design.
+
+273. **THE REFERENCE MANUAL — SIX RESIDUALS, named as unbuilt rather than implied
+     complete.** The mechanism ships: `REFERENCE.md` + `site/reference.html`,
+     every table generated from awl's own rosters — commands (93, both conventions
+     asked explicitly), synthetic chords, settings (31), config keys (31) with
+     numeric bands, worlds (20), markdown constructs and conceal — **held by 17
+     named drift laws**, with the site page **not a hand-mirror** but the same
+     rows through an HTML emitter, so the two cannot disagree about a fact.
+     **What follows is what it does not yet cover.**
+
+     **🔵 THE SIX RESIDUALS.** (1) **CLI flags have no roster to generate from** —
+     `main/args.rs` hand-parses 61 in one `match` and `--help` is one hand-written
+     string, so that section needs the flag list lifted into data first;
+     (2) **`Command` carries only `name`**, so the reference says what a command
+     is called and bound to, never what it *does*; (3) **`WORLDS.md`'s
+     Display/Mono/axis columns are still hand-written** and can drift — only
+     membership is law-checked; (4) **no in-app door** (Guide and Credits have
+     palette commands, the reference does not); (5) **the site page is visually
+     unreviewed**; (6) **the five-section structure was the lane's call**, not the
+     user's — re-sectioning is cheap since the marker pairs and `Section::ALL` are
+     the only coupling.
+
+     ⚠️ **THE LESSON THE RESIDUALS SIT ON: GENERATION IS NOT SAFETY; IT MOVES THE
+     ERROR FROM TRANSCRIPTION TO SOURCING.** The spot-check found three defects in
+     its own first pass, all the same shape — generated from the wrong owner:
+     `project_root` printed as a `config.toml` key the loader never reads; a Step
+     column printing each band's MINIMUM because the readout formatter clamps
+     first; and a reveal column asking `wysiwyg_reveals` ONCE with the caller's
+     precomputed flag, inverting every line-scoped row. **Each closed with the law
+     that catches it.**
+
+     ⚠️ **A FLAGGED "DATA SMELL" THAT IS NOT ONE — CHECKED, SO NOBODY "FIXES" IT.**
+     `theme/worlds.rs:142`'s `font: "Newsreader 16pt 16pt"` is **correct as
+     written** — `render.rs:394` documents it as the actual registered family
+     name, verified through fontdb, and `"Fraunces 9pt"` is the same shape.
+     **Changing it would break Bilby's font resolution.**
+
+     🔵 **THE SITE NAVIGATION QUESTION IS STILL OPEN.** `index.html` carries a TOP
+     nav (`<header class="site-nav">`); `guide.html`, `credits.html` and
+     `check.html` carry a FOOTER nav instead (`<nav class="foot-links">`) and have
+     no top nav at all. **Both lists carry the same links, hand-duplicated across
+     four files, already differing in link TEXT ("Try" vs "Try the editor") and in
+     path style (`editor/` vs `/editor/`).** `site/llms.txt` is a THIRD
+     enumeration. **Decide deliberately whether a round introduces one owner for
+     the nav or accepts the duplication and adds to every copy — say which and
+     why; do not silently do the second and leave the drift.**
+
+274. **THE TEST MONOLITHS — two decomposed, THREE STILL STANDING.** `theme/tests`
+     and `main/tests` are submodule dirs now (17 and 20 files). ⚠️ **Measured
+     2026-08-06: `src/overlay/tests.rs` 3433, `src/app_icon/tests.rs` 2368,
+     `src/buffer/tests.rs` 2241** against CLAUDE.md's *"~500 lines is a file's
+     natural ceiling"*, and only `app_icon/tests.rs` carries a declared exception
+     in `scripts/code-health.toml`. **The precedent is overwhelming:
+     `src/render/tests/` is one hundred and six files.**
+
+     **Build:** decompose each remaining monolith into a `tests/` submodule
+     directory, **verbatim** — names and module paths unchanged, so
+     `cargo test overlay::tests::foo` keeps working and no law's `--exact` filter
+     breaks. Split by SUBJECT. **Scope:** test files only; production code
+     untouched and byte-identical. **Not** a rewrite, **not** a chance to
+     "improve" a test while moving it, **not** a place to delete a test that looks
+     redundant — a verbatim move is auditable and a rewrite is not.
+
+     ⚠️ **THE ONE THING THAT MAKES THIS RISKY RATHER THAN MECHANICAL:
+     `crate::testlock::serial()` and the `cfg(test)` global writers.** A move that
+     changes which tests share a file changes **nothing** about locking — but it
+     changes which tests a developer runs together under a filter, and this repo
+     has standing proof that a suite can pass alone, pass unfiltered, and fail
+     only under one filter. **So the decomposition must be verified under the
+     filters it creates.** **Done:** no `tests.rs` exceeds the ceiling without a
+     declared, reasoned exception; every test name and module path is unchanged;
+     `cargo test --bin awl` reports the **same count** before and after.
+     **Verify:** the identical count is the primary oracle; then run each new
+     module as its own filter as well as the full suite and a wide
+     `--test-threads`. **Routing:** production tier — mechanical by design, and
+     the value is entirely in it being boring.
+
+283. **`ListStyle::Rules` GRADUATED — and handed back TWO THINGS, which are what
+     remains open here.**
+
+     **The brief's one design question dissolved on measurement.** The
+     orchestrator asked the lane to decide the lens-strip tab pills, on the claim
+     that a `Rules` theme picker leaves a bare strip. **The theme picker has no
+     lens strip on any world** — retired by user decision, stated in
+     `capture/modes.rs`, and a live `Cmd-T` capture carries an empty one. That was
+     the **seventh** orchestrator-authored premise falsified in one session, and
+     the pattern is unchanged: the brief described a surface without checking it
+     existed. Where strips DO exist (file pickers, palette, History, Settings),
+     `Rules` already answered in its own vocabulary — `FacetStyle::Text` marks the
+     active lens with a hairline under its label, which is a rule like the ones
+     arranging the list.
+
+     🔵 **WHAT A SECOND CARRIER NEEDS** (all recorded in
+     `theme/tests/personality.rs` beside Paperbark's entry, so the next author
+     reads it there rather than here):
+     - **A taste call on WHICH world** — deliberately out of 283's scope.
+     - **A findability check on a DARK ground.** `rules_ink` uses `faint()` for
+       hairlines and `base_content()` for the mark, so it is data-driven — but "a
+       hairline at `faint()` is findable" is asserted **only on cream**.
+     - **A `FacetStyle` that is not `Chips(FilledActive)`**, which would put a
+       filled pill back on the strip. Paperbark is `Text`, so the interaction has
+       never been posed and nothing currently forbids it.
+
+     ⚠️ **AND `Rules` MUST NOT REACH A SECOND WORLD BEFORE 289 CLOSES** if that
+     world's users are on Retina by default — the strip's mark is the style's own
+     selection vocabulary, and a half-weight rule is a half-legible affordance.
+
+288. **THREE IDENTIFIER-LEVEL CITATIONS — RECOMMENDED BY ITEM 287, DELIBERATELY
+     NOT ACTED ON.** These are the same Conventions rule as 275/287, in the one
+     place where fixing it is a *behaviour* change rather than a text edit: a test
+     name is what `cargo test <substring>` filters on, and a filename is what
+     `mod.rs` declares. **So each rename must move its declaration and any
+     external filter with it, in one commit.** All three verified present
+     2026-08-06:
+     - `theme::tests::personality::bar_config_shipped_is_the_flip_round_hug_all_hybrid`
+       → drop the round name; the doc's own language is "HUG-ALL HYBRID".
+     - `theme::tests::fonts::mopoke_body_face_is_bitter_with_the_item_30_bullet_triple`
+       → same shape.
+     - `src/theme/tests/world_pin_item254.rs` → ⚠️ **this one is WRONG, not merely
+       stale.** `git log -S "struct WorldPin"` puts the type's origin in **item
+       94**; item 254 is the unrelated flaky-`alloc_bound_law` item. `item94` stays
+       inside `code-health.py`'s `TEST_FILENAME_ITEM_INDEX` regex
+       (`_item\d+[a-z]?\.rs$`), so no tooling change is needed — but the citation
+       should point somewhere real, or be dropped for the mechanism.
+
+     ⚠️ **THE FINDING WORTH KEEPING, BIGGER THAN THE THREE RENAMES:
+     `TEST_FILENAME_ITEM_INDEX` BLESSES THE FORM OF A CITATION WITHOUT CHECKING
+     THAT IT POINTS ANYWHERE REAL.** `world_pin_item254.rs` passed that exemption
+     for its whole life while naming the wrong item; an exemption that
+     pattern-matches `_item\d+\.rs` cannot tell 94 from 254. **If these filenames
+     are kept as a convention, the exemption should verify the number against the
+     board — otherwise it is a check that runs in one configuration and cannot see
+     its own subject.** **Routing:** production tier; the renames are mechanical,
+     the exemption question is a small design call.
+
+289. **`FacetStyle::Text` AND `ChipVariant::Underline` DRAW THEIR MARK IN RAW
+     DEVICE PIXELS, SO IT IS HALF-WEIGHT ON RETINA.** Measured by item 283's lane
+     and deliberately not absorbed: the underline probes `[430.0, 153.5, 23.9,
+     1.5]` at DPI 1 and `[860.0, 306.6, 47.8, **1.5**]` at DPI 2 — **every other
+     term doubles and the thickness does not.** ⚠️ **This is item 242's
+     chrome-pixel-space rule (author in logical units, multiply once at the
+     boundary) with two dials that never got the memo**, and it is exactly the
+     class CLAUDE.md's DPI tripwire names: every capture runs at
+     `--capture-dpi 1`, the one scale at which it looks correct. **Scope: 14
+     `FacetStyle::Text` worlds plus Wagtail's `Underline` chips.** It moves 15
+     worlds' 2× appearance, which is why it is its own item and not a footnote.
+     **Verify:** the mark's thickness scales with DPI like every neighbour, swept
+     at 1× and 2× across the affected roster. **Routing:** production tier.
+     ⚠️ **Confirm the premise with a capture before changing anything** — it is a
+     lane's report, and a lane's report carries no privilege either.
+
+290. **RIP OUT THE THEME-FONT DEBOUNCE ENTIRELY.** **User decision, made against
+     the measurement rather than in ignorance of it.** **Build:** delete
+     `THEME_FONT_DEBOUNCE_DEFAULT_MS` (`src/app.rs:68`), the
+     `AWL_THEME_FONT_DEBOUNCE_MS` override and its parser,
+     `theme_font_reshape_decision` and the whole
+     `src/app/theme_font_debounce.rs` module, `THEME_FONT_CHEAP_RESHAPE_MS`
+     (`src/app.rs:105`) and its compile-time assert, and the deferred-settle path
+     (`App::apply_deferred_theme_font`) once nothing calls it.
+     `App::retint_theme_preview` reshapes on every preview step, unconditionally.
+
+     **The case FOR, which is not the lag:** the mechanism is **inert at human
+     browsing cadence.** Item 202's leading-edge rule calls a step isolated when
+     it arrives ≥ window after the last reshape, and deliberate arrowing
+     (~250 ms/keypress) makes every step isolated — so it takes the immediate arm
+     and the window never engages. Measured (release, 900×600 @2x, CLAUDE.md,
+     fixed 250 ms cadence): `AWL_THEME_FONT_DEBOUNCE_MS=0` → **44.0 ms p50**,
+     shipping `100` → **44.3 ms p50**. Indistinguishable. Separately **its cost
+     model has silently rotted:** `THEME_FONT_CHEAP_RESHAPE_MS < 12` is anchored
+     to a "12.0 ms on CLAUDE.md" figure whose fixture is CLAUDE.md itself, which
+     has grown 44% (17,541 → 25,197 bytes) and now measures **12.5–17.7 ms** via
+     `--bench-theme-burst`. **A constant calibrated against a live, growing
+     fixture is a check that cannot see its own subject.** Deleting the mechanism
+     deletes that rot.
+
+     ⚠️ **THE COST, WHICH THE LANE MUST MEASURE RATHER THAN ASSUME.** Removal
+     regresses the BURST case — the one place the coalesce genuinely works.
+     Measured today at the shipping window: a fast burst (no inter-key gaps)
+     settles in **12.3 ms with n=1 reshape for 8 inputs.** With no debounce that
+     becomes 8 synchronous reshapes queueing on the single main thread, which is
+     precisely what item 37b's zero-default shipped and what item 202 was built to
+     undo. **Record a before/after on the burst case explicitly. If it regresses
+     materially, REPORT BACK rather than shipping it silently — the user accepted
+     this trade in principle, not at an unmeasured magnitude.**
+
+     ⚠️ **THIS ITEM DOES NOT FIX THE REPORTED LAG, and must not be closed as
+     though it had.** The user's report is ~44 ms per arrow step at deliberate
+     cadence; removal leaves that unchanged by construction, because 0 and 100
+     already measure the same. The lag is reshape-bound (`sync_theme`
+     12.5–17.7 ms on CLAUDE.md, 23.7–28.8 ms on a 1896-line fixture) and is
+     separate work.
+
+     **Scope:** does NOT include raising the window, attacking reshape cost, or
+     touching `themeswitch.rs`'s phase roster beyond whatever `SwitchPhase::Wait`
+     becomes when it is structurally always zero — **name that decision rather
+     than leaving a dead column.** **Done:** no debounce machinery remains, no
+     constant is calibrated against a moving fixture, and the burst-case cost is
+     measured and recorded rather than discovered later. **Verify:**
+     `--bench-theme-burst` with its reshape-count witness (CLAUDE.md warns a theme
+     bench once "measured" 5 ms while nothing reshaped — **assert the count**);
+     before/after at both cadences; the isolated-step path unchanged. Feel is
+     live-only and gets flagged for the user, never claimed. **Routing:**
+     production tier.
+
+## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
+
+`overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
+card-vs-row substitution a whole item was written to remove — **and it is
+CORRECT AS-IS. Do not "fix" it to `draws_row_plates()`.** That scrim pass is the
+only thing that clears `panel_card` on a bare-plate world, so gating it out
+would let a stale instance survive into a `Diagonal` frame. It was caught once
+as a near-regression and recorded rather than shipped.
+
+Related owners, so a replacement law has a real oracle rather than a fabricated
+one: `ListStyle::draws_row_plates()` is the one owner of "does this style back
+its rows with plates", `overlay_selection_rects` is the one place a list style
+becomes row surfaces, and `overlay_bar_rects_probe` **refuses** on a plateless
+world. **Earn an exclusion by measurement — the frame must emit no row surface
+at all on the excluded world, at the same fixture and DPIs — rather than by a
+name list, so a world that starts drawing plates fails instead of dodging the
+sweep.**
+
+## Decided against — do not re-propose without a new reason
+
+- **A separately-named `THROUGH VIEW` figure on the writer's card.** Closed on
+  purpose, not deferred. The recorded reason: the card earns its calm by carrying
+  few figures, and "how far through what I can see" is a second answer to a
+  question the reader already has one answer for.
+- **A closing pull-quote mark.** Blockquote text is already dim for the block's
+  whole extent, so the end is legible without a second glyph, and a closing mark
+  has no honest anchor — the last line's right edge is ragged, so it would float
+  at an arbitrary x or hang in a margin that holds nothing. Hanging pull-quote
+  marks are conventionally single.
+- **A pointer/keyboard split on the fold chevron's turn.** The brief recommended
+  animating on the POINTER path and SNAPPING on the KEYBOARD path, because
+  `chevron_revealed` puts the mark on the caret's own row by construction. **That
+  split was never implemented, the co-present animation reads fine live
+  ("the chevrons are great"), and it is PROMOTED as shipped.** `FOLD_CHEVRON_TURN_MS
+  = 140.0` stands. Do not build the split.
+- **A fifth `ListStyle` shaped as a grid or tile layout** (a palette is a linear
+  scan, tiles fight it, and it is IDE-shaped), **a stacked or overlapping deck**
+  (hurts scanability), or **numbered quick-select rows** (a feature, not a style,
+  and a structural device must encode something true).
+- **A warm tutorial voice anywhere in the reference.** The split is the user's
+  own: the reference is cold, **the tutorial is the user's to write.** A lane must
+  not draft one, must not "warm up" the reference, and must not leave placeholder
+  tutorial prose for the user to fill in.
 
 ## Parked — explicit gate or future design
 
-- **Export save-dialog scope:** macOS + Linux, one live-only cross-platform seam; capture uses an explicit path. Decided, not scheduled.
-- **Per-world living-band choreography:** audition TwoShape/Slam/Soft against Morph; live feel is the oracle. Needs a design session.
-- **Per-world copy-pulse differentiation:** possible future motion tweak; needs a design session.
-- **Site deployment:** only on the user’s explicit word.
+- **Export save-dialog scope:** macOS + Linux, one live-only cross-platform seam;
+  capture uses an explicit path. Decided, not scheduled.
+- **Per-world living-band choreography:** audition TwoShape/Slam/Soft against
+  Morph; live feel is the oracle. Needs a design session.
+- **Per-world copy-pulse differentiation:** possible future motion tweak; needs a
+  design session.
+- **Site deployment:** only on the user's explicit word.
+- **Kite's stereo idea, recorded and NOT queued.** Stereoscopy needs the two
+  views SUPERIMPOSED and fused by the viewer's brain; here they are side by side
+  with an opaque page between them, so nothing fuses — and an interocular offset
+  is precisely what reintroduces the "two tunnels" read. **Do not build stereo.
+  Do not silently drop it either:** if a future round wants depth *between* the
+  margins, the honest lever is FOV/perspective strength on a single shared
+  camera.
+- **A rotating mark about the vertical axis (`v → | → v`)**, deliberately not
+  queued: it returns the mark to itself and would read as "acknowledged, nothing
+  changed". It has no referent in awl today — zero-network is a design invariant
+  and nothing is ever loading. Revisit only if a genuine indeterminate state
+  appears.
 
 ## Monitoring — non-blocking
 
-- **Hands-on checks still useful:** writer-diff panel/Tab + zoom readout; heading-chevron mouse-press→toggle wiring; theme-picker felt input→present lag; Bombora drift speed / counter-motion / calmness over real seconds.
-- **GPU memory:** no action unless the 6 GB symptom recurs; then probe the live surface with the window foregrounded.
+- **Hands-on checks still useful:** writer-diff panel/Tab + zoom readout;
+  heading-chevron mouse-press→toggle wiring; theme-picker felt input→present lag;
+  Bombora drift speed / counter-motion / calmness over real seconds.
+- **GPU memory:** no action unless the 6 GB symptom recurs; then probe the live
+  surface with the window foregrounded.
+- **The `atspi` and `mac (render::tests)` CI arms are tolerated red by design**,
+  pinned by name in `ci.yml` to items 257 and 231. `atspi` was deliberately NOT
+  promoted to gating when 257 closed: **the repaired probe's first instrument is
+  CI itself, and promoting an arm on a probe nobody has watched run is how a
+  green comes to mean nothing.** Promote it after it runs green on `main` for a
+  stretch, as a conscious decision.
 
 ## Release blockers and reminders
 
 - Apple signing secrets and Fly deployment token; see `RELEASING.md`.
-- Tags and releases require the user’s explicit word. A dry run may precede them.
-215. **Give the live-App capture the card semantics it currently cannot carry.** **Defect:** item 207's passive-surface fold takes its content rather than deriving it, because the render pipeline is the only holder of the live figures — word count, frontmatter language, and through-doc percent. So a `--screenshot-app` capture, which has no pipeline, writes a sidecar whose `semantic` has NO node for a card that is plainly DRAWN in the PNG. Which-key and the menu bar have no such dependency and do appear, so the gap is silent and partial rather than obvious. **Build:** extract those three figures into pure owners over `&str` (plus the buffer facts they already have), so both the renderer and the semantic fold read one owner. **The forbidden alternative, named so nobody re-derives it:** having the `App` recompute word count / language / percent for the snapshot would be a second description of the same fact, which is the exact drift item 207 exists to prevent. **Done:** a live-App capture's `semantic` contains a node for every card its PNG draws, and CAPTURE.md's honesty note about the gap is deleted rather than reworded. **Verify:** a no-wildcard sweep over the card roster asserting PNG-drawn ⇔ node-present; grapheme and CJK word counts through the extracted owner; mutation proof that removing a card from the fold fails by name. **Routing:** production tier. **Follow-up from item 207, 2026-08-02.** ⚠️ **ITEM 230 HAS SINCE LANDED IN THIS EXACT SEAM AND CHANGES THE JOB — read it before starting.** `ViewState::substitute_text` is now the ONE door that replaces shaped text, recording the document *and the caret's place in it*, and `TextPipeline::figure_source()` is the single seam saying which text the figures are over. **So the extraction this item asks for must route through those owners, not around them.** ⚠️ **And 230 proved this item's own gather is load-bearing on MORE than it claims:** `DocFigures::of` derives all three figures from ONE text and ONE caret, which is what makes it structurally impossible to take one figure from the owner and another by hand — **215's gather constrains WHAT QUESTIONS CAN BE ASKED SEPARATELY, not merely how they are filled.** Do not relax it to make the extraction easier. **Three figures, not two:** LANGUAGE vanishes under a History preview (a transcript carries no frontmatter), and the blast radius reaches past the card into the sidecar's `readout` block and `wordcount_text`. **One contract break already made deliberately:** `hud.lang` no longer mirrors top-level `doc_lang` — the latter is the SHAPED text's language, which the per-script font ladder must follow. **A named gap this item inherits:** the live `sync_view` preview substitution still has no behavioural law, because `hermetic()` has no GPU so `sync_view` returns early; closing it properly needs a `--screenshot-app`-driven harness. **Sequencing:** item 229 also rewrites `card::figures` (ideograph counting plus a unit label). Whoever goes second inherits the other's owner — do not run them concurrently.
-
-218. **Make native screen-reader editing incremental so VoiceOver never reports awl as unresponsive.** **Defect:** The first real VoiceOver sitting found that editing basically works and that spoken characters/words are ordinary VoiceOver typing echo, but VoiceOver intermittently says “awl is not responding.” Inspection names a credible hot path: while AT is attached, every redraw clones the whole rope, runs UAX #29 over the entire document, projects every semantic node, includes `Tree` metadata, and republishes one monolithic document `TextRun`. AccessKit explicitly expects full trees only at activation and recommends changed-node updates afterward; awl uses the event-loop-only adapter path whose asynchronous activation forces the full-tree form. **Build:** use a synchronous mixed/direct activation handler backed by a thread-safe latest snapshot, then retain native projection state and emit atomic incremental `TreeUpdate`s. Represent document text as stable line or paragraph runs so an ordinary edit updates only affected runs, parent children when structure changes, selection, and focus. Keep `SemanticSnapshot` the one semantic owner; do not create a second document model, manually announce keystrokes, override VoiceOver typing echo, or run App transitions from an accessibility callback. **Done:** typing, deleting, selection, navigation, paste, undo, and surface changes remain correctly announced without stalls on small or large documents. **Verify:** latency/allocation witnesses across document sizes prove a one-character edit does not scan or publish the whole document; full-tree-only-on-activation and changed-node laws; Unicode/grapheme and multiline-selection round trips across run boundaries; mutation proofs restore the monolithic/full-tree paths; real unlocked VoiceOver typing and navigation sitting with no “not responding” report. **Routing:** deep accessibility/performance owner with a production-tier outcome audit. **User-reported and researched against Apple + AccessKit primary documentation, 2026-08-02.**
-
-229. **A Japanese or Chinese manuscript's WORD COUNT is meaningless.** **Defect:** `card::figures::word_count` is `split_whitespace` over the manuscript body, and Japanese and Chinese put no spaces between words. Measured, not assumed: `今日はいい天気ですね。` — 11 characters — reports **1 word**, and `"今日はいい天気ですね。".repeat(500)` — **5,500 characters** — still reports `1 word · 1 min`. **The divergence is script-specific, not "CJK"-wide, and that is the assumption most worth pinning:** Korean is fine (`오늘 날씨가 좋네요` → 3, it spaces its words), mixed text is undercounted by its CJK half (`The title is 今日は…` → 4), and an ideographic space `U+3000` IS Unicode whitespace and does split. Graphemes already hold — ZWJ families, regional-indicator flags and decomposed `é` each stay one token. **Build:** give the readout a script-aware count through the ONE owner `src/card/figures.rs` — do not add a second counter beside it, which is the drift item 215 exists to prevent. A character/ideograph count for unspaced scripts is the conventional answer; whether the readout says "words" for such a document is a product decision, not a mechanical one. **Scope:** the count feeds the HUD readout and the semantic snapshot through one owner, so both move together or neither does. **Verify:** the pinned table above as a regression floor; a mixed-script document; `U+3000`; the grapheme cases unchanged; the sidecar and the drawn readout agreeing. **Found by item 215's measurement 2026-08-03, pinned rather than changed because changing the figure is a product call with sidecar consequences.** ✅ **USER DECISION 2026-08-03, so the product call is made and this is now buildable: COUNT IDEOGRAPHS AS TOKENS, and let the UNIT LABEL FOLLOW THE DOCUMENT'S DOMINANT SCRIPT** — the readout says **"words"** for a script that spaces its words and **"characters"** for one that does not. It does not claim a word count for a script that has none; it changes what it counts and renames the unit to match. **What that decision still leaves the owner to settle, named so it is not discovered late:** (a) **"dominant script" needs a definition and a threshold** — the pinned mixed case `The title is 今日は…` counts 4 today and is a real document shape, so decide whether dominance is a majority of counted tokens, a majority of characters, or the frontmatter `lang` (`docs/fonts.md`) when present, and pin the tie; (b) the label is a **second** thing the figure now carries, so `card::figures` returns a unit alongside the number and **both the drawn readout and the semantic snapshot must take it from that one owner** — item 215 exists to stop exactly the second description this invites, and item 230 has already routed both sides through one owner, so do not reopen that seam; (c) the sidecar's `readout`/`wordcount_text` change shape for such a document, which is a **CAPTURE.md-visible** change and may be a schema bump — check `capture::SCHEMA_VERSION` rather than assuming. **Verify additionally:** the pinned table with its expected units, a document that flips dominance across an edit (the label must follow, and must not flicker on a single character), and the `U+3000` and grapheme cases unchanged. ⚠️ **Renumbered from 227 on 2026-08-03: two orchestrators minted 227/228 independently within minutes. Theirs (AppImage, `v0.9.0`) were already cited in `RELEASING.md`, so these moved instead.**
-
-231. **Name the CAUSE of the hosted-macOS gate hang. The fix is a SECOND item, scoped only once the cause has a name.** ⚠️ **REFRAMED BY USER DECISION 2026-08-03, from "fix the hang" to "diagnose it" — and the reframe is the most important line in this item.** One fix has already been attempted and **failed**: the `src/gpu_cache.rs` round cut `render::tests::` GPU program builds **52,083 → 5,577 (9.3×)**, `TextPipeline::new` 44 ms → 23 ms, `cargo test --bin awl` 133.8 s → 116.6 s, 3616 passing either side — and **the hang did not clear** (run `30770296246`). A second speculative fix would be worse than the first, because **the strongest remaining candidate is a SYMPTOM MASK**: `src/test_gpu.rs:27` holds a process-wide `OnceLock<(Device, Queue)>` whose own doc says it is "created once and never dropped", and recycling or periodically tearing it down would very likely turn CI green **without anyone learning what was exhausted**. The product's exposure is still an open question (see the ownership gate below), so a harness fix that greens the board **destroys the only instrument that can currently see whether a user on a VM is affected.** Diagnose, name the cause, THEN decide who owns the fix. **Defect:** `main`'s `mac (build + test)` job has been red for ~140 commits; `linux`, `web` and `mac live-probe` pass on every red run. It **HANGS, it does not fail** — exactly three tests (the runner's 3 vCPUs, i.e. every libtest worker thread) park at the same instant and never move, the job dies at its ceiling or the VM dies, and the `cargo`/`awl-…` orphans **survive SIGTERM** because they are parked in `poll(PollType::wait_indefinitely())`. Bisected over six sequential probes to **`8207e519`** ("item 194: one camera, one projected cylinder, cropped at the page"), **both boundaries measured** — parent `36707d06` GOOD, `8207e519` BAD, no re-run contradicting a first reading. That commit takes `THEMES` 19 → 20, adding `KITE` with `Background::WarpedGrid` and **+267 lines of `background.wgsl`**; the tests that wedge are roster sweeps. **ELIMINATED — do not re-derive; each was killed by measurement.** (a) **The shader:** 15 `backgrounds_item132`/`warp_tunnel` tests pass cleanly **six minutes before** the wedge, in two independent logs; no unbounded loop in the WGSL and `warpgrid.rs` touches no wgpu at all — **do not start by staring at it.** (b) **A single bad test:** the victim varies between runs (`scroll_pos` in one log, `split_pane`/`stars` in another), so the commit poisons the device rather than owning the hanging test. (c) **Concurrency:** `RUST_TEST_THREADS=1` **WEDGES**. (d) **A per-device resource:** the mac and linux conventions — **two separate processes with two separate wgpu devices** — stopped **within 10 MILLISECONDS** of each other and never moved, so **the contended resource is SYSTEM-WIDE: the VM's virtualised Metal stack itself.** (e) **Program-build volume:** the 9.3× cut did not clear it, and `--skip render::tests::` **COMPLETED** — 2860 tests per convention in 110 s while standing up its own device per test and building **~80,000 GPU programs in aggregate**, i.e. far MORE total GPU work. Those tests create AND DESTROY devices, forcing driver-side reclamation, where `render::tests::` piles transient resources onto one device never torn down. **It is not how much you build — it is how much you pile on a device the driver never reclaims.** (f) **RAM:** `free_bytes` steady at ~2.37 GB. (g) **Software adapters as a stand-in:** two independent lavapipe stacks ran `render::tests::` at both bisect boundaries and neither ever hung (item 232) — a software rasteriser has no system-wide GPU resource for a cross-process wedge to exhaust, so it cannot reproduce this class even in principle. **STILL UNKNOWN, AND THIS IS THE WHOLE ITEM:** WHICH resource in the virtualised Metal stack is exhausted. "Cumulative exhaustion of a driver-internal table — compiled-pipeline slots, or allocations wgpu only reclaims on poll" remains a **labelled hypothesis with no confirming measurement.** **FIRST DELIVERABLE — a LOCAL REPRODUCTION**, because without one every hypothesis costs a ~50-minute CI cycle and the last one that looked excellent was wrong. ⚠️ **The untried arm is a macOS GUEST VM on the Apple Silicon host** (Virtualization.framework — `tart`, or UTM). **Item 232's negative result does not apply to it:** that measured *software rasterisers on Linux*, whereas a macOS guest gets genuine **paravirtualised Metal**, the same class of stack as the hosted runner, and nothing local has ever exercised that axis. Measured preconditions 2026-08-03: **179 GiB free** on the dev host and **no VM tooling installed** (`tart`, `utm`, `qemu-system-aarch64` all absent), so the setup cost is real — state it rather than assuming it is free. **A negative here is a publishable result too**, and either way it directly feeds item 232. **SECOND — instrument the resource class, using the fast local oracle that already exists.** Item **239** measured that under a fixed 4 GiB ceiling at `--test-threads=1`, `render::tests::` walks RSS **monotonically to an OOM kill**, commit-correlated (good parent reaches test **199** twice, `8207e519` reaches **160** twice, alternated to control for drift) — **~4 local minutes against a 50-minute CI cycle.** ⚠️ **Carry 239's own caveat: every container death was a prompt SIGKILL with `OOMKilled=true`, NEVER the hosted runner's park-forever-with-memory-flat, so this is a DIFFERENT failure mode and bounding the growth is NOT proven to prevent the hang.** It is a fast proxy for *a* leak, not evidence about *the* hang. **The suspects, in the lane's own order of promise:** the per-call `glyphon::Cache` + `TextAtlas` (`render/tests/mod.rs:140,155`, `images.rs:598`, `chrome_panels.rs:1703,1750,1802`) and every `offscreen()` texture and readback buffer — **allocations, not programs**, which wgpu reclaims only on poll; the residual ~5,577 program builds are dominated by the direct `BackgroundPipeline`/`SelectionPipeline` helpers (~1,800 calls, 55 call sites). **THE DECISION GATE — what "then decide" means, and the item is not done without it.** Once the cause is named, answer: **is the PRODUCT exposed, or is this test-harness-only?** The asymmetry that decides it: the per-frame `create_shader_module` + `create_render_pipeline` churn exists **only in the test helpers** (3 sites); the live app builds `BackgroundPipeline` **once** at construction (`pipeline_draw.rs:32`) and `prepare()` thereafter only uploads uniforms *including the shader id*, so switching themes never rebuilds the pipeline and a user pays one compile per launch. **But that rests on the churn hypothesis, which the 9.3× null result has now WEAKENED** — if state accumulates from the WarpedGrid draw itself, or from allocations rather than programs, **a user on a VM IS exposed** and the fix belongs to the product, not the harness. Only after that answer does a fix get scoped. **Do NOT land a fix under this item.** Specifically: do not recycle or tear down the shared test device, do not bound the allocation growth (that is item 239's scope and it is explicitly not a fix for this), and do not tune anything, until the cause has a name and the product/harness question has an answer. **If the diagnosis converges early and the fix then looks obvious, it still lands as a SEPARATE item so the causal claim and the change stay separately reviewable.** **Carry-forward facts a new owner would otherwise lose.** ⚠️ **wgpu 29.0.3: `wgpu::Device`'s `PartialEq` reports two separately requested, simultaneously live devices as EQUAL** (measured) — a device-keyed cache is therefore impossible; the first draft trusted it and 648/3616 tests died with `BindGroupLayout does not exist`. A `cfg(test)` cache also **must not be thread-local**: libtest gives every test its own thread, which left builds at 86,061 — no change at all. **One law initially PASSED its own leak mutation**: drawing one world at a time lets each `prepare` overwrite the last, and only building and preparing all twenty BEFORE any draws exposes it. **Tooling:** probe driver at `~/.awl-item231/probe.sh` (outside the repo); `scripts/ci-mac-bisect.sh` on branch `claude/ci-mac-bisect` (`c336cc1a`, never pushed) carries `probe`/`verdict`/`next`/`cleanup`. ⚠️ **Two harness bugs, both of which scored a 60-minute hang as a PASS, both the same shape — an unfinished step wearing a finished step's field:** `gh` encodes an unfinished step as `conclusion:""` (never `null`), and a step killed by the job ceiling reports `status:"completed"` with `conclusion:"cancelled"`. **A harness reading a status field must enumerate what it accepts, never test for inequality.** ⚠️ **And a probe-integrity trap from item 232's lane:** a cross-commit pass **silently scored the same binary twice** — both trees extracted within the same second, so Cargo's mtime fingerprint reused the other tree's artifacts. Use a target dir per tree plus a provenance assertion that fails on mismatch. **Done:** the exhausted resource is NAMED with a confirming measurement rather than a hypothesis; the product/harness question has an evidenced answer; and the fix is scoped as its own item. **Verify:** whatever names the cause must also PREDICT THE BOUNDARY — it has to explain why `36707d06` survives and `8207e519` does not, why `--skip render::tests::` survives while doing more total GPU work, and why two processes on separate devices stop within 10 ms of each other. **Routing:** deep tier, one owner end to end. **Reframed by user decision 2026-08-03; the earlier "shared wgpu device wedges" mechanism is FALSIFIED and must not be carried forward.** ☠️ **ELIMINATION (f), added 2026-08-04 — THE SHADER-SOURCE-SIZE LEAD IS DEAD.** Item 249 observed that `background.wgsl`'s size ratio across the bisect boundary (1.2421) matched the container's test-count ratio 199/160 (1.2437) to 0.13%, and flagged it as correlation. A container run at HEAD killed it (merged `ee7353e5`): **HEAD carries the LARGEST `background.wgsl` of the three trees, 76,769 B, and got 2.6× FURTHER** — 413–418 tests against 160 — where the size law predicts 152. Fitting `budget/test = C + K·shader_bytes` to the two boundaries needs a **negative** constant term, i.e. the coincidence only exists if the non-shader residual is zero, and HEAD measures that residual at **12.3 MB/test**. ⚠️ **This eliminates a hypothesis about the CONTAINER'S OOM, which is a PROXY — it says nothing about the hang.** Every death in that run was a prompt SIGKILL with `oom_kill=1`; the hang is the runner parking forever in poll with memory flat. **231 is not fixed, not explained, and not narrowed.** The rig is now `scripts/oom-budget-container.sh`, a diagnostic reproducer and explicitly not a gate.
-
-237. **Item 234's first law has a CONSTANT arm that cannot fail on any product change.** **Defect:** found by the item-236 lane while sweeping for fabricated-geometry laws, and left deliberately rather than taken mid-item. `a_workspace_rows_text_sits_inside_its_own_plate_on_every_world`'s **arm 2** computes `overrun` from `bar_full_span(band_x, band_w)`, which is pure `(band_x + 8, band_w - 16)` — **so the overrun is `BAR_SIDE_INSET` identically in every cell.** No world, width, lens or DPI enters it. Per cell it asserts `8.0 > 1.0`; at the end it asserts `max(8.0, 4.0) == 8.0`. **It cannot fail on any product change except editing the constant itself.** Arm 1 is what actually sweeps and is sound. The law's doc also promised a third arm the body does not have (the phantom bullet is already removed). **Decide, then act:** this is the shape item 217 faced when its device law stayed green under its own no-op mutation, and the precedent there was to **delete rather than ship vacuous**. Either delete arm 2, or re-aim it at something the product can actually change — if the intent was "the plate's inset is what the drawn text respects", the oracle must read the DRAWN text, not re-derive the same constant. **Do not simply leave it**: a law that always passes is worse than no law, because it reads as coverage. **Verify:** whatever replaces it must fail by name on item 234's original defect — text sitting `BAR_SIDE_INSET` outside its plate at either edge — and be mutation-proved on a plate-drawing world. **Found 2026-08-03; arm 1 is unaffected and still guards the item.** ⚠️ **CARRY THIS FROM ITEM 236, which fixed the sibling class and is the reason to look here at all: `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the SAME card-vs-row substitution, in SHIPPING code — and it is CORRECT AS-IS. Do not "fix" it to `draws_row_plates()`.** That scrim pass is the only thing that clears `panel_card` on a bare-plate world, so gating it out would let a stale instance survive into a Diagonal frame. It looks exactly like the defect this item is about and is not one; 236 caught it as a near-regression and recorded it rather than shipping it. **Also from 236, and directly useful here:** `ListStyle::draws_row_plates()` now exists as the one owner of "does this style back its rows with plates", `overlay_selection_rects` is the one place a list style becomes row surfaces, and `overlay_bar_rects_probe` **refuses** on a plateless world — so a replacement arm has a real oracle to grade against and cannot fabricate one. **Prefer 236's pattern for the exclusion too:** earn it by measurement (the frame must emit no row surface at all on the excluded world, at the same fixture and DPIs) rather than by a name list, so a world that starts drawing plates fails instead of dodging the sweep.
-
-238. **The GitHub rename left stale URLs in shipped artifacts — including the GPLv3 source offer.** **Defect:** the repository is now `Frank-P-Lu/awl-editor`; `git remote` still says `awl-next.git` and every push works **through GitHub's redirect**, which is exactly what makes this latent rather than loud (verified: `gh api repos/Frank-P-Lu/awl-next -q .full_name` returns `Frank-P-Lu/awl-editor`). **The surface is wider than tooling.** ⚠️ **`scripts/package-linux.sh:126` is the GPLv3 §6(d) SOURCE OFFER** — a licence obligation pointing at a name that survives only by redirect, and item 226 added it to every release tarball. Also `src/mac_about/facts.rs:47` (`GITHUB_URL`, shipped in the About window), `README.md:73`, **16 links across `site/index.html`, `site/check.html`, `site/credits.html`, `site/guide.html`**, and `scripts/ci-mac-bisect.sh` lines 129/184/187 on the unmerged branch `claude/ci-mac-bisect`. **Build:** one owner for the repository URL wherever a shipped artifact names it, and a law that fails if a tracked file spells the old name. Decide deliberately whether `git remote` is repointed — a redirect that works is not a reason to keep a wrong name in a licence notice. **Verify:** grep-law over tracked files; the tarball's source offer resolves without redirect; the About window's link resolves; `scripts/site-links.sh` still passes. **Touches Rust and the site, so it needs the full native gate and web smoke. Found by the item-232 lane 2026-08-03; none of it was in that lane's diff.** ✅ **USER DECISION 2026-08-03: ADOPT `awl-editor` everywhere, and REPOINT `git remote`** — "awl-editor is much better." The deliberate-decision clause is answered; a redirect that works is not a reason to keep a wrong name in a licence notice. ⚠️ **THE ITEM'S OWN LAW CLAUSE IS WRONG AS WRITTEN, corrected here by survey before anyone builds it.** "A law that fails if a tracked file spells the old name" would fail on legitimate content: **the local working directory is still `awl-next`**, and `src/render/rowlayout.rs:238` — **inside `#[cfg(test)] mod tests`, verified** — plus `src/capture/tests/schema_chrome.rs:188`, `src/render/tests/chrome_overlay.rs:510` and `src/render/framebench.rs:103` all use `"awl-next"` as a **sample project name in a fixture**, which is realistic test data precisely because it is the real directory. **The law must ban the old repository URL (`github.com/Frank-P-Lu/awl-next`), not the bare token** — and if the token is ever banned outright, those fixtures are the thing to rename first, deliberately. ⚠️ **The surface is also LARGER than the item states.** Measured: not "16 links across `site/*.html`" but **18** (`check.html` 4, `credits.html` 8, `guide.html` 2, `index.html` 4) — **plus `site/check.js:47`'s `RELEASES_URL` and 8 in `site/llms.txt`**, which the item names nowhere and which no HTML sweep would catch, for **27 in `site/` alone**. Two more outside it: **`CLAUDE.md:1`** and **`run-linux.sh:2`** name the repo in prose. ⚠️ **And one is a BUILT artifact:** `site/editor/awl-347842567538f209_bg.wasm` contains the string twice, so it only clears on a wasm rebuild — a grep-law scoped to tracked files must either exclude built artifacts by path or the web build must be run before the law can go green. **`scripts/ci-mac-bisect.sh` lines 129/184/187 are on the unmerged branch `claude/ci-mac-bisect` and cannot be fixed from `main`** — either land that branch first or fix it there and record which. **One owner is achievable in Rust only** (`src/mac_about/facts.rs::GITHUB_URL` already is one); shell, HTML, JS and txt cannot share it, so **the cross-language enforcement IS the law** — say so rather than implying a single constant reaches all 30-odd sites.
-
-239. **Bound the render suite's allocation growth, and give it a portable oracle.** **Defect:** item 232 measured, under a fixed 4 GiB container ceiling at `--test-threads=1`, that `render::tests::` RSS climbs **monotonically to an OOM kill** — and how far it gets is commit-correlated: the good parent `36707d06` reaches test **199** twice, the bad `8207e519` reaches test **160** twice, alternated good/bad/good/bad to control for drift. **The bad tree spends the same budget 20% sooner.** These are item 231's named residual suspects — per-call `glyphon::Cache` + `TextAtlas`, and every `offscreen()` texture and readback buffer, which wgpu reclaims only on poll — made visible in **four local minutes** rather than a 50-minute CI cycle. ⚠️ **This does NOT show that bounding the growth would prevent the hosted-mac hang**, and nothing yet does; treat it as a strong lead, not a fix. ⚠️ **RSS is not a portable oracle** — the same suite peaks at 448 MiB on the dev host's Metal, so a law written against RSS would measure the container and not the product. **Build:** a wgpu-side allocation counter that travels across backends, then bound what the suite accumulates. **Verify:** the counter reproduces the 199-vs-160 split without a container; a law that fails when the suite grows its per-test allocation; mutation proof. **Follow-up to items 231 and 232, 2026-08-03.**
-
-240. **Five of nine shaders have NO offline WebGL2 validation.** **Defect:** `src/render/tests/webgl_shader_validation.rs` validates only **4 of 9** shaders against GLSL ES 300. `blur.wgsl`, `caret.wgsl`, `caret_glyph.wgsl`, `image.wgsl` and `spellunderline.wgsl` have **none** — their WGSL is only ever validated at native runtime against Metal and Vulkan, **so a construct the GLSL-ES backend rejects would reach the browser fallback unseen.** awl is one core and two builds, and the WebGL2 fallback is a shipping target; a shader that natively compiles and web-side does not is exactly the failure this file exists to prevent, and it is currently guarding fewer than half of them. **Found by the item-235 lane**, which added `rotated_label.wgsl` (both stages, both pass) and noticed the roster it was joining. **Build:** validate every shader in `shaders/`, driven off the directory rather than a hand-kept list, so a tenth shader cannot be added without one. **Verify:** the sweep fails by name when a shader is added and not validated — mutation-prove it by adding a construct GLSL ES 300 rejects and watching it go red; confirm all nine currently pass, and if any does **not**, that is a live web defect and outranks the sweep. **~40 lines. Found 2026-08-03.**
-
-241. **A theme switch takes ~100 ms to settle while doing ~2 ms of work — and the instrument built to name the dominant cost cannot see it.** **Defect:** user-reported live on 2026-08-03 with a `--debug` HUD photograph, switching **from Kite to Mulga**: `theme latest 103.6 ms · theme worst 117.2 ms`, on an otherwise healthy frame (`frame 3.9 ms · worst 10.3`, `key→px 6.0 ms`, 4530×2756 @2.0x). **The breakdown line is the finding.** `src/themeswitch.rs` exists so "the dominant cost NAMES ITSELF instead of being guessed", and for that same worst transaction it reads `font 0.0 · reshape 0.1 · rowgeom 0.0 · atlas 1.8 · present 0.2` — **2.1 ms across all five phases, 1.8% of 117.2 ms.** Whatever costs the other ~115 ms is outside every phase the instrument covers. **This is the symptom item 202's repair round was supposed to have closed:** `docs/fonts.md` records the flat-100 ms landing as punishing an isolated step at "settle ~124ms, reopening the exact 'felt theme-switch freeze' item 37b's own commit was about", which is what the leading-edge-plus-trailing-coalesce rule was built to fix. **Diagnose before fixing — three candidates, and the item must not assume one.** (a) **The debounce is being paid on a step that should be immediate.** `THEME_FONT_DEBOUNCE_DEFAULT_MS` is **100**, and 103.6 − 2.1 ≈ **101.5**; if `theme_font_reshape_decision` returns `Coalesce` here, the transaction is ~98% deliberate waiting. (b) **The classification is correct by its own letter and wrong for the felt act.** Arrowing through the theme picker genuinely IS a burst — every step lands within `window` of the last reshape — so every step coalesces and every step costs the full trailing settle, even though `--bench-theme-burst`'s reshape cost is 10–35 ms and the measured reshape here was **0.1 ms**. The rule's cost model was calibrated when an isolated reshape cost ~39 ms; a world pair needing no font change has nothing to coalesce and the leading-edge test should reflect the work, not the clock. (c) **The residual is not the debounce at all and the instrument is simply blind.** Nothing between input and the five phases is timed, **including anything Kite's `Background::WarpedGrid` does** — and the user's report is specifically about leaving Kite. ⚠️ **The board's item-231 claim that "switching themes does not rebuild the pipeline" was made about the CI wedge and has never been verified against this readout; do not carry it in as an established fact.** **The cheap discriminator already exists and costs one live run:** `AWL_THEME_FONT_DEBOUNCE_MS=0` is item 202's own A/B escape hatch. If the settle collapses to single-digit ms, it is (a)/(b) and the fix is in the scheduling rule; if it stays ~100 ms, it is (c) and **the first deliverable is extending `SwitchPhases` to cover the gap**, because a five-phase breakdown that accounts for 1.8% of its own headline is worse than none. Run it from Kite and from a quiet world to test the Kite-specific claim, and on both an isolated commit and a stepped burst. **Build:** whichever the discriminator names — do not tune the constant before the chain names the break, and do not close this by widening the debounce's A/B override into a user setting. If it is the scheduling rule, the leading-edge test should key on whether real reshape work is pending rather than on elapsed time alone; `sync_theme_font_timed`'s own early `None` ("no reshape work — nothing to time") is evidence the path can already tell. **Scope:** the readout is DEBUG-mode and LIVE-ONLY by construction (`settle_lines` returns empty for `None`, the only value a capture holds), so no headless probe can close this alone and none should be faked. Preserve item 202's burst coalescing — an N-step run must not go back to N reshapes, which is the regression 37b's zero-window landing caused. **Done:** committing a theme change settles in a time proportional to the work it actually does, the breakdown line accounts for the bulk of its own headline number, and a rapid picker run still coalesces. **Verify:** live `--release` before/after on the reported pair and at least one font-changing pair, recorded from the same HUD; the movement-latency distribution (`docs/render.md`, `--live-script`'s `latency` step) across an isolated commit and a 30 ms-apart burst, so the burst arm cannot regress unnoticed; a unit law over `theme_font_reshape_decision` for whatever new input it gains; a `SwitchPhases` law that fails when recorded phases fall below a stated fraction of the transaction, so this blind spot cannot silently reopen; `--bench-theme-burst` with its reshape-count witness intact (CLAUDE.md: one theme bench "measured" 5ms while nothing reshaped). **Needs an unlocked, foregrounded display — see the idle-lock warning at the top of this board.** **Routing:** production tier with deep live-render review. **User-reported with a HUD photograph 2026-08-03.**
-
-242. **Chrome has no default pixel space, so every hand-authored constant is an independent coin flip — and the boundary that fixes it already exists.** **Defect:** awl draws in device pixels and nothing else; "logical" here means only "multiplied by `dpi` on its way in". The text and caret families already pass through ONE boundary — `Metrics::with_dpi` (`src/render.rs:226`) scales 13 base constants by `s = zoom * dpi`. **Chrome was never enrolled, and its constants are mixed three different ways.** Measured, not assumed: (a) `overlay_text_hpad` (`src/render/chrome/overlay.rs:91`) returns `BAR_SIDE_INSET + BAR_TEXT_PAD` (8.0 + 13.0) for `Bars` and a bare `12.0` for `Pane`/`Diagonal`, multiplied by nothing — **truly physical**; (b) `CARD_MAX_W` is **NOT** raw, as the 131 finding recorded, but a **GROW-ONLY HYBRID** — `overlay_desired_w` multiplies it by `overlay_pixel_scale()` under `scale.max(1.0)`, so it is physical at scale ≤ 1 and logical above, deliberately, to fix a zoom-blind card collapse (documented at `chrome/overlay.rs:124`); (c) **`overlay_lh` is itself mixed** — `metrics.line_height * effective_overlay_scale()` (dpi-scaled) **+** `effective_overlay_leading()` **+** `overlay_row_gap()` (both raw, the latter a theme-authored `ListStyle::Bars { gap }`). So the one quantity the tree treats as logical already drifts out of proportion across displays, today, on shipping worlds. The `_LOGICAL` suffixes sitting in `src/render/chrome/` (`ROW_STEP_LOGICAL`, `SPINE_WEIGHT_LOGICAL`, `SPINE_CORNER_LOGICAL`, `ATTACHMENT_BAND_INSET_LOGICAL`, `SELECTED_OUTWARD_LOGICAL`, `SELECTED_SPINE_WEIGHT_LOGICAL`, `CLUSTER_CONNECTOR_LOGICAL`) are the 131 lane reaching for exactly this by naming convention — the right instinct with an unenforceable mechanism, because **a suffix is not a type**. ⚠️ **A live appearance bug is implied and must be established FIRST, before any migration:** `chrome/overlay.rs:124` says the caps are "tuned for the 1:1 capture canvas". If that is also true of the raw insets, chrome padding renders at **half its tuned physical size on every Retina display**, including the dev machine — structurally invisible because `opts.dpi.unwrap_or(1.0)` (`src/capture/opts.rs:305`) means every capture, law and gallery shot runs at the one scale where the bug cannot exist. Capture the palette at `--capture-dpi 2` and compare the padding-to-text ratio against 1×; record the answer either way, because a negative result is what licenses treating this as pure hygiene. **Build:** enroll chrome in the EXISTING boundary. **Do not extend `theme::ground_space` and do not build a chrome sibling of it** — item 186's per-variant declaration table is right for GROUNDS, where physical is genuinely common (a stipple or dither must land on the physical grid or it moirés, hence `wagtail_stipple_cell_px(dpi)`); chrome wants the opposite default, and copying 186's shape would import the wrong answer with more machinery. Give chrome one scaled owner with **logical as the default and physical as the annotated exception**, enforced by the compiler or a no-wildcard law rather than by a name — a bare `f32` length reaching a draw call without passing the owner should fail by name. **Classify before migrating: only one of chrome's four unit families moves.** Device-px lengths (`BAR_SIDE_INSET`, `BAR_TEXT_PAD`, `HPAD`, `VPAD`, `PLACARD_INSET`, `CHIP_HPAD`/`CHIP_VPAD`, `CARD_EDGE_INSET_FLOOR`, `ANCHOR_GAP`) migrate; character units (`RAIL_GAP_CHARS`, `MIN_PANE_CHARS`, `MARGIN_COLUMN_GAP_CHARS`) and row units (`OVERLAY_HINT_ROW`, `OUTLINE_GAP_ROWS`) are already correct by construction and must not be double-scaled; pure ratios (`OVERLAY_UI_SCALE`, `WORKSPACE_MARGIN_FRAC`, `TIMELINE_MAX_FRAC`, `PLACARD_SIZE_STEP`, the alphas) must NOT scale and the law must not force them. `CARD_MAX_W` gets an **honest third classification** — a worker who records it as plain physical will "fix" it and reintroduce the zoom-blind collapse its own comment describes. **Glyphs still rasterize at device resolution:** shaping at logical size and scaling the raster blurs text, which is why every solution to this problem sizes the backing store separately from layout. `Metrics` keeps handing glyphon physical sizes; only the LAYOUT side gains a logical view, and that seam stays inside `Metrics`. **Scope:** chrome only. There remains exactly ONE coordinate system — device px — and this decides which constants are multiplied on the way into it; it is not a coordinate-system rewrite. The document/caret/text families already pass the boundary; `src/theme/` ground space is untouched; other worlds' output stays byte-identical at the capture scale. **Done:** a new chrome length cannot be authored in the wrong space without a compile error or a named law failure; the four unit families are recorded where the constants live; and the DPI tier a capture certifies is stated accurately — `--capture-dpi 1` is the identity path and is evidence about nothing else. **Verify:** byte-identity at dpi 1.0 across the full surface roster — the 19-world × 5-surface, 95-capture PNG+sidecar hash 131a/b already ran (190 files) — since the multiply is the identity there and every existing law must be untouched. **The value is entirely in laws that do not exist yet:** sweep `dpi ∈ {1.0, 2.0}` and assert that every migrated quantity holds its ratio to `line_height`, that the ratio family does NOT scale, and that `overlay_lh`'s three terms scale together. Mutation proof per family — break one constant's enrollment, watch the sweep go red by name, paste the panic. A Retina taste pass across the world roster once padding doubles, plus affordance-locating vision smoke over the palette at 2×, because this DOES change the Retina look and that is the point. **This retires item 131c's blocker instead of answering it** — 131c is BLOCKED on the chrome pixel-space decision in item 131's finding (d); with a default in place the diagonal authors its numbers like every other quantity and no design call is owed. **Sequence BEFORE 131c**; 131d/e follow. **Routing:** deep tier, one owner end to end — a classification and typing decision, not a mechanical sweep. **User design decision 2026-08-03, from the 131c chrome-space discussion; the measurements above were taken during it.**
-
-243. **Split the hosted-macOS CI job so the arm that PASSES gates today, and the one that hangs is tolerated by name.** ⚠️ **This is the resolution of item 232, and it is NOT that item's recommendation — the lane recommended C (declare the whole hosted-mac job the arm and gate on it); the USER CHOSE THE SPLIT on 2026-08-03. Do not read C as the decision.** **Why C was rejected:** gating on a red job blocks `main` until item 231 is fixed, and 231 is now a DIAGNOSIS item with no promised fix date. **Why A and B were rejected (item 232's measurement, already landed at `5bc771ca`):** A — a local container with a software adapter — cost a 1.67 GB image and ~14 GiB of Docker VM disk that did not return, for **zero coverage of the target axis**, because no portable software rasteriser reproduces the wedge (two independent lavapipe stacks ran `render::tests::` at both bisect boundaries and neither ever hung); B — a slow CI job — **already exists** as the `linux` job, which has run that exact arm green through the whole ~140-commit red streak. **Build:** split `mac (build + test)` into two jobs. **`mac (build + test, minus render::tests)` becomes GATING immediately** — item 231's discriminating probes measured this arm **COMPLETING**, 2860 tests per convention in 110 s, while standing up its own device per test and building ~80,000 GPU programs in aggregate, so it passes today at no cost. **`mac (render::tests)` becomes a separate ALLOWED-FAILURE job, pinned by name to item 231** in the workflow file itself, not only on this board. **What it buys:** real virtualised-GPU signal over ~95% of the suite starting now, the tolerated red shrinks from "the whole mac job" to one named subset with an open item behind it, and **`main` is not blocked**. When 231 lands, the second job goes green and is promoted to gating — no further decision needed, which is why this shape needs deciding only once. **The rationale, because it is the actual lesson of the streak:** the failure was never that a job was red — it was that a red job carried no information anyone consumed, so nothing distinguished "the known wedge" from "a new regression". The split restores that distinction mechanically. **Also in scope, and the other half of item 232's Done clause:** state the tier a receipt certifies accurately wherever receipts are described — `CLAUDE.md`, `.orchestrator/README.md`, `RELEASING.md` — namely *"sound on the hardware the receipts run on, with virtualised-GPU behaviour untested by any local gate"*. `CLAUDE.md` already carries a version of this sentence; make the three agree. **Scope:** CI configuration and docs. Do **not** add a local software-adapter arm (measured negative, twice) and do **not** make every developer's local gate slower — item 232 refused that explicitly. **Done:** a green `main` means the non-render mac arm passed on virtualised Metal; a red `render::tests` mac job is attributable to item 231 by name from the workflow file alone; and no doc claims a receipt covers an axis it has never exercised. **Verify:** the gating job passes on a hosted runner; the allowed-failure job's red does not fail the workflow; a deliberately broken test in the gating half DOES fail it (mutation proof — an allowed-failure misconfiguration that silently tolerates everything is the obvious way to get this wrong); the three docs say the same thing. **Routing:** production tier. **User decision 2026-08-03, resolving item 232.**
-
-244. **Bowerbird's ground POPS every ~67 seconds. Cut the drift entirely; give the companions a value breathe instead.** ✅ **USER DESIGN DECISION 2026-08-04 — the product call is MADE and this is buildable.** Three parts, and the third holds whatever happens to the first two. **(1) The field translation goes.** **(2) It is replaced by a per-element VALUE breathe on the COMPANION role.** **(3) The law fix is UNCONDITIONAL** — it is a defect on its own terms, not a consequence of the redesign. **Defect, measured not inferred.** The Organic ground's vertical drift is DISCONTINUOUS at the shared clock's wrap. `render/layers.rs:88` feeds Organic its own drift inline — `waves_render_phase() * TAU / LAVA_LOOP_CYCLES` — so `g.drift` runs `0 → TAU` across one loop. `shaders/background.wgsl:723-726`'s `organic_rgb` then takes **`sin(g.drift)`** for X and **`cos(g.drift * 0.73)`** for Y. Across the wrap X is `sin(TAU)=0 → sin(0)=0`, **continuous**; Y is `cos(0.73·TAU) = −0.125333 → cos(0) = +1.000000`, a **1.125333 discontinuity in normalised units**. Bowerbird ships `scale_px: 195.0`, so Y amplitude is `max(195·0.10, 9.0) = 19.5 px` and **the whole field snaps ~21.9 px vertically in ONE FRAME, every ~67 s** (`LAVA_LOOP_CYCLES = 2.0` at the shipped rate). **The house rule it dodged is already in writing:** `src/background/waves.rs` states for Waves that `WAVE_DRIFT_CYCLES` is an INTEGER so *"the drift ... meets its own endpoint exactly where the clock wraps — seamless, no pop"*, citing the twinkling-stars' "integer cycles per ambient loop" law (THEMES.md). **`0.73` is not an integer**, and Organic is the one ambient consumer that breaks it. ⚠️ **THE LAW NAMED FOR THIS BUG IS VACUOUS — the sharpest instance of that class yet found here, and it is why the pop shipped.** `render/tests/backgrounds_item117.rs:65`'s `organic_phase_moves_and_wraps_without_a_catchup_jump` is GREEN while the pop ships, for three compounding reasons: (a) it calls **`waves_drift_radians`, which Organic never uses** — Organic computes its drift inline at `render/layers.rs:88` — so it guards the wrong owner entirely; (b) it never applies the **`0.73`**, the single term that breaks; and (c) what remains, `sin`/`cos` of `0.0` versus `TAU`, **asserts the 2π-periodicity of trigonometry rather than any property of awl — it cannot fail for ANY value of ANY constant in this repo.** **WHY THE TRANSLATION GOES, and it is a world argument rather than a motion-is-bad argument.** Every other ambient ground earns its motion from its subject: Bombora is a **sea** and seas move; Currawong is a **star field** and stars twinkle; Kite is a **travelling grid** and travel is the point. Bowerbird's ground is `Finds` — *"the crisp COLLECTED-TREASURE grammar: one large anchor, one smaller companion offset across its edge, and one tiny cut-out"*. **A bower is an ARRANGEMENT: objects deliberately placed and then left alone.** Drift does not decorate that, it disturbs it. ⚠️ **And the motion is PERCEPTIBLE — user-confirmed 2026-08-04, which forecloses the "too slow to matter" defence.** Perceptible persistent motion in the GROUND competes with the caret, which DESIGN.md names as the one accent. So the field stops moving; the ground keeps a life of its own by a different means. **WHY THE COMPANION ROLE — and what was considered and rejected, so it is not re-litigated.** `organic_finds_rgb` draws three elements per cell, each with a seeded kind, radius and rotation: `kind_a` the ANCHOR, `kind_b` the COMPANION, `kind_c` the CUT-OUT. Selecting by **role** rather than by shape kind is the whole point: **every cell has exactly one companion, so the alive elements are evenly distributed BY CONSTRUCTION** — one per cell, no clumping — while remaining an authored grammar ("in Bowerbird, the companions breathe") rather than a random sprinkle. **Rejected: selection by SHAPE KIND** (the user's first sketch, "all triangles") — kinds are seeded per element, so they clump, leaving one region twitchy and another dead; and **triangles are the HIGHEST-salience of the three shapes** (sharp corners, strong directionality), so animating them stacks two attention-getters exactly where the caret must stay the accent. If shape-kind selection is ever revisited, it should be CIRCLES — make the alive thing the calm thing. **Rejected: the CUT-OUT role** — semantically the prettiest (negative space breathing) but they are the smallest elements and it risks falling below perceptible, which is the one thing this round must not do. **Viable fallback, not chosen: a seeded ~20% subset of any kind** — atmosphere rather than grammar; take it if the companion rule reads as too regular in the live sitting. **Build.** Delete the `drift` vec2 from `organic_rgb` outright — both terms, so the field no longer translates at all and `render/layers.rs`'s Organic arm stops computing one. The breathe is a **`mix` between two of the world's EXISTING three tones** — no new palette data, no per-world authoring, so any future Organic world inherits it free and "themes are data" stays intact. The envelope **reuses `stars.rs:185`'s shape** — `(rate * phase / LAVA_LOOP_CYCLES + offset).fract()` with an INTEGER rate and a **seeded per-element phase offset** so neighbours are desynchronised. Reusing that owner is what makes the integer-cycles law cover the new motion automatically, so the pop cannot return through a different variable. Amplitude is a FRACTION of the tone gap — taste-tunable, flagged for live review, and it must never read as a flash. **Scope:** Organic is Bowerbird's ground alone today. Bombora's waves, the stars and WarpedGrid stay untouched and **byte-identical** — this is not permission to retune any of them, and the shared clock keeps its current contract. **The law, owed regardless of the design:** delete `organic_phase_moves_and_wraps_without_a_catchup_jump` and replace it with one that sweeps **EVERY ambient consumer's drift-to-shader term across the wrap** — the axis the dead one missed — asserting continuity in the value the **SHADER** actually evaluates, never in a Rust helper the shader may not call. **Mutation proof: reintroduce a non-integer rate and watch it go red BY NAME**, and paste the panic. **Verify:** a capture pair at the phases either side of the wrap (`AWL_WAVES_PHASE` reaches a real mid-drift composition) proving the field **does not move at all** between them; a phase sweep showing the breathe is visible and that no two neighbouring companions are in phase; **byte-identity for the other 19 worlds**, PNG and sidecar; and a live `--release` sitting, because the pop was found by eye and its replacement can only be judged by eye. **Routing:** production tier, with the live sitting owned by the user. **User-reported and designed 2026-08-04; the arithmetic and the vacuous law were measured the same day.**
-
-221. **Make Cassowary’s active Files category cue a vertical secondary heading.** **Defect:** the generic Files treatment does not use Cassowary’s left edge and strong Commands heading to establish its intended two-level hierarchy. **Build:** when Files is active in Cassowary, render “Files” as a smaller secondary-colour counterpart to the bold Commands heading, rotated 90 degrees and aligned flush with the far-left border; show none under All. Reuse the shared hierarchy data from item 220, with Cassowary’s expression supplied as theme data rather than a new palette code path. **Done:** Cassowary presents primary Commands plus a legible, subordinate vertical Files cue without crowding commands. **Verify:** Cassowary All/Files captures at representative canvas sizes and scale factors; geometry/contrast laws for left-edge placement, rotation, and non-overlap; mutation proof removes the cue; visual review confirms hierarchy. **Depends on item 220. Routing:** production tier with visual-judge review. **User design decision 2026-08-02.** 🟢 **UNBLOCKED — item 235 landed the capability (`df630ad9`), and 221 is now theme data on top of it.** **The 90° case costs nothing:** the rotation is a **lossless texel transpose** at the quadrant angles — ink 1.0000, mae 0.0000, contrast 1.0000 at 0/90/180/270°, **both DPIs**, pixel-exact against an ideal rigid rotation. So the "legible at 1× and 2×" clause is already measured for this item's exact angle; do not re-derive it. **Both premises the 220 lane corrected still apply here:** the shared datum is 220's single `overlay_location`, expressed as a `RenderCaps` variant (the same shape `Background`/`CardTexture`/`FacetStyle`/`TitleStyle::Placard` already have), and **the location inherits the section header's existing planned slot — no second header line is needed.** **The cue is not interactive** (it is read, not pressed), but `label_hit` exists and is law-tested if that ever changes; it derives from the run's own rotated frame rather than axis-aligned bounds, which over-claim at a slant and would steal presses from neighbouring rows.
-
-224. **Redesign Magpie’s command-palette location indicator as a mirrored diagonal cue.** **Defect:** Magpie’s new right-side location indicator looks poor and does not belong to the world’s diagonal visual language. **Build:** prefer the indicator on the left. If a layout places it on the right, mirror its form. In either position, give it a slant and gradient matching Magpie’s diagonal line, while preserving legibility, palette hit targets, and command geometry. **Done:** the indicator clearly communicates location and reads as part of Magpie rather than a detached marker. **Verify:** Magpie captures across left/right layout conditions, canvas sizes, and scale factors; geometry laws prove mirroring and no overlap; gradient/angle law ties it to the diagonal line; mutation proof restores the unmirrored right-side form; visual-judge review. **Routing:** production tier with visual-judge review. **User design decision 2026-08-02.** ⚠️ **THIS ITEM'S PREMISE DOES NOT HOLD AS WRITTEN — measured by the 220 lane, and it shrinks the item substantially.** **After item 220, Magpie's cue is ALREADY on the LEFT**, riding the diagonal cluster's own row stagger. **There is no right-side indicator to mirror.** The "prefer the indicator on the left / if a layout places it on the right, mirror its form" clause is therefore already satisfied, and **the only things genuinely missing are the SLANT and the GRADIENT.** Build those; do not build a mirroring mechanism for a case that does not occur. 🟢 **UNBLOCKED — item 235 landed the capability (`df630ad9`).** **The gradient is already there:** 235 added a baseline gradient as a flagged scope addition — one instance field plus one `mix()` — specifically so this item would not have to. ⚠️ **Magpie's 77.66° is a DERIVATION, not a spec** — 235 computed it to have something to test; **this item's author picks the real number**, and the capability sweeps every angle regardless. Expect a resample at a non-quadrant angle: the round trip measures contrast 0.65 at 1× and 0.83 at 2×, with worst-case departure from an ideal bilinear rigid rotation of **0.0046** of full coverage — **that softening is the price of rotating a raster, not ink the pipeline loses**, and supersampling was deliberately declined because it would buy at 1× what 2× already gives while making letterforms stop matching their upright siblings. **Legibility here must be judged against that measured floor, not against an upright control.** ⚠️ **Do not confuse this with 222/131d's parked taste call** — right-aligning ascending worlds' name text is item 131d's, and it is adjacent to but not part of this cue.
-
-226. **Prepare awl’s first GitHub Release around the existing Linux tarball.** **Build:** retain `awl-linux-x86_64.tar.gz` as the technical Linux download, make it discoverable from the release/download surfaces with concise unpack-and-run guidance, and attach a checksum manifest for every downloadable release artifact. Exercise the current release workflow as a dry run, including the release-profile parity gate and Linux packaging path; diagnose any publication, provenance, or archive-layout failure before a tag is considered. Configure the first public beta to publish **Linux only**; do not attach unsigned macOS or web artifacts. **Scope:** this is release preparation, not authority to tag or publish. A public tag/release remains an explicit user decision; macOS waits for Apple signing and notarization. **Done:** a dry run yields an inspectable Linux tarball and checksums, the release page has an unambiguous technical install path, and the release checklist names the still-required public-release and mac-signing decisions. **Verify:** unpack the produced archive in a clean Linux environment, run a headless smoke and launch check, verify checksums, and confirm the dry run created no tag or Release. **Routing:** production tier. **User design decision 2026-08-03.**
-
-227. **Add a desktop-integrated AppImage as awl’s friendly Linux download.** **Defect:** the tarball is appropriate for technical early adopters but is not a normal Linux desktop application: it has no launcher metadata or icon integration. **Build:** package awl as an x86_64 AppImage in the release workflow, alongside—not instead of—the tarball. Include the binary, a `.desktop` launcher entry, the canonical Linux PNG icon derived from the existing icon pipeline, licenses/credits, and only the runtime libraries that belong inside the package; do not bundle GPU drivers. Publish a checksum and stable release-asset name. **Done:** a user can download one file from GitHub Releases, mark it executable, launch awl, and receive correct desktop name/icon integration where the desktop supports it; the tarball remains available as fallback. **Verify:** AppImage structural validation; launch and headless smoke on representative Debian/Ubuntu and Fedora-like environments; Wayland and X11 launch checks; icon/desktop-entry law; GPU-adapter and file-open smoke; mutation proof removes launcher/icon packaging; release dry run uploads both Linux artifacts. **Depends on item 226. Routing:** production tier with a Linux visual/compatibility audit. **User design decision 2026-08-03.**
-
-228. **Version the first public beta as `v0.9.0`, then launch `v1.0.0`.** **Decision:** the first internet-facing Awl release is a public beta named **Awl 0.9.0 — Public Beta**. The GitHub Release is marked prerelease, but the version itself carries no `-beta` suffix. Patch releases (`v0.9.1`, etc.) are for launch-blocking fixes and polish; `v1.0.0` is the official launch once the core install-and-writing journey is ready. **Build:** update `Cargo.toml` and all version-bearing release surfaces together only when the release-preparation work is green and the user authorizes the public tag. **Done:** the package version, tag, GitHub Release title/status, downloadable artifact names, and release notes tell one coherent pre-1.0 story. **Verify:** release dry run names artifacts with `0.9.0`; version/source law finds no stale `0.1.0`; release checklist distinguishes the prerelease from the later `v1.0.0` launch. **User design decision 2026-08-03.**
-
-245. **A CJK manuscript's READING TIME is now wrong in the other direction.** **Defect:** item 229 (landed `d8ae72c9`) fixed the count and the unit but left the pace at `ceil(count / 200)` for BOTH units, so a 5,500-character Japanese document reports **`5500 characters · 28 min`**. 200 units/minute is a WORDS-per-minute figure; published Japanese reading rates are roughly 400–600 characters/minute, so the readout is **two to three times too slow** for exactly the documents item 229 set out to serve. The number moved from meaningless (`1 word · 1 min`) to merely wrong, which is progress but is not done. ⚠️ **The item-229 owner declined to fix this deliberately and was RIGHT to** — the brief did not ask for a reading pace and inventing one silently would have buried a product decision inside an implementation round. It is recorded here because a declined scope question that goes unwritten is indistinguishable from an oversight. **Build:** the pace becomes a property of the unit, taken from the one owner `card::figures` that already returns `CountUnit` — not a second constant beside it, and not a per-world or per-language table. **Decide and pin:** the characters-per-minute figure, and whether a mixed document interpolates or takes its dominant script's pace outright (recommend: dominant script's pace outright, matching how the unit label already resolves, so one rule explains both). **Verify:** item 229's pinned regression table extended with expected minutes per row; the mixed-dominance edit case, since the pace must follow the label and must not flicker; the sidecar and drawn readout agreeing, through the one owner. **Routing:** production tier — but the chosen rate is a product call, so if the owner is not confident, park the number as a 🔵 and land the mechanism with today's value. **Found by the item-229 lane 2026-08-04 and flagged rather than absorbed.**
-
-246. ✅ **RESOLVED 2026-08-04 by option (a), landed in `RELEASING.md` — accept the loss in writing.** The receipt section now states that neither mac job prints a `native-gate-receipt`, that `native-gate.sh`'s refusal to run filtered is exactly what makes its receipt mean anything, and that nothing was built to replace the signal — so no reader goes hunting for one that is gone. It directs the reader to the two jobs' own conclusions, which are individually meaningful, that being the point of the split. Option (b), a synthesised combined statement, was declined on the recorded ground that it would re-bundle what item 243 deliberately unbundled and would have to misstate scope to call itself a receipt. Implemented by the orchestrator directly rather than dispatched: the brief would have cost more than the change. **Original entry follows.** **No hosted-mac CI arm prints a `native-gate-receipt` anymore, and nothing replaced the signal.** **Defect:** item 243 (landed `1833757b`) split `mac (build + test)` into a gating filtered arm and a tolerated `render::tests` arm. `scripts/native-gate.sh` **refuses any filtered invocation by construction** — that is its contract and the reason its receipt means what it means — so neither new job can call it, and neither prints a receipt. **This is intended and is NOT a regression to undo**: a filtered run was never entitled to claim the full suite, and the item-243 lane both chose this deliberately and flagged it rather than absorbing it. **What was actually lost:** before the split, a human reading CI's mac job log could see `native-gate-receipt commit=… conventions=mac,linux scope=all-targets` and take it as informal confirmation that *that exact commit* passed the full suite **on hosted virtualised Metal** — the one axis no local gate reaches. That confirmation now exists in no form. ⚠️ **This is a DIFFERENT gap from the board's RECEIPT GAP**, which is about local pre-push receipts going unrecorded in commit messages; do not merge the two, they have different owners and different fixes. **Nothing currently consumes the CI string** — `scripts/test-native-gate.sh` tests the script itself and `code-health.py`'s audits check the script's shape and the `linux` job's use of it — so nothing is broken today. **Decide, then act:** either (a) accept the loss and say so in `RELEASING.md` where receipts are described, so no reader looks for a signal that is gone; or (b) have the two mac jobs jointly emit one honest combined statement naming what each half covered, which is **not** a `native-gate-receipt` and must not be spelled like one. **Recommend (a)** — the split's whole value is that each arm's conclusion is now individually meaningful, and a synthesised receipt re-bundles what was just deliberately unbundled. **Do not** relax `native-gate.sh`'s no-filtering contract to make a receipt reachable; that contract is load-bearing. **Found by the item-243 lane 2026-08-03/04.**
-
-✅ **ITEM 249 IS UNBLOCKED — USER DECISION 2026-08-04: THE EVIDENCE BRANCH IS
-ALLOWED, AND `CLAUDE.md` NOW SAYS SO.** The recommendation below was taken. A
-branch may be pushed **solely to collect CI evidence on an arm no local gate can
-reach**, opened as a PR for that purpose alone, never merged from, and **deleted
-from the remote once the run is recorded** — the run and its logs outlive the
-branch, which is what makes the deletion safe. The rule in `CLAUDE.md`
-("Worktree branches never push") was absolute and is what actually blocked this;
-a board note could not have cleared it, because a worker reads `CLAUDE.md` and
-stops. ⚠️ **The exception is TEMPORARY and self-retiring — item 250 removes it**
-once 249's evidence is in hand. Two mechanics for the lane: pushing the branch
-alone runs **nothing** (`ci.yml`'s push trigger is `branches: [main]`), so the
-PR is what fires the `linux` job; and `workflow_dispatch` is not a push-free
-route, since it needs the ref on the remote too. **Original note follows.**
-
-⚠️ **ITEM 249 WAS BLOCKED ON A RULE, NOT ON EFFORT.** 249 requires its oracle be
-**proved on lavapipe before it lands**, since validating only on this host's
-Metal is the exact gap that produced it. There are only two routes and **both were
-closed:**
-- **A local lavapipe container.** Item 232 measured this and refused it: a
-  1.67 GB image and ~14 GiB of Docker VM disk that did not come back, for zero
-  coverage of item 231's target axis. That refusal was about item 231's *hang*,
-  not about allocation counting, so it is arguably not binding here — **but
-  re-opening it is a decision, not an assumption a lane should make.**
-- **CI on a branch.** `ci.yml`'s triggers are `push: branches: [main]`,
-  **`pull_request`**, and `workflow_dispatch`. So a branch CAN reach CI's linux
-  job by opening a PR — the item-243 lane's "pushing a worktree branch runs
-  nothing" is true only of the `push` trigger and does **not** rule this out.
-  ⚠️ **But it requires pushing a worktree branch, which `CLAUDE.md` forbids
-  outright: "Worktree branches never push."** `workflow_dispatch` has the same
-  problem — it needs the ref on the remote.
-
-**Recommendation: allow a worktree branch to be pushed for the express purpose
-of collecting CI evidence, on a branch that is never merged from.** It is the
-cheap route, it uses the arm that already exists, and it is exactly how the
-lavapipe axis becomes checkable before landing rather than after. The
-alternative — keep the rule and pay for a container — costs disk that item 232
-already measured as not returning. **Either way this is the user's call; 249
-should not be dispatched until it is made, because a lane cannot honestly
-satisfy its Verify clause otherwise.**
-
-249. **Item 239's portable allocation oracle was NOT portable — redesign the oracle, keep the findings.** ⚠️ **This supersedes item 239's Build clause. 239's substantive findings are NOT in question and must not be re-derived; only the oracle is.** **Defect:** the oracle landed at `52b1b313` and was reverted at `b2f27143` because `main` went red — run `30844149209`, all three `alloc_bound_law` tests FAILED in the **linux** job under **both** conventions while every other arm passed. The law's own message named the cause: `creating one wgpu texture moved wgpu-hal's live texture count by 0 instead of 1 (before: -5 objects (buffers 3, textures -8, views 0); after: -4 ...)`. **Two separate facts in that line, and the second is the stranger one.** The delta is **0**, so on CI's backend creating a texture does not move the counter at all; and the absolute reading is **NEGATIVE** (`textures -8`), which no create/destroy accounting should ever produce. ⚠️ **The failure is precisely the axis the design chose itself on.** 239 picked counts over bytes because `buffers`/`textures`/`texture_views` are maintained by metal, vulkan, gles **and** dx12 while `buffer_memory`/`texture_memory` are vulkan and dx12 only — read off wgpu-hal 29.0.3 source. It was then validated only on this host's real Metal, and lavapipe falsified it on first contact. **A portable oracle that is not portable is worse than none, because the bound it guards reads as covered.** **Build:** decide what a cross-backend allocation oracle can actually assert, with **CI's lavapipe as a first-class target rather than an afterthought** — the negative absolute count needs explaining before any law is written on top of it, because a counter that can go negative cannot support a bound in either direction. Candidates worth weighing: read counters only as *deltas within one owned device* rather than as absolutes; use a wgpu-level rather than hal-level accounting point; or accept that the oracle is backend-specific and gate the law by backend, which is honest but forfeits the item's original purpose. **Verify:** whatever lands must be **proved on lavapipe before it lands** — a local container or CI-on-a-branch, not the dev host's Metal alone, since that is the exact gap that produced this item. Mutation proof as always, plus a non-vacuity arm equivalent to 239's third law (drop the `counters` feature and fail by name), which was well-designed and should survive the redesign. **Carry forward, all still true and none needing re-measurement:** the counter does **not** reproduce item 232's 199-vs-160 split (242.4 vs 243.3 objects per test, 0.4% against the container's 24%), so wgpu object allocation is not what the 4 GiB ceiling was exhausting; the suspects are pinned by `PendingWrites` until a **submit**, not by a poll, so a poll-targeted fix would not have worked and the live app which submits every frame is not exposed; and `background.wgsl`'s size ratio across the bisect boundary (1.2421) matches the container's test-count ratio (1.2437) to 0.13%, which one container run at HEAD would falsify. **The bound itself** — an empty submit plus a non-blocking poll in `test_gpu::arrive` — went out with the revert and is worth restoring **with** whatever law can honestly guard it. **Routing:** deep tier. **Found by CI 2026-08-04; the reverted work is in `52b1b313` for reference.**
-
-250. **Restore the absolute "worktree branches never push" rule once item 249 has its lavapipe evidence.** **Defect:** by user decision 2026-08-04, `CLAUDE.md`'s push rule carries a temporary exception permitting an evidence-only branch, because item 249's oracle must be proved on an arm no local gate reaches and CI-on-a-branch was the cheap route. **An exception that outlives its reason becomes a standing loophole** — the rule's value is that it is absolute and needs no judgement call at 2am, and every reader after today will find a paragraph inviting them to weigh whether their push qualifies. **Build:** delete the exception paragraph from `CLAUDE.md`'s "Branches & pushing" section and restore the plain sentence, once 249 has landed with its evidence recorded. **Keep what was learned, in one sentence rather than a carve-out:** that CI's `linux` job is reachable from a branch only via `pull_request`, that the `push` trigger is `branches: [main]` and fires on nothing else, and that a run's logs outlive a deleted branch — those are facts about the repo worth keeping wherever the rule lives, and none of them require permission to be granted in advance. **Also confirm the evidence branch was actually deleted from the remote** (`git ls-remote --heads origin` names no leftover), since the deletion is half of what made the exception safe to grant. **Done:** `CLAUDE.md` states the rule absolutely again, no remote branch survives from 249's run, and the CI-reachability facts are recorded without a standing exemption. **Verify:** grep `CLAUDE.md` for the exception text and find nothing; `git ls-remote --heads origin` is clean of the evidence branch. **Depends on item 249. Routing:** orchestrator-direct — this is a documentation edit, and briefing it would cost more than doing it. **User decision 2026-08-04, made in the same breath as the exception itself, which is the right time to schedule an undo.**
-
-211. **Picker selection intermittently appears to advance only every second input, with no transition.** **Defect:** the user reports the alternating-row failure again in the live Commands palette on 2026-08-01 (Quokka screenshot: Switch project selected) and adds that the selection animation sometimes does not play. This is the third report of the shape: Firetail on 2026-07-17, Settings/Mopoke on 2026-07-26 (item 104), now Commands/Quokka. Item 104's exhaustive logical-step and pixel/hit-test laws stayed green and found no fix; item 106 later guarded keyboard selection from stationary-pointer hover. Their green state does not exonerate the live-only seam. **Diagnose before fixing:** instrument one navigation input from winit receipt through `App::apply`, `OverlayState.selected`, redraw request, prepared highlight endpoint, animation scheduling, acquired frame and present. Determine whether the missing visible step is a dropped/repeated input, stationary-pointer takeover, state advancing twice, stale render state, or a redraw/present gap; do not tune animation constants until that chain names the break. Sweep tap, held-repeat and rapid alternating Up/Down; pointer outside/parked above/on/below the row; freshly opened and scrolled windows; focus/occlusion return; Commands, Settings and every picker kind; representative Pane/Bars worlds at 1×/2×. **Done:** every accepted navigation input produces exactly one reachable selection and a presented visual response; Reduce Motion may snap but never suppress the state change. **Verify:** add a live-App event→present trace assertion plus the missing law at the failing owner; retain item 104/106 laws; mutation proof recreates the diagnosed lost/every-other frame; real release run records inputs, selected indices, requested/acquired/presented frames and a 60 fps video or frame sequence. Headless settled captures cannot close this item alone. **Routing:** production tier with deep live-render review. **User-reported with screenshot 2026-08-01.**
-
-⚠️ **THIS BODY WAS RESTORED FROM GIT 2026-08-04 — it had been cleared off the board by an earlier compression WHILE THE ITEM WAS STILL OPEN**, so for some days the board named 211 in three lists and carried no brief for it. **A compression must clear only COMPLETED work**; the rule already says the handoff list gets re-derived in the same commit, and this is the other half of it. ⚠️ **Restoring it also corrects how 211 was being summarised:** the live lists called it "the unoccluded glide confirmation", which reads like a look-and-agree. **It is not — it is a user-reported defect, reported three times** (Firetail, then Settings/Mopoke, now Commands/Quokka), and its own text says diagnose before fixing and that headless settled captures cannot close it alone.
-
-251. **Item 207's AT-SPI journey needs a LINUX machine, and has been queued behind a macOS screen lock instead.** **Defect:** the board's live-closure list groups "207's real VoiceOver / AT-SPI journeys" under *needs an unlocked and FOREGROUNDED display*, alongside 118, 211, 218 and 244. **That is true of the VoiceOver half and false of the AT-SPI half.** AT-SPI2 is the **Linux** accessibility API (`ACCESSIBILITY.md:65` — NSAccessibility on macOS, AT-SPI2 on Linux, UIA on Windows), so no amount of unlocking the dev Mac reaches it; it needs a Linux desktop session with Orca. Filed as its own item because a blocker misattributed to the wrong cause **never gets cleared** — the arm will keep appearing in every "one unlock closes these" list, and each unlock will keep leaving it open, with nobody noticing that the list was wrong rather than the sitting. `ACCESSIBILITY.md:110` already states plainly that **no AT-SPI journey has been run at all**, so the honest limits section is correct today and must stay correct. **Build:** nothing to build until the hardware exists — this item's first job is to record what the journey requires (a Linux desktop session, Orca, the native build, and the same journeys the VoiceOver sitting runs: document read, caret and selection announcement, overlay summon/dismiss, and an editing burst that would surface the item-218 stall class on the other adapter). **Scope:** does NOT include shipping a fix for whatever it finds; a defect found here earns its own item, exactly as item 218 did from the first VoiceOver sitting. **Done:** either the journey has been run on a real Linux session and its findings recorded in `ACCESSIBILITY.md`'s honest-limits section, or the item stands parked with its hardware requirement stated — and in the meantime the board's live-closure list no longer implies an unlock will close it. **Verify:** human journey; there is no headless stand-in, and AccessKit law tests already cover the projection, which is precisely the layer this item exists to look past. **Routing:** human, on Linux. **Split out of item 207 on 2026-08-04 after the live-closure list was found to conflate two different blockers.**
-
-252. **Prove the AT-SPI bridge on CI's Linux runner — the mechanical half of 207 that the evidence-branch exception DOES reach.** ⚠️ **This is NOT item 251 and does not close it.** 251 needs a human at a Linux desktop driving Orca and listening; a hosted runner has no desktop session, no Orca and no ears, and item 207 is explicit that the real journeys are what no test tier stands in for. **What this item claims is narrower and honest: that the AT-SPI2 bridge comes up on real Linux and exposes the tree.** **Why it is now worth doing, and why the timing matters:** awl reaches AT-SPI2 through AccessKit's Unix adapter (`ACCESSIBILITY.md:65` — NSAccessibility on macOS, AT-SPI2 on Linux, UIA on Windows), and **no local gate on this Mac can reach that path at all** — which is precisely the scope of the evidence-branch exception the user granted 2026-08-04 for item 249. **Item 218 (landed `c282cedd`) rewrote the activation handler and replaced the monolithic document node with stable line runs, and its own report closed with the gap in plain words: "Whether AT-SPI/Orca behaves the same under mixed handlers: untested, no Linux screen reader run here."** So freshly-changed accessibility code has an entire platform backend behind it that nothing has exercised. **Build:** a CI arm that stands up `Xvfb` + `dbus` + `at-spi2-core`, launches awl, and asserts from an AT-SPI client that the tree appears with the roles and structure `SemanticSnapshot` intends — the document, its line runs, focus and selection. Keep it a **separate job**, not a widening of the `linux` gate, and decide deliberately whether it gates or is tolerated while it beds in; item 243's split is the precedent and its lesson is that a red carrying no information is worse than no arm. **Verify:** the arm fails by name when the bridge is broken — **mutation-prove it by disabling the adapter and watching it go red**, since an accessibility smoke that silently passes with no bridge at all is the obvious way to get this wrong and would read as coverage. Confirm 218's run-based tree specifically, not just that *a* tree exists. **Scope:** this is a bridge-liveness and structure check. It does **not** claim speech output, navigation feel, or anything a screen-reader user would call working — 251 still owns that. ⚠️ **It uses the temporary push exception, so it is subject to item 250's cleanup: never merged from, remote branch deleted once the run is recorded.** **Routing:** production tier. **Queued 2026-08-04 after the user asked whether the exception unblocked 251 — it does not, but it reaches this.**
-
-✅ **COMPLETE — merged `aa48b156`, and the arm is tolerated-red by design, pinned by name to item 257 in `ci.yml`.** **THE EVIDENCE IS RECORDED HERE, IN FULL, BECAUSE THE BRANCH THAT PRODUCED IT IS GONE.** Run logs outlive a deleted branch but only if their IDs are written down, and `CLAUDE.md`'s revocation paragraph asserts this note holds them — so this is the note it means. **Three runs, all on `claude/item-252-atspi`, all now branch-less:**
-**(1) THE DEFECT, run `30893423426`, atspi job `91940654674` — the arm's first complete run.** `ATSPI-PROBE FAIL: document has 0 children, expected 4 stable line runs (item 218's shape) for the 3-line fixture, even after waiting 10.0s`. Promoted to **item 257**.
-**(2) THE MUTATION PROOF, run `30894634897`, atspi job `91945735327`** (run cancelled overall as superseded; **the atspi job itself completed `failure`, which is what the proof needs**). With the adapter install disabled: `ATSPI-PROBE FAIL: no AT-SPI application for pid 16318 appeared under the desktop within 30.0s, despite setting and re-bumping org.a11y.Status.IsEnabled — the bridge never registered with the accessibility bus`. ⚠️ **This is the whole value of the arm: the two failure modes read DIFFERENTLY**, so a red names which one it is — bridge-absent, or bridge-present-and-runs-missing. An accessibility smoke that could not tell those apart would be indistinguishable from coverage.
-**(3) THE LANDED STATE, run `30896684219`, atspi job `91952328799` — run conclusion `success` WITH the atspi job at `failure`,** which is `continue-on-error` working as designed. Its message is the sharpened one item 257 quotes: the same 0-children finding plus `GetChildAtIndex(0) directly agrees there is nothing there (returned None)`.
-**Cleanup discharged 2026-08-04, per item 250's precedent:** PR #2 closed, remote branch `claude/item-252-atspi` deleted, `CLAUDE.md`'s exception paragraph already revoked in `b13d37bf`. The two commits never merged were the mutation and its revert — the mutation touched `src/app/lifecycle.rs`, so carrying the pair would have left a commit on `main` with accessibility disabled in the product.
-
-253. **Quokka's curly quotes are drawn BACKWARDS — the bug is in the font file, not in our code.** **Defect:** user-reported 2026-08-04 from a Quokka blockquote screenshot: the hanging pull-quote mark renders as a CLOSING mark. `render/layers.rs:47` asks for `U+201C` and is correct; **Sour Gummy ships both raised quote pairs' outlines transposed.** Two independent proofs, neither needing a build. **(a) `glyf` bboxes:** `quoteleft` is `(46, 437, 164, 641)` — the same x-extent as `comma` `(46, -102, 164, 102)` and `quotesinglbase`, i.e. the raised comma, which IS the closing 9-shape; `quoteright` carries the mirrored `43..161` outline. Same for `quotedblleft`/`quotedblright`, and **identically in all three instances** (Regular/Bold/Black). `cmap` is right — the outlines sit behind the wrong names upstream. **(b) roster raster:** rasterise `U+201C` for each of the 25 bundled Regular-weight faces and compare ink in the top vs bottom quarter; 24 come out heavy-bottom (the rotated opening form) and `SourGummy-*` is the only one heavy-top. ⚠️ **This is not just the ornament.** Sour Gummy `wght=400` is **Quokka's prose face**, so every apostrophe in Quokka prose renders as a rotated 6-shape — louder in ordinary text than the pull-quote that reported it. **Build:** swap the `cmap` entries for both pairs — `U+2018`↔`U+2019` and `U+201C`↔`U+201D` — in all three shipped `SourGummy-{Regular,Bold,Black}.ttf` (Black is reachable via `AWL_SOURGUMMY_HEAVY_FORCE=900`, so it is in scope). The remap is **metrically free**: left and right advances are identical within each weight (207/207 single, 384/384 double at Regular), and the advance travels with the outline. **Do NOT touch `U+201A`/`U+201E`** — the low quotes sit correctly at the baseline with the comma's own extents, and moving them would invent a second bug. **Record the deviation in `assets/fonts/LICENSES.md`'s Sour Gummy provenance note:** OFL 1.1 with NO reserved font name, so modification is permitted, but a glyph remap is **not** one of the instancing/subsetting steps that note already covers and must be named as its own change, with the upstream defect described so a future re-fetch does not silently undo the repair. **Rejected alternative, recorded so it is not re-proposed:** drawing `U+201D` for Quokka only in the ornament — a per-world code path (`CLAUDE.md`: a theme needing its own code path means the design is wrong) that would fix one glyph on screen and leave every apostrophe in the world broken. **Verify:** the axis is the ROSTER, not Quokka — a law over **every** bundled display face asserting `U+201C`'s outline is the rotated form and `U+201D`'s is the raised comma, so the next face with this defect fails on arrival rather than being noticed in a screenshot. Mutation-prove by restoring one file's original mapping and watching the law name that file. Add a Quokka blockquote capture asserting the mark's ink distribution, since the ornament is the reported surface. **Done:** Quokka's pull-quote reads as an opening mark, Quokka apostrophes read correctly, the roster law exists and fails by name, and the licence note records the repair. **Owed to a human:** the defect is upstream at `github.com/eifetx/Sour-Gummy-Fonts` (via `google/fonts` `ofl/sourgummy`) and worth filing there; awl's zero-network invariant makes that a person's action, not the app's. **Also decided in the same sitting, and deliberately NOT built: the pull-quote gets no closing mark.** Blockquote text is already dim for the block's whole extent (`markdown/spans.rs:69`), so the end is legible without a second glyph, and a closing mark has no honest anchor — the last line's right edge is ragged, so it would float at an arbitrary x or hang in a margin that holds nothing. Hanging pull-quote marks are conventionally single, and DESIGN's value-only restraint agrees. **Routing:** production tier — bounded, already diagnosed, but the law is the real deliverable. **User-reported 2026-08-04.**
-
-254. **Item 249's `alloc_bound_law` is FLAKY under `cargo test render::` — reproduced 3/3 by the orchestrator, and a flaky law is worse than none.** **Defect:** flagged by the item-242 lane as "roughly one run in two on unmodified `main`", then reproduced independently and found **worse than reported**: `cargo test --bin awl render::` failed on **all three** consecutive runs at `be2d328f`, with a **varying** failure count — 3, then 2, then 1. The two that fail are `one_render_test_allocates_a_bounded_number_of_gpu_objects` (`alloc_bound_law.rs:288`) and `the_render_suite_does_not_accumulate_gpu_objects_across_tests` (`:350`). ⚠️ **THE PATTERN IS THE DIAGNOSIS, so start here rather than re-measuring:** they pass **alone** (`cargo test --bin awl alloc_bound` → 4 passed) and they pass in the **full suite** — item 249's own receipt and every gate since are genuinely green, including the merge-train gate at `7b7a6ff8`. **They fail only under the `render::` filter.** A varying failure count across identical invocations means shared state, not a wrong constant. The likely mechanism, stated as a lead and not a finding: every test takes `crate::testlock::serial()`, but **the wgpu counters are process-global on the shared device**, and a preceding test's resources are reclaimed asynchronously — so the baseline these laws measure against depends on **what ran immediately before**, which the filter changes. Item 249's own report already named `held` and `kept` for exactly this, and its `arrive` bound was built to clear it; the flake says the clearing is not complete under some orderings. **Why this matters more than its CI status:** `main` is green and stays green, because CI runs the unfiltered gate — **so this will never fail CI and will fail a developer**, and `cargo test render::` is the ordinary way to work in that directory. That asymmetry is the same shape as the defect item 249 was created to fix, arriving from the other side. **Build:** make the laws independent of test order, or make them refuse rather than fail when the baseline is polluted — a law that cannot get a clean baseline should say so by name, not report a bound violation it cannot substantiate. **Do NOT fix this by widening the bound**, which would forfeit what the law is for. **Verify:** `cargo test --bin awl render::` green **ten consecutive times**, plus the unfiltered suite still green; and the mutation proofs from item 249 must all still fail by name afterward — five of them, so re-run the set rather than a sample. ⚠️ **Do not revert 249 to close this.** Its findings are load-bearing (the upstream wgpu-hal Vulkan counter defect, now a `CLAUDE.md` tripwire) and its lavapipe evidence is in run `30870887402`. **Routing:** deep tier — this is shared-state reasoning about a process-global counter under a reentrant lock, which is the exact shape that produced three rounds of ABBA deadlocks in this repo's history. **Found by the item-242 lane and independently reproduced 2026-08-04.**
-
-255. **`assets/fonts/LICENSES.md` asserts a licence fact that is FALSE for 38 of 45 bundled faces.** **Defect:** its "license texts in this directory" section says of `OFL.txt` that it *"applies to every OFL face above; the copyright line for each is in its `name` table"*. **Measured 2026-08-04, not inferred: only 7 of the 45 bundled `.ttf` files contain a copyright string at all**, in either ASCII or UTF-16BE — checked with `strings` and `strings -e b` over every file. All three Sour Gummy instances carry **none**, and so do Bitter, Figtree, FiraSans, Fraunces, most EBGaramond and the rest. The subsetting/instancing that produced the bundled faces stripped the `name` table's copyright records, and the document was never re-checked against the artifacts it describes. ⚠️ **DO NOT ESCALATE THIS INTO A CLAIMED LICENCE VIOLATION WITHOUT DECIDING THE QUESTION IT ACTUALLY RAISES.** OFL 1.1 §2 permits redistribution *"provided that ... each copy contains the above copyright notice and this license"*, and **awl does ship both**: `assets/fonts/OFL.txt` is the canonical licence text, and `LICENSES.md`'s own table names the copyright holder for every face (e.g. "The Sour Gummy Project Authors"). **The likely true position is that awl is compliant in substance and merely describes itself incorrectly** — but "likely" is not the standard `CLAUDE.md` sets for licence facts, which are never fabricated and whose unverifiable parts get flagged. **Build, in this order.** **(1)** Correct the sentence so it says where the notices actually are — in `LICENSES.md`'s table and `OFL.txt`, not in the faces' `name` tables — because a licence document that misstates its own compliance mechanism is the defect regardless of what the answer turns out to be. **(2)** Then decide, with the OFL text in hand rather than from memory, whether "each copy contains the above copyright notice" is satisfied by an accompanying file. If it is, say so explicitly in the document so the next reader does not re-litigate it. If it is **not**, the fix is to restore the `name`-table records on the bundled faces, which is a build-pipeline change and its own item. **(3)** Add a law that fails when a bundled face's licence facts drift from what `LICENSES.md` claims — derived from the directory, never a hand-kept list; this document has now been wrong about its own artifacts for an unknown length of time and nothing noticed. **Verify:** the corrected document matches a fresh measurement of all 45 faces; the law fails by name when a face is added without an entry, mutation-proved. ⚠️ **RELEASE-RELEVANT — this rides item 226.** The dry run confirmed all five licence docs reach the tarball, so whatever this document says is what ships to users; item 253 also just modified three of these files in place, which is permitted (no Reserved Font Name — independently verified: zero RFN strings in all three) but makes the provenance note's accuracy more load-bearing, not less. **Found by the orchestrator while verifying item 253's licence position, 2026-08-04.**
-
-256. **`scripts/code-health.toml`'s line-pinned exceptions are a merge-conflict magnet — FOUR consecutive merges, always the same two shapes.** **Defect:** every lane that adds lines to `src/render.rs` moves its `file_size_mark` and shifts the `clippy_exception` line pins beneath it, and **no lane can measure another lane's tree**, so each one records a number that is correct for its branch and wrong for the merge. Observed 2026-08-04 on items **242** (conflicted with 248), **253** (conflicted with the 242+248 result), and staged again on **224** — with the same file and the same two blocks each time. The resolution has been identical every time and is now written into three merge messages: **take neither side; re-run `bash scripts/code-health.sh` on the merged tree and record what it reports.** The measured values were `2578` → `2606` → `2614`, and **none is any sum of its branch inputs** — the arithmetic does not compose, which is exactly why the conflict cannot be resolved by inspection. **This is friction, not a correctness bug:** the mechanism works, catches real growth, and its per-seam `reason` strings are genuinely valuable — the cost is a hand-resolved conflict per merge and the standing temptation to guess a number instead of measuring one. **Build — decide between these, do not assume:** **(a)** make the mark and the pins **derivable** so a merge cannot conflict on them, e.g. record them in a generated file the tool rewrites rather than a hand-edited one, with the `reason` prose kept separately keyed by symbol rather than by line; **(b)** key the clippy exceptions by **function name or a stable anchor** rather than by line number, which removes the shift entirely and is likely the cheaper half; or **(c)** accept the friction and instead make the tool **print the exact TOML block to paste** on failure, so resolution is mechanical and un-guessable. ⚠️ **Whatever lands must preserve what the current design gets right:** exceptions are individually reasoned at their site, and the ratchet fails on unexplained growth. **Do not replace it with a global allowance** — that trades a merge conflict for a silent ceiling. **Verify:** two branches that both grow `render.rs` merge without a conflict in this file, or fail with an instruction precise enough to follow without judgement; the ratchet still fails by name on unexplained growth, mutation-proved. **Routing:** production tier. **Found by the orchestrator across four merges, 2026-08-04.**
-
-257. **Item 218's line runs do NOT cross the AT-SPI bridge — a Linux screen reader sees a document with no content structure.** ⚠️ **This is a real, reproducible product defect on a shipping accessibility path, found by item 252's arm on its FIRST COMPLETE RUN.** **Defect, measured on CI run `30893423426`:** `document has 0 children, expected 4 stable line runs (item 218's shape) for the 3-line fixture, even after waiting 10.0s`. **It is not registration lag** — a bounded 10-second retry waited it out. awl's AT-SPI application node appears, its document node appears, and **the line runs beneath it do not.** **Why this went unseen until now, and it is exactly the shape this repo kept finding on 2026-08-04:** item 218 (landed `c282cedd`) replaced the monolithic document node with stable line runs and was verified thoroughly — ten laws, mutation proofs, 93.33 ms → 0.476 ms per keystroke at 50k lines — **entirely on macOS, through AccessKit's NSAccessibility path.** Its own report closed with the gap named in plain words: *"Whether AT-SPI/Orca behaves the same under mixed handlers: untested, no Linux screen reader run here."* **No local gate on this Mac can reach AT-SPI2 at all**, so nothing contradicted it until item 252 built the arm. ✅ **MECHANISM SETTLED 2026-08-04 — it is (a), awl does not publish the runs.** The final probe reports: *"even after waiting 10.0s with the handle re-fetched fresh each retry — **GetChildAtIndex(0) directly agrees there is nothing there (returned None)**"*. Direct index access bypasses `ChildCount` entirely, so this is not a property-cache artefact and not a probe enumeration bug. **The runs exist in `SemanticSnapshot` — built synchronously from `buffer.runs()` before any frame renders, confirmed from source — and are lost between the snapshot and the AT-SPI2 wire.** That is where to look. The original framing is kept below because the discipline of not conflating the two is what made the answer trustworthy.
-
-⚠️ **THE MECHANISM AS ORIGINALLY FILED — the two candidates, kept for the reasoning.** (a) awl/AccessKit's Unix adapter genuinely does not publish the run nodes; or (b) it publishes them and the probe cannot enumerate them. The item-252 lane closed most of (b) before landing: the document handle is re-fetched fresh on each retry iteration, ruling out a stale per-object property cache making the retry vacuous, and on final failure the probe queries `GetChildAtIndex(0)` **directly, bypassing `ChildCount`**, and reports whether the two agree. **Read that probe output first — it is the fastest evidence available and it may settle the mechanism outright.** **Build:** determine which, then fix the publishing path if it is (a). Compare against the macOS path, which demonstrably works: the runs exist in `SemanticSnapshot` (built synchronously from `buffer.runs()` before any frame renders, confirmed from source by the 252 lane), so the loss is between the snapshot and the AT-SPI2 wire. **Verify:** item 252's `atspi` arm goes GREEN — it already asserts the exact shape (4 runs for the 3-line fixture) and would fail on both the pre-218 monolith and this gap, which is why it is the oracle here and no new law is needed. ⚠️ **When this lands, the `atspi` job is promoted from tolerated to GATING** — the pin and the promotion note are already written into `ci.yml`'s own comments, so the workflow file will tell whoever fixes this what to do next. 🔵 **This does NOT close item 251**, which owns the real Orca journey with a human; it is entirely possible for the tree to be structurally correct and still navigate badly. But 251 should not be attempted until this is fixed — there is no point putting a person in front of a document that exposes no content. **Routing:** deep tier, accessibility. **Found 2026-08-04 by item 252's arm; pinned by name in `ci.yml`.**
-
-258. **Mulga gets a different ground, and `Background::Starfield` is RETIRED with it.** **User decision 2026-08-04 evening, and it SUPERSEDES the board's standing Mulga proposal** — that one was "reject its promotion on purpose", which is a loudness call. **This is not that.** The user does not like the ground itself ("i don't like the bacground for mulga that muhc"), which is a taste finding about the world. ⚠️ **Do not merge this with item 118's loudness work** — 118 scores worlds, this replaces one. **Build:** give Mulga a ground from the EXISTING vocabulary suited to a dark olive slab-serif world (`font: "Zilla Slab"`, `mono: "Monaspace Xenon"`), then delete the `Starfield` capability. Current value being replaced, verified at `src/theme/worlds.rs:331`: `Starfield { from #161F0F, to #1E2916, dir (0,1), tint #7C8068 }`. The vocabulary to pick from is `Background`'s other arms (`src/theme/ground.rs:88`): `Gradient`, `Dots`, `Pinstripe`, `Stripes`, `Lava`, `Bands`, `Waves`, `Zigzag`, `Organic`, `Deckle`, `WarpedGrid`. **Why the retirement is the cheap part and is why this arm was chosen:** Mulga is the only world using `Starfield` — a whole ground capability serving one world the user does not want, which is precisely CLAUDE.md's "infrastructure complexity is a smell". **Done must include the capability actually being GONE** — enum arm, shader branch, ground-space table and every match arm — **not merely unused**, or the smell survives the round meant to remove it.
-🔴 **AMENDMENT 2026-08-04 late — `Bands` IS NO LONGER AVAILABLE TO THIS ITEM, AND 258 IS IN FLIGHT SO THIS MUST BE PUSHED TO THE LANE, NOT MERELY WRITTEN HERE.** The user has assigned `Background::Bands` to **Magpie** (item 260). 258's vocabulary list above still names `Bands` as a candidate; **it is now spoken for.** Pick from `Gradient`, `Dots`, `Pinstripe`, `Stripes`, `Lava`, `Waves`, `Zigzag`, `Organic`, `Deckle`, `WarpedGrid`. This is the board's own 118 lesson firing again — a decision recorded in one place and not copied into the item body becomes invisible where it is actually read.
-💡 **A CANDIDATE THE LANE SHOULD WEIGH, NOT A MANDATE — the taste call stays the lane's.** `AmbientStyle::Stars` (`theme/model.rs`, shipped on **Currawong**) is an ANIMATED star layer that composes over **any** ground, and it is a different field from `background` entirely. So **`Gradient` + `AmbientStyle::Stars` reproduces Mulga's stars without the `Starfield` ground** — two mechanisms currently render stars and only one of them is composable, which is exactly CLAUDE.md's "merge, don't align". ⚠️ **But the user's complaint was the ground itself, and they have not asked for stars back** — if the lane reads this as re-serving the thing that was rejected, it should say so and pick something else. Recorded because it is the cheapest retirement path, not because it is the right taste.
-📐 **A MEASUREMENT 258 SHOULD INHERIT: MULGA HAS THE WORST SELECTION LEGIBILITY IN THE ROSTER.** Measured 2026-08-04 off real captured pixels across all twenty worlds: text on Mulga's selection band renders at **2.16:1**, below even this repo's own 3.0:1 `SELECTED_ROW_INK_CONTRAST_FLOOR` (`theme/derive.rs:249`), and the worst of the next three are Mangrove 3.25 and Potoroo 4.26. **Mulga's number will move when its ground moves**, because the band is `selection` composited over the page. **Whatever ground the lane picks, re-measure it** — and item 264 is the law that will hold it.
-⚠️ **THE FIVE THINGS A LANE WILL WALK INTO, ALL VERIFIED IN THE TREE 2026-08-04, NOT INFERRED FROM THE DECISION TEXT.** The decision said "one construction site"; that is true of the *world* and false of the *capability* — there are **29 `Starfield` references across `src/`**.
-**(1) TWO INDEPENDENT NUMBERING SPACES BOTH GIVE STARFIELD `2`, AND THEY MUST BE DECIDED SEPARATELY.** `Background::shader_id()` (`ground.rs:278`) is a **wire value** — `shaders/background.wgsl:285` branches on `g.shader == 2u` — and `roster_index()` (`ground_space.rs:172`) is a **dense array index** whose own doc says outright *"Never a shader discriminant — `shader_id` is that"*. **Leaving a hole at 2 in `shader_id` is free; renumbering is NOT**, because every id above it (Pinstripe 3 … WarpedGrid 10) is also a wire value the shader branches on. **In `roster_index` the opposite holds**: it is dense and bounded by `ROSTER_LEN`, so a hole is not free there. Getting these backwards silently repaints worlds.
-**(2) AN EXISTING LAW ASSERTS STARFIELD IS MULGA'S ALONE AND MUST BE DELETED, NOT SATISFIED.** `src/theme/tests.rs:284` filters `THEMES` for `Starfield` and asserts `["Mulga"]`, message *"Starfield is Mulga's alone since item 69"*. Once the arm is gone the filter cannot compile; if a lane instead "fixes" it to assert an empty vec, **it goes vacuously green forever** — the exact failure mode this repo hit four times on 2026-08-04. Delete it deliberately and say so in the commit.
-**(3) A SECOND LAW DEPENDS ON THE ID `2` STILL MEANING STARFIELD.** `render/tests/backgrounds_item69.rs:761` asserts *"Bombora must be Waves (6), not the old Starfield (2)"* — its entire point is that item 69's migration did not reuse the old id. Renumbering `shader_id` makes that law's `6` wrong and quietly destroys the evidence it carries. This is the strongest argument for leaving the hole.
-**(4) THE SIDECAR EMITS `"kind": "starfield"` AS A SCHEMA VALUE.** `capture/background_sidecar.rs:36` formats it and `:18` groups it with `Gradient`/`Dots`. Removing a kind narrows the sidecar's value space — **decide explicitly whether `capture::SCHEMA_VERSION` moves**, per CAPTURE.md, rather than letting it fall out.
-**(5) `ground_space/tables.rs:30` HOLDS A `STARFIELD: &[GroundQuantity]` TABLE** that goes with the arm, and `theme/tests.rs:245`, `:822`, `:972` plus five `render/tests/backgrounds_item*.rs` files carry match arms that will fail to compile. **That compile failure is the feature** — it is the no-wildcard sweep working — so resolve each site by reading it, never by adding a `_ =>`.
-**Scope:** Mulga's ground and the `Starfield` retirement. **Not** a loudness re-score (118's), **not** the Galah density bump (a separate queued call), **not** a new ground capability — if the dark-olive answer genuinely needs a ground that does not exist, **stop and hand back**, because inventing a capability while retiring one is the opposite of this item. **Done:** Mulga renders a ground the user likes from the existing vocabulary; `grep -rn Starfield src/ shaders/` returns **nothing**; the shader has no `== 2u` branch; the two laws above are deliberately deleted or rewritten with their reasons in the commit message; the other 19 worlds are byte-identical. **Verify:** `--screenshot` pixel arithmetic for Mulga's new ground against its own palette (the sidecar is a state oracle, not an appearance oracle) plus the ink-contrast floor for text on it; sidecar for the `kind` value; byte-identity captures across the other 19 worlds; the grep is itself the retirement law. ⚠️ **Mulga's loudness WILL move** — the board records it measuring louder than Firetail on every static and motion column — so record the new measurement as an input to 118 rather than letting 118's map silently go stale. **Routing:** Deep tier (Opus, high) — picking the ground is taste work and the README routes taste above production; follow with a Fable visual-judge pass over real gallery captures, and a vision-smoke per the standing render policy. **Queued 2026-08-04 from the user's own words; the retirement half is mechanical and the ground choice is not.**
-
-259. **VoiceOver STILL reports awl as "not responding" when it is turned on mid-session — item 218's live sitting FAILED.** ⚠️ **THIS IS THE OWED SITTING COMING BACK NEGATIVE, WHICH IS THE MOST VALUABLE THING IT COULD HAVE DONE.** Item 218 was marked COMPLETE-except-its-live-sitting on the strength of ten laws, mutation proofs, and 93.33 ms → 0.476 ms per keystroke at 50k lines; **the user ran it and the symptom is unchanged.** Do not treat 218 as regressed — treat it as **incompletely scoped**: it fixed the per-keystroke republish, and the user's trigger is **activation**, a different moment on a different branch. **User-reported 2026-08-04.**
-⚠️ **TWO CANDIDATE MECHANISMS, DELIBERATELY NOT CONFLATED. Diagnose before fixing** — the same discipline item 211 states and item 257 was praised for. **Neither is a finding; both are reads of the source, and this repo has shipped a wrong oracle from a careful source read before (`CLAUDE.md`'s "ask the device, not the docs").**
-**(a) THE FULL-TREE BRANCH, size-dependent.** `src/app/frame/accessibility.rs`'s fast path exists for a screen reader **already running when awl launches**: `seed_accessibility_tree` builds a tree before the window is shown and `serve_initial_tree` serves it synchronously. **Turning VoiceOver on mid-session is the other branch** — `published_tree_is_current()` has almost certainly gone false (it requires a quiet surface AND a matching `runs().state_key()`, so any edit since launch falsifies it), so activation returns `None`, the platform holds a placeholder, and `owes_full` makes the first update a whole-document tree on the main thread. `src/app/semantic/mod.rs:92` calls this branch normal and not a bug. ⚠️ **THE ARITHMETIC ARGUES AGAINST THIS BEING SUFFICIENT:** 218 measured the full path at **93.33 ms** on 50k lines, and a one-time 93 ms build does not raise a "not responding" dialog, which needs seconds. **So if (a) is the cause, the cost must be superlinear or repeated — measure it at several document sizes rather than assuming it scales the way 218's per-keystroke number did.**
-**(b) A FULL TREE RECORDED AS SENT BUT NEVER SENT — structural, and size-INDEPENDENT, which is why it is ranked first.** In `publish()` the send is `adapter.update_if_active(|| projector.full(…))`, which **invokes its closure only when the adapter considers an assistive technology attached** — but `projection.note_full_tree()` and `self.owes_full = false` run **unconditionally, outside that gate**. If the runtime's own `active` flag (set from the `InitialTreeRequested` event on the main loop) and the adapter's notion of attachment ever disagree at activation, awl believes it published a full tree the platform never received, and **every subsequent update is a diff against a tree that does not exist.** A platform querying a tree that does not describe the app is a shape that can present as unresponsive. **Test it directly: assert that a full publish which the adapter declines does NOT clear `owes_full`.**
-**Build:** Instrument the activation moment end to end — the platform's `request_initial_tree`, the branch `serve_initial_tree` took, the `InitialTreeRequested` event, `set_active`, the first `publish`, whether `update_if_active` actually invoked its closure, and the wall-clock of `projector.full`. **Name the break before touching it**; do not pre-emptively make activation asynchronous, which would trade a stall for a race. **Sweep the axis the fast path assumes away:** VoiceOver already running at launch **versus** toggled on mid-session, each against an empty buffer, a typical document, and a large one — that 2×3 is the whole item, and the launch-time cell is the one that already works and must keep working. **Done:** turning VoiceOver on at any moment, on any document size, leaves awl responsive and the tree correct; the failing mode is reproduced by a law before it is fixed, and that law fails by name. **Verify:** ⚠️ **`docs/harness-reach.md` first — activation is a live-only seam and the headless path is structurally free of it**, so a capture cannot close this. `--screenshot-app` reaches a real headless `App` and `activate_for_test` drives the REAL `serve_initial_tree`, so the branch decision and the `owes_full` bookkeeping ARE unit-testable even though the platform handshake is not; take (b) to that seam. The stall itself needs a real VoiceOver sitting, and the user is the instrument. **Routing:** deep tier, accessibility + live-render. ⚠️ **Item 257 is the SAME SUBSYSTEM on the other platform — awl not publishing runs to AT-SPI2 — and the two may share an owner. Read both before starting; do not assume they share a cause.**
-
-⚠️ **ITEM 259 — INVESTIGATION HANDOFF, 2026-08-04. READ THIS BEFORE RE-DERIVING ANYTHING.** A second user symptom and four eliminated mechanisms. **Everything below marked "eliminated" was eliminated by SOURCE READING, and this repo has shipped a wrong oracle from a careful source read before — so treat them as strong priors, not proofs, and re-open any of them the moment a measurement disagrees.**
-🔴 **THE SECOND SYMPTOM CHANGES THE ITEM'S SHAPE: VOICEOVER NO LONGER READS OUT THE HIGHLIGHTED SELECTION, AND IT USED TO.** User-reported 2026-08-04. **That is a REGRESSION, not an unfixed old bug**, and it is the single most diagnostic fact on this item — a stall is ambiguous, but "this exact behaviour worked before and does not now" points at 218's own change.
-🔴 **259 AND 257 ARE PROBABLY ONE BUG. This supersedes 259's original "do not assume they share a cause".** The reasoning is structural: **257 is AT-SPI2 on Linux and 259 is NSAccessibility on macOS, and those share NO platform adapter** — so a defect visible on both cannot live in either one and must be in the layer above: `src/app/semantic/projection.rs` (`SemanticProjection`), `src/semantic/native.rs` (`TreeProjector`), or the publish bookkeeping in `src/app/frame/accessibility.rs`. **257 carries the only hard MEASUREMENT either item has** — `document has 0 children`, with `GetChildAtIndex(0)` returning `None`, so it is not a `ChildCount` cache artefact — and **a document with no run children explains the macOS symptom too: with no runs on the wire there is nothing for a selection to be announced against.** ⚠️ **Anchor the work on 257's measurement, not on the macOS symptom**, because one is a number from a real bus and the other is a person's report.
-**ELIMINATED (1) — the size-dependent full-tree build, i.e. candidate (a) above. Killed by user evidence, not by argument: it stalls on a SMALL document**, which has no document-sized tree to build. **Do not spend time making activation asynchronous or chunked.**
-**ELIMINATED (2) — "`update_if_active` silently drops the closure at activation", which was candidate (b) and was ranked FIRST. It is wrong.** Read in `accesskit_macos-0.26.3/src/adapter.rs`: when the activation handler returns `None` the adapter does **not** stay `Inactive` — it builds a placeholder context and enters **`State::Placeholder`** (`:207`), and `update_if_active` in the `Placeholder` arm **does** invoke the closure and transitions to `State::Active` (`:120-135`). Only `State::Inactive` returns `None` without calling it (`:119`). So the unconditional `note_full_tree()` / `owes_full = false` in `publish()` is **not** obviously reachable as a lost full tree on this path. ⚠️ **It is still ugly and worth a law** — a publish the adapter declines should not clear `owes_full` — but it is not the reported bug.
-**ELIMINATED (3) — `project_node`'s document-children guard is NOT a silent drop.** `src/semantic/native.rs:217` only takes the cached list when `document_children.len() == semantic.children.len()`, and the **`else` branch (`:219-227`) correctly sets children from `semantic.children`**. A stale cache degrades to the direct path; it does not empty the node.
-**ELIMINATED (4) — the document's children ARE populated on both first build and after invalidation.** `projection.rs:147-152`: an unseeded refresh calls `seed(app)` and forces `shape_moved = true`, and `invalidate()` (`:138`) sets `seeded = false` — so the mid-session-activation path (`set_active(true)` with `served == false` → `invalidate()`) re-seeds and **does** assign `snapshot.nodes[DOCUMENT_INDEX].children` (`:297-303`). The "delta-only update with no initial fill" shape was the obvious suspect and it is not present.
-**WHERE TO LOOK NEXT, none of it examined:** `sync_runs`'s return value and the `shape_rev` comparison at `projection.rs:210` (**a shape that moved without `shape_rev` changing would leave children stale in a way none of the above catches**); `rebuild_tail`; the `changed` list feeding `incremental`; and the selection path specifically — `sync_document`'s `self.selection(buffer)` and whether a selection is published as a text position against run nodes the platform actually holds. **Reproduce 257's 0-children on the AT-SPI arm first — it is the cheapest true oracle either platform offers, it already exists in CI, and it fails by name.**
-
----
-
-⚠️ **ITEMS 260–265 — THE THEME-SURFACE PRUNE, QUEUED 2026-08-04 late from a user session that looked at REAL RENDERS of every unshipped capability before deciding.** Each dormant arm was temporarily patched into a carrier world, built once, captured at `900x400 --measure 30 --sel 2:0-3:28`, and the tree reverted; the per-arm pixel deltas below are measured against that same world's shipped frame, not estimated. **The evidence is not in the repo** — it was produced in-session and the numbers are transcribed here, so a lane that wants to see a ground before deleting it must re-run the same patch-build-capture-revert loop. That loop is cheap and is the honest way to re-check any call below.
-
-260. **`Background::Bands` IS ADOPTED BY MAGPIE — the roster's last unused ground becomes used, and pinstripe drops 3→2.** **User decision 2026-08-04 late, made against a real render rather than a description.** Bands is fully authored, shader-complete (`shader_id` **5**, `bands_rgb` at `shaders/background.wgsl:959`) and pixel-tested by `render/tests/backgrounds_item69.rs`, yet **no world's literal has named it since item 86 moved Gumtree to `Zigzag`** — it was Gumtree's own ground before that. Rendered at 50.8% of the frame changed, max **46/255** on a channel: unambiguously a statement ground. **Why Magpie and NOT Saltpan** (the user's first instinct, argued down in session and the reasoning is worth keeping): Saltpan is `DEFAULT_THEME`, tagged *Humble/Everyday*, and is the world a new user lives in on first contact — a three-band diagonal ground is the wrong first impression. **Magpie is already the poster world** (`Diagonal(Ascending)` list, `Raked` location, `Placard` title, `Chips(Underline)` facets — 6 off-default dials), it is **currently one of the three pinstripes** so converting it is a net simplification, and its diagonal list style rhymes with a diagonal ground. **Build:** Magpie (`src/theme/worlds.rs:675`, ground at `:688`) trades `Pinstripe` for `Bands`. ⚠️ **Author Magpie's OWN three tones from its own base ramp — do NOT copy item 69's literal** (`render/tests/backgrounds_item69.rs:197`), which is Gumtree's old green and belongs to a light-green world, not a cool grey one. **Done:** Magpie renders Bands; `Pinstripe` is down to Saltpan and Cassowary; **`grep` proves no ground arm is unused** — with 258 retiring `Starfield`, the vocabulary lands at **11 authored, 11 used, zero dormant**, which is the real prize of this item. Item 69's laws keep their dormant literal as-is (they deliberately drive an explicit value, not a live world) — **decide and say in the commit whether they now point at Magpie instead**, rather than leaving it unexamined. **Verify:** `--screenshot` pixel arithmetic that three distinct band tones actually occupy the margin at Magpie's own palette, plus the ink-contrast floor for text on the ground; byte-identity captures across the other 19 worlds. **Routing:** deep tier (Opus, high) — authoring three tones against an existing palette is taste work; follow with a vision-smoke per the standing render policy. ⚠️ **Coordinate with 258 — see its amendment. Bands is spoken for; 258 must pick elsewhere.**
-
-261. **FOUR GROUND DIALS COLLAPSE TO ONE ARM EACH AND THE ENUMS GO WITH THEM: `Arrangement`, `LavaEdge`, `DeckleAnchor`, and `Tunnel`'s surplus arms.** **User decision 2026-08-04 late, each call made against a rendered A/B.** ⚠️ **The point is NOT to delete four enum arms — it is that each enum drops to a SINGLE arm, at which point the enum, its `mode()`/`mask_mode()` scalar, its shader branch and its `ground_space` table entry are all machinery serving one value. Deleting the arm and keeping the enum banks none of the win.**
-**(a) `Arrangement::Masses` (`theme/ground.rs:164`) — 26.6% of frame, max 21/255.** Bowerbird's original Organic grammar, retired by item 191 in favour of `Finds`. Rendered side by side the swap is vindicated: Masses is soft rounded blobs, Finds has real internal structure. **User: "kind of similar to the lava lamp, so maybe it's okay to get rid of that."** `Arrangement` then has one arm → delete the enum; `Organic` keeps its tones/scale/density.
-**(b) `LavaEdge::Hard` (`theme/ground.rs:253`) — 6.4% of frame, max 6/255. THE STRONGEST DELETE ON THE BOARD AND THE MEASUREMENT IS WHY.** Against shipped Firetail the **margins are pixel-identical**; every changed pixel is inside the page and the largest difference anywhere is **6/255 on one channel**. **User: "it literally looks the same. I can't tell."** ⚠️ **One honest limit: headless captures pin the lava phase for determinism, so this proves nothing about motion** — the repo's own rule is that the harness cannot verify feel over real time. **A lane must state that limit rather than claim the dial is dead**; if it wants more than a still, `--capture-timeline` is the instrument. `LavaEdge` then has one arm (`Glow`) → delete the enum and its `mask_mode` dispatch.
-**(c) `DeckleAnchor::Page` (`theme/ground.rs:194`) — 51.9% of frame, max 33/255.** Re-anchors the handmade-paper field from the room to the page edge; every margin pixel moves, but the material reads the same. **User: "the decor anchor, we get rid of that."** One arm left (`Viewport`) → delete the enum. **`Weave` (`:230`) is NOT part of this item** — it has two live arms, Strata on Paperbark and Fibres on Galah.
-**(d) `Tunnel::Reversed` (`theme/ground.rs:115`) — user: "we just get rid of that."** ⚠️ **`PageScaled` and `MarginPlaced` are NOT deleted here — they are item 262's input**, because the user liked something in each and 262 may supersede all three at once. **Sequence 262 before finishing (d), or (d) will be redone.**
-🔴 **THE LAW QUESTION, WHICH THE USER RAISED DIRECTLY ("shouldn't we delete the laws that we don't need too??") AND WHICH HAS A DIFFERENT ANSWER PER ARM. Answer it per arm, in the commit message, and never with a `_ =>`.** These arms are not decoration: `DeckleAnchor::Page` and the tunnel arms exist so item 158's and item 194's laws can be *watched failing*. **Distinguish two cases.** Where the deleted arm was the law's **subject** (a law asserting *which* anchor a world picks), the law dies with it — **delete it deliberately and say so**, exactly as 258 must do with `theme/tests.rs:284`. Where the deleted arm was only the law's **mutation proof** (the law's real subject is that the shipped behaviour is correct), **deleting the arm does not delete the subject — it removes the proof of non-vacuity**, and a law nothing can falsify is the precise failure mode this repo hit four times on 2026-08-04. ⚠️ **In that second case the recommended resolution is to keep the proof and drop the product surface: let the law construct the bad mode scalar directly under `cfg(test)`** — the shader branches on an `f32`, not on the enum, so a test can still drive the page-anchored or reversed mode without the product enum carrying an arm no world reaches. **The user has not ruled between "delete outright" and "cfg(test) fixture"; the recommendation is on the board and the call is theirs.** **Blast radius, counted 2026-08-04:** `Arrangement` 37 refs / 9 files, `LavaEdge` 38 / 8, `DeckleAnchor` 30 / 6, `Tunnel::Reversed` 6 / 5. **Most of that is tests, and the compile failure is the feature** — the no-wildcard sweep working. **Done:** each of the four enums is gone or reduced as above; `grep -rn` for each returns nothing outside deliberate `cfg(test)` fixtures; every affected law is either deleted with a stated reason or kept with its mutation proof relocated; the other worlds are byte-identical. **Routing:** production tier (Sonnet, medium) — mechanical once the law calls are made — **but the law calls themselves are a deep-tier judgement and should be settled before dispatch, not during.**
-
-262. **KITE'S TUNNEL SHOULD FILL THE MARGIN WITHOUT STRETCHING — `cover`, not `contain`. This is a NEW behaviour; no existing `Tunnel` arm is it.** **User taste finding 2026-08-04 late, and the shader explains it exactly.** The user liked `PageScaled`'s fill and hated its distortion ("it's a square and it's stretched out to be a rectangle, it looks awful"), then liked `MarginPlaced`'s sweep but found it showed too little tunnel ("it doesn't show enough of the tunnel??"). **All three observations are one mechanism.** `shaders/background.wgsl:1200` sets `var aspect = 1.0` for the shipping profile and the comment states the design outright: *"the section is a circle and the projection isotropic, which is what makes 'the aspect ratio is invariant' true by construction rather than by tuning."* **`PageScaled` is the ONLY arm that puts an affine transform in that space** — `:1205`, `aspect = clamp(flank / max(WARP_PAGE_SCALED_FIT * vp.y, 1.0), 1.0, 4.0)`, commented *"Mutation arm: scale and flatten the section from the page column"* — so its fill is bought with the stretch, inseparably. **`MarginPlaced` keeps the circle but sizes the section so large that only the outermost arc crosses the margin, which is why the vanishing point disappears.** **The geometric fact underneath: a circular section in a tall rectangular margin either leaves dead space (`Fixed`) or must be stretched (`PageScaled`). There is no arm that does both, and there cannot be.** **Build:** keep `aspect = 1.0` and change what sets the section's SCALE — size it against the margin's height (or diagonal) instead of fitting inside its width, and let the outer rings crop off the edges. Undistorted rings, filled rectangle, vanishing point retained. ⚠️ **This is a change to the SHIPPING profile's scale, not a fifth arm** — adding an arm is the failure mode here, since the whole point is that the roster ends with fewer. **If it lands, `PageScaled`, `MarginPlaced` and `Reversed` are all superseded and `Tunnel` collapses to nothing, feeding item 261(d).** ⚠️ **Do not delete those three until this lands** — they are item 194's mutation arms and 262 may fail. **Done:** Kite's margins carry a filled, undistorted, receding tunnel at the shipped page width and at both narrow and wide `--measure`; the ring geometry is provably circular (sample two radii at 90° and compare). **Verify:** `--screenshot` at several `--measure` values AND at a second `--capture-dpi`, per CLAUDE.md's "a check runs in one configuration" rule — a tunnel scaled off the margin box is exactly the kind of quantity that ships correct at one DPI and wrong at the other (item 242's lesson). **Routing:** deep tier (Opus, high) — shader geometry plus taste. **Owed to a human: the final look is a taste call the harness cannot make.**
-
-263. **THE SELECTION TOKEN SPLITS: `selection` → `selection_document`, plus a new `selection_ui`.** **User decision 2026-08-04 late, and the shape is user-approved ("but yeah 1 sounds good").** ⚠️ **The premise that started this was WRONG and the correction is worth keeping, because it will otherwise be re-derived:** `selection` is **already** a palette token, declared on the line directly after `error` (`theme/model.rs:474`) with a matching `theme::selection()` accessor beside `error()`. Nothing needs *moving*. **What is actually wrong is that one token serves two roles and a third surface derives from neither.** The three surfaces, verified: **document selection** and **search matches** both read the authored `selection` token (`render/layers.rs`, `match_pipeline`), while **picker rows** read `surface_step_band` (`theme/derive.rs:211`) — `base_200` climbed three steps toward `base_300`, a value step and never a new hue, per DESIGN §3/§5. **Build:** rename `selection` → `selection_document` (mechanical, no behaviour change, and the rename is the point — it makes the token honest about which surface it serves), and add `selection_ui` **defaulting to today's `surface_step_band` derivation with a per-world override**. ⚠️ **The default matters more than the token does.** Authoring `selection_ui` per world would mean twenty new hand-picked colours **and would forfeit the by-construction guarantee that a row band is a value step and never a hue** — that guarantee is currently free because it is computed, and making it authored converts it into a law someone has to write and enforce. **The user chose the derived-default shape; do not quietly upgrade it to fully-authored.** **Done:** both roles are nameable in the palette; `grep` finds no remaining bare `selection` token; every existing call site routes through the correct one of the two; **captures across all twenty worlds are byte-identical**, which is the whole proof that the rename changed nothing. **Verify:** byte-identity is the oracle — a single non-identical world means a call site was routed wrong. **Routing:** production tier (Sonnet, medium) — it is a rename plus a defaulted field — **but it touches the most call sites of anything in this wave, so sequence it LAST**, after 260/261/262 have finished moving grounds around.
-
-264. **THE DOCUMENT-SELECTION CONTRAST LAW — AND IT IS ALREADY RED ON MULGA AT 2.16:1.** **Measured 2026-08-04 off real captured pixels for all twenty worlds; the defect is real and predates the measurement.** ⚠️ **`selection` is the only ink-adjacent token in the theme model with NO legibility law.** Syntax roles are held to 4.5:1 against the ground (`render/tests/syntax_roles.rs:373`), picker-row ink to 3.0:1 with a fallback that flips to `base_100` when the band crowds the content colour (`SELECTED_ROW_INK_CONTRAST_FLOOR`, `theme/derive.rs:249`), and the spell underline has its own check — **but the band that actually covers your text has none.** Nothing stops a future world authoring a selection that eats its own text, and one already has. **The numbers, sampled from the rendered band and the glyph ink rather than modelled:** Mulga **2.16:1**, Mangrove 3.25, Potoroo 4.26, then Tawny 4.98 and up; every light world is ≥9.97; Wagtail is 21.0 by construction. **The split is structural, not sloppy — a translucent wash over a dark ground rises toward mid-grey while the ink stays near-white, compressing contrast; on light worlds the band stays light and the ink near-black.** ⚠️ **THE LAW MUST NOT MODEL THE COMPOSITE IN THE HOST.** The page is a LIFTED plane, not `base_100` — verified by sampling: Tawny's `base_100` is `#16181D` and its rendered page is `#53565F`. A host-side `selection`-over-`base_100` calculation is therefore wrong, and would be *confidently* wrong. **Assert over the PNG's pixels**, which is also what CLAUDE.md requires of any appearance claim. **Build:** a render law that, for every world in `THEMES` (no wildcard), renders a selection, samples the band and the glyph ink, and asserts a floor. **Route through the ONE owner, `Theme::highlight_treatment()` (`theme/model.rs:497`), so both arms are covered without a branch on a world name**: `ValueBand` asserts band-vs-ink, `InverseFill` asserts band-vs-`base_300`. **Recommended floor: 3.0:1**, matching the picker-row floor already in the tree — same question (ink on a selected band), so a second number would need its own justification. **That lands the law RED on Mulga, which is the point** — a law must fail on the bug it names, and this one does so without anyone having to break the product first. ⚠️ **Then fix Mulga**, either by re-authoring its `selection` token or as a consequence of **item 258 changing its ground** — the two interact, since the band is `selection` composited over the page. **Sequence 264 AFTER 258 and re-measure**, or the fix will be aimed at a page that no longer exists. **Done:** the law sweeps all twenty worlds, fails by name on any world under floor, and every world passes after Mulga is fixed; Mangrove and Potoroo are recorded as the next band with an explicit decision to accept or fix them. **Verify:** mutation proof is mandatory — drop a passing world's selection alpha and paste the actual panic text. **Routing:** deep tier (Opus, high) — it is oracle work, which the README routes above production.
-
-265. **`theme/worlds_gallery.rs` AND `CASSOWARY_LIGHT` ARE DELETED.** **User decision 2026-08-04 late: "it looks good, but we have too many things, so I think just get rid of that."** A complete, fully-specified `Theme` (`theme/worlds_gallery.rs:27`) that no user has ever seen — the light-terminal audition kept from Cassowary's round, which **item 118 already decided not to graduate.** Rendered in session; it is a finished world, not a spare part, which is exactly why it has survived this long. **Tiny: 2 references, 1 file.** **Build:** delete the module, its `mod worlds_gallery;` declaration and the `#[allow(dead_code)]` that carries it. ⚠️ **Preserve the module doc's ONE load-bearing idea somewhere it stays true — `THEMES` is the single enrollment door, which is why an authored-but-unenrolled `Theme` could never leak into the picker, a capture, the icon roster or a law sweep.** That invariant outlives the file and is worth a line in `worlds.rs` or CLAUDE.md rather than being deleted with it. **Done:** `grep -rn "worlds_gallery\|CASSOWARY_LIGHT" src/` returns nothing; the roster is unchanged at 20; captures byte-identical. **Routing:** production tier (Sonnet, low) — genuinely mechanical, and small enough that the orchestrator may simply do it rather than write a dispatch.
-
-266. **SETEXT HEADINGS (`abc` over `---`) MUST STOP READING AS HEADINGS — AND THE DECISION THE USER IS REMEMBERING IS REAL, ALREADY MADE, AND ONLY HALF-IMPLEMENTED.** **User 2026-08-04 late: "this is just too confusing, and we'll stick with `# abc` for the titles… we can acknowledge it, and parse it properly, but we don't have to show it."** ⚠️ **Do not re-decide this and do not rip setext out of the parse.** The standing rule is already written into the tree at `src/markdown/headings.rs:216`: **ATX-ONLY** — *"awl treats ONLY leading-`#` (ATX) lines as headings everywhere else — heading SIZE counts `#`s (`md_line_scale`) and the WYSIWYG conceal hides `#`s — so the outline must agree, or a stray `-` typed under a paragraph silently promotes it to a heading (**the reported bug**)."* **So three of the four surfaces already obey it: size, conceal, and the outline picker** (`headings_from_spans` filters setext out explicitly). **THE GAP IS THE SPAN LAYER, WHICH IS THE ONE THE USER CAN SEE.** `src/markdown/spans.rs:748` still emits `MdKind::Heading(level)` for a setext heading — pulldown reports `Tag::Heading` for it, and nothing filters at emission — **which is precisely why `headings_from_spans` needs a filter at all.** That span drives heading STYLING, so the paragraph's text still takes heading ink/weight even though it never grows and never appears in the outline. **That mixed state is worse than either end: the line looks promoted and behaves demoted.** **Build:** filter setext at the SOURCE — `spans()` emits `MdKind::Heading` only for ATX — so every consumer inherits the rule from one owner instead of four re-deriving it. `headings_from_spans`' own filter then becomes redundant; **keep or drop it deliberately and say which in the commit.** **A SECOND, SEPARATELY-DOCUMENTED GAP RIDES ALONG AND SHOULD BE CLOSED IN THE SAME ROUND:** `spans.rs:214` records a *"KNOWN, ACCEPTED false positive"* — `is_thematic_break` is a single-line scan and cannot distinguish a setext underline from a real thematic break, **so the `---` row still GROWS to reserve space for an ornament that never draws** (the ornament layer reads the real `md_spans`). `***`/`___` are never setext, so only a dash underline is affected. **That growing empty row is the other half of what "we don't have to show it" means.** **Scope:** the RENDER and the outline. ⚠️ **The file is plain text and setext is valid CommonMark — awl must not rewrite, escape or corrupt it**, and a document authored elsewhere with setext headings must still round-trip byte-identically through open/save. This item changes what awl DRAWS, never what it stores. **Done:** typing `---` under a paragraph changes neither the paragraph's ink, weight, size, nor its outline membership, and does not grow the underline's row; the bytes are untouched; `# abc` is unaffected. **Verify:** `--screenshot` pixel arithmetic on a fixture holding an ATX heading, a setext heading and a real thematic break in one document — assert the setext title's ink and row height equal the surrounding BODY text's and that the real `---` still rules and still grows; sidecar for the outline's membership; a save round-trip proving byte-identity. **Mutation proof:** re-emit the setext span and watch the law go red by name. **Routing:** production tier (Sonnet, medium) — the decision is made, the owner is identified, and the work is a filter plus a law. **Note for CAPTURE.md:** `:1275` already states *"A setext `---` heading underline is NOT a `rule`"*, so the schema's position is settled and consistent with this item.
-
-267. **THE CARET IS TOO SHORT ON TALL ROWS — ITS HEIGHT IS A CONSTANT WHILE ROW HEIGHT IS VARIABLE.** **User-reported 2026-08-04 late with a screenshot, and explicitly a RECURRENCE: "we used to have this issue and I thought we fixed it."** ⚠️ **The earlier fix was `6bc8ecd9 Fix caret height on punctuation` — a DIFFERENT axis (glyph ink box on punctuation, `render/caret.rs` + `facepitch.rs`), so this is not a regression of that work and a lane must not go looking for one.** **Diagnosis — a source read, NOT a measurement, and it must be confirmed before it is fixed** (this repo has shipped a wrong oracle from a careful source read before): `src/render.rs:302` defines `caret_h: CARET_H * s` where `s = zoom * dpi` — **a fixed base height scaled only by zoom and DPI, with no term for the row's own font size.** `src/render/caret.rs:100` then places it as `line_top + (row_h - m.caret_h) * 0.5` — **the caret is CENTRED in the row but never SIZED by it.** So on any row whose height exceeds the body's, the caret keeps body height and floats in the middle of the extra space, which is exactly the reported look. **awl has variable row heights BY DESIGN** — `docs/markdown.md` owns the heading ladder and its per-level row heights, and commit `11e20069` records "decoupled space-above line-height" — so tall rows are a shipped feature and the caret was never enrolled in it. **The user's screenshot is the awkward case, and a lane should reproduce THAT one first:** the caret is not on the heading itself but on a row below it, sitting low in a tall empty row — consistent with a body-height caret centred inside a row inflated by the heading ladder's space-above. **Build:** derive caret height from the row the caret is in — the same per-line scale `md_line_scale` already computes — rather than from a global constant. ⚠️ **Decide and state which quantity it should track: the row's FONT SIZE (cap/ascender box) or the row's full HEIGHT including space-above.** They differ exactly in the reported case, and picking the second would make the caret grow into leading that carries no glyphs — **the first is almost certainly right and the second is almost certainly what a naive fix does.** ⚠️ **Do not "fix" this by top-aligning the caret instead of centring it** — that trades a short caret for a misaligned one and the centring is deliberate. **Sweep the axis the constant hides:** every heading level 1–6, body, list items, code fences and blockquotes, **at more than one zoom AND more than one `--capture-dpi`**, per CLAUDE.md's "a check runs in one configuration" rule — a height that is a bare constant times `zoom * dpi` is exactly the shape that ships correct at one tier and wrong at another. **Done:** the caret's drawn height tracks the row's own type size at every heading level and in body text, at 1× and 2×, with the caret still vertically centred and still correct on punctuation (`6bc8ecd9`'s laws must stay green — **they are the regression guard for this change**). **Verify:** `--screenshot` pixel arithmetic measuring the caret's drawn height against the row's rendered glyph height at each level — the sidecar is a state oracle, not an appearance oracle, so this is pixel work. **Mutation proof:** pin the caret height back to the constant and watch the sweep go red by name. **Routing:** production tier (Sonnet, medium) — bounded and already diagnosed — **but confirm the diagnosis with a capture before changing anything**, because the placement line and the height line are in different files and only one of them is wrong.
-
-268. **KITE DRAWS TWO TUNNELS AND THE USER ENVISIONED ONE — this is the unspecified Kite unhappiness, finally in their own words.** ⚠️ **THIS SUPERSEDES "Kite is recorded as user-owned and deliberately NOT queued… what they are unhappy about is unspecified. No lane should guess it."** The user specified it 2026-08-04 late, unprompted, looking at a real capture. **It is not a loudness complaint — Kite remains a confirmed deliberate 5/5, called three times.** ⚠️ **This also CHANGES ITEM 262, which framed the problem as fill-versus-stretch. That framing was incomplete and 262 should be read through this item.**
-**THE COMPLAINT, VERBATIM:** *"the part I don't like about Kite is like you see two of the tunnels? But really I was envisioning one tunnel."*
-✅ **CONFIRMED IN THE SHADER, NOT INFERRED.** `shaders/background.wgsl:1215` computes `axis_x = warp_window_axis(vp.x, anchor, on_right)` under the shipping profile — **the tunnel's axis is a function of WHICH MARGIN the pixel is in**, so the left and right margins each get their own axis and therefore their own vanishing point. **Two cameras, two tunnels.** The code's own comment one line above calls each margin *"this margin's own window onto that fixed picture"* — **the intent was one picture seen through two windows, and the implementation does not deliver it**, because the picture is not fixed across the two windows.
-**THE FIX IS SMALLER THAN THE COMPLAINT SOUNDS: give both margins ONE axis** — the room's centre, `vp.x * 0.5` — which places the single vanishing point **behind the page**. The margins then become genuine windows onto one scene, and the tunnel's arcs are continuous across the page even though the page hides the middle. ⚠️ **This is the same `axis_x` line item 262 wants to change the SCALE of; sequence them together or they will conflict.** **Poetically it also lands the world's own doc comment** (`worlds.rs:1043`): *"the stable mineral page glides through one cool warped-grid tunnel"* — with one centred axis, the thing you are travelling toward is hidden behind your own writing.
-💡 **THE USER'S STEREO IDEA — RECORD IT, AND RECORD WHY IT PROBABLY WORKS AGAINST THE GOAL.** Their words: *"is it possible to have two cameras? … how like 3D glasses you see left eye right eye, and then like that somehow becomes kinda 3D. Like would that work?"* **Honest answer: stereoscopy needs the two views SUPERIMPOSED and fused by the viewer's brain; here they are side by side with an opaque page between them, so nothing fuses.** Worse, an interocular offset is precisely what makes the two views *disagree* — the arcs would fail to line up across the page, which is the "two tunnels" read the user is objecting to, reintroduced deliberately. **So the one-axis fix and the stereo idea point in opposite directions, and the user's stated goal ("one tunnel") selects the first.** ⚠️ **Do not build stereo. Do not silently drop it either** — if a future round wants a sense of depth *between* the margins, the honest lever is the FOV/perspective strength on a single shared camera, not two cameras.
-✅ **THE UNDER-PAGE CONTINUATION IS NOW USER-APPROVED — *"I do like your risky idea"*.** Let the grid continue **faintly across the page itself**, not only in the margins. ⚠️ **It carries a real risk that must be bounded, not waved past:** it puts texture behind body text, which DESIGN.md's figure/ground rule exists to prevent, so it needs a stated legibility floor measured over real pixels, exactly as item 264 does for the selection band. **But it is the mechanism that makes "one tunnel" LEGIBLE** — a continuous faint grid is the evidence that the two margins are one scene rather than two.
-📐 **AND IT FIXES A SECOND, MEASURED DEFECT: KITE'S IDENTITY EVAPORATES IN A CODE BUFFER.** Measured 2026-08-04 on a 1600px canvas: at `--measure 70` (prose) the margins are **37.1%** of the canvas and both tunnels are whole; at `--measure 100` (`page_width_code`'s default) they are **10.1%**, and **the right margin is 17 pixels** — the tunnel is simply gone on that side and the left keeps a fragment with its vanishing point cut off at the screen edge. **Kite's own doc calls it "a loud light technical room" whose ground is "drawn in the two margins" — so the world loses its identity in exactly the buffer it was designed for.** A margin-only ground cannot survive this; a ground that continues under the page can.
-🔵 **CHROME IS IN SCOPE — USER-CONFIRMED: "We need to update the chrome for kite as well."** ⚠️ **Measured, and it is the starkest asymmetry in the roster: Kite moves exactly ONE of the 22 `RenderCaps` dials (`elevation: Bordered`) — it is chrome-identical to Saltpan, Brolga, Gumtree, Paperbark and Potoroo, all QUIET worlds.** Its declared deliberate counterpart **Firetail moves seven** (a 4.5&times; `Bold` placard pinned `BL` in Archivo Black, `Bars` list, `Chips(FilledActive)`, `TopLeft` anchor, a lifted fold tail, `IconGround::Blend40`). **So Firetail states itself across the whole UI and Kite states itself only in the margins** — which is why the margin collapse above is fatal rather than merely a shame. **Build from the world's own words** (`worlds.rs:1043`: *cool / geometric / crisp / directional*): `CardShape::Chamfered` is literally crisp geometry, `PageFrame::Line` would echo the grid onto the page edge, a `Placard` corner opposite Firetail's `BL`, and a geometric-grotesque `ChromeFace` to answer Archivo Black. 💡 **This is also a chance to RESCUE dormant arms instead of deleting them: `BarExtent::FullWidth` and `BarCoverage::SelectedOnly` are on item 261's chopping block precisely because nothing uses them, and a crisp full-width bar with selected-only coverage is a very "technical panel" look that only Kite would plausibly want.** Decide 268's chrome BEFORE 261 deletes those two arms, or the option is gone.
-⚠️ **ONE SMALL INCONSISTENCY WORTH FIXING IN THE SAME ROUND:** the doc comment calls Kite a *"technical room"* but its only facet tag is `voice: Modern` — **Technical belongs to Cassowary.** The prose identity and the picker facet disagree, which is the kind of thing that makes a world feel unresolved. **Changing it is a picker-facet decision (the bands are curated and capped), so it is the user's call, not a lane's.**
-**Done:** Kite reads as ONE tunnel with a single vanishing point behind the page; the world is still recognisably Kite at `page_width_code` with 17px margins; its chrome carries the world's personality rather than the default's. **Verify:** `--screenshot` at `--measure` 70 AND 100 and at two `--capture-dpi` tiers (262's DPI warning applies here identically); a pixel law that the two margins' arcs are continuous across the page — sample the grid's phase at matching y on both flanks and assert they agree, **which is the law that would have caught the two-axis bug and does not exist today**; and a legibility floor over body text for the under-page continuation. **Routing:** deep tier (Opus, high) — shader geometry plus taste plus a chrome authoring pass. **Owed to a human: the final look, every time.** **Queued 2026-08-04 late from the user's own words, which is exactly the condition the board set for Kite becoming work.**
-
-269. **A composition sweep has been silently vacuous since it was written — `ground_space_item186.rs`'s `dormant:dots-edge` representative never matched.** **Defect, found by the item-258 lane and reported rather than fixed, which was the right call.** `src/render/tests/ground_space_item186.rs:98` enrols its proximity-scaled-`Dots` representative behind `if let Background::Dots { .. } = theme::MULGA.background` — **and Mulga was `Starfield`, so that branch has never matched once.** Proximity-scaled `Dots` composition has therefore had **zero** coverage for the life of the law, while the sweep read as complete. ⚠️ **Item 258 did NOT fix it and said so:** Mulga is now `Pinstripe`, so the branch is still dead, and re-pointing it at a world that genuinely uses `Dots` (Tawny, Mopoke) would **wake an unproven arm in the middle of a taste round** — the lane declined to do that mid-item, correctly. **Build:** point the representative at a real `Dots` world and deal with whatever the newly-live arm reports. ⚠️ **Expect it to fail on first contact** — that is the point, and a green on the first run is itself suspicious and should be investigated rather than celebrated. **Verify:** the enrolment must be **derived from the roster** rather than pinned to a named world, so a world changing its ground cannot silently un-enrol the representative again; mutation-prove that removing the arm fails by name. **This is the same class as item 237's constant arm and item 244's trigonometry law — a green that could not fail — and it is worth stating plainly that the pattern keeps recurring: the enrolment condition, not the assertion, is where these die.** **Routing:** production tier. **Found 2026-08-04 by the item-258 lane.**
-
-270. **A MERGE-TRAIN GATE IN FLIGHT IS INVISIBLE TO EVERY OTHER SESSION, AND A BOARD-ONLY COMMIT KILLED ONE.** **Defect, observed 2026-08-05:** the root's `native-gate.sh` ran the full suite green under **both conventions** (`status=0`, 299 s) and then refused its receipt — `HEAD changed while the suite ran (start=7e0fd72b end=b19ab662)`. **The commit that moved HEAD was a BOARD-ONLY markdown commit from the other orchestrator session**, which had no way to know a gate was running. ⚠️ **The existing rule cannot prevent this and it is important to say why:** `.orchestrator/README.md` and `CLAUDE.md` both say "do not commit while the merge train's own gate is running", but that rule can only bind the session that STARTED the gate. **A second session cannot obey a fact it cannot observe** — and this board explicitly supports two concurrent orchestrators, so the situation is designed-in rather than exceptional. **The cost is real and repeatable:** a full native run is ~5 minutes of both conventions and is, by this repo's own rule, the *only* thing that authorizes calling a tier "full native suite". Losing one to a markdown edit is the cheapest possible way to waste the most expensive check available. **Build — a signal, not a convention.** `scripts/native-gate.sh` writes a marker while it runs (gitignored; PID + start sha + start time) and removes it on exit, including on the failure and interrupt paths — **a stale marker from a killed run must not wedge the repo, so it carries a PID that a reader can test with `kill -0` rather than trusting the file's existence.** Then `.orchestrator/README.md` tells an orchestrator to check it before any commit to `main`. ⚠️ **Do NOT make this a hard block or a lock.** A gate is not entitled to freeze the repository, and an advisory that says "a gate started 40 s ago on sha X, PID Y is alive" lets a human or an agent make the ordinary call — wait, or commit deliberately and accept the re-run. **The failure mode to avoid is a lock file that outlives its process and silently blocks the next session**, which is the exact shape `.orchestrator/disk-preflight.sh` already solved correctly with a kernel advisory lock on an inherited fd — **read that implementation before writing this one; it is the in-repo precedent and it is right.** **Verify:** start a gate, confirm the marker names a live PID; kill the gate, confirm the marker is gone or reads as dead; confirm a normal completion leaves nothing behind; mutation-prove that a reader checking the marker actually sees an in-flight run. **Scope:** the marker plus the README line. **Not** in scope: serializing the two orchestrators, or changing what the receipt certifies. **Routing:** production tier. **Found by the orchestrator 2026-08-05, having paid for it once.**
-
-271. **A FOURTH `ListStyle` — PROTOTYPE the quiet one, because `Pane` carries FIFTEEN OF TWENTY WORLDS.** **User instruction 2026-08-05: "lets just add the fourth style as a prototype".** ⚠️ **The gap is NOT an exotic missing style — it is that three quarters of the roster shares one overlay, and it is `RenderCaps::DEFAULT`.** `Bars` (3 worlds) and `Diagonal` (2) already cover loud and are spent on five worlds between them; **a fourth LOUD grammar would add nothing the roster lacks.** So this prototype is explicitly a QUIET one. **The design space, stated so the fourth is a real fourth rather than a restyle:** `Pane` organises by **enclosure** (a card holds everything, `ListBacking::Card`); `Bars` by **objects** (each row is a discrete thing — `BarePlates`, `draws_row_plates() == true`); `Diagonal` by **line** (a drawn geometry arranges rows — `BarePlates`, draws no plate). **The missing organising idea is ABSENCE: whitespace and hairline rules doing the work, with nothing drawn as an object.** Working name `Rules` / `Ledger` / `Index` — rows separated by a hairline (or by leading alone), no card, no plate. ✅ **The plumbing already exists and this is why the prototype is cheap: `BarePlates` + `draws_row_plates() == false` is EXACTLY `Diagonal`'s configuration** (`theme/model.rs:133`/`:145`), so the seam that distinguishes "no card, no plate" is already built and already has a consumer. **THE ONE REAL TASTE FORK — RENDER BOTH, DO NOT PICK ONE BLIND.** Selection has two credible answers and they are the whole personality of the style: **(a) the row's own rule thickens and runs out to full width**, or **(b) a mark hangs in the gutter** beside an otherwise untouched row. ⚠️ **Both must avoid a filled band — that is `Pane`'s answer and re-using it makes the fourth style a restyle of the first.** Capture both against the same world and hand them to the user; **the choice is taste and is explicitly NOT the lane's.** **Carrier worlds for the prototype: Paperbark (`EB Garamond`) and Bilby (`Newsreader`)** — the serif/editorial worlds where an index or a ledger is a native object and a floating card never was. ⚠️ **Item 131's rule inherits: never ship a half-applied world**, but a PROTOTYPE may render one world and stop — say which it is. 📐 **BLAST RADIUS, MEASURED 2026-08-05: sixteen non-test files match on `ListStyle::`** (`theme/model.rs`, `render/pipeline_layers.rs`, `render/benchsuite/cx.rs`, `render/overrides/parsers.rs`, and eleven under `render/chrome/` including `overlay_selection.rs`, `overlay.rs`, `overlay_draw.rs`, `overlay_visual_sel.rs`, `theme_picker.rs`, `diagonal.rs`, `mod.rs`). **That compile failure is the feature** — the no-wildcard sweep working — so resolve each site by reading it and **never with a `_ =>`**, which would silently give the new style `Pane`'s behaviour at any site the author did not visit. ⚠️ **PROTOTYPE SCOPE, STATED SO IT IS NOT MISTAKEN FOR SHIPPABLE:** one variant, one carrier world, the command palette only, and headless captures of both selection treatments. **NOT** in scope: the full `OverlayKind` surface sweep, the Settings workspace, `SettingId × SettingKind`, pointer/hit-test agreement, or the pixel-law suite — those are what item 131 owes any real row composition, and they are what makes this a prototype rather than a fourth shipped style. ⚠️ **Prototype IN awl via headless capture, never an HTML mockup** (CLAUDE.md, "No web artifacts"). **Explicitly NOT to build, so it is not re-proposed:** a grid or tile layout (a palette is a linear scan, tiles fight it, and it is IDE-shaped — PHILOSOPHY §5 rules it out); a stacked or overlapping deck (hurts scanability); numbered quick-select rows (a feature, not a style, and a structural device must encode something true). **Done:** both selection treatments are captured on one carrier world and shown to the user, with the fourth style's organising idea legibly NOT a card and NOT a plate; a decision is owed back before anything ships. **Verify:** captures plus byte-identity for the other nineteen worlds — a prototype that moves a world it was not assigned is the failure mode. **Routing:** deep tier (Opus, high) — it is a composition design, and the taste fork is the deliverable. **Owed to a human: which selection treatment, and whether the style graduates at all.**
-
-272. **THE `Bars` CONFIGURATION IS A KNOB NOTHING TURNS — five authored fields carrying exactly ONE value across the whole roster.** **User instruction 2026-08-05: "we should refactor the bar configs like you said i think".** **Measured, not inferred:** all three `Bars` worlds — **Galah (`worlds.rs:669`), Firetail (`:908`), Cassowary (`:969`) — reference the SAME shared const `POSTER_BARS` (`worlds.rs:20`)**, `Bars { radius: 6.0, gap: 10.0, grow_px: 24.0, extent: HugLabel, coverage: All }`. So "three worlds use Bars" is really "three worlds use one const", and the struct advertises five per-world dials that no world has ever varied. **That is CLAUDE.md's "infrastructure complexity is a smell" in its purest form: a configuration surface with one configuration.** 📐 **`BarExtent` × `BarCoverage` is 3 × 2 = SIX configurations and ONE ships.** Two of the unshipped five are not tuning — **they are different styles that need no new code:** **(a) `FullWidth` × `SelectedOnly`** draws nothing but a single full-width plate under the selected row on a bare scrim — *"`Pane` without the card"*, which reads nothing like what ships today; **(b) `HugText`** is the only arm where `inline_shortcut()` is true (`model.rs:173`), moving the shortcut INSIDE the plate so a row becomes one self-contained token instead of a label plus a right rail. 🔴 **THIS COLLIDES WITH ITEM 261 AND THE SEQUENCE MATTERS: 261 is queued to DELETE `BarExtent::FullWidth`, `BarExtent::HugText` and `BarCoverage::SelectedOnly` for being dormant.** ⚠️ **Decide 272 BEFORE 261 runs, or the options are gone** — and note the two items are answering the same evidence in opposite directions, which is legitimate: dormant-because-unwanted should be deleted, dormant-because-never-tried should be spent. **This item's whole job is to establish which.** 💡 **Item 268 names the natural customer: Kite needs chrome (it moves exactly one of 22 dials) and its own words are "cool / geometric / crisp / directional" — a crisp full-width plate with selected-only coverage is a technical-panel look, and Kite is the only world that would plausibly want it.** **Build — two honest outcomes and the round must land on one, not drift:** either **SPEND** the dials (differentiate the three Bars worlds from each other and/or adopt a configuration for Kite, retiring `POSTER_BARS` as a shared const because it would no longer be shared), or **COLLAPSE** them (fold the never-varied fields into the renderer and stop advertising a knob). ⚠️ **What must NOT happen is the status quo surviving the round** — five dials, one value, and a shared const that hides it. **Scope:** the `Bars` configuration and its three worlds, plus a Kite adoption if 268's chrome pass wants one. **Not** a new `ListStyle` (that is 271) and not the `Placard`/chips dials those worlds also share. **Done:** either every `Bars` world names its own configuration and `POSTER_BARS` is gone, or the struct carries only fields a world actually varies; either way `grep POSTER_BARS` tells the truth about how configurable `Bars` is. **Verify:** byte-identity for any world whose configuration did not change, captures for any that did, and — if dials are collapsed — the no-wildcard sweep proving no call site still reads a removed field. **Routing:** production tier (Sonnet, medium) if the answer is COLLAPSE; deep tier if it is SPEND, because differentiating three worlds is taste work. ⚠️ **Sequence: 272 → 261 → 268's chrome pass**, so deletion happens only after adoption has had its chance.
-
-273. **THE REFERENCE MANUAL — a wiki-shaped, COLD reference section, and it must be generated or law-checked rather than transcribed.** **User request 2026-08-05: "we need documentation! like it needs to be like a wiki… and i guess this is just the reference section, so the style should be cold and matter of fact. i'll write the warmer tutorial section myself when we get there."** ⚠️ **TWO VOICES, AND THE SPLIT IS THE USER'S OWN: this item owns the COLD half ONLY.** The warm tutorial is the user's to write, so a lane must not draft one, must not "warm up" the reference, and must not leave placeholder tutorial prose for the user to fill in. ✅ **The register is ALREADY a standing rule and this item inherits it rather than inventing it** — CLAUDE.md's *Docs voice (user-set)*: user-facing docs are *"matter-of-fact: tables and short declarative sentences, facts traced to verified sources, no filler"*, while PHILOSOPHY/DESIGN keep their personal register. **This item extends that rule with the user's new distinction: REFERENCE is cold, TUTORIAL is warm and is theirs.** 📐 **THE GAP, SURVEYED 2026-08-05 — awl has guides and contributor docs but NO reference.** `GUIDE.md` (364 lines) is a guide; `docs/*.md` (`config`, `fonts`, `markdown`, `platform`, `syntax`, `render`, `harness-reach`, `licensing`, `app-domains`) are **contributor** docs whose own headers say "read before working in that area"; the contract docs (PHILOSOPHY, DESIGN, THEMES, CAPTURE, ARCHITECTURE, WEB, RELEASING, ACCESSIBILITY) are design and process. **Nothing enumerates, for a user: every command, every default binding under both keymap flavours, every config key and its default, every world, every markdown construct awl renders.** 🔴 **THE REQUIREMENT THAT DECIDES WHETHER THIS IS WORTH BUILDING: A HAND-TRANSCRIBED REFERENCE DRIFTS, AND A DRIFTED REFERENCE IS WORSE THAN NONE** — it is a document that lies with authority. **awl already keeps one-owner rosters for nearly everything this reference must list**, and the reference must read them rather than restate them: `theme::world_names()` (already the single source `--list-worlds`, `--help`'s theme line and `capture-worlds.sh` all read), `keymap_defaults.rs`, the `Action` enum, `SettingId`, the config keys in `docs/config.md`'s owner. **Build the reference so a new roster member cannot be omitted silently — either generate the tables from those owners, or add a no-wildcard law that fails by name when a roster member has no reference entry.** ⚠️ **This is the same discipline the icon roster, the world gallery and `tests/world_gallery_roster.rs` already use; a reference is a roster like any other.** **Scope:** the cold reference only. **Not** the tutorial, **not** a rewrite of `GUIDE.md` (decide explicitly whether the reference absorbs it, sits beside it, or GUIDE.md becomes the tutorial's home — say which and why), **not** a site/hosting decision, and ⚠️ **not an HTML mockup** (CLAUDE.md, "No web artifacts"). **Zero-network stays invariant: a reference ships as files.** **Done:** a user can answer "what does this key do", "what can I put in config.toml", "what worlds exist" and "what markdown does awl render" without reading source; every entry traces to a verified owner; the register is cold throughout and no tutorial prose has been written on the user's behalf; and a new command/binding/world/setting cannot land without either appearing in the reference or failing a law by name. **Verify:** the law is the verification — mutation-prove it by adding a roster member and watching the reference check go red. Spot-check a sample of entries against the code they claim to describe, because a generated table can be generated from the wrong owner. **Routing:** production tier (Sonnet, medium) for the mechanism; ⚠️ **the STRUCTURE of a wiki — what the top-level sections are and what belongs in each — is a design call worth the user's eye before the writing starts**, since they own the other half of the document.
-🔵 **THE REFERENCE SHIPS ON THE WEBSITE TOO — user 2026-08-05: "the reference needs to be y'know on the web page too, so we gotta add a link to the docs pages."** **The site is in-repo at `site/`** (`index.html`, `guide.html`, `credits.html`, `check.html`, `style.css`, `llms.txt`, plus `editor/`, `fonts/`, `img/`), served by Caddy and deployed by `.github/workflows/deploy-web.yml`. ⚠️ **A REAL OBSTACLE, MEASURED 2026-08-05, THAT THIS ITEM WILL WALK INTO: THE SITE HAS TWO DIFFERENT NAVIGATIONS AND NEITHER HAS AN OWNER.** `index.html` carries a TOP nav (`<header class="site-nav">`); `guide.html`, `credits.html` and `check.html` carry a FOOTER nav instead (`<nav class="foot-links">`) and have no top nav at all. **Both lists carry the same four links** — GitHub, Try/Try the editor, Philosophy, Guide — **hand-duplicated across four files, with the top and footer copies already differing in link TEXT ("Try" vs "Try the editor") and in path style (`editor/` vs `/editor/`).** So "add a link to the docs pages" is four edits today and five tomorrow, and the two copies have already drifted. **Decide deliberately whether this round introduces one owner for the nav** (a shared include/partial, or a build step) **or accepts the duplication and adds the link to every copy** — say which and why in the commit; **do not silently do the second and leave the drift.** ⚠️ **`site/llms.txt` is a THIRD enumeration of the same documents** (its `## Docs` section lists README/Philosophy/Design/Themes/Worlds by absolute GitHub URL) and it will go stale the moment a reference exists that it does not name. **Treat it as a roster like any other — this item's own law clause covers it.** **Scope note:** the reference's CONTENT is one deliverable and its WEB PRESENTATION is another; they may land in sequence, but the item is not Done until a reader on the site can reach the reference from every page. ⚠️ **Zero-network is unaffected — the native app still ships files and never fetches; this is the marketing/docs site, which is a different artifact.**
-
-274. **THE TEST MONOLITHS HAVE REGROWN, AND THE REPO ALREADY PROVED THE FIX AT SCALE.** **User request 2026-08-05: "queue a refactor/spaghetti cleanup task as well… i'll leave it to you to figure out what would be good."** ⚠️ **Chosen over the obvious candidates BECAUSE they are already governed: production file size is actively ratcheted per file in `scripts/code-health.toml` with declared, reasoned exceptions, so "big files" is not an ungoverned smell there. The test tree is where the same rule stopped being applied.** 📐 **MEASURED 2026-08-05:** `src/theme/tests.rs` **4080**, `src/main/tests.rs` **4026**, `src/overlay/tests.rs` **3433**, `src/app_icon/tests.rs` **2365**, `src/buffer/tests.rs` **2210** — against CLAUDE.md's *"~500 lines is a file's natural ceiling; past it, decompose into a submodule dir."* ✅ **THE PRECEDENT IS IN THE TREE AND IT IS OVERWHELMING: `src/render/tests/` is ONE HUNDRED AND SIX FILES.** The decomposed shape is not a proposal — it is how the largest test area in this repo already works, one file per item or per subject. ⚠️ **AND THE DISCIPLINE IS ALREADY WRITTEN DOWN, BY THE VERY FILE THAT HAS SINCE REGROWN.** `src/theme/tests.rs`'s own module doc records the 2026-07 code-organization pass: *"split verbatim out of the former `theme.rs` monolith's embedded `mod tests`; every test's NAME and MODULE PATH are unchanged (`theme::tests::foo`) — only which file its source lives in moved."* **That is exactly the contract this item must honour, and that file is now the second-largest source file in the repo.** **Build:** decompose each monolith into a `tests/` submodule directory, **verbatim** — names and module paths unchanged, so `cargo test theme::tests::foo` keeps working and no law's `--exact` filter breaks. Split by SUBJECT, and where a test is named for a queue item, by item, matching `render/tests/`'s existing convention. ⚠️ **THE ONE THING THAT MAKES THIS RISKY RATHER THAN MECHANICAL, AND IT IS THIS REPO'S OWN SCAR: `crate::testlock::serial()` and the `cfg(test)` global writers.** A move that changes which tests share a file changes **nothing** about locking — but it changes which tests a developer runs together under a filter, and item 254 is the standing proof that a suite can pass alone, pass unfiltered, and fail only under one filter. **So the decomposition must be verified under the filters it creates**, not merely under the whole suite. **Scope:** test files only; production code untouched and byte-identical. **Not** a rewrite, **not** a chance to "improve" a test while moving it, **not** a place to delete a test that looks redundant — a verbatim move is auditable and a rewrite is not; anything else is its own item. **Done:** no `tests.rs` exceeds the ceiling without a declared, reasoned exception in the same shape production files already use; every test name and module path is unchanged; `cargo test --bin awl` reports the **same count** before and after, which is the whole proof that the move was verbatim. **Verify:** the identical test count is the primary oracle. Then run each new module **as its own filter** (`cargo test theme::tests::`, `overlay::tests::`, …) as well as the full suite and a wide `--test-threads`, per item 254 — a decomposition that only ever runs unfiltered has not been checked in the configuration it creates. 💡 **A SEPARATE, SMALLER SMELL FOUND WHILE MEASURING — NOT IN SCOPE, RECORD ONLY:** ten `reason` fields in `scripts/code-health.toml` have become append-only changelogs, stacking `"Previously: … Previously: …"` clauses. **CLAUDE.md forbids exactly this in comments** — *"Not history … that belongs in the commit message, which is where `git log -p` will find it"* — and the ratchet's reasons have drifted into the same failure. **If that is wanted it is its own item; do NOT fold it in here**, because mixing a verbatim test move with prose edits destroys the "identical count, identical names" audit this item depends on. **Routing:** production tier (Sonnet, medium) — mechanical by design, and the value is entirely in it being boring.
-
-275. **A HISTORY-REMOVAL PASS OVER THE COMMENTS — the codebase narrates its own past in roughly a thousand places, and CLAUDE.md forbids exactly that.** **User request 2026-08-05: "we need like a remove history pass over so much stuff!"** **The standing rule this enforces is already written:** *"Comments state what the code can't say about itself. Not history ('BEFORE this existed…'), not design memos, not a changelog — that belongs in the commit message, which is where `git log -p` will find it."* 📐 **SCALE, MEASURED 2026-08-05 over `src/**/*.rs` (62,949 comment lines total):** `item NNN` cited **1243** times; `BEFORE`/`before this` **964**; `round` **745**; `used to` **184**; `no longer` **129**; `originally`/`ORIGINAL` **103**; `Previously` **25**; `(was|were) (retired|replaced|removed|renamed)` **20**. Densest files: `app_icon/tests.rs` (32 item citations), `theme/tests.rs` (27), `render/caret.rs` (13). **Plus `scripts/code-health.toml`, where ten `reason` fields have become append-only changelogs stacking `"Previously: … Previously: …"` clauses** — the same failure in a different file type, and the reason this was split out of item 274 rather than folded into it. 🔴 **THESE COUNTS ARE A SCALE ESTIMATE, NOT A DEFECT COUNT, AND A LANE THAT TREATS THEM AS A WORKLIST WILL DO REAL DAMAGE.** `BEFORE` at 964 is heavily false-positive (ordinary ordering language — *"before the shader runs"*, *"before every commit"*), and **an `item NNN` citation is NOT itself a violation** — CLAUDE.md's own wording permits it, requiring only that it be verified to exist. **The distinction is narrative versus constraint, and it must be applied by reading, one comment at a time.** ✅ **THE TEST TO APPLY, AND IT SHOULD BE STATED IN THE COMMIT SO REVIEWERS CAN CHECK THE JUDGEMENT: does deleting this sentence change what a future editor would DO?** If yes, it is a live constraint and stays even when it names an item — *"`0.73` is not an integer, so the drift does not meet its own endpoint at the clock wrap"* is a warning, not a memoir. If it only records what happened — *"retired from any world's literal by item 191's swap to `Finds`"*, *"BEFORE this existed the caret used to…"*, *"Previously: …"* — it goes, because `git log -p` already has it and has it more accurately. ⚠️ **THE RISK IS ASYMMETRIC AND NO GATE CAN SEE IT.** Comments do not affect behaviour, so byte-identical captures and an identical test count are guaranteed and therefore prove NOTHING here; **the only failure mode is deleting a constraint that was keeping someone out of a trap, and the suite will stay green while it happens.** This is a human-review-shaped task, not a gate-shaped one. **Two consequences:** (a) **do NOT land this as one sweeping commit** — go file by file or area by area, each commit small enough that a reader can actually judge every deletion; (b) **the tripwires in `CLAUDE.md` are the canonical example of history that EARNED its keep** — every one is a past defect stated as a present warning, and if the pass ever reads like it is deleting those, it has the criterion backwards. **Scope:** comments in `src/**/*.rs` plus `scripts/code-health.toml`'s `reason` fields. **Not** the contract docs (PHILOSOPHY/DESIGN/THEMES keep their register and their history), **not** `.orchestrator/queue.md` (the board is deliberately a live-state document with its own compression rule), **not** commit messages, and **not** an excuse to reword a comment the pass does not need to touch. **Done:** the narrative-history comments are gone; every surviving item citation names an item that exists; `code-health.toml`'s reasons state the CURRENT justification for the current number with no `Previously:` chain; and the diff is reviewable in pieces rather than as one wall. **Verify:** identical test count and byte-identical captures are necessary but insufficient and must be described that way in the report — **the real verification is a second pair of eyes on the deletions**, which the README already routes as "is this claim true" work. **Routing:** production tier (Sonnet, medium) for the mechanical scan and the obvious cases; ⚠️ **escalate any comment where the narrative/constraint call is genuinely ambiguous rather than guessing — a lane that deletes one real tripwire has cost more than the whole pass saves.**
-
-276. **A TEST'S RESTORE LIST GETS SIZED TO THE SERIAL GUARD'S COVERAGE, NOT TO ITS OWN REACH — and the guard's completeness is what makes the gap invisible.** ⚠️ **Found 2026-08-05 by item 260's merge-train rejection, on a leak of unknown age that nothing had ever been sensitive enough to notice.** **The instance, now fixed:** `src/mac_about/tests.rs`'s `exactly_about_requests_the_native_surface_through_the_shared_transition` **applies EVERY command's action**, so it fires every toggle in the roster as a side effect. It saved and restored exactly **three** globals — `page`, `measure`, `spellcheck` — and **those three are precisely the three `crate::testlock::serial()` audits on exit.** `debug` sits outside that audit, leaked **ON** into the rest of the suite, and renders a readout stack down the right margin, which silently changed what a margin pixel law measured (a pixel at luminance 0.72147 below the world's own `base_300` floor of 0.77417, in the full suite only). ⚠️ **THE MECHANISM IS THE POINT AND IT GENERALISES: a completeness check that covers a SUBSET teaches every author to restore that subset.** Everything the guard audited was restored; everything it did not audit was not. The guard was working exactly as designed and its design is what shaped the bug. **Build — census first, decide second.** **(1)** Enumerate every process-global toggle a test can flip (`debug`, `outline`, `nits`, `typewriter`, `menubar`, `page`, `measure`, `spellcheck`, and whatever else the roster carries — **derive this from the command roster rather than a hand list**, since the leak arrived through a command sweep). **(2)** Find every `cfg(test)` writer of one that does not restore it. ⚠️ **Expect more than one; item 260's was found by accident, not by search.** **(3)** Then decide the owner: either the guard's snapshot-and-restore widens to cover the full set — which makes the audit and the restore the same list by construction, and is the answer that stops this recurring — or each site restores its own and a law enforces that. **Recommend the first**, because the second reproduces exactly the failure mode above: it asks every future author to know a list nothing checks. ⚠️ **The guard already RESTORES what it snapshots on the unwinding path too, so widening it is an extension of an existing owner, not a new mechanism** — but measure the cost, because the guard is taken by every test and every `cfg(test)` global reader. **Verify:** a law that flips every enumerated toggle inside a guarded scope, drops the guard, and asserts every one is back; mutation-prove by removing one global from the restore set and watching it fail **by name**. **Do NOT close this by widening item 260's margin law** — that law is the instrument that found this and its threshold is load-bearing. **Routing:** production tier. **Found by the orchestrator's merge train 2026-08-05.**
-
-## ✅ CI RED — CLOSED, CONFIRMED GREEN ON THE LAVAPIPE ARM ITSELF
-
-**Run `https://github.com/Frank-P-Lu/awl-editor/actions/runs/30962987599`, first known bad commit `0cdec6dd`.** The previous run at `6805fe90` was green, so the regression is **item 260's merge** (`e38e699a` / `21774473`). 🟡 **IN PROGRESS — claude, branch `claude/ci-red-scroll-anchor`.**
-
-**The failing job is `linux (build + test)`, which GATES.** ⚠️ The other two red jobs — `mac (render::tests)` and `atspi` — are the known-tolerated ones pinned to items 231 and 257; **do not read them as part of this.**
-
-**Failing law:** `render::tests::palette_scroll_anchor_item222::scrolling_a_picker_moves_only_its_list_never_its_surface` at `:159`. Verbatim: *"goto (widest rows at the top) / Cassowary @ 1400x900: row 1's SURFACE strip changed between scroll 0 and 1 (**2 of 703 px, max channel delta 1**) — the ground, border or spine moved with the list"*, `left: 2, right: 0`.
-
-⚠️ **IT PASSES ON THIS HOST'S METAL AND FAILS ON CI'S LAVAPIPE.** The full `cargo test --bin awl` and `native-gate.sh` both went green locally at `6d15b092`, and it fails under **both keymap conventions** inside the linux job. **This is the axis no local gate reaches** — exactly `CLAUDE.md`'s "a check runs in one configuration, and that configuration is itself an untested hypothesis", arriving for the fourth time in this repo's history.
-
-**THE ORCHESTRATOR'S HYPOTHESIS, FLAGGED AS ONE:** item 260 fixed a leak where `mac_about`'s command sweep left **`debug` ON**. Test ordering puts `render::` after `mac_about::`, so **the entire render suite had been running with `debug` ON**, and `debug` draws a readout stack down the right margin. **So this law may have been passing for the wrong reason, with the leak masking a sub-pixel scroll sensitivity that only lavapipe's rounding exposes.** ⚠️ **Not a finding — four orchestrator hypotheses were falsified in the preceding day, and the lane is told to test this one before building on it.**
-
-**THE JUDGEMENT THE ITEM TURNS ON:** product defect or over-strict oracle? If the ground/border/spine genuinely moves with the list, the fix is in the renderer; 2px at delta 1 argues against motion but does not rule out an off-by-one Metal rounds away. ⚠️ **DO NOT simply widen the threshold** — that move was rejected on item 260 earlier the same night. A tolerance, if it is the answer, must be the smallest defensible one, justified in the commit, and **proved still to fail on a genuinely moving surface.**
-
-⚠️ **Do NOT revert item 260.** Its leak fix is valuable and reverting restores the leak. Fix forward.
-
-**Item 270 is committed locally and deliberately UNPUSHED** — while `main` is red the repair is the only thing that ships, and 270 rides out with the fix.
-
-277. **THE CONCURRENT-WORKER BUDGET BOUNDS BUILDS AND NOT TESTS, SO FOUR LANES AT THE GATE PHASE OVERSUBSCRIBE THIS HOST FIVEFOLD.** **Measured 2026-08-05, not inferred: load average 49.6 on a 10-core host**, with four dispatched lanes each running `native-gate.sh`. A gate that normally issues its receipt in ~4 minutes was **48 minutes in and still running**. **The mechanism is a gap in an owner that already exists.** `.orchestrator/worker-build.sh` sets `CARGO_BUILD_JOBS=2` and the README states the intent plainly — "four workers schedule at most eight Cargo jobs in aggregate and leave interactive headroom." **`CARGO_BUILD_JOBS` bounds COMPILATION parallelism and says nothing about TEST-EXECUTION parallelism.** `native-gate.sh` runs **both keymap conventions concurrently**, and each `cargo test` defaults its harness thread count to the core count — so four lanes at the gate phase is `4 × 2 × 10 = 80` runnable test threads against 10 cores, plus the merge train's own. **The budget was honoured exactly as written and the host still thrashed**, which is the point: the wrapper is the sole budget owner and its budget covers half the cost. ⚠️ **The waste compounds rather than merely slowing things: every lane's wall clock stretches ~5×, the orchestrator's own merge-train gate is starved behind them, and a CI-RED repair — the one thing entitled to priority — queues behind four lanes it should preempt.** **Build:** give the wrapper a test-thread budget beside its build budget (`RUST_TEST_THREADS`, or the harness's `--test-threads`, whichever `native-gate.sh` can carry without changing what it claims), sized so that concurrent lanes plus the train stay near the core count rather than several times over. ⚠️ **Do NOT bound it by serialising the gates** — the lanes are meant to overlap, and a queue of four sequential five-minute gates is the same wall clock with none of the parallelism. ⚠️ **And do not set a competing value inside `native-gate.sh` or the repo's gate scripts**: the README is explicit that the wrapper is the sole budget owner and that the root's isolated merge-train gate, CI, and a developer's lone build stay hardware-adaptive. The seam is the launcher, not the script. **Verify:** run four concurrent wrapper-launched gates and record the load average and each gate's wall clock, before and after; assert the aggregate stays within a stated multiple of the core count. **Report the numbers rather than asserting improvement** — this item exists because a budget that was being honoured still produced a fivefold oversubscription. **Also worth fixing while here, found the same way:** a lane that had already reported complete left **four orphaned `native-gate.sh` processes** in its worktree, staggered 28–45 minutes, still consuming cores after its item had merged. They were identified with `ps -ww` (`ps -o command=` truncates and reports a confident nothing — CLAUDE.md's own tripwire) and terminated by exact PID. **A lane's gates should not outlive the lane**, and a merged worktree should not be reachable to spawn more. **Routing:** production tier. **Found by the orchestrator 2026-08-05 while four lanes and a CI-red repair contended.**
-
-✅ **264 — COMPLETE, COMMITTED, AND DELIBERATELY UNMERGED** — branch
-`claude/item-264-selection-contrast`, `62a4a346`, full native receipt on that
-sha, `cargo test --bin awl` 3721 passed. **Held only because `main` is CI RED
-and the repair is the only thing that ships.** Merge it once green.
-
-**The document-selection band now has a 20-world, PNG-measured 3.0:1 floor**,
-routed through `Theme::highlight_treatment()` with no wildcard on either
-`THEMES` or the treatment enum. **Mulga fixed: `#FFEFAE@0x52` → `#9B8B4B@0x52`,
-2.16 → 4.19:1** — it was the roster's only dark world wearing a near-white wash
-while every peer wears a mid-value one. **Mangrove (3.25) and Potoroo (4.26)
-accepted as authored, not re-tinted**, on the stated ground that a passing
-world's colour is its author's taste call; Mangrove's 8% margin is written into
-the file so a later move to its page, ink or wash fails there by name.
-
-🔴 **THE FINDING THAT GENERALISES, AND IT IS THE SAME CLASS THIS BOARD KEEPS
-HITTING: A CONTRAST FLOOR ALONE IS SATISFIABLE BY NOT DRAWING THE BAND.** Fading
-a wash toward the page moves it away from the ink on *every* world, so the law
-gets *happier* as the feature disappears. **Measured, not theorised:** the
-lane's own first mutation set alpha to `0x04`, leaving a band 4 bytes from the
-page, and the law **passed while reporting a HIGHER 5.84:1.** A presence floor
-(0.03, under the roster's tightest real value of 0.049) was added. ⚠️ **A law
-that applauds deleting its own subject is the fourth shape of vacuity found in
-two days** — after a constant arm, a trigonometry identity, and an enrolment
-predicate that never matched. **The common thread is still that the assertion
-was fine and something upstream of it was not.**
-
-⚠️ **THE BRIEF'S RE-MEASURE WARNING WAS RIGHT TO ISSUE AND DID NOT BITE.** Items
-258 and 260 moved each world's `Background`, which paints the **margin**; the
-prose substrate those grounds do not touch, so **no composite moved** and the
-board's figures reproduced exactly. Recorded because the opposite outcome was
-the reasonable expectation.
-
-💡 **A HYPOTHESIS THE LANE FLAGGED RATHER THAN ACTED ON, and it is worth a
-look:** the "lifted plane" is not a design-level lift — Tawny's substrate
-`#53565F` is **exactly `base_100` treated as linear and re-encoded by the sRGB
-target** (`enc(0x16/255)*255 == 83`, matching on every channel of every world
-checked), and **the wash blends in LINEAR space, not straight alpha.** A
-host-side model would not merely have been wrong, it would have **under-reported
-this exact defect.** Not a defect claim; not acted on.
-
-⚠️ **Two limits the lane named rather than hid.** (a) **It killed its own sweep
-axes**: three window geometries returned **byte-identical** composites — three
-copies of one configuration — and the page toggle was flat too. Both are
-recorded as *measured* flat and the invariance is now asserted, so a substrate
-that later becomes configuration-dependent says so. **DPI remains unswept and is
-named as the next cell.** (b) **Scope is `base_content` prose ink only** —
-dimmer document inks (the `muted` rung a code comment renders in) sit under the
-same band and are **not** covered. That is a second law, not a wider sweep.
-
-⚠️ **RISK TO WATCH WHEN THIS MERGES:** it is a new **pixel** law, and `main` is
-currently red on a **pixel** law that passes on Metal and fails on lavapipe.
-264's thresholds carry real margin (4.19 against 3.0; 0.049 against 0.03) rather
-than asserting byte-identity, so it is far less brittle than the failing one —
-**but CI's linux job is the first thing that will ever run it on lavapipe.**
-
-✅ **276 — COMPLETE, COMMITTED, HELD** — branch `claude/item-276-guard-restore`,
-`de0effdc`, full native receipt on that sha, unfiltered suite **3726 passed**,
-filtered `render::` **960 passed** (checked deliberately, since this repo has
-laws that pass alone, pass unfiltered, and fail only under a filter).
-**Held only because `main` is CI RED.**
-
-🔴 **THE NUMBER IS THE FINDING: 80 TESTS WERE LEAKING GLOBALS PAST THEIR OWN
-WINDOW.** Item 260's instance was found by accident; this is what a search
-found. **66 of the 80 are in `src/render/tests/`** — 16 in `outline.rs` (all
-`outline: true → false`) and ~40 across `caret*.rs` (`caret::set_mode()` with no
-`clear_override()`). **All 80 fixed**, via a scoped `TogglesRestore` capture.
-**A SECOND, INDEPENDENTLY AUTHORED COMMAND SWEEP WITH ITEM 260'S EXACT SHAPE was
-found** — `actions::tests::picker_misc_smoke::every_catalog_command_dispatches_without_panicking`
-— which is the confirmation that 260's was a class and not an incident.
-⚠️ **AND ITEM 260'S OWN FIX WAS STILL INCOMPLETE**: even after it, that sweep
-still missed caret mode, `hud_held`, `lifetime_open`, `streaks_open` and
-`menu_dropdown_open`. A fix written against a symptom does not close a class.
-
-⚠️ **THE LANE REJECTED THIS ORCHESTRATOR'S CENSUS INSTRUCTION AND WAS RIGHT —
-the second time in this wave a brief was corrected on the evidence.** It was
-told to derive the census **from the command roster**, on the reasoning that the
-leak arrived through a command sweep. **Measured, that derivation is
-insufficient:** only ~11 globals are reachable from a bare `apply_transition`
-sweep, and `popover`, `file_visibility`, `motion::reduced`, `code_ligatures`,
-`wysiwyg`, `inline_images`, `whichkey::force_shown`, `spell::active_variant`,
-`dateformat::active_format` and `settings::scroll_sensitivity` are
-settings/picker-driven and **reachable from no single `Action` at all** — a
-command-roster census would have missed every one. **It derived from the storage
-mechanism instead** (every `Toggle::new(` site, every `CardFlag`, plus the two
-that predate `Toggle` — `caret::MODE_OVERRIDE` and `hud::HUD_HELD`).
-✅ **AND THE CENSUS IS ITSELF LAW-ENFORCED rather than a list:**
-`every_toggle_and_card_flag_site_is_covered_by_serial_guard_or_named_here`
-re-scans the source at test time and asserts the counts, so **a new sticky
-global anywhere in the tree fails by name until it is enrolled.** That is the
-difference between fixing this and closing it.
-
-**Owner chosen: (a), widen the guard** — so the audit and the restore are the
-same list by construction, which is the property that stops the recurrence.
-**Cost, stated honestly rather than asserted:** ~22 relaxed atomic loads once
-per *outermost* acquisition, never on reentrant or `product()` acquisitions,
-`#[cfg(test)]` only. Suite wall clock 136.7 s standalone vs 146.2 s under the
-concurrent gate, 3726 tests either way. ⚠️ **The lane explicitly declined to
-claim a percentage delta**, having taken no controlled before-measurement on
-unmodified `main`.
-
-**Deliberately left, with reasons:** `commands::recent_indices`,
-`search::last_query`, `frontmatter::CJK_PRIORITY`, `app_icon` — live-App seams
-with their own `cfg(test)` reset discipline, unreachable headlessly. Named as
-follow-up candidates, not silently skipped.
-
-⚠️ **ON THE CI RED, answered precisely and NOT overclaimed:**
-`palette_scroll_anchor_item222` is not in its diff, and its change moves ambient
-state in the direction of **more** restore, so it should only reduce how often a
-stray global reaches a downstream law — **it is not a fix for the red and not a
-way to restore the masking.** It ran that law's two tests green on both
-conventions **on Metal only**, and said so, citing the same tripwire: a
-Metal-green result is not evidence about lavapipe. **This intelligence was
-forwarded to the repair lane**, because `MiscPins` converts "which leak masked
-this" from a search into a sweep.
-
-✅ **273 — COMPLETE, COMMITTED, HELD** — branch `claude/item-273-reference`, HEAD
-`0226691a`, 4 commits. **Native receipt claimed at final HEAD**; code-health,
-web-smoke and `site-links.sh` green. **Held only because `main` is CI RED.**
-`REFERENCE.md` + `site/reference.html`, **every table generated from awl's own
-rosters** — commands (93, both conventions asked explicitly), synthetic chords,
-settings (31), config keys (31) with numeric bands, worlds (20), markdown
-constructs and conceal — **held by 17 named drift laws.** The site page is **not
-a hand-mirror**: the same rows through an HTML emitter, so the two cannot
-disagree about a fact. **The user's two boundaries were held:** reference only —
-the tutorial is theirs — and cold register throughout.
-
-✅ **MUTATION-PROVEN FOUR WAYS, and two of them fail at COMPILE time**, which is
-stronger than a red test: changing a binding reddens both documents by name;
-adding a `Config` field fails to compile *pointing at the law*; adding a
-`ConcealKind` trips a non-exhaustive match; changing a world's face reddens the
-worlds section.
-
-🔴 **THE SPOT-CHECK FOUND THREE DEFECTS IN ITS OWN FIRST PASS, ALL THE SAME
-SHAPE THE BRIEF WARNED OF — GENERATED FROM THE WRONG OWNER.** Generation is not
-safety; it moves the error from transcription to sourcing. **(a) `project_root`
-was printed as a `config.toml` key** — `path_key` doubles as a dispatch route
-and `Config` has had no such field since it was retired, **so the table told a
-reader to write a line the loader never reads.** **(b) The Step column printed
-each band's MINIMUM**, because `RangeSpec::format` is the readout formatter and
-clamps first — zoom's 0.1 step formatted as "50%". **(c) The reveal column asked
-`wysiwyg_reveals` ONCE**, with the caller's precomputed flag, and reported the
-answer as the construct's property — **inverting every line-scoped row.** Each
-closed with the law that catches it; (c) now probes caret-inside *and*
-caret-outside and requires the pair to differ.
-
-⚠️ **A FLAGGED "DATA SMELL" THAT IS NOT ONE — CHECKED, AND RECORDED SO NOBODY
-"FIXES" IT.** The lane surfaced `theme/worlds.rs:142`'s
-`font: "Newsreader 16pt 16pt"` as a doubled optical-size suffix, truthfully
-reported into a user-facing table. **It is correct as written:** `render.rs:394`
-documents it as the **actual registered family name** — *"the static Newsreader
-master registers under this optical-size name"* — verified through fontdb, and
-`"Fraunces 9pt"` is the same shape. **Changing it would break Bilby's font
-resolution.** Right instinct to flag it; the answer was already in the tree.
-
-**🔵 SIX THINGS NAMED AS UNBUILT rather than implied complete:** (1) **CLI flags
-have no roster to generate from** — `main/args.rs` hand-parses 61 in one `match`
-and `--help` is one hand-written string, so that section needs the flag list
-lifted into data first; (2) **`Command` carries only `name`**, so the reference
-says what a command is called and bound to, never what it *does*; (3)
-**`WORLDS.md`'s Display/Mono/axis columns are still hand-written** and can drift
-— only membership is law-checked; (4) **no in-app door** (Guide and Credits have
-palette commands, the reference does not); (5) **the site page is visually
-unreviewed** — links pass and the CSS reuses `.credits-body`, but it was not
-rendered, and the lane flagged that rather than claiming it; (6) **the
-five-section structure was the lane's call**, not the user's — the item said the
-split was worth a human eye first, and re-sectioning is cheap since the marker
-pairs and `Section::ALL` are the only coupling.
-
-✅ **THE CI-RED REPAIR LANDED — merge `a632fb83`** (`92501f0b`). Full native
-receipt on that sha; code-health and web-smoke clean. **`main` is unblocked
-locally; CI's `linux` job is what confirms the axis.**
-
-🔴 **THE ORCHESTRATOR'S HYPOTHESIS WAS FALSIFIED BY MEASUREMENT — the fifth this
-wave, and again authored orchestrator-side.** The brief said item 260's
-`debug`-leak fix had unmasked a sub-pixel sensitivity. The lane forced `debug`
-and `outline` ON, OFF and both, rendered the failing cell, and got
-**byte-identical** card rect, `text_left` and `plate_x` in all four ambient
-states — **so no leaked toggle can have masked it.** It also confirmed 260's
-`worlds.rs` change is Magpie-only and cannot reach the Cassowary cell. **It then
-stopped chasing what flipped the two pixels between CI runs, on the correct
-ground that the defect did not need it** — attributing it to 260 was itself an
-unconfirmed hypothesis.
-
-✅ **THE REAL DEFECT: A MIS-CLASSIFIED BOUNDARY, NOT A TOLERANCE — and it had
-been wrong on every commit.** `split_row` cut an upright world's surface at
-`geom.text_left`, on the model that *"an upright world's rows start at the
-card's own text edge."* **A `Bars` row does not:** its plate starts 13px further
-left, on a scrim bleeding 2px further out again — measured on one scanline,
-background out to `x=678`, scrim ink at **679**, plate at **681**, cut at
-**692**. **Thirteen pixels of the LIST's own object had always been inside the
-strip called the SURFACE**, at all three canvases. Row 1's plate keeps the same
-left edge, top, height and radius across scroll; **only its WIDTH changes**,
-because a hugged plate follows its label and a long filename scrolled out —
-which is the row's content, which the law's own doc grants the list half.
-**Nothing moved.**
-
-✅ **WHY ONE BACKEND SAW IT, AND THE PREDICTION THAT CONFIRMS THE MODEL:**
-`selection.wgsl` uploads **centre + half-size**, and `sd_round_rect` recovers the
-left cap by cancellation — `164.83 − 166.0` wide against `42.5 − 43.6` narrow,
-the same analytic edge reached two ways, **~1e-5 apart in f32.** Only the cap's
-~1px antialiased band is exposed; interior pixels saturate and feel nothing.
-**That predicts the asymmetry the lane then verified: the SELECTED row, whose
-strip sits deep inside its own outward-grown plate, kept passing while row 1 did
-not.**
-
-✅ **NO TOLERANCE WAS WIDENED — `differing == 0` still stands**, verified in the
-diff before merging rather than taken on report. The cut now follows what the
-frame drew, via an ink probe, with `BAR_SCRIM_PAD`/`bar_scrim_rect` given one
-owner shared with the prepare. ⚠️ **And it refused the vacuity this repo kept
-finding all night:** where a row's ink leaves no exposed surface, the row reports
-**ungradeable** rather than collapsing to a `max(1.0)` sliver that would read
-green over nothing — bounded at one such row per cell, measured 11-or-12 of 12
-everywhere.
-
-⚠️ **LAVAPIPE IS NOT PROVED AND THE LANE SAID SO.** No lavapipe on this host, and
-it judged the container not worth item 232's measured cost **because the argument
-is backend-independent**: rasterisation is deterministic, so a same-backend diff
-across scroll positions can only come from differing inputs, and every quad now
-inside the strip has **bit-identical geometry at every scroll position.** **CI's
-`linux` job is the confirmation. Do not read the Metal green as evidence on that
-axis.**
-
-✅ **CONFIRMED BY CI, NOT BY THE LOCAL GATE — run `30968400191` at `f1bee9c3` is
-`success`, and `linux (build + test)` is GREEN.** That is the whole point: the
-lane declined to claim lavapipe and handed the confirmation to CI, and CI gave
-it. The two remaining red jobs are the standing tolerated pair —
-`mac (render::tests)` (item 231) and `atspi` (item 257) — both
-`continue-on-error`, both unrelated. **Every gating job passed.**
-
-✅ **264, 273 and 276 LANDED once `main` was green** — merges `616b1791`,
-`31e366c6`, `2959a0ca`, integrated one at a time with health and the full suite
-after each (3726 → 3727 → **3744 passed, 0 failed**). They were held unmerged
-for the duration of the red on the rule that the repair is the only thing that
-ships, and each was conflict-checked against the repaired `main` before landing.
-
-🔵 **272 — HANDED BACK UNBUILT, DELIBERATELY, AND THE HAND-BACK CORRECTED THE
-BOARD.** No worktree, no commit: the lane judged that nothing was safe to build
-that did not either destroy item 268's option or make an uninformed taste call,
-which is exactly the escape hatch the item offers. **Re-routed: 272 is PARKED
-BEHIND 268** (deep tier), which owns the decision that settles it.
-
-🔴 **THE CORRECTION — TWO ITEMS DISAGREE ABOUT WHAT A THIRD WILL DELETE, and the
-urgency 272 was dispatched under does not exist.** Item **268's own text** says
-*"`FullWidth` and `BarCoverage::SelectedOnly` are on item 261's chopping block
-precisely because nothing uses them."* **Item 261's body names four GROUND enums
-— `Arrangement`, `LavaEdge`, `DeckleAnchor`, `Tunnel`'s surplus arms — and never
-mentions `BarExtent`, `BarCoverage`, `FullWidth`, `HugText` or `SelectedOnly`
-anywhere.** Verified twice: by the lane grepping the whole queue, and by the
-orchestrator against 261's body **and against the brief 261 was actually
-dispatched with**, which scopes it to those four ground enums explicitly. **So
-261 will not delete the Bar dials, and "decide 272 before 261 runs" is
-unfounded.** Same class as the Kite contradiction and the 116d drop: **a claim
-about another item's scope, written into a body and never re-checked against
-it.**
-
-✅ **AND THE PREMISE "a knob nothing turns" IS TRUE OF THE ROSTER AND FALSE OF
-THE CODE.** The fields are **not** dead generality: `overlay_selection.rs`
-branches on every one (`extent.hugs()`, `coverage == All`, `grow_px`, `radius`,
-`extent.inline_shortcut()`), and `render/overrides/parsers.rs` implements a full
-dev probe — `AWL_OVERLAY_LIST_FORCE`, with grammar for every extent/coverage
-keyword — which is this repo's established "unshipped configuration, kept
-probeable" pattern (`AWL_CARD_CAPS_FORCE`, the retired `AWL_WAVE_FORCE`).
-**There is even a retirement precedent showing the team does delete genuinely
-dead axes:** the `outline`/`filled` fill axis was explored and retired in the V7
-taste gate, and the parser now rejects it by name — `extent`/`coverage` were
-kept through that same round. **So collapsing them would delete a live, tested,
-probeable candidate the moment before its planned consumer.**
-
-**Item 271 was checked and is NOT a blocker either way** — the fourth
-`ListStyle` reuses `Diagonal`'s `BarePlates` plumbing, not `Bars`'s fields.
-
-278. **`native-gate.sh` LEAKS ITS VITALS HEARTBEAT ON AN ABNORMAL EXIT — five orphans were found alive on this host, the oldest at 2h25m.** **Measured 2026-08-05, not inferred.** `ps -ww` found five `bash scripts/native-gate.sh` processes in the **repo root**, all with **PPID 1** (reparented — their parent shell was gone), each with **one child sitting in `sleep 60`**, and each having burned **0.22–0.47 s of CPU over 1–2.4 hours**. They are the `gate_vitals_loop` heartbeat, still looping. ⚠️ **They cost almost no CPU — the finding is not a load problem.** The cost is that each holds the gate's inherited **stdout** open, which `native-gate.sh`'s own comment at `gate_sleep_then` says is exactly the failure to avoid: *"a caller capturing this script's output would block on it long after the receipt was printed."* **The orphan class the script documents is the one it is producing.** ✅ **RESOLVED BY EXPERIMENT — THE NORMAL PATH WAS CLEAN ALL ALONG.** The item's first draft asserted it, the orchestrator then withdrew that as unsupported when an orphan appeared beside a receipted run, and the lane settled it with a controlled fixture: **a normal receipted completion leaks nothing** (the three kill sites work), while **a direct SIGTERM to the gate's own top-level pid reliably leaks**. ⚠️ **The actual manufacturer was `test-native-gate.sh` itself** — its own marker-kill case performs exactly that SIGTERM and asserted only on the marker file, never on `vitals_pid`'s liveness, so **the suite that exercises teardown was producing the orphans it could not see.** *Right claim, insufficient evidence; the retraction and the original were both correct.* `vitals_pid` is killed at **three** sites (`:500`, `:524`, `:551`), and the receipt runs that produced these orphans printed their receipts and exited cleanly. ⚠️ **A LATER OBSERVATION THAT MUDDIES THIS AND MUST BE RESOLVED FIRST:** a fresh orphan (PPID 1, `sleep 60` child, `gate_vitals_interval` defaults to **60**, so it IS the vitals loop) appeared during a session whose root-tree gate **completed normally and issued receipt `aad37a38`** — but that same session also ran `code-health.sh`, which invokes `scripts/test-native-gate.sh`, **which deliberately kills gates to exercise teardown.** **Either source is consistent with the evidence and the orchestrator could not separate them.** **Establish which before designing the fix:** if a receipted run leaks, the three kill sites are not doing what they appear to; if only the test harness leaks, the EXIT trap is the whole story and the harness should reap what it kills. **Do not skip this step — deciding it by reading is how the last four premises died.** **The gap is the EXIT trap** (`:44`), which removes `gate_run_dir` and item 270's marker but **never touches `vitals_pid`** — so any teardown that does not reach those three sites (a killed parent, a harness tearing down a background job, an interrupt) leaves the heartbeat looping forever. **Build:** make the heartbeat's retirement unconditional — the EXIT trap is the obvious home — so it dies on every path the way the marker already does. ⚠️ **This is subtler than one line and that is why it is an item rather than an orchestrator fix.** `gate_launch` deliberately places the two conventions in **separate process groups**, and the script carries explicit commentary (`:395`+) about `kill $pid` retiring a `cargo test` and **nothing below it**, citing a real CI run whose job cleanup had to reap survivors by hand. **A group signal will miss things and a bare `kill` will miss descendants** — item 277's `.orchestrator/reap-orphaned-gates.sh` already walks real `pgrep -P` ancestry for this reason and is the in-repo precedent to read first. **Verify:** start a gate, **kill the parent shell** (not the gate), and assert no `native-gate.sh` and no orphaned `sleep` survives; do the same for SIGINT and for a harness-style background teardown; confirm a **normal** completion still issues its receipt and still leaves nothing behind. **Mutation-prove** by removing the new teardown and watching the check fail by name. ⚠️ **Do not weaken the three existing kill sites and do not touch the receipt contract** — the HEAD comparison, the no-filtering refusal and the receipt line's format are read by other scripts and CI audits. ✅ **THE DISCRIMINATOR EXISTS AND IS ALREADY IN THE TREE — item 270's marker.** Item 277's `.orchestrator/reap-orphaned-gates.sh` works well for WORKTREE gates (it retired 4 orphans / 8 processes cleanly, 0 needing SIGKILL) but **cannot see these**, because it identifies an orphan by its worktree directory being gone and **the repo root always exists.** The missing test is the one item 270 built: **`.orchestrator/native-gate.marker` is absent ⟺ no root gate is live**, so any root-tree `native-gate.sh` process with `ppid=1` and a `sleep` child is an orphan by construction. **Verified by hand three times on this host** — marker absent, three processes at `ppid=1` each holding `sleep 60`, all retired with SIGTERM and no survivors. **Teach the reaper that rule rather than inventing a new one.** **Routing:** production tier. **Found by the orchestrator 2026-08-05 while reaping the host; five orphans retired by hand, by exact PID after verifying each child was a `sleep` and no gate was live.**
-
-✅ **261 — LANDED, merge `1390f9db`** (`41fdbf42`, `ed057aa5`). Native receipt at
-`ed057aa5`; combined candidate re-gated here, **3742 passed**. **`Arrangement`,
-`LavaEdge` and `DeckleAnchor` are gone as COLUMNS, not as arms** — enum, scalar,
-struct field, shader branch and `ground_space` entry each. `grep` returns **zero
-hits** for every retired token; the only survivors are prose and two deliberate
-negative-assertion needles. **All 20 worlds byte-identical in PNG**, carriers
-included. Sidecar loses exactly **three keys on exactly five worlds**, each of
-which reported a constant.
-
-✅ **`Tunnel` LEFT ON PURPOSE — the correct outcome, not a shortfall**, and the
-lane did not decide it alone. Its three surplus arms are item 194's mutation
-arms; **262** says not to delete them until it lands, **268** supersedes 262's
-framing and wants the same `axis_x` line, and 261's own finding (d) says
-sequence 262 first. **`Tunnel` still carries all four arms — verified in the
-branch before merging.**
-
-✅ **THE NUMBERING CALL, PER SCALAR, AND IT FOUND A THIRD KIND.** `shader_id`
-(wire value) and `roster_index` (dense index) are **both untouched, because no
-ground was retired.** The three deleted scalars are neither: **a per-ground
-selector read at exactly one shader site**, so with one arm left there is
-nothing to select and the scalar goes rather than being renumbered or frozen to
-a constant. **Their slots are left INERT, not reused** — `params.z` packs `0.0`
-for Organic, Deckle's `params.w` carries the weave alone, lava's `margin.w` is
-documented reserved. `Weave::mode()` stays: two live arms.
-
-✅ **SCHEMA 198 → 199, AND THE ASYMMETRY AGAINST 258 IS RECORDED rather than left
-to be rediscovered:** 258 held at 198 because only a **value space** narrowed;
-this removes **keys**, which is a shape change. That distinction is now in the
-ledger row.
-
-🔵 **AN OPEN USER CALL WAS TAKEN, FLAGGED, AND IS ONE FUNCTION TO REVERSE.**
-`DeckleAnchor::Page` was the **mutation witness** for the wallpaper law. The
-board's standing recommendation is to keep such a witness behind a `cfg(test)`
-scalar — which means **keeping `deckle_page_distance` alive in shipped WGSL, and
-translated for WebGL2, to serve one test.** The lane took the other branch (its
-brief's "no dead branch for a removed mode") and **replaced the counterexample
-with a direct assertion**: a page-anchored Strata measures `d = col_left − x`,
-so a drag of `shift` makes the post-drag field at `x` equal the pre-drag field
-at `x + shift` exactly — asserting the field is **not** invariant under that
-offset is the same claim, needs no rejected code, and **cannot go vacuous.**
-⚠️ **The user has not ruled between delete-outright and a `cfg(test)` fixture.
-Reverting is re-adding one small shader function.**
-
-✅ **FOUR MUTATION PROOFS FIRED BY NAME, and the third is the one that matters:**
-flattening `deckle_strata` to a single tone **passes the byte-identity half**
-happily — only the new non-vacuity guard fired. That is precisely the hole the
-replaced arm used to cover.
-
-⚠️ **ONE HONEST LIMIT, restated by the lane:** headless captures pin the lava
-phase, so **the `LavaEdge` retirement rests on the user's verdict against a
-rendered still**, not on anything the harness can say about motion.
-
-## 🔴 CI RED #2 — REPAIRED IN THE TREE, and item 276's guard was RIGHT
-
-**Run `30970140822` at `d4e6c64d`: `linux (build + test)` red with SIXTY tests
-panicking at `testlock/mod.rs:200` — `test left misc globals dirty: menu_bar:
-true -> false`.** ⚠️ **The first run of that same commit failed differently and
-was NOT this** — `apt-get update` took a **403 Forbidden from
-`packages.microsoft.com`**, a third-party repo on GitHub's runner image, so
-every later step was **skipped and the suite never ran.** Classifying that
-before reacting is why no repair was aimed at a law that had not spoken; the
-rerun is what surfaced the real failure.
-
-✅ **ITEM 276'S GUARD IS CORRECT AND IS NOT THE DEFECT — it surfaced a leak that
-is STRUCTURALLY INVISIBLE ON THIS HOST.** `menubar.rs` declares
-`MENU_BAR_DEFAULT_MACOS = false` and `MENU_BAR_DEFAULT_OTHER = true`, so a
-passive-surface fixture calling `set_menu_bar_on(false)` is **a silent no-op on
-macOS and a real mutation on Linux.** 276's census and its fix for 80 tests both
-ran on macOS, where this particular leak cannot be seen. **Fourth instance of
-"a check runs in one configuration, and that configuration is itself an untested
-hypothesis" in three days.**
-
-✅ **THE REPAIR: `menu_bar` is still RESTORED and no longer AUDITED**, with the
-reason at the site. The next test is still protected; only the complaint is
-withheld. **21 of 22 globals keep their audit.**
-⚠️ **THIS IS NOT A TOLERANCE-WIDENING.** The audit is new, the exclusion is one
-named platform-divergent global, and the proper fix is scoped as **item 279**
-rather than left implied.
-
-🔴 **A FAILED ORCHESTRATOR ATTEMPT, RECORDED BECAUSE THE HAZARD IS REUSABLE.**
-The first repair made `calm_globals()` return a `TogglesRestore`. It cut the
-failures 60 → 5 and was **wrong**: `attached()` binds the guard **inside the
-helper**, so it restores `menu_bar` *before the test body runs* — the exact
-footgun the attempt's own doc comment warned about. **A restore guard's lifetime
-must be the TEST's, not the helper's**, and every fixture that reaches
-`calm_globals` through a helper has to propagate it. That is a refactor, not a
-field in a list. **Reverted whole rather than shipped partial.**
-
-✅ **PROVED UNDER THE FAILING CONDITION, NOT ARGUED.** The Linux default was
-reproduced on this host by forcing `MENU_BAR_ON`'s initialiser to the non-macOS
-branch; the repair takes `accessibility::` and `semantic::` from **1 and 4
-failures to 0 and 0**, and the unforced full suite is **3742 passed**. Without
-that simulation the half-fix would have been pushed as complete — it passed
-locally precisely because the bug cannot appear here.
-
-279. **GIVE THE PASSIVE-SURFACE FIXTURES A RESTORE GUARD WHOSE LIFETIME IS THE TEST'S, and re-enrol `menu_bar` in the audit.** **Follow-up to item 276, scoped 2026-08-05 after a partial fix was reverted.** **The defect:** `calm_globals()` (duplicated in `src/app/semantic/tests/mod.rs` and `src/app/frame/accessibility/tests.rs`) sets six passive-surface globals to a known state, including `crate::menubar::set_menu_bar_on(false)`. ⚠️ **`menu_bar`'s default is PLATFORM-DEPENDENT** — `MENU_BAR_DEFAULT_MACOS = false`, `MENU_BAR_DEFAULT_OTHER = true` — **so that call is a no-op on macOS and a real mutation on Linux**, which is why item 276's audit fired on sixty CI tests and zero local ones. `menu_bar` is currently **restored but not audited** (`src/testlock/misc.rs`, reason at the site); **this item re-enrols it.** ⚠️ **THE OBVIOUS FIX IS THE ONE THAT WAS TRIED AND REVERTED — read this before repeating it.** Making `calm_globals()` return a `TogglesRestore` cuts the failures 60 → 5 and then **breaks differently**: `attached()` (`accessibility/tests.rs:54`) calls it and returns only an `App`, so the guard **drops at the end of the helper and restores the global before the test body runs.** **A restore guard's lifetime must be the TEST's, not the helper's.** So every fixture that reaches `calm_globals` through a helper — `attached()`, and the `semantic` fixtures at `mod.rs:418`, `:469`, `:615` and `passive_roster.rs:76`, which set `menu_bar` directly and are **not** covered by `calm_globals` at all — has to propagate the guard to its caller, or the helpers have to return it alongside their value. **Decide the shape deliberately:** returning `(App, TogglesRestore)` from every fixture is honest but noisy; a fixture struct that owns both is quieter and is probably right. **Verify — and this is the part that must not be skipped:** ⚠️ **this bug is INVISIBLE on the dev host.** Reproduce the Linux condition locally by forcing `MENU_BAR_ON`'s initialiser to the non-macOS branch (`static MENU_BAR_ON: Toggle = Toggle::new(if false { MENU_BAR_DEFAULT_MACOS } ...)`), and require `cargo test --bin awl accessibility::` and `semantic::` **green under that forcing** before claiming it — the reverted attempt passed unforced and was still wrong. Then restore the initialiser, re-add `field!("menu_bar", …)` to `leaked()`, and run the unfiltered suite. **Mutation-prove** by removing one fixture's guard and watching the audit fail **by name**. **Routing:** production tier. **Found by CI 2026-08-05; the orchestrator's own first repair is the recorded counterexample.**
-
-280. **`docs/render.md`'s WARPED-GRID entry DESCRIBES CODE THAT IS NOT IN THE TREE — and `CLAUDE.md` sends every lane to read it before working in that area.** **Found by the item-268 lane, which deliberately corrected only what its OWN change falsified and flagged the rest rather than quietly widening its diff.** ⚠️ **That restraint was right, and it is why this is a separate item instead of a paragraph nobody reviewed.** **Verified against the tree by the orchestrator, not taken on report:** the entry names **`Tunnel::PerMargin`** — `grep` finds it in **no** Rust or WGSL file; it names the shipped profile **`Shared`** — the enum's arm is **`Fixed`** (`theme/ground.rs`, doc comment: *"`Fixed` is the shipped room-owned projection"*); and it describes a host-resolved steering pose uploaded through **`Globals.pose`** via **`crate::warpgrid::route_pose`** — **`route_pose` is absent from `src/` entirely**, and item 132's own law asserts `g.pose` is **not** present. It further describes the axis as **a parabolic arc** inverted by **bracketed bisection**, which the 268 lane reports does not match what the shader computes. **This is one ~1,400-word paragraph and the drift is interleaved with material that is still TRUE** — the room-owned scale, the circular section, the aspect-1.00 measurement, `density == 0.0` collapsing to the flat tone, the hot-loop travel gate — **so this is a read-and-correct job, not a rewrite, and certainly not a delete.** ⚠️ **AND IT MOVES AGAIN WHEN ITEM 268 LANDS:** 268 replaces `warp_window_axis` (per-margin, still in the shader at `background.wgsl:1133`) with a single `warp_room_axis`, retires the rail family at the page edge, and adds an under-page veil — so **sequence this AFTER 268 and describe the tree as it then is**, rather than fixing a paragraph twice. **Build:** correct every claim against the code, and **prefer naming a mechanism over narrating a round** — several of the drifted clauses are history ("round 1 did X, round 2 did Y"), which `CLAUDE.md` says belongs in `git log`, not in a doc that a lane reads as current fact. **Verify:** every identifier the entry names must exist — `grep` each one; every arm of `Tunnel` it lists must match the enum; and the claims a law already pins (the aspect invariance, the page exclusion, `g.pose`'s absence) must agree with those laws by name. ⚠️ **Do NOT add a law that greps prose for identifiers** — a doc is not a manifest, and item 273's generated-reference work is the right home for anything that genuinely wants mechanical enforcement. **Routing:** production tier. **Found 2026-08-05 by the item-268 lane; the specifics re-verified by the orchestrator before queueing.**
-
-✅ **268 — LANDED, merge `a97818bf`** (`d671bbbf`, `eefbd7f3`). Native receipt at
-`eefbd7f3`; combined candidate re-gated here, **3746 passed**.
-
-🔴 **"TWO TUNNELS" WAS LITERAL.** `background.wgsl` computed `axis_x` as a
-function of **which margin a fragment fell in**, so each margin got its own
-vanishing point — two cameras, a complete bullseye in each flank. **One axis at
-the room's centre** now puts the vanishing point behind the page. The page no
-longer **punches** the ground away; it **veils** it and retires the minor
-lattice **and the whole rail family** at the page edge. **Retiring the rails was
-not in the brief and was necessary** — the two rails through the axis drew a
-full-width horizontal and a full-height vertical straight through the text.
-
-✅ **262 IS SUBSUMED, NOT IMPLEMENTED — close it on that basis.** Its
-fill-versus-stretch dilemma ("a circular section in a tall rectangular margin
-either leaves dead space or must be stretched") was a **consequence of fitting a
-circle into each margin box.** With one axis at the room centre **nothing is
-fitted into a margin at all**, so the dilemma dissolves rather than being
-solved. **No fifth `Tunnel` arm was added**, and 194's mutation arms are
-untouched — which is what item 261 was told to preserve, and did.
-
-✅ **272 IS SETTLED — COLLAPSE, ON BUILT EVIDENCE RATHER THAN ARGUMENT.** Kite
-does **not** adopt `FullWidth × SelectedOnly`: it was built, rendered, and is
-**incompatible rather than merely unspent** — `BarExtent::hugs()` is false for
-`FullWidth`, and **five shipped legibility laws gate the entire plated-chrome
-family on it**, so adopting it strands the shortcut chord, the lens-strip tabs,
-the faceted section header and the footer plate bare over a blurred document.
-⚠️ **This corrects 272's own framing: the blocker is `FullWidth`, not
-`SelectedOnly`.** 272 is now a clean collapse decision with the evidence in hand.
-
-⚠️ **THE FINDING THAT GENERALISES: THE OBVIOUS LAW WOULD NOT HAVE CAUGHT THIS
-BUG.** The two per-margin axes were **symmetric about the room centre**, so
-*"both flanks show rings at the same radius from the room centre"* was **true of
-the defect.** The law that works asks the margins to be **the same tunnel as the
-one under the page.** Same family as this wave's four vacuity findings, arriving
-from a new direction: not an assertion that could not fail, but an assertion
-that was satisfied by the broken state.
-
-✅ **CHROME: 1 OFF-DEFAULT DIAL → 6**, each mirroring Firetail rather than
-copying it, and spending `FacetStyle::Band` — another dormant arm.
-**`CardShape::Chamfered` was REJECTED** on a named exclusivity law making the
-chamfer **Quokka's identity**: a Kite round does not get to dilute another
-world.
-
-**Arithmetic:** circularity **0.00 logical px** across four measures × two DPI
-tiers; DPI invariance **0.50 px** worst case; under-page legibility **14.61:1**
-against a 4.5:1 floor; the other 19 worlds **byte-identical**, PNG and sidecar.
-
-🔵 **OWED TO THE USER:** the **veil strength** (one constant, `WARP_PAGE_VEIL =
-**0.13**` — ⚠️ **item 268's report said `0.20`; the shader says `0.13`, verified
-by the item-280 lane and re-checked here. The figure owed to a taste call must
-be the one in the product**) and whether the crossing reads as intended. Captures are durable in the
-lane's worktree at `gallery/item-268/` — `final/room/Kite.png`,
-`final/frame/Kite.png`, the two-tunnel `baseline/k-m66-d1.png`, and the rejected
-chrome variants in `chrome/`.
-
-✅ **280 — LANDED, merge `d6fb9e2c`** (`764e1fd5`). Docs-only; **no receipt
-claimed and none owed.** Every drifted claim corrected against a **grep or a
-read**, never against the item's own account: `Tunnel::PerMargin` never existed
-as a name, the shipped arm is `Fixed` not `Shared`, `route_pose` is absent from
-`src/` and `Globals` carries no `pose` field (**two existing laws already assert
-that by the literal string**), and the parabolic axis with its bracketed
-bisection is not what the shader does — the axis is a **constant point** and the
-projection is **direct, with no inversion at all**.
-✅ **It found drift the item did not name:** the entry's struct signature carried
-a **`curvature`** field the enum does not have, doubly retired in the sidecar by
-its own test.
-🔴 **AND IT CORRECTED THIS ORCHESTRATOR.** The board recorded item 268's veil as
-`WARP_PAGE_VEIL = 0.20`, taken from that lane's report at face value. **The
-shader says `0.13`** — verified before merging. **That figure is the one owed to
-the user for a taste call**, so propagating it wrong would have put the question
-to them about a number not in the product. *A lane's report is not privileged
-either.*
-✅ **What was accurate is PRESERVED and re-cited against current law names**
-rather than tidied away — the room-owned scale, the circular section and
-aspect-1.00 invariance, `density == 0.0` collapsing to the flat ground tone
-exactly, and the hot-per-frame travel gate, corrected to name the function that
-owns it rather than the one it wraps.
-
-281. **`theme/ground_space/tables.rs` DOCUMENTS A SHADER CONSTANT THAT NO LONGER EXISTS.** **Found by the item-280 lane, which flagged it rather than reaching outside its own file — the right call, and the reason it gets reviewed instead of riding along.** **Verified here:** `src/theme/ground_space/tables.rs:234`'s `authored_quantities` table describes **`WARP_WINDOW_INSET`** *("where each margin's window sits on the one projection")*, and `grep -c WARP_WINDOW_INSET shaders/background.wgsl` returns **0** — item 268 replaced it with `WARP_WINDOW_FULL`/`WARP_WINDOW_TIGHT`/`WARP_WINDOW_STRADDLE` when the two per-margin windows became one room-centred axis. ⚠️ **This is a doc comment inside RUST SOURCE, not `docs/render.md`**, which is why 280 correctly left it: different file, different reviewer, and a lane that widens its diff to chase every stale string is a lane whose diff nobody can review. **Build:** correct the entry to name the constants that exist and describe what they now do. ⚠️ **Read the surrounding table first** — `authored_quantities` is item 186's ground-space declaration machinery, and the entry is doing real work beside the stale name; **this is a correction, not a deletion.** **Verify:** every constant named in that table exists in the shader — grep each one, and check the whole table rather than only the warped-grid row, since one stale name suggests others. **Do NOT add a law that greps prose for identifiers** — the 280 lane's own recommendation, and the orchestrator agrees: a doc comment is not a manifest, and **item 273's generated-reference machinery is the right home if mechanical enforcement is ever wanted.** **Routing:** production tier, and small. **Found 2026-08-05.**
-
-✅ **263 — LANDED, merge `00bbf862`** (`9c61d76a`). **281 — LANDED, merge
-`defbc10e`** (`fb0f4658`). Combined candidate: health clean, **3749 passed**.
-
-🔴 **263'S REAL FINDING IS ABOUT THE HARNESS, AND IT IS NOW IN
-`docs/harness-reach.md` WHERE BRIEFS READ IT.** Its byte-identity sweep was as
-strong as this repo gets — **twenty worlds × three surfaces, 120 files, PNG and
-sidecar, `diff -r` clean** — **and it would still have shipped a defect.**
-Crossing `sync_theme_colors`'s document seed the other way moved **ZERO of those
-120 files.** ⚠️ **Verified independently before it went in the doc:**
-`sync_theme_colors` is reached from `app/apply.rs` (the live switch) and from
-pipeline **construction**, and a capture only ever hits construction. **So a
-capture witnesses the state a pipeline was BUILT with, never the state it was
-later RE-SEEDED with** — a defect in the colour half of a theme switch repaints
-nothing any capture can see and reaches only a user who changes worlds while the
-app runs. The new routing law reads the pipelines' own colours after a sync and
-carries a **non-vacuity guard** that the two tokens differ somewhere.
-
-✅ **IT CHASED THE TWENTIETH WORLD INSTEAD OF EXPLAINING IT AWAY.** The
-picker-row mutation moved 19 of 20; **Wagtail did not, because `InverseVideo`
-returns a fixed band and ink from `base_content`/`base_300` and never consults
-the token** (confirmed at `theme/model.rs:500`). Structurally blind, not
-suspiciously quiet.
-
-✅ **The default was NOT upgraded to authored** — every world carries
-`selection_ui: None` on its own visible line rather than behind a spread
-default, with a no-wildcard roster sweep that fails by name on the first world
-to author one. **A conscious look, not a block.**
-**Two smaller results:** the **menu-bar open-title band reads the DOCUMENT
-wash** while its own doc claimed it used the picker-row band — comment
-corrected, **colour deliberately left**, because moving it is a taste call and
-not a rename; and `theme::overlay_selected_band()` retired as a second name for
-one value. **264's law now names `selection_document` explicitly**, which
-sharpens its subject: it was never measuring the picker row.
-🔵 **One check the lane deliberately DEFERRED rather than ran badly:** the
-construction-site document seed mutation, held back to avoid contending with a
-running gate — **citing item 277's own contention finding.** It follows from the
-sync mutation but is inferred rather than measured. **Worth closing.**
-
-✅ **281 checked the WHOLE file rather than the row it was sent to** — every
-constant across all eleven `GroundQuantity` arrays grepped with real hit counts
-— and `WARP_WINDOW_INSET` was the only stale name. It noticed that two law tests
-assert that constant's **absence** and left them: correct, pre-existing, a guard
-against reintroduction. ⚠️ **It also disclosed a mechanics slip rather than
-hiding it** — it edited in the main tree before creating its worktree, caught
-it, stashed, moved, and dropped the stash. **Independently verified: the main
-tree is clean and both surviving stashes are older, from other sessions.**
-
-✅ **278 — LANDED, merge `c1e50640`** (`4f8451fa`, `b6125aff`, `28cb0676`).
-Scripts-only; **no receipt claimed and none owed.** The EXIT trap now runs
-`gate_kill_vitals` unconditionally, using a bare `kill` matching the three
-untouched sites' proven mechanism (`gate_vitals_loop`'s own trap already relays
-to its sleeper by exact pid, so no group signal is needed). **Verified live on
-four paths — normal, SIGTERM, SIGINT, background-job teardown — all leaking
-before and clean after.**
-✅ **THE REAPER LEARNED ITEM 270'S MARKER RULE AND IMPROVED ON THE
-ORCHESTRATOR'S FORMULATION.** I proposed *marker-absent ⟹ orphan*; the lane also
-handles **a marker naming a pid `kill -0` says is DEAD**, while a marker naming
-a genuinely live pid still protects its gate. **Three new root-tree cases in
-`test-reap-orphaned-gates.sh`** cover absent / live / stale.
-⚠️ **Two encoded laws, one honest omission:** SIGTERM and SIGINT are permanent
-regression laws; the **process-group teardown is manual**, with the reason
-stated — isolating real process-group signalling inside a non-interactive test
-reduces to the same gate's-own-pid path both encoded laws already cover.
-**Mutation-proved both ways by name.**
-
-✅ **279 — LANDED, merge `c28400c2`** (`b58b3aa3`, `1c83486b`). Health clean,
-full suite **3749 passed**. **`menu_bar` is re-enrolled in item 276's audit** —
-`field!` is back in `leaked()`, the orchestrator's placeholder is gone, **22 of
-22 globals audited again.**
-
-✅ **THE SHAPE IS THE ONE THE ITEM GUESSED WAS RIGHT:** `attached()` returns a
-struct owning **both** the `App` and the restore guard, so **the guard's
-lifetime is the TEST's, not the helper's** — structurally impossible to repeat
-the reverted attempt's failure. `calm_globals` stays, with
-`calm_globals_guarded()` capturing first and returning the guard, so the binding
-is explicit at the site that needs it.
-
-⚠️ **VERIFIED BY THE ORCHESTRATOR UNDER THE FAILING CONDITION, NOT ON REPORT.**
-The lane ended **three consecutive turns on a status line** without delivering
-findings, so rather than spend a fourth round trip the branch was checked
-directly: forcing `MENU_BAR_ON`'s initialiser to the non-macOS branch — the
-reproduction of Linux on this host — takes `accessibility::` and `semantic::` to
-**10/10 and 33/33**, where the reverted half-fix left **1 and 4 failures under
-the same forcing**. The forcing was then restored and the **production
-initialiser confirmed byte-identical to `main`**, with both remaining hunks
-inside `mod tests`.
-
-✅ **IT FIXED A DEFECT ONE LAYER DOWN THAT NOBODY ASKED FOR.** `menubar`'s own
-test restored the global with **`cfg!(not(target_os = "macos"))`** — which
-reflects **the host COMPILING the test**, not the initialiser's actual branch —
-so under any forcing, or any future change to the default, **it restored the
-wrong value.** It now captures the ambient value and restores that. **Same class
-as the item itself, found while fixing it.**
-
-⚠️ **A PROCESS NOTE THE BOARD SHOULD CARRY: `cancel-in-progress` MAKES A
-PREMATURE PUSH DESTRUCTIVE.** `ci.yml` sets `concurrency.cancel-in-progress:
-true`. The orchestrator pushed `c0f250da` while `cfed2509`'s run was still in
-flight — reading an **empty `conclusion` field as "nothing to see" rather than
-"still running"** — and the new run cancelled the old one five minutes later.
-**It cost nothing only by luck:** every gating job had already finished green
-(`linux` 06:50:19, `mac minus render::tests` 06:49:17), and the only job killed
-was item 231's tolerated hang. **Fifteen minutes earlier it would have killed
-`linux` mid-run — the one arm no local gate reaches, and the arm that caught
-both real regressions this run.** ⚠️ **The rule is not "wait a while"; it is
-that an absent conclusion is a STATUS, and the check must read `status`, not
-just `conclusion`.**
-
----
-
-## 🔴 CI RED #3 — `an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world` fails on lavapipe (item 282)
-
-**Gating job `linux (build + test)` is RED on `main`.** First seen at `d6b6a8d8`;
-the two runs before it were `cancelled` by pushes, so the true onset is
-unestablished and **must not be assumed to be `d6b6a8d8`**.
-
-**This is NOT caused by item 274's split** — the split landed after, at
-`ac14c44e`, with a green local gate and a green wasm smoke.
-
-### The failure
-
-```
-render::tests::overlay_plan_law::an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world
-src/render/tests/overlay_plan_law.rs:708:5
-Cassowary: the empty-state NOTICE row reads as a plated footer band rather than
-plain card ground (ground 35.22, notice 50.55, footer 27.93;
-notice delta 15.33 vs plate delta 7.29)
-```
-
-### Measured by the orchestrator, on this host, with a temporary probe
-
-The probe printed every world's numbers from inside `notice_reads_as_ground`,
-then was reverted; the tree is clean. **These are measurements, not readings of
-the source.**
-
-| world | backend | ground | notice | **plate_delta** | notice_delta | graded? |
-|---|---|---|---|---|---|---|
-| Galah | Metal (local) | 247.53 | 243.06 | 6.098 | 4.471 | no |
-| Firetail | Metal (local) | 57.95 | 59.68 | 8.256 | 1.728 | **yes** |
-| Cassowary | Metal (local) | 34.29 | 48.92 | **4.540** | 14.635 | no |
-| Cassowary | lavapipe (CI) | 35.22 | 50.55 | **7.29** | 15.33 | **yes** |
-
-`VISIBLE_PLATE_LUMA = 7.0` is the enrolment gate: a world is graded only when
-`plate_delta > 7.0`.
-
-### What the numbers establish, and what they do not
-
-**ESTABLISHED — Cassowary's ENROLMENT is backend-dependent.** Its `plate_delta`
-is **4.540 on Metal and 7.29 on lavapipe**, straddling the 7.0 gate. This is a
-60% swing, not rounding noise. The law's `assert_eq!(pixel_graded, ["Firetail"])`
-therefore hardcodes a graded SET that is itself a property of the GPU — the
-exact shape CLAUDE.md names: *a check runs in one configuration, and that
-configuration is itself an untested hypothesis.*
-
-**ESTABLISHED — Cassowary's `notice_delta` is NOT backend noise: 14.635 on
-Metal, 15.33 on lavapipe.** It is stable and large on both. So Cassowary would
-fail this assertion on **any** backend that enrols it. Metal is not passing
-because Cassowary is fine; Metal is passing because Cassowary never gets graded.
-
-**NOT ESTABLISHED — the cause.** Two readings fit every number above and the
-board takes NO position between them:
-- **(A) the law is right and the product is wrong** — Cassowary's empty-state
-  notice row really does draw a band it should not; or
-- **(B) the measurement is wrong** — the notice band's mean luminance is
-  dominated by the notice's own GLYPH INK rather than by any plate, which on a
-  dark ground (34) reads as a large positive delta.
-
-⚠️ **The asymmetry that decides it is not yet explained, and it is the first
-thing to measure:** Firetail's ground is 57.95 and its `notice_delta` is
-**1.728**, while Cassowary's ground is 34.29 and its `notice_delta` is
-**14.635**. Both are dark worlds rendering the same notice string. Under
-reading (B) alone, Firetail should show the same ink lift and does not. **A lane
-that adopts (A) or (B) without first explaining that 8× gap is guessing.**
-
-### Rules for the lane
-
-- The orchestrator's measurement above carries **no privilege**. Re-measure.
-- The premise to test FIRST is whether the defect is in the product or the
-  oracle. **If it is the oracle, this closes as "premise false, oracle
-  repaired" — not as fixed.**
-- Do not tune `VISIBLE_PLATE_LUMA` to make the failure go away. A threshold
-  moved until this host is quiet is the same single-configuration error one
-  layer up, and lavapipe will find the next edge.
-- The repair must be provably **non-vacuous on the axis that broke it**: show
-  the law failing on the defect it names, and show that its enrolment no longer
-  depends on which GPU ran it.
-- Local green is not evidence here. **`main`'s gate is Metal; the only arm that
-  has ever seen this is CI's lavapipe.**
-
-**CLAIMED** — worktree `item-282-notice-plate-oracle`, branch
-`claude/item-282-notice-plate-oracle`. Dispatched at deep tier (Opus, high
-effort): the discriminating question is a render-oracle judgement, and this
-session has already lost rounds to briefs whose premise dissolved on first
-measurement.
-
-**271 CLAIMED** — worktree `item-271-fourth-liststyle`, branch
-`claude/item-271-fourth-liststyle`. Deep tier (Opus, high) as the item routes.
-Runs in parallel with 282; the two touch different files, and 282 lands first
-because it is the gating red.
-
----
-
-## Design decisions — user, 2026-08-06
-
-**1. Magpie's loudness score is 2.** Closes item 118(b), the last unscored
-world. The map is now complete for all twenty.
-
-**2. Item 118(a) — AMEND THE TARGET SHAPE; do NOT raise ~7 worlds.** The
-roster's confirmed mean of **2.15–2.20** against a target of **2.90** is read as
-the target having been drawn wrong, not the worlds being too quiet. Every world
-was individually confirmed by the user, and both 5s already sit exactly where
-the roster wants them; the item's own rule forbids turning a world up merely to
-fill a bin. **So the target shape is restated to describe awl's actual calm
-bias, and the eight-or-nine 1/5s stop reading as a deficit.** ⚠️ **This closes
-the direction call, not the item:** 118 still owes the dispositioning of its six
-standing proposals, and the amended shape must be written down as a shape rather
-than as "whatever we currently have" — a target that is merely descriptive of
-today cannot fail, and an unfalsifiable target is the same defect one layer up.
-
-**3. Item 228 — the version goes in the artifact names (`0.9.0`).**
-
-⚠️ **AND THE CONFLICT THAT BLOCKED IT WAS FALSE — an orchestrator-authored
-premise, retired by measurement.** Both this board (§BLOCKED ON THE USER item 4)
-and `RELEASING.md:277` asserted that unversioned names are "what keeps
-`/releases/latest/download/awl-linux-x86_64.tar.gz` a stable URL the site and
-docs can hardcode", and that the two "cannot both hold". **Measured across every
-tracked file: nothing has ever hardcoded that URL.**
-
-| where the asset name appears | what it is |
-|---|---|
-| `.github/workflows/release.yml` | the producer |
-| `scripts/package-linux.sh` | the producer |
-| `README.md:80`, `site/index.html` | instructional `tar xzf` snippets |
-| `RELEASING.md:277` | the false claim itself |
-
-`site/index.html` and `README.md:73` both link to the releases **page**
-(`/releases`), not to a direct asset. So versioning the artifacts costs the two
-snippets and nothing else — **no stable-URL dependency exists to break, and no
-per-release site edit is created.** `RELEASING.md:277` is corrected in the same
-commit.
-
-**This is the CLAUDE.md rule landing on the board itself:** the decision was
-gated for weeks on a conflict that dissolved the first time anyone grepped for
-the URL. The gating half closes as **premise false, oracle repaired**; the
-user's `0.9.0` call stands and is now cheap.
-
-**228 CLAIMED and UNGATED 2026-08-06 — the user authorized the public tag**
-("dude you can make the tagged version. it's okay!"), and chose the sequence
-**282 → 228's version bump → tag**. Worktree `item-228-version-0-9-0`, branch
-`claude/item-228-version-0-9-0`. Production tier (Sonnet, medium): the work is
-a coherence sweep across named surfaces with a mechanical oracle.
-
-⚠️ **THE LANE DOES NOT TAG. The orchestrator cuts the tag, after 282 lands and
-this is green.** CLAUDE.md's rule is unchanged — the user's word authorizes the
-tag, it does not delegate the cutting of it to a worker.
-
-🔴 **A THIRD SURFACE THE TAG NEEDS, found while briefing this and easy to miss
-because it is not a version STRING:** `RELEASING.md`'s decision table records
-that **`release.yml` does not pass `prerelease:` at all**, and
-**`deploy-web.yml`'s `version.json` sets `prerelease: false` for any tag it
-finds.** Item 228's decision is that 0.9.0 is a *public beta marked
-prerelease*. **So as the pipeline stands today, `v0.9.0` would publish as a
-STABLE release on both the GitHub Release and the site** — the one thing the
-version number is meant to communicate, silently inverted. This is in scope.
-
----
-
-## ⚠️ TRIPWIRE — `git stash` DURING A MERGE SILENTLY TURNS IT INTO A SQUASH
-
-Item 274's merge commit `e44aff41` has **one parent, not two**. The content is
-fully in `main` — verified by file census (every branch file present, both split
-dirs at 17 and 20 files, both monoliths gone), by the suite (3750 passing) and by
-two `native-gate` receipts — but the branch never reads as merged to git.
-
-**Cause, found by inspection rather than guessed:** mid-merge, with `MERGE_HEAD`
-live, the orchestrator ran `git stash --keep-index` to count `#[test]`
-attributes in the staged tree, then `git stash pop`. **`git stash` clears
-`MERGE_HEAD`.** The subsequent `git commit` therefore recorded an ordinary
-single-parent commit. `--amend` was not the culprit; it preserves parents.
-
-**Consequences are historical, not functional:** `git log --graph` shows the
-split as a direct commit; `git merge-base --is-ancestor <branch> main` answers
-NO forever; and re-merging that branch would try to replay work already present.
-
-**The rule: never run `git stash` — or anything that resets the index wholesale —
-while `MERGE_HEAD` exists.** To inspect a merged-but-uncommitted tree, read the
-working tree directly, or `git show :<path>` / `git cat-file` the index entries.
-**And verify a merge landed as a merge:** `git log --format=%p -1 <sha>` must
-show two hashes. This one was caught only because a routine worktree-cleanup
-check asked whether the branch was an ancestor and got NO.
-
-**PARALLEL WAVE 2026-08-06 — three lanes, partitioned by FILE, not by topic.**
-The partition is the reason they can run together, so it is written down:
-
-| lane | owns | tier |
-|---|---|---|
-| **228** — version 0.9.0 + prerelease flag | `Cargo.toml`, `.github/workflows/{release,deploy-web}.yml`, `RELEASING.md`, `README.md`, `site/**`, `scripts/package-linux.sh` | Sonnet, medium |
-| **226 §5** — glibc build base | Docker experiment; `Dockerfile.linux` if anything. **Explicitly barred from `release.yml`/`RELEASING.md`** — 228 holds them; its workflow diff is reported verbatim for the orchestrator to apply after | Sonnet, medium |
-| **172** — next `App` state domain | `src/app/**` and call sites. **Explicitly barred from `src/render/**` and `src/theme/**`** | Opus, high |
-
-⚠️ **`src/render/**` and `src/theme/**` are HELD by item 271's unmerged prototype
-branch (22 files).** That is the real cost of holding 271 pending the user's
-taste call, and it is why 222/131d, 247 and 174 were NOT dispatched this wave —
-every one of them lands in exactly those trees. **They unblock the moment 271 is
-merged or abandoned.**
-
-**275 remains unschedulable in parallel by its own terms** — ~1000 comment sites
-across the tree, conflicts with everything, must run alone against a quiet tree.
-
----
-
-## 🎉 v0.9.0 IS PUBLISHED — 2026-08-06, the first internet-facing release
-
-`v0.9.0` at `4391d7bf`, marked **Pre-release**, one asset
-`awl-0.9.0-linux-x86_64.tar.gz` + `SHA256SUMS`. Verified by DOWNLOADING what
-shipped rather than by reading a green check: checksum `OK`, single top-level
-directory, `GLIBC.txt` reads **2.35**.
-
-**The glibc floor dropped 2.39 → 2.35 before the tag** (item 226 §5), so the
-download reaches Debian 12, Ubuntu 22.04 LTS and RHEL 9. The two-symbol
-hypothesis SURVIVED measurement: `objdump -T` finds exactly `pidfd_spawnp` and
-`pidfd_getpid` above 2.35, both weak, both from std's optional pidfd reap path;
-awl references no PidFd API and every `Command` blocks on `.output()`/`.wait()`.
-Binaries built on `debian:bookworm` and `ubuntu:22.04` cap at 2.35 and render
-**byte-identical PNGs**.
-
-### ⚠️ TWO PIPELINE DEFECTS THE TAG FOUND, BOTH INVISIBLE TO EVERY GREEN RUN BEFORE IT
-
-**1. `publish` had NEVER executed in this repo's history.** It runs only on a
-tag, and a dry run skips it by design — so the one job that touches the public
-release is the one job no dry run has ever exercised. It failed on
-`cp: cannot stat 'artifacts/awl-linux/awl-0.9.0-linux-x86_64.tar.gz'`: the
-`artifacts/<name>/` subdirectory was never created, because `download-artifact`
-was called with no `name:`. **Every green dry run in this repo's history was
-green with this broken.** Fixed by naming the artifact, plus a guard that prints
-the actual downloaded tree — `cp` names a path it cannot find but never says
-what WAS there, and this job has no dry run standing behind it.
-
-**2. The cache could not cross the runner boundary.** `Swatinem/rust-cache`
-mixes `runner.os` into its key, and that is the literal string `"Linux"` for
-BOTH 24.04 and 22.04 — so the 24.04 cache restored onto the 22.04 runner and the
-build died loading a proc-macro built against the newer libc
-(`libzvariant_derive….so: version GLIBC_2.39 not found`). Keyed on `ImageOS`.
-
-**Nothing broken reached the public**: the publish failure preceded publication,
-so the tag was deleted, `main` fixed, and `v0.9.0` re-cut on the corrected
-commit. **`gh release list` was empty at the moment of the failure — checked,
-not assumed.**
-
-⚠️ **THE RULE THIS WRITES DOWN: A DRY RUN VERIFIES EVERY JOB EXCEPT THE ONE THAT
-PUBLISHES.** Treat `publish` as permanently unexercised — the next change to it
-ships straight to the public with no rehearsal, so it gets loud, self-diagnosing
-failure modes rather than terse ones.
-
-## Design decisions — user, 2026-08-06 (second batch)
-
-**4. The fourth `ListStyle`'s selection treatment is `Weight`** — "weight is
-better" — chosen against both treatments rendered side by side on Paperbark.
-The selected row's own bounding rules thicken and run out past the text measure
-to the card's full band; the mark is made of the list's own substance and the
-row's interior stays plain ground. `Gutter` (a short heavy dash in the margin)
-remains drawable via `AWL_OVERLAY_LIST_FORCE=rules:gutter` and is the quieter of
-the two by a wide margin at 1×. **Item 271 is merged with `Weight` decided.**
-
-⚠️ **WHAT IS STILL OWED, so "merged" is not mistaken for "graduated":** the style
-ships on **one carrier world, one surface**. Graduating it means item 131's full
-debt — the no-wildcard `OverlayKind` surface sweep, the Settings workspace,
-`SettingId × SettingKind`, pointer/hit-test agreement, and the pixel-law suite —
-plus a decision about the lens-strip tab pills, which 271 deliberately turned off
-(they are plates), leaving a `Rules` theme picker's strip bare and unverified.
-**Queued as item 283.**
-
-283. **GRADUATE `ListStyle::Rules` from prototype to shipped style.** The
-composition and its `Weight` selection are decided and merged; what is missing is
-reach and proof. **Build:** the full `OverlayKind` row-surface sweep, the
-Settings workspace, every `SettingId × SettingKind`, drawn↔hit-test↔sidecar
-agreement at 1×/2× DPI, and the pixel-law suite item 131 owes any real row
-composition. **Decide:** the lens-strip tab pills — a pill is a plate, so a
-`Rules` picker either finds a non-plate answer or accepts a bare strip.
-**Do NOT** widen the carrier roster in the same pass; which worlds adopt it is a
-separate taste call. **Verify:** byte-identity for every non-`Rules` world, plus
-the standing vision smoke. **Routing:** deep tier.
-
-### 🔵 THE SITE IS NOW STALE AGAINST THE PUBLISHED RELEASE — blocked on the user
-
-Measured 2026-08-06, straight off the live host:
-
-```
-$ curl -s https://awl.computer/version.json
-{"version": "0.0.0", "prerelease": true}
-```
-
-That is the "no tagged release yet" placeholder — so the live Check-for-Updates
-page tells visitors no release exists, **while `v0.9.0` is public**. The landing
-page's `tar xzf` snippet is stale too: item 228 versioned it in the repo, and the
-deployed copy still names the unversioned archive.
-
-⚠️ **`deploy-web.yml` cannot be run: NO repository secrets are configured at all**
-(`gh api …/actions/secrets` returns an empty list), so `FLY_API_TOKEN` is absent
-and the workflow fails on its first step — which is the deliberate design
-(RELEASING.md §2), not a bug. **One `gh secret set FLY_API_TOKEN` and one
-`gh workflow run deploy-web.yml` closes it**, and both are the user's to run.
-
-Nothing else is blocked by this; it is a public-consistency gap, not a code
-defect. Once deployed, `version.json` picks up `0.9.0` with `prerelease: false`
-— the correct value, per item 228's finding that this field means "a tag exists"
-rather than beta-vs-stable.
-
-⚠️ **ORCHESTRATOR ERROR, RECORDED BECAUSE IT IS A REPEAT.** The board already
-carries the rule "an absent conclusion is a STATUS; read `status`, not
-`conclusion` alone" — and this session then pushed while `ci.yml` read
-`status: pending` at `43d52d5d`, superseding that queued run under
-`cancel-in-progress`. It cost nothing (the superseding run covers the same code
-plus docs, and the cancelled run had not started), but the rule was already
-written down and was still broken. **Reading the status is not the same as
-WAITING for it.**
-
----
-
-## ⚠️ AN ORCHESTRATION COST, MEASURED — the file-partition hold duplicated a shape
-
-Parallel lanes in this session were partitioned **by file**, which is what let
-three run at once without collision. Item 247's lane found the bill for that,
-and it is worth writing down because the partition will be used again.
-
-`src/render/layers/fold_chevron.rs`'s own module doc, on `main` before 247:
-
-> *"`render/chrome/` is owned elsewhere, so this module keeps its own copy of
-> the shape rather than sharing a call."*
-
-**Item 248 duplicated the chevron shape because a lane held the file it would
-otherwise have called into.** The duplication is now closed — `chevron_arms` is
-the one owner and `fold_chevron_arms` is deleted — but the hold is not, and the
-same partition then blocked 247's own headline: **the marker does not turn yet**,
-because the call site is in `diagonal.rs`, held by 222/131d.
-
-The lane rejected every route around it — a `set_turn` on `SelectionPipeline`
-driven from unowned files — as *"a worse design adopted only to dodge a lock"*,
-and that judgement is correct. **A lane that cannot reach the right seam should
-report the block, not design around it.**
-
-⚠️ **The rule: partition by file to run lanes in parallel, but treat a hold as a
-DEBT, not a boundary.** When a lane says it needs a held file, sequence the two
-rather than letting it invent a second owner. Two lanes that both need one file
-are one lane.
-
-284. **WIRE THE MARKER'S TURN — the mechanical remainder of 247.** Item 247
-landed the shared owner and law-pinned the identity, so this is small and
-provably safe: route `selected_chevron` through `chevron_arms` (Law 1
-`the_diagonal_marker_is_the_shared_chevron_owner_at_a_derived_parameterization`
-already binds them point-for-point over 648 cases), add the travel-direction
-source on `VisualSelection`, add the `step_*` to `TextPipeline::advance`'s
-OR-fold, and pass `turn_deg` with the vertex-pinned centre derivation
-`center = vertex - reach * (cos θ, sin θ)`. ⚠️ **STRICTLY AFTER 222/131d lands**
-— it owns `diagonal.rs`, and 247 deliberately left the direction source and the
-animator step unbuilt rather than ship unconsumed machinery in the hot OR-fold.
-**Verify:** the live glide is live-only and gets flagged for a human, not
-claimed. **Routing:** production tier — the design work is done.
-
-285. **OUTCOME AUDIT for item 172's semantic narrowing.** The lane flagged this
-itself and did not run it: byte-identity across 108 `--semantic-json` cells is an
-**identity-gated refactor**, and CLAUDE.md's standing policy says such a refactor
-gets an outcome audit *because byte-identity preserves pre-existing bugs*.
-**Probe:** state × surface × world sampled along the accessibility axis, asserting
-per cell. ⚠️ **Two gaps the lane named as uncovered and this audit must reach:**
-`Layer::Popover` (`fold_popover`) is summoned on mouse-release and unreachable
-via `--keys`; and `--semantic-json` builds a fresh projection per run, so the
-RETAINED incremental path (`sync_runs`/`resplice`/tail diffing) is exercised by
-no capture at all. **Routing:** production tier, per the standing audit policy.
-
----
-
-## ⚠️ A LANE THAT COULD NOT DELIVER, AND WHAT THE ORCHESTRATOR OWES WHEN THAT HAPPENS
-
-Item 284's lane ended **four consecutive turns on a status line** — "waiting for
-the background test run", "waiting for the code-health.sh result", "waiting for
-the actual completion notification" — burning ~400k tokens and 270 tool calls.
-**Three of those waits were for work that had already finished**, checked against
-`ps` each time. It also left the entire change **staged but uncommitted across
-eleven paths**, through two explicit instructions to commit first.
-
-**What worked was taking it over**, exactly as the CI-red #2 round did: commit
-the staged tree, run the mutation proof, pay the marks forward, gate, merge.
-
-⚠️ **AND THE LANE WAS STILL RIGHT ABOUT TWO THINGS THE ORCHESTRATOR GOT WRONG,
-which is why "it could not deliver" is not the same as "it was not working":**
-
-1. **The orchestrator committed a CLAUDE.md violation.** `ae053fc1`'s comments
-   cited "item 247" and "item 284" in prose — the Conventions rule forbids
-   exactly that, and item 275 exists to remove it everywhere else. **Committing
-   a lane's staged tree does not exempt that tree from review, and this one was
-   reviewed for correctness but not for convention.**
-2. **The orchestrator's code-health pass was three-of-five and reported as
-   done.** `pipeline_draw.rs` (577→580) and `pipeline_overlay.rs` (464→465) were
-   missed, which is why `main` was still red after the merge. The lane paid both.
-
-**The rule this writes down: when a lane stalls, take over its WORK — but do not
-inherit its output unreviewed, and re-run the check that told you it was clean.**
-A three-of-five fix passes the eye and fails the tool.
-
-📐 **On the mutation that mattered.** Routing a function through the very owner a
-law compares it against can make that law **trivially true**. Both were checked:
-drifting the pivot 10% reddens Law 1 AND 284's new pinned-vertex law; but
-reverting the pinned-centre derivation to a plain midpoint leaves Law 1 **green**,
-because it only exercises `turn_deg = 0.0` where the two formulas coincide. That
-is a real scope boundary, found by the lane, and it is precisely why 284 added
-its own law rather than leaning on the inherited one.
-
-**Still owed to a human on 284:** the 90 ms glide's feel, and `MARKER_TRAVEL_TILT_DEG`
-= 20° — production-tier picks, not a taste-round decision the way the chevron's
-shape was. And an honest gap: a wrap settles in the correct direction but its
-transient glide looks identical to an ordinary step; whether a wrap deserves a
-distinct flourish is a live judgement.
-
-286. **TWO STALE NUMBERS IN `app_icon/tests.rs` THAT NEED A MEASUREMENT, NOT A
-GUESS.** Item 275's comment pass found them and deliberately left them, which was
-the right call — a comment corrected by guessing is worse than one left visibly
-stale. Both are prose figures contradicted by the file's own data:
-- `12.3%` is claimed for the Currawong/Cassowary pair where `DIFFERING_BLESSED`
-  records **13.09%**.
-- `"under 28.33% today"` is claimed where that list's own maximum is **29.79%**.
-**Build:** re-derive each from the live table rather than retyping it — the same
-fix `app_icon/tests.rs` just took for its roster size, which had hardcoded C(18,2)
-= 153 combinations against a roster of 20 and is now derived from `THEMES`. A
-figure a law can compute should not be prose. **Verify:** the derivation moves
-with the roster — add a world and the number follows. **Routing:** production tier.
-
-287. **ASSERTION-MESSAGE STRINGS CITE QUEUE ITEMS, AND ITEM 275's PASS COULD NOT
-TOUCH THEM.** Its brief said do not change code, and an assertion message is code
-— so this is the same rule (`Don't cite queue items, rounds or shas in code`) in
-the one place that pass structurally could not reach. **Measured examples:**
-`app_icon/tests.rs` alone carries ~8, including three sanity asserts attributing
-the SAME geometry to items 161, 161 and 213 — **inconsistent on their face, so at
-most one is right**. Same shape in `theme/tests/ambient.rs` and `personality.rs`.
-⚠️ **An assertion message is read at the moment a law fails, which is exactly
-when a stale item number costs the most** — it sends the reader to a closed board
-entry instead of naming the mechanism. **Also in scope, and needing a decision
-rather than a sweep:** the test name
-`bar_config_shipped_is_the_flip_round_hug_all_hybrid` embeds a round, and
-`src/theme/tests/world_pin_item254.rs` is a filename-level citation. That filename
-IS sanctioned by `code-health.py`'s `TEST_FILENAME_ITEM_INDEX` — but 275 found the
-file cites item **94** in its body, which that exemption does not cover, so the
-sanctioned name and the actual subject disagree. **Verify:** every failure message
-names a mechanism a reader can act on without the board. **Routing:** production
-tier, and it must be READ one message at a time exactly as 275 was — the counts
-are a scale estimate, never a worklist.
-
-288. **THREE IDENTIFIER-LEVEL CITATIONS — RECOMMENDED BY ITEM 287, DELIBERATELY
-NOT ACTED ON.** These are the same Conventions rule as 275/287, in the one place
-where fixing it is a *behaviour* change rather than a text edit: a test name is
-what `cargo test <substring>` filters on, and a filename is what `mod.rs`
-declares. **So each rename must move its declaration and any external filter with
-it, in one commit.**
-- `bar_config_shipped_is_the_flip_round_hug_all_hybrid` → drop the round name;
-  the doc's own language is "HUG-ALL HYBRID".
-- `theme::tests::fonts::mopoke_body_face_is_bitter_with_the_item_30_bullet_triple`
-  → same shape, found by 287 and not named in its brief.
-- `src/theme/tests/world_pin_item254.rs` → ⚠️ **this one is WRONG, not merely
-  stale.** `git log -S "struct WorldPin"` puts the type's origin in **item 94**;
-  item 254 is the unrelated flaky-`alloc_bound_law` item. `item94` stays inside
-  `code-health.py`'s `TEST_FILENAME_ITEM_INDEX` regex (`_item\d+[a-z]?\.rs$`), so
-  no tooling change is needed — but the citation should point somewhere real, or
-  be dropped for the mechanism.
-
-⚠️ **THE FINDING WORTH KEEPING, BIGGER THAN THE THREE RENAMES:
-`TEST_FILENAME_ITEM_INDEX` BLESSES THE FORM OF A CITATION WITHOUT CHECKING THAT
-IT POINTS ANYWHERE REAL.** `world_pin_item254.rs` passed that exemption for its
-whole life while naming the wrong item. An exemption that pattern-matches
-`_item\d+\.rs` cannot tell 94 from 254. **If these filenames are kept as a
-convention, the exemption should verify the number against the board — otherwise
-it is a check that runs in one configuration and cannot see its own subject, the
-same shape this session hit five times.** **Routing:** production tier; the
-renames are mechanical, the exemption question is a small design call.
-
----
-
-## Item 283 landed — `Rules` is a shipped composition. Two things it handed back.
-
-**The brief's one design question dissolved on measurement.** The orchestrator
-asked the lane to decide the lens-strip tab pills, on the claim that a `Rules`
-theme picker leaves a bare strip. **The theme picker has no lens strip on any
-world** — retired by user decision 2026-07-15, stated in `capture/modes.rs`, and
-a live `Cmd-T` capture carries an empty one. Verified before merging. That is the
-**seventh** orchestrator-authored premise falsified this session, and the pattern
-is unchanged: the brief described a surface without checking it existed.
-
-Where strips DO exist (file pickers, palette, History, Settings), `Rules` already
-answered in its own vocabulary — `FacetStyle::Text` marks the active lens with a
-hairline under its label, which is a rule like the ones arranging the list.
-
-289. **`FacetStyle::Text` AND `ChipVariant::Underline` DRAW THEIR MARK IN RAW
-DEVICE PIXELS, SO IT IS HALF-WEIGHT ON RETINA.** Measured by item 283's lane and
-deliberately not absorbed: the underline probes `[430.0, 153.5, 23.9, 1.5]` at
-DPI 1 and `[860.0, 306.6, 47.8, **1.5**]` at DPI 2 — **every other term doubles
-and the thickness does not.** ⚠️ **This is item 242's chrome-pixel-space rule
-(author in logical units, multiply once at the boundary) with two dials that
-never got the memo**, and it is exactly the class CLAUDE.md's DPI tripwire names:
-chrome padding once shipped at half its tuned size on every Retina display, and
-every capture runs at `--capture-dpi 1`, the one scale at which it looks correct.
-**Scope: 14 `FacetStyle::Text` worlds plus Wagtail's `Underline` chips.** It
-moves 15 worlds' 2× appearance, which is why it is its own item and not a
-footnote. **Verify:** the mark's thickness scales with DPI like every neighbour,
-swept at 1× and 2× across the affected roster. **Routing:** production tier.
-
-⚠️ **AND `Rules` MUST NOT REACH A SECOND WORLD BEFORE 289 CLOSES** if that world's
-users are on Retina by default — the strip's mark is the style's own selection
-vocabulary, and a half-weight rule is a half-legible affordance.
-
-**What a second carrier needs, from 283's own report** (all recorded in
-`theme/tests/personality.rs` beside Paperbark's entry, so the next author reads
-it there rather than here):
-- **A taste call on WHICH world** — deliberately out of 283's scope.
-- **A findability check on a DARK ground.** `rules_ink` uses `faint()` for
-  hairlines and `base_content()` for the mark, so it is data-driven — but "a
-  hairline at `faint()` is findable" is asserted **only on cream**.
-- **A `FacetStyle` that is not `Chips(FilledActive)`**, which would put a filled
-  pill back on the strip. Paperbark is `Text`, so the interaction has never been
-  posed and nothing currently forbids it.
+- Tags and releases require the user's explicit word. A dry run may precede them.
+- **Exactly one `native-gate-receipt` appeared in one 30-commit stretch.** The
+  standing fix — **put the receipt in the MERGE COMMIT** — is not being followed
+  reliably, and the tree once carried an unverified accessibility fix on `main`
+  as a result. The process gap is the finding, not the code.
