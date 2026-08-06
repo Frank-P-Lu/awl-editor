@@ -255,7 +255,18 @@ jobs:
   linux:
     name: linux (release tar.gz)
     needs: plan
-    runs-on: ubuntu-latest
+    # THE GLIBC FLOOR IS SET HERE AND NOWHERE ELSE — whichever image builds
+    # this job decides which systems can run the download. `ubuntu-latest`
+    # (24.04, glibc 2.39) excluded Debian 12, Ubuntu 22.04 LTS and RHEL 9 over
+    # exactly TWO weak, optional symbols — `pidfd_spawnp` and `pidfd_getpid`,
+    # Rust std's internal pidfd fast path for reaping a child it already
+    # spawned. awl never touches PidFd APIs and every `Command` here blocks on
+    # `.output()`/`.wait()`, so std's fork/exec fallback costs nothing
+    # observable. Measured, not reasoned: binaries built on debian:bookworm
+    # and ubuntu:22.04 both cap at GLIBC_2.35 and render byte-identical PNGs.
+    # Sub-2.39 glibc does not export those two symbols at all, which is why
+    # the reference cannot reappear by accident.
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
