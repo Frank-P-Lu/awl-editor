@@ -2015,3 +2015,56 @@ carries the rule "an absent conclusion is a STATUS; read `status`, not
 plus docs, and the cancelled run had not started), but the rule was already
 written down and was still broken. **Reading the status is not the same as
 WAITING for it.**
+
+---
+
+## ⚠️ AN ORCHESTRATION COST, MEASURED — the file-partition hold duplicated a shape
+
+Parallel lanes in this session were partitioned **by file**, which is what let
+three run at once without collision. Item 247's lane found the bill for that,
+and it is worth writing down because the partition will be used again.
+
+`src/render/layers/fold_chevron.rs`'s own module doc, on `main` before 247:
+
+> *"`render/chrome/` is owned elsewhere, so this module keeps its own copy of
+> the shape rather than sharing a call."*
+
+**Item 248 duplicated the chevron shape because a lane held the file it would
+otherwise have called into.** The duplication is now closed — `chevron_arms` is
+the one owner and `fold_chevron_arms` is deleted — but the hold is not, and the
+same partition then blocked 247's own headline: **the marker does not turn yet**,
+because the call site is in `diagonal.rs`, held by 222/131d.
+
+The lane rejected every route around it — a `set_turn` on `SelectionPipeline`
+driven from unowned files — as *"a worse design adopted only to dodge a lock"*,
+and that judgement is correct. **A lane that cannot reach the right seam should
+report the block, not design around it.**
+
+⚠️ **The rule: partition by file to run lanes in parallel, but treat a hold as a
+DEBT, not a boundary.** When a lane says it needs a held file, sequence the two
+rather than letting it invent a second owner. Two lanes that both need one file
+are one lane.
+
+284. **WIRE THE MARKER'S TURN — the mechanical remainder of 247.** Item 247
+landed the shared owner and law-pinned the identity, so this is small and
+provably safe: route `selected_chevron` through `chevron_arms` (Law 1
+`the_diagonal_marker_is_the_shared_chevron_owner_at_a_derived_parameterization`
+already binds them point-for-point over 648 cases), add the travel-direction
+source on `VisualSelection`, add the `step_*` to `TextPipeline::advance`'s
+OR-fold, and pass `turn_deg` with the vertex-pinned centre derivation
+`center = vertex - reach * (cos θ, sin θ)`. ⚠️ **STRICTLY AFTER 222/131d lands**
+— it owns `diagonal.rs`, and 247 deliberately left the direction source and the
+animator step unbuilt rather than ship unconsumed machinery in the hot OR-fold.
+**Verify:** the live glide is live-only and gets flagged for a human, not
+claimed. **Routing:** production tier — the design work is done.
+
+285. **OUTCOME AUDIT for item 172's semantic narrowing.** The lane flagged this
+itself and did not run it: byte-identity across 108 `--semantic-json` cells is an
+**identity-gated refactor**, and CLAUDE.md's standing policy says such a refactor
+gets an outcome audit *because byte-identity preserves pre-existing bugs*.
+**Probe:** state × surface × world sampled along the accessibility axis, asserting
+per cell. ⚠️ **Two gaps the lane named as uncovered and this audit must reach:**
+`Layer::Popover` (`fold_popover`) is summoned on mouse-release and unreachable
+via `--keys`; and `--semantic-json` builds a fresh projection per run, so the
+RETAINED incremental path (`sync_runs`/`resplice`/tail diffing) is exercised by
+no capture at all. **Routing:** production tier, per the standing audit policy.
