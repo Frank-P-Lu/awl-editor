@@ -328,7 +328,7 @@ impl TextPipeline {
         let underline_drop = self.metrics.px(UNDERLINE_BASELINE_DROP);
         let strip_text_lh = self.metrics.line_height * crate::render::effective_overlay_scale();
         let chip_h = (strip_text_lh - 2.0 * self.metrics.px(CHIP_VPAD)).max(1.0);
-        // PLATE FLOOR (item 292): `strip.center()` treats the strip's whole
+        // PLATE FLOOR: `strip.center()` treats the strip's whole
         // folded header-line box as free room, but a `Split` composition's own
         // visible seam falls INSIDE that same box — `BREATHE_FRAC` +
         // `SPLIT_GAP_FRAC` leave the query beat's own plate starting only at

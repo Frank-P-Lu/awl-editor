@@ -1440,10 +1440,10 @@ fn facet_band_draws_and_differs_from_text_in_the_strip() {
     // PIXEL DELTA: the strip row (display line 1) must visibly change under Band.
     // The region is the strip's own PLANNED box (`strip_band()`), not a bare
     // `lh` slice re-derived here: that box is `lh + header_gap` tall (the
-    // folded query beat), and item 292's plate floor can seat the Band pill
-    // anywhere in that taller box — a hand-rolled one-`lh` window silently
-    // stopped covering it once the floor pushed the mark toward the box's own
-    // bottom on a `Pane`/`Split` world.
+    // folded query beat), and the active mark's own plate floor can seat the
+    // Band pill anywhere in that taller box — a hand-rolled one-`lh` window
+    // silently stopped covering it once the floor pushed the mark toward the
+    // box's own bottom on a `Pane`/`Split` world.
     let rect = p.overlay_card_rect().expect("overlay card rect");
     let geom = p.overlay_geometry(w);
     let plan = p.overlay_row_plan(&geom);
