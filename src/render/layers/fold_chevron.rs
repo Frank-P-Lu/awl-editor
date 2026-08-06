@@ -13,14 +13,15 @@
 //! **The mark lives outside the glyphon text pipeline.** glyphon 0.11 carries no
 //! transform of any kind — `TextArea` exposes `left/top/scale/bounds/default_color/
 //! custom_glyphs` and nothing else — so a shaped run cannot rotate (`docs/render.md`'s
-//! "Rotated labels" section). The mark is built instead from two `spine_segment` arms
-//! meeting at a vertex, uploaded through `SelectionPipeline::prepare_rotated` — the
-//! same primitive `chrome::diagonal::selected_chevron` uses for the overlay's own
-//! selected-row chevron (read as the pattern; `render/chrome/` is owned elsewhere, so
-//! this module keeps its own copy of the shape rather than sharing a call). `rotated_label/`
-//! and `render/rotated_location.rs` are the other two rotation precedents in this
-//! codebase; this is not a third — it rides `prepare_rotated`, the same
-//! axis-rotated-quad primitive `chrome::diagonal` rides, not a new transform mechanism.
+//! "Rotated labels" section). The mark's SHAPE is not this module's to own: it comes
+//! from [`crate::selection::chevron_arms`], the one rotatable-chevron owner shared by
+//! every surface that draws this mark, and is uploaded through
+//! `SelectionPipeline::prepare_rotated`. What this module owns is the mark's PLACEMENT
+//! (the writing column's leading pad), its SUMMONING (caret or hover on a heading) and
+//! its DIRECTION SOURCE (`folded_headings`). `rotated_label/` and
+//! `render/rotated_location.rs` are the other two rotation precedents in this codebase;
+//! this is not a third — it rides `prepare_rotated`, the same axis-rotated-quad
+//! primitive the overlay's diagonal spine rides, not a new transform mechanism.
 
 use super::*;
 
@@ -78,44 +79,26 @@ impl FoldChevronGeom {
     }
 }
 
-/// Both arms of the fold chevron — two `spine_segment` bars meeting at a vertex
-/// DERIVED from the arm ends, the same "mirror is structural" shape
-/// `chrome::diagonal::selected_chevron` uses (read as the pattern; this module
-/// keeps its own copy since `render/chrome/` is owned elsewhere).
-///
-/// `turn_deg` is the ONE input that decides which way the mark points. At `0.0`
-/// it traces `›`: the vertex sits `reach` to the RIGHT of `center`, and the two
-/// arms trail back to `reach` on the LEFT, `spread` apart vertically — collapsed,
-/// pointing INTO the hidden section. At `90.0` it traces `⌄`: the vertex sits
-/// `reach` BELOW `center`, arms trailing back UP, `spread` apart horizontally —
-/// expanded, pointing DOWN at the now-visible body. Every value in between glides
-/// the quarter turn continuously (`u`/`p` are the direction/perpendicular unit
-/// vectors of a plain rotation, so the vertex and both arm ends sweep smoothly).
-///
-/// Pure — no device, no clock, no theme — so a law can grade the exact shape a
-/// frame would draw at any turn, and prove the collapsed/expanded pair are
-/// genuinely different shapes rather than the same extent read two ways (the
-/// item's own named trap: `instance_count() == 2` stays true at every turn, so a
-/// law must grade the ANGLE, not the count).
-pub(in crate::render) fn fold_chevron_arms(
-    center: [f32; 2],
-    reach: f32,
-    spread: f32,
-    turn_deg: f32,
-    thickness: f32,
-) -> [([f32; 2], [f32; 2], [f32; 2]); 2] {
-    let theta = turn_deg.to_radians();
-    let (s, c) = theta.sin_cos();
-    let u = [c, s];
-    let p = [-s, c];
-    let vertex = [center[0] + u[0] * reach, center[1] + u[1] * reach];
-    let back = [center[0] - u[0] * reach, center[1] - u[1] * reach];
-    let arm_a = [back[0] + p[0] * spread, back[1] + p[1] * spread];
-    let arm_b = [back[0] - p[0] * spread, back[1] - p[1] * spread];
-    [
-        crate::selection::spine_segment(vertex, arm_a, thickness),
-        crate::selection::spine_segment(vertex, arm_b, thickness),
-    ]
+/// This mark's own turn, in degrees, from the fold state's turn FRACTION: `0.0`
+/// traces `›` (collapsed — pointing INTO the hidden section) and `90.0` traces
+/// `⌄` (expanded — pointing DOWN at the now-visible body), with every value in
+/// between a continuous glide of the quarter turn. Which angles those are, and
+/// how the shape rotates through them, belongs to
+/// [`crate::selection::chevron_arms`]; what belongs HERE is only that this
+/// mark's two settled states are a quarter turn apart.
+fn fold_chevron_turn_deg(fraction: f32) -> f32 {
+    90.0 * fraction
+}
+
+/// The mark's `(reach, spread, thickness)` at a given `char_width` — ONE owner
+/// for the three authored fractions, so a law grades the numbers the frame
+/// actually draws with rather than a second copy of the same arithmetic.
+pub(in crate::render) fn fold_chevron_mark_metrics(char_width: f32) -> (f32, f32, f32) {
+    (
+        char_width * REACH_CHARS,
+        char_width * SPREAD_CHARS,
+        (char_width * STROKE_CHARS).max(1.0),
+    )
 }
 
 impl TextPipeline {
@@ -259,13 +242,22 @@ impl TextPipeline {
         hot
     }
 
-    /// Build + upload this frame's fold-chevron arms (`fold_chevron_arms`, two
-    /// per mark) through `SelectionPipeline::prepare_rotated`. The pipeline's
-    /// color is NOT set here — it re-tints in `sync_theme_colors`, matching every
-    /// other document-layer `SelectionPipeline`'s construction-time /
+    /// Build + upload this frame's fold-chevron arms (two per mark, from the
+    /// shared [`crate::selection::chevron_arms`] owner) through
+    /// `SelectionPipeline::prepare_rotated`. The pipeline's color is NOT set
+    /// here — it re-tints in `sync_theme_colors`, matching every other
+    /// document-layer `SelectionPipeline`'s construction-time /
     /// theme-sync-only convention (`wash_comment_pipeline` et al.), never a
     /// per-frame re-set. Empty when nothing is summoned, so a default (no
     /// hover/caret-on-heading) capture uploads zero instances.
+    ///
+    /// The batch's shared corner radius is narrowed by
+    /// [`crate::selection::narrowed_spine_corner_px`] across every arm this
+    /// frame actually built, because `set_corner` is ONE value for the whole
+    /// batch: at the shipped `REACH_CHARS`/`SPREAD_CHARS`/`STROKE_CHARS` an arm
+    /// is always several times longer than the stroke is thick, so the fold is
+    /// inert there — it binds only if a future weight or reach makes an arm
+    /// shorter than its own stroke, which is the case that over-rounds.
     pub(in crate::render) fn prepare_fold_chevron_marks(
         &mut self,
         device: &wgpu::Device,
@@ -274,18 +266,20 @@ impl TextPipeline {
         height: u32,
     ) {
         let marks = self.fold_chevron_geometries();
-        let reach = self.metrics.char_width * REACH_CHARS;
-        let spread = self.metrics.char_width * SPREAD_CHARS;
-        let thickness = (self.metrics.char_width * STROKE_CHARS).max(1.0);
+        let (reach, spread, thickness) = fold_chevron_mark_metrics(self.metrics.char_width);
         let quads: Vec<([f32; 2], [f32; 2], [f32; 2])> = marks
             .iter()
             .flat_map(|g| {
                 let center = [g.left + g.width * 0.5, g.row_center()];
-                let turn_deg = 90.0 * self.fold_chevron_turn_fraction(g.line, g.collapsed);
-                fold_chevron_arms(center, reach, spread, turn_deg, thickness)
+                let turn_deg =
+                    fold_chevron_turn_deg(self.fold_chevron_turn_fraction(g.line, g.collapsed));
+                crate::selection::chevron_arms(center, reach, spread, turn_deg, thickness)
             })
             .collect();
-        self.fold_chevron_pipeline.set_corner(thickness * 0.5);
+        let corner = quads.iter().fold(thickness * 0.5, |corner, (_, half, _)| {
+            crate::selection::narrowed_spine_corner_px(corner, half[0], half[1])
+        });
+        self.fold_chevron_pipeline.set_corner(corner);
         self.fold_chevron_pipeline
             .prepare_rotated(device, queue, width, height, &quads);
     }

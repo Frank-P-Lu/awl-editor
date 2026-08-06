@@ -1875,7 +1875,7 @@ pub struct TextPipeline {
     pub caret_invert: SelectionPipeline,
     pub ornament_renderer: TextRenderer,
     /// THE FOLD CHEVRON — `›`/`⌄`, two rotated-quad arms meeting at a vertex
-    /// ([`layers::fold_chevron::fold_chevron_arms`]), drawn OUTSIDE the glyphon
+    /// ([`crate::selection::chevron_arms`]), drawn OUTSIDE the glyphon
     /// text pipeline (glyphon 0.11 carries no transform, so a shaped run cannot
     /// rotate — `docs/render.md`'s "Rotated labels" section). Built + uploaded by
     /// `TextPipeline::prepare_fold_chevron_marks`, drawn in `draw_document_content`
@@ -1969,7 +1969,7 @@ pub struct TextPipeline {
     folded_headings: Vec<usize>,
     /// Per-heading fold-chevron TURN progress, keyed on the heading's CURRENT
     /// filtered line: `0.0` draws fully `›` (pointing right, collapsed), `1.0`
-    /// draws fully `⌄` (pointing down, expanded) — see `fold_chevron::fold_chevron_arms`.
+    /// draws fully `⌄` (pointing down, expanded) — see `fold_chevron::fold_chevron_turn_deg`.
     /// A heading with no entry yet (freshly scrolled into view, or seen for the
     /// first time this session) paints at its settled target directly with no
     /// glide — see the read-only accessor `fold_chevron_turn_fraction`, which

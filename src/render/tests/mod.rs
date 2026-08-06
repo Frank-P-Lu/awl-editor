@@ -80,6 +80,10 @@ mod list_surfaces;
 mod magpie_bands_item260;
 mod markdown;
 mod markdown_headings;
+/// The overlay's selected-row marker and the fold chevron are ONE rotatable
+/// symbol with two entry points; the mark's turn is legible at rest because the
+/// shape has no rotational symmetry.
+mod marker_chevron_owner_item247;
 mod nits;
 mod one_bit;
 mod oracle;
