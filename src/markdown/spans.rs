@@ -102,16 +102,12 @@ pub enum MdKind {
     /// ADDITIVELY over the context span (like [`Highlight`](Self::Highlight)), so
     /// struck text inside a heading/quote/bold run still dims + strikes.
     Strikethrough,
-    /// A horizontal rule line (`---`/`***`/`___` alone on a line). An hr is pure
-    /// MARKUP with no content, so the renderer drops a centered ornament on the row —
-    /// which ONE depends on the syntax the author typed (see [`BreakKind`]): `---` →
-    /// ❧, `***` → ⁂, `___` → ❦ by default — and — REVEAL-ON-CURSOR — CONCEALS the raw
-    /// `---` glyphs (transparent ink) whenever the caret is NOT on the line, so a
-    /// settled rule reads as a clean fine-press break. When the caret IS on the line
-    /// the raw characters REVEAL (dim markup, fully editable) and the ornament yields
-    /// to them. The conceal/reveal toggle lives in the renderer
-    /// (`spans::add_rule_conceal_span` + `TextPipeline::rule_lines`), keyed off the
-    /// cursor line; this span only marks WHERE the rule is.
+    /// A horizontal rule line (`---`/`***`/`___` alone on a line, INCLUDING a
+    /// qualifying SETEXT `-` underline — awl has no setext headings). REVEAL-ON-
+    /// CURSOR: the renderer drops a centered ornament (glyph per syntax, see
+    /// [`BreakKind`]) and CONCEALS the raw glyphs off the caret's line, revealing
+    /// them (dim, editable) on it (`spans::add_rule_conceal_span` +
+    /// `TextPipeline::rule_lines`); this span only marks WHERE the rule is.
     Rule,
     /// A GitHub-flavored TABLE's cell-delimiter `|` pipe → dim `Markup` styling.
     /// awl is a SOURCE editor: a table renders as styled SOURCE (the structural
@@ -211,13 +207,9 @@ pub fn fence_line_lang(line: &str) -> Option<crate::syntax::Lang> {
 /// [`crate::theme::Theme::ornament_scale`] — the size counterpart of the leading-`#`
 /// heading scan (a per-line grow that never needs the whole parse). Pure + total.
 ///
-/// KNOWN, ACCEPTED false positive (documented, matching the existing setext-heading
-/// gap): a `---` that pulldown actually rules a SETEXT-heading underline (a `---`
-/// directly under a paragraph line) is indistinguishable from a thematic break at
-/// the single-line level, so its row grows too — even though no ornament draws over
-/// it (the ornament layer reads the real `md_spans`, not this scan). `***`/`___`
-/// are never setext, so only a dash underline is affected; awl's own docs use ATX
-/// headings, so this is rare in practice.
+/// A qualifying dash underline is NOT a false positive: awl has no setext
+/// headings, `spans` promotes it to a real `Rule` and this scan agrees. The
+/// remaining gap: `---` in a fenced code block, per `md_line_scale`'s `confirmed_rule`.
 pub fn is_thematic_break(line: &str) -> bool {
     let t = line.trim_matches(|c| c == ' ' || c == '\t');
     // The run char is the first non-space glyph; every non-space char must match it,
@@ -436,20 +428,14 @@ pub fn strike_engaged(src: &str) -> bool {
 }
 
 /// Parse `text` into styling spans in DOCUMENT byte coordinates. Spans may
-/// overlap by DESIGN: a link or code-block first pushes a whole-range `Markup`
-/// span, then its inner text pushes a `LinkText`/`Code` span — applied in this
-/// order, the later (inner) span wins for its bytes while the brackets/URL/fence
-/// keep the dim `Markup`. The renderer adds them to the `AttrsList` in THIS
-/// order, relying on cosmic-text's "last span wins on overlap" semantics.
+/// overlap by DESIGN: a link/code-block first pushes a whole-range `Markup`
+/// span, then its inner text pushes a `LinkText`/`Code` span; the LATER (inner)
+/// span wins its bytes via cosmic-text's "last span wins on overlap" rule.
 ///
 /// A leading FRONTMATTER block ([`crate::frontmatter::detect`]) is carved off
-/// FIRST: its whole range becomes one `ConcealMarkup(Frontmatter)` span, and
-/// the REST of the document (past the block) is what pulldown actually parses
-/// — so a frontmatter block's `key: value` lines never confuse the markdown
-/// parser (no stray thematic-break/setext-heading reads), and every span this
-/// function would otherwise emit is simply offset by the block's byte length.
-/// A document with no (or no well-formed) frontmatter block parses exactly as
-/// before, byte-identically.
+/// first as one `ConcealMarkup(Frontmatter)` span; the rest of the document is
+/// what pulldown parses, with every span offset by the block's byte length. No
+/// (or malformed) frontmatter parses byte-identically to before.
 pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
     use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
@@ -537,6 +523,18 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
                     if text[range.start..].starts_with('#') {
                         heading = Some(level_u8(level));
                         push_heading_markers(&mut body, text, &range);
+                    } else if level == HeadingLevel::H2 {
+                        // DECIDED: `---` always draws as the rule, whatever precedes it.
+                        let src = &text[range.clone()];
+                        let core = src.strip_suffix('\n').unwrap_or(src);
+                        let ul_start = core.rfind('\n').map(|i| i + 1).unwrap_or(0);
+                        let underline = &core[ul_start..];
+                        if is_thematic_break(underline) {
+                            let indent =
+                                underline.len() - underline.trim_start_matches([' ', '\t']).len();
+                            let start = range.start + ul_start + indent;
+                            body.push((start..range.start + core.len(), MdKind::Rule));
+                        }
                     }
                 }
                 Tag::Strong => {
