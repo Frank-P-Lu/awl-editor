@@ -2068,3 +2068,47 @@ per cell. ⚠️ **Two gaps the lane named as uncovered and this audit must reac
 via `--keys`; and `--semantic-json` builds a fresh projection per run, so the
 RETAINED incremental path (`sync_runs`/`resplice`/tail diffing) is exercised by
 no capture at all. **Routing:** production tier, per the standing audit policy.
+
+---
+
+## ⚠️ A LANE THAT COULD NOT DELIVER, AND WHAT THE ORCHESTRATOR OWES WHEN THAT HAPPENS
+
+Item 284's lane ended **four consecutive turns on a status line** — "waiting for
+the background test run", "waiting for the code-health.sh result", "waiting for
+the actual completion notification" — burning ~400k tokens and 270 tool calls.
+**Three of those waits were for work that had already finished**, checked against
+`ps` each time. It also left the entire change **staged but uncommitted across
+eleven paths**, through two explicit instructions to commit first.
+
+**What worked was taking it over**, exactly as the CI-red #2 round did: commit
+the staged tree, run the mutation proof, pay the marks forward, gate, merge.
+
+⚠️ **AND THE LANE WAS STILL RIGHT ABOUT TWO THINGS THE ORCHESTRATOR GOT WRONG,
+which is why "it could not deliver" is not the same as "it was not working":**
+
+1. **The orchestrator committed a CLAUDE.md violation.** `ae053fc1`'s comments
+   cited "item 247" and "item 284" in prose — the Conventions rule forbids
+   exactly that, and item 275 exists to remove it everywhere else. **Committing
+   a lane's staged tree does not exempt that tree from review, and this one was
+   reviewed for correctness but not for convention.**
+2. **The orchestrator's code-health pass was three-of-five and reported as
+   done.** `pipeline_draw.rs` (577→580) and `pipeline_overlay.rs` (464→465) were
+   missed, which is why `main` was still red after the merge. The lane paid both.
+
+**The rule this writes down: when a lane stalls, take over its WORK — but do not
+inherit its output unreviewed, and re-run the check that told you it was clean.**
+A three-of-five fix passes the eye and fails the tool.
+
+📐 **On the mutation that mattered.** Routing a function through the very owner a
+law compares it against can make that law **trivially true**. Both were checked:
+drifting the pivot 10% reddens Law 1 AND 284's new pinned-vertex law; but
+reverting the pinned-centre derivation to a plain midpoint leaves Law 1 **green**,
+because it only exercises `turn_deg = 0.0` where the two formulas coincide. That
+is a real scope boundary, found by the lane, and it is precisely why 284 added
+its own law rather than leaning on the inherited one.
+
+**Still owed to a human on 284:** the 90 ms glide's feel, and `MARKER_TRAVEL_TILT_DEG`
+= 20° — production-tier picks, not a taste-round decision the way the chevron's
+shape was. And an honest gap: a wrap settles in the correct direction but its
+transient glide looks identical to an ordinary step; whether a wrap deserves a
+distinct flourish is a live judgement.
