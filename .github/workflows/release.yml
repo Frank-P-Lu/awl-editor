@@ -283,9 +283,18 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      # THE KEY CARRIES THE IMAGE, NOT JUST THE OS. `Swatinem/rust-cache`
+      # mixes `runner.os` into its key, which is the string "Linux" for BOTH
+      # ubuntu-24.04 and ubuntu-22.04 — so a cache filled on 24.04 restores
+      # onto 22.04 and the build dies loading a proc-macro .so built against
+      # the newer glibc (`libzvariant_derive…so: version GLIBC_2.39 not
+      # found`). `ImageOS` (ubuntu22 / ubuntu24) is what actually
+      # distinguishes them, and deriving it means a future `runs-on` change
+      # re-keys the cache by itself rather than waiting for someone to
+      # remember this line.
       - uses: Swatinem/rust-cache@v2
         with:
-          key: release-linux
+          key: release-linux-${{ env.ImageOS }}
 
       # See the mac job's copy of this step for why it is not optional.
       - name: Install sccache
