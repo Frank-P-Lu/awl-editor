@@ -25,9 +25,32 @@ is valid only when the brief records why the same model and effort fit.
 The orchestration layer owns the CPU policy for concurrent workers. On this
 ten-core host, every concurrently dispatched worker runs build or gate commands
 through `.orchestrator/worker-build.sh`; it sets and receipts
-`CARGO_BUILD_JOBS=2`, so four workers schedule at most eight Cargo jobs in
-aggregate and leave interactive headroom. The wrapper is the sole budget owner:
-workers and repository gate scripts do not set a competing value.
+`CARGO_BUILD_JOBS=2`. The wrapper is the sole budget owner: workers and
+repository gate scripts do not set a competing value.
+
+⚠️ **THE AGGREGATE IS 16 BUILD JOBS FOR FOUR LANES, NOT EIGHT — this paragraph
+claimed eight for as long as it existed, and the arithmetic omitted the same
+×2 the paragraph below applies correctly to test threads.** `CARGO_BUILD_JOBS`
+is per **Cargo invocation**, and `native-gate.sh` says so in its own source:
+*"Two conventions run at once below, so every bound here is per convention"*
+(`gate_conventions=2`), launching both concurrently near the end of the script.
+So one lane at the gate phase schedules **2 conventions × 2 jobs = 4**, and four
+lanes schedule **16 on ten cores** — over-subscribed, not headroom-leaving.
+**Measured 2026-08-06 with four lanes at the gate phase: load average 69.79**,
+35 live `cargo`/`rustc` processes (item 277's earlier reading of 49.6 was taken
+the same way and is consistent). Derived from the gate's source and confirmed
+against `ps`, because the old figure was asserted rather than computed.
+
+**Consequences for a dispatching orchestrator, in order of usefulness:**
+- **Four lanes is the practical ceiling on this host, and only because gates
+  stagger.** Do not read "eight jobs, interactive headroom" as spare capacity —
+  there is none once two or more lanes reach a gate together.
+- **Never run the root merge-train gate while lanes are gating.** It is
+  deliberately hardware-adaptive and unbounded, so it lands on top of an already
+  over-subscribed host. Check `sysctl -n vm.loadavg` and
+  `ps aux | grep -cE "[c]argo|[r]ustc"` first; wait for the wave to quiesce.
+- This is the load that makes `test-native-gate.sh`'s CPU-heartbeat self-test
+  flake (see below) — the two facts are the same fact.
 
 **`CARGO_BUILD_JOBS` bounds compilation only, not test-execution parallelism**
 (item 277, measured 2026-08-05: load average 49.6 on this ten-core host with

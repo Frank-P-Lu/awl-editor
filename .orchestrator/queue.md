@@ -210,11 +210,11 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
 | `src/render/plan/` | overlay row family only (5 modules) |
 | item 288's three identifiers | all three still present, verbatim |
 
-**WAVE RUNNING — four lanes claimed: 304, 289, 274, 291.** LANDED this wave: 288
-(`289d364c`, fast-forward), 295 (merged `414e3b5a`), 290 (merged `51302d50`).
-172 is closed against its census. ⚠️ **`main` carries TWO merges that have NOT
-been gated as a combined candidate** — each lane's receipt is for its own branch,
-taken before the others landed. **Do not push until one native/health/wasm set
+**WAVE RUNNING — three lanes claimed: 289, 274, 291.** LANDED this wave: 288
+(`289d364c`, fast-forward), 295 (merged `414e3b5a`), 290 (merged `51302d50`),
+304 (merged `31953688`). 172 is closed against its census. ⚠️ **`main` carries
+THREE merges that have NOT been gated as a combined candidate** — each lane's
+receipt is for its own branch, taken before the others landed. **Do not push until one native/health/wasm set
 runs on the merged tree.** Order for the next wave:
 
 1. **131e** — selection and the full Verify clause; 131a–d are landed and the
@@ -972,33 +972,30 @@ runs on the merged tree.** Order for the next wave:
      byte-identity for 18 worlds. ⚠️ `diagonal.rs` is contended — check no claim
      before dispatch. **Routing:** deep tier.
 
-304. 🟡 IN PROGRESS — claude, branch `claude/item-304-thematic-break`.
-     **A `---` under a text line renders as NOTHING.** Repro: a document with
-     `---`, then type any text on the line above it, giving `a\n---`. awl
-     deliberately does not style `a` as a setext title — correct — **but the
-     `---` then draws neither as a rule nor as raw text. It vanishes.** Buffer
-     content that renders as zero pixels, in a WYSIWYG editor whose contract is
-     that the file stays plain text and the caret's own line shows raw markdown.
-     ⚠️ Not a styling defect: a user cannot see that the line is still there.
-     **Suspected seam** (verify, do not assume): `a\n---` is a setext H2 to
-     CommonMark, so the underline is consumed as a heading marker and then
-     suppressed by whatever declines to render setext titles — leaving nothing.
-     `spans.rs:214-221` already documents a "KNOWN, ACCEPTED false positive"
-     where a dash underline directly under a paragraph is indistinguishable from
-     a thematic break, and `render/spans.rs:428`/`:940` carry two separate gates
-     about growing a `---` row for setext. **Establish which gate drops it.**
-     ✅ **Decided: `---` always renders as the rule**, whatever precedes it —
-     `a` stays plain text, the line below becomes the thematic-break symbol.
-     **awl has no setext headings; the ladder is ATX (`#`) only.** So the
-     "KNOWN, ACCEPTED false positive" at `spans.rs:214-221` — a dash underline
-     under a paragraph reading as a thematic break — **is not a false positive
-     at all under this rule; it is the intended behaviour.** Re-author that
-     comment to say so rather than leaving it apologising for the correct
-     answer (item 302's class).
-     **Verify:** a law that no line with content produces an empty render, swept
-     over the thematic-break syntaxes (`---`/`***`/`___`) both directly under a
-     paragraph and separated by a blank line, with the caret on and off the line.
-     **Routing:** production tier.
+305. **THE TWO `spans.rs` FILES ARE ~2x THE CEILING, AND THE FROZEN MARK IS NOW
+     SHAPING THE CODE.** `src/markdown/spans.rs` is **1061** lines and
+     `src/render/spans.rs` **1140**, against CLAUDE.md's *"~500 lines is a file's
+     natural ceiling; past it, decompose into a submodule dir"*. `spans()` itself
+     carries a `clippy::too_many_lines` exception now reading **172/100**.
+
+     ⚠️ **THE EVIDENCE THIS IS NO LONGER JUST DEBT.** Item 304's lane needed a
+     helper, extracted it, and then **inlined it back into its single call site
+     for no reason but the line count** — its own `code-health.toml` reason says
+     so: *"inline, no second single-call-site helper — the file was already
+     sitting at its frozen ceiling"*. A ratchet that exists to push toward
+     decomposition instead bought a worse factoring. That is the signal to
+     decompose rather than to raise the mark again.
+
+     **Build:** decompose both into `spans/` submodule directories, splitting by
+     SUBJECT, and restore the helper 304 was forced to inline. **Production code,
+     so this is NOT item 274's verbatim-move contract** — but the same oracle
+     applies where it can: no behaviour change, and `cargo test --bin awl`
+     reports the same count. **Verify:** byte-identical rendering across the world
+     roster at 1x/2x — a decomposition that changes a pixel is a bug, and the
+     capture harness can prove it didn't. Retire the two file-size marks and the
+     `too_many_lines` exception rather than editing them.
+     ⚠️ Contends `src/markdown/**` and `src/render/spans.rs` — one lane, never
+     paired with a markdown or span item. **Routing:** production tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
