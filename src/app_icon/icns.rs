@@ -135,8 +135,7 @@ pub fn pack(pngs: &[(u32, Vec<u8>)]) -> anyhow::Result<Vec<u8>> {
 /// Strict on purpose: the magic, the declared total length and every chunk
 /// length must agree with the actual bytes. This is the parser the law tests
 /// use as their oracle, so a lenient reader would let a malformed committed
-/// asset pass.
-#[allow(dead_code)] // the law tests' oracle; the pack step only ever writes.
+/// asset pass. Also the reader half of [`linux_icon_png`] — no longer test-only.
 pub fn unpack(bytes: &[u8]) -> anyhow::Result<Vec<([u8; 4], &[u8])>> {
     if bytes.len() < 8 || &bytes[0..4] != b"icns" {
         anyhow::bail!("not an icns (bad magic)");
@@ -199,4 +198,28 @@ pub fn pack_world(tiles_dir: &Path, theme: &Theme) -> anyhow::Result<Vec<u8>> {
         pngs.push((px, bytes));
     }
     pack(&pngs)
+}
+
+/// The LINUX DESKTOP ICON: one PNG cut straight out of an already-packed
+/// `.icns` via [`unpack`], never a second hand-drawn source. `--export-linux-icon`
+/// (`src/main/args.rs`) hands this the committed canonical `assets/macos/Awl.icns`
+/// bytes so `scripts/package-appimage.sh` can populate the AppImage's
+/// `.desktop`-referenced icon and the `hicolor` theme directory from the exact
+/// artwork Finder and the Dock already show — the freedesktop-recommended
+/// 256×256 size, which [`REPS`] already carries as the `ic08`/`ic13` slot (both
+/// reps are the same pixel edge, cut from the one 256px tile the exporter
+/// rendered, so which of the two chunks answers first is immaterial).
+pub const LINUX_ICON_PX: u32 = 256;
+
+pub fn linux_icon_png(icns_bytes: &[u8]) -> anyhow::Result<Vec<u8>> {
+    let rep = REPS
+        .iter()
+        .find(|r| r.px == LINUX_ICON_PX)
+        .ok_or_else(|| anyhow::anyhow!("no {LINUX_ICON_PX}px rep declared in REPS"))?;
+    let chunks = unpack(icns_bytes)?;
+    chunks
+        .into_iter()
+        .find(|(ostype, _)| *ostype == rep.ostype)
+        .map(|(_, bytes)| bytes.to_vec())
+        .ok_or_else(|| anyhow::anyhow!("icns has no {} ({LINUX_ICON_PX}px) chunk", rep.name()))
 }

@@ -587,6 +587,36 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 );
                 std::process::exit(0);
             }
+            // THE LINUX DESKTOP ICON (item 227) — cut the 256px PNG straight out
+            // of the committed canonical `.icns` via `app_icon::icns::unpack`,
+            // the same parser the app-icon law tests use as their oracle. Reuses
+            // the existing pipeline's OUTPUT rather than adding a second
+            // rendered source: this flag reads no font, no theme, no browser —
+            // only bytes `scripts/export-icons.sh` already produced and
+            // committed. `scripts/package-appimage.sh` is the one caller, run
+            // from the repo root (relative to CWD, same convention as
+            // `--pack-icns`).
+            #[cfg(not(target_arch = "wasm32"))]
+            "--export-linux-icon" => {
+                let out = args
+                    .next()
+                    .map(PathBuf::from)
+                    .ok_or_else(|| anyhow::anyhow!("--export-linux-icon needs an output path"))?;
+                let icns_path = PathBuf::from(crate::app_icon::CANONICAL_ICNS);
+                let icns_bytes = std::fs::read(&icns_path).map_err(|e| {
+                    anyhow::anyhow!(
+                        "{}: {e} — run scripts/export-icons.sh first",
+                        icns_path.display()
+                    )
+                })?;
+                let png = crate::app_icon::icns::linux_icon_png(&icns_bytes)?;
+                if let Some(parent) = out.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                std::fs::write(&out, &png)?;
+                println!("wrote {} ({} bytes)", out.display(), png.len());
+                std::process::exit(0);
+            }
             "-h" | "--help" => {
                 // Built from the same one-owner roster as `--theme`'s error
                 // and `--list-worlds` (item 68) — never a hand-copied list.
@@ -615,6 +645,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
                      \x20 --icon-manifest     print the app-icon export manifest as JSON (per world: icon palette tokens + display face + its logo-cursor; per face: the bundled font files), then exit — run from the repo root; see scripts/icons/\n\
                      \x20 --ground-audition W item 121's A/B/C ground-audition manifest, exit\n\
                      \x20 --pack-icns [DIR]   cut every world's rendered tiles (default assets/macos/candidates/tiles) into assets/macos/world/<World>.icns + the canonical assets/macos/Awl.icns, and regenerate src/app_icon/embedded.rs, then exit — run from the repo root AFTER scripts/export-icons.sh\n\
+                     \x20 --export-linux-icon OUT.png   cut the 256px PNG out of the committed canonical assets/macos/Awl.icns, then exit — run from the repo root; see scripts/package-appimage.sh\n\
                      \x20 --caret-mode MODE   caret look: block, morph, ibeam, or auto (default: mono->block, proportional->morph)\n\
                      \x20 --capture-size WxH  physical canvas size for the capture (default 1200x800)\n\
                      \x20 --capture-dpi N      renderer scale factor (default 1.0); WxH at dpi N == (W/N)x(H/N) logical retina window\n\
