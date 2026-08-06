@@ -1412,6 +1412,34 @@ line = 214
 text = "            \"{}: selected bar {sel:?} must lead the unselected whisper {unsel:?} (redmean {d_sel:.1}) at least as much as the whisper leads the ground {ground:?} (redmean {d_bar:.1})\","
 reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged; it shifted from line 213 to 214 when an earlier assertion in this file grew from a one-line citation-only message to a two-line mechanism-naming one."
 
+[[structural_exception]]
+target = "src/overlay/tests/row_meta_laws.rs"
+kind = "architectural"
+line = 135
+text = "                \"{kind:?} produced a row with meta tag {tag:?}, not in its declared roster {roster:?}\""
+reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
+
+[[structural_exception]]
+target = "src/overlay/tests/row_meta_laws.rs"
+kind = "architectural"
+line = 233
+text = "        matches!(ov.rows[ci].meta, RowMeta::CommandSetting { id } if id == crate::settings::SettingId::Keymap)"
+reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
+
+[[structural_exception]]
+target = "src/overlay/tests/settings_rail.rs"
+kind = "architectural"
+line = 131
+text = "/// `actions::tests::overlay_drive::the_foot_hint_names_what_left_right_actually_do_on_every_settings_row`.)"
+reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
+
+[[structural_exception]]
+target = "src/overlay/tests/spell.rs"
+kind = "architectural"
+line = 76
+text = "            \"n={n}: the picker's whole corpus always fits the window — it can never be forced to scroll\""
+reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
+
 [[comment_citation_exception]]
 target = "src/main/tests/capture_scenarios.rs"
 line = 166
@@ -1591,3 +1619,226 @@ target = "src/durable.rs"
 line = 449
 text = "            // `main/tests.rs` split into `main/tests/<subject>.rs` (item 274);"
 reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/buffer/tests/mod.rs"
+line = 20
+text = "/// [`ScratchDir`] guard that removes it on drop (queue item 168)."
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/buffer/tests/quick_notes.rs"
+line = 192
+text = "        // ONE-SHOT NAMING (item 76): the SAME call that derives the name also"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/buffer/tests/quick_notes.rs"
+line = 231
+text = "    // item 76's one-shot naming law: `Buffer::save` derives the filename"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/buffer/tests/word_delete_boundary.rs"
+line = 51
+text = "    // over-deleting to \"\" — the exact forward twin of the item 3(a) bug."
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/assets.rs"
+line = 42
+text = "    // ITEM 54 PRESERVATION LAW (removal preserves identity): with ONE typed"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/caret_date_link.rs"
+line = 64
+text = "/// ITEM 36 — the DATE-FORMAT picker. `new_date` lists all five formats EACH"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/caret_date_link.rs"
+line = 69
+text = "/// example strings are deterministic (item 14's gate)."
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/caret_date_link.rs"
+line = 125
+text = "/// ITEM 66 — the Date picker's row content must NOT get the muted-directory/"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/command_palette.rs"
+line = 25
+text = "/// FINISH BUFFER GATING (item 13): the palette row list excludes \"Finish file\""
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/goto_headings.rs"
+line = 6
+text = "    // with the files under the flat `All` home (item 11's unified default), and"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/goto_headings.rs"
+line = 15
+text = "    // Strip carries the Headings lens, parked last — \"By type\" was CUT (item 11)."
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/goto_headings.rs"
+line = 19
+text = "    // row carries the `❡ ` KIND-HINT marker (item 11's rowlayout PRIMARY-cell"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/history_picker.rs"
+line = 21
+text = "    // ITEM 116c: restore moved behind the deliberate SHIFT-HELD accept — bare"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/hover_keyboard_nav.rs"
+line = 37
+text = "/// ITEM 85 — THE REAL-MOTION GATE LAW: a world's re-layout under a STATIONARY"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/hover_keyboard_nav.rs"
+line = 109
+text = "    // ITEM 106 — ORDINARY HARDWARE JITTER under a resting hand (a real, but"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/hover_keyboard_nav.rs"
+line = 137
+text = "/// ITEM 106 — THE MOVEMENT-SLOP BOUNDARY LAW, in both directions: a real move"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/hover_keyboard_nav.rs"
+line = 215
+text = "/// ITEM 106 — THE KEYBOARD-BASELINE STAMP LAW: a PURE keyboard session (the"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/hover_keyboard_nav.rs"
+line = 276
+text = "/// hover must still select immediately — item 106's slop/baseline widening"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/hover_keyboard_nav.rs"
+line = 290
+text = "/// ITEM 106 — KEYBOARD NAV SURVIVES A POINTER PARKED ANYWHERE: sweeps the"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/hover_keyboard_nav.rs"
+line = 432
+text = "/// ITEM 85 — the keyboard half of the law: ↓/↑ (`move_sel(±1)`, what"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/minibuffer_word_motion.rs"
+line = 7
+text = "// the shared `TextBox::delete_word_back` (item 10) — so the palette can never"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/minibuffer_word_motion.rs"
+line = 9
+text = "// navigation; ITEM 10 wires WORD motion — Ctrl/Opt-arrow, `ForwardWord`/"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/minibuffer_word_motion.rs"
+line = 65
+text = "// ── ITEM 10 — ONE SHARED TEXTBOX MODEL ─────────────────────────────────────"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/minibuffer_word_motion.rs"
+line = 98
+text = "/// C — RENAME MINIBUFFER: item 10's `/`-reject filter still applies at a"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/picker_visibility.rs"
+line = 113
+text = "    // ITEM 77: the REAL `overlay::build::browse_level` (not the hand-built"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/project.rs"
+line = 48
+text = "    // ITEM 54 PRESERVATION LAW (git/dir survive reorder): a typed query that"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/row_meta_laws.rs"
+line = 3
+text = "// ── ITEM 54: typed `OverlayRow` replacing the 12 corpus-parallel arrays ────"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/row_meta_laws.rs"
+line = 109
+text = "/// ITEM 54 — RUNTIME ROSTER LAW: build a REPRESENTATIVE overlay for EVERY"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/row_meta_laws.rs"
+line = 141
+text = "/// ITEM 54 — ROWMETA EXHAUSTIVENESS WITNESS: construct one instance of every"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/row_meta_laws.rs"
+line = 180
+text = "/// ITEM 54 PRESERVATION LAW 2 — Go-to HEADING rows keep their `line` across a"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/row_meta_laws.rs"
+line = 216
+text = "/// ITEM 54 PRESERVATION LAW 4 — Command palette appended SETTINGS rows keep"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/row_meta_laws.rs"
+line = 251
+text = "/// ITEM 54 PRESERVATION LAW 5 — History rows keep their restore `id` + `ts`"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/row_meta_laws.rs"
+line = 297
+text = "/// ITEM 54 PRESERVATION LAW 6 — Go-to FILE rows keep their OWN relative"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/settings_rail.rs"
+line = 4
+text = "// ── ITEM 94 — the RANGE CELL column (the row model half) ─────────────────────"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/settings_rail.rs"
+line = 135
+text = "    // ITEM 114 — this law is about the ROWS' keys, and the rows are the"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/spell.rs"
+line = 54
+text = "/// ITEM 64 — THE TOP-FIVE CAP, as a LAW swept over every corpus length from 0 to"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
+[[comment_citation_exception]]
+target = "src/overlay/tests/spell.rs"
+line = 105
+text = "/// ITEM 64's exact named corpora (0/1/5/6/20), spelled out one at a time so the"
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+
