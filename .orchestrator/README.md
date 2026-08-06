@@ -352,6 +352,36 @@ on a routine refactor means the brief was wrong, not the code.
    time (`wc -l`), not out of the lane's report** — one lane reported 904 and a
    later citation-rewording pass left the file at 900.
 
+   ‼ **A GREEN `code-health.sh` CAN CERTIFY A RED TREE, AND THE WINDOW IS AN UNSTAGED
+   `code-health.toml`.** The ratchet config is read **off disk**; the file-size scan
+   reads **tracked** files. So mark edits left unstaged make a refusing tree report
+   clean, and a receipt taken there certifies nothing. Measured 2026-08-06: this cost a
+   push of `main` whose committed toml disagreed with its own sources in two places
+   (`render.rs` marked 2643 against an actual 2632). CLAUDE.md's "run code-health after
+   `git add`" is not an ordering preference — it is the whole guard.
+   **`git add scripts/code-health.toml` before the gate, and treat a clean
+   `git status --short` immediately before a push as part of the receipt.**
+
+   ‼ **AND TWO LANES LANDING IN ONE FILE BOTH REPORT A NUMBER THAT IS WRONG FOR THE
+   MERGE.** `render.rs` came out at 2665 where one lane said 2632 and the other 2676;
+   `chrome/mod.rs` at 1035 against 1031 and 1041. Applying reports serially cannot get
+   there. **Audit every mark against the tree in one pass:**
+
+   ```sh
+   python3 - <<'EOF'
+   import pathlib, re
+   t = pathlib.Path("scripts/code-health.toml").read_text()
+   for m in re.finditer(r'file = "([^"]+)"\nlines = (\d+)', t):
+       f, mark = m.group(1), int(m.group(2)); p = pathlib.Path(f)
+       cur = len(p.read_text().split("\n")) - 1 if p.exists() else None
+       if cur != mark: print(f"{f}: mark={mark} actual={cur}")
+   EOF
+   ```
+
+   Target a `clippy_exception` by **file + function**, never by message text — two
+   blocks can carry identical messages, and a `file` that no longer exists is the
+   stale-exemption class item 288 was written to kill.
+
 8. **Partition parallel lanes by FILE, but treat a hold as a DEBT, not a
    boundary.** The partition is what lets several lanes run at once without
    collision, and its bill is duplicated shapes: one lane duplicated a chrome

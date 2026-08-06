@@ -125,6 +125,24 @@ decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
+- 🔵 **296/300's LOOK IS THE USER'S TO ACCEPT — four calls, none of them correctness.**
+  Captures at `gallery/item-296-300/` (copied out of `/tmp`): `USER-toast.png` (a
+  `saved` toast on a full page), `USER-sticky.png` (the Export refusal, held), and
+  `final.png` (a three-world strip). The notice is now one plated LABEL line at the
+  **top of the writing column**.
+  1. **Top-of-column placement.** It clears the H1 in these shots but **will cover the
+     first prose line on a document without a heading** — the unavoidable cost of
+     putting it in the reading path when the margins are ~16px.
+  2. **A square-cornered chip**, matching `menubar_bg` and DESIGN §1's Swiss
+     vocabulary. A small radius is one constant away.
+  3. **The kind ladder** — toast on `base_200`/`muted`, sticky on
+     `base_300`/`base_content`, with a one-bit world inverting through
+     `HighlightTreatment`. Whether a held refusal should be *this* much louder than an
+     acknowledgement is theirs.
+  4. **Plate padding** derived from the LABEL line height (`0.6×`/`0.22×`), so it holds
+     at every zoom and DPI.
+  **Live-only, flagged rather than claimed:** the 2500 ms toast lifetime only *feels*
+  right in `--release` on a real window.
 - 🔵 **131e/303's TWO TASTE CALLS, and the second is the interesting one.** Captures at
   `gallery/item-131e-303/` (gitignored, **copied out of `/tmp` deliberately** — the board
   already lost one lane's gallery that way). Show `before/Magpie.png` beside
@@ -847,8 +865,8 @@ Order for the next wave:
      for `Pane`. ⚠️ Laws in `render/tests/{hud,one_bit,outline}.rs` pin the
      current crisp behaviour — re-aim, don't delete. **Routing:** deep tier.
 
-296. 🟡 IN PROGRESS — claude, branch `claude/item-296-300-toast`.
-     **`ConvertLineEndings` is silent, and no capture can photograph a toast.**
+296. ✅ **LANDED with its pair (merged 2026-08-06).** Original body:
+          **`ConvertLineEndings` is silent, and no capture can photograph a toast.**
      The action flips on-disk EOL with `Effect::None` — no notice ever — and is
      deliberately off the undo timeline, so a double-toggle is undetectable.
      Palette-only and unbound, which bounds severity.
@@ -904,8 +922,8 @@ Order for the next wave:
      selected-row-0 fixture could not see it. Contrast by pixel arithmetic.
      **Routing:** production tier.
 
-300. 🟡 IN PROGRESS with 296 — claude, branch `claude/item-296-300-toast`.
-     **The toast is never seen — debug before redesigning.** The user has never
+300. ✅ **LANDED with its pair (merged 2026-08-06).** Original body:
+          **The toast is never seen — debug before redesigning.** The user has never
      observed a channel with ~10 callers. Establish first whether it renders at
      all: does `set_toast_notice` reach `frame`; does `notice_readout_text`
      return it; does `prepare_notice` place it on-screen or park it; does the
@@ -1010,6 +1028,31 @@ Order for the next wave:
      drawn↔hit-test agreement; 1×/2× across both worlds and every `OverlayKind`;
      byte-identity for 18 worlds. ⚠️ `diagonal.rs` is contended — check no claim
      before dispatch. **Routing:** deep tier.
+
+306. **EVERY DARK WORLD'S PAGE GROUND DRAWS FAR LIGHTER THAN ITS AUTHORED
+     `base_100`, AND THEMES.md IS THEREFORE WRONG ABOUT THE WHOLE GALLERY.** Found by
+     item 296's lane while calibrating a plate against the page, and deliberately not
+     fixed there — the blast radius is every world.
+
+     **The mechanism, measured against real pixels on two worlds:** `LoadOp::Clear`'s
+     colour is consumed as **LINEAR** by an sRGB-format target, while `to_wgpu()` hands
+     it sRGB bytes straight through. So the page renders as the sRGB *encode* of the
+     token rather than the token. **Currawong's authored `#060607` draws as `#2A2A2E`;
+     Potoroo's `#1F0400` draws as `#622200`.** Light worlds are barely affected — the
+     encode is near-identity up there — which is exactly why this survived.
+
+     ⚠️ **This is why no fixed step off `base_100` can predict what a plate sits on**,
+     and it is the reason 296's presence floor had to be perceptual ΔE rather than a
+     luminance step. Any future work reasoning from an authored dark token is reasoning
+     about a colour that is not on screen.
+
+     **Verify:** the drawn page pixel equals the authored `base_100` for every world at
+     1×/2×, swept over the roster — a law that would have failed on the day this
+     shipped. ⚠️ **Expect the fix to CHANGE EVERY DARK WORLD'S APPEARANCE**, so it
+     needs a visual-judge pass and the user's eye, not just arithmetic; several worlds
+     were very likely tuned by eye *against the wrong ground*, which means the authored
+     tokens themselves may now be wrong in the other direction. Read that risk before
+     touching a token. **Routing:** deep tier, then the user.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
