@@ -1438,11 +1438,17 @@ fn facet_band_draws_and_differs_from_text_in_the_strip() {
     );
 
     // PIXEL DELTA: the strip row (display line 1) must visibly change under Band.
+    // The region is the strip's own PLANNED box (`strip_band()`), not a bare
+    // `lh` slice re-derived here: that box is `lh + header_gap` tall (the
+    // folded query beat), and item 292's plate floor can seat the Band pill
+    // anywhere in that taller box — a hand-rolled one-`lh` window silently
+    // stopped covering it once the floor pushed the mark toward the box's own
+    // bottom on a `Pane`/`Split` world.
     let rect = p.overlay_card_rect().expect("overlay card rect");
-    let (card_x, card_y, cw) = (rect[0], rect[1], rect[2]);
-    let text_top = card_y + 12.0;
-    let lh = p.overlay_lh();
-    let strip = pixeldiff::Region::new(card_x, text_top + lh, cw, lh);
+    let geom = p.overlay_geometry(w);
+    let plan = p.overlay_row_plan(&geom);
+    let sb = plan.strip_band().expect("a faceted card plans a strip box");
+    let strip = pixeldiff::Region::new(rect[0], sb.top, rect[2], sb.height);
     pixeldiff::assert_perceptibly_different(
         &text,
         &band,

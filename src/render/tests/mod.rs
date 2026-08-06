@@ -35,6 +35,7 @@ mod caret_block;
 mod caret_ink_box;
 mod caret_transition_item105;
 mod caret_visual_body;
+mod chip_plate_floor_item292;
 mod chrome_overlay;
 mod chrome_panels;
 mod chrome_pixel_space_item242;
