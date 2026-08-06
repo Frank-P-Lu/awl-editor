@@ -848,11 +848,15 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      separator line between the hint and the band", and the card is said to grow
      by exactly that — **so a separator is already specified and the screenshot
      shows none. Establish whether it is not computed, not drawn, or being
-     consumed by a clip** before changing any constant. ⚠️ Kite is where it was
-     seen; **the fix is for every `Pane` world** (`Pane` carries fifteen of
-     twenty and is `RenderCaps::DEFAULT`), so the sweep is the roster, not the
-     reporter. **Verify:** the gap exists and is measurable in pixels on every
-     `Pane` world at 1×/2× DPI, on full, filtered, scrolled and empty lists —
+     consumed by a clip** before changing any constant. ⚠️ **SCOPE BROADENED
+     2026-08-06, SAME DAY: this was first scoped `Pane`-wide on the user's
+     instruction, then observed AGAIN on Cassowary's right-click menu — a
+     per-row-plate composition, not `Pane`.** Two compositions showing the
+     identical symptom means the owner is the shared footer/band geometry, not a
+     list style. **Sweep the whole roster and every `OverlayKind`, including the
+     context menu**; the `Pane` framing was the first sighting, not the boundary.
+     **Verify:** the gap exists and is measurable in pixels on every world at
+     1×/2× DPI, on full, filtered, scrolled and empty lists —
      the empty-state notice row shares this band and has produced a footer/plate
      collision before. **Routing:** production tier.
 
@@ -1021,6 +1025,56 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      scales; byte-identity for all nineteen non-Cassowary worlds; affordance-
      locating vision smoke. **Routing:** deep tier — it is a typographic
      composition, not a constant.
+
+298. **A RIGHT-CLICK MENU SHOULD NOT FROST THE DOCUMENT.** **User decision
+     2026-08-06, with screenshot (Cassowary): "when you right click, we shouldn't
+     show blur. it's a bit excessive."** A four-row Cut/Copy/Paste/Select-all
+     context menu currently takes the full-takeover treatment — the whole page
+     defocuses behind a menu occupying a fraction of it. **The blur is for a
+     FULL-TAKEOVER overlay** (`render/blur.rs`'s own framing: "the cached, cheap
+     defocus behind a full-takeover overlay", naming the palette, go-to, outline,
+     keybindings and spell). **A pointer-summoned context menu is not one** — it
+     is transient, small, and anchored to where the user clicked.
+
+     **Build:** exclude the context menu from `BlurBackdrop` routing, the same
+     way the theme and caret pickers are excluded today. ⚠️ **This is the exact
+     opposite direction to item 294 and the two must be read together:** 294 adds
+     a FOOTPRINT-scoped blur under the theme picker; this REMOVES the full-page
+     blur under the context menu. They agree on the underlying principle — the
+     defocus should be proportional to what the overlay actually covers — and a
+     lane taking either one should state that principle rather than treating them
+     as contradictory. **Sequence 294 first if both are live**, since it
+     establishes footprint scoping that this item may want rather than a bare
+     off-switch. **Verify:** byte-identity of the document region for a summoned
+     context menu across the roster; the full overlays keep their frost.
+     **Routing:** production tier.
+
+299. **TWO ROWS IN THE SAME STATE DRAW THEIR ACCESSORY IN DIFFERENT INKS, AND ONE
+     IS ILLEGIBLE.** **User-reported with screenshot 2026-08-06 (Cassowary
+     context menu): "notice how the 'unavailable' next to Copy is... invisible?
+     that's a bug."** Copy and Paste are both disabled and both render the
+     accessory text `unavailable` on the same plate — **Paste's reads as legible
+     green, Copy's is near-black on near-black and effectively invisible.**
+     Identical state, identical string, different ink. One of them is wrong.
+
+     ⚠️ **DIAGNOSE BEFORE FIXING — do not tune a colour.** A one-row offset is a
+     live hypothesis worth testing first (Cut is the SELECTED row and Copy is the
+     row immediately after it, so an accessory ink resolved from the wrong row's
+     selection state would produce exactly this pair), but so is a plain
+     `faint()`/`muted()` split keyed on something that differs between the two
+     rows. **Establish which row's state the accessory ink is actually read from**
+     before changing anything. ⚠️ **The neighbouring possibility is the more
+     serious one:** if an accessory resolves its ink from an adjacent row, that
+     is a drawn/state disagreement of the same family this repo has already been
+     bitten by, and it will not be confined to this menu.
+
+     **Verify:** a law asserting every disabled row's accessory meets a contrast
+     floor against its own plate, swept over every `OverlayKind` × selected-row
+     position × world — **the sweep is the selection index, because that is the
+     axis the offset hypothesis lives on**, and a fixture testing only a
+     selected-row-0 menu would be structurally unable to see it. Contrast is
+     asserted by arithmetic over the PNG's pixels, never by reading the token.
+     **Routing:** production tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
