@@ -641,7 +641,8 @@ tree.** Order for the next wave:
      the nav or accepts the duplication and adds to every copy — say which and
      why; do not silently do the second and leave the drift.**
 
-274. **THE TEST MONOLITHS — two decomposed, THREE STILL STANDING.** `theme/tests`
+274. 🟡 IN PROGRESS — claude, branch `claude/item-274-test-monoliths`.
+     **THE TEST MONOLITHS — two decomposed, THREE STILL STANDING.** `theme/tests`
      and `main/tests` are submodule dirs now (17 and 20 files). ⚠️ **Measured
      2026-08-06: `src/overlay/tests.rs` 3433, `src/app_icon/tests.rs` 2368,
      `src/buffer/tests.rs` 2241** against CLAUDE.md's *"~500 lines is a file's
