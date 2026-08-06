@@ -189,6 +189,27 @@ do not ask "what happened" — check the host directly (`git log` on its branch,
 missing. A lane that has done the work can restate it in one message; the round
 trip is only wasted if the orchestrator spends it asking an open question.
 
+**‼ INSTANCE EIGHT, 2026-08-06, under a brief carrying the order verbatim —
+and it failed by a mechanism the order does not address.** The lane launched
+**two** gates back to back (`code-health.sh`, then `native-gate.sh`), both
+auto-backgrounded, and only then had nothing left to do. Its work was committed
+and its gates were genuinely alive, so the status line was *honest*; what it
+cost was the report. **The reason a lane defers the report is that it wants the
+receipts in it** — writing first feels like writing an incomplete report. So say
+the thing that dissolves that motive:
+
+> **Treat your first gate launch as the LAST tool call you will ever make.
+> Everything you intend to say must already be written when you make it.** The
+> report is not a summary of finished work — it is a document you write with the
+> receipt lines reading `outstanding`, and edit only those lines if you are
+> woken.
+
+The orchestrator's recovery is cheap and should be assumed rather than feared:
+checking the branch and `ps`, then sending a numbered list, costs one round trip
+and always works. **A lane that ends on a status line has not lost its work — it
+has lost one turn.** Do not let the fear of that make a lane sit on a finished
+gate.
+
 ## Disk-pressure preflight
 
 `.orchestrator/disk-preflight.sh` is the one serialized disk-recovery door.
