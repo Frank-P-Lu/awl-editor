@@ -752,7 +752,32 @@ runs on the merged tree.** Order for the next wave:
      ⚠️ **Confirm the premise with a capture before changing anything** — it is a
      lane's report, and a lane's report carries no privilege either.
 
-291. 🟡 IN PROGRESS — claude, branch `claude/item-291-settle-instrument`.
+291. 🟡 CODE COMPLETE AT `785c2fc5`, **BLOCKED ON ONE HELD FILE** —
+     `claude/item-291-settle-instrument`. The fix grows `src/probe.rs` 825 → 904
+     lines, and its `file_size_mark` in `scripts/code-health.toml` is an EXACT
+     count whose raise needs a stated reason (`check_mark_raises`). **Item 274
+     holds that file, so the lane reported the block instead of routing around the
+     lock — correctly, per §8.** Resolution: land 274, then raise the mark with a
+     reason and merge; the orchestrator owns that one-line edit rather than a
+     re-dispatch. ⚠️ `src/probe.rs` at 904 is another ~2×-ceiling file — read with
+     305, whose thesis is that these marks have started shaping code.
+
+     **Landed in the branch and verified by the orchestrator against the tree:**
+     the burst law sweeps N = 1, 2, 3, 8, 9 under the **zero-gap arrival order**
+     (all N marks, then all N presents). The lane's FIRST test shape — tidy
+     alternating mark/present — **never exercised the bug and was discarded**,
+     which is the "a law dies at its subject" discipline working. Mutation went red
+     at **n=2**, the first length past the vacuous case, which is the whole reason
+     for sweeping rather than hand-picking. `SWITCH_WINDOW` went 5 s → 30 s: pure
+     dismiss-on-input was considered and rejected because the readout line carries
+     no age indicator, so an arbitrarily old switch's numbers would sit on screen
+     looking current. 🔵 **That 30 s is a taste call, not a measured one** — debug
+     panel only, so low stakes.
+
+     **RESIDUAL, owed once `docs/render.md` is unheld:** its law list does not name
+     the new `movement_latency_burst_of_n_reports_n_not_one`. (`docs/fonts.md:24`
+     was checked and is fine — it describes the bias as past-tense history, which
+     is now true.)
      **NARROWED BY 290 — its PRIMARY defect is dissolved, and what is left is the
      HARNESS, not the product.** The original complaint was that a Coalesce step
      reached only `arm_theme_font` and never `sync_theme_font_measured`, the sole
