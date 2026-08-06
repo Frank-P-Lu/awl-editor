@@ -193,7 +193,7 @@ with no FUSE and no `--appimage-extract-and-run` support).
 |---|---|
 | `usr/bin/awl` | the same `cargo build --release` binary the tarball ships |
 | `AppRun` | a plain symlink to `usr/bin/awl` — no wrapper script; awl needs no environment setup before it can run |
-| `<id>.desktop` (root + `usr/share/applications/`) | written by the packaging script; `Name=Awl`, `Exec=awl %F`, `Icon=<id>`, `Categories=Utility;TextEditor;Development;` |
+| `<id>.desktop` (root + `usr/share/applications/`) | written by the packaging script; `Name=Awl`, `Exec=awl %f` (lowercase — awl's CLI takes exactly one file argument, never a list), `Icon=<id>`, `Categories=Utility;TextEditor;Development;` |
 | `<id>.png` (root, 256px, + `usr/share/icons/hicolor/256x256/apps/`) | **not a second hand-drawn asset** — `awl --export-linux-icon` cuts the 256px PNG straight out of the committed canonical `assets/macos/Awl.icns` via `app_icon::icns::unpack`, the same parser the macOS icon law tests use as their oracle |
 | `usr/share/doc/awl/{LICENSE,NOTICE,CREDITS.md,THIRD-PARTY-LICENSES.md,licenses/,README.txt}` | the identical required set §4 names for the tarball |
 | shared libraries | **none, deliberately** — every runtime dependency is either part of the base desktop stack a normal Linux install already has (fontconfig, libxkbcommon, X11/Wayland — same expectation the tarball's own `README.txt` documents) or a GPU-adapter-specific library (the Vulkan loader/ICD) that is explicitly excluded per this item's own brief: **no bundled GPU driver** |
