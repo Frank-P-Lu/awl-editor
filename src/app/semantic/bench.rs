@@ -88,7 +88,7 @@ pub(crate) fn run() -> anyhow::Result<()> {
         app.document.set_cursor(caret);
         let mut projection = SemanticProjection::new();
         let mut projector = crate::semantic::native::TreeProjector::default();
-        projection.refresh(&app);
+        projection.refresh(&app.semantic_view());
         std::hint::black_box(projector.full(projection.snapshot(), projection.shape_rev()));
         projection.note_full_tree();
         let base = projection.stats();
@@ -97,7 +97,7 @@ pub(crate) fn run() -> anyhow::Result<()> {
         for _ in 0..KEYSTROKES {
             app.document.insert_char('x');
             let start = std::time::Instant::now();
-            projection.refresh(&app);
+            projection.refresh(&app.semantic_view());
             let split = start.elapsed().as_secs_f64() * 1000.0;
             let update = projector.incremental(
                 projection.snapshot(),

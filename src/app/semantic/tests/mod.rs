@@ -284,7 +284,7 @@ fn a_summoned_card_announces_every_drawn_line_and_takes_no_focus() {
         let content = crate::card::content::card(kind, &inputs);
         let mut nodes = app.semantic_snapshot().nodes;
         let before = nodes.len();
-        app.fold_card(&mut nodes, Some(content.clone()));
+        app.semantic_view().fold_card(&mut nodes, Some(&content));
         assert_eq!(
             nodes.len(),
             before + content.spans.len() + 1,

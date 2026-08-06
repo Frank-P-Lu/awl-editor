@@ -140,18 +140,19 @@ impl SemanticProjection {
         self.resolved = None;
     }
 
-    /// Bring the retained snapshot up to date with the live `App`.
-    pub(crate) fn refresh(&mut self, app: &App) {
+    /// Bring the retained snapshot up to date. The narrow view is the whole
+    /// input: this projection cannot see the application state behind it.
+    pub(in crate::app) fn refresh(&mut self, view: &SemanticView<'_>) {
         self.changed.clear();
         self.stats.refreshes += 1;
         let shape_moved = if self.seeded {
-            self.sync_runs(app)
+            self.sync_runs(view)
         } else {
-            self.seed(app);
+            self.seed(view);
             true
         };
-        self.sync_document(app, shape_moved);
-        self.rebuild_tail(app);
+        self.sync_document(view, shape_moved);
+        self.rebuild_tail(view);
         debug_assert_eq!(
             self.snapshot
                 .nodes
@@ -165,9 +166,9 @@ impl SemanticProjection {
 
     // --- the document half -------------------------------------------------
 
-    fn seed(&mut self, app: &App) {
+    fn seed(&mut self, view: &SemanticView<'_>) {
         self.stats.seeds += 1;
-        let buffer = app.document.buffer();
+        let buffer = view.buffer();
         let table = buffer.runs();
         let mut root = SemanticNode::new(ROOT_ID, SemanticRole::Application, "awl");
         root.children.push(DOCUMENT_ID.to_string());
@@ -201,8 +202,8 @@ impl SemanticProjection {
     }
 
     /// Returns whether the run SEQUENCE moved.
-    fn sync_runs(&mut self, app: &App) -> bool {
-        let buffer = app.document.buffer();
+    fn sync_runs(&mut self, view: &SemanticView<'_>) -> bool {
+        let buffer = view.buffer();
         let table = buffer.runs();
         if table.content_rev() == self.content_rev {
             return false;
@@ -283,14 +284,14 @@ impl SemanticProjection {
 
     /// The document node: its name, its focus, its selection, and — only when
     /// the run sequence moved — its children.
-    fn sync_document(&mut self, app: &App, shape_moved: bool) {
-        let buffer = app.document.buffer();
+    fn sync_document(&mut self, view: &SemanticView<'_>, shape_moved: bool) {
+        let buffer = view.buffer();
         let name = buffer
             .path()
             .and_then(|path| path.file_name())
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_else(|| "Untitled document".to_string());
-        let focused = matches!(app.workspace_state.layer(), workspace::Layer::Editor);
+        let focused = matches!(view.layer(), workspace::Layer::Editor);
         let selection = self.selection(buffer);
 
         let mut moved = false;
@@ -356,13 +357,13 @@ impl SemanticProjection {
     /// Rebuild everything that is not the document, and diff it. The tail is
     /// what is on SCREEN — a picker's visible rows, a card's lines, the notice
     /// — so its size is bounded by the surface, never by the document.
-    fn rebuild_tail(&mut self, app: &App) {
+    fn rebuild_tail(&mut self, view: &SemanticView<'_>) {
         let base = RUN_BASE + self.slots.len();
         let root_children_before = self.snapshot.nodes[ROOT_INDEX].children.clone();
         self.snapshot.nodes.truncate(base);
         self.snapshot.nodes[ROOT_INDEX].children.truncate(1);
 
-        let focus_id = app.fold_surfaces(&mut self.snapshot.nodes);
+        let focus_id = view.fold_surfaces(&mut self.snapshot.nodes);
         self.snapshot.focus_id = focus_id;
 
         if self.snapshot.nodes[ROOT_INDEX].children != root_children_before {

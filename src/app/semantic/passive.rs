@@ -17,9 +17,9 @@
 
 use super::*;
 
-impl App {
+impl SemanticView<'_> {
     pub(super) fn fold_passive(&self, nodes: &mut Vec<SemanticNode>) {
-        self.fold_card(nodes, self.card_content());
+        self.fold_card(nodes, self.card.as_ref());
         self.fold_whichkey(nodes);
         self.fold_menu_bar(nodes);
     }
@@ -27,7 +27,7 @@ impl App {
     pub(super) fn fold_card(
         &self,
         nodes: &mut Vec<SemanticNode>,
-        content: Option<crate::card::content::CardContent>,
+        content: Option<&crate::card::content::CardContent>,
     ) {
         let Some(content) = content else {
             return;
@@ -48,69 +48,8 @@ impl App {
         nodes[0].children.push(id.to_string());
     }
 
-    /// Everything a summoned card can say, gathered from the `App`'s own state.
-    ///
-    /// The three DOCUMENT figures — word count, frontmatter language, through-
-    /// doc percent — come from [`crate::card::figures`], the pure owner the
-    /// renderer derives them through as well, so no second description of them
-    /// exists to drift. The LIVE-only figures are read back out of the render
-    /// pipeline, which is where the `App`'s own `sync_*` push put them; with no
-    /// pipeline they are the all-absent default, which is exactly the
-    /// placeholder set a headless capture's offscreen pipeline draws.
-    pub(in crate::app) fn card_inputs(&self, text: &str) -> crate::card::content::CardInputs {
-        let buffer = self.document.buffer();
-        let (cursor_line, cursor_col) = buffer.cursor_line_col();
-        let overlay_active = self.workspace_state.overlay_open();
-        crate::card::content::CardInputs {
-            hud_held: crate::card::hud_shown(overlay_active),
-            peek_shown: crate::card::peek_shown(overlay_active),
-            streaks_page: crate::streaks::card_view(),
-            doc: crate::card::figures::DocFigures::of(
-                text,
-                buffer.is_markdown(),
-                cursor_line,
-                cursor_col,
-            ),
-            eol: buffer.eol(),
-            live: self
-                .frame
-                .gpu()
-                .map(|gpu| gpu.pipeline.card_live())
-                .unwrap_or_default(),
-        }
-    }
-
-    /// WHICH card is open, asked from the gates alone. The gate is cheap; the
-    /// INPUTS behind it are not — [`crate::card::figures::DocFigures::of`]
-    /// walks the whole document — so a frame with no card up must be able to
-    /// find that out without walking one.
-    pub(in crate::app) fn card_kind_open(&self) -> Option<crate::card::content::CardKind> {
-        let overlay_active = self.workspace_state.overlay_open();
-        crate::card::content::open_kind(
-            crate::card::hud_shown(overlay_active),
-            crate::card::peek_shown(overlay_active),
-        )
-    }
-
-    /// The card this frame, as CONTENT — composed by the same
-    /// [`crate::card::content::card`] the renderer draws from, and only when
-    /// one is actually open.
-    fn card_content(&self) -> Option<crate::card::content::CardContent> {
-        let kind = self.card_kind_open()?;
-        let text = self.document.buffer().text();
-        Some(crate::card::content::card(kind, &self.card_inputs(&text)))
-    }
-
-    /// The which-key panel's rows when it is up, `None` when it is not — the
-    /// one gate the semantic fold and the live-`App` capture's own `CaptureOpts`
-    /// both read, so the panel is announced exactly when it is drawn.
-    pub(in crate::app) fn whichkey_panel_rows(&self) -> Option<Vec<(String, String)>> {
-        (self.whichkey_is_shown() || crate::whichkey::force_shown())
-            .then(|| self.whichkey_continuation_rows())
-    }
-
     fn fold_whichkey(&self, nodes: &mut Vec<SemanticNode>) {
-        let Some(rows) = self.whichkey_panel_rows() else {
+        let Some(rows) = self.whichkey.as_deref() else {
             return;
         };
         let id = WHICHKEY_ID;
@@ -147,7 +86,7 @@ impl App {
         }
         let open = crate::menubar::open_menu();
         let mut bar = SemanticNode::new(MENUBAR_ID, SemanticRole::MenuBar, "Menu bar");
-        let is_markdown = self.document.buffer().is_markdown();
+        let is_markdown = self.buffer().is_markdown();
         for (index, menu) in crate::menu::roster().iter().enumerate() {
             let title_id = menu_title_id(index);
             let mut title = SemanticNode::new(&title_id, SemanticRole::MenuItem, menu.title);
@@ -179,24 +118,25 @@ impl App {
         nodes.push(bar);
         nodes[0].children.push(MENUBAR_ID.to_string());
     }
+}
 
-    /// The menu index a `menubar.<n>` id names, or `None` — the ONE decoder,
-    /// shared by the fold above and every request arm, so an id can never be
-    /// spelled one way and parsed another.
-    pub(super) fn menu_title_index(&self, id: &str) -> Option<usize> {
-        let index: usize = id.strip_prefix("menubar.")?.parse().ok()?;
-        (crate::menubar::menu_bar_on() && index < crate::menu::roster().len()).then_some(index)
-    }
+/// The menu index a `menubar.<n>` id names, or `None` — the ONE decoder,
+/// shared by the fold above and every request arm, so an id can never be
+/// spelled one way and parsed another. It reads the menu-bar globals and no
+/// application state at all, which is why it is not a method on either side.
+pub(super) fn menu_title_index(id: &str) -> Option<usize> {
+    let index: usize = id.strip_prefix("menubar.")?.parse().ok()?;
+    (crate::menubar::menu_bar_on() && index < crate::menu::roster().len()).then_some(index)
+}
 
-    pub(super) fn menu_item_indices(&self, id: &str) -> Option<(usize, usize)> {
-        let (menu, row) = id.strip_prefix("menubar.")?.split_once(".item.")?;
-        let menu: usize = menu.parse().ok()?;
-        let row: usize = row.parse().ok()?;
-        let roster = crate::menu::roster();
-        let entry = roster.get(menu)?;
-        (crate::menubar::menu_bar_on() && row < crate::menu::dropdown_items(entry).len())
-            .then_some((menu, row))
-    }
+pub(super) fn menu_item_indices(id: &str) -> Option<(usize, usize)> {
+    let (menu, row) = id.strip_prefix("menubar.")?.split_once(".item.")?;
+    let menu: usize = menu.parse().ok()?;
+    let row: usize = row.parse().ok()?;
+    let roster = crate::menu::roster();
+    let entry = roster.get(menu)?;
+    (crate::menubar::menu_bar_on() && row < crate::menu::dropdown_items(entry).len())
+        .then_some((menu, row))
 }
 
 fn menu_title_id(index: usize) -> String {
