@@ -802,67 +802,6 @@ impl App {
         }
     }
 
-    /// EXPORT (`Effect::Export`): render the active markdown buffer to `.docx`,
-    /// standalone `.html`, or native `.pdf` and land it where the user can find it
-    /// — a SIBLING file beside a saved document (`doc.md` → `doc.pdf`), or into the
-    /// ACTIVE folder (`self.root`) for a path-less scratch/untitled buffer. Images embedded in
-    /// the export are read off the doc's own `assets/` directory through the
-    /// filesystem seam (`export::FsImages`). A calm toast names the target on
-    /// success; a write failure raises a sticky notice (export never crashes).
-    /// On the WEB build there is no real filesystem, so DOCX/HTML bytes are handed
-    /// to the browser download shim (`web_export::trigger_download_bytes`) instead;
-    /// PDF has no web command or format variant.
-    pub(super) fn export_document(&mut self, format: crate::export::Format) {
-        let markdown = self.document.buffer().text();
-        let doc_dir = self
-            .document
-            .buffer()
-            .path()
-            .and_then(|p| p.parent())
-            .map(|p| p.to_path_buf());
-        let images = crate::export::FsImages { doc_dir };
-        let bytes = crate::export::to_bytes(&markdown, format, &images);
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            let name = crate::web_export::export_name(self.document.buffer(), format);
-            crate::web_export::trigger_download_bytes(&name, format.mime(), &bytes);
-            self.set_toast_notice(format!("downloaded {name}"));
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let (target, show_full) = match self.document.buffer().path() {
-                Some(p) => (p.with_extension(format.ext()), false),
-                None => {
-                    let stem = crate::web_export::export_stem(self.document.buffer());
-                    (
-                        self.project_location
-                            .root
-                            .join(format!("{stem}.{}", format.ext())),
-                        true,
-                    )
-                }
-            };
-            if let Some(parent) = target.parent() {
-                let _ = crate::fs::active().create_dir_all(parent);
-            }
-            match crate::fs::write_atomic(&target, &bytes) {
-                Ok(()) => {
-                    let shown = if show_full {
-                        target.display().to_string()
-                    } else {
-                        target
-                            .file_name()
-                            .map(|s| s.to_string_lossy().to_string())
-                            .unwrap_or_default()
-                    };
-                    self.set_toast_notice(format!("exported {shown}"));
-                }
-                Err(e) => self.set_sticky_notice(format!("export failed: {e}")),
-            }
-        }
-    }
-
     /// "Check for Updates" (Cmd-P, `native_only: true`): the app never
     /// fetches anything itself. Records the LOCAL "last checked" marker
     /// (best-effort — a write failure never blocks the handoff, mirroring
