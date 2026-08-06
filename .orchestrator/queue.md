@@ -210,7 +210,7 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
 | `src/render/plan/` | overlay row family only (5 modules) |
 | item 288's three identifiers | all three still present, verbatim |
 
-**WAVE RUNNING — three lanes claimed: 304, 289, 274.** LANDED this wave: 288
+**WAVE RUNNING — four lanes claimed: 304, 289, 274, 291.** LANDED this wave: 288
 (`289d364c`, fast-forward), 295 (merged `414e3b5a`), 290 (merged `51302d50`).
 172 is closed against its census. ⚠️ **`main` carries TWO merges that have NOT
 been gated as a combined candidate** — each lane's receipt is for its own branch,
@@ -752,7 +752,8 @@ runs on the merged tree.** Order for the next wave:
      ⚠️ **Confirm the premise with a capture before changing anything** — it is a
      lane's report, and a lane's report carries no privilege either.
 
-291. **NARROWED BY 290 — its PRIMARY defect is dissolved, and what is left is the
+291. 🟡 IN PROGRESS — claude, branch `claude/item-291-settle-instrument`.
+     **NARROWED BY 290 — its PRIMARY defect is dissolved, and what is left is the
      HARNESS, not the product.** The original complaint was that a Coalesce step
      reached only `arm_theme_font` and never `sync_theme_font_measured`, the sole
      creator of `ThemeSettleInFlight`, so 12 reshaping inputs recorded 2
