@@ -162,39 +162,43 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
 | `src/render/plan/` | overlay row family only (5 modules) |
 | item 288's three identifiers | all three still present, verbatim |
 
-**Nothing is claimed and no lane is running.** Order:
+**WAVE RUNNING 2026-08-06 — four lanes claimed: 290, 288, 295, 304.** 172 is
+closed against its census (below). Order for the next wave:
 
-1. **290** — the theme-font debounce rip-out. A user decision with its measurement
-   already taken, and it deletes a constant that is rotting against a growing
-   fixture. ⚠️ **It does not fix the reported theme-switch lag and must not be
-   closed as though it had.**
-2. **288 and 289** — small, already diagnosed, and both are user-visible-rule
-   debt from the last wave. 289 moves fifteen worlds' 2× appearance, so it is the
-   larger of the two and gates a second `Rules` carrier.
-3. **131e** — selection and the full Verify clause; 131a–d are landed and the
+1. **289** — the DPI half-weight mark. Sequenced behind 288 only because both
+   touch `theme/tests/personality.rs`; it moves fifteen worlds' 2× appearance and
+   gates a second `Rules` carrier.
+2. **131e** — selection and the full Verify clause; 131a–d are landed and the
    measured cluster rail exists in `render/chrome/diagonal.rs`.
-4. **172's closure call.** Every domain in `docs/app-domains.md` reads
-   "extracted" and the root is 20 fields — **the Done clause reads met.** Either
-   close it deliberately with the census as its receipt, or name what remains.
-   **Do not leave it open by default** — an item left open after its work landed
-   is what wasted a dispatch on item 116 and what misfiled item 211 today.
+3. **THE CHROME-GEOMETRY CLUSTER — 292, 293, 299, 303.** All four live in
+   `render/chrome/`, and 303 names `diagonal.rs` as contended. **They are one
+   lane each, sequenced, not a parallel wave** — the file partition cannot
+   separate them.
+4. **294 THEN 298**, in that order, per 298's own note: the footprint scoping may
+   be what the context menu wants rather than an off-switch.
 5. **274's residual** — `overlay/tests.rs` (3433) and `buffer/tests.rs` (2241)
    are still monoliths against the ~500-line ceiling, and only
    `app_icon/tests.rs` carries a declared exception. The verbatim-move contract
    and the per-filter verification are in 274's body.
-6. **273's six unbuilt residuals** — CLI flags have no roster to generate from,
+6. **291** — sequenced after 290 by its own clause; the harness bias and the 5 s
+   vanish survive the rip-out.
+7. **296 with 300** — they may be one defect, and 300 says debug before
+   redesigning.
+8. **273's six unbuilt residuals** — CLI flags have no roster to generate from,
    `Command` carries only `name`, `WORLDS.md`'s columns are hand-written, there
    is no in-app door, the site page is visually unreviewed, and the five-section
    structure was the lane's call rather than the user's.
-7. **174** — one surface family migrated of every surface; the rest still own
+9. **302** — needs a quiet tree by its own clause (~1000-site blast radius), so
+   it schedules when no chrome or render lane is running.
+10. **174** — one surface family migrated of every surface; the rest still own
    their geometry.
-8. **227** — the AppImage. Nothing in the tree matches `AppImage`; it is
+11. **227** — the AppImage. Nothing in the tree matches `AppImage`; it is
    unstarted and depends on 226, which is now complete.
-9. **231** — a diagnosis item with **no live lead**; its shader-size hypothesis
+12. **231** — a diagnosis item with **no live lead**; its shader-size hypothesis
    was falsified and nothing replaced it. Its named next step is a **macOS guest
    VM**, and this host has **no VM tooling installed** — a spend decision, not
    work to absorb.
-10. **🔵 HUMAN / LIVE, none of which a lane can close** — see the BLOCKED and
+13. **🔵 HUMAN / LIVE, none of which a lane can close** — see the BLOCKED and
    OWED sections above. **251 is on that list and is hardware-gated**: it needs a
    human at a Linux desktop with Orca, and no unlock of this Mac reaches it.
 
@@ -322,37 +326,6 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
 
      ⚠️ **131's own rule, which every consumer inherits: never ship a
      half-applied world.** Both worlds move in one commit or neither does.
-
-172. **Decompose the 107-field `App` into owned state domains with narrow
-     transition APIs.** **Build:** migrate fields and their invariants
-     incrementally into explicit owners; each owner exposes domain transitions
-     rather than public fields, and cross-domain work travels through typed
-     outcomes/effects rather than back-references to `App`. Preserve the
-     active-buffer whole-slot ownership law, fake-clock determinism, wasm gating,
-     GPU recovery, and byte-identical behavior. Do not introduce a service
-     locator, trait-per-method architecture, message bus, or flag-day rewrite.
-     **Done:** `App` is lifecycle composition rather than the mutable home of
-     every subsystem, and new workspace or persistence behavior has one obvious
-     owner.
-
-     🟢 **EVERY OWNER IS NOW EXTRACTED.** The root is **107 fields → 20**, and
-     `docs/app-domains.md`'s table reads "extracted" for `WorkspaceState`,
-     `PersistenceRuntime`, `DocumentSession`, `InputRuntime`,
-     `ConfigurationRuntime`, `ProjectLocation`, `FrameRuntime` and `UsageLedger`,
-     with 12 host/lifecycle fields staying on `App` deliberately. **The map is a
-     deliverable in its own right** — `docs/app-domains.md`, with the same table
-     as executable data in `src/app/tests/domains.rs`, exhaustive by construction.
-
-     🔵 **SO THE STANDING QUESTION IS WHETHER THIS CLOSES.** Read the census as
-     the receipt and close it, or name what remains — **do not leave it open by
-     default.** Two facts a closer needs: the item **named two different domains
-     `WorkspaceState`** and the name went to the summoned-UI meaning, with the
-     project-folder domain becoming `ProjectLocation`; and **the one place
-     byte-identity was consciously chosen over consistency** is
-     `sync_cursor_icon`'s raw `popover_summon_bit()` read — documented, single
-     call site, law-counted so a second consumer fails by name. **A byte-identity
-     refactor preserves pre-existing bugs**, so if a second pair of eyes is spent
-     anywhere on this work, that is the spot.
 
 174. **Separate pure render planning from shaping/cache mechanics and GPU
      execution.** **Defect:** `TextPipeline` and the render directory jointly own
@@ -704,7 +677,8 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      world's users are on Retina by default — the strip's mark is the style's own
      selection vocabulary, and a half-weight rule is a half-legible affordance.
 
-288. **THREE IDENTIFIER-LEVEL CITATIONS — RECOMMENDED BY ITEM 287, DELIBERATELY
+288. 🟡 IN PROGRESS — claude, branch `claude/item-288-citations`.
+     **THREE IDENTIFIER-LEVEL CITATIONS — RECOMMENDED BY ITEM 287, DELIBERATELY
      NOT ACTED ON.** These are the same Conventions rule as 275/287, in the one
      place where fixing it is a *behaviour* change rather than a text edit: a test
      name is what `cargo test <substring>` filters on, and a filename is what
@@ -748,7 +722,8 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      ⚠️ **Confirm the premise with a capture before changing anything** — it is a
      lane's report, and a lane's report carries no privilege either.
 
-290. **Rip out the theme-font debounce.** Delete `THEME_FONT_DEBOUNCE_DEFAULT_MS`
+290. 🟡 IN PROGRESS — claude, branch `claude/item-290-debounce-ripout`.
+     **Rip out the theme-font debounce.** Delete `THEME_FONT_DEBOUNCE_DEFAULT_MS`
      (`app.rs:68`), the `AWL_THEME_FONT_DEBOUNCE_MS` override,
      `theme_font_reshape_decision` and its module, `THEME_FONT_CHEAP_RESHAPE_MS`
      and its assert, and `apply_deferred_theme_font` once unused.
@@ -819,7 +794,8 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      for `Pane`. ⚠️ Laws in `render/tests/{hud,one_bit,outline}.rs` pin the
      current crisp behaviour — re-aim, don't delete. **Routing:** deep tier.
 
-295. **Export is a broken button — three defects.**
+295. 🟡 IN PROGRESS — claude, branch `claude/item-295-export-button`.
+     **Export is a broken button — three defects.**
      **(a)** On a non-Markdown buffer it is a total no-op: `actions.rs:369`
      returns `Effect::None` behind an `is_markdown()` gate. Reproduced on the
      shipped binary — palette ran the command, overlay closed, notice empty, no
@@ -976,7 +952,8 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      byte-identity for 18 worlds. ⚠️ `diagonal.rs` is contended — check no claim
      before dispatch. **Routing:** deep tier.
 
-304. **A `---` under a text line renders as NOTHING.** Repro: a document with
+304. 🟡 IN PROGRESS — claude, branch `claude/item-304-thematic-break`.
+     **A `---` under a text line renders as NOTHING.** Repro: a document with
      `---`, then type any text on the line above it, giving `a\n---`. awl
      deliberately does not style `a` as a setext title — correct — **but the
      `---` then draws neither as a rule nor as raw text. It vanishes.** Buffer
