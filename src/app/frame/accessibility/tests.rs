@@ -258,6 +258,66 @@ fn a_newline_republishes_the_parents_children_and_no_untouched_run() {
     );
 }
 
+/// The inverse of the newline case above, and the axis it does not sweep: a
+/// JOIN (backspace at column 0, merging a line into its predecessor) also
+/// moves `shape_rev` and also goes through `resplice`, but it REMOVES a run
+/// rather than adding one. `joining_lines_retires_ids_without_renaming_the_
+/// survivors` proves the bare `RunTable` gets this right; this is the same
+/// claim one layer up, over the retained projection an assistive technology
+/// actually receives — every run below the join must survive with its id and
+/// its `rev` untouched, so the merge does not republish the rest of the
+/// document.
+#[test]
+fn joining_two_lines_retires_the_join_and_touches_no_run_below_it() {
+    let _guard = crate::testlock::serial();
+    let lines = 2_000;
+    let mut app = attached(lines);
+    let middle = lines / 2;
+    let join_at = app.document.buffer().line_col_to_char(middle, 0);
+    app.document.set_cursor(join_at);
+    app.refresh_accessibility();
+
+    let before = app.accessibility_stats();
+    // Delete the newline ending the PREVIOUS line: line `middle - 1` and line
+    // `middle` become one line, and every line at `middle + 1` and below
+    // shifts up by one INDEX while keeping its own identity.
+    app.document.replace_char_range(join_at - 1, join_at, "");
+    app.refresh_accessibility();
+    let after = app.accessibility_stats();
+
+    assert_eq!(
+        after.runs_rebuilt - before.runs_rebuilt,
+        1,
+        "a join re-read more than the one line it merged into",
+    );
+    assert_eq!(
+        after.children_republished - before.children_republished,
+        1,
+        "the document node must republish its children exactly once",
+    );
+    assert_eq!(
+        after.nodes_published - before.nodes_published,
+        2,
+        "the merged line and the document node — never a line below the join",
+    );
+
+    // The independent oracle: a fresh whole-document snapshot must agree with
+    // what the retained projection actually published, run text included —
+    // counts alone cannot tell "removed the right line" from "removed the
+    // wrong one and republished a stand-in with the same shape".
+    let mirror = Mirror::of(&app);
+    assert_eq!(
+        mirror.run_texts(),
+        truth(&app),
+        "a join left the platform mirror out of sync with the document",
+    );
+    assert_eq!(
+        mirror.selection_resolves(),
+        Some(true),
+        "a join left the selection naming a run the platform does not hold",
+    );
+}
+
 /// A gliding caret must not re-announce anything. The dedup can only work if
 /// the refresh finds nothing changed, so the claim under test is that a frame
 /// with no input publishes zero nodes.

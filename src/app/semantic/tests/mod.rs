@@ -189,6 +189,53 @@ fn animation_only_frames_produce_an_identical_snapshot() {
     }
 }
 
+/// `fold_popover` is reachable through NO capture door (the format popover is
+/// a mouse-only summon: `WorkspaceState::summon_popover` is only ever armed
+/// from a mouse-release, and every headless replay door — `--keys`,
+/// `--screenshot-app`, `--semantic-json` — drives chords, never a pointer).
+/// This is the purest seam left, and the fixture below exercises the one
+/// claim no OTHER law here makes: that a button's advertised on/off VALUE is
+/// the buffer's real formatting state, not just that a well-formed dialog
+/// exists and takes exactly one focus. `actions::popover::plan` is unit-tested
+/// on its own inputs already; this is the same claim one layer up, over what
+/// `fold_popover` actually publishes to the tree.
+#[test]
+fn fold_popover_reports_the_true_active_state_of_each_button() {
+    let _guard = crate::testlock::serial();
+    let _restore = calm_globals_guarded();
+
+    let bold_node = |app: &mut App| -> SemanticNode {
+        app.workspace_state.summon_popover(true);
+        app.semantic_snapshot()
+            .nodes
+            .into_iter()
+            .find(|node| node.id == "format-popover.bold")
+            .expect("the popover must publish a Bold button")
+    };
+
+    // Selection sits fully inside a **bold** span: the same fixture
+    // `format::tests::inline_active_matches_the_toggle_strip_condition` uses.
+    let mut app = hermetic();
+    app.set_semantic_text_for_test("a **beta** c");
+    app.set_semantic_selection_for_test(2, 10);
+    let lit = bold_node(&mut app);
+    assert_eq!(
+        lit.value.as_deref(),
+        Some("on"),
+        "a selection fully inside **bold** must report the Bold button on",
+    );
+
+    // Selection sits over plain text: no bold anywhere near it.
+    let mut app = hermetic();
+    app.set_semantic_text_for_test("the quick fox");
+    app.set_semantic_selection_for_test(4, 9);
+    let unlit = bold_node(&mut app);
+    assert_eq!(
+        unlit.value, None,
+        "a plain-text selection must not report the Bold button on",
+    );
+}
+
 #[test]
 fn document_ids_survive_edits() {
     let _guard = crate::testlock::serial();
