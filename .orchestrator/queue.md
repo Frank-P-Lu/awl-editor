@@ -1907,3 +1907,77 @@ merged or abandoned.**
 
 **275 remains unschedulable in parallel by its own terms** — ~1000 comment sites
 across the tree, conflicts with everything, must run alone against a quiet tree.
+
+---
+
+## 🎉 v0.9.0 IS PUBLISHED — 2026-08-06, the first internet-facing release
+
+`v0.9.0` at `4391d7bf`, marked **Pre-release**, one asset
+`awl-0.9.0-linux-x86_64.tar.gz` + `SHA256SUMS`. Verified by DOWNLOADING what
+shipped rather than by reading a green check: checksum `OK`, single top-level
+directory, `GLIBC.txt` reads **2.35**.
+
+**The glibc floor dropped 2.39 → 2.35 before the tag** (item 226 §5), so the
+download reaches Debian 12, Ubuntu 22.04 LTS and RHEL 9. The two-symbol
+hypothesis SURVIVED measurement: `objdump -T` finds exactly `pidfd_spawnp` and
+`pidfd_getpid` above 2.35, both weak, both from std's optional pidfd reap path;
+awl references no PidFd API and every `Command` blocks on `.output()`/`.wait()`.
+Binaries built on `debian:bookworm` and `ubuntu:22.04` cap at 2.35 and render
+**byte-identical PNGs**.
+
+### ⚠️ TWO PIPELINE DEFECTS THE TAG FOUND, BOTH INVISIBLE TO EVERY GREEN RUN BEFORE IT
+
+**1. `publish` had NEVER executed in this repo's history.** It runs only on a
+tag, and a dry run skips it by design — so the one job that touches the public
+release is the one job no dry run has ever exercised. It failed on
+`cp: cannot stat 'artifacts/awl-linux/awl-0.9.0-linux-x86_64.tar.gz'`: the
+`artifacts/<name>/` subdirectory was never created, because `download-artifact`
+was called with no `name:`. **Every green dry run in this repo's history was
+green with this broken.** Fixed by naming the artifact, plus a guard that prints
+the actual downloaded tree — `cp` names a path it cannot find but never says
+what WAS there, and this job has no dry run standing behind it.
+
+**2. The cache could not cross the runner boundary.** `Swatinem/rust-cache`
+mixes `runner.os` into its key, and that is the literal string `"Linux"` for
+BOTH 24.04 and 22.04 — so the 24.04 cache restored onto the 22.04 runner and the
+build died loading a proc-macro built against the newer libc
+(`libzvariant_derive….so: version GLIBC_2.39 not found`). Keyed on `ImageOS`.
+
+**Nothing broken reached the public**: the publish failure preceded publication,
+so the tag was deleted, `main` fixed, and `v0.9.0` re-cut on the corrected
+commit. **`gh release list` was empty at the moment of the failure — checked,
+not assumed.**
+
+⚠️ **THE RULE THIS WRITES DOWN: A DRY RUN VERIFIES EVERY JOB EXCEPT THE ONE THAT
+PUBLISHES.** Treat `publish` as permanently unexercised — the next change to it
+ships straight to the public with no rehearsal, so it gets loud, self-diagnosing
+failure modes rather than terse ones.
+
+## Design decisions — user, 2026-08-06 (second batch)
+
+**4. The fourth `ListStyle`'s selection treatment is `Weight`** — "weight is
+better" — chosen against both treatments rendered side by side on Paperbark.
+The selected row's own bounding rules thicken and run out past the text measure
+to the card's full band; the mark is made of the list's own substance and the
+row's interior stays plain ground. `Gutter` (a short heavy dash in the margin)
+remains drawable via `AWL_OVERLAY_LIST_FORCE=rules:gutter` and is the quieter of
+the two by a wide margin at 1×. **Item 271 is merged with `Weight` decided.**
+
+⚠️ **WHAT IS STILL OWED, so "merged" is not mistaken for "graduated":** the style
+ships on **one carrier world, one surface**. Graduating it means item 131's full
+debt — the no-wildcard `OverlayKind` surface sweep, the Settings workspace,
+`SettingId × SettingKind`, pointer/hit-test agreement, and the pixel-law suite —
+plus a decision about the lens-strip tab pills, which 271 deliberately turned off
+(they are plates), leaving a `Rules` theme picker's strip bare and unverified.
+**Queued as item 283.**
+
+283. **GRADUATE `ListStyle::Rules` from prototype to shipped style.** The
+composition and its `Weight` selection are decided and merged; what is missing is
+reach and proof. **Build:** the full `OverlayKind` row-surface sweep, the
+Settings workspace, every `SettingId × SettingKind`, drawn↔hit-test↔sidecar
+agreement at 1×/2× DPI, and the pixel-law suite item 131 owes any real row
+composition. **Decide:** the lens-strip tab pills — a pill is a plate, so a
+`Rules` picker either finds a non-plate answer or accepts a bare strip.
+**Do NOT** widen the carrier roster in the same pass; which worlds adopt it is a
+separate taste call. **Verify:** byte-identity for every non-`Rules` world, plus
+the standing vision smoke. **Routing:** deep tier.
