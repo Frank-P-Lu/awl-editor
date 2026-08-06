@@ -28,15 +28,23 @@ fn drive(buffer: &mut Buffer, action: Action) -> Transition {
 }
 
 /// MUTATION TARGET: revert `apply_export_action`'s non-markdown arms to
-/// `Effect::None` and this goes red on every one of the three formats, naming
-/// which action stayed silent.
+/// `Effect::None` and this goes red on every one of the covered formats,
+/// naming which action stayed silent.
 #[test]
 fn export_on_a_non_markdown_buffer_raises_an_explicit_notice_never_a_silent_no_op() {
-    for (action, format) in [
+    // `Format::Pdf` (and `Action::ExportPdf`'s only real arm) is native-only —
+    // on wasm the action is an unconditional, unrelated `Effect::None` this
+    // law does not own, so the PDF case is native-only too (and `mut` goes
+    // unused on that target, since nothing pushes to it).
+    #[cfg_attr(target_arch = "wasm32", allow(unused_mut))]
+    let mut cases = vec![
         (Action::ExportWord, crate::export::Format::Docx),
         (Action::ExportHtml, crate::export::Format::Html),
-        (Action::ExportPdf, crate::export::Format::Pdf),
-    ] {
+    ];
+    #[cfg(not(target_arch = "wasm32"))]
+    cases.push((Action::ExportPdf, crate::export::Format::Pdf));
+
+    for (action, format) in cases {
         let mut plain = Buffer::from_str("plain text, no markdown syntax");
         plain.set_path("/notes/todo.txt".into());
         let transition = drive(&mut plain, action.clone());
