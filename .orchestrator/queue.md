@@ -2112,3 +2112,36 @@ its own law rather than leaning on the inherited one.
 shape was. And an honest gap: a wrap settles in the correct direction but its
 transient glide looks identical to an ordinary step; whether a wrap deserves a
 distinct flourish is a live judgement.
+
+286. **TWO STALE NUMBERS IN `app_icon/tests.rs` THAT NEED A MEASUREMENT, NOT A
+GUESS.** Item 275's comment pass found them and deliberately left them, which was
+the right call — a comment corrected by guessing is worse than one left visibly
+stale. Both are prose figures contradicted by the file's own data:
+- `12.3%` is claimed for the Currawong/Cassowary pair where `DIFFERING_BLESSED`
+  records **13.09%**.
+- `"under 28.33% today"` is claimed where that list's own maximum is **29.79%**.
+**Build:** re-derive each from the live table rather than retyping it — the same
+fix `app_icon/tests.rs` just took for its roster size, which had hardcoded C(18,2)
+= 153 combinations against a roster of 20 and is now derived from `THEMES`. A
+figure a law can compute should not be prose. **Verify:** the derivation moves
+with the roster — add a world and the number follows. **Routing:** production tier.
+
+287. **ASSERTION-MESSAGE STRINGS CITE QUEUE ITEMS, AND ITEM 275's PASS COULD NOT
+TOUCH THEM.** Its brief said do not change code, and an assertion message is code
+— so this is the same rule (`Don't cite queue items, rounds or shas in code`) in
+the one place that pass structurally could not reach. **Measured examples:**
+`app_icon/tests.rs` alone carries ~8, including three sanity asserts attributing
+the SAME geometry to items 161, 161 and 213 — **inconsistent on their face, so at
+most one is right**. Same shape in `theme/tests/ambient.rs` and `personality.rs`.
+⚠️ **An assertion message is read at the moment a law fails, which is exactly
+when a stale item number costs the most** — it sends the reader to a closed board
+entry instead of naming the mechanism. **Also in scope, and needing a decision
+rather than a sweep:** the test name
+`bar_config_shipped_is_the_flip_round_hug_all_hybrid` embeds a round, and
+`src/theme/tests/world_pin_item254.rs` is a filename-level citation. That filename
+IS sanctioned by `code-health.py`'s `TEST_FILENAME_ITEM_INDEX` — but 275 found the
+file cites item **94** in its body, which that exemption does not cover, so the
+sanctioned name and the actual subject disagree. **Verify:** every failure message
+names a mechanism a reader can act on without the board. **Routing:** production
+tier, and it must be READ one message at a time exactly as 275 was — the counts
+are a scale estimate, never a worklist.
