@@ -1059,7 +1059,12 @@ Order for the next wave:
      byte-identity for 18 worlds. ⚠️ `diagonal.rs` is contended — check no claim
      before dispatch. **Routing:** deep tier.
 
-306. 🟡 IN PROGRESS — claude, branch `claude/item-306-srgb-ground`.
+306. ✅ **LANDED (merged 2026-08-06).** 19 of 20 worlds were affected, not a handful;
+     Wagtail alone was unaffected because `#000000` is the curve's fixed point. Fixed at
+     `to_wgpu`, renamed `to_wgpu_clear` — exactly one call site existed. Two laws: a
+     256-value curve law and a drawn-frame `page_ground_law` using the page column's
+     MODAL colour with a presence floor, because a probe pixel tuned to dodge lava,
+     stars and stripe bands on twenty worlds today lands on one tomorrow. **Original:**
      **EVERY DARK WORLD'S PAGE GROUND DRAWS FAR LIGHTER THAN ITS AUTHORED
      `base_100`, AND THEMES.md IS THEREFORE WRONG ABOUT THE WHOLE GALLERY.** Found by
      item 296's lane while calibrating a plate against the page, and deliberately not
@@ -1097,6 +1102,46 @@ Order for the next wave:
      run at `--capture-dpi 1` — the same blind spot that hid items 289 and 292.
      **Verify:** the gutter's visibility derives from a logical quantity, swept at 1×/2×
      across the `--measure` range, with the boundary asserted on both sides.
+     **Routing:** production tier.
+
+308. **CASSOWARY'S FOOTER PLATE IS ΔE 1.91 FROM ITS OWN PAGE — below the ≈2.3 JND.**
+     Revealed by item 306: the old absolute-luma gate aborted on Firetail before
+     Cassowary was ever graded, so one world's failure was hiding another's.
+     ✅ **The recommended repair is a RIM, not a token change** — item 296's notice
+     channel clears ΔE 15 precisely *because* it draws a one-pixel rim, and this footer
+     plate has never had one. **Verify:** the plate's presence floor swept over the
+     roster; do not widen the gate — `assert_plate_separation_is_not_vacuous`'s own
+     failure message names widening as the dishonest repair. **Routing:** production
+     tier, then the user's eye on the rim.
+
+309. **`thumb_ink` IS ONE `set_color` FOR EVERY RAIL, SELECTED OR NOT.** Named by item
+     306 while fixing a different defect, and explicitly **not** the cause of that one —
+     the lane retracted its own hypothesis after measuring (`on_band=[6]`: the failing
+     rail WAS the selected one). So this is real, unmeasured, and independent. A rail
+     that is not the selected row still takes the selected row's ink. **Build:** a second
+     pipeline, with `overlay_bars`/`overlay_rows` as the precedent for the split.
+     **Verify:** each rail's thumb clears a perceptual floor against **its own** ground,
+     swept over the roster × selection state — the shape item 306's new
+     `range_rail` law already uses. **Routing:** production tier.
+
+310. **FIVE COPIES OF THE sRGB EOTF, AND THE SCOPE IS ALREADY MEASURED.** `background.rs`,
+     `lava.rs`, `render.rs`, `selection.rs`, `caret.rs`. Item 306's lane judged this a
+     **bounded follow-up, not a wide refactor**, and gave the reason: each is one private
+     per-channel loop with identical constants, differing only in float width and return
+     shape (`[f32;4]`, `[f32;3]`, `Srgb→[f32;4]`), so routing them through
+     `theme::srgb_channel_to_linear` is five mechanical edits **provable byte-identical
+     by keeping each caller's own width.** It already removed a sixth copy and made the
+     owner crate-visible, so the door is open. **Verify:** byte-identity per call site,
+     plus a law with a no-wildcard match so a seventh copy cannot appear.
+     **Routing:** production tier.
+
+311. **`Diagonal`'s SECONDARY FLIP IS PROBABLY WRONG BY ITEM 306's OWN ARGUMENT** — a
+     `Diagonal` world emits no row fill at all (`OverlaySelectionRects::default()`, by its
+     own documented behaviour), so an ink chosen for a fill that is not under it can land
+     on the page exactly as Firetail's thumb did. **Deliberately left alone by 306:**
+     nothing is red, the appearance is unmeasured, and `chrome/diagonal.rs` was under
+     concurrent change. ⚠️ **Measure before changing** — this is a hypothesis by analogy,
+     and analogy is how three false premises reached this board this week.
      **Routing:** production tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT

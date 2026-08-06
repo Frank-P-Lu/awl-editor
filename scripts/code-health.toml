@@ -1130,7 +1130,7 @@ reason = "One roster sweep with a geometry arm, a pixel arm and an exclusion arm
 lint = "clippy::too_many_lines"
 file = "src/render/tests/overlay_plan_law.rs"
 function = "an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world"
-message = "this function has too many lines (120/100)"
+message = "this function has too many lines (123/100)"
 reason = "One roster sweep with a geometry arm, a pixel arm and an exclusion arm over the same rendered frame; splitting them would render each world twice, and the exclusion arm exists precisely to be measured at the same fixture the other two are graded at."
 
 [[clippy_exception]]
