@@ -326,11 +326,36 @@ impl TextPipeline {
         const CHIP_VPAD: Logical = Logical(2.0);
         let chip_hpad = self.metrics.px(CHIP_HPAD);
         let underline_drop = self.metrics.px(UNDERLINE_BASELINE_DROP);
-        let mark_cy = plan
-            .strip_band()
-            .map_or(geom.text_top, |strip| strip.center());
         let strip_text_lh = self.metrics.line_height * crate::render::effective_overlay_scale();
         let chip_h = (strip_text_lh - 2.0 * self.metrics.px(CHIP_VPAD)).max(1.0);
+        // PLATE FLOOR: `strip.center()` treats the strip's whole
+        // folded header-line box as free room, but a `Split` composition's own
+        // visible seam falls INSIDE that same box — `BREATHE_FRAC` +
+        // `SPLIT_GAP_FRAC` leave the query beat's own plate starting only at
+        // `split_bounds().1`, not the box's geometric top (the fold is what
+        // puts the beat there at all). A pill/tick centred on the box then
+        // draws above the plate it is meant to sit inside: the filled chip's
+        // own plate running flush into the strip band's top. Only
+        // `ListStyle::Pane` ever draws that plate at all — mirroring the one
+        // gate `overlay_prepare_card_backing` itself reads before ever calling
+        // `overlay_pane_fills` — and only `PaneSplit::Split` carves a seam out
+        // of it; every other composition floors at the box's own top, which
+        // leaves `s.center()` untouched: BYTE-IDENTICAL off either gate (every
+        // `Bars`/`Diagonal`/`Rules` world, and Cassowary's `Unified` Bars).
+        let mark_cy = plan.strip_band().map_or(geom.text_top, |s| {
+            let plate_top = if crate::render::effective_list_style().list_backing(false)
+                == theme::ListBacking::Card
+                && matches!(
+                    crate::render::effective_pane_split(),
+                    theme::PaneSplit::Split
+                ) {
+                plan.split_bounds()
+                    .map_or(s.top, |(_, gap_bottom)| gap_bottom.max(s.top))
+            } else {
+                s.top
+            };
+            s.center().max(plate_top + chip_h * 0.5)
+        });
         let pill_px = |left: f32, right: f32| -> [f32; 4] {
             [
                 geom.text_left + left,
