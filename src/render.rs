@@ -2357,17 +2357,6 @@ pub struct TextPipeline {
     /// STARTS a selection ease reports settled, parks the loop on `Wait`, and
     /// leaves the band frozen on the row the selection left.
     band_ease_started: bool,
-    /// THE DIAGONAL MARKER'S OWN TRAVEL MEMORY: the display row it
-    /// last read as selected (`None` on a closed/empty card, so switching
-    /// worlds or reopening the overlay starts fresh rather than replaying a
-    /// stale tilt), and the settled/current turn — see
-    /// `chrome::overlay_visual_sel::resolve_visual_selection`'s travel
-    /// resolution and `chrome::diagonal::Self::diagonal_marker_turn_deg`'s
-    /// settle/live split. `0.0` for both angles until a real move is
-    /// observed, matching the un-turned resting shape.
-    diagonal_marker_row: Option<usize>,
-    diagonal_marker_turn: f32,
-    diagonal_marker_target: f32,
     page_drag_readout: Option<(f32, f32, usize)>,
     zoom_readout: Option<(f32, f32, f32)>,
     debug_frame_cost: Option<(f32, f32)>,

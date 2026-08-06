@@ -368,12 +368,6 @@ const DIMENSIONLESS: &[(&str, &str)] = &[
         "DROP_WIDTH_SLACK",
         "a slack factor on an estimated content width",
     ),
-    (
-        "MARKER_TRAVEL_TILT_DEG",
-        "an angle in degrees — a rotation reads the same at every scale, so \
-         unlike a length it takes no logical->device scaling",
-    ),
-    ("MARKER_TURN_MS", "a duration in milliseconds, not a length"),
 ];
 
 /// The `NAME: TYPE ...` tail of a constant declaration, whatever visibility it

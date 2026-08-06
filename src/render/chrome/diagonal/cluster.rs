@@ -34,6 +34,12 @@ pub(in crate::render) struct DiagonalClusterRail {
     cluster_w: f32,
     accessory_w: f32,
     connector: f32,
+    /// The selected mark's own gap and reach, resolved once with every other
+    /// length. Held here rather than asked of the composition again so
+    /// [`DiagonalClusterRail::mark_span`] is the ONE place the mark's abscissae
+    /// exist, and the rail a law reads is the rail the draw used.
+    mark_gap: f32,
+    mark_reach: f32,
     spine_start: f32,
     spine_step: f32,
     span: RowSpan,
@@ -99,6 +105,12 @@ impl DiagonalClusterProbe {
         self.rail.spine_x(display)
     }
 
+    /// The selected mark's `(vertex_x, arm_x)` off the same rail the draw read
+    /// it from — never a law's own re-derivation of the outward sign.
+    pub(in crate::render) fn mark_span(self, display: usize) -> (f32, f32) {
+        self.rail.mark_span(display)
+    }
+
     /// The row's own MEASURED horizontal step — see
     /// [`DiagonalClusterRail::spine_step`]'s own doc.
     pub(in crate::render) fn spine_step(self) -> f32 {
@@ -156,6 +168,8 @@ impl DiagonalClusterRail {
             cluster_w,
             accessory_w,
             connector: composition.connector,
+            mark_gap: composition.mark_gap,
+            mark_reach: composition.mark_reach,
             spine_start,
             spine_step,
             span,
@@ -178,11 +192,11 @@ impl DiagonalClusterRail {
         } else {
             0.0
         };
-        shift * self.direction.sign()
+        shift * self.outward()
     }
 
     pub(in crate::render) fn selected_offset(self) -> (f32, f32) {
-        let shift = self.selected_shift * self.direction.sign();
+        let shift = self.selected_shift * self.outward();
         (shift, shift)
     }
 
@@ -226,13 +240,40 @@ impl DiagonalClusterRail {
     /// out from the spine, and the reach the selected row's mark opens to.
     pub(in crate::render) fn label_anchor(self, display: usize) -> f32 {
         let spine = self.spine_x(display) + self.shift(display);
-        spine + self.connector * self.direction.sign()
+        spine + self.connector * self.outward()
     }
 
     /// The cluster's OUTER end — the card-edge side, where the accessory column
     /// hangs and grows back inward toward the name.
     pub(in crate::render) fn accessory_anchor(self, display: usize) -> f32 {
-        self.label_anchor(display) + self.cluster_w * self.direction.sign()
+        self.label_anchor(display) + self.cluster_w * self.outward()
+    }
+
+    /// THE SELECTED ROW'S MARK, as `(vertex_x, arm_x)` — its row-facing end and
+    /// its arm line — standing on the row's OUTER edge, away from the spine.
+    ///
+    /// THE SIDE IS NOT CHOSEN HERE. It falls out of [`Self::outward`], the one
+    /// signed dial this whole cluster mirrors on: `accessory_anchor` is already
+    /// the cluster's card-edge end because that same sign put it there, and the
+    /// mark simply continues one gap further along it. So the mark cannot end up
+    /// on the spine side of a row without the row's own name and accessory
+    /// swapping ends first — which is what makes "the mark mirrors with the
+    /// cluster" true by construction rather than by a second per-world branch.
+    ///
+    /// The VERTEX is the inner end, so the mark points back into the row it
+    /// marks; the arms open outward, into the card's own margin. The selected
+    /// row's outward shift arrives free, carried by `accessory_anchor`.
+    pub(in crate::render) fn mark_span(self, display: usize) -> (f32, f32) {
+        let vertex = self.accessory_anchor(display) + self.mark_gap * self.outward();
+        (vertex, vertex + self.mark_reach * 2.0 * self.outward())
+    }
+
+    /// THE ONE SIGNED DIAL the whole cluster mirrors on — the direction "away
+    /// from the spine" points in canvas x. Every end, shift and mark abscissa
+    /// above is this sign times a length, which is why the mirror cannot
+    /// half-apply.
+    fn outward(self) -> f32 {
+        self.direction.sign()
     }
 
     /// Where a name `ink_w` wide BEGINS — a text area's origin, and the one

@@ -174,13 +174,13 @@ fn split_row(
         // own ink stops there and the spine's side of it is surface. One call,
         // because the cluster mirrors as a unit: what changes between the two
         // worlds is which side of that edge the surface is on.
-        theme::ListStyle::Diagonal(theme::DiagonalDirection::Descending) => {
+        theme::ListStyle::Diagonal(spine) => {
             let probe = p.diagonal_cluster_probe().expect("a diagonal cluster");
-            (probe.label_anchor(d), true)
-        }
-        theme::ListStyle::Diagonal(theme::DiagonalDirection::Ascending) => {
-            let probe = p.diagonal_cluster_probe().expect("a diagonal cluster");
-            (probe.label_anchor(d), false)
+            let surface_below = match spine.direction {
+                theme::DiagonalDirection::Descending => true,
+                theme::DiagonalDirection::Ascending => false,
+            };
+            (probe.label_anchor(d), surface_below)
         }
         // `Rules` is upright like these two: its row content starts at the
         // text edge, and the gutter to the left of it is surface. When a

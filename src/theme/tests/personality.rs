@@ -54,7 +54,9 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 card_anchor: model::CardAnchor::TopLeft,
                 elevation: Elevation::Bordered,
                 // The mirrored editorial diagonal composition.
-                list_style: ListStyle::Diagonal(super::DiagonalDirection::Ascending),
+                list_style: ListStyle::Diagonal(super::DiagonalSpine::ascending(
+                    super::DiagonalMark::HAIRLINE,
+                )),
                 facet_style: FacetStyle::Chips(ChipVariant::Underline),
                 // The location cue joins the diagonal line itself — slanted
                 // to the spine's own rake, gradient between its two authored
@@ -69,7 +71,9 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 card_anchor: model::CardAnchor::TopRight,
                 elevation: Elevation::Bordered,
                 // The mirrored tidal diagonal composition.
-                list_style: ListStyle::Diagonal(super::DiagonalDirection::Descending),
+                list_style: ListStyle::Diagonal(super::DiagonalSpine::descending(
+                    super::DiagonalMark::CRISP,
+                )),
                 facet_style: FacetStyle::Chips(ChipVariant::Bracket),
                 // Both marks lifted — see `worlds::MANGROVE`'s own doc.
                 fold_afford: model::FoldAfford {

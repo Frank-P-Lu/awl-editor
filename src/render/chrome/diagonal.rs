@@ -15,26 +15,19 @@ const SPINE_CORNER: Logical = Logical(0.75);
 const ATTACHMENT_BAND_INSET: Logical = Logical(44.0);
 const CLUSTER_CONNECTOR: Logical = Logical(10.0);
 const SELECTED_OUTWARD: Logical = Logical(4.0);
-const SELECTED_SPINE_WEIGHT: Logical = Logical(3.0);
 
-/// THE SELECTED MARKER'S RESTING TILT off its base pointing angle
-/// (`turn_deg == 0.0`, arms opening toward the cluster), one sign for arriving
-/// via a DOWNWARD move and the other for an UPWARD one
-/// (`chrome::overlay_visual_sel::MarkerTravel::sign`). Small enough that the
-/// mark reads first as the authored chevron and second as leaning —
-/// DESIGN.md's "the marker is subordinate to text" boundary — but large enough
-/// that a law can grade the deviation in real pixels
-/// (`render/tests/marker_travel_item284.rs`). Not a device or zoom quantity:
-/// a rotation reads the same angle at every scale, so unlike the lengths above
-/// this is authored directly in degrees.
-pub(in crate::render) const MARKER_TRAVEL_TILT_DEG: f32 = 20.0;
+/// The air between the row cluster's OUTER end and the mark that stands beyond
+/// it. Its own quantity rather than a second reading of [`CLUSTER_CONNECTOR`]:
+/// that one is a connector — it joins the name to the spine and its length is
+/// the join — where this is a gap, and the mark it holds off is authored
+/// per world.
+const MARKER_GAP: Logical = Logical(7.0);
 
-/// The marker's quarter-scale turn duration — quicker than
-/// `fold_chevron::FOLD_CHEVRON_TURN_MS`'s quarter-turn (140ms) because this
-/// glide covers a smaller angle (`MARKER_TRAVEL_TILT_DEG * 2` at most, a turn
-/// between the two settled tilts) and rides a faster, more frequent input
-/// (arrow-key repeat) rather than an occasional fold/unfold.
-pub(in crate::render) const MARKER_TURN_MS: f32 = 90.0;
+/// The mark's vertical inset inside its row, at BOTH ends, before the world's
+/// own [`theme::DiagonalMark::aperture`] narrows it further. A logical length,
+/// so the mark keeps its proportion on a Retina panel instead of shrinking to a
+/// hairline gap of device pixels.
+const MARKER_ROW_INSET: Logical = Logical(2.0);
 
 /// THE RESPONSIVE BOUND on the spine's total travel, as a fraction of the side
 /// territory the card has. A bound, never the travel itself: an ordinary card
@@ -53,7 +46,28 @@ pub(in crate::render) struct DiagonalComposition {
     pub attachment_inset: f32,
     pub connector: f32,
     pub selected_outward: f32,
-    pub selected_spine_weight: f32,
+    /// The selected mark's authored stroke, gap, reach and row inset, resolved
+    /// at the same boundary as every length above. `mark_weight` and
+    /// `mark_reach` come from the WORLD (`theme::DiagonalMark`); the gap and the
+    /// inset are the composition's own.
+    pub mark_weight: f32,
+    pub mark_gap: f32,
+    pub mark_reach: f32,
+    pub mark_row_inset: f32,
+    /// `aperture` is dimensionless and therefore does NOT pass the scale
+    /// boundary — it is a fraction of the row it is applied to.
+    pub mark_aperture: f32,
+}
+
+impl DiagonalComposition {
+    /// THE SIDE TERRITORY THE MARK ITSELF OWNS, beyond the cluster's outer end:
+    /// the gap it stands off by plus its own full horizontal extent. Every term
+    /// that reserves room for the composition reads this one owner, so a world
+    /// whose mark is authored wider cannot silently push its own ink off the
+    /// card's edge.
+    pub fn mark_lane(self) -> f32 {
+        self.mark_gap + self.mark_reach * 2.0
+    }
 }
 
 /// The attachment band's inset, yielding on a card too narrow to seat it and
@@ -72,8 +86,9 @@ fn spine_travel(composition: DiagonalComposition, geom: &OverlayGeom, rows: usiz
     let room = (geom.band_w()
         - attachment_inset(composition, geom)
         - composition.connector
-        - composition.selected_outward)
-        .max(0.0);
+        - composition.selected_outward
+        - composition.mark_lane())
+    .max(0.0);
     (composition.row_step.abs() * steps).min(room * TRAVEL_MAX_BAND_FRACTION)
 }
 
@@ -81,46 +96,46 @@ fn spine_travel(composition: DiagonalComposition, geom: &OverlayGeom, rows: usiz
 /// IS the [`crate::selection::chevron_arms`] shared owner at a derived
 /// parameterization, rather than a shape that merely resembles it (see
 /// `render/tests/marker_chevron_owner_item247.rs`'s Law 1, which binds the two
-/// point-for-point over 648 cases).
+/// point-for-point).
 ///
-/// Its vertex sits on the spine at `spine_x` — a line it may not leave, since
-/// the spine is the composition's one fixed surface — midway between `top` and
-/// `bottom`, and at `turn_deg == 0.0` its arms open to `arm_x`. `turn_deg`
-/// turns the mark about that FIXED vertex — the direction-of-travel cue:
-/// `chevron_arms` itself pivots about `center`, so the caller derives
-/// `center = vertex - reach * (cos θ, sin θ)` — [`chevron_arms`]'s own recipe for a
-/// caller whose vertex must not drift. `reach` and `spread` are the arm-end
-/// pair expressed in the owner's terms: `reach` signed half the spine-to-arm
-/// distance (so a Descending world's rightward cluster and an Ascending
-/// world's leftward one are the same expression with opposite sign), `spread`
-/// half the row's inset height.
+/// Its VERTEX sits at `vertex_x` — the mark's row-facing end, one gap outward
+/// from the cluster's outer edge — midway between `top` and `bottom`, and its
+/// arms open AWAY from the row to `arm_x`. The mark is upright: it does not
+/// turn, so the shape is the owner's at a zero turn and the two worlds differ
+/// only in the SIGN of `vertex_x - arm_x`, which is the same signed dial the
+/// cluster itself mirrors on.
+///
+/// `reach` and `spread` are the arm-end pair expressed in the owner's terms:
+/// `reach` signed half the vertex-to-arm distance (so a Descending world's
+/// outward-right mark and an Ascending world's outward-left one are the same
+/// expression with opposite sign), `spread` half the mark's own vertical span.
 ///
 /// Pure — no device, no clock, no theme — so a law can grade the shape this
 /// frame would actually draw. The property that identifies the mark is that
-/// NEITHER arm is axis-aligned for any row of nonzero height and nonzero reach;
-/// the tick-plus-connector pair this replaced drew one vertical segment and one
+/// NEITHER arm is axis-aligned for any nonzero span and nonzero reach; the
+/// tick-plus-connector pair this replaced drew one vertical segment and one
 /// horizontal one, and both spanned the same bounding box, so a law that counts
 /// instances or measures extent cannot tell the two shapes apart.
 pub(in crate::render) fn selected_chevron(
-    spine_x: f32,
+    vertex_x: f32,
     arm_x: f32,
     top: f32,
     bottom: f32,
     thickness: f32,
-    turn_deg: f32,
 ) -> [([f32; 2], [f32; 2], [f32; 2]); 2] {
-    let vertex = [spine_x, (top + bottom) * 0.5];
-    let reach = (spine_x - arm_x) * 0.5;
+    let reach = (vertex_x - arm_x) * 0.5;
     let spread = (top - bottom) * 0.5;
-    let (s, c) = turn_deg.to_radians().sin_cos();
-    let center = [vertex[0] - reach * c, vertex[1] - reach * s];
-    crate::selection::chevron_arms(center, reach, spread, turn_deg, thickness)
+    let center = [(vertex_x + arm_x) * 0.5, (top + bottom) * 0.5];
+    crate::selection::chevron_arms(center, reach, spread, 0.0, thickness)
 }
 
 impl DiagonalComposition {
     /// Resolve every authored quantity at the ONE logical→device boundary
     /// (`zoom * dpi`), the same `scale` the text beside the spine was sized at.
-    pub fn resolve(direction: theme::DiagonalDirection, scale: f32) -> Self {
+    /// The world's own mark is authored in the same space and passes the same
+    /// boundary; only its dimensionless aperture does not.
+    pub fn resolve(spine: theme::DiagonalSpine, scale: f32) -> Self {
+        let direction = spine.direction;
         Self {
             direction,
             row_step: direction.sign() * ROW_STEP.px(scale),
@@ -129,8 +144,24 @@ impl DiagonalComposition {
             attachment_inset: ATTACHMENT_BAND_INSET.px(scale),
             connector: CLUSTER_CONNECTOR.px(scale),
             selected_outward: SELECTED_OUTWARD.px(scale),
-            selected_spine_weight: SELECTED_SPINE_WEIGHT.px(scale),
+            mark_weight: Logical(spine.mark.weight).px(scale),
+            mark_gap: MARKER_GAP.px(scale),
+            mark_reach: Logical(spine.mark.reach).px(scale),
+            mark_row_inset: MARKER_ROW_INSET.px(scale),
+            mark_aperture: spine.mark.aperture,
         }
+    }
+
+    /// THE MARK'S OWN VERTICAL SPAN inside a planned row: the row's inset
+    /// height narrowed by the world's aperture, centred on the row. Returned as
+    /// `(top, bottom)` for [`selected_chevron`] — the one place the aperture is
+    /// applied, so an authored fraction cannot mean one thing in the draw and
+    /// another in a probe.
+    pub fn mark_span_y(self, row_top: f32, row_height: f32) -> (f32, f32) {
+        let mid = row_top + row_height * 0.5;
+        let half =
+            ((row_height - self.mark_row_inset * 2.0).max(0.0) * 0.5 * self.mark_aperture).max(0.0);
+        (mid - half, mid + half)
     }
 }
 
@@ -145,7 +176,8 @@ pub(in crate::render) use location::location_axis_deg;
 impl TextPipeline {
     /// THE SIDE TERRITORY a diagonal card owes its composition beyond the row
     /// cluster: the attachment inset the spine stands on, the connector, the
-    /// selected row's outward step and the deepest row's travel.
+    /// selected row's outward step, the mark's own lane beyond the cluster's
+    /// outer end, and the deepest row's travel.
     ///
     /// A card that hugs its measured ROWS is exactly one cluster wide and leaves
     /// the composition nothing: the travel collapses to zero (an upright spine)
@@ -161,13 +193,15 @@ impl TextPipeline {
         composition.attachment_inset
             + composition.connector
             + composition.selected_outward
+            + composition.mark_lane()
             + composition.row_step.abs() * rows
     }
 
     /// The width a diagonal row's CLUSTER may occupy — the band less the
-    /// attachment inset, the connector, the reserved travel and the selected
-    /// row's outward step. Every term is a property of the card, so a row's
-    /// elision is the same number at every scroll position and every filter.
+    /// attachment inset, the connector, the reserved travel, the selected row's
+    /// outward step and the mark's lane. Every term is a property of the card,
+    /// so a row's elision is the same number at every scroll position and every
+    /// filter.
     pub(in crate::render) fn diagonal_cluster_budget(
         &self,
         geom: &OverlayGeom,
@@ -185,6 +219,7 @@ impl TextPipeline {
                     - composition.connector
                     - spine_travel(composition, geom, rows)
                     - composition.selected_outward
+                    - composition.mark_lane()
                     - self.overlay_text_hpad())
                 .max(0.0),
             ),
@@ -258,10 +293,9 @@ pub(in crate::render) fn accessory_flow(pipeline: &TextPipeline) -> ColumnFlow {
 
 pub(in crate::render) fn active(pipeline: &TextPipeline) -> Option<DiagonalComposition> {
     match crate::render::effective_list_style() {
-        theme::ListStyle::Diagonal(direction) => Some(DiagonalComposition::resolve(
-            direction,
-            pipeline.metrics.scale,
-        )),
+        theme::ListStyle::Diagonal(spine) => {
+            Some(DiagonalComposition::resolve(spine, pipeline.metrics.scale))
+        }
         // `Rules` also arranges with drawn lines and is deliberately not this:
         // a spine is one geometry the rows hang off, a rule is a boundary.
         theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Rules(_) => None,
@@ -269,61 +303,6 @@ pub(in crate::render) fn active(pipeline: &TextPipeline) -> Option<DiagonalCompo
 }
 
 impl TextPipeline {
-    /// THE SELECTED MARKER'S CURRENT TURN, in degrees, for
-    /// [`selected_chevron`]'s `turn_deg`. Settled directly (`self.
-    /// diagonal_marker_target` — the resting orientation alone must carry the
-    /// travel direction, since Reduce Motion never draws an in-between frame)
-    /// in every headless, unarmed, or Reduce-Motion pipeline — byte-identical
-    /// to a capture that never calls `advance` — and the currently-eased value
-    /// (`self.diagonal_marker_turn`, stepped by `Self::step_diagonal_marker`)
-    /// only on a live, motion-armed app. Mirrors `Self::overlay_grow_progress`'s
-    /// and `Self::overlay_slant_progress`'s own settle/live split exactly.
-    pub(in crate::render) fn diagonal_marker_turn_deg(&self) -> f32 {
-        if !self.juice_live || crate::motion::reduced() {
-            return self.diagonal_marker_target;
-        }
-        self.diagonal_marker_turn
-    }
-
-    /// THE MARKER'S OWN OR-FOLD MEMBER — advance its turn by `dt`
-    /// seconds toward `self.diagonal_marker_target`, mirroring `fold_chevron::
-    /// step_fold_chevrons`'s shape exactly: linear stepping clamped at the
-    /// target, `true` while still turning so the live redraw loop stays hot
-    /// exactly as long as the turn plays.
-    ///
-    /// ACCESSIBILITY TIER 1 — REDUCE MOTION: settles INSTANTLY (same final
-    /// angle, zero glide frames) — `motion.rs`'s own contract, mirrored by
-    /// every other animator in this OR-fold. The ORDINARY `--screenshot`
-    /// capture path never calls `advance` at all, so it always renders
-    /// `Self::diagonal_marker_turn_deg`'s settled branch; `dt` is an INJECTED
-    /// delta here exactly as it is for the fold chevron, so a direct call
-    /// steps it deterministically (`render/tests/marker_travel_item284.rs`).
-    /// What that cannot reach is the real-time GLIDE's FEEL — flagged for
-    /// human confirmation, not claimed verified by any capture.
-    pub(in crate::render) fn step_diagonal_marker(&mut self, dt: f32) -> bool {
-        if crate::motion::reduced() {
-            self.diagonal_marker_turn = self.diagonal_marker_target;
-            return false;
-        }
-        if (self.diagonal_marker_turn - self.diagonal_marker_target).abs() <= f32::EPSILON {
-            return false;
-        }
-        // A DEGREE RATE, not a fraction-of-total-time step: unlike the fold
-        // chevron's `t` (always a `[0, 1]` fraction, so "1 unit per
-        // FOLD_CHEVRON_TURN_MS" is the whole story), this value is degrees,
-        // and its largest single hop is the full swing between the two
-        // settled tilts (`MARKER_TRAVEL_TILT_DEG * 2`, the Down/Up
-        // pair) — so the rate is scaled by that swing, and `MARKER_TURN_MS`
-        // is genuinely the time to cross it, not merely a divisor.
-        let step = dt * 1000.0 / MARKER_TURN_MS * (MARKER_TRAVEL_TILT_DEG * 2.0);
-        self.diagonal_marker_turn = if self.diagonal_marker_turn < self.diagonal_marker_target {
-            (self.diagonal_marker_turn + step).min(self.diagonal_marker_target)
-        } else {
-            (self.diagonal_marker_turn - step).max(self.diagonal_marker_target)
-        };
-        (self.diagonal_marker_turn - self.diagonal_marker_target).abs() > f32::EPSILON
-    }
-
     pub(super) fn prepare_diagonal_spine(
         &mut self,
         device: &wgpu::Device,
@@ -360,38 +339,22 @@ impl TextPipeline {
         self.overlay_spine
             .prepare_rotated(device, queue, width, height, &[segment]);
 
-        // THE MARKER'S TURN, read once (it is the SAME angle for
-        // every row this frame draws a mark for; at most one, since Diagonal
-        // never takes `VisualSelection::living()`'s two-row branch — see
-        // `resolve_visual_selection`'s doc). Settled directly in every
-        // headless/unarmed/Reduce-Motion pipeline; eased only on a live,
-        // motion-armed app (`Self::diagonal_marker_turn_deg`'s own doc).
-        let turn_deg = self.diagonal_marker_turn_deg();
         let selected_segments = plan
             .rows()
             .iter()
             .filter(|row| vis.reads_selected(row.display))
             .flat_map(|row| {
-                // The chevron inscribes exactly the bounding box the previous
-                // tick-plus-connector pair spanned — the same outward reach, the
-                // same row inset at both ends — so every term that reserves
-                // territory for this mark (`diagonal_side_reserve_px`,
-                // `diagonal_cluster_budget`, `spine_travel`) still describes the
-                // drawn shape and needs no compensating adjustment.
-                //
-                // The arm reaches the cluster's SPINE end — the edge the row's own
-                // name hugs — READ FROM the cluster rather than re-derived, so it
-                // keeps the selected row's outward shift and mirrors with the
-                // cluster, opening right on a Descending world and left on an
-                // Ascending one, without a second sign living here.
-                selected_chevron(
-                    cluster.spine_x(row.display),
-                    cluster.label_anchor(row.display),
-                    row.top + 2.0,
-                    row.bottom() - 2.0,
-                    composition.selected_spine_weight,
-                    turn_deg,
-                )
+                // THE MARK STANDS ON THE ROW'S OUTER EDGE, away from the spine —
+                // pointing back INTO the row rather than out of the card — and
+                // both of its abscissae are READ FROM the cluster
+                // (`DiagonalClusterRail::mark_span`) rather than re-derived here.
+                // That is what mirrors it: the cluster's own outward sign already
+                // put its accessory end on the card side, so the mark inherits
+                // the mirror and the selected row's outward shift together, with
+                // no second sign and no world branch living in the draw.
+                let (top, bottom) = composition.mark_span_y(row.top, row.height);
+                let (vertex_x, arm_x) = cluster.mark_span(row.display);
+                selected_chevron(vertex_x, arm_x, top, bottom, composition.mark_weight)
             })
             .collect::<Vec<_>>();
         self.overlay_spine_selected

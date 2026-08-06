@@ -997,7 +997,7 @@ fn the_workspace_rail_is_ruled_on_a_rules_world_and_banded_on_every_other() {
         theme::ListStyle::Rules(Gutter),
         theme::ListStyle::Pane,
         theme::ListStyle::Bars,
-        theme::ListStyle::Diagonal(theme::DiagonalDirection::Descending),
+        theme::ListStyle::Diagonal(theme::DiagonalSpine::descending(theme::DiagonalMark::CRISP)),
     ];
     for style in styles {
         set_list_style_test_override(Some(style));

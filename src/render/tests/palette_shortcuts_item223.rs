@@ -52,8 +52,10 @@ fn style_name(style: theme::ListStyle) -> &'static str {
     match style {
         theme::ListStyle::Pane => "Pane",
         theme::ListStyle::Bars => "Bars",
-        theme::ListStyle::Diagonal(theme::DiagonalDirection::Descending) => "Diagonal(Descending)",
-        theme::ListStyle::Diagonal(theme::DiagonalDirection::Ascending) => "Diagonal(Ascending)",
+        theme::ListStyle::Diagonal(s) => match s.direction {
+            theme::DiagonalDirection::Descending => "Diagonal(Descending)",
+            theme::DiagonalDirection::Ascending => "Diagonal(Ascending)",
+        },
         theme::ListStyle::Rules(theme::RuleSelection::Weight) => "Rules(Weight)",
         theme::ListStyle::Rules(theme::RuleSelection::Gutter) => "Rules(Gutter)",
     }
@@ -261,12 +263,13 @@ fn only_diagonal_worlds_reserve_side_territory_and_they_reserve_all_of_it() {
                         world.name
                     )
                 }
-                theme::ListStyle::Diagonal(direction) => {
-                    let c = DiagonalComposition::resolve(direction, dpi);
+                theme::ListStyle::Diagonal(spine) => {
+                    let c = DiagonalComposition::resolve(spine, dpi);
                     let rows = rows_planned.saturating_sub(1) as f32;
                     let want = c.attachment_inset
                         + c.connector
                         + c.selected_outward
+                        + c.mark_lane()
                         + c.row_step.abs() * rows;
                     assert!(
                         (reserve - want).abs() < 0.001,

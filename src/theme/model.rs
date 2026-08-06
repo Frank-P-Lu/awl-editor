@@ -1,6 +1,6 @@
 pub use super::icon_ground::IconGround;
 use super::{
-    cjk::FontId, color::Srgb, diagonal::DiagonalDirection, ground::Background, ornament::Ornaments,
+    cjk::FontId, color::Srgb, diagonal::DiagonalSpine, ground::Background, ornament::Ornaments,
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RoleOverrides {
@@ -114,7 +114,7 @@ impl CardAnchor {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ListStyle {
     Pane,
-    Diagonal(DiagonalDirection),
+    Diagonal(DiagonalSpine),
     /// Carries no fields: every `Bars` world has always shipped the identical
     /// [`BarConfig::SHIPPED`], so the layout dials live on the renderer's own
     /// default rather than being re-authored per world. A dev-only override
