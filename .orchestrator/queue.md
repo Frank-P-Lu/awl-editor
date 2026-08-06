@@ -586,12 +586,38 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      desynchronises the page from the manual. **A hand-written sidebar would
      forfeit the one guarantee this feature exists to provide.** Splitting into
      multiple PAGES is permitted only if the split is likewise generated.
+     **METHOD — LOOK AT REAL DOCS SITES FIRST.** User, 2026-08-06: *"the agent
+     should look at a couple of examples, eg bear, or typora, documentation, and
+     generate the equivalent 'reference' section."* **Study how comparable
+     writing apps structure a REFERENCE** — Bear's and Typora's docs are the two
+     named, and one or two more in that register are welcome — and derive awl's
+     equivalent from what those get right. **Do not invent a structure from first
+     principles when the conventions already exist and readers already know
+     them.** ⚠️ **Study the SHAPE, never the prose:** what earns a page of its
+     own versus an anchor, how a long command table is broken up, where
+     navigation lives, how a keyboard-shortcut roster is presented. Copy no text
+     and no CSS.
+
+     🔴 **THE GETTING-STARTED GUIDE IS THE USER'S AND IS OUT OF SCOPE.** User,
+     same message: *"the getting started guide is something separate that i'll
+     write."* **This lane writes NO onboarding prose, no tutorial, no "your first
+     document", and does not restructure `GUIDE.md`.** It builds the reference's
+     presentation only. If the examples suggest guide-shaped content, **report
+     the observation and stop** — that is a note for the user, not work to
+     absorb.
+
+     ⚠️ **TWO DIFFERENT "ZERO NETWORK"s — do not conflate them.** Researching
+     other docs sites over the web is ordinary lane work and is FINE. **awl's
+     zero-network invariant is about the PRODUCT and the SHIPPED PAGE:** the
+     deployed `site/reference.html` carries no CDN, no off-host webfont, no
+     remote script, no analytics — every asset local, exactly as the site ships
+     today.
+
      **Scope:** the site page's presentation only — `REFERENCE.md`'s content and
      sectioning are settled above and do not move. **Verify:** the drift laws
      still hold across the restructure; every section reachable and linkable;
-     the page reviewed on a real browser at desktop and narrow widths. ⚠️ **Zero
-     network is a design invariant — no CDN, no webfont fetch, no script from
-     off-host.** **Routing:** production tier.
+     the page reviewed on a real browser at desktop and narrow widths; no
+     off-host asset in the shipped output. **Routing:** production tier.
 
      ⚠️ **THE LESSON THE RESIDUALS SIT ON: GENERATION IS NOT SAFETY; IT MOVES THE
      ERROR FROM TRANSCRIPTION TO SOURCING.** The spot-check found three defects in
