@@ -1,8 +1,7 @@
-//! ITEM 284 — WIRING THE MARKER'S TURN, the mechanical remainder of item 247.
+//! WIRING THE DIAGONAL MARKER'S TURN.
 //!
-//! Item 247 landed the shared chevron owner and the static shape; it
-//! deliberately left the diagonal marker's `turn_deg` unwired because a
-//! parallel lane held `diagonal.rs`. This item routes `chrome::diagonal::
+//! The shared chevron owner and the static shape already exist
+//! (`crate::selection::chevron_arms`); this routes `chrome::diagonal::
 //! selected_chevron` through that owner at a PINNED-VERTEX parameterization,
 //! adds the travel-direction source (`chrome::MarkerTravel`), and the
 //! `step_diagonal_marker` OR-fold member.
@@ -13,8 +12,8 @@
 //! because the raw index fell or rose sharply; (3) arriving via a Down move
 //! and arriving via an Up move settle the marker at genuinely different,
 //! mirrored angles — real pixels, both diagonal worlds — so Reduce Motion's
-//! instant settle still carries the cue (item 247's own clause: "a cue that
-//! exists only while an animation plays is not a cue").
+//! instant settle still carries the cue: a cue that exists only while an
+//! animation plays is not a cue.
 
 use super::super::*;
 use super::{headless_dqp, pixeldiff, view};
@@ -211,11 +210,11 @@ fn nav_view(items: usize, selected: usize) -> ViewState {
 }
 
 /// CLAIM 3, PART A — DOWN AND UP SETTLE AT MIRRORED, DISTINCT ANGLES, and the
-/// two worlds mirror EACH OTHER on the same travel — verifying item 222/131d's
-/// own report that `arm_x` (`cluster.label_anchor`) is now one expression, no
-/// per-world match, so 284 need not (and does not) branch on world identity
-/// anywhere in its own code: [`MarkerTravel::sign`] × `MARKER_TRAVEL_TILT_DEG`
-/// × `DiagonalDirection::sign` is the WHOLE formula
+/// two worlds mirror EACH OTHER on the same travel — verifying that `arm_x`
+/// (`cluster.label_anchor`) is one expression, no per-world match, so this
+/// code need not (and does not) branch on world identity anywhere of its own:
+/// [`MarkerTravel::sign`] × `MARKER_TRAVEL_TILT_DEG` × `DiagonalDirection::sign`
+/// is the WHOLE formula
 /// (`resolve_diagonal_marker_travel`), and this law asserts the two worlds'
 /// outputs are exact negatives of each other for the identical travel.
 ///
@@ -386,7 +385,7 @@ fn diagonal_marker_ink_differs_between_arriving_from_above_and_below() {
              row must paint genuinely different ink in the marker's own box \
              (x {x0}..{x1}, y {y0}..{y1}) — got {differ} differing px. A cue that \
              reads the same at rest regardless of travel direction is no cue at \
-             all (item 247's Reduce-Motion clause)."
+             all."
         );
     }
 

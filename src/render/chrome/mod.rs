@@ -320,8 +320,8 @@ mod overlay_visual_sel;
 #[cfg(test)]
 pub(in crate::render) use overlay_shape::snap_placard_size;
 // `MarkerTravel` itself is read only by the `#[cfg(test)]` probe on
-// `VisualSelection` and by item 284's own laws — never by production code,
-// which reads the TURN it drove (`diagonal::TextPipeline::
+// `VisualSelection` and by its own laws — never by production code, which
+// reads the TURN it drove (`diagonal::TextPipeline::
 // diagonal_marker_turn_deg`), not the direction that drove it.
 #[cfg(test)]
 pub(in crate::render) use overlay_visual_sel::MarkerTravel;

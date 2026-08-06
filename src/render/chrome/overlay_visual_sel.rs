@@ -97,15 +97,14 @@ pub(in crate::render) fn overlay_selected_secondary_ink() -> Option<glyphon::Col
     overlay_selected_secondary_srgb().map(|c| c.to_glyphon())
 }
 
-/// ITEM 284 — THE DIAGONAL MARKER'S TRAVEL-DIRECTION SOURCE: which way the
+/// THE DIAGONAL MARKER'S TRAVEL-DIRECTION SOURCE: which way the
 /// selection just moved to land on this frame's selected row. `Down` for an
 /// increasing display index, `Up` for a decreasing one — and a WRAP (last row
 /// to first, or first to last) reads as whichever direction the raw index
 /// delta is the SHORTER way round from, so a wrap continuing a held Down
-/// still reads `Down` rather than flipping because the index fell (item 247's
-/// own brief: "a wrap … takes the long way round", named there as the
-/// in-flight glide's own distinction — the settled tilt below only needs the
-/// two-way answer this carries).
+/// still reads `Down` rather than flipping because the index fell — a wrap
+/// takes the long way round IN FLIGHT (an in-flight glide's own distinction);
+/// the settled tilt below only needs the two-way answer this carries.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::render) enum MarkerTravel {
     Down,
@@ -199,7 +198,7 @@ impl VisualSelection {
         self.living
     }
 
-    /// ITEM 284 — which way the diagonal marker just travelled this frame, or
+    /// Which way the diagonal marker just travelled this frame, or
     /// `None` on a re-render that changed nothing. See [`MarkerTravel`]'s own
     /// doc; a probe seam for the law that grades this against the settled
     /// turn it drove.
@@ -305,7 +304,7 @@ impl TextPipeline {
         }
     }
 
-    /// ITEM 284's DIRECTION SOURCE — compares this frame's selected display row
+    /// THE DIRECTION SOURCE — compares this frame's selected display row
     /// `sel` against the row remembered from the PREVIOUS resolve
     /// (`self.diagonal_marker_row`), and — only on a world whose composition
     /// carries a marker at all — retargets `self.diagonal_marker_target` to
@@ -317,7 +316,7 @@ impl TextPipeline {
     ///
     /// An upright world, or the first row this card has selected since its
     /// travel memory was last reset (a fresh/reopened overlay), settles the
-    /// marker at the un-turned baseline (`0.0`, item 247's shipped shape)
+    /// marker at the un-turned baseline (`0.0`, the shipped resting shape)
     /// rather than reporting a direction or carrying over a stale tilt.
     fn resolve_diagonal_marker_travel(&mut self, sel: usize, total: usize) -> Option<MarkerTravel> {
         let Some(composition) = super::diagonal::active(self) else {
