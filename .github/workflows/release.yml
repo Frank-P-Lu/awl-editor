@@ -325,12 +325,27 @@ jobs:
           AWL_VERSION: ${{ needs.plan.outputs.version }}
         run: scripts/package-linux.sh target/release/awl dist-linux
 
+      # awl's friendly Linux download (item 227), ALONGSIDE the tarball above,
+      # never instead of it. Assembles the AppDir (binary, .desktop launcher,
+      # the canonical icon cut from assets/macos/Awl.icns, licences — see the
+      # script's own header for why no shared libraries are bundled and why
+      # the icon is not a second hand-drawn asset), then cuts it into one
+      # `awl-<version>-linux-x86_64.AppImage` via a pinned appimagetool. This
+      # job's host (ubuntu-22.04, x86_64) is exactly the host the cut phase
+      # requires, so nothing here is skipped the way a macOS dev run is.
+      - name: Package AppImage + checksum
+        env:
+          AWL_VERSION: ${{ needs.plan.outputs.version }}
+        run: scripts/package-appimage.sh target/release/awl dist-linux
+
       - uses: actions/upload-artifact@v7
         with:
           name: awl-linux
           path: |
             dist-linux/awl-${{ needs.plan.outputs.version }}-linux-x86_64.tar.gz
             dist-linux/awl-${{ needs.plan.outputs.version }}-linux-x86_64.tar.gz.sha256
+            dist-linux/awl-${{ needs.plan.outputs.version }}-linux-x86_64.AppImage
+            dist-linux/awl-${{ needs.plan.outputs.version }}-linux-x86_64.AppImage.sha256
           retention-days: 14
 
   web:
@@ -409,9 +424,16 @@ jobs:
       # SHA256SUMS covers exactly the files about to be attached, computed
       # from the artifacts themselves rather than transcribed. `sha256sum -c
       # SHA256SUMS` in the download directory is the whole verification.
+      #
+      # TWO Linux artifacts now (item 227): the tarball and the AppImage,
+      # checked and copied identically — this step's own doc note (below)
+      # about `publish` running only on a tag and never on a dry run applies
+      # to BOTH files equally, so both get the same named, loud failure
+      # rather than one being an afterthought.
       - name: Build the checksum manifest
         env:
           TARBALL: awl-${{ needs.plan.outputs.version }}-linux-x86_64.tar.gz
+          APPIMAGE: awl-${{ needs.plan.outputs.version }}-linux-x86_64.AppImage
         run: |
           mkdir -p release
           # Fail LOUDLY and by name if the layout ever moves again. `cp`'s own
@@ -419,13 +441,15 @@ jobs:
           # actually there, which is the diagnosis this step owes its reader:
           # this job runs only on a real tag, so a bad run here is a broken
           # public release, and it has no dry run standing behind it.
-          if [ ! -f "artifacts/$TARBALL" ]; then
-            echo "::error::expected artifacts/$TARBALL — downloaded tree was:"
-            find artifacts -type f | sed 's/^/  /'
-            exit 1
-          fi
-          cp "artifacts/$TARBALL" release/
-          (cd release && sha256sum "$TARBALL" > SHA256SUMS)
+          for f in "$TARBALL" "$APPIMAGE"; do
+            if [ ! -f "artifacts/$f" ]; then
+              echo "::error::expected artifacts/$f — downloaded tree was:"
+              find artifacts -type f | sed 's/^/  /'
+              exit 1
+            fi
+            cp "artifacts/$f" release/
+          done
+          (cd release && sha256sum "$TARBALL" "$APPIMAGE" > SHA256SUMS)
           cat release/SHA256SUMS
 
       # The release body IS the install page — a reader arrives here from the
@@ -447,6 +471,22 @@ jobs:
             **Linux x86_64.** macOS builds from source until Apple signing and
             notarization are in place; Windows uses the web editor.
 
+            **AppImage (recommended)** — one file, desktop-integrated (launcher
+            name + icon):
+
+            ```sh
+            sha256sum -c SHA256SUMS
+            chmod +x awl-${{ needs.plan.outputs.version }}-linux-x86_64.AppImage
+            ./awl-${{ needs.plan.outputs.version }}-linux-x86_64.AppImage notes.md
+            ```
+
+            Needs a Vulkan driver, fontconfig, libxkbcommon, and Wayland or X11
+            already on the system (see below) — nothing else is bundled, and no
+            GPU driver rides inside the AppImage.
+
+            **tar.gz (fallback)** — for systems where AppImages don't run (no
+            FUSE and no `--appimage-extract-and-run` support):
+
             ```sh
             sha256sum -c SHA256SUMS
             tar xzf awl-${{ needs.plan.outputs.version }}-linux-x86_64.tar.gz
@@ -464,7 +504,8 @@ jobs:
             fetches anything at runtime.
 
             GPL-3.0-only. `LICENSE`, `NOTICE`, `CREDITS.md`,
-            `THIRD-PARTY-LICENSES.md` and `licenses/` ride inside the archive.
+            `THIRD-PARTY-LICENSES.md` and licences ride inside both downloads.
           files: |
             release/awl-${{ needs.plan.outputs.version }}-linux-x86_64.tar.gz
+            release/awl-${{ needs.plan.outputs.version }}-linux-x86_64.AppImage
             release/SHA256SUMS

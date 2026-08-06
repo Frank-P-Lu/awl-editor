@@ -420,8 +420,11 @@ mod tests {
             // `write_atomic`/`fs::active()` would also send it into a hermetic
             // sandbox under test, swallowing the very files the caller asked
             // for — the same reason the capture PNG and the storyboard trace
-            // write with plain `std::fs` (see `main/story.rs` below).
-            ("app_icon/mod.rs", 3),
+            // write with plain `std::fs` (see `main/story.rs` below). The
+            // fourth site is `app_icon::export_linux_icon` (`awl
+            // --export-linux-icon`): same class of write, one committed
+            // artifact cut into one file a packaging script asked for.
+            ("app_icon/mod.rs", 4),
             ("buffers.rs", 1),
             ("crashlog.rs", 1),
             ("daemon.rs", 1),

@@ -199,6 +199,29 @@ pub fn pack_all(
     Ok(written)
 }
 
+/// THE LINUX DESKTOP ICON EXPORT (`awl --export-linux-icon OUT.png`; the one
+/// caller is `scripts/package-appimage.sh`). Reads the committed canonical
+/// `.icns`, cuts its 256px rep via [`icns::linux_icon_png`] — never a second
+/// hand-drawn source — and writes it to `out`, creating parent directories as
+/// needed. Returns the byte count written, for the CLI's own deliverable
+/// line (printed by the caller, not here — see [`pack_all`]'s own split).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn export_linux_icon(out: &std::path::Path) -> anyhow::Result<usize> {
+    let icns_path = std::path::PathBuf::from(CANONICAL_ICNS);
+    let icns_bytes = std::fs::read(&icns_path).map_err(|e| {
+        anyhow::anyhow!(
+            "{}: {e} — run scripts/export-icons.sh first",
+            icns_path.display()
+        )
+    })?;
+    let png = icns::linux_icon_png(&icns_bytes)?;
+    if let Some(parent) = out.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(out, &png)?;
+    Ok(png.len())
+}
+
 /// The text of the generated [`embedded`] module — one `include_bytes!` per
 /// SHIPPED world, in `THEMES` order.
 #[cfg(not(target_arch = "wasm32"))]

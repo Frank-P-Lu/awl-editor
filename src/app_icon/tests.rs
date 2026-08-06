@@ -329,6 +329,81 @@ fn the_canonical_bundle_icon_is_the_default_worlds_icon() {
     );
 }
 
+/// The Linux desktop icon is CUT from the canonical `.icns`, not a second
+/// hand-drawn source: same artwork Finder and the Dock already show, at
+/// the freedesktop-recommended 256px edge. Asserts both the container-level
+/// claim (the PNG bytes are exactly the icns's own 256px chunk) and the
+/// pixel-level one (real dimensions, real alpha) — a state oracle that only
+/// checked "some bytes came back" would pass on a truncated or blank PNG.
+#[test]
+fn the_linux_icon_is_cut_from_the_canonical_icns_256px_rep() {
+    let _g = crate::testlock::serial();
+    let canonical = std::fs::read(root().join(CANONICAL_ICNS)).expect("Awl.icns is committed");
+    let png = icns::linux_icon_png(&canonical).expect("256px rep present");
+    let chunks = icns::unpack(&canonical).expect("parses");
+    let rep256 = REPS.iter().find(|r| r.px == icns::LINUX_ICON_PX).unwrap();
+    let (_, expected) = chunks
+        .iter()
+        .find(|(t, _)| *t == rep256.ostype)
+        .expect("a 256px chunk exists");
+    assert_eq!(
+        png, *expected,
+        "linux_icon_png must return the icns's own 256px chunk byte-for-byte, \
+         not a re-render"
+    );
+    let img = image::load_from_memory_with_format(&png, image::ImageFormat::Png)
+        .expect("valid PNG")
+        .to_rgba8();
+    assert_eq!((img.width(), img.height()), (256, 256));
+    assert!(
+        img.pixels().any(|p| p[3] > 0),
+        "the exported icon must not be fully transparent"
+    );
+}
+
+/// A missing 256px rep is an error, not a silent empty PNG — the guard that
+/// keeps the law above meaningful should the rep roster ever lose that size.
+#[test]
+fn linux_icon_png_refuses_an_icns_with_no_256px_rep() {
+    let _g = crate::testlock::serial();
+    let canonical = std::fs::read(root().join(CANONICAL_ICNS)).expect("Awl.icns is committed");
+    let chunks = icns::unpack(&canonical).expect("parses");
+    let pruned: Vec<(u32, Vec<u8>)> = chunks
+        .iter()
+        .filter(|(ostype, _)| {
+            let rep = REPS.iter().find(|r| r.ostype == *ostype).unwrap();
+            rep.px != icns::LINUX_ICON_PX
+        })
+        .map(|(ostype, bytes)| {
+            let rep = REPS.iter().find(|r| r.ostype == *ostype).unwrap();
+            (rep.px, bytes.to_vec())
+        })
+        .collect();
+    let mut deduped: Vec<(u32, Vec<u8>)> = Vec::new();
+    for (px, bytes) in pruned {
+        if !deduped.iter().any(|(p, _)| *p == px) {
+            deduped.push((px, bytes));
+        }
+    }
+    // Rebuild an icns missing every 256px slot by packing only what's left —
+    // `pack` itself requires the full roster, so assemble the container by
+    // hand from the surviving chunks instead of going through `pack`/`REPS`.
+    let mut body = Vec::new();
+    for r in REPS.iter().filter(|r| r.px != icns::LINUX_ICON_PX) {
+        let (_, bytes) = deduped.iter().find(|(px, _)| *px == r.px).unwrap();
+        body.extend_from_slice(&r.ostype);
+        body.extend_from_slice(&(bytes.len() as u32 + 8).to_be_bytes());
+        body.extend_from_slice(bytes);
+    }
+    let mut without_256 = Vec::new();
+    without_256.extend_from_slice(b"icns");
+    without_256.extend_from_slice(&(body.len() as u32 + 8).to_be_bytes());
+    without_256.extend_from_slice(&body);
+
+    let err = icns::linux_icon_png(&without_256).expect_err("no 256px chunk left");
+    assert!(err.to_string().contains("256px"), "{err}");
+}
+
 /// The taste verdict, PINNED. These twenty assignments were judged by eye
 /// against each face's own `l` at Dock and app-switcher sizes; a silent change
 /// to one is a change of the product's face, so it fails here and has to be

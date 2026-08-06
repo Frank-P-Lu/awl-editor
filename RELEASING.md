@@ -90,11 +90,14 @@ git push origin v0.9.0
 ```
 
 The tag push triggers `release.yml`'s `linux` and `publish` jobs: a
-`cargo build --release`, the headless parity law again, `scripts/package-linux.sh`,
-and a new GitHub Release carrying `awl-<version>-linux-x86_64.tar.gz` and
-`SHA256SUMS` (e.g. `awl-0.9.0-linux-x86_64.tar.gz` for the `v0.9.0` tag —
-`scripts/package-linux.sh` derives the exact name from `Cargo.toml`'s
-version / the tag, never a separate hardcoded string; see item 228).
+`cargo build --release`, the headless parity law again, `scripts/package-linux.sh`
+**and** `scripts/package-appimage.sh` (item 227 — the AppImage rides
+alongside the tarball, never instead of it), and a new GitHub Release
+carrying `awl-<version>-linux-x86_64.tar.gz`, `awl-<version>-linux-x86_64.AppImage`
+and `SHA256SUMS` covering both (e.g. `awl-0.9.0-linux-x86_64.tar.gz` /
+`awl-0.9.0-linux-x86_64.AppImage` for the `v0.9.0` tag — both scripts derive
+the exact name from `Cargo.toml`'s version / the tag, never a separate
+hardcoded string; see item 228).
 The mac and web jobs do not run on a tag (see §5's open decisions), so no
 unsigned `.app` and no `dist/` zip can be attached. Rerunning the parity law
 inside the release job means a missed local pre-tag run still blocks publication.
@@ -109,14 +112,23 @@ gh run watch
 All three build jobs run; artifacts land in the run's **Artifacts** tab instead
 of a GitHub Release, `publish` is skipped, and no tag or release is created.
 
-**Locally, without GitHub** — the packaging step alone, against any Linux build:
+**Locally, without GitHub** — the packaging steps alone, against any Linux build:
 
 ```sh
 scripts/package-linux.sh path/to/linux/awl dist-linux
+scripts/package-appimage.sh path/to/linux/awl dist-linux
 ```
 
-It stages the payload, writes the tarball and its `.sha256`, and prints the
-archive listing. A missing licence file is a hard failure, not a warning.
+`package-linux.sh` stages the payload, writes the tarball and its `.sha256`,
+and prints the archive listing. `package-appimage.sh` assembles the AppDir
+(binary, `.desktop` launcher, the icon cut from `assets/macos/Awl.icns`,
+licences) and — Linux x86_64 only, since appimagetool's own upstream binary
+is a Linux x86_64 ELF — cuts it into the `.AppImage` + its `.sha256`; on any
+other host (a macOS dev machine included) it still assembles and structurally
+verifies the AppDir, then skips the cut with a named, loud reason rather than
+a confusing exec failure. `--assemble-only` skips the cut deliberately, for
+the same structural check with no host-detection ambiguity. Both scripts
+treat a missing licence file as a hard failure, not a warning.
 
 **Which Linux build is the release build.** Three exist; only one ships.
 
@@ -130,8 +142,8 @@ archive listing. A missing licence file is a hard failure, not a warning.
 
 | Artifact | Where |
 |---|---|
-| `awl-<version>-linux-x86_64.tar.gz` + `SHA256SUMS` | GitHub Release (tag) |
-| `awl-<version>-linux-x86_64.tar.gz` + `.sha256` | workflow artifact `awl-linux` (dry run — `<version>` is `0.0.0-dryrun`) |
+| `awl-<version>-linux-x86_64.tar.gz` + `awl-<version>-linux-x86_64.AppImage` + `SHA256SUMS` (covering both) | GitHub Release (tag) |
+| same two files + their own `.sha256`s | workflow artifact `awl-linux` (dry run — `<version>` is `0.0.0-dryrun`) |
 | `Awl.app` (universal, unsigned until §1 is done) + `Awl.dmg` | workflow artifact `awl-macos` — **dry run only**, never attached to a Release |
 | `awl-web-dist.zip` (the `trunk build --release` output) | workflow artifact `awl-web` — **dry run only**, never attached to a Release |
 | the live website + `/editor/` demo | Fly.io (`awl-editor`, `site/fly.toml`) — via `deploy-web.yml`, separately |
@@ -166,6 +178,48 @@ generated `src/app_icon/embedded.rs`; commit all three together. An ordinary
 `cargo build` runs none of it. See `scripts/icons/README.md` and
 `src/app_icon/`.
 
+### AppImage (RESOLVED — item 227, the friendly Linux download)
+
+The tarball has no launcher metadata or icon integration — appropriate for a
+technical early adopter, not a normal desktop install. `scripts/package-appimage.sh`
+assembles an AppDir and (Linux x86_64 only) cuts it into
+`awl-<version>-linux-x86_64.AppImage`, published **alongside** the tarball,
+never instead of it (the tarball is the documented fallback for a desktop
+with no FUSE and no `--appimage-extract-and-run` support).
+
+**What's inside, and where each piece comes from:**
+
+| Piece | Source |
+|---|---|
+| `usr/bin/awl` | the same `cargo build --release` binary the tarball ships |
+| `AppRun` | a plain symlink to `usr/bin/awl` — no wrapper script; awl needs no environment setup before it can run |
+| `<id>.desktop` (root + `usr/share/applications/`) | written by the packaging script; `Name=Awl`, `Exec=awl %f` (lowercase — awl's CLI takes exactly one file argument, never a list), `Icon=<id>`, `Categories=Utility;TextEditor;Development;` |
+| `<id>.png` (root, 256px, + `usr/share/icons/hicolor/256x256/apps/`) | **not a second hand-drawn asset** — `awl --export-linux-icon` cuts the 256px PNG straight out of the committed canonical `assets/macos/Awl.icns` via `app_icon::icns::unpack`, the same parser the macOS icon law tests use as their oracle |
+| `usr/share/doc/awl/{LICENSE,NOTICE,CREDITS.md,THIRD-PARTY-LICENSES.md,licenses/,README.txt}` | the identical required set §4 names for the tarball |
+| shared libraries | **none, deliberately** — every runtime dependency is either part of the base desktop stack a normal Linux install already has (fontconfig, libxkbcommon, X11/Wayland — same expectation the tarball's own `README.txt` documents) or a GPU-adapter-specific library (the Vulkan loader/ICD) that is explicitly excluded per this item's own brief: **no bundled GPU driver** |
+
+**Cutting the AppDir into a single file** needs `appimagetool`
+(`scripts/install-appimagetool.sh`, pinned to release `1.9.1`, sha256
+verified against the release asset's own GitHub-computed digest — a
+build-time fetch, not a runtime one; the shipped AppImage itself makes no
+network call, ever) and only runs on Linux x86_64, since that tool's own
+upstream binary is a Linux x86_64 ELF. Any other host — the macOS dev
+machine included — still assembles and structurally verifies the AppDir
+(the `.desktop` required keys, the icon present at both required paths and
+decodable as a real PNG, the licence set), then skips the cut with a named,
+loud reason. `--assemble-only` requests exactly that half deliberately.
+
+**The identifier** (`dev.franklu.awl`, overridable via `AWL_BUNDLE_ID`) is
+the same reverse-DNS string `scripts/package-macos.sh` already defaults to —
+one identity across both packagers rather than a second name invented for
+Linux.
+
+**Owed to a human at a Linux desktop** (not reachable from this macOS
+repository): actual launch on Debian/Ubuntu and Fedora-like environments,
+Wayland vs. X11 behaviour, GPU-adapter smoke on real hardware, and whether
+the desktop environment's launcher actually shows the name/icon this AppImage
+declares.
+
 ## 4. The LICENSE gap (RESOLVED — the LICENSE + CREDITS round)
 
 The repo ships a full GPL-3.0 `LICENSE` file (matching `Cargo.toml`'s
@@ -192,25 +246,27 @@ THIRD-PARTY-LICENSES.md` — regeneration instructions in the file's own
 header) and `CREDITS.md` (the human-readable thank-you, also reachable
 in-app via Cmd-P → "Credits" and on the website at `/credits.html`).
 
-All six license-adjacent docs ride every release artifact. Until item 226 only
-four of them did: the font and dictionary audits were named here as shipping
-and were not copied by any packaging path, while the fonts and dictionaries
+All six license-adjacent docs ride every release artifact — the AppImage
+(item 227) makes it three packaging paths, not two. Until item 226 only four
+of them did: the font and dictionary audits were named here as shipping and
+were not copied by any packaging path, while the fonts and dictionaries
 themselves are `include_bytes!`d into the binary — so a downloaded awl carried
 OFL and LGPL-2.1 material with neither licence beside it.
 
-| Doc | Tarball | `Awl.app` |
-|---|---|---|
-| `LICENSE` (GPL-3.0 full text) | root | `Contents/Resources/` + DMG root |
-| `NOTICE` (copyright holder, asset carve-outs) | root | `Contents/Resources/` + DMG root |
-| `CREDITS.md` | root | `Contents/Resources/` + DMG root |
-| `THIRD-PARTY-LICENSES.md` (generated crate inventory) | root | `Contents/Resources/` + DMG root |
-| `assets/fonts/LICENSES.md` (SIL OFL 1.1) | `licenses/fonts-LICENSES.md` | `Contents/Resources/licenses/` |
-| `assets/dict/LICENSES.md` (LGPL-2.1 + SCOWL/Ispell) | `licenses/dict-LICENSES.md` | `Contents/Resources/licenses/` |
+| Doc | Tarball | `Awl.app` | AppImage (`AppDir/`) |
+|---|---|---|---|
+| `LICENSE` (GPL-3.0 full text) | root | `Contents/Resources/` + DMG root | `usr/share/doc/awl/` |
+| `NOTICE` (copyright holder, asset carve-outs) | root | `Contents/Resources/` + DMG root | `usr/share/doc/awl/` |
+| `CREDITS.md` | root | `Contents/Resources/` + DMG root | `usr/share/doc/awl/` |
+| `THIRD-PARTY-LICENSES.md` (generated crate inventory) | root | `Contents/Resources/` + DMG root | `usr/share/doc/awl/` |
+| `assets/fonts/LICENSES.md` (SIL OFL 1.1) | `licenses/fonts-LICENSES.md` | `Contents/Resources/licenses/` | `usr/share/doc/awl/licenses/fonts-LICENSES.md` |
+| `assets/dict/LICENSES.md` (LGPL-2.1 + SCOWL/Ispell) | `licenses/dict-LICENSES.md` | `Contents/Resources/licenses/` | `usr/share/doc/awl/licenses/dict-LICENSES.md` |
 
 The tarball's `README.txt` carries the GPLv3 §6(d) source offer — a link to the
-public repository. `scripts/package-linux.sh` exits non-zero on any missing
-file in that set; `scripts/package-macos.sh` warns, because it must stay
-runnable against an older checkout.
+public repository; the AppImage's own `usr/share/doc/awl/README.txt` carries
+the same offer. `scripts/package-linux.sh` and `scripts/package-appimage.sh`
+both exit non-zero on any missing file in that set; `scripts/package-macos.sh`
+warns, because it must stay runnable against an older checkout.
 
 ## 5. Pre-tag checklist
 
@@ -224,8 +280,8 @@ will name.
 | 3 | `scripts/release-profile-gate.sh` | all 8 action families match debug↔release |
 | 4 | `cargo about generate about.hbs -o THIRD-PARTY-LICENSES.md` | regenerated, diff reviewed, committed |
 | 5 | `gh workflow run release.yml -f dry_run=true` | three green build jobs, `publish` skipped |
-| 6 | Download `awl-linux` from the run and unpack it | listing matches §4's table; `sha256sum -c` passes |
-| 7 | Launch the unpacked binary on a real Linux desktop | window opens, a file opens, `--screenshot` writes a PNG |
+| 6 | Download `awl-linux` from the run; unpack the tarball, `chmod +x` the AppImage | listing matches §4's table; `sha256sum -c` passes on both |
+| 7 | Launch both the unpacked tarball binary AND the AppImage on a real Linux desktop | each opens a window, opens a file, `--screenshot` writes a PNG; the AppImage's launcher name/icon show correctly where the desktop supports it |
 | 8 | `Cargo.toml`'s `package.version` matches the tag | `v<version>` — no stale `0.1.0` |
 | 9 | `git tag`, `git push origin <tag>` | **user's explicit word, every time** |
 | 10 | After the tag: `gh workflow run deploy-web.yml` | **user's explicit word too.** `version.json` comes from `git describe --tags`, so until the site is redeployed at or after the tag, Check for Updates keeps reporting "no tagged release yet" |
@@ -291,5 +347,9 @@ else in the pipeline changes.
 | `container: debian:bookworm` | 2.36 | adds Debian 12. Matches `Dockerfile.linux`'s existing, stated choice |
 | `container: debian:bullseye` | 2.31 | adds Ubuntu 20.04, Debian 11, RHEL 9. Oldest toolchain and headers, so the highest build risk |
 
-Item 227's AppImage may make this moot for the friendly download while the
-tarball stays technical — decide the two together.
+**Item 227 (RESOLVED, 2026-08-07): the AppImage does not change the glibc
+decision.** It wraps the identical `linux` job binary — same `ubuntu-22.04`
+build, same `GLIBC_2.35` floor — in desktop integration, not a different
+toolchain or a bundled libc. The "friendly download vs. technical tarball"
+framing this row used to carry is retired: both are the same binary now,
+published together, and a system too old for one is too old for the other.
