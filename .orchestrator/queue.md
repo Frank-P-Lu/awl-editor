@@ -990,9 +990,14 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      where a dash underline directly under a paragraph is indistinguishable from
      a thematic break, and `render/spans.rs:428`/`:940` carry two separate gates
      about growing a `---` row for setext. **Establish which gate drops it.**
-     **Decide (user's call, name it rather than pick silently):** does `a\n---`
-     render the rule, or show the underline raw? Either is defensible; drawing
-     nothing is not.
+     ✅ **Decided: `---` always renders as the rule**, whatever precedes it —
+     `a` stays plain text, the line below becomes the thematic-break symbol.
+     **awl has no setext headings; the ladder is ATX (`#`) only.** So the
+     "KNOWN, ACCEPTED false positive" at `spans.rs:214-221` — a dash underline
+     under a paragraph reading as a thematic break — **is not a false positive
+     at all under this rule; it is the intended behaviour.** Re-author that
+     comment to say so rather than leaving it apologising for the correct
+     answer (item 302's class).
      **Verify:** a law that no line with content produces an empty render, swept
      over the thematic-break syntaxes (`---`/`***`/`___`) both directly under a
      paragraph and separated by a blank line, with the caret on and off the line.
