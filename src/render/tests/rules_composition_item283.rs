@@ -148,6 +148,175 @@ fn content_rows(
 // LAW 1 — the full `OverlayKind` sweep: a rule is a rule, never a surface
 // ---------------------------------------------------------------------------
 
+/// GRADE ONE RENDERED `Rules` CARD against the whole composition: the two
+/// authored weights, the no-scrim/no-pane claim, boundary continuity, the two
+/// spans, and that the selection is marked exactly once. `None` when this cell
+/// draws no list at all (a staged workspace region, an empty popup); otherwise
+/// `(rules graded, a selection was marked)`.
+///
+/// Extracted rather than inlined because three laws below need the same reading
+/// of a frame and a fourth grades one setting row at a time — one owner of "what
+/// does this frame's row list look like" beats four that could drift.
+fn grade_ruled_card(
+    p: &mut TextPipeline,
+    cw: u32,
+    mark: theme::RuleSelection,
+    ctx: &str,
+) -> Option<(usize, bool)> {
+    let geom = p.overlay_geometry(cw);
+    let plan = p.overlay_row_plan(&geom);
+    let rows = content_rows(&plan);
+    if rows.is_empty() {
+        return None;
+    }
+    let pitch = plan.lh();
+    let (hair, heavy) = p.rule_weights();
+    let quads = p.overlay_row_surfaces_probe();
+
+    // NO SCRIM, NO PANE. Both are objects; this style draws none.
+    assert_eq!(
+        p.panel_card.instance_count(),
+        0,
+        "{ctx}: a rule carries NO scrim — padding one out on every side is exactly how it \
+         becomes the plate this style refuses"
+    );
+    assert_eq!(
+        p.float_card.instance_count(),
+        0,
+        "{ctx}: a Rules world floats no pane — enclosure is the one thing the style refuses"
+    );
+
+    for q in &quads {
+        assert!(
+            (q[3] - hair).abs() < 0.01 || (q[3] - heavy).abs() < 0.01,
+            "{ctx}: quad {q:?} is {}px tall — a `Rules` list emits only its two authored \
+             weights (hairline {hair}, selected {heavy})",
+            q[3]
+        );
+        assert!(
+            q[3] < pitch * 0.5,
+            "{ctx}: quad {q:?} approaches the row pitch {pitch} — a row-tall quad IS a filled \
+             band, whatever it is called"
+        );
+    }
+
+    // EVERY INTERIOR BOUNDARY CARRIES EXACTLY ONE RULE. The boundary is the row
+    // slot's own edge and a rule straddles it, so a rule "covers" a boundary
+    // when the boundary falls inside its own band.
+    let covering = |y: f32| -> usize {
+        quads
+            .iter()
+            .filter(|q| y >= q[1] - 0.51 && y <= q[1] + q[3] + 0.51)
+            .count()
+    };
+    let mut boundaries = vec![rows[0].top];
+    boundaries.extend(rows.iter().map(|r| r.bottom()));
+    for &y in &boundaries {
+        assert_eq!(
+            covering(y),
+            1,
+            "{ctx}: boundary y={y} is covered by {} rules — every boundary between two rows is \
+             drawn exactly once (a hairline laid under a heavy rule is two marks pretending to \
+             be one)",
+            covering(y)
+        );
+    }
+
+    // THE TWO SPANS. A hairline runs the text measure; a `Weight` selection's
+    // heavy rule runs the full band, and that difference in REACH is half of
+    // what `Weight` says.
+    let (measure_x, measure_w) = (geom.text_left, geom.text_w.max(1.0));
+    let (band_x, band_w) = (geom.band_x_probe(), geom.band_w_probe().max(1.0));
+    for q in &quads {
+        match ((q[3] - heavy).abs() < 0.01, mark) {
+            (true, Weight) => assert!(
+                (q[0] - band_x).abs() < 0.51 && (q[2] - band_w).abs() < 0.51,
+                "{ctx}: a selected rule {q:?} must run the full band [{band_x}, {band_w}] — \
+                 running out past the text measure is what makes the mark visible without \
+                 filling anything"
+            ),
+            // A `Gutter` mark is a short segment hanging BESIDE the measure, so
+            // it is heavy and deliberately short.
+            (true, Gutter) => assert!(
+                q[0] + q[2] <= measure_x + 0.51,
+                "{ctx}: a Gutter mark {q:?} must hang in the gutter, left of the text measure \
+                 at x={measure_x}"
+            ),
+            (false, _) => assert!(
+                (q[0] - measure_x).abs() < 0.51 && (q[2] - measure_w).abs() < 0.51,
+                "{ctx}: hairline {q:?} must run the text measure [{measure_x}, {measure_w}] so \
+                 a rule and the label above it start and stop together"
+            ),
+        }
+    }
+
+    // THE SELECTION IS MARKED AT ALL, and marked once.
+    let heavies = quads.iter().filter(|q| (q[3] - heavy).abs() < 0.01).count();
+    let want = match mark {
+        Weight => 2, // the two rules bounding the selected row
+        Gutter => 1, // one segment in the gutter
+    };
+    let marked = plan.selected_display().is_some();
+    if marked {
+        assert_eq!(
+            heavies, want,
+            "{ctx}: a selected row must carry exactly {want} heavy rule(s), got {heavies}"
+        );
+    }
+    Some((quads.len(), marked))
+}
+
+/// THE MARK IS ON THE SELECTED ROW'S OWN SLOT — the arm that turns "one mark of
+/// the right weight" into "the right row is marked". Shared by the picker sweep
+/// and the settings sweep so the two cannot drift about what bounding means.
+fn assert_mark_sits_on_the_selected_row(
+    p: &mut TextPipeline,
+    cw: u32,
+    mark: theme::RuleSelection,
+    ctx: &str,
+) {
+    let geom = p.overlay_geometry(cw);
+    let plan = p.overlay_row_plan(&geom);
+    let Some(sel) = plan.selected_display() else {
+        return;
+    };
+    let rows = content_rows(&plan);
+    let Some(slot) = rows.iter().find(|r| r.display == sel) else {
+        return;
+    };
+    let (_, heavy) = p.rule_weights();
+    let mut marks: Vec<[f32; 4]> = p
+        .overlay_row_surfaces_probe()
+        .into_iter()
+        .filter(|q| (q[3] - heavy).abs() < 0.01)
+        .collect();
+    marks.sort_by(|a, b| a[1].total_cmp(&b[1]));
+    match mark {
+        Weight => {
+            assert_eq!(marks.len(), 2, "{ctx}: two bounding rules");
+            let top = marks[0][1] + marks[0][3] * 0.5;
+            let bot = marks[1][1] + marks[1][3] * 0.5;
+            assert!(
+                (top - slot.top).abs() < 0.51 && (bot - slot.bottom()).abs() < 0.51,
+                "{ctx}: the rules bound [{top}, {bot}], the row is [{}, {}] — the mark and the \
+                 row must be the same slot",
+                slot.top,
+                slot.bottom()
+            );
+        }
+        Gutter => {
+            assert_eq!(marks.len(), 1, "{ctx}: one gutter segment");
+            let cy = marks[0][1] + marks[0][3] * 0.5;
+            assert!(
+                cy > slot.top - 0.51 && cy < slot.bottom() + 0.51,
+                "{ctx}: the gutter mark at y={cy} must hang beside its own row [{}, {}]",
+                slot.top,
+                slot.bottom()
+            );
+        }
+    }
+}
+
 /// THE HEADLINE SWEEP. On every `OverlayKind`, both treatments, both DPIs and
 /// four canvases, every quad a `Rules` frame emits for its row list is a RULE:
 ///
@@ -190,121 +359,11 @@ fn every_overlay_kinds_rules_are_rules_and_never_a_surface() {
                     p.set_view(&v);
                     p.prepare(&device, &queue, cw, ch).unwrap();
                     let ctx = format!("{kind:?} mark={mark:?} dpi={dpi} canvas={cw}x{ch}");
-                    let geom = p.overlay_geometry(cw);
-                    let plan = p.overlay_row_plan(&geom);
-                    let rows = content_rows(&plan);
-                    if rows.is_empty() {
+                    let Some((rules, selected)) = grade_ruled_card(&mut p, cw, mark, &ctx) else {
                         continue; // a stage that draws no list draws no rules
-                    }
-                    let pitch = plan.lh();
-                    let (hair, heavy) = p.rule_weights();
-                    let quads = p.overlay_row_surfaces_probe();
-
-                    // NO SCRIM, NO PANE. Both are objects; this style draws none.
-                    assert_eq!(
-                        p.panel_card.instance_count(),
-                        0,
-                        "{ctx}: a rule carries NO scrim — padding one out on every side is \
-                         exactly how it becomes the plate this style refuses"
-                    );
-                    assert_eq!(
-                        p.float_card.instance_count(),
-                        0,
-                        "{ctx}: a Rules world floats no pane — enclosure is the one thing \
-                         the style refuses"
-                    );
-
-                    for q in &quads {
-                        assert!(
-                            (q[3] - hair).abs() < 0.01 || (q[3] - heavy).abs() < 0.01,
-                            "{ctx}: quad {q:?} is {}px tall — a `Rules` list emits only its \
-                             two authored weights (hairline {hair}, selected {heavy})",
-                            q[3]
-                        );
-                        assert!(
-                            q[3] < pitch * 0.5,
-                            "{ctx}: quad {q:?} approaches the row pitch {pitch} — a row-tall \
-                             quad IS a filled band, whatever it is called"
-                        );
-                    }
-                    graded_rules += quads.len();
-
-                    // EVERY INTERIOR BOUNDARY CARRIES EXACTLY ONE RULE. The
-                    // boundary is the row slot's own edge and a rule straddles
-                    // it, so a rule "covers" a boundary when the boundary falls
-                    // inside its own band.
-                    let covering = |y: f32| -> usize {
-                        quads
-                            .iter()
-                            .filter(|q| y >= q[1] - 0.51 && y <= q[1] + q[3] + 0.51)
-                            .count()
                     };
-                    let mut boundaries = vec![rows[0].top];
-                    boundaries.extend(rows.iter().map(|r| r.bottom()));
-                    for &y in &boundaries {
-                        assert_eq!(
-                            covering(y),
-                            1,
-                            "{ctx}: boundary y={y} is covered by {} rules — every boundary \
-                             between two rows is drawn exactly once (a hairline laid under a \
-                             heavy rule is two marks pretending to be one)",
-                            covering(y)
-                        );
-                    }
-
-                    // THE TWO SPANS. A hairline runs the text measure; a
-                    // `Weight` selection's heavy rule runs the full band, and
-                    // that difference in REACH is half of what `Weight` says.
-                    let (measure_x, measure_w) = (geom.text_left, geom.text_w.max(1.0));
-                    let (band_x, band_w) = (geom.band_x_probe(), geom.band_w_probe().max(1.0));
-                    for q in &quads {
-                        let is_heavy = (q[3] - heavy).abs() < 0.01;
-                        match (is_heavy, mark) {
-                            (true, Weight) => {
-                                assert!(
-                                    (q[0] - band_x).abs() < 0.51 && (q[2] - band_w).abs() < 0.51,
-                                    "{ctx}: a selected rule {q:?} must run the full band \
-                                     [{band_x}, {band_w}] — running out past the text measure \
-                                     is what makes the mark visible without filling anything"
-                                );
-                            }
-                            // A `Gutter` mark is a short segment hanging BESIDE
-                            // the measure, so it is heavy and deliberately short.
-                            (true, Gutter) => {
-                                assert!(
-                                    q[0] + q[2] <= measure_x + 0.51,
-                                    "{ctx}: a Gutter mark {q:?} must hang in the gutter, left \
-                                     of the text measure at x={measure_x}"
-                                );
-                            }
-                            (false, _) => {
-                                assert!(
-                                    (q[0] - measure_x).abs() < 0.51
-                                        && (q[2] - measure_w).abs() < 0.51,
-                                    "{ctx}: hairline {q:?} must run the text measure \
-                                     [{measure_x}, {measure_w}] so a rule and the label above \
-                                     it start and stop together"
-                                );
-                            }
-                        }
-                    }
-
-                    // THE SELECTION IS MARKED AT ALL, and marked once.
-                    let heavies = quads.iter().filter(|q| (q[3] - heavy).abs() < 0.01).count();
-                    let want = match mark {
-                        // The two rules bounding the selected row.
-                        Weight => 2,
-                        // One segment in the gutter.
-                        Gutter => 1,
-                    };
-                    if plan.selected_display().is_some() {
-                        assert_eq!(
-                            heavies, want,
-                            "{ctx}: a selected row must carry exactly {want} heavy rule(s), \
-                             got {heavies}"
-                        );
-                        graded_selected += 1;
-                    }
+                    graded_rules += rules;
+                    graded_selected += usize::from(selected);
                     graded_cards += 1;
                 }
             }
@@ -339,7 +398,7 @@ fn every_overlay_kinds_rules_are_rules_and_never_a_surface() {
 /// DESIGN.md §8: drawn geometry and hit-test geometry have one owner. Under
 /// `Weight` the mark is a PAIR OF BOUNDARIES rather than a filled row, so "where
 /// the row is" is stated by two rules with nothing between them — which is
-/// exactly the shape item 131a's staggered-row bug wore, from the other side. A
+/// the same shape a staggered row's own hit-test wore, from the other side. A
 /// pointer inside the band the two heavy rules bound must resolve to the row the
 /// SIDECAR reports selected; a pointer just outside must resolve to its
 /// neighbour, not to it.
@@ -672,17 +731,17 @@ fn the_rules_mark_is_a_findable_step_of_page_ink_and_never_the_accent() {
                     let step = redmean(rule_px, ground);
                     assert!(
                         step >= 25.0,
-                        "{kind:?} mark={mark:?} dpi={dpi}: the selection rule {q:?} reads {rule_px:?} \
-                     against ground {ground:?} — only redmean {step:.1}. A mark nobody can \
-                     find is not a mark."
+                        "{kind:?} mark={mark:?} dpi={dpi}: the selection rule {q:?} reads \
+                     {rule_px:?} against ground {ground:?} — only redmean {step:.1}. A mark \
+                     nobody can find is not a mark."
                     );
                     let to_accent = redmean(rule_px, accent);
                     let to_ink = redmean(rule_px, ink);
                     assert!(
                         to_ink < to_accent,
-                        "{kind:?} mark={mark:?} dpi={dpi}: the rule reads {rule_px:?}, nearer the accent \
-                     {accent:?} (redmean {to_accent:.1}) than the page ink {ink:?} \
-                     ({to_ink:.1}) — one accent, and it is the caret (DESIGN §3)"
+                        "{kind:?} mark={mark:?} dpi={dpi}: the rule reads {rule_px:?}, nearer \
+                     the accent {accent:?} (redmean {to_accent:.1}) than the page ink \
+                     {ink:?} ({to_ink:.1}) — one accent, and it is the caret (DESIGN §3)"
                     );
                     graded += 1;
                 }
@@ -827,6 +886,84 @@ fn settings_view(ov: &OverlayState, selected: usize) -> ViewState {
     v
 }
 
+/// GRADE ONE RENDERED `Rules` RAIL. Every quad is one of the two authored
+/// weights and none approaches a rail row's height; a `Weight` selection bounds
+/// the active entry with exactly two rules running the full column while every
+/// hairline stops at the label measure; and — the arm that matters most — what
+/// the FRAME UPLOADED matches what the composition owner says, because a law
+/// that only read `workspace_rail_rule_ink` stays green while the draw path
+/// stops calling it. That is measured rather than assumed: this file's rail arm
+/// did exactly that against a mutation reverting the rail to its filled band.
+fn grade_ruled_rail(
+    p: &mut TextPipeline,
+    rail: &[([f32; 4], bool)],
+    mark: theme::RuleSelection,
+    ctx: &str,
+) {
+    let row_h = rail[0].0[3];
+    let (ghosts, quads) = p.workspace_rail_rule_ink(mark);
+    let (hair, heavy) = p.rule_weights();
+    for q in quads.iter().chain(ghosts.iter()) {
+        assert!(
+            (q[3] - hair).abs() < 0.01 || (q[3] - heavy).abs() < 0.01,
+            "{ctx}: rail quad {q:?} is neither of the two authored rule weights ({hair}, \
+             {heavy}) — the rail's mark must be made of the list's own substance"
+        );
+        assert!(
+            q[3] < row_h * 0.5,
+            "{ctx}: rail quad {q:?} approaches a rail row's height {row_h} — a filled band is \
+             the one thing this style refuses, and the rail is not exempt"
+        );
+    }
+    if let (Some(&(rect, _)), Weight) = (rail.iter().find(|(_, a)| *a), mark) {
+        assert_eq!(
+            quads.len(),
+            2,
+            "{ctx}: the active rail entry is bounded by exactly its two rules"
+        );
+        let mut ys: Vec<f32> = quads.iter().map(|q| q[1] + q[3] * 0.5).collect();
+        ys.sort_by(f32::total_cmp);
+        assert!(
+            (ys[0] - rect[1]).abs() < 0.51 && (ys[1] - (rect[1] + rect[3])).abs() < 0.51,
+            "{ctx}: the rail's rules bound {ys:?} but its active entry is [{}, {}]",
+            rect[1],
+            rect[1] + rect[3]
+        );
+        // THE RUN-OUT: the mark reaches the full column while a hairline stops
+        // at the label measure, exactly as the pane's do.
+        for q in &quads {
+            assert!(
+                (q[2] - rect[2]).abs() < 0.51,
+                "{ctx}: the rail's heavy rule {q:?} must run the full column (w {})",
+                rect[2]
+            );
+        }
+        for g in &ghosts {
+            assert!(
+                g[2] < rect[2] - 0.51,
+                "{ctx}: a rail hairline {g:?} must stop at the label measure, short of the \
+                 column (w {})",
+                rect[2]
+            );
+        }
+    }
+    assert_eq!(
+        p.overlay_lens_underline.instance_count() as usize,
+        quads.len(),
+        "{ctx}: the frame uploaded {} selection quads for a rail the composition says has {} — \
+         the draw path is not reading the rules owner",
+        p.overlay_lens_underline.instance_count(),
+        quads.len()
+    );
+    assert_eq!(
+        p.overlay_facet_ghost.instance_count() as usize,
+        ghosts.len(),
+        "{ctx}: the frame uploaded {} hairlines for a rail the composition says has {}",
+        p.overlay_facet_ghost.instance_count(),
+        ghosts.len()
+    );
+}
+
 /// THE HALF-APPLIED WORLD THIS ITEM EXISTS TO CLOSE.
 ///
 /// A summoned workspace has TWO regions that both keep a selection, and the
@@ -882,88 +1019,9 @@ fn the_workspace_rail_is_ruled_on_a_rules_world_and_banded_on_every_other() {
                         if rail.is_empty() {
                             continue; // the narrow stage showing its rows
                         }
-                        let row_h = rail[0].0[3];
                         match style {
                             theme::ListStyle::Rules(mark) => {
-                                let (ghosts, quads) = p.workspace_rail_rule_ink(mark);
-                                let (hair, heavy) = p.rule_weights();
-                                for q in quads.iter().chain(ghosts.iter()) {
-                                    assert!(
-                                        (q[3] - hair).abs() < 0.01 || (q[3] - heavy).abs() < 0.01,
-                                        "{ctx}: rail quad {q:?} is neither of the two authored \
-                                         rule weights ({hair}, {heavy}) — the rail's mark must \
-                                         be made of the list's own substance"
-                                    );
-                                    assert!(
-                                        q[3] < row_h * 0.5,
-                                        "{ctx}: rail quad {q:?} approaches a rail row's height \
-                                         {row_h} — a filled band is the one thing this style \
-                                         refuses, and the rail is not exempt"
-                                    );
-                                }
-                                let active = rail.iter().find(|(_, a)| *a);
-                                if let (Some(&(rect, _)), Weight) = (active, mark) {
-                                    assert_eq!(
-                                        quads.len(),
-                                        2,
-                                        "{ctx}: the active rail entry is bounded by exactly its \
-                                         two rules"
-                                    );
-                                    let mut ys: Vec<f32> =
-                                        quads.iter().map(|q| q[1] + q[3] * 0.5).collect();
-                                    ys.sort_by(f32::total_cmp);
-                                    assert!(
-                                        (ys[0] - rect[1]).abs() < 0.51
-                                            && (ys[1] - (rect[1] + rect[3])).abs() < 0.51,
-                                        "{ctx}: the rail's rules bound {ys:?} but its active \
-                                         entry is [{}, {}]",
-                                        rect[1],
-                                        rect[1] + rect[3]
-                                    );
-                                    // THE RUN-OUT: the mark reaches the full
-                                    // column while a hairline stops at the label
-                                    // measure, exactly as the pane's do.
-                                    for q in &quads {
-                                        assert!(
-                                            (q[2] - rect[2]).abs() < 0.51,
-                                            "{ctx}: the rail's heavy rule {q:?} must run the \
-                                             full column (w {})",
-                                            rect[2]
-                                        );
-                                    }
-                                    for g in &ghosts {
-                                        assert!(
-                                            g[2] < rect[2] - 0.51,
-                                            "{ctx}: a rail hairline {g:?} must stop at the label \
-                                             measure, short of the column (w {})",
-                                            rect[2]
-                                        );
-                                    }
-                                }
-                                // WHAT THE FRAME UPLOADED, not what the owner
-                                // would have produced. The two pipelines the
-                                // draw pass renders are the evidence: a law that
-                                // only read `workspace_rail_rule_ink` would stay
-                                // green while the draw path stopped calling it —
-                                // measured, not assumed (the arm below went green
-                                // against exactly that mutation before it existed).
-                                assert_eq!(
-                                    p.overlay_lens_underline.instance_count() as usize,
-                                    quads.len(),
-                                    "{ctx}: the frame uploaded {} selection quads for a rail \
-                                     the composition says has {} — the draw path is not \
-                                     reading the rules owner",
-                                    p.overlay_lens_underline.instance_count(),
-                                    quads.len()
-                                );
-                                assert_eq!(
-                                    p.overlay_facet_ghost.instance_count() as usize,
-                                    ghosts.len(),
-                                    "{ctx}: the frame uploaded {} hairlines for a rail the \
-                                     composition says has {}",
-                                    p.overlay_facet_ghost.instance_count(),
-                                    ghosts.len()
-                                );
+                                grade_ruled_rail(&mut p, &rail, mark, &ctx);
                                 graded_rules += 1;
                             }
                             // THE CONTROL. Every other style's rail keeps the
@@ -973,6 +1031,7 @@ fn the_workspace_rail_is_ruled_on_a_rules_world_and_banded_on_every_other() {
                             | theme::ListStyle::Bars
                             | theme::ListStyle::Diagonal(_) => {
                                 if rail.iter().any(|(_, a)| *a) {
+                                    let row_h = rail[0].0[3];
                                     let band = p.workspace_rail_mark().unwrap_or_else(|| {
                                         panic!("{ctx}: a banded rail marks its active entry")
                                     });
@@ -1157,68 +1216,23 @@ fn every_setting_id_and_kind_is_ruled_in_the_settings_workspace() {
                         "{:?} ({:?}) mark={mark:?} dpi={dpi} {cw}x{ch}",
                         row.id, row.kind
                     );
-                    let geom = p.overlay_geometry(cw);
-                    let plan = p.overlay_row_plan(&geom);
-                    let rows = content_rows(&plan);
-                    let (hair, heavy) = p.rule_weights();
-                    let quads = p.overlay_row_surfaces_probe();
-                    for q in &quads {
-                        assert!(
-                            (q[3] - hair).abs() < 0.01 || (q[3] - heavy).abs() < 0.01,
-                            "{ctx}: quad {q:?} is neither authored weight"
-                        );
-                        assert!(
-                            q[3] < plan.lh() * 0.5,
-                            "{ctx}: quad {q:?} approaches the row pitch {}",
-                            plan.lh()
-                        );
-                    }
-                    assert_eq!(
-                        p.panel_card.instance_count(),
-                        0,
-                        "{ctx}: a settings row's rules carry no scrim"
-                    );
-                    // The selected row is marked, and marked on ITS OWN slot —
-                    // the claim a range row could break, because its rail is
-                    // drawn from a different owner at the same y.
-                    if let Some(sel) = plan.selected_display()
-                        && let Some(slot) = rows.iter().find(|r| r.display == sel)
-                    {
-                        let mut marks: Vec<[f32; 4]> = quads
-                            .iter()
-                            .copied()
-                            .filter(|q| (q[3] - heavy).abs() < 0.01)
-                            .collect();
-                        marks.sort_by(|a, b| a[1].total_cmp(&b[1]));
-                        match mark {
-                            Weight => {
-                                assert_eq!(marks.len(), 2, "{ctx}: two bounding rules");
-                                let top = marks[0][1] + marks[0][3] * 0.5;
-                                let bot = marks[1][1] + marks[1][3] * 0.5;
-                                assert!(
-                                    (top - slot.top).abs() < 0.51
-                                        && (bot - slot.bottom()).abs() < 0.51,
-                                    "{ctx}: the rules bound [{top}, {bot}], the row is [{}, {}]",
-                                    slot.top,
-                                    slot.bottom()
-                                );
-                            }
-                            Gutter => {
-                                assert_eq!(marks.len(), 1, "{ctx}: one gutter segment");
-                                let cy = marks[0][1] + marks[0][3] * 0.5;
-                                assert!(
-                                    cy > slot.top - 0.51 && cy < slot.bottom() + 0.51,
-                                    "{ctx}: the gutter mark at y={cy} must hang beside its own \
-                                     row [{}, {}]",
-                                    slot.top,
-                                    slot.bottom()
-                                );
-                            }
-                        }
-                        seen_ids.insert(format!("{:?}", row.id));
-                        seen_kinds.insert(format!("{:?}", row.kind));
-                        graded += 1;
-                    }
+                    // The WHOLE composition on this row, through the same reader
+                    // every other law uses — weights, no scrim, boundary
+                    // continuity, both spans, one mark.
+                    let graded_card = grade_ruled_card(&mut p, cw, mark, &ctx);
+                    let Some((_, marked)) = graded_card else {
+                        continue;
+                    };
+                    assert!(marked, "{ctx}: the row under test must be the selected one");
+                    // …and the mark sits on ITS OWN slot. This is the claim a
+                    // RANGE row could break: its rail is drawn from a different
+                    // owner at the same y, so a mark that took the rail's band
+                    // instead of the row's would still be one mark of the right
+                    // weight.
+                    assert_mark_sits_on_the_selected_row(&mut p, cw, mark, &ctx);
+                    seen_ids.insert(format!("{:?}", row.id));
+                    seen_kinds.insert(format!("{:?}", row.kind));
+                    graded += 1;
                 }
             }
         }

@@ -121,9 +121,9 @@ mod reanchor_crossing_law;
 mod rotated_label_item235;
 mod rotated_location_item221;
 mod row_offset_item131;
-/// ITEM 283 — `ListStyle::Rules` graduated: the full `OverlayKind` row-surface
-/// sweep, the Settings workspace (both regions), every `SettingId ×
-/// SettingKind`, drawn-equals-clickable at both DPIs, and the pixel laws.
+/// The `Rules` composition: the full `OverlayKind` row-surface sweep, the
+/// Settings workspace (both regions), every `SettingId × SettingKind`,
+/// drawn-equals-clickable at both DPIs, and the pixel laws.
 mod rules_composition_item283;
 mod scroll_pos;
 mod selection_clip_law;

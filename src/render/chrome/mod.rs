@@ -294,6 +294,9 @@ mod panel;
 mod comparison;
 mod workspace;
 mod workspace_column;
+// The narrow region itself: its grid, shaping, active mark and hit-test —
+// including the one composition question a rail has, because a rail is a list.
+mod workspace_rail;
 pub(in crate::render) use overlay::OVERLAY_UI_SCALE;
 #[cfg(test)]
 pub(in crate::render) use overlay::{
