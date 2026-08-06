@@ -125,7 +125,8 @@ fn every_worlds_page_draws_its_authored_base_100_at_both_dpi_tiers() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(LOGICAL.0, LOGICAL.1) else {
         eprintln!(
-            "skipping every_worlds_page_draws_its_authored_base_100_at_both_dpi_tiers: no wgpu adapter"
+            "skipping every_worlds_page_draws_its_authored_base_100_at_both_dpi_tiers: \
+             no wgpu adapter"
         );
         return;
     };
