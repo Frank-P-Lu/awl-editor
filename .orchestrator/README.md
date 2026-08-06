@@ -44,6 +44,19 @@ core count. `native-gate.sh` already deferred to a caller-supplied
 derived default when the variable is unset — so this needed no change inside
 the gate script itself; the wrapper remains the sole owner of both bounds.
 
+⚠️ **ONE CHECK IN THIS REPO FAILS FROM ORCHESTRATION LOAD ALONE, AND READS AS A
+CODE DEFECT.** `scripts/test-native-gate.sh`'s CPU-heartbeat self-test — *"the
+busiest NEW process … dropped instead of measured over its own age"* — went red
+for a lane at load average 33–42 on this ten-core host with concurrent lanes at
+the gate phase, on a diff that could not touch it, and passed on a rerun once
+contention eased. **The wrapper's bounds do not prevent this**: they cap Cargo's
+build jobs and test threads, not the number of short-lived processes a heartbeat
+probe has to measure against its own age. So a red heartbeat self-test during a
+multi-lane wave is classified as contention **before** it is attributed to a
+diff — check the load average first, then rerun alone. It is the same
+classify-before-blaming rule as an incremental failure or a `SIGKILL`, applied
+to a check whose own configuration is the thing that failed.
+
 The root's isolated merge-train gate, CI, and a developer's lone build do not
 use the wrapper and remain hardware-adaptive. The wrapper is intentionally a
 launch seam, not `.cargo/config.toml`; it passes its environment through to

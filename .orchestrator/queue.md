@@ -178,8 +178,12 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
 | `src/render/plan/` | overlay row family only (5 modules) |
 | item 288's three identifiers | all three still present, verbatim |
 
-**WAVE RUNNING — four lanes claimed: 290, 295, 304, 289.** 288 LANDED
-(`289d364c`) and 172 is closed against its census. Order for the next wave:
+**WAVE RUNNING — three lanes claimed: 290, 304, 289.** LANDED this wave: 288
+(`289d364c`, fast-forward) and 295 (merged `414e3b5a`). 172 is closed against its
+census. ⚠️ **`main` carries a merge that has NOT been gated as a combined
+candidate yet** — 295's receipt is for its own branch at `508b31e1`, taken before
+288 landed. **Do not push until one native/health/wasm set runs on the merged
+tree.** Order for the next wave:
 
 1. **131e** — selection and the full Verify clause; 131a–d are landed and the
    measured cluster rail exists in `render/chrome/diagonal.rs`. ⚠️ It reaches
@@ -786,24 +790,6 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      for `Pane`. ⚠️ Laws in `render/tests/{hud,one_bit,outline}.rs` pin the
      current crisp behaviour — re-aim, don't delete. **Routing:** deep tier.
 
-295. 🟡 IN PROGRESS — claude, branch `claude/item-295-export-button`.
-     **Export is a broken button — three defects.**
-     **(a)** On a non-Markdown buffer it is a total no-op: `actions.rs:369`
-     returns `Effect::None` behind an `is_markdown()` gate. Reproduced on the
-     shipped binary — palette ran the command, overlay closed, notice empty, no
-     file. The menu row is built `enabled: true` unconditionally
-     (`menu/native.rs:16-27`). `.txt` and light code are in scope.
-     **(b)** The ellipsis lies. Every other ellipsis row in the File menu opens a
-     surface; Save and Duplicate carry none and complete immediately. Export as
-     PDF…/Word…/HTML… are the only ellipsis rows that complete with no surface.
-     **(c)** Destination surprise: unsaved exports land in `fs::data_root()` =
-     `~/.local/share/awl`, dot-hidden. ⚠️ `docs/platform.md:88` calls this
-     fallback "`~/notes` by default" — wrong; fix in the same pass.
-     (c) is retired by 301; (a) and (b) stand regardless.
-     **Verify:** a capture over a non-Markdown buffer showing a disabled row or an
-     explicit notice; a law asserting the ellipsis convention across `FILE_ITEMS`.
-     **Routing:** production tier.
-
 296. **`ConvertLineEndings` is silent, and no capture can photograph a toast.**
      The action flips on-disk EOL with `Effect::None` — no notice ever — and is
      deliberately off the undo timeline, so a double-toggle is undetectable.
@@ -876,6 +862,19 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      Must reach the CLI/headless path too, which merges with 296's gap; they may
      be one defect. Prototype in awl via capture, never an HTML mockup; closes on
      the user's eye. **Routing:** deep tier, then the user.
+
+     ⚠️ **RAISED IN PRIORITY BY 295, AND ITS SCOPE IS WIDER THAN ITS TITLE.**
+     `NoticeState` has **two kinds**, and this item is written about one of them.
+     `set_sticky_notice` sets `expires_at = None` — a sticky notice does **not**
+     expire, so `TOAST_LIFETIME` cannot explain an unseen sticky one, while
+     position, LABEL scale and `muted()` ink explain both. **Probe both kinds; a
+     `Toast`-only diagnosis answers half the channel.**
+     **295 now depends on this.** Its (a) fix routes a non-Markdown Export
+     through `NoticeEffect::Sticky`, so **the user-visible half of a landed fix is
+     gated here** — if a sticky notice does not draw, Export still fails silently
+     for the user and only a unit test knows otherwise. `app/files/verbs.rs`
+     already had two production sticky callers before that, so this was never a
+     test-only channel.
 
 301. **Export through the platform's own picker.** `mac_chrome::pick_file_to_open`
      already drives a real `NSOpenPanel`, wired at `app/menu.rs:56`, so the modal
