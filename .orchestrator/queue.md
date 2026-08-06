@@ -983,6 +983,29 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      feedback channel. **Perceptibility of toasts is therefore UNVERIFIED, not
      verified-good; treat it as live-only until the harness reaches it.**
 
+     ✅ **THE CAUSE IS NAMED, AND IT IS A STALE ASSUMPTION IN A COMMENT.**
+     `prepare_notice` (`src/render/chrome/readout.rs`) documents itself as "one
+     quiet LABEL-sized line in the muted ink at the BOTTOM-CENTER of the writing
+     column (today: the autosave external-change guard's 'changed elsewhere')"
+     and states that "an EMPTY notice parks it off-screen, so **every capture
+     (which can never have a notice — autosave is live-only)** stays
+     byte-identical." **That parenthetical was true when autosave was the sole
+     caller and is FALSE NOW:** `set_toast_notice` has ~10 callers including
+     `exported {shown}`, `downloaded {name}`, `saved your version`, `reloaded —
+     changed elsewhere` and `graphics recovered` — and export IS reachable
+     headlessly. **The capture pipeline was designed around an invariant that
+     later callers quietly invalidated, and the comment still asserts it.** So
+     the harness gap is not an oversight in the capture path; it is a live
+     assumption that stopped being true. Fix the comment in the same pass, and
+     treat "no capture can have one" as a claim to re-verify rather than inherit.
+
+     ⚠️ **CORROBORATING EVIDENCE, worth more than any measurement here: the USER
+     DID NOT KNOW awl HAD TOASTS AT ALL** ("we had toasts...??"), having shipped
+     the feature. A feedback channel its own author has never noticed is not a
+     feedback channel. **This is the strongest argument that the fix is a design
+     change to notice presentation, not merely a harness repair** — but the
+     design call is the user's, so this item stops at naming it.
+
 297. **CASSOWARY'S ROTATED LOCATION LABEL IS TOO SMALL AND IN THE WRONG PLACE.**
      **User design decision 2026-08-06, with screenshot.** Today
      `LocationStyle::RotatedRail` draws the active facet name ("Tools") as, in
