@@ -455,3 +455,181 @@ const REGEN_WORLDS: &str = "update WORLDS.md's at-a-glance row to match \
      theme::THEMES (there is no regen script for this document — the table \
      is hand-written prose except for the fact it must agree with the \
      roster on)";
+
+/// WORLDS.md's SECOND table, `## The margin backgrounds` — a "Shipping
+/// worlds" column per `Background` variant, hand-maintained the same way the
+/// at-a-glance table is. Isolated the same way [`at_a_glance_table`] isolates
+/// its own section.
+fn background_table(doc: &str) -> &str {
+    let sec = doc
+        .split_once("## The margin backgrounds")
+        .expect("WORLDS.md carries its margin-backgrounds table")
+        .1;
+    sec.split_once("\n## ").map_or(sec, |(a, _)| a)
+}
+
+/// Every `(bold label, raw "Shipping worlds" cell)` row of the
+/// margin-backgrounds table, by column HEADER name — same discipline as
+/// [`table_row`] above, so a reordered column cannot compare the wrong
+/// cells.
+fn background_rows(doc: &str) -> Vec<(String, String)> {
+    let mut lines = background_table(doc)
+        .lines()
+        .filter(|l| l.trim_start().starts_with('|'));
+    let header = lines.next().expect("the table carries a header row");
+    let headers: Vec<String> = header
+        .trim()
+        .trim_matches('|')
+        .split('|')
+        .map(|c| c.trim().to_string())
+        .collect();
+    lines.next(); // the `| --- | --- |` separator row
+    let label_idx = headers
+        .iter()
+        .position(|h| h == "Background")
+        .expect("a Background column");
+    let ships_idx = headers
+        .iter()
+        .position(|h| h == "Shipping worlds")
+        .expect("a Shipping worlds column");
+    let mut out = Vec::new();
+    for line in lines {
+        let cells: Vec<&str> = line.trim().trim_matches('|').split('|').collect();
+        if cells.len() != headers.len() {
+            continue;
+        }
+        // The label cell is `**Name**` or `**Name** (item N)`: the bold run
+        // is the row's identity, the parenthetical is a citation.
+        let raw = cells[label_idx].trim();
+        let Some(label) = raw.split("**").nth(1) else {
+            continue;
+        };
+        out.push((label.to_string(), cells[ships_idx].trim().to_string()));
+    }
+    out
+}
+
+/// The "Shipping worlds" cell's world names, stripped of a trailing
+/// parenthetical qualifier (`"Paperbark (Strata)"` -> `"Paperbark"`) and of
+/// the `*(none — …)*` empty-row placeholder.
+fn shipping_worlds(cell: &str) -> Vec<String> {
+    if cell.trim_start().starts_with("*(") {
+        return Vec::new();
+    }
+    cell.split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| {
+            s.split([' ', '('])
+                .next()
+                .unwrap_or(s)
+                .trim_end_matches('*')
+                .to_string()
+        })
+        .collect()
+}
+
+/// The `Background::as_str()` discriminant a margin-backgrounds row label
+/// keys to. NO WILDCARD: an unrecognised label panics by name rather than
+/// being silently skipped — the failure mode the roster-derived laws above
+/// exist to avoid (see CLAUDE.md's enrolment-predicate tripwire).
+fn background_variant_key(label: &str) -> &'static str {
+    match label {
+        "Gradient" => "gradient",
+        "Dots" => "dots",
+        "Pinstripe" => "pinstripe",
+        "Stripes" => "stripes",
+        "Lava" => "lava",
+        "Bands" => "bands",
+        "Zigzag" => "zigzag",
+        "Deckle" => "deckle",
+        "Warped grid" => "warped-grid",
+        "Waves" => "waves",
+        other => panic!(
+            "WORLDS.md's margin-backgrounds table has a row `{other}` this \
+             law does not know how to key against `Background::as_str()` — \
+             add it to `background_variant_key` (or explain why the row is \
+             not a `Background` variant)"
+        ),
+    }
+}
+
+/// Background variants with a real occupant in `theme::THEMES` but no row in
+/// WORLDS.md's margin-backgrounds table. Tracked here rather than left an
+/// unexamined gap: `Background::Organic`'s sole occupant is Bowerbird, and
+/// giving it a row is a content decision (what to say it draws), not a
+/// membership fix — out of scope for a law that only checks agreement.
+const BACKGROUND_VARIANTS_WITH_NO_ROW: &[&str] = &["organic"];
+
+/// THE BACKGROUND-MEMBERSHIP DRIFT LAW — the at-a-glance law's companion over
+/// WORLDS.md's SECOND table. A world's `background` field changing is two
+/// edits a human has to remember to make together (drop the name from the
+/// row it left, add it to the row it joined), and nothing forced the second
+/// half. Found by this law on first run: Magpie carries `Background::Bands`
+/// while the Pinstripe row still claimed it and the Bands row called itself
+/// dormant; Galah has carried `Background::Deckle` (Fibres) since it shipped
+/// while the Gradient row still claimed it, the Deckle row named only
+/// Paperbark, and the Deckle row's own prose still called Fibres dormant.
+#[test]
+fn worlds_md_background_membership_matches_the_theme_roster() {
+    let _g = crate::testlock::serial();
+    let doc = crate::embedded_docs::WORLDS_MD;
+    for (label, cell) in background_rows(doc) {
+        let key = background_variant_key(&label);
+        let mut want: Vec<String> = crate::theme::THEMES
+            .iter()
+            .filter(|t| t.background.as_str() == key)
+            .map(|t| t.name.to_string())
+            .collect();
+        let mut have = shipping_worlds(&cell);
+        want.sort();
+        have.sort();
+        assert_eq!(
+            have, want,
+            "WORLDS.md's `{label}` row's Shipping worlds cell lists `{have:?}` \
+             but `theme::THEMES` carries `Background::{key}` on `{want:?}` — \
+             {REGEN_WORLDS}"
+        );
+    }
+}
+
+/// The completeness half: every `Background` variant a world actually uses is
+/// either keyed by a row above or explicitly excused. Without this, a new
+/// ground (or Organic's existing, still-unrowed one) could sit permanently
+/// invisible to [`worlds_md_background_membership_matches_the_theme_roster`],
+/// which only walks rows that already exist.
+#[test]
+fn every_used_background_variant_has_a_worlds_md_row_or_is_excused() {
+    let _g = crate::testlock::serial();
+    let doc = crate::embedded_docs::WORLDS_MD;
+    let keyed: std::collections::HashSet<&str> = background_rows(doc)
+        .iter()
+        .map(|(label, _)| background_variant_key(label))
+        .collect();
+    for t in crate::theme::THEMES.iter() {
+        let key = t.background.as_str();
+        assert!(
+            keyed.contains(key) || BACKGROUND_VARIANTS_WITH_NO_ROW.contains(&key),
+            "world `{}` carries `Background::{key}`, which has no row in \
+             WORLDS.md's margin-backgrounds table and is not excused in \
+             `BACKGROUND_VARIANTS_WITH_NO_ROW` — add a row or excuse it with \
+             a reason",
+            t.name
+        );
+    }
+    for excused in BACKGROUND_VARIANTS_WITH_NO_ROW {
+        assert!(
+            !keyed.contains(excused),
+            "`{excused}` is excused as having no WORLDS.md row, but a row \
+             now keys to it — shrink the excuse list rather than leave it \
+             stale"
+        );
+        assert!(
+            crate::theme::THEMES
+                .iter()
+                .any(|t| t.background.as_str() == *excused),
+            "`{excused}` is excused as a used-but-unrowed background \
+             variant, but no world uses it any more — shrink the list"
+        );
+    }
+}

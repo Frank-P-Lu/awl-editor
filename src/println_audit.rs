@@ -119,8 +119,10 @@ const EXPECTED: &[(&str, usize)] = &[
     // splices on. Stdout is the whole mechanism (the repo's regeneration
     // convention — a test prints, a human-run script writes; no test ever
     // writes a repo file), and the module is `cfg(test)`, so none of these can
-    // reach a shipped binary.
-    ("reference/law/mod.rs", 4),
+    // reach a shipped binary. The site page's generated sidebar nav adds a
+    // second fenced block (BEGIN/END) printed the same way, ahead of the five
+    // section blocks — two more lines of the same mechanism, same fate.
+    ("reference/law/mod.rs", 6),
     // `AWL_FONT` + `AWL_CHROME_FACE_FILE` dev-only env var override
     // diagnostics (the second is the Firetail-showcase round's audition-font
     // loader: a missing/unreadable candidate file prints a note and is
