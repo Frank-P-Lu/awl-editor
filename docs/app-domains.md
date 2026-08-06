@@ -8,7 +8,7 @@ which invariant). Queue item 172.
 ## The defect this map exists to close
 
 The initial census found `pub struct App` with 107 fields; the extracted
-owners have reduced the root to 28. Every root field is private to `crate::app`,
+owners have reduced the root to 20. Every root field is private to `crate::app`,
 which means every one of the ~24 `impl App` blocks under `src/app/` can still
 read and write it. The physical file split (item 56) made the code
 navigable without making any invariant *owned*: a rule spread across four
@@ -57,11 +57,17 @@ Names follow queue item 172, with two corrections the census forced (see
 | `ConfigurationRuntime` | 4 | 87 | 16 | extracted — slice 3 |
 | `ProjectLocation` | 6 | 51 | 9 | extracted — slice 3 |
 | `FrameRuntime` | 38 | 400 | 23 | extracted |
-| host / lifecycle (stays on `App`) | 21 | 210 | 19 | stays |
+| `UsageLedger` | 9 | 67 | 2 | extracted — slice 6 |
+| host / lifecycle (stays on `App`) | 12 | 54 | 8 | stays |
 
 At census time: 107 fields and 1,310 production references, with no field in
 two owners and none unassigned — the classification is exhaustive by
 construction, see below.
+
+The `UsageLedger` and host/lifecycle rows were re-measured at slice 6 with the
+reproduce command above (`(self|app).<field>` over non-test files under
+`src/app.rs` + `src/app/**`), which is stricter than the original pass — read
+those two rows against each other, not against the older rows.
 
 `src/app/tests/domains.rs` carries the same table as executable data with a
 no-wildcard match over the owner roster, so a new `App` field fails the suite
@@ -234,18 +240,56 @@ field bag; lifecycle changes use named transitions and read-only facts cross as
 typed snapshots. Raw GPU loans remain for render-pipeline consumers until the
 planner/execution split is complete.
 
+### `UsageLedger` — the two private local-usage records
+
+`stats` · `stats_origin` · `stats_last_input_ms` · `stats_last_caret_xy` ·
+`stats_last_cursor` · `stats_dirty` · `streaks` · `streaks_baseline` ·
+`streaks_dirty`
+
+Extracted as `app/usage.rs::UsageLedger`. **This map previously argued these
+nine fields were already single-owner by locality and would gain nothing from a
+wrapper.** The locality claim is true and still is — all six `stats_*` fields
+are touched only by `app/stats.rs` and all three `streaks_*` only by
+`app/streaks.rs`, 67 production references over exactly those two files — but
+locality was the wrong measurement. This item's defect is
+*invariants coupled by convention*, and three of them crossed the two modules:
+
+- **One privacy kill switch, eight readers.** Both records hang off the single
+  `stats` config toggle. It was re-read at eight sites across the two files, so
+  a new tracking hook that forgot its `if` would record private usage with the
+  toggle off — reachable by one missing line, catchable only by review. The
+  toggle now has exactly ONE reader anywhere under `src/app/`
+  (`ConfigurationRuntime::usage_recording`), which hands every transition a
+  typed `Recording` value, and `the_usage_privacy_gate_has_exactly_one_reader`
+  counts it.
+- **A record and its unflushed-changes stamp, paired by hand five times.** The
+  private `usage::dirtying` module makes the pairing structural: outside it
+  neither store is reachable as `&mut` and neither flag is writable at all, so a
+  recording path CANNOT forget its stamp. Its one door takes the store's own
+  `Changed` verdict, so a deduped re-open still writes nothing on a quiet quit.
+  `the_usage_records_have_exactly_one_dirty_stamping_site` fences the inside of
+  that module, which the type system cannot.
+- **One flush cadence and one buffer-swap anchor rule**, spelled out at ten
+  flush call sites across six files and five anchor sites across three.
+
+**The asymmetry, recorded rather than "fixed".** Three sites flush the streaks
+record ALONE (`load_path`, `start_fresh_document`, the card-summon effect). That
+is correct, not drift: the streaks delta is BUFFER-SCOPED — words now minus
+words at the last sample of *this* document — so it must be sampled before the
+active buffer changes, while the odometer's counters are app-global and carry no
+such deadline. Two named transitions, not one merged flush.
+
 ### Host / lifecycle — stays on `App`
 
 `clipboard` · `clipboard_last_written` · `soak` · `soak_recovery_pending` ·
 `soak_passed` · `probe_ready` · `daemon_socket_path` · `wait_conns` ·
-`menu_proxy` · `_menu_bar` · `restored_window` · `pending_crash` ·
-`stats`-group · `streaks`-group
+`menu_proxy` · `_menu_bar` · `restored_window` · `pending_crash`
 
 These are process/OS handles and one-shot startup handoffs — `App` genuinely is
-their lifecycle. `_menu_bar` exists only to not be dropped. `stats`/`streaks`
-are already single-owner by locality (all 6 `stats_*` fields are touched by
-`app/stats.rs` alone; all 3 `streaks_*` by `app/streaks.rs` alone) and gain
-nothing from a wrapper. Configuration is no longer host lifecycle state:
+their lifecycle. `_menu_bar` exists only to not be dropped. The `stats`/
+`streaks` groups left this bucket in slice 6; see `UsageLedger` above for why
+the locality argument that kept them here was measuring the wrong thing.
+Configuration is no longer host lifecycle state:
 `ConfigurationRuntime` owns it with the startup location policy that gives its
 `workspace` and `default_folder` settings meaning.
 
@@ -270,7 +314,13 @@ nothing from a wrapper. Configuration is no longer host lifecycle state:
    rule. The initial map correctly prioritized `WorkspaceState`; the later
    `InputRuntime` extraction is deliberately a locality-preserving handle plus
    the typed pointer snapshot, not a second interaction system.
-3. **Render and scheduling are one frame lifecycle.** Theme/crossing stamps,
+3. **Locality is not ownership.** This map's own first pass used file locality
+   to argue the odometer and streaks fields needed no owner (see `UsageLedger`).
+   Locality answers "who touches this field"; the item's defect is "who holds
+   this rule", and the privacy gate — one toggle, seven readers, two modules —
+   was dispersed by exactly the measure the map was not taking. A field group
+   that lives in one file can still hold a rule that does not.
+4. **Render and scheduling are one frame lifecycle.** Theme/crossing stamps,
    present-sync claims, GPU recovery, and redraw retirement cross the proposed
    render/scheduler line. `FrameRuntime` therefore owns the lifecycle as one
    domain; render planning remains separately owned by the planner work.

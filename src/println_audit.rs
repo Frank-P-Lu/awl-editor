@@ -63,11 +63,12 @@ const EXPECTED: &[(&str, usize)] = &[
     ("app/gpu.rs", 2),
     ("app/window.rs", 1),
     ("app/session.rs", 1),
-    ("app/stats.rs", 1),
-    // WRITING STREAKS: the `streaks save failed: {e}` stderr line (a failed atomic
-    // write of `streaks.toml` must never disrupt the editor — it warns and moves on,
-    // mirroring `app/stats.rs`'s own `stats save failed` line).
-    ("app/streaks.rs", 1),
+    // THE LOCAL USAGE LEDGER: ONE `{what} save failed: {e}` stderr line, in the
+    // `Dirtying::flush` door both records share (a failed atomic write of
+    // `stats.toml` / `streaks.toml` must never disrupt the editor — it warns
+    // and moves on). This used to be two identical lines, one per record, in
+    // `app/stats.rs` and `app/streaks.rs`; merging the flush merged them.
+    ("app/usage.rs", 1),
     ("bench.rs", 4),
     ("buffers.rs", 1),
     // Headless capture harness diagnostics ("spell-check disabled for

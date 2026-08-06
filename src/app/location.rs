@@ -91,6 +91,21 @@ impl ConfigurationRuntime {
         }
     }
 
+    /// THE ONE READ of the LOCAL-USAGE PRIVACY TOGGLE anywhere under
+    /// `src/app/`, handed to `UsageLedger`'s transitions as a typed value —
+    /// the same shape as [`Self::scheduling_snapshot`] and
+    /// [`Self::location_policy`]: configuration states a policy, and the
+    /// domain that acts on it never re-derives one of its own.
+    ///
+    /// It used to be re-read at eight sites across the odometer and streaks
+    /// wiring, where a tracking hook that forgot the `if` was a privacy defect
+    /// one missing line away. `the_usage_privacy_gate_has_exactly_one_reader`
+    /// in `app/tests/domains.rs` keeps it singular.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn usage_recording(&self) -> super::usage::Recording {
+        super::usage::Recording::from_config(self.config.stats_on())
+    }
+
     pub(in crate::app) fn apply_loaded(&mut self, config: Config) -> ReloadOutcome {
         self.config = config;
         self.default_folder = crate::resolve_default_folder(

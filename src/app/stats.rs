@@ -1,25 +1,29 @@
-//! LIFETIME STATS' App-side wiring (native only — `cfg(not(target_arch =
-//! "wasm32"))`, mirroring the daemon / session restore's own gate): the TRACKING
-//! HOOKS the live `App` calls from its existing seams, plus the FLUSH on the
-//! autosave triggers. `crate::stats` owns the pure store + injected-clock helpers
-//! + the (de)serializer; this file is the seam that folds it into the live `App`.
+//! LIFETIME STATS' App-side WIRING (native only — `cfg(not(target_arch =
+//! "wasm32"))`, mirroring the daemon / session restore's own gate): the
+//! TRACKING HOOKS the live `App` calls from its existing seams, plus the FLUSH
+//! on the autosave triggers.
 //!
-//! **The hooks (each config-gated on `stats_on()`, each native-only):**
+//! The STATE is not here. `crate::stats` owns the pure store + injected-clock
+//! helpers + the (de)serializer, and `app::usage::UsageLedger` owns
+//! the live ledger — the odometer, its unflushed-changes stamp, and its
+//! caret-travel anchor. What remains in this file is only the seam: the hooks
+//! that have to reach the OTHER domains an odometer sample needs (the frame
+//! clock and GPU pipeline, the document's cursor, the summoned overlay) before
+//! handing a value to the owner.
+//!
+//! **The hooks (each takes the privacy gate as a [`super::usage::Recording`]
+//! value from `ConfigurationRuntime` — the one reader of the toggle):**
 //!  - [`Self::stats_note_keystroke`] — on the keyboard-input path
-//!    (`on_keyboard_input`, past every filter): a keystroke, a printable char iff
-//!    it resolved to an insert, and the capped active-writing interval since the
-//!    previous press (attributed to the active theme world).
+//!    (`on_keyboard_input`, past every filter).
 //!  - [`Self::stats_track_caret`] — at the end of `sync_view` (the one live
-//!    bridge every caret move passes through): the caret's DOCUMENT-space travel,
-//!    added only when the logical cursor actually moved.
-//!  - [`Self::stats_touch_file`] — from `load_path`, beside `push_recent_file`:
-//!    the distinct-files set.
-//!  - [`Self::stats_flush`] — the atomic write, on the SAME idle/blur/switch/quit
-//!    triggers the autosave engine's own flush uses.
+//!    bridge every caret move passes through).
+//!  - [`Self::stats_touch_file`] — from `load_path`, beside `push_recent_file`.
+//!  - [`Self::stats_flush`] — the atomic write, on the SAME idle/blur/switch/
+//!    quit triggers the autosave engine's own flush uses.
 //!
 //! **Determinism:** all four live ONLY on the live `App`; the headless capture
-//! never constructs one, so a `--screenshot`/`--keys` capture is STRUCTURALLY
-//! incapable of touching `stats.toml` — see
+//! never constructs a `UsageLedger`, so a `--screenshot`/`--keys` capture is
+//! STRUCTURALLY incapable of touching `stats.toml` — see
 //! `main::run::tests::headless_replay_never_touches_the_stats_file`.
 
 use super::*;
@@ -27,110 +31,67 @@ use super::*;
 impl App {
     /// Record ONE keyboard press into the odometer. `printable` is whether the
     /// press resolved to an `Action::InsertChar` (a real character written).
-    /// Bumps `keystrokes` (+ `chars_typed` when printable) and folds the capped
-    /// active-writing interval (see [`crate::stats::active_delta`]) into the total
-    /// + the active world's bucket, stamping the current keystroke as the next
-    ///   interval's `last`. A no-op when the odometer is off.
+    /// The session clock is read through the ONE time owner (the same clock
+    /// the ledger's origin was stamped from), so a deterministic clock would
+    /// govern the active-writing odometer too.
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn stats_note_keystroke(&mut self, printable: bool) {
-        if !self.config.stats_on() {
-            return;
-        }
-        // Session clock through the ONE time owner (origin was stamped by the
-        // same `self.clock`), so a deterministic clock would govern the active-
-        // writing odometer too. `RealClock` makes this `stats_origin.elapsed()`.
-        let now_ms = self
-            .frame
-            .now()
-            .duration_since(self.stats_origin)
-            .as_millis() as u64;
-        let world = crate::theme::active().name;
-        self.stats
-            .record_keystroke(printable, world, self.stats_last_input_ms, now_ms);
-        self.stats_last_input_ms = Some(now_ms);
-        self.stats_dirty = true;
+        let recording = self.config.usage_recording();
+        let now = self.frame.now();
+        self.usage.note_keystroke(recording, now, printable);
     }
 
     /// Sample the caret and accumulate its DOCUMENT-space travel. Called at the
     /// end of `sync_view`, once the pipeline's caret target reflects this sync's
-    /// cursor. Distance is added ONLY when the logical (line, col) changed since
-    /// the last sample — a pure scroll or a re-layout (heading reshape) just
-    /// refreshes the anchor, so stale pre-reshape coords never leak into a later
-    /// real move. A no-op when the odometer is off or the GPU is not up yet
-    /// (nothing to read a caret position from).
+    /// cursor. The sample is handed over as a THUNK: it reads the GPU pipeline
+    /// and queries the rope, and neither is paid for with tracking off. It
+    /// yields `None` when the GPU is not up yet (nothing to read a caret
+    /// position from).
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn stats_track_caret(&mut self) {
-        if !self.config.stats_on() {
-            return;
-        }
-        let Some(gpu) = self.frame.gpu() else {
-            return;
-        };
-        let xy = gpu.pipeline.caret_doc_xy();
-        let cur = self.document.buffer().cursor_line_col();
-        if let (Some(prev_xy), Some(prev_cur)) = (self.stats_last_caret_xy, self.stats_last_cursor)
-            && cur != prev_cur
-        {
-            self.stats.record_caret_move(prev_xy, xy);
-            self.stats_dirty = true;
-        }
-        self.stats_last_caret_xy = Some(xy);
-        self.stats_last_cursor = Some(cur);
+        let recording = self.config.usage_recording();
+        let frame = &self.frame;
+        let document = &self.document;
+        self.usage.track_caret(recording, || {
+            let gpu = frame.gpu()?;
+            Some((
+                gpu.pipeline.caret_doc_xy(),
+                document.buffer().cursor_line_col(),
+            ))
+        });
     }
 
     /// Record a file OPEN into the distinct-files set (deduped). Called from
-    /// `load_path`, the same door the recent-files MRU rides. A re-open of an
-    /// already-seen path is inert (never re-marks the odometer dirty). A no-op
-    /// when the odometer is off.
+    /// `load_path`, the same door the recent-files MRU rides.
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn stats_touch_file(&mut self, path: PathBuf) {
-        if !self.config.stats_on() {
-            return;
-        }
-        if self.stats.touch_file(path) {
-            self.stats_dirty = true;
-        }
+        let recording = self.config.usage_recording();
+        self.usage.touch_file(recording, path);
     }
 
-    /// Drop the caret-travel anchor across a BUFFER SWAP (file open / new note),
-    /// so the first caret sample in the new document re-anchors instead of
-    /// counting the jump between two documents' incomparable coordinate spaces as
-    /// travel. The next `sync_view`'s `stats_track_caret` sees `None` and simply
-    /// records the fresh position (no distance added).
+    /// Drop the caret-travel anchor across a BUFFER SWAP (file open / new
+    /// note), so the first caret sample in the new document re-anchors instead
+    /// of counting the jump between two documents' incomparable coordinate
+    /// spaces as travel.
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn stats_reset_caret_anchor(&mut self) {
-        self.stats_last_caret_xy = None;
-        self.stats_last_cursor = None;
+        self.usage.reset_caret_anchor();
     }
 
     /// Push the LIFETIME-ODOMETER snapshot into the pipeline for the held HUD's
-    /// odometer rows (characters / writing time / files touched / caret travel /
-    /// most-lived-in world). Called every `sync_view` — the field is cheap to hold
-    /// and only read when the HUD is summoned. When the odometer is OFF we push
-    /// `None`, so the rows honestly read as the `"—"` placeholder rather than a
-    /// misleading row of zeros. This is the LIVE-ONLY seam that keeps a `--hud`
-    /// capture (which never calls `sync_view`) showing placeholders — mirroring the
-    /// retired `set_hud_session`.
+    /// odometer rows. Called every `sync_view` — the field is cheap to hold and
+    /// only read when the HUD is summoned. With the odometer OFF the ledger
+    /// yields `None`, so the rows honestly read as the `"—"` placeholder rather
+    /// than a misleading row of zeros. This is the LIVE-ONLY seam that keeps a
+    /// `--hud` capture (which never calls `sync_view`) showing placeholders.
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn stats_sync_hud(&mut self) {
-        let Some(gpu) = self.frame.gpu_mut() else {
-            return;
-        };
-        let snapshot = if self.config.stats_on() {
-            Some(crate::hud::HudStats {
-                chars_typed: self.stats.chars_typed,
-                active_writing_ms: self.stats.active_writing_ms,
-                files_touched: self.stats.files_touched_count(),
-                caret_distance_px: self.stats.caret_distance_px,
-                world: self
-                    .stats
-                    .most_used_world()
-                    .map(|(name, _)| name.to_string()),
-            })
-        } else {
-            None
-        };
-        gpu.pipeline.set_hud_stats(snapshot);
+        // Snapshot BEFORE borrowing the GPU (both read `self`) — the shape
+        // `streaks_sync_card` already uses.
+        let snapshot = self.usage.hud_snapshot(self.config.usage_recording());
+        if let Some(gpu) = self.frame.gpu_mut() {
+            gpu.pipeline.set_hud_stats(snapshot);
+        }
     }
 
     /// Push the DISCOVERABILITY surfaces' content into the pipeline every `sync_view`
@@ -157,31 +118,17 @@ impl App {
         }
     }
 
-    /// The HOLD-⌘ peek's personalized rows from the ledger: the top-[`crate::peek::PEEK_ROWS`]
-    /// graduation candidates resolved to chord+name (a candidate lacking a native chord is
-    /// dropped by `peek_row_for_slug`, though the ranking already excludes those). Empty on
-    /// a fresh install / with tracking off → the pipeline falls back to the starter six.
-    /// Pure over `self.stats`, so a fake ledger pins it without a GPU.
+    /// The HOLD-⌘ peek's personalized rows from the ledger. Empty on a fresh
+    /// install → the pipeline falls back to the starter six.
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn peek_rows_from_ledger(&self) -> Vec<crate::peek::PeekRow> {
-        self.stats
-            .graduation_candidates(crate::commands::has_native_chord, crate::peek::PEEK_ROWS)
-            .iter()
-            .filter_map(|(slug, _)| crate::commands::peek_row_for_slug(slug))
-            .collect()
+        self.usage.peek_rows()
     }
 
-    /// The Keybindings footer's "your top 3" tip lines from the ledger: each a
-    /// `"⌘O  Go to file"` one-liner (chord + two spaces + name) over the top-3 graduation
-    /// candidates. Pure over `self.stats`, so a fake ledger pins the content without a GPU.
+    /// The Keybindings footer's "your top 3" tip lines from the ledger.
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn keybinding_tips_from_ledger(&self) -> Vec<String> {
-        self.stats
-            .graduation_candidates(crate::commands::has_native_chord, 3)
-            .iter()
-            .filter_map(|(slug, _)| crate::commands::peek_row_for_slug(slug))
-            .map(|r| format!("{}  {}", r.chord, r.name))
-            .collect()
+        self.usage.keybinding_tips()
     }
 
     /// Whether the currently-summoned overlay (if any) is the Keybindings rebind menu —
@@ -198,50 +145,25 @@ impl App {
     /// `door` it came through (chord / palette / menu). Called at the TOP of
     /// [`Self::apply`] — the ONE seam every door funnels through (a keyboard chord, the
     /// palette's `Effect::RunAction` re-dispatch, and the macOS menu handler all reach
-    /// `apply`), so all three attribute here without a parallel path, and the truly-hot
-    /// typing / motion path is filtered for free (`slug_for_action` yields `None` for a
-    /// non-catalog action, allocating nothing). Marks the store dirty so the next
-    /// autosave-trigger flush persists it beside the lifetime odometer in the same
-    /// `stats.toml`. A no-op when the odometer is off.
+    /// `apply`), so all three attribute here without a parallel path.
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn ledger_note_dispatch(
         &mut self,
         action: &crate::keymap::Action,
         door: crate::stats::Door,
     ) {
-        if !self.config.stats_on() {
-            return;
-        }
-        // MOTIONS never reach the ledger, even the catalog-listed navigation ones
-        // (word / line / document motion joined the catalog 2026-07-10 to become
-        // REBINDABLE — see `commands.rs`'s module doc): navigation is not a
-        // "command" for the discoverability ledger, and without this gate every
-        // ⌥→ / Cmd-← press would key a ledger row AND dirty the store (an idle
-        // flush after mere cursor travel). The catalog-membership filter below
-        // still drops typing / prefix / arrow motions for free.
-        if action.is_motion() {
-            return;
-        }
-        let Some(slug) = crate::commands::slug_for_action(action) else {
-            return;
-        };
-        self.stats.record_command(slug, door);
-        self.stats_dirty = true;
+        let recording = self.config.usage_recording();
+        self.usage.note_dispatch(recording, action, door);
     }
 
     /// Flush the odometer to disk ATOMICALLY, on the SAME idle/blur/switch/quit
-    /// triggers the autosave engine's own flush uses. A no-op when the feature is
-    /// off OR nothing has changed since the last flush (the `stats_dirty` gate, so
-    /// a quiet blur/quit writes nothing). Errors go to stderr, never disrupt.
+    /// triggers the autosave engine's own flush uses. A no-op when the feature
+    /// is off OR nothing has changed since the last flush, so a quiet blur/quit
+    /// writes nothing.
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn stats_flush(&mut self) {
-        if !self.config.stats_on() || !self.stats_dirty {
-            return;
-        }
-        if let Err(e) = crate::stats::save(&crate::stats::stats_path(), &self.stats) {
-            eprintln!("stats save failed: {e}");
-        }
-        self.stats_dirty = false;
+        let recording = self.config.usage_recording();
+        self.usage.flush_odometer(recording);
     }
 }
 
@@ -258,15 +180,19 @@ mod tests {
             app.stats_note_keystroke(true);
             app.stats_note_keystroke(true);
             app.stats_note_keystroke(false);
-            assert_eq!(app.stats.keystrokes, 3);
+            assert_eq!(app.usage.odometer().keystrokes, 3);
             assert_eq!(
-                app.stats.chars_typed, 2,
+                app.usage.odometer().chars_typed,
+                2,
                 "only the printable presses count as chars"
             );
-            assert!(app.stats_dirty, "increments mark the store dirty");
+            assert!(
+                app.usage.odometer_dirty(),
+                "increments mark the store dirty"
+            );
 
             app.stats_flush();
-            assert!(!app.stats_dirty, "flush clears the dirty flag");
+            assert!(!app.usage.odometer_dirty(), "flush clears the dirty flag");
             let saved = crate::stats::load(&crate::stats::stats_path());
             assert_eq!(saved.keystrokes, 3);
             assert_eq!(saved.chars_typed, 2);
@@ -281,9 +207,30 @@ mod tests {
             app.stats_touch_file(PathBuf::from("/n/b.md"));
             app.stats_touch_file(PathBuf::from("/n/a.md")); // a re-open
             assert_eq!(
-                app.stats.files_touched_count(),
+                app.usage.odometer().files_touched_count(),
                 2,
                 "distinct count, not open count"
+            );
+        });
+    }
+
+    /// A re-open of an already-seen path reports [`Changed::No`] from the
+    /// store's own dedupe, so it must not re-dirty the record — otherwise a
+    /// quiet session that merely re-opened a file would write `stats.toml` on
+    /// every later idle tick. This is the arm the `Dirtying` door exists to
+    /// keep honest: a blanket "any record call dirties" would pass every other
+    /// test in this file and fail only here.
+    #[test]
+    fn a_deduped_reopen_does_not_dirty_the_record() {
+        crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
+            let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
+            app.stats_touch_file(PathBuf::from("/n/a.md"));
+            app.stats_flush();
+            assert!(!app.usage.odometer_dirty(), "flushed clean");
+            app.stats_touch_file(PathBuf::from("/n/a.md"));
+            assert!(
+                !app.usage.odometer_dirty(),
+                "a deduped re-open changes nothing and must not re-dirty the record"
             );
         });
     }
@@ -313,8 +260,8 @@ mod tests {
             let mut app = App::new(None, PathBuf::from("/n"), None, None, cfg);
             app.stats_note_keystroke(true);
             app.stats_touch_file(PathBuf::from("/n/a.md"));
-            assert_eq!(app.stats.keystrokes, 0, "off: no tracking");
-            assert!(!app.stats_dirty);
+            assert_eq!(app.usage.odometer().keystrokes, 0, "off: no tracking");
+            assert!(!app.usage.odometer_dirty());
             app.stats_flush();
             assert!(
                 crate::fs::active()
@@ -344,21 +291,25 @@ mod tests {
             app.ledger_note_dispatch(&Action::ForwardWord, crate::stats::Door::Chord);
             app.ledger_note_dispatch(&Action::LineStart, crate::stats::Door::Chord);
 
-            let goto = app.stats.command_counts("go_to_file");
+            let goto = app.usage.odometer().command_counts("go_to_file");
             assert_eq!((goto.chord, goto.palette, goto.menu), (2, 1, 0));
-            let theme = app.stats.command_counts("switch_theme");
+            let theme = app.usage.odometer().command_counts("switch_theme");
             assert_eq!((theme.chord, theme.palette, theme.menu), (0, 0, 1));
             assert_eq!(
-                app.stats.command_usage.len(),
+                app.usage.odometer().command_usage.len(),
                 2,
                 "only catalog commands keyed rows"
             );
-            assert!(app.stats_dirty, "a recorded dispatch marks the store dirty");
+            assert!(
+                app.usage.odometer_dirty(),
+                "a recorded dispatch marks the store dirty"
+            );
 
             // Persists into (and reloads from) the SAME stats.toml as the odometer.
+            let expected = app.usage.odometer().command_usage.clone();
             app.stats_flush();
             let saved = crate::stats::load(&crate::stats::stats_path());
-            assert_eq!(saved.command_usage, app.stats.command_usage);
+            assert_eq!(saved.command_usage, expected);
         });
     }
 
@@ -378,12 +329,13 @@ mod tests {
             }
             // The candidate query wired through the catalog's own `has_native_chord`.
             let cands = app
-                .stats
+                .usage
+                .odometer()
                 .graduation_candidates(crate::commands::has_native_chord, 5);
             let slugs: Vec<&str> = cands.iter().map(|(s, _)| s.as_str()).collect();
             assert_eq!(slugs, vec!["go_to_file"], "chordless Keep version excluded");
             assert!(
-                !app.stats.is_graduated("go_to_file"),
+                !app.usage.odometer().is_graduated("go_to_file"),
                 "not yet graduated on slow-door use"
             );
 
@@ -392,11 +344,12 @@ mod tests {
                 app.ledger_note_dispatch(&Action::OpenGoto, crate::stats::Door::Chord);
             }
             assert!(
-                app.stats.is_graduated("go_to_file"),
+                app.usage.odometer().is_graduated("go_to_file"),
                 "chord in the fingers now"
             );
             assert!(
-                app.stats
+                app.usage
+                    .odometer()
                     .graduation_candidates(crate::commands::has_native_chord, 5)
                     .is_empty(),
                 "a graduated command is no longer a candidate"
@@ -424,7 +377,7 @@ mod tests {
             }
 
             // CONVENTION-PARAMETRIC expected chord labels: `peek_row_for_slug`/
-            // `peek_rows_from_ledger` resolve each chord through
+            // `UsageLedger::peek_rows` resolve each chord through
             // `commands::resolved_native_label(c, Convention::current())` — Mac ⌘
             // glyphs on `Convention::Mac`, Linux word labels (`"Ctrl+O"`) on
             // `Convention::Linux` (see `convention.rs`'s doc + the AWL_CONVENTION_FORCE
@@ -491,10 +444,10 @@ mod tests {
             let mut app = App::new(None, PathBuf::from("/n"), None, None, cfg);
             app.ledger_note_dispatch(&Action::OpenGoto, crate::stats::Door::Chord);
             assert!(
-                app.stats.command_usage.is_empty(),
+                app.usage.odometer().command_usage.is_empty(),
                 "off: the ledger stays empty"
             );
-            assert!(!app.stats_dirty);
+            assert!(!app.usage.odometer_dirty());
         });
     }
 }
