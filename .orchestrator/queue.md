@@ -210,11 +210,8 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
 | `src/render/plan/` | overlay row family only (5 modules) |
 | item 288's three identifiers | all three still present, verbatim |
 
-**WAVE: ONE LANE LEFT — 274.** LANDED: 288 (`289d364c`), 295 (`414e3b5a`), 290
-(`51302d50`), 304 (`31953688`), 289, 291, and 172 closed against its census.
-⚠️ **`main` carries SIX merges that have NOT been gated as a combined candidate** —
-every receipt names a lane's own branch, taken before the others landed. **Do not
-push until one native/health/wasm set runs on the merged tree.**
+**WAVE COMPLETE — SEVEN ITEMS LANDED, NO LANE RUNNING.** 288, 295, 290, 304, 289,
+291, 274, plus 172 closed against its census and 305 queued from what 304 hit.
 
 ⚠️ **THREE OF THIS WAVE'S ITEMS HAD A FALSE OR STALE PREMISE, ALL THREE AUTHORED
 ON THIS BOARD, AND EVERY ONE WAS CAUGHT BY A LANE THAT MEASURED BEFORE BUILDING.**
@@ -224,6 +221,15 @@ instrument bias, low by two orders of magnitude; 289's "Wagtail's `Underline`
 chips" named the wrong world — Wagtail is `FacetStyle::Text` and **Magpie** is the
 sole `Underline` carrier. **So the premise-check-first clause earns its place in
 every brief**, and a board figure is quoted with its instrument named.
+
+⚠️ **AND A FOURTH FALSE PREMISE WAS THE ORCHESTRATOR'S OWN, CAUGHT BY A GATE.**
+"Raise the file-size mark with a reason" is not generally possible: the ceiling is
+`min(old_size, mark)` where `old_size` is the file's size at the frozen BASELINE,
+so **a mark can only ever tighten.** `src/probe.rs` was 861 at `f12d04a`, a cap no
+reason can lift. The remedy `production()`'s own comment anticipates — carve the
+inline `mod tests` out to a sibling `tests.rs`, which is exempt by design — took
+probe.rs to 628 and ratcheted its mark 825 → 628. **Trimming 291's law to fit would
+have been item 305's anti-pattern committed by the person who queued it.**
 
 Order for the next wave:
 
@@ -242,10 +248,12 @@ Order for the next wave:
    duplicated-geometry bill the protocol's §8 warns about.
 3. **294 THEN 298**, in that order, per 298's own note: the footprint scoping may
    be what the context menu wants rather than an off-switch.
-4. **274's residual** — `overlay/tests.rs` (3433) and `buffer/tests.rs` (2241)
-   are still monoliths against the ~500-line ceiling, and only
-   `app_icon/tests.rs` carries a declared exception. The verbatim-move contract
-   and the per-filter verification are in 274's body.
+4. **305** — the two `spans.rs` files at ~2× the ceiling. Now the ONLY remaining
+   file-size debt of its class: 274 cleared the last two test monoliths and
+   `probe.rs` was carved this wave, so `markdown/spans.rs` (1061) and
+   `render/spans.rs` (1140) stand alone. ⚠️ Unlike those, this is PRODUCTION code,
+   so a new `spans/mod.rs` gets **no baseline grandfathering and fails outright
+   over 500** — the split must land under the ceiling, not merely under a mark.
 5. **291** — now a HARNESS item, not a product one: 290 dissolved its primary
    defect, leaving the `mark_movement_input` overwrite (which authored a wrong
    number on this board), the 5 s vanish, and one stale comment.
@@ -683,37 +691,6 @@ Order for the next wave:
      enumeration. **Decide deliberately whether a round introduces one owner for
      the nav or accepts the duplication and adds to every copy — say which and
      why; do not silently do the second and leave the drift.**
-
-274. 🟡 IN PROGRESS — claude, branch `claude/item-274-test-monoliths`.
-     **THE TEST MONOLITHS — two decomposed, THREE STILL STANDING.** `theme/tests`
-     and `main/tests` are submodule dirs now (17 and 20 files). ⚠️ **Measured
-     2026-08-06: `src/overlay/tests.rs` 3433, `src/app_icon/tests.rs` 2368,
-     `src/buffer/tests.rs` 2241** against CLAUDE.md's *"~500 lines is a file's
-     natural ceiling"*, and only `app_icon/tests.rs` carries a declared exception
-     in `scripts/code-health.toml`. **The precedent is overwhelming:
-     `src/render/tests/` is one hundred and six files.**
-
-     **Build:** decompose each remaining monolith into a `tests/` submodule
-     directory, **verbatim** — names and module paths unchanged, so
-     `cargo test overlay::tests::foo` keeps working and no law's `--exact` filter
-     breaks. Split by SUBJECT. **Scope:** test files only; production code
-     untouched and byte-identical. **Not** a rewrite, **not** a chance to
-     "improve" a test while moving it, **not** a place to delete a test that looks
-     redundant — a verbatim move is auditable and a rewrite is not.
-
-     ⚠️ **THE ONE THING THAT MAKES THIS RISKY RATHER THAN MECHANICAL:
-     `crate::testlock::serial()` and the `cfg(test)` global writers.** A move that
-     changes which tests share a file changes **nothing** about locking — but it
-     changes which tests a developer runs together under a filter, and this repo
-     has standing proof that a suite can pass alone, pass unfiltered, and fail
-     only under one filter. **So the decomposition must be verified under the
-     filters it creates.** **Done:** no `tests.rs` exceeds the ceiling without a
-     declared, reasoned exception; every test name and module path is unchanged;
-     `cargo test --bin awl` reports the **same count** before and after.
-     **Verify:** the identical count is the primary oracle; then run each new
-     module as its own filter as well as the full suite and a wide
-     `--test-threads`. **Routing:** production tier — mechanical by design, and
-     the value is entirely in it being boring.
 
 283. **`ListStyle::Rules` GRADUATED — and handed back TWO THINGS, which are what
      remains open here.**
