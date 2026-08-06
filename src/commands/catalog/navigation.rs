@@ -316,6 +316,14 @@ pub(super) static COMMANDS: &[Command] = &[
         web_only: false,
     },
     Command {
+        name: "Reference",
+        action: Action::OpenReference,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
         name: "Lifetime stats",
         action: Action::LifetimeStats,
         native: "",

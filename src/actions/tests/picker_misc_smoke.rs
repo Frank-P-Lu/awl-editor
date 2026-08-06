@@ -727,6 +727,7 @@ fn deferred_effect_matches(action: &Action, effect: &Effect) -> bool {
         Action::KeepTutorial => effect == &Effect::RunAction(Action::OpenProject),
         Action::OpenCredits => effect == &Effect::Buffer(BufferEffect::OpenCredits),
         Action::OpenGuide => effect == &Effect::Buffer(BufferEffect::OpenGuide),
+        Action::OpenReference => effect == &Effect::Buffer(BufferEffect::OpenReference),
         Action::FinishBuffer => {
             effect == &Effect::Persistence(PersistenceEffect::Save(SaveKind::Finish))
         }

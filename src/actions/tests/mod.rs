@@ -610,6 +610,7 @@ pub(super) fn delete_flinch_fixture(
         | Action::OpenKeybindings
         | Action::OpenCredits
         | Action::OpenGuide
+        | Action::OpenReference
         | Action::OpenHistory
         | Action::CompareVersion
         | Action::OpenAssetClean
@@ -818,6 +819,7 @@ fn assert_action_roster_covers(a: &Action) {
         | Action::OpenKeybindings
         | Action::OpenCredits
         | Action::OpenGuide
+        | Action::OpenReference
         | Action::OpenHistory
         | Action::CompareVersion
         | Action::OpenAssetClean
@@ -940,6 +942,7 @@ fn command_action_roster() -> Vec<Action> {
         Action::OpenKeybindings,
         Action::OpenCredits,
         Action::OpenGuide,
+        Action::OpenReference,
         Action::OpenHistory,
         Action::CompareVersion,
         Action::OpenAssetClean,
@@ -1055,6 +1058,7 @@ pub(super) fn smoke_command_kind(a: &Action) -> SmokeKind {
         | Action::NewDocument | Action::KeepTutorial
         | Action::OpenCredits
         | Action::OpenGuide
+        | Action::OpenReference
         | Action::FinishBuffer
         | Action::ReviewChange
         | Action::ResolveKeepMine

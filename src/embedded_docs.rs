@@ -24,9 +24,11 @@ pub const GUIDE_MD: &str = include_str!("../GUIDE.md");
 
 /// The repo's `REFERENCE.md` — the COLD reference, whose every table is
 /// generated from the live rosters and diffed byte-for-byte against them by
-/// `reference::law`. Test-only: the reference ships as a file, and the binary
-/// never reads it back.
-#[cfg(all(test, not(target_arch = "wasm32")))]
+/// `reference::law` (that generator/law machinery is test-only and never
+/// ships). The TEXT itself is not test-only: `reference_doc::REFERENCE_MD`
+/// re-exports this same constant for `App::open_reference` / headless
+/// replay's `Effect::Buffer(BufferEffect::OpenReference)` arm — the palette
+/// "Reference" command's in-app door, mirroring `GUIDE_MD`/`CREDITS_MD` above.
 pub const REFERENCE_MD: &str = include_str!("../REFERENCE.md");
 
 /// `site/reference.html` — the marketing site's copy of the reference. NOT a

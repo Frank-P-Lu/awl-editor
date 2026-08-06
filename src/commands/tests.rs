@@ -98,6 +98,7 @@ fn catalog_non_empty_and_named() {
         "About",
         "Credits",
         "Guide",
+        "Reference",
         "Lifetime stats",
         "Writing streaks",
         "Line endings…",
