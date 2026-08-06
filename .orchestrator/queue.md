@@ -1039,7 +1039,8 @@ Order for the next wave:
      byte-identity for 18 worlds. ⚠️ `diagonal.rs` is contended — check no claim
      before dispatch. **Routing:** deep tier.
 
-306. **EVERY DARK WORLD'S PAGE GROUND DRAWS FAR LIGHTER THAN ITS AUTHORED
+306. 🟡 IN PROGRESS — claude, branch `claude/item-306-srgb-ground`.
+     **EVERY DARK WORLD'S PAGE GROUND DRAWS FAR LIGHTER THAN ITS AUTHORED
      `base_100`, AND THEMES.md IS THEREFORE WRONG ABOUT THE WHOLE GALLERY.** Found by
      item 296's lane while calibrating a plate against the page, and deliberately not
      fixed there — the blast radius is every world.
