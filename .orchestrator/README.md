@@ -240,6 +240,27 @@ The axis a law sweeps must be the one the author did not think of. A law that
 checks only imagined cases goes green over a real defect. Sweep the roster,
 the whole geometry range, the empirical worst case.
 
+**‼ THE REAL PAYOFF IS NOT "THE LAW CAN GO RED" — IT IS CATCHING A LAW THAT
+CANNOT.** Worked instance, item 291, 2026-08-06. The lane wrote the obvious test
+for a burst-counting bug: mark, present, mark, present. It passed. Then it ran the
+mutation — reinstated the exact bug — and **the test stayed green**, because an
+immediate present always drains the single slot before the next mark arrives, so
+the alternating shape can never observe the collapse. The lane rewrote the test to
+the **zero-gap arrival order** (every mark fires before any present closes one
+out, which is what a fast burst actually produces when input outruns the frame
+loop), and only then did the mutation go red — at **n=2**, the smallest length
+where a single-slot bug is distinguishable at all.
+
+Two lessons, and the second is the one that generalises:
+
+1. A hand-picked burst length would have hidden it. **Sweep the parameter**
+   (this law sweeps n ∈ {1, 2, 3, 8, 9}); an off-by-one in a queue passes at one
+   length and fails at another.
+2. **A green test plus a green mutation is not two pieces of good news — it is
+   one piece of bad news.** If breaking the product does not break the law, the
+   law is measuring something else. This is the cheapest way to discover that,
+   and it only works if the mutation is run *before* the law is believed.
+
 An audit that finds something ends by writing the missing law.
 
 ## Independent verification: only where a gate cannot see
