@@ -329,8 +329,8 @@ fn the_canonical_bundle_icon_is_the_default_worlds_icon() {
     );
 }
 
-/// The Linux desktop icon (item 227) is CUT from the canonical `.icns`, not a
-/// second hand-drawn source: same artwork Finder and the Dock already show, at
+/// The Linux desktop icon is CUT from the canonical `.icns`, not a second
+/// hand-drawn source: same artwork Finder and the Dock already show, at
 /// the freedesktop-recommended 256px edge. Asserts both the container-level
 /// claim (the PNG bytes are exactly the icns's own 256px chunk) and the
 /// pixel-level one (real dimensions, real alpha) — a state oracle that only
