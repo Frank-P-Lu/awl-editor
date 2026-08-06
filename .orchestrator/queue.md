@@ -976,6 +976,28 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      byte-identity for 18 worlds. ⚠️ `diagonal.rs` is contended — check no claim
      before dispatch. **Routing:** deep tier.
 
+304. **A `---` under a text line renders as NOTHING.** Repro: a document with
+     `---`, then type any text on the line above it, giving `a\n---`. awl
+     deliberately does not style `a` as a setext title — correct — **but the
+     `---` then draws neither as a rule nor as raw text. It vanishes.** Buffer
+     content that renders as zero pixels, in a WYSIWYG editor whose contract is
+     that the file stays plain text and the caret's own line shows raw markdown.
+     ⚠️ Not a styling defect: a user cannot see that the line is still there.
+     **Suspected seam** (verify, do not assume): `a\n---` is a setext H2 to
+     CommonMark, so the underline is consumed as a heading marker and then
+     suppressed by whatever declines to render setext titles — leaving nothing.
+     `spans.rs:214-221` already documents a "KNOWN, ACCEPTED false positive"
+     where a dash underline directly under a paragraph is indistinguishable from
+     a thematic break, and `render/spans.rs:428`/`:940` carry two separate gates
+     about growing a `---` row for setext. **Establish which gate drops it.**
+     **Decide (user's call, name it rather than pick silently):** does `a\n---`
+     render the rule, or show the underline raw? Either is defensible; drawing
+     nothing is not.
+     **Verify:** a law that no line with content produces an empty render, swept
+     over the thematic-break syntaxes (`---`/`***`/`___`) both directly under a
+     paragraph and separated by a blank line, with the caret on and off the line.
+     **Routing:** production tier.
+
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
