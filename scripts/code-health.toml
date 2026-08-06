@@ -36,8 +36,8 @@
 
 [[file_size_mark]]
 file = "src/actions.rs"
-lines = 794
-reason = "One more arm in the exhaustive `classify_action_family!` macro: an `Action` variant must be placed there to compile, and reviewing an external change is a Deferred effect like the two resolutions beside it (+1)."
+lines = 807
+reason = "A non-Markdown Export must raise an explicit notice rather than the silent no-op `Effect::None` was: one named notice constant, one small helper the three Export arms share, and the doc comment explaining why the row stays enabled everywhere instead of being hidden (+13)."
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
@@ -227,7 +227,8 @@ lines = 661
 
 [[file_size_mark]]
 file = "src/menu.rs"
-lines = 1058
+lines = 1087
+reason = "The three Export rows' File-menu label now diverges from their catalog command (dropping a stale ellipsis with no surface behind it — the shorthand `r()`/`ri()` constructors can't express that, so each grew into a full `Routed` literal), plus the label divergence law's `EXPLICIT_MENU_LABELS` entries and doc comment, and a two-line `#[cfg(test)] mod ellipsis_law;` declaration for the new law itself (+29)."
 
 [[file_size_mark]]
 file = "src/menubar.rs"
