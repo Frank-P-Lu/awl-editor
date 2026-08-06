@@ -748,669 +748,233 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      ⚠️ **Confirm the premise with a capture before changing anything** — it is a
      lane's report, and a lane's report carries no privilege either.
 
-290. **RIP OUT THE THEME-FONT DEBOUNCE ENTIRELY.** **User decision, made against
-     the measurement rather than in ignorance of it.** **Build:** delete
-     `THEME_FONT_DEBOUNCE_DEFAULT_MS` (`src/app.rs:68`), the
-     `AWL_THEME_FONT_DEBOUNCE_MS` override and its parser,
-     `theme_font_reshape_decision` and the whole
-     `src/app/theme_font_debounce.rs` module, `THEME_FONT_CHEAP_RESHAPE_MS`
-     (`src/app.rs:105`) and its compile-time assert, and the deferred-settle path
-     (`App::apply_deferred_theme_font`) once nothing calls it.
-     `App::retint_theme_preview` reshapes on every preview step, unconditionally.
+290. **Rip out the theme-font debounce.** Delete `THEME_FONT_DEBOUNCE_DEFAULT_MS`
+     (`app.rs:68`), the `AWL_THEME_FONT_DEBOUNCE_MS` override,
+     `theme_font_reshape_decision` and its module, `THEME_FONT_CHEAP_RESHAPE_MS`
+     and its assert, and `apply_deferred_theme_font` once unused.
+     `retint_theme_preview` reshapes unconditionally.
+     **Why:** the mechanism is bimodal and its mode boundary sits inside human key
+     cadence. At the 100 ms window, arms per cadence (`I`mmediate/`C`oalesce):
+     60–95 ms → `ICCCC…` with a 141–151 ms stall; 100 ms → `IIIICCCC`; ≥105 ms →
+     all `I`. A ~4× latency gap decided by jitter. Coalescing also manufactures
+     work: 8 of 12 hops need a reshape, but a coalesced burst reports 12.
+     **Not the alternative:** raising the window is refuted — 300 ms gives a
+     348 ms settle, 400 ms gives 459 ms. p50 improves while felt settle degrades
+     8–10× (colour-only steps present fast and get sampled; stalled ones don't).
+     ⚠️ **Cost to measure, not assume:** removal regresses the burst case, today
+     12.3 ms / n=1 for 8 inputs. If it regresses materially, report back.
+     **Verify:** `--bench-theme-burst` asserting the reshape COUNT; both cadences.
+     Feel is live-only. **Routing:** production tier.
 
-     **The case FOR: the mechanism is BIMODAL, and its mode boundary sits inside
-     the range of natural human key cadence.** Measured (release, Apple Silicon
-     Metal, 900×600 @2x, `--debug`, CLAUDE.md, 12× Down in the theme picker,
-     display verified unlocked at both ends of 17 runs), arm sequence per cadence
-     at the shipping 100 ms window (`I`=Immediate, `C`=Coalesce):
+291. **The settle instrument cannot see the stalls it measures.** A Coalesce step
+     creates no transaction: its arm calls only `arm_theme_font`, never reaching
+     `sync_theme_font_measured`, the sole creator of `ThemeSettleInFlight`. Only
+     `apply_deferred_theme_font` makes one, timed from the LAST input's stamp.
+     Measured: 12 reshaping inputs → 2 recorded transactions.
+     ⚠️ `MIN_PHASE_COVERAGE`/`unaccounted` cannot catch this — the floor guards
+     RECORDED transactions, and an absent one shows no shortfall.
+     ⚠️ Same bias in the harness: `probe::mark_movement_input` overwrites a
+     pending mark, so a burst reports `n=1` for 8 inputs. Fix both or neither.
+     Also: `SWITCH_WINDOW` is 5 s, so the lines vanish 5 s after the last switch.
+     **Build:** record per preview STEP, or surface a dropped count.
+     **Verify:** a 60–95 ms burst reports 12 of 12; mutation-prove the drop.
+     ⚠️ Sequence after 290 — no debounce, no Coalesce arm, but the harness bias
+     and the 5 s vanish survive. **Routing:** production tier.
 
-     | cadence | arms | stall |
-     |---|---|---|
-     | 60–95 ms | `ICCCCCCCCCCC` | 141–151 ms |
-     | **100 ms** | **`IIIICCCC`** | **146, 138 ms** |
-     | 105–250 ms | `IIIIIIII` | none |
+292. **Kite's active lens chip collides with the card's top edge.** The filled
+     chip's plate runs flush into the strip band's top, reading as clipped.
+     `strip_gap()` (`chrome/mod.rs:163`) is horizontal only and is not the owner;
+     the vertical inset is. ⚠️ Confirm from drawn pixels which quantity is short,
+     and whether this is Kite-only or every `FacetStyle::Chips` world.
+     **Verify:** the top inset scales with DPI, swept 1×/2× across `Chips` worlds;
+     byte-identity elsewhere. **Routing:** production tier.
 
-     **A hard mode boundary at 100–105 ms with a ~4× latency gap across it** —
-     immediate steps settle in 30–45 ms, a coalesced burst in 140–150 ms. At
-     exactly 100 ms the flip lands mid-run: four normal steps, then a stall. That
-     is the user's reported "hit it on the third item". **Uniform cost is
-     predictable; a mode that flips on jitter is not, and that is the argument.**
-     ⚠️ **The IRREGULARITY is inferred, not measured** — the harness robot has
-     near-zero jitter so it flips once and stays; a human at ±30 ms around 100 ms
-     would cross repeatedly within one run. No instrument here reproduces that.
+293. **The overlay footer crowds the last row.** The hint line sits hard against
+     the last candidate row. `OverlayGeom::hint_rows` documents itself as
+     `footer.len() + 1` — "a blank separator line" — so a separator is already
+     specified and none is drawn. Establish whether it is not computed, not
+     drawn, or clipped before changing a constant.
+     ⚠️ Seen on Kite (`Pane`) AND Cassowary (per-row plates), so the owner is the
+     shared footer band, not a list style. Sweep the roster and every
+     `OverlayKind`, including the context menu.
+     **Verify:** the gap measurable on every world at 1×/2× on full, filtered,
+     scrolled and empty lists — the empty-state notice row shares this band and
+     has collided with the footer before. **Routing:** production tier.
 
-     **A second, unexpected amplifier: coalescing MANUFACTURES work.** Only 8 of
-     12 hops need a reshape at all at ≥100 ms (four are same-face/same-palette,
-     ~2 ms each) — but during a coalesced burst **all 12** report needing one,
-     because `shaped_font` goes stale while nothing reshapes.
+294. **Blur the theme picker's own footprint.** On plateless worlds — `Diagonal`
+     (Mangrove, Magpie) and `Rules` (Paperbark) — the document and the list
+     interleave glyph-for-glyph. Frost is a property of the plate and those
+     compositions draw none.
+     **Build:** route the crisp pickers through `BlurBackdrop` with `DIM` at or
+     near 0, scoped to the card's footprint so the surrounding page keeps the
+     world's live colours. ⚠️ Footprint scoping is the work: `draw_backdrop`
+     draws a fullscreen triangle, so this needs a scissor or rect uniform.
+     `Pane` worlds are excluded — their plate already covers the document.
+     **Scope:** both crisp pickers (`Theme | Caret`, `app/viewstate.rs:165`), no
+     carve-outs — whatever the card covers is blurred, caret included. If a caret
+     card over its own caret reads badly that is an ANCHORING question, not
+     grounds for an exception. A general under-overlay scrim was rejected.
+     **Verify:** no document glyph survives as text inside the footprint; hue
+     unchanged outside it; swept 1×/2× on `Diagonal` and `Rules`; byte-identity
+     for `Pane`. ⚠️ Laws in `render/tests/{hud,one_bit,outline}.rs` pin the
+     current crisp behaviour — re-aim, don't delete. **Routing:** deep tier.
 
-     **Separately, its cost model has silently rotted:**
-     `THEME_FONT_CHEAP_RESHAPE_MS` is anchored to a "12.0 ms on CLAUDE.md" figure
-     whose fixture is CLAUDE.md itself, which has grown 44% (17,541 → 25,197
-     bytes) and now measures 12.5–17.7 ms. **A constant calibrated against a
-     live, growing fixture is a check that cannot see its own subject.** ⚠️ Note
-     the gate never actually opens here: measured `last_reshape_cost` was
-     **22–40 ms** in every run, 5–10× above it. The rot is real; it is not what
-     drives the arm.
-
-     ⚠️ **THE COST, WHICH THE LANE MUST MEASURE RATHER THAN ASSUME.** Removal
-     regresses the BURST case — the one place the coalesce genuinely works.
-     Measured today at the shipping window: a fast burst (no inter-key gaps)
-     settles in **12.3 ms with n=1 reshape for 8 inputs.** With no debounce that
-     becomes 8 synchronous reshapes queueing on the single main thread, which is
-     precisely what item 37b's zero-default shipped and what item 202 was built to
-     undo. **Record a before/after on the burst case explicitly. If it regresses
-     materially, REPORT BACK rather than shipping it silently — the user accepted
-     this trade in principle, not at an unmeasured magnitude.**
-
-     ✅ **THIS ITEM DOES ADDRESS THE REPORTED LAG — an earlier draft of this body
-     said it did not, and that was written off the "inert" reading now
-     withdrawn.** The reported symptom IS the coalesced mode; removing the
-     debounce leaves every step on the immediate arm at 30–45 ms and the stall
-     mode ceases to exist. A residual ~30–45 ms per step remains and is
-     reshape-bound (`sync_theme` 12.5–17.7 ms on CLAUDE.md, 23.7–28.8 ms on a
-     1896-line fixture) — real, but uniform, and separate work.
-
-     ⚠️ **RAISING THE WINDOW IS NOT THE ALTERNATIVE — measured and refuted.** At a
-     deliberate 250 ms cadence, a 300 ms window gives arms `ICCCCCCCCCCC` and a
-     **348 ms** settle; 400 ms gives **459 ms**. Raising it converts "every step
-     immediate, uniform ~40 ms" into "nothing re-renders while you browse, then a
-     one-third-of-a-second snap." **p50 movement-latency IMPROVES while the felt
-     settle gets 8–10× worse**, because colour-only steps present fast and get
-     sampled while stalled ones do not — the wrong statistic over a
-     survivorship-biased sample. Do not re-propose it without new evidence.
-
-     **Scope:** does NOT include raising the window, attacking reshape cost, or
-     touching `themeswitch.rs`'s phase roster beyond whatever `SwitchPhase::Wait`
-     becomes when it is structurally always zero — **name that decision rather
-     than leaving a dead column.** **Done:** no debounce machinery remains, no
-     constant is calibrated against a moving fixture, and the burst-case cost is
-     measured and recorded rather than discovered later. **Verify:**
-     `--bench-theme-burst` with its reshape-count witness (CLAUDE.md warns a theme
-     bench once "measured" 5 ms while nothing reshaped — **assert the count**);
-     before/after at both cadences; the isolated-step path unchanged. Feel is
-     live-only and gets flagged for the user, never claimed. **Routing:**
-     production tier.
-
-291. **THE THEME-SETTLE INSTRUMENT CANNOT SEE THE STALLS IT EXISTS TO MEASURE.**
-     **Defect, measured not argued:** a **Coalesce** step never creates a
-     transaction at all. `retint_theme_preview`'s Coalesce arm calls only
-     `arm_theme_font(now)`, so `sync_theme_font_measured` — the SOLE creator of
-     `ThemeSettleInFlight` — is never reached; only the eventual
-     `apply_deferred_theme_font` makes one, timed from `theme_switch_at()`, i.e.
-     **the last input's stamp**. Measured at 60–90 ms cadence: **12 reshaping
-     inputs produce 2 recorded transactions.** Ten of twelve steps are invisible
-     to `theme latest`, `theme worst` and the whole breakdown. **The user
-     reported this from the product before it was found in the source** — "the
-     lag isn't captured by theme worst values."
-
-     ⚠️ **`MIN_PHASE_COVERAGE`/`unaccounted` CANNOT CATCH THIS, BY CONSTRUCTION.**
-     The floor guards transactions that were RECORDED; an absent transaction
-     cannot show a shortfall. `themeswitch.rs`'s own module doc presents that
-     floor as the guarantee that future blind spots self-report. **It does not
-     cover the blind spot that drops the transaction.** This is the repo's
-     standing lesson in its purest form: the check ran in the one configuration
-     that could not see its subject.
-
-     **Three qualifications, so this is not overstated:** the transaction that IS
-     recorded shows ~147 ms, so the readout is blind to the stall's FREQUENCY,
-     not its magnitude; it still under-reports the felt total, because eight
-     arrows over 700 ms with no re-render feel like 700 ms while the readout says
-     147 (it measures from the LAST input); and `SWITCH_WINDOW` is 5 s with
-     `settle_lines` returning an empty vec when empty, so **the lines vanish
-     entirely 5 s after the last switch** — a user who feels lag and then looks
-     finds nothing.
-
-     ⚠️ **THE SAME SURVIVORSHIP BIAS IS IN THE HARNESS.**
-     `probe::mark_movement_input` OVERWRITES a still-pending mark by design, so a
-     zero-gap burst reports `n=1` for 8 inputs. Every p50 taken through it is
-     conditioned on "steps that got a present" — which is how a diagnosis lane
-     concluded the debounce was inert. **Fix both or neither; a repaired readout
-     over a biased probe still lies.**
-
-     **Build:** record a transaction per preview STEP, not per completed settle,
-     or surface a dropped/superseded count beside the headline. **Done:** the
-     number a user sees moves when the product stalls. **Verify:** a synthetic
-     burst at 60–95 ms cadence reports 12 of 12, not 2 of 12; mutation-prove by
-     restoring the drop and watching the law go red. ⚠️ **Sequence AFTER 290 if
-     290 lands** — with no debounce there is no Coalesce arm, which removes this
-     defect's cause but NOT the harness bias or the 5 s vanish. **Routing:**
-     production tier.
-
-292. **KITE'S ACTIVE LENS CHIP COLLIDES WITH THE CARD'S TOP EDGE.**
-     **User-reported with screenshot 2026-08-06.** In Kite's command palette the
-     filled `All` chip's plate runs flush into the top edge of the strip band,
-     with no breathing room above it — the highlight reads as clipped rather than
-     seated. **Diagnose before fixing:** `strip_gap()`
-     (`src/render/chrome/mod.rs:163`) is HORIZONTAL only (`CHIP_STRIP_GAP` vs
-     `STRIP_GAP`), so it is not the owner; the vertical inset between the strip
-     band's top and the chip plate is. ⚠️ **Verify the premise before building —
-     confirm from the drawn pixels which quantity is short**, and check whether
-     it is Kite-specific or true of every `FacetStyle::Chips` world (Kite is the
-     reporter, not necessarily the only carrier). **Scope:** vertical seating of
-     the chip within its band; does NOT include the chip's horizontal gaps or
-     item 289's unscaled underline. **Verify:** the plate's top inset scales with
-     DPI like its neighbours, swept 1×/2× across every `Chips` world;
-     byte-identity for non-`Chips` worlds. **Routing:** production tier.
-
-293. **THE OVERLAY FOOTER CROWDS THE LAST ROW — A PANE-WIDE FIX, NOT KITE'S.**
-     **User-reported with screenshot 2026-08-06, and the user explicitly scoped
-     it: "that should be a pane world specific fix (eg fix for all panes)."** The
-     grey hint line (`type to filter · ↵ choose · ←/→ category · esc close`) sits
-     hard against the last candidate row with no separating space, so system text
-     and content text read as one block. **Diagnose before fixing:**
-     `OverlayGeom::hint_rows` documents itself as `footer.len() + 1`, "a blank
-     separator line between the hint and the band", and the card is said to grow
-     by exactly that — **so a separator is already specified and the screenshot
-     shows none. Establish whether it is not computed, not drawn, or being
-     consumed by a clip** before changing any constant. ⚠️ **SCOPE BROADENED
-     2026-08-06, SAME DAY: this was first scoped `Pane`-wide on the user's
-     instruction, then observed AGAIN on Cassowary's right-click menu — a
-     per-row-plate composition, not `Pane`.** Two compositions showing the
-     identical symptom means the owner is the shared footer/band geometry, not a
-     list style. **Sweep the whole roster and every `OverlayKind`, including the
-     context menu**; the `Pane` framing was the first sighting, not the boundary.
-     **Verify:** the gap exists and is measurable in pixels on every world at
-     1×/2× DPI, on full, filtered, scrolled and empty lists —
-     the empty-state notice row shares this band and has produced a footer/plate
-     collision before. **Routing:** production tier.
-
-294. **THE THEME PICKER IS UNREADABLE OVER A PLATELESS WORLD — BLUR ITS OWN
-     FOOTPRINT, AND ONLY ITS FOOTPRINT.** **User-reported with screenshot
-     2026-08-06 (Magpie): the document's prose and the world names interleave
-     glyph-for-glyph — "the world loudness map" through "Magpie", "pretty good?"
-     through "Kite" — two readable layers in one place, which DESIGN.md forbids.**
-
-     **Why it happens, and it is a deliberate decision rather than an oversight.**
-     `render/blur.rs`'s module doc: *"the THEME PICKER and the CARET-STYLE PICKER
-     stay CRISP (no backdrop at all) — their whole job is showing the live theme
-     colours"*; `pipeline_prepare.rs:82` names the frost as what *"would defeat
-     the theme picker's crisp live-color preview."* That holds for worlds with a
-     plate. It fails for **plateless compositions** — `Diagonal` (Mangrove,
-     Magpie) and now `Rules` (Paperbark) — because **frost is a property of the
-     plate, and those compositions deliberately draw none.** The picker is also
-     the ONE overlay whose backdrop is chosen by the row under the cursor rather
-     than by the user, so it drags a reader through worlds they never picked.
-
-     ✅ **THE EXCEPTION IS OVER-BROAD, AND THE SOURCE SAYS SO.** The blur
-     **already preserves hue** — "a defocus, not a desaturation — the whole
-     point". The only thing that shifts the palette is `DIM = 0.16`, documented
-     as "0 = pure blur, no recede". **The exception was protecting the colour
-     preview from `DIM` and discarded the hue-safe blur with it.**
-
-     **Build (the user's shape, given directly):** route the theme picker through
-     `BlurBackdrop` with **`DIM` at or near 0**, and **scope the composite to the
-     picker card's own footprint** so the surrounding page stays crisp and the
-     world's live colours remain judgeable — which is the whole reason the
-     exception existed. ⚠️ **The footprint scoping is the real work:**
-     `draw_backdrop` currently draws a **fullscreen triangle**, so this needs a
-     scissor rect or a rect uniform, not a flag. **`Pane` worlds are explicitly
-     unaffected** (user's words) — their plate already covers the document, so
-     blurring under it is invisible and wasteful; gate on the plateless
-     compositions rather than paying for it everywhere.
-
-     ✅ **SCOPE DECIDED 2026-08-06: BOTH CRISP PICKERS, AND NO CARVE-OUTS.**
-     User: *"we're only blurring the area UNDER the theme picker... so if it's
-     over the caret then it should be blurred too."* **The footprint is the
-     whole rule** — whatever the card covers is blurred, including the caret if
-     the card happens to sit over it, and the caret picker takes the identical
-     treatment rather than staying excepted. **Do not carve the caret out of the
-     blurred region** and do not special-case the two pickers against each other.
-     ⚠️ **One consequence to watch live rather than design around:** a caret
-     picker card positioned over the caret will blur the very caret it previews.
-     If that reads badly in use it is an ANCHORING question — where the card
-     opens relative to the caret — **not a reason to reintroduce a carve-out.**
-     ⚠️ **THE EXCEPTION IS `Theme | Caret` AND NOTHING ELSE**
-     (`src/app/viewstate.rs:165`) — an earlier draft of this item said the
-     HISTORY picker was also in it, on the strength of
-     `render/chrome/outline.rs`'s prose "the CRISP theme/caret/history pickers".
-     **That prose is loose and the code is not:** History is deliberately
-     excluded, with its reason stated at the assignment — its comparison is
-     composited inside the workspace's own content region, so what sits behind
-     the card is the user's untouched document, a quiet backdrop DESIGN.md §5
-     says recedes. **Nothing about History is open here.** Does NOT include a
-     general scrim: an earlier proposal to dim the document under every summoned
-     overlay was **rejected by the user** as unnecessary — do not re-propose it.
-
-     **Done:** on every plateless world the picker's own text is the only
-     readable text within its footprint, while the page outside it still shows
-     the previewed world's real colours. **Verify:** pixel arithmetic over the
-     footprint proving no document glyph survives as text, plus a hue check
-     outside it proving the preview is untouched; swept across `Diagonal` and
-     `Rules` worlds at 1×/2× DPI; byte-identity for every `Pane` world.
-     ⚠️ **Laws pin the current crisp behaviour in at least `render/tests/hud.rs`,
-     `one_bit.rs` and `outline.rs` — they must be RE-AIMED, not deleted**, and
-     one of them exists to stop the HUD forcing a frost that defeats the preview.
-     **Routing:** deep tier — it touches a GPU composite path and a design
-     decision with a written rationale.
-
-295. **EXPORT IS A BROKEN BUTTON — THREE COMPOUNDING FAILURES IN ONE THREE-ITEM
-     MENU SECTION.** **User-reported: "file -> export as pdf... doesn't DO
-     anything???? like this is a usability nightmare."** An audit confirmed the
-     feature works AND that the user's words are literally accurate for their
-     input. **Three independent defects, ranked:**
-
-     **(a) 🔴 On a NON-MARKDOWN buffer it is a total no-op.** `src/actions.rs:369`
-     — `Action::ExportWord | Action::ExportHtml => Effect::None` behind an
-     `is_markdown()` gate, and `ExportPdf` carries the identical gate. No write,
-     no notice, nothing dispatched. **Reproduced on the shipped binary**, not
-     inferred: the palette matched and ran the command (`overlay.items:
-     ['Export as PDF…']`), the overlay closed as if something executed, the
-     sidecar notice was `""`, no file appeared. **And the menu row is built
-     `enabled: true` unconditionally** (`src/menu/native.rs:16-27`) —
-     `set_markdown_enabled` greys only the Markdown submenu — so nothing warns
-     the user. `.txt` and light code are in scope per PHILOSOPHY, so this is a
-     reachable everyday path.
-
-     **(b) 🔴 The ellipsis lies, and this is the PROXIMATE cause of the report.**
-     Every other ellipsis row in the File menu — Browse files…, Switch project…,
-     Recent projects…, Rename file…, Move file…, Version history… — opens a
-     further surface. Save and Duplicate file carry no ellipsis and complete
-     immediately. **Export as PDF…/Word…/HTML… are the ONLY ellipsis items in the
-     entire menu that complete immediately with no surface at all.** The label
-     trains the user to wait for a panel that is never coming. Verified by
-     enumerating every row's actual dispatch.
-
-     **(c) 🟠 Destination surprise on the unsaved/unconfigured path.**
-     `export_document` writes a sibling of a saved file, else into
-     `project_location.root` — which `resolve_launch_context`
-     (`src/main/run/location.rs:36-70`) falls back to `crate::fs::data_root()` =
-     `~/.local/share/awl`, an app-internal dot-hidden directory Finder does not
-     show. A first-time user exporting the Welcome document or a scratch note
-     cannot browse to the result. ⚠️ **`docs/platform.md:88` glosses this
-     fallback as "`~/notes` by default", which is wrong for the unconfigured
-     case — fix the doc in the same pass.** The toast names the filename only,
-     never the path.
-
-     **Scope:** this item does NOT decide the parked save-dialog question — (a)
-     and (b) are defects regardless of how that lands. **Done:** the menu row
-     tells the truth about what it will do, and no invocation completes with the
-     user unable to tell whether anything happened. **Verify:** a capture over a
-     non-Markdown buffer proving either a disabled row or an explicit notice; the
-     ellipsis convention asserted across the whole `FILE_ITEMS` roster by a law,
-     so a future row cannot dodge it. **Routing:** production tier.
-
-296. **`ConvertLineEndings` IS A PURER SILENT SUCCESS THAN EXPORT.**
-     `Action::ConvertLineEndings` (`src/keymap.rs:118`) flips the file's on-disk
-     EOL convention with **`Effect::None`** — no notice at any time
-     (`src/actions.rs:158-161`; the unit test's own comment: "convert is a plain
-     metadata flip, no effect"). It is also deliberately NOT on the undo timeline
-     (the settled VS Code model), **so a double-toggle is undetectable**: the
-     user cannot see that it happened, cannot see what it did, and cannot undo
-     it. **Severity is bounded by reach, not by shape** — palette-only, unbound
-     by default, power-user name. **Build:** a notice naming the resulting
-     convention. **Verify:** sidecar assertion that the notice is set; the EOL
-     metadata itself is already covered. **Routing:** production tier.
-
-     ⚠️ **A HARNESS GAP FOUND WHILE AUDITING THIS, and it is the more important
-     half.** The audit tried to pixel-prove the export toast illegible via
-     `--screenshot-app` and got **no notice text in the frame at all** — then
-     cross-checked against `Cmd-S`, which also sets a toast, and got the
-     identical empty result. **The offscreen capture pipeline does not render
-     transient toast chrome for ANY action.** So every "the notice is set" claim
-     in this tree is a SIDECAR claim, and no capture has ever proven a toast is
-     visible to a human. That is CLAUDE.md's own tripwire — the sidecar is a
-     state oracle, not an appearance oracle — sitting unexercised over a whole
-     feedback channel. **Perceptibility of toasts is therefore UNVERIFIED, not
-     verified-good; treat it as live-only until the harness reaches it.**
-
-     ✅ **THE CAUSE IS NAMED, AND IT IS A STALE ASSUMPTION IN A COMMENT.**
-     `prepare_notice` (`src/render/chrome/readout.rs`) documents itself as "one
-     quiet LABEL-sized line in the muted ink at the BOTTOM-CENTER of the writing
-     column (today: the autosave external-change guard's 'changed elsewhere')"
-     and states that "an EMPTY notice parks it off-screen, so **every capture
-     (which can never have a notice — autosave is live-only)** stays
-     byte-identical." **That parenthetical was true when autosave was the sole
-     caller and is FALSE NOW:** `set_toast_notice` has ~10 callers including
-     `exported {shown}`, `downloaded {name}`, `saved your version`, `reloaded —
-     changed elsewhere` and `graphics recovered` — and export IS reachable
-     headlessly. **The capture pipeline was designed around an invariant that
-     later callers quietly invalidated, and the comment still asserts it.** So
-     the harness gap is not an oversight in the capture path; it is a live
-     assumption that stopped being true. Fix the comment in the same pass, and
-     treat "no capture can have one" as a claim to re-verify rather than inherit.
-
-     ⚠️ **CORROBORATING EVIDENCE, worth more than any measurement here: the USER
-     DID NOT KNOW awl HAD TOASTS AT ALL** ("we had toasts...??"), having shipped
-     the feature. A feedback channel its own author has never noticed is not a
-     feedback channel. **This is the strongest argument that the fix is a design
-     change to notice presentation, not merely a harness repair** — but the
-     design call is the user's, so this item stops at naming it.
-
-297. **CASSOWARY'S ROTATED LOCATION LABEL IS TOO SMALL AND IN THE WRONG PLACE.**
-     **User design decision 2026-08-06, with screenshot.** Today
-     `LocationStyle::RotatedRail` draws the active facet name ("Tools") as, in
-     its own words, "a small, muted run turned 90° and seated flush with the
-     card's own left border — a subordinate vertical counterpart to a loud
-     primary title". **The user's verdict on that reading: "this is wrong."** It
-     currently sits tucked against the list as a tiny sub-heading and reads as
-     debris beside the card rather than as a second title.
-
-     **The intent, in the user's words:** *"really big, on its side, but like
-     above the 'commands' title... like 2/3 it's size, but along the left edge."*
-     So: **rotated 90°, sized at ~⅔ of the Archivo Black `COMMANDS` placard,
-     along the ROOM's left edge, positioned ABOVE the placard** — a vertical
-     companion to the wordmark, at the wordmark's own scale class, not a label
-     hugging the card. The two become one typographic composition reading up the
-     left edge and across the bottom.
-
-     ⚠️ **THE DOC COMMENT IS PART OF THE CHANGE.** `LocationStyle::RotatedRail`'s
-     own definition (`src/theme/model.rs`) specifies "small", "muted" and "flush
-     with the card's own left border" — all three are being overturned, so the
-     comment is re-authored in the same commit or the next reader implements the
-     old design from the type. **Scope:** Cassowary is the SOLE carrier
-     (`src/theme/worlds.rs:984`), so no other world moves; `Raked` (the Diagonal
-     worlds' sibling treatment) is NOT in scope. Reuse
-     `render/rotated_location.rs::prepare_rotated_location_label` — the
-     world-neutral rotated-label capability — rather than adding a second
-     rotation path; the type's own comment already forbids that.
-
-     **Responsive bound, and it is the real risk:** at ⅔ of a placard sized for
-     the room, a long facet name ("Navigate", "Settings", "Recent") on a short
-     window will collide with the card, the placard, or the window top. **Size
-     from the real available edge territory and the longest facet in the roster,
-     not from the shortest** — the same discipline item 131 states for its
-     diagonal. Never overlap the card, never clip, never silently fall back to
-     the old small treatment. **Done:** the location reads as a second title at a
-     glance, and every facet name in the roster is fully legible at every
-     supported window size. **Verify:** every `OverlayKind` × every facet name ×
-     narrow/wide/zoom at 1×/2× DPI, with pixel laws for non-overlap against both
-     the card and the placard, and for the ⅔ size relation holding as the placard
-     scales; byte-identity for all nineteen non-Cassowary worlds; affordance-
-     locating vision smoke. **Routing:** deep tier — it is a typographic
-     composition, not a constant.
-
-298. **A RIGHT-CLICK MENU SHOULD NOT FROST THE DOCUMENT.** **User decision
-     2026-08-06, with screenshot (Cassowary): "when you right click, we shouldn't
-     show blur. it's a bit excessive."** A four-row Cut/Copy/Paste/Select-all
-     context menu currently takes the full-takeover treatment — the whole page
-     defocuses behind a menu occupying a fraction of it. **The blur is for a
-     FULL-TAKEOVER overlay** (`render/blur.rs`'s own framing: "the cached, cheap
-     defocus behind a full-takeover overlay", naming the palette, go-to, outline,
-     keybindings and spell). **A pointer-summoned context menu is not one** — it
-     is transient, small, and anchored to where the user clicked.
-
-     **Build:** exclude the context menu from `BlurBackdrop` routing, the same
-     way the theme and caret pickers are excluded today. ⚠️ **This is the exact
-     opposite direction to item 294 and the two must be read together:** 294 adds
-     a FOOTPRINT-scoped blur under the theme picker; this REMOVES the full-page
-     blur under the context menu. They agree on the underlying principle — the
-     defocus should be proportional to what the overlay actually covers — and a
-     lane taking either one should state that principle rather than treating them
-     as contradictory. **Sequence 294 first if both are live**, since it
-     establishes footprint scoping that this item may want rather than a bare
-     off-switch. **Verify:** byte-identity of the document region for a summoned
-     context menu across the roster; the full overlays keep their frost.
+295. **Export is a broken button — three defects.**
+     **(a)** On a non-Markdown buffer it is a total no-op: `actions.rs:369`
+     returns `Effect::None` behind an `is_markdown()` gate. Reproduced on the
+     shipped binary — palette ran the command, overlay closed, notice empty, no
+     file. The menu row is built `enabled: true` unconditionally
+     (`menu/native.rs:16-27`). `.txt` and light code are in scope.
+     **(b)** The ellipsis lies. Every other ellipsis row in the File menu opens a
+     surface; Save and Duplicate carry none and complete immediately. Export as
+     PDF…/Word…/HTML… are the only ellipsis rows that complete with no surface.
+     **(c)** Destination surprise: unsaved exports land in `fs::data_root()` =
+     `~/.local/share/awl`, dot-hidden. ⚠️ `docs/platform.md:88` calls this
+     fallback "`~/notes` by default" — wrong; fix in the same pass.
+     (c) is retired by 301; (a) and (b) stand regardless.
+     **Verify:** a capture over a non-Markdown buffer showing a disabled row or an
+     explicit notice; a law asserting the ellipsis convention across `FILE_ITEMS`.
      **Routing:** production tier.
 
-299. **TWO ROWS IN THE SAME STATE DRAW THEIR ACCESSORY IN DIFFERENT INKS, AND ONE
-     IS ILLEGIBLE.** **User-reported with screenshot 2026-08-06 (Cassowary
-     context menu): "notice how the 'unavailable' next to Copy is... invisible?
-     that's a bug."** Copy and Paste are both disabled and both render the
-     accessory text `unavailable` on the same plate — **Paste's reads as legible
-     green, Copy's is near-black on near-black and effectively invisible.**
-     Identical state, identical string, different ink. One of them is wrong.
+296. **`ConvertLineEndings` is silent, and no capture can photograph a toast.**
+     The action flips on-disk EOL with `Effect::None` — no notice ever — and is
+     deliberately off the undo timeline, so a double-toggle is undetectable.
+     Palette-only and unbound, which bounds severity.
+     ⚠️ **The larger half:** `--screenshot-app` renders no toast for ANY action,
+     cross-checked against `Cmd-S`. Every "the notice is set" claim in this tree
+     is a sidecar claim. `prepare_notice`'s own comment asserts "every capture
+     (which can never have a notice — autosave is live-only)" — false now, with
+     ~10 callers including export, which IS reachable headlessly. The capture
+     path was designed around an invariant later callers invalidated.
+     **Build:** a notice naming the resulting convention; repair the capture path;
+     fix the comment. **Verify:** a capture carries a toast. **Routing:**
+     production tier.
 
-     ⚠️ **DIAGNOSE BEFORE FIXING — do not tune a colour.** A one-row offset is a
-     live hypothesis worth testing first (Cut is the SELECTED row and Copy is the
-     row immediately after it, so an accessory ink resolved from the wrong row's
-     selection state would produce exactly this pair), but so is a plain
-     `faint()`/`muted()` split keyed on something that differs between the two
-     rows. **Establish which row's state the accessory ink is actually read from**
-     before changing anything. ⚠️ **The neighbouring possibility is the more
-     serious one:** if an accessory resolves its ink from an adjacent row, that
-     is a drawn/state disagreement of the same family this repo has already been
-     bitten by, and it will not be confined to this menu.
+297. **Cassowary's rotated location label is too small and misplaced.** Today
+     `LocationStyle::RotatedRail` draws the facet name small, muted and flush with
+     the card's left border. Target: rotated 90°, ~⅔ the Archivo Black `COMMANDS`
+     placard, along the room's left edge, ABOVE the placard — a vertical
+     companion to the wordmark at its own scale class.
+     ⚠️ The type's doc comment specifies "small", "muted" and card-flush; all
+     three are overturned, so re-author it in the same commit.
+     **Scope:** Cassowary is the sole carrier (`worlds.rs:984`); `Raked` is out.
+     Reuse `rotated_location.rs::prepare_rotated_location_label` — no second
+     rotation path. **Responsive bound (the real risk):** size from the longest
+     facet in the roster and the real edge territory, never the shortest; never
+     overlap the card or placard, never clip, never fall back silently.
+     **Verify:** every `OverlayKind` × facet name × narrow/wide/zoom at 1×/2×,
+     with non-overlap and ⅔-relation laws; byte-identity for 19 worlds.
+     **Routing:** deep tier.
 
-     **Verify:** a law asserting every disabled row's accessory meets a contrast
-     floor against its own plate, swept over every `OverlayKind` × selected-row
-     position × world — **the sweep is the selection index, because that is the
-     axis the offset hypothesis lives on**, and a fixture testing only a
-     selected-row-0 menu would be structurally unable to see it. Contrast is
-     asserted by arithmetic over the PNG's pixels, never by reading the token.
+298. **A right-click menu should not frost the document.** A four-row context menu
+     takes the full-takeover treatment. `blur.rs` frames the effect as the
+     defocus "behind a full-takeover overlay" and names the palette, go-to,
+     outline, keybindings and spell — a pointer-summoned menu is none of those.
+     **Build:** exclude the context menu from `BlurBackdrop` routing.
+     ⚠️ Read with 294: they agree that defocus should be proportional to what the
+     overlay covers. Sequence 294 first — its footprint scoping may be what this
+     wants rather than an off-switch.
+     **Verify:** document region byte-identical under a summoned context menu;
+     full overlays keep their frost. **Routing:** production tier.
+
+299. **Two rows in the same state draw their accessory in different inks.** Copy
+     and Paste are both disabled, both render `unavailable`; Paste's is legible,
+     Copy's is near-black on near-black.
+     ⚠️ Diagnose, do not tune a colour. Cut is SELECTED and Copy is the row after
+     it, so an accessory ink resolved from the wrong row's state would produce
+     exactly this pair — a hypothesis to test, alongside a plain `faint()`/
+     `muted()` split. Establish which row's state the ink is read from first. An
+     accessory reading an adjacent row is a drawn/state disagreement that will not
+     stay in this menu.
+     **Verify:** a contrast floor for every disabled row's accessory against its
+     own plate, swept over `OverlayKind` × **selected-row position** × world — the
+     selection index is the axis the offset hypothesis lives on, and a
+     selected-row-0 fixture could not see it. Contrast by pixel arithmetic.
      **Routing:** production tier.
 
-300. **THE TOAST IS INVISIBLE IN PRACTICE — REDESIGN THE NOTICE.** **User
-     decision 2026-08-06: "i've never seen the toast lol."** The author of the
-     product has never once noticed a feedback channel with ~10 callers
-     (`exported …`, `downloaded …`, `saved your version`, `reloaded — changed
-     elsewhere`, `graphics recovered`). **That is the finding; no measurement
-     improves on it.** Today `prepare_notice` draws "one quiet LABEL-sized line
-     in the muted ink at the BOTTOM-CENTER of the writing column" for
-     `TOAST_LIFETIME = 2500 ms` — sub-body size, muted ink, bottom-centre, gone
-     in two and a half seconds.
+300. **The toast is never seen — debug before redesigning.** The user has never
+     observed a channel with ~10 callers. Establish first whether it renders at
+     all: does `set_toast_notice` reach `frame`; does `notice_readout_text`
+     return it; does `prepare_notice` place it on-screen or park it; does the
+     frame present. A redesign of something that never draws is wasted work, and
+     the evidence points both ways — `TOAST_LIFETIME` 2500 ms, LABEL scale,
+     `muted()` ink, bottom-centre of the writing column would all explain "never
+     seen", and so would a real defect (296).
+     **Then:** a notice a writer registers without it becoming nagging chrome.
+     Position is the likeliest defect — bottom-centre is outside the reading eye's
+     path. ⚠️ DESIGN gives motion and accent to the caret alone, so not a banner.
+     ⚠️ A contrast floor is necessary and NOT sufficient — what shipped would pass
+     one. Do not close this by adding a legibility law.
+     Must reach the CLI/headless path too, which merges with 296's gap; they may
+     be one defect. Prototype in awl via capture, never an HTML mockup; closes on
+     the user's eye. **Routing:** deep tier, then the user.
 
-     🔴 **THE PREMISE CHANGED 2026-08-06 — DEBUG BEFORE REDESIGNING.** User: *"i
-     havent even seen it. i think there's a bug that's preventing it from
-     showing. we should debug and fix this."* **This item was written as a taste
-     problem (a notice too quiet to notice) and must now first answer a factual
-     one: does the toast render AT ALL on the live path?** ⚠️ **Do not open with
-     a redesign.** Establish, in this order: (1) does `set_toast_notice` reach
-     `frame`; (2) does `notice_readout_text()` return it; (3) does
-     `prepare_notice` place it on-screen rather than parking it off; (4) does the
-     frame carrying it actually present. **A redesign of something that never
-     draws is wasted work, and the evidence genuinely points both ways** — the
-     ink/size/position/dwell are all quiet enough to explain "never seen", AND
-     `--screenshot-app` renders no toast for any action (item 296), which is
-     equally consistent with a real defect on a shared path. **Whichever it is,
-     say so plainly** — "premise false, oracle repaired" and "fixed" read
-     identically on a board six weeks later and only one means the product
-     changed.
+301. **Export through the platform's own picker.** `mac_chrome::pick_file_to_open`
+     already drives a real `NSOpenPanel`, wired at `app/menu.rs:56`, so the modal
+     seam and its live-only caveat already ship — the parked save-dialog cost
+     estimate should be re-derived, not inherited.
+     **Build:** `NSSavePanel` on macOS defaulting to the document's folder and
+     name; on Linux reuse the in-app browse picker in a save role — File → Open
+     already routes there (`Action::OpenBrowse`), so the platform split exists.
+     Reveal the file after writing, via `NSWorkspace` (already imported).
+     ⚠️ Do NOT reach for an xdg portal: `rfd`'s Linux backend links GTK which this
+     tree deliberately drops, a portal is a runtime service a self-contained
+     tarball cannot depend on, and it would make export the only Linux verb using
+     a system chooser.
+     🔴 An in-app PDF preview is CLOSED, not deferred — a second document
+     renderer. Do not re-propose.
+     **Verify:** panel and reveal are live-only, flagged for human confirmation,
+     never claimed from a capture; headless keeps its explicit path and stays
+     byte-identical. **Routing:** deep tier.
 
-     ✅ **AND IT MUST REACH THE CLI/HEADLESS PATH TOO** — user, same message:
-     "make it show up in the cli commands too." **This merges with item 296's
-     harness gap:** no capture has ever photographed a toast, and the comment
-     asserting none ever could is itself false. A notice the harness cannot see
-     is a notice no law can hold. **Sequence 296's repair with this item's
-     debugging rather than separately** — they may well be the same defect, and
-     if they are, that is the finding.
+302. **Loose comments — a second pass, a different class from 275's.** 275 removed
+     narrated history; 287/288 removed citations. This is comments whose factual
+     content contradicts the code. A history comment is noise; a loose one is read
+     as truth and acted on.
+     **Known instances:** `chrome/outline.rs` says "theme/caret/history pickers"
+     when the crisp set is `Theme | Caret`; `prepare_notice`'s "can never have a
+     notice"; `theme_font_debounce.rs`'s "12.0 ms on CLAUDE.md" against a fixture
+     that grew 44%; `platform.md:88`'s "`~/notes` by default";
+     `LocationStyle::RotatedRail`'s "small"/"muted"/card-flush.
+     **Four shapes:** stale enumerations; stale "today" claims; baked
+     measurements; and ⚠️ **invariants later code invalidated** — hunt these
+     first, they are load-bearing, and the capture pipeline was DESIGNED around
+     one of them.
+     ✅ **The lever: a comment stating a checkable fact should be a LAW.** Prefer
+     converting over rewording — a reworded comment rots on the same schedule.
+     ⚠️ No grep for "wrong": read one at a time as 275 was; the list above is a
+     shape guide, never a worklist. Prioritise comments claiming things about
+     OTHER modules. Change no code except to add laws. Schedule against a quiet
+     tree — same blast radius as 275's ~1000 sites.
+     **Verify:** each new law mutation-proved. **Routing:** production tier.
 
-     **Build (only once the above is answered):** a notice a writer actually
-     registers without it becoming chrome that nags. **The tension is real and is the whole design problem:**
-     DESIGN.md gives motion to the caret alone and favours summoned overlays over
-     persistent chrome, so the answer is NOT a bouncing banner. Candidate axes to
-     weigh — dwell time (2500 ms is short for a line you were not looking at),
-     ink (muted is the quietest register the palette has), size (LABEL is below
-     body), and position (bottom-centre of the writing column is outside the
-     reading eye's path, which is arguably the actual defect). ⚠️ **Prototype in
-     awl via headless capture, never as an HTML mockup**, and put candidates in
-     front of the user — this is a taste call and the item closes on their word,
-     not on a contrast ratio.
-
-     ⚠️ **A CONTRAST FLOOR IS NECESSARY AND NOT SUFFICIENT.** A notice can pass
-     every arithmetic check and still go unseen for 2500 ms in a place nobody
-     looks — which is exactly what shipped. **Do not close this by adding a
-     legibility law.** **Depends on 296's harness gap** — until a capture can
-     photograph a toast at all, no candidate can be judged on pixels, so 296's
-     repair sequences first or this item runs blind. **Routing:** deep tier, then
-     the user's eye.
-
-301. **EXPORT SHOULD USE THE SYSTEM SAVE PANEL — AND THE SEAM IS ALREADY HALF
-     BUILT.** **User decision 2026-08-06: "surely people want to see what it
-     looks like right? and also select where it goes? i wonder if we should use a
-     system export for this. like we're already doing this for opening a file."**
-
-     ✅ **THE USER'S PREMISE IS CORRECT, VERIFIED:** `mac_chrome::pick_file_to_open`
-     (`src/mac_chrome.rs:46`) already drives a real `NSOpenPanel`, wired into
-     File → Open at `src/app/menu.rs:56`, and `src/mas.rs:321` describes its own
-     folder picker as "`pick_file_to_open`'s exact shape, folder-only". **So the
-     objc2/AppKit modal seam, its live-only harness caveat and its unit-testable
-     split all already ship.** `NSSavePanel` is the sibling of a pattern in the
-     tree today. ⚠️ **This materially weakens the parked rationale.** The board
-     parks "Export save-dialog scope: macOS + Linux, one live-only cross-platform
-     seam" as decided-not-scheduled — but **half that seam is built and shipping**,
-     and the cost estimate the parking rested on should be re-derived rather than
-     inherited. **Unpark it or re-park it deliberately; do not let it sit on a
-     premise that has changed.**
-
-     ✅ **AND THE LINUX HALF IS ALREADY ANSWERED — THERE IS NO CROSS-PLATFORM
-     SEAM TO BUILD.** Verified: on Linux, File → Open does NOT use a system
-     dialog at all — `src/app/menu.rs:49` routes `awl.open` to
-     `Action::OpenBrowse`, awl's OWN in-app browser, and redirects to
-     `NSOpenPanel` on macOS alone as "the macOS convention". **So the platform
-     split already exists and is deliberate, and export should mirror it:
-     `NSSavePanel` on macOS, awl's own picker on Linux.**
-
-     ⚠️ **DO NOT REACH FOR AN XDG PORTAL.** `org.freedesktop.portal.FileChooser`
-     over D-Bus is the modern Linux mechanism and is the wrong answer here on
-     three counts: `rfd`'s default Linux backend links **GTK**, which this tree
-     deliberately avoids (Cargo.toml drops muda's `gtk`/`libxdo` defaults on
-     purpose); a portal is a **runtime service**, so on a minimal WM without one
-     installed the dialog fails outright, which a self-contained tarball cannot
-     accept; and it would make export the ONLY verb on Linux using a system
-     chooser while Open uses awl's. **Recorded so it is not proposed as the
-     obvious answer** — it is the obvious answer, and it is wrong for this tree.
-
-     **Build:** route `Effect::Export` through `NSSavePanel` on macOS, defaulting
-     to the document's own folder and name; on Linux reuse the existing in-app
-     browse picker in a save role. `--screenshot`/`--keys` keep taking an
-     explicit path, exactly as the open picker is already bypassed headlessly.
-     **This subsumes item 295(c)** — a chosen destination cannot be a surprise —
-     but NOT 295(a) or (b), which are defects regardless.
-
-     ✅ **BOTH OPEN QUESTIONS ARE DECIDED BY THE USER, 2026-08-06 — this item
-     carries no remaining design calls.**
-     **(1) "See what it looks like" means REVEAL THE FILE AFTER EXPORT** ("yeah
-     exactly"), using `NSWorkspace`, which `src/mac_chrome.rs` already imports.
-     🔴 **An in-app preview of the rendered PDF is CLOSED, not deferred** — it
-     would be a second document renderer, which CLAUDE.md's "infrastructure
-     complexity is a smell" forbids and which awl has deliberately avoided
-     elsewhere. **Do not re-propose it as a follow-up.**
-     **(2) The platform split is confirmed** ("sounds good"): `NSSavePanel` on
-     macOS, awl's own in-app picker on Linux. No portal, no GTK, no new seam.
-
-     **Done:** a user chooses where the file goes, and can see the file
-     afterwards without knowing where awl would have put it. Together with the
-     save panel this retires 295(c) entirely — a chosen destination cannot be a
-     surprise, and a revealed file cannot be lost. **Verify:** the panel and the
-     reveal are BOTH live-only — flagged for human confirmation, never claimed
-     from a capture, since `NSWorkspace` and a modal are exactly the AppKit
-     chrome `mac_chrome.rs` already documents as beyond the harness. The headless
-     path keeps its explicit `--screenshot`/`--keys` route and stays
-     deterministic and byte-identical. **Routing:** deep tier.
-
-302. **LOOSE COMMENTS — A SECOND PASS, AND A DIFFERENT DEFECT CLASS FROM 275's.**
-     **User-requested 2026-08-06 after a comment misled the orchestrator into
-     relaying a false open decision.** Item 275 removed comments that narrated
-     HISTORY; 287/288 removed CITATIONS. **This is neither: it is comments whose
-     factual content has drifted from, or was never precise about, the code they
-     describe.** A history comment is merely noise. **A loose comment is read as
-     truth and acted on.**
-
-     **FIVE INSTANCES, ALL FOUND BY ACCIDENT IN ONE DAY, which is the argument
-     for looking on purpose:**
-     - `render/chrome/outline.rs` says "the CRISP theme/caret/history pickers".
-       **The crisp set is `Theme | Caret`** (`app/viewstate.rs:165`); History is
-       deliberately excluded WITH a stated reason. The prose is simply wrong, and
-       it cost a wrong decision relayed to the user.
-     - `render/chrome/readout.rs`'s `prepare_notice`: "(today: the autosave
-       external-change guard's…)" and "every capture (which can never have a
-       notice — autosave is live-only)". **~10 callers now, and export is
-       reachable headlessly.**
-     - `app/theme_font_debounce.rs`: "12.0 ms on CLAUDE.md" — **a measurement
-       against a fixture that has since grown 44%.**
-     - `docs/platform.md:88`: the location fallback glossed as "`~/notes` by
-       default", **wrong for the unconfigured case**.
-     - `theme/model.rs`'s `LocationStyle::RotatedRail`: "small", "muted", "flush
-       with the card's own left border" — **all three overturned by item 297.**
-
-     **FOUR SHAPES, and the last is the dangerous one.** (a) **stale
-     enumerations** — a comment lists members and the roster moved; (b) **stale
-     "today" claims** — "X is the only caller" and it is not; (c) **baked
-     measurements** — a number measured once against something that moves;
-     (d) **invariants later code invalidated** — "every capture can never have a
-     notice". ⚠️ **(d) is not bad prose, it is a LOAD-BEARING assumption: the
-     capture pipeline was DESIGNED around that sentence, and the design outlived
-     its truth.** Hunt (d) first.
-
-     ✅ **THE LEVER, AND IT IS THE POINT OF THE ITEM: A COMMENT THAT STATES A
-     CHECKABLE FACT SHOULD BE A LAW, NOT A COMMENT.** "The crisp set is
-     Theme|Caret", "no capture carries a notice", "this is the only caller" are
-     all assertions a test can hold and prose cannot. **Prefer converting such a
-     comment into a law over rewording it** — a reworded comment rots again on
-     the same schedule; a law fails the day it stops being true. Where a fact is
-     genuinely not checkable, say so in the comment rather than stating it flatly.
-
-     ⚠️ **METHOD — THERE IS NO GREP FOR "WRONG".** This must be READ, one comment
-     at a time, exactly as 275 was; the five above are a scale estimate and a
-     shape guide, **never a worklist**. Prioritise comments that make claims
-     about OTHER modules (a comment describing its own three lines rarely
-     misleads; one describing a roster, a caller set or an invariant elsewhere
-     is how all five of these went wrong). ⚠️ **Do not change code, except to add
-     laws.** ⚠️ **Schedule against a quiet tree** — 275 touched ~1000 sites and
-     conflicted with everything; this pass has the same blast radius.
-
-     **Done:** no comment asserts a roster, a caller set or an invariant that the
-     code contradicts, and the checkable ones are held by tests. **Verify:** each
-     new law mutation-proved by breaking the fact and watching it go red — a law
-     asserting a comment is worthless if it passes either way. **Routing:**
-     production tier, read one at a time.
-
-303. **THE DIAGONAL SELECTION MARKER SITS ON THE WRONG SIDE OF THE ROW.**
-     **User decision 2026-08-06, with screenshot (Magpie): "the cursor is still
-     on the wrong side (like menu cursor)."** The mark should sit on the row's
-     OUTER edge — the side away from the spine — and mirror between the two
-     diagonal worlds. The user's own sketch, for Magpie (ascending `/` spine on
-     the RIGHT, rows right-aligned):
+303. **The diagonal selection marker sits on the wrong side.** It belongs on the
+     row's OUTER edge, away from the spine, mirroring between the two worlds:
 
      ```
-     > item |
-       item |
+     > item |          | item <
+       item |          | item
+        Magpie          Mangrove
      ```
 
-     — mark at the left, spine at the right. **"and reversed for mangrove"**:
-     Mangrove's descending `\` spine sits on the left with rows left-aligned, so
-     it mirrors to `| item <`. **The rule is the MIRROR, not "leading edge"** —
-     the whole cluster already mirrors between these two worlds (item 222/131d
-     landed exactly that), and the mark is the one element that did not come
-     with it. Today it is drawn adjacent to the spine in both, which reads as
-     belonging to the line rather than to the row.
-
-     ⚠️ **THIS REVISES SHIPPED DESIGN — IT IS NOT A BUG FIX.** Items 247 and 284
-     deliberately made this a SPINE element: 284's achievement is a marker whose
-     rotation says which way the selection travelled, pinned to the spine's own
-     angle with a vertex-pinned centre derivation
-     (`center = vertex - reach * (cos θ, sin θ)`), law-bound to `chevron_arms`
-     over 648 cases.
-
-     ✅ **THE TURN IS DROPPED — user, 2026-08-06: "i think it doesn't have to
-     turn? like just being `>` is okay... like that's just good enough."** A
-     plain, upright `>` at the outer edge is the target. **So 284's rotation
-     mechanism loses its consumer and must be REMOVED, not stranded** — the
+     The cluster already mirrors (222/131d); the mark did not come with it.
+     ✅ **The turn is dropped** — a plain upright `>` is the target. 284's
+     rotation therefore loses its consumer and is REMOVED, not stranded: the
      `turn_deg` plumbing, the travel-direction source on `VisualSelection`, and
-     the `step_*` term in `TextPipeline::advance`'s OR-fold. ⚠️ **284's own brief
-     refused to ship unconsumed machinery in that hot OR-fold; leaving it there
-     unconsumed now would be the same mistake arrived at from the other
-     direction.** Retire its laws rather than deleting them blind — a law that
-     pinned a real derivation is evidence about what the code used to guarantee.
-
-     🔵 **BUT THE USER WANTS TO KEEP MOTION — "i kinda do like the animation
-     though... so if you think of anything that'll be good."** So the turn goes;
-     some motion should stay, and it is an open proposal rather than a decision.
-
-     **The orchestrator's proposal, offered as a starting point and not a
-     specification: let the mark RIDE THE SELECTION BAND'S EXISTING EASE** — it
-     glides vertically from the row it left to the row it arrived at, sharing
-     `chase_or_snap` (item 48's arbiter) rather than owning an animator. Three
-     reasons it is worth trying first: **the direction becomes self-evident from
-     the travel itself**, which is exactly what 284's rotation was for, so the
-     intent survives the mechanism; it adds **no new machinery** at all, where
-     the rotation needed a whole plumbing path; and the scheduling is already
-     proven — item 211's fix exists precisely to guarantee a band ease gets its
-     follow-up frame, so a mark on that ease inherits a path that has been
-     debugged live. **A small overshoot-and-settle is a cheap second option if
-     the plain glide reads flat.** ⚠️ **Feel is live-only: prototype, put it in
-     front of the user, and never claim it verified from a capture.**
-
-     **Scope:** the two `Diagonal` worlds only; `Pane`, `Bars` and `Rules`
-     selection treatments do not move. **Verify:** the mark's side is derived
-     from the same signed quantity that mirrors the cluster (`dx`/`dw`'s sign in
-     the row planner), not from a per-world branch — **one owner, so the two
-     worlds cannot disagree about which side is outer**; drawn↔hit-test agreement
-     preserved; swept at 1×/2× DPI across both worlds and every `OverlayKind`;
-     byte-identity for all eighteen non-diagonal worlds. ⚠️ **`diagonal.rs` is
-     the file 247 could not reach because 222/131d held it — check nothing else
-     is claiming it before dispatching.** **Routing:** deep tier.
+     the `step_*` term in `TextPipeline::advance`'s OR-fold. Retire its laws
+     rather than deleting them blind.
+     🔵 **Motion should stay — proposal, not decision:** let the mark ride the
+     selection band's existing ease, gliding from the row it left to the row it
+     reached. Direction becomes self-evident from the travel, which is what the
+     rotation was for; it adds no machinery; and item 211's fix already
+     guarantees a band ease gets its follow-up frame. Overshoot-and-settle is a
+     cheap second option. Feel is live-only.
+     **Scope:** the two `Diagonal` worlds; `Pane`/`Bars`/`Rules` do not move.
+     **Verify:** the side derives from the same signed quantity that mirrors the
+     cluster (`dx`/`dw` sign in the row planner), never a per-world branch;
+     drawn↔hit-test agreement; 1×/2× across both worlds and every `OverlayKind`;
+     byte-identity for 18 worlds. ⚠️ `diagonal.rs` is contended — check no claim
+     before dispatch. **Routing:** deep tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
