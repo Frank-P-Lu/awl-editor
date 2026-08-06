@@ -128,7 +128,11 @@ fn strip_cfg_test_blocks(text: &str) -> String {
                     State::AfterCfgTest // a stacked attribute; keep waiting
                 } else if line.contains('{') {
                     let d = line.matches('{').count() as i32 - line.matches('}').count() as i32;
-                    if d <= 0 { State::Normal } else { State::InSkippedBlock(d) }
+                    if d <= 0 {
+                        State::Normal
+                    } else {
+                        State::InSkippedBlock(d)
+                    }
                 } else if line.trim_end().ends_with(';') {
                     State::Normal // a bare `mod tests;` declaration
                 } else {
@@ -137,7 +141,11 @@ fn strip_cfg_test_blocks(text: &str) -> String {
             }
             State::InSkippedBlock(depth) => {
                 let d = depth + line.matches('{').count() as i32 - line.matches('}').count() as i32;
-                if d <= 0 { State::Normal } else { State::InSkippedBlock(d) }
+                if d <= 0 {
+                    State::Normal
+                } else {
+                    State::InSkippedBlock(d)
+                }
             }
         };
     }
