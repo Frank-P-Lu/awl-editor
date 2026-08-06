@@ -1981,3 +1981,37 @@ composition. **Decide:** the lens-strip tab pills — a pill is a plate, so a
 **Do NOT** widen the carrier roster in the same pass; which worlds adopt it is a
 separate taste call. **Verify:** byte-identity for every non-`Rules` world, plus
 the standing vision smoke. **Routing:** deep tier.
+
+### 🔵 THE SITE IS NOW STALE AGAINST THE PUBLISHED RELEASE — blocked on the user
+
+Measured 2026-08-06, straight off the live host:
+
+```
+$ curl -s https://awl.computer/version.json
+{"version": "0.0.0", "prerelease": true}
+```
+
+That is the "no tagged release yet" placeholder — so the live Check-for-Updates
+page tells visitors no release exists, **while `v0.9.0` is public**. The landing
+page's `tar xzf` snippet is stale too: item 228 versioned it in the repo, and the
+deployed copy still names the unversioned archive.
+
+⚠️ **`deploy-web.yml` cannot be run: NO repository secrets are configured at all**
+(`gh api …/actions/secrets` returns an empty list), so `FLY_API_TOKEN` is absent
+and the workflow fails on its first step — which is the deliberate design
+(RELEASING.md §2), not a bug. **One `gh secret set FLY_API_TOKEN` and one
+`gh workflow run deploy-web.yml` closes it**, and both are the user's to run.
+
+Nothing else is blocked by this; it is a public-consistency gap, not a code
+defect. Once deployed, `version.json` picks up `0.9.0` with `prerelease: false`
+— the correct value, per item 228's finding that this field means "a tag exists"
+rather than beta-vs-stable.
+
+⚠️ **ORCHESTRATOR ERROR, RECORDED BECAUSE IT IS A REPEAT.** The board already
+carries the rule "an absent conclusion is a STATUS; read `status`, not
+`conclusion` alone" — and this session then pushed while `ci.yml` read
+`status: pending` at `43d52d5d`, superseding that queued run under
+`cancel-in-progress`. It cost nothing (the superseding run covers the same code
+plus docs, and the cancelled run had not started), but the rule was already
+written down and was still broken. **Reading the status is not the same as
+WAITING for it.**
