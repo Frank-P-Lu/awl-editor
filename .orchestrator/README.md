@@ -304,6 +304,32 @@ pre-existing bugs.
 When a verifier rejects, it gets one pass and the owner repairs. Three rounds
 on a routine refactor means the brief was wrong, not the code.
 
+## Shell hazards that silently corrupt what you write
+
+⚠️ **BACKTICKS INSIDE `git commit -m "..."` RUN AS COMMANDS AND EAT THE TEXT.** Bitten
+twice on 2026-08-06. A message containing `` `use super::*;` `` or `` `height: u32` ``
+lost exactly that span — zsh substituted it, printed `command not found`, and committed
+the sentence with a hole in it. The commit still succeeds, so nothing fails; the record
+is just quietly wrong, which is worse. **Always write a commit or merge message through
+a quoted heredoc**, and note that `-F -` reads stdin only for `commit`, not for
+`merge` — `git merge -F -` errors with `could not read file '-'`, so a merge message
+needs a real file:
+
+```sh
+git commit -q -F - <<'EOF'
+...message with `backticks` and $vars safely...
+EOF
+
+cat > "$TMPDIR/msg.txt" <<'EOF'
+...merge message...
+EOF
+git merge --no-ff <branch> -F "$TMPDIR/msg.txt"
+```
+
+**And never pipe a gate through `grep`.** A grep matching *either* outcome exits 0 and
+hides the failure exactly as thoroughly as `|| true`; that is how a red tree reached
+`origin` today. Assert the exit status, or count failure lines and report from the count.
+
 ## Claims and the board
 
 1. **Claim before code.** Mark the item

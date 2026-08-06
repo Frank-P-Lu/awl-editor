@@ -236,8 +236,19 @@ decision recorded in one place was invisible in the place it gets read.**
   literals** — seven chrome pixel lengths remain physical inline
   (`gutter.rs:262,321,355,404`, `outline.rs:221,796`, `diagonal.rs:460-461`), all
   in margin chrome, none in the summoned-overlay families it measured.
-  ⚠️ **AND AN EIGHTH, NEWLY VISIBLE, WHICH SHOWS THE GAP IS LOAD-BEARING RATHER THAN
-  THEORETICAL.** `readout.rs`'s `CANVAS_INSET` was a bare `8.0` repeated per anchor
+  ✅ **CLOSED 2026-08-06 — THE RESIDUAL IS EMPTY, AND ONLY FIVE OF THE SEVEN WERE
+  REAL.** `outline.rs:796` had drifted into a `#[cfg(test)]` module (a test FIXTURE
+  literal, never shipped chrome — established by reading the whole non-test portion),
+  and `diagonal.rs:460-461` was already resolved by items 303/131e. The five real ones
+  — gutter's four bottom-anchored rects and outline's reserve band — were **merged into
+  the existing `readout::CANVAS_INSET` rather than declared as five new constants**,
+  because every one already claimed textual identity with it in a comment that nothing
+  enforced. `Physical`, not promoted: usage was read rather than preferred, and every
+  site compares against the device-pixel canvas dimension. **`CANVAS_INSET` is now the
+  one owner across six call sites, so a promotion sweep moves all of them at once.**
+  Proven by changing the constant and watching the captured PNG's hash move — which
+  tests the WIRING, something a declaration law cannot do.
+  ⚠️ **THE EIGHTH IS WHY THIS RESIDUAL EXISTED, AND THE LESSON OUTLIVES IT.** `readout.rs`'s `CANVAS_INSET` was a bare `8.0` repeated per anchor
   arm — invisible to this law for its whole life, because the law reads `const`s and
   those were literals. Item 296's lane merely NAMED it, and that alone made the law
   fire. It is declared `Physical` with its reason, recording what it already was.
@@ -1073,6 +1084,20 @@ Order for the next wave:
      were very likely tuned by eye *against the wrong ground*, which means the authored
      tokens themselves may now be wrong in the other direction. Read that risk before
      touching a token. **Routing:** deep tier, then the user.
+
+307. **THE GUTTER REPORTS `visible: false` AT DPI 2 WHERE IT IS VISIBLE AT DPI 1,
+     at the same `--measure`.** Found by item 242's residual lane and **confirmed
+     pre-existing** by stashing its own change, rebuilding and reproducing — so it is
+     neither introduced nor fixed by that work, and it was flagged rather than chased.
+     ⚠️ **Establish first whether this is a DEFECT or correct narrow-margin gating
+     interacting with the scale factor** — the gutter has a legitimate visibility gate,
+     and a capture at dpi 2 shows less logical content in the same canvas, so fewer
+     margins may genuinely qualify. **Do not "fix" a gate that is right.**
+     ⚠️ If it IS a defect it is invisible to every existing capture, because they all
+     run at `--capture-dpi 1` — the same blind spot that hid items 289 and 292.
+     **Verify:** the gutter's visibility derives from a logical quantity, swept at 1×/2×
+     across the `--measure` range, with the boundary asserted on both sides.
+     **Routing:** production tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 

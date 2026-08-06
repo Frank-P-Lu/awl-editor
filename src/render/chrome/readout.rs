@@ -74,8 +74,13 @@ pub(in crate::render) fn corner_origin(
 /// inline literals, so the value was invisible to it while it was repeated. Promoting
 /// it to `Logical` would double the inset on a Retina display, which is almost
 /// certainly right and is a deliberate appearance change owing a 1x/2x sweep across
-/// every anchor arm; it is tracked with item 242's other inline physical lengths
-/// rather than made silently here.
+/// every anchor arm; it is deferred rather than made silently here.
+///
+/// **This is now the ONE owner of chrome's bottom-edge inset, across six call
+/// sites:** the three corner anchors here, `gutter.rs`'s four bottom-anchored
+/// rects, and `outline.rs`'s reserve band — each of which already claimed textual
+/// identity with this value in a comment before anything enforced it. So a future
+/// promotion sweep moves all of them in one pass instead of rediscovering them.
 pub(in crate::render) const CANVAS_INSET: Physical = Physical(8.0);
 
 /// The CALM NOTICE plate's breathing room around its sentence, derived from the
