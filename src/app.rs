@@ -71,10 +71,10 @@ const LAVA_TICK: Duration = Duration::from_millis(crate::lava::LAVA_TICK_MS);
 /// transaction`) is flipped back OFF (debounce; macOS-only — see
 /// `resize_settle_at`'s doc for the full mechanism). A fast drag re-stamps the
 /// deadline on every tick (`App::arm_live_resize_sync`), so this only fires
-/// once the drag genuinely stops. TASTE TUNABLE (stands on its own — item 290
-/// removed the theme-font debounce this constant once diverged from at item
-/// 202): short enough that the transaction-sync cost (Apple's own documented throughput
-/// trade-off for `presentsWithTransaction`) is paid only while actually
+/// once the drag genuinely stops. TASTE TUNABLE (stands on its own — no other
+/// constant shares this window): short enough that the transaction-sync cost
+/// (Apple's own documented throughput trade-off for `presentsWithTransaction`)
+/// is paid only while actually
 /// dragging, long enough that a brief pause mid-drag doesn't flap it on/off.
 const RESIZE_SYNC_SETTLE: Duration = Duration::from_millis(150);
 

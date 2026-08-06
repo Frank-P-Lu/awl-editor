@@ -47,14 +47,10 @@ impl App {
         self.sync_view(false);
     }
 
-    /// Preview colors AND font reshape together, unconditionally — no debounce
-    /// (item 290 removed the leading-edge-plus-trailing-coalesce scheduling
-    /// decision: its mode boundary sat inside human key cadence — a 60–95ms
-    /// cadence coalesced, a ≥105ms cadence didn't, a ~4x latency gap decided by
-    /// ordinary jitter — and raising the window traded a worse felt settle for a
-    /// better p50, sampling artifact rather than real improvement; see
-    /// docs/fonts.md). Every preview arms the compositor transaction before
-    /// redraw.
+    /// Preview colors AND font reshape together, unconditionally — no
+    /// scheduling decision, no deferred settle (docs/fonts.md's "Theme-preview
+    /// reshape is unconditional" has the measurement behind the removal).
+    /// Every preview arms the compositor transaction before redraw.
     // `prev` (the outgoing world) is now only named by the native probe trace, so
     // the wasm build — which never runs a probe — reads it as unused.
     #[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
@@ -140,10 +136,9 @@ impl App {
     /// `App` has no GPU to reach this at all.
     ///
     /// `input_at` additionally arms the DEBUG settle transaction, and is where
-    /// `SwitchPhase::Wait` is measured: input → the start of the work. Item 290
-    /// removed the deliberate debounce wait this used to be able to measure, so
-    /// `Wait` now reads near-zero on every switch — the honest number for a
-    /// mechanism with nothing left to defer.
+    /// `SwitchPhase::Wait` is measured: input → the start of the work. Nothing
+    /// is deliberately deferred anymore, so `Wait` reads near-zero on every
+    /// switch — the honest number for a mechanism with nothing left to defer.
     fn sync_theme_font_measured(&mut self, input_at: Option<Instant>) {
         use crate::themeswitch::SwitchPhase;
         let started = input_at.map(|_| self.frame.now());

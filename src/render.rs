@@ -109,9 +109,9 @@ pub mod perfbench;
 /// `--bench-theme-burst` THEME-BURST profiler: N successive font-changing theme
 /// switches (the picker's live preview) timing `sync_theme` + the first frame
 /// after each, cold/warm laps for atlas retention, plus an EAGER burst over the
-/// same worlds (item 290: no debounce, so every arrow step pays its own
-/// reshape) witnessing the reshape count. A child of `render` for the same
-/// reason as [`perfbench`]. Dev-only; never on the render path.
+/// same worlds (no debounce: every arrow step pays its own reshape) witnessing
+/// the reshape count. A child of `render` for the same reason as [`perfbench`].
+/// Dev-only; never on the render path.
 pub mod framebench;
 
 pub mod benchsuite;

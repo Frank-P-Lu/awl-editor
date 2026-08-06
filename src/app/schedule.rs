@@ -248,9 +248,9 @@ impl App {
         // ~1s of idle. Armed ONLY by the live `sync_view` (behind its gpu-present
         // gate), consumed here via the same single-`WaitUntil` pattern as the note
         // autosave above — no hot loop, and structurally unreachable headlessly.
-        // Theme-preview font reshape is UNCONDITIONAL now (item 290 removed the
-        // debounce): `retint_theme_preview` reshapes synchronously in the input
-        // handler, so nothing about it is left to poll here.
+        // Theme-preview font reshape is UNCONDITIONAL: `retint_theme_preview`
+        // reshapes synchronously in the input handler, so nothing about it is
+        // left to poll here.
         let now = self.frame.now();
         let outcome = self
             .frame

@@ -557,7 +557,7 @@ fn burst_doc(
     }
 
     println!();
-    println!("---- eager preview (item 290: colors + reshape together, no debounce) ----");
+    println!("---- eager preview (colors + reshape together, no debounce) ----");
     println!(
         "{:>10} | {:>21} | {:>10} | {:>9}",
         "world", "face", "sync_thm", "frame"
@@ -570,12 +570,12 @@ fn burst_doc(
         let t0 = Instant::now();
         p.sync_theme();
         let sync_ms = t0.elapsed().as_secs_f64() * 1e3;
-        // WITNESS (item 290): the debounce is gone, so EVERY arrow step that
-        // changes face must reshape on its own — the "colors-only, defer the
-        // reshape to one trailing settle" shape this bench used to assert here
-        // no longer exists as a real `App` code path (`retint_theme_preview`
-        // reshapes unconditionally now). Flip this `true` to `false` and this
-        // is the exact law that goes red on a reintroduced coalesce.
+        // WITNESS: the debounce is gone, so EVERY arrow step that changes face
+        // must reshape on its own — the "colors-only, defer the reshape to one
+        // trailing settle" shape this bench used to assert here no longer exists
+        // as a real `App` code path (`retint_theme_preview` reshapes
+        // unconditionally now). Flip this `true` to `false` and this is the
+        // exact law that goes red on a reintroduced coalesce.
         assert_reshape_witness(
             &format!("eager step to {name} ({face})"),
             reshapes_before,

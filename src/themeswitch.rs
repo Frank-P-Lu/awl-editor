@@ -15,11 +15,10 @@
 //!     phase's own duration (ms), for that `theme worst` transaction, in wall-clock
 //!     order. The roster spans the WHOLE transaction, not only its work:
 //!       - `wait`    — the interval between the input and the start of the reshape
-//!         work. Item 290 removed the trailing-coalesce debounce this used to be able
-//!         to measure a deliberate wait for, so it now reads near-zero on every
-//!         switch — a scheduling fact, not a cost, and naming it (rather than folding
-//!         it silently into `reshape`) is still the point — see the coverage note
-//!         below.
+//!         work. Nothing is deliberately deferred anymore, so it now reads
+//!         near-zero on every switch — a scheduling fact, not a cost, and naming
+//!         it (rather than folding it silently into `reshape`) is still the
+//!         point — see the coverage note below.
 //!       - `font`    — adopt the new world's effective face + rewrap the document to it
 //!         (`sync_theme_font`'s pre-shape reconfigure; cosmic-text loads the
 //!         face lazily, so its file-load cost is amortized into `reshape`/`atlas`).
@@ -62,9 +61,8 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SwitchPhase {
     /// The wait between the input and the start of the reshape work. Reads
-    /// near-zero on every switch now (item 290 removed the trailing-coalesce
-    /// debounce this once measured a deliberate wait for). A scheduling FACT,
-    /// not a cost.
+    /// near-zero on every switch, since nothing is deliberately deferred. A
+    /// scheduling FACT, not a cost.
     Wait,
     /// Adopt the new world's effective face + rewrap the document to it.
     Font,
