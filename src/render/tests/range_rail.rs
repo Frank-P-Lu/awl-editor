@@ -570,6 +570,143 @@ fn the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels() {
     p.sync_theme();
 }
 
+/// **THE THUMB IS VISIBLE ON EVERY WORLD, SELECTED AND NOT — the law whose
+/// ENROLMENT was the bug.**
+///
+/// Its sibling above grades exactly two worlds, `["Bilby", "Bombora"]`, and says
+/// why in its own comment: *"both `Pane` (a card behind the rows) so the rail's
+/// ground is the card/band rather than the live page"*. That sentence describes
+/// the one family the defect could not occur in. A `Bars` world draws its rail
+/// straight onto the page, and on Firetail the thumb resolved to
+/// `theme::selected_row_secondary_ink` of a band that is not under it —
+/// `#17090c`, byte-identical to that world's own page. **ΔE 0. Nothing there at
+/// all.** Two named `Pane` worlds cannot see that no matter how good the
+/// assertion is, which is why this law's axis is the ROSTER.
+///
+/// It reads as the same class as the Wagtail invisible-picker-row bug and gets the
+/// same oracle: a perceptual floor over real pixels (`pixeldiff::delta_e`), never
+/// a channel-sum, because a channel-sum collapses in the dark exactly where the
+/// dark worlds live. The floor is ΔE 3.0 — above the classic ΔE ≈ 2.3
+/// just-noticeable difference and far under the roster's own tightest real value,
+/// which the law reports on every run so a reader can see the headroom.
+///
+/// ⚠️ **THE THUMB HAS TO BE LOCATED BEFORE IT CAN BE GRADED, and the first draft of
+/// this law did not do that.** It took the furthest ink from ground anywhere along
+/// the track's own y — which the TRACK hairline satisfies on its own. Under the
+/// mutation that reinstates the bug it stayed green and reported the *identical*
+/// tightest ΔE (28.52), because it never once looked at the thumb. So the thumb is
+/// found the way its sibling finds it, by vertical EXTENT (`THUMB_H_LH` 0.50 of a
+/// row against the track's `RAIL_H_LH` 0.09 — the thumb is the only tall mark on
+/// the rail), and the law asserts BOTH that a genuine half-row mark exists AND
+/// that its ink clears the floor. Either clause alone is satisfiable by the
+/// defect.
+///
+/// GROUND IS SAMPLED PER WORLD AND PER COLUMN, from the column's own top-of-band
+/// pixel — above the half-row thumb and the hairline track alike. One shared
+/// sample is not enough: a LAVA world's ground varies with x, so every column
+/// reads as inked against a sample taken at the far end. Both selection states are
+/// swept, because the flip only happens in one of them and the bug lived entirely
+/// inside it.
+#[test]
+fn the_range_thumb_clears_a_perceptual_floor_against_its_own_ground_on_every_world() {
+    let _g = crate::testlock::serial();
+    let (w, h) = (1200u32, 800u32);
+    let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
+        eprintln!("skipping the_range_thumb_clears_a_perceptual_floor: no wgpu adapter");
+        return;
+    };
+    /// Above the ΔE ≈ 2.3 just-noticeable difference: a thumb a reader cannot
+    /// find is not a control, whatever the sidecar says about its value.
+    const THUMB_PRESENCE_MIN: f64 = 3.0;
+
+    let _pin = theme::WorldPin::snapshot();
+    let mut tightest = (f64::MAX, String::new());
+    for world in theme::world_names() {
+        theme::set_active_by_name(world).expect("a named world exists");
+        p.sync_theme();
+        for &selected in &[true, false] {
+            let mut ov = settings_state(1.4);
+            let zoom_item = ov.selected;
+            if !selected {
+                // Move the highlight OFF the rail row (row 0 is never Zoom).
+                ov.selected = 0;
+            }
+            let v = settings_view(&ov);
+            p.set_view(&v);
+            p.prepare(&device, &queue, w, h).unwrap();
+            let (x0, x1) = p.overlay_range_scale(zoom_item).expect("a rail");
+            let mid = (x0 + x1) * 0.5;
+            let ys: Vec<f32> = (0..h)
+                .map(|y| y as f32)
+                .filter(|&y| {
+                    p.overlay_range_at(mid, y)
+                        .is_some_and(|(item, _)| item == zoom_item)
+                })
+                .collect();
+            assert!(!ys.is_empty(), "{world}: the rail must be present");
+            let (band_top, band_bot) = (ys[0] as i64, ys[ys.len() - 1] as i64);
+            let pixels = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+            let at =
+                |x: i64, y: i64| -> [u8; 4] { pixels[(y as usize) * (w as usize) + x as usize] };
+            let ctx = format!("{world} (selected={selected})");
+            // Per column: how many rows clear the floor against THAT column's own
+            // top-of-band ground, and the furthest such ink. The thumb is the
+            // column whose run is tall enough to be a half-row mark.
+            let column = |x: i64| -> (i32, f64, [u8; 4], [u8; 4]) {
+                let ground = at(x, band_top);
+                let (mut run, mut worst, mut ink) = (0i32, 0.0f64, ground);
+                for y in band_top..=band_bot {
+                    let c = at(x, y);
+                    let d = pixeldiff::delta_e(c, ground);
+                    if d >= THUMB_PRESENCE_MIN {
+                        run += 1;
+                        if d > worst {
+                            worst = d;
+                            ink = c;
+                        }
+                    }
+                }
+                (run, worst, ink, ground)
+            };
+            let best = (x0.ceil() as i64..=x1.floor() as i64)
+                .map(column)
+                .max_by_key(|&(run, ..)| run)
+                .expect("the track spans at least one column");
+            let (run, worst, ink, ground) = best;
+            // CLAUSE 1 — a genuine half-row mark exists. The track hairline is
+            // under a fifth of the thumb's height, so `run * 4 > band` can only be
+            // met by the thumb. Without this the perceptual clause below is
+            // satisfied by the TRACK, which is how the first draft of this law
+            // stayed green under its own mutation.
+            assert!(
+                run * 4 > (band_bot - band_top) as i32,
+                "{ctx}: no half-row mark clears ΔE {THUMB_PRESENCE_MIN} anywhere on \
+                 the rail — the tallest qualifying run is {run}px of a \
+                 {}px band, which is the hairline TRACK, not the thumb. A rail whose \
+                 ink is chosen for a highlight fill that is not under it can land \
+                 exactly on the page: Firetail drew #17090c on #17090c.",
+                band_bot - band_top
+            );
+            // CLAUSE 2 — and that mark is perceptually present, not merely a
+            // different byte. Reported below with the roster's tightest value.
+            assert!(
+                worst >= THUMB_PRESENCE_MIN,
+                "{ctx}: the thumb's own ink {ink:?} measures only ΔE {worst:.2} from \
+                 the ground it sits on ({ground:?}), floor {THUMB_PRESENCE_MIN}"
+            );
+            if worst < tightest.0 {
+                tightest = (worst, format!("{ctx} ink {ink:?} on {ground:?}"));
+            }
+        }
+    }
+    p.sync_theme();
+    eprintln!(
+        "range thumb presence: tightest ΔE {:.2} across the roster — {} (floor \
+         {THUMB_PRESENCE_MIN})",
+        tightest.0, tightest.1
+    );
+}
+
 /// NO RAIL ANYWHERE ELSE: a card with no range rows (the command palette's shape)
 /// hit-tests as railless over its whole area — the rail machinery is inert for
 /// every other picker, so those cards render exactly as they always did.

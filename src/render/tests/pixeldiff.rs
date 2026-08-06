@@ -23,6 +23,49 @@
 use super::super::*;
 use super::dither;
 
+/// This pixel's `(L*, a*, b*)` in CIE L\*a\*b\* (D65).
+///
+/// The sRGB decode is [`theme::Srgb`]'s own — the tree's one sRGB EOTF — rather
+/// than a local copy, so a perceptual oracle and the colour the product actually
+/// hands the GPU cannot disagree about what "linear" means.
+fn lab(p: [u8; 4]) -> (f64, f64, f64) {
+    let lin = crate::theme::srgb_channel_to_linear;
+    let (r, g, b) = (lin(p[0]), lin(p[1]), lin(p[2]));
+    // sRGB → CIE XYZ (D65), then XYZ → Lab against the D65 white point.
+    let x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047;
+    let y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    let z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883;
+    let f = |t: f64| {
+        if t > 0.008_856 {
+            t.cbrt()
+        } else {
+            7.787 * t + 16.0 / 116.0
+        }
+    };
+    let (fx, fy, fz) = (f(x), f(y), f(z));
+    (116.0 * fy - 16.0, 500.0 * (fx - fy), 200.0 * (fy - fz))
+}
+
+/// **CIE 1976 ΔE — the PERCEPTUAL distance between two drawn pixels, and this
+/// tree's settled oracle for "can this surface be seen".** One owner, because
+/// every appearance floor that asks that question must ask it the same way.
+///
+/// Neither a WCAG contrast ratio nor a luminance difference answers it, and both
+/// were tried before this. **A ratio and a `|ΔY|` each collapse in the dark**,
+/// where a plainly visible step between two near-black surfaces measures almost
+/// nothing — and both are LUMINANCE-ONLY, so they call a plate that differs from
+/// its page in hue or chroma invisible. Potoroo's sticky plate sits ΔL\* 0.87
+/// from its page and is unmistakable on screen, the difference almost entirely in
+/// b\* (44 against 0); a luminance floor called that invisible and demanded a
+/// product change that would have made a legible surface worse.
+///
+/// For scale: ΔE ≈ 2.3 is the classic just-noticeable difference.
+pub(super) fn delta_e(a: [u8; 4], b: [u8; 4]) -> f64 {
+    let (l1, a1, b1) = lab(a);
+    let (l2, a2, b2) = lab(b);
+    ((l1 - l2).powi(2) + (a1 - a2).powi(2) + (b1 - b2).powi(2)).sqrt()
+}
+
 /// A rectangular pixel region in canvas (device-pixel) coordinates. `x`/`y`
 /// are the top-left corner; `w`/`h` extend right/down. Coordinates are
 /// clamped to the buffer's own bounds by `diff_region`/`sample_region`, so a

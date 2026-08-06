@@ -62,6 +62,11 @@ pub use cjk::{
     CJK_MINCHO, CJK_ZH_HANS_KLEE, CJK_ZH_HANS_SANS, CJK_ZH_HANS_SERIF, CJK_ZH_HANT,
 };
 pub use color::Srgb;
+// THE TREE'S ONE sRGB EOTF. Crate-visible rather than public: it is reached by
+// the perceptual pixel oracles under `render/tests` (`pixeldiff::delta_e`) so an
+// appearance floor and the colour the product hands the GPU cannot disagree
+// about what "linear" means, and by nothing outside the crate.
+pub(crate) use color::srgb_channel_to_linear;
 #[allow(unused_imports)] // cycle/overlay_scrim/primary_content/tag_for/WorldPin:
 // public API surface, no NON-TEST in-crate caller today (tag_for's real callers
 // all live under `#[cfg(test)]`; `WorldPin` is the explicit world restore a test

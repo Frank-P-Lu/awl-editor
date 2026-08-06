@@ -43,8 +43,9 @@
 use super::*;
 use crate::render::livingband::{self, BandRect, MotionForce};
 
-/// Whether the secondary column flips onto the band at all. Both families do
-/// today; the split is kept because it is a per-family question, not a global.
+/// Whether the secondary TEXT column (the chord / time / git value beside a name)
+/// flips onto the band at all. Both filled families do; the split is kept because
+/// it is a per-family question, not a global.
 fn selected_secondary_on_band() -> bool {
     match crate::render::effective_list_style() {
         theme::ListStyle::Bars => true,
@@ -57,6 +58,64 @@ fn selected_secondary_on_band() -> bool {
         // reader can see.
         theme::ListStyle::Rules(_) => false,
     }
+}
+
+/// **THE RANGE RAIL'S OWN ANSWER, AND WHY IT IS NOT
+/// [`selected_secondary_on_band`]'s.** The two describe surfaces in different
+/// PLACES on the same selected row, so one predicate cannot serve both — and for
+/// as long as it did, a rail thumb was painted for a fill it never touches.
+///
+/// The flip exists so ink drawn ON the highlight fill stays legible against it,
+/// which means the ink is chosen for the FILL's colour rather than the card's. On a
+/// `Bars` world the fill is TWO QUADS FLANKING the row's content, and the two
+/// surfaces land on opposite sides of that geometry — measured on Firetail's own
+/// cards:
+///
+/// * the chord text sits at x 696-717, INSIDE the right-hand bar at x 677-732, so
+///   its flip is correct and this predicate must not touch it;
+/// * the rail's thumb sits at x 550-558, in the GAP between the bars at x 148-249
+///   and x 677-732, on plain page.
+///
+/// Sharing one answer resolved that thumb to
+/// `theme::selected_row_secondary_ink(#dc316e)` = `#17090c` — **byte-identical to
+/// Firetail's own `base_100` page**, an invisible thumb at delta-E 0. It read as a
+/// mark only for as long as the page's `LoadOp::Clear` drew tens of bytes too
+/// light, and vanished the moment the ground was correct. Retiring the flip for the
+/// whole secondary column instead would have cost the chord its own legibility on
+/// all three `Bars` worlds (measured by capture: 179-184 px of chord glyph per
+/// world dropping from a dark ink on the bar to `muted` on the bar).
+///
+/// So this arm asks only "does the selection put a fill under THE RAIL", read off
+/// the composition each style emits in `overlay_selection_rects`:
+///
+/// * `Pane` - yes; `overlay_pane_selection` fills the row's whole band span.
+/// * `Bars` - no; the bars flank the rail, measured above.
+/// * `Diagonal` - no; that arm returns `OverlaySelectionRects::default()`, which is
+///   no row fill at all ("Diagonal selection is the bright CHEVRON ... it
+///   deliberately has no row-fill fallback").
+/// * `Rules` - no; a mark, never a fill. Already `None` via the sibling.
+///
+/// Every world's thumb is held to a perceptual presence floor against whatever it
+/// actually sits on by `render::tests::range_rail`'s
+/// `the_range_thumb_clears_a_perceptual_floor_against_its_own_ground_on_every_world`,
+/// so a future style that starts filling under the rail is caught here rather than
+/// by a reader.
+fn rail_thumb_over_fill() -> bool {
+    match crate::render::effective_list_style() {
+        theme::ListStyle::Pane => true,
+        theme::ListStyle::Bars | theme::ListStyle::Diagonal(_) | theme::ListStyle::Rules(_) => {
+            false
+        }
+    }
+}
+
+/// The RANGE RAIL's fill/thumb ink when its row reads selected, or `None` when the
+/// rail is not over a fill and must keep its ordinary `muted`. See
+/// [`rail_thumb_over_fill`] for why this is not the secondary column's answer.
+pub(in crate::render) fn overlay_selected_rail_srgb() -> Option<theme::Srgb> {
+    rail_thumb_over_fill()
+        .then(overlay_selected_secondary_srgb)
+        .flatten()
 }
 
 /// The PRIMARY label's on-band ink, or `None` when the world's band needs no

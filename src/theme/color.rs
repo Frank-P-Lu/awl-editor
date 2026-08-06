@@ -20,7 +20,7 @@ pub struct Srgb {
 /// `caret` and `render`); agreement with one of them is pinned by this module's
 /// tests, since a second definition of a transfer function is a second answer
 /// waiting to disagree.
-pub(super) fn srgb_channel_to_linear(c: u8) -> f64 {
+pub(crate) fn srgb_channel_to_linear(c: u8) -> f64 {
     let s = c as f64 / 255.0;
     if s <= 0.04045 {
         s / 12.92
