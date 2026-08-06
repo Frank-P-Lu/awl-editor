@@ -177,8 +177,8 @@ fn ambient_stars_laws_hold_for_every_world() {
                 assert!(
                     relaxation_seen,
                     "{}: the brightest star's peak never exceeds the muted whisper cap \
-                     ({muted_dev:.3}) on any ground — the LIFECYCLE round's blessed relaxation \
-                     is vestigial (a real glint must rise above the old cap)",
+                     ({muted_dev:.3}) on any ground — the blessed relaxation above it is \
+                     vestigial (a real glint must rise above the old cap)",
                     t.name
                 );
             }
@@ -238,13 +238,14 @@ fn has_ambient_tick_composes_all_ambient_background_capabilities_one_owner() {
     );
     assert!(
         BOMBORA.background.is_waves(),
-        "Bombora ships Background::Waves (item 69/87)"
+        "Bombora ships Background::Waves — the precondition has_ambient_tick's \
+         widening depends on"
     );
     assert!(
         BOMBORA.has_ambient_tick() && !BOMBORA.has_ambient_motion(),
         "Bombora joins the shared tick WITHOUT joining the auto-page-on/move-hold gate \
-         (has_ambient_motion) — its ground was already an OPTIONAL margin decoration \
-         (item 69), so item 87 must not silently force page mode on at launch"
+         (has_ambient_motion) — its ground was already an OPTIONAL margin decoration, \
+         so the ambient-tick widening must not silently force page mode on at launch"
     );
 }
 
@@ -262,7 +263,7 @@ fn has_ambient_tick_composes_all_ambient_background_capabilities_one_owner() {
 #[test]
 fn bombora_wave_drift_schedules_zero_frames_under_every_freeze_condition() {
     let active = BOMBORA.has_ambient_tick();
-    assert!(active, "Bombora must join the shared tick gate (item 87)");
+    assert!(active, "Bombora must join the shared tick gate");
 
     // ambient_motion = false.
     assert!(!crate::lava::lava_should_tick(

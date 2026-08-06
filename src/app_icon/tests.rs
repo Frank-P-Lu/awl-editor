@@ -438,7 +438,9 @@ fn confusable_pairs_never_share_a_logo_cursor() {
     assert_eq!(
         world("Potoroo").icon_cursor,
         world("Firetail").icon_cursor,
-        "item 121: Potoroo and Firetail now deliberately share the Block preset"
+        "Potoroo and Firetail deliberately share the Block preset — their \
+         separation is carried by the numeric palette-distinctness laws instead \
+         of a preset split (see this test's doc)"
     );
     let (a, b, same_face, why) = (
         "Saltpan",
@@ -1286,6 +1288,54 @@ fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
     ]
 }
 
+/// THE TWO BOUNDS the doc below cites in prose (the roster's closest pair on
+/// `differing`, and the low cluster's own ceiling) — pinned by walking
+/// `DIFFERING_BLESSED` itself rather than trusting a hand-typed percentage to
+/// stay in sync with a table that moves on every re-blessing. A figure a law
+/// can compute should not be prose: if this fails, re-derive both numbers from
+/// the table below and update the doc's wording to match.
+#[test]
+fn differing_blessed_bounds_match_the_doc_below() {
+    let _g = crate::testlock::serial();
+    let (mut lo, mut hi) = (&DIFFERING_BLESSED[0], &DIFFERING_BLESSED[0]);
+    for b in DIFFERING_BLESSED {
+        if b.baseline < lo.baseline {
+            lo = b;
+        }
+        if b.baseline > hi.baseline {
+            hi = b;
+        }
+    }
+    assert_eq!(
+        (lo.a, lo.b),
+        ("Currawong", "Cassowary"),
+        "the doc below names Currawong/Cassowary as the roster's closest pair on \
+         `differing`, but DIFFERING_BLESSED's own minimum is now {} vs {} at {:.2}% — \
+         re-derive the doc's prose from this table, it no longer names the closest pair",
+        lo.a,
+        lo.b,
+        lo.baseline * 100.0,
+    );
+    assert!(
+        (lo.baseline * 100.0 - 13.0859375).abs() < 0.01,
+        "the doc below states the closest pair at 13.09%, but DIFFERING_BLESSED's own \
+         baseline for Currawong/Cassowary now measures {:.4}% — update the doc's prose \
+         to match",
+        lo.baseline * 100.0,
+    );
+    assert!(
+        (hi.baseline * 100.0 - 29.78515625).abs() < 0.01,
+        "the doc below states the low cluster's own ceiling at 29.79% ({} vs {}), but \
+         DIFFERING_BLESSED's own maximum is now {:.4}% ({} vs {}) — update the doc's \
+         prose to match",
+        hi.a,
+        hi.b,
+        hi.baseline * 100.0,
+        hi.a,
+        hi.b,
+    );
+}
+
 /// EVERY PAIR OF WORLDS STAYS APART at app-switcher size — and WHICH pairs
 /// stay apart least are COMPUTED from the rendered set on every run, never
 /// guessed.
@@ -1293,22 +1343,24 @@ fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
 /// The predecessor of this law hand-picked two "near pairs" by shared-FACE
 /// reasoning (Potoroo/Firetail, Saltpan/Bilby) and asserted those two harder. It
 /// missed the actual global minimum by a wide margin: **Currawong/Cassowary
-/// differ on only 12.3% of their 32px pixels**, because those two share a
-/// near-black GROUND (`#050506` vs `#060607`) and at 32px the ground IS most of
-/// the tile. Three things were wrong with the list, and all three are the same
-/// mistake — a human predicting which pair to watch:
+/// differ on only 13.09% of their 32px pixels** (`DIFFERING_BLESSED`'s own
+/// minimum, pinned against drift by `differing_blessed_bounds_match_the_doc_below`
+/// below), because those two share a near-black GROUND (`#050506` vs `#060607`)
+/// and at 32px the ground IS most of the tile. Three things were wrong with the
+/// list, and all three are the same mistake — a human predicting which pair to
+/// watch:
 ///   * it missed the minimum, which was pinned by NOTHING but the generic floor;
-///   * shared face is *anti*-predictive — the five same-face pairs span 12.3%
+///   * shared face is *anti*-predictive — the five same-face pairs span 13.09%
 ///     (Currawong/Cassowary) to 97.3% (Mopoke/Magpie), so the criterion selects
 ///     nothing;
 ///   * one of the two hand-picked pairs did not even share a face (Saltpan is
 ///     Fraunces, Bilby is Newsreader) — the list had drifted off its own stated
 ///     rule, silently, because a name list is not checked against anything.
 ///
-/// So nothing here names a pair. All 153 combinations are measured, the minimum
-/// on each axis is found, and the MINIMUM is what the assertions bind. A world
-/// rename cannot make this sweep quietly assert less, the way
-/// `near_pairs.contains(..)` could.
+/// So nothing here names a pair. Every combination the roster produces is
+/// measured, the minimum on each axis is found, and the MINIMUM is what the
+/// assertions bind. A world rename cannot make this sweep quietly assert less,
+/// the way `near_pairs.contains(..)` could.
 ///
 /// THREE AXES, because the obvious one is a liar on its own:
 ///   * `differing` — fraction of pixels that visibly differ. Ground-dominated;
@@ -1327,7 +1379,7 @@ fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
 ///     app". Deliberately loose, and deliberately NOT retuned to sit just under
 ///     today's measurement: a genuine near-duplicate world lands near ZERO (see
 ///     the non-vacuity note below), so the floor does not need to be tight to
-///     catch one, and a floor at 12% would encode the false claim that 12.3% is
+///     catch one, and a floor at 13% would encode the false claim that 13.09% is
 ///     near the edge of legibility when the ink axis says that pair differs on
 ///     86% of its ink. `differing`'s floor is the 10% this law already carried —
 ///     chosen before anyone had measured the minimum, and therefore not tuned to
@@ -1354,7 +1406,7 @@ fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
 ///     it sits. Two ways, both the same underlying bug:
 ///       * a pair can be constructed to land at rank 6, 7 or 8 — just past a
 ///         `K = 6` window — while still sitting inside the roster's own
-///         measured low cluster (12.3%-28.3% on `differing`); five such
+///         measured low cluster (13.09%-29.79% on `differing`); five such
 ///         probes (ground-preserving clones of Potoroo, Gumtree, Mangrove,
 ///         Wagtail, Firetail with every non-ground pixel recoloured) landed
 ///         at ranks 5-8 and passed with zero failures.
@@ -1393,8 +1445,9 @@ fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
 ///
 ///     THE DANGER THRESHOLDS ARE DATA, chosen with margin from the roster's
 ///     own measured shape, not tuned to look tight: `differing`'s 35% sits
-///     between the low cluster's own max (28.32%) and the next real value
-///     (80.47%, an 80-point cliff); `ink`'s 92% sits between the cluster's
+///     between the low cluster's own max (29.79%, `DIFFERING_BLESSED`'s own
+///     maximum) and the next real value (80.47%, an 80-point cliff); `ink`'s
+///     92% sits between the cluster's
 ///     max (88.39%) and the next real value (94.22%), positioned low enough
 ///     to still catch an `Ibis`-shaped 90.73% erosion. `mean` has no nearby
 ///     cliff — it is a smooth continuum from ~20 up to a distant break at
@@ -1557,9 +1610,10 @@ fn check_pair_axes(pairs: &[Pair]) -> Vec<String> {
                 None => failures.push(format!(
                     "{} vs {} crowd on {name} at 32px ({}) — inside the danger zone \
                      (< {}) but not on the blessed list. Some change moved this pair into \
-                     crowding territory that item 102's guard exists to catch. Either back \
-                     it out, or — if the crowding is intended — add `Blessed {{ a: {:?}, \
-                     b: {:?}, baseline: {v} }}` to {name}'s list in `axes()` and say why.",
+                     crowding territory that this danger-zone membership guard exists to \
+                     catch. Either back it out, or — if the crowding is intended — add \
+                     `Blessed {{ a: {:?}, b: {:?}, baseline: {v} }}` to {name}'s list in \
+                     `axes()` and say why.",
                     p.a,
                     p.b,
                     show(v),
@@ -1686,17 +1740,23 @@ fn ibis_near_duplicate_is_caught_without_becoming_champion() {
         .expect("Ibis vs Galah is in the extended set");
     assert!(
         (ibis_vs_galah.differing - 0.166016).abs() < 1e-3,
-        "differing = {} (item 161 geometry expects 16.60%)",
+        "differing = {} — the Ibis blend construction above expects 16.60%; a drift \
+         here means the rendered cursor geometry moved, re-pin all three sanity \
+         numbers together",
         ibis_vs_galah.differing
     );
     assert!(
         (ibis_vs_galah.mean - 18.7168).abs() < 0.5,
-        "mean = {} (item 161 geometry expects 18.72)",
+        "mean = {} — the Ibis blend construction above expects 18.72; a drift here \
+         means the rendered cursor geometry moved, re-pin all three sanity numbers \
+         together",
         ibis_vs_galah.mean
     );
     assert!(
         (ibis_vs_galah.ink - 0.8407960199004975).abs() < 1e-3,
-        "ink = {} (item 213 geometry expects 84.08%)",
+        "ink = {} — the Ibis blend construction above expects 84.08%; a drift here \
+         means the rendered cursor geometry moved, re-pin all three sanity numbers \
+         together",
         ibis_vs_galah.ink
     );
 
@@ -1704,8 +1764,8 @@ fn ibis_near_duplicate_is_caught_without_becoming_champion() {
     assert!(
         !failures.is_empty(),
         "Ibis crowds badly on every axis (see the sanity numbers above) but \
-         check_pair_axes reported no failures — the danger-zone guard is not catching the \
-         case item 102 was filed for"
+         check_pair_axes reported no failures — the danger-zone guard is not catching \
+         a near-duplicate world that never becomes the global champion on any axis"
     );
     for axis in [
         "differing pixels",

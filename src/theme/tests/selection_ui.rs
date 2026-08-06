@@ -16,7 +16,8 @@ fn selection_ui_is_a_stronger_value_step_never_a_hue() {
     let _g = crate::testlock::serial();
     assert!(
         std::hint::black_box(OVERLAY_SELROW_EXTRA_STEPS) > 0,
-        "the round strengthens the band by default"
+        "OVERLAY_SELROW_EXTRA_STEPS must be positive so the picker's selected row is \
+         a stronger value step than the shared ramp by default"
     );
     for world in ["Bowerbird", "Saltpan", "Firetail", "Tawny"] {
         let t = set_active_by_name(world).unwrap();
