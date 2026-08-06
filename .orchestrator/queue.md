@@ -125,6 +125,15 @@ decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
+- 🔵 **DOES THE REFERENCE BELONG IN THE HELP MENU?** 273's residual (4) added a
+  palette command ("Reference", no chord) and its lane **deliberately did not** add it
+  to `src/menu.rs`'s `HELP_ITEMS` — the native macOS Help menu, also consumed by the
+  drawn Linux menu bar — which today lists Guide and Credits beside Check for Updates
+  and Report a Problem. That list is a **hand-curated subset with no coverage law**
+  forcing every catalog command in (confirmed by the lane: no test requires it), so
+  nothing is broken either way. **The question is taste: does a big cold reference
+  table belong in a four-item menu next to a tutorial and a licence doc?** The lane
+  was right not to decide it in a merge. One line either way.
 - 🔵 **296/300's LOOK IS THE USER'S TO ACCEPT — four calls, none of them correctness.**
   Captures at `gallery/item-296-300/` (copied out of `/tmp`): `USER-toast.png` (a
   `saved` toast on a full page), `USER-sticky.png` (the Export refusal, held), and
