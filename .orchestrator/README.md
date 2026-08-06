@@ -397,6 +397,27 @@ once, at landing.
   linux job is the only thing that tests on real Linux, which no local gate
   covers — but do not assume a `cancelled` streak means "pushed too fast"
   without checking the clock first.
+- ⚠️ **A THIRD CAUSE OF A RED- OR CANCELLED-LOOKING RUN: GITHUB ACTIONS ITSELF IS
+  DOWN. CHECK THAT BEFORE DIAGNOSING ANYTHING.** Measured 2026-08-06 on `e2e40445`:
+  `linux`, `web` and `atspi` all reported `cancelled` **at the identical second**,
+  15 minutes after queueing, while three sibling jobs sat `queued` — and **no push
+  had superseded them.** `curl -s https://www.githubstatus.com/api/v2/status.json`
+  returned `{"indicator":"major","description":"Partial System Outage"}` with
+  `Actions: major_outage`. The run immediately before it had died on
+  `##[error]Service Unavailable` / `Failed to resolve action download info`, the
+  same outage one stage earlier.
+
+  **The tells, in order of cheapness:** several jobs completing at the *same
+  second*; `cancelled` with no push behind it; a duration nowhere near
+  `timeout-minutes`; and the status API. **Rerunning during an outage is futile** —
+  wait for the API to clear, then rerun.
+
+  **And the state this leaves `main` in must be named honestly: not green, not red,
+  but UNVERIFIED REMOTELY.** A local `native-gate.sh` receipt still certifies only
+  "sound on the hardware the receipts run on"; CI's `linux` job is the only real
+  Linux coverage and the hosted-mac jobs are the only virtualised-GPU coverage, so
+  an outage means those axes are simply uncovered. Hold further pushes until a run
+  completes, and never let `cancelled` be recorded as a pass.
 - ⚠️ **A TOLERATED-RED JOB HAS TWO FAILURE CAUSES, AND ONLY ONE OF THEM FLIPS THE
   RUN'S CONCLUSION.** `continue-on-error: true` is set at the JOB level for
   `mac (render::tests)` and `atspi`, and it tolerates their **steps** failing —

@@ -210,7 +210,21 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
 | `src/render/plan/` | overlay row family only (5 modules) |
 | item 288's three identifiers | all three still present, verbatim |
 
-**WAVE COMPLETE — SEVEN ITEMS LANDED, NO LANE RUNNING.** 288, 295, 290, 304, 289,
+⚠️ **`main` IS AT `e2e40445` AND REMOTELY UNVERIFIED — GITHUB ACTIONS IS IN A
+MAJOR OUTAGE (2026-08-06).** Not red. Not green. Run `31122562571` reported
+`linux`, `web` and `atspi` all `cancelled` **at the identical second**, 15 minutes
+after queueing, with no push superseding them, while three sibling jobs stayed
+`queued`; `githubstatus.com/api/v2/status.json` returns `Actions: major_outage`.
+The run before it died on `Service Unavailable`. **`cancelled` is not a pass —
+record it as no verification at all.** The local combined-candidate receipt IS
+real (`native-gate-receipt commit=e2e40445 conventions=mac,linux scope=all-targets`,
+plus code-health and web-smoke on that same sha), but it certifies only this
+host's real Apple-Silicon Metal — **CI's `linux` job is the only real-Linux
+coverage and the hosted-mac jobs the only virtualised-GPU coverage, so those axes
+are currently uncovered.** ⚠️ **HOLD FURTHER PUSHES** until a run completes;
+rerunning during the outage is futile.
+
+**WAVE COMPLETE
 291, 274, plus 172 closed against its census and 305 queued from what 304 hit.
 
 ⚠️ **THREE OF THIS WAVE'S ITEMS HAD A FALSE OR STALE PREMISE, ALL THREE AUTHORED
