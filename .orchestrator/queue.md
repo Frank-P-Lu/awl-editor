@@ -909,6 +909,119 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      **Routing:** deep tier — it touches a GPU composite path and a design
      decision with a written rationale.
 
+295. **EXPORT IS A BROKEN BUTTON — THREE COMPOUNDING FAILURES IN ONE THREE-ITEM
+     MENU SECTION.** **User-reported: "file -> export as pdf... doesn't DO
+     anything???? like this is a usability nightmare."** An audit confirmed the
+     feature works AND that the user's words are literally accurate for their
+     input. **Three independent defects, ranked:**
+
+     **(a) 🔴 On a NON-MARKDOWN buffer it is a total no-op.** `src/actions.rs:369`
+     — `Action::ExportWord | Action::ExportHtml => Effect::None` behind an
+     `is_markdown()` gate, and `ExportPdf` carries the identical gate. No write,
+     no notice, nothing dispatched. **Reproduced on the shipped binary**, not
+     inferred: the palette matched and ran the command (`overlay.items:
+     ['Export as PDF…']`), the overlay closed as if something executed, the
+     sidecar notice was `""`, no file appeared. **And the menu row is built
+     `enabled: true` unconditionally** (`src/menu/native.rs:16-27`) —
+     `set_markdown_enabled` greys only the Markdown submenu — so nothing warns
+     the user. `.txt` and light code are in scope per PHILOSOPHY, so this is a
+     reachable everyday path.
+
+     **(b) 🔴 The ellipsis lies, and this is the PROXIMATE cause of the report.**
+     Every other ellipsis row in the File menu — Browse files…, Switch project…,
+     Recent projects…, Rename file…, Move file…, Version history… — opens a
+     further surface. Save and Duplicate file carry no ellipsis and complete
+     immediately. **Export as PDF…/Word…/HTML… are the ONLY ellipsis items in the
+     entire menu that complete immediately with no surface at all.** The label
+     trains the user to wait for a panel that is never coming. Verified by
+     enumerating every row's actual dispatch.
+
+     **(c) 🟠 Destination surprise on the unsaved/unconfigured path.**
+     `export_document` writes a sibling of a saved file, else into
+     `project_location.root` — which `resolve_launch_context`
+     (`src/main/run/location.rs:36-70`) falls back to `crate::fs::data_root()` =
+     `~/.local/share/awl`, an app-internal dot-hidden directory Finder does not
+     show. A first-time user exporting the Welcome document or a scratch note
+     cannot browse to the result. ⚠️ **`docs/platform.md:88` glosses this
+     fallback as "`~/notes` by default", which is wrong for the unconfigured
+     case — fix the doc in the same pass.** The toast names the filename only,
+     never the path.
+
+     **Scope:** this item does NOT decide the parked save-dialog question — (a)
+     and (b) are defects regardless of how that lands. **Done:** the menu row
+     tells the truth about what it will do, and no invocation completes with the
+     user unable to tell whether anything happened. **Verify:** a capture over a
+     non-Markdown buffer proving either a disabled row or an explicit notice; the
+     ellipsis convention asserted across the whole `FILE_ITEMS` roster by a law,
+     so a future row cannot dodge it. **Routing:** production tier.
+
+296. **`ConvertLineEndings` IS A PURER SILENT SUCCESS THAN EXPORT.**
+     `Action::ConvertLineEndings` (`src/keymap.rs:118`) flips the file's on-disk
+     EOL convention with **`Effect::None`** — no notice at any time
+     (`src/actions.rs:158-161`; the unit test's own comment: "convert is a plain
+     metadata flip, no effect"). It is also deliberately NOT on the undo timeline
+     (the settled VS Code model), **so a double-toggle is undetectable**: the
+     user cannot see that it happened, cannot see what it did, and cannot undo
+     it. **Severity is bounded by reach, not by shape** — palette-only, unbound
+     by default, power-user name. **Build:** a notice naming the resulting
+     convention. **Verify:** sidecar assertion that the notice is set; the EOL
+     metadata itself is already covered. **Routing:** production tier.
+
+     ⚠️ **A HARNESS GAP FOUND WHILE AUDITING THIS, and it is the more important
+     half.** The audit tried to pixel-prove the export toast illegible via
+     `--screenshot-app` and got **no notice text in the frame at all** — then
+     cross-checked against `Cmd-S`, which also sets a toast, and got the
+     identical empty result. **The offscreen capture pipeline does not render
+     transient toast chrome for ANY action.** So every "the notice is set" claim
+     in this tree is a SIDECAR claim, and no capture has ever proven a toast is
+     visible to a human. That is CLAUDE.md's own tripwire — the sidecar is a
+     state oracle, not an appearance oracle — sitting unexercised over a whole
+     feedback channel. **Perceptibility of toasts is therefore UNVERIFIED, not
+     verified-good; treat it as live-only until the harness reaches it.**
+
+297. **CASSOWARY'S ROTATED LOCATION LABEL IS TOO SMALL AND IN THE WRONG PLACE.**
+     **User design decision 2026-08-06, with screenshot.** Today
+     `LocationStyle::RotatedRail` draws the active facet name ("Tools") as, in
+     its own words, "a small, muted run turned 90° and seated flush with the
+     card's own left border — a subordinate vertical counterpart to a loud
+     primary title". **The user's verdict on that reading: "this is wrong."** It
+     currently sits tucked against the list as a tiny sub-heading and reads as
+     debris beside the card rather than as a second title.
+
+     **The intent, in the user's words:** *"really big, on its side, but like
+     above the 'commands' title... like 2/3 it's size, but along the left edge."*
+     So: **rotated 90°, sized at ~⅔ of the Archivo Black `COMMANDS` placard,
+     along the ROOM's left edge, positioned ABOVE the placard** — a vertical
+     companion to the wordmark, at the wordmark's own scale class, not a label
+     hugging the card. The two become one typographic composition reading up the
+     left edge and across the bottom.
+
+     ⚠️ **THE DOC COMMENT IS PART OF THE CHANGE.** `LocationStyle::RotatedRail`'s
+     own definition (`src/theme/model.rs`) specifies "small", "muted" and "flush
+     with the card's own left border" — all three are being overturned, so the
+     comment is re-authored in the same commit or the next reader implements the
+     old design from the type. **Scope:** Cassowary is the SOLE carrier
+     (`src/theme/worlds.rs:984`), so no other world moves; `Raked` (the Diagonal
+     worlds' sibling treatment) is NOT in scope. Reuse
+     `render/rotated_location.rs::prepare_rotated_location_label` — the
+     world-neutral rotated-label capability — rather than adding a second
+     rotation path; the type's own comment already forbids that.
+
+     **Responsive bound, and it is the real risk:** at ⅔ of a placard sized for
+     the room, a long facet name ("Navigate", "Settings", "Recent") on a short
+     window will collide with the card, the placard, or the window top. **Size
+     from the real available edge territory and the longest facet in the roster,
+     not from the shortest** — the same discipline item 131 states for its
+     diagonal. Never overlap the card, never clip, never silently fall back to
+     the old small treatment. **Done:** the location reads as a second title at a
+     glance, and every facet name in the roster is fully legible at every
+     supported window size. **Verify:** every `OverlayKind` × every facet name ×
+     narrow/wide/zoom at 1×/2× DPI, with pixel laws for non-overlap against both
+     the card and the placard, and for the ⅔ size relation holding as the placard
+     scales; byte-identity for all nineteen non-Cassowary worlds; affordance-
+     locating vision smoke. **Routing:** deep tier — it is a typographic
+     composition, not a constant.
+
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
