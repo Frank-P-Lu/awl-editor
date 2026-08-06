@@ -107,4 +107,12 @@ impl crate::run::CaptureSubject for App {
     fn changed_elsewhere(&self) -> bool {
         self.change_unresolved()
     }
+    /// Straight off the frame's own notice slot — the SAME snapshot
+    /// `App::sync_view` folds into the `ViewState` and `App::semantic_snapshot`
+    /// announces, so the PNG, the sidecar's `notice` block and the sidecar's
+    /// `semantic` tree cannot disagree about what is on screen.
+    fn notice(&self) -> Option<(String, crate::actions::NoticeKind)> {
+        let notice = self.frame.notice();
+        notice.owned().map(|text| (text, notice.kind()))
+    }
 }

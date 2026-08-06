@@ -18,8 +18,12 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 ///          A key REMOVAL is a shape change (a reader keying on it breaks),
 ///          unlike `/198`'s predecessor, which only narrowed a value space.
 ///          Every world's PNG is byte-identical across this bump.
+/// `/200` — top-level `notice`: `{ text, kind }` for the calm notice on screen,
+///          or `null`. Added because no capture door could see the channel at
+///          all: `CaptureOpts` had no slot for it, so a driven editor that had
+///          raised a notice produced a PNG byte-identical to one that had not.
 /// History lives in Git. Bump this row with the const.
-pub const SCHEMA_VERSION: u32 = 199;
+pub const SCHEMA_VERSION: u32 = 200;
 /// Plain single-frame schema; timeline and held take the next two versions.
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")

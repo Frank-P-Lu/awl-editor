@@ -127,6 +127,15 @@ fails if these rows drift from them, so this table cannot go stale.
   ordinary `--keys` warns on stderr and records it in `replay_skips`. **Do not
   ask for a capture oracle over one of these.** Drive it at tier 2 instead.
 
+⚠️ **The three `notice_*` rows below read `Applied` and now mean it.** They were
+`Applied` while the replay's interpreter *discarded* every notice — reported as
+performed, drawn nowhere, and not recorded as a skip either, which is the worst of
+the three classifications to be wrong about. An ordinary `--keys` capture now
+latches the notice and photographs it, and the sidecar reports it as
+`notice: { text, kind }`. A latched Toast never expires headlessly because there is
+no clock, which matches a GPU-less live `App` (`App::set_toast_notice` arms no
+deadline without a surface).
+
 <!-- reach-table:begin -->
 | Effect | Class |
 | --- | --- |
@@ -478,10 +487,15 @@ Named here rather than quietly absorbed:
    awl --screenshot-app OUT.png DOC.md --seed-data DIR --keys "SPEC"
    ```
 
-   **What the oracle can now say.** The chrome `notice` still has no sidecar
-   field — that has not changed, and it is deliberate: a notice is transient and
-   a single slot, so it was the wrong thing to build a state oracle on. What
-   item 204 slice 2 added instead is the PERSISTENT affordance's own field,
+   **What the oracle can now say.** ⚠️ **The chrome `notice` DOES have a sidecar
+   field now** — `notice: { text, kind }`, schema `/200` — and the sentence this
+   paragraph used to carry ("a notice is transient and a single slot, so it was
+   the wrong thing to build a state oracle on") was the invariant that left every
+   capture door structurally unable to photograph a channel with ~ten production
+   callers. A driven editor that had raised `saved` produced a PNG byte-identical
+   to one that had raised nothing. The transience argument was about the LIVE
+   clock; a headless capture has none, so a notice latched during a replay simply
+   stays. Beside it, item 204 slice 2 added the PERSISTENT affordance's own field,
    **`gutter.changed`** (schema `/197`), plus **`overlay.preview_view`** — the
    `ComparisonView` tag, which is the one fact that tells three previews of ONE
    subject apart. So a live-`App` capture of a conflict reports: the affordance

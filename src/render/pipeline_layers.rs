@@ -274,6 +274,11 @@ impl TextPipeline {
         self.debug_renderer
             .render(&self.atlas, &self.viewport, pass)
             .map_err(|e| anyhow::anyhow!("glyphon debug render failed: {e:?}"))?;
+        // RIM, PLATE, then the sentence — painter's order for one surface: the rim
+        // is an outset rect showing only where the plate does not cover it, and a
+        // plate drawn after its own text would erase the text.
+        self.notice_rim.draw(pass);
+        self.notice_plate.draw(pass);
         self.notice_renderer
             .render(&self.atlas, &self.viewport, pass)
             .map_err(|e| anyhow::anyhow!("glyphon notice render failed: {e:?}"))?;

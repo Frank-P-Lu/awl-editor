@@ -1021,7 +1021,11 @@ fn chrome_attrs() -> Attrs<'static> {
 enum CornerAnchor {
     TopRight,
     BottomRight,
-    BottomCenter,
+    /// The writing column's own TOP band, horizontally centred on the column —
+    /// the CALM NOTICE's seat. Vertically it is the document's own first-row
+    /// origin (`TEXT_TOP` + the menu-bar reserve), so the notice lands exactly
+    /// where the page begins rather than at some second convention's offset.
+    TopCenter,
     AtPoint(f32, f32),
 }
 
@@ -2249,6 +2253,23 @@ pub struct TextPipeline {
     pub wordcount_buffer: GlyphBuffer,
     pub notice_renderer: TextRenderer,
     pub notice_buffer: GlyphBuffer,
+    /// THE CALM NOTICE's PLATE — one value-stepped quad under the notice's own
+    /// line, so a sentence of chrome seated inside the writing column reads as
+    /// chrome instead of colliding with the prose it covers. Empty (nothing
+    /// drawn) on every frame without a notice.
+    ///
+    /// Its colour is set in `prepare_notice` from the live theme every frame, and
+    /// it therefore has NO entry in `sync_theme_colors` — a plane that depends on
+    /// the notice's KIND cannot be carried by one baked seed, and resolving it at
+    /// prepare time is what lets a headless capture (which never runs that sync)
+    /// and a live world switch agree.
+    pub notice_plate: SelectionPipeline,
+    /// THE CALM NOTICE's RIM — the plate's rect grown one pixel on every side and
+    /// drawn under it, so only a hairline shows. It carries the kind on the ink
+    /// ladder (`muted` for a toast, `base_content` for a held sticky) and it is
+    /// what makes the notice's boundary visible on a world whose surface ramp
+    /// collapses; see `notice_plate_inks` for the measurements behind it.
+    pub notice_rim: SelectionPipeline,
     pub page_drag_renderer: TextRenderer,
     pub page_drag_buffer: GlyphBuffer,
     pub zoom_readout_renderer: TextRenderer,
@@ -2332,6 +2353,18 @@ pub struct TextPipeline {
     /// when the popover is down.
     popover_geom: Option<crate::render::chrome::PopoverGeom>,
     notice: String,
+    /// The notice text `prepare_notice` last SHAPED — the sentence after any
+    /// elision to the column's budget, i.e. exactly what the PNG shows. The
+    /// sidecar reports this rather than the intended `notice` above, on the same
+    /// "as drawn" convention the page-mode gutter's own block already keeps: a
+    /// block that reported the pre-elision sentence would be an artifact stating
+    /// something its own pixels do not.
+    notice_drawn: String,
+    /// The kind of the notice in `notice` — a lifetime, not a severity (see
+    /// [`crate::actions::NoticeKind`]). Read by the notice chrome so a HELD
+    /// notice (one the writer must act on) can be treated differently from a
+    /// self-clearing acknowledgement without either one growing its own path.
+    notice_kind: crate::actions::NoticeKind,
     /// MOTION-JUICE ARMING (the FIRETAIL-MAXIMALIST-SHOWCASE round's
     /// determinism gate): `false` by default and in EVERY headless capture /
     /// bench / test pipeline — only the live App's GPU init calls

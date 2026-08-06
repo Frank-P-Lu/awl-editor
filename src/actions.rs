@@ -155,9 +155,20 @@ fn apply_view_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
                 PreferenceEffect::WritingStreaks,
             ))
         }
+        // LINE ENDINGS: the one verb in the catalog whose entire result was
+        // invisible. It changes what the NEXT save writes to disk, it is
+        // deliberately off the undo timeline (EOL is document metadata, not an
+        // edit — see `docs/platform.md`), and it is a TOGGLE, so without a notice
+        // a double invocation was indistinguishable from none. The notice names
+        // the convention now in effect rather than reporting that a toggle
+        // happened, because "which one am I on" is the question the user has.
         Action::ConvertLineEndings => {
-            ctx.buffer.set_eol(ctx.buffer.eol().toggled());
-            Effect::None
+            let now = ctx.buffer.eol().toggled();
+            ctx.buffer.set_eol(now);
+            Effect::Notice(NoticeEffect::Toast(format!(
+                "line endings: {}",
+                now.label()
+            )))
         }
         Action::ReportProblem => Effect::ReportProblem,
         Action::DownloadFile => Effect::DownloadFile,

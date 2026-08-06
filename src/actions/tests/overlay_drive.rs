@@ -1079,7 +1079,7 @@ fn open_keep_version_over_an_already_open_workspace_descends_and_resumes_it_on_c
 }
 
 #[test]
-fn convert_line_endings_toggles_the_buffer_eol_as_metadata() {
+fn convert_line_endings_toggles_the_buffer_eol_as_metadata_and_names_the_result() {
     use crate::buffer::Eol;
     // The palette "Line endings…" command routes Action::ConvertLineEndings
     // through the SAME apply_transition seam a key/menu invocation uses. A fresh buffer
@@ -1111,10 +1111,19 @@ fn convert_line_endings_toggles_the_buffer_eol_as_metadata() {
     };
     let version_before = ctx.buffer.version();
     let eff = apply_transition(&mut ctx, &Action::ConvertLineEndings, false).primary();
+    // THE NOTICE NAMES THE RESULT, NOT THE EVENT. Both halves matter and both
+    // are checked here and on the return trip below: the notice must carry the
+    // convention now IN EFFECT, and must NOT carry the one just left. A message
+    // built from the pre-toggle value reads correctly the first time and is
+    // inverted forever after — and since the flip is off the undo timeline and
+    // changes nothing on screen, an inverted notice is the ONLY thing a user
+    // would have to go on.
     assert_eq!(
         eff,
-        Effect::None,
-        "convert is a plain metadata flip, no effect"
+        Effect::Notice(crate::actions::NoticeEffect::Toast(
+            "line endings: CRLF".to_string()
+        )),
+        "the flip's only visible result is a notice naming the NEW convention"
     );
     assert_eq!(ctx.buffer.eol(), Eol::Crlf, "first toggle: LF -> CRLF");
     assert_ne!(
@@ -1132,9 +1141,18 @@ fn convert_line_endings_toggles_the_buffer_eol_as_metadata() {
         "EOL is metadata, NOT an undoable edit"
     );
 
-    // A second dispatch flips back to LF (the toggle is total over the two endings).
-    apply_transition(&mut ctx, &Action::ConvertLineEndings, false).primary();
+    // A second dispatch flips back to LF (the toggle is total over the two endings)
+    // — and the notice follows, which is the direction that catches an inverted
+    // message: a notice reading the PRE-toggle value would say "CRLF" here.
+    let back = apply_transition(&mut ctx, &Action::ConvertLineEndings, false).primary();
     assert_eq!(ctx.buffer.eol(), Eol::Lf, "second toggle: CRLF -> LF");
+    assert_eq!(
+        back,
+        Effect::Notice(crate::actions::NoticeEffect::Toast(
+            "line endings: LF".to_string()
+        )),
+        "the return trip names LF — the arm an inverted notice fails"
+    );
 }
 
 #[test]

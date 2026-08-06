@@ -49,12 +49,10 @@ const AUTOSAVE_IDLE: Duration = Duration::from_secs(1);
 
 const TOAST_LIFETIME: Duration = Duration::from_millis(2500);
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-enum NoticeKind {
-    Toast,
-    #[default]
-    Sticky,
-}
+/// A notice's kind is owned by the effect vocabulary that raises it, not here:
+/// the render layer, the capture fold and the sidecar all have to read the same
+/// one, and none of them may depend on `crate::app`.
+use crate::actions::NoticeKind;
 
 const ZOOM_PERSIST_DEBOUNCE: Duration = Duration::from_millis(500);
 

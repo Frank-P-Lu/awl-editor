@@ -115,6 +115,7 @@ pub(super) fn write_sidecar(
         syn_spans = span_array_json(&pipeline.syn_report()),
         readout = readout_json(pipeline),
         gutter = gutter_json(pipeline),
+        notice = notice_json(pipeline),
         dim_overlay = pipeline.dims_doc(),
         canvas = canvas_json(opts),
         ff = json_string(active.font),
@@ -160,6 +161,23 @@ pub(super) fn write_sidecar(
         .with_context(|| format!("failed to create {}", json_path.display()))?;
     f.write_all(json.as_bytes())?;
     Ok(())
+}
+
+/// THE CALM NOTICE block: `{ text, kind }`, or `null` when nothing is showing.
+///
+/// Read off the PIPELINE, not off `CaptureOpts` — the same field the notice
+/// chrome shapes from. A sidecar that reported the fold's input rather than the
+/// renderer's own copy could say "saved" about a frame that drew nothing, which
+/// is the exact class of disagreement this block was added to make visible.
+fn notice_json(pipeline: &TextPipeline) -> String {
+    match pipeline.notice_report() {
+        Some((text, kind)) => format!(
+            "{{ \"text\": {}, \"kind\": {} }}",
+            json_string(&text),
+            json_string(kind.as_str())
+        ),
+        None => "null".to_string(),
+    }
 }
 
 fn folds_json(view: &ViewState) -> String {

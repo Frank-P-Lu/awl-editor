@@ -124,7 +124,13 @@ pub struct ViewState {
     pub syn_lang: Option<crate::syntax::Lang>,
     pub overlay_spell: Option<(usize, usize, usize)>,
     pub overlay_context_anchor: Option<(f32, f32)>,
+    /// THE CALM NOTICE's text this frame, empty when there is none.
     pub notice: String,
+    /// THAT notice's KIND. A sticky notice does not expire, so it is the one the
+    /// writer is expected to act on and the one a lifetime can never explain
+    /// away; the renderer reads the kind rather than inferring urgency from the
+    /// sentence. Meaningless while `notice` is empty (nothing is drawn).
+    pub notice_kind: crate::actions::NoticeKind,
     pub cjk_priority: Vec<crate::frontmatter::Lang>,
     pub eol: crate::buffer::Eol,
     /// THE FORMAT POPOVER model for this frame ([`crate::popover::PopoverModel`]),
@@ -275,6 +281,7 @@ impl ViewState {
             overlay_spell: None,
             overlay_context_anchor: None,
             notice: String::new(),
+            notice_kind: crate::actions::NoticeKind::default(),
             cjk_priority: crate::frontmatter::DEFAULT_CJK_PRIORITY.to_vec(),
             eol: crate::buffer::Eol::Lf,
             popover: None,
