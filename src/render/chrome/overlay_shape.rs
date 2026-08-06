@@ -808,12 +808,16 @@ impl TextPipeline {
         );
         self.panel_bind_buffer
             .set_wrap(&mut self.font_system, Wrap::None);
+        // ALIGNED TO THE COLUMN'S OWN FLOW, not to the right outright: a mirrored
+        // cluster hangs its accessory on the far end and grows it back toward the
+        // name, and `overlay_upload_text` seats the buffer through the same flow.
+        let align = super::diagonal::accessory_flow(self).align();
         self.panel_bind_buffer.set_rich_text(
             &mut self.font_system,
             bind_spans,
             &default_attrs,
             Shaping::Advanced,
-            Some(glyphon::cosmic_text::Align::Right),
+            Some(align),
         );
         self.panel_bind_buffer
             .shape_until_scroll(&mut self.font_system, false);

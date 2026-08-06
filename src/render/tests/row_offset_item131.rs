@@ -462,19 +462,22 @@ fn assert_diagonal_selection(
         "{ctx}: selection must visibly step outward"
     );
     let y = row.top + row.height * 0.5;
+    // Half a pixel INSIDE the cluster's spine end — on a mirrored world that is
+    // the right edge of a right-aligned name, not its left.
     assert_eq!(
-        p.overlay_row_at(cluster.label_left(selected) + 0.5, y),
+        p.overlay_row_at(
+            cluster.label_anchor(selected) + 0.5 * cluster.label_flow().sign(),
+            y
+        ),
         row.item,
         "{ctx}: stepped selected label and hit test must share geometry"
     );
     let (left, right) = plan.card_x_span();
+    let (cl, cr) = cluster.cluster_span(selected);
     assert!(
-        cluster.label_left(selected) >= left + row.dx - 0.01
-            && cluster.accessory_right(selected) <= right + row.dw + 0.01,
+        cl >= left + row.dx - 0.01 && cr <= right + row.dw + 0.01,
         "{ctx}: selected cluster must stay inside its planned clip span \
-         (cluster={}..{}, span={}..{})",
-        cluster.label_left(selected),
-        cluster.accessory_right(selected),
+         (cluster={cl}..{cr}, span={}..{})",
         left + row.dx,
         right + row.dw,
     );

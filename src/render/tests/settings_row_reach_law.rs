@@ -167,45 +167,42 @@ fn every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_wor
                             "{ctx}: planner row bounds must read the measured cluster span"
                         );
                         // A row's territory is the cluster BUDGET — a property
-                        // of the card — with the label running from the spine end
-                        // and the accessory right-aligned into the far end, as an
-                        // upright card right-aligns its chord to its own text
-                        // edge. Sized from the widest row on SCREEN instead, the
-                        // rail stepped sideways on every scroll.
+                        // of the card — with the NAME hanging on the spine end
+                        // and the accessory on the outer end, each growing back
+                        // toward the other, as an upright card right-aligns its
+                        // chord to its own text edge. Sized from the widest row
+                        // on SCREEN instead, the rail stepped sideways on every
+                        // scroll.
+                        let (cl, cr) = cluster.cluster_span(row.display);
                         assert!(
-                            (cluster.accessory_right(row.display)
-                                - cluster.label_left(row.display)
-                                - cluster.cluster_w)
-                                .abs()
-                                < 0.01,
+                            (cr - cl - cluster.cluster_w).abs() < 0.01,
                             "{ctx}: a row's rail must span exactly the cluster budget"
                         );
+                        let (al, ar) = cluster.accessory_span(row.display);
                         assert!(
-                            (cluster.accessory_right(row.display)
-                                - cluster.accessory_left(row.display)
-                                - cluster.accessory_w)
-                                .abs()
-                                < 0.01,
-                            "{ctx}: the accessory column right-aligns into the rail's far end"
+                            (ar - al - cluster.accessory_w).abs() < 0.01,
+                            "{ctx}: the accessory column reserves exactly its measured ink"
                         );
                         let (left, right) = plan.card_x_span();
                         assert!(
-                            cluster.label_left(row.display) >= left + row.dx - 0.01
-                                && cluster.accessory_right(row.display) <= right + row.dw + 0.01,
+                            cl >= left + row.dx - 0.01 && cr <= right + row.dw + 0.01,
                             "{ctx}: measured cluster exceeds its row span \
-                             (cluster={}..{}, span={}..{}, cluster_w={} accessory_w={})",
-                            cluster.label_left(row.display),
-                            cluster.accessory_right(row.display),
+                             (cluster={cl}..{cr}, span={}..{}, cluster_w={} accessory_w={})",
                             left + row.dx,
                             right + row.dw,
                             cluster.cluster_w,
                             cluster.accessory_w,
                         );
                         let y = row.top + row.height * 0.5;
+                        // The pointer is put half a pixel INSIDE the cluster's
+                        // spine end — on Magpie that is the right edge of a
+                        // right-aligned name, the exact seam the mirror moved.
+                        let inside =
+                            cluster.label_anchor(row.display) + 0.5 * cluster.label_flow().sign();
                         assert_eq!(
-                            p.overlay_row_at(cluster.label_left(row.display) + 0.5, y),
+                            p.overlay_row_at(inside, y),
                             Some(want_item),
-                            "{ctx}: the label's drawn side and pointer row must agree"
+                            "{ctx}: the name's drawn side and pointer row must agree"
                         );
                         assert_eq!(
                             p.overlay_spine.instance_count(),
@@ -231,9 +228,9 @@ fn every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_wor
                                         panic!("{ctx}: every Range setting must retain a rail")
                                     });
                                 assert!(
-                                    x0 >= cluster.accessory_left(row.display) - 0.01
-                                        && x1 <= cluster.accessory_right(row.display) + 0.01,
-                                    "{ctx}: Range rail exceeds its accessory cluster"
+                                    x0 >= al - 0.01 && x1 <= ar + 0.01,
+                                    "{ctx}: Range rail ({x0}..{x1}) exceeds its accessory \
+                                     cluster ({al}..{ar})"
                                 );
                                 assert_eq!(
                                     p.overlay_range_at((x0 + x1) * 0.5, y).map(|(item, _)| item),

@@ -170,13 +170,17 @@ fn split_row(
     let card = p.overlay_card_rect().expect("the palette card");
     let (x0, x1) = (card[0], card[0] + card[2]);
     let cut = match crate::render::effective_list_style() {
+        // The cut is the cluster's SPINE end at both orientations — the row's
+        // own ink stops there and the spine's side of it is surface. One call,
+        // because the cluster mirrors as a unit: what changes between the two
+        // worlds is which side of that edge the surface is on.
         theme::ListStyle::Diagonal(theme::DiagonalDirection::Descending) => {
             let probe = p.diagonal_cluster_probe().expect("a diagonal cluster");
-            (probe.label_left(d), true)
+            (probe.label_anchor(d), true)
         }
         theme::ListStyle::Diagonal(theme::DiagonalDirection::Ascending) => {
             let probe = p.diagonal_cluster_probe().expect("a diagonal cluster");
-            (probe.accessory_right(d), false)
+            (probe.label_anchor(d), false)
         }
         // `Rules` is upright like these two: its row content starts at the
         // text edge, and the gutter to the left of it is surface. When a
@@ -412,10 +416,9 @@ fn scrolling_a_picker_moves_only_its_list_never_its_surface() {
 /// quantity would have, so a regression reads as "the step changed" rather than
 /// as an anonymous pixel diff.
 ///
-/// It reads BOTH cluster edges as well as the spine, so the rail the labels and
-/// the chords hang on is pinned in the same breath: on a descending world the
-/// label column's left edge and the accessory column's right edge, mirrored on
-/// an ascending one.
+/// It reads BOTH cluster ends as well as the spine, so the rail the labels and
+/// the chords hang on is pinned in the same breath: the spine end the name hugs
+/// and the outer end the accessory hangs on, whichever way the world mirrors.
 #[test]
 fn the_diagonal_spine_geometry_does_not_read_the_scroll_position() {
     let _g = crate::testlock::serial();
@@ -453,8 +456,8 @@ fn the_diagonal_spine_geometry_does_not_read_the_scroll_position() {
                     probe.span,
                     probe.spine_x(0),
                     probe.spine_x(4),
-                    probe.label_left(4),
-                    probe.accessory_right(4),
+                    probe.label_anchor(4),
+                    probe.accessory_anchor(4),
                 );
                 match seen {
                     None => {

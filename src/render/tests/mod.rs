@@ -39,6 +39,9 @@ mod chrome_overlay;
 mod chrome_panels;
 mod chrome_pixel_space_item242;
 mod cjk;
+/// The mirrored diagonal row cluster: which end of it a name hangs on, which
+/// end its accessory does, and that a mirrored name is clickable where it draws.
+mod cluster_mirror_item222;
 mod comparison_composite_item116d;
 /// ITEM 116b — the RELOCATED DOCUMENT VIEWPORT: the one owner all four
 /// document-geometry owners read, the private page-column bypass, the total

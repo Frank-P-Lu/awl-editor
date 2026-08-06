@@ -159,6 +159,66 @@ pub fn rail_accessory_width(lh: f32) -> f32 {
     (RAIL_W_LH + RAIL_GAP_LH) * lh.max(0.0)
 }
 
+/// WHICH WAY A COLUMN'S INK GROWS from the edge it hangs on.
+///
+/// A row's name and its accessory hang on OPPOSITE ends of one cluster and grow
+/// toward each other, so a single signed answer places both — and mirroring the
+/// whole composition is [`Self::mirrored`], applied once, rather than a second
+/// sign in every consumer to drift from the first the day one of them is edited.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColumnFlow {
+    /// The ink BEGINS at its anchor and runs right — an ascending spine's
+    /// accessory column, and every left-aligned name.
+    Rightward,
+    /// The ink ENDS at its anchor: every upright world's right-aligned secondary
+    /// column, a descending spine's accessory, and an ascending spine's names.
+    Leftward,
+}
+
+impl ColumnFlow {
+    /// The LEFT edge of ink `w` wide hanging on `anchor` — a text area's origin.
+    pub fn origin(self, anchor: f32, w: f32) -> f32 {
+        match self {
+            Self::Rightward => anchor,
+            Self::Leftward => anchor - w,
+        }
+    }
+
+    /// That ink's `(left, right)` extent.
+    pub fn span(self, anchor: f32, w: f32) -> (f32, f32) {
+        let left = self.origin(anchor, w);
+        (left, left + w)
+    }
+
+    pub fn mirrored(self) -> Self {
+        match self {
+            Self::Rightward => Self::Leftward,
+            Self::Leftward => Self::Rightward,
+        }
+    }
+
+    /// +1 rightward, −1 leftward — for stepping INTO the ink from its anchor.
+    /// A law's own question: the draw path steps by placing ink, not by sign.
+    #[cfg(test)]
+    pub fn sign(self) -> f32 {
+        match self {
+            Self::Rightward => 1.0,
+            Self::Leftward => -1.0,
+        }
+    }
+
+    /// The glyph alignment that lands ink on this flow's anchor when a buffer of
+    /// the same width is seated by [`Self::origin`]. Shaping and placement give
+    /// ONE answer, so a mirrored column cannot align its ink one way and seat its
+    /// buffer the other.
+    pub fn align(self) -> glyphon::cosmic_text::Align {
+        match self {
+            Self::Rightward => glyphon::cosmic_text::Align::Left,
+            Self::Leftward => glyphon::cosmic_text::Align::Right,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rail {
     pub track: [f32; 4],
@@ -169,8 +229,14 @@ pub struct Rail {
     pub x1: f32,
 }
 
+/// The Range rail, seated one fixed gap INWARD of its own value text: both hang
+/// on the accessory column's `anchor` and grow along `flow`, so the rail always
+/// sits between the value and the row's name. `x0` stays the track's LEFT edge
+/// at either orientation — a slider's fill direction belongs to the value it
+/// carries, not to the composition it is seated in.
 pub fn rail_geom(
-    text_right: f32,
+    anchor: f32,
+    flow: ColumnFlow,
     value_w: f32,
     avail: f32,
     row_top: f32,
@@ -185,8 +251,11 @@ pub fn rail_geom(
     if avail < w + gap * 2.0 {
         return None;
     }
-    let x1 = text_right - value_w - gap;
-    let x0 = x1 - w;
+    let (value_left, value_right) = flow.span(anchor, value_w);
+    let (x0, x1) = match flow {
+        ColumnFlow::Leftward => (value_left - gap - w, value_left - gap),
+        ColumnFlow::Rightward => (value_right + gap, value_right + gap + w),
+    };
     let frac = if frac.is_nan() {
         0.0
     } else {

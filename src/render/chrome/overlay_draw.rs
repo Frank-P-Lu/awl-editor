@@ -346,10 +346,19 @@ impl TextPipeline {
                     default_color: ink,
                     custom_glyphs: &[],
                 });
+                // A mirrored cluster hangs its name on the SPINE end, so an
+                // ascending world's name is right-aligned and its origin is a
+                // function of the ink it measures — read from the shaped buffer
+                // this frame drew, never re-measured.
+                let primary = cluster.map(|_| self.overlay_row_primary_px(geom));
                 for row in plan.rows() {
-                    let left = cluster.map_or(text_left + row.dx, |cluster| {
-                        cluster.label_left(row.display)
-                    });
+                    let left = match (cluster, &primary) {
+                        (Some(cluster), Some(primary)) => cluster.label_origin(
+                            row.display,
+                            primary.get(&row.display).copied().unwrap_or(0.0),
+                        ),
+                        _ => text_left + row.dx,
+                    };
                     areas.push(TextArea {
                         buffer: &self.panel_buffer,
                         left,
@@ -386,6 +395,11 @@ impl TextPipeline {
             });
         }
         if has_right {
+            // The chord column is shaped ALIGNED TO ITS FLOW in a text-column-wide
+            // buffer, so a chord sits at the cluster end it hangs on, never at its
+            // buffer origin — the same flow that shaped it seats it here.
+            let flow = super::diagonal::accessory_flow(self);
+            let bind_w = self.panel_bind_buffer.size().0.unwrap_or(0.0);
             if let Some(cluster) = cluster {
                 let clip = |top: f32, bottom: f32| TextBounds {
                     left: bounds.left,
@@ -393,13 +407,10 @@ impl TextPipeline {
                     right: bounds.right,
                     bottom: (bottom.min(height as f32)) as i32,
                 };
-                // The chord column is shaped RIGHT-ALIGNED in a text-column-wide
-                // buffer, so a chord sits at its far edge, never at its origin.
-                let bind_w = self.panel_bind_buffer.size().0.unwrap_or(0.0);
                 for row in plan.rows() {
                     areas.push(TextArea {
                         buffer: &self.panel_bind_buffer,
-                        left: cluster.accessory_right(row.display) - bind_w,
+                        left: flow.origin(cluster.accessory_anchor(row.display), bind_w),
                         top: plan.secondary_top(),
                         scale: 1.0,
                         bounds: clip(row.top, row.bottom()),
@@ -410,7 +421,7 @@ impl TextPipeline {
             } else {
                 areas.push(TextArea {
                     buffer: &self.panel_bind_buffer,
-                    left: text_left,
+                    left: flow.origin(text_left + geom.text_w, bind_w),
                     top: plan.secondary_top(),
                     scale: 1.0,
                     bounds,
