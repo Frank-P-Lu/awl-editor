@@ -368,7 +368,7 @@ mod tests {
 
         let report = switches
             .report(t0 + std::time::Duration::from_secs(1))
-            .expect("transaction remains within its five-second window");
+            .expect("transaction remains within its SWITCH_WINDOW");
         assert_eq!(report.worst.total_ms(), 42.0);
         assert_eq!(
             report

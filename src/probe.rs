@@ -292,15 +292,21 @@ pub fn trace(args: std::fmt::Arguments) {
     }
 }
 
-/// ITEM 85 — MOVEMENT-LATENCY SAMPLES (native live-only): the pending mark's
-/// `Instant`, `Some` from the moment a THEME-PICKER movement step begins its real
-/// relayout work ([`mark_movement_input`], called from `App::retint_theme_preview`
-/// — the ONE owner every input kind, keyboard nav / mouse hover / wheel, funnels a
-/// world-changing preview through) until it is closed out against the FIRST frame
-/// actually presented afterward ([`note_presented_frame`], called from
-/// `Gpu::redraw` at the exact point the existing `"present"` trace already fires).
+/// ITEM 85 — MOVEMENT-LATENCY SAMPLES (native live-only): a FIFO of pending
+/// marks, one `Instant` pushed per THEME-PICKER movement step that begins its
+/// real relayout work ([`mark_movement_input`], called from
+/// `App::retint_theme_preview` — the ONE owner every input kind, keyboard nav /
+/// mouse hover / wheel, funnels a world-changing preview through) and popped in
+/// arrival order as each is closed out against its own FIRST frame actually
+/// presented afterward ([`note_presented_frame`], called from `Gpu::redraw` at
+/// the exact point the existing `"present"` trace already fires). Item 290
+/// removed the deferred-reshape mechanism that used to make an intermediate
+/// burst step invisible (no frame of its own) — every step now reshapes and
+/// presents on its own turn, so every mark has exactly one present to pair
+/// with, in the same order they armed.
 #[cfg(not(target_arch = "wasm32"))]
-static LATENCY_PENDING: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
+static LATENCY_PENDING: std::sync::Mutex<std::collections::VecDeque<std::time::Instant>> =
+    std::sync::Mutex::new(std::collections::VecDeque::new());
 
 /// The accumulated samples, in whole nanoseconds (event → first presented frame),
 /// one per theme-picker movement step that actually got a frame out the door.
@@ -309,33 +315,35 @@ static LATENCY_SAMPLES: std::sync::Mutex<Vec<u128>> = std::sync::Mutex::new(Vec:
 
 /// Arm the latency clock for ONE theme-picker movement step. A cheap no-op unless
 /// [`recording`] — the same gate every other diagnostic trace point uses, so a
-/// plain launch never even reads the clock. Overwrites any still-pending mark
-/// rather than queuing one per step: only the LATEST input's round trip is
-/// meaningful (an intermediate step in a fast arrow-key burst never gets its own
-/// frame once the picker moves again before the next present — exactly what
-/// `retint_theme_preview`'s own debounced-reshape deferral already does for the
-/// font half, mirrored here for the latency sample).
+/// plain launch never even reads the clock. Pushed onto the pending queue rather
+/// than overwriting a single slot: an overwrite here once collapsed an N-step
+/// burst to a single sample (`n=1`) and put a wrong number — off by roughly two
+/// orders of magnitude — on the project board (item 291). There is no longer a
+/// reason for one mark to evict another: every step gets its own present (see
+/// [`LATENCY_PENDING`]'s doc), so every step earns its own sample.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn mark_movement_input() {
     if !recording() {
         return;
     }
     if let Ok(mut pending) = LATENCY_PENDING.lock() {
-        *pending = Some(std::time::Instant::now());
+        pending.push_back(std::time::Instant::now());
     }
 }
 
-/// Close out a pending movement mark against a frame that was just PRESENTED
-/// (called unconditionally from `Gpu::redraw`'s present point — cheap, and a
-/// no-op both when nothing is pending — an ordinary frame unrelated to any
-/// picker movement — and when recording is off). Pushes the elapsed duration
-/// into [`LATENCY_SAMPLES`] and traces it via the shared [`trace`] door.
+/// Close out the OLDEST pending movement mark against a frame that was just
+/// PRESENTED (called unconditionally from `Gpu::redraw`'s present point —
+/// cheap, and a no-op both when nothing is pending — an ordinary frame
+/// unrelated to any picker movement — and when recording is off). FIFO pop, so
+/// marks and presents pair in arrival order even under a fast burst. Pushes the
+/// elapsed duration into [`LATENCY_SAMPLES`] and traces it via the shared
+/// [`trace`] door.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn note_presented_frame() {
     if !recording() {
         return;
     }
-    let armed = LATENCY_PENDING.lock().ok().and_then(|mut g| g.take());
+    let armed = LATENCY_PENDING.lock().ok().and_then(|mut g| g.pop_front());
     if let Some(t0) = armed {
         let ns = t0.elapsed().as_nanos();
         if let Ok(mut samples) = LATENCY_SAMPLES.lock() {
@@ -738,7 +746,7 @@ mod tests {
     fn movement_latency_mark_and_present_produce_a_sample_and_distribution() {
         let _g = crate::testlock::serial();
         if let Ok(mut p) = LATENCY_PENDING.lock() {
-            *p = None;
+            p.clear();
         }
         if let Ok(mut s) = LATENCY_SAMPLES.lock() {
             s.clear();
@@ -758,13 +766,13 @@ mod tests {
 
         mark_movement_input();
         assert!(
-            LATENCY_PENDING.lock().unwrap().is_some(),
+            !LATENCY_PENDING.lock().unwrap().is_empty(),
             "the mark armed the clock"
         );
         std::thread::sleep(std::time::Duration::from_millis(2));
         note_presented_frame();
         assert!(
-            LATENCY_PENDING.lock().unwrap().is_none(),
+            LATENCY_PENDING.lock().unwrap().is_empty(),
             "closing out clears the pending mark"
         );
 
@@ -794,7 +802,7 @@ mod tests {
             *s = None;
         }
         if let Ok(mut p) = LATENCY_PENDING.lock() {
-            *p = None;
+            p.clear();
         }
         if let Ok(mut s) = LATENCY_SAMPLES.lock() {
             s.clear();
@@ -809,17 +817,88 @@ mod tests {
         let _g = crate::testlock::serial();
         assert!(!recording(), "no probe/flight armed in a plain unit test");
         if let Ok(mut p) = LATENCY_PENDING.lock() {
-            *p = None;
+            p.clear();
         }
         if let Ok(mut s) = LATENCY_SAMPLES.lock() {
             s.clear();
         }
         mark_movement_input();
         assert!(
-            LATENCY_PENDING.lock().unwrap().is_none(),
+            LATENCY_PENDING.lock().unwrap().is_empty(),
             "a mark outside recording never arms"
         );
         note_presented_frame();
         assert!(latency_distribution().is_none());
+    }
+
+    /// ITEM 291 — THE HARNESS BIAS THIS BOARD MEASURED ITSELF WITH. Before this
+    /// fix, [`mark_movement_input`] overwrote a still-pending mark instead of
+    /// queuing one per step, so a burst of N reshaping inputs reported `n=1` no
+    /// matter how large N was — and that exact bias produced item 290's board
+    /// figure of "12.3 ms / n=1 for 8 inputs", undercounting the real burst cost
+    /// (297.9 ms, measured by `--bench-theme-burst`, which never touches this
+    /// probe) by roughly two orders of magnitude.
+    ///
+    /// Sweeps burst LENGTH rather than one hand-picked count, per CLAUDE.md's own
+    /// rule that a law's axis must be the one an off-by-one can hide behind: a
+    /// single-slot-vs-queue bug is invisible at `n=1` and only some off-by-one
+    /// variants would show at `n=2`; this checks 1, 2, 3, 8 (the board's own
+    /// figure) and 9 (`--bench-theme-burst`'s own burst length).
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn movement_latency_burst_of_n_reports_n_not_one() {
+        let _g = crate::testlock::serial();
+        let path =
+            std::env::temp_dir().join(format!("awl-latency-burst-test-{}.log", std::process::id()));
+
+        for n in [1usize, 2, 3, 8, 9] {
+            if let Ok(mut p) = LATENCY_PENDING.lock() {
+                p.clear();
+            }
+            if let Ok(mut s) = LATENCY_SAMPLES.lock() {
+                s.clear();
+            }
+            let _ = std::fs::remove_file(&path);
+            arm_flight(&path);
+            assert!(recording(), "flight recorder arms recording() for n={n}");
+
+            // ZERO-GAP shape: every mark fires before ANY of the burst's
+            // presents close one out — the exact arrival order a fast
+            // arrow-key burst produces when input outruns the frame loop, and
+            // the shape the historical "n=1 for 8 inputs" bias was measured
+            // under. A queue must survive this ordering, not just the tidy
+            // alternating one; an overwriting single slot collapses it to a
+            // single sample no matter how many presents follow.
+            for _ in 0..n {
+                mark_movement_input();
+            }
+            for _ in 0..n {
+                note_presented_frame();
+            }
+
+            let dist = latency_distribution().unwrap_or_default();
+            assert!(
+                dist.starts_with(&format!("n={n}")),
+                "a burst of {n} reshaping inputs must report n={n}, got: {dist:?}"
+            );
+            assert!(
+                LATENCY_PENDING.lock().unwrap().is_empty(),
+                "every mark in the n={n} burst was closed out, none left dangling"
+            );
+
+            FLIGHT_ACTIVE.store(false, std::sync::atomic::Ordering::Relaxed);
+            if let Ok(mut s) = FLIGHT_SINK.lock() {
+                *s = None;
+            }
+        }
+
+        if let Ok(mut p) = LATENCY_PENDING.lock() {
+            p.clear();
+        }
+        if let Ok(mut s) = LATENCY_SAMPLES.lock() {
+            s.clear();
+        }
+        let _ = std::fs::remove_file(&path);
+        assert!(!recording(), "disarmed again — no leak into sibling tests");
     }
 }
