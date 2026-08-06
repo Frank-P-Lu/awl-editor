@@ -1,6 +1,6 @@
 //! Laws for the theme-switch transaction readout: the phase roster, the
 //! breakdown line's exact text, the coverage floor that keeps the roster
-//! honest, and the five-second window's own eviction arithmetic under a fake
+//! honest, and [`SWITCH_WINDOW`]'s own eviction arithmetic under a fake
 //! clock. Carved out of `themeswitch.rs` to keep that module under its ceiling.
 
 use super::*;
@@ -249,7 +249,7 @@ fn fake_clock_rolling_max_keeps_the_worst_transactions_breakdown() {
 }
 
 #[test]
-fn fake_clock_exact_five_second_boundary_survives_then_expires() {
+fn fake_clock_exact_switch_window_boundary_survives_then_expires() {
     let clock = fake_clock();
     let t0 = crate::clock::Clock::now(&clock);
     let mut history = SwitchHistory::default();
@@ -257,7 +257,7 @@ fn fake_clock_exact_five_second_boundary_survives_then_expires() {
     clock.advance(SWITCH_WINDOW);
     assert!(
         history.report(crate::clock::Clock::now(&clock)).is_some(),
-        "five seconds exactly stays"
+        "exactly SWITCH_WINDOW stays"
     );
     clock.advance(Duration::from_nanos(1));
     assert!(history.report(crate::clock::Clock::now(&clock)).is_none());

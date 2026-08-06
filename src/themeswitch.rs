@@ -1,15 +1,15 @@
 //! src/themeswitch.rs — THE THEME-SWITCH TRANSACTION-LATENCY readout (DEBUG-mode,
-//! LIVE-ONLY): completed theme changes retained in a five-second wall-clock window,
-//! with the slowest transaction's per-phase breakdown so the dominant cost NAMES
-//! ITSELF instead of being guessed.
+//! LIVE-ONLY): completed theme changes retained in a [`SWITCH_WINDOW`] wall-clock
+//! window, with the slowest transaction's per-phase breakdown so the dominant
+//! cost NAMES ITSELF instead of being guessed.
 //!
 //! WHAT IT REPORTS (drawn as three extra lines in the debug panel, `debug.rs`, only
 //! after a real switch has been measured):
 //!   * `theme latest N ms` — the most recently completed input-to-settled-present
 //!     transaction.
 //!   * `theme worst N ms` — the slowest completed transaction still inside the
-//!     trailing five-second wall-clock window: the honest "how long until it
-//!     settled" number.
+//!     trailing [`SWITCH_WINDOW`] wall-clock window: the honest "how long until
+//!     it settled" number.
 //!   * `wait W · font X · reshape Y · rowgeom Z · sched S · atlas A · acquire Q · present P`
 //!     — each
 //!     phase's own duration (ms), for that `theme worst` transaction, in wall-clock
@@ -208,7 +208,19 @@ use crate::clock::Instant;
 /// The wall-clock diagnostic window. Unlike [`crate::debug::COST_WINDOW`], this is
 /// time rather than a number of frames: a hundred cheap caret frames must not erase
 /// the switch hitch that prompted the investigation.
-pub const SWITCH_WINDOW: Duration = Duration::from_secs(5);
+///
+/// 30 seconds: the readout line carries no age indicator (`settle_lines`
+/// prints only the numbers, never a timestamp), and the panel's own doc names
+/// its reader as "the user screenshots, the agent triages" — a human glancing
+/// over or an agent's round trip (arm a live run, drive the input, switch
+/// tools, capture a screenshot) routinely exceeds a few seconds, so too short
+/// a window is an instrument that erases itself before it can be read. 30s
+/// stays "recent" for a human actively testing a theme switch while giving a
+/// realistic read-and-capture loop enough room; a pure dismiss-on-input design
+/// (never decay, only replaced by the next switch) was rejected because it
+/// would let a very old switch's numbers sit on screen indefinitely with
+/// nothing on the line itself to mark them stale — worse than disappearing.
+pub const SWITCH_WINDOW: Duration = Duration::from_secs(30);
 
 /// One completed input-to-settled-present theme transaction.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -256,7 +268,7 @@ impl SwitchHistory {
     }
 
     /// Return the live report at `now`, evicting transactions whose age is strictly
-    /// greater than five seconds. Exactly five seconds remains readable.
+    /// greater than [`SWITCH_WINDOW`]. Exactly `SWITCH_WINDOW` remains readable.
     pub fn report(&mut self, now: Instant) -> Option<SwitchReport> {
         self.evict(now);
         let latest = self.entries.back().map(|(_, entry)| *entry)?;
