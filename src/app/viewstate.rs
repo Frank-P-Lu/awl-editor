@@ -236,6 +236,9 @@ impl App {
                 .and_then(|o| o.spell_target),
             overlay_context_anchor: ov.and_then(|o| o.context_anchor),
             notice: self.frame.notice().owned().unwrap_or_default(),
+            // The KIND rides with the text from the one snapshot, so the render
+            // layer never has to guess a notice's lifetime from its sentence.
+            notice_kind: self.frame.notice().kind(),
             cjk_priority: self.config.cjk_priority_or_default(),
             eol: self.document.buffer().eol(),
             popover,

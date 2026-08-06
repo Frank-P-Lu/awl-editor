@@ -227,6 +227,8 @@ impl TextPipeline {
             Some(glyphon::cosmic_text::Align::Right),
             "debug",
             menubar_reserve,
-        )
+            theme::muted().to_glyphon(),
+        )?;
+        Ok(())
     }
 }

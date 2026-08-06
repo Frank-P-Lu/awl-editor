@@ -343,6 +343,18 @@ pub struct CaptureOpts {
     /// emitted as `gutter.changed`. Only a `driver: "live-app"` capture can ever
     /// set it — see `run::CaptureSubject::changed_elsewhere`.
     pub gutter_changed: bool,
+    /// THE CALM NOTICE the driven editor is showing, with its kind — `None` when
+    /// there is none, which is every capture that raises no notice-bearing
+    /// effect (so those stay byte-identical).
+    ///
+    /// This slot exists because the notice channel was invisible to every capture
+    /// door for as long as it existed: `CaptureOpts` had nowhere to put it, so a
+    /// live `App` that had genuinely raised "saved" produced a PNG byte-identical
+    /// to one that had not — while the SAME sidecar's `semantic` block announced
+    /// that notice to a screen reader. One artifact, two answers. Fed by
+    /// [`crate::run::CaptureSubject::notice`] from whichever driver is running;
+    /// emitted as the top-level `notice` block.
+    pub notice: Option<(String, crate::actions::NoticeKind)>,
     /// Explicit passive pending-crash state for the About-card capture law.
     /// False by default; ordinary/headless captures never inspect ambient crash
     /// files and remain deterministic.

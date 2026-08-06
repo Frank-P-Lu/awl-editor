@@ -1,0 +1,414 @@
+//! The live-`App` capture mode's own laws. Carved out of `live_app.rs` as a
+//! sibling `tests.rs` so the production file stays under the size ceiling —
+//! `code-health.py`'s `production()` exempts that exact filename precisely so
+//! carving an inline `mod tests` out is a real remedy rather than moving lines
+//! from one measured file to another.
+
+use super::*;
+use crate::capture::CaptureOpts;
+use crate::config::Config;
+use crate::settings::SettingId;
+use crate::testscratch::ScratchDir;
+use std::sync::Arc;
+
+const CFG: &str = "/cfg/config.toml";
+
+/// The chord that summons the Settings workspace in the convention this
+/// pass is running under — resolved from the RUNNING convention rather than
+/// hardcoded, because `native-gate.sh` runs the suite once per convention
+/// and each pass must drive its own real binding (item 114's rule).
+fn open_settings_chord() -> &'static str {
+    match crate::convention::Convention::current() {
+        crate::convention::Convention::Mac => "s-,",
+        crate::convention::Convention::Linux => "C-,",
+    }
+}
+
+fn new_document_chord() -> &'static str {
+    match crate::convention::Convention::current() {
+        crate::convention::Convention::Mac => "s-n",
+        crate::convention::Convention::Linux => "C-n",
+    }
+}
+
+/// The real chords a user walks in with: summon the workspace, `Tab` from
+/// the navigation rail into the content pane, one `Down` per row of the
+/// corpus, then `Enter` on the row. The row INDEX is derived from
+/// `settings::visible_rows()`, so a corpus reorder re-aims this walk instead
+/// of silently landing on a neighbour.
+fn walk_to(id: SettingId) -> Vec<crate::keyspec::Chord> {
+    let idx = crate::settings::visible_rows()
+        .iter()
+        .position(|r| r.id == id)
+        .expect("the row is in the visible corpus");
+    let downs = std::iter::repeat_n("Down", idx)
+        .collect::<Vec<_>>()
+        .join(" ");
+    let spec = format!("{} Tab {downs} Enter", open_settings_chord());
+    crate::keyspec::parse_chords(&spec).expect("the walk parses")
+}
+
+fn proj() -> std::path::PathBuf {
+    std::path::PathBuf::from("/ws/proj")
+}
+
+/// A config with a real (sandbox) path, so a settings persist has somewhere
+/// to land — the write is part of what the live door actually performs.
+/// The live-`App` payload these tests drive, over the scratch config.
+fn spec(keys: Vec<crate::keyspec::Chord>, root: Option<PathBuf>) -> LiveAppSpec {
+    LiveAppSpec {
+        file: None,
+        keys,
+        root,
+        workspace: None,
+        config: cfg(),
+    }
+}
+
+fn cfg() -> Config {
+    Config {
+        path: std::path::PathBuf::from(CFG),
+        ..Config::empty()
+    }
+}
+
+/// Run `body` over a seeded `InMemoryFs`, so nothing in these laws — the App's
+/// config persist included — can reach the real disk. The PNG + JSON still go
+/// out through `std::fs`, the documented capture-deliverable bypass.
+/// [`in_sandbox`] with one document already seeded — for the laws that need
+/// the App to OPEN a real (sandbox) file and write it back.
+fn in_sandbox_with<T>(doc: &std::path::Path, body: impl FnOnce() -> T) -> T {
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/cfg")
+            .with_dir("/ws")
+            .with_dir("/ws/proj")
+            .with_file(doc, "# Probe\n\nSome prose.\n"),
+    );
+    crate::fs::with_fs(mem, body)
+}
+
+fn in_sandbox<T>(body: impl FnOnce() -> T) -> T {
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/cfg")
+            .with_dir("/ws")
+            .with_dir("/ws/proj"),
+    );
+    crate::fs::with_fs(mem, body)
+}
+
+fn sidecar(png: &std::path::Path) -> serde_json::Value {
+    let text = std::fs::read_to_string(png.with_extension("json")).expect("a sidecar");
+    serde_json::from_str(&text).expect("valid sidecar JSON")
+}
+
+/// The selected row's VALUE cell, straight out of the sidecar's parallel
+/// `overlay.bindings` array (`opts.rs`: a Settings row carries its readout
+/// there as text).
+fn selected_value(v: &serde_json::Value) -> String {
+    let o = &v["overlay"];
+    let i = o["selected_index"].as_u64().expect("a selected row") as usize;
+    o["bindings"][i].as_str().expect("a value cell").to_string()
+}
+
+fn selected_name(v: &serde_json::Value) -> String {
+    let o = &v["overlay"];
+    let i = o["selected_index"].as_u64().expect("a selected row") as usize;
+    o["items"][i].as_str().expect("a row label").to_string()
+}
+
+#[test]
+fn live_app_first_new_document_asks_for_a_folder_before_creating_a_file() {
+    let _g = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-item208-live-app-{}", std::process::id())),
+    );
+    let png = dir.join("folder-choice.png");
+    let json = in_sandbox(|| {
+        capture_live_app(
+            png.clone(),
+            spec(
+                crate::keyspec::parse_chords(new_document_chord()).unwrap(),
+                Some(crate::fs::data_root()),
+            ),
+        )
+        .unwrap();
+        sidecar(&png)
+    });
+    assert_eq!(json["driver"].as_str(), Some("live-app"));
+    assert_eq!(json["overlay"]["mode"].as_str(), Some("switch"));
+}
+
+/// QUEUE ITEM 188, THE PRIMARY LAW — the transition converted from
+/// Rust-only to sidecar-provable.
+///
+/// Flipping the KEYMAP row of the Settings workspace is the hardest case in
+/// the live-only census, not a convenient one: `docs/harness-reach.md` lists
+/// `setting_toggle` as **Unsupported** for an ordinary `--keys` capture, and
+/// names `SettingToggle{key: "keymap"}` as the ONE key that stays Unsupported
+/// even under item 190's `FilesystemCapability::Isolated` grant, because it
+/// needs a LIVE keymap rebuild no filesystem capability can supply. Before
+/// this item it was provable only in Rust (`app::tests::workspace_item114`'s
+/// tier-2 sweep, asserting `App` + config state directly).
+///
+/// BOTH HALVES ARE ASSERTED IN ONE TEST, and the second is what makes the
+/// first mean anything: the SAME chord spec is driven through the ordinary
+/// `--keys` capture door, which must still report the OLD flavor and record
+/// the skip. A live-App sidecar that agreed with the replay sidecar would
+/// prove nothing had been reached at all.
+#[test]
+fn a_live_app_capture_photographs_a_keymap_flip_an_ordinary_capture_cannot_see() {
+    let _g = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-item188-live-app-{}", std::process::id())),
+    );
+    let keys = walk_to(SettingId::Keymap);
+
+    // ── THE LIVE-`App` CAPTURE ────────────────────────────────────────
+    let live = dir.join("live.png");
+    let live_json = in_sandbox(|| {
+        capture_live_app(live.clone(), spec(keys.clone(), Some(proj())))
+            .expect("the live-App capture needs a GPU adapter");
+        sidecar(&live)
+    });
+    assert_eq!(
+        live_json["overlay"]["active"].as_bool(),
+        Some(true),
+        "the sidecar was folded AFTER the chords were driven — a card the \
+         walk summoned must be up in it"
+    );
+    assert_eq!(
+        selected_name(&live_json),
+        "Keymap",
+        "the walk stood on the Keymap row"
+    );
+    assert_eq!(
+        live_json["driver"].as_str(),
+        Some("live-app"),
+        "the sidecar names the tier that produced it"
+    );
+    assert_eq!(
+        live_json["project"]["keymap_flavor"].as_str(),
+        Some("emacs"),
+        "THE CONVERTED CLAIM: the live keymap flip is readable from the \
+         sidecar's project block, not only from a Rust assertion"
+    );
+    assert_eq!(
+        selected_value(&live_json),
+        "emacs",
+        "and the row's own value cell agrees — two independent witnesses in \
+         one artifact"
+    );
+    assert!(
+        live_json["replay_skips"]
+            .as_array()
+            .is_some_and(|a| a.is_empty()),
+        "a live-App capture skips nothing: it performs the effect"
+    );
+
+    // ── THE SAME SPEC THROUGH THE ORDINARY `--keys` DOOR ──────────────
+    // Anti-vacuity. This is the capture that could NOT witness the flip,
+    // and it must still be unable to.
+    let replay = dir.join("replay.png");
+    let replay_json = in_sandbox(|| {
+        super::super::capture_screenshot(
+            replay.clone(),
+            None,
+            CaptureOpts::default(),
+            keys,
+            crate::keymap::KeymapState::new(),
+            Some(proj()),
+            None,
+            std::path::PathBuf::from("/ws/notes"),
+            cfg(),
+            false,
+        )
+        .expect("the ordinary capture succeeds");
+        sidecar(&replay)
+    });
+    assert_eq!(
+        replay_json["driver"].as_str(),
+        Some("replay"),
+        "the ordinary door stamps the shared-core tier"
+    );
+    assert_eq!(
+        selected_name(&replay_json),
+        "Keymap",
+        "the ordinary replay walked to the same row — the specs are identical"
+    );
+    assert_eq!(
+        replay_json["project"]["keymap_flavor"].as_str(),
+        Some("native"),
+        "the ordinary capture still cannot see the flip — if this ever reads \
+         `emacs`, the live-App law above has stopped proving anything new"
+    );
+    assert_eq!(
+        replay_json["replay_skips"],
+        serde_json::json!([{ "effect": "setting_toggle", "action": "Newline" }]),
+        "and it says so out loud rather than reporting stale state silently"
+    );
+}
+
+/// ITEM 296 — **A CAPTURE CARRIES A TOAST**, and the sidecar's two answers
+/// about it agree.
+///
+/// The defect this closes was not "the notice looked wrong": no capture door
+/// could SEE the notice channel at all. `CaptureOpts` had no slot for it, so a
+/// real headless `App` that had genuinely raised `saved` produced a PNG
+/// **byte-identical** to one that had raised nothing — while the SAME
+/// sidecar's `semantic` block, which reads the `App` directly, announced that
+/// notice to a screen reader. One artifact, two answers. Every "the notice is
+/// set" claim in this tree was a sidecar claim, never a photographed one.
+///
+/// So this law asserts both halves, and the SECOND is what makes the first
+/// mean something:
+///
+///   1. the two PNGs differ — the notice is on the frame;
+///   2. the top-level `notice` block and the `semantic` tree's own status node
+///      report the SAME sentence, so the artifact cannot say one thing to a
+///      reader and another to an assistive client.
+///
+/// A byte-identity assertion is the exact shape of the bug, which is why it is
+/// spelled that way rather than as "the notice block is non-null".
+#[test]
+fn a_live_app_capture_photographs_the_toast_the_semantic_tree_announces() {
+    let _g = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-item296-notice-{}", std::process::id())),
+    );
+    // The document lives in the HERMETIC sandbox, not on the real disk: the
+    // App reads and (on save) WRITES through `crate::fs::active()`, and the
+    // whole point of a save here is that it really happens.
+    let doc = std::path::PathBuf::from("/ws/proj/probe.md");
+
+    // A real Cmd-S (or its Emacs twin) through the real keymap: `manual_save`
+    // raises the `saved` toast as its only user-visible result.
+    let save = match crate::convention::Convention::current() {
+        crate::convention::Convention::Mac => "s-s",
+        crate::convention::Convention::Linux => "C-x C-s",
+    };
+    let quiet = dir.join("quiet.png");
+    let noticed = dir.join("noticed.png");
+    let (quiet_json, noticed_json) = in_sandbox_with(&doc, || {
+        capture_live_app(
+            quiet.clone(),
+            LiveAppSpec {
+                file: Some(doc.clone()),
+                keys: Vec::new(),
+                root: Some(proj()),
+                workspace: None,
+                config: cfg(),
+            },
+        )
+        .expect("the live-App capture needs a GPU adapter");
+        capture_live_app(
+            noticed.clone(),
+            LiveAppSpec {
+                file: Some(doc.clone()),
+                keys: crate::keyspec::parse_chords(save).expect("the save chord parses"),
+                root: Some(proj()),
+                workspace: None,
+                config: cfg(),
+            },
+        )
+        .expect("the live-App capture needs a GPU adapter");
+        (sidecar(&quiet), sidecar(&noticed))
+    });
+
+    assert_eq!(
+        noticed_json["notice"]["text"].as_str(),
+        Some("saved"),
+        "the sidecar reports the notice the App raised"
+    );
+    assert_eq!(
+        noticed_json["notice"]["kind"].as_str(),
+        Some("toast"),
+        "and its KIND — a lifetime, which is what distinguishes it from a \
+         held sticky notice"
+    );
+    assert!(
+        quiet_json["notice"].is_null(),
+        "a capture that raised no notice reports none"
+    );
+
+    // THE DEFECT, spelled as itself.
+    let a = std::fs::read(&quiet).expect("read the quiet PNG");
+    let b = std::fs::read(&noticed).expect("read the noticed PNG");
+    assert_ne!(
+        a, b,
+        "a capture carrying a toast must NOT be byte-identical to one \
+         without — that identity is item 296, and it held for every notice \
+         this channel ever raised"
+    );
+
+    // THE TWO ANSWERS AGREE.
+    let announced = noticed_json["semantic"]["nodes"]
+        .as_array()
+        .expect("a live-App sidecar carries a semantic tree")
+        .iter()
+        .find(|n| n["role"].as_str() == Some("status"))
+        .and_then(|n| n["name"].as_str().map(str::to_string));
+    assert_eq!(
+        announced.as_deref(),
+        noticed_json["notice"]["text"].as_str(),
+        "the `notice` block and the `semantic` tree's status node must carry \
+         the SAME sentence — they were free to disagree, and did"
+    );
+}
+
+/// The live-`App` capture must write through the ORDINARY schema — one
+/// const, one writer, one shape. A parallel serializer would show up here as
+/// a schema string that is not the plain one, or as a sidecar missing a block
+/// every other capture carries.
+#[test]
+fn the_live_app_sidecar_is_the_ordinary_schema_and_shape() {
+    let _g = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-item188-schema-{}", std::process::id())),
+    );
+    let live = dir.join("plain.png");
+    let live_json = in_sandbox(|| {
+        capture_live_app(live.clone(), spec(Vec::new(), Some(proj())))
+            .expect("the live-App capture needs a GPU adapter");
+        sidecar(&live)
+    });
+    assert_eq!(
+        live_json["schema"].as_str(),
+        Some(crate::capture::schema_plain().as_str()),
+        "the plain single-frame schema, from the one const"
+    );
+    // A SPOT-CHECK ACROSS THE WHOLE SHAPE, not just the blocks this mode
+    // touches: the fold hands `capture_with` an ordinary `CaptureOpts`, so
+    // every block a `--screenshot` carries must be present here too.
+    for block in [
+        "canvas",
+        "font",
+        "theme",
+        "caret_mode",
+        "page",
+        "wysiwyg",
+        "layout",
+        "hud",
+        "search",
+        "project",
+        "overlay",
+        "buffers",
+        "replay_skips",
+        "cursor",
+        "text",
+        "md_spans",
+    ] {
+        assert!(
+            live_json.get(block).is_some(),
+            "the live-App sidecar is missing `{block}` — it is not the \
+             ordinary schema, which means something grew a second serializer"
+        );
+    }
+    assert_eq!(
+        live_json["overlay"]["active"].as_bool(),
+        Some(false),
+        "no chords were pressed, so the shared no-overlay literal is emitted \
+         — the same one every card-less capture carries"
+    );
+}

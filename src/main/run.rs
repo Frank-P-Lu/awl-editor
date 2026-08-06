@@ -199,6 +199,12 @@ pub(crate) struct ReplaySession<'a> {
     // itself (no scroll/spell/autosave state to preserve here).
     registry: crate::buffers::BufferRegistry<()>,
     cursor_px: (f32, f32),
+    /// THE CALM NOTICE this replay has raised, with its kind — the same one slot
+    /// the live `App`'s frame holds, so an ordinary `--keys` capture of a
+    /// notice-raising action photographs what the live editor would show. `None`
+    /// until an effect raises one; a `Clear` puts it back. There is no expiry
+    /// here because there is no clock (see the `CaptureSubject` impl).
+    notice: Option<(String, crate::actions::NoticeKind)>,
 }
 
 pub(crate) struct ReplayPolicy {
@@ -259,6 +265,7 @@ impl<'a> ReplaySession<'a> {
             accept: None,
             registry: crate::buffers::BufferRegistry::default(),
             cursor_px: (0.0, 0.0),
+            notice: None,
         }
     }
 
@@ -584,6 +591,12 @@ impl<'a> ReplaySession<'a> {
 
     pub(crate) fn buffers_open(&self) -> usize {
         self.registry.len() + 1
+    }
+
+    /// The calm notice this replay is showing, with its kind. Read by the sidecar
+    /// fold through `CaptureSubject`.
+    pub(crate) fn notice(&self) -> Option<(String, crate::actions::NoticeKind)> {
+        self.notice.clone()
     }
 
     pub(crate) fn drain_records(&mut self) -> Vec<crate::storyboard::ChordTrace> {

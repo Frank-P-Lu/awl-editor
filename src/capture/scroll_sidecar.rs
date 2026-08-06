@@ -33,6 +33,7 @@ macro_rules! sidecar_format {
                 "  \"syn_spans\": {syn_spans},\n",
                 "  \"readout\": {readout},\n",
                 "  \"gutter\": {gutter},\n",
+                "  \"notice\": {notice},\n",
                 "  \"dim_overlay\": {dim_overlay},\n",
                 "  \"debug\": {debug},\n",
                 "  \"whichkey\": {whichkey},\n",

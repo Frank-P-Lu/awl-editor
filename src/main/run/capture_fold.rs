@@ -35,6 +35,12 @@ pub(crate) trait CaptureSubject {
     /// STRUCTURALLY rather than as a default (see its impl), which is what makes
     /// a `driver: "live-app"` sidecar the only one that can ever report `true`.
     fn changed_elsewhere(&self) -> bool;
+    /// THE CALM NOTICE on screen, with its kind — the seventh fact, and the one
+    /// whose absence made every capture door blind to a channel with ~ten
+    /// production callers. Both drivers can answer it: the live `App` off its
+    /// frame state, an ordinary replay off the notice its own effect interpreter
+    /// latched. `None` when nothing is showing.
+    fn notice(&self) -> Option<(String, crate::actions::NoticeKind)>;
 }
 
 /// THE ONE PER-FRAME FOLD: a driven editor's CURRENT state plus its already-built
@@ -81,6 +87,7 @@ pub(crate) fn fold_capture_state(
         }
     }
     opts.gutter_changed = subject.changed_elsewhere();
+    opts.notice = subject.notice();
     opts.buffers = Some(capture::BuffersInfo {
         open: subject.buffers_open(),
         active: match buffer.path() {
@@ -193,6 +200,14 @@ impl CaptureSubject for super::ReplaySession<'_> {
     /// — there is no state here to read.
     fn changed_elsewhere(&self) -> bool {
         false
+    }
+    /// A replay DOES hold this one — `Effect::Notice` is interpreted rather than
+    /// swallowed (`main/replay_effects.rs`), so an ordinary `--keys` capture of a
+    /// notice-raising action photographs the notice. Headless has no clock, so a
+    /// Toast never expires here, exactly as it never expires in a GPU-less live
+    /// `App` (`App::set_toast_notice` arms no deadline without a surface).
+    fn notice(&self) -> Option<(String, crate::actions::NoticeKind)> {
+        super::ReplaySession::notice(self)
     }
 }
 

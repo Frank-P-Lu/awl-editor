@@ -98,6 +98,56 @@ pub enum NoticeEffect {
     Clear,
 }
 
+/// WHICH KIND of notice is on screen — one owner, read by the live `App`'s frame
+/// state, the render layer's treatment, the capture fold and the sidecar, so a
+/// notice's kind cannot be spelled two ways.
+///
+/// The distinction is a LIFETIME, not a severity: a `Toast` clears itself on a
+/// wall-clock deadline, a `Sticky` is held until its owner clears it. So a
+/// lifetime can never explain an unseen sticky notice, and the two kinds have to
+/// be probed separately whenever the question is "was this ever seen".
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum NoticeKind {
+    /// A timed acknowledgement of something that already succeeded.
+    Toast,
+    /// Held until its owner clears it — the default, because a notice whose
+    /// kind is unknown must not silently expire.
+    #[default]
+    Sticky,
+}
+
+impl NoticeKind {
+    /// The sidecar / semantic spelling. One owner, so the JSON and any prose
+    /// about it read the same word.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Toast => "toast",
+            Self::Sticky => "sticky",
+        }
+    }
+}
+
+impl NoticeEffect {
+    /// The kind this effect raises, or `None` for [`NoticeEffect::Clear`] (which
+    /// raises nothing). The no-wildcard match is what makes a new arm a
+    /// compile error here rather than a silently mis-kinded notice.
+    pub fn kind(&self) -> Option<NoticeKind> {
+        match self {
+            Self::Toast(_) => Some(NoticeKind::Toast),
+            Self::Sticky(_) => Some(NoticeKind::Sticky),
+            Self::Clear => None,
+        }
+    }
+
+    /// This effect's message, or `None` for [`NoticeEffect::Clear`].
+    pub fn message(&self) -> Option<&str> {
+        match self {
+            Self::Toast(text) | Self::Sticky(text) => Some(text),
+            Self::Clear => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RenderEffect {
     /// Rebuild the live view from the transitioned state. `follow` has the same

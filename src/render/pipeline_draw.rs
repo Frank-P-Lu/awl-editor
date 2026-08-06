@@ -200,6 +200,13 @@ impl TextPipeline {
         let notice_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let notice_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
+        // Seeded with the TOAST plane; `prepare_notice` re-resolves the plane from
+        // the live theme (and the notice's kind) on every frame, so this seed only
+        // has to be a valid colour, never the right one.
+        let notice_plate =
+            SelectionPipeline::new(device, &sel_shader, format, theme::base_200().rgba_bytes());
+        let notice_rim =
+            SelectionPipeline::new(device, &sel_shader, format, theme::muted().rgba_bytes());
         let page_drag_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let page_drag_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
@@ -442,6 +449,8 @@ impl TextPipeline {
             wordcount_buffer,
             notice_renderer,
             notice_buffer,
+            notice_plate,
+            notice_rim,
             page_drag_renderer,
             page_drag_buffer,
             zoom_readout_renderer,
@@ -496,6 +505,8 @@ impl TextPipeline {
             keybindings_tips: Vec::new(),
             whichkey_rows: None,
             notice: String::new(),
+            notice_drawn: String::new(),
+            notice_kind: crate::actions::NoticeKind::default(),
             juice_live: false,
             overlay_enter_t: 1.0,
             overlay_band_from: 0.0,

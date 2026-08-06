@@ -190,12 +190,22 @@ impl<'a> ReplaySession<'a> {
                 self.interpret_setting_path_pick(key, path);
                 true
             }
+            // THE CALM NOTICE, latched rather than swallowed. This arm used to
+            // discard every notice while still reporting the effect as APPLIED,
+            // so a headless capture of an action whose only user-visible result
+            // IS its notice — a refused Export, a failed rename — photographed
+            // nothing and recorded no skip either. A replay has no clock, so a
+            // Toast latched here never expires; that matches a GPU-less live
+            // `App`, whose `set_toast_notice` also arms no deadline.
             actions::Effect::Notice(notice) => {
-                match notice {
-                    actions::NoticeEffect::Toast(_)
-                    | actions::NoticeEffect::Sticky(_)
-                    | actions::NoticeEffect::Clear => {}
-                }
+                // `Clear` is the one arm carrying neither a message nor a kind;
+                // both accessors answer over the same no-wildcard match, so a
+                // new arm is a compile error in `actions::effects` rather than a
+                // silently dropped notice here.
+                self.notice = match (notice.message(), notice.kind()) {
+                    (Some(text), Some(kind)) => Some((text.to_string(), kind)),
+                    _ => None,
+                };
                 true
             }
             actions::Effect::Render(render) => {

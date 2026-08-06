@@ -1,8 +1,8 @@
 //! CORNER READOUTS chrome — the ONE shared corner-label body
 //! ([`TextPipeline::prepare_corner_label`], `pub(super)` so the debug panel in
 //! [`super::debug_text`] rides it too) plus the bottom-right word-count / reading-time
-//! readout, the bottom-center calm notice, and the page-width drag readout that ride
-//! it. Carved out of `chrome.rs` verbatim, no behaviour change. See [`super`].
+//! readout, the calm notice on its plated line at the top of the writing column,
+//! and the page-width drag readout that ride it. See [`super`].
 
 use super::*;
 
@@ -14,11 +14,12 @@ use super::*;
 /// label`] so each anchor is unit-testable without a GPU (the empty-text off-screen
 /// park stays in the caller). An 8px inset from the canvas edges for the docked
 /// corners; a small clamped float for the at-pointer readout. Only the TOP-anchored
-/// [`CornerAnchor::TopRight`] arm reads `menubar_reserve` — a shown bar pushes it
-/// down by exactly its own height, the SAME accessor the document's `doc_top`, the
-/// margin Outline, and the search/replace panel's card already fold in (merge, don't
-/// align: one owner, never a second offset convention). The bottom / pointer-anchored
-/// arms are unaffected (a bar at the TOP of the canvas never reaches them).
+/// arms ([`CornerAnchor::TopRight`], [`CornerAnchor::TopCenter`]) read
+/// `menubar_reserve` — a shown bar pushes them down by exactly its own height, the
+/// SAME accessor the document's `doc_top`, the margin Outline, and the
+/// search/replace panel's card already fold in (merge, don't align: one owner, never
+/// a second offset convention). The bottom / pointer-anchored arms are unaffected (a
+/// bar at the TOP of the canvas never reaches them).
 // The readout is assembled from explicit theme and geometry facts at one render boundary.
 #[allow(clippy::too_many_arguments)]
 pub(in crate::render) fn corner_origin(
@@ -34,14 +35,24 @@ pub(in crate::render) fn corner_origin(
     match anchor {
         // Right-aligned to the CANVAS edge (8px inset), top row — clear of the top-left
         // margin the persistent outline owns. Never off the left edge on a tiny canvas.
-        CornerAnchor::TopRight => ((width - text_w - 8.0).max(8.0), 8.0 + menubar_reserve),
+        CornerAnchor::TopRight => (
+            (width - text_w - CANVAS_INSET).max(CANVAS_INSET),
+            CANVAS_INSET + menubar_reserve,
+        ),
         CornerAnchor::BottomRight => {
             let left = (col_left + col_width - text_w).max(col_left);
-            (left, height - line_height - 8.0)
+            (left, height - line_height - CANVAS_INSET)
         }
-        CornerAnchor::BottomCenter => {
+        // THE CALM NOTICE. Centred on the writing column and seated on the
+        // document's OWN first-row origin — `crate::render::TEXT_TOP` plus the
+        // menu-bar reserve is exactly what `doc_top` composes off at scroll 0, so
+        // the notice sits on the page's first line rather than at a second
+        // vertical convention of its own. `height` is unread here: this anchor is
+        // top-relative by construction, which is the point (the bottom of the
+        // canvas is the one place a writer's eye does not go).
+        CornerAnchor::TopCenter => {
             let left = (col_left + (col_width - text_w) * 0.5).max(col_left);
-            (left, height - line_height - 8.0)
+            (left, crate::render::TEXT_TOP + menubar_reserve)
         }
         CornerAnchor::AtPoint(px, py) => {
             // Float above-right of the pointer (clears the resize-cursor glyph it sits
@@ -51,6 +62,69 @@ pub(in crate::render) fn corner_origin(
             (left, top)
         }
     }
+}
+
+/// The inset every docked corner label keeps from a canvas edge, and the same one
+/// the notice plate is clamped to — one named value instead of the literal `8.0`
+/// repeated per anchor arm.
+pub(in crate::render) const CANVAS_INSET: f32 = 8.0;
+
+/// The CALM NOTICE plate's breathing room around its sentence, derived from the
+/// notice's own LABEL line height rather than pinned in pixels — so it is the same
+/// optical padding at every zoom and DPI, which a device-pixel constant is not
+/// (chrome padding once shipped at half its tuned size on every Retina display for
+/// exactly that reason). Horizontal is generous, vertical tight: the plate should
+/// read as a line of chrome, not as a box.
+pub(in crate::render) fn notice_plate_padding(label_line_height: f32) -> (f32, f32) {
+    (label_line_height * 0.6, label_line_height * 0.22)
+}
+
+/// The CALM NOTICE plate's three inks for `kind`: `(fill, rim, text)`.
+///
+/// The FILL is the shared depth ramp's own plane — `base_200` (raised) for a
+/// self-clearing toast, `base_300` (foreground) for a HELD sticky. The RIM is a
+/// hairline off the ink ladder — `muted` for a toast, `base_content` for a sticky.
+/// Both axes express the kind by VALUE ONLY, which is DESIGN §5's rule for it:
+/// "the same marker at less presence". Never a hue, never the `error` token
+/// (reserved for failure and destruction; "changed elsewhere" is neither), never a
+/// second decoration. The TEXT ink is not chosen here at all: it comes from
+/// `theme::selected_row_ink`, the one owner of "legible ink on this band", so the
+/// notice cannot acquire a legibility rule of its own.
+///
+/// # Why there is a rim, and why a one-bit world inverts
+///
+/// Because the FILL alone cannot be guaranteed to read, and that is measured
+/// rather than assumed. Three facts about this tree make a plane-only plate
+/// unreliable, and each was found by the presence law over the whole roster:
+///
+///   * A world's ramp is authored data and some worlds collapse it. Potoroo puts
+///     `base_300` within ΔL\* 0.87 of its own page.
+///   * The page's DRAWN ground is not `base_100`'s authored bytes. A quad drawn by
+///     a `SelectionPipeline` round-trips its sRGB value correctly, but the frame's
+///     `LoadOp::Clear` colour is consumed as LINEAR by an sRGB-format target, so
+///     the page renders as the sRGB *encode* of those bytes — Currawong's authored
+///     `#060607` draws as `#2A2A2E`, Potoroo's `#1F0400` as `#622200`, both
+///     verified against real pixels. So no fixed step off `base_100` predicts what
+///     the plate actually sits on.
+///   * A TRUE ONE-BIT world has no value steps to spend: on Wagtail `base_200`,
+///     `base_300` and the page are all the same black and `muted` is
+///     `base_content`, so a toast and a sticky came out byte-identical. Its second
+///     level is inverse video, which is why the sticky arm swaps fill and rim
+///     there — the same answer `theme::HighlightTreatment::InverseFill` already
+///     gives the menu bar's open title and the picker's selected row, reached
+///     through that owner rather than by testing for a named world.
+fn notice_plate_inks(kind: crate::actions::NoticeKind) -> (theme::Srgb, theme::Srgb, theme::Srgb) {
+    let one_bit = matches!(
+        theme::active().highlight_treatment(theme::selection_document()),
+        theme::HighlightTreatment::InverseFill { .. }
+    );
+    let (fill, rim) = match (kind, one_bit) {
+        (crate::actions::NoticeKind::Toast, _) => (theme::base_200(), theme::muted()),
+        (crate::actions::NoticeKind::Sticky, false) => (theme::base_300(), theme::base_content()),
+        // INVERSE: the plate becomes the ink and the hairline becomes the ground.
+        (crate::actions::NoticeKind::Sticky, true) => (theme::base_content(), theme::base_100()),
+    };
+    (fill, rim, theme::selected_row_ink(fill))
 }
 
 impl TextPipeline {
@@ -75,6 +149,14 @@ impl TextPipeline {
     /// `menubar_reserve` is forwarded verbatim to [`corner_origin`] (`0.0` unless the
     /// bar is shown — see that fn's doc for why only the TOP-anchored callers, the
     /// debug panel today, actually move).
+    ///
+    /// RETURNS the rect it actually placed — `Some([left, top, text_w, box_h])`, in
+    /// device px — or `None` when the label was parked off-screen for empty text.
+    /// A caller that needs to draw something UNDER its own label (the calm notice's
+    /// plate) reads the placement from here rather than recomputing it: the shaped
+    /// width is measured inside this body, so a second copy of the arithmetic would
+    /// be a second owner of where the label is, and the plate could drift off the
+    /// glyphs it backs.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn prepare_corner_label(
         renderer: &mut TextRenderer,
@@ -96,8 +178,8 @@ impl TextPipeline {
         align: Option<glyphon::cosmic_text::Align>,
         label: &str,
         menubar_reserve: f32,
-    ) -> anyhow::Result<()> {
-        let muted = theme::muted().to_glyphon();
+        ink: glyphon::Color,
+    ) -> anyhow::Result<Option<[f32; 4]>> {
         let line_height = gm.line_height;
         let box_h = line_height * rows.max(1.0);
         buffer.set_metrics(font_system, gm);
@@ -105,7 +187,7 @@ impl TextPipeline {
         buffer.set_text(
             font_system,
             text,
-            &panel_attrs().color(muted),
+            &panel_attrs().color(ink),
             Shaping::Advanced,
             None,
         );
@@ -113,8 +195,8 @@ impl TextPipeline {
         // Empty text parks the label off-screen so nothing draws (and a default
         // capture stays byte-identical). Otherwise measure the widest shaped run once
         // and hand the placement to the pure `corner_origin` owner.
-        let (left, top) = if text.is_empty() {
-            (0.0, -1000.0)
+        let (placed, left, top) = if text.is_empty() {
+            (None, 0.0, -1000.0)
         } else {
             let mut text_w = 0.0_f32;
             for run in buffer.layout_runs() {
@@ -134,7 +216,7 @@ impl TextPipeline {
                 buffer.set_size(font_system, Some(text_w), Some(box_h));
                 buffer.shape_until_scroll(font_system, false);
             }
-            corner_origin(
+            let (left, top) = corner_origin(
                 anchor,
                 text_w,
                 line_height,
@@ -143,7 +225,8 @@ impl TextPipeline {
                 col_left,
                 col_width,
                 menubar_reserve,
-            )
+            );
+            (Some([left, top, text_w, box_h]), left, top)
         };
         let bounds = TextBounds {
             left: 0,
@@ -157,7 +240,7 @@ impl TextPipeline {
             top,
             scale: 1.0,
             bounds,
-            default_color: muted,
+            default_color: ink,
             custom_glyphs: &[],
         };
         renderer
@@ -171,7 +254,7 @@ impl TextPipeline {
                 swash_cache,
             )
             .map_err(|e| anyhow::anyhow!("glyphon {label} prepare failed: {e:?}"))?;
-        Ok(())
+        Ok(placed)
     }
 
     /// The QUIET readout for a MARKDOWN buffer: `Some((words, reading_minutes))` when
@@ -184,6 +267,31 @@ impl TextPipeline {
     /// that spaces them, characters for one that doesn't (`CountUnit`).
     pub fn readout_report(&self) -> Option<(usize, usize, crate::card::figures::CountUnit)> {
         crate::card::figures::readout_figures(&self.figure_source().0, self.md_enabled)
+    }
+
+    /// WHAT THE CALM NOTICE DRAWS THIS FRAME — `Some((text, kind))`, or `None`
+    /// when nothing is drawn. Exposed so the capture sidecar reports exactly what
+    /// the notice chrome shapes.
+    ///
+    /// It reads what [`Self::prepare_notice`] last SHAPED — not the raw `notice`
+    /// field — so a frame that yields the notice (a relocated read-only
+    /// comparison) reports `None`, and a sentence elided to a narrow column
+    /// reports the elided form. Either way the block cannot claim a message the
+    /// reader will not find in the PNG.
+    pub fn notice_report(&self) -> Option<(String, crate::actions::NoticeKind)> {
+        let text = self.notice_drawn.clone();
+        (!text.is_empty()).then_some((text, self.notice_kind))
+    }
+
+    /// The widest shaped run in the notice's OWN glyph buffer, after the last
+    /// `prepare_notice`. Test-only: it is how the elision law asks the shaper —
+    /// rather than a mean-glyph-width estimate — whether the sentence really fits
+    /// the plate it was measured against.
+    #[cfg(test)]
+    pub(crate) fn notice_shaped_width_probe(&self) -> f32 {
+        self.notice_buffer
+            .layout_runs()
+            .fold(0.0_f32, |w, run| w.max(run.line_w))
     }
 
     /// The readout string for the bottom-right corner, e.g. `"240 words · 2 min"`.
@@ -241,15 +349,51 @@ impl TextPipeline {
             // bottom row) — passed uniformly anyway so every `prepare_corner_label`
             // caller supplies the SAME current value, never a second convention.
             menubar_reserve,
-        )
+            theme::muted().to_glyphon(),
+        )?;
+        Ok(())
     }
 
-    /// Shape + upload the CALM NOTICE — one quiet LABEL-sized line in the muted
-    /// ink at the BOTTOM-CENTER of the writing column (today: the autosave
-    /// external-change guard's "changed elsewhere"). Mirrors
-    /// [`Self::prepare_wordcount`] through the shared corner-label body; an
-    /// EMPTY notice parks it off-screen, so every capture (which can never have
-    /// a notice — autosave is live-only) stays byte-identical.
+    /// Shape + upload the CALM NOTICE: one LABEL-sized line in `base_content`, on
+    /// its own plated line at the TOP of the writing column, where the page
+    /// begins. An EMPTY notice parks the label off-screen AND clears the plate, so
+    /// a capture that raises no notice stays byte-identical.
+    ///
+    /// # Why it is here, and why it has a plate
+    ///
+    /// It used to sit muted at the BOTTOM-CENTRE of the column with no plate, and
+    /// the measurement of that arrangement is why it moved: a `saved` toast was 221
+    /// changed pixels — 0.023% of the canvas — 14 px from the bottom edge, wedged
+    /// into the interline gap between the last two rows of prose, in the same ink
+    /// family and 0.8× the size of the text it sat among. Its contrast against the
+    /// page was 4.84:1, so a legibility floor PASSED on it. Nothing about it said
+    /// "this is not part of your document", and nothing put it where a reader looks.
+    ///
+    /// The plate is not decoration and not a generic elevation effect (DESIGN §5
+    /// rejects those): awl's margins are ~16 px at the default page width, so there
+    /// is no empty ground anywhere on the canvas that can hold a sentence. A line
+    /// of chrome inside the column therefore lands on prose, and a value-stepped
+    /// plane is what makes that legible — the "shared model genuinely incapable"
+    /// case DESIGN §2 asks to be shown before a new mechanism is added. It is one
+    /// quad off the shared neutral ramp: no shadow, no rim, no hue.
+    ///
+    /// # The two kinds
+    ///
+    /// A notice's kind is a LIFETIME ([`crate::actions::NoticeKind`]) and the
+    /// treatment expresses it by VALUE ONLY, which is DESIGN §5's own rule for
+    /// "the same marker at less presence": a self-clearing `Toast` sits on
+    /// `base_200` (raised), a HELD `Sticky` — the kind the writer has to act on,
+    /// and the kind no lifetime can explain away — on `base_300` (foreground).
+    /// Never a second decoration and never the `error` token, which is reserved
+    /// for failure and destruction; "changed elsewhere" is neither.
+    ///
+    /// # Never clipped
+    ///
+    /// The sentence is elided to the column's own budget through the ONE shared
+    /// pixel-truth door ([`rowlayout::fit_primary_end_to_px`]) before it is placed,
+    /// so a narrow window shortens the notice instead of running it off the plate
+    /// or off the canvas (DESIGN §8: never overlap, clip, or silently change the
+    /// model).
     pub(in crate::render) fn prepare_notice(
         &mut self,
         device: &wgpu::Device,
@@ -263,7 +407,35 @@ impl TextPipeline {
         let gm = GlyphMetrics::new(m.font_size * label, m.line_height * label);
         let (col_left, col_width) = (self.column_left(), self.column_width());
         let menubar_reserve = self.menubar_reserve();
-        Self::prepare_corner_label(
+        let (pad_x, pad_y) = notice_plate_padding(gm.line_height);
+        // ELIDE FIRST, against the budget the plate will actually have. Measured
+        // with the notice's OWN buffer at the notice's OWN metrics, so the fit is
+        // decided on the same shaping the placement below reads back.
+        let budget_px = (col_width - 2.0 * pad_x).max(0.0);
+        let text = if text.is_empty() {
+            text
+        } else {
+            let gm_probe = gm;
+            let (font_system, buffer) = (&mut self.font_system, &mut self.notice_buffer);
+            crate::render::rowlayout::fit_primary_end_to_px(&text, budget_px, |candidate| {
+                buffer.set_metrics(font_system, gm_probe);
+                buffer.set_size(font_system, Some(width as f32), Some(gm_probe.line_height));
+                buffer.set_text(
+                    font_system,
+                    candidate,
+                    &panel_attrs(),
+                    Shaping::Advanced,
+                    None,
+                );
+                buffer.shape_until_scroll(font_system, false);
+                buffer
+                    .layout_runs()
+                    .fold(0.0_f32, |w, run| w.max(run.line_w))
+            })
+        };
+        self.notice_drawn = text.clone();
+        let (fill, rim, text_ink) = notice_plate_inks(self.notice_kind);
+        let placed = Self::prepare_corner_label(
             &mut self.notice_renderer,
             &mut self.notice_buffer,
             &mut self.font_system,
@@ -279,11 +451,48 @@ impl TextPipeline {
             col_left,
             col_width,
             &text,
-            CornerAnchor::BottomCenter,
+            CornerAnchor::TopCenter,
             None,
             "notice",
             menubar_reserve,
-        )
+            text_ink.to_glyphon(),
+        )?;
+        // THE PLATE, from the placement the label body just returned — never a
+        // second copy of the arithmetic, so it cannot drift off the glyphs.
+        // Clamped into the canvas with the same inset the docked corner labels
+        // use, so a sentence wider than its column can still not run off an edge.
+        let rects: Vec<[f32; 4]> = placed
+            .map(|[left, top, text_w, box_h]| {
+                let x = (left - pad_x).max(CANVAS_INSET);
+                let w = (text_w + 2.0 * pad_x).min(width as f32 - 2.0 * CANVAS_INSET);
+                [
+                    x.min(width as f32 - CANVAS_INSET - w),
+                    top - pad_y,
+                    w,
+                    box_h + 2.0 * pad_y,
+                ]
+            })
+            .into_iter()
+            .collect();
+        // Both inks are resolved HERE, per frame, from the live theme — so neither
+        // pipeline has an entry in `sync_theme_colors`: a capture (which never runs
+        // that sync) and a live world switch both get the current ink from the same
+        // read, instead of a baked seed one of them cannot refresh.
+        // The rim is the fill's rect grown by one pixel on every side and drawn
+        // UNDER it, so only a hairline shows — the same one-pixel outset
+        // `set_float_quads` uses for the shared float border, rather than a second
+        // convention for "a hairline around a surface".
+        let rim_rects: Vec<[f32; 4]> = rects
+            .iter()
+            .map(|&[x, y, w, h]| [x - 1.0, y - 1.0, w + 2.0, h + 2.0])
+            .collect();
+        self.notice_rim.set_color(rim.rgba_bytes());
+        self.notice_rim
+            .prepare(device, queue, width, height, &rim_rects);
+        self.notice_plate.set_color(fill.rgba_bytes());
+        self.notice_plate
+            .prepare(device, queue, width, height, &rects);
+        Ok(())
     }
 
     /// Shape + upload the PAGE-WIDTH DRAG READOUT: a quiet muted char-count (e.g.
@@ -330,7 +539,9 @@ impl TextPipeline {
             None,
             "page_drag_readout",
             menubar_reserve,
-        )
+            theme::muted().to_glyphon(),
+        )?;
+        Ok(())
     }
 
     /// Shape + upload the ZOOM READOUT: a quiet muted percentage (e.g. "120%")
@@ -389,218 +600,11 @@ impl TextPipeline {
             None,
             "zoom_readout",
             menubar_reserve,
-        )
+            theme::muted().to_glyphon(),
+        )?;
+        Ok(())
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::corner_origin;
-    use crate::render::CornerAnchor;
-
-    /// THE DEBUG PANEL is TOP-RIGHT: right-aligned to the CANVAS edge (8px inset),
-    /// top row — clear of the top-left margin the persistent outline now owns.
-    /// `menubar_reserve = 0.0` throughout (bar off — the pre-existing, byte-identical
-    /// placement); the bar-shown case is [`debug_panel_yields_to_shown_menu_bar`].
-    #[test]
-    fn debug_panel_anchors_top_right() {
-        // Canvas 1000 wide, a 200px-wide block: its right edge sits 8px in from the
-        // canvas edge (left = 1000 − 200 − 8 = 792), top row 8px down.
-        let (left, top) = corner_origin(
-            CornerAnchor::TopRight,
-            200.0,
-            18.0,
-            1000.0,
-            800.0,
-            0.0,
-            0.0,
-            0.0,
-        );
-        assert!(
-            (left - 792.0).abs() < 1e-3,
-            "right edge hugs the canvas edge, got left={left}"
-        );
-        assert_eq!(top, 8.0, "the top row sits 8px down");
-        // The block's right edge is a fixed 8px inset regardless of its width.
-        let (l2, _) = corner_origin(
-            CornerAnchor::TopRight,
-            350.0,
-            18.0,
-            1000.0,
-            800.0,
-            0.0,
-            0.0,
-            0.0,
-        );
-        assert!(
-            (l2 + 350.0 - (1000.0 - 8.0)).abs() < 1e-3,
-            "right edge is width−8 for any block width"
-        );
-        // On a canvas too narrow for the block it never runs off the LEFT edge.
-        let (l3, _) = corner_origin(
-            CornerAnchor::TopRight,
-            500.0,
-            18.0,
-            300.0,
-            800.0,
-            0.0,
-            0.0,
-            0.0,
-        );
-        assert_eq!(l3, 8.0, "clamps to the left inset on a tiny canvas");
-    }
-
-    /// THE MENUBAR-YIELD LAW: a shown bar pushes a top-anchored corner straight down
-    /// by its own reserve, never touching its horizontal placement — the yield is
-    /// corner-AGNOSTIC (decoupled from the horizontal math), witnessed here by two
-    /// TopRight placements at different label widths yielding the IDENTICAL top.
-    /// TopRight is the debug panel's own anchor (the sole top anchor today). The SAME
-    /// `menubar_reserve` accessor the document/outline/search-panel already fold in,
-    /// so the debug panel can never disagree with its siblings about where the bar's
-    /// bottom edge sits. `top ≥ bar_height` holds by construction (`8.0 + reserve`).
-    #[test]
-    fn top_anchors_yield_to_the_menu_bar_bottom_anchors_do_not() {
-        let reserve = 32.0; // a representative shown-bar height
-        let (_, top_right) = corner_origin(
-            CornerAnchor::TopRight,
-            200.0,
-            18.0,
-            1000.0,
-            800.0,
-            0.0,
-            0.0,
-            reserve,
-        );
-        assert_eq!(
-            top_right,
-            8.0 + reserve,
-            "TopRight (the debug panel) yields by exactly the reserve"
-        );
-        assert!(
-            top_right >= reserve,
-            "the debug panel's top never sits above the bar's own bottom edge"
-        );
-
-        // The yield is purely VERTICAL and decoupled from horizontal placement: a
-        // different label width lands the panel at a different left, yet the top is
-        // unchanged — exactly the corner-AGNOSTIC property the law asserts (the
-        // reserve pushes any top-anchored corner down by the same amount, whatever its
-        // own horizontal math).
-        let (left_wide, top_wide) = corner_origin(
-            CornerAnchor::TopRight,
-            500.0,
-            18.0,
-            1000.0,
-            800.0,
-            0.0,
-            0.0,
-            reserve,
-        );
-        let (left_narrow, top_narrow) = corner_origin(
-            CornerAnchor::TopRight,
-            100.0,
-            18.0,
-            1000.0,
-            800.0,
-            0.0,
-            0.0,
-            reserve,
-        );
-        assert_ne!(
-            left_wide, left_narrow,
-            "a wider label moves the panel horizontally"
-        );
-        assert_eq!(
-            top_wide, top_narrow,
-            "…but both yield the IDENTICAL vertical top"
-        );
-        assert_eq!(
-            top_wide,
-            8.0 + reserve,
-            "which is exactly the reserve push (same accessor, same law)"
-        );
-
-        // Bottom / pointer anchors are UNTOUCHED by a nonzero reserve — a strip at the
-        // TOP of the canvas never reaches them.
-        let (_, bottom_right) = corner_origin(
-            CornerAnchor::BottomRight,
-            120.0,
-            18.0,
-            1000.0,
-            800.0,
-            100.0,
-            600.0,
-            reserve,
-        );
-        assert_eq!(
-            bottom_right,
-            800.0 - 18.0 - 8.0,
-            "BottomRight ignores the bar reserve"
-        );
-        let (_, bottom_center) = corner_origin(
-            CornerAnchor::BottomCenter,
-            120.0,
-            18.0,
-            1000.0,
-            800.0,
-            100.0,
-            600.0,
-            reserve,
-        );
-        assert_eq!(
-            bottom_center,
-            800.0 - 18.0 - 8.0,
-            "BottomCenter ignores the bar reserve"
-        );
-        let (_, at_point) = corner_origin(
-            CornerAnchor::AtPoint(50.0, 60.0),
-            40.0,
-            18.0,
-            1000.0,
-            800.0,
-            0.0,
-            0.0,
-            reserve,
-        );
-        assert_eq!(
-            at_point,
-            (60.0_f32 - 18.0 - 10.0).max(4.0),
-            "AtPoint ignores the bar reserve"
-        );
-
-        // `reserve = 0.0` (bar off) is byte-identical to the pre-round placement.
-        let (_, top_right_off) = corner_origin(
-            CornerAnchor::TopRight,
-            200.0,
-            18.0,
-            1000.0,
-            800.0,
-            0.0,
-            0.0,
-            0.0,
-        );
-        assert_eq!(
-            top_right_off, 8.0,
-            "bar off: the panel keeps its plain 8px top inset"
-        );
-    }
-
-    /// The docked corners keep their historical placement (TopRight is the only new
-    /// arm; the others are byte-identical to the pre-extraction inline math).
-    #[test]
-    fn docked_corners_keep_their_placement() {
-        // Bottom-right: right-aligned to the writing COLUMN (col_left + col_width − w).
-        let (l, t) = corner_origin(
-            CornerAnchor::BottomRight,
-            120.0,
-            18.0,
-            1000.0,
-            800.0,
-            100.0,
-            600.0,
-            0.0,
-        );
-        assert!((l - (100.0 + 600.0 - 120.0)).abs() < 1e-3);
-        assert_eq!(t, 800.0 - 18.0 - 8.0);
-    }
-}
+mod tests;

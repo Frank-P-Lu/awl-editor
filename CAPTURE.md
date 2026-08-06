@@ -626,9 +626,23 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/199` (`/200` timeline, `/201` held)
+## The sidecar JSON — schema `awl-capture/200` (`/201` timeline, `/202` held)
 
 Field order is stable; consumers may parse positionally or by key.
+
+Schema `/200` adds the top-level **`notice`** block — `{ text, kind }` for the
+calm notice on screen, or `null`. It exists because no capture door could see the
+notice channel at all: `CaptureOpts` carried no slot for it, so a driven editor
+that had genuinely raised `saved` produced a PNG **byte-identical** to one that
+had raised nothing, while the same sidecar's `semantic` block (which reads the
+`App` directly) announced that notice to a screen reader. `text` is the sentence
+**exactly as drawn** — elided to the writing column's own budget when the column
+is too narrow to hold it whole — on the same "as drawn" convention the `gutter`
+block keeps. `kind` is `"toast"` (self-clearing) or `"sticky"` (held until its
+owner clears it); it is a LIFETIME, not a severity, and it is what a reader needs
+to know whether a notice's absence means it expired or was never raised. Both
+drivers can report it: a live `App` off its frame state, an ordinary `--keys`
+replay off the notice its own effect interpreter latches.
 
 Schema `/198` adds **`unit`** to the `readout` block and the `hud` block —
 `"words"` or `"characters"`, alongside the count each block already carried.
@@ -1491,6 +1505,7 @@ world.)
 | `syn_spans`    | SYNTAX HIGHLIGHTING: array of `[start_byte, end_byte, "tag"]` Alabaster role spans (`comment`/`string`/`constant`/`definition`); empty for non-CODE buffers (`.env`/`.md`/`.txt`/unknown). Mutually exclusive with `md_spans` |
 | `readout`      | QUIET word/character-count readout: `{ words, reading_min, unit }` (reading_min = ceil(words/200), min 1; `unit` is `"words"` or `"characters"`, item 229 — see the schema `/198` narrative above), or `null` for a non-markdown / wordless buffer. NO LONGER drawn (moved to the held HUD); kept as the HUD's source |
 | `gutter`       | PAGE-MODE GUTTER: `{ visible, name, project, changed }` — the left-margin orientation label (filename muted over project faint, LABEL size). `visible` is true only when drawn (page mode + a name + a margin past the hard floor, `render::rowlayout::GUTTER_MIN_NAME_CHARS`); `name` and `project` are each **exactly as drawn** — independently fit to ONE line, middle-elided (extension preserved) only once the margin can't hold that line whole (`render::rowlayout::gutter_plan`/`fit_primary`, the same door the picker rows use). Neither line yields to the other from width pressure; `project` is `""` only when there is genuinely no project to show. `changed` (schema `/197`) is the persistent `changed elsewhere` affordance — `true` only on a `driver: "live-app"` capture whose document holds an unresolved external change, in which case the block draws a THIRD line above the filename in a stronger ink |
+| `notice`       | THE CALM NOTICE (schema `/200`): `{ text, kind }`, or `null` when nothing is showing. `text` is the sentence exactly as drawn (elided to the column's budget on a narrow canvas — `render::rowlayout::fit_primary_end_to_px`, the same pixel-truth door the margin outline uses); `kind` is `"toast"` or `"sticky"`. Read off the PIPELINE, not off the fold's input, so the block cannot claim a message the PNG does not carry — and `null` on a frame that YIELDS the notice (a relocated read-only comparison) even though one is set. Drawn as one plated LABEL line at the top of the writing column: fill `base_200`/`base_300` by kind, a one-pixel rim `muted`/`base_content`, text through `theme::selected_row_ink`; a true one-bit world inverts the sticky arm because it has no value step to spend |
 | `dim_overlay`  | `true` when a FULL-takeover overlay dims the document behind it (the scrim); `false` for the search SPLIT panel / no overlay (DESIGN §5) |
 | `debug`        | DEBUG panel (renamed from the old `fps` counter): `{ enabled, text, frame_ms, worst_ms, budget_ms, key_px_ms, redraws, still, autosave_state, autosave_since_s }`. OFF by default (empty `text` → byte-identical). `text` is the full stacked readout; `frame_ms`/`worst_ms`/`budget_ms`/`key_px_ms`/`redraws`/`still` are the machine-readable perf triad (all `null` + `still: true` in a capture — no clock runs headlessly). `autosave_state` (`"off"`/`"held"`/`"saved"`, else `null`) + `autosave_since_s` (whole seconds since the last successful autosave write, else `null`) mirror the panel's `autosave …` line, fed EXCLUSIVELY through `App::autosave_flush`'s one door — both `null` in every capture (the engine is structurally live-App-only) |
 | `hud`          | HELD STATS HUD: `{ held, words, reading_min, unit, percent, lang }`. `held` is the summon state (false by default → byte-identical); `words`/`reading_min`/`unit` null for non-markdown (`unit` is `"words"`/`"characters"`, item 229, schema `/198` — see the narrative above; always agrees with the top-level `readout` block, one owner); `percent` = cursor %-through-doc; `lang` (i18n round, schema `/92`) is the document's frontmatter language. Every figure is a pure function of the USER'S DOCUMENT + cursor — the whole buffer, never the shaped page — so a collapsed fold or an open History preview leaves them unmoved (`readout` likewise). It follows that `lang` and the top-level `doc_lang` can differ: `doc_lang` is the SHAPED text's language, which is what the per-script font ladder must follow, and a diff transcript carries no frontmatter. No clock, fully capture-safe |

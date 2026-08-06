@@ -94,6 +94,10 @@ mod marker_chevron_owner_item247;
 /// display face asks for.
 mod marker_side_item303;
 mod nits;
+/// THE CALM NOTICE: where it draws, whether it can be seen, and whether a
+/// HELD notice can be told from a self-clearing one — three floors, no one of
+/// which is satisfiable by breaking the others.
+mod notice;
 mod one_bit;
 mod oracle;
 mod outline;
