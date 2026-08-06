@@ -386,6 +386,82 @@ footer { border-top: 1px solid var(--border); padding: 3rem 0 4rem; }
 .credits-body p.note { color: var(--muted); font-size: 0.9rem; margin: 0 0 0.8rem; }
 .credits-body h3 { font-size: 0.95rem; margin: 1.6rem 0 0.6rem; }
 
+/* ---- Reference page: sidebar + divided sections --------------------------- */
+/* /reference.html is the one credits-body page wide enough to carry a sidebar
+   table of contents, so it widens .wrap past the shared prose measure. The
+   sidebar's content is generated (src/reference/nav.rs); only this grid
+   scaffolding and the .ref-section card treatment are hand-authored. */
+.ref-page .wrap { max-width: 68rem; }
+.ref-layout {
+  display: grid;
+  grid-template-columns: 13rem 1fr;
+  gap: 3rem;
+  align-items: start;
+  margin-top: 2.5rem;
+}
+.ref-content { min-width: 0; }
+
+.ref-nav {
+  position: sticky;
+  top: 1.5rem;
+  align-self: start;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+}
+.ref-nav ul { list-style: none; margin: 0; padding: 0; }
+.ref-nav > ul > li { margin: 0 0 0.9rem; }
+.ref-nav > ul > li > a {
+  display: block;
+  padding: 0.1rem 0;
+  color: var(--content);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+.ref-nav ul ul {
+  margin: 0.3rem 0 0;
+  padding-left: 0.8rem;
+  border-left: 1px solid var(--border);
+}
+.ref-nav ul ul li { margin: 0; }
+.ref-nav ul ul a {
+  display: block;
+  padding: 0.2rem 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-decoration: none;
+}
+.ref-nav a:hover { color: var(--amber); }
+
+/* Each top-level section reads as its own card rather than a stacked wall —
+   the complaint the sidebar and this treatment both answer. */
+.ref-section {
+  padding: 2.6rem 0;
+  border-top: 1px solid var(--border);
+  scroll-margin-top: 1.2rem;
+}
+.ref-section:first-child { padding-top: 0; border-top: 0; }
+.ref-section h2 { margin-top: 0; }
+.ref-section h3 { scroll-margin-top: 1.2rem; }
+
+/* A visited-by-anchor section gets a quiet accent rule so a reader who just
+   jumped via the sidebar (or a shared link) can see which one they landed on. */
+.ref-section:target { border-left: 2px solid var(--amber); padding-left: 1.2rem; margin-left: -1.2rem; }
+
+@media (max-width: 900px) {
+  .ref-layout { display: block; margin-top: 1.8rem; }
+  .ref-nav {
+    position: static;
+    max-height: none;
+    margin-bottom: 2rem;
+    padding-bottom: 1.2rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .ref-nav ul ul { display: none; }
+  .ref-section:target { margin-left: 0; padding-left: 0.9rem; }
+}
+
 /* ---- Small screens ------------------------------------------------------ */
 @media (max-width: 640px) {
   section { padding: 4rem 0; }
