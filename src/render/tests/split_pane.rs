@@ -351,6 +351,22 @@ fn every_world_splits_by_its_cap_never_by_identity() {
                     t.name
                 );
             }
+            // `Rules` is bare like `Diagonal`, but it DOES fill the row quad
+            // pipelines — with rules. The card-fill claim is the one that
+            // matters here and it is the same: no panel fill, split or unified.
+            theme::ListStyle::Rules(_) => {
+                assert!(
+                    p.overlay_bars.instance_count() > 0,
+                    "{}: a Rules list draws its separating rules on the row quads",
+                    t.name
+                );
+                assert_eq!(
+                    p.panel_card.instance_count(),
+                    0,
+                    "{}: a Rules list has no card fill and no plate scrim",
+                    t.name
+                );
+            }
         }
 
         // (2) The decision is DATA: the override flips it on EVERY world the same
@@ -376,6 +392,14 @@ fn every_world_splits_by_its_cap_never_by_identity() {
                     p.overlay_bars.instance_count() + p.overlay_rows.instance_count(),
                     0,
                     "{}: pane split override cannot turn diagonal into bars",
+                    t.name
+                ),
+                // The split is a CARD composition and this style has no card, so
+                // forcing it must leave the list exactly as it was.
+                theme::ListStyle::Rules(_) => assert_eq!(
+                    p.panel_card.instance_count(),
+                    0,
+                    "{}: pane split override cannot give a Rules list a card",
                     t.name
                 ),
             }

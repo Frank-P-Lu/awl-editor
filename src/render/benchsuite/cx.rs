@@ -262,9 +262,12 @@ impl<'a> Cx<'a> {
 /// surface.
 pub(super) fn selected_row_surface_instances(cx: &Cx) -> u64 {
     match crate::render::effective_list_style() {
-        crate::theme::ListStyle::Pane | crate::theme::ListStyle::Bars => {
-            cx.p.overlay_rows.instance_count() as u64
-        }
+        // `Rules` joins them rather than `Diagonal`: its selection mark is a
+        // quad on the SAME pipeline, only never a row-tall one, so this witness
+        // is looking at the right surface without any new plumbing.
+        crate::theme::ListStyle::Pane
+        | crate::theme::ListStyle::Bars
+        | crate::theme::ListStyle::Rules(_) => cx.p.overlay_rows.instance_count() as u64,
         crate::theme::ListStyle::Diagonal(_) => cx.p.overlay_spine_selected.instance_count() as u64,
     }
 }

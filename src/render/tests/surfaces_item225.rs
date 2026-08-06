@@ -85,7 +85,7 @@ fn a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world() {
         (plated.as_slice(), plateless.as_slice()),
         (
             ["Galah", "Firetail", "Cassowary"].as_slice(),
-            ["Mangrove", "Magpie"].as_slice()
+            ["Mangrove", "Magpie", "Paperbark"].as_slice()
         ),
         "the shipping bare-plate roster splits exactly this way — a new world joins \
          one arm or the other, never neither"
@@ -129,18 +129,26 @@ fn a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world() {
 
             // --- ARM 3: THE EXCLUSION -------------------------------------
             // A bare-plate world outside the plated roster is excused from arms
-            // 1 and 2 for one reason only: it draws no row surface at all, so
-            // there is no plate that could outlive its footer. That reason is
-            // measured here from the same production emitter, at the same
-            // fixture, and not taken on trust.
+            // 1 and 2 for one reason only: nothing it draws can be a SLAB — a
+            // surface that outlives the footer and paints the space the rows did
+            // not use. Two shapes satisfy that and both are measured here, from
+            // the same production emitter and at the same fixture rather than
+            // taken on trust: a `Diagonal` world emits no row quad at all, and a
+            // `Rules` world emits only rules — none of them a fraction as tall
+            // as a row, and none of them reaching below the list.
             if !plated.contains(world) {
                 let surfaces = p.overlay_row_surfaces_probe();
+                let slab = surfaces
+                    .iter()
+                    .find(|r| r[3] >= row_h * 0.5 || r[1] + r[3] > footer_top + row_h + 1.0);
                 assert!(
-                    surfaces.is_empty(),
-                    "{ctx}: this world is excluded from the footer-plate arms because it \
-                     draws no row surface, but the frame emitted {surfaces:?}. Either it \
-                     now draws plates — in which case it belongs in the plated roster and \
-                     must be graded by arms 1 and 2 — or the exclusion is wrong."
+                    slab.is_none(),
+                    "{ctx}: this world is excluded from the footer-plate arms because \
+                     nothing it draws can outlive its footer, but the frame emitted \
+                     {slab:?} — either as tall as half a row ({row_h:.1}px) or reaching \
+                     past the footer band at {footer_top:.1}. Either it now draws plates, \
+                     in which case it belongs in the plated roster and must be graded by \
+                     arms 1 and 2, or the exclusion is wrong."
                 );
                 plateless_graded.push(ctx);
                 continue;

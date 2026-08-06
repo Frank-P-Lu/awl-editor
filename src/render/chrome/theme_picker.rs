@@ -389,6 +389,9 @@ impl TextPipeline {
             }
         });
         self.overlay_theme_facet_ghosts = ghosts;
+        // A tab PILL is a plate, so `Rules` is deliberately absent — it draws
+        // none anywhere. (`Diagonal` is on the yes side here and the no side of
+        // `draws_row_plates`: it computes pills nothing consumes.)
         let bars = matches!(
             crate::render::effective_list_style(),
             theme::ListStyle::Bars | theme::ListStyle::Diagonal(_)

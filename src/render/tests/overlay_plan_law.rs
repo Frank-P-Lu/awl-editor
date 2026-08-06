@@ -544,7 +544,7 @@ fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world() 
         (plated.as_slice(), plateless.as_slice()),
         (
             ["Galah", "Firetail", "Cassowary"].as_slice(),
-            ["Mangrove", "Magpie"].as_slice()
+            ["Mangrove", "Magpie", "Paperbark"].as_slice()
         ),
         "the shipping bare-plate roster splits exactly this way — a new world joins \
          one arm or the other, never neither"
