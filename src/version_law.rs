@@ -111,7 +111,7 @@ mod tests {
     /// that does not exist.
     #[test]
     fn readme_download_snippet_names_the_real_artifact() {
-        let readme = include_str!("../README.md");
+        let readme = crate::embedded_docs::README_MD;
         let expected = format!("awl-{}-linux-x86_64.tar.gz", cargo_toml_version());
         assert!(
             readme.contains(&expected),

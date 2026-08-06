@@ -95,3 +95,8 @@ pub const CAPTURE_MD: &str = include_str!("../CAPTURE.md");
 /// Product-boundary source used by the first-launch documentation law.
 #[cfg(test)]
 pub const PHILOSOPHY_MD: &str = include_str!("../PHILOSOPHY.md");
+
+/// The repo's `README.md`. Test-only: `version_law.rs` pins its Download
+/// section's artifact filename to the live package version.
+#[cfg(test)]
+pub const README_MD: &str = include_str!("../README.md");
