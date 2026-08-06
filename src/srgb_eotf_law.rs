@@ -81,7 +81,7 @@ fn walk_rs(dir: &Path, root: &Path, out: &mut Vec<String>) {
 fn is_test_path(rel: &str) -> bool {
     let parts: Vec<&str> = rel.split('/').collect();
     let name = parts.last().copied().unwrap_or("");
-    parts.iter().any(|p| *p == "tests") || name == "tests.rs" || name.ends_with("_test.rs")
+    parts.contains(&"tests") || name == "tests.rs" || name.ends_with("_test.rs")
 }
 
 /// The ONE production file allowed to spell the EOTF constants: the owner
