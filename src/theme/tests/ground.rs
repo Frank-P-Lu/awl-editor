@@ -19,15 +19,15 @@ fn every_ground_has_exactly_the_assignees_it_is_meant_to() {
         .map(|t| t.name)
         .collect();
     assert_eq!(stripes, ["Potoroo"], "Stripes is Potoroo's alone");
-    // Waves stays Bombora's alone (item 69 — reusable DATA, but only one
-    // world currently picks it).
+    // Waves stays Bombora's alone (reusable DATA, but only one world
+    // currently picks it).
     let waves: Vec<&str> = THEMES
         .iter()
         .filter(|t| matches!(t.background, Background::Waves { .. }))
         .map(|t| t.name)
         .collect();
     assert_eq!(waves, ["Bombora"], "Waves is Bombora's alone");
-    // ITEM 86: Zigzag ships on EXACTLY Quokka and Gumtree, in THEMES order.
+    // Zigzag ships on EXACTLY Quokka and Gumtree, in THEMES order.
     let zigzag: Vec<&str> = THEMES
         .iter()
         .filter(|t| matches!(t.background, Background::Zigzag { .. }))
@@ -127,14 +127,14 @@ fn every_world_has_a_valid_background() {
             "{} background tint must be opaque",
             t.name
         );
-        // 0..=4 the original static grounds (Lava also degrades to 0 for this
-        // base-margin pass) minus the retired 2, 5=Bands, 6=Waves, 7=Zigzag,
-        // 8=Organic, 9=Deckle, 10=WarpedGrid. 2 is vacant and stays that way —
-        // see `Background::shader_id`.
+        // 0..=4 the static grounds (Lava also degrades to 0 for this
+        // base-margin pass), 5=Bands, 6=Waves, 7=Zigzag, 8=Organic,
+        // 9=Deckle, 10=WarpedGrid. 2 is vacant and stays that way — see
+        // `Background::shader_id`.
         assert!(bg.shader_id() <= 10, "{} bad shader id", t.name);
     }
-    // ITEM 69 PALETTE LAW (Bombora's Waves alone, post item-86 — Gumtree's own
-    // Zigzag carries its own, separately-checked, palette law below): `tones`
+    // WAVES PALETTE LAW (Bombora's alone — Gumtree's own Zigzag carries its
+    // own, separately-checked, palette law below): `tones`
     // is exactly `[base_100, base_200, base_300]`, no separately-tuned tint,
     // and the three rungs are pairwise distinct (a real tone-on-tone field,
     // not a flat repeat).
@@ -151,9 +151,8 @@ fn every_world_has_a_valid_background() {
         }
         _ => panic!("Bombora must ship Background::Waves"),
     }
-    // ITEM 86 PALETTE LAW: Gumtree's Zigzag uses ONLY its own ground ladder —
-    // `from`/`to`/`tint` are exactly its `base_100`/`base_200`/`base_300` —
-    // same restraint the retired Bands field kept.
+    // ZIGZAG PALETTE LAW: Gumtree's Zigzag uses ONLY its own ground ladder —
+    // `from`/`to`/`tint` are exactly its `base_100`/`base_200`/`base_300`.
     match GUMTREE.background {
         Background::Zigzag { from, to, tint, .. } => {
             assert_eq!(
@@ -171,10 +170,10 @@ fn every_world_has_a_valid_background() {
         }
         _ => panic!("Gumtree must ship Background::Zigzag"),
     }
-    // ITEM 86 DISTINCTNESS LAW: Quokka and Gumtree's Zigzag fields must NOT
+    // ZIGZAG DISTINCTNESS LAW: Quokka and Gumtree's Zigzag fields must NOT
     // read as a recolor of one asset — every one of the four authored dials
-    // (scale/spacing, profile, direction, contrast) differs, and Gumtree's
-    // is the "broader and quieter" of the pair per the round's own brief.
+    // (scale/spacing, profile, direction, contrast) differs, and Gumtree's is
+    // the "broader and quieter" of the pair.
     match (QUOKKA.background, GUMTREE.background) {
         (
             Background::Zigzag {

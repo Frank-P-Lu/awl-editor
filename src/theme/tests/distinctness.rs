@@ -1,7 +1,7 @@
 use super::super::*;
 
-/// TAWNY↔MOPOKE DIFFERENTIATION law (Option A, 2026-07-22 — see MOPOKE's own
-/// doc comment in `worlds.rs`): the pair used to ship a BYTE-IDENTICAL caret
+/// TAWNY↔MOPOKE DIFFERENTIATION law (see MOPOKE's own
+/// doc comment in `worlds.rs`): the pair once shipped a BYTE-IDENTICAL caret
 /// (`#FFC05E`) and selection (`#3A6FD8`), measuring only 24.6 RMS redmean
 /// whole-palette distance apart — awl's tightest pair. Locks the separation
 /// so it can never regress back to identity: Mopoke's caret and selection
@@ -77,22 +77,20 @@ fn tawny_and_mopoke_carets_and_selections_are_now_numerically_distinct() {
 }
 
 /// The ROSTER-WIDE distinctness floor — every pair of worlds, not a hand-picked
-/// near-pair. Item 132 could not write it (Kite↔Brolga measured 38.8 and it
-/// would have failed on the day), and item 194 round 2's palette answer is what
-/// unblocked it.
+/// near-pair.
 ///
 /// **THE THRESHOLD IS CHOSEN, and here is the choice.** It is 40.0, and it is
 /// NOT Kite's own number. After the shift Kite↔Brolga measures 49.3, but the
 /// roster's true closest pair is **Tawny↔Bowerbird at 40.6**, with
 /// Magpie↔Brolga at 40.8 immediately behind it — two pairs that have nothing to
 /// do with Kite and that nobody had pinned. Setting the floor at what Kite
-/// happens to measure would fail on the day, exactly as item 132's would have;
+/// happens to measure would fail on the day;
 /// setting it at a round 35 or 30 would bless pairs looser than anything that
 /// ships. 40.0 is the largest whole point below the roster's own measured
 /// minimum, so this law is as tight as the roster actually is and a NEW world
 /// cannot arrive closer to an existing one than the closest pair already
-/// standing. Item 99's lesson is the reason it is written this way: the true
-/// closest pair was the one nobody pinned, and hand-picked pairs are how that
+/// standing. It is written to sweep every pair because the true closest pair
+/// is reliably the one nobody pins, and hand-picked pairs are how that
 /// happens.
 ///
 /// It sits BELOW the two pairwise floors this repo already defends (Firetail

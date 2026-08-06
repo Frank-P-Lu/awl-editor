@@ -267,8 +267,7 @@ fn stipple_placard_density_clears_the_legibility_floor_over_its_own_ground() {
     set_active(DEFAULT_THEME);
 }
 
-/// REPAIR ROUND 2's flagged gap, closed structurally — and extended by the
-/// personality-assignment round to cover EVERY grey placard ink: a
+/// EVERY GREY PLACARD INK, closed structurally: a
 /// `TitleStyle::Placard` whose ink is `Faint` OR `Ghost` on a TRUE 1-BIT
 /// world (`Theme::is_one_bit`) would render an ordinary intermediate-grey
 /// wordmark (and antialiased glyph fringes besides), which that world's own

@@ -88,7 +88,7 @@ lines = 453
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
 lines = 550
-reason = "+2 lines. The fold chevron's direction needs the real fold set, not merely `fold_tails`'s own key set (a heading folded over an empty section has no tail): a new `folded_headings` field joins the one exhaustive `ViewState` construction site, and `fold::apply_to_view` gains the buffer's folds set as an argument at its one call site here. Previously: +3 lines. `sync_view` gains the summoned picker's SECONDARY LOCATION at the one exhaustive construction site, so a new hierarchy datum forces a conscious render decision here rather than defaulting silently. Previously: The persistent `changed elsewhere` affordance is a new `ViewState` field, and `sync_view` is the ONE exhaustive construction site that must fail to compile on it (+6)."
+reason = "`sync_view` is the ONE exhaustive `ViewState` construction site, so every new render datum has to be spelled out here and fails to compile until it is. The growth this mark carries is exactly that: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set — a heading folded over an empty section has no tail — so `fold::apply_to_view` also takes the buffer's folds at its one call site here), the summoned picker's SECONDARY LOCATION, and the persistent `changed elsewhere` affordance. None of it can live anywhere else without giving the record a second, non-exhaustive door."
 
 [[file_size_mark]]
 file = "src/app/window.rs"
@@ -121,7 +121,7 @@ reason = "One `/N` row in the schema ledger, which must move in the same commit 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
 lines = 571
-reason = "+4 lines. The headless snapshot carries a serialized lens strip and no live picker, so it rebuilds the picker's secondary location through the single `facets::strip_location` rather than growing a second serialized fact and a schema bump. Previously: The `gutter.changed` fold at the one `base_viewstate` consumer that drives the single-frame path (+4)."
+reason = "The headless snapshot carries a serialized lens strip and no live picker, so it rebuilds the picker's secondary location through the single `facets::strip_location` rather than growing a second serialized fact and a schema bump; the `gutter.changed` fold sits at the one `base_viewstate` consumer that drives the single-frame path. Both are single-owner seams with nowhere else to go."
 
 [[file_size_mark]]
 file = "src/capture/sidecar.rs"
@@ -289,7 +289,7 @@ lines = 580
 
 [[file_size_mark]]
 file = "src/render/caret.rs"
-lines = 982
+lines = 977
 
 [[file_size_mark]]
 file = "src/render/chrome/hud.rs"
@@ -304,7 +304,7 @@ reason = "+6: the dropdown plan takes the frame's scale so its minimum width res
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
 lines = 1034
-reason = "+18: `BAR_SCRIM_PAD` and `bar_scrim_rect` — a bar plate is drawn on a scrim that bleeds outward past every plate edge, so a ROW'S DRAWN INK begins there rather than at the plate, and a law asking where the list stops and the card's surface starts must read the same number the prepare draws. They sit beside `bar_full_span`/`bar_hug_span`/`grow_span` because that is where a bar's span already has its one owner; keeping them in `overlay_selection.rs` instead put THAT file 13 lines over its own ceiling, which is the wrong file to grow for a shared primitive. +7: `bar_full_span` / `bar_hug_span` / the two bar-rect probes / `footer_plate_rect` each take the frame's scale, since `BAR_SIDE_INSET` and `BAR_TEXT_PAD` are logical lengths now. These are the one owner of a bar's span and cannot be split without giving a plate two definitions of its own edge. +1: one `pub(in crate::render) mod roster;` declaration — the roster-width measurements (a hugging card's candidates, its chord column, the spell popup's suggestions) left `overlay.rs` and `overlay_shape.rs` for their own owner, dropping both files well under their marks. +14 lines. `OverlayGeom::shaped_first_row_line` is the one owner of which shaped `panel_buffer` line carries candidate row 0 — not always `header_rows`, because a query beat that stands on its own takes a glyph-free line between the header and the candidates, and the five readers that used to re-derive `header_rows` would each measure that spacer as a candidate row. Previously: items 217 + 204 slice 2 reconciled at the merge train: 969 + 5. Neither branch could compute this — 204 was cut before 217 landed, so its 973 measured a tree without 217's re-export and main's 969 measured one without the gutter change. The gutter block became variable-height, so `GutterLayout` gained the affordance line every consumer reads through one owner (+5). Previously: The chrome module owns the resolved overlay geometry record and its single sibling re-export for the measured diagonal row span; workspace, rail, and two-sided slant consumers share that seam. The header band's four y-owners (secondary origin, split bounds, strip band, query centre) left for the scene planner. One `mod workspace_column;` declaration: the primary column's measurement extracted so `chrome/workspace.rs` stays under the 500-line ceiling (+1). One `mod card;` declaration on the same module-list seam: the card's input gathering extracted so `chrome/hud.rs` drops 39 lines and holds only the draw path (+1). Re-measured on the combined candidate with items 220/234: neither branch could compute this and the two deltas must never be summed — main and this branch each moved the file for their own reasons. +1: one `mod rotated_location;` declaration — the rotated secondary-location cue's own chrome-facing half (which planned line it is, and where its row sits) left for its own file; the mask compose/axis/shrink-to-fit live in an even further `render::rotated_location` sibling outside `chrome` entirely. Item 272 (+2): `BarConfig::SHIPPED` lands beside the bar-span helpers that read it. The `Rules` PROTOTYPE (the quiet fourth list composition, organised by absence) declares its own submodule here (+2, `mod overlay_rules;` and its comment) and imports the two lengths the geometry owners in `overlay.rs` need (+2). The composition itself — its six authored lengths and its one emitter — lives wholly in `overlay_rules.rs` precisely so this file does not carry it: keeping it in `overlay_selection.rs` put THAT file 93 lines over its own 500 ceiling, and keeping the constants here put this one 32 over its mark. Item 284 (+6): the diagonal marker's travel direction is threaded through the overlay chrome entry point, beside the row plan it is derived from."
+reason = "This file is the one owner of a bar's span, and of the chrome-facing geometry record every overlay surface reads. `BAR_SCRIM_PAD`/`bar_scrim_rect` sit beside `bar_full_span`/`bar_hug_span`/`grow_span` because a bar plate is drawn on a scrim that bleeds outward past every plate edge, so a ROW'S DRAWN INK begins there rather than at the plate, and a law asking where the list stops and the card's surface starts must read the same number the prepare draws; `BarConfig::SHIPPED` sits beside the same helpers that read it. The span helpers, the two bar-rect probes and `footer_plate_rect` each take the frame's scale, since `BAR_SIDE_INSET` and `BAR_TEXT_PAD` are logical lengths — splitting them would give a plate two definitions of its own edge. `OverlayGeom::shaped_first_row_line` is the one owner of which shaped `panel_buffer` line carries candidate row 0: it is NOT always `header_rows`, because a query beat that stands on its own takes a glyph-free line between the header and the candidates, and every reader that re-derives `header_rows` measures that spacer as a candidate row. `GutterLayout` carries the affordance line through one owner for the same reason. The chrome module owns the resolved overlay geometry record and its single sibling re-export for the measured diagonal row span, shared by the workspace, rail and two-sided slant consumers, plus the diagonal marker's travel direction threaded through the overlay chrome entry point beside the row plan it derives from. What is left here is declarations rather than bodies: `mod roster;` (the roster-width measurements), `mod workspace_column;`, `mod card;`, `mod rotated_location;` and `mod overlay_rules;` each extracted a composition so this file need not carry it — the `Rules` PROTOTYPE's six authored lengths and one emitter live wholly in `overlay_rules.rs` precisely because keeping them in `overlay_selection.rs` put THAT file 93 lines over its own ceiling and keeping the constants here put this one 32 over its mark. The header band's four y-owners left for the scene planner on the same principle."
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
@@ -328,7 +328,7 @@ reason = "+4: the chip skin resolves its radius, its stroke and the underline va
 [[file_size_mark]]
 file = "src/render/chrome/overlay_shape.rs"
 lines = 887
-reason = "+4: the chord column's glyph alignment is the accessory column's own flow rather than Right outright, so a mirrored cluster's chords hang on the end they are seated at. +24: the placard family is chrome's annotated PHYSICAL exception and each of its four constants now carries the reason it is one — the wordmark is frame, not text, and `placard_size_is_window_scaled_not_zoom_scaled` fails by name if that changes. DOWN 29: the content-hug measurement and the two roster widths it reads moved to `chrome/roster.rs`. Previously: +15 lines. `push_beat_spacer` emits the query beat as its own glyph-free line rather than as line height on a line that has glyphs — cosmic-text centres a glyph run in its box, so a folded beat drew the query field's text half a beat below its own bar. Extracted as a free function so the flat shaper itself stays under the 100-line bar. Previously: +7 lines. Faceted diagonal rows must shape against their measured side territory and re-fit real glyph widths before the accessory column is granted. The row plan is now threaded to the two shapers so the inflated header line's height IS the query field's planned box (read, not re-summed) and the secondary column's leading-empty count comes from the same object as its upload origin."
+reason = "The chord column's glyph alignment is the accessory column's own flow rather than Right outright, so a mirrored cluster's chords hang on the end they are seated at. The placard family is chrome's annotated PHYSICAL exception and each of its four constants carries the reason it is one — the wordmark is frame, not text, and `placard_size_is_window_scaled_not_zoom_scaled` fails by name if that changes. `push_beat_spacer` emits the query beat as its OWN glyph-free line rather than as line height on a line that has glyphs, because cosmic-text centres a glyph run in its box and a folded beat otherwise draws the query field's text half a beat below its own bar; it is a free function so the flat shaper itself stays under the 100-line bar. Faceted diagonal rows must shape against their measured side territory and re-fit real glyph widths before the accessory column is granted, so the row plan is threaded to the two shapers: the inflated header line's height IS the query field's planned box (read, not re-summed) and the secondary column's leading-empty count comes from the same object as its upload origin. The content-hug measurement and the two roster widths it reads live in `chrome/roster.rs`, not here."
 
 [[file_size_mark]]
 file = "src/render/chrome/popover.rs"
@@ -342,7 +342,7 @@ reason = "DOWN 30: the word-count and reading-time derivation moved out to `src/
 [[file_size_mark]]
 file = "src/render/chrome/theme_picker.rs"
 lines = 610
-reason = "+10: the grouped card's pad, margin and top drop stop being a second copy of the flat family's literals and read the one owner, and the lens strip's chip pads, corner ticks and underline drop resolve at the boundary. +31 lines. The grouped card's display plan gained a THIRD line kind: a section whose label is the card's own location is not a section, so it is planned and shaped as the second level of the heading hierarchy — its own scale const, its own metrics, its own span arm in the chrome face at `muted`, and the plan arm that chooses between the two. Previously: `theme_overlay_geometry` is an exhaustive `OverlayGeom` construction site, so every workspace field is spelled out here. The strip band now reads the row plan, which is threaded through the two shaping owners. Net +6: the location-scale constant moved out to `render::rotated_location` (shared with the rotated-rail treatment, -4 lines including its doc), and the inline span arm gained a `RotatedRail`-world guard so that world's own vertical cue is not drawn twice (+10). Item 224 (-1): the inline-draw guard reads the new exhaustive `LocationStyle::draws_inline()` instead of a direct `!= RotatedRail` comparison, so a third style (`Raked`) is a conscious decision there too. The `Rules` PROTOTYPE (the quiet fourth list composition, organised by absence) draws no plates anywhere, so it is deliberately absent from the lens-strip TAB PILL gate; the comment records that absence as a decision rather than an oversight, and notes that `Diagonal` sits on the yes side here and the no side of `draws_row_plates` (+3)."
+reason = "`theme_overlay_geometry` is an exhaustive `OverlayGeom` construction site, so every workspace field is spelled out here, and the strip band reads the row plan threaded through the two shaping owners. The grouped card's pad, margin and top drop read the one owner rather than repeating the flat family's literals, and the lens strip's chip pads, corner ticks and underline drop resolve at the boundary. Its display plan carries a THIRD line kind: a section whose label is the card's own location is not a section, so it is planned and shaped as the second level of the heading hierarchy — its own scale const, its own metrics, its own span arm in the chrome face at `muted`, and the plan arm that chooses between the two. The location-scale constant itself lives in `render::rotated_location`, shared with the rotated-rail treatment, and the inline span arm carries a `RotatedRail`-world guard so that world's own vertical cue is not drawn twice; the guard reads the exhaustive `LocationStyle::draws_inline()` rather than a direct `!= RotatedRail` comparison, so a third style (`Raked`) is a conscious decision there too. The `Rules` PROTOTYPE draws no plates anywhere, so it is deliberately absent from the lens-strip TAB PILL gate — the comment records that absence as a decision rather than an oversight, and notes that `Diagonal` sits on the yes side here and the no side of `draws_row_plates`."
 
 [[file_size_mark]]
 file = "src/render/framebench.rs"
@@ -365,17 +365,17 @@ lines = 568
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
 lines = 580
-reason = "Item 284 (+3): the diagonal marker's own travel-state defaults (`diagonal_marker_row`, `diagonal_marker_turn`, `diagonal_marker_target`) join the one exhaustive `TextPipeline` initializer beside every other pipeline field here. Previously: +12: the fold chevron's own rotated-quad `SelectionPipeline` construction beside a short comment (+9) and its field initializer (+1) in the one exhaustive `TextPipeline` `Self { .. }`, plus the two inert-default initializers `folded_headings`/`fold_chevron_turn` (+2) beside every other pipeline field here. Previously: +1: the roster memo's inert default in the one initializer. The one `TextPipeline` initializer spells out workspace state, the diagonal cluster cache, and the warp accumulator beside the state they initialize. The `overlay_comparison` mirror's inert default in the one initializer (+1). The `doc_source` mirror's inert default in the same initializer (+1). Reconciled at the merge train with item 204 slice 2: neither branch could compute this — each measured a tree without the other's line. Re-measured on the combined candidate with items 220/234: neither branch could compute this and the two deltas must never be summed — main and this branch each moved the file for their own reasons. +7: the rotated secondary-location cue's pipeline joins the one exhaustive `TextPipeline` initializer (its `RotatedLabelPipeline::new` construction, a one-line comment, and its two field initializers in `Self { .. }`) beside every other GPU pipeline field here. +9: the selection-token split — `selection_document`/`selection_ui` are longer than the `selection` they replace, so rustfmt breaks the `selection_pipeline` and `overlay_rows` constructions across lines, and the two seeds carry a short comment each naming which surface reads which token. The comments are the point of the split: this is the one construction site where a reader can see the document wash and the picker-row band are no longer the same colour by accident."
+reason = "The one exhaustive `TextPipeline` initializer: every pipeline field, and every inert default, is spelled out beside the state it initializes. That is what this mark carries — the diagonal marker's travel state (`diagonal_marker_row`, `diagonal_marker_turn`, `diagonal_marker_target`), the fold chevron's rotated-quad `SelectionPipeline` construction with `folded_headings`/`fold_chevron_turn`, the roster memo, the workspace state, the diagonal cluster cache, the warp accumulator, and the `overlay_comparison`/`doc_source` mirrors. The rotated secondary-location cue joins it the same way. The selection-token split is the one place a reader can SEE that the document wash and the picker-row band are no longer the same colour by accident: `selection_document`/`selection_ui` are long enough that rustfmt breaks the `selection_pipeline` and `overlay_rows` constructions across lines, and each seed carries a short comment naming which surface reads which token."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
 lines = 613
-reason = "+3: the fold chevron's ink re-tints from `sync_theme_colors` like every other document-layer `SelectionPipeline`, a two-line call (+2), and `set_view`'s mirror gains the `folded_headings` projection beside `fold_tails` (+1). Previously: +1 line. One `sync_view` mirror for the new secondary-location projection. Previously: `set_view` is the one ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, and invalidates item 131's measured diagonal cluster with the other view-derived geometry before publishing a new frame. The `overlay_comparison` mirror's assignment in `set_view` (+1). The `doc_source` mirror's assignment beside it (+1). Reconciled at the merge train with item 204 slice 2: neither branch could compute this — each measured a tree without the other's line. +2: the selection-token split — `overlay_rows` now seeds from `selection_ui` rather than the document wash, and the longer accessor name makes rustfmt break the `set_color` call across two lines."
+reason = "`set_view` is the one ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, and invalidates the measured diagonal cluster with the other view-derived geometry before publishing a new frame. Every projection therefore lands here — the fold chevron's ink re-tinting from `sync_theme_colors` like every other document-layer `SelectionPipeline`, the `folded_headings` projection beside `fold_tails`, the secondary-location projection, and the `overlay_comparison`/`doc_source` mirrors. `overlay_rows` seeds from `selection_ui` rather than the document wash, and the longer accessor name makes rustfmt break the `set_color` call across two lines."
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
 lines = 465
-reason = "Item 284 (+1): the diagonal marker's own turn stepper joins the one `advance` OR-fold beside the fold chevron's. Previously: +1: the fold chevron's per-frame turn stepper joins the one `advance` OR-fold beside the caret spring, the caret preview, and the copy pulse. Previously: Overlay composition and ambient resolvers live here because they read the pipeline's own settled state; Kite shares that ambient ownership seam."
+reason = "Overlay composition and ambient resolvers live here because they read the pipeline's own settled state; Kite shares that ambient ownership seam. The one `advance` OR-fold is the single per-frame stepper, so the diagonal marker's turn and the fold chevron's join it there beside the caret spring, the caret preview and the copy pulse."
 
 [[file_size_mark]]
 file = "src/render/rects.rs"
@@ -412,7 +412,7 @@ lines = 545
 [[file_size_mark]]
 file = "src/selection.rs"
 lines = 756
-reason = "item 131b: +52 lines. `SelInstance` gained the `axis` field (+ its `UPRIGHT_AXIS` default), the vertex layout gained a fourth attribute, `prepare`/`prepare_multicolor` upload the inert default, and the new `prepare_rotated` emitter + `spine_segment`/`narrowed_spine_corner_px` pure helpers are the one place a rotated quad's geometry is built — the shared pipeline-construction body every SelectionPipeline instance goes through. The two pure spine helpers were later EXTRACTED to `selection/spine.rs` (merge train, item 182's rule: a mark may not rise for growth extraction can absorb) after rustfmt on the merge candidate pushed this file three lines past its old 768 mark; the mark came down to the measured size rather than up. (Item 24's branch independently repaired the same red by RAISING it to 771 on the reading that rustfmt's wrapping left nothing to extract; the merge train kept the extraction, because item 182's rule prefers it and the spine helpers were in fact extractable.) Its own tests moved to the sibling `selection/tests.rs` (production() exemption) once they pushed the inline `mod tests` well past this ceiling; no behavior moved, only which file counts the lines. The one construction site each pipeline family has now sits inside gpu_cache::render_pipeline's build closure — the seam that makes a GPU program once-per-process instead of once-per-instance, which is what the hosted-macOS gate wedged on. The growth is that closure's own indent, plus the Flavor record carrying the cache key beside the entry point and blend state it must track — the two flavors' only baked-in differences, kept in one place so a third cannot collide on a stale key (+21). Item 263 (+11): `test_color`, the read seam a token-routing law needs, with the doc explaining why it must exist — a headless capture builds its pipelines ONCE and never runs `sync_theme_colors`, so a token mis-routed in the SYNC half alone repaints nothing any capture can see and only reaches a user who switches worlds live. Measured, not assumed: crossing that seed moved ZERO of 120 captured files. Item 247 (-4): the `dead_code`/`unused_imports` suppressions and the \"no production caller yet\" prose came off `prepare_rotated` and the `spine` re-export once the rotated-quad emitter acquired real consumers (the overlay diagonal spine and marker, the fold chevron); the mark came DOWN to the measured size rather than being left stale."
+reason = "The one place a rotated quad's geometry is built, on the shared pipeline-construction body every `SelectionPipeline` instance goes through: `SelInstance` carries the `axis` field and its `UPRIGHT_AXIS` default, the vertex layout a fourth attribute, `prepare`/`prepare_multicolor` upload the inert default, and `prepare_rotated` is the emitter. The pure spine helpers live in the sibling `selection/spine.rs` and the tests in `selection/tests.rs` — growth an extraction can absorb does not raise this mark. What remains cannot be extracted: each pipeline family's one construction site sits inside `gpu_cache::render_pipeline`'s build closure, the seam that makes a GPU program once-per-process rather than once-per-instance (the hosted-macOS gate wedged on exactly that), so the lines are that closure's own indent plus the Flavor record carrying the cache key beside the entry point and blend state it must track — the two flavors' only baked-in differences, kept in one place so a third cannot collide on a stale key. `test_color` is the read seam a token-routing law needs, with the doc explaining why it must exist: a headless capture builds its pipelines ONCE and never runs `sync_theme_colors`, so a token mis-routed in the SYNC half alone repaints nothing any capture can see and reaches only a user who switches worlds live — measured, not assumed, by crossing that seed and watching ZERO of 120 captured files move."
 
 [[file_size_mark]]
 file = "src/session.rs"
@@ -495,7 +495,7 @@ lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 function = "App::sync_view"
 message = "this function has too many lines (247/100)"
-reason = "+2: the fold chevron's direction needs the real fold set, not merely `fold_tails`'s own key set — a new `folded_headings` field joins the one exhaustive `ViewState` construction site, and `fold::apply_to_view` gains the buffer's folds set as an argument at its one call site here. Previously: +3: the summoned picker's secondary location joins the one exhaustive projection site. Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The document-session extraction replaced direct buffer and cache fields with explicit read projections, adding four counted lines while preserving the one exhaustive ViewState construction site. -1 line net: the `overlay_comparison` projection, against a shorter crisp-backdrop match once History left it. -6 lines: routing the History preview through `ViewState::substitute_text` collapsed the two-branch preview/buffer text choice and the matching two-branch spell-cache key into one each."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `sync_view` is the one exhaustive `ViewState` projection site, so each new render datum is spelled out here: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set, so `fold::apply_to_view` takes the buffer's folds at its one call site here) and the summoned picker's secondary location. The document-session extraction replaced direct buffer and cache fields with explicit read projections while preserving that one exhaustive site."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -537,21 +537,21 @@ lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
 function = "ReplaySession::apply_chord"
 message = "this function has too many lines (152/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Line shifted by item 188's `mod live_app;` declaration and the native-only `CaptureSubject` re-export landing earlier in the file (+8); count unchanged. Line shifted by item 24's `launch_windowed` re-export and its test-only `resolve_launch_context` sibling (+4); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
 function = "capture_screenshot"
 message = "this function has too many lines (112/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Line shifted by item 188's `mod live_app;` declaration and the native-only `CaptureSubject` re-export (+8); count unchanged. Line shifted by item 24's `launch_windowed` re-export and its test-only `resolve_launch_context` sibling (+4); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
 function = "run"
 message = "this function has too many lines (289/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Item 188 added the `Mode::ScreenshotApp` dispatch arm — a struct destructure plus a one-line delegate into `run/live_app.rs`, where the mode itself lives (+9). Item 24 REDUCED it 330 -> 292: `run`'s `Mode::Windowed` arm is now a one-line delegate into `run/location.rs::launch_windowed`, beside the launch-precedence law it opens with. `Mode::BenchA11y` is one more one-line delegate in the same exhaustive match, `cfg`-gated native-only (+2)."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `run` is one exhaustive `Mode` match whose arms are already one-line delegates into the files the modes themselves live in (`run/live_app.rs`, `run/location.rs`); what is left is the match."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -572,7 +572,7 @@ lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
 function = "overlay_json"
 message = "this function has too many lines (148/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 114 added the `overlay.workspace` field to the one format string (+1). Line/size moved by queue item 114's summoned Settings workspace. Line shifted by item 188's `driver` argument + its comment (+2); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `overlay_json` is one format string over the whole overlay record, so each serialized field — the workspace, the `driver` argument — is a line in it."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -782,7 +782,7 @@ lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
 message = "this function has too many lines (515/100)"
-reason = "+9: the fold chevron's own rotated-quad `SelectionPipeline` construction beside a short comment, joining the one exhaustive `TextPipeline::new` construction site. +1: its field initializer in `Self { .. }`, the same shape every other GPU pipeline field here already takes. +2: the two inert-default initializers, `folded_headings` and `fold_chevron_turn`. Previously: +1: the roster memo's inert default. Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer. +1 line: the `overlay_comparison` mirror field's inert default, beside the `overlay_rows_primary` one it pairs with. +1: the `doc_source` mirror's inert default. +4: item 221's rotated-location-cue pipeline joins the one exhaustive `TextPipeline::new` construction site (the pipeline's own construction call plus its two field initializers in `Self { .. }`), the same shape every other GPU pipeline field here already takes. +8: item 263's selection-token split — the longer `selection_document`/`selection_ui` accessor names make rustfmt break the `selection_pipeline` construction across lines, plus the short comments naming which surface reads which token. +3: item 284's three inert diagonal-marker defaults (`diagonal_marker_row`, `diagonal_marker_turn`, `diagonal_marker_target`) in the one exhaustive construction site."
+reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer, which is the single exhaustive construction site every pipeline and every inert default must pass through. That is the whole of this function: the fold chevron's rotated-quad `SelectionPipeline` construction and its `folded_headings`/`fold_chevron_turn` defaults, the rotated-location-cue pipeline, the roster memo, the `overlay_comparison` and `doc_source` mirrors, and the three inert diagonal-marker defaults, each the same shape every other GPU pipeline field here already takes. The selection-token split adds lines for a reason worth the count: the longer `selection_document`/`selection_ui` names make rustfmt break the `selection_pipeline` construction across lines, and the short comments name which surface reads which token."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1365,14 +1365,14 @@ reason = "Item 274's subject split of the former flat test monolith moved this a
 [[structural_exception]]
 target = "src/theme/tests/frost.rs"
 kind = "architectural"
-line = 270
+line = 268
 text = "            \"{}: faint project ink only {:.1} redmean from the WORST gutter frost pill (phase-free bound)\","
 reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
 
 [[structural_exception]]
 target = "src/theme/tests/frost.rs"
 kind = "architectural"
-line = 300
+line = 298
 text = "                \"{}: frost leaked far from the gutter seed at x={x} y={y} (not local — a margin lost its lamp)\","
 reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
 
@@ -1386,7 +1386,7 @@ reason = "Item 274's subject split of the former flat test monolith moved this a
 [[structural_exception]]
 target = "src/theme/tests/ornament.rs"
 kind = "architectural"
-line = 210
+line = 203
 text = "        \"exactly one world uses the manicule bullet, at exactly one level (a hand everywhere is loud)\""
 reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
 
@@ -1400,14 +1400,14 @@ reason = "Item 274's subject split of the former flat test monolith moved this a
 [[structural_exception]]
 target = "src/theme/tests/selection_ui.rs"
 kind = "architectural"
-line = 203
+line = 202
 text = "                \"{}: selected band ({s}) must sit at least as far up the ramp as the unselected whisper ({u}) from the ground ({c})\","
 reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
 
 [[structural_exception]]
 target = "src/theme/tests/selection_ui.rs"
 kind = "architectural"
-line = 214
+line = 213
 text = "            \"{}: selected bar {sel:?} must lead the unselected whisper {unsel:?} (redmean {d_sel:.1}) at least as much as the whisper leads the ground {ground:?} (redmean {d_bar:.1})\","
 reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
 
@@ -1580,279 +1580,9 @@ text = "    // same level item 114's own `sweep_path` picks from); `Up` reaches 
 reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
 
 [[comment_citation_exception]]
-target = "src/theme/tests/ambient.rs"
-line = 92
-text = "                // SIZE SPREAD (item 62): even the WIDEST star the spread ever"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ambient.rs"
-line = 195
-text = "/// ITEM 87's SCHEDULING-GATE COMPOSITION law (mirrors `stars.rs`'s"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ambient.rs"
-line = 251
-text = "/// ITEM 87's SCHEDULING law (mirrors the lava/stars precedents in"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
 target = "src/theme/tests/distinctness.rs"
-line = 80
-text = "/// near-pair. Item 132 could not write it (Kite↔Brolga measured 38.8 and it"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/distinctness.rs"
-line = 81
-text = "/// would have failed on the day), and item 194 round 2's palette answer is what"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/distinctness.rs"
-line = 89
-text = "/// happens to measure would fail on the day, exactly as item 132's would have;"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/distinctness.rs"
-line = 90
+line = 88
 text = "/// setting it at a round 35 or 30 would bless pairs looser than anything that"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/distinctness.rs"
-line = 94
-text = "/// standing. Item 99's lesson is the reason it is written this way: the true"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/fonts.rs"
-line = 455
-text = "/// Queue item 30 (user + fable): Mopoke's body face is the warm slab Bitter"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/frost.rs"
-line = 385
-text = "/// ITEM 65's FOLD-AFFORDANCE CAPABILITY law (mirrors"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ground.rs"
-line = 22
-text = "    // Waves stays Bombora's alone (item 69 — reusable DATA, but only one"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ground.rs"
-line = 30
-text = "    // ITEM 86: Zigzag ships on EXACTLY Quokka and Gumtree, in THEMES order."
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ground.rs"
-line = 136
-text = "    // ITEM 69 PALETTE LAW (Bombora's Waves alone, post item-86 — Gumtree's own"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ground.rs"
-line = 154
-text = "    // ITEM 86 PALETTE LAW: Gumtree's Zigzag uses ONLY its own ground ladder —"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ground.rs"
-line = 174
-text = "    // ITEM 86 DISTINCTNESS LAW: Quokka and Gumtree's Zigzag fields must NOT"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/heatmap.rs"
-line = 122
-text = "/// Item 103's paired-load gate: the heatmap law was the compliant victim that"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/lava.rs"
-line = 7
-text = "/// 0..=6, item 69's Bands/Waves included) so the lava layer is dormant there"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ornament.rs"
-line = 92
-text = "/// [`Theme::bullets`] triple (item 15's per-level rotation) whose three levels"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ornament.rs"
-line = 136
-text = "        // advance — but queue item 30 moved Mopoke's body face to the proportional"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ornament.rs"
-line = 140
-text = "        // FACE-DERIVED, not a world list (item 158). The shared tier is scaled"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ornament.rs"
-line = 184
-text = "    // The TRIPLE CYCLES every THREE levels (item 15's per-level rotation) —"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ornament.rs"
-line = 199
-text = "    // composes with, never dilutes, item 7's \"one world, one level\" pick)."
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ornament.rs"
-line = 214
-text = "/// NEVER-DRIFT law (item 15, per-world LIST-ITEM INDENT): every world's"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/ornament.rs"
-line = 221
-text = "/// [`LIST_INDENT_SCALE_WIDE`]. `>= 1.0` on every world: item 15 only ever"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/page_frame.rs"
-line = 93
-text = "/// item 65 NAMED TAIL CONTRAST FLOOR: the bare `theme::faint()` LADDER TOKEN"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/page_frame.rs"
-line = 108
-text = "///     CAVEAT (the Fable item 65 adjustment round): `base_100` is NOT the fold"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 14
-text = "/// motion, the six LIGHT worlds' pale-ground rim — composition round item 6),"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 35
-text = "        // ITEM 45 (2026-07-23): Cassowary + Mangrove are the fable RIGHT picks —"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 44
-text = "            // round's light-world border (item 6); C2 TopLeft anchor + Auto corner."
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 70
-text = "                // ITEM 45 fable pick (2026-07-23): the tidal margin flipped to a"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 77
-text = "                // ITEM 65 (Fable adjustment): both marks lifted — see"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 104
-text = "                // ITEM 65 (Fable adjustment): the tail alone is lifted — the"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 121
-text = "                    // ITEM 62 (2026-07-24): +10.8% chroma over the shipped"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 175
-text = "                // ITEM 65: dormant default (no lava ground — the silent pole's"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 178
-text = "                // ITEM 70: dormant default — a fractional-alpha halftone dot"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 199
-text = "            // LIGHT-WORLD BORDER (composition round item 6): the remaining"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 208
-text = "            // ITEM 70 — Quokka alone assigns the non-default printed-card caps"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 222
-text = "            // ITEM 86 — Bowerbird's item-71 woven `JaggedWave` card texture"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 242
-text = "                // ITEM 45 fable pick (2026-07-23): the terminal readout flipped to"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/personality.rs"
-line = 258
-text = "            // PAPERBARK (item 158, the handmade-paper studio): a LIGHT world, so"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/placard.rs"
-line = 270
-text = "/// REPAIR ROUND 2's flagged gap, closed structurally — and extended by the"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/roster.rs"
-line = 14
-text = "    // (item 158) is the nineteenth, an additive LIGHT one — the handmade-paper"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/roster.rs"
-line = 15
-text = "    // studio, and the roster's only `Background::Deckle` ground; Kite (item 132)"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/roster.rs"
-line = 23
-text = "/// `world_names()` (item 68's one code-owned roster source, read by `--help`,"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/selection_ui.rs"
-line = 4
-text = "/// PALETTE-COMPOSITION round (item 5): the picker's selected-row band"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
-
-[[comment_citation_exception]]
-target = "src/theme/tests/world_pin_item254.rs"
-line = 3
-text = "/// THE WORLD PIN, at its own seam (item 94): [`WorldPin`] is the EXPLICIT tool a"
 reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
 
 [[comment_citation_exception]]

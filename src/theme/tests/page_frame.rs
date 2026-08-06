@@ -90,7 +90,7 @@ fn wcag_contrast(a: Srgb, b: Srgb) -> f32 {
     (hi + 0.05) / (lo + 0.05)
 }
 
-/// item 65 NAMED TAIL CONTRAST FLOOR: the bare `theme::faint()` LADDER TOKEN
+/// THE NAMED TAIL CONTRAST FLOOR: the bare `theme::faint()` LADDER TOKEN
 /// (before any [`super::model::FoldAfford`] lift — see that capability's own
 /// doc) must be QUIET but PLAINLY READABLE against the FLAT `base_100` ground —
 /// two bounds, on EVERY world:
@@ -100,12 +100,12 @@ fn wcag_contrast(a: Srgb, b: Srgb) -> f32 {
 ///     existing `faint`-vs-`base_100` contrast (empirically probed: 1.97:1 on
 ///     Mangrove, the global minimum among the 17 non-1-bit worlds, up to 3.20:1
 ///     on Potoroo) — a REGRESSION guard on the ink `faint` already ships with,
-///     not a new design target this round invents; well below WCAG's own 3:1
+///     not a design target; well below WCAG's own 3:1
 ///     "UI component" floor because `faint` is deliberately the ink ladder's
 ///     dimmest rung (`Theme::faint`'s own doc: "must barely register"), and well
 ///     above 1:1 (true invisibility).
 ///
-///     CAVEAT (the Fable item 65 adjustment round): `base_100` is NOT the fold
+///     CAVEAT: `base_100` is NOT the fold
 ///     tail's real drawn ground on Mangrove/Firetail — the lamp's edge-glow
 ///     "soft light-spill under the column" lifts the WHOLE writing column, not
 ///     only the margin edge (a screenshot pixel probe found the real rendered

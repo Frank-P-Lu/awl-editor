@@ -89,7 +89,7 @@ fn every_world_has_an_ornament_scale() {
 }
 
 /// NEVER-DRIFT law (per-world LIST BULLETS): every world ships a three-glyph
-/// [`Theme::bullets`] triple (item 15's per-level rotation) whose three levels
+/// [`Theme::bullets`] triple (the per-level rotation) whose three levels
 /// are PAIRWISE DISTINCT, and a [`Theme::bullet_scale`] that is exactly one of
 /// the two named tier constants (no stray literal). The font-DB half — that
 /// each glyph actually resolves in the world's [`Theme::ornament_face`] — is
@@ -126,24 +126,18 @@ fn every_world_has_a_bullet_pair() {
             "{}: levels 1/3 must be distinct glyphs, got {:?}",
             t.name, t.bullets
         );
-        // OFF-TIER EXCEPTION (theme-QA padding round, EXACTLY one now, pinned by
-        // NAME and VALUE — never a loose "any float passes" escape hatch): the
-        // shared [`BULLET_SCALE_ORNAMENT`] tier is a byproduct of two unrelated
-        // font metrics (see that constant's own doc) that paired badly on
-        // Bombora's manicule (too wide, touched the following text), so Bombora
-        // carries its OWN literal instead. (Mopoke once needed one too — its
-        // rosette stranded in a canyon under iA Writer Quattro S's wide duospaced
-        // advance — but queue item 30 moved Mopoke's body face to the proportional
-        // Bitter, whose narrower marker advance lets the rosette sit right on the
-        // shared tier; that exception retired with the old face.) Every other
-        // world stays on a shared tier.
-        // FACE-DERIVED, not a world list (item 158). The shared tier is scaled
-        // against the concealed `"- "` prefix's advance in the world's OWN BODY
-        // font, so the world that needs a tighter dial is decided by that face:
-        // EB Garamond's narrow punctuation advance crowds a half-body fleuron
-        // into the following text. It read as a Bombora quirk while Bombora was
-        // the only EB-Garamond-BODY world; the nineteenth world reproduced it
-        // exactly, which is what turned it into a rule.
+        // OFF-TIER EXCEPTION (EXACTLY one, pinned by NAME and VALUE — never a
+        // loose "any float passes" escape hatch): the shared
+        // [`BULLET_SCALE_ORNAMENT`] tier is a byproduct of two unrelated font
+        // metrics (see that constant's own doc) that pair badly on a manicule
+        // (too wide, touching the following text). Every other world stays on
+        // a shared tier.
+        // The exception is FACE-DERIVED, not a world list. The shared tier is
+        // scaled against the concealed `"- "` prefix's advance in the world's
+        // OWN BODY font, so the world that needs a tighter dial is decided by
+        // that face: EB Garamond's narrow punctuation advance crowds a
+        // half-body fleuron into the following text, on every world that wears
+        // it.
         let off_tier_exception = (t.font == ORNAMENT_GARAMOND).then_some(BULLET_SCALE_GARAMOND);
         assert!(
             matches!(t.bullet_scale, BULLET_SCALE_PLAIN | BULLET_SCALE_ORNAMENT)
@@ -181,9 +175,8 @@ fn every_world_has_a_bullet_pair() {
             );
         }
     }
-    // The TRIPLE CYCLES every THREE levels (item 15's per-level rotation) —
-    // depth 0/1 land exactly where the pre-item-15 two-level cycle put them,
-    // depth 2 is the new third rung, and depth 3 wraps back to level 1.
+    // The TRIPLE CYCLES every THREE levels — depth 2 is the third rung, and
+    // depth 3 wraps back to level 1.
     assert_eq!(TAWNY.bullet_for_depth(0), '•');
     assert_eq!(TAWNY.bullet_for_depth(1), '◦');
     assert_eq!(TAWNY.bullet_for_depth(2), '▪');
@@ -196,7 +189,7 @@ fn every_world_has_a_bullet_pair() {
     assert_eq!(BOMBORA.bullet_for_depth(3), '☞');
     // The manicule showpiece: Bombora alone rides the antique pointing hand,
     // at its top level (level 1) — NEVER at level 3 either (the rotation
-    // composes with, never dilutes, item 7's "one world, one level" pick).
+    // composes with, never dilutes, the "one world, one level" pick).
     assert_eq!(
         BOMBORA.bullets.0, '☞',
         "Bombora's level-1 bullet is the manicule"
@@ -211,14 +204,14 @@ fn every_world_has_a_bullet_pair() {
     );
 }
 
-/// NEVER-DRIFT law (item 15, per-world LIST-ITEM INDENT): every world's
+/// NEVER-DRIFT law (per-world LIST-ITEM INDENT): every world's
 /// [`Theme::list_indent_scale`] is exactly one of the two named tier constants
 /// (no stray literal, mirroring [`every_world_has_a_bullet_pair`]'s
 /// `bullet_scale` sweep) and — since the shared tier IS the shared bullet-scale
 /// tier's own roster — agrees with the world's own bullet PAIR: a plain `•`/
 /// `◦`/`▪` world stays at the byte-identical [`LIST_INDENT_SCALE_PLAIN`], an
 /// antique/literary-serif world (hedera/fleuron/manicule) steps up to
-/// [`LIST_INDENT_SCALE_WIDE`]. `>= 1.0` on every world: item 15 only ever
+/// [`LIST_INDENT_SCALE_WIDE`]. `>= 1.0` on every world: the scale only ever
 /// WIDENS the typed indent, never narrows it below what the raw spaces alone
 /// already give.
 #[test]

@@ -119,10 +119,10 @@ fn streaks_heatmap_levels_are_distinguishable_every_world() {
     set_active(DEFAULT_THEME);
 }
 
-/// Item 103's paired-load gate: the heatmap law was the compliant victim that
-/// the retired guard machinery corrupted by restoring outside the lock. Exercise
-/// the explicit pin and runtime choke point together forty times; any restore
-/// that escapes the serialized window now fails at the writer seam itself.
+/// A PAIRED-LOAD gate. A world restore that escapes the serialized window
+/// corrupts an unrelated, fully compliant law — this one was that victim.
+/// Exercising the explicit pin and the runtime choke point together forty
+/// times makes such a restore fail at the writer seam itself.
 #[test]
 fn streaks_heatmap_law_is_stable_across_forty_world_pin_windows() {
     let _g = crate::testlock::serial();

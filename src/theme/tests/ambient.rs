@@ -89,7 +89,7 @@ fn ambient_stars_laws_hold_for_every_world() {
                     "{}: dot {size_px}px must stay well inside its {cell_px}px cell's jitter band",
                     t.name
                 );
-                // SIZE SPREAD (item 62): even the WIDEST star the spread ever
+                // SIZE SPREAD: even the WIDEST star the spread ever
                 // draws — `size_px * (1 + STAR_SIZE_SPREAD_FRAC)` — must still
                 // clear the same cell-jitter safety margin above, not just the
                 // authored base size.
@@ -192,7 +192,7 @@ fn ambient_stars_laws_hold_for_every_world() {
     );
 }
 
-/// ITEM 87's SCHEDULING-GATE COMPOSITION law (mirrors `stars.rs`'s
+/// THE SCHEDULING-GATE COMPOSITION law (mirrors `stars.rs`'s
 /// `currawong_alone_carries_the_stars_and_the_ambient_gate_composes` — same
 /// "one owner" shape): [`Theme::has_ambient_tick`] is EXACTLY
 /// `has_ambient_motion() || background.is_waves()` for every world, no
@@ -248,19 +248,17 @@ fn has_ambient_tick_composes_all_ambient_background_capabilities_one_owner() {
     );
 }
 
-/// ITEM 87's SCHEDULING law (mirrors the lava/stars precedents in
-/// `lava::tests` / `stars.rs`): every freeze condition the round promises —
+/// THE SCHEDULING law (mirrors the lava/stars precedents in
+/// `lava::tests` / `stars.rs`): every freeze condition —
 /// `ambient_motion` off, Reduce Motion, a paused (blurred/moving/resizing)
 /// window, and a non-Bombora active world — closes `lava_should_tick`'s gate
 /// for Bombora's wave drift, scheduling EXACTLY ZERO frames (no `WaitUntil`
 /// re-arm, no phase advance, no redraw request — the whole ambient-tick `if`
-/// body in `app/schedule.rs` is skipped). NON-VACUOUS: with the OLD
-/// `has_ambient_motion()` (pre-item-87) fed here instead of
-/// `has_ambient_tick()`, EVERY one of these assertions already held for the
-/// trivial reason that Bombora could never arm at all — the meaningful,
-/// newly-non-vacuous case is the LAST one (`ambient_motion` on, not reduced,
-/// focused, not paused), which must be TRUE now and was FALSE before this
-/// round (Bombora had no tick path at all).
+/// body in `app/schedule.rs` is skipped). NON-VACUITY LIVES IN THE LAST CASE
+/// (`ambient_motion` on, not reduced, focused, not paused), which must be
+/// TRUE: feed `has_ambient_motion()` here instead of `has_ambient_tick()` and
+/// every OTHER assertion still holds, for the trivial reason that Bombora can
+/// never arm at all.
 #[test]
 fn bombora_wave_drift_schedules_zero_frames_under_every_freeze_condition() {
     let active = BOMBORA.has_ambient_tick();

@@ -354,18 +354,17 @@ fn the_shipped_preset_roster_is_the_judged_assignment() {
         ("Magpie", IconCursor::Block),
         ("Brolga", IconCursor::Pill),
         ("Wagtail", IconCursor::Block),
-        // Item 121: the poster silhouette moved off the pill onto the shared
-        // Block preset; the ground is the user's C pick (`IconGround::
-        // Blend40`), asserted by name in
+        // The poster silhouette, on the shared Block preset; the ground is
+        // `IconGround::Blend40`, asserted by name in
         // `every_shipped_world_defaults_to_the_inert_base_100_ground_except_firetail`.
         ("Firetail", IconCursor::Block),
         ("Cassowary", IconCursor::Block),
-        // ITEM 158: EB Garamond's `l` is footed, so Narrow (which sits INSIDE
+        // EB Garamond's `l` is footed, so Narrow (which sits INSIDE
         // the glyph's advance) is out by the law two tests down; Block is the
         // preset the same face already carries on Bombora, and it splits
         // Paperbark from Saltpan, the other warm-cream world, in a dock row.
         ("Paperbark", IconCursor::Block),
-        // ITEM 132: Fira Sans's `l` is a bare stem, so all three presets are
+        // Fira Sans's `l` is a bare stem, so all three presets are
         // structurally open to it — Block is the deliberate pick because it
         // splits Kite's silhouette from BOTH of its nearest light neighbours in
         // palette: Brolga's pill (pale periwinkle) and Galah's narrow (pale
@@ -393,7 +392,7 @@ fn the_shipped_preset_roster_is_the_judged_assignment() {
     );
 }
 
-/// DEFECT 3, resolved: the super-narrow pill sits INSIDE the glyph's advance,
+/// The super-narrow pill sits INSIDE the glyph's advance,
 /// so on a footed or serifed face the overhang falls outside it and gets
 /// painted `primary_content` out on the ground — the mark reads as `‖` or
 /// `aw!`. Figtree's bare geometric stem is the one `l` with nothing to
@@ -425,12 +424,10 @@ fn the_narrow_pill_is_galahs_alone() {
 /// Pixel proof that the silhouettes actually differ lives in
 /// `small_sizes_keep_every_pair_of_worlds_apart`.
 ///
-/// Potoroo/Firetail USED to be this list's other entry: same face, same
-/// preset-split strategy. Item 121 moved Firetail off Pill onto the shared
-/// Block preset — the poster silhouette the judge actually wants — so the
-/// two now share a preset ON PURPOSE, and the silhouette-split strategy is
-/// retired for this pair. Their separation is carried instead by the
-/// numeric palette-distinctness laws
+/// Potoroo/Firetail is deliberately NOT on this list, though the two share a
+/// face: they wear the SAME preset on purpose — the poster silhouette the
+/// judge wants — so the silhouette split is not their separation. That is
+/// carried instead by the numeric palette-distinctness laws
 /// (`firetail_is_oxblood_wine_and_ember_not_potoroo_rust_or_bombora_violet`,
 /// `theme::tests`) and by the roster-wide crowding sweep below, which is
 /// free to name Potoroo/Firetail in its `Blessed` lists if they now crowd —
@@ -616,7 +613,7 @@ fn the_parser_rejects_a_malformed_container() {
 
 /// THE FOUR TOKENS, asserted by arithmetic at the Dock's own 128px rep: the
 /// ground IS `Theme::icon_ground_color()` (`base_100` unless the world opted
-/// into an item-121 blend), the slab IS `primary`, the `l` knocked out of it
+/// into a blend), the slab IS `primary`, the `l` knocked out of it
 /// IS `primary_content`, and `aw` outside it IS `base_content`. Colour identity is
 /// checked against the world's real theme tokens at a tolerance that only
 /// admits antialiasing — so a palette retune that never reached the export
@@ -925,8 +922,8 @@ fn measure_pair(
     }
 }
 
-/// Every real pair the shipped roster produces at 32px — the 153
-/// combinations `small_sizes_keep_every_pair_of_worlds_apart` sweeps. Reads
+/// Every real pair the shipped roster produces at 32px — the combinations
+/// `small_sizes_keep_every_pair_of_worlds_apart` sweeps. Reads
 /// `THEMES` (the one roster array every world sweep in this file reads, per
 /// this file's own module doc) and nothing else, so a world added to
 /// `THEMES` is automatically in this set with no second list to update.
@@ -968,12 +965,13 @@ type Read = fn(&Pair) -> f64;
 /// [`Pair`] — `a`/`b` here may come back either way from `all_real_pairs`,
 /// which iterates `THEMES` by index, not by name.
 ///
-/// This is deliberately NOT a per-pair table for the whole 153-pair roster —
-/// item 99 already rejected that shape for breaking on every world addition.
-/// It is a per-pair table ONLY for the pairs the roster's OWN measured
-/// distribution already put in the danger zone: small today (12/10/5 entries
-/// across the three axes), and it grows only when a pair genuinely crosses
-/// into the zone, never merely because the roster gained a member. See
+/// This is deliberately NOT a per-pair table for every combination of worlds:
+/// that shape breaks on every world addition, since each one adds rows with
+/// no authored baseline. It is a per-pair table ONLY for the pairs the
+/// roster's OWN measured distribution already put in the danger zone
+/// (20/13/6 entries across the three axes), and it grows only when a pair
+/// genuinely crosses into the zone, never merely because the roster gained a
+/// member. See
 /// `small_sizes_keep_every_pair_of_worlds_apart`'s doc for the full case.
 struct Blessed {
     a: &'static str,
@@ -990,19 +988,15 @@ impl Blessed {
     }
 }
 
-/// Measured 2026-07-26 (item 102): every pair whose `differing` sits under
-/// 28.33% today, i.e. the whole low cluster below the roster's own cliff to
-/// 80.47% (Potoroo/Firetail) — see `axes()`'s `danger` value.
-/// The global cursor lift remeasured the affected baselines across the full
-/// cursor lift to the full roster; palettes and preset assignments are intact.
+/// Every pair whose `differing` sits inside the roster's own low cluster,
+/// below its cliff to 80.47% (Potoroo/Firetail) — see `axes()`'s `danger`
+/// value.
 const DIFFERING_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Currawong",
         b: "Cassowary",
         baseline: 0.130859375,
     },
-    // Item 161's restrained optical lift moved Bilby's rendered cursor body
-    // without changing palette, preset, or containment.
     Blessed {
         a: "Bilby",
         b: "Galah",
@@ -1013,13 +1007,11 @@ const DIFFERING_BLESSED: &[Blessed] = &[
         b: "Mulga",
         baseline: 0.2119140625,
     },
-    // Item 161.
     Blessed {
         a: "Bilby",
         b: "Magpie",
         baseline: 0.240234375,
     },
-    // Item 161: Saltpan's own restrained lift.
     Blessed {
         a: "Saltpan",
         b: "Quokka",
@@ -1030,11 +1022,6 @@ const DIFFERING_BLESSED: &[Blessed] = &[
         b: "Magpie",
         baseline: 0.240234375,
     },
-    // Item 110 aligned every face's rendered baseline; the intentional seat
-    // change moved this cream-ground near-pair without changing palette or
-    // its deliberately split block/pill silhouettes. Item 161's optical lift
-    // — applied to both Bilby and Saltpan, restrained on each — moved it
-    // again.
     Blessed {
         a: "Bilby",
         b: "Saltpan",
@@ -1060,7 +1047,7 @@ const DIFFERING_BLESSED: &[Blessed] = &[
         b: "Wagtail",
         baseline: 0.2958984375,
     },
-    // ITEM 158 (Paperbark, the nineteenth world). At 32px the tile is mostly
+    // PAPERBARK. At 32px the tile is mostly
     // GROUND — this axis's own doc says so — and Paperbark joins awl's existing
     // pale-warm light cluster, whose members already bless each other here
     // (Bilby/Galah 19.9%, Bilby/Saltpan 22.9%, Bilby/Magpie 24.2%). Its page
@@ -1077,15 +1064,11 @@ const DIFFERING_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Bilby",
         b: "Paperbark",
-        // Re-blessed at integration: item 158 measured Paperbark against
-        // Bilby's PRE-LIFT cursor, item 161 then lifted it. 20.31% -> 20.12%.
         baseline: 0.2012,
     },
     Blessed {
         a: "Saltpan",
         b: "Paperbark",
-        // Re-blessed at integration, same cause as Bilby/Paperbark above:
-        // Saltpan's cursor moved in item 161. 23.44% -> 23.14%.
         baseline: 0.2314,
     },
     Blessed {
@@ -1093,7 +1076,7 @@ const DIFFERING_BLESSED: &[Blessed] = &[
         b: "Paperbark",
         baseline: 0.26953125,
     },
-    // ITEM 132 (Kite, the twentieth world). Kite is a PALE LIGHT world, so at
+    // KITE is a PALE LIGHT world, so at
     // 32px — where this axis's own doc says the tile is mostly GROUND — it joins
     // the same pale light cluster whose members already bless each other here
     // (Bilby/Galah 19.7%, Bilby/Saltpan 22.4%, Galah/Magpie 24.0%,
@@ -1131,24 +1114,20 @@ const DIFFERING_BLESSED: &[Blessed] = &[
     },
 ];
 
-/// Measured 2026-07-26 (item 102): every pair whose `mean` sits under 70.0
-/// today — the roster's smooth low continuum stops being worth watching
-/// individually well before its own distant cliff (173.79 -> 473.61,
-/// Bombora/Wagtail -> Gumtree/Mangrove), so this axis's `danger` is set with
-/// margin above the tightest 10, not at that far cliff (see `axes()`'s doc).
-/// The global cursor lift remeasured the affected baselines across the roster;
-/// lift; Bilby/Kite widened past 70 and is therefore removed rather than kept.
+/// Every pair whose `mean` sits under 70.0 — the roster's smooth low
+/// continuum stops being worth watching individually well before its own
+/// distant cliff (173.79 -> 473.61, Bombora/Wagtail -> Gumtree/Mangrove), so
+/// this axis's `danger` is set with margin above the tightest 10, not at that
+/// far cliff (see `axes()`'s doc).
 const MEAN_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Currawong",
         b: "Cassowary",
         baseline: 20.6298828125,
     },
-    // Item 121: Firetail's icon cursor moved Pill -> Block (32.87 -> 25.94),
-    // then its ground moved to the user's C pick, `IconGround::Blend40`
-    // (25.94 -> 44.89) — the wine ground pulls it noticeably further from
-    // Potoroo's rust, but not out of this axis's danger zone, so it stays
-    // blessed at the new measured value.
+    // Firetail's `IconGround::Blend40` wine ground pulls this pair noticeably
+    // further from Potoroo's rust, but not out of this axis's danger zone —
+    // so it stays blessed rather than dropping off the list.
     Blessed {
         a: "Potoroo",
         b: "Firetail",
@@ -1169,15 +1148,11 @@ const MEAN_BLESSED: &[Blessed] = &[
         b: "Mangrove",
         baseline: 57.84375,
     },
-    // Item 161's restrained lift moved Saltpan's rendered ink.
     Blessed {
         a: "Saltpan",
         b: "Galah",
         baseline: 67.7998046875,
     },
-    // Item 110's vertical-seat correction moves Bilby's rendered ink while
-    // preserving every palette and cursor assignment. Item 161's further
-    // optical lift moved it again.
     Blessed {
         a: "Bilby",
         b: "Galah",
@@ -1193,21 +1168,12 @@ const MEAN_BLESSED: &[Blessed] = &[
         b: "Mulga",
         baseline: 67.619140625,
     },
-    // Item 121: Tawny/Firetail was blessed here through two Firetail changes
-    // (69.75 -> 66.60 for Block; see git history) — the user's C ground pick
-    // (`IconGround::Blend40`) then widened it PAST the danger zone entirely
-    // (66.60 -> 71.49, >= the 70.0 threshold), so the entry is REMOVED, not
-    // re-blessed: `stale_blessed_entry_for_a_widened_pair_is_flagged` is the
-    // law that would catch a stale entry left behind here.
-    // ITEM 158 — the same pale-warm ground cluster as DIFFERING_BLESSED's own
+    // PAPERBARK — the same pale-warm ground cluster as DIFFERING_BLESSED's own
     // Paperbark note; Bilby/Galah and Bilby/Saltpan are already blessed here
     // for the identical reason.
     Blessed {
         a: "Bilby",
         b: "Paperbark",
-        // Re-blessed at integration (item 161 + item 158): 158 measured this
-        // against Bilby's PRE-LIFT pixels, then 161 lifted Bilby's cursor, so
-        // the pair moved 52.79 -> 52.47. Neither branch could see this alone.
         baseline: 52.306640625,
     },
     Blessed {
@@ -1215,7 +1181,7 @@ const MEAN_BLESSED: &[Blessed] = &[
         b: "Paperbark",
         baseline: 64.259765625,
     },
-    // ITEM 132 — the same pale-light ground cluster as DIFFERING_BLESSED's own
+    // KITE — the same pale-light ground cluster as DIFFERING_BLESSED's own
     // Kite note. Bilby/Galah, Bilby/Saltpan and Bilby/Paperbark are already
     // blessed here for the identical reason.
     Blessed {
@@ -1230,27 +1196,22 @@ const MEAN_BLESSED: &[Blessed] = &[
     },
 ];
 
-/// Measured 2026-07-26 (item 102): every pair whose `ink` sits under 92%
-/// today — the roster's own cluster tops out at 88.39% (Bowerbird/Firetail)
-/// before a cliff to 94.22%; 92% sits between the two so the axis still
-/// catches a scenario shaped like `Ibis` (84.08% with current geometry, see
+/// Every pair whose `ink` sits under 92% — the roster's own cluster tops out
+/// at 88.39% (Bowerbird/Firetail) before a cliff to 94.22%; 92% sits between
+/// the two so the axis still catches a scenario shaped like `Ibis` (84.08%
+/// with current geometry, see
 /// `ibis_near_duplicate_is_caught_without_becoming_champion`) without
 /// pulling the entire 94%+ plateau into the blessed list.
-/// The affected baseline is remeasured against the roster-wide lift.
 const INK_BLESSED: &[Blessed] = &[
-    // Item 121: Firetail's Block cursor first closed Potoroo/Firetail's ink
-    // to 49.81% (from 54.31%, briefly the roster's global minimum) — then
-    // the user's C ground pick (`IconGround::Blend40`) reopened it to
-    // 66.42%, re-blessed at the new measured value. See
-    // `confusable_pairs_never_share_a_logo_cursor`'s doc for why the
-    // preset-split strategy was retired for this pair on purpose; the ground
-    // change is what actually repairs the crowding it introduced.
+    // Potoroo/Firetail is this axis's global minimum. The two share a preset
+    // on purpose (see `confusable_pairs_never_share_a_logo_cursor`'s doc), so
+    // what holds them apart here is Firetail's `IconGround::Blend40` ground,
+    // not a silhouette split.
     Blessed {
         a: "Potoroo",
         b: "Firetail",
         baseline: 0.6641509433962264,
     },
-    // Item 161's restrained lift moved Bilby's rendered ink.
     Blessed {
         a: "Bilby",
         b: "Wagtail",
@@ -1271,7 +1232,7 @@ const INK_BLESSED: &[Blessed] = &[
         b: "Firetail",
         baseline: 0.8715277777777778,
     },
-    // ITEM 132: Kite's ONE ink-axis neighbour, and it sits at the top of the
+    // KITE's ONE ink-axis neighbour, and it sits at the top of the
     // roster's existing cluster (88.39% Bowerbird/Firetail) rather than near
     // its floor — 89.0% of the two marks' non-ground pixels differ, so the
     // ground-independent axis says these tiles read as different apps. Blessed
@@ -1291,9 +1252,9 @@ const INK_BLESSED: &[Blessed] = &[
 /// add one `Blessed` entry to the axis's list above, with a comment naming
 /// the pair and why the crowding is accepted. A pair already blessed eroding
 /// FURTHER is the same edit — bump its `baseline`. Either way the diff is
-/// small and reads as what it is: item 99 already rejected a per-pair table
-/// sized to the whole roster; this one is sized to the roster's own measured
-/// danger zone instead, which is not the same shape.
+/// small and reads as what it is. A per-pair table sized to the whole roster
+/// is the shape this deliberately is NOT; this one is sized to the roster's
+/// own measured danger zone instead.
 // Each axis couples its metric, thresholds, exceptions, and direction as one fixed test table.
 #[allow(clippy::type_complexity)]
 fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
@@ -1357,7 +1318,7 @@ fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
 ///   * `ink` — fraction of NON-GROUND pixels that differ. The ground-independent
 ///     axis. It is the one that shows the near-black twins are in fact fine (86%
 ///     of their ink differs — mint-green vs golden-yellow), and it finds a
-///     DIFFERENT global minimum: Potoroo/Firetail at 51%. Two axes, two
+///     DIFFERENT global minimum: Potoroo/Firetail at 66.4%. Two axes, two
 ///     different closest pairs — which is the whole reason one hand-picked list
 ///     could never have covered this.
 ///
@@ -1380,22 +1341,17 @@ fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
 ///     re-render's antialiasing. This is the bar that actually notices
 ///     EROSION, at any position in the sorted order.
 ///
-///     Item 99 shipped a ratchet watching ONLY `sorted[0]`, the single
-///     global champion. Item 102 (filed from item 99's own verification)
-///     found the gap: a pair can crowd substantially and pass in total
-///     silence as long as it never unseats the incumbent champion. The
-///     verifier's proof was `Ibis` — Galah's icon blended 30% toward
-///     Bilby's — landing at differing 18.16% / mean 20.46% / ink 90.73%,
-///     closer than all 17 of Galah's real comparisons on every axis, and
-///     the OLD law passed silently because Currawong/Cassowary (differing,
-///     mean) and Potoroo/Firetail (ink) never lost the title. See
+///     WHY NOT WATCH ONLY `sorted[0]`, the single global champion: a pair
+///     can crowd substantially and pass in total silence as long as it never
+///     unseats the incumbent. `Ibis` — Galah's icon blended 30% toward
+///     Bilby's — lands closer than all of Galah's real comparisons on every
+///     axis while Currawong/Cassowary (differing, mean) and Potoroo/Firetail
+///     (ink) keep the title, so a champion-only ratchet never sees it. See
 ///     `ibis_near_duplicate_is_caught_without_becoming_champion` below.
 ///
-///     THE FIRST FIX (item 102 round 1) watched a fixed TOP-6 order
-///     statistic instead of only `sorted[0]`. Item 102's OWN independent
-///     verification then broke that fix two ways, both the same underlying
-///     bug — a fixed RANK COUNT has a cliff, and anything past the cliff is
-///     invisible no matter how close it sits:
+///     WHY NOT A FIXED TOP-K ORDER STATISTIC either: a fixed RANK COUNT has
+///     a cliff, and anything past the cliff is invisible no matter how close
+///     it sits. Two ways, both the same underlying bug:
 ///       * a pair can be constructed to land at rank 6, 7 or 8 — just past a
 ///         `K = 6` window — while still sitting inside the roster's own
 ///         measured low cluster (12.3%-28.3% on `differing`); five such
@@ -1442,21 +1398,20 @@ fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
 ///     max (88.39%) and the next real value (94.22%), positioned low enough
 ///     to still catch an `Ibis`-shaped 90.73% erosion. `mean` has no nearby
 ///     cliff — it is a smooth continuum from ~20 up to a distant break at
-///     174 -> 474 spanning HALF the roster (77 of 153 pairs) — so its 70.0
-///     threshold is set with margin above the tightest 10 pairs rather than
-///     at that far cliff; watching the smooth half's full width would turn
-///     `mean` into exactly the size of table item 99 rejected.
+///     174 -> 474 spanning HALF the roster's pairs — so its 70.0 threshold is
+///     set with margin above the tightest 10 pairs rather than at that far
+///     cliff; watching the smooth half's full width would turn `mean` into
+///     exactly the size of table this design rejects.
 ///
-///     THE BLESSED LIST IS BOUNDED, NOT A PER-PAIR TABLE FOR THE ROSTER:
-///     item 99 rejected a 153-row table because every world addition adds
-///     rows with no authored baseline, forcing either a block or a rubber
-///     stamp. `Blessed` never lists a pair outside the danger zone, so an
-///     ordinary new world that crowds nobody (see
+///     THE BLESSED LIST IS BOUNDED, NOT A PER-PAIR TABLE FOR THE ROSTER: a
+///     row per combination of worlds is rejected because every world addition
+///     adds rows with no authored baseline, forcing either a block or a
+///     rubber stamp. `Blessed` never lists a pair outside the danger zone, so
+///     an ordinary new world that crowds nobody (see
 ///     `ordinary_new_world_passes_the_danger_zone_guard`) never touches it —
-///     the list is sized to the roster's measured crowding (12/10/5 entries
-///     today), not to `THEMES.len()`. This is what item 102's own text
-///     offered as the alternative to a per-pair table: "a per-pair baseline
-///     with roster-growth tolerance."
+///     the list is sized to the roster's measured crowding (20/13/6 entries
+///     today), not to `THEMES.len()`. What it is instead is a per-pair
+///     baseline with roster-growth tolerance.
 ///
 ///     THE HONEST COST, MEASURED, NOT ASSERTED: a maintainer picking a new
 ///     world's palette WITHOUT cross-checking it against the shipped roster
@@ -1464,12 +1419,12 @@ fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
 ///     roster's near-black and near-cream grounds already crowd a small
 ///     corner of colour space. A deterministic sweep of 30 non-adversarial
 ///     synthetic worlds (random grounds and inks, no screening against
-///     `THEMES`) against the real 18-world roster tripped the guard on 2/30
+///     `THEMES`) against the shipped roster tripped the guard on 2/30
 ///     (~7%) — real, named, single-pair collisions a maintainer would need
 ///     to look at once and either fix the palette or bless.
 ///
 ///     THIS COST COMPOUNDS WITH BATCH SIZE, MEASURED SEPARATELY: worlds ship
-///     in waves, not one at a time (item 92 landed all 18 in one commit), and
+///     in waves, not one at a time, and
 ///     the ~7% figure above is a per-world rate, not a per-wave one. Sweeping
 ///     batches of 1/3/7 uncurated synthetic worlds together (same
 ///     construction, three independent seeds, 30 trials each) trips the
@@ -1513,28 +1468,22 @@ fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
 ///     source-committed threshold) can distinguish an honest baseline from a
 ///     generous one after the fact, because the ratchet's whole point is to
 ///     tolerate the measured value moving below the committed number by a
-///     bounded amount. This is a review/trust surface, not a code defect:
-///     item 99 already accepted that a re-blessing edit is read by a human
-///     before merge, the same trust any threshold committed to source code
+///     bounded amount. This is a review/trust surface, not a code defect: a
+///     re-blessing edit is read by a human before merge, the same trust any
+///     threshold committed to source code
 ///     carries. Bounded, not fixed: a `git blame` on `axes()` names who
 ///     entered which baseline and when, which is the actual audit trail this
 ///     design relies on.
 ///
-/// The stricter 20% tier the two hand-picked pairs used to carry is GONE, not
-/// weakened: its premise (same face ⇒ at risk) is false by measurement above,
-/// applying it to the computed same-face set would fail today, and the one real
-/// thing it pinned — Potoroo/Firetail told apart, back when their silhouettes
-/// (Block vs Pill) did work their near-identical palette did not — is now
-/// pinned harder and roster-wide by the `ink` axis, on which that pair IS the
-/// global minimum and sits first in `INK_BLESSED`. Item 121 moved Firetail
-/// onto Potoroo's own Block preset, retiring the silhouette split on purpose
-/// (`confusable_pairs_never_share_a_logo_cursor`'s doc); the pair crowded
-/// further on this axis (54.31% -> 49.81%) and on `mean`, which this law
-/// caught and named — the very crowding the item exists to fix. The user's
-/// follow-up ground pick (`IconGround::Blend40`, item 121's C) then REPAIRS
-/// it: ink reopens to 66.42% and mean to 44.89 (still each axis's SECOND
-/// tightest pair after Currawong/Cassowary, and still the `ink` global
-/// minimum, but no longer the crowding the item was filed over).
+/// THERE IS NO STRICTER TIER FOR SAME-FACE PAIRS, and adding one back would
+/// be a mistake: the premise (same face ⇒ at risk) is false by measurement
+/// above, and applying it to the computed same-face set would fail today.
+/// Potoroo/Firetail — the one pair such a tier ever really pinned — share the
+/// Block preset on purpose (`confusable_pairs_never_share_a_logo_cursor`'s
+/// doc), so no silhouette split separates them; what does is Firetail's
+/// `IconGround::Blend40` ground, and the separation is pinned roster-wide by
+/// the `ink` axis, on which that pair IS the global minimum and sits first in
+/// `INK_BLESSED`.
 ///
 /// Non-vacuity: adding a world that clones an existing palette and preset
 /// drives `differing` to ~1% and trips the floor and the danger zone, naming
@@ -1598,8 +1547,8 @@ fn check_pair_axes(pairs: &[Pair]) -> Vec<String> {
         // NAME against `blessed`. Nothing here is counted by rank, so no
         // pair can dodge review by landing one place past a watched window,
         // and no amount of unrelated roster growth can push an
-        // already-known pair out of view — see item 102's doc paragraph on
-        // this function's caller for the two ways a fixed-rank design broke.
+        // already-known pair out of view — see this function's caller for the
+        // two ways a fixed-rank design breaks.
         let mut in_zone: Vec<&Pair> = pairs.iter().filter(|p| read(p) < danger).collect();
         in_zone.sort_by(|x, y| read(x).total_cmp(&read(y)));
         for p in in_zone {
@@ -1637,7 +1586,7 @@ fn check_pair_axes(pairs: &[Pair]) -> Vec<String> {
             }
         }
 
-        // STALE ENTRIES (item 102 round 3): a `Blessed` row the per-pair loop
+        // STALE ENTRIES: a `Blessed` row the per-pair loop
         // above never visits — because its pair no longer exists (a world
         // renamed) or has widened back out of the danger zone — sits inert
         // forever with nothing prompting its removal. Checked against the
@@ -1672,16 +1621,15 @@ fn check_pair_axes(pairs: &[Pair]) -> Vec<String> {
     failures
 }
 
-/// NON-VACUITY (item 102): a pair that crowds badly WITHOUT ever becoming the
-/// single global champion on any axis must still fail. This reproduces
-/// item 102's own verification scenario exactly — `Ibis`, Galah's 32px icon
-/// blended 30% toward Bilby's, channel-and-alpha lerp, `(g, b) -> round(0.7g
-/// + 0.3b)` — inserted as if it were a genuine 19th world: `Ibis` paired
-///   against all 18 real worlds, merged into the full 153-pair set (171
-///   pairs total).
+/// NON-VACUITY: a pair that crowds badly WITHOUT ever becoming the
+/// single global champion on any axis must still fail. The probe is `Ibis`,
+/// Galah's 32px icon blended 30% toward Bilby's, channel-and-alpha lerp,
+/// `(g, b) -> round(0.7g + 0.3b)` — inserted as if it were a genuine extra
+/// world: `Ibis` paired against every real world, merged into the full pair
+/// set.
 ///
-/// Under item 99's OLD single-champion ratchet this passed in total
-/// silence: `Ibis` never displaces Currawong/Cassowary (differing, mean) or
+/// A single-champion ratchet passes this in total silence: `Ibis` never
+/// displaces Currawong/Cassowary (differing, mean) or
 /// Potoroo/Firetail (ink) as the incumbent minimum. Under
 /// `check_pair_axes`'s danger-zone guard it must fail on all three axes —
 /// `Ibis`'s own values (currently 16.60%, 18.72, 84.08%) fall under
@@ -1714,9 +1662,8 @@ fn ibis_near_duplicate_is_caught_without_becoming_champion() {
     let mut pairs = all_real_pairs();
     // Ibis vs every real world, classifying Ibis's own ground against
     // Galah's `base_100` — the blend is only 30% toward Bilby, so Galah's
-    // ground still dominates, and this mirrors exactly how item 102's
-    // verifier measured it (Ibis was never exported, so it has no `Theme`
-    // of its own to read a ground colour off).
+    // ground still dominates, and Ibis is never exported, so it has no
+    // `Theme` of its own to read a ground colour off.
     for t in THEMES.iter() {
         let img = rep_rgba(&icon_bytes(t.name), 32);
         pairs.push(measure_pair(
@@ -1729,11 +1676,10 @@ fn ibis_near_duplicate_is_caught_without_becoming_champion() {
         ));
     }
 
-    // Sanity: replay the same Ibis-vs-Galah construction before asking
-    // whether the law catches it. Item 110 moved Bilby's rendered seat to
-    // 16.80% / 18.77 / 85.57% from item 102's historical 18.16% / 20.46 /
-    // 90.73%; the current global cursor lift moves only its ink figure, to
-    // today's 16.60% / 18.72 / 84.08%, without weakening the probe.
+    // Sanity: replay the same Ibis-vs-Galah construction and pin what it
+    // measures, before asking whether the law catches it. These three numbers
+    // move whenever the rendered cursor geometry does, and re-pinning them is
+    // the deliberate edit that says the probe is still as close as it was.
     let ibis_vs_galah = pairs
         .iter()
         .find(|p| (p.a == "Ibis" && p.b == "Galah") || (p.a == "Galah" && p.b == "Ibis"))
@@ -1774,15 +1720,15 @@ fn ibis_near_duplicate_is_caught_without_becoming_champion() {
     }
 }
 
-/// NON-VACUITY (item 102): an ORDINARY new world that shares no palette with
-/// anything already shipped must still pass the new danger-zone guard — not
-/// only the floor and the old single-champion check — otherwise growing the
-/// roster normally would go red on its own, which is precisely the failure
-/// mode item 99 already rejected a per-pair baseline table for.
+/// NON-VACUITY: an ORDINARY new world that shares no palette with
+/// anything already shipped must still pass the danger-zone guard — not
+/// only the floor — otherwise growing the roster normally would go red on
+/// its own, which is precisely the failure mode a per-pair baseline table
+/// for every combination of worlds has.
 ///
 /// `Probeworld` reuses Galah's silhouette (identical shape at every pixel)
 /// but recolours every ground pixel and every non-ground ("ink") pixel to a
-/// palette that shares nothing with any of the 18 shipped worlds — by
+/// palette that shares nothing with any shipped world — by
 /// construction it can crowd nobody on colour, and its shape is Galah's own,
 /// so it cannot crowd on silhouette either.
 #[test]
@@ -1840,23 +1786,21 @@ fn ordinary_new_world_passes_the_danger_zone_guard() {
     );
 }
 
-/// NON-VACUITY (item 102, ROUND 2 — closing the top-K rank cliff): a pair
-/// constructed to land just PAST a fixed rank window while still sitting
-/// inside the roster's own measured low cluster must still fail. This
-/// reproduces item 102's own independent verification exactly: a
-/// GROUND-PRESERVING clone of a real world — every ground pixel copied
-/// byte-for-byte, every non-ground ("ink") pixel recoloured to a colour that
-/// shares nothing with the original (pure green) — lands in `differing`'s
-/// low cluster (12.3%-28.3%) purely because the ground, which dominates a
-/// 32px tile, matches exactly. Under the item-102-round-1 top-6 order
-/// statistic, five of these landed at ranks 5-8 — past the watched window —
-/// and passed with zero failures. Under the danger-zone guard, rank is not
-/// consulted at all: every one of the five is caught.
+/// NON-VACUITY (the top-K rank cliff): a pair constructed to land just PAST
+/// a fixed rank window while still sitting inside the roster's own measured
+/// low cluster must still fail. A GROUND-PRESERVING clone of a real world —
+/// every ground pixel copied byte-for-byte, every non-ground ("ink") pixel
+/// recoloured to a colour that shares nothing with the original (pure green)
+/// — lands in `differing`'s low cluster purely because the ground, which
+/// dominates a 32px tile, matches exactly. Under a top-6 order statistic
+/// five of these land at ranks 5-8, past the watched window, and pass with
+/// zero failures. Under the danger-zone guard, rank is not consulted at all:
+/// every one of the five is caught.
 #[test]
 fn ground_clone_crowding_is_caught_regardless_of_rank() {
     let _g = crate::testlock::serial();
-    // The exact five worlds the round-1 verification named as landing past
-    // the old top-6 window (ranks 5-8 on `differing`).
+    // The five worlds whose ground-preserving clones land past a top-6
+    // window (ranks 5-8 on `differing`).
     for name in ["Potoroo", "Gumtree", "Mangrove", "Wagtail", "Firetail"] {
         let base = world(name);
         let base_img = rep_rgba(&icon_bytes(base.name), 32);
@@ -1897,11 +1841,10 @@ fn ground_clone_crowding_is_caught_regardless_of_rank() {
     }
 }
 
-/// NON-VACUITY (item 102, ROUND 2 — closing the dilution defect): a KNOWN
-/// erosion (`Ibis`, unchanged) must stay caught even after several ORDINARY
-/// new worlds are added around it — reproducing item 102's own independent
-/// verification, where adding 5-6 ordinary worlds pushed `Ibis vs Galah`
-/// from rank 5 to rank 6 on `ink`, past the old top-6 window, even though
+/// NON-VACUITY (the dilution defect): a KNOWN erosion (`Ibis`, unchanged)
+/// must stay caught even after several ORDINARY new worlds are added around
+/// it. Under a top-6 window, adding 5-6 ordinary worlds pushes `Ibis vs
+/// Galah` from rank 5 to rank 6 on `ink`, past the window, even though
 /// `Ibis`'s own measured value never moved. The danger-zone guard has no
 /// window for growth to push anything past: membership depends only on a
 /// pair's own value.
@@ -2131,7 +2074,7 @@ fn eleven_of_twelve_differing_pairs_at_1_99_percent_fails() {
     }
 }
 
-/// NON-VACUITY (item 102 round 3 — closing the stale-entry gap): a
+/// NON-VACUITY (the stale-entry gap): a
 /// `Blessed` entry whose pair no longer exists in the roster (the shape a
 /// world rename takes) must be flagged, not sit inert forever. Simulated by
 /// dropping Currawong/Cassowary — blessed on all three axes — from the real
@@ -2169,7 +2112,7 @@ fn stale_blessed_entry_for_a_renamed_world_is_flagged() {
     }
 }
 
-/// NON-VACUITY (item 102 round 3 — closing the stale-entry gap, the other
+/// NON-VACUITY (the stale-entry gap, the other
 /// direction): a `Blessed` entry whose pair widened back OUT of the danger
 /// zone — crowding resolved by unrelated palette work, not by review — must
 /// also be flagged, not sit inert. Mutates Currawong/Cassowary's `differing`
@@ -2288,9 +2231,9 @@ fn the_cursor_slugs_are_the_exporters_preset_keys() {
     }
 }
 
-/// ITEM 121's icon-ground capability: every shipped world defaults to the
+/// The icon-ground capability: every shipped world defaults to the
 /// INERT `Base100` state — EXCEPT Firetail, the one world the user actually
-/// chose a blend for (`Blend40`, from the A/B/C comparison sheet), pinned
+/// chose a blend for (`Blend40`), pinned
 /// here by NAME so a change of which world opted in is a conscious edit to
 /// this test, not a silent roster drift. Every OTHER world opting in — now
 /// or later — is exactly the silent regression this law exists to catch: a
@@ -2330,8 +2273,8 @@ fn every_shipped_world_defaults_to_the_inert_base_100_ground_except_firetail() {
 }
 
 /// `Theme::icon_ground_color` is the ONE owner of the blend arithmetic — this
-/// pins it against INDEPENDENTLY computed hexes for Firetail (the world item
-/// 121 is actually about), so a broken `Srgb::lerp` call or a swapped
+/// pins it against INDEPENDENTLY computed hexes for Firetail (the one world
+/// with a non-default ground), so a broken `Srgb::lerp` call or a swapped
 /// endpoint fails here rather than only showing up as an odd-looking tile.
 /// `base_100 = #17090c`, `base_300 = #521629` — hand-computed: 25%/40% of the
 /// way from `(0x17,0x09,0x0c)` to `(0x52,0x16,0x29)` is `(0x26,0x0c,0x13)` /

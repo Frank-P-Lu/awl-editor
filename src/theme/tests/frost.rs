@@ -1,8 +1,7 @@
 use super::super::*;
 
-/// THE FROST PILL CONTRAST LAW (the FROST RAIL round — RE-SCOPED from the retired
-/// whole-margin carve law, which asserted the old flat rail this round replaced).
-/// The shipped headed-doc treatment is now per-entry FROST pills: behind each
+/// THE FROST PILL CONTRAST LAW.
+/// The shipped headed-doc treatment is per-entry FROST pills: behind each
 /// outline entry the lava renders a softened (blurred SMOOTH-field) sample
 /// value-DIMMED toward the flat ground (`crate::lava::frost_pixel` /
 /// `crate::lava::FROST_DIM`), while the lamp stays fully alive between and around
@@ -134,14 +133,13 @@ fn outline_frost_pills_keep_ink_contrast_on_every_lava_world() {
     }
 }
 
-/// THE GUTTER FROST PILL CONTRAST LAW (the de-uglify round — re-scoped from the
-/// old bounded-corner HARD carve this round replaced). The bottom-left page-mode
-/// GUTTER (`TextPipeline::prepare_gutter` — the filename/project stack) used to
-/// HARD-carve its corner out of the lava mask, dropping the band to the flat,
-/// DARKEST page ground (`base_100`) — an ugly geometric dark pocket beside the much
-/// lighter writing column and below the margin's own blob peaks (worst on
-/// Firetail, ground lum ~12 vs column ~60). It now rides the SAME organic FROST
-/// FIELD the outline does (`TextPipeline::gutter_frost_seeds` →
+/// THE GUTTER FROST PILL CONTRAST LAW. The bottom-left page-mode
+/// GUTTER (`TextPipeline::prepare_gutter` — the filename/project stack) must
+/// NOT hard-carve its corner out of the lava mask: that drops the band to the
+/// flat, DARKEST page ground (`base_100`) — an ugly geometric dark pocket
+/// beside the much lighter writing column and below the margin's own blob
+/// peaks (worst on Firetail, ground lum ~12 vs column ~60). It rides the SAME
+/// organic FROST FIELD the outline does (`TextPipeline::gutter_frost_seeds` →
 /// `prepare_lava_layer`'s `seeds`): the lamp renders SOFTENED (a blurred
 /// SMOOTH-field sample, `crate::lava::frost_field`) and value-DIMMED toward the
 /// flat ground (`crate::lava::frost_pixel` / `FROST_DIM`), so the dim gutter ink
@@ -382,14 +380,13 @@ fn frost_recipe_is_a_per_world_capability_defaulting_to_the_shipped_lava_values(
     );
 }
 
-/// ITEM 65's FOLD-AFFORDANCE CAPABILITY law (mirrors
+/// THE FOLD-AFFORDANCE CAPABILITY law (mirrors
 /// `frost_recipe_is_a_per_world_capability_defaulting_to_the_shipped_lava_
 /// values` immediately above — same shape, same reasoning): [`model::FoldAfford`]
 /// is data, never a per-world code path.
 ///
 /// (1) DEFAULT IS INERT: `RenderCaps::DEFAULT.fold_afford` is `FoldAfford::
-///     DEFAULT` (`0.0`/`0.0`) — the bare `faint`/`muted` ladder rung,
-///     byte-identical to every render before this capability existed.
+///     DEFAULT` (`0.0`/`0.0`) — the bare `faint`/`muted` ladder rung.
 /// (2) WELL-FORMED PER WORLD: every world's two lifts sit in `[0.0, 1.0]` (a
 ///     [`Srgb::lerp`] factor — out of range is meaningless, not merely ugly).
 /// (3) ONLY A LAVA WORLD DIALS OFF-DEFAULT: a non-lava world has no glow-lit
