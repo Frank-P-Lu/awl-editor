@@ -125,6 +125,24 @@ decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
+- 🔵 **131e/303's TWO TASTE CALLS, and the second is the interesting one.** Captures at
+  `gallery/item-131e-303/` (gitignored, **copied out of `/tmp` deliberately** — the board
+  already lost one lane's gallery that way). Show `before/Magpie.png` beside
+  `Magpie-cmd.png`; the `*-mark-zoom.png` pair are 8x crops for the register comparison.
+  1. **Magpie's hairline weight is `1.25`** (`reach 4.5`, `aperture 0.55`) — read out of
+     `src/theme/diagonal.rs`, not out of a report. If it now reads too FAINT rather than
+     too heavy, `weight` is the one dial and it moves without touching Mangrove. Worth a
+     second look at Mangrove's `aperture: 1.0` too, now that there is something to
+     compare it against.
+  2. ⚠️ **THE MARK'S DISTANCE FROM ITS ROW'S TEXT IS A TRADEOFF, NOT A BUG.** It hangs
+     off the cluster's BUDGET outer end rather than the accessory column's measured ink
+     — correct under 131's own fixed-surface rule, since a content-derived anchor would
+     make the mark jump on every filter and scroll. But on the many rows carrying no
+     chord the mark sits alone in the outer margin: verified by eye at ~460px from its
+     label on the Command palette. Findable (5/5 vision smoke) but a sweep of the eye
+     rather than a glance. **The alternative breaks the fixed-surface rule, so this is a
+     choose-your-tradeoff question.**
+  3. The mark now SNAPS between rows with no glide — a deliberate no-op, see 303.
 - ✅ **258 AND 260 ARE JUDGED AND CLOSED (2026-08-06).** Fresh captures at
   `gallery/owed-258-260/` (gitignored), judged at the visual-judge tier. **Verdicts:
   KEEP Mulga's `Pinstripe` — the `Gradient` fallback is DECLINED — and KEEP Magpie's
@@ -386,8 +404,30 @@ Order for the next wave:
      16px margin, the ground effectively vanishes and the roster's spread
      collapses toward palette alone.
 
-131. 🟡 IN PROGRESS — claude, branch `claude/item-131e-diagonal-selection`.
-     **Give Mangrove and Magpie mirrored diagonal-line compositions across
+131. **131e IS PART-LANDED (merged 2026-08-06) — the MARK is done, the composition
+     sweep is not.** ✅ The per-world mark is now theme data: `ListStyle::Diagonal`
+     carries `DiagonalSpine { direction, mark: DiagonalMark { weight, reach, aperture } }`
+     as its variant payload, so a world **cannot** author an orientation without a mark
+     and a non-diagonal world cannot carry mark data nothing reads — the
+     never-half-apply guard is the COMPILER's, not a law's. Magpie authors HAIRLINE
+     (1.25/4.5/0.55) against Bitter, Mangrove keeps CRISP (3.0/5.0/1.0) against
+     JetBrains Mono; drawn ink 71px vs 151px where one shared mark gave 148 vs 151.
+     ✅ **The `Choreo::TwoShape` question this item inherited BY NAME was already
+     resolved in the tree and law-tested** (`twoshape_echo_uses_its_own_nearest_planned_row_span`
+     — each shape reads `display_nearest` of its OWN drawn centre, never re-running an
+     animator). Ratified, not rebuilt. **Do not re-dispatch it.**
+
+     🔵 **WHAT 131e STILL OWES, named rather than implied complete:** live filter and
+     scroll TRANSITIONS (only fixed offsets were swept), child-picker return (check
+     `docs/harness-reach.md` before promising a capture), the composition-level pixel
+     laws — orientation, line continuity, inset attachment band, fixed label-control
+     gap, placard/row non-overlap — which are 131e's rather than 303's and each need
+     their own oracle, sidecar geometry agreement (blocked: the sidecar publishes no
+     row geometry, needing item 174's schema bump), and dashboard captures. Covered:
+     480 graded cells over every `OverlayKind` x both worlds x 1x/2x x four canvases x
+     four list shapes, every `SettingId x SettingKind`, hit-test agreement at zoom, and
+     a 5/5 vision smoke. Original body:
+          **Give Mangrove and Magpie mirrored diagonal-line compositions across
      contextual menus and the real Settings workspace.** 131a–d are LANDED;
      **131e is what remains: selection, and the full Verify clause.**
 
@@ -934,8 +974,16 @@ Order for the next wave:
      tree — same blast radius as 275's ~1000 sites.
      **Verify:** each new law mutation-proved. **Routing:** production tier.
 
-303. 🟡 IN PROGRESS with 131e — claude, branch `claude/item-131e-diagonal-selection`.
-     **The diagonal selection marker sits on the wrong side.** It belongs on the
+303. ✅ **LANDED with 131e (merged 2026-08-06).** The mark mirrors to the row's
+     outer edge off ONE `outward()` = `direction.sign()`, with the four pre-existing
+     mirror multiplications routed through it; 284's rotation is fully removed,
+     including both `DIMENSIONLESS` entries in item 242's count-asserting sweep. Five
+     laws whose subject WAS the rotation are retired and six with a real subject
+     replace them. 🔵 **The motion proposal is DECLINED with a reason:** a `Diagonal`
+     world draws no selection band and ships `MotionJuice::CALM`, so there is no ease
+     to ride and a glide means a new positional animator — the machinery the same
+     commit removed. Original body:
+          **The diagonal selection marker sits on the wrong side.** It belongs on the
      row's OUTER edge, away from the spine, mirroring between the two worlds:
 
      ```
