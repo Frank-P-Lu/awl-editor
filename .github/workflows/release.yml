@@ -393,8 +393,17 @@ jobs:
     permissions:
       contents: write
     steps:
+      # NAME THE ARTIFACT. Without `name:`, download-artifact fetches every
+      # artifact in the run and its layout depends on how many it found — the
+      # untested shape that failed the first real tag, which expected an
+      # `artifacts/awl-linux/` subdirectory that was not there. Naming it
+      # downloads exactly this one artifact's files flat into `path`, so the
+      # location is fixed by the input rather than by what else the run
+      # happened to upload. A tag builds Linux alone, so there is nothing
+      # else to fetch anyway.
       - uses: actions/download-artifact@v8
         with:
+          name: awl-linux
           path: artifacts
 
       # SHA256SUMS covers exactly the files about to be attached, computed
@@ -405,7 +414,17 @@ jobs:
           TARBALL: awl-${{ needs.plan.outputs.version }}-linux-x86_64.tar.gz
         run: |
           mkdir -p release
-          cp "artifacts/awl-linux/$TARBALL" release/
+          # Fail LOUDLY and by name if the layout ever moves again. `cp`'s own
+          # "No such file or directory" names a path without saying what was
+          # actually there, which is the diagnosis this step owes its reader:
+          # this job runs only on a real tag, so a bad run here is a broken
+          # public release, and it has no dry run standing behind it.
+          if [ ! -f "artifacts/$TARBALL" ]; then
+            echo "::error::expected artifacts/$TARBALL — downloaded tree was:"
+            find artifacts -type f | sed 's/^/  /'
+            exit 1
+          fi
+          cp "artifacts/$TARBALL" release/
           (cd release && sha256sum "$TARBALL" > SHA256SUMS)
           cat release/SHA256SUMS
 
