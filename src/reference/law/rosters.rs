@@ -309,13 +309,7 @@ fn worlds_md_names_exactly_the_theme_roster() {
 /// table — the document carries later tables (background styles, ornament
 /// families) whose rows are bolded the same way and are not worlds.
 fn bolded_names(doc: &str) -> Vec<String> {
-    let at_a_glance = doc
-        .split_once("## The worlds at a glance")
-        .expect("WORLDS.md carries its at-a-glance table")
-        .1;
-    let at_a_glance = at_a_glance
-        .split_once("\n## ")
-        .map_or(at_a_glance, |(a, _)| a);
+    let at_a_glance = at_a_glance_table(doc);
     at_a_glance
         .lines()
         .filter(|l| l.trim_start().starts_with("| **"))
@@ -326,3 +320,138 @@ fn bolded_names(doc: &str) -> Vec<String> {
         })
         .collect()
 }
+
+/// The at-a-glance table's own text, isolated from the tables that follow it
+/// (background styles, ornament families) — shared by [`bolded_names`] and
+/// [`table_row`] so the two never disagree about which lines are the table.
+fn at_a_glance_table(doc: &str) -> &str {
+    let at = doc
+        .split_once("## The worlds at a glance")
+        .expect("WORLDS.md carries its at-a-glance table")
+        .1;
+    at.split_once("\n## ").map_or(at, |(a, _)| a)
+}
+
+/// One data row of the at-a-glance table, as header-name -> cell-text — by
+/// COLUMN NAME rather than position, so a reordered column cannot silently
+/// compare the wrong cells against each other.
+fn table_row(doc: &str, world: &str) -> Option<std::collections::HashMap<String, String>> {
+    let mut lines = at_a_glance_table(doc)
+        .lines()
+        .filter(|l| l.trim_start().starts_with('|'));
+    let header = lines.next()?;
+    let headers: Vec<String> = header
+        .trim()
+        .trim_matches('|')
+        .split('|')
+        .map(|c| c.trim().split(" (").next().unwrap_or("").trim().to_string())
+        .collect();
+    lines.next(); // the `| --- | --- |` separator row
+    for line in lines {
+        let cells: Vec<String> = line
+            .trim()
+            .trim_matches('|')
+            .split('|')
+            .map(|c| c.trim().to_string())
+            .collect();
+        if cells.len() != headers.len() {
+            continue;
+        }
+        let name_idx = headers.iter().position(|h| h == "World")?;
+        if cells[name_idx].trim_matches('*') == world {
+            return Some(headers.into_iter().zip(cells).collect());
+        }
+    }
+    None
+}
+
+/// A roster font's human headline: a trailing run of `<digits>pt` tokens
+/// dropped. `family: "Newsreader 16pt 16pt"` is the literal family name
+/// fontdb resolves (`render.rs` documents why — changing the roster field
+/// would break Bilby's font resolution), but WORLDS.md is the flavour
+/// document, not the technical one, so its Display column may show the
+/// family alone: `"Newsreader 16pt 16pt"` -> `"Newsreader"`,
+/// `"Fraunces 9pt"` -> `"Fraunces"`, `"Bitter"` -> `"Bitter"` (no-op).
+fn family_headline(font: &str) -> String {
+    let mut words: Vec<&str> = font.split(' ').collect();
+    while let Some(last) = words.last() {
+        let digits = last.strip_suffix("pt").filter(|d| !d.is_empty());
+        if digits.is_some_and(|d| d.chars().all(|c| c.is_ascii_digit())) {
+            words.pop();
+        } else {
+            break;
+        }
+    }
+    words.join(" ")
+}
+
+/// THE DISPLAY/MONO/AXIS DRIFT LAW. `worlds_md_names_exactly_the_theme_roster`
+/// above only checks that a world's NAME appears; nothing checked the six
+/// columns a reader actually uses the table for. Measured before this law
+/// existed: 11 of the 20 rows had drifted — one wrong Display face (Mopoke's
+/// row still named a font no longer in the roster) and ten stale axis tags,
+/// every one in the same direction (the table claiming a Time/Register/
+/// Voice/Temperature the roster had since curated away to `None` — the
+/// "curated maximum of four per band" pass documented above this table
+/// evidently updated `theme/worlds.rs` without updating this table). This law
+/// reads the values instead of trusting the prose, so that drift cannot
+/// recur silently.
+///
+/// A mismatch is fixed by editing WORLDS.md's row to match the roster — NOT
+/// by editing `theme/worlds.rs` to match the table; the tags are a curation
+/// call that belongs to whoever owns the roster, and this law only asks the
+/// two to agree, never which one is "right" when they first disagree.
+#[test]
+fn worlds_md_display_mono_and_axis_match_the_theme_roster() {
+    let _g = crate::testlock::serial();
+    let doc = crate::embedded_docs::WORLDS_MD;
+    for t in crate::theme::THEMES.iter() {
+        let row = table_row(doc, t.name).unwrap_or_else(|| {
+            panic!(
+                "WORLDS.md's at-a-glance table has no row for `{}` — {REGEN_WORLDS}",
+                t.name
+            )
+        });
+        let want_display = |col: &str| {
+            row.get(col)
+                .unwrap_or_else(|| panic!("WORLDS.md's at-a-glance table has no `{col}` column"))
+        };
+        let display = want_display("Display");
+        assert!(
+            display == t.font || *display == family_headline(t.font),
+            "WORLDS.md's `{}` row shows Display `{display}`, but \
+             `theme::THEMES` carries `{}` (allowing only a `<n>pt`-trimmed \
+             headline of it) — {REGEN_WORLDS}",
+            t.name,
+            t.font
+        );
+        assert_eq!(
+            want_display("Mono"),
+            t.mono,
+            "WORLDS.md's `{}` row's Mono has drifted from `theme::THEMES` — \
+             {REGEN_WORLDS}",
+            t.name
+        );
+        for (col, tag) in [
+            ("Time", t.tags.time),
+            ("Register", t.tags.register),
+            ("Voice", t.tags.voice),
+            ("Temp", t.tags.temperature),
+        ] {
+            let want = tag.unwrap_or("—");
+            assert_eq!(
+                want_display(col),
+                want,
+                "WORLDS.md's `{}` row's {col} column reads `{}` but \
+                 `theme::THEMES` tags it `{want}` — {REGEN_WORLDS}",
+                t.name,
+                want_display(col)
+            );
+        }
+    }
+}
+
+const REGEN_WORLDS: &str = "update WORLDS.md's at-a-glance row to match \
+     theme::THEMES (there is no regen script for this document — the table \
+     is hand-written prose except for the fact it must agree with the \
+     roster on)";

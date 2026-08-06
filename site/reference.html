@@ -38,8 +38,18 @@
        REFERENCE.md (the accepted drift risk guide.html carries against
        GUIDE.md): it is the same rows through an HTML emitter, so the two
        documents cannot disagree about a fact. Do not edit a table here —
-       run scripts/regen-reference.sh. -->
-  <section class="credits-page">
+       run scripts/regen-reference.sh.
+
+       The sidebar between the reference-nav markers is generated the same
+       way, from Section::ALL and each section's own captions
+       (src/reference/nav.rs) — it is not a second, hand-typed list of section
+       names. The <section class="ref-section" id="…"> wrappers and <h2>
+       headings around each generated block ARE hand-typed page scaffolding
+       (the tables regenerate; the surrounding prose does not), but
+       src/reference/law/mod.rs's every_section_heading_in_the_page_matches_
+       its_section cross-checks their id and text against Section::anchor()/
+       title() so the two cannot read differently. -->
+  <section class="credits-page ref-page">
     <div class="wrap">
       <p class="eyebrow">Reference</p>
       <h2 class="section-title" style="margin-bottom:1.5rem">Every command, key, setting, world, and construct.</h2>
@@ -53,9 +63,42 @@
         <a href="/guide.html">The guide</a> explains how awl's pieces fit
         together and is a separate document.</p>
 
-        <hr class="rule">
+        <div class="ref-layout">
+<!-- GENERATED:reference-nav:BEGIN -->
+<div class="ref-nav" role="navigation" aria-label="Reference sections">
+<ul>
+<li><a href="#commands">Commands</a>
+<ul>
+<li><a href="#commands-files">Files</a></li>
+<li><a href="#commands-navigate">Navigate</a></li>
+<li><a href="#commands-format">Format</a></li>
+<li><a href="#commands-view">View</a></li>
+<li><a href="#commands-tools">Tools</a></li>
+<li><a href="#commands-settings">Settings</a></li>
+<li><a href="#commands-chords-with-no-command">Chords with no command</a></li>
+</ul>
+</li>
+<li><a href="#settings">Settings</a></li>
+<li><a href="#configuration-file">Configuration file</a>
+<ul>
+<li><a href="#configuration-file-keys">Keys</a></li>
+<li><a href="#configuration-file-numeric-bands">Numeric bands</a></li>
+</ul>
+</li>
+<li><a href="#worlds">Worlds</a></li>
+<li><a href="#markdown">Markdown</a>
+<ul>
+<li><a href="#markdown-constructs">Constructs</a></li>
+<li><a href="#markdown-what-hides-off-the-caret">What hides off the caret</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<!-- GENERATED:reference-nav:END -->
+        <div class="ref-content">
 
-        <h2 id="commands">Commands</h2>
+        <section class="ref-section" id="commands">
+        <h2>Commands</h2>
         <p>Every command carries up to two chord slots. Slot 1 is the
         platform-native binding; slot 2 is an Emacs-style binding. Both fire. A
         cell showing two chords shows both slots.</p>
@@ -64,7 +107,7 @@
         means the command has no default chord on that platform and is reached
         from the command palette, which lists every command by name.</p>
 <!-- GENERATED:reference-commands:BEGIN -->
-<h3>Files</h3>
+<h3 id="commands-files">Files</h3>
 <div class="table-scroll">
 <table>
 <thead>
@@ -95,7 +138,7 @@
 </tbody>
 </table>
 </div>
-<h3>Navigate</h3>
+<h3 id="commands-navigate">Navigate</h3>
 <div class="table-scroll">
 <table>
 <thead>
@@ -125,7 +168,7 @@
 </tbody>
 </table>
 </div>
-<h3>Format</h3>
+<h3 id="commands-format">Format</h3>
 <div class="table-scroll">
 <table>
 <thead>
@@ -156,7 +199,7 @@
 </tbody>
 </table>
 </div>
-<h3>View</h3>
+<h3 id="commands-view">View</h3>
 <div class="table-scroll">
 <table>
 <thead>
@@ -180,7 +223,7 @@
 </tbody>
 </table>
 </div>
-<h3>Tools</h3>
+<h3 id="commands-tools">Tools</h3>
 <div class="table-scroll">
 <table>
 <thead>
@@ -200,7 +243,7 @@
 </tbody>
 </table>
 </div>
-<h3>Settings</h3>
+<h3 id="commands-settings">Settings</h3>
 <div class="table-scroll">
 <table>
 <thead>
@@ -217,7 +260,7 @@
 </tbody>
 </table>
 </div>
-<h3>Chords with no command</h3>
+<h3 id="commands-chords-with-no-command">Chords with no command</h3>
 <p class="note">These two are matched by the keymap directly and cannot be rebound.</p>
 <div class="table-scroll">
 <table>
@@ -231,10 +274,10 @@
 </table>
 </div>
 <!-- GENERATED:reference-commands:END -->
+        </section>
 
-        <hr class="rule">
-
-        <h2 id="settings">Settings</h2>
+        <section class="ref-section" id="settings">
+        <h2>Settings</h2>
         <p>The Settings overlay edits the rows below. A row with a
         <code>config.toml</code> key persists to that key on change; a row
         without one does not persist.</p>
@@ -280,17 +323,17 @@
 </table>
 </div>
 <!-- GENERATED:reference-settings:END -->
+        </section>
 
-        <hr class="rule">
-
-        <h2 id="configuration-file">Configuration file</h2>
+        <section class="ref-section" id="configuration-file">
+        <h2>Configuration file</h2>
         <p>The config file is TOML at
         <code>$XDG_CONFIG_HOME/awl/config.toml</code>, or
         <code>~/.config/awl/config.toml</code> when <code>XDG_CONFIG_HOME</code>
         is unset. awl opens it as ordinary text; saving it reloads it live.
         Precedence is command-line flag, then file, then default.</p>
 <!-- GENERATED:reference-config:BEGIN -->
-<h3>Keys</h3>
+<h3 id="configuration-file-keys">Keys</h3>
 <p class="note">An absent key takes the default below. A command-line flag overrides the file; the file overrides the default.</p>
 <div class="table-scroll">
 <table>
@@ -332,7 +375,7 @@
 </tbody>
 </table>
 </div>
-<h3>Numeric bands</h3>
+<h3 id="configuration-file-numeric-bands">Numeric bands</h3>
 <p class="note">A value outside the band is clamped to it, then snapped to the step.</p>
 <div class="table-scroll">
 <table>
@@ -367,10 +410,10 @@
         Ctrl. <code>linux_keep_emacs</code> lists chords that keep their Emacs
         meaning on Linux where a native binding would otherwise displace
         them.</p>
+        </section>
 
-        <hr class="rule">
-
-        <h2 id="worlds">Worlds</h2>
+        <section class="ref-section" id="worlds">
+        <h2>Worlds</h2>
         <p>A world is a complete visual environment: ground, ink ladder, display
         face, mono face, section-break ornament, and background.
         <a href="https://github.com/Frank-P-Lu/awl-editor/blob/main/THEMES.md">THEMES.md</a>
@@ -409,14 +452,14 @@
 </table>
 </div>
 <!-- GENERATED:reference-worlds:END -->
+        </section>
 
-        <hr class="rule">
-
-        <h2 id="markdown">Markdown</h2>
+        <section class="ref-section" id="markdown">
+        <h2>Markdown</h2>
         <p>The file on disk stays plain text. awl renders it live and shows raw
         markdown on whichever line the caret is on.</p>
 <!-- GENERATED:reference-markdown:BEGIN -->
-<h3>Constructs</h3>
+<h3 id="markdown-constructs">Constructs</h3>
 <p class="note">The file stays plain text. Only the render changes.</p>
 <div class="table-scroll">
 <table>
@@ -442,7 +485,7 @@
 </tbody>
 </table>
 </div>
-<h3>What hides off the caret</h3>
+<h3 id="markdown-what-hides-off-the-caret">What hides off the caret</h3>
 <p class="note">With `wysiwyg = true`, the markup below hides while the caret and the selection are elsewhere.</p>
 <div class="table-scroll">
 <table>
@@ -465,6 +508,10 @@
 </table>
 </div>
 <!-- GENERATED:reference-markdown:END -->
+        </section>
+
+        </div><!-- .ref-content -->
+        </div><!-- .ref-layout -->
       </div>
     </div>
   </section>

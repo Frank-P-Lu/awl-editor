@@ -19,21 +19,21 @@ is). Cohesion is "does this all agree with one line of prose," nothing fancier.
 
 | World          | Ground                      | Margin background | Display             | Mono            | Ornament (`---`/`***`/`___`)                  | Time  | Register | Voice     | Temp    |
 | -------------- | --------------------------- | ----------------- | ------------------- | --------------- | --------------------------------------------- | ----- | -------- | --------- | ------- |
-| **Gumtree**    | pale eucalyptus-green       | Zigzag             | Literata            | Monaspace Xenon | Junicode · botanical sprig / spray / fleur    | Day   | Refined  | Literary  | Cool    |
-| **Bilby**      | palest rose-gold dawn (paled, item 86) | Gradient | Newsreader          | Monaspace Xenon | EB Garamond · ❧ ☙ ❦                           | Dawn  | Refined  | Literary  | Warm    |
-| **Magpie**     | paper-white, high-contrast  | Pinstripe         | Bitter              | Monaspace Xenon | Junicode · quatrefoil / lattice / damask-tile | Day   | Everyday | Literary  | Neutral |
-| **Saltpan**    | warm ecru salt-flat         | Pinstripe         | Fraunces            | Monaspace Xenon | Junicode · running-vine / vine-scroll ×2      | Dawn  | Refined  | Literary  | Warm    |
+| **Gumtree**    | pale eucalyptus-green       | Zigzag             | Literata            | Monaspace Xenon | Junicode · botanical sprig / spray / fleur    | Day   | —        | Literary  | Cool    |
+| **Bilby**      | palest rose-gold dawn (paled, item 86) | Gradient | Newsreader          | Monaspace Xenon | EB Garamond · ❧ ☙ ❦                           | Dawn  | Refined  | —         | —       |
+| **Magpie**     | paper-white, high-contrast  | Pinstripe         | Bitter              | Monaspace Xenon | Junicode · quatrefoil / lattice / damask-tile | Day   | —        | Literary  | Neutral |
+| **Saltpan**    | warm ecru salt-flat         | Pinstripe         | Fraunces            | Monaspace Xenon | Junicode · running-vine / vine-scroll ×2      | Dawn  | Refined  | —         | —       |
 | **Quokka**     | warm peach reef             | Zigzag             | Sour Gummy          | IBM Plex Mono   | Awl Marks · ✿ ❀ ✽                             | Dawn  | Everyday | Modern    | Warm    |
-| **Galah**      | dusty-pink                  | Gradient          | Figtree             | IBM Plex Mono   | Awl Marks · ❁ ❂ ✿                             | Dawn  | Everyday | Modern    | Warm    |
+| **Galah**      | dusty-pink                  | Gradient          | Figtree             | IBM Plex Mono   | Awl Marks · ❁ ❂ ✿                             | Dawn  | —        | Modern    | Warm    |
 | **Potoroo**    | dark burnt-orange           | Stripes           | Monaspace Xenon     | Monaspace Xenon | Awl Marks · ✶ ✦ ◆                             | Dusk  | Humble   | Technical | Warm    |
-| **Mopoke**     | warm charcoal               | Dots              | iA Writer Quattro S | IBM Plex Mono   | Junicode · damask / candelabra / damask-tile  | Dusk  | Humble   | Modern    | Warm    |
-| **Bombora**    | dark violet                 | Waves             | EB Garamond         | Monaspace Xenon | EB Garamond · ☙ ❧ ❦                           | Night | Refined  | Literary  | Cool    |
-| **Mulga**      | blackish-olive              | Pinstripe         | Zilla Slab          | Monaspace Xenon | Junicode · ⁑ ⁂ ❦                              | Night | Everyday | Literary  | Cool    |
+| **Mopoke**     | warm charcoal               | Dots              | Bitter              | IBM Plex Mono   | Junicode · damask / candelabra / damask-tile  | Dusk  | Humble   | —         | —       |
+| **Bombora**    | dark violet                 | Waves             | EB Garamond         | Monaspace Xenon | EB Garamond · ☙ ❧ ❦                           | Night | Refined  | Literary  | —       |
+| **Mulga**      | blackish-olive              | Pinstripe         | Zilla Slab          | Monaspace Xenon | Junicode · ⁑ ⁂ ❦                              | —     | Everyday | —         | —       |
 | **Bowerbird**  | midnight-navy               | Dots              | IBM Plex Sans       | JetBrains Mono  | Awl Marks · ❂ ✴ ◈                             | Night | Everyday | Modern    | Cool    |
 | **Brolga**     | pale sky-blue               | Gradient          | IBM Plex Sans       | IBM Plex Mono   | Awl Marks · ✧ ✴ ⬥                             | Day   | —        | —         | Cool    |
-| **Mangrove**   | dark tidal-teal             | Lava · dithered   | JetBrains Mono      | JetBrains Mono  | Awl Marks · ❖ ◈ ⬥                             | Night | Humble   | Technical | Cool    |
-| **Tawny**      | warm-grey                   | Dots              | IBM Plex Mono       | IBM Plex Mono   | Awl Marks · ✦ ✷ ◈                             | Night | Humble   | Technical | Neutral |
-| **Currawong**  | near-pure-black OLED        | Gradient + stars  | Iosevka             | Iosevka         | Awl Marks · ✷ ✴ ⬥                             | Night | Humble   | Technical | Neutral |
+| **Mangrove**   | dark tidal-teal             | Lava · dithered   | JetBrains Mono      | JetBrains Mono  | Awl Marks · ❖ ◈ ⬥                             | —     | —        | Technical | Cool    |
+| **Tawny**      | warm-grey                   | Dots              | IBM Plex Mono       | IBM Plex Mono   | Awl Marks · ✦ ✷ ◈                             | —     | Humble   | —         | Neutral |
+| **Currawong**  | near-pure-black OLED        | Gradient + stars  | Iosevka             | Iosevka         | Awl Marks · ✷ ✴ ⬥                             | Night | —        | Technical | Neutral |
 | **Wagtail**    | near-black, zero-saturation | Gradient          | JetBrains Mono      | JetBrains Mono  | Awl Marks · ✧ ⭑ ❡                             | Dusk  | —        | —         | —       |
 | **Firetail**   | deep oxblood-charcoal       | Lava · smooth     | Monaspace Xenon     | Monaspace Xenon | Awl Marks · ✷ ✶ ✦                             | —     | —        | —         | Warm    |
 | **Cassowary**  | near-black glass            | Pinstripe         | Iosevka             | Iosevka         | Awl Marks · ◆ ✴ ◈                             | Night | —        | Technical | —       |

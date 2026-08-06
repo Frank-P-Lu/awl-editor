@@ -44,6 +44,7 @@
 
 mod emit;
 mod law;
+mod nav;
 mod rows;
 
 pub(crate) use emit::Table;
@@ -90,6 +91,35 @@ impl Section {
         }
     }
 
+    /// The section's page heading, exactly as `site/reference.html` spells it.
+    /// The heading itself stays hand-typed page scaffolding (the tables
+    /// regenerate; the surrounding prose does not) — but
+    /// `law::every_section_heading_in_the_page_matches_its_section` requires the
+    /// literal text below to appear on the page, so the two cannot read
+    /// differently. NO WILDCARD, same reason as [`Self::marker`].
+    pub(crate) fn title(self) -> &'static str {
+        match self {
+            Section::Commands => "Commands",
+            Section::Settings => "Settings",
+            Section::Config => "Configuration file",
+            Section::Worlds => "Worlds",
+            Section::Markdown => "Markdown",
+        }
+    }
+
+    /// The id `site/reference.html`'s hand-typed section wrapper carries, and
+    /// the fragment the generated nav (`nav::nav_html`) links its top-level
+    /// entry to. Same cross-check as [`Self::title`]. NO WILDCARD.
+    pub(crate) fn anchor(self) -> &'static str {
+        match self {
+            Section::Commands => "commands",
+            Section::Settings => "settings",
+            Section::Config => "configuration-file",
+            Section::Worlds => "worlds",
+            Section::Markdown => "markdown",
+        }
+    }
+
     /// The section's generated content, read fresh from the live rosters.
     /// NO WILDCARD, same reason as [`Self::marker`].
     pub(crate) fn blocks(self) -> Vec<Block> {
@@ -126,7 +156,11 @@ impl Section {
         let mut out = String::new();
         for b in self.blocks() {
             if let Some(c) = &b.caption {
-                out.push_str(&format!("<h3>{}</h3>\n", emit::escape_html(c)));
+                // Same id `nav::nav_html`'s sub-links point at — one function
+                // computes it for both, so a nav entry and its target cannot
+                // read differently.
+                let id = nav::caption_id(self, c);
+                out.push_str(&format!("<h3 id=\"{id}\">{}</h3>\n", emit::escape_html(c)));
             }
             if let Some(n) = &b.note {
                 out.push_str(&format!("<p class=\"note\">{}</p>\n", emit::escape_html(n)));
