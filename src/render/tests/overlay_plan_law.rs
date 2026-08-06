@@ -652,27 +652,7 @@ fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world() 
     }
     crate::render::set_list_style_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
-    // NON-VACUITY OF ARM 2, PROVED AGAINST THE ROSTER RATHER THAN AGAINST TWO
-    // LITERALS. The arm's claim is "the notice row is within ΔE
-    // NOTICE_IS_GROUND_MAX of ground"; that claim only means something on a world
-    // where a plate seated one row too high would actually EXCEED the ceiling. So
-    // every enrolled world's own measured plate presence has to clear it with
-    // margin — otherwise the arm would pass on a world whose plate is too close to
-    // its ground to be detected by the very statistic that grades it.
-    let (tightest, tightest_de) = measured_presence
-        .iter()
-        .copied()
-        .min_by(|a, b| a.1.partial_cmp(&b.1).expect("no NaN ΔE"))
-        .expect("the plated roster is non-empty");
-    assert!(
-        tightest_de > NOTICE_IS_GROUND_MAX * 1.5,
-        "the roster's tightest footer-plate presence is {tightest} at ΔE \
-         {tightest_de:.2}, which does not clear the reads-as-ground ceiling (ΔE \
-         {NOTICE_IS_GROUND_MAX}) by half again. On that world a plate seated a row \
-         too high would measure inside the ceiling, so arm 2's claim is vacuous \
-         there — lower the ceiling or give the plate a rim, never widen the gate. \
-         Measured: {measured_presence:?}"
-    );
+    assert_plate_separation_is_not_vacuous(&measured_presence);
     // ENROLMENT IS THE PLATED ROSTER, DERIVED FROM THEME DATA — never a hardcoded
     // subset of it. A pixel oracle that grades "whichever worlds it happened to be
     // able to see" hardcodes a property of the GPU: this set was once literally
@@ -821,6 +801,34 @@ fn notice_reads_as_ground(
          (ceiling {NOTICE_IS_GROUND_MAX})"
     );
     (plate_presence, notice_lift)
+}
+
+/// **NON-VACUITY OF ARM 2, PROVED AGAINST THE ROSTER RATHER THAN AGAINST TWO
+/// LITERALS.** The arm's claim is "the notice row sits within ΔE
+/// [`NOTICE_IS_GROUND_MAX`] of ground", and that only means something on a world
+/// where a plate seated one row too high would actually EXCEED the ceiling. So
+/// every enrolled world's own MEASURED plate presence has to clear it with margin;
+/// otherwise the arm passes on a world whose plate is too close to its ground to be
+/// detected by the very statistic that grades it.
+///
+/// Written as a named check rather than inline because it is a claim about the
+/// LAW, not about the frame — and because the two floors it relates are the whole
+/// reason the shared luminance constant had to be split.
+fn assert_plate_separation_is_not_vacuous(measured: &[(&str, f64)]) {
+    let (tightest, tightest_de) = measured
+        .iter()
+        .copied()
+        .min_by(|a, b| a.1.partial_cmp(&b.1).expect("no NaN ΔE"))
+        .expect("the plated roster is non-empty");
+    assert!(
+        tightest_de > NOTICE_IS_GROUND_MAX * 1.5,
+        "the roster's tightest footer-plate presence is {tightest} at ΔE \
+         {tightest_de:.2}, which does not clear the reads-as-ground ceiling (ΔE \
+         {NOTICE_IS_GROUND_MAX}) by half again. On that world a plate seated a row \
+         too high would measure inside the ceiling, so arm 2's claim is vacuous \
+         there — lower the ceiling or give the plate a rim, never widen the gate. \
+         Measured: {measured:?}"
+    );
 }
 
 /// **ONE PERCEPTUAL SCALE, TWO FLOORS, AND THE SEPARATION BETWEEN THEM PROVED
