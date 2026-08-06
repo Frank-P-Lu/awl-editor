@@ -26,12 +26,12 @@ fn note_tmp(name: &str) -> ScratchDir {
 
 mod cursor_motion;
 mod edit_ops;
+mod eol_crlf;
 mod kill_yank;
 mod mark_selection;
 mod paste_and_bounds;
-mod undo_redo;
-mod script_roundtrip;
-mod eol_crlf;
 mod quick_notes;
+mod script_roundtrip;
 mod syntax_lang;
+mod undo_redo;
 mod word_delete_boundary;

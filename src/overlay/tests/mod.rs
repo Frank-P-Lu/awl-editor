@@ -53,19 +53,19 @@ fn history_rows() -> Vec<crate::history::TimelineRow> {
 }
 
 mod assets;
+mod caret_date_link;
+mod command_palette;
+mod elision_and_browse;
+mod flat_pickers;
+mod goto_headings;
+mod hints;
+mod history_picker;
+mod hover_keyboard_nav;
+mod keybindings_capture;
+mod kind_roster_laws;
+mod minibuffer_word_motion;
 mod picker_visibility;
 mod project;
-mod command_palette;
-mod goto_headings;
-mod flat_pickers;
-mod caret_date_link;
-mod spell;
-mod history_picker;
-mod keybindings_capture;
-mod hints;
-mod kind_roster_laws;
-mod hover_keyboard_nav;
-mod elision_and_browse;
-mod minibuffer_word_motion;
 mod row_meta_laws;
 mod settings_rail;
+mod spell;
