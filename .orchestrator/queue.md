@@ -125,16 +125,42 @@ decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
-- **258 — a visual-judge pass over Mulga's new `Pinstripe` ground.** Six captures
-  in the lane's worktree `gallery/item-258/` (gitignored). **The question for the
-  judge is the one arithmetic cannot answer:** are fine vertical rules too
-  fabric/corduroy for a literary slab-serif world, and is there enough separation
-  from the other Pinstripe worlds given that ground has no per-world dials beyond
-  palette. **Stated fallback if the verdict is "too technical": `Gradient`, one
-  literal.**
-- **260 — a visual-judge pass over Magpie's new `Bands` ground.** ⚠️ **The lane
-  wrote its gallery shots to a temp dir; re-capture before judging rather than
-  trusting `/tmp`.**
+- ✅ **258 AND 260 ARE JUDGED AND CLOSED (2026-08-06).** Fresh captures at
+  `gallery/owed-258-260/` (gitignored), judged at the visual-judge tier. **Verdicts:
+  KEEP Mulga's `Pinstripe` — the `Gradient` fallback is DECLINED — and KEEP Magpie's
+  `Bands` as rendered.**
+
+  ⚠️ **The first pass was judged on a 16px margin SLIVER and said so**, naming a
+  wide-margin capture as the one configuration that could overturn it — the default
+  1200×800 capture puts the page nearly edge-to-edge, so the ground is barely
+  present. Re-captured at 2000×900 with a 52-char column (~620px of ground per
+  flank) and re-judged; **all three verdicts held under the harder geometry**, with
+  continuity measured rather than assumed (same 9px period, same tones, so it is the
+  same ground seen properly, not a retuning). **A ground question asked of an
+  edge-to-edge capture is asked of almost no ground — set the geometry first.**
+
+  **Why Pinstripe holds:** the shirting read requires crisp DARK rules on a light
+  ground; Mulga is the opposite polarity at a quarter the contrast (ΔL 0.027), so ~70
+  repeats per flank assemble as ribbed dark cloth around a lit page — buckram binding,
+  not wardrobe. **Separation survives field scale** because the three carriers differ
+  in MATERIAL, not tint: Mulga soft tone-on-tone ribbing, Saltpan polarity-flipped
+  crisp tan-on-cream at ΔL 0.120 (laid paper), Cassowary phosphor-green hairlines on
+  blue-black (scanline glass).
+
+  🔵 **RECORDED AS A TRIGGER, NOT A TASK:** Mulga and Cassowary share the
+  light-line-on-dark arm, and their separation rests on hue and room value rather
+  than structure. **If a FOURTH `Pinstripe` carrier lands, or a picker audition ever
+  reads Mulga↔Cassowary as a repaint, a Zigzag-style pitch/weight dial becomes owed —
+  on Mulga first**, as the least structurally distinctive carrier. Nothing is owed
+  today.
+
+  **Why Bands holds:** its pitch is wider than the visible field, so even 2000px shows
+  two soft ~25° boundaries and reads as overlapping paper planes, not stripes. ⚠️ **The
+  angle is AUTHORED** — `Background::Bands { tones, angle }` — so "horizontal bands" in
+  any earlier description was wrong, not the render. Subordination is not close: the
+  ground's whole range is Δ25 gray, soft-edged, margins only.
+
+  **Still live-only for both:** feel in motion and scroll. Nothing else is owed.
 - **211 — an unoccluded LIVE GLIDE CONFIRMATION. ⚠️ THIS IS A LOOK-AND-AGREE,
   NOT A DEFECT: the every-other-input picker selection is FIXED** (`237f97d7`,
   merged `50d6b532`), and the board's old "thrice-reported picker defect" prose
