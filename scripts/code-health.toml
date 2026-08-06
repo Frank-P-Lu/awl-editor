@@ -337,8 +337,8 @@ lines = 630
 
 [[file_size_mark]]
 file = "src/render/chrome/readout.rs"
-lines = 610
-reason = "DOWN 30: the word-count and reading-time derivation moved out to `src/card/figures.rs`, the pure owner over the document text that the semantic fold reads too; what is left here delegates to it. Item 229: `readout_report`'s return type grows a third element (the count's unit), plus its own doc comment naming what it means (+2). Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure."
+lines = 619
+reason = "DOWN 30: the word-count and reading-time derivation moved out to `src/card/figures.rs`, the pure owner over the document text that the semantic fold reads too; what is left here delegates to it. Item 229: `readout_report`'s return type grows a third element (the count's unit), plus its own doc comment naming what it means (+2). Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +9: CANVAS_INSET's unit-family declaration carries the reason it is `Physical` rather than `Logical` — that it records what the bare 8.0s it replaced already were, and that promoting it doubles the inset on Retina and owes a 1x/2x sweep. The note is the deliverable: naming the literal is what brought it under item 242's declaration law at all."
 
 [[file_size_mark]]
 file = "src/render/chrome/theme_picker.rs"
