@@ -127,6 +127,7 @@ fn the_selected_mark_is_an_off_axis_mirrored_chevron_at_every_row_and_reach() {
                     t,
                     b,
                     3.0,
+                    0.0,
                 );
                 let ctx = format!("top {top} height {height} reach {reach}");
                 let mid = (t + b) * 0.5;
@@ -217,7 +218,7 @@ fn the_replaced_tick_and_connector_pair_fails_the_chevron_law() {
     // And it spans the same bounding box the chevron does, which is precisely why
     // an extent-based or count-based law cannot separate them.
     let chevron =
-        crate::render::chrome::diagonal::selected_chevron(spine_x, spine_x + reach, t, b, 3.0);
+        crate::render::chrome::diagonal::selected_chevron(spine_x, spine_x + reach, t, b, 3.0, 0.0);
     let xs = |segs: &[([f32; 2], [f32; 2], [f32; 2])]| {
         segs.iter().fold((f32::MAX, f32::MIN), |(lo, hi), &s| {
             let (a, z) = ends(s);

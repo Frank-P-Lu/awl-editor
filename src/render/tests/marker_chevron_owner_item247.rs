@@ -114,7 +114,7 @@ fn the_diagonal_marker_is_the_shared_chevron_owner_at_a_derived_parameterization
                         let (t, b) = (top + 2.0, top + height - 2.0);
                         let arm_x = spine_x + reach;
                         let drawn = crate::render::chrome::diagonal::selected_chevron(
-                            spine_x, arm_x, t, b, thickness,
+                            spine_x, arm_x, t, b, thickness, 0.0,
                         );
                         let (center, owner_reach, owner_spread) =
                             marker_in_owner_terms(spine_x, arm_x, t, b);

@@ -87,6 +87,10 @@ mod markdown_headings;
 /// symbol with two entry points; the mark's turn is legible at rest because the
 /// shape has no rotational symmetry.
 mod marker_chevron_owner_item247;
+/// ITEM 284 — wiring the marker's turn: the pinned-vertex derivation, the
+/// wrap-aware travel-direction source, and the settled Down/Up tilt, at real
+/// pixels on both diagonal worlds.
+mod marker_travel_item284;
 mod nits;
 mod one_bit;
 mod oracle;

@@ -97,6 +97,54 @@ pub(in crate::render) fn overlay_selected_secondary_ink() -> Option<glyphon::Col
     overlay_selected_secondary_srgb().map(|c| c.to_glyphon())
 }
 
+/// ITEM 284 — THE DIAGONAL MARKER'S TRAVEL-DIRECTION SOURCE: which way the
+/// selection just moved to land on this frame's selected row. `Down` for an
+/// increasing display index, `Up` for a decreasing one — and a WRAP (last row
+/// to first, or first to last) reads as whichever direction the raw index
+/// delta is the SHORTER way round from, so a wrap continuing a held Down
+/// still reads `Down` rather than flipping because the index fell (item 247's
+/// own brief: "a wrap … takes the long way round", named there as the
+/// in-flight glide's own distinction — the settled tilt below only needs the
+/// two-way answer this carries).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::render) enum MarkerTravel {
+    Down,
+    Up,
+}
+
+impl MarkerTravel {
+    /// The signed multiplier `chrome::diagonal::selected_chevron`'s `turn_deg`
+    /// carries before the world's own mirror (`DiagonalDirection::sign`) is
+    /// applied: `+1.0` for `Down`, `-1.0` for `Up`.
+    pub(in crate::render) fn sign(self) -> f32 {
+        match self {
+            MarkerTravel::Down => 1.0,
+            MarkerTravel::Up => -1.0,
+        }
+    }
+
+    /// `prev -> next` among `total` display rows, wrap-aware: the direction
+    /// whose step count (mod `total`) is the SMALLER of the two ways round the
+    /// list. `None` for a no-op (`prev == next`) or a degenerate list (`total
+    /// == 0`) — nothing travelled, so the marker's existing settled tilt
+    /// stands. `prev`/`next` are trusted to be `< total`; an out-of-range
+    /// `prev` (the candidate list reshaped under a live filter) is the
+    /// caller's to guard, not this pure step.
+    pub(in crate::render) fn of(prev: usize, next: usize, total: usize) -> Option<Self> {
+        if prev == next || total == 0 {
+            return None;
+        }
+        let total = total as i64;
+        let forward = (next as i64 - prev as i64).rem_euclid(total);
+        let backward = total - forward;
+        Some(if forward <= backward {
+            MarkerTravel::Down
+        } else {
+            MarkerTravel::Up
+        })
+    }
+}
+
 /// THE ONE answer to "which overlay display rows currently READ as selected".
 ///
 /// Resolved once per frame by [`TextPipeline::resolve_visual_selection`] and
@@ -108,6 +156,14 @@ pub(in crate::render) struct VisualSelection {
     band_top: Option<f32>,
     living: Option<(MotionForce, f32, f32, f32)>,
     rows: Vec<usize>,
+    /// `Some` exactly when this frame's resolve saw the diagonal marker's
+    /// selected row actually CHANGE from the previous frame's; `None` on a
+    /// settled re-render (the marker keeps whatever tilt it already carries)
+    /// and on every world that carries no marker at all. Read only by the
+    /// `#[cfg(test)]` probe below — the PRODUCT reads the turn this drove
+    /// (`Self::diagonal_marker_turn_deg`), never the direction that drove it.
+    #[cfg_attr(not(test), allow(dead_code))]
+    travel: Option<MarkerTravel>,
 }
 
 impl VisualSelection {
@@ -142,6 +198,15 @@ impl VisualSelection {
     pub(in crate::render) fn living(&self) -> Option<(MotionForce, f32, f32, f32)> {
         self.living
     }
+
+    /// ITEM 284 — which way the diagonal marker just travelled this frame, or
+    /// `None` on a re-render that changed nothing. See [`MarkerTravel`]'s own
+    /// doc; a probe seam for the law that grades this against the settled
+    /// turn it drove.
+    #[cfg(test)]
+    pub(in crate::render) fn travel(&self) -> Option<MarkerTravel> {
+        self.travel
+    }
 }
 
 impl TextPipeline {
@@ -171,11 +236,17 @@ impl TextPipeline {
         let logical = plan.selected_display();
         let lh = plan.lh();
         let Some(sel) = logical else {
+            // No item to select: the diagonal marker's travel memory resets
+            // rather than carrying a stale row into whatever this card next
+            // shows selected.
+            self.diagonal_marker_row = None;
             return VisualSelection::default();
         };
         let Some(target) = plan.row_top(sel) else {
+            self.diagonal_marker_row = None;
             return VisualSelection::default();
         };
+        let travel = self.resolve_diagonal_marker_travel(sel, plan.rows().len());
         // The Pane living band, when it is in play: its rects genuinely STRETCH
         // across rows mid-flight, so the covered set is read off the drawn quads.
         let living = matches!(
@@ -230,7 +301,43 @@ impl TextPipeline {
             band_top,
             living,
             rows,
+            travel,
         }
+    }
+
+    /// ITEM 284's DIRECTION SOURCE — compares this frame's selected display row
+    /// `sel` against the row remembered from the PREVIOUS resolve
+    /// (`self.diagonal_marker_row`), and — only on a world whose composition
+    /// carries a marker at all — retargets `self.diagonal_marker_target` to
+    /// the settled tilt the travel calls for
+    /// (`MarkerTravel::sign` × [`chrome::diagonal::MARKER_TRAVEL_TILT_DEG`] ×
+    /// the world's own mirror, `DiagonalDirection::sign` — so Mangrove's `\`
+    /// and Magpie's `/` get mirrored turns from the SAME dial the cluster
+    /// already mirrors on, never a second authored constant).
+    ///
+    /// An upright world, or the first row this card has selected since its
+    /// travel memory was last reset (a fresh/reopened overlay), settles the
+    /// marker at the un-turned baseline (`0.0`, item 247's shipped shape)
+    /// rather than reporting a direction or carrying over a stale tilt.
+    fn resolve_diagonal_marker_travel(&mut self, sel: usize, total: usize) -> Option<MarkerTravel> {
+        let Some(composition) = super::diagonal::active(self) else {
+            self.diagonal_marker_row = None;
+            self.diagonal_marker_target = 0.0;
+            self.diagonal_marker_turn = 0.0;
+            return None;
+        };
+        let prev = self.diagonal_marker_row.replace(sel);
+        let Some(prev) = prev else {
+            self.diagonal_marker_target = 0.0;
+            self.diagonal_marker_turn = 0.0;
+            return None;
+        };
+        let travel = MarkerTravel::of(prev, sel, total);
+        if let Some(t) = travel {
+            self.diagonal_marker_target =
+                t.sign() * super::diagonal::MARKER_TRAVEL_TILT_DEG * composition.direction.sign();
+        }
+        travel
     }
 
     /// TEST PROBE — what each selected visual ACTUALLY committed this frame,
