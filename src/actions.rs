@@ -360,6 +360,19 @@ fn intercept_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     up.then(|| overlay_intercept(ctx, action))
 }
 
+/// The File-menu Export rows stay enabled on every buffer (unlike hiding a row
+/// with genuinely nothing to say — see `commands::row_hidden`'s doc — there IS
+/// something to say: which document kind the command needs), so a non-Markdown
+/// buffer earns this explicit sticky notice instead of the silent no-op an
+/// enabled-but-inert row would be. Never a promise of a path that doesn't
+/// exist (the "reopen for theirs" defect `app/files/external.rs` retired) —
+/// only a fact about the current buffer.
+const EXPORT_REQUIRES_MARKDOWN: &str = "can't export a non-Markdown file";
+
+fn export_requires_markdown_notice() -> Effect {
+    Effect::Notice(NoticeEffect::Sticky(EXPORT_REQUIRES_MARKDOWN.to_string()))
+}
+
 fn apply_export_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     let effect = match action {
         Action::ExportWord if ctx.buffer.is_markdown() => {
@@ -368,14 +381,14 @@ fn apply_export_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
         Action::ExportHtml if ctx.buffer.is_markdown() => {
             Effect::Export(crate::export::Format::Html)
         }
-        Action::ExportWord | Action::ExportHtml => Effect::None,
+        Action::ExportWord | Action::ExportHtml => export_requires_markdown_notice(),
         Action::ExportPdf => {
             #[cfg(not(target_arch = "wasm32"))]
             {
                 if ctx.buffer.is_markdown() {
                     Effect::Export(crate::export::Format::Pdf)
                 } else {
-                    Effect::None
+                    export_requires_markdown_notice()
                 }
             }
             #[cfg(target_arch = "wasm32")]

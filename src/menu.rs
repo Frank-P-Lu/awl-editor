@@ -10,6 +10,8 @@ use crate::keymap::Action;
 mod native;
 #[cfg(target_os = "macos")]
 pub use native::{InstalledMenu, install};
+#[cfg(test)]
+mod ellipsis_law;
 
 /// Context policy shared by the native updater and the roster laws. This stays
 /// platform-neutral so the state transition can be proved without constructing
@@ -124,9 +126,30 @@ const FILE_ITEMS: &[Routed] = &[
         label: "Save and return",
         icon: true,
     },
-    r("awl.export_pdf", "Export as PDF…"),
-    r("awl.export_word", "Export as Word…"),
-    r("awl.export_html", "Export as HTML…"),
+    // The catalog `command` keeps its ellipsis (matches the Cmd-P palette
+    // name, and `resolve()` looks the row up by this exact string) but the
+    // File-menu LABEL drops it: export completes on the spot today, exactly
+    // like Save and Duplicate file — see `menu::ellipsis_law` for the
+    // convention this keeps true. A future real save surface earns the
+    // ellipsis back on its own commit, the same way its own row would.
+    Routed {
+        id: "awl.export_pdf",
+        command: "Export as PDF…",
+        label: "Export as PDF",
+        icon: false,
+    },
+    Routed {
+        id: "awl.export_word",
+        command: "Export as Word…",
+        label: "Export as Word",
+        icon: false,
+    },
+    Routed {
+        id: "awl.export_html",
+        command: "Export as HTML…",
+        label: "Export as HTML",
+        icon: false,
+    },
 ];
 
 const EDIT_ITEMS: &[Routed] = &[
@@ -367,9 +390,9 @@ fn roster_all() -> Vec<RosterMenu> {
                 routed(&FILE_ITEMS[8]), // Save
                 routed(&FILE_ITEMS[9]), // Save and return
                 RosterItem::Separator,
-                routed(&FILE_ITEMS[10]), // Export as PDF…
-                routed(&FILE_ITEMS[11]), // Export as Word…
-                routed(&FILE_ITEMS[12]), // Export as HTML…
+                routed(&FILE_ITEMS[10]), // Export as PDF
+                routed(&FILE_ITEMS[11]), // Export as Word
+                routed(&FILE_ITEMS[12]), // Export as HTML
             ],
         },
         RosterMenu {
@@ -815,9 +838,9 @@ mod tests {
                 "Version history…",
                 "Save",
                 "Save and return",
-                "Export as PDF…",
-                "Export as Word…",
-                "Export as HTML…",
+                "Export as PDF",
+                "Export as Word",
+                "Export as HTML",
             ]
         );
     }
@@ -864,11 +887,14 @@ mod tests {
     }
 
     /// Every routed item's LABEL matches its `commands::COMMANDS` display name
-    /// exactly (menus teach the same words Cmd-P does) — EXCEPT the two
-    /// enumerated macOS App-menu conventions (`awl.about` / `awl.quit`), whose
-    /// labels append "Awl" per every stock system app's About/Quit items. This
-    /// is a real law for File/Edit/View (a typo there would silently diverge
-    /// the menu from the palette), narrowed by name rather than left open.
+    /// exactly (menus teach the same words Cmd-P does) — EXCEPT the enumerated
+    /// rows below, each a deliberate, named divergence: the macOS App-menu
+    /// convention (`awl.about` / `awl.quit` append "Awl"), a shorter File-menu
+    /// phrasing for the same command (`awl.switch_project` and friends), and
+    /// the three Export rows, whose File-menu label drops the catalog name's
+    /// ellipsis (`menu::ellipsis_law` owns why). This is a real law for
+    /// File/Edit/View (a typo there would silently diverge the menu from the
+    /// palette), narrowed by name rather than left open.
     #[test]
     fn roster_routed_labels_match_the_command_catalog_display_names() {
         const EXPLICIT_MENU_LABELS: &[&str] = &[
@@ -881,6 +907,9 @@ mod tests {
             "awl.duplicate_file",
             "awl.finish_buffer",
             "awl.page_width_settings",
+            "awl.export_pdf",
+            "awl.export_word",
+            "awl.export_html",
         ];
         for menu in roster() {
             for item in dropdown_items(&menu) {
@@ -976,8 +1005,8 @@ mod tests {
                 "Move file…",
                 "Duplicate file",
                 "Save",
-                "Export as Word…",
-                "Export as HTML…",
+                "Export as Word",
+                "Export as HTML",
             ]
         );
     }
