@@ -7,7 +7,7 @@
 
 use super::*;
 
-impl App {
+impl SemanticView<'_> {
     pub(super) fn fold_search(&self, nodes: &mut Vec<SemanticNode>) -> String {
         let Some(search) = self.workspace_state.search() else {
             return DOCUMENT_ID.to_string();
@@ -150,7 +150,7 @@ impl App {
     pub(super) fn fold_popover(&self, nodes: &mut Vec<SemanticNode>) -> String {
         let dialog_id = "format-popover";
         let mut dialog = SemanticNode::new(dialog_id, SemanticRole::Dialog, "Formatting");
-        let buffer = self.document.buffer();
+        let buffer = self.buffer();
         let model = actions::popover::plan(
             &buffer.text(),
             buffer.anchor_char(),

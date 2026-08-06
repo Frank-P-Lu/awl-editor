@@ -6,6 +6,10 @@
 //! keyboard (`surfaces.rs`, selected by the `Layer` ladder) and the PASSIVE
 //! ones that are announced without taking focus (`passive.rs`). Requests come
 //! back through `requests.rs`, which ends every arm in an existing owner.
+//!
+//! This file is the only place on the fold side that reads the live `App`: it
+//! owns the live doors, and `semantic_view` narrows the whole application state
+//! down to the [`SemanticView`] every fold below it receives.
 
 use super::*;
 use crate::semantic::{
@@ -19,10 +23,12 @@ mod passive;
 mod projection;
 mod requests;
 mod surfaces;
+mod view;
 
 #[cfg(test)]
 pub(in crate::app) use projection::ProjectionStats;
 pub(in crate::app) use projection::SemanticProjection;
+pub(in crate::app) use view::SemanticView;
 
 /// Ids that both a fold and a request arm must spell identically.
 const SEARCH_ID: &str = "search";
@@ -88,7 +94,7 @@ impl App {
             return;
         }
         let mut projection = self.frame.take_accessibility_projection();
-        projection.refresh(self);
+        projection.refresh(&self.semantic_view());
         self.frame.publish_accessibility(projection);
     }
 
@@ -118,36 +124,70 @@ impl App {
     #[cfg(not(target_arch = "wasm32"))]
     pub(in crate::app) fn seed_accessibility_tree(&mut self) {
         let mut projection = self.frame.take_accessibility_projection();
-        projection.refresh(self);
+        projection.refresh(&self.semantic_view());
         let state = self.document.buffer().runs().state_key();
         self.frame.seed_accessibility(projection, state);
     }
 
-    /// Everything that is NOT the retained document: the active surface named
-    /// by the `Layer` ladder, the passive surfaces that ride on top of it, and
-    /// the notice. Bounded by what is on screen. `nodes[0]` is the root, whose
-    /// `children` the folds append to.
-    pub(in crate::app) fn fold_surfaces(&self, nodes: &mut Vec<SemanticNode>) -> String {
-        // Exactly one ACTIVE surface owns the keyboard, and the ladder — not a
-        // field — is what says which. No wildcard arm: a sixth rung must be
-        // placed here before it compiles.
-        let focus_id = match self.workspace_state.layer() {
-            workspace::Layer::Editor => DOCUMENT_ID.to_string(),
-            workspace::Layer::Popover => self.fold_popover(nodes),
-            workspace::Layer::Search => self.fold_search(nodes),
-            workspace::Layer::Workspace | workspace::Layer::Overlay => self.fold_overlay(nodes),
-        };
+    /// WHICH card is open, asked from the gates alone. The gate is cheap; the
+    /// INPUTS behind it are not — [`crate::card::figures::DocFigures::of`]
+    /// walks the whole document — so a frame with no card up must be able to
+    /// find that out without walking one.
+    pub(in crate::app) fn card_kind_open(&self) -> Option<crate::card::content::CardKind> {
+        let overlay_active = self.workspace_state.overlay_open();
+        crate::card::content::open_kind(
+            crate::card::hud_shown(overlay_active),
+            crate::card::peek_shown(overlay_active),
+        )
+    }
 
-        // PASSIVE surfaces ride on top of whatever holds focus and never take
-        // it: any number may be up at once without disturbing the invariant
-        // the projection asserts.
-        self.fold_passive(nodes);
-
-        if let Some(message) = self.frame.notice().text() {
-            nodes.push(SemanticNode::new(NOTICE_ID, SemanticRole::Status, message));
-            nodes[0].children.push(NOTICE_ID.to_string());
+    /// Everything a summoned card can say, gathered from the `App`'s own state.
+    ///
+    /// The three DOCUMENT figures — word count, frontmatter language, through-
+    /// doc percent — come from [`crate::card::figures`], the pure owner the
+    /// renderer derives them through as well, so no second description of them
+    /// exists to drift. The LIVE-only figures are read back out of the render
+    /// pipeline, which is where the `App`'s own `sync_*` push put them; with no
+    /// pipeline they are the all-absent default, which is exactly the
+    /// placeholder set a headless capture's offscreen pipeline draws.
+    pub(in crate::app) fn card_inputs(&self, text: &str) -> crate::card::content::CardInputs {
+        let buffer = self.document.buffer();
+        let (cursor_line, cursor_col) = buffer.cursor_line_col();
+        let overlay_active = self.workspace_state.overlay_open();
+        crate::card::content::CardInputs {
+            hud_held: crate::card::hud_shown(overlay_active),
+            peek_shown: crate::card::peek_shown(overlay_active),
+            streaks_page: crate::streaks::card_view(),
+            doc: crate::card::figures::DocFigures::of(
+                text,
+                buffer.is_markdown(),
+                cursor_line,
+                cursor_col,
+            ),
+            eol: buffer.eol(),
+            live: self
+                .frame
+                .gpu()
+                .map(|gpu| gpu.pipeline.card_live())
+                .unwrap_or_default(),
         }
-        focus_id
+    }
+
+    /// The card this frame, as CONTENT — composed by the same
+    /// [`crate::card::content::card`] the renderer draws from, and only when
+    /// one is actually open.
+    fn card_content(&self) -> Option<crate::card::content::CardContent> {
+        let kind = self.card_kind_open()?;
+        let text = self.document.buffer().text();
+        Some(crate::card::content::card(kind, &self.card_inputs(&text)))
+    }
+
+    /// The which-key panel's rows when it is up, `None` when it is not — the
+    /// one gate the semantic fold and the live-`App` capture's own `CaptureOpts`
+    /// both read, so the panel is announced exactly when it is drawn.
+    pub(in crate::app) fn whichkey_panel_rows(&self) -> Option<Vec<(String, String)>> {
+        (self.whichkey_is_shown() || crate::whichkey::force_shown())
+            .then(|| self.whichkey_continuation_rows())
     }
 
     /// A one-shot snapshot for the consumers that want a whole value rather
@@ -156,7 +196,7 @@ impl App {
     /// invocations, not frames.
     pub(crate) fn semantic_snapshot(&self) -> SemanticSnapshot {
         let mut projection = SemanticProjection::new();
-        projection.refresh(self);
+        projection.refresh(&self.semantic_view());
         projection.into_snapshot()
     }
 
@@ -219,6 +259,35 @@ impl App {
             }
             other => panic!("unknown semantic fixture {other}"),
         }
+    }
+}
+
+impl SemanticView<'_> {
+    /// Everything that is NOT the retained document: the active surface named
+    /// by the `Layer` ladder, the passive surfaces that ride on top of it, and
+    /// the notice. Bounded by what is on screen. `nodes[0]` is the root, whose
+    /// `children` the folds append to.
+    pub(super) fn fold_surfaces(&self, nodes: &mut Vec<SemanticNode>) -> String {
+        // Exactly one ACTIVE surface owns the keyboard, and the ladder — not a
+        // field — is what says which. No wildcard arm: a sixth rung must be
+        // placed here before it compiles.
+        let focus_id = match self.layer() {
+            workspace::Layer::Editor => DOCUMENT_ID.to_string(),
+            workspace::Layer::Popover => self.fold_popover(nodes),
+            workspace::Layer::Search => self.fold_search(nodes),
+            workspace::Layer::Workspace | workspace::Layer::Overlay => self.fold_overlay(nodes),
+        };
+
+        // PASSIVE surfaces ride on top of whatever holds focus and never take
+        // it: any number may be up at once without disturbing the invariant
+        // the projection asserts.
+        self.fold_passive(nodes);
+
+        if let Some(message) = self.notice.as_deref() {
+            nodes.push(SemanticNode::new(NOTICE_ID, SemanticRole::Status, message));
+            nodes[0].children.push(NOTICE_ID.to_string());
+        }
+        focus_id
     }
 }
 

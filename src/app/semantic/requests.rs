@@ -127,7 +127,7 @@ impl App {
             self.apply_semantic_action(button.action());
             return true;
         }
-        if let Some((menu, item)) = self.menu_item_indices(id) {
+        if let Some((menu, item)) = passive::menu_item_indices(id) {
             crate::menubar::set_open(None);
             let action = crate::menu::roster().get(menu).and_then(|menu| {
                 crate::menu::dropdown_action(menu, item, self.document.buffer().is_markdown())
@@ -142,7 +142,7 @@ impl App {
             self.request_frame();
             return true;
         }
-        if let Some(index) = self.menu_title_index(id) {
+        if let Some(index) = passive::menu_title_index(id) {
             // The same toggle a press on the title performs (`menubar_press`).
             crate::menubar::toggle_open(index);
             self.workspace_state.dismiss_pickers();
@@ -170,7 +170,7 @@ impl App {
     }
 
     fn set_menu_expanded(&mut self, id: &str, expanded: bool) -> bool {
-        let Some(index) = self.menu_title_index(id) else {
+        let Some(index) = passive::menu_title_index(id) else {
             return false;
         };
         crate::menubar::set_open(expanded.then_some(index));

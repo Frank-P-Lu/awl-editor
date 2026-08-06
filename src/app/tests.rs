@@ -26,6 +26,10 @@ mod lifecycle;
 #[cfg(not(target_arch = "wasm32"))]
 mod nav_trace_item211;
 mod openable;
+/// THE SEMANTIC FOLD'S REACH BOUNDARY: the tree-building path sees a narrow
+/// `SemanticView`, not the live `App`. Native-only, like `crate::app::semantic`.
+#[cfg(not(target_arch = "wasm32"))]
+mod semantic_reach;
 mod source_audit;
 mod spell;
 /// ITEM 202: the shared `theme_font_at` debounce that decouples the

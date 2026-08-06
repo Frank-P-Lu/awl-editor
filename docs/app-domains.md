@@ -293,6 +293,98 @@ Configuration is no longer host lifecycle state:
 `ConfigurationRuntime` owns it with the startup location policy that gives its
 `workspace` and `default_folder` settings meaning.
 
+## The other half: REACH
+
+Fields are one axis. The other is how much of the live application any given
+piece of code *can* read, which the field extractions did not change at all:
+44 `impl App` blocks across 38 files, before and after, every one of them able
+to touch all 20 root fields because they are private to `crate::app` and to
+nothing smaller.
+
+### The census that has to come first
+
+A block is the wrong unit — it is a container, not a caller, and a block
+holding twenty single-domain methods is not god-object reach. Measured per
+METHOD (`self.<handle>` over non-test files under `src/app.rs` + `src/app/**`,
+one row per `fn` inside an `impl App`):
+
+| Domains one method touches | Methods | Share |
+| --- | --- | --- |
+| 7 | 1 | 0.3% |
+| 6 | 1 | 0.3% |
+| 5 | 1 | 0.3% |
+| 4 | 12 | 4% |
+| 3 | 37 | 12% |
+| 2 | 71 | 24% |
+| 1 | 127 | 42% |
+| 0 | 51 | 17% |
+
+301 methods; **15 of them (5%) touch four or more domains**, and the two worst
+are the coordinators that are supposed to — `sync_view` (7) is the one
+exhaustive `ViewState` construction site, `run_action_core` (6) is the shared
+action core. Two thirds of all methods touch one domain or none.
+
+So the shape of the remaining defect is not "coordinators reach too far". It is
+that a method touching ONE domain still has the same reach as `sync_view`,
+because `&mut App` is the only handle anyone is offered. The cut that pays is
+**narrowing the handle a subsystem receives**, not moving another field.
+
+### Which subsystem, by domain closure
+
+Grouping those methods by subsystem and taking the union of domains each group
+touches — its *closure*, the narrowest handle that could serve it:
+
+| Subsystem | Methods | Closure |
+| --- | --- | --- |
+| `app/files/` | 86 | 8 (all of them) |
+| `app/input/` | 58 | 5 |
+| `app/apply*` | 32 | 7 |
+| `app/semantic/` | 32 | **3** |
+| `app/window.rs` | 19 | 5 |
+| `app/stats.rs` | 11 | 5 |
+| `app/schedule.rs` | 9 | 5 |
+| `app/viewstate*` | 8 | 7 |
+
+`app/semantic/` is the outlier: the largest subsystem whose closure is narrow
+enough that a typed handle is a boundary rather than a rename.
+
+### `SemanticView` — the fold's narrow borrow
+
+Building the accessibility tree is a READ over the document and the summoned-UI
+ladder. It took `&App`, so it could equally read the clipboard, the daemon
+socket, the usage ledger and the GPU.
+
+`App::semantic_view` is now the one place the whole `App` is read on the fold
+side. It hands down a `SemanticView` holding two borrows — `DocumentSession`
+and `WorkspaceState` — and three VALUE snapshots the frame already had to
+compute: the summoned card as finished `CardContent`, the which-key rows, and
+the notice text. Values rather than borrows for the same reason
+`InputRuntime`'s `RestingPointer` is one: a fold that held a live handle could
+retain it, and the narrowing would be a habit rather than a boundary.
+
+`surfaces.rs`, `passive.rs` and the retained `projection.rs` — the whole
+tree-building path — can no longer NAME `App`. `mod.rs` keeps the live doors
+and the narrowing constructor; `requests.rs` keeps the `App` because every arm
+of it genuinely ends in another owner's verb (`App::apply`, `sync_view`,
+`request_frame`), which is mutation, not fold.
+
+Two things have to stay true for that to be a boundary, and Rust expresses
+neither — `SemanticView` and `App` are both nameable from anywhere under
+`crate::app`. `semantic_fold_reads_only_the_narrow_view` in
+`app/tests/semantic_reach.rs` asserts both, with a wildcard-free roster swept
+against the directory: a fold file may not name `App` as an identifier, and the
+view's field roster is pinned so it cannot grow a handle to a fourth domain
+without a conscious edit.
+
+The block count barely moves and is the wrong headline: two `impl App` blocks
+go (`surfaces.rs`, `passive.rs`) and the narrowing constructor adds one back in
+`view.rs`, so 44 becomes 43. The load-bearing number is the file one. Counting
+the five fold/request files and setting aside `bench.rs` (a `--bench-a11y`
+harness that builds its own `App` to measure against), **the files that can
+reach root `App` state fall from 5 to 3** — `mod.rs`, `requests.rs`, and the
+63-line `view.rs` — and the 789 lines of fold beneath them can now read only
+what the view names.
+
 ## Where the item's premise was wrong
 
 1. **`WorkspaceState` names two different domains.** Item 172 lists it beside
@@ -320,7 +412,18 @@ Configuration is no longer host lifecycle state:
    this rule", and the privacy gate — one toggle, seven readers, two modules —
    was dispersed by exactly the measure the map was not taking. A field group
    that lives in one file can still hold a rule that does not.
-4. **Render and scheduling are one frame lifecycle.** Theme/crossing stamps,
+4. **`app/files/` was the wrong first reach cut.** The `UsageLedger` slice
+   closed by naming it: ten `impl App` blocks that are really
+   `DocumentSession` + `PersistenceRuntime` + `ProjectLocation` collaboration,
+   convertible into one `FileOps` owner. Measured, that triple covers **30 of
+   the 71** domain-touching methods under `app/files/`; the other 41 need a
+   fourth domain, and `ConfigurationRuntime` (21 methods) is reached there more
+   often than `PersistenceRuntime` (18) or `ProjectLocation` (14). A `FileOps`
+   wide enough to serve the subsystem needs seven of the eight handles, which
+   is `&mut App` with a different name — `app/files/` has the WIDEST closure of
+   any subsystem, not a narrow one. It is a real decomposition target on the
+   dispersion axis this map already measures; it is not a reach target.
+5. **Render and scheduling are one frame lifecycle.** Theme/crossing stamps,
    present-sync claims, GPU recovery, and redraw retirement cross the proposed
    render/scheduler line. `FrameRuntime` therefore owns the lifecycle as one
    domain; render planning remains separately owned by the planner work.
