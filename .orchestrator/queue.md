@@ -564,6 +564,35 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      user's — re-sectioning is cheap since the marker pairs and `Section::ALL` are
      the only coupling.
 
+     ✅ **(6) IS DECIDED 2026-08-06 — KEEP IT.** User: "273, i think that's
+     fine." The five sections stand for `REFERENCE.md`; no re-sectioning.
+
+     🔴 **(5) IS PROMOTED FROM "UNREVIEWED" TO A BUILD TASK, and it is the real
+     remaining work.** User: *"it's not really friendly as a webpage? we should
+     divide the sections up i think.... yknow, what a typical docs page looks
+     like."* `site/reference.html` is today one long emitted scroll — the
+     markdown's own shape pushed through an HTML emitter. **A reference someone
+     browses in a browser needs the conventions of a docs site**: persistent
+     section navigation, anchored and linkable headings, and the sections
+     genuinely divided rather than stacked. Commands alone is ~43% of the
+     document and is a single undifferentiated wall on the page.
+
+     ⚠️ **THE CONSTRAINT THAT MAKES THIS NON-TRIVIAL, and it is this item's whole
+     achievement: the site page is NOT a hand-mirror.** It is the same generated
+     rows through an HTML emitter, held by the drift laws, "so the two cannot
+     disagree about a fact." **Any restructuring must keep that property** — the
+     navigation and division are emitted from `Section::ALL` and the same
+     rosters, never hand-authored beside them, or the next roster change silently
+     desynchronises the page from the manual. **A hand-written sidebar would
+     forfeit the one guarantee this feature exists to provide.** Splitting into
+     multiple PAGES is permitted only if the split is likewise generated.
+     **Scope:** the site page's presentation only — `REFERENCE.md`'s content and
+     sectioning are settled above and do not move. **Verify:** the drift laws
+     still hold across the restructure; every section reachable and linkable;
+     the page reviewed on a real browser at desktop and narrow widths. ⚠️ **Zero
+     network is a design invariant — no CDN, no webfont fetch, no script from
+     off-host.** **Routing:** production tier.
+
      ⚠️ **THE LESSON THE RESIDUALS SIT ON: GENERATION IS NOT SAFETY; IT MOVES THE
      ERROR FROM TRANSCRIPTION TO SOURCING.** The spot-check found three defects in
      its own first pass, all the same shape — generated from the wrong owner:
@@ -894,9 +923,18 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      blurring under it is invisible and wasteful; gate on the plateless
      compositions rather than paying for it everywhere.
 
-     **Scope:** the THEME picker only. The caret picker shares the crisp
-     exception and the same preview rationale — **decide it consciously, do not
-     sweep it in**. ⚠️ **THE EXCEPTION IS `Theme | Caret` AND NOTHING ELSE**
+     ✅ **SCOPE DECIDED 2026-08-06: BOTH CRISP PICKERS, AND NO CARVE-OUTS.**
+     User: *"we're only blurring the area UNDER the theme picker... so if it's
+     over the caret then it should be blurred too."* **The footprint is the
+     whole rule** — whatever the card covers is blurred, including the caret if
+     the card happens to sit over it, and the caret picker takes the identical
+     treatment rather than staying excepted. **Do not carve the caret out of the
+     blurred region** and do not special-case the two pickers against each other.
+     ⚠️ **One consequence to watch live rather than design around:** a caret
+     picker card positioned over the caret will blur the very caret it previews.
+     If that reads badly in use it is an ANCHORING question — where the card
+     opens relative to the caret — **not a reason to reintroduce a carve-out.**
+     ⚠️ **THE EXCEPTION IS `Theme | Caret` AND NOTHING ELSE**
      (`src/app/viewstate.rs:165`) — an earlier draft of this item said the
      HISTORY picker was also in it, on the strength of
      `render/chrome/outline.rs`'s prose "the CRISP theme/caret/history pickers".
@@ -1116,8 +1154,33 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      `TOAST_LIFETIME = 2500 ms` — sub-body size, muted ink, bottom-centre, gone
      in two and a half seconds.
 
-     **Build:** a notice a writer actually registers without it becoming chrome
-     that nags. **The tension is real and is the whole design problem:**
+     🔴 **THE PREMISE CHANGED 2026-08-06 — DEBUG BEFORE REDESIGNING.** User: *"i
+     havent even seen it. i think there's a bug that's preventing it from
+     showing. we should debug and fix this."* **This item was written as a taste
+     problem (a notice too quiet to notice) and must now first answer a factual
+     one: does the toast render AT ALL on the live path?** ⚠️ **Do not open with
+     a redesign.** Establish, in this order: (1) does `set_toast_notice` reach
+     `frame`; (2) does `notice_readout_text()` return it; (3) does
+     `prepare_notice` place it on-screen rather than parking it off; (4) does the
+     frame carrying it actually present. **A redesign of something that never
+     draws is wasted work, and the evidence genuinely points both ways** — the
+     ink/size/position/dwell are all quiet enough to explain "never seen", AND
+     `--screenshot-app` renders no toast for any action (item 296), which is
+     equally consistent with a real defect on a shared path. **Whichever it is,
+     say so plainly** — "premise false, oracle repaired" and "fixed" read
+     identically on a board six weeks later and only one means the product
+     changed.
+
+     ✅ **AND IT MUST REACH THE CLI/HEADLESS PATH TOO** — user, same message:
+     "make it show up in the cli commands too." **This merges with item 296's
+     harness gap:** no capture has ever photographed a toast, and the comment
+     asserting none ever could is itself false. A notice the harness cannot see
+     is a notice no law can hold. **Sequence 296's repair with this item's
+     debugging rather than separately** — they may well be the same defect, and
+     if they are, that is the finding.
+
+     **Build (only once the above is answered):** a notice a writer actually
+     registers without it becoming chrome that nags. **The tension is real and is the whole design problem:**
      DESIGN.md gives motion to the caret alone and favours summoned overlays over
      persistent chrome, so the answer is NOT a bouncing banner. Candidate axes to
      weigh — dwell time (2500 ms is short for a line you were not looking at),
