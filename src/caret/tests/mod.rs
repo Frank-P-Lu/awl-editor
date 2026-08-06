@@ -17,6 +17,7 @@ use super::*;
 
 mod impact;
 mod mode;
+mod pipeline;
 mod spring_settle;
 mod streak_underline;
 mod trail;

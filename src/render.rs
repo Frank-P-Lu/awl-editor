@@ -2515,16 +2515,10 @@ pub struct TextPipeline {
 /// Convert an 8-bit sRGB RGBA quad to LINEAR-light rgb (alpha dropped), for the
 /// frosted-blur composite's dim-toward-base_100 (the blur targets are sRGB, so the
 /// shader's `mix` must happen in linear space). Same curve the selection /
-/// background pipelines use.
+/// background pipelines use — all route through `theme`'s one `f32`-width sRGB
+/// EOTF.
 fn srgb_u8_to_linear3(c: [u8; 4]) -> [f32; 3] {
-    fn ch(u: u8) -> f32 {
-        let s = u as f32 / 255.0;
-        if s <= 0.04045 {
-            s / 12.92
-        } else {
-            ((s + 0.055) / 1.055).powf(2.4)
-        }
-    }
+    let ch = theme::srgb_channel_to_linear_f32;
     [ch(c[0]), ch(c[1]), ch(c[2])]
 }
 

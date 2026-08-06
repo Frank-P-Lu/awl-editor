@@ -13,20 +13,49 @@ pub struct Srgb {
     pub a: u8,
 }
 
-/// One 8-bit sRGB channel as LINEAR light — the sRGB EOTF, IEC 61966-2-1.
+/// Defines one sRGB-EOTF (IEC 61966-2-1) channel converter at a chosen float
+/// width, from ONE literal body — so the transfer function's constants
+/// (`0.04045`, `12.92`, `0.055`, `1.055`, `2.4`) are typed exactly once and
+/// the `f64`/`f32` entry points below cannot drift apart by a hand-edit to
+/// just one of them.
 ///
-/// The same transfer function the shader-side converters apply
-/// (`selection::srgba_u8_to_linear` and its siblings in `background`, `lava`,
-/// `caret` and `render`); agreement with one of them is pinned by this module's
-/// tests, since a second definition of a transfer function is a second answer
-/// waiting to disagree.
-pub(crate) fn srgb_channel_to_linear(c: u8) -> f64 {
-    let s = c as f64 / 255.0;
-    if s <= 0.04045 {
-        s / 12.92
-    } else {
-        ((s + 0.055) / 1.055).powf(2.4)
-    }
+/// Two widths, not one, because `f64`-then-cast-to-`f32` is NOT bit-identical
+/// to computing in `f32` throughout: measured over all 256 byte values,
+/// `srgb_channel_to_linear(c) as f32` disagrees with a pure-`f32` evaluation
+/// of this same rule on 214 of them, by up to 6 ULP (`powf` rounds
+/// differently at each width). Every shader-side call site below computes in
+/// `f32` today, and a refactor that changed its drawn pixel would be a
+/// regression, not a cleanup — so the width is part of each call site's
+/// contract, not an implementation detail this macro is free to normalize
+/// away.
+macro_rules! srgb_eotf_channel {
+    ($(#[$meta:meta])* $name:ident -> $t:ty) => {
+        $(#[$meta])*
+        pub(crate) fn $name(c: u8) -> $t {
+            let s = c as $t / 255.0;
+            if s <= 0.04045 {
+                s / 12.92
+            } else {
+                ((s + 0.055) / 1.055).powf(2.4)
+            }
+        }
+    };
+}
+
+srgb_eotf_channel! {
+    /// One 8-bit sRGB channel as LINEAR light, in `f64` (`wgpu::Color`'s own
+    /// width) — used by [`Srgb::to_wgpu_clear`], and by tests that want the
+    /// EOTF as a perceptual oracle independent of shader-side `f32` rounding.
+    srgb_channel_to_linear -> f64
+}
+
+srgb_eotf_channel! {
+    /// One 8-bit sRGB channel as LINEAR light, in `f32` — the exact width
+    /// every shader-side converter computes in. `selection::srgba_u8_to_linear`
+    /// and its siblings in `background`, `caret`, `lava`, `render` and
+    /// `spellunderline` all route through this function, so the tree carries
+    /// one definition of the rule at the width each of them actually needs.
+    srgb_channel_to_linear_f32 -> f32
 }
 
 impl Srgb {

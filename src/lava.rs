@@ -914,16 +914,10 @@ impl LavaPipeline {
 }
 
 /// Convert an opaque sRGB u8 color to linear-light rgba for the shader (the
-/// render target is sRGB). Same converter as the background pipeline's.
+/// render target is sRGB). Same converter as the background pipeline's — both
+/// route through `theme`'s one `f32`-width sRGB EOTF.
 fn srgb_u8_to_linear(c: Srgb) -> [f32; 4] {
-    fn ch(u: u8) -> f32 {
-        let s = u as f32 / 255.0;
-        if s <= 0.04045 {
-            s / 12.92
-        } else {
-            ((s + 0.055) / 1.055).powf(2.4)
-        }
-    }
+    let ch = crate::theme::srgb_channel_to_linear_f32;
     [ch(c.r), ch(c.g), ch(c.b), 1.0]
 }
 

@@ -306,16 +306,10 @@ impl SpellUnderlinePipeline {
 
 /// Convert an 8-bit sRGB RGBA quad to linear-light floats for the shader (the
 /// render target is sRGB, so the GPU expects linear color it re-encodes on
-/// write). Alpha is linear already. Identical to selection.rs.
+/// write). Alpha is linear already. Routes through `theme`'s one `f32`-width
+/// sRGB EOTF, the same one `selection::srgba_u8_to_linear` uses.
 fn srgba_u8_to_linear(c: [u8; 4]) -> [f32; 4] {
-    fn ch(u: u8) -> f32 {
-        let s = u as f32 / 255.0;
-        if s <= 0.04045 {
-            s / 12.92
-        } else {
-            ((s + 0.055) / 1.055).powf(2.4)
-        }
-    }
+    let ch = crate::theme::srgb_channel_to_linear_f32;
     [ch(c[0]), ch(c[1]), ch(c[2]), c[3] as f32 / 255.0]
 }
 
@@ -355,6 +349,39 @@ mod tests {
         assert!((c[3] - 0.8784314).abs() < 1e-4);
         for channel in c.iter().take(3) {
             assert!(*channel >= 0.0 && *channel <= 1.0);
+        }
+    }
+
+    /// **BIT-IDENTITY, OVER EVERY BYTE.** `srgba_u8_to_linear` used to carry
+    /// its own inline per-channel loop, undocumented as a duplicate anywhere
+    /// else in the tree; it now calls `theme::srgb_channel_to_linear_f32`,
+    /// the one owner every shader-side EOTF converter shares. This is the
+    /// pre-refactor formula, written out independently (mirrors
+    /// `background::tests`'s identical law) so a regression in the shared
+    /// owner cannot also hide from the test meant to catch it.
+    #[test]
+    fn srgba_u8_to_linear_is_bit_identical_to_the_pre_refactor_formula_over_every_byte() {
+        fn reference_channel(u: u8) -> f32 {
+            let s = u as f32 / 255.0;
+            if s <= 0.04045 {
+                s / 12.92
+            } else {
+                ((s + 0.055) / 1.055).powf(2.4)
+            }
+        }
+        for v in 0u8..=255 {
+            let want = reference_channel(v);
+            let c = srgba_u8_to_linear([v, v, v, v]);
+            for (i, ch) in c.iter().take(3).enumerate() {
+                assert_eq!(
+                    ch.to_bits(),
+                    want.to_bits(),
+                    "byte {v} channel {i}: got {ch} ({:#010x}), want {want} ({:#010x})",
+                    ch.to_bits(),
+                    want.to_bits()
+                );
+            }
+            assert_eq!(c[3], v as f32 / 255.0, "alpha stays a linear passthrough");
         }
     }
 
