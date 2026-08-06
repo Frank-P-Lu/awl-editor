@@ -1314,6 +1314,35 @@ fn a_rules_lens_strip_marks_its_active_tab_with_a_rule_and_draws_no_pill() {
                      {lh} — a mark that thick is a pill, not a rule",
                     strip[3]
                 );
+                // AND IT IS VISIBLE, in real pixels, at BOTH scales. This is the
+                // arm that makes the tab decision an evidence-backed one rather
+                // than a structural claim: the strip's mark is `FacetStyle`'s
+                // underline, whose height is a raw device-pixel `1.5` that does
+                // NOT scale (measured: identical at DPI 1 and DPI 2 while every
+                // other term doubles). A rule that thin could have vanished into
+                // the ground on a Retina frame; it does not, and this says so by
+                // arithmetic rather than by reading the constant.
+                let px = render_frame(&mut p, &device, &queue, cw, ch);
+                let sx = (strip[0] + strip[2] * 0.3) as i64;
+                let sw = (strip[2] * 0.4).max(2.0) as i64;
+                let on = avg(&px, cw as i64, ch as i64, sx, strip[1] as i64, sw, 1);
+                let off = avg(
+                    &px,
+                    cw as i64,
+                    ch as i64,
+                    sx,
+                    (strip[1] + strip[3] + 3.0) as i64,
+                    sw,
+                    1,
+                );
+                let step = redmean(on, off);
+                assert!(
+                    step >= 20.0,
+                    "{ctx}: the active-lens underline {strip:?} reads {on:?} against the ground \
+                     just below it {off:?} — only redmean {step:.1}. If the strip's one mark is \
+                     invisible then a `Rules` strip really is bare, and the tab question is \
+                     still open."
+                );
                 assert!(
                     p.overlay_theme_facet_ghosts.is_empty(),
                     "{ctx}: an inactive tab gets no ghost pill either"

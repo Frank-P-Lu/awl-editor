@@ -1040,9 +1040,7 @@ pub const PAPERBARK: Theme = Theme {
     role_overrides: RoleOverrides::NONE,
     render_caps: RenderCaps {
         elevation: Elevation::Bordered,
-        // ⚠️ THE ONE CARRIER OF THE `Rules` PROTOTYPE, and a prototype is what
-        // it is: the surface sweep, the Settings workspace and the pixel-law
-        // suite a real row composition owes are all still unwritten. Paperbark
+        // THE ONE CARRIER OF `Rules`, the quiet fourth composition. Paperbark
         // holds it because its ground is already a MATERIAL — Deckle's
         // `Weave::Strata` lays contour lanes that gather around the writing
         // column — so a card summoned over it reads as an object dropped on a
@@ -1053,7 +1051,8 @@ pub const PAPERBARK: Theme = Theme {
         // made of the list's own substance and the row's interior stays plain
         // ground. `Gutter` — a short heavy dash hanging in the margin — remains
         // drawable as `AWL_OVERLAY_LIST_FORCE=rules:gutter`, and is the quieter
-        // of the two by a wide margin at 1x.
+        // of the two by a wide margin at 1x. Which further worlds adopt this is
+        // a taste call and nothing here is waiting on it.
         list_style: ListStyle::Rules(RuleSelection::Weight),
         ..RenderCaps::DEFAULT
     },

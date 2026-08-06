@@ -305,8 +305,8 @@ pub(in crate::render) use overlay::{
 // work. A cohesive physical carve, byte-identical pixels — see the file's own doc.
 mod overlay_draw;
 mod overlay_rows;
-// The `Rules` PROTOTYPE's whole composition, in one file so it can graduate
-// or be lifted out as one thing.
+// The `Rules` composition entire, in one file: its lengths, and the one owner
+// (`rules_ink`) both the picker rows and the workspace rail come out of.
 pub(in crate::render) mod overlay_rules;
 use overlay_rules::{RULE_ROW_AIR, RULES_TEXT_HPAD};
 mod overlay_selection;

@@ -985,11 +985,12 @@ fn spell_popup_floats_bare_on_bars_keeps_the_card_on_pane() {
                     t.name
                 );
             }
-            // The `Rules` PROTOTYPE. Its claim is structural and negative — no
-            // card and no plate — so that is what this arm asserts, including
-            // the one thing neither selection treatment is allowed to do. The
-            // full pixel suite a shipped composition owes is not here, which is
-            // what keeps the style a prototype.
+            // `Rules`. Its claim is structural and negative — no card and no
+            // plate — so that is what this arm asserts on the spell popup,
+            // including the one thing neither selection treatment is allowed to
+            // do. The composition's own suite — the full `OverlayKind` sweep,
+            // the workspace, `SettingId × SettingKind`, the pixel laws — is
+            // `render/tests/rules_composition_item283.rs`.
             theme::ListStyle::Rules(_) => {
                 assert_eq!(
                     float_n, 0,
