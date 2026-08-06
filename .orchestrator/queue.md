@@ -877,7 +877,8 @@ Order for the next wave:
      scrolled and empty lists — the empty-state notice row shares this band and
      has collided with the footer before. **Routing:** production tier.
 
-294. **Blur the theme picker's own footprint.** On plateless worlds — `Diagonal`
+294. 🟡 IN PROGRESS — claude, branch `claude/item-294-blur-footprint`.
+     **Blur the theme picker's own footprint.** On plateless worlds — `Diagonal`
      (Mangrove, Magpie) and `Rules` (Paperbark) — the document and the list
      interleave glyph-for-glyph. Frost is a property of the plate and those
      compositions draw none.
@@ -983,7 +984,8 @@ Order for the next wave:
      already had two production sticky callers before that, so this was never a
      test-only channel.
 
-301. **Export through the platform's own picker.** `mac_chrome::pick_file_to_open`
+301. 🟡 IN PROGRESS — claude, branch `claude/item-301-export-picker`.
+     **Export through the platform's own picker.** `mac_chrome::pick_file_to_open`
      already drives a real `NSOpenPanel`, wired at `app/menu.rs:56`, so the modal
      seam and its live-only caveat already ship — the parked save-dialog cost
      estimate should be re-derived, not inherited.
@@ -1124,7 +1126,8 @@ Order for the next wave:
      swept over the roster × selection state — the shape item 306's new
      `range_rail` law already uses. **Routing:** production tier.
 
-310. **FIVE COPIES OF THE sRGB EOTF, AND THE SCOPE IS ALREADY MEASURED.** `background.rs`,
+310. 🟡 IN PROGRESS — claude, branch `claude/item-310-eotf-owner`.
+     **FIVE COPIES OF THE sRGB EOTF, AND THE SCOPE IS ALREADY MEASURED.** `background.rs`,
      `lava.rs`, `render.rs`, `selection.rs`, `caret.rs`. Item 306's lane judged this a
      **bounded follow-up, not a wide refactor**, and gave the reason: each is one private
      per-channel loop with identical constants, differing only in float width and return
