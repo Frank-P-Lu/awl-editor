@@ -17,11 +17,11 @@ const CLUSTER_CONNECTOR: Logical = Logical(10.0);
 const SELECTED_OUTWARD: Logical = Logical(4.0);
 const SELECTED_SPINE_WEIGHT: Logical = Logical(3.0);
 
-/// ITEM 284 — the selected marker's RESTING tilt off its base pointing angle
+/// THE SELECTED MARKER'S RESTING TILT off its base pointing angle
 /// (`turn_deg == 0.0`, arms opening toward the cluster), one sign for arriving
 /// via a DOWNWARD move and the other for an UPWARD one
 /// (`chrome::overlay_visual_sel::MarkerTravel::sign`). Small enough that the
-/// mark reads first as the chevron item 247 authored and second as leaning —
+/// mark reads first as the authored chevron and second as leaning —
 /// DESIGN.md's "the marker is subordinate to text" boundary — but large enough
 /// that a law can grade the deviation in real pixels
 /// (`render/tests/marker_travel_item284.rs`). Not a device or zoom quantity:
@@ -77,18 +77,18 @@ fn spine_travel(composition: DiagonalComposition, geom: &OverlayGeom, rows: usiz
     (composition.row_step.abs() * steps).min(room * TRAVEL_MAX_BAND_FRACTION)
 }
 
-/// THE SELECTED ROW'S MARK — a CHEVRON, and the one owner of its geometry. Item
-/// 284 makes it the [`crate::selection::chevron_arms`] shared owner AT a
-/// derived parameterization, rather than a shape that merely resembles it (see
+/// THE SELECTED ROW'S MARK — a CHEVRON, and the one owner of its geometry: it
+/// IS the [`crate::selection::chevron_arms`] shared owner at a derived
+/// parameterization, rather than a shape that merely resembles it (see
 /// `render/tests/marker_chevron_owner_item247.rs`'s Law 1, which binds the two
 /// point-for-point over 648 cases).
 ///
 /// Its vertex sits on the spine at `spine_x` — a line it may not leave, since
 /// the spine is the composition's one fixed surface — midway between `top` and
 /// `bottom`, and at `turn_deg == 0.0` its arms open to `arm_x`. `turn_deg`
-/// turns the mark about that FIXED vertex (item 284's travel cue): `chevron_
-/// arms` itself pivots about `center`, so the caller derives `center = vertex -
-/// reach * (cos θ, sin θ)` — [`chevron_arms`]'s own documented recipe for a
+/// turns the mark about that FIXED vertex — the direction-of-travel cue:
+/// `chevron_arms` itself pivots about `center`, so the caller derives
+/// `center = vertex - reach * (cos θ, sin θ)` — [`chevron_arms`]'s own recipe for a
 /// caller whose vertex must not drift. `reach` and `spread` are the arm-end
 /// pair expressed in the owner's terms: `reach` signed half the spine-to-arm
 /// distance (so a Descending world's rightward cluster and an Ascending
@@ -269,12 +269,12 @@ pub(in crate::render) fn active(pipeline: &TextPipeline) -> Option<DiagonalCompo
 }
 
 impl TextPipeline {
-    /// ITEM 284 — the selected marker's CURRENT turn, in degrees, for
+    /// THE SELECTED MARKER'S CURRENT TURN, in degrees, for
     /// [`selected_chevron`]'s `turn_deg`. Settled directly (`self.
-    /// diagonal_marker_target`, item 247's Reduce-Motion clause: the resting
-    /// orientation alone must carry the travel direction) in every headless,
-    /// unarmed, or Reduce-Motion pipeline — byte-identical to a capture that
-    /// never calls `advance` — and the currently-eased value
+    /// diagonal_marker_target` — the resting orientation alone must carry the
+    /// travel direction, since Reduce Motion never draws an in-between frame)
+    /// in every headless, unarmed, or Reduce-Motion pipeline — byte-identical
+    /// to a capture that never calls `advance` — and the currently-eased value
     /// (`self.diagonal_marker_turn`, stepped by `Self::step_diagonal_marker`)
     /// only on a live, motion-armed app. Mirrors `Self::overlay_grow_progress`'s
     /// and `Self::overlay_slant_progress`'s own settle/live split exactly.
@@ -285,7 +285,7 @@ impl TextPipeline {
         self.diagonal_marker_turn
     }
 
-    /// ITEM 284's OR-FOLD MEMBER — advance the marker's own turn by `dt`
+    /// THE MARKER'S OWN OR-FOLD MEMBER — advance its turn by `dt`
     /// seconds toward `self.diagonal_marker_target`, mirroring `fold_chevron::
     /// step_fold_chevrons`'s shape exactly: linear stepping clamped at the
     /// target, `true` while still turning so the live redraw loop stays hot
@@ -312,7 +312,7 @@ impl TextPipeline {
         // chevron's `t` (always a `[0, 1]` fraction, so "1 unit per
         // FOLD_CHEVRON_TURN_MS" is the whole story), this value is degrees,
         // and its largest single hop is the full swing between the two
-        // settled tilts (`MARKER_TRAVEL_TILT_DEG * 2`, item 284's Down/Up
+        // settled tilts (`MARKER_TRAVEL_TILT_DEG * 2`, the Down/Up
         // pair) — so the rate is scaled by that swing, and `MARKER_TURN_MS`
         // is genuinely the time to cross it, not merely a divisor.
         let step = dt * 1000.0 / MARKER_TURN_MS * (MARKER_TRAVEL_TILT_DEG * 2.0);
@@ -360,7 +360,7 @@ impl TextPipeline {
         self.overlay_spine
             .prepare_rotated(device, queue, width, height, &[segment]);
 
-        // ITEM 284 — the marker's TURN, read once (it is the SAME angle for
+        // THE MARKER'S TURN, read once (it is the SAME angle for
         // every row this frame draws a mark for; at most one, since Diagonal
         // never takes `VisualSelection::living()`'s two-row branch — see
         // `resolve_visual_selection`'s doc). Settled directly in every
