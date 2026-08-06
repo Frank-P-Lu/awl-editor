@@ -130,49 +130,12 @@ fn ink_against(img: &image::RgbaImage, pixels: &[(u32, u32)], plate: [u8; 4]) ->
         .expect("a non-empty notice region")
 }
 
-/// CIE 1976 ΔE over L\*a\*b\* (D65) — a PERCEPTUAL distance, used for the two
-/// value-step floors below.
-///
-/// Neither a WCAG contrast ratio nor a luminance difference is the right oracle
-/// for "can this plate be seen", and both were tried here before this was. A ratio
-/// and a |ΔY| each collapse in the dark, where a plainly visible step between two
-/// near-black surfaces measures almost nothing. Worse, both are LUMINANCE-ONLY,
-/// and a plate can differ from its page in hue or chroma instead: Potoroo's sticky
-/// plate sits **ΔL\* 0.87** from its page and is unmistakable on screen, because
-/// the difference is almost entirely in b\* (44 against 0). A luminance floor
-/// called that invisible and demanded a product change that would have made a
-/// legible surface worse. ΔE sees all three axes, which is the question actually
-/// being asked.
-fn lab(p: [u8; 4]) -> (f64, f64, f64) {
-    fn lin(c: u8) -> f64 {
-        let c = c as f64 / 255.0;
-        if c <= 0.04045 {
-            c / 12.92
-        } else {
-            ((c + 0.055) / 1.055).powf(2.4)
-        }
-    }
-    let (r, g, b) = (lin(p[0]), lin(p[1]), lin(p[2]));
-    // sRGB → CIE XYZ (D65), then XYZ → Lab against the D65 white point.
-    let x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047;
-    let y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    let z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883;
-    let f = |t: f64| {
-        if t > 0.008_856 {
-            t.cbrt()
-        } else {
-            7.787 * t + 16.0 / 116.0
-        }
-    };
-    let (fx, fy, fz) = (f(x), f(y), f(z));
-    (116.0 * fy - 16.0, 500.0 * (fx - fy), 200.0 * (fy - fz))
-}
-
-fn delta_e(a: [u8; 4], b: [u8; 4]) -> f64 {
-    let (l1, a1, b1) = lab(a);
-    let (l2, a2, b2) = lab(b);
-    ((l1 - l2).powi(2) + (a1 - a2).powi(2) + (b1 - b2).powi(2)).sqrt()
-}
+/// The tree's ONE perceptual distance, shared with every other appearance floor
+/// (`pixeldiff::delta_e`) — including the footer-plate presence gate in
+/// `overlay_plan_law`, which was converted from an absolute 8-bit luminance gap
+/// to this oracle for exactly the reasons that function's doc records. The two
+/// value-step floors below are the original callers.
+use super::pixeldiff::delta_e;
 
 /// The one-pixel ring of a region's bounding box, INSET by one pixel — the notice
 /// rim's own solid core, just inside its antialiased outer edge.

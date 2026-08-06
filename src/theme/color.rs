@@ -13,6 +13,22 @@ pub struct Srgb {
     pub a: u8,
 }
 
+/// One 8-bit sRGB channel as LINEAR light — the sRGB EOTF, IEC 61966-2-1.
+///
+/// The same transfer function the shader-side converters apply
+/// (`selection::srgba_u8_to_linear` and its siblings in `background`, `lava`,
+/// `caret` and `render`); agreement with one of them is pinned by this module's
+/// tests, since a second definition of a transfer function is a second answer
+/// waiting to disagree.
+pub(crate) fn srgb_channel_to_linear(c: u8) -> f64 {
+    let s = c as f64 / 255.0;
+    if s <= 0.04045 {
+        s / 12.92
+    } else {
+        ((s + 0.055) / 1.055).powf(2.4)
+    }
+}
+
 impl Srgb {
     /// Opaque sRGB color (alpha = 0xFF).
     pub const fn rgb(r: u8, g: u8, b: u8) -> Self {
@@ -23,13 +39,27 @@ impl Srgb {
         Self { r, g, b, a }
     }
 
-    /// wgpu clear color. Straight channel/255.0 passthrough (NO gamma): this
-    /// reproduces the old BG floats exactly. Needs f64 (wgpu::Color is f64).
-    pub fn to_wgpu(self) -> wgpu::Color {
+    /// wgpu CLEAR color — this token DECODED TO LINEAR LIGHT.
+    ///
+    /// `LoadOp::Clear`'s value skips the fragment stage, so an sRGB-format
+    /// attachment never applies the linear→sRGB encode to it and instead
+    /// consumes it as linear light already. Hand such a target raw sRGB bytes
+    /// and the surface stores their sRGB *ENCODE*: a dark ground draws far
+    /// lighter than it is authored, and the error grows toward black where the
+    /// curve is steepest. Decoding here is what makes the drawn pixel equal the
+    /// authored token.
+    ///
+    /// Every awl render target is an sRGB view — the capture texture, native's
+    /// `Bgra8UnormSrgb` surface, and the web canvas's sRGB view over a non-sRGB
+    /// config format (`app::gpu`) — so there is no call site that wants the raw
+    /// bytes, and the name says CLEAR because that is the only thing this
+    /// semantic is right for. Alpha is not gamma-encoded and passes straight
+    /// through. `f64` because `wgpu::Color` is.
+    pub fn to_wgpu_clear(self) -> wgpu::Color {
         wgpu::Color {
-            r: self.r as f64 / 255.0,
-            g: self.g as f64 / 255.0,
-            b: self.b as f64 / 255.0,
+            r: srgb_channel_to_linear(self.r),
+            g: srgb_channel_to_linear(self.g),
+            b: srgb_channel_to_linear(self.b),
             a: self.a as f64 / 255.0,
         }
     }

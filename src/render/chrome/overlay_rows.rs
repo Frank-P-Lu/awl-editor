@@ -175,7 +175,7 @@ impl TextPipeline {
         }
         let on_band: Vec<usize> = vis.rows().iter().filter_map(|&k| plan.item_at(k)).collect();
         let selected_rail = rails.iter().any(|(item, _)| on_band.contains(item));
-        let thumb_ink = match super::overlay_selected_secondary_srgb() {
+        let thumb_ink = match super::overlay_selected_rail_srgb() {
             Some(flip) if selected_rail => flip,
             _ => theme::muted(),
         };

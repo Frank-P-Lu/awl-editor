@@ -12,7 +12,7 @@ impl TextPipeline {
                 depth_slice: None,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(theme::base_100().to_wgpu()),
+                    load: wgpu::LoadOp::Clear(theme::base_100().to_wgpu_clear()),
                     store: wgpu::StoreOp::Store,
                 },
             })],

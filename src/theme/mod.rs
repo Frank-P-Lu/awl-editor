@@ -62,6 +62,14 @@ pub use cjk::{
     CJK_MINCHO, CJK_ZH_HANS_KLEE, CJK_ZH_HANS_SANS, CJK_ZH_HANS_SERIF, CJK_ZH_HANT,
 };
 pub use color::Srgb;
+// THE TREE'S ONE sRGB EOTF, re-exported for the perceptual pixel oracles under
+// `render/tests` (`pixeldiff::delta_e`), so an appearance floor and the colour the
+// product hands the GPU cannot disagree about what "linear" means. `cfg(test)`
+// because that is its only consumer outside `color.rs` itself, and an ungated
+// re-export is an unused import in the ordinary build — a configuration
+// `cargo test` never compiles.
+#[cfg(test)]
+pub(crate) use color::srgb_channel_to_linear;
 #[allow(unused_imports)] // cycle/overlay_scrim/primary_content/tag_for/WorldPin:
 // public API surface, no NON-TEST in-crate caller today (tag_for's real callers
 // all live under `#[cfg(test)]`; `WorldPin` is the explicit world restore a test

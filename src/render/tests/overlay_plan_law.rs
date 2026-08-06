@@ -33,7 +33,7 @@
 //! instead of silently regrading the wrong path again.
 
 use super::super::*;
-use super::{headless_dqp, view};
+use super::{headless_dqp, pixeldiff, view};
 use crate::overlay::OverlayKind;
 use crate::render::chrome::OverlayGeom;
 
@@ -551,6 +551,7 @@ fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world() 
     );
 
     let mut pixel_graded: Vec<&str> = Vec::new();
+    let mut measured_presence: Vec<(&str, f64)> = Vec::new();
     let mut plateless_graded: Vec<&str> = Vec::new();
     for world in plated.iter().chain(&plateless) {
         theme::set_active_by_name(world).unwrap();
@@ -644,12 +645,14 @@ fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world() 
             theme::active().render_caps.list_style,
             theme::ListStyle::Bars
         ) {
-            notice_reads_as_ground(&pixels, footer_plate, bands, world);
+            let (presence, _lift) = notice_reads_as_ground(&pixels, footer_plate, bands, world);
+            measured_presence.push((world, presence));
             pixel_graded.push(world);
         }
     }
     crate::render::set_list_style_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
+    assert_plate_separation_is_not_vacuous(&measured_presence);
     // ENROLMENT IS THE PLATED ROSTER, DERIVED FROM THEME DATA — never a hardcoded
     // subset of it. A pixel oracle that grades "whichever worlds it happened to be
     // able to see" hardcodes a property of the GPU: this set was once literally
@@ -716,31 +719,28 @@ fn notice_reads_as_ground(
     plate: [f32; 4],
     bands: (f32, f32, f32),
     world: &str,
-) {
-    /// The luminance gap, between the plate's fill and the card's ground, at
-    /// which the plate is a surface an absolute pixel oracle can name. Both
-    /// sides are flat fills read as medians, so this compares two authored
-    /// palette entries: the only backend sensitivity is ±1 in the 8-bit
-    /// encoding of a blend, and the shipping roster clears the gate by 2.5×–5×.
-    const VISIBLE_PLATE_LUMA: f64 = 7.0;
-
+) -> (f64, f64) {
     let (notice_top, footer_top, lh) = bands;
     let x_lo = (plate[0] + 2.0).max(0.0) as u32;
     let x_hi = (plate[0] + plate[2] - 2.0).min(1199.0) as u32;
-    let luma = |x: u32, y: u32| -> f64 {
-        let px = pixels[(y * 1200 + x) as usize];
+    let at = |x: u32, y: u32| -> [u8; 4] { pixels[(y * 1200 + x) as usize] };
+    let luma = |px: [u8; 4]| -> f64 {
         0.2126 * px[0] as f64 + 0.7152 * px[1] as f64 + 0.0722 * px[2] as f64
     };
-    let samples = |y0: f32, y1: f32| -> Vec<f64> {
+    // Sorted BY LUMINANCE but carrying the PIXEL, so the median below is the
+    // fill's own colour rather than one projection of it — the whole point of
+    // taking a median here (see this function's doc) survives the move to a
+    // perceptual oracle only if all three axes come with it.
+    let samples = |y0: f32, y1: f32| -> Vec<[u8; 4]> {
         let (a, b) = (y0.ceil().max(0.0) as u32, y1.floor().min(800.0) as u32);
-        let mut v: Vec<f64> = (a..b)
+        let mut v: Vec<[u8; 4]> = (a..b)
             .flat_map(|y| (x_lo..x_hi).map(move |x| (x, y)))
-            .map(|(x, y)| luma(x, y))
+            .map(|(x, y)| at(x, y))
             .collect();
-        v.sort_by(|p, q| p.partial_cmp(q).expect("no NaN luminance"));
+        v.sort_by(|p, q| luma(*p).partial_cmp(&luma(*q)).expect("no NaN luminance"));
         v
     };
-    let median = |y0: f32, y1: f32| -> f64 {
+    let median = |y0: f32, y1: f32| -> [u8; 4] {
         let v = samples(y0, y1);
         assert!(!v.is_empty(), "{world}: empty sample band {y0:.1}..{y1:.1}");
         v[v.len() / 2]
@@ -759,37 +759,116 @@ fn notice_reads_as_ground(
     let (g0, g1) = (notice_top - pad - 2.0, notice_top - 2.0);
     let gap = samples(g0, g1);
     let ground = gap[gap.len() / 2];
-    let flat = gap.iter().filter(|l| (*l - ground).abs() <= 1.0).count() as f64 / gap.len() as f64;
+    let flat = gap
+        .iter()
+        .filter(|p| (luma(**p) - luma(ground)).abs() <= 1.0)
+        .count() as f64
+        / gap.len() as f64;
     assert!(
         flat > 0.98,
         "{world}: the ground reference strip (y {g0:.1}..{g1:.1}, the gap above the \
          notice row) is not plain card ground — only {:.1}% of it sits within 1 luma \
-         of its median {ground:.2}. Something now draws there, so every number this \
+         of its median {ground:?}. Something now draws there, so every number this \
          oracle derives from it is rebased.",
         flat * 100.0
     );
 
     let notice = median(notice_top + pad, notice_top + lh - pad);
     let footer = median(footer_top + pad, footer_top + lh - pad);
-    let plate_contrast = (footer - ground).abs();
-    let notice_lift = (notice - ground).abs();
+    let plate_presence = pixeldiff::delta_e(footer, ground);
+    let notice_lift = pixeldiff::delta_e(notice, ground);
     assert!(
-        plate_contrast > VISIBLE_PLATE_LUMA,
+        plate_presence > PLATE_DISCRIMINABLE_MIN,
         "{world}: the footer plate's own fill is indistinguishable from card ground \
-         (ground {ground:.2}, plate {footer:.2}; contrast {plate_contrast:.2} ≤ \
-         {VISIBLE_PLATE_LUMA}), so arm 2 cannot see the surface it grades. Either this \
-         world's palette changed or the plate stopped drawing — ENROLMENT MUST NOT \
-         SILENTLY NARROW, and it must never depend on which GPU ran the test."
+         (ground {ground:?}, plate {footer:?}; ΔE {plate_presence:.2} ≤ \
+         {PLATE_DISCRIMINABLE_MIN}), so arm 2 cannot see the surface it grades. Either \
+         this world's palette changed or the plate stopped drawing — ENROLMENT MUST \
+         NOT SILENTLY NARROW, and it must never depend on which GPU ran the test."
     );
     assert!(
-        notice_lift <= VISIBLE_PLATE_LUMA,
+        notice_lift <= NOTICE_IS_GROUND_MAX,
         "{world}: the empty-state NOTICE row reads as a plated band rather than plain \
-         card ground (ground {ground:.2}, notice {notice:.2}, plate {footer:.2}; notice \
-         lift {notice_lift:.2} vs plate contrast {plate_contrast:.2}). The footer plate \
-         is seated a row too high — the notice line the card height paid for was left \
-         out of `content_rows`."
+         card ground (ground {ground:?}, notice {notice:?}, plate {footer:?}; notice \
+         lift ΔE {notice_lift:.2} > {NOTICE_IS_GROUND_MAX}, against the plate's own \
+         ΔE {plate_presence:.2}). The footer plate is seated a row too high — the \
+         notice line the card height paid for was left out of `content_rows`."
+    );
+    // Reported every run: a floor whose headroom a reader has to take on trust is
+    // a floor nobody can tell has stopped discriminating.
+    eprintln!(
+        "{world}: footer-plate presence ΔE {plate_presence:.2} (discriminability \
+         floor {PLATE_DISCRIMINABLE_MIN}), notice-row lift ΔE {notice_lift:.2} \
+         (ceiling {NOTICE_IS_GROUND_MAX})"
+    );
+    (plate_presence, notice_lift)
+}
+
+/// **NON-VACUITY OF ARM 2, PROVED AGAINST THE ROSTER RATHER THAN AGAINST TWO
+/// LITERALS.** The arm's claim is "the notice row sits within ΔE
+/// [`NOTICE_IS_GROUND_MAX`] of ground", and that only means something on a world
+/// where a plate seated one row too high would actually EXCEED the ceiling. So
+/// every enrolled world's own MEASURED plate presence has to clear it with margin;
+/// otherwise the arm passes on a world whose plate is too close to its ground to be
+/// detected by the very statistic that grades it.
+///
+/// Written as a named check rather than inline because it is a claim about the
+/// LAW, not about the frame — and because the two floors it relates are the whole
+/// reason the shared luminance constant had to be split.
+fn assert_plate_separation_is_not_vacuous(measured: &[(&str, f64)]) {
+    let (tightest, tightest_de) = measured
+        .iter()
+        .copied()
+        .min_by(|a, b| a.1.partial_cmp(&b.1).expect("no NaN ΔE"))
+        .expect("the plated roster is non-empty");
+    assert!(
+        tightest_de > NOTICE_IS_GROUND_MAX * 1.5,
+        "the roster's tightest footer-plate presence is {tightest} at ΔE \
+         {tightest_de:.2}, which does not clear the reads-as-ground ceiling (ΔE \
+         {NOTICE_IS_GROUND_MAX}) by half again. On that world a plate seated a row \
+         too high would measure inside the ceiling, so arm 2's claim is vacuous \
+         there — lower the ceiling or give the plate a rim, never widen the gate. \
+         Measured: {measured:?}"
     );
 }
+
+/// **ONE PERCEPTUAL SCALE, TWO FLOORS, AND THE SEPARATION BETWEEN THEM PROVED
+/// AGAINST THE ROSTER RATHER THAN ASSUMED.**
+///
+/// These were ONE absolute 8-bit luminance constant (`VISIBLE_PLATE_LUMA = 7.0`),
+/// and it was the wrong unit twice over. A `|ΔY|` gap collapses in the dark and is
+/// luminance-ONLY, so it calls a plate that differs from its page in hue or chroma
+/// invisible — `pixeldiff::delta_e`'s doc records the Potoroo case where that
+/// demanded a product change to a plainly legible surface. And its recorded
+/// "roster clears the gate by 2.5×–5×" margin was measured against a page that was
+/// never on screen: the frame's `LoadOp::Clear` handed raw sRGB bytes to an sRGB
+/// target, so every dark world's ground drew tens of bytes too light.
+///
+/// The conversion moved TWO verdicts, in OPPOSITE directions, which is what a
+/// better unit is supposed to do. Firetail's plate sits 6.06 luma from its true
+/// page — under the old gate — but **ΔE 7.50**, comfortably visible. Cassowary's
+/// sits **ΔE 1.91**, under the classic ΔE ≈ 2.3 just-noticeable difference, and the
+/// luminance gate never reached it because Firetail aborted the run first.
+///
+/// ⚠️ **[`PLATE_DISCRIMINABLE_MIN`] IS NOT A LEGIBILITY FLOOR AND MUST NOT BE READ
+/// AS ONE.** It answers "can arm 2's claim discriminate at all" — a question about
+/// the ORACLE, not about a reader's eye. Whether Cassowary's ΔE 1.91 footer plate
+/// is visible ENOUGH is a separate product question, escalated as a finding rather
+/// than settled by a constant here; this file must not certify it either way. The
+/// legibility floor for a plate that HAS one is `render::tests::notice`'s own
+/// `PLATE_PRESENCE_MIN` (ΔE 15), which the notice channel clears because it also
+/// draws a RIM — the mechanism this footer plate has never had.
+///
+/// [`NOTICE_IS_GROUND_MAX`] is the arm's REAL claim: the notice row reads as plain
+/// card ground, i.e. is not plated. Splitting the constant made it STRICTER — it
+/// used to be bounded by whatever the visibility gate happened to need, and every
+/// enrolled world measures ΔE 0.00 against a ceiling of 1.0.
+///
+/// The separation is not a matter of one literal being written smaller than the
+/// other: the caller asserts every enrolled world's MEASURED plate presence clears
+/// the ceiling with margin, so "a plated notice row would be caught" is proved
+/// against the shipping roster on every run rather than inferred from two numbers.
+const PLATE_DISCRIMINABLE_MIN: f64 = 1.5;
+const NOTICE_IS_GROUND_MAX: f64 = 1.0;
 
 // --- The retired-arithmetic source law ---------------------------------------
 
