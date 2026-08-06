@@ -240,28 +240,33 @@ fn md_line_scale_grows_thematic_break_rows_to_the_active_worlds_ornament_scale()
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 }
 
-/// `is_thematic_break("---")` is a single-line scan and cannot tell a real
-/// thematic break from a SETEXT heading's `---` underline (the documented
-/// "KNOWN, ACCEPTED false positive" on that function) — so `md_line_scale`
-/// requires `confirmed_rule` (the REAL parse's ground truth) on TOP of the raw
-/// scan before it grows the row. Without the gate this line would go red the
-/// instant a setext underline's row was measured against the surrounding body
-/// text (see the real-pipeline row-height law below).
+/// `is_thematic_break("---")` is a single-line scan: it cannot see whether THIS
+/// `---` sits somewhere the real parse would never call a break — e.g. inside a
+/// fenced code block's body, where the bytes are `MdKind::Code`, never
+/// `MdKind::Rule`, regardless of what they look like. `md_line_scale` requires
+/// `confirmed_rule` (the REAL parse's ground truth, via `line_has_rule_span`) on
+/// TOP of the raw scan before it grows the row, so a bare-scan false positive can
+/// never reserve space for an ornament the real pipeline will not draw. (A dash
+/// underline directly under a paragraph is NOT such a case any more — see
+/// `setext_dash_underline_draws_rule_real_pipeline`
+/// below: that one now confirms too, and grows.)
 #[test]
 fn md_line_scale_does_not_grow_an_unconfirmed_dash_line() {
     let _t = crate::testlock::serial();
     crate::theme::set_active_by_name("Currawong").unwrap();
     let geo = crate::theme::active().ornament_scale;
     // The raw scan alone says "grow" (matches the SAME `---` line the previous
-    // test proves DOES grow when confirmed) — but unconfirmed, it must not.
+    // test proves DOES grow when confirmed) — but unconfirmed (e.g. this exact
+    // line living inside a fenced code block), it must not.
     assert!(
         crate::markdown::is_thematic_break("---"),
-        "sanity: the raw scan reads '---' as a break, exactly the false positive"
+        "sanity: the raw scan reads '---' as a break regardless of context"
     );
     assert_eq!(
         md_line_scale("---", true, false),
         1.0,
-        "an UNCONFIRMED dash line (e.g. a setext underline) must stay body size, not {geo}"
+        "an UNCONFIRMED dash line (e.g. one living inside a fenced code block) must \
+         stay body size, not {geo}"
     );
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 }
@@ -323,23 +328,25 @@ fn heading_rows_are_taller_and_gated_to_markdown() {
     assert_eq!(p.visual_row_of(2, 0), 2);
 }
 
-/// A setext heading (a paragraph underlined by `===`/`---`) must read as PLAIN
-/// BODY TEXT — same size (ink), same row height as the surrounding prose —
-/// while an ATX `#` heading and a REAL thematic break each still grow, over the
-/// REAL render pipeline (not a mirror of the arithmetic `md_line_scale` already
-/// proves in isolation above). Row HEIGHT is the direct proxy for the
-/// growing-row gap this pins shut; for SIZE, the body line and the setext title
-/// share the EXACT SAME TEXT ("Same Words Here") so their shaped `xs` (per-glyph
-/// pixel positions) are comparable glyph-for-glyph even under a PROPORTIONAL
-/// font (an `xs`-step diff alone would just measure "S" vs "B", not scale).
+/// A setext heading's TITLE (a paragraph underlined by `===`/`---`) must read as
+/// PLAIN BODY TEXT — same size (ink), same row height as the surrounding prose —
+/// while an ATX `#` heading still grows, over the REAL render pipeline (not a
+/// mirror of the arithmetic `md_line_scale` already proves in isolation above).
+/// The setext UNDERLINE is a DIFFERENT question: DECIDED, `---` always draws as
+/// the rule whatever precedes it (awl has no setext headings), so a qualifying
+/// dash underline (3-or-more run) must grow and draw the ornament exactly like a
+/// REAL thematic break — never fall back to a suppressed setext title's
+/// body-height row. Row HEIGHT is the direct proxy for both claims; for the
+/// title's SIZE, it and the body line share the EXACT SAME TEXT ("Same Words
+/// Here") so their shaped `xs` (per-glyph pixel positions) are comparable
+/// glyph-for-glyph even under a PROPORTIONAL font (an `xs`-step diff alone would
+/// just measure "S" vs "B", not scale).
 #[test]
-fn setext_heading_reads_as_body_text_over_the_real_pipeline() {
+fn setext_dash_underline_draws_rule_real_pipeline() {
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!(
-            "skipping setext_heading_reads_as_body_text_over_the_real_pipeline: no wgpu adapter"
-        );
+        eprintln!("skipping setext_dash_underline_draws_rule_real_pipeline: no wgpu adapter");
         return;
     };
     // line: 0 ATX h1, 1 blank, 2 body ("Same Words Here"), 3 blank, 4 setext
@@ -383,14 +390,14 @@ fn setext_heading_reads_as_body_text_over_the_real_pipeline() {
         row_width(&p, 4)
     );
 
-    // The setext UNDERLINE (row 5, "------------") — the growing-row gap this
-    // closes — must ALSO stay body height: `is_thematic_break` reads it as a
-    // break, but the real parse never rules it, so it must never reserve space
-    // for an ornament that `prepare_ornaments` will not draw.
+    // The setext UNDERLINE (row 5, "------------") now DRAWS AS THE RULE: DECIDED,
+    // `---` always renders as the rule whatever precedes it — `spans()`'
+    // `Tag::Heading` arm promotes a qualifying dash underline to a real
+    // `MdKind::Rule`, so it must grow exactly like the standalone break below,
+    // never fall back to a suppressed setext title's body-height row.
     assert!(
-        (p.row_height_px(5) - body_h).abs() < 0.01,
-        "a setext underline's row must stay body height, not grow for an \
-         ornament that never draws: {} vs {body_h}",
+        p.row_height_px(5) > body_h + 1.0,
+        "a setext dash underline must draw as the rule and grow its row: {} vs body {body_h}",
         p.row_height_px(5)
     );
 
@@ -744,4 +751,103 @@ fn no_bold_worlds_get_more_gap_before_a_heading_than_between_paragraphs_at_real_
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
+}
+
+/// LAW — no line with content ever renders as EMPTY PIXELS: a sidecar can
+/// report a row's geometry while the row paints nothing (the Wagtail
+/// invisible-picker-row shape — CLAUDE.md's harness tripwire: `selected_index:
+/// 2` while the row rendered fully invisible), so this asserts PRESENCE over a
+/// REAL rendered frame's pixels, never row geometry / `md_spans` state alone.
+///
+/// Swept over the axis a `---`/`***`/`___` line actually varies on: the three
+/// thematic-break syntaxes, each BOTH directly under a paragraph (the
+/// setext-ambiguous position pulldown could otherwise swallow into a heading
+/// it never draws) AND separated by a blank line (the unambiguous position),
+/// with the caret BOTH off the line (concealed dashes, ornament drawn) and on
+/// it (revealed dashes, no ornament) — 3 x 2 x 2 = 12 cells, every one a
+/// presence floor over differing-pixel COUNT in exactly that row's own pixel
+/// band, never "not byte-identical to blank" (a floor satisfiable by a single
+/// stray antialiased pixel proves nothing; `MIN_INK_PIXELS` sits an order of
+/// magnitude under a real glyph's coverage at this canvas size, but two orders
+/// over antialiasing noise).
+///
+/// The scan region is inset well inside the page COLUMN (never the raw
+/// canvas edges): the active theme's own page background is a top-to-bottom
+/// GRADIENT (Saltpan: `#fbf3de` to `#f2e6c7`) plus a themed margin band right
+/// at the column's outer edges — a single background sample compared across
+/// the WHOLE canvas width, or across a wide y-gap, reads that gradient/band
+/// as "ink" and the floor would pass on paint that is not the glyph's at all.
+/// The background reference is sampled two pixels ABOVE the measured row, at
+/// the SAME x used for the scan, so it rides the identical local band of the
+/// gradient (a ~2px y-drift is negligible against a ~30px total canvas span).
+#[test]
+fn no_thematic_break_line_ever_renders_as_empty_pixels() {
+    let _t = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping no_thematic_break_line_ever_renders_as_empty_pixels: no wgpu adapter");
+        return;
+    };
+    let w = 1200u32;
+    let h = 800u32;
+    const CHANNEL_DELTA_THRESHOLD: u8 = 24;
+    const MIN_INK_PIXELS: usize = 20;
+    const MARGIN_INSET: f32 = 20.0;
+
+    let mut cells_checked = 0usize;
+    for syntax in ["---", "***", "___"] {
+        for (position, text, break_line) in [
+            ("direct-under-paragraph", format!("a\n{syntax}\n"), 1usize),
+            ("blank-line-separated", format!("a\n\n{syntax}\n"), 2usize),
+        ] {
+            for (caret_state, caret_line) in [("off", 0usize), ("on", break_line)] {
+                let mut v = view(&text, caret_line, 0);
+                v.is_markdown = true;
+                p.set_view(&v);
+                p.prepare(&device, &queue, w, h).unwrap();
+                let pixels = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+
+                // Scan the page COLUMN interior only — inset past the themed
+                // margin band on both edges — so both a left-aligned revealed
+                // dash run and a CENTERED ornament fleuron fall inside it.
+                let x0 = ((p.column_left() + MARGIN_INSET) as i64).clamp(0, w as i64);
+                let x1 = ((p.column_left() + p.column_width() - MARGIN_INSET) as i64)
+                    .clamp(x0, w as i64);
+                let top = (p.doc_top() + p.row_top_px(break_line)).round() as i64;
+                let bot = (p.doc_top() + p.row_top_px(break_line) + p.row_height_px(break_line))
+                    .round() as i64;
+                let (top, bot) = (top.max(1), bot.min(h as i64));
+
+                // Background reference: the SAME x0, 2px above this row's own
+                // top — same local gradient band, guaranteed blank (either the
+                // previous row's trailing space or a blank line).
+                let bg = pixels[((top - 2).max(0) * w as i64 + x0) as usize];
+
+                let mut ink = 0usize;
+                for y in top..bot {
+                    for x in x0..x1 {
+                        let px = pixels[(y * w as i64 + x) as usize];
+                        let d = px[0]
+                            .abs_diff(bg[0])
+                            .max(px[1].abs_diff(bg[1]))
+                            .max(px[2].abs_diff(bg[2]));
+                        if d > CHANNEL_DELTA_THRESHOLD {
+                            ink += 1;
+                        }
+                    }
+                }
+                assert!(
+                    ink >= MIN_INK_PIXELS,
+                    "{syntax:?} {position}, caret {caret_state}: line {break_line}'s row \
+                     ({top}..{bot}px) painted only {ink} ink pixel(s) (floor \
+                     {MIN_INK_PIXELS}) — content that renders as (near) empty pixels"
+                );
+                cells_checked += 1;
+            }
+        }
+    }
+    assert_eq!(
+        cells_checked, 12,
+        "the full 3-syntax x 2-position x 2-caret-state sweep must run every cell \
+         (12), not a subset — a smaller count means the enrolment silently dropped one"
+    );
 }

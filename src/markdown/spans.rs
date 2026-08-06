@@ -211,13 +211,17 @@ pub fn fence_line_lang(line: &str) -> Option<crate::syntax::Lang> {
 /// [`crate::theme::Theme::ornament_scale`] — the size counterpart of the leading-`#`
 /// heading scan (a per-line grow that never needs the whole parse). Pure + total.
 ///
-/// KNOWN, ACCEPTED false positive (documented, matching the existing setext-heading
-/// gap): a `---` that pulldown actually rules a SETEXT-heading underline (a `---`
-/// directly under a paragraph line) is indistinguishable from a thematic break at
-/// the single-line level, so its row grows too — even though no ornament draws over
-/// it (the ornament layer reads the real `md_spans`, not this scan). `***`/`___`
-/// are never setext, so only a dash underline is affected; awl's own docs use ATX
-/// headings, so this is rare in practice.
+/// NOT a false positive on a SETEXT-heading `---` underline: awl has no setext
+/// headings (the ladder is ATX-only, `#` alone), so a dash underline that
+/// independently reads as a break here is DECIDED to always draw as the rule,
+/// whatever precedes it — [`spans`]' `Tag::Heading` arm (via
+/// [`setext_break_range`]) pushes a real `MdKind::Rule` for exactly that case, so
+/// this scan and the real parse agree. The bare scan still over-approximates a
+/// genuinely DIFFERENT context the real parse excludes on purpose — e.g. a `---`
+/// line living inside a fenced code block's body reads as a break here but is
+/// `MdKind::Code`, never `MdKind::Rule`, in `md_spans` — which is why
+/// [`crate::render::spans::md_line_scale`] still requires the real-parse
+/// corroboration (`confirmed_rule`) on top of this scan before growing a row.
 pub fn is_thematic_break(line: &str) -> bool {
     let t = line.trim_matches(|c| c == ' ' || c == '\t');
     // The run char is the first non-space glyph; every non-space char must match it,
@@ -239,6 +243,31 @@ pub fn is_thematic_break(line: &str) -> bool {
         }
     }
     count >= 3
+}
+
+/// The BYTE RANGE of a SETEXT H2 heading's own UNDERLINE, if that underline
+/// independently qualifies as a thematic break ([`is_thematic_break`]) — the seam
+/// [`spans`]' `Tag::Heading` arm uses to promote `a\n---` to a real `Rule` span
+/// without touching the title line. `range` is pulldown's own heading range, which
+/// always ends on the underline's own line (its last line, whether the title is
+/// one physical line or several); walking back to the last `\n` finds it without
+/// re-deriving line boundaries from scratch. Leading indent on the underline is
+/// excluded from the returned range (matching a real `Event::Rule`'s own range),
+/// so [`crate::render::spans::add_rule_conceal_span`] conceals exactly the dashes,
+/// never the indent. `None` when the underline is too short to be a break —
+/// CommonMark accepts a bare single `-` for a setext H2, which stays plain body
+/// text, unchanged.
+fn setext_break_range(text: &str, range: &Range<usize>) -> Option<Range<usize>> {
+    let body = &text[range.clone()];
+    let core = body.strip_suffix('\n').unwrap_or(body);
+    let line_start = core.rfind('\n').map(|i| i + 1).unwrap_or(0);
+    let line = &core[line_start..];
+    if !is_thematic_break(line) {
+        return None;
+    }
+    let indent = line.len() - line.trim_start_matches([' ', '\t']).len();
+    let start = range.start + line_start + indent;
+    Some(start..range.start + core.len())
 }
 
 /// The number of leading-indent SPACES that make up ONE nesting level for a
@@ -537,6 +566,20 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
                     if text[range.start..].starts_with('#') {
                         heading = Some(level_u8(level));
                         push_heading_markers(&mut body, text, &range);
+                    } else if level == HeadingLevel::H2
+                        && let Some(r) = setext_break_range(text, &range)
+                    {
+                        // DECIDED: `---` always draws as the rule, whatever precedes
+                        // it — awl has no setext headings (ATX-only). A dash
+                        // underline that independently qualifies as a thematic
+                        // break (`is_thematic_break`, a real 3-or-more run) gets a
+                        // genuine `Rule` span over its own bytes; the title line
+                        // above is untouched (stays plain body via `heading`
+                        // staying `None`). `===` (H1) is not a thematic-break
+                        // syntax and is left alone. A too-short underline (a bare
+                        // `-`, valid CommonMark setext but not a break) stays plain
+                        // text too — `setext_break_range` returns `None` for it.
+                        body.push((r, MdKind::Rule));
                     }
                 }
                 Tag::Strong => {

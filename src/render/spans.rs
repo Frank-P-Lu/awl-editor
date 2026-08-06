@@ -422,12 +422,15 @@ pub(super) fn image_line_has_other_content(
 /// True when the REAL parse (`md_spans`, ground truth) rules this line a
 /// genuine `MdKind::Rule` — the thematic-break ornament layer's own source of
 /// truth (`prepare_ornaments` reads `md_spans`, never the bare-text scan). The
-/// single-line heuristic [`crate::markdown::is_thematic_break`] cannot tell a
-/// real `---` break from a SETEXT heading's `---` underline (documented
-/// "KNOWN, ACCEPTED false positive" on that function); this is the corroborating
-/// check [`md_line_scale`] requires before growing a `---` row, so a setext
-/// underline's row never reserves space for an ornament that `prepare_ornaments`
-/// will never draw.
+/// single-line heuristic [`crate::markdown::is_thematic_break`] cannot see
+/// CONTEXT the real parse excludes on purpose — e.g. `---` living inside a
+/// fenced code block's body reads as a break here but is never `MdKind::Rule`
+/// in `md_spans`; this is the corroborating check [`md_line_scale`] requires
+/// before growing a `---` row, so a bare-scan false positive never reserves
+/// space for an ornament that `prepare_ornaments` will never draw. (A dash
+/// underline directly under a paragraph — a setext H2 to CommonMark — is NOT
+/// such a case: awl has no setext headings, so a qualifying underline gets a
+/// real `Rule` span from `spans`' `Tag::Heading` arm and this function agrees.)
 pub(super) fn line_has_rule_span(
     md_spans: &[(std::ops::Range<usize>, crate::markdown::MdKind)],
     line_doc_start: usize,
@@ -935,14 +938,15 @@ pub(super) fn add_syn_line_spans(
 /// `confirmed_rule` gates the thematic-break growth alone (the heading branch above
 /// is untouched — still the eager raw-hash-count heuristic on purpose). Callers that
 /// can afford to check the real parse (`build_line_attrs`, via [`line_has_rule_span`])
-/// pass the ground truth: `is_thematic_break` is a single-line scan that cannot tell
-/// a real break from a SETEXT heading's `---` underline (that function's documented
-/// "KNOWN, ACCEPTED false positive"), so without this second gate a setext
-/// underline's row grew to reserve space for an ornament `prepare_ornaments` — which
-/// reads the real spans — never draws. A caller with no cheap access to `md_spans`
-/// (the zoom-restyle fast path in `has_heading_lines`) may pass `true` unconditionally:
-/// that's a harmless over-approximation there (it only widens when a restyle runs),
-/// never the applied row geometry.
+/// pass the ground truth: `is_thematic_break` is a single-line scan that cannot see
+/// CONTEXT the real parse excludes on purpose — e.g. a `---` line living inside a
+/// fenced code block's body reads as a break here but the real spans never rule it —
+/// so without this second gate a bare-scan false positive would reserve space for an
+/// ornament `prepare_ornaments`, which reads the real spans, never draws. A caller
+/// with no cheap access to `md_spans` (the zoom-restyle fast path in
+/// `has_heading_lines`) may pass `true` unconditionally: that's a harmless
+/// over-approximation there (it only widens when a restyle runs), never the applied
+/// row geometry.
 pub(super) fn md_line_scale(line_text: &str, md: bool, confirmed_rule: bool) -> f32 {
     let level = md_line_heading_level(line_text, md);
     if level > 0 {

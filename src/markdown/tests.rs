@@ -1411,13 +1411,60 @@ fn fence_line_lang_matches_the_syntax_highlighting_gate() {
 }
 
 #[test]
-fn setext_underline_is_not_a_rule() {
-    // "Title\n---" is a setext H2 underline, NOT a thematic break — spans() must
-    // not emit a Rule there (the heading is the authority, not the bare scan).
+fn setext_dash_underline_that_qualifies_as_a_break_is_a_rule() {
+    // DECIDED: `---` always draws as the rule, whatever precedes it — awl has no
+    // setext headings (ATX-only, `#`). "Title\n---" is a setext H2 to CommonMark,
+    // but its underline independently reads as a real thematic break (a 3-or-more
+    // dash run), so spans() must carry a genuine Rule span over EXACTLY the
+    // underline's own bytes (6..9 — "Title\n" is 6 bytes) — never the title's.
     let s = spans("Title\n---");
+    assert_eq!(
+        s,
+        vec![(6..9, MdKind::Rule)],
+        "a qualifying dash underline must be the ONLY span, a Rule over its own \
+         bytes, leaving the title line untouched: {s:?}"
+    );
+}
+
+#[test]
+fn setext_underline_too_short_to_be_a_break_stays_plain() {
+    // A bare `-`/`--` is valid CommonMark setext but NOT a thematic break (needs
+    // 3+, `is_thematic_break` says no) — no Rule is manufactured for it, and the
+    // underline stays exactly what it was before this rule: unstyled plain text.
+    for underline in ["-", "--"] {
+        let doc = format!("Title\n{underline}");
+        let s = spans(&doc);
+        assert!(
+            s.is_empty(),
+            "a too-short underline {underline:?} must carry no span at all: {s:?}"
+        );
+    }
+}
+
+#[test]
+fn setext_h1_equals_underline_is_never_a_rule() {
+    // `===` is not one of the three thematic-break syntaxes (never `-`/`*`/`_`) —
+    // a setext H1 underline is untouched by the dash-underline promotion and
+    // stays exactly as before: unstyled plain text, same as the title above it.
+    let s = spans("Title\n===");
+    assert!(
+        s.is_empty(),
+        "a setext H1 `===` underline must carry no span at all: {s:?}"
+    );
+}
+
+#[test]
+fn dashes_inside_a_fenced_code_block_are_never_a_rule() {
+    // The bare-text scan (`is_thematic_break`) cannot see that these dashes live
+    // inside a fenced code block's BODY — the real parse must still win: `---`
+    // there is fence/code content, never `MdKind::Rule`, no matter what the raw
+    // bytes look like. This is the surviving reason `md_line_scale` still needs
+    // its `confirmed_rule` gate now that the setext-underline case above no
+    // longer disagrees with the bare scan.
+    let s = spans("```\n---\n```\n");
     assert!(
         !s.iter().any(|(_, k)| *k == MdKind::Rule),
-        "a setext underline must not be a rule: {s:?}"
+        "a --- inside a fenced code block must never be a rule: {s:?}"
     );
 }
 
