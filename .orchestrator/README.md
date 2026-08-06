@@ -313,6 +313,23 @@ on a routine refactor means the brief was wrong, not the code.
    integration time, not only in a design session — where it was filed, it
    read as scoped to brainstorming and got missed.
 
+8a. ⚠️ **`scripts/code-health.toml` CANNOT BE PARTITIONED, AND AN ORCHESTRATOR THAT
+   ASSIGNS IT TO ONE LANE WILL BLOCK THE OTHERS.** Measured the hard way
+   2026-08-06: five of six lanes in one wave needed it, because **any** file that
+   grows past its `file_size_mark` trips an EXACT-count ratchet whose raise
+   requires a stated reason. Granting it to one lane made a second lane
+   code-complete-but-blocked, correctly refusing to route around the lock, and cost
+   a round trip to clear.
+
+   **So it is ORCHESTRATOR-OWNED at merge time, never granted to a lane.** Tell
+   every lane: *if your change trips a size mark or a clippy exception, report the
+   number and leave the file alone — the orchestrator raises the mark with your
+   reason when it merges you.* The stanzas are per-file, so concurrent edits
+   usually merge cleanly; the cost of a lane touching it is not conflict, it is a
+   lane blocked behind another lane's grant. **Read the count off the tree at merge
+   time (`wc -l`), not out of the lane's report** — one lane reported 904 and a
+   later citation-rewording pass left the file at 900.
+
 8. **Partition parallel lanes by FILE, but treat a hold as a DEBT, not a
    boundary.** The partition is what lets several lanes run at once without
    collision, and its bill is duplicated shapes: one lane duplicated a chrome

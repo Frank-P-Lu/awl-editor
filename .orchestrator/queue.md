@@ -210,12 +210,22 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
 | `src/render/plan/` | overlay row family only (5 modules) |
 | item 288's three identifiers | all three still present, verbatim |
 
-**WAVE RUNNING — three lanes claimed: 289, 274, 291.** LANDED this wave: 288
-(`289d364c`, fast-forward), 295 (merged `414e3b5a`), 290 (merged `51302d50`),
-304 (merged `31953688`). 172 is closed against its census. ⚠️ **`main` carries
-THREE merges that have NOT been gated as a combined candidate** — each lane's
-receipt is for its own branch, taken before the others landed. **Do not push until one native/health/wasm set
-runs on the merged tree.** Order for the next wave:
+**WAVE: ONE LANE LEFT — 274.** LANDED: 288 (`289d364c`), 295 (`414e3b5a`), 290
+(`51302d50`), 304 (`31953688`), 289, 291, and 172 closed against its census.
+⚠️ **`main` carries SIX merges that have NOT been gated as a combined candidate** —
+every receipt names a lane's own branch, taken before the others landed. **Do not
+push until one native/health/wasm set runs on the merged tree.**
+
+⚠️ **THREE OF THIS WAVE'S ITEMS HAD A FALSE OR STALE PREMISE, ALL THREE AUTHORED
+ON THIS BOARD, AND EVERY ONE WAS CAUGHT BY A LANE THAT MEASURED BEFORE BUILDING.**
+304's "renders as NOTHING" had already been fixed a day before the item was
+written; 290's "12.3 ms / n=1 for 8 inputs" was item 291's own documented
+instrument bias, low by two orders of magnitude; 289's "Wagtail's `Underline`
+chips" named the wrong world — Wagtail is `FacetStyle::Text` and **Magpie** is the
+sole `Underline` carrier. **So the premise-check-first clause earns its place in
+every brief**, and a board figure is quoted with its instrument named.
+
+Order for the next wave:
 
 1. **131e** — selection and the full Verify clause; 131a–d are landed and the
    measured cluster rail exists in `render/chrome/diagonal.rs`. ⚠️ It reaches
@@ -734,77 +744,6 @@ runs on the merged tree.** Order for the next wave:
      ⚠️ **AND `Rules` MUST NOT REACH A SECOND WORLD BEFORE 289 CLOSES** if that
      world's users are on Retina by default — the strip's mark is the style's own
      selection vocabulary, and a half-weight rule is a half-legible affordance.
-
-289. 🟡 IN PROGRESS — claude, branch `claude/item-289-dpi-mark`.
-     **`FacetStyle::Text` AND `ChipVariant::Underline` DRAW THEIR MARK IN RAW
-     DEVICE PIXELS, SO IT IS HALF-WEIGHT ON RETINA.** Measured by item 283's lane
-     and deliberately not absorbed: the underline probes `[430.0, 153.5, 23.9,
-     1.5]` at DPI 1 and `[860.0, 306.6, 47.8, **1.5**]` at DPI 2 — **every other
-     term doubles and the thickness does not.** ⚠️ **This is item 242's
-     chrome-pixel-space rule (author in logical units, multiply once at the
-     boundary) with two dials that never got the memo**, and it is exactly the
-     class CLAUDE.md's DPI tripwire names: every capture runs at
-     `--capture-dpi 1`, the one scale at which it looks correct. **Scope: 14
-     `FacetStyle::Text` worlds plus Wagtail's `Underline` chips.** It moves 15
-     worlds' 2× appearance, which is why it is its own item and not a footnote.
-     **Verify:** the mark's thickness scales with DPI like every neighbour, swept
-     at 1× and 2× across the affected roster. **Routing:** production tier.
-     ⚠️ **Confirm the premise with a capture before changing anything** — it is a
-     lane's report, and a lane's report carries no privilege either.
-
-291. 🟡 CODE COMPLETE AT `785c2fc5`, **BLOCKED ON ONE HELD FILE** —
-     `claude/item-291-settle-instrument`. The fix grows `src/probe.rs` 825 → 904
-     lines, and its `file_size_mark` in `scripts/code-health.toml` is an EXACT
-     count whose raise needs a stated reason (`check_mark_raises`). **Item 274
-     holds that file, so the lane reported the block instead of routing around the
-     lock — correctly, per §8.** Resolution: land 274, then raise the mark with a
-     reason and merge; the orchestrator owns that one-line edit rather than a
-     re-dispatch. ⚠️ `src/probe.rs` at 904 is another ~2×-ceiling file — read with
-     305, whose thesis is that these marks have started shaping code.
-
-     **Landed in the branch and verified by the orchestrator against the tree:**
-     the burst law sweeps N = 1, 2, 3, 8, 9 under the **zero-gap arrival order**
-     (all N marks, then all N presents). The lane's FIRST test shape — tidy
-     alternating mark/present — **never exercised the bug and was discarded**,
-     which is the "a law dies at its subject" discipline working. Mutation went red
-     at **n=2**, the first length past the vacuous case, which is the whole reason
-     for sweeping rather than hand-picking. `SWITCH_WINDOW` went 5 s → 30 s: pure
-     dismiss-on-input was considered and rejected because the readout line carries
-     no age indicator, so an arbitrarily old switch's numbers would sit on screen
-     looking current. 🔵 **That 30 s is a taste call, not a measured one** — debug
-     panel only, so low stakes.
-
-     **RESIDUAL, owed once `docs/render.md` is unheld:** its law list does not name
-     the new `movement_latency_burst_of_n_reports_n_not_one`. (`docs/fonts.md:24`
-     was checked and is fine — it describes the bias as past-tense history, which
-     is now true.)
-     **NARROWED BY 290 — its PRIMARY defect is dissolved, and what is left is the
-     HARNESS, not the product.** The original complaint was that a Coalesce step
-     reached only `arm_theme_font` and never `sync_theme_font_measured`, the sole
-     creator of `ThemeSettleInFlight`, so 12 reshaping inputs recorded 2
-     transactions. **Verified against the tree after 290 landed: `arm_theme_font`
-     no longer exists anywhere, and every preview step now reaches
-     `sync_theme_font_measured` (`app/apply.rs:82`, `:120`).** The settle readout
-     itself survives intact — `MIN_PHASE_COVERAGE`, the phase roster and the debug
-     lines are untouched; only `SwitchPhase::RESHAPE_SIDE`/`reshape_side_ms` went
-     with the deferred apply that produced them.
-
-     **What actually remains, and it is worth doing because a biased instrument
-     has already put a wrong number on this board:**
-     - ⚠️ **The harness bias.** `probe::mark_movement_input` **overwrites** a
-       pending mark, so a burst reports `n=1` for 8 inputs. This is not
-       hypothetical damage: item 290's own "12.3 ms / n=1 for 8 inputs" figure was
-       this bias, and it under-reported the real burst cost by two orders of
-       magnitude. **Fix the overwrite, or surface a dropped count.**
-     - `SWITCH_WINDOW` is 5 s, so the readout lines vanish 5 s after the last
-       switch — an instrument that erases itself before it can be read.
-     - A **stale comment left deliberately** by 290's lane because `probe.rs` was
-       outside its partition: `src/probe.rs:316` still says it *"mirrors
-       `retint_theme_preview`'s own debounced-reshape deferral"*. There is no
-       longer a deferral to mirror. Item 302's class; fix it here.
-     **Verify:** a burst of N reshaping inputs reports N, not 1; mutation-prove
-     the drop by reinstating the overwrite and watching the law go red.
-     **Routing:** production tier.
 
 292. **Kite's active lens chip collides with the card's top edge.** The filled
      chip's plate runs flush into the strip band's top, reading as clipped.
