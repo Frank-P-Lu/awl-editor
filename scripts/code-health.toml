@@ -218,7 +218,7 @@ reason = "The `Mode::BenchA11y` dispatch arm is one line in the ONE mode dispatc
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
-lines = 1061
+lines = 22
 reason = "The `Tag::Heading` Start arm's else branch now promotes a qualifying SETEXT dash underline to a real `MdKind::Rule` span over exactly its own bytes (inline, no second single-call-site helper — the file was already sitting at its frozen ceiling), `is_thematic_break`'s doc comment is re-authored now that the setext case is no longer a false positive under the decided rule, and several pre-existing doc comments in the same neighborhood are tightened to make room without losing their content — net -2 lines even after the new logic."
 
 [[file_size_mark]]
@@ -389,7 +389,7 @@ reason = "+69: `ColumnFlow` — the one signed answer to which way a row's colum
 
 [[file_size_mark]]
 file = "src/render/spans.rs"
-lines = 1140
+lines = 41
 reason = "A new `line_has_rule_span` helper (matching the existing `line_has_image_span`/`line_has_code_span` family) plus a `confirmed_rule` parameter threaded through `md_line_scale` and its doc comment — the corroborating check that stops a bare-scan false positive (e.g. `---` inside a fenced code block) from growing a row for an ornament that never draws. `line_has_rule_span`'s and `md_line_scale`'s doc comments are re-authored (+4 net) now that a qualifying SETEXT dash underline is no longer an example of the gap — it gets a real Rule span and agrees with the bare scan."
 
 [[file_size_mark]]
@@ -612,9 +612,9 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/markdown/spans.rs"
+file = "src/markdown/spans/parse.rs"
 function = "spans"
-message = "this function has too many lines (172/100)"
+message = "this function has too many lines (165/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The `Tag::Heading` Start arm grew with an `else if` arm that promotes a qualifying SETEXT dash underline to a real `MdKind::Rule` span, inlined here (rather than a second single-call-site helper) to stay under the file's own frozen line ceiling — DECIDED: `---` always draws as the rule, whatever precedes it."
 
 [[clippy_exception]]
