@@ -307,7 +307,7 @@ mod overlay_draw;
 mod overlay_rows;
 // The `Rules` PROTOTYPE's whole composition, in one file so it can graduate
 // or be lifted out as one thing.
-mod overlay_rules;
+pub(in crate::render) mod overlay_rules;
 use overlay_rules::{RULE_ROW_AIR, RULES_TEXT_HPAD};
 mod overlay_selection;
 #[cfg(test)]

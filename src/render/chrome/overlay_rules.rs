@@ -1,4 +1,4 @@
-//! `ListStyle::Rules` — the QUIET fourth list composition, and a PROTOTYPE.
+//! `ListStyle::Rules` — the QUIET fourth list composition.
 //!
 //! Organised by ABSENCE: leading and hairline rules do the arranging and
 //! nothing is drawn as an object. `Pane` organises by enclosure, `Bars` by
@@ -11,13 +11,24 @@
 //! quad pipelines `Bars` already fills — hairlines on `overlay_bars`, the
 //! selection mark on `overlay_rows`.
 //!
-//! ⚠️ **WHAT IS UNDECIDED IS THE POINT.** [`theme::RuleSelection`] carries two
-//! credible answers to "which row is selected" and the choice between them is
-//! taste, owed to a human rather than settled here. Both are drawn from this
-//! one function so the fork stays one decision in one place, and both are
-//! forceable for capture (`AWL_OVERLAY_LIST_FORCE=rules[:weight|gutter]`).
-//! Neither may FILL the row: a filled band is `Pane`'s answer, and borrowing it
-//! would make this style a restyle of that one.
+//! [`rules_ink`] IS THE ONE OWNER of which rules a ruled list draws, and it is
+//! shared rather than copied: the picker/workspace ROW list and the summoned
+//! workspace's navigation RAIL are the same composition over different bands, on
+//! different pipelines. A rail is a list of labels arranged by the boundaries
+//! between them, which is what this style says a list is — and taking the
+//! world's filled selected-row band there, as every other style's rail does,
+//! would put a plate inside the one composition that refuses them.
+//!
+//! [`theme::RuleSelection`] carries the selection treatment. `Weight` is the
+//! shipped answer, chosen by the user against both rendered side by side: the
+//! two rules bounding the selected row thicken and run out past the text measure
+//! to the full band, so the mark is made of the list's own substance and the
+//! row's interior stays plain ground. `Gutter` — a short heavy segment hanging
+//! in the margin — remains drawable, and both come out of one function so the
+//! fork stays one decision in one place
+//! (`AWL_OVERLAY_LIST_FORCE=rules[:weight|gutter]`). Neither may FILL the row: a
+//! filled band is `Pane`'s answer, and borrowing it would make this style a
+//! restyle of that one.
 
 use super::overlay_selection::OverlaySelectionRects;
 use super::*;
@@ -59,7 +70,7 @@ pub(in crate::render::chrome) const RULE_MARK_GAP: Logical = Logical(9.0);
 /// through the row planner, so the composition owner below takes the only three
 /// facts it actually needs.
 #[derive(Clone, Copy)]
-pub(in crate::render::chrome) struct RuleRow {
+pub(in crate::render) struct RuleRow {
     pub top: f32,
     pub bottom: f32,
     pub selected: bool,
@@ -67,7 +78,7 @@ pub(in crate::render::chrome) struct RuleRow {
 
 /// THE SPANS AND WEIGHTS a ruled list is drawn at, resolved to device pixels by
 /// the caller (each list knows its own band).
-pub(in crate::render::chrome) struct RuleSpans {
+pub(in crate::render) struct RuleSpans {
     pub hair: f32,
     pub heavy: f32,
     /// What an ordinary rule runs — the list's text measure, so a rule and the
@@ -88,7 +99,7 @@ pub(in crate::render::chrome) struct RuleSpans {
 /// different pipelines over different bands, and that is all that differs — a
 /// rail is a list of labels arranged by the boundaries between them, which is
 /// what this style says a list is.
-pub(in crate::render::chrome) fn rules_ink(
+pub(in crate::render) fn rules_ink(
     rows: &[RuleRow],
     mark: theme::RuleSelection,
     s: &RuleSpans,
@@ -135,10 +146,19 @@ pub(in crate::render::chrome) fn rules_ink(
         // The mark is made of the same substance as the list — a heavy rule
         // segment, one gutter wide, hanging beside a row nothing else about has
         // changed.
+        //
+        // THE GUTTER IS THE BAND'S, NOT THE MARK'S. A card whose text inset is
+        // narrower than `gap + len` has less gutter than the authored segment
+        // wants, and the contextual SPELL popup is exactly that card (its inset
+        // is its own `SPELL_PAD`, not the list style's). The segment shortens
+        // into the room it has rather than hanging off the card's left edge —
+        // an authored length yields to the band, never the other way round.
         let (len, gap) = s.mark;
+        let x = (measure_x - gap - len).max(band_x);
+        let w = (measure_x - gap - x).clamp(1.0, len);
         for row in rows.iter().filter(|r| r.selected) {
             let cy = (row.top + row.bottom) * 0.5;
-            selected.push(rule(cy, s.heavy, measure_x - gap - len, len));
+            selected.push(rule(cy, s.heavy, x, w));
         }
     }
     (hairlines, selected)
@@ -148,7 +168,7 @@ impl TextPipeline {
     /// The two rule weights this frame draws them at. A hairline is floored at
     /// one device pixel so it survives every scale, and the heavy rule can never
     /// be lighter than the hairline it replaces.
-    pub(in crate::render::chrome) fn rule_weights(&self) -> (f32, f32) {
+    pub(in crate::render) fn rule_weights(&self) -> (f32, f32) {
         let hair = self.metrics.px(RULE_HAIRLINE).max(1.0);
         (hair, self.metrics.px(RULE_SELECTED_WEIGHT).max(hair))
     }

@@ -208,28 +208,28 @@ impl TextPipeline {
     /// LABEL measure — the rail column less the `2 * hpad` its measurement
     /// reserves — and the selection's heavy rule runs the full column, which is
     /// the very rect the filled band occupied. Same reach, different substance.
-    fn prepare_rail_rules(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        width: u32,
-        height: u32,
-        geom: &OverlayGeom,
+    /// THE ONE PLACE the recorded rail becomes rules — `(hairlines, selection)`.
+    /// The draw path below and the law probe both come through here, so a law
+    /// cannot grade a shape this frame would not have drawn.
+    pub(in crate::render) fn workspace_rail_rule_ink(
+        &self,
         mark: theme::RuleSelection,
-    ) {
+    ) -> (Vec<[f32; 4]>, Vec<[f32; 4]>) {
         let (hair, heavy) = self.rule_weights();
         let rows: Vec<super::overlay_rules::RuleRow> = self
             .workspace_rail_rows
             .iter()
-            .map(|&([_, top, _, h], selected)| super::overlay_rules::RuleRow {
-                top,
-                bottom: top + h,
-                selected,
-            })
+            .map(
+                |&([_, top, _, h], selected)| super::overlay_rules::RuleRow {
+                    top,
+                    bottom: top + h,
+                    selected,
+                },
+            )
             .collect();
-        // The rail's own column, read off the rail it just recorded: every
+        // The rail's own column, read off the rail the shaper recorded: every
         // entry rect spans the full box, so the box IS any row's `[x, w]`.
-        let (hairlines, selected) = match self.workspace_rail_rows.first() {
+        match self.workspace_rail_rows.first() {
             None => (Vec::new(), Vec::new()),
             Some(&([x, _, w, _], _)) => {
                 let hpad = self.overlay_text_hpad();
@@ -248,7 +248,19 @@ impl TextPipeline {
                     },
                 )
             }
-        };
+        }
+    }
+
+    fn prepare_rail_rules(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        width: u32,
+        height: u32,
+        geom: &OverlayGeom,
+        mark: theme::RuleSelection,
+    ) {
+        let (hairlines, selected) = self.workspace_rail_rule_ink(mark);
         // A rule is a drawn line, not a rounded surface — square ends, no
         // stroke, on both pipelines, which are shared with the chip skins and
         // would otherwise carry a corner across a world switch.
