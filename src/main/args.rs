@@ -602,19 +602,8 @@ pub(crate) fn parse_args() -> Result<Mode> {
                     .next()
                     .map(PathBuf::from)
                     .ok_or_else(|| anyhow::anyhow!("--export-linux-icon needs an output path"))?;
-                let icns_path = PathBuf::from(crate::app_icon::CANONICAL_ICNS);
-                let icns_bytes = std::fs::read(&icns_path).map_err(|e| {
-                    anyhow::anyhow!(
-                        "{}: {e} — run scripts/export-icons.sh first",
-                        icns_path.display()
-                    )
-                })?;
-                let png = crate::app_icon::icns::linux_icon_png(&icns_bytes)?;
-                if let Some(parent) = out.parent() {
-                    std::fs::create_dir_all(parent)?;
-                }
-                std::fs::write(&out, &png)?;
-                println!("wrote {} ({} bytes)", out.display(), png.len());
+                let bytes = crate::app_icon::export_linux_icon(&out)?;
+                println!("wrote {} ({bytes} bytes)", out.display());
                 std::process::exit(0);
             }
             "-h" | "--help" => {
