@@ -292,18 +292,17 @@ pub fn trace(args: std::fmt::Arguments) {
     }
 }
 
-/// ITEM 85 — MOVEMENT-LATENCY SAMPLES (native live-only): a FIFO of pending
-/// marks, one `Instant` pushed per THEME-PICKER movement step that begins its
-/// real relayout work ([`mark_movement_input`], called from
+/// MOVEMENT-LATENCY SAMPLES (native live-only): a FIFO of pending marks, one
+/// `Instant` pushed per THEME-PICKER movement step that begins its real
+/// relayout work ([`mark_movement_input`], called from
 /// `App::retint_theme_preview` — the ONE owner every input kind, keyboard nav /
 /// mouse hover / wheel, funnels a world-changing preview through) and popped in
 /// arrival order as each is closed out against its own FIRST frame actually
 /// presented afterward ([`note_presented_frame`], called from `Gpu::redraw` at
-/// the exact point the existing `"present"` trace already fires). Item 290
-/// removed the deferred-reshape mechanism that used to make an intermediate
-/// burst step invisible (no frame of its own) — every step now reshapes and
-/// presents on its own turn, so every mark has exactly one present to pair
-/// with, in the same order they armed.
+/// the exact point the existing `"present"` trace already fires). Every preview
+/// step unconditionally reshapes and presents on its own turn (no deferred or
+/// coalesced settle), so every mark has exactly one present to pair with, in
+/// the same order they armed.
 #[cfg(not(target_arch = "wasm32"))]
 static LATENCY_PENDING: std::sync::Mutex<std::collections::VecDeque<std::time::Instant>> =
     std::sync::Mutex::new(std::collections::VecDeque::new());
@@ -316,11 +315,12 @@ static LATENCY_SAMPLES: std::sync::Mutex<Vec<u128>> = std::sync::Mutex::new(Vec:
 /// Arm the latency clock for ONE theme-picker movement step. A cheap no-op unless
 /// [`recording`] — the same gate every other diagnostic trace point uses, so a
 /// plain launch never even reads the clock. Pushed onto the pending queue rather
-/// than overwriting a single slot: an overwrite here once collapsed an N-step
-/// burst to a single sample (`n=1`) and put a wrong number — off by roughly two
-/// orders of magnitude — on the project board (item 291). There is no longer a
-/// reason for one mark to evict another: every step gets its own present (see
-/// [`LATENCY_PENDING`]'s doc), so every step earns its own sample.
+/// than overwriting a single slot: an overwriting single slot collapses an
+/// N-step burst to a single sample (`n=1`) regardless of N, which is not a
+/// harmless simplification — a burst's true count is exactly the thing this
+/// distribution exists to report. There is no reason for one mark to evict
+/// another: every step gets its own present (see [`LATENCY_PENDING`]'s doc), so
+/// every step earns its own sample.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn mark_movement_input() {
     if !recording() {
@@ -831,19 +831,15 @@ mod tests {
         assert!(latency_distribution().is_none());
     }
 
-    /// ITEM 291 — THE HARNESS BIAS THIS BOARD MEASURED ITSELF WITH. Before this
-    /// fix, [`mark_movement_input`] overwrote a still-pending mark instead of
-    /// queuing one per step, so a burst of N reshaping inputs reported `n=1` no
-    /// matter how large N was — and that exact bias produced item 290's board
-    /// figure of "12.3 ms / n=1 for 8 inputs", undercounting the real burst cost
-    /// (297.9 ms, measured by `--bench-theme-burst`, which never touches this
-    /// probe) by roughly two orders of magnitude.
+    /// A single overwritten slot reports `n=1` for a burst of N reshaping
+    /// inputs regardless of N — the exact shape that once undercounted a real
+    /// burst's cost by roughly two orders of magnitude against the
+    /// `--bench-theme-burst` figure, which never touches this probe.
     ///
-    /// Sweeps burst LENGTH rather than one hand-picked count, per CLAUDE.md's own
-    /// rule that a law's axis must be the one an off-by-one can hide behind: a
-    /// single-slot-vs-queue bug is invisible at `n=1` and only some off-by-one
-    /// variants would show at `n=2`; this checks 1, 2, 3, 8 (the board's own
-    /// figure) and 9 (`--bench-theme-burst`'s own burst length).
+    /// Sweeps burst LENGTH rather than one hand-picked count: a single-slot-vs-
+    /// queue bug is invisible at `n=1` and only some off-by-one variants would
+    /// show at `n=2`; this checks 1, 2, 3, 8, and 9 (`--bench-theme-burst`'s own
+    /// burst length).
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn movement_latency_burst_of_n_reports_n_not_one() {

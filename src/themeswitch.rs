@@ -209,16 +209,16 @@ use crate::clock::Instant;
 /// time rather than a number of frames: a hundred cheap caret frames must not erase
 /// the switch hitch that prompted the investigation.
 ///
-/// ITEM 291 — raised from 5s to 30s. The readout line carries no age indicator
-/// (`settle_lines` prints only the numbers, never a timestamp), and the panel's
-/// own doc names its reader as "the user screenshots, the agent triages" — a
-/// human glancing over or an agent's round trip (arm a live run, drive the
-/// input, switch tools, capture a screenshot) routinely exceeds five seconds,
-/// so a 5s window was an instrument that erased itself before it could be read.
-/// 30s stays "recent" for a human actively testing a theme switch while giving
-/// a realistic read-and-capture loop enough room; a pure dismiss-on-input
-/// design (never decay, only replaced by the next switch) was rejected because
-/// it would let a very old switch's numbers sit on screen indefinitely with
+/// 30 seconds: the readout line carries no age indicator (`settle_lines`
+/// prints only the numbers, never a timestamp), and the panel's own doc names
+/// its reader as "the user screenshots, the agent triages" — a human glancing
+/// over or an agent's round trip (arm a live run, drive the input, switch
+/// tools, capture a screenshot) routinely exceeds a few seconds, so too short
+/// a window is an instrument that erases itself before it can be read. 30s
+/// stays "recent" for a human actively testing a theme switch while giving a
+/// realistic read-and-capture loop enough room; a pure dismiss-on-input design
+/// (never decay, only replaced by the next switch) was rejected because it
+/// would let a very old switch's numbers sit on screen indefinitely with
 /// nothing on the line itself to mark them stale — worse than disappearing.
 pub const SWITCH_WINDOW: Duration = Duration::from_secs(30);
 
