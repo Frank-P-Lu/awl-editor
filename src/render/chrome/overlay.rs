@@ -633,8 +633,9 @@ impl TextPipeline {
             let k = row.display;
             let value_w = secondary.get(&k).copied().unwrap_or(0.0);
             let label_w = primary.get(&k).copied().unwrap_or(0.0);
-            let (text_right, avail) = match cluster {
-                Some(cluster) => (cluster.accessory_right(k), cluster.accessory_w()),
+            let flow = super::diagonal::accessory_flow(self);
+            let (anchor, avail) = match cluster {
+                Some(cluster) => (cluster.accessory_anchor(k), cluster.accessory_w()),
                 None => {
                     let text_right = geom.text_left + geom.text_w;
                     (
@@ -644,7 +645,7 @@ impl TextPipeline {
                 }
             };
             if let Some(rail) = crate::render::rowlayout::rail_geom(
-                text_right, value_w, avail, row.top, row.height, frac,
+                anchor, flow, value_w, avail, row.top, row.height, frac,
             ) {
                 out.push((item, rail));
             }

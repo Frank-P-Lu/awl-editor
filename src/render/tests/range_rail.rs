@@ -80,85 +80,151 @@ fn settings_view(ov: &OverlayState) -> ViewState {
 }
 
 /// PURE GEOMETRY (no GPU) — the rail's own arithmetic: the track spans exactly
-/// its authored length ending a gap short of the value text, the thumb rides the
-/// fraction, the hit band is GENEROUSLY wider than the drawn thumb in both axes,
-/// and a pointer x maps back to the fraction it came from.
+/// its authored length, a gap short of its value text and INWARD of it, the
+/// thumb rides the fraction, the hit band is GENEROUSLY wider than the drawn
+/// thumb in both axes, and a pointer x maps back to the fraction it came from.
+///
+/// ⚠️ SWEPT OVER BOTH COLUMN FLOWS. An accessory column hangs on the end of its
+/// cluster and grows back toward the row's name, so a mirrored composition seats
+/// the rail on the OTHER side of its value — and every claim below is written
+/// against the flow rather than against "left", which was true of one world.
 #[test]
 fn the_rail_geometry_round_trips_and_its_hit_target_is_generous() {
     let lh = 24.0f32;
-    let text_right = 900.0f32;
+    let anchor = 900.0f32;
     let value_w = 40.0f32;
     let row_top = 200.0f32;
-    for &frac in &[0.0f32, 0.2, 0.5, 0.87, 1.0] {
-        let rail = rowlayout::rail_geom(text_right, value_w, 600.0, row_top, lh, frac)
-            .expect("a wide row seats a rail");
-        // The track ends a gap short of the value text, and never touches it.
-        assert!(
-            rail.x1 < text_right - value_w,
-            "the track must clear the value text"
-        );
-        assert!(rail.x0 < rail.x1);
-        // The thumb rides the fraction along the track, inside it at both ends.
-        let cx = rail.thumb[0] + rail.thumb[2] * 0.5;
-        assert!(
-            (cx - (rail.x0 + frac * (rail.x1 - rail.x0))).abs() < 0.01,
-            "the thumb must sit at frac {frac} of the track"
-        );
-        // px -> fraction is the exact inverse at the thumb's own centre.
-        assert!(
-            (rowlayout::rail_frac_at(cx, rail.x0, rail.x1) - frac).abs() < 1e-4,
-            "a press on the thumb resolves to the fraction it is drawn at"
-        );
-        // THE GENEROUS TARGET: the hit band is far wider than the visually small
-        // thumb, spans the WHOLE row height, and contains the whole track.
-        assert!(
-            rail.hit[2] > rail.thumb[2] * 4.0,
-            "the hit band ({}) must be much wider than the thumb ({})",
-            rail.hit[2],
-            rail.thumb[2]
-        );
-        assert!(
-            rail.hit[3] >= rail.thumb[3],
-            "the hit band spans the row, not the thumb"
-        );
-        assert!(
-            (rail.hit[3] - lh).abs() < 0.01,
-            "the hit band is the whole row band"
-        );
-        assert!(rail.hit[0] < rail.x0 && rail.hit[0] + rail.hit[2] > rail.x1);
-        // A press anywhere in the band resolves ON the track (never off the ends).
-        for px in [
-            rail.hit[0],
-            rail.hit[0] + rail.hit[2],
-            rail.x0 - 3.0,
-            rail.x1 + 3.0,
-        ] {
-            let f = rowlayout::rail_frac_at(px, rail.x0, rail.x1);
-            assert!(
-                (0.0..=1.0).contains(&f),
-                "px {px} resolved off the rail: {f}"
-            );
-        }
-        // Containment agrees with the band on every corner + just outside it.
-        assert!(rowlayout::rail_hit(&rail, cx, row_top + lh * 0.5));
-        assert!(!rowlayout::rail_hit(
-            &rail,
-            rail.hit[0] - 1.0,
-            row_top + lh * 0.5
-        ));
-        assert!(!rowlayout::rail_hit(&rail, cx, row_top - 1.0));
-        assert!(!rowlayout::rail_hit(&rail, cx, row_top + lh + 1.0));
+    for flow in [
+        rowlayout::ColumnFlow::Leftward,
+        rowlayout::ColumnFlow::Rightward,
+    ] {
+        one_flows_rail_geometry(flow, anchor, value_w, row_top, lh);
     }
-    // THE SECONDARY COLUMN'S YIELD RULE: a row with no room for the rail beside
-    // its label gets NO rail rather than one painted over the name.
-    assert!(rowlayout::rail_geom(text_right, value_w, 10.0, row_top, lh, 0.5).is_none());
-    // The rail scales with the row (zoom): a taller row gets a longer track.
-    let small = rowlayout::rail_geom(text_right, value_w, 600.0, row_top, 12.0, 0.5).unwrap();
-    let big = rowlayout::rail_geom(text_right, value_w, 600.0, row_top, 36.0, 0.5).unwrap();
+    // THE MIRROR ITSELF: the two flows put the same rail on OPPOSITE sides of the
+    // same anchored value, so this law cannot pass on a rail that ignored its flow.
+    let l = rowlayout::rail_geom(
+        anchor,
+        rowlayout::ColumnFlow::Leftward,
+        value_w,
+        600.0,
+        row_top,
+        lh,
+        0.5,
+    )
+    .unwrap();
+    let r = rowlayout::rail_geom(
+        anchor,
+        rowlayout::ColumnFlow::Rightward,
+        value_w,
+        600.0,
+        row_top,
+        lh,
+        0.5,
+    )
+    .unwrap();
     assert!(
-        big.track[2] > small.track[2] * 2.0,
-        "the rail scales with the row height"
+        l.x1 < anchor && r.x0 > anchor,
+        "a mirrored accessory column must seat its rail on the other side of its \
+         anchor — got {l:?} and {r:?}"
     );
+    assert!(
+        (l.track[2] - r.track[2]).abs() < 0.01,
+        "mirroring changes which side the track sits on, never its length"
+    );
+}
+
+/// One flow's whole arithmetic — extracted so the law above stays a readable
+/// statement of what is swept rather than one function twice as long as the
+/// house limit.
+fn one_flows_rail_geometry(
+    flow: rowlayout::ColumnFlow,
+    anchor: f32,
+    value_w: f32,
+    row_top: f32,
+    lh: f32,
+) {
+    {
+        for &frac in &[0.0f32, 0.2, 0.5, 0.87, 1.0] {
+            let rail = rowlayout::rail_geom(anchor, flow, value_w, 600.0, row_top, lh, frac)
+                .expect("a wide row seats a rail");
+            // The track clears the value text, on the side the column grows toward.
+            let (value_left, value_right) = flow.span(anchor, value_w);
+            match flow {
+                rowlayout::ColumnFlow::Leftward => assert!(
+                    rail.x1 < value_left,
+                    "the track must clear the value text inward of it"
+                ),
+                rowlayout::ColumnFlow::Rightward => assert!(
+                    rail.x0 > value_right,
+                    "the track must clear the value text inward of it"
+                ),
+            }
+            assert!(
+                rail.x0 < rail.x1,
+                "x0 is the track's LEFT edge at every flow"
+            );
+            // The thumb rides the fraction along the track, inside it at both ends.
+            let cx = rail.thumb[0] + rail.thumb[2] * 0.5;
+            assert!(
+                (cx - (rail.x0 + frac * (rail.x1 - rail.x0))).abs() < 0.01,
+                "the thumb must sit at frac {frac} of the track"
+            );
+            // px -> fraction is the exact inverse at the thumb's own centre.
+            assert!(
+                (rowlayout::rail_frac_at(cx, rail.x0, rail.x1) - frac).abs() < 1e-4,
+                "a press on the thumb resolves to the fraction it is drawn at"
+            );
+            // THE GENEROUS TARGET: the hit band is far wider than the visually small
+            // thumb, spans the WHOLE row height, and contains the whole track.
+            assert!(
+                rail.hit[2] > rail.thumb[2] * 4.0,
+                "the hit band ({}) must be much wider than the thumb ({})",
+                rail.hit[2],
+                rail.thumb[2]
+            );
+            assert!(
+                rail.hit[3] >= rail.thumb[3],
+                "the hit band spans the row, not the thumb"
+            );
+            assert!(
+                (rail.hit[3] - lh).abs() < 0.01,
+                "the hit band is the whole row band"
+            );
+            assert!(rail.hit[0] < rail.x0 && rail.hit[0] + rail.hit[2] > rail.x1);
+            // A press anywhere in the band resolves ON the track (never off the ends).
+            for px in [
+                rail.hit[0],
+                rail.hit[0] + rail.hit[2],
+                rail.x0 - 3.0,
+                rail.x1 + 3.0,
+            ] {
+                let f = rowlayout::rail_frac_at(px, rail.x0, rail.x1);
+                assert!(
+                    (0.0..=1.0).contains(&f),
+                    "px {px} resolved off the rail: {f}"
+                );
+            }
+            // Containment agrees with the band on every corner + just outside it.
+            assert!(rowlayout::rail_hit(&rail, cx, row_top + lh * 0.5));
+            assert!(!rowlayout::rail_hit(
+                &rail,
+                rail.hit[0] - 1.0,
+                row_top + lh * 0.5
+            ));
+            assert!(!rowlayout::rail_hit(&rail, cx, row_top - 1.0));
+            assert!(!rowlayout::rail_hit(&rail, cx, row_top + lh + 1.0));
+        }
+        // THE SECONDARY COLUMN'S YIELD RULE: a row with no room for the rail beside
+        // its label gets NO rail rather than one painted over the name.
+        assert!(rowlayout::rail_geom(anchor, flow, value_w, 10.0, row_top, lh, 0.5).is_none());
+        // The rail scales with the row (zoom): a taller row gets a longer track.
+        let small = rowlayout::rail_geom(anchor, flow, value_w, 600.0, row_top, 12.0, 0.5).unwrap();
+        let big = rowlayout::rail_geom(anchor, flow, value_w, 600.0, row_top, 36.0, 0.5).unwrap();
+        assert!(
+            big.track[2] > small.track[2] * 2.0,
+            "the rail scales with the row height"
+        );
+    }
 }
 
 /// THE DRAWN RAIL AND THE CLICKABLE RAIL ARE ONE RECTANGLE — driven through the

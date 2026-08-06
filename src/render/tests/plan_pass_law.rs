@@ -148,19 +148,21 @@ fn a_real_diagonal_frame_leaves_the_planned_span_around_its_drawn_ink() {
         let (x0, x1) = plan.card_x_span();
         for row in plan.rows() {
             let (left, right) = (x0 + row.dx, x1 + row.dw);
+            // The cluster's two ends in CANVAS order — the pair holds whichever
+            // way the composition mirrors, where "label side" and "accessory
+            // side" would each be true of one world only.
+            let (cl, cr) = cluster.cluster_span(row.display);
             assert!(
-                left <= cluster.label_left(row.display) + 0.5,
+                left <= cl + 0.5,
                 "{name}: display {} — the planned span starts at {left} but the drawn \
-                 label starts at {}",
+                 cluster starts at {cl}",
                 row.display,
-                cluster.label_left(row.display)
             );
             assert!(
-                right + 0.5 >= cluster.accessory_right(row.display),
+                right + 0.5 >= cr,
                 "{name}: display {} — the planned span ends at {right} but the drawn \
-                 accessory ends at {}",
+                 cluster ends at {cr}",
                 row.display,
-                cluster.accessory_right(row.display)
             );
             graded += 1;
         }

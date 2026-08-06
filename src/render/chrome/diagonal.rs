@@ -7,6 +7,7 @@
 //! of carrying a second, DPI-only, grow-only scale of its own.
 
 use super::*;
+use crate::render::rowlayout::ColumnFlow;
 
 const ROW_STEP: Logical = Logical(7.0);
 const SPINE_WEIGHT: Logical = Logical(1.5);
@@ -34,198 +35,6 @@ pub(in crate::render) struct DiagonalComposition {
     pub connector: f32,
     pub selected_outward: f32,
     pub selected_spine_weight: f32,
-}
-
-/// The one measured row-cluster layout shared by diagonal text, accessory
-/// upload, Range geometry, and the planner's clickable row-side span.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(in crate::render) struct DiagonalClusterRail {
-    direction: theme::DiagonalDirection,
-    /// The row's whole territory beside the spine — the cluster BUDGET, a
-    /// property of the card alone. The label runs from the spine end and the
-    /// accessory right-aligns into the far end, as an upright world's name and
-    /// chord share one text column. Sized from the rows, a scroll moved it.
-    cluster_w: f32,
-    accessory_w: f32,
-    connector: f32,
-    spine_start: f32,
-    spine_step: f32,
-    span: RowSpan,
-    selected_display: Option<usize>,
-    selected_shift: f32,
-}
-
-#[cfg(test)]
-#[derive(Clone, Copy, Debug)]
-pub(in crate::render) struct DiagonalClusterProbe {
-    pub cluster_w: f32,
-    pub accessory_w: f32,
-    pub span: RowSpan,
-    rail: DiagonalClusterRail,
-}
-
-#[cfg(test)]
-impl DiagonalClusterProbe {
-    pub(in crate::render) fn label_left(self, display: usize) -> f32 {
-        self.rail.label_left(display)
-    }
-
-    pub(in crate::render) fn accessory_left(self, display: usize) -> f32 {
-        self.rail.accessory_left(display)
-    }
-
-    pub(in crate::render) fn accessory_right(self, display: usize) -> f32 {
-        self.rail.accessory_right(display)
-    }
-
-    pub(in crate::render) fn selected_offset(self) -> (f32, f32) {
-        self.rail.selected_offset()
-    }
-
-    /// Where display row `display`'s SPINE segment stands — the composition's
-    /// stationary surface, independent of anything a row measures.
-    pub(in crate::render) fn spine_x(self, display: usize) -> f32 {
-        self.rail.spine_x(display)
-    }
-
-    /// The row's own MEASURED horizontal step — see
-    /// [`DiagonalClusterRail::spine_step`]'s own doc.
-    pub(in crate::render) fn spine_step(self) -> f32 {
-        self.rail.spine_step()
-    }
-}
-
-impl DiagonalClusterRail {
-    fn new(
-        composition: DiagonalComposition,
-        geom: &OverlayGeom,
-        plan: &OverlayRowPlan,
-        selected_display: Option<usize>,
-        cluster_w: f32,
-        accessory_w: f32,
-    ) -> Self {
-        let band_x = geom.band_x();
-        let band_right = band_x + geom.band_w();
-        let cluster_w = cluster_w.max(0.0);
-        let accessory_w = accessory_w.max(0.0).min(cluster_w);
-        let rows = plan.rows().len().saturating_sub(1) as f32;
-        let inset = attachment_inset(composition, geom);
-        // THE SPINE IS A FIXED SURFACE-RELATIVE LINE: its travel is reserved off
-        // the card's own side territory, never off the rows in front of it, and
-        // the cluster elides into what is left.
-        let step = if rows > 0.0 {
-            spine_travel(composition, geom, plan.rows().len()) / rows
-        } else {
-            0.0
-        };
-        let (spine_start, spine_step, span) = match composition.direction {
-            theme::DiagonalDirection::Descending => (
-                band_x + inset,
-                step,
-                RowSpan {
-                    dx: inset,
-                    dw: 0.0,
-                    dx_per_row: step,
-                    dw_per_row: 0.0,
-                },
-            ),
-            theme::DiagonalDirection::Ascending => (
-                band_right - inset,
-                -step,
-                RowSpan {
-                    dx: 0.0,
-                    dw: -inset,
-                    dx_per_row: 0.0,
-                    dw_per_row: -step,
-                },
-            ),
-        };
-        Self {
-            direction: composition.direction,
-            cluster_w,
-            accessory_w,
-            connector: composition.connector,
-            spine_start,
-            spine_step,
-            span,
-            selected_display,
-            selected_shift: composition.selected_outward,
-        }
-    }
-
-    pub(in crate::render) fn span(self) -> RowSpan {
-        self.span
-    }
-
-    fn spine_x(self, display: usize) -> f32 {
-        self.spine_start + self.spine_step * display as f32
-    }
-
-    fn shift(self, display: usize) -> f32 {
-        let shift = if self.selected_display == Some(display) {
-            self.selected_shift
-        } else {
-            0.0
-        };
-        shift * self.direction.sign()
-    }
-
-    pub(in crate::render) fn selected_offset(self) -> (f32, f32) {
-        let shift = self.selected_shift * self.direction.sign();
-        (shift, shift)
-    }
-
-    pub(in crate::render) fn row_plan(
-        self,
-    ) -> (Option<RowSpan>, Option<(f32, f32)>, Option<usize>) {
-        (
-            Some(self.span()),
-            Some(self.selected_offset()),
-            self.selected_display,
-        )
-    }
-
-    fn spine(self, plan: &OverlayRowPlan) -> Option<([f32; 2], [f32; 2])> {
-        let first = plan.rows().first()?;
-        let last = plan.rows().last()?;
-        Some((
-            [self.spine_x(first.display), first.top + first.height * 0.5],
-            [self.spine_x(last.display), last.top + last.height * 0.5],
-        ))
-    }
-
-    pub(in crate::render) fn label_left(self, display: usize) -> f32 {
-        let spine = self.spine_x(display) + self.shift(display);
-        match self.direction {
-            theme::DiagonalDirection::Descending => spine + self.connector,
-            theme::DiagonalDirection::Ascending => spine - self.connector - self.cluster_w,
-        }
-    }
-
-    /// The far end of the row's territory, where the accessory column's ink
-    /// ends — an upright card's own right-aligned chord edge, mirrored.
-    pub(in crate::render) fn accessory_right(self, display: usize) -> f32 {
-        self.label_left(display) + self.cluster_w
-    }
-
-    #[cfg(test)]
-    pub(in crate::render) fn accessory_left(self, display: usize) -> f32 {
-        self.accessory_right(display) - self.accessory_w
-    }
-
-    pub(in crate::render) fn accessory_w(self) -> f32 {
-        self.accessory_w
-    }
-
-    /// The row's own MEASURED horizontal step (device px, signed) —
-    /// `DiagonalComposition::row_step` narrowed by [`spine_travel`]'s
-    /// [`TRAVEL_MAX_BAND_FRACTION`] yield on a card too tight to afford the
-    /// authored step outright. A location cue that reads along the spine's
-    /// own rake reads THIS, not the authored constant, so a narrow card's
-    /// flattened spine and the cue beside it can never disagree.
-    pub(in crate::render) fn spine_step(self) -> f32 {
-        self.spine_step
-    }
 }
 
 /// The attachment band's inset, yielding on a card too narrow to seat it and
@@ -294,7 +103,12 @@ impl DiagonalComposition {
     }
 }
 
+mod cluster;
 mod location;
+#[cfg(test)]
+pub(in crate::render) use cluster::DiagonalClusterProbe;
+pub(in crate::render) use cluster::DiagonalClusterRail;
+use cluster::label_flow_of;
 pub(in crate::render) use location::location_axis_deg;
 
 impl TextPipeline {
@@ -396,12 +210,18 @@ impl TextPipeline {
 
     #[cfg(test)]
     pub(in crate::render) fn diagonal_cluster_probe(&self) -> Option<DiagonalClusterProbe> {
-        self.diagonal_cluster.map(|rail| DiagonalClusterProbe {
-            cluster_w: rail.cluster_w,
-            accessory_w: rail.accessory_w,
-            span: rail.span,
-            rail,
-        })
+        self.diagonal_cluster.map(DiagonalClusterProbe::of)
+    }
+}
+
+/// WHICH WAY THIS WORLD'S ACCESSORY COLUMN GROWS, answered from the world alone
+/// so the chord column can be SHAPED before any cluster has been measured — the
+/// shaping pass runs before `resolve_diagonal_cluster` can exist. Upright worlds
+/// keep the right-aligned secondary column every card has always had.
+pub(in crate::render) fn accessory_flow(pipeline: &TextPipeline) -> ColumnFlow {
+    match active(pipeline) {
+        None => ColumnFlow::Leftward,
+        Some(composition) => label_flow_of(composition.direction).mirrored(),
     }
 }
 
@@ -466,18 +286,14 @@ impl TextPipeline {
                 // `diagonal_cluster_budget`, `spine_travel`) still describes the
                 // drawn shape and needs no compensating adjustment.
                 //
-                // The arm reach is READ FROM the cluster rather than re-derived, so
-                // it keeps the selected row's own outward shift; and because the
-                // cluster already mirrors on `direction`, the chevron mirrors with
-                // it — opening right on a Descending world, left on an Ascending
-                // one — without a second sign living here.
-                let arm_x = match composition.direction {
-                    theme::DiagonalDirection::Descending => cluster.label_left(row.display),
-                    theme::DiagonalDirection::Ascending => cluster.accessory_right(row.display),
-                };
+                // The arm reaches the cluster's SPINE end — the edge the row's own
+                // name hugs — READ FROM the cluster rather than re-derived, so it
+                // keeps the selected row's outward shift and mirrors with the
+                // cluster, opening right on a Descending world and left on an
+                // Ascending one, without a second sign living here.
                 selected_chevron(
                     cluster.spine_x(row.display),
-                    arm_x,
+                    cluster.label_anchor(row.display),
                     row.top + 2.0,
                     row.bottom() - 2.0,
                     composition.selected_spine_weight,

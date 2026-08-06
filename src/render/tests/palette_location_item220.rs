@@ -207,6 +207,39 @@ fn peak_departure(pixels: &[[u8; 4]], ground: f32, x: (usize, usize), y: (usize,
     peak
 }
 
+/// ⚠️ WHERE A ROW'S OWN INK IS IS NOT A CONSTANT, and on a diagonal world
+/// neither half of the band is the answer. A mirrored composition hangs its
+/// names on the SPINE end and right-aligns them there, so the left-half scan
+/// this law was written with read the card's empty surface and its own vacuity
+/// guard fired — the WINDOW was the untested hypothesis, not the claim.
+///
+/// On those worlds the window is the row's WHOLE side of its spine: it must hold
+/// both arms' ink, and the two do not share a column — the raked location cue
+/// hangs flush at the card's own text edge while the section header it replaced
+/// hangs at the spine — and it must exclude the SPINE, full-strength `muted` ink
+/// present in BOTH arms, which saturated the peak-of-|Δluma| oracle at 128.2
+/// apiece and compared the heading to nothing. The GROUND then comes from the
+/// band's far side, past the spine, where no row draws at all.
+///
+/// Returns `((x0, x1), ground_x)` for a band `[x, w, ..]`.
+fn scan_window(p: &TextPipeline, band: [f32; 4]) -> ((f32, f32), f32) {
+    let mid = band[0] + band[1] * 0.5;
+    match p.diagonal_cluster_probe() {
+        None => ((band[0], mid), band[0] + band[1] - 6.0),
+        Some(cluster) => {
+            let attach = cluster.label_anchor(0);
+            match cluster.label_flow() {
+                crate::render::rowlayout::ColumnFlow::Rightward => {
+                    ((attach, band[0] + band[1]), band[0] + 6.0)
+                }
+                crate::render::rowlayout::ColumnFlow::Leftward => {
+                    ((band[0], attach), band[0] + band[1] - 6.0)
+                }
+            }
+        }
+    }
+}
+
 #[test]
 fn the_location_heading_reads_stronger_than_the_faint_header_it_replaced_in_every_world() {
     let _g = crate::testlock::serial();
@@ -263,13 +296,12 @@ fn the_location_heading_reads_stronger_than_the_faint_header_it_replaced_in_ever
                 first.height,
             ];
             let pixels = shoot(&device, &queue, &mut p);
-            // Ground is taken from this same line, at its far right — the label
-            // is left-aligned and short, so that end is the card's own surface.
+            let ((x_lo, x_hi), gx) = scan_window(&p, band);
             let gy = (band[2] + band[3] * 0.5).round().clamp(0.0, 799.0) as usize;
-            let gx = (band[0] + band[1] - 6.0).round().clamp(0.0, 1199.0) as usize;
+            let gx = gx.round().clamp(0.0, 1199.0) as usize;
             let ground = luma(pixels[gy * 1200 + gx]);
-            let x0 = band[0].round().max(0.0) as usize;
-            let x1 = (band[0] + band[1] * 0.5).round().min(1199.0) as usize;
+            let x0 = x_lo.round().max(0.0) as usize;
+            let x1 = x_hi.round().min(1199.0) as usize;
             // ⚠️ THE SCANNED BAND IS THE ROW'S INTERIOR, NOT ITS WHOLE SLOT: a
             // slot's outer edges belong to whatever a world draws BETWEEN rows,
             // and a `Rules` world puts a rule there in full-strength ink — the
