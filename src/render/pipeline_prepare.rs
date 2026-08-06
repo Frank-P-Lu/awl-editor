@@ -113,14 +113,65 @@ impl TextPipeline {
     /// theme/caret pickers already use — so the solid white-bordered card
     /// still reads clearly over a SHARP, not smeared, black/white document.
     pub(in crate::render) fn backdrop_blur(&self) -> bool {
+        self.frost_mode().is_some()
+    }
+
+    /// THE ONE OWNER OF *WHETHER* AND *WHERE* THIS FRAME FROSTS — the whole decision,
+    /// as one value ([`blur::Frost`]), so no consumer can read half of it.
+    ///
+    /// Order matters and is not alphabetical: every FULL-takeover condition is asked
+    /// FIRST, so every frame that frosted the whole canvas before the footprint arm
+    /// existed still does (the byte-identity argument for every world and every
+    /// non-crisp overlay is that this arm is unchanged and reached first).
+    ///
+    /// THE FOOTPRINT ARM is reached only by a CRISP picker — the theme picker and the
+    /// caret-style picker, the two whose job is previewing live world colours — over a
+    /// composition that backs its rows with NOTHING
+    /// ([`blur::footprint_frost_applies`]). Those two used to leave the document and
+    /// the list interleaving glyph-for-glyph, because frost was a property of the plate
+    /// and those compositions draw none. They now frost the card's own box and not one
+    /// pixel outside it, so the surrounding page keeps the live colours the picker
+    /// exists to show. No carve-outs inside the box: whatever the card covers is
+    /// frosted, the caret included.
+    fn frost_mode(&self) -> Option<blur::Frost> {
+        // TRUE 1-BIT: a gaussian of a pure-black-or-white document smears every edge
+        // into grey. That is true of a footprint too, so the exclusion is asked once,
+        // above both arms.
         if theme::active().render_caps.backdrop == theme::Backdrop::Flat {
-            return false;
+            return None;
         }
-        self.overlay_blur()
+        if self.overlay_blur()
             || self.hud_showing()
             || crate::lifetime::lifetime_open()
             || crate::streaks::streaks_open()
             || self.peek_showing()
+        {
+            return Some(blur::Frost::Full);
+        }
+        if self.overlay_active
+            && self.overlay_crisp
+            && blur::footprint_frost_applies(crate::render::effective_list_style())
+        {
+            return self.overlay_card_rect().map(blur::Frost::Footprint);
+        }
+        None
+    }
+
+    /// Is this frame's frost the FULL-canvas one? The question every consumer that
+    /// changes the DOCUMENT ITSELF for the blur's sake must ask, rather than "is there
+    /// a frost at all": under a footprint frost the document outside the card is still
+    /// on screen, live, and must be exactly what an unfrosted frame draws.
+    ///
+    /// Its two consumers are both about the lava lamp. `lava::dither_for_blur`
+    /// suppresses the authored ordered posterization because its grid aliases with the
+    /// downsampled frost — but only the whole-canvas frost consumes the entire page, so
+    /// under a footprint the page keeps the treatment its world asked for.
+    /// `lava_blur_active` freezes the lamp's ambient animation because a cached backdrop
+    /// makes a moving lamp behind it pure re-blur; under a footprint the lamp is still
+    /// on screen outside the card, so it keeps moving and the frost inside follows it
+    /// through the recompute signature.
+    pub(in crate::render) fn full_frost(&self) -> bool {
+        self.frost_mode() == Some(blur::Frost::Full)
     }
 
     /// Size the blur textures + decide whether the cached frosted backdrop must be
@@ -135,11 +186,13 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) {
-        if !self.backdrop_blur() {
+        let Some(frost) = self.frost_mode() else {
             return;
-        }
+        };
         let base100 = srgb_u8_to_linear3(theme::base_100().rgba_bytes());
-        let recreated = self.blur.ensure(device, queue, width, height, base100);
+        let recreated = self
+            .blur
+            .ensure(device, queue, width, height, self.dpi, base100, frost);
         let sig = self.blur_signature(width, height);
         self.blur_recompute = recreated || self.blur_sig != Some(sig);
         if self.blur_recompute {

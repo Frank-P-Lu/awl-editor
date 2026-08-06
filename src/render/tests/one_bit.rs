@@ -55,6 +55,54 @@ fn wagtail_disables_the_frosted_blur_backdrop_every_other_world_still_gets_it() 
     theme::set_active(theme::DEFAULT_THEME);
 }
 
+/// THE 1-BIT EXCLUSION SITS ABOVE *BOTH* FROST EXTENTS.
+///
+/// A crisp picker now frosts its own FOOTPRINT on a world whose list composition backs
+/// its rows with nothing — and a gaussian of a pure black/white document smears every
+/// edge into forbidden grey inside a footprint exactly as it does across a whole
+/// canvas. Wagtail ships `ListStyle::Pane`, so its own composition already excludes it
+/// and the 1-bit half of that decision is UNREACHABLE through the world roster alone:
+/// the ordering would go untested until some future world paired `Flat` with a bare
+/// composition. Forcing the list style is what gives this law a subject — the same
+/// exploration knob `AWL_OVERLAY_LIST_FORCE` drives.
+#[test]
+fn wagtail_disables_the_frosted_blur_backdrop_for_a_crisp_pickers_footprint_too() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping the one-bit footprint-frost law: no wgpu adapter");
+        return;
+    };
+    // A CRISP picker (the theme/caret exception) over a BARE composition: the
+    // footprint arm's own eligible case.
+    let mut v = view("hello world\n", 0, 0);
+    v.overlay_active = true;
+    v.overlay_crisp = true;
+    v.overlay_items = vec!["one".into(), "two".into()];
+    crate::render::overrides::set_list_style_test_override(Some(theme::ListStyle::Rules(
+        theme::RuleSelection::Weight,
+    )));
+
+    theme::set_active_by_name("Wagtail").unwrap();
+    p.set_view(&v);
+    assert!(
+        !p.backdrop_blur(),
+        "Wagtail (one-bit): a crisp picker over a BARE composition must not frost its \
+         footprint either — a defocus of pure black/white smears into forbidden grey \
+         at any extent"
+    );
+
+    theme::set_active_by_name("Tawny").unwrap();
+    p.set_view(&v);
+    assert!(
+        p.backdrop_blur(),
+        "Tawny (ordinary dark world): the SAME state DOES frost the picker's footprint \
+         (proves the one-bit gate is theme-specific, not a global regression)"
+    );
+
+    crate::render::overrides::set_list_style_test_override(None);
+    theme::set_active(theme::DEFAULT_THEME);
+}
+
 /// The SUMMONED-WHILE-HELD stats HUD is another `backdrop_blur` consumer
 /// (`hud_showing()`); Wagtail must suppress it exactly like the overlay case.
 #[test]

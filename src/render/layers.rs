@@ -170,7 +170,7 @@ impl TextPipeline {
                     ground,
                     lo,
                     hi,
-                    crate::lava::dither_for_blur(dithered, self.backdrop_blur()),
+                    crate::lava::dither_for_blur(dithered, self.full_frost()),
                 )
             });
         let phase = self.lava_render_phase();

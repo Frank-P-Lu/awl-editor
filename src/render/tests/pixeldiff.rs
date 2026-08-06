@@ -28,7 +28,7 @@ use super::dither;
 /// The sRGB decode is [`theme::Srgb`]'s own — the tree's one sRGB EOTF — rather
 /// than a local copy, so a perceptual oracle and the colour the product actually
 /// hands the GPU cannot disagree about what "linear" means.
-fn lab(p: [u8; 4]) -> (f64, f64, f64) {
+pub(super) fn lab(p: [u8; 4]) -> (f64, f64, f64) {
     let lin = crate::theme::srgb_channel_to_linear;
     let (r, g, b) = (lin(p[0]), lin(p[1]), lin(p[2]));
     // sRGB → CIE XYZ (D65), then XYZ → Lab against the D65 white point.

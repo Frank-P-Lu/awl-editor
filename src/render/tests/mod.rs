@@ -69,6 +69,7 @@ mod folds;
 #[cfg(not(target_arch = "wasm32"))]
 mod font_licence_item255;
 mod frost;
+mod frost_footprint_item294;
 mod geometry;
 mod geometry_reshape;
 mod glide_anchor_law;

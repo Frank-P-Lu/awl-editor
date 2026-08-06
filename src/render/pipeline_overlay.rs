@@ -398,7 +398,7 @@ impl TextPipeline {
     }
 
     pub fn lava_blur_active(&self) -> bool {
-        self.backdrop_blur()
+        self.full_frost()
     }
 
     /// Pin the lava lamp's phase to the FROZEN composition — the live App calls

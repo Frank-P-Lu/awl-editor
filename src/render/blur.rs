@@ -16,60 +16,21 @@
 //! idle overlay stays 0% CPU (DESIGN §6). It is DETERMINISTIC (no clock) — a pure
 //! pixel function of the captured doc — so an overlay capture is byte-stable.
 //!
-//! EXCEPTIONS (handled by the caller, not here): the THEME PICKER and the
-//! CARET-STYLE PICKER stay CRISP (no backdrop at all) — their whole job is showing
-//! the live theme colours / caret preview — and the search SPLIT panel keeps the doc
-//! bright. So [`super::TextPipeline`] only routes through this module for the
-//! blur-eligible full overlays.
+//! TWO EXTENTS, ONE EFFECT. A full-takeover overlay frosts the WHOLE canvas; a CRISP
+//! picker frosts only ITS OWN FOOTPRINT. Which, why, and the arithmetic that scopes
+//! it live in [`extent`] — this file is the GPU plumbing both arms share.
+
+mod extent;
+
+use extent::{DOWNSAMPLE, capped_doc_size, downsample_for, scissor_px};
+pub use extent::{Frost, footprint_frost_applies};
 
 use wgpu::util::DeviceExt;
-
-/// Downsample factor: the blur runs at 1/Nth resolution on each axis (N×N fewer
-/// pixels), which both speeds the passes and widens the effective blur radius for
-/// free. Quarter-res (4) is the sweet spot — clearly frosted, still cheap.
-const DOWNSAMPLE: u32 = 4;
 
 /// Number of separable-Gaussian ping-pong ROUNDS (each round = one horizontal + one
 /// vertical 9-tap pass). Two rounds on the quarter-res target read as a soft frost
 /// without smearing the hues into mud.
 const BLUR_ROUNDS: u32 = 2;
-
-/// How far the frosted backdrop dims toward the theme's OWN `base_100` (0 = pure
-/// blur, no recede; 1 = the flat base). Small — the doc should still read through the
-/// frost, just a value back. Never toward neutral grey (it is the theme's own base).
-const DIM: f32 = 0.16;
-
-/// Cap for the doc-capture texture's LARGEST dimension (physical px). The full-res
-/// capture is the single biggest transient the blur allocates, yet it only ever feeds
-/// the quarter-res downsample + Gaussian — so on a genuinely-large / high-DPI surface
-/// (4K/5K) the full resolution is wasted VRAM. Clamping the capture's longest side to
-/// this cap sheds that waste with NO visible change (it is blurred + quarter-
-/// downsampled either way). Chosen well ABOVE any normal or 2× retina surface, so it
-/// only bites when the surface is truly large — every capture at or below the cap is
-/// byte-identical.
-const DOC_CAPTURE_MAX: u32 = 3200;
-
-/// The doc-capture texture size for a `width`×`height` surface. UNCHANGED at or below
-/// [`DOC_CAPTURE_MAX`] (so any normal / retina surface captures full-res and stays
-/// byte-identical); above it, scaled DOWN proportionally so the longest side is the
-/// cap. Never below the quarter-res blur working size (so the downsample stays a
-/// downsample), and never zero. The document is drawn into this texture via the shared
-/// glyphon viewport (still sized to the full surface), so a smaller target simply scales
-/// the whole document down to fill it — a reduced-scale capture, not a cropped one.
-fn capped_doc_size(width: u32, height: u32) -> (u32, u32) {
-    let maxd = width.max(height);
-    if maxd <= DOC_CAPTURE_MAX || maxd == 0 {
-        return (width, height);
-    }
-    let scale = DOC_CAPTURE_MAX as f32 / maxd as f32;
-    let cw = ((width as f32 * scale).round() as u32)
-        .max(width / DOWNSAMPLE)
-        .max(1);
-    let ch = ((height as f32 * scale).round() as u32)
-        .max(height / DOWNSAMPLE)
-        .max(1);
-    (cw, ch)
-}
 
 /// Per-pass uniform: the sample step (UV) + the composite tint. MUST match `U` in
 /// `shaders/blur.wgsl`.
@@ -95,6 +56,15 @@ pub struct BlurBackdrop {
     /// The size the current textures + bind groups were built for; `None` until the
     /// first [`Self::ensure`].
     size: Option<(u32, u32)>,
+    /// The downsample factor the current textures were built for ([`downsample_for`]).
+    /// Part of the recreate key alongside `size`, because a DPI change alters the
+    /// quarter-res working size without altering the surface's.
+    ds: u32,
+    /// WHERE this frame's composite lands ([`Frost`]). Set by [`Self::ensure`] and read
+    /// by [`Self::draw_backdrop`], so the extent that was sized and dimmed is the
+    /// extent that gets drawn. `Full` until the first `ensure` — the historical
+    /// fullscreen composite is the safe default for a caller that never scopes.
+    frost: Frost,
     /// The captured document (full-res render target + sample source).
     doc: Option<wgpu::Texture>,
     doc_view: Option<wgpu::TextureView>,
@@ -216,6 +186,8 @@ impl BlurBackdrop {
             sampler,
             format,
             size: None,
+            ds: DOWNSAMPLE,
+            frost: Frost::Full,
             doc: None,
             doc_view: None,
             qa_view: None,
@@ -231,20 +203,34 @@ impl BlurBackdrop {
         }
     }
 
-    /// (Re)build the textures + bind groups for `width`×`height` and refresh the
-    /// per-pass uniforms (sample steps + the composite `tint` toward base_100,
-    /// `base100_linear`). Returns `true` when the textures were RECREATED (a fresh /
-    /// resized target), so the caller must force a recompute (the cached blur is
-    /// gone). A same-size call only re-uploads the uniforms and returns `false`.
+    /// (Re)build the textures + bind groups for `width`×`height` at `dpi` and refresh
+    /// the per-pass uniforms (sample steps + the composite `tint` toward base_100,
+    /// `base100_linear`, dimmed by `frost`'s own amount). Returns `true` when the
+    /// textures were RECREATED (a fresh / resized / re-scaled target), so the caller
+    /// must force a recompute (the cached blur is gone). An unchanged-geometry call
+    /// only re-uploads the uniforms and returns `false`.
+    ///
+    /// `frost` is stored for [`Self::draw_backdrop`] — the extent that was dimmed here
+    /// is the extent drawn there, so a footprint can never be composited with the
+    /// full-takeover dim or vice versa.
     pub fn ensure(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         width: u32,
         height: u32,
+        dpi: f32,
         base100_linear: [f32; 3],
+        frost: Frost,
     ) -> bool {
-        let recreated = self.size != Some((width, height));
+        self.frost = frost;
+        let dim = frost.dim();
+        let ds = downsample_for(dpi);
+        // THE RECREATE KEY IS (size, downsample), not size alone: a DPI change moves
+        // the quarter-res working size (and the blur's reach with it) while the
+        // surface's own size can stay put — a display move between a 1× and a 2×
+        // screen at the same logical size does exactly that.
+        let recreated = self.size != Some((width, height)) || self.ds != ds;
         if recreated {
             // DROP-BEFORE-ALLOCATE: release the PREVIOUS textures/views/bind-groups
             // (set them to `None`) BEFORE creating the new ones, so a resize never has
@@ -266,12 +252,12 @@ impl BlurBackdrop {
             self.u_comp = None;
 
             let format = self.format;
-            let qw = (width / DOWNSAMPLE).max(1);
-            let qh = (height / DOWNSAMPLE).max(1);
+            let qw = (width / ds).max(1);
+            let qh = (height / ds).max(1);
             // Cap the full-res doc capture on very-large/high-DPI surfaces (no-op at or
             // below the cap → byte-identical); a smaller target scales the whole document
             // down to fill it (see `capped_doc_size`).
-            let (cw, ch) = capped_doc_size(width, height);
+            let (cw, ch) = capped_doc_size(width, height, ds);
             let mk_tex = |label: &str, w: u32, h: u32| {
                 device.create_texture(&wgpu::TextureDescriptor {
                     label: Some(label),
@@ -312,7 +298,7 @@ impl BlurBackdrop {
             let u_comp = self.mk_uniform(
                 device,
                 [0.0; 4],
-                [base100_linear[0], base100_linear[1], base100_linear[2], DIM],
+                [base100_linear[0], base100_linear[1], base100_linear[2], dim],
             );
 
             self.bg_down = Some(self.mk_bind(device, &u_down, &doc_view));
@@ -329,13 +315,15 @@ impl BlurBackdrop {
             self.u_blur_v = Some(u_blur_v);
             self.u_comp = Some(u_comp);
             self.size = Some((width, height));
+            self.ds = ds;
         }
-        // Refresh the composite tint each call (cheap) so a theme change between
-        // captures lands the right base_100 without a texture rebuild.
+        // Refresh the composite tint each call (cheap) so a theme change — or a switch
+        // between the two frost extents, which carry different dims — lands without a
+        // texture rebuild.
         if let Some(buf) = &self.u_comp {
             let u = U {
                 step: [0.0; 4],
-                tint: [base100_linear[0], base100_linear[1], base100_linear[2], DIM],
+                tint: [base100_linear[0], base100_linear[1], base100_linear[2], dim],
             };
             queue.write_buffer(buf, 0, bytes_of(&u));
         }
@@ -438,13 +426,39 @@ impl BlurBackdrop {
     }
 
     /// Composite the cached frosted backdrop (the final blurred `qa`, upsampled +
-    /// dimmed toward base_100) into an already-open render pass — drawn FIRST in the
-    /// final pass, before the overlay card/text. A no-op until [`Self::ensure`] has run.
+    /// dimmed toward base_100) into an already-open render pass, over the EXTENT
+    /// [`Self::ensure`] was handed. A no-op until `ensure` has run.
+    ///
+    /// [`Frost::Full`] draws the bare fullscreen triangle it always did. A
+    /// [`Frost::Footprint`] SCISSORS that same triangle to the card's box, so the pass
+    /// keeps whatever was already drawn there — the crisp document and the world's live
+    /// ground — everywhere else. The scissor is RESET to the whole target before
+    /// returning: it is pass state, not draw state, and the card, its text and the
+    /// whole chrome tail are drawn into this same pass afterwards. Forgetting the reset
+    /// clips the card's own rows to the frost.
     pub fn draw_backdrop<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>) {
-        if let Some(bg) = &self.bg_comp {
-            pass.set_pipeline(&self.comp_pipeline);
-            pass.set_bind_group(0, bg, &[]);
-            pass.draw(0..3, 0..1);
+        let Some(bg) = &self.bg_comp else {
+            return;
+        };
+        // `size` is `Some` whenever `bg_comp` is (both are set together by `ensure`).
+        let (width, height) = self.size.unwrap_or((0, 0));
+        let scissor = match self.frost {
+            Frost::Full => None,
+            Frost::Footprint(rect) => match scissor_px(rect, width, height) {
+                Some(s) => Some(s),
+                // A footprint entirely off-canvas frosts nothing at all — drawing the
+                // unscissored triangle instead would frost the WHOLE page.
+                None => return,
+            },
+        };
+        if let Some((x, y, w, h)) = scissor {
+            pass.set_scissor_rect(x, y, w, h);
+        }
+        pass.set_pipeline(&self.comp_pipeline);
+        pass.set_bind_group(0, bg, &[]);
+        pass.draw(0..3, 0..1);
+        if scissor.is_some() {
+            pass.set_scissor_rect(0, 0, width, height);
         }
     }
 }
@@ -456,38 +470,4 @@ fn bytes_of(u: &U) -> &[u8] {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn doc_capture_cap_is_a_noop_at_or_below_the_cap() {
-        // A normal surface, a 2× retina surface, and exactly the cap all pass through
-        // UNCHANGED — so the capture (and thus the blurred backdrop) is byte-identical.
-        assert_eq!(capped_doc_size(1200, 800), (1200, 800));
-        assert_eq!(capped_doc_size(2400, 1600), (2400, 1600));
-        assert_eq!(
-            capped_doc_size(DOC_CAPTURE_MAX, 1000),
-            (DOC_CAPTURE_MAX, 1000)
-        );
-        assert_eq!(
-            capped_doc_size(1000, DOC_CAPTURE_MAX),
-            (1000, DOC_CAPTURE_MAX)
-        );
-    }
-
-    #[test]
-    fn doc_capture_cap_scales_a_genuinely_large_surface_and_preserves_aspect() {
-        // A 5K surface: the longest side is clamped to the cap, the short side scaled
-        // by the same factor (aspect preserved), and the result stays at least the
-        // quarter-res blur working size so the downsample is still a downsample.
-        let (cw, ch) = capped_doc_size(5120, 2880);
-        assert_eq!(cw, DOC_CAPTURE_MAX);
-        let scale = DOC_CAPTURE_MAX as f32 / 5120.0;
-        assert_eq!(ch, (2880.0 * scale).round() as u32);
-        assert!(cw >= 5120 / DOWNSAMPLE && ch >= 2880 / DOWNSAMPLE);
-        // Portrait orientation clamps on height instead.
-        let (pw, ph) = capped_doc_size(2880, 5120);
-        assert_eq!(ph, DOC_CAPTURE_MAX);
-        assert_eq!(pw, (2880.0 * scale).round() as u32);
-    }
-}
+mod tests;
