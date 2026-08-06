@@ -543,7 +543,7 @@ impl TextPipeline {
             overlay_comparison: false,
             workspace_primary_w: 0.0,
             workspace_rail_buffer,
-            workspace_rail_mark: None,
+            workspace_rail_rows: Vec::new(),
             workspace_rail_placement: None,
             overlay_spell_w: 0.0,
             overlay_content_w: 0.0,

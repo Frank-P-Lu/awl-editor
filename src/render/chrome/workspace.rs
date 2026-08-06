@@ -149,9 +149,11 @@ impl TextPipeline {
     ///
     /// It bypasses the `FacetStyle` skins on purpose — those describe a
     /// horizontal chip run (a bracket, an underline hugging a baseline) and none
-    /// of them says anything about a column — and takes the world's own
-    /// selected-row band instead, at the same reduced presence the content pane's
-    /// band takes when IT is the unfocused region.
+    /// of them says anything about a column. What it takes instead is the
+    /// world's own list composition, because a rail IS a list: a filled band on
+    /// a `Pane`/`Bars`/`Diagonal` world, and the same rules the rows beside it
+    /// are arranged by on a `Rules` one. Either way at the same reduced presence
+    /// the content pane's mark takes when IT is the unfocused region.
     pub(super) fn prepare_rail_mark(
         &mut self,
         device: &wgpu::Device,
@@ -160,6 +162,17 @@ impl TextPipeline {
         height: u32,
         geom: &OverlayGeom,
     ) {
+        // A RAIL IS A LIST, so the style that says how a list is arranged says
+        // how this one is. Only `Rules` answers differently, because only
+        // `Rules` refuses the filled band every other style's mark is made of;
+        // no wildcard, so a fifth style has to decide.
+        match crate::render::effective_list_style() {
+            theme::ListStyle::Rules(mark) => {
+                self.prepare_rail_rules(device, queue, width, height, geom, mark);
+                return;
+            }
+            theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Diagonal(_) => {}
+        }
         let band = match theme::active()
             .highlight_treatment(crate::render::effective_overlay_selrow_band())
         {
@@ -174,11 +187,83 @@ impl TextPipeline {
         self.overlay_lens_underline
             .set_corner(self.metrics.px(super::overlay_rows::FACET_CHIP_RADIUS));
         self.overlay_lens_underline.set_stroke(0.0);
-        let marks: Vec<[f32; 4]> = self.workspace_rail_mark.into_iter().collect();
+        let marks: Vec<[f32; 4]> = self.workspace_rail_mark().into_iter().collect();
         self.overlay_lens_underline
             .prepare(device, queue, width, height, &marks);
         self.overlay_facet_ghost
             .prepare(device, queue, width, height, &[]);
+    }
+
+    /// THE RAIL AS A RULED LIST — the `Rules` arm of [`Self::prepare_rail_mark`].
+    ///
+    /// A filled band is the one thing this style refuses, so the rail cannot
+    /// take the world's selected-row band the way every other style's rail does;
+    /// it takes the world's own composition instead, through the SAME owner the
+    /// rows beside it come out of ([`super::overlay_rules::rules_ink`]). The two
+    /// regions then share one rhythm: both lists sit on the same row pitch from
+    /// the same `first_top`, so the rail's rules and the pane's are the same
+    /// rules, and the rail simply runs out where its categories do.
+    ///
+    /// The rail's own two spans mirror the pane's exactly. A hairline runs the
+    /// LABEL measure — the rail column less the `2 * hpad` its measurement
+    /// reserves — and the selection's heavy rule runs the full column, which is
+    /// the very rect the filled band occupied. Same reach, different substance.
+    fn prepare_rail_rules(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        width: u32,
+        height: u32,
+        geom: &OverlayGeom,
+        mark: theme::RuleSelection,
+    ) {
+        let (hair, heavy) = self.rule_weights();
+        let rows: Vec<super::overlay_rules::RuleRow> = self
+            .workspace_rail_rows
+            .iter()
+            .map(|&([_, top, _, h], selected)| super::overlay_rules::RuleRow {
+                top,
+                bottom: top + h,
+                selected,
+            })
+            .collect();
+        // The rail's own column, read off the rail it just recorded: every
+        // entry rect spans the full box, so the box IS any row's `[x, w]`.
+        let (hairlines, selected) = match self.workspace_rail_rows.first() {
+            None => (Vec::new(), Vec::new()),
+            Some(&([x, _, w, _], _)) => {
+                let hpad = self.overlay_text_hpad();
+                super::overlay_rules::rules_ink(
+                    &rows,
+                    mark,
+                    &super::overlay_rules::RuleSpans {
+                        hair,
+                        heavy,
+                        measure: (x, w - 2.0 * hpad),
+                        band: (x, w),
+                        mark: (
+                            self.metrics.px(super::overlay_rules::RULE_MARK_LEN),
+                            self.metrics.px(super::overlay_rules::RULE_MARK_GAP),
+                        ),
+                    },
+                )
+            }
+        };
+        // A rule is a drawn line, not a rounded surface — square ends, no
+        // stroke, on both pipelines, which are shared with the chip skins and
+        // would otherwise carry a corner across a world switch.
+        self.overlay_lens_underline
+            .set_color(self.rule_mark_ink(geom.rows_focused));
+        self.overlay_lens_underline.set_corner(0.0);
+        self.overlay_lens_underline.set_stroke(0.0);
+        self.overlay_facet_ghost
+            .set_color(theme::faint().rgba_bytes());
+        self.overlay_facet_ghost.set_corner(0.0);
+        self.overlay_facet_ghost.set_stroke(0.0);
+        self.overlay_lens_underline
+            .prepare(device, queue, width, height, &selected);
+        self.overlay_facet_ghost
+            .prepare(device, queue, width, height, &hairlines);
     }
 
     /// The workspace inset for the current window — a pure function of the
@@ -202,9 +287,25 @@ impl TextPipeline {
         self.overlay_lens.len()
     }
 
+    /// The rail's ACTIVE entry's rect this frame — derived from the recorded
+    /// rail rather than stored beside it, so the mark can never name a row the
+    /// rail does not have.
+    pub(in crate::render) fn workspace_rail_mark(&self) -> Option<[f32; 4]> {
+        self.workspace_rail_rows
+            .iter()
+            .find(|(_, active)| *active)
+            .map(|&(r, _)| r)
+    }
+
     #[cfg(test)]
     pub(in crate::render) fn workspace_rail_mark_probe(&self) -> Option<[f32; 4]> {
-        self.workspace_rail_mark
+        self.workspace_rail_mark()
+    }
+
+    /// TEST-ONLY: every rail entry's rect, active flag included.
+    #[cfg(test)]
+    pub(in crate::render) fn workspace_rail_rows_probe(&self) -> Vec<([f32; 4], bool)> {
+        self.workspace_rail_rows.clone()
     }
 
     /// IS THERE ROOM FOR BOTH REGIONS AT ONCE? The one width decision the whole
@@ -427,19 +528,19 @@ impl TextPipeline {
         })
     }
 
-    /// SHAPE the rail's labels into their own buffer and record the ACTIVE
-    /// entry's mark rect. Returns whether a rail was shaped at all.
+    /// SHAPE the rail's labels into their own buffer and record EVERY entry's
+    /// rect. Returns whether a rail was shaped at all.
     ///
     /// The active entry takes content ink and the rest muted, the same
-    /// figure/ground grammar every picker row uses; the mark rect is handed to
+    /// figure/ground grammar every picker row uses; the rects are handed to
     /// [`super::overlay_rows`]'s facet-mark owner rather than drawn here, so the
-    /// rail's band and the content pane's band come out of the same treatment.
+    /// rail's mark and the content pane's come out of the same treatment.
     pub(in crate::render) fn workspace_shape_rail(
         &mut self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
     ) -> bool {
-        self.workspace_rail_mark = None;
+        self.workspace_rail_rows.clear();
         let Some([x, top, w, _]) = self.workspace_rail_box(geom, plan) else {
             self.workspace_rail_placement = None;
             return false;
@@ -456,11 +557,13 @@ impl TextPipeline {
         let base = panel_attrs();
         let faint = theme::faint().to_glyphon();
         let mut spans: Vec<(String, glyphon::Color)> = Vec::new();
-        let mut active: Option<usize> = None;
+        let rows: Vec<([f32; 4], bool)> = (0..self.overlay_lens.len())
+            .filter_map(|i| {
+                let rect = self.workspace_rail_rect(geom, plan, i)?;
+                Some((rect, self.overlay_lens[i].1))
+            })
+            .collect();
         for (i, (label, is_active)) in self.overlay_lens.iter().enumerate() {
-            if *is_active {
-                active = Some(i);
-            }
             let line = match i {
                 0 => label.clone(),
                 _ => format!("\n{label}"),
@@ -488,7 +591,7 @@ impl TextPipeline {
         self.workspace_rail_buffer
             .shape_until_scroll(&mut self.font_system, false);
         self.workspace_rail_placement = Some((x, top));
-        self.workspace_rail_mark = active.and_then(|i| self.workspace_rail_rect(geom, plan, i));
+        self.workspace_rail_rows = rows;
         true
     }
 }
