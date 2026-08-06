@@ -97,7 +97,7 @@ reason = "The external-change check at focus return (+3, comment included). This
 
 [[file_size_mark]]
 file = "src/background.rs"
-lines = 286
+lines = 280
 reason = "The grouped per-frame AmbientUpload keeps the prepare call below the argument ceiling; Globals remains the uniform's single Rust mirror, including Kite's forward-travel scalar. The one construction site each pipeline family has now sits inside gpu_cache::render_pipeline's build closure — the seam that makes a GPU program once-per-process instead of once-per-instance, which is what the hosted-macOS gate wedged on. The growth is that closure's own indent (+1). Organic's field-translation drift is replaced by a companion breathe phase, one new Globals/AmbientUpload scalar each (+5)."
 
 [[file_size_mark]]
@@ -203,7 +203,7 @@ reason = "`undo_chord_label`: Undo has no palette command to resolve a label fro
 
 [[file_size_mark]]
 file = "src/lava.rs"
-lines = 946
+lines = 940
 reason = "The one construction site each pipeline family has now sits inside gpu_cache::render_pipeline's build closure — the seam that makes a GPU program once-per-process instead of once-per-instance, which is what the hosted-macOS gate wedged on. The growth is that closure's own indent (+1)."
 
 [[file_size_mark]]
@@ -273,7 +273,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2665
+lines = 2659
 reason = "+6: `CODE_LIGATURES_DEFAULT`, the const `CODE_LIGATURES_ON` is now constructed from, so the flag's fresh-install value has one owner the reference can read instead of a literal retyped into a doc; plus a test-gated `pub(crate) use spans::wysiwyg_reveals`, one named door to the reveal rule that avoids widening the `spans` module itself. Item 263 (+1): the `menubar_hi` field doc now states that the menu-title band reads `selection_document` — the DOCUMENT wash, not the picker row's `selection_ui` — correcting a claim that had said it shared the picker's band. The split is what made that claim checkable. Item 272 (+9): the renderer now owns `BarConfig` — the Bars dials that every world set identically moved off the theme model to the one place that reads them. Item 284 (+11): the diagonal marker's travel state — the row it last marked, its current turn and the turn it is easing toward — lives beside the other overlay easing state in the one `TextPipeline` struct that owns per-frame animation. +3: `workspace_rail_mark` becomes `workspace_rail_rows` — the WHOLE recorded rail rather than its active entry alone, with the active one derived from it — because a rail is a list, and the `Rules` composition arranges a list by the boundaries between its rows, which needs every neighbour. The added lines are that field's doc saying so. Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure."
 
 [[file_size_mark]]
@@ -412,7 +412,7 @@ lines = 545
 
 [[file_size_mark]]
 file = "src/selection.rs"
-lines = 756
+lines = 750
 reason = "The one place a rotated quad's geometry is built, on the shared pipeline-construction body every `SelectionPipeline` instance goes through: `SelInstance` carries the `axis` field and its `UPRIGHT_AXIS` default, the vertex layout a fourth attribute, `prepare`/`prepare_multicolor` upload the inert default, and `prepare_rotated` is the emitter. The pure spine helpers live in the sibling `selection/spine.rs` and the tests in `selection/tests.rs` — growth an extraction can absorb does not raise this mark. What remains cannot be extracted: each pipeline family's one construction site sits inside `gpu_cache::render_pipeline`'s build closure, the seam that makes a GPU program once-per-process rather than once-per-instance (the hosted-macOS gate wedged on exactly that), so the lines are that closure's own indent plus the Flavor record carrying the cache key beside the entry point and blend state it must track — the two flavors' only baked-in differences, kept in one place so a third cannot collide on a stale key. `test_color` is the read seam a token-routing law needs, with the doc explaining why it must exist: a headless capture builds its pipelines ONCE and never runs `sync_theme_colors`, so a token mis-routed in the SYNC half alone repaints nothing any capture can see and reaches only a user who switches worlds live — measured, not assumed, by crossing that seed and watching ZERO of 120 captured files move."
 
 [[file_size_mark]]
