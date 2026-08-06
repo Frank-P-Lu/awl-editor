@@ -52,6 +52,7 @@ mod diagonal_composition;
 mod distinguishability;
 mod dither;
 mod facepitch;
+mod facet_mark_dpi_item289;
 mod firetail_showcase;
 mod float_surface_law;
 mod fold_chevron_center_item127;
