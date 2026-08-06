@@ -1099,6 +1099,91 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      asserted by arithmetic over the PNG's pixels, never by reading the token.
      **Routing:** production tier.
 
+300. **THE TOAST IS INVISIBLE IN PRACTICE — REDESIGN THE NOTICE.** **User
+     decision 2026-08-06: "i've never seen the toast lol."** The author of the
+     product has never once noticed a feedback channel with ~10 callers
+     (`exported …`, `downloaded …`, `saved your version`, `reloaded — changed
+     elsewhere`, `graphics recovered`). **That is the finding; no measurement
+     improves on it.** Today `prepare_notice` draws "one quiet LABEL-sized line
+     in the muted ink at the BOTTOM-CENTER of the writing column" for
+     `TOAST_LIFETIME = 2500 ms` — sub-body size, muted ink, bottom-centre, gone
+     in two and a half seconds.
+
+     **Build:** a notice a writer actually registers without it becoming chrome
+     that nags. **The tension is real and is the whole design problem:**
+     DESIGN.md gives motion to the caret alone and favours summoned overlays over
+     persistent chrome, so the answer is NOT a bouncing banner. Candidate axes to
+     weigh — dwell time (2500 ms is short for a line you were not looking at),
+     ink (muted is the quietest register the palette has), size (LABEL is below
+     body), and position (bottom-centre of the writing column is outside the
+     reading eye's path, which is arguably the actual defect). ⚠️ **Prototype in
+     awl via headless capture, never as an HTML mockup**, and put candidates in
+     front of the user — this is a taste call and the item closes on their word,
+     not on a contrast ratio.
+
+     ⚠️ **A CONTRAST FLOOR IS NECESSARY AND NOT SUFFICIENT.** A notice can pass
+     every arithmetic check and still go unseen for 2500 ms in a place nobody
+     looks — which is exactly what shipped. **Do not close this by adding a
+     legibility law.** **Depends on 296's harness gap** — until a capture can
+     photograph a toast at all, no candidate can be judged on pixels, so 296's
+     repair sequences first or this item runs blind. **Routing:** deep tier, then
+     the user's eye.
+
+301. **EXPORT SHOULD USE THE SYSTEM SAVE PANEL — AND THE SEAM IS ALREADY HALF
+     BUILT.** **User decision 2026-08-06: "surely people want to see what it
+     looks like right? and also select where it goes? i wonder if we should use a
+     system export for this. like we're already doing this for opening a file."**
+
+     ✅ **THE USER'S PREMISE IS CORRECT, VERIFIED:** `mac_chrome::pick_file_to_open`
+     (`src/mac_chrome.rs:46`) already drives a real `NSOpenPanel`, wired into
+     File → Open at `src/app/menu.rs:56`, and `src/mas.rs:321` describes its own
+     folder picker as "`pick_file_to_open`'s exact shape, folder-only". **So the
+     objc2/AppKit modal seam, its live-only harness caveat and its unit-testable
+     split all already ship.** `NSSavePanel` is the sibling of a pattern in the
+     tree today. ⚠️ **This materially weakens the parked rationale.** The board
+     parks "Export save-dialog scope: macOS + Linux, one live-only cross-platform
+     seam" as decided-not-scheduled — but **half that seam is built and shipping**,
+     and the cost estimate the parking rested on should be re-derived rather than
+     inherited. **Unpark it or re-park it deliberately; do not let it sit on a
+     premise that has changed.**
+
+     ✅ **AND THE LINUX HALF IS ALREADY ANSWERED — THERE IS NO CROSS-PLATFORM
+     SEAM TO BUILD.** Verified: on Linux, File → Open does NOT use a system
+     dialog at all — `src/app/menu.rs:49` routes `awl.open` to
+     `Action::OpenBrowse`, awl's OWN in-app browser, and redirects to
+     `NSOpenPanel` on macOS alone as "the macOS convention". **So the platform
+     split already exists and is deliberate, and export should mirror it:
+     `NSSavePanel` on macOS, awl's own picker on Linux.**
+
+     ⚠️ **DO NOT REACH FOR AN XDG PORTAL.** `org.freedesktop.portal.FileChooser`
+     over D-Bus is the modern Linux mechanism and is the wrong answer here on
+     three counts: `rfd`'s default Linux backend links **GTK**, which this tree
+     deliberately avoids (Cargo.toml drops muda's `gtk`/`libxdo` defaults on
+     purpose); a portal is a **runtime service**, so on a minimal WM without one
+     installed the dialog fails outright, which a self-contained tarball cannot
+     accept; and it would make export the ONLY verb on Linux using a system
+     chooser while Open uses awl's. **Recorded so it is not proposed as the
+     obvious answer** — it is the obvious answer, and it is wrong for this tree.
+
+     **Build:** route `Effect::Export` through `NSSavePanel` on macOS, defaulting
+     to the document's own folder and name; on Linux reuse the existing in-app
+     browse picker in a save role. `--screenshot`/`--keys` keep taking an
+     explicit path, exactly as the open picker is already bypassed headlessly.
+     **This subsumes item 295(c)** — a chosen destination cannot be a surprise —
+     but NOT 295(a) or (b), which are defects regardless.
+
+     ⚠️ **"SEE WHAT IT LOOKS LIKE" IS AMBIGUOUS AND THE TWO READINGS DIFFER BY AN
+     ORDER OF MAGNITUDE — ask before building.** (i) *Reveal/open the exported
+     file after writing it* — cheap, uses `NSWorkspace` which `mac_chrome.rs`
+     already imports, and resolves the "did anything happen?" complaint outright.
+     (ii) *An in-app preview of the rendered PDF before committing* — a second
+     document renderer, which CLAUDE.md's "infrastructure complexity is a smell"
+     argues hard against and which awl has deliberately avoided elsewhere.
+     **The recommendation is (i); (ii) is a product-scope decision for the user,
+     not a lane.** **Verify:** the panel is live-only and gets flagged for human
+     confirmation, never claimed from a capture; the headless path stays
+     deterministic and byte-identical. **Routing:** deep tier.
+
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
