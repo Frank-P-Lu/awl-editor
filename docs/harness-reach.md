@@ -167,6 +167,7 @@ deadline without a surface).
 | `notice_toast` | Applied |
 | `open_credits` | Applied |
 | `open_guide` | Applied |
+| `open_reference` | Applied |
 | `open_settings` | Applied |
 | `overlay_accept:Assets` | Unsupported |
 | `overlay_accept:Browse` | Unsupported |

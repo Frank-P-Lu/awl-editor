@@ -15,44 +15,54 @@ impl App {
         self.load_path(path);
     }
 
-    /// Credits command: open the embedded `CREDITS.md` into the buffer, exactly
-    /// like Settings opens the config file. UNLIKE Settings, the source of truth
-    /// is the BINARY (`credits::CREDITS_MD`), not a user-owned disk file — so this
-    /// always REFRESHES the on-disk view to the embedded text before opening it
-    /// (never a create-if-missing; the doc must never drift from what shipped).
-    /// Routed through a real path (under `fs::data_root()`) rather than left
-    /// path-less: a path-less buffer reads as SCRATCH to the autosave engine
-    /// (`autosave_flush`'s `buffer.path().is_none()` arm), which would silently
-    /// overwrite the user's real scratch stash the next time autosave flushes —
-    /// see `credits.rs`'s module doc for the full reasoning.
-    pub(in crate::app) fn open_credits(&mut self) {
-        let path = crate::fs::data_root().join("credits.md");
+    /// THE ONE OWNER behind Credits, Guide, and Reference: open a bundled,
+    /// read-only document into the buffer by REFRESHING an on-disk view under
+    /// `fs::data_root()` to `content` (never create-if-missing — the view must
+    /// never drift from what shipped) and loading it. Routed through a real
+    /// path rather than left path-less: a path-less buffer reads as SCRATCH to
+    /// the autosave engine (`autosave_flush`'s `buffer.path().is_none()` arm),
+    /// which would silently overwrite the user's real scratch stash the next
+    /// time autosave flushes — see `credits.rs`'s module doc for the full
+    /// reasoning, which applies identically to all three callers. `label`
+    /// names the document in the one write-failure diagnostic; `filename` is
+    /// the on-disk leaf under `data_root()`.
+    fn open_bundled_doc(&mut self, label: &str, filename: &str, content: &str) {
+        let path = crate::fs::data_root().join(filename);
         let fs = crate::fs::active();
         if let Some(parent) = path.parent() {
             let _ = fs.create_dir_all(parent);
         }
-        if let Err(e) = crate::fs::write_atomic(&path, crate::credits::CREDITS_MD.as_bytes()) {
-            eprintln!("could not write credits view {}: {e}", path.display());
+        if let Err(e) = crate::fs::write_atomic(&path, content.as_bytes()) {
+            eprintln!("could not write {label} view {}: {e}", path.display());
             return;
         }
         self.load_path(path);
     }
 
+    /// Credits command: the source of truth is the BINARY (`credits::CREDITS_MD`),
+    /// not a user-owned disk file — see [`Self::open_bundled_doc`].
+    pub(in crate::app) fn open_credits(&mut self) {
+        self.open_bundled_doc("credits", "credits.md", crate::credits::CREDITS_MD);
+    }
+
     pub(in crate::app) fn open_guide(&mut self) {
-        let path = crate::fs::data_root().join("guide.md");
-        let fs = crate::fs::active();
-        if let Some(parent) = path.parent() {
-            let _ = fs.create_dir_all(parent);
-        }
         let rendered = crate::guide::render(
             crate::convention::Convention::current(),
             crate::commands::Platform::current(),
         );
-        if let Err(e) = crate::fs::write_atomic(&path, rendered.as_bytes()) {
-            eprintln!("could not write guide view {}: {e}", path.display());
-            return;
-        }
-        self.load_path(path);
+        self.open_bundled_doc("guide", "guide.md", &rendered);
+    }
+
+    /// Reference command: unlike Guide, `REFERENCE.md` carries no `{{key:}}`
+    /// chord tokens to render per-convention (its command table already lists
+    /// both conventions as explicit columns), so the embedded text opens
+    /// verbatim, like Credits — see `reference_doc.rs`'s module doc.
+    pub(in crate::app) fn open_reference(&mut self) {
+        self.open_bundled_doc(
+            "reference",
+            "reference.md",
+            crate::reference_doc::REFERENCE_MD,
+        );
     }
 
     /// SWITCH the active folder to `new_root` — the ONE owner of a genuine

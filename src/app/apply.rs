@@ -933,6 +933,7 @@ impl App {
             actions::BufferEffect::OpenSettings => self.open_settings(),
             actions::BufferEffect::OpenCredits => self.open_credits(),
             actions::BufferEffect::OpenGuide => self.open_guide(),
+            actions::BufferEffect::OpenReference => self.open_reference(),
         }
     }
 

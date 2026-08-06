@@ -156,6 +156,7 @@ mod recent_files;
 mod recents;
 mod recovery;
 mod reference;
+mod reference_doc;
 mod render;
 mod replay;
 // Bans the pre-rename GitHub repository reference from the tracked tree

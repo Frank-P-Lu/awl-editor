@@ -142,6 +142,7 @@ Commands are grouped by the same task categories the palette browses.
 | About | — | — | Native, browser |
 | Credits | — | — | Native, browser |
 | Guide | — | — | Native, browser |
+| Reference | — | — | Native, browser |
 | Lifetime stats | — | — | Native |
 | Writing streaks | — | — | Native |
 | Line endings… | — | — | Native, browser |

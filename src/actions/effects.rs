@@ -77,6 +77,7 @@ pub enum BufferEffect {
     OpenSettings,
     OpenCredits,
     OpenGuide,
+    OpenReference,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

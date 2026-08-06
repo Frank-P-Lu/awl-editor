@@ -647,6 +647,7 @@ macro_rules! classify_action_family {
             | Action::OpenSettings
             | Action::OpenCredits
             | Action::OpenGuide
+            | Action::OpenReference
             | Action::OpenSettingsMenu
             | Action::FinishBuffer
             | Action::ReviewChange

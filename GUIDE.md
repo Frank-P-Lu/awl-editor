@@ -226,6 +226,7 @@ drift into this page silently.
 | About |  |  |
 | Credits |  |  |
 | Guide |  |  |
+| Reference |  |  |
 | Lifetime stats |  |  |
 | Writing streaks |  |  |
 | Line endings… |  |  |

@@ -24,6 +24,7 @@ pub(super) fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Opt
         Action::OpenSettings => Effect::Buffer(BufferEffect::OpenSettings),
         Action::OpenCredits => Effect::Buffer(BufferEffect::OpenCredits),
         Action::OpenGuide => Effect::Buffer(BufferEffect::OpenGuide),
+        Action::OpenReference => Effect::Buffer(BufferEffect::OpenReference),
         Action::OpenSettingsMenu => {
             ctx.journey.enter((ctx.make_overlay)(OverlayKind::Settings));
             Effect::None

@@ -87,6 +87,7 @@ const COMMAND_TASK_CATEGORIES: &[(&str, TaskCategory)] = &[
     ("About", Tools),
     ("Credits", Tools),
     ("Guide", Tools),
+    ("Reference", Tools),
     ("Lifetime stats", Tools),
     ("Writing streaks", Tools),
     ("Line endings…", Tools),

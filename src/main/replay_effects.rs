@@ -143,6 +143,9 @@ impl<'a> ReplaySession<'a> {
                     crate::commands::Platform::current(),
                 ));
             }
+            actions::BufferEffect::OpenReference => {
+                *self.buffer = Buffer::from_str(crate::reference_doc::REFERENCE_MD);
+            }
         }
     }
 
