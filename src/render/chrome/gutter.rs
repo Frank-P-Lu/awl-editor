@@ -253,13 +253,14 @@ impl TextPipeline {
         );
         self.gutter_buffer
             .shape_until_scroll(&mut self.font_system, false);
-        // BOTTOM-anchored in the left margin: the stacked block's BOTTOM edge sits one
-        // small margin (8px) up from the canvas bottom — the same bottom row the corner
-        // readouts use — so `top` is the canvas bottom minus the block's own height. Left
+        // BOTTOM-anchored in the left margin: the stacked block's BOTTOM edge sits
+        // [`super::readout::CANVAS_INSET`] up from the canvas bottom — the SAME
+        // named inset the corner readouts use, not a second reading of the same
+        // 8px — so `top` is the canvas bottom minus the block's own height. Left
         // 0 with the buffer width == `avail` keeps the right edge a gap shy of the column
         // (horizontal placement unchanged; only the vertical anchor moved top → bottom).
         let block_h = m.line_height * label * lines;
-        let top = height as f32 - block_h - 8.0;
+        let top = height as f32 - block_h - m.px_physical(super::readout::CANVAS_INSET);
         let area = TextArea {
             buffer: &self.gutter_buffer,
             left: 0.0,
@@ -306,9 +307,10 @@ impl TextPipeline {
     /// * `left = 0`, `right = avail` (the gutter's own box — the filename/project
     ///   are RIGHT-aligned within `[0, avail]`, `avail` a small gap shy of the
     ///   writing column), so the carve spans the block's full horizontal extent.
-    /// * `bottom = height` (the block is bottom-anchored an 8px inset up), `top =
-    ///   the block top minus a half-row breath` — the bottom band the two stacked
-    ///   LABEL rows occupy. `None` when the gutter is HIDDEN (nothing to carve).
+    /// * `bottom = height` (the block is bottom-anchored [`super::readout::
+    ///   CANVAS_INSET`] up), `top = the block top minus a half-row breath` — the
+    ///   bottom band the two stacked LABEL rows occupy. `None` when the gutter is
+    ///   HIDDEN (nothing to carve).
     ///
     /// The half-row breath and the `+1.0` mirror `prepare_gutter`'s own box; the
     /// [`GUTTER_CARVE_BREATH`] constant names the pad the bounds law reads.
@@ -317,8 +319,10 @@ impl TextPipeline {
         let label = crate::markdown::type_scale::LABEL;
         let lines = layout.line_count();
         let block_h = self.metrics.line_height * label * lines;
-        // `prepare_gutter` anchors the block bottom 8px up from the canvas bottom.
-        let block_top = height as f32 - block_h - 8.0;
+        // `prepare_gutter` anchors the block bottom at the SAME named inset the
+        // corner readouts use, not a second reading of the same 8px.
+        let block_top =
+            height as f32 - block_h - self.metrics.px_physical(super::readout::CANVAS_INSET);
         let breath = self.metrics.line_height * label * GUTTER_CARVE_BREATH.0;
         let top = (block_top - breath).max(0.0);
         Some([0.0, top, layout.avail, height as f32])
@@ -348,11 +352,14 @@ impl TextPipeline {
             crate::lava::frost_px(crate::lava::FROST_FEATHER_PX, self.metrics.zoom, self.dpi);
         let pad_x =
             crate::lava::frost_px(crate::lava::FROST_PILL_PAD_X, self.metrics.zoom, self.dpi);
-        // The two stacked LABEL rows, bottom-anchored 8px up (mirrors `prepare_gutter`
-        // / `gutter_carve_rect`): name over project. Each line is RIGHT-aligned within
+        // The two stacked LABEL rows, bottom-anchored at the SAME named inset
+        // (mirrors `prepare_gutter` / `gutter_carve_rect`, and the corner
+        // readouts): name over project. Each line is RIGHT-aligned within
         // `[0, avail]`, so its ink hugs the column at the right edge.
         let lines_n = layout.line_count();
-        let block_top = height as f32 - row_h * lines_n - 8.0;
+        let block_top = height as f32
+            - row_h * lines_n
+            - self.metrics.px_physical(super::readout::CANVAS_INSET);
         // The gutter's own LABEL advance (its glyphs are the doc advance × LABEL).
         let label_char_w = self.metrics.char_width * label;
         let push_line = |seeds: &mut Vec<[f32; 4]>, text: &str, row: f32| {
@@ -401,7 +408,10 @@ impl TextPipeline {
         let layout = self.gutter_layout()?;
         let row_h = self.metrics.line_height * crate::markdown::type_scale::LABEL;
         let lines = layout.line_count();
-        let top = height as f32 - row_h * lines - 8.0;
+        // The SAME bottom-anchor inset `prepare_gutter` draws from, so a hit-test
+        // agrees with the pixels rather than re-deriving a second reading of it.
+        let top =
+            height as f32 - row_h * lines - self.metrics.px_physical(super::readout::CANVAS_INSET);
         if px < 0.0 || px > layout.avail || py < top || py >= top + row_h * lines {
             return None;
         }
