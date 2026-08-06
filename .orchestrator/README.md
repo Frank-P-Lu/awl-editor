@@ -210,6 +210,29 @@ and always works. **A lane that ends on a status line has not lost its work — 
 has lost one turn.** Do not let the fear of that make a lane sit on a finished
 gate.
 
+‼ **BUT CHECK FOR UNCOMMITTED WORK FIRST, BECAUSE THE WORSE VARIANT LOOKS
+IDENTICAL FROM HERE.** Measured 2026-08-06, instance nine: a lane returned the
+usual status line — *"waiting for the background test run"* — and its branch had
+**ZERO commits** with **24 modified files plus one untracked** in its worktree, 115
+insertions across `actions.rs`, `app/apply.rs`, `keymap.rs`, `replay_effects.rs` and
+a new module. It had inverted the order completely: launched a suite, then ended the
+turn, having never committed. The lane was the **sole copy** of everything.
+
+A status line with committed work costs a turn. A status line with *uncommitted*
+work is one crashed process away from costing the whole item, which is why
+"commit before pausing" is the first rule and not a tidiness preference. **So the
+orchestrator's first probe is not `ps`, it is:**
+
+```sh
+cd <worktree> && git log --oneline main..HEAD && git status --short
+```
+
+An empty log with a dirty status means the reply is **"commit now, then report"**
+and nothing else — no gates, no questions — because every further instruction is
+worthless until the work exists somewhere other than one process's working tree.
+Tell the lane explicitly to `git add` **named paths**: a shared repo has already
+lost a sibling's source to `git add -u`.
+
 ## Disk-pressure preflight
 
 `.orchestrator/disk-preflight.sh` is the one serialized disk-recovery door.
