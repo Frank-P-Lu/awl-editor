@@ -6,7 +6,6 @@ use super::*;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(in crate::app) struct PollOutcome {
     pub(in crate::app) redraw: bool,
-    pub(in crate::app) reshape: bool,
     pub(in crate::app) persist_zoom: bool,
     pub(in crate::app) expire_notice: bool,
     pub(in crate::app) retry: bool,
@@ -88,16 +87,6 @@ impl FrameRuntime {
         input: input::SchedulingSnapshot,
         out: &mut PollOutcome,
     ) {
-        if let Some(dirty) = self.presentation.theme_font_at {
-            let deadline = dirty + theme_font_debounce();
-            if now >= deadline {
-                self.presentation.theme_font_at = None;
-                out.reshape = true;
-                out.redraw = true;
-            } else {
-                propose(out, deadline);
-            }
-        }
         if let Some(dirty) = self.deadlines.zoom_persist_at
             && !input.zoom_persist_held
         {

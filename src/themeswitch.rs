@@ -8,17 +8,18 @@
 //!   * `theme latest N ms` — the most recently completed input-to-settled-present
 //!     transaction.
 //!   * `theme worst N ms` — the slowest completed transaction still inside the
-//!     trailing five-second wall-clock window. A debounced preview includes the user's
-//!     pause before reshape: it is the honest "how long until it settled" number.
+//!     trailing five-second wall-clock window: the honest "how long until it
+//!     settled" number.
 //!   * `wait W · font X · reshape Y · rowgeom Z · sched S · atlas A · acquire Q · present P`
 //!     — each
 //!     phase's own duration (ms), for that `theme worst` transaction, in wall-clock
 //!     order. The roster spans the WHOLE transaction, not only its work:
-//!       - `wait`    — the DELIBERATE interval between the input and the start of the
-//!         reshape work: the trailing coalesce sitting out its debounce window
-//!         (`app.rs`'s `theme_font_debounce()`), zero on a step that reshaped
-//!         immediately. This is a scheduling DECISION, not a cost, and naming it is
-//!         the point — see the coverage note below.
+//!       - `wait`    — the interval between the input and the start of the reshape
+//!         work. Item 290 removed the trailing-coalesce debounce this used to be able
+//!         to measure a deliberate wait for, so it now reads near-zero on every
+//!         switch — a scheduling fact, not a cost, and naming it (rather than folding
+//!         it silently into `reshape`) is still the point — see the coverage note
+//!         below.
 //!       - `font`    — adopt the new world's effective face + rewrap the document to it
 //!         (`sync_theme_font`'s pre-shape reconfigure; cosmic-text loads the
 //!         face lazily, so its file-load cost is amortized into `reshape`/`atlas`).
@@ -60,9 +61,10 @@
 /// breakdown line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SwitchPhase {
-    /// The DELIBERATE wait between the input and the start of the reshape work
-    /// — the trailing coalesce sitting out its debounce window. Zero for a step
-    /// that reshaped immediately. A scheduling DECISION, not a cost.
+    /// The wait between the input and the start of the reshape work. Reads
+    /// near-zero on every switch now (item 290 removed the trailing-coalesce
+    /// debounce this once measured a deliberate wait for). A scheduling FACT,
+    /// not a cost.
     Wait,
     /// Adopt the new world's effective face + rewrap the document to it.
     Font,
@@ -98,17 +100,6 @@ impl SwitchPhase {
         SwitchPhase::Atlas,
         SwitchPhase::Acquire,
         SwitchPhase::Present,
-    ];
-
-    /// The three phases that make up the RESHAPE-SIDE work — the cost the trailing
-    /// coalesce exists to avoid paying N times, and the one the scheduler asks
-    /// about when it decides whether a step is worth deferring at all
-    /// (`app::theme_font_debounce`). Deliberately NOT the whole roster: `Wait` is a
-    /// decision, and the present-side phases are the frame's, not the reshape's.
-    pub const RESHAPE_SIDE: [SwitchPhase; 3] = [
-        SwitchPhase::Font,
-        SwitchPhase::Reshape,
-        SwitchPhase::RowGeom,
     ];
 
     /// The compact label the breakdown line uses for this phase.
@@ -192,21 +183,6 @@ impl SwitchPhases {
     /// roster — an unrecorded phase contributes nothing, exactly as it shows `—`.
     pub fn recorded_ms(&self) -> f32 {
         SwitchPhase::ORDER.iter().filter_map(|&p| self.get(p)).sum()
-    }
-
-    /// The RESHAPE-SIDE work alone (`SwitchPhase::RESHAPE_SIDE`), in ms — what the
-    /// scheduler asks about. `None` when none of those phases was recorded, which
-    /// is the honest "this path measured nothing" answer rather than a zero.
-    pub fn reshape_side_ms(&self) -> Option<f32> {
-        let mut any = false;
-        let mut total = 0.0;
-        for p in SwitchPhase::RESHAPE_SIDE {
-            if let Some(ms) = self.get(p) {
-                any = true;
-                total += ms;
-            }
-        }
-        any.then_some(total)
     }
 
     /// What fraction of a `total_ms` transaction the recorded phases account for.

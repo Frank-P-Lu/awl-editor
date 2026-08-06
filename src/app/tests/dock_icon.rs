@@ -8,7 +8,7 @@
 //! places, both settled: startup after the sticky theme is restored, and the
 //! `theme_committed` arm of [`App::post_transition_effects`], the same guard that
 //! decides whether the sticky preference is written at all. The preview path
-//! ([`App::retint_theme_preview`]) re-tints pipelines and defers a reshape; it
+//! ([`App::retint_theme_preview`]) re-tints pipelines and reshapes text; it
 //! has no route to `app_icon`.
 //!
 //! These tests drive the real seams and count adoptions, so the property is

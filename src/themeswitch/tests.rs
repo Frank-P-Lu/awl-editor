@@ -173,30 +173,6 @@ fn a_zero_total_transaction_makes_no_coverage_claim() {
     assert!(!breakdown_readout(&phases, 0.0).contains("unaccounted"));
 }
 
-/// `reshape_side_ms` is the scheduler's one question, and it must sum exactly
-/// the three reshape-side phases — never `Wait` (a decision), never the
-/// present-side ones (the frame's). An accumulator that measured none of them
-/// answers `None`, not `0.0`: "nothing measured" and "measured as free" are
-/// different facts, and the scheduler treats them differently.
-#[test]
-fn reshape_side_cost_is_the_work_phases_alone() {
-    let (phases, _) = measured_item241_transaction();
-    let side = phases.reshape_side_ms().expect("work phases were recorded");
-    assert!(
-        (side - 28.1).abs() < 1e-3,
-        "reshape-side work is font+reshape+rowgeom = 28.1 ms, got {side}"
-    );
-    let mut only_wait = SwitchPhases::default();
-    only_wait.record(SwitchPhase::Wait, 100.0);
-    only_wait.record(SwitchPhase::Atlas, 4.0);
-    assert_eq!(
-        only_wait.reshape_side_ms(),
-        None,
-        "a transaction that measured no reshape-side phase must report no cost, \
-         not a free one — the scheduler must not read silence as cheap"
-    );
-}
-
 #[test]
 fn settle_lines_are_absent_without_a_measured_switch() {
     // DETERMINISM LAW (formatting seam): the `None` value — the ONLY value a

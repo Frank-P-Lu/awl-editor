@@ -108,10 +108,10 @@ pub mod perfbench;
 /// live-report canvas (2910x1720 @2x, debug panel hot). Also hosts the hidden
 /// `--bench-theme-burst` THEME-BURST profiler: N successive font-changing theme
 /// switches (the picker's live preview) timing `sync_theme` + the first frame
-/// after each, cold/warm laps for atlas retention, plus the debounced
-/// (colors-per-arrow, one-reshape-at-settle) path for the before/after. A child
-/// of `render` for the same reason as [`perfbench`]. Dev-only; never on the
-/// render path.
+/// after each, cold/warm laps for atlas retention, plus an EAGER burst over the
+/// same worlds (item 290: no debounce, so every arrow step pays its own
+/// reshape) witnessing the reshape count. A child of `render` for the same
+/// reason as [`perfbench`]. Dev-only; never on the render path.
 pub mod framebench;
 
 pub mod benchsuite;
@@ -812,8 +812,7 @@ pub const TABLE_PAN_BAR_THICKNESS: f32 = 2.0;
 /// how much the selection quad's own tint LIFTS on a successful copy, expressed
 /// as an HSL LIGHTNESS delta added to `theme::selection_document()`'s own lightness — same
 /// hue, same saturation, never a new color (DESIGN §3 — amber stays the
-/// caret's). TASTE TUNABLE, flagged for live review (mirrors `THEME_FONT_DEBOUNCE`
-/// in `app.rs`).
+/// caret's). TASTE TUNABLE, flagged for live review.
 pub const COPY_PULSE_LIFT_L: f32 = 0.18;
 /// The matching ALPHA lift (0..255 scale, added to `theme::selection_document()`'s own
 /// alpha and clamped) — the pulse also nudges the wash a touch more opaque,

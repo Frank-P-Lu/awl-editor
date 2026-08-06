@@ -439,13 +439,14 @@ impl App {
 
     /// The PREVIEW SETTLE (the `CROSSING_SYNC_SETTLE` debounce elapsed with no
     /// further preview step) — PHASE 1 of an EVENT-ORDERED bracket teardown, NOT
-    /// an immediate disarm. By the time this fires, `apply_deferred_theme_font`
-    /// has ALREADY run earlier in this same `about_to_wait` pass (both debounces
-    /// are re-stamped together on every preview step, and the theme-font arm is
-    /// checked first), so the reshaped view is applied but has NOT yet presented.
-    /// If we disarmed the bracket here, that pass's coalesced redraw would carry
-    /// the heaviest frame of the whole preview to the compositor UNBRACKETED — the
-    /// exact vanishing-page race. Instead we clear the debounce but HAND OFF to
+    /// an immediate disarm. The font reshape itself runs SYNCHRONOUSLY inside
+    /// `retint_theme_preview` now (item 290 removed the deferred settle it used
+    /// to run through here), so by the time this fires the reshaped view was
+    /// already applied — well before this crossing debounce even armed — but its
+    /// own present may still be in flight behind this frame's redraw request.
+    /// If we disarmed the bracket here, that redraw could carry the reshaped
+    /// frame to the compositor UNBRACKETED — the exact vanishing-page race.
+    /// Instead we clear the debounce but HAND OFF to
     /// `crossing_teardown_pending`, which keeps the bracket armed
     /// (`sync_present_txn`'s OR) until the post-present hook in
     /// `on_redraw_requested` observes that the reshaped frame has presented INSIDE
