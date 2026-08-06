@@ -1400,16 +1400,16 @@ reason = "Item 274's subject split of the former flat test monolith moved this a
 [[structural_exception]]
 target = "src/theme/tests/selection_ui.rs"
 kind = "architectural"
-line = 202
+line = 203
 text = "                \"{}: selected band ({s}) must sit at least as far up the ramp as the unselected whisper ({u}) from the ground ({c})\","
-reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
+reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged; it shifted from line 202 to 203 when an earlier assertion in this file grew from a one-line citation-only message to a two-line mechanism-naming one."
 
 [[structural_exception]]
 target = "src/theme/tests/selection_ui.rs"
 kind = "architectural"
-line = 213
+line = 214
 text = "            \"{}: selected bar {sel:?} must lead the unselected whisper {unsel:?} (redmean {d_sel:.1}) at least as much as the whisper leads the ground {ground:?} (redmean {d_bar:.1})\","
-reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
+reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged; it shifted from line 213 to 214 when an earlier assertion in this file grew from a one-line citation-only message to a two-line mechanism-naming one."
 
 [[comment_citation_exception]]
 target = "src/main/tests/capture_scenarios.rs"
@@ -1581,9 +1581,9 @@ reason = "Item 274's subject split of the former flat test monolith relocated th
 
 [[comment_citation_exception]]
 target = "src/theme/tests/distinctness.rs"
-line = 88
+line = 90
 text = "/// setting it at a round 35 or 30 would bless pairs looser than anything that"
-reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
+reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation. Shifted from line 88 to 90 when two earlier assertion messages in this file grew from citation-only wording to mechanism-naming wording. \"round\" here means a round NUMBER (35 or 30), not a citation of a development round — the false positive is deliberate and unrelated to the citation cleanup that touched this file."
 
 [[comment_citation_exception]]
 target = "src/durable.rs"

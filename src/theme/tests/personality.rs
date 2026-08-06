@@ -211,9 +211,9 @@ fn personality_assignments_are_exactly_the_decided_table() {
             "Tawny" | "Mopoke" | "Bombora" | "Mulga" | "Bowerbird" => RenderCaps::DEFAULT,
             // CASSOWARY (the NERV-terminal statement world): the loud NERV console
             // overlay — a bold Archivo-Black wordmark placard (Auto corner derives
-            // bottom-LEFT off the ITEM-45 RIGHT card), BORDERED elevation, the poster
-            // Bars list, and BRACKET facet chips (terminal corner-ticks). The writing
-            // page stays calm.
+            // bottom-LEFT off the fable-pick RIGHT card), BORDERED elevation, the
+            // poster Bars list, and BRACKET facet chips (terminal corner-ticks). The
+            // writing page stays calm.
             "Cassowary" => RenderCaps {
                 // The authentic CRT phosphor cursor — an ink caret (primary ==
                 // base_content) needs the Filled block so a lit green cell knocks

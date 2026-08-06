@@ -58,7 +58,8 @@ fn tawny_and_mopoke_carets_and_selections_are_now_numerically_distinct() {
     );
     assert_eq!(
         TAWNY.selection_document.a, MOPOKE.selection_document.a,
-        "the selection ALPHA is unchanged by this round — only the hue moved"
+        "the selection ALPHA must stay identical between Tawny and Mopoke — only the \
+         hue differentiates them"
     );
 
     let (tawny, mopoke) = (tokens(&TAWNY), tokens(&MOPOKE));
@@ -71,8 +72,9 @@ fn tawny_and_mopoke_carets_and_selections_are_now_numerically_distinct() {
         .sqrt();
     assert!(
         rms >= 60.0,
-        "Tawny-Mopoke whole-palette distance is only {rms:.1} RMS redmean (floor 60; \
-         was 24.6 before the differentiation round)"
+        "Tawny-Mopoke whole-palette distance is only {rms:.1} RMS redmean (floor 60, \
+         set with margin above the pair's own once-identical value of 24.6 — see \
+         this module's doc)"
     );
 }
 
@@ -160,8 +162,9 @@ fn every_pair_of_worlds_clears_the_roster_wide_distinctness_floor() {
     assert!(
         worst >= ROSTER_FLOOR,
         "the roster's closest pair is {a}↔{b} at {worst:.1} RMS redmean, under the \
-         {ROSTER_FLOOR} floor. The five closest are {closest:?} — and note that the \
-         binding pair is usually NOT the one a round was about (item 99)."
+         {ROSTER_FLOOR} floor. The five closest are {closest:?} — the pair that trips \
+         this floor is rarely the pair you were last adjusting, which is why the \
+         sweep covers the whole roster instead of a hand-picked pair."
     );
     // The floor is a floor, not a description of one pair: the pairs the two
     // specific laws above defend must still be far clear of it, or this law has

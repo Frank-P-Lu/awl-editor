@@ -24,8 +24,8 @@ fn every_shipped_placard_world_has_sane_corner_and_scale() {
         .collect();
     assert!(
         !placards.is_empty(),
-        "at least one world ships a Placard (the round that introduced them) — a \
-         zero here means the data table lost every placard, not that the guard passed"
+        "at least one world ships a Placard — a zero here means the data table lost \
+         every placard, not that the guard passed"
     );
     for (name, corner, scale, anchor) in placards {
         // A legal corner: derive (`Auto`) or a concrete override — never junk.
