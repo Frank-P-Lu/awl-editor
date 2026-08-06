@@ -23,19 +23,35 @@ merge and every compression, verify this heading still exists.** If it is
 missing, `git log -S"BLOCKED ON THE USER" -- .orchestrator/queue.md` finds who
 took it.
 
-1. **THE SITE IS STALE AGAINST THE PUBLISHED RELEASE.** Measured 2026-08-06
-   straight off the live host: `curl -s https://awl.computer/version.json` returns
-   `{"version": "0.0.0", "prerelease": true}` — the "no tagged release yet"
-   placeholder — so the live Check-for-Updates page tells visitors no release
-   exists **while `v0.9.0` is public**. The landing page's `tar xzf` snippet is
-   stale too. ⚠️ **`deploy-web.yml` cannot be run: NO repository secrets are
-   configured at all** (`gh api …/actions/secrets` returns an empty list), so
-   `FLY_API_TOKEN` is absent and the workflow fails on its first step — which is
-   the deliberate design (RELEASING.md §2), not a bug. **One
-   `gh secret set FLY_API_TOKEN` and one `gh workflow run deploy-web.yml` closes
-   it**, and both are the user's to run. Once deployed, `version.json` picks up
-   `0.9.0` with `prerelease: false` — the correct value, since that field means
-   "a tag exists" rather than beta-vs-stable.
+1. **THE SITE IS STALE AGAINST THE PUBLISHED RELEASE — now ONE COMMAND, the
+   user's to run:** `gh workflow run deploy-web.yml`.
+
+   ⚠️ **RE-MEASURED 2026-08-06, and this item's own ORACLE WAS WRONG.** The host
+   it named, `awl.computer`, is **NXDOMAIN** and appears **nowhere in the tree**
+   except in this line — it was authored, not sourced. The live host is
+   **`awl-editor.fly.dev`** (`site/fly.toml`: `app = "awl-editor"`). The
+   *finding* reproduces exactly against the correct host, so the premise stands
+   and only the instrument needed repair: `curl -s
+   https://awl-editor.fly.dev/version.json` returns `{"version": "0.0.0",
+   "prerelease": true}` — the "no tagged release yet" placeholder — while
+   `v0.9.0` is public (`gh release list`, published 2026-08-06T02:04:33Z).
+
+   ✅ **The secret half of this blocker is CLOSED.** `FLY_API_TOKEN` **is now
+   configured** (`gh api …/actions/secrets` → `total_count: 1`, updated
+   2026-08-06T13:44:31Z), and RELEASING.md §2 confirms it is the *only* secret
+   `deploy-web.yml` checks (`.github/workflows/deploy-web.yml:43`). The board's
+   "NO repository secrets are configured at all" is stale. Trigger is
+   `workflow_dispatch` only — deliberate, never automatic.
+
+   **The stale `tar xzf` snippet is the same deploy, not an edit.** The deployed
+   landing page is 10445 B and carries **no version string at all**;
+   `site/index.html` in the tree is 3749 B and already reads
+   `tar xzf awl-0.9.0-linux-x86_64.tar.gz`. The two differ wholesale — the repo
+   is the newer truth and the deploy is what carries it across.
+
+   Once deployed, `version.json` picks up `0.9.0` with `prerelease: false` — the
+   correct value, since that field means "a tag exists" rather than
+   beta-vs-stable (item 228; `site/check.js`'s `checkState()`).
 2. **KITE'S VEIL STRENGTH, and whether the crossing reads as intended.** One
    constant, `WARP_PAGE_VEIL = **0.13**` — ⚠️ **read out of the shader, not out
    of the lane's report, which said `0.20`. A figure owed to a taste call must be
@@ -162,43 +178,47 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
 | `src/render/plan/` | overlay row family only (5 modules) |
 | item 288's three identifiers | all three still present, verbatim |
 
-**WAVE RUNNING 2026-08-06 — four lanes claimed: 290, 288, 295, 304.** 172 is
-closed against its census (below). Order for the next wave:
+**WAVE RUNNING — four lanes claimed: 290, 295, 304, 289.** 288 LANDED
+(`289d364c`) and 172 is closed against its census. Order for the next wave:
 
-1. **289** — the DPI half-weight mark. Sequenced behind 288 only because both
-   touch `theme/tests/personality.rs`; it moves fifteen worlds' 2× appearance and
-   gates a second `Rules` carrier.
-2. **131e** — selection and the full Verify clause; 131a–d are landed and the
-   measured cluster rail exists in `render/chrome/diagonal.rs`.
-3. **THE CHROME-GEOMETRY CLUSTER — 292, 293, 299, 303.** All four live in
-   `render/chrome/`, and 303 names `diagonal.rs` as contended. **They are one
-   lane each, sequenced, not a parallel wave** — the file partition cannot
-   separate them.
-4. **294 THEN 298**, in that order, per 298's own note: the footprint scoping may
+1. **131e** — selection and the full Verify clause; 131a–d are landed and the
+   measured cluster rail exists in `render/chrome/diagonal.rs`. ⚠️ It reaches
+   `render/chrome/diagonal.rs`, which **303 also names as contended** — 131e and
+   303 are one lane, sequenced, never a pair.
+2. **THE CHROME-GEOMETRY CLUSTER — 292, 293, 299, 303. One lane each,
+   SEQUENCED, never a parallel wave.** Verified against the tree rather than
+   asserted: 292's `strip_gap()` and 293's `OverlayGeom::hint_rows` are **both
+   declared in `render/chrome/mod.rs`** (`:163` and `:176`), 293 also reaches
+   `overlay.rs:248-297` and `overlay_shape.rs:743`, 299's accessory ink sits in
+   `overlay_draw.rs`/`overlay_rows.rs` with `src/context_menu.rs`, and 303 names
+   `diagonal.rs`. **The file partition cannot separate them** — `chrome/mod.rs`
+   alone makes 292 and 293 one lane, so pairing any two of these is the
+   duplicated-geometry bill the protocol's §8 warns about.
+3. **294 THEN 298**, in that order, per 298's own note: the footprint scoping may
    be what the context menu wants rather than an off-switch.
-5. **274's residual** — `overlay/tests.rs` (3433) and `buffer/tests.rs` (2241)
+4. **274's residual** — `overlay/tests.rs` (3433) and `buffer/tests.rs` (2241)
    are still monoliths against the ~500-line ceiling, and only
    `app_icon/tests.rs` carries a declared exception. The verbatim-move contract
    and the per-filter verification are in 274's body.
-6. **291** — sequenced after 290 by its own clause; the harness bias and the 5 s
+5. **291** — sequenced after 290 by its own clause; the harness bias and the 5 s
    vanish survive the rip-out.
-7. **296 with 300** — they may be one defect, and 300 says debug before
+6. **296 with 300** — they may be one defect, and 300 says debug before
    redesigning.
-8. **273's six unbuilt residuals** — CLI flags have no roster to generate from,
+7. **273's six unbuilt residuals** — CLI flags have no roster to generate from,
    `Command` carries only `name`, `WORLDS.md`'s columns are hand-written, there
    is no in-app door, the site page is visually unreviewed, and the five-section
    structure was the lane's call rather than the user's.
-9. **302** — needs a quiet tree by its own clause (~1000-site blast radius), so
+8. **302** — needs a quiet tree by its own clause (~1000-site blast radius), so
    it schedules when no chrome or render lane is running.
-10. **174** — one surface family migrated of every surface; the rest still own
+9. **174** — one surface family migrated of every surface; the rest still own
    their geometry.
-11. **227** — the AppImage. Nothing in the tree matches `AppImage`; it is
+10. **227** — the AppImage. Nothing in the tree matches `AppImage`; it is
    unstarted and depends on 226, which is now complete.
-12. **231** — a diagnosis item with **no live lead**; its shader-size hypothesis
+11. **231** — a diagnosis item with **no live lead**; its shader-size hypothesis
    was falsified and nothing replaced it. Its named next step is a **macOS guest
    VM**, and this host has **no VM tooling installed** — a spend decision, not
    work to absorb.
-13. **🔵 HUMAN / LIVE, none of which a lane can close** — see the BLOCKED and
+12. **🔵 HUMAN / LIVE, none of which a lane can close** — see the BLOCKED and
    OWED sections above. **251 is on that list and is hardware-gated**: it needs a
    human at a Linux desktop with Orca, and no unlock of this Mac reaches it.
 
@@ -677,36 +697,8 @@ closed against its census (below). Order for the next wave:
      world's users are on Retina by default — the strip's mark is the style's own
      selection vocabulary, and a half-weight rule is a half-legible affordance.
 
-288. 🟡 IN PROGRESS — claude, branch `claude/item-288-citations`.
-     **THREE IDENTIFIER-LEVEL CITATIONS — RECOMMENDED BY ITEM 287, DELIBERATELY
-     NOT ACTED ON.** These are the same Conventions rule as 275/287, in the one
-     place where fixing it is a *behaviour* change rather than a text edit: a test
-     name is what `cargo test <substring>` filters on, and a filename is what
-     `mod.rs` declares. **So each rename must move its declaration and any
-     external filter with it, in one commit.** All three verified present
-     2026-08-06:
-     - `theme::tests::personality::bar_config_shipped_is_the_flip_round_hug_all_hybrid`
-       → drop the round name; the doc's own language is "HUG-ALL HYBRID".
-     - `theme::tests::fonts::mopoke_body_face_is_bitter_with_the_item_30_bullet_triple`
-       → same shape.
-     - `src/theme/tests/world_pin_item254.rs` → ⚠️ **this one is WRONG, not merely
-       stale.** `git log -S "struct WorldPin"` puts the type's origin in **item
-       94**; item 254 is the unrelated flaky-`alloc_bound_law` item. `item94` stays
-       inside `code-health.py`'s `TEST_FILENAME_ITEM_INDEX` regex
-       (`_item\d+[a-z]?\.rs$`), so no tooling change is needed — but the citation
-       should point somewhere real, or be dropped for the mechanism.
-
-     ⚠️ **THE FINDING WORTH KEEPING, BIGGER THAN THE THREE RENAMES:
-     `TEST_FILENAME_ITEM_INDEX` BLESSES THE FORM OF A CITATION WITHOUT CHECKING
-     THAT IT POINTS ANYWHERE REAL.** `world_pin_item254.rs` passed that exemption
-     for its whole life while naming the wrong item; an exemption that
-     pattern-matches `_item\d+\.rs` cannot tell 94 from 254. **If these filenames
-     are kept as a convention, the exemption should verify the number against the
-     board — otherwise it is a check that runs in one configuration and cannot see
-     its own subject.** **Routing:** production tier; the renames are mechanical,
-     the exemption question is a small design call.
-
-289. **`FacetStyle::Text` AND `ChipVariant::Underline` DRAW THEIR MARK IN RAW
+289. 🟡 IN PROGRESS — claude, branch `claude/item-289-dpi-mark`.
+     **`FacetStyle::Text` AND `ChipVariant::Underline` DRAW THEIR MARK IN RAW
      DEVICE PIXELS, SO IT IS HALF-WEIGHT ON RETINA.** Measured by item 283's lane
      and deliberately not absorbed: the underline probes `[430.0, 153.5, 23.9,
      1.5]` at DPI 1 and `[860.0, 306.6, 47.8, **1.5**]` at DPI 2 — **every other
