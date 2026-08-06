@@ -611,7 +611,41 @@ Order for the next wave:
      defect:** the AT-SPI tree was correct all along, since AccessKit filters
      `Role::TextRun` from accessible children by design.
 
-273. 🟡 IN PROGRESS — claude, branch `claude/item-273-reference-page`.
+273. **RESIDUALS (3), (5) AND (6) ARE CLOSED (merged 2026-08-06). (1), (2) AND (4)
+     REMAIN, each with a stated reason.**
+     ✅ **(5) built:** `site/reference.html` is a docs page — sidebar navigation and
+     anchored headings, **emitted from `Section::ALL` and `blocks()`**, with a nav
+     link and its target heading sharing ONE `caption_id()` call. Three laws,
+     including one that requires every nav `href` to resolve to a real `id=` in the
+     page — the byte-diff alone cannot see that, since it compares the nav block
+     only to itself regenerated. ⚠️ The nav is `div[role=navigation]`, **not**
+     `<nav>`: `law/site.rs` sweeps every literal `<nav>` and demands identical
+     destinations across pages, which is right for cross-page nav and wrong for an
+     in-page TOC. Rendered and clicked in a real browser at three viewports.
+     ✅ **(3) closed, and it found WORLDS.md WRONG IN TWO TABLES.** 21 stale cells
+     across 11 of 20 worlds in the at-a-glance table (incl. Mopoke's Display naming
+     an unrelated typeface), and **five errors in the background-membership table,
+     one a week old**: Magpie under `Pinstripe` while carrying `Bands`; `Bands`
+     calling itself DORMANT; `Gradient` claiming Galah, which has carried
+     `Deckle`/`Fibres` since 2026-07-30; `Deckle` calling Fibres dormant; and `Dots`
+     claiming Bowerbird, which carries **`Organic` — a variant with no row at all**.
+     Both tables now carry roster-derived laws, and the Organic gap is made LOUD by
+     a second law excusing exactly one pair. Every fix moved the DOCUMENT to the
+     roster, never the reverse.
+     ✅ **(6) decided earlier by the user — five sections kept.**
+     🔵 **(4) IS BLOCKED, correctly reported rather than routed around:** an in-app
+     door needs a new arm in `src/actions.rs` and `src/app/apply.rs`. Sequence it
+     behind any lane holding those.
+     🔵 **(2) IS ITS OWN ITEM, not a residual.** `Command` gaining a description
+     means authoring 93 accurate one-liners under the docs-voice rule ("facts traced
+     to verified sources") — larger than (3) and (5) combined.
+     🔵 **(1) needs `main/args.rs` restructured** — 61 flags hand-parsed in one
+     `match`, in a file already carrying size and complexity exceptions.
+     🔵 **OWED TO THE USER'S EYE:** the WORLDS.md correction makes several worlds
+     visibly sparser (Mulga now shows Register alone, Tawny Register+Temp). The doc
+     is now right; whether the "curated maximum of four per band" framing still
+     reads well when it is this sparse is a taste call. Also the sidebar layout
+     itself, on a public page.
      **THE REFERENCE MANUAL — SIX RESIDUALS, named as unbuilt rather than implied
      complete.** The mechanism ships: `REFERENCE.md` + `site/reference.html`,
      every table generated from awl's own rosters — commands (93, both conventions
