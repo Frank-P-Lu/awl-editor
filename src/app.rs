@@ -465,6 +465,11 @@ mod redraw;
 mod session;
 mod stats;
 mod streaks;
+/// THE LOCAL USAGE LEDGER: the lifetime odometer, the silent
+/// command-usage ledger, and the writing-streaks record — one privacy gate,
+/// one flush cadence, one buffer-swap anchor rule. Native only.
+#[cfg(not(target_arch = "wasm32"))]
+mod usage;
 
 pub struct App {
     /// One owner for the active whole slot, background registry, previous-file
@@ -526,43 +531,17 @@ pub struct App {
     /// default, unchanged from before this round.
     #[cfg(not(target_arch = "wasm32"))]
     restored_window: Option<crate::session::WindowFrame>,
-    /// LIFETIME STATS odometer (native only, `stats` config-gated): the persisted
-    /// running counters, loaded once at launch and flushed on the autosave
-    /// triggers (idle/blur/switch/quit). Lives ONLY on the live `App` — the
-    /// headless capture never constructs one, so `stats.toml` is untouchable
-    /// there (tripwire: `headless_replay_never_touches_the_stats_file`).
+    /// THE LOCAL USAGE LEDGER (`app/usage.rs`): the lifetime
+    /// odometer, the silent command-usage ledger, and the writing-streaks
+    /// record, with their sampling anchors and their unflushed-changes
+    /// stamps. The nine former root fields are private to that owner, so a
+    /// recording path cannot forget its dirty stamp and a tracking hook
+    /// cannot forget the privacy gate. Lives ONLY on the live `App` — the
+    /// headless capture never constructs one, so `stats.toml`/`streaks.toml`
+    /// are untouchable there (tripwire:
+    /// `headless_replay_never_touches_the_stats_file`).
     #[cfg(not(target_arch = "wasm32"))]
-    stats: crate::stats::Stats,
-    #[cfg(not(target_arch = "wasm32"))]
-    stats_origin: Instant,
-    #[cfg(not(target_arch = "wasm32"))]
-    stats_last_input_ms: Option<u64>,
-    /// The caret's last-sampled DOCUMENT-space position (scroll-independent), for
-    /// the caret-travel accumulator — diffed against the current position each
-    /// `sync_view`, but only ADDED when the logical cursor actually moved (so a
-    /// scroll or a reshape never fakes distance). `None` until the first sample.
-    #[cfg(not(target_arch = "wasm32"))]
-    stats_last_caret_xy: Option<(f32, f32)>,
-    #[cfg(not(target_arch = "wasm32"))]
-    stats_last_cursor: Option<(usize, usize)>,
-    /// Whether the odometer has unsaved increments since the last flush, so a
-    /// flush with nothing new skips the atomic write.
-    #[cfg(not(target_arch = "wasm32"))]
-    stats_dirty: bool,
-    #[cfg(not(target_arch = "wasm32"))]
-    streaks: crate::streaks::Streaks,
-    /// The active buffer's word count at the last streaks sample — the `last` side
-    /// of the per-flush word DELTA. `None` until the first sample of a buffer (a
-    /// fresh launch or right after a buffer swap), so opening a file's existing
-    /// words is ANCHORED (never counted as "written"); the next flush records the
-    /// delta from there. Reset to `None` on every buffer swap (`streaks_reset_baseline`).
-    #[cfg(not(target_arch = "wasm32"))]
-    streaks_baseline: Option<usize>,
-    /// Whether the streaks record has unpersisted changes since the last flush, so
-    /// a flush that recorded nothing (an anchor, or a no-net-change idle) skips the
-    /// atomic write.
-    #[cfg(not(target_arch = "wasm32"))]
-    streaks_dirty: bool,
+    usage: usage::UsageLedger,
     /// SINGLE-INSTANCE DAEMON (native only, and compiled out under `mas` — see
     /// `crate::daemon`'s module doc): the socket special file's path, so
     /// `daemon::daemon_shutdown` can unlink it on a clean quit — `None` when this
@@ -719,28 +698,13 @@ impl App {
             config,
             #[cfg(not(target_arch = "wasm32"))]
             restored_window: None,
-            // LIFETIME STATS: load the persisted odometer through the same
-            // `FileSystem` seam the recent-* MRUs use (degrades to an empty
-            // `Stats` on a fresh install), and start the active-writing clock.
-            // Only ever reached on the live `App` — never the headless capture.
+            // THE LOCAL USAGE LEDGER: load both persisted records through the
+            // same `FileSystem` seam the recent-* MRUs use (each degrades to
+            // an empty store on a fresh install), and start the active-writing
+            // session clock from the one time owner. Only ever reached on the
+            // live `App` — never the headless capture.
             #[cfg(not(target_arch = "wasm32"))]
-            stats: crate::stats::load(&crate::stats::stats_path()),
-            #[cfg(not(target_arch = "wasm32"))]
-            stats_origin,
-            #[cfg(not(target_arch = "wasm32"))]
-            stats_last_input_ms: None,
-            #[cfg(not(target_arch = "wasm32"))]
-            stats_last_caret_xy: None,
-            #[cfg(not(target_arch = "wasm32"))]
-            stats_last_cursor: None,
-            #[cfg(not(target_arch = "wasm32"))]
-            stats_dirty: false,
-            #[cfg(not(target_arch = "wasm32"))]
-            streaks: crate::streaks::load(&crate::streaks::streaks_path()),
-            #[cfg(not(target_arch = "wasm32"))]
-            streaks_baseline: None,
-            #[cfg(not(target_arch = "wasm32"))]
-            streaks_dirty: false,
+            usage: usage::UsageLedger::load(stats_origin),
             #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
             daemon_socket_path: None,
             #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]

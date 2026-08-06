@@ -61,7 +61,11 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   autosave debounce+version pair, the save-feedback clocks, the title dirty
   cache), `frame` (`FrameRuntime` — private GPU/surface lifecycle,
   presentation ledger, injected-clock deadlines, notice lifetime, and the
-  typed idle-poll boundary).
+  typed idle-poll boundary), `usage` (`UsageLedger` — the two private
+  local-usage records: the lifetime odometer + silent command ledger and the
+  writing-streaks day map, with their sampling anchors, one privacy gate, and
+  a `dirtying` submodule that makes a record and its unflushed-changes stamp
+  one value; `stats.rs`/`streaks.rs` keep only the App-side wiring).
   `App` is being decomposed into owned state domains (queue item 172): read
   `docs/app-domains.md` — the ownership map — before adding a field to `App` or
   an `impl App` block in a new module. Its single `InputRuntime` handle contains

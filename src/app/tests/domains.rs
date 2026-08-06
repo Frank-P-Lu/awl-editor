@@ -38,6 +38,11 @@ pub(crate) enum Domain {
     ProjectLocation,
     /// GPU/presentation lifecycle, frame state, and every settle deadline.
     FrameRuntime,
+    /// The two private local-usage records — the lifetime odometer + silent
+    /// command ledger, and the writing-streaks day map — with their sampling
+    /// anchors, their unflushed-changes stamps, and the one privacy gate
+    /// (`app::usage::UsageLedger`).
+    UsageLedger,
     /// Process/OS handles and one-shot startup handoffs. `App` genuinely is
     /// their lifecycle; these stay.
     HostLifecycle,
@@ -67,15 +72,6 @@ const HOST_LIFECYCLE: &[&str] = &[
     "_menu_bar",
     "restored_window",
     "pending_crash",
-    "stats",
-    "stats_origin",
-    "stats_last_input_ms",
-    "stats_last_caret_xy",
-    "stats_last_cursor",
-    "stats_dirty",
-    "streaks",
-    "streaks_baseline",
-    "streaks_dirty",
 ];
 
 impl Domain {
@@ -90,6 +86,7 @@ impl Domain {
         Domain::InputRuntime,
         Domain::ProjectLocation,
         Domain::FrameRuntime,
+        Domain::UsageLedger,
         Domain::HostLifecycle,
     ];
 
@@ -109,6 +106,7 @@ impl Domain {
             Domain::InputRuntime => Some("input"),
             Domain::DocumentSession => Some("document"),
             Domain::FrameRuntime => Some("frame"),
+            Domain::UsageLedger => Some("usage"),
             Domain::HostLifecycle => None,
         }
     }
@@ -138,6 +136,12 @@ impl Domain {
             Domain::DocumentSession => (Extraction::Extracted, &[]),
             Domain::InputRuntime => (Extraction::Extracted, &[]),
             Domain::FrameRuntime => (Extraction::Extracted, &[]),
+            // The odometer, the command ledger and the streaks record, their
+            // two sampling anchors and their two dirty stamps now live behind
+            // `UsageLedger`'s transitions. A record and its unflushed-changes
+            // flag are ONE value (`Dirtying`), so no recording path can forget
+            // the stamp, and the privacy toggle has exactly one reader.
+            Domain::UsageLedger => (Extraction::Extracted, &[]),
             Domain::HostLifecycle => (Extraction::OnRootApp, HOST_LIFECYCLE),
             // NO `_ =>` ARM. A new domain must be described here.
         }
@@ -333,6 +337,96 @@ fn an_extracted_domain_keeps_nothing_on_root_app() {
     );
 }
 
+/// The pointer/keyboard fields `InputRuntime` took off root `App`.
+#[cfg(test)]
+const RETIRED_INPUT: &[&str] = &[
+    "keymap",
+    "mods",
+    "prefix_pending_at",
+    "whichkey_shown",
+    "hud_key",
+    "hud_mods",
+    "peek_arm",
+    "peek_armed_at",
+    "pointer_hide",
+    "cursor_px",
+    "dragging",
+    "drag_press_px",
+    "drag_armed",
+    "page_resizing",
+    "page_resize_edge",
+    "page_resize_anchor",
+    "image_resizing",
+    "range_drag",
+    "cursor_icon",
+    "drag_granularity",
+    "last_click_time",
+    "last_click_px",
+    "click_count",
+    "scroll_px_accum",
+    "preedit",
+    "ime_enabled",
+    "scroll_sensitivity",
+];
+
+/// The frame-lifecycle fields `FrameRuntime` took off root `App`.
+#[cfg(test)]
+const RETIRED_FRAME: &[&str] = &[
+    "gpu",
+    "recovery_window",
+    "gpu_lifecycle",
+    "gpu_retry_at",
+    "gpu_timeout_streak",
+    "gpu_pending",
+    "present_sync_on",
+    "present_sync_valid",
+    "dpi",
+    "zoom",
+    "zoom_reflow",
+    "zoom_anchor",
+    "theme_font_at",
+    "theme_font_last_reshape_at",
+    "theme_font_last_reshape_cost",
+    "theme_switch_at",
+    "theme_settle",
+    "theme_switches",
+    "caret_edit_streaks",
+    "caret_held",
+    "caret_impact",
+    "caret_recoil",
+    "frame_costs",
+    "debug_still",
+    "redraw_count",
+    "last_latency_ms",
+    "input_stamp",
+    "clock",
+    "last_frame",
+    "lava_tick_at",
+    "resize_settle_at",
+    "move_settle_at",
+    "crossing_settle_at",
+    "crossing_teardown_pending",
+    "focused",
+    "notice",
+    "notice_kind",
+    "notice_expires_at",
+    "zoom_persist_at",
+];
+
+/// The two local-usage records' fields `UsageLedger` took off root `App`.
+#[cfg(test)]
+const RETIRED_USAGE: &[&str] = &[
+    "stats",
+    "stats_origin",
+    "stats_last_input_ms",
+    "stats_last_caret_xy",
+    "stats_last_cursor",
+    "stats_dirty",
+    "streaks",
+    "streaks_baseline",
+    "streaks_dirty",
+];
+
 /// The field names each extracted domain took OFF root `App`. Kept explicit
 /// (the parse can only see what is there now, never what was removed), so a
 /// re-added `overlay`/`search`/… fails by name rather than only inflating the
@@ -349,35 +443,7 @@ fn retired_field_names(domain: Domain) -> &'static [&'static str] {
             "title_dirty",
         ],
         Domain::ConfigurationRuntime => &["default_folder", "cli_workspace", "cli_default_folder"],
-        Domain::InputRuntime => &[
-            "keymap",
-            "mods",
-            "prefix_pending_at",
-            "whichkey_shown",
-            "hud_key",
-            "hud_mods",
-            "peek_arm",
-            "peek_armed_at",
-            "pointer_hide",
-            "cursor_px",
-            "dragging",
-            "drag_press_px",
-            "drag_armed",
-            "page_resizing",
-            "page_resize_edge",
-            "page_resize_anchor",
-            "image_resizing",
-            "range_drag",
-            "cursor_icon",
-            "drag_granularity",
-            "last_click_time",
-            "last_click_px",
-            "click_count",
-            "scroll_px_accum",
-            "preedit",
-            "ime_enabled",
-            "scroll_sensitivity",
-        ],
+        Domain::InputRuntime => RETIRED_INPUT,
         Domain::ProjectLocation => &[
             "root",
             "project",
@@ -387,47 +453,8 @@ fn retired_field_names(domain: Domain) -> &'static [&'static str] {
             "recent_files",
         ],
         Domain::DocumentSession => &["active", "buffer_registry", "prev_file", "spell"],
-        Domain::FrameRuntime => &[
-            "gpu",
-            "recovery_window",
-            "gpu_lifecycle",
-            "gpu_retry_at",
-            "gpu_timeout_streak",
-            "gpu_pending",
-            "present_sync_on",
-            "present_sync_valid",
-            "dpi",
-            "zoom",
-            "zoom_reflow",
-            "zoom_anchor",
-            "theme_font_at",
-            "theme_font_last_reshape_at",
-            "theme_font_last_reshape_cost",
-            "theme_switch_at",
-            "theme_settle",
-            "theme_switches",
-            "caret_edit_streaks",
-            "caret_held",
-            "caret_impact",
-            "caret_recoil",
-            "frame_costs",
-            "debug_still",
-            "redraw_count",
-            "last_latency_ms",
-            "input_stamp",
-            "clock",
-            "last_frame",
-            "lava_tick_at",
-            "resize_settle_at",
-            "move_settle_at",
-            "crossing_settle_at",
-            "crossing_teardown_pending",
-            "focused",
-            "notice",
-            "notice_kind",
-            "notice_expires_at",
-            "zoom_persist_at",
-        ],
+        Domain::FrameRuntime => RETIRED_FRAME,
+        Domain::UsageLedger => RETIRED_USAGE,
         Domain::HostLifecycle => &[],
     }
 }
@@ -441,8 +468,8 @@ fn retired_field_names(domain: Domain) -> &'static [&'static str] {
 /// move the item forbids.
 #[test]
 fn root_app_does_not_grow() {
-    // Root App is lifecycle composition: seven domain handles plus host state.
-    const CEILING: usize = 28;
+    // Root App is lifecycle composition: eight domain handles plus host state.
+    const CEILING: usize = 20;
     let fields = root_app_fields();
     assert_eq!(
         fields.len(),
@@ -723,15 +750,17 @@ fn struct_fields<'a>(source: &'a str, name: &str) -> Vec<&'a str> {
 fn the_root_app_field_parser_is_not_vacuous() {
     let fields = root_app_fields();
     assert!(
-        fields.len() > 20,
+        fields.len() >= 15,
         "parsed only {} field(s) out of src/app.rs — the parser lost the struct \
          body and every gate in this file just went vacuous: {fields:?}",
         fields.len()
     );
-    // Spot-check three fields of very different declaration shapes: a plain
-    // one, a `#[cfg]`-gated one, and one whose type carries a generic
-    // parameter list (the bracket-depth tracking).
-    for expect in ["input", "wait_conns", "document"] {
+    // Spot-check four fields of very different declaration shapes: a plain
+    // one, a `#[cfg]`-gated one, one whose type carries a generic parameter
+    // list (the bracket-depth tracking), and — the real non-vacuity check,
+    // stronger than any count as the ceiling keeps falling — the LAST field
+    // declared in the struct, which a truncated parse cannot reach.
+    for expect in ["input", "wait_conns", "document", "_menu_bar"] {
         assert!(
             fields.iter().any(|f| f == expect),
             "the parser missed `{expect}`, so its declaration shape is not covered: {fields:?}"
@@ -744,6 +773,80 @@ fn the_root_app_field_parser_is_not_vacuous() {
             "the parser invented a field `{reject}`: {fields:?}"
         );
     }
+}
+
+// ── THE LOCAL-USAGE LEDGER'S TWO STRUCTURAL GATES ───────────────────────
+//
+// Both needles are assembled at runtime so this file's own text cannot match
+// them, and both COUNT rather than merely locate — CLAUDE.md's tripwire is
+// that a needle-locating audit stays green forever while a second copy lives
+// happily beside it.
+
+/// THE PRIVACY GATE HAS EXACTLY ONE READER.
+///
+/// `stats` is awl's one LOCAL-usage-tracking kill switch, and both private
+/// records (the lifetime odometer + command ledger, and the writing streaks)
+/// hang off it. It used to be re-read at EIGHT sites across `app/stats.rs` and
+/// `app/streaks.rs` — a shape where a new tracking hook that forgets its `if`
+/// records private usage with the toggle OFF, and nothing but review catches
+/// it. `ConfigurationRuntime::usage_recording` is now the only reader under
+/// `src/app/`; every `UsageLedger` transition receives the typed
+/// `usage::Recording` value instead of deriving one.
+///
+/// Sweeping `src/` (not just a roster of known files) on purpose: the axis a
+/// regression would take is a NEW file, which a roster could not see.
+#[test]
+fn the_usage_privacy_gate_has_exactly_one_reader() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let needle = ["stats", "_on()"].concat();
+    let mut hits: std::collections::BTreeMap<String, usize> = Default::default();
+    super::source_audit::scan_dir_collapsed(&root, &root, &needle, &mut hits);
+    // This law's own prose names the needle without consuming it.
+    let app_hits: Vec<(&str, usize)> = hits
+        .iter()
+        .filter(|(f, _)| f.starts_with("app/") && f.as_str() != "app/tests/domains.rs")
+        .map(|(f, n)| (f.as_str(), *n))
+        .collect();
+    assert_eq!(
+        app_hits,
+        vec![("app/location.rs", 1)],
+        "the local-usage privacy toggle must have exactly ONE reader under src/app \
+         (`ConfigurationRuntime::usage_recording`); every usage hook takes the typed \
+         `Recording` value. A second reader is a privacy gate that can drift out of \
+         step with the one the ledger obeys. Found: {hits:?}"
+    );
+}
+
+/// A PERSISTED RECORD AND ITS UNFLUSHED-CHANGES STAMP ARE ONE VALUE.
+///
+/// The stamp used to be a separate root-`App` field written by hand beside
+/// each `record_*` call — five pairings, and a sixth recording path that
+/// forgot one would accrue in memory and be dropped at quit, silently and only
+/// for the user who hit it. `usage::Dirtying` makes that unreachable: it is the
+/// only `&mut` door to either store and stamps from the closure's own `Changed`
+/// report. This law pins the consequence — ONE site raises the stamp and ONE
+/// clears it — because the cheap regression is not deleting the type, it is
+/// adding a second raise somewhere convenient.
+#[test]
+fn the_usage_records_have_exactly_one_dirty_stamping_site() {
+    let usage = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/app/usage.rs");
+    let source = std::fs::read_to_string(&usage).expect("src/app/usage.rs must be readable");
+    let raise = ["dirty = tr", "ue"].concat();
+    let clear = ["dirty = fal", "se"].concat();
+    assert_eq!(
+        source.matches(&raise).count(),
+        1,
+        "the unflushed-changes stamp must be raised in exactly ONE place \
+         (`Dirtying::record`, from the store's own `Changed` report) — a second \
+         site is the hand-paired shape this owner exists to remove"
+    );
+    assert_eq!(
+        source.matches(&clear).count(),
+        1,
+        "the unflushed-changes stamp must be cleared in exactly ONE place \
+         (`Dirtying::flush`, after the write) — a second site can retire a stamp \
+         whose increments were never persisted"
+    );
 }
 
 // ── THE SUMMONED-LAYER BYPASS COUNT ─────────────────────────────────────

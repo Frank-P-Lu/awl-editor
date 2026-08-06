@@ -50,7 +50,7 @@ reason = "item 114: +8 lines net. The workspace's own two-region keyboard and it
 
 [[file_size_mark]]
 file = "src/app.rs"
-lines = 1433
+lines = 1397
 reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` beside the constants it matches (-5); what remains is the disk-baseline construction at the one exhaustive `App::new` site now taking a `crate::external::Seen` rather than a bare stat (+4), the one-line relaunch-recovery call after the startup buffer decisions settle (+2), and a test-gated re-export of the notice constant so prose laws read the running app's own string instead of a retyped copy (+3). Net +3. +32: the theme-font CHEAP-RESHAPE threshold, its compile-time guard and the measured provenance that places it, beside the debounce constant this file already owns as the one scheduling-constant seam; plus the reshape-completion stamp on `ThemeSettleInFlight` that lets the settled-present fold measure the scheduling phase."
 
 [[file_size_mark]]
@@ -83,7 +83,7 @@ lines = 463
 
 [[file_size_mark]]
 file = "src/app/stats.rs"
-lines = 500
+lines = 453
 
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
@@ -501,8 +501,8 @@ reason = "+2: the fold chevron's direction needs the real fold set, not merely `
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
 function = "App::new"
-message = "this function has too many lines (121/100)"
-reason = "Existing constructor owner and exhaustive App construction site. DocumentSession moved the active slot, registry, previous target, spell checker, and buffer extras behind one initializer, reducing the constructor by twenty counted lines. Shifted +32 lines, unchanged, by the theme-font cheap-reshape constant and its compile-time guard."
+message = "this function has too many lines (105/100)"
+reason = "Existing constructor owner and exhaustive App construction site. DocumentSession moved the active slot, registry, previous target, spell checker, and buffer extras behind one initializer, reducing the constructor by twenty counted lines. Shifted +32 lines, unchanged, by the theme-font cheap-reshape constant and its compile-time guard. UsageLedger folded nine loose odometer/streaks initializers into one, taking a further sixteen lines off."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

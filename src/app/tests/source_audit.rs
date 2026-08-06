@@ -131,7 +131,10 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // door-attribution round-trip, graduation-candidate ranking, kill-switch;
         // the 2 added by the discoverability round: peek/footer ranking from a fake
         // ledger, and the fresh-ledger-empty case.)
-        ("app/stats.rs", 9),
+        // (10th: the deduped-re-open arm — the store's own `Changed::No` verdict
+        // must leave the record clean, so the test flushes and re-touches the
+        // same path through the real fs seam.)
+        ("app/stats.rs", 10),
         // 6 WRITING STREAKS tests, each inside its own `fs::with_fs(fake, ..)`
         // closure seeded with an `InMemoryFs` — they exist specifically to prove
         // what `streaks_flush` writes to / reads back from `streaks.toml` (and

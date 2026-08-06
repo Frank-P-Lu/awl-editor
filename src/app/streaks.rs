@@ -1,64 +1,51 @@
-//! WRITING STREAKS' App-side wiring (native only — `cfg(not(target_arch =
+//! WRITING STREAKS' App-side WIRING (native only — `cfg(not(target_arch =
 //! "wasm32"))`, mirroring the odometer / daemon / session-restore gate): the
-//! per-buffer word-delta SAMPLING on the autosave flush triggers, the LOCAL-
-//! calendar-day read, and the live year-view PUSH into the pipeline.
-//! [`crate::streaks`] owns the pure store + calendar/intensity arithmetic + the
-//! (de)serializer; this file is the seam that folds it into the live `App`.
+//! per-buffer word-delta SAMPLING on the autosave flush triggers and the live
+//! year-view PUSH into the pipeline.
 //!
-//! **The hooks (each config-gated on `stats_on()` — the one LOCAL-usage-tracking
-//! kill switch the odometer already carries; both are native-only, private,
-//! never-uploaded personal state, so they share the single privacy toggle):**
+//! The STATE is not here. [`crate::streaks`] owns the pure store +
+//! calendar/intensity arithmetic + the (de)serializer, and
+//! `app::usage::UsageLedger` owns the live ledger — the record, its
+//! unflushed-changes stamp, and the word baseline. What remains in this file is
+//! the seam that reaches the DOCUMENT for a word count and the GPU pipeline for
+//! the card push.
+//!
+//! **The hooks (each takes the privacy gate as a [`super::usage::Recording`]
+//! value from `ConfigurationRuntime` — the one reader of the toggle; the
+//! streaks and the odometer share that single LOCAL-usage kill switch, since
+//! both are native-only, private, never-uploaded personal state):**
 //!  - [`Self::streaks_flush`] — on the SAME idle/blur/switch/quit triggers the
 //!    autosave engine flushes on: sample the active buffer's word count, record
-//!    the DELTA since the last sample under today's LOCAL calendar day (clamped
-//!    for the day total, raw kept), re-anchor, and persist if anything changed.
-//!  - [`Self::streaks_reset_baseline`] — on a buffer SWAP (file open / new note):
-//!    drop the anchor so the arriving buffer's existing words are re-anchored,
-//!    never counted as freshly written.
-//!  - [`Self::streaks_sync_card`] — every `sync_view`: push the live year-view so
-//!    a summoned card this frame reads the real heatmap (live-only; a capture
-//!    never calls `sync_view`, so the card shows the synthetic placeholder).
+//!    the DELTA since the last sample under today's LOCAL calendar day, and
+//!    re-anchor.
+//!  - [`Self::streaks_reset_baseline`] / [`Self::streaks_anchor_now`] — on a
+//!    buffer SWAP: drop the anchor (an opened file's existing words are not
+//!    writing) or set it eagerly (an awl-created buffer's first keystrokes ARE).
+//!  - [`Self::streaks_sync_card`] — every `sync_view`: push the live year-view
+//!    so a summoned card this frame reads the real heatmap (live-only; a
+//!    capture never calls `sync_view`, so the card shows the placeholder).
 //!
-//! **Determinism:** all three live ONLY on the live `App`; the headless capture
-//! never constructs one, so a `--screenshot`/`--keys` capture is STRUCTURALLY
-//! incapable of touching `streaks.toml` — the same boundary the odometer's
-//! `headless_replay_never_touches_the_stats_file` tripwire pins.
+//! **Why the streaks flush is NOT interchangeable with the odometer's:** the
+//! word delta is BUFFER-SCOPED — words now minus words at the last sample of
+//! *this* document — so three call sites (`load_path`, `start_fresh_document`,
+//! and the card-summon effect) run [`Self::streaks_flush`] ALONE, before the
+//! active buffer changes, where subtracting across two documents would be
+//! meaningless. The odometer's counters are app-global and carry no such
+//! deadline. See `docs/app-domains.md`.
 //!
-//! **LOCAL day (flagged):** std exposes no local-timezone offset, so the day
-//! boundary is read from the OS via libc's `tm_gmtoff` (`localtime_r`) added to
-//! the wall clock, then floored to a civil date by the pure
-//! [`crate::streaks::civil_ymd_from_epoch_secs`]. This is the ONE timezone read;
-//! the pure model stays clock-free and unit-testable.
+//! **Determinism:** all of it lives ONLY on the live `App`; the headless
+//! capture never constructs a `UsageLedger`, so a `--screenshot`/`--keys`
+//! capture is STRUCTURALLY incapable of touching `streaks.toml` — the same
+//! boundary the odometer's `headless_replay_never_touches_the_stats_file`
+//! tripwire pins.
 
 use super::*;
 
 impl App {
-    /// Today's LOCAL calendar day as `"YYYY-MM-DD"`. Reads the wall clock
-    /// (`system_now`, wasm-safe but this whole file is native-only) plus the OS's
-    /// current UTC offset, then floors to a civil date via the pure model. A clock
-    /// before the epoch or a null `localtime_r` degrades to a 0 offset (UTC), never
-    /// a panic.
-    #[cfg(not(target_arch = "wasm32"))]
-    fn streaks_local_today(&self) -> String {
-        let (y, m, d) = self.streaks_local_today_ymd();
-        crate::streaks::fmt_ymd(y, m, d)
-    }
-
-    /// Today's LOCAL calendar day as `(y, m, d)` — the tuple form the streaks card's
-    /// view/streak/series consume directly (no stringify + re-parse round trip). Same
-    /// clock + OS-offset read as [`Self::streaks_local_today`], which formats this.
-    #[cfg(not(target_arch = "wasm32"))]
-    fn streaks_local_today_ymd(&self) -> (i64, i64, i64) {
-        let secs = crate::clock::system_now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0);
-        crate::streaks::civil_ymd_from_epoch_secs(secs + local_utc_offset_secs())
-    }
-
-    /// The active buffer's whole-document word count (the same `markdown::word_count`
-    /// the readout / held HUD use). A `String` alloc per call, but flushes are
-    /// infrequent (idle/blur/switch/quit), so this is cheap.
+    /// The active buffer's whole-document word count (the same
+    /// `markdown::word_count` the readout / held HUD use). A `String` alloc per
+    /// call, but flushes are infrequent (idle/blur/switch/quit), so this is
+    /// cheap — and with tracking off the ledger never asks for it at all.
     #[cfg(not(target_arch = "wasm32"))]
     fn streaks_current_words(&self) -> usize {
         crate::markdown::word_count(&self.document.buffer().text())
@@ -72,7 +59,7 @@ impl App {
     /// unchanged before that flush. Mirrors [`Self::stats_reset_caret_anchor`].
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn streaks_reset_baseline(&mut self) {
-        self.streaks_baseline = None;
+        self.usage.reset_word_baseline();
     }
 
     /// Anchor the word-delta baseline EAGERLY at the active buffer's CURRENT word
@@ -83,11 +70,11 @@ impl App {
     /// MUST. This is the anchor-swallow fix: a lazy `None` anchor (see
     /// [`Self::streaks_reset_baseline`]) would anchor at the already-typed count on
     /// that first flush and lose everything written in the window, which is exactly
-    /// what a short new-note session hit. Eager-anchoring at 0 (or the restored
-    /// count) makes the first flush record the true delta instead.
+    /// what a short new-note session hit.
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn streaks_anchor_now(&mut self) {
-        self.streaks_baseline = Some(self.streaks_current_words());
+        let words = self.streaks_current_words();
+        self.usage.anchor_words(words);
     }
 
     /// Sample the active buffer's word count and fold the DELTA since the last
@@ -99,32 +86,11 @@ impl App {
     /// kept). Errors go to stderr, never disrupt.
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn streaks_flush(&mut self) {
-        if !self.config.stats_on() {
-            return;
-        }
-        let words = self.streaks_current_words();
-        match self.streaks_baseline {
-            None => {
-                // Anchor only — a fresh launch or a just-swapped buffer. Nothing
-                // recorded (opening content is not "writing").
-                self.streaks_baseline = Some(words);
-            }
-            Some(prev) => {
-                let delta = words as i64 - prev as i64;
-                self.streaks_baseline = Some(words);
-                if delta != 0 {
-                    let day = self.streaks_local_today();
-                    self.streaks.record_delta(&day, delta);
-                    self.streaks_dirty = true;
-                }
-            }
-        }
-        if self.streaks_dirty {
-            if let Err(e) = crate::streaks::save(&crate::streaks::streaks_path(), &self.streaks) {
-                eprintln!("streaks save failed: {e}");
-            }
-            self.streaks_dirty = false;
-        }
+        let recording = self.config.usage_recording();
+        let document = &self.document;
+        self.usage.flush_writing(recording, || {
+            crate::markdown::word_count(&document.buffer().text())
+        });
     }
 
     /// Push the live year-VIEW into the pipeline so a summoned Writing streaks card
@@ -132,41 +98,16 @@ impl App {
     /// headless capture never calls this, so the pipeline field stays `None` and the
     /// card renders the synthetic [`crate::streaks::placeholder`] — the determinism
     /// boundary keeping a `--streaks` capture byte-stable. When the feature is OFF
-    /// we push `None` too, so the card honestly shows the placeholder rather than a
-    /// misleading empty grid. Cheap: the view is a small pure computation over the
-    /// (catalog-sized) day map, like `stats_sync_hud`.
+    /// the ledger yields `None` too, so the card honestly shows the placeholder
+    /// rather than a misleading empty grid. Cheap: the view is a small pure
+    /// computation over the (catalog-sized) day map, like `stats_sync_hud`.
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn streaks_sync_card(&mut self) {
         // Compute the view BEFORE borrowing the GPU (both read `self`).
-        let view = if self.config.stats_on() {
-            Some(self.streaks.view(self.streaks_local_today_ymd()))
-        } else {
-            None
-        };
+        let view = self.usage.writing_view(self.config.usage_recording());
         if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.set_streaks(view);
         }
-    }
-}
-
-/// The OS's CURRENT UTC offset in seconds (east positive) — the one timezone read
-/// the streaks day boundary needs. std has no local-offset API, so this reads
-/// libc's `tm_gmtoff` via `localtime_r` on the current time. A null return (never
-/// expected) degrades to UTC (0). Unsafe FFI is contained here; the result feeds
-/// the pure civil-date conversion.
-#[cfg(not(target_arch = "wasm32"))]
-fn local_utc_offset_secs() -> i64 {
-    // SAFETY: `time` takes a null pointer (returns the current time) and
-    // `localtime_r` writes into our stack `tm`, which we zero first. Both are the
-    // documented calling conventions; `tm_gmtoff` is a stable field on macOS +
-    // Linux libc.
-    unsafe {
-        let t: libc::time_t = libc::time(std::ptr::null_mut());
-        let mut tmv: libc::tm = std::mem::zeroed();
-        if libc::localtime_r(&t, &mut tmv).is_null() {
-            return 0;
-        }
-        tmv.tm_gmtoff as i64
     }
 }
 
@@ -182,26 +123,30 @@ mod tests {
             // First flush ANCHORS the empty scratch buffer — records nothing.
             app.streaks_flush();
             assert!(
-                app.streaks.days.is_empty(),
+                app.usage.writing().days.is_empty(),
                 "the anchor flush records nothing"
             );
-            let today = app.streaks_local_today();
+            let today = usage::local_today();
 
             // Write some words, then flush: the net delta is recorded under today.
             app.document.set_text("hello there friend");
             app.streaks_flush();
-            assert_eq!(app.streaks.words_on(&today), 3, "three net words added");
+            assert_eq!(
+                app.usage.writing().words_on(&today),
+                3,
+                "three net words added"
+            );
 
             // Cut back to two words, flush: a net-cut flush never erodes the day
             // total (raw net still drops).
             app.document.set_text("hello there");
             app.streaks_flush();
             assert_eq!(
-                app.streaks.words_on(&today),
+                app.usage.writing().words_on(&today),
                 3,
                 "a cut never lowers the day total"
             );
-            assert!(app.streaks.days.get(&today).unwrap().raw_net <= 3);
+            assert!(app.usage.writing().days.get(&today).unwrap().raw_net <= 3);
 
             // Persisted to (and reloaded from) streaks.toml.
             let saved = crate::streaks::load(&crate::streaks::streaks_path());
@@ -219,8 +164,8 @@ mod tests {
             // whatever the day total is now — this test then proves the SWAP below
             // never ADDS the arriving doc's words to it.
             app.streaks_flush();
-            let today = app.streaks_local_today();
-            let before = app.streaks.words_on(&today);
+            let today = usage::local_today();
+            let before = app.usage.writing().words_on(&today);
             // Simulate a swap into an OPENED file: reset the anchor LAZY, replace the
             // buffer with a big doc.
             app.streaks_reset_baseline();
@@ -228,7 +173,7 @@ mod tests {
                 .replace_buffer(crate::buffer::Buffer::from_str("a b c d e f g h i j"));
             app.streaks_flush(); // must ANCHOR the arriving words, not count them
             assert_eq!(
-                app.streaks.words_on(&today),
+                app.usage.writing().words_on(&today),
                 before,
                 "opening a doc's existing words is anchored, never counted as written"
             );
@@ -246,13 +191,13 @@ mod tests {
             let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
             // Create a fresh note the REAL way (the C-x n path).
             app.new_document();
-            let today = app.streaks_local_today();
+            let today = usage::local_today();
             // Type INTO the fresh note before any idle flush has fired.
             app.document.set_text("brand new words typed today");
             // The first idle flush of this awl-created note.
             app.streaks_flush();
             assert_eq!(
-                app.streaks.words_on(&today),
+                app.usage.writing().words_on(&today),
                 5,
                 "words typed into a fresh note BEFORE its first flush must be recorded, \
                  not anchored away"
@@ -267,12 +212,12 @@ mod tests {
         // typed into it before the first flush must count too.
         crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
             let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
-            let today = app.streaks_local_today();
+            let today = usage::local_today();
             // Type into the birth scratch before any idle flush.
             app.document.set_text("first words of the day");
             app.streaks_flush();
             assert_eq!(
-                app.streaks.words_on(&today),
+                app.usage.writing().words_on(&today),
                 5,
                 "words typed into the birth scratch before its first flush are recorded"
             );
@@ -287,12 +232,12 @@ mod tests {
         // keystroke). Drives the REAL post-apply side effect the live app runs.
         crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
             let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
-            let today = app.streaks_local_today_ymd();
+            let today = usage::local_today_ymd();
             // Type into the birth scratch, but DON'T let an idle flush fire.
             app.document.set_text("live words not yet flushed today");
             // The delta is still pending — the store hasn't seen it.
             assert_eq!(
-                app.streaks.view(today).today_words,
+                app.usage.writing().view(today).today_words,
                 0,
                 "precondition: the pending delta is not yet in the store"
             );
@@ -302,7 +247,7 @@ mod tests {
                 ),
             ));
             assert_eq!(
-                app.streaks.view(today).today_words,
+                app.usage.writing().view(today).today_words,
                 6,
                 "summoning FLUSHED the pending delta — the card reads live, not stale"
             );
@@ -319,7 +264,7 @@ mod tests {
             let mut app = App::new(None, PathBuf::from("/n"), None, None, cfg);
             app.document.set_text("some words here now");
             app.streaks_flush();
-            assert!(app.streaks.days.is_empty(), "off: no recording");
+            assert!(app.usage.writing().days.is_empty(), "off: no recording");
             assert!(
                 crate::fs::active()
                     .read(&crate::streaks::streaks_path())
