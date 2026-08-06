@@ -2172,3 +2172,48 @@ convention, the exemption should verify the number against the board — otherwi
 it is a check that runs in one configuration and cannot see its own subject, the
 same shape this session hit five times.** **Routing:** production tier; the
 renames are mechanical, the exemption question is a small design call.
+
+---
+
+## Item 283 landed — `Rules` is a shipped composition. Two things it handed back.
+
+**The brief's one design question dissolved on measurement.** The orchestrator
+asked the lane to decide the lens-strip tab pills, on the claim that a `Rules`
+theme picker leaves a bare strip. **The theme picker has no lens strip on any
+world** — retired by user decision 2026-07-15, stated in `capture/modes.rs`, and
+a live `Cmd-T` capture carries an empty one. Verified before merging. That is the
+**seventh** orchestrator-authored premise falsified this session, and the pattern
+is unchanged: the brief described a surface without checking it existed.
+
+Where strips DO exist (file pickers, palette, History, Settings), `Rules` already
+answered in its own vocabulary — `FacetStyle::Text` marks the active lens with a
+hairline under its label, which is a rule like the ones arranging the list.
+
+289. **`FacetStyle::Text` AND `ChipVariant::Underline` DRAW THEIR MARK IN RAW
+DEVICE PIXELS, SO IT IS HALF-WEIGHT ON RETINA.** Measured by item 283's lane and
+deliberately not absorbed: the underline probes `[430.0, 153.5, 23.9, 1.5]` at
+DPI 1 and `[860.0, 306.6, 47.8, **1.5**]` at DPI 2 — **every other term doubles
+and the thickness does not.** ⚠️ **This is item 242's chrome-pixel-space rule
+(author in logical units, multiply once at the boundary) with two dials that
+never got the memo**, and it is exactly the class CLAUDE.md's DPI tripwire names:
+chrome padding once shipped at half its tuned size on every Retina display, and
+every capture runs at `--capture-dpi 1`, the one scale at which it looks correct.
+**Scope: 14 `FacetStyle::Text` worlds plus Wagtail's `Underline` chips.** It
+moves 15 worlds' 2× appearance, which is why it is its own item and not a
+footnote. **Verify:** the mark's thickness scales with DPI like every neighbour,
+swept at 1× and 2× across the affected roster. **Routing:** production tier.
+
+⚠️ **AND `Rules` MUST NOT REACH A SECOND WORLD BEFORE 289 CLOSES** if that world's
+users are on Retina by default — the strip's mark is the style's own selection
+vocabulary, and a half-weight rule is a half-legible affordance.
+
+**What a second carrier needs, from 283's own report** (all recorded in
+`theme/tests/personality.rs` beside Paperbark's entry, so the next author reads
+it there rather than here):
+- **A taste call on WHICH world** — deliberately out of 283's scope.
+- **A findability check on a DARK ground.** `rules_ink` uses `faint()` for
+  hairlines and `base_content()` for the mark, so it is data-driven — but "a
+  hairline at `faint()` is findable" is asserted **only on cream**.
+- **A `FacetStyle` that is not `Chips(FilledActive)`**, which would put a filled
+  pill back on the strip. Paperbark is `Text`, so the interaction has never been
+  posed and nothing currently forbids it.

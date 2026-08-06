@@ -242,14 +242,17 @@ fn personality_assignments_are_exactly_the_decided_table() {
             },
             // PAPERBARK (the handmade-paper studio): a LIGHT world, so
             // it carries the composition round's light-world card border, and
-            // ⚠️ THE ONE CARRIER OF THE `Rules` PROTOTYPE — the quiet fourth
-            // list style, organised by absence rather than by enclosure. The
-            // room's whole personality is its material ground, and a ruled index
-            // is that ground one register up where a floating card was an object
-            // dropped on it. Otherwise deliberately DEFAULT: no placard, no rail
-            // move, no frame. ⚠️ Which SELECTION treatment the style draws is an
-            // open taste question; the value here is a placeholder for that
-            // decision, not the decision.
+            // ⚠️ THE ONE CARRIER OF `Rules` — the quiet fourth list style,
+            // organised by absence rather than by enclosure. The room's whole
+            // personality is its material ground, and a ruled index is that
+            // ground one register up where a floating card was an object dropped
+            // on it. Otherwise deliberately DEFAULT: no placard, no rail move,
+            // no frame. `Weight` is the shipped selection treatment: the selected
+            // row's own bounding rules thicken and run past the text measure,
+            // leaving its interior plain ground. A second carrier needs a
+            // findability check on a DARK ground — every pixel law for this
+            // style runs on cream — and a `FacetStyle` that is not `Chips`,
+            // which would put a filled pill back on the lens strip.
             "Paperbark" => RenderCaps {
                 elevation: Elevation::Bordered,
                 list_style: model::ListStyle::Rules(model::RuleSelection::Weight),
