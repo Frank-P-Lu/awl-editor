@@ -1200,6 +1200,63 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      path keeps its explicit `--screenshot`/`--keys` route and stays
      deterministic and byte-identical. **Routing:** deep tier.
 
+302. **LOOSE COMMENTS — A SECOND PASS, AND A DIFFERENT DEFECT CLASS FROM 275's.**
+     **User-requested 2026-08-06 after a comment misled the orchestrator into
+     relaying a false open decision.** Item 275 removed comments that narrated
+     HISTORY; 287/288 removed CITATIONS. **This is neither: it is comments whose
+     factual content has drifted from, or was never precise about, the code they
+     describe.** A history comment is merely noise. **A loose comment is read as
+     truth and acted on.**
+
+     **FIVE INSTANCES, ALL FOUND BY ACCIDENT IN ONE DAY, which is the argument
+     for looking on purpose:**
+     - `render/chrome/outline.rs` says "the CRISP theme/caret/history pickers".
+       **The crisp set is `Theme | Caret`** (`app/viewstate.rs:165`); History is
+       deliberately excluded WITH a stated reason. The prose is simply wrong, and
+       it cost a wrong decision relayed to the user.
+     - `render/chrome/readout.rs`'s `prepare_notice`: "(today: the autosave
+       external-change guard's…)" and "every capture (which can never have a
+       notice — autosave is live-only)". **~10 callers now, and export is
+       reachable headlessly.**
+     - `app/theme_font_debounce.rs`: "12.0 ms on CLAUDE.md" — **a measurement
+       against a fixture that has since grown 44%.**
+     - `docs/platform.md:88`: the location fallback glossed as "`~/notes` by
+       default", **wrong for the unconfigured case**.
+     - `theme/model.rs`'s `LocationStyle::RotatedRail`: "small", "muted", "flush
+       with the card's own left border" — **all three overturned by item 297.**
+
+     **FOUR SHAPES, and the last is the dangerous one.** (a) **stale
+     enumerations** — a comment lists members and the roster moved; (b) **stale
+     "today" claims** — "X is the only caller" and it is not; (c) **baked
+     measurements** — a number measured once against something that moves;
+     (d) **invariants later code invalidated** — "every capture can never have a
+     notice". ⚠️ **(d) is not bad prose, it is a LOAD-BEARING assumption: the
+     capture pipeline was DESIGNED around that sentence, and the design outlived
+     its truth.** Hunt (d) first.
+
+     ✅ **THE LEVER, AND IT IS THE POINT OF THE ITEM: A COMMENT THAT STATES A
+     CHECKABLE FACT SHOULD BE A LAW, NOT A COMMENT.** "The crisp set is
+     Theme|Caret", "no capture carries a notice", "this is the only caller" are
+     all assertions a test can hold and prose cannot. **Prefer converting such a
+     comment into a law over rewording it** — a reworded comment rots again on
+     the same schedule; a law fails the day it stops being true. Where a fact is
+     genuinely not checkable, say so in the comment rather than stating it flatly.
+
+     ⚠️ **METHOD — THERE IS NO GREP FOR "WRONG".** This must be READ, one comment
+     at a time, exactly as 275 was; the five above are a scale estimate and a
+     shape guide, **never a worklist**. Prioritise comments that make claims
+     about OTHER modules (a comment describing its own three lines rarely
+     misleads; one describing a roster, a caller set or an invariant elsewhere
+     is how all five of these went wrong). ⚠️ **Do not change code, except to add
+     laws.** ⚠️ **Schedule against a quiet tree** — 275 touched ~1000 sites and
+     conflicted with everything; this pass has the same blast radius.
+
+     **Done:** no comment asserts a roster, a caller set or an invariant that the
+     code contradicts, and the checkable ones are held by tests. **Verify:** each
+     new law mutation-proved by breaking the fact and watching it go red — a law
+     asserting a comment is worthless if it passes either way. **Routing:**
+     production tier, read one at a time.
+
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
