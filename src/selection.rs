@@ -627,9 +627,8 @@ impl SelectionPipeline {
     /// to normalize) is not this function's job to guard against; construct
     /// instances through [`spine_segment`], which never emits one.
     ///
-    /// No production caller uses it yet. The tests preserve the upright-axis
-    /// equivalence and verify that a non-upright axis rotates the quad.
-    #[allow(dead_code)]
+    /// Its production consumers are the overlay's diagonal spine and selected-row
+    /// mark, and the fold chevron in the writing column's own margin.
     pub fn prepare_rotated(
         &mut self,
         device: &wgpu::Device,
@@ -751,10 +750,7 @@ pub(crate) fn srgba_u8_to_linear(c: [u8; 4]) -> [f32; 4] {
 }
 
 mod spine;
-// No non-test caller yet — item 131c is these primitives' named first
-// consumer, so the re-export is unused exactly as the functions are.
-#[allow(unused_imports)]
-pub use spine::{narrowed_spine_corner_px, spine_segment};
+pub use spine::{chevron_arms, narrowed_spine_corner_px, spine_segment};
 
 #[cfg(test)]
 mod tests;

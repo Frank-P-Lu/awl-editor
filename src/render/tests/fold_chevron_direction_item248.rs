@@ -12,14 +12,14 @@
 
 use super::super::*;
 use super::{headless_dqp, pixeldiff, view_md};
-use crate::render::layers::fold_chevron::fold_chevron_arms;
+use crate::selection::chevron_arms;
 use std::collections::BTreeSet;
 
 const EPS: f32 = 0.01;
 
 /// Reconstruct a `spine_segment` quad's own `(from, to)` endpoints from its
 /// `(center, half, axis)` output — the inverse of the geometry
-/// `fold_chevron_arms` composes through (`half[0]` is the segment's own
+/// `chevron_arms` composes through (`half[0]` is the segment's own
 /// half-LENGTH, so `center ∓ axis*half[0]` are exactly the two points it was
 /// built from — see `selection::spine::spine_segment`'s own doc).
 fn endpoints(seg: ([f32; 2], [f32; 2], [f32; 2])) -> ([f32; 2], [f32; 2]) {
@@ -29,7 +29,7 @@ fn endpoints(seg: ([f32; 2], [f32; 2], [f32; 2])) -> ([f32; 2], [f32; 2]) {
     (a, b)
 }
 
-/// Both `fold_chevron_arms` segments are built `spine_segment(vertex, arm, …)`
+/// Both `chevron_arms` segments are built `spine_segment(vertex, arm, …)`
 /// — the SAME `vertex` for both — so their `endpoints().0` must agree exactly.
 /// Asserting that agreement here is the direct pixel-level twin of
 /// `chrome::diagonal::selected_chevron`'s own claim: "deriving the vertex FROM
@@ -39,7 +39,7 @@ fn vertex_of(arms: [([f32; 2], [f32; 2], [f32; 2]); 2]) -> [f32; 2] {
     let v1 = endpoints(arms[1]).0;
     assert!(
         (v0[0] - v1[0]).abs() < EPS && (v0[1] - v1[1]).abs() < EPS,
-        "both arms of one fold_chevron_arms call must meet at the SAME vertex: {v0:?} vs {v1:?}"
+        "both arms of one chevron_arms call must meet at the SAME vertex: {v0:?} vs {v1:?}"
     );
     v0
 }
@@ -56,8 +56,8 @@ fn fold_chevron_arms_point_right_when_collapsed_and_down_when_expanded() {
     let spread = 3.0;
     let thickness = 1.5;
 
-    let vertex_collapsed = vertex_of(fold_chevron_arms(center, reach, spread, 0.0, thickness));
-    let vertex_expanded = vertex_of(fold_chevron_arms(center, reach, spread, 90.0, thickness));
+    let vertex_collapsed = vertex_of(chevron_arms(center, reach, spread, 0.0, thickness));
+    let vertex_expanded = vertex_of(chevron_arms(center, reach, spread, 90.0, thickness));
 
     assert!(
         (vertex_collapsed[0] - (center[0] + reach)).abs() < EPS
@@ -94,7 +94,7 @@ fn fold_chevron_arms_turn_continuously_between_the_two_settled_angles() {
     let spread = 6.0;
     let thickness = 1.0;
 
-    let mid = vertex_of(fold_chevron_arms(center, reach, spread, 45.0, thickness));
+    let mid = vertex_of(chevron_arms(center, reach, spread, 45.0, thickness));
     let theta = 45f32.to_radians();
     let expected = [reach * theta.cos(), reach * theta.sin()];
     assert!(
@@ -103,8 +103,8 @@ fn fold_chevron_arms_turn_continuously_between_the_two_settled_angles() {
          expected {expected:?}"
     );
 
-    let collapsed = vertex_of(fold_chevron_arms(center, reach, spread, 0.0, thickness));
-    let expanded = vertex_of(fold_chevron_arms(center, reach, spread, 90.0, thickness));
+    let collapsed = vertex_of(chevron_arms(center, reach, spread, 0.0, thickness));
+    let expanded = vertex_of(chevron_arms(center, reach, spread, 90.0, thickness));
     assert!(
         (mid[0] - collapsed[0]).abs() > EPS || (mid[1] - collapsed[1]).abs() > EPS,
         "a mid-turn vertex must not equal the collapsed settled point"
