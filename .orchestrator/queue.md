@@ -703,19 +703,40 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      (`App::apply_deferred_theme_font`) once nothing calls it.
      `App::retint_theme_preview` reshapes on every preview step, unconditionally.
 
-     **The case FOR, which is not the lag:** the mechanism is **inert at human
-     browsing cadence.** Item 202's leading-edge rule calls a step isolated when
-     it arrives ≥ window after the last reshape, and deliberate arrowing
-     (~250 ms/keypress) makes every step isolated — so it takes the immediate arm
-     and the window never engages. Measured (release, 900×600 @2x, CLAUDE.md,
-     fixed 250 ms cadence): `AWL_THEME_FONT_DEBOUNCE_MS=0` → **44.0 ms p50**,
-     shipping `100` → **44.3 ms p50**. Indistinguishable. Separately **its cost
-     model has silently rotted:** `THEME_FONT_CHEAP_RESHAPE_MS < 12` is anchored
-     to a "12.0 ms on CLAUDE.md" figure whose fixture is CLAUDE.md itself, which
-     has grown 44% (17,541 → 25,197 bytes) and now measures **12.5–17.7 ms** via
-     `--bench-theme-burst`. **A constant calibrated against a live, growing
-     fixture is a check that cannot see its own subject.** Deleting the mechanism
-     deletes that rot.
+     **The case FOR: the mechanism is BIMODAL, and its mode boundary sits inside
+     the range of natural human key cadence.** Measured (release, Apple Silicon
+     Metal, 900×600 @2x, `--debug`, CLAUDE.md, 12× Down in the theme picker,
+     display verified unlocked at both ends of 17 runs), arm sequence per cadence
+     at the shipping 100 ms window (`I`=Immediate, `C`=Coalesce):
+
+     | cadence | arms | stall |
+     |---|---|---|
+     | 60–95 ms | `ICCCCCCCCCCC` | 141–151 ms |
+     | **100 ms** | **`IIIICCCC`** | **146, 138 ms** |
+     | 105–250 ms | `IIIIIIII` | none |
+
+     **A hard mode boundary at 100–105 ms with a ~4× latency gap across it** —
+     immediate steps settle in 30–45 ms, a coalesced burst in 140–150 ms. At
+     exactly 100 ms the flip lands mid-run: four normal steps, then a stall. That
+     is the user's reported "hit it on the third item". **Uniform cost is
+     predictable; a mode that flips on jitter is not, and that is the argument.**
+     ⚠️ **The IRREGULARITY is inferred, not measured** — the harness robot has
+     near-zero jitter so it flips once and stays; a human at ±30 ms around 100 ms
+     would cross repeatedly within one run. No instrument here reproduces that.
+
+     **A second, unexpected amplifier: coalescing MANUFACTURES work.** Only 8 of
+     12 hops need a reshape at all at ≥100 ms (four are same-face/same-palette,
+     ~2 ms each) — but during a coalesced burst **all 12** report needing one,
+     because `shaped_font` goes stale while nothing reshapes.
+
+     **Separately, its cost model has silently rotted:**
+     `THEME_FONT_CHEAP_RESHAPE_MS` is anchored to a "12.0 ms on CLAUDE.md" figure
+     whose fixture is CLAUDE.md itself, which has grown 44% (17,541 → 25,197
+     bytes) and now measures 12.5–17.7 ms. **A constant calibrated against a
+     live, growing fixture is a check that cannot see its own subject.** ⚠️ Note
+     the gate never actually opens here: measured `last_reshape_cost` was
+     **22–40 ms** in every run, 5–10× above it. The rot is real; it is not what
+     drives the arm.
 
      ⚠️ **THE COST, WHICH THE LANE MUST MEASURE RATHER THAN ASSUME.** Removal
      regresses the BURST case — the one place the coalesce genuinely works.
@@ -727,12 +748,22 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      materially, REPORT BACK rather than shipping it silently — the user accepted
      this trade in principle, not at an unmeasured magnitude.**
 
-     ⚠️ **THIS ITEM DOES NOT FIX THE REPORTED LAG, and must not be closed as
-     though it had.** The user's report is ~44 ms per arrow step at deliberate
-     cadence; removal leaves that unchanged by construction, because 0 and 100
-     already measure the same. The lag is reshape-bound (`sync_theme`
-     12.5–17.7 ms on CLAUDE.md, 23.7–28.8 ms on a 1896-line fixture) and is
-     separate work.
+     ✅ **THIS ITEM DOES ADDRESS THE REPORTED LAG — an earlier draft of this body
+     said it did not, and that was written off the "inert" reading now
+     withdrawn.** The reported symptom IS the coalesced mode; removing the
+     debounce leaves every step on the immediate arm at 30–45 ms and the stall
+     mode ceases to exist. A residual ~30–45 ms per step remains and is
+     reshape-bound (`sync_theme` 12.5–17.7 ms on CLAUDE.md, 23.7–28.8 ms on a
+     1896-line fixture) — real, but uniform, and separate work.
+
+     ⚠️ **RAISING THE WINDOW IS NOT THE ALTERNATIVE — measured and refuted.** At a
+     deliberate 250 ms cadence, a 300 ms window gives arms `ICCCCCCCCCCC` and a
+     **348 ms** settle; 400 ms gives **459 ms**. Raising it converts "every step
+     immediate, uniform ~40 ms" into "nothing re-renders while you browse, then a
+     one-third-of-a-second snap." **p50 movement-latency IMPROVES while the felt
+     settle gets 8–10× worse**, because colour-only steps present fast and get
+     sampled while stalled ones do not — the wrong statistic over a
+     survivorship-biased sample. Do not re-propose it without new evidence.
 
      **Scope:** does NOT include raising the window, attacking reshape cost, or
      touching `themeswitch.rs`'s phase roster beyond whatever `SwitchPhase::Wait`
@@ -745,6 +776,85 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      before/after at both cadences; the isolated-step path unchanged. Feel is
      live-only and gets flagged for the user, never claimed. **Routing:**
      production tier.
+
+291. **THE THEME-SETTLE INSTRUMENT CANNOT SEE THE STALLS IT EXISTS TO MEASURE.**
+     **Defect, measured not argued:** a **Coalesce** step never creates a
+     transaction at all. `retint_theme_preview`'s Coalesce arm calls only
+     `arm_theme_font(now)`, so `sync_theme_font_measured` — the SOLE creator of
+     `ThemeSettleInFlight` — is never reached; only the eventual
+     `apply_deferred_theme_font` makes one, timed from `theme_switch_at()`, i.e.
+     **the last input's stamp**. Measured at 60–90 ms cadence: **12 reshaping
+     inputs produce 2 recorded transactions.** Ten of twelve steps are invisible
+     to `theme latest`, `theme worst` and the whole breakdown. **The user
+     reported this from the product before it was found in the source** — "the
+     lag isn't captured by theme worst values."
+
+     ⚠️ **`MIN_PHASE_COVERAGE`/`unaccounted` CANNOT CATCH THIS, BY CONSTRUCTION.**
+     The floor guards transactions that were RECORDED; an absent transaction
+     cannot show a shortfall. `themeswitch.rs`'s own module doc presents that
+     floor as the guarantee that future blind spots self-report. **It does not
+     cover the blind spot that drops the transaction.** This is the repo's
+     standing lesson in its purest form: the check ran in the one configuration
+     that could not see its subject.
+
+     **Three qualifications, so this is not overstated:** the transaction that IS
+     recorded shows ~147 ms, so the readout is blind to the stall's FREQUENCY,
+     not its magnitude; it still under-reports the felt total, because eight
+     arrows over 700 ms with no re-render feel like 700 ms while the readout says
+     147 (it measures from the LAST input); and `SWITCH_WINDOW` is 5 s with
+     `settle_lines` returning an empty vec when empty, so **the lines vanish
+     entirely 5 s after the last switch** — a user who feels lag and then looks
+     finds nothing.
+
+     ⚠️ **THE SAME SURVIVORSHIP BIAS IS IN THE HARNESS.**
+     `probe::mark_movement_input` OVERWRITES a still-pending mark by design, so a
+     zero-gap burst reports `n=1` for 8 inputs. Every p50 taken through it is
+     conditioned on "steps that got a present" — which is how a diagnosis lane
+     concluded the debounce was inert. **Fix both or neither; a repaired readout
+     over a biased probe still lies.**
+
+     **Build:** record a transaction per preview STEP, not per completed settle,
+     or surface a dropped/superseded count beside the headline. **Done:** the
+     number a user sees moves when the product stalls. **Verify:** a synthetic
+     burst at 60–95 ms cadence reports 12 of 12, not 2 of 12; mutation-prove by
+     restoring the drop and watching the law go red. ⚠️ **Sequence AFTER 290 if
+     290 lands** — with no debounce there is no Coalesce arm, which removes this
+     defect's cause but NOT the harness bias or the 5 s vanish. **Routing:**
+     production tier.
+
+292. **KITE'S ACTIVE LENS CHIP COLLIDES WITH THE CARD'S TOP EDGE.**
+     **User-reported with screenshot 2026-08-06.** In Kite's command palette the
+     filled `All` chip's plate runs flush into the top edge of the strip band,
+     with no breathing room above it — the highlight reads as clipped rather than
+     seated. **Diagnose before fixing:** `strip_gap()`
+     (`src/render/chrome/mod.rs:163`) is HORIZONTAL only (`CHIP_STRIP_GAP` vs
+     `STRIP_GAP`), so it is not the owner; the vertical inset between the strip
+     band's top and the chip plate is. ⚠️ **Verify the premise before building —
+     confirm from the drawn pixels which quantity is short**, and check whether
+     it is Kite-specific or true of every `FacetStyle::Chips` world (Kite is the
+     reporter, not necessarily the only carrier). **Scope:** vertical seating of
+     the chip within its band; does NOT include the chip's horizontal gaps or
+     item 289's unscaled underline. **Verify:** the plate's top inset scales with
+     DPI like its neighbours, swept 1×/2× across every `Chips` world;
+     byte-identity for non-`Chips` worlds. **Routing:** production tier.
+
+293. **THE OVERLAY FOOTER CROWDS THE LAST ROW — A PANE-WIDE FIX, NOT KITE'S.**
+     **User-reported with screenshot 2026-08-06, and the user explicitly scoped
+     it: "that should be a pane world specific fix (eg fix for all panes)."** The
+     grey hint line (`type to filter · ↵ choose · ←/→ category · esc close`) sits
+     hard against the last candidate row with no separating space, so system text
+     and content text read as one block. **Diagnose before fixing:**
+     `OverlayGeom::hint_rows` documents itself as `footer.len() + 1`, "a blank
+     separator line between the hint and the band", and the card is said to grow
+     by exactly that — **so a separator is already specified and the screenshot
+     shows none. Establish whether it is not computed, not drawn, or being
+     consumed by a clip** before changing any constant. ⚠️ Kite is where it was
+     seen; **the fix is for every `Pane` world** (`Pane` carries fifteen of
+     twenty and is `RenderCaps::DEFAULT`), so the sweep is the roster, not the
+     reporter. **Verify:** the gap exists and is measurable in pixels on every
+     `Pane` world at 1×/2× DPI, on full, filtered, scrolled and empty lists —
+     the empty-state notice row shares this band and has produced a footer/plate
+     collision before. **Routing:** production tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
