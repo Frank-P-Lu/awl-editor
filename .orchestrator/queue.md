@@ -896,8 +896,15 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
 
      **Scope:** the THEME picker only. The caret picker shares the crisp
      exception and the same preview rationale — **decide it consciously, do not
-     sweep it in**. The history picker's presence in that exception has no stated
-     rationale and is worth asking about, not changing here. Does NOT include a
+     sweep it in**. ⚠️ **THE EXCEPTION IS `Theme | Caret` AND NOTHING ELSE**
+     (`src/app/viewstate.rs:165`) — an earlier draft of this item said the
+     HISTORY picker was also in it, on the strength of
+     `render/chrome/outline.rs`'s prose "the CRISP theme/caret/history pickers".
+     **That prose is loose and the code is not:** History is deliberately
+     excluded, with its reason stated at the assignment — its comparison is
+     composited inside the workspace's own content region, so what sits behind
+     the card is the user's untouched document, a quiet backdrop DESIGN.md §5
+     says recedes. **Nothing about History is open here.** Does NOT include a
      general scrim: an earlier proposal to dim the document under every summoned
      overlay was **rejected by the user** as unnecessary — do not re-propose it.
 
