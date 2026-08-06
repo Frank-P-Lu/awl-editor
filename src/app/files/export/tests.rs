@@ -143,11 +143,9 @@ fn a_headless_app_writes_the_export_at_the_destination_with_the_emitted_bytes() 
     let fake = Arc::new(mem.clone());
     crate::fs::with_fs(fake, || {
         for format in every_format() {
-            let mut app = App::new(
+            let mut app = App::new_hermetic(
                 Some(doc.clone()),
                 std::path::PathBuf::from("/w/proj"),
-                None,
-                None,
                 Config::empty(),
             );
             let want_path = export_target(
@@ -204,11 +202,9 @@ fn a_headless_app_never_reveals_the_export_in_the_platform_file_viewer() {
     let doc = std::path::PathBuf::from(DOC);
     let fake = Arc::new(InMemoryFs::new().with_file(doc.clone(), BODY));
     crate::fs::with_fs(fake, || {
-        let app = App::new(
+        let app = App::new_hermetic(
             Some(doc.clone()),
             std::path::PathBuf::from("/w/proj"),
-            None,
-            None,
             Config::empty(),
         );
         assert!(
