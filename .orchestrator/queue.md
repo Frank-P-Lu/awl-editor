@@ -1172,16 +1172,25 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
      **This subsumes item 295(c)** — a chosen destination cannot be a surprise —
      but NOT 295(a) or (b), which are defects regardless.
 
-     ⚠️ **"SEE WHAT IT LOOKS LIKE" IS AMBIGUOUS AND THE TWO READINGS DIFFER BY AN
-     ORDER OF MAGNITUDE — ask before building.** (i) *Reveal/open the exported
-     file after writing it* — cheap, uses `NSWorkspace` which `mac_chrome.rs`
-     already imports, and resolves the "did anything happen?" complaint outright.
-     (ii) *An in-app preview of the rendered PDF before committing* — a second
-     document renderer, which CLAUDE.md's "infrastructure complexity is a smell"
-     argues hard against and which awl has deliberately avoided elsewhere.
-     **The recommendation is (i); (ii) is a product-scope decision for the user,
-     not a lane.** **Verify:** the panel is live-only and gets flagged for human
-     confirmation, never claimed from a capture; the headless path stays
+     ✅ **BOTH OPEN QUESTIONS ARE DECIDED BY THE USER, 2026-08-06 — this item
+     carries no remaining design calls.**
+     **(1) "See what it looks like" means REVEAL THE FILE AFTER EXPORT** ("yeah
+     exactly"), using `NSWorkspace`, which `src/mac_chrome.rs` already imports.
+     🔴 **An in-app preview of the rendered PDF is CLOSED, not deferred** — it
+     would be a second document renderer, which CLAUDE.md's "infrastructure
+     complexity is a smell" forbids and which awl has deliberately avoided
+     elsewhere. **Do not re-propose it as a follow-up.**
+     **(2) The platform split is confirmed** ("sounds good"): `NSSavePanel` on
+     macOS, awl's own in-app picker on Linux. No portal, no GTK, no new seam.
+
+     **Done:** a user chooses where the file goes, and can see the file
+     afterwards without knowing where awl would have put it. Together with the
+     save panel this retires 295(c) entirely — a chosen destination cannot be a
+     surprise, and a revealed file cannot be lost. **Verify:** the panel and the
+     reveal are BOTH live-only — flagged for human confirmation, never claimed
+     from a capture, since `NSWorkspace` and a modal are exactly the AppKit
+     chrome `mac_chrome.rs` already documents as beyond the harness. The headless
+     path keeps its explicit `--screenshot`/`--keys` route and stays
      deterministic and byte-identical. **Routing:** deep tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
