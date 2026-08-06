@@ -160,8 +160,16 @@ impl TextPipeline {
     /// Is this frame's frost the FULL-canvas one? The question every consumer that
     /// changes the DOCUMENT ITSELF for the blur's sake must ask, rather than "is there
     /// a frost at all": under a footprint frost the document outside the card is still
-    /// on screen, live, and must be exactly what an unfrosted frame draws — so the lava
-    /// lamp keeps animating and keeps its authored posterization out there.
+    /// on screen, live, and must be exactly what an unfrosted frame draws.
+    ///
+    /// Its two consumers are both about the lava lamp. `lava::dither_for_blur`
+    /// suppresses the authored ordered posterization because its grid aliases with the
+    /// downsampled frost — but only the whole-canvas frost consumes the entire page, so
+    /// under a footprint the page keeps the treatment its world asked for.
+    /// `lava_blur_active` freezes the lamp's ambient animation because a cached backdrop
+    /// makes a moving lamp behind it pure re-blur; under a footprint the lamp is still
+    /// on screen outside the card, so it keeps moving and the frost inside follows it
+    /// through the recompute signature.
     pub(in crate::render) fn full_frost(&self) -> bool {
         self.frost_mode() == Some(blur::Frost::Full)
     }

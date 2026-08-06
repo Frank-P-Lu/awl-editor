@@ -397,12 +397,6 @@ impl TextPipeline {
         self.lava_field_viewport = [width as f32, height as f32];
     }
 
-    /// THE FULL frost only. This gate freezes the lava lamp's ambient animation (the
-    /// backdrop is captured once and cached, so a moving lamp behind it would only
-    /// re-blur), and a full takeover is the case where nothing live is left on screen
-    /// to freeze. Under a FOOTPRINT frost the page around the card is still the live
-    /// document, so the lamp keeps moving out there exactly as it does with no picker
-    /// open — the frost inside the card follows it through the recompute signature.
     pub fn lava_blur_active(&self) -> bool {
         self.full_frost()
     }
