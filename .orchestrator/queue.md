@@ -386,7 +386,8 @@ Order for the next wave:
      16px margin, the ground effectively vanishes and the roster's spread
      collapses toward palette alone.
 
-131. **Give Mangrove and Magpie mirrored diagonal-line compositions across
+131. 🟡 IN PROGRESS — claude, branch `claude/item-131e-diagonal-selection`.
+     **Give Mangrove and Magpie mirrored diagonal-line compositions across
      contextual menus and the real Settings workspace.** 131a–d are LANDED;
      **131e is what remains: selection, and the full Verify clause.**
 
@@ -610,7 +611,8 @@ Order for the next wave:
      defect:** the AT-SPI tree was correct all along, since AccessKit filters
      `Role::TextRun` from accessible children by design.
 
-273. **THE REFERENCE MANUAL — SIX RESIDUALS, named as unbuilt rather than implied
+273. 🟡 IN PROGRESS — claude, branch `claude/item-273-reference-page`.
+     **THE REFERENCE MANUAL — SIX RESIDUALS, named as unbuilt rather than implied
      complete.** The mechanism ships: `REFERENCE.md` + `site/reference.html`,
      every table generated from awl's own rosters — commands (93, both conventions
      asked explicitly), synthetic chords, settings (31), config keys (31) with
@@ -771,7 +773,8 @@ Order for the next wave:
      for `Pane`. ⚠️ Laws in `render/tests/{hud,one_bit,outline}.rs` pin the
      current crisp behaviour — re-aim, don't delete. **Routing:** deep tier.
 
-296. **`ConvertLineEndings` is silent, and no capture can photograph a toast.**
+296. 🟡 IN PROGRESS — claude, branch `claude/item-296-300-toast`.
+     **`ConvertLineEndings` is silent, and no capture can photograph a toast.**
      The action flips on-disk EOL with `Effect::None` — no notice ever — and is
      deliberately off the undo timeline, so a double-toggle is undetectable.
      Palette-only and unbound, which bounds severity.
@@ -827,7 +830,8 @@ Order for the next wave:
      selected-row-0 fixture could not see it. Contrast by pixel arithmetic.
      **Routing:** production tier.
 
-300. **The toast is never seen — debug before redesigning.** The user has never
+300. 🟡 IN PROGRESS with 296 — claude, branch `claude/item-296-300-toast`.
+     **The toast is never seen — debug before redesigning.** The user has never
      observed a channel with ~10 callers. Establish first whether it renders at
      all: does `set_toast_notice` reach `frame`; does `notice_readout_text`
      return it; does `prepare_notice` place it on-screen or park it; does the
