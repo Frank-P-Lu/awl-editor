@@ -147,8 +147,8 @@ impl OverlayGeom {
     }
 
     /// TEST-ONLY: the display index of this card's own `PlanLine::Location`
-    /// row (item 316), so a law can find that row's slot without reaching the
-    /// private `plan` field directly. `None` off a faceted card.
+    /// row, so a law can find that row's slot without reaching the private
+    /// `plan` field directly. `None` off a faceted card.
     #[cfg(test)]
     pub(in crate::render) fn plan_location_row_display(&self) -> Option<usize> {
         self.plan

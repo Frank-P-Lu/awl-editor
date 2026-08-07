@@ -1,11 +1,12 @@
 //! ITEM 316 — A LOCATION ROW THAT PLANS NO GLYPHS GETS NO PLATE EITHER.
 //!
-//! **Defect (exposed, not introduced, by item 297):** a `Bars` card's own
-//! LOCATION line (`PlanLine::Location`, the second-level heading above the
-//! candidate rows) used to shape real inline text on every world. Once
-//! `LocationStyle::RotatedRail` (Cassowary) moved that text off-card into the
-//! room's own margin, the line stayed glyph-free — but the per-row plate loop
-//! in `overlay_selection.rs::overlay_unselected_bar_rects` kept backing EVERY
+//! **Defect (exposed, not introduced, by the rotated-rail location cue):** a
+//! `Bars` card's own LOCATION line (`PlanLine::Location`, the second-level
+//! heading above the candidate rows) used to shape real inline text on every
+//! world. Once `LocationStyle::RotatedRail` (Cassowary) moved that text
+//! off-card into the room's own margin, the line stayed glyph-free — but the
+//! per-row plate loop in
+//! `overlay_selection.rs::overlay_unselected_bar_rects` kept backing EVERY
 //! `item.is_none()` row (header or location) with a plate regardless, so the
 //! location row drew a visibly empty rounded chip.
 //!
@@ -160,36 +161,15 @@ fn a_glyph_free_location_row_draws_no_plate_and_an_inline_one_still_does() {
                     );
 
                     // ARM 2 — THE PIXELS, on the excluded world only (the only
-                    // case where "reads as ground" is the claim). Reference:
-                    // the gap directly above this row's own slot — nothing
-                    // else draws there, so it is genuine card ground.
-                    let (x0, x1) = plan.card_x_span();
+                    // case where "reads as ground" is the claim).
                     let pixels = shoot(&device, &queue, &mut p, w, h);
-                    let pad = (row.height * 0.2).max(2.0);
-                    let ground = median_of(
+                    assert_row_reads_as_ground(
                         &pixels,
-                        x0 + 4.0,
-                        row.top - pad - 4.0,
-                        x1 - 4.0,
-                        row.top - 2.0,
+                        &plan,
+                        row,
                         w,
                         h,
-                    );
-                    let slot = median_of(
-                        &pixels,
-                        x0 + 4.0,
-                        row.top + pad,
-                        x1 - 4.0,
-                        row.bottom() - pad,
-                        w,
-                        h,
-                    );
-                    let presence = pixeldiff::delta_e(slot, ground);
-                    assert!(
-                        presence < 1.0,
-                        "{world}/{kind:?}@{scale}: the location row's own slot (colour \
-                         {slot:?}) reads ΔE {presence:.2} from the card ground just above it \
-                         (colour {ground:?}) — something still draws there"
+                        &format!("{world}/{kind:?}@{scale}"),
                     );
                 }
             }
@@ -207,6 +187,45 @@ fn a_glyph_free_location_row_draws_no_plate_and_an_inline_one_still_does() {
     assert!(
         off_card_seen,
         "no non-inline world was ever swept — the defect's own case is untested"
+    );
+}
+
+/// ARM 2's own claim: `row`'s slot reads as plain card ground rather than as
+/// a plate. Reference: the gap directly above the row's own slot — nothing
+/// else draws there, so it is genuine card ground.
+fn assert_row_reads_as_ground(
+    pixels: &[[u8; 4]],
+    plan: &crate::render::plan::OverlayRowPlan,
+    row: crate::render::plan::PlannedRow,
+    w: u32,
+    h: u32,
+    ctx: &str,
+) {
+    let (x0, x1) = plan.card_x_span();
+    let pad = (row.height * 0.2).max(2.0);
+    let ground = median_of(
+        pixels,
+        x0 + 4.0,
+        row.top - pad - 4.0,
+        x1 - 4.0,
+        row.top - 2.0,
+        w,
+        h,
+    );
+    let slot = median_of(
+        pixels,
+        x0 + 4.0,
+        row.top + pad,
+        x1 - 4.0,
+        row.bottom() - pad,
+        w,
+        h,
+    );
+    let presence = pixeldiff::delta_e(slot, ground);
+    assert!(
+        presence < 1.0,
+        "{ctx}: the location row's own slot (colour {slot:?}) reads ΔE {presence:.2} from the \
+         card ground just above it (colour {ground:?}) — something still draws there"
     );
 }
 

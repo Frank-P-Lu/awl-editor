@@ -147,9 +147,9 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &rects.selected);
         self.overlay_cross
             .prepare(device, queue, width, height, &rects.cross);
-        // ITEM 308 — the footer plate's RIM: its rect grown one px on every
-        // side, drawn under it (mirrors `notice_rim`/`notice_plate`). Resolved
-        // fresh from the live theme every frame, so no `sync_theme_colors` entry.
+        // The footer plate's own RIM: its rect grown one px on every side,
+        // drawn under it (mirrors `notice_rim`/`notice_plate`). Resolved fresh
+        // from the live theme every frame, so no `sync_theme_colors` entry.
         let rim_rects: Vec<[f32; 4]> = rects
             .footer_plate
             .map(|[x, y, w, h]| [x - 1.0, y - 1.0, w + 2.0, h + 2.0])
@@ -378,8 +378,8 @@ impl TextPipeline {
             None
         };
         if geom.theme {
-            // ITEM 316 — `item.is_none()` is a HEADER (always real glyphs) or
-            // the card's own LOCATION line, glyph-free wherever
+            // `item.is_none()` is a HEADER (always real glyphs) or the card's
+            // own LOCATION line, glyph-free wherever
             // `LocationStyle::draws_inline()` is false (Cassowary's
             // `RotatedRail`, composed off-card). Reads the shaper's own gate,
             // not a named world, so it tracks any future non-inline style.

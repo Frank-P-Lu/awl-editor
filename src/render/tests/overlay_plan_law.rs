@@ -722,8 +722,8 @@ fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world() 
     );
 }
 
-/// ITEM 308 — THE FOOTER PLATE CLEARS THE NOTICE CHANNEL'S OWN PRESENCE FLOOR,
-/// NOW THAT IT HAS THE SAME RIM.
+/// THE FOOTER PLATE CLEARS THE NOTICE CHANNEL'S OWN PRESENCE FLOOR, NOW THAT
+/// IT HAS THE SAME RIM.
 ///
 /// Before this law the footer plate had no independent presence claim at all —
 /// `an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world`'s
@@ -751,10 +751,9 @@ fn footer_plate_clears_the_notice_channels_presence_floor_on_every_bars_world() 
         return;
     };
 
-    // Enrolment derived from the roster (item 236's own lesson), not a named
-    // world — asserted equal to the plate-drawing roster the sibling law
-    // already established, so the two laws cannot silently enroll different
-    // sets.
+    // Enrolment derived from the roster, not a named world — asserted equal
+    // to the plate-drawing roster the sibling law already established, so the
+    // two laws cannot silently enroll different sets.
     let plated: Vec<&'static str> = theme::THEMES
         .iter()
         .filter(|t| {
@@ -821,25 +820,15 @@ fn footer_plate_clears_the_notice_channels_presence_floor_on_every_bars_world() 
             p.set_view(&v);
 
             let pad = (plate[2].min(plate[3]) * 0.15).max(3.0);
-            let fill = median_of(
-                &shot_with,
+            let (ix0, iy0, ix1, iy1) = (
                 plate[0] + pad,
                 plate[1] + pad,
                 plate[0] + plate[2] - pad,
                 plate[1] + plate[3] - pad,
-                cw,
-                ch,
             );
+            let fill = median_of(&shot_with, ix0, iy0, ix1, iy1, cw, ch);
             let rim = median_ring(&shot_with, plate, 1.0, cw, ch);
-            let page = median_of(
-                &shot_plain,
-                plate[0] + pad,
-                plate[1] + pad,
-                plate[0] + plate[2] - pad,
-                plate[1] + plate[3] - pad,
-                cw,
-                ch,
-            );
+            let page = median_of(&shot_plain, ix0, iy0, ix1, iy1, cw, ch);
             let presence = pixeldiff::delta_e(rim, page).max(pixeldiff::delta_e(fill, page));
             worst.push((format!("{world}@{dpi}"), presence));
             assert!(
