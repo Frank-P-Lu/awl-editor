@@ -501,6 +501,15 @@ change what the footprint frost is** — 298 asks whether a context menu should 
 the document at all, 312 changes the shape and edge of the frost it would draw — so
 **298 first**, or the second lane rebuilds the first's answer.
 
+🔵 **AND THE SAME SURFACE CAME BACK, from the user, later the same day: ITEM 318 IS NOW
+USER-REPORTED AND USER-DECIDED.** The frost under a leaning list still reads as a
+rectangle, and the user has called the shape — **it must read as a parallelogram**. That
+resolves the "decide explicitly" 312 left open, so 318 stops being a cleanup behind 312
+and becomes the user-visible half of it. **It inherits 312's whole sequencing** (298
+first; one lane with the chrome cluster, never a parallel wave), and its principled route
+runs through the query line's independent `left` — the sibling of 313, touching
+`overlay_place_caret` and the field's clickable band.
+
 Order for the next wave (as derived 2026-08-06; read the note above first):
 
 1. **131e** — selection and the full Verify clause; 131a–d are landed and the
@@ -1700,20 +1709,77 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      **Routing:** production tier. ⚠️ Touches `src/render/tests/**` broadly — schedule against
      a quiet tree.
 
-318. **312's COVERAGE FLOOR CAN BE HALVED — its remaining subject is ONE BAND ON ONE WORLD,
-     measured.** Item 313 leaned the foot band, so the floor no longer covers it: the band now
-     sits **+66 logical px inside** the leaning term on Mangrove and **+83 on Magpie**. But the
-     **QUERY LINE on Magpie sits −71 px OUTSIDE** it, and Paperbark's shear is 0 so the
-     parallelogram *is* the box there.
+318. 🔵 **USER-REPORTED AND USER-DECIDED 2026-08-07 — THE FROST STILL READS AS A RECTANGLE
+     UNDER A LEANING LIST, AND THE USER HAS CALLED THE SHAPE: IT MUST READ AS A
+     PARALLELOGRAM.** A live screenshot of the theme picker over a `Diagonal` world: the
+     frosted patch is an upright box while every row, the spine and the foot inside it rake.
+     The user's words: *"the blur was not achieved… you can see how it's kinda like a square
+     right? that's wrong… it should be like a parallelogram."* **312's open question — which
+     of the two routes below, decided explicitly — is now ANSWERED BY THE USER'S TASTE, not
+     by a lane's convenience.** The shape is the deliverable; the floor is whatever survives
+     under it.
 
-     ✅ **Two routes, and the cheap one is a strict shrink:** union the parallelogram with the
-     **header band's rect** — smaller than today's whole-card floor, no new mechanism. Or give
-     the query line the same independent `left` item 313 gave the foot, which is the principled
-     end state but **also has to move the amber query caret (`overlay_place_caret`) and the
-     field's clickable band**, so it is a sibling item rather than a footnote.
-     **Verify:** the floor's own law must still refuse a parallelogram that leaves any drawn
-     chrome over sharp document — narrow the floor, do not delete it, and keep 312's
-     satisfied-by-fading trap covered. **Routing:** production tier.
+     **THE CAUSE IS STRUCTURAL, READ OUT OF THE CODE RATHER THAN THE PIXELS** (so this
+     premise needs no reproduction to be believed, only the *magnitudes* do):
+     `blur::extent::footprint_dist_outside` is `upright.min(leaning)` — a UNION whose upright
+     term is the card's **whole box**. The card box is the bounding box of the leaning rows,
+     so the union always CONTAINS the full rectangle and the shear can only add two overhang
+     corners. **A parallelogram silhouette is impossible by construction today**, at any
+     shear, on any world. The lean is real and is doing exactly what it was built to do; it
+     is invisible because the floor drawn beside it is larger.
+
+     **312's COVERAGE FLOOR CAN BE NARROWED — its remaining subject is ONE BAND ON ONE
+     WORLD, measured.** Item 313 leaned the foot band, so the floor no longer covers it: the
+     band now sits **+66 logical px inside** the leaning term on Mangrove and **+83 on
+     Magpie**. But the **QUERY LINE on Magpie sits −71 px OUTSIDE** it, and Paperbark's shear
+     is 0 so the parallelogram *is* the box there.
+
+     ⚠️ **SO ON THE DESCENDING WORLD THE FLOOR ALREADY PROTECTS NOTHING — every drawn band is
+     inside the leaning term (query +12, foot +66), and the rectangle the user photographed
+     is pure floor with no remaining subject.** If that holds when re-measured, the
+     descending world can read as a true parallelogram *without* the sibling item, and only
+     the ascending world waits on the query line's independent `left`.
+
+     ✅ **Two routes. The user's call makes the principled one the target, not the fallback:**
+     give the query line the same independent `left` item 313 gave the foot — which **also
+     has to move the amber query caret (`overlay_place_caret`) and the field's clickable
+     band**, so it is a sibling item rather than a footnote, and once it lands the floor has
+     no subject on either diagonal world and the shape is a parallelogram outright. The cheap
+     route — union the parallelogram with the **header band's rect** instead of the whole box
+     — is a strict shrink with no new mechanism, but ⚠️ **it leaves an upright cap across the
+     card's full width at the head of the shape, so it does NOT by itself deliver the read
+     the user asked for.** Ship it only as an interim, say so in the commit, and keep this
+     item open behind it.
+
+     🔵 **THREE PREMISES THE LANE CHECKS BEFORE BUILDING — two are the orchestrator's own
+     reading of a JPEG and carry no privilege** (the board's own rule; six false premises in
+     one day were all authored above the lane). **(a)** The world in the shot was identified
+     from a lava ground and rows stepping RIGHT as they descend — i.e. **descending,
+     Mangrove**. Confirm from the roster, not from the image; if it is the ascending world
+     the −71px query line is live and the sibling item gates everything. **(b)** In the shot
+     the query prompt and its amber caret appear to sit **ABOVE the frosted region's top
+     edge entirely** — if the query line is outside the footprint rect vertically, the
+     floor's last named subject may not be inside the shape at all, and the floor retires
+     without the sibling item on **both** worlds. Measure the header band's rect against
+     `overlay_card_rect`; do not assume either way. **(c)** Re-measure the ±66/±83/−71/+12
+     figures against HEAD before relying on them — they are item 313's, taken before whatever
+     has merged since.
+
+     **Verify:** the shape law must state the POSITIVE claim the user asked for — the
+     silhouette's two off-rake corners of the card box are **NOT** frosted at a real shear —
+     beside the floor's existing negative one, that no drawn chrome sits over sharp document.
+     ⚠️ **Both halves are needed and neither is sufficient:** a corner-exclusion law alone is
+     satisfied perfectly by frosting nothing (312's own satisfied-by-fading trap, and the
+     board's third green-over-a-collapsed-subject law this week), so it carries a **presence
+     floor** — the row cluster's own band is fully frosted — and the chrome-coverage floor is
+     narrowed, never deleted. Sweep the enrolled worlds from the roster (`Diagonal` both
+     directions **and** `Rules`, whose shear is 0 and whose rectangle must stay
+     byte-identical) × 1×/2×, and **under the `MENU_BAR_ON` forcing**, since the card's
+     height budget — and therefore the rake the rail resolves — moves in that axis.
+     **`docs/render.md`'s item-312 bullet and `blur/extent.rs`'s "THE UNION IS THE POINT"
+     doc both argue for the floor in the present tense and must be rewritten with it**, not
+     left contradicting the code. **Routing:** production tier, then the user for the live
+     `--release` look — the final read is taste and no capture claims it.
 
 319. **THE FOOT BAND'S INK ALREADY EXCEEDS THE CARD'S TEXT COLUMN AND IS CLIPPED — pre-existing,
      and a no-clip law does not cover those cells.** Found by item 313 while leaning it, and
