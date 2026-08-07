@@ -5,6 +5,7 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use crate::render::Logical;
 use crate::toggle::Toggle;
 
 /// The drawn bar's default per platform — off on macOS (a real system bar
@@ -88,13 +89,27 @@ pub fn toggle_open(i: usize) -> Option<usize> {
 
 pub const BAR_INSET_X: f32 = 8.0;
 pub const TITLE_PAD_X: f32 = 12.0;
-pub const BAR_PAD_Y: f32 = 5.0;
+
+/// The bar's own vertical breathing room, ABOVE and BELOW the title line — the one
+/// role this constant has (a 45-reader-shaped census turned up a single caller:
+/// [`bar_height`]). Authored in LOGICAL px like every new chrome dimension
+/// ([`crate::render::Logical`]), so it cannot reach a caller unscaled: the newtype
+/// has no arithmetic of its own except [`Logical::px`], which demands the same
+/// `scale` the line-height argument was already computed with.
+pub const BAR_PAD_Y: Logical = Logical(5.0);
 
 pub const DROP_PAD_X: f32 = 10.0;
 pub const DROP_PAD_Y: f32 = 6.0;
 
-pub fn bar_height(line_height: f32) -> f32 {
-    line_height + 2.0 * BAR_PAD_Y
+/// The drawn bar's height in device px: the caller's already-scaled line height plus
+/// the pad on both sides. `scale` is a required parameter, not folded into
+/// `line_height` by the caller — the bypass items 314/315 closed for `TEXT_LEFT` /
+/// `TEXT_TOP` (a scaled argument silently added to an unscaled constant) is closed
+/// here the same way: no caller can hand this fn a pre-scaled `BAR_PAD_Y`, because
+/// there is no way to scale a `Logical` except through [`Logical::px`], which this fn
+/// alone calls.
+pub fn bar_height(line_height: f32, scale: f32) -> f32 {
+    line_height + 2.0 * BAR_PAD_Y.px(scale)
 }
 
 pub const EDGE_BLEED_PX: f32 = 4.0;
@@ -210,171 +225,4 @@ pub fn drop_item_at(rect: [f32; 4], rows: &[DropRow], px: f32, py: f32) -> Optio
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// THE SLIVER FIX, pure: a rect flush on all three canvas-touching sides (the
-    /// bar's own ground strip) bleeds top/left/right by `EDGE_BLEED_PX`, and its
-    /// BOTTOM (never a canvas edge for the bar) is untouched.
-    #[test]
-    fn bleed_extends_every_flush_edge_and_leaves_the_bottom_alone() {
-        let rect = [0.0, 0.0, 1200.0, 32.0];
-        let bled = bleed_to_canvas_edges(rect, 1200.0);
-        assert_eq!(bled[0], -EDGE_BLEED_PX, "left bleeds past x=0");
-        assert_eq!(bled[1], -EDGE_BLEED_PX, "top bleeds past y=0");
-        assert_eq!(
-            bled[2],
-            1200.0 + 2.0 * EDGE_BLEED_PX,
-            "width bleeds on both flush sides"
-        );
-        assert_eq!(
-            bled[3],
-            32.0 + EDGE_BLEED_PX,
-            "height bleeds on the top side only"
-        );
-        // The bottom edge (y + h) moves by exactly the top bleed, i.e. the BOTTOM
-        // itself (a non-flush edge) never moved: bled_y + bled_h == rect_y + rect_h.
-        assert_eq!(
-            bled[1] + bled[3],
-            rect[1] + rect[3],
-            "the bottom edge itself is unmoved"
-        );
-    }
-
-    #[test]
-    fn bleed_leaves_interior_left_and_right_edges_untouched() {
-        let rect = [400.0, 0.0, 80.0, 32.0]; // nowhere near x=0 or x=1200
-        let bled = bleed_to_canvas_edges(rect, 1200.0);
-        assert_eq!(bled[0], 400.0, "left edge is interior, untouched");
-        assert_eq!(bled[2], 80.0, "width is untouched (no side bled)");
-        assert_eq!(
-            bled[1], -EDGE_BLEED_PX,
-            "top still bleeds — it's always flush for the bar"
-        );
-        assert_eq!(bled[3], 32.0 + EDGE_BLEED_PX);
-    }
-
-    #[test]
-    fn bleed_is_independent_per_side() {
-        let rect = [1100.0, 0.0, 100.0, 32.0]; // right edge exactly at canvas_w=1200
-        let bled = bleed_to_canvas_edges(rect, 1200.0);
-        assert_eq!(bled[0], 1100.0, "left edge is interior, untouched");
-        assert_eq!(
-            bled[2],
-            100.0 + EDGE_BLEED_PX,
-            "right bleeds (flush to canvas_w)"
-        );
-        assert_eq!(bled[1], -EDGE_BLEED_PX);
-    }
-
-    /// A rect NOT touching the canvas top at all (hypothetical future caller) is
-    /// left exactly alone on every side — the fix only ever touches an edge that is
-    /// ACTUALLY flush with the canvas boundary, never a rect drawn purely elsewhere.
-    #[test]
-    fn bleed_is_a_total_no_op_off_every_canvas_edge() {
-        let rect = [200.0, 50.0, 300.0, 40.0];
-        assert_eq!(bleed_to_canvas_edges(rect, 1200.0), rect);
-    }
-
-    #[test]
-    fn globals_toggle_and_open_close() {
-        let _g = crate::testlock::serial();
-        let ambient = menu_bar_on(); // not `cfg!`: that reflects the host, not the initializer
-        set_menu_bar_on(true);
-        assert!(menu_bar_on());
-        assert_eq!(toggle_open(2), Some(2));
-        assert_eq!(open_menu(), Some(2));
-        assert_eq!(toggle_open(2), None);
-        assert_eq!(open_menu(), None);
-        set_open(Some(1));
-        assert_eq!(toggle_open(3), Some(3));
-        set_open(Some(0));
-        set_menu_bar_on(false);
-        assert!(!menu_bar_on());
-        assert_eq!(open_menu(), None, "a hidden bar holds no open dropdown");
-        set_open(Some(0));
-        assert!(toggle(), "toggle from off -> on");
-        set_open(Some(0));
-        assert!(!toggle(), "toggle from on -> off closes the dropdown");
-        assert_eq!(open_menu(), None);
-        set_menu_bar_on(ambient);
-    }
-
-    #[test]
-    fn boxes_from_extents_abut_at_midpoints() {
-        let boxes = boxes_from_extents(&[(20.0, 50.0), (70.0, 96.0), (110.0, 146.0)]);
-        assert_eq!(boxes.len(), 3);
-        assert_eq!(boxes[0].band_left, 20.0 - TITLE_PAD_X);
-        assert_eq!(boxes[0].text_left, 20.0);
-        assert_eq!(boxes[0].text_right, 50.0);
-        assert_eq!(boxes[0].band_right, (50.0 + 70.0) / 2.0);
-        assert_eq!(boxes[1].band_left, boxes[0].band_right, "bands abut");
-        assert_eq!(boxes[1].band_right, (96.0 + 110.0) / 2.0);
-        assert_eq!(boxes[2].band_left, boxes[1].band_right);
-        assert_eq!(boxes[2].band_right, 146.0 + TITLE_PAD_X);
-    }
-
-    #[test]
-    fn title_at_maps_x_across_the_whole_bar() {
-        let boxes = boxes_from_extents(&[(20.0, 50.0), (70.0, 96.0), (110.0, 146.0)]);
-        let bar_h = bar_height(20.0);
-        assert_eq!(
-            title_at(&boxes, bar_h, boxes[0].text_left + 1.0, 4.0),
-            Some(0)
-        );
-        assert_eq!(
-            title_at(&boxes, bar_h, boxes[1].text_left + 1.0, 4.0),
-            Some(1)
-        );
-        assert_eq!(
-            title_at(&boxes, bar_h, boxes[2].band_right - 1.0, 4.0),
-            Some(2)
-        );
-        assert_eq!(
-            title_at(&boxes, bar_h, boxes[0].text_left, bar_h + 1.0),
-            None
-        );
-        assert_eq!(title_at(&boxes, bar_h, 0.0, 4.0), None);
-        assert_eq!(
-            title_at(&boxes, bar_h, boxes[2].band_right + 5.0, 4.0),
-            None
-        );
-    }
-
-    #[test]
-    fn drop_rows_stack_uniform_slots_marking_separators() {
-        let (rows, total) = drop_rows(&[false, false, true, false], 22.0);
-        assert_eq!(rows.len(), 4);
-        assert_eq!(rows[0].top, 0.0);
-        assert_eq!(rows[1].top, 22.0);
-        assert_eq!(rows[2].top, 44.0);
-        assert!(rows[2].separator, "the third row is the separator");
-        assert_eq!(rows[3].top, 66.0);
-        assert_eq!(total, 4.0 * 22.0);
-    }
-
-    #[test]
-    fn drop_item_at_hits_clickable_rows_only() {
-        let anchor = TitleBox {
-            band_left: 40.0,
-            text_left: 52.0,
-            text_right: 84.0,
-            band_right: 90.0,
-        };
-        let bar_h = bar_height(20.0);
-        let (rows, total) = drop_rows(&[false, true, false], 22.0);
-        let rect = drop_rect(&anchor, bar_h, 120.0, total);
-        assert_eq!(rect[0], 40.0, "the dropdown left-aligns under its title");
-        assert_eq!(rect[1], bar_h, "it hangs just below the bar");
-        assert_eq!(rect[2], 120.0 + 2.0 * DROP_PAD_X);
-        let (x, y) = (rect[0] + 5.0, rect[1] + DROP_PAD_Y + 1.0);
-        assert_eq!(drop_item_at(rect, &rows, x, y), Some(0));
-        // The separator row (index 1) is never a hit.
-        let sep_y = rect[1] + DROP_PAD_Y + rows[1].top + 1.0;
-        assert_eq!(drop_item_at(rect, &rows, x, sep_y), None);
-        let third_y = rect[1] + DROP_PAD_Y + rows[2].top + 1.0;
-        assert_eq!(drop_item_at(rect, &rows, x, third_y), Some(2));
-        assert_eq!(drop_item_at(rect, &rows, rect[0] - 1.0, y), None);
-        assert_eq!(drop_item_at(rect, &rows, x, rect[1] + 1.0), None);
-    }
-}
+mod tests;
