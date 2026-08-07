@@ -337,10 +337,9 @@ pub(crate) fn parse_args() -> Result<Mode> {
             FlagId::MenuOpen => {
                 // Show the menu bar AND drop the dropdown for menu index N (0 = the App
                 // menu), so a capture can exercise the open-dropdown render + sidecar
-                // `menubar.open_menu` deterministically. The roster declares N numeric
-                // (`Operand::opt_numeric`), so a following file argument — which never
-                // parses as a plain integer — is left on the stream rather than eaten;
-                // an out-of-range numeric index still just shows the closed bar.
+                // `menubar.open_menu` deterministically. N is a numeric operand, so a
+                // file argument (never a plain integer) is left on the stream rather
+                // than eaten; a bad/out-of-range index still just shows the closed bar.
                 crate::menubar::set_menu_bar_on(true);
                 if let Some(n) = ops.opt(0).and_then(|s| s.parse::<usize>().ok()) {
                     crate::menubar::set_open(Some(n));
