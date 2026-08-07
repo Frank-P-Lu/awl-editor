@@ -108,22 +108,22 @@ fn bar_height_is_dpi_invariant_at_matched_logical_geometry_with_a_presence_floor
 }
 
 /// THE SLIVER FIX, pure: a rect flush on all three canvas-touching sides (the
-/// bar's own ground strip) bleeds top/left/right by `EDGE_BLEED_PX`, and its
+/// bar's own ground strip) bleeds top/left/right by `EDGE_BLEED_PX.0`, and its
 /// BOTTOM (never a canvas edge for the bar) is untouched.
 #[test]
 fn bleed_extends_every_flush_edge_and_leaves_the_bottom_alone() {
     let rect = [0.0, 0.0, 1200.0, 32.0];
     let bled = bleed_to_canvas_edges(rect, 1200.0);
-    assert_eq!(bled[0], -EDGE_BLEED_PX, "left bleeds past x=0");
-    assert_eq!(bled[1], -EDGE_BLEED_PX, "top bleeds past y=0");
+    assert_eq!(bled[0], -EDGE_BLEED_PX.0, "left bleeds past x=0");
+    assert_eq!(bled[1], -EDGE_BLEED_PX.0, "top bleeds past y=0");
     assert_eq!(
         bled[2],
-        1200.0 + 2.0 * EDGE_BLEED_PX,
+        1200.0 + 2.0 * EDGE_BLEED_PX.0,
         "width bleeds on both flush sides"
     );
     assert_eq!(
         bled[3],
-        32.0 + EDGE_BLEED_PX,
+        32.0 + EDGE_BLEED_PX.0,
         "height bleeds on the top side only"
     );
     // The bottom edge (y + h) moves by exactly the top bleed, i.e. the BOTTOM
@@ -142,10 +142,10 @@ fn bleed_leaves_interior_left_and_right_edges_untouched() {
     assert_eq!(bled[0], 400.0, "left edge is interior, untouched");
     assert_eq!(bled[2], 80.0, "width is untouched (no side bled)");
     assert_eq!(
-        bled[1], -EDGE_BLEED_PX,
+        bled[1], -EDGE_BLEED_PX.0,
         "top still bleeds — it's always flush for the bar"
     );
-    assert_eq!(bled[3], 32.0 + EDGE_BLEED_PX);
+    assert_eq!(bled[3], 32.0 + EDGE_BLEED_PX.0);
 }
 
 #[test]
@@ -155,10 +155,10 @@ fn bleed_is_independent_per_side() {
     assert_eq!(bled[0], 1100.0, "left edge is interior, untouched");
     assert_eq!(
         bled[2],
-        100.0 + EDGE_BLEED_PX,
+        100.0 + EDGE_BLEED_PX.0,
         "right bleeds (flush to canvas_w)"
     );
-    assert_eq!(bled[1], -EDGE_BLEED_PX);
+    assert_eq!(bled[1], -EDGE_BLEED_PX.0);
 }
 
 /// A rect NOT touching the canvas top at all (hypothetical future caller) is
@@ -196,21 +196,21 @@ fn globals_toggle_and_open_close() {
 
 #[test]
 fn boxes_from_extents_abut_at_midpoints() {
-    let boxes = boxes_from_extents(&[(20.0, 50.0), (70.0, 96.0), (110.0, 146.0)]);
+    let boxes = boxes_from_extents(&[(20.0, 50.0), (70.0, 96.0), (110.0, 146.0)], 1.0);
     assert_eq!(boxes.len(), 3);
-    assert_eq!(boxes[0].band_left, 20.0 - TITLE_PAD_X);
+    assert_eq!(boxes[0].band_left, 20.0 - TITLE_PAD_X.px(1.0));
     assert_eq!(boxes[0].text_left, 20.0);
     assert_eq!(boxes[0].text_right, 50.0);
     assert_eq!(boxes[0].band_right, (50.0 + 70.0) / 2.0);
     assert_eq!(boxes[1].band_left, boxes[0].band_right, "bands abut");
     assert_eq!(boxes[1].band_right, (96.0 + 110.0) / 2.0);
     assert_eq!(boxes[2].band_left, boxes[1].band_right);
-    assert_eq!(boxes[2].band_right, 146.0 + TITLE_PAD_X);
+    assert_eq!(boxes[2].band_right, 146.0 + TITLE_PAD_X.px(1.0));
 }
 
 #[test]
 fn title_at_maps_x_across_the_whole_bar() {
-    let boxes = boxes_from_extents(&[(20.0, 50.0), (70.0, 96.0), (110.0, 146.0)]);
+    let boxes = boxes_from_extents(&[(20.0, 50.0), (70.0, 96.0), (110.0, 146.0)], 1.0);
     let bar_h = bar_height(20.0, 1.0);
     assert_eq!(
         title_at(&boxes, bar_h, boxes[0].text_left + 1.0, 4.0),
@@ -247,27 +247,166 @@ fn drop_rows_stack_uniform_slots_marking_separators() {
     assert_eq!(total, 4.0 * 22.0);
 }
 
+/// SWEPT ACROSS THE DPI TIERS, not asserted at 1x alone. The hit-test resolves the
+/// card pad itself, so a pad that scaled on the DRAWN side and not here (or the
+/// reverse) puts every clickable row a few device px off its ink — the class of bug
+/// that is invisible on the dev host, where the bar does not even draw by default.
+/// Row 0's ink begins at [`drop_inner_origin`], the one owner both sides read.
 #[test]
-fn drop_item_at_hits_clickable_rows_only() {
+fn drop_item_at_hits_clickable_rows_only_at_every_dpi_tier() {
+    for scale in [1.0f32, 1.5, 2.0, 3.0] {
+        let anchor = TitleBox {
+            band_left: 40.0,
+            text_left: 52.0,
+            text_right: 84.0,
+            band_right: 90.0,
+        };
+        let bar_h = bar_height(20.0 * scale, scale);
+        let row_h = 22.0 * scale;
+        let (rows, total) = drop_rows(&[false, true, false], row_h);
+        let rect = drop_rect(&anchor, bar_h, 120.0 * scale, total, scale);
+        assert_eq!(rect[0], 40.0, "the dropdown left-aligns under its title");
+        assert_eq!(rect[1], bar_h, "it hangs just below the bar");
+        assert_eq!(rect[2], 120.0 * scale + 2.0 * DROP_PAD_X.px(scale));
+        let (inner_x, inner_y) = drop_inner_origin(rect, scale);
+        assert_eq!(inner_x, rect[0] + DROP_PAD_X.px(scale));
+        let (x, y) = (rect[0] + 5.0, inner_y + 1.0);
+        assert_eq!(drop_item_at(rect, &rows, x, y, scale), Some(0), "s={scale}");
+        // The separator row (index 1) is never a hit.
+        let sep_y = inner_y + rows[1].top + 1.0;
+        assert_eq!(
+            drop_item_at(rect, &rows, x, sep_y, scale),
+            None,
+            "s={scale}"
+        );
+        let third_y = inner_y + rows[2].top + 1.0;
+        assert_eq!(
+            drop_item_at(rect, &rows, x, third_y, scale),
+            Some(2),
+            "s={scale}"
+        );
+        assert_eq!(drop_item_at(rect, &rows, rect[0] - 1.0, y, scale), None);
+        assert_eq!(
+            drop_item_at(rect, &rows, x, rect[1] + 1.0, scale),
+            None,
+            "s={scale}: the pad's own band is above row 0, never a hit"
+        );
+    }
+}
+
+/// **THE FOUR LOGICAL PADS HOLD THEIR LOGICAL SIZE AT EVERY DPI TIER, WITH A
+/// PRESENCE FLOOR EACH.** Modelled on `bar_height`'s own law, and for the same
+/// reason: invariance ALONE is satisfiable by deleting the pad, since `0 x dpi` is
+/// perfectly invariant. So every pad is graded on three sides — it is present
+/// (> 0), the device answer MOVES with scale (ruling out a scale-blind reader), and
+/// the recovered logical answer is the AUTHORED number at every tier.
+///
+/// Each pad is measured through the fn that actually resolves it, never through
+/// `.px` directly: a law that multiplied the constant itself would pass over a
+/// caller that forgot to.
+#[test]
+fn the_logical_pads_hold_their_logical_size_at_every_dpi_tier() {
+    const TIERS: [f32; 4] = [1.0, 1.5, 2.0, 3.0];
     let anchor = TitleBox {
-        band_left: 40.0,
-        text_left: 52.0,
-        text_right: 84.0,
-        band_right: 90.0,
+        band_left: 0.0,
+        text_left: 0.0,
+        text_right: 0.0,
+        band_right: 0.0,
     };
-    let bar_h = bar_height(20.0, 1.0);
-    let (rows, total) = drop_rows(&[false, true, false], 22.0);
-    let rect = drop_rect(&anchor, bar_h, 120.0, total);
-    assert_eq!(rect[0], 40.0, "the dropdown left-aligns under its title");
-    assert_eq!(rect[1], bar_h, "it hangs just below the bar");
-    assert_eq!(rect[2], 120.0 + 2.0 * DROP_PAD_X);
-    let (x, y) = (rect[0] + 5.0, rect[1] + DROP_PAD_Y + 1.0);
-    assert_eq!(drop_item_at(rect, &rows, x, y), Some(0));
-    // The separator row (index 1) is never a hit.
-    let sep_y = rect[1] + DROP_PAD_Y + rows[1].top + 1.0;
-    assert_eq!(drop_item_at(rect, &rows, x, sep_y), None);
-    let third_y = rect[1] + DROP_PAD_Y + rows[2].top + 1.0;
-    assert_eq!(drop_item_at(rect, &rows, x, third_y), Some(2));
-    assert_eq!(drop_item_at(rect, &rows, rect[0] - 1.0, y), None);
-    assert_eq!(drop_item_at(rect, &rows, x, rect[1] + 1.0), None);
+    // (name, authored logical value, observed device value at `scale`)
+    let probes: [(&str, f32, fn(f32) -> f32); 4] = [
+        // The bar's left inset, as the drawn origin resolves it.
+        ("BAR_INSET_X", BAR_INSET_X.0, |s| BAR_INSET_X.px(s)),
+        // The LAST title's outer band, measured as the overhang past its own ink.
+        ("TITLE_PAD_X", TITLE_PAD_X.0, |s| {
+            let ink = (100.0 * s, 140.0 * s);
+            boxes_from_extents(&[ink], s)[0].band_right - ink.1
+        }),
+        // The card's own horizontal padding, from the rect it sizes.
+        ("DROP_PAD_X", DROP_PAD_X.0, |s| {
+            let anchor = TitleBox {
+                band_left: 0.0,
+                text_left: 0.0,
+                text_right: 0.0,
+                band_right: 0.0,
+            };
+            (drop_rect(&anchor, 0.0, 120.0 * s, 0.0, s)[2] - 120.0 * s) * 0.5
+        }),
+        // The card's vertical padding, from where row 0's ink actually begins.
+        ("DROP_PAD_Y", DROP_PAD_Y.0, |s| {
+            drop_inner_origin([0.0, 0.0, 0.0, 0.0], s).1
+        }),
+    ];
+    let _ = anchor;
+    for (name, authored, observe) in probes {
+        assert!(
+            authored > 0.0,
+            "presence floor: {name} must not be zeroed — invariance alone is \
+             satisfied by a deleted pad"
+        );
+        let baseline = observe(1.0);
+        for scale in TIERS {
+            let device = observe(scale);
+            if scale != 1.0 {
+                assert_ne!(
+                    device, baseline,
+                    "{name} at scale {scale}: its reader is scale-BLIND — the \
+                     device answer never moved off its 1x value"
+                );
+            }
+            let recovered = device / scale;
+            assert!(
+                (recovered - authored).abs() < 1e-4,
+                "{name} at scale {scale}: recovered logical {recovered} != \
+                 authored {authored} — the pad is not scaling with the ink it \
+                 is added to"
+            );
+        }
+    }
+}
+
+/// **THE ANNOTATED PHYSICAL EXCEPTION EARNS ITS DECLARATION.** `EDGE_BLEED_PX` is
+/// `Physical` because the two things it must push off-canvas are fixed in DEVICE
+/// pixels: `shaders/selection.wgsl`'s `smoothstep(-1.0, 1.0, d)` feathers ~1 px each
+/// side of the rounded-rect edge in framebuffer space, and the ordinary fill
+/// pipeline's corner radius is uploaded once at construction and never multiplied by
+/// `scale`. A prose claim is not a law, so this reads the radius out of
+/// `src/selection.rs` and requires the bleed to still cover it — the classification
+/// stops being right the moment a wider corner outgrows the bleed, and this is the
+/// arm that says so instead of a Retina display saying it.
+#[test]
+fn the_physical_bleed_covers_the_device_fixed_corner_and_its_feather() {
+    let src = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/selection.rs"),
+    )
+    .expect("src/selection.rs readable");
+    let radius: f32 = src
+        .lines()
+        .find_map(|l| l.trim().strip_prefix("const CORNER_RADIUS: f32 = "))
+        .and_then(|rest| rest.trim_end_matches(';').parse().ok())
+        .expect(
+            "src/selection.rs must still declare `const CORNER_RADIUS: f32 = …` — this \
+             law is the reason EDGE_BLEED_PX is Physical, and it cannot grade a \
+             constant it can no longer find",
+        );
+    // The shader's own AA band, in device px, on each side of the edge.
+    const FEATHER_PX: f32 = 1.0;
+    assert!(
+        EDGE_BLEED_PX.0 >= radius + FEATHER_PX,
+        "EDGE_BLEED_PX is {} device px but the fill pipeline's corner radius is \
+         {radius} plus a {FEATHER_PX}px shader feather — the bleed no longer covers \
+         what it exists to hide, and a flush edge will show a sliver of whatever is \
+         underneath at row 0",
+        EDGE_BLEED_PX.0
+    );
+    // NON-VACUITY, the other side: this is a DEVICE quantity, so it must not have
+    // been quietly promoted to a scaled one. `bleed_to_canvas_edges` takes no
+    // scale at all — the signature is the guarantee — and the bleed it applies is
+    // the authored number itself, at any canvas size.
+    let bled = bleed_to_canvas_edges([0.0, 0.0, 800.0, 30.0], 800.0);
+    assert_eq!(bled[1], -EDGE_BLEED_PX.0);
+    assert_eq!(
+        bleed_to_canvas_edges([0.0, 0.0, 2400.0, 90.0], 2400.0)[1],
+        -EDGE_BLEED_PX.0
+    );
 }

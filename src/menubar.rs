@@ -19,7 +19,7 @@
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::render::Logical;
+use crate::render::{Logical, Physical};
 use crate::toggle::Toggle;
 
 /// The drawn bar's default per platform — off on macOS (a real system bar
@@ -166,8 +166,24 @@ pub fn toggle_open(i: usize) -> Option<usize> {
     next
 }
 
-pub const BAR_INSET_X: f32 = 8.0;
-pub const TITLE_PAD_X: f32 = 12.0;
+/// The bar's own horizontal breathing room: the x the FIRST title's glyphs begin at,
+/// measured from the canvas's left edge. LOGICAL, on the usage evidence — it is added
+/// to shaped glyph x-offsets that were themselves produced at device metrics
+/// (`m.font_size * LABEL`), so at 2x an 8-device-px inset reads as four logical px
+/// and the titles crowd the edge as the display gets denser. Same role, same answer
+/// as [`BAR_PAD_Y`] one axis over. (`readout.rs`'s `CANVAS_INSET` is the same
+/// number declared `Physical`, for a different reason: promoting THAT one moves six
+/// bottom/right-anchored chrome call sites at once and owes a sweep across every
+/// anchor arm. This one has a single reader.)
+pub const BAR_INSET_X: Logical = Logical(8.0);
+
+/// How far a title's CLICKABLE band reaches past its own ink, on the two outer edges
+/// only — the first title's left and the last title's right. LOGICAL, on the usage
+/// evidence: every INTERIOR band edge is the midpoint between two device-scaled glyph
+/// extents, so it widens with DPI on its own, and a device-fixed pad here would make
+/// the two outer bands shrink relative to every interior one as the display gets
+/// denser. The bands stay derived from the same shaped positions the pixels use.
+pub const TITLE_PAD_X: Logical = Logical(12.0);
 
 /// The bar's own vertical breathing room, ABOVE and BELOW the title line — the one
 /// role this constant has (a 45-reader-shaped census turned up a single caller:
@@ -177,8 +193,15 @@ pub const TITLE_PAD_X: f32 = 12.0;
 /// `scale` the line-height argument was already computed with.
 pub const BAR_PAD_Y: Logical = Logical(5.0);
 
-pub const DROP_PAD_X: f32 = 10.0;
-pub const DROP_PAD_Y: f32 = 6.0;
+/// The open dropdown card's own padding, around its item rows. Both LOGICAL, on the
+/// usage evidence: each is added to a quantity that is ALREADY device-scaled and
+/// whose siblings are already enrolled — the card's width is a char-count estimate
+/// off `m.char_width * LABEL` floored by `DROP_MIN_WIDTH.px(scale)`, and its height
+/// is a `Rows`-derived row pitch off the LABEL line height. A device-fixed pad beside
+/// scaled content is the exact defect items 314/315/321 closed three times over: the
+/// card's ink would grow with the display and its breathing room would not.
+pub const DROP_PAD_X: Logical = Logical(10.0);
+pub const DROP_PAD_Y: Logical = Logical(6.0);
 
 /// The drawn bar's height in device px: the caller's already-scaled line height plus
 /// the pad on both sides. `scale` is a required parameter, not folded into
@@ -191,21 +214,41 @@ pub fn bar_height(line_height: f32, scale: f32) -> f32 {
     line_height + 2.0 * BAR_PAD_Y.px(scale)
 }
 
-pub const EDGE_BLEED_PX: f32 = 4.0;
+/// ⚠️ **THE ANNOTATED EXCEPTION IN THIS FILE: `Physical`, and the reason is the
+/// RASTERIZER.** This is how far a rect is pushed PAST a canvas edge it already runs
+/// flush to, and the only thing it has to cover is what the shader would otherwise
+/// feather on a visible pixel. Both quantities it has to clear are fixed in DEVICE
+/// pixels and neither moves with DPI: `shaders/selection.wgsl` antialiases its
+/// rounded-rect SDF with `smoothstep(-1.0, 1.0, d)` — a ~1 px band each side of the
+/// edge, in framebuffer px — and the ordinary fill pipeline's corner radius is
+/// `selection.rs`'s `CORNER_RADIUS: f32 = 2.5`, uploaded once at construction and
+/// never multiplied by `scale`. ~3.5 device px to clear, cleared by 4. Declaring this
+/// `Logical` would grow the off-canvas overdraw on every Retina display while the
+/// thing it is hiding stayed the same size — the reader's eye is not the reference
+/// here, the device grid is. (`Physical` is deliberately outside the no-bare-field
+/// half of the declaration law: `px_physical` is the identity, so a `.0` here loses
+/// nothing, and `FLUSH_EPS` below is read inside a `const` where no method call is
+/// legal.)
+pub const EDGE_BLEED_PX: Physical = Physical(4.0);
 
 pub fn bleed_to_canvas_edges(rect: [f32; 4], canvas_w: f32) -> [f32; 4] {
-    const FLUSH_EPS: f32 = 0.5;
+    /// SUB-PIXEL TOLERANCE on a device-grid coincidence test, so `Physical` for a
+    /// second reason: this is not breathing room, it is "does this edge land on the
+    /// boundary pixel". Half a DEVICE pixel is the whole question; scaled, a rect
+    /// sitting 1.4 device px clear of the edge on a 3x display would start counting
+    /// as flush and get bled — a different rect, not a better-tuned one.
+    const FLUSH_EPS: Physical = Physical(0.5);
     let [mut x, mut y, mut w, mut h] = rect;
-    if y <= FLUSH_EPS {
-        y -= EDGE_BLEED_PX;
-        h += EDGE_BLEED_PX;
+    if y <= FLUSH_EPS.0 {
+        y -= EDGE_BLEED_PX.0;
+        h += EDGE_BLEED_PX.0;
     }
-    if x <= FLUSH_EPS {
-        x -= EDGE_BLEED_PX;
-        w += EDGE_BLEED_PX;
+    if x <= FLUSH_EPS.0 {
+        x -= EDGE_BLEED_PX.0;
+        w += EDGE_BLEED_PX.0;
     }
-    if x + w >= canvas_w - FLUSH_EPS {
-        w += EDGE_BLEED_PX;
+    if x + w >= canvas_w - FLUSH_EPS.0 {
+        w += EDGE_BLEED_PX.0;
     }
     [x, y, w, h]
 }
@@ -221,20 +264,25 @@ pub struct TitleBox {
     pub band_right: f32,
 }
 
-pub fn boxes_from_extents(extents: &[(f32, f32)]) -> Vec<TitleBox> {
+/// The clickable bands, from the shaped extents. `scale` is a REQUIRED parameter
+/// rather than a pad the caller resolves, for the reason [`bar_height`]'s doc gives:
+/// a `Logical` has no arithmetic but [`Logical::px`], so no caller can reach the
+/// outer pad unscaled and this fn is its only resolver.
+pub fn boxes_from_extents(extents: &[(f32, f32)], scale: f32) -> Vec<TitleBox> {
     let n = extents.len();
+    let pad = TITLE_PAD_X.px(scale);
     let mut out = Vec::with_capacity(n);
     for k in 0..n {
         let (l, r) = extents[k];
         let band_left = if k == 0 {
-            (l - TITLE_PAD_X).max(0.0)
+            (l - pad).max(0.0)
         } else {
             (extents[k - 1].1 + l) * 0.5
         };
         let band_right = if k + 1 < n {
             (r + extents[k + 1].0) * 0.5
         } else {
-            r + TITLE_PAD_X
+            r + pad
         };
         out.push(TitleBox {
             band_left,
@@ -284,18 +332,43 @@ pub fn drop_rows(separators: &[bool], row_h: f32) -> (Vec<DropRow>, f32) {
     (rows, top)
 }
 
-pub fn drop_rect(anchor: &TitleBox, bar_h: f32, content_w: f32, rows_total_h: f32) -> [f32; 4] {
-    let w = content_w.max(0.0) + 2.0 * DROP_PAD_X;
-    let h = rows_total_h + 2.0 * DROP_PAD_Y;
+/// The open dropdown card's outer rect: its anchor title's band left edge, hanging
+/// off the bar's bottom, sized to the item rows plus [`DROP_PAD_X`]/[`DROP_PAD_Y`].
+/// Takes `scale` for the same reason [`boxes_from_extents`] does.
+pub fn drop_rect(
+    anchor: &TitleBox,
+    bar_h: f32,
+    content_w: f32,
+    rows_total_h: f32,
+    scale: f32,
+) -> [f32; 4] {
+    let w = content_w.max(0.0) + 2.0 * DROP_PAD_X.px(scale);
+    let h = rows_total_h + 2.0 * DROP_PAD_Y.px(scale);
     [anchor.band_left, bar_h, w, h]
 }
 
-pub fn drop_item_at(rect: [f32; 4], rows: &[DropRow], px: f32, py: f32) -> Option<usize> {
+/// The card's INNER top-left — where row 0's ink begins. The one owner of the card
+/// pad's resolution, so the drawn rows ([`crate::render`]'s dropdown prepare) and the
+/// hit-test below can never disagree about where the row grid starts.
+pub fn drop_inner_origin(rect: [f32; 4], scale: f32) -> (f32, f32) {
+    (
+        rect[0] + DROP_PAD_X.px(scale),
+        rect[1] + DROP_PAD_Y.px(scale),
+    )
+}
+
+pub fn drop_item_at(
+    rect: [f32; 4],
+    rows: &[DropRow],
+    px: f32,
+    py: f32,
+    scale: f32,
+) -> Option<usize> {
     let [x, y, w, h] = rect;
     if px < x || px >= x + w || py < y || py >= y + h {
         return None;
     }
-    let local_y = py - (y + DROP_PAD_Y);
+    let local_y = py - drop_inner_origin(rect, scale).1;
     if local_y < 0.0 {
         return None;
     }

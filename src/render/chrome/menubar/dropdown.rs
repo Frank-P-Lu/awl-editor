@@ -36,7 +36,9 @@ impl TextPipeline {
                 text_right: 0.0,
                 band_right: 0.0,
             });
-        let rect = crate::menubar::drop_rect(&anchor, bar_h, plan.content_w, plan.rows_total);
+        let scale = self.metrics.scale;
+        let rect =
+            crate::menubar::drop_rect(&anchor, bar_h, plan.content_w, plan.rows_total, scale);
         self.menu_drop_rect = Some(rect);
         self.menu_drop_rows.clone_from(&plan.rows);
         self.menu_drop_menu = Some(menu_i);
@@ -54,8 +56,9 @@ impl TextPipeline {
             None,
         );
 
-        let inner_left = rect[0] + crate::menubar::DROP_PAD_X;
-        let inner_top = rect[1] + crate::menubar::DROP_PAD_Y;
+        // The ONE resolver of the card pad, shared with the hit-test — the drawn row
+        // grid and the clickable one begin at the same pixel by construction.
+        let (inner_left, inner_top) = crate::menubar::drop_inner_origin(rect, scale);
         let separators: Vec<[f32; 4]> = plan
             .rows
             .iter()

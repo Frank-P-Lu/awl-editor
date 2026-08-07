@@ -146,7 +146,7 @@ impl TextPipeline {
             .shape_until_scroll(&mut self.font_system, false);
 
         // Read back each title's absolute x-extent (draw origin + shaped glyph x).
-        let draw_left = crate::menubar::BAR_INSET_X;
+        let draw_left = crate::menubar::BAR_INSET_X.px(m.scale);
         let mut extents: Vec<(f32, f32)> = vec![(f32::MAX, f32::MIN); ranges.len()];
         for run in self.menubar_buffer.layout_runs() {
             for g in run.glyphs.iter() {
@@ -166,7 +166,7 @@ impl TextPipeline {
                 *e = (draw_left, draw_left);
             }
         }
-        self.menubar_boxes = crate::menubar::boxes_from_extents(&extents);
+        self.menubar_boxes = crate::menubar::boxes_from_extents(&extents, m.scale);
 
         // OPEN title's highlight band (full bar height), else parked empty. Bled the
         // SAME way as the bar ground (top always, left/right only when THIS band
@@ -521,9 +521,9 @@ impl TextPipeline {
     /// Reads the stored `menu_drop_rect` / `menu_drop_rows` through the pure
     /// [`crate::menubar::drop_item_at`], so it matches the drawn rows.
     pub fn menubar_item_at(&self, px: f32, py: f32) -> Option<(usize, usize)> {
-        let menu = self.menu_drop_menu?;
-        let rect = self.menu_drop_rect?;
-        crate::menubar::drop_item_at(rect, &self.menu_drop_rows, px, py).map(|item| (menu, item))
+        let (menu, rect) = (self.menu_drop_menu?, self.menu_drop_rect?);
+        let s = self.metrics.scale;
+        crate::menubar::drop_item_at(rect, &self.menu_drop_rows, px, py, s).map(|i| (menu, i))
     }
 
     /// The MENU BAR state for the capture sidecar: `(shown, open menu title, titles)` —
