@@ -257,55 +257,243 @@ fn the_footprint_mask_is_full_inside_and_ramps_outward_over_the_feather() {
     }
 }
 
-/// THE SHEAR LEANS THE SHAPE, AND THE UPRIGHT BOX IS A COVERAGE FLOOR UNDER IT.
+/// THE SILHOUETTE IS A PARALLELOGRAM — MEASURED AS ONE, NOT ASSERTED AS ONE.
 ///
-/// Two claims, and the second is why the shape is a union rather than a bare
-/// parallelogram. (1) A nonzero shear genuinely moves the frost OFF the card's box —
-/// otherwise the lean is decoration on a rectangle. (2) Every pixel of the card's box
-/// is still fully frosted at any shear, because the card's query line and foot hint are
-/// UPRIGHT and flush to its left edge while the rows rake away from it: a shape that
-/// only followed the rake would leave the foot hint over sharp document, which is the
-/// reported defect moved rather than fixed.
+/// The user's call is the shape: the frost under a leaning list must READ as a
+/// parallelogram. "Does it lean" does NOT distinguish one from a rectangle, and that is
+/// the trap this law is written around — the retired shape leaned too. It was the box
+/// UNIONED with the sheared box, so it contained the whole rectangle and the shear could
+/// only add two overhang ears to it. Two figures separate the two shapes, and this law
+/// asserts both:
+///
+/// 1. **BOTH faces translate, TOGETHER.** At row `py` the frosted span's left edge and
+///    its right edge each sit exactly `shear × (py − cy)` from where they sit on the
+///    centre row, so the span's WIDTH is constant and its POSITION is affine in `py` with
+///    slope `shear`. A rectangle's two edges do not move at all. The union's moved one at
+///    a time — its left edge on the half the rake reached left and its right edge on the
+///    other half — so its width GREW away from the centre row, and that is the figure
+///    below that fails on it.
+/// 2. **The frosted area is strictly SMALLER than its own bounding box**, by the two
+///    triangular corners the rake leaves behind: `|shear| × h²` between them. For a
+///    rectangle the two areas are equal, and for the union the shortfall was zero because
+///    the box filled the corners in.
+///
+/// A **PRESENCE FLOOR** runs beside both, because "the silhouette is not a rectangle" is
+/// satisfied perfectly by frosting nothing — the same satisfied-by-deleting-its-subject
+/// trap item 312's own feather floor exists for. So the interior is required FULLY
+/// frosted, and the frosted area is required to be the box's own `w × h` rather than
+/// merely non-zero: a shape that kept its slope while shrinking to a sliver would pass
+/// both figures above.
 #[test]
-fn the_shear_leans_the_footprint_without_uncovering_the_card_it_frosts() {
+fn the_footprints_silhouette_is_a_parallelogram_and_not_a_leaning_rectangle() {
     let f = FOOTPRINT_FEATHER_PX;
     let rect = [200.0, 100.0, 400.0, 300.0];
     let [x, y, w, h] = rect;
+    let (cx, cy) = (x + w * 0.5, y + h * 0.5);
+    // A real shear, its mirror, and a steep one. `0.0` is deliberately NOT here: an
+    // upright composition's parallelogram IS its rectangle, so it cannot grade a claim
+    // about the difference. `the_footprint_mask_is_full_inside_and_ramps_outward_over_the_
+    // feather` is where the upright arm is graded.
     for shear in [0.35f32, -0.35, 0.6] {
-        let leaning = Footprint { rect, shear };
-        let flat = Footprint { rect, shear: 0.0 };
-        // (2) COVERAGE FLOOR: sample the whole box on a grid, corners included.
-        for iy in 0..=20 {
-            for ix in 0..=20 {
-                let (px, py) = (x + w * ix as f32 / 20.0, y + h * iy as f32 / 20.0);
+        let foot = Footprint { rect, shear };
+        let m = |px: f32, py: f32| footprint_mask(foot, f, px, py);
+        let label = format!("shear {shear}");
+
+        // (1) EVERY ROW'S SPAN, read off the mask rather than predicted: the extreme x's
+        // at which the mask is still exactly 1.0, found by scanning the whole bounding
+        // box. `footprint_bound` is the shape's own enclosure, so the scan cannot miss a
+        // face by starting inside it.
+        let [bx, _, bw, _] = footprint_bound(foot, f);
+        let span = |py: f32| -> Option<(f32, f32)> {
+            let n = 4000;
+            let xs = (0..=n).map(|i| bx + bw * i as f32 / n as f32);
+            let hit: Vec<f32> = xs.filter(|px| m(*px, py) == 1.0).collect();
+            Some((*hit.first()?, *hit.last()?))
+        };
+        let (l0, r0) = span(cy).expect("the centre row is frosted");
+        let step = bw / 4000.0;
+        for k in 1..=8 {
+            let py = y + h * k as f32 / 9.0;
+            let (l, r) = span(py).unwrap_or_else(|| panic!("{label}: row {py} is not frosted"));
+            let want = shear * (py - cy);
+            // BOTH edges, and the SAME displacement for each. A tolerance of two scan
+            // steps: the span is read off a sampled grid, not solved.
+            assert!(
+                (l - (l0 + want)).abs() <= 2.0 * step,
+                "{label}: at row {py} the frosted span's LEFT edge is at {l:.2}, but the \
+                 rake puts it at {:.2} ({:+.2} from the centre row's {l0:.2}). A left edge \
+                 that does not translate is a rectangle's",
+                l0 + want,
+                want
+            );
+            assert!(
+                (r - (r0 + want)).abs() <= 2.0 * step,
+                "{label}: at row {py} the frosted span's RIGHT edge is at {r:.2}, but the \
+                 rake puts it at {:.2}. THIS is the figure the retired box-union shape \
+                 failed: it moved one face at a time, so its span WIDENED away from the \
+                 centre row instead of translating",
+                r0 + want
+            );
+        }
+
+        // (2) AREA vs its own BOUNDING BOX. Counted on a grid over the bound, so the
+        // ratio is a property of the shape rather than of an authored formula.
+        let (n, mut inside, mut total) = (600, 0u64, 0u64);
+        let [bx, by, bw, bh] = footprint_bound(foot, f);
+        for iy in 0..n {
+            for ix in 0..n {
+                let px = bx + bw * (ix as f32 + 0.5) / n as f32;
+                let py = by + bh * (iy as f32 + 0.5) / n as f32;
+                total += 1;
+                if m(px, py) == 1.0 {
+                    inside += 1;
+                }
+            }
+        }
+        let cell = (bw / n as f32) * (bh / n as f32);
+        let area = inside as f32 * cell;
+        let bbox = (w + (shear * h).abs()) * h;
+        assert!(
+            area < bbox - 0.5 * (shear * h * h).abs(),
+            "{label}: the frosted area {area:.0} is not strictly smaller than the {bbox:.0} \
+             of its own bounding box — the two triangular corners the rake leaves behind \
+             are FILLED, which is what a rectangle (and the retired box-union) does"
+        );
+        // …and the PRESENCE FLOOR on the same count: the shortfall is the two triangles
+        // and NOTHING MORE, so a shape that held its slope while fading or shrinking
+        // fails here rather than passing the two figures above.
+        assert!(
+            (area - w * h).abs() <= 0.02 * w * h,
+            "{label}: the frosted area is {area:.0} against the {:.0} the card's own box \
+             asks for ({} of {total} grid cells) — a silhouette can satisfy every shape \
+             claim above by covering almost nothing, and this is the floor that refuses it",
+            w * h,
+            inside
+        );
+        // The interior, sampled on its own grid in the shape's OWN frame, is full
+        // strength — the frost the card sits on, not merely a correct outline.
+        for iy in 1..20 {
+            for ix in 1..20 {
+                let py = y + h * iy as f32 / 20.0;
+                let px = x + w * ix as f32 / 20.0 + shear * (py - cy);
                 assert_eq!(
-                    footprint_mask(leaning, f, px, py),
+                    m(px, py),
                     1.0,
-                    "shear {shear}: ({px}, {py}) is inside the card's box and is not \
-                     fully frosted"
+                    "{label}: ({px}, {py}) is inside the parallelogram and is not fully \
+                     frosted"
                 );
             }
         }
-        // (1) THE LEAN IS REAL: a point one full feather OUTSIDE the box's side, on the
-        // half the shear reaches toward, is frosted under the lean and not under the
-        // flat shape. Descending (`shear > 0`) reaches LEFT above the centre and RIGHT
-        // below it, which is the direction its rows step.
-        let (reach_y, side) = if shear > 0.0 {
-            (y + h * 0.1, x - f)
-        } else {
-            (y + h * 0.9, x - f)
-        };
-        assert!(
-            footprint_mask(leaning, f, side, reach_y) > footprint_mask(flat, f, side, reach_y),
-            "shear {shear}: the frost at ({side}, {reach_y}) is no more covered under \
-             the lean than under an upright box — the shear reaches nothing"
-        );
     }
     // A degenerate shear is inert rather than catastrophic.
     for bad in [f32::NAN, f32::INFINITY] {
         let foot = Footprint { rect, shear: bad };
-        assert_eq!(footprint_mask(foot, f, x + w * 0.5, y + h * 0.5), 1.0);
+        assert_eq!(footprint_mask(foot, f, cx, cy), 1.0);
         assert!(footprint_bound(foot, f).iter().all(|v| v.is_finite()));
+    }
+}
+
+/// THE COVERAGE FLOOR, WHICH DID NOT GO AWAY — IT STOPPED BEING A SECOND SHAPE.
+///
+/// The retired union frosted the card's whole box because the card's HEAD band is upright
+/// and flush to its text edge while the rows rake away from it, and a shape that only
+/// followed the rake left that band over sharp document. The duty is the same; its owner
+/// is now [`footprint_box`], which WIDENS the rect until the parallelogram contains the
+/// band. Widening a parallelogram leaves a parallelogram, so the silhouette pays nothing.
+///
+/// Three claims. It grows the box enough (the whole chrome box is inside the resulting
+/// shape, at every corner); it grows it no more than it must; and — the one that carries
+/// every upright world's byte-identity — chrome ALREADY inside grows the box by NOTHING,
+/// returned bit for bit.
+#[test]
+fn the_footprint_box_widens_until_the_parallelogram_contains_the_cards_upright_chrome() {
+    let f = FOOTPRINT_FEATHER_PX;
+    let card = [200.0f32, 100.0, 400.0, 300.0];
+    let [x, y, w, h] = card;
+    // The head band as the two rake directions present it: a narrow band at the card's
+    // text edge, high in the card. On one sign the rake carries the shape TOWARD it and
+    // on the other AWAY, which is the whole asymmetry — so both must be swept or the law
+    // grades one world.
+    let chrome = [x + 12.0, y + 12.0, x + 40.0, y + 39.0];
+    for shear in [0.0f32, 0.35, -0.35, 0.6] {
+        let grown = footprint_box(card, shear, Some(chrome));
+        let foot = Footprint { rect: grown, shear };
+        let label = format!("shear {shear}");
+        // It never SHRINKS, on either face, whatever the chrome asks.
+        assert!(
+            grown[0] <= x + 1e-3 && grown[0] + grown[2] >= x + w - 1e-3,
+            "{label}: {grown:?} does not still contain the card's own box {card:?}"
+        );
+        assert_eq!(
+            [grown[1], grown[3]],
+            [y, h],
+            "{label}: the box grew VERTICALLY"
+        );
+        // COVERAGE: every corner of the chrome box is fully frosted.
+        for (px, py) in [
+            (chrome[0], chrome[1]),
+            (chrome[2], chrome[1]),
+            (chrome[0], chrome[3]),
+            (chrome[2], chrome[3]),
+        ] {
+            assert_eq!(
+                footprint_mask(foot, f, px, py),
+                1.0,
+                "{label}: the card's upright chrome corner ({px}, {py}) is not fully \
+                 frosted by the parallelogram {grown:?} — this is the reported defect \
+                 moved onto the card's own chrome, which is what the retired union \
+                 existed to prevent"
+            );
+        }
+        // TIGHTNESS: one px narrower on the face that grew and the coverage is gone, so
+        // the growth is the deficit rather than a pad.
+        let grew_left = grown[0] < x - 1e-3;
+        let grew_right = grown[0] + grown[2] > x + w + 1e-3;
+        if grew_left || grew_right {
+            let tight = Footprint {
+                rect: if grew_left {
+                    [grown[0] + 1.0, y, grown[2] - 1.0, h]
+                } else {
+                    [grown[0], y, grown[2] - 1.0, h]
+                },
+                shear,
+            };
+            let worst = [
+                (chrome[0], chrome[1]),
+                (chrome[2], chrome[1]),
+                (chrome[0], chrome[3]),
+                (chrome[2], chrome[3]),
+            ]
+            .iter()
+            .map(|&(px, py)| footprint_mask(tight, f, px, py))
+            .fold(1.0f32, f32::min);
+            assert!(
+                worst < 1.0,
+                "{label}: the box is a whole px wider than the chrome needs — {grown:?} \
+                 still covers it with 1px shaved off, so this is a pad and not a deficit"
+            );
+        }
+    }
+    // BYTE-IDENTITY, and it is the claim every upright world rests on: no chrome at all,
+    // and chrome already inside the shape, each return the card's own rect bit for bit.
+    let inside = [x + w * 0.4, y + h * 0.45, x + w * 0.6, y + h * 0.55];
+    for shear in [0.0f32, 0.35, -0.35] {
+        assert_eq!(
+            footprint_box(card, shear, None),
+            card,
+            "shear {shear}: a card with no upright chrome must keep its own rect"
+        );
+        assert_eq!(
+            footprint_box(card, shear, Some(inside)),
+            card,
+            "shear {shear}: chrome already inside the parallelogram must grow the box by \
+             NOTHING — every upright world's byte-identity is this equality"
+        );
+    }
+    // A degenerate shear or a degenerate chrome box is inert rather than catastrophic.
+    for bad in [f32::NAN, f32::INFINITY] {
+        assert_eq!(footprint_box(card, bad, Some(chrome)), card);
+        assert_eq!(footprint_box(card, 0.35, Some([bad, bad, bad, bad])), card);
     }
 }
 

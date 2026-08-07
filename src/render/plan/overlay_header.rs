@@ -138,7 +138,10 @@ impl OverlayRowPlan {
     // `render/chrome`; a consumer cannot re-derive a header line's position,
     // only read it off the plan the pixels came from.
 
-    #[cfg(test)]
+    /// EVERY planned header line, in draw order. Read by the head band's own ink box,
+    /// which must span the widest ink of every line riding that one `TextArea` — so a
+    /// third header line enrols by existing rather than by someone remembering to add it
+    /// beside [`Self::query_band`] and [`Self::strip_band`].
     pub(in crate::render) fn header_lines(&self) -> &[PlannedHeader] {
         &self.headers
     }

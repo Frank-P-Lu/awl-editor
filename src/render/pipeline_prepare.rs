@@ -162,9 +162,10 @@ impl TextPipeline {
             && blur::footprint_frost_applies(crate::render::effective_list_style())
         {
             return self.overlay_card_rect().map(|rect| {
+                let shear = self.footprint_shear();
                 blur::Frost::Footprint(blur::Footprint {
-                    rect,
-                    shear: self.footprint_shear(),
+                    rect: blur::footprint_box(rect, shear, self.footprint_upright_chrome()),
+                    shear,
                 })
             });
         }
@@ -187,6 +188,26 @@ impl TextPipeline {
     /// shear is a property of a spine, and an enrolled world with no spine — a `Rules`
     /// composition — takes the feather and keeps its upright rectangle without anything
     /// here naming it.
+    /// THE CARD'S OWN CHROME THAT THE RAKE DOES NOT CARRY, as a box the frost's shape
+    /// must contain — `None` when there is none.
+    ///
+    /// It is the HEAD band, and only the head band, and that is a measured claim rather
+    /// than a survey: the rows and their accessory column are seated per row by the
+    /// diagonal rail, and the foot band hangs on the same rail's own extrapolated line,
+    /// so all three rake. The head band is the one `TextArea` still seated at the card's
+    /// text edge, because a query FIELD is an input and mirroring one onto the spine would
+    /// make its sigil travel as the user types.
+    ///
+    /// ⚠️ **The enumeration is not what the guarantee rests on.** `frost_footprint`'s
+    /// coverage law derives the card's ink from the PIXELS — the same picker over an empty
+    /// document — and requires every ink pixel to be frosted, so a fourth upright surface
+    /// fails there by existing rather than by being remembered here.
+    fn footprint_upright_chrome(&self) -> Option<[f32; 4]> {
+        let geom = self.overlay_geometry(self.window_w as u32);
+        let plan = self.overlay_row_plan(&geom);
+        self.overlay_head_band_ink(&geom, &plan)
+    }
+
     fn footprint_shear(&self) -> f32 {
         let Some(step) = self.diagonal_cluster.map(|c| c.spine_step()) else {
             return 0.0;

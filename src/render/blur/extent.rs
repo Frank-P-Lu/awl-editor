@@ -164,17 +164,23 @@ impl Frost {
 /// the shape, positive out beyond it, its magnitude just outside a face the per-axis
 /// distance to that face. The same construction as `lava::gutter_corner_dist_outside`
 /// (per-axis outside distances combined by `max`, so the result is negative iff both
-/// axes are inside), asked TWICE and combined by `min` — a union.
+/// axes are inside), asked ONCE — of the box SHEARED about its own vertical centre.
 ///
-/// THE UNION IS THE POINT, and it is a coverage FLOOR, not a hedge. The leaning term is
-/// the box sheared about its own vertical centre, which is the shape the row cluster
-/// occupies; the upright term is the box itself. A bare parallelogram would be a strict
-/// SUBSET of the card's box (the box is the bounding box of the leaning rows, so its
-/// two off-rake corners are exactly what the rows never reach) — and the card's query
-/// line and foot hint are UPRIGHT and flush to the box's left edge, so those corners
-/// are not empty. Frosting the lean alone would leave the foot hint sitting over sharp
-/// document: the reported defect, moved to the card's own chrome. So the shape leans
-/// AND covers, and everything the card draws stays frosted.
+/// THE SHAPE IS A PARALLELOGRAM, AND THE SILHOUETTE IS THE DELIVERABLE. It has four
+/// sides: two horizontal, two raking with the drawn spine. At any row both its left and
+/// its right face translate by the same `shear × (py − cy)`, which is what makes it read
+/// as leaning rather than as a leaning thing inside an upright thing.
+///
+/// AN EARLIER READING OF THIS MODULE UNIONED THE LEANING TERM WITH THE UPRIGHT BOX and
+/// called that union a coverage floor. The floor was real — the card's query line is
+/// upright and flush to its text edge, and frosting the lean alone left it over sharp
+/// document on a mirrored composition — but the union CANNOT read as a parallelogram at
+/// any shear on any world, because the box is one of its terms and therefore always
+/// wholly inside the result. The shear could only add two overhang corners to a
+/// rectangle. So the coverage duty moved OFF the mask and INTO the box: [`footprint_box`]
+/// widens the rect until the parallelogram contains the card's upright chrome, and
+/// widening a parallelogram leaves a parallelogram. The floor did not go away; it stopped
+/// being a second shape.
 ///
 /// MUST match `shaders/blur.wgsl`'s `footprint_dist_outside`.
 // The SHIP path evaluates this on the GPU; this is the pure mirror a law grades and a
@@ -183,11 +189,45 @@ impl Frost {
 pub(super) fn footprint_dist_outside(foot: Footprint, px: f32, py: f32) -> f32 {
     let [x, y, w, h] = foot.rect;
     let gy = (y - py).max(py - (y + h));
-    let upright = (x - px).max(px - (x + w)).max(gy);
-    // The un-shear: where this pixel sits in the leaning term's own frame.
+    // The un-shear: where this pixel sits in the leaning shape's own frame.
     let sx = px - foot.shear * (py - (y + h * 0.5));
-    let leaning = (x - sx).max(sx - (x + w)).max(gy);
-    upright.min(leaning)
+    (x - sx).max(sx - (x + w)).max(gy)
+}
+
+/// THE FOOTPRINT'S BOX: the card's own box, WIDENED until the parallelogram that box
+/// shears into contains `upright` — the card's own chrome that the rake does not carry
+/// (`[left, top, right, bottom]` in the same physical canvas coordinates).
+///
+/// THIS IS WHERE THE COVERAGE FLOOR LIVES NOW, and it is a floor over the shape's WIDTH
+/// rather than a second shape beside it. A parallelogram widened horizontally is still a
+/// parallelogram, so paying for coverage here costs the silhouette nothing; paying for it
+/// in the mask cost the silhouette everything (see [`footprint_dist_outside`]).
+///
+/// The arithmetic is exact rather than padded. The shape's left face at row `py` sits at
+/// `x + shear × (py − cy)` and its right at `x + w + shear × (py − cy)`, with `cy` a
+/// function of `y` and `h` ALONE — so widening in x cannot move the pivot, and the two
+/// bounds decouple. Over the chrome's own row range that displacement is linear, so its
+/// extremes are at the range's ends, and the box must satisfy `x ≤ left − max` and
+/// `x + w ≥ right − min`.
+///
+/// It only ever GROWS, and a chrome box already inside the shape grows it by nothing —
+/// so an upright composition (`shear == 0`, where the parallelogram IS the box) and every
+/// card whose chrome already rakes with its rows keep the rect they always had, bit for
+/// bit.
+pub fn footprint_box(card: [f32; 4], shear: f32, upright: Option<[f32; 4]>) -> [f32; 4] {
+    let [x, y, w, h] = card;
+    let Some([l, t, r, b]) = upright else {
+        return card;
+    };
+    if !(shear.is_finite() && l.is_finite() && t.is_finite() && r.is_finite() && b.is_finite()) {
+        return card;
+    }
+    let cy = y + h * 0.5;
+    let (d0, d1) = (shear * (t - cy), shear * (b - cy));
+    let (lo, hi) = (d0.min(d1), d0.max(d1));
+    let x0 = x.min(l - hi);
+    let x1 = (x + w).max(r - lo);
+    [x0, y, (x1 - x0).max(w), h]
 }
 
 /// THE FOOTPRINT'S COVERAGE at physical pixel `(px, py)`: `1.0` on and inside the
@@ -207,6 +247,42 @@ pub(super) fn footprint_mask(foot: Footprint, feather: f32, px: f32, py: f32) ->
         return 0.0;
     }
     1.0 - crate::lava::smoothstep(0.0, feather.max(1.0), d)
+}
+
+/// THE SHIPPING MASK AT A CANVAS PIXEL, asked of a whole [`Frost`] — the ONE door a
+/// render-tier law reads the frost's coverage through.
+///
+/// It exists so a law measuring pixels cannot carry its own copy of the shape, which is how
+/// a law comes to grade a shape the frame stopped drawing: the retired box-union lived in
+/// the mirror, the shader AND two laws' own region predicates, and both of those laws were
+/// satisfied BY the defect rather than by the product. Everything here — the shear, the
+/// DPI-resolved feather, the [`Frost::Full`] arm's exact `1.0` — is the value the composite
+/// pass was handed.
+#[cfg(test)]
+pub(crate) fn footprint_mask_for(frost: Frost, dpi: f32, px: f32, py: f32) -> f32 {
+    match frost {
+        Frost::Full => 1.0,
+        Frost::Footprint(f) => footprint_mask(f, footprint_feather_px(dpi), px, py),
+    }
+}
+
+/// THE SHAPE'S RAKING FACE at row `py`, in physical px — its LEFT face for `side < 0` and
+/// its RIGHT face for `side > 0`, both displaced by the same `shear × (py − cy)`.
+///
+/// It exists for the same reason [`footprint_mask_for`] does, and it was earned the same
+/// way. A render-tier law that profiles the frost's edge has to know where that edge IS at
+/// each row, and the one that does carried its OWN copy of the answer — spelled
+/// `min(0, shear × (py − cy))` on the left face and `max(0, …)` on the right, which is the
+/// retired box-UNION's boundary, where each face moved on only the half of the card the rake
+/// reached toward. It stayed spelled that way after the shape stopped being a union, so the
+/// law was profiling a face up to `|shear| × h/2` from the drawn one on half of every leaning
+/// card and reporting a soft edge where there might have been a knife. One owner, so the face
+/// a law measures across cannot part company with the face the shader drew.
+#[cfg(test)]
+pub(crate) fn footprint_face_x(foot: Footprint, py: f32, side: f32) -> f32 {
+    let [x, y, w, h] = foot.rect;
+    let lean = foot.shear * (py - (y + h * 0.5));
+    if side < 0.0 { x + lean } else { x + w + lean }
 }
 
 /// THE BOX THAT ENCLOSES THE WHOLE FEATHERED SHAPE, `[x, y, w, h]` in physical px —

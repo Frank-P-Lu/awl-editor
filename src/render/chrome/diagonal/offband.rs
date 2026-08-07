@@ -1,6 +1,17 @@
-//! THE FOOT CHROME'S OWN X — the card's hint line, and the tips band beneath it
-//! on the one kind that carries one, placed on the spine the rows above them hang
+//! THE CARD'S CHROME OFF THE ROW BAND — the HEAD band above it and the FOOT band
+//! below it.
+//!
+//! The foot band's own X lives here: the card's hint line, and the tips band beneath
+//! it on the one kind that carries one, placed on the spine the rows above them hang
 //! on instead of holding the card's left edge.
+//!
+//! The HEAD band's x is still the card's own text edge — a query FIELD is an input,
+//! and right-aligning one on a mirrored composition would make its sigil travel as
+//! the user types. What lives here for the head band is therefore not a placement but
+//! a MEASUREMENT ([`TextPipeline::overlay_head_band_ink`]): the box its drawn ink
+//! occupies, which the footprint frost's own shape has to contain. The two answers
+//! are in one module because they are the same question asked of the same two bands —
+//! does this chrome rake with the rows, and if not, where is it?
 //!
 //! # The shape, and why it is neither a second run nor a second buffer
 //!
@@ -90,10 +101,11 @@ impl TextPipeline {
             .position(|l| l.text() == self.overlay_hint.as_str())
     }
 
-    /// THE HINT'S OWN SHAPED LINE — `(ink width, line box top, line box height)`,
-    /// the last two in canvas space. `None` when this frame shaped no hint.
-    fn overlay_hint_ink(&self, geom: &OverlayGeom) -> Option<(f32, f32, f32)> {
-        let line = self.overlay_hint_line()?;
+    /// A SHAPED `panel_buffer` LINE'S OWN RUN — `(ink width, line box top, line box
+    /// height)`, the last two in canvas space. `None` when this frame shaped no such
+    /// line. One owner, because both bands read it and a second copy would be a second
+    /// answer to where a line's ink is.
+    fn overlay_line_ink(&self, geom: &OverlayGeom, line: usize) -> Option<(f32, f32, f32)> {
         self.panel_buffer.layout_runs().find_map(|run| {
             (run.line_i == line).then_some((
                 run.line_w,
@@ -101,6 +113,42 @@ impl TextPipeline {
                 run.line_height,
             ))
         })
+    }
+
+    /// THE HEAD BAND'S DRAWN INK BOX, `[left, top, right, bottom]` in canvas px — the
+    /// card's UPRIGHT chrome, and the whole of what the footprint frost's leaning shape
+    /// cannot cover by raking.
+    ///
+    /// Every header line — the query field, and the grouped family's lens strip under it
+    /// — rides ONE `TextArea` seated at `geom.text_left`, so the box is that edge, the
+    /// widest of their shaped runs, and the vertical run from the first line's box top to
+    /// the last line's bottom. The width is taken over EVERY planned header line rather
+    /// than the two that have names today, so a third enrols by existing.
+    ///
+    /// `None` when the card plans no header line at all (the contextual spell popup),
+    /// which is exactly when there is no upright chrome for a shape to contain.
+    pub(in crate::render) fn overlay_head_band_ink(
+        &self,
+        geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
+    ) -> Option<[f32; 4]> {
+        let mut ink_w = 0.0f32;
+        let mut top = f32::INFINITY;
+        let mut bottom = f32::NEG_INFINITY;
+        for line in plan.header_lines() {
+            let Some((w, t, h)) = self.overlay_line_ink(geom, line.line) else {
+                continue;
+            };
+            ink_w = ink_w.max(w);
+            top = top.min(t);
+            bottom = bottom.max(t + h);
+        }
+        (ink_w > 0.0 && top.is_finite() && bottom > top).then_some([
+            geom.text_left,
+            top,
+            geom.text_left + ink_w,
+            bottom,
+        ])
     }
 
     /// WHERE THIS FRAME'S FOOT CHROME IS SEATED, or `None` when it is seated at the
@@ -119,7 +167,7 @@ impl TextPipeline {
         let cluster = self.diagonal_cluster?;
         let first_row = plan.rows().first()?;
         let last = plan.rows().len().saturating_sub(1);
-        let (ink_w, top, height) = self.overlay_hint_ink(geom)?;
+        let (ink_w, top, height) = self.overlay_line_ink(geom, self.overlay_hint_line()?)?;
         let pitch = plan.lh();
         let center_y = top + height * 0.5;
         if !pitch.is_finite() || pitch <= 0.0 || !center_y.is_finite() {

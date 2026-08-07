@@ -1,0 +1,447 @@
+//! THE FROSTED FOOTPRINT'S SILHOUETTE, MEASURED IN PIXELS — IT IS A PARALLELOGRAM.
+//!
+//! User-reported and user-decided against a `Diagonal` world's theme picker: *"the blur
+//! was not achieved… you can see how it's kinda like a square right? that's wrong… it
+//! should be like a parallelogram."*
+//!
+//! The cause was structural rather than mistuned, and it needed no reproduction to be
+//! believed. `blur::extent::footprint_dist_outside` was `upright.min(leaning)` — a UNION
+//! whose upright term was the card's WHOLE BOX. The box is the bounding box of the leaning
+//! rows, so the union always contained the full rectangle and the shear could only add two
+//! overhang ears to it. **A parallelogram silhouette was impossible by construction at any
+//! shear on any world.** The lean was real and was doing exactly what it was built to do;
+//! it was invisible because the floor drawn beside it was larger.
+//!
+//! # What is measured here, and what is measured at the purer seam
+//!
+//! The SHAPE's arithmetic — both faces translating together, the frosted area falling
+//! short of its own bounding box by the two triangular corners, and
+//! `footprint_box`'s coverage floor — is graded in `blur::tests`, over the pure mirror,
+//! with no GPU and no fixture. That is the purest reachable seam and it sweeps shears this
+//! file cannot reach.
+//!
+//! What can only be measured HERE, off real pixels of a real frame:
+//!
+//! * **THE POSITIVE CLAIM the user asked for.** The card box's two OFF-RAKE corners are
+//!   not frosted, so the document showing through them is SHARP — carrying real glyph
+//!   edges at item 294's own threshold. A rectangle has no such corners, which is why this
+//!   is the one figure that could not be satisfied before the union was retired.
+//! * **THE COVERAGE FLOOR, over the card's own drawn INK rather than over an enumeration
+//!   of it.** Every pixel the card draws must sit inside the frost. The ink is DERIVED (the
+//!   same picker over an empty document has a smooth backdrop, so any strong local step in
+//!   it is the card's drawing), which is what makes this a safety net rather than a second
+//!   list: an upright surface nobody remembered fails here by existing. This is the
+//!   narrowed descendant of the retired union, and narrowing it is not deleting it.
+//!
+//! Swept over the enrolled roster — derived from `blur::footprint_frost_applies`, so
+//! Paperbark (shear 0, whose parallelogram IS its rectangle) is in it and a world that
+//! changes list style changes what this sweeps — at 1× and 2×, and over BOTH menu-bar
+//! states, because the bar's reserve comes off the card's height budget and therefore off
+//! the rake the rail resolves, and its default is platform-forked so an unforced run only
+//! ever sees the host's own branch.
+//!
+//! ⚠️ The bar's arm is taken from the AMBIENT value and its negation, never from `cfg!`:
+//! inside a test `cfg!(target_os = …)` reflects the host that COMPILED it rather than the
+//! branch the value actually took, so a restore written that way restores the wrong value
+//! under any forcing. `testlock::serial()` does not carry this global, so each law restores
+//! it itself on the way out.
+
+use super::super::*;
+use super::frost_feather_item312::{
+    DENSE, INK_GRADIENT, card_ink_mask, enrolled_worlds, luma, render_frame, step, theme_picker,
+};
+use super::headless_dqp;
+
+/// A local luma step that only a document EDGE produces — item 294's threshold, at the
+/// same place in the same measured valley (that tree's frosted residue peaks near 5 and
+/// its sharp residue near 190, so it is not load-bearing to within a factor of four).
+const STRONG_GRADIENT: f32 = 24.0;
+
+/// THE COVERAGE FLOOR on the mask under the card's own ink: how much of the frost must be
+/// present beneath a pixel the card draws.
+///
+/// Not `1.0`, and the reason is arithmetic rather than slack. `footprint_box` widens the
+/// rect until the chrome sits EXACTLY on the shape's face, where the mask is exactly 1.0 —
+/// but a glyph's anti-aliased skirt, and the two logical px `card_ink_mask` dilates by to
+/// swallow it, reach a little past the ink's own origin, and the mask ramps outward from
+/// the face. A `smoothstep` over a 28 logical px feather is still 0.996 one px out and
+/// 0.985 two px out, so this floor is set well under the roster's tightest MEASURED value
+/// (reported by the law) and far above the 0.5 a half-covered edge would give.
+const INK_FROST_FLOOR: f32 = 0.9;
+
+/// The frost's own mask at a canvas pixel, evaluated through the SHIPPING policy's pure
+/// mirror rather than a second copy of the arithmetic — so a retuned shape moves this
+/// reading with it instead of leaving a law grading a shape the frame stopped drawing.
+fn mask_at(frost: crate::render::blur::Frost, dpi: f32, px: f32, py: f32) -> f32 {
+    crate::render::blur::footprint_mask_for(frost, dpi, px, py)
+}
+
+/// THE TWO FRAMES ONE CELL OF THESE SWEEPS NEEDS — the SAME pair item 294 uses, for the
+/// same reason.
+///
+/// `open` is the picker over dense prose; `empty` is the identical picker over an EMPTY
+/// document. The card's drawing is bit-identical between them, so their residue is the
+/// DOCUMENT alone, and `ink` is item 294's derived veto over the card's own pixels.
+struct Frame {
+    open: Vec<[u8; 4]>,
+    empty: Vec<[u8; 4]>,
+    ink: Vec<bool>,
+    /// The card's own box, as `overlay_card_rect` reports it and the pointer hit-test reads
+    /// it — NOT the frost's.
+    card: [f32; 4],
+    frost: crate::render::blur::Frost,
+    shear: f32,
+    w: i64,
+    h: i64,
+}
+
+/// THE THEME PICKER WITH A TYPED QUERY — the shipping state the user photographed, and the
+/// one that gives this file's subject a real width.
+///
+/// Item 312's shared fixture leaves the query EMPTY, which shapes a head band of the bare
+/// `›` sigil: 10.4 logical px of ink on Magpie, and 142 non-ink pixels behind it. A coverage
+/// floor over a band that small is nearly a floor over nothing, and its own presence guard
+/// said so on the first run. A typed query is also the state whose CARET the head band's
+/// coverage has to hold, so this is the more honest cell in both directions.
+fn typed_picker(text: &str) -> ViewState {
+    let mut v = theme_picker(text);
+    v.overlay_query = "mangrove".to_string();
+    v.overlay_query_caret = v.overlay_query.chars().count();
+    v
+}
+
+fn capture(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    p: &mut TextPipeline,
+    w: u32,
+    h: u32,
+    dpi: f32,
+) -> Frame {
+    p.set_view(&typed_picker(DENSE));
+    let open = render_frame(device, queue, p, w, h);
+    let card = p
+        .overlay_card_rect()
+        .expect("the crisp picker has a card box");
+    let frost = p.frost_mode().expect("an enrolled world reaches the frost");
+    let shear = match frost {
+        crate::render::blur::Frost::Footprint(f) => f.shear,
+        other => panic!("expected the footprint arm, got {other:?}"),
+    };
+    p.set_view(&typed_picker(""));
+    let empty = render_frame(device, queue, p, w, h);
+    let (wi, hi) = (w as i64, h as i64);
+    Frame {
+        ink: card_ink_mask(&empty, wi, hi, dpi),
+        open,
+        empty,
+        card,
+        frost,
+        shear,
+        w: wi,
+        h: hi,
+    }
+}
+
+/// THE DOCUMENT'S SHARPNESS over a region — `(pixels measured, pixels carrying an edge,
+/// peak local step)`. One owner, because both laws below ask it of different regions and a
+/// second copy would be a second definition of "sharp".
+///
+/// The card's own ink is VETOED (item 294's derived mask, used the way it is sound —
+/// as a veto), so this measures the PAGE and never the glyphs drawn over it.
+fn sharpness(f: &Frame, field: &[f32], keep: impl Fn(i64, i64) -> bool) -> (u64, u64, f32) {
+    let (mut measured, mut edges, mut peak) = (0u64, 0u64, 0.0f32);
+    for y in 0..f.h {
+        for x in 0..f.w {
+            if !keep(x, y) || f.ink[(y * f.w + x) as usize] {
+                continue;
+            }
+            let s = step(field, f.w, f.h, x, y);
+            measured += 1;
+            peak = peak.max(s);
+            if s >= STRONG_GRADIENT {
+                edges += 1;
+            }
+        }
+    }
+    (measured, edges, peak)
+}
+
+/// WHICH OF THE CARD'S OWN FOUR CORNERS THE RAKE LEAVES SHORT of a full frost, named and
+/// with each one's coverage — the figure that separates a parallelogram from a rectangle
+/// when it is asked of the CARD rather than of the shape's own bounding box.
+fn corners_short_of_full_frost(f: &Frame, dpi: f32) -> Vec<(&'static str, f32)> {
+    let [rx, ry, rw, rh] = f.card;
+    [
+        ("top-left", rx, ry),
+        ("top-right", rx + rw, ry),
+        ("bottom-left", rx, ry + rh),
+        ("bottom-right", rx + rw, ry + rh),
+    ]
+    .iter()
+    .map(|(n, px, py)| (*n, mask_at(f.frost, dpi, *px, *py)))
+    .filter(|(_, m)| *m < 1.0)
+    .collect()
+}
+
+/// THE HEADLINE LAW: THE CARD BOX'S TWO OFF-RAKE CORNERS ARE NOT FROSTED, AND THE
+/// DOCUMENT SHOWING THROUGH THEM IS SHARP.
+///
+/// This is the user's own figure, in pixels. A rectangle — and the retired box-union,
+/// which contained one — has no unfrosted corner inside the card's box at all, so the
+/// region this law measures is EMPTY under the defect and the law reports its own vacuity
+/// rather than passing green.
+///
+/// WHICH corners is derived, never named: a corner is enrolled when the frost's own mask
+/// there is zero, asked of the shipping policy's mirror. On a descending card that is the
+/// top-right and bottom-left; on its mirror the other two; and on an upright composition
+/// (`shear == 0`, whose parallelogram IS its rectangle) it is none, which is why the
+/// upright arm is required to enrol NOTHING and is named on failure.
+#[test]
+fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sharp() {
+    let _g = crate::testlock::serial();
+    let entry = crate::theme::active_index();
+    let mut leaning: Vec<String> = Vec::new();
+    let mut upright: Vec<String> = Vec::new();
+    let ambient_bar = crate::menubar::menu_bar_on();
+    for world in enrolled_worlds() {
+        for bar in [ambient_bar, !ambient_bar] {
+            for (dpi, w, h) in [(1.0f32, 1200u32, 900u32), (2.0, 2400, 1800)] {
+                let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
+                    eprintln!("skipping the parallelogram sweep: no wgpu adapter");
+                    crate::menubar::set_menu_bar_on(ambient_bar);
+                    return;
+                };
+                crate::theme::set_active_by_name(world).unwrap();
+                crate::menubar::set_menu_bar_on(bar);
+                p.set_dpi(dpi);
+                let f = capture(&device, &queue, &mut p, w, h, dpi);
+                let label = format!("{world} @ {dpi}x ({w}x{h}) bar {bar}");
+                // THE CARD'S OWN BOX is the frame of reference, because it is the thing
+                // the user sees an outline of and asks "is that a parallelogram?".
+                //
+                // ⚠️ NOT the shape's own bounding box, and that distinction is the whole
+                // reason this law reads as it does: the FIRST version of it asked whether two
+                // corners of the shape's bbox were unfrosted, and it PASSED under its own
+                // mutation. The retired union's two ears reach exactly the same bbox, so its
+                // bbox corners are unfrosted too. The figure that separates the two shapes is
+                // asked of the CARD: a union CONTAINS the card's box, so all four of its
+                // corners are fully frosted, always. A parallelogram leaves two behind.
+                let off_rake = corners_short_of_full_frost(&f, dpi);
+                if f.shear == 0.0 {
+                    upright.push(label.clone());
+                    assert!(
+                        off_rake.is_empty(),
+                        "{label}: shear is 0, so the parallelogram IS the card's rectangle, \
+                         yet {off_rake:?} came back short of fully frosted"
+                    );
+                    continue;
+                }
+                leaning.push(label.clone());
+                assert_eq!(
+                    off_rake.len(),
+                    2,
+                    "{label}: a parallelogram leaves exactly TWO of the CARD's own corners \
+                     behind (shear {}); this shape leaves {:?}. ZERO of them is the rectangle \
+                     the user photographed, and the retired box-union could only ever answer \
+                     zero — the card's box was one of its terms",
+                    f.shear,
+                    off_rake
+                );
+
+                // THE DOCUMENT IN THOSE CORNERS IS SHARP, over the part of the card's own box
+                // the frost's mask does not reach AT ALL. Under the union that region is EMPTY
+                // by construction, so the count is both a presence guard and the mutation's
+                // own tripwire.
+                let luma_open: Vec<f32> = f.open.iter().map(|q| luma(*q)).collect();
+                let [rx, ry, rw, rh] = f.card;
+                let (measured, edges, peak) = sharpness(&f, &luma_open, |x, y| {
+                    let (fx, fy) = (x as f32, y as f32);
+                    fx >= rx
+                        && fx < rx + rw
+                        && fy >= ry
+                        && fy < ry + rh
+                        && mask_at(f.frost, dpi, fx, fy) == 0.0
+                });
+                eprintln!(
+                    "MEASURED {label}: shear {:.5}, card corners short of full frost {:?}, \
+                     {measured} wholly unfrosted non-ink px INSIDE the card's box, {edges} \
+                     carrying a document edge (peak step {peak:.1})",
+                    f.shear, off_rake
+                );
+                assert!(
+                    measured > 500,
+                    "{label}: only {measured} pixels of the CARD's own box are outside the \
+                     frost. Under the retired box-union that count is exactly ZERO, so a \
+                     small number here is this law reporting that its subject does not exist \
+                     rather than the product passing"
+                );
+                assert!(
+                    edges > 40 && peak >= STRONG_GRADIENT,
+                    "{label}: the {measured} unfrosted pixels inside the CARD's box carry \
+                     only {edges} document edges (peak step {peak:.1}, threshold \
+                     {STRONG_GRADIENT}) — the corners the rake leaves behind are supposed to \
+                     show the page's own SHARP document, which is what makes the silhouette \
+                     read as a parallelogram rather than as a box"
+                );
+            }
+        }
+    }
+    crate::menubar::set_menu_bar_on(ambient_bar);
+    assert!(
+        !leaning.is_empty() && !upright.is_empty(),
+        "the roster must contain a LEANING enrolled world and an UPRIGHT one, or one of \
+         this law's two arms never ran: leaning {leaning:?}, upright {upright:?}"
+    );
+    crate::theme::set_active(entry);
+}
+
+/// THE TIGHTEST FROST COVERAGE anywhere in a box, and where — sampled on a grid through the
+/// SHIPPING mask. The head band's own guarantee, asked of the box its production owner
+/// declares rather than of a list of the surfaces inside it.
+fn tightest_coverage(frost: crate::render::blur::Frost, dpi: f32, b: [f32; 4]) -> (f32, f32, f32) {
+    let [l, t, r, bo] = b;
+    let (mut worst, mut at) = (1.0f32, (l, t));
+    for iy in 0..=24 {
+        for ix in 0..=24 {
+            let px = l + (r - l) * ix as f32 / 24.0;
+            let py = t + (bo - t) * iy as f32 / 24.0;
+            let m = mask_at(frost, dpi, px, py);
+            if m < worst {
+                worst = m;
+                at = (px, py);
+            }
+        }
+    }
+    (worst, at.0, at.1)
+}
+
+/// THE COVERAGE FLOOR, NARROWED AND NOT DELETED: THE CARD'S UPRIGHT CHROME IS FROSTED, AND
+/// NO DOCUMENT EDGE SURVIVES BEHIND IT.
+///
+/// The retired union frosted the card's whole box because the card's HEAD band is upright
+/// and flush to its text edge while the rows rake away from it, so a shape that only
+/// followed the rake left that band over sharp document — the reported defect, moved onto
+/// the card's own chrome. The duty survives; its owner moved into the shape's own WIDTH
+/// (`blur::extent::footprint_box`), which widens the rect until the parallelogram contains
+/// the band. This law is that guarantee, stated twice over the SAME box:
+///
+/// 1. **ARITHMETIC.** Every point of the band's box, sampled on a grid, has the shipping
+///    mask at or above [`INK_FROST_FLOOR`]. Read through `footprint_mask_for`, so it grades
+///    the coverage the composite pass was actually handed.
+/// 2. **PIXELS.** Behind that band, no glyph edge of the DOCUMENT survives — the same
+///    statistic and the same threshold item 294's headline law uses, over the residue
+///    between the picker-over-prose frame and the picker-over-empty one. Arithmetic alone
+///    would pass a mask that was right about a shape the shader never drew.
+///
+/// ⚠️ It is the companion the shape law needs, not an ornament beside it. "The silhouette is
+/// not a rectangle" gets strictly HAPPIER as the frost shrinks — a shape that frosted
+/// nothing would leave every corner unfrosted and every document edge intact and satisfy
+/// that law perfectly. This is what refuses it.
+///
+/// # ⚠️ Why the subject is a DECLARED box and not a derived ink mask
+///
+/// Two ink oracles were built and both were falsified on their first run, which is worth
+/// more than the law they were meant to serve:
+///
+/// * **Item 294's `card_ink_mask` is a VETO and does not invert into an inclusion set.** Its
+///   premise — a picker over an empty document has a backdrop that is "a blur of a blank
+///   page: smooth by construction" — holds only where the frost reaches. Outside the
+///   footprint the page shows its world's live ground, and Mangrove's lava lamp has plenty
+///   of structure, so it reported "the card draws ink at (1101, 0)" — 52 rows above the
+///   card's own top edge.
+/// * **Intersecting that with a picker-open-vs-closed difference does not rescue it
+///   either.** The card casts a soft SHADOW well past its own box, so the intersection
+///   selects ground structure lying under the shadow: 4004 such pixels on Mangrove and
+///   19584 on Magpie, spread from x=23 to x=1178 — and 8 on Paperbark, which draws no card
+///   backing. A shadow is a wash, not ink, and nothing owes it a frost.
+///
+/// So the subject is the box the PRODUCTION owner declares
+/// (`TextPipeline::overlay_head_band_ink`), which is also the box `footprint_box` is handed
+/// — the two cannot drift, and a third upright surface is a change to that owner rather than
+/// to this law. The broad net over everything else is item 294's own headline law, whose
+/// interior region item 318 narrowed to the parallelogram.
+#[test]
+fn the_cards_upright_chrome_is_frosted_and_no_document_edge_survives_behind_it() {
+    let _g = crate::testlock::serial();
+    let entry = crate::theme::active_index();
+    let mut tightest = f32::INFINITY;
+    let mut tightest_at = String::new();
+    let ambient_bar = crate::menubar::menu_bar_on();
+    for world in enrolled_worlds() {
+        for bar in [ambient_bar, !ambient_bar] {
+            for (dpi, w, h) in [(1.0f32, 1200u32, 900u32), (2.0, 2400, 1800)] {
+                let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
+                    eprintln!("skipping the chrome-coverage sweep: no wgpu adapter");
+                    crate::menubar::set_menu_bar_on(ambient_bar);
+                    return;
+                };
+                crate::theme::set_active_by_name(world).unwrap();
+                crate::menubar::set_menu_bar_on(bar);
+                p.set_dpi(dpi);
+                let f = capture(&device, &queue, &mut p, w, h, dpi);
+                let label = format!("{world} @ {dpi}x ({w}x{h}) bar {bar}");
+                let geom = p.overlay_geometry(w);
+                let plan = p.overlay_row_plan(&geom);
+                let [hl, ht, hr, hb] = p
+                    .overlay_head_band_ink(&geom, &plan)
+                    .unwrap_or_else(|| panic!("{label}: the card plans a header band"));
+                assert!(
+                    hr > hl && hb > ht,
+                    "{label}: the head band's declared box [{hl},{ht},{hr},{hb}] is empty, so \
+                     everything below it is a floor over nothing"
+                );
+
+                // (1) ARITHMETIC: the whole declared box, on a grid, through the shipping
+                // mask. (2) PIXELS: the document's own residue behind that same box.
+                let (worst, wx, wy) = tightest_coverage(f.frost, dpi, [hl, ht, hr, hb]);
+                if worst < tightest {
+                    tightest = worst;
+                    tightest_at = label.clone();
+                }
+                let residue: Vec<f32> = f
+                    .open
+                    .iter()
+                    .zip(f.empty.iter())
+                    .map(|(a, b)| luma(*a) - luma(*b))
+                    .collect();
+                let (measured, edges, peak) = sharpness(&f, &residue, |x, y| {
+                    let (fx, fy) = (x as f32, y as f32);
+                    fx >= hl && fx <= hr && fy >= ht && fy <= hb
+                });
+                eprintln!(
+                    "MEASURED {label}: head band [{hl:.1},{ht:.1},{hr:.1},{hb:.1}] — tightest \
+                     frost coverage {worst:.4} at ({wx:.1},{wy:.1}), and {edges}/{measured} \
+                     non-ink px behind it carry a document edge (peak step {peak:.1})"
+                );
+                assert!(
+                    worst >= INK_FROST_FLOOR,
+                    "{label}: the card's upright head band reaches ({wx:.1},{wy:.1}) where \
+                     the frost's coverage is only {worst:.4} (floor {INK_FROST_FLOOR}) — that \
+                     chrome is sitting over SHARP document, which is the reported defect \
+                     moved onto the card's own chrome. `blur::extent::footprint_box` widens \
+                     the shape's box exactly to prevent it, so either the widening is wrong \
+                     or the band it was handed is not the band that was drawn"
+                );
+                assert!(
+                    measured > 200,
+                    "{label}: only {measured} non-ink px behind the head band (gradient \
+                     {INK_GRADIENT}) — a zero-edge claim over an empty set is satisfied by \
+                     anything"
+                );
+                assert_eq!(
+                    edges, 0,
+                    "{label}: {edges} of {measured} pixels behind the card's head band carry \
+                     a document EDGE (step >= {STRONG_GRADIENT}, peak {peak:.1}) — the page \
+                     is still drawing as sharp TEXT under the query field"
+                );
+            }
+        }
+    }
+    crate::menubar::set_menu_bar_on(ambient_bar);
+    eprintln!(
+        "ROSTER TIGHTEST head-band coverage {tightest:.4} at {tightest_at} — the floor \
+         {INK_FROST_FLOOR} sits under it"
+    );
+    crate::theme::set_active(entry);
+}

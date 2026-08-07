@@ -90,10 +90,14 @@ fn fs_blur(in: VOut) -> @location(0) vec4<f32> {
 
 // The footprint's signed OUTSIDE distance at framebuffer pixel `p`: <= 0 inside the
 // shape, positive out beyond it. Per-axis outside distances combined by `max` (so the
-// result is negative iff both axes are inside), asked of the box AND of the box sheared
-// about its own vertical centre, then combined by `min` — a UNION, so the shape leans
-// with the drawn spine while still covering everything the card's upright query line
-// and foot hint sit on.
+// result is negative iff both axes are inside), asked of the box SHEARED about its own
+// vertical centre — so the shape is a PARALLELOGRAM whose two raking faces both
+// translate with the drawn spine.
+//
+// It is not unioned with the upright box. That union could not read as a parallelogram at
+// any shear, because the box was one of its terms and so always lay wholly inside the
+// result. The card's upright chrome is covered by `blur::extent::footprint_box`, which
+// widens the rect this reads until the parallelogram contains it.
 //
 // MUST match `blur::extent::footprint_dist_outside`.
 fn footprint_dist_outside(p: vec2<f32>) -> f32 {
@@ -102,10 +106,8 @@ fn footprint_dist_outside(p: vec2<f32>) -> f32 {
     let w = u.foot.z;
     let h = u.foot.w;
     let gy = max(y - p.y, p.y - (y + h));
-    let upright = max(max(x - p.x, p.x - (x + w)), gy);
     let sx = p.x - u.mask.x * (p.y - (y + h * 0.5));
-    let leaning = max(max(x - sx, sx - (x + w)), gy);
-    return min(upright, leaning);
+    return max(max(x - sx, sx - (x + w)), gy);
 }
 
 // The footprint's COVERAGE: 1.0 on and inside the shape's faces, ramping to 0.0 across

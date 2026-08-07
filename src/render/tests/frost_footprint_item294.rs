@@ -272,15 +272,29 @@ fn the_footprint_frost_unmakes_the_document_as_text_and_confines_itself_to_the_c
             // the same arithmetic the composite's scissor uses — rather than a second
             // authored inset, so a retuned feather moves this with it instead of
             // quietly turning a confinement claim into a reading of the skirt.
+            //
+            // ⚠️ AND THE INTERIOR IS THE PARALLELOGRAM, NOT THE CARD'S BOX. The frost's
+            // shape leans, so the box's two OFF-RAKE corners are deliberately unfrosted
+            // and the document there is deliberately sharp — that is item 318's whole
+            // deliverable, and a region pinned to the box reads those corners as this
+            // law's own failure. Both the rect and the shear come from the frost the
+            // frame SENT THE SHADER, so this follows the shape that was drawn rather
+            // than a second derivation of it.
             let pad = 4.0 * dpi;
             let collar = 24.0 * dpi;
-            let [rx, ry, rw, rh] = rect;
+            let (frect, shear) = match p.frost_mode() {
+                Some(crate::render::blur::Frost::Footprint(f)) => (f.rect, f.shear),
+                other => panic!("{world}: expected the footprint arm, got {other:?}"),
+            };
+            let [rx, ry, rw, rh] = frect;
             let skirt = crate::render::blur::footprint_skirt_px(p.frost_mode(), dpi);
+            let lean = |py: f32| shear * (py - (ry + rh * 0.5));
             let inside = |x: i64, y: i64| {
-                (x as f32) >= rx + pad
-                    && (x as f32) < rx + rw - pad
-                    && (y as f32) >= ry + pad
-                    && (y as f32) < ry + rh - pad
+                let (fx, fy) = (x as f32, y as f32);
+                fx >= rx + lean(fy) + pad
+                    && fx < rx + rw + lean(fy) - pad
+                    && fy >= ry + pad
+                    && fy < ry + rh - pad
             };
             let collar_only = |x: i64, y: i64| {
                 let (fx, fy) = (x as f32, y as f32);
