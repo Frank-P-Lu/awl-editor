@@ -125,6 +125,21 @@ decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
+- 🔵 **312's TWO TASTE CALLS — the feather WIDTH and the LEAN, and no measurement settles
+  either.** Captures in `gallery/item-312/`.
+  1. ⚠️ **Is the defect gone?** Open `before-hard-edge-Mangrove.png` beside
+     `after-Mangrove.png` — the same frame, shipped. Before, words break clean at the
+     boundary (`the|` … `ver.`); after, they dissolve and the patch's silhouette rakes with
+     the spine. **Orchestrator's own eye: yes, and the lean reads as intentional.**
+  2. **The width.** `feather-14px-Mangrove.png` → `after-Mangrove.png` (28, shipped) →
+     `feather-42px-Mangrove.png`. 14 sits at the law's arithmetic floor (a feather narrower
+     than the blur's own 16 logical px reach reads hard); 42 pushes the skirt further onto
+     the live page the picker exists to preview.
+  3. **The lean.** `after-Mangrove.png` / `after-Magpie.png` (both directions) against
+     `lean-off-feather-only-*.png` (upright box). This is also the honest way to judge the
+     union's silhouette — **whether the leaning ears past the box read as intentional or as
+     a smear.** `after-Paperbark.png` is the `Rules` arm: feathered and upright, which is
+     what the roster-derived split produces without Paperbark being named anywhere.
 - 🔵 **294's THREE TASTE CALLS, and one is a change to EVERY world at 2×.** Captures at
   `gallery/item-294/` (46 shots, copied out of `/tmp`).
   1. ⚠️ **THE DPI FIX CHANGES EVERY WORLD'S FULL-TAKEOVER FROST ON A RETINA DISPLAY, and
@@ -328,8 +343,21 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
 | `src/render/plan/` | overlay row family only (5 modules) |
 | item 288's three identifiers | all three still present, verbatim |
 
-✅ **GITHUB ACTIONS RECOVERED 2026-08-07 ("All Systems Operational") AND BOTH OWED
-ITEMS ARE DISPATCHED.** CI is running on `main`, and the **AppImage release dry run —
+✅ **BOTH ITEMS THAT WERE BLOCKED ALL OF 2026-08-06 ARE NOW SATISFIED (2026-08-07).**
+- **CI on `main` is GREEN** — `completed/success` at `68953a89` and `31a3fafd`, read as the
+  last SUCCESSFUL shas rather than the last runs.
+- **Item 227's AppImage release dry run PASSED on real CI** (run `31134001680`), which is
+  the one thing no worktree branch could ever prove, because a branch cannot push. Evidence
+  read out of the run: `linux (release tar.gz)` succeeded having run **both** packaging
+  steps; the structural law fired on the real artifact
+  (`appdir OK: AppRun, dev.franklu.awl.desktop (+ Name/Exec/Icon/Type), dev.franklu.awl.png
+  (root + hicolor), licences`); `appimagetool`'s pinned sha256 was **verified before use**;
+  and `awl-…-linux-x86_64.AppImage` was cut and uploaded beside the tarball in one
+  `awl-linux` artifact. ⚠️ **`publish GitHub Release` was SKIPPED, exactly as
+  `RELEASING.md` documents** — so that job remains permanently unexercised until a real
+  tag, and it still ships straight to the public.
+
+**Historical:** Actions was in a major outage all of 2026-08-06. CI is running on `main`, and the **AppImage release dry run —
 item 227's one outstanding verification, which no worktree branch could ever run — is
 in flight** (`gh workflow run release.yml -f dry_run=true`, run `31134001680`; `plan`
 already green, the `linux (release tar.gz)` job building). ⚠️ **Read its result before
@@ -1276,8 +1304,21 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      and analogy is how three false premises reached this board this week.
      **Routing:** production tier.
 
-312. 🟡 IN PROGRESS — claude, branch `claude/item-312-feathered-frost`.
-     **THE FOOTPRINT FROST'S EDGE IS A HARD RECTANGLE, AND UNDER A DIAGONAL LIST IT
+312. ✅ **LANDED (merged 2026-08-07).** The extent stopped being a scissor: it arrives as a
+     SHAPE (box, shear, feather) and rides in `fs_comp`'s alpha, with the scissor kept as a
+     conservative bound so byte-identity beyond the frost holds **by construction on every
+     backend** rather than resting on a blend round-trip against zero alpha.
+     ⚠️ **A BARE PARALLELOGRAM WOULD HAVE MOVED THE DEFECT, NOT FIXED IT** — the card box
+     IS the bounding box of the leaning rows, so its off-rake corners are exactly what the
+     rows never reach, and they are **not empty**: the query line and foot hint are upright
+     and flush left (~57px of hint over sharp document at the measured shear). The shape is
+     therefore box **∪** sheared box, with the box named in code as a coverage FLOOR.
+     ✅ **313 CAN DROP THAT FLOOR.** Once the hint and query lean with the rows, the union
+     collapses to a true parallelogram — visible in `gallery/item-312/after-Mangrove.png`,
+     where the hint sits upright at the foot. **That is 313's payoff beyond its own defect.**
+     ⚠️ **AND 298, IF IT LANDS AFTER THIS, MUST CONSTRUCT A SHAPE, NOT A RECT:** an arm
+     added to `frost_mode()` builds `Footprint { rect, shear }` and has to decide
+     consciously whether a context menu leans. **Original:** **THE FOOTPRINT FROST'S EDGE IS A HARD RECTANGLE, AND UNDER A DIAGONAL LIST IT
      WANTS TO BE A FEATHERED PARALLELOGRAM.** User-reported against Mangrove's theme
      picker, with a screenshot: the frosted patch stops at a knife edge, and the world
      *already ships* a soft-edged version of the same idea a few hundred pixels away.
