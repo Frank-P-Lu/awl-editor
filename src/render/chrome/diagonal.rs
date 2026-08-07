@@ -166,15 +166,15 @@ impl DiagonalComposition {
 }
 
 mod cluster;
-mod foot;
 mod location;
+mod offband;
 #[cfg(test)]
 pub(in crate::render) use cluster::DiagonalClusterProbe;
 pub(in crate::render) use cluster::DiagonalClusterRail;
 use cluster::label_flow_of;
-#[cfg(test)]
-pub(in crate::render) use foot::FOOT_CONTINUES_THE_LEAN;
 pub(in crate::render) use location::location_axis_deg;
+#[cfg(test)]
+pub(in crate::render) use offband::FOOT_CONTINUES_THE_LEAN;
 
 impl TextPipeline {
     /// THE SIDE TERRITORY a diagonal card owes its composition beyond the row

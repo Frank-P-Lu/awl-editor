@@ -45,7 +45,7 @@ use super::{headless_dqp, view_md};
 /// Prose dense enough to put real glyph structure in the skirt band on every face of
 /// the card at both device scales — the profile is a mean over that structure, so a
 /// blank region beside a face would read as a frost that reaches nothing.
-const DENSE: &str = concat!(
+pub(super) const DENSE: &str = concat!(
     "# The feathered footprint\n\n",
     "Prose is the product, and the prose is what a summoned picker draws over. The\n",
     "frost's boundary used to be a knife edge, and the words that crossed it were\n",
@@ -69,7 +69,7 @@ const DENSE: &str = concat!(
 
 /// A local luma step (of 255) that only an EDGE produces — item 294's threshold, at the
 /// same place in the same measured valley.
-const INK_GRADIENT: f32 = 6.0;
+pub(super) const INK_GRADIENT: f32 = 6.0;
 
 /// How far the card-ink mask is grown, in physical px per DPI unit.
 const INK_DILATE: i64 = 2;
@@ -80,11 +80,11 @@ const INK_DILATE: i64 = 2;
 /// on noise, and noise has no step in it.
 const SKIRT_PRESENCE_FLOOR: f32 = 1.5;
 
-fn luma(p: [u8; 4]) -> f32 {
+pub(super) fn luma(p: [u8; 4]) -> f32 {
     0.299 * p[0] as f32 + 0.587 * p[1] as f32 + 0.114 * p[2] as f32
 }
 
-fn step(field: &[f32], w: i64, h: i64, x: i64, y: i64) -> f32 {
+pub(super) fn step(field: &[f32], w: i64, h: i64, x: i64, y: i64) -> f32 {
     let at = |x: i64, y: i64| field[(y * w + x) as usize];
     let here = at(x, y);
     let mut g = 0.0f32;
@@ -101,7 +101,7 @@ fn step(field: &[f32], w: i64, h: i64, x: i64, y: i64) -> f32 {
 /// (its backdrop is a blur of a blank page — smooth by construction, so a strong step
 /// there is the card's drawing). Item 294's oracle, unchanged; the card's RING is the
 /// reason it matters here, since the ring sits a pixel or two off the face profiled.
-fn card_ink_mask(empty: &[[u8; 4]], w: i64, h: i64, dpi: f32) -> Vec<bool> {
+pub(super) fn card_ink_mask(empty: &[[u8; 4]], w: i64, h: i64, dpi: f32) -> Vec<bool> {
     let lum: Vec<f32> = empty.iter().map(|p| luma(*p)).collect();
     let dilate = INK_DILATE * dpi.round() as i64;
     let mut mask = vec![false; (w * h) as usize];
@@ -123,7 +123,7 @@ fn card_ink_mask(empty: &[[u8; 4]], w: i64, h: i64, dpi: f32) -> Vec<bool> {
     mask
 }
 
-fn theme_picker(text: &str) -> ViewState {
+pub(super) fn theme_picker(text: &str) -> ViewState {
     let mut v = view_md(text, 0, 0);
     v.overlay_active = true;
     v.overlay_crisp = true;
@@ -170,7 +170,7 @@ fn authored_step(p: &TextPipeline) -> f32 {
     }
 }
 
-fn render_frame(
+pub(super) fn render_frame(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     p: &mut TextPipeline,
@@ -189,7 +189,7 @@ fn render_frame(
 
 /// Every world whose composition enrols in the footprint frost, taken from the ROSTER's
 /// own predicate rather than named.
-fn enrolled_worlds() -> Vec<&'static str> {
+pub(super) fn enrolled_worlds() -> Vec<&'static str> {
     crate::theme::THEMES
         .iter()
         .filter(|t| crate::render::blur::footprint_frost_applies(t.render_caps.list_style))
@@ -233,13 +233,15 @@ fn the_footprints_edge_is_a_ramp_of_the_authored_width_in_logical_px_at_every_dp
 
             p.set_view(&theme_picker(DENSE));
             let open = render_frame(&device, &queue, &mut p, w, h);
-            let [rx, ry, rw, rh] = p
-                .overlay_card_rect()
-                .expect("the crisp picker is open, so it has a card box");
-            // THE SHEAR THE FRAME ACTUALLY SENT THE SHADER — never a re-derivation, so
-            // the face this follows is the face that was drawn.
-            let shear = match p.frost_mode() {
-                Some(crate::render::blur::Frost::Footprint(f)) => f.shear,
+            // THE BOX AND THE SHEAR THE FRAME ACTUALLY SENT THE SHADER — never a
+            // re-derivation, so the face this follows is the face that was drawn.
+            //
+            // ⚠️ The BOX is the frost's own, not `overlay_card_rect`'s: the frost's box is
+            // widened where it must be to seat the card's upright chrome, so a profile
+            // taken from the card's rect would follow a face a whole widening away from
+            // the drawn one.
+            let ([rx, ry, rw, rh], shear) = match p.frost_mode() {
+                Some(crate::render::blur::Frost::Footprint(f)) => (f.rect, f.shear),
                 other => panic!("{world}: expected the footprint arm, got {other:?}"),
             };
             p.set_view(&theme_picker(""));
@@ -279,12 +281,21 @@ fn the_footprints_edge_is_a_ramp_of_the_authored_width_in_logical_px_at_every_dp
             // profile is honestly zero — that is Magpie's left face, whose card sits on
             // the other side of the page column from Mangrove's. Naming one face would
             // have made this law a property of one world's card anchoring.
+            //
+            // ⚠️ THE FACE IS THE PARALLELOGRAM'S, and BOTH faces translate by the same
+            // `shear × (py − cy)`. This used to read `.min(0.0)` on the left face and
+            // `.max(0.0)` on the right — the retired box-UNION's boundary, where each face
+            // moved on only the half of the card the rake reached toward and stood still on
+            // the other. Left as it was, this law would profile a face up to `|shear| · h/2`
+            // away from the drawn one on half of every leaning card, smearing the ramp across
+            // the lean and reporting a soft edge where there might be a knife.
             let profile_face = |outward: f32| -> Option<Vec<f32>> {
                 let face = |py: f32| {
+                    let lean = shear * (py - cy);
                     if outward < 0.0 {
-                        rx + (shear * (py - cy)).min(0.0)
+                        rx + lean
                     } else {
-                        rx + rw + (shear * (py - cy)).max(0.0)
+                        rx + rw + lean
                     }
                 };
                 if !rows.iter().all(|y| {

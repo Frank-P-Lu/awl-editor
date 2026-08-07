@@ -23,16 +23,17 @@
 
 mod extent;
 
-pub use extent::{BlurSurface, Footprint, Frost, footprint_frost_applies};
+pub use extent::{BlurSurface, Footprint, Frost, footprint_box, footprint_frost_applies};
 use extent::{
     DOWNSAMPLE, U, bytes_of, capped_doc_size, downsample_for, footprint_bound,
     footprint_feather_px, scissor_px,
 };
-/// The authored feather width and the reach it gives the skirt, re-exported for the laws
-/// that grade the drawn edge against them — so a render-tier measurement cannot compare
-/// the pixels to a retyped number that has drifted from the one the shader was handed.
+/// The authored feather width, the reach it gives the skirt, and the SHIPPING mask itself,
+/// re-exported for the laws that grade the drawn edge against them — so a render-tier
+/// measurement cannot compare the pixels to a retyped number, or to a second copy of the
+/// shape's arithmetic, that has drifted from what the shader was handed.
 #[cfg(test)]
-pub(crate) use extent::{FOOTPRINT_FEATHER_PX, footprint_skirt_px};
+pub(crate) use extent::{FOOTPRINT_FEATHER_PX, footprint_mask_for, footprint_skirt_px};
 
 use wgpu::util::DeviceExt;
 
