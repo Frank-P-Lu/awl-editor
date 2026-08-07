@@ -573,10 +573,45 @@ fn load_reads_outline_pref_and_outline_on_defaults_true() {
 fn load_reads_menu_bar_pref_and_menu_bar_on_defaults_to_the_platform_default() {
     // Mirrors `load_reads_outline_pref_and_outline_on_defaults_true` above, but
     // for `menu_bar`, whose leniency default is PLATFORM-dependent (ON for
-    // web/Linux, OFF for macOS — `menubar::MENU_BAR_ON`'s own cfg-derived
-    // default) rather than a fixed bool. An explicit `menu_bar = false` must
-    // win over that default on every platform.
+    // web/Linux, OFF for macOS) rather than a fixed bool. An explicit
+    // `menu_bar = false` must win over that default on every platform.
+    //
+    // ⚠️ THIS LAW USED TO ASSERT `cfg!(not(target_os = "macos"))` AGAINST A
+    // `Config::menu_bar_on` THAT SPELLED THE IDENTICAL `cfg!` — a tautology
+    // that could not fail on any host. Flipping `MENU_BAR_DEFAULT_OTHER`
+    // changed the shipped default and left it green, while its own comment
+    // claimed to be checking exactly that. Neither side read the owner.
+    //
+    // Both sides now route through `menubar`'s named consts, and the claim is
+    // split so each half can fail on its own bug:
+    //
+    //   (a) the ABSENT-KEY default is whatever the owner says, which the
+    //       gate's `AWL_MENU_BAR_FORCE` arms grade — a `Config` carrying its
+    //       own copy of the platform fork agrees with the owner unforced on
+    //       every host and DISAGREES in both forced arms; and
+    //   (b) the owner's two platform arms are DISTINCT, and which way round,
+    //       asked through `platform_default`'s explicit `is_macos` argument so
+    //       both arms are readable from any single host. This is the half that
+    //       dies the moment either const is flipped to match the other, and it
+    //       is the reason the fork is a fn taking the platform rather than a
+    //       `cfg!` nobody off that platform can observe.
     use std::sync::Arc;
+    assert_ne!(
+        crate::menubar::platform_default(true),
+        crate::menubar::platform_default(false),
+        "the menu bar's two platform defaults must DIFFER — a bar that defaults \
+         the same way everywhere makes every `menu_bar` law on this host a claim \
+         about nothing, which is how a picker drawing zero candidate rows on \
+         Linux reached a gating CI run"
+    );
+    assert!(
+        !crate::menubar::platform_default(true),
+        "macOS already has a real system menu bar, so the drawn one defaults OFF"
+    );
+    assert!(
+        crate::menubar::platform_default(false),
+        "web/Linux have no system bar, so the drawn one defaults ON"
+    );
     let p = PathBuf::from("/cfg/config.toml");
     let fs = Arc::new(crate::fs::InMemoryFs::new().with_file(&p, "menu_bar = false\n"));
     crate::fs::with_fs(fs, || {
@@ -593,14 +628,15 @@ fn load_reads_menu_bar_pref_and_menu_bar_on_defaults_to_the_platform_default() {
         assert_eq!(cfg.menu_bar, None);
         assert_eq!(
             cfg.menu_bar_on(),
-            cfg!(not(target_os = "macos")),
-            "absent = the platform default (ON web/Linux, OFF macOS)"
+            crate::menubar::menu_bar_default(),
+            "absent = the OWNER's default (ON web/Linux, OFF macOS), not a \
+             second copy of the platform fork"
         );
     });
     assert_eq!(
         Config::empty().menu_bar_on(),
-        cfg!(not(target_os = "macos")),
-        "Config::empty() also defaults to the platform default"
+        crate::menubar::menu_bar_default(),
+        "Config::empty() also defers to the owner"
     );
 }
 
