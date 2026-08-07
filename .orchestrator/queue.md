@@ -53,24 +53,37 @@ minimum across all 4×2×N cells**. CI got **0**. ⚠️ **So the gap is FOUR RO
 is not a rounding or sub-pixel metric drift.** Something makes `overlay_lh` (or the grouped
 family's chrome budget) **materially larger** on that host.
 
-⚠️ **AND ONE EXPERIMENT CAME BACK INCONCLUSIVE — RECORDED AS INCONCLUSIVE, NOT AS A
-RULED-OUT HYPOTHESIS.** I forced a different face via `AWL_FONT` (Archivo Black, Abril
-Fatface) and the minimum stayed **4**. **But I could not confirm the override reaches this
-law's metrics at all** — the fixture's pipeline construction is not in that file, so the
-probe may have measured nothing. **Do not read this as "face metrics are not the cause."**
-The first thing to establish is what `plan.candidate_rows()`'s `overlay_lh` actually derives
-from in that fixture: `overlay_lh = metrics.line_height × effective_overlay_scale() + leading
-+ row_gap`, so **whether `metrics.line_height` is measured from a real font or fixed by the
-fixture decides which hypotheses are even reachable.**
+✅ **THE ARBITER HAS REPORTED, AND THE RED PERSISTS.** Run
+https://github.com/Frank-P-Lu/awl-editor/actions/runs/31145661939 on `55412786` — which
+INCLUDES items 314 and 297 — fails the **same two tests with the same two messages**. So item
+314's geometry change did **not** fix it, and this is a real, persistent, gating red rather
+than a transient.
 
-**Face resolution remains the leading candidate rather than metric precision:** a chrome face resolving to a
-different fallback on Ubuntu would change the line height by a large factor, and the tight
-canvas is described in its own comment as *"a short one that clamps the grouped family's own
-row cap"* — i.e. deliberately the least slack in the sweep. **Check what face CI actually
-resolves for the overlay chrome before assuming anything about adapters.** The probe was
-reverted; re-add one `eprintln!` of `plan.candidate_rows()` to repeat it.
-⚠️ **This is exactly the axis CLAUDE.md says no local gate covers, and it has appeared as
-GEOMETRY rather than as GPU counters — worth adding to that tripwire once confirmed.**
+✅ **TWO HYPOTHESES ARE NOW CLOSED WITH EVIDENCE — do not re-open them without new facts.**
+
+1. **NOT a font or face metric difference.** `overlay_lh = metrics.line_height ×
+   effective_overlay_scale() + leading + row_gap`, and the fixture *does* build a real
+   `TextPipeline` (`headless_dqp` → `TextPipeline::new`), so the mechanism looked reachable.
+   It is not: printing the metrics under three faces — default, Archivo Black, Abril Fatface,
+   forced through `AWL_FONT` — gives **`line_height=32`, `char_width=14.4` in all three,
+   identical.** Those metrics are **fixed, not measured from the resolved face.**
+2. **NOT this law leaking its own `Bars` override.** The sweep resets it
+   (`set_list_style_test_override(None)`), and `crate::testlock::serial()` restores every
+   forced render override **on the unwinding path too**, so even a mid-loop panic cannot leak
+   it. Both failures naming `Bars` made this the obvious guess.
+
+🔵 **WHAT IS LEFT, and it is better aimed than where this started.** With the metrics fixed
+and the canvas fixed by the test, `candidate_rows` *should* be deterministic — which is the
+puzzle. So look at what is **not** deterministic across hosts:
+`p.prepare(&device, &queue, …)` does **real GPU work on the shared test adapter**, and the
+sibling failure measures **drawn pixels** on Firetail, adapter-dependent by nature.
+⚠️ A leak from some **other** test whose global is not guard-covered stays open — the guard
+covers only what it snapshots, and CLAUDE.md notes a test building its own device sits outside
+it. ⚠️ **And Firetail is a `Bars` world whose SELECTED row plate grows OUTWARD past the card
+box** (item 297 measured 32 device px of card left of `card_x` at 1.8× zoom) — which is
+exactly the kind of geometry that could put drawn row text 1px from its own card edge.
+**Start from the adapter and from Bars' outward-growing plate, not from the planner's
+arithmetic.**
 
 ⚠️ **IT MAY ALREADY BE FIXED.** Item **314** changed `adaptive_column_left` and the page pads
 between `85343eb1` and `aa9e5338`, which moves exactly the geometry these two laws measure.
