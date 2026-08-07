@@ -9,7 +9,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Toggle a `> ` blockquote prefix on the caret line or each line of the selection."),
+        description: Some(
+            "Toggle a `> ` blockquote prefix on the caret line or each line of the selection.",
+        ),
     },
     Command {
         name: "Bullet list",
@@ -18,7 +20,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Toggle a `- ` bullet marker on the caret line or each line of the selection."),
+        description: Some(
+            "Toggle a `- ` bullet marker on the caret line or each line of the selection.",
+        ),
     },
     Command {
         name: "Numbered list",
@@ -27,7 +31,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Toggle a numbered-list marker on the caret line or each line of the selection, renumbering sequentially."),
+        description: Some(
+            "Toggle a numbered-list marker on the caret line or each line of the selection, renumbering sequentially.",
+        ),
     },
     Command {
         name: "Task list",
@@ -36,7 +42,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Toggle a `- [ ] ` task checkbox on the caret line or each line of the selection."),
+        description: Some(
+            "Toggle a `- [ ] ` task checkbox on the caret line or each line of the selection.",
+        ),
     },
     Command {
         name: "Heading",
@@ -63,7 +71,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Wrap the caret line or selection in a fenced code block, or unwrap it if already fenced."),
+        description: Some(
+            "Wrap the caret line or selection in a fenced code block, or unwrap it if already fenced.",
+        ),
     },
     Command {
         name: "Bold",
@@ -72,7 +82,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Toggle `**bold**` markup around the selection or the word at the caret."),
+        description: Some(
+            "Toggle `**bold**` markup around the selection or the word at the caret.",
+        ),
     },
     Command {
         name: "Italic",
@@ -81,7 +93,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Toggle `*italic*` markup around the selection or the word at the caret."),
+        description: Some(
+            "Toggle `*italic*` markup around the selection or the word at the caret.",
+        ),
     },
     Command {
         name: "Inline code",
@@ -90,7 +104,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Toggle `` `inline code` `` markup around the selection or the word at the caret."),
+        description: Some(
+            "Toggle `` `inline code` `` markup around the selection or the word at the caret.",
+        ),
     },
     Command {
         name: "Highlight",
@@ -99,7 +115,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Toggle `==highlight==` markup around the selection or the word at the caret."),
+        description: Some(
+            "Toggle `==highlight==` markup around the selection or the word at the caret.",
+        ),
     },
     Command {
         name: "Strikethrough",
@@ -108,7 +126,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Toggle `~~strikethrough~~` markup around the selection or the word at the caret."),
+        description: Some(
+            "Toggle `~~strikethrough~~` markup around the selection or the word at the caret.",
+        ),
     },
     Command {
         name: "Export as Word…",
@@ -135,7 +155,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
-        description: Some("Export the buffer to a `.pdf` file; markdown buffers only, native builds only."),
+        description: Some(
+            "Export the buffer to a `.pdf` file; markdown buffers only, native builds only.",
+        ),
     },
     Command {
         name: "Insert link…",
@@ -144,7 +166,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Summon the URL prompt for a markdown link — wraps the selection, edits the link under the caret, or inserts a fresh empty one."),
+        description: Some(
+            "Summon the URL prompt for a markdown link — wraps the selection, edits the link under the caret, or inserts a fresh empty one.",
+        ),
     },
     Command {
         name: "Save",
@@ -162,7 +186,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
-        description: Some("Read an unresolved external change: the differences, your version, and the version on disk, one at a time. Changes nothing."),
+        description: Some(
+            "Read an unresolved external change: the differences, your version, and the version on disk, one at a time. Changes nothing.",
+        ),
     },
     Command {
         name: "Save your version",
@@ -171,7 +197,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
-        description: Some("Settle an unresolved external change by writing the buffer over the file on disk."),
+        description: Some(
+            "Settle an unresolved external change by writing the buffer over the file on disk.",
+        ),
     },
     Command {
         name: "Use disk version",
@@ -180,7 +208,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
-        description: Some("Settle an unresolved external change by replacing the buffer with the file on disk, as one undoable edit."),
+        description: Some(
+            "Settle an unresolved external change by replacing the buffer with the file on disk, as one undoable edit.",
+        ),
     },
     Command {
         name: "Quit",
@@ -198,7 +228,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Open incremental search, prefilled from the selection or the last query, searching forward."),
+        description: Some(
+            "Open incremental search, prefilled from the selection or the last query, searching forward.",
+        ),
     },
     Command {
         name: "Search backward",
@@ -207,7 +239,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Open incremental search, prefilled from the selection or the last query, searching backward."),
+        description: Some(
+            "Open incremental search, prefilled from the selection or the last query, searching backward.",
+        ),
     },
     Command {
         name: "Find and replace…",
@@ -243,7 +277,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Copy the selection to the kill buffer, leaving the text and clearing the mark."),
+        description: Some(
+            "Copy the selection to the kill buffer, leaving the text and clearing the mark.",
+        ),
     },
     Command {
         name: "Cut",
@@ -261,7 +297,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Insert the OS clipboard's content — an image reference if the clipboard holds an image, otherwise text."),
+        description: Some(
+            "Insert the OS clipboard's content — an image reference if the clipboard holds an image, otherwise text.",
+        ),
     },
     Command {
         name: "Select all",
@@ -335,7 +373,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Move the caret to the start of the visual line (the logical line without a layout oracle)."),
+        description: Some(
+            "Move the caret to the start of the visual line (the logical line without a layout oracle).",
+        ),
     },
     Command {
         name: "Line end",
@@ -344,7 +384,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Move the caret to the end of the visual line (the logical line without a layout oracle)."),
+        description: Some(
+            "Move the caret to the end of the visual line (the logical line without a layout oracle).",
+        ),
     },
     Command {
         name: "Document start",
@@ -389,7 +431,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Move the caret down one visual line, following soft wraps and a sticky goal column."),
+        description: Some(
+            "Move the caret down one visual line, following soft wraps and a sticky goal column.",
+        ),
     },
     Command {
         name: "Previous line",
@@ -398,7 +442,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Move the caret up one visual line, following soft wraps and a sticky goal column."),
+        description: Some(
+            "Move the caret up one visual line, following soft wraps and a sticky goal column.",
+        ),
     },
     // WORD-DELETE, the mutating siblings of the word MOTIONS above — catalog rows
     // so `[keys]` can reach them (`delete_word_forward = "M-d"` reclaims the
@@ -416,7 +462,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Delete the token after the caret (a word or punctuation run) into the kill buffer; deletes the selection instead if one is active."),
+        description: Some(
+            "Delete the token after the caret (a word or punctuation run) into the kill buffer; deletes the selection instead if one is active.",
+        ),
     },
     Command {
         name: "Delete word backward",
@@ -425,7 +473,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Delete the token before the caret (a word or punctuation run) into the kill buffer; deletes the selection instead if one is active."),
+        description: Some(
+            "Delete the token before the caret (a word or punctuation run) into the kill buffer; deletes the selection instead if one is active.",
+        ),
     },
     Command {
         name: "Settings…",

@@ -63,7 +63,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
-        description: Some("Summon the version timeline for the current file — git log for a tracked file, saved snapshots otherwise."),
+        description: Some(
+            "Summon the version timeline for the current file — git log for a tracked file, saved snapshots otherwise.",
+        ),
     },
     Command {
         name: "Compare with version…",
@@ -72,7 +74,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
-        description: Some("Open the read-only prose diff comparing the current buffer against a past version."),
+        description: Some(
+            "Open the read-only prose diff comparing the current buffer against a past version.",
+        ),
     },
     Command {
         name: "Clean unused assets…",
@@ -81,7 +85,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
-        description: Some("Summon the list of orphaned image files under the project, for moving to the trash."),
+        description: Some(
+            "Summon the list of orphaned image files under the project, for moving to the trash.",
+        ),
     },
     Command {
         name: "Keep version…",
@@ -90,7 +96,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
-        description: Some("Prompt for a name, then record the current buffer text as a pinned history snapshot under it."),
+        description: Some(
+            "Prompt for a name, then record the current buffer text as a pinned history snapshot under it.",
+        ),
     },
     Command {
         name: "Last file",
@@ -99,7 +107,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Switch to the previously open file; a no-op with nothing to switch back to."),
+        description: Some(
+            "Switch to the previously open file; a no-op with nothing to switch back to.",
+        ),
     },
     Command {
         name: "New document",
@@ -117,7 +127,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
-        description: Some("Mark the built-in tutorial to be saved once a project folder is chosen, then open the project switcher."),
+        description: Some(
+            "Mark the built-in tutorial to be saved once a project folder is chosen, then open the project switcher.",
+        ),
     },
     Command {
         name: "Move…",
@@ -126,7 +138,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Summon the destination browser to move the current file to another folder."),
+        description: Some(
+            "Summon the destination browser to move the current file to another folder.",
+        ),
     },
     Command {
         name: "Rename note…",
@@ -144,7 +158,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Save a copy of the current file beside it, with a deduplicated name, and switch to editing the copy."),
+        description: Some(
+            "Save a copy of the current file beside it, with a deduplicated name, and switch to editing the copy.",
+        ),
     },
     // FINISH FILE: the emacsclient "server-edit" convention — save, notify any daemon
     // `--wait` client, and switch to the previously-open file. The emacs `C-x #`
@@ -160,7 +176,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
-        description: Some("Save the file, notify any daemon `--wait` client waiting on it, and switch to the previously open file."),
+        description: Some(
+            "Save the file, notify any daemon `--wait` client waiting on it, and switch to the previously open file.",
+        ),
     },
     Command {
         name: "Follow link",
@@ -169,7 +187,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Open the URL of the markdown link under the caret in the default browser, if the caret sits inside one."),
+        description: Some(
+            "Open the URL of the markdown link under the caret in the default browser, if the caret sits inside one.",
+        ),
     },
     Command {
         name: "Copy link destination",
@@ -268,7 +288,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Reset the page column to the buffer's own default width, clearing any sticky override."),
+        description: Some(
+            "Reset the page column to the buffer's own default width, clearing any sticky override.",
+        ),
     },
     Command {
         name: "Toggle debug",
@@ -297,7 +319,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Toggle collapse of the markdown section under the caret; view state only, never on the undo timeline."),
+        description: Some(
+            "Toggle collapse of the markdown section under the caret; view state only, never on the undo timeline.",
+        ),
     },
     Command {
         name: "Collapse other sections",
@@ -390,7 +414,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Toggle the active file's on-disk line ending between LF and CRLF; metadata only, never on the undo timeline."),
+        description: Some(
+            "Toggle the active file's on-disk line ending between LF and CRLF; metadata only, never on the undo timeline.",
+        ),
     },
     // ALIGN TABLE: re-pad the GFM table under the caret so its `|` line up (source
     // alignment, never a drawn grid). No default chord — the palette IS its entry
@@ -428,7 +454,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Compose a `mailto:` bug report to the maintainer, attaching the newest crash log's path (never its content) if one exists."),
+        description: Some(
+            "Compose a `mailto:` bug report to the maintainer, attaching the newest crash log's path (never its content) if one exists.",
+        ),
     },
     Command {
         name: "Download file",
@@ -437,7 +465,9 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: true,
-        description: Some("Download the active buffer's text as a file — the web build's export, since there is no real disk."),
+        description: Some(
+            "Download the active buffer's text as a file — the web build's export, since there is no real disk.",
+        ),
     },
     // CHECK FOR UPDATES: never a network fetch — records a LOCAL "last checked"
     // marker (best-effort, `updates::record_checked`) then hands off to the OS
@@ -454,6 +484,8 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
-        description: Some("Record a local last-checked marker and open the site's version-check page in the browser; never a background fetch."),
+        description: Some(
+            "Record a local last-checked marker and open the site's version-check page in the browser; never a background fetch.",
+        ),
     },
 ];
