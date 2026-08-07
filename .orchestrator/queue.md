@@ -171,6 +171,14 @@ well as here — **this item has already been answered twice by the user because
 decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
+- 🔵 **THE MENU BAR'S PADS DOUBLE ON A RETINA DISPLAY (item 323) — a deliberate appearance
+  change I could not put to anyone, and no capture at `--capture-dpi 1` can show it.**
+  `BAR_INSET_X` and `TITLE_PAD_X` going `Logical` means the bar's left inset and its two outer
+  title bands grow at DPI > 1; `DROP_PAD_X`/`DROP_PAD_Y` do the same to the dropdown card. **1× is
+  byte-identical.** The authored numbers are simply being honoured now — nothing was re-tuned —
+  but the >1× look has never been seen by a human. ⚠️ **The drawn bar is the default OFF macOS**,
+  so this wants a **Retina Linux or web** session, or `AWL_MENU_BAR_FORCE=on` locally. And the
+  **macOS dropdown is live-only**: no local run opens it on a real `NSMenu` path.
 - 🔵 **318's SHAPE IS THE ONE TO LOOK AT FIRST — it is your own call, delivered.**
   `gallery/item-318/before-Mangrove.png` → `after-Mangrove.png`, the world you photographed.
   Before, the blurred patch has vertical left and right edges; after, `ver. The`, `, while`, `is`
@@ -1969,7 +1977,31 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      for anything whose family you assert is already handled elsewhere — that is the claim most
      likely to be wrong. **Routing:** production tier.
 
-323. 🚧 CLAIMED (worktree item-324-menubar-forcing, deep tier — bundled 324+325+323+326) **FOUR MORE BARE `f32` PADS IN `menubar.rs`, SAME SHAPE AS 321 — and adding that file to
+323. ✅ **LANDED (merged 2026-08-07) — THE CENSUS FOUND SIX, NOT FOUR, AND TWO ARE LEGITIMATELY
+     PHYSICAL. The law's scope was the defect a third time.** Adding `src/menubar.rs` to item 242's
+     swept set enumerated `BAR_INSET_X`, `TITLE_PAD_X`, `DROP_PAD_X`, `DROP_PAD_Y` **plus
+     `EDGE_BLEED_PX` and `FLUSH_EPS`**, which no census above the lane had named.
+     ✅ **Logical (4), each with the usage evidence that decided it:** `BAR_INSET_X` (the x the
+     first title's glyphs draw from, added to offsets shaped at device metrics); `TITLE_PAD_X`
+     (only the two OUTER band edges — every interior edge is a midpoint between device-scaled glyph
+     extents and widens with DPI on its own, so a device-fixed pad shrinks the outer bands relative
+     to the interior ones); `DROP_PAD_X` and `DROP_PAD_Y` (card width/height off `m.char_width` and
+     a `Rows`-derived pitch, already-enrolled siblings in the same expressions).
+     ⚠️ **PHYSICAL (2), declared with their reasons — the case the brief warned about, and it was
+     real.** `EDGE_BLEED_PX` pushes a flush rect off-canvas far enough to hide what the
+     **rasterizer** feathers, and both quantities are device-fixed: the fill shader antialiases
+     with `smoothstep(-1.0, 1.0, d)` (~1px each side, framebuffer space) and `CORNER_RADIUS: 2.5`
+     is uploaded once at construction, **never multiplied**. Scaling it grows overdraw on Retina
+     while the thing it hides stays put. `FLUSH_EPS` is a half-**device**-pixel tolerance on "is
+     this edge on the boundary pixel", not breathing room — scaled, a rect 1.4 device px clear on a
+     3× display would start counting as flush, which is a different rect rather than a
+     better-tuned one.
+     ✅ **The law grading `EDGE_BLEED_PX` reads `CORNER_RADIUS` out of `src/selection.rs` rather
+     than restating it, so the Physical classification's PREMISE is graded** — raising the radius to
+     6.0 fails it by name. A presence floor sits beside the invariance check (zeroing
+     `TITLE_PAD_X` fails: *"invariance alone is satisfied by a deleted pad"*), and the dropdown
+     hit-test law now sweeps four DPI tiers instead of asserting at 1×. `drop_inner_origin` is the
+     one owner of the card pad, read by both the drawn row grid and the hit-test. **Original:** **FOUR MORE BARE `f32` PADS IN `menubar.rs`, SAME SHAPE AS 321 — and adding that file to
      the declaration law's sweep is the fix that finds them.** `BAR_INSET_X`, `TITLE_PAD_X`,
      `DROP_PAD_X` and `DROP_PAD_Y` are still untyped, and they are **added to device-scaled glyph
      positions** in `chrome/menubar.rs` and `chrome/menubar/dropdown.rs`. Found by item 321's
@@ -1988,7 +2020,34 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      default, so **run under the `MENU_BAR_ON` forcing** — an unforced run cannot see the subject.
      **Routing:** production tier.
 
-324. 🚧 CLAIMED (worktree item-324-menubar-forcing, deep tier — bundled 324+325+323+326) **GIVE `MENU_BAR_ON` A FORCING KNOB AND A GATE ARM — this is the durable fix for the whole
+324. ✅ **LANDED (merged 2026-08-07) — THE AXIS THAT CAUSED THIS REPO'S GATING CI RED IS NOW SWEPT BY
+     THE GATE.** `AWL_MENU_BAR_FORCE=on|off`, copied from `Convention::current()`: memoized
+     `OnceLock` env read, a pure `classify_force` beside it so every input shape is unit-swept,
+     inert unless set. **The knob moves the DEFAULT**, so `set_menu_bar_on`/`toggle` keep working —
+     what an ambient-restoring fixture needs. `platform_default(is_macos)` is split out as a pure
+     fn, which is what makes both arms gradable from one host.
+     ✅ **Proven past the tests:** `--screenshot`'s sidecar reports `menubar.shown` `false`
+     unforced, `true` under `on`, `false` under `off`; frame row 2 moves `(17,39,35)` →
+     `(24,52,46)`.
+     ✅ **MEASURED COST OF THE GATE ARM: ~1 SECOND, AND NOT ON THE CRITICAL PATH.** The arms ran at
+     elapsed **10–12 s** against conventions ending at **308 s**; all four share the target dir, so
+     Cargo's lock means only the first compiles. Either arm's failure suppresses the receipt with
+     both statuses preserved.
+     ⚠️ **WHAT THE ARM DOES NOT COVER, SAID PLAINLY:** it filters on test *names* containing
+     `menubar`/`menu_bar` — **31 of 3889** — and a whole-suite census under a tripled reserve found
+     **14 tests that observe the reserve without saying so in their name.** `--bin awl` means no
+     integration targets. The receipt's own text is unchanged, so a filtered arm widens no claim.
+     ✅ **`ci.yml` DELIBERATELY UNTOUCHED, and the reasoning holds:** CI's `linux` job calls
+     `native-gate.sh`, so both arms already run there on real Linux + lavapipe, and the local gate
+     runs both on real Metal. The one uncovered cell is **forced-ON render tests on virtualised
+     Metal**, which sits inside `mac (render::tests)` — tolerated red by design. Adding the filter
+     to the **gating** mac job would either gate on tolerated-red tests (8 of the 31 are
+     `render::tests`) or need a second skip list that would drift, on a job that has run its
+     30-minute ceiling out before.
+     ✅ **The missing law was written**, reading the forcing each `cargo` invocation actually
+     received: `on` and `off` exactly once each, and the canary plus both conventions with it
+     **unset** — a convention that inherited a forcing would make the axis a property of the
+     convention arms and sweep one branch twice. **Original:** **GIVE `MENU_BAR_ON` A FORCING KNOB AND A GATE ARM — this is the durable fix for the whole
      class, and the model already exists in the tree.** Item 317's closing words:
      *"today the only way to sweep the axis is editing a source file — which is why nobody ever
      did."*
@@ -2008,7 +2067,17 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      honest trade rather than the whole suite.
      **Routing:** production tier.
 
-325. 🚧 CLAIMED (worktree item-324-menubar-forcing, deep tier — bundled 324+325+323+326) **`src/config/tests.rs` ASSERTS A `cfg!` AGAINST THE IDENTICAL `cfg!` — a tautology that
+325. ✅ **LANDED (merged 2026-08-07) — the tautology is gone and BOTH halves fail on their own bug.**
+     `Config::menu_bar_on` now defers to `menubar::menu_bar_default()`. The law is split: (a) an
+     absent key gives the OWNER's answer, graded by the forcing arms; (b) the owner's two platform
+     arms are **distinct, and which way round**, asked through `platform_default`'s explicit
+     `is_macos` argument **so both are readable from a macOS host**.
+     ✅ **The mutation this law had never survived, run: flipping `MENU_BAR_DEFAULT_OTHER` to
+     `false` now fails** with *"the menu bar's two platform defaults must DIFFER — a bar that
+     defaults the same way everywhere makes every `menu_bar` law on this host a claim about
+     nothing, which is how a picker drawing zero candidate rows on Linux reached a gating CI run"*.
+     ⚠️ **And restoring the accessor's own `cfg!` is GREEN UNFORCED, red only under the forcing** —
+     that is the old tautology's exact blind spot, now covered. **Original:** **`src/config/tests.rs` ASSERTS A `cfg!` AGAINST THE IDENTICAL `cfg!` — a tautology that
      cannot fail on any host.** Found by item 317's census.
      `cfg.menu_bar_on() == cfg!(not(target_os = "macos"))` at `:596` and `:602`, while the subject
      is `config/model.rs:104`'s `self.menu_bar.unwrap_or(cfg!(not(target_os = "macos")))`.
@@ -2020,7 +2089,20 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      owner. **Verify:** mutation-prove by flipping the const and watching it go red — that is the
      whole point, and it is the mutation this law has never survived. **Routing:** production tier.
 
-326. 🚧 CLAIMED (worktree item-324-menubar-forcing, deep tier — bundled 324+325+323+326) **THE MENU BAR'S HEIGHT HAS TWO OWNERS, agreeing only by coincidence.**
+326. ✅ **LANDED (merged 2026-08-07) — one owner, and the law refuses a new bypass rather than
+     trusting visibility.** Owner: **`TextPipeline::menubar_reserve`**, holding the `menu_bar_on()`
+     gate and the LABEL-scaled line height; `chrome/menubar.rs` draws at `self.menubar_reserve()`
+     inside the branch where the bar is known on, **so the reserve IS the strip**.
+     `menubar::bar_height` narrows `pub` → `pub(crate)`. Consumers routed through it: the document
+     inset, the pipeline `hit_test`, the scroll viewport, `rects.rs`'s `card_y`, `layers.rs`,
+     `overlay.rs`, `overlay_shape.rs`, `rotated_location.rs`, `debug_text.rs`, `readout.rs`, the
+     capture sidecar — and now the drawn strip.
+     ✅ **Visibility alone would NOT refuse a bypass** (any `src/render` file could still call it),
+     so a law sweeps every non-test `.rs` under `src/` with a **no-wildcard** match, allow-listing
+     exactly one file with its reason. **Non-vacuous in three directions, all three watched
+     failing:** the drawn strip re-spelling `bar_height` itself, a stale allow-list entry (*"remove
+     the entry rather than leaving a closed bypass looking open"*), and an empty walk.
+     **Original:** **THE MENU BAR'S HEIGHT HAS TWO OWNERS, agreeing only by coincidence.**
      `render/geometry.rs:711` (the reserve) and `render/chrome/menubar.rs:82` (the drawn strip) each
      independently spell `bar_height(metrics.line_height * type_scale::LABEL)`. Item 317's ×3 probe
      drove a wedge between them and `chrome_panels::menu_bar_left_and_right_columns…` immediately
