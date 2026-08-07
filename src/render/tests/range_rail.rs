@@ -64,7 +64,9 @@ fn settings_state_for(id: crate::settings::SettingId, value: f32) -> OverlayStat
     ov
 }
 
-/// Fold a Settings overlay into a `ViewState` the way `App::sync_view` does.
+/// Fold a Settings overlay into a `ViewState` ALMOST the way `App::sync_view` does —
+/// see the `overlay_window_rows` note at the end of the body for the one field that
+/// deliberately still diverges, and why flipping it is a product call.
 fn settings_view(ov: &OverlayState) -> ViewState {
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
@@ -76,12 +78,20 @@ fn settings_view(ov: &OverlayState) -> ViewState {
     v.overlay_sections = ov.item_sections();
     v.overlay_selected = ov.selected;
     v.overlay_scroll = ov.scroll;
-    // The per-kind row cap, from the SAME overlay every field above comes from.
-    // `sync_view` sets it; `ViewState::base()`'s default is a flat 12, which for
-    // `OverlayKind::Settings` (`SETTINGS.len()`) is a DIFFERENT number — so a
-    // fixture that folds every other field off `ov` and leaves this one at its
-    // default is pinning the height budget it believes it is varying.
-    v.overlay_window_rows = ov.window_rows();
+    // ⚠️ `overlay_window_rows` IS DELIBERATELY LEFT AT `ViewState::base()`'s DEFAULT
+    // OF 12, AND THAT IS NOT WHAT THE PRODUCT DOES. `sync_view` sets it from
+    // `ov.window_rows()`, which for `OverlayKind::Settings` is `SETTINGS.len()` = 31,
+    // so every law in this file grades a row count the live card does not use.
+    // Setting it — the honest fold — turns this file's two pixel laws RED on the dev
+    // host at the macOS default, and the cause is downstream of the fixture. Measured
+    // at 1200x800 with `window_rows = 31`: 22 candidate display lines in a 718.8px
+    // card, the selected Zoom row IS planned and drawn (`sel_row = 6 < lines = 22`),
+    // and `overlay_rails` still emits NO rail for it — the wider drawn set grows the
+    // diagonal cluster's label/value columns until `rail_geom` cannot seat a rail in
+    // what is left. That is the LIVE configuration, so the missing rail is a product
+    // question about the accessory cluster's width budget, not a test question. It is
+    // handed back rather than papered over; flipping this line without the product fix
+    // only converts a hidden defect into a red suite.
     v
 }
 

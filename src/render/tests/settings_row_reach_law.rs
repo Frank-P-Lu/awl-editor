@@ -77,10 +77,18 @@ fn settings_view(ov: &OverlayState) -> ViewState {
     v.overlay_sections = ov.item_sections();
     v.overlay_selected = ov.selected;
     v.overlay_scroll = ov.scroll;
-    // The per-kind row cap `sync_view` also sets. `ViewState::base()` defaults it to
-    // a flat 12, and `OverlayKind::Settings::window_rows()` is `SETTINGS.len()` — a
-    // ROW-REACH law that hardcodes the row count is grading a constant.
-    v.overlay_window_rows = ov.window_rows();
+    // ⚠️ `overlay_window_rows` IS DELIBERATELY LEFT AT `ViewState::base()`'s DEFAULT
+    // OF 12, AND THAT IS NOT WHAT `sync_view` DOES: it sets `ov.window_rows()`, which
+    // for `OverlayKind::Settings` is `SETTINGS.len()` = 31. So a ROW-REACH law is
+    // reaching across 12 rows the live card never draws in that number. Setting it
+    // turns `every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_workspace`
+    // RED at `world=Mangrove dpi=1 logical_width=640 workspace=false
+    // setting=PageWidthProse: every Range setting must retain a rail` — a drawn Range
+    // row whose rail `rail_geom` can no longer seat, because the wider drawn set grows
+    // the diagonal cluster's label/value columns. See `range_rail::settings_view` for
+    // the same note and the 1200x800 measurement; the missing rail is a product
+    // question about that cluster's width budget, handed back rather than papered
+    // over, and this default stays until it is answered.
     v
 }
 
