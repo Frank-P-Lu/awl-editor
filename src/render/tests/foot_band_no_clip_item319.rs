@@ -115,6 +115,10 @@ fn every_real_tip() -> Vec<String> {
         .collect()
 }
 
+// `set_keybindings_tips` is the discoverability ledger's own native-only door
+// (`chrome/hud.rs`) — a headless/wasm build never populates it, so this law,
+// which is entirely about that footer, is native-only too.
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn the_keybindings_footer_never_clips_for_any_real_ledger_tip() {
     let _g = crate::testlock::serial();
@@ -193,7 +197,8 @@ fn the_keybindings_footer_never_clips_for_any_real_ledger_tip() {
         "every graded cell must have passed the presence floor too"
     );
     assert_eq!(
-        excluded, 8, // 2 worlds (Potoroo, Firetail) x 2 dpi x 2 bar states
+        excluded,
+        8, // 2 worlds (Potoroo, Firetail) x 2 dpi x 2 bar states
         "the font exclusion's own count moved — either a world's chrome font \
          changed to/from {KNOWN_UNFIXED_FONT_METRICS_EXCLUSION:?} (re-measure \
          before trusting this sweep either way) or the roster grew/shrank"
