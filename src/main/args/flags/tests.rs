@@ -231,8 +231,14 @@ fn help_prints_exactly_the_shown_flags() {
 fn a_mode_renders_as_an_invocation_and_an_option_as_an_indented_line() {
     let _g = crate::testlock::serial();
     let text = help_text();
-    assert!(text.starts_with(USAGE_LINE), "the first line names awl itself");
-    assert!(text.contains(OPTIONS_HEADING), "the options block keeps its heading");
+    assert!(
+        text.starts_with(USAGE_LINE),
+        "the first line names awl itself"
+    );
+    assert!(
+        text.contains(OPTIONS_HEADING),
+        "the options block keeps its heading"
+    );
     let heading_at = text
         .find(OPTIONS_HEADING)
         .expect("the options heading is present");
@@ -267,7 +273,11 @@ fn every_summary_is_meaningful_and_fully_substituted() {
     let _g = crate::testlock::serial();
     for f in FLAGS {
         let s = f.summary_text();
-        assert!(!s.trim().is_empty(), "`{}` carries no description", f.name());
+        assert!(
+            !s.trim().is_empty(),
+            "`{}` carries no description",
+            f.name()
+        );
         assert_eq!(s.trim(), s, "`{}`'s description is not trimmed", f.name());
         assert!(
             !s.contains('{') && !s.contains('}'),
@@ -321,7 +331,9 @@ fn the_worlds_token_expands_only_where_the_roster_writes_it() {
 #[test]
 fn operand_usage_brackets_exactly_the_optional_operands() {
     assert_eq!(
-        lookup("--pack-icns").expect("--pack-icns is a flag").operand_usage(),
+        lookup("--pack-icns")
+            .expect("--pack-icns is a flag")
+            .operand_usage(),
         "[DIR]"
     );
     assert_eq!(
@@ -331,11 +343,15 @@ fn operand_usage_brackets_exactly_the_optional_operands() {
         "OUT.png"
     );
     assert_eq!(
-        lookup("--capture-held").expect("--capture-held is a flag").operand_usage(),
+        lookup("--capture-held")
+            .expect("--capture-held is a flag")
+            .operand_usage(),
         "DIR \"0,30,60,90\" OUT.png"
     );
     assert_eq!(
-        lookup("--debug").expect("--debug is a flag").operand_usage(),
+        lookup("--debug")
+            .expect("--debug is a flag")
+            .operand_usage(),
         "",
         "a flag with no operands prints no operands"
     );

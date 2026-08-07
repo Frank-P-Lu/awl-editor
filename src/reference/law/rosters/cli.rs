@@ -57,7 +57,8 @@ fn every_flag_lands_in_the_sub_table_its_roster_row_selects() {
             .filter(|part| part.contains(&row))
             .count();
         assert_eq!(
-            elsewhere, 1,
+            elsewhere,
+            1,
             "`{}` appears in {elsewhere} sub-tables; each flag belongs to exactly one",
             f.name()
         );
@@ -132,10 +133,7 @@ fn every_default_a_flag_states_matches_the_owner_of_that_default() {
         ),
         (
             FlagId::SoakGpuSeconds,
-            format!(
-                "default {}",
-                crate::soak_gpu::DEFAULT_DURATION.as_secs()
-            ),
+            format!("default {}", crate::soak_gpu::DEFAULT_DURATION.as_secs()),
         ),
     ];
     for (id, needle) in claims {
@@ -188,10 +186,14 @@ fn every_default_a_flag_states_matches_the_owner_of_that_default() {
     }
 }
 
-/// `--measure`'s description claims it IMPLIES page mode. Asked on both sides of
-/// that implication: page mode OFF, then the flag's own effect, then page mode
-/// ON. A one-sided check would pass against a build where page mode was already
-/// on for an unrelated reason.
+/// `--measure`'s description claims it IMPLIES page mode. Both halves of the
+/// implication are asked, and the FIRST half is the one that gives the law
+/// teeth: setting the measure ALONE must leave page mode off, so the arm's
+/// second call is load-bearing rather than a redundant line someone could delete
+/// while this law kept passing. (What no unit seam reaches is the arm itself —
+/// `parse_args` reads `std::env::args` and loads the real config; the arm's own
+/// two calls are confirmed end-to-end by an ordinary `--screenshot --measure`
+/// capture.)
 #[test]
 fn measure_turns_page_mode_on_as_its_description_claims() {
     let _g = crate::testlock::serial();
@@ -207,8 +209,15 @@ fn measure_turns_page_mode_on_as_its_description_claims() {
     let (was_on, was_measure) = (crate::page::page_on(), crate::page::measure());
     crate::page::set_page_on(false);
     assert!(!crate::page::page_on(), "the precondition is page mode OFF");
-    // Exactly what the `FlagId::Measure` arm performs.
+    // The arm's FIRST call, alone. Page mode must still be off — otherwise the
+    // implication the description promises would hold for free.
     crate::page::set_measure(55);
+    assert!(
+        !crate::page::page_on(),
+        "setting a measure turns page mode on by itself, so `--measure`'s arm could \
+         drop its `set_page_on` and this law would never notice"
+    );
+    // The arm's SECOND call, which is what makes the promise true.
     crate::page::set_page_on(true);
     let (now_on, now_measure) = (crate::page::page_on(), crate::page::measure());
     crate::page::set_measure(was_measure);
