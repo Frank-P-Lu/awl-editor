@@ -55,9 +55,9 @@ Commands are grouped by the same task categories the palette browses.
 | Duplicate note | Save a copy of the file beside it, deduplicated, and switch to editing the copy. | — | — | Native, browser |
 | Finish file | Save the file, notify any daemon `--wait` client, and switch to the prior file. | `⌘W` | `Ctrl+W` | Native |
 | Download file | Download the buffer's text as a file — the web export, since there is no real disk. | — | — | Browser |
-| Export as Word… | Export the buffer to a `.docx` file; markdown buffers only. | — | — | Native, browser |
-| Export as HTML… | Export the buffer to an `.html` file; markdown buffers only. | — | — | Native, browser |
-| Export as PDF… | Export the buffer to a `.pdf` file; markdown buffers only, native builds only. | — | — | Native |
+| Export as Word… | Choose a folder, then export as `.docx`; markdown buffers only. | — | — | Native, browser |
+| Export as HTML… | Choose a folder, then export as `.html`; markdown buffers only. | — | — | Native, browser |
+| Export as PDF… | Choose a folder, then export as `.pdf`; markdown buffers only, native builds only. | — | — | Native |
 | Save | Save the buffer to disk. | `⌘S` | `Ctrl+S` | Native, browser |
 | Review the change | Show an unresolved change: differences, your version, disk version. Changes nothing. | — | — | Native |
 | Save your version | Settle an unresolved external change by writing the buffer over the file on disk. | — | — | Native |

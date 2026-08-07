@@ -210,7 +210,7 @@ flag_roster! {
         "milliseconds of virtual clock between --screenshot-frames frames";
     SearchReplace: &["--search-replace"], Options, Hidden, &[],
         "open the search panel's labelled replace row — the fresh Cmd-R state";
-    MenuOpen: &["--menu-open"], Options, Hidden, &[Operand::opt("N")],
+    MenuOpen: &["--menu-open"], Options, Hidden, &[Operand::opt_numeric("N")],
         "show the menu bar and drop menu N's dropdown (0 = the App menu)";
     Lifetime: &["--lifetime"], Options, Hidden, &[],
         concat!(
