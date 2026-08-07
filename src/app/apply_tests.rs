@@ -16,7 +16,7 @@ fn pdf_export_writes_saved_sibling_and_scratch_active_folder_without_other_forma
         .replace_buffer(Buffer::from_str("# Saved PDF\n\nSibling export body.\n"));
     saved.document.set_path(PathBuf::from("/docs/draft.md"));
     crate::fs::with_fs(Arc::new(saved_fs.clone()), || {
-        saved.export_document(crate::export::Format::Pdf);
+        saved.export_document(crate::export::Format::Pdf, None);
         let pdf = saved_fs.read(Path::new("/docs/draft.pdf")).unwrap();
         assert!(pdf.starts_with(b"%PDF-1.7\n"));
         assert!(!saved_fs.exists(Path::new("/docs/draft.docx")));
@@ -30,7 +30,7 @@ fn pdf_export_writes_saved_sibling_and_scratch_active_folder_without_other_forma
         "# Scratch PDF\n\nActive-folder export body.\n",
     ));
     crate::fs::with_fs(Arc::new(scratch_fs.clone()), || {
-        scratch.export_document(crate::export::Format::Pdf);
+        scratch.export_document(crate::export::Format::Pdf, None);
         let target = Path::new("/notes/scratch-pdf.pdf");
         let pdf = scratch_fs.read(target).unwrap();
         assert!(pdf.starts_with(b"%PDF-1.7\n"));

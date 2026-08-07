@@ -46,24 +46,69 @@ impl App {
     /// as on the keyboard door; this handler adds no trailing repaint path.
     pub(super) fn handle_menu_event(&mut self, id: String, exit: &dyn schedule::Exit) {
         // A row `crate::menu::NATIVE_PANEL_IDS` claims for the platform opens a
-        // real AppKit panel instead of dispatching its routed action — today
-        // File ▸ "Browse files…", whose `NSOpenPanel` is the macOS convention
-        // and dodges the in-app-overlay path entirely. On OK it loads the chosen
-        // path through the SAME `load_path` every open uses (which itself
-        // syncs); then paint, per the post-`apply` pattern below. Cancel /
-        // off-main-thread is a calm no-op. The keyboard `C-x j` in-app browse is
-        // UNCHANGED — only the MENU's row is redirected.
+        // real AppKit panel instead of dispatching its routed action — the macOS
+        // convention winning over the in-app overlay, and dodging that repaint
+        // path entirely. The keyboard chords and the Cmd-P palette rows for the
+        // same commands are UNCHANGED on every platform — only the MENU's rows
+        // are redirected.
         if crate::menu::opens_native_panel(&id) {
-            if let Some(path) = crate::mac_chrome::pick_file_to_open() {
-                self.load_path(path);
-                self.request_frame();
-            }
+            self.run_native_panel(&id, exit);
             return;
         }
         if let Some(action) = crate::menu::resolve(&id) {
             // MENU door: a click in the macOS menu bar (a SLOW discovery surface) —
             // attributed to `Door::Menu` in the silent usage ledger.
             self.apply(action, false, exit, crate::stats::Door::Menu);
+        }
+    }
+
+    /// Answer one `NATIVE_PANEL_IDS` row with its AppKit panel. The id → panel
+    /// routing goes through `crate::menu::resolve`'s existing table rather than a
+    /// second id list, so a row can only reach a panel here if the roster already
+    /// resolves it to a catalog action.
+    ///
+    /// ⚠️ **EVERY PANEL HERE IS APPLICATION-MODAL** — `runModal` blocks the
+    /// process main thread until a human closes it. The export door carries the
+    /// surface gate inside `export_via_platform_panel` (its doc says why); the
+    /// open door predates it and is reachable only from a real `NSMenu` click,
+    /// which cannot happen without a window.
+    ///
+    /// An id the table claims but this match does not place falls back to the
+    /// routed action, so a roster edit degrades to the in-app surface rather than
+    /// to nothing.
+    fn run_native_panel(&mut self, id: &str, exit: &dyn schedule::Exit) {
+        use crate::export::Format;
+        use crate::keymap::Action;
+        let format = match crate::menu::resolve(id) {
+            // File ▸ "Browse files…" → `NSOpenPanel`. On OK it loads the chosen
+            // path through the SAME `load_path` every open uses (which itself
+            // syncs); then paint, per the post-`apply` pattern above. Cancel /
+            // off-main-thread is a calm no-op.
+            Some(Action::OpenBrowse) => {
+                if let Some(path) = crate::mac_chrome::pick_file_to_open() {
+                    self.load_path(path);
+                    self.request_frame();
+                }
+                return;
+            }
+            Some(Action::ExportWord) => Some(Format::Docx),
+            Some(Action::ExportHtml) => Some(Format::Html),
+            Some(Action::ExportPdf) => Some(Format::Pdf),
+            _ => None,
+        };
+        match format {
+            // The write, the notice and the Finder reveal are the ordinary export
+            // path — only the destination came from somewhere else.
+            Some(format) => {
+                if self.export_via_platform_panel(format) {
+                    self.request_frame();
+                }
+            }
+            None => {
+                if let Some(action) = crate::menu::resolve(id) {
+                    self.apply(action, false, exit, crate::stats::Door::Menu);
+                }
+            }
         }
     }
 }

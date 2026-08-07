@@ -21,6 +21,7 @@ enum_with_all! {
         InsertLink,
         KeepName,
         Context,
+        ExportDest,
     }
 }
 
@@ -58,6 +59,7 @@ impl OverlayKind {
             OverlayKind::InsertLink => "insert_link",
             OverlayKind::KeepName => "keep_version",
             OverlayKind::Context => "context",
+            OverlayKind::ExportDest => "export_dest",
         }
     }
 
@@ -68,6 +70,7 @@ impl OverlayKind {
             | OverlayKind::Browse
             | OverlayKind::Project
             | OverlayKind::MoveDest
+            | OverlayKind::ExportDest
             | OverlayKind::Spell
             | OverlayKind::History
             | OverlayKind::Command
@@ -105,6 +108,7 @@ impl OverlayKind {
             | OverlayKind::CjkLang
             | OverlayKind::Date
             | OverlayKind::MoveDest
+            | OverlayKind::ExportDest
             | OverlayKind::Keybindings
             | OverlayKind::Settings
             | OverlayKind::Assets
@@ -114,10 +118,24 @@ impl OverlayKind {
         }
     }
 
+    /// A DESTINATION NAVIGATOR: a folders-only walk of the active root whose
+    /// accept names the folder you stopped on. Both members share the entire
+    /// navigation grammar — `→` descends, `←` ascends, `↵` takes the highlighted
+    /// folder (or a typed name that does not exist yet) — and differ only in
+    /// WHAT lands there, which is why every navigation site asks this instead of
+    /// naming one kind and growing a second branch later.
+    pub fn is_folder_destination(self) -> bool {
+        matches!(self, OverlayKind::MoveDest | OverlayKind::ExportDest)
+    }
+
     pub fn hides_dotfiles(self) -> bool {
         matches!(
             self,
-            OverlayKind::Goto | OverlayKind::Browse | OverlayKind::MoveDest | OverlayKind::Project
+            OverlayKind::Goto
+                | OverlayKind::Browse
+                | OverlayKind::MoveDest
+                | OverlayKind::ExportDest
+                | OverlayKind::Project
         )
     }
 
@@ -155,6 +173,15 @@ impl OverlayKind {
             ],
             OverlayKind::MoveDest => vec![
                 enter("move here"),
+                key("\u{2192}", "open"),
+                key("\u{2190}", "up"),
+            ],
+            // THE EXPORT DESTINATION. The same folder-navigator grammar as the
+            // move destination above, and the same three keys — the verb in the
+            // accept cell is the only difference, because the only difference is
+            // what lands in the folder you stop on.
+            OverlayKind::ExportDest => vec![
+                enter("export here"),
                 key("\u{2192}", "open"),
                 key("\u{2190}", "up"),
             ],
@@ -224,6 +251,9 @@ impl OverlayKind {
             OverlayKind::Spell => "no suggestions",
             OverlayKind::Browse => "this folder is empty",
             OverlayKind::Goto | OverlayKind::Project | OverlayKind::MoveDest => "no files here",
+            // A destination list holds FOLDERS only, so "no files here" would name
+            // the wrong absence.
+            OverlayKind::ExportDest => "no folders here",
             OverlayKind::Assets => "no unused assets",
             OverlayKind::Theme
             | OverlayKind::Caret
@@ -248,6 +278,10 @@ impl OverlayKind {
             OverlayKind::Theme => "themes",
             OverlayKind::Caret => "caret style",
             OverlayKind::MoveDest => "move note",
+            // Names the QUESTION the list answers rather than the verb that
+            // brought you here: every row is a folder, and reading the title
+            // into the highlighted row completes the sentence.
+            OverlayKind::ExportDest => "export to",
             OverlayKind::Dictionary => "dictionary",
             OverlayKind::CjkLang => "ambiguous cjk",
             OverlayKind::Date => "date format",
@@ -276,6 +310,7 @@ impl OverlayKind {
             | OverlayKind::Theme
             | OverlayKind::Caret
             | OverlayKind::MoveDest
+            | OverlayKind::ExportDest
             | OverlayKind::Dictionary
             | OverlayKind::CjkLang
             | OverlayKind::Date

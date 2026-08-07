@@ -752,12 +752,17 @@ fn deferred_effect_matches(action: &Action, effect: &Effect) -> bool {
         Action::CheckForUpdates => effect == &Effect::CheckForUpdates,
         Action::DuplicateNote => effect == &Effect::DuplicateNote,
         Action::InsertDate => effect == &Effect::InsertDate,
-        Action::ExportWord => effect == &Effect::Export(crate::export::Format::Docx),
-        Action::ExportHtml => effect == &Effect::Export(crate::export::Format::Html),
-        #[cfg(not(target_arch = "wasm32"))]
-        Action::ExportPdf => effect == &Effect::Export(crate::export::Format::Pdf),
-        #[cfg(target_arch = "wasm32")]
-        Action::ExportPdf => effect == &Effect::None,
+        // An export on a NATIVE build summons the destination navigator and
+        // emits nothing; the effect that writes comes later, from that card's
+        // accept. `actions::tests::export_gate` owns the real law over both
+        // halves — this sweep only asserts the dispatch does not panic.
+        Action::ExportWord | Action::ExportHtml | Action::ExportPdf => {
+            if crate::actions::export_picks_destination(crate::commands::Platform::current()) {
+                effect == &Effect::None
+            } else {
+                matches!(effect, Effect::Export(_, None) | Effect::None)
+            }
+        }
         other => panic!("{other:?} classified Deferred but has no effect check"),
     }
 }

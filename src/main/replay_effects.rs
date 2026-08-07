@@ -238,7 +238,7 @@ impl<'a> ReplaySession<'a> {
             | actions::Effect::FollowLink(_)
             | actions::Effect::ReportProblem
             | actions::Effect::DownloadFile
-            | actions::Effect::Export(_)
+            | actions::Effect::Export(_, _)
             | actions::Effect::CheckForUpdates
             | actions::Effect::CopyPulse
             | actions::Effect::SettingRangeStep { .. }

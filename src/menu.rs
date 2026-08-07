@@ -126,30 +126,14 @@ const FILE_ITEMS: &[Routed] = &[
         label: "Save and return",
         icon: true,
     },
-    // The catalog `command` keeps its ellipsis (matches the Cmd-P palette
-    // name, and `resolve()` looks the row up by this exact string) but the
-    // File-menu LABEL drops it: export completes on the spot today, exactly
-    // like Save and Duplicate file — see `menu::ellipsis_law` for the
-    // convention this keeps true. A future real save surface earns the
-    // ellipsis back on its own commit, the same way its own row would.
-    Routed {
-        id: "awl.export_pdf",
-        command: "Export as PDF…",
-        label: "Export as PDF",
-        icon: false,
-    },
-    Routed {
-        id: "awl.export_word",
-        command: "Export as Word…",
-        label: "Export as Word",
-        icon: false,
-    },
-    Routed {
-        id: "awl.export_html",
-        command: "Export as HTML…",
-        label: "Export as HTML",
-        icon: false,
-    },
+    // THE THREE EXPORT ROWS CARRY THE ELLIPSIS AGAIN, and `menu::ellipsis_law`
+    // is what re-earned it: an export now asks WHERE before it writes — the
+    // destination navigator on every platform's shared core, and `NSSavePanel`
+    // from this menu on macOS. See `ellipsis_law`'s module doc for the platform
+    // the one static string still over-promises to.
+    r("awl.export_pdf", "Export as PDF…"),
+    r("awl.export_word", "Export as Word…"),
+    r("awl.export_html", "Export as HTML…"),
 ];
 
 /// The menu ids native macOS answers with a REAL AppKit PANEL instead of
@@ -167,6 +151,14 @@ const FILE_ITEMS: &[Routed] = &[
 const NATIVE_PANEL_IDS: &[&str] = &[
     // File ▸ "Browse files…" → `NSOpenPanel`.
     "awl.open",
+    // File ▸ the three "Export as …" rows → `NSSavePanel`, opened at the folder
+    // and under the name the destination owner would have chosen on its own
+    // (`app::files::export::export_target`). The shared core's own answer for the
+    // same commands — the `ExportDest` navigator — is what the keyboard and the
+    // palette still reach, and what the drawn menu bar reaches on Linux and web.
+    "awl.export_pdf",
+    "awl.export_word",
+    "awl.export_html",
 ];
 
 /// Whether the native macOS menu answers `id` with an AppKit panel of its own.

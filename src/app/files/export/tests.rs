@@ -71,7 +71,7 @@ fn the_export_destination_is_unchanged_by_its_extraction_on_both_sides_of_the_pa
     for format in every_format() {
         for (doc_path, label) in cases {
             let want = destination_the_old_way(doc_path, root, "scratch", format);
-            let got = export_target(doc_path, root, "scratch", format);
+            let got = export_target(doc_path, root, "scratch", format, None);
             assert_eq!(
                 (got.path.clone(), got.show_full),
                 want,
@@ -94,6 +94,7 @@ fn a_saved_document_exports_beside_itself_and_the_notice_needs_no_folder() {
             std::path::Path::new("/w/other"),
             "ignored",
             format,
+            None,
         );
         assert_eq!(
             target.path,
@@ -115,7 +116,13 @@ fn a_saved_document_exports_beside_itself_and_the_notice_needs_no_folder() {
 #[test]
 fn a_path_less_buffer_exports_into_the_active_folder_and_the_notice_says_where() {
     for format in every_format() {
-        let target = export_target(None, std::path::Path::new("/w/proj"), "quick-note", format);
+        let target = export_target(
+            None,
+            std::path::Path::new("/w/proj"),
+            "quick-note",
+            format,
+            None,
+        );
         assert_eq!(
             target.path,
             std::path::PathBuf::from(format!("/w/proj/quick-note.{}", format.ext())),
@@ -153,6 +160,7 @@ fn a_headless_app_writes_the_export_at_the_destination_with_the_emitted_bytes() 
                 std::path::Path::new("/w/proj"),
                 "draft",
                 format,
+                None,
             )
             .path;
             let want_bytes = crate::export::to_bytes(
@@ -162,7 +170,7 @@ fn a_headless_app_writes_the_export_at_the_destination_with_the_emitted_bytes() 
                     doc_dir: Some(std::path::PathBuf::from("/w/proj")),
                 },
             );
-            app.export_document(format);
+            app.export_document(format, None);
             let written = mem
                 .read(&want_path)
                 .unwrap_or_else(|e| panic!("{}: nothing at {want_path:?}: {e}", format.ext()));
@@ -216,5 +224,153 @@ fn a_headless_app_never_reveals_the_export_in_the_platform_file_viewer() {
             !app.reveal_export(&doc),
             "a surface-less App must not reach the platform file viewer",
         );
+    });
+}
+
+/// A FOLDER CHOSEN IN THE NAVIGATOR wins over both defaults, keeps the
+/// document's own stem, and — because it is not the folder the document lives in
+/// — is spoken in full. Swept over both sides of the path axis, since the stem
+/// rule differs there and a saved-only fixture could not see it.
+///
+/// MUTATION TARGET: drop the `dest_dir` arm from `export_target` (falling back to
+/// the sibling) and this fails by name on the path; make `ExportTarget::at`
+/// return a constant and it fails on `show_full`.
+#[test]
+fn a_chosen_folder_wins_over_both_defaults_and_the_notice_says_where() {
+    let root = std::path::Path::new("/w/proj");
+    let saved = std::path::PathBuf::from(DOC);
+    for format in every_format() {
+        let got = export_target(Some(saved.as_path()), root, "ignored", format, Some("out"));
+        assert_eq!(
+            got.path,
+            std::path::PathBuf::from(format!("/w/proj/out/draft.{}", format.ext())),
+            "{}: a chosen folder takes the document's own stem",
+            format.ext(),
+        );
+        assert!(
+            got.show_full,
+            "{}: a folder that is not the document's own must be spoken in full",
+            format.ext(),
+        );
+
+        let fresh = export_target(None, root, "quick-note", format, Some("out"));
+        assert_eq!(
+            fresh.path,
+            std::path::PathBuf::from(format!("/w/proj/out/quick-note.{}", format.ext())),
+            "{}: a path-less buffer keeps its derived stem inside the chosen folder",
+            format.ext(),
+        );
+    }
+}
+
+/// THE NOTICE RULE IS A RELATION, NOT A FLAG PER ARM: choosing the folder the
+/// document already lives in — which the navigator lets you do, by accepting at
+/// the level you started on — must read exactly like the sibling default, bare
+/// filename and all. This is the case a per-arm flag got wrong: it is a CHOSEN
+/// destination that must NOT be spoken in full.
+///
+/// MUTATION TARGET: replace `ExportTarget::at`'s comparison with `dest_dir
+/// .is_some()` and this fails by name while every other law here stays green.
+#[test]
+fn choosing_the_documents_own_folder_reads_exactly_like_the_sibling_default() {
+    let saved = std::path::PathBuf::from(DOC);
+    for format in every_format() {
+        let chosen = export_target(
+            Some(saved.as_path()),
+            std::path::Path::new("/w"),
+            "ignored",
+            format,
+            Some("proj"),
+        );
+        let default = export_target(
+            Some(saved.as_path()),
+            std::path::Path::new("/w"),
+            "ignored",
+            format,
+            None,
+        );
+        assert_eq!(
+            (chosen.path.clone(), chosen.show_full),
+            (default.path.clone(), default.show_full),
+            "{}: the same folder by two routes must produce the same destination \
+             and the same notice",
+            format.ext(),
+        );
+        assert!(
+            !chosen.show_full,
+            "{}: PRESENCE — if both sides were `true` the equality above would \
+             hold while the rule was inverted",
+            format.ext(),
+        );
+    }
+}
+
+/// A HEADLESS `App` WRITES INTO THE CHOSEN FOLDER, creating it if it does not
+/// exist — the navigator accepts a typed name that is not on disk yet, so this is
+/// a reachable state and not a defensive one. Tier 2 over the `InMemoryFs` seam.
+#[test]
+fn a_headless_app_writes_the_export_into_the_chosen_folder_and_names_the_whole_path() {
+    let _g = crate::testlock::serial();
+    let doc = std::path::PathBuf::from(DOC);
+    let mem = InMemoryFs::new().with_file(doc.clone(), BODY);
+    let fake = Arc::new(mem.clone());
+    crate::fs::with_fs(fake, || {
+        for format in every_format() {
+            let mut app = App::new_hermetic(
+                Some(doc.clone()),
+                std::path::PathBuf::from("/w/proj"),
+                Config::empty(),
+            );
+            app.export_document(format, Some("exports/final"));
+            let want =
+                std::path::PathBuf::from(format!("/w/proj/exports/final/draft.{}", format.ext()));
+            assert!(
+                mem.read(&want).is_ok(),
+                "{}: nothing at {want:?} — the chosen folder was not created or not used",
+                format.ext(),
+            );
+            let spoken = format!("exported {}", want.display());
+            assert_eq!(
+                app.frame.notice().text(),
+                Some(spoken.as_str()),
+                "{}: the toast names the whole path of a folder the writer chose",
+                format.ext(),
+            );
+        }
+    });
+}
+
+/// THE MODAL GATE. `NSSavePanel::runModal` blocks the process main thread until a
+/// human closes it, so a surfaceless `App` reaching the panel would hang
+/// `cargo test` and `--screenshot-app` forever. Gated on a real surface, exactly
+/// as the Finder reveal is — one rule, two live-only doors.
+///
+/// MUTATION TARGET: drop the `frame.gpu().is_none()` early return in
+/// `export_via_platform_panel` and this fails by name. It is also the one law
+/// that would notice the regression behaviourally, in the worst possible way: the
+/// suite would stop producing output instead of failing.
+#[test]
+fn a_headless_app_never_opens_the_platform_save_panel() {
+    let _g = crate::testlock::serial();
+    let doc = std::path::PathBuf::from(DOC);
+    let fake = Arc::new(InMemoryFs::new().with_file(doc.clone(), BODY));
+    crate::fs::with_fs(fake, || {
+        let mut app = App::new_hermetic(
+            Some(doc.clone()),
+            std::path::PathBuf::from("/w/proj"),
+            Config::empty(),
+        );
+        assert!(
+            app.frame.gpu().is_none(),
+            "PRESENCE: a hermetic App has no surface — without this the gate below \
+             is untested rather than satisfied",
+        );
+        for format in every_format() {
+            assert!(
+                !app.export_via_platform_panel(format),
+                "{}: a surface-less App must not reach a main-thread modal",
+                format.ext(),
+            );
+        }
     });
 }

@@ -384,20 +384,59 @@ fn export_requires_markdown_notice() -> Effect {
     Effect::Notice(NoticeEffect::Sticky(EXPORT_REQUIRES_MARKDOWN.to_string()))
 }
 
+/// DOES AN EXPORT ASK WHERE BEFORE IT WRITES? A native build writes a real file
+/// into a folder the writer chooses, so the destination navigator
+/// ([`crate::overlay::OverlayKind::ExportDest`]) opens first and the File-menu
+/// label carries the ellipsis that promises it. The web build hands the bytes to
+/// the browser's own download, which owns where they land — there is nothing to
+/// choose, so no surface opens.
+///
+/// PLATFORM-PARAMETERISED rather than `cfg!`-shaped, on
+/// `commands::Platform::current`'s own pattern: both answers are then assertable
+/// from one native test run, so the arm this host does not compile is still
+/// swept. ⚠️ The label is ONE static string for both platforms
+/// (`menu::FILE_ITEMS`), so the web build's ellipsis over-promises — see
+/// `menu::ellipsis_law` for the decision and what it costs.
+pub fn export_picks_destination(platform: crate::commands::Platform) -> bool {
+    match platform {
+        crate::commands::Platform::Native => true,
+        crate::commands::Platform::Web => false,
+    }
+}
+
+/// Begin one export: on a platform that picks a destination, summon the
+/// folders-only navigator with `format` riding the card; otherwise write
+/// immediately at the destination the pure owner derives.
+///
+/// A navigator the level supplier declines to build leaves the editor and
+/// exports nothing, exactly as `Action::MoveFile` does — the two destination
+/// verbs share one failure shape.
+fn begin_export(ctx: &mut ActionCtx, format: crate::export::Format) -> Effect {
+    if !export_picks_destination(crate::commands::Platform::current()) {
+        return Effect::Export(format, None);
+    }
+    let card = (ctx.browse_to)(crate::overlay::OverlayKind::ExportDest, None).map(|mut card| {
+        card.export_format = Some(format);
+        card
+    });
+    ctx.journey.enter(card);
+    Effect::None
+}
+
 fn apply_export_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     let effect = match action {
         Action::ExportWord if ctx.buffer.is_markdown() => {
-            Effect::Export(crate::export::Format::Docx)
+            begin_export(ctx, crate::export::Format::Docx)
         }
         Action::ExportHtml if ctx.buffer.is_markdown() => {
-            Effect::Export(crate::export::Format::Html)
+            begin_export(ctx, crate::export::Format::Html)
         }
         Action::ExportWord | Action::ExportHtml => export_requires_markdown_notice(),
         Action::ExportPdf => {
             #[cfg(not(target_arch = "wasm32"))]
             {
                 if ctx.buffer.is_markdown() {
-                    Effect::Export(crate::export::Format::Pdf)
+                    begin_export(ctx, crate::export::Format::Pdf)
                 } else {
                     export_requires_markdown_notice()
                 }

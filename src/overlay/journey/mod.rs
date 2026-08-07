@@ -127,6 +127,7 @@ impl OverlayKind {
             | OverlayKind::CjkLang
             | OverlayKind::Date
             | OverlayKind::MoveDest
+            | OverlayKind::ExportDest
             | OverlayKind::Command
             | OverlayKind::Spell
             | OverlayKind::Keybindings
@@ -247,14 +248,32 @@ impl Journey {
     /// hand-carried breadcrumb snapshot/re-apply pair, which had to be wired at
     /// each rebuild seam and silently dropped the config key at any seam
     /// nobody remembered.
-    pub fn relevel(&mut self, next: OverlayState) {
+    ///
+    /// A LEVEL IS REBUILT FROM A DIRECTORY, so the level supplier can only know
+    /// what is on disk — anything the SUMMON decided (which export format this
+    /// navigator is finding a folder for) would be lost at every descend if this
+    /// did not carry it forward. [`OverlayState::carry_level_payload_from`] is
+    /// the one owner of that carry, which is what keeps a `Bind`-shaped fact off
+    /// each caller's memory.
+    pub fn relevel(&mut self, mut next: OverlayState) {
         self.stage = match std::mem::take(&mut self.stage) {
-            Stage::Editor | Stage::Card(_) => Stage::Card(next),
-            Stage::Suspended { parent, bind, .. } => Stage::Suspended {
-                child: next,
+            Stage::Editor => Stage::Card(next),
+            Stage::Card(prev) => {
+                next.carry_level_payload_from(&prev);
+                Stage::Card(next)
+            }
+            Stage::Suspended {
+                child,
                 parent,
                 bind,
-            },
+            } => {
+                next.carry_level_payload_from(&child);
+                Stage::Suspended {
+                    child: next,
+                    parent,
+                    bind,
+                }
+            }
         };
     }
 

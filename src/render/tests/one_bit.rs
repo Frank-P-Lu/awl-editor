@@ -748,6 +748,7 @@ fn every_overlay_kind_is_classified_and_the_two_families_render_as_declared() {
             | OverlayKind::Theme
             | OverlayKind::Caret
             | OverlayKind::MoveDest
+            | OverlayKind::ExportDest
             | OverlayKind::Dictionary
             | OverlayKind::CjkLang
             | OverlayKind::Date

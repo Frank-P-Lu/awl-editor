@@ -652,7 +652,7 @@ impl App {
             actions::Effect::FollowLink(url) => self.follow_link(&url),
             actions::Effect::ReportProblem => self.report_problem(),
             actions::Effect::DownloadFile => self.download_file(),
-            actions::Effect::Export(format) => self.export_document(format),
+            actions::Effect::Export(format, dest) => self.export_document(format, dest.as_deref()),
             // "Check for Updates": record the local "last checked" marker (the
             // app never fetches anything itself) and open the site's own
             // check page through the same OS-handoff seam.
@@ -714,8 +714,11 @@ impl App {
             // reachable by pressing `↵` on a view of a manuscript. Both run from
             // named palette rows, which is what makes destroying a version an
             // act with a name rather than a keypress.
-            Theme | Browse | Command | Spell | Keybindings | Settings | Assets | Rename
-            | InsertLink | KeepName | Context | Conflict => {}
+            // The export destination navigator emits `Effect::Export` with the
+            // folder it chose, never a generic accept — the format it also has to
+            // carry is not expressible here.
+            Theme | Browse | ExportDest | Command | Spell | Keybindings | Settings | Assets
+            | Rename | InsertLink | KeepName | Context | Conflict => {}
         }
     }
 

@@ -175,7 +175,7 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
         // The export renders the document + writes a sibling file (or a web
         // download) — a live-App-only external write the replay/capture safely
         // skips, leaving the editor state exactly as live. Recorded, not performed.
-        Effect::Export(format) => intercepted("export", format.ext().to_string()),
+        Effect::Export(format, _) => intercepted("export", format.ext().to_string()),
         Effect::CheckForUpdates => intercepted("check_for_updates", String::new()),
         Effect::TrashAsset { rel } => intercepted("trash_asset", rel.clone()),
 
@@ -307,6 +307,11 @@ fn accept_class(kind: OverlayKind) -> EffectClass {
         | OverlayKind::InsertLink
         | OverlayKind::KeepName
         | OverlayKind::Conflict
+        // The export DESTINATION navigator rides `Effect::Export` (already
+        // classified Intercepted) rather than an accept, exactly as Browse rides
+        // Goto's — the folder it chose is a component of that effect, not a
+        // separate acceptance.
+        | OverlayKind::ExportDest
         | OverlayKind::Context => EffectClass::Unsupported {
             why: "this picker is not expected to emit an accept effect; classify it in replay::accept_class before strict replay can pass it",
         },
