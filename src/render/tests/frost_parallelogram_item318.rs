@@ -89,9 +89,6 @@ struct Frame {
     /// The card's own box, as `overlay_card_rect` reports it and the pointer hit-test reads
     /// it — NOT the frost's.
     card: [f32; 4],
-    /// The box the frost actually shears, which `footprint_box` may have WIDENED past the
-    /// card's to seat its upright chrome. The shape is a property of this one.
-    rect: [f32; 4],
     frost: crate::render::blur::Frost,
     shear: f32,
     w: i64,
@@ -127,8 +124,8 @@ fn capture(
         .overlay_card_rect()
         .expect("the crisp picker has a card box");
     let frost = p.frost_mode().expect("an enrolled world reaches the frost");
-    let (rect, shear) = match frost {
-        crate::render::blur::Frost::Footprint(f) => (f.rect, f.shear),
+    let shear = match frost {
+        crate::render::blur::Frost::Footprint(f) => f.shear,
         other => panic!("expected the footprint arm, got {other:?}"),
     };
     p.set_view(&typed_picker(""));
@@ -139,12 +136,52 @@ fn capture(
         open,
         empty,
         card,
-        rect,
         frost,
         shear,
         w: wi,
         h: hi,
     }
+}
+
+/// THE DOCUMENT'S SHARPNESS over a region — `(pixels measured, pixels carrying an edge,
+/// peak local step)`. One owner, because both laws below ask it of different regions and a
+/// second copy would be a second definition of "sharp".
+///
+/// The card's own ink is VETOED (item 294's derived mask, used the way it is sound —
+/// as a veto), so this measures the PAGE and never the glyphs drawn over it.
+fn sharpness(f: &Frame, field: &[f32], keep: impl Fn(i64, i64) -> bool) -> (u64, u64, f32) {
+    let (mut measured, mut edges, mut peak) = (0u64, 0u64, 0.0f32);
+    for y in 0..f.h {
+        for x in 0..f.w {
+            if !keep(x, y) || f.ink[(y * f.w + x) as usize] {
+                continue;
+            }
+            let s = step(field, f.w, f.h, x, y);
+            measured += 1;
+            peak = peak.max(s);
+            if s >= STRONG_GRADIENT {
+                edges += 1;
+            }
+        }
+    }
+    (measured, edges, peak)
+}
+
+/// WHICH OF THE CARD'S OWN FOUR CORNERS THE RAKE LEAVES SHORT of a full frost, named and
+/// with each one's coverage — the figure that separates a parallelogram from a rectangle
+/// when it is asked of the CARD rather than of the shape's own bounding box.
+fn corners_short_of_full_frost(f: &Frame, dpi: f32) -> Vec<(&'static str, f32)> {
+    let [rx, ry, rw, rh] = f.card;
+    [
+        ("top-left", rx, ry),
+        ("top-right", rx + rw, ry),
+        ("bottom-left", rx, ry + rh),
+        ("bottom-right", rx + rw, ry + rh),
+    ]
+    .iter()
+    .map(|(n, px, py)| (*n, mask_at(f.frost, dpi, *px, *py)))
+    .filter(|(_, m)| *m < 1.0)
+    .collect()
 }
 
 /// THE HEADLINE LAW: THE CARD BOX'S TWO OFF-RAKE CORNERS ARE NOT FROSTED, AND THE
@@ -184,25 +221,13 @@ fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sh
                 // the user sees an outline of and asks "is that a parallelogram?".
                 //
                 // ⚠️ NOT the shape's own bounding box, and that distinction is the whole
-                // reason this law exists in its current form: the FIRST version of it asked
-                // whether two corners of the shape's bbox were unfrosted, and it PASSED
-                // under its own mutation. The retired union's two ears reach exactly the
-                // same bbox, so its bbox corners are unfrosted too. The figure that
-                // separates the two shapes is asked of the CARD: a union CONTAINS the card's
-                // box, so all four of its corners are fully frosted, always. A
-                // parallelogram leaves two of them behind.
-                let [rx, ry, rw, rh] = f.card;
-                let corners = [
-                    ("top-left", rx, ry),
-                    ("top-right", rx + rw, ry),
-                    ("bottom-left", rx, ry + rh),
-                    ("bottom-right", rx + rw, ry + rh),
-                ];
-                let off_rake: Vec<(&str, f32)> = corners
-                    .iter()
-                    .map(|(n, px, py)| (*n, mask_at(f.frost, dpi, *px, *py)))
-                    .filter(|(_, m)| *m < 1.0)
-                    .collect();
+                // reason this law reads as it does: the FIRST version of it asked whether two
+                // corners of the shape's bbox were unfrosted, and it PASSED under its own
+                // mutation. The retired union's two ears reach exactly the same bbox, so its
+                // bbox corners are unfrosted too. The figure that separates the two shapes is
+                // asked of the CARD: a union CONTAINS the card's box, so all four of its
+                // corners are fully frosted, always. A parallelogram leaves two behind.
+                let off_rake = corners_short_of_full_frost(&f, dpi);
                 if f.shear == 0.0 {
                     upright.push(label.clone());
                     assert!(
@@ -217,40 +242,27 @@ fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sh
                     off_rake.len(),
                     2,
                     "{label}: a parallelogram leaves exactly TWO of the CARD's own corners \
-                     behind (shear {}); this shape leaves {:?}. ZERO of them is the \
-                     rectangle the user photographed, and the retired box-union could only \
-                     ever answer zero — the card's box was one of its terms",
+                     behind (shear {}); this shape leaves {:?}. ZERO of them is the rectangle \
+                     the user photographed, and the retired box-union could only ever answer \
+                     zero — the card's box was one of its terms",
                     f.shear,
                     off_rake
                 );
 
-                // THE DOCUMENT IN THOSE CORNERS IS SHARP. Sampled over the part of the
-                // card's own box the frost's mask does not reach AT ALL, with the card's ink
-                // vetoed. Under the union this region is EMPTY by construction, so the count
-                // below is both a presence guard and the mutation's own tripwire.
-                let residue: Vec<f32> = f.open.iter().map(|q| luma(*q)).collect();
-                let (mut measured, mut edges, mut peak) = (0u64, 0u64, 0.0f32);
-                for y in ry as i64..(ry + rh) as i64 {
-                    for x in rx as i64..(rx + rw) as i64 {
-                        if !(0..f.w).contains(&x) || !(0..f.h).contains(&y) {
-                            continue;
-                        }
-                        if f.ink[(y * f.w + x) as usize] {
-                            continue;
-                        }
-                        // Mask exactly zero: no part of the frost reaches this pixel, so the
-                        // document under it is untouched and its sharpness is the page's own.
-                        if mask_at(f.frost, dpi, x as f32, y as f32) > 0.0 {
-                            continue;
-                        }
-                        let s = step(&residue, f.w, f.h, x, y);
-                        measured += 1;
-                        peak = peak.max(s);
-                        if s >= STRONG_GRADIENT {
-                            edges += 1;
-                        }
-                    }
-                }
+                // THE DOCUMENT IN THOSE CORNERS IS SHARP, over the part of the card's own box
+                // the frost's mask does not reach AT ALL. Under the union that region is EMPTY
+                // by construction, so the count is both a presence guard and the mutation's
+                // own tripwire.
+                let luma_open: Vec<f32> = f.open.iter().map(|q| luma(*q)).collect();
+                let [rx, ry, rw, rh] = f.card;
+                let (measured, edges, peak) = sharpness(&f, &luma_open, |x, y| {
+                    let (fx, fy) = (x as f32, y as f32);
+                    fx >= rx
+                        && fx < rx + rw
+                        && fy >= ry
+                        && fy < ry + rh
+                        && mask_at(f.frost, dpi, fx, fy) == 0.0
+                });
                 eprintln!(
                     "MEASURED {label}: shear {:.5}, card corners short of full frost {:?}, \
                      {measured} wholly unfrosted non-ink px INSIDE the card's box, {edges} \
@@ -282,6 +294,26 @@ fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sh
          this law's two arms never ran: leaning {leaning:?}, upright {upright:?}"
     );
     crate::theme::set_active(entry);
+}
+
+/// THE TIGHTEST FROST COVERAGE anywhere in a box, and where — sampled on a grid through the
+/// SHIPPING mask. The head band's own guarantee, asked of the box its production owner
+/// declares rather than of a list of the surfaces inside it.
+fn tightest_coverage(frost: crate::render::blur::Frost, dpi: f32, b: [f32; 4]) -> (f32, f32, f32) {
+    let [l, t, r, bo] = b;
+    let (mut worst, mut at) = (1.0f32, (l, t));
+    for iy in 0..=24 {
+        for ix in 0..=24 {
+            let px = l + (r - l) * ix as f32 / 24.0;
+            let py = t + (bo - t) * iy as f32 / 24.0;
+            let m = mask_at(frost, dpi, px, py);
+            if m < worst {
+                worst = m;
+                at = (px, py);
+            }
+        }
+    }
+    (worst, at.0, at.1)
 }
 
 /// THE COVERAGE FLOOR, NARROWED AND NOT DELETED: THE CARD'S UPRIGHT CHROME IS FROSTED, AND
@@ -360,65 +392,36 @@ fn the_cards_upright_chrome_is_frosted_and_no_document_edge_survives_behind_it()
                      everything below it is a floor over nothing"
                 );
 
-                // (1) ARITHMETIC: the whole declared box, on a grid, through the shipping mask.
-                let (mut worst, mut worst_xy) = (1.0f32, (0.0f32, 0.0f32));
-                for iy in 0..=24 {
-                    for ix in 0..=24 {
-                        let px = hl + (hr - hl) * ix as f32 / 24.0;
-                        let py = ht + (hb - ht) * iy as f32 / 24.0;
-                        let m = mask_at(f.frost, dpi, px, py);
-                        if m < worst {
-                            worst = m;
-                            worst_xy = (px, py);
-                        }
-                    }
-                }
+                // (1) ARITHMETIC: the whole declared box, on a grid, through the shipping
+                // mask. (2) PIXELS: the document's own residue behind that same box.
+                let (worst, wx, wy) = tightest_coverage(f.frost, dpi, [hl, ht, hr, hb]);
                 if worst < tightest {
                     tightest = worst;
                     tightest_at = label.clone();
                 }
-
-                // (2) PIXELS: the document's own residue behind the same box, with the card's
-                // ink VETOED (its correct use) so this measures the page and not the glyphs.
                 let residue: Vec<f32> = f
                     .open
                     .iter()
                     .zip(f.empty.iter())
                     .map(|(a, b)| luma(*a) - luma(*b))
                     .collect();
-                let (mut measured, mut edges, mut peak) = (0u64, 0u64, 0.0f32);
-                for y in ht as i64..=hb as i64 {
-                    for x in hl as i64..=hr as i64 {
-                        if !(0..f.w).contains(&x) || !(0..f.h).contains(&y) {
-                            continue;
-                        }
-                        if f.ink[(y * f.w + x) as usize] {
-                            continue;
-                        }
-                        let s = step(&residue, f.w, f.h, x, y);
-                        measured += 1;
-                        peak = peak.max(s);
-                        if s >= STRONG_GRADIENT {
-                            edges += 1;
-                        }
-                    }
-                }
+                let (measured, edges, peak) = sharpness(&f, &residue, |x, y| {
+                    let (fx, fy) = (x as f32, y as f32);
+                    fx >= hl && fx <= hr && fy >= ht && fy <= hb
+                });
                 eprintln!(
                     "MEASURED {label}: head band [{hl:.1},{ht:.1},{hr:.1},{hb:.1}] — tightest \
-                     frost coverage {worst:.4} at ({:.1},{:.1}), and {edges}/{measured} \
-                     non-ink px behind it carry a document edge (peak step {peak:.1})",
-                    worst_xy.0, worst_xy.1
+                     frost coverage {worst:.4} at ({wx:.1},{wy:.1}), and {edges}/{measured} \
+                     non-ink px behind it carry a document edge (peak step {peak:.1})"
                 );
                 assert!(
                     worst >= INK_FROST_FLOOR,
-                    "{label}: the card's upright head band reaches ({:.1},{:.1}) where the \
-                     frost's coverage is only {worst:.4} (floor {INK_FROST_FLOOR}) — that \
+                    "{label}: the card's upright head band reaches ({wx:.1},{wy:.1}) where \
+                     the frost's coverage is only {worst:.4} (floor {INK_FROST_FLOOR}) — that \
                      chrome is sitting over SHARP document, which is the reported defect \
                      moved onto the card's own chrome. `blur::extent::footprint_box` widens \
                      the shape's box exactly to prevent it, so either the widening is wrong \
-                     or the band it was handed is not the band that was drawn",
-                    worst_xy.0,
-                    worst_xy.1
+                     or the band it was handed is not the band that was drawn"
                 );
                 assert!(
                     measured > 200,

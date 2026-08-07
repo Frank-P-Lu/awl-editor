@@ -33,7 +33,9 @@ use extent::{
 /// measurement cannot compare the pixels to a retyped number, or to a second copy of the
 /// shape's arithmetic, that has drifted from what the shader was handed.
 #[cfg(test)]
-pub(crate) use extent::{FOOTPRINT_FEATHER_PX, footprint_mask_for, footprint_skirt_px};
+pub(crate) use extent::{
+    FOOTPRINT_FEATHER_PX, footprint_face_x, footprint_mask_for, footprint_skirt_px,
+};
 
 use wgpu::util::DeviceExt;
 

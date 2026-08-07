@@ -266,6 +266,25 @@ pub(crate) fn footprint_mask_for(frost: Frost, dpi: f32, px: f32, py: f32) -> f3
     }
 }
 
+/// THE SHAPE'S RAKING FACE at row `py`, in physical px — its LEFT face for `side < 0` and
+/// its RIGHT face for `side > 0`, both displaced by the same `shear × (py − cy)`.
+///
+/// It exists for the same reason [`footprint_mask_for`] does, and it was earned the same
+/// way. A render-tier law that profiles the frost's edge has to know where that edge IS at
+/// each row, and the one that does carried its OWN copy of the answer — spelled
+/// `min(0, shear × (py − cy))` on the left face and `max(0, …)` on the right, which is the
+/// retired box-UNION's boundary, where each face moved on only the half of the card the rake
+/// reached toward. It stayed spelled that way after the shape stopped being a union, so the
+/// law was profiling a face up to `|shear| × h/2` from the drawn one on half of every leaning
+/// card and reporting a soft edge where there might have been a knife. One owner, so the face
+/// a law measures across cannot part company with the face the shader drew.
+#[cfg(test)]
+pub(crate) fn footprint_face_x(foot: Footprint, py: f32, side: f32) -> f32 {
+    let [x, y, w, h] = foot.rect;
+    let lean = foot.shear * (py - (y + h * 0.5));
+    if side < 0.0 { x + lean } else { x + w + lean }
+}
+
 /// THE BOX THAT ENCLOSES THE WHOLE FEATHERED SHAPE, `[x, y, w, h]` in physical px —
 /// what the composite's scissor is set to, and the one place the shear's and the
 /// feather's own reach beyond the card box is arithmetic rather than a guess.

@@ -240,10 +240,11 @@ fn the_footprints_edge_is_a_ramp_of_the_authored_width_in_logical_px_at_every_dp
             // widened where it must be to seat the card's upright chrome, so a profile
             // taken from the card's rect would follow a face a whole widening away from
             // the drawn one.
-            let ([rx, ry, rw, rh], shear) = match p.frost_mode() {
-                Some(crate::render::blur::Frost::Footprint(f)) => (f.rect, f.shear),
+            let (foot, [rx, ry, rw, rh], shear) = match p.frost_mode() {
+                Some(crate::render::blur::Frost::Footprint(f)) => (f, f.rect, f.shear),
                 other => panic!("{world}: expected the footprint arm, got {other:?}"),
             };
+            // How far the frost's box was WIDENED past the card's, in this law's own label.
             p.set_view(&theme_picker(""));
             let empty = render_frame(&device, &queue, &mut p, w, h);
             let mut plain = view_md(DENSE, 0, 0);
@@ -255,12 +256,11 @@ fn the_footprints_edge_is_a_ramp_of_the_authored_width_in_logical_px_at_every_dp
             let mask = card_ink_mask(&empty, wi, hi, dpi);
             let f_px = feather * dpi;
             let depth = (f_px * 2.0) as i64;
-            let label = format!("{world} @ {dpi}x ({w}x{h}), card [{rx}, {ry}, {rw}, {rh}]");
+            let label = format!("{world} @ {dpi}x ({w}x{h}), frost box [{rx},{ry},{rw},{rh}]");
             // The rows profiled: the card's own height less one feather at each end, so
             // the top and bottom faces' own skirts never enter a reading of a VERTICAL
             // face's. `profile_face` below computes each face's own x at every row, so
             // the reading follows the lean rather than smearing across it.
-            let cy = ry + rh * 0.5;
             let rows: Vec<i64> = ((ry + f_px) as i64..(ry + rh - f_px) as i64)
                 .filter(|y| (0..hi).contains(y))
                 .collect();
@@ -290,14 +290,10 @@ fn the_footprints_edge_is_a_ramp_of_the_authored_width_in_logical_px_at_every_dp
             // away from the drawn one on half of every leaning card, smearing the ramp across
             // the lean and reporting a soft edge where there might be a knife.
             let profile_face = |outward: f32| -> Option<Vec<f32>> {
-                let face = |py: f32| {
-                    let lean = shear * (py - cy);
-                    if outward < 0.0 {
-                        rx + lean
-                    } else {
-                        rx + rw + lean
-                    }
-                };
+                // THE FACE COMES FROM THE SHAPE'S OWN OWNER, never a copy here — see
+                // `blur::extent::footprint_face_x`, which exists because the copy that used
+                // to live on this line outlived the shape it described.
+                let face = |py: f32| crate::render::blur::footprint_face_x(foot, py, outward);
                 if !rows.iter().all(|y| {
                     let x = face(*y as f32) + outward * depth as f32;
                     x > 0.0 && x < wi as f32 - 1.0
