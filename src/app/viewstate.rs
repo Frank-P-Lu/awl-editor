@@ -156,20 +156,12 @@ impl App {
             // straight through — read verbatim every frame, so a live theme-preview
             // crossing never recomputes it and the open card holds its placement.
             overlay_align: ov.map(|o| o.align),
-            // CRISP-BACKDROP exception: the THEME / CARET pickers preview live
-            // DOCUMENT state behind their card, so frosting it would defeat the
-            // preview. History is deliberately NOT here: its comparison is
-            // composited inside the workspace's own content region, so what is
-            // left behind the card is the user's untouched document — a quiet
-            // backdrop, which DESIGN.md §5 says recedes.
-            overlay_crisp: ov
-                .map(|o| {
-                    matches!(
-                        o.kind,
-                        crate::overlay::OverlayKind::Theme | crate::overlay::OverlayKind::Caret
-                    )
-                })
-                .unwrap_or(false),
+            // THE CRISP-BACKDROP exception, asked of the ONE owner rather than
+            // re-decided here: which kinds preview live DOCUMENT state behind
+            // their card, and so cannot afford to frost it, is
+            // `OverlayKind::keeps_backdrop_crisp`'s question — shared with the
+            // capture door so a headless frame cannot disagree with this one.
+            overlay_crisp: ov.is_some_and(|o| o.kind.keeps_backdrop_crisp()),
             overlay_query: ov.map(|o| o.query.text().to_string()).unwrap_or_default(),
             overlay_query_caret: ov.map(|o| o.query.caret()).unwrap_or(0),
             overlay_title: ov
