@@ -210,7 +210,18 @@ pub const DROP_PAD_Y: Logical = Logical(6.0);
 /// here the same way: no caller can hand this fn a pre-scaled `BAR_PAD_Y`, because
 /// there is no way to scale a `Logical` except through [`Logical::px`], which this fn
 /// alone calls.
-pub fn bar_height(line_height: f32, scale: f32) -> f32 {
+///
+/// ⚠️ **NOT THE DOOR. `TextPipeline::menubar_reserve` IS.** This is the ARITHMETIC;
+/// the question "how tall is the menu bar on this frame" has exactly one answer, and
+/// it lives in `render/geometry.rs` where the gate on `menu_bar_on()` and the
+/// LABEL-scaled line height live with it. The reserve and the drawn strip each used
+/// to spell `bar_height(metrics.line_height * LABEL, metrics.scale)` for themselves
+/// and agreed only by both remembering to — the same shape `TEXT_TOP +
+/// menubar_reserve()` had at SIX call sites, where a real bug then survived at half
+/// of them. `pub(crate)` narrows the reach; `tests::bar_height_has_exactly_one_
+/// non_test_caller` is what actually holds it to one, with no wildcard, so a second
+/// consumer fails by name instead of quietly becoming a second owner.
+pub(crate) fn bar_height(line_height: f32, scale: f32) -> f32 {
     line_height + 2.0 * BAR_PAD_Y.px(scale)
 }
 

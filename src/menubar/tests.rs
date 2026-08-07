@@ -7,6 +7,103 @@
 
 use super::*;
 
+/// **THE BAR'S HEIGHT HAS ONE OWNER, AND THIS IS WHAT REFUSES A SECOND ONE.**
+/// `render/geometry.rs`'s `TextPipeline::menubar_reserve` is the door; [`bar_height`]
+/// is the arithmetic behind it. The reserve and the DRAWN strip used to spell
+/// `bar_height(metrics.line_height * LABEL, metrics.scale)` independently and agreed
+/// only because both authors remembered to — the same shape `TEXT_TOP +
+/// menubar_reserve()` had at six call sites, where a real bug survived at half of
+/// them, and item 317's ×3 reserve probe drove a wedge straight between these two.
+///
+/// So the CONSTRUCTION is that `chrome/menubar.rs` draws at `self.menubar_reserve()`,
+/// and this is the sweep that keeps it that way. **NO WILDCARD:** every non-test
+/// caller of `bar_height(` outside this module must appear in
+/// [`BAR_HEIGHT_CALLERS`] with a reason, so a new consumer fails here by name
+/// rather than becoming a second owner in silence. Non-vacuous in both directions —
+/// a stale entry that no longer calls it fails too, because an allow-list nobody
+/// prunes is how a closed bypass reads as still-open.
+const BAR_HEIGHT_CALLERS: &[(&str, &str)] = &[(
+    "src/render/geometry.rs",
+    "TextPipeline::menubar_reserve — THE door. It owns the `menu_bar_on()` gate and \
+     the LABEL-scaled line height, and every consumer (the document inset, the \
+     caret, the hit-test, every card's height budget, the capture sidecar, and the \
+     DRAWN strip in chrome/menubar.rs) reads its answer rather than this fn",
+)];
+
+#[test]
+fn bar_height_has_exactly_one_non_test_caller() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let mut hits: Vec<(String, usize)> = Vec::new();
+    let mut stack = vec![root.join("src")];
+    while let Some(dir) = stack.pop() {
+        let mut entries: Vec<_> = std::fs::read_dir(&dir)
+            .expect("src dir readable")
+            .flatten()
+            .collect();
+        entries.sort_by_key(|e| e.path());
+        for entry in entries {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+                continue;
+            }
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            // Test code is not a consumer, and `menubar.rs` is the DEFINITION plus
+            // the doc comments that name it. Same exemptions `code-health.py`'s
+            // `production()` applies, for the same reason.
+            if !name.ends_with(".rs")
+                || name == "tests.rs"
+                || name.ends_with("_test.rs")
+                || path.components().any(|c| c.as_os_str() == "tests")
+                || path == root.join("src/menubar.rs")
+            {
+                continue;
+            }
+            let text = std::fs::read_to_string(&path).expect("source readable");
+            let rel = path
+                .strip_prefix(&root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace(std::path::MAIN_SEPARATOR, "/");
+            for (i, line) in text.lines().enumerate() {
+                let t = line.trim_start();
+                if t.starts_with("//") || !line.contains("bar_height(") {
+                    continue;
+                }
+                hits.push((rel.clone(), i + 1));
+            }
+        }
+    }
+    // The sweep must be reading something at all — an empty walk would satisfy the
+    // no-stray assertion below while proving nothing.
+    assert!(
+        !hits.is_empty(),
+        "the bar_height caller sweep found no calls anywhere under src/ — it is not \
+         reading the sources it thinks it is"
+    );
+    let stray: Vec<_> = hits
+        .iter()
+        .filter(|(f, _)| !BAR_HEIGHT_CALLERS.iter().any(|(name, _)| name == f))
+        .map(|(f, l)| format!("  {f}:{l}"))
+        .collect();
+    assert!(
+        stray.is_empty(),
+        "the menu bar's height has ONE owner — `TextPipeline::menubar_reserve` — and \
+         these call `menubar::bar_height` directly, which is how the reserve and the \
+         drawn strip came to be two independent spellings of one number. Read \
+         `self.menubar_reserve()` instead, or add the file to BAR_HEIGHT_CALLERS with \
+         the reason it must own a second copy:\n{}",
+        stray.join("\n")
+    );
+    for (file, reason) in BAR_HEIGHT_CALLERS {
+        assert!(
+            hits.iter().any(|(f, _)| f == file),
+            "{file} is allow-listed ({reason}) but no longer calls bar_height — \
+             remove the entry rather than leaving a closed bypass looking open"
+        );
+    }
+}
+
 /// THE FORCING KNOB'S PARSER, swept over every input shape rather than the one
 /// value this process happens to have launched with. `on`/`off` force; a typo, a
 /// capitalisation, an empty string and an unset variable must all be INERT —

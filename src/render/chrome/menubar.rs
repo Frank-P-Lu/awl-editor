@@ -79,7 +79,7 @@ impl TextPipeline {
         let m = self.metrics;
         let label = crate::markdown::type_scale::LABEL;
         let label_lh = m.line_height * label;
-        let bar_h = crate::menubar::bar_height(label_lh, m.scale);
+        let bar_h = self.menubar_reserve(); // ONE owner: the reserve IS the drawn strip
         self.menubar_bar_h = bar_h;
         let faint = theme::faint().to_glyphon();
         let muted = theme::muted().to_glyphon();
