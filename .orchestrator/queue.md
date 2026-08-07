@@ -2776,6 +2776,70 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      **remove 319's exclusion as part of the fix** so its non-vacuity count fails if the exclusion is
      left behind. **Routing:** production tier.
 
+343. 🔴 **THE FROSTED FOOTPRINT IS ROUGHLY TWICE AS WIDE AS ANYTHING DRAWN INSIDE IT — user-reported
+     against Mangrove's theme picker, with a screenshot: *"there's a bit too much blur on the left and
+     right sides."* The silhouette is now right (312/313/318 landed); its WIDTH is not.**
+
+     ✅ **MEASURED AT THE PRODUCTION SEAM, NOT READ OFF THE SCREENSHOT** — `overlay_card_rect` +
+     `frost_mode()` + `overlay_line_glyph_box` over the typed-query theme picker at 1200×900 / 2400×1800,
+     and every figure below is **identical in logical px at 1× and 2×**, so this is a width defect and
+     NOT another instance of the DPI class item 294 fixed:
+
+     | world | card box (logical) | widest drawn LINE | frost box | silhouette bound |
+     |---|---|---|---|---|
+     | Mangrove | 520.0 × 452.6 | **359.0** (the foot hint) | 520.0 (no widening) | **706.9** |
+     | Magpie | 520.0 × 452.6 | **241.0** | 563.2 (widened LEFT 43.2 by `footprint_box`) | **750.0** |
+     | Paperbark | 520.0 | **201.0** | 520.0 (shear 0) | **576.0** |
+
+     The candidate rows themselves measure **61.2–110.2** logical wide on Mangrove and the query line
+     122.4; only the foot hint reaches 359. **So at any single row the parallelogram's cross-section is
+     `card_w + 2 × feather` = 576 logical over a row carrying at most 110 logical of ink.**
+
+     ⚠️ **THE SLACK IS ASYMMETRIC, AND THE SCREENSHOT CANNOT SHOW THAT** because the lean redistributes
+     it: **40 logical px on the left** (12 text hpad + 28 feather) against **177 on the right** (149 of
+     dead card width past even the widest line, + 28 feather). A fix tuned to "reduce the padding on
+     either side" symmetrically would leave the larger half in place.
+
+     **THE CAUSE IS THE CARD'S LAYOUT BOX, NOT THE FEATHER.** The frost's box is `overlay_card_rect`
+     (widened only where `footprint_box` must seat upright chrome), and `card_w` comes from
+     `overlay_desired_w(CARD_MAX_W…)` — a **fixed desired width clamped to the window**, with no
+     relation to how wide the shaped rows actually are. On a world that draws no plate and no card
+     backing, that width is invisible right up until a frost is scoped to it.
+     ⚠️ **REDUCING THE FEATHER IS THE WRONG LEVER AND IS FLOORED BY LAW.**
+     `the_footprint_feather_is_at_least_the_blur_it_edges` requires it to clear the Gaussian's own 16
+     logical px reach, and the shipped 28 is only 12 above that floor — spending the whole margin buys
+     back 24 of the 217 logical px of slack per row and reintroduces the hard edge item 312 removed.
+
+     🔵 **THE FORK IS ALREADY SETTLED BY MEASUREMENT, so the lane does not get to choose wrong.** On
+     `Rules` the card genuinely DOES draw at its full width: `overlay_rules` emits every rule at
+     `(band_x, band_w)`, and `band_w() == card_w` for every non-workspace picker. **So a frost narrowed
+     to the GLYPH ink would strand Paperbark's rules over sharp document** — and `overlay_line_glyph_box`
+     is blind to it, because rules are rects and it reads shaped runs. On `Diagonal` nothing is drawn
+     full-width (the spine is a rail; the rows and both chrome bands are shaped runs). **The box must
+     therefore be derived from the DRAWN SURFACES — glyph runs ∪ rules ∪ rails — never from the glyphs
+     alone and never from the layout box.**
+
+     **Two routes; (a) is recommended.** **(a) Narrow the FROST's box** to the drawn surfaces' own union,
+     leaving the card's layout box and its pointer hit region exactly as they are — which is already the
+     established split (item 312 decided the frost's extent and the hit region are separate quantities,
+     and `footprint_box` already moves one without the other). **(b) Narrow the CARD** on a plateless
+     world — a bigger change that moves row elision, the footer's yield and the hit-test, and collides
+     with 342's live hint-budget work.
+
+     **Verify — the two laws must bound the box from BOTH sides, and neither is sufficient alone.**
+     `frost_parallelogram_item318`'s ink-coverage floor is what catches an over-narrow box and it **stays,
+     unweakened**; add a TIGHTNESS law from the other end — the frost's box exceeds the drawn surfaces'
+     union by no more than the feather plus a stated allowance — because a coverage floor alone is
+     satisfied perfectly by the 520px box that prompted this item. ⚠️ **The tightness law's surface union
+     must come from a production owner, not from `CardInk`** — that oracle is a VETO and does not invert
+     (items 329 and 319 both burned a round on exactly that). Sweep the enrolled roster from
+     `footprint_frost_applies` (never a name list — Paperbark is the shear-0 member that keeps this
+     honest) × 1×/2× × both `MENU_BAR_ON` arms.
+     **Routing:** production tier, then the user's eye — the final width is taste and no capture settles
+     it. Touches `render/blur/extent.rs`, `pipeline_prepare.rs`; READS `chrome/overlay_rules.rs` and
+     `chrome/diagonal/`. **337 grades the same silhouette and 342 is live in the hint's width budget —
+     sequence, never pair.**
+
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
