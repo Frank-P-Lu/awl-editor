@@ -2672,7 +2672,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      fix is the derivation rather than deleting one cell. **Verify:** the law still fails on 327's
      real, reachable defect at narrow width after the axis is corrected. **Routing:** production tier.
 
-336. **A COMMAND'S DESCRIPTION CAN OVER-PROMISE A PLATFORM AND NOTHING CHECKS IT — the mechanism
+336. 🚧 CLAIMED (worktree item-336-description-promise, production tier) **A COMMAND'S DESCRIPTION CAN OVER-PROMISE A PLATFORM AND NOTHING CHECKS IT — the mechanism
      exists for LABELS only.** Found by item 331's lane, which flagged it rather than inheriting the
      precedent blindly. Item 301 established that a static string promising a surface must be true
      per platform, and pinned it: `ellipsis_law` asserts the set of platforms the Export **label**
@@ -2730,7 +2730,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      raw at `chrome/popover.rs`; `IBEAM_W`, `CARET_SPACE_BAR_W`, `CARET_MORPH_DILATE_PX` at
      `chrome/preview.rs`). **Routing:** production tier, then the user's eye.
 
-339. **`--screenshot-frames` HAS ITEM 334's DEFECT, UNFIXED.** Found by 334's lane while diagnosing and
+339. 🚧 CLAIMED (worktree item-339-frames-fixture, production tier — bundled 339+340) **`--screenshot-frames` HAS ITEM 334's DEFECT, UNFIXED.** Found by 334's lane while diagnosing and
      deliberately left alone. `Mode::ScreenshotFrames` has no canvas/dpi fields and the identical
      plain-`Screenshot` bucket fallthrough, so it too accepts geometry flags and discards them
      silently. It is a **Hidden** flag, which is why it is lower priority — and also why nobody would
@@ -2739,7 +2739,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      field was set** — 334's proof was that a narrower canvas produced genuinely more reflow.
      **Routing:** production tier.
 
-340. **`settings_view()` IS DUPLICATED IN TWO TEST FILES, BOTH CARRYING THE SAME PARKED NOTE.** Found
+340. 🚧 CLAIMED (worktree item-339-frames-fixture, production tier — bundled 339+340) **`settings_view()` IS DUPLICATED IN TWO TEST FILES, BOTH CARRYING THE SAME PARKED NOTE.** Found
      by item 335's lane. `settings_row_reach_law.rs` and `range_rail.rs` each declare their own copy,
      and each hardcodes `overlay_window_rows` to `ViewState::base()`'s default of **12** instead of the
      shipped **31** — the simplification that currently shields item 327's real defect from its own
@@ -2757,7 +2757,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      sweep to the caret files and classify what it enumerates, one family at a time, naming the
      pipeline that already scales each. **Routing:** production tier.
 
-342. 🔴 **POTOROO AND FIRETAIL CLIP THEIR KEYBINDINGS HINT AT 2×, MENU BAR OFF — WHICH IS macOS'S OWN
+342. 🚧 CLAIMED (worktree item-342-hint-budget, deep tier — with 319's zoom-1.0 residual) 🔴 **POTOROO AND FIRETAIL CLIP THEIR KEYBINDINGS HINT AT 2×, MENU BAR OFF — WHICH IS macOS'S OWN
      DEFAULT, so this is live on the dev platform.** Found by item 319's new sweep on its first run,
      with no tip needed: the hint alone measures **803.2px** against each world's own (different)
      column budget. Clean at 1×, which is why every capture missed it.
