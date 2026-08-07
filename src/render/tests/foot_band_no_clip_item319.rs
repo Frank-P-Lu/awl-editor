@@ -176,14 +176,13 @@ struct CardFit {
 
 fn card_fit(
     p: &mut TextPipeline,
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    cw: u32,
-    ch: u32,
+    gpu: (&wgpu::Device, &wgpu::Queue),
+    canvas: (u32, u32),
     kind: OverlayKind,
     zoom: f32,
     tips: Vec<String>,
 ) -> CardFit {
+    let ((device, queue), (cw, ch)) = (gpu, canvas);
     let v = card_view(kind, zoom);
     p.set_keybindings_tips(tips);
     p.set_view(&v);
@@ -243,10 +242,8 @@ fn the_keybindings_footer_never_clips_for_any_real_ledger_tip() {
                 for tip in &tips {
                     let fit = card_fit(
                         &mut p,
-                        &device,
-                        &queue,
-                        cw,
-                        ch,
+                        (&device, &queue),
+                        (cw, ch),
                         OverlayKind::Keybindings,
                         0.8, // the shipped default render zoom (what `--screenshot` renders)
                         vec![tip.clone()],
@@ -279,6 +276,79 @@ fn the_keybindings_footer_never_clips_for_any_real_ledger_tip() {
         graded, presence_graded,
         "every graded cell must have passed the presence floor too"
     );
+}
+
+/// THE SWEEP'S OWN AXES for one cell, carried as one value so the grader below
+/// stays inside the argument budget and every failure message can name the
+/// whole configuration it ran in.
+#[derive(Clone, Copy)]
+struct Axes {
+    zoom: f32,
+    dpi: f32,
+    bar: bool,
+}
+
+/// GRADE ONE CELL against the ledger, and return its ratio when it overflows at
+/// a scale ≥ 1 — the value the caller accumulates for the set and invariance
+/// checks. Everything asserted here is per-cell; nothing about the ledger as a
+/// whole is decided at this level.
+fn grade_one_cell(
+    p: &mut TextPipeline,
+    gpu: (&wgpu::Device, &wgpu::Queue),
+    canvas: (u32, u32),
+    cell: (&str, OverlayKind),
+    axes: Axes,
+) -> Option<f32> {
+    let (world, kind) = cell;
+    let Axes { zoom, dpi, bar } = axes;
+    let scale = zoom * dpi;
+    let fit = card_fit(p, gpu, canvas, kind, zoom, Vec::new());
+    let (band, column) = (fit.band, fit.column);
+    assert!(
+        band > 1.0 && column > 1.0,
+        "{world} {kind:?} zoom={zoom} dpi={dpi} bar={bar}: the hint band must actually shape \
+         glyphs into a real column — a ratio floor is satisfied by an absent hint (band \
+         {band:.1}, column {column:.1})"
+    );
+    let ratio = band / column;
+    let mut overflowed = None;
+    if scale < 1.0 {
+        assert!(
+            ratio <= 1.0 + RATIO_TOL,
+            "{world} {kind:?} zoom={zoom} dpi={dpi} bar={bar}: nothing may overflow below scale \
+             1, where `LogicalGrowOnly` holds the cap's device width and the card runs 1/scale \
+             roomier than its text — got {ratio:.4} ({band:.1}px in {column:.1}px)"
+        );
+    } else {
+        let pinned = allowed_ratio(world, kind);
+        assert!(
+            (ratio - pinned.max(1.0)).abs() <= RATIO_TOL || ratio < 1.0,
+            "{world} {kind:?} zoom={zoom} dpi={dpi} bar={bar} scale={scale}: hint band ÷ text \
+             column is {ratio:.4}, and the ledger says {pinned:.4}. A new overflow, a repaired \
+             one, or a drifted deficit — all three land here, and all three want the ledger \
+             re-measured rather than widened"
+        );
+        if ratio > 1.0 + RATIO_TOL {
+            overflowed = Some(ratio);
+        }
+    }
+    // WHAT THE CARD'S PADDING CANNOT ABSORB. A band wider than its column still
+    // lands inside the card while the surplus fits in `hpad`; past that it is
+    // ink outside the card. Both bounds come off the one ledger, so a repaired
+    // budget fails here too instead of quietly leaving a second pinned number
+    // behind.
+    let surplus = ((allowed_ratio(world, kind) - 1.0) * fit.column - fit.hpad).max(0.0);
+    assert!(
+        fit.past_card <= surplus + RATIO_TOL * fit.column,
+        "{world} {kind:?} zoom={zoom} dpi={dpi} bar={bar}: the drawn foot band paints {:.1}px \
+         past the card's right edge, and the ledger leaves room for {surplus:.1}px (column \
+         {:.1}, hpad {:.1}). The band is emitted at `overlay_foot_left`, so a leaning \
+         composition can put ink outside a card its own column would have held",
+        fit.past_card,
+        fit.column,
+        fit.hpad
+    );
+    overflowed
 }
 
 /// THE LEDGER IS EXACT, AND THE DEFICIT IS A SCALE-FREE RATIO. Sweeps the
@@ -320,63 +390,19 @@ fn the_hint_band_overflow_ledger_is_exact_and_scale_free() {
             let (cw, ch) = ((1200.0 * dpi) as u32, (800.0 * dpi) as u32);
             p.set_size(cw as f32, ch as f32);
             for zoom in [0.8f32, 1.0] {
-                let scale = zoom * dpi;
+                let axes = Axes { zoom, dpi, bar };
                 for &world in &names {
                     crate::theme::set_active_by_name(world).expect("a named world exists");
                     p.sync_theme();
                     p.atlas.trim();
                     for &kind in &kinds {
-                        let fit =
-                            card_fit(&mut p, &device, &queue, cw, ch, kind, zoom, Vec::new());
-                        let (band, column) = (fit.band, fit.column);
-                        assert!(
-                            band > 1.0 && column > 1.0,
-                            "{world} {kind:?} zoom={zoom} dpi={dpi} bar={bar}: the hint band \
-                             must actually shape glyphs into a real column — a ratio floor is \
-                             satisfied by an absent hint (band {band:.1}, column {column:.1})"
-                        );
-                        let ratio = band / column;
-                        if scale < 1.0 {
-                            assert!(
-                                ratio <= 1.0 + RATIO_TOL,
-                                "{world} {kind:?} zoom={zoom} dpi={dpi} bar={bar}: nothing may \
-                                 overflow below scale 1, where `LogicalGrowOnly` holds the cap's \
-                                 device width and the card runs 1/scale roomier than its text — \
-                                 got {ratio:.4} ({band:.1}px in {column:.1}px)"
-                            );
-                        } else {
-                            let pinned = allowed_ratio(world, kind);
-                            assert!(
-                                (ratio - pinned.max(1.0)).abs() <= RATIO_TOL || ratio < 1.0,
-                                "{world} {kind:?} zoom={zoom} dpi={dpi} bar={bar} scale={scale}: \
-                                 hint band ÷ text column is {ratio:.4}, and the ledger says \
-                                 {pinned:.4}. A new overflow, a repaired one, or a drifted \
-                                 deficit — all three land here, and all three want the ledger \
-                                 re-measured rather than widened"
-                            );
-                            if ratio > 1.0 + RATIO_TOL {
-                                seen.entry((world, format!("{kind:?}")))
-                                    .or_default()
-                                    .push(ratio);
-                            }
+                        if let Some(ratio) =
+                            grade_one_cell(&mut p, (&device, &queue), (cw, ch), (world, kind), axes)
+                        {
+                            seen.entry((world, format!("{kind:?}")))
+                                .or_default()
+                                .push(ratio);
                         }
-                        // WHAT THE CARD'S PADDING CANNOT ABSORB. A band wider
-                        // than its column still lands inside the card while the
-                        // surplus fits in `hpad`; past that it is ink outside
-                        // the card. Both bounds come off the one ledger, so a
-                        // repaired budget fails here too instead of quietly
-                        // leaving a second pinned number behind.
-                        let surplus =
-                            ((allowed_ratio(world, kind) - 1.0) * fit.column - fit.hpad).max(0.0);
-                        assert!(
-                            fit.past_card <= surplus + RATIO_TOL * fit.column,
-                            "{world} {kind:?} zoom={zoom} dpi={dpi} bar={bar}: the drawn foot \
-                             band paints {:.1}px past the card's right edge, and the ledger \
-                             leaves room for {surplus:.1}px (column {:.1}, hpad {:.1}). The \
-                             band is emitted at `overlay_foot_left`, so a leaning composition \
-                             can put ink outside a card its own column would have held",
-                            fit.past_card, fit.column, fit.hpad
-                        );
                         graded += 1;
                     }
                 }
