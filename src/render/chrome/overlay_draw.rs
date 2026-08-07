@@ -372,7 +372,7 @@ impl TextPipeline {
                 let tail_top = plan.band_bottom();
                 areas.push(TextArea {
                     buffer: &self.panel_buffer,
-                    left: text_left,
+                    left: self.overlay_foot_left(geom, plan),
                     top: text_top,
                     scale: 1.0,
                     bounds: clip(tail_top, height as f32),
