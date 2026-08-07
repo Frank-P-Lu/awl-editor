@@ -425,10 +425,13 @@ hides the failure exactly as thoroughly as `|| true`; that is how a red tree rea
    AND AN ORCHESTRATOR HAS NOW BRIEFED IT WRONG TO THREE LANES IN ONE WAVE.** It is
    **two tiers, not one ceiling**, and `scripts/code-health.py` is the authority
    (`check_mark_raises` + `check_structural`, `BASELINE = "f12d04a"`):
-   1. **The hard ceiling is the file's size at the frozen baseline `f12d04a`**, checked
-      against that fixed commit. A file over it cannot be rescued by any `reason` — the
-      remedy is carving `mod tests` into a sibling `tests.rs`, which has been the
-      answer repeatedly.
+   1. **The hard ceiling is an ABSOLUTE 500-line production limit**, and separately a
+      file may not exceed its own size at the frozen baseline `f12d04a`. Whichever
+      binds first, binds — for `src/menubar.rs` the baseline is 510, so the 500 limit is
+      the real cap, and the failure message states which it used
+      (*"production limit is 500; high-water mark is 228"*). A file over the hard
+      ceiling cannot be rescued by any `reason` — the remedy is carving `mod tests`
+      into a sibling `tests.rs`, which has been the answer repeatedly.
    2. **Below that ceiling a mark MAY RISE, and the only requirement is a recorded
       `reason` for the raise.** *"A mark may rise only with a reason recorded for that
       raise"* is the function's own docstring.

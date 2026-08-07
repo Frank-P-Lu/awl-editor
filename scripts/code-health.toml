@@ -232,8 +232,8 @@ reason = "The three Export rows' File-menu label now diverges from their catalog
 
 [[file_size_mark]]
 file = "src/menubar.rs"
-lines = 228
-reason = "+12: the drawn bar's per-platform default, split out of a bare `cfg!` into two named consts at the single owner. The generated reference documents ONE `menu_bar` default for every platform; read through `cfg!` it would differ between the machine that writes the document and the CI host that checks it, so both arms must stay readable from any build."
+lines = 391
+reason = "+163: the menu bar's own pixel-space declarations. Six pads move off bare `f32` — four to `Logical`, two to `Physical` — and each carries at its declaration the usage evidence that decided which, following `CANVAS_INSET`'s precedent: a classification whose reason lives in a test is the one that gets re-guessed, and getting one backwards multiplies it by DPI forever with a law asserting it is right. `EDGE_BLEED_PX` and `FLUSH_EPS` are the two Physical ones, and both reasons name the device-fixed quantity they answer to (the fill shader's ~1px `smoothstep` feather and a `CORNER_RADIUS` uploaded once, unmultiplied). Plus `AWL_MENU_BAR_FORCE`'s memoized reader, its pure classifier, and `platform_default(is_macos)` — the platform fork extracted as a function taking its own argument, which is what makes both arms gradable from one host instead of only the one that compiled the test."
 
 [[file_size_mark]]
 file = "src/overlay/capture.rs"

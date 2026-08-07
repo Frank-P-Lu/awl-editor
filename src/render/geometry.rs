@@ -697,15 +697,15 @@ impl TextPipeline {
         (self.column_width() - 2.0 * self.text_pad()).max(1.0)
     }
 
-    /// WEB/LINUX MENU BAR reserve (px): the vertical strip the awl-rendered menu bar
-    /// occupies at the canvas top while it is shown, else `0.0`. The document is inset
-    /// below this (folded into [`Self::doc_top`] + the pipeline `hit_test` + the scroll
-    /// viewport), so the caret / selection / hit-test all shift together. Gated on
-    /// `crate::menubar::menu_bar_on()` — DEFAULT OFF on macOS (the capture/test
-    /// platform), so this is `0.0` there and every default frame is byte-identical;
-    /// `--menu-bar` / a web/Linux launch turns it on. Keyed off the LABEL-scaled line
-    /// height, matching the slim bar the renderer draws. Public so the capture sidecar
-    /// can report the TRUE text-origin top (`TEXT_TOP + this`) when the bar is shown.
+    /// **THE ONE OWNER OF THE MENU BAR'S HEIGHT — reserved AND drawn.** The vertical
+    /// strip the awl-rendered bar occupies at the canvas top while it is shown, else
+    /// `0.0`. The document is inset below it (folded into [`Self::doc_top`], the
+    /// pipeline `hit_test` and the scroll viewport) so caret, selection and hit-test
+    /// shift together, every card budget subtracts it, and `chrome/menubar.rs` DRAWS
+    /// the strip at this exact value instead of re-spelling `bar_height(line_height *
+    /// LABEL, scale)` — which is what the two of them each did, agreeing only by
+    /// coincidence. Gated on `menu_bar_on()`: OFF by default on macOS, so a default
+    /// frame is byte-identical there. Public for the capture sidecar's own text top.
     pub fn menubar_reserve(&self) -> f32 {
         if crate::menubar::menu_bar_on() {
             crate::menubar::bar_height(

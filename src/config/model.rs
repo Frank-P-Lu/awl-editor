@@ -101,7 +101,7 @@ impl Config {
 
     #[cfg(test)]
     pub fn menu_bar_on(&self) -> bool {
-        self.menu_bar.unwrap_or(cfg!(not(target_os = "macos")))
+        self.menu_bar.unwrap_or(crate::menubar::menu_bar_default())
     }
 
     pub fn keymap_flavor(&self) -> crate::keymap::KeymapFlavor {

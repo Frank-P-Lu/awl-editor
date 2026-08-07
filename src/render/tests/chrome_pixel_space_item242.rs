@@ -476,6 +476,15 @@ fn const_decl(line: &str) -> Option<&str> {
 /// actually lived in — added here so a new one authored there fails this law by
 /// name instead of surviving on the same technicality.
 ///
+/// WIDENED AGAIN, to `src/menubar.rs`. A law's SCOPE has now been the defect twice:
+/// widening past `chrome/` caught three instances on its first run, and `menubar.rs`
+/// — the menu bar's own pure layout math, whose pads are added to device-scaled
+/// glyph positions in `chrome/menubar.rs` and `chrome/menubar/dropdown.rs` — sat
+/// outside the sweep for its whole life. Adding the one path is what made the
+/// compiler and this law ENUMERATE the work rather than a reader having to guess it.
+/// It is not a `chrome/` file only because the module is shared with the native
+/// menu roster; every length in it is a chrome length.
+///
 /// `src/render.rs` itself is DELIBERATELY NOT swept yet: alongside the already-typed
 /// chrome-style pads it declares ~30 more constants from unrelated, unaudited
 /// families — the caret/text metrics that pass through `Metrics::with_dpi`'s own
@@ -490,7 +499,11 @@ fn chrome_sources() -> Vec<(String, String)> {
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut out = Vec::new();
     let mut stack = vec![manifest.join("src/render/chrome")];
-    let single_files = ["src/render/geometry.rs", "src/render/scroll.rs"];
+    let single_files = [
+        "src/render/geometry.rs",
+        "src/render/scroll.rs",
+        "src/menubar.rs",
+    ];
     while let Some(dir) = stack.pop() {
         for entry in std::fs::read_dir(&dir).expect("chrome dir readable") {
             let path = entry.expect("dir entry").path();
