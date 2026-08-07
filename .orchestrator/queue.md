@@ -171,6 +171,12 @@ well as here — **this item has already been answered twice by the user because
 decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
+- 🔵 **THE RIGHT-CLICK MENU'S GREYED-OUT LABELS WERE INVISIBLE, AND NOW ARE NOT (item 299).**
+  `gallery/item-299/before-context-menu-Wagtail-selected0.png` → `after-…`. Before, the Cut row showed
+  no "unavailable" at all while Paste wrongly showed one it had not earned, because every secondary
+  label sat one row below its own. On Wagtail the misplaced ink measured **ΔE 0.0 from its ground —
+  byte-identical, literally invisible.** After, Cut and Copy each read legibly and Paste and Select all
+  correctly show nothing. Worth a glance to confirm "unavailable" reads as quiet rather than as broken.
 - 🔵 **SIXTEEN TUNED QUANTITIES ARE HALF-SIZE ON YOUR RETINA SCREEN, AND FIXING THEM IS A TASTE
   CALL, NOT A UNIT ANNOTATION (item 338).** The spell squiggle's amplitude and period, the nit and
   table rule thicknesses, the inline-code pill's insets, the fence panel's inset, table cell padding
@@ -1348,7 +1354,27 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      **Verify:** document region byte-identical under a summoned context menu;
      full overlays keep their frost. **Routing:** production tier.
 
-299. 🚧 CLAIMED (worktree item-299-chrome-ink, production tier — bundled 299+319) **Two rows in the same state draw their accessory in different inks.** Copy
+299. ✅ **LANDED (merged 2026-08-08) — THE FIX IS ONE TOKEN, and the diagnosis came first as the
+     item demanded.** `right_bind_lines`: `header_rows.max(1)` → `header_rows`.
+     ✅ **Per-row ink resolution was ALREADY CORRECT** — `shape_overlay_right` resolves each row's
+     secondary ink from its own index. The defect was one row **upstream** and **geometric**: the
+     `.max(1)` forced the first secondary label to lead with a blank line even where `header_rows` is
+     **0** — true only for the right-click Context menu, the one kind combining no query row with a
+     populated secondary column. **Every row's secondary text, and the ink resolved for it, landed one
+     display row below its own:** row 0 drew nothing; row 1 wore row 0's ink on row 1's ground.
+     **Byte-identical for every other kind**, where `header_rows` is always 1.
+     ⚠️ **IT IS NOT ITEM 309's MECHANISM, and the distinction is worth keeping.** 309 was one shared
+     `set_color` for every rail in a frame. Here the ink was resolved **correctly per row** and then
+     dragged onto the **wrong row's ground**. **"Correct ink, wrong row", not "one ink for every
+     row"** — a distinct class.
+     ✅ **Illegibility measured against each row's own clean ground rather than by scanning:** Wagtail
+     **ΔE 0.0 — byte-identical, literally invisible** — Cassowary **1.9** (under the 2.3 JND), Firetail
+     **7.5**. ⚠️ **The premise was stale in its literal pair** (Paste is unconditionally enabled now, so
+     "Copy and Paste both disabled" no longer matches the code) **but the item's own hypothesis was
+     right** — which is why it said to test that first. Floors swept over the two reachable
+     disabled-row states × roster × selected-row position × 1×/2×, presence paired with contrast and
+     `graded == presence_graded` asserted so no cell can silently skip.
+     **Original:** **Two rows in the same state draw their accessory in different inks.** Copy
      and Paste are both disabled, both render `unavailable`; Paste's is legible,
      Copy's is near-black on near-black.
      ⚠️ Diagnose, do not tune a colour. Cut is SELECTED and Copy is the row after
@@ -2090,7 +2116,29 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      left contradicting the code. **Routing:** production tier, then the user for the live
      `--release` look — the final read is taste and no capture claims it.
 
-319. 🚧 CLAIMED (worktree item-299-chrome-ink, production tier — bundled 299+319) **STILL OPEN — and item 318 added a SECOND, MEASURED INSTANCE: card ink exists ~42 logical px OUTSIDE
+319. ✅ **CLOSED (merged 2026-08-08) — BOTH CITED INSTANCES DISSOLVED UNDER SOUND MEASUREMENT, AND
+     NEITHER WAS A PRODUCT DEFECT. Recorded as "premise false, oracle repaired", not as fixed.**
+     ⚠️ **Instance A is UNREACHABLE LIVE.** The footer tips ride **only** while the Keybindings overlay
+     is open — `sync_discoverability`'s own comment says so — so no other flat picker ever grows a
+     footer, and the cited Mangrove/Command combination cannot occur. Under the one combination that
+     **can**, there is **no clip at the shipped default zoom on any world** (worst real tip 486.3px
+     against 496px).
+     ⚠️ **Instance B — item 318's "~42px of card ink outside `overlay_card_rect`" — DOES NOT REPRODUCE**
+     against a production shaping accessor (`overlay_line_glyph_box`): **zero overflow** on either
+     diagonal world at either scale. ✅ **AND ITEM 329 PREDICTED THIS EXACT FAILURE HOURS EARLIER.** 318
+     found it by treating the card-ink mask as an **inclusion set**, and 329's audit documented that the
+     mask is sound only as a **veto** and false inverted. **So that contract caught a stale finding on
+     its first contact — the oracle was wrong, not the product.**
+     ✅ **THE GUARD THE ITEM ACTUALLY WANTED NOW EXISTS**, swept over the **full roster** rather than
+     narrowed to the diagonal worlds (Instance A's clip, when forced, reproduced on Tawny — a plain
+     `Pane` world — so narrowing would have been wrong), every catalog tip, 1×/2×, and both menu-bar
+     states at the shipped zoom.
+     🔴 **AND IT IMMEDIATELY CAUGHT A FOURTH CLIP NOBODY KNEW ABOUT — now item 342.**
+     🔵 **One residual, named rather than folded in:** at zoom **1.0** (not the shipped 0.8) Mangrove's
+     plain hint line overflows the card's right edge by **~7.7 logical px**; Magpie and Paperbark stay
+     clean. Direction-gated and zoom-gated. The likely mechanism — the clamp's width budget is
+     advance-based while the hint's symbol glyphs may have wider cells — **needs its own check** and is
+     the same shape as item 342. **Original:** **STILL OPEN — and item 318 added a SECOND, MEASURED INSTANCE: card ink exists ~42 logical px OUTSIDE
      `overlay_card_rect` on both diagonal worlds** (found at `(1102, 344)`, mask 0.03 **both before
      and after** 318 — so it is pre-existing and 318 changed nothing about it). That makes this
      item's subject two independent overflows of the same card, not one, and both were found by
@@ -2708,6 +2756,25 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      315, 323, 322 and this), and each time widening it enumerated real work. ✅ **Build:** widen the
      sweep to the caret files and classify what it enumerates, one family at a time, naming the
      pipeline that already scales each. **Routing:** production tier.
+
+342. 🔴 **POTOROO AND FIRETAIL CLIP THEIR KEYBINDINGS HINT AT 2×, MENU BAR OFF — WHICH IS macOS'S OWN
+     DEFAULT, so this is live on the dev platform.** Found by item 319's new sweep on its first run,
+     with no tip needed: the hint alone measures **803.2px** against each world's own (different)
+     column budget. Clean at 1×, which is why every capture missed it.
+     ✅ **THE DETERMINING PROPERTY IS MEASURED, NOT GUESSED: both are the worlds whose CHROME font is
+     `"Monaspace Xenon"`** — and **nine other worlds with a monospace chrome font do NOT clip**, so it
+     is that face's wider advance, not monospace generally. 319's law excludes them **by that measured
+     property rather than by a name list**, with a non-vacuity count (`excluded == 8` = 2 worlds × 2 dpi
+     × 2 bar states), so the exclusion cannot silently widen.
+     ⚠️ **This is a font-metrics-versus-fixed-budget question**, which is why 319 flagged it instead of
+     absorbing it. It is the **same shape as 319's own zoom-1.0 residual** (Mangrove's hint overflowing
+     by ~7.7px): a width budget computed from advances against text whose glyph cells are wider.
+     **Consider fixing both together, and check whether the budget should measure shaped extents rather
+     than advances.**
+     ⚠️ **Fixing it by shrinking the hint text is the dishonest repair** — the hint is the discoverability
+     affordance. **Verify** across the roster × 1×/2× × both menu-bar arms at the shipped zoom, and
+     **remove 319's exclusion as part of the fix** so its non-vacuity count fails if the exclusion is
+     left behind. **Routing:** production tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
