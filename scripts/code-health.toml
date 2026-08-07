@@ -1839,8 +1839,8 @@ reason = "Item 274's subject split of the former flat test monolith relocated th
 lint = "clippy::too_many_lines"
 file = "src/render/tests/frost_feather_item312.rs"
 function = "the_footprints_edge_is_a_ramp_of_the_authored_width_in_logical_px_at_every_dpi"
-message = "this function has too many lines (147/100)"
-reason = "A pixel-profiling law, not a routine assertion: it builds a real frame open and closed, profiles outward from BOTH vertical faces along each face's own sheared x, and derives which face carries the claim from whether a skirt has any document to defocus. The length is the sweep (3 worlds x 2 DPI tiers x 2 faces) plus the veto that keeps card ink out of the first samples. Splitting it would separate the profile from the non-vacuity clause that gives its numbers meaning, which is how a measurement law goes quietly vacuous. The largest of the three and the first candidate if this file is ever decomposed."
+message = "this function has too many lines (137/100)"
+reason = "A pixel-profiling law, not a routine assertion: it builds a real frame open and closed, profiles outward from BOTH vertical faces along each face's own sheared x, and derives which face carries the claim from whether a skirt has any document to defocus. The length is the sweep (3 worlds x 2 DPI tiers x 2 faces) plus the veto that keeps card ink out of the first samples. Splitting it would separate the profile from the non-vacuity clause that gives its numbers meaning, which is how a measurement law goes quietly vacuous. The largest of the three and the first candidate if this file is ever decomposed. Tightened from 147 when the sheared face got a single owner (`footprint_face_x`) -- this law had been profiling the retired union's face rather than the drawn one, so the ten lines went away as a by-product of fixing what it measured."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
