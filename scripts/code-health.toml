@@ -208,8 +208,8 @@ reason = "The one construction site each pipeline family has now sits inside gpu
 
 [[file_size_mark]]
 file = "src/main/args.rs"
-lines = 1127
-reason = "Was 1296. `parse_args` no longer compares an argument against a literal: the 61 flags are one `flag_roster!` invocation deriving both `FlagId` and the `FLAGS` table from a single list, so `--help` and the reference's CLI section generate from the same rows the parser dispatches on. Still over the 500 production ceiling because `parse_args` remains the ONE flag-parsing owner and the ONE hermetic-sandbox install site; the roster moved the flag DATA out, not the dispatch. Decomposing the dispatch itself would split the no-wildcard `match flag.id` that is exactly what makes a new roster row fail to compile until it is handled."
+lines = 1191
+reason = "Was 1127. +64: `LiveAppSpec` carries canvas and dpi, and `CaptureKind::ScreenshotApp` gets its OWN hook list. Before this the live-App door fell through to the plain-Screenshot bucket, which classified --capture-size, --capture-dpi, --sel, --zoom, --scroll, --preedit, --search and --default-folder as HONOURED and then discarded every one of them -- a flag accepted and ignored, which cost a lane a round believing it had measured at a width it never rendered. The two flags that can be honoured now are, and the rest refuse loudly. The per-mode hook list is the mechanism: a door that shares another door's bucket inherits promises it does not keep."
 
 [[file_size_mark]]
 file = "src/main/run.rs"
@@ -530,7 +530,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/main/args.rs"
 function = "parse_args"
-message = "this function has too many lines (616/100)"
+message = "this function has too many lines (620/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 121 added one minimal --ground-audition arm (+13 lines). Item 188 added one CLI flag arm, one Mode variant selection arm and its `live_app` flag to the one parser (+20), and MERGED the two hermetic-fs installs into one unconditional call (-1, after routing its one branch through the new `scenario::seed_document` owner) — the net is the smallest a new capture mode can cost in a single-owner arg parser. `--bench-a11y` adds the same irreducible three pieces every hidden bench flag here adds, each `cfg`-gated native-only (+10)."
 
 [[clippy_exception]]

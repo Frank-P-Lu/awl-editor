@@ -76,6 +76,27 @@ Three properties worth knowing before you reach for it:
   pipeline, as `--screenshot-frames` does). And it is still a STATE oracle:
   appearance claims are asserted over the PNG's pixels, per CLAUDE.md's Wagtail
   tripwire, exactly as at tier 1.
+- **`--capture-size`/`--capture-dpi` are honored (item 334 — closed a gap this
+  map used to leave unrecorded).** Before, `LiveAppSpec` carried no canvas/dpi
+  fields at all, so the flags parsed, validated as "honored" (`--screenshot-app`
+  fell through to the plain-`--screenshot` bucket in the CLI's own hook-usage
+  check), and were then silently dropped on the floor before the frame ever
+  rendered — every geometry claim made against a `--screenshot-app` PNG before
+  this closed was measuring the byte-stable 1200x800 default no matter what
+  canvas the invocation asked for. `LiveAppSpec` now carries both, threaded onto
+  the `CaptureOpts` `capture_live_app` hands the SAME `capture_with` path
+  `--screenshot` renders through, so the meaning is identical on both doors: a
+  narrower physical canvas re-wraps the SAME document into more visual rows
+  (`layout.rows`), and a `WxH` device canvas at `--capture-dpi N` is the SAME
+  logical `(W/N)x(H/N)` window as the unscaled canvas — proved by matching
+  visual-row wrap counts between `1200x800 @1` and `2400x1600 @2`
+  (`run::live_app::tests::a_live_app_capture_honors_capture_size_and_the_dpi_meaning_holds`).
+  The per-frame render hooks (`--sel`/`--zoom`/`--scroll`/`--preedit`/
+  `--search*`) and `--default-folder` stay REFUSED on this door rather than
+  silently dropped — `LiveAppSpec` has no slot for any of them, and the first
+  two exist because the live App owns that state via real driving; an override
+  would misrepresent the editor being photographed. `--root`/`--workspace` were
+  already threaded and stay so.
 
 Rust assertions on `App` state remain the purest seam for a sweep
 (CLAUDE.md's unit > sidecar > capture ladder) — item 114's tier-2 settings sweep

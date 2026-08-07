@@ -62,6 +62,8 @@ pub(crate) fn capture_live_app(out: PathBuf, spec: LiveAppSpec) -> Result<()> {
         root,
         workspace,
         config,
+        canvas,
+        dpi,
     } = spec;
     // Same root precedence as every other capture door — the EXPLICIT `--root`
     // or the launch file's own directory, never a remembered session (the
@@ -73,7 +75,14 @@ pub(crate) fn capture_live_app(out: PathBuf, spec: LiveAppSpec) -> Result<()> {
     // An exit request is state, not an error — a spec ending in Quit still
     // photographs the editor it left behind.
     let _exit_requested = app.press_chords_headless(&keys);
-    let opts = app.capture_opts();
+    let mut opts = app.capture_opts();
+    // `App::capture_opts` folds live STATE — it carries no opinion on the
+    // render target, so `--capture-size`/`--capture-dpi` are threaded in here,
+    // the one place this door builds `CaptureOpts`. `capture_with` (below) is
+    // the SAME path `--screenshot` renders through, so a `None` here still
+    // means today's byte-stable 1200x800 @1x default.
+    opts.canvas = canvas;
+    opts.dpi = dpi;
     capture::capture_with(&out, crate::run::CaptureSubject::buffer(&app), &opts)?;
     println!("wrote {} (+ sidecar .json)", out.display());
     Ok(())
@@ -88,6 +97,11 @@ pub(crate) fn print_semantic_json(spec: LiveAppSpec) -> Result<()> {
         root,
         workspace,
         config,
+        // No PNG is rendered on this door, so there is no canvas to size —
+        // `args::parse_args` already refuses `--capture-size`/`--capture-dpi`
+        // alongside `--semantic-json` rather than letting them land here unused.
+        canvas: _,
+        dpi: _,
     } = spec;
     let active_root = super::resolve_root(&root, &file);
     let mut app = App::new_headless_capture(file, active_root, workspace, config);

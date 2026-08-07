@@ -62,6 +62,8 @@ fn spec(keys: Vec<crate::keyspec::Chord>, root: Option<PathBuf>) -> LiveAppSpec 
         root,
         workspace: None,
         config: cfg(),
+        canvas: None,
+        dpi: None,
     }
 }
 
@@ -299,6 +301,8 @@ fn a_live_app_capture_photographs_the_toast_the_semantic_tree_announces() {
                 root: Some(proj()),
                 workspace: None,
                 config: cfg(),
+                canvas: None,
+                dpi: None,
             },
         )
         .expect("the live-App capture needs a GPU adapter");
@@ -310,6 +314,8 @@ fn a_live_app_capture_photographs_the_toast_the_semantic_tree_announces() {
                 root: Some(proj()),
                 workspace: None,
                 config: cfg(),
+                canvas: None,
+                dpi: None,
             },
         )
         .expect("the live-App capture needs a GPU adapter");
@@ -410,5 +416,100 @@ fn the_live_app_sidecar_is_the_ordinary_schema_and_shape() {
         Some(false),
         "no chords were pressed, so the shared no-overlay literal is emitted \
          — the same one every card-less capture carries"
+    );
+}
+
+/// A `--capture-size`/`--capture-dpi` combination reaching this door must
+/// change the RENDERED GEOMETRY, not merely echo the requested numbers back
+/// into the `canvas` block — a law asserting only the latter is satisfiable
+/// by a door that reports the field and then ignores it. So this drives one
+/// long single-logical-line document through three renders and reads the
+/// visual-row WRAP COUNT for that line straight out of the `layout` oracle:
+///
+/// 1. a narrower PHYSICAL canvas at dpi 1 must wrap the same line into MORE
+///    visual rows than a wider one — real reflow, not an echoed number;
+/// 2. a device canvas at dpi 2 that is exactly DOUBLE a dpi-1 canvas must
+///    wrap identically to it — the documented `--capture-dpi` meaning
+///    (`WxH` device @ dpi N == `(W/N)x(H/N)` logical) holding on this door
+///    exactly as it does on the ordinary `--screenshot` one.
+#[test]
+fn a_live_app_capture_honors_capture_size_and_the_dpi_meaning_holds() {
+    let _g = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-item334-canvas-{}", std::process::id())),
+    );
+    let doc = std::path::PathBuf::from("/ws/proj/long.md");
+    // One long logical line with plentiful word-wrap points, long enough to
+    // wrap several times even at the wide canvas.
+    let long_line = "supercalifragilistic ".repeat(60);
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/cfg")
+            .with_dir("/ws")
+            .with_dir("/ws/proj")
+            .with_file(&doc, &long_line),
+    );
+
+    let wide_out = dir.join("wide.png");
+    let narrow_out = dir.join("narrow.png");
+    let dpi2_out = dir.join("dpi2.png");
+    let spec_at = |canvas: Option<(u32, u32)>, dpi: Option<f32>| LiveAppSpec {
+        file: Some(doc.clone()),
+        keys: Vec::new(),
+        root: Some(proj()),
+        workspace: None,
+        config: cfg(),
+        canvas,
+        dpi,
+    };
+    let (wide_json, narrow_json, dpi2_json) = crate::fs::with_fs(mem, || {
+        capture_live_app(wide_out.clone(), spec_at(Some((1200, 800)), None))
+            .expect("the live-App capture needs a GPU adapter");
+        capture_live_app(narrow_out.clone(), spec_at(Some((640, 800)), None))
+            .expect("the live-App capture needs a GPU adapter");
+        // Double the wide canvas AND the dpi: same LOGICAL window (1200x800).
+        capture_live_app(dpi2_out.clone(), spec_at(Some((2400, 1600)), Some(2.0)))
+            .expect("the live-App capture needs a GPU adapter");
+        (sidecar(&wide_out), sidecar(&narrow_out), sidecar(&dpi2_out))
+    });
+
+    // The field is genuinely threaded (not left at the 1200x800 default) —
+    // necessary, but per the doc comment above, not sufficient on its own.
+    assert_eq!(wide_json["canvas"]["width"].as_u64(), Some(1200));
+    assert_eq!(narrow_json["canvas"]["width"].as_u64(), Some(640));
+    assert_eq!(dpi2_json["canvas"]["width"].as_u64(), Some(2400));
+    assert_eq!(dpi2_json["canvas"]["dpi"].as_f64(), Some(2.0));
+
+    let wraps_for_line0 = |v: &serde_json::Value| -> usize {
+        v["layout"]["rows"]
+            .as_array()
+            .expect("a live-App sidecar carries a layout block")
+            .iter()
+            .filter(|row| row["line"].as_u64() == Some(0))
+            .count()
+    };
+    let wide_wraps = wraps_for_line0(&wide_json);
+    let narrow_wraps = wraps_for_line0(&narrow_json);
+    let dpi2_wraps = wraps_for_line0(&dpi2_json);
+
+    assert!(
+        wide_wraps >= 2,
+        "the fixture line must wrap at least twice at 1200px wide for this \
+         law to be meaningful (got {wide_wraps})"
+    );
+    assert!(
+        narrow_wraps > wide_wraps,
+        "a narrower --capture-size must wrap the SAME line into MORE visual \
+         rows ({narrow_wraps} at 640px vs {wide_wraps} at 1200px) — this is \
+         the geometry the flag is supposed to change, not just the number \
+         echoed into the canvas block"
+    );
+    assert_eq!(
+        dpi2_wraps, wide_wraps,
+        "2400x1600 @ dpi 2.0 is the SAME logical 1200x800 window as \
+         1200x800 @ dpi 1.0, so the two must wrap identically — the \
+         documented --capture-dpi meaning (WxH device @ dpi N == \
+         (W/N)x(H/N) logical) holding on the live-App door exactly as it \
+         does on the ordinary --screenshot one"
     );
 }
