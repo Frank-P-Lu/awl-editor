@@ -12,6 +12,11 @@ set -euo pipefail
 convention="${AWL_CONVENTION_FORCE:-canary}"
 printf 'start %s\n' "$convention" >>"$AWL_NATIVE_GATE_PROBE_LOG"
 printf 'threads %s %s\n' "$convention" "${RUST_TEST_THREADS:-unset}" >>"$AWL_NATIVE_GATE_PROBE_LOG"
+# The MENU-BAR axis, recorded per invocation. `unset` is a real answer and the
+# one the canary and both conventions must give: if a convention inherited a
+# forcing, the axis would be a property of the convention arms rather than its
+# own two, and the pair would be measuring one branch twice.
+printf 'menubar %s\n' "${AWL_MENU_BAR_FORCE:-unset}" >>"$AWL_NATIVE_GATE_PROBE_LOG"
 # Cargo and libtest emit these lines with SGR colour on a GitHub runner (the
 # 2026-08-02 mac log is full of them), so the fixture emits them coloured too:
 # a phase matcher anchored to a bare "Finished" would pass here and see nothing
@@ -64,6 +69,13 @@ else
 fi
 printf 'finish %s\n' "$convention" >>"$AWL_NATIVE_GATE_PROBE_LOG"
 if [[ "$convention" == "${AWL_NATIVE_GATE_FAIL_CONVENTION:-}" ]]; then
+  exit "${AWL_NATIVE_GATE_FAIL_STATUS:-1}"
+fi
+# A MENU-BAR arm failing, keyed on the forcing rather than the convention. Both
+# guards read the same `AWL_NATIVE_GATE_FAIL_STATUS`, and the `-n` test keeps
+# this inert for the canary and the two conventions, which carry no forcing.
+if [[ -n "${AWL_MENU_BAR_FORCE:-}" \
+  && "$AWL_MENU_BAR_FORCE" == "${AWL_NATIVE_GATE_FAIL_MENU_BAR:-}" ]]; then
   exit "${AWL_NATIVE_GATE_FAIL_STATUS:-1}"
 fi
 EOF
@@ -607,6 +619,48 @@ for failing in mac linux; do
 done
 
 echo "test-native-gate: both conventions overlap, both statuses survive, and either failure suppresses the receipt"
+
+# ── THE MENU-BAR AXIS IS ACTUALLY SWEPT, IN BOTH ARMS ────────────────────────
+# The point of the arms is that the axis stops depending on who remembers to
+# edit a source file, and the way that promise dies quietly is the arms simply
+# not being there — a deleted `gate_launch` line reads as a smaller diff, not as
+# lost coverage. So this law reads the FORCING each cargo invocation actually
+# received, not the gate's prose about it.
+#
+# Both directions matter and the second is the one that makes the pair
+# non-vacuous: `on` and `off` must each appear exactly once (an arm that ran
+# twice with the same value would sweep one branch and report two), and the
+# canary plus both conventions must appear with the forcing UNSET (a convention
+# that inherited one would make the axis a property of the convention arms).
+run_probe
+(( probe_status == 0 )) || { echo "test-native-gate: menu-bar axis probe failed" >&2; exit 1; }
+for arm in on off; do
+  [[ "$(grep -Fxc "menubar $arm" "$WORK/events")" == 1 ]] || {
+    echo "test-native-gate: the gate ran the AWL_MENU_BAR_FORCE=$arm arm $(grep -Fxc "menubar $arm" "$WORK/events") times, expected exactly 1 — the axis is not swept" >&2
+    exit 1
+  }
+done
+[[ "$(grep -Fxc 'menubar unset' "$WORK/events")" == 3 ]] || {
+  echo "test-native-gate: expected the canary and both conventions (3 invocations) to carry NO menu-bar forcing, saw $(grep -Fxc 'menubar unset' "$WORK/events")" >&2
+  exit 1
+}
+
+# Either arm failing suppresses the receipt, and BOTH statuses are preserved in
+# the message — the same contract the conventions have, for the same reason: a
+# report that collapsed the two could not say which branch of the axis is red.
+for arm in on off; do
+  probe "menubar-fail-$arm" AWL_NATIVE_GATE_FAIL_MENU_BAR="$arm" AWL_NATIVE_GATE_FAIL_STATUS=29
+  (( probe_status == 1 )) || {
+    echo "test-native-gate: a failing menu-bar $arm arm returned $probe_status, expected gate status 1" >&2
+    exit 1
+  }
+  require "menu-bar $arm failure" "native-gate: menu-bar axis failure"
+  require "menu-bar $arm failure" \
+    "on_status=$([[ $arm == on ]] && echo 29 || echo 0) off_status=$([[ $arm == off ]] && echo 29 || echo 0)"
+  refuse "menu-bar $arm failure" "native-gate-receipt"
+done
+
+echo "test-native-gate: the menu-bar axis runs both arms with the conventions unforced, and either arm's failure suppresses the receipt"
 
 # ── The in-flight marker: a signal a second orchestrator session can read ────
 # The board explicitly supports two concurrent orchestrator sessions in one

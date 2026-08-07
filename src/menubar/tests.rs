@@ -7,6 +7,52 @@
 
 use super::*;
 
+/// THE FORCING KNOB'S PARSER, swept over every input shape rather than the one
+/// value this process happens to have launched with. `on`/`off` force; a typo, a
+/// capitalisation, an empty string and an unset variable must all be INERT —
+/// a knob that silently forced on `ON` would make the gate's two arms depend on
+/// how the caller spelled them.
+#[test]
+fn classify_force_reads_on_and_off_and_leaves_everything_else_alone() {
+    assert_eq!(classify_force(Some("on")), Some(true));
+    assert_eq!(classify_force(Some("off")), Some(false));
+    for inert in ["", "ON", "Off", "1", "0", "true", "false", "yes", " on"] {
+        assert_eq!(
+            classify_force(Some(inert)),
+            None,
+            "{inert:?} must leave the platform default alone"
+        );
+    }
+    assert_eq!(classify_force(None), None, "unset is a total no-op");
+}
+
+/// THE KNOB REALLY OWNS THE DEFAULT — non-vacuous exactly in the gate arms that
+/// set it. Under `AWL_MENU_BAR_FORCE=on|off`, `menu_bar_default()` must be the
+/// FORCED value: a `menu_bar_default` that read `cfg!(target_os = …)` and
+/// ignored the knob passes unforced on every host and fails here in both arms,
+/// which is the whole point of running them.
+///
+/// The unforced arm deliberately claims less than an equality against
+/// `platform_default(cfg!(…))` would — that is the tautology item 325 is about.
+/// It asserts the answer is one of the two NAMED consts, which is the part a
+/// third hardcoded default would break.
+#[test]
+fn menu_bar_default_honours_the_forcing_and_otherwise_reads_a_named_const() {
+    let forced = std::env::var("AWL_MENU_BAR_FORCE").ok();
+    match classify_force(forced.as_deref()) {
+        Some(want) => assert_eq!(
+            menu_bar_default(),
+            want,
+            "AWL_MENU_BAR_FORCE={forced:?} must own the default"
+        ),
+        None => assert!(
+            menu_bar_default() == MENU_BAR_DEFAULT_MACOS
+                || menu_bar_default() == MENU_BAR_DEFAULT_OTHER,
+            "unforced, the default must be one of the two named platform consts"
+        ),
+    }
+}
+
 /// `bar_height` IS DPI-INVARIANT AT MATCHED LOGICAL GEOMETRY, WITH A PRESENCE
 /// FLOOR. This is the PURE half — the row-count-style arithmetic, swept without a
 /// device. The live-pipeline half (whether `TextPipeline::menubar_reserve` / the

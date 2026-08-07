@@ -2,7 +2,21 @@
 //! dispatch, so it adds no menu-only behavior. Layout consumes shaped title extents
 //! for both drawing and hit testing. It defaults off on macOS, preserving normal
 //! native captures unless explicitly enabled.
+//!
+//! **THE PLATFORM DEFAULT IS AN AXIS, AND IT HAS A KNOB.** `MENU_BAR_ON` is the one
+//! platform-forked sticky default in the tree, so a law or fixture about the drawn
+//! bar sweeps NOTHING on a macOS host while being live on every Linux one — the
+//! asymmetry that once fired a global-leak audit on sixty CI tests and zero local
+//! ones, and that took this repo a gating CI RED (a picker drawing zero candidate
+//! rows on Linux, because the bar's height comes off every card's budget). A
+//! DEV-ONLY `AWL_MENU_BAR_FORCE=on|off` override — [`menu_bar_force`], the
+//! `AWL_CONVENTION_FORCE` precedent exactly — forces the DEFAULT the flag starts
+//! from, so the other branch is one env var away instead of a source edit away.
+//! No config key, no public CLI flag, a total no-op unless set; `scripts/
+//! native-gate.sh` runs BOTH arms every gate, which is what makes the axis swept
+//! by the gate rather than by whoever remembers.
 
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::render::Logical;
@@ -16,13 +30,78 @@ use crate::toggle::Toggle;
 pub(crate) const MENU_BAR_DEFAULT_MACOS: bool = false;
 pub(crate) const MENU_BAR_DEFAULT_OTHER: bool = true;
 
+/// The platform fork as a PURE function of "is this macOS" — the ONE owner of
+/// which const each platform reads, and the reason a `cfg!` may not appear in a
+/// second place (`Config::menu_bar_on` asserted one `cfg!` against an identical
+/// one and could not fail on any host). Taking the platform as an ARGUMENT rather
+/// than asking `cfg!` inside is what makes both arms gradable from a single host:
+/// a law on any machine can ask for the macOS answer and the non-macOS one and
+/// require them to differ, which is the claim that dies if either const is
+/// flipped to match the other.
+pub(crate) fn platform_default(is_macos: bool) -> bool {
+    if is_macos {
+        MENU_BAR_DEFAULT_MACOS
+    } else {
+        MENU_BAR_DEFAULT_OTHER
+    }
+}
+
+/// THE DEFAULT THIS RUNNING BUILD STARTS FROM: [`platform_default`] for the host,
+/// with the dev-only [`menu_bar_force`] override applied. Every reader of the
+/// bar's default — the flag's own initialiser below, and `Config::menu_bar_on`'s
+/// absent-key fallback — routes through here, so the forcing knob moves them
+/// together and neither can carry a second copy of the platform fork.
+pub(crate) fn menu_bar_default() -> bool {
+    match menu_bar_force() {
+        Some(forced) => forced,
+        None => platform_default(cfg!(target_os = "macos")),
+    }
+}
+
+/// PURE classifier for the knob's value: `on`/`off` force that default, and
+/// EVERYTHING else — an unset variable, an empty one, a typo, a capitalised
+/// `ON` — leaves the platform fork alone. Split out of the env read for the same
+/// reason `convention::classify_ua` is: a classifier that takes its input as an
+/// argument is swept over every input shape by a unit test, while a fn that
+/// reads a memoized process global can only ever be asked about the one value
+/// this process launched with.
+#[cfg(any(test, not(target_arch = "wasm32")))]
+fn classify_force(value: Option<&str>) -> Option<bool> {
+    match value {
+        Some("on") => Some(true),
+        Some("off") => Some(false),
+        _ => None,
+    }
+}
+
+/// The `AWL_MENU_BAR_FORCE=on|off` dev knob, read ONCE and memoized (the
+/// `AWL_CONVENTION_FORCE` / `AWL_CJK_FORCE` precedent: `menu_bar_on()` is read
+/// every frame, so a per-call `std::env::var` would put an env-var thread-safety
+/// hazard on a hot path). Never read on wasm: env vars are a process concept.
+#[cfg(not(target_arch = "wasm32"))]
+fn menu_bar_force() -> Option<bool> {
+    static ONCE: OnceLock<Option<bool>> = OnceLock::new();
+    *ONCE.get_or_init(|| classify_force(std::env::var("AWL_MENU_BAR_FORCE").ok().as_deref()))
+}
+
+#[cfg(target_arch = "wasm32")]
+fn menu_bar_force() -> Option<bool> {
+    None
+}
+
 /// Whether the rendered menu bar is drawn. It defaults on where there is no native
 /// bar and off on macOS; config, command, and capture flags can override it.
-static MENU_BAR_ON: Toggle = Toggle::new(if cfg!(target_os = "macos") {
-    MENU_BAR_DEFAULT_MACOS
-} else {
-    MENU_BAR_DEFAULT_OTHER
-});
+///
+/// LAZY, not a `const` initialiser, for exactly one reason: [`menu_bar_default`]
+/// reads an environment variable and `Toggle::new` is a `const fn`. The forcing
+/// knob therefore moves the DEFAULT and nothing else — `set_menu_bar_on` and
+/// `toggle` keep working normally under a forcing, which is what a fixture that
+/// flips the bar and restores the AMBIENT value depends on.
+static MENU_BAR_ON: OnceLock<Toggle> = OnceLock::new();
+
+fn menu_bar_flag() -> &'static Toggle {
+    MENU_BAR_ON.get_or_init(|| Toggle::new(menu_bar_default()))
+}
 
 const NONE: usize = usize::MAX;
 
@@ -36,7 +115,7 @@ static OPEN_MENU: AtomicUsize = AtomicUsize::new(NONE);
 /// True when the menu bar is enabled (read by the renderer each frame + the capture
 /// sidecar's `menubar` block, so the two can never disagree).
 pub fn menu_bar_on() -> bool {
-    MENU_BAR_ON.on()
+    menu_bar_flag().on()
 }
 
 /// Set the menu bar on/off explicitly — the config sticky-pref launch-apply
@@ -50,7 +129,7 @@ pub fn set_menu_bar_on(on: bool) {
     // rather than demanding every one of them pre-hold it.
     #[cfg(test)]
     let _g = crate::testlock::serial();
-    MENU_BAR_ON.set(on);
+    menu_bar_flag().set(on);
     if !on {
         set_open(None);
     }

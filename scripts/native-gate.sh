@@ -467,6 +467,38 @@ canary_command=(cargo test --test native_gate_canary)
 mac_command=(env AWL_CONVENTION_FORCE=mac cargo test)
 linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)
 
+# ── THE MENU-BAR AXIS: both arms, every gate ─────────────────────────────────
+# `menubar::MENU_BAR_ON` is the ONE platform-forked sticky default in the tree —
+# OFF on macOS, ON everywhere else. So a law or fixture about the drawn bar
+# sweeps NOTHING on a macOS host while being live on every Linux one, and that
+# asymmetry is not hypothetical: it took this repo a gating CI RED (a picker
+# drawing zero candidate rows on Linux, because the bar's height comes off every
+# card's height budget) and it fired a global-leak audit on sixty CI tests and
+# zero local ones. `AWL_MENU_BAR_FORCE=on|off` forces the default; running BOTH
+# arms here is what makes the axis swept by the GATE rather than by whoever
+# remembers to edit a source file. Neither arm's meaning depends on the host, so
+# the pair says the same thing on macOS, on Linux and in CI.
+#
+# ⚠️ THESE ARMS ARE FILTERED, AND THAT IS A DELIBERATE, MEASURED TRADE. Two more
+# UNFILTERED suites would add a whole suite's test execution to a host the two
+# conventions already saturate, and CI's `linux` job has run its
+# `timeout-minutes` ceiling out before (a timed-out job reports as `cancelled`,
+# which is easy to misread as a supersede). Measured on this host with a warm
+# target dir: the filter selects 26 of 3884 binary unit tests and runs in 1.5 s,
+# so each arm is a couple of seconds of test execution overlapped with two
+# ~4-minute conventions, and is not on the critical path.
+#
+# WHAT THE FILTER DOES NOT COVER, stated because a filtered arm always owes this:
+# it selects tests whose NAME contains `menubar` or `menu_bar`. A test that
+# OBSERVES the bar's reserve without saying so in its name is outside it (item
+# 317's census counted 14 tests that see the reserve), and so is every
+# integration target — `--bin awl` is binary unit tests. The receipt below
+# therefore still names `conventions=mac,linux scope=all-targets` and claims
+# nothing about this axis: these arms GATE the receipt without widening it.
+menubar_filters=(menubar menu_bar)
+menubar_on_command=(env AWL_MENU_BAR_FORCE=on RUST_TEST_THREADS=1 cargo test --bin awl -- "${menubar_filters[@]}")
+menubar_off_command=(env AWL_MENU_BAR_FORCE=off RUST_TEST_THREADS=1 cargo test --bin awl -- "${menubar_filters[@]}")
+
 gate_budget_marker="$gate_run_dir/budget-expired"
 
 gate_budget_expired() {
@@ -556,6 +588,13 @@ fi
 echo "==> native suites (mac and linux conventions, concurrent)"
 gate_launch mac_pid tracked gate_run_convention mac "${mac_command[@]}"
 gate_launch linux_pid tracked gate_run_convention linux "${linux_command[@]}"
+# The menu-bar arms ride alongside the two conventions rather than after them:
+# every one of the four shares the target dir, so Cargo's own lock serializes
+# their builds and only the FIRST of them compiles anything. What is left is test
+# execution, and these two arms have seconds of it.
+echo "==> menu-bar axis (AWL_MENU_BAR_FORCE on and off, filtered, concurrent)"
+gate_launch menubar_on_pid tracked gate_run_convention menubar-on "${menubar_on_command[@]}"
+gate_launch menubar_off_pid tracked gate_run_convention menubar-off "${menubar_off_command[@]}"
 
 # `wait` is allowed to report failure without set -e ending the gate before the
 # sibling has finished. Preserve both statuses; neither convention can hide the
@@ -565,9 +604,15 @@ wait "$mac_pid"
 mac_status=$?
 wait "$linux_pid"
 linux_status=$?
+wait "$menubar_on_pid"
+menubar_on_status=$?
+wait "$menubar_off_pid"
+menubar_off_status=$?
 set -e
 gate_phase mac suite-end "status=$mac_status"
 gate_phase linux suite-end "status=$linux_status"
+gate_phase menubar-on suite-end "status=$menubar_on_status"
+gate_phase menubar-off suite-end "status=$menubar_off_status"
 
 if [[ -f "$gate_budget_marker" ]]; then
   gate_finish_abort "mac_status=$mac_status linux_status=$linux_status"
@@ -579,6 +624,16 @@ kill -TERM "$vitals_pid" 2>/dev/null || true
 if (( mac_status != 0 || linux_status != 0 )); then
   printf 'native-gate: suite failure mac_status=%s linux_status=%s; no receipt issued\n' \
     "$mac_status" "$linux_status" >&2
+  exit 1
+fi
+
+# A menu-bar arm failing is a REAL failure of the same tree, and it suppresses
+# the receipt exactly like a convention does. It is reported separately so the
+# reader can see which axis went red without reading the log: a forced-arm
+# failure and a convention failure have different diagnoses.
+if (( menubar_on_status != 0 || menubar_off_status != 0 )); then
+  printf 'native-gate: menu-bar axis failure on_status=%s off_status=%s (filter=%s); no receipt issued\n' \
+    "$menubar_on_status" "$menubar_off_status" "${menubar_filters[*]}" >&2
   exit 1
 fi
 
