@@ -2131,7 +2131,21 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      neighbourhood — so **sequence with them and put the budget question to the user.**
      **Routing:** production tier, then the user.
 
-328. 🚧 CLAIMED (worktree item-328-density-owner, production tier — bundled 328+330) **`Background::density()` IS AN OWNER THAT ANSWERS "NO DENSITY" FOR A GROUND THAT HAS ONE.**
+328. ✅ **LANDED (merged 2026-08-08) — and the real fix was a SECOND accessor, not a changed
+     signature.** `density()` is exhaustive now, so a new density-bearing variant must be
+     classified before it compiles. ✅ **The return type stays `f32`, argued from the callers:**
+     `background_desc` and its production-parity test mirror both flatten every variant into a
+     shader uniform, following the same inert-zero convention `profile_mode`/`tunnel_mode` already
+     use on sibling fields; the other five sites ask `density()` on already-known-`Zigzag` worlds
+     and do direct arithmetic. `Option` would have added the struct's only `Option` field plus
+     `unwrap_or` at both flattening sites for nothing.
+     ✅ **`bears_density()` is the actual answer to "the enrolment is more truthful than its
+     accessor",** because **`density() == 0.0` cannot answer "does this ground carry the field at
+     all"** — a density-bearing world can author its dial to zero, and item 118's presence floor
+     depends on telling those apart. The private copy the density sweep carried is gone; it asks
+     the owner, so enrolment and accessor share one exhaustiveness discipline and cannot drift.
+     ✅ **The compile-time claim was PROVEN, not asserted:** a throwaway variant was added, `cargo
+     check` failed at exactly the two arms, and it was removed. **Original:** **`Background::density()` IS AN OWNER THAT ANSWERS "NO DENSITY" FOR A GROUND THAT HAS ONE.**
      `theme/ground.rs:365` ends in `_ => 0.0`, so a new density-bearing `Background` variant
      compiles, ships, and reads as density **zero** through the one accessor every consumer asks.
      Found by item 118 while building the density sweep: the sweep's enrolment could not route
@@ -2159,7 +2173,29 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      close condition is "every caller checked and the mask's contract documented at its
      definition", not a pixel change. **Routing:** production tier.
 
-330. 🚧 CLAIMED (worktree item-328-density-owner, production tier — bundled 328+330) **`atspi` NOW TIMES OUT RATHER THAN FAILING FAST, AND IT MAKES A GREEN TRAIN READ
+330. ✅ **LANDED (merged 2026-08-08) — ⚠️ THE ITEM'S PREMISE WAS WRONG ABOUT THE CAUSE, AND THE
+     PREMISE WAS MINE. THE PROBE WAS NOT HANGING — IT NEVER RAN.** Per-step timestamps from the
+     API: `Install system dependencies` took **21m41s** against a same-day neighbour's **14s** for
+     the identical step, and the probe step is recorded **`skipped`**, because `cargo build` was
+     still compiling when the 30-minute ceiling cancelled the job. **A rare `apt-get` stall against
+     the package mirror consumed the entire budget before the thing I suspected got a chance to
+     run.** (That the mirror is *why* apt stalled is inference; every timestamp above is read from
+     real job data.)
+     ✅ **AND THE RATE WAS MEASURED RATHER THAN ASSUMED: 1 occurrence in ~37 runs on `main`**, not
+     every run as the item implied. Every other `cancelled` conclusion in that population is a
+     **supersede**, and every genuine probe failure completes in 8–15 minutes. **So the probe's own
+     watchdog was left alone** — no run in the sample shows it firing, and there is no evidence to
+     act on. Item 257 still owns the failure.
+     ✅ **Both `apt-get` calls are now bounded**, turning a repeat stall into an ordinary tolerated
+     `failure` within minutes instead of a job-dominating `cancelled` at the ceiling.
+     ⚠️ **FIXED AT MERGE, and this is the reusable part: the wrapper was `timeout 5m sudo apt-get`,
+     which puts `timeout` OUTSIDE `sudo`.** `timeout` kills by signalling the child it forked;
+     outside `sudo` that child is the setuid binary running as **root**, and an unprivileged
+     `timeout` signalling a root process gets **EPERM** — the timer fires, the kill fails, and the
+     wrapper waits exactly as long as the stall it was added to bound. Reordered to
+     `sudo timeout 5m apt-get`. **On a path that fires once in ~37 runs, a wrapper that cannot fire
+     is worse than none: it reads as protected for months, then does nothing on the one run that
+     needed it.** **Original:** **`atspi` NOW TIMES OUT RATHER THAN FAILING FAST, AND IT MAKES A GREEN TRAIN READ
      `cancelled`.** Measured 2026-08-07 on `ba292f75`: `atspi` ran **30m20s** into its
      `timeout-minutes: 30`, and because a **timed-out** job cancels the run's conclusion even under
      `continue-on-error`, the run reported `cancelled` while **all four gating jobs succeeded**.
