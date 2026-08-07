@@ -1,13 +1,11 @@
-//! Item 339: `--screenshot-frames` HONOURING `--capture-size`/`--capture-dpi`.
+//! `--screenshot-frames` HONOURING `--capture-size`/`--capture-dpi`.
 //!
-//! `Mode::ScreenshotFrames` used to carry no canvas/dpi fields at all, and its
-//! `run.rs` handler rendered through a bare `CaptureOpts::default()` — so both
-//! flags parsed, validated as "honored" by the CLI's own hook-usage check (this
-//! door fell through to the plain-`--screenshot` bucket), and were then
-//! silently dropped before the frame ever rendered. Proved here the same way
-//! item 334 proved the identical fix on `--screenshot-app`: by MEASURING
-//! geometry a narrower canvas and a scaled dpi actually produce, not by
-//! asserting a field was set.
+//! `Mode::ScreenshotFrames` carries `canvas`/`dpi` fields threaded onto the
+//! `CaptureOpts` `run.rs`'s handler builds, and `capture::frames::
+//! capture_frames_async` calls `pipeline.set_dpi` the same way every other
+//! capture path does. Proved here by MEASURING geometry a narrower canvas and
+//! a scaled dpi actually produce (mirroring the form every other capture
+//! door's canvas/dpi law uses), not by asserting a field was set.
 
 use super::super::*;
 use super::adapter_available;
@@ -53,11 +51,11 @@ fn a_screenshot_frames_capture_honors_capture_size_and_the_dpi_meaning_holds() {
     let old_measure = crate::page::measure();
     crate::page::set_page_on(false);
     let dir = ScratchDir::new(
-        std::env::temp_dir().join(format!("awl-item339-frames-canvas-{}", std::process::id())),
+        std::env::temp_dir().join(format!("awl-frames-canvas-dpi-{}", std::process::id())),
     );
     // One long logical line with plentiful word-wrap points, long enough to
-    // wrap several times even at the wide canvas — the same fixture shape
-    // item 334 used on `--screenshot-app`.
+    // wrap several times even at the wide canvas — the same fixture shape the
+    // sibling `--screenshot-app` canvas/dpi law uses.
     let long_line = "supercalifragilistic ".repeat(60);
     let buf = Buffer::from_str(&long_line);
 

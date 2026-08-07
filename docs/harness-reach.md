@@ -130,6 +130,49 @@ stubbed, and they are the pattern to copy: `app::Scheduler` (the
 `about_to_wait` debounce/settle body, steppable under a `VirtualClock` — that
 is what `--screenshot-frames` drives) and `app::Exit` (this item).
 
+**`--capture-size`/`--capture-dpi` are honored (item 339 — the identical gap
+item 334 closed on `--screenshot-app`, found by that item's own lane while
+diagnosing and left alone until now).** Before, `Mode::ScreenshotFrames`
+carried no canvas/dpi fields at all and fell into the CLI's plain-`--screenshot`
+hook bucket, so both flags parsed, validated as "honored", and were then
+rendered through a bare `CaptureOpts::default()` regardless of what was typed —
+every N-frame capture was the byte-stable 1200x800 default no matter the
+canvas asked for. Worse, `capture::capture_frames_async` itself never called
+`pipeline.set_dpi`, so even a correctly-threaded `--capture-dpi` would have
+been a no-op at the renderer — a second, independent instance of the same
+"accepted and ignored" shape one layer deeper. Both are fixed: `Mode::
+ScreenshotFrames` now carries `canvas`/`dpi`, `CaptureKind::ScreenshotFrames`
+gives the door its own accurate hook list (canvas + dpi honored; the per-frame
+render hooks, `--root`, `--workspace`, `--default-folder` and `--keys` all
+refuse loudly — this door's document is a stationary backdrop loaded straight
+off disk, with no replay and no project resolution at all, so none of those
+has anywhere to land), and `capture_frames_async` calls `set_dpi` exactly
+where `capture_async` does. Proved by measuring geometry, mirroring item 334's
+form: a document with one long wrapping line renders 12 visual rows at
+1200x800, 30 at 640x800 (genuinely more reflow, not a relabelled number), and
+12 at 2400x1600 @ dpi 2.0 — identical to the 1200x800 @ dpi-1 baseline, the
+documented dpi meaning holding on this door too. Reverting the fix (either
+half) reproduces the exact original collapse: every canvas reports 1200x800
+regardless of the flags typed.
+
+**Every `Mode::*` capture door, and whether it carries canvas/dpi (item 339's
+own audit, so a third gap of this shape does not go unlisted):**
+
+| Door | Canvas/dpi? | How |
+| --- | --- | --- |
+| `Screenshot` | Yes | `CaptureOpts.canvas`/`.dpi` |
+| `ScreenshotMotion`/`-Vertical`/`-Diagonal` | No | refused loudly (`CaptureKind::Motion`), never silently dropped |
+| `ScreenshotFrames` | Yes (item 339) | own `canvas`/`dpi` fields → `CaptureOpts` |
+| `ScreenshotApp`/`SemanticJson` | Yes / N/A | `LiveAppSpec.canvas`/`.dpi` (item 334); `SemanticJson` renders no PNG, so its own spec always carries `None` and the CLI refuses the flag combination before either mode is built |
+| `CaptureTimeline`/`CaptureHeld` | Yes | own `canvas`/`dpi` fields |
+| `Storyboard` | No | refused outright — a storyboard run sets no `out`, so it resolves to `CaptureKind::Windowed`, which already refuses both flags |
+| `Windowed` | No | a real OS window; both flags refused for the same reason |
+| Every `Bench*` mode, `SoakGpu` | No | same refusal as `Storyboard` (none of these set `out` either); each bench's own fixed internal canvas is documented on the `Mode` variant, not driven by these flags |
+
+No third silently-discarding door was found: every other mode either threads
+the flags for real or is refused by the existing `unused_hooks` classification
+because it never sets `out` in the first place.
+
 ## Tier 2 — the effect table
 
 What a `--keys` capture does with each typed effect the shared core returns.

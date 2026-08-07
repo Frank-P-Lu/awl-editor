@@ -290,19 +290,20 @@ pub(super) fn comparison_view(text: &str, line: usize, col: usize) -> ViewState 
 ///
 /// `settings_row_reach_law.rs` and `range_rail.rs` each used to declare their
 /// own byte-identical `settings_view`, both silently leaving this field at 12
-/// and both carrying their own copy of this note. Item 335 proved the gap is
-/// load-bearing, not cosmetic: correcting it (a throwaway local patch, not
-/// landed) turns `settings_row_reach_law`'s reach law RED at `world=Mangrove
-/// dpi=1 logical_width=640 setting=PageWidthProse` — a drawn Range row whose
-/// rail can no longer seat once the wider drawn set (22 candidate lines in a
-/// 718.8px card at 1200x800) grows the diagonal cluster's label/value columns
-/// past what `rail_geom` can fit a rail into. That is item 327's still-open
-/// PRODUCT question about the accessory cluster's width budget — who yields
-/// first, the row name, the value text, or the rail — not a test bug, so it is
-/// handed back rather than papered over, and this default stays parked until
-/// the question is answered. Un-parking it is then a one-line change: pass
-/// `ov.window_rows()` (or a real 31) at this constant's ONE definition instead
-/// of threading it through every call site again.
+/// and both carrying their own copy of this note — now one owner, one note.
+/// The gap is load-bearing, not cosmetic: correcting it (a throwaway local
+/// patch, not landed) turns `settings_row_reach_law`'s reach law RED at
+/// `world=Mangrove dpi=1 logical_width=640 setting=PageWidthProse` — a drawn
+/// Range row whose rail can no longer seat once the wider drawn set (22
+/// candidate lines in a 718.8px card at 1200x800) grows the diagonal
+/// cluster's label/value columns past what `rail_geom` can fit a rail into.
+/// That is a still-open PRODUCT question about the accessory cluster's width
+/// budget — who yields first, the row name, the value text, or the rail — not
+/// a test bug, so it is handed back rather than papered over, and this
+/// default stays parked until the question is answered. Un-parking it is
+/// then a one-line change: pass `ov.window_rows()` (or a real 31) at this
+/// constant's ONE definition instead of threading it through every call site
+/// again.
 pub(super) const SETTINGS_VIEW_PARKED_WINDOW_ROWS: usize = 12;
 
 /// Fold a Settings [`crate::overlay::OverlayState`] into a `ViewState` the way

@@ -16,6 +16,9 @@ use crate::render;
 
 mod caret_streak;
 mod folds;
+/// `--screenshot-frames`'s own capture path (`capture::frames`) is native-only
+/// (it builds a hermetic `App`), so this law is too.
+#[cfg(not(target_arch = "wasm32"))]
 mod frames;
 mod i18n_fixtures;
 mod layout_oracle;

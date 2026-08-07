@@ -1219,10 +1219,7 @@ mod tests {
             assert!(frames.contains(&f), "--screenshot-frames should drop {f}");
         }
         for f in ["--capture-size", "--capture-dpi"] {
-            assert!(
-                !frames.contains(&f),
-                "--screenshot-frames should honor {f}"
-            );
+            assert!(!frames.contains(&f), "--screenshot-frames should honor {f}");
         }
 
         // The windowed editor honors project context but not capture hooks.
