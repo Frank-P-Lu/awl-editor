@@ -340,9 +340,11 @@ fn a_rails_hit_target_is_where_it_is_drawn_and_the_label_is_not_part_of_it() {
 ///    judging the 300 % thumb against the 50 % frame's `x0..x1` is exactly the
 ///    drift `RangeDrag` snapshots a scale to avoid. Each frame is now reduced to
 ///    a FRACTION of its own track before anything is compared. HONEST SCOPE
-///    (fourth-repair correction, measured across all 18 worlds): this one was NOT
-///    load-bearing. Judging the high frame on the LOW frame's track moves its
-///    reading by at most 0.1129 (worst case 0.9832 own -> 0.8704 shared), and the
+///    (fourth-repair correction): this one was NOT load-bearing. Judging the high
+///    frame on the LOW frame's track moved its reading by at most 0.1129 (worst
+///    case 0.9832 own -> 0.8704 shared) over the roster AS IT STOOD THEN — a
+///    one-time sweep, not a figure anything re-derives, so read it as the reason
+///    the repair is not load-bearing rather than as a live bound — and the
 ///    weakest shared-track reading, 0.8704, still cleared this law's `> 0.75`;
 ///    the floor frame is the reference track, so its reading does not move at
 ///    all. Only the world sweep (1) and the extent oracle (2) ever flipped a
