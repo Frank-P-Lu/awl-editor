@@ -140,7 +140,7 @@ fn collapsed_page_still_arms_the_resize_affordance() {
     let left = p.column_left();
     let width = p.column_width();
     assert!(
-        left <= PAGE_MIN_PAD + 1.0,
+        left <= PAGE_MIN_PAD.0 + 1.0,
         "fixture must actually collapse (left={left}) or it can't exercise the old guard",
     );
     // The pre-fix guard killed BOTH edges; both must now arm.

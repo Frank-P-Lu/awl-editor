@@ -1565,7 +1565,7 @@ fn placard_wordmark_stays_in_bounds_at_the_apps_own_minimum_window_size() {
     // and no smaller, via `with_min_inner_size`).
     const MIN_COLS: f32 = 30.0;
     const MIN_LINES: f32 = 8.0;
-    let min_w = MIN_COLS * CHAR_WIDTH + 2.0 * TEXT_LEFT;
+    let min_w = MIN_COLS * CHAR_WIDTH + 2.0 * TEXT_LEFT.0;
     let min_h = MIN_LINES * LINE_HEIGHT + 2.0 * TEXT_TOP;
     p.set_size(min_w, min_h);
 

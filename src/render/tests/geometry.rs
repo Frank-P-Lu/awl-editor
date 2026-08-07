@@ -12,9 +12,10 @@ fn page_off_is_edge_to_edge() {
     // Page mode off: left is the fixed NONPAGE_INSET origin and width spans the
     // window minus both plain side insets.
     let cw = CHAR_WIDTH;
-    assert_eq!(column_left_for(1200.0, cw, false, 80), NONPAGE_INSET);
+    assert_eq!(column_left_for(1200.0, cw, false, 80, 1.0), NONPAGE_INSET.0);
     assert!(
-        (column_width_for(1200.0, cw, false, 80) - (1200.0 - 2.0 * NONPAGE_INSET)).abs() < 1e-3
+        (column_width_for(1200.0, cw, false, 80, 1.0) - (1200.0 - 2.0 * NONPAGE_INSET.0)).abs()
+            < 1e-3
     );
 }
 
@@ -23,12 +24,12 @@ fn page_on_centers_capped_column() {
     // Wide window, narrow measure: the column caps at measure*char_width and
     // is centered, so left == (window - width)/2 and margins are symmetric.
     let cw = CHAR_WIDTH; // 14.4
-    let w = column_width_for(1200.0, cw, true, 40);
+    let w = column_width_for(1200.0, cw, true, 40, 1.0);
     assert!(
         (w - 40.0 * cw).abs() < 1e-3,
         "width should be measure*advance, got {w}"
     );
-    let left = column_left_for(1200.0, cw, true, 40);
+    let left = column_left_for(1200.0, cw, true, 40, 1.0);
     assert!(
         (left - (1200.0 - w) * 0.5).abs() < 1e-3,
         "column must be centered, left={left}"
@@ -49,20 +50,20 @@ fn page_on_narrow_window_fills_minus_small_pad() {
     // instead of being strangled into a sliver. Never overflows, stays centered.
     let cw = CHAR_WIDTH;
     let narrow = 400.0;
-    let w = column_width_for(narrow, cw, true, 80);
-    let left = column_left_for(narrow, cw, true, 80);
+    let w = column_width_for(narrow, cw, true, 80, 1.0);
+    let left = column_left_for(narrow, cw, true, 80, 1.0);
     let right = narrow - (left + w);
     // Fills the width minus the small pad on each side (margins collapse to ~0).
     assert!(
-        (w - (narrow - 2.0 * PAGE_MIN_PAD)).abs() < 1e-3,
+        (w - (narrow - 2.0 * PAGE_MIN_PAD.0)).abs() < 1e-3,
         "narrow column must fill minus pad: w={w}"
     );
     assert!(
-        w <= narrow - 2.0 * PAGE_MIN_PAD + 1e-3,
+        w <= narrow - 2.0 * PAGE_MIN_PAD.0 + 1e-3,
         "must not overflow: w={w}"
     );
     assert!(
-        (left - PAGE_MIN_PAD).abs() < 1e-3,
+        (left - PAGE_MIN_PAD.0).abs() < 1e-3,
         "left collapses to the small pad, got {left}"
     );
     assert!(
@@ -80,8 +81,8 @@ fn page_on_near_full_measure_binds_at_measure() {
     let cw = CHAR_WIDTH; // 14.4 -> measure_px 1152
     let win = 1200.0;
     let measure_px = 80.0 * cw; // 1152
-    let w = column_width_for(win, cw, true, 80);
-    let left = column_left_for(win, cw, true, 80);
+    let w = column_width_for(win, cw, true, 80, 1.0);
+    let left = column_left_for(win, cw, true, 80, 1.0);
     let right = win - (left + w);
     assert!(
         (w - measure_px).abs() < 1e-3,
@@ -97,7 +98,7 @@ fn page_on_near_full_measure_binds_at_measure() {
     );
     // The leftover margin is the small ~24px, well under the old generous 120px.
     assert!(
-        left >= PAGE_MIN_PAD - 1e-3 && left < page_min_margin(win),
+        left >= PAGE_MIN_PAD.0 - 1e-3 && left < page_min_margin(win, 1.0),
         "margin collapsed to the leftover: {left}"
     );
 }
@@ -115,12 +116,12 @@ fn page_column_proportion_is_dpi_invariant() {
     for &logical_w in &[900.0_f32, 1200.0, 1600.0] {
         for &zoom in &[1.0_f32, 1.18, 1.5] {
             let cw1 = Metrics::with_dpi(zoom, 1.0).char_width;
-            let frac1 = column_width_for(logical_w, cw1, true, 40) / logical_w;
+            let frac1 = column_width_for(logical_w, cw1, true, 40, 1.0) / logical_w;
             for &dpi in &[1.0_f32, 2.0, 2.5] {
                 let phys_w = logical_w * dpi;
                 let cw = Metrics::with_dpi(zoom, dpi).char_width;
-                let w = column_width_for(phys_w, cw, true, 40);
-                let left = column_left_for(phys_w, cw, true, 40);
+                let w = column_width_for(phys_w, cw, true, 40, 1.0);
+                let left = column_left_for(phys_w, cw, true, 40, 1.0);
                 let right = phys_w - (left + w);
                 assert!(
                     (left - right).abs() < 1e-2,
@@ -130,7 +131,10 @@ fn page_column_proportion_is_dpi_invariant() {
                     (left - (phys_w - w) * 0.5).abs() < 1e-2,
                     "column must be centered, left={left}"
                 );
-                assert!(left >= PAGE_MIN_PAD - 1e-2, "left {left} < PAGE_MIN_PAD");
+                assert!(
+                    left >= PAGE_MIN_PAD.0 - 1e-2,
+                    "left {left} < PAGE_MIN_PAD.0"
+                );
                 let frac = w / phys_w;
                 assert!(
                     (frac - frac1).abs() < 1e-3,

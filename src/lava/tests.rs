@@ -150,9 +150,9 @@ fn lava_field_contributes_to_both_margins_across_the_full_geometry_sweep() {
         for &measure in &MEASURES {
             for &dpi in &[1.0f32, 2.0] {
                 let char_width = crate::render::Metrics::with_dpi(1.0, dpi).char_width;
-                let col_left = crate::render::column_left_for(w, char_width, true, measure);
+                let col_left = crate::render::column_left_for(w, char_width, true, measure, 1.0);
                 let col_right =
-                    col_left + crate::render::column_width_for(w, char_width, true, measure);
+                    col_left + crate::render::column_width_for(w, char_width, true, measure, 1.0);
                 // Degenerate windows where the measure eats the whole width
                 // leave no margin to fill — a floor of `column_width_for`'s
                 // own formula, not a lava-population bug; those combos are
@@ -250,9 +250,9 @@ fn lava_margin_field_never_reads_as_empty_or_a_solid_wall() {
         for &measure in &MEASURES {
             for &dpi in &[1.0f32, 2.0] {
                 let char_width = crate::render::Metrics::with_dpi(1.0, dpi).char_width;
-                let col_left = crate::render::column_left_for(w, char_width, true, measure);
+                let col_left = crate::render::column_left_for(w, char_width, true, measure, 1.0);
                 let col_right =
-                    col_left + crate::render::column_width_for(w, char_width, true, measure);
+                    col_left + crate::render::column_width_for(w, char_width, true, measure, 1.0);
                 for &phase in &PHASES {
                     if col_left > 200.0 {
                         let (min_f, max_f) = margin_extent(0.0, col_left, (w, h), phase);

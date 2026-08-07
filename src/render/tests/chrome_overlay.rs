@@ -525,7 +525,7 @@ fn narrow_gutter_never_wraps_and_both_lines_elide_independently() {
 
     // The SAME budget math `gutter_layout` derives, computed here from the
     // pure free functions so the fixture is self-checking.
-    let col_left = column_left_for(window_w, CHAR_WIDTH, true, measure);
+    let col_left = column_left_for(window_w, CHAR_WIDTH, true, measure, 1.0);
     let gap = CHAR_WIDTH * 1.5;
     let avail = col_left - gap;
     let label_char_w = CHAR_WIDTH * crate::markdown::type_scale::LABEL;

@@ -134,15 +134,15 @@ mod rotated_location;
 
 pub const FONT_SIZE: f32 = 24.0;
 pub const LINE_HEIGHT: f32 = 32.0;
-pub const TEXT_LEFT: f32 = 16.0;
-pub const NONPAGE_INSET: f32 = 32.0;
+pub const TEXT_LEFT: Logical = Logical(16.0);
+pub const NONPAGE_INSET: Logical = Logical(32.0);
 pub const PAGE_TEXT_PAD_CHARS: f32 = 3.0;
 pub const TEXT_TOP: f32 = 16.0;
-pub const PAGE_MIN_MARGIN_PX: f32 = 64.0;
+pub const PAGE_MIN_MARGIN_PX: Logical = Logical(64.0);
 pub const PAGE_MIN_MARGIN_FRAC: f32 = 0.10;
 
-pub fn page_min_margin(window_w: f32) -> f32 {
-    PAGE_MIN_MARGIN_PX.max(window_w * PAGE_MIN_MARGIN_FRAC)
+pub fn page_min_margin(window_w: f32, dpi: f32) -> f32 {
+    f32::max(PAGE_MIN_MARGIN_PX.px(dpi), window_w * PAGE_MIN_MARGIN_FRAC)
 }
 pub const CHAR_WIDTH: f32 = 14.4;
 /// Caret cell metrics in pixels (at zoom 1.0). `CARET_W` is the default cell
@@ -2548,7 +2548,7 @@ fn background_desc() -> BgDesc {
 /// caret can't disagree. `apply_transition` reaches these through the renderer-agnostic
 /// [`crate::actions::LayoutOracle`] trait, keeping the motion logic itself free of
 /// any GPU type. Columns are CHAR columns; `goal_x` and the returned x are pixels
-/// relative to TEXT_LEFT (the space `xs` lives in).
+/// relative to `text_left()` (the space `xs` lives in).
 ///
 /// These ARE the live/headless visual-line motions (the flat default): the live
 /// window borrows the GPU pipeline as the oracle, the headless `--keys` replay an

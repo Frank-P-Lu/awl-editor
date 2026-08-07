@@ -9,8 +9,8 @@ const CW: f32 = CHAR_WIDTH; // 14.4
 #[test]
 fn wide_window_seats_centered_column_at_measure() {
     let measure_px = 40.0 * CW; // 576
-    let w = column_width_for(1200.0, CW, true, 40);
-    let left = column_left_for(1200.0, CW, true, 40);
+    let w = column_width_for(1200.0, CW, true, 40, 1.0);
+    let left = column_left_for(1200.0, CW, true, 40, 1.0);
     assert!(
         (w - measure_px).abs() < 1e-3,
         "wide: column == measure, got {w}"
@@ -20,7 +20,7 @@ fn wide_window_seats_centered_column_at_measure() {
         "wide: centered, got {left}"
     );
     assert!(
-        left > page_min_margin(1200.0) - 1e-3,
+        left > page_min_margin(1200.0, 1.0) - 1e-3,
         "wide leftover >= generous margin"
     );
 }
@@ -28,14 +28,14 @@ fn wide_window_seats_centered_column_at_measure() {
 #[test]
 fn narrow_window_fills_minus_small_pad() {
     for &win in &[300.0_f32, 400.0, 700.0] {
-        let w = column_width_for(win, CW, true, 80); // 80-char measure ~1152px >> win
-        let left = column_left_for(win, CW, true, 80);
+        let w = column_width_for(win, CW, true, 80, 1.0); // 80-char measure ~1152px >> win
+        let left = column_left_for(win, CW, true, 80, 1.0);
         assert!(
-            (w - (win - 2.0 * PAGE_MIN_PAD)).abs() < 1e-3,
+            (w - (win - 2.0 * PAGE_MIN_PAD.0)).abs() < 1e-3,
             "narrow {win}: fills minus pad, got {w}"
         );
         assert!(
-            (left - PAGE_MIN_PAD).abs() < 1e-3,
+            (left - PAGE_MIN_PAD.0).abs() < 1e-3,
             "narrow {win}: left at small pad, got {left}"
         );
         assert!(
@@ -51,8 +51,8 @@ fn column_is_monotonic_and_never_overflows_across_a_resize() {
     let mut prev = 0.0_f32;
     let mut w = 200.0;
     while w <= 2600.0 {
-        let col = column_width_for(w, CW, true, 80);
-        let left = column_left_for(w, CW, true, 80);
+        let col = column_width_for(w, CW, true, 80, 1.0);
+        let left = column_left_for(w, CW, true, 80, 1.0);
         assert!(
             col >= prev - 1e-3,
             "column must not shrink as window grows (w={w})"
@@ -62,7 +62,7 @@ fn column_is_monotonic_and_never_overflows_across_a_resize() {
             "column never exceeds the measure (w={w})"
         );
         assert!(
-            left >= PAGE_MIN_PAD - 1e-3,
+            left >= PAGE_MIN_PAD.0 - 1e-3,
             "always at least the small pad (w={w})"
         );
         assert!(
@@ -72,23 +72,26 @@ fn column_is_monotonic_and_never_overflows_across_a_resize() {
         prev = col;
         w += 50.0;
     }
-    assert!((column_width_for(2600.0, CW, true, 80) - measure_px).abs() < 1e-3);
+    assert!((column_width_for(2600.0, CW, true, 80, 1.0) - measure_px).abs() < 1e-3);
 }
 
 #[test]
 fn wide_capture_is_byte_identical_to_the_old_cap() {
     let measure_px = 40.0 * CW; // 576
-    assert!((column_width_for(1200.0, CW, true, 40) - measure_px).abs() < 1e-3);
-    assert!((column_left_for(1200.0, CW, true, 40) - (1200.0 - measure_px) * 0.5).abs() < 1e-3);
+    assert!((column_width_for(1200.0, CW, true, 40, 1.0) - measure_px).abs() < 1e-3);
+    assert!(
+        (column_left_for(1200.0, CW, true, 40, 1.0) - (1200.0 - measure_px) * 0.5).abs() < 1e-3
+    );
 }
 
 #[test]
 fn page_off_is_edge_to_edge_unaffected() {
-    assert!((column_left_for(1200.0, CW, false, 80) - NONPAGE_INSET).abs() < 1e-3);
+    assert!((column_left_for(1200.0, CW, false, 80, 1.0) - NONPAGE_INSET.0).abs() < 1e-3);
     assert!(
-        (column_width_for(1200.0, CW, false, 80) - (1200.0 - 2.0 * NONPAGE_INSET)).abs() < 1e-3
+        (column_width_for(1200.0, CW, false, 80, 1.0) - (1200.0 - 2.0 * NONPAGE_INSET.0)).abs()
+            < 1e-3
     );
-    assert!(std::hint::black_box(NONPAGE_INSET) > PAGE_MIN_PAD);
+    assert!(std::hint::black_box(NONPAGE_INSET.0) > PAGE_MIN_PAD.0);
 }
 
 fn outline_pref_px() -> f32 {
@@ -100,7 +103,14 @@ fn outline_min_px() -> f32 {
 fn margin_gap() -> f32 {
     CW * crate::render::chrome::MARGIN_COLUMN_GAP_CHARS.0
 }
-const ADAPTIVE_LEFT_PAD: f32 = TEXT_LEFT;
+/// The DISPLAY scale these pure-policy tests drive `adaptive_column_left` at — 1.0,
+/// the deterministic capture scale, so every expected value below is also the
+/// authored logical one. The DPI-invariance law sweeps the other tiers.
+const ADAPTIVE_DPI: f32 = 1.0;
+/// The pad the policy resolves from [`PAGE_MIN_PAD`] at [`ADAPTIVE_DPI`] — the term
+/// the expected-value arithmetic below adds by hand. NOT interchangeable with
+/// `ADAPTIVE_DPI`: they were one constant until the pad became `Logical`.
+const ADAPTIVE_LEFT_PAD: f32 = PAGE_MIN_PAD.0;
 
 #[test]
 fn adaptive_wide_window_is_byte_identical_to_symmetric() {
@@ -113,9 +123,9 @@ fn adaptive_wide_window_is_byte_identical_to_symmetric() {
         outline_pref_px(),
         outline_min_px(),
         margin_gap(),
-        ADAPTIVE_LEFT_PAD,
+        ADAPTIVE_DPI,
     );
-    let symmetric = column_left_for(1200.0, CW, true, 40);
+    let symmetric = column_left_for(1200.0, CW, true, 40, 1.0);
     assert_eq!(left, symmetric, "wide: adaptive placement changes nothing");
 }
 
@@ -130,9 +140,9 @@ fn adaptive_outline_not_wanted_never_shifts_even_when_narrow() {
         outline_pref_px(),
         outline_min_px(),
         margin_gap(),
-        ADAPTIVE_LEFT_PAD,
+        ADAPTIVE_DPI,
     );
-    let symmetric = column_left_for(900.0, CW, true, 40);
+    let symmetric = column_left_for(900.0, CW, true, 40, 1.0);
     assert_eq!(left, symmetric);
 }
 
@@ -147,31 +157,21 @@ fn adaptive_page_off_never_shifts() {
         outline_pref_px(),
         outline_min_px(),
         margin_gap(),
-        ADAPTIVE_LEFT_PAD,
+        ADAPTIVE_DPI,
     );
-    assert_eq!(left, NONPAGE_INSET);
+    assert_eq!(left, NONPAGE_INSET.0);
 }
 
 #[test]
 fn adaptive_narrow_window_shifts_right_and_grants_the_full_preferred_rail() {
     let win = 900.0;
     let measure = 40usize;
-    let symmetric = column_left_for(win, CW, true, measure);
-    let width = column_width_for(win, CW, true, measure);
+    let symmetric = column_left_for(win, CW, true, measure, 1.0);
+    let width = column_width_for(win, CW, true, measure, 1.0);
     let pref = outline_pref_px();
     let min = outline_min_px();
     let gap = margin_gap();
-    let left = adaptive_column_left(
-        win,
-        CW,
-        true,
-        measure,
-        true,
-        pref,
-        min,
-        gap,
-        ADAPTIVE_LEFT_PAD,
-    );
+    let left = adaptive_column_left(win, CW, true, measure, true, pref, min, gap, ADAPTIVE_DPI);
     assert!(
         left > symmetric,
         "narrow: column shifts right, got {left} vs symmetric {symmetric}"
@@ -189,7 +189,7 @@ fn adaptive_narrow_window_shifts_right_and_grants_the_full_preferred_rail() {
     let total_margin = win - width;
     let right_margin = total_margin - left;
     assert!(
-        right_margin >= RIGHT_MARGIN_BREATH - 1e-3,
+        right_margin >= RIGHT_MARGIN_BREATH.0 - 1e-3,
         "narrow: right margin keeps its breathing floor, got {right_margin}"
     );
 }
@@ -198,9 +198,9 @@ fn adaptive_narrow_window_shifts_right_and_grants_the_full_preferred_rail() {
 fn adaptive_narrow_shift_caps_at_the_right_margin_breathing_floor() {
     let win = 800.0;
     let measure = 40usize;
-    let width = column_width_for(win, CW, true, measure);
+    let width = column_width_for(win, CW, true, measure, 1.0);
     let total_margin = win - width;
-    let symmetric = column_left_for(win, CW, true, measure);
+    let symmetric = column_left_for(win, CW, true, measure, 1.0);
     let left = adaptive_column_left(
         win,
         CW,
@@ -210,7 +210,7 @@ fn adaptive_narrow_shift_caps_at_the_right_margin_breathing_floor() {
         outline_pref_px(),
         outline_min_px(),
         margin_gap(),
-        ADAPTIVE_LEFT_PAD,
+        ADAPTIVE_DPI,
     );
     assert!(
         left > symmetric,
@@ -218,7 +218,7 @@ fn adaptive_narrow_shift_caps_at_the_right_margin_breathing_floor() {
     );
     let right_margin = total_margin - left;
     assert!(
-        (right_margin - RIGHT_MARGIN_BREATH).abs() < 0.5,
+        (right_margin - RIGHT_MARGIN_BREATH.0).abs() < 0.5,
         "capped exactly at the breathing floor, got {right_margin}"
     );
     let avail = (left - margin_gap()) - ADAPTIVE_LEFT_PAD;
@@ -237,7 +237,7 @@ fn adaptive_narrow_shift_caps_at_the_right_margin_breathing_floor() {
 fn adaptive_narrowest_window_recenters_instead_of_overshooting_the_right_margin() {
     let win = 300.0;
     let measure = 80usize; // way more than fits at 300px
-    let symmetric = column_left_for(win, CW, true, measure);
+    let symmetric = column_left_for(win, CW, true, measure, 1.0);
     let left = adaptive_column_left(
         win,
         CW,
@@ -247,7 +247,7 @@ fn adaptive_narrowest_window_recenters_instead_of_overshooting_the_right_margin(
         outline_pref_px(),
         outline_min_px(),
         margin_gap(),
-        ADAPTIVE_LEFT_PAD,
+        ADAPTIVE_DPI,
     );
     assert_eq!(
         left, symmetric,
@@ -259,7 +259,7 @@ fn adaptive_narrowest_window_recenters_instead_of_overshooting_the_right_margin(
 fn adaptive_no_payoff_shift_recenters_instead_of_shifting_for_a_hidden_outline() {
     let win = 1100.0;
     let measure = 70usize;
-    let symmetric = column_left_for(win, CW, true, measure);
+    let symmetric = column_left_for(win, CW, true, measure, 1.0);
     let left = adaptive_column_left(
         win,
         CW,
@@ -269,15 +269,15 @@ fn adaptive_no_payoff_shift_recenters_instead_of_shifting_for_a_hidden_outline()
         outline_pref_px(),
         outline_min_px(),
         margin_gap(),
-        ADAPTIVE_LEFT_PAD,
+        ADAPTIVE_DPI,
     );
     assert_eq!(
         left, symmetric,
         "a shift that can't clear the outline's own minimum rail must not happen at all"
     );
-    let width = column_width_for(win, CW, true, measure);
+    let width = column_width_for(win, CW, true, measure, 1.0);
     let total_margin = win - width;
-    let old_max_left = (total_margin - RIGHT_MARGIN_BREATH).max(0.0);
+    let old_max_left = (total_margin - RIGHT_MARGIN_BREATH.0).max(0.0);
     assert!(
         old_max_left > symmetric,
         "fixture: the old formula would have shifted"
@@ -300,22 +300,12 @@ fn adaptive_threshold_boundary_resolves_to_wide_not_narrow() {
     let measure = 40usize;
     let measure_px = measure as f32 * CW;
     let win = measure_px + 2.0 * desired_left;
-    let symmetric = column_left_for(win, CW, true, measure);
+    let symmetric = column_left_for(win, CW, true, measure, 1.0);
     assert!(
         (symmetric - desired_left).abs() < 1.0,
         "fixture: symmetric lands at desired_left, got {symmetric} vs {desired_left}"
     );
-    let left = adaptive_column_left(
-        win,
-        CW,
-        true,
-        measure,
-        true,
-        pref,
-        min,
-        gap,
-        ADAPTIVE_LEFT_PAD,
-    );
+    let left = adaptive_column_left(win, CW, true, measure, true, pref, min, gap, ADAPTIVE_DPI);
     assert!(
         (left - symmetric.floor()).abs() < 1e-3,
         "boundary resolves to WIDE (no shift) at the exact threshold: left={left} symmetric={symmetric}"
@@ -325,7 +315,7 @@ fn adaptive_threshold_boundary_resolves_to_wide_not_narrow() {
 #[test]
 fn adaptive_never_shrinks_the_column_only_moves_where_it_sits() {
     for &(win, measure) in &[(1200.0_f32, 40usize), (900.0, 40), (800.0, 40), (300.0, 80)] {
-        let width = column_width_for(win, CW, true, measure);
+        let width = column_width_for(win, CW, true, measure, 1.0);
         let left = adaptive_column_left(
             win,
             CW,
@@ -335,7 +325,7 @@ fn adaptive_never_shrinks_the_column_only_moves_where_it_sits() {
             outline_pref_px(),
             outline_min_px(),
             margin_gap(),
-            ADAPTIVE_LEFT_PAD,
+            ADAPTIVE_DPI,
         );
         assert!(
             left + width <= win + 1e-2,
@@ -351,17 +341,7 @@ fn adaptive_entry_ramp_is_continuous_no_more_46px_jump() {
     let gap = margin_gap();
     let mut prev: Option<f32> = None;
     for w in 1090..=1170 {
-        let left = adaptive_column_left(
-            w as f32,
-            CW,
-            true,
-            70,
-            true,
-            pref,
-            min,
-            gap,
-            ADAPTIVE_LEFT_PAD,
-        );
+        let left = adaptive_column_left(w as f32, CW, true, 70, true, pref, min, gap, ADAPTIVE_DPI);
         if let Some(p) = prev {
             let step = left - p;
             assert!(
@@ -381,7 +361,7 @@ fn adaptive_entry_ramp_is_continuous_no_more_46px_jump() {
 fn adaptive_ramp_still_recenters_well_outside_the_ramp_band() {
     let win = 1100.0;
     let measure = 70usize;
-    let symmetric = column_left_for(win, CW, true, measure);
+    let symmetric = column_left_for(win, CW, true, measure, 1.0);
     let left = adaptive_column_left(
         win,
         CW,
@@ -391,7 +371,7 @@ fn adaptive_ramp_still_recenters_well_outside_the_ramp_band() {
         outline_pref_px(),
         outline_min_px(),
         margin_gap(),
-        ADAPTIVE_LEFT_PAD,
+        ADAPTIVE_DPI,
     );
     assert_eq!(
         left, symmetric,
@@ -407,17 +387,8 @@ fn adaptive_left_snaps_to_whole_physical_pixels_across_a_1px_sweep() {
     for wants in [false, true] {
         let mut prev: Option<f32> = None;
         for w in 1000..=1400u32 {
-            let left = adaptive_column_left(
-                w as f32,
-                CW,
-                true,
-                70,
-                wants,
-                pref,
-                min,
-                gap,
-                ADAPTIVE_LEFT_PAD,
-            );
+            let left =
+                adaptive_column_left(w as f32, CW, true, 70, wants, pref, min, gap, ADAPTIVE_DPI);
             assert_eq!(
                 left,
                 left.floor(),
@@ -457,17 +428,17 @@ fn zooming_in_keeps_column_and_margins_constant_gutter_stays() {
     let window = 1200.0;
     let measure = 40; // narrow measure -> generous, clearly-present margins
     let base_adv = page_column_advance(CW, 1.0);
-    let ref_w = column_width_for(window, base_adv, true, measure);
-    let ref_left = column_left_for(window, base_adv, true, measure);
+    let ref_w = column_width_for(window, base_adv, true, measure, 1.0);
+    let ref_left = column_left_for(window, base_adv, true, measure, 1.0);
     assert!(
-        ref_left > PAGE_MIN_PAD + 1.0,
+        ref_left > PAGE_MIN_PAD.0 + 1.0,
         "fixture must have a visible margin/gutter"
     );
     for &zoom in &[0.5_f32, 1.0, 1.6, 2.5, 3.0] {
         let live = CW * zoom; // metrics.char_width at this zoom (dpi 1.0)
         let adv = page_column_advance(live, zoom);
-        let w = column_width_for(window, adv, true, measure);
-        let left = column_left_for(window, adv, true, measure);
+        let w = column_width_for(window, adv, true, measure, 1.0);
+        let left = column_left_for(window, adv, true, measure, 1.0);
         assert!(
             (w - ref_w).abs() < 1e-3,
             "zoom={zoom}: column px must not change (got {w}, want {ref_w})"
@@ -525,8 +496,8 @@ fn resize_affordance_arms_at_both_drawn_edges_in_every_page_on_cell() {
     let mut saw_collapsed = false;
     for &measure in &[20usize, 40, 70, 100, 140] {
         for &window in &[600.0f32, 900.0, 1200.0, 2400.0] {
-            let left = column_left_for(window, adv, true, measure);
-            let width = column_width_for(window, adv, true, measure);
+            let left = column_left_for(window, adv, true, measure, 1.0);
+            let width = column_width_for(window, adv, true, measure, 1.0);
             let right = left + width;
             let cell = format!("measure={measure} window={window}");
 
@@ -560,7 +531,7 @@ fn resize_affordance_arms_at_both_drawn_edges_in_every_page_on_cell() {
                 "{cell}: page off must not arm (right)",
             );
 
-            if left <= PAGE_MIN_PAD + 1.0 {
+            if left <= PAGE_MIN_PAD.0 + 1.0 {
                 saw_collapsed = true;
                 assert!(
                     page_resize_edge_hit(true, left, width, left, tol).is_some()
@@ -716,8 +687,8 @@ fn page_drag_measure_is_monotonic_across_the_rail_hide_boundary() {
     let gap = margin_gap();
 
     let rendered_right = |m: usize| {
-        adaptive_column_left(window, CW, true, m, true, pref, min, gap, ADAPTIVE_LEFT_PAD)
-            + column_width_for(window, CW, true, m)
+        adaptive_column_left(window, CW, true, m, true, pref, min, gap, ADAPTIVE_DPI)
+            + column_width_for(window, CW, true, m, 1.0)
     };
     let cliffs = (crate::page::MIN_MEASURE + 1..=crate::page::MAX_MEASURE)
         .any(|m| rendered_right(m) < rendered_right(m - 1));
@@ -727,17 +698,7 @@ fn page_drag_measure_is_monotonic_across_the_rail_hide_boundary() {
     );
 
     let start = 100usize;
-    let anchor = adaptive_column_left(
-        window,
-        CW,
-        true,
-        start,
-        true,
-        pref,
-        min,
-        gap,
-        ADAPTIVE_LEFT_PAD,
-    );
+    let anchor = adaptive_column_left(window, CW, true, start, true, pref, min, gap, ADAPTIVE_DPI);
 
     let mut prev = page_resize_measure_anchored(CW, 1700.0, anchor, ResizeEdge::Right);
     let first = prev;
@@ -854,15 +815,176 @@ fn narrow_window_still_collapses_edge_to_edge_at_any_zoom() {
     let window = 360.0; // 40-char measure ~576px >> window -> collapse
     for &zoom in &[0.5_f32, 1.0, 1.6, 3.0] {
         let adv = page_column_advance(CW * zoom, zoom);
-        let w = column_width_for(window, adv, true, 40);
-        let left = column_left_for(window, adv, true, 40);
+        let w = column_width_for(window, adv, true, 40, 1.0);
+        let left = column_left_for(window, adv, true, 40, 1.0);
         assert!(
-            (w - (window - 2.0 * PAGE_MIN_PAD)).abs() < 1e-3,
+            (w - (window - 2.0 * PAGE_MIN_PAD.0)).abs() < 1e-3,
             "zoom={zoom}: fills minus pad"
         );
         assert!(
-            (left - PAGE_MIN_PAD).abs() < 1e-3,
+            (left - PAGE_MIN_PAD.0).abs() < 1e-3,
             "zoom={zoom}: collapses to the small pad"
         );
     }
+}
+
+/// ITEM 314 — THE COLUMN'S LEFT EDGE IS A LOGICAL QUANTITY, AT EVERY DISPLAY SCALE.
+///
+/// Item 307 found this while proving the gutter's own gate correct: the placement
+/// policy mixed dpi-SCALED terms (`outline_pref_px`, `gap`, `window_w`) with an
+/// UNSCALED authored pad, so at a MATCHED LOGICAL window the column's left edge moved
+/// with the display — measured plateaus 244.96 / 236.96 / 234.29 logical px at dpi
+/// 1 / 2 / 3 (`228.96 + 16/dpi`), and a collapsed page pinned at 16 / 8 / 5.33.
+///
+/// The experiment is 307's: `--capture-dpi N` means a `WxH` DEVICE canvas is a
+/// `(W/N)x(H/N)` LOGICAL window, so the physical width grows in lockstep with `dpi`
+/// to hold the logical window fixed. Comparing two tiers at one device width compares
+/// two different windows and proves nothing.
+///
+/// TWO claims, because invariance ALONE is satisfiable by deleting the pad — `0 * dpi`
+/// is beautifully dpi-invariant. So the law also asserts the pad is PRESENT and
+/// load-bearing at each tier: the collapse floor sits exactly ON it, and the rail
+/// plateau is exactly `outline_pref + gap + pad`. Mutate the pad to zero and the
+/// presence half goes red while the invariance half stays green.
+#[test]
+fn adaptive_column_left_is_dpi_invariant_at_matched_logical_geometry() {
+    let label = crate::markdown::type_scale::LABEL;
+    // Fractional 1.5 is a real macOS scale and is deliberately in the roster: the
+    // whole-pixel snap's residual is `1/dpi` logical px, largest at the coarsest tier.
+    let tiers = [1.0f32, 1.5, 2.0, 3.0];
+    // From the true minimum window (`MIN_COLS * CHAR_WIDTH + 2 * TEXT_LEFT` = 464
+    // logical, `app::lifecycle`) up past the reference canvas, so the sweep spans the
+    // narrow band where `page_min_margin`'s own authored floor binds as well.
+    let logical_widths = [
+        464.0f32, 500.0, 640.0, 700.0, 900.0, 1100.0, 1200.0, 1600.0, 2000.0,
+    ];
+
+    let mut saw_passthrough = false;
+    let mut saw_shift = false;
+    let mut saw_collapse_floor = false;
+    let mut saw_room_above_floor = false;
+    let mut saw_page_off = false;
+    let mut saw_plateau = false;
+
+    for &lw in &logical_widths {
+        for measure in 10..=120usize {
+            for &page_on in &[true, false] {
+                for &outline_wants in &[true, false] {
+                    let mut logical: Vec<(f32, f32, f32)> = Vec::new();
+                    for &dpi in &tiers {
+                        // The page column's own space: zoom stripped, dpi kept.
+                        let adv = CW * dpi;
+                        let win = lw * dpi;
+                        let pref = rowlayout::OUTLINE_PREFERRED_CHARS as f32 * adv * label;
+                        let min = rowlayout::OUTLINE_MIN_CHARS as f32 * adv * label;
+                        let gap = adv * crate::render::chrome::MARGIN_COLUMN_GAP_CHARS.0;
+                        let raw = super::column::adaptive_column_left_raw(
+                            win,
+                            adv,
+                            page_on,
+                            measure,
+                            outline_wants,
+                            pref,
+                            min,
+                            gap,
+                            dpi,
+                        );
+                        let snapped = adaptive_column_left(
+                            win,
+                            adv,
+                            page_on,
+                            measure,
+                            outline_wants,
+                            pref,
+                            min,
+                            gap,
+                            dpi,
+                        );
+                        let sym = column_left_for(win, adv, page_on, measure, dpi);
+                        let pad = PAGE_MIN_PAD.0 * dpi;
+
+                        // (1) PRESENCE, per tier — the pad is a real term, not an
+                        // absent one that happens to scale consistently.
+                        if page_on && (snapped - pad).abs() < 0.51 {
+                            saw_collapse_floor = true;
+                            assert!(
+                                pad > 1.0,
+                                "the collapse floor must sit on a NON-ZERO pad at dpi \
+                                 {dpi}: pad={pad}"
+                            );
+                        } else if page_on {
+                            saw_room_above_floor = true;
+                        }
+                        if !page_on {
+                            saw_page_off = true;
+                            assert!(
+                                (snapped - (NONPAGE_INSET.0 * dpi).floor()).abs() < 1e-3,
+                                "page off at dpi {dpi}: left must be the authored \
+                                 NONPAGE_INSET resolved at this scale, got {snapped}"
+                            );
+                        }
+                        if page_on && outline_wants {
+                            let desired = pref + gap + pad;
+                            if (raw - desired).abs() < 1e-2 {
+                                saw_plateau = true;
+                                // The pad is LOAD-BEARING in the rail formula: strip it
+                                // and this plateau lands `pad` px to the left.
+                                assert!(
+                                    (raw - (pref + gap)).abs() > pad * 0.5,
+                                    "the rail plateau must include the pad at dpi \
+                                     {dpi}: raw={raw} pref+gap={}",
+                                    pref + gap
+                                );
+                            }
+                        }
+                        if (raw - sym).abs() < 1e-3 {
+                            saw_passthrough = true;
+                        } else {
+                            saw_shift = true;
+                        }
+                        logical.push((raw / dpi, snapped / dpi, dpi));
+                    }
+
+                    // (2) INVARIANCE. The RAW policy position is exact in logical px;
+                    // the returned value carries the whole-PHYSICAL-pixel snap (the
+                    // subpixel-shimmer floor), whose logical residual is under `1/dpi`.
+                    let (raw0, snap0, _) = logical[0];
+                    for &(raw, snap, dpi) in &logical[1..] {
+                        assert!(
+                            (raw - raw0).abs() < 1e-2,
+                            "logical {lw} measure={measure} page_on={page_on} \
+                             outline_wants={outline_wants}: the PRE-SNAP column left is \
+                             {raw0} logical px at dpi 1 but {raw} at dpi {dpi} — the \
+                             placement policy is reading the display, not the window"
+                        );
+                        assert!(
+                            (snap - snap0).abs() <= 1.0 + 1e-3,
+                            "logical {lw} measure={measure} page_on={page_on} \
+                             outline_wants={outline_wants}: the SNAPPED column left is \
+                             {snap0} logical px at dpi 1 but {snap} at dpi {dpi} — more \
+                             than the one whole physical pixel the snap may cost"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    // NON-VACUITY: every regime the pad reaches was actually entered, on BOTH sides of
+    // each gate. A one-sided sweep passes on a gate that never turns on.
+    assert!(
+        saw_passthrough && saw_shift,
+        "the sweep must span the rail SHIFT gate (passthrough={saw_passthrough} \
+         shift={saw_shift})"
+    );
+    assert!(
+        saw_collapse_floor && saw_room_above_floor,
+        "the sweep must span the COLLAPSE floor (pinned={saw_collapse_floor} \
+         with-room={saw_room_above_floor})"
+    );
+    assert!(
+        saw_plateau,
+        "the sweep must enter the rail's desired-left plateau"
+    );
+    assert!(saw_page_off, "the sweep must include page-mode OFF");
 }
