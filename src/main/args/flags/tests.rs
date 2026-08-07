@@ -115,7 +115,7 @@ fn a_missing_operand_is_refused_exactly_when_the_roster_says_required() {
     let mut optional = 0usize;
     for f in FLAGS {
         let empty: Vec<String> = Vec::new();
-        let got = f.take_operands(&mut empty.into_iter());
+        let got = f.take_operands(&mut empty.into_iter().peekable());
         match f.operands.first() {
             Some(op) if !op.optional => {
                 required += 1;
@@ -158,19 +158,32 @@ fn a_missing_operand_is_refused_exactly_when_the_roster_says_required() {
 /// property that lets a usage line be generated instead of authored. The
 /// zero-operand side of the pair is the one that matters: it must leave the
 /// following argument on the stream, which is how a file argument survives.
+/// Each fabricated value has the shape its own operand demands (a plain
+/// integer for a `numeric` one, an opaque token otherwise), since a `numeric`
+/// operand now declines a value that does not look like it.
 #[test]
 fn a_flag_consumes_exactly_the_operands_it_declares() {
     for f in FLAGS {
-        let supplied: Vec<String> = (0..f.operands.len())
-            .map(|i| format!("op{i}"))
+        let want_for = |i: usize, op: &Operand| {
+            if op.numeric {
+                i.to_string()
+            } else {
+                format!("op{i}")
+            }
+        };
+        let supplied: Vec<String> = f
+            .operands
+            .iter()
+            .enumerate()
+            .map(|(i, op)| want_for(i, op))
             .chain(["trailing.md".to_string()])
             .collect();
-        let mut stream = supplied.into_iter();
+        let mut stream = supplied.into_iter().peekable();
         let ops = f
             .take_operands(&mut stream)
             .expect("every declared operand was supplied");
-        for i in 0..f.operands.len() {
-            assert_eq!(ops.req(i), format!("op{i}"), "`{}` operand {i}", f.name());
+        for (i, op) in f.operands.iter().enumerate() {
+            assert_eq!(ops.req(i), want_for(i, op), "`{}` operand {i}", f.name());
         }
         assert_eq!(
             stream.next().as_deref(),
@@ -397,4 +410,96 @@ fn the_flags_main_intercepts_before_the_parser_are_not_roster_rows() {
             "`{f}` appears among a roster row's spellings"
         );
     }
+}
+
+/// THE REPORTED BUG, both sides: `awl --menu-open file.md` used to swallow
+/// `file.md` as the (failed) index parse, so the file never opened.
+/// `--menu-open`'s operand is declared `numeric`, so a token that is not a
+/// plain integer is left on the stream for the file argument to claim — but a
+/// real index is still consumed, which is the flag's whole point.
+#[test]
+fn menu_open_declines_a_non_numeric_token_but_still_takes_a_numeric_one() {
+    let f = lookup("--menu-open").expect("--menu-open is a flag");
+
+    let mut with_file = vec!["file.md".to_string()].into_iter().peekable();
+    let ops = f
+        .take_operands(&mut with_file)
+        .expect("an optional operand is never refused");
+    assert!(
+        ops.opt(0).is_none(),
+        "`--menu-open` swallowed `file.md` as its own operand"
+    );
+    assert_eq!(
+        with_file.next().as_deref(),
+        Some("file.md"),
+        "`file.md` must survive on the stream for the parse loop's file arm"
+    );
+
+    let mut with_index = vec!["2".to_string()].into_iter().peekable();
+    let ops = f
+        .take_operands(&mut with_index)
+        .expect("an optional operand is never refused");
+    assert_eq!(
+        ops.opt(0),
+        Some("2"),
+        "`--menu-open` must still take a real index"
+    );
+    assert_eq!(
+        with_index.next(),
+        None,
+        "the numeric operand must be consumed off the stream"
+    );
+}
+
+/// The general half of the fix: an optional operand — numeric or not — never
+/// mistakes a flag-shaped token for its own value. `--pack-icns` used to
+/// swallow ANY next token, including another flag's own spelling, which would
+/// have silently dropped that flag from the command line too.
+#[test]
+fn an_optional_operand_never_consumes_a_flag_token() {
+    let with_optional: Vec<&Flag> = FLAGS
+        .iter()
+        .filter(|f| f.operands.iter().any(|op| op.optional))
+        .collect();
+    assert!(
+        !with_optional.is_empty(),
+        "no roster row declares an optional operand — this law is vacuous"
+    );
+    for f in with_optional {
+        let mut stream = vec!["--debug".to_string()].into_iter().peekable();
+        let ops = f
+            .take_operands(&mut stream)
+            .expect("an optional operand is never refused");
+        assert!(
+            ops.opt(0).is_none(),
+            "`{}` consumed a flag-shaped token (`--debug`) as its own operand",
+            f.name()
+        );
+        assert_eq!(
+            stream.next().as_deref(),
+            Some("--debug"),
+            "`{}` must leave `--debug` on the stream for the loop to read as a flag",
+            f.name()
+        );
+    }
+}
+
+/// THE DOCUMENTED RESIDUAL, pinned rather than silently relied on:
+/// `--pack-icns`'s `DIR` is a legitimate path for any non-flag string, so it
+/// stays ambiguous by construction — declining only a leading `-`, same as
+/// every optional operand. A real invocation combining it with a file
+/// argument was never reachable anyway, since the flag always exits the
+/// process before any file would open.
+#[test]
+fn pack_icns_still_takes_any_non_flag_token_as_its_path() {
+    let f = lookup("--pack-icns").expect("--pack-icns is a flag");
+    let mut stream = vec!["file.md".to_string()].into_iter().peekable();
+    let ops = f
+        .take_operands(&mut stream)
+        .expect("an optional operand is never refused");
+    assert_eq!(
+        ops.opt(0),
+        Some("file.md"),
+        "`--pack-icns` must still take an arbitrary non-flag token as DIR"
+    );
 }

@@ -32,7 +32,7 @@ use parsers::*;
 
 /// Parse a `--sel L0:C0-L1:C1` argument into ordered line/col endpoints.
 pub(crate) fn parse_args() -> Result<Mode> {
-    let mut args = std::env::args().skip(1);
+    let mut args = std::env::args().skip(1).peekable();
     let mut out: Option<PathBuf> = None;
     let mut motion = false;
     let mut motion_v = false;
@@ -337,9 +337,10 @@ pub(crate) fn parse_args() -> Result<Mode> {
             FlagId::MenuOpen => {
                 // Show the menu bar AND drop the dropdown for menu index N (0 = the App
                 // menu), so a capture can exercise the open-dropdown render + sidecar
-                // `menubar.open_menu` deterministically. A bad/absent index just shows
-                // the closed bar — the operand is CONSUMED either way, so a file
-                // argument must not follow this flag directly.
+                // `menubar.open_menu` deterministically. The roster declares N numeric
+                // (`Operand::opt_numeric`), so a following file argument — which never
+                // parses as a plain integer — is left on the stream rather than eaten;
+                // an out-of-range numeric index still just shows the closed bar.
                 crate::menubar::set_menu_bar_on(true);
                 if let Some(n) = ops.opt(0).and_then(|s| s.parse::<usize>().ok()) {
                     crate::menubar::set_open(Some(n));

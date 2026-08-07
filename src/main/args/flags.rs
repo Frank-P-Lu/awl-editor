@@ -39,9 +39,19 @@ pub(crate) struct Operand {
     /// The tail of the refusal when it is missing, so the message reads
     /// `<flag> <need>`. Empty for an optional operand, which cannot be missing.
     pub(crate) need: &'static str,
-    /// An operand the flag reads IF the next argument is there. It is consumed
-    /// either way — an absent one falls back to the arm's own default.
+    /// An operand the flag reads IF the next argument LOOKS LIKE it. Never
+    /// missing in the refusal sense — an absent or declined one falls back to
+    /// the arm's own default. See [`Operand::wants`] for what "looks like"
+    /// means; `numeric` narrows it further.
     pub(crate) optional: bool,
+    /// An optional operand whose value must PARSE as a plain non-negative
+    /// integer to be consumed. Declared for an operand like `--menu-open`'s
+    /// index, where any non-numeric token is unambiguously not meant for this
+    /// flag — unlike an optional PATH (`--pack-icns DIR`), where every string
+    /// is a legitimate value and there is no content-based test that could
+    /// tell a directory from a file argument, so that case stays ambiguous by
+    /// construction and only declines a leading `-`.
+    pub(crate) numeric: bool,
 }
 
 impl Operand {
@@ -51,15 +61,47 @@ impl Operand {
             meta,
             need,
             optional: false,
+            numeric: false,
         }
     }
 
-    /// An optional operand: absent, the arm supplies its own default.
+    /// An optional operand: absent, the arm supplies its own default. Declines
+    /// only a token that starts with `-` (plainly a flag, never this
+    /// operand's value) — see [`Operand::opt_numeric`] for a narrower operand
+    /// that also declines a non-numeric token.
     pub(crate) const fn opt(meta: &'static str) -> Operand {
         Operand {
             meta,
             need: "",
             optional: true,
+            numeric: false,
+        }
+    }
+
+    /// An optional operand whose value must look like a plain integer to be
+    /// consumed — so a following non-flag, non-numeric token (a file argument,
+    /// most often) is left on the stream for the flag loop to read instead.
+    pub(crate) const fn opt_numeric(meta: &'static str) -> Operand {
+        Operand {
+            meta,
+            need: "",
+            optional: true,
+            numeric: true,
+        }
+    }
+
+    /// Whether an optional operand should consume `next`, peeked off the
+    /// stream without being removed from it yet. A token that starts with `-`
+    /// is plainly a flag, never an operand value, so it is never consumed;
+    /// a `numeric` operand additionally declines anything that does not parse
+    /// as a plain non-negative integer. Never consulted for a required
+    /// operand, which always takes whatever comes.
+    fn wants(&self, next: Option<&str>) -> bool {
+        match next {
+            None => false,
+            Some(tok) if tok.starts_with('-') => false,
+            Some(tok) if self.numeric => tok.parse::<usize>().is_ok(),
+            Some(_) => true,
         }
     }
 }
@@ -181,17 +223,30 @@ impl Flag {
 
     /// Pull this flag's declared operands off the argument stream. A required
     /// operand that is absent is refused as `<flag> <need>`; an optional one is
-    /// consumed when present and simply absent when not, so the arm's own
-    /// default takes over.
+    /// consumed only when the next token [`Operand::wants`] it, so a token
+    /// that plainly belongs to something else — another flag, or (for a
+    /// `numeric` operand) a file argument — is left on the stream for the
+    /// parse loop to read next. The caller peeks first, so nothing is removed
+    /// from the stream until it is known to belong to this operand.
     pub(crate) fn take_operands(
         &'static self,
-        args: &mut impl Iterator<Item = String>,
+        args: &mut std::iter::Peekable<impl Iterator<Item = String>>,
     ) -> Result<Operands> {
         let mut vals = Vec::with_capacity(self.operands.len());
         for op in self.operands {
+            if op.optional {
+                if op.wants(args.peek().map(String::as_str)) {
+                    vals.push(args.next().expect("just peeked Some"));
+                    continue;
+                }
+                // Declined (absent, a flag, or — for a numeric operand — the
+                // wrong shape) ends the list here, same as the old "stop at
+                // the first missing one": no roster row currently declares an
+                // operand after an optional one.
+                break;
+            }
             match args.next() {
                 Some(v) => vals.push(v),
-                None if op.optional => break,
                 None => anyhow::bail!("{} {}", self.name(), op.need),
             }
         }
