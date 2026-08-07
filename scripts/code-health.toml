@@ -712,7 +712,7 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 lint = "clippy::too_many_lines"
 file = "src/render/blur.rs"
 function = "BlurBackdrop::new"
-message = "this function has too many lines (106/100)"
+message = "this function has too many lines (108/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. The construction now happens inside gpu_cache::render_pipeline's build closure, so the program is compiled once per process rather than once per pipeline instance; the added lines are that closure's own."
 
 [[clippy_exception]]

@@ -22,8 +22,8 @@
 
 mod extent;
 
+pub use extent::{BlurSurface, Frost, footprint_frost_applies};
 use extent::{DOWNSAMPLE, capped_doc_size, downsample_for, scissor_px};
-pub use extent::{Frost, footprint_frost_applies};
 
 use wgpu::util::DeviceExt;
 
@@ -217,12 +217,11 @@ impl BlurBackdrop {
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        width: u32,
-        height: u32,
-        dpi: f32,
+        surface: BlurSurface,
         base100_linear: [f32; 3],
         frost: Frost,
     ) -> bool {
+        let BlurSurface { width, height, dpi } = surface;
         self.frost = frost;
         let dim = frost.dim();
         let ds = downsample_for(dpi);

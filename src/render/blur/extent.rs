@@ -161,3 +161,19 @@ pub(super) fn capped_doc_size(width: u32, height: u32, ds: u32) -> (u32, u32) {
         .max(1);
     (cw, ch)
 }
+
+/// The surface the backdrop is built for: its device size and the scale factor that
+/// size is expressed in. Bundled because the three travel together and mean nothing
+/// apart — the DPI is what turns the blur's authored LOGICAL reach into texels, so a
+/// width and height without it cannot say how far the Gaussian should carry.
+///
+/// This exists so `BlurBackdrop::ensure` stays under clippy's argument ceiling without
+/// the first `too_many_arguments` waiver in a tree that has 103 exceptions and none of
+/// that class — the ceiling was pointing at a real bundle rather than at a limit worth
+/// suppressing.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BlurSurface {
+    pub width: u32,
+    pub height: u32,
+    pub dpi: f32,
+}

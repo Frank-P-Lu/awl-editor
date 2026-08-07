@@ -3,7 +3,6 @@
 //! `tests.rs`). Every test's NAME is unchanged; only which file it lives in moved.
 
 use super::extent::*;
-use super::*;
 
 #[test]
 fn doc_capture_cap_is_a_noop_at_or_below_the_cap() {
@@ -126,7 +125,10 @@ fn the_footprint_scissor_rounds_outward_clamps_and_rejects_the_off_canvas() {
 fn the_footprint_arm_carries_no_dim_and_the_full_arm_keeps_its_own() {
     assert_eq!(Frost::Footprint([0.0, 0.0, 10.0, 10.0]).dim(), 0.0);
     assert_eq!(Frost::Full.dim(), DIM);
-    assert!(DIM > 0.0, "the full takeover still recedes a value");
+    assert!(
+        Frost::Full.dim() > 0.0,
+        "the full takeover still recedes a value"
+    );
 }
 
 /// ENROLMENT, DERIVED FROM THE ROSTER. Every world's own list composition decides

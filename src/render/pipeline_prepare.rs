@@ -190,9 +190,17 @@ impl TextPipeline {
             return;
         };
         let base100 = srgb_u8_to_linear3(theme::base_100().rgba_bytes());
-        let recreated = self
-            .blur
-            .ensure(device, queue, width, height, self.dpi, base100, frost);
+        let recreated = self.blur.ensure(
+            device,
+            queue,
+            crate::render::blur::BlurSurface {
+                width,
+                height,
+                dpi: self.dpi,
+            },
+            base100,
+            frost,
+        );
         let sig = self.blur_signature(width, height);
         self.blur_recompute = recreated || self.blur_sig != Some(sig);
         if self.blur_recompute {
