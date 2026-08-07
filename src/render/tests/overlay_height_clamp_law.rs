@@ -621,7 +621,12 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 canvas: (1200, 800),
                 zoom: 1.0,
             },
-            (479.800_02, (300.0, 900.0), 12, Some((25, 12, 11, 479.800_02, 800.0))),
+            (
+                479.800_02,
+                (300.0, 900.0),
+                12,
+                Some((25, 12, 11, 479.800_02, 800.0)),
+            ),
         ),
         (
             Scenario {
@@ -630,7 +635,12 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 canvas: (1200, 800),
                 zoom: 1.0,
             },
-            (507.000_03, (300.0, 900.0), 13, Some((25, 13, 12, 507.000_03, 800.0))),
+            (
+                507.000_03,
+                (300.0, 900.0),
+                13,
+                Some((25, 13, 12, 507.000_03, 800.0)),
+            ),
         ),
         (
             Scenario {
@@ -657,12 +667,7 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
             // and reclaiming that slack now outweighs `avail_px`'s own
             // clamp, so the card is content-derived here rather than
             // window-clamped.
-            (
-                578.8,
-                (20.0, 680.0),
-                5,
-                Some((32, 5, 4, 578.8, 800.0)),
-            ),
+            (578.8, (20.0, 680.0), 5, Some((32, 5, 4, 578.8, 800.0))),
         ),
         // This cell used to be `History`, which is no longer a GROUPED picker
         // either: it is presented as a summoned workspace, so its numbers here

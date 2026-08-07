@@ -268,7 +268,11 @@ impl TextPipeline {
     /// many compact rows there are, never one per row: the pad is the
     /// breathing room below the LAST compact row, not a tax per row, so the
     /// gap row's own reclaim can't eat into the chin below the hint.
-    pub(in crate::render) fn overlay_footer_reclaim(&self, hint_rows: usize, gap_rows: usize) -> f32 {
+    pub(in crate::render) fn overlay_footer_reclaim(
+        &self,
+        hint_rows: usize,
+        gap_rows: usize,
+    ) -> f32 {
         if hint_rows == 0 && gap_rows == 0 {
             return 0.0;
         }
@@ -358,7 +362,8 @@ impl TextPipeline {
         };
         let chrome_rows = header_rows + hint_gap_rows + hint_rows + empty_rows + footer_rows;
         let (top_idx, visible) = self.overlay_flat_window(n_items, avail_px, chrome_rows);
-        let mut total_rows = header_rows + visible + empty_rows + hint_gap_rows + hint_rows + footer_rows;
+        let mut total_rows =
+            header_rows + visible + empty_rows + hint_gap_rows + hint_rows + footer_rows;
         let desired_w = self.overlay_desired_w(CARD_MAX_W);
         let (mut card_x, card_w) = self.overlay_card_box(width, desired_w);
         if let Some((x, _)) = self.overlay_context_anchor {

@@ -70,8 +70,7 @@ fn overlay_view(kind: OverlayKind, shape: Shape) -> ViewState {
         Shape::Scrolled => n - 1,
         _ => 0,
     };
-    v.overlay_empty = (shape == Shape::Empty)
-        .then(|| kind.empty_corpus_message().to_string());
+    v.overlay_empty = (shape == Shape::Empty).then(|| kind.empty_corpus_message().to_string());
     if crate::facets::scheme(kind).is_some() {
         v.overlay_lens = vec![("All".into(), true), ("File".into(), false)];
         // CONTIGUOUS blocks, not alternating: a grouped card plans one header
@@ -233,7 +232,11 @@ fn the_hint_gap_holds_when_filtered_scrolled_or_in_a_workspace() {
         for world in crate::theme::world_names() {
             theme::set_active_by_name(world).unwrap();
             p.sync_theme();
-            for kind in [OverlayKind::Command, OverlayKind::Context, OverlayKind::Theme] {
+            for kind in [
+                OverlayKind::Command,
+                OverlayKind::Context,
+                OverlayKind::Theme,
+            ] {
                 for shape in [Shape::Filtered, Shape::Scrolled] {
                     let v = overlay_view(kind, shape);
                     p.set_view(&v);
