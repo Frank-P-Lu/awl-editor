@@ -2937,6 +2937,42 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      `chrome/diagonal/`. **337 grades the same silhouette and 342 is live in the hint's width budget —
      sequence, never pair.**
 
+344. 🔴 **THE DOC CENSUS IS 29 CONFIRMED CONTRADICTIONS ACROSS NINE FILES, AND FOUR ARE IN PUBLIC,
+     USER-FACING DOCS.** Produced by item 302's own fan-out audit; **the orchestrator independently
+     re-verified the four public ones against source** and they hold. This is filed separately because
+     the census is far larger than 302's brief anticipated (it named five instances) and **must not be
+     lost if that lane cannot finish all of it.**
+     🔴 **VERIFIED BY THE ORCHESTRATOR, and these are the ones a reader sees:**
+     `pub const THEMES: [Theme; 20]` — but **`GUIDE.md:292` says "Nineteen worlds, one chord away"** and
+     **`ACCESSIBILITY.md:30` says "14 curated theme worlds, each contrast-law-tested"** (WEB.md:137
+     correctly says 20, so the docs contradict each other). **`docs/platform.md:40` documents the git
+     door as `"Finish Buffer"` (`C-x #`)** when the palette label is **`"Finish file"`** and that chord
+     default is **retired** (`Cmd-W` now). `GUIDE.md:303` says conceal reveals *"except on the line your
+     caret is on"* — **a selection touch also reveals**, which `wysiwyg_reveals_selection_widens_every_kind`
+     proves and `docs/markdown.md` documents.
+     ⚠️ **The rest, reported by the audit and NOT independently re-verified by the orchestrator** (so
+     treat each as a hypothesis to check, per the standing rule): `CAPTURE.md:1332` claims only
+     `rust`+`python` syntax when `Lang` has **20** real variants; `CAPTURE.md:1434/1593` undercount
+     `OverlayKind` (**21** variants) and omit nine real modes from the sidecar's `mode` enum;
+     `CAPTURE.md:1592` omits three fields the sidecar writer actually emits; `docs/render.md:27` says
+     "16 worlds"; `docs/render.md:98-99` says `History` returns `None` from `workspace_shape()` when it
+     now returns `Some(TimelineOverComparison)` — **shape 4, an invariant later code invalidated**;
+     `RELEASING.md:345` says `ubuntu-latest` when the workflow pins `ubuntu-22.04` **and the same file's
+     line 334 records that as resolved**; `ARCHITECTURE.md` lists two directory modules as flat files and
+     misstates `daemon.rs`'s cfg gate (it is also compiled out under `mas`); `THEMES.md` carries **nine**
+     stale deviation rows plus a JA ladder table missing 5 of 20 worlds; and **`docs/app-domains.md` has
+     four owners whose field enumerations no longer match their structs** — two owners' field *names* do
+     not exist in source at all, and its own totals no longer reconcile (1,308 against a stated 1,310).
+     ✅ **THE LEVER IS 302's AND IT APPLIES HERE: a doc stating a checkable fact should be a LAW.** A
+     world count, a variant count, a field enumeration and a sidecar field list are all derivable —
+     `reference.rs`'s drift laws are the working precedent, and `THEMES.md` already has roster-derived
+     laws for its membership tables. **Prefer generating or law-checking over rewording; a reworded
+     number rots on the same schedule.** ⚠️ **But heed the generated-document hazard:** generating from a
+     roster moves the error from transcription to SOURCING, and this repo has shipped three such errors
+     in one pass. **Spot-check generated entries against the code they claim to describe.**
+     ⚠️ **The four public ones are the priority** — they are what a user or a screen-reader user reads.
+     **Routing:** production tier; sequence behind item 302, which owns the same lever.
+
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
