@@ -19,7 +19,7 @@ pub(crate) fn commands() -> Vec<Block> {
     let keep = crate::config::Config::empty().effective_linux_keep();
     let mut out = Vec::new();
     for cat in crate::commands::TaskCategory::ALL {
-        let mut t = Table::new(&["Command", "macOS", "Linux", "Builds"]);
+        let mut t = Table::new(&["Command", "What it does", "macOS", "Linux", "Builds"]);
         for c in crate::commands::COMMANDS.iter() {
             if crate::commands::task_category_of(c.name) != Some(cat) {
                 continue;
@@ -38,6 +38,7 @@ pub(crate) fn commands() -> Vec<Block> {
             );
             t.push(vec![
                 Cell::text(c.name),
+                Cell::text_or_dash(c.description),
                 Cell::code_or_dash(&mac),
                 Cell::code_or_dash(&linux),
                 Cell::text(builds_label(c)),

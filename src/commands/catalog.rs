@@ -12,6 +12,7 @@ fn clone_command(command: &Command) -> Command {
         emacs: command.emacs,
         native_only: command.native_only,
         web_only: command.web_only,
+        description: command.description,
     }
 }
 

@@ -31,6 +31,18 @@ pub struct Command {
     pub emacs: &'static str,
     pub native_only: bool,
     pub web_only: bool,
+    /// What the command DOES, traced to its own dispatch code — never a
+    /// restatement of `name` (the docs-voice filler `Command::name` already
+    /// rules out: "Save: saves the file" says nothing `name` didn't). `None`
+    /// is an explicit, deliberate absence (the catalog literal must still
+    /// write the arm — the struct carries no `Default`, so a 95th command
+    /// fails to compile without one), used only where the code gives no
+    /// reliable fact to trace a sentence to — never a placeholder for "didn't
+    /// get to it yet". See `reference::rows::commands` for the one reader
+    /// (the generated reference's "What it does" column) and
+    /// `reference::law::rosters::every_command_description_is_meaningful_when_present`
+    /// for the law that keeps a `Some` value from decaying into blank filler.
+    pub description: Option<&'static str>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -124,6 +136,7 @@ pub static COMMANDS: std::sync::LazyLock<Vec<Command>> = std::sync::LazyLock::ne
                 emacs: Box::leak(emacs.into_boxed_str()),
                 native_only: seed.native_only,
                 web_only: seed.web_only,
+                description: seed.description,
             }
         })
         .collect()

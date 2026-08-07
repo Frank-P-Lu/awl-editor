@@ -1658,6 +1658,7 @@ fn changing_one_valid_default_slot_changes_both_label_and_dispatch() {
         emacs: "",
         native_only: false,
         web_only: false,
+        description: None,
     };
     assert_eq!(
         crate::commands::join_slots(mutated.native, mutated.emacs),

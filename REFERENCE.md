@@ -39,127 +39,127 @@ Commands are grouped by the same task categories the palette browses.
 <!-- GENERATED:reference-commands:BEGIN -->
 ### Files
 
-| Command | macOS | Linux | Builds |
-|---|---|---|---|
-| Switch project… | `⌘⇧P` | `Ctrl+Shift+P` | Native, browser |
-| Recent projects… | — | — | Native |
-| Browse files… | — | — | Native, browser |
-| Version history… | `⌘⇧H` | `Ctrl+Shift+H` | Native |
-| Compare with version… | — | — | Native |
-| Keep version… | — | — | Native |
-| New document | `⌘N` | `Ctrl+N` | Native, browser |
-| Keep tutorial… | — | — | Native |
-| Move… | — | — | Native, browser |
-| Rename note… | — | — | Native, browser |
-| Duplicate note | — | — | Native, browser |
-| Finish file | `⌘W` | `Ctrl+W` | Native |
-| Download file | — | — | Browser |
-| Export as Word… | — | — | Native, browser |
-| Export as HTML… | — | — | Native, browser |
-| Export as PDF… | — | — | Native |
-| Save | `⌘S` | `Ctrl+S` | Native, browser |
-| Review the change | — | — | Native |
-| Save your version | — | — | Native |
-| Use disk version | — | — | Native |
-| Quit | `⌘Q` | `Ctrl+Q` | Native |
+| Command | What it does | macOS | Linux | Builds |
+|---|---|---|---|---|
+| Switch project… | Summon the project switcher, browsing to a different project folder. | `⌘⇧P` | `Ctrl+Shift+P` | Native, browser |
+| Recent projects… | Open the project switcher focused on its Recent list. | — | — | Native |
+| Browse files… | Summon the file browser for the current project folder. | — | — | Native, browser |
+| Version history… | Summon the version timeline for the current file — git log for a tracked file, saved snapshots otherwise. | `⌘⇧H` | `Ctrl+Shift+H` | Native |
+| Compare with version… | Open the read-only prose diff comparing the current buffer against a past version. | — | — | Native |
+| Keep version… | Prompt for a name, then record the current buffer text as a pinned history snapshot under it. | — | — | Native |
+| New document | Start a new, empty document in the current project folder. | `⌘N` | `Ctrl+N` | Native, browser |
+| Keep tutorial… | Mark the built-in tutorial to be saved once a project folder is chosen, then open the project switcher. | — | — | Native |
+| Move… | Summon the destination browser to move the current file to another folder. | — | — | Native, browser |
+| Rename note… | Open the rename prompt, seeded with the current file's name. | — | — | Native, browser |
+| Duplicate note | Save a copy of the current file beside it, with a deduplicated name, and switch to editing the copy. | — | — | Native, browser |
+| Finish file | Save the file, notify any daemon `--wait` client waiting on it, and switch to the previously open file. | `⌘W` | `Ctrl+W` | Native |
+| Download file | Download the active buffer's text as a file — the web build's export, since there is no real disk. | — | — | Browser |
+| Export as Word… | Export the buffer to a `.docx` file; markdown buffers only. | — | — | Native, browser |
+| Export as HTML… | Export the buffer to an `.html` file; markdown buffers only. | — | — | Native, browser |
+| Export as PDF… | Export the buffer to a `.pdf` file; markdown buffers only, native builds only. | — | — | Native |
+| Save | Save the buffer to disk. | `⌘S` | `Ctrl+S` | Native, browser |
+| Review the change | Read an unresolved external change: the differences, your version, and the version on disk, one at a time. Changes nothing. | — | — | Native |
+| Save your version | Settle an unresolved external change by writing the buffer over the file on disk. | — | — | Native |
+| Use disk version | Settle an unresolved external change by replacing the buffer with the file on disk, as one undoable edit. | — | — | Native |
+| Quit | Quit the application. | `⌘Q` | `Ctrl+Q` | Native |
 
 ### Navigate
 
-| Command | macOS | Linux | Builds |
-|---|---|---|---|
-| Go to file… | `⌘O` | `Ctrl+O` | Native, browser |
-| Go to heading… | — | — | Native, browser |
-| Last file | `⌃Tab` | `Ctrl+Tab` | Native, browser |
-| Follow link | `C-c C-o` | — | Native, browser |
-| Copy link destination | — | — | Native, browser |
-| Search forward | `⌘F · C-s` | `Ctrl+F` | Native, browser |
-| Search backward | `⌘⇧F · C-r` | `Ctrl+Shift+F` | Native, browser |
-| Find and replace… | `⌘R` | `Ctrl+R` | Native, browser |
-| Forward word | `⌥Right` | `Alt+Right` | Native, browser |
-| Backward word | `⌥Left` | `Alt+Left` | Native, browser |
-| Line start | `⌘Left · C-a` | `Home` | Native, browser |
-| Line end | `⌘Right · C-e` | `End` | Native, browser |
-| Document start | `⌘Up` | `Ctrl+Home` | Native, browser |
-| Document end | `⌘Down` | `Ctrl+End` | Native, browser |
-| Forward char | `C-f` | — | Native, browser |
-| Backward char | `C-b` | — | Native, browser |
-| Next line | `C-n` | — | Native, browser |
-| Previous line | `C-p` | — | Native, browser |
-| Delete word forward | — | — | Native, browser |
-| Delete word backward | — | — | Native, browser |
+| Command | What it does | macOS | Linux | Builds |
+|---|---|---|---|---|
+| Go to file… | Summon the fuzzy file finder for the current project. | `⌘O` | `Ctrl+O` | Native, browser |
+| Go to heading… | Open the file finder pre-focused on the current document's headings. | — | — | Native, browser |
+| Last file | Switch to the previously open file; a no-op with nothing to switch back to. | `⌃Tab` | `Ctrl+Tab` | Native, browser |
+| Follow link | Open the URL of the markdown link under the caret in the default browser, if the caret sits inside one. | `C-c C-o` | — | Native, browser |
+| Copy link destination | Copy the URL of the markdown link under the caret to the kill buffer. | — | — | Native, browser |
+| Search forward | Open incremental search, prefilled from the selection or the last query, searching forward. | `⌘F · C-s` | `Ctrl+F` | Native, browser |
+| Search backward | Open incremental search, prefilled from the selection or the last query, searching backward. | `⌘⇧F · C-r` | `Ctrl+Shift+F` | Native, browser |
+| Find and replace… | Open the search panel with its replace row revealed. | `⌘R` | `Ctrl+R` | Native, browser |
+| Forward word | Move the caret forward one word. | `⌥Right` | `Alt+Right` | Native, browser |
+| Backward word | Move the caret backward one word. | `⌥Left` | `Alt+Left` | Native, browser |
+| Line start | Move the caret to the start of the visual line (the logical line without a layout oracle). | `⌘Left · C-a` | `Home` | Native, browser |
+| Line end | Move the caret to the end of the visual line (the logical line without a layout oracle). | `⌘Right · C-e` | `End` | Native, browser |
+| Document start | Move the caret to the start of the document. | `⌘Up` | `Ctrl+Home` | Native, browser |
+| Document end | Move the caret to the end of the document. | `⌘Down` | `Ctrl+End` | Native, browser |
+| Forward char | Move the caret forward one character. | `C-f` | — | Native, browser |
+| Backward char | Move the caret backward one character. | `C-b` | — | Native, browser |
+| Next line | Move the caret down one visual line, following soft wraps and a sticky goal column. | `C-n` | — | Native, browser |
+| Previous line | Move the caret up one visual line, following soft wraps and a sticky goal column. | `C-p` | — | Native, browser |
+| Delete word forward | Delete the token after the caret (a word or punctuation run) into the kill buffer; deletes the selection instead if one is active. | — | — | Native, browser |
+| Delete word backward | Delete the token before the caret (a word or punctuation run) into the kill buffer; deletes the selection instead if one is active. | — | — | Native, browser |
 
 ### Format
 
-| Command | macOS | Linux | Builds |
-|---|---|---|---|
-| Align table | — | — | Native, browser |
-| Insert Date | `⌘⇧D · C-c .` | `Ctrl+Shift+D` | Native, browser |
-| Blockquote | — | — | Native, browser |
-| Bullet list | — | — | Native, browser |
-| Numbered list | — | — | Native, browser |
-| Task list | `⌘⇧L` | `Ctrl+Shift+L` | Native, browser |
-| Heading | — | — | Native, browser |
-| Cycle heading | — | — | Native, browser |
-| Code block | — | — | Native, browser |
-| Bold | `⌘B` | `Ctrl+B` | Native, browser |
-| Italic | `⌘I` | `Ctrl+I` | Native, browser |
-| Inline code | `⌘E` | `Ctrl+E` | Native, browser |
-| Highlight | — | — | Native, browser |
-| Strikethrough | — | — | Native, browser |
-| Insert link… | `⌘K` | — | Native, browser |
-| Undo | `⌘Z · C-/` | `Ctrl+Z · C-/` | Native, browser |
-| Redo | `⌘⇧Z` | `Ctrl+Shift+Z` | Native, browser |
-| Copy | `⌘C` | `Ctrl+C` | Native, browser |
-| Cut | `⌘X · C-w` | `Ctrl+X` | Native, browser |
-| Paste | `⌘V · C-y` | `Ctrl+V · C-y` | Native, browser |
-| Select all | `⌘A` | `Ctrl+A` | Native, browser |
+| Command | What it does | macOS | Linux | Builds |
+|---|---|---|---|---|
+| Align table | Re-pad the GFM table under the caret so its `\|` columns line up. | — | — | Native, browser |
+| Insert Date | Insert today's date at the caret, in the configured date format. | `⌘⇧D · C-c .` | `Ctrl+Shift+D` | Native, browser |
+| Blockquote | Toggle a `> ` blockquote prefix on the caret line or each line of the selection. | — | — | Native, browser |
+| Bullet list | Toggle a `- ` bullet marker on the caret line or each line of the selection. | — | — | Native, browser |
+| Numbered list | Toggle a numbered-list marker on the caret line or each line of the selection, renumbering sequentially. | — | — | Native, browser |
+| Task list | Toggle a `- [ ] ` task checkbox on the caret line or each line of the selection. | `⌘⇧L` | `Ctrl+Shift+L` | Native, browser |
+| Heading | Toggle a level-1 `# ` heading marker on the caret line. | — | — | Native, browser |
+| Cycle heading | Cycle the caret line's heading level 1 → 2 → 3 → plain text. | — | — | Native, browser |
+| Code block | Wrap the caret line or selection in a fenced code block, or unwrap it if already fenced. | — | — | Native, browser |
+| Bold | Toggle `**bold**` markup around the selection or the word at the caret. | `⌘B` | `Ctrl+B` | Native, browser |
+| Italic | Toggle `*italic*` markup around the selection or the word at the caret. | `⌘I` | `Ctrl+I` | Native, browser |
+| Inline code | Toggle `` `inline code` `` markup around the selection or the word at the caret. | `⌘E` | `Ctrl+E` | Native, browser |
+| Highlight | Toggle `==highlight==` markup around the selection or the word at the caret. | — | — | Native, browser |
+| Strikethrough | Toggle `~~strikethrough~~` markup around the selection or the word at the caret. | — | — | Native, browser |
+| Insert link… | Summon the URL prompt for a markdown link — wraps the selection, edits the link under the caret, or inserts a fresh empty one. | `⌘K` | — | Native, browser |
+| Undo | Undo the last edit group. | `⌘Z · C-/` | `Ctrl+Z · C-/` | Native, browser |
+| Redo | Redo the last undone edit group. | `⌘⇧Z` | `Ctrl+Shift+Z` | Native, browser |
+| Copy | Copy the selection to the kill buffer, leaving the text and clearing the mark. | `⌘C` | `Ctrl+C` | Native, browser |
+| Cut | Cut the selection into the kill buffer and remove it from the buffer. | `⌘X · C-w` | `Ctrl+X` | Native, browser |
+| Paste | Insert the OS clipboard's content — an image reference if the clipboard holds an image, otherwise text. | `⌘V · C-y` | `Ctrl+V · C-y` | Native, browser |
+| Select all | Select the entire buffer. | `⌘A` | `Ctrl+A` | Native, browser |
 
 ### View
 
-| Command | macOS | Linux | Builds |
-|---|---|---|---|
-| Switch theme… | `⌘T` | `Ctrl+T` | Native, browser |
-| Toggle page mode | — | — | Native, browser |
-| Widen page | — | — | Native, browser |
-| Narrow page | — | — | Native, browser |
-| Reset page width | — | — | Native, browser |
-| Toggle debug | — | — | Native, browser |
-| Toggle outline | `⌘⇧O` | `Ctrl+Shift+O` | Native, browser |
-| Fold section | `⌘⇧E · C-c C-f` | `Ctrl+Shift+E` | Native, browser |
-| Collapse other sections | `⌘⇧M · C-c C-t` | `Ctrl+Shift+M` | Native, browser |
-| Toggle typewriter scroll | — | — | Native, browser |
-| Toggle menu bar | — | — | Native, browser |
-| Zoom in | `⌘=` | `Ctrl+=` | Native, browser |
-| Zoom out | `⌘-` | `Ctrl+-` | Native, browser |
-| Reset zoom | `⌘0` | `Ctrl+0` | Native, browser |
+| Command | What it does | macOS | Linux | Builds |
+|---|---|---|---|---|
+| Switch theme… | Summon the theme (world) picker. | `⌘T` | `Ctrl+T` | Native, browser |
+| Toggle page mode | Toggle between the centered writing column and full window width. | — | — | Native, browser |
+| Widen page | Widen the page column by one step. | — | — | Native, browser |
+| Narrow page | Narrow the page column by one step. | — | — | Native, browser |
+| Reset page width | Reset the page column to the buffer's own default width, clearing any sticky override. | — | — | Native, browser |
+| Toggle debug | Toggle the debug overlay. | — | — | Native, browser |
+| Toggle outline | Toggle the heading outline panel. | `⌘⇧O` | `Ctrl+Shift+O` | Native, browser |
+| Fold section | Toggle collapse of the markdown section under the caret; view state only, never on the undo timeline. | `⌘⇧E · C-c C-f` | `Ctrl+Shift+E` | Native, browser |
+| Collapse other sections | Collapse every markdown section except the one under the caret. | `⌘⇧M · C-c C-t` | `Ctrl+Shift+M` | Native, browser |
+| Toggle typewriter scroll | Toggle keeping the caret vertically centered as you type. | — | — | Native, browser |
+| Toggle menu bar | Toggle the menu bar's visibility. | — | — | Native, browser |
+| Zoom in | Step the editor's zoom level up. | `⌘=` | `Ctrl+=` | Native, browser |
+| Zoom out | Step the editor's zoom level down. | `⌘-` | `Ctrl+-` | Native, browser |
+| Reset zoom | Reset the editor's zoom level to its default. | `⌘0` | `Ctrl+0` | Native, browser |
 
 ### Tools
 
-| Command | macOS | Linux | Builds |
-|---|---|---|---|
-| Spell suggestions… | `⌘;` | `Ctrl+;` | Native, browser |
-| Clean unused assets… | — | — | Native |
-| About | — | — | Native, browser |
-| Credits | — | — | Native, browser |
-| Guide | — | — | Native, browser |
-| Reference | — | — | Native, browser |
-| Lifetime stats | — | — | Native |
-| Writing streaks | — | — | Native |
-| Line endings… | — | — | Native, browser |
-| Report a Problem | — | — | Native, browser |
-| Check for Updates | — | — | Native |
+| Command | What it does | macOS | Linux | Builds |
+|---|---|---|---|---|
+| Spell suggestions… | Summon spelling suggestions for the misspelled word at the caret. | `⌘;` | `Ctrl+;` | Native, browser |
+| Clean unused assets… | Summon the list of orphaned image files under the project, for moving to the trash. | — | — | Native |
+| About | Show the About panel. | — | — | Native, browser |
+| Credits | Open the bundled Credits document into the buffer. | — | — | Native, browser |
+| Guide | Open the bundled Guide document into the buffer. | — | — | Native, browser |
+| Reference | Open the bundled Reference document into the buffer. | — | — | Native, browser |
+| Lifetime stats | Open the lifetime writing statistics panel. | — | — | Native |
+| Writing streaks | Open the writing-streaks panel (per-day heatmap and cumulative total). | — | — | Native |
+| Line endings… | Toggle the active file's on-disk line ending between LF and CRLF; metadata only, never on the undo timeline. | — | — | Native, browser |
+| Report a Problem | Compose a `mailto:` bug report to the maintainer, attaching the newest crash log's path (never its content) if one exists. | — | — | Native, browser |
+| Check for Updates | Record a local last-checked marker and open the site's version-check page in the browser; never a background fetch. | — | — | Native |
 
 ### Settings
 
-| Command | macOS | Linux | Builds |
-|---|---|---|---|
-| Caret style… | — | — | Native, browser |
-| Dictionary… | — | — | Native, browser |
-| Toggle spellcheck | — | — | Native, browser |
-| Toggle caret style | — | — | Native, browser |
-| Toggle writing nits | — | — | Native, browser |
-| Settings… | `⌘,` | `Ctrl+,` | Native, browser |
-| Keybindings… | — | — | Native, browser |
+| Command | What it does | macOS | Linux | Builds |
+|---|---|---|---|---|
+| Caret style… | Summon the caret style picker. | — | — | Native, browser |
+| Dictionary… | Summon the spelling dictionary picker. | — | — | Native, browser |
+| Toggle spellcheck | Flip spellcheck on or off globally, silencing every squiggle when off. | — | — | Native, browser |
+| Toggle caret style | Cycle to the next caret style. | — | — | Native, browser |
+| Toggle writing nits | Toggle the writing-nits style underlines on or off. | — | — | Native, browser |
+| Settings… | Summon the settings picker. | `⌘,` | `Ctrl+,` | Native, browser |
+| Keybindings… | Summon the keybindings rebind menu. | — | — | Native, browser |
 
 ### Chords with no command
 
