@@ -137,7 +137,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Choose a folder, then export as `.docx`; markdown buffers only."),
+        description: Some("Export as `.docx`; markdown buffers only, folder chosen on native."),
     },
     Command {
         name: "Export as HTML…",
@@ -146,7 +146,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Choose a folder, then export as `.html`; markdown buffers only."),
+        description: Some("Export as `.html`; markdown buffers only, folder chosen on native."),
     },
     Command {
         name: "Export as PDF…",
