@@ -333,17 +333,17 @@ fn max_scroll_accounts_for_viewport() {
     // A doc taller than the viewport now gets ~one screenful of "scroll past
     // end" headroom: the max lets the LAST row rise to the top of the viewport,
     // i.e. `total - OVERSCROLL_KEEP_ROWS`.
-    let visible = visible_lines_z(H, LINE_HEIGHT);
+    let visible = visible_lines_z(H, LINE_HEIGHT, 1.0);
     // A doc taller than the viewport scrolls until its last row reaches the top.
     assert_eq!(
-        max_scroll(visible + 30, H, LINE_HEIGHT),
+        max_scroll(visible + 30, H, LINE_HEIGHT, 1.0),
         visible + 30 - OVERSCROLL_KEEP_ROWS
     );
     // A doc that fits entirely (or is shorter) cannot scroll into the void.
-    assert_eq!(max_scroll(visible, H, LINE_HEIGHT), 0);
-    assert_eq!(max_scroll(visible.saturating_sub(3), H, LINE_HEIGHT), 0);
-    assert_eq!(max_scroll(1, H, LINE_HEIGHT), 0);
-    assert_eq!(max_scroll(0, H, LINE_HEIGHT), 0);
+    assert_eq!(max_scroll(visible, H, LINE_HEIGHT, 1.0), 0);
+    assert_eq!(max_scroll(visible.saturating_sub(3), H, LINE_HEIGHT, 1.0), 0);
+    assert_eq!(max_scroll(1, H, LINE_HEIGHT, 1.0), 0);
+    assert_eq!(max_scroll(0, H, LINE_HEIGHT, 1.0), 0);
 }
 
 #[test]
@@ -352,10 +352,10 @@ fn max_scroll_reaches_last_visual_row_of_wrapped_doc() {
     // max_scroll must let the LAST visual row reach the bottom. Say 50 logical
     // lines each wrap into ~3 rows -> ~150 visual rows. With `visible` rows on
     // screen, the max scroll is total_rows - visible, NOT (logical - visible).
-    let visible = visible_lines_z(H, LINE_HEIGHT);
+    let visible = visible_lines_z(H, LINE_HEIGHT, 1.0);
     let logical = 50usize;
     let total_visual = logical * 3; // each line wraps to 3 rows
-    let m = max_scroll(total_visual, H, LINE_HEIGHT);
+    let m = max_scroll(total_visual, H, LINE_HEIGHT, 1.0);
     // With "scroll past end" the max lets the last row reach the TOP, so the
     // ceiling is `total - OVERSCROLL_KEEP_ROWS`, ~one screenful past the old
     // bottom-pinned `total - visible`.
@@ -367,7 +367,7 @@ fn max_scroll_reaches_last_visual_row_of_wrapped_doc() {
     // The bug this fixes: a logical-line max would stop far too early. Prove
     // the visual-row max is strictly larger than the old logical-line max
     // would have been, so the previously-unreachable last rows are reachable.
-    let old_logical_max = max_scroll(logical, H, LINE_HEIGHT);
+    let old_logical_max = max_scroll(logical, H, LINE_HEIGHT, 1.0);
     assert!(
         m > old_logical_max,
         "visual-row max must exceed logical-line max"
@@ -382,9 +382,9 @@ fn max_scroll_overscrolls_past_end_but_stays_bounded() {
     // "Scroll past end": a buffer TALLER than the viewport can now scroll until
     // its last row rises to ~the TOP of the viewport, ~one screenful of extra
     // headroom past where the last row pins to the bottom — and no further.
-    let visible = visible_lines_z(H, LINE_HEIGHT);
+    let visible = visible_lines_z(H, LINE_HEIGHT, 1.0);
     let total = visible + 50; // taller than the viewport
-    let m = max_scroll(total, H, LINE_HEIGHT);
+    let m = max_scroll(total, H, LINE_HEIGHT, 1.0);
 
     // The OLD max pinned the last row to the bottom: total - visible.
     let old_max = total - visible;
@@ -407,7 +407,7 @@ fn max_scroll_overscrolls_past_end_but_stays_bounded() {
     );
 
     // Scrolling UP still clamps at the top, and a doc that fits can't scroll.
-    assert_eq!(max_scroll(visible, H, LINE_HEIGHT), 0);
+    assert_eq!(max_scroll(visible, H, LINE_HEIGHT, 1.0), 0);
 }
 
 #[test]
@@ -417,7 +417,7 @@ fn non_wrap_visual_rows_equal_logical_lines_invariant() {
     // byte-for-byte the old logical-line behavior. We model "nothing wraps" by
     // total_visual_rows == line_count and assert the two max_scroll values
     // agree for a spread of document sizes.
-    let visible = visible_lines_z(H, LINE_HEIGHT);
+    let visible = visible_lines_z(H, LINE_HEIGHT, 1.0);
     for line_count in [0usize, 1, 5, visible, visible + 1, visible + 40, 200] {
         let total_visual = line_count; // no wrap => 1 visual row per line
         // Expected = base (last row to bottom) + one-screenful overscroll, with
@@ -429,7 +429,7 @@ fn non_wrap_visual_rows_equal_logical_lines_invariant() {
             0
         };
         assert_eq!(
-            max_scroll(total_visual, H, LINE_HEIGHT),
+            max_scroll(total_visual, H, LINE_HEIGHT, 1.0),
             expected,
             "non-wrap max_scroll must equal logical-line max for {line_count} lines"
         );

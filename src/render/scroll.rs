@@ -36,7 +36,7 @@ impl TextPipeline {
 
     /// Document viewport after fixed text and menu insets.
     pub fn viewport_avail_px(&self, height: f32) -> f32 {
-        (height - TEXT_TOP - self.menubar_reserve()).max(1.0)
+        (height - self.text_origin_top()).max(1.0)
     }
 
     fn row_top_q(&self, row: usize) -> i64 {
@@ -165,7 +165,7 @@ impl TextPipeline {
     ) -> ScrollPos {
         let row = self.visual_row_of(line, col);
         let target_top =
-            zoom_anchor_target_top(self.row_top_px(row), anchor_py, self.menubar_reserve());
+            zoom_anchor_target_top(self.row_top_px(row), anchor_py, self.text_origin_top());
         let target_q = (target_top * ScrollPos::SUBPX as f32).round() as i64;
         self.scroll_pos_at_q(target_q, height)
     }
@@ -173,13 +173,12 @@ impl TextPipeline {
     /// Pixel-precise screen top of the visual row containing `(line, col)`.
     pub fn char_screen_top_scroll(&self, line: usize, col: usize, scroll: ScrollPos) -> f32 {
         let row = self.visual_row_of(line, col);
-        TEXT_TOP + self.menubar_reserve() - self.rendered_scroll_top_px(scroll)
-            + self.row_top_px(row)
+        self.text_origin_top() - self.rendered_scroll_top_px(scroll) + self.row_top_px(row)
     }
 
     /// Advance- and wrap-aware pixel-to-text hit test at a semantic scroll.
     pub fn hit_test_scroll(&self, px: f32, py: f32, scroll: ScrollPos) -> (usize, usize) {
-        let doc_top = TEXT_TOP + self.menubar_reserve() - self.rendered_scroll_top_px(scroll);
+        let doc_top = self.text_origin_top() - self.rendered_scroll_top_px(scroll);
         let want_top = (py - doc_top).max(0.0);
         let target_x = (px - self.text_left()).max(0.0);
         let mut first_run = true;

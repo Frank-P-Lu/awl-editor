@@ -146,8 +146,14 @@ fn top_anchors_yield_to_the_menu_bar_bottom_anchors_do_not() {
         800.0 - 18.0 - 8.0,
         "BottomRight ignores the bar reserve"
     );
-    // THE NOTICE's own anchor is TOP-anchored, so it MUST take the reserve —
-    // the arm a "bottom anchors ignore it" law could never have covered.
+    // THE NOTICE's own anchor is TOP-anchored, so it MUST take whatever vertical
+    // offset the caller hands it verbatim — `corner_origin` is pure (no `Metrics`,
+    // so no scale to multiply TEXT_TOP by) and the production caller
+    // (`TextPipeline::prepare_notice`) is the one that folds the document's own
+    // scaled TEXT_TOP into that offset before calling in
+    // (`text_origin_top_folds_text_top_and_menubar_reserve`, below, covers that
+    // composition); this law only needs TopCenter to pass the offset through
+    // unmodified, the arm a "bottom anchors ignore it" law could never have covered.
     let (_, top_center) = corner_origin(
         CornerAnchor::TopCenter,
         120.0,
@@ -159,10 +165,8 @@ fn top_anchors_yield_to_the_menu_bar_bottom_anchors_do_not() {
         reserve,
     );
     assert_eq!(
-        top_center,
-        crate::render::TEXT_TOP + reserve,
-        "TopCenter seats the notice on the document's own first-row origin, \
-         bar reserve included"
+        top_center, reserve,
+        "TopCenter seats the notice at exactly the offset the caller composed"
     );
     let (_, at_point) = corner_origin(
         CornerAnchor::AtPoint(50.0, 60.0),

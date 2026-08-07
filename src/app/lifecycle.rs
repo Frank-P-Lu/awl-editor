@@ -47,7 +47,7 @@ impl ApplicationHandler<AwlEvent> for App {
         const MIN_COLS: f32 = 30.0;
         const MIN_LINES: f32 = 8.0;
         let min_w = MIN_COLS * render::CHAR_WIDTH + 2.0 * render::TEXT_LEFT.0;
-        let min_h = MIN_LINES * render::LINE_HEIGHT + 2.0 * render::TEXT_TOP;
+        let min_h = MIN_LINES * render::LINE_HEIGHT + 2.0 * render::TEXT_TOP.0;
         // NATIVE ONLY: pin a fixed opening size (1200x800 logical px — also the
         // capture harness's own default canvas, so `--screenshot` stays
         // byte-identical). On the WEB this must NOT be set: winit's web backend

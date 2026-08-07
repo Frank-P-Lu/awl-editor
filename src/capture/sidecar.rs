@@ -1,6 +1,6 @@
 use super::opts::CaptureOpts;
 use super::{CANVAS_HEIGHT, CANVAS_WIDTH, schema_held, schema_plain, schema_timeline};
-use crate::render::{self, ScriptFontReports, TextPipeline, ViewState};
+use crate::render::{ScriptFontReports, TextPipeline, ViewState};
 use anyhow::{Context, Result};
 use std::io::Write;
 use std::path::Path;
@@ -131,7 +131,7 @@ pub(super) fn write_sidecar(
         thb = crate::markdown::heading_weight_bold(active.heading_bold, 2),
         cm = json_string(caret_mode),
         left = pipeline.text_left(),
-        top = render::TEXT_TOP + pipeline.menubar_reserve(),
+        top = pipeline.text_origin_top(),
         page = page_json(pipeline),
         lc = pipeline.line_count(),
         scroll = super::scroll_sidecar::fields(view.scroll, pipeline),

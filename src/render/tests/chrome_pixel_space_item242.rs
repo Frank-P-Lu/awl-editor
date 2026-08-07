@@ -392,10 +392,31 @@ fn the_row_pitchs_three_terms_hold_one_proportion_across_dpi() {
 /// DEFAULT and the only one a new length should ever need.
 const UNIT_TYPES: &[&str] = &["Logical", "Physical", "LogicalGrowOnly", "Chars", "Rows"];
 
-/// The constants under `src/render/chrome/` that are NOT lengths, each with the
-/// reason it carries no unit. Enumerated by name with no wildcard, so a new bare
-/// `f32` constant fails this law rather than joining the list silently.
+/// The constants under the swept files (`src/render/chrome/`, plus item 315's
+/// `render/geometry.rs` / `render/geometry/**` / `render/scroll.rs`) that are NOT
+/// lengths, each with the reason it carries no unit. Enumerated by name with no
+/// wildcard, so a new bare `f32` constant fails this law rather than joining the
+/// list silently.
 const DIMENSIONLESS: &[(&str, &str)] = &[
+    (
+        "DEGENERATE_CELL_FRAC",
+        "a fraction of metrics.char_width, not a length of its own",
+    ),
+    (
+        "CW",
+        "a geometry/tests.rs alias for CHAR_WIDTH — a base text metric already \
+         scaled through Metrics::with_dpi, not an authored chrome pad",
+    ),
+    (
+        "ADAPTIVE_DPI",
+        "a fixed test-only DPI multiplier (always 1.0, see its own doc) — a \
+         scale factor, not a length",
+    ),
+    (
+        "ADAPTIVE_LEFT_PAD",
+        "PAGE_MIN_PAD resolved AT ADAPTIVE_DPI, extracted once for repeated \
+         test arithmetic — not a second authored pad",
+    ),
     ("OVERLAY_UI_SCALE", "a ratio: the whole-menu type scale"),
     (
         "PLACARD_CALIBRATION_TITLE",
@@ -447,10 +468,29 @@ fn const_decl(line: &str) -> Option<&str> {
     t.strip_prefix("const ")
 }
 
+/// ITEM 315 — WIDENED PAST `src/render/chrome/` ALONE. `TEXT_TOP` and `TEXT_LEFT`
+/// (item 314) both lived untyped in `render/geometry.rs` / `render.rs` for their
+/// whole lives, and the reason is structural: this sweep never looked outside
+/// `chrome/`. `render/geometry.rs`, `render/geometry/**` and `render/scroll.rs` are
+/// the writing column's OWN pixel-space files — the direct neighbourhood both
+/// constants actually lived in — added here so a new one authored there fails this
+/// law by name instead of surviving on the same technicality.
+///
+/// `src/render.rs` itself is DELIBERATELY NOT swept yet: alongside the already-typed
+/// chrome-style pads it declares ~30 more constants from unrelated families this item
+/// did not audit — the caret/text metrics that pass through `Metrics::with_dpi`'s own
+/// multiply (`FONT_SIZE`, `CHAR_WIDTH`, every `CARET_*`), animation durations in
+/// milliseconds, and raw alpha/lightness channel values — none of which are a "chrome
+/// pad missing its unit family" in item 242's sense, and none of which this item
+/// verified individually. Folding the whole file in without that audit would make this
+/// law encode a guess as a passing check, which is the failure CLAUDE.md's "a
+/// generated document states its wrong answer with a law behind it" names. The
+/// residual census is in the item 315 landing note.
 fn chrome_sources() -> Vec<(String, String)> {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/chrome");
+    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut out = Vec::new();
-    let mut stack = vec![root];
+    let mut stack = vec![manifest.join("src/render/chrome")];
+    let single_files = ["src/render/geometry.rs", "src/render/scroll.rs"];
     while let Some(dir) = stack.pop() {
         for entry in std::fs::read_dir(&dir).expect("chrome dir readable") {
             let path = entry.expect("dir entry").path();
@@ -458,7 +498,7 @@ fn chrome_sources() -> Vec<(String, String)> {
                 stack.push(path);
             } else if path.extension().is_some_and(|e| e == "rs") {
                 let rel = path
-                    .strip_prefix(env!("CARGO_MANIFEST_DIR"))
+                    .strip_prefix(manifest)
                     .unwrap_or(&path)
                     .display()
                     .to_string();
@@ -467,6 +507,32 @@ fn chrome_sources() -> Vec<(String, String)> {
                     std::fs::read_to_string(&path).expect("source readable"),
                 ));
             }
+        }
+    }
+    // `render/geometry/` is a real directory (`column.rs`, `page.rs`, `tests.rs`) but
+    // `render/geometry.rs` and `render/scroll.rs` are FILES beside it, not inside a
+    // `render/geometry/` walk — named explicitly rather than re-deriving the dir walk
+    // for a two-file exception.
+    for f in single_files {
+        let path = manifest.join(f);
+        out.push((
+            f.to_string(),
+            std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{f} readable: {e}")),
+        ));
+    }
+    let geometry_dir = manifest.join("src/render/geometry");
+    for entry in std::fs::read_dir(&geometry_dir).expect("geometry dir readable") {
+        let path = entry.expect("dir entry").path();
+        if path.extension().is_some_and(|e| e == "rs") {
+            let rel = path
+                .strip_prefix(manifest)
+                .unwrap_or(&path)
+                .display()
+                .to_string();
+            out.push((
+                rel,
+                std::fs::read_to_string(&path).expect("source readable"),
+            ));
         }
     }
     assert!(out.len() > 20, "the chrome source sweep found nothing");

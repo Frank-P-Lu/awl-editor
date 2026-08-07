@@ -8,18 +8,19 @@ use super::*;
 
 /// The (left, top) device-px origin of a non-empty corner label, given its widest
 /// shaped run width `text_w`, its `line_height`, the canvas `width`/`height`, the
-/// writing column's `col_left`/`col_width`, and the WEB/LINUX MENU BAR's own reserve
-/// ([`TextPipeline::menubar_reserve`], `0.0` unless the bar is shown). The ONE owner
-/// of the corner-anchor placement math — split out of [`TextPipeline::prepare_corner_
-/// label`] so each anchor is unit-testable without a GPU (the empty-text off-screen
-/// park stays in the caller). An 8px inset from the canvas edges for the docked
-/// corners; a small clamped float for the at-pointer readout. Only the TOP-anchored
-/// arms ([`CornerAnchor::TopRight`], [`CornerAnchor::TopCenter`]) read
-/// `menubar_reserve` — a shown bar pushes them down by exactly its own height, the
-/// SAME accessor the document's `doc_top`, the margin Outline, and the
-/// search/replace panel's card already fold in (merge, don't align: one owner, never
-/// a second offset convention). The bottom / pointer-anchored arms are unaffected (a
-/// bar at the TOP of the canvas never reaches them).
+/// writing column's `col_left`/`col_width`, and a vertical top-anchor offset — the
+/// bare WEB/LINUX MENU BAR reserve ([`TextPipeline::menubar_reserve`]) for
+/// [`CornerAnchor::TopRight`], or [`TextPipeline::text_origin_top`] (that reserve WITH
+/// the document's own scaled `TEXT_TOP` folded in) for [`CornerAnchor::TopCenter`] —
+/// this fn is pure (no `Metrics`, so no scale to multiply by) and never re-derives
+/// either composition itself. The ONE owner of the corner-anchor placement math —
+/// split out of [`TextPipeline::prepare_corner_label`] so each anchor is
+/// unit-testable without a GPU (the empty-text off-screen park stays in the caller).
+/// An 8px inset from the canvas edges for the docked corners; a small clamped float
+/// for the at-pointer readout. Only the TOP-anchored arms read this offset — a shown
+/// bar pushes them down by exactly its own height (merge, don't align: one owner,
+/// never a second offset convention). The bottom / pointer-anchored arms are
+/// unaffected (a bar at the TOP of the canvas never reaches them).
 // The readout is assembled from explicit theme and geometry facts at one render boundary.
 #[allow(clippy::too_many_arguments)]
 pub(in crate::render) fn corner_origin(
@@ -43,16 +44,14 @@ pub(in crate::render) fn corner_origin(
             let left = (col_left + col_width - text_w).max(col_left);
             (left, height - line_height - CANVAS_INSET.0)
         }
-        // THE CALM NOTICE. Centred on the writing column and seated on the
-        // document's OWN first-row origin — `crate::render::TEXT_TOP` plus the
-        // menu-bar reserve is exactly what `doc_top` composes off at scroll 0, so
-        // the notice sits on the page's first line rather than at a second
-        // vertical convention of its own. `height` is unread here: this anchor is
-        // top-relative by construction, which is the point (the bottom of the
-        // canvas is the one place a writer's eye does not go).
+        // THE CALM NOTICE, seated on the document's OWN first-row origin: the caller
+        // passes `text_origin_top()` (see this fn's own doc), the same origin
+        // `doc_top` composes off at scroll 0. `height` is unread here: this anchor is
+        // top-relative by construction — the bottom of the canvas is the one place a
+        // writer's eye does not go.
         CornerAnchor::TopCenter => {
             let left = (col_left + (col_width - text_w) * 0.5).max(col_left);
-            (left, crate::render::TEXT_TOP + menubar_reserve)
+            (left, menubar_reserve)
         }
         CornerAnchor::AtPoint(px, py) => {
             // Float above-right of the pointer (clears the resize-cursor glyph it sits
@@ -420,7 +419,6 @@ impl TextPipeline {
         let label = crate::markdown::type_scale::LABEL;
         let gm = GlyphMetrics::new(m.font_size * label, m.line_height * label);
         let (col_left, col_width) = (self.column_left(), self.column_width());
-        let menubar_reserve = self.menubar_reserve();
         let (pad_x, pad_y) = notice_plate_padding(gm.line_height);
         // ELIDE FIRST, against the budget the plate will actually have. Measured
         // with the notice's OWN buffer at the notice's OWN metrics, so the fit is
@@ -449,6 +447,7 @@ impl TextPipeline {
         };
         self.notice_drawn = text.clone();
         let (fill, rim, text_ink) = notice_plate_inks(self.notice_kind);
+        let text_origin_top = self.text_origin_top();
         let placed = Self::prepare_corner_label(
             &mut self.notice_renderer,
             &mut self.notice_buffer,
@@ -468,7 +467,8 @@ impl TextPipeline {
             CornerAnchor::TopCenter,
             None,
             "notice",
-            menubar_reserve,
+            // TopCenter alone wants scaled TEXT_TOP folded in (see `corner_origin`).
+            text_origin_top,
             text_ink.to_glyphon(),
         )?;
         // THE PLATE, from the placement the label body just returned — never a

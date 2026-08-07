@@ -31,11 +31,11 @@ fn narrow_window_fills_minus_small_pad() {
         let w = column_width_for(win, CW, true, 80, 1.0); // 80-char measure ~1152px >> win
         let left = column_left_for(win, CW, true, 80, 1.0);
         assert!(
-            (w - (win - 2.0 * PAGE_MIN_PAD.0)).abs() < 1e-3,
+            (w - (win - 2.0 * PAGE_MIN_PAD.px(1.0))).abs() < 1e-3,
             "narrow {win}: fills minus pad, got {w}"
         );
         assert!(
-            (left - PAGE_MIN_PAD.0).abs() < 1e-3,
+            (left - PAGE_MIN_PAD.px(1.0)).abs() < 1e-3,
             "narrow {win}: left at small pad, got {left}"
         );
         assert!(
@@ -62,7 +62,7 @@ fn column_is_monotonic_and_never_overflows_across_a_resize() {
             "column never exceeds the measure (w={w})"
         );
         assert!(
-            left >= PAGE_MIN_PAD.0 - 1e-3,
+            left >= PAGE_MIN_PAD.px(1.0) - 1e-3,
             "always at least the small pad (w={w})"
         );
         assert!(
@@ -91,7 +91,7 @@ fn page_off_is_edge_to_edge_unaffected() {
         (column_width_for(1200.0, CW, false, 80, 1.0) - (1200.0 - 2.0 * NONPAGE_INSET.0)).abs()
             < 1e-3
     );
-    assert!(std::hint::black_box(NONPAGE_INSET.0) > PAGE_MIN_PAD.0);
+    assert!(std::hint::black_box(NONPAGE_INSET.0) > PAGE_MIN_PAD.px(1.0));
 }
 
 fn outline_pref_px() -> f32 {
@@ -189,7 +189,7 @@ fn adaptive_narrow_window_shifts_right_and_grants_the_full_preferred_rail() {
     let total_margin = win - width;
     let right_margin = total_margin - left;
     assert!(
-        right_margin >= RIGHT_MARGIN_BREATH.0 - 1e-3,
+        right_margin >= RIGHT_MARGIN_BREATH.px(1.0) - 1e-3,
         "narrow: right margin keeps its breathing floor, got {right_margin}"
     );
 }
@@ -218,7 +218,7 @@ fn adaptive_narrow_shift_caps_at_the_right_margin_breathing_floor() {
     );
     let right_margin = total_margin - left;
     assert!(
-        (right_margin - RIGHT_MARGIN_BREATH.0).abs() < 0.5,
+        (right_margin - RIGHT_MARGIN_BREATH.px(1.0)).abs() < 0.5,
         "capped exactly at the breathing floor, got {right_margin}"
     );
     let avail = (left - margin_gap()) - ADAPTIVE_LEFT_PAD;
@@ -277,7 +277,7 @@ fn adaptive_no_payoff_shift_recenters_instead_of_shifting_for_a_hidden_outline()
     );
     let width = column_width_for(win, CW, true, measure, 1.0);
     let total_margin = win - width;
-    let old_max_left = (total_margin - RIGHT_MARGIN_BREATH.0).max(0.0);
+    let old_max_left = (total_margin - RIGHT_MARGIN_BREATH.px(1.0)).max(0.0);
     assert!(
         old_max_left > symmetric,
         "fixture: the old formula would have shifted"
@@ -431,7 +431,7 @@ fn zooming_in_keeps_column_and_margins_constant_gutter_stays() {
     let ref_w = column_width_for(window, base_adv, true, measure, 1.0);
     let ref_left = column_left_for(window, base_adv, true, measure, 1.0);
     assert!(
-        ref_left > PAGE_MIN_PAD.0 + 1.0,
+        ref_left > PAGE_MIN_PAD.px(1.0) + 1.0,
         "fixture must have a visible margin/gutter"
     );
     for &zoom in &[0.5_f32, 1.0, 1.6, 2.5, 3.0] {
@@ -460,7 +460,7 @@ fn zooming_in_keeps_column_and_margins_constant_gutter_stays() {
 fn hover_zone_arms_only_within_grab_px_of_an_edge() {
     let measure_px = 40.0 * CW; // 576
     let left = (1200.0 - measure_px) * 0.5; // 312
-    let tol = PAGE_RESIZE_GRAB_PX;
+    let tol = PAGE_RESIZE_GRAB_PX.px(1.0);
     assert_eq!(
         page_boundary_hit(left, left, measure_px, tol),
         Some(ResizeEdge::Left)
@@ -491,7 +491,7 @@ fn resize_affordance_arms_at_both_drawn_edges_in_every_page_on_cell() {
     // ONE arming owner `page_resize_edge_hit` against the DRAWN geometry
     // (`column_left_for`/`column_width_for`), so a reintroduced collapse-guard fails
     // here. Pure — no GPU, no page globals.
-    let tol = PAGE_RESIZE_GRAB_PX;
+    let tol = PAGE_RESIZE_GRAB_PX.px(1.0);
     let adv = CW; // zoom-stripped page-column advance
     let mut saw_collapsed = false;
     for &measure in &[20usize, 40, 70, 100, 140] {
@@ -531,7 +531,7 @@ fn resize_affordance_arms_at_both_drawn_edges_in_every_page_on_cell() {
                 "{cell}: page off must not arm (right)",
             );
 
-            if left <= PAGE_MIN_PAD.0 + 1.0 {
+            if left <= PAGE_MIN_PAD.px(1.0) + 1.0 {
                 saw_collapsed = true;
                 assert!(
                     page_resize_edge_hit(true, left, width, left, tol).is_some()
@@ -577,7 +577,7 @@ fn in_writing_column_is_true_inside_and_on_both_edges_false_outside() {
 #[test]
 fn image_handle_hit_arms_the_right_zone_per_edge_and_corner() {
     let rect = [100.0_f32, 50.0, 300.0, 200.0];
-    let tol = IMAGE_RESIZE_GRAB_PX;
+    let tol = IMAGE_RESIZE_GRAB_PX.px(1.0);
     assert_eq!(
         image_handle_hit((100.0, 50.0), rect, tol),
         Some(ImageHandle::TopLeft)
@@ -630,7 +630,7 @@ fn image_handle_hit_arms_the_right_zone_per_edge_and_corner() {
 #[test]
 fn image_resize_width_drives_per_handle_clamped_to_min_and_wrap() {
     let rect = [100.0_f32, 50.0, 300.0, 200.0];
-    let (wrap, min) = (500.0_f32, MIN_IMAGE_W);
+    let (wrap, min) = (500.0_f32, MIN_IMAGE_W.px(1.0));
     let w = |h: ImageHandle, p: (f32, f32)| image_resize_width(h, rect, p, wrap, min, 0.0);
     assert!((w(ImageHandle::Right, (350.0, 150.0)) - 250.0).abs() < 1e-3);
     assert!((w(ImageHandle::Left, (200.0, 150.0)) - 200.0).abs() < 1e-3);
@@ -664,7 +664,7 @@ fn image_resize_width_drives_per_handle_clamped_to_min_and_wrap() {
 #[test]
 fn image_resize_width_caps_at_the_viewport_height_ceiling() {
     let rect = [100.0_f32, 50.0, 300.0, 200.0];
-    let (wrap, min) = (800.0_f32, MIN_IMAGE_W);
+    let (wrap, min) = (800.0_f32, MIN_IMAGE_W.px(1.0));
     let max_h = 150.0_f32;
     let w = image_resize_width(ImageHandle::Right, rect, (5000.0, 150.0), wrap, min, max_h);
     assert!((w - 225.0).abs() < 1e-3, "capped to height ceiling: {w}");
@@ -818,11 +818,11 @@ fn narrow_window_still_collapses_edge_to_edge_at_any_zoom() {
         let w = column_width_for(window, adv, true, 40, 1.0);
         let left = column_left_for(window, adv, true, 40, 1.0);
         assert!(
-            (w - (window - 2.0 * PAGE_MIN_PAD.0)).abs() < 1e-3,
+            (w - (window - 2.0 * PAGE_MIN_PAD.px(1.0))).abs() < 1e-3,
             "zoom={zoom}: fills minus pad"
         );
         assert!(
-            (left - PAGE_MIN_PAD.0).abs() < 1e-3,
+            (left - PAGE_MIN_PAD.px(1.0)).abs() < 1e-3,
             "zoom={zoom}: collapses to the small pad"
         );
     }
@@ -901,7 +901,7 @@ fn adaptive_column_left_is_dpi_invariant_at_matched_logical_geometry() {
                             dpi,
                         );
                         let sym = column_left_for(win, adv, page_on, measure, dpi);
-                        let pad = PAGE_MIN_PAD.0 * dpi;
+                        let pad = PAGE_MIN_PAD.px(1.0) * dpi;
 
                         // (1) PRESENCE, per tier — the pad is a real term, not an
                         // absent one that happens to scale consistently.
@@ -987,4 +987,73 @@ fn adaptive_column_left_is_dpi_invariant_at_matched_logical_geometry() {
         "the sweep must enter the rail's desired-left plateau"
     );
     assert!(saw_page_off, "the sweep must include page-mode OFF");
+}
+
+/// ITEM 315 — `visible_lines_z`'s vertical inset is a LOGICAL quantity, at every
+/// display scale. The PURE half; `text_top_dpi_item315.rs`'s
+/// `text_origin_top_is_dpi_invariant_at_matched_logical_geometry` is the live-pipeline
+/// half that exercises `TextPipeline::text_origin_top` / `doc_top` / `hit_test_scroll`
+/// together, mirroring item 314's split between this file and
+/// `column_left_dpi_item314.rs`.
+///
+/// Mirrors 314's shape exactly: TWO claims, because invariance ALONE is satisfiable by
+/// deleting the pad (`0 * dpi` is perfectly dpi-invariant). The PRESENCE claim pins the
+/// height to an EXACT multiple of the line height at each tier — `TEXT_TOP.px(dpi) /
+/// (LINE_HEIGHT * dpi)` is the dpi-INDEPENDENT ratio `0.5`, so the row count must drop
+/// from the multiple `k` to `k - 1` at every tier, or the pad has stopped being
+/// load-bearing. And BOTH SIDES: the sweep must actually cross a row-count boundary at
+/// every tier, or a check that never turns off would pass vacuously.
+#[test]
+fn visible_lines_z_is_dpi_invariant_at_matched_logical_geometry_with_a_presence_floor() {
+    let tiers = [1.0f32, 1.5, 2.0, 3.0];
+    let logical_heights: Vec<f32> = (200..=2000).map(|h| h as f32).collect();
+
+    let mut counts_by_height: Vec<Vec<usize>> = Vec::new();
+    for &lh in &logical_heights {
+        let mut counts = Vec::new();
+        for &dpi in &tiers {
+            let height = lh * dpi;
+            let line_height = LINE_HEIGHT * dpi;
+            counts.push(visible_lines_z(height, line_height, dpi));
+        }
+        let c0 = counts[0];
+        for (i, &c) in counts.iter().enumerate().skip(1) {
+            assert_eq!(
+                c, c0,
+                "logical height {lh}: visible_lines_z is {c0} rows at dpi 1 but {c} at dpi \
+                 {} — TEXT_TOP is being read unscaled against a device-px height",
+                tiers[i]
+            );
+        }
+        counts_by_height.push(counts);
+    }
+
+    // BOTH SIDES: at every tier the swept range must actually cross a row-count
+    // boundary — otherwise a constant-count sweep would pass even with the boundary
+    // check silently disabled.
+    for (t, &dpi) in tiers.iter().enumerate() {
+        let vals: std::collections::HashSet<usize> =
+            counts_by_height.iter().map(|c| c[t]).collect();
+        assert!(
+            vals.len() >= 2,
+            "dpi {dpi}: the height sweep never crosses a visible-row-count boundary"
+        );
+    }
+
+    // PRESENCE, at every tier: off an EXACT multiple of the (scaled) line height, the
+    // pad must cost exactly one row. `TEXT_TOP.px(dpi) / (LINE_HEIGHT * dpi)` is the
+    // dpi-independent ratio 16/32 = 0.5, so `floor(k - 0.5) == k - 1` at every tier.
+    for &dpi in &tiers {
+        let line_height = LINE_HEIGHT * dpi;
+        let k = 12usize;
+        let height = line_height * k as f32;
+        let rows = visible_lines_z(height, line_height, dpi);
+        assert_eq!(
+            rows,
+            k - 1,
+            "dpi {dpi}: TEXT_TOP must cost exactly one row off an exact multiple of the \
+             line height (height={height}, line_height={line_height}), got {rows} rows \
+             — a deleted or unscaled pad would read {k} here instead"
+        );
+    }
 }

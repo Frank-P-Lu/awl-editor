@@ -94,7 +94,7 @@ fn caret_screen_y_holds_across_zoom_in_uniform() {
         reshape(&mut p, &text, cl, cc, 1.0, initial, false);
         let caret_y_old = p.char_screen_top_scroll(cl, cc, initial);
         assert!(
-            caret_y_old > TEXT_TOP && caret_y_old < 800.0,
+            caret_y_old > TEXT_TOP.0 && caret_y_old < 800.0,
             "caret must start on screen: {caret_y_old}"
         );
         // Reshape to zoom 1.2, then anchor.
@@ -134,7 +134,7 @@ fn caret_screen_y_holds_across_zoom_variable_rows() {
         reshape(&mut p, &text, cl, cc, 1.0, initial, true);
         let caret_y_old = p.char_screen_top_scroll(cl, cc, initial);
         assert!(
-            caret_y_old > TEXT_TOP && caret_y_old < 800.0,
+            caret_y_old > TEXT_TOP.0 && caret_y_old < 800.0,
             "caret on screen: {caret_y_old}"
         );
         reshape(&mut p, &text, cl, cc, 1.3, initial, true);
@@ -197,11 +197,11 @@ fn off_screen_caret_anchors_viewport_center() {
         // Predicate the app's fallback branch reads: the caret is off-screen (above).
         let caret_y = p.char_screen_top_scroll(cl, cc, scroll);
         assert!(
-            caret_y < TEXT_TOP,
+            caret_y < TEXT_TOP.0,
             "caret should be off-screen above: {caret_y}"
         );
         // Fallback: anchor whatever sits at the viewport centre.
-        let center_y = (TEXT_TOP + 800.0) * 0.5;
+        let center_y = (TEXT_TOP.0 + 800.0) * 0.5;
         let (center_x, _) = (600.0f32, center_y);
         let (aline, acol) = p.hit_test_scroll(center_x, center_y, scroll);
         let center_top_old = p.char_screen_top_scroll(aline, acol, scroll);
@@ -219,7 +219,7 @@ fn off_screen_caret_anchors_viewport_center() {
         // The view did NOT jump to the caret: the caret is still off-screen above.
         let caret_y_after = p.char_screen_top_scroll(cl, cc, new_scroll);
         assert!(
-            caret_y_after < TEXT_TOP,
+            caret_y_after < TEXT_TOP.0,
             "view jumped toward the caret (now at {caret_y_after}); should stay put"
         );
     });

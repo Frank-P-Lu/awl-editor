@@ -431,7 +431,7 @@ fn menu_bar_hidden_by_default_shown_by_global_and_reports_dropdown() {
     let off_top = off["text_origin"]["top"].as_f64().unwrap();
     assert_eq!(
         off_top,
-        crate::render::TEXT_TOP as f64,
+        crate::render::TEXT_TOP.0 as f64,
         "bar off => doc at the unreserved top"
     );
 

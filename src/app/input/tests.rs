@@ -21,7 +21,7 @@ use crate::render::{Metrics, TEXT_LEFT, TEXT_TOP};
 /// resolved a pointer to document column `col`.
 fn press_at_col(app: &mut App, col: usize, shift: bool) {
     let m = Metrics::with_dpi(app.frame.zoom(), app.frame.dpi());
-    app.input.pointer.cursor_px = (TEXT_LEFT.0 + col as f32 * m.char_width, TEXT_TOP);
+    app.input.pointer.cursor_px = (TEXT_LEFT.0 + col as f32 * m.char_width, TEXT_TOP.0);
     app.press_at_char(col, shift);
 }
 
@@ -37,7 +37,7 @@ fn gutter_press_never_moves_or_selects_document_text() {
     let before_cursor = app.document.buffer().cursor_char();
     let before_selection = app.document.buffer().selection_range();
 
-    app.input.pointer.cursor_px = (0.0, TEXT_TOP);
+    app.input.pointer.cursor_px = (0.0, TEXT_TOP.0);
     app.on_press(false, false);
 
     assert_eq!(
@@ -263,7 +263,7 @@ fn move_by(app: &mut App, dx: f32, dy: f32) {
     if app.input.pointer.drag_armed {
         let m = Metrics::with_dpi(app.frame.zoom(), app.frame.dpi());
         let line =
-            ((app.input.pointer.cursor_px.1 - TEXT_TOP).max(0.0) / m.line_height).floor() as usize;
+            ((app.input.pointer.cursor_px.1 - TEXT_TOP.0).max(0.0) / m.line_height).floor() as usize;
         let col = ((app.input.pointer.cursor_px.0 - TEXT_LEFT.0).max(0.0) / m.char_width).round()
             as usize;
         app.drag_to_char(app.document.buffer().hit_char(line, col));
@@ -305,7 +305,7 @@ fn sub_slop_jitter_does_not_arm_a_selection_even_across_a_column_boundary() {
     let m = Metrics::with_dpi(app.frame.zoom(), app.frame.dpi());
     // Half a cell short of column 6's boundary: rounds to column 6 today,
     // but a nudge of less than half a cell tips it to column 7.
-    app.input.pointer.cursor_px = (TEXT_LEFT.0 + 6.0 * m.char_width - 0.5, TEXT_TOP);
+    app.input.pointer.cursor_px = (TEXT_LEFT.0 + 6.0 * m.char_width - 0.5, TEXT_TOP.0);
     app.press_at_char(6, false);
     let pressed_at = app.document.buffer().cursor_char();
     assert!(
@@ -389,7 +389,7 @@ fn a_drag_past_the_pages_left_edge_clamps_to_the_rows_first_column() {
     move_by(
         &mut app,
         TEXT_LEFT.0 - 500.0 - x,
-        TEXT_TOP + 1.5 * m.line_height - y,
+        TEXT_TOP.0 + 1.5 * m.line_height - y,
     );
 
     // The clamp lands on the row's OWN first column (char 6, "world"'s own
@@ -411,7 +411,7 @@ fn a_drag_past_the_pages_left_edge_clamps_to_the_rows_first_column() {
     move_by(
         &mut app,
         TEXT_LEFT.0 - 100_000.0 - x,
-        TEXT_TOP + 1.5 * m.line_height - y,
+        TEXT_TOP.0 + 1.5 * m.line_height - y,
     );
     assert_eq!(app.document.buffer().selection_range(), Some((6, 9)));
 }
@@ -459,7 +459,7 @@ fn press_at_row_col(app: &mut App, row: usize, col: usize, shift: bool) {
     let m = Metrics::with_dpi(app.frame.zoom(), app.frame.dpi());
     app.input.pointer.cursor_px = (
         TEXT_LEFT.0 + col as f32 * m.char_width,
-        TEXT_TOP + (row as f32 + 0.5) * m.line_height,
+        TEXT_TOP.0 + (row as f32 + 0.5) * m.line_height,
     );
     let full = app.document.buffer().visible_line_to_full(row);
     let char_idx = app.document.buffer().line_col_to_char(full, col);

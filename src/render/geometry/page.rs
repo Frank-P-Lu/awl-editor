@@ -114,7 +114,7 @@ impl TextPipeline {
             self.page_column_left(),
             self.page_column_width(),
             pointer_x,
-            PAGE_RESIZE_GRAB_PX,
+            self.metrics.px(PAGE_RESIZE_GRAB_PX),
         )
     }
 
