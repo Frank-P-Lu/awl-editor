@@ -998,7 +998,8 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      fix the comment. **Verify:** a capture carries a toast. **Routing:**
      production tier.
 
-297. **Cassowary's rotated location label is too small and misplaced.** Today
+297. 🟡 IN PROGRESS — claude, branch `claude/item-297-cassowary-label`.
+     **Cassowary's rotated location label is too small and misplaced.** Today
      `LocationStyle::RotatedRail` draws the facet name small, muted and flush with
      the card's left border. Target: rotated 90°, ~⅔ the Archivo Black `COMMANDS`
      placard, along the room's left edge, ABOVE the placard — a vertical
@@ -1402,7 +1403,8 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      captures, the user's call.
      **Routing:** production tier, after 293, then the user.
 
-314. **`TEXT_LEFT` CARRIES TWO CONFLATED ROLES, AND THE ADAPTIVE COLUMN DRIFTS ACROSS
+314. 🟡 IN PROGRESS — claude, branch `claude/item-314-text-left-roles`.
+     **`TEXT_LEFT` CARRIES TWO CONFLATED ROLES, AND THE ADAPTIVE COLUMN DRIFTS ACROSS
      DPI BECAUSE OF IT.** Found by item 307 while proving a *different* mechanism correct,
      and reported rather than widened into it.
 
