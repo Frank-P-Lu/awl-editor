@@ -419,7 +419,27 @@ hides the failure exactly as thoroughly as `|| true`; that is how a red tree rea
    **So it is ORCHESTRATOR-OWNED at merge time, never granted to a lane.** Tell
    every lane: *if your change trips a size mark or a clippy exception, report the
    number and leave the file alone — the orchestrator raises the mark with your
-   reason when it merges you.* The stanzas are per-file, so concurrent edits
+   reason when it merges you.*
+
+   ‼ **STATE THE MARK RULE EXACTLY, BECAUSE THE PLAUSIBLE-SOUNDING VERSION IS WRONG
+   AND AN ORCHESTRATOR HAS NOW BRIEFED IT WRONG TO THREE LANES IN ONE WAVE.** It is
+   **two tiers, not one ceiling**, and `scripts/code-health.py` is the authority
+   (`check_mark_raises` + `check_structural`, `BASELINE = "f12d04a"`):
+   1. **The hard ceiling is the file's size at the frozen baseline `f12d04a`**, checked
+      against that fixed commit. A file over it cannot be rescued by any `reason` — the
+      remedy is carving `mod tests` into a sibling `tests.rs`, which has been the
+      answer repeatedly.
+   2. **Below that ceiling a mark MAY RISE, and the only requirement is a recorded
+      `reason` for the raise.** *"A mark may rise only with a reason recorded for that
+      raise"* is the function's own docstring.
+
+   **"Marks can only tighten" is NOT the rule.** That formulation collapses the two
+   tiers into one and refuses raises the tool allows: `src/menubar.rs` sat at a mark of
+   228 against a **510**-line frozen baseline, so its raise to 391 was legitimate, and a
+   lane that had been briefed "can only tighten" reported it as a violation it had
+   worked around. **Look the two numbers up before answering a lane** — the mark from
+   the toml, the baseline from `git show f12d04a:<path> | wc -l`. A remembered rule
+   about this file has been wrong more than once. The stanzas are per-file, so concurrent edits
    usually merge cleanly; the cost of a lane touching it is not conflict, it is a
    lane blocked behind another lane's grant. **Read the count off the tree at merge
    time (`wc -l`), not out of the lane's report** — one lane reported 904 and a
