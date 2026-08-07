@@ -13,7 +13,7 @@ use super::*;
 /// `bar_height(metrics.line_height * LABEL, metrics.scale)` independently and agreed
 /// only because both authors remembered to — the same shape `TEXT_TOP +
 /// menubar_reserve()` had at six call sites, where a real bug survived at half of
-/// them, and item 317's ×3 reserve probe drove a wedge straight between these two.
+/// them; a probe that tripled the reserve drove a wedge straight between these two.
 ///
 /// So the CONSTRUCTION is that `chrome/menubar.rs` draws at `self.menubar_reserve()`,
 /// and this is the sweep that keeps it that way. **NO WILDCARD:** every non-test
@@ -130,9 +130,9 @@ fn classify_force_reads_on_and_off_and_leaves_everything_else_alone() {
 /// which is the whole point of running them.
 ///
 /// The unforced arm deliberately claims less than an equality against
-/// `platform_default(cfg!(…))` would — that is the tautology item 325 is about.
-/// It asserts the answer is one of the two NAMED consts, which is the part a
-/// third hardcoded default would break.
+/// `platform_default(cfg!(…))` would: asserting a `cfg!`-derived value against the
+/// identical `cfg!` is the tautology `Config::menu_bar_on` used to be. It asserts
+/// the answer is one of the two NAMED consts, which a third default would break.
 #[test]
 fn menu_bar_default_honours_the_forcing_and_otherwise_reads_a_named_const() {
     let forced = std::env::var("AWL_MENU_BAR_FORCE").ok();

@@ -490,9 +490,9 @@ linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)
 #
 # WHAT THE FILTER DOES NOT COVER, stated because a filtered arm always owes this:
 # it selects tests whose NAME contains `menubar` or `menu_bar`. A test that
-# OBSERVES the bar's reserve without saying so in its name is outside it (item
-# 317's census counted 14 tests that see the reserve), and so is every
-# integration target — `--bin awl` is binary unit tests. The receipt below
+# OBSERVES the bar's reserve without saying so in its name is outside it (a census
+# of the whole suite under a tripled reserve counted 14 that see it), and so is
+# every integration target — `--bin awl` is binary unit tests. The receipt below
 # therefore still names `conventions=mac,linux scope=all-targets` and claims
 # nothing about this axis: these arms GATE the receipt without widening it.
 menubar_filters=(menubar menu_bar)

@@ -198,8 +198,8 @@ pub const BAR_PAD_Y: Logical = Logical(5.0);
 /// whose siblings are already enrolled — the card's width is a char-count estimate
 /// off `m.char_width * LABEL` floored by `DROP_MIN_WIDTH.px(scale)`, and its height
 /// is a `Rows`-derived row pitch off the LABEL line height. A device-fixed pad beside
-/// scaled content is the exact defect items 314/315/321 closed three times over: the
-/// card's ink would grow with the display and its breathing room would not.
+/// scaled content is the defect this codebase has now closed four separate times:
+/// the card's ink would grow with the display and its breathing room would not.
 pub const DROP_PAD_X: Logical = Logical(10.0);
 pub const DROP_PAD_Y: Logical = Logical(6.0);
 
