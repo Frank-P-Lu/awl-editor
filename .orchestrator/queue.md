@@ -171,6 +171,27 @@ well as here — **this item has already been answered twice by the user because
 decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
+- 🔵 **TWO WORLDS CUT OFF THE END OF THEIR OWN HELP LINE, AND EVERY HONEST FIX IS A TASTE CALL
+  (item 342).** On **Potoroo and Firetail** the Keybindings card's hint clips: at 2× it reads
+  `esc clos` and `esc clo` instead of `esc close`. `gallery/item-342/Potoroo-keybindings-1x.png` →
+  `Potoroo-keybindings-2x-CLIPPED.png`, and the Firetail pair. Measured: the trailing margin collapses
+  to **0.11×** of its 1× value and the final glyph ends on the column's scissor rather than its own
+  terminal.
+  ⚠️ **It is NOT a 2× bug — zoom 1.0 on a 1× display clips identically.** The card's width cap is
+  `LogicalGrowOnly(520)`, and that family keeps its **device** width below scale 1, so **the shipped
+  0.8 zoom is 25% roomier relative to its own text than anything a Retina user sees.** Same shape as
+  item 321.
+  🔵 **Four options, none mechanical, and the fourth may subsume the first:**
+  1. **Widen the cap 520 → 545** logical (+4.8%) — measured to clear both; 540 does not. **Widens the
+     calm card on every world at every zoom.**
+  2. **Give the hint band a yield.** Rows already elide and the accessory column already yields —
+     **the hint band is the one line in the card with no yield mechanism at all.** Eliding hides a
+     discoverability segment; wrapping costs a row.
+  3. **Leave it ledgered** — two worlds lose three characters of a help line at zoom ≥ 1.
+  4. ⚠️ **Decide which scale tier the cap is TUNED at.** If the 0.8/1× look is the intended one, every
+     Retina user is already seeing a tighter card than you designed — and fixing *that* may fix this.
+  ⚠️ **This is upstream of the Settings width question already owed to you** (item 327): it changes the
+  width that one has to divide. Worth deciding together.
 - 🔵 **THE RIGHT-CLICK MENU'S GREYED-OUT LABELS WERE INVISIBLE, AND NOW ARE NOT (item 299).**
   `gallery/item-299/before-context-menu-Wagtail-selected0.png` → `after-…`. Before, the Cut row showed
   no "unavailable" at all while Paste wrongly showed one it had not earned, because every secondary
@@ -2672,7 +2693,19 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      fix is the derivation rather than deleting one cell. **Verify:** the law still fails on 327's
      real, reachable defect at narrow width after the axis is corrected. **Routing:** production tier.
 
-336. 🚧 CLAIMED (worktree item-336-description-promise, production tier) **A COMMAND'S DESCRIPTION CAN OVER-PROMISE A PLATFORM AND NOTHING CHECKS IT — the mechanism
+336. ✅ **LANDED (merged 2026-08-08) — REWORDED, NOT PINNED, and the reasoning is the transferable
+     part.** Both honest options were live; the lane took the cheaper one because **a wording exists
+     that is accurate everywhere without going vague**, so a second law-maintenance surface mirroring
+     `ellipsis_law` would be machinery kept forever to describe a wording problem a better sentence
+     dissolves. The bar for pinning — *"no wording is both accurate and useful"* — was not met.
+     ✅ Word and HTML now read **"Export as `.docx`; markdown buffers only, folder chosen on native."**
+     — the destination step item 331 added is **kept and correctly conditioned**, not retreated from,
+     which is what distinguishes this from the vague-dodge. `ExportPdf` is unchanged and needed no
+     change: it is `native_only`, so it never ships where its own claim fails.
+     ✅ **Regen diff exactly 8 lines** — two description cells, before and after, across both documents.
+     `editing.rs` holds at **498** against its hard 500 ceiling, unchanged, because the new wording
+     collapsed both fields to single lines under rustfmt. The label-divergence law and both ellipsis
+     laws were run and are unaffected. **Original:** **A COMMAND'S DESCRIPTION CAN OVER-PROMISE A PLATFORM AND NOTHING CHECKS IT — the mechanism
      exists for LABELS only.** Found by item 331's lane, which flagged it rather than inheriting the
      precedent blindly. Item 301 established that a static string promising a surface must be true
      per platform, and pinned it: `ellipsis_law` asserts the set of platforms the Export **label**
@@ -2730,7 +2763,23 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      raw at `chrome/popover.rs`; `IBEAM_W`, `CARET_SPACE_BAR_W`, `CARET_MORPH_DILATE_PX` at
      `chrome/preview.rs`). **Routing:** production tier, then the user's eye.
 
-339. 🚧 CLAIMED (worktree item-339-frames-fixture, production tier — bundled 339+340) **`--screenshot-frames` HAS ITEM 334's DEFECT, UNFIXED.** Found by 334's lane while diagnosing and
+339. ✅ **LANDED (merged 2026-08-08) — WIDER THAN FILED, and there was a SECOND instance one layer
+     down.** `Mode::ScreenshotFrames` had **no classifier arm at all**, so it fell into the
+     plain-`Screenshot` bucket whose list treats **every** hook as honoured: canvas, dpi, **`--keys`**,
+     the per-frame render hooks, `--root`, `--workspace` and `--default-folder` were all accepted and
+     discarded. ⚠️ **`--keys` is the one this door over-promised beyond `--screenshot-app`**, and it
+     needed its own refusal because it is **not in the `SuppliedHooks` table**: every other
+     out-producing mode threads keys, and this is the first that structurally **cannot** — the document
+     is a stationary backdrop for the App's scheduling loop, never a replay.
+     ⚠️ **AND THE SAME SHAPE EXISTED BELOW THE CLI:** `capture_frames_async` **never called
+     `set_dpi`**, so even a correctly-threaded `--capture-dpi` would have been a no-op **at the
+     renderer**. Fixing the plumbing alone would have left the flag still ignored.
+     ✅ **Measured on the real binary in BOTH directions.** Before: 1200×800, 640×800 and 2400×1600@2
+     all reported canvas 1200×800 with identical wrap counts. After: **12** wrapped rows at 1200×800,
+     **30** at 640×800, **12** at 2400×1600@2 — matching the dpi-1 baseline, the documented meaning.
+     ✅ **`docs/harness-reach.md` now enumerates EVERY `Mode::*` capture door and whether it honours
+     canvas and dpi**, so "which doors can I ask this of" has one answer in the file briefs must read.
+     **There is no third silently-discarding door.** **Original:** **`--screenshot-frames` HAS ITEM 334's DEFECT, UNFIXED.** Found by 334's lane while diagnosing and
      deliberately left alone. `Mode::ScreenshotFrames` has no canvas/dpi fields and the identical
      plain-`Screenshot` bucket fallthrough, so it too accepts geometry flags and discards them
      silently. It is a **Hidden** flag, which is why it is lower priority — and also why nobody would
@@ -2739,7 +2788,16 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      field was set** — 334's proof was that a narrower canvas produced genuinely more reflow.
      **Routing:** production tier.
 
-340. 🚧 CLAIMED (worktree item-339-frames-fixture, production tier — bundled 339+340) **`settings_view()` IS DUPLICATED IN TWO TEST FILES, BOTH CARRYING THE SAME PARKED NOTE.** Found
+340. ✅ **LANDED (merged 2026-08-08) — one owner, one parked note, and the note was UNDERCOUNTING
+     its own blast radius.** `render/tests/mod.rs` holds `SETTINGS_VIEW_PARKED_WINDOW_ROWS` and
+     `settings_overlay_view`; both files keep a one-line wrapper, so their nine call sites are
+     untouched. ✅ **The 12 was NOT un-parked** — that would force item 327's open product question —
+     and the note survives at the constant's single site rather than being deleted.
+     ⚠️ **Mutation-proving the dedup found the old comment wrong:** setting the parked value to the
+     shipped 31 reddens **THREE** range-rail laws, not the two it claimed (more laws were added since
+     it was written), **plus** `settings_row_reach_law` with item 327's exact predicted panic text. A
+     parked value's blast radius grows silently while its note stays still.
+     **Original:** **`settings_view()` IS DUPLICATED IN TWO TEST FILES, BOTH CARRYING THE SAME PARKED NOTE.** Found
      by item 335's lane. `settings_row_reach_law.rs` and `range_rail.rs` each declare their own copy,
      and each hardcodes `overlay_window_rows` to `ViewState::base()`'s default of **12** instead of the
      shipped **31** — the simplification that currently shields item 327's real defect from its own
@@ -2757,7 +2815,46 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      sweep to the caret files and classify what it enumerates, one family at a time, naming the
      pipeline that already scales each. **Routing:** production tier.
 
-342. 🚧 CLAIMED (worktree item-342-hint-budget, deep tier — with 319's zoom-1.0 residual) 🔴 **POTOROO AND FIRETAIL CLIP THEIR KEYBINDINGS HINT AT 2×, MENU BAR OFF — WHICH IS macOS'S OWN
+342. ⚠️ **MEASURED, ORACLE REPAIRED, NO FIX — THE REMAINING QUESTION IS A TASTE CALL AND IT IS THE
+     USER'S (2026-08-08).** The clip is real and confirmed; **both the board's hypothesis and the
+     orchestrator's were wrong about why.**
+     ⚠️ **THE SHAPED-EXTENT THEORY IS FALSE, MEASURED.** The content side **is** advances
+     (`overlay_footer_content_px` reduces by `run.line_w`), but the budget side is **a bare constant
+     with no font term at all** — `CARD_MAX_W = LogicalGrowOnly(520.0)` clamped to the window. Unioning
+     every hint glyph's real swash placement against the advance total across the roster: the two agree
+     within **±1.1px** and **the ink is usually the NARROWER of the pair** (Potoroo 803.2 advances
+     against **802.0** of ink). **Measuring extents would make every number worse.** The mismatch is
+     font-versus-fixed-cap.
+     🔴 **THE DEEPER FINDING, and it is item 321's exact shape: THE CAP IS INCOHERENT ABOUT ITS OWN
+     REFERENCE TIER.** `LogicalGrowOnly::px` is `self.0 * scale.max(1.0)`, so **below scale 1 the cap
+     keeps its DEVICE width while the text shrinks.** At the shipped default (zoom 0.8, dpi 1) the card
+     runs **25% roomier relative to its own text** than at any scale ≥ 1 — where the fit becomes a pure
+     ratio, **1.0121 at scale 1.0, 1.6 AND 2.0 to four decimals.** So **zoom 1.0 on a 1× display clips
+     identically**; 2× is merely how it is reachable at the shipped zoom. Proven by deleting the clamp
+     and watching the same ratio appear at 0.8/1×. ⚠️ **The menu-bar arm is NOT a gate** — both arms
+     measure identical ratios, since nothing in the width budget reads the reserve (that part of the
+     item's premise was wrong, harmlessly).
+     ⚠️ **TWO PREMISE CORRECTIONS, ONE OF THEM THE LANE'S OWN.** Widening the sweep *appeared* to find
+     the palette's `Command` hint clipping on all five monospace-chrome worlds **and to reproduce item
+     319's sibling residual to 0.1px on the verbatim same hint string.** Both dissolved: **the command
+     palette FACETS**, so `overlay_geometry` routes it to the wider `CARD_MAX_W_FACETED` cap and the
+     flat column was never its budget. Driven through each kind's real owner, the overflow set is
+     **exactly Potoroo and Firetail × Keybindings**. **So 342 is confirmed and 319's residual is
+     PREMISE-FALSE** — measured against an owner that hint never rides.
+     ✅ **319's font exclusion is DELETED, not adjusted, and removal was proven load-bearing** (emptying
+     the ledger reddens the law with exactly the board's number). In its place a **two-sided ratchet
+     rather than an exclusion**: every cell graded, and a pair overflows **iff** ledgered at the pinned
+     ratio — so a new clipping world fails, a ledgered pair that stops clipping fails, and a drifted
+     ratio fails. Sweep: 21 worlds × 18 carded kinds × 1×/2× × both bar arms × zoom {0.8, 1.0} =
+     **2880 graded cells**, workspace kinds excluded by their owner. Firetail's deficit is **+38.4px**
+     against Potoroo's **+9.6** because a `Bars` world's text hpad differs from `Pane`'s — which is why
+     the ledger is keyed by **world**, not by face.
+     ✅ **Six mutations, each with its match count asserted and each showing a `test result:` line. Two
+     BRACKET the number a decision needs: raising the cap to 545 clears both worlds; 540 does not.**
+     🔵 **THE QUESTION IS THE USER'S AND IT IS DIFFERENT FROM 327's** — 327 asks who yields *inside* the
+     accessory column; this asks whether the card's **own chrome** gets a yield at all, and whether the
+     width cap should be font-aware. **But it is UPSTREAM of 327**, because it changes the width 327 has
+     to divide. **Original:** 🔴 **POTOROO AND FIRETAIL CLIP THEIR KEYBINDINGS HINT AT 2×, MENU BAR OFF — WHICH IS macOS'S OWN
      DEFAULT, so this is live on the dev platform.** Found by item 319's new sweep on its first run,
      with no tip needed: the hint alone measures **803.2px** against each world's own (different)
      column budget. Clean at 1×, which is why every capture missed it.
