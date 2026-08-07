@@ -254,6 +254,17 @@ cross-platform build script with no macOS-specific disk policy.
 
 ## Mutation proof is part of the deliverable
 
+‼ **A MUTATION CAN BE A SILENT NO-OP, AND THEN A GREEN LAW LOOKS LIKE A PROVEN ONE.** Measured
+2026-08-07: a lane's mutation script targeted lines that **rustfmt had since joined**, so the
+edit applied to nothing and the law reported green — indistinguishable from a law that survived
+its own mutation. It was caught only because the patch script **asserted its replacement
+applied**.
+
+**So a scripted mutation asserts it changed something**, and the cheapest form is what this
+repo already uses elsewhere: `assert t.count(old) == 1` before replacing, or check the file's
+hash moved. A mutation you did not prove landed is not evidence, and it reads exactly like the
+strongest possible result.
+
 **A law that was never watched failing is not evidence.** The author breaks the
 product, watches the law go red by name, restores, and pastes the actual panic
 text into the report. This is the single cheapest defect-catcher available and

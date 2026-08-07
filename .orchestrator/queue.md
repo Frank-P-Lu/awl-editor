@@ -172,6 +172,15 @@ decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
+- 🔵 **313's TERMINUS CALL — real but SMALL, and the measurement is the point.** At the hint's
+  own row the spine has ENDED, so does the hint continue the lean past the terminus or sit at
+  the terminal x? `gallery/item-313/continue-*.png` vs `terminus-*.png`. **Measured: the two
+  answers are PIXEL-IDENTICAL on Mangrove** (the column clamp binds first there) **and 9px apart
+  on Magpie.** `continue` is implemented, behind a one-word switch the laws *read* rather than
+  restate, so flipping it is one token. Reasoning for `continue`: the rake is a property of the
+  card, not a rule that stops at the last name — and at the terminal x the hint's left edge lands
+  exactly on the last row's, reading as one more list row, which is the reading the separator
+  exists to break.
 - 🔵 **297's FOUR CALLS, and #1 is the genuinely debatable one.** Captures in
   `gallery/item-297/`.
   1. ⚠️ **PARK versus SHRINK.** Past **1.74× zoom on the widest card the cue DISAPPEARS**
@@ -1493,7 +1502,19 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      `pipeline_prepare.rs`, and READS `chrome/diagonal.rs` — **311 also names
      `diagonal.rs`; sequence, never pair.**
 
-313. 🟡 IN PROGRESS — claude, branch `claude/item-313-hint-lean`.
+313. ✅ **LANDED (merged 2026-08-07) — and the mechanism already existed.** The item offered
+     "its own run or its own buffer"; it is **neither.** `overlay_upload_text` already emits
+     several `TextArea`s over the one `panel_buffer`, each clipped to a band with **its own
+     `left`** — and the foot band was **already one of them**, never asked for a left of its
+     own. **The emitter's diff is one token, zero net lines.** The whole tail moves as one
+     block, because that band is chrome and not a list.
+     ✅ The offset is READ, never authored: the lean from the rail's own `spine_step` (which
+     carries the responsive yield), and **the hint's line found BY ITS TEXT** rather than by
+     row-count arithmetic — the separator draws unconditionally while the row it is budgeted
+     as can be dropped in the starvation degrade, so an index would drift.
+     ⚠️ **The column clamp BINDS on Mangrove's theme picker** (359px of ink in a 496px
+     column), so the band seats 40px short of the spine's line, right edge flush to the
+     column. Better than flush-left by 137px, but not on the line. **Original:**
      **THE PICKER'S HINT LINE SITS FLUSH-LEFT UNDER A LEANING LIST.** ✅ **293 IS LANDED,
      SO THIS IS UNBLOCKED — and 293 changed NOTHING about the hint's shape:** it added
      lines, not a second run or buffer, so the hint is still in the same `panel_buffer`
@@ -1652,6 +1673,41 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      one: the durable version of this item is a list of them and which laws sweep each.
      **Routing:** production tier. ⚠️ Touches `src/render/tests/**` broadly — schedule against
      a quiet tree.
+
+318. **312's COVERAGE FLOOR CAN BE HALVED — its remaining subject is ONE BAND ON ONE WORLD,
+     measured.** Item 313 leaned the foot band, so the floor no longer covers it: the band now
+     sits **+66 logical px inside** the leaning term on Mangrove and **+83 on Magpie**. But the
+     **QUERY LINE on Magpie sits −71 px OUTSIDE** it, and Paperbark's shear is 0 so the
+     parallelogram *is* the box there.
+
+     ✅ **Two routes, and the cheap one is a strict shrink:** union the parallelogram with the
+     **header band's rect** — smaller than today's whole-card floor, no new mechanism. Or give
+     the query line the same independent `left` item 313 gave the foot, which is the principled
+     end state but **also has to move the amber query caret (`overlay_place_caret`) and the
+     field's clickable band**, so it is a sibling item rather than a footnote.
+     **Verify:** the floor's own law must still refuse a parallelogram that leaves any drawn
+     chrome over sharp document — narrow the floor, do not delete it, and keep 312's
+     satisfied-by-fading trap covered. **Routing:** production tier.
+
+319. **THE FOOT BAND'S INK ALREADY EXCEEDS THE CARD'S TEXT COLUMN AND IS CLIPPED — pre-existing,
+     and a no-clip law does not cover those cells.** Found by item 313 while leaning it, and
+     deliberately left exactly where it was found. Measured: **Mangrove/Command at 1200px is
+     434px of ink in a 496px column** *including* the Keybindings tips, and Mangrove's theme
+     hint leaves only 137px of room.
+     ⚠️ **`overlay_footer_fit_probe`'s no-clip law apparently does not reach these world × kind
+     pairs** — so establish what its enrolment actually covers **before** changing any geometry;
+     the law's gap may be the whole finding. **Verify:** no foot-band run is clipped, swept over
+     the roster × `OverlayKind` × 1×/2× **and under the `MENU_BAR_ON` forcing**, since the bar's
+     reserve is in this axis. **Routing:** production tier.
+
+320. **A LATENT TEST-FIXTURE BUG THAT MAKES HEIGHT-BUDGET SWEEPS LIE.**
+     `ViewState::overlay_window_rows` left at its **default pins every kind to 12 rows**, so a
+     law that believes it is varying the card's height budget is not varying anything. The
+     capture path sets it from `OverlayKind::window_rows()`; **a law must too.**
+     ⚠️ This is the same class as the CI RED above — a sweep whose own configuration is the
+     untested part — and it is cheap to audit: grep every fixture that constructs a `ViewState`
+     and check whether it sets that field. **Expect several.** **Verify:** each affected law
+     re-run with the field set, and any that changes verdict named. **Routing:** production tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
