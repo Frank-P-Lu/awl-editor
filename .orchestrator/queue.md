@@ -14,6 +14,50 @@
 > open-vs-done from the TREE and `git log --grep`, never from what this file says
 > about itself.**
 
+## 🔴 CI RED — TOP PRIORITY, AND IT BLOCKS FURTHER INTEGRATION
+
+**Run:** https://github.com/Frank-P-Lu/awl-editor/actions/runs/31140926817 —
+`linux (build + test)` **FAILED at its `native full suite` step**, which is a **GATING** job
+(the two red jobs beside it, `mac (render::tests)` and `atspi`, are the pinned tolerated
+pair and are not this).
+**First known bad commit:** `85343eb1` — but see below, that is where it was *observed*,
+not necessarily where it was *introduced*.
+
+**Two tests, failing in BOTH conventions inside that one job:**
+- `render::tests::chrome_pixel_space_item242::the_cards_drawn_row_text_holds_its_inset_on_a_two_x_panel`
+  → *"Firetail: the drawn row text is only 1px inside its own card at dpi 1 — comparing zero
+  against twice zero would pass on anything"*
+- `render::tests::overlay_plan_law::drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind`
+  → *"Goto/Grouped dpi=1 list=bars canvas=900x460: the card must plan at least one candidate
+  row"*
+
+⚠️ **BOTH MESSAGES ARE NON-VACUITY GUARDS FIRING, NOT ASSERTION FAILURES.** Each law is
+reporting that **its own subject collapsed** on that host — a card planning zero candidate
+rows, and an inset of 1px where the law needs a real one to compare against. So the question
+is *why the geometry starved there*, not why the assertion tripped.
+
+**WHAT I ESTABLISHED, so nobody repeats it:**
+- ✅ **Both tests PASS locally at `85343eb1`**, run by `--exact` at that exact sha in a
+  detached worktree. So this is **not deterministic from the code at that commit.**
+- ✅ **The full suite passes locally at `--test-threads=32`** (3855 passed) on current `main`.
+  So the obvious hypothesis — CLAUDE.md's test-global leak, which is green single-threaded
+  and red under a wide thread count, and which both messages superficially fit because both
+  name **Bars** — **did not reproduce here.**
+- ✅ Both conventions failed inside the **same** job on the **same** host, so it is not
+  convention-specific and not a keymap thing.
+
+🔵 **THE LIVE HYPOTHESIS, UNCONFIRMED:** the starved quantities are **metric-derived** (row
+height, card inset), so the most plausible cause is that a **font or adapter metric differs
+on CI's Ubuntu host**, making a tight 900×460 canvas fall one row short there and not here.
+⚠️ **This is exactly the axis CLAUDE.md says no local gate covers, and it has appeared as
+GEOMETRY rather than as GPU counters — worth adding to that tripwire once confirmed.**
+
+⚠️ **IT MAY ALREADY BE FIXED.** Item **314** changed `adaptive_column_left` and the page pads
+between `85343eb1` and `aa9e5338`, which moves exactly the geometry these two laws measure.
+**The queued run on `aa9e5338` is the arbiter — read it before spending a lane on this.**
+**Do not conclude from a green local gate:** a local receipt certifies Apple-Silicon Metal
+and this failure has never once reproduced here.
+
 ## 🔵 BLOCKED ON THE USER — nothing else can close these
 
 ⚠️ **This section has now been silently deleted TWICE** — once by an
