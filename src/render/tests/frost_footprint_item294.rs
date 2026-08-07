@@ -261,13 +261,21 @@ fn the_footprint_frost_unmakes_the_document_as_text_and_confines_itself_to_the_c
                 .collect();
             let mask = card_ink_mask(&b, wi, hi, dpi);
 
-            // The footprint, and a collar just outside it. The inset keeps the
-            // scissor's own hard edge — one pixel wide, and deliberately outward-
-            // rounded — out of both regions, so neither statistic is a measurement
-            // of the boundary itself.
+            // The footprint, and a collar outside it. The interior's inset stays small:
+            // the frost's mask is FULL STRENGTH on and inside the card's faces (the
+            // feather ramps entirely outward), so item 312's edge did not move this
+            // half of the law at all.
+            //
+            // ⚠️ THE COLLAR'S INNER BOUNDARY IS THE BOUNDARY'S OWN WIDTH, and the
+            // boundary is no longer one pixel: it is the feather, plus the shear's own
+            // reach on a leaning composition. Read off the frost's `footprint_bound` —
+            // the same arithmetic the composite's scissor uses — rather than a second
+            // authored inset, so a retuned feather moves this with it instead of
+            // quietly turning a confinement claim into a reading of the skirt.
             let pad = 4.0 * dpi;
             let collar = 24.0 * dpi;
             let [rx, ry, rw, rh] = rect;
+            let skirt = crate::render::blur::footprint_skirt_px(p.frost_mode(), dpi);
             let inside = |x: i64, y: i64| {
                 (x as f32) >= rx + pad
                     && (x as f32) < rx + rw - pad
@@ -276,12 +284,14 @@ fn the_footprint_frost_unmakes_the_document_as_text_and_confines_itself_to_the_c
             };
             let collar_only = |x: i64, y: i64| {
                 let (fx, fy) = (x as f32, y as f32);
-                let outer = fx >= rx - collar
-                    && fx < rx + rw + collar
-                    && fy >= ry - collar
-                    && fy < ry + rh + collar;
-                let inner =
-                    fx >= rx - pad && fx < rx + rw + pad && fy >= ry - pad && fy < ry + rh + pad;
+                let outer = fx >= rx - skirt - collar
+                    && fx < rx + rw + skirt + collar
+                    && fy >= ry - skirt - collar
+                    && fy < ry + rh + skirt + collar;
+                let inner = fx >= rx - skirt
+                    && fx < rx + rw + skirt
+                    && fy >= ry - skirt
+                    && fy < ry + rh + skirt;
                 outer && !inner
             };
 

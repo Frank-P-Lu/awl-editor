@@ -133,7 +133,16 @@ impl TextPipeline {
     /// pixel outside it, so the surrounding page keeps the live colours the picker
     /// exists to show. No carve-outs inside the box: whatever the card covers is
     /// frosted, the caret included.
-    fn frost_mode(&self) -> Option<blur::Frost> {
+    ///
+    /// THE FOOTPRINT'S EXTENT IS THE FROST'S ALONE. `overlay_card_rect` has a second
+    /// consumer — the pointer's click-away and wheel hit-test — and the two now want
+    /// different shapes: the frost leans and feathers, and the region a click means
+    /// something in is still the box the ROWS occupy. So the shear and the feather are
+    /// added HERE, on the way to [`blur::Frost`], and the hit region is left exactly
+    /// the rect it always was. A click a hair outside the card still dismisses the
+    /// picker even where the frost's skirt reaches, which is the right answer: the
+    /// skirt is a defocus, not a surface.
+    pub(in crate::render) fn frost_mode(&self) -> Option<blur::Frost> {
         // TRUE 1-BIT: a gaussian of a pure-black-or-white document smears every edge
         // into grey. That is true of a footprint too, so the exclusion is asked once,
         // above both arms.
@@ -152,9 +161,41 @@ impl TextPipeline {
             && self.overlay_crisp
             && blur::footprint_frost_applies(crate::render::effective_list_style())
         {
-            return self.overlay_card_rect().map(blur::Frost::Footprint);
+            return self.overlay_card_rect().map(|rect| {
+                blur::Frost::Footprint(blur::Footprint {
+                    rect,
+                    shear: self.footprint_shear(),
+                })
+            });
         }
         None
+    }
+
+    /// THE FOOTPRINT'S LEAN, READ FROM THE COMPOSITION THE FRAME DREW — physical px of
+    /// horizontal displacement per physical px down.
+    ///
+    /// It is the MEASURED rail's own per-row step over the row pitch it steps across,
+    /// which is exactly the slope of the two points `DiagonalClusterRail::spine`
+    /// hands the spine quad: successive rows are one `overlay_lh` apart and one
+    /// `spine_step` over. Reading the authored `ROW_STEP` instead would lean the frost
+    /// more than the spine beside it actually rakes on a card too cramped to afford the
+    /// step outright, because the rail resolves that yield (`TRAVEL_MAX_BAND_FRACTION`)
+    /// and a constant cannot. The same pair `location_axis_deg` reads, for the same
+    /// reason.
+    ///
+    /// ZERO when the frame drew no rail at all, which is how the enrolment derives:
+    /// shear is a property of a spine, and an enrolled world with no spine — a `Rules`
+    /// composition — takes the feather and keeps its upright rectangle without anything
+    /// here naming it.
+    fn footprint_shear(&self) -> f32 {
+        let Some(step) = self.diagonal_cluster.map(|c| c.spine_step()) else {
+            return 0.0;
+        };
+        let pitch = self.overlay_lh();
+        if !step.is_finite() || !pitch.is_finite() || pitch <= 0.0 {
+            return 0.0;
+        }
+        step / pitch
     }
 
     /// Is this frame's frost the FULL-canvas one? The question every consumer that
