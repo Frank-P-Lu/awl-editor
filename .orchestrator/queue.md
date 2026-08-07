@@ -171,6 +171,14 @@ well as here — **this item has already been answered twice by the user because
 decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
+- 🔵 **THE EXPORT SAVE PANEL WANTS YOUR EYE ON macOS (item 301) — no test process can see it.**
+  An AppKit modal is unobservable from a test (`MainThreadMarker::new()` returns `None` off the
+  main thread), so the panel body is structural-by-construction and what IS tested is only that the
+  door never opens without a real surface. **Three questions only you can answer:** does it open at
+  the right folder, is the right name pre-filled, and does **Cancel** leave the document untouched?
+  Try `Export as PDF…` from the File menu. ⚠️ **The Linux arm is separate and also unreached** —
+  the in-app `ExportDest` card is the whole answer there and it is fully tested, but no macOS host
+  clicks a drawn Linux menu bar.
 - 🔵 **THE MENU BAR'S PADS DOUBLE ON A RETINA DISPLAY (item 323) — a deliberate appearance
   change I could not put to anyone, and no capture at `--capture-dpi 1` can show it.**
   `BAR_INSET_X` and `TITLE_PAD_X` going `Logical` means the bar's left inset and its two outer
@@ -1298,7 +1306,48 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      already had two production sticky callers before that, so this was never a
      test-only channel.
 
-301. 🚧 CLAIMED (worktree item-301-export-dest, deep tier) **PART-LANDED (merged 2026-08-06) — the DESTINATION OWNER, the REVEAL and a LAW
+301. ✅ **FULLY LANDED (merged 2026-08-08) — THE BLOCKED BUNDLE SHIPPED VIA ROUTE 1, AND THE
+     CENSUS HAD GROWN 2.6× WHILE IT WAITED.** The premise held; the estimate was stale.
+     **26 `E0004` sites, not 10** (`src/render/**` 6 → 7), every one a one-line arm and none
+     needing a design decision — the errors are the no-wildcard roster style working. Route 2 was
+     never considered.
+     ✅ **`OverlayKind::ExportDest`:** title **"export to"** (the highlighted folder completes the
+     sentence), hint `type to filter · ↵ export here · → open · ← up`, and a **folders-only empty
+     state** because MoveDest's shared "no files here" is wrong for a folder list. Three navigation
+     sites route through one new owner, `is_folder_destination()`, rather than each growing a
+     second `== MoveDest` branch.
+     ⚠️ **THE PART A NAIVE BUILD GETS WRONG: the format must survive the navigation.** The action
+     chooses it, the accept reads it, and **`Journey::relevel` replaces the whole card at every
+     descend and ascend.** It rides `OverlayState::export_format`, carried by one owner
+     (`carry_level_payload_from`) — the same mechanism `Bind::Path` already uses for a Settings
+     folder key. **Proven load-bearing:** deleting that call reddens ONLY the descend/ascend law
+     while the other three export laws stay green.
+     ✅ **`ExportTarget::at` is the one owner of how much of the path the notice speaks, as a
+     RELATION rather than a per-arm flag** — with four routes to a destination a flag gets set by
+     guess, and it reads wrong for the reachable case where the chosen folder is the one the
+     document already lives in.
+     ✅ **The modal is gated by the shipped reveal's own check, copied verbatim**, so
+     `--screenshot-app` and every test take the identical write path and a surfaceless `App` cannot
+     reach a main-thread modal — the cost the parked estimate missed. Verified live:
+     `--screenshot-app` opens `mode: "export_dest"` under `driver: "live-app"` without hanging.
+     ✅ **THE ELLIPSIS IS RESTORED, AND THE DECISION IS A TABLE RATHER THAN A PREFERENCE.** With it,
+     the label is true on macOS (`NSSavePanel`) and Linux (the card) and false only on **web**,
+     where the browser owns the download and awl opens nothing; without it, false on both platforms
+     where a surface actually opens. **That residual is PINNED as a law asserting the set of
+     platforms the one static label over-promises to is exactly `{Web}`** — red if web ever gains a
+     destination surface, red if native ever loses one. `NATIVE_PANEL_IDS` gained the three export
+     ids as data, routed through the roster's own `resolve` table.
+     ✅ **And that law caught a second-order effect:** the catalog-divergence law enumerates rows
+     whose menu label MUST differ from the catalog name, so the three Export ids had to be
+     **removed** from it. **A law demanding a divergence that no longer exists is the mechanism
+     working.** Seven mutation proofs, one at a time, each replacement asserted applied.
+     🔵 **LIVE-ONLY, unreachable from this host:** the `NSSavePanel` itself (no test process can
+     observe an AppKit modal; `MainThreadMarker::new()` returns `None` off the main thread, so the
+     panel body is structural-by-construction) — **does it open at the right folder with the right
+     name pre-filled, and does Cancel leave the document untouched?** And the drawn **Linux** menu
+     bar actually firing `awl.export_word` into the card: the card, its navigation and its accept
+     are all shared-core and tested here, but no macOS host clicks a Linux bar.
+     **Original:** **PART-LANDED (merged 2026-08-06) — the DESTINATION OWNER, the REVEAL and a LAW
      REPAIR shipped; THE PANEL ITSELF IS BLOCKED.**
 
      🔴 **THE BLOCK, measured not guessed:** the `NSSavePanel`, the Linux save-role
@@ -2207,6 +2256,21 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      absent, which should be answerable in seconds) or lower its `timeout-minutes` so it cannot
      dominate a run. **Do not simply delete the job** — item 252's bridge liveness is the thing it
      exists to watch. ⚠️ Note item 257 already owns the *failure*; this is about its DURATION.
+     **Routing:** production tier.
+
+331. **THE THREE EXPORT COMMANDS' CATALOG DESCRIPTIONS NO LONGER MENTION THAT YOU CHOOSE A FOLDER.**
+     Reported by item 301's lane rather than ridden into its bundle, which was the right call.
+     *"Export the buffer to a `.docx` file; markdown buffers only"* is still **true** — it is
+     simply no longer the whole story now that export asks WHERE first. ⚠️ **The cost is why this
+     is its own item:** updating them requires regenerating `REFERENCE.md`, which
+     `src/reference.rs`'s drift laws hold to the tree, so a one-word edit lands as a doc
+     regeneration.
+     ⚠️ **Sequence behind item 273's residual (1)** — that lane is restructuring the flag roster and
+     the reference emitters, and this touches the same generated document.
+     ⚠️ **Docs voice applies** (matter-of-fact, facts traced to verified sources), and the
+     description is user-facing text in the palette. **Verify:** the regenerated `REFERENCE.md`
+     diff is exactly the three descriptions and nothing else — a generated document that moves more
+     than the change explains is the sourcing hazard, not a formatting nuisance.
      **Routing:** production tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
