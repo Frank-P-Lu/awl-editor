@@ -438,6 +438,125 @@ fn no_card_exceeds_its_canvas_across_the_documented_zoom_range() {
     );
 }
 
+/// **THE FLOOR'S OTHER HALF — an empty candidate band must be FORCED.** The law
+/// above proves the sectioned card never overruns its canvas; on its own, that
+/// is satisfiable by a card that shows nothing at all. The grouped family's
+/// `min_items: 0`
+/// is licensed only where no row can fit; a card that plans zero rows while the
+/// canvas beneath it still has room for a section header and an item row is not
+/// degrading, it is mis-billing its own budget.
+///
+/// **THE DEFECT THIS NAMES:** the grouped family charged a header row for every
+/// section in the LIST rather than for the window it was about to draw. At a
+/// 900x460 canvas with the menu bar's vertical reserve taken out of the budget,
+/// seven display lines fit, four went to the query line, the lens strip, the
+/// hint and its separator, and three more were billed to sections the window
+/// had no room to reach — leaving zero item rows in a card 192px tall inside a
+/// 460px canvas, with 180px of it free below the card.
+///
+/// **SWEPT OVER THE MENU BAR** for the same reason `overlay_plan_law`'s
+/// headline law is: `menubar::MENU_BAR_ON` starts `false` on macOS and `true`
+/// everywhere else, so a sweep that never enters the second state cannot see a
+/// starvation the reserve is what triggers.
+///
+/// **AND OVER THE LIST STYLE, because the ROW PITCH is the other half of the
+/// starvation** — measured, not assumed. Written without this axis the law was
+/// green under its own mutation: the ambient world's pitch is 27.2px at the
+/// short canvas where `Bars` (whose `grow_px`/`gap` are part of `overlay_lh`)
+/// gives 35.2px, and four rows still fit at the smaller pitch. A law about a
+/// row budget has to sweep what sets the row height.
+#[test]
+fn an_empty_candidate_band_is_forced_by_the_canvas_never_by_its_own_header_bill() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping an_empty_candidate_band_is_forced_by_the_canvas: no wgpu adapter");
+        return;
+    };
+    // The AMBIENT value, never `cfg!(target_os = ...)`: a `cfg!` here reports
+    // the host that COMPILED the test, not the branch the initialiser took.
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
+    // The same forced bar geometry `overlay_plan_law`'s headline law pins, so
+    // the `Bars` arm carries a real plate gap and grow rather than whatever the
+    // ambient world happens to author.
+    crate::render::set_bar_config_test_override(Some(theme::BarConfig {
+        radius: 6.0,
+        gap: 8.0,
+        grow_px: 24.0,
+        extent: theme::BarExtent::FullWidth,
+        coverage: theme::BarCoverage::All,
+    }));
+    let (mut checked, mut empty, mut tight) = (0usize, 0usize, 0usize);
+    for bar in [false, true] {
+        crate::menubar::set_menu_bar_on(bar);
+        for style in [theme::ListStyle::Pane, theme::ListStyle::Bars] {
+            crate::render::set_list_style_test_override(Some(style));
+            for dpi in [1.0f32, 2.0] {
+                p.set_dpi(dpi);
+                for (lw, lh) in LOGICAL_CANVASES {
+                    let (cw, ch) = ((lw as f32 * dpi) as u32, (lh as f32 * dpi) as u32);
+                    p.set_size(cw as f32, ch as f32);
+                    for &zoom in &ZOOMS {
+                        let mut v = overlay_view(OverlayKind::Command, 24, true);
+                        v.zoom = zoom;
+                        p.set_view(&v);
+                        p.prepare(&device, &queue, cw, ch).unwrap();
+                        let geom = p.overlay_geometry(cw);
+                        let plan = p.overlay_row_plan(&geom);
+                        let ctx = format!(
+                            "Command/sectioned dpi={dpi} logical={lw}x{lh} zoom={zoom} \
+                         menu_bar={bar} list={style:?}"
+                        );
+                        checked += 1;
+                        let rows = plan.candidate_rows();
+                        if rows <= 2 {
+                            tight += 1;
+                        }
+                        if rows > 0 {
+                            continue;
+                        }
+                        empty += 1;
+                        // The canvas left under the drawn card, LESS the bottom
+                        // margin the card contractually never spends, must not fit
+                        // the two display lines an empty band is missing — one
+                        // section header and one item row.
+                        let free =
+                            ch as f32 - (geom.card_y + geom.card_h) - p.overlay_card_margin();
+                        let need = 2.0 * p.overlay_lh();
+                        assert!(
+                            free < need,
+                            "{ctx}: the card plans ZERO candidate rows while {free}px of spendable \
+                         canvas sits free below it — a section header plus an item row need \
+                         {need}px, so this band was emptied by its own header bill, not by the \
+                         canvas"
+                        );
+                    }
+                }
+            }
+        }
+    }
+    crate::render::set_list_style_test_override(None);
+    crate::render::set_bar_config_test_override(None);
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
+    p.set_dpi(1.0);
+    assert!(checked >= 128, "the sweep graded too few cells: {checked}");
+    // NON-VACUITY, both ends. Without an empty band the assertion body never
+    // runs at all; without a TIGHT-but-populated cell the sweep only ever
+    // grades roomy cards, which are not where the floor lives.
+    assert!(
+        empty > 0,
+        "no swept cell ever reached an empty candidate band, so the floor above was never \
+         evaluated — this law would pass with the degradation arm deleted"
+    );
+    assert!(
+        tight > 0,
+        "no swept cell landed within two candidate rows of empty, so the sweep never came \
+         near the floor it grades"
+    );
+    eprintln!(
+        "empty-band floor: {checked} cells, {empty} empty bands, {tight} at two rows or fewer"
+    );
+}
+
 /// THE EXACT REPORTED REGRESSION, pinned by name and by number: the theme
 /// picker at 1200x800 (dpi 1.0), at the SAME sticky zoom (1.5) the reporting
 /// capture's own config carried, used to report `card_h: 934.00006` against

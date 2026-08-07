@@ -49,16 +49,33 @@ fn palette_view() -> ViewState {
 /// gradient, a dither or a bare `Diagonal` canvas is graded on the same terms
 /// as a flat card: whatever a row is mostly made of is its ground, and the
 /// first pixel that is emphatically not is its first mark.
-fn drawn_row_text_inset(frame: &[[u8; 4]], w: u32, card: [f32; 4]) -> Option<f32> {
+///
+/// **THE SCAN BAND IS THE PLANNED ROWS, NOT A FRACTION OF THE CARD.** A
+/// `ListBacking::BarePlates` world (every `Bars`, `Diagonal` and `Rules`
+/// world) paints NO card plate, so the world's own ground shows through the
+/// card everywhere a row plate does not cover — and a fixed
+/// `0.30..0.95 * card_h` slice reaches past the last candidate row into that
+/// bare ground, below which sit only the hint separator and the hint. There
+/// the "first pixel emphatically not the modal colour" is a feature of the
+/// CANVAS: on Firetail (a `Bars` world over `Background::Lava`) a blob edge
+/// crossing one pixel inside `card_x` reported an inset of 1px, and whether
+/// it did depended on where the card sat over a canvas-anchored ground — so
+/// the same law read 21px with the menu bar hidden and 1px with it shown,
+/// off the same geometry. Scanning the rows the plan actually places makes
+/// the measured quantity the one the name claims.
+fn drawn_row_text_inset(
+    frame: &[[u8; 4]],
+    w: u32,
+    card: [f32; 4],
+    bands: &[(u32, u32)],
+) -> Option<f32> {
     let x0 = card[0].max(0.0) as u32;
     let x1 = ((card[0] + card[2]) as u32).min(w);
-    let y0 = (card[1] + card[3] * 0.30).max(0.0) as u32;
-    let y1 = (card[1] + card[3] * 0.95) as u32;
-    if x1 <= x0 + 8 || y1 <= y0 {
+    if x1 <= x0 + 8 || bands.is_empty() {
         return None;
     }
     let mut best: Option<u32> = None;
-    for y in y0..y1 {
+    for y in bands.iter().flat_map(|&(a, b)| a..b) {
         let row = &frame[(y * w) as usize..][..w as usize];
         let mut counts: std::collections::HashMap<[u8; 4], u32> = std::collections::HashMap::new();
         for x in x0..x1 {
@@ -116,8 +133,26 @@ fn drawn_cell(
     p.set_view(&palette_view());
     p.prepare(device, queue, w, h).ok()?;
     let card = p.overlay_card_rect()?;
+    // The scan band, read off the ONE planner rather than a fraction of the
+    // card: the interior 20%..80% of every planned row that carries an ITEM.
+    // Trimming each slot's own ends keeps a plate's rounded corner and its
+    // antialiased edge out of a measurement about glyph ink.
+    let geom = p.overlay_geometry(w);
+    let plan = p.overlay_row_plan(&geom);
+    let bands: Vec<(u32, u32)> = plan
+        .rows()
+        .iter()
+        .filter(|r| r.item.is_some())
+        .map(|r| {
+            (
+                (r.top + r.height * 0.2).max(0.0) as u32,
+                ((r.top + r.height * 0.8) as u32).min(h.saturating_sub(1)),
+            )
+        })
+        .filter(|(a, b)| b > a)
+        .collect();
     let frame = super::pixeldiff::render_frame(p, device, queue, w, h);
-    let inset = drawn_row_text_inset(&frame, w, card)?;
+    let inset = drawn_row_text_inset(&frame, w, card, &bands)?;
     Some((card[0], inset, p.overlay_lh()))
 }
 
@@ -137,6 +172,13 @@ fn drawn_cell(
 /// the card's placement would stay green through an unscaled pad, and a law
 /// that graded only the pad would stay green through an unscaled placement;
 /// each is the other's blind spot.
+///
+/// **SWEPT OVER THE MENU BAR, because that is the axis this law ran one side
+/// of for its whole life.** `crate::menubar::MENU_BAR_ON` initialises to
+/// `false` on macOS and `true` on every other platform, so the drawn bar — and
+/// the vertical reserve it takes off the top of every card's budget — was
+/// present in CI's Linux job and absent from every run on the authoring host.
+/// The state a law never enters is the state it cannot grade.
 #[test]
 fn the_cards_drawn_row_text_holds_its_inset_on_a_two_x_panel() {
     let _g = crate::testlock::serial();
@@ -144,50 +186,70 @@ fn the_cards_drawn_row_text_holds_its_inset_on_a_two_x_panel() {
         eprintln!("skipping the chrome pixel-space drawn law: no wgpu adapter");
         return;
     };
-    let mut graded = 0usize;
+    // The AMBIENT value, never `cfg!(target_os = ...)`: a `cfg!` inside a test
+    // reports the host that COMPILED it, not the branch `MENU_BAR_ON`'s
+    // initialiser actually took, so a restore written that way restores the
+    // wrong value under any forcing of that initialiser.
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
+    let mut graded = [0usize; 2];
     let mut worst = 0.0f32;
-    for world in theme::THEMES.iter().map(|t| t.name) {
-        let Some((cx1, pad1, lh1)) = drawn_cell(&device, &queue, &mut p, world, 1.0) else {
-            continue;
-        };
-        let Some((cx2, pad2, lh2)) = drawn_cell(&device, &queue, &mut p, world, 2.0) else {
-            continue;
-        };
-        // NON-VACUITY: a zero pad would make `0 == 2 * 0` pass on anything, and
-        // the row pitch must genuinely have doubled or the fixture is not at 2x.
-        assert!(
-            pad1 >= 4.0,
-            "{world}: the drawn row text is only {pad1}px inside its own card at \
-             dpi 1 — comparing zero against twice zero would pass on anything"
-        );
-        assert!(
-            (lh2 - 2.0 * lh1).abs() < 0.01,
-            "{world}: the row pitch is {lh1} at dpi 1 and {lh2} at dpi 2; the \
-             text half of this comparison is not at the scale it claims"
-        );
-        for (what, a, b) in [("card edge", cx1, cx2), ("row-text inset", pad1, pad2)] {
-            let want = 2.0 * a;
-            // One device pixel for the rasterized edge, plus a proportional
-            // term: a card edge on a fractional pixel resolves with partial
-            // coverage and can move the first qualifying byte by one.
-            let tol = 1.5 + 0.01 * want;
-            worst = worst.max((b - want).abs());
+    for bar in [false, true] {
+        crate::menubar::set_menu_bar_on(bar);
+        for world in theme::THEMES.iter().map(|t| t.name) {
+            let cell = format!("{world} menu_bar={bar}");
+            let Some((cx1, pad1, lh1)) = drawn_cell(&device, &queue, &mut p, world, 1.0) else {
+                continue;
+            };
+            let Some((cx2, pad2, lh2)) = drawn_cell(&device, &queue, &mut p, world, 2.0) else {
+                continue;
+            };
+            // NON-VACUITY: a zero pad would make `0 == 2 * 0` pass on anything, and
+            // the row pitch must genuinely have doubled or the fixture is not at 2x.
             assert!(
-                (b - want).abs() <= tol,
-                "{world}: the drawn {what} measures {a}px on a 1x panel and {b}px \
-                 on a 2x one, where a chrome length that passed the pixel-space \
-                 owner would put it at {want} (tolerance {tol:.2}). A constant \
-                 left in device pixels renders at half its tuned size on every \
-                 retina display."
+                pad1 >= 4.0,
+                "{cell}: the drawn row text is only {pad1}px inside its own card at \
+                 dpi 1 — comparing zero against twice zero would pass on anything"
             );
+            assert!(
+                (lh2 - 2.0 * lh1).abs() < 0.01,
+                "{cell}: the row pitch is {lh1} at dpi 1 and {lh2} at dpi 2; the \
+                 text half of this comparison is not at the scale it claims"
+            );
+            for (what, a, b) in [("card edge", cx1, cx2), ("row-text inset", pad1, pad2)] {
+                let want = 2.0 * a;
+                // One device pixel for the rasterized edge, plus a proportional
+                // term: a card edge on a fractional pixel resolves with partial
+                // coverage and can move the first qualifying byte by one.
+                let tol = 1.5 + 0.01 * want;
+                worst = worst.max((b - want).abs());
+                assert!(
+                    (b - want).abs() <= tol,
+                    "{cell}: the drawn {what} measures {a}px on a 1x panel and {b}px \
+                     on a 2x one, where a chrome length that passed the pixel-space \
+                     owner would put it at {want} (tolerance {tol:.2}). A constant \
+                     left in device pixels renders at half its tuned size on every \
+                     retina display."
+                );
+            }
+            graded[usize::from(bar)] += 1;
         }
-        graded += 1;
     }
-    assert!(
-        graded >= 15,
-        "the drawn law must grade the world roster, got {graded}"
+    // PER-MENU-BAR-STATE, not an aggregate: an aggregate floor is satisfied by
+    // one state grading the whole roster while the other grades nothing, which
+    // is precisely the coverage hole this sweep exists to close.
+    for (bar, n) in graded.iter().enumerate() {
+        assert!(
+            *n >= 15,
+            "the drawn law must grade the world roster with menu_bar={}, got {n} \
+             (both states: {graded:?})",
+            bar == 1
+        );
+    }
+    eprintln!(
+        "chrome pixel space: {graded:?} worlds drawn-graded (menu_bar off/on), \
+         worst error {worst:.2}px"
     );
-    eprintln!("chrome pixel space: {graded} worlds drawn-graded, worst error {worst:.2}px");
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
     theme::set_active(theme::DEFAULT_THEME);
     p.set_dpi(1.0);
 }

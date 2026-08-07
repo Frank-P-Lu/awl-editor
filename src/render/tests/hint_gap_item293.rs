@@ -291,6 +291,15 @@ fn the_hint_gap_holds_when_filtered_scrolled_or_in_a_workspace() {
 /// card that was never going to hug it. Proven against exactly that gap by
 /// mutation (`hint_gap_rows = 0` in `workspace.rs` passes the drawn-gap law
 /// above but fails this one).
+///
+/// **RUN IN BOTH MENU-BAR STATES.** The drawn menu bar takes a vertical reserve
+/// off the top of the card's own budget (`menubar_reserve`, folded into
+/// `card_y`), so this law's whole subject — how many rows that budget buys —
+/// differs between the two. `MENU_BAR_ON` starts hidden on macOS and shown
+/// everywhere else, and with the bar shown the GROUPED arm below was satisfied
+/// by its candidate band collapsing to ZERO: `2 - 0` is also `2`. A row-cost
+/// law must never be satisfiable by having no rows to cost, so each reading
+/// carries its own presence floor.
 #[test]
 fn a_hint_reserves_exactly_two_rows_from_the_candidate_window() {
     let _g = crate::testlock::serial();
@@ -300,62 +309,85 @@ fn a_hint_reserves_exactly_two_rows_from_the_candidate_window() {
         );
         return;
     };
-    // A SHORT canvas, deliberately: `OverlayKind::window_rows()` is a per-kind
-    // FIXED cap (12 for both kinds below), and on the default 800px-tall
-    // canvas that fixed cap — not the pixel budget the hint's rows come out
-    // of — is what binds, so the hint's cost would not show up in the visible
-    // count at all. Shrinking the canvas makes the pixel budget the binding
-    // constraint, which is the constraint `overlay_hint_gap_rows` actually
-    // feeds.
-    p.set_size(1200.0, 350.0);
+    // The AMBIENT value, never `cfg!(target_os = ...)`: a `cfg!` here reports
+    // the host that COMPILED the test, not the branch the initialiser took.
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
+    for bar in [false, true] {
+        crate::menubar::set_menu_bar_on(bar);
+        // A SHORT canvas, deliberately: `OverlayKind::window_rows()` is a per-kind
+        // FIXED cap (12 for both kinds below), and on the default 800px-tall
+        // canvas that fixed cap — not the pixel budget the hint's rows come out
+        // of — is what binds, so the hint's cost would not show up in the visible
+        // count at all. Shrinking the canvas makes the pixel budget the binding
+        // constraint, which is the constraint `overlay_hint_gap_rows` actually
+        // feeds.
+        p.set_size(1200.0, 350.0);
 
-    let visible_rows = |p: &mut TextPipeline, v: &ViewState| -> usize {
-        p.set_view(v);
-        p.overlay_window_report().expect("overlay open").1
-    };
+        let visible_rows = |p: &mut TextPipeline, v: &ViewState| -> usize {
+            p.set_view(v);
+            let n = p.overlay_window_report().expect("overlay open").1;
+            // PRESENCE FLOOR, per reading: `bare - hinted == 2` is satisfied by a
+            // band that collapsed to nothing as readily as by the right difference.
+            assert!(
+                n > 0,
+                "menu_bar={bar}: the card must show candidate rows for their count to \
+             mean anything — a row-cost law cannot be graded on an empty band"
+            );
+            n
+        };
 
-    // FLAT — `Caret` carries no facet scheme (`facets::scheme`), so
-    // `overlay_view` leaves `overlay_lens` empty and the dispatcher takes the
-    // flat path.
-    let mut flat = overlay_view(OverlayKind::Caret, Shape::Scrolled);
-    flat.overlay_hint = String::new();
-    let flat_bare = visible_rows(&mut p, &flat);
-    flat.overlay_hint = OverlayKind::Caret.hint();
-    let flat_hinted = visible_rows(&mut p, &flat);
-    assert_eq!(
-        flat_bare.saturating_sub(flat_hinted),
-        2,
-        "flat: a hint must cost exactly 2 rows of the candidate window \
-         (bare={flat_bare}, hinted={flat_hinted})"
-    );
+        // FLAT — `Caret` carries no facet scheme (`facets::scheme`), so
+        // `overlay_view` leaves `overlay_lens` empty and the dispatcher takes the
+        // flat path.
+        let mut flat = overlay_view(OverlayKind::Caret, Shape::Scrolled);
+        flat.overlay_hint = String::new();
+        let flat_bare = visible_rows(&mut p, &flat);
+        flat.overlay_hint = OverlayKind::Caret.hint();
+        let flat_hinted = visible_rows(&mut p, &flat);
+        assert_eq!(
+            flat_bare.saturating_sub(flat_hinted),
+            2,
+            "flat menu_bar={bar}: a hint must cost exactly 2 rows of the candidate \
+         window (bare={flat_bare}, hinted={flat_hinted})"
+        );
 
-    // GROUPED — `Command` carries a real facet scheme, so `overlay_view` sets
-    // `overlay_lens` and the dispatcher takes the grouped (faceted) path —
-    // the same card the very first screenshot of this item showed crowded.
-    let mut grouped = overlay_view(OverlayKind::Command, Shape::Scrolled);
-    grouped.overlay_hint = String::new();
-    let grouped_bare = visible_rows(&mut p, &grouped);
-    grouped.overlay_hint = OverlayKind::Command.hint();
-    let grouped_hinted = visible_rows(&mut p, &grouped);
-    assert_eq!(
-        grouped_bare.saturating_sub(grouped_hinted),
-        2,
-        "grouped: a hint must cost exactly 2 rows of the candidate window \
-         (bare={grouped_bare}, hinted={grouped_hinted})"
-    );
+        // GROUPED — `Command` carries a real facet scheme, so `overlay_view` sets
+        // `overlay_lens` and the dispatcher takes the grouped (faceted) path —
+        // the same card the very first screenshot of this item showed crowded. On
+        // its "All" HOME lens, where a grouped picker spends most of its open time:
+        // SECTIONS ARE THE OTHER AXIS, as the fixture's own note above already
+        // says. A sectioned card's header charge scales with how many items its
+        // window holds (`fit_sectioned_item_rows`), so removing two item rows can
+        // remove a header charge with them and the hint then reads as costing one
+        // row — a true measurement of a coupled quantity, and not this law's
+        // subject.
+        let mut grouped = overlay_view(OverlayKind::Command, Shape::Scrolled);
+        grouped.overlay_sections.clear();
+        grouped.overlay_hint = String::new();
+        let grouped_bare = visible_rows(&mut p, &grouped);
+        grouped.overlay_hint = OverlayKind::Command.hint();
+        let grouped_hinted = visible_rows(&mut p, &grouped);
+        assert_eq!(
+            grouped_bare.saturating_sub(grouped_hinted),
+            2,
+            "grouped menu_bar={bar}: a hint must cost exactly 2 rows of the candidate \
+         window (bare={grouped_bare}, hinted={grouped_hinted})"
+        );
 
-    // WORKSPACE — Settings' rail-over-rows stage, canvas-sized card.
-    let mut ws = overlay_view(OverlayKind::Settings, Shape::Scrolled);
-    ws.overlay_workspace = true;
-    ws.overlay_rows_primary = false;
-    ws.overlay_hint = String::new();
-    let ws_bare = visible_rows(&mut p, &ws);
-    ws.overlay_hint = OverlayKind::Settings.hint();
-    let ws_hinted = visible_rows(&mut p, &ws);
-    assert_eq!(
-        ws_bare.saturating_sub(ws_hinted),
-        2,
-        "workspace: a hint must cost exactly 2 rows of the candidate window \
-         (bare={ws_bare}, hinted={ws_hinted})"
-    );
+        // WORKSPACE — Settings' rail-over-rows stage, canvas-sized card.
+        let mut ws = overlay_view(OverlayKind::Settings, Shape::Scrolled);
+        ws.overlay_workspace = true;
+        ws.overlay_rows_primary = false;
+        ws.overlay_hint = String::new();
+        let ws_bare = visible_rows(&mut p, &ws);
+        ws.overlay_hint = OverlayKind::Settings.hint();
+        let ws_hinted = visible_rows(&mut p, &ws);
+        assert_eq!(
+            ws_bare.saturating_sub(ws_hinted),
+            2,
+            "workspace menu_bar={bar}: a hint must cost exactly 2 rows of the candidate \
+         window (bare={ws_bare}, hinted={ws_hinted})"
+        );
+    }
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
 }

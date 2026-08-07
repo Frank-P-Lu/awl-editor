@@ -88,12 +88,12 @@ impl TextPipeline {
         let card_y =
             margin + self.metrics.px(super::overlay::CARD_TOP_DROP) + self.menubar_reserve();
         let total_headers = full_plan.len() - n_items;
-        // ITEM 184 — strip + headers + footer count here; `min_items: 0`
-        // empties the band rather than overrun it (`fit_item_rows`'s doc).
+        // Strip + hint + footer here, at `min_items: 0`; the SECTION headers are
+        // charged to the drawn WINDOW (`fit_sectioned_item_rows`).
         let chrome_rows = header_rows + hint_gap_rows + hint_rows + empty_rows + footer_rows;
         // ITEM 181 — THE ONE HEIGHT-CLAMP OWNER, shared with the flat family.
         let avail_px = (self.window_h - card_y - margin - 2.0 * pad - header_gap).max(lh);
-        let item_cap = self.overlay_item_cap(avail_px, lh, chrome_rows + total_headers, 0);
+        let item_cap = self.overlay_sectioned_item_cap(avail_px, lh, chrome_rows, total_headers, 0);
         let (item_top, item_visible) = scroll_window(
             n_items,
             self.overlay_selected,

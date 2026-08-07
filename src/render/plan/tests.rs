@@ -325,6 +325,81 @@ fn fit_item_rows_allows_zero_once_the_groups_own_chrome_overruns_the_budget() {
     assert_eq!(fit_item_rows(200.0, 20.0, 3, 0), 7);
 }
 
+/// THE SECTIONED FLOOR — `fit_sectioned_item_rows`, swept as three properties
+/// over one grid rather than checked at the cell that motivated it.
+///
+/// The defect it names: the grouped family charged a display row for every
+/// section in the LIST, so a card whose window could show two of twenty-four
+/// items still paid for all its sections. A `total_headers` charge is an upper
+/// bound (a window of `k` items carries at most `k` headers), and paying an
+/// upper bound is harmless until it zeroes the band.
+///
+///  1. **IDENTITY WHEREVER THE OLD CHARGE LEFT A ROW.** The property that keeps
+///     every already-working card unmoved, asserted as arithmetic over a whole
+///     grid rather than at hand-picked scenarios.
+///  2. **NEVER OPTIMISTIC.** `chrome + min(k, headers) + k <= fit_lines` at
+///     every cell, so the tight branch cannot size a card past its budget.
+///  3. **THE FLOOR ENGAGES, AND ONLY WHERE ROOM REMAINS.** The grouped
+///     family's `0` degradation survives where the fixed chrome alone fills the
+///     budget; the tight branch fires where it does not.
+#[test]
+fn fit_sectioned_item_rows_bills_headers_tightly_only_to_avoid_an_empty_band() {
+    use super::overlay_rows::fit_sectioned_item_rows;
+    const PITCH: f32 = 20.0;
+    let (mut identical, mut relaxed, mut degraded) = (0usize, 0usize, 0usize);
+    for fit_lines in 0..24usize {
+        // A hair over the last whole row, so `floor` is unambiguous everywhere.
+        let avail = fit_lines as f32 * PITCH + PITCH * 0.5;
+        for chrome in 0..8usize {
+            for headers in 0..8usize {
+                let k = fit_sectioned_item_rows(avail, PITCH, chrome, headers, 0);
+                let conservative = fit_item_rows(avail, PITCH, chrome + headers, 0);
+                let cell = format!("fit_lines={fit_lines} chrome={chrome} headers={headers}");
+                if conservative > 0 {
+                    assert_eq!(
+                        k, conservative,
+                        "{cell}: the sectioned cap must be IDENTICAL to the conservative \
+                         charge wherever that charge already leaves a row — anything else \
+                         moves row counts on cards that already work"
+                    );
+                    identical += 1;
+                } else if k > 0 {
+                    relaxed += 1;
+                } else {
+                    degraded += 1;
+                }
+                // Never optimistic: the rows answered, plus the headers they can
+                // summon, fit the budget the fixed chrome leaves behind. (Where
+                // the chrome ALONE overruns, no row count can help — that is the
+                // `min_items` degradation, not this function's arithmetic.)
+                assert!(
+                    k + headers.min(k) <= fit_lines.saturating_sub(chrome),
+                    "{cell}: answered {k} items, which with its own headers needs {} of \
+                     the {} display lines the chrome leaves",
+                    k + headers.min(k),
+                    fit_lines.saturating_sub(chrome)
+                );
+            }
+        }
+    }
+    // The degradation, preserved: the chrome alone still fills the budget.
+    assert_eq!(fit_sectioned_item_rows(20.0, 20.0, 10, 3, 0), 0);
+    // The floor engaging at the shape that starved: 7 display lines, 4 spent on
+    // chrome, 3 sections. The conservative charge says zero; one item row plus
+    // its one header fits in the three lines left.
+    assert_eq!(fit_item_rows(7.5 * 20.0, 20.0, 4 + 3, 0), 0);
+    assert_eq!(fit_sectioned_item_rows(7.5 * 20.0, 20.0, 4, 3, 0), 1);
+    // A flat/spell floor is honoured unchanged when one is passed.
+    assert_eq!(fit_sectioned_item_rows(0.0, 20.0, 9, 3, 1), 1);
+    // NON-VACUITY on all three regimes: an identity-only grid proves nothing
+    // about the floor, and a floor-only grid proves nothing about identity.
+    assert!(
+        identical > 100 && relaxed > 10 && degraded > 10,
+        "the grid must exercise all three regimes: identical={identical} \
+         relaxed={relaxed} degraded={degraded}"
+    );
+}
+
 /// A degenerate row pitch cannot be divided by; the clamp still answers a
 /// usable, non-panicking row count — the family's own floor, not a bare `1`.
 #[test]
