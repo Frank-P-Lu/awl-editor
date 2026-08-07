@@ -328,8 +328,16 @@ list instead of re-checking the tree.** The rule, restated as an instruction:
 | `src/render/plan/` | overlay row family only (5 modules) |
 | item 288's three identifiers | all three still present, verbatim |
 
-⚠️ **`main` IS AT `8ea95f1b`, LOCALLY RECEIPTED AND REMOTELY UNVERIFIED — GITHUB
-ACTIONS HAS BEEN IN A MAJOR OUTAGE ALL DAY (2026-08-06).** Pushed deliberately: 15
+✅ **GITHUB ACTIONS RECOVERED 2026-08-07 ("All Systems Operational") AND BOTH OWED
+ITEMS ARE DISPATCHED.** CI is running on `main`, and the **AppImage release dry run —
+item 227's one outstanding verification, which no worktree branch could ever run — is
+in flight** (`gh workflow run release.yml -f dry_run=true`, run `31134001680`; `plan`
+already green, the `linux (release tar.gz)` job building). ⚠️ **Read its result before
+believing item 227 is verified**, and remember `cancelled` is not a pass — check for the
+last SUCCESSFUL sha, not the last run, and classify a red by its failed STEP names.
+
+**Historical, kept because it explains the day's shape:** `main` spent 2026-08-06
+locally receipted and remotely unverified through an Actions outage. Pushed deliberately: 15
 commits on one local disk is the larger risk, the batch carries a full receipt on its
 exact sha, a push cannot supersede a run that cannot start, and no tag is involved.
 **OWED THE MOMENT ACTIONS RECOVERS:** re-run CI on `main` and read it — `cancelled`
