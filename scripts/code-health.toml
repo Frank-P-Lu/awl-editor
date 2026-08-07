@@ -323,8 +323,8 @@ reason = "The footer plate earns the notice channel's own one-pixel rim, which i
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_rows.rs"
-lines = 310
-reason = "+4: the chip skin resolves its radius, its stroke and the underline variant's own corner through the pixel-space owner once at the top of the one facet-skin match, rather than four times inside its arms. `overlay_prepare_facet_marks` carries the workspace's own arm — two lines of dispatch plus its argument; the arm's body lives in `chrome/workspace.rs`. The split-pane gap is now read off the row plan rather than re-derived here. The facet-mark owner routes a workspace whose lens lives in its header to the grouped strip mark instead of the rail mark (+2)."
+lines = 325
+reason = "+15: every range rail now computes its OWN thumb ink and uploads through `prepare_multicolor`, instead of one frame-wide `thumb_ink` painted onto every rail by a shared `set_color` -- a rail that was not the selected row wore the selected row's ink. No new pipeline: `prepare_multicolor` already carries per-instance colour for the writing-streaks heatmap, so this reaches for the existing mechanism rather than a second one. The track stays uniform."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_shape.rs"
