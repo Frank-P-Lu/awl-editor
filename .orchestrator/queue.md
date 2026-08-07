@@ -172,6 +172,12 @@ decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
+- 🔵 **321 CHANGES THE MENU BAR ON EVERY NON-macOS HOST — the authored value, finally honoured.**
+  The drawn bar (the default off macOS, and on the web) now holds a constant **35.6 logical px**
+  at every zoom and DPI instead of visibly thinning as density rises: **+5 logical px at 2×, +6.7
+  at 3×.** The card height budget below it shrinks by the same amount — **a few px, not the
+  CI-RED's zero-row magnitude.** ⚠️ **At 1× and on macOS's default-off bar, byte-identical**, so
+  no capture here can show it. Worth a look on a Retina Linux or web session.
 - 🔵 **313's TERMINUS CALL — real but SMALL, and the measurement is the point.** At the hint's
   own row the spine has ENDED, so does the hint continue the lean past the terminus or sit at
   the terminal x? `gallery/item-313/continue-*.png` vs `terminus-*.png`. **Measured: the two
@@ -1719,7 +1725,14 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      and check whether it sets that field. **Expect several.** **Verify:** each affected law
      re-run with the field set, and any that changes verdict named. **Routing:** production tier.
 
-321. 🟡 IN PROGRESS — claude, branch `claude/item-321-bar-height`.
+321. ✅ **LANDED (merged 2026-08-07).** The bar's LOGICAL height was 35.60 at 1×, 32.27 at
+     1.5×, 30.60 at 2× and 28.93 at 3× — **the padding shrank as the display got denser.**
+     Now 35.60 at every tier; **1× is byte-identical.** The census found ONE role across two
+     call sites, so nothing to split, and the fix **closes the bypass**: `BAR_PAD_Y` is a
+     `Logical` and `bar_height` takes a required `scale`, so — a `Logical` having no
+     arithmetic but `.px(scale)` — no caller can pass an unscaled pad at all.
+     ✅ It **reported a block rather than routing around one**: widening the declaration law
+     to `src/menubar.rs` means editing a file the census lane held. **Original:**
      **`menubar.rs`'s `bar_height` MIXES A SCALED ARGUMENT WITH AN UNSCALED CONSTANT — the
      same defect shape items 314 and 315 just closed, one file over.**
      `bar_height(line_height) = line_height + 2.0 * BAR_PAD_Y`, where the argument is scaled and
@@ -1752,6 +1765,25 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      **Verify:** the widened sweep green with every constant declared, plus byte-identity at 1×
      for anything whose family you assert is already handled elsewhere — that is the claim most
      likely to be wrong. **Routing:** production tier.
+
+323. **FOUR MORE BARE `f32` PADS IN `menubar.rs`, SAME SHAPE AS 321 — and adding that file to
+     the declaration law's sweep is the fix that finds them.** `BAR_INSET_X`, `TITLE_PAD_X`,
+     `DROP_PAD_X` and `DROP_PAD_Y` are still untyped, and they are **added to device-scaled glyph
+     positions** in `chrome/menubar.rs` and `chrome/menubar/dropdown.rs`. Found by item 321's
+     census, **unverified and deliberately untouched** — it had closed `BAR_PAD_Y` and would not
+     absorb four more on a hunch.
+
+     ✅ **Do the law first, then the constants.** `src/menubar.rs` is outside item 242's swept set
+     (`chrome/**` + `geometry.rs` + `geometry/**` + `scroll.rs`, widened by item 315). Adding one
+     path makes the compiler and the law enumerate the work — 315 widened the scope and caught
+     three instances on the first run, and **a law's scope has now been the defect twice.**
+     ⚠️ **Verify each is genuinely logical before scaling it** — 314 expected two roles and found
+     one across 45 readers, but a pad added to a *shaped glyph position* may legitimately be
+     physical, and getting that backwards multiplies it by DPI forever with a law asserting it is
+     right. **Classify from usage, one at a time.**
+     ⚠️ **The dropdown is a live-only surface on macOS** and the drawn bar is the non-macOS
+     default, so **run under the `MENU_BAR_ON` forcing** — an unforced run cannot see the subject.
+     **Routing:** production tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 

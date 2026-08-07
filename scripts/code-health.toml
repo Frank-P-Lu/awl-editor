@@ -232,7 +232,7 @@ reason = "The three Export rows' File-menu label now diverges from their catalog
 
 [[file_size_mark]]
 file = "src/menubar.rs"
-lines = 380
+lines = 228
 reason = "+12: the drawn bar's per-platform default, split out of a bare `cfg!` into two named consts at the single owner. The generated reference documents ONE `menu_bar` default for every platform; read through `cfg!` it would differ between the machine that writes the document and the CI host that checks it, so both arms must stay readable from any build."
 
 [[file_size_mark]]
@@ -352,7 +352,7 @@ reason = "item 202: +52 lines — `--bench-theme-burst` gained the reshape-count
 
 [[file_size_mark]]
 file = "src/render/geometry.rs"
-lines = 1261
+lines = 1262
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
