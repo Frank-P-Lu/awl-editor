@@ -580,28 +580,21 @@ pub(crate) fn parse_args() -> Result<Mode> {
         None => None,
     };
     // 2) Reject verification hooks the chosen mode would silently ignore. After the
-    //    single-mode check above at most one mode category is active, so this
-    //    mirrors the Mode construction's precedence (held > timeline > motion >
-    //    screenshot-app > screenshot; no output = windowed).
+    //    single-mode check above at most one mode category is active, so
+    //    `resolve_capture_kind` need only classify which one.
     // `live_app` is native-only; a wasm build has no `--screenshot-app` door, so
     // its `kind` can only ever fall through to `Screenshot` here.
     #[cfg(not(target_arch = "wasm32"))]
     let is_screenshot_app = live_app;
     #[cfg(target_arch = "wasm32")]
     let is_screenshot_app = false;
-    let kind = if out.is_none() {
-        CaptureKind::Windowed
-    } else if held.is_some() {
-        CaptureKind::Held
-    } else if timeline_steps.is_some() {
-        CaptureKind::Timeline
-    } else if motion || motion_v || motion_d {
-        CaptureKind::Motion
-    } else if is_screenshot_app {
-        CaptureKind::ScreenshotApp
-    } else {
-        CaptureKind::Screenshot
-    };
+    let kind = resolve_capture_kind(
+        out.is_some(),
+        held.is_some(),
+        timeline_steps.is_some(),
+        motion || motion_v || motion_d,
+        is_screenshot_app,
+    );
     let supplied = SuppliedHooks {
         sel: opts.selection.is_some(),
         zoom: opts.zoom.is_some(),
@@ -821,10 +814,8 @@ pub(crate) fn parse_args() -> Result<Mode> {
             root,
             workspace: workspace_folded,
             config,
-            // Always `None` here: `--capture-size`/`--capture-dpi` render no PNG
-            // this mode could honor, and `CaptureKind::Windowed` (this mode sets
-            // no `out`) already refuses the combination above rather than
-            // silently discarding it.
+            // Always `None`: this mode renders no PNG and its `CaptureKind::Windowed`
+            // classification already refuses the flags above rather than discarding them.
             canvas: capture_size,
             dpi: capture_dpi,
         }));
@@ -863,9 +854,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 root,
                 workspace: workspace_folded,
                 config,
-                // Honored for real: `capture_live_app` applies these to the
-                // `CaptureOpts` it hands the same `capture_with` path every
-                // other capture door renders through.
+                // Honored for real — `capture_live_app` applies these before rendering.
                 canvas: capture_size,
                 dpi: capture_dpi,
             },
@@ -1060,6 +1049,38 @@ mod tests {
         parse_measure("0").unwrap_err();
         parse_measure("-1").unwrap_err();
         parse_measure("x").unwrap_err();
+    }
+
+    #[test]
+    fn resolve_capture_kind_matches_the_precedence_mode_construction_uses() {
+        // No output at all is the windowed editor, whatever else was passed —
+        // the flags below would all be inert without an `out` path.
+        assert_eq!(
+            resolve_capture_kind(false, true, true, true, true),
+            CaptureKind::Windowed
+        );
+        // With an output path, held > timeline > motion > screenshot-app >
+        // plain screenshot, exactly the order `Mode` construction checks.
+        assert_eq!(
+            resolve_capture_kind(true, true, true, true, true),
+            CaptureKind::Held
+        );
+        assert_eq!(
+            resolve_capture_kind(true, false, true, true, true),
+            CaptureKind::Timeline
+        );
+        assert_eq!(
+            resolve_capture_kind(true, false, false, true, true),
+            CaptureKind::Motion
+        );
+        assert_eq!(
+            resolve_capture_kind(true, false, false, false, true),
+            CaptureKind::ScreenshotApp
+        );
+        assert_eq!(
+            resolve_capture_kind(true, false, false, false, false),
+            CaptureKind::Screenshot
+        );
     }
 
     #[test]

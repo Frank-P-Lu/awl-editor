@@ -102,6 +102,36 @@ pub(super) fn parse_measure(s: &str) -> Result<usize> {
     Ok(n)
 }
 
+/// Resolve the [`CaptureKind`] a parsed command line selects, from the exact
+/// booleans `parse_args` already derived from its flags. Pulled out of
+/// `parse_args` itself (rather than left as an inline `if`/`else if` chain) so
+/// growing this precedence — as `--screenshot-app` just did — costs this
+/// function a branch, not `parse_args` a clippy exception. The precedence
+/// mirrors the `Mode` construction below it: held > timeline > motion >
+/// screenshot-app > plain screenshot; no output path at all means the
+/// windowed editor.
+pub(super) fn resolve_capture_kind(
+    has_out: bool,
+    held: bool,
+    timeline: bool,
+    motion: bool,
+    screenshot_app: bool,
+) -> CaptureKind {
+    if !has_out {
+        CaptureKind::Windowed
+    } else if held {
+        CaptureKind::Held
+    } else if timeline {
+        CaptureKind::Timeline
+    } else if motion {
+        CaptureKind::Motion
+    } else if screenshot_app {
+        CaptureKind::ScreenshotApp
+    } else {
+        CaptureKind::Screenshot
+    }
+}
+
 /// The capture mode resolved from the CLI flags, used ONLY to decide which
 /// verification hooks the run honors (the real `Mode` is built separately). The
 /// precedence mirrors the `Mode` construction below: held > timeline > motion >
