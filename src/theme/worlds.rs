@@ -638,7 +638,18 @@ pub const GALAH: Theme = Theme {
         weave: Weave::Fibres,
         period_px: 64.0,
         wander_px: 8.0,
-        density: 0.10,
+        // item 118: "up it a tinnyyy bit" (the user's own words) off the
+        // shipped 0.10, pinned to the smallest step that reads as different
+        // in a real capture rather than an arbitrary pick inside the
+        // 0.12-0.16 neighbourhood the user gave. Measured against the
+        // shipped 0.10 render at 1600x1000/measure 70: one rung down at 0.11
+        // stays inside 8-bit quantization noise (max right-margin luminance
+        // delta 1.9, zero pixels crossing the repo's own EDGE_DELTA=3 mark
+        // floor); 0.12 is the first rung where a real capture differs by
+        // more than that floor (max delta 3.7, 0.18% of margin pixels cross
+        // it). `galah_density_lands_in_the_pinned_up_a_tinny_bit_band` below
+        // holds the band; docs/loudness-map.md carries the full arithmetic.
+        density: 0.12,
     },
     font: "Figtree",
     mono: "IBM Plex Mono",
