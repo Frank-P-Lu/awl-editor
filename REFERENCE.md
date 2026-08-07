@@ -86,7 +86,7 @@ Commands are grouped by the same task categories the palette browses.
 | Next line | Move the caret down one visual line, following soft wraps and a sticky goal column. | `C-n` | — | Native, browser |
 | Previous line | Move the caret up one visual line, following soft wraps and a sticky goal column. | `C-p` | — | Native, browser |
 | Delete word forward | Delete the token after the caret (a word or punctuation run) into the kill buffer; deletes the selection instead if one is active. | — | — | Native, browser |
-| Delete word backward | Delete the word before the caret into the kill buffer; deletes the selection instead if one is active. | — | — | Native, browser |
+| Delete word backward | Delete the token before the caret (a word or punctuation run) into the kill buffer; deletes the selection instead if one is active. | — | — | Native, browser |
 
 ### Format
 

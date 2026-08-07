@@ -425,7 +425,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Delete the word before the caret into the kill buffer; deletes the selection instead if one is active."),
+        description: Some("Delete the token before the caret (a word or punctuation run) into the kill buffer; deletes the selection instead if one is active."),
     },
     Command {
         name: "Settings…",
