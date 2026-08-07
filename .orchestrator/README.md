@@ -610,6 +610,21 @@ compile later.
 A failed `main` CI run becomes the top-priority `CI RED` item with the run URL
 and first known bad commit, and blocks further integration.
 
+‼ **THE RUN'S CONCLUSION IS NOT THE GATE'S VERDICT, AND A TOLERATED-RED JOB CAN
+MAKE A FULLY GREEN TRAIN READ `cancelled`.** Measured 2026-08-07 on `ba292f75`:
+the run's conclusion was `cancelled` while **all four gating jobs succeeded**
+(`linux (build + test)`, `web`, `mac live-probe`, `mac (build + test, minus
+render::tests)`). The cause was `atspi` — a job pinned tolerated-red — running
+**30m20s** into its `timeout-minutes: 30` ceiling: `continue-on-error` keeps a
+job's *failure* from failing the run, but it does not keep a **timed-out** job
+from cancelling the run's conclusion. So the roll-up field cannot distinguish
+"a gating job died" from "an allowed-failure job ran the clock out." **Read the
+per-job conclusions — `gh run view <id> --json jobs` — and check them against
+the workflow's own list of gating jobs. Never authorize a push, or open a `CI
+RED` item, off the run-level conclusion alone.** (The same reading also
+surfaces a real cost: `atspi` used to fail fast and now times out, which is
+worth its own note on the item that owns it.)
+
 ‼ **A PUSH MUST NEVER SHARE A SHELL CHAIN WITH THE CHECK THAT AUTHORIZES IT.**
 Measured 2026-08-07: three gates and a `git push` went into one command block as
 separate statements, so each printed its own `EXIT=`, the health arm printed

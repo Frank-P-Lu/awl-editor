@@ -171,6 +171,38 @@ well as here — **this item has already been answered twice by the user because
 decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
+- 🔵 **318's SHAPE IS THE ONE TO LOOK AT FIRST — it is your own call, delivered.**
+  `gallery/item-318/before-Mangrove.png` → `after-Mangrove.png`, the world you photographed.
+  Before, the blurred patch has vertical left and right edges; after, `ver. The`, `, while`, `is`
+  go sharp at the top right and `words`, `in shape`, `beside` go sharp at the bottom left — **both
+  raking edges translate with the spine.** `before-Magpie.png` → `after-Magpie.png` is the mirror.
+  Pixel-verified: the difference is **exactly two triangles**, widening monotonically away from the
+  card's vertical centre and mirrored between rake directions (Mangrove 31787px, Magpie 30436px).
+  ⚠️ **ONE QUESTION LEFT, AND NOTHING WAITS ON IT: does a mirrored composition's QUERY FIELD mirror
+  like its rows?** This is 313's terminus question one band over. The shape is a parallelogram on
+  all three worlds either way. **The cost if you say yes:** Magpie's frost box currently extends
+  **43.15 logical px past its card** on one face purely to seat the upright field — that widening
+  disappears if the field mirrors. **The cost of the mechanism that would do it** is the one the
+  lane refused unbriefed: the field moves +461px and right-aligns, so its `›` sigil would travel
+  leftward as you type. **If you want the field mirrored, it needs its own design, not 313's.**
+- 🔵 **MULGA WANTS A NUMBER FROM YOU (item 118).** Its `1/5` was scored against a ground that
+  no longer exists — item 258 replaced `Starfield` with `Pinstripe`. Re-measured, deliberately not
+  re-scored: it now sits **above every current 1/5 world** on two contrast columns and is
+  **statistically identical to Cassowary (4/5)** on two others, while reading gentler than
+  Cassowary does (a third its lightness swing, and no accent-coloured ink). **A fresh `1` does not
+  match the arithmetic; `2`–`4` fits and the number is yours.**
+  `gallery/item-118/mulga-neighbourhood/` puts it beside every `1/5` world plus Cassowary and
+  Saltpan at one arm.
+- 🔵 **GALAH IS ALREADY A TINNY BIT LOUDER (item 118) — shipped, not proposed.** `0.10 → 0.12`,
+  the smallest step in the band you pinned that a capture can actually tell apart (`0.11` sits
+  inside 8-bit quantization noise). **Worth a live `--theme Galah` glance** to confirm it reads as
+  "a tinny bit" and not as a rebalance. `gallery/item-118/galah-density/`.
+- 🔵 **THE NEAR-PAIR MERGE CALL IS YOURS (item 118), and one of its premises just died.**
+  ROADMAP asks to merge the tightest near-pair; item 118 declined to execute it, because merging a
+  world removes something a user may have chosen. ⚠️ **The Magpie/Saltpan pairing that call named
+  is stale** — item 260 moved Magpie onto `Bands` the same day 258 moved Mulga. The genuinely
+  tightest surviving pair is **Tawny/Mopoke** (same `Dots{edge:false}`, edge 0.0000 both, L* σ
+  within 0.15). **Bilby/Brolga is a deliberate mirror per THEMES.md and is not a duplicate.**
 
 - 🔵 **321 CHANGES THE MENU BAR ON EVERY NON-macOS HOST — the authored value, finally honoured.**
   The drawn bar (the default off macOS, and on the web) now holds a constant **35.6 logical px**
@@ -560,7 +592,46 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
 
 ## Open items
 
-118. 🚧 CLAIMED (worktree item-118-loudness, production tier) **Pre-release world-loudness audit.** **Audit definition:** "idle loudness"
+118. ✅ **LANDED (merged 2026-08-07) — the six proposals are dispositioned, Galah shipped, and
+     the map is durable data. TWO THINGS ARE OWED TO THE USER AND NOTHING ELSE REMAINS.**
+     🔵 **MULGA'S RE-SCORE IS THE USER'S** — re-measured, deliberately not re-scored. Item 258
+     retired the `Starfield` its `1/5` described; it ships `Pinstripe` now, the same shader family
+     as Saltpan and Cassowary. **A different instrument than the one the 1 was scored against.**
+     Mulga sits **above every current 1/5 world** on `g_sdL` (3.63 vs ≈1.6) and `g_sd_lp` (4.3 vs
+     ≈1.8–2.0), with `g_edge` **0.2222 and `g_sd_lp` 4.3 — statistically identical to
+     Cassowary's**, a world scored `4/5`. Not the same read, though: its `g_sdL` is a THIRD of
+     Cassowary's and its ink is not accent-coloured, so it reads as tone-on-tone ribbing rather
+     than a hard ruled pinstripe. Stable across all four arms (±0.02). **A fresh `1` no longer
+     matches the arithmetic; somewhere in `2`–`4` fits, and which number is the user's.**
+     Captures: `gallery/item-118/mulga-neighbourhood/`.
+     🔵 **GALAH'S NEW DENSITY IS SHIPPED, NOT PROPOSED** — `0.10 → 0.12`, the smallest step in
+     the user's own pinned `0.12`–`0.16` band that a real capture can tell apart. **The rung below
+     is what makes it a threshold rather than a pick:** at `0.11` the max right-margin luminance
+     delta is 1.9 with **zero** pixels crossing the repo's `EDGE_DELTA=3` floor; at `0.12` it is
+     3.7 with 0.18% crossing. Worth a live `--theme Galah` glance to confirm "a tinny bit" reads
+     as intended rather than as a rebalance.
+     ✅ **ITEM 108 MET ITS OWN DONE CONDITION AND STILL LEFT ITS SUBJECT IN THE QUIET BAND** —
+     both its guarding laws pass, but roster-relative Gumtree remains the **second-faintest ground
+     of twenty** by `g_sdL` (0.93). Doubling density took it from imperceptible to floor-clearing,
+     not out of the quiet end. **This is why Galah's step was measured from scratch rather than
+     reusing 108's recipe.**
+     ✅ **THE NEAR-PAIR MERGE CALL GOES TO THE USER, NOT DONE** — merging a world removes
+     something a user may have chosen. ⚠️ **And the pairing that call NAMED is itself stale in
+     exactly Mulga's way:** item 260 moved Magpie off `Pinstripe` onto `Bands` **the same day** 258
+     moved Mulga, so the inherited "edge 0.4444 on both" note describes a ground Magpie no longer
+     ships. The note is retired.
+     ✅ **THAT STALENESS CLASS NOW FAILS A TEST INSTEAD OF SURVIVING A ROUND.**
+     `docs/loudness-map.md` carries the map and its arithmetic, and a drift anchor snapshots every
+     world's ground byte-exactly, **naming the world that moved** — mutation-proven by retinting
+     Mulga's `tint`. The Firetail/Mangrove inversion is recorded closed per the user.
+     ⚠️ **TWO CORRECTIONS MADE AT MERGE, both worth reading.** The density sweep's doc claimed its
+     enrolment was **derived** from `Background::density()`; the code re-listed four variants, and
+     `density()` ends in `_ => 0.0` — so routing through it would let a new density-bearing variant
+     answer "no density" and leave the sweep **silently**. Now an exhaustive match that fails to
+     COMPILE. And **the lane lost its report to a background gate, so its mutation proof arrived as
+     a claim with no panic text** — re-run at merge: reverting to `0.10` fails
+     `galah_density_lands_in_the_pinned_up_a_tinny_bit_band` by name.
+     **Original:** **Pre-release world-loudness audit.** **Audit definition:** "idle loudness"
      is how strongly a world asks for attention while the user is simply writing
      in page mode: palette, typography, margin pattern, and ambient motion count;
      summoned overlays do not. `1/5` is the quiet pole (Wagtail), `3/5` is
@@ -1709,7 +1780,54 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      **Routing:** production tier. ⚠️ Touches `src/render/tests/**` broadly — schedule against
      a quiet tree.
 
-318. 🚧 CLAIMED (worktree item-318-parallelogram, deep tier) **USER-REPORTED AND USER-DECIDED 2026-08-07 — THE FROST STILL READS AS A RECTANGLE
+318. ✅ **LANDED (merged 2026-08-07) — THE FROST IS A PARALLELOGRAM ON ALL THREE ENROLLED
+     WORLDS, AND THE ROUTE WAS NEITHER OF THE TWO THE BRIEF OFFERED.** `footprint_dist_outside`
+     was `upright.min(leaning)`, a union whose upright term was the card's whole box, so a
+     parallelogram was impossible by construction at any shear. The lane BUILT the principled
+     route (an independent `left` for the query line, 313's mechanism) and **backed it out**: that
+     mechanism seats the field via the same `ColumnFlow` mirror the rows use, moving it **+461
+     logical px** and right-aligning it — a text input whose `›` sigil travels leftward as the
+     user types. An unbriefed product change to an input field, correctly refused. Instead the
+     coverage duty left the MASK and moved into the SHAPE'S OWN WIDTH: the mask asks the sheared
+     box alone and `footprint_box` widens the footprint's **rect** until the parallelogram contains
+     the card's upright chrome. **Widening a parallelogram leaves a parallelogram**, so the
+     silhouette pays nothing, no chrome moves, and `overlay_card_rect` and the pointer hit region
+     are untouched. The clickable band never needed to move — that briefed premise was wrong too,
+     because the clamp keeps the field inside the band the hit-test already accepts.
+     ⚠️ **TWO OF THE THREE BRIEFED PREMISES WERE FALSE AND BOTH WERE THE ORCHESTRATOR'S.** The query
+     band is not above the frosted region — it sits **12 logical px INSIDE the card's top edge**,
+     so the floor's last named subject was inside the shape and the floor had not retired on its
+     own. And the "+12 descending" figure was **the card's own TOP EDGE**, a vertical clearance
+     that says nothing about the rake; the real horizontal clearances are **69.62/84.34** for the
+     foot and **43.15 outside** on ascending. `docs/render.md` repaired. Premise (a) held —
+     Mangrove confirmed from the roster, not the image.
+     ✅ **HOW A PARALLELOGRAM WAS DISTINGUISHED FROM A RECTANGLE NUMERICALLY**, which is the part
+     worth reusing: (1) both faces translate by the same `shear×(py−cy)` so the span's WIDTH is
+     constant — the union moved one face at a time, so its span WIDENED away from the centre row;
+     (2) frosted area falls short of its own bounding box by the two triangular corners
+     `|shear|·h²` — zero for a rectangle, and zero for the union. In pixels: exactly two of the
+     CARD's own corners short of full frost with real sharp document showing through, against
+     **exactly zero** under the union. Presence floors kept: frosted area still `w×h` within 2%,
+     head-band coverage measured **1.0000** against a **0.9** floor, zero document edges behind
+     the band. 1×/2× and **both menu-bar arms** — the bar's 35.6px reserve moves the band's y
+     from 64.0 to 99.6, so that arm is not decorative.
+     ⚠️ **THE CORNER LAW WAS GREEN UNDER ITS OWN MUTATION ON FIRST WRITE** — aimed at the SHAPE's
+     bounding box, whose off-rake corners the union's ears reach identically. Re-aimed at the
+     CARD's box (a union always contains it) it goes red: *"this shape leaves []. ZERO of them is
+     the rectangle the user photographed"*.
+     ✅ **THREE DEFECTS FOUND BEYOND THE BRIEF.** 312's ramp law was **profiling the union's face
+     rather than the drawn one**, off by up to `|shear|·h/2` on half of every leaning card —
+     `footprint_face_x` is now the single owner (and the ten lines that bought back a tightened
+     clippy exception). 294's `card_ink_mask` **is a veto and does not invert into an inclusion
+     set**: its "blur of a blank page" premise holds only where the frost reaches, so it reported
+     card ink 52 rows above the card, and intersecting it selects ground structure under the
+     card's SHADOW (4004px Mangrove, 19584 Magpie, 8 Paperbark). Both oracles falsified on first
+     run. Card ink ~42px outside `overlay_card_rect` on the diagonal worlds is **pre-existing and
+     unchanged here** — filed to item 319.
+     Byte-identical: Paperbark (enrolled, `Rules`, shear 0), Wagtail, Galah, Quokka. Mangrove and
+     Magpie differ by design and their **sidecars are identical** — appearance, not state.
+     `Frost::Full` holds via `the_full_frosts_composite_is_destination_independent`.
+     **Original:** **THE FROST STILL READS AS A RECTANGLE
      UNDER A LEANING LIST, AND THE USER HAS CALLED THE SHAPE: IT MUST READ AS A
      PARALLELOGRAM.** A live screenshot of the theme picker over a `Diagonal` world: the
      frosted patch is an upright box while every row, the spine and the foot inside it rake.
@@ -1781,7 +1899,11 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      left contradicting the code. **Routing:** production tier, then the user for the live
      `--release` look — the final read is taste and no capture claims it.
 
-319. **THE FOOT BAND'S INK ALREADY EXCEEDS THE CARD'S TEXT COLUMN AND IS CLIPPED — pre-existing,
+319. ✅ **ITEM 318 ADDED A SECOND, MEASURED INSTANCE: card ink exists ~42 logical px OUTSIDE
+     `overlay_card_rect` on both diagonal worlds** (found at `(1102, 344)`, mask 0.03 **both before
+     and after** 318 — so it is pre-existing and 318 changed nothing about it). That makes this
+     item's subject two independent overflows of the same card, not one, and both were found by
+     laws written for something else. **THE FOOT BAND'S INK ALREADY EXCEEDS THE CARD'S TEXT COLUMN AND IS CLIPPED — pre-existing,
      and a no-clip law does not cover those cells.** Found by item 313 while leaning it, and
      deliberately left exactly where it was found. Measured: **Mangrove/Command at 1200px is
      434px of ink in a 496px column** *including* the Keybindings tips, and Mangrove's theme
@@ -1926,6 +2048,48 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ⚠️ It is a product/taste call about the accessory cluster's width budget — items 318/319's
      neighbourhood — so **sequence with them and put the budget question to the user.**
      **Routing:** production tier, then the user.
+
+328. **`Background::density()` IS AN OWNER THAT ANSWERS "NO DENSITY" FOR A GROUND THAT HAS ONE.**
+     `theme/ground.rs:365` ends in `_ => 0.0`, so a new density-bearing `Background` variant
+     compiles, ships, and reads as density **zero** through the one accessor every consumer asks.
+     Found by item 118 while building the density sweep: the sweep's enrolment could not route
+     through this owner *because* of the wildcard, and had to spell an exhaustive match of its own
+     to stay honest — **the enrolment is now more truthful than the accessor it was supposed to
+     derive from**, which is the wrong way round.
+     ✅ **Build:** make the arms exhaustive (return `Option<f32>`, or a `match` with no wildcard so
+     a new variant fails to compile). `with_half_density` in `render/tests/backgrounds_item158.rs`
+     is the shape to copy — it is already exhaustive for exactly this reason.
+     ⚠️ **`density()`'s callers may rely on the `0.0` for non-density grounds**, so this is a
+     read-every-caller change, not a signature flip. Grep before deciding the return type.
+     **Verify:** a law with a no-wildcard match, and check the sweep in
+     `backgrounds_item158.rs` can then be simplified to ask the owner. **Routing:** production tier.
+
+329. **294's `card_ink_mask` IS A VETO AND DOES NOT INVERT INTO AN INCLUSION SET — two frost
+     oracles were falsified on first contact.** Measured by item 318. Its "a blur of a blank page"
+     premise holds only **where the frost actually reaches**, so as an inclusion set it reported
+     card ink **52 rows above the card**; and intersecting it with an open-vs-closed difference
+     then selects ground structure under the card's **SHADOW** (4004px Mangrove, 19584 Magpie, 8
+     Paperbark — note the third is nearly clean, so a one-world check would have missed it).
+     318's own laws were re-aimed at the production owner's declared box instead. **This item is
+     the remaining audit:** find every other reader that treats this mask as "where the card is"
+     rather than "where the card is not", since two of the first two examined were wrong.
+     ⚠️ **This is an ORACLE defect, not a product defect** — nothing a user sees is wrong, so the
+     close condition is "every caller checked and the mask's contract documented at its
+     definition", not a pixel change. **Routing:** production tier.
+
+330. **`atspi` NOW TIMES OUT RATHER THAN FAILING FAST, AND IT MAKES A GREEN TRAIN READ
+     `cancelled`.** Measured 2026-08-07 on `ba292f75`: `atspi` ran **30m20s** into its
+     `timeout-minutes: 30`, and because a **timed-out** job cancels the run's conclusion even under
+     `continue-on-error`, the run reported `cancelled` while **all four gating jobs succeeded**.
+     It used to fail fast. ⚠️ **The orchestration hazard is recorded in `.orchestrator/README.md`
+     (read per-job conclusions, never the roll-up), so this item is the COST, not the confusion:**
+     a tolerated-red job burning 30 minutes of every run is 30 minutes CI cannot spend on the
+     `linux` job that is the only real-Linux arm, and `linux` has hit its own ceiling before.
+     ✅ **Build:** either make the probe fail fast again (it is asserting on a bridge that is
+     absent, which should be answerable in seconds) or lower its `timeout-minutes` so it cannot
+     dominate a run. **Do not simply delete the job** — item 252's bridge liveness is the thing it
+     exists to watch. ⚠️ Note item 257 already owns the *failure*; this is about its DURATION.
+     **Routing:** production tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
