@@ -231,33 +231,37 @@ pub(in crate::render) fn fit_item_rows(
     fit_lines.saturating_sub(overhead_rows).max(min_items)
 }
 
-/// A SECTIONED card's item cap: like [`fit_item_rows`], but the section
-/// HEADERS are charged for the window that will actually be shown rather than
-/// for the whole list.
+/// A SECTIONED card's item cap: [`fit_item_rows`]'s answer, except that an
+/// answer of ZERO is re-derived with the section headers billed TIGHTLY before
+/// it is accepted.
 ///
-/// **A HEADER IS NOT OVERHEAD UNTIL AN IN-WINDOW ITEM SUMMONS IT.**
-/// `window_plan` emits a header only ahead of the first SURVIVING item of a
-/// section, so a window of `k` items can never carry more than `k` headers —
-/// nor more than `total_headers`, the number the whole plan has. Charging all
-/// `total_headers` against a window that will show two of twenty-four items
-/// bills the budget for headers no one will draw, and at a small canvas the
-/// over-charge is the whole budget: a 900x460 canvas with the menu bar's own
-/// vertical reserve taken out fits 7 display lines, spends 4 on the query
-/// line, the lens strip, the hint and its separator, and then pays 3 more for
-/// sections it has no room to reach — leaving zero item rows in a card that
-/// still has 180px of unused canvas beneath it.
+/// **THE `total_headers` CHARGE IS AN UPPER BOUND, NOT A COST.** `window_plan`
+/// emits a header only ahead of the first SURVIVING item of a section, so a
+/// window of `k` items can carry at most `k` headers — and at most
+/// `total_headers`, the number the whole plan has. Charging every section
+/// against a window that will show two of twenty-four items bills the budget
+/// for headers no one will draw. That is harmless while the budget is roomy: a
+/// conservative charge only ever costs a row nobody misses, and re-billing it
+/// tightly EVERYWHERE would move shipped row counts on cards that already work
+/// (including item 293's contract that a hint costs exactly two rows of the
+/// candidate window). It is not harmless at the one outcome that is never
+/// acceptable — a card that plans NO candidate rows at all. A 900x460 canvas
+/// with the drawn menu bar's own vertical reserve taken out fits 7 display
+/// lines, spends 4 on the query line, the lens strip, the hint and its
+/// separator, and pays the last 3 for sections it has no room to reach: zero
+/// item rows in a 192px card inside a 460px canvas.
 ///
-/// So this solves for the largest `k` satisfying
-/// `chrome_rows + min(k, total_headers) + k <= fit_lines`, which is exactly
-/// `fit_item_rows`'s answer whenever the budget is roomy enough for every
-/// section (`budget >= 2 * total_headers`) and strictly more generous below
-/// it. The bound is never optimistic — `min(k, total_headers)` is an upper
-/// bound on the headers the window can carry — so the card it sizes still
-/// cannot outgrow `avail_px`.
+/// So the tight bound is a FLOOR, engaged only there. It is the largest `k`
+/// satisfying `chrome_rows + min(k, total_headers) + k <= fit_lines`, which
+/// where the conservative charge already zeroed the band (`budget <=
+/// total_headers`) is `budget / 2`. It is never optimistic — `min(k,
+/// total_headers)` bounds the headers the window can carry — so the card it
+/// sizes still cannot outgrow `avail_px`.
 ///
-/// `min_items` keeps the grouped family's own floor (item 184's `0`): where
-/// the fixed chrome ALONE already exceeds the budget there is still nothing a
-/// row count can do, and an empty band beats overrunning the canvas.
+/// `min_items` keeps the grouped family's own floor (item 184's `0`): where the
+/// fixed chrome ALONE already exceeds the budget, no row count can help and an
+/// empty band beats overrunning the canvas. That degradation is preserved
+/// exactly; what this removes is the case where it fired with room to spare.
 pub(in crate::render) fn fit_sectioned_item_rows(
     avail_px: f32,
     lh: f32,
@@ -268,14 +272,12 @@ pub(in crate::render) fn fit_sectioned_item_rows(
     if lh <= 0.0 {
         return min_items;
     }
+    let conservative = fit_item_rows(avail_px, lh, chrome_rows + total_headers, min_items);
+    if conservative > 0 {
+        return conservative;
+    }
     let fit_lines = (avail_px / lh).floor() as usize;
-    let budget = fit_lines.saturating_sub(chrome_rows);
-    let k = if budget >= 2 * total_headers {
-        budget - total_headers
-    } else {
-        budget / 2
-    };
-    k.max(min_items)
+    (fit_lines.saturating_sub(chrome_rows) / 2).max(min_items)
 }
 
 /// TEST-ONLY: the planned top of candidate display row `row` for a card with

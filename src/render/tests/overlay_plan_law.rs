@@ -234,9 +234,18 @@ fn assert_sidecar_matches_plan(
 }
 
 /// THE HEADLINE LAW. For every planned row of every picker kind, in both list
-/// styles, at four window geometries and both DPIs: the SHAPED glyph line sits in
-/// the planned slot, the pointer hit-test at that slot's own centre accepts that
-/// row's own item, and the sidecar reports the planned window.
+/// styles, at four window geometries, both DPIs and BOTH MENU-BAR STATES: the
+/// SHAPED glyph line sits in the planned slot, the pointer hit-test at that
+/// slot's own centre accepts that row's own item, and the sidecar reports the
+/// planned window.
+///
+/// **THE MENU-BAR AXIS IS NOT DECORATION.** `menubar::MENU_BAR_ON` initialises
+/// to `false` on macOS and `true` on every other platform, and the drawn bar
+/// takes a vertical reserve off the top of every card's own height budget
+/// (`menubar_reserve`, folded into `card_y`). So this sweep ran the macOS half
+/// only, for its whole life, on the host that authors it — and its own
+/// `candidate_rows() > 0` guard fired for the first time in CI's Linux job,
+/// against a card the reserve had starved to an empty band.
 #[test]
 fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind() {
     let _g = crate::testlock::serial();
@@ -247,6 +256,11 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
         return;
     };
 
+    // The AMBIENT value, never `cfg!(target_os = ...)`: a `cfg!` inside a test
+    // reports the host that COMPILED it rather than the branch the initialiser
+    // actually took, so a restore written that way restores the wrong value
+    // under any forcing of that initialiser.
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
     let styles: [(&str, Option<theme::ListStyle>); 2] = [
         ("pane", Some(theme::ListStyle::Pane)),
         ("bars", Some(theme::ListStyle::Bars)),
@@ -287,36 +301,44 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
             Family::Contextual => 2,
         }
     };
-    for dpi in [1.0f32, 2.0] {
-        p.set_dpi(dpi);
-        for (sname, style) in styles {
-            crate::render::set_list_style_test_override(style);
-            for (lw, lh) in canvases {
-                let (cw, ch) = ((lw as f32 * dpi) as u32, (lh as f32 * dpi) as u32);
-                p.set_size(cw as f32, ch as f32);
-                for kind in OverlayKind::ALL {
-                    let fam = family(kind);
-                    let v = overlay_view(kind, 24);
-                    p.set_view(&v);
-                    p.prepare(&device, &queue, cw, ch).unwrap();
+    let mut rows_by_bar = [0usize; 2];
+    for bar in [false, true] {
+        crate::menubar::set_menu_bar_on(bar);
+        for dpi in [1.0f32, 2.0] {
+            p.set_dpi(dpi);
+            for (sname, style) in styles {
+                crate::render::set_list_style_test_override(style);
+                for (lw, lh) in canvases {
+                    let (cw, ch) = ((lw as f32 * dpi) as u32, (lh as f32 * dpi) as u32);
+                    p.set_size(cw as f32, ch as f32);
+                    for kind in OverlayKind::ALL {
+                        let fam = family(kind);
+                        let v = overlay_view(kind, 24);
+                        p.set_view(&v);
+                        p.prepare(&device, &queue, cw, ch).unwrap();
 
-                    let geom = p.overlay_geometry(cw);
-                    let plan = p.overlay_row_plan(&geom);
-                    let probe = p.overlay_row_y_probe();
-                    let ctx = format!("{kind:?}/{fam:?} dpi={dpi} list={sname} canvas={cw}x{ch}");
+                        let geom = p.overlay_geometry(cw);
+                        let plan = p.overlay_row_plan(&geom);
+                        let probe = p.overlay_row_y_probe();
+                        let ctx = format!(
+                            "{kind:?}/{fam:?} dpi={dpi} list={sname} canvas={cw}x{ch} menu_bar={bar}"
+                        );
 
-                    assert_faceted_state_matches_production(&p, &geom, kind, fam, &ctx);
-                    assert_sidecar_matches_plan(&p, &plan, &v, &ctx);
+                        assert_faceted_state_matches_production(&p, &geom, kind, fam, &ctx);
+                        assert_sidecar_matches_plan(&p, &plan, &v, &ctx);
 
-                    let (rows, headers) = grade_rows(&p, &plan, &probe, &ctx);
-                    checked_rows += rows;
-                    checked_headers += headers;
-                    rows_by_family[fam_idx(fam)] += rows;
-                    headers_by_family[fam_idx(fam)] += headers;
+                        let (rows, headers) = grade_rows(&p, &plan, &probe, &ctx);
+                        checked_rows += rows;
+                        checked_headers += headers;
+                        rows_by_family[fam_idx(fam)] += rows;
+                        headers_by_family[fam_idx(fam)] += headers;
+                        rows_by_bar[usize::from(bar)] += rows;
+                    }
                 }
             }
         }
     }
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
     crate::render::set_list_style_test_override(None);
     crate::render::set_bar_config_test_override(None);
     p.set_dpi(1.0);
@@ -326,6 +348,17 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
         checked_rows > 500,
         "the sweep must actually grade hundreds of item rows, got {checked_rows}"
     );
+    // PER MENU-BAR STATE, not an aggregate: an aggregate floor is satisfied by
+    // the macOS half grading everything while the Linux half grades nothing —
+    // exactly the coverage hole this axis was added to close.
+    for (i, n) in rows_by_bar.iter().enumerate() {
+        assert!(
+            *n > 200,
+            "the sweep graded {n} item rows with menu_bar={} — its half of the \
+             menu-bar axis is vacuous (both: {rows_by_bar:?})",
+            i == 1
+        );
+    }
     assert!(
         checked_headers > 0,
         "the sweep must include the grouped family's section HEADER lines (which accept \

@@ -32,6 +32,15 @@ impl TextPipeline {
             .min(fit_item_rows(avail_px, lh, overhead_rows, min_items))
     }
 
+    /// TEST-ONLY: the bottom MARGIN a card contractually leaves below itself.
+    /// That strip is canvas the card may never spend, so a law asking whether
+    /// an EMPTY candidate band was forced by the canvas must not count it as
+    /// free room — the two rows such a band is missing have to fit above it.
+    #[cfg(test)]
+    pub(in crate::render) fn overlay_card_margin(&self) -> f32 {
+        self.metrics.px(super::overlay::CARD_MARGIN)
+    }
+
     /// The GROUPED family's counterpart, routed through
     /// [`fit_sectioned_item_rows`] so its own section headers are charged for
     /// the window that will actually be drawn rather than for every section in
