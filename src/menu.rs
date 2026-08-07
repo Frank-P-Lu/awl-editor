@@ -855,9 +855,9 @@ mod tests {
                 "Version history…",
                 "Save",
                 "Save and return",
-                "Export as PDF",
-                "Export as Word",
-                "Export as HTML",
+                "Export as PDF…",
+                "Export as Word…",
+                "Export as HTML…",
             ]
         );
     }
@@ -908,8 +908,12 @@ mod tests {
     /// rows below, each a deliberate, named divergence: the macOS App-menu
     /// convention (`awl.about` / `awl.quit` append "Awl"), a shorter File-menu
     /// phrasing for the same command (`awl.switch_project` and friends), and
-    /// the three Export rows, whose File-menu label drops the catalog name's
-    /// ellipsis (`menu::ellipsis_law` owns why). This is a real law for
+    /// a shorter File-menu phrasing for the same command. The three Export rows
+    /// are deliberately NOT here any more: their label carried a divergence only
+    /// while they completed on the spot, and now that they open a destination
+    /// surface the label is the catalog name again (`menu::ellipsis_law` owns
+    /// why), so the list has to shrink or the law would demand a difference that
+    /// no longer exists. This is a real law for
     /// File/Edit/View (a typo there would silently diverge the menu from the
     /// palette), narrowed by name rather than left open.
     #[test]
@@ -924,9 +928,6 @@ mod tests {
             "awl.duplicate_file",
             "awl.finish_buffer",
             "awl.page_width_settings",
-            "awl.export_pdf",
-            "awl.export_word",
-            "awl.export_html",
         ];
         for menu in roster() {
             for item in dropdown_items(&menu) {
@@ -1022,8 +1023,8 @@ mod tests {
                 "Move file…",
                 "Duplicate file",
                 "Save",
-                "Export as Word",
-                "Export as HTML",
+                "Export as Word…",
+                "Export as HTML…",
             ]
         );
     }

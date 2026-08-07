@@ -78,7 +78,6 @@ fn roster() -> Vec<Effect> {
         Effect::ReportProblem,
         Effect::DownloadFile,
         Effect::Export(crate::export::Format::Docx, None),
-        Effect::Export(crate::export::Format::Html, Some("out".into())),
         Effect::CheckForUpdates,
         Effect::CopyPulse,
         Effect::SettingToggle {
