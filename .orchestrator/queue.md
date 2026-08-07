@@ -977,11 +977,11 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      🔵 **(4) IS BLOCKED, correctly reported rather than routed around:** an in-app
      door needs a new arm in `src/actions.rs` and `src/app/apply.rs`. Sequence it
      behind any lane holding those.
-     🟡 **(2) IN PROGRESS — claude, branch `claude/item-273r2-command-descriptions`.**
+     ✅ **(2) CLOSED (merged 2026-08-07).** `Command` carries `description: Option<&'static str>` with **no `Default` impl**, so all 96 literals had to write the arm — the compiler enumerated the work instead of a law chasing it.
      🔵 **(2) IS ITS OWN ITEM, not a residual.** `Command` gaining a description
      means authoring 93 accurate one-liners under the docs-voice rule ("facts traced
      to verified sources") — larger than (3) and (5) combined.
-     🔵 **(1) needs `main/args.rs` restructured** — 61 flags hand-parsed in one
+     🚧 **(1) CLAIMED (worktree item-273r1-flag-roster, deep tier) — needs `main/args.rs` restructured** — 61 flags hand-parsed in one
      `match`, in a file already carrying size and complexity exceptions.
      🔵 **OWED TO THE USER'S EYE:** the WORLDS.md correction makes several worlds
      visibly sparser (Mulga now shows Register alone, Tawny Register+Temp). The doc
@@ -1907,7 +1907,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      left contradicting the code. **Routing:** production tier, then the user for the live
      `--release` look — the final read is taste and no capture claims it.
 
-319. ✅ **ITEM 318 ADDED A SECOND, MEASURED INSTANCE: card ink exists ~42 logical px OUTSIDE
+319. **STILL OPEN — and item 318 added a SECOND, MEASURED INSTANCE: card ink exists ~42 logical px OUTSIDE
      `overlay_card_rect` on both diagonal worlds** (found at `(1102, 344)`, mask 0.03 **both before
      and after** 318 — so it is pre-existing and 318 changed nothing about it). That makes this
      item's subject two independent overflows of the same card, not one, and both were found by
