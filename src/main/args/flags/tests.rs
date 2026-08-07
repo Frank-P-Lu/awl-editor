@@ -311,7 +311,7 @@ fn the_worlds_token_expands_only_where_the_roster_writes_it() {
     );
     for name in crate::theme::world_names() {
         assert!(
-            expanded.contains(&name),
+            expanded.contains(name),
             "the expanded --theme description omits the world `{name}`"
         );
     }

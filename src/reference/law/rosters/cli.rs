@@ -243,18 +243,21 @@ fn the_menu_bar_default_really_differs_by_platform_as_its_description_claims() {
         text.contains("default on web/Linux, off on macOS"),
         "--menu-bar's description stopped stating the per-platform default: {text}"
     );
-    assert!(
-        crate::menubar::MENU_BAR_DEFAULT_OTHER,
-        "the description says the bar is ON off-macOS"
-    );
-    assert!(
-        !crate::menubar::MENU_BAR_DEFAULT_MACOS,
-        "the description says the bar is OFF on macOS"
-    );
-    assert_ne!(
+    // Read as a PAIR rather than asserted one const at a time: `assert!(CONST)`
+    // is a constant assertion clippy refuses, and the pair is the claim anyway.
+    let defaults = (
         crate::menubar::MENU_BAR_DEFAULT_MACOS,
         crate::menubar::MENU_BAR_DEFAULT_OTHER,
-        "the description's whole content is that these two DIFFER"
+    );
+    assert_ne!(
+        defaults.0, defaults.1,
+        "the description's whole content is that macOS and everywhere else DIFFER"
+    );
+    assert_eq!(
+        defaults,
+        (false, true),
+        "the description says the bar is off on macOS and on everywhere else; \
+         `menubar`'s own consts now say (macos, other) = {defaults:?}"
     );
 }
 
