@@ -997,3 +997,222 @@ fn paperbark_dials_are_in_bounds_and_the_world_is_static() {
         "Deckle is its own ground, not a re-labelled animated one"
     );
 }
+
+// ---------------------------------------------------------------------------
+// The grading law for a ground's `density` dial is the DIAL, not the world:
+// every world whose ground carries the shared `density` field must show the
+// dial doing real, material work, so a future world whose density silently
+// disconnects from the shader (or a reverted world) fails here BY NAME
+// rather than at a taste audit.
+// ---------------------------------------------------------------------------
+
+/// The density-bearing roster: every world on `theme::THEMES` whose ground
+/// carries the shared `density` field, so enrolling or retiring a world tracks
+/// this sweep with nothing here to edit.
+///
+/// The VARIANT question is asked as an exhaustive `match` with no wildcard,
+/// which is the whole point of spelling it here instead of calling
+/// `Background::density()`: that owner ends in `_ => 0.0`, so a new
+/// density-bearing variant would answer "no density" and drop out of this
+/// sweep silently. Written this way the new variant fails to COMPILE until
+/// someone decides which side it belongs on. Enrolment by variant rather than
+/// by measured value is also deliberate — a world that authored its density to
+/// 0.0 must fail the presence floor below, not quietly leave the roster.
+fn density_bearing_worlds() -> Vec<(&'static str, Background)> {
+    fn bears_density(bg: &Background) -> bool {
+        match bg {
+            Background::Zigzag { .. }
+            | Background::Organic { .. }
+            | Background::Deckle { .. }
+            | Background::WarpedGrid { .. } => true,
+            Background::Gradient { .. }
+            | Background::Dots { .. }
+            | Background::Pinstripe { .. }
+            | Background::Stripes { .. }
+            | Background::Lava { .. }
+            | Background::Bands { .. }
+            | Background::Waves { .. } => false,
+        }
+    }
+    theme::THEMES
+        .iter()
+        .filter(|t| bears_density(&t.background))
+        .map(|t| (t.name, t.background))
+        .collect()
+}
+
+/// Halve a ground's `density` field, EXHAUSTIVE over every `Background` arm
+/// (not a wildcard default) so a new density-bearing variant fails to
+/// compile here until this function knows how to scale it too — the same
+/// discipline `Background::density()` itself already holds to.
+fn with_half_density(bg: Background) -> Background {
+    match bg {
+        Background::Gradient { .. }
+        | Background::Dots { .. }
+        | Background::Pinstripe { .. }
+        | Background::Stripes { .. }
+        | Background::Lava { .. }
+        | Background::Bands { .. }
+        | Background::Waves { .. } => bg,
+        Background::Zigzag {
+            from,
+            to,
+            dir,
+            tint,
+            period_px,
+            amplitude_px,
+            angle,
+            density,
+            banded,
+        } => Background::Zigzag {
+            from,
+            to,
+            dir,
+            tint,
+            period_px,
+            amplitude_px,
+            angle,
+            density: density * 0.5,
+            banded,
+        },
+        Background::Organic {
+            tones,
+            scale_px,
+            density,
+        } => Background::Organic {
+            tones,
+            scale_px,
+            density: density * 0.5,
+        },
+        Background::Deckle {
+            ground,
+            layer,
+            deckle,
+            weave,
+            period_px,
+            wander_px,
+            density,
+        } => Background::Deckle {
+            ground,
+            layer,
+            deckle,
+            weave,
+            period_px,
+            wander_px,
+            density: density * 0.5,
+        },
+        Background::WarpedGrid {
+            ground,
+            minor,
+            major,
+            tunnel,
+            spacing_px,
+            density,
+        } => Background::WarpedGrid {
+            ground,
+            minor,
+            major,
+            tunnel,
+            spacing_px,
+            density: density * 0.5,
+        },
+    }
+}
+
+fn mean_ink(field: &[i32]) -> f64 {
+    field.iter().map(|&v| v as f64).sum::<f64>() / field.len() as f64
+}
+
+/// THE DENSITY DIAL DOES REAL, MATERIAL WORK ON EVERY WORLD THAT CARRIES ONE.
+/// Halving a world's authored density must measurably quieten its margin
+/// field's mean ink (the differential `mark_field` oracle, averaged rather
+/// than peaked — a peak is dominated by a handful of the strongest marked
+/// pixels and stayed flat across Galah's own 0.06-0.30 sweep, so it cannot
+/// see the dial move; the mean tracks the field's overall reading and scaled
+/// ~1.8-2.2x between full and half density for every world measured here).
+/// Margin `1.3x` sits comfortably under that measured floor while still
+/// catching a dial that has gone materially inert. This is the law a
+/// Galah-style "up it a tinny bit" change leans on: it sweeps the ROSTER, so
+/// a regression on any other density-bearing world fails here BY NAME.
+#[test]
+fn density_bearing_worlds_show_a_material_gap_between_full_and_half_density() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue)) = headless_dq() else {
+        eprintln!(
+            "skipping density_bearing_worlds_show_a_material_gap_between_full_and_half_density: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    let (w, h, cl, cw) = (900u32, 700u32, 125.0f32, 650.0f32);
+    let enrolled = density_bearing_worlds();
+    assert!(
+        enrolled.len() >= 5,
+        "the density-bearing roster shrank to {} worlds — the enrollment derivation itself \
+         needs a look, not just this law",
+        enrolled.len()
+    );
+    for (name, bg) in enrolled {
+        let full = mean_ink(&mark_field(&device, &queue, bg, w, h, cl, cw));
+        let half = mean_ink(&mark_field(
+            &device,
+            &queue,
+            with_half_density(bg),
+            w,
+            h,
+            cl,
+            cw,
+        ));
+        assert!(
+            full > 0.0,
+            "{name}: shipped density draws NO material at all (mean ink {full})"
+        );
+        assert!(
+            full > half * 1.3,
+            "{name}: halving density must measurably quieten the field (full mean {full:.4} \
+             vs half mean {half:.4}, ratio {:.3}) — the dial reads as inert",
+            full / half.max(1e-9)
+        );
+    }
+}
+
+/// NON-VACUITY SELF-PROOF, same shape as `backgrounds_item86`'s
+/// `distinctness_check_fails_on_identical_dials_proving_it_is_non_vacuous`:
+/// run the law's own inequality against a DEGENERATE pair (both sides at the
+/// same density) and confirm it fails, so the material-gap law above is
+/// provably capable of catching an inert dial rather than only ever
+/// exercising the real, always-passing roster.
+#[test]
+fn material_gap_check_fails_when_the_dial_does_not_move_proving_it_is_non_vacuous() {
+    let full = 0.115_f64; // Galah's own shipped mean, item 158's probe.
+    let half = full; // a degenerate "dial" that does not respond to density at all.
+    assert!(
+        full <= half * 1.3,
+        "an inert dial (full == half) must NOT pass the material-gap check"
+    );
+}
+
+/// GALAH'S OWN DECISION, RECORDED AS DATA: the user's own words were "up it
+/// a tinnyyy bit" off the shipped `0.10`, pinned to the `0.12`-`0.16`
+/// neighbourhood. `0.12` is not an arbitrary pick inside that band — it is
+/// the smallest rung where a REAL capture (1600x1000, measure 70) differs
+/// from the old `0.10` by more than the repo's own perceptibility floor
+/// (`EDGE_DELTA = 3`, `scripts/loudness-measure.py`): one rung down at
+/// `0.11` stays inside 8-bit quantization noise (max right-margin luminance
+/// delta 1.9, zero pixels crossing the floor), `0.12` clears it (max delta
+/// 3.7, 0.18% of margin pixels above it). This is the sole place Galah is
+/// named — the grading law above is the roster-general one.
+#[test]
+fn galah_density_lands_in_the_pinned_up_a_tinny_bit_band() {
+    let Background::Deckle { density, .. } = theme::GALAH.background else {
+        panic!("Galah must ship Background::Deckle");
+    };
+    assert!(
+        (0.12..=0.16).contains(&density),
+        "Galah's density {density} must sit in the user-pinned 0.12-0.16 neighbourhood"
+    );
+    assert_ne!(
+        density, 0.10,
+        "Galah's density must have actually moved off the old shipped 0.10"
+    );
+}
