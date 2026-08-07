@@ -139,8 +139,8 @@ reason = "The one construction site each pipeline family has now sits inside gpu
 
 [[file_size_mark]]
 file = "src/commands.rs"
-lines = 614
-reason = "The review row joins the two resolutions in `row_hidden`, the one place a runtime palette gate is written down (+4)."
+lines = 627
+reason = "The review row joins the two resolutions in `row_hidden`, the one place a runtime palette gate is written down (+4). +13: Command gains a `description` field, and the added lines are its doc comment explaining the mechanism that makes the omission unrepresentable — Option<&'static str> with no Default impl on the struct, so all 96 literals must write the arm and a 95th command cannot be added without one."
 
 [[file_size_mark]]
 file = "src/config/model.rs"
@@ -1230,21 +1230,21 @@ reason = "Pure relocation from the inline src/commands.rs test module; this exac
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 1649
+line = 1650
 text = "                        \"{}: reserved native chord {native_resolved:?} still shown verbatim ({convention:?}/{platform:?})\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 1667
+line = 1668
 text = "                            \"{}: no alternate defined, label should be blank ({convention:?}/{platform:?})\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/commands/tests.rs"
 kind = "architectural"
-line = 1678
+line = 1679
 text = "                        \"{}: displaced emacs default {:?} still shown ({convention:?}/{platform:?}) — label was {label:?}\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
