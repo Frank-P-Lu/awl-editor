@@ -440,7 +440,31 @@ fn typewriter_centers_the_cursor_row() {
     for i in 0..40 {
         text.push_str(&format!("line {i}\n"));
     }
-    p.set_view(&view(&text, 25, 0));
+    // Both halves of the `menu_bar` axis. Centering is defined against
+    // `viewport_avail_px` = `height - text_origin_top()`, and `text_origin_top()`
+    // carries `menubar_reserve()` — so the drawn bar moves the very quantity this
+    // law grades. The AMBIENT value, never `cfg!(target_os = ...)`: a `cfg!` here
+    // reports the host that COMPILED the test, not the branch `MENU_BAR_ON`'s
+    // initialiser took.
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
+    for bar in [false, true] {
+        crate::menubar::set_menu_bar_on(bar);
+        p.set_view(&view(&text, 25, 0));
+        check_typewriter_centering(&mut p, bar);
+    }
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
+}
+
+/// The centering contract at whatever menu-bar reserve is in force. The oracle is
+/// composed from the pipeline's OWN owners — `viewport_avail_px` and
+/// `text_origin_top` — never from a parallel `TEXT_TOP.0` formula. This law used to
+/// hand-roll `avail = 800.0 - TEXT_TOP.0`, which is the viewport only where the
+/// reserve is zero AND the DPI is 1: with the bar shown it understated the row
+/// center by a whole reserve and the viewport center by half of one, spending
+/// ~18px of a ~21px tolerance on the instrument's own error and leaving nothing
+/// for the property. Tripling the reserve turned it red while the product was
+/// perfectly correct.
+fn check_typewriter_centering(p: &mut TextPipeline, bar: bool) {
     let total = p.total_visual_rows();
     assert!(total >= 40, "the doc must overflow the viewport");
     let max = p.max_scroll_rows(800.0);
@@ -465,13 +489,28 @@ fn typewriter_centers_the_cursor_row() {
 
     // At the centered scroll, the cursor row's vertical CENTER sits within one
     // row height of the viewport's vertical center (closest integer-row centering).
-    let avail = 800.0 - TEXT_TOP.0;
-    let viewport_center = TEXT_TOP.0 + avail / 2.0;
-    let doc_top = TEXT_TOP.0 - p.rendered_scroll_top_px(centered);
+    let origin_top = p.text_origin_top();
+    // PRESENCE FLOOR on the axis itself: with the bar shown the reserve must
+    // actually be in the origin, else this arm is a duplicate of the other one and
+    // "swept both halves" would be a claim about nothing.
+    let reserve = p.menubar_reserve();
+    if bar {
+        assert!(
+            reserve > 0.0 && origin_top > p.metrics.px(TEXT_TOP),
+            "bar on: the reserve must be real for this arm to differ from bar-off \
+             (reserve={reserve}, origin_top={origin_top})"
+        );
+    } else {
+        assert_eq!(reserve, 0.0, "bar off: no reserve");
+    }
+    let avail = p.viewport_avail_px(800.0);
+    let viewport_center = origin_top + avail / 2.0;
+    let doc_top = origin_top - p.rendered_scroll_top_px(centered);
     let row_center = doc_top + p.row_top_px(row) + p.row_height_px(row) / 2.0;
     assert!(
         (row_center - viewport_center).abs() <= p.row_height_px(row),
-        "typewriter must center the cursor row (row_center={row_center}, viewport_center={viewport_center})"
+        "bar={bar}: typewriter must center the cursor row (row_center={row_center}, \
+         viewport_center={viewport_center}, reserve={reserve})"
     );
 
     // Near the document TOP there is no content above to center against, so
@@ -594,7 +633,11 @@ fn variable_height_scroll_reaches_the_last_row() {
     let bottom = p.scroll_top_px(follow) + (p.total_doc_height() - p.row_top_px(last));
     let _ = bottom; // (sanity: row_top monotonic)
     assert!(
-        p.total_doc_height() - p.scroll_top_px(follow) <= 800.0 - TEXT_TOP.0 + 0.5,
+        // `viewport_avail_px`, the pipeline's own owner — not `800.0 - TEXT_TOP.0`,
+        // which is the same number only at a zero menu-bar reserve and DPI 1, and is
+        // LOOSER than the truth everywhere else (a weaker bound, so the old spelling
+        // could not fail on a wrong scroll off macOS).
+        p.total_doc_height() - p.scroll_top_px(follow) <= p.viewport_avail_px(800.0) + 0.5,
         "from the follow scroll, the remaining document must fit the viewport"
     );
 }

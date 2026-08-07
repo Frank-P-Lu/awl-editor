@@ -76,6 +76,12 @@ fn settings_view(ov: &OverlayState) -> ViewState {
     v.overlay_sections = ov.item_sections();
     v.overlay_selected = ov.selected;
     v.overlay_scroll = ov.scroll;
+    // The per-kind row cap, from the SAME overlay every field above comes from.
+    // `sync_view` sets it; `ViewState::base()`'s default is a flat 12, which for
+    // `OverlayKind::Settings` (`SETTINGS.len()`) is a DIFFERENT number — so a
+    // fixture that folds every other field off `ov` and leaves this one at its
+    // default is pinning the height budget it believes it is varying.
+    v.overlay_window_rows = ov.window_rows();
     v
 }
 

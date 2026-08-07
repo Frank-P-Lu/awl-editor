@@ -60,6 +60,10 @@ fn settings_view(lens: usize) -> ViewState {
     v.overlay_location = ov.location().map(std::string::ToString::to_string);
     v.overlay_hint = "↑/↓ category   ↵ settings   esc close".into();
     v.overlay_selected = ov.selected;
+    // The per-kind row cap `sync_view` also sets, off the SAME overlay. Left at
+    // `ViewState::base()`'s flat 12 it silently caps a Settings workspace whose own
+    // `window_rows()` is `SETTINGS.len()`.
+    v.overlay_window_rows = ov.window_rows();
     v
 }
 

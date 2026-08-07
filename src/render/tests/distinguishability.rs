@@ -679,6 +679,14 @@ fn check_real_pixels(
             );
         }
         Surface::MenubarOpenTitle => {
+            // The AMBIENT value, never `cfg!(target_os = ...)`: a `cfg!` here reports
+            // the host that COMPILED the test, not the branch `MENU_BAR_ON`'s
+            // initialiser actually took. Captured so this arm RESTORES what it found
+            // rather than hardcoding `false` on the way out: the whole roster runs
+            // inside ONE test, so a hardcoded restore here configures every LATER
+            // arm's bar state, and each of their reserves becomes a property of this
+            // roster's iteration order instead of the platform default.
+            let ambient_menu_bar = crate::menubar::menu_bar_on();
             crate::menubar::set_menu_bar_on(true);
             crate::menubar::set_open(None);
             let v = view("hello world\n", 0, 0);
@@ -704,7 +712,7 @@ fn check_real_pixels(
             );
 
             crate::menubar::set_open(None);
-            crate::menubar::set_menu_bar_on(false);
+            crate::menubar::set_menu_bar_on(ambient_menu_bar);
         }
         Surface::SearchMatch => {
             let text = "alpha beta findme gamma";
@@ -721,7 +729,13 @@ fn check_real_pixels(
             p.prepare(device, queue, w, h).unwrap();
             let b = pixeldiff::render_frame(p, device, queue, w, h);
 
-            let region = Region::new(0.0, TEXT_TOP.0, w as f32, LINE_HEIGHT);
+            // The band the FIRST DOCUMENT ROW actually occupies, from the pipeline's
+            // own owners — never `TEXT_TOP.0` + `LINE_HEIGHT`, which is that row's
+            // position only where the menu-bar reserve is zero and the DPI is 1.
+            // With the bar shown (the default off macOS) row 0 sits a whole
+            // `menubar_reserve()` lower, so a hardcoded band scans the strip UNDER
+            // the bar and the highlight it means to grade is nowhere inside it.
+            let region = Region::new(0.0, p.text_origin_top(), w as f32, p.row_height_px(0));
             pixeldiff::assert_perceptibly_different(
                 &a,
                 &b,
@@ -744,7 +758,9 @@ fn check_real_pixels(
             p.prepare(device, queue, w, h).unwrap();
             let b = pixeldiff::render_frame(p, device, queue, w, h);
 
-            let region = Region::new(0.0, TEXT_TOP.0, w as f32, LINE_HEIGHT);
+            // Row 0's real band, from the pipeline — see `SearchMatch` above for why
+            // `TEXT_TOP.0` is not it once the menu bar reserves a strip.
+            let region = Region::new(0.0, p.text_origin_top(), w as f32, p.row_height_px(0));
             pixeldiff::assert_perceptibly_different(
                 &a,
                 &b,

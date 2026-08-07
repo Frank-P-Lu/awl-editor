@@ -77,6 +77,10 @@ fn settings_view(ov: &OverlayState) -> ViewState {
     v.overlay_sections = ov.item_sections();
     v.overlay_selected = ov.selected;
     v.overlay_scroll = ov.scroll;
+    // The per-kind row cap `sync_view` also sets. `ViewState::base()` defaults it to
+    // a flat 12, and `OverlayKind::Settings::window_rows()` is `SETTINGS.len()` — a
+    // ROW-REACH law that hardcodes the row count is grading a constant.
+    v.overlay_window_rows = ov.window_rows();
     v
 }
 
