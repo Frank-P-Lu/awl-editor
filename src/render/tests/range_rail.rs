@@ -723,38 +723,262 @@ fn the_range_thumb_clears_a_perceptual_floor_against_its_own_ground_on_every_wor
     );
 }
 
-/// **ITEM 309 — A NON-SELECTED RAIL MUST NOT WEAR THE SELECTED RAIL'S INK.**
+/// Above the ΔE ≈ 2.3 just-noticeable difference — the presence floor a
+/// rail-ink search below counts a pixel as "inked" against.
+const RAIL_INK_PRESENCE_MIN: f64 = 3.0;
+
+/// A non-selected rail's OWN pixels are allowed a small drift between two
+/// otherwise-identical frames (dither/antialiasing rounding, never a whole
+/// ink swap). A shared-ink defect is not a small drift: with the selected row
+/// chosen away from both graded rows (so adjacent-row shadow bleed cannot
+/// contribute — see [`a_non_selected_rails_thumb_never_wears_the_selected_rails_ink`]'s
+/// own doc), every world with a real flip measures a clean 0.00 ΔE on a
+/// correct implementation, so this floor only has to clear ordinary
+/// rendering noise, not thread a needle between noise and bug.
+const RAIL_INK_DRIFT_CEILING: f64 = 6.0;
+
+/// (run length, ink, ground, band height) — one rail's located thumb.
+type RailProbe = (i32, [u8; 4], [u8; 4], i64);
+
+/// Locate a rail's own thumb: its ink and its ground, read at the ANALYTIC
+/// centre `rail_geom` itself places the thumb at (`x0 + frac*(x1-x0)`, the
+/// same formula `the_thumb_moves_across_the_track_with_the_value_real_pixels`
+/// trusts), never by SEARCHING the whole track for "the tallest run" (a first
+/// draft searched, and was false-positive on Potoroo's `Stripes` background
+/// at the track's far edge — an oracle artefact, not a product one).
+/// Searching a narrow, geometry-derived neighbourhood (mirroring that third
+/// law's own "expected thumb neighbourhood" fix) removes the wandering
+/// entirely.
+fn locate_rail_thumb(
+    p: &mut TextPipeline,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    item: usize,
+    frac: f32,
+    w: u32,
+    h: u32,
+) -> RailProbe {
+    let (x0, x1) = p.overlay_range_scale(item).expect("a rail");
+    let mid = (x0 + x1) * 0.5;
+    let ys: Vec<f32> = (0..h)
+        .map(|y| y as f32)
+        .filter(|&y| p.overlay_range_at(mid, y).is_some_and(|(i, _)| i == item))
+        .collect();
+    assert!(!ys.is_empty(), "item {item}: the rail must be present");
+    let (band_top, band_bot) = (ys[0] as i64, ys[ys.len() - 1] as i64);
+    let pixels = pixeldiff::render_frame(p, device, queue, w, h);
+    let at = |x: i64, y: i64| -> [u8; 4] { pixels[(y as usize) * (w as usize) + x as usize] };
+    let column = |x: i64| -> (i32, f64, [u8; 4]) {
+        let ground = at(x, band_top);
+        let (mut run, mut worst, mut ink) = (0i32, 0.0f64, ground);
+        for y in band_top..=band_bot {
+            let c = at(x, y);
+            let d = pixeldiff::delta_e(c, ground);
+            if d >= RAIL_INK_PRESENCE_MIN {
+                run += 1;
+                if d > worst {
+                    worst = d;
+                    ink = c;
+                }
+            }
+        }
+        (run, worst, ink)
+    };
+    let expected_x = x0 + frac * (x1 - x0);
+    let lo = x0.ceil().max(expected_x - 10.0) as i64;
+    let hi = x1.floor().min(expected_x + 10.0) as i64;
+    let (best_x, (run, _worst, ink)) = (lo..=hi)
+        .map(|x| (x, column(x)))
+        .max_by_key(|&(_, (run, ..))| run)
+        .expect("the expected thumb neighbourhood spans at least one column");
+    let ground = at(best_x, band_top);
+    (run, ink, ground, band_bot - band_top)
+}
+
+/// The three range rails this law grades in one frame, at the fraction each
+/// one's own value resolves to (`settings_state`'s `values(1.4, 1.0)`, plus
+/// the fixture's fixed `page_width_prose: 70`).
+struct ThreeRailProbes {
+    prose: RailProbe,
+    zoom: RailProbe,
+    scroll: RailProbe,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_three_rails(
+    p: &mut TextPipeline,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    prose_selected: bool,
+    prose_item: usize,
+    zoom_item: usize,
+    scroll_item: usize,
+    w: u32,
+    h: u32,
+) -> ThreeRailProbes {
+    let prose_frac = crate::range::PAGE_WIDTH_PROSE.frac_of(70.0);
+    let zoom_frac = crate::range::ZOOM.frac_of(1.4);
+    let scroll_frac = crate::range::SCROLL_SENSITIVITY.frac_of(1.0);
+    let mut ov = settings_state(1.4);
+    ov.selected = if prose_selected { prose_item } else { 0 };
+    let v = settings_view(&ov);
+    p.set_view(&v);
+    p.prepare(device, queue, w, h).unwrap();
+    ThreeRailProbes {
+        prose: locate_rail_thumb(p, device, queue, prose_item, prose_frac, w, h),
+        zoom: locate_rail_thumb(p, device, queue, zoom_item, zoom_frac, w, h),
+        scroll: locate_rail_thumb(p, device, queue, scroll_item, scroll_frac, w, h),
+    }
+}
+
+/// A NON-selected rail's own drawn thumb must be the SAME whether or not some
+/// OTHER, non-adjacent row is selected — graded against its own two renders,
+/// never an idealized constant (see the law's own doc for why).
+fn assert_rail_ink_holds_across_selection(
+    world: &str,
+    name: &str,
+    ink_on: [u8; 4],
+    ink_off: [u8; 4],
+    ground_on: [u8; 4],
+    ground_off: [u8; 4],
+) {
+    let drift = pixeldiff::delta_e(ink_on, ink_off);
+    assert!(
+        drift <= RAIL_INK_DRIFT_CEILING,
+        "{world}: the NON-selected {name} rail's thumb changed \
+         ({ink_off:?} -> {ink_on:?}, ΔE {drift:.2}) purely because a DIFFERENT, \
+         non-adjacent row (Page width prose) became selected — grounds were \
+         {ground_off:?} -> {ground_on:?}. A shared `set_color` is painting every \
+         rail with whichever ink the selected rail alone earned."
+    );
+}
+
+/// The three distinct, non-adjacent rail items this law needs out of a fresh
+/// `settings_state(1.4)` fixture — see the law's own doc for why the selected
+/// row must sit away from both graded ones.
+fn three_non_adjacent_rail_items(ov0: &OverlayState) -> (usize, usize, usize) {
+    let prose_item = ov0
+        .items
+        .iter()
+        .position(|&i| ov0.rows[i].accept == "Page width (prose)")
+        .expect("Page width (prose) is a visible range row in this fixture");
+    let zoom_item = ov0.selected;
+    let scroll_item = ov0
+        .items
+        .iter()
+        .position(|&i| ov0.rows[i].accept == "Scroll sensitivity")
+        .expect("Scroll sensitivity is a visible range row in this fixture");
+    assert!(
+        prose_item != zoom_item && prose_item != scroll_item && zoom_item != scroll_item,
+        "the fixture needs three distinct rails"
+    );
+    assert!(
+        zoom_item.abs_diff(prose_item) >= 2 && scroll_item.abs_diff(prose_item) >= 2,
+        "the selected row (Page width prose) must sit away from both graded rows, \
+         or an adjacent-row shadow could confound the drift reading"
+    );
+    (prose_item, zoom_item, scroll_item)
+}
+
+/// Every rail must draw a genuine half-row thumb mark (`THUMB_H_LH` = 0.50 of
+/// a row against the track's `RAIL_H_LH` = 0.09) — never fall back to grading
+/// the hairline track.
+fn assert_every_rail_has_a_thumb_mark(world: &str, on: &ThreeRailProbes, off: &ThreeRailProbes) {
+    for (run, band, ctx) in [
+        (
+            on.prose.0,
+            on.prose.3,
+            format!("{world}: Page width prose (selected)"),
+        ),
+        (
+            off.zoom.0,
+            off.zoom.3,
+            format!("{world}: Zoom (nothing selected)"),
+        ),
+        (
+            off.scroll.0,
+            off.scroll.3,
+            format!("{world}: Scroll sensitivity (nothing selected)"),
+        ),
+    ] {
+        assert!(
+            (run as i64) * 4 > band,
+            "{ctx}: no half-row thumb mark found — tallest qualifying run is \
+             {run}px of a {band}px band"
+        );
+    }
+}
+
+/// The caller has already confirmed Page-width-prose's own thumb genuinely
+/// MOVED between the two frames (against `RAIL_INK_DRIFT_CEILING`) before
+/// calling this — so on a world whose flip is real (`flip.is_some()`, which
+/// the function only ever returns when the flip differs from `muted` — see
+/// its own doc) that moved ink must read as the flip, and read distinctly
+/// from Zoom's and Scroll-sensitivity's (unmoved) thumbs in the SAME frame.
+/// Returns whether `flip` was `Some` (the caller uses this to prove the whole
+/// sweep non-vacuous).
+fn assert_selected_rail_shows_its_flip(
+    world: &str,
+    flip: Option<theme::Srgb>,
+    on: &ThreeRailProbes,
+) -> bool {
+    let Some(want) = flip else { return false };
+    let (prose_run_on, prose_ink_on, prose_ground_on, _) = on.prose;
+    let (_, zoom_ink_on, ..) = on.zoom;
+    let (_, scroll_ink_on, ..) = on.scroll;
+    let want_bytes = want.rgba_bytes();
+    assert_eq!(
+        prose_ink_on, want_bytes,
+        "{world}: the SELECTED Page-width-prose rail's thumb {prose_ink_on:?} does not \
+         read as the selected-row flip {want_bytes:?} (ground {prose_ground_on:?}, run \
+         {prose_run_on}px)"
+    );
+    for (name, other_ink) in [("Zoom", zoom_ink_on), ("Scroll sensitivity", scroll_ink_on)] {
+        let apart = pixeldiff::delta_e(prose_ink_on, other_ink);
+        assert!(
+            apart > RAIL_INK_DRIFT_CEILING,
+            "{world}: Page-width-prose's flipped thumb {prose_ink_on:?} and {name}'s \
+             unflipped thumb {other_ink:?} read as the same colour (ΔE {apart:.2}) in \
+             the SAME frame — the selected rail's ink is leaking onto a rail that is not \
+             selected"
+        );
+    }
+    true
+}
+
+/// **A NON-SELECTED RAIL MUST NOT WEAR THE SELECTED RAIL'S INK.**
 /// `Settings` seats FOUR range rows in its default window (`Page width
 /// (prose)`, `Page width (code)`, `Zoom`, `Scroll sensitivity`), and only one
 /// row is ever the row the visual-selection band sits on.
-/// `overlay_prepare_range_rails` used to compute ONE `thumb_ink` for the WHOLE
-/// frame — `Some(flip) if [ANY rail is on-band]` — and paint it onto every
-/// rail's fill/thumb through a single shared `set_color`, so on a `Pane` world
-/// (the only family where the flip ever differs from `muted`) every
-/// non-selected rail wore the selected rail's flipped ink too.
+/// `overlay_prepare_range_rails` must resolve the flip PER RAIL: computing one
+/// `thumb_ink` for the WHOLE frame — `Some(flip) if [ANY rail is on-band]` —
+/// and painting it onto every rail's fill/thumb through a single shared
+/// `set_color` would make, on a `Pane` world (the only family where the flip
+/// ever differs from `muted`), every non-selected rail wear the selected
+/// rail's flipped ink too.
 ///
 /// **THE ORACLE IS DIFFERENTIAL, GRADED AGAINST EACH RAIL'S OWN GROUND, NOT AN
 /// INDEPENDENTLY-COMPUTED THEORETICAL COLOUR.** A first draft compared the
 /// drawn ink to `theme::muted()` by exact byte equality and was
 /// FALSE-POSITIVE on Potoroo: that world's `Stripes` background varies enough
 /// down a single row's own height that a pixel-search oracle can land on
-/// background banding rather than the drawn thumb. The question item 309
-/// actually asks needs no theoretical colour at all: **does a NON-selected
-/// rail's own drawn thumb change AT ALL depending on whether some OTHER row
-/// becomes selected?** Both frames read the exact same rectangle, so any
-/// genuine drift between them is the bug, not noise.
+/// background banding rather than the drawn thumb. The real question needs no
+/// theoretical colour at all: **does a NON-selected rail's own drawn thumb
+/// change AT ALL depending on whether some OTHER row becomes selected?** Both
+/// frames read the exact same rectangle, so any genuine drift between them is
+/// the bug, not noise.
 ///
 /// **THE SELECTED ROW IS CHOSEN FAR FROM THE TWO GRADED ROWS, NOT ADJACENT TO
 /// THEM.** A second draft selected `Zoom` (immediately above `Scroll
 /// sensitivity`) and was ALSO false-positive, on several worlds — measured
 /// drift up to 41 ΔE on a build that already carried the fix. The cause is a
-/// real, separate rendering fact this item does not own: a selected `Pane`
-/// row's own elevation/shadow can bleed a few pixels into the row physically
-/// beside it, tinting that neighbour's already-drawn (correct) ink — nothing
-/// to do with WHICH ink a rail is assigned. Selecting `Page width (prose)`
-/// (two rows above `Zoom`, three above `Scroll sensitivity`) and grading
-/// BOTH of the latter removes the adjacency: neither graded row ever sits
-/// next to the selected one.
+/// real, separate rendering fact this law is not the owner of: a selected
+/// `Pane` row's own elevation/shadow can bleed a few pixels into the row
+/// physically beside it, tinting that neighbour's already-drawn (correct) ink
+/// — nothing to do with WHICH ink a rail is assigned. Selecting `Page width
+/// (prose)` (two rows above `Zoom`, three above `Scroll sensitivity`) and
+/// grading BOTH of the latter removes the adjacency: neither graded row ever
+/// sits next to the selected one.
 ///
 /// Swept over the full world roster (deriving which worlds carry a real flip
 /// from the roster itself, `overlay_selected_rail_srgb`, rather than naming a
@@ -766,98 +990,8 @@ fn a_non_selected_rails_thumb_never_wears_the_selected_rails_ink() {
     let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
-        eprintln!(
-            "skipping a_non_selected_rails_thumb_never_wears_the_selected_rails_ink: no wgpu adapter"
-        );
+        eprintln!("skipping a_non_selected_rails_thumb_never_wears_ink: no wgpu adapter");
         return;
-    };
-    const THUMB_PRESENCE_MIN: f64 = 3.0;
-    // A non-selected rail's OWN pixels are allowed a small drift between the
-    // two frames (dither/antialiasing rounding, never a whole ink swap). Item
-    // 309's bug is not a small drift: with the selected row chosen away from
-    // both graded rows (so adjacent-row shadow bleed cannot contribute), every
-    // world with a real flip measures a clean 0.00 ΔE post-fix, so this floor
-    // only has to clear ordinary rendering noise, not thread a needle between
-    // noise and bug.
-    const DRIFT_CEILING: f64 = 6.0;
-
-    // (run length, ink, ground, band height) — one rail's located thumb.
-    type RailProbe = (i32, [u8; 4], [u8; 4], i64);
-
-    // Locate a rail's own thumb: its ink and its ground, read at the ANALYTIC
-    // centre `rail_geom` itself places the thumb at (`x0 + frac*(x1-x0)`, the
-    // same formula `the_thumb_moves_across_the_track_with_the_value_real_pixels`
-    // trusts), never by SEARCHING the whole track for "the tallest run" (a
-    // first draft searched, and was false-positive on Potoroo's `Stripes`
-    // background at the track's far edge — an oracle artefact, not a product
-    // one). Searching a narrow, geometry-derived neighbourhood (mirroring that
-    // third law's own "expected thumb neighbourhood" fix) removes the
-    // wandering entirely.
-    let locate = |p: &mut TextPipeline,
-                  device: &wgpu::Device,
-                  queue: &wgpu::Queue,
-                  item: usize,
-                  frac: f32|
-     -> RailProbe {
-        let (x0, x1) = p.overlay_range_scale(item).expect("a rail");
-        let mid = (x0 + x1) * 0.5;
-        let ys: Vec<f32> = (0..h)
-            .map(|y| y as f32)
-            .filter(|&y| p.overlay_range_at(mid, y).is_some_and(|(i, _)| i == item))
-            .collect();
-        assert!(!ys.is_empty(), "item {item}: the rail must be present");
-        let (band_top, band_bot) = (ys[0] as i64, ys[ys.len() - 1] as i64);
-        let pixels = pixeldiff::render_frame(p, device, queue, w, h);
-        let at = |x: i64, y: i64| -> [u8; 4] { pixels[(y as usize) * (w as usize) + x as usize] };
-        let column = |x: i64| -> (i32, f64, [u8; 4]) {
-            let ground = at(x, band_top);
-            let (mut run, mut worst, mut ink) = (0i32, 0.0f64, ground);
-            for y in band_top..=band_bot {
-                let c = at(x, y);
-                let d = pixeldiff::delta_e(c, ground);
-                if d >= THUMB_PRESENCE_MIN {
-                    run += 1;
-                    if d > worst {
-                        worst = d;
-                        ink = c;
-                    }
-                }
-            }
-            (run, worst, ink)
-        };
-        let expected_x = x0 + frac * (x1 - x0);
-        let lo = x0.ceil().max(expected_x - 10.0) as i64;
-        let hi = x1.floor().min(expected_x + 10.0) as i64;
-        let (best_x, (run, _worst, ink)) = (lo..=hi)
-            .map(|x| (x, column(x)))
-            .max_by_key(|&(_, (run, ..))| run)
-            .expect("the expected thumb neighbourhood spans at least one column");
-        let ground = at(best_x, band_top);
-        (run, ink, ground, band_bot - band_top)
-    };
-
-    let prose_frac = crate::range::PAGE_WIDTH_PROSE.frac_of(70.0);
-    let zoom_frac = crate::range::ZOOM.frac_of(1.4);
-    let scroll_frac = crate::range::SCROLL_SENSITIVITY.frac_of(1.0);
-
-    #[allow(clippy::too_many_arguments)]
-    let render = |p: &mut TextPipeline,
-                  device: &wgpu::Device,
-                  queue: &wgpu::Queue,
-                  prose_selected: bool,
-                  prose_item: usize,
-                  zoom_item: usize,
-                  scroll_item: usize|
-     -> (RailProbe, RailProbe, RailProbe) {
-        let mut ov = settings_state(1.4);
-        ov.selected = if prose_selected { prose_item } else { 0 };
-        let v = settings_view(&ov);
-        p.set_view(&v);
-        p.prepare(device, queue, w, h).unwrap();
-        let prose = locate(p, device, queue, prose_item, prose_frac);
-        let zoom = locate(p, device, queue, zoom_item, zoom_frac);
-        let scroll = locate(p, device, queue, scroll_item, scroll_frac);
-        (prose, zoom, scroll)
     };
 
     let _pin = theme::WorldPin::snapshot();
@@ -868,30 +1002,10 @@ fn a_non_selected_rails_thumb_never_wears_the_selected_rails_ink() {
         // A per-theme constant for this list style, not per-frame state — see
         // `overlay_selected_rail_srgb`'s own doc.
         let flip = crate::render::chrome::overlay_selected_rail_srgb();
+        let (prose_item, zoom_item, scroll_item) =
+            three_non_adjacent_rail_items(&settings_state(1.4));
 
-        let ov0 = settings_state(1.4);
-        let prose_item = ov0
-            .items
-            .iter()
-            .position(|&i| ov0.rows[i].accept == "Page width (prose)")
-            .expect("Page width (prose) is a visible range row in this fixture");
-        let zoom_item = ov0.selected;
-        let scroll_item = ov0
-            .items
-            .iter()
-            .position(|&i| ov0.rows[i].accept == "Scroll sensitivity")
-            .expect("Scroll sensitivity is a visible range row in this fixture");
-        assert!(
-            prose_item != zoom_item && prose_item != scroll_item && zoom_item != scroll_item,
-            "the fixture needs three distinct rails"
-        );
-        assert!(
-            zoom_item.abs_diff(prose_item) >= 2 && scroll_item.abs_diff(prose_item) >= 2,
-            "the selected row (Page width prose) must sit away from both graded rows, \
-             or an adjacent-row shadow could confound the drift reading"
-        );
-
-        let (prose_on, zoom_on, scroll_on) = render(
+        let on = render_three_rails(
             &mut p,
             &device,
             &queue,
@@ -899,8 +1013,10 @@ fn a_non_selected_rails_thumb_never_wears_the_selected_rails_ink() {
             prose_item,
             zoom_item,
             scroll_item,
+            w,
+            h,
         );
-        let (prose_off, zoom_off, scroll_off) = render(
+        let off = render_three_rails(
             &mut p,
             &device,
             &queue,
@@ -908,105 +1024,31 @@ fn a_non_selected_rails_thumb_never_wears_the_selected_rails_ink() {
             prose_item,
             zoom_item,
             scroll_item,
+            w,
+            h,
+        );
+        assert_every_rail_has_a_thumb_mark(world, &on, &off);
+
+        // `Zoom` and `Scroll sensitivity` are NEVER the on-band row in this
+        // fixture (only `Page width (prose)` ever is).
+        assert_rail_ink_holds_across_selection(
+            world, "Zoom", on.zoom.1, off.zoom.1, on.zoom.2, off.zoom.2,
+        );
+        assert_rail_ink_holds_across_selection(
+            world,
+            "Scroll sensitivity",
+            on.scroll.1,
+            off.scroll.1,
+            on.scroll.2,
+            off.scroll.2,
         );
 
-        let (prose_run_on, prose_ink_on, prose_ground_on, prose_band_on) = prose_on;
-        let (_zoom_run_on, zoom_ink_on, zoom_ground_on, _zoom_band_on) = zoom_on;
-        let (_scroll_run_on, scroll_ink_on, scroll_ground_on, _scroll_band_on) = scroll_on;
-        let (_prose_run_off, prose_ink_off, _prose_ground_off, _prose_band_off) = prose_off;
-        let (zoom_run_off, zoom_ink_off, zoom_ground_off, zoom_band_off) = zoom_off;
-        let (scroll_run_off, scroll_ink_off, scroll_ground_off, scroll_band_off) = scroll_off;
-
-        // Every rail must draw a genuine half-row thumb mark (`THUMB_H_LH` =
-        // 0.50 of a row against the track's `RAIL_H_LH` = 0.09), on both
-        // frames — never fall back to grading the hairline track.
-        for (run, band, ctx) in [
-            (
-                prose_run_on,
-                prose_band_on,
-                format!("{world}: Page width prose (selected)"),
-            ),
-            (
-                zoom_run_off,
-                zoom_band_off,
-                format!("{world}: Zoom (nothing selected)"),
-            ),
-            (
-                scroll_run_off,
-                scroll_band_off,
-                format!("{world}: Scroll sensitivity (nothing selected)"),
-            ),
-        ] {
-            assert!(
-                (run as i64) * 4 > band,
-                "{ctx}: no half-row thumb mark found — tallest qualifying run is \
-                 {run}px of a {band}px band"
-            );
-        }
-
-        // ITEM 309'S OWN CLAUSE: `Zoom` and `Scroll sensitivity` are NEVER the
-        // on-band row in this fixture (only `Page width (prose)` ever is), so
-        // their OWN drawn thumbs must be the SAME whether or not some OTHER,
-        // non-adjacent row is selected — graded against their own two
-        // renders, never an idealized constant.
-        for (name, ink_on, ink_off, ground_on, ground_off) in [
-            (
-                "Zoom",
-                zoom_ink_on,
-                zoom_ink_off,
-                zoom_ground_on,
-                zoom_ground_off,
-            ),
-            (
-                "Scroll sensitivity",
-                scroll_ink_on,
-                scroll_ink_off,
-                scroll_ground_on,
-                scroll_ground_off,
-            ),
-        ] {
-            let drift = pixeldiff::delta_e(ink_on, ink_off);
-            assert!(
-                drift <= DRIFT_CEILING,
-                "{world}: the NON-selected {name} rail's thumb changed \
-                 ({ink_off:?} -> {ink_on:?}, ΔE {drift:.2}) purely because a DIFFERENT, \
-                 non-adjacent row (Page width prose) became selected — grounds were \
-                 {ground_off:?} -> {ground_on:?}. This is item 309's bug: a shared \
-                 `set_color` painting every rail with whichever ink the selected rail \
-                 alone earned."
-            );
-        }
-
-        // And when Page-width-prose genuinely IS selected on a world whose
-        // flip is real (`flip.is_some()`, which the function only ever
-        // returns when the flip differs from `muted` — see its own doc), its
-        // OWN thumb must itself have moved between the two frames, and must
-        // now read distinctly from Zoom's and Scroll-sensitivity's (unmoved)
-        // thumbs in the SAME frame — otherwise the drift checks above would
-        // be vacuous (the selected row never actually exercising a flip).
-        if let Some(want) = flip {
-            let moved = pixeldiff::delta_e(prose_ink_on, prose_ink_off);
-            if moved > DRIFT_CEILING {
-                saw_a_real_flip = true;
-                let want_bytes = want.rgba_bytes();
-                assert_eq!(
-                    prose_ink_on, want_bytes,
-                    "{world}: the SELECTED Page-width-prose rail's thumb {prose_ink_on:?} \
-                     does not read as the selected-row flip {want_bytes:?} (ground \
-                     {prose_ground_on:?}, run {prose_run_on}px)"
-                );
-                for (name, other_ink) in
-                    [("Zoom", zoom_ink_on), ("Scroll sensitivity", scroll_ink_on)]
-                {
-                    let apart = pixeldiff::delta_e(prose_ink_on, other_ink);
-                    assert!(
-                        apart > DRIFT_CEILING,
-                        "{world}: Page-width-prose's flipped thumb {prose_ink_on:?} and \
-                         {name}'s unflipped thumb {other_ink:?} read as the same colour \
-                         (ΔE {apart:.2}) in the SAME frame — exactly item 309's bug"
-                    );
-                }
-            }
+        // Prove the sweep is non-vacuous: on a world whose flip is real, the
+        // SELECTED row's own thumb must itself have moved between the two
+        // frames before the checks above mean anything.
+        let moved = pixeldiff::delta_e(on.prose.1, off.prose.1);
+        if moved > RAIL_INK_DRIFT_CEILING && assert_selected_rail_shows_its_flip(world, flip, &on) {
+            saw_a_real_flip = true;
         }
     }
     p.sync_theme();
