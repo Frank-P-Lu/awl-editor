@@ -219,15 +219,25 @@ refuse() {
 # the leaked orphans this item was opened against: a pid whose one child is
 # sitting in `sleep`. Bash-3.2-safe (no `mapfile`), matching this repo's
 # other portability notes.
+#
+# The search POLLS, for the same reason the marker waits are loops: the marker
+# and the vitals loop are two separate spawns, so a caller that reads the pid
+# the instant the marker lands is racing the fork — and the loser reports
+# "could not find the vitals-loop child", aborting a law that was about to
+# pass. It is a probe of the machine's scheduling, not of the gate.
 find_vitals_pid() {
-  local gate_pid="$1" child grandchild
-  for child in $(pgrep -P "$gate_pid" 2>/dev/null || true); do
-    for grandchild in $(pgrep -P "$child" 2>/dev/null || true); do
-      if ps -ww -o command= -p "$grandchild" 2>/dev/null | grep -q '^sleep '; then
-        printf '%s\n' "$child"
-        return 0
-      fi
+  local gate_pid="$1" child grandchild attempt
+  for attempt in $(seq 1 50); do
+    for child in $(pgrep -P "$gate_pid" 2>/dev/null || true); do
+      for grandchild in $(pgrep -P "$child" 2>/dev/null || true); do
+        if ps -ww -o command= -p "$grandchild" 2>/dev/null | grep -q '^sleep '; then
+          printf '%s\n' "$child"
+          return 0
+        fi
+      done
     done
+    kill -0 "$gate_pid" 2>/dev/null || return 1
+    sleep 0.1
   done
   return 1
 }

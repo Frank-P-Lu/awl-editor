@@ -610,6 +610,29 @@ compile later.
 A failed `main` CI run becomes the top-priority `CI RED` item with the run URL
 and first known bad commit, and blocks further integration.
 
+‼ **A PUSH MUST NEVER SHARE A SHELL CHAIN WITH THE CHECK THAT AUTHORIZES IT.**
+Measured 2026-08-07: three gates and a `git push` went into one command block as
+separate statements, so each printed its own `EXIT=`, the health arm printed
+`EXIT=1`, and the push ran anyway — the red result was *in the output I was
+reading* and had already shipped by the time I read it. This is the same family
+as grepping a gate's text instead of its status, and neither is fixed by being
+more careful: **the push goes in its own tool call, made after the check's exit
+status has been read.** (Here the health failure was a flake and the rerun on
+the identical sha was clean, so nothing bad shipped. That is luck, not process
+— a chain like that will ship a genuine failure the first time it meets one.)
+
+**And a green rerun does not make the first failure noise — read what it said.**
+The arm that failed was one of `test-native-gate.sh`'s own laws, reporting that
+it *"could not find the SIGINT probe's vitals-loop child, so this law would
+prove nothing"*: a probe that polled for the gate's marker in a loop and then
+read the vitals pid **once, immediately**, racing a separate fork. It lost that
+race because a worker lane was compiling on the same host — so the flake
+appears exactly when the orchestrator is busiest, and it aborts a law that was
+about to pass. `find_vitals_pid` now polls (bounded, with an early-out on a
+dead gate). **A self-test that says it cannot prove its law is a defect report
+about the test, and it is worth the ten minutes then rather than the next four
+times it fires.**
+
 **Tags and releases wait for the user's explicit word, every time.**
 
 ## Non-negotiable operational facts
