@@ -243,8 +243,9 @@ pub(in crate::render) fn fit_item_rows(
 /// for headers no one will draw. That is harmless while the budget is roomy: a
 /// conservative charge only ever costs a row nobody misses, and re-billing it
 /// tightly EVERYWHERE would move shipped row counts on cards that already work
-/// (including item 293's contract that a hint costs exactly two rows of the
-/// candidate window). It is not harmless at the one outcome that is never
+/// (including the contract that a hint costs exactly two rows of the candidate
+/// window, pinned by `hint_gap_item293`). It is not harmless at the one
+/// outcome that is never
 /// acceptable — a card that plans NO candidate rows at all. A 900x460 canvas
 /// with the drawn menu bar's own vertical reserve taken out fits 7 display
 /// lines, spends 4 on the query line, the lens strip, the hint and its
@@ -258,10 +259,10 @@ pub(in crate::render) fn fit_item_rows(
 /// total_headers)` bounds the headers the window can carry — so the card it
 /// sizes still cannot outgrow `avail_px`.
 ///
-/// `min_items` keeps the grouped family's own floor (item 184's `0`): where the
-/// fixed chrome ALONE already exceeds the budget, no row count can help and an
-/// empty band beats overrunning the canvas. That degradation is preserved
-/// exactly; what this removes is the case where it fired with room to spare.
+/// `min_items` keeps the grouped family's own `0` floor: where the fixed chrome
+/// ALONE already exceeds the budget, no row count can help and an empty band
+/// beats overrunning the canvas. That degradation is preserved exactly; what
+/// this removes is the case where it fired with room to spare.
 pub(in crate::render) fn fit_sectioned_item_rows(
     avail_px: f32,
     lh: f32,

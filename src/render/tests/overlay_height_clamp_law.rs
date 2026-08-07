@@ -440,7 +440,8 @@ fn no_card_exceeds_its_canvas_across_the_documented_zoom_range() {
 
 /// **THE FLOOR'S OTHER HALF — an empty candidate band must be FORCED.** The law
 /// above proves the sectioned card never overruns its canvas; on its own, that
-/// is satisfiable by a card that shows nothing at all. Item 184's `min_items: 0`
+/// is satisfiable by a card that shows nothing at all. The grouped family's
+/// `min_items: 0`
 /// is licensed only where no row can fit; a card that plans zero rows while the
 /// canvas beneath it still has room for a section header and an item row is not
 /// degrading, it is mis-billing its own budget.

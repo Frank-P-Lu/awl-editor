@@ -44,8 +44,8 @@ impl TextPipeline {
     /// The GROUPED family's counterpart, routed through
     /// [`fit_sectioned_item_rows`] so its own section headers are charged for
     /// the window that will actually be drawn rather than for every section in
-    /// the list. Same per-kind ceiling, same family floor (item 184's `0`);
-    /// the only difference is which header count the budget pays for.
+    /// the list. Same per-kind ceiling, same family floor; the only difference
+    /// is which header count the budget pays for.
     pub(super) fn overlay_sectioned_item_cap(
         &self,
         avail_px: f32,

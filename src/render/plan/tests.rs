@@ -339,9 +339,9 @@ fn fit_item_rows_allows_zero_once_the_groups_own_chrome_overruns_the_budget() {
 ///     grid rather than at hand-picked scenarios.
 ///  2. **NEVER OPTIMISTIC.** `chrome + min(k, headers) + k <= fit_lines` at
 ///     every cell, so the tight branch cannot size a card past its budget.
-///  3. **THE FLOOR ENGAGES, AND ONLY WHERE ROOM REMAINS.** Item 184's
-///     degradation survives where the fixed chrome alone fills the budget; the
-///     tight branch fires where it does not.
+///  3. **THE FLOOR ENGAGES, AND ONLY WHERE ROOM REMAINS.** The grouped
+///     family's `0` degradation survives where the fixed chrome alone fills the
+///     budget; the tight branch fires where it does not.
 #[test]
 fn fit_sectioned_item_rows_bills_headers_tightly_only_to_avoid_an_empty_band() {
     use super::overlay_rows::fit_sectioned_item_rows;
@@ -370,8 +370,8 @@ fn fit_sectioned_item_rows_bills_headers_tightly_only_to_avoid_an_empty_band() {
                 }
                 // Never optimistic: the rows answered, plus the headers they can
                 // summon, fit the budget the fixed chrome leaves behind. (Where
-                // the chrome ALONE overruns, no row count can help — that is
-                // item 184's degradation, not this function's arithmetic.)
+                // the chrome ALONE overruns, no row count can help — that is the
+                // `min_items` degradation, not this function's arithmetic.)
                 assert!(
                     k + headers.min(k) <= fit_lines.saturating_sub(chrome),
                     "{cell}: answered {k} items, which with its own headers needs {} of \
@@ -382,7 +382,7 @@ fn fit_sectioned_item_rows_bills_headers_tightly_only_to_avoid_an_empty_band() {
             }
         }
     }
-    // ITEM 184's degradation, preserved: the chrome alone still fills the budget.
+    // The degradation, preserved: the chrome alone still fills the budget.
     assert_eq!(fit_sectioned_item_rows(20.0, 20.0, 10, 3, 0), 0);
     // The floor engaging at the shape that starved: 7 display lines, 4 spent on
     // chrome, 3 sections. The conservative charge says zero; one item row plus

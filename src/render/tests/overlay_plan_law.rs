@@ -321,7 +321,7 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
                         let plan = p.overlay_row_plan(&geom);
                         let probe = p.overlay_row_y_probe();
                         let ctx = format!(
-                            "{kind:?}/{fam:?} dpi={dpi} list={sname} canvas={cw}x{ch} menu_bar={bar}"
+                            "{kind:?}/{fam:?} dpi={dpi} list={sname} canvas={cw}x{ch} bar={bar}"
                         );
 
                         assert_faceted_state_matches_production(&p, &geom, kind, fam, &ctx);
@@ -344,45 +344,64 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
     p.set_dpi(1.0);
     theme::set_active(theme::DEFAULT_THEME);
 
-    assert!(
-        checked_rows > 500,
-        "the sweep must actually grade hundreds of item rows, got {checked_rows}"
+    assert_sweep_floors(
+        checked_rows,
+        checked_headers,
+        rows_by_family,
+        headers_by_family,
+        rows_by_bar,
     );
-    // PER MENU-BAR STATE, not an aggregate: an aggregate floor is satisfied by
-    // the macOS half grading everything while the Linux half grades nothing —
-    // exactly the coverage hole this axis was added to close.
-    for (i, n) in rows_by_bar.iter().enumerate() {
+}
+
+/// EVERY NON-VACUITY FLOOR THE HEADLINE SWEEP OWES, in one place: the aggregate
+/// row and header counts, the PER-FAMILY counts, and the PER-MENU-BAR-STATE
+/// counts.
+///
+/// Each of the three is a different way for a sweep to grade nothing while
+/// reporting a large total. An aggregate floor alone stayed green when a whole
+/// family's arm went to zero — a mis-classified kind's rows land in the WRONG
+/// family's bucket while its real family's bucket quietly loses its only
+/// contributor. The menu-bar counts are the same failure along the newer axis:
+/// the state a law never enters is the state it cannot grade, and one state
+/// grading the whole roster would satisfy any total.
+fn assert_sweep_floors(
+    rows: usize,
+    headers: usize,
+    by_family: [usize; 3],
+    headers_by_family: [usize; 3],
+    by_bar: [usize; 2],
+) {
+    assert!(
+        rows > 500,
+        "the sweep must actually grade hundreds of item rows, got {rows}"
+    );
+    for (i, n) in by_bar.iter().enumerate() {
         assert!(
             *n > 200,
-            "the sweep graded {n} item rows with menu_bar={} — its half of the \
-             menu-bar axis is vacuous (both: {rows_by_bar:?})",
-            i == 1
+            "the sweep graded {n} item rows with the menu bar {} — its half of the \
+             menu-bar axis is vacuous (both: {by_bar:?})",
+            if i == 1 { "shown" } else { "hidden" }
         );
     }
     assert!(
-        checked_headers > 0,
+        headers > 0,
         "the sweep must include the grouped family's section HEADER lines (which accept \
-         no click), got {checked_headers} — otherwise the header arm is vacuous"
+         no click), got {headers} — otherwise the header arm is vacuous"
     );
-
-    // ITEM 185 — PER-FAMILY floors. An aggregate floor alone would have stayed
-    // green even if a whole family's arm quietly went to zero (exactly what a
-    // mis-classified kind can cause: its rows get counted toward the WRONG
-    // family's bucket while its real family's bucket loses a contributor).
     for (name, idx) in [("Flat", 0), ("Grouped", 1), ("Contextual", 2)] {
         assert!(
-            rows_by_family[idx] > 0,
+            by_family[idx] > 0,
             "the {name} family's own row arm graded zero rows — its part of the sweep is \
-             vacuous, got {rows_by_family:?}"
+             vacuous, got {by_family:?}"
         );
     }
     assert!(
-        headers_by_family[fam_idx(Family::Grouped)] > 0,
+        headers_by_family[1] > 0,
         "the GROUPED family's own section-header lines were never graded — got \
          {headers_by_family:?}"
     );
     assert_eq!(
-        headers_by_family[fam_idx(Family::Flat)] + headers_by_family[fam_idx(Family::Contextual)],
+        headers_by_family[0] + headers_by_family[2],
         0,
         "a FLAT or CONTEXTUAL kind graded a section-HEADER display line — only the \
          GROUPED family ever carries one, got {headers_by_family:?}"
