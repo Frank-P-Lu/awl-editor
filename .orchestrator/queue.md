@@ -1665,7 +1665,17 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      roster × `OverlayKind` × 1×/2×, with byte-identity everywhere a plate legitimately
      belongs. **Routing:** production tier.
 
-317. 🟡 IN PROGRESS — claude, branch `claude/item-317-320-axis-census`.
+317. ✅ **LANDED (merged 2026-08-07) — and the boolean instrument is now EXHAUSTED.** The whole
+     suite is green under `MENU_BAR_ON`'s non-macOS arm (3867 = baseline), so the lane built a
+     **sharper** one: bar on *and* `menubar_reserve()` **tripled**, separating laws that SEE the
+     reserve from laws blind to it — 14 of 3867 see it, and **nine failed with a presence-floor
+     message naming the collapsed subject**, which is the CI RED's lesson having taken. Two were
+     measuring the wrong thing (a law hand-rolling its own viewport spent 18px of a 21px tolerance
+     on its own error — **the product was correct**). ⚠️ **The probe was BLIND to two laws because
+     an earlier arm of the same roster pinned the toggle off** — their configuration was a property
+     of ITERATION ORDER. ✅ **And the census has ONE DOOR:** `MENU_BAR_ON` is the only
+     platform-forked sticky default, and `src/render/` non-test has **zero** `target_os`.
+     **Original:**
      **HOW MANY OTHER LAWS ARE BLIND TO THE `menu_bar` AXIS? SWEEP THEM UNDER THE
      FORCING.** The CI RED above was one platform default — `MENU_BAR_ON` is `false` on macOS
      and `true` everywhere else — costing **35.6px of every card's height budget**, and it hid
@@ -1716,7 +1726,11 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      the roster × `OverlayKind` × 1×/2× **and under the `MENU_BAR_ON` forcing**, since the bar's
      reserve is in this axis. **Routing:** production tier.
 
-320. 🟡 IN PROGRESS with 317 — claude, branch `claude/item-317-320-axis-census`.
+320. ✅ **LANDED with 317.** `window_rows()` diverges from the flat `12` for exactly four kinds, so
+     most of the 36 fixtures missing the field are correct **by accident**. Three laws changed
+     verdict once set — **and the cause is a live product defect, not a fixture bug** (see 327), so
+     the folds were backed out rather than landing a red suite, with the measurement recorded in
+     code at each site. **Original:**
      **A LATENT TEST-FIXTURE BUG THAT MAKES HEIGHT-BUDGET SWEEPS LIE.**
      `ViewState::overlay_window_rows` left at its **default pins every kind to 12 rows**, so a
      law that believes it is varying the card's height budget is not varying anything. The
@@ -1785,6 +1799,67 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ⚠️ **The dropdown is a live-only surface on macOS** and the drawn bar is the non-macOS
      default, so **run under the `MENU_BAR_ON` forcing** — an unforced run cannot see the subject.
      **Routing:** production tier.
+
+324. **GIVE `MENU_BAR_ON` A FORCING KNOB AND A GATE ARM — this is the durable fix for the whole
+     class, and the model already exists in the tree.** Item 317's closing words:
+     *"today the only way to sweep the axis is editing a source file — which is why nobody ever
+     did."*
+
+     ✅ **Copy `Convention::current()` exactly.** It is **fully swept** via an
+     `AWL_CONVENTION_FORCE` env knob **plus both arms run in `native-gate.sh` every gate**. Give
+     `MENU_BAR_ON`'s initialiser an `AWL_MENU_BAR_FORCE` equivalent and add the arm. **Then the
+     axis that caused this repo's gating CI RED is swept by the gate instead of by whoever
+     remembers.**
+     ⚠️ **Capture the AMBIENT value, never `cfg!`** — inside a test `cfg!(target_os = …)` reflects
+     the host that COMPILED it, not the branch the value took, which is exactly the defect item 325
+     is about.
+     ⚠️ **Cost check before adding the arm:** `native-gate.sh` already runs two conventions
+     concurrently; a third dimension multiplies, and CI's `linux` job has a `timeout-minutes`
+     ceiling that has been hit before (a timed-out job reports as `cancelled`). **Measure the added
+     wall-clock and say it** — sweeping one representative filter under the forcing may be the
+     honest trade rather than the whole suite.
+     **Routing:** production tier.
+
+325. **`src/config/tests.rs` ASSERTS A `cfg!` AGAINST THE IDENTICAL `cfg!` — a tautology that
+     cannot fail on any host.** Found by item 317's census.
+     `cfg.menu_bar_on() == cfg!(not(target_os = "macos"))` at `:596` and `:602`, while the subject
+     is `config/model.rs:104`'s `self.menu_bar.unwrap_or(cfg!(not(target_os = "macos")))`.
+     ⚠️ **Neither side reads the actual owner** — `menubar::MENU_BAR_DEFAULT_MACOS`/`_OTHER`. **Flip
+     `MENU_BAR_DEFAULT_OTHER` to `false` and `MENU_BAR_ON` changes while this law stays green.** Its
+     comment claims to check *"the platform default (ON web/Linux, OFF macOS)"*, which is precisely
+     what it does not do.
+     **Build:** route both the accessor and the law through the named consts, so the law grades the
+     owner. **Verify:** mutation-prove by flipping the const and watching it go red — that is the
+     whole point, and it is the mutation this law has never survived. **Routing:** production tier.
+
+326. **THE MENU BAR'S HEIGHT HAS TWO OWNERS, agreeing only by coincidence.**
+     `render/geometry.rs:711` (the reserve) and `render/chrome/menubar.rs:82` (the drawn strip) each
+     independently spell `bar_height(metrics.line_height * type_scale::LABEL)`. Item 317's ×3 probe
+     drove a wedge between them and `chrome_panels::menu_bar_left_and_right_columns…` immediately
+     read the drawn bar as non-ground.
+     ⚠️ **Same shape `geometry.rs`'s own doc records for `TEXT_TOP + menubar_reserve()`, which had
+     SIX spellings and is why item 315's bug survived at half of them.** One owner, every consumer
+     routed through it, and a law with a no-wildcard match — the standing rule.
+     ✅ Item 321 already made `bar_height` take a required `scale`, so the two call sites now agree
+     on units; **this item is about them agreeing by CONSTRUCTION rather than by both remembering to
+     call the same function.** **Routing:** production tier.
+
+327. **A `Range` SETTING LOSES ITS RAIL AT THE SHIPPED `window_rows = 31`.** Measured by item 317
+     at 1200×800: the Settings card draws **22 candidate display lines in a 718.8px card**, the
+     selected Zoom row **is planned and drawn** (`sel_row = 6 < lines = 22`), and **`overlay_rails`
+     emits no rail for it** — the wider drawn set grows the diagonal cluster's label/value columns
+     until `rail_geom` cannot seat a rail in what remains.
+     ⚠️ **This is the SHIPPED configuration, not a fixture artefact:** `sync_view` and both capture
+     paths set 31. It was invisible because fixtures left `ViewState::overlay_window_rows` at its
+     flat default of 12. `settings_row_reach_law` fails identically at
+     `world=Mangrove dpi=1 logical_width=640 setting=PageWidthProse`.
+     🔵 **A live-`App` confirmation is OWED before this is treated as fact** —
+     `overlay_accept:Settings` is `Unsupported` on the ordinary capture path
+     (`docs/harness-reach.md`), so it needs `--screenshot-app`. **Treat 317's measurement as a
+     hypothesis until then.**
+     ⚠️ It is a product/taste call about the accessory cluster's width budget — items 318/319's
+     neighbourhood — so **sequence with them and put the budget question to the user.**
+     **Routing:** production tier, then the user.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 

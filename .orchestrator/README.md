@@ -254,6 +254,19 @@ cross-platform build script with no macOS-specific disk policy.
 
 ## Mutation proof is part of the deliverable
 
+‼ **TWO MUTATIONS AT ONCE CAN NEUTRALISE EACH OTHER, AND THE SURVIVOR READS GREEN.** Measured
+2026-08-07: a lane broke a hardcoded constant *and* forced the quantity that constant should have
+differed from to zero — which made the two coincide, so the first mutation had nothing left to
+change and its law passed. Run separately, both fired. **One mutation at a time, and if a
+combination is genuinely needed, say what each one's subject is and check they are disjoint.**
+
+‼ **AND A MAGNITUDE PROBE IS BLIND TO ANY LAW THAT HAS OPTED ITSELF OUT.** In the same census, two
+laws could not see a tripled reserve because an **earlier arm of the same roster** ended with a
+hardcoded `set_menu_bar_on(false)` — so their configuration was a property of **iteration order**,
+not of the platform. **A sweep that forces a global finds only the tests that read it; enumerate
+the population that pins it off and read those separately.** An arm that pins a global restores
+the **ambient** value, never a `cfg!` — inside a test that reflects the host that compiled it.
+
 ‼ **A MUTATION CAN BE A SILENT NO-OP, AND THEN A GREEN LAW LOOKS LIKE A PROVEN ONE.** Measured
 2026-08-07: a lane's mutation script targeted lines that **rustfmt had since joined**, so the
 edit applied to nothing and the law reported green — indistinguishable from a law that survived
