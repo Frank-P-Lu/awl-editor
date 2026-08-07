@@ -52,7 +52,11 @@ fn text_origin_top_is_dpi_invariant_at_matched_logical_geometry_menu_bar_off() {
         return;
     };
 
-    for &(lw, lh) in &[(1200.0f32, 800.0f32), (900.0f32, 700.0f32), (600.0f32, 600.0f32)] {
+    for &(lw, lh) in &[
+        (1200.0f32, 800.0f32),
+        (900.0f32, 700.0f32),
+        (600.0f32, 600.0f32),
+    ] {
         let mut logical: Vec<(f32, f32)> = Vec::new();
         for &dpi in &TIERS {
             p.set_size(lw * dpi, lh * dpi);
@@ -114,7 +118,10 @@ fn text_origin_top_composes_scaled_text_top_and_the_menubar_reserve_menu_bar_on(
         p.set_dpi(dpi);
         p.set_view(&view_md(HEADED, 0, 0));
         let reserve = p.menubar_reserve();
-        assert!(reserve > 0.0, "dpi {dpi}: the bar must actually be reserving space");
+        assert!(
+            reserve > 0.0,
+            "dpi {dpi}: the bar must actually be reserving space"
+        );
         let want = p.metrics.px(TEXT_TOP) + reserve;
         let got = p.text_origin_top();
         assert!(

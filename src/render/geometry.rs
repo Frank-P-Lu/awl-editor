@@ -10,7 +10,9 @@ pub fn visible_lines(height: f32) -> usize {
 /// DEVICE-px `height`, or the row count drifts across DPI (item 314's `TEXT_LEFT`
 /// drift, one axis over).
 pub fn visible_lines_z(height: f32, line_height: f32, scale: f32) -> usize {
-    ((height - TEXT_TOP.px(scale)) / line_height).floor().max(1.0) as usize
+    ((height - TEXT_TOP.px(scale)) / line_height)
+        .floor()
+        .max(1.0) as usize
 }
 
 #[allow(dead_code)]

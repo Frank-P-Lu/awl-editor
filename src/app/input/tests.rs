@@ -262,8 +262,8 @@ fn move_by(app: &mut App, dx: f32, dy: f32) {
     ));
     if app.input.pointer.drag_armed {
         let m = Metrics::with_dpi(app.frame.zoom(), app.frame.dpi());
-        let line =
-            ((app.input.pointer.cursor_px.1 - TEXT_TOP.0).max(0.0) / m.line_height).floor() as usize;
+        let line = ((app.input.pointer.cursor_px.1 - TEXT_TOP.0).max(0.0) / m.line_height).floor()
+            as usize;
         let col = ((app.input.pointer.cursor_px.0 - TEXT_LEFT.0).max(0.0) / m.char_width).round()
             as usize;
         app.drag_to_char(app.document.buffer().hit_char(line, col));

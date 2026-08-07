@@ -157,12 +157,12 @@ mod surfaces_item219;
 mod surfaces_item225;
 mod syntax_ligatures;
 mod syntax_roles;
+mod tables;
 /// ITEM 315 — the document's first-row vertical origin (`TextPipeline::
 /// text_origin_top`, `doc_top`, `hit_test_scroll`), through the live pipeline,
 /// at every DPI and both `MENU_BAR_ON` states — the vertical twin of item
 /// 314's `column_left_dpi_item314`.
 mod text_top_dpi_item315;
-mod tables;
 mod theme;
 mod theme_caps_law;
 /// The TIMELINE half of the comparison workspace: the two regions never

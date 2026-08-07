@@ -341,7 +341,10 @@ fn max_scroll_accounts_for_viewport() {
     );
     // A doc that fits entirely (or is shorter) cannot scroll into the void.
     assert_eq!(max_scroll(visible, H, LINE_HEIGHT, 1.0), 0);
-    assert_eq!(max_scroll(visible.saturating_sub(3), H, LINE_HEIGHT, 1.0), 0);
+    assert_eq!(
+        max_scroll(visible.saturating_sub(3), H, LINE_HEIGHT, 1.0),
+        0
+    );
     assert_eq!(max_scroll(1, H, LINE_HEIGHT, 1.0), 0);
     assert_eq!(max_scroll(0, H, LINE_HEIGHT, 1.0), 0);
 }

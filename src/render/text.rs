@@ -1312,7 +1312,10 @@ impl TextPipeline {
             .filter_map(|h| *h)
             .chain(self.image_force.iter().filter_map(|f| f.map(|(dh, _)| dh)))
             .sum();
-        self.metrics.px(TEXT_TOP) + rows * self.metrics.line_height + reserved + self.metrics.line_height
+        self.metrics.px(TEXT_TOP)
+            + rows * self.metrics.line_height
+            + reserved
+            + self.metrics.line_height
     }
 
     pub(super) fn has_heading_lines(&self) -> bool {
