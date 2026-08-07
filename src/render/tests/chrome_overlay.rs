@@ -640,7 +640,8 @@ fn gutter_visibility_boundary_is_dpi_invariant_at_matched_logical_geometry() {
     let _page = crate::page::PagePin::snapshot();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping gutter_visibility_boundary_is_dpi_invariant_at_matched_logical_geometry: no wgpu adapter"
+            "skipping gutter_visibility_boundary_is_dpi_invariant_at_matched_logical_geometry: \
+             no wgpu adapter"
         );
         return;
     };

@@ -712,7 +712,7 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 lint = "clippy::too_many_lines"
 file = "src/render/blur.rs"
 function = "BlurBackdrop::new"
-message = "this function has too many lines (108/100)"
+message = "this function has too many lines (109/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. The construction now happens inside gpu_cache::render_pipeline's build closure, so the program is compiled once per process rather than once per pipeline instance; the added lines are that closure's own."
 
 [[clippy_exception]]
@@ -1842,3 +1842,23 @@ line = 105
 text = "/// ITEM 64's exact named corpora (0/1/5/6/20), spelled out one at a time so the"
 reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
 
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/frost_feather_item312.rs"
+function = "the_footprints_edge_is_a_ramp_of_the_authored_width_in_logical_px_at_every_dpi"
+message = "this function has too many lines (147/100)"
+reason = "A pixel-profiling law, not a routine assertion: it builds a real frame open and closed, profiles outward from BOTH vertical faces along each face's own sheared x, and derives which face carries the claim from whether a skirt has any document to defocus. The length is the sweep (3 worlds x 2 DPI tiers x 2 faces) plus the veto that keeps card ink out of the first samples. Splitting it would separate the profile from the non-vacuity clause that gives its numbers meaning, which is how a measurement law goes quietly vacuous. The largest of the three and the first candidate if this file is ever decomposed."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/frost_feather_item312.rs"
+function = "the_footprints_lean_is_read_from_the_spine_the_frame_actually_drew"
+message = "this function has too many lines (114/100)"
+reason = "The length is the geometry hunt this law needs to be non-vacuous. The measured per-row step and the authored ROW_STEP agree on every ordinary card, so asserting equality with the drawn spine tests nothing unless the sweep contains a YIELDING geometry — three plausible ones, including a deliberately cramped card, all resolved 7.000 = 7.000. The extra lines carry the geometry that does yield (rows hugging one glyph, 3.993 against 7.000) and the clause that makes the law report its own vacuity if such a case ever stops being present."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/frost_feather_item312.rs"
+function = "the_full_frosts_composite_is_destination_independent"
+message = "this function has too many lines (123/100)"
+reason = "Proves Frost::Full is still a replace under ALPHA_BLENDING by DRAWING it twice, over a red destination and a blue one through a LoadOp::Load pass, and requiring bit-identity — the operational meaning of `alpha 1.0 is a replace`, rather than an assertion about the constant. The length is two full GPU passes plus the non-vacuity step that first proves the composite differs from the bare clear; at alpha 0.99 all 120000 pixels differ."

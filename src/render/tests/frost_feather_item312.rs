@@ -255,11 +255,10 @@ fn the_footprints_edge_is_a_ramp_of_the_authored_width_in_logical_px_at_every_dp
             let depth = (f_px * 2.0) as i64;
             let label = format!("{world} @ {dpi}x ({w}x{h}), card [{rx}, {ry}, {rw}, {rh}]");
             // The rows profiled: the card's own height less one feather at each end, so
-            // the top and bottom faces' own skirts never enter a reading of the LEFT
-            // face's. The left boundary at row `py` is the union's own, so the reading
-            // follows the lean rather than smearing across it.
+            // the top and bottom faces' own skirts never enter a reading of a VERTICAL
+            // face's. `profile_face` below computes each face's own x at every row, so
+            // the reading follows the lean rather than smearing across it.
             let cy = ry + rh * 0.5;
-            let boundary = |py: f32| rx + (shear * (py - cy)).min(0.0);
             let rows: Vec<i64> = ((ry + f_px) as i64..(ry + rh - f_px) as i64)
                 .filter(|y| (0..hi).contains(y))
                 .collect();
@@ -418,7 +417,8 @@ fn median(v: &[f32]) -> f32 {
 /// satisfied by a shear read off the authored `ROW_STEP`: the measured step and the
 /// constant AGREE on every ordinary card, so equality to the drawn spine is a test of
 /// nothing unless the sweep contains a geometry where the rake actually yields. Measured
-/// on this tree, a card hugging one-glyph rows gives up most of its rake, drawing a spine that steps
+/// on this tree, a card hugging one-glyph rows gives up most of its rake, drawing a
+/// spine that steps
 /// 3.99 px per row against an authored 7.0 — while the theme picker's roomier card never
 /// reaches the bound at all. The sweep is required to contain such a case, or this law
 /// reports its own vacuity rather than passing green.
