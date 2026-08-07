@@ -254,6 +254,23 @@ cross-platform build script with no macOS-specific disk policy.
 
 ## Mutation proof is part of the deliverable
 
+‼ **A MUTATION THAT FAILS TO COMPILE READS EXACTLY LIKE A LAW THAT SURVIVED IT — AND
+"ASSERT YOUR REPLACEMENT APPLIED" DOES NOT CATCH IT.** Measured 2026-08-08: a lane
+wrote `self.metrics.zoom` into a *free function*, where `self` is not in scope. The
+text edit applied perfectly — the usual guard passed — the crate then failed to
+build, and the lane's `grep panicked` found nothing. **No panic and no compile is
+indistinguishable from no panic and a green test**, unless you look for the run
+itself. It was caught only because the `test result:` line was missing from the
+output.
+
+**So a mutation proof has THREE obligations, not two:** the replacement applied
+(assert the match count), the target **built**, and the test **ran** — check for the
+`test result:` line, or read the exit status of the build separately from the test.
+A mutation is a hypothesis about your own tooling as much as about the law, and this
+is the third distinct way a mutation has silently done nothing here (the others: a
+script targeting lines rustfmt had joined, and two mutations neutralising each
+other).
+
 ‼ **TWO MUTATIONS AT ONCE CAN NEUTRALISE EACH OTHER, AND THE SURVIVOR READS GREEN.** Measured
 2026-08-07: a lane broke a hardcoded constant *and* forced the quantity that constant should have
 differed from to zero — which made the two coincide, so the first mutation had nothing left to

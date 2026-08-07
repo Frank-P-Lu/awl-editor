@@ -171,6 +171,27 @@ well as here — **this item has already been answered twice by the user because
 decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
+- 🔵 **SIXTEEN TUNED QUANTITIES ARE HALF-SIZE ON YOUR RETINA SCREEN, AND FIXING THEM IS A TASTE
+  CALL, NOT A UNIT ANNOTATION (item 338).** The spell squiggle's amplitude and period, the nit and
+  table rule thicknesses, the inline-code pill's insets, the fence panel's inset, table cell padding
+  and column gap, the pan bar, the I-beam width, the space-bar caret, the caret morph dilation, and the
+  overlay's entrance drop are all multiplied by **zoom alone and never by DPI** — so they hold their
+  *device* size as the display gets denser. **Measured exactly:** the code pill is 6.0000 short at 2×,
+  which is precisely twice its own inset constant; the fence panel 16.0000, twice its own.
+  ⚠️ **Nobody should just "fix" this**, which is why the lane that found it stopped: several of these
+  carry *"TASTE TUNABLE, flagged for live review"* in their own doc comments, and doubling them at 2×
+  changes sixteen deliberately-tuned appearances at once. **1× is unchanged either way.** What this
+  wants is your eye on 1×/2× pairs per construct — and the answer may well be "yes, all sixteen",
+  but it is yours. A ledger law holds them from both ends meanwhile, so none can be quietly forgotten
+  or quietly added.
+- 🔵 **THE SETTINGS WIDTH BUDGET DEPENDS ON YOUR FILESYSTEM PATH (item 327, measured live).**
+  The "Project root" row shows its value as a **full, un-elided absolute path**, while other rows'
+  labels elide (`"Page wid…(prose)"`). So a long checkout path can eat the shared accessory-column
+  budget: with a ~62-char root the rail is **gone at every width from 640 to 1000 and present only at
+  1200**; with a 2-char root it is **present from 800 up**. ⚠️ **This is upstream of the width question
+  already owed to you** — any budget designed without eliding that value behaves differently on
+  different machines, so "should that path elide like every other row's text?" may be the actual
+  question. `gallery/item-334/pwp-*.png` (long root) against `pwp-shortroot-*.png`.
 - 🔵 **THE SETTINGS CARD'S WIDTH BUDGET IS A DESIGN CALL, WITH NUMBERS (item 327).** As a
   `Range` setting's card narrows, `overlay_right_shown` drops the **entire accessory column at once**
   — the value text *and* the rail — because they are gated together. **Who should yield first: the
@@ -2125,7 +2146,31 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      hidden by default on the dev host, so an unforced run cannot see its own subject).
      **Routing:** production tier.
 
-322. 🚧 CLAIMED (worktree item-322-render-consts, deep tier) **`src/render.rs`'s REMAINING ~30 CONSTANTS ARE UNCLASSIFIED, and item 315 declined to
+322. ✅ **LANDED (merged 2026-08-08) — 37 CONSTANTS, NOT ~30, AND THE PREMISE WAS TWO-THIRDS TRUE.**
+     It correctly predicted `PAGE_TEXT_PAD_CHARS` as "at least one genuine miss". It was **wrong about
+     the biggest group**: sixteen constants are not handled by a different, correct pipeline — they are
+     handled by a **fourth one that is wrong**, now item **338**.
+     ✅ **What landed:** `PAGE_TEXT_PAD_CHARS` into the `Chars` family that already existed; the two
+     caret pads into `Logical`, where `px = m.caret_h / CARET_H` is **exactly** `Metrics::scale`
+     because `with_dpi` built `caret_h` that way; three durations into a new **`Millis`** family; four
+     genuinely dimensionless ratios declared with reasons; and eleven owner-resolved constants
+     **excluded** because `Metrics::with_dpi` already multiplies each by `zoom * dpi` — typing those
+     `Logical` would apply DPI **twice**, invisible at the one scale captures run at by default.
+     ✅ **THE EXCLUSIONS ARE BY KIND WHEREVER THAT WAS ACHIEVABLE, which is the difference between a
+     mechanism and a promise.** `Millis` has **no `Metrics::px` at all**, so the **compiler** refuses
+     the pixel multiply (proven with `E0308`). The owner-resolved set is **DERIVED by parsing
+     `Metrics::with_dpi`'s own body**, so the exclusion **expires** the day the owner stops multiplying
+     one — proven by removing `FONT_SIZE`'s multiply and watching it become unclassified. ⚠️ **The
+     ratio family is still a name list, and the lane said so** rather than claiming otherwise.
+     ✅ **THE AUDIT WROTE THE LAW THAT WAS MISSING.** The newtype stops a length reaching a draw call
+     *unmultiplied*; it does **not** stop a caller handing `px` the **wrong factor**, since `px` takes
+     any `f32`. `no_length_is_resolved_against_zoom_alone` now sweeps every product source for that,
+     because the caret's pads live outside the declaration files.
+     ✅ **Evidence at the scale that matters: 22 shots per side** (3 worlds × 3 caret modes × 2 DPI plus
+     palette and selection), rebuilt from the pre-change commit rather than stashed. **22/22 PNGs and
+     22/22 sidecars byte-identical, eleven of them at dpi 2** — so nothing declared "already scaled
+     elsewhere" moved where a doubled multiply would show. Ledger `render.rs` 2671 → **2705**.
+     **Original:** **`src/render.rs`'s REMAINING ~30 CONSTANTS ARE UNCLASSIFIED, and item 315 declined to
      guess — correctly.** Widening the declaration law to `render.rs` itself is the last step of
      items 242/314/315, but that file declares families the lane did not audit: caret and font
      sizes that already flow through `Metrics::with_dpi`'s own multiply (a different, correct
@@ -2292,7 +2337,19 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      logical): **the facet strip ITSELF degrades away** (`geom.theme` flips false) and the flat
      shaper's independent `fits()` fails by far more — `needed=480.44` against `right_px=186.68`,
      short by **161.84px**.
-     🔴 **AND THE BOUNDARY IS NON-MONOTONIC, WHICH IS UNEXPLAINED.** Measured at
+     ✅ **THE BOUNDARY IS DATA-DEPENDENT, AND THIS IS THE MOST USEFUL THING ANYONE HAS LEARNED ABOUT
+     THIS ITEM (measured live 2026-08-08, once item 334 made `--screenshot-app` honour a canvas).**
+     **The "Project root" row's value is the FULL, UN-ELIDED absolute path** — unlike other rows'
+     labels, which elide (`"Page wid…(prose)"`) — so **it can dominate the shared accessory-column
+     budget on any real host with a long checkout path.** With the default root (a ~62-char absolute
+     path) the rail is **absent at every sampled width 640–1000 and present only at 1200**; with a
+     2-char root (`/p`) it is **present from 800 up with no gap through 1000**. ⚠️ **So the width
+     budget has an input nobody was accounting for, and it is the user's own filesystem path.** Any
+     budget designed without eliding that value will behave differently on different machines.
+     ⚠️ **The non-monotonic hole did NOT reproduce at either root length** on a 20–80px sampling grid
+     — **flagged UNRESOLVED, not disproven**: it may have been an artefact of the earlier sweep's root
+     length, a different live row count (27), or a hole narrower than the grid.
+     🔴 **The original claim, kept because it is not disproven: THE BOUNDARY MAY BE NON-MONOTONIC.** Measured at
      `world=Mangrove dpi=1 workspace=true`, PageWidthProse: rail **present** at 740–870 and
      930–1200, **absent** at 640–720 **and again at 880–920**. A real, reproducible gap between two
      present bands. The lane's hypothesis, undiagnosed: `name_px` is the widest label across **all**
@@ -2508,7 +2565,24 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      **Routing:** production tier — a doc correction, ideally with the count derived rather than
      restated.
 
-334. 🚧 CLAIMED (worktree item-334-config-axes, production tier — bundled 334+335) 🔴 **`--screenshot-app` SILENTLY IGNORES `--capture-size` AND `--capture-dpi`.** Found by item
+334. ✅ **LANDED (merged 2026-08-08) — HONOURED, not refused, and the defect was FOUR TIMES WIDER
+     than filed.** `LiveAppSpec` carries canvas and dpi and hands them to the same `CaptureOpts` the
+     shared renderer takes, so the meaning is identical on both doors.
+     ✅ **Proven by MEASURING GEOMETRY, not by echoing a flag:** a long line wraps to **12** visual
+     rows at 1200×800, **20** at 640×800 (genuinely more reflow, not a relabelled number), and **12**
+     at 2400×1600 dpi 2.0 — identical to the 1200×800 dpi-1 baseline, which is the documented dpi
+     meaning holding on this door. Mutation-proven by reverting the two assignments while keeping the
+     bindings alive.
+     ⚠️ **THE DIAGNOSIS FOUND THE SAME BUG SEVEN MORE TIMES.** `--screenshot-app` fell through to the
+     plain-`Screenshot` bucket in the hook classifier, so **`--sel`, `--zoom`, `--scroll`,
+     `--preedit`, `--search`, `--search-replace` and `--default-folder` were ALL classified as
+     honoured for that door and silently discarded** — none ever reached `LiveAppSpec`.
+     `CaptureKind::ScreenshotApp` now has its own accurate hook list: canvas, dpi, root and workspace
+     honoured, the rest refusing loudly. **A door that shares another door's bucket inherits promises
+     it does not keep.**
+     ✅ `docs/harness-reach.md` **and** `CAPTURE.md` both record the fix, the dpi meaning and what is
+     still refused — harness-reach.md being the file briefs are told to read before promising a
+     capture, so a gap there propagates. **Original:** 🔴 **`--screenshot-app` SILENTLY IGNORES `--capture-size` AND `--capture-dpi`.** Found by item
      327's lane when the width it needed to measure was unreachable through that door.
      `Mode::ScreenshotApp`'s `LiveAppSpec` carries **no `canvas`/`dpi` fields**, so the canvas is
      hard-coded to **1200×800** and both flags are accepted and discarded without a word.
@@ -2524,7 +2598,19 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ⚠️ Note the flag roster now declares operands as data with laws behind it, so express any
      refusal there rather than as a special case. **Routing:** production tier.
 
-335. 🚧 CLAIMED (worktree item-334-config-axes, production tier — bundled 334+335) **`settings_row_reach_law` SWEEPS A STATE `OverlayKind::Settings` CANNOT REACH.** Found by item
+335. ✅ **LANDED (merged 2026-08-08) — and the lane DID NOT STOP AT GREEN, which is the part worth
+     keeping.** The swept set now derives from `workspace_shape()` instead of enumerating a boolean,
+     so the unreachable `workspace=false` cell cannot be graded at all.
+     ⚠️ **Taken alone the corrected law passes EVERYWHERE — exactly the "you removed its subject"
+     warning.** The lane diagnosed rather than assumed: a **separate, already-documented and
+     deliberately parked** simplification in the same helper — `overlay_window_rows` left at the flat
+     default of **12** rather than the shipped **31** — independently shields it. Proven with a
+     throwaway patch that reproduces item 327's real defect at the one now-reachable cell, then
+     reverted. **The subject is intact; a different fixture is hiding it, and that one is parked on
+     327's own open product question.**
+     ✅ **The neighbour sweep found ~40 sites with the `[false, true]` shape** and confirmed the rest
+     are genuinely independent interaction axes rather than values an owner already decides — so the
+     pattern is not systemic. **Original:** **`settings_row_reach_law` SWEEPS A STATE `OverlayKind::Settings` CANNOT REACH.** Found by item
      327's lane. The law's axis includes `workspace=false`, while `workspace_shape()` returns
      `Some(RailOverRows)` **unconditionally** for that kind, so `overlay_workspace` is always true in
      the product. **The cell that produced 327's cited panic is fixture-only.**
@@ -2570,6 +2656,58 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      the frost tests' partition, which is why 329 stopped here. ⚠️ **Do not "fix" it by lowering the
      `measured > 500` guard**; that guard is the only thing making the erosion visible.
      **Routing:** production tier.
+
+338. 🔴 **SIXTEEN CONSTANTS IN THE WRITING COLUMN HOLD THEIR DEVICE SIZE AS THE DISPLAY GETS DENSER —
+     item 242's headline defect, found in a fourth pipeline nobody had audited.** Measured by item
+     322, which correctly declined to "fix" it. `metrics.zoom` is the clamped user zoom;
+     `metrics.scale` is `zoom * dpi`. **Sixteen read sites multiply by `.zoom` ALONE and never meet
+     `dpi`**: `SPELL_AMP`, `SPELL_PERIOD`, `SPELL_THICKNESS`, `NIT_THICKNESS`, `PREEDIT_UNDERLINE_H`,
+     `CODE_PILL_INSET_X/_Y`, `FENCE_PANEL_INSET_X`, `TABLE_CELL_PAD_X`, `TABLE_COL_GAP`,
+     `TABLE_RULE_THICKNESS`, `TABLE_PAN_BAR_THICKNESS`, `IBEAM_W`, `CARET_SPACE_BAR_W`,
+     `CARET_MORPH_DILATE_PX`, plus `OVERLAY_ENTRANCE_DROP_PX` which is scaled by **nothing at all**.
+     ✅ **MEASURED, NOT INFERRED**, at matched logical geometry: the code pill is **6.0000 short at
+     dpi 2 — exactly 2 × `CODE_PILL_INSET_X`** — and the fence panel **16.0000 short, exactly
+     2 × `FENCE_PANEL_INSET_X`**. Exact to the byte of the constant.
+     ⚠️ **THIS IS A PRODUCT DECISION WITH A HUMAN IN IT, WHICH IS WHY 322 PARKED IT.** Resolving them
+     through `Metrics::px` changes what **every Retina display draws for sixteen separately tuned
+     taste quantities**, several carrying *"TASTE TUNABLE, flagged for live review"* in their own doc
+     comments. **Declaring them `Physical` would be worse** — it asserts the device grid is the right
+     reference for a spell squiggle's amplitude. ✅ 1× is unchanged either way, and
+     `no_length_is_resolved_against_zoom_alone` already guards the repair from keeping the wrong
+     factor. ✅ **A ledger law holds them meanwhile, graded from BOTH ends** (set equality against the
+     file's own leftover set), so a new one cannot join by being DPI-blind and a repaired one cannot
+     stay by being forgotten.
+     ✅ **Build: a visual judge on 1×/2× pairs, world × construct**, then land the sixteen in one pass.
+     ⚠️ **Four cannot be typed without editing `chrome/**`** (`CODE_PILL_INSET_X` is read completely
+     raw at `chrome/popover.rs`; `IBEAM_W`, `CARET_SPACE_BAR_W`, `CARET_MORPH_DILATE_PX` at
+     `chrome/preview.rs`). **Routing:** production tier, then the user's eye.
+
+339. **`--screenshot-frames` HAS ITEM 334's DEFECT, UNFIXED.** Found by 334's lane while diagnosing and
+     deliberately left alone. `Mode::ScreenshotFrames` has no canvas/dpi fields and the identical
+     plain-`Screenshot` bucket fallthrough, so it too accepts geometry flags and discards them
+     silently. It is a **Hidden** flag, which is why it is lower priority — and also why nobody would
+     notice. ✅ **The fix is now mechanical: copy `CaptureKind::ScreenshotApp`'s shape** — its own hook
+     list, canvas and dpi carried on the spec. ⚠️ **Verify by measuring geometry, not by asserting a
+     field was set** — 334's proof was that a narrower canvas produced genuinely more reflow.
+     **Routing:** production tier.
+
+340. **`settings_view()` IS DUPLICATED IN TWO TEST FILES, BOTH CARRYING THE SAME PARKED NOTE.** Found
+     by item 335's lane. `settings_row_reach_law.rs` and `range_rail.rs` each declare their own copy,
+     and each hardcodes `overlay_window_rows` to `ViewState::base()`'s default of **12** instead of the
+     shipped **31** — the simplification that currently shields item 327's real defect from its own
+     law. ⚠️ **Two copies of a fixture mean two places to un-park it, and 335 proved the parked value
+     is load-bearing**: correcting it reproduces 327's defect. ✅ **Build:** one owner for the fixture.
+     ⚠️ **Do NOT un-park the 12 as part of the dedup** — that forces item 327's still-open product
+     question. Make it a parameter with the parked default named at one site, so un-parking later is a
+     one-line change in one place. **Routing:** production tier.
+
+341. **A SCOPE RESIDUAL ONE DIRECTORY OUT, the same shape that hid `TEXT_LEFT`/`TEXT_TOP`.** Found by
+     item 322. `src/render/caret_body.rs` declares `CARET_VISUAL_BODY_MIN_W`, `_MIN_H` and `_MIN_AREA`
+     as bare `f32` — multiplied by the correct recovered scale, so **not a defect today**, but outside
+     the declaration law's swept set. ⚠️ **A law's scope has now been the defect FOUR times** (items
+     315, 323, 322 and this), and each time widening it enumerated real work. ✅ **Build:** widen the
+     sweep to the caret files and classify what it enumerates, one family at a time, naming the
+     pipeline that already scales each. **Routing:** production tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
