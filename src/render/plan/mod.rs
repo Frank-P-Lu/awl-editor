@@ -54,7 +54,7 @@ mod row_extent;
 pub(in crate::render) use overlay_header::{PlannedHeader, beat_stands_alone, header_band_height};
 pub(in crate::render) use overlay_rows::plan_witness;
 pub(in crate::render) use overlay_rows::{
-    OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, fit_item_rows, plan_overlay_rows,
+    OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, fit_item_rows, fit_sectioned_item_rows, plan_overlay_rows,
 };
 #[cfg(test)]
 pub(in crate::render) use overlay_rows::{test_header_plan, test_row_top, test_rows};

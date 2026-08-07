@@ -32,6 +32,28 @@ impl TextPipeline {
             .min(fit_item_rows(avail_px, lh, overhead_rows, min_items))
     }
 
+    /// The GROUPED family's counterpart, routed through
+    /// [`fit_sectioned_item_rows`] so its own section headers are charged for
+    /// the window that will actually be drawn rather than for every section in
+    /// the list. Same per-kind ceiling, same family floor (item 184's `0`);
+    /// the only difference is which header count the budget pays for.
+    pub(super) fn overlay_sectioned_item_cap(
+        &self,
+        avail_px: f32,
+        lh: f32,
+        chrome_rows: usize,
+        total_headers: usize,
+        min_items: usize,
+    ) -> usize {
+        self.overlay_window_rows.max(1).min(fit_sectioned_item_rows(
+            avail_px,
+            lh,
+            chrome_rows,
+            total_headers,
+            min_items,
+        ))
+    }
+
     /// Resolves the FLAT family's item window in one call: caps it to what
     /// the canvas fits before sliding it through the shared `scroll_window`
     /// owner. `overlay_geometry`'s flat path and the spell popup each read
