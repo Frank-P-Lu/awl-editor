@@ -210,10 +210,23 @@ jobs:
       # libxkbcommon-x11.so could not be loaded` (run 30883984186). Also
       # added to run-linux.sh and package-linux.sh's shipped README.txt,
       # which have the same gap for anyone running awl on a bare X11 session.
+      # This step is where a rare apt-get stall against the package mirror
+      # can consume the ENTIRE job budget: run 31183432618 measured "Install
+      # system dependencies" at 21m41s (13:36:36Z -> 13:58:17Z) against a
+      # same-day neighbor's 14s for the identical step, so the AT-SPI probe
+      # below never got a chance to run at all, let alone hang — its own
+      # step recorded `skipped`, because `cargo build` was still mid-compile
+      # when the job's 30-minute ceiling cancelled it. `timeout` (not a
+      # step-level `timeout-minutes`, which cancels rather than fails and so
+      # still dominates the run — see ci-atspi-budget.sh's own comment on
+      # the same distinction) turns a repeat of that stall into an ordinary
+      # tolerated FAILURE within minutes, not a job-dominating CANCELLED at
+      # the 30-minute ceiling. 5m per call is generous headroom over the
+      # ~15-35s this step normally takes across a wide sample of runs.
       - name: Install system dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          timeout 5m sudo apt-get update
+          timeout 5m sudo apt-get install -y --no-install-recommends \
             pkg-config \
             libfontconfig1-dev libxkbcommon-dev libxkbcommon-x11-0 libwayland-dev \
             libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
