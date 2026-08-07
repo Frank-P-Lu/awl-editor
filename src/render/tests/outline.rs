@@ -429,9 +429,9 @@ fn outline_hides_below_the_narrow_margin_floor() {
     let pref_px = rowlayout::OUTLINE_PREFERRED_CHARS as f32 * label_char_w;
     let min_px = rowlayout::OUTLINE_MIN_CHARS as f32 * label_char_w;
     let col_left = adaptive_column_left(
-        window_w, CHAR_WIDTH, true, measure, true, pref_px, min_px, gap, TEXT_LEFT,
+        window_w, CHAR_WIDTH, true, measure, true, pref_px, min_px, gap, 1.0,
     );
-    let avail = col_left - gap - TEXT_LEFT;
+    let avail = col_left - gap - TEXT_LEFT.0;
     let avail_chars = (avail / label_char_w).floor().max(0.0) as usize;
     assert!(
         avail_chars < rowlayout::OUTLINE_MIN_CHARS,
@@ -474,7 +474,7 @@ fn outline_shifts_the_column_right_under_pressure_and_gets_its_rail() {
     let text = "# Title\n\n## Section\n";
     p.set_view(&view_md(text, 0, 0));
 
-    let symmetric_left = column_left_for(window_w, CHAR_WIDTH, true, measure);
+    let symmetric_left = column_left_for(window_w, CHAR_WIDTH, true, measure, 1.0);
     let shifted_left = p.column_left();
     assert!(
         shifted_left > symmetric_left + 1.0,
@@ -483,7 +483,7 @@ fn outline_shifts_the_column_right_under_pressure_and_gets_its_rail() {
     // The right margin still breathes — the column never rides the window's edge.
     let right_margin = window_w - (shifted_left + p.column_width());
     assert!(
-        right_margin >= RIGHT_MARGIN_BREATH - 1e-3,
+        right_margin >= RIGHT_MARGIN_BREATH.0 - 1e-3,
         "right margin keeps its breathing floor, got {right_margin}"
     );
     // The outline is no longer hidden — it now draws real rows.
@@ -534,7 +534,7 @@ fn page_reset_does_not_rail_shift_the_column_for_a_hidden_outline() {
     // the outline is not even close to fitting, so nothing shifts.
     crate::page::set_measure(80);
     let before_left = p.column_left();
-    let before_symmetric = column_left_for(window_w, CHAR_WIDTH, true, 80);
+    let before_symmetric = column_left_for(window_w, CHAR_WIDTH, true, 80, 1.0);
     assert_eq!(
         before_left, before_symmetric,
         "measure 80: no shift, reads as centered"
@@ -551,7 +551,13 @@ fn page_reset_does_not_rail_shift_the_column_for_a_hidden_outline() {
     crate::page::set_measure(crate::page::DEFAULT_MEASURE);
     let after_left = p.column_left();
     let after_width = p.column_width();
-    let after_symmetric = column_left_for(window_w, CHAR_WIDTH, true, crate::page::DEFAULT_MEASURE);
+    let after_symmetric = column_left_for(
+        window_w,
+        CHAR_WIDTH,
+        true,
+        crate::page::DEFAULT_MEASURE,
+        1.0,
+    );
     assert_eq!(
         after_left, after_symmetric,
         "measure 70 (post-reset): still no payoff for a shift, so the column stays symmetric"
@@ -631,7 +637,7 @@ fn column_left_is_pixel_stable_across_a_one_px_resize_sweep() {
     // behavior, unrelated to the adaptive-placement jitter this test hunts).
     // Above the threshold: only PLACEMENT may move, never the measure.
     let measure_px = CHAR_WIDTH * measure as f32;
-    let fits_threshold = measure_px + 2.0 * PAGE_MIN_PAD;
+    let fits_threshold = measure_px + 2.0 * PAGE_MIN_PAD.0;
     let fits_idx = widths.iter().position(|&w| w as f32 >= fits_threshold);
     if let Some(start) = fits_idx {
         let w0 = shrink_widths[start];
@@ -699,7 +705,7 @@ fn column_left_is_pixel_stable_across_a_one_px_resize_sweep() {
     let pref =
         rowlayout::OUTLINE_PREFERRED_CHARS as f32 * CHAR_WIDTH * crate::markdown::type_scale::LABEL;
     let gap = CHAR_WIDTH * crate::render::chrome::MARGIN_COLUMN_GAP_CHARS.0;
-    let full_rail_left = (pref + gap + TEXT_LEFT).floor();
+    let full_rail_left = (pref + gap + TEXT_LEFT.0).floor();
     let pinned: Vec<(u32, f32)> = widths
         .iter()
         .copied()
@@ -975,7 +981,7 @@ fn outline_hit_test_stays_aligned_past_a_wide_glyph_heading() {
     for (i, row) in lines.iter().enumerate() {
         let drawn_y = TEXT_TOP + runs[i];
         let band_center = drawn_y + row_h * 0.5;
-        let hit = p.outline_hit_line(TEXT_LEFT + 1.0, band_center, 900);
+        let hit = p.outline_hit_line(TEXT_LEFT.0 + 1.0, band_center, 900);
         assert_eq!(
             hit,
             Some(row.line),
@@ -1130,7 +1136,7 @@ fn outline_hit_test_agrees_with_the_shifted_geometry_when_bar_shown() {
         "sanity: the bar really did push the top down"
     );
     // Just inside the first row's shifted y-band, well inside the x-band.
-    let hit = p.outline_hit_line(crate::render::TEXT_LEFT + 1.0, top + 1.0, height);
+    let hit = p.outline_hit_line(crate::render::TEXT_LEFT.0 + 1.0, top + 1.0, height);
     assert_eq!(
         hit,
         Some(0),
@@ -1140,7 +1146,7 @@ fn outline_hit_test_agrees_with_the_shifted_geometry_when_bar_shown() {
     // first row — proof the hit-test genuinely reads the shifted geometry, not the
     // stale unshifted one.
     let miss = p.outline_hit_line(
-        crate::render::TEXT_LEFT + 1.0,
+        crate::render::TEXT_LEFT.0 + 1.0,
         crate::render::TEXT_TOP + 1.0,
         height,
     );

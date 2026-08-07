@@ -200,7 +200,7 @@ impl TextPipeline {
             return None;
         }
         let label = crate::markdown::type_scale::LABEL;
-        let left_pad = crate::render::TEXT_LEFT;
+        let left_pad = self.edge_pad();
         let gap = self.metrics.char_width * MARGIN_COLUMN_GAP_CHARS.0;
         let right_edge = self.column_left() - gap;
         let avail = right_edge - left_pad;
@@ -345,7 +345,7 @@ impl TextPipeline {
             .map(|r| self.measure_outline_label_px(&r.label))
             .collect();
         let block_w = widths.iter().copied().fold(0.0_f32, f32::max);
-        let left = outline_block_left(layout.right_edge, block_w, crate::render::TEXT_LEFT);
+        let left = outline_block_left(layout.right_edge, block_w, self.edge_pad());
         let mut bands = Vec::with_capacity(layout.lines.len());
         let mut y = layout.top;
         for (i, row) in layout.lines.iter().enumerate() {
@@ -449,7 +449,7 @@ impl TextPipeline {
     /// a row (`cursor_shape`), both gated on the outline actually being drawn.
     pub fn outline_hit_line(&self, px: f32, py: f32, height: u32) -> Option<usize> {
         let layout = self.outline_layout(height)?;
-        if px < crate::render::TEXT_LEFT || px > layout.right_edge {
+        if px < self.edge_pad() || px > layout.right_edge {
             return None;
         }
         let row_h = self.metrics.line_height * crate::markdown::type_scale::LABEL;
@@ -600,7 +600,7 @@ impl TextPipeline {
         for run in self.outline_buffer.layout_runs() {
             block_w = block_w.max(run.line_w);
         }
-        let left = outline_block_left(layout.right_edge, block_w, crate::render::TEXT_LEFT);
+        let left = outline_block_left(layout.right_edge, block_w, self.edge_pad());
         let area = TextArea {
             buffer: &self.outline_buffer,
             left,

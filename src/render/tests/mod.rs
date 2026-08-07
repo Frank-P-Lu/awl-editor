@@ -43,6 +43,10 @@ mod cjk;
 /// The mirrored diagonal row cluster: which end of it a name hangs on, which
 /// end its accessory does, and that a mirrored name is clickable where it draws.
 mod cluster_mirror_item222;
+/// ITEM 314 — the writing column's left edge is a LOGICAL quantity: the same
+/// logical window seats it at the same logical x on every display scale, and the
+/// caret / hit test / rail affordance move with it rather than after it.
+mod column_left_dpi_item314;
 mod comparison_composite_item116d;
 /// ITEM 116b — the RELOCATED DOCUMENT VIEWPORT: the one owner all four
 /// document-geometry owners read, the private page-column bypass, the total

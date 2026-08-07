@@ -20,6 +20,20 @@
 use super::*;
 
 impl TextPipeline {
+    /// THE PAGE's OWN EDGE PAD in physical px — the ONE resolution of the authored
+    /// [`PAGE_MIN_PAD`] that every pipeline-side reader shares with the pure policies
+    /// in `geometry::column` (which take the same `dpi` explicitly, because they have
+    /// no `&self`). The margin OUTLINE reads it too: the rail's left inset must be the
+    /// SAME quantity `adaptive_column_left` granted the rail room for, and the
+    /// outline's own hit band must start where the block is drawn — three readers of
+    /// one pad, so a click can never miss a rail it can see.
+    ///
+    /// `self.dpi`, NOT `self.metrics.scale`: see the module doc on
+    /// [`page_column_advance`]'s zoom-stripped space.
+    pub(in crate::render) fn edge_pad(&self) -> f32 {
+        PAGE_MIN_PAD.px(self.dpi)
+    }
+
     /// THE PAGE's own column on the CANVAS, never relocated — the module-private
     /// bypass item 116b's one owner leaves for the two consumers that genuinely
     /// mean the backdrop rather than the document: [`Self::page_geometry`] (the
@@ -32,6 +46,7 @@ impl TextPipeline {
             self.page_advance(),
             crate::page::page_on(),
             crate::page::measure(),
+            self.dpi,
         )
     }
 
@@ -52,7 +67,7 @@ impl TextPipeline {
             rowlayout::OUTLINE_PREFERRED_CHARS as f32 * self.metrics.char_width * label,
             rowlayout::OUTLINE_MIN_CHARS as f32 * self.metrics.char_width * label,
             self.metrics.char_width * crate::render::chrome::MARGIN_COLUMN_GAP_CHARS.0,
-            crate::render::TEXT_LEFT,
+            self.dpi,
         )
     }
 
