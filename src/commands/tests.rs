@@ -1546,6 +1546,7 @@ fn web_reserved_native_chord_falls_back_to_a_surviving_emacs_slot() {
         emacs: "C-k",
         native_only: false,
         web_only: false,
+        description: None,
     };
     assert_eq!(
         join_slots_truthful(&synthetic, Convention::Mac, Platform::Web, &[]),

@@ -167,6 +167,48 @@ fn every_synthetic_chord_is_named() {
     }
 }
 
+/// THE DESCRIPTION COLUMN'S OWN LAW. [`crate::commands::Command::description`]
+/// is `Option<&'static str>` rather than a bare `&'static str` precisely so a
+/// command with nothing reliable to say can carry an honest `None` instead of
+/// an invented sentence — but that same option makes `Some("")` representable,
+/// which would render as a blank cell in [`rows::commands`]'s "What it does"
+/// column, indistinguishable from a roster bug (a `Cell::text_or_dash` `Some`
+/// draws no dash, so a reader has no way to tell "described as empty" from "the
+/// generator dropped a character"). This sweeps the one axis a byte-diff
+/// against the checked-in table cannot: an author can hand-edit a catalog
+/// literal to `Some("")` or `Some("  ")` and `regen-reference.sh` will happily
+/// print a blank cell that still passes `every_generated_section_matches_the_tree`
+/// (the blank is what's checked in, because it's what was generated) — this
+/// law is what fails instead, and it fails BY NAME.
+#[test]
+fn every_command_description_is_meaningful_when_present() {
+    let _g = crate::testlock::serial();
+    for c in crate::commands::COMMANDS.iter() {
+        let Some(d) = c.description else { continue };
+        assert!(
+            !d.trim().is_empty(),
+            "command `{}` carries `description: Some(\"\")` — an empty \
+             description renders as a blank cell, indistinguishable from a \
+             missing one; either write a real description or use `None`",
+            c.name
+        );
+        assert_eq!(
+            d.trim(),
+            d,
+            "command `{}`'s description has leading/trailing whitespace",
+            c.name
+        );
+        let bare_name = c.name.trim_end_matches('…').trim();
+        assert!(
+            !d.trim_end_matches('.').eq_ignore_ascii_case(bare_name),
+            "command `{}`'s description just restates its own name (`{d}`) — \
+             the docs-voice rule forbids paraphrasing the name back at the \
+             reader; describe what the command DOES",
+            c.name
+        );
+    }
+}
+
 /// Every span tag [`crate::markdown::MdKind`] can produce is claimed by a
 /// documented construct.
 ///

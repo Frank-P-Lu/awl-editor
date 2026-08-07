@@ -9,6 +9,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Summon the fuzzy file finder for the current project."),
     },
     Command {
         name: "Switch project…",
@@ -17,6 +18,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Summon the project switcher, browsing to a different project folder."),
     },
     Command {
         name: "Recent projects…",
@@ -25,6 +27,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
+        description: Some("Open the project switcher focused on its Recent list."),
     },
     Command {
         name: "Browse files…",
@@ -33,6 +36,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Summon the file browser for the current project folder."),
     },
     Command {
         name: "Go to heading…",
@@ -41,6 +45,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Open the file finder pre-focused on the current document's headings."),
     },
     Command {
         name: "Spell suggestions…",
@@ -49,6 +54,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Summon spelling suggestions for the misspelled word at the caret."),
     },
     Command {
         name: "Version history…",
@@ -57,6 +63,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
+        description: Some("Summon the version timeline for the current file — git log for a tracked file, saved snapshots otherwise."),
     },
     Command {
         name: "Compare with version…",
@@ -65,6 +72,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
+        description: Some("Open the read-only prose diff comparing the current buffer against a past version."),
     },
     Command {
         name: "Clean unused assets…",
@@ -73,6 +81,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
+        description: Some("Summon the list of orphaned image files under the project, for moving to the trash."),
     },
     Command {
         name: "Keep version…",
@@ -81,6 +90,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
+        description: Some("Prompt for a name, then record the current buffer text as a pinned history snapshot under it."),
     },
     Command {
         name: "Last file",
@@ -89,6 +99,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Switch to the previously open file; a no-op with nothing to switch back to."),
     },
     Command {
         name: "New document",
@@ -97,6 +108,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Start a new, empty document in the current project folder."),
     },
     Command {
         name: "Keep tutorial…",
@@ -105,6 +117,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
+        description: Some("Mark the built-in tutorial to be saved once a project folder is chosen, then open the project switcher."),
     },
     Command {
         name: "Move…",
@@ -113,6 +126,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Summon the destination browser to move the current file to another folder."),
     },
     Command {
         name: "Rename note…",
@@ -121,6 +135,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Open the rename prompt, seeded with the current file's name."),
     },
     Command {
         name: "Duplicate note",
@@ -129,6 +144,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Save a copy of the current file beside it, with a deduplicated name, and switch to editing the copy."),
     },
     // FINISH FILE: the emacsclient "server-edit" convention — save, notify any daemon
     // `--wait` client, and switch to the previously-open file. The emacs `C-x #`
@@ -144,6 +160,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
+        description: Some("Save the file, notify any daemon `--wait` client waiting on it, and switch to the previously open file."),
     },
     Command {
         name: "Follow link",
@@ -152,6 +169,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Open the URL of the markdown link under the caret in the default browser, if the caret sits inside one."),
     },
     Command {
         name: "Copy link destination",
@@ -160,6 +178,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Copy the URL of the markdown link under the caret to the kill buffer."),
     },
     Command {
         name: "Switch theme…",
@@ -168,6 +187,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Summon the theme (world) picker."),
     },
     Command {
         name: "Caret style…",
@@ -176,6 +196,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Summon the caret style picker."),
     },
     Command {
         name: "Dictionary…",
@@ -184,6 +205,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Summon the spelling dictionary picker."),
     },
     Command {
         name: "Toggle spellcheck",
@@ -192,6 +214,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Flip spellcheck on or off globally, silencing every squiggle when off."),
     },
     Command {
         name: "Toggle caret style",
@@ -200,6 +223,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Cycle to the next caret style."),
     },
     Command {
         name: "Toggle page mode",
@@ -208,6 +232,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Toggle between the centered writing column and full window width."),
     },
     Command {
         name: "Toggle writing nits",
@@ -216,6 +241,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Toggle the writing-nits style underlines on or off."),
     },
     Command {
         name: "Widen page",
@@ -224,6 +250,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Widen the page column by one step."),
     },
     Command {
         name: "Narrow page",
@@ -232,6 +259,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Narrow the page column by one step."),
     },
     Command {
         name: "Reset page width",
@@ -240,6 +268,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Reset the page column to the buffer's own default width, clearing any sticky override."),
     },
     Command {
         name: "Toggle debug",
@@ -248,6 +277,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Toggle the debug overlay."),
     },
     Command {
         name: "Toggle outline",
@@ -256,6 +286,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Toggle the heading outline panel."),
     },
     // FOLD SECTION: collapse/expand the markdown section under the caret (view state,
     // never file content). Default Cmd-. / C-c C-f; rebindable via config `[keys]`.
@@ -266,6 +297,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Toggle collapse of the markdown section under the caret; view state only, never on the undo timeline."),
     },
     Command {
         name: "Collapse other sections",
@@ -274,6 +306,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Collapse every markdown section except the one under the caret."),
     },
     Command {
         name: "Toggle typewriter scroll",
@@ -282,6 +315,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Toggle keeping the caret vertically centered as you type."),
     },
     Command {
         name: "Toggle menu bar",
@@ -290,6 +324,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Toggle the menu bar's visibility."),
     },
     Command {
         name: "About",
@@ -298,6 +333,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Show the About panel."),
     },
     Command {
         name: "Credits",
@@ -306,6 +342,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Open the bundled Credits document into the buffer."),
     },
     Command {
         name: "Guide",
@@ -314,6 +351,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Open the bundled Guide document into the buffer."),
     },
     Command {
         name: "Reference",
@@ -322,6 +360,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Open the bundled Reference document into the buffer."),
     },
     Command {
         name: "Lifetime stats",
@@ -330,6 +369,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
+        description: Some("Open the lifetime writing statistics panel."),
     },
     Command {
         name: "Writing streaks",
@@ -338,6 +378,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
+        description: Some("Open the writing-streaks panel (per-day heatmap and cumulative total)."),
     },
     // LINE ENDINGS: toggle the active file's on-disk ending (LF <-> CRLF). No default
     // chord — the palette IS its entry point (a rare command, like Settings/About); a
@@ -349,6 +390,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Toggle the active file's on-disk line ending between LF and CRLF; metadata only, never on the undo timeline."),
     },
     // ALIGN TABLE: re-pad the GFM table under the caret so its `|` line up (source
     // alignment, never a drawn grid). No default chord — the palette IS its entry
@@ -360,6 +402,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Re-pad the GFM table under the caret so its `|` columns line up."),
     },
     Command {
         name: "Insert Date",
@@ -368,6 +411,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Insert today's date at the caret, in the configured date format."),
     },
     // REPORT A PROBLEM: compose a mailto: link to the maintainer, with the
     // newest local crash log's path attached-by-name if one exists (never its
@@ -384,6 +428,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
+        description: Some("Compose a `mailto:` bug report to the maintainer, attaching the newest crash log's path (never its content) if one exists."),
     },
     Command {
         name: "Download file",
@@ -392,6 +437,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: true,
+        description: Some("Download the active buffer's text as a file — the web build's export, since there is no real disk."),
     },
     // CHECK FOR UPDATES: never a network fetch — records a LOCAL "last checked"
     // marker (best-effort, `updates::record_checked`) then hands off to the OS
@@ -408,5 +454,6 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
+        description: Some("Record a local last-checked marker and open the site's version-check page in the browser; never a background fetch."),
     },
 ];

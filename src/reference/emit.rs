@@ -36,6 +36,17 @@ impl Cell {
         }
     }
 
+    /// [`Self::code_or_dash`]'s PROSE sibling — a [`Cell::Text`] for `Some`, an
+    /// em dash for `None`. The shape a "this roster member may have nothing to
+    /// say" prose column wants, distinct from `code_or_dash` because a
+    /// description is a sentence fragment, never a code span.
+    pub(crate) fn text_or_dash(s: Option<&str>) -> Cell {
+        match s {
+            Some(s) => Cell::text(s),
+            None => Cell::Dash,
+        }
+    }
+
     fn to_markdown(&self) -> String {
         match self {
             // A literal `|` inside a GFM table cell ends the cell — escaped

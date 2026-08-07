@@ -111,30 +111,30 @@
 <div class="table-scroll">
 <table>
 <thead>
-<tr><th>Command</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
+<tr><th>Command</th><th>What it does</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
 </thead>
 <tbody>
-<tr><td>Switch project…</td><td><code>⌘⇧P</code></td><td><code>Ctrl+Shift+P</code></td><td>Native, browser</td></tr>
-<tr><td>Recent projects…</td><td>—</td><td>—</td><td>Native</td></tr>
-<tr><td>Browse files…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Version history…</td><td><code>⌘⇧H</code></td><td><code>Ctrl+Shift+H</code></td><td>Native</td></tr>
-<tr><td>Compare with version…</td><td>—</td><td>—</td><td>Native</td></tr>
-<tr><td>Keep version…</td><td>—</td><td>—</td><td>Native</td></tr>
-<tr><td>New document</td><td><code>⌘N</code></td><td><code>Ctrl+N</code></td><td>Native, browser</td></tr>
-<tr><td>Keep tutorial…</td><td>—</td><td>—</td><td>Native</td></tr>
-<tr><td>Move…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Rename note…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Duplicate note</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Finish file</td><td><code>⌘W</code></td><td><code>Ctrl+W</code></td><td>Native</td></tr>
-<tr><td>Download file</td><td>—</td><td>—</td><td>Browser</td></tr>
-<tr><td>Export as Word…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Export as HTML…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Export as PDF…</td><td>—</td><td>—</td><td>Native</td></tr>
-<tr><td>Save</td><td><code>⌘S</code></td><td><code>Ctrl+S</code></td><td>Native, browser</td></tr>
-<tr><td>Review the change</td><td>—</td><td>—</td><td>Native</td></tr>
-<tr><td>Save your version</td><td>—</td><td>—</td><td>Native</td></tr>
-<tr><td>Use disk version</td><td>—</td><td>—</td><td>Native</td></tr>
-<tr><td>Quit</td><td><code>⌘Q</code></td><td><code>Ctrl+Q</code></td><td>Native</td></tr>
+<tr><td>Switch project…</td><td>Summon the project switcher, browsing to a different project folder.</td><td><code>⌘⇧P</code></td><td><code>Ctrl+Shift+P</code></td><td>Native, browser</td></tr>
+<tr><td>Recent projects…</td><td>Open the project switcher focused on its Recent list.</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Browse files…</td><td>Summon the file browser for the current project folder.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Version history…</td><td>Summon the version timeline for the current file — git log for a tracked file, saved snapshots otherwise.</td><td><code>⌘⇧H</code></td><td><code>Ctrl+Shift+H</code></td><td>Native</td></tr>
+<tr><td>Compare with version…</td><td>Open the read-only prose diff comparing the current buffer against a past version.</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Keep version…</td><td>Prompt for a name, then record the current buffer text as a pinned history snapshot under it.</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>New document</td><td>Start a new, empty document in the current project folder.</td><td><code>⌘N</code></td><td><code>Ctrl+N</code></td><td>Native, browser</td></tr>
+<tr><td>Keep tutorial…</td><td>Mark the built-in tutorial to be saved once a project folder is chosen, then open the project switcher.</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Move…</td><td>Summon the destination browser to move the current file to another folder.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Rename note…</td><td>Open the rename prompt, seeded with the current file's name.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Duplicate note</td><td>Save a copy of the current file beside it, with a deduplicated name, and switch to editing the copy.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Finish file</td><td>Save the file, notify any daemon `--wait` client waiting on it, and switch to the previously open file.</td><td><code>⌘W</code></td><td><code>Ctrl+W</code></td><td>Native</td></tr>
+<tr><td>Download file</td><td>Download the active buffer's text as a file — the web build's export, since there is no real disk.</td><td>—</td><td>—</td><td>Browser</td></tr>
+<tr><td>Export as Word…</td><td>Export the buffer to a `.docx` file; markdown buffers only.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Export as HTML…</td><td>Export the buffer to an `.html` file; markdown buffers only.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Export as PDF…</td><td>Export the buffer to a `.pdf` file; markdown buffers only, native builds only.</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Save</td><td>Save the buffer to disk.</td><td><code>⌘S</code></td><td><code>Ctrl+S</code></td><td>Native, browser</td></tr>
+<tr><td>Review the change</td><td>Read an unresolved external change: the differences, your version, and the version on disk, one at a time. Changes nothing.</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Save your version</td><td>Settle an unresolved external change by writing the buffer over the file on disk.</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Use disk version</td><td>Settle an unresolved external change by replacing the buffer with the file on disk, as one undoable edit.</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Quit</td><td>Quit the application.</td><td><code>⌘Q</code></td><td><code>Ctrl+Q</code></td><td>Native</td></tr>
 </tbody>
 </table>
 </div>
@@ -142,29 +142,29 @@
 <div class="table-scroll">
 <table>
 <thead>
-<tr><th>Command</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
+<tr><th>Command</th><th>What it does</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
 </thead>
 <tbody>
-<tr><td>Go to file…</td><td><code>⌘O</code></td><td><code>Ctrl+O</code></td><td>Native, browser</td></tr>
-<tr><td>Go to heading…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Last file</td><td><code>⌃Tab</code></td><td><code>Ctrl+Tab</code></td><td>Native, browser</td></tr>
-<tr><td>Follow link</td><td><code>C-c C-o</code></td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Copy link destination</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Search forward</td><td><code>⌘F · C-s</code></td><td><code>Ctrl+F</code></td><td>Native, browser</td></tr>
-<tr><td>Search backward</td><td><code>⌘⇧F · C-r</code></td><td><code>Ctrl+Shift+F</code></td><td>Native, browser</td></tr>
-<tr><td>Find and replace…</td><td><code>⌘R</code></td><td><code>Ctrl+R</code></td><td>Native, browser</td></tr>
-<tr><td>Forward word</td><td><code>⌥Right</code></td><td><code>Alt+Right</code></td><td>Native, browser</td></tr>
-<tr><td>Backward word</td><td><code>⌥Left</code></td><td><code>Alt+Left</code></td><td>Native, browser</td></tr>
-<tr><td>Line start</td><td><code>⌘Left · C-a</code></td><td><code>Home</code></td><td>Native, browser</td></tr>
-<tr><td>Line end</td><td><code>⌘Right · C-e</code></td><td><code>End</code></td><td>Native, browser</td></tr>
-<tr><td>Document start</td><td><code>⌘Up</code></td><td><code>Ctrl+Home</code></td><td>Native, browser</td></tr>
-<tr><td>Document end</td><td><code>⌘Down</code></td><td><code>Ctrl+End</code></td><td>Native, browser</td></tr>
-<tr><td>Forward char</td><td><code>C-f</code></td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Backward char</td><td><code>C-b</code></td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Next line</td><td><code>C-n</code></td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Previous line</td><td><code>C-p</code></td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Delete word forward</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Delete word backward</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Go to file…</td><td>Summon the fuzzy file finder for the current project.</td><td><code>⌘O</code></td><td><code>Ctrl+O</code></td><td>Native, browser</td></tr>
+<tr><td>Go to heading…</td><td>Open the file finder pre-focused on the current document's headings.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Last file</td><td>Switch to the previously open file; a no-op with nothing to switch back to.</td><td><code>⌃Tab</code></td><td><code>Ctrl+Tab</code></td><td>Native, browser</td></tr>
+<tr><td>Follow link</td><td>Open the URL of the markdown link under the caret in the default browser, if the caret sits inside one.</td><td><code>C-c C-o</code></td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Copy link destination</td><td>Copy the URL of the markdown link under the caret to the kill buffer.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Search forward</td><td>Open incremental search, prefilled from the selection or the last query, searching forward.</td><td><code>⌘F · C-s</code></td><td><code>Ctrl+F</code></td><td>Native, browser</td></tr>
+<tr><td>Search backward</td><td>Open incremental search, prefilled from the selection or the last query, searching backward.</td><td><code>⌘⇧F · C-r</code></td><td><code>Ctrl+Shift+F</code></td><td>Native, browser</td></tr>
+<tr><td>Find and replace…</td><td>Open the search panel with its replace row revealed.</td><td><code>⌘R</code></td><td><code>Ctrl+R</code></td><td>Native, browser</td></tr>
+<tr><td>Forward word</td><td>Move the caret forward one word.</td><td><code>⌥Right</code></td><td><code>Alt+Right</code></td><td>Native, browser</td></tr>
+<tr><td>Backward word</td><td>Move the caret backward one word.</td><td><code>⌥Left</code></td><td><code>Alt+Left</code></td><td>Native, browser</td></tr>
+<tr><td>Line start</td><td>Move the caret to the start of the visual line (the logical line without a layout oracle).</td><td><code>⌘Left · C-a</code></td><td><code>Home</code></td><td>Native, browser</td></tr>
+<tr><td>Line end</td><td>Move the caret to the end of the visual line (the logical line without a layout oracle).</td><td><code>⌘Right · C-e</code></td><td><code>End</code></td><td>Native, browser</td></tr>
+<tr><td>Document start</td><td>Move the caret to the start of the document.</td><td><code>⌘Up</code></td><td><code>Ctrl+Home</code></td><td>Native, browser</td></tr>
+<tr><td>Document end</td><td>Move the caret to the end of the document.</td><td><code>⌘Down</code></td><td><code>Ctrl+End</code></td><td>Native, browser</td></tr>
+<tr><td>Forward char</td><td>Move the caret forward one character.</td><td><code>C-f</code></td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Backward char</td><td>Move the caret backward one character.</td><td><code>C-b</code></td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Next line</td><td>Move the caret down one visual line, following soft wraps and a sticky goal column.</td><td><code>C-n</code></td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Previous line</td><td>Move the caret up one visual line, following soft wraps and a sticky goal column.</td><td><code>C-p</code></td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Delete word forward</td><td>Delete the token after the caret (a word or punctuation run) into the kill buffer; deletes the selection instead if one is active.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Delete word backward</td><td>Delete the word before the caret into the kill buffer; deletes the selection instead if one is active.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
 </tbody>
 </table>
 </div>
@@ -172,30 +172,30 @@
 <div class="table-scroll">
 <table>
 <thead>
-<tr><th>Command</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
+<tr><th>Command</th><th>What it does</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
 </thead>
 <tbody>
-<tr><td>Align table</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Insert Date</td><td><code>⌘⇧D · C-c .</code></td><td><code>Ctrl+Shift+D</code></td><td>Native, browser</td></tr>
-<tr><td>Blockquote</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Bullet list</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Numbered list</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Task list</td><td><code>⌘⇧L</code></td><td><code>Ctrl+Shift+L</code></td><td>Native, browser</td></tr>
-<tr><td>Heading</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Cycle heading</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Code block</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Bold</td><td><code>⌘B</code></td><td><code>Ctrl+B</code></td><td>Native, browser</td></tr>
-<tr><td>Italic</td><td><code>⌘I</code></td><td><code>Ctrl+I</code></td><td>Native, browser</td></tr>
-<tr><td>Inline code</td><td><code>⌘E</code></td><td><code>Ctrl+E</code></td><td>Native, browser</td></tr>
-<tr><td>Highlight</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Strikethrough</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Insert link…</td><td><code>⌘K</code></td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Undo</td><td><code>⌘Z · C-/</code></td><td><code>Ctrl+Z · C-/</code></td><td>Native, browser</td></tr>
-<tr><td>Redo</td><td><code>⌘⇧Z</code></td><td><code>Ctrl+Shift+Z</code></td><td>Native, browser</td></tr>
-<tr><td>Copy</td><td><code>⌘C</code></td><td><code>Ctrl+C</code></td><td>Native, browser</td></tr>
-<tr><td>Cut</td><td><code>⌘X · C-w</code></td><td><code>Ctrl+X</code></td><td>Native, browser</td></tr>
-<tr><td>Paste</td><td><code>⌘V · C-y</code></td><td><code>Ctrl+V · C-y</code></td><td>Native, browser</td></tr>
-<tr><td>Select all</td><td><code>⌘A</code></td><td><code>Ctrl+A</code></td><td>Native, browser</td></tr>
+<tr><td>Align table</td><td>Re-pad the GFM table under the caret so its `|` columns line up.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Insert Date</td><td>Insert today's date at the caret, in the configured date format.</td><td><code>⌘⇧D · C-c .</code></td><td><code>Ctrl+Shift+D</code></td><td>Native, browser</td></tr>
+<tr><td>Blockquote</td><td>Toggle a `&gt; ` blockquote prefix on the caret line or each line of the selection.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Bullet list</td><td>Toggle a `- ` bullet marker on the caret line or each line of the selection.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Numbered list</td><td>Toggle a numbered-list marker on the caret line or each line of the selection, renumbering sequentially.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Task list</td><td>Toggle a `- [ ] ` task checkbox on the caret line or each line of the selection.</td><td><code>⌘⇧L</code></td><td><code>Ctrl+Shift+L</code></td><td>Native, browser</td></tr>
+<tr><td>Heading</td><td>Toggle a level-1 `# ` heading marker on the caret line.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Cycle heading</td><td>Cycle the caret line's heading level 1 → 2 → 3 → plain text.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Code block</td><td>Wrap the caret line or selection in a fenced code block, or unwrap it if already fenced.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Bold</td><td>Toggle `**bold**` markup around the selection or the word at the caret.</td><td><code>⌘B</code></td><td><code>Ctrl+B</code></td><td>Native, browser</td></tr>
+<tr><td>Italic</td><td>Toggle `*italic*` markup around the selection or the word at the caret.</td><td><code>⌘I</code></td><td><code>Ctrl+I</code></td><td>Native, browser</td></tr>
+<tr><td>Inline code</td><td>Toggle `` `inline code` `` markup around the selection or the word at the caret.</td><td><code>⌘E</code></td><td><code>Ctrl+E</code></td><td>Native, browser</td></tr>
+<tr><td>Highlight</td><td>Toggle `==highlight==` markup around the selection or the word at the caret.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Strikethrough</td><td>Toggle `~~strikethrough~~` markup around the selection or the word at the caret.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Insert link…</td><td>Summon the URL prompt for a markdown link — wraps the selection, edits the link under the caret, or inserts a fresh empty one.</td><td><code>⌘K</code></td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Undo</td><td>Undo the last edit group.</td><td><code>⌘Z · C-/</code></td><td><code>Ctrl+Z · C-/</code></td><td>Native, browser</td></tr>
+<tr><td>Redo</td><td>Redo the last undone edit group.</td><td><code>⌘⇧Z</code></td><td><code>Ctrl+Shift+Z</code></td><td>Native, browser</td></tr>
+<tr><td>Copy</td><td>Copy the selection to the kill buffer, leaving the text and clearing the mark.</td><td><code>⌘C</code></td><td><code>Ctrl+C</code></td><td>Native, browser</td></tr>
+<tr><td>Cut</td><td>Cut the selection into the kill buffer and remove it from the buffer.</td><td><code>⌘X · C-w</code></td><td><code>Ctrl+X</code></td><td>Native, browser</td></tr>
+<tr><td>Paste</td><td>Insert the OS clipboard's content — an image reference if the clipboard holds an image, otherwise text.</td><td><code>⌘V · C-y</code></td><td><code>Ctrl+V · C-y</code></td><td>Native, browser</td></tr>
+<tr><td>Select all</td><td>Select the entire buffer.</td><td><code>⌘A</code></td><td><code>Ctrl+A</code></td><td>Native, browser</td></tr>
 </tbody>
 </table>
 </div>
@@ -203,23 +203,23 @@
 <div class="table-scroll">
 <table>
 <thead>
-<tr><th>Command</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
+<tr><th>Command</th><th>What it does</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
 </thead>
 <tbody>
-<tr><td>Switch theme…</td><td><code>⌘T</code></td><td><code>Ctrl+T</code></td><td>Native, browser</td></tr>
-<tr><td>Toggle page mode</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Widen page</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Narrow page</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Reset page width</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Toggle debug</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Toggle outline</td><td><code>⌘⇧O</code></td><td><code>Ctrl+Shift+O</code></td><td>Native, browser</td></tr>
-<tr><td>Fold section</td><td><code>⌘⇧E · C-c C-f</code></td><td><code>Ctrl+Shift+E</code></td><td>Native, browser</td></tr>
-<tr><td>Collapse other sections</td><td><code>⌘⇧M · C-c C-t</code></td><td><code>Ctrl+Shift+M</code></td><td>Native, browser</td></tr>
-<tr><td>Toggle typewriter scroll</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Toggle menu bar</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Zoom in</td><td><code>⌘=</code></td><td><code>Ctrl+=</code></td><td>Native, browser</td></tr>
-<tr><td>Zoom out</td><td><code>⌘-</code></td><td><code>Ctrl+-</code></td><td>Native, browser</td></tr>
-<tr><td>Reset zoom</td><td><code>⌘0</code></td><td><code>Ctrl+0</code></td><td>Native, browser</td></tr>
+<tr><td>Switch theme…</td><td>Summon the theme (world) picker.</td><td><code>⌘T</code></td><td><code>Ctrl+T</code></td><td>Native, browser</td></tr>
+<tr><td>Toggle page mode</td><td>Toggle between the centered writing column and full window width.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Widen page</td><td>Widen the page column by one step.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Narrow page</td><td>Narrow the page column by one step.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Reset page width</td><td>Reset the page column to the buffer's own default width, clearing any sticky override.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Toggle debug</td><td>Toggle the debug overlay.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Toggle outline</td><td>Toggle the heading outline panel.</td><td><code>⌘⇧O</code></td><td><code>Ctrl+Shift+O</code></td><td>Native, browser</td></tr>
+<tr><td>Fold section</td><td>Toggle collapse of the markdown section under the caret; view state only, never on the undo timeline.</td><td><code>⌘⇧E · C-c C-f</code></td><td><code>Ctrl+Shift+E</code></td><td>Native, browser</td></tr>
+<tr><td>Collapse other sections</td><td>Collapse every markdown section except the one under the caret.</td><td><code>⌘⇧M · C-c C-t</code></td><td><code>Ctrl+Shift+M</code></td><td>Native, browser</td></tr>
+<tr><td>Toggle typewriter scroll</td><td>Toggle keeping the caret vertically centered as you type.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Toggle menu bar</td><td>Toggle the menu bar's visibility.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Zoom in</td><td>Step the editor's zoom level up.</td><td><code>⌘=</code></td><td><code>Ctrl+=</code></td><td>Native, browser</td></tr>
+<tr><td>Zoom out</td><td>Step the editor's zoom level down.</td><td><code>⌘-</code></td><td><code>Ctrl+-</code></td><td>Native, browser</td></tr>
+<tr><td>Reset zoom</td><td>Reset the editor's zoom level to its default.</td><td><code>⌘0</code></td><td><code>Ctrl+0</code></td><td>Native, browser</td></tr>
 </tbody>
 </table>
 </div>
@@ -227,20 +227,20 @@
 <div class="table-scroll">
 <table>
 <thead>
-<tr><th>Command</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
+<tr><th>Command</th><th>What it does</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
 </thead>
 <tbody>
-<tr><td>Spell suggestions…</td><td><code>⌘;</code></td><td><code>Ctrl+;</code></td><td>Native, browser</td></tr>
-<tr><td>Clean unused assets…</td><td>—</td><td>—</td><td>Native</td></tr>
-<tr><td>About</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Credits</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Guide</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Reference</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Lifetime stats</td><td>—</td><td>—</td><td>Native</td></tr>
-<tr><td>Writing streaks</td><td>—</td><td>—</td><td>Native</td></tr>
-<tr><td>Line endings…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Report a Problem</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Check for Updates</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Spell suggestions…</td><td>Summon spelling suggestions for the misspelled word at the caret.</td><td><code>⌘;</code></td><td><code>Ctrl+;</code></td><td>Native, browser</td></tr>
+<tr><td>Clean unused assets…</td><td>Summon the list of orphaned image files under the project, for moving to the trash.</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>About</td><td>Show the About panel.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Credits</td><td>Open the bundled Credits document into the buffer.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Guide</td><td>Open the bundled Guide document into the buffer.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Reference</td><td>Open the bundled Reference document into the buffer.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Lifetime stats</td><td>Open the lifetime writing statistics panel.</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Writing streaks</td><td>Open the writing-streaks panel (per-day heatmap and cumulative total).</td><td>—</td><td>—</td><td>Native</td></tr>
+<tr><td>Line endings…</td><td>Toggle the active file's on-disk line ending between LF and CRLF; metadata only, never on the undo timeline.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Report a Problem</td><td>Compose a `mailto:` bug report to the maintainer, attaching the newest crash log's path (never its content) if one exists.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Check for Updates</td><td>Record a local last-checked marker and open the site's version-check page in the browser; never a background fetch.</td><td>—</td><td>—</td><td>Native</td></tr>
 </tbody>
 </table>
 </div>
@@ -248,16 +248,16 @@
 <div class="table-scroll">
 <table>
 <thead>
-<tr><th>Command</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
+<tr><th>Command</th><th>What it does</th><th>macOS</th><th>Linux</th><th>Builds</th></tr>
 </thead>
 <tbody>
-<tr><td>Caret style…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Dictionary…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Toggle spellcheck</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Toggle caret style</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Toggle writing nits</td><td>—</td><td>—</td><td>Native, browser</td></tr>
-<tr><td>Settings…</td><td><code>⌘,</code></td><td><code>Ctrl+,</code></td><td>Native, browser</td></tr>
-<tr><td>Keybindings…</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Caret style…</td><td>Summon the caret style picker.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Dictionary…</td><td>Summon the spelling dictionary picker.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Toggle spellcheck</td><td>Flip spellcheck on or off globally, silencing every squiggle when off.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Toggle caret style</td><td>Cycle to the next caret style.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Toggle writing nits</td><td>Toggle the writing-nits style underlines on or off.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Settings…</td><td>Summon the settings picker.</td><td><code>⌘,</code></td><td><code>Ctrl+,</code></td><td>Native, browser</td></tr>
+<tr><td>Keybindings…</td><td>Summon the keybindings rebind menu.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
 </tbody>
 </table>
 </div>
