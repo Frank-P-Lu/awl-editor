@@ -1709,7 +1709,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      **Routing:** production tier. ⚠️ Touches `src/render/tests/**` broadly — schedule against
      a quiet tree.
 
-318. 🔵 **USER-REPORTED AND USER-DECIDED 2026-08-07 — THE FROST STILL READS AS A RECTANGLE
+318. 🚧 CLAIMED (worktree item-318-parallelogram, deep tier) **USER-REPORTED AND USER-DECIDED 2026-08-07 — THE FROST STILL READS AS A RECTANGLE
      UNDER A LEANING LIST, AND THE USER HAS CALLED THE SHAPE: IT MUST READ AS A
      PARALLELOGRAM.** A live screenshot of the theme picker over a `Diagonal` world: the
      frosted patch is an upright box while every row, the spine and the foot inside it rake.
