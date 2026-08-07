@@ -1598,8 +1598,16 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      **Routing:** production tier — but the role split is a design call, so surface it
      rather than picking silently.
 
-315. 🟡 IN PROGRESS — claude, branch `claude/item-315-text-top`.
-     **`TEXT_TOP` IS THE UNTOUCHED VERTICAL TWIN — THE SAME DEFECT ON THE OTHER AXIS —
+315. ✅ **LANDED (merged 2026-08-07) — and widening the law's scope paid off on its first
+     run.** Every `TEXT_TOP` reader was genuinely logical, as 314 found for `TEXT_LEFT`. The
+     reason it survived is now named: **the idiom `TEXT_TOP + menubar_reserve()` had SIX
+     independent spellings**, so the bug persisted at half of them even after
+     `menubar_reserve()` existed. One owner now: `TextPipeline::text_origin_top()`.
+     ✅ **The declaration law's SCOPE was the defect.** Widening it past
+     `src/render/chrome/` to `geometry.rs`/`geometry/**`/`scroll.rs` immediately caught
+     **three more instances** — `PAGE_RESIZE_GRAB_PX`, `IMAGE_RESIZE_GRAB_PX`, `MIN_IMAGE_W`
+     — plus a genuine live bug in `page_scroll_rows`, which was taking device height minus
+     an unscaled pad. **Original:** **`TEXT_TOP` IS THE UNTOUCHED VERTICAL TWIN — THE SAME DEFECT ON THE OTHER AXIS —
      AND THE REASON BOTH SURVIVED IS THE DECLARATION LAW'S SCOPE.** Named by item 314's
      lane after it closed the horizontal half.
 
@@ -1708,6 +1716,39 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      untested part — and it is cheap to audit: grep every fixture that constructs a `ViewState`
      and check whether it sets that field. **Expect several.** **Verify:** each affected law
      re-run with the field set, and any that changes verdict named. **Routing:** production tier.
+
+321. **`menubar.rs`'s `bar_height` MIXES A SCALED ARGUMENT WITH AN UNSCALED CONSTANT — the
+     same defect shape items 314 and 315 just closed, one file over.**
+     `bar_height(line_height) = line_height + 2.0 * BAR_PAD_Y`, where the argument is scaled and
+     `BAR_PAD_Y` (5.0) is not. Found by item 315's census and left alone because `menubar.rs` was
+     outside its partition.
+
+     ⚠️ **This one is load-bearing in a way the others were not: the menu bar's reserve is the
+     axis that caused this repo's gating CI RED** (a picker drawing zero candidate rows on Linux,
+     because `MENU_BAR_ON` is `true` off macOS and its 35.6px comes off every card's budget).
+     **So a wrong `bar_height` is wrong on every non-macOS host, in the quantity that starves
+     cards.**
+     ✅ **Item 315's own law is already written not to be fooled by this** — it reads
+     `menubar_reserve()`'s **live value** rather than a hand-rolled formula — so fixing this
+     will not silently invalidate it.
+     **Verify:** the bar's height is invariant across DPI at matched logical geometry, and the
+     card budget that derives from it likewise, **under the `MENU_BAR_ON` forcing** (the bar is
+     hidden by default on the dev host, so an unforced run cannot see its own subject).
+     **Routing:** production tier.
+
+322. **`src/render.rs`'s REMAINING ~30 CONSTANTS ARE UNCLASSIFIED, and item 315 declined to
+     guess — correctly.** Widening the declaration law to `render.rs` itself is the last step of
+     items 242/314/315, but that file declares families the lane did not audit: caret and font
+     sizes that already flow through `Metrics::with_dpi`'s own multiply (a different, correct
+     pipeline), animation durations in **milliseconds**, raw alpha and lightness values — and
+     **at least one genuine miss, `PAGE_TEXT_PAD_CHARS`, which wants `Chars`.**
+     ⚠️ **The reason not to rush it is CLAUDE.md's own:** *a generated document states its wrong
+     answer with a law behind it.* A constant mis-declared `Logical` gets silently multiplied by
+     DPI forever, with a law asserting it is right. **Classify one family at a time, and for each
+     say which pipeline already scales it.**
+     **Verify:** the widened sweep green with every constant declared, plus byte-identity at 1×
+     for anything whose family you assert is already handled elsewhere — that is the claim most
+     likely to be wrong. **Routing:** production tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 

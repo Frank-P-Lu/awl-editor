@@ -352,7 +352,7 @@ reason = "item 202: +52 lines — `--bench-theme-burst` gained the reshape-count
 
 [[file_size_mark]]
 file = "src/render/geometry.rs"
-lines = 1243
+lines = 1261
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
@@ -394,7 +394,7 @@ reason = "A new `line_has_rule_span` helper (matching the existing `line_has_ima
 
 [[file_size_mark]]
 file = "src/render/text.rs"
-lines = 1446
+lines = 1447
 reason = "A doc-comment addition on `has_heading_lines` explaining why it passes `confirmed_rule: true` unconditionally to `md_line_scale` (+6): a harmless over-approximation for its zoom-restyle fast path, never the applied row geometry."
 
 [[file_size_mark]]
@@ -954,13 +954,6 @@ file = "src/keymap/tests.rs"
 function = "every_catalog_default_slot_dispatches_through_real_keymap_under_both_conventions_and_flavors"
 message = "this function has too many lines (103/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/render/chrome/readout/tests.rs"
-function = "top_anchors_yield_to_the_menu_bar_bottom_anchors_do_not"
-message = "this function has too many lines (113/100)"
-reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line shifted by `readout_report`'s doc comment gaining a line naming its new third return element (the count's unit); the function's own body and line count are unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
