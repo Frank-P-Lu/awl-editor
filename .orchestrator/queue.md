@@ -2401,7 +2401,15 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      exists to watch. ⚠️ Note item 257 already owns the *failure*; this is about its DURATION.
      **Routing:** production tier.
 
-331. 🚧 CLAIMED (worktree item-331-export-docs, production tier — bundled 331+332) **THE THREE EXPORT COMMANDS' CATALOG DESCRIPTIONS NO LONGER MENTION THAT YOU CHOOSE A FOLDER.**
+331. ✅ **LANDED (merged 2026-08-08).** The three descriptions lead with the step item 301 added —
+     *"Choose a folder, then export as `.docx`; markdown buffers only."* Regenerated through
+     `scripts/regen-reference.sh`, and **the diff is exactly those three rows in both documents**:
+     twelve changed lines, three rows before and after, two files. Nothing else moved.
+     🔵 **ONE ASYMMETRY THE LANE FLAGGED RATHER THAN SILENTLY ACCEPTING, and it is now item 336:**
+     Word and HTML are available on **web** too, where the browser owns the download and there is no
+     folder to choose — so *"Choose a folder"* is literally true on native and an approximation on
+     web. **Same shape as the ellipsis item 301 pinned with a law**, but the description carries no
+     such law. **Original:** **THE THREE EXPORT COMMANDS' CATALOG DESCRIPTIONS NO LONGER MENTION THAT YOU CHOOSE A FOLDER.**
      Reported by item 301's lane rather than ridden into its bundle, which was the right call.
      *"Export the buffer to a `.docx` file; markdown buffers only"* is still **true** — it is
      simply no longer the whole story now that export asks WHERE first. ⚠️ **The cost is why this
@@ -2416,7 +2424,26 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      than the change explains is the sourcing hazard, not a formatting nuisance.
      **Routing:** production tier.
 
-332. 🚧 CLAIMED (worktree item-331-export-docs, production tier — bundled 331+332) **`--menu-open` AND `--pack-icns` SWALLOW THE NEXT ARGUMENT UNCONDITIONALLY, so
+332. ✅ **LANDED (merged 2026-08-08) — IT TOOK TWO RULES, AND THE BRIEF'S PREDICTION HELD.**
+     Declining any token starting with `-` does **not** fix the reported bug, because `file.md` does
+     not start with `-`. So the second rule is an explicit per-row property rather than a heuristic:
+     **`Operand::opt_numeric`**, an optional operand whose value must parse as a plain `usize`.
+     `--menu-open` takes it.
+     ✅ **`--pack-icns`'s `DIR` deliberately does NOT.** A path is legitimately any non-flag string,
+     so it is **ambiguous by construction** and the lane declined to invent directory-name sniffing.
+     **That residual is pinned by its own law**, so a future "fix" cannot quietly make `DIR`
+     heuristic and reintroduce the ambiguity elsewhere. The rule lives on the operand **declaration
+     as data**, not as a `flag.id == MenuOpen` special case in the parse loop — which is what the
+     roster exists for.
+     ✅ **VERIFIED AT THE BINARY, not only in unit tests:** before, `--screenshot --menu-open FILE`
+     produced a sidecar with **no `buffers.active` at all** — the file was silently eaten; after, it
+     is the file. The mutation was then re-applied to the **fixed** binary and rebuilt, to confirm the
+     repro was not a static-reading inference. Both laws watched failing by name.
+     ⚠️ **One invocation genuinely changes meaning** — `awl --menu-open file.md` used to open an
+     untitled buffer and now opens the file. That is the bug being fixed rather than a behaviour
+     anyone could have relied on, but it is product-visible. `--pack-icns` changes no reachable
+     invocation: it only stops eating a following flag, and it exits before any file would open.
+     No refusal message moved. **Original:** **`--menu-open` AND `--pack-icns` SWALLOW THE NEXT ARGUMENT UNCONDITIONALLY, so
      `awl --menu-open file.md` SILENTLY EATS THE FILE.** Found by item 273's flag-roster lane and
      **deliberately preserved byte-identical** rather than ridden into that bundle — the right call,
      because fixing it changes behaviour a user could be relying on.
@@ -2473,6 +2500,23 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      neighbours** — if this law enumerates one boolean it does not own, others likely do too, and the
      fix is the derivation rather than deleting one cell. **Verify:** the law still fails on 327's
      real, reachable defect at narrow width after the axis is corrected. **Routing:** production tier.
+
+336. **A COMMAND'S DESCRIPTION CAN OVER-PROMISE A PLATFORM AND NOTHING CHECKS IT — the mechanism
+     exists for LABELS only.** Found by item 331's lane, which flagged it rather than inheriting the
+     precedent blindly. Item 301 established that a static string promising a surface must be true
+     per platform, and pinned it: `ellipsis_law` asserts the set of platforms the Export **label**
+     over-promises to is exactly `{Web}`. The new **descriptions** say *"Choose a folder"* and carry
+     the identical over-promise **with no law at all** — Word and HTML ship on web, where the browser
+     owns the download and no folder is chosen.
+     ✅ **Build:** extend the existing law's subject from labels to descriptions rather than writing a
+     second mechanism — `export_picks_destination(platform)` is already the pure, platform-parameterised
+     predicate, so the same enrolment works. ⚠️ **Decide deliberately whether the fix is a LAW or a
+     WORDING change**: a per-platform description is not currently expressible, so honest options are
+     to pin the known divergence exactly as the ellipsis is pinned, or to word the description so it
+     is true everywhere. **The second is cheaper and may be better** — say which and why.
+     ⚠️ **Docs voice applies** (matter-of-fact, no filler) and this text is user-facing in the palette.
+     Any change regenerates `REFERENCE.md`; **verify the regen diff moves only what the change
+     explains.** **Routing:** production tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
