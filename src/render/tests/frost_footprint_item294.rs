@@ -319,13 +319,24 @@ fn the_footprint_frost_unmakes_the_document_as_text_and_confines_itself_to_the_c
 /// at the roster's current rake; it grows without bound with the shear. Excluding it
 /// also keeps the veto inside the region where its own premise holds, which is a
 /// property of the frost's reach rather than of the card.
+struct MeanPair {
+    /// The frosted patch's mean colour, and the live page's, both as L\*a\*b\*.
+    frosted: (f64, f64, f64),
+    live: (f64, f64, f64),
+    /// Pixels averaged: the PRESENCE guard's own subject, since the veto's surplus is a
+    /// property of the world's ground rather than of the frost.
+    n: f64,
+    /// Pixels of the card's box the frost does not fully reach, and so excluded.
+    short: u64,
+}
+
 fn frosted_and_live_mean_lab(
     frames: (&[[u8; 4]], &[[u8; 4]]),
     ink: &CardInk,
     card: [f32; 4],
     frost: crate::render::blur::Frost,
     (dpi, w): (f32, i64),
-) -> ((f64, f64, f64), (f64, f64, f64), f64, u64) {
+) -> MeanPair {
     let (open, closed) = frames;
     let [rx, ry, rw, rh] = card;
     let mut n = 0.0f64;
@@ -360,7 +371,12 @@ fn frosted_and_live_mean_lab(
         };
         super::pixeldiff::lab([enc(a[0]), enc(a[1]), enc(a[2]), 255])
     };
-    (to_lab(acc[0]), to_lab(acc[1]), n, short)
+    MeanPair {
+        frosted: to_lab(acc[0]),
+        live: to_lab(acc[1]),
+        n,
+        short,
+    }
 }
 
 /// THE FROST IS A DEFOCUS, NOT A WASH — measured as CHROMA.
@@ -403,8 +419,8 @@ fn the_footprint_frost_keeps_the_pages_own_hue() {
             let closed = render_frame(&device, &queue, &mut p, w, h);
 
             let ink = CardInk::derive(&empty, w as i64, h as i64, dpi);
-            let ((fl, fa, fb), (ll, la, lb), n, short) =
-                frosted_and_live_mean_lab((&open, &closed), &ink, rect, frost, (dpi, w as i64));
+            let m = frosted_and_live_mean_lab((&open, &closed), &ink, rect, frost, (dpi, w as i64));
+            let ((fl, fa, fb), (ll, la, lb), n, short) = (m.frosted, m.live, m.n, m.short);
             let label = format!("{world} @ {dpi}x ({w}x{h})");
             assert!(
                 n > 1000.0,
