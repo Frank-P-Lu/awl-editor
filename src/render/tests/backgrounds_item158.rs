@@ -1006,22 +1006,37 @@ fn paperbark_dials_are_in_bounds_and_the_world_is_static() {
 // rather than at a taste audit.
 // ---------------------------------------------------------------------------
 
-/// The density-bearing roster, DERIVED from `Background::density()`'s own
-/// arms (`theme::ground::Background::density`) rather than hand-typed, so
-/// enrolling or retiring a density-bearing ground tracks this sweep with
-/// nothing here to edit.
+/// The density-bearing roster: every world on `theme::THEMES` whose ground
+/// carries the shared `density` field, so enrolling or retiring a world tracks
+/// this sweep with nothing here to edit.
+///
+/// The VARIANT question is asked as an exhaustive `match` with no wildcard,
+/// which is the whole point of spelling it here instead of calling
+/// `Background::density()`: that owner ends in `_ => 0.0`, so a new
+/// density-bearing variant would answer "no density" and drop out of this
+/// sweep silently. Written this way the new variant fails to COMPILE until
+/// someone decides which side it belongs on. Enrolment by variant rather than
+/// by measured value is also deliberate — a world that authored its density to
+/// 0.0 must fail the presence floor below, not quietly leave the roster.
 fn density_bearing_worlds() -> Vec<(&'static str, Background)> {
+    fn bears_density(bg: &Background) -> bool {
+        match bg {
+            Background::Zigzag { .. }
+            | Background::Organic { .. }
+            | Background::Deckle { .. }
+            | Background::WarpedGrid { .. } => true,
+            Background::Gradient { .. }
+            | Background::Dots { .. }
+            | Background::Pinstripe { .. }
+            | Background::Stripes { .. }
+            | Background::Lava { .. }
+            | Background::Bands { .. }
+            | Background::Waves { .. } => false,
+        }
+    }
     theme::THEMES
         .iter()
-        .filter(|t| {
-            matches!(
-                t.background,
-                Background::Zigzag { .. }
-                    | Background::Organic { .. }
-                    | Background::Deckle { .. }
-                    | Background::WarpedGrid { .. }
-            )
-        })
+        .filter(|t| bears_density(&t.background))
         .map(|t| (t.name, t.background))
         .collect()
 }
@@ -1129,7 +1144,6 @@ fn density_bearing_worlds_show_a_material_gap_between_full_and_half_density() {
         );
         return;
     };
-    let _g = crate::testlock::serial();
     let (w, h, cl, cw) = (900u32, 700u32, 125.0f32, 650.0f32);
     let enrolled = density_bearing_worlds();
     assert!(
