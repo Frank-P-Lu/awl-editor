@@ -125,6 +125,12 @@ decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
+- 🔵 **314 MOVED A VISIBLE LENGTH ON RETINA, and it is the intended value rather than a
+  tuning choice.** The page's collapsed side pad and the outline rail's inset now sit at
+  **16 logical px where they sat at 8** — doubled in physical terms on a 2× display, because
+  they were being read unscaled. Nothing was re-tuned; the authored number is simply being
+  honoured now. **Worth your eye on a Retina screen**, since no capture at `--capture-dpi 1`
+  can show it and dpi-1 output is byte-identical (19/19 captures).
 - 🔵 **312's TWO TASTE CALLS — the feather WIDTH and the LEAN, and no measurement settles
   either.** Captures in `gallery/item-312/`.
   1. ⚠️ **Is the defect gone?** Open `before-hard-edge-Mangrove.png` beside
@@ -1432,8 +1438,30 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      captures, the user's call.
      **Routing:** production tier, after 293, then the user.
 
-314. 🟡 IN PROGRESS — claude, branch `claude/item-314-text-left-roles`.
-     **`TEXT_LEFT` CARRIES TWO CONFLATED ROLES, AND THE ADAPTIVE COLUMN DRIFTS ACROSS
+314. ✅ **LANDED (merged 2026-08-07) — AND THIS ITEM'S OWN PREMISE WAS WRONG.** There is
+     **no second role**: a 45-reader census found `TEXT_LEFT` is **logical everywhere**. The
+     "subpixel-shimmer floor" duty does not exist at that call site — it belongs to
+     `adaptive_column_left`'s closing `.floor()`, which floors whatever the policy returns,
+     and `desired_left` is 244.96 and so fractional regardless. **Item 307 attributed the
+     floor's job to the constant and the brief carried that forward.**
+     ✅ **So the design call this item reserved for the user did not need them:** with the
+     roles unanimous, splitting would create a constant with no members. The pad enrols in
+     item 242's `Logical` family instead, whose newtype makes the bug **unrepresentable** —
+     **the compiler then enumerated all 45 sites**, and
+     `adaptive_column_left`'s `left_pad` PARAMETER is deleted in favour of `dpi`, so no
+     caller can hand the policy an unscaled pad. **The bypass is closed rather than
+     watched.**
+     ⚠️ **WHY 307 COULD NOT SEE IT:** 307's law used `"hello world\n"`, so
+     `outline_wants_rail()` was false and the policy was a passthrough. Every fixture here
+     is HEADED. The configuration a check runs under is itself the hypothesis.
+     ✅ **THREE MUTATIONS STAYED GREEN AND ARE FINDINGS, NOT GAPS:** the collapse floor is
+     **double-guarded** (each site alone is compensated; only both together go red), and
+     `page_min_margin`'s upper bound is **provably inert** — 0 of 3996 swept cells change if
+     it is deleted. Both recorded in `docs/render.md` rather than left as green mysteries.
+     ✅ **One law is documented as WEAKER than it looks:** drawn↔hit-test agreement survives
+     every pad mutation *by design*, because both sides compose `text_left()`. Its doc says
+     so instead of claiming a strength it lacks. **Original:** **`TEXT_LEFT` CARRIES TWO
+     CONFLATED ROLES, AND THE ADAPTIVE COLUMN DRIFTS ACROSS
      DPI BECAUSE OF IT.** Found by item 307 while proving a *different* mechanism correct,
      and reported rather than widened into it.
 
@@ -1461,6 +1489,37 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      agreement at both tiers, and byte-identity at dpi 1 for anything not meant to move.
      **Routing:** production tier — but the role split is a design call, so surface it
      rather than picking silently.
+
+315. **`TEXT_TOP` IS THE UNTOUCHED VERTICAL TWIN — THE SAME DEFECT ON THE OTHER AXIS —
+     AND THE REASON BOTH SURVIVED IS THE DECLARATION LAW'S SCOPE.** Named by item 314's
+     lane after it closed the horizontal half.
+
+     **`TEXT_TOP` (16.0) is still an untyped `f32`, read unscaled** by `doc_top`,
+     `visible_lines_z` and `scroll.rs` — the identical shape 314 just fixed for
+     `TEXT_LEFT`, one axis over.
+
+     ⚠️ **THE STRUCTURAL FINDING IS BIGGER THAN THE CONSTANT.** Item 242's unit-family
+     declaration law — the one that forces a chrome length to declare `Logical`,
+     `Physical`, `Chars` or `Rows` — **is scoped to `src/render/chrome/` only.** That is
+     why both of these lived in `render/geometry.rs` and `render.rs` untouched for their
+     whole lives, and it is the same class as the residual 242 already carries (the law
+     reads authored `const`s and not inline literals). **Widening the law's scope is the
+     durable half of this item**, and it will name others: expect the census to be longer
+     than one constant.
+     ✅ **The remedy is proven and cheap:** enrol in the `Logical` newtype family, which
+     makes the bug unrepresentable and lets the compiler enumerate the call sites — 314
+     did exactly that for 45 sites, and deleting the offending PARAMETER (rather than
+     scaling it at each call) is what closed the bypass.
+
+     **Verify:** vertical placement invariant across DPI at matched logical geometry, both
+     boundary sides, with a **presence floor** beside it — 314's own law is the shape, and
+     it records that invariance alone is satisfiable by deleting the pad since `0 × dpi` is
+     perfectly invariant. Plus drawn↔hit-test at both tiers and byte-identity at 1×.
+     ⚠️ **Fixtures must exercise the branch:** 307 missed the horizontal twin because its
+     fixture had no headings, so the policy was a passthrough. **Read what your fixture
+     actually reaches before trusting a green sweep.**
+     **Routing:** production tier. ⚠️ Touches `render.rs`, `render/geometry.rs` and
+     `scroll.rs`; sequence against anything holding those.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
