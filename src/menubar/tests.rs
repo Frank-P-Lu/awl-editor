@@ -401,17 +401,15 @@ fn drop_item_at_hits_clickable_rows_only_at_every_dpi_tier() {
 /// Each pad is measured through the fn that actually resolves it, never through
 /// `.px` directly: a law that multiplied the constant itself would pass over a
 /// caller that forgot to.
+/// One pad's row in the sweep: its NAME (so a failure says which), its AUTHORED
+/// logical value, and the fn that OBSERVES its device value at a given scale
+/// through the resolver a real caller goes through.
+type PadProbe = (&'static str, f32, fn(f32) -> f32);
+
 #[test]
 fn the_logical_pads_hold_their_logical_size_at_every_dpi_tier() {
     const TIERS: [f32; 4] = [1.0, 1.5, 2.0, 3.0];
-    let anchor = TitleBox {
-        band_left: 0.0,
-        text_left: 0.0,
-        text_right: 0.0,
-        band_right: 0.0,
-    };
-    // (name, authored logical value, observed device value at `scale`)
-    let probes: [(&str, f32, fn(f32) -> f32); 4] = [
+    let probes: [PadProbe; 4] = [
         // The bar's left inset, as the drawn origin resolves it.
         ("BAR_INSET_X", BAR_INSET_X.0, |s| BAR_INSET_X.px(s)),
         // The LAST title's outer band, measured as the overhang past its own ink.
@@ -434,7 +432,6 @@ fn the_logical_pads_hold_their_logical_size_at_every_dpi_tier() {
             drop_inner_origin([0.0, 0.0, 0.0, 0.0], s).1
         }),
     ];
-    let _ = anchor;
     for (name, authored, observe) in probes {
         assert!(
             authored > 0.0,
