@@ -2873,7 +2873,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      **remove 319's exclusion as part of the fix** so its non-vacuity count fails if the exclusion is
      left behind. **Routing:** production tier.
 
-343. 🔴 **THE FROSTED FOOTPRINT IS ROUGHLY TWICE AS WIDE AS ANYTHING DRAWN INSIDE IT — user-reported
+343. 🚧 CLAIMED (worktree item-343-frost-width, deep tier) 🔴 **THE FROSTED FOOTPRINT IS ROUGHLY TWICE AS WIDE AS ANYTHING DRAWN INSIDE IT — user-reported
      against Mangrove's theme picker, with a screenshot: *"there's a bit too much blur on the left and
      right sides."* The silhouette is now right (312/313/318 landed); its WIDTH is not.**
 
