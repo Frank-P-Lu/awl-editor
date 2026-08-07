@@ -41,7 +41,7 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
         OverlayKind::Date => {
             OverlayState::new_date(crate::dateformat::DateFormat::ALL[0], (2024, 1, 1))
         }
-        OverlayKind::MoveDest => OverlayState::new_marked(
+        OverlayKind::MoveDest | OverlayKind::ExportDest => OverlayState::new_marked(
             kind,
             vec!["folder".to_string()],
             vec![false],

@@ -142,6 +142,7 @@ impl OverlayKind {
             | OverlayKind::CjkLang
             | OverlayKind::Date
             | OverlayKind::MoveDest
+            | OverlayKind::ExportDest
             | OverlayKind::Command
             | OverlayKind::Spell
             | OverlayKind::Keybindings
@@ -216,6 +217,7 @@ impl OverlayKind {
             | OverlayKind::CjkLang
             | OverlayKind::Date
             | OverlayKind::MoveDest
+            | OverlayKind::ExportDest
             | OverlayKind::Command
             | OverlayKind::Spell
             | OverlayKind::Keybindings
@@ -267,6 +269,7 @@ impl OverlayKind {
             | OverlayKind::CjkLang
             | OverlayKind::Date
             | OverlayKind::MoveDest
+            | OverlayKind::ExportDest
             | OverlayKind::Command
             | OverlayKind::Spell
             | OverlayKind::Keybindings

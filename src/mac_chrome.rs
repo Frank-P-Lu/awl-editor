@@ -1,6 +1,8 @@
-//! Native macOS chrome: the MENU item whose macOS convention is a real AppKit
-//! panel rather than an in-app overlay (File ▸ "Open…" — the standard
-//! `NSOpenPanel` file picker), plus the small objc2/AppKit surface the
+//! Native macOS chrome: the MENU items whose macOS convention is a real AppKit
+//! panel rather than an in-app overlay (File ▸ "Browse files…" — the standard
+//! `NSOpenPanel` file picker — and File ▸ the three "Export as …" rows, whose
+//! `NSSavePanel` is the platform's own "where does this go"), plus the small
+//! objc2/AppKit surface the
 //! menu-icon set, the Dock icon, the export's reveal-in-Finder and the Asset
 //! Cleaner's recoverable trash lean
 //! on. All live ONLY here, behind `cfg(target_os = "macos")` — every other
@@ -31,7 +33,7 @@ use objc2::{AnyThread, MainThreadMarker};
 use objc2_app_kit::{
     NSApplication, NSBitmapFormat, NSBitmapImageRep, NSCompositingOperation, NSDeviceRGBColorSpace,
     NSFontWeightRegular, NSGraphicsContext, NSImage, NSImageSymbolConfiguration,
-    NSImageSymbolScale, NSMenu, NSModalResponseOK, NSOpenPanel, NSWorkspace,
+    NSImageSymbolScale, NSMenu, NSModalResponseOK, NSOpenPanel, NSSavePanel, NSWorkspace,
 };
 use objc2_foundation::{
     NSArray, NSData, NSFileManager, NSInteger, NSPoint, NSRect, NSSize, NSString, NSURL,
@@ -52,6 +54,41 @@ pub fn pick_file_to_open() -> Option<PathBuf> {
     panel.setAllowsMultipleSelection(false);
     // Application-modal: blocks here until the user closes the panel. We are on
     // the main thread (see the module doc), which is where `runModal` must run.
+    let response = panel.runModal();
+    if response != NSModalResponseOK {
+        return None;
+    }
+    let url = panel.URL()?;
+    let path = url.path()?;
+    Some(PathBuf::from(path.to_string()))
+}
+
+/// Run the standard macOS SAVE panel modally, opened at `default_dir` with
+/// `default_name` already in its name field, and return the file the user
+/// committed to — or `None` on Cancel / off-main-thread. The caller feeds the
+/// result into the SAME write path an in-app destination pick uses
+/// (`app::files::export`), so the bytes and the notice cannot differ by door.
+///
+/// The structural twin of [`pick_file_to_open`] above: application-modal, on the
+/// main thread (see the module doc), one `Retained` chain that dies at the
+/// closing brace. `setCanCreateDirectories` is on because a save panel that
+/// cannot make a folder is the one thing writers reliably want from it.
+///
+/// ⚠️ `runModal` BLOCKS THE PROCESS MAIN THREAD until a human closes the panel.
+/// The caller (`App::export_via_platform_panel`) gates on a real surface for
+/// exactly that reason — a surfaceless `App` reaching here hangs forever.
+pub fn pick_export_destination(
+    default_dir: &std::path::Path,
+    default_name: &str,
+) -> Option<PathBuf> {
+    let mtm = MainThreadMarker::new()?;
+    let panel = NSSavePanel::savePanel(mtm);
+    panel.setCanCreateDirectories(true);
+    if let Some(dir) = default_dir.to_str() {
+        let url = NSURL::fileURLWithPath(&NSString::from_str(dir));
+        panel.setDirectoryURL(Some(&url));
+    }
+    panel.setNameFieldStringValue(&NSString::from_str(default_name));
     let response = panel.runModal();
     if response != NSModalResponseOK {
         return None;

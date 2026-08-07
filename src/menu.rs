@@ -126,30 +126,14 @@ const FILE_ITEMS: &[Routed] = &[
         label: "Save and return",
         icon: true,
     },
-    // The catalog `command` keeps its ellipsis (matches the Cmd-P palette
-    // name, and `resolve()` looks the row up by this exact string) but the
-    // File-menu LABEL drops it: export completes on the spot today, exactly
-    // like Save and Duplicate file — see `menu::ellipsis_law` for the
-    // convention this keeps true. A future real save surface earns the
-    // ellipsis back on its own commit, the same way its own row would.
-    Routed {
-        id: "awl.export_pdf",
-        command: "Export as PDF…",
-        label: "Export as PDF",
-        icon: false,
-    },
-    Routed {
-        id: "awl.export_word",
-        command: "Export as Word…",
-        label: "Export as Word",
-        icon: false,
-    },
-    Routed {
-        id: "awl.export_html",
-        command: "Export as HTML…",
-        label: "Export as HTML",
-        icon: false,
-    },
+    // THE THREE EXPORT ROWS CARRY THE ELLIPSIS AGAIN, and `menu::ellipsis_law`
+    // is what re-earned it: an export now asks WHERE before it writes — the
+    // destination navigator on every platform's shared core, and `NSSavePanel`
+    // from this menu on macOS. See `ellipsis_law`'s module doc for the platform
+    // the one static string still over-promises to.
+    r("awl.export_pdf", "Export as PDF…"),
+    r("awl.export_word", "Export as Word…"),
+    r("awl.export_html", "Export as HTML…"),
 ];
 
 /// The menu ids native macOS answers with a REAL AppKit PANEL instead of
@@ -167,6 +151,14 @@ const FILE_ITEMS: &[Routed] = &[
 const NATIVE_PANEL_IDS: &[&str] = &[
     // File ▸ "Browse files…" → `NSOpenPanel`.
     "awl.open",
+    // File ▸ the three "Export as …" rows → `NSSavePanel`, opened at the folder
+    // and under the name the destination owner would have chosen on its own
+    // (`app::files::export::export_target`). The shared core's own answer for the
+    // same commands — the `ExportDest` navigator — is what the keyboard and the
+    // palette still reach, and what the drawn menu bar reaches on Linux and web.
+    "awl.export_pdf",
+    "awl.export_word",
+    "awl.export_html",
 ];
 
 /// Whether the native macOS menu answers `id` with an AppKit panel of its own.
@@ -863,9 +855,9 @@ mod tests {
                 "Version history…",
                 "Save",
                 "Save and return",
-                "Export as PDF",
-                "Export as Word",
-                "Export as HTML",
+                "Export as PDF…",
+                "Export as Word…",
+                "Export as HTML…",
             ]
         );
     }
@@ -916,8 +908,12 @@ mod tests {
     /// rows below, each a deliberate, named divergence: the macOS App-menu
     /// convention (`awl.about` / `awl.quit` append "Awl"), a shorter File-menu
     /// phrasing for the same command (`awl.switch_project` and friends), and
-    /// the three Export rows, whose File-menu label drops the catalog name's
-    /// ellipsis (`menu::ellipsis_law` owns why). This is a real law for
+    /// a shorter File-menu phrasing for the same command. The three Export rows
+    /// are deliberately NOT here any more: their label carried a divergence only
+    /// while they completed on the spot, and now that they open a destination
+    /// surface the label is the catalog name again (`menu::ellipsis_law` owns
+    /// why), so the list has to shrink or the law would demand a difference that
+    /// no longer exists. This is a real law for
     /// File/Edit/View (a typo there would silently diverge the menu from the
     /// palette), narrowed by name rather than left open.
     #[test]
@@ -932,9 +928,6 @@ mod tests {
             "awl.duplicate_file",
             "awl.finish_buffer",
             "awl.page_width_settings",
-            "awl.export_pdf",
-            "awl.export_word",
-            "awl.export_html",
         ];
         for menu in roster() {
             for item in dropdown_items(&menu) {
@@ -1030,8 +1023,8 @@ mod tests {
                 "Move file…",
                 "Duplicate file",
                 "Save",
-                "Export as Word",
-                "Export as HTML",
+                "Export as Word…",
+                "Export as HTML…",
             ]
         );
     }

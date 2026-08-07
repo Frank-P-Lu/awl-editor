@@ -222,7 +222,10 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         // History): an empty list becomes the calm "no unused assets" row.
         OverlayKind::Assets => Some(OverlayState::new_assets(ctx.assets.clone())),
         // Navigable explorers open via `browse_level` (they need a dir level).
-        OverlayKind::Browse | OverlayKind::MoveDest | OverlayKind::Project => None,
+        OverlayKind::Browse
+        | OverlayKind::MoveDest
+        | OverlayKind::ExportDest
+        | OverlayKind::Project => None,
         // NOTES VERBS round: the Rename minibuffer is built directly at its
         // `Action::OpenRenameNote` apply_transition arm (`OverlayState::new_rename`) — it
         // needs only the buffer's own path, no caller-gathered context — so this
@@ -256,6 +259,9 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
 ///     synthetic `.` accept-this-folder row on top. `None` when no workspace.
 ///   * `MoveDest` walks the ACTIVE root (`active_root`), listing FOLDERS only —
 ///     a document moves to a folder inside the SAME active folder it lives in.
+///   * `ExportDest` is the same walk and the same folders-only listing: an export
+///     lands IN a folder, so the two destination navigators differ in what they
+///     put there, never in what they show.
 ///   * `Browse` walks the active root (`active_root`), listing files + folders.
 ///     `rel` is the root-relative level for the latter two (`None` = the root).
 ///
@@ -282,9 +288,10 @@ pub fn browse_level(
             .collect();
         return Some(OverlayState::new_project(dir, folders, recent_projects));
     }
-    // MoveDest (C-x m) and Browse both walk the active root; MoveDest lists
-    // folders only (a document moves to a folder), Browse lists files + folders.
-    let move_dest = kind == OverlayKind::MoveDest;
+    // The DESTINATION navigators (MoveDest, ExportDest) and Browse all walk the
+    // active root; a destination lists folders only (something lands IN a
+    // folder), Browse lists files + folders.
+    let folders_only = matches!(kind, OverlayKind::MoveDest | OverlayKind::ExportDest);
     let level = crate::index::list_dir_level(active_root, rel.as_deref());
     // ITEM 77: Browse alone classifies each FILE entry's openability up front
     // (bounded to ONE directory level — see `crate::openable::classify`'s doc
@@ -298,7 +305,7 @@ pub fn browse_level(
     let mut is_dir = Vec::new();
     let mut secondary = Vec::new();
     for e in &level {
-        if move_dest && !e.is_dir {
+        if folders_only && !e.is_dir {
             continue; // destinations are folders only
         }
         corpus.push(e.name.clone());

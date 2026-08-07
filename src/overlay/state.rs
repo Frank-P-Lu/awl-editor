@@ -107,6 +107,18 @@ pub struct OverlayState {
     /// THE CONFLICT WORKSPACE'S OWN SUBJECT ([`super::ConflictSubject`]), or
     /// `None` for every other kind.
     pub conflict: Option<super::ConflictSubject>,
+    /// WHICH FORMAT the destination navigator is finding a folder for — set on
+    /// the [`OverlayKind::ExportDest`] card the export action opens, `None` on
+    /// every other kind.
+    ///
+    /// It lives on the card because the format is chosen by the ACTION and read
+    /// by the ACCEPT, with any number of descends and ascends in between; and it
+    /// survives those because [`super::Journey::relevel`] carries it onto the
+    /// next level, the one seam a navigator is rebuilt at. That is the same
+    /// mechanism [`super::Bind::Path`] uses for the config key a Settings folder
+    /// picker is filling in — and the reason both are payloads rather than a
+    /// field each rebuild site has to remember.
+    pub export_format: Option<crate::export::Format>,
 }
 
 impl OverlayState {
@@ -184,10 +196,24 @@ impl OverlayState {
             context_actions: Vec::new(),
             context_anchor: None,
             conflict: None,
+            export_format: None,
         };
         s.refilter();
         s
     }
+    /// CARRY the facts a directory LEVEL cannot know onto the next level — the
+    /// one owner of the [`super::Journey::relevel`] hand-off (see its doc).
+    /// Today that is exactly [`Self::export_format`]: the level supplier reads a
+    /// folder, and only the summon knew which format was being exported.
+    ///
+    /// Deliberately NOT a blanket struct copy: a level rebuild must replace the
+    /// rows, the query and the browse dir, which is the whole point of
+    /// rebuilding. Anything added here is a conscious "the summon decided this,
+    /// not the disk".
+    pub fn carry_level_payload_from(&mut self, prev: &Self) {
+        self.export_format = prev.export_format;
+    }
+
     pub fn accepts(&self) -> Vec<&str> {
         self.rows.iter().map(|r| r.accept.as_str()).collect()
     }

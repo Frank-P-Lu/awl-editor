@@ -178,6 +178,7 @@ deadline without a surface).
 | `overlay_accept:Context` | Unsupported |
 | `overlay_accept:Date` | Applied |
 | `overlay_accept:Dictionary` | Applied |
+| `overlay_accept:ExportDest` | Unsupported |
 | `overlay_accept:Goto` | Applied |
 | `overlay_accept:History` | Applied |
 | `overlay_accept:InsertLink` | Unsupported |

@@ -187,6 +187,7 @@ impl OverlayState {
             | OverlayKind::CjkLang
             | OverlayKind::Date
             | OverlayKind::MoveDest
+            | OverlayKind::ExportDest
             | OverlayKind::Command
             | OverlayKind::Spell
             | OverlayKind::Keybindings

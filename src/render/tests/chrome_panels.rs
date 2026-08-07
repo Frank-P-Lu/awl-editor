@@ -1971,6 +1971,7 @@ fn footer_contract(kind: crate::overlay::OverlayKind) -> FooterContract {
         | K::Theme
         | K::Caret
         | K::MoveDest
+        | K::ExportDest
         | K::Dictionary
         | K::CjkLang
         | K::Date
@@ -2283,6 +2284,7 @@ fn card_pad_for(kind: crate::overlay::OverlayKind) -> f32 {
         | K::Theme
         | K::Caret
         | K::MoveDest
+        | K::ExportDest
         | K::Dictionary
         | K::CjkLang
         | K::Date

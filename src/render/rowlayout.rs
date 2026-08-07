@@ -306,7 +306,9 @@ mod tests {
             ),
             OverlayKind::Project => (vec!["awl-next/".into(), "projects/".into()], Some(0)),
             OverlayKind::Browse => (vec!["src/".into(), "README.md".into()], Some(0)),
-            OverlayKind::MoveDest => (vec!["notes/".into(), "archive/".into()], Some(0)),
+            OverlayKind::MoveDest | OverlayKind::ExportDest => {
+                (vec!["notes/".into(), "archive/".into()], Some(0))
+            }
             OverlayKind::Theme => (
                 crate::theme::THEMES.iter().map(|t| t.name.to_string()).collect(),
                 Some(0),

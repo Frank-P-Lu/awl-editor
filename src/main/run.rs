@@ -471,8 +471,8 @@ impl<'a> ReplaySession<'a> {
             let (root, workspace) = (self.root.as_path(), Some(self.workspace.as_path()));
             let mut browse_to = |kind: crate::overlay::OverlayKind, rel: Option<String>| {
                 // Shared one-level builder: Project navigates the workspace by absolute
-                // path, MoveDest and Browse both walk the SAME active root (item 76 —
-                // MoveDest folders only, Browse files + folders).
+                // path; Browse and the two DESTINATION navigators (MoveDest, ExportDest)
+                // walk the SAME active root — destinations list folders only.
                 // The recent-PROJECTS MRU is live-only persisted state; the headless
                 // replay passes an empty list (the determinism gate), so the Project
                 // navigator's Recent lens is inert in a capture — byte-stable.

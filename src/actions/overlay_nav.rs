@@ -166,6 +166,7 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 ov.kind,
                 crate::overlay::OverlayKind::Browse
                     | crate::overlay::OverlayKind::MoveDest
+                    | crate::overlay::OverlayKind::ExportDest
                     | crate::overlay::OverlayKind::Project
             );
             if navigable && ov.query.is_empty() {
@@ -260,7 +261,7 @@ fn navigate_overlay(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
             if ov.is_faceting() {
                 ctx.journey.card_mut().unwrap().cycle_lens(1);
                 preview_move(ctx.journey.card_mut().unwrap());
-            } else if ov.kind == crate::overlay::OverlayKind::MoveDest {
+            } else if ov.kind.is_folder_destination() {
                 if ov.selected_is_dir()
                     && let Some(name) = ov.selected_value().map(str::to_string)
                 {
@@ -282,7 +283,7 @@ fn navigate_overlay(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
             if ov.is_faceting() {
                 ctx.journey.card_mut().unwrap().cycle_lens(-1);
                 preview_move(ctx.journey.card_mut().unwrap());
-            } else if ov.kind == crate::overlay::OverlayKind::MoveDest {
+            } else if ov.kind.is_folder_destination() {
                 if let Some(parent) = ascend_target(ov)
                     && let Some(next) = (ctx.browse_to)(ov.kind, parent)
                 {
@@ -320,10 +321,24 @@ fn accept_path_overlay(ctx: &mut ActionCtx) -> Option<Effect> {
             dispose_after_accept(ctx);
             Some(effect)
         }
+        // THE TWO DESTINATION NAVIGATORS: one folder answer
+        // ([`move_dest_value`]), two things to put in it. The move rides the
+        // generic accept; the export rides `Effect::Export`, because the folder
+        // is one component of a request that also carries the FORMAT the summon
+        // chose — carried on the card across every level change (`OverlayState::
+        // carry_level_payload_from`).
         crate::overlay::OverlayKind::MoveDest => {
             let effect = move_dest_value(ov)
                 .map(|dest| Effect::OverlayAccept(crate::overlay::OverlayKind::MoveDest, dest))
                 .unwrap_or(Effect::None);
+            dispose_after_accept(ctx);
+            Some(effect)
+        }
+        crate::overlay::OverlayKind::ExportDest => {
+            let effect = match (ov.export_format, move_dest_value(ov)) {
+                (Some(format), Some(dest)) => Effect::Export(format, Some(dest)),
+                _ => Effect::None,
+            };
             dispose_after_accept(ctx);
             Some(effect)
         }

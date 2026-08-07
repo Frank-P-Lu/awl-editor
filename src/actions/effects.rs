@@ -201,7 +201,11 @@ pub enum Effect {
     FollowLink(String),
     ReportProblem,
     DownloadFile,
-    Export(crate::export::Format),
+    /// RENDER AND WRITE one export. The second component is the root-relative
+    /// FOLDER the writer chose in the destination navigator, or `None` for the
+    /// destination `app::files::export::export_target` derives on its own (the
+    /// web download, which has no folder to choose).
+    Export(crate::export::Format, Option<String>),
     CheckForUpdates,
     CopyPulse,
     SettingToggle {

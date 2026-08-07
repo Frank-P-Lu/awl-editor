@@ -197,6 +197,7 @@ pub fn scheme(kind: OverlayKind) -> Option<&'static FacetScheme> {
         // The DATE-format picker is a flat five-row list — no lens strip.
         | OverlayKind::Date
         | OverlayKind::MoveDest
+        | OverlayKind::ExportDest
         | OverlayKind::Spell
         | OverlayKind::Keybindings
         // The asset cleaner is a flat list — no lens strip.

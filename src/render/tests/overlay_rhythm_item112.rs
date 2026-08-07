@@ -29,6 +29,7 @@ fn surface_contract(kind: crate::overlay::OverlayKind) -> SurfaceContract {
         K::Theme
         | K::Caret
         | K::MoveDest
+        | K::ExportDest
         | K::Dictionary
         | K::CjkLang
         | K::Date

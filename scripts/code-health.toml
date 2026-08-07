@@ -36,7 +36,7 @@
 
 [[file_size_mark]]
 file = "src/actions.rs"
-lines = 819
+lines = 858
 reason = "A non-Markdown Export must raise an explicit notice rather than the silent no-op `Effect::None` was: one named notice constant, one small helper the three Export arms share, and the doc comment explaining why the row stays enabled everywhere instead of being hidden (+13). Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +1 from item 273's residual (4): the Reference command's own arm/entry, the third consumer of the new open_bundled_doc owner."
 
 [[file_size_mark]]
@@ -45,7 +45,7 @@ lines = 908
 
 [[file_size_mark]]
 file = "src/actions/overlay_nav.rs"
-lines = 762
+lines = 777
 reason = "item 114: +8 lines net. The workspace's own two-region keyboard and its deep link were carved out to `actions/workspace_nav.rs`; what remains here is the intercept-chain entry and the dispatcher arm that calls them. Item 116c: -23 lines net — the whole `history_intercept` function (folded into the shape-aware `workspace_nav::workspace_intercept`, item 116a's `rows_are_primary` fact) is gone from this file; the `Newline`/`AcceptAlternate` accept arm and the keep-version minibuffer's Cancel/Newline arms now route through `Journey::cancel`/`accept` instead of a bare `dismiss()`."
 
 [[file_size_mark]]
@@ -55,7 +55,7 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 952
+lines = 955
 reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path now runs through so the leading edge can read the work it is deciding about — the alternative is the same measurement duplicated at the immediate, commit and deferred call sites, which is exactly the drift a single owner exists to prevent. +1 from item 273's residual (4): the Reference command's own arm/entry, the third consumer of the new open_bundled_doc owner."
 
 [[file_size_mark]]
@@ -227,7 +227,7 @@ lines = 661
 
 [[file_size_mark]]
 file = "src/menu.rs"
-lines = 1112
+lines = 1105
 reason = "The three Export rows' File-menu label now diverges from their catalog command (dropping a stale ellipsis with no surface behind it — the shorthand `r()`/`ri()` constructors can't express that, so each grew into a full `Routed` literal), plus the label divergence law's `EXPLICIT_MENU_LABELS` entries and doc comment, and a two-line `#[cfg(test)] mod ellipsis_law;` declaration for the new law itself (+29). +25: the NATIVE_PANEL_IDS table and its one predicate, declared as DATA beside the roster it indexes so ellipsis_law can sweep the AppKit-panel door from any host — a literal buried in the macOS handler is unreadable to the law that must hold both doors to the same promise, which is exactly how `Browse files…` passed for the wrong reason."
 
 [[file_size_mark]]
@@ -241,7 +241,7 @@ lines = 761
 
 [[file_size_mark]]
 file = "src/overlay/kind.rs"
-lines = 341
+lines = 376
 reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches in this one file — name, accept disposition, row-meta roster, hints, empty copy, title, row split — each of which exists so a new kind cannot inherit an untested path (+20)."
 
 [[file_size_mark]]
@@ -251,7 +251,7 @@ reason = "item 114: +12 lines. `item_sections` gained the workspace's empty-sect
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
-lines = 647
+lines = 673
 reason = "The conflict card's payload field on the one `OverlayState` struct and its one exhaustive `new_marked` initializer (+5)."
 
 [[file_size_mark]]
@@ -384,7 +384,7 @@ lines = 1449
 
 [[file_size_mark]]
 file = "src/render/rowlayout.rs"
-lines = 743
+lines = 745
 reason = "+69: `ColumnFlow` — the one signed answer to which way a row's column grows from the edge it hangs on, with the origin/span/mirror/align derivations every consumer reads instead of its own sign, plus `rail_geom` taking that flow so a mirrored accessory seats its rail inward of its value at either orientation. It lands here because a row's name and its accessory are one layout question and this file already owns it; the diagonal cluster then MIRRORS by asking this enum once. The hand-kept `ALL_KINDS` array — which had silently omitted a shipping kind — is now derived from `OverlayKind::ALL` (-10)."
 
 [[file_size_mark]]
@@ -399,7 +399,7 @@ reason = "A doc-comment addition on `has_heading_lines` explaining why it passes
 
 [[file_size_mark]]
 file = "src/replay.rs"
-lines = 371
+lines = 376
 reason = "The conflict kind's arm in `accept_class`, the exhaustive per-kind accept classifier, plus the correction to that arm's own premise — it is the one member there that really can reach the generic accept fallthrough (+7)."
 
 [[file_size_mark]]
@@ -959,7 +959,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/render/rowlayout.rs"
 function = "rows_for"
-message = "this function has too many lines (109/100)"
+message = "this function has too many lines (111/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
@@ -1018,14 +1018,14 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
 function = "poster_bars_centered_lists_preserve_page_and_distinguish_plates"
-message = "this function has too many lines (147/100)"
+message = "this function has too many lines (148/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
 function = "bars_float_bounded_plates_for_every_overlay_kind"
-message = "this function has too many lines (113/100)"
+message = "this function has too many lines (114/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
@@ -1729,7 +1729,7 @@ reason = "Item 274's subject split of the former flat test monolith relocated th
 
 [[comment_citation_exception]]
 target = "src/overlay/tests/hover_keyboard_nav.rs"
-line = 432
+line = 433
 text = "/// ITEM 85 — the keyboard half of the law: ↓/↑ (`move_sel(±1)`, what"
 reason = "Item 274's subject split of the former flat test monolith relocated this unchanged comment; git diff -M (rename detection) cannot represent a one-file-to-many split, so every line in the new destination file reads as newly added even though its content predates the baseline. Verbatim move, not a new citation."
 
