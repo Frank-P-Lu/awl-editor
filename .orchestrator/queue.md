@@ -1562,7 +1562,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      across the `--measure` range, with the boundary asserted on both sides.
      **Routing:** production tier.
 
-308. **CASSOWARY'S FOOTER PLATE IS ΔE 1.91 FROM ITS OWN PAGE — below the ≈2.3 JND.**
+308. 🚧 CLAIMED (worktree item-308-plates, production tier — bundled 308+316) **CASSOWARY'S FOOTER PLATE IS ΔE 1.91 FROM ITS OWN PAGE — below the ≈2.3 JND.**
      Revealed by item 306: the old absolute-luma gate aborted on Firetail before
      Cassowary was ever graded, so one world's failure was hiding another's.
      ✅ **The recommended repair is a RIM, not a token change** — item 296's notice
@@ -1572,7 +1572,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      failure message names widening as the dishonest repair. **Routing:** production
      tier, then the user's eye on the rim.
 
-309. **`thumb_ink` IS ONE `set_color` FOR EVERY RAIL, SELECTED OR NOT.** Named by item
+309. 🚧 CLAIMED (worktree item-309-rails, production tier — bundled 309+327) **`thumb_ink` IS ONE `set_color` FOR EVERY RAIL, SELECTED OR NOT.** Named by item
      306 while fixing a different defect, and explicitly **not** the cause of that one —
      the lane retracted its own hypothesis after measuring (`on_band=[6]`: the failing
      rail WAS the selected one). So this is real, unmeasured, and independent. A rail
@@ -1823,7 +1823,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      **Routing:** production tier. ⚠️ Touches `render.rs`, `render/geometry.rs` and
      `scroll.rs`; sequence against anything holding those.
 
-316. **THE LOCATION ROW'S OWN BAR PLATE IS A VISIBLY EMPTY CHIP.** Exposed — **not
+316. 🚧 CLAIMED (worktree item-308-plates, production tier — bundled 308+316) **THE LOCATION ROW'S OWN BAR PLATE IS A VISIBLY EMPTY CHIP.** Exposed — **not
      introduced** — by item 297: it is **byte-identical in that item's before and after
      shots** (visible at ≈470,205 in `gallery/item-297/after-Cassowary-Files.png`), and the
      retired 15px whisper simply camouflaged it. Now that the cue composes off-card, the
@@ -2204,7 +2204,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      on units; **this item is about them agreeing by CONSTRUCTION rather than by both remembering to
      call the same function.** **Routing:** production tier.
 
-327. **A `Range` SETTING LOSES ITS RAIL AT THE SHIPPED `window_rows = 31`.** Measured by item 317
+327. 🚧 CLAIMED (worktree item-309-rails, production tier — bundled 309+327) **A `Range` SETTING LOSES ITS RAIL AT THE SHIPPED `window_rows = 31`.** Measured by item 317
      at 1200×800: the Settings card draws **22 candidate display lines in a 718.8px card**, the
      selected Zoom row **is planned and drawn** (`sel_row = 6 < lines = 22`), and **`overlay_rails`
      emits no rail for it** — the wider drawn set grows the diagonal cluster's label/value columns
@@ -2329,7 +2329,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      which invocations change meaning. **Routing:** production tier, then the user if any real
      invocation changes.
 
-333. ⚠️ **PREMISE FALSE, RECORDED SO IT IS NOT RE-RAISED: the site's analytics beacon is
+333. ✅ **CLOSED (2026-08-08) — PREMISE FALSE, RECORDED SO IT IS NOT RE-RAISED: the site's analytics beacon is
      DELIBERATE, DOCUMENTED AND THE USER'S OWN.** Item 273's lane flagged `//gc.zgo.at/count.js` in
      `site/reference.html` as sitting oddly beside a "no analytics" note. It is a **cookieless
      GoatCounter** beacon with its own section in `site/README.md` naming the dashboard, present on
