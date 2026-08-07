@@ -32,7 +32,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Toggle a numbered-list marker on the caret line or each line of the selection, renumbering sequentially.",
+            "Toggle a numbered-list marker on the line or selection, renumbering sequentially.",
         ),
     },
     Command {
@@ -72,7 +72,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Wrap the caret line or selection in a fenced code block, or unwrap it if already fenced.",
+            "Wrap the caret line or selection in a fenced code block, unwrapping if fenced.",
         ),
     },
     Command {
@@ -167,7 +167,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Summon the URL prompt for a markdown link — wraps the selection, edits the link under the caret, or inserts a fresh empty one.",
+            "Summon the URL prompt for a markdown link: wrap, edit, or insert a link at the caret.",
         ),
     },
     Command {
@@ -187,7 +187,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: true,
         web_only: false,
         description: Some(
-            "Read an unresolved external change: the differences, your version, and the version on disk, one at a time. Changes nothing.",
+            "Show an unresolved change: differences, your version, disk version. Changes nothing.",
         ),
     },
     Command {
@@ -209,7 +209,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: true,
         web_only: false,
         description: Some(
-            "Settle an unresolved external change by replacing the buffer with the file on disk, as one undoable edit.",
+            "Settle an unresolved change by replacing the buffer with the disk file, as one edit.",
         ),
     },
     Command {
@@ -229,7 +229,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Open incremental search, prefilled from the selection or the last query, searching forward.",
+            "Open incremental search (prefilled from selection or last query), forward.",
         ),
     },
     Command {
@@ -240,7 +240,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Open incremental search, prefilled from the selection or the last query, searching backward.",
+            "Open incremental search (prefilled from selection or last query), backward.",
         ),
     },
     Command {
@@ -298,7 +298,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Insert the OS clipboard's content — an image reference if the clipboard holds an image, otherwise text.",
+            "Insert the OS clipboard's content — an image reference if it holds one, else text.",
         ),
     },
     Command {
@@ -374,7 +374,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Move the caret to the start of the visual line (the logical line without a layout oracle).",
+            "Move the caret to the start of the visual line (logical without an oracle).",
         ),
     },
     Command {
@@ -385,7 +385,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Move the caret to the end of the visual line (the logical line without a layout oracle).",
+            "Move the caret to the end of the visual line (logical line without a layout oracle).",
         ),
     },
     Command {
@@ -463,7 +463,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Delete the token after the caret (a word or punctuation run) into the kill buffer; deletes the selection instead if one is active.",
+            "Delete the word or punctuation run after the caret; a selection deletes instead.",
         ),
     },
     Command {
@@ -474,7 +474,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Delete the token before the caret (a word or punctuation run) into the kill buffer; deletes the selection instead if one is active.",
+            "Delete the word or punctuation run before the caret; a selection deletes instead.",
         ),
     },
     Command {

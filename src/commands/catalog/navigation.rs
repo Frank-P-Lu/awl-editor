@@ -64,7 +64,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: true,
         web_only: false,
         description: Some(
-            "Summon the version timeline for the current file — git log for a tracked file, saved snapshots otherwise.",
+            "Summon the version timeline — git log if tracked, saved snapshots otherwise.",
         ),
     },
     Command {
@@ -97,7 +97,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: true,
         web_only: false,
         description: Some(
-            "Prompt for a name, then record the current buffer text as a pinned history snapshot under it.",
+            "Prompt for a name, then record the buffer text as a pinned history snapshot under it.",
         ),
     },
     Command {
@@ -128,7 +128,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: true,
         web_only: false,
         description: Some(
-            "Mark the built-in tutorial to be saved once a project folder is chosen, then open the project switcher.",
+            "Mark the tutorial to be saved once a folder is chosen, opening the project switcher.",
         ),
     },
     Command {
@@ -159,7 +159,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Save a copy of the current file beside it, with a deduplicated name, and switch to editing the copy.",
+            "Save a copy of the file beside it, deduplicated, and switch to editing the copy.",
         ),
     },
     // FINISH FILE: the emacsclient "server-edit" convention — save, notify any daemon
@@ -177,7 +177,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: true,
         web_only: false,
         description: Some(
-            "Save the file, notify any daemon `--wait` client waiting on it, and switch to the previously open file.",
+            "Save the file, notify any daemon `--wait` client, and switch to the prior file.",
         ),
     },
     Command {
@@ -188,7 +188,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Open the URL of the markdown link under the caret in the default browser, if the caret sits inside one.",
+            "Open the caret's markdown link URL in the default browser, if there is one.",
         ),
     },
     Command {
@@ -289,7 +289,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Reset the page column to the buffer's own default width, clearing any sticky override.",
+            "Reset the page column to the buffer's default width, clearing any override.",
         ),
     },
     Command {
@@ -320,7 +320,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Toggle collapse of the markdown section under the caret; view state only, never on the undo timeline.",
+            "Toggle collapse of the section under the caret; view state, not on the undo timeline.",
         ),
     },
     Command {
@@ -415,7 +415,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Toggle the active file's on-disk line ending between LF and CRLF; metadata only, never on the undo timeline.",
+            "Toggle the file's on-disk line ending between LF and CRLF; not on the undo timeline.",
         ),
     },
     // ALIGN TABLE: re-pad the GFM table under the caret so its `|` line up (source
@@ -455,7 +455,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Compose a `mailto:` bug report to the maintainer, attaching the newest crash log's path (never its content) if one exists.",
+            "Compose a `mailto:` bug report, attaching the newest crash log's path if one exists.",
         ),
     },
     Command {
@@ -466,7 +466,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: true,
         description: Some(
-            "Download the active buffer's text as a file — the web build's export, since there is no real disk.",
+            "Download the buffer's text as a file — the web export, since there is no real disk.",
         ),
     },
     // CHECK FOR UPDATES: never a network fetch — records a LOCAL "last checked"
@@ -485,7 +485,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: true,
         web_only: false,
         description: Some(
-            "Record a local last-checked marker and open the site's version-check page in the browser; never a background fetch.",
+            "Record a last-checked marker and open the site's version-check page in the browser.",
         ),
     },
 ];
