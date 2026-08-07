@@ -125,6 +125,25 @@ decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
+- 🔵 **294's THREE TASTE CALLS, and one is a change to EVERY world at 2×.** Captures at
+  `gallery/item-294/` (46 shots, copied out of `/tmp`).
+  1. ⚠️ **THE DPI FIX CHANGES EVERY WORLD'S FULL-TAKEOVER FROST ON A RETINA DISPLAY, and
+     no capture could ever have shown it.** The Gaussian's reach was a fixed count of
+     quarter-res texels, so it was constant in DEVICE pixels — **the defocus a reader
+     perceives was HALF strength at 2×.** Fixed by multiplying the authored logical reach
+     by DPI once. `dpi 1` is byte-identical, so the suite cannot see it; at 2× it moves
+     **224 249 of 960 000 pixels** on Gumtree's palette, toward the frost that overlay
+     already showed at 1×. Compare `b2-Gumtree-palette.png` (before, backdrop words still
+     readable) with `r2-Gumtree-palette.png` (after). **Isolatable to one function if you
+     want it reverted separately from the footprint work.**
+  2. **The footprint's rectangle has HARD EDGES that cut words mid-glyph** at the card's
+     boundary — inherent to scoping, and it reads as a pane of frosted glass.
+     Orchestrator's own eye on `caret-under.png`: clearly visible, and a legitimate design
+     read rather than an artefact, but yours to accept.
+  3. **A blurred spell squiggle becomes a soft red/pink band** inside the frost.
+  ✅ **The caret card over its own caret reads WELL** — `caret-under.png`, Mangrove, caret
+  inside the footprint: it survives as a soft orange glow under the rows rather than a
+  competing mark, so the anchoring question the item raised needs no change.
 - 🔵 **SHOULD EXPORTING BRING THE FINDER FORWARD AT ALL?** Item 301 wired
   `NSWorkspace activateFileViewerSelectingURLs:` after a successful export, gated on a
   real surface. **The lane flagged the product question rather than deciding it: the
@@ -884,8 +903,15 @@ Order for the next wave:
      scrolled and empty lists — the empty-state notice row shares this band and
      has collided with the footer before. **Routing:** production tier.
 
-294. 🟡 IN PROGRESS — claude, branch `claude/item-294-blur-footprint`.
-     **Blur the theme picker's own footprint.** On plateless worlds — `Diagonal`
+294. ✅ **LANDED (merged 2026-08-06)** — a SCISSOR, not a rect uniform, so fragments
+     outside the card are never written. `Frost = Full | Footprint(rect)` with
+     `frost_mode` asking every full-takeover condition FIRST, so existing frosted frames
+     are byte-identical by construction. Enrolment from the roster
+     (`list_backing() != Card && !draws_row_plates()`), today Mangrove/Magpie/Paperbark.
+     ✅ **The subtle half:** two consumers that mutate the DOCUMENT for the blur's sake
+     key on `full_frost()`, not any frost — otherwise Mangrove's authored posterization
+     would have been stripped from the live page OUTSIDE the card and its lava frozen
+     where it is still visible. **Original:** **Blur the theme picker's own footprint.** On plateless worlds — `Diagonal`
      (Mangrove, Magpie) and `Rules` (Paperbark) — the document and the list
      interleave glyph-for-glyph. Frost is a property of the plate and those
      compositions draw none.
@@ -934,7 +960,17 @@ Order for the next wave:
      with non-overlap and ⅔-relation laws; byte-identity for 19 worlds.
      **Routing:** deep tier.
 
-298. **A right-click menu should not frost the document.** A four-row context menu
+298. **A right-click menu should not frost the document.** ✅ **294 HAS ANSWERED THE
+     SEQUENCING QUESTION AND IT IS A ONE-LINE ROUTING CHANGE — with two caveats that
+     change the shape.** Its `Frost::Footprint(rect)` gives proportional defocus, which
+     is what this item asks for. But (a) **294's predicate is the wrong one to reuse**:
+     it asks *"does the card back itself"*, while 298 asks *"is this a takeover"* — a
+     context menu is `Pane`-backed on most worlds and would be excluded, so 298 adds
+     its own arm to `frost_mode` keyed on the overlay KIND. And (b) it must first
+     decide **whether a pointer-summoned menu frosts at all**, since on a `Pane` world
+     its own plate already covers its footprint — **in which case `None` is right and
+     this item really is the off-switch it first proposed, now with a principled
+     reason rather than a hunch.** A four-row context menu
      takes the full-takeover treatment. `blur.rs` frames the effect as the
      defocus "behind a full-takeover overlay" and names the palette, go-to,
      outline, keybindings and spell — a pointer-summoned menu is none of those.
