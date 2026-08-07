@@ -41,7 +41,7 @@ use super::super::*;
 use super::{headless_dqp, view};
 use crate::overlay::{OverlayKind, OverlayState};
 use crate::render::rotated_location::{
-    LOCATION_SCALE, ROTATED_RAIL_PLACARD_FRACTION, placard_font_size,
+    LOCATION_SCALE, ROTATED_RAIL_PLACARD_FRACTION, ROTATED_RAIL_PLACARD_GAP_EM, placard_font_size,
 };
 
 /// The two DPI tiers, as the SAME logical room at two device scales — a Retina
@@ -621,4 +621,115 @@ fn workspace_faceting_kinds_carry_no_location_line() {
         "the faceting roster's split between workspace and card shapes moved — item 297's \
          cue only ever draws on the card shapes"
     );
+}
+
+/// **THE ⅔ IS THE NUMBER, not merely whatever the constant says.** Every other
+/// law here reads `ROTATED_RAIL_PLACARD_FRACTION` and so cannot tell two thirds
+/// from any other fraction — a size relation asserted against its own constant
+/// is a tautology, and the pixel band alone is a wide net. This is the value
+/// itself, pinned: a scale class down, which is what makes the cue read as the
+/// wordmark's companion rather than as a second title (1.0) or a caption
+/// (≈0.3). The gap is pinned as a real fraction of an em for the same reason.
+#[test]
+#[allow(clippy::assertions_on_constants)] // the constants ARE the subject
+fn the_wordmark_fraction_is_two_thirds_and_the_gap_is_a_real_em_fraction() {
+    assert!(
+        (ROTATED_RAIL_PLACARD_FRACTION - 2.0 / 3.0).abs() < 1e-6,
+        "ROTATED_RAIL_PLACARD_FRACTION is {ROTATED_RAIL_PLACARD_FRACTION} — the composition \
+         is two thirds of the wordmark, and the pixel band this file grades against \
+         (0.58..0.98 of the wordmark's own ink) is calibrated for exactly that"
+    );
+    assert!(
+        ROTATED_RAIL_PLACARD_GAP_EM > 0.0 && ROTATED_RAIL_PLACARD_GAP_EM < 0.5,
+        "ROTATED_RAIL_PLACARD_GAP_EM ({ROTATED_RAIL_PLACARD_GAP_EM}) must be a real fraction \
+         of the cue's own em: zero lets the pair read as one broken line, half pushes the \
+         cue off the composition it belongs to"
+    );
+}
+
+/// **THE CARD REACHES OUTSIDE ITS OWN BOX, AND THE CUE IS BOUNDED BY THE REACH.**
+/// Under `Bars` on a right-anchored card the SELECTED row's plate grows OUTWARD
+/// past `card_x` (`grow_span`, mirrored) and its scrim pads that again, so
+/// `card_x` is not where the card's ink stops. This law is the witness for that
+/// discovery, and it has three arms because the first two alone are satisfiable
+/// by the defect:
+///
+/// 1. The span probe reports a left edge genuinely OUTSIDE the box — a bound
+///    reverted to `card_x` reads zero here and fails by name.
+/// 2. The plate's own leftmost PIXEL is outside the box too, so arm 1 is a fact
+///    about the drawn card rather than about arithmetic, and the probe's bound is
+///    at or left of it (conservative, never optimistic).
+/// 3. The cue's own fit box ends at or before that bound, so the ⅔ run is
+///    measured against where the card's ink stops rather than where its box does.
+#[test]
+fn the_cue_is_bounded_by_the_cards_drawn_reach_not_by_its_box() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping item297 card-reach law: no wgpu adapter");
+        return;
+    };
+    let _pin = theme::WorldPin::world("Cassowary").expect("Cassowary ships");
+    p.sync_theme();
+
+    let mut graded = 0usize;
+    for zoom in [1.0f32, 1.5] {
+        let mut v = command_view("Navigate");
+        v.zoom = zoom;
+        p.set_view(&v);
+        p.prepare(&device, &queue, 1200, 800).unwrap();
+        let geom = p.overlay_geometry(1200);
+        let plan = p.overlay_row_plan(&geom);
+        let (card_left, _) = p.overlay_card_drawn_span_probe(&geom);
+        let box_left = geom.band_x_probe();
+        let reach = box_left - card_left;
+        assert!(
+            reach >= 10.0,
+            "zoom {zoom}: the card's drawn span starts at {card_left:.1} against a box at \
+             {box_left:.1} — only {reach:.1}px of outward reach, so the cue is being bounded \
+             by the BOX and the selected plate's own growth is unaccounted for"
+        );
+
+        // Arm 2: the plate's leftmost pixel, off the frame itself.
+        let selected = plan
+            .rows()
+            .iter()
+            .find(|r| r.item == Some(0))
+            .copied()
+            .expect("the selected row is planned");
+        let px = shoot(&device, &queue, &mut p, 1200, 800);
+        let mid = (selected.top + selected.height * 0.5).round() as i64;
+        let ground = luma(px[(mid * 1200 + (card_left * 0.5) as i64) as usize]);
+        let plate_left = (0..1200)
+            .find(|x| {
+                let l = luma(px[(mid * 1200 + x) as usize]);
+                *x as f32 >= card_left - 2.0 && (l - ground).abs() > 24.0
+            })
+            .map(|x| x as f32)
+            .unwrap_or_else(|| panic!("zoom {zoom}: no selected plate ink on row {mid}"));
+        assert!(
+            plate_left < box_left - 1.0,
+            "zoom {zoom}: the selected plate's leftmost ink is {plate_left:.0}, inside the \
+             card box ({box_left:.1}) — this law's own premise (the plate grows outward) is \
+             no longer true and the cue's bound should be revisited"
+        );
+        assert!(
+            card_left <= plate_left + 1.0,
+            "zoom {zoom}: the span probe's {card_left:.1} is RIGHT of the plate's own ink at \
+             {plate_left:.0} — the bound is optimistic, not conservative"
+        );
+
+        // Arm 3: the cue's fit box respects it.
+        let (_natural, fit, _bottom, flush_x) = p
+            .rotated_rail_probe(&geom)
+            .expect("the cue draws at these zooms");
+        assert!(
+            flush_x + fit[0] <= card_left + 0.01,
+            "zoom {zoom}: the cue may occupy up to x={:.1} against a card reaching \
+             {card_left:.1}",
+            flush_x + fit[0]
+        );
+        graded += 1;
+    }
+    theme::set_active(theme::DEFAULT_THEME);
+    assert_eq!(graded, 2, "the zoom sweep moved");
 }
