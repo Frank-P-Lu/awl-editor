@@ -1847,7 +1847,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      for anything whose family you assert is already handled elsewhere — that is the claim most
      likely to be wrong. **Routing:** production tier.
 
-323. **FOUR MORE BARE `f32` PADS IN `menubar.rs`, SAME SHAPE AS 321 — and adding that file to
+323. 🚧 CLAIMED (worktree item-324-menubar-forcing, deep tier — bundled 324+325+323+326) **FOUR MORE BARE `f32` PADS IN `menubar.rs`, SAME SHAPE AS 321 — and adding that file to
      the declaration law's sweep is the fix that finds them.** `BAR_INSET_X`, `TITLE_PAD_X`,
      `DROP_PAD_X` and `DROP_PAD_Y` are still untyped, and they are **added to device-scaled glyph
      positions** in `chrome/menubar.rs` and `chrome/menubar/dropdown.rs`. Found by item 321's
@@ -1866,7 +1866,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      default, so **run under the `MENU_BAR_ON` forcing** — an unforced run cannot see the subject.
      **Routing:** production tier.
 
-324. **GIVE `MENU_BAR_ON` A FORCING KNOB AND A GATE ARM — this is the durable fix for the whole
+324. 🚧 CLAIMED (worktree item-324-menubar-forcing, deep tier — bundled 324+325+323+326) **GIVE `MENU_BAR_ON` A FORCING KNOB AND A GATE ARM — this is the durable fix for the whole
      class, and the model already exists in the tree.** Item 317's closing words:
      *"today the only way to sweep the axis is editing a source file — which is why nobody ever
      did."*
@@ -1886,7 +1886,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      honest trade rather than the whole suite.
      **Routing:** production tier.
 
-325. **`src/config/tests.rs` ASSERTS A `cfg!` AGAINST THE IDENTICAL `cfg!` — a tautology that
+325. 🚧 CLAIMED (worktree item-324-menubar-forcing, deep tier — bundled 324+325+323+326) **`src/config/tests.rs` ASSERTS A `cfg!` AGAINST THE IDENTICAL `cfg!` — a tautology that
      cannot fail on any host.** Found by item 317's census.
      `cfg.menu_bar_on() == cfg!(not(target_os = "macos"))` at `:596` and `:602`, while the subject
      is `config/model.rs:104`'s `self.menu_bar.unwrap_or(cfg!(not(target_os = "macos")))`.
@@ -1898,7 +1898,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      owner. **Verify:** mutation-prove by flipping the const and watching it go red — that is the
      whole point, and it is the mutation this law has never survived. **Routing:** production tier.
 
-326. **THE MENU BAR'S HEIGHT HAS TWO OWNERS, agreeing only by coincidence.**
+326. 🚧 CLAIMED (worktree item-324-menubar-forcing, deep tier — bundled 324+325+323+326) **THE MENU BAR'S HEIGHT HAS TWO OWNERS, agreeing only by coincidence.**
      `render/geometry.rs:711` (the reserve) and `render/chrome/menubar.rs:82` (the drawn strip) each
      independently spell `bar_height(metrics.line_height * type_scale::LABEL)`. Item 317's ×3 probe
      drove a wedge between them and `chrome_panels::menu_bar_left_and_right_columns…` immediately
