@@ -30,7 +30,7 @@ pub(super) const CARET_VISUAL_BODY_MIN_AREA: f32 = 96.0;
 /// Apply the authored floor without flattening ordinary glyph-responsive carets.
 pub(super) fn caret_visual_body_dims(ink: InkBox, px: f32) -> (f32, f32) {
     let mut w = ink.width.max(CARET_VISUAL_BODY_MIN_W * px);
-    let mut h = (ink.height + 2.0 * CARET_INK_PAD * px).max(CARET_VISUAL_BODY_MIN_H * px);
+    let mut h = (ink.height + 2.0 * CARET_INK_PAD.px(px)).max(CARET_VISUAL_BODY_MIN_H * px);
     let min_area = CARET_VISUAL_BODY_MIN_AREA * px * px;
     if w * h < min_area {
         let grow = (min_area / (w * h)).sqrt();
@@ -56,7 +56,8 @@ impl TextPipeline {
             let (w, _) = caret_visual_body_dims(ink, px);
             let (baseline, ascent, font) = self.caret_row_metrics();
             let (_, h) = self.caret_cell_vertical_from_ink(ink, baseline, ascent, font, px);
-            w > ink.width + f32::EPSILON || h > ink.height + 2.0 * CARET_INK_PAD * px + f32::EPSILON
+            w > ink.width + f32::EPSILON
+                || h > ink.height + 2.0 * CARET_INK_PAD.px(px) + f32::EPSILON
         });
         if needs_body {
             self.prepare_caret_block(device, queue, width, height);

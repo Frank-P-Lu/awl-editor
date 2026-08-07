@@ -18,11 +18,16 @@
 //!      caught up in the multiply.
 //!   3. `overlay_lh`'s THREE TERMS SCALE TOGETHER, on the shipping `Bars`
 //!      worlds where the raw theme-authored gap really did drift.
-//!   4. THE DECLARATION SWEEP. Every authored constant under
-//!      `src/render/chrome/` states its unit family in its TYPE, and no
-//!      migrated length escapes the owner through a bare field access. A
-//!      suffix is not a type; this is the law that makes the type mean
-//!      something for a constant nobody has written yet.
+//!   4. THE DECLARATION SWEEP. Every authored constant in the swept sources
+//!      states its unit family in its TYPE, and no migrated length escapes the
+//!      owner through a bare field access. A suffix is not a type; this is the
+//!      law that makes the type mean something for a constant nobody has
+//!      written yet. Its scope has been the defect three times, so it is now
+//!      widened to `src/render.rs` itself — where the exclusions a length may
+//!      claim are DERIVED (from `Metrics::with_dpi`'s own body) or TYPED (a
+//!      `Millis` is not a length and the compiler knows it) rather than
+//!      granted by a reader, and what is left over is a measured defect with a
+//!      closed ledger instead of a classification.
 
 use super::super::*;
 use super::{headless_dqp, view};
@@ -392,6 +397,116 @@ fn the_row_pitchs_three_terms_hold_one_proportion_across_dpi() {
 /// DEFAULT and the only one a new length should ever need.
 const UNIT_TYPES: &[&str] = &["Logical", "Physical", "LogicalGrowOnly", "Chars", "Rows"];
 
+/// Families that are declared in the TYPE and are deliberately NOT lengths.
+/// This is the by-KIND escape from the length sweep: a `Millis` carries no
+/// [`Metrics::px`], so the compiler — not a table a reader has to maintain —
+/// is what stops an animation duration from being multiplied by the pixel
+/// scale. A non-length that can be typed belongs here rather than in
+/// [`DIMENSIONLESS`].
+const NON_LENGTH_TYPES: &[&str] = &["Millis"];
+
+/// The constants [`Metrics::with_dpi`] resolves ITSELF, read out of that
+/// function's own body rather than listed by name.
+///
+/// These are the base text/caret metrics: `with_dpi` multiplies each by
+/// `s = zoom * dpi` and stores the result on [`Metrics`], which is the single
+/// source of truth every consumer reads. They are excluded from the length
+/// sweep BECAUSE THE OWNER ALREADY MULTIPLIES THEM — declaring one `Logical`
+/// and then passing it through [`Metrics::px`] as well would apply DPI twice,
+/// which is invisible at the `--capture-dpi 1` every capture defaults to.
+///
+/// **The enrolment is DERIVED, which is the whole point.** A hand-written list
+/// would keep excusing `FONT_SIZE` on the day somebody deletes
+/// `font_size: FONT_SIZE * s` from the owner; this parse stops naming it that
+/// same day, and the constant becomes an offender until it declares a family.
+fn metrics_resolved_constants(render_src: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut inside = false;
+    for line in render_src.lines() {
+        if line.contains("pub fn with_dpi(") {
+            inside = true;
+            continue;
+        }
+        if inside {
+            // The owner's body ends at its own closing brace, at method indent.
+            if line == "    }" {
+                break;
+            }
+            // `field: NAME * s,` / `field: crate::path::NAME * s,` — the shape
+            // of a base metric being resolved, and nothing else in the body.
+            if let Some((_, rhs)) = line.split_once(':') {
+                let rhs = rhs.trim();
+                if let Some(name) = rhs.strip_suffix("* s,") {
+                    let name = name.trim().rsplit("::").next().unwrap_or("").trim();
+                    if !name.is_empty()
+                        && name
+                            .chars()
+                            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
+                    {
+                        out.push(name.to_string());
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
+/// **THE DPI-BLIND LEDGER — a recorded DEFECT, not a classification.**
+///
+/// Every entry is a `render.rs` length whose read sites multiply it by
+/// `metrics.zoom` ALONE (or by nothing at all), never by `metrics.scale`. So it
+/// holds its DEVICE size as the display gets denser and shrinks relative to the
+/// text beside it — the same halving item 242 measured in chrome, one
+/// neighbourhood over, in the writing column's decorations. Measured, not
+/// inferred: the inline-code pill is 92.70px wide at dpi 1 and 179.39px at dpi 2
+/// on identical logical geometry, where twice the first is 185.39 — short by
+/// exactly `2 * CODE_PILL_INSET_X`; the fence panel is short by exactly
+/// `2 * FENCE_PANEL_INSET_X`.
+///
+/// They are NOT declared `Logical` here, and that restraint is deliberate:
+/// resolving them through [`Metrics::px`] changes what every retina display
+/// draws for fifteen separately tuned taste quantities, which is a product
+/// decision with a human in it and not a unit annotation. Declaring them
+/// `Physical` would be worse — it would assert the device grid is the right
+/// reference for a spell squiggle's amplitude, which nobody believes.
+///
+/// **The ledger is CLOSED and cross-checked against a derivation, so it cannot
+/// become a place to hide.** The sweep computes the leftover set (every bare
+/// `f32` in the swept sources that the owner does not resolve and that is not
+/// dimensionless) and requires it to EQUAL this table. A new bare `f32` fails
+/// whether or not it is DPI-blind; a ledger entry that gets fixed leaves the
+/// leftover set and fails until it is removed from here. The second column is
+/// the READ SITE's own text, and it is graded — the evidence for a
+/// classification is held to the same standard as the classification.
+const DPI_BLIND_PENDING: &[(&str, &str)] = &[
+    ("CARET_SPACE_BAR_W", "CARET_SPACE_BAR_W * zoom"),
+    ("IBEAM_W", "IBEAM_W * m.zoom"),
+    (
+        "CARET_MORPH_DILATE_PX",
+        "CARET_MORPH_DILATE_PX * self.metrics.zoom",
+    ),
+    ("PREEDIT_UNDERLINE_H", "PREEDIT_UNDERLINE_H * m.zoom"),
+    ("SPELL_AMP", "SPELL_AMP * m.zoom"),
+    ("SPELL_PERIOD", "SPELL_PERIOD * m.zoom"),
+    ("SPELL_THICKNESS", "SPELL_THICKNESS * m.zoom"),
+    ("NIT_THICKNESS", "NIT_THICKNESS * m.zoom"),
+    ("CODE_PILL_INSET_X", "CODE_PILL_INSET_X * m.zoom"),
+    ("CODE_PILL_INSET_Y", "CODE_PILL_INSET_Y * m.zoom"),
+    ("FENCE_PANEL_INSET_X", "FENCE_PANEL_INSET_X * m.zoom"),
+    ("TABLE_CELL_PAD_X", "TABLE_CELL_PAD_X * m.zoom"),
+    ("TABLE_COL_GAP", "TABLE_COL_GAP * self.metrics.zoom"),
+    ("TABLE_RULE_THICKNESS", "TABLE_RULE_THICKNESS * m.zoom"),
+    (
+        "TABLE_PAN_BAR_THICKNESS",
+        "TABLE_PAN_BAR_THICKNESS * m.zoom",
+    ),
+    // The one that does not even meet ZOOM: the overlay's entrance drop is added
+    // to a device-pixel y offset raw, so it is the same travel in device pixels
+    // at every zoom and every DPI.
+    ("OVERLAY_ENTRANCE_DROP_PX", "* OVERLAY_ENTRANCE_DROP_PX"),
+];
+
 /// The constants under the swept files (`src/render/chrome/`, plus the writing
 /// column's own `render/geometry.rs` / `render/geometry/**` / `render/scroll.rs`)
 /// that are NOT lengths, each with the reason it carries no unit. Enumerated by name
@@ -451,6 +566,26 @@ const DIMENSIONLESS: &[(&str, &str)] = &[
         "DROP_WIDTH_SLACK",
         "a slack factor on an estimated content width",
     ),
+    (
+        "PAGE_MIN_MARGIN_FRAC",
+        "a fraction of the window width, taken as the max against the \
+         already-scaled PAGE_MIN_MARGIN_PX",
+    ),
+    (
+        "COPY_PULSE_LIFT_L",
+        "an HSL LIGHTNESS delta added to the theme's own lightness — a colour \
+         channel, not a distance",
+    ),
+    (
+        "COPY_PULSE_LIFT_ALPHA",
+        "an ALPHA delta on the 0..255 channel scale, added to the theme's own \
+         alpha and clamped",
+    ),
+    (
+        "CARET_MORPH_SETTLE_SHOW",
+        "a settle FRACTION compared against the caret animation's own progress \
+         in 0..1",
+    ),
 ];
 
 /// The `NAME: TYPE ...` tail of a constant declaration, whatever visibility it
@@ -485,21 +620,24 @@ fn const_decl(line: &str) -> Option<&str> {
 /// It is not a `chrome/` file only because the module is shared with the native
 /// menu roster; every length in it is a chrome length.
 ///
-/// `src/render.rs` itself is DELIBERATELY NOT swept yet: alongside the already-typed
-/// chrome-style pads it declares ~30 more constants from unrelated, unaudited
-/// families — the caret/text metrics that pass through `Metrics::with_dpi`'s own
-/// multiply (`FONT_SIZE`, `CHAR_WIDTH`, every `CARET_*`), animation durations in
-/// milliseconds, and raw alpha/lightness channel values — none of which are a "chrome
-/// pad missing its unit family" in this law's sense. Folding the whole file in
-/// without individually checking each one would make this law encode a guess as a
-/// passing check, which is the failure CLAUDE.md's "a generated document states its
-/// wrong answer with a law behind it" names. The residual census belongs in the
-/// landing note for whichever change widens this sweep next.
+/// WIDENED A THIRD TIME, to `src/render.rs` — the file that declares the newtypes
+/// and, for its whole life, the largest population of untyped ones. Folding it in
+/// was held back once on purpose, because it declares FOUR families this sweep had
+/// never met and guessing at any of them would have encoded the guess as a passing
+/// check: the base text/caret metrics that [`Metrics::with_dpi`] resolves itself,
+/// animation durations in milliseconds, raw alpha/lightness channel values, and a
+/// pad measured in CHARACTER cells. Each now has a mechanism rather than a
+/// judgement — [`metrics_resolved_constants`] derives the first from the owner's own
+/// body, [`NON_LENGTH_TYPES`] gives the second a type, [`DIMENSIONLESS`] records the
+/// third with its reason, and the fourth is a [`Chars`]. What is left over is a
+/// measured DEFECT with its own closed ledger, [`DPI_BLIND_PENDING`], not a
+/// classification.
 fn chrome_sources() -> Vec<(String, String)> {
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut out = Vec::new();
     let mut stack = vec![manifest.join("src/render/chrome")];
     let single_files = [
+        "src/render.rs",
         "src/render/geometry.rs",
         "src/render/scroll.rs",
         "src/menubar.rs",
@@ -523,9 +661,9 @@ fn chrome_sources() -> Vec<(String, String)> {
         }
     }
     // `render/geometry/` is a real directory (`column.rs`, `page.rs`, `tests.rs`) but
-    // `render/geometry.rs` and `render/scroll.rs` are FILES beside it, not inside a
-    // `render/geometry/` walk — named explicitly rather than re-deriving the dir walk
-    // for a two-file exception.
+    // `render.rs`, `render/geometry.rs` and `render/scroll.rs` are FILES beside their
+    // own directories, not inside a walk of them — named explicitly rather than
+    // re-deriving the dir walk for a three-file exception.
     for f in single_files {
         let path = manifest.join(f);
         out.push((
@@ -561,12 +699,48 @@ fn chrome_sources() -> Vec<(String, String)> {
 /// enforcement. A new chrome length authored as a bare `f32` fails HERE, by
 /// name, and the only way past is to state which of the four families it is in
 /// — or to record, with a reason, that it is not a length at all.
+///
+/// **FOUR MECHANISMS, and each one names what enrolled it**, because the sweep
+/// now covers `render.rs` and a bare `f32` there can be innocent for a reason no
+/// chrome pad ever had:
+///
+///   * a UNIT TYPE, or a `Millis` — the by-kind exclusion, enforced by the
+///     compiler rather than by this file;
+///   * resolved by [`Metrics::with_dpi`] itself, DERIVED from that function's
+///     own body ([`metrics_resolved_constants`]) so the exclusion expires the
+///     moment the owner stops multiplying it;
+///   * [`DIMENSIONLESS`], the reasoned table for a ratio or a colour channel
+///     that no type currently expresses;
+///   * [`DPI_BLIND_PENDING`], a CLOSED ledger of measured defects, cross-checked
+///     against the leftover set in
+///     [`the_dpi_blind_ledger_is_exactly_the_unclassified_leftover`] so it
+///     cannot absorb a new constant quietly.
 #[test]
 fn every_authored_chrome_constant_declares_its_unit_family() {
     let mut offenders: Vec<String> = Vec::new();
     let mut typed = 0usize;
+    let mut non_length_typed = 0usize;
     let mut dimensionless = 0usize;
-    for (path, src) in chrome_sources() {
+    let mut owner_resolved = 0usize;
+    let mut pending = 0usize;
+    let sources = chrome_sources();
+    let render_src = sources
+        .iter()
+        .find(|(p, _)| p == "src/render.rs")
+        .map(|(_, s)| s.clone())
+        .expect("src/render.rs is in the swept set");
+    let resolved = metrics_resolved_constants(&render_src);
+    // NON-VACUITY OF THE DERIVATION, before anything is excused by it: the owner
+    // really does resolve a family of base metrics, and a parse that silently
+    // matched nothing would excuse nothing rather than everything — but it would
+    // also mean the mechanism this law advertises does not exist.
+    assert!(
+        resolved.len() >= 10,
+        "Metrics::with_dpi's body yielded only {} resolved constants ({resolved:?}) \
+         — the derivation that excuses the base metrics is not reading the owner",
+        resolved.len()
+    );
+    for (path, src) in &sources {
         for (i, line) in src.lines().enumerate() {
             let Some(rest) = const_decl(line) else {
                 continue;
@@ -584,20 +758,30 @@ fn every_authored_chrome_constant_declares_its_unit_family() {
                 .to_string();
             // Only NUMERIC constants are in scope: a `&str` separator or a `u8`
             // level is not a length and never could be.
-            if !(ty == "f32" || UNIT_TYPES.contains(&ty.as_str())) {
+            if !(ty == "f32"
+                || UNIT_TYPES.contains(&ty.as_str())
+                || NON_LENGTH_TYPES.contains(&ty.as_str()))
+            {
                 continue;
             }
             if UNIT_TYPES.contains(&ty.as_str()) {
                 typed += 1;
+            } else if NON_LENGTH_TYPES.contains(&ty.as_str()) {
+                non_length_typed += 1;
+            } else if resolved.iter().any(|n| n == name) {
+                owner_resolved += 1;
             } else if DIMENSIONLESS.iter().any(|(n, _)| *n == name) {
                 dimensionless += 1;
+            } else if DPI_BLIND_PENDING.iter().any(|(n, _)| *n == name) {
+                pending += 1;
             } else {
                 offenders.push(format!(
                     "{path}:{}: `{name}: f32` is an untyped chrome constant. \
                      Chrome's default pixel space is LOGICAL — declare it \
                      `Logical` (or `Physical` with a reason, `LogicalGrowOnly`, \
-                     `Chars`, `Rows`), or add it to this law's DIMENSIONLESS \
-                     table with the reason it is not a length.",
+                     `Chars`, `Rows`, `Millis`), let `Metrics::with_dpi` resolve \
+                     it, or add it to this law's DIMENSIONLESS table with the \
+                     reason it is not a length.",
                     i + 1
                 ));
             }
@@ -608,11 +792,17 @@ fn every_authored_chrome_constant_declares_its_unit_family() {
         "chrome constants authored outside the pixel space:\n{}",
         offenders.join("\n")
     );
-    // Non-vacuity: the sweep must actually be finding constants of both kinds.
+    // Non-vacuity: the sweep must actually be finding constants of every kind it
+    // claims to sort, and each floor is named so a green run says what it graded.
     assert!(
         typed >= 25,
         "the sweep found only {typed} unit-typed chrome constants — it is not \
          reading the sources it thinks it is"
+    );
+    assert!(
+        non_length_typed >= 3 && owner_resolved >= 10,
+        "the by-kind exclusions must both be populated: {non_length_typed} \
+         Millis-typed, {owner_resolved} resolved by Metrics::with_dpi"
     );
     assert_eq!(
         dimensionless,
@@ -620,6 +810,154 @@ fn every_authored_chrome_constant_declares_its_unit_family() {
         "every entry in the DIMENSIONLESS table must still name a live chrome \
          constant; a stale entry silently excuses a name nobody wrote"
     );
+    assert_eq!(
+        pending,
+        DPI_BLIND_PENDING.len(),
+        "every entry in the DPI_BLIND_PENDING ledger must still name a live \
+         untyped constant; one that has been given a family must LEAVE the \
+         ledger, or the ledger starts excusing a name nobody wrote"
+    );
+    eprintln!(
+        "declaration sweep: {typed} unit-typed, {non_length_typed} Millis, \
+         {owner_resolved} resolved by Metrics::with_dpi, {dimensionless} \
+         dimensionless, {pending} DPI-blind pending"
+    );
+}
+
+/// **CLAIM 4c — THE DPI-BLIND LEDGER IS EXACTLY THE LEFTOVER, AND EVERY ENTRY IS
+/// STILL DPI-BLIND.**
+///
+/// [`DPI_BLIND_PENDING`] is the one mechanism in this law that is a list of
+/// names, and a list of names is how an enrolment predicate quietly stops
+/// matching anything. So it is graded from two sides at once:
+///
+///   1. **Closed.** The leftover set — every bare `f32` in the swept sources
+///      that neither [`Metrics::with_dpi`] resolves nor [`DIMENSIONLESS`]
+///      excuses — must EQUAL the ledger. A new untyped constant cannot join by
+///      being DPI-blind, and a fixed one cannot stay by being forgotten.
+///   2. **Still the defect it claims.** For each entry, some PRODUCT source must
+///      read it beside the factor recorded here, and no product source may
+///      resolve it through `metrics.scale` or `Metrics::px` — which is what
+///      "DPI-blind" means, asserted rather than asserted-once-and-trusted. The
+///      day one is repaired, the repair itself trips claim 1.
+#[test]
+fn the_dpi_blind_ledger_is_exactly_the_unclassified_leftover() {
+    let sources = chrome_sources();
+    let render_src = sources
+        .iter()
+        .find(|(p, _)| p == "src/render.rs")
+        .map(|(_, s)| s.clone())
+        .expect("src/render.rs is in the swept set");
+    let resolved = metrics_resolved_constants(&render_src);
+    let mut leftover: Vec<String> = Vec::new();
+    for (_, src) in &sources {
+        for line in src.lines() {
+            let Some(rest) = const_decl(line) else {
+                continue;
+            };
+            let Some((name, ty)) = rest.split_once(':') else {
+                continue;
+            };
+            let name = name.trim().to_string();
+            let ty = ty.split(['=', ';']).next().unwrap_or("").trim();
+            if ty != "f32"
+                || resolved.contains(&name)
+                || DIMENSIONLESS.iter().any(|(n, _)| *n == name)
+            {
+                continue;
+            }
+            leftover.push(name);
+        }
+    }
+    leftover.sort();
+    let mut ledger: Vec<String> = DPI_BLIND_PENDING
+        .iter()
+        .map(|(n, _)| n.to_string())
+        .collect();
+    ledger.sort();
+    assert_eq!(
+        leftover, ledger,
+        "the unclassified leftover and the DPI-blind ledger have diverged. A \
+         constant in the leftover but not the ledger is a NEW untyped length — \
+         give it a family. One in the ledger but not the leftover has been \
+         classified — delete its ledger row."
+    );
+    assert!(
+        !ledger.is_empty(),
+        "an empty ledger would make this law vacuous; if the last DPI-blind \
+         constant is genuinely fixed, delete this law with it"
+    );
+    // Claim 2: each entry is still read the way the ledger says, and still never
+    // meets the DPI factor. Product sources only — a test may legitimately
+    // multiply one of these by a scale to describe the defect.
+    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut product: Vec<(String, String)> = Vec::new();
+    let mut stack = vec![manifest.join("src")];
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(&dir).expect("src readable") {
+            let path = entry.expect("dir entry").path();
+            let rel = path
+                .strip_prefix(manifest)
+                .unwrap_or(&path)
+                .display()
+                .to_string();
+            if path.is_dir() {
+                if !rel.ends_with("/tests") {
+                    stack.push(path);
+                }
+            } else if path.extension().is_some_and(|e| e == "rs") && !rel.ends_with("tests.rs") {
+                product.push((
+                    rel,
+                    std::fs::read_to_string(&path).expect("source readable"),
+                ));
+            }
+        }
+    }
+    assert!(
+        product.len() > 60,
+        "the product-source scan found only {} files",
+        product.len()
+    );
+    for (name, site) in DPI_BLIND_PENDING {
+        let factor = site;
+        let mut saw_factor = false;
+        let mut scaled_sites: Vec<String> = Vec::new();
+        for (path, src) in &product {
+            for (i, line) in src.lines().enumerate() {
+                let t = line.trim_start();
+                if !line.contains(name) || t.starts_with("//") || t.starts_with("///") {
+                    continue;
+                }
+                if const_decl(line).is_some() {
+                    continue; // the declaration itself
+                }
+                if line.contains(factor) {
+                    saw_factor = true;
+                }
+                // `\bscale\b` deliberately, so a local named `demo_scale` does
+                // not read as the metrics factor.
+                let words: Vec<&str> = line
+                    .split(|c: char| !c.is_alphanumeric() && c != '_')
+                    .collect();
+                if words.contains(&"scale") || line.contains(".px(") {
+                    scaled_sites.push(format!("{path}:{}: {}", i + 1, line.trim()));
+                }
+            }
+        }
+        assert!(
+            saw_factor,
+            "the ledger says {name} is read as `{site}`, and no product source \
+             spells that. The read site is the evidence for the classification, \
+             so it is graded like one."
+        );
+        assert!(
+            scaled_sites.is_empty(),
+            "{name} is in the DPI-blind ledger but a product source resolves it \
+             through the DPI factor:\n{}\nIf that is the repair, it belongs in a \
+             unit family and out of this ledger.",
+            scaled_sites.join("\n")
+        );
+    }
 }
 
 /// **CLAIM 4b — A MIGRATED LENGTH MAY NOT ESCAPE THE OWNER BY FIELD ACCESS.**

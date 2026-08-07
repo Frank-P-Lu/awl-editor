@@ -98,7 +98,7 @@ fn cell_caret_hugs_the_full_ink_box_on_ascenders_x_height_and_descenders() {
     // One fixture line spanning all three vertical classes. `l` is the ascender,
     // `a`/`m` sit on the x-height, `g`/`y` dip below the baseline.
     let text = "lamgy";
-    let pad = CARET_INK_PAD * pad_px(&p);
+    let pad = CARET_INK_PAD.px(pad_px(&p));
     let mut top_gaps: Vec<(char, f32)> = Vec::new();
     let mut saw_ascender_ink = false;
     let mut saw_descender_ink = false;
@@ -214,7 +214,7 @@ fn cell_caret_vertical_has_one_owner_across_every_caret_form() {
     // about the RULE, not about which letter each look happens to sit on.
     let text = "mm";
     let col = 1;
-    let pad = CARET_INK_PAD * pad_px(&p);
+    let pad = CARET_INK_PAD.px(pad_px(&p));
 
     for mode in CaretMode::ALL {
         crate::caret::set_mode(mode);
@@ -633,7 +633,7 @@ fn glyphless_fallbacks_use_the_synthetic_baseline_box_on_proportional_worlds() {
     p.sync_theme();
     crate::caret::set_mode(CaretMode::Block);
     let text = "am am"; // col 2 = the space; col 5 = end of line
-    let pad = CARET_INK_PAD * pad_px(&p);
+    let pad = CARET_INK_PAD.px(pad_px(&p));
 
     for (col, what) in [(2usize, "a space"), (5usize, "end of line")] {
         p.set_view(&view(text, 0, col));
@@ -730,13 +730,15 @@ fn glyphless_fallbacks_use_the_synthetic_baseline_box_on_proportional_worlds() {
 #[test]
 fn caret_ink_pad_is_bounded_and_exceeds_the_morph_dilation() {
     assert!(
-        std::hint::black_box(CARET_INK_PAD) > CARET_MORPH_DILATE_PX,
-        "the ink pad must outrun the knockout/silhouette dilation: pad={CARET_INK_PAD} \
-         dilate={CARET_MORPH_DILATE_PX}"
+        std::hint::black_box(CARET_INK_PAD.0) > CARET_MORPH_DILATE_PX,
+        "the ink pad must outrun the knockout/silhouette dilation: pad={} \
+         dilate={CARET_MORPH_DILATE_PX}",
+        CARET_INK_PAD.0
     );
     assert!(
-        std::hint::black_box(CARET_INK_PAD) > 0.0 && CARET_INK_PAD < CARET_BLOCK_H * 0.25,
-        "the ink pad must stay a small margin, not a second cell height: {CARET_INK_PAD}"
+        std::hint::black_box(CARET_INK_PAD.0) > 0.0 && CARET_INK_PAD.0 < CARET_BLOCK_H * 0.25,
+        "the ink pad must stay a small margin, not a second cell height: {}",
+        CARET_INK_PAD.0
     );
 }
 

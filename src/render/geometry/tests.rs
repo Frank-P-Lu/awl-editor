@@ -86,12 +86,13 @@ fn wide_capture_is_byte_identical_to_the_old_cap() {
 
 #[test]
 fn page_off_is_edge_to_edge_unaffected() {
-    assert!((column_left_for(1200.0, CW, false, 80, 1.0) - NONPAGE_INSET.0).abs() < 1e-3);
+    assert!((column_left_for(1200.0, CW, false, 80, 1.0) - NONPAGE_INSET.px(1.0)).abs() < 1e-3);
     assert!(
-        (column_width_for(1200.0, CW, false, 80, 1.0) - (1200.0 - 2.0 * NONPAGE_INSET.0)).abs()
+        (column_width_for(1200.0, CW, false, 80, 1.0) - (1200.0 - 2.0 * NONPAGE_INSET.px(1.0)))
+            .abs()
             < 1e-3
     );
-    assert!(std::hint::black_box(NONPAGE_INSET.0) > PAGE_MIN_PAD.px(1.0));
+    assert!(std::hint::black_box(NONPAGE_INSET.px(1.0)) > PAGE_MIN_PAD.px(1.0));
 }
 
 fn outline_pref_px() -> f32 {
@@ -159,7 +160,7 @@ fn adaptive_page_off_never_shifts() {
         margin_gap(),
         ADAPTIVE_DPI,
     );
-    assert_eq!(left, NONPAGE_INSET.0);
+    assert_eq!(left, NONPAGE_INSET.px(1.0));
 }
 
 #[test]
@@ -918,7 +919,7 @@ fn adaptive_column_left_is_dpi_invariant_at_matched_logical_geometry() {
                         if !page_on {
                             saw_page_off = true;
                             assert!(
-                                (snapped - (NONPAGE_INSET.0 * dpi).floor()).abs() < 1e-3,
+                                (snapped - NONPAGE_INSET.px(dpi).floor()).abs() < 1e-3,
                                 "page off at dpi {dpi}: left must be the authored \
                                  NONPAGE_INSET resolved at this scale, got {snapped}"
                             );

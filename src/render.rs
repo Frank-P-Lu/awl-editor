@@ -136,7 +136,11 @@ pub const FONT_SIZE: f32 = 24.0;
 pub const LINE_HEIGHT: f32 = 32.0;
 pub const TEXT_LEFT: Logical = Logical(16.0);
 pub const NONPAGE_INSET: Logical = Logical(32.0);
-pub const PAGE_TEXT_PAD_CHARS: f32 = 3.0;
+/// The page's inner text pad, in CHARACTER cells rather than pixels: the gap
+/// between the page plate's edge and the writing column's own glyphs. Resolved
+/// against `metrics.char_width`, which [`Metrics::with_dpi`] has already
+/// multiplied by `zoom * dpi`, so it must never also pass [`Metrics::px`].
+pub const PAGE_TEXT_PAD_CHARS: Chars = Chars(3.0);
 pub const TEXT_TOP: Logical = Logical(16.0);
 pub const PAGE_MIN_MARGIN_PX: Logical = Logical(64.0);
 pub const PAGE_MIN_MARGIN_FRAC: f32 = 0.10;
@@ -152,8 +156,15 @@ pub const CHAR_WIDTH: f32 = 14.4;
 pub const CARET_W: f32 = CHAR_WIDTH;
 pub const CARET_H: f32 = 28.0;
 pub const CARET_BLOCK_H: f32 = CARET_H * 0.80; // ~22.4 px
-pub const CARET_DESCENDER_PAD: f32 = 1.5;
-pub const CARET_INK_PAD: f32 = 3.0;
+/// The caret ink box's own two pads, both resolved at the FULL `zoom * dpi`
+/// factor — the caret sites recover it from the metrics themselves
+/// (`m.caret_h / CARET_H`, which is exactly [`Metrics::scale`] because
+/// [`Metrics::with_dpi`] built `caret_h` as `CARET_H * s`) and hand it to
+/// [`Logical::px`]. So these are logical lengths that already meet the DPI
+/// multiply; the newtype records which factor they are entitled to rather than
+/// leaving the next reader to pick one.
+pub const CARET_DESCENDER_PAD: Logical = Logical(1.5);
+pub const CARET_INK_PAD: Logical = Logical(3.0);
 pub const CARET_STREAK_H: f32 = 2.8;
 pub const CARET_STREAK_MIN_LEN: f32 = 10.0;
 pub const CARET_STREAK_MAX_LEN: f32 = 64.0;
@@ -260,6 +271,29 @@ pub struct Chars(pub f32);
 /// the same reason [`Chars`] is, and double-scaled by the same mistake.
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub struct Rows(pub f32);
+
+/// A DURATION in milliseconds — deliberately NOT a length, and the type says
+/// so. An animation's span belongs to the clock, not to the pixel grid: it must
+/// hold its value on a retina panel where every length doubles, so it has no
+/// [`Metrics::px`] and cannot acquire one by accident.
+///
+/// The multiply a duration DOES want is the frame delta's, and
+/// [`Self::progress_per`] is the one place it happens: live animation advances a
+/// unit progress by `dt / span`, and reading the span out of any other
+/// expression is how a raw `f32` ends up in a pixel multiply. (A test converting
+/// a span to seconds for its own fixture clock reads `.0` directly; that is
+/// arithmetic over TIME, which is exactly what this type permits and the length
+/// families do not.)
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+pub struct Millis(pub f32);
+
+impl Millis {
+    /// The progress this span advances over a frame delta of `dt` SECONDS —
+    /// the only arithmetic an animation duration is asked for.
+    pub fn progress_per(self, dt: f32) -> f32 {
+        dt * 1000.0 / self.0
+    }
+}
 
 /// Zoom-derived layout metrics. This is the SINGLE SOURCE OF TRUTH for every
 /// pixel dimension that depends on zoom: the renderer, the caret quad, the
@@ -818,11 +852,11 @@ pub const COPY_PULSE_LIFT_L: f32 = 0.18;
 /// alpha and clamped) — the pulse also nudges the wash a touch more opaque,
 /// decaying alongside the lightness. TASTE TUNABLE.
 pub const COPY_PULSE_LIFT_ALPHA: f32 = 55.0;
-pub const COPY_PULSE_MS: f32 = 220.0;
+pub const COPY_PULSE_MS: Millis = Millis(220.0);
 
-pub const OVERLAY_ENTRANCE_MS: f32 = 200.0;
+pub const OVERLAY_ENTRANCE_MS: Millis = Millis(200.0);
 pub const OVERLAY_ENTRANCE_DROP_PX: f32 = 14.0;
-pub const OVERLAY_BAND_SLIDE_MS: f32 = 110.0;
+pub const OVERLAY_BAND_SLIDE_MS: Millis = Millis(110.0);
 
 /// The copy-pulse's eased SETTLE fraction at progress `t` ∈ `[0, 1]` (0 = just
 /// kicked / full brighten, 1 = fully settled / no boost) — a smoothstep ease,
