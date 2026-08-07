@@ -1658,7 +1658,8 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      roster × `OverlayKind` × 1×/2×, with byte-identity everywhere a plate legitimately
      belongs. **Routing:** production tier.
 
-317. **HOW MANY OTHER LAWS ARE BLIND TO THE `menu_bar` AXIS? SWEEP THEM UNDER THE
+317. 🟡 IN PROGRESS — claude, branch `claude/item-317-320-axis-census`.
+     **HOW MANY OTHER LAWS ARE BLIND TO THE `menu_bar` AXIS? SWEEP THEM UNDER THE
      FORCING.** The CI RED above was one platform default — `MENU_BAR_ON` is `false` on macOS
      and `true` everywhere else — costing **35.6px of every card's height budget**, and it hid
      **a picker that drew zero candidate rows on Linux.** Two laws were repaired and a handful
@@ -1708,7 +1709,8 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      the roster × `OverlayKind` × 1×/2× **and under the `MENU_BAR_ON` forcing**, since the bar's
      reserve is in this axis. **Routing:** production tier.
 
-320. **A LATENT TEST-FIXTURE BUG THAT MAKES HEIGHT-BUDGET SWEEPS LIE.**
+320. 🟡 IN PROGRESS with 317 — claude, branch `claude/item-317-320-axis-census`.
+     **A LATENT TEST-FIXTURE BUG THAT MAKES HEIGHT-BUDGET SWEEPS LIE.**
      `ViewState::overlay_window_rows` left at its **default pins every kind to 12 rows**, so a
      law that believes it is varying the card's height budget is not varying anything. The
      capture path sets it from `OverlayKind::window_rows()`; **a law must too.**
@@ -1717,7 +1719,8 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      and check whether it sets that field. **Expect several.** **Verify:** each affected law
      re-run with the field set, and any that changes verdict named. **Routing:** production tier.
 
-321. **`menubar.rs`'s `bar_height` MIXES A SCALED ARGUMENT WITH AN UNSCALED CONSTANT — the
+321. 🟡 IN PROGRESS — claude, branch `claude/item-321-bar-height`.
+     **`menubar.rs`'s `bar_height` MIXES A SCALED ARGUMENT WITH AN UNSCALED CONSTANT — the
      same defect shape items 314 and 315 just closed, one file over.**
      `bar_height(line_height) = line_height + 2.0 * BAR_PAD_Y`, where the argument is scaled and
      `BAR_PAD_Y` (5.0) is not. Found by item 315's census and left alone because `menubar.rs` was
