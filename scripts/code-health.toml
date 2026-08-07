@@ -352,7 +352,7 @@ reason = "item 202: +52 lines — `--bench-theme-burst` gained the reshape-count
 
 [[file_size_mark]]
 file = "src/render/geometry.rs"
-lines = 1465
+lines = 1243
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
@@ -1286,28 +1286,28 @@ reason = "Pure relocation from the inline src/render/geometry.rs test module; th
 [[structural_exception]]
 target = "src/render/geometry/tests.rs"
 kind = "architectural"
-line = 321
+line = 311
 text = "        \"boundary resolves to WIDE (no shift) at the exact threshold: left={left} symmetric={symmetric}\""
 reason = "Pure relocation from the inline src/render/geometry.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/render/geometry/tests.rs"
 kind = "architectural"
-line = 342
+line = 332
 text = "            \"shifted column must still fit the window (win={win} measure={measure}): left={left} width={width}\""
 reason = "Pure relocation from the inline src/render/geometry.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/render/geometry/tests.rs"
 kind = "architectural"
-line = 373
+line = 353
 text = "                \"width {w}px: column_left jumped {step}px in a single pixel of resize ({p} -> {left}) — the jitter bug\""
 reason = "Pure relocation from the inline src/render/geometry.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/render/geometry/tests.rs"
 kind = "architectural"
-line = 430
+line = 401
 text = "                    \"width {w}: symmetric-regime left must step exactly 0 or 1 whole px per width px, got {step}\""
 reason = "Pure relocation from the inline src/render/geometry.rs test module; this exact line was grandfathered there."
 
@@ -1862,3 +1862,10 @@ file = "src/render/tests/frost_feather_item312.rs"
 function = "the_full_frosts_composite_is_destination_independent"
 message = "this function has too many lines (123/100)"
 reason = "Proves Frost::Full is still a replace under ALPHA_BLENDING by DRAWING it twice, over a red destination and a blue one through a LoadOp::Load pass, and requiring bit-identity — the operational meaning of `alpha 1.0 is a replace`, rather than an assertion about the constant. The length is two full GPU passes plus the non-vacuity step that first proves the composite differs from the bare clear; at alpha 0.99 all 120000 pixels differ."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/geometry/tests.rs"
+function = "adaptive_column_left_is_dpi_invariant_at_matched_logical_geometry"
+message = "this function has too many lines (119/100)"
+reason = "A 3996-cell sweep, and the cells are the point: 4 DPI tiers including a fractional 1.5, 9 logical widths from the true 464 minimum, measures 10-120, page on/off and rail on/off. The length is that product plus four non-vacuity gates and the PRESENCE clause that catches a pad deleted rather than scaled, which invariance alone cannot: 0 x dpi is perfectly invariant."
