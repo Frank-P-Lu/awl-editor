@@ -188,7 +188,11 @@ fn a_category_heads_its_band_with_a_location_and_the_home_shows_none() {
 /// frames differ in exactly one thing — whether the card knows where it is — so
 /// ground, texture, placard, strip and rows all cancel and what is left on that
 /// one line is the treatment. The location's strongest ink against the card's
-/// own ground must beat the faint whisper it replaced.
+/// own ground must beat the faint whisper it replaced — on every world that
+/// draws its cue IN the card. A world that composes it against the ROOM instead
+/// takes the mirrored arm (its card band must be glyph-free), because this
+/// oracle scans the card and would otherwise report a weak cue where it is
+/// really measuring an empty line; the sweep's own doc has both rosters.
 /// Perceptual luma of a captured pixel.
 fn luma(c: [u8; 4]) -> f32 {
     0.2126 * c[0] as f32 + 0.7152 * c[1] as f32 + 0.0722 * c[2] as f32
@@ -240,6 +244,66 @@ fn scan_window(p: &TextPipeline, band: [f32; 4]) -> ((f32, f32), f32) {
     }
 }
 
+/// One offscreen frame of the palette, read back.
+fn shoot_palette(device: &wgpu::Device, queue: &wgpu::Queue, p: &mut TextPipeline) -> Vec<[u8; 4]> {
+    let (texture, tview) = super::dither::offscreen(device, 1200, 800);
+    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        label: Some("awl item220 location encoder"),
+    });
+    p.render(&mut encoder, &tview).unwrap();
+    queue.submit(Some(encoder.finish()));
+    super::dither::read_pixels(device, queue, &texture, 1200, 800)
+}
+
+/// The active world's two peaks — `[located, header]` — plus the band they were
+/// measured in, for the failure message. Split from the sweep below so the
+/// sweep stays a readable loop over its own rosters.
+fn located_and_header_peaks(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    p: &mut TextPipeline,
+    files: usize,
+) -> ([f32; 2], [f32; 4]) {
+    let mut peaks = [0.0f32; 2];
+    let mut band = [0.0f32; 4];
+    for (arm, located) in [true, false].into_iter().enumerate() {
+        let mut v = palette_view(files);
+        if !located {
+            v.overlay_location = None;
+        }
+        p.set_view(&v);
+        p.prepare(device, queue, 1200, 800).unwrap();
+        let geom = p.overlay_geometry(1200);
+        let plan = p.overlay_row_plan(&geom);
+        let first = plan.rows().first().expect("the card plans a first line");
+        band = [
+            geom.band_x_probe(),
+            geom.band_w_probe(),
+            first.top,
+            first.height,
+        ];
+        let pixels = shoot_palette(device, queue, p);
+        let ((x_lo, x_hi), gx) = scan_window(p, band);
+        let gy = (band[2] + band[3] * 0.5).round().clamp(0.0, 799.0) as usize;
+        let gx = gx.round().clamp(0.0, 1199.0) as usize;
+        let ground = luma(pixels[gy * 1200 + gx]);
+        let x0 = x_lo.round().max(0.0) as usize;
+        let x1 = x_hi.round().min(1199.0) as usize;
+        // ⚠️ THE SCANNED BAND IS THE ROW'S INTERIOR, NOT ITS WHOLE SLOT: a
+        // slot's outer edges belong to whatever a world draws BETWEEN rows,
+        // and a `Rules` world puts a rule there in full-strength ink — the
+        // same in both arms, saturating a peak-of-|Δluma| oracle at 211.0
+        // apiece so the heading was compared to nothing. Inset by the same
+        // half-gap the row-pitch owner folded in, zero on every world with
+        // no air between its rows.
+        let air = p.overlay_row_gap() * 0.5;
+        let y0 = (band[2] + air).round().max(0.0) as usize;
+        let y1 = (band[2] + band[3] - air).round().min(799.0) as usize;
+        peaks[arm] = peak_departure(&pixels, ground, (x0, x1), (y0, y1));
+    }
+    (peaks, band)
+}
+
 #[test]
 fn the_location_heading_reads_stronger_than_the_faint_header_it_replaced_in_every_world() {
     let _g = crate::testlock::serial();
@@ -254,16 +318,6 @@ fn the_location_heading_reads_stronger_than_the_faint_header_it_replaced_in_ever
         .position(|f| f.label == "Files")
         .expect("the command palette has a Files lens");
 
-    let shoot = |device: &wgpu::Device, queue: &wgpu::Queue, p: &mut TextPipeline| {
-        let (texture, tview) = super::dither::offscreen(device, 1200, 800);
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("awl item220 location encoder"),
-        });
-        p.render(&mut encoder, &tview).unwrap();
-        queue.submit(Some(encoder.finish()));
-        super::dither::read_pixels(device, queue, &texture, 1200, 800)
-    };
-
     let mut ratios: Vec<(String, f32)> = Vec::new();
     // A world whose `faint` and `muted` are the SAME ink cannot express this
     // hierarchy by value, and one of them ships: Wagtail is 1-bit, so its whole
@@ -273,54 +327,41 @@ fn the_location_heading_reads_stronger_than_the_faint_header_it_replaced_in_ever
     // "no weaker" instead. The roster of such worlds is PINNED, so a second
     // one-ink world has to arrive here and say so.
     let mut one_ink: Vec<String> = Vec::new();
+    // ⚠️ A WORLD MAY COMPOSE ITS CUE OUTSIDE THE CARD, and then this oracle is
+    // structurally blind to it rather than measuring a weak one. `RotatedRail`
+    // seats its run in the ROOM's own outer margin beside the wordmark placard,
+    // so the card band scanned below holds no cue ink at all — the claim there
+    // is not "stronger than the whisper" but "the inline slot stays glyph-free",
+    // asserted as such, with the cue's own strength graded against the
+    // wordmark's ink by `rotated_rail_item297`. The roster of such worlds is
+    // PINNED, so a second one has to arrive here and say so.
+    let mut off_card: Vec<String> = Vec::new();
     for world in theme::THEMES.iter().map(|t| t.name) {
         theme::set_active_by_name(world).unwrap();
         p.sync_theme();
         let distinct = theme::faint().rgba_bytes() != theme::muted().rgba_bytes();
-        let mut peaks = [0.0f32; 2];
-        let mut band = [0.0f32; 4];
-        for (arm, located) in [true, false].into_iter().enumerate() {
-            let mut v = palette_view(files);
-            if !located {
-                v.overlay_location = None;
-            }
-            p.set_view(&v);
-            p.prepare(&device, &queue, 1200, 800).unwrap();
-            let geom = p.overlay_geometry(1200);
-            let plan = p.overlay_row_plan(&geom);
-            let first = plan.rows().first().expect("the card plans a first line");
-            band = [
-                geom.band_x_probe(),
-                geom.band_w_probe(),
-                first.top,
-                first.height,
-            ];
-            let pixels = shoot(&device, &queue, &mut p);
-            let ((x_lo, x_hi), gx) = scan_window(&p, band);
-            let gy = (band[2] + band[3] * 0.5).round().clamp(0.0, 799.0) as usize;
-            let gx = gx.round().clamp(0.0, 1199.0) as usize;
-            let ground = luma(pixels[gy * 1200 + gx]);
-            let x0 = x_lo.round().max(0.0) as usize;
-            let x1 = x_hi.round().min(1199.0) as usize;
-            // ⚠️ THE SCANNED BAND IS THE ROW'S INTERIOR, NOT ITS WHOLE SLOT: a
-            // slot's outer edges belong to whatever a world draws BETWEEN rows,
-            // and a `Rules` world puts a rule there in full-strength ink — the
-            // same in both arms, saturating a peak-of-|Δluma| oracle at 211.0
-            // apiece so the heading was compared to nothing. Inset by the same
-            // half-gap the row-pitch owner folded in, zero on every world with
-            // no air between its rows.
-            let air = p.overlay_row_gap() * 0.5;
-            let y0 = (band[2] + air).round().max(0.0) as usize;
-            let y1 = (band[2] + band[3] - air).round().min(799.0) as usize;
-            peaks[arm] = peak_departure(&pixels, ground, (x0, x1), (y0, y1));
-        }
+        let off = theme::active().render_caps.location_style == theme::LocationStyle::RotatedRail;
+        let (peaks, band) = located_and_header_peaks(&device, &queue, &mut p, files);
         assert!(
             peaks[1] > 2.0,
             "{world}: the retired faint header is invisible to this oracle at band \
              {band:?} (peak {:.1}) — the comparison would be vacuous",
             peaks[1]
         );
-        if distinct {
+        if off {
+            // The inline slot really is glyph-free: whatever the card draws on
+            // that line in the LOCATED arm must be weaker than the header the
+            // other arm draws there, because the located arm draws nothing.
+            assert!(
+                peaks[0] < peaks[1],
+                "{world}: composes its cue outside the card, so the card's own location \
+                 band must be glyph-free — it reads {:.1} against the retired header's \
+                 {:.1}",
+                peaks[0],
+                peaks[1]
+            );
+            off_card.push(world.to_string());
+        } else if distinct {
             assert!(
                 peaks[0] > peaks[1],
                 "{world}: the location heading reads at {:.1} against the card's ground \
@@ -347,9 +388,14 @@ fn the_location_heading_reads_stronger_than_the_faint_header_it_replaced_in_ever
         ["Wagtail"],
         "the roster of worlds whose faint and muted inks are the same tone moved"
     );
+    assert_eq!(
+        off_card,
+        ["Cassowary"],
+        "the roster of worlds that compose their location cue outside the card moved"
+    );
     let worst = ratios.iter().fold(f32::MAX, |acc, (_, r)| acc.min(*r));
     assert!(
-        ratios.len() + one_ink.len() == theme::THEMES.len() && worst > 1.0,
+        ratios.len() + one_ink.len() + off_card.len() == theme::THEMES.len() && worst > 1.0,
         "ink law swept {} worlds by value, worst ratio {worst:.2}: {ratios:?}",
         ratios.len()
     );
