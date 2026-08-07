@@ -40,9 +40,29 @@ pub(in crate::render) const LOCATION_SCALE: f32 = 0.92;
 pub(in crate::render) const ROTATED_LOCATION_MIN_SCALE: f32 = 0.55;
 
 /// The fraction of `header_gap` `Raked`'s cue may treat as safely blank above
-/// its row — see `prepare_overlay_rotated_location`'s own call-site comment
-/// for why it is a fraction rather than the whole gap.
+/// its row — see [`raked_along_budget`] for why it is a fraction rather than
+/// the whole gap.
 pub(in crate::render) const ROTATED_LOCATION_HEADER_GAP_FRAC: f32 = 0.55;
+
+/// **`Raked`'s ALONG-AXIS BUDGET: its own row band, plus the share of the query
+/// beat's calm divider that is really blank.** The one owner of that sum, and
+/// the reason it takes the gap as an argument rather than reading it off the
+/// geometry record is that the record's gap is not a header POSITION — a
+/// consumer summing `geom.header_gap` to place a header line is re-deriving
+/// planner arithmetic, which `render::tests::overlay_plan_law` forbids by name.
+///
+/// `header_gap` is the STRIP LINE's own box inflation, not the blank space
+/// below its drawn pill: cosmic-text centres the pill's glyphs in that taller
+/// box, so roughly as much of the gap sits ABOVE the pill (unusable — the query
+/// field's own breathing room) as below it (the part this run may safely
+/// enter). [`ROTATED_LOCATION_HEADER_GAP_FRAC`] is that share, measured against
+/// the real shaped pill rather than derived from its own placement formula
+/// (which would duplicate that private geometry here) — calibrated
+/// conservative, confirmed against real captures at the longest facet name a
+/// faceted picker can carry ("This folder", Go-to's own lens).
+pub(in crate::render) fn raked_along_budget(row_height: f32, header_gap: f32) -> f32 {
+    (row_height + header_gap.max(0.0) * ROTATED_LOCATION_HEADER_GAP_FRAC).max(1.0)
+}
 
 /// **THE ⅔ RELATION.** `RotatedRail`'s type size, as a fraction of the
 /// wordmark placard's own — the whole of what makes the cue read as the

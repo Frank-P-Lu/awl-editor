@@ -11,9 +11,8 @@
 
 use super::*;
 use crate::render::rotated_location::{
-    FlushEdge, LOCATION_SCALE, Overflow, ROTATED_LOCATION_HEADER_GAP_FRAC,
-    ROTATED_RAIL_PLACARD_FRACTION, ROTATED_RAIL_PLACARD_GAP_EM, RotatedLabelPlacement,
-    placard_font_size,
+    FlushEdge, LOCATION_SCALE, Overflow, ROTATED_RAIL_PLACARD_FRACTION,
+    ROTATED_RAIL_PLACARD_GAP_EM, RotatedLabelPlacement, placard_font_size, raked_along_budget,
 };
 
 impl TextPipeline {
@@ -60,27 +59,16 @@ impl TextPipeline {
                 let axis_deg = super::diagonal::location_axis_deg(cluster.spine_step(), row.height);
                 let m = self.metrics;
                 let ui = crate::render::effective_overlay_scale();
-                // `header_gap` is the STRIP LINE's own box inflation, not the
-                // blank space below its drawn pill: cosmic-text centres the
-                // pill's glyphs in that taller box, so roughly as much of the
-                // gap sits ABOVE the pill (unusable — the query field's own
-                // breathing room) as below it (the part this run may safely
-                // enter). `ROTATED_LOCATION_HEADER_GAP_FRAC` is that share,
-                // measured against the real shaped pill rather than derived
-                // from its own placement formula (which would duplicate that
-                // private geometry here) — calibrated conservative, confirmed
-                // against real captures at the longest facet name a faceted
-                // picker can carry ("This folder", Go-to's own lens).
-                let along = (row.height
-                    + geom.header_gap.max(0.0) * ROTATED_LOCATION_HEADER_GAP_FRAC)
-                    .max(1.0);
                 RotatedLabelPlacement {
                     flush: FlushEdge::Left(geom.text_left + row.dx),
-                    bottom: row.top + row.height,
+                    bottom: row.bottom(),
                     // Unbounded ACROSS the reading axis: the rake's own
                     // thickness sits in the card's text column, which the row
                     // beside it is already sized to hold.
-                    fit: [f32::INFINITY, along],
+                    fit: [
+                        f32::INFINITY,
+                        raked_along_budget(row.height, geom.header_gap),
+                    ],
                     natural_size: m.font_size * ui * LOCATION_SCALE,
                     axis_deg,
                     color_a: srgb_u8_to_linear3(theme::muted().rgba_bytes()),
