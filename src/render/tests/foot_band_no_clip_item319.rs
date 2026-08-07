@@ -81,10 +81,16 @@ use super::super::*;
 use super::{headless_dqp, view};
 use crate::overlay::OverlayKind;
 
+// EVERY ITEM BELOW IS NATIVE-ONLY, not just the two tests. The whole file hangs
+// off `set_keybindings_tips`, the discoverability ledger's own native-only door
+// (`chrome/hud.rs`), so a helper left ungated is a wasm build error rather than
+// dead code — which is what a web smoke run reports and a native gate never can.
+
 /// THE MEASURED OVERFLOW LEDGER: `(world, hint kind, hint band ÷ card text
 /// column)` for every cell whose hint does not fit its own card, at every
 /// scale ≥ 1. The ratio is the pinned quantity because it is the scale-free
 /// one — see the module doc — so one number covers 1×, 1.6× and 2× alike.
+#[cfg(not(target_arch = "wasm32"))]
 const KNOWN_HINT_OVERFLOW: &[(&str, &str, f32)] = &[
     ("Potoroo", "Keybindings", 1.0121),
     ("Firetail", "Keybindings", 1.0502),
@@ -93,10 +99,12 @@ const KNOWN_HINT_OVERFLOW: &[(&str, &str, f32)] = &[
 /// Ratios are read off f32 layout arithmetic, so the pin is to four decimals
 /// with a hair of room — wide enough not to flake, far tighter than the
 /// smallest ledgered deficit (121 points of 10⁻⁴).
+#[cfg(not(target_arch = "wasm32"))]
 const RATIO_TOL: f32 = 0.002;
 
 /// What fraction of its text column this world's hint band is ALLOWED to
 /// occupy: 1 for every unledgered pair, the pinned ratio for a ledgered one.
+#[cfg(not(target_arch = "wasm32"))]
 fn allowed_ratio(world: &str, kind: OverlayKind) -> f32 {
     KNOWN_HINT_OVERFLOW
         .iter()
@@ -115,6 +123,7 @@ fn allowed_ratio(world: &str, kind: OverlayKind) -> f32 {
 /// produced a pinned deficit on the command palette's hint, which does not
 /// exist: the palette FACETS, so its card is the wider `CARD_MAX_W_FACETED`
 /// cap, and the flat card's narrower column is not its budget.
+#[cfg(not(target_arch = "wasm32"))]
 fn carded_kinds() -> Vec<OverlayKind> {
     OverlayKind::ALL
         .iter()
@@ -127,6 +136,7 @@ fn carded_kinds() -> Vec<OverlayKind> {
 /// Every `"{chord}  {name}"` tip the REAL ledger could ever hand the footer —
 /// the whole catalog, not whichever three usage ranks first today, because
 /// the true worst case is a property of the catalog's own longest entry.
+#[cfg(not(target_arch = "wasm32"))]
 fn every_real_tip() -> Vec<String> {
     let names = crate::commands::names();
     let bindings = crate::commands::effective_bindings(&[], &[]);
@@ -145,6 +155,7 @@ fn every_real_tip() -> Vec<String> {
 /// `overlay_window_rows` from `window_rows()`, because leaving it at its flat
 /// default pins every kind to 12 rows and a height-budget sweep then varies
 /// nothing.
+#[cfg(not(target_arch = "wasm32"))]
 fn card_view(kind: OverlayKind, zoom: f32) -> ViewState {
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
@@ -167,6 +178,7 @@ fn card_view(kind: OverlayKind, zoom: f32) -> ViewState {
 /// composition hangs it off its spine), and the card carries `hpad` of padding
 /// outside the text column, so a band can clip inside the card or paint past
 /// its edge.
+#[cfg(not(target_arch = "wasm32"))]
 struct CardFit {
     band: f32,
     column: f32,
@@ -174,6 +186,7 @@ struct CardFit {
     hpad: f32,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn card_fit(
     p: &mut TextPipeline,
     gpu: (&wgpu::Device, &wgpu::Queue),
@@ -281,6 +294,7 @@ fn the_keybindings_footer_never_clips_for_any_real_ledger_tip() {
 /// THE SWEEP'S OWN AXES for one cell, carried as one value so the grader below
 /// stays inside the argument budget and every failure message can name the
 /// whole configuration it ran in.
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Clone, Copy)]
 struct Axes {
     zoom: f32,
@@ -292,6 +306,7 @@ struct Axes {
 /// a scale ≥ 1 — the value the caller accumulates for the set and invariance
 /// checks. Everything asserted here is per-cell; nothing about the ledger as a
 /// whole is decided at this level.
+#[cfg(not(target_arch = "wasm32"))]
 fn grade_one_cell(
     p: &mut TextPipeline,
     gpu: (&wgpu::Device, &wgpu::Queue),
