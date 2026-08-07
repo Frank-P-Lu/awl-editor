@@ -710,6 +710,7 @@ impl TextPipeline {
         if crate::menubar::menu_bar_on() {
             crate::menubar::bar_height(
                 self.metrics.line_height * crate::markdown::type_scale::LABEL,
+                self.metrics.scale,
             )
         } else {
             0.0
