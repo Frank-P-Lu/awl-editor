@@ -53,7 +53,17 @@ minimum across all 4×2×N cells**. CI got **0**. ⚠️ **So the gap is FOUR RO
 is not a rounding or sub-pixel metric drift.** Something makes `overlay_lh` (or the grouped
 family's chrome budget) **materially larger** on that host.
 
-**That points at FACE RESOLUTION rather than metric precision:** a chrome face resolving to a
+⚠️ **AND ONE EXPERIMENT CAME BACK INCONCLUSIVE — RECORDED AS INCONCLUSIVE, NOT AS A
+RULED-OUT HYPOTHESIS.** I forced a different face via `AWL_FONT` (Archivo Black, Abril
+Fatface) and the minimum stayed **4**. **But I could not confirm the override reaches this
+law's metrics at all** — the fixture's pipeline construction is not in that file, so the
+probe may have measured nothing. **Do not read this as "face metrics are not the cause."**
+The first thing to establish is what `plan.candidate_rows()`'s `overlay_lh` actually derives
+from in that fixture: `overlay_lh = metrics.line_height × effective_overlay_scale() + leading
++ row_gap`, so **whether `metrics.line_height` is measured from a real font or fixed by the
+fixture decides which hypotheses are even reachable.**
+
+**Face resolution remains the leading candidate rather than metric precision:** a chrome face resolving to a
 different fallback on Ubuntu would change the line height by a large factor, and the tight
 canvas is described in its own comment as *"a short one that clamps the grouped family's own
 row cap"* — i.e. deliberately the least slack in the sweep. **Check what face CI actually
