@@ -1201,7 +1201,18 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      tokens themselves may now be wrong in the other direction. Read that risk before
      touching a token. **Routing:** deep tier, then the user.
 
-307. 🟡 IN PROGRESS — claude, branch `claude/item-307-gutter-dpi`.
+307. ✅ **CLOSED 2026-08-07 — PREMISE FALSE, ORACLE REPAIRED. The gate was RIGHT.**
+     `--capture-dpi N` makes a `WxH` DEVICE canvas mean a `(W/N)x(H/N)` **logical**
+     window, so comparing two DPI tiers at the same device `--capture-size` compares two
+     different logical windows — dpi 2 legitimately sees less page. **Grow the physical
+     canvas in lockstep and the boundary is IDENTICAL at dpi 1, 2 and 3** (measure 70/71
+     at 1200×800 logical, 49/50 at 900×700). Confirmed in the code too: `avail_chars =
+     avail / label_char_w` carries `Metrics::scale` in **both** terms, so dpi cancels by
+     construction. `gutter.rs` has zero diff.
+     ✅ **The repair is a LAW, not a note** — dpi-invariance pinned at matched logical
+     geometry over `measure 10..=100` × two windows × three tiers, with a non-vacuity
+     clause requiring the boundary to be crossed. **That is what "oracle repaired"
+     should always mean: the next reader measures instead of re-arguing.** Original:
      **THE GUTTER REPORTS `visible: false` AT DPI 2 WHERE IT IS VISIBLE AT DPI 1,
      at the same `--measure`.** Found by item 242's residual lane and **confirmed
      pre-existing** by stashing its own change, rebuilding and reproducing — so it is
@@ -1349,6 +1360,35 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      continue the lean past the spine's terminus, or sit at the terminal x? Two
      captures, the user's call.
      **Routing:** production tier, after 293, then the user.
+
+314. **`TEXT_LEFT` CARRIES TWO CONFLATED ROLES, AND THE ADAPTIVE COLUMN DRIFTS ACROSS
+     DPI BECAUSE OF IT.** Found by item 307 while proving a *different* mechanism correct,
+     and reported rather than widened into it.
+
+     **Measured two ways.** `render/geometry.rs::adaptive_column_left_raw` adds the
+     **un-scaled** `crate::render::TEXT_LEFT` (16.0) alongside dpi-scaled terms in
+     `desired_left`/`min_left`, so **at matched logical geometry the outline's rail
+     placement and the gutter's own `column_left()` move with DPI**: the gutter's
+     visibility boundary flips a whole `--measure` step (1200×800 logical: dpi 1 → 75/76,
+     dpi 2 and 3 → 76/77). Confirmed analytically —
+     `desired_left_logical = 228.96 + 16/dpi`, matching the measured plateaus **244.96 /
+     236.96 / 234.29** at dpi 1/2/3 — and empirically.
+
+     ⚠️ **THIS IS NOT A UNIT SLIP AND MUST NOT BE FIXED AS ONE.** `TEXT_LEFT` is
+     deliberately **physical** elsewhere: it is the subpixel-shimmer floor. Here the same
+     constant is doing duty as a should-be-**logical** rail offset. **Splitting its two
+     roles is a design decision** — do it before editing, and say which callers take which.
+     ⚠️ **Blast radius:** `render/geometry.rs` is read by **caret, selection, hit-test and
+     the drag handle**, so drawn↔hit-test agreement is part of the bar, not a bonus.
+
+     **Verify:** the adaptive column's left edge is invariant across DPI at matched logical
+     geometry, swept over the `--measure` range with the boundary asserted **on both
+     sides** (a one-sided assertion passes on a gate that never turns on) — 307's new
+     `gutter_visibility_boundary_is_dpi_invariant_at_matched_logical_geometry` is the shape
+     to copy, and the experiment design is in 307's landing note. Plus drawn↔hit-test
+     agreement at both tiers, and byte-identity at dpi 1 for anything not meant to move.
+     **Routing:** production tier — but the role split is a design call, so surface it
+     rather than picking silently.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
