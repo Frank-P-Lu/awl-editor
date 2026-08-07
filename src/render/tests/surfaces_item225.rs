@@ -168,19 +168,30 @@ fn a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world() {
                          real plate"
                     )
                 });
+            // ITEM 293 — the footer plate now backs TWO compact rows, not one:
+            // the hint's own line, plus the blank separator ahead of it
+            // (`overlay_hint_gap_rows`, at its own `overlay_hint_gap_h`).
+            // `overlay_footer_reclaim(1, 1)` is the SAME arithmetic the plate's
+            // own height (`overlay_selection.rs`'s `footer_band`) comes from, so
+            // this ceiling can't drift from the fix it is grading.
+            let max_footer_plate_h = 2.0 * row_h - p.overlay_footer_reclaim(1, 1);
             assert!(
-                footer_plate[3] <= row_h,
-                "{ctx}: the workspace's footer plate is {:.1}px tall, taller than one row \
-                 of its own list ({row_h:.1}px) — it is painting the space the rows did \
-                 not use, not backing the footer",
+                footer_plate[3] <= max_footer_plate_h + 0.5,
+                "{ctx}: the workspace's footer plate is {:.1}px tall, taller than its own \
+                 two compact rows ({max_footer_plate_h:.1}px) — it is painting the space \
+                 the rows did not use, not backing the footer",
                 footer_plate[3]
             );
 
             // THE RETIRED RULE, written out here rather than called: the plate ran
             // to `footer_top + footer_rows * lh + WORKSPACE_PAD`, bounded only by
             // a card bottom a workspace does not have. This fixture draws exactly
-            // one footer line and the workspace pad is 12.0.
-            let retired_bottom = footer_top + row_h + 12.0;
+            // one footer line and the workspace pad is 12.0 LOGICAL px — scaled by
+            // `dpi` (zoom is 1.0 throughout this fixture), a pre-existing gap in
+            // this reconstruction item 293's own taller (still bounded) plate is
+            // the first thing to reach: at dpi 1 the unscaled literal is within
+            // rounding of the true value, so it never mattered until now.
+            let retired_bottom = footer_top + row_h + 12.0 * dpi;
             let plate_bottom = footer_plate[1] + footer_plate[3];
             retired_overrun = retired_overrun.max(retired_bottom - plate_bottom);
             assert!(
@@ -237,8 +248,14 @@ fn a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world() {
         "the exclusion arm must reach every plateless world at both DPIs, got \
          {plateless_graded:?}"
     );
+    // ITEM 293 lowered this floor from 10.0: its own (still bounded) plate is
+    // legitimately taller than the one this law was first written against —
+    // it now backs TWO compact rows (the hint plus the blank separator ahead
+    // of it) instead of one, so the margin against the retired unbounded rule
+    // shrinks even though the fix is unchanged in kind. Still comfortably
+    // non-trivial, not a rounding coincidence.
     assert!(
-        retired_overrun > 10.0,
+        retired_overrun > 5.0,
         "the retired rule's worst overrun across the sweep was only \
          {retired_overrun:.1}px — too small to be the reported bar"
     );

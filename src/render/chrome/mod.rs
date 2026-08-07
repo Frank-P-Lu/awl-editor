@@ -279,6 +279,23 @@ impl OverlayGeom {
     }
 }
 
+/// THE BLANK ROW THAT SEPARATES THE CANDIDATE/EMPTY-STATE BAND FROM THE FOOT
+/// HINT — the row-count twin of the footer band's own `+ 1`
+/// (`TextPipeline::overlay_footer_lines`). Before this existed, `hint_rows`
+/// budgeted only the hint's own (shrunk) line, so every geometry family that
+/// shows a hint sat it flush against the last candidate row (or the
+/// empty-state notice, which shares this band) while the footer already got
+/// a blank line before IT — an inconsistency in the same file. Every
+/// geometry family that constructs a hint calls this ONE owner rather than
+/// re-deriving "one more row when there is a hint" three times; `push_overlay_hint_spans`
+/// is the matching DRAW-side owner, so the reserved row and the drawn row can't drift
+/// apart. Deliberately NOT run through [`TextPipeline::overlay_footer_reclaim`] —
+/// unlike the hint's own line, this is a genuine full blank row with no dead
+/// space under it to reclaim, exactly like the footer's own separator.
+pub(super) fn overlay_hint_gap_rows(hint_rows: usize) -> usize {
+    hint_rows
+}
+
 // The chrome cluster is decomposed into cohesive per-subsystem submodules; each
 // carries its own `impl TextPipeline { .. }` block (Rust merges the inherent impls
 // across the module tree). This file keeps the SHARED items every submodule needs —

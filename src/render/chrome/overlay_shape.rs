@@ -637,6 +637,20 @@ impl TextPipeline {
                 .color(c)
                 .metrics(GlyphMetrics::new(hint_fs, hint_h))
         };
+        // The blank separator row `overlay_hint_gap_rows` reserves — the
+        // row-count owner every geometry family budgets this against, so the
+        // reserved row and this drawn one can't drift apart. Its own
+        // (`overlay_hint_gap_h`, smaller still than the hint's own row) height:
+        // a glyph-free line still needs a real glyph to carry custom metrics
+        // (`push_beat_spacer`'s own trick for the query beat), so this is a
+        // single invisible space, not a bare second newline.
+        spans.push(("\n", base.clone().color(muted)));
+        spans.push((
+            " ",
+            base.clone()
+                .color(muted)
+                .metrics(GlyphMetrics::new(hint_fs, self.overlay_hint_gap_h())),
+        ));
         spans.push(("\n", base.clone().color(muted)));
         push_symbol_split(spans, hint, || hk_hint(muted), || sym_hint(muted));
     }

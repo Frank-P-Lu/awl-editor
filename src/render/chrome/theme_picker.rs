@@ -71,6 +71,11 @@ impl TextPipeline {
         let full_plan = self.theme_plan();
         let hint = self.overlay_hint.clone();
         let hint_rows = if hint.is_empty() { 0 } else { 1 };
+        // See `overlay_hint_gap_rows`'s own doc (`chrome/mod.rs`) — the ONE owner
+        // this grouped family shares with the flat family (`overlay.rs`) and the
+        // workspace family (`workspace.rs`), so a hint can't stop sitting flush
+        // against the last row in one family while still doing it in another.
+        let mut hint_gap_rows = overlay_hint_gap_rows(hint_rows);
         let (footer, footer_rows) = self.overlay_footer_lines();
         let empty = if n_items == 0 {
             self.overlay_empty.clone()
@@ -85,7 +90,7 @@ impl TextPipeline {
         let total_headers = full_plan.len() - n_items;
         // ITEM 184 — strip + headers + footer count here; `min_items: 0`
         // empties the band rather than overrun it (`fit_item_rows`'s doc).
-        let chrome_rows = header_rows + hint_rows + empty_rows + footer_rows;
+        let chrome_rows = header_rows + hint_gap_rows + hint_rows + empty_rows + footer_rows;
         // ITEM 181 — THE ONE HEIGHT-CLAMP OWNER, shared with the flat family.
         let avail_px = (self.window_h - card_y - margin - 2.0 * pad - header_gap).max(lh);
         let item_cap = self.overlay_item_cap(avail_px, lh, chrome_rows + total_headers, 0);
@@ -96,7 +101,8 @@ impl TextPipeline {
             item_cap,
         );
         let plan = window_plan(&full_plan, item_top, item_top + item_visible);
-        let total_rows = header_rows + plan.len() + empty_rows + hint_rows + footer_rows;
+        let mut total_rows =
+            header_rows + plan.len() + empty_rows + hint_gap_rows + hint_rows + footer_rows;
         // Wider than the flat pickers so the whole lens strip (Time … All) fits on
         // one line even on a WIDE mono world face without the far-right All clipping
         // — via the SAME horizontal-box owner (edge inset + narrow-window fallback),
@@ -113,7 +119,18 @@ impl TextPipeline {
             super::overlay::overlay_card_fill_regime(width as f32, desired_w, self.metrics.scale);
         let hpad = self.overlay_text_hpad();
         let text_w = card_w - 2.0 * hpad;
-        let card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, pad);
+        let mut card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
+        // ITEM 293's gap is decorative breathing room, not load-bearing chrome:
+        // in the item-184 starvation corner (a sectioned card's own fixed
+        // header/hint/footer overhead, at the `min_items: 0` floor, already
+        // outgrowing the canvas at an extreme zoom), drop it rather than push
+        // the card past the canvas — the same degrade the flat family's own
+        // arm takes (`overlay.rs::overlay_geometry`).
+        if card_y + card_h > self.window_h + 0.01 && hint_gap_rows > 0 {
+            total_rows -= hint_gap_rows;
+            hint_gap_rows = 0;
+            card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
+        }
         let card_y = card_y + self.overlay_entrance_offset();
         let text_left = card_x + hpad;
         let text_top = card_y + pad;

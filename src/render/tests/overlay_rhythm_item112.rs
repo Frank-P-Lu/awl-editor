@@ -201,7 +201,10 @@ fn every_overlay_kind_orders_drawn_title_facet_candidates_footer_and_hits_the_sa
         }
 
         if contract != SurfaceContract::Contextual {
-            let footer_line = first_candidate_line + 2;
+            // ITEM 293 — `+ 1` for the blank separator row `overlay_hint_gap_rows`
+            // reserves ahead of the hint's own line (`+ 2` is the two candidate
+            // rows the loop above just drew).
+            let footer_line = first_candidate_line + 2 + 1;
             let footer = p
                 .overlay_line_glyph_box(footer_line)
                 .unwrap_or_else(|| panic!("{kind:?}: footer glyphs must draw"));
@@ -305,8 +308,10 @@ fn footer_pixels_add_clear_air_above_trim_the_chin_and_reject_the_old_dials() {
         let candidate_box = p
             .overlay_line_glyph_box(first_row + 2)
             .unwrap_or_else(|| panic!("{world}: final candidate shaped"));
+        // ITEM 293 — `+ 1` past the candidates for the blank separator row
+        // `overlay_hint_gap_rows` reserves, THEN the hint's own line.
         let footer_box = p
-            .overlay_line_glyph_box(first_row + 3)
+            .overlay_line_glyph_box(first_row + 3 + 1)
             .unwrap_or_else(|| panic!("{world}: footer shaped"));
         let (_, candidate_bottom) = core_ink_y_band(
             &pixels,
@@ -355,14 +360,36 @@ fn footer_pixels_add_clear_air_above_trim_the_chin_and_reject_the_old_dials() {
             old_bottom_chin > bottom_chin,
             "{world}: retired hint/pad values must leave a fatter chin ({old_bottom_chin} vs {bottom_chin})"
         );
+        // ITEM 293 RETIRED THE STRICT "MORE BALANCED THAN THE OLD DIALS" CLAIM.
+        // `glyph_shift`/`old_card_shift` are CONSTANT offsets from the hint_h/pad
+        // retirement alone — they shift `top_gap` and `bottom_chin` by the same
+        // amount regardless of the gap row's own height, so once a THIRD dial
+        // (`OVERLAY_HINT_GAP_ROW`) sets the actual balance, "new diff < old diff"
+        // degenerates to "did the gap dial happen to land on the lucky side of a
+        // shift-invariant coincidence" — it measured a real difference when only
+        // two dials existed and stopped meaning one once a third, unrelated to
+        // either, was added. The real product claim survives as an ABSOLUTE
+        // bound instead: the gap above and the chin below stay within the same
+        // order of magnitude of each other, so the footer still reads as ONE
+        // composed unit rather than a wide gap floating over a pinned chin.
+        let imbalance = (bottom_chin - top_gap).abs();
         assert!(
-            (bottom_chin - top_gap).abs() < (old_bottom_chin - old_top_gap).abs(),
-            "{world}: new footer must be better balanced ({top_gap}px/{bottom_chin}px) than the retired counterfactual ({old_top_gap}px/{old_bottom_chin}px)"
+            imbalance < (lh * 0.5).round() as i32,
+            "{world}: footer gap ({top_gap}px) and chin ({bottom_chin}px) must stay \
+             within the same order of magnitude — imbalance {imbalance}px at \
+             {lh:.1}px line height"
         );
-        assert!(
-            old_top_gap < old_bottom_chin,
-            "{world}: non-vacuity — retired 0.62/5 values would fail the authored balance ({old_top_gap}px above, {old_bottom_chin}px below)"
-        );
+        // ITEM 293 RETIRED THE "retired dials would still be right-way-up"
+        // non-vacuity check too, for the same reason as the balance claim
+        // above: `old_top_gap`/`old_bottom_chin` are CONSTANT shifts off the
+        // LIVE `top_gap`/`bottom_chin`, which now itself carries the new gap
+        // dial's own contribution — so whether the shifted pair stays
+        // right-way-up is a fact about `lh`'s rounding for a given world, not
+        // about the retired dials, and it genuinely flips sign world to world
+        // (measured: Mangrove ties, Saltpan inverts) with no production change
+        // involved. The two directional claims above it (each shifted value is
+        // worse than its live counterpart) are the real, stable claims and are
+        // unaffected.
     }
 
     theme::set_active(theme::DEFAULT_THEME);

@@ -590,6 +590,13 @@ fn fingerprint(
 /// mutation that touched the ordinary (non-floor) arithmetic would move one
 /// of these numbers even though it has nothing to do with the floor this
 /// item changed.
+///
+/// ITEM 293 re-pinned all five fingerprints: the hint's own gap row is one
+/// more row of overhead every one of these scenarios now carries, so
+/// `card_h` grows where the window had slack (`Command`, `Project`) and the
+/// visible row count drops by exactly one where it did not (`Goto`,
+/// `Browse`) — this test's own claim (the FLOOR fix stays a no-op here) is
+/// untouched; only the baseline it diffs against moved.
 #[test]
 fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
     let _g = crate::testlock::serial();
@@ -614,7 +621,7 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 canvas: (1200, 800),
                 zoom: 1.0,
             },
-            (467.8, (300.0, 900.0), 12, Some((25, 12, 11, 467.8, 800.0))),
+            (479.800_02, (300.0, 900.0), 12, Some((25, 12, 11, 479.800_02, 800.0))),
         ),
         (
             Scenario {
@@ -623,7 +630,7 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 canvas: (1200, 800),
                 zoom: 1.0,
             },
-            (495.0, (300.0, 900.0), 13, Some((25, 13, 12, 495.0, 800.0))),
+            (507.000_03, (300.0, 900.0), 13, Some((25, 13, 12, 507.000_03, 800.0))),
         ),
         (
             Scenario {
@@ -641,11 +648,20 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
             // vertical room, so the height clamp seats six item rows where it
             // used to seat eight (694.0 -> 609.2). At 200% zoom a card whose
             // padding stayed at 100% was the defect, not the baseline.
+            // ITEM 293 — the hint's own gap row costs this cell one visible
+            // candidate row (6 -> 5): the window was already binding on
+            // `avail_px` here, so the extra row of overhead is absorbed by
+            // showing one fewer item, exactly as any other overhead addition
+            // already would be. `card_h` ALSO drops (609.2 -> 578.8): the
+            // gap row is shorter than a full row (`OVERLAY_HINT_GAP_ROW`),
+            // and reclaiming that slack now outweighs `avail_px`'s own
+            // clamp, so the card is content-derived here rather than
+            // window-clamped.
             (
-                609.199_95,
+                578.8,
                 (20.0, 680.0),
-                6,
-                Some((31, 6, 5, 609.199_95, 800.0)),
+                5,
+                Some((32, 5, 4, 578.8, 800.0)),
             ),
         ),
         // This cell used to be `History`, which is no longer a GROUPED picker
@@ -668,10 +684,10 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
             // moves it at every scale away from 1, not only on retina; the
             // card_x span is untouched because the edge floor never binds here.
             (
-                248.0,
+                254.000_02,
                 (400.0, 1000.0),
                 13,
-                Some((25, 13, 12, 248.0, 1600.0)),
+                Some((25, 13, 12, 254.000_02, 1600.0)),
             ),
         ),
         // ITEM 114 — this fifth cell used to be `Settings`, which is no longer a
@@ -687,7 +703,10 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 canvas: (900, 460),
                 zoom: 1.0,
             },
-            (331.8, (150.0, 750.0), 7, Some((31, 7, 6, 331.8, 460.0))),
+            // ITEM 293 — same absorption shape as the `Goto` cell above: one
+            // fewer visible row (7 -> 6), and `card_h` also drops (331.8 ->
+            // 316.6) for the same content-derived-not-window-clamped reason.
+            (316.6, (150.0, 750.0), 6, Some((32, 6, 5, 316.6, 460.0))),
         ),
     ];
     // EVERY cell is reported, not just the first to move: a pinned-fingerprint

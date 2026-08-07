@@ -330,8 +330,15 @@ impl TextPipeline {
             // FOOTER'S OWN BAND, whose height is the row pitch LESS the amount a
             // footer line is shorter than a row — `overlay_footer_reclaim`, the
             // one owner of that difference, which the card height already reads.
-            let footer_band = (geom.hint_rows + geom.footer_rows) as f32 * self.overlay_lh()
-                - self.overlay_footer_reclaim(geom.hint_rows);
+            // PLUS the blank row `overlay_hint_gap_rows` reserves ahead of the
+            // hint, at its own (item 293) compact height and reclaimed
+            // alongside the hint's: omitting it here left this plate ending a
+            // row above the hint text it exists to back, on any workspace
+            // card carrying Bars plates.
+            let gap_rows = overlay_hint_gap_rows(geom.hint_rows);
+            let footer_band = (geom.hint_rows + gap_rows + geom.footer_rows) as f32
+                * self.overlay_lh()
+                - self.overlay_footer_reclaim(geom.hint_rows, gap_rows);
             let card_bottom = geom.card_y + geom.card_h;
             let plate_bottom = match geom.workspace {
                 true => (plan.footer_top() + footer_band).min(card_bottom),

@@ -24,6 +24,15 @@ pub(in crate::render) const OVERLAY_QUERY_BEAT: Rows = Rows(1.55);
 
 pub(in crate::render) const OVERLAY_HINT_ROW: Rows = Rows(0.70);
 
+/// ITEM 293 — the blank separator `overlay_hint_gap_rows` reserves ahead of
+/// the hint, as a fraction of a row. Smaller than [`OVERLAY_HINT_ROW`]
+/// deliberately: the separator's whole job is to stop the hint sitting flush
+/// against the last row, not to read as a second hint-weight line — the
+/// air above the hint and the compact chin below it (the C2 footer-drift
+/// law, `overlay_hint_footer_is_compact_and_identical_across_kinds`) stay
+/// close in weight rather than the gap dwarfing the chin.
+pub(in crate::render) const OVERLAY_HINT_GAP_ROW: Rows = Rows(0.45);
+
 const OVERLAY_FOOTER_PAD: Logical = Logical(2.0);
 
 /// The flat takeover card's own inner pad, its breath from the window edge, the
@@ -245,9 +254,28 @@ impl TextPipeline {
         (self.overlay_lh() * OVERLAY_HINT_ROW.0).round()
     }
 
-    pub(in crate::render) fn overlay_footer_reclaim(&self, hint_rows: usize) -> f32 {
+    /// ITEM 293 — the blank separator's own (shorter still) row height.
+    pub(in crate::render) fn overlay_hint_gap_h(&self) -> f32 {
+        (self.overlay_lh() * OVERLAY_HINT_GAP_ROW.0).round()
+    }
+
+    /// Reclaims the dead space `hint_rows` (`overlay_hint_h`-tall) and
+    /// `gap_rows` (`overlay_hint_gap_h`-tall) COMPACT rows leave behind in a
+    /// row budget that allocated each of them a full `overlay_lh` slot — the
+    /// hint's own row, and (item 293) the blank separator ahead of it, each
+    /// reclaimed at its OWN compact height rather than one borrowing the
+    /// other's. ONE trailing [`OVERLAY_FOOTER_PAD`] survives regardless of how
+    /// many compact rows there are, never one per row: the pad is the
+    /// breathing room below the LAST compact row, not a tax per row, so the
+    /// gap row's own reclaim can't eat into the chin below the hint.
+    pub(in crate::render) fn overlay_footer_reclaim(&self, hint_rows: usize, gap_rows: usize) -> f32 {
+        if hint_rows == 0 && gap_rows == 0 {
+            return 0.0;
+        }
         let pad = self.metrics.px(OVERLAY_FOOTER_PAD);
-        hint_rows as f32 * (self.overlay_lh() - self.overlay_hint_h() - pad).max(0.0)
+        let hint_slack = hint_rows as f32 * (self.overlay_lh() - self.overlay_hint_h()).max(0.0);
+        let gap_slack = gap_rows as f32 * (self.overlay_lh() - self.overlay_hint_gap_h()).max(0.0);
+        (hint_slack + gap_slack - pad).max(0.0)
     }
 
     pub(in crate::render) fn overlay_card_h(
@@ -255,10 +283,11 @@ impl TextPipeline {
         total_rows: usize,
         header_gap: f32,
         hint_rows: usize,
+        gap_rows: usize,
         pad: f32,
     ) -> f32 {
         total_rows as f32 * self.overlay_lh() + header_gap + 2.0 * pad
-            - self.overlay_footer_reclaim(hint_rows)
+            - self.overlay_footer_reclaim(hint_rows, gap_rows)
     }
 
     pub(in crate::render) fn overlay_right_labels(&self) -> &[String] {
@@ -295,6 +324,7 @@ impl TextPipeline {
 
         let hint = self.overlay_hint.clone();
         let hint_rows = if hint.is_empty() { 0 } else { 1 };
+        let mut hint_gap_rows = overlay_hint_gap_rows(hint_rows);
 
         let (footer, footer_rows) = self.overlay_footer_lines();
 
@@ -326,9 +356,9 @@ impl TextPipeline {
         } else {
             (self.window_h - card_y - margin - 2.0 * pad - header_gap).max(self.overlay_lh())
         };
-        let chrome_rows = header_rows + hint_rows + empty_rows + footer_rows;
+        let chrome_rows = header_rows + hint_gap_rows + hint_rows + empty_rows + footer_rows;
         let (top_idx, visible) = self.overlay_flat_window(n_items, avail_px, chrome_rows);
-        let total_rows = header_rows + visible + empty_rows + hint_rows + footer_rows;
+        let mut total_rows = header_rows + visible + empty_rows + hint_gap_rows + hint_rows + footer_rows;
         let desired_w = self.overlay_desired_w(CARD_MAX_W);
         let (mut card_x, card_w) = self.overlay_card_box(width, desired_w);
         if let Some((x, _)) = self.overlay_context_anchor {
@@ -338,7 +368,19 @@ impl TextPipeline {
         let card_narrow = overlay_card_fill_regime(width as f32, desired_w, self.metrics.scale);
         let hpad = self.overlay_text_hpad();
         let text_w = card_w - 2.0 * hpad;
-        let card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, pad);
+        let mut card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
+        // ITEM 293's gap is decorative breathing room, not load-bearing chrome:
+        // in the ITEM-184 starvation corner (a `min_items: 1` floor still
+        // outgrows the canvas at an extreme zoom — the flat family's own
+        // arm), drop it rather than push the card past the canvas the way a
+        // sectioned header's own overhead already degrades at the grouped
+        // family's `min_items: 0` floor. `total_rows`/`card_h` are the only
+        // two callers see, so this can't drift from the struct below.
+        if !contextual && card_y + card_h > self.window_h + 0.01 && hint_gap_rows > 0 {
+            total_rows -= hint_gap_rows;
+            hint_gap_rows = 0;
+            card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
+        }
         let card_y = if contextual {
             card_y.clamp(margin, (self.window_h - card_h - margin).max(margin))
         } else {
@@ -461,7 +503,7 @@ impl TextPipeline {
             .min(width as f32 - 2.0 * margin);
         let text_w = card_w - 2.0 * pad;
         let rows = header_rows + visible.max(1) + hint_rows;
-        let card_h = self.overlay_card_h(rows, 0.0, 0, pad);
+        let card_h = self.overlay_card_h(rows, 0.0, 0, 0, pad);
 
         let mut card_x = word_x;
         if card_x + card_w > width as f32 - margin {

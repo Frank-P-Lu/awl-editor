@@ -205,6 +205,11 @@ impl TextPipeline {
         // rather than a second flag, so one sentence lives in one place.
         let hint = self.overlay_hint.clone();
         let hint_rows = usize::from(!hint.is_empty() && show_rows);
+        // The shared owner (`overlay_hint_gap_rows`, `chrome/mod.rs`) — the same
+        // blank-row budget the flat and grouped families reserve, so a hint on
+        // this family doesn't sit flush against the last row while its siblings
+        // don't.
+        let hint_gap_rows = overlay_hint_gap_rows(hint_rows);
         let empty = if n_items == 0 {
             self.overlay_empty.clone()
         } else {
@@ -250,7 +255,7 @@ impl TextPipeline {
         // typing is how you search from either stage, and a field you cannot
         // see is a field you will not use.
         let avail_px = (card_h - 2.0 * pad - header_gap).max(lh);
-        let chrome_rows = header_rows + hint_rows + empty_rows;
+        let chrome_rows = header_rows + hint_gap_rows + hint_rows + empty_rows;
         let (top_idx, visible) = match show_rows {
             true => self.overlay_flat_window(n_items, avail_px, chrome_rows),
             false => (0, 0),

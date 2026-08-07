@@ -1989,17 +1989,24 @@ fn footer_contract(kind: crate::overlay::OverlayKind) -> FooterContract {
 
 /// C2 FOOTER-DRIFT LAW (supersedes the old flat-only hint-lip check) — the foot
 /// hint reads as the card's bottom EDGE, not a floating orphan: it rides a
-/// SHORTER line ([`TextPipeline::overlay_hint_h`]) that hugs tight under the last
-/// result, and the card's bottom gap below THAT compact strip is ONE comfortable
-/// breathing pad — IDENTICAL across every picker kind. Before C2 the theme /
-/// faceted shaper drew the hint at FULL row height (a fat lip) while the flat
-/// shaper drew it compact (too tight): the fix routes BOTH card-height owners
-/// through [`TextPipeline::overlay_footer_reclaim`] and BOTH shapers through the
-/// one hint-spans owner. Here the FLAT and the FACETED/THEME geometry owners are
+/// SHORTER line ([`TextPipeline::overlay_hint_h`]), and the card's bottom gap
+/// below THAT compact strip is ONE comfortable breathing pad — IDENTICAL
+/// across every picker kind. Before C2 the theme / faceted shaper drew the
+/// hint at FULL row height (a fat lip) while the flat shaper drew it compact
+/// (too tight): the fix routes BOTH card-height owners through
+/// [`TextPipeline::overlay_footer_reclaim`] and BOTH shapers through the one
+/// hint-spans owner. Here the FLAT and the FACETED/THEME geometry owners are
 /// driven with the same hint and their below-hint gaps must be EQUAL (the
 /// anti-drift assertion), and the classification is swept NO-WILDCARD over
 /// [`crate::overlay::OverlayKind`]. Geometry recomputed independently of the
 /// private `card_h` formula (the Wagtail lesson).
+///
+/// ITEM 293 — the hint no longer "hugs tight under the last result": a full
+/// blank row (`overlay_hint_gap_rows`) now separates them, un-reclaimed like
+/// the footer's own separator. This law's own claim is about the OTHER edge
+/// (the compact, identical chin BELOW the hint, against the card's own
+/// bottom) and is unchanged in kind — only its own re-derivation of where the
+/// hint sits now adds that row.
 #[test]
 fn overlay_hint_footer_is_compact_and_identical_across_kinds() {
     let _g = crate::testlock::serial();
@@ -2037,7 +2044,7 @@ fn overlay_hint_footer_is_compact_and_identical_across_kinds() {
         // The comfortable breath below the compact hint, derived from the ONE
         // footer-pad owner (formula-independent): (lh - hint_h) is the full
         // reclaim; the owner keeps back exactly the breath.
-        let breath = (lh - hint_h) - p.overlay_footer_reclaim(1);
+        let breath = (lh - hint_h) - p.overlay_footer_reclaim(1, 0);
         assert!(
             breath > 0.5,
             "{world}: the footer keeps a positive breathing pad"
@@ -2058,7 +2065,12 @@ fn overlay_hint_footer_is_compact_and_identical_across_kinds() {
         p.set_view(&vf);
         let [_xf, cy_f, _wf, ch_f] = p.overlay_card_rect().expect("an open flat card");
         let (_tf, lines_f, _sf, _rhf, _cf) = p.overlay_window_report().expect("a flat report");
-        let hint_bottom_f = (cy_f + pad) + (1 + lines_f) as f32 * lh + gap + hint_h;
+        // ITEM 293 — a compact separator row (`overlay_hint_gap_h`) now sits
+        // between the last candidate row and the hint's own (still compact)
+        // line. The BELOW-hint chin this law pins is unchanged in kind, just
+        // shifted down with the hint.
+        let hint_bottom_f =
+            (cy_f + pad) + (1 + lines_f) as f32 * lh + gap + p.overlay_hint_gap_h() + hint_h;
         let below_flat = (cy_f + ch_f) - hint_bottom_f;
 
         // FACETED / THEME picker (non-empty lens): header_rows == 2.
@@ -2075,7 +2087,8 @@ fn overlay_hint_footer_is_compact_and_identical_across_kinds() {
         p.set_view(&vt);
         let [_xt, cy_t, _wt, ch_t] = p.overlay_card_rect().expect("an open faceted card");
         let (_tt, lines_t, _st, _rht, _ct) = p.overlay_window_report().expect("a faceted report");
-        let hint_bottom_t = (cy_t + pad) + (2 + lines_t) as f32 * lh + gap + hint_h;
+        let hint_bottom_t =
+            (cy_t + pad) + (2 + lines_t) as f32 * lh + gap + p.overlay_hint_gap_h() + hint_h;
         let below_faceted = (cy_t + ch_t) - hint_bottom_t;
 
         // Each hugs with the ONE breathing pad below the compact strip …
@@ -2336,7 +2349,7 @@ fn overlay_card_h_owner_reproduces_every_kinds_card_height() {
         let [_xf, _yf, _wf, ch_f] = p.overlay_card_rect().expect("an open flat card");
         let (_tf, lines_f, _sf, _rhf, _cf) = p.overlay_window_report().expect("a flat report");
         // total_rows = header(1) + candidate lines; the owner is fed the takeover pad.
-        let expect_f = p.overlay_card_h(1 + lines_f, gap, 0, card_pad_for(K::Command));
+        let expect_f = p.overlay_card_h(1 + lines_f, gap, 0, 0, card_pad_for(K::Command));
         assert!(
             (expect_f - ch_f).abs() < 0.01,
             "{world} flat: card_h {ch_f:.2} must come from overlay_card_h ({expect_f:.2})"
@@ -2352,7 +2365,7 @@ fn overlay_card_h_owner_reproduces_every_kinds_card_height() {
         let [_xs, _ys, _ws, ch_s] = p.overlay_card_rect().expect("an open spell popup");
         let (_ts, lines_s, _ss, _rhs, _cs) = p.overlay_window_report().expect("a spell report");
         // rows = visible.max(1); no header, no gap, no hint — the reduced owner call.
-        let expect_s = p.overlay_card_h(lines_s.max(1), 0.0, 0, card_pad_for(K::Spell));
+        let expect_s = p.overlay_card_h(lines_s.max(1), 0.0, 0, 0, card_pad_for(K::Spell));
         assert!(
             (expect_s - ch_s).abs() < 0.01,
             "{world} spell: card_h {ch_s:.2} must come from overlay_card_h ({expect_s:.2})"
