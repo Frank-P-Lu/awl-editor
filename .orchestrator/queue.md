@@ -1298,7 +1298,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      already had two production sticky callers before that, so this was never a
      test-only channel.
 
-301. **PART-LANDED (merged 2026-08-06) — the DESTINATION OWNER, the REVEAL and a LAW
+301. 🚧 CLAIMED (worktree item-301-export-dest, deep tier) **PART-LANDED (merged 2026-08-06) — the DESTINATION OWNER, the REVEAL and a LAW
      REPAIR shipped; THE PANEL ITSELF IS BLOCKED.**
 
      🔴 **THE BLOCK, measured not guessed:** the `NSSavePanel`, the Linux save-role
@@ -2131,7 +2131,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      neighbourhood — so **sequence with them and put the budget question to the user.**
      **Routing:** production tier, then the user.
 
-328. **`Background::density()` IS AN OWNER THAT ANSWERS "NO DENSITY" FOR A GROUND THAT HAS ONE.**
+328. 🚧 CLAIMED (worktree item-328-density-owner, production tier — bundled 328+330) **`Background::density()` IS AN OWNER THAT ANSWERS "NO DENSITY" FOR A GROUND THAT HAS ONE.**
      `theme/ground.rs:365` ends in `_ => 0.0`, so a new density-bearing `Background` variant
      compiles, ships, and reads as density **zero** through the one accessor every consumer asks.
      Found by item 118 while building the density sweep: the sweep's enrolment could not route
@@ -2159,7 +2159,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      close condition is "every caller checked and the mask's contract documented at its
      definition", not a pixel change. **Routing:** production tier.
 
-330. **`atspi` NOW TIMES OUT RATHER THAN FAILING FAST, AND IT MAKES A GREEN TRAIN READ
+330. 🚧 CLAIMED (worktree item-328-density-owner, production tier — bundled 328+330) **`atspi` NOW TIMES OUT RATHER THAN FAILING FAST, AND IT MAKES A GREEN TRAIN READ
      `cancelled`.** Measured 2026-08-07 on `ba292f75`: `atspi` ran **30m20s** into its
      `timeout-minutes: 30`, and because a **timed-out** job cancels the run's conclusion even under
      `continue-on-error`, the run reported `cancelled` while **all four gating jobs succeeded**.
