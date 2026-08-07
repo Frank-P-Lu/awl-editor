@@ -403,13 +403,8 @@ fn the_footprint_frost_keeps_the_pages_own_hue() {
             let closed = render_frame(&device, &queue, &mut p, w, h);
 
             let ink = CardInk::derive(&empty, w as i64, h as i64, dpi);
-            let ((fl, fa, fb), (ll, la, lb), n, short) = frosted_and_live_mean_lab(
-                (&open, &closed),
-                &ink,
-                rect,
-                frost,
-                (dpi, w as i64),
-            );
+            let ((fl, fa, fb), (ll, la, lb), n, short) =
+                frosted_and_live_mean_lab((&open, &closed), &ink, rect, frost, (dpi, w as i64));
             let label = format!("{world} @ {dpi}x ({w}x{h})");
             assert!(
                 n > 1000.0,

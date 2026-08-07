@@ -325,7 +325,8 @@ fn the_card_ink_veto_flags_the_worlds_own_ground_and_so_cannot_be_inverted() {
          live ground outside the frost is flagged too — if that has stopped being true, \
          the oracle has become trustworthy in a direction it was not, and the contract \
          above is what needs rewriting. Do not relax this to keep the law green",
-        floors.1, floors.2
+        floors.1,
+        floors.2
     );
     assert!(
         loudest.0 >= 1000,
@@ -335,6 +336,9 @@ fn the_card_ink_veto_flags_the_worlds_own_ground_and_so_cannot_be_inverted() {
          inclusion reading, and this figure is why it does not work — a shadow is a wash, \
          not ink. The quietest cell measures {} ({}), two orders of magnitude down, which \
          is why a check on one world alone finds none of this",
-        loudest.0, loudest.1, quietest.0, quietest.1
+        loudest.0,
+        loudest.1,
+        quietest.0,
+        quietest.1
     );
 }
