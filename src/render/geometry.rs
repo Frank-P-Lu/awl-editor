@@ -676,7 +676,7 @@ impl TextPipeline {
 
     pub(super) fn text_pad(&self) -> f32 {
         if crate::page::page_on() {
-            self.metrics.char_width * PAGE_TEXT_PAD_CHARS
+            self.metrics.char_width * PAGE_TEXT_PAD_CHARS.0
         } else {
             0.0
         }

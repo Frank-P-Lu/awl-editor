@@ -47,12 +47,12 @@ impl TextPipeline {
         let mut hot = false;
         if self.overlay_enter_t < 1.0 {
             self.overlay_enter_t =
-                (self.overlay_enter_t + dt * 1000.0 / OVERLAY_ENTRANCE_MS).min(1.0);
+                (self.overlay_enter_t + OVERLAY_ENTRANCE_MS.progress_per(dt)).min(1.0);
             hot |= self.overlay_enter_t < 1.0;
         }
         if self.overlay_band_t < 1.0 {
             self.overlay_band_t =
-                (self.overlay_band_t + dt * 1000.0 / OVERLAY_BAND_SLIDE_MS).min(1.0);
+                (self.overlay_band_t + OVERLAY_BAND_SLIDE_MS.progress_per(dt)).min(1.0);
             hot |= self.overlay_band_t < 1.0;
         }
         hot
@@ -437,7 +437,7 @@ impl TextPipeline {
         if self.copy_pulse_t >= 1.0 {
             return false;
         }
-        self.copy_pulse_t = (self.copy_pulse_t + dt * 1000.0 / COPY_PULSE_MS).min(1.0);
+        self.copy_pulse_t = (self.copy_pulse_t + COPY_PULSE_MS.progress_per(dt)).min(1.0);
         self.copy_pulse_t < 1.0
     }
 

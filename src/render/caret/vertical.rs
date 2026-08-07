@@ -58,7 +58,7 @@ impl TextPipeline {
     ) -> (f32, f32) {
         let vertical = self.caret_cell_vertical_ink_box(ink, ascent, font);
         let (_, old_h) = caret_visual_body_dims(ink, px);
-        let h = old_h.max(vertical.height + 2.0 * CARET_INK_PAD * px);
+        let h = old_h.max(vertical.height + 2.0 * CARET_INK_PAD.px(px));
         (baseline - vertical.top + vertical.height * 0.5, h)
     }
 }

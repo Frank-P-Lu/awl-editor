@@ -273,8 +273,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2671
-reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +10: the `footer_plate_rim` pipeline field and its construction, on the file whose GPU floor is a declared exception."
+lines = 2705
+reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +10: the `footer_plate_rim` pipeline field and its construction, on the file whose GPU floor is a declared exception. +34: the `Millis` family and its `progress_per` door -- the BY-KIND exclusion that makes a duration uncarryable into a pixel multiply, so the compiler refuses `metrics.px(a_duration)` instead of a name list promising nobody will try. Plus the declaration doc comments for `PAGE_TEXT_PAD_CHARS` and the two caret pads, each naming which scale factor it is entitled to -- the classification's evidence lives at the declaration, because a classification whose reason lives in a test is the one that gets re-guessed."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"

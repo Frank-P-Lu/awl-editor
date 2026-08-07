@@ -29,7 +29,7 @@ use super::{headless_dqp, view};
 use crate::render::livingband::{self, Choreo, MotionForce};
 
 /// One glide duration in seconds (`OVERLAY_BAND_SLIDE_MS`).
-const GLIDE_S: f32 = OVERLAY_BAND_SLIDE_MS / 1000.0;
+const GLIDE_S: f32 = OVERLAY_BAND_SLIDE_MS.0 / 1000.0;
 
 /// The reported surface: a Command-palette-shaped card — a candidate list whose
 /// rows each carry a key chord in the SECONDARY column. `lens` makes it FACETED,

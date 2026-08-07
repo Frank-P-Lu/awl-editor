@@ -442,7 +442,7 @@ impl TextPipeline {
         if descender <= 0.0 {
             return (cy, h);
         }
-        let desc_bottom = self.caret_baseline_y() + descender + CARET_DESCENDER_PAD * px;
+        let desc_bottom = self.caret_baseline_y() + descender + CARET_DESCENDER_PAD.px(px);
         let extend = (desc_bottom - (cy + h * 0.5)).max(0.0);
         (cy + extend * 0.5, h + extend)
     }

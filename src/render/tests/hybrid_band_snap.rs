@@ -32,7 +32,7 @@ use crate::render::livingband::{self, Choreo, MotionForce};
 const EPS: f32 = 0.05;
 /// One glide duration in seconds (`OVERLAY_BAND_SLIDE_MS`), so a "rapid" gap is
 /// a fraction of it and a "settle" gap is several times it.
-const GLIDE_S: f32 = OVERLAY_BAND_SLIDE_MS / 1000.0;
+const GLIDE_S: f32 = OVERLAY_BAND_SLIDE_MS.0 / 1000.0;
 
 fn morph_force() -> MotionForce {
     MotionForce {

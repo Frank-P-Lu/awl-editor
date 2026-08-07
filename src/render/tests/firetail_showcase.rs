@@ -462,7 +462,9 @@ fn living_band_phase_snaps_onto_the_selection_when_a_move_outruns_the_glide() {
     // fast-repeat Down outrunning the ease, the real-world trigger).
     let dt = 0.022; // ~20% of the 110ms slide
     p.advance(dt);
-    let expected_t = (dt * 1000.0 / crate::render::OVERLAY_BAND_SLIDE_MS).min(1.0);
+    let expected_t = crate::render::OVERLAY_BAND_SLIDE_MS
+        .progress_per(dt)
+        .min(1.0);
     assert!(
         expected_t > 0.0 && expected_t < 1.0,
         "the probe must land mid-flight"
