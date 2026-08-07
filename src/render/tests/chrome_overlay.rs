@@ -619,6 +619,75 @@ fn narrow_gutter_never_wraps_and_both_lines_elide_independently() {
     );
 }
 
+/// ITEM 307 — THE GUTTER'S VISIBILITY GATE READS A LOGICAL QUANTITY, NOT A
+/// DEVICE-PIXEL ONE. Found by item 242's residual lane: `--capture-dpi 2`
+/// reported `gutter.visible: false` at the SAME `--measure` where `--capture-dpi
+/// 1` showed it drawn, on the SAME 1200x800 *device* canvas. That turned out to
+/// be a correct decline, not a bug — a fixed device canvas shows LESS logical
+/// content at a higher dpi (`WxH` at dpi N is a `(W/N)x(H/N)` logical window,
+/// per `--capture-dpi`'s own contract), so the margin the gate reads is
+/// genuinely narrower. This law is the proof: `gutter_layout`'s `avail_chars`
+/// is a ratio of `column_left()` and `label_char_w`, both of which scale by
+/// `Metrics::scale` (`zoom * dpi`) alike, so growing the PHYSICAL canvas in
+/// lockstep with dpi (`(logical_w*dpi) x (logical_h*dpi)`) holds the LOGICAL
+/// page fixed and must reproduce the exact same gate decision at every dpi —
+/// swept across the `--measure` range so the boundary is crossed (asserted on
+/// BOTH sides: a one-sided sweep would pass on a gate that never turns on),
+/// over two independent logical windows and three dpi tiers.
+#[test]
+fn gutter_visibility_boundary_is_dpi_invariant_at_matched_logical_geometry() {
+    let _g = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping gutter_visibility_boundary_is_dpi_invariant_at_matched_logical_geometry: no wgpu adapter"
+        );
+        return;
+    };
+    crate::page::set_page_on(true);
+
+    for &(logical_w, logical_h) in &[(1200.0f32, 800.0f32), (900.0f32, 700.0f32)] {
+        let visible_at = |p: &mut TextPipeline, measure: usize, dpi: f32| -> bool {
+            crate::page::set_measure(measure);
+            // The physical canvas grows WITH dpi so the LOGICAL page — the thing
+            // the gate is supposed to reason about — never moves.
+            p.set_size(logical_w * dpi, logical_h * dpi);
+            p.set_dpi(dpi);
+            let mut v = view("hello world\n", 0, 0);
+            v.gutter_name = "notes.md".to_string();
+            v.gutter_project = "awl".to_string();
+            p.set_view(&v);
+            p.gutter_report().is_some()
+        };
+
+        let mut saw_visible = false;
+        let mut saw_hidden = false;
+        for measure in 10..=100usize {
+            let v1 = visible_at(&mut p, measure, 1.0);
+            let v2 = visible_at(&mut p, measure, 2.0);
+            let v3 = visible_at(&mut p, measure, 3.0);
+            saw_visible |= v1;
+            saw_hidden |= !v1;
+            assert_eq!(
+                v1, v2,
+                "logical {logical_w}x{logical_h} measure={measure}: dpi 1 visible={v1} \
+                 but the SAME logical page at matched dpi 2 visible={v2}"
+            );
+            assert_eq!(
+                v1, v3,
+                "logical {logical_w}x{logical_h} measure={measure}: dpi 1 visible={v1} \
+                 but the SAME logical page at matched dpi 3 visible={v3}"
+            );
+        }
+        assert!(
+            saw_visible && saw_hidden,
+            "logical {logical_w}x{logical_h}: the measure sweep never crossed the gate \
+             (saw_visible={saw_visible} saw_hidden={saw_hidden}) — the boundary must be \
+             crossed for this law to prove anything"
+        );
+    }
+}
+
 /// FIX: `blur_signature` must invalidate on a PAGE/WRAP geometry change — a page
 /// drag, `C-x {`/`}`, or a page-mode toggle re-wraps the document (`set_size` /
 /// `sync_wrap_width`) WITHOUT bumping `reshape_count` (that only fires on a text
