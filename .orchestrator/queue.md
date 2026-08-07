@@ -171,6 +171,16 @@ well as here — **this item has already been answered twice by the user because
 decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
+- 🔵 **TWO PLATES CHANGED APPEARANCE AND BOTH ARE DESIGN CALLS (items 308, 316).**
+  1. **A RIM APPEARED under the footer hint** on the `Bars` worlds — `gallery/item-308/`
+     `before-Cassowary-palette.png` → `after-…`, and the `@2x` pair. It exists because the plate
+     measured **ΔE 1.91 from its own page, under the ≈2.3 JND** — invisible, so not a plate. The rim
+     is the notice channel's own mechanism, which is why it clears **ΔE 54** rather than needing a
+     louder fill. ⚠️ **A one-pixel rim is a visible new line in a calm design** — worth confirming it
+     reads as an edge rather than as a box.
+  2. **AN EMPTY CHIP DISAPPEARED** above "Switch project…" — `gallery/item-316/`
+     `before-Cassowary-Files.png` → `after-…`, and `@2x`. Nothing else moved. It was a plate drawn
+     under a row whose text composes off-card, exposed rather than caused by item 297.
 - 🔵 **`--help` REALIGNED BY 7 WHITESPACE-ONLY LINES (item 273 residual 1) — kept, and one
   function to revert.** Generating `--help` from the roster meant picking one padding rule. Today's
   column is **eyeballed per line** (22 with six exceptions, 40 with two); the rule now is "pad to
@@ -1562,7 +1572,18 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      across the `--measure` range, with the boundary asserted on both sides.
      **Routing:** production tier.
 
-308. 🚧 CLAIMED (worktree item-308-plates, production tier — bundled 308+316) **CASSOWARY'S FOOTER PLATE IS ΔE 1.91 FROM ITS OWN PAGE — below the ≈2.3 JND.**
+308. ✅ **LANDED (merged 2026-08-08) — THE RIM EARNED ITS KEEP: ΔE 1.91 → 54.13.** Premise
+     re-measured before anything was touched and it held exactly (Cassowary 1.91, Galah 5.67,
+     Firetail 7.50). The footer plate now carries **the notice channel's own one-pixel rim**, and the
+     floor it must clear is **that channel's `PLATE_PRESENCE_MIN` of ΔE 15, REUSED rather than
+     re-derived** — both channels earn it the identical way, a value-stepped fill plus a rim.
+     Swept 1×/2×: **Cassowary 54.13/58.47, Firetail 40.91/44.00, Galah 22.33/28.08**, with
+     **Galah@1× the roster's tightest real value**, clearing the floor by half again.
+     ✅ **THE GATE WAS NOT WIDENED** — this item's own law names widening as the dishonest repair.
+     ✅ **Mutation-proven by emptying the rim:** Galah falls straight back to 5.67 and the law names
+     it — *"the rim did not earn its keep here"*. The colour resolves fresh every frame with no
+     `sync_theme_colors` entry, the notice channel's own reasoning, so a theme swap cannot serve last
+     world's rim. **Original:** **CASSOWARY'S FOOTER PLATE IS ΔE 1.91 FROM ITS OWN PAGE — below the ≈2.3 JND.**
      Revealed by item 306: the old absolute-luma gate aborted on Firetail before
      Cassowary was ever graded, so one world's failure was hiding another's.
      ✅ **The recommended repair is a RIM, not a token change** — item 296's notice
@@ -1823,7 +1844,26 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      **Routing:** production tier. ⚠️ Touches `render.rs`, `render/geometry.rs` and
      `scroll.rs`; sequence against anything holding those.
 
-316. 🚧 CLAIMED (worktree item-308-plates, production tier — bundled 308+316) **THE LOCATION ROW'S OWN BAR PLATE IS A VISIBLY EMPTY CHIP.** Exposed — **not
+316. ✅ **LANDED (merged 2026-08-08) — THE ANSWER TO ITS OWN FIRST QUESTION WAS "NO", AND THE FIX
+     WENT TO THE ROW-SURFACE OWNER RATHER THAN THE CUE.** Premise re-confirmed against an
+     unmodified `main` binary first. Cause: `overlay_unselected_bar_rects` backed **every** item-less
+     row, header or location, while a `PlanLine::Location`'s inline text is glyph-free wherever
+     `LocationStyle::draws_inline()` is false — exactly Cassowary's off-card `RotatedRail`. It now
+     reads **the same `draws_inline()` gate the shaper already reads**. Never a named-world check.
+     ✅ **THE EXCLUSION IS EARNED BY MEASUREMENT, as the item demanded:** the production row-surface
+     probe emits **ZERO** rects over the location row's own y-slot for the excluded case, swept over
+     **roster × every faceting `OverlayKind` (derived from `facets::scheme`, not hardcoded) × both
+     DPI tiers**, with non-vacuity asserted in **both** directions so the sweep cannot pass by seeing
+     neither shape. Plus a real-pixel ground check (ΔE < 1 between the freed slot and the card ground
+     above it).
+     ✅ **Mutation-proven:** *"a glyph-free location row (slot y 197.4..232.6) still has 1 row
+     surface(s) drawn over it — the empty chip item 316 was filed against"*.
+     ✅ **THE RECORDED TRIPWIRE IS INTACT:** `overlay_prepare_bar_scrims`'s `backing == BarePlates`
+     gate is untouched, as are `draws_row_plates()` and `overlay_selection_rects`.
+     ⚠️ **HEADROOM WARNING:** `src/render/chrome/overlay_selection.rs` now sits at **exactly the
+     500-line production ceiling**. It was not squeezed to fit — it grew 42 lines of real mechanism —
+     but **the next change there has no room and must carve `mod tests` or a submodule first.**
+     **Original:** **THE LOCATION ROW'S OWN BAR PLATE IS A VISIBLY EMPTY CHIP.** Exposed — **not
      introduced** — by item 297: it is **byte-identical in that item's before and after
      shots** (visible at ≈470,205 in `gallery/item-297/after-Cassowary-Files.png`), and the
      retired 15px whisper simply camouflaged it. Now that the cue composes off-card, the
