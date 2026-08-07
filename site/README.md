@@ -81,14 +81,21 @@ beacon, set to the site's real code:
 <script data-goatcounter="https://fluflu.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 ```
 
-Dashboard: <https://fluflu.goatcounter.com/>. The beacon lives in three places
-(keep them in sync if the code ever changes):
+Dashboard: <https://fluflu.goatcounter.com/>. The beacon is on **every authored
+page**, plus the editor pair — and the page count is deliberately not written
+down here, because it was written down as "three places" while the beacon was on
+eight, and a hand-kept count is wrong the first time a page is added:
 
-- `site/index.html` — the landing page.
-- `site/editor/index.html` — the built wasm editor page.
+- **Every `site/*.html`** — enforced by
+  `every_authored_site_page_carries_the_same_analytics_beacon`, which derives the
+  set from the directory and fails naming any page that is missing it or points at
+  a different site code. Adding a page with no beacon fails that law; there is
+  nothing to update here.
 - the repo-root `index.html` — the **Trunk source** for the editor. The beacon is
   here so it **survives `trunk build`** (Trunk passes the `<script>` through into
   the emitted `site/editor/index.html`); re-check it after each rebuild.
+- `site/editor/index.html` — that emitted wasm editor page. Both of these sit
+  outside the law's sweep, which covers authored pages only.
 
 ## `/editor/` — the wasm build
 

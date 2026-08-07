@@ -118,3 +118,44 @@ fn llms_txt_names_the_reference() {
          REFERENCE.md — a machine reader offered every doc but the reference"
     );
 }
+
+/// The analytics beacon is on EVERY authored page or the numbers are a lie about
+/// which pages people read. It is one `<script>` with no partial to share, so
+/// each page carries its own copy and only a law keeps the copies in agreement —
+/// the same reason `every_page_offers_the_same_nav_destinations` exists.
+///
+/// The set is derived from `site_pages()` rather than counted in prose, because
+/// `site/README.md` said the beacon "lives in three places" while it was on
+/// eight, and a hand-maintained count is wrong the first time a page is added.
+/// Two copies are deliberately outside this sweep and named in that README: the
+/// repo-root `index.html` (the Trunk SOURCE, where the tag lives so it survives
+/// `trunk build`) and its emitted `site/editor/index.html`.
+#[test]
+fn every_authored_site_page_carries_the_same_analytics_beacon() {
+    let pages = site_pages();
+    let beacon = "src=\"//gc.zgo.at/count.js\"";
+    let code = "data-goatcounter=\"https://fluflu.goatcounter.com/count\"";
+    let missing: Vec<&str> = pages
+        .iter()
+        .filter(|(_, text)| !text.contains(beacon))
+        .map(|(name, _)| name.as_str())
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "these authored site pages carry no analytics beacon, so traffic to them \
+         is invisible while the rest of the site is measured: {missing:?} \
+         (of {} pages swept)",
+        pages.len()
+    );
+    let wrong_code: Vec<&str> = pages
+        .iter()
+        .filter(|(_, text)| !text.contains(code))
+        .map(|(name, _)| name.as_str())
+        .collect();
+    assert!(
+        wrong_code.is_empty(),
+        "these pages carry a beacon pointing at a DIFFERENT site code, which \
+         splits the numbers across two dashboards without either looking empty: \
+         {wrong_code:?}"
+    );
+}
