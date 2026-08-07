@@ -320,10 +320,9 @@ pub(super) fn settled_viewstate(
         vstate.popover =
             crate::actions::popover::plan(&buffer.text(), Some(a), c, buffer.is_markdown());
     }
-    // THE CRISP-BACKDROP exception. A capture arrives holding a serialized MODE
-    // STRING, so it resolves the kind first and then asks the same owner the live
-    // door asks — never a second membership list keyed on spelling, which is what
-    // let this door and `App::sync_view` drift apart before.
+    // THE CRISP-BACKDROP exception. A capture holds a serialized MODE STRING, so it
+    // resolves the kind and asks the owner the live door asks — never a second
+    // membership list keyed on spelling, which is how two doors drift.
     vstate.overlay_crisp = opts
         .overlay
         .as_ref()

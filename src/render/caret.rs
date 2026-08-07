@@ -153,20 +153,15 @@ impl TextPipeline {
     /// boundary) `col_x_and_advance` falls back to the default `char_width` cell, so
     /// the block keeps a full visible width there instead of a degenerate sliver.
     ///
-    /// On a MONO face the historical `.max(caret_w)` floor is kept, so the block
-    /// stays byte-identical to the old fixed cell. ⚠️ **That floor is NOT a no-op:
-    /// `metrics.caret_w` is a fixed `CARET_W` (= `CHAR_WIDTH`), face-INDEPENDENT,
-    /// and the bundled monos do not share one pitch** — measured off their own
-    /// `hmtx` advances, IBM Plex Mono and JetBrains Mono sit at 0.60 em, Monaspace
-    /// Xenon at 0.62, Iosevka at 0.50. A face NARROWER than the cell has its block
-    /// floored UP past the glyph it sits on (Iosevka worlds: a 14.4 px block over a
-    /// 12.0 px cell at zoom 1). Do not read this arm as "mono faces all measure the
-    /// cell" — that sentence stood here and was false. The floor
-    /// — the very thing that made the block too wide on a narrow proportional glyph
-    /// — is dropped ONLY on proportional faces. Keyed on the EFFECTIVE shaped face
-    /// (`shaped_font`, the `doc_family` seam), NOT `Theme::font`: a serif world
-    /// editing a `.rs` shapes the buffer in the world's mono companion, and the
-    /// block must follow the grid actually on screen.
+    /// On a MONO face the historical `.max(caret_w)` floor is kept. ⚠️ **It is NOT a
+    /// no-op: `metrics.caret_w` is a fixed `CARET_W`, face-INDEPENDENT, and the
+    /// bundled monos do NOT share one pitch** (own-`hmtx`: Plex Mono/JetBrains
+    /// 0.60 em, Monaspace Xenon 0.62, Iosevka 0.50), so a narrower face has its
+    /// block floored UP past the glyph it sits on. The floor — the thing that made
+    /// the block too wide on a narrow PROPORTIONAL glyph — is dropped only there.
+    /// Keyed on the EFFECTIVE shaped face (`shaped_font`, the `doc_family` seam),
+    /// NOT `Theme::font`: a serif world editing a `.rs` shapes the buffer in the
+    /// world's mono companion, and the block must follow the grid on screen.
     pub fn caret_block_w(&self) -> f32 {
         let (_x, adv) = self.col_x_and_advance_aff(
             self.cursor_line,
