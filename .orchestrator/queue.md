@@ -1493,7 +1493,8 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      `pipeline_prepare.rs`, and READS `chrome/diagonal.rs` — **311 also names
      `diagonal.rs`; sequence, never pair.**
 
-313. **THE PICKER'S HINT LINE SITS FLUSH-LEFT UNDER A LEANING LIST.** ✅ **293 IS LANDED,
+313. 🟡 IN PROGRESS — claude, branch `claude/item-313-hint-lean`.
+     **THE PICKER'S HINT LINE SITS FLUSH-LEFT UNDER A LEANING LIST.** ✅ **293 IS LANDED,
      SO THIS IS UNBLOCKED — and 293 changed NOTHING about the hint's shape:** it added
      lines, not a second run or buffer, so the hint is still in the same `panel_buffer`
      run with no independent x. **This item is neither easier nor harder than when it
@@ -1576,7 +1577,8 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      **Routing:** production tier — but the role split is a design call, so surface it
      rather than picking silently.
 
-315. **`TEXT_TOP` IS THE UNTOUCHED VERTICAL TWIN — THE SAME DEFECT ON THE OTHER AXIS —
+315. 🟡 IN PROGRESS — claude, branch `claude/item-315-text-top`.
+     **`TEXT_TOP` IS THE UNTOUCHED VERTICAL TWIN — THE SAME DEFECT ON THE OTHER AXIS —
      AND THE REASON BOTH SURVIVED IS THE DECLARATION LAW'S SCOPE.** Named by item 314's
      lane after it closed the horizontal half.
 
@@ -1626,6 +1628,30 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      cue. **Verify:** no plate is emitted for a glyph-free location row, swept over the
      roster × `OverlayKind` × 1×/2×, with byte-identity everywhere a plate legitimately
      belongs. **Routing:** production tier.
+
+317. **HOW MANY OTHER LAWS ARE BLIND TO THE `menu_bar` AXIS? SWEEP THEM UNDER THE
+     FORCING.** The CI RED above was one platform default — `MENU_BAR_ON` is `false` on macOS
+     and `true` everywhere else — costing **35.6px of every card's height budget**, and it hid
+     **a picker that drew zero candidate rows on Linux.** Two laws were repaired and a handful
+     gained the axis. **The open question is how many others never see it.**
+
+     ✅ **The method is already proven and takes seconds, not a container:** force
+     `MENU_BAR_ON`'s other branch in `src/menubar.rs` and run the affected filters.
+     CLAUDE.md's own words — *"a fix that passes unforced has not been tested"*.
+     **Build:** run the **whole** suite under the forcing, list every test that changes
+     behaviour or fails, and for each decide whether it (a) genuinely needs the axis swept, (b)
+     is legitimately platform-scoped, or (c) is measuring the wrong thing entirely — which is
+     what the drawn-inset probe turned out to be.
+     ⚠️ **Expect the third category.** A law written on a host where a reserve is always zero
+     can encode that zero into its own geometry without anyone noticing, and this is the second
+     time this week a probe was found measuring the canvas instead of its subject.
+     ⚠️ **Do not add the axis mechanically to everything** — a law that gains a second axis it
+     does not need doubles its cost for nothing. The deliverable is the CENSUS and the
+     judgement, not a bulk edit.
+     ✅ **And the same question applies to every other platform-forked default**, not just this
+     one: the durable version of this item is a list of them and which laws sweep each.
+     **Routing:** production tier. ⚠️ Touches `src/render/tests/**` broadly — schedule against
+     a quiet tree.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
