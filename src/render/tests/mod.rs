@@ -72,6 +72,7 @@ mod folds;
 /// `assets/fonts`) has no wasm counterpart to be honest about either.
 #[cfg(not(target_arch = "wasm32"))]
 mod font_licence_item255;
+mod foot_hint_lean_item313;
 mod frost;
 mod frost_feather_item312;
 mod frost_footprint_item294;

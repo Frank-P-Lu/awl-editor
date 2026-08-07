@@ -183,7 +183,36 @@ impl DiagonalClusterRail {
     }
 
     pub(super) fn spine_x(self, display: usize) -> f32 {
-        self.spine_start + self.spine_step * display as f32
+        self.spine_at(display as f32)
+    }
+
+    /// THE ONE OWNER OF THE SPINE'S ABSCISSA, at a FRACTIONAL number of display
+    /// steps from row 0. A row asks at a whole step; the foot chrome below the row
+    /// band asks at the real vertical distance it sits at, in row pitches, which is
+    /// not a whole number — the hint's own row and the separator above it are both
+    /// compact. Both answers are the same line because both read the DRAWN
+    /// `spine_step`, which already carries a cramped card's yielded rake
+    /// ([`TRAVEL_MAX_BAND_FRACTION`]).
+    fn spine_at(self, steps: f32) -> f32 {
+        self.spine_start + self.spine_step * steps
+    }
+
+    /// WHERE CHROME BELOW THE ROW BAND HANGS OFF THE COMPOSITION — the foot band's
+    /// own anchor, `steps` display steps down from row 0 on the same spine the rows
+    /// hang on, and its `(left, right)` ink span for ink `w` wide.
+    ///
+    /// It hangs on the same [`Self::label_flow`] end a NAME does, so on a mirrored
+    /// world the foot's ink ends on the spine exactly as a name's does instead of
+    /// crossing it. It carries NO selected shift: the foot is not a row, and a
+    /// selection landing on the last row must not drag the hint sideways with it.
+    pub(in crate::render) fn foot_span(self, steps: f32, w: f32) -> (f32, f32) {
+        self.label_flow().span(self.foot_anchor(steps), w)
+    }
+
+    /// The foot band's anchor alone — the abscissa a law compares against the line
+    /// through the drawn rows' own anchors.
+    pub(in crate::render) fn foot_anchor(self, steps: f32) -> f32 {
+        self.spine_at(steps) + self.connector * self.outward()
     }
 
     fn shift(self, display: usize) -> f32 {
