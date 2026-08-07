@@ -112,6 +112,36 @@ impl TextPipeline {
         }
     }
 
+    /// ITEM 293 — the DRAWN gap between the candidate/empty-state band and the
+    /// foot hint's own shaped line: `(content_bottom, hint_top, hint_bottom)`,
+    /// or `None` when this frame draws no hint. `content_bottom` is
+    /// `plan.footer_top()` — the same y the Bars footer plate and the footer
+    /// width probe already treat as "where the content band ends" — and
+    /// `hint_top`/`hint_bottom` are read back out of the shaped `panel_buffer`
+    /// by finding the line whose text is the hint string VERBATIM, never
+    /// re-derived from row-count arithmetic, so a law reading this can't share
+    /// a bug with the geometry it is meant to check.
+    pub(in crate::render) fn overlay_hint_gap_probe(&self, width: u32) -> Option<(f32, f32, f32)> {
+        if self.overlay_hint.is_empty() {
+            return None;
+        }
+        let geom = self.overlay_geometry(width);
+        let plan = self.overlay_row_plan(&geom);
+        let content_bottom = plan.footer_top();
+        let hint_line = self
+            .panel_buffer
+            .lines
+            .iter()
+            .position(|l| l.text() == self.overlay_hint.as_str())?;
+        for run in self.panel_buffer.layout_runs() {
+            if run.line_i == hint_line {
+                let top = geom.text_top + run.line_top;
+                return Some((content_bottom, top, top + run.line_height));
+            }
+        }
+        None
+    }
+
     /// TEST HOOK (jump-hint round): the widest shaped FOOTER line (the foot hint,
     /// plus any keybindings tips) vs the card's inner text width, for the
     /// currently-shaped flat overlay — so the discoverability law can assert the
