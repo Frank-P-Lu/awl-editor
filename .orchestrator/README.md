@@ -633,6 +633,31 @@ compile later.
 A failed `main` CI run becomes the top-priority `CI RED` item with the run URL
 and first known bad commit, and blocks further integration.
 
+‼ **A BYTE-EXACT ASSERTION ON A RENDERED PIXEL IS A CLAIM ABOUT THE RASTERIZER,
+AND IT WILL GO RED ON CI'S lavapipe WHILE GREEN ON THIS HOST'S METAL.** Measured
+2026-08-07: `linux (build + test)` — a **gating** job — failed on a brand-new law
+under both keymap conventions, after four local gates and a lane's own receipt had
+all passed. One line caused it: an `assert_eq!` comparing a rendered thumb pixel to
+a theme constant, while every assertion around it used ΔE. The same frame renders
+`[230,230,230]` on Metal and `[227,227,228]` on lavapipe — **ΔE 1.15, half the 2.3
+JND, invisible** — against a signal of ΔE ~32. The law was right about the product
+and wrong about the unit.
+
+**The repair that holds is RELATIVE, not a looser tolerance:** require the pixel to
+land *nearer the thing it should be wearing than the thing it should not*. Both
+distances move together under any backend, so the claim survives a rounding
+difference that no absolute bound can be tuned for without guessing. Where an
+absolute bound is unavoidable, **reuse the law's existing ΔE constant rather than
+introducing a second number.**
+
+⚠️ **And loosening a sub-assertion is exactly how a law goes vacuous, so the
+loosened form must be re-mutation-proven, not assumed** — here, sending the flip to
+every rail *except* the selected one still fails at ΔE 32.04 against the 6.0
+ceiling, a five-fold margin over the drift now tolerated. **Two of this repo's
+recorded law failures are sub-assertions, not headline ones.** Ask of any pixel
+assertion: *is this comparing perception, or comparing bytes a GPU is free to
+disagree about?*
+
 ‼ **THE RUN'S CONCLUSION IS NOT THE GATE'S VERDICT, AND A TOLERATED-RED JOB CAN
 MAKE A FULLY GREEN TRAIN READ `cancelled`.** Measured 2026-08-07 on `ba292f75`:
 the run's conclusion was `cancelled` while **all four gating jobs succeeded**

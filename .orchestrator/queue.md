@@ -2352,7 +2352,44 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      **Verify:** a law with a no-wildcard match, and check the sweep in
      `backgrounds_item158.rs` can then be simplified to ask the owner. **Routing:** production tier.
 
-329. 🚧 CLAIMED (worktree item-329-mask-audit, deep tier) **294's `card_ink_mask` IS A VETO AND DOES NOT INVERT INTO AN INCLUSION SET — two frost
+329. ✅ **CLOSED (merged 2026-08-08) — premise TRUE, oracle consolidated, contract ENFORCED; 0 of
+     4 surviving callers wrong. NOT "fixed": no product changed**, and the diff is test files plus
+     `docs/render.md`, so the shipped binary is unchanged by construction.
+     ✅ **The premise's substance is now measured rather than remembered.** The "52 rows above the
+     card" figure reproduces exactly at 1× on every enrolled world. ⚠️ **The three shadow counts do
+     NOT reproduce** — 318's re-aim deleted the oracles, so their predicate is unrecoverable — but
+     **the class does, with the same 100× separation and the same near-clean member**: Paperbark
+     0–107 against Magpie 13001–40863. **A one-world check would still find none of it.** The
+     reconstruction also moves **2.7× with menu-bar state alone**, which is why its floors are taken
+     as a minimum over the sweep rather than at this host's default.
+     ✅ **THERE WERE TWO BYTE-IDENTICAL DEFINITIONS**, each with its own duplicate `luma`, `step` and
+     thresholds. Now one owner, `frost_card_ink.rs`.
+     ⚠️ **THE PREDICTED HIGH ERROR RATE WAS REAL BUT ALREADY SPENT — both wrong readers were 318's
+     own and 318 deleted them.** What the census found instead is the more interesting failure,
+     because each of these PASSES today: **three callers consult a veto OUTSIDE its premise.**
+     (a) the hue law, **repaired** — its region was the card's box, 2.3–5.4% of which the frost never
+     reaches on a leaning world, so live page at the live page's exact colour pulled the "frosted"
+     mean toward the "live" mean it is compared against: **the bound got EASIER the less of the box
+     the frost covered.** It also derived the veto with a hardcoded `dpi = 1.0` while running at one
+     scale; it now sweeps both. (b) the collar check — sound but removes **13.9% of the collar on
+     Magpie at 1× and 0.0% on Mangrove at the same geometry**; left alone deliberately, since
+     removing it would admit any ground difference between frames into a sharpness claim.
+     (c) the parallelogram corner law — **sound but structurally DEGRADING, and no repair exists**
+     (item 337).
+     ✅ **The mechanism is a newtype whose `flags` field is private with exactly one reader,
+     `vetoes(x, y)` — no `Index`, no `Deref`, no iterator, no length.** Both falsified oracles began
+     by **enumerating** the flagged set, and a consumer can no longer reach it. The lane stated the
+     honest limit instead of overselling: no type forbids `if !ink.vetoes(..)`; what it removes is the
+     cheap path. A `visit()` combinator was considered and **rejected on cost** — unaffordable for the
+     ramp law at 2×.
+     ⚠️ **THE SECOND MUTATION IS A FINDING IN ITS OWN RIGHT:** raising the threshold until the mask
+     stops flagging the world's ground would make it nearly trustworthy as an inclusion set **and
+     useless as a veto**, because a glyph's anti-aliased skirt has small steps. **The veto's job is to
+     over-exclude**, and the law now refuses that "improvement" by name.
+     ✅ **Not claimed as a bug fixed:** the dilution was measurably a no-op at the roster's current
+     rake (byte-identical Lab means with and without the gate). **A hazard closed** — the diluting set
+     grows without bound with the shear, and a silent dilution is now a loud failure.
+     **Original:** **294's `card_ink_mask` IS A VETO AND DOES NOT INVERT INTO AN INCLUSION SET — two frost
      oracles were falsified on first contact.** Measured by item 318. Its "a blur of a blank page"
      premise holds only **where the frost actually reaches**, so as an inclusion set it reported
      card ink **52 rows above the card**; and intersecting it with an open-vs-closed difference
@@ -2517,6 +2554,22 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ⚠️ **Docs voice applies** (matter-of-fact, no filler) and this text is user-facing in the palette.
      Any change regenerates `REFERENCE.md`; **verify the regen diff moves only what the change
      explains.** **Routing:** production tier.
+
+337. **THE PARALLELOGRAM CORNER LAW'S SUBJECT SHRINKS AS A WORLD'S GROUND GETS BUSIER, and nothing
+     inside the frost tests can fix it.** Reported by item 329's audit and correctly not acted on.
+     `frost_parallelogram_item318.rs`'s corner law measures **sharp document** in exactly the region
+     where the card-ink veto **cannot distinguish card ink from world ground** — the card genuinely
+     draws rows and its ring in those off-rake corners, and no threshold separates them there. So the
+     law is sound (it biases DOWN, fail-safe, guarded by `measured > 500`) but **degrades silently**:
+     a busier ground leaves it less to measure. Today it survives on 1716–14263 px with 195–462 edges.
+     ⚠️ **This is the "law satisfiable by deleting its own subject" family, one step removed** — the
+     subject is not deleted by a code change but eroded by a THEME change, so it can decay without
+     anyone touching the law or the product it grades.
+     ✅ **Build:** it needs an ink oracle the **chrome path itself declares** — an enumeration of what
+     the card draws in its off-rake corners — rather than one inferred from pixels. That is outside
+     the frost tests' partition, which is why 329 stopped here. ⚠️ **Do not "fix" it by lowering the
+     `measured > 500` guard**; that guard is the only thing making the erosion visible.
+     **Routing:** production tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
