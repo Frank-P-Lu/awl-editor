@@ -24,10 +24,10 @@
 //!   ink at all to confound it — the frost's new territory is exactly the region where
 //!   the only thing that can differ between a picker-open and a picker-closed frame is
 //!   the frost itself.
-//! * **The card's own ink is masked out anyway**, by item 294's DERIVED mask (the same
-//!   picker over an EMPTY document has a backdrop that is a blur of a blank page, so a
-//!   strong local step in it is the card's drawing and nothing else). The card's ring is
-//!   card ink, and it sits within a pixel or two of the very face being profiled.
+//! * **The card's own ink is vetoed anyway**, by the derived `CardInk` oracle (see
+//!   `frost_card_ink` for what that veto can and cannot answer — it is a superset of the
+//!   card's drawing and does not invert). The card's ring is card ink, and it sits within
+//!   a pixel or two of the very face being profiled.
 //! * **A PRESENCE floor runs beside the ramp.** A mask that faded the whole footprint to
 //!   nothing has no hard edge anywhere and would satisfy a ramp test perfectly. So the
 //!   profile's own amplitude at the face must clear a floor, and item 294's residue
@@ -40,6 +40,7 @@
 
 use super::super::*;
 use super::dither::{offscreen, read_pixels};
+use super::frost_card_ink::{CardInk, luma};
 use super::{headless_dqp, view_md};
 
 /// Prose dense enough to put real glyph structure in the skirt band on every face of
@@ -67,61 +68,11 @@ pub(super) const DENSE: &str = concat!(
     "run beside these: an interior that lost its frost fails there, not here.\n",
 );
 
-/// A local luma step (of 255) that only an EDGE produces — item 294's threshold, at the
-/// same place in the same measured valley.
-pub(super) const INK_GRADIENT: f32 = 6.0;
-
-/// How far the card-ink mask is grown, in physical px per DPI unit.
-const INK_DILATE: i64 = 2;
-
 /// The PRESENCE floor on the profile, in luma: how much the frost must actually change
 /// the page one pixel outside the card's face. Without it, a mask that faded the whole
 /// footprint to nothing passes every ramp assertion below — the ramp would be measured
 /// on noise, and noise has no step in it.
 const SKIRT_PRESENCE_FLOOR: f32 = 1.5;
-
-pub(super) fn luma(p: [u8; 4]) -> f32 {
-    0.299 * p[0] as f32 + 0.587 * p[1] as f32 + 0.114 * p[2] as f32
-}
-
-pub(super) fn step(field: &[f32], w: i64, h: i64, x: i64, y: i64) -> f32 {
-    let at = |x: i64, y: i64| field[(y * w + x) as usize];
-    let here = at(x, y);
-    let mut g = 0.0f32;
-    if x + 1 < w {
-        g = g.max((here - at(x + 1, y)).abs());
-    }
-    if y + 1 < h {
-        g = g.max((here - at(x, y + 1)).abs());
-    }
-    g
-}
-
-/// THE CARD'S OWN INK, DERIVED from a frame of the same picker over an EMPTY document
-/// (its backdrop is a blur of a blank page — smooth by construction, so a strong step
-/// there is the card's drawing). Item 294's oracle, unchanged; the card's RING is the
-/// reason it matters here, since the ring sits a pixel or two off the face profiled.
-pub(super) fn card_ink_mask(empty: &[[u8; 4]], w: i64, h: i64, dpi: f32) -> Vec<bool> {
-    let lum: Vec<f32> = empty.iter().map(|p| luma(*p)).collect();
-    let dilate = INK_DILATE * dpi.round() as i64;
-    let mut mask = vec![false; (w * h) as usize];
-    for y in 0..h - 1 {
-        for x in 0..w - 1 {
-            if step(&lum, w, h, x, y) < INK_GRADIENT {
-                continue;
-            }
-            for dy in -dilate..=dilate {
-                for dx in -dilate..=dilate {
-                    let (xx, yy) = (x + dx, y + dy);
-                    if (0..w).contains(&xx) && (0..h).contains(&yy) {
-                        mask[(yy * w + xx) as usize] = true;
-                    }
-                }
-            }
-        }
-    }
-    mask
-}
 
 pub(super) fn theme_picker(text: &str) -> ViewState {
     let mut v = view_md(text, 0, 0);
@@ -253,7 +204,7 @@ fn the_footprints_edge_is_a_ramp_of_the_authored_width_in_logical_px_at_every_dp
             let closed = render_frame(&device, &queue, &mut p, w, h);
 
             let (wi, hi) = (w as i64, h as i64);
-            let mask = card_ink_mask(&empty, wi, hi, dpi);
+            let ink = CardInk::derive(&empty, wi, hi, dpi);
             let f_px = feather * dpi;
             let depth = (f_px * 2.0) as i64;
             let label = format!("{world} @ {dpi}x ({w}x{h}), frost box [{rx},{ry},{rw},{rh}]");
@@ -308,7 +259,7 @@ fn the_footprints_edge_is_a_ramp_of_the_authored_width_in_logical_px_at_every_dp
                             for y in &rows {
                                 let x = (face(*y as f32) as i64) + (outward as i64) * d;
                                 let i = (y * wi + x) as usize;
-                                if mask[i] {
+                                if ink.vetoes(x, *y) {
                                     continue;
                                 }
                                 acc += (luma(open[i]) - luma(closed[i])).abs() as f64;

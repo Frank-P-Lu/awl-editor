@@ -47,9 +47,8 @@
 //! it itself on the way out.
 
 use super::super::*;
-use super::frost_feather_item312::{
-    DENSE, INK_GRADIENT, card_ink_mask, enrolled_worlds, luma, render_frame, step, theme_picker,
-};
+use super::frost_card_ink::{CardInk, INK_GRADIENT, luma, step};
+use super::frost_feather_item312::{DENSE, enrolled_worlds, render_frame, theme_picker};
 use super::headless_dqp;
 
 /// A local luma step that only a document EDGE produces — item 294's threshold, at the
@@ -62,7 +61,7 @@ const STRONG_GRADIENT: f32 = 24.0;
 ///
 /// Not `1.0`, and the reason is arithmetic rather than slack. `footprint_box` widens the
 /// rect until the chrome sits EXACTLY on the shape's face, where the mask is exactly 1.0 —
-/// but a glyph's anti-aliased skirt, and the two logical px `card_ink_mask` dilates by to
+/// but a glyph's anti-aliased skirt, and the two logical px `CardInk` dilates by to
 /// swallow it, reach a little past the ink's own origin, and the mask ramps outward from
 /// the face. A `smoothstep` over a 28 logical px feather is still 0.996 one px out and
 /// 0.985 two px out, so this floor is set well under the roster's tightest MEASURED value
@@ -85,7 +84,7 @@ fn mask_at(frost: crate::render::blur::Frost, dpi: f32, px: f32, py: f32) -> f32
 struct Frame {
     open: Vec<[u8; 4]>,
     empty: Vec<[u8; 4]>,
-    ink: Vec<bool>,
+    ink: CardInk,
     /// The card's own box, as `overlay_card_rect` reports it and the pointer hit-test reads
     /// it — NOT the frost's.
     card: [f32; 4],
@@ -132,7 +131,7 @@ fn capture(
     let empty = render_frame(device, queue, p, w, h);
     let (wi, hi) = (w as i64, h as i64);
     Frame {
-        ink: card_ink_mask(&empty, wi, hi, dpi),
+        ink: CardInk::derive(&empty, wi, hi, dpi),
         open,
         empty,
         card,
@@ -147,13 +146,13 @@ fn capture(
 /// peak local step)`. One owner, because both laws below ask it of different regions and a
 /// second copy would be a second definition of "sharp".
 ///
-/// The card's own ink is VETOED (item 294's derived mask, used the way it is sound —
-/// as a veto), so this measures the PAGE and never the glyphs drawn over it.
+/// The card's own ink is VETOED (the derived `CardInk` oracle, used the one way it is
+/// sound), so this measures the PAGE and never the glyphs drawn over it.
 fn sharpness(f: &Frame, field: &[f32], keep: impl Fn(i64, i64) -> bool) -> (u64, u64, f32) {
     let (mut measured, mut edges, mut peak) = (0u64, 0u64, 0.0f32);
     for y in 0..f.h {
         for x in 0..f.w {
-            if !keep(x, y) || f.ink[(y * f.w + x) as usize] {
+            if !keep(x, y) || f.ink.vetoes(x, y) {
                 continue;
             }
             let s = step(field, f.w, f.h, x, y);
@@ -341,20 +340,14 @@ fn tightest_coverage(frost: crate::render::blur::Frost, dpi: f32, b: [f32; 4]) -
 ///
 /// # ⚠️ Why the subject is a DECLARED box and not a derived ink mask
 ///
-/// Two ink oracles were built and both were falsified on their first run, which is worth
-/// more than the law they were meant to serve:
-///
-/// * **Item 294's `card_ink_mask` is a VETO and does not invert into an inclusion set.** Its
-///   premise — a picker over an empty document has a backdrop that is "a blur of a blank
-///   page: smooth by construction" — holds only where the frost reaches. Outside the
-///   footprint the page shows its world's live ground, and Mangrove's lava lamp has plenty
-///   of structure, so it reported "the card draws ink at (1101, 0)" — 52 rows above the
-///   card's own top edge.
-/// * **Intersecting that with a picker-open-vs-closed difference does not rescue it
-///   either.** The card casts a soft SHADOW well past its own box, so the intersection
-///   selects ground structure lying under the shadow: 4004 such pixels on Mangrove and
-///   19584 on Magpie, spread from x=23 to x=1178 — and 8 on Paperbark, which draws no card
-///   backing. A shadow is a wash, not ink, and nothing owes it a frost.
+/// Two ink oracles were built here and both were falsified on their first run, which is
+/// worth more than the law they were meant to serve. Both read `CardInk` as an inclusion
+/// set — "these pixels are where the card is" — and it is a VETO that does not invert:
+/// its flagged set is a superset of the card's drawing, and the surplus is the world's own
+/// live ground outside the frost's reach. Intersecting it with a picker-open-versus-closed
+/// difference does not rescue it either, because the card's soft SHADOW changes ground
+/// structure it does not own. `frost_card_ink` states that contract at the definition and
+/// keeps both figures measured.
 ///
 /// So the subject is the box the PRODUCTION owner declares
 /// (`TextPipeline::overlay_head_band_ink`), which is also the box `footprint_box` is handed

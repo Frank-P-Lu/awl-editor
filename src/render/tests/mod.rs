@@ -74,6 +74,10 @@ mod folds;
 mod font_licence_item255;
 mod foot_hint_lean_item313;
 mod frost;
+/// The card-ink VETO every frost pixel law measures through, and the contract that
+/// keeps it one-directional: its flagged set is a superset of the card's drawing whose
+/// surplus is the world's own ground, so it does not invert into "where the card is".
+mod frost_card_ink;
 mod frost_feather_item312;
 mod frost_footprint_item294;
 mod frost_parallelogram_item318;
