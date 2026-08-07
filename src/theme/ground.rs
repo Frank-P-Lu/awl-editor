@@ -362,13 +362,50 @@ impl Background {
     pub fn zigzag_row_pitch_px(&self) -> f32 {
         2.0 * self.amplitude_px() + self.zigzag_stroke_px()
     }
+    /// The ground's `density` dial, as the scalar its shader reads — `0.0`
+    /// (the INERT default) for every ground that carries no density field, so
+    /// no other world's upload changes shape. Exhaustive with no wildcard: a
+    /// new density-bearing variant must be added to the first arm before it
+    /// compiles, rather than silently reading as "no density" through this
+    /// accessor. See [`Background::bears_density`] for the companion
+    /// question — `density() == 0.0` does not mean the same thing as "this
+    /// ground has no density field", because a density-bearing world can
+    /// author its own dial down to zero.
     pub fn density(&self) -> f32 {
         match self {
             Background::Zigzag { density, .. } => *density,
             Background::Organic { density, .. } => *density,
             Background::Deckle { density, .. } => *density,
             Background::WarpedGrid { density, .. } => *density,
-            _ => 0.0,
+            Background::Gradient { .. }
+            | Background::Dots { .. }
+            | Background::Pinstripe { .. }
+            | Background::Stripes { .. }
+            | Background::Lava { .. }
+            | Background::Bands { .. }
+            | Background::Waves { .. } => 0.0,
+        }
+    }
+    /// Whether this ground carries the shared `density` field at all —
+    /// distinct from `density() == 0.0`, which a density-bearing world can
+    /// also author. Exhaustive with no wildcard so a new variant must be
+    /// classified here before it compiles, the same discipline `density()`
+    /// itself holds to. The one owner of "does this ground bear density";
+    /// `render/tests/backgrounds_item158.rs`'s density sweep asks here
+    /// instead of keeping its own copy of this classification.
+    pub fn bears_density(&self) -> bool {
+        match self {
+            Background::Zigzag { .. }
+            | Background::Organic { .. }
+            | Background::Deckle { .. }
+            | Background::WarpedGrid { .. } => true,
+            Background::Gradient { .. }
+            | Background::Dots { .. }
+            | Background::Pinstripe { .. }
+            | Background::Stripes { .. }
+            | Background::Lava { .. }
+            | Background::Bands { .. }
+            | Background::Waves { .. } => false,
         }
     }
     pub fn zigzag_banded(&self) -> bool {
