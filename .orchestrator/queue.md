@@ -171,6 +171,22 @@ well as here — **this item has already been answered twice by the user because
 decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
+- 🔵 **THE SETTINGS CARD'S WIDTH BUDGET IS A DESIGN CALL, WITH NUMBERS (item 327).** As a
+  `Range` setting's card narrows, `overlay_right_shown` drops the **entire accessory column at once**
+  — the value text *and* the rail — because they are gated together. **Who should yield first: the
+  row name, the value text, or the rail?** And **should the picker fall out of its faceted/diagonal
+  composition SOONER**, before losing the whole accessory column, rather than after? At the narrowest
+  reachable failure the column needs **480px against 319px available**; where the diagonal cluster is
+  merely tight it is **412px against 366px**. `gallery/item-309/327-ordinary-640.png` shows the
+  column gone; `327-ordinary-1200.png` shows it present. ⚠️ **One thing to fix before designing
+  anything:** rail presence is **non-monotonic** — present at 740–870 and 930–1200, absent at 640–720
+  *and again at 880–920*. That hole is unexplained, and a budget tuned against a clean boundary will
+  not survive it.
+- 🔵 **ONE RAIL USED TO WEAR ANOTHER'S HIGHLIGHT, AND THE FIX IS VISIBLE (item 309).**
+  `gallery/item-309/309-crop-BEFORE-buggy-3rails-white.png` → `309-crop-AFTER-fixed-only-zoom-white.png`:
+  before, three rails read as bright because a shared colour painted them all with whatever ink the
+  **selected** rail earned; after, only the selected one does. Worth a glance to confirm the
+  unselected rails now read as quiet rather than as disabled.
 - 🔵 **TWO PLATES CHANGED APPEARANCE AND BOTH ARE DESIGN CALLS (items 308, 316).**
   1. **A RIM APPEARED under the footer hint** on the `Bars` worlds — `gallery/item-308/`
      `before-Cassowary-palette.png` → `after-…`, and the `@2x` pair. It exists because the plate
@@ -1593,7 +1609,23 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      failure message names widening as the dishonest repair. **Routing:** production
      tier, then the user's eye on the rim.
 
-309. 🚧 CLAIMED (worktree item-309-rails, production tier — bundled 309+327) **`thumb_ink` IS ONE `set_color` FOR EVERY RAIL, SELECTED OR NOT.** Named by item
+309. ✅ **LANDED (merged 2026-08-08) — and the LAW was harder than the fix.** `prepare_multicolor`
+     already carries per-instance colour for the writing-streaks heatmap, so each rail computes its
+     own ink from `on_band.contains(item)` and uploads through the **existing** mechanism rather than
+     a second pipeline. The track was always uniform and is unchanged.
+     ⚠️ **TWO EARLIER DRAFTS OF THE LAW WERE FALSE-POSITIVE, and both failure modes are reusable.**
+     Grading a thumb against `theme::muted()` as an idealized constant fired on **Potoroo**, whose
+     `Stripes` ground varies enough **within one row's height** to fool a single-frame pixel search.
+     Grading against an **ADJACENT** row fired on several worlds at up to **ΔE 41 on a build that
+     already had the fix** — adjacent-row elevation and shadow bleed is a real rendering fact, not
+     this defect. The law that holds grades each rail **against its own two renders**
+     (selected-elsewhere vs nothing-selected) and selects a row 2–3 away from both graded rails.
+     ✅ **The ceiling was CALIBRATED, not guessed:** a roster survey under the reinstated bug reads
+     **0.00** on every world where the flip cannot apply and **≥22.00** wherever it fires, so 6.0
+     sits in the gap. **Mutation-proven:** *"Tawny: the NON-selected Zoom rail's thumb changed
+     ([139,145,157] → [230,230,230], ΔE 32.04) purely because a DIFFERENT, non-adjacent row became
+     selected"*. Mangrove byte-identical (`rail_thumb_over_fill()` is false there).
+     **Original:** **`thumb_ink` IS ONE `set_color` FOR EVERY RAIL, SELECTED OR NOT.** Named by item
      306 while fixing a different defect, and explicitly **not** the cause of that one —
      the lane retracted its own hypothesis after measuring (`on_band=[6]`: the failing
      rail WAS the selected one). So this is real, unmeasured, and independent. A rail
@@ -2244,7 +2276,37 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      on units; **this item is about them agreeing by CONSTRUCTION rather than by both remembering to
      call the same function.** **Routing:** production tier.
 
-327. 🚧 CLAIMED (worktree item-309-rails, production tier — bundled 309+327) **A `Range` SETTING LOSES ITS RAIL AT THE SHIPPED `window_rows = 31`.** Measured by item 317
+327. ⚠️ **STILL OPEN, AND THE PREMISE NEEDED THREE CORRECTIONS — measured 2026-08-08, no code
+     changed.** The defect is real but not where item 317 put it.
+     ⚠️ **(a) 317's SPECIFIC CLAIM DID NOT REPRODUCE.** At 1200×800 with the current `SETTINGS`
+     roster, Zoom's rail **is present** — via both the ordinary capture and `--screenshot-app`. The
+     reproducible failure is at **narrow width**, not the shipped default canvas.
+     ⚠️ **(b) THE LAW SWEEPS A STATE THE PRODUCT CANNOT REACH.** `settings_row_reach_law` includes
+     `workspace=false`, but `workspace_shape()` returns `Some(RailOverRows)` **unconditionally** for
+     `OverlayKind::Settings` (`overlay/workspace.rs:128`), so `overlay_workspace` is **always true**
+     in the real product. The cited panic comes from a fixture-only cell. Under the one **reachable**
+     state the defect still occurs, but with different numbers and a different mechanism.
+     ✅ **(c) THE MECHANISM IS TWO REGIMES, NOT ONE.** `overlay_right_shown` gates the **entire
+     accessory column together** — value text *and* rail — via `rowlayout::fits`. Moderate narrowing:
+     the picker stays faceted and `shape_faceted`'s own `fits()` fails. Severe narrowing (640
+     logical): **the facet strip ITSELF degrades away** (`geom.theme` flips false) and the flat
+     shaper's independent `fits()` fails by far more — `needed=480.44` against `right_px=186.68`,
+     short by **161.84px**.
+     🔴 **AND THE BOUNDARY IS NON-MONOTONIC, WHICH IS UNEXPLAINED.** Measured at
+     `world=Mangrove dpi=1 workspace=true`, PageWidthProse: rail **present** at 740–870 and
+     930–1200, **absent** at 640–720 **and again at 880–920**. A real, reproducible gap between two
+     present bands. The lane's hypothesis, undiagnosed: `name_px` is the widest label across **all**
+     visible rows, so another row's label crossing an elision or wrap threshold transiently widens
+     the column. **Diagnose this before designing the budget** — a fix tuned against a monotonic
+     boundary will not hold across a hole in the middle of it.
+     🔵 **THE PRODUCT QUESTION IS HANDED BACK WITH ITS NUMBERS, as the brief asked.** At the narrowest
+     reachable failure the column needs **480px against 319px available (161px short)**; at the
+     "diagonal cluster is merely tight" case, **412px against 366px (46px short)**. **Who yields
+     first — the row name, the value text, or the rail — and should the picker fall out of its
+     faceted/diagonal composition SOONER, before losing the whole accessory column rather than
+     after?** Nothing in `overlay_shape.rs`, `rowlayout::fits` or the diagonal-cluster budget was
+     touched. Captures: `gallery/item-309/327-*`.
+     **Original:** **A `Range` SETTING LOSES ITS RAIL AT THE SHIPPED `window_rows = 31`.** Measured by item 317
      at 1200×800: the Settings card draws **22 candidate display lines in a 718.8px card**, the
      selected Zoom row **is planned and drawn** (`sel_row = 6 < lines = 22`), and **`overlay_rails`
      emits no rail for it** — the wider drawn set grows the diagonal cluster's label/value columns
@@ -2381,6 +2443,36 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      (keep them in sync)"* and it is now on **eight**. The doc is stale, not the beacon.
      **Routing:** production tier — a doc correction, ideally with the count derived rather than
      restated.
+
+334. 🔴 **`--screenshot-app` SILENTLY IGNORES `--capture-size` AND `--capture-dpi`.** Found by item
+     327's lane when the width it needed to measure was unreachable through that door.
+     `Mode::ScreenshotApp`'s `LiveAppSpec` carries **no `canvas`/`dpi` fields**, so the canvas is
+     hard-coded to **1200×800** and both flags are accepted and discarded without a word.
+     ⚠️ **A flag that is accepted and ignored is worse than one that is refused** — the lane spent a
+     round believing it had measured at 640 when it had not, and any future live-`App` claim about
+     geometry is suspect until this is fixed. This is the "a check runs in one configuration, and
+     that configuration is itself an untested hypothesis" failure with the configuration silently
+     overridden.
+     ✅ **Build:** carry canvas and dpi on `LiveAppSpec` and honour them, **or** refuse the
+     combination loudly. Prefer honouring: the live-`App` door is the only one that reaches
+     transitions the ordinary path classifies Unsupported, so it needs the geometry axis most.
+     ⚠️ **`docs/harness-reach.md` does not record this gap** — it must, whichever way the fix goes.
+     ⚠️ Note the flag roster now declares operands as data with laws behind it, so express any
+     refusal there rather than as a special case. **Routing:** production tier.
+
+335. **`settings_row_reach_law` SWEEPS A STATE `OverlayKind::Settings` CANNOT REACH.** Found by item
+     327's lane. The law's axis includes `workspace=false`, while `workspace_shape()` returns
+     `Some(RailOverRows)` **unconditionally** for that kind, so `overlay_workspace` is always true in
+     the product. **The cell that produced 327's cited panic is fixture-only.**
+     ⚠️ **This is the mirror of the enrolment failures already recorded** — those swept nothing;
+     this sweeps something that does not exist, which is just as misleading because **it produces
+     panics about impossible states and sends a lane chasing them.** A law's axis must be the
+     product's reachable state space.
+     ✅ **Build:** derive the swept states from the owner (`workspace_shape()`) rather than
+     enumerating a boolean, so an unreachable combination cannot be graded. ⚠️ **Check the
+     neighbours** — if this law enumerates one boolean it does not own, others likely do too, and the
+     fix is the derivation rather than deleting one cell. **Verify:** the law still fails on 327's
+     real, reachable defect at narrow width after the axis is corrected. **Routing:** production tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
