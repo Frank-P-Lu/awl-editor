@@ -16,8 +16,8 @@
 //! once per pipeline"). This module holds that rule one level up, where the
 //! cost actually lives. `TextPipeline::new` builds 8 shader modules and ~33
 //! render pipelines, and the LIVE APP pays that ONCE PER LAUNCH while the test
-//! suite paid it 795 times per process: 1675 `background.wgsl` translations —
-//! 1346 lines of WGSL — and roughly 26 000 render pipelines against ONE
+//! suite paid it 795 times per process: 1675 `background.wgsl` translations
+//! and roughly 26 000 render pipelines against ONE
 //! device, measured on the dev host at 44 ms per `TextPipeline::new`, 39.9 s of
 //! a single `cargo test --bin awl` run. On hosted macOS the Metal stack is
 //! virtualised and the runner has three vCPUs, and that same churn is where the

@@ -410,7 +410,7 @@ pub const FONT_DATA_PITCH: facepitch::Pitch = facepitch::Pitch::Mono;
 /// [`SYMBOL_FAMILY`] and only ever named via per-run `AttrsList` family spans
 /// ([`spans::add_symbol_spans`]) over the specific symbol codepoints, so every
 /// theme's display face is untouched while those glyphs render (instead of falling
-/// back to TOFU) in all 14 worlds. The same family also shapes the command-palette
+/// back to TOFU) in every world. The same family also shapes the command-palette
 /// glyph chords and the markdown rule/end ornaments. Its cmap is a superset of the
 /// retired `AwlSymbols.ttf` (parity confirmed — identical 18 codepoints).
 pub const FONT_SYMBOLS: &[u8] = include_bytes!("../assets/fonts/AwlMarks.ttf");
@@ -800,7 +800,7 @@ pub const FONT_ZH_KO_FACES: &[&[u8]] = &[
 /// by what the font actually provides"), a TW-only font is a Traditional face —
 /// so it would belong to zh-Hant. But zh-Hant needs Big5-class coverage (~13k
 /// chars), which this round AND the codebase EXPLICITLY BANK (see `CJK_ZH_HANT`);
-/// and a single rounded Traditional floor imposed across all 14 worlds would
+/// and a single rounded Traditional floor imposed across every world would
 /// break the per-world character-matching the design is built on (a serif world
 /// wants a mincho-style Traditional face, not a rounded one), while a per-world
 /// zh-Hant split is itself out of scope. So — mirroring the KingHwa OldSong

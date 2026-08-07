@@ -20,8 +20,8 @@
 //! workspace LIFECYCLE (a place you stay in, with a detail stage and a Back),
 //! and both Settings and Version History are sustained surfaces.
 //! `workspace_shape` says a kind is PRESENTED as a relocated workspace and
-//! which shape. Today Settings is the only relocated workspace; History remains
-//! a contextual card until it has a complete workspace presentation.
+//! which shape. WHICH kinds those are is that match's own answer, never a list
+//! here: it is wildcard-free, so the set cannot change without a decision.
 //!
 //! # One shape is not enough
 //!

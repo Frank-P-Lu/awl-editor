@@ -771,7 +771,6 @@ fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
 //     deckle tint. Paperbark's ground.
 //   * FIBRES (weave 1) — lanes indexed on screen y, drawn as thin translucent
 //     STROKES with seeded dropouts, plus a sparser diagonal vein family.
-//     Reusable, currently unassigned.
 //
 // DIALS: params.x = the lane pitch (`period_px`), params.y = the wander
 // amplitude (`wander_px`), params.z = the ONE coverage/contrast multiplier

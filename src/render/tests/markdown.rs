@@ -1016,8 +1016,10 @@ fn notice_parked_offscreen_when_empty() {
     // The CALM NOTICE mirrors the ViewState field and defaults EMPTY — the
     // empty string routes through the shared corner-label body's park-off-
     // screen arm (the same gate the wordcount/gutter byte-identity rides),
-    // so every capture (which can never carry a notice — autosave is
-    // live-only) draws nothing. A live notice lands in the mirror verbatim
+    // so a capture that raises no notice draws nothing. (A capture CAN carry
+    // one — `CaptureOpts::notice` photographs the live App's toast — so this
+    // is the empty case, not an impossible one.) A live notice lands in the
+    // mirror verbatim
     // and clears back to empty when the view drops it.
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping notice_parked_offscreen_when_empty: no wgpu adapter");

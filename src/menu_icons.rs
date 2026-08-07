@@ -20,7 +20,8 @@
 //!
 //! **The icons themselves (TASTE CALL, logged):** Apple's own stock apps keep
 //! menus text-mostly — icons are the exception, not the rule — so this is a
-//! deliberately SMALL, minimal set: File → New document + Save; View → Switch theme.
+//! deliberately SMALL, minimal set — the ids [`symbol_for`] names below, and no
+//! others; `menu.rs`'s own icon-flag law checks that roster against the menu.
 //! Each renders as a real macOS **SF Symbol** (the TextEdit/Zed look) via
 //! `mac_chrome::render_symbol_rgba` — [`symbol_for`] names the symbol per id
 //! (`square.and.pencil` / `square.and.arrow.down` / `paintpalette`). The symbol is

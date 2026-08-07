@@ -456,10 +456,14 @@ pub struct App {
     /// record, with their sampling anchors and their unflushed-changes
     /// stamps. The nine former root fields are private to that owner, so a
     /// recording path cannot forget its dirty stamp and a tracking hook
-    /// cannot forget the privacy gate. Lives ONLY on the live `App` — the
-    /// headless capture never constructs one, so `stats.toml`/`streaks.toml`
-    /// are untouchable there (tripwire:
-    /// `headless_replay_never_touches_the_stats_file`).
+    /// cannot forget the privacy gate. Every writer lives on the `App`, and the
+    /// two headless doors are protected DIFFERENTLY — worth saying, because only
+    /// one of them lacks an App. A `--keys`/`--screenshot` replay never builds one
+    /// (tripwire: `headless_replay_never_touches_the_stats_file`), while
+    /// `--screenshot-app` builds a REAL App with a real ledger and is contained
+    /// instead by the seeded sandbox `args::parse_args` installs before the config
+    /// loads (`scenario::install_hermetic_fs`) — so the `stats.toml`/`streaks.toml`
+    /// it writes are the sandbox's, never the user's.
     #[cfg(not(target_arch = "wasm32"))]
     usage: usage::UsageLedger,
     /// SINGLE-INSTANCE DAEMON (native only, and compiled out under `mas` — see
@@ -621,8 +625,9 @@ impl App {
             // THE LOCAL USAGE LEDGER: load both persisted records through the
             // same `FileSystem` seam the recent-* MRUs use (each degrades to
             // an empty store on a fresh install), and start the active-writing
-            // session clock from the one time owner. Only ever reached on the
-            // live `App` — never the headless capture.
+            // session clock from the one time owner. Reached by EVERY App,
+            // `--screenshot-app`'s included — that door's writes land in its
+            // hermetic sandbox rather than nowhere.
             #[cfg(not(target_arch = "wasm32"))]
             usage: usage::UsageLedger::load(stats_origin),
             #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]

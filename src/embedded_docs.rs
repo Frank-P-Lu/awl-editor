@@ -71,8 +71,9 @@ pub const PROSE_MD: &str = include_str!("../samples/prose.md");
 pub const JAPANESE_MD: &str = include_str!("../samples/japanese.md");
 
 /// `assets/fonts/LICENSES.md` — the bundled-font license inventory (OFL).
-// The PDF-export module (the only consumer) is native-only, so these carry its
-// `cfg(all(test, not(wasm32)))` gate to stay warning-clean in the wasm test build.
+// Every consumer is native-only (PDF export, and the licence-inventory law), so
+// these carry a `cfg(all(test, not(wasm32)))` gate to stay warning-clean in the
+// wasm test build.
 #[cfg(all(test, not(target_arch = "wasm32")))]
 pub const FONT_LICENSES_MD: &str = include_str!("../assets/fonts/LICENSES.md");
 

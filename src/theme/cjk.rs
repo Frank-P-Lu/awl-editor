@@ -177,9 +177,9 @@ pub const CJK_ZH_HANS_SANS: &[&str] = &["Noto Sans SC", "PingFang SC", "Noto San
 /// character on those two worlds, then falls back through the same Noto Sans
 /// SC floor + system trailing candidates as [`CJK_ZH_HANS_SANS`] (Mopoke/
 /// Quokka are both sans/mono worlds) if WenKai is ever unavailable. A TASTE
-/// CALL (logged): this pairing anticipates the (separately landed, not yet
-/// merged into this branch) "JP world-faces round"'s Klee One ↔ Mopoke/Quokka
-/// assignment — see CLAUDE.md's Chinese-round report for the exact status.
+/// CALL (logged): this pairing matches the Klee One ↔ Mopoke/Quokka display
+/// assignment those two worlds already carry, so ja and zh-Hans read as one
+/// hand there.
 pub const CJK_ZH_HANS_KLEE: &[&str] = &[
     "LXGW WenKai",
     "Noto Sans SC",
