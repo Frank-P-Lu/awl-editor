@@ -86,13 +86,12 @@ fn wide_capture_is_byte_identical_to_the_old_cap() {
 
 #[test]
 fn page_off_is_edge_to_edge_unaffected() {
-    assert!((column_left_for(1200.0, CW, false, 80, 1.0) - NONPAGE_INSET.px(1.0)).abs() < 1e-3);
-    assert!(
-        (column_width_for(1200.0, CW, false, 80, 1.0) - (1200.0 - 2.0 * NONPAGE_INSET.px(1.0)))
-            .abs()
-            < 1e-3
-    );
-    assert!(std::hint::black_box(NONPAGE_INSET.px(1.0)) > PAGE_MIN_PAD.px(1.0));
+    // One resolution of the authored inset at dpi 1, so all three claims read
+    // the same number the newtype's own door resolves.
+    let inset = NONPAGE_INSET.px(1.0);
+    assert!((column_left_for(1200.0, CW, false, 80, 1.0) - inset).abs() < 1e-3);
+    assert!((column_width_for(1200.0, CW, false, 80, 1.0) - (1200.0 - 2.0 * inset)).abs() < 1e-3);
+    assert!(std::hint::black_box(inset) > PAGE_MIN_PAD.px(1.0));
 }
 
 fn outline_pref_px() -> f32 {
