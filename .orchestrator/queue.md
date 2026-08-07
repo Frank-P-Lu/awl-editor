@@ -46,9 +46,19 @@ is *why the geometry starved there*, not why the assertion tripped.
 - ✅ Both conventions failed inside the **same** job on the **same** host, so it is not
   convention-specific and not a keymap thing.
 
-🔵 **THE LIVE HYPOTHESIS, UNCONFIRMED:** the starved quantities are **metric-derived** (row
-height, card inset), so the most plausible cause is that a **font or adapter metric differs
-on CI's Ubuntu host**, making a tight 900×460 canvas fall one row short there and not here.
+🔵 **THE LIVE HYPOTHESIS, NARROWED BY A MEASUREMENT — and the measurement rules out the
+obvious version.** I instrumented the law locally and printed `candidate_rows` for every
+cell: at the failing shape (`Grouped`, `bars`, 900×460) it plans **4**, and **4 is the
+minimum across all 4×2×N cells**. CI got **0**. ⚠️ **So the gap is FOUR ROWS, not one — this
+is not a rounding or sub-pixel metric drift.** Something makes `overlay_lh` (or the grouped
+family's chrome budget) **materially larger** on that host.
+
+**That points at FACE RESOLUTION rather than metric precision:** a chrome face resolving to a
+different fallback on Ubuntu would change the line height by a large factor, and the tight
+canvas is described in its own comment as *"a short one that clamps the grouped family's own
+row cap"* — i.e. deliberately the least slack in the sweep. **Check what face CI actually
+resolves for the overlay chrome before assuming anything about adapters.** The probe was
+reverted; re-add one `eprintln!` of `plan.candidate_rows()` to repeat it.
 ⚠️ **This is exactly the axis CLAUDE.md says no local gate covers, and it has appeared as
 GEOMETRY rather than as GPU counters — worth adding to that tripwire once confirmed.**
 
