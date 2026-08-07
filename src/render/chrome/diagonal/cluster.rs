@@ -182,7 +182,7 @@ impl DiagonalClusterRail {
         self.span
     }
 
-    pub(super) fn spine_x(self, display: usize) -> f32 {
+    pub(in crate::render) fn spine_x(self, display: usize) -> f32 {
         self.spine_at(display as f32)
     }
 

@@ -324,6 +324,9 @@ pub(in crate::render) use overlay::{
 // geometry/hit-test owner is `overlay`, this turns that settled geometry into GPU
 // work. A cohesive physical carve, byte-identical pixels — see the file's own doc.
 mod overlay_draw;
+/// WHAT THE SUMMONED CARD ACTUALLY DRAWS — the boxes its own surfaces occupy, as
+/// distinct from the layout box it is placed in.
+mod overlay_ink;
 mod overlay_rows;
 // The `Rules` composition entire, in one file: its lengths, and the one owner
 // (`rules_ink`) both the picker rows and the workspace rail come out of.

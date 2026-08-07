@@ -22,8 +22,12 @@
 //! carries it all live in [`extent`]; this file is the GPU plumbing both arms share.
 
 mod extent;
+/// THE FROST'S BOX NARROWED TO THE SURFACES THE CARD ACTUALLY DREW — the un-sheared
+/// frame's arithmetic, and why the card's LAYOUT box was never the frost's subject.
+mod narrow;
 
 pub use extent::{BlurSurface, Footprint, Frost, footprint_box, footprint_frost_applies};
+pub(crate) use narrow::footprint_narrow;
 use extent::{
     DOWNSAMPLE, U, bytes_of, capped_doc_size, downsample_for, footprint_bound,
     footprint_feather_px, scissor_px,
