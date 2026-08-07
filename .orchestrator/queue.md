@@ -916,7 +916,8 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      world's users are on Retina by default — the strip's mark is the style's own
      selection vocabulary, and a half-weight rule is a half-legible affordance.
 
-293. **The overlay footer crowds the last row.** The hint line sits hard against
+293. 🟡 IN PROGRESS — claude, branch `claude/item-293-footer-separator`.
+     **The overlay footer crowds the last row.** The hint line sits hard against
      the last candidate row. `OverlayGeom::hint_rows` documents itself as
      `footer.len() + 1` — "a blank separator line" — so a separator is already
      specified and none is drawn. Establish whether it is not computed, not
@@ -1200,7 +1201,8 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      tokens themselves may now be wrong in the other direction. Read that risk before
      touching a token. **Routing:** deep tier, then the user.
 
-307. **THE GUTTER REPORTS `visible: false` AT DPI 2 WHERE IT IS VISIBLE AT DPI 1,
+307. 🟡 IN PROGRESS — claude, branch `claude/item-307-gutter-dpi`.
+     **THE GUTTER REPORTS `visible: false` AT DPI 2 WHERE IT IS VISIBLE AT DPI 1,
      at the same `--measure`.** Found by item 242's residual lane and **confirmed
      pre-existing** by stashing its own change, rebuilding and reproducing — so it is
      neither introduced nor fixed by that work, and it was flagged rather than chased.
@@ -1263,7 +1265,8 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      and analogy is how three false premises reached this board this week.
      **Routing:** production tier.
 
-312. **THE FOOTPRINT FROST'S EDGE IS A HARD RECTANGLE, AND UNDER A DIAGONAL LIST IT
+312. 🟡 IN PROGRESS — claude, branch `claude/item-312-feathered-frost`.
+     **THE FOOTPRINT FROST'S EDGE IS A HARD RECTANGLE, AND UNDER A DIAGONAL LIST IT
      WANTS TO BE A FEATHERED PARALLELOGRAM.** User-reported against Mangrove's theme
      picker, with a screenshot: the frosted patch stops at a knife edge, and the world
      *already ships* a soft-edged version of the same idea a few hundred pixels away.
