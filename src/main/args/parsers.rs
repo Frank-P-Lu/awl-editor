@@ -108,14 +108,19 @@ pub(super) fn parse_measure(s: &str) -> Result<usize> {
 /// growing this precedence — as `--screenshot-app` just did — costs this
 /// function a branch, not `parse_args` a clippy exception. The precedence
 /// mirrors the `Mode` construction below it: held > timeline > motion >
-/// screenshot-app > plain screenshot; no output path at all means the
-/// windowed editor.
+/// screenshot-app > screenshot-frames > plain screenshot; no output path at
+/// all means the windowed editor. (Every one of these flags also sets `out`
+/// and is checked for conflicts by `ensure_single_capture_mode`, so in
+/// practice at most one of `held`/`timeline`/`motion`/`screenshot_app`/
+/// `screenshot_frames` is ever true — this order only documents which arm a
+/// future combination would fall into.)
 pub(super) fn resolve_capture_kind(
     has_out: bool,
     held: bool,
     timeline: bool,
     motion: bool,
     screenshot_app: bool,
+    screenshot_frames: bool,
 ) -> CaptureKind {
     if !has_out {
         CaptureKind::Windowed
@@ -127,6 +132,8 @@ pub(super) fn resolve_capture_kind(
         CaptureKind::Motion
     } else if screenshot_app {
         CaptureKind::ScreenshotApp
+    } else if screenshot_frames {
+        CaptureKind::ScreenshotFrames
     } else {
         CaptureKind::Screenshot
     }
@@ -151,6 +158,14 @@ pub(super) enum CaptureKind {
     /// `LiveAppSpec` carries no slot the latter could land in — see
     /// `unused_hooks` below.
     ScreenshotApp,
+    /// `--screenshot-frames`: the virtual-clock frame-loop capture. It threads
+    /// canvas/dpi onto its own `Mode::ScreenshotFrames` fields (`capture::
+    /// capture_frames` reads them off the `CaptureOpts` it is handed), but the
+    /// document is a STATIONARY backdrop loaded straight off disk — there is
+    /// no `--keys` replay, no project-root resolution, and no per-frame render
+    /// override — so everything else this struct tracks is refused rather than
+    /// silently dropped. See `unused_hooks` below.
+    ScreenshotFrames,
 }
 
 /// Which verification-hook flags were SUPPLIED on the command line (each bool =
@@ -179,15 +194,23 @@ pub(super) struct SuppliedHooks {
 /// `CaptureOpts` and reach ONLY the plain `--screenshot` mode — `ScreenshotApp`
 /// deliberately excludes them too, because the live `App` owns that state via
 /// real driving and an override would misrepresent the editor being
-/// photographed (see `CaptureKind::ScreenshotApp`'s own doc); `--capture-size`/
-/// `--capture-dpi` reach screenshot/timeline/held/screenshot-app (every mode
-/// that renders a real frame — not motion/windowed); `--root` reaches every
-/// mode but motion; `--workspace` reaches screenshot/screenshot-app/windowed
-/// (`LiveAppSpec` carries it); `--default-folder` reaches only screenshot +
-/// the windowed editor (`LiveAppSpec` has no slot for it). An empty result
-/// means every supplied hook is honored. (Process-global flags —
+/// photographed (see `CaptureKind::ScreenshotApp`'s own doc), and
+/// `ScreenshotFrames` excludes them because its document is a stationary
+/// backdrop, not something a replay or an override poses; `--capture-size`/
+/// `--capture-dpi` reach screenshot/timeline/held/screenshot-app/
+/// screenshot-frames (every mode that renders a real frame — not
+/// motion/windowed); `--root` reaches every mode but motion and
+/// screenshot-frames (the latter loads its backdrop straight off disk, with no
+/// project resolution at all); `--workspace` reaches
+/// screenshot/screenshot-app/windowed (`LiveAppSpec` carries it);
+/// `--default-folder` reaches only screenshot + the windowed editor
+/// (`LiveAppSpec` has no slot for it, and `ScreenshotFrames` has neither slot
+/// nor a resolved root to hang one off of). An empty result means every
+/// supplied hook is honored. (Process-global flags —
 /// `--theme`/`--caret-mode`/`--measure`/`--page`/`--debug` — compose with
-/// every mode and so are never "unused".)
+/// every mode and so are never "unused". `--keys` is refused for
+/// `ScreenshotFrames` by its own dedicated check in `parse_args`, not through
+/// this table — see the call site.)
 pub(super) fn unused_hooks(kind: CaptureKind, h: &SuppliedHooks) -> Vec<&'static str> {
     let mut u = Vec::new();
     // Per-frame render hooks: only the plain `--screenshot` mode threads `CaptureOpts`.
@@ -208,13 +231,14 @@ pub(super) fn unused_hooks(kind: CaptureKind, h: &SuppliedHooks) -> Vec<&'static
     }
     // Canvas size / dpi: every mode that renders a real frame from its own
     // `CaptureOpts`-shaped canvas carries them (screenshot, timeline, held,
-    // and the live-`App` door); motion + windowed don't.
+    // the live-`App` door, and the frame-loop door); motion + windowed don't.
     let canvas_ok = matches!(
         kind,
         CaptureKind::Screenshot
             | CaptureKind::Timeline
             | CaptureKind::Held
             | CaptureKind::ScreenshotApp
+            | CaptureKind::ScreenshotFrames
     );
     if !canvas_ok {
         if h.capture_size {
@@ -224,8 +248,9 @@ pub(super) fn unused_hooks(kind: CaptureKind, h: &SuppliedHooks) -> Vec<&'static
             u.push("--capture-dpi");
         }
     }
-    // Project root: every mode but motion threads it (windowed scopes its project).
-    if kind == CaptureKind::Motion && h.root {
+    // Project root: every mode but motion and screenshot-frames threads it
+    // (windowed scopes its project; screenshot-frames resolves none at all).
+    if matches!(kind, CaptureKind::Motion | CaptureKind::ScreenshotFrames) && h.root {
         u.push("--root");
     }
     // Workspace: screenshot, the windowed editor, and the live-`App` door

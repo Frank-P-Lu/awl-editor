@@ -881,9 +881,16 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
             file,
             frames,
             step_ms,
+            canvas,
+            dpi,
         } => {
             let buffer = load_buffer(&file);
-            capture::capture_frames(&out, &buffer, frames, step_ms, &CaptureOpts::default())?;
+            let opts = CaptureOpts {
+                canvas,
+                dpi,
+                ..CaptureOpts::default()
+            };
+            capture::capture_frames(&out, &buffer, frames, step_ms, &opts)?;
             let stem = out
                 .file_stem()
                 .map(|s| s.to_string_lossy().to_string())

@@ -117,6 +117,13 @@ pub(crate) enum Mode {
         file: Option<PathBuf>,
         frames: u32,
         step_ms: u64,
+        /// `--capture-size` PHYSICAL canvas dims for the rendered frames (None =
+        /// the byte-stable default 1200x800). Honored for real —
+        /// `capture::capture_frames` reads it off the `CaptureOpts` it is handed.
+        canvas: Option<(u32, u32)>,
+        /// `--capture-dpi` renderer scale factor (None = 1.0). Same scope note
+        /// as `canvas`.
+        dpi: Option<f32>,
     },
     /// THE LIVE-`App` CAPTURE (`--screenshot-app OUT.png [file]`): the
     /// only capture door that can photograph a live-`App`-only transition. Hermetic

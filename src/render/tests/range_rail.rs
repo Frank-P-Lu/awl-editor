@@ -5,7 +5,9 @@
 //! claims made by arithmetic over the rendered pixels, never by state.
 
 use super::super::*;
-use super::{headless_dqp, pixeldiff, view};
+use super::{
+    SETTINGS_VIEW_PARKED_WINDOW_ROWS, headless_dqp, pixeldiff, settings_overlay_view, view,
+};
 use crate::overlay::{OverlayKind, OverlayState};
 use crate::render::rowlayout;
 
@@ -64,35 +66,13 @@ fn settings_state_for(id: crate::settings::SettingId, value: f32) -> OverlayStat
     ov
 }
 
-/// Fold a Settings overlay into a `ViewState` ALMOST the way `App::sync_view` does —
-/// see the `overlay_window_rows` note at the end of the body for the one field that
-/// deliberately still diverges, and why flipping it is a product call.
+/// Fold a Settings overlay into a `ViewState` the way `App::sync_view` does,
+/// with the ONE deliberate divergence [`settings_overlay_view`]'s sibling
+/// constant [`SETTINGS_VIEW_PARKED_WINDOW_ROWS`] documents — the shared owner
+/// both this file and `settings_row_reach_law.rs` now call, so there is one
+/// fixture and one parked note instead of two byte-identical copies of each.
 fn settings_view(ov: &OverlayState) -> ViewState {
-    let mut v = view("hello\n", 0, 0);
-    v.overlay_active = true;
-    v.overlay_title = OverlayKind::Settings.title();
-    v.overlay_items = ov.item_strings();
-    v.overlay_bindings = ov.item_bindings();
-    v.overlay_ranges = ov.item_range_fracs();
-    v.overlay_lens = ov.lens_strip();
-    v.overlay_sections = ov.item_sections();
-    v.overlay_selected = ov.selected;
-    v.overlay_scroll = ov.scroll;
-    // ⚠️ `overlay_window_rows` IS DELIBERATELY LEFT AT `ViewState::base()`'s DEFAULT
-    // OF 12, AND THAT IS NOT WHAT THE PRODUCT DOES. `sync_view` sets it from
-    // `ov.window_rows()`, which for `OverlayKind::Settings` is `SETTINGS.len()` = 31,
-    // so every law in this file grades a row count the live card does not use.
-    // Setting it — the honest fold — turns this file's two pixel laws RED on the dev
-    // host at the macOS default, and the cause is downstream of the fixture. Measured
-    // at 1200x800 with `window_rows = 31`: 22 candidate display lines in a 718.8px
-    // card, the selected Zoom row IS planned and drawn (`sel_row = 6 < lines = 22`),
-    // and `overlay_rails` still emits NO rail for it — the wider drawn set grows the
-    // diagonal cluster's label/value columns until `rail_geom` cannot seat a rail in
-    // what is left. That is the LIVE configuration, so the missing rail is a product
-    // question about the accessory cluster's width budget, not a test question. It is
-    // handed back rather than papered over; flipping this line without the product fix
-    // only converts a hidden defect into a red suite.
-    v
+    settings_overlay_view(ov, SETTINGS_VIEW_PARKED_WINDOW_ROWS)
 }
 
 /// PURE GEOMETRY (no GPU) — the rail's own arithmetic: the track spans exactly
