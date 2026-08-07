@@ -14,7 +14,7 @@
 > open-vs-done from the TREE and `git log --grep`, never from what this file says
 > about itself.**
 
-## ✅ CI RED — FIXED 2026-08-07 (`196ad4ee`, merged `02d0ea23`). Kept because the LESSON is worth more than the fix.
+## ✅ CI RED — FIXED AND **CONFIRMED GREEN ON CI** 2026-08-07 (`196ad4ee`, merged `02d0ea23`; `linux (build + test)` **success** on `23783c12`). Kept because the LESSON is worth more than the fix.
 
 **THE CAUSE: `menubar::MENU_BAR_ON` initialises to `false` on macOS and `true` on every other
 platform.** The drawn bar takes **35.6px of vertical reserve** off every card's height budget
