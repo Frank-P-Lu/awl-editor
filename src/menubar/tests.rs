@@ -8,21 +8,20 @@
 use super::*;
 
 /// `bar_height` IS DPI-INVARIANT AT MATCHED LOGICAL GEOMETRY, WITH A PRESENCE
-/// FLOOR. The pure half of item 321 (the sibling live-pipeline half — whether
-/// `TextPipeline::menubar_reserve` / the card's height budget move together with
-/// this fn — needs a `TextPipeline` from `src/render/tests/mod.rs::headless_
-/// pipeline`, which sits in a directory a concurrent census lane holds for this
-/// item's whole run; see the landing note for that block).
+/// FLOOR. This is the PURE half — the row-count-style arithmetic, swept without a
+/// device. The live-pipeline half (whether `TextPipeline::menubar_reserve` / the
+/// card's height budget move together with this fn) needs a `TextPipeline` from
+/// `src/render/tests/mod.rs::headless_pipeline`, which this module does not reach.
 ///
 /// `line_height` here stands in for the caller's already-scaled
 /// `Metrics::line_height`; sweeping `scale` while holding the LOGICAL line height
 /// fixed and dividing the pad term back out proves `BAR_PAD_Y` moves WITH it
-/// rather than getting added in raw. BOTH SIDES, the shape item 314's law used:
-/// (1) the device-px answer must actually MOVE as scale changes — ruling out a
-/// scale-blind fn that would trivially look invariant — and (2) the recovered
-/// LOGICAL answer must be identical at every tier AND equal to the authored
-/// `line_height + 2*BAR_PAD_Y.0` — a presence floor, since `Logical(0.0)` is
-/// perfectly DPI-invariant too and would pass side (2) alone.
+/// rather than getting added in raw. BOTH SIDES: (1) the device-px answer must
+/// actually MOVE as scale changes — ruling out a scale-blind fn that would
+/// trivially look invariant — and (2) the recovered LOGICAL answer must be
+/// identical at every tier AND equal to the authored `line_height +
+/// 2*BAR_PAD_Y.0` — a presence floor, since `Logical(0.0)` is perfectly
+/// DPI-invariant too and would pass side (2) alone.
 #[test]
 #[allow(clippy::assertions_on_constants)] // the constant IS the subject under test
 fn bar_height_is_dpi_invariant_at_matched_logical_geometry_with_a_presence_floor() {
