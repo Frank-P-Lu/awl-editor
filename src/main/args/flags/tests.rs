@@ -372,3 +372,29 @@ fn operand_usage_brackets_exactly_the_optional_operands() {
         }
     }
 }
+
+/// The three flags `fn main` handles before the parser are NOT roster rows, and
+/// the parser refuses them like any other unknown token. Both halves matter: the
+/// first says the boundary is where [`PRE_PARSE_FLAGS`] claims, and the second
+/// says nothing in the roster has quietly grown to overlap it — which is what
+/// would happen if someone added `--fault-write-loop` here without deleting the
+/// scan in `main`, leaving two parsers for one flag.
+#[test]
+fn the_flags_main_intercepts_before_the_parser_are_not_roster_rows() {
+    for f in PRE_PARSE_FLAGS {
+        assert!(
+            lookup(f).is_none(),
+            "`{f}` is both a roster row and one of the flags `fn main` scans for before \
+             `parse_args` — one flag with two parsers; delete one of them"
+        );
+    }
+    // The negative half: this list is not a place to park a real flag, so every
+    // entry must still look like the hidden diagnostics it names.
+    for f in PRE_PARSE_FLAGS {
+        assert!(f.starts_with("--"), "`{f}` is not a flag spelling");
+        assert!(
+            FLAGS.iter().all(|g| !g.names.contains(f)),
+            "`{f}` appears among a roster row's spellings"
+        );
+    }
+}

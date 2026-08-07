@@ -138,6 +138,20 @@ mod roster;
 
 pub(crate) use roster::{FLAGS, FlagId};
 
+/// THE ROSTER'S BOUNDARY, stated rather than left silent. `fn main` intercepts
+/// these three hidden diagnostics with a bare `env::args()` scan and returns
+/// BEFORE [`super::parse_args`] runs, so they never reach a roster row and a row
+/// could not serve them: each one exits the process, and two exist only on
+/// macOS. They stay out of the roster deliberately — but a flag added the same
+/// way and ALSO given a roster row would leave one flag with two parsers, which
+/// is what the roster laws' pre-parse check exists to notice.
+#[cfg(test)]
+pub(crate) const PRE_PARSE_FLAGS: &[&str] = &[
+    "--print-menu-roster",
+    "--dump-menu-icon",
+    "--fault-write-loop",
+];
+
 /// The flag a command-line token names, or `None` for anything that is not a
 /// flag spelling. THE ONE DOOR: `super::parse_args` never compares an argument
 /// against a literal, so a flag the roster does not carry cannot be parsed and a
