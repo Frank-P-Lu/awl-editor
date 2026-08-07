@@ -999,11 +999,11 @@ fn paperbark_dials_are_in_bounds_and_the_world_is_static() {
 }
 
 // ---------------------------------------------------------------------------
-// ITEM 118 — Galah's ground density steps off its shipped floor, and the
-// grading law is the DIAL, not the world: every world whose ground carries
-// the shared `density` field must show the dial doing real, material work,
-// so a future world whose density silently disconnects from the shader (or
-// a reverted Galah) fails here BY NAME rather than at a taste audit.
+// The grading law for a ground's `density` dial is the DIAL, not the world:
+// every world whose ground carries the shared `density` field must show the
+// dial doing real, material work, so a future world whose density silently
+// disconnects from the shader (or a reverted world) fails here BY NAME
+// rather than at a taste audit.
 // ---------------------------------------------------------------------------
 
 /// The density-bearing roster, DERIVED from `Background::density()`'s own
@@ -1140,7 +1140,15 @@ fn density_bearing_worlds_show_a_material_gap_between_full_and_half_density() {
     );
     for (name, bg) in enrolled {
         let full = mean_ink(&mark_field(&device, &queue, bg, w, h, cl, cw));
-        let half = mean_ink(&mark_field(&device, &queue, with_half_density(bg), w, h, cl, cw));
+        let half = mean_ink(&mark_field(
+            &device,
+            &queue,
+            with_half_density(bg),
+            w,
+            h,
+            cl,
+            cw,
+        ));
         assert!(
             full > 0.0,
             "{name}: shipped density draws NO material at all (mean ink {full})"
@@ -1165,7 +1173,7 @@ fn material_gap_check_fails_when_the_dial_does_not_move_proving_it_is_non_vacuou
     let full = 0.115_f64; // Galah's own shipped mean, item 158's probe.
     let half = full; // a degenerate "dial" that does not respond to density at all.
     assert!(
-        !(full > half * 1.3),
+        full <= half * 1.3,
         "an inert dial (full == half) must NOT pass the material-gap check"
     );
 }

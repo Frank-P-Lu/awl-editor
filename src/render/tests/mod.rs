@@ -91,9 +91,9 @@ mod hybrid_band_snap;
 mod images;
 mod layout_oracle;
 mod list_surfaces;
-/// ITEM 118 — the drift anchor: every world's ground data snapshotted, so a
-/// future ground change fails this BY NAME instead of leaving the loudness
-/// map's score silently stale (the failure mode item 258 left Mulga in).
+/// The idle-loudness map's drift anchor: every world's ground data
+/// snapshotted, so a future ground change fails this BY NAME instead of
+/// leaving `docs/loudness-map.md`'s score for that world silently stale.
 mod loudness_map_item118;
 mod magpie_bands_item260;
 mod markdown;
