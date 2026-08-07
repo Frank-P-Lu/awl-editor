@@ -171,6 +171,20 @@ well as here — **this item has already been answered twice by the user because
 decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
+- 🔵 **`--help` REALIGNED BY 7 WHITESPACE-ONLY LINES (item 273 residual 1) — kept, and one
+  function to revert.** Generating `--help` from the roster meant picking one padding rule. Today's
+  column is **eyeballed per line** (22 with six exceptions, 40 with two); the rule now is "pad to
+  the column, else two spaces". **Order, grouping, wording and the documented flag set are
+  unchanged** — the only differences are 7 lines' column positions. I kept it because a per-line
+  fudge table is data existing solely to reproduce an inconsistency, but **it is your text and it is
+  one `line()` function to put back.**
+  ⚠️ **One line changed in FACT, not whitespace, and that one I would not revert:** `--measure` said
+  *"default 80"* and the value is **70 for prose, 100 for code**.
+- 🔵 **`Section::Cli`'s PLACEMENT IN THE REFERENCE IS A TASTE CALL (item 273 residual 1).**
+  "Command line" is appended **last, after Markdown**, with three sub-tables — Capture modes (7),
+  Options (31), Unlisted flags (23). The section is cheap to move and the "Unlisted flags" caption is
+  equally open. Rendered and clicked at `#command-line`: 20 nav links, **0 dangling**, `<h2>` styles
+  identically to its siblings, no horizontal overflow. `gallery/item-273r1/ref-cli.png`.
 - 🔵 **THE EXPORT SAVE PANEL WANTS YOUR EYE ON macOS (item 301) — no test process can see it.**
   An AppKit modal is unobservable from a test (`MainThreadMarker::new()` returns `None` off the
   main thread), so the panel body is structural-by-construction and what IS tested is only that the
@@ -989,7 +1003,34 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      🔵 **(2) IS ITS OWN ITEM, not a residual.** `Command` gaining a description
      means authoring 93 accurate one-liners under the docs-voice rule ("facts traced
      to verified sources") — larger than (3) and (5) combined.
-     🚧 **(1) CLAIMED (worktree item-273r1-flag-roster, deep tier) — needs `main/args.rs` restructured** — 61 flags hand-parsed in one
+     ✅ **(1) CLOSED (merged 2026-08-08) — THE ROSTER LANDED AND IT CAUGHT A WRONG NUMBER ON ITS
+     WAY INTO A PUBLIC DOCUMENT.** One `flag_roster!` invocation derives both the `FlagId` enum and
+     the `FLAGS` table from a single list; `lookup` is the one door, `take_operands` the one operand
+     source, and dispatch is a **no-wildcard `match flag.id`** — so a new row **fails to COMPILE**
+     until it is handled (proven with a throwaway row: `E0004` at `args.rs:143`). `--help` and the
+     reference's CLI section generate from the same rows the parser dispatches on.
+     ⚠️ **THE FIND, and it is exactly the hazard this repo records about generated documents:** the
+     hand-written `--help` said `--measure … (default 80)`. The value is **70 for prose, 100 for
+     code**. **Generating that string would have shipped a wrong number WITH A DRIFT LAW BEHIND
+     IT** — caught by a spot-check that asked `page::DEFAULT_MEASURE` instead of trusting the text.
+     `src/page.rs`'s module doc carried the same stale 80 and now names the consts rather than
+     restating their values.
+     ✅ **The premise was right about `parse_args` and incomplete about awl:** 61 arms, but the real
+     surface is **64 flags** — `fn main` scans for three (`--print-menu-roster`, `--dump-menu-icon`,
+     `--fault-write-loop`) and returns **before** `parse_args`. Those cannot be rows (each exits the
+     process), so the boundary is named in `PRE_PARSE_FLAGS` with a law refusing any flag to be both
+     a row and a pre-parse scan. **One flag, one parser.**
+     ✅ **Operands are load-bearing, not decorative** — the loop consumes exactly what each row
+     declares, so a wrong arity breaks PARSING rather than only misprinting a table, and all 40
+     refusal messages stay byte-identical because each is stored verbatim. Documenting the 23
+     unlisted flags is what makes a flag unable to land undocumented: whichever `Listing` it picks,
+     the byte-diff law fails until regen. Eleven mutation proofs, two of them **re-proven after a
+     clippy restructure and after rustfmt**, because a mutation that edits nothing reads green.
+     ✅ **Ledger TIGHTENED both ways:** `args.rs` 1296 → **1127**, `parse_args` 809 → **616**.
+     ✅ **Fixed at merge:** `--ground-audition`'s summary read *"item 121's A/B/C ground-audition
+     manifest"* — a queue citation that had reached a **public** `REFERENCE.md` and the live site.
+     Reworded and regenerated; **the regen diff is exactly that one string in both documents**,
+     which is the check a generated document earns. — 61 flags hand-parsed in one
      `match`, in a file already carrying size and complexity exceptions.
      🔵 **OWED TO THE USER'S EYE:** the WORLDS.md correction makes several worlds
      visibly sparser (Mulga now shows Register alone, Tawny Register+Temp). The doc
@@ -2272,6 +2313,34 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      diff is exactly the three descriptions and nothing else — a generated document that moves more
      than the change explains is the sourcing hazard, not a formatting nuisance.
      **Routing:** production tier.
+
+332. **`--menu-open` AND `--pack-icns` SWALLOW THE NEXT ARGUMENT UNCONDITIONALLY, so
+     `awl --menu-open file.md` SILENTLY EATS THE FILE.** Found by item 273's flag-roster lane and
+     **deliberately preserved byte-identical** rather than ridden into that bundle — the right call,
+     because fixing it changes behaviour a user could be relying on.
+     ⚠️ **Both flags declare an OPTIONAL operand and then take the next token whatever it is**, so
+     there is no way to pass a file alongside either. The roster now makes the arity explicit and
+     law-tested, which is what makes this reportable at all.
+     ✅ **Build:** an optional operand should decline a token that looks like a path or another flag
+     — but "looks like" is the whole design question, and `--pack-icns DIR` legitimately takes a
+     path. **Prefer the rule that a following token starting with `-` is never consumed**, and
+     decide the path case explicitly rather than by heuristic.
+     ⚠️ **This is a product change to CLI behaviour.** State the before/after for both flags and
+     which invocations change meaning. **Routing:** production tier, then the user if any real
+     invocation changes.
+
+333. ⚠️ **PREMISE FALSE, RECORDED SO IT IS NOT RE-RAISED: the site's analytics beacon is
+     DELIBERATE, DOCUMENTED AND THE USER'S OWN.** Item 273's lane flagged `//gc.zgo.at/count.js` in
+     `site/reference.html` as sitting oddly beside a "no analytics" note. It is a **cookieless
+     GoatCounter** beacon with its own section in `site/README.md` naming the dashboard, present on
+     all eight site pages and on `main` since the reference page landed. ✅ **awl's zero-network
+     invariant governs the APP BINARY — never phoning home, never fetching at runtime — not the
+     marketing website**, and conflating the two would have produced a "fix" that removed something
+     the user configured on purpose.
+     🔵 **One real residual, small:** `site/README.md` says the beacon *"lives in three places
+     (keep them in sync)"* and it is now on **eight**. The doc is stale, not the beacon.
+     **Routing:** production tier — a doc correction, ideally with the count derived rather than
+     restated.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
