@@ -889,6 +889,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      🔵 **(4) IS BLOCKED, correctly reported rather than routed around:** an in-app
      door needs a new arm in `src/actions.rs` and `src/app/apply.rs`. Sequence it
      behind any lane holding those.
+     🟡 **(2) IN PROGRESS — claude, branch `claude/item-273r2-command-descriptions`.**
      🔵 **(2) IS ITS OWN ITEM, not a residual.** `Command` gaining a description
      means authoring 93 accurate one-liners under the docs-voice rule ("facts traced
      to verified sources") — larger than (3) and (5) combined.
