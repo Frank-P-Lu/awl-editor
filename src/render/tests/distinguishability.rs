@@ -801,8 +801,9 @@ fn check_real_pixels(
                 "{world}: CaretVsGround caret region {caret_avg:?} vs empty-line ground \
                  {ground_avg:?} only {d:.1} redmean apart (floor 15.0)"
             );
-
-            crate::caret::set_mode(CaretMode::Block);
+            // No trailing `set_mode(CaretMode::Block)`: re-setting the value this arm
+            // just forced restores nothing, and the caller's
+            // `testlock::misc::TogglesRestore` is what actually returns the global.
         }
     }
 }
