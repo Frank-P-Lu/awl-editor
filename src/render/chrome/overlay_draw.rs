@@ -87,6 +87,8 @@ impl TextPipeline {
         self.panel_border.prepare(device, queue, width, height, &[]);
         self.overlay_rows.prepare(device, queue, width, height, &[]);
         self.overlay_bars.prepare(device, queue, width, height, &[]);
+        self.footer_plate_rim
+            .prepare(device, queue, width, height, &[]);
         self.overlay_spine
             .prepare_rotated(device, queue, width, height, &[]);
         self.overlay_spine_selected

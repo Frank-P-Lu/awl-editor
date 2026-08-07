@@ -2194,6 +2194,16 @@ pub struct TextPipeline {
     /// as a faint grey — see [`theme::HighlightTreatment::InverseFill`].
     pub overlay_rows: SelectionPipeline,
     pub overlay_bars: SelectionPipeline,
+    /// The `Bars` FOOTER PLATE's rim — that plate's own rect grown one pixel on
+    /// every side and drawn under it (the notice channel's rim, item 296,
+    /// applied to the same failure mode: `overlay_bar_unselected`'s FILL alone
+    /// measured ΔE 1.91 from Cassowary's own page, under the ≈2.3 JND). Colour
+    /// resolved fresh every `overlay_prepare_selection` from
+    /// `theme::overlay_footer_plate_rim`, so it carries no `sync_theme_colors`
+    /// entry — same reasoning as `notice_rim`. Empty on every frame whose card
+    /// draws no footer plate (Pane, Diagonal, Rules, or a `Bars` card with no
+    /// footer row).
+    pub footer_plate_rim: SelectionPipeline,
     pub overlay_spine: SelectionPipeline,
     pub overlay_spine_selected: SelectionPipeline,
     pub overlay_lens_underline: SelectionPipeline,

@@ -7,6 +7,9 @@ pub(super) struct OverlaySelectionRects {
     pub(super) selected: Vec<[f32; 4]>,
     pub(super) unselected: Vec<[f32; 4]>,
     pub(super) cross: Vec<[f32; 4]>,
+    /// The footer plate's own rect (also in `unselected`), so its rim can be
+    /// seated without re-identifying it. `None` off `Bars` or with no footer.
+    pub(super) footer_plate: Option<[f32; 4]>,
 }
 
 struct OverlayBarLayout {
@@ -144,6 +147,18 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &rects.selected);
         self.overlay_cross
             .prepare(device, queue, width, height, &rects.cross);
+        // ITEM 308 — the footer plate's RIM: its rect grown one px on every
+        // side, drawn under it (mirrors `notice_rim`/`notice_plate`). Resolved
+        // fresh from the live theme every frame, so no `sync_theme_colors` entry.
+        let rim_rects: Vec<[f32; 4]> = rects
+            .footer_plate
+            .map(|[x, y, w, h]| [x - 1.0, y - 1.0, w + 2.0, h + 2.0])
+            .into_iter()
+            .collect();
+        self.footer_plate_rim
+            .set_color(theme::overlay_footer_plate_rim().rgba_bytes());
+        self.footer_plate_rim
+            .prepare(device, queue, width, height, &rim_rects);
     }
 
     /// THE ONE PLACE a list style becomes row surfaces. `overlay_prepare_selection`
@@ -209,6 +224,7 @@ impl TextPipeline {
                 selected,
                 unselected,
                 cross,
+                footer_plate: None,
             };
         }
         let selected = match (vis.logical(), vis.band_top()) {
@@ -244,13 +260,15 @@ impl TextPipeline {
         self.overlay_bars.set_stroke(0.0);
         self.overlay_bars
             .set_color(theme::overlay_bar_unselected().rgba_bytes());
-        let mut unselected = self.overlay_unselected_bar_rects(geom, plan, &layout, vis);
+        let (mut unselected, footer_plate) =
+            self.overlay_unselected_bar_rects(geom, plan, &layout, vis);
         let mut selected = self.overlay_selected_bar_rects(geom, plan, &layout, vis);
         layout.append_chord_plates(geom, plan, vis, &mut selected, &mut unselected);
         OverlaySelectionRects {
             selected,
             unselected,
             cross: Vec::new(),
+            footer_plate,
         }
     }
 
@@ -291,13 +309,15 @@ impl TextPipeline {
         }
     }
 
+    /// Returns the unselected bar rects, plus the footer plate's own rect
+    /// separately (`None` if this frame draws no footer).
     fn overlay_unselected_bar_rects(
         &self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
         layout: &OverlayBarLayout,
         vis: &VisualSelection,
-    ) -> Vec<[f32; 4]> {
+    ) -> (Vec<[f32; 4]>, Option<[f32; 4]>) {
         let mut rects = match layout.coverage {
             theme::BarCoverage::SelectedOnly => Vec::new(),
             theme::BarCoverage::All => plan
@@ -307,7 +327,7 @@ impl TextPipeline {
                 .map(|r| self.overlay_bar_plate(geom, layout, r))
                 .collect(),
         };
-        if geom.hint_rows + geom.footer_rows > 0 {
+        let footer_plate = if geom.hint_rows + geom.footer_rows > 0 {
             // ITEM 174 — ONE owner of "how many content rows precede the footer"
             // ([`OverlayRowPlan::content_rows`]): the candidate band PLUS an
             // empty-state notice line. The measured hug width and the plate's own
@@ -344,23 +364,38 @@ impl TextPipeline {
                 true => (plan.footer_top() + footer_band).min(card_bottom),
                 false => card_bottom,
             };
-            rects.push(footer_plate_rect(
+            let plate = footer_plate_rect(
                 plan.footer_top(),
                 geom.band_x(),
                 geom.band_w(),
                 plate_bottom,
                 footer_hug,
                 self.metrics.scale,
-            ));
-        }
+            );
+            rects.push(plate);
+            Some(plate)
+        } else {
+            None
+        };
         if geom.theme {
+            // ITEM 316 — `item.is_none()` is a HEADER (always real glyphs) or
+            // the card's own LOCATION line, glyph-free wherever
+            // `LocationStyle::draws_inline()` is false (Cassowary's
+            // `RotatedRail`, composed off-card). Reads the shaper's own gate,
+            // not a named world, so it tracks any future non-inline style.
+            let location_inline = theme::active().render_caps.location_style.draws_inline();
             for r in plan.rows().iter().filter(|r| r.item.is_none()) {
+                let off = !location_inline
+                    && matches!(geom.plan.get(r.display), Some(PlanLine::Location(_)));
+                if off {
+                    continue;
+                }
                 let (x, width) = layout.span(geom, r.display);
                 rects.push([x, r.top + layout.bar_offset, width, layout.bar_height]);
             }
             rects.extend(self.overlay_strip_tab_plates.iter().copied());
         }
-        rects
+        (rects, footer_plate)
     }
 
     fn overlay_bar_plate(

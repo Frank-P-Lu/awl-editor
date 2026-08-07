@@ -305,6 +305,20 @@ pub fn overlay_bar_unselected() -> Srgb {
     base_200()
 }
 
+/// The footer PLATE's rim ink — the same "value off the ink ladder" answer the
+/// calm notice's own rim already gives (`notice_plate_inks` in
+/// `render::chrome::readout`), for the identical reason: the FILL alone is not
+/// guaranteed to read. Measured rather than assumed — Cassowary's footer plate
+/// (`base_200` on `base_100`-rooted ground) sits ΔE 1.91 from its own page, under
+/// the ≈2.3 JND, because its ramp collapses two authored steps into eleven
+/// bytes. `muted` is the FILL's own next rung outward on every world (never a
+/// second decoration, never the `error` token), and it is the same token the
+/// notice's TOAST rim already spends for the same reason — one ink for "a plate
+/// whose surface plane alone may not carry" rather than two.
+pub fn overlay_footer_plate_rim() -> Srgb {
+    muted()
+}
+
 pub fn overlay_bars_scrim() -> Srgb {
     base_100()
 }
