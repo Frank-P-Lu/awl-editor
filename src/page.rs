@@ -11,7 +11,9 @@
 //! (`--page on|off`, `--measure N`) all write the same place without threading a
 //! config through the pipeline:
 //!   * `PAGE_ON`  — whether the centered column is active (DEFAULT ON).
-//!   * `MEASURE`  — the column's maximum width in characters (DEFAULT 80).
+//!   * `MEASURE`  — the column's maximum width in characters (DEFAULT 70 for
+//!     prose, 100 for code — see [`DEFAULT_MEASURE`] / [`DEFAULT_MEASURE_CODE`],
+//!     which are the values, so this line cannot drift from them again).
 //!
 //! The render pipeline reads these each frame via [`page_on`] / [`measure`] to
 //! derive the column's pixel left + width (see `TextPipeline::column_left` /

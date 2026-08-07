@@ -10,7 +10,7 @@
 //! ever hand-typed: this module builds every row by reading the same one-owner
 //! rosters the app itself reads — `commands::COMMANDS`, `settings::SETTINGS`,
 //! `config::Config`'s own field list, `theme::THEMES`,
-//! `markdown::{MdKind, ConcealKind}`.
+//! `markdown::{MdKind, ConcealKind}`, `args::flags::FLAGS`.
 //!
 //! WHY GENERATED RATHER THAN WRITTEN: a hand-transcribed reference is correct
 //! only until the next roster change, and a reference that has quietly drifted
@@ -66,17 +66,19 @@ pub(crate) enum Section {
     Config,
     Worlds,
     Markdown,
+    Cli,
 }
 
 impl Section {
     /// The sweep roster. Every law iterates this, so a variant added below
     /// without a matching block in both documents fails by name.
-    pub(crate) const ALL: [Section; 5] = [
+    pub(crate) const ALL: [Section; 6] = [
         Section::Commands,
         Section::Settings,
         Section::Config,
         Section::Worlds,
         Section::Markdown,
+        Section::Cli,
     ];
 
     /// The marker slug used in both documents. NO WILDCARD: a new variant fails
@@ -88,6 +90,7 @@ impl Section {
             Section::Config => "reference-config",
             Section::Worlds => "reference-worlds",
             Section::Markdown => "reference-markdown",
+            Section::Cli => "reference-cli",
         }
     }
 
@@ -104,6 +107,7 @@ impl Section {
             Section::Config => "Configuration file",
             Section::Worlds => "Worlds",
             Section::Markdown => "Markdown",
+            Section::Cli => "Command line",
         }
     }
 
@@ -117,6 +121,7 @@ impl Section {
             Section::Config => "configuration-file",
             Section::Worlds => "worlds",
             Section::Markdown => "markdown",
+            Section::Cli => "command-line",
         }
     }
 
@@ -129,6 +134,7 @@ impl Section {
             Section::Config => rows::config(),
             Section::Worlds => rows::worlds(),
             Section::Markdown => rows::markdown(),
+            Section::Cli => rows::cli(),
         }
     }
 

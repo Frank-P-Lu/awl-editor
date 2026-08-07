@@ -208,8 +208,8 @@ reason = "The one construction site each pipeline family has now sits inside gpu
 
 [[file_size_mark]]
 file = "src/main/args.rs"
-lines = 1296
-reason = "`parse_args` is the ONE flag-parsing owner AND the ONE hermetic-sandbox install site: the `--seed-data` slot needs an arm, a help line, and the refusal that keeps it from being a silent no-op outside a scenario door (+39). `--bench-a11y` costs the irreducible three pieces a hidden bench flag costs in this parser — a local, a match arm, a mode return — each carrying the `cfg(not(wasm32))` attribute the native-only projection it measures already carries (+10); there is no second place a flag is read."
+lines = 1127
+reason = "Was 1296. `parse_args` no longer compares an argument against a literal: the 61 flags are one `flag_roster!` invocation deriving both `FlagId` and the `FLAGS` table from a single list, so `--help` and the reference's CLI section generate from the same rows the parser dispatches on. Still over the 500 production ceiling because `parse_args` remains the ONE flag-parsing owner and the ONE hermetic-sandbox install site; the roster moved the flag DATA out, not the dispatch. Decomposing the dispatch itself would split the no-wildcard `match flag.id` that is exactly what makes a new roster row fail to compile until it is handled."
 
 [[file_size_mark]]
 file = "src/main/run.rs"
@@ -530,7 +530,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/main/args.rs"
 function = "parse_args"
-message = "this function has too many lines (809/100)"
+message = "this function has too many lines (616/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 121 added one minimal --ground-audition arm (+13 lines). Item 188 added one CLI flag arm, one Mode variant selection arm and its `live_app` flag to the one parser (+20), and MERGED the two hermetic-fs installs into one unconditional call (-1, after routing its one branch through the new `scenario::seed_document` owner) — the net is the smallest a new capture mode can cost in a single-owner arg parser. `--bench-a11y` adds the same irreducible three pieces every hidden bench flag here adds, each `cfg`-gated native-only (+10)."
 
 [[clippy_exception]]

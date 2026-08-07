@@ -9,10 +9,22 @@ use crate::config::{self, Config};
 use crate::keymap::KeymapState;
 use crate::{caret, debug, hud, keyspec, lifetime, page, theme, whichkey};
 
+// THE FLAG ROSTER — the one owner of "what flags exist". `parse_args` below
+// compares no argument against a literal: every `--…` token resolves through
+// `flags::lookup`, every operand comes off the stream through
+// `Flag::take_operands`, and the dispatch is a no-wildcard match on `FlagId`, so
+// a roster row with no arm fails to compile. `--help` and the reference's
+// command-line section are both generated from the same table — which is why the
+// module is `pub(crate)`: `crate::reference::rows::cli` reads the roster, and
+// reading it is the whole point. Nothing outside PARSES with it; `lookup` and
+// `take_operands` have exactly one caller, the loop below.
+#[path = "args/flags.rs"]
+pub(crate) mod flags;
 #[path = "args/modes.rs"]
 mod modes;
 #[path = "args/parsers.rs"]
 mod parsers;
+use flags::FlagId;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) use modes::LiveAppSpec;
 pub(crate) use modes::Mode;
@@ -109,248 +121,155 @@ pub(crate) fn parse_args() -> Result<Mode> {
     let mut storyboard_arg: Option<PathBuf> = None;
     let mut storyboard_out: Option<PathBuf> = None;
 
+    // THE ONE ARGUMENT LOOP. `flags::lookup` is the only place a `--…` token
+    // becomes a flag and `take_operands` the only place its operands leave the
+    // stream, so the dispatch below reads DATA rather than argv: the roster
+    // decides what exists, this match decides what it does. NO WILDCARD — a new
+    // roster row fails to compile here until it is read.
+    //
+    // A native-only body carries the `cfg` its own module already carries. The
+    // ROW stays unconditional: `fn main` is the native entry (`wasm_start` never
+    // calls this function), so a browser build has no command line to keep a
+    // second, shorter roster for.
     while let Some(arg) = args.next() {
-        match arg.as_str() {
-            "--bench-typing" => {
-                bench_typing = true;
+        let Some(flag) = flags::lookup(arg.as_str()) else {
+            if arg.starts_with("--") {
+                bail!("unknown flag: {arg}");
             }
-            "--bench-perf" => {
-                bench_perf = true;
+            file = Some(PathBuf::from(arg));
+            continue;
+        };
+        let ops = flag.take_operands(&mut args)?;
+        match flag.id {
+            FlagId::BenchTyping => bench_typing = true,
+            FlagId::BenchPerf => bench_perf = true,
+            FlagId::BenchFrame => bench_frame = true,
+            FlagId::BenchThemeBurst => bench_theme_burst = true,
+            FlagId::BenchA11y => {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    bench_a11y = true;
+                }
             }
-            "--bench-frame" => {
-                bench_frame = true;
+            FlagId::BenchZoomBurst => bench_zoom_burst = true,
+            FlagId::BenchFrost => bench_frost = true,
+            FlagId::BenchCaret => bench_caret = true,
+            FlagId::BenchSuite => bench_suite = true,
+            FlagId::SoakGpu => {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    soak_gpu = true;
+                }
             }
-            "--bench-theme-burst" => {
-                bench_theme_burst = true;
+            FlagId::SoakGpuSeconds => {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    soak_gpu_duration = parse_soak_seconds(ops.req(0))?;
+                    soak_gpu_duration_seen = true;
+                }
             }
-            #[cfg(not(target_arch = "wasm32"))]
-            "--bench-a11y" => {
-                bench_a11y = true;
+            FlagId::BenchBaseline => bench_baseline = Some(PathBuf::from(ops.req(0))),
+            FlagId::LiveScript => live_script = Some(ops.req(0).to_string()),
+            FlagId::LiveShots => live_shots = Some(PathBuf::from(ops.req(0))),
+            FlagId::Screenshot => {
+                out = Some(PathBuf::from(ops.req(0)));
+                capture_modes.push(flag.name());
             }
-            "--bench-zoom-burst" => {
-                bench_zoom_burst = true;
-            }
-            "--bench-frost" => {
-                bench_frost = true;
-            }
-            "--bench-caret" => {
-                bench_caret = true;
-            }
-            "--bench-suite" => {
-                bench_suite = true;
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            "--soak-gpu" => {
-                soak_gpu = true;
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            "--soak-gpu-seconds" => {
-                let v = args.next().ok_or_else(|| {
-                    anyhow::anyhow!("--soak-gpu-seconds requires a positive number")
-                })?;
-                soak_gpu_duration = parse_soak_seconds(&v)?;
-                soak_gpu_duration_seen = true;
-            }
-            "--bench-baseline" => {
-                let v = args.next().ok_or_else(|| {
-                    anyhow::anyhow!("--bench-baseline requires a path (e.g. benches/baseline.json)")
-                })?;
-                bench_baseline = Some(PathBuf::from(v));
-            }
-            "--live-script" => {
-                let v = args.next().ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "--live-script requires a step string (e.g. \"keys Cmd-T; sleep 300; shot open\")"
-                    )
-                })?;
-                live_script = Some(v);
-            }
-            "--live-shots" => {
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--live-shots requires a directory"))?;
-                live_shots = Some(PathBuf::from(v));
-            }
-            "--screenshot" => {
-                let p = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--screenshot requires an output path"))?;
-                out = Some(PathBuf::from(p));
-                capture_modes.push("--screenshot");
-            }
-            "--screenshot-motion" => {
-                let p = args.next().ok_or_else(|| {
-                    anyhow::anyhow!("--screenshot-motion requires an output path")
-                })?;
-                out = Some(PathBuf::from(p));
+            FlagId::ScreenshotMotion => {
+                out = Some(PathBuf::from(ops.req(0)));
                 motion = true;
-                capture_modes.push("--screenshot-motion");
+                capture_modes.push(flag.name());
             }
-            "--screenshot-motion-v" => {
-                let p = args.next().ok_or_else(|| {
-                    anyhow::anyhow!("--screenshot-motion-v requires an output path")
-                })?;
-                out = Some(PathBuf::from(p));
+            FlagId::ScreenshotMotionVertical => {
+                out = Some(PathBuf::from(ops.req(0)));
                 motion_v = true;
-                capture_modes.push("--screenshot-motion-v");
+                capture_modes.push(flag.name());
             }
-            "--screenshot-motion-d" => {
-                let p = args.next().ok_or_else(|| {
-                    anyhow::anyhow!("--screenshot-motion-d requires an output path")
-                })?;
-                out = Some(PathBuf::from(p));
+            FlagId::ScreenshotMotionDiagonal => {
+                out = Some(PathBuf::from(ops.req(0)));
                 motion_d = true;
-                capture_modes.push("--screenshot-motion-d");
+                capture_modes.push(flag.name());
             }
-            #[cfg(not(target_arch = "wasm32"))]
-            "--screenshot-app" => {
-                let p = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--screenshot-app requires an output path"))?;
-                out = Some(PathBuf::from(p));
-                live_app = true;
-                capture_modes.push("--screenshot-app");
+            FlagId::ScreenshotApp => {
+                out = Some(PathBuf::from(ops.req(0)));
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    live_app = true;
+                }
+                capture_modes.push(flag.name());
             }
-            #[cfg(not(target_arch = "wasm32"))]
-            "--semantic-json" => capture_modes.push("--semantic-json"),
-            #[cfg(not(target_arch = "wasm32"))]
-            "--screenshot-frames" => {
-                // `--screenshot-frames N OUT.png`: the frame COUNT then the output path
-                // (the count is the flag's headline, mirroring the task's shape; OUT
-                // stays explicit like every other screenshot flag).
-                let n = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--screenshot-frames requires <N> <out.png>"))?;
-                let n: u32 = n.parse().map_err(|e| {
-                    anyhow::anyhow!("--screenshot-frames <N> must be an integer: {e}")
-                })?;
-                let p = args.next().ok_or_else(|| {
-                    anyhow::anyhow!("--screenshot-frames requires an output path after <N>")
-                })?;
-                out = Some(PathBuf::from(p));
-                frames = Some(n);
-                capture_modes.push("--screenshot-frames");
+            FlagId::SemanticJson => capture_modes.push(flag.name()),
+            FlagId::ScreenshotFrames => {
+                // The frame COUNT then the output path (the count is the flag's
+                // headline, mirroring the task's shape; OUT stays explicit like
+                // every other screenshot flag).
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    frames = Some(ops.req(0).parse::<u32>().map_err(|e| {
+                        anyhow::anyhow!("--screenshot-frames <N> must be an integer: {e}")
+                    })?);
+                }
+                out = Some(PathBuf::from(ops.req(1)));
+                capture_modes.push(flag.name());
             }
-            #[cfg(not(target_arch = "wasm32"))]
-            "--frame-step-ms" => {
-                let v = args.next().ok_or_else(|| {
-                    anyhow::anyhow!("--frame-step-ms requires a millisecond step")
-                })?;
-                frame_step_ms = Some(v.parse().map_err(|e| {
-                    anyhow::anyhow!("--frame-step-ms must be a positive integer: {e}")
-                })?);
+            FlagId::FrameStepMs => {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    frame_step_ms = Some(ops.req(0).parse::<u64>().map_err(|e| {
+                        anyhow::anyhow!("--frame-step-ms must be a positive integer: {e}")
+                    })?);
+                }
             }
-            "--capture-timeline" => {
-                // `--capture-timeline "<ms,ms,...>" OUT.png`: a cumulative-ms step
-                // sequence FOLLOWED by the output path.
-                let spec = args.next().ok_or_else(|| {
-                    anyhow::anyhow!("--capture-timeline requires a \"<ms,ms,...>\" step sequence")
-                })?;
-                let p = args.next().ok_or_else(|| {
-                    anyhow::anyhow!("--capture-timeline requires an output path after the steps")
-                })?;
-                timeline_steps = Some(parse_steps(&spec)?);
-                out = Some(PathBuf::from(p));
-                capture_modes.push("--capture-timeline");
+            FlagId::CaptureTimeline => {
+                // A cumulative-ms step sequence FOLLOWED by the output path.
+                timeline_steps = Some(parse_steps(ops.req(0))?);
+                out = Some(PathBuf::from(ops.req(1)));
+                capture_modes.push(flag.name());
             }
-            "--capture-held" => {
-                // `--capture-held DIR "<ms,ms,...>" OUT.png`: a held arrow
-                // direction, a cumulative-ms step sequence, then the output path.
-                let d = args.next().ok_or_else(|| {
-                    anyhow::anyhow!("--capture-held requires a direction (left|right|up|down)")
-                })?;
-                let spec = args.next().ok_or_else(|| {
-                    anyhow::anyhow!("--capture-held requires a \"<ms,ms,...>\" step sequence")
-                })?;
-                let p = args.next().ok_or_else(|| {
-                    anyhow::anyhow!("--capture-held requires an output path after the steps")
-                })?;
-                held = Some((parse_held_dir(&d)?, parse_steps(&spec)?));
-                out = Some(PathBuf::from(p));
-                capture_modes.push("--capture-held");
+            FlagId::CaptureHeld => {
+                // A held arrow direction, a cumulative-ms step sequence, then
+                // the output path.
+                held = Some((parse_held_dir(ops.req(0))?, parse_steps(ops.req(1))?));
+                out = Some(PathBuf::from(ops.req(2)));
+                capture_modes.push(flag.name());
             }
-            "--storyboard" => {
-                let p = args.next().ok_or_else(|| {
-                    anyhow::anyhow!("--storyboard requires a storyboard .toml path")
-                })?;
-                storyboard_arg = Some(PathBuf::from(p));
-                capture_modes.push("--storyboard");
+            FlagId::Storyboard => {
+                storyboard_arg = Some(PathBuf::from(ops.req(0)));
+                capture_modes.push(flag.name());
             }
-            "--storyboard-out" => {
-                let p = args.next().ok_or_else(|| {
-                    anyhow::anyhow!("--storyboard-out requires an output directory")
-                })?;
-                storyboard_out = Some(PathBuf::from(p));
-            }
-            "--sel" => {
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--sel requires L0:C0-L1:C1"))?;
-                opts.selection = Some(parse_sel(&v)?);
-            }
-            "--zoom" => {
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--zoom requires a factor (e.g. 1.6)"))?;
-                opts.zoom = Some(parse_zoom(&v)?);
-            }
-            "--capture-size" => {
-                let v = args.next().ok_or_else(|| {
-                    anyhow::anyhow!("--capture-size requires WxH (e.g. 2400x1600)")
-                })?;
-                capture_size = Some(parse_size(&v)?);
-            }
-            "--capture-dpi" => {
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--capture-dpi requires a factor (e.g. 2.0)"))?;
-                capture_dpi = Some(parse_dpi(&v)?);
-            }
-            "--scroll" => {
+            FlagId::StoryboardOut => storyboard_out = Some(PathBuf::from(ops.req(0))),
+            FlagId::Sel => opts.selection = Some(parse_sel(ops.req(0))?),
+            FlagId::Zoom => opts.zoom = Some(parse_zoom(ops.req(0))?),
+            FlagId::CaptureSize => capture_size = Some(parse_size(ops.req(0))?),
+            FlagId::CaptureDpi => capture_dpi = Some(parse_dpi(ops.req(0))?),
+            FlagId::Scroll => {
                 // Keep the capture hook's row anchor and fixed-point remainder
                 // together at the CLI boundary; normalization waits until shaping
                 // has supplied real variable-row geometry.
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--scroll requires ROW[:SUBPX]"))?;
-                let parsed = super::scroll_arg::parse(&v)?;
+                let parsed = super::scroll_arg::parse(ops.req(0))?;
                 let row = parsed.row;
                 let px_q = parsed.px_q;
                 opts.scroll = Some(crate::render::ScrollPos { row, px_q });
             }
-            "--preedit" => {
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--preedit requires a string"))?;
-                opts.preedit = Some(v);
-            }
-            "--search" => {
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--search requires a query"))?;
-                opts.search = Some(v);
-            }
-            "--search-case" => {
-                opts.search_case_sensitive = true;
-            }
-            "--search-replace" => {
+            FlagId::Preedit => opts.preedit = Some(ops.req(0).to_string()),
+            FlagId::Search => opts.search = Some(ops.req(0).to_string()),
+            FlagId::SearchCase => opts.search_case_sensitive = true,
+            FlagId::SearchReplace => {
                 // Reveal the labeled REPLACE row + the key-hint line on the panel (the
                 // fresh Cmd-R open state: find field focused, empty replacement). A
                 // `--keys` replay can drive the panel further — typing the replacement,
                 // replacing — through the shared search-key seam (`search::keys`).
                 opts.search_replace_active = true;
             }
-            "--theme" => {
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--theme requires a world name"))?;
+            FlagId::Theme => {
                 // Set the process-global active theme NOW so it composes with any
                 // capture mode (the headless render reads the active theme). Order
                 // among flags is irrelevant since the active theme is global.
-                theme::set_active_by_name(&v).ok_or_else(|| {
+                let v = ops.req(0);
+                theme::set_active_by_name(v).ok_or_else(|| {
                     // The roster comes from the one code-owned source
-                    // (`theme::world_names`, item 68) — never a hand-copied
-                    // list that can drift from the real `theme::THEMES`.
+                    // (`theme::world_names`) — never a hand-copied list that
+                    // can drift from the real `theme::THEMES`.
                     anyhow::anyhow!(
                         "unknown --theme {v:?}; choose one of {}",
                         theme::world_names().join(", ")
@@ -358,13 +277,11 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 })?;
                 theme_flag = true;
             }
-            "--caret-mode" => {
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--caret-mode requires 'block' or 'morph'"))?;
+            FlagId::CaretMode => {
                 // Pin the process-global caret mode so the headless render is
                 // deterministic and verifiable. 'auto' clears any override and
                 // falls back to the font-derived default (Block on mono).
+                let v = ops.req(0);
                 match v.to_ascii_lowercase().as_str() {
                     "block" => caret::set_mode(caret::CaretMode::Block),
                     "morph" => caret::set_mode(caret::CaretMode::Morph),
@@ -374,11 +291,8 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 }
                 caret_flag = true;
             }
-            "--measure" => {
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--measure requires a char count"))?;
-                let n = parse_measure(&v)?;
+            FlagId::Measure => {
+                let n = parse_measure(ops.req(0))?;
                 // Setting a measure implies page mode ON (so the narrow column +
                 // gradient margins are visible in the capture).
                 page::set_measure(n);
@@ -386,10 +300,8 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 page_flag = true;
                 measure_flag = true;
             }
-            "--page" => {
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--page requires 'on' or 'off'"))?;
+            FlagId::Page => {
+                let v = ops.req(0);
                 match v.to_ascii_lowercase().as_str() {
                     "on" => page::set_page_on(true),
                     "off" => page::set_page_on(false),
@@ -397,7 +309,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 }
                 page_flag = true;
             }
-            "--debug" => {
+            FlagId::Debug => {
                 // Opt-in DEBUG panel. Sets the process-global so it composes with any
                 // capture mode; the frametime line shows a FIXED placeholder with no
                 // live clock (deterministic), while the rest of the panel is a pure
@@ -405,7 +317,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 // stable and a plain capture (panel OFF) is byte-identical.
                 debug::set_debug_on(true);
             }
-            "--hud" => {
+            FlagId::Hud => {
                 // Summon the HELD STATS HUD for the capture. Sets the process-global
                 // so it composes with any capture mode; the clock / file-date fields
                 // render FIXED placeholders (no live clock), so an explicit `--hud`
@@ -414,7 +326,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 // (Option-Cmd-I) instead.
                 hud::set_held(true);
             }
-            "--menu-bar" => {
+            FlagId::MenuBar => {
                 // Show the WEB/LINUX MENU BAR for the capture (mirrors `--hud`). Sets
                 // the process-global so it composes with any capture mode; the bar is
                 // pure geometry + theme (no clock), so an explicit `--menu-bar` capture
@@ -422,17 +334,18 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 // byte-identical. On web/Linux the live app shows it by default.
                 crate::menubar::set_menu_bar_on(true);
             }
-            "--menu-open" => {
+            FlagId::MenuOpen => {
                 // Show the menu bar AND drop the dropdown for menu index N (0 = the App
                 // menu), so a capture can exercise the open-dropdown render + sidecar
                 // `menubar.open_menu` deterministically. A bad/absent index just shows
-                // the closed bar.
+                // the closed bar — the operand is CONSUMED either way, so a file
+                // argument must not follow this flag directly.
                 crate::menubar::set_menu_bar_on(true);
-                if let Some(n) = args.next().and_then(|s| s.parse::<usize>().ok()) {
+                if let Some(n) = ops.opt(0).and_then(|s| s.parse::<usize>().ok()) {
                     crate::menubar::set_open(Some(n));
                 }
             }
-            "--lifetime" => {
+            FlagId::Lifetime => {
                 // Summon the LIFETIME STATS card for the capture (mirrors `--hud`).
                 // Sets the process-global so it composes with any capture mode; the
                 // odometer figures render FIXED "—" placeholders (no live persisted
@@ -441,7 +354,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 // it via the palette "Lifetime stats" command instead.
                 lifetime::set_open(true);
             }
-            "--streaks" => {
+            FlagId::Streaks => {
                 // Summon the WRITING STREAKS card for the capture (mirrors `--lifetime`).
                 // Sets the process-global so it composes with any capture mode; the card
                 // renders the FIXED synthetic `streaks::placeholder` year + streak numbers
@@ -451,7 +364,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 // streaks" command instead.
                 crate::streaks::set_open(true);
             }
-            "--peek" => {
+            FlagId::Peek => {
                 // Summon the HOLD-⌘ SHORTCUT PEEK for the capture (mirrors `--hud` /
                 // `--lifetime`). Sets the process-global so it composes with any capture
                 // mode; the card renders the curated STARTER SIX (no live ledger to
@@ -462,7 +375,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 // instead.
                 crate::peek::set_open(true);
             }
-            "--whichkey" => {
+            FlagId::WhichKey => {
                 // Summon the WHICH-KEY continuation panel for the capture. Sets the
                 // process-global so it composes with any capture mode; `run.rs` then
                 // derives the `C-x` rows from the catalog + config and renders the
@@ -471,67 +384,34 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 // window summons it by pressing `C-x` and PAUSING instead.
                 whichkey::set_force_shown(true);
             }
-            "--keys" => {
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--keys requires a key-spec string"))?;
-                keys_spec = Some(v);
-            }
-            "--strict-replay" => {
-                strict_replay = true;
-            }
-            "--config" => {
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--config requires a path"))?;
-                config_arg = Some(PathBuf::from(v));
-            }
+            // Kept RAW until after the loop so it parses THROUGH the loaded
+            // config's keybinding overrides (`--config` may appear after `--keys`).
+            FlagId::Keys => keys_spec = Some(ops.req(0).to_string()),
+            FlagId::StrictReplay => strict_replay = true,
+            FlagId::Config => config_arg = Some(PathBuf::from(ops.req(0))),
             // THE DATA-ROOT SEED SLOT. Hermetic-scenario doors only — it gives
             // a `--screenshot-app` capture a starting store (an
             // unresolved-change record, a scratch stash, a session), which is
             // the one thing the sandbox has no other way to hold. See
             // `crate::scenario::data_root_seeds`.
-            "--seed-data" => {
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--seed-data requires a directory"))?;
-                data_seed = Some(PathBuf::from(v));
-            }
-            "--root" => {
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--root requires a directory"))?;
-                root = Some(PathBuf::from(v));
-            }
-            "--workspace" => {
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--workspace requires a directory"))?;
-                workspace = Some(PathBuf::from(v));
-            }
-            "--default-folder" => {
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--default-folder requires a directory"))?;
-                default_folder = Some(PathBuf::from(v));
-            }
-            "--wait" => {
-                wait_flag = true;
-            }
-            "--list-worlds" => {
+            FlagId::SeedData => data_seed = Some(PathBuf::from(ops.req(0))),
+            FlagId::Root => root = Some(PathBuf::from(ops.req(0))),
+            FlagId::Workspace => workspace = Some(PathBuf::from(ops.req(0))),
+            FlagId::DefaultFolder => default_folder = Some(PathBuf::from(ops.req(0))),
+            FlagId::Wait => wait_flag = true,
+            FlagId::ListWorlds => {
                 // Machine-readable roster dump — one world name per line, in
                 // `theme::THEMES` cycle order — read straight off the ONE
-                // code-owned source (item 68: `--help` once drifted to only
-                // ten of the twenty shipped worlds; a script that shells
-                // out to THIS flag can never drift the same way, since it
-                // never keeps its own copy of the list). See
-                // `scripts/capture-worlds.sh`.
+                // code-owned source (`--help` once drifted to only ten of the
+                // twenty shipped worlds; a script that shells out to THIS flag
+                // can never drift the same way, since it never keeps its own
+                // copy of the list). See `scripts/capture-worlds.sh`.
                 for name in theme::world_names() {
                     println!("{name}");
                 }
                 std::process::exit(0);
             }
-            // THE ICON EXPORT MANIFEST (item 92) — the same one-owner move as
+            // THE ICON EXPORT MANIFEST — the same one-owner move as
             // `--list-worlds`, one step richer: the offline icon compositor in
             // `scripts/icons/` needs each world's four icon palette tokens and
             // its display face, so it SHELLS OUT for them rather than keeping a
@@ -540,52 +420,55 @@ pub(crate) fn parse_args() -> Result<Mode> {
             // CURRENT DIRECTORY (run it from the repo root) — never a path
             // baked in at build time, which would end up personal-machine
             // specific in a public repo.
-            #[cfg(not(target_arch = "wasm32"))]
-            "--icon-manifest" => {
-                let dir = PathBuf::from(crate::icon_manifest::DEFAULT_FONTS_DIR);
-                print!("{}", crate::icon_manifest::manifest_json(&dir)?);
-                std::process::exit(0);
-            }
-            // ITEM 121's ground audition: see `icon_manifest::ground_audition_json`.
-            #[cfg(not(target_arch = "wasm32"))]
-            "--ground-audition" => {
-                let world = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--ground-audition needs a WORLD name"))?;
-                let dir = PathBuf::from(crate::icon_manifest::DEFAULT_FONTS_DIR);
-                print!(
-                    "{}",
-                    crate::icon_manifest::ground_audition_json(&world, &dir)?
-                );
-                std::process::exit(0);
-            }
-            // THE PACK STEP (item 92) — cut every shipped world's rendered
-            // tiles into a real `.icns`, write the canonical bundle icon, and
-            // regenerate the embedded table. Run from the repo root, AFTER the
-            // web compositor has rendered the tiles; `scripts/export-icons.sh`
-            // does both in order. Packing lives in the binary rather than in a
-            // shell script so the container format has one owner and the
-            // determinism law can re-pack a committed asset inside `cargo test`.
-            #[cfg(not(target_arch = "wasm32"))]
-            "--pack-icns" => {
-                let tiles = args
-                    .next()
-                    .map(PathBuf::from)
-                    .unwrap_or_else(|| PathBuf::from("assets/macos/candidates/tiles"));
-                let root = PathBuf::from(".");
-                let written = crate::app_icon::pack_all(&tiles, &root)?;
-                let total: usize = written.iter().map(|(_, n)| n).sum();
-                for (world, bytes) in &written {
-                    println!("{world:<12} {bytes:>8} bytes");
+            FlagId::IconManifest => {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let dir = PathBuf::from(crate::icon_manifest::DEFAULT_FONTS_DIR);
+                    print!("{}", crate::icon_manifest::manifest_json(&dir)?);
+                    std::process::exit(0);
                 }
-                println!(
-                    "packed {} worlds ({total} bytes) -> {}/  +  {} (canonical: {})",
-                    written.len(),
-                    crate::app_icon::WORLD_ICON_DIR,
-                    crate::app_icon::CANONICAL_ICNS,
-                    crate::app_icon::canonical_world().name
-                );
-                std::process::exit(0);
+            }
+            // The A/B/C ground audition: see `icon_manifest::ground_audition_json`.
+            FlagId::GroundAudition => {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let dir = PathBuf::from(crate::icon_manifest::DEFAULT_FONTS_DIR);
+                    print!(
+                        "{}",
+                        crate::icon_manifest::ground_audition_json(ops.req(0), &dir)?
+                    );
+                    std::process::exit(0);
+                }
+            }
+            // THE PACK STEP — cut every shipped world's rendered tiles into a
+            // real `.icns`, write the canonical bundle icon, and regenerate the
+            // embedded table. Run from the repo root, AFTER the web compositor
+            // has rendered the tiles; `scripts/export-icons.sh` does both in
+            // order. Packing lives in the binary rather than in a shell script
+            // so the container format has one owner and the determinism law can
+            // re-pack a committed asset inside `cargo test`.
+            FlagId::PackIcns => {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let tiles = ops
+                        .opt(0)
+                        .map(PathBuf::from)
+                        .unwrap_or_else(|| PathBuf::from("assets/macos/candidates/tiles"));
+                    let root = PathBuf::from(".");
+                    let written = crate::app_icon::pack_all(&tiles, &root)?;
+                    let total: usize = written.iter().map(|(_, n)| n).sum();
+                    for (world, bytes) in &written {
+                        println!("{world:<12} {bytes:>8} bytes");
+                    }
+                    println!(
+                        "packed {} worlds ({total} bytes) -> {}/  +  {} (canonical: {})",
+                        written.len(),
+                        crate::app_icon::WORLD_ICON_DIR,
+                        crate::app_icon::CANONICAL_ICNS,
+                        crate::app_icon::canonical_world().name
+                    );
+                    std::process::exit(0);
+                }
             }
             // THE LINUX DESKTOP ICON — cut the 256px PNG straight out of the
             // committed canonical `.icns` via `app_icon::icns::unpack`, the
@@ -596,74 +479,22 @@ pub(crate) fn parse_args() -> Result<Mode> {
             // committed. `scripts/package-appimage.sh` is the one caller, run
             // from the repo root (relative to CWD, same convention as
             // `--pack-icns`).
-            #[cfg(not(target_arch = "wasm32"))]
-            "--export-linux-icon" => {
-                let out = args
-                    .next()
-                    .map(PathBuf::from)
-                    .ok_or_else(|| anyhow::anyhow!("--export-linux-icon needs an output path"))?;
-                let bytes = crate::app_icon::export_linux_icon(&out)?;
-                println!("wrote {} ({bytes} bytes)", out.display());
+            FlagId::ExportLinuxIcon => {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let out = PathBuf::from(ops.req(0));
+                    let bytes = crate::app_icon::export_linux_icon(&out)?;
+                    println!("wrote {} ({bytes} bytes)", out.display());
+                    std::process::exit(0);
+                }
+            }
+            // Generated from the roster above, so a flag cannot be added
+            // without `--help` learning about it (or the reference's
+            // command-line section saying so, for a flag kept unlisted).
+            FlagId::Help => {
+                println!("{}", flags::help_text());
                 std::process::exit(0);
             }
-            "-h" | "--help" => {
-                // Built from the same one-owner roster as `--theme`'s error
-                // and `--list-worlds` (item 68) — never a hand-copied list.
-                let world_names_csv = theme::world_names().join(", ");
-                println!(
-                    "awl [file]\n\
-                     awl --screenshot OUT.png [file]         caret at rest (rounded square)\n\
-                     awl --screenshot-motion OUT.png [file]  caret mid-glide (centred trailing streak)\n\
-                     awl --screenshot-motion-v OUT.png [file] caret mid-glide vertical (left-edge bar)\n\
-                     awl --screenshot-motion-d OUT.png [file] caret mid-glide diagonal (slanted tracer)\n\
-                     awl --screenshot-app OUT.png [file]     drive --keys into a REAL \
-                     headless App (hermetic) and capture ITS state — the only door that sees a \
-                     live-App-only transition; sidecar carries driver: \"live-app\"\n\
-                     awl --capture-timeline \"0,16,50,150\" OUT.png [file]  deterministic timeline: step the caret glide by injected ms, frame per step (OUT.t<ms>.png)\n\
-                     awl --capture-held DIR \"0,30,60,90\" OUT.png [file]  deterministic HELD arrow (DIR=left|right|up|down): re-target one char/line per step (held=true), frame per step with trail geometry\n\
-                     \n\
-                     verification hooks (compose with --screenshot):\n\
-                     \x20 --sel L0:C0-L1:C1   selection highlight from (l0,c0)..(l1,c1)\n\
-                     \x20 --zoom F            zoom factor (0.5..3.0)\n\
-                     \x20 --scroll N[:Q]     scroll to row N plus Q fixed 1/64px units\n\
-                     \x20 --preedit STR       render STR as an IME preedit at the caret\n\
-                     \x20 --search STR        open isearch panel for STR + highlight hits\n\
-                     \x20 --search-case       make --search case-sensitive\n\
-                     \x20 --theme NAME        set the active color theme ({world_names_csv})\n\
-                     \x20 --list-worlds       print every theme name, one per line, then exit (the roster `--theme` accepts; see scripts/capture-worlds.sh)\n\
-                     \x20 --icon-manifest     print the app-icon export manifest as JSON (per world: icon palette tokens + display face + its logo-cursor; per face: the bundled font files), then exit — run from the repo root; see scripts/icons/\n\
-                     \x20 --ground-audition W item 121's A/B/C ground-audition manifest, exit\n\
-                     \x20 --pack-icns [DIR]   cut every world's rendered tiles (default assets/macos/candidates/tiles) into assets/macos/world/<World>.icns + the canonical assets/macos/Awl.icns, and regenerate src/app_icon/embedded.rs, then exit — run from the repo root AFTER scripts/export-icons.sh\n\
-                     \x20 --export-linux-icon OUT.png   cut the 256px PNG out of the \
-                     committed canonical assets/macos/Awl.icns, then exit — run from \
-                     the repo root; see scripts/package-appimage.sh\n\
-                     \x20 --caret-mode MODE   caret look: block, morph, ibeam, or auto (default: mono->block, proportional->morph)\n\
-                     \x20 --capture-size WxH  physical canvas size for the capture (default 1200x800)\n\
-                     \x20 --capture-dpi N      renderer scale factor (default 1.0); WxH at dpi N == (W/N)x(H/N) logical retina window\n\
-                     \x20 --measure N         page-mode column width in chars (default 80; implies --page on)\n\
-                     \x20 --page on|off       page mode: centered column (on, default) vs edge-to-edge (off)\n\
-                     \x20 --debug             DEBUG: draw the dim top-left dev panel — frametime/zoom/viewport/cursor/theme/md+syn (OFF by default; frametime is a fixed placeholder in a headless capture)\n\
-                     \x20 --hud               summon the HELD stats HUD (live: hold Option-Cmd-I; clock/file-date fields are fixed placeholders in a capture)\n\
-                     \x20 --menu-bar          show the web/Linux MENU BAR (default on web/Linux, off on macOS which has the native bar); --menu-open N drops menu N's dropdown\n\
-                     \x20 --peek              summon the HOLD-⌘ shortcut peek (live: hold the convention's bare arming modifier — ⌘ on Mac, Ctrl on Linux — ~600ms; a capture shows the curated starter six)\n\
-                     \x20 --streaks           summon the WRITING STREAKS card (live: palette \"Writing streaks\"; a capture shows a fixed synthetic year + streak numbers)\n\
-                     \x20 --whichkey          summon the WHICH-KEY panel: the C-x prefix's follow-up keys (live: press C-x and pause ~500ms)\n\
-                     \x20 --default-folder DIR    fallback active folder for a first launch with nothing remembered (default ~/notes)\n\
-                     \x20 --config PATH       load settings from PATH (default ~/.config/awl/config.toml)\n\
-                     \x20 --wait              windowed editor only: single-instance daemon — hand `file` to an already-running awl and block until C-x # finishes it (EDITOR=awl --wait for git)\n\
-                     \x20 --keys \"SPEC\"        replay emacs chords (e.g. \"C-n C-n M->\") then capture\n\
-                     \x20 --seed-data DIR     seed awl's own DATA ROOT (the \
-                     unresolved-change record, the scratch stash, session.toml, history) into a \
-                     hermetic scenario sandbox from DIR's files — the only way a --screenshot-app \
-                     run can START from state awl already had; refused outside a hermetic door\n\
-                     \x20 --strict-replay     with --screenshot --keys: abort (naming the offender) on an unbound chord, a live-only effect the replay can't perform, or a missing layout oracle; runs HERMETIC (an in-memory fs seeded from the named file + --config — a replayed save never touches the real file, the user's own config/notes/history are never read or written)\n\
-                     \x20 --storyboard TOML   run a scenario storyboard (press/type/pause/run_for/expect steps — see scenarios/): strict + hermetic, emitting per-step PNG+JSON, deterministic film frames, a byte-stable trace.json, and (with ffmpeg on PATH) film.webm/film.mp4\n\
-                     \x20 --storyboard-out DIR where the storyboard run's artifacts land (default: <storyboard>.run/ beside the .toml)"
-                );
-                std::process::exit(0);
-            }
-            s if s.starts_with("--") => bail!("unknown flag: {s}"),
-            s => file = Some(PathBuf::from(s)),
         }
     }
 
@@ -734,7 +565,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
     //     silently swallow the script).
     // Derived, not tracked: `capture_modes` already records every capture flag
     // in order, and on wasm the arm that pushes this one does not exist.
-    let semantic_json = capture_modes.contains(&"--semantic-json");
+    let semantic_json = capture_modes.contains(&flags::name_of(FlagId::SemanticJson));
     if live_script.is_some() && (out.is_some() || storyboard_arg.is_some() || semantic_json) {
         bail!("--live-script drives the real windowed app; it does not compose with capture modes");
     }
