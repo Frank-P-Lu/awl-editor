@@ -1327,7 +1327,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      **Verify:** document region byte-identical under a summoned context menu;
      full overlays keep their frost. **Routing:** production tier.
 
-299. **Two rows in the same state draw their accessory in different inks.** Copy
+299. 🚧 CLAIMED (worktree item-299-chrome-ink, production tier — bundled 299+319) **Two rows in the same state draw their accessory in different inks.** Copy
      and Paste are both disabled, both render `unavailable`; Paste's is legible,
      Copy's is near-black on near-black.
      ⚠️ Diagnose, do not tune a colour. Cut is SELECTED and Copy is the row after
@@ -2069,7 +2069,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      left contradicting the code. **Routing:** production tier, then the user for the live
      `--release` look — the final read is taste and no capture claims it.
 
-319. **STILL OPEN — and item 318 added a SECOND, MEASURED INSTANCE: card ink exists ~42 logical px OUTSIDE
+319. 🚧 CLAIMED (worktree item-299-chrome-ink, production tier — bundled 299+319) **STILL OPEN — and item 318 added a SECOND, MEASURED INSTANCE: card ink exists ~42 logical px OUTSIDE
      `overlay_card_rect` on both diagonal worlds** (found at `(1102, 344)`, mask 0.03 **both before
      and after** 318 — so it is pre-existing and 318 changed nothing about it). That makes this
      item's subject two independent overflows of the same card, not one, and both were found by
@@ -2125,7 +2125,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      hidden by default on the dev host, so an unforced run cannot see its own subject).
      **Routing:** production tier.
 
-322. **`src/render.rs`'s REMAINING ~30 CONSTANTS ARE UNCLASSIFIED, and item 315 declined to
+322. 🚧 CLAIMED (worktree item-322-render-consts, deep tier) **`src/render.rs`'s REMAINING ~30 CONSTANTS ARE UNCLASSIFIED, and item 315 declined to
      guess — correctly.** Widening the declaration law to `render.rs` itself is the last step of
      items 242/314/315, but that file declares families the lane did not audit: caret and font
      sizes that already flow through `Metrics::with_dpi`'s own multiply (a different, correct
@@ -2508,7 +2508,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      **Routing:** production tier — a doc correction, ideally with the count derived rather than
      restated.
 
-334. 🔴 **`--screenshot-app` SILENTLY IGNORES `--capture-size` AND `--capture-dpi`.** Found by item
+334. 🚧 CLAIMED (worktree item-334-config-axes, production tier — bundled 334+335) 🔴 **`--screenshot-app` SILENTLY IGNORES `--capture-size` AND `--capture-dpi`.** Found by item
      327's lane when the width it needed to measure was unreachable through that door.
      `Mode::ScreenshotApp`'s `LiveAppSpec` carries **no `canvas`/`dpi` fields**, so the canvas is
      hard-coded to **1200×800** and both flags are accepted and discarded without a word.
@@ -2524,7 +2524,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ⚠️ Note the flag roster now declares operands as data with laws behind it, so express any
      refusal there rather than as a special case. **Routing:** production tier.
 
-335. **`settings_row_reach_law` SWEEPS A STATE `OverlayKind::Settings` CANNOT REACH.** Found by item
+335. 🚧 CLAIMED (worktree item-334-config-axes, production tier — bundled 334+335) **`settings_row_reach_law` SWEEPS A STATE `OverlayKind::Settings` CANNOT REACH.** Found by item
      327's lane. The law's axis includes `workspace=false`, while `workspace_shape()` returns
      `Some(RailOverRows)` **unconditionally** for that kind, so `overlay_workspace` is always true in
      the product. **The cell that produced 327's cited panic is fixture-only.**
