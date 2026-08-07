@@ -14,82 +14,52 @@
 > open-vs-done from the TREE and `git log --grep`, never from what this file says
 > about itself.**
 
-## 🔴 CI RED — TOP PRIORITY, AND IT BLOCKS FURTHER INTEGRATION
+## ✅ CI RED — FIXED 2026-08-07 (`196ad4ee`, merged `02d0ea23`). Kept because the LESSON is worth more than the fix.
 
-**Run:** https://github.com/Frank-P-Lu/awl-editor/actions/runs/31140926817 —
-`linux (build + test)` **FAILED at its `native full suite` step**, which is a **GATING** job
-(the two red jobs beside it, `mac (render::tests)` and `atspi`, are the pinned tolerated
-pair and are not this).
-**First known bad commit:** `85343eb1` — but see below, that is where it was *observed*,
-not necessarily where it was *introduced*.
+**THE CAUSE: `menubar::MENU_BAR_ON` initialises to `false` on macOS and `true` on every other
+platform.** The drawn bar takes **35.6px of vertical reserve** off every card's height budget
+(`menubar_reserve()` → `card_y`). **Every render law in this repo has only ever run the macOS
+half of that axis** — on the host that authors them — for its whole life.
 
-**Two tests, failing in BOTH conventions inside that one job:**
-- `render::tests::chrome_pixel_space_item242::the_cards_drawn_row_text_holds_its_inset_on_a_two_x_panel`
-  → *"Firetail: the drawn row text is only 1px inside its own card at dpi 1 — comparing zero
-  against twice zero would pass on anything"*
-- `render::tests::overlay_plan_law::drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind`
-  → *"Goto/Grouped dpi=1 list=bars canvas=900x460: the card must plan at least one candidate
-  row"*
+⚠️ **AND `CLAUDE.md` LINE 64 ALREADY NAMED IT, INCLUDING THE REMEDY.** It documents
+`menu_bar`'s default asymmetry and says *"reproduce that class locally by forcing the
+initialiser's other branch"*. Doing exactly that produced **both failures with both messages
+in 1.19 seconds.** The orchestrator's brief instead sent the lane after the shared GPU
+adapter, `Bars`' outward-growing plate, and a cross-test global leak — **all three wrong, none
+needing the adapter.** ‼ **The lesson for the next host-only failure: before hypothesising,
+grep CLAUDE.md's tripwires for the platform axis. The answer was written down.**
+⚠️ **And the orchestrator's own "4 rows vs 0" measurement was wrong for the same reason** — it
+was taken with the menu bar HIDDEN. With it shown, fitting lines drop 9 → 7 and the grouped
+family's `min_items: 0` takes the band to zero.
 
-⚠️ **BOTH MESSAGES ARE NON-VACUITY GUARDS FIRING, NOT ASSERTION FAILURES.** Each law is
-reporting that **its own subject collapsed** on that host — a card planning zero candidate
-rows, and an inset of 1px where the law needs a real one to compare against. So the question
-is *why the geometry starved there*, not why the assertion tripped.
+✅ **TWO REAL DEFECTS. THE FIRST WAS USER-FACING:** on Linux a picker could draw with **no
+candidate rows at all** — `theme_overlay_geometry` charged a display row for every **section in
+the list** rather than for the window it was about to draw, so at a trivially reachable 900×460
+a 192px card showed zero items with 180px of canvas free below it. The second was the law
+itself: the drawn-inset probe scanned a fraction of `card_h`, but `Bars` is `BarePlates` and
+draws **no card plate**, so the slice reached past the last row into the world's own ground and
+read a Firetail lava blob as a 1px inset.
 
-**WHAT I ESTABLISHED, so nobody repeats it:**
-- ✅ **Both tests PASS locally at `85343eb1`**, run by `--exact` at that exact sha in a
-  detached worktree. So this is **not deterministic from the code at that commit.**
-- ✅ **The full suite passes locally at `--test-threads=32`** (3855 passed) on current `main`.
-  So the obvious hypothesis — CLAUDE.md's test-global leak, which is green single-threaded
-  and red under a wide thread count, and which both messages superficially fit because both
-  name **Bars** — **did not reproduce here.**
-- ✅ Both conventions failed inside the **same** job on the **same** host, so it is not
-  convention-specific and not a keymap thing.
+🔵 **A THIRD DEFECT IS FOUND, IMPLEMENTED AND DELIBERATELY BACKED OUT — it is a TASTE CALL and
+belongs to the user, not a CI lane.** `avail_px` charges the hint row and the blank separator a
+full `lh` each and never credits `overlay_footer_reclaim`, which draws them compact — **65px at
+zoom 3, a whole unspent row.** Crediting it changes shipped row counts on cards that already
+fit, and collides with item 293's two-row contract and item 184's byte-identity guard. **The
+question is how many rows a card should show; the arithmetic is ready either way.**
 
-🔵 **THE LIVE HYPOTHESIS, NARROWED BY A MEASUREMENT — and the measurement rules out the
-obvious version.** I instrumented the law locally and printed `candidate_rows` for every
-cell: at the failing shape (`Grouped`, `bars`, 900×460) it plans **4**, and **4 is the
-minimum across all 4×2×N cells**. CI got **0**. ⚠️ **So the gap is FOUR ROWS, not one — this
-is not a rounding or sub-pixel metric drift.** Something makes `overlay_lh` (or the grouped
-family's chrome budget) **materially larger** on that host.
+⚠️ **A FOURTH, WHICH THE CONTAINER FOUND AND CI NEVER SHOWED:** `hint_gap_item293`'s grouped
+arm read `bare=2, hinted=0` on Linux — and **`2 - 0` is also `2`**, so it was **green because
+its subject had collapsed.** Fixing the product turned it red. Every reading now carries a
+presence floor. ‼ **This is the third law this week that was green over a collapsed subject.
+A difference-of-two-readings needs a presence floor on EACH reading.**
 
-✅ **THE ARBITER HAS REPORTED, AND THE RED PERSISTS.** Run
-https://github.com/Frank-P-Lu/awl-editor/actions/runs/31145661939 on `55412786` — which
-INCLUDES items 314 and 297 — fails the **same two tests with the same two messages**. So item
-314's geometry change did **not** fix it, and this is a real, persistent, gating red rather
-than a transient.
+**THE CONTAINER RECIPE — keep it; no local arm had ever seen this axis.** Ubuntu 24.04 +
+`mesa-vulkan-drivers` + rustup, `CARGO_TARGET_DIR` on a volume. Two gotchas: **`-e
+RUSTC_WRAPPER=` is required** (`.cargo/config.toml` pins sccache, absent in the image), and
+**running it against a linked git WORKTREE fails two git-dependent laws** because the
+worktree's `.git` is an absolute pointer into the host — use a plain checkout. Full recipe in
+this commit's message and in the lane's report.
 
-✅ **TWO HYPOTHESES ARE NOW CLOSED WITH EVIDENCE — do not re-open them without new facts.**
-
-1. **NOT a font or face metric difference.** `overlay_lh = metrics.line_height ×
-   effective_overlay_scale() + leading + row_gap`, and the fixture *does* build a real
-   `TextPipeline` (`headless_dqp` → `TextPipeline::new`), so the mechanism looked reachable.
-   It is not: printing the metrics under three faces — default, Archivo Black, Abril Fatface,
-   forced through `AWL_FONT` — gives **`line_height=32`, `char_width=14.4` in all three,
-   identical.** Those metrics are **fixed, not measured from the resolved face.**
-2. **NOT this law leaking its own `Bars` override.** The sweep resets it
-   (`set_list_style_test_override(None)`), and `crate::testlock::serial()` restores every
-   forced render override **on the unwinding path too**, so even a mid-loop panic cannot leak
-   it. Both failures naming `Bars` made this the obvious guess.
-
-🔵 **WHAT IS LEFT, and it is better aimed than where this started.** With the metrics fixed
-and the canvas fixed by the test, `candidate_rows` *should* be deterministic — which is the
-puzzle. So look at what is **not** deterministic across hosts:
-`p.prepare(&device, &queue, …)` does **real GPU work on the shared test adapter**, and the
-sibling failure measures **drawn pixels** on Firetail, adapter-dependent by nature.
-⚠️ A leak from some **other** test whose global is not guard-covered stays open — the guard
-covers only what it snapshots, and CLAUDE.md notes a test building its own device sits outside
-it. ⚠️ **And Firetail is a `Bars` world whose SELECTED row plate grows OUTWARD past the card
-box** (item 297 measured 32 device px of card left of `card_x` at 1.8× zoom) — which is
-exactly the kind of geometry that could put drawn row text 1px from its own card edge.
-**Start from the adapter and from Bars' outward-growing plate, not from the planner's
-arithmetic.**
-
-⚠️ **IT MAY ALREADY BE FIXED.** Item **314** changed `adaptive_column_left` and the page pads
-between `85343eb1` and `aa9e5338`, which moves exactly the geometry these two laws measure.
-**The queued run on `aa9e5338` is the arbiter — read it before spending a lane on this.**
-**Do not conclude from a green local gate:** a local receipt certifies Apple-Silicon Metal
-and this failure has never once reproduced here.
 
 ## 🔵 BLOCKED ON THE USER — nothing else can close these
 
