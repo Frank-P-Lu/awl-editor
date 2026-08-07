@@ -39,8 +39,8 @@ use super::*;
 ///   name. Freezing at the terminus states a second rule the composition never
 ///   states anywhere else.
 /// * At the terminal x the hint's left edge lands exactly on the LAST ROW's own,
-///   which reads as one more row of the list — the very reading item 293's
-///   separator was added to break.
+///   which reads as one more row of the list — the reading the blank separator
+///   above the hint exists to break.
 /// * It makes the frost's shape honest. A footprint frost leans by a CONSTANT shear
 ///   about the card's centre (`blur::extent::Footprint`), so a foot on the
 ///   extrapolated line is a foot on the parallelogram's own edge; a foot frozen at
@@ -95,8 +95,11 @@ impl TextPipeline {
     fn overlay_hint_ink(&self, geom: &OverlayGeom) -> Option<(f32, f32, f32)> {
         let line = self.overlay_hint_line()?;
         self.panel_buffer.layout_runs().find_map(|run| {
-            (run.line_i == line)
-                .then(|| (run.line_w, geom.text_top + run.line_top, run.line_height))
+            (run.line_i == line).then_some((
+                run.line_w,
+                geom.text_top + run.line_top,
+                run.line_height,
+            ))
         })
     }
 
@@ -119,7 +122,7 @@ impl TextPipeline {
         let (ink_w, top, height) = self.overlay_hint_ink(geom)?;
         let pitch = plan.lh();
         let center_y = top + height * 0.5;
-        if !(pitch > 0.0) || !center_y.is_finite() {
+        if !pitch.is_finite() || pitch <= 0.0 || !center_y.is_finite() {
             return None;
         }
         // THE STEP COUNT, MEASURED: the drawn vertical distance from row 0's own

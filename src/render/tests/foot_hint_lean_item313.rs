@@ -100,10 +100,10 @@ fn picker(kind: OverlayKind, rows: usize, label: &str) -> ViewState {
     v
 }
 
-/// The kinds that carry a foot hint at all. `Spell` structurally never draws one
-/// (`spell_overlay_geometry` sets `hint_rows = 0`), so it is excluded here for the
-/// same reason item 293 excluded it — and that exclusion is CHECKED below rather than
-/// trusted, by requiring every other kind's fixture to shape a hint.
+/// The kinds that carry a foot hint at all. `Spell` is the contextual popup, whose
+/// geometry owner sets `hint_rows = 0` outright, so it has no subject here — and the
+/// exclusion is CHECKED rather than trusted: every kind this DOES return must shape a
+/// hint, asserted in each sweep below.
 fn hinted_kinds() -> Vec<OverlayKind> {
     OverlayKind::ALL
         .into_iter()
@@ -163,6 +163,59 @@ fn grade(p: &TextPipeline, width: u32) -> Option<Graded> {
     })
 }
 
+/// GRADE ONE CELL of the headline sweep, returning the DRAWN rake it measured in
+/// LOGICAL px per row — the space the authored `ROW_STEP` is written in, so the two are
+/// comparable at either device scale, and so the sweep can prove it contains a geometry
+/// where they differ.
+fn grade_on_the_spines_line(g: &Graded, dpi: f32, ctx: &str) -> f32 {
+    // PRESENCE, before any claim about where the band sits: rows to rake (the Linux
+    // menu-bar reserve once left a card with none) and a hint with real ink in it.
+    assert!(
+        g.rows >= 3,
+        "{ctx}: the card drew only {} rows — the fixture, or the height budget under \
+         this menu-bar state, is what failed",
+        g.rows
+    );
+    assert!(
+        g.ink_w >= HINT_INK_FLOOR_PX * dpi,
+        "{ctx}: the hint's shaped ink is {}px, under the {}px presence floor — every \
+         offset assertion here is satisfied by a hint that is not there",
+        g.ink_w,
+        HINT_INK_FLOOR_PX * dpi
+    );
+    // THE CLAIM: the foot's displacement IS the drawn spine's over the same vertical
+    // distance.
+    assert!(
+        (g.foot_dx - g.spine_dx).abs() <= 0.02 * dpi,
+        "{ctx}: the foot band is {} px off row 0's anchor, but the DRAWN spine moves {} \
+         px over the same {} row pitches — the band is not on the composition's own line",
+        g.foot_dx,
+        g.spine_dx,
+        g.steps
+    );
+    // …AT THE TERMINUS OR PAST IT, whichever the shipped answer to the open design
+    // question is. The claim READS the switch rather than restating one of its branches,
+    // so flipping it stays the one-word change its own doc promises.
+    let last = (g.rows - 1) as f32;
+    if crate::render::chrome::diagonal::FOOT_CONTINUES_THE_LEAN {
+        assert!(
+            g.steps > last,
+            "{ctx}: the band's own row is {} steps down and the last candidate row is \
+             {last} — the shipped answer CONTINUES the lean past the spine's terminus, \
+             so the band must sit below the list",
+            g.steps
+        );
+    } else {
+        assert!(
+            (g.steps - last).abs() < 1e-3,
+            "{ctx}: the shipped answer seats the band AT the spine's terminus (step \
+             {last}), but it is at {}",
+            g.steps
+        );
+    }
+    (g.spine_dx / g.steps).abs() / dpi
+}
+
 /// THE HEADLINE LAW — the foot band sits on the line the DRAWN spine would have
 /// drawn there, at every device scale, in both menu-bar states, over every kind that
 /// carries a hint, and on a CRAMPED card as well as a roomy one.
@@ -189,9 +242,6 @@ fn the_foot_band_hangs_on_the_line_the_drawn_spine_takes() {
     for bar in [false, true] {
         crate::menubar::set_menu_bar_on(bar);
         for dpi in [1.0f32, 2.0] {
-            // ROOMY and CRAMPED: a wide canvas with long labels, and a narrow one
-            // with one-glyph labels (the card then hugs its rows and the spine's
-            // travel is bounded by what little side territory is left).
             // ROOMY vs CRAMPED is a fixture pair, and the second one's job is to make
             // the spine give up rake: `TRAVEL_MAX_BAND_FRACTION` bounds the whole
             // travel by a share of the card's SIDE TERRITORY, so a narrow card with
@@ -224,60 +274,7 @@ fn the_foot_band_hangs_on_the_line_the_drawn_spine_takes() {
                                  foot placement at all"
                             )
                         });
-                        // PRESENCE, before any claim about where the band sits: rows to
-                        // rake (the Linux menu-bar reserve once left a card with none)
-                        // and a hint with real ink in it.
-                        assert!(
-                            g.rows >= 3,
-                            "{ctx}: the card drew only {} rows — the fixture, or the \
-                             height budget under this menu-bar state, is what failed",
-                            g.rows
-                        );
-                        assert!(
-                            g.ink_w >= HINT_INK_FLOOR_PX * dpi,
-                            "{ctx}: the hint's shaped ink is {}px, under the {}px \
-                             presence floor — every offset assertion here is satisfied \
-                             by a hint that is not there",
-                            g.ink_w,
-                            HINT_INK_FLOOR_PX * dpi
-                        );
-                        // THE CLAIM: the foot's displacement IS the drawn spine's over
-                        // the same vertical distance.
-                        assert!(
-                            (g.foot_dx - g.spine_dx).abs() <= 0.02 * dpi,
-                            "{ctx}: the foot band is {} px off row 0's anchor, but the \
-                             DRAWN spine moves {} px over the same {} row pitches — the \
-                             band is not on the composition's own line",
-                            g.foot_dx,
-                            g.spine_dx,
-                            g.steps
-                        );
-                        // …AT THE TERMINUS OR PAST IT, whichever the shipped answer
-                        // to the open design question is. The claim READS the switch
-                        // rather than restating one of its branches, so flipping it
-                        // stays the one-word change its doc promises.
-                        let last = (g.rows - 1) as f32;
-                        if crate::render::chrome::diagonal::FOOT_CONTINUES_THE_LEAN {
-                            assert!(
-                                g.steps > last,
-                                "{ctx}: the band's own row is {} steps down and the \
-                                 last candidate row is {last} — the shipped answer \
-                                 CONTINUES the lean past the spine's terminus, so the \
-                                 band must sit below the list",
-                                g.steps
-                            );
-                        } else {
-                            assert!(
-                                (g.steps - last).abs() < 1e-3,
-                                "{ctx}: the shipped answer seats the band AT the \
-                                 spine's terminus (step {last}), but it is at {}",
-                                g.steps
-                            );
-                        }
-                        // The drawn rake in LOGICAL px per row — the space the
-                        // authored `ROW_STEP` is written in, so the two are comparable
-                        // at both device scales.
-                        let rake = (g.spine_dx / g.steps).abs() / dpi;
+                        let rake = grade_on_the_spines_line(&g, dpi, &ctx);
                         if shape == "cramped" {
                             eprintln!("MEASURED {ctx}: rows={} rake={rake} logical px/row", g.rows);
                             tightest_rake = tightest_rake.min(rake);

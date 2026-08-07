@@ -172,6 +172,7 @@ mod location;
 pub(in crate::render) use cluster::DiagonalClusterProbe;
 pub(in crate::render) use cluster::DiagonalClusterRail;
 use cluster::label_flow_of;
+#[cfg(test)]
 pub(in crate::render) use foot::FOOT_CONTINUES_THE_LEAN;
 pub(in crate::render) use location::location_axis_deg;
 
