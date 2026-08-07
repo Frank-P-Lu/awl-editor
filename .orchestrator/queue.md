@@ -944,8 +944,28 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      world's users are on Retina by default — the strip's mark is the style's own
      selection vocabulary, and a half-weight rule is a half-legible affordance.
 
-293. 🟡 IN PROGRESS — claude, branch `claude/item-293-footer-separator`.
-     **The overlay footer crowds the last row.** The hint line sits hard against
+293. ✅ **LANDED (merged 2026-08-07) — it was TWO defects, not one.** Not clipped:
+     nothing was ever clipped because no space was ever reserved. **NOT COMPUTED** (no
+     producer of `hint_rows` added a row for a gap) with a **NOT-DRAWN** twin (the
+     shaper pushed one bare newline). Proven as two rather than one-described-twice by
+     mutating each half alone and getting **distinct** symptoms.
+     ⚠️ **THIS ITEM'S OWN CITATION WAS MISATTRIBUTED:** the *"footer.len() + 1 … a blank
+     separator line"* comment belongs to `OverlayGeom::footer_rows` (the Keybindings-tips
+     band, which already HAD its separator), not `hint_rows`. The row-list→hint boundary
+     never carried the analogous term at all.
+     ✅ **A pre-existing design law was retired and the reasoning was checked here before
+     accepting it:** `overlay_rhythm_item112`'s "better balanced than the retired dials"
+     compared a difference of differences whose counterfactual shifts BOTH sides by a
+     constant unrelated to the new dial, so a third dial turns it into a coincidence
+     (ties on Mangrove, inverts on Saltpan, no product change). **Both directional claims
+     survive and the comparative became an ABSOLUTE bound** — stronger, not weaker.
+     ✅ **A latent test bug surfaced that had been invisible its whole life:**
+     `surfaces_item225` added a logical pad of 12.0 **without scaling by dpi**, exposed
+     only once a correctly taller plate reached it at 2×.
+     🔵 **Owed:** `OVERLAY_HINT_GAP_ROW = 0.45` was tuned against a compact-chin law, not
+     by eye. And two disclosed coverage gaps, stated rather than hidden: one name-based
+     `OverlayKind::Spell` exclusion, and the row-count law proven on three representative
+     kinds rather than the roster. **Original:** **The overlay footer crowds the last row.** The hint line sits hard against
      the last candidate row. `OverlayGeom::hint_rows` documents itself as
      `footer.len() + 1` — "a blank separator line" — so a separator is already
      specified and none is drawn. Establish whether it is not computed, not
@@ -1381,7 +1401,16 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      `pipeline_prepare.rs`, and READS `chrome/diagonal.rs` — **311 also names
      `diagonal.rs`; sequence, never pair.**
 
-313. **THE PICKER'S HINT LINE SITS FLUSH-LEFT UNDER A LEANING LIST.** "type to filter
+313. **THE PICKER'S HINT LINE SITS FLUSH-LEFT UNDER A LEANING LIST.** ✅ **293 IS LANDED,
+     SO THIS IS UNBLOCKED — and 293 changed NOTHING about the hint's shape:** it added
+     lines, not a second run or buffer, so the hint is still in the same `panel_buffer`
+     run with no independent x. **This item is neither easier nor harder than when it
+     was written.**
+     ✅ **AND IT NOW CARRIES A SECOND PAYOFF:** item 312 kept the card box as a coverage
+     FLOOR for the footprint frost *because* the query line and this hint are upright
+     and flush left — a bare parallelogram would have left ~57px of hint over sharp
+     document. **Once the hint and query lean with the rows, that floor can be dropped
+     and the frost becomes a true parallelogram.** See `gallery/item-312/after-Mangrove.png`. "type to filter
      ↵ keep esc revert" holds the card's left edge while every row above it rakes with
      the spine. Same user report and same screenshot as 312; separated because it is a
      different mechanism and a different contended file.
