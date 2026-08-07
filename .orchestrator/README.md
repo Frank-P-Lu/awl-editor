@@ -498,6 +498,16 @@ once, at landing.
   linux job is the only thing that tests on real Linux, which no local gate
   covers — but do not assume a `cancelled` streak means "pushed too fast"
   without checking the clock first.
+- ‼ **AND THE ORCHESTRATOR CAN CANCEL ITS OWN ARBITER, WHICH IS THE WORST VERSION OF
+  THIS.** Measured 2026-08-07: `main` went red, the run on the *next* sha was the only thing
+  that could say whether a later commit had already fixed it — and pushing the CI-RED **board
+  note** killed that run, because `concurrency.cancel-in-progress: true` does not care that
+  the push was documentation. **The arbiter became the run on the board commit, one full CI
+  cycle later.**
+  **So while a specific run is the arbiter of something you need, DO NOT PUSH — not even a
+  markdown-only commit.** Write the board note, hold it, and push after the run reports. The
+  rule "push after two or three landed items" already permits holding; this is the case where
+  holding is mandatory rather than tidy.
 - ⚠️ **A THIRD CAUSE OF A RED- OR CANCELLED-LOOKING RUN: GITHUB ACTIONS ITSELF IS
   DOWN. CHECK THAT BEFORE DIAGNOSING ANYTHING.** Measured 2026-08-06 on `e2e40445`:
   `linux`, `web` and `atspi` all reported `cancelled` **at the identical second**,
