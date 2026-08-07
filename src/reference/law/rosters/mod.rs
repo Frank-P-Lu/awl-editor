@@ -4,7 +4,9 @@
 //! Split by subject: this file carries the config/settings/chord/markdown/
 //! conceal laws; [`worlds`] carries everything that reads WORLDS.md (the
 //! at-a-glance table's own laws, the margin-backgrounds table's, and the
-//! table-parsing helpers both share).
+//! table-parsing helpers both share); [`cli`] carries the command-line
+//! section's, where the claims are checked against the code that owns each
+//! fact rather than only against a fresh generation.
 
 use super::REGEN;
 use crate::reference::{Section, rows};
@@ -326,4 +328,5 @@ fn every_conceal_kind_is_documented() {
     }
 }
 
+mod cli;
 mod worlds;

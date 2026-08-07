@@ -18,6 +18,7 @@ document. This file does not replace it.
 - [Configuration file](#configuration-file)
 - [Worlds](#worlds)
 - [Markdown](#markdown)
+- [Command line](#command-line)
 
 ---
 
@@ -378,3 +379,97 @@ With `wysiwyg = true`, the markup below hides while the caret and the selection 
 | Link | The brackets and the target | The line | Yes |
 | Blockquote | The `>` marker | The line | Yes |
 <!-- GENERATED:reference-markdown:END -->
+
+---
+
+## Command line
+
+The browser build has no command line; these are the native binary's flags. awl
+takes a file to open and, for headless verification, a capture mode plus the
+hooks that compose with it.
+
+Every flag below is one row of the same roster the parser resolves arguments
+through, so this table and `awl --help` cannot disagree about a flag's spelling,
+its arguments, or what it does.
+
+<!-- GENERATED:reference-cli:BEGIN -->
+### Capture modes
+
+At most one capture mode per run: awl refuses a second rather than silently preferring one.
+
+| Flag | Takes | What it does |
+|---|---|---|
+| `--screenshot` | `OUT.png` | caret at rest (rounded square) |
+| `--screenshot-motion` | `OUT.png` | caret mid-glide (centred trailing streak) |
+| `--screenshot-motion-v` | `OUT.png` | caret mid-glide vertical (left-edge bar) |
+| `--screenshot-motion-d` | `OUT.png` | caret mid-glide diagonal (slanted tracer) |
+| `--screenshot-app` | `OUT.png` | drive --keys into a REAL headless App (hermetic) and capture ITS state — the only door that sees a live-App-only transition; sidecar carries driver: "live-app" |
+| `--capture-timeline` | `"0,16,50,150" OUT.png` | deterministic timeline: step the caret glide by injected ms, frame per step (OUT.t<ms>.png) |
+| `--capture-held` | `DIR "0,30,60,90" OUT.png` | deterministic HELD arrow (DIR=left\|right\|up\|down): re-target one char/line per step (held=true), frame per step with trail geometry |
+
+### Options
+
+| Flag | Takes | What it does |
+|---|---|---|
+| `--sel` | `L0:C0-L1:C1` | selection highlight from (l0,c0)..(l1,c1) |
+| `--zoom` | `F` | zoom factor (0.5..3.0) |
+| `--scroll` | `N[:Q]` | scroll to row N plus Q fixed 1/64px units |
+| `--preedit` | `STR` | render STR as an IME preedit at the caret |
+| `--search` | `STR` | open isearch panel for STR + highlight hits |
+| `--search-case` | — | make --search case-sensitive |
+| `--theme` | `NAME` | set the active color theme (Tawny, Mopoke, Currawong, Potoroo, Gumtree, Bilby, Saltpan, Quokka, Bombora, Bowerbird, Mulga, Mangrove, Galah, Magpie, Brolga, Wagtail, Firetail, Cassowary, Paperbark, Kite) |
+| `--list-worlds` | — | print every theme name, one per line, then exit (the roster `--theme` accepts; see scripts/capture-worlds.sh) |
+| `--icon-manifest` | — | print the app-icon export manifest as JSON (per world: icon palette tokens + display face + its logo-cursor; per face: the bundled font files), then exit — run from the repo root; see scripts/icons/ |
+| `--ground-audition` | `W` | item 121's A/B/C ground-audition manifest, exit |
+| `--pack-icns` | `[DIR]` | cut every world's rendered tiles (default assets/macos/candidates/tiles) into assets/macos/world/<World>.icns + the canonical assets/macos/Awl.icns, and regenerate src/app_icon/embedded.rs, then exit — run from the repo root AFTER scripts/export-icons.sh |
+| `--export-linux-icon` | `OUT.png` | cut the 256px PNG out of the committed canonical assets/macos/Awl.icns, then exit — run from the repo root; see scripts/package-appimage.sh |
+| `--caret-mode` | `MODE` | caret look: block, morph, ibeam, or auto (default: mono->block, proportional->morph) |
+| `--capture-size` | `WxH` | physical canvas size for the capture (default 1200x800) |
+| `--capture-dpi` | `N` | renderer scale factor (default 1.0); WxH at dpi N == (W/N)x(H/N) logical retina window |
+| `--measure` | `N` | page-mode column width in chars (default 70 for prose, 100 for code; implies --page on) |
+| `--page` | `on\|off` | page mode: centered column (on, default) vs edge-to-edge (off) |
+| `--debug` | — | DEBUG: draw the dim top-left dev panel — frametime/zoom/viewport/cursor/theme/md+syn (OFF by default; frametime is a fixed placeholder in a headless capture) |
+| `--hud` | — | summon the HELD stats HUD (live: hold Option-Cmd-I; clock/file-date fields are fixed placeholders in a capture) |
+| `--menu-bar` | — | show the web/Linux MENU BAR (default on web/Linux, off on macOS which has the native bar); --menu-open N drops menu N's dropdown |
+| `--peek` | — | summon the HOLD-⌘ shortcut peek (live: hold the convention's bare arming modifier — ⌘ on Mac, Ctrl on Linux — ~600ms; a capture shows the curated starter six) |
+| `--streaks` | — | summon the WRITING STREAKS card (live: palette "Writing streaks"; a capture shows a fixed synthetic year + streak numbers) |
+| `--whichkey` | — | summon the WHICH-KEY panel: the C-x prefix's follow-up keys (live: press C-x and pause ~500ms) |
+| `--default-folder` | `DIR` | fallback active folder for a first launch with nothing remembered (default ~/notes) |
+| `--config` | `PATH` | load settings from PATH (default ~/.config/awl/config.toml) |
+| `--wait` | — | windowed editor only: single-instance daemon — hand `file` to an already-running awl and block until C-x # finishes it (EDITOR=awl --wait for git) |
+| `--keys` | `"SPEC"` | replay emacs chords (e.g. "C-n C-n M->") then capture |
+| `--seed-data` | `DIR` | seed awl's own DATA ROOT (the unresolved-change record, the scratch stash, session.toml, history) into a hermetic scenario sandbox from DIR's files — the only way a --screenshot-app run can START from state awl already had; refused outside a hermetic door |
+| `--strict-replay` | — | with --screenshot --keys: abort (naming the offender) on an unbound chord, a live-only effect the replay can't perform, or a missing layout oracle; runs HERMETIC (an in-memory fs seeded from the named file + --config — a replayed save never touches the real file, the user's own config/notes/history are never read or written) |
+| `--storyboard` | `TOML` | run a scenario storyboard (press/type/pause/run_for/expect steps — see scenarios/): strict + hermetic, emitting per-step PNG+JSON, deterministic film frames, a byte-stable trace.json, and (with ffmpeg on PATH) film.webm/film.mp4 |
+| `--storyboard-out` | `DIR` | where the storyboard run's artifacts land (default: <storyboard>.run/ beside the .toml) |
+
+### Unlisted flags
+
+`awl --help` does not print these. They work like any other flag; they are benchmark, diagnostic and verification hooks rather than everyday arguments. Every benchmark opens no window.
+
+| Flag | Takes | What it does |
+|---|---|---|
+| `--screenshot-frames` | `N OUT.png` | capture N successive settled frames of the real App scheduling body, stepped --frame-step-ms per frame |
+| `--semantic-json` | — | print the headless App's accessibility tree as JSON instead of a PNG |
+| `--help, -h` | — | print the usage summary above and exit |
+| `--frame-step-ms` | `MS` | milliseconds of virtual clock between --screenshot-frames frames |
+| `--search-replace` | — | open the search panel's labelled replace row — the fresh Cmd-R state |
+| `--menu-open` | `[N]` | show the menu bar and drop menu N's dropdown (0 = the App menu) |
+| `--lifetime` | — | summon the LIFETIME STATS card (live: the palette's "Lifetime stats"; a capture renders fixed placeholders rather than a live store) |
+| `--root` | `DIR` | the active project root: scopes the go-to overlay and fills the sidecar's project block (default: the launch file's parent, else the working directory) |
+| `--workspace` | `DIR` | workspace parent whose child directories are the switch-project candidates |
+| `--live-script` | `"STEPS"` | drive the REAL windowed app through a live-probe step script; refused alongside any capture mode |
+| `--live-shots` | `DIR` | where --live-script writes its shots (default: the system temp directory) |
+| `--bench-typing` | — | time the per-keystroke update path on 100/1000/5000-line documents, whole-buffer reshape against incremental |
+| `--bench-perf` | — | time the traced hot paths over the long fixtures under benches/fixtures |
+| `--bench-frame` | — | per-stage frame profile of the live redraw sequence over the real repo docs |
+| `--bench-theme-burst` | — | profile successive font-changing theme switches — the reshape and the first frame after each — cold and warm |
+| `--bench-a11y` | — | time one keystroke's accessibility projection at 100 to 50 000 lines, the whole-snapshot path against the incremental one |
+| `--bench-zoom-burst` | — | replay a rapid adjacent-level zoom burst: eager reflow against latest-wins coalescing |
+| `--bench-frost` | — | profile the frost field's steady frames and its rebuilds, for both lava worlds |
+| `--bench-caret` | — | record the caret glyph lookup's cost at the document top, middle and tail |
+| `--bench-suite` | — | run the unified bench suite — corpus tiers by interaction scenarios — printing a table and writing bench.json beside the invocation |
+| `--bench-baseline` | `PATH` | diff --bench-suite against a machine-keyed baseline, exiting nonzero on a >20% cell |
+| `--soak-gpu` | — | run the bounded native window/surface robustness probe, isolated from the daemon, session, history and user config |
+| `--soak-gpu-seconds` | `SECONDS` | how long --soak-gpu runs, in seconds (default 900) |
+<!-- GENERATED:reference-cli:END -->

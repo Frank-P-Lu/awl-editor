@@ -119,9 +119,13 @@ fn a_missing_operand_is_refused_exactly_when_the_roster_says_required() {
         match f.operands.first() {
             Some(op) if !op.optional => {
                 required += 1;
-                let msg = got
-                    .expect_err("a required operand cannot be satisfied by an empty stream")
-                    .to_string();
+                let Err(e) = got else {
+                    panic!(
+                        "`{}` declares a required operand but an empty stream satisfied it",
+                        f.name()
+                    )
+                };
+                let msg = e.to_string();
                 assert_eq!(
                     msg,
                     format!("{} {}", f.name(), op.need),
@@ -189,27 +193,25 @@ fn help_prints_exactly_the_shown_flags() {
         // Match the rendered PREFIX, not the bare name: `--menu-open` appears
         // inside `--menu-bar`'s sentence and `--search` inside `--search-case`,
         // so a substring test on the name alone answers the wrong question.
-        let printed = text.lines().any(|l| {
-            l.trim_start().starts_with(&format!("{} ", f.name()))
-                || l.trim_start() == format!("awl {} [file]", f.name())
-                || l.trim_end().ends_with(f.name())
-        });
+        let want = match f.block {
+            HelpBlock::Modes => mode_prefix(f),
+            HelpBlock::Options => option_prefix(f),
+        };
+        let printed = text.lines().any(|l| l.starts_with(&want));
         match f.listing {
             Listing::Shown => {
                 shown += 1;
-                assert!(printed, "`{}` is Shown but --help does not print it", f.name());
+                assert!(
+                    printed,
+                    "`{}` is Shown but --help carries no `{want}` line",
+                    f.name()
+                );
             }
             Listing::Hidden => {
                 hidden += 1;
-                let own_line = text.lines().any(|l| {
-                    let t = l.trim_start();
-                    t.starts_with(&format!("{} ", f.name()))
-                        || t == f.name()
-                        || t.starts_with(&format!("awl {} ", f.name()))
-                });
                 assert!(
-                    !own_line,
-                    "`{}` is Hidden but --help gives it a line",
+                    !printed,
+                    "`{}` is Hidden but --help gives it a `{want}` line",
                     f.name()
                 );
             }

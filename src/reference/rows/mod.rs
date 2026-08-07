@@ -21,12 +21,14 @@ pub(super) fn block(caption: Option<&str>, note: Option<&str>, table: Table) -> 
     }
 }
 
+pub(super) mod cli;
 pub(super) mod commands;
 pub(super) mod config;
 pub(super) mod markdown;
 pub(super) mod settings;
 pub(super) mod worlds;
 
+pub(super) use cli::cli;
 pub(super) use commands::{commands, synthetic_name};
 pub(super) use config::{CONFIG_NON_KEYS, config, config_default, documented_config_keys};
 pub(super) use markdown::{conceal_facts_for, documented_tags, markdown};

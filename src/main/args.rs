@@ -14,9 +14,12 @@ use crate::{caret, debug, hud, keyspec, lifetime, page, theme, whichkey};
 // `flags::lookup`, every operand comes off the stream through
 // `Flag::take_operands`, and the dispatch is a no-wildcard match on `FlagId`, so
 // a roster row with no arm fails to compile. `--help` and the reference's
-// command-line section are both generated from the same table.
+// command-line section are both generated from the same table — which is why the
+// module is `pub(crate)`: `crate::reference::rows::cli` reads the roster, and
+// reading it is the whole point. Nothing outside PARSES with it; `lookup` and
+// `take_operands` have exactly one caller, the loop below.
 #[path = "args/flags.rs"]
-mod flags;
+pub(crate) mod flags;
 #[path = "args/modes.rs"]
 mod modes;
 #[path = "args/parsers.rs"]

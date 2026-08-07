@@ -126,7 +126,7 @@ flag_roster! {
         "renderer scale factor (default 1.0); WxH at dpi N == (W/N)x(H/N) logical retina window";
     Measure: &["--measure"], Options, Shown,
         &[Operand::req("N", "requires a char count")],
-        "page-mode column width in chars (default 80; implies --page on)";
+        "page-mode column width in chars (default 70 for prose, 100 for code; implies --page on)";
     Page: &["--page"], Options, Shown,
         &[Operand::req("on|off", "requires 'on' or 'off'")],
         "page mode: centered column (on, default) vs edge-to-edge (off)";
