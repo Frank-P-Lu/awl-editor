@@ -457,8 +457,8 @@ fn metrics_resolved_constants(render_src: &str) -> Vec<String> {
 /// Every entry is a `render.rs` length whose read sites multiply it by
 /// `metrics.zoom` ALONE (or by nothing at all), never by `metrics.scale`. So it
 /// holds its DEVICE size as the display gets denser and shrinks relative to the
-/// text beside it — the same halving item 242 measured in chrome, one
-/// neighbourhood over, in the writing column's decorations. Measured, not
+/// text beside it — the same halving this file's own drawn claim grades for
+/// chrome, one neighbourhood over, in the writing column's decorations. Measured, not
 /// inferred: the inline-code pill is 92.70px wide at dpi 1 and 179.39px at dpi 2
 /// on identical logical geometry, where twice the first is 185.39 — short by
 /// exactly `2 * CODE_PILL_INSET_X`; the fence panel is short by exactly
@@ -1029,8 +1029,8 @@ fn no_length_is_resolved_against_zoom_alone() {
     assert!(
         offenders.is_empty(),
         "a logical length resolved against ZOOM alone — it will hold its device \
-         size as the display gets denser, which is the halving item 242 was \
-         written for:\n{}",
+         size as the display gets denser, which is the halving this file's drawn \
+         claim exists to catch:\n{}",
         offenders.join("\n")
     );
     // NON-VACUITY: the scan must have found real resolution sites to grade. A
