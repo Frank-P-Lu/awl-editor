@@ -560,7 +560,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
 
 ## Open items
 
-118. **Pre-release world-loudness audit.** **Audit definition:** "idle loudness"
+118. 🚧 CLAIMED (worktree item-118-loudness, production tier) **Pre-release world-loudness audit.** **Audit definition:** "idle loudness"
      is how strongly a world asks for attention while the user is simply writing
      in page mode: palette, typography, margin pattern, and ambient motion count;
      summoned overlays do not. `1/5` is the quiet pole (Wagtail), `3/5` is
