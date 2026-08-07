@@ -44,23 +44,23 @@ Commands are grouped by the same task categories the palette browses.
 | Switch project… | Summon the project switcher, browsing to a different project folder. | `⌘⇧P` | `Ctrl+Shift+P` | Native, browser |
 | Recent projects… | Open the project switcher focused on its Recent list. | — | — | Native |
 | Browse files… | Summon the file browser for the current project folder. | — | — | Native, browser |
-| Version history… | Summon the version timeline for the current file — git log for a tracked file, saved snapshots otherwise. | `⌘⇧H` | `Ctrl+Shift+H` | Native |
+| Version history… | Summon the version timeline — git log if tracked, saved snapshots otherwise. | `⌘⇧H` | `Ctrl+Shift+H` | Native |
 | Compare with version… | Open the read-only prose diff comparing the current buffer against a past version. | — | — | Native |
-| Keep version… | Prompt for a name, then record the current buffer text as a pinned history snapshot under it. | — | — | Native |
+| Keep version… | Prompt for a name, then record the buffer text as a pinned history snapshot under it. | — | — | Native |
 | New document | Start a new, empty document in the current project folder. | `⌘N` | `Ctrl+N` | Native, browser |
-| Keep tutorial… | Mark the built-in tutorial to be saved once a project folder is chosen, then open the project switcher. | — | — | Native |
+| Keep tutorial… | Mark the tutorial to be saved once a folder is chosen, opening the project switcher. | — | — | Native |
 | Move… | Summon the destination browser to move the current file to another folder. | — | — | Native, browser |
 | Rename note… | Open the rename prompt, seeded with the current file's name. | — | — | Native, browser |
-| Duplicate note | Save a copy of the current file beside it, with a deduplicated name, and switch to editing the copy. | — | — | Native, browser |
-| Finish file | Save the file, notify any daemon `--wait` client waiting on it, and switch to the previously open file. | `⌘W` | `Ctrl+W` | Native |
-| Download file | Download the active buffer's text as a file — the web build's export, since there is no real disk. | — | — | Browser |
+| Duplicate note | Save a copy of the file beside it, deduplicated, and switch to editing the copy. | — | — | Native, browser |
+| Finish file | Save the file, notify any daemon `--wait` client, and switch to the prior file. | `⌘W` | `Ctrl+W` | Native |
+| Download file | Download the buffer's text as a file — the web export, since there is no real disk. | — | — | Browser |
 | Export as Word… | Export the buffer to a `.docx` file; markdown buffers only. | — | — | Native, browser |
 | Export as HTML… | Export the buffer to an `.html` file; markdown buffers only. | — | — | Native, browser |
 | Export as PDF… | Export the buffer to a `.pdf` file; markdown buffers only, native builds only. | — | — | Native |
 | Save | Save the buffer to disk. | `⌘S` | `Ctrl+S` | Native, browser |
-| Review the change | Read an unresolved external change: the differences, your version, and the version on disk, one at a time. Changes nothing. | — | — | Native |
+| Review the change | Show an unresolved change: differences, your version, disk version. Changes nothing. | — | — | Native |
 | Save your version | Settle an unresolved external change by writing the buffer over the file on disk. | — | — | Native |
-| Use disk version | Settle an unresolved external change by replacing the buffer with the file on disk, as one undoable edit. | — | — | Native |
+| Use disk version | Settle an unresolved change by replacing the buffer with the disk file, as one edit. | — | — | Native |
 | Quit | Quit the application. | `⌘Q` | `Ctrl+Q` | Native |
 
 ### Navigate
@@ -70,23 +70,23 @@ Commands are grouped by the same task categories the palette browses.
 | Go to file… | Summon the fuzzy file finder for the current project. | `⌘O` | `Ctrl+O` | Native, browser |
 | Go to heading… | Open the file finder pre-focused on the current document's headings. | — | — | Native, browser |
 | Last file | Switch to the previously open file; a no-op with nothing to switch back to. | `⌃Tab` | `Ctrl+Tab` | Native, browser |
-| Follow link | Open the URL of the markdown link under the caret in the default browser, if the caret sits inside one. | `C-c C-o` | — | Native, browser |
+| Follow link | Open the caret's markdown link URL in the default browser, if there is one. | `C-c C-o` | — | Native, browser |
 | Copy link destination | Copy the URL of the markdown link under the caret to the kill buffer. | — | — | Native, browser |
-| Search forward | Open incremental search, prefilled from the selection or the last query, searching forward. | `⌘F · C-s` | `Ctrl+F` | Native, browser |
-| Search backward | Open incremental search, prefilled from the selection or the last query, searching backward. | `⌘⇧F · C-r` | `Ctrl+Shift+F` | Native, browser |
+| Search forward | Open incremental search (prefilled from selection or last query), forward. | `⌘F · C-s` | `Ctrl+F` | Native, browser |
+| Search backward | Open incremental search (prefilled from selection or last query), backward. | `⌘⇧F · C-r` | `Ctrl+Shift+F` | Native, browser |
 | Find and replace… | Open the search panel with its replace row revealed. | `⌘R` | `Ctrl+R` | Native, browser |
 | Forward word | Move the caret forward one word. | `⌥Right` | `Alt+Right` | Native, browser |
 | Backward word | Move the caret backward one word. | `⌥Left` | `Alt+Left` | Native, browser |
-| Line start | Move the caret to the start of the visual line (the logical line without a layout oracle). | `⌘Left · C-a` | `Home` | Native, browser |
-| Line end | Move the caret to the end of the visual line (the logical line without a layout oracle). | `⌘Right · C-e` | `End` | Native, browser |
+| Line start | Move the caret to the start of the visual line (logical without an oracle). | `⌘Left · C-a` | `Home` | Native, browser |
+| Line end | Move the caret to the end of the visual line (logical line without a layout oracle). | `⌘Right · C-e` | `End` | Native, browser |
 | Document start | Move the caret to the start of the document. | `⌘Up` | `Ctrl+Home` | Native, browser |
 | Document end | Move the caret to the end of the document. | `⌘Down` | `Ctrl+End` | Native, browser |
 | Forward char | Move the caret forward one character. | `C-f` | — | Native, browser |
 | Backward char | Move the caret backward one character. | `C-b` | — | Native, browser |
 | Next line | Move the caret down one visual line, following soft wraps and a sticky goal column. | `C-n` | — | Native, browser |
 | Previous line | Move the caret up one visual line, following soft wraps and a sticky goal column. | `C-p` | — | Native, browser |
-| Delete word forward | Delete the token after the caret (a word or punctuation run) into the kill buffer; deletes the selection instead if one is active. | — | — | Native, browser |
-| Delete word backward | Delete the token before the caret (a word or punctuation run) into the kill buffer; deletes the selection instead if one is active. | — | — | Native, browser |
+| Delete word forward | Delete the word or punctuation run after the caret; a selection deletes instead. | — | — | Native, browser |
+| Delete word backward | Delete the word or punctuation run before the caret; a selection deletes instead. | — | — | Native, browser |
 
 ### Format
 
@@ -96,22 +96,22 @@ Commands are grouped by the same task categories the palette browses.
 | Insert Date | Insert today's date at the caret, in the configured date format. | `⌘⇧D · C-c .` | `Ctrl+Shift+D` | Native, browser |
 | Blockquote | Toggle a `> ` blockquote prefix on the caret line or each line of the selection. | — | — | Native, browser |
 | Bullet list | Toggle a `- ` bullet marker on the caret line or each line of the selection. | — | — | Native, browser |
-| Numbered list | Toggle a numbered-list marker on the caret line or each line of the selection, renumbering sequentially. | — | — | Native, browser |
+| Numbered list | Toggle a numbered-list marker on the line or selection, renumbering sequentially. | — | — | Native, browser |
 | Task list | Toggle a `- [ ] ` task checkbox on the caret line or each line of the selection. | `⌘⇧L` | `Ctrl+Shift+L` | Native, browser |
 | Heading | Toggle a level-1 `# ` heading marker on the caret line. | — | — | Native, browser |
 | Cycle heading | Cycle the caret line's heading level 1 → 2 → 3 → plain text. | — | — | Native, browser |
-| Code block | Wrap the caret line or selection in a fenced code block, or unwrap it if already fenced. | — | — | Native, browser |
+| Code block | Wrap the caret line or selection in a fenced code block, unwrapping if fenced. | — | — | Native, browser |
 | Bold | Toggle `**bold**` markup around the selection or the word at the caret. | `⌘B` | `Ctrl+B` | Native, browser |
 | Italic | Toggle `*italic*` markup around the selection or the word at the caret. | `⌘I` | `Ctrl+I` | Native, browser |
 | Inline code | Toggle `` `inline code` `` markup around the selection or the word at the caret. | `⌘E` | `Ctrl+E` | Native, browser |
 | Highlight | Toggle `==highlight==` markup around the selection or the word at the caret. | — | — | Native, browser |
 | Strikethrough | Toggle `~~strikethrough~~` markup around the selection or the word at the caret. | — | — | Native, browser |
-| Insert link… | Summon the URL prompt for a markdown link — wraps the selection, edits the link under the caret, or inserts a fresh empty one. | `⌘K` | — | Native, browser |
+| Insert link… | Summon the URL prompt for a markdown link: wrap, edit, or insert a link at the caret. | `⌘K` | — | Native, browser |
 | Undo | Undo the last edit group. | `⌘Z · C-/` | `Ctrl+Z · C-/` | Native, browser |
 | Redo | Redo the last undone edit group. | `⌘⇧Z` | `Ctrl+Shift+Z` | Native, browser |
 | Copy | Copy the selection to the kill buffer, leaving the text and clearing the mark. | `⌘C` | `Ctrl+C` | Native, browser |
 | Cut | Cut the selection into the kill buffer and remove it from the buffer. | `⌘X · C-w` | `Ctrl+X` | Native, browser |
-| Paste | Insert the OS clipboard's content — an image reference if the clipboard holds an image, otherwise text. | `⌘V · C-y` | `Ctrl+V · C-y` | Native, browser |
+| Paste | Insert the OS clipboard's content — an image reference if it holds one, else text. | `⌘V · C-y` | `Ctrl+V · C-y` | Native, browser |
 | Select all | Select the entire buffer. | `⌘A` | `Ctrl+A` | Native, browser |
 
 ### View
@@ -122,10 +122,10 @@ Commands are grouped by the same task categories the palette browses.
 | Toggle page mode | Toggle between the centered writing column and full window width. | — | — | Native, browser |
 | Widen page | Widen the page column by one step. | — | — | Native, browser |
 | Narrow page | Narrow the page column by one step. | — | — | Native, browser |
-| Reset page width | Reset the page column to the buffer's own default width, clearing any sticky override. | — | — | Native, browser |
+| Reset page width | Reset the page column to the buffer's default width, clearing any override. | — | — | Native, browser |
 | Toggle debug | Toggle the debug overlay. | — | — | Native, browser |
 | Toggle outline | Toggle the heading outline panel. | `⌘⇧O` | `Ctrl+Shift+O` | Native, browser |
-| Fold section | Toggle collapse of the markdown section under the caret; view state only, never on the undo timeline. | `⌘⇧E · C-c C-f` | `Ctrl+Shift+E` | Native, browser |
+| Fold section | Toggle collapse of the section under the caret; view state, not on the undo timeline. | `⌘⇧E · C-c C-f` | `Ctrl+Shift+E` | Native, browser |
 | Collapse other sections | Collapse every markdown section except the one under the caret. | `⌘⇧M · C-c C-t` | `Ctrl+Shift+M` | Native, browser |
 | Toggle typewriter scroll | Toggle keeping the caret vertically centered as you type. | — | — | Native, browser |
 | Toggle menu bar | Toggle the menu bar's visibility. | — | — | Native, browser |
@@ -145,9 +145,9 @@ Commands are grouped by the same task categories the palette browses.
 | Reference | Open the bundled Reference document into the buffer. | — | — | Native, browser |
 | Lifetime stats | Open the lifetime writing statistics panel. | — | — | Native |
 | Writing streaks | Open the writing-streaks panel (per-day heatmap and cumulative total). | — | — | Native |
-| Line endings… | Toggle the active file's on-disk line ending between LF and CRLF; metadata only, never on the undo timeline. | — | — | Native, browser |
-| Report a Problem | Compose a `mailto:` bug report to the maintainer, attaching the newest crash log's path (never its content) if one exists. | — | — | Native, browser |
-| Check for Updates | Record a local last-checked marker and open the site's version-check page in the browser; never a background fetch. | — | — | Native |
+| Line endings… | Toggle the file's on-disk line ending between LF and CRLF; not on the undo timeline. | — | — | Native, browser |
+| Report a Problem | Compose a `mailto:` bug report, attaching the newest crash log's path if one exists. | — | — | Native, browser |
+| Check for Updates | Record a last-checked marker and open the site's version-check page in the browser. | — | — | Native |
 
 ### Settings
 
