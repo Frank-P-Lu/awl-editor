@@ -47,6 +47,7 @@
 
 use super::super::*;
 use super::dither::{offscreen, read_pixels};
+use super::frost_card_ink::{CardInk, luma, step};
 use super::{headless_dqp, view_md};
 
 /// A local luma step (of 255) that only an EDGE produces. Set in the empty middle of
@@ -57,14 +58,6 @@ const STRONG_GRADIENT: f32 = 24.0;
 /// How much of the document must still REACH through the frost, in luma. The companion
 /// to the smoothness floor: without it, deleting the subject passes.
 const PRESENCE_FLOOR: f32 = 12.0;
-
-/// A local gradient in the EMPTY-document frame this big is the card's own ink (the
-/// backdrop there is a blur of a blank page — smooth by construction).
-const INK_GRADIENT: f32 = 6.0;
-
-/// How far the card-ink mask is grown, in physical px per DPI unit. A glyph's
-/// anti-aliased skirt reaches a pixel or two past the gradient that betrays it.
-const INK_DILATE: i64 = 2;
 
 /// Prose dense enough to put real glyph structure under the card at every geometry the
 /// sweep uses, markdown so the heading ladder and the list rows vary the row heights.
@@ -117,24 +110,6 @@ fn theme_picker(text: &str) -> ViewState {
     v
 }
 
-fn luma(p: [u8; 4]) -> f32 {
-    0.299 * p[0] as f32 + 0.587 * p[1] as f32 + 0.114 * p[2] as f32
-}
-
-/// The largest of the right/down luma steps at `(x, y)` in a `w`×`h` luma field.
-fn step(field: &[f32], w: i64, h: i64, x: i64, y: i64) -> f32 {
-    let at = |x: i64, y: i64| field[(y * w + x) as usize];
-    let here = at(x, y);
-    let mut g = 0.0f32;
-    if x + 1 < w {
-        g = g.max((here - at(x + 1, y)).abs());
-    }
-    if y + 1 < h {
-        g = g.max((here - at(x, y + 1)).abs());
-    }
-    g
-}
-
 /// What one region's measurement says.
 #[derive(Debug, Clone, Copy)]
 struct Sharpness {
@@ -149,10 +124,10 @@ struct Sharpness {
 }
 
 /// Measure the document's residue over the pixels of `field` that `keep` admits and the
-/// card-ink `mask` does not veto.
+/// card-ink veto does not exclude.
 fn measure(
     residue: &[f32],
-    mask: &[bool],
+    ink: &CardInk,
     w: i64,
     h: i64,
     keep: impl Fn(i64, i64) -> bool,
@@ -165,7 +140,7 @@ fn measure(
     };
     for y in 0..h - 1 {
         for x in 0..w - 1 {
-            if mask[(y * w + x) as usize] || !keep(x, y) {
+            if ink.vetoes(x, y) || !keep(x, y) {
                 continue;
             }
             out.measured += 1;
@@ -178,34 +153,6 @@ fn measure(
         }
     }
     out
-}
-
-/// THE CARD'S OWN INK, DERIVED — the pixels a measurement of the DOCUMENT must skip.
-///
-/// `empty` is a frame of the same picker over an EMPTY document, so its backdrop is a
-/// blur of a blank page: smooth by construction. Any strong local step in it is
-/// therefore the card's own drawing, and nothing else. Grown by [`INK_DILATE`] logical
-/// px (scaled by `dpi` at the one boundary) to swallow a glyph's anti-aliased skirt.
-fn card_ink_mask(empty: &[[u8; 4]], w: i64, h: i64, dpi: f32) -> Vec<bool> {
-    let lum: Vec<f32> = empty.iter().map(|p| luma(*p)).collect();
-    let dilate = INK_DILATE * dpi.round() as i64;
-    let mut mask = vec![false; (w * h) as usize];
-    for y in 0..h - 1 {
-        for x in 0..w - 1 {
-            if step(&lum, w, h, x, y) < INK_GRADIENT {
-                continue;
-            }
-            for dy in -dilate..=dilate {
-                for dx in -dilate..=dilate {
-                    let (xx, yy) = (x + dx, y + dy);
-                    if (0..w).contains(&xx) && (0..h).contains(&yy) {
-                        mask[(yy * w + xx) as usize] = true;
-                    }
-                }
-            }
-        }
-    }
-    mask
 }
 
 /// Every world whose composition enrols in the footprint frost, taken from the ROSTER
@@ -259,7 +206,7 @@ fn the_footprint_frost_unmakes_the_document_as_text_and_confines_itself_to_the_c
                 .zip(b.iter())
                 .map(|(pa, pb)| luma(*pa) - luma(*pb))
                 .collect();
-            let mask = card_ink_mask(&b, wi, hi, dpi);
+            let ink = CardInk::derive(&b, wi, hi, dpi);
 
             // The footprint, and a collar outside it. The interior's inset stays small:
             // the frost's mask is FULL STRENGTH on and inside the card's faces (the
@@ -309,8 +256,8 @@ fn the_footprint_frost_unmakes_the_document_as_text_and_confines_itself_to_the_c
                 outer && !inner
             };
 
-            let within = measure(&residue, &mask, wi, hi, inside);
-            let beyond = measure(&residue, &mask, wi, hi, collar_only);
+            let within = measure(&residue, &ink, wi, hi, inside);
+            let beyond = measure(&residue, &ink, wi, hi, collar_only);
             let label = format!("{world} @ {dpi}x ({w}x{h}), card {rect:?}");
             eprintln!("MEASURED {label}: within={within:?} beyond={beyond:?}");
 
@@ -354,6 +301,84 @@ fn the_footprint_frost_unmakes_the_document_as_text_and_confines_itself_to_the_c
     crate::theme::set_active(entry);
 }
 
+/// THE MEAN COLOUR OF TWO FRAMES over the pixels of the card's box that the frost
+/// FULLY reaches and the card-ink veto does not exclude — accumulated in LINEAR light
+/// and converted to Lab once, at the end.
+///
+/// A blur preserves the mean of LINEAR radiance; it does not preserve the mean of any
+/// nonlinear transform of it, so averaging L\*a\*b\* per pixel and comparing the averages
+/// reports a chroma shift that is an artifact of Jensen's inequality rather than
+/// anything the shader did.
+///
+/// ⚠️ THE REGION IS THE FROST'S OWN SHAPE, READ THROUGH THE SHIPPING POLICY'S MIRROR,
+/// not the card's box. On a leaning composition the box's two off-rake corners are
+/// deliberately unfrosted, and the live page showing through them has the live page's
+/// exact colour — so admitting them pulls the "frosted" mean toward the "live" one it is
+/// being compared against, and the bound below gets easier the more of the card's box
+/// the frost fails to cover. Measured on this tree that dilution is 2.3–5.4% of the box
+/// at the roster's current rake; it grows without bound with the shear. Excluding it
+/// also keeps the veto inside the region where its own premise holds, which is a
+/// property of the frost's reach rather than of the card.
+struct MeanPair {
+    /// The frosted patch's mean colour, and the live page's, both as L\*a\*b\*.
+    frosted: (f64, f64, f64),
+    live: (f64, f64, f64),
+    /// Pixels averaged: the PRESENCE guard's own subject, since the veto's surplus is a
+    /// property of the world's ground rather than of the frost.
+    n: f64,
+    /// Pixels of the card's box the frost does not fully reach, and so excluded.
+    short: u64,
+}
+
+fn frosted_and_live_mean_lab(
+    frames: (&[[u8; 4]], &[[u8; 4]]),
+    ink: &CardInk,
+    card: [f32; 4],
+    frost: crate::render::blur::Frost,
+    (dpi, w): (f32, i64),
+) -> MeanPair {
+    let (open, closed) = frames;
+    let [rx, ry, rw, rh] = card;
+    let mut n = 0.0f64;
+    let mut short = 0u64;
+    let mut acc = [[0.0f64; 3]; 2];
+    for y in (ry + 8.0) as i64..(ry + rh - 8.0) as i64 {
+        for x in (rx + 8.0) as i64..(rx + rw - 8.0) as i64 {
+            if ink.vetoes(x, y) {
+                continue;
+            }
+            if crate::render::blur::footprint_mask_for(frost, dpi, x as f32, y as f32) < 1.0 {
+                short += 1;
+                continue;
+            }
+            let i = (y * w + x) as usize;
+            for c in 0..3 {
+                acc[0][c] += crate::theme::srgb_channel_to_linear(open[i][c]);
+                acc[1][c] += crate::theme::srgb_channel_to_linear(closed[i][c]);
+            }
+            n += 1.0;
+        }
+    }
+    let to_lab = |a: [f64; 3]| {
+        let enc = |v: f64| {
+            let v = (v / n).clamp(0.0, 1.0);
+            let s = if v <= 0.003_130_8 {
+                v * 12.92
+            } else {
+                1.055 * v.powf(1.0 / 2.4) - 0.055
+            };
+            (s * 255.0).round() as u8
+        };
+        super::pixeldiff::lab([enc(a[0]), enc(a[1]), enc(a[2]), 255])
+    };
+    MeanPair {
+        frosted: to_lab(acc[0]),
+        live: to_lab(acc[1]),
+        n,
+        short,
+    }
+}
+
 /// THE FROST IS A DEFOCUS, NOT A WASH — measured as CHROMA.
 ///
 /// The footprint arm dims by nothing, so the frosted patch must carry the page's OWN
@@ -362,99 +387,73 @@ fn the_footprint_frost_unmakes_the_document_as_text_and_confines_itself_to_the_c
 /// while leaving L\* roughly where it was, which is exactly what a value-only oracle
 /// (a contrast ratio, a |ΔY|) cannot see. So the tight bound goes on chroma.
 ///
-/// Measured over the footprint's CARD-INK-FREE pixels only: the card's rows are drawn
-/// in the world's own ink at its own chroma, and including them would make this a
-/// measurement of the card rather than of the frost under it.
+/// Measured over the FULLY FROSTED, card-ink-free pixels of the card's box (see
+/// [`frosted_and_live_mean_lab`] for why both qualifiers are load-bearing), at 1× and
+/// 2×: the veto's dilation is a physical length, so a mask derived at the wrong scale
+/// under-swallows a glyph's skirt on retina and lets the card's own chroma into a
+/// measurement of the page's.
 #[test]
 fn the_footprint_frost_keeps_the_pages_own_hue() {
     let _g = crate::testlock::serial();
     let entry = crate::theme::active_index();
     for world in enrolled_worlds() {
-        let (w, h) = (1200u32, 800u32);
-        let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
-            eprintln!("skipping the_footprint_frost_keeps_the_pages_own_hue: no wgpu adapter");
-            return;
-        };
-        crate::theme::set_active_by_name(world).unwrap();
-
-        p.set_view(&theme_picker(DENSE));
-        let open = render_frame(&device, &queue, &mut p, w, h);
-        let rect = p.overlay_card_rect().expect("the picker is open");
-        // The same picker over an empty document: the card-ink oracle.
-        p.set_view(&theme_picker(""));
-        let empty = render_frame(&device, &queue, &mut p, w, h);
-        // The same document with NO picker: the live page, at its own hue.
-        let mut plain = view_md(DENSE, 0, 0);
-        plain.overlay_active = false;
-        p.set_view(&plain);
-        let closed = render_frame(&device, &queue, &mut p, w, h);
-
-        let (wi, hi) = (w as i64, h as i64);
-        let mask = card_ink_mask(&empty, wi, hi, 1.0);
-        let [rx, ry, rw, rh] = rect;
-        let mut n = 0.0f64;
-        let mut acc = [[0.0f64; 3]; 2];
-        for y in (ry + 8.0) as i64..(ry + rh - 8.0) as i64 {
-            for x in (rx + 8.0) as i64..(rx + rw - 8.0) as i64 {
-                let i = (y * wi + x) as usize;
-                if mask[i] {
-                    continue;
-                }
-                // AVERAGED IN LINEAR LIGHT, converted to Lab once at the end. A blur
-                // preserves the mean of LINEAR radiance; it does not preserve the mean
-                // of any nonlinear transform of it, so averaging L*a*b* per pixel and
-                // comparing the averages reports a chroma shift that is an artifact of
-                // Jensen's inequality rather than anything the shader did.
-                for c in 0..3 {
-                    acc[0][c] += crate::theme::srgb_channel_to_linear(open[i][c]);
-                    acc[1][c] += crate::theme::srgb_channel_to_linear(closed[i][c]);
-                }
-                n += 1.0;
-            }
-        }
-        assert!(
-            n > 1000.0,
-            "{world}: only {n} card-ink-free pixels inside the footprint — the region, \
-             not the product, is what failed"
-        );
-        let to_lab = |a: [f64; 3]| {
-            let enc = |v: f64| {
-                let v = (v / n).clamp(0.0, 1.0);
-                let s = if v <= 0.003_130_8 {
-                    v * 12.92
-                } else {
-                    1.055 * v.powf(1.0 / 2.4) - 0.055
-                };
-                (s * 255.0).round() as u8
+        for (dpi, w, h) in [(1.0f32, 1200u32, 800u32), (2.0, 2400, 1600)] {
+            let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
+                eprintln!("skipping the_footprint_frost_keeps_the_pages_own_hue: no wgpu adapter");
+                return;
             };
-            super::pixeldiff::lab([enc(a[0]), enc(a[1]), enc(a[2]), 255])
-        };
-        let (fl, fa, fb) = to_lab(acc[0]);
-        let (ll, la, lb) = to_lab(acc[1]);
-        eprintln!(
-            "MEASURED {world} hue: frosted L*{fl:.2} a*{fa:.2} b*{fb:.2} \
-             live L*{ll:.2} a*{la:.2} b*{lb:.2} over {n} px"
-        );
-        assert!(
-            (fa - la).abs() <= 1.0 && (fb - lb).abs() <= 1.0,
-            "{world}: the frosted footprint's mean chroma (a* {fa:.2}, b* {fb:.2}) \
-             departs from the live page's (a* {la:.2}, b* {lb:.2}) — the footprint arm \
-             dims by NOTHING, so it must be a DEFOCUS of the page's own colour, not a \
-             wash toward anything. (L*: frosted {fl:.2}, live {ll:.2}.)"
-        );
-        // …and it is genuinely a DIFFERENT image (a frost that drew nothing, or one
-        // flattened to something the page already was, satisfies a hue test perfectly).
-        let differing = open
-            .iter()
-            .zip(closed.iter())
-            .filter(|(a, b)| a != b)
-            .count();
-        assert!(
-            differing > (w * h / 20) as usize,
-            "{world}: only {differing} pixels differ between picker-open and \
-             picker-closed — either nothing drew, or the footprint was flattened to \
-             something the page already was"
-        );
+            crate::theme::set_active_by_name(world).unwrap();
+            p.set_dpi(dpi);
+
+            p.set_view(&theme_picker(DENSE));
+            let open = render_frame(&device, &queue, &mut p, w, h);
+            let rect = p.overlay_card_rect().expect("the picker is open");
+            let frost = p.frost_mode().expect("an enrolled world reaches the frost");
+            // The same picker over an empty document: the card-ink oracle.
+            p.set_view(&theme_picker(""));
+            let empty = render_frame(&device, &queue, &mut p, w, h);
+            // The same document with NO picker: the live page, at its own hue.
+            let mut plain = view_md(DENSE, 0, 0);
+            plain.overlay_active = false;
+            p.set_view(&plain);
+            let closed = render_frame(&device, &queue, &mut p, w, h);
+
+            let ink = CardInk::derive(&empty, w as i64, h as i64, dpi);
+            let m = frosted_and_live_mean_lab((&open, &closed), &ink, rect, frost, (dpi, w as i64));
+            let ((fl, fa, fb), (ll, la, lb), n, short) = (m.frosted, m.live, m.n, m.short);
+            let label = format!("{world} @ {dpi}x ({w}x{h})");
+            assert!(
+                n > 1000.0,
+                "{label}: only {n} fully-frosted card-ink-free pixels inside the card's \
+                 box ({short} more fell short of full frost) — the region, not the \
+                 product, is what failed"
+            );
+            eprintln!(
+                "MEASURED {label} hue: frosted L*{fl:.2} a*{fa:.2} b*{fb:.2} \
+                 live L*{ll:.2} a*{la:.2} b*{lb:.2} over {n} px, {short} px of the \
+                 card's box short of full frost and excluded"
+            );
+            assert!(
+                (fa - la).abs() <= 1.0 && (fb - lb).abs() <= 1.0,
+                "{label}: the frosted footprint's mean chroma (a* {fa:.2}, b* {fb:.2}) \
+                 departs from the live page's (a* {la:.2}, b* {lb:.2}) — the footprint arm \
+                 dims by NOTHING, so it must be a DEFOCUS of the page's own colour, not a \
+                 wash toward anything. (L*: frosted {fl:.2}, live {ll:.2}.)"
+            );
+            // …and it is genuinely a DIFFERENT image (a frost that drew nothing, or one
+            // flattened to something the page already was, satisfies a hue test perfectly).
+            let differing = open
+                .iter()
+                .zip(closed.iter())
+                .filter(|(a, b)| a != b)
+                .count();
+            assert!(
+                differing > (w * h / 20) as usize,
+                "{label}: only {differing} pixels differ between picker-open and \
+                 picker-closed — either nothing drew, or the footprint was flattened to \
+                 something the page already was"
+            );
+        }
     }
     crate::theme::set_active(entry);
 }
