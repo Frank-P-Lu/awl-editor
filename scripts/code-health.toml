@@ -273,7 +273,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2659
+lines = 2661
 reason = "+6: `CODE_LIGATURES_DEFAULT`, the const `CODE_LIGATURES_ON` is now constructed from, so the flag's fresh-install value has one owner the reference can read instead of a literal retyped into a doc; plus a test-gated `pub(crate) use spans::wysiwyg_reveals`, one named door to the reveal rule that avoids widening the `spans` module itself. Item 263 (+1): the `menubar_hi` field doc now states that the menu-title band reads `selection_document` — the DOCUMENT wash, not the picker row's `selection_ui` — correcting a claim that had said it shared the picker's band. The split is what made that claim checkable. Item 272 (+9): the renderer now owns `BarConfig` — the Bars dials that every world set identically moved off the theme model to the one place that reads them. Item 284 (+11): the diagonal marker's travel state — the row it last marked, its current turn and the turn it is easing toward — lives beside the other overlay easing state in the one `TextPipeline` struct that owns per-frame animation. +3: `workspace_rail_mark` becomes `workspace_rail_rows` — the WHOLE recorded rail rather than its active entry alone, with the active one derived from it — because a rail is a list, and the `Rules` composition arranges a list by the boundaries between its rows, which needs every neighbour. The added lines are that field's doc saying so. Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure."
 
 [[file_size_mark]]

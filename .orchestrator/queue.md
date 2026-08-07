@@ -125,6 +125,24 @@ decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
+- 🔵 **297's FOUR CALLS, and #1 is the genuinely debatable one.** Captures in
+  `gallery/item-297/`.
+  1. ⚠️ **PARK versus SHRINK.** Past **1.74× zoom on the widest card the cue DISAPPEARS**
+     rather than shrinking — `case-zoom1.7-drawn.png` → `case-zoom1.75-parked.png`. That is
+     deliberate: the size IS the composition, so a cue at some other fraction would be the
+     small misplaced whisper this item removed, and the lens strip still shows `[Navigate]`
+     in brackets. **But "gone" versus "smaller" is taste, and it is yours.**
+  2. **The before/after on one frame:** `before-Cassowary-Files.png` →
+     `after-Cassowary-Files.png`. A 15px muted "Files" at the card's border becomes a 505px
+     run rising from just above `COMMANDS`, same margin, same ink. Longest case:
+     `after-Cassowary-longest-This-folder.png`. Both tiers:
+     `case-retina2x-2400x1600.png`.
+  3. **Two loud marks now share the left margin** — the cue takes the wordmark's *full* ink,
+     so hierarchy is by size alone with no value step. Deliberate; worth a look.
+  4. **The gap** is `0.12 em` of the cue's own type over the placard's leading (≈36px of
+     daylight at the reference canvas). One constant either way.
+  ✅ `before-Magpie-Raked-unchanged.png` / `after-…` is a byte-identical pair — the receipt
+  that refactoring the shared rotation path moved nothing on the other carrier.
 - 🔵 **314 MOVED A VISIBLE LENGTH ON RETINA, and it is the intended value rather than a
   tuning choice.** The page's collapsed side pad and the outline rail's inset now sit at
   **16 logical px where they sat at 8** — doubled in physical terms on a 2× display, because
@@ -1024,8 +1042,29 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      fix the comment. **Verify:** a capture carries a toast. **Routing:**
      production tier.
 
-297. 🟡 IN PROGRESS — claude, branch `claude/item-297-cassowary-label`.
-     **Cassowary's rotated location label is too small and misplaced.** Today
+297. ✅ **LANDED (merged 2026-08-07).** The cue is now a run turned 90° in the ROOM's own
+     outer margin, rising from just above `COMMANDS` at exactly ⅔ its type size and in its
+     ink — 505px of run where a 15px muted whisper sat at the card's border.
+     ⚠️ **THE RESPONSIVE BOUND IS NOT `card_x`, and the first cut got it wrong** — under
+     `Bars` the SELECTED row's plate grows OUTWARD past the card box (`grow_span`) and its
+     scrim pads that again: **32 device px of card left of `card_x` at 1.8× zoom**, which
+     put the cue two pixels from the plate. The bound asks the plate's own span owners at
+     the growth animation's settled maximum.
+     ⚠️ **THIS ITEM'S "LONGEST FACET" WAS WRONG, and so was the retired code's own
+     comment:** both named workspace labels, and **a workspace plans no
+     `PlanLine::Location` at all**, so the cue draws only on the four card-shaped faceting
+     kinds. The longest a card can carry is "This folder". All 22 swept anyway.
+     ✅ **The differential technique is worth reusing:** the reference frame is a **BLANK**
+     location (datum present, text whitespace), not "no location" — which would make the
+     planner emit the retired uppercase `Header`, a real glyph run. Everything else stays
+     byte-identical, so the non-overlap arms can scan the **whole canvas** rather than a
+     window that could hide a collision.
+     ✅ Two mutations stayed green and **both produced a new law**; a third went red but
+     only grazed its ceiling, exposing the ⅔ law as a tautology (it read the same constant
+     the mutation changed), so a separate value law was added.
+     ✅ Two PRE-EXISTING laws failed under the full filter and were repaired: one was a
+     card-scoped ink oracle **reporting a weak cue while really measuring an empty line**.
+     **Original:** **Cassowary's rotated location label is too small and misplaced.** Today
      `LocationStyle::RotatedRail` draws the facet name small, muted and flush with
      the card's left border. Target: rotated 90°, ~⅔ the Archivo Black `COMMANDS`
      placard, along the room's left edge, ABOVE the placard — a vertical
@@ -1520,6 +1559,26 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      actually reaches before trusting a green sweep.**
      **Routing:** production tier. ⚠️ Touches `render.rs`, `render/geometry.rs` and
      `scroll.rs`; sequence against anything holding those.
+
+316. **THE LOCATION ROW'S OWN BAR PLATE IS A VISIBLY EMPTY CHIP.** Exposed — **not
+     introduced** — by item 297: it is **byte-identical in that item's before and after
+     shots** (visible at ≈470,205 in `gallery/item-297/after-Cassowary-Files.png`), and the
+     retired 15px whisper simply camouflaged it. Now that the cue composes off-card, the
+     plate it used to sit on draws with nothing in it.
+
+     ⚠️ **Establish the owner before changing anything, and note the neighbourhood is a
+     recorded tripwire.** `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates`
+     and **is correct as-is** (see this board's TRIPWIRE section — do not "fix" it to
+     `draws_row_plates()`); `ListStyle::draws_row_plates()` is the one owner of whether a
+     style backs its rows, `overlay_selection_rects` the one place a style becomes row
+     surfaces. **Earn any exclusion by measurement** — the frame must emit no row surface at
+     all for the excluded case, at the same fixture and DPIs — rather than by a name list.
+
+     **The question to answer first:** should a location row that plans a glyph-free line
+     get a plate at all? If not, the fix is in whoever decides a row's surface, not in the
+     cue. **Verify:** no plate is emitted for a glyph-free location row, swept over the
+     roster × `OverlayKind` × 1×/2×, with byte-identity everywhere a plate legitimately
+     belongs. **Routing:** production tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
