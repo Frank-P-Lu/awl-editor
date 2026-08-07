@@ -362,7 +362,24 @@ first; **quote a board figure with its instrument named**; derive an enrolment f
 the roster rather than a name list; and **reproduce a user-reported defect against
 HEAD before briefing it**, because the reporter's build may predate a fix.
 
-Order for the next wave:
+⚠️ **THE ORDER BELOW IS STALE AS OF 2026-08-07 AND IS KEPT ONLY FOR ITS REASONING
+ABOUT CONTENTION.** Checked against `git log --grep='^merge: item'`, not against this
+file's own claims: **131e, 303, 292, 305, 296+300, 291, 273 (+ residual 4), 227, 306,
+310, 294 have all MERGED** since it was written, and 301 PART-LANDED. What genuinely
+survives from it, in order: **298** (unblocked the moment 294 landed, by 298's own
+note), then **293**, then **299** — still one lane each, still never a parallel wave,
+because `chrome/mod.rs` is what makes them contended. After those: 302 (wants a quiet
+tree), 174, 231.
+
+**NEW, USER-REPORTED 2026-08-07 — items 312 and 313**, the frosted footprint's hard
+edge and the flush-left hint under a leaning list. They slot into the SAME chrome
+sequence rather than beside it: **313 is downstream of 293** (same file, same line),
+and **312 reads `chrome/diagonal.rs`, which 311 also names**. ⚠️ **312 and 298 both
+change what the footprint frost is** — 298 asks whether a context menu should frost
+the document at all, 312 changes the shape and edge of the frost it would draw — so
+**298 first**, or the second lane rebuilds the first's answer.
+
+Order for the next wave (as derived 2026-08-06; read the note above first):
 
 1. **131e** — selection and the full Verify clause; 131a–d are landed and the
    measured cluster rail exists in `render/chrome/diagonal.rs`. ⚠️ It reaches
@@ -1237,6 +1254,90 @@ Order for the next wave:
      concurrent change. ⚠️ **Measure before changing** — this is a hypothesis by analogy,
      and analogy is how three false premises reached this board this week.
      **Routing:** production tier.
+
+312. **THE FOOTPRINT FROST'S EDGE IS A HARD RECTANGLE, AND UNDER A DIAGONAL LIST IT
+     WANTS TO BE A FEATHERED PARALLELOGRAM.** User-reported against Mangrove's theme
+     picker, with a screenshot: the frosted patch stops at a knife edge, and the world
+     *already ships* a soft-edged version of the same idea a few hundred pixels away.
+
+     **Premise-checked against the tree, and it holds by CONSTRUCTION rather than by
+     mistuning.** `Frost::Footprint` is scoped with a **scissor rect**
+     (`blur.rs:446` → `extent::scissor_px`); the composite target carries `blend: None`
+     (`blur.rs:152`) and `fs_comp` returns alpha `1.0` (`shaders/blur.wgsl:87`). No value
+     in that path can soften an edge. ⚠️ **`extent.rs`'s own module doc anticipated the
+     alternative and dismissed it** — a rect uniform "would produce the same hard edge
+     anyway". That is true of a rect uniform and FALSE of a feathered mask; the sentence
+     is to be revised, not obeyed.
+
+     ✅ **The user's "Mangrove already does this" names a real in-tree owner.** Mangrove
+     is `Background::Lava`, whose field is masked `smoothstep(0, gap, …)` over
+     `lava::MARGIN_GAP_PX` = **28.0** logical px at the column edge, and `lava_mask_2d`'s
+     gutter carve is already the exact shape wanted — a bounded rect whose faces feather
+     over `gap`. So the feather has a live precedent with an authored, tuned width, and
+     the honest first question is whether the frost can borrow that quantity rather than
+     author a second one.
+
+     ⚠️ **THE ROSTER IS THREE WORLDS, NOT THE TWO IN THE REPORT.**
+     `footprint_frost_applies` enrols on `!Card backing && !draws_row_plates`, which
+     today is `Diagonal` **and** `Rules` — Mangrove, Magpie **and PAPERBARK**. The
+     feather lands on all three. The parallelogram does NOT: shear is a `Diagonal`
+     property, so Paperbark takes the soft edge and keeps its rectangle. **Derive both
+     enrolments from the roster's own predicates; a name list would silently drop
+     Paperbark and would not follow a world that changes list style.**
+
+     **Build — the soft edge and the lean are ONE mechanism, not two.** Both need the
+     extent to stop being a scissor: a footprint MASK in `fs_comp` (rect + shear +
+     feather width through `U`), with alpha blending on the composite target.
+     ✅ **`Frost::Full` can stay byte-identical without a second pipeline** — under
+     `ALPHA_BLENDING` an alpha of exactly 1.0 is mathematically a replace — but that is
+     an assertion to MAKE, not to assume. `Frost::Footprint([f32; 4])` grows the shear;
+     the feather width is policy in `extent.rs`, not a per-call argument.
+
+     ⚠️ **The lean must be READ, never re-authored.** `chrome/diagonal.rs` resolves the
+     spine's per-row step (`ROW_STEP`) under a responsive bound
+     (`TRAVEL_MAX_BAND_FRACTION`), so a cramped card gives up rake — a second copy of the
+     constant would part company with the drawn spine at exactly the geometry a law
+     forgets to sweep. Take the resolved composition.
+
+     ⚠️ **`overlay_card_rect()` HAS A SECOND CONSUMER: pointer hit-testing**
+     (`app/input/mouse.rs:359`, `:992`). Frost extent and hit region are one rect today.
+     **Decide explicitly and say which in the commit** — recommended: the parallelogram
+     is the FROST's extent alone, and the hit region stays the rect the rows occupy.
+
+     **Verify:** the edge ramp measured across the footprint boundary in the PNG, swept
+     over the enrolled roster **and at 1×/2×** — the reach is authored logical, so it
+     must hold in logical px at both, which is precisely the class item 294 just fixed
+     for the blur's own reach and which every `--capture-dpi 1` capture is blind to; the
+     lean asserted against the DRAWN spine rather than a constant; and a **presence
+     floor** beside the no-hard-edge law, because a feather that fades the whole
+     footprint to nothing satisfies "no hard edge" perfectly (the floor-satisfied-by-
+     deleting-its-subject trap).
+     **Routing:** production tier, then the user's eye — feather width and lean are
+     taste, and no capture settles either. Touches `render/blur*`, `shaders/blur.wgsl`,
+     `pipeline_prepare.rs`, and READS `chrome/diagonal.rs` — **311 also names
+     `diagonal.rs`; sequence, never pair.**
+
+313. **THE PICKER'S HINT LINE SITS FLUSH-LEFT UNDER A LEANING LIST.** "type to filter
+     ↵ keep esc revert" holds the card's left edge while every row above it rakes with
+     the spine. Same user report and same screenshot as 312; separated because it is a
+     different mechanism and a different contended file.
+
+     **Measured:** the hint is pushed into the SAME `panel_buffer` rich-text run as the
+     rows (`overlay_shape.rs:743` → `push_overlay_hint_spans`), so it inherits that
+     buffer's left edge and has no independent x. Giving it a spine-derived offset means
+     either its own run with an offset or its own buffer — **that shape choice is the
+     item**, and it is why this is not a one-line move.
+
+     ⚠️ **CONTENDS WITH 293 DIRECTLY — same file, same line.** 293 (the footer crowds
+     the last row) already names `overlay.rs:248-297` and `overlay_shape.rs:743`. One
+     lane, sequenced, **293 first**: a hint that is crowded is not fixed by moving it
+     sideways.
+
+     **Open design question the lane must put to the user rather than pick:** at the
+     hint's own row the spine has ENDED — it spans the names above. So does the hint
+     continue the lean past the spine's terminus, or sit at the terminal x? Two
+     captures, the user's call.
+     **Routing:** production tier, after 293, then the user.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
