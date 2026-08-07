@@ -1,6 +1,6 @@
 //! ITEM 315 — THE DOCUMENT'S FIRST-ROW TOP, THROUGH THE LIVE PIPELINE, AT EVERY DPI.
 //!
-//! The vertical twin of item 314's `column_left_dpi_item314.rs`: `TEXT_TOP` was the
+//! The vertical twin of `column_left_dpi_item314.rs`: `TEXT_TOP` was the
 //! last untyped `f32` in the same family as `TEXT_LEFT`, read unscaled by `doc_top`,
 //! `visible_lines_z` and `scroll.rs`. `render/geometry/tests.rs`'s
 //! `visible_lines_z_is_dpi_invariant_at_matched_logical_geometry_with_a_presence_floor`

@@ -392,11 +392,11 @@ fn the_row_pitchs_three_terms_hold_one_proportion_across_dpi() {
 /// DEFAULT and the only one a new length should ever need.
 const UNIT_TYPES: &[&str] = &["Logical", "Physical", "LogicalGrowOnly", "Chars", "Rows"];
 
-/// The constants under the swept files (`src/render/chrome/`, plus item 315's
-/// `render/geometry.rs` / `render/geometry/**` / `render/scroll.rs`) that are NOT
-/// lengths, each with the reason it carries no unit. Enumerated by name with no
-/// wildcard, so a new bare `f32` constant fails this law rather than joining the
-/// list silently.
+/// The constants under the swept files (`src/render/chrome/`, plus the writing
+/// column's own `render/geometry.rs` / `render/geometry/**` / `render/scroll.rs`)
+/// that are NOT lengths, each with the reason it carries no unit. Enumerated by name
+/// with no wildcard, so a new bare `f32` constant fails this law rather than joining
+/// the list silently.
 const DIMENSIONLESS: &[(&str, &str)] = &[
     (
         "DEGENERATE_CELL_FRAC",
@@ -468,24 +468,24 @@ fn const_decl(line: &str) -> Option<&str> {
     t.strip_prefix("const ")
 }
 
-/// ITEM 315 — WIDENED PAST `src/render/chrome/` ALONE. `TEXT_TOP` and `TEXT_LEFT`
-/// (item 314) both lived untyped in `render/geometry.rs` / `render.rs` for their
-/// whole lives, and the reason is structural: this sweep never looked outside
-/// `chrome/`. `render/geometry.rs`, `render/geometry/**` and `render/scroll.rs` are
-/// the writing column's OWN pixel-space files — the direct neighbourhood both
-/// constants actually lived in — added here so a new one authored there fails this
-/// law by name instead of surviving on the same technicality.
+/// WIDENED PAST `src/render/chrome/` ALONE. `TEXT_TOP` and `TEXT_LEFT` both lived
+/// untyped in `render/geometry.rs` / `render.rs` for their whole lives, and the
+/// reason is structural: this sweep never looked outside `chrome/`. `render/
+/// geometry.rs`, `render/geometry/**` and `render/scroll.rs` are the writing
+/// column's OWN pixel-space files — the direct neighbourhood both constants
+/// actually lived in — added here so a new one authored there fails this law by
+/// name instead of surviving on the same technicality.
 ///
 /// `src/render.rs` itself is DELIBERATELY NOT swept yet: alongside the already-typed
-/// chrome-style pads it declares ~30 more constants from unrelated families this item
-/// did not audit — the caret/text metrics that pass through `Metrics::with_dpi`'s own
+/// chrome-style pads it declares ~30 more constants from unrelated, unaudited
+/// families — the caret/text metrics that pass through `Metrics::with_dpi`'s own
 /// multiply (`FONT_SIZE`, `CHAR_WIDTH`, every `CARET_*`), animation durations in
 /// milliseconds, and raw alpha/lightness channel values — none of which are a "chrome
-/// pad missing its unit family" in item 242's sense, and none of which this item
-/// verified individually. Folding the whole file in without that audit would make this
-/// law encode a guess as a passing check, which is the failure CLAUDE.md's "a
-/// generated document states its wrong answer with a law behind it" names. The
-/// residual census is in the item 315 landing note.
+/// pad missing its unit family" in this law's sense. Folding the whole file in
+/// without individually checking each one would make this law encode a guess as a
+/// passing check, which is the failure CLAUDE.md's "a generated document states its
+/// wrong answer with a law behind it" names. The residual census belongs in the
+/// landing note for whichever change widens this sweep next.
 fn chrome_sources() -> Vec<(String, String)> {
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut out = Vec::new();

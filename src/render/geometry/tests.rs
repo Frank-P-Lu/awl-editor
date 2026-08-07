@@ -989,15 +989,16 @@ fn adaptive_column_left_is_dpi_invariant_at_matched_logical_geometry() {
     assert!(saw_page_off, "the sweep must include page-mode OFF");
 }
 
-/// ITEM 315 — `visible_lines_z`'s vertical inset is a LOGICAL quantity, at every
-/// display scale. The PURE half; `text_top_dpi_item315.rs`'s
-/// `text_origin_top_is_dpi_invariant_at_matched_logical_geometry` is the live-pipeline
-/// half that exercises `TextPipeline::text_origin_top` / `doc_top` / `hit_test_scroll`
-/// together, mirroring item 314's split between this file and
-/// `column_left_dpi_item314.rs`.
+/// `visible_lines_z`'s vertical inset is a LOGICAL quantity, at every display scale.
+/// The PURE half; `text_top_dpi_item315.rs`'s
+/// `text_origin_top_is_dpi_invariant_at_matched_logical_geometry_menu_bar_off` is the
+/// live-pipeline half that exercises `TextPipeline::text_origin_top` / `doc_top` /
+/// `hit_test_scroll` together, over the same file split as `adaptive_column_left`'s
+/// own pure/live-pipeline pair above and in `column_left_dpi_item314.rs`.
 ///
-/// Mirrors 314's shape exactly: TWO claims, because invariance ALONE is satisfiable by
-/// deleting the pad (`0 * dpi` is perfectly dpi-invariant). The PRESENCE claim pins the
+/// Same shape as `adaptive_column_left`'s DPI law above: TWO claims, because
+/// invariance ALONE is satisfiable by deleting the pad (`0 * dpi` is perfectly
+/// dpi-invariant). The PRESENCE claim pins the
 /// height to an EXACT multiple of the line height at each tier — `TEXT_TOP.px(dpi) /
 /// (LINE_HEIGHT * dpi)` is the dpi-INDEPENDENT ratio `0.5`, so the row count must drop
 /// from the multiple `k` to `k - 1` at every tier, or the pad has stopped being

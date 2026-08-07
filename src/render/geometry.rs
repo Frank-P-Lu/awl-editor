@@ -7,8 +7,8 @@ pub fn visible_lines(height: f32) -> usize {
 
 /// `scale` is the SAME `zoom * dpi` that produced `line_height` (`Metrics::scale`) —
 /// TEXT_TOP must go through the identical multiply before subtracting it from a
-/// DEVICE-px `height`, or the row count drifts across DPI (item 314's `TEXT_LEFT`
-/// drift, one axis over).
+/// DEVICE-px `height`, or the row count drifts across DPI tiers at one matched
+/// logical geometry.
 pub fn visible_lines_z(height: f32, line_height: f32, scale: f32) -> usize {
     ((height - TEXT_TOP.px(scale)) / line_height)
         .floor()

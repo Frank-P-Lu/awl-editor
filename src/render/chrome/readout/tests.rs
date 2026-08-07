@@ -70,16 +70,16 @@ fn debug_panel_anchors_top_right() {
 #[test]
 fn top_anchors_yield_to_the_menu_bar_bottom_anchors_do_not() {
     let reserve = 32.0; // a representative shown-bar height
-    let (_, top_right) = corner_origin(
-        CornerAnchor::TopRight,
-        200.0,
-        18.0,
-        1000.0,
-        800.0,
-        0.0,
-        0.0,
-        reserve,
-    );
+    // Every call below shares the same line_height/width/height; only the anchor,
+    // text width, column bounds and offset vary — a closure collapses the eight
+    // repeated positional args to the four that actually change per call.
+    let at = |anchor, text_w, col_left, col_width, off| {
+        corner_origin(
+            anchor, text_w, 18.0, 1000.0, 800.0, col_left, col_width, off,
+        )
+    };
+
+    let (_, top_right) = at(CornerAnchor::TopRight, 200.0, 0.0, 0.0, reserve);
     assert_eq!(
         top_right,
         8.0 + reserve,
@@ -92,29 +92,9 @@ fn top_anchors_yield_to_the_menu_bar_bottom_anchors_do_not() {
 
     // The yield is purely VERTICAL and decoupled from horizontal placement: a
     // different label width lands the panel at a different left, yet the top is
-    // unchanged — exactly the corner-AGNOSTIC property the law asserts (the
-    // reserve pushes any top-anchored corner down by the same amount, whatever its
-    // own horizontal math).
-    let (left_wide, top_wide) = corner_origin(
-        CornerAnchor::TopRight,
-        500.0,
-        18.0,
-        1000.0,
-        800.0,
-        0.0,
-        0.0,
-        reserve,
-    );
-    let (left_narrow, top_narrow) = corner_origin(
-        CornerAnchor::TopRight,
-        100.0,
-        18.0,
-        1000.0,
-        800.0,
-        0.0,
-        0.0,
-        reserve,
-    );
+    // unchanged — exactly the corner-AGNOSTIC property the law asserts.
+    let (left_wide, top_wide) = at(CornerAnchor::TopRight, 500.0, 0.0, 0.0, reserve);
+    let (left_narrow, top_narrow) = at(CornerAnchor::TopRight, 100.0, 0.0, 0.0, reserve);
     assert_ne!(
         left_wide, left_narrow,
         "a wider label moves the panel horizontally"
@@ -131,16 +111,7 @@ fn top_anchors_yield_to_the_menu_bar_bottom_anchors_do_not() {
 
     // Bottom / pointer anchors are UNTOUCHED by a nonzero reserve — a strip at the
     // TOP of the canvas never reaches them.
-    let (_, bottom_right) = corner_origin(
-        CornerAnchor::BottomRight,
-        120.0,
-        18.0,
-        1000.0,
-        800.0,
-        100.0,
-        600.0,
-        reserve,
-    );
+    let (_, bottom_right) = at(CornerAnchor::BottomRight, 120.0, 100.0, 600.0, reserve);
     assert_eq!(
         bottom_right,
         800.0 - 18.0 - 8.0,
@@ -148,36 +119,16 @@ fn top_anchors_yield_to_the_menu_bar_bottom_anchors_do_not() {
     );
     // THE NOTICE's own anchor is TOP-anchored, so it MUST take whatever vertical
     // offset the caller hands it verbatim — `corner_origin` is pure (no `Metrics`,
-    // so no scale to multiply TEXT_TOP by) and the production caller
-    // (`TextPipeline::prepare_notice`) is the one that folds the document's own
-    // scaled TEXT_TOP into that offset before calling in
-    // (`text_origin_top_folds_text_top_and_menubar_reserve`, below, covers that
-    // composition); this law only needs TopCenter to pass the offset through
-    // unmodified, the arm a "bottom anchors ignore it" law could never have covered.
-    let (_, top_center) = corner_origin(
-        CornerAnchor::TopCenter,
-        120.0,
-        18.0,
-        1000.0,
-        800.0,
-        100.0,
-        600.0,
-        reserve,
-    );
+    // so no scale to multiply TEXT_TOP by); the production caller
+    // (`TextPipeline::prepare_notice`) folds the document's own scaled TEXT_TOP
+    // into that offset before calling in, so this law only needs TopCenter to pass
+    // the offset through unmodified.
+    let (_, top_center) = at(CornerAnchor::TopCenter, 120.0, 100.0, 600.0, reserve);
     assert_eq!(
         top_center, reserve,
         "TopCenter seats the notice at exactly the offset the caller composed"
     );
-    let (_, at_point) = corner_origin(
-        CornerAnchor::AtPoint(50.0, 60.0),
-        40.0,
-        18.0,
-        1000.0,
-        800.0,
-        0.0,
-        0.0,
-        reserve,
-    );
+    let (_, at_point) = at(CornerAnchor::AtPoint(50.0, 60.0), 40.0, 0.0, 0.0, reserve);
     assert_eq!(
         at_point,
         (60.0_f32 - 18.0 - 10.0).max(4.0),
@@ -185,16 +136,7 @@ fn top_anchors_yield_to_the_menu_bar_bottom_anchors_do_not() {
     );
 
     // `reserve = 0.0` (bar off) is byte-identical to the pre-round placement.
-    let (_, top_right_off) = corner_origin(
-        CornerAnchor::TopRight,
-        200.0,
-        18.0,
-        1000.0,
-        800.0,
-        0.0,
-        0.0,
-        0.0,
-    );
+    let (_, top_right_off) = at(CornerAnchor::TopRight, 200.0, 0.0, 0.0, 0.0);
     assert_eq!(
         top_right_off, 8.0,
         "bar off: the panel keeps its plain 8px top inset"
