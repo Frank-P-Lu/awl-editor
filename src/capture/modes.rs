@@ -327,7 +327,7 @@ pub(super) fn settled_viewstate(
     vstate.overlay_crisp = opts
         .overlay
         .as_ref()
-        .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode.as_str()))
+        .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
         .is_some_and(|kind| kind.keeps_backdrop_crisp());
     vstate.overlay_query = opts
         .overlay
