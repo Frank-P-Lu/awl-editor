@@ -283,6 +283,53 @@ pub(super) fn comparison_view(text: &str, line: usize, col: usize) -> ViewState 
     v
 }
 
+/// The fixture-only, PARKED `overlay_window_rows` [`settings_overlay_view`]
+/// callers pass — `ViewState::base()`'s inert default of 12, NOT what
+/// `App::sync_view` really sets (`ov.window_rows()`, `SETTINGS.len()` = 31 for
+/// `OverlayKind::Settings`).
+///
+/// `settings_row_reach_law.rs` and `range_rail.rs` each used to declare their
+/// own byte-identical `settings_view`, both silently leaving this field at 12
+/// and both carrying their own copy of this note — now one owner, one note.
+/// The gap is load-bearing, not cosmetic: correcting it (a throwaway local
+/// patch, not landed) turns `settings_row_reach_law`'s reach law RED at
+/// `world=Mangrove dpi=1 logical_width=640 setting=PageWidthProse` — a drawn
+/// Range row whose rail can no longer seat once the wider drawn set (22
+/// candidate lines in a 718.8px card at 1200x800) grows the diagonal
+/// cluster's label/value columns past what `rail_geom` can fit a rail into.
+/// That is a still-open PRODUCT question about the accessory cluster's width
+/// budget — who yields first, the row name, the value text, or the rail — not
+/// a test bug, so it is handed back rather than papered over, and this
+/// default stays parked until the question is answered. Un-parking it is
+/// then a one-line change: pass `ov.window_rows()` (or a real 31) at this
+/// constant's ONE definition instead of threading it through every call site
+/// again.
+pub(super) const SETTINGS_VIEW_PARKED_WINDOW_ROWS: usize = 12;
+
+/// Fold a Settings [`crate::overlay::OverlayState`] into a `ViewState` the way
+/// `App::sync_view` does — EXCEPT for `overlay_window_rows`, which the caller
+/// supplies explicitly rather than this function deriving it from
+/// `ov.window_rows()` the way `sync_view` really does. Every current caller
+/// passes [`SETTINGS_VIEW_PARKED_WINDOW_ROWS`]; see that constant's own doc for
+/// why the divergence is deliberate and load-bearing, not an oversight.
+pub(super) fn settings_overlay_view(
+    ov: &crate::overlay::OverlayState,
+    overlay_window_rows: usize,
+) -> ViewState {
+    let mut v = view("hello\n", 0, 0);
+    v.overlay_active = true;
+    v.overlay_title = crate::overlay::OverlayKind::Settings.title();
+    v.overlay_items = ov.item_strings();
+    v.overlay_bindings = ov.item_bindings();
+    v.overlay_ranges = ov.item_range_fracs();
+    v.overlay_lens = ov.lens_strip();
+    v.overlay_sections = ov.item_sections();
+    v.overlay_selected = ov.selected;
+    v.overlay_scroll = ov.scroll;
+    v.overlay_window_rows = overlay_window_rows;
+    v
+}
+
 /// A markdown [`view`] — same as [`view`] but with `is_markdown` set, so the
 /// styling + outline passes run (used by the margin-outline tests).
 pub(super) fn view_md(text: &str, line: usize, col: usize) -> ViewState {

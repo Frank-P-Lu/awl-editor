@@ -84,10 +84,15 @@ async fn capture_frames_async(
     // --- Offscreen device + pipeline (the harness renders; the App does not) ---
     let (device, queue) = headless_device().await?;
     let (width, height) = opts.canvas.unwrap_or((CANVAS_WIDTH, CANVAS_HEIGHT));
+    let dpi = opts.dpi.unwrap_or(1.0);
     let (texture, view) = offscreen_target(&device, width, height);
     let cache = Cache::new(&device);
     let mut pipeline = TextPipeline::new(&device, &queue, &cache, FORMAT);
     pipeline.set_size(width as f32, height as f32);
+    // DPI AFTER set_size, mirroring `capture::modes::capture_async`: `set_dpi`
+    // re-wraps at `column_width()`, which reads the `window_w` `set_size` just
+    // set. No-op at the default 1.0, so the no-flag path stays byte-identical.
+    pipeline.set_dpi(dpi);
 
     // --- The real App, driving the SCHEDULING under a virtual clock -----------
     // `gpu: None`, so it renders nothing itself; its scheduling body is what we step.

@@ -280,6 +280,49 @@ that costs. Nothing here changes the sidecar-vs-appearance tripwire either: this
 is still a **state** oracle, and appearance claims are still asserted over the
 PNG's pixels.
 
+## The virtual-clock frame-loop capture (`--screenshot-frames`, Hidden)
+
+```sh
+cargo run -- --screenshot-frames 6 OUT.png [file]
+# writes OUT.f000.png .. OUT.f005.png + one sidecar each, plus OUT.frames.json
+```
+
+A real headless `App` (`App::new_headless_scheduler`, hermetic, `gpu: None`)
+drives its ACTUAL `about_to_wait_impl` scheduling body under a `VirtualClock`
+stepped `--frame-step-ms` (default 100 ms) per frame, so a LIVE-ONLY
+cross-frame behaviour — the which-key continuation panel summoning EXACTLY at
+its 500 ms pause deadline — is inspectable from a deterministic sequence of
+stills, the class a single settled `--screenshot` frame cannot show. The
+document named on the command line is a STATIONARY backdrop the harness draws
+itself (`capture::frames::capture_frames`, the same offscreen-pipeline shape
+`--semantic-json` uses); the App renders nothing.
+
+**`--capture-size`/`--capture-dpi` are honored (item 339 — the identical gap
+item 334 closed on `--screenshot-app`).** Before, `Mode::ScreenshotFrames`
+carried no canvas/dpi fields and fell through to the plain-`--screenshot` hook
+bucket, so both flags parsed, validated as "honored", and were discarded
+before the frame ever rendered — every invocation rendered the byte-stable
+1200x800 default regardless of what was asked for. `capture_frames_async`
+also never called `pipeline.set_dpi`, a second, independent instance of the
+same shape one layer deeper: even a correctly-threaded dpi would have been a
+no-op at the renderer. Both are fixed the same way item 334 fixed
+`--screenshot-app`: `Mode::ScreenshotFrames` now carries `canvas`/`dpi`, threaded
+onto the `CaptureOpts` the frame loop renders through, with the identical
+meaning every other capture door gives them (a `WxH` physical canvas at
+`--capture-dpi N` is the same logical `(W/N)x(H/N)` window) — proved by
+matching visual-row wrap counts between `1200x800 @1` and `2400x1600 @2` on a
+long-wrapping document, and by a narrower canvas producing genuinely more
+reflow (`capture::tests::frames::
+a_screenshot_frames_capture_honors_capture_size_and_the_dpi_meaning_holds`).
+
+**Everything else this door drops is refused loudly, not silently.** The
+document is loaded straight off disk with no `--keys` replay (the App's
+buffer is a backdrop, not something chords mutate — `--keys` is refused
+outright for this mode) and no project resolution at all, so the per-frame
+render hooks (`--sel`/`--zoom`/`--scroll`/`--preedit`/`--search*`), `--root`,
+`--workspace` and `--default-folder` all error "not honored by the chosen
+capture mode" rather than parsing and doing nothing.
+
 ## Deterministic timeline capture (`--capture-timeline`)
 
 A single frozen frame is great for *state*, but it can't show an animation's

@@ -588,12 +588,19 @@ pub(crate) fn parse_args() -> Result<Mode> {
     let is_screenshot_app = live_app;
     #[cfg(target_arch = "wasm32")]
     let is_screenshot_app = false;
+    // `frames` is native-only for the identical reason (`--screenshot-frames`
+    // builds a hermetic `App`; the flag + its `Mode` do not exist on wasm).
+    #[cfg(not(target_arch = "wasm32"))]
+    let is_screenshot_frames = frames.is_some();
+    #[cfg(target_arch = "wasm32")]
+    let is_screenshot_frames = false;
     let kind = resolve_capture_kind(
         out.is_some(),
         held.is_some(),
         timeline_steps.is_some(),
         motion || motion_v || motion_d,
         is_screenshot_app,
+        is_screenshot_frames,
     );
     let supplied = SuppliedHooks {
         sel: opts.selection.is_some(),
@@ -615,6 +622,18 @@ pub(crate) fn parse_args() -> Result<Mode> {
             "{} not honored by the chosen capture mode",
             unused.join(", ")
         );
+    }
+    // `--screenshot-frames` drives the App's SCHEDULING loop under a virtual
+    // clock, not a `--keys` replay — the document is a stationary backdrop
+    // (see `capture::frames`'s module doc) — so `Mode::ScreenshotFrames`
+    // carries no `keys` field to land a replay in. Refuse the combination
+    // here (the `unused_hooks` table above only covers `SuppliedHooks`'
+    // fields, which `--keys` is not one of) rather than let it silently parse
+    // and do nothing, the same shape as `--storyboard`'s own `--keys` refusal
+    // below.
+    #[cfg(not(target_arch = "wasm32"))]
+    if frames.is_some() && keys_spec.is_some() {
+        bail!("--screenshot-frames drives its own scheduling loop; --keys does not apply");
     }
     // `--strict-replay` gates a `--keys` replay, and only the plain
     // `--screenshot` mode threads the strict engine (the motion/timeline/held
@@ -865,6 +884,10 @@ pub(crate) fn parse_args() -> Result<Mode> {
             file,
             frames: frames.unwrap(),
             step_ms: frame_step_ms.unwrap_or(capture::DEFAULT_FRAME_STEP_MS),
+            // Honored for real — `capture::capture_frames` reads them off the
+            // `CaptureOpts` `run.rs`'s handler builds.
+            canvas: capture_size,
+            dpi: capture_dpi,
         },
         Some(out) if motion_d => Mode::ScreenshotMotionDiagonal {
             out,
@@ -1056,29 +1079,34 @@ mod tests {
         // No output at all is the windowed editor, whatever else was passed —
         // the flags below would all be inert without an `out` path.
         assert_eq!(
-            resolve_capture_kind(false, true, true, true, true),
+            resolve_capture_kind(false, true, true, true, true, true),
             CaptureKind::Windowed
         );
         // With an output path, held > timeline > motion > screenshot-app >
-        // plain screenshot, exactly the order `Mode` construction checks.
+        // screenshot-frames > plain screenshot, exactly the order `Mode`
+        // construction checks.
         assert_eq!(
-            resolve_capture_kind(true, true, true, true, true),
+            resolve_capture_kind(true, true, true, true, true, true),
             CaptureKind::Held
         );
         assert_eq!(
-            resolve_capture_kind(true, false, true, true, true),
+            resolve_capture_kind(true, false, true, true, true, true),
             CaptureKind::Timeline
         );
         assert_eq!(
-            resolve_capture_kind(true, false, false, true, true),
+            resolve_capture_kind(true, false, false, true, true, true),
             CaptureKind::Motion
         );
         assert_eq!(
-            resolve_capture_kind(true, false, false, false, true),
+            resolve_capture_kind(true, false, false, false, true, true),
             CaptureKind::ScreenshotApp
         );
         assert_eq!(
-            resolve_capture_kind(true, false, false, false, false),
+            resolve_capture_kind(true, false, false, false, false, true),
+            CaptureKind::ScreenshotFrames
+        );
+        assert_eq!(
+            resolve_capture_kind(true, false, false, false, false, false),
             CaptureKind::Screenshot
         );
     }
@@ -1169,6 +1197,31 @@ mod tests {
             assert!(!app.contains(&f), "--screenshot-app should honor {f}");
         }
 
+        // `--screenshot-frames` honors ONLY canvas/dpi (real `Mode::
+        // ScreenshotFrames` fields) — its document is a stationary backdrop
+        // loaded straight off disk, so it drops the per-frame render hooks,
+        // AND root/workspace/default-folder, unlike every other real-frame
+        // mode above. (`--keys` is refused by its own dedicated check, not
+        // this table, so it is not part of this sweep.)
+        let frames = unused_hooks(CaptureKind::ScreenshotFrames, &all);
+        for f in [
+            "--sel",
+            "--zoom",
+            "--scroll",
+            "--preedit",
+            "--search",
+            "--search-case",
+            "--search-replace",
+            "--root",
+            "--workspace",
+            "--default-folder",
+        ] {
+            assert!(frames.contains(&f), "--screenshot-frames should drop {f}");
+        }
+        for f in ["--capture-size", "--capture-dpi"] {
+            assert!(!frames.contains(&f), "--screenshot-frames should honor {f}");
+        }
+
         // The windowed editor honors project context but not capture hooks.
         let win = unused_hooks(CaptureKind::Windowed, &all);
         assert!(win.contains(&"--sel") && win.contains(&"--capture-size"));
@@ -1184,6 +1237,7 @@ mod tests {
             CaptureKind::Timeline,
             CaptureKind::Held,
             CaptureKind::ScreenshotApp,
+            CaptureKind::ScreenshotFrames,
         ] {
             assert!(unused_hooks(kind, &none).is_empty());
         }

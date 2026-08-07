@@ -16,7 +16,7 @@
 //! item, never bleeding into one another.
 
 use super::super::*;
-use super::{headless_dqp, view};
+use super::{SETTINGS_VIEW_PARKED_WINDOW_ROWS, headless_dqp, settings_overlay_view};
 use crate::overlay::{OverlayKind, OverlayState};
 
 fn values(zoom: f32) -> crate::settings::SettingsValues {
@@ -62,39 +62,13 @@ fn editor_overlay() -> OverlayState {
     ov
 }
 
-/// Fold a Settings overlay into a `ViewState` the way `App::sync_view` does
-/// (mirrors `range_rail::settings_view` verbatim — duplicated locally per
-/// this test tree's own convention: each file re-derives its shared fold
-/// rather than reaching across a sibling test module).
+/// Fold a Settings overlay into a `ViewState` the way `App::sync_view` does,
+/// with the ONE deliberate divergence [`settings_overlay_view`]'s sibling
+/// constant [`SETTINGS_VIEW_PARKED_WINDOW_ROWS`] documents — the shared owner
+/// both this file and `range_rail.rs` now call, so there is one fixture and
+/// one parked note instead of two byte-identical copies of each.
 fn settings_view(ov: &OverlayState) -> ViewState {
-    let mut v = view("hello\n", 0, 0);
-    v.overlay_active = true;
-    v.overlay_title = OverlayKind::Settings.title();
-    v.overlay_items = ov.item_strings();
-    v.overlay_bindings = ov.item_bindings();
-    v.overlay_ranges = ov.item_range_fracs();
-    v.overlay_lens = ov.lens_strip();
-    v.overlay_sections = ov.item_sections();
-    v.overlay_selected = ov.selected;
-    v.overlay_scroll = ov.scroll;
-    // ⚠️ `overlay_window_rows` IS DELIBERATELY LEFT AT `ViewState::base()`'s DEFAULT
-    // OF 12, AND THAT IS NOT WHAT `sync_view` DOES: it sets `ov.window_rows()`, which
-    // for `OverlayKind::Settings` is `SETTINGS.len()` = 31. So a ROW-REACH law is
-    // reaching across 12 rows the live card never draws in that number. Setting it
-    // (confirmed by a throwaway local patch, not landed here) turns
-    // `every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_workspace`
-    // RED at `world=Mangrove dpi=1 logical_width=640 workspace=true
-    // setting=PageWidthProse: every Range setting must retain a rail` — a drawn Range
-    // row whose rail `rail_geom` can no longer seat, because the wider drawn set grows
-    // the diagonal cluster's label/value columns. See `range_rail::settings_view` for
-    // the same note and the 1200x800 measurement; the missing rail is a product
-    // question about that cluster's width budget, handed back rather than papered
-    // over, and this default stays until it is answered. This is the SAME shape of
-    // enrolment gap the `workspace` sweep above carried (a hardcoded stand-in for a
-    // value an owner already computes), left alone rather than folded into that fix
-    // because closing it would force the still-open budget question rather than
-    // report it.
-    v
+    settings_overlay_view(ov, SETTINGS_VIEW_PARKED_WINDOW_ROWS)
 }
 
 /// The measured cluster is a geometry contract, not a Settings-only cosmetic
