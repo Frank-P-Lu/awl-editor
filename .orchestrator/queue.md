@@ -2290,7 +2290,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      **Verify:** a law with a no-wildcard match, and check the sweep in
      `backgrounds_item158.rs` can then be simplified to ask the owner. **Routing:** production tier.
 
-329. **294's `card_ink_mask` IS A VETO AND DOES NOT INVERT INTO AN INCLUSION SET — two frost
+329. 🚧 CLAIMED (worktree item-329-mask-audit, deep tier) **294's `card_ink_mask` IS A VETO AND DOES NOT INVERT INTO AN INCLUSION SET — two frost
      oracles were falsified on first contact.** Measured by item 318. Its "a blur of a blank page"
      premise holds only **where the frost actually reaches**, so as an inclusion set it reported
      card ink **52 rows above the card**; and intersecting it with an open-vs-closed difference
@@ -2339,7 +2339,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      exists to watch. ⚠️ Note item 257 already owns the *failure*; this is about its DURATION.
      **Routing:** production tier.
 
-331. **THE THREE EXPORT COMMANDS' CATALOG DESCRIPTIONS NO LONGER MENTION THAT YOU CHOOSE A FOLDER.**
+331. 🚧 CLAIMED (worktree item-331-export-docs, production tier — bundled 331+332) **THE THREE EXPORT COMMANDS' CATALOG DESCRIPTIONS NO LONGER MENTION THAT YOU CHOOSE A FOLDER.**
      Reported by item 301's lane rather than ridden into its bundle, which was the right call.
      *"Export the buffer to a `.docx` file; markdown buffers only"* is still **true** — it is
      simply no longer the whole story now that export asks WHERE first. ⚠️ **The cost is why this
@@ -2354,7 +2354,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      than the change explains is the sourcing hazard, not a formatting nuisance.
      **Routing:** production tier.
 
-332. **`--menu-open` AND `--pack-icns` SWALLOW THE NEXT ARGUMENT UNCONDITIONALLY, so
+332. 🚧 CLAIMED (worktree item-331-export-docs, production tier — bundled 331+332) **`--menu-open` AND `--pack-icns` SWALLOW THE NEXT ARGUMENT UNCONDITIONALLY, so
      `awl --menu-open file.md` SILENTLY EATS THE FILE.** Found by item 273's flag-roster lane and
      **deliberately preserved byte-identical** rather than ridden into that bundle — the right call,
      because fixing it changes behaviour a user could be relying on.
