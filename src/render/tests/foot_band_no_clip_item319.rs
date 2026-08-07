@@ -5,7 +5,7 @@
 //! one's own sweep earned: the card's width cap is a FIXED LOGICAL CONSTANT
 //! with no font term, while the hint band it must hold is shaped in the active
 //! world's own chrome face — so the fit is a RATIO between two quantities that
-//! were never related, and on five worlds it exceeds 1.
+//! were never related, and on two worlds it exceeds 1.
 //!
 //! **WHICH QUANTITY EACH SIDE MEASURES, because the answer is not symmetric.**
 //! The CONTENT side is ADVANCES: `overlay_footer_content_px` reduces the shaped
@@ -33,66 +33,59 @@
 //! fit becomes a pure ratio and stops depending on the scale at all: Potoroo's
 //! Keybindings hint measures 1.0121 of its text column at scale 1.0, at 1.6
 //! and at 2.0, to four decimals. The reachable-at-shipped-zoom instance is 2×
-//! because 0.8 × 2 = 1.6; zoom 1.0 on a 1× display clips identically.
+//! because 0.8 × 2 = 1.6; zoom 1.0 on a 1× display clips identically. Dropping
+//! the `scale.max(1.0)` clamp makes the SAME ratio appear at the shipped
+//! default, which is the proof that the clamp is what hides this at 1×.
 //!
-//! **AND THE MENU BAR IS NOT A GATE EITHER.** Both arms measure byte-identical
+//! **AND THE MENU BAR IS NOT A GATE EITHER.** Both arms measure identical
 //! ratios: the bar's reserve moves `card_y`, and nothing in the width budget
 //! reads it.
 //!
-//! **THE ROSTER-SIDE PROPERTY IS NOT ONE FACE.** Restricted to the Keybindings
-//! hint, only the two `"Monaspace Xenon"` worlds overflow. Widened to the hint
-//! CATALOG, the palette's own `Command` hint overflows on all five worlds whose
-//! chrome face is a monospace used for chrome text — `"IBM Plex Mono"`
-//! (Tawny), `"JetBrains Mono"` (Mangrove, Wagtail) and `"Monaspace Xenon"`
-//! (Potoroo, Firetail) — so a face-name exclusion measured off ONE hint was
-//! measuring the wrong axis. The ledger below is keyed by world rather than by
-//! face because the deficit is a property of the whole composition: Potoroo
-//! and Firetail share a face and differ by 3.8 points of ratio, because
+//! **THE ROSTER-SIDE PROPERTY REALLY IS THAT ONE FACE — BUT ONLY AFTER EACH
+//! KIND IS ASKED OF THE GEOMETRY OWNER IT ACTUALLY GETS.** Sweeping the hint
+//! CATALOG through the FLAT owner reports the palette's `Command` hint
+//! overflowing on all five worlds whose chrome face is a monospace, and reports
+//! a 7.7px card-edge overflow on Mangrove at zoom 1.0 — the residual filed as
+//! this defect's sibling. **Both dissolve: the palette FACETS**, so
+//! `overlay_geometry` routes it to `theme_overlay_geometry` and its card is the
+//! wider `CARD_MAX_W_FACETED` cap, which holds that hint on every world. The
+//! flat card's narrower column was never the palette's budget. Driven through
+//! the real owner (`card_view` builds `overlay_lens` from the product's own
+//! facet scheme) the overflow set is the two `"Monaspace Xenon"` worlds' own
+//! Keybindings hint and nothing else — Keybindings does not facet, so the flat
+//! column IS its budget. The ledger stays keyed by world rather than by face
+//! because the deficit is a property of the whole composition: Potoroo and
+//! Firetail share a face and differ by 3.8 points of ratio, since
 //! `overlay_text_hpad` gives a `Bars` world `BAR_SIDE_INSET + BAR_TEXT_PAD`
 //! where a `Pane` world gets `PANE_TEXT_HPAD`.
 //!
-//! **THE SIBLING RESIDUAL IS THE SAME DEFECT, CONFIRMED TO 0.1px.** The
-//! zoom-1.0 Mangrove overflow filed as a separate follow-up — "the plain hint
-//! line overflows the card's right edge by ~7.7 logical px, direction-gated" —
-//! is this ledger's `Mangrove`/`Command` row: at zoom 1.0, dpi 1 the drawn
-//! foot band's right edge sits **7.7px** past `overlay_card_rect`'s. It is not
-//! direction-gated — `Tawny`, a plain `Pane` world with no lean at all,
-//! measures the same 7.7px — and `Magpie`/`Paperbark` stay clean because their
-//! chrome faces are proportional, not because of their shear.
-//!
 //! **NOT FIXED HERE, ON PURPOSE.** Every repair is a taste call on the card
-//! itself: raising the cap (Firetail's `Command` hint needs 1.1137 of its
-//! column, so ~575 logical against today's 520 — a >10% wider card on every
-//! world at every zoom), letting the hint band elide or wrap, or letting the
-//! content-hug measurement bound the cap for every anchor rather than only the
-//! right-anchored ones (which today already sizes Cassowary's and Kite's cards
-//! to their own hints, and would not help these five — they are AT the cap
-//! already). Shortening the hint would make the number pass by making the
-//! discoverability affordance worse, so it is not on that list. The question
-//! goes to the user with these numbers; the laws below hold the measurement
-//! from both ends meanwhile.
+//! itself: raising the cap (Firetail needs 1.0502 of its column, which is 544
+//! logical against today's 520), letting the hint band elide or wrap, or
+//! letting the content-hug measurement bound the cap for every anchor rather
+//! than only the right-anchored ones — which today already sizes Cassowary's
+//! and Kite's cards to their own hints, and would not help these two, because
+//! they are AT the cap already. Shortening the hint would make the number pass
+//! by making the discoverability affordance worse, so it is not on that list.
+//! The question goes to the user with these numbers; the laws below hold the
+//! measurement from both ends meanwhile.
 //!
 //! **HOW THE LEDGER RATCHETS.** It is not an exclusion. Every roster × catalog
 //! cell is graded, and a pair overflows if and only if it is ledgered, at the
 //! ratio recorded: a NEW overflowing world or hint fails, a ledgered pair that
 //! stops overflowing fails (so the fix cannot land unnoticed), and a ledgered
-//! ratio that drifts fails. Enrolment comes from the roster and from
-//! `workspace_shape()`, never from a name.
+//! ratio that drifts fails. Enrolment comes from the roster, from
+//! `workspace_shape()` and from the facet scheme — never from a name.
 
 use super::super::*;
 use super::{headless_dqp, view};
 use crate::overlay::OverlayKind;
 
 /// THE MEASURED OVERFLOW LEDGER: `(world, hint kind, hint band ÷ card text
-/// column)` for every flat-card cell whose hint does not fit, at every scale
-/// ≥ 1. The ratio is the pinned quantity because it is the scale-free one —
-/// see the module doc — so one number covers 1×, 1.6× and 2× alike.
+/// column)` for every cell whose hint does not fit its own card, at every
+/// scale ≥ 1. The ratio is the pinned quantity because it is the scale-free
+/// one — see the module doc — so one number covers 1×, 1.6× and 2× alike.
 const KNOWN_HINT_OVERFLOW: &[(&str, &str, f32)] = &[
-    ("Tawny", "Command", 1.0397),
-    ("Mangrove", "Command", 1.0397),
-    ("Wagtail", "Command", 1.0397),
-    ("Potoroo", "Command", 1.0733),
-    ("Firetail", "Command", 1.1137),
     ("Potoroo", "Keybindings", 1.0121),
     ("Firetail", "Keybindings", 1.0502),
 ];
@@ -111,13 +104,18 @@ fn allowed_ratio(world: &str, kind: OverlayKind) -> f32 {
         .map_or(1.0, |(_, _, r)| *r)
 }
 
-/// The kinds whose card comes from `overlay_geometry` — the FLAT card, the
-/// tightest width budget in the product. A workspace kind is asked by the
-/// product's own predicate rather than named: `workspace_shape()` answers
-/// `Some` unconditionally for `Settings`, `History` and `Conflict`, whose cards
-/// are the wider faceted cap with a rail, so their hint rides a budget this
-/// law does not measure and must not pin.
-fn flat_card_kinds() -> Vec<OverlayKind> {
+/// THE KINDS THAT HAVE A CARD AT ALL. A workspace is excluded by the product's
+/// own predicate rather than by name, and for the reason `overlay_geometry`'s
+/// own comment gives at the branch that routes it away: "a workspace's rail IS
+/// its facet strip, stood on its end […] and there is no card to place". A
+/// card-width law has nothing to measure there.
+///
+/// Every remaining kind is swept through the geometry owner IT actually gets —
+/// see [`card_view`]. Asking one owner for all of them is the shape that
+/// produced a pinned deficit on the command palette's hint, which does not
+/// exist: the palette FACETS, so its card is the wider `CARD_MAX_W_FACETED`
+/// cap, and the flat card's narrower column is not its budget.
+fn carded_kinds() -> Vec<OverlayKind> {
     OverlayKind::ALL
         .iter()
         .copied()
@@ -140,9 +138,43 @@ fn every_real_tip() -> Vec<String> {
         .collect()
 }
 
-/// One flat-card cell's `(hint band px, card text column px)`, both read off
-/// the production owners a frame just committed.
-fn band_and_column(
+/// THE VIEW THIS KIND ACTUALLY OPENS AS, in the two fields that decide which
+/// geometry owner answers for it. `overlay_lens` comes from the product's own
+/// facet scheme — `overlay_geometry` routes to `theme_overlay_geometry` (the
+/// wider faceted cap) exactly when that strip is non-empty — and
+/// `overlay_window_rows` from `window_rows()`, because leaving it at its flat
+/// default pins every kind to 12 rows and a height-budget sweep then varies
+/// nothing.
+fn card_view(kind: OverlayKind, zoom: f32) -> ViewState {
+    let mut v = view("hello\n", 0, 0);
+    v.overlay_active = true;
+    v.zoom = zoom;
+    v.overlay_title = kind.title();
+    v.overlay_hint = kind.hint();
+    v.overlay_items = vec!["Go to file".into(), "Save".into(), "Undo".into()];
+    v.overlay_selected = 0;
+    v.overlay_window_rows = kind.window_rows();
+    v.overlay_lens = crate::facets::scheme(kind)
+        .map(|sc| sc.strip_labels(0))
+        .unwrap_or_default();
+    v
+}
+
+/// What one cell committed: the hint band's shaped width, the card's text
+/// column, and how far the band's DRAWN right edge exceeds the card's own —
+/// all three off the production owners a frame just committed. The third is
+/// not the first: the band is emitted at `overlay_foot_left` (a leaning
+/// composition hangs it off its spine), and the card carries `hpad` of padding
+/// outside the text column, so a band can clip inside the card or paint past
+/// its edge.
+struct CardFit {
+    band: f32,
+    column: f32,
+    past_card: f32,
+    hpad: f32,
+}
+
+fn card_fit(
     p: &mut TextPipeline,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -151,23 +183,21 @@ fn band_and_column(
     kind: OverlayKind,
     zoom: f32,
     tips: Vec<String>,
-) -> (f32, f32) {
-    let mut v = view("hello\n", 0, 0);
-    v.overlay_active = true;
-    v.zoom = zoom;
-    v.overlay_title = kind.title();
-    v.overlay_hint = kind.hint();
-    v.overlay_items = vec!["Go to file".into(), "Save".into(), "Undo".into()];
-    v.overlay_selected = 0;
+) -> CardFit {
+    let v = card_view(kind, zoom);
     p.set_keybindings_tips(tips);
     p.set_view(&v);
     p.prepare(device, queue, cw, ch).unwrap();
     let geom = p.overlay_geometry(cw);
     let plan = p.overlay_row_plan(&geom);
-    (
-        p.overlay_footer_content_px(&geom, plan.content_rows()),
-        geom.text_w,
-    )
+    let band = p.overlay_footer_content_px(&geom, plan.content_rows());
+    let card = p.overlay_card_rect().unwrap_or([0.0, 0.0, 0.0, 0.0]);
+    CardFit {
+        band,
+        column: geom.text_w,
+        past_card: (p.overlay_foot_left(&geom, &plan) + band) - (card[0] + card[2]),
+        hpad: ((card[2] - geom.text_w) * 0.5).max(0.0),
+    }
 }
 
 // `set_keybindings_tips` is the discoverability ledger's own native-only door
@@ -211,7 +241,7 @@ fn the_keybindings_footer_never_clips_for_any_real_ledger_tip() {
                 // add to an overflow the hint already carries.
                 let allow = allowed_ratio(world, OverlayKind::Keybindings);
                 for tip in &tips {
-                    let (footer_px, text_w) = band_and_column(
+                    let fit = card_fit(
                         &mut p,
                         &device,
                         &queue,
@@ -221,6 +251,7 @@ fn the_keybindings_footer_never_clips_for_any_real_ledger_tip() {
                         0.8, // the shipped default render zoom (what `--screenshot` renders)
                         vec![tip.clone()],
                     );
+                    let (footer_px, text_w) = (fit.band, fit.column);
                     assert!(
                         footer_px > 1.0,
                         "{world} dpi={dpi} bar={bar}: the footer must actually shape glyphs \
@@ -251,11 +282,15 @@ fn the_keybindings_footer_never_clips_for_any_real_ledger_tip() {
 }
 
 /// THE LEDGER IS EXACT, AND THE DEFICIT IS A SCALE-FREE RATIO. Sweeps the
-/// roster × the flat-card hint catalog × 1×/2× × both menu-bar arms × the
-/// shipped zoom AND zoom 1.0, and asserts three things the module doc argues
-/// for: nothing overflows below scale 1 (the grow-only slack is why this hid),
-/// the overflow SET at scale ≥ 1 is exactly the ledger, and each ratio is the
-/// same number at every scale ≥ 1.
+/// roster × the hint catalog × 1×/2× × both menu-bar arms × the shipped zoom
+/// AND zoom 1.0, each kind through the geometry owner it really gets, and
+/// asserts what the module doc argues for: nothing overflows below scale 1
+/// (the grow-only slack is why this hid), the overflow SET at scale ≥ 1 is
+/// exactly the ledger, each ratio is the same number at every scale ≥ 1, and
+/// the DRAWN band never paints past the card's own right edge by more than the
+/// ledgered deficit leaves after the card's padding absorbs what it can — the
+/// sibling residual's own quantity, derived from the same ledger rather than
+/// given a second one.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn the_hint_band_overflow_ledger_is_exact_and_scale_free() {
@@ -266,7 +301,7 @@ fn the_hint_band_overflow_ledger_is_exact_and_scale_free() {
     };
     let ambient_bar = crate::menubar::menu_bar_on();
     let names = crate::theme::world_names();
-    let kinds = flat_card_kinds();
+    let kinds = carded_kinds();
     assert!(
         kinds.len() > 10 && names.len() > 10,
         "the sweep's own axes must be populated, got {} kinds x {} worlds",
@@ -291,16 +326,9 @@ fn the_hint_band_overflow_ledger_is_exact_and_scale_free() {
                     p.sync_theme();
                     p.atlas.trim();
                     for &kind in &kinds {
-                        let (band, column) = band_and_column(
-                            &mut p,
-                            &device,
-                            &queue,
-                            cw,
-                            ch,
-                            kind,
-                            zoom,
-                            Vec::new(),
-                        );
+                        let fit =
+                            card_fit(&mut p, &device, &queue, cw, ch, kind, zoom, Vec::new());
+                        let (band, column) = (fit.band, fit.column);
                         assert!(
                             band > 1.0 && column > 1.0,
                             "{world} {kind:?} zoom={zoom} dpi={dpi} bar={bar}: the hint band \
@@ -332,6 +360,23 @@ fn the_hint_band_overflow_ledger_is_exact_and_scale_free() {
                                     .push(ratio);
                             }
                         }
+                        // WHAT THE CARD'S PADDING CANNOT ABSORB. A band wider
+                        // than its column still lands inside the card while the
+                        // surplus fits in `hpad`; past that it is ink outside
+                        // the card. Both bounds come off the one ledger, so a
+                        // repaired budget fails here too instead of quietly
+                        // leaving a second pinned number behind.
+                        let surplus =
+                            ((allowed_ratio(world, kind) - 1.0) * fit.column - fit.hpad).max(0.0);
+                        assert!(
+                            fit.past_card <= surplus + RATIO_TOL * fit.column,
+                            "{world} {kind:?} zoom={zoom} dpi={dpi} bar={bar}: the drawn foot \
+                             band paints {:.1}px past the card's right edge, and the ledger \
+                             leaves room for {surplus:.1}px (column {:.1}, hpad {:.1}). The \
+                             band is emitted at `overlay_foot_left`, so a leaning composition \
+                             can put ink outside a card its own column would have held",
+                            fit.past_card, fit.column, fit.hpad
+                        );
                         graded += 1;
                     }
                 }
