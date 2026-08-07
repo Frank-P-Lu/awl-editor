@@ -691,6 +691,46 @@ fn chrome_sources() -> Vec<(String, String)> {
     out
 }
 
+/// EVERY PRODUCT `.rs` FILE UNDER `src/`, test files excluded.
+///
+/// Two of these laws grade READ SITES rather than declarations, and a read site
+/// is a claim about what the shipping code does — a test that multiplies one of
+/// these constants by a scale in order to describe the defect is not a
+/// counter-example to it. Directories named `tests` and files named `tests.rs`
+/// are dropped for that reason and no other.
+fn product_sources() -> Vec<(String, String)> {
+    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut out: Vec<(String, String)> = Vec::new();
+    let mut stack = vec![manifest.join("src")];
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(&dir).expect("src readable") {
+            let path = entry.expect("dir entry").path();
+            let rel = path
+                .strip_prefix(manifest)
+                .unwrap_or(&path)
+                .display()
+                .to_string();
+            if path.is_dir() {
+                if !rel.ends_with("/tests") {
+                    stack.push(path);
+                }
+            } else if path.extension().is_some_and(|e| e == "rs") && !rel.ends_with("tests.rs") {
+                out.push((
+                    rel,
+                    std::fs::read_to_string(&path).expect("source readable"),
+                ));
+            }
+        }
+    }
+    assert!(
+        out.len() > 60,
+        "the product-source scan found only {} files",
+        out.len()
+    );
+    out.sort();
+    out
+}
+
 /// **CLAIM 4a — EVERY AUTHORED CHROME CONSTANT DECLARES ITS UNIT FAMILY.**
 ///
 /// The `_LOGICAL` suffixes this round retired were the right instinct with an
@@ -890,34 +930,7 @@ fn the_dpi_blind_ledger_is_exactly_the_unclassified_leftover() {
     // Claim 2: each entry is still read the way the ledger says, and still never
     // meets the DPI factor. Product sources only — a test may legitimately
     // multiply one of these by a scale to describe the defect.
-    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let mut product: Vec<(String, String)> = Vec::new();
-    let mut stack = vec![manifest.join("src")];
-    while let Some(dir) = stack.pop() {
-        for entry in std::fs::read_dir(&dir).expect("src readable") {
-            let path = entry.expect("dir entry").path();
-            let rel = path
-                .strip_prefix(manifest)
-                .unwrap_or(&path)
-                .display()
-                .to_string();
-            if path.is_dir() {
-                if !rel.ends_with("/tests") {
-                    stack.push(path);
-                }
-            } else if path.extension().is_some_and(|e| e == "rs") && !rel.ends_with("tests.rs") {
-                product.push((
-                    rel,
-                    std::fs::read_to_string(&path).expect("source readable"),
-                ));
-            }
-        }
-    }
-    assert!(
-        product.len() > 60,
-        "the product-source scan found only {} files",
-        product.len()
-    );
+    let product = product_sources();
     for (name, site) in DPI_BLIND_PENDING {
         let factor = site;
         let mut saw_factor = false;
@@ -958,6 +971,77 @@ fn the_dpi_blind_ledger_is_exactly_the_unclassified_leftover() {
             scaled_sites.join("\n")
         );
     }
+}
+
+/// **CLAIM 4d — A LENGTH IS NEVER RESOLVED AGAINST ZOOM ALONE.**
+///
+/// The newtype stops a length reaching a draw call UNMULTIPLIED. It does not,
+/// on its own, stop a caller handing [`Logical::px`] the WRONG factor — the
+/// method takes any `f32`, because the pure geometry policies are called with a
+/// bare `dpi` or a bare `scale` and have no `Metrics` to ask. So the second half
+/// of the guarantee has to be a law, and this is it: the factor is
+/// `Metrics::scale` (`zoom * dpi`) or the `dpi` a policy was handed, never
+/// `zoom` by itself.
+///
+/// `zoom` alone is exactly the defect [`DPI_BLIND_PENDING`] records — a length
+/// that tracks the user's type size and ignores the panel's density, so it
+/// halves against the text it was tuned beside on every retina display. This law
+/// is what stops one of those entries being "repaired" into a unit family while
+/// keeping the factor that made it wrong.
+#[test]
+fn no_length_is_resolved_against_zoom_alone() {
+    let mut offenders = Vec::new();
+    let mut resolutions = 0usize;
+    for (path, src) in product_sources() {
+        for (i, line) in src.lines().enumerate() {
+            let t = line.trim_start();
+            if t.starts_with("//") || t.starts_with("///") {
+                continue;
+            }
+            for door in [".px(", ".px_grow_only(", ".px_physical("] {
+                let mut rest = line;
+                while let Some(at) = rest.find(door) {
+                    let arg = &rest[at + door.len()..];
+                    let arg = arg.split(')').next().unwrap_or("");
+                    // `Metrics::px(SOME_LOGICAL)` and `Logical::px(scale)` share
+                    // one spelling. Only the SCALE-taking form is in scope, and an
+                    // argument that starts upper-case (or is a path to one) is the
+                    // other form.
+                    let last = arg.rsplit("::").next().unwrap_or(arg).trim();
+                    let takes_scale = last
+                        .chars()
+                        .next()
+                        .is_some_and(|c| c.is_ascii_lowercase() || c.is_ascii_digit());
+                    if takes_scale {
+                        resolutions += 1;
+                        let words: Vec<&str> = arg
+                            .split(|c: char| !c.is_alphanumeric() && c != '_')
+                            .collect();
+                        if words.contains(&"zoom") && !words.contains(&"scale") {
+                            offenders.push(format!("{path}:{}: {}", i + 1, line.trim()));
+                        }
+                    }
+                    rest = &rest[at + door.len()..];
+                }
+            }
+        }
+    }
+    assert!(
+        offenders.is_empty(),
+        "a logical length resolved against ZOOM alone — it will hold its device \
+         size as the display gets denser, which is the halving item 242 was \
+         written for:\n{}",
+        offenders.join("\n")
+    );
+    // NON-VACUITY: the scan must have found real resolution sites to grade. A
+    // path-shape change that stopped matching `.px(` would otherwise report a
+    // clean sweep of nothing.
+    assert!(
+        resolutions >= 30,
+        "the scan graded only {resolutions} scale-taking resolutions — it is not \
+         finding the door it thinks it is"
+    );
+    eprintln!("zoom-alone sweep: {resolutions} scale-taking resolutions graded");
 }
 
 /// **CLAIM 4b — A MIGRATED LENGTH MAY NOT ESCAPE THE OWNER BY FIELD ACCESS.**
