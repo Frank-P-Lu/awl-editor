@@ -259,13 +259,13 @@ pub enum LocationStyle {
     /// The default: the label shapes inline, in the row-plan slot it already
     /// occupies (`render/chrome/theme_picker.rs`'s `shape_theme_spans`).
     Inline,
-    /// The line stays glyph-free; the label instead draws as a small, muted
-    /// run turned 90° and seated flush with the card's own left border — a
-    /// subordinate vertical counterpart to a loud primary title (Cassowary's
-    /// Archivo Black "Commands" placard). Still the SAME one planned slot;
-    /// only the paint differs. Reuses the world-neutral rotated-label
-    /// capability — no second rotation path
-    /// (`render/rotated_location.rs`'s `prepare_rotated_location_label`).
+    /// The line stays glyph-free; the label instead draws as a run turned 90°
+    /// in the ROOM's own outer margin — the one its wordmark placard keeps —
+    /// rising from just above that placard at two thirds its type size and in
+    /// its ink: a vertical companion at its own scale class, not a caption in
+    /// the card's gutter. Still the SAME one planned slot, and no second
+    /// rotation path. The size IS the composition, so no wordmark or too tight
+    /// a margin PARKS the cue (`chrome::rotated_location`'s own doc).
     RotatedRail,
     /// The line stays glyph-free like `RotatedRail`, but the label keeps
     /// `Inline`'s own POSITION — flush left wherever the row planner's

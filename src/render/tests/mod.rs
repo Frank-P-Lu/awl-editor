@@ -133,6 +133,7 @@ mod range_rail;
 mod reanchor_crossing_law;
 mod rotated_label_item235;
 mod rotated_location_item221;
+mod rotated_rail_item297;
 mod row_offset_item131;
 /// The `Rules` composition: the full `OverlayKind` row-surface sweep, the
 /// Settings workspace (both regions), every `SettingId × SettingKind`,

@@ -118,9 +118,8 @@ fn location_axis_deg_is_sensitive_to_the_step_it_is_derived_from() {
 /// `RotatedRail` and `Raked` route through (`render/rotated_location.rs`),
 /// already proved flush/bottom-anchored at 90° elsewhere — this proves the
 /// SAME formula at a near-vertical, non-quadrant angle, which is what stops
-/// Magpie's cue from crowding the row beneath it. `flush_x` and `inset_px`
-/// are independent here (Magpie always passes `0.0`), unlike Cassowary's
-/// fixed hairline clearance.
+/// Magpie's cue from crowding the row beneath it. Magpie seats its run on the
+/// row's own text column with no clearance, so the flush edge IS `flush_x`.
 #[test]
 fn raked_location_origin_is_flush_left_and_bottom_anchored_at_a_non_quadrant_angle() {
     let axis = label_axis_deg(REFERENCE_ANGLE_DEG);
@@ -131,7 +130,12 @@ fn raked_location_origin_is_flush_left_and_bottom_anchored_at_a_non_quadrant_ang
         (733.5, 481.25, 40.4, [-1.0, -15.0, 30.0, 20.0]),
     ];
     for (flush_x, row_top, row_height, ink) in fixtures {
-        let origin = rotated_location_origin(flush_x, 0.0, row_top, row_height, axis, ink);
+        let origin = rotated_location_origin(
+            crate::render::rotated_location::FlushEdge::Left(flush_x),
+            row_top + row_height,
+            axis,
+            ink,
+        );
         let bounds = crate::rotated_label::geometry::label_bounds(origin, axis, ink);
         let left = bounds[0];
         let bottom = bounds[1] + bounds[3];

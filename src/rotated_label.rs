@@ -83,9 +83,10 @@ struct Globals {
 ///
 /// This is the CAPABILITY slice — the two world expressions that need it, a
 /// faceted picker's active-lens cue either way, are separately specified and
-/// separately verifiable: Cassowary's `RotatedRail` (a 90° flush-left
-/// secondary heading) and Magpie's `Raked` (a slant tied to the diagonal
-/// spine's own rake, in a gradient between its two authored tones).
+/// separately verifiable: Cassowary's `RotatedRail` (a 90° run in the room's
+/// own outer margin, at two thirds of the wordmark placard it rises from) and
+/// Magpie's `Raked` (a slant tied to the diagonal spine's own rake, in a
+/// gradient between its two authored tones).
 /// Every world that draws no rotated text stays byte-identical:
 /// `render/chrome/rotated_location.rs`'s `prepare_overlay_rotated_location`
 /// parks this pipeline (`clear()`) outright on any world whose
