@@ -19,6 +19,20 @@
 //! surface. Together they read — the label agrees with the shared core on every
 //! platform, AND the platform's own panels only ever land on rows that promised
 //! one.
+//!
+//! **THE EXPORT ROWS' ELLIPSIS IS A DELIBERATE DECISION WITH A NAMED COST.** One
+//! static `label` feeds BOTH menu bars (`menu::roster` drives the awl-drawn bar on
+//! Linux and web), so it can only tell one story. An export now asks WHERE before
+//! it writes on every platform that has a folder to offer — the `ExportDest`
+//! navigator through the shared core, and `NSSavePanel` from this menu on macOS —
+//! so the ellipsis is TRUE on macOS and TRUE on Linux, on every door. It is FALSE
+//! on the WEB build alone, where the bytes go to the browser's own download and
+//! the browser owns where they land, so awl opens nothing
+//! (`actions::export_picks_destination`). Dropping the ellipsis instead would
+//! invert that: false on the two desktop platforms — where a surface genuinely
+//! opens — and true only on the browser. A cosmetic over-promise on one build is
+//! the cheaper of the two lies, and the third law below pins the exception to
+//! EXACTLY that one platform, so it cannot quietly widen.
 
 use super::*;
 use crate::actions::{ActionCtx, apply_transition};
@@ -121,5 +135,71 @@ fn every_native_panel_row_promises_a_surface_and_names_a_real_file_row() {
         !NATIVE_PANEL_IDS.is_empty(),
         "the platform-panel door still exists; an empty roster would make this \
          law sweep nothing",
+    );
+}
+
+/// THE PLATFORM AXIS OF THE ONE STATIC LABEL — the third door onto the same
+/// promise, and the one neither law above can see: they both run in ONE
+/// configuration (this host, compiled native), while the label is shipped to
+/// three platforms from a single `&'static str`.
+///
+/// Asked through the pure, platform-PARAMETERISED predicate the dispatch itself
+/// reads (`actions::export_picks_destination`), so the web arm is swept from a
+/// native run rather than trusted. The assertion is not "the label is truthful"
+/// — it is not, on one platform, deliberately (see the module doc) — but that the
+/// set of platforms it over-promises to is EXACTLY `{Web}`. That pins the
+/// exception in both directions: giving the web build a destination surface makes
+/// this red (delete the exception), and taking the navigator away from native
+/// makes it red too (the lie widened).
+///
+/// MUTATION TARGET: strip the ellipsis from the export rows, or make
+/// `export_picks_destination` answer `true` on `Web`, and this fails by name
+/// reporting which platforms disagreed.
+#[test]
+fn the_export_labels_ellipsis_over_promises_to_exactly_one_platform() {
+    use crate::commands::Platform;
+    use crate::keymap::Action;
+
+    // ENROLMENT FROM THE ROSTER: a row is an export row because its resolved
+    // catalog action is one, never because its label reads like one. The three
+    // variants are named so a fourth export action does not join silently.
+    let export_rows: Vec<&Routed> = FILE_ITEMS
+        .iter()
+        .filter(|item| {
+            matches!(
+                resolve(item.id),
+                Some(Action::ExportWord) | Some(Action::ExportHtml) | Some(Action::ExportPdf)
+            )
+        })
+        .collect();
+    assert_eq!(
+        export_rows.len(),
+        3,
+        "PRESENCE: the File menu has three export rows; this law is vacuous if the \
+         enrolment stops matching them",
+    );
+
+    let mut over_promising: Vec<Platform> = Vec::new();
+    for platform in [Platform::Native, Platform::Web] {
+        let opens = crate::actions::export_picks_destination(platform);
+        for item in &export_rows {
+            let promises = item.label.ends_with('…');
+            assert!(
+                promises || !opens,
+                "{:?} (label {:?}): a surface opens on {platform:?} and the label \
+                 does not promise it",
+                item.id,
+                item.label,
+            );
+            if promises && !opens && !over_promising.contains(&platform) {
+                over_promising.push(platform);
+            }
+        }
+    }
+    assert_eq!(
+        over_promising,
+        vec![Platform::Web],
+        "the export ellipsis may over-promise on the WEB build alone (the browser \
+         owns where a download lands); it over-promised on {over_promising:?}",
     );
 }
