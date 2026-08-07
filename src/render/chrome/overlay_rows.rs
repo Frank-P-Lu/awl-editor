@@ -163,29 +163,43 @@ impl TextPipeline {
         // ITEM 164: WHICH row's rail flips is the shared visual-selection
         // transaction's answer, not the logical row's — the thumb is a secondary
         // ink like the value beside it, and both now wait for the band.
+        //
+        // ITEM 309 — THE FLIP IS PER RAIL, NEVER PER FRAME. A card can show
+        // several range rows at once (Settings seats both `Zoom` and `Scroll
+        // sensitivity` in the default window), and only ONE of them is ever the
+        // row the visual-selection band sits on. `overlay_range_thumb` is one
+        // pipeline for every rail on the card, so a single shared `set_color`
+        // painted whichever ink the (unique) selected rail earned onto every
+        // OTHER rail's fill/thumb too — a non-selected row reading the
+        // selected row's flipped ink whenever a Pane world washes `muted` out
+        // (`rail_thumb_over_fill`; Bars/Diagonal/Rules never flip at all, so
+        // the bug is invisible there). Fixed by asking `on_band` PER ITEM and
+        // uploading through `prepare_multicolor` (the writing-streaks heatmap's
+        // own per-instance-color door, `render/layers.rs`), so each thumb/fill
+        // pair carries the ink its OWN row earned.
         let rails = self.overlay_rails(geom, plan);
-        let (mut track_rects, mut thumb_rects): (Vec<[f32; 4]>, Vec<[f32; 4]>) =
-            (Vec::new(), Vec::new());
-        for (_item, rail) in &rails {
-            track_rects.push(rail.track);
-            if rail.fill[2] > 0.0 {
-                thumb_rects.push(rail.fill);
-            }
-            thumb_rects.push(rail.thumb);
-        }
         let on_band: Vec<usize> = vis.rows().iter().filter_map(|&k| plan.item_at(k)).collect();
-        let selected_rail = rails.iter().any(|(item, _)| on_band.contains(item));
-        let thumb_ink = match super::overlay_selected_rail_srgb() {
-            Some(flip) if selected_rail => flip,
-            _ => theme::muted(),
-        };
+        let selected_flip = super::overlay_selected_rail_srgb();
+        let mut track_rects: Vec<[f32; 4]> = Vec::new();
+        let mut thumb_quads: Vec<([f32; 4], [u8; 4])> = Vec::new();
+        for (item, rail) in &rails {
+            track_rects.push(rail.track);
+            let ink = match selected_flip {
+                Some(flip) if on_band.contains(item) => flip,
+                _ => theme::muted(),
+            }
+            .rgba_bytes();
+            if rail.fill[2] > 0.0 {
+                thumb_quads.push((rail.fill, ink));
+            }
+            thumb_quads.push((rail.thumb, ink));
+        }
         self.overlay_range_track
             .set_color(theme::faint().rgba_bytes());
-        self.overlay_range_thumb.set_color(thumb_ink.rgba_bytes());
         self.overlay_range_track
             .prepare(device, queue, width, height, &track_rects);
         self.overlay_range_thumb
-            .prepare(device, queue, width, height, &thumb_rects);
+            .prepare_multicolor(device, queue, width, height, &thumb_quads);
     }
 
     fn overlay_prepare_facet_marks(
