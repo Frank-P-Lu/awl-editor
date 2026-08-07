@@ -123,12 +123,278 @@ fn the_footprint_scissor_rounds_outward_clamps_and_rejects_the_off_canvas() {
 /// claim about the blur alone.
 #[test]
 fn the_footprint_arm_carries_no_dim_and_the_full_arm_keeps_its_own() {
-    assert_eq!(Frost::Footprint([0.0, 0.0, 10.0, 10.0]).dim(), 0.0);
+    assert_eq!(upright([0.0, 0.0, 10.0, 10.0]).dim(), 0.0);
     assert_eq!(Frost::Full.dim(), DIM);
     assert!(
         Frost::Full.dim() > 0.0,
         "the full takeover still recedes a value"
     );
+}
+
+/// A footprint over an upright composition — the shape a `Rules` world takes.
+fn upright(rect: [f32; 4]) -> Frost {
+    Frost::Footprint(Footprint { rect, shear: 0.0 })
+}
+
+/// THE FEATHER MUST CLEAR THE BLUR IT EDGES.
+///
+/// This is the floor under [`FOOTPRINT_FEATHER_PX`], and the reason the number is not
+/// simply the smallest value that stops a knife edge. The interior the boundary bounds
+/// is soft over the Gaussian's own reach; a boundary narrower than that reads HARD
+/// beside it, because the eye grades the edge against the blur it terminates. So the
+/// authored width may be retuned by taste UPWARD freely and downward only to here.
+///
+/// `lava::FROST_FEATHER_PX` (7.0) is the tree's other frost-skirt quantity and the
+/// closer kind; this law is what says it cannot serve, rather than a comment claiming so.
+#[test]
+fn the_footprint_feather_is_at_least_the_blur_it_edges() {
+    // The Gaussian's ±4-tap reach in LOGICAL px, at the authored 1× downsample.
+    let reach = 4.0 * DOWNSAMPLE as f32;
+    assert!(
+        FOOTPRINT_FEATHER_PX >= reach,
+        "the footprint feather is {FOOTPRINT_FEATHER_PX} logical px against a blur that \
+         reaches {reach} — an edge narrower than the softness it bounds reads hard"
+    );
+    assert!(
+        crate::lava::FROST_FEATHER_PX < reach,
+        "lava's frost skirt ({}) has risen above the blur's reach ({reach}) — it is now \
+         a candidate for this quantity and the choice to author separately should be \
+         re-argued rather than left standing on a stale figure",
+        crate::lava::FROST_FEATHER_PX
+    );
+    // And it is a LOGICAL length: multiplied by DPI exactly once, so the edge a reader
+    // sees is the same width at 1× and 2×. The class every `--capture-dpi 1` is blind to.
+    assert_eq!(footprint_feather_px(1.0), FOOTPRINT_FEATHER_PX);
+    for dpi in [1.0f32, 1.25, 1.5, 2.0, 3.0] {
+        let logical = footprint_feather_px(dpi) / dpi;
+        assert!(
+            (logical - FOOTPRINT_FEATHER_PX).abs() <= 1e-3,
+            "dpi {dpi}: the feather is {logical} logical px, authored {FOOTPRINT_FEATHER_PX}"
+        );
+    }
+    for dpi in [0.0f32, -1.0, f32::NAN] {
+        assert!(
+            footprint_feather_px(dpi) > 0.0,
+            "dpi {dpi}: a degenerate scale must not produce a zero feather — that is the \
+             hard edge back again"
+        );
+    }
+}
+
+/// THE MASK IS 1 ON AND INSIDE THE SHAPE, AND RAMPS TO 0 OUTSIDE IT — NOT A STEP.
+///
+/// The defect this replaced was hard BY CONSTRUCTION (a scissor answers yes or no), so
+/// the property that matters is the ramp's existence, its DIRECTION (entirely outside
+/// the faces, so nothing the card covers stops being frosted) and its monotonicity.
+///
+/// Both halves of the roster are graded: an upright footprint and a sheared one.
+#[test]
+fn the_footprint_mask_is_full_inside_and_ramps_outward_over_the_feather() {
+    let f = FOOTPRINT_FEATHER_PX;
+    for shear in [0.0f32, 0.35, -0.35] {
+        let foot = Footprint {
+            rect: [200.0, 100.0, 400.0, 300.0],
+            shear,
+        };
+        let [x, y, w, h] = foot.rect;
+        let (cx, cy) = (x + w * 0.5, y + h * 0.5);
+        let m = |px: f32, py: f32| footprint_mask(foot, f, px, py);
+
+        // THE CENTRE IS FULL STRENGTH, exactly — the frost's own presence floor at the
+        // arithmetic seam. A mask that faded its whole subject satisfies "no hard edge"
+        // perfectly, and this is what refuses it.
+        assert_eq!(
+            m(cx, cy),
+            1.0,
+            "shear {shear}: the footprint's centre is not fully frosted"
+        );
+        // Every face's INNER side is full strength (the ramp is entirely outside), and
+        // the ramp is spent by the feather's width beyond it. Asked on the horizontal
+        // faces, which the shear leaves alone, and on the vertical ones along the
+        // centre row, where the shear's displacement is zero.
+        for (px, py) in [(cx, y), (cx, y + h), (x, cy), (x + w, cy)] {
+            assert_eq!(
+                m(px, py),
+                1.0,
+                "shear {shear}: the face at ({px}, {py}) is not fully frosted — a ramp \
+                 that reaches INWARD leaves partly-sharp document under the card's own \
+                 outermost rows"
+            );
+        }
+        for (px, py) in [
+            (cx, y - f - 1.0),
+            (cx, y + h + f + 1.0),
+            (x - f - 1.0, cy),
+            (x + w + f + 1.0, cy),
+        ] {
+            assert_eq!(
+                m(px, py),
+                0.0,
+                "shear {shear}: the mask still reaches ({px}, {py}), a feather and a \
+                 pixel beyond its own face"
+            );
+        }
+        // MONOTONE across the boundary, and genuinely GRADED: the half-strength
+        // crossing sits inside the feather rather than at the face.
+        let profile: Vec<f32> = (0..=((f * 2.0) as i32))
+            .map(|d| m(cx, y - d as f32))
+            .collect();
+        for pair in profile.windows(2) {
+            assert!(
+                pair[1] <= pair[0] + 1e-6,
+                "shear {shear}: the mask is not monotone outward: {profile:?}"
+            );
+        }
+        let half = profile
+            .iter()
+            .position(|v| *v <= 0.5)
+            .expect("the ramp reaches half strength within two feathers");
+        assert!(
+            (0.2 * f) as usize <= half && half <= (0.8 * f) as usize,
+            "shear {shear}: the mask crosses half strength {half} px out of a {f} px \
+             feather — a step crosses at 0 or 1"
+        );
+    }
+}
+
+/// THE SHEAR LEANS THE SHAPE, AND THE UPRIGHT BOX IS A COVERAGE FLOOR UNDER IT.
+///
+/// Two claims, and the second is why the shape is a union rather than a bare
+/// parallelogram. (1) A nonzero shear genuinely moves the frost OFF the card's box —
+/// otherwise the lean is decoration on a rectangle. (2) Every pixel of the card's box
+/// is still fully frosted at any shear, because the card's query line and foot hint are
+/// UPRIGHT and flush to its left edge while the rows rake away from it: a shape that
+/// only followed the rake would leave the foot hint over sharp document, which is the
+/// reported defect moved rather than fixed.
+#[test]
+fn the_shear_leans_the_footprint_without_uncovering_the_card_it_frosts() {
+    let f = FOOTPRINT_FEATHER_PX;
+    let rect = [200.0, 100.0, 400.0, 300.0];
+    let [x, y, w, h] = rect;
+    for shear in [0.35f32, -0.35, 0.6] {
+        let leaning = Footprint { rect, shear };
+        let flat = Footprint { rect, shear: 0.0 };
+        // (2) COVERAGE FLOOR: sample the whole box on a grid, corners included.
+        for iy in 0..=20 {
+            for ix in 0..=20 {
+                let (px, py) = (x + w * ix as f32 / 20.0, y + h * iy as f32 / 20.0);
+                assert_eq!(
+                    footprint_mask(leaning, f, px, py),
+                    1.0,
+                    "shear {shear}: ({px}, {py}) is inside the card's box and is not \
+                     fully frosted"
+                );
+            }
+        }
+        // (1) THE LEAN IS REAL: a point one full feather OUTSIDE the box's side, on the
+        // half the shear reaches toward, is frosted under the lean and not under the
+        // flat shape. Descending (`shear > 0`) reaches LEFT above the centre and RIGHT
+        // below it, which is the direction its rows step.
+        let (reach_y, side) = if shear > 0.0 {
+            (y + h * 0.1, x - f)
+        } else {
+            (y + h * 0.9, x - f)
+        };
+        assert!(
+            footprint_mask(leaning, f, side, reach_y) > footprint_mask(flat, f, side, reach_y),
+            "shear {shear}: the frost at ({side}, {reach_y}) is no more covered under \
+             the lean than under an upright box — the shear reaches nothing"
+        );
+    }
+    // A degenerate shear is inert rather than catastrophic.
+    for bad in [f32::NAN, f32::INFINITY] {
+        let foot = Footprint { rect, shear: bad };
+        assert_eq!(footprint_mask(foot, f, x + w * 0.5, y + h * 0.5), 1.0);
+        assert!(footprint_bound(foot, f).iter().all(|v| v.is_finite()));
+    }
+}
+
+/// THE SCISSOR'S BOUND ENCLOSES EVERY PIXEL THE MASK REACHES.
+///
+/// The composite is still scissored — that is what keeps the page beyond the frost
+/// byte-identical on every backend instead of resting on an sRGB blend round-trip
+/// against a zero alpha. Its correctness condition is exactly this: the mask must be
+/// ZERO on and outside [`footprint_bound`], or the scissor clips the skirt and the
+/// knife edge is back at the bound's own edge.
+#[test]
+fn the_footprint_bound_encloses_the_whole_feathered_shape() {
+    let f = FOOTPRINT_FEATHER_PX;
+    for shear in [0.0f32, 0.35, -0.35, 0.9] {
+        let foot = Footprint {
+            rect: [200.0, 100.0, 400.0, 300.0],
+            shear,
+        };
+        let [bx, by, bw, bh] = footprint_bound(foot, f);
+        // Sample a frame ON the bound and a band beyond it: nothing may be frosted.
+        for i in 0..=60 {
+            let t = i as f32 / 60.0;
+            for (px, py) in [
+                (bx + bw * t, by),
+                (bx + bw * t, by + bh),
+                (bx, by + bh * t),
+                (bx + bw, by + bh * t),
+            ] {
+                assert_eq!(
+                    footprint_mask(foot, f, px, py),
+                    0.0,
+                    "shear {shear}: the mask reaches ({px}, {py}), which is ON the \
+                     scissor bound {:?} — the scissor would clip the skirt into a hard \
+                     edge at its own boundary",
+                    [bx, by, bw, bh]
+                );
+            }
+        }
+        // …and the bound is not absurdly loose: it is the box plus the shear's own
+        // displacement plus the feather, and no more. The displacement compounds with
+        // the feather (the skirt is sheared too), which is the arithmetic this law
+        // corrected on its first run.
+        let g = (shear * (foot.rect[3] * 0.5 + f)).abs();
+        assert!(
+            (bw - (foot.rect[2] + 2.0 * (g + f))).abs() <= 1e-3,
+            "shear {shear}: the bound's width is not the shape's own reach"
+        );
+    }
+}
+
+/// THE COMPOSITE'S UNIFORM CARRIES THE WHOLE EXTENT, AND `Frost::Full` CARRIES NONE.
+///
+/// The full-takeover arm's mask flag is OFF, which is what makes its alpha exactly 1.0
+/// in the shader and its blended composite a replace. The footprint arm carries the
+/// box, the shear and the DPI-resolved feather, and its dim is zero — so the two arms
+/// cannot arrive at the shader half-configured.
+#[test]
+fn the_composite_uniform_carries_the_extent_and_the_full_arm_carries_none() {
+    let base = [0.1f32, 0.2, 0.3];
+    let full = U::comp(base, Frost::Full, 2.0);
+    assert_eq!(full.foot, [0.0; 4], "the full arm masks nothing");
+    assert_eq!(
+        full.mask, [0.0; 4],
+        "the full arm's mask flag must be OFF — that is what makes its alpha exactly \
+         1.0 and its blended composite a bit-for-bit replace"
+    );
+    assert_eq!(full.tint, [0.1, 0.2, 0.3, DIM]);
+
+    let foot = Footprint {
+        rect: [10.0, 20.0, 300.0, 400.0],
+        shear: 0.4,
+    };
+    let fp = U::comp(base, Frost::Footprint(foot), 2.0);
+    assert_eq!(fp.foot, foot.rect);
+    assert_eq!(fp.mask[0], 0.4, "the shear reaches the shader");
+    assert_eq!(
+        fp.mask[1],
+        footprint_feather_px(2.0),
+        "the feather is resolved at the ONE dpi boundary, not re-derived downstream"
+    );
+    assert_eq!(fp.mask[2], 1.0, "the footprint arm's mask flag is on");
+    assert_eq!(fp.tint[3], FOOTPRINT_DIM);
+    // The downsample / Gaussian passes read only their step; nothing else is live for
+    // them, so nothing else may be non-zero and quietly become live.
+    let p = U::pass([1.0, 2.0, 0.0, 0.0]);
+    assert_eq!((p.tint, p.foot, p.mask), ([0.0; 4], [0.0; 4], [0.0; 4]));
+    // The uniform's SIZE must stay a multiple of 16 (a WGSL uniform struct's alignment)
+    // and must match the four vec4s `shaders/blur.wgsl` declares.
+    assert_eq!(core::mem::size_of::<U>(), 64);
 }
 
 /// ENROLMENT, DERIVED FROM THE ROSTER. Every world's own list composition decides

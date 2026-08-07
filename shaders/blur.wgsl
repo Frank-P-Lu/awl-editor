@@ -25,6 +25,13 @@ struct U {
     // Composite tint: rgb = the theme's base_100 (LINEAR), a = the dim amount in
     // [0,1] (0 = pure blur, no recede). Unused by fs_down / fs_blur.
     tint: vec4<f32>,
+    // The FOOTPRINT's box (x, y, w, h) in PHYSICAL px — the summoned card's own box.
+    // All zero for the full-canvas arm. Composite only.
+    foot: vec4<f32>,
+    // (shear, feather_px, footprint_enabled, 0). `footprint_enabled == 0` is the
+    // full-canvas arm: the mask is exactly 1.0 everywhere and the alpha-blended
+    // composite degenerates to the replace an unblended target performed.
+    mask: vec4<f32>,
 };
 
 @group(0) @binding(0) var<uniform> u: U;
@@ -81,11 +88,48 @@ fn fs_blur(in: VOut) -> @location(0) vec4<f32> {
     return c;
 }
 
+// The footprint's signed OUTSIDE distance at framebuffer pixel `p`: <= 0 inside the
+// shape, positive out beyond it. Per-axis outside distances combined by `max` (so the
+// result is negative iff both axes are inside), asked of the box AND of the box sheared
+// about its own vertical centre, then combined by `min` — a UNION, so the shape leans
+// with the drawn spine while still covering everything the card's upright query line
+// and foot hint sit on.
+//
+// MUST match `blur::extent::footprint_dist_outside`.
+fn footprint_dist_outside(p: vec2<f32>) -> f32 {
+    let x = u.foot.x;
+    let y = u.foot.y;
+    let w = u.foot.z;
+    let h = u.foot.w;
+    let gy = max(y - p.y, p.y - (y + h));
+    let upright = max(max(x - p.x, p.x - (x + w)), gy);
+    let sx = p.x - u.mask.x * (p.y - (y + h * 0.5));
+    let leaning = max(max(x - sx, sx - (x + w)), gy);
+    return min(upright, leaning);
+}
+
+// The footprint's COVERAGE: 1.0 on and inside the shape's faces, ramping to 0.0 across
+// `feather` px OUTSIDE them (the same direction the scissor rounds — whatever the card
+// covers stays fully frosted, and only the skirt is new). The full-canvas arm returns
+// exactly 1.0, so its composite is a replace.
+//
+// MUST match `blur::extent::footprint_mask`.
+fn footprint_mask(p: vec2<f32>) -> f32 {
+    if u.mask.z == 0.0 {
+        return 1.0;
+    }
+    let f = max(u.mask.y, 1.0);
+    return 1.0 - smoothstep(0.0, f, footprint_dist_outside(p));
+}
+
 // Upsample the blurred quarter texture (linear filtering smooths it back to full
-// res) and dim a touch toward the theme's base_100 so the doc recedes a value.
+// res) and dim a touch toward the theme's base_100 so the doc recedes a value. The
+// footprint's coverage rides in the ALPHA: a scissor can only answer yes or no per
+// pixel, which is why the frost's boundary used to be a knife edge that sliced words
+// mid-glyph.
 @fragment
 fn fs_comp(in: VOut) -> @location(0) vec4<f32> {
     let c = textureSample(tex, samp, in.uv).rgb;
     let dimmed = mix(c, u.tint.rgb, u.tint.a);
-    return vec4<f32>(dimmed, 1.0);
+    return vec4<f32>(dimmed, footprint_mask(in.pos.xy));
 }
