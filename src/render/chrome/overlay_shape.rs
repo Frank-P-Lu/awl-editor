@@ -155,11 +155,21 @@ fn push_beat_spacer<'a>(
     }
 }
 
+/// Leads the FIRST label with exactly `header_rows` empty lines — the same
+/// count [`super::plan::OverlayRowPlan::secondary_top`] documents as the
+/// buffer's own contract (`secondary_top() + (header_rows + r) * lh ==
+/// row_top(r)`). A card with NO header line (`header_rows == 0` — the
+/// contextual Context menu, `overlay.rs`'s `!contextual` gate) must lead with
+/// NONE: a hardcoded `.max(1)` here once forced one blank line regardless,
+/// pushing every row's secondary text (its "unavailable"/chord/value AND the
+/// ink resolved for ITS OWN row) one slot down onto the row below — so a
+/// selected row's on-band ink landed on the next row's plain, un-banded
+/// ground, sometimes at zero contrast against it.
 fn right_bind_lines<'a>(header_rows: usize, labels: impl Iterator<Item = &'a str>) -> Vec<String> {
     labels
         .enumerate()
         .map(|(k, label)| {
-            let leads = if k == 0 { header_rows.max(1) } else { 1 };
+            let leads = if k == 0 { header_rows } else { 1 };
             format!("{}{label}", "\n".repeat(leads))
         })
         .collect()
