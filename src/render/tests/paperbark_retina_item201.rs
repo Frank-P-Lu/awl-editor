@@ -464,24 +464,33 @@ fn pre_201_dial_would_fail_the_separation_law() {
 }
 
 // ---------------------------------------------------------------------------
-// 5. SCOPE — Galah's Fibres profile and every other Deckle field this item
-//    was forbidden to touch stayed exactly as authored.
+// 5. SCOPE — Galah's Fibres profile and the Deckle geometry the Paperbark
+//    retune was forbidden to touch stayed exactly as authored.
+//
+//    `density` is deliberately NOT asserted here. It is a loudness dial with
+//    its own owner — a band law plus a roster-wide "the dial does material
+//    work" sweep in `backgrounds_item158.rs`, and a byte-exact snapshot of
+//    this whole ground in `loudness_map_item118.rs` that names the world when
+//    it moves. Pinning the value here as well made this file a SECOND owner of
+//    someone else's constant: a later, deliberate retune of the dial (0.10 ->
+//    0.12) failed this test, whose subject is the fibre GEOMETRY rather than
+//    the loudness, and the failure said nothing true about the retune. The
+//    fields below are the ones a Paperbark change could plausibly have
+//    disturbed, and they are still pinned exactly.
 // ---------------------------------------------------------------------------
 
 #[test]
-fn galahs_fibres_profile_is_untouched_by_this_item() {
+fn galahs_fibres_geometry_is_untouched_by_this_item() {
     match theme::GALAH.background {
         Background::Deckle {
             weave,
             period_px,
             wander_px,
-            density,
             ..
         } => {
             assert_eq!(weave, Weave::Fibres);
             assert_eq!(period_px, 64.0);
             assert_eq!(wander_px, 8.0);
-            assert_eq!(density, 0.10);
         }
         _ => panic!("Galah must still ship Background::Deckle"),
     }
