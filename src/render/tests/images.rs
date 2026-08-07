@@ -1817,7 +1817,12 @@ fn tall_image_survives_the_viewport_top_boundary_then_culls_and_restores_on_scro
 
     // STATE 3 — far enough past that the image's own BOTTOM has also cleared
     // the margin: correctly, fully gone.
-    let extra_rows_past_margin = ((margin - TEXT_TOP.0) / lh).ceil() as usize + 3;
+    // The document's REAL origin, from the pipeline's own owner — not `TEXT_TOP.0`.
+    // This staging converts a pixel margin into a row count, so an origin missing
+    // the menu-bar reserve under-scrolls by `reserve / lh` rows, and the `+ 3` slack
+    // ends up absorbing the instrument's own error instead of guarding the boundary
+    // it exists to clear.
+    let extra_rows_past_margin = ((margin - p.text_origin_top()) / lh).ceil() as usize + 3;
     let far_scroll = 1 + extra_rows_past_margin;
     v.scroll = ScrollPos::at_row(far_scroll);
     p.set_view(&v);
