@@ -162,6 +162,10 @@ impl TextPipeline {
         let overlay_quad = |color| SelectionPipeline::new(device, &sel_shader, format, color);
         let overlay_rows = overlay_quad(theme::selection_ui().rgba_bytes());
         let overlay_bars = overlay_quad(theme::surface_selected().rgba_bytes());
+        // Seeded with `muted`; `overlay_prepare_selection` re-resolves the ink
+        // from the live theme every frame (mirroring `notice_rim`'s seed), so
+        // this only has to be a valid colour, never the right one.
+        let footer_plate_rim = overlay_quad(theme::muted().rgba_bytes());
         let overlay_spine = overlay_quad(theme::muted().rgba_bytes());
         let overlay_spine_selected = overlay_quad(theme::base_content().rgba_bytes());
         let overlay_lens_underline = SelectionPipeline::new(
@@ -430,6 +434,7 @@ impl TextPipeline {
             search_replacement_caret: usize::MAX,
             overlay_rows,
             overlay_bars,
+            footer_plate_rim,
             overlay_spine,
             overlay_spine_selected,
             overlay_lens_underline,

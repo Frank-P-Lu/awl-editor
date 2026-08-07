@@ -273,8 +273,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2661
-reason = "+6: `CODE_LIGATURES_DEFAULT`, the const `CODE_LIGATURES_ON` is now constructed from, so the flag's fresh-install value has one owner the reference can read instead of a literal retyped into a doc; plus a test-gated `pub(crate) use spans::wysiwyg_reveals`, one named door to the reveal rule that avoids widening the `spans` module itself. Item 263 (+1): the `menubar_hi` field doc now states that the menu-title band reads `selection_document` — the DOCUMENT wash, not the picker row's `selection_ui` — correcting a claim that had said it shared the picker's band. The split is what made that claim checkable. Item 272 (+9): the renderer now owns `BarConfig` — the Bars dials that every world set identically moved off the theme model to the one place that reads them. Item 284 (+11): the diagonal marker's travel state — the row it last marked, its current turn and the turn it is easing toward — lives beside the other overlay easing state in the one `TextPipeline` struct that owns per-frame animation. +3: `workspace_rail_mark` becomes `workspace_rail_rows` — the WHOLE recorded rail rather than its active entry alone, with the active one derived from it — because a rail is a list, and the `Rules` composition arranges a list by the boundaries between its rows, which needs every neighbour. The added lines are that field's doc saying so. Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure."
+lines = 2671
+reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +10: the `footer_plate_rim` pipeline field and its construction, on the file whose GPU floor is a declared exception."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -318,8 +318,8 @@ reason = "+1: the Range rail's read hands the accessory column's ANCHOR and its 
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_draw.rs"
-lines = 534
-reason = "+11: the mirrored row cluster. A name is seated by the rail from its own shaped ink width, because an ascending world's names hang right-aligned on the spine end; and the chord column's origin comes from the same `ColumnFlow` that shaped it, at the cluster's outer end, so shaping and placement cannot disagree. +3: the diagonal chord column is seated by the shaped buffer's own width, so its right-aligned ink lands on the rail's far edge instead of a whole text column further right, off the card. +1 line. The one text-upload batch places diagonal labels and accessories per measured planned row, and now takes the row plan for the query caret's own field box too — the caret is centred in the same planned box the pointer hit-test accepts, instead of a line height read back off the shaped run only the draw path could see. +5: `prepare_overlay` gained the one call site that hands this frame's location line to the rotated-label capability; the cue's own logic (which plan line it is, where its row sits) moved to a dedicated `chrome::rotated_location` submodule rather than growing this file further. The `Rules` PROTOTYPE (the quiet fourth list composition, organised by absence) joins the BARE-chrome gate that decides which pass a wordmark placard is prepared into — it has no card for one to sit on — plus the comment recording that this gate and its twin in `pipeline_layers::draw_overlay_card` must answer identically or the placard is prepared into one pass and drawn from the other (+3)."
+lines = 536
+reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +2: parking the new rim alongside every other overlay pipeline, so a frame that does not draw it cannot leave last frame's quad on screen."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_rows.rs"
@@ -365,8 +365,8 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 588
-reason = "The one exhaustive `TextPipeline` initializer: every pipeline field, and every inert default, is spelled out beside the state it initializes. That is what this mark carries — the diagonal marker's travel state (`diagonal_marker_row`, `diagonal_marker_turn`, `diagonal_marker_target`), the fold chevron's rotated-quad `SelectionPipeline` construction with `folded_headings`/`fold_chevron_turn`, the roster memo, the workspace state, the diagonal cluster cache, the warp accumulator, and the `overlay_comparison`/`doc_source` mirrors. The rotated secondary-location cue joins it the same way. The selection-token split is the one place a reader can SEE that the document wash and the picker-row band are no longer the same colour by accident: `selection_document`/`selection_ui` are long enough that rustfmt breaks the `selection_pipeline` and `overlay_rows` constructions across lines, and each seed carries a short comment naming which surface reads which token. Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure."
+lines = 593
+reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +5: the rim's construction and its draw slot immediately before `overlay_bars`, matching the order `notice_rim`/`notice_plate` already keep."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
@@ -464,8 +464,8 @@ lines = 515
 
 [[file_size_mark]]
 file = "src/theme/derive.rs"
-lines = 341
-reason = "+26: the selection token splits in two. `selection_document` and `selection_ui` each carry a doc comment saying which surface reads them, and `selection_ui` adds two more owners beside it: `derived_selection_ui` (its default, kept as one named expression so the accessor and the law cannot drift into two copies) and `resolve_selection_ui` (the authored-over-derived decision as a PURE function). That last one exists because the active world is reached by INDEX into a static roster, so a hand-built `Theme` can never be made active — without the pure seam the authored arm is unreachable from any test, and no shipping world takes it."
+lines = 355
+reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +14: `overlay_footer_plate_rim()` resolved fresh every frame with no `sync_theme_colors` entry -- the notice channel's own reasoning, so a theme swap cannot serve last world's rim."
 
 [[file_size_mark]]
 file = "src/theme/model.rs"
@@ -782,7 +782,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (520/100)"
+message = "this function has too many lines (522/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer, which is the single exhaustive construction site every pipeline and every inert default must pass through. That is the whole of this function: the fold chevron's rotated-quad `SelectionPipeline` construction and its `folded_headings`/`fold_chevron_turn` defaults, the rotated-location-cue pipeline, the roster memo, the `overlay_comparison` and `doc_source` mirrors, and the three inert diagonal-marker defaults, each the same shape every other GPU pipeline field here already takes. The selection-token split adds lines for a reason worth the count: the longer `selection_document`/`selection_ui` names make rustfmt break the `selection_pipeline` construction across lines, and the short comments name which surface reads which token."
 
 [[clippy_exception]]

@@ -254,6 +254,10 @@ impl TextPipeline {
                 .render(&self.atlas, &self.viewport, pass)
                 .map_err(|e| anyhow::anyhow!("glyphon placard render failed: {e:?}"))?;
         }
+        // The footer plate's rim draws UNDER the plate — same painter's order
+        // as `notice_rim`/`notice_plate` in `draw_chrome_tail`: an outset rect
+        // showing only where the plate itself does not cover it.
+        self.footer_plate_rim.draw(pass);
         self.overlay_bars.draw(pass);
         self.overlay_spine.draw(pass);
         self.overlay_spine_selected.draw(pass);

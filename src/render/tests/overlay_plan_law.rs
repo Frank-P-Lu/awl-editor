@@ -691,7 +691,7 @@ fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world() 
             });
 
         // ARM 2 — the pixels, graded over that plate's own columns.
-        let pixels = shoot(&device, &queue, &mut p);
+        let pixels = shoot(&device, &queue, &mut p, 1200, 800);
         let bands = (notice_top, footer_top, lh);
         if matches!(
             theme::active().render_caps.list_style,
@@ -722,15 +722,212 @@ fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world() 
     );
 }
 
+/// THE FOOTER PLATE CLEARS THE NOTICE CHANNEL'S OWN PRESENCE FLOOR, NOW THAT
+/// IT HAS THE SAME RIM.
+///
+/// Before this law the footer plate had no independent presence claim at all —
+/// `an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world`'s
+/// own `PLATE_DISCRIMINABLE_MIN` (ΔE 1.5) only asks "can arm 2's oracle tell the
+/// plate from ground at all", which Cassowary's un-rimmed plate cleared at ΔE
+/// 1.91 while sitting under the ≈2.3 JND — a plate nobody could see, passing a
+/// floor that was never a legibility claim. This law asks the real question,
+/// against the SAME floor the calm notice's own rim already clears
+/// (`notice::PLATE_PRESENCE_MIN`, ΔE 15) — reused rather than re-derived, because
+/// both channels earn it the identical way: a value-stepped fill plus a
+/// one-pixel rim off the ink ladder.
+///
+/// The technique mirrors `notice.rs`'s own presence floor exactly: the PAGE
+/// reference is "what was actually there" — the same rect, read back from a
+/// render of the identical view with the overlay closed — rather than a nominal
+/// token value, so a page whose real on-screen colour differs from its authored
+/// constant (dither, gradient, dimming) cannot flatter the measurement.
+#[test]
+fn footer_plate_clears_the_notice_channels_presence_floor_on_every_bars_world() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!(
+            "skipping footer_plate_clears_the_notice_channels_presence_floor: no wgpu adapter"
+        );
+        return;
+    };
+
+    // Enrolment derived from the roster, not a named world — asserted equal
+    // to the plate-drawing roster the sibling law already established, so the
+    // two laws cannot silently enroll different sets.
+    let plated: Vec<&'static str> = theme::THEMES
+        .iter()
+        .filter(|t| {
+            t.render_caps.list_style.list_backing(false) == theme::ListBacking::BarePlates
+                && t.render_caps.list_style.draws_row_plates()
+        })
+        .map(|t| t.name)
+        .collect();
+    assert_eq!(
+        plated,
+        ["Galah", "Firetail", "Cassowary"],
+        "the plate-drawing `Bars` roster moved — this law's enrolment must move with it"
+    );
+
+    // The SAME logical room at two device scales (`rotated_rail_item297.rs`'s
+    // own tier shape) — a device-pixel bug in a one-px rim is exactly the
+    // class `--capture-dpi 1` alone cannot see.
+    const TIERS: [(u32, u32, f32); 2] = [(1200, 800, 1.0), (2400, 1600, 2.0)];
+
+    let entry_world = theme::active_index();
+    let mut worst: Vec<(String, f64)> = Vec::new();
+    for world in &plated {
+        theme::set_active_by_name(world).unwrap();
+        for &(cw, ch, dpi) in &TIERS {
+            p.sync_theme();
+            p.set_size(cw as f32, ch as f32);
+            p.set_dpi(dpi);
+
+            let mut v = view("hello world\n", 0, 0);
+            v.overlay_active = true;
+            v.overlay_title = OverlayKind::Command.title();
+            v.overlay_items = vec!["Go to file...".into(), "Switch project...".into()];
+            v.overlay_hint = "type to filter".into();
+            p.set_view(&v);
+            p.prepare(&device, &queue, cw, ch).unwrap();
+
+            let geom = p.overlay_geometry(cw);
+            let plan = p.overlay_row_plan(&geom);
+            let footer_top = plan.footer_top();
+            let lh = plan.lh();
+
+            let (sel, unsel) = p.overlay_bar_rects_probe();
+            let plates: Vec<[f32; 4]> = sel.into_iter().chain(unsel).collect();
+            let plate = *plates
+                .iter()
+                .find(|r| (r[1] - footer_top).abs() < lh * 0.5)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "{world}@{dpi}: no drawn plate sits at the planned footer top \
+                         {footer_top:.1} (plates {plates:?}) — this law must watch a real plate"
+                    )
+                });
+            let shot_with = shoot(&device, &queue, &mut p, cw, ch);
+
+            // THE PAGE REFERENCE: this exact rect, rendered with the overlay
+            // closed — "what was actually there", `notice.rs`'s own technique.
+            // Document layout does not move when the overlay opens, so the
+            // rect maps to the same real page pixels either way.
+            let plain = view("hello world\n", 0, 0);
+            p.set_view(&plain);
+            p.prepare(&device, &queue, cw, ch).unwrap();
+            let shot_plain = shoot(&device, &queue, &mut p, cw, ch);
+            // Restore the overlay view before the next iteration reads it.
+            p.set_view(&v);
+
+            let pad = (plate[2].min(plate[3]) * 0.15).max(3.0);
+            let (ix0, iy0, ix1, iy1) = (
+                plate[0] + pad,
+                plate[1] + pad,
+                plate[0] + plate[2] - pad,
+                plate[1] + plate[3] - pad,
+            );
+            let fill = median_of(&shot_with, ix0, iy0, ix1, iy1, cw, ch);
+            let rim = median_ring(&shot_with, plate, 1.0, cw, ch);
+            let page = median_of(&shot_plain, ix0, iy0, ix1, iy1, cw, ch);
+            let presence = pixeldiff::delta_e(rim, page).max(pixeldiff::delta_e(fill, page));
+            worst.push((format!("{world}@{dpi}"), presence));
+            assert!(
+                presence >= super::notice::PLATE_PRESENCE_MIN,
+                "{world}@{dpi}: the footer plate (page {page:?}, fill {fill:?}, rim {rim:?}) \
+                 sits ΔE {presence:.2} from its own page, under the notice channel's own ΔE \
+                 {} presence floor — the rim did not earn its keep here",
+                super::notice::PLATE_PRESENCE_MIN
+            );
+            eprintln!(
+                "{world}@{dpi}: footer-plate presence ΔE {presence:.2} (floor {})",
+                super::notice::PLATE_PRESENCE_MIN
+            );
+        }
+    }
+    theme::set_active(entry_world);
+    let (tightest_world, tightest) = worst
+        .iter()
+        .min_by(|a, b| a.1.partial_cmp(&b.1).expect("no NaN ΔE"))
+        .expect("the plated roster is non-empty");
+    eprintln!(
+        "footer-plate presence: tightest is {tightest_world} at ΔE {tightest:.2} \
+         (floor {})",
+        super::notice::PLATE_PRESENCE_MIN
+    );
+}
+
+/// The MEDIAN colour over a rect, in device px — robust to the minority of
+/// pixels a glyph or a rounded corner contributes (see `notice.rs`'s own doc
+/// for why a median rather than a mean).
+fn median_of(pixels: &[[u8; 4]], x0: f32, y0: f32, x1: f32, y1: f32, w: u32, h: u32) -> [u8; 4] {
+    let luma = |px: [u8; 4]| -> f64 {
+        0.2126 * px[0] as f64 + 0.7152 * px[1] as f64 + 0.0722 * px[2] as f64
+    };
+    let (a, b) = (
+        y0.ceil().max(0.0) as u32,
+        y1.floor().min(h as f32 - 1.0) as u32,
+    );
+    let (c, d) = (
+        x0.ceil().max(0.0) as u32,
+        x1.floor().min(w as f32 - 1.0) as u32,
+    );
+    let mut v: Vec<[u8; 4]> = (a..b)
+        .flat_map(|y| (c..d).map(move |x| pixels[(y * w + x) as usize]))
+        .collect();
+    assert!(
+        !v.is_empty(),
+        "empty sample band x {x0:.1}..{x1:.1} y {y0:.1}..{y1:.1}"
+    );
+    v.sort_by(|p, q| luma(*p).partial_cmp(&luma(*q)).expect("no NaN luminance"));
+    v[v.len() / 2]
+}
+
+/// The MEDIAN colour of the ring `plate` grown by `grow` on every side, MINUS
+/// `plate` itself — the rim's own solid core, however it was drawn. Not tied to
+/// the specific one-pixel-outset convention `footer_plate_rim` happens to use:
+/// this samples whatever occupies the grown band, so a law reading it fails on
+/// an absent or mis-sized rim instead of assuming its geometry.
+fn median_ring(pixels: &[[u8; 4]], plate: [f32; 4], grow: f32, w: u32, h: u32) -> [u8; 4] {
+    let luma = |px: [u8; 4]| -> f64 {
+        0.2126 * px[0] as f64 + 0.7152 * px[1] as f64 + 0.0722 * px[2] as f64
+    };
+    let [x, y, pw, ph] = plate;
+    let (ox0, oy0, ox1, oy1) = (x - grow, y - grow, x + pw + grow, y + ph + grow);
+    let (a, b) = (oy0.floor().max(0.0) as u32, oy1.ceil().min(h as f32) as u32);
+    let (c, d) = (ox0.floor().max(0.0) as u32, ox1.ceil().min(w as f32) as u32);
+    let mut v: Vec<[u8; 4]> = Vec::new();
+    for yy in a..b {
+        for xx in c..d {
+            let (fx, fy) = (xx as f32 + 0.5, yy as f32 + 0.5);
+            let inside_fill = fx > x && fx < x + pw && fy > y && fy < y + ph;
+            if !inside_fill {
+                v.push(pixels[(yy * w + xx) as usize]);
+            }
+        }
+    }
+    assert!(
+        !v.is_empty(),
+        "empty rim ring for plate {plate:?}, grow {grow}"
+    );
+    v.sort_by(|p, q| luma(*p).partial_cmp(&luma(*q)).expect("no NaN luminance"));
+    v[v.len() / 2]
+}
+
 /// Render the current frame offscreen and read it back.
-fn shoot(device: &wgpu::Device, queue: &wgpu::Queue, p: &mut TextPipeline) -> Vec<[u8; 4]> {
-    let (texture, tview) = super::dither::offscreen(device, 1200, 800);
+fn shoot(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    p: &mut TextPipeline,
+    w: u32,
+    h: u32,
+) -> Vec<[u8; 4]> {
+    let (texture, tview) = super::dither::offscreen(device, w, h);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("awl item174 empty-card encoder"),
     });
     p.render(&mut encoder, &tview).unwrap();
     queue.submit(Some(encoder.finish()));
-    super::dither::read_pixels(device, queue, &texture, 1200, 800)
+    super::dither::read_pixels(device, queue, &texture, w, h)
 }
 
 /// ARM 2 of the empty-state law: does the NOTICE row's band read as plain card

@@ -145,4 +145,14 @@ impl OverlayGeom {
     pub(in crate::render) fn plan_len_probe(&self) -> usize {
         self.plan.len()
     }
+
+    /// TEST-ONLY: the display index of this card's own `PlanLine::Location`
+    /// row, so a law can find that row's slot without reaching the private
+    /// `plan` field directly. `None` off a faceted card.
+    #[cfg(test)]
+    pub(in crate::render) fn plan_location_row_display(&self) -> Option<usize> {
+        self.plan
+            .iter()
+            .position(|l| matches!(l, PlanLine::Location(_)))
+    }
 }

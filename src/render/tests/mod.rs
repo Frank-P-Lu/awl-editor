@@ -119,6 +119,9 @@ mod overlay_align_law;
 mod overlay_header_band_law;
 mod overlay_height_clamp_law;
 mod overlay_hover_stability_law;
+/// A `Bars` location row that plans no glyph (a style whose cue moved
+/// off-card, e.g. Cassowary's `RotatedRail`) draws no plate either.
+mod overlay_location_plate_item316;
 mod overlay_personality;
 mod overlay_plan_law;
 pub(super) mod overlay_probe;

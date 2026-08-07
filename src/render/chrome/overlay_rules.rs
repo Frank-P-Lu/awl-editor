@@ -240,6 +240,7 @@ impl TextPipeline {
             selected,
             unselected,
             cross: Vec::new(),
+            footer_plate: None,
         }
     }
 }

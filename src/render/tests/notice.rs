@@ -182,7 +182,10 @@ fn rim_ring(px: &[(u32, u32)]) -> Vec<(u32, u32)> {
 /// values on every run, so a reader can see the headroom rather than take it on
 /// trust. (For scale: ΔE ≈ 2.3 is the classic just-noticeable difference.)
 const INK_ON_PLATE_MIN: f64 = 4.5;
-const PLATE_PRESENCE_MIN: f64 = 15.0;
+/// Shared with `overlay_plan_law`'s footer-plate presence law — the SAME
+/// floor, not a re-derived one, because both channels earn it the same way: a
+/// value-stepped fill plus a one-pixel rim off the ink ladder.
+pub(super) const PLATE_PRESENCE_MIN: f64 = 15.0;
 const KIND_DISTINCTION_MIN: f64 = 4.0;
 
 /// THE PLACEMENT LAW. The notice draws in the TOP band of the canvas, centred on
