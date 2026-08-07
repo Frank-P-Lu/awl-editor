@@ -113,6 +113,14 @@ pub(super) enum CaptureKind {
     Motion,
     Timeline,
     Held,
+    /// `--screenshot-app`: a real headless `App`, not a `ReplaySession`. It
+    /// threads canvas/dpi/root/workspace onto its own `LiveAppSpec`, but NOT
+    /// the per-frame render hooks (`--sel`/`--zoom`/`--scroll`/
+    /// `--preedit`/`--search`/`--search-case`/`--search-replace`) or
+    /// `--default-folder`: the live App owns that state via real driving, and
+    /// `LiveAppSpec` carries no slot the latter could land in — see
+    /// `unused_hooks` below.
+    ScreenshotApp,
 }
 
 /// Which verification-hook flags were SUPPLIED on the command line (each bool =
@@ -138,12 +146,18 @@ pub(super) struct SuppliedHooks {
 /// `Mode` (so it would silently ignore them), in a stable order. Each `Mode`
 /// variant carries only a subset of the hooks: the per-frame render hooks
 /// (`--sel`/`--zoom`/`--scroll`/`--preedit`/`--search`/`--search-case`) ride
-/// `CaptureOpts` and reach ONLY the plain `--screenshot` mode; `--capture-size`/
-/// `--capture-dpi` reach screenshot/timeline/held (not motion/windowed); `--root`
-/// reaches every mode but motion; `--workspace`/`--default-folder` reach only
-/// screenshot + the windowed editor. An empty result means every supplied hook is
-/// honored. (Process-global flags — `--theme`/`--caret-mode`/`--measure`/`--page`/
-/// `--debug` — compose with every mode and so are never "unused".)
+/// `CaptureOpts` and reach ONLY the plain `--screenshot` mode — `ScreenshotApp`
+/// deliberately excludes them too, because the live `App` owns that state via
+/// real driving and an override would misrepresent the editor being
+/// photographed (see `CaptureKind::ScreenshotApp`'s own doc); `--capture-size`/
+/// `--capture-dpi` reach screenshot/timeline/held/screenshot-app (every mode
+/// that renders a real frame — not motion/windowed); `--root` reaches every
+/// mode but motion; `--workspace` reaches screenshot/screenshot-app/windowed
+/// (`LiveAppSpec` carries it); `--default-folder` reaches only screenshot +
+/// the windowed editor (`LiveAppSpec` has no slot for it). An empty result
+/// means every supplied hook is honored. (Process-global flags —
+/// `--theme`/`--caret-mode`/`--measure`/`--page`/`--debug` — compose with
+/// every mode and so are never "unused".)
 pub(super) fn unused_hooks(kind: CaptureKind, h: &SuppliedHooks) -> Vec<&'static str> {
     let mut u = Vec::new();
     // Per-frame render hooks: only the plain `--screenshot` mode threads `CaptureOpts`.
@@ -162,10 +176,15 @@ pub(super) fn unused_hooks(kind: CaptureKind, h: &SuppliedHooks) -> Vec<&'static
             }
         }
     }
-    // Canvas size / dpi: screenshot, timeline, held carry them; motion + windowed don't.
+    // Canvas size / dpi: every mode that renders a real frame from its own
+    // `CaptureOpts`-shaped canvas carries them (screenshot, timeline, held,
+    // and the live-`App` door); motion + windowed don't.
     let canvas_ok = matches!(
         kind,
-        CaptureKind::Screenshot | CaptureKind::Timeline | CaptureKind::Held
+        CaptureKind::Screenshot
+            | CaptureKind::Timeline
+            | CaptureKind::Held
+            | CaptureKind::ScreenshotApp
     );
     if !canvas_ok {
         if h.capture_size {
@@ -179,15 +198,19 @@ pub(super) fn unused_hooks(kind: CaptureKind, h: &SuppliedHooks) -> Vec<&'static
     if kind == CaptureKind::Motion && h.root {
         u.push("--root");
     }
-    // Workspace / default-folder: only the plain screenshot mode + the windowed editor.
-    let ws_ok = matches!(kind, CaptureKind::Screenshot | CaptureKind::Windowed);
-    if !ws_ok {
-        if h.workspace {
-            u.push("--workspace");
-        }
-        if h.default_folder {
-            u.push("--default-folder");
-        }
+    // Workspace: screenshot, the windowed editor, and the live-`App` door
+    // (`LiveAppSpec` carries it too). Default-folder: screenshot + windowed
+    // only — neither `LiveAppSpec` field list has a slot for it.
+    let workspace_ok = matches!(
+        kind,
+        CaptureKind::Screenshot | CaptureKind::Windowed | CaptureKind::ScreenshotApp
+    );
+    if !workspace_ok && h.workspace {
+        u.push("--workspace");
+    }
+    let default_folder_ok = matches!(kind, CaptureKind::Screenshot | CaptureKind::Windowed);
+    if !default_folder_ok && h.default_folder {
+        u.push("--default-folder");
     }
     u
 }

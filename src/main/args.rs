@@ -582,7 +582,13 @@ pub(crate) fn parse_args() -> Result<Mode> {
     // 2) Reject verification hooks the chosen mode would silently ignore. After the
     //    single-mode check above at most one mode category is active, so this
     //    mirrors the Mode construction's precedence (held > timeline > motion >
-    //    screenshot; no output = windowed).
+    //    screenshot-app > screenshot; no output = windowed).
+    // `live_app` is native-only; a wasm build has no `--screenshot-app` door, so
+    // its `kind` can only ever fall through to `Screenshot` here.
+    #[cfg(not(target_arch = "wasm32"))]
+    let is_screenshot_app = live_app;
+    #[cfg(target_arch = "wasm32")]
+    let is_screenshot_app = false;
     let kind = if out.is_none() {
         CaptureKind::Windowed
     } else if held.is_some() {
@@ -591,6 +597,8 @@ pub(crate) fn parse_args() -> Result<Mode> {
         CaptureKind::Timeline
     } else if motion || motion_v || motion_d {
         CaptureKind::Motion
+    } else if is_screenshot_app {
+        CaptureKind::ScreenshotApp
     } else {
         CaptureKind::Screenshot
     };
@@ -813,6 +821,12 @@ pub(crate) fn parse_args() -> Result<Mode> {
             root,
             workspace: workspace_folded,
             config,
+            // Always `None` here: `--capture-size`/`--capture-dpi` render no PNG
+            // this mode could honor, and `CaptureKind::Windowed` (this mode sets
+            // no `out`) already refuses the combination above rather than
+            // silently discarding it.
+            canvas: capture_size,
+            dpi: capture_dpi,
         }));
     }
     Ok(match out {
@@ -849,6 +863,11 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 root,
                 workspace: workspace_folded,
                 config,
+                // Honored for real: `capture_live_app` applies these to the
+                // `CaptureOpts` it hands the same `capture_with` path every
+                // other capture door renders through.
+                canvas: capture_size,
+                dpi: capture_dpi,
             },
         },
         #[cfg(not(target_arch = "wasm32"))]
@@ -1106,6 +1125,29 @@ mod tests {
             assert!(!u.contains(&"--capture-size") && !u.contains(&"--capture-dpi"));
         }
 
+        // `--screenshot-app` honors canvas/dpi/root/workspace (real
+        // `LiveAppSpec` fields), but still drops the per-frame render hooks
+        // the live `App` owns via real driving, AND `--default-folder` —
+        // `LiveAppSpec` has no slot for either, so a flag this door cannot
+        // thread must be REFUSED here rather than silently discarded
+        // downstream.
+        let app = unused_hooks(CaptureKind::ScreenshotApp, &all);
+        for f in [
+            "--sel",
+            "--zoom",
+            "--scroll",
+            "--preedit",
+            "--search",
+            "--search-case",
+            "--search-replace",
+            "--default-folder",
+        ] {
+            assert!(app.contains(&f), "--screenshot-app should drop {f}");
+        }
+        for f in ["--capture-size", "--capture-dpi", "--root", "--workspace"] {
+            assert!(!app.contains(&f), "--screenshot-app should honor {f}");
+        }
+
         // The windowed editor honors project context but not capture hooks.
         let win = unused_hooks(CaptureKind::Windowed, &all);
         assert!(win.contains(&"--sel") && win.contains(&"--capture-size"));
@@ -1120,6 +1162,7 @@ mod tests {
             CaptureKind::Motion,
             CaptureKind::Timeline,
             CaptureKind::Held,
+            CaptureKind::ScreenshotApp,
         ] {
             assert!(unused_hooks(kind, &none).is_empty());
         }

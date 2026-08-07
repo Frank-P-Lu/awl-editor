@@ -262,4 +262,14 @@ pub(crate) struct LiveAppSpec {
     pub root: Option<PathBuf>,
     pub workspace: Option<PathBuf>,
     pub config: Config,
+    /// `--capture-size` PHYSICAL canvas dims for the rendered frame (None =
+    /// the byte-stable default 1200x800). Only meaningful for
+    /// `Mode::ScreenshotApp`: `--semantic-json` renders no PNG, so its own
+    /// `LiveAppSpec` always carries `None` here — the CLI refuses the flag
+    /// combination before either mode's spec is built (`CaptureKind::Windowed`
+    /// does not honor it).
+    pub canvas: Option<(u32, u32)>,
+    /// `--capture-dpi` renderer scale factor (None = 1.0). Same scope note as
+    /// `canvas`.
+    pub dpi: Option<f32>,
 }

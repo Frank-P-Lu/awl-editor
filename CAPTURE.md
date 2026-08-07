@@ -200,6 +200,32 @@ cargo run -- --screenshot-app OUT.png --root /some/proj \
 neither. The only differences in the artifact are the top-level `driver` field
 and the `semantic` tree, which only a live `App` can fold.
 
+**`--capture-size`/`--capture-dpi` compose (item 334).** `LiveAppSpec` carries
+the canvas + dpi flags onto the same `CaptureOpts` this door hands the ordinary
+`capture_with` renderer, so the meaning is identical to every other capture
+door: a `WxH` PHYSICAL canvas (default 1200x800) at `--capture-dpi N` (default
+1.0) is a `(W/N)x(H/N)` LOGICAL window. This is the geometry axis the live
+`App` door needs most — `docs/harness-reach.md`'s "Three asymmetries" section
+covers the settings-picker width-budget defects only a narrow live-`App`
+canvas can reach.
+
+```sh
+cargo run -- --screenshot-app OUT.png --root /some/proj --capture-size 640x800 \
+  --keys "s-, Tab Down Down Down Down"
+# OUT.json: "driver": "live-app", canvas: { "width": 640, "height": 800 },
+#           overlay.window carries the REAL narrow-canvas Settings card, not
+#           the 1200x800 default one.
+```
+
+The per-frame render OVERRIDE hooks stay refused, not silently dropped: `--sel`
+/`--zoom`/`--scroll`/`--preedit`/`--search`/`--search-case`/`--search-replace`
+and `--default-folder` all error with "not honored by the chosen capture mode"
+rather than parsing and doing nothing — `LiveAppSpec` has no slot for any of
+them, and for the first group that is deliberate (see "Left for a follow-up" #1
+in `docs/harness-reach.md`): the live App owns that state via real driving, and
+an override would misrepresent the editor being photographed. `--root`/
+`--workspace` were already threaded and stay so.
+
 **Starting from state awl already had — `--seed-data DIR` (item 204).** The
 sandbox is seeded from exactly the paths the command line names, and awl's own
 data root was not one of them, so a mode whose whole premise is remembered state

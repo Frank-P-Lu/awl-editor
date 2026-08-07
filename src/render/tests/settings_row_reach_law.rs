@@ -81,14 +81,19 @@ fn settings_view(ov: &OverlayState) -> ViewState {
     // OF 12, AND THAT IS NOT WHAT `sync_view` DOES: it sets `ov.window_rows()`, which
     // for `OverlayKind::Settings` is `SETTINGS.len()` = 31. So a ROW-REACH law is
     // reaching across 12 rows the live card never draws in that number. Setting it
-    // turns `every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_workspace`
-    // RED at `world=Mangrove dpi=1 logical_width=640 workspace=false
+    // (confirmed by a throwaway local patch, not landed here) turns
+    // `every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_workspace`
+    // RED at `world=Mangrove dpi=1 logical_width=640 workspace=true
     // setting=PageWidthProse: every Range setting must retain a rail` — a drawn Range
     // row whose rail `rail_geom` can no longer seat, because the wider drawn set grows
     // the diagonal cluster's label/value columns. See `range_rail::settings_view` for
     // the same note and the 1200x800 measurement; the missing rail is a product
     // question about that cluster's width budget, handed back rather than papered
-    // over, and this default stays until it is answered.
+    // over, and this default stays until it is answered. This is the SAME shape of
+    // enrolment gap the `workspace` sweep above carried (a hardcoded stand-in for a
+    // value an owner already computes), left alone rather than folded into that fix
+    // because closing it would force the still-open budget question rather than
+    // report it.
     v
 }
 
@@ -117,7 +122,21 @@ fn every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_wor
                 let width = (logical_width as f32 * dpi).round() as u32;
                 let height = (800.0 * dpi).round() as u32;
                 p.set_size(width as f32, height as f32);
-                for workspace in [false, true] {
+                // The swept set is DERIVED from the owner, not hand-enumerated:
+                // `OverlayKind::Settings.workspace_shape()` returns
+                // `Some(RailOverRows)` UNCONDITIONALLY, so `overlay_workspace` is
+                // always `true` for a real Settings card — the picker can never be
+                // in the un-workspaced form. Enumerating `[false, true]` here once
+                // graded a state the product cannot reach: the corpus panic it
+                // produced (`workspace=false`) came from a cell no keypress can
+                // land on. A kind whose workspace answer becomes conditional later
+                // re-opens this axis for free; one with no workspace at all sweeps
+                // `false` instead of inventing an unreachable `true`.
+                let reachable_workspace: &[bool] = match OverlayKind::Settings.workspace_shape() {
+                    Some(_) => &[true],
+                    None => &[false],
+                };
+                for &workspace in reachable_workspace {
                     for (want_item, setting) in all.iter().enumerate() {
                         let ctx = format!(
                             "world={world} dpi={dpi} logical_width={logical_width} \
