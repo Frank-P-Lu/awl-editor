@@ -927,11 +927,29 @@ fn assert_selected_rail_shows_its_flip(
     let (_, zoom_ink_on, ..) = on.zoom;
     let (_, scroll_ink_on, ..) = on.scroll;
     let want_bytes = want.rgba_bytes();
-    assert_eq!(
-        prose_ink_on, want_bytes,
+    // "Reads AS the flip" is a PERCEPTUAL claim and must be asked perceptually.
+    // Byte equality here is a claim about the rasterizer, not about the ink: the
+    // same frame renders this thumb [230, 230, 230] on Metal and [227, 227, 228]
+    // on Mesa's lavapipe — ΔE 1.15, half the 2.3 JND, and invisible — while the
+    // signal this law exists to see (flip against unflipped) is ΔE ~32. So the
+    // absolute bound reuses `RAIL_INK_DRIFT_CEILING` rather than introducing a
+    // second number, and the assertion that actually carries the claim is the
+    // RELATIVE one below: whatever the backend rounds to, the thumb must land
+    // nearer the flip than the unflipped ink it would otherwise wear. That form
+    // holds on any backend, because both distances move together.
+    let to_flip = pixeldiff::delta_e(prose_ink_on, want_bytes);
+    assert!(
+        to_flip <= RAIL_INK_DRIFT_CEILING,
         "{world}: the SELECTED Page-width-prose rail's thumb {prose_ink_on:?} does not \
-         read as the selected-row flip {want_bytes:?} (ground {prose_ground_on:?}, run \
-         {prose_run_on}px)"
+         read as the selected-row flip {want_bytes:?} (ΔE {to_flip:.2}, ceiling \
+         {RAIL_INK_DRIFT_CEILING:.1}; ground {prose_ground_on:?}, run {prose_run_on}px)"
+    );
+    let to_unflipped = pixeldiff::delta_e(prose_ink_on, zoom_ink_on);
+    assert!(
+        to_flip < to_unflipped,
+        "{world}: the SELECTED rail's thumb {prose_ink_on:?} sits NEARER the unflipped \
+         ink {zoom_ink_on:?} (ΔE {to_unflipped:.2}) than the flip {want_bytes:?} it should \
+         be wearing (ΔE {to_flip:.2}) — the selected row's own rail never took the flip"
     );
     for (name, other_ink) in [("Zoom", zoom_ink_on), ("Scroll sensitivity", scroll_ink_on)] {
         let apart = pixeldiff::delta_e(prose_ink_on, other_ink);
