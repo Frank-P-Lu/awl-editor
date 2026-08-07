@@ -137,7 +137,7 @@ pub const LINE_HEIGHT: f32 = 32.0;
 pub const TEXT_LEFT: Logical = Logical(16.0);
 pub const NONPAGE_INSET: Logical = Logical(32.0);
 pub const PAGE_TEXT_PAD_CHARS: f32 = 3.0;
-pub const TEXT_TOP: f32 = 16.0;
+pub const TEXT_TOP: Logical = Logical(16.0);
 pub const PAGE_MIN_MARGIN_PX: Logical = Logical(64.0);
 pub const PAGE_MIN_MARGIN_FRAC: f32 = 0.10;
 

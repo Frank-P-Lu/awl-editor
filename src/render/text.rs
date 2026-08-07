@@ -702,7 +702,7 @@ impl TextPipeline {
         pointer_x: f32,
         pointer_y: f32,
     ) -> Option<((usize, usize), super::geometry::ImageHandle, [f32; 4])> {
-        let tol = super::geometry::IMAGE_RESIZE_GRAB_PX;
+        let tol = self.metrics.px(super::geometry::IMAGE_RESIZE_GRAB_PX);
         let pointer = (pointer_x, pointer_y);
         self.image_hit_rects()
             .into_iter()
@@ -1312,7 +1312,8 @@ impl TextPipeline {
             .filter_map(|h| *h)
             .chain(self.image_force.iter().filter_map(|f| f.map(|(dh, _)| dh)))
             .sum();
-        TEXT_TOP + rows * self.metrics.line_height + reserved + self.metrics.line_height
+        let top = self.metrics.px(TEXT_TOP);
+        top + rows * self.metrics.line_height + reserved + self.metrics.line_height
     }
 
     pub(super) fn has_heading_lines(&self) -> bool {

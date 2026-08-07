@@ -721,7 +721,7 @@ fn check_real_pixels(
             p.prepare(device, queue, w, h).unwrap();
             let b = pixeldiff::render_frame(p, device, queue, w, h);
 
-            let region = Region::new(0.0, TEXT_TOP, w as f32, LINE_HEIGHT);
+            let region = Region::new(0.0, TEXT_TOP.0, w as f32, LINE_HEIGHT);
             pixeldiff::assert_perceptibly_different(
                 &a,
                 &b,
@@ -744,7 +744,7 @@ fn check_real_pixels(
             p.prepare(device, queue, w, h).unwrap();
             let b = pixeldiff::render_frame(p, device, queue, w, h);
 
-            let region = Region::new(0.0, TEXT_TOP, w as f32, LINE_HEIGHT);
+            let region = Region::new(0.0, TEXT_TOP.0, w as f32, LINE_HEIGHT);
             pixeldiff::assert_perceptibly_different(
                 &a,
                 &b,

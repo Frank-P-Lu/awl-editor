@@ -2,16 +2,22 @@ use super::*;
 
 #[allow(dead_code)]
 pub fn visible_lines(height: f32) -> usize {
-    visible_lines_z(height, LINE_HEIGHT)
+    visible_lines_z(height, LINE_HEIGHT, 1.0)
 }
 
-pub fn visible_lines_z(height: f32, line_height: f32) -> usize {
-    ((height - TEXT_TOP) / line_height).floor().max(1.0) as usize
+/// `scale` is the SAME `zoom * dpi` that produced `line_height` (`Metrics::scale`) —
+/// TEXT_TOP must go through the identical multiply before subtracting it from a
+/// DEVICE-px `height`, or the row count drifts across DPI tiers at one matched
+/// logical geometry.
+pub fn visible_lines_z(height: f32, line_height: f32, scale: f32) -> usize {
+    ((height - TEXT_TOP.px(scale)) / line_height)
+        .floor()
+        .max(1.0) as usize
 }
 
 #[allow(dead_code)]
 pub fn clamp_scroll(scroll_lines: usize, cursor_line: usize, height: f32) -> usize {
-    clamp_scroll_z(scroll_lines, cursor_line, height, LINE_HEIGHT)
+    clamp_scroll_z(scroll_lines, cursor_line, height, LINE_HEIGHT, 1.0)
 }
 
 /// Zoom-aware cursor-follow scroll clamp, in the NON-WRAP model where the scroll
@@ -25,8 +31,9 @@ pub fn clamp_scroll_z(
     cursor_line: usize,
     height: f32,
     line_height: f32,
+    scale: f32,
 ) -> usize {
-    let rows = visible_lines_z(height, line_height);
+    let rows = visible_lines_z(height, line_height, scale);
     let mut scroll = scroll_lines;
     if cursor_line < scroll {
         scroll = cursor_line;
@@ -37,8 +44,8 @@ pub fn clamp_scroll_z(
 }
 
 #[allow(dead_code)]
-pub fn max_scroll(total_visual_rows: usize, height: f32, line_height: f32) -> usize {
-    let visible = visible_lines_z(height, line_height);
+pub fn max_scroll(total_visual_rows: usize, height: f32, line_height: f32, scale: f32) -> usize {
+    let visible = visible_lines_z(height, line_height, scale);
     let base = total_visual_rows.saturating_sub(visible);
     if base == 0 {
         return 0;
@@ -47,8 +54,10 @@ pub fn max_scroll(total_visual_rows: usize, height: f32, line_height: f32) -> us
     base + overscroll
 }
 
-pub fn zoom_anchor_target_top(anchor_top: f32, anchor_py: f32, menubar: f32) -> f32 {
-    TEXT_TOP + menubar + anchor_top - anchor_py
+/// `text_origin_top` is the caller's already-resolved `TextPipeline::text_origin_top()`
+/// — taken as one number so this pure fn cannot independently forget the scale multiply.
+pub fn zoom_anchor_target_top(anchor_top: f32, anchor_py: f32, text_origin_top: f32) -> f32 {
+    text_origin_top + anchor_top - anchor_py
 }
 
 /// BLOCKQUOTE pull-quote DROP-CAP x (px): the left origin of the big hanging
@@ -63,7 +72,7 @@ pub(super) fn pull_quote_left(column_left: f32, text_left: f32, gap: f32, mark_w
     (text_left - gap - mark_w).max(column_left)
 }
 
-pub const PAGE_RESIZE_GRAB_PX: f32 = 6.0;
+pub const PAGE_RESIZE_GRAB_PX: Logical = Logical(6.0);
 
 /// A glyph cell whose advance is below this fraction of `metrics.char_width` is
 /// DEGENERATE — a collapsed / glyphless mid-line cell rather than a real narrow
@@ -191,7 +200,7 @@ pub fn page_resize_measure_anchored(
     (measure.max(0.0) as usize).clamp(crate::page::MIN_MEASURE, crate::page::MAX_MEASURE)
 }
 
-pub const IMAGE_RESIZE_GRAB_PX: f32 = 12.0;
+pub const IMAGE_RESIZE_GRAB_PX: Logical = Logical(12.0);
 
 /// The MINIMUM display width (px) a drag can shrink an inline image to — a floor so
 /// a drag can never collapse the image to nothing (and pairs with the fit-to-column
@@ -200,7 +209,7 @@ pub const IMAGE_RESIZE_GRAB_PX: f32 = 12.0;
 /// TASTE TUNABLE (flagged for live review): the clamp floor. Matches the task's
 /// stated `[64, column width]` band — a `|64` hint is the smallest an image can be
 /// dragged to; the ceiling is the writing column width (fit-to-column).
-pub const MIN_IMAGE_W: f32 = 64.0;
+pub const MIN_IMAGE_W: Logical = Logical(64.0);
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ImageHandle {
@@ -656,7 +665,7 @@ impl TextPipeline {
             rect,
             pointer,
             self.text_wrap_width(),
-            MIN_IMAGE_W,
+            self.metrics.px(MIN_IMAGE_W),
             max_h,
         )
     }
@@ -707,6 +716,15 @@ impl TextPipeline {
         }
     }
 
+    /// The device-px y of the document's own first row at scroll 0: DPI/zoom-scaled
+    /// `TEXT_TOP` plus the menu-bar reserve. The ONE owner of this idiom — `doc_top`
+    /// (below), the zoom anchor, `hit_test_scroll`, the margin Outline, the corner
+    /// notice and the capture sidecar used to each spell `TEXT_TOP + menubar_reserve()`
+    /// independently, which is how the un-scaled constant survived at half of them.
+    pub fn text_origin_top(&self) -> f32 {
+        self.metrics.px(TEXT_TOP) + self.menubar_reserve()
+    }
+
     /// The canvas y of the document's own first row at scroll 0, less the
     /// rendered scroll offset — the ONE vertical origin every row, caret,
     /// ornament and wash composes off. ITEM 116b: the relocated comparison
@@ -716,7 +734,7 @@ impl TextPipeline {
     pub(super) fn doc_top(&self) -> f32 {
         let top = match self.comparison_viewport() {
             Some([_, y, _, _]) => y,
-            None => TEXT_TOP + self.menubar_reserve(),
+            None => self.text_origin_top(),
         };
         top - self.rendered_scroll_top_px(self.scroll)
     }
@@ -738,7 +756,7 @@ impl TextPipeline {
         if total == 0 {
             return 0;
         }
-        let avail = (height - TEXT_TOP - self.menubar_reserve()).max(0.0);
+        let avail = (height - self.text_origin_top()).max(0.0);
         if self.total_doc_height() <= avail {
             return 0;
         }

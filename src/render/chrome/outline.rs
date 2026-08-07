@@ -217,7 +217,7 @@ impl TextPipeline {
             return None;
         }
         let row_h = self.metrics.line_height * label;
-        let top = crate::render::TEXT_TOP + self.menubar_reserve();
+        let top = self.text_origin_top();
         let gutter_reserve = row_h * 3.0 + self.metrics.px_physical(readout::CANVAS_INSET);
         let avail_h = height as f32 - gutter_reserve - top;
         let max_rows = if row_h > 0.0 {

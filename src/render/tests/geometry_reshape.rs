@@ -465,9 +465,9 @@ fn typewriter_centers_the_cursor_row() {
 
     // At the centered scroll, the cursor row's vertical CENTER sits within one
     // row height of the viewport's vertical center (closest integer-row centering).
-    let avail = 800.0 - TEXT_TOP;
-    let viewport_center = TEXT_TOP + avail / 2.0;
-    let doc_top = TEXT_TOP - p.rendered_scroll_top_px(centered);
+    let avail = 800.0 - TEXT_TOP.0;
+    let viewport_center = TEXT_TOP.0 + avail / 2.0;
+    let doc_top = TEXT_TOP.0 - p.rendered_scroll_top_px(centered);
     let row_center = doc_top + p.row_top_px(row) + p.row_height_px(row) / 2.0;
     assert!(
         (row_center - viewport_center).abs() <= p.row_height_px(row),
@@ -594,7 +594,7 @@ fn variable_height_scroll_reaches_the_last_row() {
     let bottom = p.scroll_top_px(follow) + (p.total_doc_height() - p.row_top_px(last));
     let _ = bottom; // (sanity: row_top monotonic)
     assert!(
-        p.total_doc_height() - p.scroll_top_px(follow) <= 800.0 - TEXT_TOP + 0.5,
+        p.total_doc_height() - p.scroll_top_px(follow) <= 800.0 - TEXT_TOP.0 + 0.5,
         "from the follow scroll, the remaining document must fit the viewport"
     );
 }

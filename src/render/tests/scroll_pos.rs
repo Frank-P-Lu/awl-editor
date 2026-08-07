@@ -135,7 +135,7 @@ fn table_and_fold_views_keep_nonzero_remainders_on_production_scroll_paths() {
         table_scroll.px_q, 17,
         "a shaped table view retains the semantic within-row remainder"
     );
-    let _ = p.hit_test_scroll(p.text_left() + 8.0, TEXT_TOP + 8.0, table_scroll);
+    let _ = p.hit_test_scroll(p.text_left() + 8.0, TEXT_TOP.0 + 8.0, table_scroll);
 
     let folded_doc = (0..80)
         .map(|i| format!("# Section {i}\nbody {i}\n"))

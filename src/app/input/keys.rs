@@ -176,7 +176,7 @@ impl App {
     pub(in crate::app) fn arm_zoom_anchor_caret(&mut self) {
         let Some(gpu) = self.frame.gpu() else { return };
         let height = gpu.config.height as f32;
-        let top = render::TEXT_TOP + gpu.pipeline.menubar_reserve();
+        let top = gpu.pipeline.text_origin_top();
         let (cl, cc) = self.document.buffer().cursor_line_col();
         let caret_y = gpu
             .pipeline
@@ -234,8 +234,8 @@ impl App {
     /// measure, so one row is the only honest answer.
     pub(in crate::app) fn page_scroll_rows(&self) -> usize {
         let visible = if let Some(gpu) = self.frame.gpu() {
-            let line_height = render::LINE_HEIGHT * self.frame.zoom() * self.frame.dpi();
-            render::visible_lines_z(gpu.config.height as f32, line_height)
+            let scale = self.frame.zoom() * self.frame.dpi();
+            render::visible_lines_z(gpu.config.height as f32, render::LINE_HEIGHT * scale, scale)
         } else {
             1
         };

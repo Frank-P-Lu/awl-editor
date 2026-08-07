@@ -979,7 +979,7 @@ fn outline_hit_test_stays_aligned_past_a_wide_glyph_heading() {
     let m = p.metrics;
     let row_h = m.line_height * crate::markdown::type_scale::LABEL;
     for (i, row) in lines.iter().enumerate() {
-        let drawn_y = TEXT_TOP + runs[i];
+        let drawn_y = m.px(TEXT_TOP) + runs[i];
         let band_center = drawn_y + row_h * 0.5;
         let hit = p.outline_hit_line(TEXT_LEFT.0 + 1.0, band_center, 900);
         assert_eq!(
@@ -1078,7 +1078,7 @@ fn outline_top_yields_to_shown_menu_bar_and_shrinks_row_budget() {
     let top_off = p.outline_top_px(height).expect("outline drawn, bar off");
     assert_eq!(
         top_off,
-        crate::render::TEXT_TOP,
+        crate::render::TEXT_TOP.0,
         "bar off: outline top is the plain TEXT_TOP"
     );
     let count_off = p.outline_draw_report(height).unwrap().len();
@@ -1132,7 +1132,7 @@ fn outline_hit_test_agrees_with_the_shifted_geometry_when_bar_shown() {
     crate::menubar::set_menu_bar_on(true);
     let top = p.outline_top_px(height).expect("outline drawn, bar on");
     assert!(
-        top > crate::render::TEXT_TOP,
+        top > crate::render::TEXT_TOP.0,
         "sanity: the bar really did push the top down"
     );
     // Just inside the first row's shifted y-band, well inside the x-band.
@@ -1147,7 +1147,7 @@ fn outline_hit_test_agrees_with_the_shifted_geometry_when_bar_shown() {
     // stale unshifted one.
     let miss = p.outline_hit_line(
         crate::render::TEXT_LEFT.0 + 1.0,
-        crate::render::TEXT_TOP + 1.0,
+        crate::render::TEXT_TOP.0 + 1.0,
         height,
     );
     assert_ne!(

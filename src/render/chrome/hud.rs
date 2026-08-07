@@ -239,7 +239,7 @@ impl TextPipeline {
             block_h = block_h.max(run.line_top + run.line_height);
             block_w = block_w.max(run.line_w);
         }
-        let top = ((height as f32 - block_h) * 0.5).max(TEXT_TOP);
+        let top = ((height as f32 - block_h) * 0.5).max(m.px(TEXT_TOP));
         let pad_x = m.char_width * 3.0;
         let pad_y = m.line_height * 0.9;
         let card_w = block_w + pad_x * 2.0;
@@ -359,7 +359,7 @@ impl TextPipeline {
         let card_w = content_w + pad_x * 2.0;
         let card_h = content_h + pad_y * 2.0;
         let card_x = ((width as f32 - card_w) * 0.5).max(0.0);
-        let card_y = ((height as f32 - card_h) * 0.5).max(TEXT_TOP - pad_y);
+        let card_y = ((height as f32 - card_h) * 0.5).max(m.px(TEXT_TOP) - pad_y);
         let content_top = card_y + pad_y;
         let grid_x = card_x + (card_w - grid_w) * 0.5;
         let grid_y = content_top;
