@@ -1010,33 +1010,19 @@ fn paperbark_dials_are_in_bounds_and_the_world_is_static() {
 /// carries the shared `density` field, so enrolling or retiring a world tracks
 /// this sweep with nothing here to edit.
 ///
-/// The VARIANT question is asked as an exhaustive `match` with no wildcard,
-/// which is the whole point of spelling it here instead of calling
-/// `Background::density()`: that owner ends in `_ => 0.0`, so a new
-/// density-bearing variant would answer "no density" and drop out of this
-/// sweep silently. Written this way the new variant fails to COMPILE until
-/// someone decides which side it belongs on. Enrolment by variant rather than
-/// by measured value is also deliberate — a world that authored its density to
-/// 0.0 must fail the presence floor below, not quietly leave the roster.
+/// The VARIANT question is asked through `Background::bears_density`, the
+/// owner's own exhaustive-with-no-wildcard classifier — asking it here rather
+/// than keeping a second copy of the same match means enrolment and accessor
+/// cannot drift apart, and a new density-bearing variant fails to COMPILE at
+/// the owner until someone decides which side it belongs on. Enrolment by
+/// variant rather than by measured value is deliberate — a world that
+/// authored its density to 0.0 must fail the presence floor below, not
+/// quietly leave the roster (which is why `bears_density` is a separate
+/// question from `density() == 0.0`).
 fn density_bearing_worlds() -> Vec<(&'static str, Background)> {
-    fn bears_density(bg: &Background) -> bool {
-        match bg {
-            Background::Zigzag { .. }
-            | Background::Organic { .. }
-            | Background::Deckle { .. }
-            | Background::WarpedGrid { .. } => true,
-            Background::Gradient { .. }
-            | Background::Dots { .. }
-            | Background::Pinstripe { .. }
-            | Background::Stripes { .. }
-            | Background::Lava { .. }
-            | Background::Bands { .. }
-            | Background::Waves { .. } => false,
-        }
-    }
     theme::THEMES
         .iter()
-        .filter(|t| bears_density(&t.background))
+        .filter(|t| t.background.bears_density())
         .map(|t| (t.name, t.background))
         .collect()
 }
