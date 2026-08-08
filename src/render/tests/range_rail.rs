@@ -706,6 +706,25 @@ const RAIL_INK_PRESENCE_MIN: f64 = 3.0;
 /// rendering noise, not thread a needle between noise and bug.
 const RAIL_INK_DRIFT_CEILING: f64 = 6.0;
 
+/// How far the SELECTED row's thumb must travel from its own unselected ground
+/// toward the ink it should be wearing, as a share of that whole distance.
+///
+/// A fraction rather than a ΔE, because a ΔE against a theme constant is a claim
+/// about the rasterizer: both an exact-byte and a fixed-ceiling form of this
+/// assertion have already died on a backend this host cannot run, the second one
+/// on a saturated ground where the thumb's own antialiasing blends toward the
+/// ground and widens the gap to the constant. Both terms of this ratio are read
+/// from the same frame, so a backend that rounds differently moves them together.
+///
+/// CALIBRATED, not picked, and the three figures are the calibration: the shipped
+/// thumb reads 0.918 on the tightest world measured (Kite, whose saturated ground
+/// is what broke the previous absolute form); the defect — every rail sharing one
+/// frame-wide ink, which is what this law was written for — reads 0.461 on Tawny;
+/// and 0.75 sits in the gap with room on both sides. A thumb that never took the
+/// flip stays near its own ground, so the defect cannot approach the floor from
+/// below.
+const SELECTED_THUMB_MIN_TRAVEL: f64 = 0.75;
+
 /// (run length, ink, ground, band height) — one rail's located thumb.
 type RailProbe = (i32, [u8; 4], [u8; 4], i64);
 
@@ -896,22 +915,37 @@ fn assert_selected_rail_shows_its_flip(
     let (_, zoom_ink_on, ..) = on.zoom;
     let (_, scroll_ink_on, ..) = on.scroll;
     let want_bytes = want.rgba_bytes();
-    // "Reads AS the flip" is a PERCEPTUAL claim and must be asked perceptually.
-    // Byte equality here is a claim about the rasterizer, not about the ink: the
-    // same frame renders this thumb [230, 230, 230] on Metal and [227, 227, 228]
-    // on Mesa's lavapipe — ΔE 1.15, half the 2.3 JND, and invisible — while the
-    // signal this law exists to see (flip against unflipped) is ΔE ~32. So the
-    // absolute bound reuses `RAIL_INK_DRIFT_CEILING` rather than introducing a
-    // second number, and the assertion that actually carries the claim is the
-    // RELATIVE one below: whatever the backend rounds to, the thumb must land
-    // nearer the flip than the unflipped ink it would otherwise wear. That form
-    // holds on any backend, because both distances move together.
+    // "Reads AS the flip" is a PERCEPTUAL claim, and every ABSOLUTE form of it is a
+    // claim about the rasterizer instead. An earlier version compared the thumb to
+    // the flip byte-for-byte and died on Mesa's lavapipe, where the same frame gives
+    // [227, 227, 228] against Metal's [230, 230, 230]. Loosening that to a ΔE ceiling
+    // only moved the cliff: on a SATURATED ground the thumb's own antialiasing blends
+    // toward the ground, and Kite (ground [139, 110, 197]) crossed a 6.0 ceiling at
+    // ΔE 6.97 on lavapipe while passing on Metal. A fixed ΔE against a theme constant
+    // cannot be calibrated out, because how far a blended edge sits from the constant
+    // is a property of the ground the blend happens over.
+    //
+    // So the claim is a TRAVEL FRACTION: how far the thumb moved from its own
+    // unselected ground, as a share of the whole distance to the ink it should be
+    // wearing. Both terms are read from the same frame and move together under any
+    // backend, which is the shape the selected-mark floor already uses. Kite measures
+    // 0.918 of the way; a thumb that never took the flip sits near its ground and
+    // measures near zero.
     let to_flip = pixeldiff::delta_e(prose_ink_on, want_bytes);
+    let ground_to_flip = pixeldiff::delta_e(prose_ground_on, want_bytes);
+    let travelled = pixeldiff::delta_e(prose_ink_on, prose_ground_on) / ground_to_flip.max(1e-9);
     assert!(
-        to_flip <= RAIL_INK_DRIFT_CEILING,
-        "{world}: the SELECTED Page-width-prose rail's thumb {prose_ink_on:?} does not \
-         read as the selected-row flip {want_bytes:?} (ΔE {to_flip:.2}, ceiling \
-         {RAIL_INK_DRIFT_CEILING:.1}; ground {prose_ground_on:?}, run {prose_run_on}px)"
+        ground_to_flip > RAIL_INK_DRIFT_CEILING,
+        "{world}: the flip {want_bytes:?} and this rail's own ground {prose_ground_on:?} \
+         are only ΔE {ground_to_flip:.2} apart, so there is no span to travel and the \
+         fraction below would grade noise — this world cannot show a flip at all"
+    );
+    assert!(
+        travelled >= SELECTED_THUMB_MIN_TRAVEL,
+        "{world}: the SELECTED Page-width-prose rail's thumb {prose_ink_on:?} travelled \
+         only {travelled:.3} of the ΔE {ground_to_flip:.2} between its own ground \
+         {prose_ground_on:?} and the flip {want_bytes:?} it should be wearing (floor \
+         {SELECTED_THUMB_MIN_TRAVEL}, run {prose_run_on}px)"
     );
     let to_unflipped = pixeldiff::delta_e(prose_ink_on, zoom_ink_on);
     assert!(
