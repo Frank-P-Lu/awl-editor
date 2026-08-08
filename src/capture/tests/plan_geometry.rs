@@ -121,6 +121,59 @@ fn read_band(png: &std::path::Path) -> Band {
     }
 }
 
+/// ONE SCALE'S BLOCK, on its own terms: contiguous slots at the reported pitch,
+/// seated at the reported origin, meeting the content band, ending where the
+/// footer begins, with exactly the reported row flagged selected. Checked at BOTH
+/// scales, because a relation that holds between two scales says nothing about
+/// whether either one describes a real card.
+fn assert_internally_consistent(name: &str, g: &Band) {
+    let mut selected = Vec::new();
+    for (i, row) in g.rows.iter().enumerate() {
+        let (x, y, w, h) = (row.x, row.y, row.w, row.h);
+        assert_eq!(
+            row.display as usize, i,
+            "{name}: rows must be in draw order"
+        );
+        assert!(
+            (y - (g.first_top + i as f64 * g.pitch)).abs() < 0.01,
+            "{name}: row {i} is at y {y}, not first_top {} + {i} * pitch {}",
+            g.first_top,
+            g.pitch
+        );
+        assert!(
+            (h - g.pitch).abs() < 0.01,
+            "{name}: row {i} is {h} tall against a pitch of {}",
+            g.pitch
+        );
+        // Overlap, not containment: a staggering composition's selected row steps
+        // OUTWARD past the band edge on purpose (the shipped Saltpan Settings card
+        // does exactly this), so containment would be a false law.
+        assert!(
+            x + w > g.x && x < g.x + g.w && w > 1.0 && h > 1.0,
+            "{name}: row {i} spans [{x}, {}] ({w}x{h}), which does not meet \
+             the band [{}, {}]",
+            x + w,
+            g.x,
+            g.x + g.w
+        );
+        if row.selected {
+            selected.push(row.display);
+        }
+    }
+    assert_eq!(
+        selected,
+        vec![g.sel_row],
+        "{name}: exactly the reported `sel_row` must carry `selected: true`"
+    );
+    let last = g.rows.last().expect("rows");
+    assert!(
+        g.footer_top >= last.y + last.h - 0.01,
+        "{name}: footer_top {} must be at or below the last row's bottom {}",
+        g.footer_top,
+        last.y + last.h
+    );
+}
+
 #[test]
 fn published_row_geometry_is_physical_pixels_and_scales_with_capture_dpi() {
     if !adapter_available() {
@@ -170,57 +223,8 @@ fn published_row_geometry_is_physical_pixels_and_scales_with_capture_dpi() {
         a.w
     );
 
-    // ROW GEOMETRY IS INTERNALLY CONSISTENT at each scale: contiguous slots at
-    // the reported pitch, seated at the reported origin, inside the content band,
-    // ending where the footer begins, with exactly the reported row selected.
-    for (name, g) in [("1x", &a), ("2x", &b)] {
-        let mut selected = Vec::new();
-        for (i, row) in g.rows.iter().enumerate() {
-            let (x, y, w, h) = (row.x, row.y, row.w, row.h);
-            assert_eq!(
-                row.display as usize, i,
-                "{name}: rows must be in draw order"
-            );
-            assert!(
-                (y - (g.first_top + i as f64 * g.pitch)).abs() < 0.01,
-                "{name}: row {i} is at y {y}, not first_top {} + {i} * pitch {}",
-                g.first_top,
-                g.pitch
-            );
-            assert!(
-                (h - g.pitch).abs() < 0.01,
-                "{name}: row {i} is {h} tall against a pitch of {}",
-                g.pitch
-            );
-            // Overlap, not containment: a staggering composition's selected row
-            // steps OUTWARD past the band edge on purpose (the shipped Saltpan
-            // Settings card does exactly this), so containment would be a false
-            // law. The scale relation below is what this test is really for.
-            assert!(
-                x + w > g.x && x < g.x + g.w && w > 1.0 && h > 1.0,
-                "{name}: row {i} spans [{x}, {}] ({w}x{h}), which does not meet \
-                 the band [{}, {}]",
-                x + w,
-                g.x,
-                g.x + g.w
-            );
-            if row.selected {
-                selected.push(row.display);
-            }
-        }
-        assert_eq!(
-            selected,
-            vec![g.sel_row],
-            "{name}: exactly the reported `sel_row` must carry `selected: true`"
-        );
-        let last = g.rows.last().expect("rows");
-        assert!(
-            g.footer_top >= last.y + last.h - 0.01,
-            "{name}: footer_top {} must be at or below the last row's bottom {}",
-            g.footer_top,
-            last.y + last.h
-        );
-    }
+    assert_internally_consistent("1x", &a);
+    assert_internally_consistent("2x", &b);
 
     // THE DPI RELATION. Physical pixels, so every figure doubles.
     let doubles = |lo: f64, hi: f64, what: &str| {

@@ -204,110 +204,137 @@ fn grade_published_geometry(
     );
     let mut graded = 0usize;
     for (i, rect) in g.rows.iter().enumerate() {
-        let planned = plan.rows()[i];
-        assert_eq!(
-            (rect.display, rect.item),
-            (planned.display, planned.item),
-            "{ctx}: published row {i} claims display {}/item {:?}, the plan says {}/{:?}",
-            rect.display,
-            rect.item,
-            planned.display,
-            planned.item
-        );
-        // A PRESENCE floor before any agreement claim: a report that published
-        // empty rects would satisfy every comparison below by having nothing to
-        // disagree with, and would still tell a reader nothing.
-        assert!(
-            rect.w > 1.0 && rect.h > 1.0,
-            "{ctx}: published row {} is a {}x{} rect — a degenerate rect makes every \
-             agreement assertion vacuous",
-            rect.display,
-            rect.w,
-            rect.h
-        );
-        // OVERLAP, deliberately not containment: a selected row on a staggering
-        // composition steps OUTWARD past the content band's own edge by design
-        // (the real Saltpan Settings card publishes `x` 4px left of `band.x`), so
-        // "inside the band" is a false law rather than a strict one. The span's
-        // exactness is pinned by the pointer probes below instead, which fail in
-        // BOTH directions: a published span narrower than the real one puts the
-        // outside probes inside it, and a wider one puts an inside probe out.
-        assert!(
-            rect.x + rect.w > g.band_x && rect.x < g.band_x + g.band_w,
-            "{ctx}: published row {} spans [{}, {}], which does not meet its own \
-             content band [{}, {}] at all",
-            rect.display,
-            rect.x,
-            rect.x + rect.w,
-            g.band_x,
-            g.band_x + g.band_w
-        );
-        if i > 0 {
-            let prev = g.rows[i - 1];
-            assert!(
-                (rect.y - (prev.y + prev.h)).abs() < 0.01,
-                "{ctx}: published rows {} and {} leave a gap: {} + {} != {}",
-                prev.display,
-                rect.display,
-                prev.y,
-                prev.h,
-                rect.y
-            );
-        }
-        // DRAWN — the ink, not a second calculation.
-        let drawn = *probe
-            .primary
-            .get(&rect.display)
-            .unwrap_or_else(|| panic!("{ctx}: published row {} must have ink", rect.display));
-        assert!(
-            drawn >= rect.y - 0.75 && drawn < rect.y + rect.h,
-            "{ctx}: published row {} reports the slot [{}, {}) but its glyph line is \
-             DRAWN at {drawn}",
-            rect.display,
-            rect.y,
-            rect.y + rect.h
-        );
-        // INTERACTIVE — inside the published span, at both edges and the middle.
-        let mid_y = rect.y + rect.h * 0.5;
-        for px in [rect.x + 0.5, rect.x + rect.w * 0.5, rect.x + rect.w - 0.5] {
-            assert_eq!(
-                p.overlay_row_at(px, mid_y),
-                rect.item,
-                "{ctx}: the pointer at ({px}, {mid_y}) is INSIDE published row {}'s \
-                 rect [{}, {}]x[{}, {}] but does not resolve to its item {:?}",
-                rect.display,
-                rect.x,
-                rect.x + rect.w,
-                rect.y,
-                rect.y + rect.h,
-                rect.item
-            );
-        }
-        if rect.item.is_some() {
-            for px in [rect.x - 1.5, rect.x + rect.w + 1.5] {
-                assert_ne!(
-                    p.overlay_row_at(px, mid_y),
-                    rect.item,
-                    "{ctx}: the pointer at ({px}, {mid_y}) is OUTSIDE published row {}'s \
-                     span [{}, {}] yet still selects its item — the published rect is \
-                     narrower than the one the pointer honours",
-                    rect.display,
-                    rect.x,
-                    rect.x + rect.w
-                );
-            }
-            assert_eq!(
-                rect.selected,
-                plan.selected_display() == Some(rect.display),
-                "{ctx}: published row {}'s `selected` flag disagrees with the planned \
-                 selected line {:?}",
-                rect.display,
-                plan.selected_display()
-            );
-        }
+        assert_published_row_matches_its_band(&g, i, plan, ctx);
+        grade_published_row_against_ink_and_pointer(p, plan, probe, rect, ctx);
         graded += 1;
     }
     graded
+}
+
+/// The published band's own INTERNAL consistency, before either independent
+/// oracle: the rect describes the display line it claims to, it is not
+/// degenerate, it meets the content band, and it is contiguous with its
+/// predecessor.
+fn assert_published_row_matches_its_band(
+    g: &crate::render::plan::OverlayRowGeometry,
+    i: usize,
+    plan: &crate::render::plan::OverlayRowPlan,
+    ctx: &str,
+) {
+    let rect = g.rows[i];
+    let planned = plan.rows()[i];
+    assert_eq!(
+        (rect.display, rect.item),
+        (planned.display, planned.item),
+        "{ctx}: published row {i} claims display {}/item {:?}, the plan says {}/{:?}",
+        rect.display,
+        rect.item,
+        planned.display,
+        planned.item
+    );
+    // A PRESENCE floor before any agreement claim: a report that published empty
+    // rects would satisfy every comparison by having nothing to disagree with,
+    // and would still tell a reader nothing.
+    assert!(
+        rect.w > 1.0 && rect.h > 1.0,
+        "{ctx}: published row {} is a {}x{} rect — a degenerate rect makes every \
+         agreement assertion vacuous",
+        rect.display,
+        rect.w,
+        rect.h
+    );
+    // OVERLAP, deliberately not containment: a selected row on a staggering
+    // composition steps OUTWARD past the content band's own edge by design (the
+    // real Saltpan Settings card publishes `x` 4px left of `band.x`), so "inside
+    // the band" is a false law rather than a strict one. The span's exactness is
+    // pinned by the pointer probes instead, which fail in BOTH directions: a
+    // published span narrower than the real one puts the outside probes inside
+    // it, and a wider one puts an inside probe out.
+    assert!(
+        rect.x + rect.w > g.band_x && rect.x < g.band_x + g.band_w,
+        "{ctx}: published row {} spans [{}, {}], which does not meet its own \
+         content band [{}, {}] at all",
+        rect.display,
+        rect.x,
+        rect.x + rect.w,
+        g.band_x,
+        g.band_x + g.band_w
+    );
+    if i > 0 {
+        let prev = g.rows[i - 1];
+        assert!(
+            (rect.y - (prev.y + prev.h)).abs() < 0.01,
+            "{ctx}: published rows {} and {} leave a gap: {} + {} != {}",
+            prev.display,
+            rect.display,
+            prev.y,
+            prev.h,
+            rect.y
+        );
+    }
+}
+
+/// THE TWO INDEPENDENT ORACLES, against one published rect: the ink and the
+/// pointer, neither of which reads the report.
+fn grade_published_row_against_ink_and_pointer(
+    p: &TextPipeline,
+    plan: &crate::render::plan::OverlayRowPlan,
+    probe: &super::overlay_probe::OverlayYProbe,
+    rect: &crate::render::plan::PlannedRowRect,
+    ctx: &str,
+) {
+    // DRAWN — the ink, not a second calculation.
+    let drawn = *probe
+        .primary
+        .get(&rect.display)
+        .unwrap_or_else(|| panic!("{ctx}: published row {} must have ink", rect.display));
+    assert!(
+        drawn >= rect.y - 0.75 && drawn < rect.y + rect.h,
+        "{ctx}: published row {} reports the slot [{}, {}) but its glyph line is \
+         DRAWN at {drawn}",
+        rect.display,
+        rect.y,
+        rect.y + rect.h
+    );
+    // INTERACTIVE — inside the published span, at both edges and the middle.
+    let mid_y = rect.y + rect.h * 0.5;
+    for px in [rect.x + 0.5, rect.x + rect.w * 0.5, rect.x + rect.w - 0.5] {
+        assert_eq!(
+            p.overlay_row_at(px, mid_y),
+            rect.item,
+            "{ctx}: the pointer at ({px}, {mid_y}) is INSIDE published row {}'s \
+             rect [{}, {}]x[{}, {}] but does not resolve to its item {:?}",
+            rect.display,
+            rect.x,
+            rect.x + rect.w,
+            rect.y,
+            rect.y + rect.h,
+            rect.item
+        );
+    }
+    if rect.item.is_none() {
+        return;
+    }
+    for px in [rect.x - 1.5, rect.x + rect.w + 1.5] {
+        assert_ne!(
+            p.overlay_row_at(px, mid_y),
+            rect.item,
+            "{ctx}: the pointer at ({px}, {mid_y}) is OUTSIDE published row {}'s \
+             span [{}, {}] yet still selects its item — the published rect is \
+             narrower than the one the pointer honours",
+            rect.display,
+            rect.x,
+            rect.x + rect.w
+        );
+    }
+    assert_eq!(
+        rect.selected,
+        plan.selected_display() == Some(rect.display),
+        "{ctx}: published row {}'s `selected` flag disagrees with the planned \
+         selected line {:?}",
+        rect.display,
+        plan.selected_display()
+    );
 }
 
 /// ITEM 185 — the REAL pipeline's own path must match production's OWN
