@@ -996,7 +996,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ⚠️ **131's own rule, which every consumer inherits: never ship a
      half-applied world.** Both worlds move in one commit or neither does.
 
-174. 🟡 **SLICES 1 AND 2 LANDED (2026-08-08). THE ITEM STAYS OPEN — it is a multi-round refactor
+174. 🚧 **SLICE 3 CLAIMED (worktree item-174-slice3, deep tier) — the lane CHOOSES its family by measuring which laws currently recover geometry from pixels, then follows slices 1 and 2's shape. SLICES 1 AND 2 LANDED (2026-08-08). THE ITEM STAYS OPEN — it is a multi-round refactor
      and these are two surface families of it.**
      ✅ **SLICE 2 published the accessory cluster's three lanes** (label, value, rail) at schema **/202**,
      each **`null` rather than a zero-width rect** when the frame drew nothing there — because "the column
@@ -3510,7 +3510,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      has shipped exactly that shape. **Sweep 1×/2×: a 1.25px hairline at dpi 1 is the case to watch.**
      🔵 **CLOSES ON THE USER'S EYE.** Two or three candidate weights, not a sweep of ten, with the
      one to ship named and argued. **Routing:** deep tier, then the user.
-347. 🔴 **THE SETTINGS CARD PLANS ZERO ROWS BELOW ~860 LOGICAL PX ON ITS SHIPPED SHAPE — a narrow-window
+347. 🚧 CLAIMED (worktree item-347-narrow-cliff, deep tier) 🔴 **THE SETTINGS CARD PLANS ZERO ROWS BELOW ~860 LOGICAL PX ON ITS SHIPPED SHAPE — a narrow-window
      cliff, not a yield.** Found by item 174's slice 2 while measuring the accessory budget, and reported
      with the code untouched. On the ordinary capture path with `workspace: true` — **the reachable arm,
      since `workspace_shape()` answers `Some(RailOverRows)` unconditionally for Settings** — the card
