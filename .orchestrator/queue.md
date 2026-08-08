@@ -3879,7 +3879,28 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      frost changes. **(D)** a stale prose enumeration of the crisp set remains in `pipeline_prepare.rs`.
      **(F)** `PanelRowBands::center()` is ungraded — **the panel caret's Y is asserted nowhere.**
      **Routing:** deep tier.
-354. 🚧 CLAIMED (worktree item-354-oracle-scale, production tier) **FIVE CARET TEST ORACLES STILL RECOVER THE DISPLAY SCALE BY DIVISION, one ULP from the factor the
+354. ✅ **LANDED (merged 2026-08-08) — and THE ITEM'S OWN PREMISE DOES NOT HOLD, which the lane
+     established rather than working around.** All five sites were real, none legitimately needed the
+     quotient, and all five now read `metrics.scale`.
+     ⚠️ **I claimed a bit-exact caret oracle swept at dpi 1.5 would fail before the fix. It does not.** The
+     lane widened one oracle's sweep to include 1.5, reverted just that test's locals to the old quotient
+     form, and **it still passed.** Measured why: 6 of 26 zoom steps mismatch by 1 ULP, which moves the 14×
+     bound that test uses by **1.7e-6 to 3.3e-6 device px**, and these oracles compare with **generous
+     tolerances rather than bit-exactly** — for the mismatch to flip an outcome a real glyph measurement
+     would have to land within 3e-6 px of the bound.
+     ✅ **So the divergence is real and IS proven bit-exactly by item 352's own numeric law, which does redden
+     at 1.5 — but these five are correctness-by-construction, not a test that newly catches a live
+     regression.** That distinction is the report's most useful line and it is the opposite of what my brief
+     asserted. **The dpi-1.5 sweep is kept anyway**, since that axis is the item's whole subject.
+     ✅ **The source scan is WIDENED to test paths with an allow-list of ZERO entries** — which is precisely
+     why it was worth doing: after the five, the quotient appears nowhere else in the tree. Enrolment moved
+     from a production-only floor of 200 to **772 files scanned**, and the doc says a future exception should
+     be named **at its own site** rather than reopening a path-keyed allow-list — the brittleness this repo
+     already paid for once.
+     ✅ **Mutation-proven both ways:** a reintroduced offender under `src/render/tests/` now reddens the scan
+     **where it would previously have been invisible**, and the enrolment floor fires when the walk stops
+     seeing the tree. 227 caret tests pass before and after, **and no assertion's tolerance changed** — only
+     the input feeding it. **Original:** **FIVE CARET TEST ORACLES STILL RECOVER THE DISPLAY SCALE BY DIVISION, one ULP from the factor the
      product now uses.** Reported by item 352's lane, which fixed the three PRODUCTION sites and left these
      because `src/render/tests/**` was a sibling lane's — the right call, and it recommended folding them into
      whichever lane holds that directory next.
