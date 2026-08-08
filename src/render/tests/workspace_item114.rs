@@ -497,8 +497,12 @@ fn the_workspace_footer_fits_its_card_on_every_world_at_every_stage() {
                 // The card is built through the real lifecycle, so each stage's
                 // own sentence comes from `foot_hint` rather than a literal.
                 let mut v = workspace_view(&workspace_card(0, detail));
-                // The config-default render zoom, which is what `--screenshot`
-                // captures at and therefore what a user sees.
+                // THE ZOOM A REAL LAUNCH OPENS AT (`app`'s initial zoom), which
+                // is what a user sees — and deliberately NOT what an ordinary
+                // capture renders at: `--screenshot` pins `opts.zoom`'s default
+                // of 1.0 for a byte-stable baseline, so the two doors photograph
+                // the same card at two different text scales and any width read
+                // off one of them is a width at that door's zoom alone.
                 v.zoom = 0.8;
                 p.set_view(&v);
                 p.prepare(&device, &queue, cw, ch).unwrap();

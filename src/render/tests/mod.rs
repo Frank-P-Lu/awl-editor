@@ -211,6 +211,10 @@ mod workspace_plate_item234;
 /// ITEM 116a — the shape: `workspace_shape() -> Option<WorkspaceShape>`'s
 /// roster and the `rows_are_primary()` bypass-is-module-private law.
 mod workspace_shape_item116a;
+/// The narrow regime: a workspace stages its two regions, and neither stage is
+/// ever blank — an empty planned row window is always a staged card whose other
+/// region draws, and some stage always has rows at every reachable window.
+mod workspace_stage_reach;
 mod wrap_affinity;
 mod wysiwyg;
 mod zoom_anchor;
