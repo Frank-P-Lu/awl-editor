@@ -8,9 +8,15 @@ use super::super::*;
 use super::{headless_pipeline, view};
 
 /// The BLOCK caret quad's resting WIDTH tracks the REAL shaped glyph advance at
-/// the cursor: on a PROPORTIONAL world it is wide on `m` and narrow on `i`
-/// (exactly the glyph's advance, no fixed-cell floor); on a MONO world it is the
-/// constant cell and byte-identical to the old `caret_target_w`.
+/// the cursor, on EVERY world alike — a PROPORTIONAL world reads wide on `m`
+/// and narrow on `i` (exactly the glyph's advance, no fixed-cell floor); a
+/// MONO world reads the same real advance, which happens to be CONSTANT
+/// across columns because that is what being a mono face means, not because
+/// `caret_block_w` special-cases pitch. `caret_target_w` (the Morph space-bar
+/// sizing, a different call site) keeps its own `.max(caret_w)` floor for a
+/// glyphless anchor; this function no longer needs one — see
+/// `mono_block_width_matches_the_faces_own_pitch_no_floor` for the roster-wide
+/// law this fixture's single mono world used to stand in for alone.
 #[test]
 fn block_caret_width_tracks_glyph_advance() {
     // Advance reads fold the theme font AND the page wrap globals; hold both
@@ -62,27 +68,30 @@ fn block_caret_width_tracks_glyph_advance() {
         p.metrics.caret_w
     );
 
-    // MONO (Tawny = IBM Plex Mono): the historical `.max(caret_w)` floor is kept,
-    // so the BLOCK width is byte-identical to the old `caret_target_w` at every
-    // column — the mono block is unchanged. (Keyed on the EFFECTIVE shaped
-    // family — the declared doc family, not the resolved face — so this holds
-    // even where the mono face isn't installed and shaping falls back: Tawny
-    // still renders exactly as it did before.)
+    // MONO (Tawny = IBM Plex Mono, 0.60 em — exactly this build's fixed cell):
+    // no floor is applied, so the block is simply the real advance at every
+    // column — which is the SAME value at every column because a real mono
+    // face's glyphs share one advance by construction, not because anything
+    // here forces it. This one world's pitch happens to equal the cell, so it
+    // cannot distinguish a floored block from an unfloored one on its own
+    // (`mono_block_width_matches_the_faces_own_pitch_no_floor` sweeps the
+    // faces that do, Iosevka among them).
     theme::set_active_by_name("Tawny").unwrap();
     p.sync_theme();
+    let mut advances = Vec::with_capacity(text.chars().count());
     for col in 0..text.chars().count() {
         p.set_view(&view(text, 0, col));
+        let (_x, adv) = p.col_x_and_advance(0, col);
         assert!(
-            (p.caret_block_w() - p.caret_target_w()).abs() < 1e-6,
-            "mono block must equal the old caret_target_w at col {col} (unchanged)"
+            (p.caret_block_w() - adv).abs() < 1e-6,
+            "mono block must equal the real glyph advance at col {col} (no floor)"
         );
-        // On a glyph at/above the cell the floor is a no-op (block == advance);
-        // a narrow glyph is floored UP to the fixed cell — exactly the old block.
-        assert!(
-            p.caret_block_w() >= p.metrics.caret_w - 1e-3,
-            "mono block never drops below the fixed cell at col {col}"
-        );
+        advances.push(adv);
     }
+    assert!(
+        advances.windows(2).all(|w| (w[0] - w[1]).abs() < 1e-3),
+        "a real mono face's per-column advances must all agree: {advances:?}"
+    );
 
     // Restore the default world so other tests see a clean global.
     theme::set_active(theme::DEFAULT_THEME);
@@ -438,6 +447,173 @@ fn drag_selection_melts_caret_to_bar() {
             "{mode:?}: releasing the drag must restore the configured cell form"
         );
     }
+
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+    crate::caret::set_mode(CaretMode::Block);
+}
+
+/// THE MONO BLOCK WIDTH LAW: on every bundled face the build
+/// DECLARES [`facepitch::Pitch::Mono`] (roster-derived enrolment — reads
+/// `render::bundled_display_faces()`, never a hand-picked world name), the
+/// LIVE shaped block caret on a real glyph of that face equals the face's OWN
+/// measured pitch, with no separate floor pulling it wider.
+///
+/// BOTH SIDES ARE INDEPENDENTLY DERIVED: the expected side comes straight from
+/// the font file's own `hmtx`/`head` tables via [`facepitch::mono_pitch_em`]
+/// (skrifa, unscaled font units ÷ `units_per_em`) scaled by this pipeline's
+/// live `font_size` — never anything `caret_block_w` itself computes. The
+/// observed side is `p.caret_block_w()` on a REAL shaped glyph of a world
+/// whose `Theme::font` names that face, read through cosmic-text's actual
+/// shaping (a different code path than skrifa's raw table read). The two
+/// agreeing is the actual claim; before this round `caret_block_w`'s
+/// `.max(caret_w)` floor made them disagree on any face narrower than the
+/// fixed cell (Iosevka, 0.50 em vs. the cell's 0.60 em) while leaving the
+/// wider/equal faces looking fine — which is exactly why a law pinned to ONE
+/// mono world (the old `block_caret_width_tracks_glyph_advance`, Tawny only)
+/// never caught it: Tawny's own pitch equals the cell.
+///
+/// PRESENCE FLOOR: the roster ships four declared-mono faces (IBM Plex Mono,
+/// JetBrains Mono, Monaspace Xenon, Iosevka) — asserted `>= 2` so this law
+/// cannot pass by enrolling nothing.
+///
+/// MUTATION: reinstating `caret_block_w`'s old `adv.max(self.metrics.caret_w)`
+/// makes this law fail BY NAME on the two faces narrower than the fixed cell
+/// (Iosevka: Currawong, Cassowary) and stay green on the other three
+/// (Plex Mono/JetBrains sit exactly at the cell; Monaspace Xenon sits wider),
+/// because `.max` only ever changes the result when the real advance is
+/// already below the floor.
+#[test]
+fn mono_block_width_matches_the_faces_own_pitch_no_floor() {
+    let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
+    let _g = crate::testlock::serial();
+    let _c = crate::testlock::serial();
+    crate::caret::set_mode(CaretMode::Block);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping mono_block_width_matches_the_faces_own_pitch_no_floor: no wgpu adapter"
+        );
+        return;
+    };
+
+    let mono_faces: Vec<(&'static [u8], String)> = crate::render::bundled_display_faces()
+        .filter(|(_, pitch)| *pitch == facepitch::Pitch::Mono)
+        .filter_map(|(bytes, _)| facepitch::registered_family(bytes).map(|family| (bytes, family)))
+        .collect();
+    assert!(
+        mono_faces.len() >= 2,
+        "non-vacuity: the declared-mono roster must have at least two members, got {}",
+        mono_faces.len()
+    );
+
+    let mut checked = 0usize;
+    for (bytes, family) in &mono_faces {
+        let pitch_em = facepitch::mono_pitch_em(bytes).unwrap_or_else(|| {
+            panic!("{family}: declared Mono but mono_pitch_em could not measure it")
+        });
+        // A world whose DISPLAY face names this family — roster-derived, not a
+        // hand-picked name: any world naming the family will do, since the
+        // grid is a property of the face, not the world around it.
+        let Some(world) = theme::THEMES.iter().find(|t| t.font == family) else {
+            continue; // a bundled face with no world currently naming it (none today)
+        };
+        theme::set_active_by_name(world.name).unwrap();
+        p.sync_theme();
+        // A short pure-ASCII run so every probe glyph shapes to this face
+        // directly (no CJK/system fallback); col 1 keeps the anchor off a
+        // possible line-start degrade.
+        let text = "mi";
+        p.set_view(&view(text, 0, 1));
+        let expected = pitch_em * p.metrics.font_size;
+        let got = p.caret_block_w();
+        assert!(
+            (got - expected).abs() < 0.05,
+            "{}: {family} block width {got} != the face's own pitch {expected} \
+             ({pitch_em} em * font_size {})",
+            world.name,
+            p.metrics.font_size
+        );
+        checked += 1;
+    }
+    assert!(
+        checked >= 2,
+        "non-vacuity: at least two mono faces must have a world exercising them, got {checked}"
+    );
+
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+    crate::caret::set_mode(CaretMode::Block);
+}
+
+/// The mono block width needs no separate floor to stay VISIBLE on
+/// a glyphless or degenerate cell, on EVERY declared-mono face: end-of-line,
+/// an empty line, and the collapsed wrap-boundary space all already rescue to
+/// the default `char_width` inside [`TextPipeline::col_x_and_advance_aff`]
+/// (`DEGENERATE_CELL_FRAC`) — a rescue that is face-INDEPENDENT and produces
+/// the exact same pixel value `metrics.caret_w` (`CARET_W == CHAR_WIDTH`)
+/// would have floored to, so dropping `caret_block_w`'s floor changes nothing
+/// there. Swept on Currawong (Iosevka, the narrowest bundled mono pitch and
+/// the face the floor's removal actually affects) so a regression on the
+/// narrowest face is the one this law would catch first.
+#[test]
+fn mono_block_stays_visible_without_the_floor_on_glyphless_cells() {
+    let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
+    let _g = crate::testlock::serial();
+    let _c = crate::testlock::serial();
+    crate::caret::set_mode(CaretMode::Block);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping mono_block_stays_visible_without_the_floor: no wgpu adapter");
+        return;
+    };
+    theme::set_active_by_name("Currawong").unwrap();
+    p.sync_theme();
+
+    // Empty line: no shaped run at all.
+    p.set_view(&view("", 0, 0));
+    let empty_w = p.caret_block_w();
+    assert!(
+        (empty_w - p.metrics.char_width).abs() < 1e-3,
+        "empty line: block {empty_w} must equal the default cell {}",
+        p.metrics.char_width
+    );
+
+    // End of line: anchor past the last real glyph.
+    let text = "abc";
+    p.set_view(&view(text, 0, 3));
+    let eol_w = p.caret_block_w();
+    assert!(
+        (eol_w - p.metrics.char_width).abs() < 1e-3,
+        "end-of-line: block {eol_w} must equal the default cell {}",
+        p.metrics.char_width
+    );
+
+    // Degenerate mid-line cell: the collapsed space at a soft-wrap boundary
+    // (same fixture shape as `block_caret_full_cell_on_wrap_boundary_space`).
+    let long = "word ".repeat(80);
+    p.set_view(&view(&long, 0, 0));
+    let rows = p.visual_rows(0);
+    assert!(rows.len() >= 2, "fixture must wrap ({} rows)", rows.len());
+    let space_col = rows[1].start_col - 1;
+    p.set_view(&view(&long, 0, space_col));
+    let wrap_w = p.caret_block_w();
+    assert!(
+        (wrap_w - p.metrics.char_width).abs() < 1e-3,
+        "wrap-boundary space: block {wrap_w} must equal the default cell {}",
+        p.metrics.char_width
+    );
+
+    // Real glyph, for contrast: this one IS the face's own narrower pitch,
+    // not the default cell — proof the fixture actually distinguishes the two.
+    p.set_view(&view(text, 0, 0));
+    let glyph_w = p.caret_block_w();
+    assert!(
+        glyph_w < p.metrics.char_width - 0.5,
+        "fixture sanity: a real Iosevka glyph ({glyph_w}) must sit below the \
+         default cell ({}), or this law could not tell floored from unfloored",
+        p.metrics.char_width
+    );
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();

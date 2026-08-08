@@ -127,6 +127,46 @@ pub fn measure_pitch(bytes: &[u8]) -> Option<Pitch> {
     first.map(|_| Pitch::Mono)
 }
 
+/// A [`Pitch::Mono`] face's OWN cell pitch, as a fraction of its em square: the
+/// advance width of any [`PITCH_PROBE`] glyph (they are all equal on a real
+/// mono face — that is the definition [`measure_pitch`] checks) divided by the
+/// face's own `units_per_em`. `None` for a face that does not measure
+/// [`Pitch::Mono`] (there is no single cell width to report) or whose bytes
+/// [`measure_pitch`] could not read.
+///
+/// This is the ONE place the caret's mono/proportional block-width law reads a
+/// per-face pitch VALUE rather than the two-valued [`Pitch`] classification —
+/// the oracle the law compares the live shaped advance against, derived
+/// straight from the shipped `hmtx`/`head` tables rather than from anything
+/// `render::caret` itself computes. `cfg(test)`-only: no production call site
+/// reads a bare em-pitch value — the caret rides [`family_is_mono`], the
+/// two-valued predicate — so this exists solely as the law's independent
+/// oracle.
+#[cfg(test)]
+pub fn mono_pitch_em(bytes: &[u8]) -> Option<f32> {
+    if measure_pitch(bytes) != Some(Pitch::Mono) {
+        return None;
+    }
+    let font = FontRef::new(bytes).ok()?;
+    let charmap = font.charmap();
+    let glyph_metrics = font.glyph_metrics(Size::unscaled(), LocationRef::default());
+    // Any probe glyph: `measure_pitch` already proved they share one advance.
+    let gid = charmap.map(
+        PITCH_PROBE
+            .chars()
+            .next()
+            .expect("PITCH_PROBE is non-empty"),
+    )?;
+    let adv = glyph_metrics.advance_width(gid)?;
+    let upem = font
+        .metrics(Size::unscaled(), LocationRef::default())
+        .units_per_em;
+    if upem == 0 {
+        return None;
+    }
+    Some(adv / upem as f32)
+}
+
 /// The family name a font file REGISTERS UNDER, resolved through the same
 /// `fontdb` path `render::build_font_system` uses — so this is the string a
 /// `Theme::font` must name, not an approximation of it. A private, single-face
