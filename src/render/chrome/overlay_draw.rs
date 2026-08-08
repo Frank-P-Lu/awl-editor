@@ -368,10 +368,14 @@ impl TextPipeline {
         if has_right {
             // The chord column is shaped ALIGNED TO ITS FLOW in a text-column-wide
             // buffer, so a chord sits at the cluster end it hangs on, never at its
-            // buffer origin — the same flow that shaped it seats it here.
-            let flow = super::diagonal::accessory_flow(self);
+            // buffer origin — and WHERE that end is comes from the lane owner
+            // (`overlay_accessory_span`), the one answer the frost's surface list
+            // and the sidecar's projection also read. A whole buffer width is
+            // seated here rather than a measured line, so the ink lands on the
+            // anchor by the alignment the shaper already applied.
             let bind_w = self.panel_bind_buffer.size().0.unwrap_or(0.0);
-            if let Some(cluster) = self.diagonal_cluster {
+            let seat = |display: usize| self.overlay_accessory_span(geom, display, bind_w).0;
+            if self.diagonal_cluster.is_some() {
                 let clip = |top: f32, bottom: f32| TextBounds {
                     left: bounds.left,
                     top: top.max(0.0) as i32,
@@ -381,7 +385,7 @@ impl TextPipeline {
                 for row in plan.rows() {
                     areas.push(TextArea {
                         buffer: &self.panel_bind_buffer,
-                        left: flow.origin(cluster.accessory_anchor(row.display), bind_w),
+                        left: seat(row.display),
                         top: plan.secondary_top(),
                         scale: 1.0,
                         bounds: clip(row.top, row.bottom()),
@@ -392,7 +396,9 @@ impl TextPipeline {
             } else {
                 areas.push(TextArea {
                     buffer: &self.panel_bind_buffer,
-                    left: flow.origin(text_left + geom.text_w, bind_w),
+                    // An upright card's accessory hangs on the same text-column
+                    // edge for every row, so any row's answer is the column's.
+                    left: seat(0),
                     top: plan.secondary_top(),
                     scale: 1.0,
                     bounds,

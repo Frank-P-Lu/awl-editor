@@ -46,6 +46,7 @@
 //! already-resolved floats (an available-pixel budget, a row pitch, an overhead
 //! row count) — no device, no shaping, no clock — so it keeps the planner pure.
 
+mod accessory_lane;
 mod overlay_header;
 mod overlay_row_plan;
 mod overlay_rows;
@@ -56,6 +57,7 @@ mod row_report;
 /// projection the capture sidecar serializes. Everything else stays
 /// `pub(in crate::render)`, so widening `mod plan` for the sidecar's sake did
 /// not widen the planner's own internals with it.
+pub(crate) use accessory_lane::{Lane, RailLane, RowLanes};
 pub(crate) use row_report::{OverlayRowGeometry, PlannedRowRect};
 
 pub(in crate::render) use overlay_header::{PlannedHeader, beat_stands_alone, header_band_height};

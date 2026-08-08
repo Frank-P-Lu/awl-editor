@@ -26,7 +26,7 @@
 //! one rect per PLANNED DISPLAY LINE — never one per corpus item — so it
 //! inherits the planner's own O(visible) bound rather than adding a walk.
 
-use super::OverlayRowPlan;
+use super::{OverlayRowPlan, PlannedRow, RowLanes};
 use crate::render::TextPipeline;
 
 /// One published candidate row: the rectangle that is simultaneously DRAWN,
@@ -45,6 +45,12 @@ use crate::render::TextPipeline;
 /// is which would put two selections in one sidecar, and this block exists to
 /// make drawn-versus-published agreement assertable rather than ambiguous. Ask
 /// `window.sel_row` for the selection and these rects for the geometry.
+///
+/// `lanes` carries the row's ACCESSORY CLUSTER, absent lane by absent lane: the
+/// name's seated ink, the value's, and the rail's own track and pointer band.
+/// Each is `None` exactly when the frame drew nothing there, so a card that
+/// yielded its whole accessory column publishes the absence rather than the
+/// width the column would have wanted.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct PlannedRowRect {
     pub display: usize,
@@ -53,6 +59,7 @@ pub(crate) struct PlannedRowRect {
     pub y: f32,
     pub w: f32,
     pub h: f32,
+    pub lanes: RowLanes,
 }
 
 /// The whole planned candidate band, published. `band_x`/`band_w` are the
@@ -73,7 +80,16 @@ pub(crate) struct OverlayRowGeometry {
 impl OverlayRowPlan {
     /// Project this plan into its published form. A projection, never a second
     /// derivation: no arithmetic here that the plan does not already own.
-    pub(super) fn geometry_report(&self) -> OverlayRowGeometry {
+    ///
+    /// `lanes` is asked of the caller rather than derived, for the reason the
+    /// whole projection exists: a row's lanes are seated by the accessors the
+    /// DRAW reads, which need the measured buffers and the world's mirror — none
+    /// of which a plan carries. Resolving them here would have meant a second
+    /// spelling of the seat.
+    pub(super) fn geometry_report(
+        &self,
+        lanes: impl Fn(&PlannedRow) -> RowLanes,
+    ) -> OverlayRowGeometry {
         let rows = self
             .rows()
             .iter()
@@ -88,6 +104,7 @@ impl OverlayRowPlan {
                     y: row.top,
                     w: x1 - x0,
                     h: row.height,
+                    lanes: lanes(row),
                 }
             })
             .collect();
@@ -116,6 +133,10 @@ impl TextPipeline {
             return None;
         }
         let geom = self.overlay_geometry(self.window_w as u32);
-        Some(self.overlay_row_plan(&geom).geometry_report())
+        let plan = self.overlay_row_plan(&geom);
+        let lanes = self.overlay_row_lanes(&geom, &plan);
+        Some(plan.geometry_report(|row| {
+            lanes.get(&row.display).copied().unwrap_or_default()
+        }))
     }
 }

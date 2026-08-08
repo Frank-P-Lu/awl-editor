@@ -680,16 +680,15 @@ impl TextPipeline {
             let k = row.display;
             let value_w = secondary.get(&k).copied().unwrap_or(0.0);
             let label_w = primary.get(&k).copied().unwrap_or(0.0);
-            let flow = super::diagonal::accessory_flow(self);
-            let (anchor, avail) = match cluster {
-                Some(cluster) => (cluster.accessory_anchor(k), cluster.accessory_w()),
-                None => {
-                    let text_right = geom.text_left + geom.text_w;
-                    (
-                        text_right,
-                        (text_right - value_w) - (geom.text_left + label_w),
-                    )
-                }
+            let flow = self.overlay_accessory_flow();
+            // WHERE the accessory hangs is the lane owner's one answer
+            // (`overlay_accessory_anchor`, which the accessory upload, the frost's
+            // surface list and the sidecar's own projection all ask); only how much
+            // room is LEFT beside it still differs by composition.
+            let anchor = self.overlay_accessory_anchor(geom, k);
+            let avail = match cluster {
+                Some(cluster) => cluster.accessory_w(),
+                None => (anchor - value_w) - (geom.text_left + label_w),
             };
             if let Some(rail) = crate::render::rowlayout::rail_geom(
                 anchor, flow, value_w, avail, row.top, row.height, frac,

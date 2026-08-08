@@ -695,9 +695,35 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/201` (`/202` timeline, `/203` held)
+## The sidecar JSON — schema `awl-capture/202` (`/203` timeline, `/204` held)
 
 Field order is stable; consumers may parse positionally or by key.
+
+Schema `/202` adds three keys to each **`overlay.window.rows[]`** entry — the
+row's ACCESSORY CLUSTER, reported part by part:
+
+| key | shape | what it is |
+| --- | --- | --- |
+| `label` | `{ x, w }` | the row's NAME ink, seated where the frame drew it |
+| `value` | `{ x, w }` | the row's accessory VALUE ink — a shortcut chord, a git tag, a setting's readout |
+| `rail` | `{ x, w, hit_x, hit_w }` | a Range row's slider: the drawn track, then the more generous band a pointer is accepted in |
+
+Each is `null` when the frame drew nothing there — a display line with no value, a
+row that is not a Range, or a card that yielded its **whole** accessory column
+because the row names and the value column together outgrew the text width.
+
+⚠️ **`null` is a measurement, not a gap in the report.** A narrowing card drops
+the value text and the rail *together*, so the width at which they turn `null` is
+the width at which the accessory column was yielded — and the `label` lane's own
+width on that same frame is what the names took instead. Those are the three
+numbers the width-budget question needs. A `value` of width 0 would have said none
+of them, which is why an undrawn lane is absent rather than empty.
+
+The rail's two spans are separate because they differ on purpose: the drawn track
+is what a reader sees, the hit band is what a press lands in, and the second is
+wider so the control stays reachable. Both come off the one rail object the draw
+path and the pointer hit-test already share, so a rail is clickable exactly where
+it is drawn and the report cannot claim otherwise.
 
 Schema `/201` adds **`overlay.window.band`** and **`overlay.window.rows`** — the
 PLANNED geometry of a summoned picker's candidate band, one rect per display line.

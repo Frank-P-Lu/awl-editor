@@ -6,6 +6,14 @@
 //! picker row had to be recovered from the PNG. A pixel is an appearance oracle;
 //! a row rect is a geometry fact, and the plan has always known it.
 //!
+//! **A ROW'S THREE PARTS ARE PUBLISHED SEPARATELY** — the name lane, the value
+//! lane, the rail — because they are separately answerable and the interesting
+//! question about a narrowing card is WHICH ONE ran out of room. Reported as one
+//! rect they cannot be told apart; reported apart, "what did each part need at
+//! the width where the accessory column was dropped" is arithmetic over a
+//! sidecar instead of a hand-instrumented build. Each is `null` when the frame
+//! drew nothing there, which is itself the answer at the yielding width.
+//!
 //! Both halves are read from the same `TextPipeline` accessors that the draw
 //! emitters and the pointer hit-test read — `overlay_window_report` and
 //! `overlay_row_geometry`, each of which builds this frame's plan through the one
@@ -17,7 +25,7 @@
 //! path: nothing in `render/pipeline_*` calls into it.
 
 use crate::render::TextPipeline;
-use crate::render::plan::{OverlayRowGeometry, PlannedRowRect};
+use crate::render::plan::{Lane, OverlayRowGeometry, PlannedRowRect, RailLane};
 
 /// `overlay.window`, or `"null"` when no overlay is summoned.
 pub(super) fn window_json(pipeline: &TextPipeline) -> String {
@@ -63,7 +71,37 @@ fn row_json(row: &PlannedRowRect) -> String {
         .map_or_else(|| "null".to_string(), |i| i.to_string());
     format!(
         "{{ \"display\": {}, \"item\": {item}, \"x\": {}, \"y\": {}, \"w\": {}, \
-         \"h\": {} }}",
-        row.display, row.x, row.y, row.w, row.h
+         \"h\": {}, \"label\": {}, \"value\": {}, \"rail\": {} }}",
+        row.display,
+        row.x,
+        row.y,
+        row.w,
+        row.h,
+        lane_json(row.lanes.label),
+        lane_json(row.lanes.value),
+        rail_json(row.lanes.rail),
+    )
+}
+
+/// A text lane, or `null` for a lane the frame drew nothing in. `null` rather
+/// than a zero-width rect on purpose: "the column was yielded" and "the column
+/// is there and empty" are different facts about the card, and a width of 0 says
+/// neither of them out loud.
+fn lane_json(lane: Option<Lane>) -> String {
+    lane.map_or_else(
+        || "null".to_string(),
+        |l| format!("{{ \"x\": {}, \"w\": {} }}", l.x, l.w),
+    )
+}
+
+fn rail_json(rail: Option<RailLane>) -> String {
+    rail.map_or_else(
+        || "null".to_string(),
+        |r| {
+            format!(
+                "{{ \"x\": {}, \"w\": {}, \"hit_x\": {}, \"hit_w\": {} }}",
+                r.x, r.w, r.hit_x, r.hit_w
+            )
+        },
     )
 }

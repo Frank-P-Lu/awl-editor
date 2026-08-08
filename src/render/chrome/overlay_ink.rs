@@ -99,15 +99,14 @@ impl TextPipeline {
         // read from the shaped buffer this frame drew, never re-measured.
         let primary = cluster.map(|_| self.overlay_row_primary_px(geom));
         for row in plan.rows() {
-            let left = match (cluster, &primary) {
-                (Some(cluster), Some(primary)) => cluster.label_origin(
-                    row.display,
-                    primary.get(&row.display).copied().unwrap_or(0.0),
-                ),
-                _ => geom.text_left + row.dx,
-            };
             bands.push(PanelBand {
-                left,
+                left: self.overlay_label_origin(
+                    geom,
+                    row,
+                    primary
+                        .as_ref()
+                        .map(|m| m.get(&row.display).copied().unwrap_or(0.0)),
+                ),
                 clip_top: row.top,
                 clip_bottom: row.bottom(),
             });
@@ -199,18 +198,13 @@ impl TextPipeline {
         // the text column's far edge on an upright card), leading with the header's own
         // empty lines. `overlay_right_shown` is the emitter's own gate.
         if self.overlay_right_shown {
-            let flow = super::diagonal::accessory_flow(self);
             let secondary = self.overlay_row_secondary_px(geom);
             for row in plan.rows() {
                 let w = secondary.get(&row.display).copied().unwrap_or(0.0);
                 if w <= 0.0 {
                     continue;
                 }
-                let anchor = match self.diagonal_cluster {
-                    Some(cluster) => cluster.accessory_anchor(row.display),
-                    None => geom.text_left + geom.text_w,
-                };
-                let (l, r) = flow.span(anchor, w);
+                let (l, r) = self.overlay_accessory_span(geom, row.display, w);
                 out.push([
                     l.clamp(clip.0, clip.1),
                     row.top,
