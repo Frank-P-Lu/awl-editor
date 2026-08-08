@@ -224,7 +224,7 @@ fn buffers_json(opts: &CaptureOpts, view: &ViewState) -> String {
     }
 }
 
-fn project_json(opts: &CaptureOpts) -> String {
+pub(super) fn project_json(opts: &CaptureOpts) -> String {
     match &opts.project {
         Some(p) => {
             let branch = p

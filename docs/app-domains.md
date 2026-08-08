@@ -40,8 +40,12 @@ a contiguous `self.<field>` regex silently reports zero for a field that is only
 ever read across a line break, which is how the first pass of this census
 mis-declared `cli_default_folder` dead.
 
-Totals: **1,310 production references** and **586 test references** inside
-`src/app.rs` + `src/app/**`.
+The totals this census recorded are deliberately not restated here. They were a
+snapshot of a moving tree, and the sums no longer reconciled with the per-owner
+table's own columns — `app/tests/domains.rs` is the live ratchet (every root
+`App` field classified to exactly one owner, the field count monotonically
+down), and it is the only figure that means anything at any later date. Re-run
+the grep above for a current number rather than trusting one written here.
 
 ## The owners
 
@@ -60,9 +64,9 @@ Names follow queue item 172, with two corrections the census forced (see
 | `UsageLedger` | 9 | 67 | 2 | extracted — slice 6 |
 | host / lifecycle (stays on `App`) | 12 | 54 | 8 | stays |
 
-At census time: 107 fields and 1,310 production references, with no field in
-two owners and none unassigned — the classification is exhaustive by
-construction, see below.
+The Fields and Prod refs columns are the census-time measurement and are not
+maintained; what is maintained is the property — no field in two owners, none
+unassigned — which `app/tests/domains.rs` asserts on every run.
 
 The `UsageLedger` and host/lifecycle rows were re-measured at slice 6 with the
 reproduce command above (`(self|app).<field>` over non-test files under
@@ -75,6 +79,16 @@ until it is consciously assigned to an owner, and a new owner variant fails to
 compile until it is described.
 
 ### `WorkspaceState` — the summoned-UI layer
+
+⚠️ **THE FIELD LISTS UNDER EACH OWNER BELOW ARE THE NAMES EACH FIELD CARRIED ON
+ROOT `App`, before extraction** — not the names its owning struct uses today.
+`app/tests/domains.rs::retired_field_names` is that list's one owner and pins it
+by name, so a re-added `overlay` fails the suite; the current struct field is
+whatever its own definition says. Three have been renamed since:
+`overlay` → `journey` (item 173's closed lifecycle, described below),
+`popover_open` → `popover_summoned`, and `autosave_saved_version` →
+`note_saved_version`. Reading a list here as a struct's field list will send you
+looking for a field that is not there.
 
 `overlay` · `search` · `popover_open`
 

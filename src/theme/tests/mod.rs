@@ -28,5 +28,10 @@ mod personality;
 mod placard;
 mod roster;
 mod selection_ui;
+/// THEMES.md is `include_str!`'d under `not(wasm32)` (its reader is a native
+/// law and the wasm test binary has no business embedding the world-laws
+/// document), so this module carries the same gate.
+#[cfg(not(target_arch = "wasm32"))]
+mod themes_md;
 mod tokens;
 mod world_pin_item94;

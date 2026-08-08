@@ -95,9 +95,33 @@ pub const SITE_GUIDE_HTML: &str = include_str!("../site/guide.html");
 #[cfg(test)]
 pub const CAPTURE_MD: &str = include_str!("../CAPTURE.md");
 
+/// The repo's `THEMES.md` — the WORLD LAWS document. Its `RenderCaps`
+/// deviation table is held to `theme::RenderCaps::DEFAULT` and the live roster
+/// by `theme::tests::themes_md`; the surrounding prose is the author's.
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub const THEMES_MD: &str = include_str!("../THEMES.md");
+
 /// Product-boundary source used by the first-launch documentation law.
 #[cfg(test)]
 pub const PHILOSOPHY_MD: &str = include_str!("../PHILOSOPHY.md");
+
+/// THE STARTING DOCS — every document awl itself renders through the
+/// `{{key:}}`/`{{cmd:}}`/`{{count:}}` substitution seam (`keytoken.rs`):
+/// `GUIDE.md` at open time, the two seeded samples at seed time. `(name, text)`,
+/// the name being what a failure message should call the file.
+///
+/// One owner because the set is the ENROLMENT of every law about those docs —
+/// the chord-resolves laws in `keytoken::tests`, the roster-count laws in
+/// `doc_counts_law` — and a doc added to the seam must be swept by all of them
+/// the day it arrives, not the day someone remembers each list.
+/// `samples/prose.md` and `samples/japanese.md` are seeded too but carry no
+/// tokens and teach nothing: they are content fixtures, not documentation.
+#[cfg(test)]
+pub const STARTING_DOCS: &[(&str, &str)] = &[
+    ("welcome.md", WELCOME_MD),
+    ("tour.md", TOUR_MD),
+    ("GUIDE.md", GUIDE_MD),
+];
 
 /// The repo's `README.md`. Test-only: `version_law.rs` pins its Download
 /// section's artifact filename to the live package version.

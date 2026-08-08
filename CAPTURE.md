@@ -1329,8 +1329,9 @@ capture is byte-stable. Markdown and syntax are mutually exclusive, so at most o
 of `md_spans` / `syn_spans` is ever non-empty. Deterministic (a pure function of
 the text + language). Present on every path. Example assertion: a Rust `// foo`
 line yields a `comment` span over the comment, and `fn bar` yields a `definition`
-span over `bar`. Only `rust` + `python` are implemented today; a stub language
-emits no spans. The companion **`syn_lang`** field reports the DETECTED language
+span over `bar`. Every `syntax::Lang` variant carries a real lexer;
+`Lang::from_extension` is the gate, and an unrecognized extension yields no spans
+at all rather than a stubbed language. The companion **`syn_lang`** field reports the DETECTED language
 name (`"rust"`, `"go"`, …) — or `null` for a non-CODE buffer — so the sidecar says
 WHICH language produced the `syn_spans` rather than leaving it implicit; it is
 gated by the same `Buffer::syntax_lang` so `syn_lang` and `syn_spans` always agree
@@ -1431,7 +1432,9 @@ unchanged. A `--keys` replay can open the overlay, type to filter, move the
 selection (`Down`/`C-n`), and `Enter` to act — all reflected here, so the whole
 flow is verifiable from the sidecar.
 
-The overlay has six summoned modes, all on the one transient card:
+The modes walked in detail below are the ones this document teaches; `mode`'s
+full value set is in the sidecar-field table, owned by `OverlayKind::as_str` and
+held to it by `capture::tests::capture_md_drift`. All ride the one transient card:
 
 * `goto` (`C-x C-f`) — the active project's flat file index; `Enter` opens the
   highlighted file.
@@ -1589,8 +1592,8 @@ world.)
 | `first_lines`  | the first up-to-12 logical lines, in order, for quick checks |
 | `layout`       | SHAPED-FRAME LAYOUT oracle (schema `/187`): `{ rows, caret, selection }`. Rows are in draw order and carry raw `content`, source `line`, half-open `start_col`/`end_col`, absolute physical-pixel `xs` boundaries, `top`, and shaped `height`. `caret.row` and each selection segment's `row` index directly into that array. Borrowed from the exact sealed frame partition; never recomputed. It proves geometry, not pixel visibility or contrast |
 | `search`       | isearch + find/replace state: `query`, `active`, `case_sensitive`, `hit_count`, `current`, `replace_active` (replace field revealed), `replacement` (replace text) |
-| `project`      | active project (`--root`): `root`, `name`, `branch` (or null), `dirty`; `null` when no project |
-| `overlay`      | summoned nav overlay: `active`, `mode` (`goto`/`switch`/`browse`/`theme`/`caret`/`dictionary`/`move`/`command`/`outline`/`spell`/`keybindings`/`history`), `query`, `selected_index`, `browse_dir` (the level shown: root-relative for `browse`/`move`, ABSOLUTE for the navigable `switch` explorer, else null), `items` (git repos `• `-marked, dirs trailing `/`; `switch` pins a `"."` accept-this-folder row on top; command names for `command`; the three variant labels for `dictionary`), `bindings` (command-palette key chords parallel to `items`; the caret/dictionary pickers' one-line descriptions; else `[]`) |
+| `project`      | active project (`--root`), fields `root`/`name`/`branch`/`dirty`/`default_folder`/`workspace`/`keymap_flavor` (`branch`, `default_folder`, `workspace` may be null); `null` when no project |
+| `overlay`      | summoned nav overlay: `active`, `mode` (`goto`/`switch`/`browse`/`theme`/`caret`/`dictionary`/`cjk_lang`/`date`/`move`/`command`/`spell`/`keybindings`/`history`/`conflict`/`settings`/`assets`/`rename`/`insert_link`/`keep_version`/`context`/`export_dest`), `query`, `selected_index`, `browse_dir` (the level shown: root-relative for `browse`/`move`, ABSOLUTE for the navigable `switch` explorer, else null), `items` (git repos `• `-marked, dirs trailing `/`; `switch` pins a `"."` accept-this-folder row on top; command names for `command`; the three variant labels for `dictionary`), `bindings` (command-palette key chords parallel to `items`; the caret/dictionary pickers' one-line descriptions; else `[]`) |
 | `buffers`      | MULTI-BUFFER registry: `{ open, active }`. `open` = how many buffers are currently open (the active one + everything backgrounded); `active` = the active buffer's path, or `"scratch"`. A plain `--screenshot` always reports `open: 1` |
 | `replay_skips` | permissive `--keys` truthfulness record, always an array. Each skipped live-App-only effect is `{ effect, action }` in replay order: `effect` is the stable snake_case effect name and `action` is the resolved originating action name. Empty for a capture with no skipped effect. `--strict-replay` aborts before writing an artifact on any such effect, so it never emits a partial list. |
 

@@ -74,8 +74,9 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   `app/tests/domains.rs` is the gate: every
   root `App` field is classified to exactly one owner, and the field count is a
   ratchet that may only go down.
-- `daemon.rs` — the SINGLE-INSTANCE DAEMON (native only,
-  `cfg(not(target_arch = "wasm32"))`): a Unix domain socket beside the scratch
+- `daemon.rs` — the SINGLE-INSTANCE DAEMON (native only, and not in the
+  sandboxed store build:
+  `cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))`): a Unix domain socket beside the scratch
   stash (`fs::data_root().join("awl.sock")`). Owns the bind-or-handoff startup
   dance (`startup`/`bind_or_connect` — the stale-socket truth table), the
   dumb newline-delimited wire protocol (`format_open`/`parse_open`/
@@ -83,7 +84,7 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   posts a `DaemonEvent` into the live winit event loop via
   `EventLoopProxy::send_event`. `app/daemon.rs` reacts to that event
   (`App::handle_daemon_event` → `load_path` + raise the window), and owns
-  `Action::FinishBuffer` (C-x #, `commands.rs`'s "Finish Buffer") — save,
+  `Action::FinishBuffer` (the catalog's "Finish file", default Cmd-W) — save,
   notify any daemon `--wait` client, switch to the previous buffer. Lives
   ONLY on the live App's startup path (`app::run`), never on any headless
   `--screenshot`/`--bench-*` mode — see `daemon.rs`'s module doc for the full
@@ -148,7 +149,8 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   `--keys` replay reaches the identical transitions; `app/workspace` owns the
   one live instance and derives its ladder rung from it. Scoped to Settings and
   Version History — it is not a route stack. See `docs/app-domains.md`.
-- `search.rs` — incremental search (isearch) state + match finding.
+- `search/` — incremental search (isearch) state + match finding.
+  → `keys` (the chord layer over an active search), `semantic`.
 - `spell.rs` / `spellunderline.rs` — spellcheck (spellbook) + underline data.
 
 **Rendering / presentation**
@@ -166,7 +168,11 @@ name); behavior is byte-identical. Submodules are listed under each root below.
 - `caret.rs` — caret position + its springy motion/glide animation (the "streak"
   / motion work).
   → `caret/`: `spring`, `morph`, `juice`, `preview`, `pipeline`, `tests`.
-- `theme.rs` — palette tokens (BASE_* greys, the single amber accent).
+- `theme/` — the world rosters and every palette token derived from them
+  (BASE_* greys, the single amber accent).
+  → `worlds` (the `THEMES` roster), `model` (`Theme`/`RenderCaps` and their
+    variant types), `color`, `derive`, `ground`/`ground_space`/`icon_ground`,
+    `cjk`, `diagonal`, `ornament`.
 
 **Verification**
 - `capture.rs` — headless one-frame capture: render to an offscreen texture, read

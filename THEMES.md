@@ -212,8 +212,10 @@ world). No new law: Brolga rides the shared ink/role/selection derivations and
 is enrolled in every sweep the moment it joins `THEMES`.
 
 The nineteenth world, **Paperbark** (item 158, graduated from item 133's
-material study), is the MATERIAL world: the only room whose ground is a thing
-rather than a pattern. Nested deckled contours of handmade paper gather around
+material study), is the MATERIAL world: the room whose ground is a thing
+rather than a pattern, and the one `Background::Deckle` was made for (Galah
+later took the same ground in its `Fibres` weave — WORLDS.md's
+margin-backgrounds table is the roster-checked record of who carries what). Nested deckled contours of handmade paper gather around
 the writing page in cream and pale honey, the prose is deep bark-brown, and one
 coral-vermilion caret is the sole accent. It ships the roster's tenth ground,
 **`Background::Deckle`** — quasi-random contour lanes, seeded per lane and torn
@@ -1252,20 +1254,20 @@ RenderCaps`):
 
 | Field | Values | Governs | Deviates from default |
 |---|---|---|---|
-| `selection_style` | `Fill` \| `InverseVideo` | Document selection: translucent fill vs. true `1 - dst` inverse video (`prepare_selection_layer`) — and, paired with `highlight_texture`, the search-match quad's color (`search_match_rgba_bytes`). | Wagtail (`InverseVideo`) |
-| `caret_block_style` | `Normal` \| `InverseVideo` | Whether the BLOCK caret draws as an ordinary opaque quad, or must route through the same inverse-video mechanism (an opaque quad the same value as the ink would erase the glyph underneath); also degrades MORPH mode to BLOCK. | Wagtail (`InverseVideo`) |
-| `backdrop` | `Blur` \| `Flat` | Whether a full-takeover overlay / held HUD / lifetime card / hold-peek recedes the document behind a frosted gaussian blur, or falls back to the crisp no-blur path (a defocus of a two-value document smears every edge into a forbidden grey). | Wagtail (`Flat`) |
-| `elevation` | `Flat` \| `Bordered` | Whether a summoned card's elevation is the flat `base_300` fill alone (the blur/scrim backdrop carries its contrast), or ADDS the float-panel primitive's raised border rim + drop shadow (`prepare_panel_card_elevation` → `set_float_quads`, border ink `surface_selected`). `surface_selected` itself keys its pure-ink override on the COLLAPSED RAMP (`base_200 == base_300`), never on this field — so an ordinary `Bordered` world keeps its ordinary ramp-step band. | Wagtail (collapsed ramp → white rim); Currawong (OLED black swallows the shadow — the rim IS the elevation); Mangrove, Firetail (the card must hold an edge over the moving lava) |
-| `decorative_wash` | `Enabled` \| `Off` | The floating-panel drop shadow (`float_shadow_srgba`) and the writing-nit underline (`nit_underline_srgba`) — both a translucent low-alpha wash, forbidden on a world with no intermediate grey. | Wagtail (`Off`) |
-| `image_reveal` | `Translucent` \| `Opaque` | The inline-image reveal caption scrim (`image_reveal_scrim`) — translucent veil vs. full opaque occlusion. | Wagtail (`Opaque`) |
-| `highlight_texture` | `Wash` \| `Stipple { color, density }` | THE ONE emphasis texture `==highlight==` spans and search matches share (`highlight_wash`, `wagtail_dither_density`) — a hue-derived translucent wash vs. a fixed-color Bayer-ordered dither stipple at `density`. | Wagtail (`Stipple { white, 0.25 }`) |
-| `title_style` | `InlinePrefix` \| `Placard { corner, scale, ink }` | How a summoned overlay card announces its title: the quiet inline `"<title> › "` prefix, or a large corner-anchored dim WORDMARK behind the rows (the P3R watermark; **bleed is the contract** — it anchors to the CANVAS corner and may bleed past the card; rows always composite over it; the inline prefix is suppressed so titles never double). `ink` ∈ Faint / Ghost / **Stipple** (Bayer pixel-stipple of the wordmark — see the personality section below). | Galah, Magpie (`BL 3.0 Ghost` — the gallery reference), Mangrove (`BL 3.0 Stipple` — the dither is its own language), Firetail (`BL 3.0 Faint`, deliberately smooth — the foil) |
-| `page_frame` | `None` \| `Line { weight_px }` | A thin FRAME around the WRITING COLUMN (distinct from the card border) — four hard-edged quads straddling the column boundary over the document's vertical extent, ink always `theme::page_frame_ink()` = the world's own `base_content` (the "dark-line page-frame" idea, recorded in the roster-decisions note below; graduated from the `AWL_PAGE_BORDER` probe). | Wagtail (`Line { 2.0 }`, its ladder white — the 2px pick from the probe gallery); Bilby (`Line { 1.0 }`, its night-violet ink — the DAWN round's light-pole assignment, the reserved dark-line-on-light variant landed) |
-| `card_anchor` | `TopLeft` \| `TopCenter` \| `Inset { x_frac }` \| `TopRight` | Where the summoned overlay card anchors horizontally (one owner `render::effective_card_anchor` → `overlay_card_x`). `TopRight` is more than placement — it also mirrors the selected-BAR growth direction toward the anchored edge under `Bars` (never text alignment). **The card anchor is theme-owned appearance, so the theme picker CROSSES it like any other property (item 52):** a deliberate selection move re-stamps the open picker's frozen `overlay_align` to the highlighted world's anchor (`OverlayState::reanchor`), snapping the card into that world's rail; a passive hover does not (see the crossing law below). | Currawong, Galah, Magpie, Wagtail, Firetail (`TopLeft`); Cassowary, Mangrove (`TopRight` — the item-45 overlay-alignment fable picks: a terminal readout and a tidal margin); the GLOBAL DEFAULT is `TopCenter` |
-| `chrome_face` | `Body` \| `Named(family)` | Which FACE the overlay chrome (placard wordmark / title prefix / strip labels) shapes in — `Body` (the world's own display face) everywhere, byte-identical, until a world names another family. | Firetail (`Named("Archivo Black")`) |
-| `motion` | `MotionJuice { entrance, band }` | Live-only overlay ENTRANCE + selection-band response. `CALM` (zero animators, settled state byte-identical in capture) on every world today. | none ship non-`CALM` yet |
-| `list_style` | `Pane` \| `Bars { radius, gap, grow_px, extent, coverage }` | How a summoned picker draws the surfaces behind its candidate rows — one pane (default) vs. per-row plates that grow under the selection. | Mangrove, Galah, Magpie, Firetail (`Bars`, the poster worlds) |
-| `facet_style` | `Text` \| `Band` \| `Chips(variant)` | How the faceted picker's lens strip skins its labels. **Chips is rebuilt-for-real but ships INERT** (poster facets render `Text`) pending the user's variant pick. | Mangrove, Galah, Magpie, Firetail carry `Chips(…)` data (held inert) |
+| `selection_style` | `Fill` \| `InverseVideo` | Document selection: translucent fill vs. true `1 - dst` inverse video (`prepare_selection_layer`) — and, paired with `highlight_texture`, the search-match quad's color (`search_match_rgba_bytes`). | `InverseVideo` — Wagtail |
+| `caret_block_style` | `Normal` \| `Filled` \| `InverseVideo` | Whether the BLOCK caret draws as an ordinary opaque quad, or must route through the same inverse-video mechanism (an opaque quad the same value as the ink would erase the glyph underneath); also degrades MORPH mode to BLOCK. | `Filled` — Cassowary; `InverseVideo` — Wagtail |
+| `backdrop` | `Blur` \| `Flat` | Whether a full-takeover overlay / held HUD / lifetime card / hold-peek recedes the document behind a frosted gaussian blur, or falls back to the crisp no-blur path (a defocus of a two-value document smears every edge into a forbidden grey). | `Flat` — Wagtail |
+| `elevation` | `Flat` \| `Bordered` \| `Recessed` | Whether a summoned card's elevation is the flat `base_300` fill alone (the blur/scrim backdrop carries its contrast), or ADDS the float-panel primitive's raised border rim + drop shadow (`prepare_panel_card_elevation` → `set_float_quads`, border ink `surface_selected`). `surface_selected` itself keys its pure-ink override on the COLLAPSED RAMP (`base_200 == base_300`), never on this field — so an ordinary `Bordered` world keeps its ordinary ramp-step band. | `Bordered` — Bilby, Brolga, Cassowary, Currawong, Firetail, Galah, Gumtree, Kite, Magpie, Mangrove, Paperbark, Quokka, Saltpan, Wagtail; `Recessed` — Potoroo |
+| `decorative_wash` | `Enabled` \| `Off` | The floating-panel drop shadow (`float_shadow_srgba`) and the writing-nit underline (`nit_underline_srgba`) — both a translucent low-alpha wash, forbidden on a world with no intermediate grey. | `Off` — Wagtail |
+| `image_reveal` | `Translucent` \| `Opaque` | The inline-image reveal caption scrim (`image_reveal_scrim`) — translucent veil vs. full opaque occlusion. | `Opaque` — Wagtail |
+| `highlight_texture` | `Wash` \| `Stipple { color, density }` | THE ONE emphasis texture `==highlight==` spans and search matches share (`highlight_wash`, `wagtail_dither_density`) — a hue-derived translucent wash vs. a fixed-color Bayer-ordered dither stipple at `density`. | `Stipple` — Wagtail |
+| `title_style` | `InlinePrefix` \| `Placard { corner, scale, ink }` | How a summoned overlay card announces its title: the quiet inline `"<title> › "` prefix, or a large corner-anchored dim WORDMARK behind the rows (the P3R watermark; **bleed is the contract** — it anchors to the CANVAS corner and may bleed past the card; rows always composite over it; the inline prefix is suppressed so titles never double). `ink` ∈ Faint / Ghost / **Stipple** (Bayer pixel-stipple of the wordmark — see the personality section below). | `Placard` — Cassowary, Firetail, Galah, Kite, Magpie, Mangrove |
+| `page_frame` | `None` \| `Line { weight_px }` | A thin FRAME around the WRITING COLUMN (distinct from the card border) — four hard-edged quads straddling the column boundary over the document's vertical extent, ink always `theme::page_frame_ink()` = the world's own `base_content` (the "dark-line page-frame" idea, recorded in the roster-decisions note below; graduated from the `AWL_PAGE_BORDER` probe). | `Line` — Kite, Wagtail |
+| `card_anchor` | `TopLeft` \| `TopCenter` \| `Inset { x_frac }` \| `TopRight` | Where the summoned overlay card anchors horizontally (one owner `render::effective_card_anchor` → `overlay_card_x`). `TopRight` is more than placement — it also mirrors the selected-BAR growth direction toward the anchored edge under `Bars` (never text alignment). **The card anchor is theme-owned appearance, so the theme picker CROSSES it like any other property (item 52):** a deliberate selection move re-stamps the open picker's frozen `overlay_align` to the highlighted world's anchor (`OverlayState::reanchor`), snapping the card into that world's rail; a passive hover does not (see the crossing law below). | `TopLeft` — Currawong, Firetail, Galah, Magpie, Wagtail; `TopRight` — Cassowary, Kite, Mangrove |
+| `chrome_face` | `Body` \| `Named(family)` | Which FACE the overlay chrome (placard wordmark / title prefix / strip labels) shapes in — `Body` (the world's own display face) everywhere, byte-identical, until a world names another family. | `Named` — Cassowary, Firetail, Kite |
+| `motion` | `MotionJuice { entrance, band }` | Live-only overlay ENTRANCE + selection-band response. `CALM` (zero animators, settled state byte-identical in capture) on every world today. | none |
+| `list_style` | `Pane` \| `Bars { radius, gap, grow_px, extent, coverage }` \| `Diagonal(spine)` \| `Rules(weight)` | How a summoned picker draws the surfaces behind its candidate rows — one pane (default) vs. per-row plates that grow under the selection. | `Bars` — Cassowary, Firetail, Galah; `Diagonal` — Magpie, Mangrove; `Rules` — Paperbark |
+| `facet_style` | `Text` \| `Band` \| `Chips(variant)` | How the faceted picker's lens strip skins its labels. **Chips is rebuilt-for-real but ships INERT** (poster facets render `Text`) pending the user's variant pick. | `Band` — Kite; `Chips` — Cassowary, Firetail, Galah, Magpie, Mangrove |
 
 `RenderCaps::DEFAULT` is what the QUIET worlds carry — every field at its
 ordinary value, byte-identical to the pre-capabilities render paths.
@@ -1560,12 +1562,21 @@ The user vetoes the actual pixel taste via `gallery/jp-worlds/`.
 | Wagtail     | sans/mono  | gothic       | `CJK_ZH_HANS_SANS` (Noto Sans SC)            | `CJK_KO` (Noto Sans KR)    |
 | **Mopoke**  | sans/mono  | **Klee One** | `CJK_ZH_HANS_KLEE` (**LXGW WenKai** first)   | `CJK_KO` (Noto Sans KR)    |
 | **Quokka**  | sans/mono  | **Klee One** | `CJK_ZH_HANS_KLEE` (**LXGW WenKai** first)   | `CJK_KO` (Noto Sans KR)    |
+| Mopoke | brush/sans | Klee One | `CJK_ZH_HANS_KLEE` (LXGW WenKai) | `CJK_KO` (Noto Sans KR) |
+| Quokka | brush/sans | Klee One | `CJK_ZH_HANS_KLEE` (LXGW WenKai) | `CJK_KO` (Noto Sans KR) |
+| Brolga | sans/mono | gothic | `CJK_ZH_HANS_SANS` (Noto Sans SC) | `CJK_KO` (Noto Sans KR) |
+| Firetail | sans/mono | gothic | `CJK_ZH_HANS_SANS` (Noto Sans SC) | `CJK_KO` (Noto Sans KR) |
+| Cassowary | sans/mono | gothic | `CJK_ZH_HANS_SANS` (Noto Sans SC) | `CJK_KO` (Noto Sans KR) |
+| Kite | sans/mono | gothic | `CJK_ZH_HANS_SANS` (Noto Sans SC) | `CJK_KO` (Noto Sans KR) |
+| Paperbark | serif | Shippori | `CJK_ZH_HANS_SERIF` (Noto Serif SC) | `CJK_KO_SERIF` (**Gowun Batang**) |
 
 The `ko` split (CJK-companions round) tracks the SAME serif/sans line as `cjk`
-(ja) and `zh_hans`: the six SERIF worlds — exactly those on `CJK_ZH_HANS_SERIF`
+(ja) and `zh_hans`: the SERIF worlds — exactly those on `CJK_ZH_HANS_SERIF`
 — get **Gowun Batang** (`CJK_KO_SERIF`) above the Noto Sans KR floor, mirroring
 `CJK_JA_SHIPPORI`'s "characterful serif first, neutral Noto floor next" shape;
-the eight sans/mono worlds keep the plain Noto Sans KR floor (`CJK_KO`). There
+every other world keeps the plain Noto Sans KR floor (`CJK_KO`). Which worlds
+those are is the table above, held to the roster by
+`theme::tests::themes_md::themes_md_cjk_table_rows_every_world_with_its_ko_family`. There
 is no NEUTRAL bundled serif-Korean floor, so `CJK_KO_SERIF`'s guaranteed floor
 stays the (sans) Noto Sans KR — which is exactly what `gallery/ko-worlds/`'s
 "floor" side (`AWL_CJK_FORCE=floor`) drops to. **GenSenRounded (源泉圓體,

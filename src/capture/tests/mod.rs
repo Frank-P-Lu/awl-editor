@@ -14,6 +14,7 @@ use super::*;
 use crate::caret::CaretAnim;
 use crate::render;
 
+mod capture_md_drift;
 mod caret_streak;
 mod folds;
 /// `--screenshot-frames`'s own capture path (`capture::frames`) is native-only
