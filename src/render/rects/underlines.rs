@@ -121,9 +121,9 @@ impl TextPipeline {
         let m = &self.metrics;
         let doc_top = self.doc_top();
         let text_left = self.text_left();
-        let amp = SPELL_AMP * m.zoom;
-        let period = SPELL_PERIOD * m.zoom;
-        let thickness = SPELL_THICKNESS * m.zoom;
+        let amp = m.px(SPELL_AMP);
+        let period = m.px(SPELL_PERIOD);
+        let thickness = m.px(SPELL_THICKNESS);
         let gap = theme::active().render_caps.spell_underline_gap * m.zoom;
         let band_h = amp * 2.0 + thickness + 2.0;
         let protos = self.squiggle_cache.protos.borrow();
@@ -298,7 +298,7 @@ impl TextPipeline {
         let m = &self.metrics;
         let doc_top = self.doc_top();
         let text_left = self.text_left();
-        let thickness = NIT_THICKNESS * m.zoom;
+        let thickness = m.px(NIT_THICKNESS);
         let band_h = thickness + 2.0;
         let protos = self.nit_cache.protos.borrow();
         let mut out = Vec::with_capacity(protos.len());

@@ -75,8 +75,8 @@ impl TextPipeline {
         let m = self.metrics;
         let text_left = self.text_left();
         let avail = self.text_wrap_width().max(1.0);
-        let pad = TABLE_CELL_PAD_X * m.zoom;
-        let rule_thick = (TABLE_RULE_THICKNESS * m.zoom).max(1.0);
+        let pad = m.px(TABLE_CELL_PAD_X);
+        let rule_thick = m.px(TABLE_RULE_THICKNESS).max(1.0);
         let cursor_byte = self.line_doc_byte_start(self.cursor_line);
         // SELECTION REVEAL: the SAME touched-line byte extent `wysiwyg_reveals`
         // widens its own caret-only rule with (`selection_touch_bytes`) — a
@@ -184,7 +184,7 @@ impl TextPipeline {
             .collect();
 
         let view_w = avail;
-        let pan_bar_thick = (crate::render::TABLE_PAN_BAR_THICKNESS * m.zoom).max(1.0);
+        let pan_bar_thick = m.px(crate::render::TABLE_PAN_BAR_THICKNESS).max(1.0);
         let muted = theme::muted().to_glyphon();
         // THE X-RAY floats: every caret- or selection-revealed table row's RAW
         // SOURCE, each shaped NON-WRAPPING into its own LOCAL buffer (so `areas`
@@ -436,7 +436,7 @@ impl TextPipeline {
         if n == 0 {
             return false;
         }
-        let gap = crate::render::TABLE_COL_GAP * self.metrics.zoom;
+        let gap = self.metrics.px(crate::render::TABLE_COL_GAP);
         let content_w: f32 = t.col_widths.iter().sum::<f32>() + gap * (n.saturating_sub(1) as f32);
         drop(report);
         let view_w = self.text_wrap_width().max(1.0);

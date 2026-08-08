@@ -26,8 +26,7 @@
 //!      widened to `src/render.rs` itself — where the exclusions a length may
 //!      claim are DERIVED (from `Metrics::with_dpi`'s own body) or TYPED (a
 //!      `Millis` is not a length and the compiler knows it) rather than
-//!      granted by a reader, and what is left over is a measured defect with a
-//!      closed ledger instead of a classification.
+//!      granted by a reader, and nothing is left over.
 
 use super::super::*;
 use super::{headless_dqp, view};
@@ -460,61 +459,6 @@ fn metrics_resolved_constants(render_src: &str) -> Vec<String> {
     out
 }
 
-/// **THE DPI-BLIND LEDGER — a recorded DEFECT, not a classification.**
-///
-/// Every entry is a `render.rs` length whose read sites multiply it by
-/// `metrics.zoom` ALONE (or by nothing at all), never by `metrics.scale`. So it
-/// holds its DEVICE size as the display gets denser and shrinks relative to the
-/// text beside it — the same halving this file's own drawn claim grades for
-/// chrome, one neighbourhood over, in the writing column's decorations. Measured, not
-/// inferred: the inline-code pill is 92.70px wide at dpi 1 and 179.39px at dpi 2
-/// on identical logical geometry, where twice the first is 185.39 — short by
-/// exactly `2 * CODE_PILL_INSET_X`; the fence panel is short by exactly
-/// `2 * FENCE_PANEL_INSET_X`.
-///
-/// They are NOT declared `Logical` here, and that restraint is deliberate:
-/// resolving them through [`Metrics::px`] changes what every retina display
-/// draws for fifteen separately tuned taste quantities, which is a product
-/// decision with a human in it and not a unit annotation. Declaring them
-/// `Physical` would be worse — it would assert the device grid is the right
-/// reference for a spell squiggle's amplitude, which nobody believes.
-///
-/// **The ledger is CLOSED and cross-checked against a derivation, so it cannot
-/// become a place to hide.** The sweep computes the leftover set (every bare
-/// `f32` in the swept sources that the owner does not resolve and that is not
-/// dimensionless) and requires it to EQUAL this table. A new bare `f32` fails
-/// whether or not it is DPI-blind; a ledger entry that gets fixed leaves the
-/// leftover set and fails until it is removed from here. The second column is
-/// the READ SITE's own text, and it is graded — the evidence for a
-/// classification is held to the same standard as the classification.
-const DPI_BLIND_PENDING: &[(&str, &str)] = &[
-    ("CARET_SPACE_BAR_W", "CARET_SPACE_BAR_W * zoom"),
-    ("IBEAM_W", "IBEAM_W * m.zoom"),
-    (
-        "CARET_MORPH_DILATE_PX",
-        "CARET_MORPH_DILATE_PX * self.metrics.zoom",
-    ),
-    ("PREEDIT_UNDERLINE_H", "PREEDIT_UNDERLINE_H * m.zoom"),
-    ("SPELL_AMP", "SPELL_AMP * m.zoom"),
-    ("SPELL_PERIOD", "SPELL_PERIOD * m.zoom"),
-    ("SPELL_THICKNESS", "SPELL_THICKNESS * m.zoom"),
-    ("NIT_THICKNESS", "NIT_THICKNESS * m.zoom"),
-    ("CODE_PILL_INSET_X", "CODE_PILL_INSET_X * m.zoom"),
-    ("CODE_PILL_INSET_Y", "CODE_PILL_INSET_Y * m.zoom"),
-    ("FENCE_PANEL_INSET_X", "FENCE_PANEL_INSET_X * m.zoom"),
-    ("TABLE_CELL_PAD_X", "TABLE_CELL_PAD_X * m.zoom"),
-    ("TABLE_COL_GAP", "TABLE_COL_GAP * self.metrics.zoom"),
-    ("TABLE_RULE_THICKNESS", "TABLE_RULE_THICKNESS * m.zoom"),
-    (
-        "TABLE_PAN_BAR_THICKNESS",
-        "TABLE_PAN_BAR_THICKNESS * m.zoom",
-    ),
-    // The one that does not even meet ZOOM: the overlay's entrance drop is added
-    // to a device-pixel y offset raw, so it is the same travel in device pixels
-    // at every zoom and every DPI.
-    ("OVERLAY_ENTRANCE_DROP_PX", "* OVERLAY_ENTRANCE_DROP_PX"),
-];
-
 /// The constants under the swept files (`src/render/chrome/`, plus the writing
 /// column's own `render/geometry.rs` / `render/geometry/**` / `render/scroll.rs`)
 /// that are NOT lengths, each with the reason it carries no unit. Enumerated by name
@@ -762,7 +706,6 @@ struct DeclarationTally {
     area_typed: usize,
     dimensionless: usize,
     owner_resolved: usize,
-    pending: usize,
 }
 
 fn tally_declarations(sources: &[(String, String)], resolved: &[String]) -> DeclarationTally {
@@ -802,8 +745,6 @@ fn tally_declarations(sources: &[(String, String)], resolved: &[String]) -> Decl
                 t.owner_resolved += 1;
             } else if DIMENSIONLESS.iter().any(|(n, _)| *n == name) {
                 t.dimensionless += 1;
-            } else if DPI_BLIND_PENDING.iter().any(|(n, _)| *n == name) {
-                t.pending += 1;
             } else {
                 t.offenders.push(format!(
                     "{path}:{}: `{name}: f32` is an untyped chrome constant. \
@@ -842,11 +783,16 @@ fn tally_declarations(sources: &[(String, String)], resolved: &[String]) -> Decl
 ///     own body ([`metrics_resolved_constants`]) so the exclusion expires the
 ///     moment the owner stops multiplying it;
 ///   * [`DIMENSIONLESS`], the reasoned table for a ratio or a colour channel
-///     that no type currently expresses;
-///   * [`DPI_BLIND_PENDING`], a CLOSED ledger of measured defects, cross-checked
-///     against the leftover set in
-///     [`the_dpi_blind_ledger_is_exactly_the_unclassified_leftover`] so it
-///     cannot absorb a new constant quietly.
+///     that no type currently expresses.
+///
+/// There is no fifth door. The DPI-blind ledger this law used to carry — the
+/// sixteen writing-column lengths whose read sites multiplied them by
+/// `metrics.zoom` alone, so each held its device size as the panel got denser —
+/// is gone because every entry was given a family, and a bare `f32` in the swept
+/// sources now fails HERE with nowhere to be parked. The OUTCOME half of that
+/// repair is graded where a reader can see it, in `writing_column_decor_dpi.rs`:
+/// a declaration sweep grades the constant, and only a geometry law grades the
+/// factor its read site hands it.
 #[test]
 fn every_authored_chrome_constant_declares_its_unit_family() {
     let sources = chrome_sources();
@@ -894,127 +840,11 @@ fn every_authored_chrome_constant_declares_its_unit_family() {
         "every entry in the DIMENSIONLESS table must still name a live chrome \
          constant; a stale entry silently excuses a name nobody wrote"
     );
-    assert_eq!(
-        t.pending,
-        DPI_BLIND_PENDING.len(),
-        "every entry in the DPI_BLIND_PENDING ledger must still name a live \
-         untyped constant; one that has been given a family must LEAVE the \
-         ledger, or the ledger starts excusing a name nobody wrote"
-    );
     eprintln!(
         "declaration sweep: {} unit-typed, {} Millis, {} Area, {} resolved by \
-         Metrics::with_dpi, {} dimensionless, {} DPI-blind pending",
-        t.typed, t.non_length_typed, t.area_typed, t.owner_resolved, t.dimensionless, t.pending
+         Metrics::with_dpi, {} dimensionless",
+        t.typed, t.non_length_typed, t.area_typed, t.owner_resolved, t.dimensionless
     );
-}
-
-/// **CLAIM 4c — THE DPI-BLIND LEDGER IS EXACTLY THE LEFTOVER, AND EVERY ENTRY IS
-/// STILL DPI-BLIND.**
-///
-/// [`DPI_BLIND_PENDING`] is the one mechanism in this law that is a list of
-/// names, and a list of names is how an enrolment predicate quietly stops
-/// matching anything. So it is graded from two sides at once:
-///
-///   1. **Closed.** The leftover set — every bare `f32` in the swept sources
-///      that neither [`Metrics::with_dpi`] resolves nor [`DIMENSIONLESS`]
-///      excuses — must EQUAL the ledger. A new untyped constant cannot join by
-///      being DPI-blind, and a fixed one cannot stay by being forgotten.
-///   2. **Still the defect it claims.** For each entry, some PRODUCT source must
-///      read it beside the factor recorded here, and no product source may
-///      resolve it through `metrics.scale` or `Metrics::px` — which is what
-///      "DPI-blind" means, asserted rather than asserted-once-and-trusted. The
-///      day one is repaired, the repair itself trips claim 1.
-#[test]
-fn the_dpi_blind_ledger_is_exactly_the_unclassified_leftover() {
-    let sources = chrome_sources();
-    let render_src = sources
-        .iter()
-        .find(|(p, _)| p == "src/render.rs")
-        .map(|(_, s)| s.clone())
-        .expect("src/render.rs is in the swept set");
-    let resolved = metrics_resolved_constants(&render_src);
-    let mut leftover: Vec<String> = Vec::new();
-    for (_, src) in &sources {
-        for line in src.lines() {
-            let Some(rest) = const_decl(line) else {
-                continue;
-            };
-            let Some((name, ty)) = rest.split_once(':') else {
-                continue;
-            };
-            let name = name.trim().to_string();
-            let ty = ty.split(['=', ';']).next().unwrap_or("").trim();
-            if ty != "f32"
-                || resolved.contains(&name)
-                || DIMENSIONLESS.iter().any(|(n, _)| *n == name)
-            {
-                continue;
-            }
-            leftover.push(name);
-        }
-    }
-    leftover.sort();
-    let mut ledger: Vec<String> = DPI_BLIND_PENDING
-        .iter()
-        .map(|(n, _)| n.to_string())
-        .collect();
-    ledger.sort();
-    assert_eq!(
-        leftover, ledger,
-        "the unclassified leftover and the DPI-blind ledger have diverged. A \
-         constant in the leftover but not the ledger is a NEW untyped length — \
-         give it a family. One in the ledger but not the leftover has been \
-         classified — delete its ledger row."
-    );
-    assert!(
-        !ledger.is_empty(),
-        "an empty ledger would make this law vacuous; if the last DPI-blind \
-         constant is genuinely fixed, delete this law with it"
-    );
-    // Claim 2: each entry is still read the way the ledger says, and still never
-    // meets the DPI factor. Product sources only — a test may legitimately
-    // multiply one of these by a scale to describe the defect.
-    let product = product_sources();
-    for (name, site) in DPI_BLIND_PENDING {
-        let factor = site;
-        let mut saw_factor = false;
-        let mut scaled_sites: Vec<String> = Vec::new();
-        for (path, src) in &product {
-            for (i, line) in src.lines().enumerate() {
-                let t = line.trim_start();
-                if !line.contains(name) || t.starts_with("//") || t.starts_with("///") {
-                    continue;
-                }
-                if const_decl(line).is_some() {
-                    continue; // the declaration itself
-                }
-                if line.contains(factor) {
-                    saw_factor = true;
-                }
-                // `\bscale\b` deliberately, so a local named `demo_scale` does
-                // not read as the metrics factor.
-                let words: Vec<&str> = line
-                    .split(|c: char| !c.is_alphanumeric() && c != '_')
-                    .collect();
-                if words.contains(&"scale") || line.contains(".px(") {
-                    scaled_sites.push(format!("{path}:{}: {}", i + 1, line.trim()));
-                }
-            }
-        }
-        assert!(
-            saw_factor,
-            "the ledger says {name} is read as `{site}`, and no product source \
-             spells that. The read site is the evidence for the classification, \
-             so it is graded like one."
-        );
-        assert!(
-            scaled_sites.is_empty(),
-            "{name} is in the DPI-blind ledger but a product source resolves it \
-             through the DPI factor:\n{}\nIf that is the repair, it belongs in a \
-             unit family and out of this ledger.",
-            scaled_sites.join("\n")
-        );
-    }
 }
 
 /// **CLAIM 4d — A LENGTH IS NEVER RESOLVED AGAINST ZOOM ALONE.**
@@ -1027,11 +857,11 @@ fn the_dpi_blind_ledger_is_exactly_the_unclassified_leftover() {
 /// `Metrics::scale` (`zoom * dpi`) or the `dpi` a policy was handed, never
 /// `zoom` by itself.
 ///
-/// `zoom` alone is exactly the defect [`DPI_BLIND_PENDING`] records — a length
-/// that tracks the user's type size and ignores the panel's density, so it
-/// halves against the text it was tuned beside on every retina display. This law
-/// is what stops one of those entries being "repaired" into a unit family while
-/// keeping the factor that made it wrong.
+/// `zoom` alone is the defect the writing column's decorations carried for
+/// their whole lives — a length that tracks the user's type size and ignores the
+/// panel's density, so it halves against the text it was tuned beside on every
+/// retina display. This law is what stops a repaired length being given a unit
+/// family while keeping the factor that made it wrong.
 #[test]
 fn no_length_is_resolved_against_zoom_alone() {
     let mut offenders = Vec::new();

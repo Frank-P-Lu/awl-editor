@@ -173,7 +173,7 @@ impl TextPipeline {
                 // its lit filter) and the strike band is centered within it, so
                 // the card-hug measurement never widens.
                 let band_pill = |b: &PopoverButtonGeom| {
-                    let hpad = CODE_PILL_INSET_X;
+                    let hpad = self.metrics.px(CODE_PILL_INSET_X);
                     [
                         b.x0 - hpad,
                         geom.band_top,

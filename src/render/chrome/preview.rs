@@ -345,7 +345,7 @@ impl TextPipeline {
                 to_box,
                 morph_t,
                 1.0,
-                CARET_MORPH_DILATE_PX * m.zoom * demo_scale,
+                m.px(CARET_MORPH_DILATE_PX) * demo_scale,
             );
             self.caret_preview_pipeline.prepare_empty();
             return;
@@ -360,12 +360,8 @@ impl TextPipeline {
         let (block_w, block_h, thin) = match look {
             // Block: a one-cell rounded square sitting on the character, its thin streak.
             CaretMode::Block => (m.char_width, m.caret_block_h, m.caret_streak_h),
-            CaretMode::Ibeam => (IBEAM_W * m.zoom, m.caret_h, IBEAM_W * m.zoom),
-            CaretMode::Morph => (
-                CARET_SPACE_BAR_W * m.zoom,
-                m.caret_block_h,
-                IBEAM_W * m.zoom,
-            ),
+            CaretMode::Ibeam => (m.px(IBEAM_W), m.caret_h, m.px(IBEAM_W)),
+            CaretMode::Morph => (m.px(CARET_SPACE_BAR_W), m.caret_block_h, m.px(IBEAM_W)),
         };
         let (block_w, block_h, thin) = (
             block_w * demo_scale,

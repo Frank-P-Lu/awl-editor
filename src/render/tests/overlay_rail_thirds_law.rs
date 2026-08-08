@@ -204,8 +204,11 @@ fn card_width_caps_and_mirrors_growth_flag_are_untouched() {
     // resolver's arithmetic — item 67 only ever moves `left`.
     assert_eq!(
         chrome::CARD_MAX_W.px(1.0),
-        520.0,
-        "flat card width cap unchanged"
+        545.0,
+        "flat card width cap unchanged by the PLACEMENT resolver — the cap moved \
+         once, to clear the Keybindings hint's own measured overflow on the two \
+         `Monaspace Xenon` worlds, and that is a width decision rather than a \
+         placement one"
     );
     assert_eq!(
         chrome::CARD_MAX_W_FACETED.px(1.0),

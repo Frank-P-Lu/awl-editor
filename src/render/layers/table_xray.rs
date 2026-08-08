@@ -57,7 +57,7 @@ impl TextPipeline {
         let body = GlyphMetrics::new(m.font_size, m.line_height);
         let base = self.doc_attrs().color(theme::base_content().to_glyphon());
         let view_w = self.text_wrap_width().max(1.0);
-        let pad = crate::render::TABLE_CELL_PAD_X * m.zoom;
+        let pad = m.px(crate::render::TABLE_CELL_PAD_X);
         let mut rows: Vec<crate::render::XrayRow> = Vec::new();
         // Walk TABLES, never document lines: a Select-All across a huge document
         // must cost O(this table's own rows), not O(doc lines) — the candidate

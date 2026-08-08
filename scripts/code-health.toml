@@ -375,7 +375,7 @@ reason = "`set_view` is the one ViewState-to-pipeline mirror: it measures worksp
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
-lines = 464
+lines = 465
 reason = "Overlay composition and ambient resolvers live here because they read the pipeline's own settled state; Kite shares that ambient ownership seam. The one `advance` OR-fold is the single per-frame stepper, so the diagonal marker's turn and the fold chevron's join it there beside the caret spring, the caret preview and the copy pulse."
 
 [[file_size_mark]]
@@ -698,7 +698,7 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/preview.rs"
 function = "TextPipeline::emit_preview_caret"
-message = "this function has too many lines (128/100)"
+message = "this function has too many lines (124/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
