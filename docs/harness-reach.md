@@ -635,3 +635,17 @@ with `return_to: settings` at the child, and `mode: settings` with the parent's 
 `selected_index` restored after `Escape`. ⚠️ **`Escape` from the CATEGORY region closes
 the card outright** — the return only reads as a return from a row with
 `detail_focus: true`, which is why a first attempt at this can look like a failure.
+
+‼ **THE TWO DOORS RENDER AT DIFFERENT ZOOMS, AND A GEOMETRY FIGURE FROM ONE IS A FIGURE
+AT THAT DOOR'S ZOOM.** An ordinary capture pins **zoom 1.0** (`capture/modes.rs` and
+`capture/animated.rs`: `opts.zoom.unwrap_or(1.0)`) as a byte-stable baseline, while
+`--screenshot-app` renders at the **launch zoom 0.8** (`app.rs::INITIAL_ZOOM`). Both are
+deliberate; what was missing is that they DIFFER. Measured 2026-08-08: a width threshold
+read off the ordinary door was carried onto the board as ~860 and filed as a product
+defect, when the same threshold on the live door is ~690 — **match the zoom axis and the
+two doors agree to 1px.** ⚠️ **So never compare a geometry figure across doors without
+pinning `--zoom`, and say which zoom any width you report was taken at.** This is item
+334's shape with the configuration silently *differing* rather than silently discarded.
+⚠️ **Relatedly, a plain `--screenshot` is not hermetic** — it reads the host's own
+`config.toml` unless `--config` is passed, so an un-configured replay measurement can
+render a different world than the one you asked about. `--screenshot-app` is sandboxed.
