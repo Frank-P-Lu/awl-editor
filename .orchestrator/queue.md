@@ -179,9 +179,10 @@ decision recorded in one place was invisible in the place it gets read.**
   Magpie, then `Cmd-P` and arrow down a row. Then `Cmd-T` → Mangrove for the deliberate contrast.
   ✅ **The writing column at 2×** (item 338) — sixteen decorations were half their tuned size on every Retina
   display and now are not. **The squiggle is what reads instantly:** a tight thin ripple becomes a proper
-  wave. `gallery/item-338/338-2x-before-after.png`. ⚠️ **One inconsistency the fix created and item 355
-  carries:** the squiggle's amplitude is right now while its **gap from the baseline is still half-size**,
-  because that value lives in theme data the sweep does not reach.
+  wave. `gallery/item-338/338-2x-before-after.png`. ✅ **The inconsistency this fix created is CLOSED (item 355)
+  and was one device pixel:** the gap was exactly half its owed 2.0 at 2×, so the whole squiggle band sat one
+  device px high (rows 157–178 → 158–179 on Tawny, height unchanged). Real and arithmetically exact, but
+  **not worth a second look on its own** — it is the consistency the amplitude needed, not a visible change.
   ✅ **The card's width cap** (item 342) — 520 → 545, clearing the clipped help line on Potoroo and Firetail.
   The lane's read: it does **not** look over-wide; the extra 25px land as air after the hint and a looser
   label-to-chord gutter (~1.40:1 → ~1.47:1 against the card's height). **The gutter is what a critical eye
@@ -3958,22 +3959,76 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      EXCLUDES test paths, and its doc says in as many words that the exclusion is a scope boundary rather than
      an endorsement** — so consider whether the scan should widen to tests once these are fixed, which would
      stop a sixth appearing. **Routing:** production tier.
-355. 🚧 CLAIMED (worktree item-355-remaining-scale, deep tier) 🔴 **SEVEN MORE ZOOM-ALONE LENGTHS SIT OUTSIDE THE DECLARATION LAW'S SWEPT SOURCES, so no ledger ever
-     held them — and one of them now MISMATCHES a length item 338 just repaired.** Found by 338's lane and
-     declined as unmeasured rather than landed on the same reasoning 322 used.
-     `CORNER_RADIUS`, `STREAK_RADIUS`, `CAPTION_SCRIM_PAD_X/_Y`, `IMAGE_CORNER_PX`, and the **theme-data
-     field** `RenderCaps::spell_underline_gap`.
-     ‼ **THE MISMATCH IS THE URGENT PART: `spell_underline_gap` is read in the SAME `let` block as three of
-     the constants 338 just fixed**, so at 2× the squiggle now has the **right amplitude and a half-size gap
-     from the baseline.** 338 made that pair inconsistent where it was previously uniformly wrong — **which
-     is a real, visible-at-2× regression in the narrow sense**, even though the net change is an improvement.
-     **Check it against `gallery/item-338/338-2x-after.png` before deciding priority.**
-     ⚠️ **A theme-data field is not a chrome constant**, so the declaration law's sweep will not reach it by
-     widening a path — **it needs the `RenderCaps` family asked the same question**, which is a different
-     mechanism and the reason this is its own item.
-     ✅ **Build:** measure each of the seven as 338 did (authored value, dpi-divided, per tier), then classify.
-     **Routing:** production tier.
+355. ✅ **CLOSED (merged 2026-08-08) — THE MISMATCH WAS REAL AND EXACTLY THE PREDICTED SHAPE, AND THE
+     "SEVEN" WERE SIX PLUS A TRAP.**
+     ‼ **TWO CONSTANTS SHARE THE NAME `CORNER_RADIUS` IN TWO FILES WITH OPPOSITE VERDICTS**, and the item's
+     count came from grepping that name across both. The caret's `7.0` goes through `set_corner`/`prepare`
+     **every frame** and is a `Logical` length; `selection.rs`'s `2.5` is uploaded **once at `Self::build` and
+     never re-uploaded**, so it is legitimately `Physical` and was correctly left alone — `menubar::EDGE_BLEED_PX`'s
+     doc cites *that* one. Both docs now say which is which. **A name is not a unit.**
+     ✅ **The squiggle gap was arithmetically exact and honestly small.** Measured with a fresh pipeline per tier
+     at matched logical geometry: at dpi 2 the amplitude was right at **6.40** (2 × its authored 3.2) while the
+     gap sat at **1.00** against its owed **2.00** — exactly half, a third at 3×. In pixels on Tawny the 22-row
+     band moved from rows **157–178 to 158–179**, band height unchanged: **one device pixel of vertical offset**
+     (two at 3×). ‼ **It is NOT the reads-instantly class 338's amplitude was**, and the lane said so rather than
+     inheriting the item's "real, visible-at-2× regression" framing — it is the consistency that amplitude needed.
+     338's lane inferred the mechanism from a `let` block and was right about it.
+     ✅ **The writing nit carried the identical defect** as an unnamed `1.0 * m.zoom` literal — **found by the
+     widened scan, not by the item.** The item named theme data; the same bug sat in a bare literal beside it.
+     ‼ **WHAT THE SCAN FOUND THAT NOBODY NAMED, and this is the item's real yield:**
+     • **`PageFrame::Line { weight_px }` — theme data multiplied by NOTHING AT ALL.** Not zoom, not dpi. Wagtail's
+       frame goes 2 → 4 device px at dpi 2, Kite's 1 → 2. The name ended in `_px` and that is all it had.
+     • **`caret::CORNER_RADIUS` reached two FURTHER sites completely raw** (`chrome/panel.rs`,
+       `chrome/overlay_draw.rs`) — the one accent, scaled by nothing. **No visible change, and that is MEASURED
+       rather than assumed:** both shaders clamp `r = min(corner, min(half.x, half.y))` and a thin caret bar had
+       already saturated it, so 8 captures at zoom 2 and 0.8 came back **byte-identical**. A latent defect
+       reported as latent.
+     • `STRIKE_THICKNESS` + `LINK_UNDERLINE_THICKNESS` at four read sites; three separate spellings of one
+       minimum decoration width, now one owner (`DECOR_MIN_W`).
+     ✅ **The `RenderCaps` mechanism: role, not names — because THE NAMES IN THIS FAMILY ACTIVELY LIE.**
+     `chevron_lift`/`tail_lift` read as distances and are colour-lift fractions `.clamp(0.0,1.0)`; **`feather_px`
+     reads as a length and is DEAD** — every consumer reads the bare `lava::FROST_FEATHER_PX`, so it is a dial
+     the product does not honour. **A `_px` name list would have typed two non-lengths and missed the one that was
+     actually wrong.** Two arms in `theme/tests/render_caps_units.rs`, enrolment **derived by walking `model.rs`
+     from `RenderCaps` through every type it reaches**: the read-site rule (fires by file and line) and a
+     17-field verdict census graded from both ends.
+     ‼ **THE CENSUS CAUGHT THE LANE'S OWN PARSER FIRST, and only from the other end.** A line-based field parse
+     read `Inset { x_frac: f32 }` as a field named `Inset { x_frac`, **silently missing four f32 fields — every
+     one an inline enum payload, including `weight_px`, the worst defect in the item.** The read-site arm saw
+     nothing; only the staleness arm revealed it. **A generated enrolment is a parser, and a parser is a
+     hypothesis** — which is why the pair-graded-from-both-ends shape is not redundancy.
+     ✅ **Evidence:** 20/20 byte-identical at 1× against a binary built from the **parent commit** (no stash);
+     10/10 PNGs differ with 10/10 sidecars identical at 2×; **dpi 1.5 and dpi 3 swept separately** — the tiers no
+     ordinary capture reaches. Laws sweep 1.0/1.5/2.0/3.0. Ten mutations panicked by name one at a time, each with
+     its replacement count asserted and its `test result:` line read.
+     ‼ **ONE MUTATION IS REPORTED AS INVALID RATHER THAN AS A SURVIVOR:** retyping `weight_px` back to `f32` did
+     not compile (7 × E0308) — **exactly the class where no-compile reads like no-panic**, and the lane named it.
+     🔵 **Two dials RECORDED RATHER THAN CHANGED, each wanting its own item** — see 359 and 360 below.
+     ⚠️ **Harness hazard, worth more than the item:** `cp`-ing a rebuilt binary **over an already-executed path**
+     makes macOS kill it on exec (code-signature cache) — **exit 137, which is indistinguishable from OOM**, and it
+     cost the lane two SIGKILLs at load 16 with 24k free pages. **Copy a rebuilt binary to a FRESH path.**
+     Captures: `gallery/item-355/`. **`355-caret-corner-dpi1-vs-dpi2.png` is the one to look at** — dpi 1 at ×10
+     beside dpi 2 before/after at ×5, so all three are the same apparent size and only the shape differs.
+     Shas `57bbcdf2`, `832a02b8`, `b563e238`, `7f332154`.
 
+359. 🔵 **OPEN — THE MIRROR IMAGE OF 355's AXIS: TWO CARD DIALS ARE dpi-CORRECT AND ZOOM-BLIND.**
+     `CardShape::Chamfered { cut_px }` and `CardTexture::HalftoneDots { cell_px }` resolve as
+     `* dpi.max(1.0)` — so they track a dense panel and **ignore the reader's zoom entirely**, where 355's family
+     did the opposite. Found and deliberately **not** changed by 355's lane, recorded with their owner.
+     ⚠️ **Why it is its own item and not a widening:** unlike every length 355 touched, **this one MOVES CARD
+     GEOMETRY on several worlds at any zoom ≠ 1** — a chamfer cut and a halftone cell are visible form, not a
+     sub-pixel gap. It is a taste call with a unit argument behind it, not a unit repair.
+     ✅ **Build:** measure both at zoom 0.8/1.0/2.0 × dpi 1/2 per carrier world, capture before/after on the
+     worlds that carry them, and bring the shipped-vs-repaired pair to the user rather than landing it — the
+     chamfer is authored form on the worlds that chose it.
+
+360. 🔵 **OPEN (small) — `Frost::feather_px` IS A DIAL THE PRODUCT DOES NOT HONOUR.**
+     Every consumer reads the bare `lava::FROST_FEATHER_PX`; the field is written by world literals and read by
+     nothing. **Either route the consumers through the field or delete it** — a theme capability that does not
+     reach the renderer is worse than no capability, because a later round tunes it and measures no change.
+     Found by 355's verdict census (it is the field whose `_px` name is a lie in the other direction).
+     ✅ **Build:** grep the consumers, decide route-or-delete, and add the arm that makes an unread `RenderCaps`
+     field fail the census rather than earn a verdict.
 356. ✅ **CLOSED (merged 2026-08-08) — THE PREMISE IS TRUE, THE LIVE APP CAN REACH IT, AND IT WAS A REAL
      DEFECT. But the item pointed at the WRONG CAUSE, and the lane refused it before measuring.**
      🔴 **It is not pipeline reuse or fixture ordering — the partition is the DOCUMENT.** A concealed markup
