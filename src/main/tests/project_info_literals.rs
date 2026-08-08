@@ -79,6 +79,12 @@ fn every_capture_project_info_literal_is_accounted_for() {
     let expected: &[(&str, usize)] = &[
         // The struct's own declaration.
         ("capture/opts.rs", 1),
+        // A doc-drift ORACLE, not a capture: every field deliberately `Some`,
+        // so the sidecar writer emits its whole key set and CAPTURE.md's
+        // `project` row can be held to it. Routing this through
+        // `run::project_info` would make the oracle depend on what a real
+        // launch happens to populate, which is the opposite of what it needs.
+        ("capture/tests/capture_md_drift.rs", 1),
         // A hand-built sidecar FIXTURE: no root, no filesystem, no derivation
         // to get wrong — it exists to pin the JSON schema's chrome block.
         ("capture/tests/schema_chrome.rs", 1),
