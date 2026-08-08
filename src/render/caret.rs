@@ -153,26 +153,28 @@ impl TextPipeline {
     /// boundary) `col_x_and_advance` falls back to the default `char_width` cell, so
     /// the block keeps a full visible width there instead of a degenerate sliver.
     ///
-    /// On a MONO face the historical `.max(caret_w)` floor is kept. ⚠️ **It is NOT a
-    /// no-op: `metrics.caret_w` is a fixed `CARET_W`, face-INDEPENDENT, and the
-    /// bundled monos do NOT share one pitch** (own-`hmtx`: Plex Mono/JetBrains
-    /// 0.60 em, Monaspace Xenon 0.62, Iosevka 0.50), so a narrower face has its
-    /// block floored UP past the glyph it sits on. The floor — the thing that made
-    /// the block too wide on a narrow PROPORTIONAL glyph — is dropped only there.
-    /// Keyed on the EFFECTIVE shaped face (`shaped_font`, the `doc_family` seam),
-    /// NOT `Theme::font`: a serif world editing a `.rs` shapes the buffer in the
-    /// world's mono companion, and the block must follow the grid on screen.
+    /// A MONO face gets no separate arm: the bundled monos do NOT share one
+    /// pitch (own-`hmtx`: Plex Mono/JetBrains 0.60 em, Monaspace Xenon 0.62,
+    /// Iosevka 0.50), so a fixed-cell floor keyed on `metrics.caret_w`
+    /// (face-INDEPENDENT) would raise the block past the glyph it sits on for
+    /// any face narrower than that cell — exactly the shape that made the
+    /// block too wide on a narrow PROPORTIONAL glyph before this function's
+    /// proportional arm existed. The real advance already IS the uniform mono
+    /// cell on a real grid (every column shares one width by construction), so
+    /// tracking it needs no separate floor to hold the grid.
+    ///
+    /// A GLYPHLESS or DEGENERATE cell (end-of-line, an empty line, the
+    /// collapsed space at a soft-wrap boundary) still reads as a full visible
+    /// cell — [`Self::col_x_and_advance_aff`]'s own rescue to the default
+    /// `char_width` already covers it there, so no floor at this call site is
+    /// needed to keep those cases visible.
     pub fn caret_block_w(&self) -> f32 {
         let (_x, adv) = self.col_x_and_advance_aff(
             self.cursor_line,
             self.caret_anchor_col(),
             self.caret_affinity,
         );
-        if crate::caret::font_is_mono(self.shaped_font) {
-            adv.max(self.metrics.caret_w)
-        } else {
-            adv
-        }
+        adv
     }
 
     /// Resolve the cosmic-text [`CacheKey`] of the glyph under the cursor at
