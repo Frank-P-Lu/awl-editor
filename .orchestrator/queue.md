@@ -4197,6 +4197,200 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      footprint tightness/coverage laws and targeted diagonal/frost suites pass. This is a small reversible
      taste change: revert restores the old mark placement and footprint with no file/config migration.
      **Routing:** production tier plus vision smoke.
+
+361. **PIPELINE TINT HAS TWO OWNERS AND NOTHING MAKES THEM AGREE.** Every baked GPU
+     pipeline's colour is written twice: once as a constructor argument in
+     `TextPipeline::new` (`src/render/pipeline_draw.rs:6` — a 593-line file that is almost
+     entirely that one function) and again in `sync_theme_colors`
+     (`src/render/pipeline_geometry.rs:27`). Measured across both files the same token
+     expressions appear on both sides — `theme::surface_selected()` 6/6,
+     `theme::primary()` 6/6, `float_shadow_srgba()` 5/5, `theme::base_200()` 6/5,
+     `wash_rgba_bytes(SynKind::Comment)` once each — with no owner and no law over the
+     construction half. `render/tests/selection_token_routing_law.rs` already proves the
+     SYNC half for two tokens and its module doc names why a capture cannot help: **a
+     headless capture builds its pipelines ONCE and never calls `sync_theme_colors`**, so a
+     divergence between the halves repaints nothing any capture can see and reaches only a
+     user who switches worlds while the app is running.
+     ✅ **Build:** construct with placeholder tints and call `sync_theme_colors()` at the end
+     of `new()`, so sync becomes the one owner and every future pipeline is born correct.
+     ⚠️ **The two sides are NOT the same set, and the count asymmetry is LEGITIMATE** —
+     `footer_plate_rim` and `overlay_spine_selected` are re-tinted per frame by
+     `chrome/overlay_selection.rs` / `layers.rs`, and `render.rs:2250` says so in as many
+     words. **Derive the enrolment from the fields `sync_theme_colors` actually writes**,
+     never from "every pipeline". Note `new()` also sets dither/gradient state sync does not
+     own (`pipeline_draw.rs:35,56,91,195,298`); sync overwrites only its own fields, and
+     `dpi: 1.0` at construction makes `wagtail_stipple_cell_px(self.dpi)` agree with the
+     hardcoded `(1.0)`.
+     ✅ **Verify:** a law asserting each sync-owned pipeline's post-`new` colour equals its
+     post-`sync` colour across the whole roster. `SelectionPipeline::test_color`
+     (`src/selection.rs`) is the existing seam; the three other pipeline types
+     (`caret/pipeline.rs:232`, `caret_glyph.rs:398`, `spellunderline.rs:221`) need the same
+     read accessor. Mutation: skip the sync call, watch it go red by name. Plus a
+     byte-identity capture sweep — **any diff is a pre-existing construction/sync
+     divergence and is reported, not absorbed.** **Routing:** production tier.
+
+362. **A 16-ARGUMENT POSITIONAL SIGNATURE WITH THREE CALL SITES, ELEVEN OF WHOSE ARGUMENTS
+     ARE THE SAME DOCUMENT CONTEXT EVERY TIME.** `build_line_attrs`
+     (`src/render/spans/layout.rs:121`, carrying its own `#[allow(clippy::too_many_arguments)]`)
+     is the single shared recipe behind `set_text_incremental`, `restyle_all_lines` and
+     `refresh_rule_conceal` — called at `src/render/text.rs:778`, `:937` and `:1115`. Eleven
+     arguments are doc-level and repeated verbatim at all three sites (`base`,
+     `base_font_size`, `base_line_height`, `md`, `md_spans`, `syn_spans`, `doc_lang`,
+     `cjk_priority`, `fonts`, `cursor_byte`, `selection_touch`); only five vary per line
+     (`line_text`, `line_doc_start`, `conceal_off_cursor`, `image_row_height`,
+     `image_force`). ⚠️ **The filed count was 9; the tree says 11** — confirmed by reading
+     all three call sites.
+     ✅ **Build:** bundle the doc-level arguments into one `LineAttrsCtx` built once per call
+     site and keep the per-line arguments explicit. The value is compiler help: a future
+     twelfth doc-level input reaching only two of three sites is today a silent behaviour
+     split, and the three-path no-drift contract the function's own doc claims is enforced
+     by nothing but the author's care.
+     ✅ **Verify:** behaviour-identity — a byte-identical capture sweep across the roster
+     (output directory OUTSIDE any captured corpus), plus the existing markdown/conceal/image
+     suites green. No new law is owed; if one is written, it belongs on the ctx's
+     construction, not on the arity. **Routing:** production tier.
+
+363. **THREE RENDER FUNCTIONS DO TWO JOBS EACH, AND EACH SECOND JOB IS A CLEAN LIFT.**
+     Measured in the tree: `refresh_rule_conceal` (`src/render/text.rs:985`, 173 lines) ends
+     with a self-contained image-force/row-height bookkeeping block at ~`:1049–1111` before
+     it reaches its `build_line_attrs` call; `compute_image_layout` (`src/render/text.rs:414`,
+     ~184 lines) is a find-spans pass glued to a size/force pass through a local `Found`
+     struct at `:444`; `prepare_images` (`src/render/layers.rs:962`, ~211 lines, native arm)
+     ends with a placeholder-LABEL tail at ~`:1095–1171` that shares nothing with the decode
+     and quad work above it and lifts cleanly as `build_missing_placeholder_areas`.
+     ✅ **Build:** three behaviour-identity extractions, each in its own reviewable commit so
+     any one can be reverted alone. Do not merge them into one diff.
+     ⚠️ **Per `CLAUDE.md`, an identity-gated refactor earns a follow-up OUTCOME audit** —
+     byte-identity preserves pre-existing bugs, and the image/conceal neighbourhood is where
+     this repo's stale-row and stale-height defects have clustered. Book the audit as part of
+     the item, not as a nicety.
+     ✅ **Verify:** byte-identical captures over the image/table/conceal fixtures at dpi 1
+     and 2 (output outside the captured corpus), the markdown and images suites green, and
+     the extracted helpers' names stating what they own rather than where they came from.
+     **Routing:** production tier for the extractions; production tier for the outcome audit,
+     dispatched separately so it does not read its own diff.
+
+364. **THE 267-FIELD `TextPipeline` IS A DECLARED EXCEPTION; ITS CONSTRUCTOR'S DEFAULT TAIL
+     IS NOT.** `TextPipeline::new`'s struct literal runs `src/render/pipeline_draw.rs:311–586`
+     — 276 lines, of which **123 are trivial one-value defaults** (`None`, `false`,
+     `Vec::new()`, `0.0`, `String::new()`). 69 of those lines carry an `overlay_` / `hud_` /
+     `wk_` / `debug_` prefix. Grouping them into `#[derive(Default)]` sub-structs shrinks the
+     constructor with no behaviour risk. ⚠️ **This shrinks the CONSTRUCTOR; it does not
+     un-declare the struct's GPU-floor exception** (`scripts/code-health.toml`'s
+     `src/render.rs` stanza), and the item must not be read as licence to touch that.
+     ‼ **THE FILED "NEAR-ZERO RISK" IS TRUE OF BEHAVIOUR AND FALSE OF BLAST RADIUS, AND THE
+     DIFFERENCE IS MEASURED.** A sub-struct renames every read site. `hud_` is 9 fields /
+     ~77 mentions, `wk_` 5 / ~24, `debug_` 10 / ~39 — all tractable. **`overlay_` is 45
+     fields and ~2257 mentions crate-wide**, which is a different item with a different cost.
+     ✅ **Build:** do `hud_`, `wk_` and `debug_` as three separate commits and STOP. Report
+     the constructor's new line count and an honest estimate for `overlay_`; whether that one
+     is worth doing at all is a judgement the orchestrator makes on the reported number, not
+     a foregone conclusion.
+     ✅ **Verify:** compiles with no `..Default::default()` hiding a field the author meant to
+     set (the sub-struct's `Default` is the ONE place a new field gets its inert value, the
+     same discipline `ViewState::base()` carries), byte-identical captures, native both
+     conventions. **Routing:** production tier.
+
+365. **🔵 66 ITEM-NUMBERED TEST FILES — BUT THE PREMISE IS CONTESTED BY THE TOOLING, AND THAT
+     IS THE FIRST THING TO SETTLE.** `git ls-files` finds **66** files matching
+     `*item<N>*.rs` — **35,110 lines, 340 tests** — 57 of them under `src/render/tests/`, the
+     newest added 2026-08-08. `CLAUDE.md` says *"don't cite queue items, rounds or shas in
+     code"* (landed `08856553`, 2026-08-04).
+     ‼ **BUT `scripts/code-health.py` ENCODES THE OPPOSITE POLICY, DELIBERATELY AND
+     RECENTLY.** `TEST_FILENAME_ITEM_INDEX` (`:43`) plus `is_index_named_test_file` (`:79`)
+     **exempt** an index-named test file's own citations from the comment-citation ratchet,
+     and `check_index_named_test_files` (`:135`) exists to VALIDATE that each such filename
+     cites a real board item — reinforced as recently as `289d364c` (2026-08-07). So this is
+     not an unnoticed violation; it is a sanctioned carve-out, and the sweep is a **policy
+     change**. **Settle that first: either the carve-out is retired (and the three code-health
+     functions plus their self-tests come out with it) or the item closes as premise-false.**
+     A lane must not start renaming on the strength of the headline.
+     ✅ **If the sweep is authorized**, it is one dedicated commit and it is wider than filed:
+     58 `mod` lines in `src/render/tests/mod.rs`, **25** cross-file `use super::<name>item<N>`
+     imports (e.g. `backgrounds_item117.rs:4` → `backgrounds_item69`;
+     `paperbark_retina_item201.rs:37–39` → three item-named siblings), and **21** production
+     doc-pointers, not 2 — `chrome/diagonal.rs:98` and `chrome/overlay_ink.rs:20–22` are the
+     two that were filed, and `keymap.rs:29`, `render.rs:26`, `rotated_location.rs:89`,
+     `quotecheck.rs:27`, `plan/overlay_rows.rs:247`, `geometry/page.rs:14`,
+     `chrome/comparison.rs:28,90`, `theme/ground.rs:198`, `overlay/workspace.rs:105` and
+     others are the rest. Names state the MECHANISM.
+     ⚠️ **Scope boundary, stated so it cannot creep:** stripping `ITEM N —` doc-comment
+     prefixes is bounded to the renamed files. The whole-tree population is **443** `ITEM N`
+     occurrences (172 in production files) and **1236** case-insensitive `item N` prose
+     mentions — that is a separate item, not this one's tail.
+     ✅ **Verify:** every test name unchanged (only module paths move), full native suite both
+     conventions green, and `code-health.sh` — not `code-health.py` — green after `git add`.
+     **Routing:** the policy question is the orchestrator's or the user's; the sweep itself is
+     repeatable tier once authorized.
+
+366. **TWO FILES, ONE MECHANISM, SPLIT BY LANDING ORDER: THE ZIGZAG GROUND.**
+     `src/render/tests/backgrounds_item86.rs` (308 lines) holds real-pixel proofs for
+     `Background::Zigzag`; `src/render/tests/backgrounds_item89.rs` (1500 lines) describes
+     itself in its own first sentence as *"the correctness repair of item 86's chevron margin
+     ground"* and carries the field laws for the same shader. Same subject, same seam
+     (`headless_dq`, `mark_field`), two files for no reason but the order they landed in —
+     and 86 already imports from 69 while 89 imports from 69 and is imported by
+     `backgrounds_item132.rs` and `paperbark_retina_item201.rs`. **Merge, don't align.**
+     ✅ **Build:** one mechanism-named zigzag-background file; update the two `mod` lines in
+     `src/render/tests/mod.rs` and the four external `use super::backgrounds_item89::…` /
+     doc references (`backgrounds_item69.rs:10,786`, `backgrounds_item132.rs:21`,
+     `backgrounds_item158.rs:28,1165`, `paperbark_retina_item201.rs:38`). Neither file
+     carries a `code-health.toml` size mark today; the merged file will be ~1800 lines and
+     test files are exempt from the production ceiling, so no mark is owed — **confirm that
+     against the tool rather than against this sentence.**
+     **Dependency:** this is 365's mechanism at n=2. Fold it INTO 365's sweep if 365 is
+     authorized; run it standalone only if 365 closes premise-false, since the merge stands
+     on its own regardless of what the files end up called.
+     ✅ **Verify:** the same 340-minus-nothing test names present, targeted
+     `cargo test render::` green (it is the filter this repo's serial-guard failures hide
+     behind), full suite at landing. **Routing:** repeatable tier.
+
+367. **THE SIDECAR IS PARSEABLE JSON AND FOUR TEST FILES SCAN IT AS A STRING.**
+     `src/capture/tests/panels.rs` carries 20 `.contains(` assertions against rendered prose
+     — `:71` pins the literal `"still · frame — ms · worst —\nkey→px — ms\nredraws —"`, and
+     others pin whole `"frame_ms": null, "worst_ms": null, …` runs including their interior
+     spacing. `src/capture/tests/schema_chrome.rs` has 24. One debug-panel wording change or
+     one serializer spacing change breaks ~20 scattered literals that were never about
+     wording. `serde_json` is already a dependency (`Cargo.toml:109`), and
+     `src/capture/tests/mod.rs:137`'s `num_after(json, anchor, key)` is the existing helper —
+     itself a string scanner, so it is part of the subject rather than the fix.
+     ✅ **Build:** one parse-then-assert-typed-fields helper in `src/capture/tests/mod.rs`,
+     replacing both the `.contains` literals and `num_after`'s call sites. Keep the assertions
+     asserting the same FACTS — a typed read of a field that was never checked is scope creep,
+     and a typed read that quietly drops a check is a law going vacuous.
+     ✅ **Then the bigger payoff, same treatment:** `src/export/tests.rs` (**57**
+     `.contains`, not the filed ~50) and `src/export/pdf/tests.rs` (**58**, not ~47) — the two
+     most string-pinned files in the repo. These are a separate commit and may be a separate
+     round; export output is not the capture sidecar and needs its own parse seam.
+     ✅ **Verify:** each converted assertion is proven non-vacuous by breaking the field it
+     reads and watching it go red by name — a string `.contains` that becomes a typed read of
+     the wrong field passes for the wrong reason, which is exactly what this item is trying to
+     stop. **Routing:** production tier.
+
+368. **THREE SMALL "MERGE, DON'T ALIGN" VIOLATIONS, ONE OWNER, THREE COMMITS.**
+     ✅ **(a) `Config::empty()` and `Config::load()` carry byte-identical 34-field struct
+     literals** — `src/config/model.rs:39` (`path: PathBuf::new()`) and `:149` (`path`),
+     differing in that one line and nothing else. Every new setting must be hand-added to
+     both, and the compiler catches a MISSING field, never a misaligned one. `load` builds
+     from `Self::empty()` and sets `path`.
+     ✅ **(b) `src/main/args.rs:948–1245`** is ~298 lines of embedded `#[cfg(test)]` unit
+     tests in a file whose own module already has the convention: `src/main/args/flags/tests.rs`
+     exists. Move them to `src/main/args/tests.rs`. The file's `code-health.toml` mark is 1245
+     against a frozen baseline of 1615, so this is a mark TIGHTENING to ~947 — cheap, and the
+     mark edit is the orchestrator's at merge time, not the lane's.
+     ✅ **(c) `fixture_opts()` is copied THREE times, not two** — `src/capture/tests/panels.rs:11`,
+     `src/capture/tests/pickers_faceted.rs:13` and `src/render/tests/date_picker_ink.rs:32`,
+     each an identical 3-line alias for `CaptureOpts::default()`. ⚠️ **And the alias is not
+     even the dominant spelling in its own file:** `panels.rs` calls `CaptureOpts::default()`
+     directly 40 times against 9 uses of the helper. **Deleting the helper is the merge**;
+     hoisting it into `capture/tests/mod.rs` keeps a wrapper that earns nothing and cannot
+     reach the `render/tests` copy anyway.
+     ✅ **Verify:** (a) a law that a new `Config` field cannot be added to one constructor and
+     not the other — the simplest form is that `load` on an absent path equals `empty()` with
+     the path set, mutation-proven by desyncing one field; (b) and (c) are name-only moves,
+     proven by the suite. **Routing:** repeatable tier for (b) and (c); production tier for
+     (a)'s law.
+
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
