@@ -67,13 +67,53 @@ impl TextPipeline {
         Ok(())
     }
 
-    /// True when the FROSTED-BLUR backdrop applies this frame: a full-takeover
-    /// overlay is up AND it is NOT a crisp-exception picker (theme / caret) NOR the
-    /// contextual SPELL panel (a small floating popup at the word — it recedes
-    /// nothing, DESIGN §5). The search SPLIT panel (`search_active`, not
-    /// `overlay_active`) is never blurred.
-    fn overlay_blur(&self) -> bool {
-        self.overlay_active && !self.overlay_crisp && self.overlay_spell.is_none()
+    /// True when the FROSTED-BLUR backdrop applies to the WHOLE CANVAS this frame: a
+    /// summoned overlay is up AND it takes the room over
+    /// ([`Self::overlay_declines_takeover`]) AND it is not the contextual SPELL panel (a
+    /// small floating popup at the word — it recedes nothing, DESIGN §5). The search
+    /// SPLIT panel (`search_active`, not `overlay_active`) is never blurred.
+    ///
+    /// The spell panel is asked separately rather than folded into the takeover
+    /// predicate because `overlay_spell` is a POSITION, set by both doors independently
+    /// of any kind: a capture may declare the popup's anchor without declaring its mode.
+    ///
+    /// ALSO the sidecar's `dim_overlay` ([`Self::dims_doc`]), which is the same question
+    /// — does the document recede a value behind this card — and not a second one.
+    pub(in crate::render) fn overlay_blur(&self) -> bool {
+        self.overlay_active && !self.overlay_declines_takeover() && self.overlay_spell.is_none()
+    }
+
+    /// IS THIS FRAME'S SUMMONED CARD POINTER-ANCHORED? The right-click menu, and the one
+    /// owner of that question: it is also what decides the card plans no query field and
+    /// places itself at the pointer rather than at the room's own top drop
+    /// (`overlay_geometry`). A card cannot be pointer-placed for the layout and
+    /// room-summoned for the frost.
+    pub(in crate::render) fn overlay_contextual(&self) -> bool {
+        self.overlay_context_anchor.is_some()
+    }
+
+    /// DOES THIS CARD DECLINE THE FULL TAKEOVER — leaving the room's own colours live
+    /// outside whatever it covers?
+    ///
+    /// Two independent reasons, one predicate, so the full arm and the footprint arm of
+    /// [`Self::frost_mode`] cannot both fire or both miss:
+    ///
+    /// * **A CRISP PICKER** (theme / caret) declines because its ROWS PREVIEW the live
+    ///   page — frosting it would blur the very thing the row is showing.
+    /// * **A POINTER-ANCHORED MENU** declines because it is not a takeover at all. The
+    ///   full frost is the defocus behind a card that has become the subject of the
+    ///   screen (the palette, go-to, the outline, keybindings, the held HUD); a four-row
+    ///   menu summoned under the pointer, dismissed by the next click, never asks the
+    ///   document to stop being the subject. Receding the whole page for it is a value
+    ///   change the size of the window in answer to a gesture the size of a word.
+    ///
+    /// DECLINING THE TAKEOVER IS NOT DECLINING THE FROST. Both then reach the footprint
+    /// arm, whose own roster predicate ([`blur::footprint_frost_applies`]) decides
+    /// between a footprint and nothing at all: a composition that draws a panel or plates
+    /// under its rows already covers what it sits on, and a composition that draws
+    /// neither would otherwise interleave its rows with the document glyph-for-glyph.
+    fn overlay_declines_takeover(&self) -> bool {
+        self.overlay_crisp || self.overlay_contextual()
     }
 
     /// True when the SUMMONED-WHILE-HELD stats HUD should actually DRAW this frame.
@@ -124,15 +164,22 @@ impl TextPipeline {
     /// existed still does (the byte-identity argument for every world and every
     /// non-crisp overlay is that this arm is unchanged and reached first).
     ///
-    /// THE FOOTPRINT ARM is reached only by a CRISP picker — the theme picker and the
-    /// caret-style picker, the two whose job is previewing live world colours — over a
-    /// composition that backs its rows with NOTHING
-    /// ([`blur::footprint_frost_applies`]). Those two used to leave the document and
+    /// THE FOOTPRINT ARM is reached by every card that DECLINES the takeover
+    /// ([`Self::overlay_declines_takeover`]) — the two crisp pickers, whose job is
+    /// previewing live world colours, and the pointer-anchored menu, which is not a
+    /// takeover — over a composition that backs its rows with NOTHING
+    /// ([`blur::footprint_frost_applies`]). Those cards used to leave the document and
     /// the list interleaving glyph-for-glyph, because frost was a property of the plate
     /// and those compositions draw none. They now frost the card's own box and not one
     /// pixel outside it, so the surrounding page keeps the live colours the picker
     /// exists to show. No carve-outs inside the box: whatever the card covers is
     /// frosted, the caret included.
+    ///
+    /// AND WHERE THE COMPOSITION DOES BACK ITS ROWS, THE ANSWER IS `None` — no frost at
+    /// all. That is the whole treatment a pointer-anchored menu gets on a panelled or
+    /// plated world, and it is the right one for the same reason the footprint is right
+    /// on a bare one: the card's own surface already covers its footprint, so there is
+    /// nothing left for a backdrop to do.
     ///
     /// THE FOOTPRINT'S EXTENT IS THE FROST'S ALONE. `overlay_card_rect` has a second
     /// consumer — the pointer's click-away and wheel hit-test — and the two now want
@@ -165,7 +212,7 @@ impl TextPipeline {
             return Some(blur::Frost::Full);
         }
         if self.overlay_active
-            && self.overlay_crisp
+            && self.overlay_declines_takeover()
             && blur::footprint_frost_applies(crate::render::effective_list_style())
         {
             return self.overlay_card_rect().map(|rect| {

@@ -339,7 +339,7 @@ impl TextPipeline {
         };
         let empty_rows = empty.is_some() as usize;
 
-        let contextual = self.overlay_context_anchor.is_some();
+        let contextual = self.overlay_contextual();
         let header_rows = usize::from(!contextual); // contextual rows need no query field
         // PALETTE-COMPOSITION round: a calm gap after the query header, before the
         // candidate list (negative space as the divider). Grows the card by exactly

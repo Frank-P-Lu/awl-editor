@@ -54,7 +54,7 @@ use super::headless_dqp;
 /// A local luma step that only a document EDGE produces — item 294's threshold, at the
 /// same place in the same measured valley (that tree's frosted residue peaks near 5 and
 /// its sharp residue near 190, so it is not load-bearing to within a factor of four).
-const STRONG_GRADIENT: f32 = 24.0;
+pub(super) const STRONG_GRADIENT: f32 = 24.0;
 
 /// THE COVERAGE FLOOR on the mask under the card's own ink: how much of the frost must be
 /// present beneath a pixel the card draws.
@@ -90,6 +90,10 @@ struct Frame {
     card: [f32; 4],
     frost: crate::render::blur::Frost,
     shear: f32,
+    /// EVERY SURFACE THE CHROME PATH SAYS IT DREW — the production owner the shipped frost's
+    /// own box is derived from, so a law asking "is this region card-free" asks the same
+    /// enumeration the narrowing did rather than a threshold over pixels.
+    surfaces: Vec<[f32; 4]>,
     w: i64,
     h: i64,
 }
@@ -127,6 +131,7 @@ fn capture(
         crate::render::blur::Frost::Footprint(f) => f.shear,
         other => panic!("expected the footprint arm, got {other:?}"),
     };
+    let surfaces = super::frost_card_ink::declared_card_surfaces(p, w);
     p.set_view(&typed_picker(""));
     let empty = render_frame(device, queue, p, w, h);
     let (wi, hi) = (w as i64, h as i64);
@@ -137,6 +142,7 @@ fn capture(
         card,
         frost,
         shear,
+        surfaces,
         w: wi,
         h: hi,
     }
@@ -146,13 +152,19 @@ fn capture(
 /// peak local step)`. One owner, because both laws below ask it of different regions and a
 /// second copy would be a second definition of "sharp".
 ///
-/// The card's own ink is VETOED (the derived `CardInk` oracle, used the one way it is
-/// sound), so this measures the PAGE and never the glyphs drawn over it.
+/// ⚠️ **THE CARD-INK EXCLUSION IS THE CALLER'S, STATED AT THE CALL SITE, AND IT IS NOT THE
+/// SAME EXCLUSION IN BOTH LAWS.** `CardInk`'s premise — "what the card draws over is a blur
+/// of a blank page, and a blur has no step in it" — holds only WHERE THE FROST REACHES.
+/// Under the head band it does. In the rake's own unfrosted corners it does not, and there
+/// the veto cannot tell the card's ink from the world's live ground: a busier ground leaves
+/// a law less to measure, with nobody having touched either the law or the product. Whether
+/// this function excludes anything is therefore a decision each law makes about its own
+/// region rather than one made here for both.
 fn sharpness(f: &Frame, field: &[f32], keep: impl Fn(i64, i64) -> bool) -> (u64, u64, f32) {
     let (mut measured, mut edges, mut peak) = (0u64, 0u64, 0.0f32);
     for y in 0..f.h {
         for x in 0..f.w {
-            if !keep(x, y) || f.ink.vetoes(x, y) {
+            if !keep(x, y) {
                 continue;
             }
             let s = step(field, f.w, f.h, x, y);
@@ -164,6 +176,42 @@ fn sharpness(f: &Frame, field: &[f32], keep: impl Fn(i64, i64) -> bool) -> (u64,
         }
     }
     (measured, edges, peak)
+}
+
+/// EVERY SURFACE THE CHROME PATH SAYS IT DREW SITS INSIDE THE FROST — the DECLARED
+/// counterpart of the derived ink floor, asked of the owner the shipped narrowing is itself
+/// derived from (`overlay_drawn_surfaces`): the seats glyphon was handed, the rules, the
+/// rails, the spine's caps, every row's mark. Returns how many surfaces were graded.
+///
+/// It is what makes the corner law's unfrosted region a DOCUMENT measurement. That region is
+/// derived from the mask alone and holds no card ink exactly while every declared surface is
+/// inside the frost. The alternative is a pixel-derived veto, and in those corners a veto
+/// cannot tell the card's rows and ring from a lava lamp — so what it excludes is a property
+/// of the WORLD, and the law's subject shrinks as a theme's ground gets busier without anyone
+/// having touched either the law or the shape.
+///
+/// ⚠️ It catches a narrowing that CUTS a declared surface loose, and it cannot catch one that
+/// was never declared: the shipped box is derived from the same list, so dropping a term
+/// keeps every remaining term inside. Completeness belongs to the coverage law that measures
+/// the card's ink off a frost-suppressed frame.
+fn every_declared_surface_is_frosted(f: &Frame, dpi: f32, label: &str) -> usize {
+    assert!(
+        !f.surfaces.is_empty(),
+        "{label}: the chrome path declares NO drawn surface, so the card-free claim the corner \
+         law rests on is a claim over an empty enumeration — and the narrowing's own inert \
+         answer to that is to keep the whole box, so nothing downstream would notice"
+    );
+    for s in &f.surfaces {
+        let (worst, wx, wy) = tightest_coverage(f.frost, dpi, *s);
+        assert!(
+            worst >= INK_FROST_FLOOR,
+            "{label}: a surface the card DECLARES it draws, {s:?}, reaches ({wx:.1},{wy:.1}) \
+             where the frost's coverage is only {worst:.4} (floor {INK_FROST_FLOOR}). That is \
+             card ink over sharp document, and it also breaks the premise the corner sharpness \
+             stands on — that a region the mask does not reach carries no card ink"
+        );
+    }
+    f.surfaces.len()
 }
 
 /// EVERY ONE OF THE CARD'S OWN FOUR CORNERS, NAMED, WITH ITS FROST COVERAGE — the figure
@@ -203,12 +251,39 @@ fn card_corner_coverage(f: &Frame, dpi: f32) -> Vec<(&'static str, f32)> {
 /// mirrored card measures three. What survives the narrowing is the property that separates
 /// the two shapes: the retired box-UNION *contains* the card's box, so all FOUR of its
 /// corners are fully frosted, always, and a parallelogram of any width holds at most two.
+///
+/// # ⚠️ THE SUBJECT MUST NOT BE A FUNCTION OF THE WORLD'S GROUND
+///
+/// The sharpness half of this law grades the part of the card's box the frost does not reach
+/// at all, and that region is the one place `CardInk` cannot do its job: the card genuinely
+/// draws rows and a ring in the off-rake corners, the world's live ground is at full
+/// sharpness there too, and no threshold separates them. A veto there is sound (it biases
+/// DOWN) but it DEGRADES SILENTLY — a busier ground leaves the law less to measure, so the
+/// subject can shrink toward nothing through a THEME change, with nobody having touched
+/// either this law or the shape it grades. That is the "law satisfiable by deleting its own
+/// subject" family one step removed, and a presence guard alone only tells you the day it
+/// finally bites.
+///
+/// So the subject is split into two pieces neither of which is a threshold over pixels:
+///
+/// * **THE REGION** is the card's box intersected with `mask == 0`, read through the
+///   shipping policy's own mirror. It touches no pixel, so `measured` is arithmetic over the
+///   shape and cannot erode.
+/// * **THE FIELD** is the residue between the picker over prose and the picker over an empty
+///   document. The card's drawing and the world's ground are bit-identical between those two
+///   frames, so both cancel and what is left is the DOCUMENT — which is what the law claims
+///   to be measuring.
+/// * **THE CARD-FREE CLAIM** comes from the chrome path's own declaration
+///   (`TextPipeline::overlay_drawn_surfaces`, the owner the shipped narrowing is derived
+///   from): every surface it reports is required to sit inside the frost, which is what puts
+///   all of it outside the region. A narrowing that cut one loose fails by name.
 #[test]
 fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sharp() {
     let _g = crate::testlock::serial();
     let entry = crate::theme::active_index();
     let mut leaning: Vec<String> = Vec::new();
     let mut upright: Vec<String> = Vec::new();
+    let mut fewest_surfaces = usize::MAX;
     let ambient_bar = crate::menubar::menu_bar_on();
     for world in enrolled_worlds() {
         for bar in [ambient_bar, !ambient_bar] {
@@ -236,6 +311,12 @@ fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sh
                 let corners = card_corner_coverage(&f, dpi);
                 let short: Vec<_> = corners.iter().filter(|(_, m)| *m < 1.0).collect();
                 let full = corners.len() - short.len();
+
+                // Stated BEFORE the shear branch on purpose, so the upright `Rules` member is
+                // graded too — it is the one composition that draws at the card's full band,
+                // and therefore the only one whose surfaces a narrowing can strand.
+                fewest_surfaces =
+                    fewest_surfaces.min(every_declared_surface_is_frosted(&f, dpi, &label));
                 if f.shear == 0.0 {
                     upright.push(label.clone());
                     assert!(
@@ -260,21 +341,41 @@ fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sh
                 // the frost's mask does not reach AT ALL. Under the union that region is EMPTY
                 // by construction, so the count is both a presence guard and the mutation's
                 // own tripwire.
-                let luma_open: Vec<f32> = f.open.iter().map(|q| luma(*q)).collect();
+                //
+                // ⚠️ TWO THINGS MAKE THIS SUBJECT A PROPERTY OF THE SHAPE AND NOT OF THE
+                // WORLD'S GROUND. The REGION reads no pixel at all — the card's box and the
+                // shipping mask, and nothing else — so `measured` is arithmetic and cannot
+                // erode as a theme's ground gets busier. And the FIELD is the two frames'
+                // residue rather than the open frame's luma, so the card's ink and the
+                // world's ground both cancel by construction and what remains is the page.
+                // A veto here would be neither: the corners are exactly where `CardInk`
+                // cannot tell the card's rows and ring from a lava lamp, and what it took
+                // was sample size.
+                let residue: Vec<f32> = f
+                    .open
+                    .iter()
+                    .zip(f.empty.iter())
+                    .map(|(a, b)| luma(*a) - luma(*b))
+                    .collect();
                 let [rx, ry, rw, rh] = f.card;
-                let (measured, edges, peak) = sharpness(&f, &luma_open, |x, y| {
-                    let (fx, fy) = (x as f32, y as f32);
+                let in_corner = |fx: f32, fy: f32| {
                     fx >= rx
                         && fx < rx + rw
                         && fy >= ry
                         && fy < ry + rh
                         && mask_at(f.frost, dpi, fx, fy) == 0.0
-                });
+                };
+                let (measured, edges, peak) =
+                    sharpness(&f, &residue, |x, y| in_corner(x as f32, y as f32));
+
                 eprintln!(
                     "MEASURED {label}: shear {:.5}, card corner coverages {:?} ({full} full), \
-                     {measured} wholly unfrosted non-ink px INSIDE the card's box, {edges} \
+                     {measured} wholly unfrosted px INSIDE the card's box (region derived from \
+                     the mask alone, {} declared surfaces all inside the frost), {edges} \
                      carrying a document edge (peak step {peak:.1})",
-                    f.shear, corners
+                    f.shear,
+                    corners,
+                    f.surfaces.len()
                 );
                 assert!(
                     measured > 500,
@@ -299,6 +400,18 @@ fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sh
         !leaning.is_empty() && !upright.is_empty(),
         "the roster must contain a LEANING enrolled world and an UPRIGHT one, or one of \
          this law's two arms never ran: leaning {leaning:?}, upright {upright:?}"
+    );
+    eprintln!("ROSTER FEWEST declared drawn surfaces in one cell: {fewest_surfaces}");
+    // THE ROSTER-SCOPE PRESENCE FLOOR, not a per-cell one: three is what a composition
+    // organised by ABSENCE declares — its one shaped column, its query caret, and the rule
+    // band that runs the card's full width — and the leaning compositions declare 29. A
+    // per-cell floor at three would go red on a legitimate quieter composition; here a drop
+    // is visible without being pinned to the tightest member the roster happens to hold.
+    assert!(
+        fewest_surfaces >= 3,
+        "the quietest cell declares only {fewest_surfaces} drawn surfaces — the enumeration \
+         the card-free claim rests on has thinned out, and every consumer of it (this law and \
+         the shipped narrowing alike) is reading a shorter list than the card draws"
     );
     crate::theme::set_active(entry);
 }
@@ -406,9 +519,12 @@ fn the_cards_upright_chrome_is_frosted_and_no_document_edge_survives_behind_it()
                     .zip(f.empty.iter())
                     .map(|(a, b)| luma(*a) - luma(*b))
                     .collect();
+                // THE VETO IS SOUND HERE and nowhere else in this file: the head band sits
+                // where the frost's coverage is at its floor or above, so the empty frame
+                // under it is a blur of a blank page and every step in it is the card's own.
                 let (measured, edges, peak) = sharpness(&f, &residue, |x, y| {
                     let (fx, fy) = (x as f32, y as f32);
-                    fx >= hl && fx <= hr && fy >= ht && fy <= hb
+                    fx >= hl && fx <= hr && fy >= ht && fy <= hb && !f.ink.vetoes(x, y)
                 });
                 eprintln!(
                     "MEASURED {label}: head band [{hl:.1},{ht:.1},{hr:.1},{hb:.1}] — tightest \

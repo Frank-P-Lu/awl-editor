@@ -80,6 +80,9 @@ mod frost;
 /// keeps it one-directional: its flagged set is a superset of the card's drawing whose
 /// surplus is the world's own ground, so it does not invert into "where the card is".
 mod frost_card_ink;
+/// A POINTER-ANCHORED menu is not a takeover of the room: the full arm is not its arm,
+/// and the roster's own backing question then answers a footprint or nothing at all.
+mod frost_context_item298;
 mod frost_feather_item312;
 mod frost_footprint_item294;
 mod frost_parallelogram_item318;
