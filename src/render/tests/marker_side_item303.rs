@@ -446,52 +446,64 @@ fn differ_in(a: &[[u8; 4]], b: &[[u8; 4]], w: i64, x0: f32, x1: f32, y0: f32, y1
     n
 }
 
-/// THE LANE'S PERCEPTUAL READING of the same box [`differ_in`] counts bytes in:
-/// the widest ΔE any single cell moved between the two frames, and how many
-/// cells moved past the JND at all. Both are DIFFERENCES between two cells of
-/// the same frame pair — a cell against its own ground — never a byte compared
-/// to a theme constant, so neither is a claim about the rasterizer.
+/// THE LANE'S PERCEPTUAL READING of the same box [`differ_in`] counts bytes in,
+/// as `(travel, span, covered)`: how far the darkest cell in the lane MOVED from
+/// its own unselected ground, how far that same cell would have had to move to
+/// wear the mark's ink outright, and how many cells ended up nearer the ink than
+/// their own ground.
+///
+/// Every quantity is a distance between two readings of the SAME cell, and the
+/// claims built on them are ratios and counts — never a byte compared to a theme
+/// constant, so none of it is a claim about the rasterizer. `ink` is read from
+/// the same owner the draw sets its colour from.
 fn lane_presence(
-    a: &[[u8; 4]],
-    b: &[[u8; 4]],
+    on: &[[u8; 4]],
+    off: &[[u8; 4]],
+    ink: [u8; 4],
     w: i64,
     x0: f32,
     x1: f32,
     y0: f32,
     y1: f32,
-) -> (f64, usize) {
+) -> (f64, f64, usize) {
     let (xa, xb) = (x0.floor().max(0.0) as i64, x1.ceil().max(0.0) as i64);
     let (ya, yb) = (y0.floor().max(0.0) as i64, y1.ceil().max(0.0) as i64);
-    let (mut peak, mut past) = (0.0f64, 0usize);
+    let (mut travel, mut span, mut covered) = (0.0f64, 0.0f64, 0usize);
     for y in ya..yb {
         for x in xa..xb {
             let i = (y * w + x) as usize;
-            if i < a.len() && i < b.len() {
-                let de = pixeldiff::delta_e(a[i], b[i]);
-                peak = peak.max(de);
-                if de > JND {
-                    past += 1;
-                }
+            if i >= on.len() || i >= off.len() {
+                continue;
+            }
+            let moved = pixeldiff::delta_e(on[i], off[i]);
+            if moved > travel {
+                travel = moved;
+                span = pixeldiff::delta_e(off[i], ink);
+            }
+            if pixeldiff::delta_e(on[i], ink) < moved {
+                covered += 1;
             }
         }
     }
-    (peak, past)
+    (travel, span, covered)
 }
 
-/// The just-noticeable difference appearance is graded against here.
-const JND: f64 = 2.3;
+/// HOW FAR THE DARKEST CELL MUST TRAVEL from its own ground toward the mark's
+/// ink, as a FRACTION of the distance between them — so the claim is the same
+/// claim on a dark world and a light one, and on a backend that antialiases
+/// differently. Measured on this host: the shipped hairline travels 0.67 of that
+/// span at 1× and 1.00 at 2×, the crisp mark 1.00 at both, and a mark thinned to
+/// an eighth of the hairline's stroke — a wash, still drawn, still moving bytes —
+/// travels 0.30 and 0.38. The half-way line separates them with margin at both
+/// ends, and it is the coverage below which a stroke has stopped being ink.
+const MARK_MIN_TRAVEL_FRACTION: f64 = 0.5;
 
-/// THE MARK'S DRAWN PRESENCE FLOOR, set well under the tightest authorship the
-/// roster ships — measured on this host, the hairline peaks at ΔE 62.03 (1x) and
-/// 92.81 (2x) against its own ground, the crisp mark at 76.60 at both — and well
-/// over anything a wash produces. A FLOOR, so the only way across it is a mark
-/// on its way out.
-const MARK_PEAK_DE_FLOOR: f64 = 18.0;
-
-/// AND HOW MANY CELLS MUST CLEAR THE JND, so one stray sample past the peak
-/// floor cannot stand in for a stroke. Measured: 60 cells for the thinnest
-/// authorship at the coarsest scale.
-const MARK_PAST_JND_FLOOR: usize = 12;
+/// AND HOW MANY CELLS MUST GET THERE, so one lucky sample cannot stand in for a
+/// shape. Measured: 10 cells for the thinnest authorship at the coarsest scale,
+/// 395 for the heaviest at the finest — and exactly ZERO for the wash, which is
+/// what makes any positive floor a real separator and lets this one sit well
+/// under the tightest real reading.
+const MARK_MIN_COVERED_CELLS: usize = 4;
 
 /// REAL PIXELS — SELECTING A ROW PAINTS INK IN ITS OUTER LANE AND LEAVES THE
 /// SPINE-SIDE CONNECTOR GAP UNTOUCHED.
@@ -571,29 +583,33 @@ fn selecting_a_row_paints_the_outer_lane_and_leaves_the_spine_gap_clear() {
                  it is, and no state probe can see that"
             );
 
-            // THE SAME BOX, READ PERCEPTUALLY. `lane` counts cells that moved;
-            // these two say the movement is ink.
-            let (peak, past) = lane_presence(
+            // THE SAME BOX, READ PERCEPTUALLY. `lane` counts cells that
+            // moved; these two say the movement is ink.
+            let (travel, span, covered) = lane_presence(
                 &frame_on,
                 &frame_off,
+                theme::base_content().rgba_bytes(),
                 cw as i64,
                 lo - 1.0,
                 hi + 1.0,
                 r.row_top,
                 r.row_bottom,
             );
+            let reached = if span > 0.0 { travel / span } else { 0.0 };
             assert!(
-                peak >= MARK_PEAK_DE_FLOOR,
-                "{ctx}: the mark's darkest cell stands only ΔE {peak:.2} from its own \
-                 unselected ground, under the {MARK_PEAK_DE_FLOOR} floor — this world's \
-                 authored mark has been thinned past the point of being drawn, and \
-                 {lane} moved bytes in the lane cannot tell that from a stroke"
+                reached >= MARK_MIN_TRAVEL_FRACTION,
+                "{ctx}: the mark's darkest cell travelled ΔE {travel:.2} of the {span:.2} \
+                 between its own unselected ground and the ink the mark is painted in — \
+                 {reached:.2} of the way, under the {MARK_MIN_TRAVEL_FRACTION} floor. This \
+                 world's mark has been thinned past being drawn, and neither {lane} moved \
+                 bytes nor an ORDER against the other world's ink can tell that from a \
+                 stroke"
             );
             assert!(
-                past >= MARK_PAST_JND_FLOOR,
-                "{ctx}: only {past} cells in the mark's lane clear the JND (floor \
-                 {MARK_PAST_JND_FLOOR}, peak ΔE {peak:.2}) — whatever is drawn there is \
-                 not a shape a reader can find"
+                covered >= MARK_MIN_COVERED_CELLS,
+                "{ctx}: only {covered} cells in the mark's lane ended nearer the ink than \
+                 their own ground (floor {MARK_MIN_COVERED_CELLS}; darkest cell reached \
+                 {reached:.2}) — whatever is drawn there is not a shape a reader can find"
             );
 
             // The spine-side connector gap: strictly between the spine and the
