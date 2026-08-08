@@ -171,6 +171,25 @@ well as here — **this item has already been answered twice by the user because
 decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
+- 🔵 **A THIRD WIDTH-FAMILY QUESTION, and it is vertical rather than horizontal (item 347).** At the
+  **authored zoom maximum (300%)** in the two smallest windows the app allows (464×288, 520×400), a
+  workspace stage plans **no rows and draws no other region** — a card carrying no list at all. **7 cells,
+  all inside bounds the product itself enforces**, so the corner is reachable. **Should a workspace keep a
+  minimum card — one line of whichever region it is showing — or refuse to enter a stage with no room for
+  one?** ⚠️ **This is neither 327's nor 342's:** 327 asks which lane yields inside a card that exists, 342
+  asks whether the width cap should be font-aware, and this asks what happens when there is no room for a
+  line at all. It is held by a two-sided ledger meanwhile, so whichever way you answer, the law reddens and
+  its entries get deleted rather than quietly kept.
+- 🔵 **THE FIND/REPLACE PANEL IS HALF ITS TUNED SIZE ON YOUR RETINA SCREEN (item 174's slice 3).**
+  Its outer margin and inner pad are **raw device-pixel constants**, so the card's `y` and its text's `top`
+  are **identical at 1× and 2×** while everything around them doubles. That is `CLAUDE.md`'s own recorded
+  tripwire — *"chrome padding shipped at half its tuned size on every Retina display"* — **live in the
+  product again, in a different surface.** ⚠️ **Not fixed, because it is layout policy and the 1× look is
+  what was tuned**: scaling it makes the panel visibly roomier on every Retina display, which is your call
+  in the same family as the card-width cap. ✅ **The law is already fix-tolerant** — it asserts agreement
+  with the drawn rim at each scale independently, so it stays green the moment the pad is scaled.
+  ⚠️ **Second, smaller:** the panel's card has **no clamp to the window** — its x reaches **−33 at 560px**,
+  so it hangs off the left edge rather than sliding into view.
 - 🔵 **THE MAGPIE MARK: THREE CANDIDATES AND A RECOMMENDATION, your call (item 346).** You said it
   *"needs to be thinner and more elegant"* — and **"thinner" was already answered before you asked**:
   131e cut the drawn ink from 136 px² to 60 at 1×, a 56% reduction. So what is left is **form**, and the
@@ -996,7 +1015,36 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ⚠️ **131's own rule, which every consumer inherits: never ship a
      half-applied world.** Both worlds move in one commit or neither does.
 
-174. 🚧 **SLICE 3 CLAIMED (worktree item-174-slice3, deep tier) — the lane CHOOSES its family by measuring which laws currently recover geometry from pixels, then follows slices 1 and 2's shape. SLICES 1 AND 2 LANDED (2026-08-08). THE ITEM STAYS OPEN — it is a multi-round refactor
+174. 🟡 **SLICES 1, 2 AND 3 LANDED (2026-08-08). THE ITEM STAYS OPEN — a multi-round refactor.**
+     ✅ **SLICE 3: the find/replace panel's geometry at schema `/203`, and the family was chosen by
+     MEASURING.** 42 test functions across 22 files both read pixels and locate something. ⚠️ **Ground and
+     backgrounds are the numeric worst (13) and were correctly EXCLUDED** — band counts and dither density
+     are appearance by nature and no plan owns a shader's ground. Once in-crate laws that can already call
+     the owner were separated from **capture-level** laws that cannot, exactly **one** test answered a pure
+     geometry question with a pixel walk and had no published fact to ask instead.
+     ✅ **The row band had NO owner:** the forward step was inline in the caret placer and its inverse
+     inline in the hit-test — two spellings of one rule. `PanelRowBands` is now that owner, **each arm the
+     arithmetic its old caller used verbatim** so no float re-association could move a pixel, and **three
+     call sites ask it.**
+     🔴 **A MUTATION SURVIVED, AND THE LAW ONLY EXISTS IN ITS USEFUL FORM BECAUSE OF IT.** Making the
+     pointer's inverse read a **20%-wider pitch** left the law green — **at 32px rows a 20% error still maps
+     every band CENTRE to the right row.** The probes were rewritten from centres to **TRANSITIONS** (just
+     inside each edge, and 1.5px past each edge must already be the neighbour), and the same mutation then
+     reddened. ⚠️ **Another mutation failed to COMPILE first** and was caught by reading the build
+     separately — the third silent-no-op shape.
+     🔵 **TWO LIVE PRODUCT DEFECTS FOUND AND DELIBERATELY NOT FIXED (layout policy — see OWED).** The
+     panel's outer margin and inner pad are **raw device-px constants**, so `card.y` and `text.top` are
+     **identical at 1× and 2×** — `CLAUDE.md`'s own tripwire (a) live in the product, **half their tuned
+     size on every Retina display.** And **the card has no clamp to the window**: its published `x` reaches
+     **−33.242 at 560px**, so it hangs off the left edge.
+     ✅ **The law is FIX-TOLERANT about the first** — exact double only where the quantity is
+     metric-derived, direction elsewhere with the mechanism named, and agreement with the drawn rim
+     **at each scale independently** — so it stays green if the pad is ever scaled.
+     ✅ **Every published extent is graded against INK, not position alone** — slice 2's surviving-mutation
+     lesson applied. `sidecar.rs` held at **871 exactly**, measured, because rustfmt splits a combined
+     argument line back out. It also **corrected a doc error in place**: harness-reach.md still advertised a
+     `selected` key slice 1 removed.
+     **Slices 1 and 2 follow. SLICES 1 AND 2 LANDED (2026-08-08). THE ITEM STAYS OPEN — it is a multi-round refactor
      and these are two surface families of it.**
      ✅ **SLICE 2 published the accessory cluster's three lanes** (label, value, rail) at schema **/202**,
      each **`null` rather than a zero-width rect** when the frame drew nothing there — because "the column
@@ -3510,7 +3558,32 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      has shipped exactly that shape. **Sweep 1×/2×: a 1.25px hairline at dpi 1 is the case to watch.**
      🔵 **CLOSES ON THE USER'S EYE.** Two or three candidate weights, not a sweep of ten, with the
      one to ship named and argued. **Routing:** deep tier, then the user.
-347. 🚧 CLAIMED (worktree item-347-narrow-cliff, deep tier) 🔴 **THE SETTINGS CARD PLANS ZERO ROWS BELOW ~860 LOGICAL PX ON ITS SHIPPED SHAPE — a narrow-window
+347. ✅ **CLOSED (merged 2026-08-08) — PREMISE FALSE: THE ~860 WAS TWO CAPTURE DOORS DISAGREEING ABOUT
+     ZOOM, not a property of the card.**
+     ✅ **The card does NOT draw nothing.** At narrow widths it draws its category rail, a full-card
+     selection band, and a foot hint naming the way forward. The "vanishing" is the **documented narrow
+     STAGING regime**: for a rows-in-pane workspace the rows live in the content pane, so at the summon
+     stage they are correctly not planned — the mechanism's own comment says a narrow window stages them.
+     **One more chord reaches the rows at every reachable size:** 28 rows at 500px, **6 rows at 464×288,
+     the app's own enforced minimum window.** There is no width at which the list is unreachable.
+     🔴 **THE 860 WAS THE ORDINARY DOOR'S ZOOM.** That door pins **1.0** as a byte-stable baseline; the
+     live app launches at **0.8**, and nothing said so. **Match the axis and the two doors agree to 1px on
+     every world swept.** The threshold is also **per-world, not one number** — at the shipped launch zoom
+     it spans **670–739** across the roster (Bombora narrowest, Firetail widest).
+     ✅ **Two axes checked and found NOT to matter here, worth recording because they mattered elsewhere:**
+     the **menu-bar arm does not move this boundary at all** (unlike item 327's, because nothing in the
+     wide test reads the reserve), and **1×/2× are identical in logical px on both doors.**
+     ⚠️ **A plain `--screenshot` is also not hermetic** — a first run picked up the dev host's own config
+     and rendered a different world, so any un-configured replay measurement of this was host-dependent.
+     **Both facts are now in `docs/harness-reach.md` and `CAPTURE.md`.**
+     🔴 **BUT A GENUINELY BLANK CARD EXISTS, AND NOT WHERE THIS ITEM PUT IT — now the third product
+     question (see OWED).** 7 cells where a stage plans no rows **and** draws no other region, all at the
+     **authored zoom maximum** in the two smallest windows. Both bounds are the product's own, so the
+     corner is reachable. **Pinned as a two-sided ledger**, so whichever floor lands the law reddens and
+     the entries are deleted rather than kept.
+     ✅ **The law's presence floor is the clause to reuse: at the same window, zoom and scale the OTHER
+     stage must have rows.** Without it, *"no rows here"* is satisfied perfectly by rows that exist on no
+     stage at any width. **Original:** 🔴 **THE SETTINGS CARD PLANS ZERO ROWS BELOW ~860 LOGICAL PX ON ITS SHIPPED SHAPE — a narrow-window
      cliff, not a yield.** Found by item 174's slice 2 while measuring the accessory budget, and reported
      with the code untouched. On the ordinary capture path with `workspace: true` — **the reachable arm,
      since `workspace_shape()` answers `Some(RailOverRows)` unconditionally for Settings** — the card
