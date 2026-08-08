@@ -543,9 +543,9 @@ impl TextPipeline {
         self.buffer
             .set_size(&mut self.font_system, width, Some(shape_h));
         self.row_geom.invalidate();
-        if self.has_heading_lines() {
-            self.restyle_all_lines();
-        }
+        // Heading spans and every WYSIWYG conceal carry an ABSOLUTE per-span line-height
+        // the relayout above preserves, so the row pitch is stale until the attrs rebuild.
+        self.restyle_all_lines();
     }
 
     pub fn set_size(&mut self, width: f32, height: f32) {
