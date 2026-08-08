@@ -115,8 +115,8 @@ lines = 567
 
 [[file_size_mark]]
 file = "src/capture.rs"
-lines = 68
-reason = "One `/N` row in the schema ledger, which must move in the same commit as `SCHEMA_VERSION` (+1). Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure."
+lines = 72
+reason = "One `/N` row in the schema ledger, which must move in the same commit as `SCHEMA_VERSION` (+1). Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +4: the `/201` schema-ledger row and `mod plan_sidecar` -- the overlay's planned-geometry serializer, split into its own file rather than grown inside the one sidecar writer, whose own mark is therefore held at 871 exactly. The row and SCHEMA_VERSION must move in the same commit, which this file's own law enforces."
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
@@ -572,7 +572,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
 function = "overlay_json"
-message = "this function has too many lines (148/100)"
+message = "this function has too many lines (143/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `overlay_json` is one format string over the whole overlay record, so each serialized field — the workspace, the `driver` argument — is a line in it."
 
 [[clippy_exception]]

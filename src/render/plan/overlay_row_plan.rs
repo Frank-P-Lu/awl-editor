@@ -41,11 +41,26 @@ impl OverlayRowPlan {
         self.rows.get(display).map_or(0.0, |r| r.dw)
     }
 
+    /// **THE ONE ROW X-SPAN**, inclusive, in the same canvas-pixel space the
+    /// pointer arrives in: `[card_x + dx, card_x + card_w + dw]`.
+    ///
+    /// It is a named accessor rather than an expression because it now has more
+    /// than one reader — the pointer inverse below and the published geometry
+    /// report ([`super::row_report`]) — and two spellings of the same span is the
+    /// drift a staggering composition already caused once, when the draw
+    /// emitters applied a row's offset and `row_at` kept testing the card's
+    /// undisplaced edges.
+    pub(in crate::render) fn row_x_span(&self, display: usize) -> Option<(f32, f32)> {
+        let row = self.rows.get(display)?;
+        Some((self.card_x + row.dx, self.card_x + self.card_w + row.dw))
+    }
+
     /// The pointer inverse reads the exact horizontal span the planned row draws.
     pub(in crate::render) fn row_at(&self, px: f32, py: f32) -> Option<usize> {
-        let row = self.rows.get(self.display_at(py)?)?;
-        (px >= self.card_x + row.dx && px <= self.card_x + self.card_w + row.dw)
-            .then_some(row.item)
+        let display = self.display_at(py)?;
+        let (x0, x1) = self.row_x_span(display)?;
+        (px >= x0 && px <= x1)
+            .then_some(self.rows.get(display)?.item)
             .flatten()
     }
 

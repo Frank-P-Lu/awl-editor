@@ -159,6 +159,184 @@ fn grade_rows(
     (items, headers)
 }
 
+/// **THE PUBLISHED GEOMETRY IS THE THIRD READING.** `overlay_row_geometry()` is
+/// exactly what the capture sidecar serializes into `overlay.window.band` /
+/// `overlay.window.rows` (`capture::plan_sidecar`), and it is graded here against
+/// the two oracles that DO NOT READ IT: the shaped line's own drawn y, taken off
+/// the buffer the draw pass uploads, and whatever `overlay_row_at` accepts.
+///
+/// That independence is the whole point. Asserting the report against the plan
+/// alone would be a tautology — both sides read the same accessor, so a report
+/// that grew its own arithmetic would still have to be compared to the arithmetic
+/// it copied. Grading it against ink and against the pointer means a second
+/// derivation cannot hide: a published rect one pixel off the drawn row, or a
+/// published span wider than the span the pointer honours, fails by name.
+///
+/// The outside-the-span arm is gated on `item.is_some()` deliberately: a section
+/// heading resolves to `None` both inside and outside its own rect, so requiring
+/// a DIFFERENT answer outside would be unsatisfiable for it rather than strict.
+/// Returns the number of published rows graded.
+fn grade_published_geometry(
+    p: &TextPipeline,
+    plan: &crate::render::plan::OverlayRowPlan,
+    probe: &super::overlay_probe::OverlayYProbe,
+    ctx: &str,
+) -> usize {
+    let g = p
+        .overlay_row_geometry()
+        .unwrap_or_else(|| panic!("{ctx}: an open card must publish its row geometry"));
+    assert_eq!(
+        g.rows.len(),
+        plan.candidate_rows(),
+        "{ctx}: the sidecar publishes {} row rects for a planned band of {}",
+        g.rows.len(),
+        plan.candidate_rows()
+    );
+    assert_eq!(
+        (g.first_top, g.pitch, g.footer_top, g.selected_display),
+        (
+            plan.first_top(),
+            plan.lh(),
+            plan.footer_top(),
+            plan.selected_display()
+        ),
+        "{ctx}: the published band header disagrees with the plan it is a projection of"
+    );
+    let mut graded = 0usize;
+    for (i, rect) in g.rows.iter().enumerate() {
+        assert_published_row_matches_its_band(&g, i, plan, ctx);
+        grade_published_row_against_ink_and_pointer(p, plan, probe, rect, ctx);
+        graded += 1;
+    }
+    graded
+}
+
+/// The published band's own INTERNAL consistency, before either independent
+/// oracle: the rect describes the display line it claims to, it is not
+/// degenerate, it meets the content band, and it is contiguous with its
+/// predecessor.
+fn assert_published_row_matches_its_band(
+    g: &crate::render::plan::OverlayRowGeometry,
+    i: usize,
+    plan: &crate::render::plan::OverlayRowPlan,
+    ctx: &str,
+) {
+    let rect = g.rows[i];
+    let planned = plan.rows()[i];
+    assert_eq!(
+        (rect.display, rect.item),
+        (planned.display, planned.item),
+        "{ctx}: published row {i} claims display {}/item {:?}, the plan says {}/{:?}",
+        rect.display,
+        rect.item,
+        planned.display,
+        planned.item
+    );
+    // A PRESENCE floor before any agreement claim: a report that published empty
+    // rects would satisfy every comparison by having nothing to disagree with,
+    // and would still tell a reader nothing.
+    assert!(
+        rect.w > 1.0 && rect.h > 1.0,
+        "{ctx}: published row {} is a {}x{} rect — a degenerate rect makes every \
+         agreement assertion vacuous",
+        rect.display,
+        rect.w,
+        rect.h
+    );
+    // OVERLAP, deliberately not containment: a selected row on a staggering
+    // composition steps OUTWARD past the content band's own edge by design (the
+    // real Saltpan Settings card publishes `x` 4px left of `band.x`), so "inside
+    // the band" is a false law rather than a strict one. The span's exactness is
+    // pinned by the pointer probes instead, which fail in BOTH directions: a
+    // published span narrower than the real one puts the outside probes inside
+    // it, and a wider one puts an inside probe out.
+    assert!(
+        rect.x + rect.w > g.band_x && rect.x < g.band_x + g.band_w,
+        "{ctx}: published row {} spans [{}, {}], which does not meet its own \
+         content band [{}, {}] at all",
+        rect.display,
+        rect.x,
+        rect.x + rect.w,
+        g.band_x,
+        g.band_x + g.band_w
+    );
+    if i > 0 {
+        let prev = g.rows[i - 1];
+        assert!(
+            (rect.y - (prev.y + prev.h)).abs() < 0.01,
+            "{ctx}: published rows {} and {} leave a gap: {} + {} != {}",
+            prev.display,
+            rect.display,
+            prev.y,
+            prev.h,
+            rect.y
+        );
+    }
+}
+
+/// THE TWO INDEPENDENT ORACLES, against one published rect: the ink and the
+/// pointer, neither of which reads the report.
+fn grade_published_row_against_ink_and_pointer(
+    p: &TextPipeline,
+    plan: &crate::render::plan::OverlayRowPlan,
+    probe: &super::overlay_probe::OverlayYProbe,
+    rect: &crate::render::plan::PlannedRowRect,
+    ctx: &str,
+) {
+    // DRAWN — the ink, not a second calculation.
+    let drawn = *probe
+        .primary
+        .get(&rect.display)
+        .unwrap_or_else(|| panic!("{ctx}: published row {} must have ink", rect.display));
+    assert!(
+        drawn >= rect.y - 0.75 && drawn < rect.y + rect.h,
+        "{ctx}: published row {} reports the slot [{}, {}) but its glyph line is \
+         DRAWN at {drawn}",
+        rect.display,
+        rect.y,
+        rect.y + rect.h
+    );
+    // INTERACTIVE — inside the published span, at both edges and the middle.
+    let mid_y = rect.y + rect.h * 0.5;
+    for px in [rect.x + 0.5, rect.x + rect.w * 0.5, rect.x + rect.w - 0.5] {
+        assert_eq!(
+            p.overlay_row_at(px, mid_y),
+            rect.item,
+            "{ctx}: the pointer at ({px}, {mid_y}) is INSIDE published row {}'s \
+             rect [{}, {}]x[{}, {}] but does not resolve to its item {:?}",
+            rect.display,
+            rect.x,
+            rect.x + rect.w,
+            rect.y,
+            rect.y + rect.h,
+            rect.item
+        );
+    }
+    if rect.item.is_none() {
+        return;
+    }
+    for px in [rect.x - 1.5, rect.x + rect.w + 1.5] {
+        assert_ne!(
+            p.overlay_row_at(px, mid_y),
+            rect.item,
+            "{ctx}: the pointer at ({px}, {mid_y}) is OUTSIDE published row {}'s \
+             span [{}, {}] yet still selects its item — the published rect is \
+             narrower than the one the pointer honours",
+            rect.display,
+            rect.x,
+            rect.x + rect.w
+        );
+    }
+    assert_eq!(
+        rect.selected,
+        plan.selected_display() == Some(rect.display),
+        "{ctx}: published row {}'s `selected` flag disagrees with the planned \
+         selected line {:?}",
+        rect.display,
+        plan.selected_display()
+    );
+}
+
 /// ITEM 185 — the REAL pipeline's own path must match production's OWN
 /// classifier, `facets::scheme`, checked directly — never `fam` itself,
 /// which would make this tautological (the fixture already built its state
@@ -302,6 +480,7 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
         }
     };
     let mut rows_by_bar = [0usize; 2];
+    let mut published_by_bar = [0usize; 2];
     for bar in [false, true] {
         crate::menubar::set_menu_bar_on(bar);
         for dpi in [1.0f32, 2.0] {
@@ -327,6 +506,9 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
                         assert_faceted_state_matches_production(&p, &geom, kind, fam, &ctx);
                         assert_sidecar_matches_plan(&p, &plan, &v, &ctx);
 
+                        published_by_bar[usize::from(bar)] +=
+                            grade_published_geometry(&p, &plan, &probe, &ctx);
+
                         let (rows, headers) = grade_rows(&p, &plan, &probe, &ctx);
                         checked_rows += rows;
                         checked_headers += headers;
@@ -350,6 +532,21 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
         rows_by_family,
         headers_by_family,
         rows_by_bar,
+    );
+    for (i, n) in published_by_bar.iter().enumerate() {
+        assert!(
+            *n > 200,
+            "the sweep graded {n} PUBLISHED row rects with the menu bar {} — the \
+             sidecar's own half of the three-way agreement is vacuous there \
+             (both: {published_by_bar:?})",
+            if i == 1 { "shown" } else { "hidden" }
+        );
+    }
+    assert_eq!(
+        published_by_bar.iter().sum::<usize>(),
+        checked_rows + checked_headers,
+        "every planned display line must also be a PUBLISHED one — the sidecar \
+         cannot report a subset of the band the draw and the pointer share"
     );
 }
 

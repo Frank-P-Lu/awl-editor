@@ -252,13 +252,13 @@ pub(super) fn project_json(opts: &CaptureOpts) -> String {
     }
 }
 
+/// THE OVERLAY BLOCK. Two sources, deliberately: every field but `window` is the
+/// STATE the capture door was driven with (`CaptureOpts::overlay`), while `window`
+/// is what the RENDERER planned for the frame — counts, heights, and (schema
+/// `/201`) each candidate row's own rect. That half has its own serializer
+/// (`super::plan_sidecar`) because it reads the pipeline, not the fold's input.
 fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
-    let window = match pipeline.overlay_window_report() {
-        Some((top, lines, sel_row, card_h, canvas_h)) => format!(
-            "{{ \"top\": {top}, \"lines\": {lines}, \"sel_row\": {sel_row}, \"card_h\": {card_h}, \"canvas_h\": {canvas_h} }}"
-        ),
-        None => "null".to_string(),
-    };
+    let window = super::plan_sidecar::window_json(pipeline);
     match &opts.overlay {
         Some(o) => {
             let items = o
