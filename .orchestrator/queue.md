@@ -171,6 +171,23 @@ well as here — **this item has already been answered twice by the user because
 decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
+- 🔵 **THE CARET IS TOO WIDE ON CURRAWONG AND CASSOWARY, AND FIXING IT MAKES IT NARROWER — your
+  call, because the caret is the one accent in this design (item 345).** Those two worlds use **Iosevka**,
+  whose glyph cell is **0.50 em** where the other three bundled monos sit at 0.60–0.62. A historical
+  floor raises the block caret to a fixed width regardless of face, so it draws **14.400px over a
+  12.000px cell — 120% of the letter, overhanging 2.4px into the next character at zoom 1.**
+  ⚠️ **Every other mono world matches its cell exactly**, so this is those two worlds alone.
+  🔵 **The fix removes the floor, which makes the caret on those worlds visibly THINNER** — correct
+  against the glyph, but a change to the one thing in awl that is allowed to be loud. Worth seeing the
+  before/after on both worlds at 1× and 2× before it lands. Nothing else changes.
+- 🔵 **FOUR PUBLIC DOCS STATE THINGS THE CODE CONTRADICTS (item 344), and two are counts a reader
+  will notice.** `GUIDE.md` says **"Nineteen worlds, one chord away"** and `ACCESSIBILITY.md` says
+  **"14 curated theme worlds"** — the roster is **20**, and `WEB.md` already says 20, so the docs
+  disagree with each other. `docs/platform.md` documents the git-editor door as **"Finish Buffer"** with
+  a chord whose default was **retired**; the palette calls it **"Finish file"**. And `GUIDE.md`'s conceal
+  description says reveal happens on the caret's line, omitting that **a selection also reveals** — a law
+  already proves it does. ⚠️ **I verified all four against source myself**; the other 25 in that census
+  are reported but unverified. **No taste call here — just telling you what a reader currently sees.**
 - 🔵 **TWO WORLDS CUT OFF THE END OF THEIR OWN HELP LINE, AND EVERY HONEST FIX IS A TASTE CALL
   (item 342).** On **Potoroo and Firetail** the Keybindings card's hint clips: at 2× it reads
   `esc clos` and `esc clo` instead of `esc close`. `gallery/item-342/Potoroo-keybindings-1x.png` →
@@ -1541,7 +1558,8 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      never claimed from a capture; headless keeps its explicit path and stays
      byte-identical. **Routing:** deep tier.
 
-302. **Loose comments — a second pass, a different class from 275's.** 275 removed
+302. ✅ **LANDED (merged 2026-08-08) — 24 CONTRADICTIONS FIXED, AND A FALSE INVARIANT WAS HIDING A
+     LIVE RENDERING DEFECT. Original: Loose comments — a second pass, a different class from 275's.** 275 removed
      narrated history; 287/288 removed citations. This is comments whose factual
      content contradicts the code. A history comment is noise; a loose one is read
      as truth and acted on.
@@ -1562,6 +1580,41 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      tree — same blast radius as 275's ~1000 sites.
      **Verify:** each new law mutation-proved. **Routing:** production tier.
 
+     ✅ **THE CENSUS, and it is the transferable part:** 72,140 comment lines greped by **SHAPE** rather
+     than by "wrong", a raw pool of ~1,600 narrowed to ~90 read **in depth against their owning code**,
+     yielding 24 confirmed. ⚠️ **Three of this item's own five named instances were ALREADY TRUE and a
+     fourth described a file item 290 deleted — so the item's own list was 40% stale, which is the
+     defect it was filed about, applied to itself.**
+     🔴 **THE HEADLINE — why the item said to hunt shape 4 first. `caret.rs` claimed "all THREE bundled
+     monos share the `CHAR_WIDTH` 0.6-em pitch, so the floor is a no-op on real glyphs." There are FOUR
+     and they do not share a pitch** — measured off the shipped `hmtx` through the same skrifa stack the
+     pitch owner uses: Plex Mono and JetBrains **0.60 em**, Monaspace Xenon **0.62**, Iosevka **0.50**.
+     `metrics.caret_w` is a fixed `CARET_W`, **face-independent**, so the mono arm floors the block caret
+     **above** the glyph cell: **Currawong and Cassowary draw a 14.400px block over a 12.000px cell —
+     120% of the glyph, a 2.4px overhang into the next character at zoom 1.** Now item **345**.
+     ⚠️ **Verified independently at merge:** four distinct mono faces in the roster, and exactly those
+     two worlds carry Iosevka.
+     ⚠️ **The law that should have caught it pins TAWNY ALONE** — one hand-picked mono world, and one of
+     the two faces that happen to be 0.6 em. That is the "hardcoded mono-face list" shape `CLAUDE.md`
+     names, and **`facepitch.rs`'s own doc records the same list losing Iosevka once before.**
+     ✅ **THE CAPTURE PIPELINE'S DESIGNED-AROUND INVARIANT, found as promised:** a markdown test claimed
+     captures *"can never carry a notice"* when `CaptureOpts::notice` exists and a live-app law already
+     photographs a toast — item 296 repaired the production doc and **missed this one.**
+     ✅ **One law landed, not four.** `every_crisp_backdrop_kind_is_a_value_picker` extracts
+     `keeps_backdrop_crisp` as one owner, replacing **two independent deciders — one of which keyed on
+     the mode's own SPELLING in the capture door**, so the live `App` and a capture could disagree about
+     the same kind. **A stale enumeration was the symptom; two deciders were the cause.** The lane
+     flagged that as a deliberate deviation from "add laws only" rather than slipping it in.
+     ✅ **A second drafted law was DELETED before landing** because the extraction left it no subject an
+     existing law did not already own — a law without a subject being the exact failure this item exists
+     to catch.
+     ✅ **Numbers were DELETED rather than corrected** wherever the mechanism is roster-derived anyway:
+     five stale world counts, a WGSL line count, and an audited-row count that was **both wrong and
+     redundant with an assertion four lines below it.**
+     🔵 **Two figures reported rather than guessed at**, per precedent: `spellunderline.rs`'s contrast
+     sweep needs a real rendered-pixel sweep before anyone edits it, and `semantic/native.rs`'s
+     `0.79/0.84 ms` is unpinned prose for that bench's owner. ⚠️ **The docs half of the census is item
+     344** — that fan-out's report reached the orchestrator, not this lane.
 303. ✅ **LANDED with 131e (merged 2026-08-06).** The mark mirrors to the row's
      outer edge off ONE `outward()` = `direction.sign()`, with the four pre-existing
      mirror multiplications routed through it; 284's rotation is fully removed,
@@ -2972,6 +3025,29 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      in one pass. **Spot-check generated entries against the code they claim to describe.**
      ⚠️ **The four public ones are the priority** — they are what a user or a screen-reader user reads.
      **Routing:** production tier; sequence behind item 302, which owns the same lever.
+
+345. 🔴 **THE BLOCK CARET IS 120% OF THE GLYPH IT SITS ON, ON TWO SHIPPED WORLDS — a 2.4px overhang
+     into the next character at zoom 1.** Found by item 302 while repairing a comment that asserted the
+     opposite, and **the numbers are measured, not inferred.** `caret_block_w`'s mono arm keeps a
+     historical `.max(caret_w)` floor, and `metrics.caret_w` is a fixed `CARET_W` that is
+     **face-INDEPENDENT** — so on any mono face narrower than 0.60 em the floor raises the block **past
+     the cell it is supposed to fit.** Measured off the shipped `hmtx`: Plex Mono **0.60**, JetBrains
+     **0.60**, Monaspace Xenon **0.62**, **Iosevka 0.50** — and `CURRAWONG` and `CASSOWARY` carry
+     Iosevka, drawing **block=14.400 over cell=12.000** while every other mono world matches exactly.
+     ⚠️ **THE EXISTING LAW PINS TAWNY ALONE** — one hand-picked mono world, which happens to be one of
+     the two 0.6-em faces. `facepitch.rs`'s own doc records **the same hardcoded face list losing Iosevka
+     once before**, so this is the second time that shape has cost this repo something.
+     🔵 **IT IS A TASTE CALL AND THE LANE CORRECTLY DID NOT DECIDE IT.** The candidate fix is dropping
+     `.max(caret_w)` so the mono arm becomes the proportional arm — which also makes the floor redundant,
+     since `col_x_and_advance` already rescues a degenerate cell. **But it NARROWS a shipped world's
+     caret**, and the caret is this design's one accent. **Put the before/after to the user on Currawong
+     and Cassowary at 1× and 2×.**
+     ✅ **The law is written and mutation-ready** (item 302 reverted it rather than landing red): it
+     sweeps `bundled_display_faces()` filtered to declared `Pitch::Mono` — **roster-derived enrolment,
+     presence floor ≥ 2, and BOTH sides derived** (the caret's pitch from `CHAR_WIDTH / FONT_SIZE`, the
+     face's from its own `hmtx` over its own `units_per_em`). **It failed correctly on first contact,
+     which is how the defect surfaced.** ⚠️ **Land the law WITH the fix, never before it** — and do not
+     narrow the law to the faces that pass. **Routing:** production tier, then the user's eye.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
