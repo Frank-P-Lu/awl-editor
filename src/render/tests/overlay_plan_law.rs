@@ -150,7 +150,10 @@ fn grade_rows(
         );
         let mid_y = row.top + row.height * 0.5;
         let (rx0, rx1) = plan.row_x_span(row.display).unwrap_or_else(|| {
-            panic!("{ctx}: display row {} must have a clickable x-span", row.display)
+            panic!(
+                "{ctx}: display row {} must have a clickable x-span",
+                row.display
+            )
         });
         let mid_x = (rx0 + rx1) * 0.5;
         for x in [rx0, mid_x, rx1] {
@@ -416,8 +419,31 @@ fn assert_sidecar_matches_plan(
     );
 }
 
-/// THE HEADLINE LAW. For every planned row of every picker kind, in both list
-/// styles, at four window geometries, both DPIs and BOTH MENU-BAR STATES: the
+/// THE THREE LIST STYLES the headline sweep below forces, one at a time.
+/// `Pane`/`Bars` alone left the staggering path unswept: `dx`/`dw` are zero
+/// on both, so a mutation that reverted the pointer inverse to the card's own
+/// undisplaced span (`PlannedRow`'s doc names this exact regression) left the
+/// sweep green — a landed sidecar-geometry law caught and reported the gap
+/// rather than hiding it. `Diagonal` is the one shipping style whose rows
+/// carry a nonzero per-row `dx`/`dw`, so enrolling it is what turns the sweep
+/// into a real test of the hit-test/draw agreement `PlannedRow::dx`/`dw`
+/// exist for.
+fn sweep_list_styles() -> [(&'static str, Option<theme::ListStyle>); 3] {
+    [
+        ("pane", Some(theme::ListStyle::Pane)),
+        ("bars", Some(theme::ListStyle::Bars)),
+        (
+            "diagonal",
+            Some(theme::ListStyle::Diagonal(
+                theme::DiagonalSpine::descending(theme::DiagonalMark::CRISP),
+            )),
+        ),
+    ]
+}
+
+/// THE HEADLINE LAW. For every planned row of every picker kind, in every
+/// listed style, at four window geometries, both DPIs and BOTH MENU-BAR
+/// STATES: the
 /// SHAPED glyph line sits in the planned slot, the pointer hit-test at that
 /// slot's own centre accepts that row's own item, and the sidecar reports the
 /// planned window.
@@ -444,24 +470,7 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
     // actually took, so a restore written that way restores the wrong value
     // under any forcing of that initialiser.
     let ambient_menu_bar = crate::menubar::menu_bar_on();
-    // THE DIAGONAL ARM. `Pane`/`Bars` alone left the staggered path unswept:
-    // `dx`/`dw` are zero on both, so a mutation that reverted `row_at` to the
-    // card's own undisplaced span (`PlannedRow`'s doc names this exact
-    // regression) left this sweep green — a landed sidecar-geometry law
-    // caught and reported the gap rather than hiding it. `Diagonal` is the
-    // one shipping style whose rows carry a nonzero per-row `dx`/`dw`, so
-    // enrolling it is what turns this sweep into a real test of the
-    // hit-test/draw agreement `PlannedRow::dx`/`dw` exist for.
-    let styles: [(&str, Option<theme::ListStyle>); 3] = [
-        ("pane", Some(theme::ListStyle::Pane)),
-        ("bars", Some(theme::ListStyle::Bars)),
-        (
-            "diagonal",
-            Some(theme::ListStyle::Diagonal(theme::DiagonalSpine::descending(
-                theme::DiagonalMark::CRISP,
-            ))),
-        ),
-    ];
+    let styles = sweep_list_styles();
     // Harmless for the "pane" arm above (nothing reads it when the resolved
     // style isn't `Bars`); set once rather than threading a second array.
     crate::render::set_bar_config_test_override(Some(theme::BarConfig {

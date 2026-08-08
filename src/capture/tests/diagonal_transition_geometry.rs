@@ -148,7 +148,11 @@ fn open_goto(session: &mut crate::run::ReplaySession) {
 /// Type `text`'s characters as individual real chords (each a plain key
 /// press — no modifier), exactly what `--keys "a b c"` would replay.
 fn type_chars(session: &mut crate::run::ReplaySession, text: &str) {
-    let spec: String = text.chars().map(|c| c.to_string()).collect::<Vec<_>>().join(" ");
+    let spec: String = text
+        .chars()
+        .map(|c| c.to_string())
+        .collect::<Vec<_>>()
+        .join(" ");
     let chords = crate::keyspec::parse_chords(&spec).expect("chords");
     for c in &chords {
         session.apply_chord(c).expect("chord applies");
@@ -239,112 +243,124 @@ fn filter_never_displaces_a_surviving_row() {
             crate::menubar::set_menu_bar_on(bar);
             for &(canvas, dpi) in &[((1400u32, 900u32), 1.0f32), ((2800, 1800), 2.0)] {
                 theme::set_active_by_name(world).unwrap();
-                let ctx = format!("{world} bar={bar} dpi={dpi} canvas={canvas:?}");
-
-                let dir = ScratchDir::new(std::env::temp_dir().join(format!(
-                    "awl_diag_filter_{}_{}_{}_{}",
-                    world,
-                    bar,
-                    dpi as u32,
-                    std::process::id()
-                )));
-                let corpus = build_corpus();
-                let mut buffer = Buffer::from_str("hello world\n");
-                let config = Config::empty();
-                let mut km =
-                    crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
-                let root = dir.to_path_buf();
-
-                let mut session = crate::run::ReplaySession::new(
-                    crate::run::ReplayPolicy::ordinary(),
-                    &mut buffer,
-                    &corpus,
-                    &root,
-                    None,
-                    &config,
-                    None,
-                    &mut km,
-                );
-
-                open_goto(&mut session);
-                let before = capture_checkpoint(&session, &root, &config, &dir, "before", canvas, dpi);
-                type_chars(&mut session, "keep");
-                let after = capture_checkpoint(&session, &root, &config, &dir, "after", canvas, dpi);
-
-                assert_real_band(&format!("{ctx} before"), &before);
-                assert_real_band(&format!("{ctx} after"), &after);
-
-                // PRESENCE / non-vacuity: the filter must have genuinely narrowed
-                // the corpus. Every published row after filtering must carry an
-                // item index < KEEP (the "zzzzz" tail is gone), and the total
-                // published band must not have grown.
-                for r in &after.rows {
-                    if let Some(item) = r.item {
-                        assert!(
-                            item < KEEP as u64,
-                            "{ctx}: row {} still reports item {item} after filtering to \
-                             \"keep\" — the {TAIL}-item tail did not actually leave",
-                            r.display
-                        );
-                    }
-                }
-                assert!(
-                    after.rows.len() <= before.rows.len(),
-                    "{ctx}: the filtered band published MORE rows ({}) than the \
-                     unfiltered one ({}) — the corpus shrank, the band cannot have grown",
-                    after.rows.len(),
-                    before.rows.len()
-                );
-
-                // THE CLAIM, keyed by ITEM: every item present in BOTH bands
-                // (excluding each band's own selected row) lands at the exact
-                // same rect it held before typing anything.
-                use std::collections::HashMap;
-                let by_item = |b: &Band| -> HashMap<u64, Row> {
-                    b.rows
-                        .iter()
-                        .enumerate()
-                        .filter(|(i, r)| *i as u64 != b.sel_row && r.item.is_some())
-                        .map(|(_, r)| (r.item.unwrap(), *r))
-                        .collect()
-                };
-                let (map_before, map_after) = (by_item(&before), by_item(&after));
-                let mut compared = 0usize;
-                for (item, rb) in &map_before {
-                    let Some(ra) = map_after.get(item) else {
-                        continue; // this item was itself part of the tail, or is
-                        // this frame's OWN selected row — not a claim this law makes.
-                    };
-                    assert!(
-                        (rb.x - ra.x).abs() < 0.02
-                            && (rb.y - ra.y).abs() < 0.02
-                            && (rb.w - ra.w).abs() < 0.02
-                            && (rb.h - ra.h).abs() < 0.02,
-                        "{ctx}: item {item} survived the filter but its published rect \
-                         MOVED — before [{:.2},{:.2},{:.2}x{:.2}], after \
-                         [{:.2},{:.2},{:.2}x{:.2}] — a surviving row jumped horizontally",
-                        rb.x,
-                        rb.y,
-                        rb.w,
-                        rb.h,
-                        ra.x,
-                        ra.y,
-                        ra.w,
-                        ra.h
-                    );
-                    compared += 1;
-                }
-                assert!(
-                    compared >= 3,
-                    "{ctx}: only {compared} items were comparable across the filter — the \
-                     corpus construction did not keep enough survivors on screen to mean \
-                     anything"
-                );
+                check_filter_transition(world, bar, canvas, dpi);
             }
         }
     }
     crate::menubar::set_menu_bar_on(ambient_bar);
     theme::set_active(entry_world);
+}
+
+/// One cell of `filter_never_displaces_a_surviving_row`'s sweep: open the
+/// picker, capture before/after typing `"keep"`, prove the narrowing was
+/// real, then assert the item-keyed invariance.
+fn check_filter_transition(world: &str, bar: bool, canvas: (u32, u32), dpi: f32) {
+    let ctx = format!("{world} bar={bar} dpi={dpi} canvas={canvas:?}");
+
+    let dir = ScratchDir::new(std::env::temp_dir().join(format!(
+        "awl_diag_filter_{}_{}_{}_{}",
+        world,
+        bar,
+        dpi as u32,
+        std::process::id()
+    )));
+    let corpus = build_corpus();
+    let mut buffer = Buffer::from_str("hello world\n");
+    let config = Config::empty();
+    let mut km =
+        crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
+    let root = dir.to_path_buf();
+
+    let mut session = crate::run::ReplaySession::new(
+        crate::run::ReplayPolicy::ordinary(),
+        &mut buffer,
+        &corpus,
+        &root,
+        None,
+        &config,
+        None,
+        &mut km,
+    );
+
+    open_goto(&mut session);
+    let before = capture_checkpoint(&session, &root, &config, &dir, "before", canvas, dpi);
+    type_chars(&mut session, "keep");
+    let after = capture_checkpoint(&session, &root, &config, &dir, "after", canvas, dpi);
+
+    assert_real_band(&format!("{ctx} before"), &before);
+    assert_real_band(&format!("{ctx} after"), &after);
+    assert_filter_genuinely_narrowed(&ctx, &before, &after);
+    assert_survivors_keyed_by_item_hold_their_rect(&ctx, &before, &after);
+}
+
+/// PRESENCE / non-vacuity: the filter must have genuinely narrowed the
+/// corpus. Every published row after filtering must carry an item index
+/// below `KEEP` (the `zzzzz` tail is gone), and the total published band
+/// must not have grown.
+fn assert_filter_genuinely_narrowed(ctx: &str, before: &Band, after: &Band) {
+    for r in &after.rows {
+        if let Some(item) = r.item {
+            assert!(
+                item < KEEP as u64,
+                "{ctx}: row {} still reports item {item} after filtering to \"keep\" — \
+                 the {TAIL}-item tail did not actually leave",
+                r.display
+            );
+        }
+    }
+    assert!(
+        after.rows.len() <= before.rows.len(),
+        "{ctx}: the filtered band published MORE rows ({}) than the unfiltered one ({}) \
+         — the corpus shrank, the band cannot have grown",
+        after.rows.len(),
+        before.rows.len()
+    );
+}
+
+/// THE CLAIM, keyed by ITEM: every item present in BOTH bands (excluding
+/// each band's own selected row) lands at the exact same rect it held before
+/// typing anything.
+fn assert_survivors_keyed_by_item_hold_their_rect(ctx: &str, before: &Band, after: &Band) {
+    use std::collections::HashMap;
+    let by_item = |b: &Band| -> HashMap<u64, Row> {
+        b.rows
+            .iter()
+            .enumerate()
+            .filter(|(i, r)| *i as u64 != b.sel_row && r.item.is_some())
+            .map(|(_, r)| (r.item.unwrap(), *r))
+            .collect()
+    };
+    let (map_before, map_after) = (by_item(before), by_item(after));
+    let mut compared = 0usize;
+    for (item, rb) in &map_before {
+        let Some(ra) = map_after.get(item) else {
+            continue; // this item was itself part of the tail, or is this
+            // frame's OWN selected row — not a claim this law makes.
+        };
+        assert!(
+            (rb.x - ra.x).abs() < 0.02
+                && (rb.y - ra.y).abs() < 0.02
+                && (rb.w - ra.w).abs() < 0.02
+                && (rb.h - ra.h).abs() < 0.02,
+            "{ctx}: item {item} survived the filter but its published rect MOVED — \
+             before [{:.2},{:.2},{:.2}x{:.2}], after [{:.2},{:.2},{:.2}x{:.2}] — a \
+             surviving row jumped horizontally",
+            rb.x,
+            rb.y,
+            rb.w,
+            rb.h,
+            ra.x,
+            ra.y,
+            ra.w,
+            ra.h
+        );
+        compared += 1;
+    }
+    assert!(
+        compared >= 3,
+        "{ctx}: only {compared} items were comparable across the filter — the corpus \
+         construction did not keep enough survivors on screen to mean anything"
+    );
 }
 
 /// **LAW 2 — A REAL SCROLL DOES NOT MOVE THE SLOT-TO-X MAPPING.**
@@ -388,8 +404,9 @@ fn scroll_never_moves_the_slot_to_x_map() {
                 )));
                 let mut buffer = Buffer::from_str("hello world\n");
                 let config = Config::empty();
-                let mut km =
-                    crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
+                let mut km = crate::keymap::KeymapState::new_with_convention(
+                    crate::convention::Convention::Mac,
+                );
                 let root = dir.to_path_buf();
 
                 let mut session = crate::run::ReplaySession::new(
@@ -404,21 +421,22 @@ fn scroll_never_moves_the_slot_to_x_map() {
                 );
 
                 open_goto(&mut session);
-                let before = capture_checkpoint(&session, &root, &config, &dir, "before", canvas, dpi);
+                let before =
+                    capture_checkpoint(&session, &root, &config, &dir, "before", canvas, dpi);
                 assert_real_band(&format!("{ctx} before"), &before);
 
                 // Scroll well past the visible window, so `top_idx` genuinely
                 // advances (not just the in-window selection).
                 let depth = before.rows.len() + 12;
                 press_down(&mut session, depth);
-                let after = capture_checkpoint(&session, &root, &config, &dir, "after", canvas, dpi);
+                let after =
+                    capture_checkpoint(&session, &root, &config, &dir, "after", canvas, dpi);
                 assert_real_band(&format!("{ctx} after"), &after);
 
                 // PRESENCE: the scroll must have actually moved the window — the
                 // item at slot 0 must differ, or this arm compares nothing real.
                 assert_ne!(
-                    before.rows[0].item,
-                    after.rows[0].item,
+                    before.rows[0].item, after.rows[0].item,
                     "{ctx}: {depth} Down presses left slot 0 showing the same item — the \
                      window never actually scrolled, so the invariance claim below would \
                      be checked against a no-op"
