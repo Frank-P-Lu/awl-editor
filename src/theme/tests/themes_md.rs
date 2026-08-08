@@ -331,3 +331,71 @@ fn every_render_caps_field_has_a_themes_md_row_or_is_excused() {
         );
     }
 }
+
+/// THE CJK ASSIGNMENT-TABLE LAW. THEMES.md's zh-Hans / ko table gives one row
+/// per world; it had rows for thirteen of twenty, so seven worlds' Chinese and
+/// Korean faces were undocumented — including every world added after the
+/// Chinese round.
+///
+/// Two facts, both derived: every world has a row, and the row's `ko` cell names
+/// `CJK_KO_SERIF` exactly when the world is actually on that list. The second is
+/// what makes the law more than a membership check — it asks the serif question
+/// on BOTH sides and requires the answers to part, so a row copied from its
+/// neighbour is caught rather than counted.
+#[test]
+fn themes_md_cjk_table_rows_every_world_with_its_ko_family() {
+    let _g = crate::testlock::serial();
+    let doc = crate::embedded_docs::THEMES_MD;
+    let at = doc
+        .find("| World       | Character  | `cjk` (ja)")
+        .expect("THEMES.md carries its zh-Hans / ko assignment table, by that header");
+    let table = {
+        let rest = &doc[at..];
+        rest.split_once("\n\n").map_or(rest, |(a, _)| a)
+    };
+    let mut rows: BTreeMap<String, String> = BTreeMap::new();
+    for line in table.lines().skip(2) {
+        let cells: Vec<&str> = line.trim().trim_matches('|').split('|').collect();
+        if cells.len() != 5 {
+            continue;
+        }
+        let world = cells[0].trim().trim_matches('*').to_string();
+        if is_world(&world) {
+            rows.insert(world, cells[4].trim().to_string());
+        }
+    }
+    let mut serif_rows = 0usize;
+    let mut sans_rows = 0usize;
+    for t in THEMES.iter() {
+        let ko_cell = rows.get(t.name).unwrap_or_else(|| {
+            panic!(
+                "THEMES.md's zh-Hans / ko table has no row for `{}` — a new \
+                 world must arrive with its Chinese and Korean faces (the table \
+                 lists {:?})",
+                t.name,
+                rows.keys().collect::<Vec<_>>()
+            )
+        });
+        let is_serif = t.ko == crate::theme::cjk::CJK_KO_SERIF;
+        let says_serif = ko_cell.contains("CJK_KO_SERIF");
+        assert_eq!(
+            says_serif,
+            is_serif,
+            "THEMES.md's `{}` row says ko = {ko_cell}, but the roster puts it \
+             on {}",
+            t.name,
+            if is_serif { "CJK_KO_SERIF" } else { "CJK_KO" }
+        );
+        if is_serif {
+            serif_rows += 1;
+        } else {
+            sans_rows += 1;
+        }
+    }
+    assert!(
+        serif_rows > 0 && sans_rows > 0,
+        "the ko-family check saw only one side ({serif_rows} serif, \
+         {sans_rows} sans) — with every world on one list the assertion above \
+         cannot tell a right row from a copied one"
+    );
+}

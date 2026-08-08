@@ -212,8 +212,10 @@ world). No new law: Brolga rides the shared ink/role/selection derivations and
 is enrolled in every sweep the moment it joins `THEMES`.
 
 The nineteenth world, **Paperbark** (item 158, graduated from item 133's
-material study), is the MATERIAL world: the only room whose ground is a thing
-rather than a pattern. Nested deckled contours of handmade paper gather around
+material study), is the MATERIAL world: the room whose ground is a thing
+rather than a pattern, and the one `Background::Deckle` was made for (Galah
+later took the same ground in its `Fibres` weave — WORLDS.md's
+margin-backgrounds table is the roster-checked record of who carries what). Nested deckled contours of handmade paper gather around
 the writing page in cream and pale honey, the prose is deep bark-brown, and one
 coral-vermilion caret is the sole accent. It ships the roster's tenth ground,
 **`Background::Deckle`** — quasi-random contour lanes, seeded per lane and torn
@@ -1560,12 +1562,21 @@ The user vetoes the actual pixel taste via `gallery/jp-worlds/`.
 | Wagtail     | sans/mono  | gothic       | `CJK_ZH_HANS_SANS` (Noto Sans SC)            | `CJK_KO` (Noto Sans KR)    |
 | **Mopoke**  | sans/mono  | **Klee One** | `CJK_ZH_HANS_KLEE` (**LXGW WenKai** first)   | `CJK_KO` (Noto Sans KR)    |
 | **Quokka**  | sans/mono  | **Klee One** | `CJK_ZH_HANS_KLEE` (**LXGW WenKai** first)   | `CJK_KO` (Noto Sans KR)    |
+| Mopoke | brush/sans | Klee One | `CJK_ZH_HANS_KLEE` (LXGW WenKai) | `CJK_KO` (Noto Sans KR) |
+| Quokka | brush/sans | Klee One | `CJK_ZH_HANS_KLEE` (LXGW WenKai) | `CJK_KO` (Noto Sans KR) |
+| Brolga | sans/mono | gothic | `CJK_ZH_HANS_SANS` (Noto Sans SC) | `CJK_KO` (Noto Sans KR) |
+| Firetail | sans/mono | gothic | `CJK_ZH_HANS_SANS` (Noto Sans SC) | `CJK_KO` (Noto Sans KR) |
+| Cassowary | sans/mono | gothic | `CJK_ZH_HANS_SANS` (Noto Sans SC) | `CJK_KO` (Noto Sans KR) |
+| Kite | sans/mono | gothic | `CJK_ZH_HANS_SANS` (Noto Sans SC) | `CJK_KO` (Noto Sans KR) |
+| Paperbark | serif | Shippori | `CJK_ZH_HANS_SERIF` (Noto Serif SC) | `CJK_KO_SERIF` (**Gowun Batang**) |
 
 The `ko` split (CJK-companions round) tracks the SAME serif/sans line as `cjk`
-(ja) and `zh_hans`: the six SERIF worlds — exactly those on `CJK_ZH_HANS_SERIF`
+(ja) and `zh_hans`: the SERIF worlds — exactly those on `CJK_ZH_HANS_SERIF`
 — get **Gowun Batang** (`CJK_KO_SERIF`) above the Noto Sans KR floor, mirroring
 `CJK_JA_SHIPPORI`'s "characterful serif first, neutral Noto floor next" shape;
-the eight sans/mono worlds keep the plain Noto Sans KR floor (`CJK_KO`). There
+every other world keeps the plain Noto Sans KR floor (`CJK_KO`). Which worlds
+those are is the table above, held to the roster by
+`theme::tests::themes_md::themes_md_cjk_table_rows_every_world_with_its_ko_family`. There
 is no NEUTRAL bundled serif-Korean floor, so `CJK_KO_SERIF`'s guaranteed floor
 stays the (sans) Noto Sans KR — which is exactly what `gallery/ko-worlds/`'s
 "floor" side (`AWL_CJK_FORCE=floor`) drops to. **GenSenRounded (源泉圓體,
