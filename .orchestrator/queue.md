@@ -3828,7 +3828,36 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      the law first, watch it fail, then fix: that order IS the proof.** Plus a source scan in item 310's shape
      so a fourth site cannot reappear. **Routing:** deep tier.
 
-353. 🚧 CLAIMED (worktree item-353-crisp-iff, deep tier) 🔴 **ITEM 302's DEFECT IS STILL LIVE ONE
+353. ✅ **LANDED (merged 2026-08-08) — the crisp exemption is now an equivalence THE PRODUCT PROVES, not
+     two hand-written lists agreeing.**
+     ✅ **`previews_live_document` is a wildcard-free per-kind match, and the preview owner OPENS by asking
+     it** — so an arm added there alone is **INERT until the kind declares itself.** ‼ **The gate, not the
+     arms, is the enrolment, and that is what closes the `_ => {}` hole a subset law could not see.** A fourth
+     spelling of the same membership is gone.
+     🔴 **THE SECOND LAW IS THE PRIZE: it calls the REAL preview function once per kind, steps a card's
+     highlight, and asserts the set of kinds that ACTUALLY MOVED the running editor equals the declared
+     set.** Both directions are named in its message — a kind claiming an audition it never performs **takes
+     a crisp backdrop for nothing**, and a kind auditioning from behind a frosted card **blurs its own
+     subject.** ✅ **Plus a distinction floor so the predicate cannot collapse into the accept disposition**,
+     which is exactly how three row-previewing pickers would silently become crisp.
+     ✅ **Those three kinds were VERIFIED rather than assumed** to sit on the non-previewing side — their own
+     build comments say *"nothing previews on move"* and *"the example dates ARE the preview"* — and the
+     byte-identity proof confirms **no frost moved.**
+     ✅ **The string-versus-type pair that survived 302 is routed through the type at both capture sites, and
+     nothing needed widening**: five sibling sites in the same function already used that idiom.
+     ✅ **The stale prose enumeration is CONVERTED, not reworded** — the membership list is deleted outright,
+     because after the equivalence law the predicate names itself and there is nothing left to rot.
+     ✅ **And the ungraded arm is graded:** the panel caret's y against **three owners that never read the
+     placer** (the published band's centre, glyphon's own line top, and the pointer's inverse), swept over
+     both field arms × both row counts × both dpi — **with the dpi axis PROVED rather than assumed** by
+     requiring the pitch to actually differ. The two pre-existing panel laws stayed green under its mutation,
+     which confirms nothing else graded it.
+     🔴 **A METHODOLOGICAL FINDING WORTH REUSING: its byte-identity run first reported DIFFERS, and it was
+     the FIXTURE rather than the product** — the go-to picker lists its own folder, and the captures were
+     being written into it, so the listing grew between arms. **A before/after capture whose output directory
+     sits inside the captured corpus measures the harness.**
+     ⚠️ **`src/capture/modes.rs` now sits at 583 = its frozen baseline EXACTLY, so it has zero headroom** —
+     the next change there must carve. **Original:** 🔴 **ITEM 302's DEFECT IS STILL LIVE ONE
      FUNCTION AWAY, AND ITS LAW IS WEAKER THAN ITS OWN DOC.**
      ⚠️ **(B)** `capture/modes.rs` gates `caret_preview` on the mode **STRING** while `app/viewstate.rs` gates
      the same field on the **TYPE** — the identical cross-door pair 302's commit message calls *"where two

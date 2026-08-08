@@ -411,6 +411,26 @@ figures, and the same discipline belongs on the reassuring sentences. **When a l
 falsifies one, record it in the landing note next to the item's own findings**, since
 the orchestrator's error rate is otherwise the one number nobody tracks.
 
+‼ **A BEFORE/AFTER CAPTURE WHOSE OUTPUT DIRECTORY SITS INSIDE THE CAPTURED CORPUS
+MEASURES THE HARNESS.** Measured 2026-08-08: a lane's byte-identity check reported
+DIFFERS on a file picker, and the cause was that its captures were being written into
+the very folder the picker lists — the listing grew between the two arms. Diffing the
+sidecars showed all 81 differing leaves were row geometry driven by the item count.
+**Re-run with the output outside the corpus, byte-identical.** ⚠️ **Any capture that
+enumerates the filesystem — file pickers, project roots, asset lists — needs its output
+somewhere the capture cannot see**, and a `DIFFERS` on one of those is a fixture
+question before it is a product question.
+
+‼ **AND WHEN AN ORCHESTRATOR EDITS `code-health.toml` PROGRAMMATICALLY, `[^"]*` IS NOT A
+TOML STRING.** Measured the same day: a regex appending to a `reason` field stopped at the
+first **escaped** quote inside it, inserting text mid-string and corrupting the file so
+`tomllib` refused it — and the health script's failure then looked nothing like a policy
+failure. ⚠️ **Worse, the recovery had its own trap: `git checkout <path>` restores from the
+INDEX, and the broken version had already been `git add`ed, so it "restored" the corruption.
+`git checkout HEAD -- <path>` is the one that works.** **Bump the numeric `lines` field on
+its own line, append prose in a separate pass that respects the existing escaping, and
+parse the file with `tomllib` after every write.**
+
 ‼ **THE ORCHESTRATOR'S BLIND SPOT IS OBLIGATIONS THAT ARE NOT ON THE BOARD.** Measured
 across 2026-08-08: this orchestrator drove ~50 items competently and **twice declared the
 queue empty while a STANDING-POLICY audit sat undone** — `CLAUDE.md`'s vision smoke
