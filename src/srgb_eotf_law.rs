@@ -30,18 +30,23 @@
 //!   would not share this needle and would not be caught at all.
 //! - Only `src/**/*.rs` is scanned. A shader (`.wgsl`) or build script
 //!   performing this conversion independently is outside this law's reach.
+//!
+//! This file is also the one OWNER of the source-scan primitives every
+//! needle-in-production law needs — the `src/**/*.rs` walk, the production/test
+//! path predicate, and the two text strippers — so a second such law reuses them
+//! instead of carrying its own copy of "what counts as production source".
 #![cfg(test)]
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Repo root (the crate manifest dir — the worktree/checkout root).
-fn repo_root() -> PathBuf {
+pub(crate) fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
 /// Every `*.rs` under `src/` (recursively), repo-relative with `/` separators.
-fn src_rs_files(root: &Path) -> Vec<String> {
+pub(crate) fn src_rs_files(root: &Path) -> Vec<String> {
     let mut out = Vec::new();
     walk_rs(&root.join("src"), root, &mut out);
     out.sort();
@@ -78,7 +83,7 @@ fn walk_rs(dir: &Path, root: &Path, out: &mut Vec<String>) {
 /// the standard (see `theme/tests/clear.rs`'s own `linear_to_srgb`, and this
 /// item's own per-call-site bit-identity tests) — that independence is the
 /// point of a test oracle, not a violation of this law.
-fn is_test_path(rel: &str) -> bool {
+pub(crate) fn is_test_path(rel: &str) -> bool {
     let parts: Vec<&str> = rel.split('/').collect();
     let name = parts.last().copied().unwrap_or("");
     parts.contains(&"tests") || name == "tests.rs" || name.ends_with("_test.rs")
@@ -101,7 +106,7 @@ const NEEDLE: &str = "0.04045";
 /// fixture inside an otherwise-real file — this item's own per-call-site
 /// bit-identity tests among them — must not itself trip a production-only
 /// law). Returns the file's non-test text only.
-fn strip_cfg_test_blocks(text: &str) -> String {
+pub(crate) fn strip_cfg_test_blocks(text: &str) -> String {
     #[derive(Clone, Copy, PartialEq)]
     enum State {
         Normal,
@@ -148,6 +153,26 @@ fn strip_cfg_test_blocks(text: &str) -> String {
                 }
             }
         };
+    }
+    kept
+}
+
+/// Drop every line's comment text, cutting at its first `//`. A scan whose
+/// needle is ARITHMETIC wants the code only: prose that describes a retired
+/// spelling is documentation, not a bypass.
+///
+/// Deliberately naive about string literals — a `//` inside one truncates that
+/// line early, which can only ever hide a needle written inside a string, never
+/// a live expression.
+pub(crate) fn strip_line_comments(text: &str) -> String {
+    let mut kept = String::with_capacity(text.len());
+    for line in text.lines() {
+        let code = match line.find("//") {
+            Some(i) => &line[..i],
+            None => line,
+        };
+        kept.push_str(code);
+        kept.push('\n');
     }
     kept
 }

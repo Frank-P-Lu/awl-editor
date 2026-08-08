@@ -399,7 +399,7 @@ impl TextPipeline {
     /// travelling streak has exactly one thickness rule.
     pub(super) fn caret_cell_vertical(&mut self) -> (f32, f32) {
         let m = self.metrics;
-        let px = m.caret_h / CARET_H;
+        let px = m.scale;
         if let Some(ink) = self.caret_anchor_ink_box() {
             let (baseline, row_ascent, ascent_font) = self.caret_row_metrics();
             return self.caret_cell_vertical_from_ink(ink, baseline, row_ascent, ascent_font, px);
@@ -797,7 +797,7 @@ impl TextPipeline {
         // glyphless anchors keep the plain advance cell.
         let (block_w, ink_shift) = match self.caret_anchor_ink_box() {
             Some(ink) => {
-                let px = m.caret_h / CARET_H;
+                let px = m.scale;
                 let (body_w, _body_h) = caret_visual_body_dims(ink, px);
                 // Grow equally about the glyph ink centre.  The pen-relative
                 // offset is still the raster's real bearing, so the floor does

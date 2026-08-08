@@ -55,6 +55,7 @@ mod capture;
 mod card;
 mod caret;
 mod caret_glyph;
+mod caret_scale_law;
 mod clock;
 mod commands;
 mod comparison;
