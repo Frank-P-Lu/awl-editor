@@ -98,8 +98,11 @@ impl TextPipeline {
     /// Two independent reasons, one predicate, so the full arm and the footprint arm of
     /// [`Self::frost_mode`] cannot both fire or both miss:
     ///
-    /// * **A CRISP PICKER** (theme / caret) declines because its ROWS PREVIEW the live
-    ///   page — frosting it would blur the very thing the row is showing.
+    /// * **A CRISP PICKER** declines because its ROWS PREVIEW the live page — frosting it
+    ///   would blur the very thing the row is showing. WHICH kinds those are is not
+    ///   restated here: `OverlayKind::keeps_backdrop_crisp` owns the set, pinned by law
+    ///   to the audition that earns it (`OverlayKind::previews_live_document`), and this
+    ///   frame reads its answer off `overlay_crisp`.
     /// * **A POINTER-ANCHORED MENU** declines because it is not a takeover at all. The
     ///   full frost is the defocus behind a card that has become the subject of the
     ///   screen (the palette, go-to, the outline, keybindings, the held HUD); a four-row

@@ -268,22 +268,35 @@ fn goto_recent_empty_lens_reads_the_warm_invitation() {
     assert_eq!(ov.empty_notice().as_deref(), Some("no matches"));
 }
 
-/// THE CRISP-BACKDROP SET IS A SUBSET OF THE VALUE-PICKERS. A card frosts what
-/// it covers; the exemption exists only for a picker whose rows PREVIEW LIVE
-/// DOCUMENT STATE, which is the same property that makes it an
-/// [`AcceptDisposition::ValuePick`] — previewing a value is what earns the
-/// exemption, and a navigator has no value to preview.
+/// THE CRISP BACKDROP IS EXACTLY THE LIVE-DOCUMENT AUDITION — an IFF, not a
+/// subset. A card frosts what it covers; the exemption is earned by one property
+/// and one only, that moving the highlight repaints the page BEHIND the card
+/// ([`OverlayKind::previews_live_document`]), because frost would then blur the
+/// only thing the row is showing.
 ///
-/// This is the law the wrong comment needed. `render/chrome/outline.rs` told
-/// readers the crisp set included the HISTORY picker; History NAVIGATES, its
-/// comparison is composited inside the workspace's own content region, and what
-/// sits behind its card is the untouched document — the exact thing frost is
-/// for. Marking any navigator crisp fails here, by name.
+/// ⚠️ **A SUBSET LAW WAS TOO WEAK, AND ITS OWN DOC SAID SO.** The predicate's
+/// documentation earned the exemption by previewing live document state, while
+/// the law asserted only `crisp ⊆ ValuePick`. `ValuePick` is a much larger set —
+/// three of its members preview INSIDE THEIR OWN ROWS (the date formats render
+/// today's date; the dictionary and CJK pickers pre-select the live value),
+/// change nothing behind the card, and so want the frost. So a new picker could
+/// be added to `actions::overlay_nav::preview_overlay`, audition the live
+/// document, inherit frost, blur its own preview — and pass every law in the
+/// tree, because the audition owner's match ended in a wildcard and no law had
+/// the audition as its subject at all.
+///
+/// The set is asked BOTH ways here, and the two floors below are what keep the
+/// IFF from being satisfiable by collapsing its own subject:
+/// * neither side may go empty (an empty crisp set asserts nothing; an
+///   all-crisp roster means frost has stopped existing);
+/// * the value-pickers must STILL SPLIT — if every value-pick were crisp, this
+///   predicate would be a synonym for the disposition and the row-previewing
+///   pickers would have silently lost their frost.
 ///
 /// Enrolment is [`OverlayKind::ALL`], so a new kind is swept the moment it
 /// exists rather than when someone remembers to list it.
 #[test]
-fn every_crisp_backdrop_kind_is_a_value_picker() {
+fn crisp_backdrop_is_exactly_the_live_document_audition() {
     let crisp: Vec<OverlayKind> = OverlayKind::ALL
         .iter()
         .copied()
@@ -293,6 +306,16 @@ fn every_crisp_backdrop_kind_is_a_value_picker() {
         .iter()
         .copied()
         .filter(|k| !k.keeps_backdrop_crisp())
+        .collect();
+    let auditions: Vec<OverlayKind> = OverlayKind::ALL
+        .iter()
+        .copied()
+        .filter(|k| k.previews_live_document())
+        .collect();
+    let value_picks: Vec<OverlayKind> = OverlayKind::ALL
+        .iter()
+        .copied()
+        .filter(|k| k.accept_disposition() == AcceptDisposition::ValuePick)
         .collect();
     // PRESENCE FLOORS, both ways. A subset law is satisfiable by deleting its own
     // subject — an empty crisp set passes it vacuously, and an all-crisp roster
@@ -308,14 +331,126 @@ fn every_crisp_backdrop_kind_is_a_value_picker() {
         "EVERY kind kept the backdrop crisp — frost has no subject left, and the \
          summoned-surface rule DESIGN.md §5 states is gone: crisp = {crisp:?}"
     );
+    // THE DISTINCTION FLOOR. The two predicates are allowed to be equal to each
+    // other; neither is allowed to collapse into the accept disposition, because
+    // then "previews the live document" would mean "picks a value" and the three
+    // pickers that preview inside their own rows would be crisp by accident.
+    assert!(
+        value_picks.len() > crisp.len(),
+        "every value-picker is crisp, so the audition predicate has collapsed into \
+         the accept disposition — the pickers that preview INSIDE THEIR OWN ROWS \
+         (nothing behind the card moves, so frost costs them nothing) have lost it. \
+         value-pickers = {value_picks:?}, crisp = {crisp:?}"
+    );
+
+    // ---- THE IFF, both directions, named per kind ---------------------------
+    for k in OverlayKind::ALL {
+        assert_eq!(
+            k.keeps_backdrop_crisp(),
+            k.previews_live_document(),
+            "{k:?} keeps_backdrop_crisp={} but previews_live_document={} — the frost \
+             exemption and the live audition are ONE decision: a kind that repaints \
+             the page behind its card must not frost it, and a kind that repaints \
+             nothing has no exemption to claim. crisp = {crisp:?}, auditions = \
+             {auditions:?}",
+            k.keeps_backdrop_crisp(),
+            k.previews_live_document()
+        );
+    }
+
+    // The NECESSARY (never sufficient) condition the subset law used to be: an
+    // audition commits a value, so it pops back to its summoning surface.
     for k in &crisp {
         assert_eq!(
             k.accept_disposition(),
             AcceptDisposition::ValuePick,
             "{k:?} keeps its backdrop crisp but is a {:?}, not a ValuePick: only a \
-             picker previewing live DOCUMENT state earns the exemption from frost. \
-             Crisp set = {crisp:?}",
+             picker auditioning a value into the live document earns the exemption \
+             from frost. Crisp set = {crisp:?}",
             k.accept_disposition()
         );
     }
+}
+
+/// **THE AUDITION PREDICATE IS GRADED AGAINST THE AUDITION ITSELF**, not against
+/// the crisp-backdrop list next to it. Two hand-written membership lists asserted
+/// equal is a real drift guard and still not a law about the product: both could
+/// be wrong together, and the whole defect this pair replaces was a *third*
+/// spelling drifting away from a *fourth*.
+///
+/// So this arm calls the real [`crate::actions::preview_overlay`] once per kind in
+/// [`OverlayKind::ALL`] and asks whether the running editor MOVED — the active
+/// world or the caret look, the only two things an audition can touch today.
+/// Exactly the kinds that answer [`OverlayKind::previews_live_document`] may move
+/// it. A kind added to the predicate without an arm fails here (it declares an
+/// audition it never performs); an arm reached without the declaration fails here
+/// too (the gate at the top of `preview_overlay` is what makes that impossible).
+///
+/// The globals are snapshotted and restored through the same doors the test guard
+/// uses, so an ambient caret pin or an `auto` entry state comes back as itself
+/// rather than as whatever this sweep happened to leave.
+#[test]
+fn only_the_declared_auditions_move_the_live_editor() {
+    let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let entry = crate::testlock::misc::pins();
+
+    // A card of `k` as the product builds it, so the audition has something real
+    // to apply. The wildcard is the GENERIC card: a future kind that declares an
+    // audition and is built here generically moves nothing, which is exactly the
+    // failure this law should report rather than skip.
+    fn card(k: OverlayKind) -> OverlayState {
+        match k {
+            OverlayKind::Theme => {
+                let names: Vec<String> =
+                    crate::theme::THEMES.iter().map(|t| t.name.into()).collect();
+                OverlayState::new_theme(names, crate::theme::active_index())
+            }
+            OverlayKind::Caret => OverlayState::new_caret(crate::caret::mode()),
+            _ => OverlayState::new(k, vec!["alpha.md".into(), "beta.md".into()], vec![], vec![]),
+        }
+    }
+
+    let live = || (crate::theme::active_index(), crate::caret::mode());
+    let mut moved: Vec<OverlayKind> = Vec::new();
+    for k in OverlayKind::ALL {
+        // Enter every arm from the same place, so "did it move" is a question
+        // about the audition rather than about iteration order.
+        crate::theme::set_active(0);
+        crate::caret::set_mode(crate::caret::CaretMode::ALL[0]);
+        let before = live();
+        let mut ov = card(k);
+        // The highlight MOVES: a card that opens on the live value and never
+        // leaves it would report "nothing changed" for a working audition.
+        ov.move_sel(1);
+        crate::actions::preview_overlay(&ov);
+        if live() != before {
+            moved.push(k);
+        }
+    }
+    crate::theme::set_active(0);
+    crate::testlock::misc::restore(&entry);
+
+    let declared: Vec<OverlayKind> = OverlayKind::ALL
+        .iter()
+        .copied()
+        .filter(|k| k.previews_live_document())
+        .collect();
+    // PRESENCE FLOOR: an equality between two empty sets is the vacuous pass this
+    // law is most likely to die of — a `move_sel(1)` that stopped moving, or a
+    // roster whose auditions were all retired, reads as agreement.
+    assert!(
+        !moved.is_empty(),
+        "no kind moved the live editor at all, so this law compared two empty sets \
+         — the audition fixture (a card built per kind, its highlight stepped once) \
+         has stopped exercising anything. declared = {declared:?}"
+    );
+    assert_eq!(
+        moved, declared,
+        "the kinds whose preview actually moved the live editor are {moved:?}, but \
+         the roster declares {declared:?}. A kind in `declared` and not in `moved` \
+         claims an audition it never performs — and takes a crisp backdrop for it. \
+         A kind in `moved` and not in `declared` auditions the live document from \
+         behind a FROSTED card, blurring the only thing its rows are showing."
+    );
 }

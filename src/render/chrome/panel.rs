@@ -375,7 +375,8 @@ impl TextPipeline {
     /// row 1 = replace). The row's centre comes from the panel's ONE row-band
     /// owner (`panel_rows`), the same seam the hit-test inverts and the sidecar
     /// projection publishes, so the caret cannot ride a row the pointer disagrees
-    /// about.
+    /// about — asked through `panel_caret_cy`, which is that centre under a name a
+    /// law can reach.
     fn panel_place_caret(
         &mut self,
         queue: &wgpu::Queue,
@@ -388,7 +389,7 @@ impl TextPipeline {
         let m = self.metrics;
         let caret_h = m.caret_h * 0.8;
         let caret_cx = caret_x + m.caret_w * 0.5;
-        let caret_cy = self.panel_rows(text_top).center(caret_row);
+        let caret_cy = self.panel_caret_cy(text_top, caret_row);
         self.panel_caret.prepare(
             queue,
             width,

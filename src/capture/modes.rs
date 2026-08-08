@@ -397,8 +397,8 @@ pub(super) fn settled_viewstate(
     let theme_panel = opts
         .overlay
         .as_ref()
-        .map(|o| o.mode == "theme")
-        .unwrap_or(false);
+        .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
+        .is_some_and(|k| k == crate::overlay::OverlayKind::Theme);
     // THE PER-KIND VISIBLE-ROW CAP, resolved from the mode string through the ONE
     // owner (`OverlayKind::window_rows`) rather than a hand-copied per-kind table.
     // It used to be spelled out here twice — once for the scroll HINT, once for
@@ -491,10 +491,17 @@ pub(super) fn settled_viewstate(
     // CARET-STYLE PICKER preview: when the still-open overlay is the caret picker,
     // map its highlighted row label back to the look so the headless capture renders
     // that look's SETTLED preview caret (the loop is live-only; see settle_caret_preview).
+    // WHICH kind that is comes from the same mode->kind door every other per-kind
+    // question here uses, never the mode's own spelling: `App::sync_view` gates this
+    // field on `o.kind == OverlayKind::Caret`, and two doors that answer one question
+    // in two vocabularies are the drift the crisp-backdrop merge was written to end.
     vstate.caret_preview = opts
         .overlay
         .as_ref()
-        .filter(|o| o.mode == "caret")
+        .filter(|o| {
+            crate::overlay::OverlayKind::from_mode(o.mode)
+                .is_some_and(|k| k == crate::overlay::OverlayKind::Caret)
+        })
         .and_then(|o| {
             o.items
                 .get(o.selected_index)

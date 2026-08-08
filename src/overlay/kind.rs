@@ -118,21 +118,70 @@ impl OverlayKind {
         }
     }
 
+    /// PREVIEWS THE LIVE DOCUMENT: does moving the highlight in this picker
+    /// repaint the page BEHIND the card, before anything is committed?
+    ///
+    /// The ONE owner of that question, and the property
+    /// [`Self::keeps_backdrop_crisp`] spends — the two are asserted EQUAL over
+    /// [`Self::ALL`], so a kind cannot earn the frost exemption without declaring
+    /// the audition that pays for it, or declare the audition and inherit frost
+    /// over the very thing its rows are showing.
+    /// `actions::overlay_nav::preview_overlay` gates on this before it mutates
+    /// anything, and the accept path asks it to decide which Enter is a KEEP of an
+    /// already-live value rather than a fresh apply.
+    ///
+    /// NOT this, though all three are [`AcceptDisposition::ValuePick`]s: a card
+    /// whose rows preview INSIDE THEMSELVES — the date formats render today's
+    /// date, the dictionary and CJK pickers pre-select the live value — because
+    /// nothing behind the card changes as the highlight moves, so frost costs
+    /// them nothing. Nor the version timeline, whose highlighted row substitutes
+    /// a snapshot into the workspace's own comparison region rather than into the
+    /// page behind its card.
+    ///
+    /// Exhaustive rather than `matches!`: a new picker that auditions a value
+    /// answers here, which is what forces the frost decision next door.
+    pub fn previews_live_document(self) -> bool {
+        match self {
+            OverlayKind::Theme | OverlayKind::Caret => true,
+            OverlayKind::Goto
+            | OverlayKind::Project
+            | OverlayKind::Browse
+            | OverlayKind::Dictionary
+            | OverlayKind::CjkLang
+            | OverlayKind::Date
+            | OverlayKind::MoveDest
+            | OverlayKind::Command
+            | OverlayKind::Spell
+            | OverlayKind::Keybindings
+            | OverlayKind::History
+            | OverlayKind::Conflict
+            | OverlayKind::Settings
+            | OverlayKind::Assets
+            | OverlayKind::Rename
+            | OverlayKind::InsertLink
+            | OverlayKind::KeepName
+            | OverlayKind::Context
+            | OverlayKind::ExportDest => false,
+        }
+    }
+
     /// THE CRISP-BACKDROP SET: does this card leave the DOCUMENT behind it
     /// unfrosted? Exhaustive rather than `matches!`, because the answer is a
     /// composition decision and a new kind must make it here instead of
     /// inheriting the frost.
     ///
     /// A card frosts what it covers (DESIGN §5: a summoned surface recedes the
-    /// room). The exception is a picker whose ROWS PREVIEW LIVE DOCUMENT STATE —
-    /// the theme picker repaints the page under itself, the caret picker poses
-    /// the real caret — where frosting would blur the very thing the row is
-    /// showing you. That is why every crisp kind is also an
-    /// [`AcceptDisposition::ValuePick`]: previewing a value is what earns the
-    /// exemption, and a navigator has no value to preview. A comparison is NOT
-    /// this: it composites inside the workspace's own content region, so what
-    /// sits behind its card is the user's untouched document — a quiet backdrop,
-    /// which is exactly what frost is for.
+    /// room). The exception is earned by exactly one property, and it has its own
+    /// owner: [`Self::previews_live_document`] — the theme picker repaints the
+    /// page under itself, the caret picker poses the real caret — where frosting
+    /// would blur the very thing the row is showing you. The two predicates are
+    /// asserted EQUAL over [`Self::ALL`], not merely nested, so neither can drift
+    /// past the other; being an [`AcceptDisposition::ValuePick`] is necessary but
+    /// nowhere near sufficient (three value-pickers preview inside their own rows
+    /// and want the frost). A comparison is NOT this either: it composites inside
+    /// the workspace's own content region, so what sits behind its card is the
+    /// user's untouched document — a quiet backdrop, which is exactly what frost
+    /// is for.
     ///
     /// Read by the LIVE door (`App::sync_view`) and by the CAPTURE door
     /// (`capture::modes::settled_viewstate`, which arrives holding a serialized
