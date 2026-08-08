@@ -300,21 +300,22 @@ pub(super) fn pairwise_delta_e_report(
 pub(super) const PAIRWISE_MIN_COVERED_PX: usize = 4;
 
 /// The pair's single largest ΔE must clear this — comfortably past the
-/// classic 2.3 JND, the same order of margin this tree's own ΔE ceilings
-/// already sit at rather than the JND itself (item 346 shipped its presence
-/// floor with margin at both ends, never flush against the JND).
+/// classic 2.3 JND, the same order of margin this tree's other ΔE presence
+/// floors already sit at rather than the JND itself, which leaves no room
+/// for a backend that antialiases a step differently.
 pub(super) const PAIRWISE_MIN_PEAK_DELTA_E: f64 = 6.0;
 
 /// **ONE OWNER of "can a human tell candidate A from candidate B in the
-/// artifact they were handed"** — the check this tree did not have until
-/// item 349's vision smoke could tell "before" from four candidate marks but
-/// not the four apart from EACH OTHER, because each was cropped to its own
-/// bounding box at ~77x39 device px and upscaled independently. That
-/// independent crop-and-rescale is what erased the very quantity (vertex
-/// angle) the candidates differed in: two candidates occupying different
-/// logical footprints, each blown up to fill the same thumbnail cell, share
-/// no ruler — a genuinely different angle can render pixel-for-pixel
-/// identical once each side has been independently renormalized to fit.
+/// artifact they were handed"** — a comparison never asked by any single
+/// treatment's own presence/contrast/coverage floor, all of which grade a
+/// candidate against its own ground rather than against a neighbour. A
+/// comparison gallery that crops each candidate to its own bounding box and
+/// upscales independently before compositing erases the very quantity being
+/// compared: two candidates occupying different logical footprints, each
+/// blown up to fill the same thumbnail cell, share no ruler — a genuinely
+/// different shape (a vertex angle, a stroke weight) can render
+/// pixel-for-pixel identical once each side has been independently
+/// renormalized to fit.
 ///
 /// So this check does NOT crop or rescale anything itself. Candidates arrive
 /// **already composited into ONE shared `width`x`height` frame at ONE
@@ -362,8 +363,8 @@ pub(super) fn assert_pairwise_distinct(
             "{label}: candidate {name_a:?} is not {width}x{height} px — every \
              candidate must be rendered into the SAME shared frame at the \
              artifact's own scale, never cropped to its own bounding box and \
-             rescaled independently (that renormalization is what hid a real \
-             vertex-angle difference in the gallery item 350 was named for)"
+             rescaled independently — that renormalization is what can hide \
+             a real shape difference between candidates"
         );
         assert_eq!(
             buf_b.len(),
@@ -776,10 +777,10 @@ mod tests {
 
     /// THE SCALE CLAIM, proven rather than asserted in a doc comment: the
     /// SAME real angle difference that this check finds at a workable frame
-    /// size can fail to clear the floor once minified hard enough — which is
-    /// exactly the shape of item 349's defect (a real vertex-angle
-    /// difference, invisible in a ~77x39 device-px crop). Two candidates
-    /// differ only in a diagonal edge's slope; downsampled by box-averaging
+    /// size can fail to clear the floor once minified hard enough — a real
+    /// shape difference, invisible once compressed into a small enough crop.
+    /// Two candidates differ only in a diagonal edge's slope; downsampled by
+    /// box-averaging
     /// (the same blending a thumbnail resize performs) to a small enough
     /// frame, the edge's few differing pixels dilute below this check's own
     /// floor, at the SAME floor constants used at the fine scale — proving
@@ -818,7 +819,7 @@ mod tests {
 
         // MINIFIED by box-averaging to a small shared frame — still a SHARED
         // frame (never an independent per-candidate crop), just a much
-        // coarser one, which is the load-bearing axis item 350 named.
+        // coarser one: the scale a comparison is measured at is load-bearing.
         let minify = |buf: &[[u8; 4]], tw: i64, th: i64| -> Vec<[u8; 4]> {
             let mut out = vec![[0u8; 4]; (tw * th) as usize];
             let (bw, bh) = (w / tw, h / th);
