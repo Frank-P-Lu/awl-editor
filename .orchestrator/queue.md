@@ -3691,7 +3691,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      for the eye, and **nobody has looked.**
      ⚠️ **Read-only: the auditor edits nothing.** An audit that finds something **names** the missing law
      without writing it. **Routing:** production tier.
-350. **A COMPARISON SET NEEDS A PAIRWISE-DISTINCTNESS FLOOR, AND NO CAPTURE PRODUCED FOR A TASTE CALL HAS
+350. 🚧 CLAIMED (worktree item-350-pairwise, production tier) **A COMPARISON SET NEEDS A PAIRWISE-DISTINCTNESS FLOOR, AND NO CAPTURE PRODUCED FOR A TASTE CALL HAS
      ONE.** Named by item 349's vision smoke after it could not tell three of four candidates apart in the
      artifact built for exactly that choice.
      ⚠️ **The gap is structural, not a one-off:** every floor this repo has for a rendered treatment grades
@@ -3707,6 +3707,28 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ⚠️ **Scope it honestly** — this only pays for artifacts that exist to settle a decision, not for every
      capture. If the honest answer is that it belongs in a capture helper rather than a law, say so.
      **Routing:** production tier.
+351. 🚧 CLAIMED (read-only audit, deep tier) **THE OUTCOME AUDIT THE STANDING POLICY OWES AFTER AN
+     IDENTITY-GATED REFACTOR, AND THIS SESSION NEVER RAN — the second such omission found after saying the
+     queue was empty.** `CLAUDE.md` names the trigger and the reason in one line: *"an identity-gated
+     refactor (follow with an outcome audit — **byte-identity preserves pre-existing bugs**)."*
+     ⚠️ **At least SEVEN refactors this session argued their correctness from byte-identity** — items 302,
+     310, 322, 341, 343, 348 and 174's three slices — **and nobody asked the follow-up.** Byte-identity
+     proves *"I changed nothing"*; it says nothing about whether what was preserved was right.
+     ✅ **The question is not "did the refactor work".** An extraction takes N spellings and makes one
+     authoritative, so **if the spellings disagreed, byte-identity on the sampled captures only proves the
+     sample missed the disagreement.** The two highest-risk cases are named for the auditor: **302 merged a
+     decider keyed on a mode's own STRING with one keyed on a type** — those cannot agree on an unknown
+     string — and **174's slice 3 merged a forward step with its own inverse**, which agree only if the
+     rounding is symmetric.
+     ⚠️ **Also asked: did the chosen owner inherit a bug from the spelling it was taken from?** Item 310's
+     own note records that a naive f64→f32 cast mismatched **214 of 256 bytes by up to 6 ULP**, so "each
+     caller keeps its own width" is a choice that can preserve the wrong width. **And: was the identity
+     sample capable of seeing a difference at all** — a claim "byte-identical at dpi 1" proves little for a
+     quantity that only differs at dpi ≠ 1, which is a recorded failure here.
+     ✅ **The brief requires ranking by disagreement risk and auditing the top two or three PROPERLY, saying
+     plainly which were not audited** — a shallow pass over seven is worth less than a deep pass over two,
+     and a clean bill of health from an audit that looked at nothing is the worst outcome. **Read-only.**
+     **Routing:** deep tier.
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
