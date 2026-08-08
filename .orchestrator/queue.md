@@ -841,7 +841,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      16px margin, the ground effectively vanishes and the roster's spread
      collapses toward palette alone.
 
-131. **131e IS PART-LANDED (merged 2026-08-06) — the MARK is done, the composition
+131. 🚧 131e's COMPOSITION LAWS CLAIMED (worktree item-311-diagonal, deep tier — bundled with 311) **131e IS PART-LANDED (merged 2026-08-06) — the MARK is done, the composition
      sweep is not.** ✅ The per-world mark is now theme data: `ListStyle::Diagonal`
      carries `DiagonalSpine { direction, mark: DiagonalMark { weight, reach, aperture } }`
      as its variant payload, so a world **cannot** author an orientation without a mark
@@ -1839,7 +1839,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      plus a law with a no-wildcard match so a seventh copy cannot appear.
      **Routing:** production tier.
 
-311. **`Diagonal`'s SECONDARY FLIP IS PROBABLY WRONG BY ITEM 306's OWN ARGUMENT** — a
+311. 🚧 CLAIMED (worktree item-311-diagonal, deep tier — bundled with 131e's composition laws) **`Diagonal`'s SECONDARY FLIP IS PROBABLY WRONG BY ITEM 306's OWN ARGUMENT** — a
      `Diagonal` world emits no row fill at all (`OverlaySelectionRects::default()`, by its
      own documented behaviour), so an ink chosen for a fill that is not under it can land
      on the page exactly as Firetail's thumb did. **Deliberately left alone by 306:**
