@@ -305,6 +305,57 @@ fn render_cell(
 // LAW 1 — ORIENTATION
 // ---------------------------------------------------------------------------
 
+/// ONE CELL'S ORIENTATION GRADING. Returns the drawn travel's SIGN when the cell
+/// drew a rake a pixel grid can resolve, and `None` when the card was cramped
+/// enough to yield its whole rake — those cells are counted OUT by the caller
+/// rather than passed quietly, because a near-upright spine satisfies every
+/// monotonicity claim below by having nothing to be monotone about.
+fn grade_orientation(
+    cell: &Cell,
+    ctx: &str,
+    direction: theme::DiagonalDirection,
+    dpi: f32,
+) -> Option<f32> {
+    let want = direction.sign();
+    // ONE LINE: the searched ink is the declared spine.
+    for r in &cell.rows {
+        assert!(
+            (r.spine - r.declared_spine).abs() <= 2.0 * dpi,
+            "{ctx}: row {}'s spine ink was found at x {:.1}, but the rail the frame drew \
+             from puts it at {:.1} — the drawn line and the declared line are not the \
+             same line",
+            r.display,
+            r.spine,
+            r.declared_spine
+        );
+    }
+    let first = cell.rows.first().expect("read_rows returned >= 2 rows");
+    let last = cell.rows.last().expect("read_rows returned >= 2 rows");
+    let travel = last.spine - first.spine;
+    let budget = last.declared_spine - first.declared_spine;
+    if budget.abs() < 3.0 {
+        return None;
+    }
+    for w in cell.rows.windows(2) {
+        let step = w[1].spine - w[0].spine;
+        assert!(
+            step * want > 0.0,
+            "{ctx}: rows {} → {} stepped {step:+.1} px, against the authored {direction:?} \
+             sign {want:+} — the drawn spine does not lean the way this world authored it",
+            w[0].display,
+            w[1].display
+        );
+    }
+    assert!(
+        travel * want >= 3.0 && travel.abs() >= budget.abs() * 0.6,
+        "{ctx}: the drawn spine travelled {travel:+.1} px across {} rows against a declared \
+         budget of {budget:+.1} — a spine that does not travel is an UPRIGHT line, and every \
+         monotonicity claim above is vacuous on it",
+        cell.rows.len()
+    );
+    Some(travel.signum())
+}
+
 /// **THE DRAWN SPINE LEANS THE WAY THE WORLD AUTHORED IT.**
 ///
 /// Three claims, and the third is the one that stops the first two going vacuous:
@@ -339,7 +390,6 @@ fn the_drawn_spine_leans_monotonically_in_its_authored_direction() {
     for (world, direction) in diagonal_worlds() {
         let _pin = theme::WorldPin::world(world).expect("a rostered world sets active");
         p.sync_theme();
-        let want = direction.sign();
         let mut world_travel: Option<f32> = None;
         for bar in [false, true] {
             crate::menubar::set_menu_bar_on(bar);
@@ -355,53 +405,11 @@ fn the_drawn_spine_leans_monotonically_in_its_authored_direction() {
                         };
                         let ctx =
                             format!("{world} bar={bar} dpi={dpi} {cw}x{ch} n={n} scroll={scroll}");
-
-                        // ONE LINE: the searched ink is the declared spine.
-                        for r in &cell.rows {
-                            assert!(
-                                (r.spine - r.declared_spine).abs() <= 2.0 * dpi,
-                                "{ctx}: row {}'s spine ink was found at x {:.1}, but the rail the \
-                                 frame drew from puts it at {:.1} — the drawn line and the \
-                                 declared line are not the same line",
-                                r.display,
-                                r.spine,
-                                r.declared_spine
-                            );
-                        }
-
-                        let first = cell.rows.first().expect("read_rows returned >= 2 rows");
-                        let last = cell.rows.last().expect("read_rows returned >= 2 rows");
-                        let travel = last.spine - first.spine;
-                        let budget = last.declared_spine - first.declared_spine;
-
-                        // A card cramped enough to yield its whole rake draws a
-                        // near-upright spine that no pixel grid can resolve. Those
-                        // cells are counted OUT rather than passed quietly.
-                        if budget.abs() >= 3.0 {
-                            for w in cell.rows.windows(2) {
-                                let step = w[1].spine - w[0].spine;
-                                assert!(
-                                    step * want > 0.0,
-                                    "{ctx}: rows {} → {} stepped {step:+.1} px, against the \
-                                     authored {direction:?} sign {want:+} — the drawn spine does \
-                                     not lean the way this world authored it",
-                                    w[0].display,
-                                    w[1].display
-                                );
-                            }
-                            assert!(
-                                travel * want >= 3.0 && travel.abs() >= budget.abs() * 0.6,
-                                "{ctx}: the drawn spine travelled {travel:+.1} px across {} rows \
-                                 against a declared budget of {budget:+.1} — a spine that does \
-                                 not travel is an UPRIGHT line, and every monotonicity claim \
-                                 above is vacuous on it",
-                                cell.rows.len()
-                            );
+                        if let Some(sign) = grade_orientation(&cell, &ctx, direction, dpi) {
                             match world_travel {
-                                None => world_travel = Some(travel.signum()),
+                                None => world_travel = Some(sign),
                                 Some(prev) => assert_eq!(
-                                    prev,
-                                    travel.signum(),
+                                    prev, sign,
                                     "{ctx}: one world leans ONE way — its drawn travel sign \
                                      flipped between cells"
                                 ),
@@ -748,6 +756,98 @@ fn read_lanes(cell: &Cell, r: &DrawnRow, near: f32, far: f32) -> Option<Lanes> {
     })
 }
 
+/// ONE CELL'S LANE GRADING — the two constancy arms, the real-gap floor, and the
+/// content-spread reading the constancy arms' non-vacuity depends on. Returns
+/// `(rows graded, tightest gap seen, whether this cell's names really differed in
+/// drawn width)`, or `None` when the cell drew too few readable rows to compare.
+fn grade_lanes(
+    cell: &Cell,
+    probe: &crate::render::chrome::diagonal::DiagonalClusterProbe,
+    vis_selected: Option<usize>,
+    dpi: f32,
+    ctx: &str,
+) -> Option<(usize, f32, bool)> {
+    let mut measured: Vec<(usize, f32, f32, f32, f32)> = Vec::new();
+    for r in &cell.rows {
+        if Some(r.display) == vis_selected {
+            continue; // carries the mark and the outward step
+        }
+        // The strip stops at the cluster's own outer end, so no margin chrome can
+        // enter the reading, and it STARTS outboard of the spine's own sideways
+        // travel: the line is diagonal, so inside one row's slot its ink already
+        // reaches half a row step past its centre abscissa, and a strip that began
+        // a fixed few pixels out read the spine's own tail as the name's first glyph.
+        let far = probe.accessory_anchor(r.display) + 2.0 * cell.s;
+        let clear = probe.spine_step().abs() * 0.5 + 3.0 * dpi;
+        let near = r.spine + clear * cell.s;
+        let Some(l) = read_lanes(cell, r, near, far) else {
+            continue;
+        };
+        assert!(
+            !l.near_clipped,
+            "{ctx}: row {}'s name ink reaches the reading strip's own near boundary \
+             ({near:.1}, {clear:.1} px outboard of the drawn spine) — the measurement is a \
+             CLIP, so every offset below would be compared boundary against boundary and \
+             the constancy arm would pass on any layout at all",
+            r.display
+        );
+        let name_off = (l.label_near - r.spine) * cell.s;
+        let control_off = (l.control_far - r.spine) * cell.s;
+        let gap = (l.control_near - l.label_far) * cell.s;
+        let name_span = (l.label_far - l.label_near).abs();
+        measured.push((r.display, name_off, control_off, gap, name_span));
+    }
+    if measured.len() < 4 {
+        return None;
+    }
+
+    // FIXED: both offsets are one number for the card. The tolerance is a glyph's
+    // own side bearing, which differs between a name starting 'g' and one 'a'.
+    let tol = 4.0 * dpi;
+    let (r0, n0, c0, _, _) = measured[0];
+    for &(rd, name_off, control_off, _, _) in &measured[1..] {
+        assert!(
+            (name_off - n0).abs() <= tol,
+            "{ctx}: the NAME lane moved with the row's content — row {r0} starts {n0:.1} px \
+             outboard of its spine, row {rd} starts {name_off:.1} px outboard of its own. \
+             The name is seated off its own width, not off the composition."
+        );
+        assert!(
+            (control_off - c0).abs() <= tol,
+            "{ctx}: the CONTROL lane moved with the row's content — row {r0} ends {c0:.1} px \
+             outboard of its spine, row {rd} ends {control_off:.1} px outboard of its own. A \
+             chord column seated off the row rather than the card shuffles sideways on every \
+             filter keystroke."
+        );
+    }
+
+    // A REAL GAP on every row, elided ones included.
+    // ⚠️ CALIBRATED, not chosen. A floor loose enough to be obviously safe is a
+    // floor no defect can trip: at 2 device px this arm survived the name budget
+    // swallowing the whole gap allowance. Measured over this sweep, the shipped
+    // tightest name/control gap is 57 device px at 1x, and collapsing the layout's
+    // own gap budget takes it to 32 — so the floor sits in that interval, with 17
+    // px of headroom over the shipped reading and 8 under the defect's.
+    let min_gap = 40.0 * dpi;
+    let mut tightest = f32::MAX;
+    for &(rd, _, _, gap, _) in &measured {
+        assert!(
+            gap >= min_gap,
+            "{ctx}: row {rd}'s name runs to within {gap:.1} device px of its control (floor \
+             {min_gap:.1}) — the lanes are at fixed offsets and the room between them has \
+             still been spent, which is what a constancy claim alone cannot see"
+        );
+        tightest = tightest.min(gap);
+    }
+
+    // NON-VACUITY for the constancy arms: this cell's own names must really differ
+    // in drawn width. A lane law swept over one name length proves nothing about a
+    // lane seated off the name, which is the defect both arms are named for.
+    let widest = measured.iter().map(|m| m.4).fold(0.0f32, f32::max);
+    let narrowest = measured.iter().map(|m| m.4).fold(f32::MAX, f32::min);
+    Some((measured.len(), tightest, widest >= narrowest * 3.0))
+}
+
 /// **THE ROOM BETWEEN A NAME AND ITS CONTROL IS THE CARD'S NUMBER, NOT THE ROW'S.**
 ///
 /// Both lanes hang off the spine: the name on the spine end at one connector, the
@@ -814,93 +914,16 @@ fn both_row_lanes_hang_off_the_spine_so_the_name_control_gap_is_the_cards_own() 
                         let ctx =
                             format!("{world} bar={bar} dpi={dpi} {cw}x{ch} n={n} scroll={scroll}");
 
-                        let mut measured: Vec<(usize, f32, f32, f32, f32)> = Vec::new();
-                        for r in &cell.rows {
-                            if Some(r.display) == vis_selected {
-                                continue; // carries the mark and the outward step
-                            }
-                            // The strip stops at the cluster's own outer end, so no
-                            // margin chrome can enter the reading.
-                            let far = probe.accessory_anchor(r.display) + 2.0 * cell.s;
-                            // The strip starts OUTBOARD of the spine's own sideways
-                            // travel: the line is diagonal, so inside one row's slot
-                            // its ink already reaches half a row step past its centre
-                            // abscissa, and a strip that began at a fixed few pixels
-                            // read the spine's own tail as the name's first glyph.
-                            let clear = probe.spine_step().abs() * 0.5 + 3.0 * dpi;
-                            let near = r.spine + clear * cell.s;
-                            let Some(l) = read_lanes(&cell, r, near, far) else {
-                                continue;
-                            };
-                            assert!(
-                                !l.near_clipped,
-                                "{ctx}: row {}'s name ink reaches the reading strip's own near                                  boundary ({near:.1}, {clear:.1} px outboard of the drawn spine)                                  — the measurement is a CLIP, so every offset below would be                                  compared boundary against boundary and the constancy arm would                                  pass on any layout at all",
-                                r.display
-                            );
-                            let name_off = (l.label_near - r.spine) * cell.s;
-                            let control_off = (l.control_far - r.spine) * cell.s;
-                            let gap = (l.control_near - l.label_far) * cell.s;
-                            let name_span = (l.label_far - l.label_near).abs();
-                            measured.push((r.display, name_off, control_off, gap, name_span));
-                        }
-                        if measured.len() < 4 {
+                        let Some((rows, tight, spread)) =
+                            grade_lanes(&cell, &probe, vis_selected, dpi, &ctx)
+                        else {
                             continue;
-                        }
-
-                        // FIXED: both offsets are one number for the card. The
-                        // tolerance is a glyph's own side bearing, which differs
-                        // between a name starting 'g' and one starting 'a'.
-                        let tol = 4.0 * dpi;
-                        let (r0, n0, c0, _, _) = measured[0];
-                        for &(rd, name_off, control_off, _, _) in &measured[1..] {
-                            assert!(
-                                (name_off - n0).abs() <= tol,
-                                "{ctx}: the NAME lane moved with the row's content — row {r0} \
-                                 starts {n0:.1} px outboard of its spine, row {rd} starts \
-                                 {name_off:.1} px outboard of its own. The name is seated off \
-                                 its own width, not off the composition."
-                            );
-                            assert!(
-                                (control_off - c0).abs() <= tol,
-                                "{ctx}: the CONTROL lane moved with the row's content — row {r0} \
-                                 ends {c0:.1} px outboard of its spine, row {rd} ends \
-                                 {control_off:.1} px outboard of its own. A chord column seated \
-                                 off the row rather than the card shuffles sideways on every \
-                                 filter keystroke."
-                            );
-                        }
-
-                        // A REAL GAP on every row, elided ones included.
-                        // ⚠️ CALIBRATED, not chosen. A floor loose enough to be
-                        // obviously safe is a floor no defect can trip: at 2 device
-                        // px this arm survived the name budget swallowing the whole
-                        // gap allowance. Measured over this sweep, the shipped
-                        // tightest name/control gap is 57 device px at 1x, and
-                        // collapsing the layout's own gap budget takes it to 32 — so
-                        // the floor sits in that interval, with 17 px of headroom
-                        // over the shipped reading and 8 under the defect's.
-                        let min_gap = 40.0 * dpi;
-                        for &(rd, _, _, gap, _) in &measured {
-                            assert!(
-                                gap >= min_gap,
-                                "{ctx}: row {rd}'s name runs to within {gap:.1} device px of its \
-                                 control (floor {min_gap:.1}) — the lanes are at fixed offsets \
-                                 and the room between them has still been spent, which is what a \
-                                 constancy claim alone cannot see"
-                            );
-                            tightest = tightest.min(gap);
-                        }
-
-                        // NON-VACUITY for the constancy arms: this cell's own names
-                        // must really differ in drawn width. A lane law swept over
-                        // one name length proves nothing about a lane seated off the
-                        // name, which is the defect both arms are named for.
-                        let widest = measured.iter().map(|m| m.4).fold(0.0f32, f32::max);
-                        let narrowest = measured.iter().map(|m| m.4).fold(f32::MAX, f32::min);
-                        if widest >= narrowest * 3.0 {
+                        };
+                        tightest = tightest.min(tight);
+                        if spread {
                             spread_seen += 1;
                         }
-                        rows_graded += measured.len();
+                        rows_graded += rows;
                         graded += 1;
                     }
                 }
@@ -931,6 +954,74 @@ fn both_row_lanes_hang_off_the_spine_so_the_name_control_gap_is_the_cards_own() 
 // ---------------------------------------------------------------------------
 // LAW 5 — PLACARD / ROW NON-OVERLAP
 // ---------------------------------------------------------------------------
+
+/// ONE CELL'S WORDMARK GRADING: the wordmark's own ink is present, the card's
+/// ground is measured OUTSIDE its box, and every row is both geometrically
+/// disjoint from it and sitting on that same ground.
+fn grade_wordmark(
+    cell: &Cell,
+    plan: &crate::render::plan::OverlayRowPlan,
+    probe: &crate::render::chrome::diagonal::DiagonalClusterProbe,
+    placard: [f32; 4],
+    cw: u32,
+    ch: u32,
+    ctx: &str,
+) {
+    let [px, py, pw, ph] = placard;
+    let mut wordmark_ink = 0usize;
+    for y in (py.max(0.0) as i64)..((py + ph) as i64).min(ch as i64) {
+        for x in (px.max(0.0) as i64)..((px + pw) as i64).min(cw as i64) {
+            let idx = (y * cw as i64 + x) as usize;
+            if idx < cell.pixels.len() && pixeldiff::delta_e(cell.pixels[idx], cell.ground) > 1.0 {
+                wordmark_ink += 1;
+            }
+        }
+    }
+    assert!(
+        wordmark_ink > 200,
+        "{ctx}: only {wordmark_ink} pixels inside the wordmark's own box {placard:?} differ \
+         from the ground at all — a placard that stopped drawing satisfies every non-overlap \
+         claim below"
+    );
+
+    // The card's own ground, measured OUTSIDE the wordmark's box.
+    let Some(card_ground) = ground_of(&cell.pixels, cw as i64, plan, cell.card, Some(placard))
+    else {
+        return;
+    };
+
+    for r in &cell.rows {
+        let (cl, cr) = probe.cluster_span(r.display);
+        let (mv, ma) = probe.mark_span(r.display);
+        let lo = cl.min(cr).min(mv).min(ma);
+        let hi = cl.max(cr).max(mv).max(ma);
+        let row_box = [lo, r.top, hi - lo, r.bottom - r.top];
+
+        // DISJOINT.
+        let overlap_x = (row_box[0] + row_box[2]).min(px + pw) - row_box[0].max(px);
+        let overlap_y = (row_box[1] + row_box[3]).min(py + ph) - row_box[1].max(py);
+        assert!(
+            overlap_x <= 0.0 || overlap_y <= 0.0,
+            "{ctx}: the room's wordmark {placard:?} overlaps row {}'s own ink box {row_box:?} \
+             by {overlap_x:.1}x{overlap_y:.1} device px — the card draws bare plates, so the \
+             mark shows THROUGH the row text",
+            r.display
+        );
+
+        // AND THE ROW SITS ON THE CARD'S OWN GROUND.
+        let region =
+            pixeldiff::Region::new(row_box[0], row_box[1] + 1.0, row_box[2], row_box[3] - 2.0);
+        let local = row_mode(&cell.pixels, cw as i64, region);
+        let de = pixeldiff::delta_e(local, card_ground);
+        assert!(
+            de < SAME_GROUND,
+            "{ctx}: row {}'s own ground reads {local:?}, ΔE {de:.2} from the card's ground away \
+             from the wordmark ({card_ground:?}) — something is drawn under this row that is \
+             not under the rest of the card, and the two declared boxes do not overlap",
+            r.display
+        );
+    }
+}
 
 /// **THE ROOM'S WORDMARK NEVER LANDS UNDER A ROW.**
 ///
@@ -1003,71 +1094,8 @@ fn the_room_wordmark_never_lands_under_a_diagonal_row() {
                         let ctx = format!("{world} bar={bar} dpi={dpi} {cw}x{ch} {anchor:?}");
                         anchors_seen.insert(format!("{anchor:?}"));
 
-                        // THE WORDMARK IS THERE.
-                        let mut wordmark_ink = 0usize;
-                        for y in (py.max(0.0) as i64)..((py + ph) as i64).min(ch as i64) {
-                            for x in (px.max(0.0) as i64)..((px + pw) as i64).min(cw as i64) {
-                                let idx = (y * cw as i64 + x) as usize;
-                                if idx < cell.pixels.len()
-                                    && pixeldiff::delta_e(cell.pixels[idx], cell.ground) > 1.0
-                                {
-                                    wordmark_ink += 1;
-                                }
-                            }
-                        }
-                        assert!(
-                            wordmark_ink > 200,
-                            "{ctx}: only {wordmark_ink} pixels inside the wordmark's own box \
-                             {placard:?} differ from the ground at all — a placard that stopped \
-                             drawing satisfies every non-overlap claim below"
-                        );
+                        grade_wordmark(&cell, &plan, &probe, placard, cw, ch, &ctx);
                         placard_seen += 1;
-
-                        // The card's own ground, measured OUTSIDE the wordmark's box.
-                        let Some(card_ground) =
-                            ground_of(&cell.pixels, cw as i64, &plan, cell.card, Some(placard))
-                        else {
-                            continue;
-                        };
-
-                        for r in &cell.rows {
-                            let (cl, cr) = probe.cluster_span(r.display);
-                            let (mv, ma) = probe.mark_span(r.display);
-                            let lo = cl.min(cr).min(mv).min(ma);
-                            let hi = cl.max(cr).max(mv).max(ma);
-                            let row_box = [lo, r.top, hi - lo, r.bottom - r.top];
-
-                            // DISJOINT.
-                            let overlap_x =
-                                (row_box[0] + row_box[2]).min(px + pw) - row_box[0].max(px);
-                            let overlap_y =
-                                (row_box[1] + row_box[3]).min(py + ph) - row_box[1].max(py);
-                            assert!(
-                                overlap_x <= 0.0 || overlap_y <= 0.0,
-                                "{ctx}: the room's wordmark {placard:?} overlaps row {}'s own ink \
-                                 box {row_box:?} by {overlap_x:.1}x{overlap_y:.1} device px — the \
-                                 card draws bare plates, so the mark shows THROUGH the row text",
-                                r.display
-                            );
-
-                            // AND THE ROW SITS ON THE CARD'S OWN GROUND.
-                            let region = pixeldiff::Region::new(
-                                row_box[0],
-                                row_box[1] + 1.0,
-                                row_box[2],
-                                row_box[3] - 2.0,
-                            );
-                            let local = row_mode(&cell.pixels, cw as i64, region);
-                            let de = pixeldiff::delta_e(local, card_ground);
-                            assert!(
-                                de < SAME_GROUND,
-                                "{ctx}: row {}'s own ground reads {local:?}, ΔE {de:.2} from the \
-                                 card's ground away from the wordmark ({card_ground:?}) — \
-                                 something is drawn under this row that is not under the rest of \
-                                 the card, and the two declared boxes do not overlap",
-                                r.display
-                            );
-                        }
                         graded += 1;
                     }
                 }
