@@ -3,7 +3,9 @@
 //! roster; the spawned PNG law in `tests/caret_punctuation_pixels.rs` checks the
 //! resulting pixels.
 
-use super::super::caret_body::CARET_VISUAL_BODY_MIN_W;
+use super::super::caret_body::{
+    CARET_VISUAL_BODY_MIN_AREA, CARET_VISUAL_BODY_MIN_W, InkBox, caret_visual_body_dims,
+};
 use super::super::*;
 use super::{headless_pipeline, view};
 use crate::caret::CaretMode;
@@ -54,7 +56,7 @@ fn proportional_punctuation_keeps_the_shared_horizontal_body_hug() {
                     let px = p.metrics.caret_h / CARET_H;
                     let (w, _h) = super::super::caret::caret_visual_body_dims(ink, px);
                     assert!(
-                        w >= CARET_VISUAL_BODY_MIN_W * px - 1e-3,
+                        w >= CARET_VISUAL_BODY_MIN_W.px(px) - 1e-3,
                         "{} {mode:?} {ch:?}: width floor",
                         world.name
                     );
@@ -136,4 +138,53 @@ fn mono_worlds_never_read_a_punctuation_ink_box() {
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
     crate::caret::set_mode(CaretMode::Block);
+}
+
+/// **THE AREA FLOOR SCALES AS THE SQUARE OF THE DISPLAY FACTOR — a property
+/// the width-floor assertions above cannot see.** `w` is already clamped to
+/// `CARET_VISUAL_BODY_MIN_W.px(px)` by `ink.width.max(...)` before the area
+/// term ever runs, and that floor's own growth can only ever push `w` UP —
+/// so a magnitude bug in the area's own scaling can hide entirely behind a
+/// green width-floor check. Graded directly against [`Area::px2`], the one
+/// function that carries the property: doubling the display factor must
+/// QUADRUPLE the floor, not double it, which is what a length's linear
+/// `.px()` would give if the area were mistyped into that family.
+#[test]
+fn the_area_floor_scales_by_the_square_of_the_display_factor() {
+    let base = CARET_VISUAL_BODY_MIN_AREA.px2(1.0);
+    assert!(base > 0.0, "an inert floor would make every ratio 0/0");
+    for factor in [1.5f32, 2.0, 3.0] {
+        let got = CARET_VISUAL_BODY_MIN_AREA.px2(factor);
+        let want = base * factor * factor;
+        let linear = base * factor;
+        assert!(
+            (got - want).abs() < 1e-3,
+            "factor {factor}: Area::px2 gave {got}, the SQUARE relationship \
+             wants {want} (a length's linear `.px()` would give {linear} \
+             instead — exactly the under-scale a mistyped `Logical` would \
+             produce)"
+        );
+    }
+}
+
+/// **THE AREA FLOOR IS GENUINELY LOAD-BEARING AT ORDINARY SCALE**, so the
+/// property above is not proven of a term nothing ever reaches. At `px = 1`
+/// a narrow, short ink box (well under both the width and height floors on
+/// its own) still settles to exactly the authored floor.
+#[test]
+fn the_area_floor_engages_on_ink_under_every_floor_at_px_one() {
+    let ink = InkBox {
+        left: 0.0,
+        top: 0.0,
+        width: 2.0,
+        height: 3.0,
+    };
+    let (w, h) = caret_visual_body_dims(ink, 1.0);
+    let area = w * h;
+    let want = CARET_VISUAL_BODY_MIN_AREA.px2(1.0);
+    assert!(
+        (area - want).abs() < 1e-3,
+        "px 1: body area is {area}, the authored floor is {want} — the area \
+         term did not engage for ink this small"
+    );
 }

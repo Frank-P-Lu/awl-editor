@@ -405,6 +405,14 @@ const UNIT_TYPES: &[&str] = &["Logical", "Physical", "LogicalGrowOnly", "Chars",
 /// [`DIMENSIONLESS`].
 const NON_LENGTH_TYPES: &[&str] = &["Millis"];
 
+/// Families that are declared in the TYPE and scale as an AREA — the SQUARE of
+/// the display factor — rather than as a length or not at all. Kept apart from
+/// [`NON_LENGTH_TYPES`]: a `Millis` never meets the pixel scale at all, but an
+/// `Area` genuinely does, just through its own quadratic door (`Area::px2`)
+/// rather than a length's linear one, so lumping it with a true non-length
+/// would hide that it is still scale-dependent.
+const AREA_TYPES: &[&str] = &["Area"];
+
 /// The constants [`Metrics::with_dpi`] resolves ITSELF, read out of that
 /// function's own body rather than listed by name.
 ///
@@ -632,6 +640,16 @@ fn const_decl(line: &str) -> Option<&str> {
 /// third with its reason, and the fourth is a [`Chars`]. What is left over is a
 /// measured DEFECT with its own closed ledger, [`DPI_BLIND_PENDING`], not a
 /// classification.
+///
+/// WIDENED A FOURTH TIME, to `src/render/caret_body.rs` — the caret's own
+/// minimum-visible-body floor, one directory out from every sweep above and the
+/// same untyped-`f32` shape this file exists to close. Its two length constants
+/// recover `Metrics::scale` at the call site rather than reading `Metrics`
+/// directly and pass it through `Logical::px`, the same recovery `CARET_INK_PAD`
+/// already used. Its third constant is an AREA, met here for the first time: an
+/// area scales as the SQUARE of the display factor, so a length family would
+/// silently under-scale it by one factor of `scale` — it gets its own by-kind
+/// family, `Area`, with a `.px2` door rather than `Logical`'s linear `.px`.
 fn chrome_sources() -> Vec<(String, String)> {
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut out = Vec::new();
@@ -641,6 +659,7 @@ fn chrome_sources() -> Vec<(String, String)> {
         "src/render/geometry.rs",
         "src/render/scroll.rs",
         "src/menubar.rs",
+        "src/render/caret_body.rs",
     ];
     while let Some(dir) = stack.pop() {
         for entry in std::fs::read_dir(&dir).expect("chrome dir readable") {
@@ -746,6 +765,9 @@ fn product_sources() -> Vec<(String, String)> {
 ///
 ///   * a UNIT TYPE, or a `Millis` — the by-kind exclusion, enforced by the
 ///     compiler rather than by this file;
+///   * an `Area` — the by-kind exclusion for a quantity that scales as the
+///     SQUARE of the display factor, so a length's linear door would silently
+///     under-scale it;
 ///   * resolved by [`Metrics::with_dpi`] itself, DERIVED from that function's
 ///     own body ([`metrics_resolved_constants`]) so the exclusion expires the
 ///     moment the owner stops multiplying it;
@@ -760,6 +782,7 @@ fn every_authored_chrome_constant_declares_its_unit_family() {
     let mut offenders: Vec<String> = Vec::new();
     let mut typed = 0usize;
     let mut non_length_typed = 0usize;
+    let mut area_typed = 0usize;
     let mut dimensionless = 0usize;
     let mut owner_resolved = 0usize;
     let mut pending = 0usize;
@@ -800,7 +823,8 @@ fn every_authored_chrome_constant_declares_its_unit_family() {
             // level is not a length and never could be.
             if !(ty == "f32"
                 || UNIT_TYPES.contains(&ty.as_str())
-                || NON_LENGTH_TYPES.contains(&ty.as_str()))
+                || NON_LENGTH_TYPES.contains(&ty.as_str())
+                || AREA_TYPES.contains(&ty.as_str()))
             {
                 continue;
             }
@@ -808,6 +832,8 @@ fn every_authored_chrome_constant_declares_its_unit_family() {
                 typed += 1;
             } else if NON_LENGTH_TYPES.contains(&ty.as_str()) {
                 non_length_typed += 1;
+            } else if AREA_TYPES.contains(&ty.as_str()) {
+                area_typed += 1;
             } else if resolved.iter().any(|n| n == name) {
                 owner_resolved += 1;
             } else if DIMENSIONLESS.iter().any(|(n, _)| *n == name) {
@@ -844,6 +870,11 @@ fn every_authored_chrome_constant_declares_its_unit_family() {
         "the by-kind exclusions must both be populated: {non_length_typed} \
          Millis-typed, {owner_resolved} resolved by Metrics::with_dpi"
     );
+    assert!(
+        area_typed >= 1,
+        "the sweep found no Area-typed constant — the by-kind AREA exclusion \
+         is not reading the source it thinks it is"
+    );
     assert_eq!(
         dimensionless,
         DIMENSIONLESS.len(),
@@ -859,8 +890,8 @@ fn every_authored_chrome_constant_declares_its_unit_family() {
     );
     eprintln!(
         "declaration sweep: {typed} unit-typed, {non_length_typed} Millis, \
-         {owner_resolved} resolved by Metrics::with_dpi, {dimensionless} \
-         dimensionless, {pending} DPI-blind pending"
+         {area_typed} Area, {owner_resolved} resolved by Metrics::with_dpi, \
+         {dimensionless} dimensionless, {pending} DPI-blind pending"
     );
 }
 

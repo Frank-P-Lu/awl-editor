@@ -22,16 +22,40 @@ impl InkBox {
 }
 
 /// The smallest visible body at zoom 1. Width, height, and area are separate:
-/// brackets need width, dashes need height, and commas need all three.
-pub(super) const CARET_VISUAL_BODY_MIN_W: f32 = 6.5;
-pub(super) const CARET_VISUAL_BODY_MIN_H: f32 = 12.0;
-pub(super) const CARET_VISUAL_BODY_MIN_AREA: f32 = 96.0;
+/// brackets need width, dashes need height, and commas need all three. Width
+/// and height are `Logical` — the same pixel space chrome's own pads live in —
+/// resolved through the scale the caller already recovered from the metrics
+/// (`px = m.caret_h / CARET_H`, exactly [`super::Metrics::scale`] because
+/// [`super::Metrics::with_dpi`] built `caret_h` that way, the same recovery
+/// `CARET_INK_PAD` already uses). Area is a SEPARATE family, not `Logical`:
+/// doubling the display factor quadruples an area rather than doubling it, so
+/// resolving it through a length's one-multiply door would under-scale it by
+/// exactly one factor of `scale` — invisible at `--capture-dpi 1`, the same
+/// failure shape `Logical` exists to close for lengths.
+pub(super) const CARET_VISUAL_BODY_MIN_W: Logical = Logical(6.5);
+pub(super) const CARET_VISUAL_BODY_MIN_H: Logical = Logical(12.0);
+pub(super) const CARET_VISUAL_BODY_MIN_AREA: Area = Area(96.0);
+
+/// A quantity in SQUARE logical pixels — an AREA floor, not a length. The
+/// newtype carries no `.px()`, only [`Self::px2`], so an area constant cannot
+/// reach a comparison through the same one-multiply door a length uses and
+/// come out scaled by only one factor of `scale`.
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+pub(super) struct Area(pub f32);
+
+impl Area {
+    /// The one multiply, applied twice: `scale * scale`, the factor an AREA
+    /// wants when every linear quantity beside it scales by `scale` alone.
+    pub(super) fn px2(self, scale: f32) -> f32 {
+        self.0 * scale * scale
+    }
+}
 
 /// Apply the authored floor without flattening ordinary glyph-responsive carets.
 pub(super) fn caret_visual_body_dims(ink: InkBox, px: f32) -> (f32, f32) {
-    let mut w = ink.width.max(CARET_VISUAL_BODY_MIN_W * px);
-    let mut h = (ink.height + 2.0 * CARET_INK_PAD.px(px)).max(CARET_VISUAL_BODY_MIN_H * px);
-    let min_area = CARET_VISUAL_BODY_MIN_AREA * px * px;
+    let mut w = ink.width.max(CARET_VISUAL_BODY_MIN_W.px(px));
+    let mut h = (ink.height + 2.0 * CARET_INK_PAD.px(px)).max(CARET_VISUAL_BODY_MIN_H.px(px));
+    let min_area = CARET_VISUAL_BODY_MIN_AREA.px2(px);
     if w * h < min_area {
         let grow = (min_area / (w * h)).sqrt();
         w *= grow;
