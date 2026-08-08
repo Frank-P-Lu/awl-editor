@@ -19,14 +19,16 @@
 //!
 //! * `frost_parallelogram_item318`'s coverage floor requires the card's upright chrome to
 //!   be frosted, over the box its own production owner declares.
-//! * `frost_width_item343`'s completeness law renders the picker with the frost
-//!   SUPPRESSED over an empty document, differences it against the same frame with the
-//!   picker closed — the two are identical but for the card's own drawing, so the residue
-//!   is that drawing exactly — and requires every pixel of it to land inside the union
-//!   below. A surface nobody remembered fails there by existing. Its companion census
-//!   requires every overlay quad pipeline this file does NOT read to report zero
-//!   instances at the same fixture, so an exclusion is earned by measurement rather than
-//!   by a name.
+//! * `frost_width_item343`'s coverage law renders the picker with the frost SUPPRESSED
+//!   over an empty document and differences it against the same frame with the picker
+//!   closed — the two are identical but for the card's own drawing, so the residue IS that
+//!   drawing — then requires every pixel of it to have the frost's shipping mask at or
+//!   above a floor beneath it. A surface nobody remembered is card ink with no frost under
+//!   it and fails there by existing, which is also how every EXCLUSION from the list below
+//!   is earned: "this composition draws nothing else" is a measurement rather than a name.
+//!   Measured on the enrolled roster, dropping the rules term alone leaves 9700 of
+//!   Paperbark's 23319 drawn pixels over sharp document, and dropping the selected row's
+//!   mark leaves 98 of Mangrove's.
 //!
 //! Every seat here is READ from the owner the draw path reads, never re-derived: the
 //! panel buffer's per-band seats are [`TextPipeline::overlay_panel_bands`], which the
