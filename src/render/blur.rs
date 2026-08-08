@@ -22,8 +22,16 @@
 //! carries it all live in [`extent`]; this file is the GPU plumbing both arms share.
 
 mod extent;
+/// THE FROST'S BOX NARROWED TO THE SURFACES THE CARD ACTUALLY DREW — the un-sheared
+/// frame's arithmetic, and why the card's LAYOUT box was never the frost's subject.
+mod narrow;
 
 pub use extent::{BlurSurface, Footprint, Frost, footprint_box, footprint_frost_applies};
+pub(crate) use narrow::footprint_narrow;
+/// THE FROST, SUPPRESSED — the test-only door that gives a law two frames differing only
+/// by the card's own drawing (the positive card-ink oracle `frost_card_ink` cannot be).
+#[cfg(test)]
+mod suppress;
 use extent::{
     DOWNSAMPLE, U, bytes_of, capped_doc_size, downsample_for, footprint_bound,
     footprint_feather_px, scissor_px,
@@ -36,6 +44,8 @@ use extent::{
 pub(crate) use extent::{
     FOOTPRINT_FEATHER_PX, footprint_face_x, footprint_mask_for, footprint_skirt_px,
 };
+#[cfg(test)]
+pub(crate) use suppress::{frost_suppressed, set_frost_suppressed};
 
 use wgpu::util::DeviceExt;
 

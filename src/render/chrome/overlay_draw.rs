@@ -324,63 +324,32 @@ impl TextPipeline {
             });
             placard_in_panel = true;
         }
-        let slant = crate::render::overlay_slant();
-        let cluster = self.diagonal_cluster;
-        match (slant, cluster) {
-            (None, None) => {
+        // ONE CLIP BAND PER PLANNED ROW, off the plan's own slots rather than re-derived
+        // from `first_top + k * lh` — the rows are not a uniform pitch once a compact row
+        // is in the budget. WHERE each band is seated is `overlay_panel_bands`, which the
+        // footprint frost measures its ink through, so the seat glyphon is handed and the
+        // seat a treatment reads are one object.
+        match self.overlay_panel_bands(geom, plan) {
+            None => {
                 areas.push(panel_area);
             }
-            _ => {
-                // ITEM 174 — one clip band PER PLANNED ROW, off the plan's own
-                // slots (this loop used to re-derive `first_top + k * lh`).
-                let clip = |top: f32, bottom: f32| TextBounds {
-                    left: bounds.left,
-                    top: top.max(0.0) as i32,
-                    right: bounds.right,
-                    bottom: (bottom.min(height as f32)) as i32,
-                };
-                areas.push(TextArea {
-                    buffer: &self.panel_buffer,
-                    left: text_left,
-                    top: text_top,
-                    scale: 1.0,
-                    bounds: clip(0.0, plan.first_top()),
-                    default_color: ink,
-                    custom_glyphs: &[],
-                });
-                // A mirrored cluster hangs its name on the SPINE end, so an
-                // ascending world's name is right-aligned and its origin is a
-                // function of the ink it measures — read from the shaped buffer
-                // this frame drew, never re-measured.
-                let primary = cluster.map(|_| self.overlay_row_primary_px(geom));
-                for row in plan.rows() {
-                    let left = match (cluster, &primary) {
-                        (Some(cluster), Some(primary)) => cluster.label_origin(
-                            row.display,
-                            primary.get(&row.display).copied().unwrap_or(0.0),
-                        ),
-                        _ => text_left + row.dx,
-                    };
+            Some(panel_bands) => {
+                for band in &panel_bands {
                     areas.push(TextArea {
                         buffer: &self.panel_buffer,
-                        left,
+                        left: band.left,
                         top: text_top,
                         scale: 1.0,
-                        bounds: clip(row.top, row.bottom()),
+                        bounds: TextBounds {
+                            left: bounds.left,
+                            top: band.clip_top.max(0.0) as i32,
+                            right: bounds.right,
+                            bottom: (band.clip_bottom.min(height as f32)) as i32,
+                        },
                         default_color: ink,
                         custom_glyphs: &[],
                     });
                 }
-                let tail_top = plan.band_bottom();
-                areas.push(TextArea {
-                    buffer: &self.panel_buffer,
-                    left: self.overlay_foot_left(geom, plan),
-                    top: text_top,
-                    scale: 1.0,
-                    bounds: clip(tail_top, height as f32),
-                    default_color: ink,
-                    custom_glyphs: &[],
-                });
             }
         }
         // ITEM 114 — the navigation rail, in the card's own z-slot.
@@ -402,7 +371,7 @@ impl TextPipeline {
             // buffer origin — the same flow that shaped it seats it here.
             let flow = super::diagonal::accessory_flow(self);
             let bind_w = self.panel_bind_buffer.size().0.unwrap_or(0.0);
-            if let Some(cluster) = cluster {
+            if let Some(cluster) = self.diagonal_cluster {
                 let clip = |top: f32, bottom: f32| TextBounds {
                     left: bounds.left,
                     top: top.max(0.0) as i32,
@@ -482,12 +451,37 @@ impl TextPipeline {
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
     ) {
-        // The field's own PLANNED line box. `None` is the contextual spell
-        // popup, which draws no query line at all.
-        let Some(field) = plan.query_band() else {
+        let Some([x, y, w, h]) = self.overlay_query_caret_box(geom, plan) else {
             self.panel_caret.prepare_empty();
             return;
         };
+        self.panel_caret.prepare(
+            queue,
+            width,
+            height,
+            x + w * 0.5,
+            y + h * 0.5,
+            w,
+            h,
+            CORNER_RADIUS,
+        );
+    }
+
+    /// THE QUERY FIELD'S CARET, as the box it is drawn in (`[x, y, w, h]`) — `None` when
+    /// the card draws no query line at all (the contextual spell popup).
+    ///
+    /// A `&self` owner rather than arithmetic inside the placer, because the footprint
+    /// frost has to know how far the head band's ink really reaches and the caret stands
+    /// its own width past the last glyph. One derivation, so the quad the frost accounts
+    /// for is the quad the frame drew.
+    pub(in crate::render) fn overlay_query_caret_box(
+        &self,
+        geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
+    ) -> Option<[f32; 4]> {
+        // The field's own PLANNED line box. `None` is the contextual spell
+        // popup, which draws no query line at all.
+        let field = plan.query_band()?;
         let m = self.metrics;
         let sigil = "› ";
         let title_prefix = self.overlay_title_prefix(geom);
@@ -516,21 +510,11 @@ impl TextPipeline {
                         * (sigil.chars().count() + self.overlay_query.chars().count()) as f32
                 });
         let caret_h = m.caret_h * 0.8 * OVERLAY_UI_SCALE;
-        let caret_cx = caret_x + m.caret_w * 0.5;
         // The caret is centred in the SAME planned field box the pointer
         // hit-test accepts and the split composition carves its gap from —
         // never a line height read back off the shaped run here, which is a
         // second calculation only the draw path can see.
         let caret_cy = field.center();
-        self.panel_caret.prepare(
-            queue,
-            width,
-            height,
-            caret_cx,
-            caret_cy,
-            m.caret_w,
-            caret_h,
-            CORNER_RADIUS,
-        );
+        Some([caret_x, caret_cy - caret_h * 0.5, m.caret_w, caret_h])
     }
 }

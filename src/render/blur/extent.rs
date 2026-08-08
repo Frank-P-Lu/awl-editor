@@ -216,17 +216,17 @@ pub(super) fn footprint_dist_outside(foot: Footprint, px: f32, py: f32) -> f32 {
 /// bit.
 pub fn footprint_box(card: [f32; 4], shear: f32, upright: Option<[f32; 4]>) -> [f32; 4] {
     let [x, y, w, h] = card;
-    let Some([l, t, r, b]) = upright else {
+    let Some(chrome) = upright else {
         return card;
     };
-    if !(shear.is_finite() && l.is_finite() && t.is_finite() && r.is_finite() && b.is_finite()) {
+    if !(shear.is_finite() && chrome.iter().all(|v| v.is_finite())) {
         return card;
     }
-    let cy = y + h * 0.5;
-    let (d0, d1) = (shear * (t - cy), shear * (b - cy));
-    let (lo, hi) = (d0.min(d1), d0.max(d1));
-    let x0 = x.min(l - hi);
-    let x1 = (x + w).max(r - lo);
+    // The chrome's span in the shape's OWN un-sheared frame — the same frame, and the
+    // same owner, the narrowing reads from the other side (`super::narrow`).
+    let (lo, hi) = super::narrow::unsheared_x_span(chrome, shear, y + h * 0.5);
+    let x0 = x.min(lo);
+    let x1 = (x + w).max(hi);
     [x0, y, (x1 - x0).max(w), h]
 }
 

@@ -149,6 +149,13 @@ impl TextPipeline {
         if theme::active().render_caps.backdrop == theme::Backdrop::Flat {
             return None;
         }
+        // A TEST-ONLY DOOR, and the whole of why it exists is in `blur::suppress`: a
+        // completeness law needs two frames that differ ONLY by the card's own drawing,
+        // and no frosted frame can give it one.
+        #[cfg(test)]
+        if blur::frost_suppressed() {
+            return None;
+        }
         if self.overlay_blur()
             || self.hud_showing()
             || crate::lifetime::lifetime_open()
@@ -163,13 +170,40 @@ impl TextPipeline {
         {
             return self.overlay_card_rect().map(|rect| {
                 let shear = self.footprint_shear();
+                // NARROWED to the surfaces the card actually drew, THEN widened for the
+                // upright chrome the rake cannot carry. Both steps read the shape's own
+                // un-sheared frame, and only the horizontal faces move.
+                let drawn = self.footprint_drawn_box(rect, shear);
                 blur::Frost::Footprint(blur::Footprint {
-                    rect: blur::footprint_box(rect, shear, self.footprint_upright_chrome()),
+                    rect: blur::footprint_box(drawn, shear, self.footprint_upright_chrome()),
                     shear,
                 })
             });
         }
         None
+    }
+
+    /// THE CARD'S BOX NARROWED TO WHAT THE FRAME DREW INSIDE IT.
+    ///
+    /// `overlay_card_rect` is a PLACEMENT policy — a fixed desired width clamped to the
+    /// window — and on a composition that draws no panel under the card and no plate under
+    /// its rows, nothing occupies the width it claims: measured on this tree, a
+    /// cross-section of 576 logical px over a row carrying at most 110 of ink. So the
+    /// frost, which owes a backdrop to the card's own surfaces and to nothing beside them,
+    /// asks the surfaces instead (`TextPipeline::overlay_drawn_surfaces`).
+    ///
+    /// THE HIT REGION KEEPS THE LAYOUT BOX. A click a hair outside the ink still means
+    /// "dismiss the picker", and the frost's extent and the clickable band were already
+    /// separate quantities — the same split that lets the shape lean and feather while the
+    /// pointer's rect does neither.
+    ///
+    /// It only ever SHRINKS, and never past the card, so every claim about the page outside
+    /// the old footprint holds unchanged. A frame that reports no drawn surface at all
+    /// keeps the whole box rather than collapsing to nothing.
+    fn footprint_drawn_box(&self, card: [f32; 4], shear: f32) -> [f32; 4] {
+        let geom = self.overlay_geometry(self.window_w as u32);
+        let plan = self.overlay_row_plan(&geom);
+        blur::footprint_narrow(card, shear, &self.overlay_drawn_surfaces(&geom, &plan))
     }
 
     /// THE FOOTPRINT'S LEAN, READ FROM THE COMPOSITION THE FRAME DREW — physical px of

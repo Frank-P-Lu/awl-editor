@@ -91,6 +91,29 @@ pub(in crate::render) struct RuleSpans {
     pub mark: (f32, f32),
 }
 
+impl RuleSpans {
+    /// THE HORIZONTAL REACH OF EVERY RECT [`rules_ink`] CAN EMIT from these spans — over
+    /// any row set, any selection, and either [`theme::RuleSelection`].
+    ///
+    /// It is a claim about the function beside it rather than about a frame, which is why
+    /// it lives here: `measure`, `band` and `Gutter`'s own segment are the only three
+    /// x-extents in that whole function, so the union of the three bounds it whatever the
+    /// rows do. A law sweeps [`rules_ink`] over row sets and both marks and requires every
+    /// emitted rect inside this, so a fourth extent added there fails rather than escapes.
+    ///
+    /// The footprint frost reads it because a rule is the one thing a ruled list draws at
+    /// the CARD's full width: a treatment narrowed to the glyphs would leave every
+    /// selected rule hanging over sharp document.
+    pub(in crate::render) fn x_reach(&self) -> (f32, f32) {
+        let (mx, mw) = (self.measure.0, self.measure.1.max(1.0));
+        let (bx, bw) = (self.band.0, self.band.1.max(1.0));
+        // The gutter segment hangs off `measure`'s left edge, floored at the band's, so it
+        // can reach left of `measure` and never left of `band`.
+        let gutter = (mx - self.mark.1 - self.mark.0).max(bx);
+        (mx.min(bx).min(gutter), (mx + mw).max(bx + bw))
+    }
+}
+
 /// THE ONE OWNER OF WHICH RULES A RULED LIST DRAWS — `(hairlines, selection)`.
 ///
 /// Both consumers come through here: the picker/workspace ROW list
@@ -187,6 +210,36 @@ impl TextPipeline {
         }
     }
 
+    /// THE SPANS AND WEIGHTS THIS FRAME'S ROW LIST DRAWS ITS RULES AT — `None` on every
+    /// composition that draws no rules at all, which is how a consumer asks "does this
+    /// frame rule its rows" without naming a style.
+    ///
+    /// One owner, read by the draw and by the footprint frost: the frost needs the reach
+    /// ([`RuleSpans::x_reach`]) and the draw needs the spans, and a second construction
+    /// would be a second answer to how wide a selected rule runs.
+    pub(in crate::render) fn overlay_rule_spans(&self, geom: &OverlayGeom) -> Option<RuleSpans> {
+        matches!(
+            crate::render::effective_list_style(),
+            theme::ListStyle::Rules(_)
+        )
+        .then(|| self.rule_spans_at(geom))
+    }
+
+    /// The spans themselves, asked of a frame that has already decided it rules its rows.
+    fn rule_spans_at(&self, geom: &OverlayGeom) -> RuleSpans {
+        let (hair, heavy) = self.rule_weights();
+        RuleSpans {
+            hair,
+            heavy,
+            measure: (geom.text_left, geom.text_w),
+            band: (geom.band_x(), geom.band_w()),
+            mark: (
+                self.metrics.px(RULE_MARK_LEN),
+                self.metrics.px(RULE_MARK_GAP),
+            ),
+        }
+    }
+
     /// THE `Rules` STYLE'S ROW SURFACES — which are not surfaces at all.
     ///
     /// `unselected` carries the separating hairlines and `selected` the
@@ -211,7 +264,6 @@ impl TextPipeline {
         self.overlay_rows
             .set_color(self.rule_mark_ink(geom.workspace && !geom.rows_focused));
 
-        let (hair, heavy) = self.rule_weights();
         let rows: Vec<RuleRow> = plan
             .rows()
             .iter()
@@ -222,20 +274,7 @@ impl TextPipeline {
                 selected: vis.reads_selected(r.display),
             })
             .collect();
-        let (unselected, selected) = rules_ink(
-            &rows,
-            mark,
-            &RuleSpans {
-                hair,
-                heavy,
-                measure: (geom.text_left, geom.text_w),
-                band: (geom.band_x(), geom.band_w()),
-                mark: (
-                    self.metrics.px(RULE_MARK_LEN),
-                    self.metrics.px(RULE_MARK_GAP),
-                ),
-            },
-        );
+        let (unselected, selected) = rules_ink(&rows, mark, &self.rule_spans_at(geom));
         OverlaySelectionRects {
             selected,
             unselected,
