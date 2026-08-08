@@ -244,7 +244,10 @@ impl TextPipeline {
             // than the whole narrowing. The shape is convex and the un-shear affine, so
             // containing both END caps contains the segment exactly.
             let half = composition.spine_weight * 0.5;
-            for row in [plan.rows().first(), plan.rows().last()].into_iter().flatten() {
+            for row in [plan.rows().first(), plan.rows().last()]
+                .into_iter()
+                .flatten()
+            {
                 let x = cluster.spine_x(row.display);
                 let cy = row.top + row.height * 0.5;
                 out.push([x - half, cy - half, x + half, cy + half]);

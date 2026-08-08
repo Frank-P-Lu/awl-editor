@@ -324,10 +324,11 @@ impl TextPipeline {
             });
             placard_in_panel = true;
         }
-        // ITEM 174 — one clip band PER PLANNED ROW, off the plan's own slots (this loop
-        // used to re-derive `first_top + k * lh`). WHERE each band is seated is
-        // `overlay_panel_bands`, which the footprint frost measures its ink through, so
-        // the seat glyphon is handed and the seat a treatment reads are one object.
+        // ONE CLIP BAND PER PLANNED ROW, off the plan's own slots rather than re-derived
+        // from `first_top + k * lh` — the rows are not a uniform pitch once a compact row
+        // is in the budget. WHERE each band is seated is `overlay_panel_bands`, which the
+        // footprint frost measures its ink through, so the seat glyphon is handed and the
+        // seat a treatment reads are one object.
         match self.overlay_panel_bands(geom, plan) {
             None => {
                 areas.push(panel_area);

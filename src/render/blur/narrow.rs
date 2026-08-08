@@ -101,7 +101,11 @@ mod tests {
         let _g = crate::testlock::serial();
         for cy in [0.0f32, 12.0, 900.0] {
             for b in [[10.0f32, 0.0, 40.0, 5.0], [-3.0, 800.0, 7.0, 812.0]] {
-                assert_eq!(unsheared_x_span(b, 0.0, cy), (b[0], b[2]), "{b:?} at cy {cy}");
+                assert_eq!(
+                    unsheared_x_span(b, 0.0, cy),
+                    (b[0], b[2]),
+                    "{b:?} at cy {cy}"
+                );
             }
         }
     }

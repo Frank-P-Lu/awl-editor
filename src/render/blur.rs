@@ -32,8 +32,6 @@ pub(crate) use narrow::footprint_narrow;
 /// by the card's own drawing (the positive card-ink oracle `frost_card_ink` cannot be).
 #[cfg(test)]
 mod suppress;
-#[cfg(test)]
-pub(crate) use suppress::{frost_suppressed, set_frost_suppressed};
 use extent::{
     DOWNSAMPLE, U, bytes_of, capped_doc_size, downsample_for, footprint_bound,
     footprint_feather_px, scissor_px,
@@ -46,6 +44,8 @@ use extent::{
 pub(crate) use extent::{
     FOOTPRINT_FEATHER_PX, footprint_face_x, footprint_mask_for, footprint_skirt_px,
 };
+#[cfg(test)]
+pub(crate) use suppress::{frost_suppressed, set_frost_suppressed};
 
 use wgpu::util::DeviceExt;
 

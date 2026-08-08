@@ -13,8 +13,8 @@
 //!
 //! `the_footprint_feather_is_at_least_the_blur_it_edges` floors the feather at the
 //! Gaussian's own 16 logical px reach, and the shipped 28 is only 12 above it. Spending the
-//! whole margin buys back 24 of ~100 logical px and reintroduces the hard edge item 312
-//! removed. The width was never the feather's.
+//! whole margin buys back 24 of ~100 logical px AND reintroduces the knife edge the
+//! feather exists to remove. The width was never the feather's.
 //!
 //! # THE TWO LAWS, AND WHY NEITHER IS SUFFICIENT ALONE
 //!
