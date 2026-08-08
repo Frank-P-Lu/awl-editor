@@ -1,6 +1,6 @@
 //! **THE ACCESSORY CLUSTER'S PUBLISHED LANES, GRADED AGAINST THE INK AND THE
-//! POINTER** — the device-level companion to [`super::accessory_lane`], over the
-//! real pipeline and the whole world roster. `super::tests` asserts the planner's
+//! POINTER** — the device-level companion to [`crate::render::plan::accessory_lane`], over the
+//! real pipeline and the whole world roster. The sibling laws in `super` assert the planner's
 //! arithmetic with no device at all; this file asks whether the number the sidecar
 //! PUBLISHES describes the lane the frame actually DREW and the rail a press
 //! actually lands in.
@@ -28,7 +28,7 @@
 //! the lanes was for: yielding the column hands its budget back to the names, and
 //! somewhere on the roster the names genuinely pay for it.
 
-use super::{Lane, PlannedRowRect, RailLane};
+use super::super::{Lane, PlannedRowRect, RailLane};
 use crate::overlay::{OverlayKind, OverlayState};
 use crate::render::TextPipeline;
 use crate::render::rowlayout::{ColumnFlow, rail_accessory_width};

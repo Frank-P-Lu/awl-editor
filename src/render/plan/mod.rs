@@ -78,10 +78,5 @@ pub(in crate::render) use overlay_rows::{test_header_plan, test_row_top, test_ro
 pub(in crate::render) use row_extent::RowExtent;
 pub(in crate::render) use row_extent::{ClusterExtent, RowSpan};
 
-/// The accessory cluster's DEVICE-level law: the published lanes graded against
-/// the shaped ink and the pointer over the real pipeline. Separate from `tests`,
-/// which is deliberately device-free.
-#[cfg(test)]
-mod accessory_law;
 #[cfg(test)]
 mod tests;

@@ -6,6 +6,13 @@
 //! the real pipeline and the real world roster) live in
 //! `render/tests/overlay_plan_law.rs`.
 
+/// The ACCESSORY CLUSTER's device-level law — the published lanes graded against
+/// the shaped ink, the rail and the pointer over the real pipeline and the whole
+/// world roster. A child of this module rather than a sibling of the planner: it
+/// is test-only code, and the one thing it cannot share with the laws above is
+/// their freedom from a device.
+mod accessory_law;
+
 use super::overlay_rows::{OverlayRowPlanInput, PlanLine, fit_item_rows, plan_overlay_rows};
 
 const CARD_X: f32 = 420.0;
