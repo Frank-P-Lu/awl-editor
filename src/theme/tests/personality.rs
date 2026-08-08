@@ -185,7 +185,7 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 elevation: Elevation::Bordered,
                 // The tighter per-world baseline dial (see `worlds::BILBY`'s
                 // own doc).
-                spell_underline_gap: model::SPELL_UNDERLINE_GAP_DEFAULT - 2.0,
+                spell_underline_gap: model::SPELL_UNDERLINE_GAP_TIGHT,
                 ..RenderCaps::DEFAULT
             },
             // LIGHT-WORLD BORDER: the remaining pale-ground worlds carry the

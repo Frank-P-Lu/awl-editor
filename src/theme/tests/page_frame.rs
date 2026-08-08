@@ -53,7 +53,7 @@ fn spell_underline_gap_is_the_shared_default_everywhere_except_bilbys_tighter_di
             assert!(
                 t.render_caps.spell_underline_gap < model::SPELL_UNDERLINE_GAP_DEFAULT,
                 "Bilby must carry a STRICTLY tighter (smaller) gap than the shared default \
-                 ({} vs default {})",
+                 ({:?} vs default {:?})",
                 t.render_caps.spell_underline_gap,
                 model::SPELL_UNDERLINE_GAP_DEFAULT
             );

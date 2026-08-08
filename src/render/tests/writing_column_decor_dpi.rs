@@ -3,7 +3,13 @@
 //! The vertical/horizontal origin laws (`text_top_dpi_item315.rs`,
 //! `column_left_dpi_item314.rs`) grade where the text column STARTS. This grades
 //! the decorations drawn INSIDE it — the inline-code pill's inset, the fence
-//! panel's overhang, and the spell squiggle's amplitude, period and stroke.
+//! panel's overhang, the spell squiggle's amplitude, period and stroke, and the
+//! GAP both underline families hang their band by. The gap arrived last and for
+//! an instructive reason: the squiggle's is per-world THEME DATA and the nit's
+//! was an unnamed literal, so a sweep over authored constants reached neither,
+//! and repairing the three shape terms alone left a correctly-doubled wave
+//! hanging a half-size gap from the word — inconsistent where it had been
+//! uniformly wrong.
 //! Every one of them was multiplied by `metrics.zoom` alone for its whole life,
 //! so it held its DEVICE size as the display got denser and rendered at half its
 //! tuned size beside doubled text on every retina panel. Measured before the
@@ -52,6 +58,13 @@ const AUTHORED_FENCE_INSET_X: f32 = 8.0;
 const AUTHORED_SPELL_AMP: f32 = 3.2;
 const AUTHORED_SPELL_PERIOD: f32 = 12.0;
 const AUTHORED_SPELL_THICKNESS: f32 = 3.6;
+/// The default world's `RenderCaps::spell_underline_gap`. THEME DATA, not a
+/// chrome constant — which is exactly why no declaration sweep reached it while
+/// the three shape terms above were being repaired, and why the amplitude and
+/// the gap it is measured from could end up on different pipelines.
+const AUTHORED_SPELL_GAP: f32 = 1.0;
+/// The nit underline's own gap, the same quantity for the straight muted line.
+const AUTHORED_NIT_GAP: f32 = 1.0;
 
 /// A FRESH pipeline at `dpi`, sized so the LOGICAL window is 1200x800 at every
 /// tier. The DPI is set before any document is shaped — the capture path's own
@@ -283,4 +296,107 @@ fn the_spell_squiggles_shape_holds_its_logical_size_at_every_panel_density() {
         graded += 1;
     }
     assert_eq!(graded, TIERS.len(), "every tier must be graded");
+}
+
+/// The device-pixel distance from the bottom of the glyph cell the underline
+/// hangs under to the top of the band it draws in — the quantity the squiggle's
+/// amplitude is measured AWAY FROM, so the two have to live on the same
+/// pipeline or the wave detaches from the text as the panel gets denser.
+///
+/// Both builders place their band at `cell_bottom + gap` off the SAME row-band
+/// owner ([`TextPipeline::row_caret_band`]), so the gap is recovered by
+/// subtracting that owner's own answer from the band the builder emitted.
+fn band_gap_above(p: &TextPipeline, line: usize, band_y: f32) -> f32 {
+    let rows = p.visual_rows(line);
+    let row = rows
+        .first()
+        .expect("a shaped line has at least one visual row");
+    let line_top = p.doc_top() + row.line_top;
+    let (cell_y, cell_h) = p.row_caret_band(line, row, line_top);
+    band_y - (cell_y + cell_h)
+}
+
+/// CLAIM 4 — BOTH UNDERLINE FAMILIES HANG THEIR BAND A LOGICAL GAP BELOW THE
+/// GLYPH CELL.
+///
+/// The spell squiggle's gap is THEME DATA
+/// (`RenderCaps::spell_underline_gap`) and the writing nit's is the same
+/// quantity spelled as its own number, so a sweep over authored CONSTANTS
+/// reaches neither. Both sat on `metrics.zoom` alone while the amplitude,
+/// period and thickness above were repaired onto the display scale — which left
+/// the squiggle drawing a correctly-doubled wave a half-size gap from the word,
+/// a mismatch that did not exist while the whole family was uniformly wrong.
+///
+/// Enrolled by FAMILY, not by name: the two builders are the whole population of
+/// band-under-a-row underline builders, and each is graded against its own
+/// authored gap with the display factor divided out, plus a presence floor on
+/// the band it hangs — a band of zero height is perfectly dpi-invariant.
+#[test]
+fn both_underline_families_hang_their_band_a_logical_gap_below_the_glyph_cell() {
+    let _g = crate::testlock::serial();
+    if !crate::test_gpu::adapter_present() {
+        eprintln!("skipping the underline-gap density law: no wgpu adapter");
+        return;
+    }
+    let prev_nits = crate::nits::nits_on();
+    crate::nits::set_nits_on(true);
+    let mis = vec![crate::spell::Misspelling {
+        line: 0,
+        start_col: 0,
+        end_col: 4,
+    }];
+    // Line 0 carries the misspelling, line 1 the double space a nit reports.
+    // The caret parks on line 2: both families yield the row it is on.
+    let text = "helo wrld\nalpha  beta\ncaret parks here\n";
+    let mut graded = 0usize;
+    for &dpi in &TIERS {
+        let Some((device, queue, mut p)) = tier_pipeline(dpi) else {
+            continue;
+        };
+        let mut v = view(text, 2, 0);
+        v.misspelled = mis.clone();
+        p.set_view(&v);
+        p.prepare(&device, &queue, (1200.0 * dpi) as u32, (800.0 * dpi) as u32)
+            .expect("a headless frame prepares");
+        p.atlas.trim();
+        let squiggles = p.spell_squiggles();
+        let nits = p.nit_underlines();
+        assert_eq!(
+            squiggles.len(),
+            1,
+            "dpi {dpi}: one misspelling => one squiggle"
+        );
+        assert!(!nits.is_empty(), "dpi {dpi}: the double space must nit");
+        for (family, line, band, authored) in [
+            ("spell squiggle", 0usize, &squiggles[0], AUTHORED_SPELL_GAP),
+            ("writing nit", 1usize, &nits[0], AUTHORED_NIT_GAP),
+        ] {
+            let gap = band_gap_above(&p, line, band.y);
+            assert!(
+                (gap / dpi - authored).abs() < 1e-2,
+                "dpi {dpi}: the {family}'s gap below the glyph cell is {gap} device px \
+                 ({} logical) against an authored {authored} — the band is placed off \
+                 the display's grid while the shape it holds is placed off the reader's",
+                gap / dpi
+            );
+            // PRESENCE, on the terms each family actually has. A band's HEIGHT is
+            // its ink plus a fixed device feather, so it is not a logical length
+            // and a dpi-scaled floor over it is simply the wrong shape — the
+            // nit's band is 5.90 device px at dpi 3, under `2.0 * dpi`, with
+            // nothing whatever wrong. What has to be present is the INK, which
+            // does scale: a vanished stroke inside a band placed at a perfect gap
+            // is the degenerate state this floor rules out.
+            assert!(
+                band.thickness > 0.5 * dpi && band.h > band.thickness,
+                "dpi {dpi}: the {family}'s stroke must be drawn inside its band \
+                 (thickness={}, band h={}) — a vanished stroke satisfies every gap \
+                 claim above",
+                band.thickness,
+                band.h
+            );
+        }
+        graded += 1;
+    }
+    assert_eq!(graded, TIERS.len(), "every tier must be graded");
+    crate::nits::set_nits_on(prev_nits);
 }

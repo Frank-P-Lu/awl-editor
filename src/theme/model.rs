@@ -404,14 +404,25 @@ pub struct RenderCaps {
     pub location_style: LocationStyle,
     pub pane_split: PaneSplit,
     pub ambient: AmbientStyle,
-    pub spell_underline_gap: f32,
+    /// How far below the glyph cell the spell squiggle's band hangs. A LENGTH,
+    /// typed so it meets the display scale the wave's own amplitude, period and
+    /// thickness meet — untyped it rode the reader's zoom alone, hanging a
+    /// half-size gap under a correctly-doubled wave on a dense panel.
+    pub spell_underline_gap: crate::render::Logical,
     pub frost: Frost,
     pub fold_afford: FoldAfford,
     pub card_texture: CardTexture,
     pub card_shape: CardShape,
 }
 
-pub const SPELL_UNDERLINE_GAP_DEFAULT: f32 = 1.0;
+pub const SPELL_UNDERLINE_GAP_DEFAULT: crate::render::Logical = crate::render::Logical(1.0);
+
+/// Bilby's tighter dial, two logical px in from the shared default — the world
+/// whose report was that the squiggle floated too far below the baseline. Named
+/// rather than spelled as arithmetic at the world literal, because a `Logical`
+/// deliberately carries no arithmetic of its own.
+pub const SPELL_UNDERLINE_GAP_TIGHT: crate::render::Logical =
+    crate::render::Logical(SPELL_UNDERLINE_GAP_DEFAULT.0 - 2.0);
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Frost {

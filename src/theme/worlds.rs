@@ -10,7 +10,8 @@ use super::model::{
     ChromeFace, DecorativeWash, Elevation, FacetStyle, FoldAfford, Frost, HighlightTexture,
     IconCursor, IconGround, ImageReveal, ListStyle, LocationStyle, MotionJuice, PageFrame,
     PaneSplit, PlacardCorner, PlacardInk, RenderCaps, RoleOverrides, RuleSelection,
-    SPELL_UNDERLINE_GAP_DEFAULT, SelectionStyle, Theme, ThemeTags, TitleStyle, WashOverride,
+    SPELL_UNDERLINE_GAP_DEFAULT, SPELL_UNDERLINE_GAP_TIGHT, SelectionStyle, Theme, ThemeTags,
+    TitleStyle, WashOverride,
 };
 use super::ornament::{
     BULLET_SCALE_GARAMOND, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN, BULLETS_PLAIN,
@@ -160,7 +161,7 @@ pub const BILBY: Theme = Theme {
     role_overrides: RoleOverrides::NONE,
     render_caps: RenderCaps {
         elevation: Elevation::Bordered,
-        spell_underline_gap: SPELL_UNDERLINE_GAP_DEFAULT - 2.0,
+        spell_underline_gap: SPELL_UNDERLINE_GAP_TIGHT,
         ..RenderCaps::DEFAULT
     },
 };

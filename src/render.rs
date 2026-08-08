@@ -824,6 +824,13 @@ pub const SPELL_THICKNESS: Logical = Logical(3.6);
 
 pub const NIT_THICKNESS: Logical = Logical(1.3);
 
+/// How far below the glyph cell the writing-nit's straight band hangs. The spell
+/// squiggle's own gap is per-world THEME DATA
+/// (`theme::RenderCaps::spell_underline_gap`) and this is deliberately NOT that
+/// dial: the dial is scoped to the spell band, and routing the nit through it
+/// would move one world's nits as a side effect of a unit repair.
+pub const NIT_UNDERLINE_GAP: Logical = Logical(1.0);
+
 /// WYSIWYG inline-code PILL inset (LOGICAL px): a minimal overhang beyond
 /// the span's own glyph box so the value-step background reads as a small pill
 /// rather than a bare selection-shaped rect. Taste default — flagged for live

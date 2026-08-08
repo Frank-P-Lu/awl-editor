@@ -124,7 +124,7 @@ impl TextPipeline {
         let amp = m.px(SPELL_AMP);
         let period = m.px(SPELL_PERIOD);
         let thickness = m.px(SPELL_THICKNESS);
-        let gap = theme::active().render_caps.spell_underline_gap * m.zoom;
+        let gap = m.px(theme::active().render_caps.spell_underline_gap);
         let band_h = amp * 2.0 + thickness + 2.0;
         let protos = self.squiggle_cache.protos.borrow();
         let mut out = Vec::with_capacity(protos.len());
@@ -317,7 +317,7 @@ impl TextPipeline {
             let w = (p.xs_e - p.xs_s).max(2.0 * m.zoom);
             let (band_y, row_caret_h) = self.row_band_for(p.line, p.line_height, line_top);
             let cell_bottom = band_y + row_caret_h;
-            let y = cell_bottom + 1.0 * m.zoom;
+            let y = cell_bottom + m.px(NIT_UNDERLINE_GAP);
             if !self.band_admits(y, band_h) {
                 continue; // DIFF-AS-PREVIEW: the row scrolled past the card edge
             }
