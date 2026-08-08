@@ -171,6 +171,21 @@ well as here — **this item has already been answered twice by the user because
 decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
+- 🔵 **FOUR THINGS ARE NOW ON `main` AWAITING YOUR EYE, all revertible in one commit or one line.**
+  ✅ **The caret** (item 345) — no longer overhangs its glyph on **Currawong** and **Cassowary**; it is
+  *narrower* there now, and the caret is this design's one accent. `scripts/dev-app.sh`, `Cmd-T` → Currawong,
+  cursor mid-word; compare against Tawny, which is unchanged.
+  ✅ **Magpie's mark** (item 346, candidate B) — vertex closed ~70.7° → ~50.8°, weight unchanged. `Cmd-T` →
+  Magpie, then `Cmd-P` and arrow down a row. Then `Cmd-T` → Mangrove for the deliberate contrast.
+  ✅ **The writing column at 2×** (item 338) — sixteen decorations were half their tuned size on every Retina
+  display and now are not. **The squiggle is what reads instantly:** a tight thin ripple becomes a proper
+  wave. `gallery/item-338/338-2x-before-after.png`. ⚠️ **One inconsistency the fix created and item 355
+  carries:** the squiggle's amplitude is right now while its **gap from the baseline is still half-size**,
+  because that value lives in theme data the sweep does not reach.
+  ✅ **The card's width cap** (item 342) — 520 → 545, clearing the clipped help line on Potoroo and Firetail.
+  The lane's read: it does **not** look over-wide; the extra 25px land as air after the hint and a looser
+  label-to-chord gutter (~1.40:1 → ~1.47:1 against the card's height). **The gutter is what a critical eye
+  will notice.** `gallery/item-338/342-shipped-look-*-zoom080-before-after.png`.
 - 🔵 **A THIRD WIDTH-FAMILY QUESTION, and it is vertical rather than horizontal (item 347).** At the
   **authored zoom maximum (300%)** in the two smallest windows the app allows (464×288, 520×400), a
   workspace stage plans **no rows and draws no other region** — a card carrying no list at all. **7 cells,
@@ -3128,7 +3143,21 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      `measured > 500` guard**; that guard is the only thing making the erosion visible.
      **Routing:** production tier.
 
-338. 🚧 CLAIMED (worktree item-338-scale-and-cap, deep tier — LANDING under the user's new standing preference) 🔴 **SIXTEEN CONSTANTS IN THE WRITING COLUMN HOLD THEIR DEVICE SIZE AS THE DISPLAY GETS DENSER —
+338. 🟡 **LANDED ON MAIN (2026-08-08) under the user's standing preference — reverting is one
+     commit.** All sixteen are `Logical` now and every read site passes through the one scale, **including
+     four that item 322's partition could not reach.**
+     ✅ **The evidence is the shape this needed: 18/18 files byte-identical at 1× against a binary built from
+     the PARENT COMMIT (never a stash), and 9/9 differing at 2×** — with the deltas landing exactly where the
+     parked measurement predicted: the pill **+6.00px = 2 × its own inset**, the fence panel **+16.00 = 2 ×
+     its own**, the table grid **+72.00** decomposing into six cell pads and two column gaps, and the
+     squiggle's band **11 → 22 rows**.
+     ✅ **The ledger holding those sixteen is DELETED ENTIRELY, on its own instruction**, along with the law
+     that graded it from both ends. **Nothing is parked now, so a bare `f32` fails the declaration law with
+     nowhere to go** — proven by adding one. A new outcome law pins the authored values with the display
+     factor divided out across four tiers **including a fractional 1.5**.
+     🔵 **Your eye is owed:** `gallery/item-338/338-2x-before-after.png` (one fixed crop, 1:1 device pixels).
+     **The squiggle is the change that reads instantly** — a tight thin ripple becomes a proper wave.
+     **Original:** 🔴 **SIXTEEN CONSTANTS IN THE WRITING COLUMN HOLD THEIR DEVICE SIZE AS THE DISPLAY GETS DENSER —
      item 242's headline defect, found in a fourth pipeline nobody had audited.** Measured by item
      322, which correctly declined to "fix" it. `metrics.zoom` is the clamped user zoom;
      `metrics.scale` is `zoom * dpi`. **Sixteen read sites multiply by `.zoom` ALONE and never meet
@@ -3231,7 +3260,22 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      sweep to the caret files and classify what it enumerates, one family at a time, naming the
      pipeline that already scales each. **Routing:** production tier.
 
-342. 🚧 CLAIMED (worktree item-338-scale-and-cap, deep tier — LANDING under the user's new standing preference) ⚠️ **MEASURED, ORACLE REPAIRED, NO FIX — THE REMAINING QUESTION IS A TASTE CALL AND IT IS THE
+342. 🟡 **CAP LANDED ON MAIN (2026-08-08): 520 → 545 — reverting is one line in
+     `src/render/chrome/overlay.rs`.** The clipped help line is gone on **Potoroo and Firetail** (`esc clos`
+     → `esc close`, `esc clo` → `esc close`, with air after it).
+     ✅ **The lane re-bracketed the number rather than trusting it** — at **540** the law still names Firetail
+     — and found the clip is **only reachable at the shipped 0.8 zoom**, which cost it a wrong first
+     measurement at the capture default. ✅ **The overflow set is EMPTY across 2880 graded cells**, so no world
+     that previously just fit has crossed over unseen. Item 319's two font-ledger entries are deleted and the
+     table **stays empty so the ratchet still fires.**
+     ✅ **The grow-only clamp is untouched, as briefed** — which scale tier the cap is tuned at remains a
+     separate question. ⚠️ **`SPELL_MAX_W` shares the number 520 and is deliberately unchanged**; a stray edit
+     briefly moved it and the lane caught it before staging.
+     🔵 **ITS HONEST READ ON YOUR QUESTION: the card does NOT read over-wide.** The extra 25 logical px land
+     as air after the hint and as a wider label-to-chord gutter, taking the card from ~1.40:1 to ~1.47:1
+     against its own height. **What a critical eye will notice is the gutter loosening, not the outline.**
+     Judgement shot: `gallery/item-338/342-shipped-look-{Tawny,Potoroo}-1x-zoom080-before-after.png`.
+     **Original:** ⚠️ **MEASURED, ORACLE REPAIRED, NO FIX — THE REMAINING QUESTION IS A TASTE CALL AND IT IS THE
      USER'S (2026-08-08).** The clip is real and confirmed; **both the board's hypothesis and the
      orchestrator's were wrong about why.**
      ⚠️ **THE SHAPED-EXTENT THEORY IS FALSE, MEASURED.** The content side **is** advances
@@ -3914,6 +3958,35 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      EXCLUDES test paths, and its doc says in as many words that the exclusion is a scope boundary rather than
      an endorsement** — so consider whether the scan should widen to tests once these are fixed, which would
      stop a sixth appearing. **Routing:** production tier.
+355. 🔴 **SEVEN MORE ZOOM-ALONE LENGTHS SIT OUTSIDE THE DECLARATION LAW'S SWEPT SOURCES, so no ledger ever
+     held them — and one of them now MISMATCHES a length item 338 just repaired.** Found by 338's lane and
+     declined as unmeasured rather than landed on the same reasoning 322 used.
+     `CORNER_RADIUS`, `STREAK_RADIUS`, `CAPTION_SCRIM_PAD_X/_Y`, `IMAGE_CORNER_PX`, and the **theme-data
+     field** `RenderCaps::spell_underline_gap`.
+     ‼ **THE MISMATCH IS THE URGENT PART: `spell_underline_gap` is read in the SAME `let` block as three of
+     the constants 338 just fixed**, so at 2× the squiggle now has the **right amplitude and a half-size gap
+     from the baseline.** 338 made that pair inconsistent where it was previously uniformly wrong — **which
+     is a real, visible-at-2× regression in the narrow sense**, even though the net change is an improvement.
+     **Check it against `gallery/item-338/338-2x-after.png` before deciding priority.**
+     ⚠️ **A theme-data field is not a chrome constant**, so the declaration law's sweep will not reach it by
+     widening a path — **it needs the `RenderCaps` family asked the same question**, which is a different
+     mechanism and the reason this is its own item.
+     ✅ **Build:** measure each of the seven as 338 did (authored value, dpi-divided, per tier), then classify.
+     **Routing:** production tier.
+
+356. **A FIXTURE CAN SURVIVE A REAL `prepare()` WITH A STALE ROW HEIGHT, and it reads as the product
+     shrinking.** Found by 338's lane when its first draft reported a pill band that **shrank** with density.
+     Raising a pipeline's DPI while it already holds a shaped document leaves `visual_rows`'s own
+     `line_height` at the value it shaped at — **32.0 at dpi 1, 1.5, 2 AND 3 alike** — so anything deriving a
+     band from the row height measures a **stale row** while its x-extents track the new metrics.
+     ✅ **Fresh-pipeline-per-tier is correct** and is what the capture path's own order does. ⚠️ **The open
+     question is whether the LIVE `App` can reach the stale state by moving a window between displays of
+     different scale factors** — unverified, and the reason this is filed rather than closed as a fixture
+     note. `CLAUDE.md` already records that a display move changes the working size without changing the
+     surface's, so the mechanism is plausible.
+     ✅ **Verify:** if the live path can reach it, the fix is an invalidation and the law is a DPI change with
+     a document already shaped. **If it cannot, the deliverable is a tripwire naming the fixture order** so
+     the next lane does not spend the round this one did. **Routing:** production tier.
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
