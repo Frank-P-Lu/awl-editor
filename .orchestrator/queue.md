@@ -3958,7 +3958,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      EXCLUDES test paths, and its doc says in as many words that the exclusion is a scope boundary rather than
      an endorsement** — so consider whether the scan should widen to tests once these are fixed, which would
      stop a sixth appearing. **Routing:** production tier.
-355. 🔴 **SEVEN MORE ZOOM-ALONE LENGTHS SIT OUTSIDE THE DECLARATION LAW'S SWEPT SOURCES, so no ledger ever
+355. 🚧 CLAIMED (worktree item-355-remaining-scale, deep tier) 🔴 **SEVEN MORE ZOOM-ALONE LENGTHS SIT OUTSIDE THE DECLARATION LAW'S SWEPT SOURCES, so no ledger ever
      held them — and one of them now MISMATCHES a length item 338 just repaired.** Found by 338's lane and
      declined as unmeasured rather than landed on the same reasoning 322 used.
      `CORNER_RADIUS`, `STREAK_RADIUS`, `CAPTION_SCRIM_PAD_X/_Y`, `IMAGE_CORNER_PX`, and the **theme-data
@@ -3974,7 +3974,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ✅ **Build:** measure each of the seven as 338 did (authored value, dpi-divided, per tier), then classify.
      **Routing:** production tier.
 
-356. **A FIXTURE CAN SURVIVE A REAL `prepare()` WITH A STALE ROW HEIGHT, and it reads as the product
+356. 🚧 CLAIMED (worktree item-356-stale-pitch, deep tier) **A FIXTURE CAN SURVIVE A REAL `prepare()` WITH A STALE ROW HEIGHT, and it reads as the product
      shrinking.** Found by 338's lane when its first draft reported a pill band that **shrank** with density.
      Raising a pipeline's DPI while it already holds a shaped document leaves `visual_rows`'s own
      `line_height` at the value it shaped at — **32.0 at dpi 1, 1.5, 2 AND 3 alike** — so anything deriving a
