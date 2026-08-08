@@ -15,7 +15,7 @@ pub(in crate::render) const CARD_EDGE_INSET_FLOOR: Logical = Logical(10.0);
 pub(in crate::render) fn overlay_rail_inset(ww: f32, scale: f32) -> f32 {
     (ww / 3.0 - CARD_MAX_W.px(scale) * 0.5).max(0.0)
 }
-pub(in crate::render) const CARD_MAX_W: LogicalGrowOnly = LogicalGrowOnly(520.0);
+pub(in crate::render) const CARD_MAX_W: LogicalGrowOnly = LogicalGrowOnly(545.0);
 pub(in crate::render) const CARD_MAX_W_FACETED: LogicalGrowOnly = LogicalGrowOnly(600.0);
 pub(in crate::render) const CARD_CONTENT_MIN_W: LogicalGrowOnly = LogicalGrowOnly(160.0);
 

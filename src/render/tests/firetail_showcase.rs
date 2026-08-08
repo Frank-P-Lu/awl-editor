@@ -634,21 +634,25 @@ fn slant_width_tax_makes_rowlayout_elide_what_no_longer_fits() {
     let ink = theme::base_content().to_glyphon();
     let muted = theme::muted().to_glyphon();
 
-    // Widest candidate row (px), shaped WITHOUT the slant.
-    let widest = |p: &TextPipeline| -> f32 {
-        let mut w = 0.0f32;
+    // Widest candidate row: its shaped width in px AND the glyph count rowlayout
+    // actually retained on it. The count is not decoration — the char-based budget's
+    // estimate error ACCUMULATES over it, so it is the unit any pixel bound below
+    // has to be expressed in (see that assertion).
+    let widest = |p: &TextPipeline| -> (f32, usize) {
+        let (mut w, mut n) = (0.0f32, 0usize);
         for run in p.panel_buffer.layout_runs() {
-            if run.line_i >= 1 && run.line_i <= 3 {
-                w = w.max(run.line_w);
+            if run.line_i >= 1 && run.line_i <= 3 && run.line_w >= w {
+                w = run.line_w;
+                n = run.glyphs.len();
             }
         }
-        w
+        (w, n)
     };
     let vs = super::no_vis();
     let row_plan = p.overlay_row_plan(&geom);
     p.overlay_shape_text(&geom, &row_plan, ink, muted, None, &vs, true);
-    let plain_w = widest(&p);
-    assert!(plain_w > 0.0);
+    let (plain_w, plain_chars) = widest(&p);
+    assert!(plain_w > 0.0 && plain_chars > 0);
 
     // A hefty stair: 40px/row over 3 rows = an 80px tax.
     set_slant_test_override(Some(SlantProbe {
@@ -658,7 +662,7 @@ fn slant_width_tax_makes_rowlayout_elide_what_no_longer_fits() {
     let vs = super::no_vis();
     let row_plan = p.overlay_row_plan(&geom);
     p.overlay_shape_text(&geom, &row_plan, ink, muted, None, &vs, true);
-    let slanted_w = widest(&p);
+    let (slanted_w, slanted_chars) = widest(&p);
     set_slant_test_override(None);
 
     assert!(
@@ -666,26 +670,48 @@ fn slant_width_tax_makes_rowlayout_elide_what_no_longer_fits() {
         "the slant's width tax must shorten the elided rows \
          (plain {plain_w:.1}px vs slanted {slanted_w:.1}px, tax 80px)"
     );
-    // And the shifted deepest row still fits the card's text column, WITHIN one
-    // estimated char of slack: the shaped width plus the max stair offset stays
-    // inside text_w (the whole point of taxing the budget rather than letting
-    // the clip eat the text) — modulo the row-budget's OWN granularity. The
-    // estimate (`rowlayout::full_budget`'s `-1` char reserve) is measured in
-    // WHOLE CHARS of [`TextPipeline::overlay_char_width`] (ITEM 83's overlay-
-    // scaled estimate); `CHAR_WIDTH` itself (`render.rs`) is a flat, FONT-
-    // AGNOSTIC constant (not measured per world), so a real, specific glyph
-    // (this probe's repeated "a" on Firetail's own display face) can run a
-    // FRACTION of one estimated char wider than the mean — the same slack the
-    // `-1` reserve already exists to absorb, just measured in the OVERLAY's own
-    // (smaller, more accurate) char unit post-item-83 rather than the
-    // document's. A GPU `TextBounds` clip is the hard backstop either way (no
-    // glyph ever paints past the card into the backdrop).
-    let slack = p.overlay_char_width();
+    // And the shifted deepest row still lands inside the card's text column plus
+    // the estimate error the CHAR-BASED budget structurally carries — the whole
+    // point of taxing the budget rather than letting the clip eat the text.
+    //
+    // THE SLACK IS PER RETAINED CHAR, NOT A CONSTANT, and that is the correction a
+    // wider card forced. `rowlayout::full_budget` spends the column in WHOLE CHARS
+    // of `TextPipeline::overlay_char_width` — a flat, FONT-AGNOSTIC mean — while the
+    // row is shaped in a real face whose "a" advances wider than that mean. The
+    // shortfall is paid once per retained glyph, so it grows with the column: a
+    // one-char allowance held on a 496px column with 3.6px to spare and was
+    // structurally overrun the moment the cap widened to 545 (measured: overshoot
+    // 9.6px at the narrower column, 23.8px at the wider one, over the same 12.2px
+    // allowance). Expressed per char it is the SAME claim at both widths.
+    //
+    // The per-char advance is read off the row this test just shaped rather than
+    // assumed, so the bound is a property of the face under test. A GPU
+    // `TextBounds` clip is the hard backstop either way — the surplus eats the
+    // card's own padding and no glyph paints into the backdrop.
+    let cw = p.overlay_char_width();
+    let advance = slanted_w / slanted_chars as f32;
+    let estimate_debt = slanted_chars as f32 * (advance - cw).max(0.0);
     assert!(
-        slanted_w + 80.0 <= text_w + slack + 1.0,
-        "deepest shifted row must still land inside the text column (+ one \
-         estimated char of slack {slack:.1}) \
-         ({slanted_w:.1} + 80 > {text_w:.1} + {slack:.1})"
+        advance > cw,
+        "the premise of this bound is that the real face advances WIDER than the \
+         flat estimate (advance {advance:.2} vs estimate {cw:.2}); if it does not, \
+         the debt term is zero and the constant allowance was right all along"
+    );
+    assert!(
+        slanted_w + 80.0 <= text_w + cw + estimate_debt + 1.0,
+        "deepest shifted row must land inside the text column plus the char-budget's \
+         own estimate debt ({slanted_w:.1} + 80 > {text_w:.1} + {cw:.1} + \
+         {estimate_debt:.1}; {slanted_chars} chars retained at {advance:.2}px against \
+         a {cw:.2}px estimate)"
+    );
+    // NON-VACUITY of the debt term: it may not be large enough to swallow an
+    // UNTAXED row. The tax is what this law is about, so the bound has to stay red
+    // for a row that never paid it.
+    assert!(
+        plain_w + 80.0 > text_w + cw + plain_chars as f32 * (plain_w / plain_chars as f32 - cw),
+        "the debt allowance must not be wide enough to accept the UNTAXED row \
+         (plain {plain_w:.1} over {plain_chars} chars) — a bound that does is \
+         satisfied by the defect it exists to catch"
     );
 }
 

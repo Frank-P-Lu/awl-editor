@@ -59,22 +59,29 @@
 //! `overlay_text_hpad` gives a `Bars` world `BAR_SIDE_INSET + BAR_TEXT_PAD`
 //! where a `Pane` world gets `PANE_TEXT_HPAD`.
 //!
-//! **NOT FIXED HERE, ON PURPOSE.** Every repair is a taste call on the card
-//! itself: raising the cap (Firetail needs 1.0502 of its column, which is 544
-//! logical against today's 520), letting the hint band elide or wrap, or
-//! letting the content-hug measurement bound the cap for every anchor rather
-//! than only the right-anchored ones — which today already sizes Cassowary's
-//! and Kite's cards to their own hints, and would not help these two, because
-//! they are AT the cap already. Shortening the hint would make the number pass
-//! by making the discoverability affordance worse, so it is not on that list.
-//! The question goes to the user with these numbers; the laws below hold the
-//! measurement from both ends meanwhile.
+//! **FIXED BY RAISING THE CAP, AND THE LEDGER IS NOW EMPTY.** Of the repairs
+//! available — raise the cap, let the hint band elide or wrap, or let the
+//! content-hug measurement bound the cap for every anchor rather than only the
+//! right-anchored ones (which would not help these two, since they are AT the
+//! cap already) — the first is the one that keeps the hint intact. Shortening
+//! the hint makes the number pass by making the discoverability affordance
+//! worse, so it was never on the list. `CARD_MAX_W` is 545 logical, above
+//! Firetail's own 1.0502 × its column, and the whole sweep now reports an
+//! EMPTY overflow set: nothing clips on any world, any carded kind, either
+//! density, either menu-bar arm, at zoom 0.8 or 1.0.
+//!
+//! **THE INCOHERENCE BELOW SCALE 1 IS UNTOUCHED, DELIBERATELY.** The cap is
+//! still `LogicalGrowOnly`, so at the shipped default zoom the card is still
+//! 1/scale roomier relative to its own text than at any scale ≥ 1. Which tier
+//! the cap should be TUNED at is a separate question from whether the hint
+//! fits, and the clamp is load-bearing for the low-zoom look.
 //!
 //! **HOW THE LEDGER RATCHETS.** It is not an exclusion. Every roster × catalog
 //! cell is graded, and a pair overflows if and only if it is ledgered, at the
 //! ratio recorded: a NEW overflowing world or hint fails, a ledgered pair that
-//! stops overflowing fails (so the fix cannot land unnoticed), and a ledgered
-//! ratio that drifts fails. Enrolment comes from the roster, from
+//! stops overflowing fails (which is how the repair announced itself — the
+//! observed set went empty against a ledger of two, naming both), and a
+//! ledgered ratio that drifts fails. Enrolment comes from the roster, from
 //! `workspace_shape()` and from the facet scheme — never from a name.
 
 use super::super::*;
@@ -90,11 +97,16 @@ use crate::overlay::OverlayKind;
 /// column)` for every cell whose hint does not fit its own card, at every
 /// scale ≥ 1. The ratio is the pinned quantity because it is the scale-free
 /// one — see the module doc — so one number covers 1×, 1.6× and 2× alike.
+///
+/// **IT IS EMPTY, AND THAT IS THE REPAIR, NOT A HOLE.** It held Potoroo at
+/// 1.0121 and Firetail at 1.0502 until the flat card's width cap was widened
+/// past the deficit the second of those measured. The table stays because the
+/// RATCHET is what has value: every roster × catalog cell is still graded, a
+/// pair overflows if and only if it is ledgered, and with nothing ledgered the
+/// law now says plainly that NOTHING overflows anywhere in the sweep. A world or
+/// a hint that starts clipping fails here by name.
 #[cfg(not(target_arch = "wasm32"))]
-const KNOWN_HINT_OVERFLOW: &[(&str, &str, f32)] = &[
-    ("Potoroo", "Keybindings", 1.0121),
-    ("Firetail", "Keybindings", 1.0502),
-];
+const KNOWN_HINT_OVERFLOW: &[(&str, &str, f32)] = &[];
 
 /// Ratios are read off f32 layout arithmetic, so the pin is to four decimals
 /// with a hair of room — wide enough not to flake, far tighter than the
