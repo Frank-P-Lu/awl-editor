@@ -791,6 +791,27 @@ a claim about a commit whose content had never been tested. **Commit first, then
 — which the "never commit while your own gate is running" rule already implies, and
 this is the other half of it. **`git status --short` before reading any receipt.**
 
+‼ **AND LOOSENING THAT ASSERTION TO A ΔE CEILING ONLY MOVES THE CLIFF — THE SAME LAW
+DIED TWICE, THE SECOND TIME ON MY OWN REPAIR.** Measured 2026-08-08: after the
+byte-exact form was replaced with a ΔE ceiling of 6.0, the law went red again on
+lavapipe at **6.97**, on the one world whose ground is a saturated purple. **A fixed
+ΔE against a theme constant cannot be calibrated out, because how far a blended edge
+sits from that constant is a property of the GROUND the blend happens over** — and a
+change elsewhere in the same push (a card 25px wider) moved the thumb's subpixel
+coverage and tipped a cell that had been sitting just inside the ceiling.
+
+**The form that holds is a RATIO OF TWO QUANTITIES READ FROM THE SAME FRAME** — here,
+how far the ink travelled from its own ground as a share of the distance to the ink it
+should wear. A backend that rounds differently moves both terms together. **Calibrate
+it from three figures and put all three in the constant's doc: the tightest shipped
+reading, the reading the defect produces, and the floor between them.** (0.918 shipped,
+0.461 under the defect, floor 0.75.)
+
+**The general rule: an appearance floor may compare a rendered pixel to ANOTHER
+RENDERED PIXEL, never to an authored constant.** A constant is exact; a rendered pixel
+is the rasterizer's opinion, and the gap between them is a free variable the author does
+not control.
+
 ‼ **A BYTE-EXACT ASSERTION ON A RENDERED PIXEL IS A CLAIM ABOUT THE RASTERIZER,
 AND IT WILL GO RED ON CI'S lavapipe WHILE GREEN ON THIS HOST'S METAL.** Measured
 2026-08-07: `linux (build + test)` — a **gating** job — failed on a brand-new law
