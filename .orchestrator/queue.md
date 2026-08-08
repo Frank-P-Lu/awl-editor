@@ -3790,7 +3790,32 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      plainly which were not audited** — a shallow pass over seven is worth less than a deep pass over two,
      and a clean bill of health from an audit that looked at nothing is the worst outcome. **Read-only.**
      **Routing:** deep tier.
-352. 🚧 CLAIMED (worktree item-352-one-scale, deep tier) 🔴 **THREE PRODUCTION SITES RE-DERIVE A SCALE
+352. ✅ **LANDED (merged 2026-08-08) — the three sites read the stored `scale`, and MY OWN BRIEF WAS WRONG
+     THREE TIMES, each corrected by measurement.**
+     ⚠️ **NINE mismatching pairs, not eight** — dpi **1.75 at zoom 2.1** was missing, so my claim that *"every
+     one of them is at dpi 1.5 or 3.0"* is **false**; 1.75 is exactly as reachable on fractional scaling, and
+     the law now sweeps 1.25 and 1.75 for that reason. ⚠️ **Worst magnitude 1.9e-6 px, not 1.4e-6** (f32
+     rounding of the ×3 on top of the scale delta). **Still a five-hundred-thousandth of a device pixel, and
+     the lane declined to call it a rendering defect** just as the audit did.
+     ‼ **AND ONE PREMISE CHANGED THE DELIVERABLE: the numeric law I asked for CANNOT EXIST.**
+     `caret_h / CARET_H == m.scale` is a property of `Metrics`' own f32 arithmetic and **does not observe the
+     call sites at all**, so routing them through the field cannot change its value — written literally it
+     would be **red forever**. The lane split it correctly: **the fail-then-pass law is a SOURCE SCAN**, which
+     observes the real subject (which spelling production uses), and the numeric law lands beside it as a
+     **permanent measurement**. ✅ **Both halves of that measurement are asserted, because either alone goes
+     vacuous** — *"some mismatch"* survives the exact pairs becoming inexact, and *"1 and 2 are exact"*
+     survives the division becoming a perfect round trip and the scan becoming ceremony.
+     🔴 **ITS SECOND MUTATION IS THE ONE TO REUSE: shrinking the sweep to dpi 1 and 2 — the two factors every
+     capture uses, and this item's entire blind spot — makes the numeric law REFUSE TO RUN**, reporting that
+     the scan beside it would be guarding nothing. **That is the "has this check ever run anywhere but here"
+     arm built into the law itself.**
+     ⚠️ **And its FIRST mutation caught its own tooling before it caught the law:** an 8-space needle was a
+     substring of the 16-space line, so the edit never applied and the run printed **`ok. 3 passed` —
+     indistinguishable from a law that survived.** Only the asserted match count revealed it.
+     ✅ **None of the three sites is inside `caret_block_w`**, so the held caret branch is untouched.
+     ✅ **Byte-identity across 144 files, 36 of 72 cells at dpi 2**, aggregate md5 equal — and **explicitly NOT
+     claimed at dpi 1.25/1.5/1.75/3**, the factors where the number legitimately moves by 1 ULP.
+     **Original:** 🔴 **THREE PRODUCTION SITES RE-DERIVE A SCALE
      THE `Metrics` OWNER ALREADY STORES, AND TWO LANDED COMMENTS SAY THAT IS EXACT. IT IS NOT.**
      `m.caret_h / CARET_H` mismatches `m.scale` by **1 ULP at 8 of 156 (zoom, dpi) pairs**, every one at
      **dpi 1.5 or 3.0** — measured in real f32 over awl's own quantised zoom grid. ‼ **dpi 1 and 2 are exact,
@@ -3818,6 +3843,20 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      frost changes. **(D)** a stale prose enumeration of the crisp set remains in `pipeline_prepare.rs`.
      **(F)** `PanelRowBands::center()` is ungraded — **the panel caret's Y is asserted nowhere.**
      **Routing:** deep tier.
+354. **FIVE CARET TEST ORACLES STILL RECOVER THE DISPLAY SCALE BY DIVISION, one ULP from the factor the
+     product now uses.** Reported by item 352's lane, which fixed the three PRODUCTION sites and left these
+     because `src/render/tests/**` was a sibling lane's — the right call, and it recommended folding them into
+     whichever lane holds that directory next.
+     ⚠️ **The reason this is not stylistic:** these are **oracles for the production geometry**, and since 352
+     they compute their expected value from a factor **one ULP away from the one the product used.** That is an
+     **oracle/subject divergence**, invisible today only because every one of them runs at dpi 1 or 2 — **the
+     same blindness item 352 was filed about.** If a caret oracle is ever swept at dpi 1.5 (and it should be),
+     a bit-exact comparison fails for a reason that is not the product's.
+     ✅ **Build:** five one-line edits to read `metrics.scale` — `caret_ink_box.rs:59,300,316`,
+     `caret_transition_item105.rs:87`, `caret_visual_body.rs:56`. ⚠️ **352's source-scan law deliberately
+     EXCLUDES test paths, and its doc says in as many words that the exclusion is a scope boundary rather than
+     an endorsement** — so consider whether the scan should widen to tests once these are fixed, which would
+     stop a sixth appearing. **Routing:** production tier.
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
