@@ -1,4 +1,13 @@
 use super::super::*;
+use crate::render::Logical;
+
+/// The expected page frame at a given LOGICAL weight — one spelling, so the
+/// roster table below stays one line per capability.
+fn frame(w: f32) -> model::PageFrame {
+    model::PageFrame::Line {
+        weight_px: Logical(w),
+    }
+}
 
 /// THE PERSONALITY ASSIGNMENT TABLE — a byte-identity gate. Every world's
 /// `render_caps` must be EXACTLY its decided value: the four placard worlds
@@ -15,8 +24,8 @@ use super::super::*;
 #[test]
 fn personality_assignments_are_exactly_the_decided_table() {
     use model::{
-        ChipVariant, Elevation, FacetStyle, ListStyle, PageFrame, PlacardCorner, PlacardInk,
-        RenderCaps, TitleStyle,
+        ChipVariant, Elevation, FacetStyle, ListStyle, PlacardCorner, PlacardInk, RenderCaps,
+        TitleStyle,
     };
     // The SHIPPING poster list surface every statement world carries — the
     // Bars HUG-ALL HYBRID (`HugLabel`: plate hugs the LABEL, chord bare in the
@@ -148,9 +157,7 @@ fn personality_assignments_are_exactly_the_decided_table() {
                     density: crate::render::dither::WAGTAIL_HIGHLIGHT_DITHER_DENSITY,
                 },
                 title_style: TitleStyle::InlinePrefix,
-                page_frame: PageFrame::Line {
-                    weight_px: crate::render::Logical(2.0),
-                },
+                page_frame: frame(2.0),
                 card_anchor: model::CardAnchor::TopLeft,
                 chrome_face: model::ChromeFace::Body,
                 motion: model::MotionJuice::CALM,
@@ -283,9 +290,7 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 card_anchor: CardAnchor::TopRight,
                 chrome_face: ChromeFace::Named("Figtree"),
                 elevation: Elevation::Bordered,
-                page_frame: PageFrame::Line {
-                    weight_px: crate::render::Logical(1.0),
-                },
+                page_frame: frame(1.0),
                 facet_style: FacetStyle::Band,
                 ..RenderCaps::DEFAULT
             },
