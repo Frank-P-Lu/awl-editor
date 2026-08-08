@@ -859,9 +859,30 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      restored after `Escape` on both worlds. (`Escape` from the **category** region closes outright, which
      is correct, and is why a first attempt read as a failure.) ✅ **Dashboard captures: DONE**, 14 in
      `gallery/item-311/`. ✅ **Sidecar geometry: UNBLOCKED by 174's slice**, merged alongside.
-     🚧 **REMAINDER CLAIMED (worktree item-131e-transitions, production tier) — the transition law
-     plus enrolling `ListStyle::Diagonal` in the headline three-source sweep, which 174's lane named as
-     131e's axis. Originally:** 🔵 **THE GENUINE REMAINDER: a landed law driving filter and scroll through REAL CHORDS.** The
+     ✅ **REMAINDER CLOSED (merged 2026-08-08) — 131e's VERIFY-CLAUSE LIST IS NOW FULLY DONE.**
+     ⚠️ **THE ORCHESTRATOR'S BRIEF WAS HALF WRONG AND THE LANE CORRECTED IT WITH MEASUREMENT.** I said key
+     the comparison by `item`. That is right for FILTER and **false for SCROLL**, and the reason is in the
+     code: `row.dx = base_dx + dx_step * display` is a pure function of the window **SLOT**, never of which
+     item occupies it — the diagonal cascade is authored behaviour, not drift. A scroll moves every visible
+     item to a new slot **by definition**, so an item-keyed equality claim across a real scroll would be
+     **FALSE, not merely weak.** Verified empirically rather than argued: the lane's first mutation, keyed
+     on the last visible item, **tripped the scroll law and left the filter law green** — because the
+     filter scenario's visible window is provably unchanged while the scroll's last item legitimately
+     differs. **So the filter law is item-keyed, the scroll law is slot-keyed, and the file says why.**
+     ✅ Both drive **real chords through `ReplaySession`** rather than building a `ViewState`, and read the
+     published rows off the sidecar JSON. The filter fixture is engineered so survivors provably keep
+     their slots — 30 matching items first in corpus order, 150 sharing no characters with the query,
+     relying on the scorer's documented tie-break by original index — so the law compares a genuinely
+     unchanged window. Presence floors on both, including **slot 0's item asserted to differ after the
+     scroll**, so the scroll is proven to have moved `top_idx`.
+     🔴 **THE ENROLMENT FOUND A REAL BUG, which is why it was worth doing.** Adding the diagonal arm to the
+     headline sweep **did not pass on its own**: `grade_rows` probed the pointer at the card's
+     **undisplaced** span for every row regardless of style — exactly the regression `PlannedRow`'s own doc
+     names, *a staggered row clickable where it is not drawn.* It now reads each row's own span through the
+     accessor production already uses: a no-op on `Pane`/`Bars`, correct on `Diagonal`.
+     ✅ **The gap is proven closed with the mutation the item asked for** — reverting `row_at` to the
+     undisplaced span now reddens the sweep, naming a pointer outside published row 1's span that still
+     selects its item. **Originally:** 🔵 **THE GENUINE REMAINDER: a landed law driving filter and scroll through REAL CHORDS.** The
      measurement exists and is clean — the spine's ink column is **x = 504 in all three Mangrove frames**
      (base 109 items, filtered to 8, scrolled 12 rows) and **x = 695 in all three Magpie frames**,
      identical to the pixel — **but the regression guard for that door does not.**
@@ -3357,6 +3378,31 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      which is how the defect surfaced.** ⚠️ **Land the law WITH the fix, never before it** — and do not
      narrow the law to the faces that pass. **Routing:** production tier, then the user's eye.
 
+346. 🚧 CLAIMED (worktree item-346-selected-mark, deep tier) **A LIVE USER CONSTRAINT, LIFTED OUT
+     OF ITEM 131's BODY WHERE IT SAT UNADDRESSED: the Magpie selected-row mark *"needs to be thinner and
+     more elegant"* — the user's own words about a real screenshot.** Item 131e's lane flagged it rather
+     than fixing it unasked or silently omitting it, which was right; it is filed here because the
+     mechanism is clear and the precedent is already in the tree.
+     ✅ **THE DESIGN FINDING IS ALREADY MADE: one glyph cannot serve both worlds.** Magpie's display face
+     is **`Bitter`**, an editorial slab serif whose register a heavy geometric mark contradicts; Mangrove's
+     is **`JetBrains Mono`**, where a crisp geometric mark is correct. **So the mark's weight and form
+     belong in theme data beside the world's face** — and today they do not: `chrome/diagonal.rs` carries a
+     shared `SELECTED_SPINE_WEIGHT = Logical(3.0)` and the theme layer holds no per-world selected-marker
+     weight at all.
+     ‼ **THE NOTE'S OWN WARNING IS THE FAILURE MODE: do NOT tune the single shared constant until Magpie
+     looks right and call it done.** That makes Mangrove wrong — the same defect one world over.
+     ✅ **The precedent to copy is 131e's row mark**, which lives in `ListStyle::Diagonal`'s **variant
+     payload** (`DiagonalSpine { direction, mark: DiagonalMark { weight, reach, aperture } }`) so a world
+     cannot author an orientation without a mark — **the never-half-apply guard is the COMPILER's, not a
+     law's.** ⚠️ **Check whether `DiagonalMark` should simply GAIN the selected weight** rather than growing
+     a second parallel structure: two structures describing one world's mark is the two-owners-agreeing-by-
+     coincidence defect this board carries several instances of.
+     ⚠️ **Verify:** Mangrove **byte-identical** (measured against a baseline binary, never `git stash`); a
+     roster-derived law that the weight is per-world data rather than a shared constant; and **a PRESENCE
+     floor beside it, because "thinner" is satisfied perfectly by a mark that has vanished** — this repo
+     has shipped exactly that shape. **Sweep 1×/2×: a 1.25px hairline at dpi 1 is the case to watch.**
+     🔵 **CLOSES ON THE USER'S EYE.** Two or three candidate weights, not a sweep of ten, with the
+     one to ship named and argued. **Routing:** deep tier, then the user.
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
