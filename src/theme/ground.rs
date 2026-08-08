@@ -159,9 +159,9 @@ impl Tunnel {
 ///   filled at its own seeded value and its boundary carries a torn deckle
 ///   tint. Paperbark's material.
 /// * [`Weave::Fibres`] — lanes indexed on screen `y`, drawn as thin translucent
-///   strokes with seeded dropouts plus a sparser diagonal vein family. Reusable
-///   infrastructure, currently carried by no world (the `Bands` /
-///   `Dots { edge: true }` "ships until one wants it" shape).
+///   strokes with seeded dropouts plus a sparser diagonal vein family. WHICH
+///   worlds wear it is `theme::worlds`'s answer, not this doc's — grep the
+///   variant rather than trusting a count written here.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Weave {
     Strata,

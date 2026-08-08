@@ -27,9 +27,10 @@
 //! file, run with `src/render/caret.rs` + `src/render/facepitch.rs` reverted to
 //! their pre-105 `main` state (the same two-arm formula item 91/07f1b7d
 //! shipped — item 97/main only changed WHICH worlds take which arm, never the
-//! formula), fails 4 of 9 tests (the ones exercising the `aaa`/x-height class
-//! this docstring's own numbers are drawn from); passes all 9 once the repair
-//! is restored. See the item's queue/commit history for the literal red/green
+//! formula), fails every test exercising the `aaa`/x-height class this
+//! docstring's own numbers are drawn from, and passes them all once the repair
+//! is restored — stated as the CLASS that fails, because the fractions that
+//! stood here counted a file since grown. See the commit history for the
 //! console output this proof produced.
 //!
 //! SWEPT AXES (the ones item 91's laws did not): the full proportional-world

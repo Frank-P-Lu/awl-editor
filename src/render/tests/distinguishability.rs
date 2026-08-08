@@ -13,7 +13,8 @@
 //! note in the round report — this file is deliberately NOT doubling the
 //! suite):
 //!
-//! - **(a) COLOR-MATH, all 16 worlds, cheap.** For a surface whose treatment
+//! - **(a) COLOR-MATH, every world in `theme::THEMES`, cheap.** For a surface
+//!   whose treatment
 //!   reduces to a computable color (a value band, a wash tint, the caret
 //!   accent), assert the CONTRACT holds by redmean color distance — the same
 //!   `role_style_laws_hold_for_every_world` pattern `syntax_roles.rs`
@@ -132,7 +133,7 @@ fn surface_roster_is_self_consistent() {
     }
 }
 
-/// TIER (a): color-math contract, cheap and exhaustive over all 16 worlds.
+/// TIER (a): color-math contract, cheap and exhaustive over `theme::THEMES`.
 /// The redmean floor mirrors the documented "10-12/255 too faint" note on
 /// `theme::derive::SELECTED_BAND_STEPS` — comfortably above a barely-visible
 /// step, comfortably below what a real value-band/wash tint actually

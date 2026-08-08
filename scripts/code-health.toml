@@ -87,7 +87,7 @@ lines = 453
 
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
-lines = 553
+lines = 545
 reason = "`sync_view` is the ONE exhaustive `ViewState` construction site, so every new render datum has to be spelled out here and fails to compile until it is. The growth this mark carries is exactly that: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set — a heading folded over an empty section has no tail — so `fold::apply_to_view` also takes the buffer's folds at its one call site here), the summoned picker's SECONDARY LOCATION, and the persistent `changed elsewhere` affordance. None of it can live anywhere else without giving the record a second, non-exhaustive door. Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure."
 
 [[file_size_mark]]
@@ -241,8 +241,8 @@ lines = 761
 
 [[file_size_mark]]
 file = "src/overlay/kind.rs"
-lines = 376
-reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches in this one file — name, accept disposition, row-meta roster, hints, empty copy, title, row split — each of which exists so a new kind cannot inherit an untested path (+20)."
+lines = 421
+reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches in this one file — name, accept disposition, row-meta roster, hints, empty copy, title, row split — each of which exists so a new kind cannot inherit an untested path (+20). +45: `keeps_backdrop_crisp` becomes the ONE owner of which pickers keep the document sharp behind them, as a wildcard-free 21-arm match -- the eighth exhaustive per-kind match this file carries. It replaced two independent deciders, one of which keyed on the mode's own SPELLING (`o.mode == \"theme\" || o.mode == \"caret\"`) in the capture door, so the live App and a capture could disagree about the same kind. A comment naming a stale set was the symptom; two deciders were the cause."
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
@@ -495,7 +495,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 function = "App::sync_view"
-message = "this function has too many lines (248/100)"
+message = "this function has too many lines (241/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `sync_view` is the one exhaustive `ViewState` projection site, so each new render datum is spelled out here: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set, so `fold::apply_to_view` takes the buffer's folds at its one call site here) and the summoned picker's secondary location. The document-session extraction replaced direct buffer and cache fields with explicit read projections while preserving that one exhaustive site."
 
 [[clippy_exception]]

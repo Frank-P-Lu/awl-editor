@@ -89,8 +89,10 @@ impl App {
     /// Push `root` to the FRONT of the persisted RECENT PROJECT ROOTS (deduped +
     /// capped, [`crate::recents::push`]) and save the list ATOMICALLY. A save
     /// error is reported and swallowed (a lost MRU entry is never worth crashing
-    /// a project switch). Native/live only — the headless capture never
-    /// constructs an `App`, so this file is never touched from a capture.
+    /// a project switch). Native only, and App-only — but `--screenshot-app`
+    /// drives a real App through the real effect interpreter, so a replayed Goto
+    /// DOES reach here; what keeps the user's own list out of it is the seeded
+    /// sandbox that door installs (`scenario::install_hermetic_fs`).
     pub(in crate::app) fn push_recent_project(&mut self, root: PathBuf) {
         let list = std::mem::take(&mut self.project_location.recent_projects);
         self.project_location.recent_projects =
@@ -106,9 +108,9 @@ impl App {
     /// Push `file` to the FRONT of the persisted RECENTLY-OPENED FILES MRU (deduped
     /// + capped, [`crate::recent_files::push`]) and save it ATOMICALLY. A save error
     ///   is reported + swallowed (a lost MRU entry is never worth crashing a file
-    ///   open). Native/live only — the headless capture never constructs an `App`, so
-    ///   `recent-files.toml` is never touched from a capture. The FILE sibling of
-    ///   [`Self::push_recent_project`].
+    ///   open). Same door split as [`Self::push_recent_project`], whose doc states
+    ///   it: `--screenshot-app` reaches here too and writes into its hermetic
+    ///   sandbox. The FILE sibling of that owner.
     pub(in crate::app) fn push_recent_file(&mut self, file: PathBuf) {
         let list = std::mem::take(&mut self.project_location.recent_files);
         self.project_location.recent_files = crate::recent_files::push(list, file);

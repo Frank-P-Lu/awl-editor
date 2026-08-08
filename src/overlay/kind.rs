@@ -118,6 +118,51 @@ impl OverlayKind {
         }
     }
 
+    /// THE CRISP-BACKDROP SET: does this card leave the DOCUMENT behind it
+    /// unfrosted? Exhaustive rather than `matches!`, because the answer is a
+    /// composition decision and a new kind must make it here instead of
+    /// inheriting the frost.
+    ///
+    /// A card frosts what it covers (DESIGN §5: a summoned surface recedes the
+    /// room). The exception is a picker whose ROWS PREVIEW LIVE DOCUMENT STATE —
+    /// the theme picker repaints the page under itself, the caret picker poses
+    /// the real caret — where frosting would blur the very thing the row is
+    /// showing you. That is why every crisp kind is also an
+    /// [`AcceptDisposition::ValuePick`]: previewing a value is what earns the
+    /// exemption, and a navigator has no value to preview. A comparison is NOT
+    /// this: it composites inside the workspace's own content region, so what
+    /// sits behind its card is the user's untouched document — a quiet backdrop,
+    /// which is exactly what frost is for.
+    ///
+    /// Read by the LIVE door (`App::sync_view`) and by the CAPTURE door
+    /// (`capture::modes::settled_viewstate`, which arrives holding a serialized
+    /// mode string and resolves it through [`Self::from_mode`]) — one owner, so
+    /// a headless frame cannot disagree with the running editor about frost.
+    pub fn keeps_backdrop_crisp(self) -> bool {
+        match self {
+            OverlayKind::Theme | OverlayKind::Caret => true,
+            OverlayKind::Goto
+            | OverlayKind::Project
+            | OverlayKind::Browse
+            | OverlayKind::Dictionary
+            | OverlayKind::CjkLang
+            | OverlayKind::Date
+            | OverlayKind::MoveDest
+            | OverlayKind::Command
+            | OverlayKind::Spell
+            | OverlayKind::Keybindings
+            | OverlayKind::History
+            | OverlayKind::Conflict
+            | OverlayKind::Settings
+            | OverlayKind::Assets
+            | OverlayKind::Rename
+            | OverlayKind::InsertLink
+            | OverlayKind::KeepName
+            | OverlayKind::Context
+            | OverlayKind::ExportDest => false,
+        }
+    }
+
     /// A DESTINATION NAVIGATOR: a folders-only walk of the active root whose
     /// accept names the folder you stopped on. Both members share the entire
     /// navigation grammar — `→` descends, `←` ascends, `↵` takes the highlighted

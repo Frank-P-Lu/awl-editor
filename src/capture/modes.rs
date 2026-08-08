@@ -320,14 +320,14 @@ pub(super) fn settled_viewstate(
         vstate.popover =
             crate::actions::popover::plan(&buffer.text(), Some(a), c, buffer.is_markdown());
     }
-    // CRISP-BACKDROP exception: the THEME / CARET pickers keep the doc crisp (no
-    // frosted blur) — their cards preview live document state. HISTORY is not
-    // here: its comparison is not the document behind the card.
+    // THE CRISP-BACKDROP exception. A capture holds a serialized MODE STRING, so it
+    // resolves the kind and asks the owner the live door asks — never a second
+    // membership list keyed on spelling, which is how two doors drift.
     vstate.overlay_crisp = opts
         .overlay
         .as_ref()
-        .map(|o| o.mode == "theme" || o.mode == "caret")
-        .unwrap_or(false);
+        .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
+        .is_some_and(|kind| kind.keeps_backdrop_crisp());
     vstate.overlay_query = opts
         .overlay
         .as_ref()

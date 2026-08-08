@@ -1,10 +1,10 @@
 use super::*;
 
-/// The table has the audited 28 rows (including the Keybindings sub-menu and
-/// two Advanced actions), plus Date format, File visibility (item 77), and
-/// Scroll sensitivity (item 90). Every display name is UNIQUE (it is both the
-/// fuzzy corpus and value-readout key). The exact count is asserted below so
-/// an added/removed row must touch this comment deliberately.
+/// Every display name in the table is UNIQUE (it is both the fuzzy corpus and
+/// the value-readout key). The row COUNT is asserted below rather than written
+/// here, so an added or removed row must be acknowledged in code rather than in
+/// prose — a number in this sentence went three rows stale against the
+/// assertion sitting four lines underneath it.
 #[test]
 fn settings_table_names_are_unique() {
     let mut seen = std::collections::HashSet::new();

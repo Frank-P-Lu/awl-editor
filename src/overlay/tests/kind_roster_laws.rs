@@ -267,3 +267,55 @@ fn goto_recent_empty_lens_reads_the_warm_invitation() {
     ov.push('z');
     assert_eq!(ov.empty_notice().as_deref(), Some("no matches"));
 }
+
+/// THE CRISP-BACKDROP SET IS A SUBSET OF THE VALUE-PICKERS. A card frosts what
+/// it covers; the exemption exists only for a picker whose rows PREVIEW LIVE
+/// DOCUMENT STATE, which is the same property that makes it an
+/// [`AcceptDisposition::ValuePick`] — previewing a value is what earns the
+/// exemption, and a navigator has no value to preview.
+///
+/// This is the law the wrong comment needed. `render/chrome/outline.rs` told
+/// readers the crisp set included the HISTORY picker; History NAVIGATES, its
+/// comparison is composited inside the workspace's own content region, and what
+/// sits behind its card is the untouched document — the exact thing frost is
+/// for. Marking any navigator crisp fails here, by name.
+///
+/// Enrolment is [`OverlayKind::ALL`], so a new kind is swept the moment it
+/// exists rather than when someone remembers to list it.
+#[test]
+fn every_crisp_backdrop_kind_is_a_value_picker() {
+    let crisp: Vec<OverlayKind> = OverlayKind::ALL
+        .iter()
+        .copied()
+        .filter(|k| k.keeps_backdrop_crisp())
+        .collect();
+    let frosted: Vec<OverlayKind> = OverlayKind::ALL
+        .iter()
+        .copied()
+        .filter(|k| !k.keeps_backdrop_crisp())
+        .collect();
+    // PRESENCE FLOORS, both ways. A subset law is satisfiable by deleting its own
+    // subject — an empty crisp set passes it vacuously, and an all-crisp roster
+    // would mean frost had stopped existing. Neither is a state this product is
+    // ever in, so both are failures here rather than silent successes.
+    assert!(
+        !crisp.is_empty(),
+        "the crisp-backdrop set went EMPTY — the theme picker cannot preview a \
+         world it has frosted, so this law would be asserting nothing"
+    );
+    assert!(
+        !frosted.is_empty(),
+        "EVERY kind kept the backdrop crisp — frost has no subject left, and the \
+         summoned-surface rule DESIGN.md §5 states is gone: crisp = {crisp:?}"
+    );
+    for k in &crisp {
+        assert_eq!(
+            k.accept_disposition(),
+            AcceptDisposition::ValuePick,
+            "{k:?} keeps its backdrop crisp but is a {:?}, not a ValuePick: only a \
+             picker previewing live DOCUMENT state earns the exemption from frost. \
+             Crisp set = {crisp:?}",
+            k.accept_disposition()
+        );
+    }
+}
