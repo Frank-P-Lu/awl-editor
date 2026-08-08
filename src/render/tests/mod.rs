@@ -55,6 +55,10 @@ mod comparison_composite_item116d;
 mod comparison_viewport_item116b;
 mod date_picker_ink;
 mod diagonal_composition;
+/// THE DIAGONAL COMPOSITION IN REAL PIXELS: orientation, line continuity, the
+/// inset attachment band, the fixed name/control lanes, and the room wordmark
+/// never landing under a row — five laws, five oracles, over bytes off the GPU.
+mod diagonal_pixel_composition;
 mod distinguishability;
 mod dither;
 mod eotf_bit_identity;
