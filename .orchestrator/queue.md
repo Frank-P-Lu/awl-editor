@@ -859,7 +859,9 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      restored after `Escape` on both worlds. (`Escape` from the **category** region closes outright, which
      is correct, and is why a first attempt read as a failure.) ✅ **Dashboard captures: DONE**, 14 in
      `gallery/item-311/`. ✅ **Sidecar geometry: UNBLOCKED by 174's slice**, merged alongside.
-     🔵 **THE GENUINE REMAINDER: a landed law driving filter and scroll through REAL CHORDS.** The
+     🚧 **REMAINDER CLAIMED (worktree item-131e-transitions, production tier) — the transition law
+     plus enrolling `ListStyle::Diagonal` in the headline three-source sweep, which 174's lane named as
+     131e's axis. Originally:** 🔵 **THE GENUINE REMAINDER: a landed law driving filter and scroll through REAL CHORDS.** The
      measurement exists and is clean — the spine's ink column is **x = 504 in all three Mangrove frames**
      (base 109 items, filtered to 8, scrolled 12 rows) and **x = 695 in all three Magpie frames**,
      identical to the pixel — **but the regression guard for that door does not.**
@@ -941,7 +943,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ⚠️ **131's own rule, which every consumer inherits: never ship a
      half-applied world.** Both worlds move in one commit or neither does.
 
-174. 🟡 **SLICE 1 LANDED (merged 2026-08-08) — the sidecar publishes planned ROW GEOMETRY at
+174. 🚧 **SLICE 2 CLAIMED (worktree item-174-accessory, deep tier) — publish the ACCESSORY CLUSTER's geometry (label lane, value lane, rail), which turns item 327's width question from argument into arithmetic. SLICE 1 LANDED (merged 2026-08-08) — the sidecar publishes planned ROW GEOMETRY at
      schema /201. THE ITEM ITSELF STAYS OPEN: this is one slice of a multi-round refactor.**
      ✅ **`overlay.window` gained a `band` block and a per-row rect list**, so a law can assert
      drawn↔hit-test↔sidecar agreement **without inferring anything from pixels** — the defect 174 names
