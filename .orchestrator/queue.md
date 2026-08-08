@@ -3128,7 +3128,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      `measured > 500` guard**; that guard is the only thing making the erosion visible.
      **Routing:** production tier.
 
-338. 🔴 **SIXTEEN CONSTANTS IN THE WRITING COLUMN HOLD THEIR DEVICE SIZE AS THE DISPLAY GETS DENSER —
+338. 🚧 CLAIMED (worktree item-338-scale-and-cap, deep tier — LANDING under the user's new standing preference) 🔴 **SIXTEEN CONSTANTS IN THE WRITING COLUMN HOLD THEIR DEVICE SIZE AS THE DISPLAY GETS DENSER —
      item 242's headline defect, found in a fourth pipeline nobody had audited.** Measured by item
      322, which correctly declined to "fix" it. `metrics.zoom` is the clamped user zoom;
      `metrics.scale` is `zoom * dpi`. **Sixteen read sites multiply by `.zoom` ALONE and never meet
@@ -3231,7 +3231,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      sweep to the caret files and classify what it enumerates, one family at a time, naming the
      pipeline that already scales each. **Routing:** production tier.
 
-342. ⚠️ **MEASURED, ORACLE REPAIRED, NO FIX — THE REMAINING QUESTION IS A TASTE CALL AND IT IS THE
+342. 🚧 CLAIMED (worktree item-338-scale-and-cap, deep tier — LANDING under the user's new standing preference) ⚠️ **MEASURED, ORACLE REPAIRED, NO FIX — THE REMAINING QUESTION IS A TASTE CALL AND IT IS THE
      USER'S (2026-08-08).** The clip is real and confirmed; **both the board's hypothesis and the
      orchestrator's were wrong about why.**
      ⚠️ **THE SHAPED-EXTENT THEORY IS FALSE, MEASURED.** The content side **is** advances
