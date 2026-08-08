@@ -4154,6 +4154,49 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      conventions and wasm gates pass, with POSIX-only process arms explicitly gated rather than pretended
      portable. This is safety work, not permission to redesign notices or recovery policy. **Routing:** deep
      tier, one owner end to end.
+
+359. **CLEAN THE THEME DATA MODEL BEFORE THE CUSTOM-WORLD COMPOSER MAKES IT A PUBLIC CONTRACT.** Begin
+     with a generated census of every `Theme`/`RenderCaps` capability and its adopting worlds. Zero or one
+     adopter is a classification prompt, **not** an automatic deletion rule: coherent reusable treatments
+     such as Rules, Diagonal, chamfer, ambient stars and background kinds remain data even when today's
+     roster has one wearer; tiny corrective geometry and fields with no real per-world variation belong to
+     their shared renderer owner instead. Audit `selection_ui` and delete it only if the derived selection
+     answer covers every consumer; audit fold lifts, Firetail's `icon_ground`, Cassowary's `pane_split`, and
+     zero-variation frost/motion fields for derivation or promotion into a genuinely reusable treatment.
+     `spell_underline_gap` is already resolved by item 355 and is excluded rather than rediscovered.
+
+     Replace Wagtail-shaped compatibility switches with one general **arbitrary two-colour** resolver: the
+     authored ground and ink can be any two colours, not only black/white, and inverse selection/block-caret
+     compositing swaps those palette roles rather than applying mathematical `1 - dst`. Keep inverse
+     selection and inverse block caret independently selectable for ordinary palettes. Colours—including
+     every treatment's soft/strong rungs—live in the colour-token section; no colour literal hides beside a
+     float or geometry parameter. The resolved renderer has no world-name branches.
+
+     **Done:** a roster law reports every zero-/single-adopter capability by adopter name and fails when a
+     new field escapes classification; each removal or promotion has a consumer census and a mutation-proven
+     law; the arbitrary two-colour path is proved with a non-black/non-white pair and preserves readable
+     syntax, selection and caret states; retained one-adopter treatments are explicitly classified as
+     reusable visual vocabulary; existing worlds remain pixel-identical except for separately approved,
+     named corrections. Update `THEMES.md` and `docs/render.md` so the composer can expose stable semantic
+     controls rather than renderer internals. Native both conventions and wasm gates pass. **Dependency:**
+     complete before the custom-world composer. **Routing:** deep tier, one owner end to end.
+
+360. **TRIM MAGPIE'S LEFT PARALLELOGRAM BY RECOMPOSING THE SELECTED MARK, NOT BY LYING ABOUT THE FROST
+     FOOTPRINT.** The user's live screenshot shows the selected-row `>` far to the left of Magpie's `/`
+     spine, forcing a broad softened parallelogram. Item 343 proved the current footprint is already tight:
+     the remaining left extent is live mark ink, not padding. Bring that mark inward (and adjust its relation
+     to the row/cluster if needed), then let `footprint_narrow` derive the shorter left face from the surfaces
+     actually drawn. Do not add a Magpie-only crop, clip the mark, strand it on sharp document ink, or add a
+     new low-level per-world placement field while item 359 is removing that class of exception.
+
+     **Done:** capture the current Magpie overlay at the screenshot's broad/narrow stress shape, audition one
+     tighter composition, and record the before/after left footprint in logical pixels; every mark, spine,
+     label, shortcut and footer surface remains inside the hard footprint and feather support at 1x and 2x;
+     the selected row remains immediately locatable in a five-shot vision smoke; Mangrove's mirrored
+     composition is either byte-identical or changed only through an explicitly accepted shared rule. The
+     footprint tightness/coverage laws and targeted diagonal/frost suites pass. This is a small reversible
+     taste change: revert restores the old mark placement and footprint with no file/config migration.
+     **Routing:** production tier plus vision smoke.
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
