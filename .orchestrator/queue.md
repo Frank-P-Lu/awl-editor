@@ -61,6 +61,35 @@ worktree's `.git` is an absolute pointer into the host — use a plain checkout.
 this commit's message and in the lane's report.
 
 
+## ✅ CI RED #2 — THE SAME LAW, THE SECOND DEATH, AND THE SECOND DEATH WAS ON MY OWN REPAIR
+**FIXED AND CONFIRMED GREEN ON CI** 2026-08-08 (`c06d8ce2`, gated `3a2f2f71`; `linux (build + test)`
+**success**, alongside `mac (build + test)` and `mac live-probe`). Kept for the same reason as the section
+above: the lesson outlived the fix, and this one indicts the fix I wrote for the FIRST one.
+
+🔴 **The failure:** `src/render/tests/range_rail.rs` went red on lavapipe at
+`Kite: the SELECTED Page-width-prose rail's thumb [227, 224, 232] does not read as the selected-row flip
+[246, 244, 250] (ΔE 6.97, ceiling 6.0; ground [139, 110, 197], run 27px)`. Green on this host's Metal.
+
+‼ **THE FIRST REPAIR REPLACED BYTE-EQUALITY WITH A ΔE CEILING, WHICH ONLY MOVED THE CLIFF.** A fixed ΔE
+against an **authored theme constant** cannot be calibrated out, because **how far a blended edge sits from
+that constant is a property of the GROUND the blend happens over** — Kite's ground is a saturated purple, so
+its thumb starts furthest away and lands furthest short. And the thing that tipped it was **elsewhere in the
+same push**: item 342 widened the card 25px, moving the thumb's subpixel coverage and pushing a cell that had
+been sitting just inside the ceiling over it. **The law was not measuring what the author thought it was.**
+
+✅ **The form that holds is a RATIO OF TWO QUANTITIES READ FROM THE SAME FRAME**: how far the ink travelled
+from its own unselected ground, as a share of the ΔE between that ground and the flip it should wear. A
+backend that rounds differently moves **both terms together**. Calibrated from three figures, all three
+recorded in the constant's own doc: **shipped 0.918, defect 0.461, floor 0.75.** A companion assertion
+refuses a world whose ground offers **no span to travel** — otherwise the ratio is satisfiable by a world
+whose ground already equals the flip, which is the delete-your-own-subject shape.
+
+‼ **THE GENERAL RULE, now in the protocol: AN APPEARANCE FLOOR MAY COMPARE A RENDERED PIXEL TO ANOTHER
+RENDERED PIXEL, NEVER TO AN AUTHORED CONSTANT.** A constant is exact; a rendered pixel is the rasterizer's
+opinion, and **the gap between them is a free variable the author does not control.** Two REDs, one root, and
+the first repair reproduced the root in different clothing — which is why the rule is stated as a rule rather
+than as a third fix.
+
 ## 🔵 BLOCKED ON THE USER — nothing else can close these
 
 ⚠️ **This section has now been silently deleted TWICE** — once by an
