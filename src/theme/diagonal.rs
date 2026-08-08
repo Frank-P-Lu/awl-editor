@@ -47,10 +47,18 @@ impl DiagonalMark {
 
     /// AN EDITORIAL face's mark: a hairline at half the row's height, sized to
     /// read as a typographic reference mark rather than as a fitting.
+    ///
+    /// The stroke has bottomed out at 1.25 and the remaining budget is spent on
+    /// FORM instead: this aperture closes the vertex to ~50.8° against the 70.7°
+    /// a 0.55 aperture gives, which is the difference between a slender drawn
+    /// reference mark and a UI arrow beside a slab serif. Spending the budget on
+    /// stroke instead measures WEAKER at 1× (the arms fall further off the pixel
+    /// grid) for a change invisible at 2×, so thinner-and-blunter is the trap
+    /// this shape avoids.
     pub const HAIRLINE: DiagonalMark = DiagonalMark {
         weight: 1.25,
-        reach: 4.5,
-        aperture: 0.55,
+        reach: 5.5,
+        aperture: 0.45,
     };
 }
 
