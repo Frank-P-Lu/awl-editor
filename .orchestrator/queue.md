@@ -3600,6 +3600,40 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      answer is a product decision about minimum width, **hand it back with the numbers rather than picking.**
      ✅ Slice 2 also repaired a neighbouring fixture that hardcoded `workspace: false`, folding a state no
      summon can reach; it now derives it from `workspace_shape()`. **Routing:** production tier.
+348. 🚧 CLAIMED (worktree item-348-settings-fixture, production tier) **SIX COPIES OF THE
+     `SettingsValues` TEST FIXTURE.** Reported by item 347's lane while working on something else, and
+     deliberately left because two lanes were live: `workspace_item114.rs`, `workspace_plate_item234.rs`,
+     `range_rail.rs`, `settings_row_reach_law.rs`, `marker_side_item303.rs`, `rules_composition_item283.rs`.
+     ✅ **Item 340 is the template** — it deduplicated the SIBLING fixture (`settings_view`), put the owner
+     in `render/tests/mod.rs` with the one parked value named at a single site, and left a one-line wrapper
+     in each consumer so no call site moved.
+     ‼ **AND ITEM 340's TRAP APPLIES DIRECTLY: a dedup that changes a fixture's behaviour is a SILENT TEST
+     CHANGE.** When 340 mutation-proved its own dedup it found the old note **undercounted its blast radius
+     by a law**, because laws had been added since it was written. ⚠️ **So the six may not be identical, and
+     a difference may be load-bearing** — item 327 measured that the **project root's own length moves the
+     accessory-column budget**, so silently normalising one file's `project_root` could change which width
+     its card yields at. **Diff field by field and report differences BEFORE merging them; parameterise
+     what must differ rather than forcing agreement.**
+     ✅ **Verify:** every affected law green before and after with the counts stated per file, the dedup
+     itself mutation-proven so the consumers are shown to read the new owner rather than a leftover copy,
+     and **a no-wildcard law so a SEVENTH copy cannot appear** — item 310's sRGB-EOTF dedup is that shape
+     (it removed five, found a sixth, and left a law).
+     **Routing:** production tier.
+
+349. 🚧 CLAIMED (read-only audit, production tier) **THE VISION SMOKE THIS SESSION OWED AND NEVER
+     RAN.** `CLAUDE.md`'s standing policy: *"Every render-touching round gets a vision-smoke:
+     affordance-locating questions over ~5 gallery shots ('which row is selected?'), never 'does this look
+     fine?'."* **This session landed frost narrowing, a plate rim, an empty-chip removal, per-rail ink, a
+     right-click-menu routing change, a caret width change and a per-world mark — and no vision smoke.**
+     ⚠️ **The policy's form is the point:** every question must have a **locatable answer the auditor can be
+     WRONG about**, because *"does this look fine"* is answerable by a picture of anything — and this repo
+     has a recorded case of a sidecar reporting `selected_index: 2` while the row rendered **fully
+     invisible**. ✅ **"Cannot locate" is the finding**, not a failure to report.
+     ✅ **Also asked, because it is this session's specific risk: is there exactly ONE accent per frame?** A
+     round that added a rim, a mark and a rail treatment could easily have produced a second thing competing
+     for the eye, and **nobody has looked.**
+     ⚠️ **Read-only: the auditor edits nothing.** An audit that finds something **names** the missing law
+     without writing it. **Routing:** production tier.
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
