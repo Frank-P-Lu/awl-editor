@@ -2990,7 +2990,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      `chrome/diagonal/`. **337 grades the same silhouette and 342 is live in the hint's width budget —
      sequence, never pair.**
 
-344. 🔴 **THE DOC CENSUS IS 29 CONFIRMED CONTRADICTIONS ACROSS NINE FILES, AND FOUR ARE IN PUBLIC,
+344. 🚧 CLAIMED (worktree item-344-doc-census, deep tier) 🔴 **THE DOC CENSUS IS 29 CONFIRMED CONTRADICTIONS ACROSS NINE FILES, AND FOUR ARE IN PUBLIC,
      USER-FACING DOCS.** Produced by item 302's own fan-out audit; **the orchestrator independently
      re-verified the four public ones against source** and they hold. This is filed separately because
      the census is far larger than 302's brief anticipated (it named five instances) and **must not be
@@ -3026,7 +3026,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ⚠️ **The four public ones are the priority** — they are what a user or a screen-reader user reads.
      **Routing:** production tier; sequence behind item 302, which owns the same lever.
 
-345. 🔴 **THE BLOCK CARET IS 120% OF THE GLYPH IT SITS ON, ON TWO SHIPPED WORLDS — a 2.4px overhang
+345. 🚧 CLAIMED (worktree item-345-caret-pitch, production tier — PREP ONLY, awaits the user) 🔴 **THE BLOCK CARET IS 120% OF THE GLYPH IT SITS ON, ON TWO SHIPPED WORLDS — a 2.4px overhang
      into the next character at zoom 1.** Found by item 302 while repairing a comment that asserted the
      opposite, and **the numbers are measured, not inferred.** `caret_block_w`'s mono arm keeps a
      historical `.max(caret_w)` floor, and `metrics.caret_w` is a fixed `CARET_W` that is
