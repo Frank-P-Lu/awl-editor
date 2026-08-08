@@ -254,6 +254,137 @@ pub(super) fn assert_identical(
     );
 }
 
+/// The classic CIE ΔE just-noticeable difference — one named constant so
+/// every ΔE-based floor in this file cites the same number rather than
+/// re-deriving it (see [`delta_e`]'s own doc for why ΔE, not a byte delta or
+/// a WCAG ratio, is this tree's oracle for "can this be seen").
+const CLASSIC_JND: f64 = 2.3;
+
+/// How many pixels a pair of SAME-POSITION buffers moves at least
+/// [`CLASSIC_JND`] apart over `region`, and the single largest ΔE observed
+/// anywhere in it — the perceptual analogue of [`DiffReport`]'s `(fraction,
+/// max_channel_delta)` pair, for a caller comparing two renders perceptually
+/// rather than byte-exact (a byte comparison of two GPU renders is a claim
+/// about the rasterizer, not the product).
+pub(super) fn pairwise_delta_e_report(
+    a: &[[u8; 4]],
+    b: &[[u8; 4]],
+    width: i64,
+    height: i64,
+    region: Region,
+) -> (usize, f64) {
+    let x0 = region.x.max(0);
+    let y0 = region.y.max(0);
+    let x1 = (region.x + region.w).min(width);
+    let y1 = (region.y + region.h).min(height);
+    let mut covered = 0usize;
+    let mut peak = 0.0f64;
+    for y in y0..y1 {
+        for x in x0..x1 {
+            let i = (y * width + x) as usize;
+            let d = delta_e(a[i], b[i]);
+            if d >= CLASSIC_JND {
+                covered += 1;
+            }
+            peak = peak.max(d);
+        }
+    }
+    (covered, peak)
+}
+
+/// At least this many pixels must clear the JND for a pair to count as
+/// distinct — one lucky anti-aliased pixel cannot stand in for a real shape
+/// difference. Mirrors `marker_side_item303.rs`'s own `MARK_MIN_COVERED_CELLS`
+/// (also 4, chosen there for the identical reason: a thin stroke against a
+/// mostly-empty ground must not pass on population size alone).
+pub(super) const PAIRWISE_MIN_COVERED_PX: usize = 4;
+
+/// The pair's single largest ΔE must clear this — comfortably past the
+/// classic 2.3 JND, the same order of margin this tree's own ΔE ceilings
+/// already sit at rather than the JND itself (item 346 shipped its presence
+/// floor with margin at both ends, never flush against the JND).
+pub(super) const PAIRWISE_MIN_PEAK_DELTA_E: f64 = 6.0;
+
+/// **ONE OWNER of "can a human tell candidate A from candidate B in the
+/// artifact they were handed"** — the check this tree did not have until
+/// item 349's vision smoke could tell "before" from four candidate marks but
+/// not the four apart from EACH OTHER, because each was cropped to its own
+/// bounding box at ~77x39 device px and upscaled independently. That
+/// independent crop-and-rescale is what erased the very quantity (vertex
+/// angle) the candidates differed in: two candidates occupying different
+/// logical footprints, each blown up to fill the same thumbnail cell, share
+/// no ruler — a genuinely different angle can render pixel-for-pixel
+/// identical once each side has been independently renormalized to fit.
+///
+/// So this check does NOT crop or rescale anything itself. Candidates arrive
+/// **already composited into ONE shared `width`x`height` frame at ONE
+/// zoom/dpi** — the coordinate space a human actually looks at — and every
+/// buffer failing to match that shared size is refused rather than silently
+/// skipped, because a mismatched size IS the own-bounding-box-crop defect,
+/// caught before it can launder a real difference away.
+///
+/// Two obligations precede any pairwise reading, so the check cannot pass by
+/// grading nothing:
+/// - `candidates.len() >= 2` — "every adjacent pair is distinct" is
+///   vacuously true of a set with fewer than two members, and this repo has
+///   shipped laws satisfiable by deleting their own subject.
+/// - every buffer is exactly `width * height` long.
+///
+/// Then every **adjacent** pair — the order the gallery lays them out in,
+/// the order a reader's eye actually compares — must clear BOTH
+/// [`PAIRWISE_MIN_COVERED_PX`] pixels past the JND and a peak ΔE of
+/// [`PAIRWISE_MIN_PEAK_DELTA_E`] (see their own docs for why two numbers, not
+/// one). `candidates` is whatever slice the caller renders and names; this
+/// function enrols nothing of its own and keeps no name list, so a caller
+/// building a REAL comparison gallery drives it from wherever it already
+/// declares its own candidates.
+pub(super) fn assert_pairwise_distinct(
+    candidates: &[(&str, &[[u8; 4]])],
+    width: i64,
+    height: i64,
+    label: &str,
+) {
+    assert!(
+        candidates.len() >= 2,
+        "{label}: a comparison set of {} member(s) is not a comparison — \
+         pairwise distinctness is vacuously true of a set with fewer than \
+         two members",
+        candidates.len()
+    );
+    let region = Region::canvas(width, height);
+    let expect_len = (width * height) as usize;
+    for pair in candidates.windows(2) {
+        let (name_a, buf_a) = pair[0];
+        let (name_b, buf_b) = pair[1];
+        assert_eq!(
+            buf_a.len(),
+            expect_len,
+            "{label}: candidate {name_a:?} is not {width}x{height} px — every \
+             candidate must be rendered into the SAME shared frame at the \
+             artifact's own scale, never cropped to its own bounding box and \
+             rescaled independently (that renormalization is what hid a real \
+             vertex-angle difference in the gallery item 350 was named for)"
+        );
+        assert_eq!(
+            buf_b.len(),
+            expect_len,
+            "{label}: candidate {name_b:?} is not {width}x{height} px — see \
+             {name_a:?}'s message above"
+        );
+        let (covered, peak) = pairwise_delta_e_report(buf_a, buf_b, width, height, region);
+        assert!(
+            covered >= PAIRWISE_MIN_COVERED_PX && peak >= PAIRWISE_MIN_PEAK_DELTA_E,
+            "{label}: candidates {name_a:?} and {name_b:?} are not \
+             distinguishable at this artifact's own {width}x{height} scale — \
+             {covered} px cleared the {CLASSIC_JND} JND (floor \
+             {PAIRWISE_MIN_COVERED_PX}), peak ΔE {peak:.2} (floor \
+             {PAIRWISE_MIN_PEAK_DELTA_E}). A separation that is real at full \
+             render resolution and invisible here is exactly the gap this \
+             check exists to close."
+        );
+    }
+}
+
 /// The single most-common "ink" pixel (any pixel differing from `bg` by more
 /// than `threshold` in any channel) over `region` — `None` if the region has
 /// no ink at all. A glyph's own anti-aliased edge pixels are a minority next
@@ -574,5 +705,166 @@ mod tests {
         let mut b = a.clone();
         b[3] = [1, 0, 0, 255];
         assert_identical(&a, &b, w, h, Region::canvas(w, h), "test fixture");
+    }
+
+    #[test]
+    fn assert_pairwise_distinct_passes_on_genuinely_different_candidates() {
+        let (w, h) = (4i64, 4i64);
+        let n = (w * h) as usize;
+        let black = vec![[0u8, 0, 0, 255]; n];
+        let white = vec![[255u8, 255, 255, 255]; n];
+        // A, B, C alternate — every ADJACENT pair (A/B, B/C) must clear the
+        // floor; this does not require the non-adjacent A/C pair to.
+        assert_pairwise_distinct(
+            &[
+                ("A", black.as_slice()),
+                ("B", white.as_slice()),
+                ("C", black.as_slice()),
+            ],
+            w,
+            h,
+            "test fixture",
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "a comparison set of 1 member(s) is not a comparison")]
+    fn assert_pairwise_distinct_refuses_a_set_of_one() {
+        let (w, h) = (4i64, 4i64);
+        let a = vec![[0u8, 0, 0, 255]; (w * h) as usize];
+        assert_pairwise_distinct(&[("A", a.as_slice())], w, h, "test fixture");
+    }
+
+    #[test]
+    #[should_panic(expected = "is not 4x4 px")]
+    fn assert_pairwise_distinct_refuses_a_mismatched_buffer_size() {
+        let (w, h) = (4i64, 4i64);
+        let a = vec![[0u8, 0, 0, 255]; (w * h) as usize];
+        // A candidate cropped to its own (smaller) bounding box rather than
+        // rendered into the shared frame — the exact renormalization defect
+        // this check exists to refuse rather than silently skip.
+        let b = vec![[255u8, 255, 255, 255]; 3];
+        assert_pairwise_distinct(
+            &[("A", a.as_slice()), ("B", b.as_slice())],
+            w,
+            h,
+            "test fixture",
+        );
+    }
+
+    /// THE NATURAL MUTATION: make two adjacent candidates identical and
+    /// confirm the check refuses them, by name.
+    #[test]
+    #[should_panic(expected = "candidates \"B\" and \"C\" are not distinguishable")]
+    fn assert_pairwise_distinct_refuses_two_identical_candidates() {
+        let (w, h) = (4i64, 4i64);
+        let n = (w * h) as usize;
+        let black = vec![[0u8, 0, 0, 255]; n];
+        let white = vec![[255u8, 255, 255, 255]; n];
+        let mutated_c = white.clone(); // MUTATION: C collapsed onto B
+        assert_pairwise_distinct(
+            &[
+                ("A", black.as_slice()),
+                ("B", white.as_slice()),
+                ("C", mutated_c.as_slice()),
+            ],
+            w,
+            h,
+            "test fixture",
+        );
+    }
+
+    /// THE SCALE CLAIM, proven rather than asserted in a doc comment: the
+    /// SAME real angle difference that this check finds at a workable frame
+    /// size can fail to clear the floor once minified hard enough — which is
+    /// exactly the shape of item 349's defect (a real vertex-angle
+    /// difference, invisible in a ~77x39 device-px crop). Two candidates
+    /// differ only in a diagonal edge's slope; downsampled by box-averaging
+    /// (the same blending a thumbnail resize performs) to a small enough
+    /// frame, the edge's few differing pixels dilute below this check's own
+    /// floor, at the SAME floor constants used at the fine scale — proving
+    /// "measure at the artifact's own scale" is not a slogan: the verdict
+    /// itself flips with the frame size. Measured on this host: 40x40 reads
+    /// covered=78, peak ΔE 93.68; minified to 4x4 it still clears both floors
+    /// (covered=6, peak 8.36) and even 3x3 barely clears them (covered=4,
+    /// peak 6.60) — so the frame this test minifies to is 2x2, where the
+    /// SAME real difference reads covered=2, peak ΔE 4.16, under both floors.
+    #[test]
+    fn assert_pairwise_distinct_a_real_angle_difference_can_vanish_when_minified() {
+        let (w, h) = (40i64, 40i64);
+        // Candidate A: a shallow edge (rise 1 for every 2 columns).
+        // Candidate B: a steep edge (rise 1 per column) — a substantial,
+        // genuinely different vertex angle (~26 degrees apart).
+        let draw = |steep: bool| -> Vec<[u8; 4]> {
+            let mut buf = vec![[255u8, 255, 255, 255]; (w * h) as usize];
+            for x in 0..w {
+                let y = if steep { x } else { x / 2 };
+                if y < h {
+                    buf[(y * w + x) as usize] = [20, 20, 20, 255];
+                }
+            }
+            buf
+        };
+        let a = draw(false);
+        let b = draw(true);
+
+        // AT THE FULL 40x40 FRAME: a real, findable difference.
+        assert_pairwise_distinct(
+            &[("shallow", a.as_slice()), ("steep", b.as_slice())],
+            w,
+            h,
+            "fine scale",
+        );
+
+        // MINIFIED by box-averaging to a small shared frame — still a SHARED
+        // frame (never an independent per-candidate crop), just a much
+        // coarser one, which is the load-bearing axis item 350 named.
+        let minify = |buf: &[[u8; 4]], tw: i64, th: i64| -> Vec<[u8; 4]> {
+            let mut out = vec![[0u8; 4]; (tw * th) as usize];
+            let (bw, bh) = (w / tw, h / th);
+            for ty in 0..th {
+                for tx in 0..tw {
+                    let mut sum = [0u32; 3];
+                    let mut count = 0u32;
+                    for sy in (ty * bh)..((ty + 1) * bh) {
+                        for sx in (tx * bw)..((tx + 1) * bw) {
+                            let p = buf[(sy * w + sx) as usize];
+                            for c in 0..3 {
+                                sum[c] += p[c] as u32;
+                            }
+                            count += 1;
+                        }
+                    }
+                    out[(ty * tw + tx) as usize] = [
+                        (sum[0] / count) as u8,
+                        (sum[1] / count) as u8,
+                        (sum[2] / count) as u8,
+                        255,
+                    ];
+                }
+            }
+            out
+        };
+        let (tw, th) = (2i64, 2i64);
+        let a_small = minify(&a, tw, th);
+        let b_small = minify(&b, tw, th);
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            assert_pairwise_distinct(
+                &[
+                    ("shallow", a_small.as_slice()),
+                    ("steep", b_small.as_slice()),
+                ],
+                tw,
+                th,
+                "coarse scale",
+            )
+        }));
+        assert!(
+            result.is_err(),
+            "a 40x40 real angle difference, box-averaged down to a 2x2 shared \
+             frame, must NOT still read as distinguishable at this check's own \
+             floor — if it does, this test cannot demonstrate the load-bearing \
+             claim that scale changes the verdict"
+        );
     }
 }
