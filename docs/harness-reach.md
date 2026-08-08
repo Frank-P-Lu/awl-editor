@@ -104,6 +104,28 @@ is not retired by this. What is new is that a tier-2 claim can now be handed to 
 sidecar oracle, a pixel oracle or a vision smoke when that is what the claim
 needs.
 
+### A PICKER ROW'S GEOMETRY IS NOW A SIDECAR FACT, ON BOTH DOORS
+
+`overlay.window.band` and `overlay.window.rows` (schema `/201`) publish the
+PLANNED rect of every candidate display line — `{ display, item, x, y, w, h,
+selected }` in physical pixels. Both doors carry it, because both write through
+the one `capture::sidecar::write_sidecar`.
+
+**What this changes for a Verify clause.** "The selected row's band sits at the
+right y", "row 3 is clickable exactly where it is drawn", "the rows keep a fixed
+pitch under a filter" and "a row's control does not overlap its label" used to be
+answerable only by measuring the PNG — an appearance oracle answering a geometry
+question, which cannot distinguish *drawn in the wrong place* from *drawn
+correctly in a colour this world happens to hide*. Ask the sidecar for the
+geometry and the PNG for the appearance.
+
+**Where the line still is.** This is a STATE oracle, and the standing tripwire
+applies unchanged: a perfectly reported rect can be drawn invisibly. Visible,
+distinct and legible remain claims about pixels. The rect is what the plan
+DECIDED — the same object the draw emitters and `overlay_row_at` read, so it
+cannot disagree with them, but it says nothing about a downstream emitter that
+declines to draw at all.
+
 ## Tier 3 — the live-only census, exactly
 
 Every function under `src/app.rs` + `src/app/**` whose signature takes an
