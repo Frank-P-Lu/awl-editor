@@ -82,7 +82,7 @@ impl TextPipeline {
         if w <= 0.0 {
             return None;
         }
-        let corner = STREAK_RADIUS * m.zoom;
+        let corner = m.px(STREAK_RADIUS);
         Some((
             center.x,
             center.y,

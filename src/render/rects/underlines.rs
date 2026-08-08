@@ -75,7 +75,7 @@ impl TextPipeline {
             let xs_s = row.xs.get(s).copied().unwrap_or(0.0);
             let xs_e = row.xs.get(e).copied().unwrap_or(xs_s);
             if self.line_is_inline_image(sp.line)
-                && xs_e - xs_s < Self::IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE
+                && xs_e - xs_s < Self::IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE.0
             {
                 continue;
             }
@@ -253,7 +253,7 @@ impl TextPipeline {
                 let xs_s = row.xs.get(s).copied().unwrap_or(0.0);
                 let xs_e = row.xs.get(e).copied().unwrap_or(xs_s);
                 if self.line_is_inline_image(li)
-                    && xs_e - xs_s < Self::IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE
+                    && xs_e - xs_s < Self::IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE.0
                 {
                     continue;
                 }
@@ -314,7 +314,7 @@ impl TextPipeline {
                 continue; // off-screen: the quad would be clipped to nothing
             }
             let x = text_left + p.xs_s;
-            let w = (p.xs_e - p.xs_s).max(2.0 * m.zoom);
+            let w = (p.xs_e - p.xs_s).max(m.px(DECOR_MIN_W));
             let (band_y, row_caret_h) = self.row_band_for(p.line, p.line_height, line_top);
             let cell_bottom = band_y + row_caret_h;
             let y = cell_bottom + m.px(NIT_UNDERLINE_GAP);

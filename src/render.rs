@@ -831,6 +831,11 @@ pub const NIT_THICKNESS: Logical = Logical(1.3);
 /// would move one world's nits as a side effect of a unit repair.
 pub const NIT_UNDERLINE_GAP: Logical = Logical(1.0);
 
+/// The narrowest a decoration quad is drawn when the run it marks has collapsed
+/// to nothing — the ONE owner for a floor three builders had each spelled as a
+/// bare `2.0 * metrics.zoom`.
+pub const DECOR_MIN_W: Logical = Logical(2.0);
+
 /// WYSIWYG inline-code PILL inset (LOGICAL px): a minimal overhang beyond
 /// the span's own glyph box so the value-step background reads as a small pill
 /// rather than a bare selection-shaped rect. Taste default — flagged for live

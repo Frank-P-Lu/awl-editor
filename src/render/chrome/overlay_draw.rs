@@ -463,7 +463,7 @@ impl TextPipeline {
             y + h * 0.5,
             w,
             h,
-            CORNER_RADIUS,
+            self.metrics.px(CORNER_RADIUS),
         );
     }
 

@@ -466,6 +466,15 @@ fn metrics_resolved_constants(render_src: &str) -> Vec<String> {
 /// the list silently.
 const DIMENSIONLESS: &[(&str, &str)] = &[
     (
+        "QUOTE_MARK_SCALE",
+        "a MULTIPLE of the body font size, which Metrics::with_dpi already \
+         resolves — the pull-quote mark is shaped at that product, never padded by it",
+    ),
+    (
+        "IMAGE_REVEAL_DIM_ALPHA",
+        "an alpha on the revealed image's quad, not a distance",
+    ),
+    (
         "DEGENERATE_CELL_FRAC",
         "a fraction of metrics.char_width, not a length of its own",
     ),
@@ -585,6 +594,27 @@ fn const_decl(line: &str) -> Option<&str> {
 /// measured DEFECT with its own closed ledger, [`DPI_BLIND_PENDING`], not a
 /// classification.
 ///
+/// WIDENED A FIFTH TIME, to `src/render/layers.rs`, `src/render/rects.rs` and
+/// `src/render/rects/**` — the writing column's own DECORATION files, and the last
+/// neighbourhood in which a bare `f32` length was still authored without this law
+/// noticing. Five of the seven lengths that round found live in these three
+/// paths: the inline image's corner, the caption scrim's two pads, and a minimum
+/// decoration width three builders had each spelled as its own `2.0 *
+/// metrics.zoom`. What the widening ENUMERATED beyond them is four constants
+/// that are innocent and now say so: two dimensionless (a font-size multiple and
+/// an alpha) and two `Physical` device-grid tolerances, each carrying the
+/// `FLUSH_EPS` reason rather than a reader's assurance.
+///
+/// ⚠️ WHAT IS DELIBERATELY STILL OUTSIDE, with its count, because a guess encoded
+/// as a passing check is worse than a gap: `src/caret.rs` (32 constants, in
+/// families this sweep has never met — spring stiffness in 1/s², damping,
+/// velocities in px/s, plus durations and fractions), `src/render/spans/colors.rs`
+/// (17, all HSL channel values and two vertical fractions),
+/// `src/render/spans/conceal.rs` (3) and `src/render/layers/fold_chevron.rs` (6,
+/// of which five want `Chars` and one wants `Millis` — mechanical, and the next
+/// widening's obvious first step). The READ-SITE law below reaches every one of
+/// those files today; it is only the DECLARATION that is ungraded there.
+///
 /// WIDENED A FOURTH TIME, to `src/render/caret_body.rs` — the caret's own
 /// minimum-visible-body floor, one directory out from every sweep above and the
 /// same untyped-`f32` shape this file exists to close. Its two length constants
@@ -604,6 +634,8 @@ fn chrome_sources() -> Vec<(String, String)> {
         "src/render/scroll.rs",
         "src/menubar.rs",
         "src/render/caret_body.rs",
+        "src/render/layers.rs",
+        "src/render/rects.rs",
     ];
     while let Some(dir) = stack.pop() {
         for entry in std::fs::read_dir(&dir).expect("chrome dir readable") {
@@ -634,19 +666,20 @@ fn chrome_sources() -> Vec<(String, String)> {
             std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{f} readable: {e}")),
         ));
     }
-    let geometry_dir = manifest.join("src/render/geometry");
-    for entry in std::fs::read_dir(&geometry_dir).expect("geometry dir readable") {
-        let path = entry.expect("dir entry").path();
-        if path.extension().is_some_and(|e| e == "rs") {
-            let rel = path
-                .strip_prefix(manifest)
-                .unwrap_or(&path)
-                .display()
-                .to_string();
-            out.push((
-                rel,
-                std::fs::read_to_string(&path).expect("source readable"),
-            ));
+    for dir in ["src/render/geometry", "src/render/rects"] {
+        for entry in std::fs::read_dir(manifest.join(dir)).expect("swept dir readable") {
+            let path = entry.expect("dir entry").path();
+            if path.extension().is_some_and(|e| e == "rs") {
+                let rel = path
+                    .strip_prefix(manifest)
+                    .unwrap_or(&path)
+                    .display()
+                    .to_string();
+                out.push((
+                    rel,
+                    std::fs::read_to_string(&path).expect("source readable"),
+                ));
+            }
         }
     }
     assert!(out.len() > 20, "the chrome source sweep found nothing");
@@ -916,6 +949,161 @@ fn no_length_is_resolved_against_zoom_alone() {
          finding the door it thinks it is"
     );
     eprintln!("zoom-alone sweep: {resolutions} scale-taking resolutions graded");
+}
+
+/// The `zoom` multiplies that are NOT a length being resolved, each with the
+/// reason — the whole exception list for [`nothing_is_multiplied_by_zoom_alone`].
+///
+/// Deliberately keyed by file AND needle and graded for staleness, so an entry
+/// cannot outlive the line it excuses. There are two and they are the same
+/// quantity: the zoom PERCENTAGE a readout prints. Nothing else in the product
+/// multiplies by `zoom` without `dpi` beside it.
+const ZOOM_PERCENT_READOUTS: &[(&str, &str, &str)] = &[
+    (
+        "src/render/chrome/readout.rs",
+        "(zoom * 100.0)",
+        "the zoom readout's own PERCENTAGE — a number printed as text, not a length",
+    ),
+    (
+        "src/render/chrome/debug_text.rs",
+        "(m.zoom * 100.0)",
+        "the debug panel's zoom percentage, same quantity as the readout's",
+    ),
+];
+
+/// **CLAIM 4e — NOTHING IS MULTIPLIED BY ZOOM ALONE, DOOR OR NO DOOR.**
+///
+/// [`no_length_is_resolved_against_zoom_alone`] grades the argument handed to
+/// `Logical::px`, and that is exactly why it could not see this round's seven: a
+/// bare `f32` never reaches a door at all. `CORNER_RADIUS * m.zoom`,
+/// `CAPTION_SCRIM_PAD_X * zoom`, `IMAGE_CORNER_PX * zoom`,
+/// `spell_underline_gap * m.zoom`, `thickness * zoom`, `2.0 * m.zoom` — every
+/// one of them was a multiplication statement with no door in it, in files the
+/// declaration sweep did not read, and the two laws between them graded neither
+/// end.
+///
+/// So this arm asks the question with no door in it either: **`metrics.zoom` is
+/// never a multiplier on its own.** `zoom * dpi` is the scale's own derivation
+/// and is allowed by having `dpi` in the same expression; everything else needs
+/// `scale`. The enrolment is every product source and every `*`, which is the
+/// widest form the question has — a new file cannot be outside it, which is what
+/// five separate scope defects on the DECLARATION side have earned.
+/// Whether `line` uses an identifier `zoom` as an operand of a BINARY `*`.
+///
+/// A plain `line.contains('*')` beside the word `zoom` is not this question, and
+/// the difference is seven false positives on the first run: `*ctx.zoom` is a
+/// DEREFERENCE, and `(w as f32 * 0.5, h as f32 * 0.5, m.zoom)` has a multiply on
+/// the same line as a `zoom` that is not in it. So the star has to be adjacent to
+/// this expression, and it has to be binary — a prefix `*` is followed
+/// immediately by its operand, a binary one carries a space or sits between two
+/// operand characters.
+fn multiplies_by_zoom(line: &str) -> bool {
+    let b = line.as_bytes();
+    let path_char = |c: u8| c.is_ascii_alphanumeric() || matches!(c, b'_' | b'.' | b':');
+    let mut i = 0usize;
+    while let Some(found) = line[i..].find("zoom") {
+        let s = i + found;
+        let e = s + 4;
+        i = e;
+        // A whole identifier, not the tail of `some_zoomish`.
+        if s > 0 && (b[s - 1].is_ascii_alphanumeric() || b[s - 1] == b'_') {
+            continue;
+        }
+        if e < b.len() && (b[e].is_ascii_alphanumeric() || b[e] == b'_') {
+            continue;
+        }
+        // `zoom *` / `zoom*` — the star follows the expression.
+        let mut f = e;
+        while f < b.len() && (b[f] == b' ' || b[f] == b')') {
+            f += 1;
+        }
+        if f < b.len() && b[f] == b'*' && !(f + 1 < b.len() && b[f + 1] == b'*') {
+            return true;
+        }
+        // `... * <path>.zoom` — walk back off the path, then look for a BINARY star.
+        let mut r = s;
+        while r > 0 && path_char(b[r - 1]) {
+            r -= 1;
+        }
+        while r > 0 && b[r - 1] == b' ' {
+            r -= 1;
+        }
+        if r > 0 && b[r - 1] == b'*' {
+            let star = r - 1;
+            let after_is_space = star + 1 < b.len() && b[star + 1] == b' ';
+            let before_is_operand = star > 0
+                && (b[star - 1].is_ascii_alphanumeric()
+                    || b[star - 1] == b'_'
+                    || b[star - 1] == b')');
+            if after_is_space || before_is_operand {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+#[test]
+fn nothing_is_multiplied_by_zoom_alone() {
+    let mut offenders = Vec::new();
+    let mut graded = 0usize;
+    let mut excused = vec![0usize; ZOOM_PERCENT_READOUTS.len()];
+    for (path, src) in product_sources() {
+        for (i, line) in src.lines().enumerate() {
+            let t = line.trim_start();
+            if t.starts_with("//") || t.starts_with("#[") {
+                continue;
+            }
+            if !multiplies_by_zoom(line) {
+                continue;
+            }
+            let words: Vec<&str> = line
+                .split(|c: char| !c.is_alphanumeric() && c != '_')
+                .collect();
+            graded += 1;
+            // `scale` or `dpi` in the same expression means the multiply either IS
+            // the scale's derivation or already carries the density.
+            if words.contains(&"scale") || words.contains(&"dpi") {
+                continue;
+            }
+            match ZOOM_PERCENT_READOUTS
+                .iter()
+                .position(|(f, needle, _)| *f == path && line.contains(needle))
+            {
+                Some(at) => excused[at] += 1,
+                None => offenders.push(format!("{path}:{}: {}", i + 1, line.trim())),
+            }
+        }
+    }
+    assert!(
+        offenders.is_empty(),
+        "`zoom` used as a multiplier with no `dpi` or `scale` beside it. The user's \
+         type size is not a display factor: a quantity scaled this way holds its \
+         DEVICE size as the panel gets denser, which is the halving this file's \
+         drawn claim exists to catch. Resolve it through `Metrics::px` (or hand \
+         `Metrics::scale` to the policy), or record it above with the reason it is \
+         not a length:\n{}",
+        offenders.join("\n")
+    );
+    for (at, (path, needle, reason)) in ZOOM_PERCENT_READOUTS.iter().enumerate() {
+        assert_eq!(
+            excused[at], 1,
+            "the exception for `{needle}` in {path} matched {} lines, not one — a \
+             stale entry excuses a line nobody wrote, and a duplicated one hides a \
+             second site (recorded reason: {reason})",
+            excused[at]
+        );
+    }
+    // NON-VACUITY, and the shape that has failed elsewhere: a needle that stops
+    // matching reports a clean sweep of nothing. `zoom` appears in a multiply in
+    // the scale derivation, the wheel, the lava helper and the readouts at
+    // minimum, so a single-digit count means the scan is broken, not the tree.
+    assert!(
+        graded >= 6,
+        "the scan found only {graded} lines multiplying by `zoom` — it is not \
+         reading the product it thinks it is"
+    );
+    eprintln!("zoom-multiply sweep: {graded} multiplying lines graded, 2 excused by reason");
 }
 
 /// **CLAIM 4b — A MIGRATED LENGTH MAY NOT ESCAPE THE OWNER BY FIELD ACCESS.**

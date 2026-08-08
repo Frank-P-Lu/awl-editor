@@ -189,7 +189,7 @@ impl TextPipeline {
                         PopoverButton::Highlight => hl_pills.push(band_pill(b)),
                         PopoverButton::Strike => {
                             let (y, h, stroke) =
-                                strike_line_band(geom.band_top, geom.band_h, self.metrics.zoom);
+                                strike_line_band(geom.band_top, geom.band_h, self.metrics.scale);
                             strikes.push(Squiggle {
                                 x: b.x0 - 1.0,
                                 y,
@@ -613,8 +613,8 @@ mod tests {
     #[test]
     fn strike_demo_band_stays_inside_the_ink_band() {
         let (band_top, band_h) = (100.0_f32, 14.0_f32);
-        for zoom in [1.0_f32, 2.0] {
-            let (y, h, stroke) = strike_line_band(band_top, band_h, zoom);
+        for scale in [1.0_f32, 2.0] {
+            let (y, h, stroke) = strike_line_band(band_top, band_h, scale);
             assert!(y > band_top, "strike band starts below the ink top");
             assert!(
                 y + h < band_top + band_h,
