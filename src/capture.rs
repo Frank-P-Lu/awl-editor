@@ -25,8 +25,12 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 /// `/201` — `overlay.window` gains `band` + `rows`: every candidate display
 ///          line's PLANNED rect, in the physical pixels the pointer and the PNG
 ///          already speak. A row's geometry was measurable only from the PNG.
+/// `/202` — `overlay.window.rows[]` gain `label` / `value` / `rail`: a row's NAME
+///          lane, VALUE lane and Range rail, each seated where the frame drew it
+///          and `null` where it drew nothing. Gated and reported together, which
+///          of the three ran out of room needed a hand-instrumented build.
 /// History lives in Git. Bump this row with the const.
-pub const SCHEMA_VERSION: u32 = 201;
+pub const SCHEMA_VERSION: u32 = 202;
 /// Plain single-frame schema; timeline and held take the next two versions.
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")

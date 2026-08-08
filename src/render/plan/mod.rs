@@ -38,6 +38,12 @@
 //! band and active-mark centre, the secondary column's upload origin, and the
 //! split-pane surfaces' gap.
 //!
+//! **THE ACCESSORY CLUSTER** — a row's NAME lane, its VALUE lane and its Range
+//! rail — is seated by [`accessory_lane`]'s accessors, so the rule "name on the
+//! spine end, accessory on the outer end, mirroring as a unit" has one spelling
+//! rather than one per consumer. The accessory upload, the frost's surface list,
+//! the rail owner and the published projection all ask the same question there.
+//!
 //! **THE HEIGHT CLAMP (item 181)** — `fit_item_rows` — is the one owner of
 //! "how many candidate item rows fit the canvas", shared by both families
 //! (`render/chrome/overlay.rs`'s flat window and `render/chrome/theme_picker.rs`'s
@@ -46,6 +52,7 @@
 //! already-resolved floats (an available-pixel budget, a row pitch, an overhead
 //! row count) — no device, no shaping, no clock — so it keeps the planner pure.
 
+mod accessory_lane;
 mod overlay_header;
 mod overlay_row_plan;
 mod overlay_rows;
@@ -56,6 +63,7 @@ mod row_report;
 /// projection the capture sidecar serializes. Everything else stays
 /// `pub(in crate::render)`, so widening `mod plan` for the sidecar's sake did
 /// not widen the planner's own internals with it.
+pub(crate) use accessory_lane::{Lane, RailLane, RowLanes};
 pub(crate) use row_report::{OverlayRowGeometry, PlannedRowRect};
 
 pub(in crate::render) use overlay_header::{PlannedHeader, beat_stands_alone, header_band_height};

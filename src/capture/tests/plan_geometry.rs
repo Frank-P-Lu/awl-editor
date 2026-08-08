@@ -22,8 +22,10 @@ use crate::overlay::{OverlayKind, OverlayState};
 use crate::testscratch::ScratchDir;
 
 /// A real flat picker, driven through the production `OverlayState` so the fold
-/// carries exactly what a live summon would.
-fn flat_picker_opts(ov: &OverlayState, canvas: (u32, u32), dpi: f32) -> CaptureOpts {
+/// carries exactly what a live summon would. Shared with the sibling accessory
+/// law, which grades the LANE keys of the same block rather than a second copy of
+/// this fold.
+pub(super) fn flat_picker_opts(ov: &OverlayState, canvas: (u32, u32), dpi: f32) -> CaptureOpts {
     let mut opts = CaptureOpts {
         canvas: Some(canvas),
         dpi: Some(dpi),
@@ -52,7 +54,11 @@ fn flat_picker_opts(ov: &OverlayState, canvas: (u32, u32), dpi: f32) -> CaptureO
         sections: ov.item_sections(),
         preview_id: None,
         preview_view: None,
-        workspace: false,
+        // ASKED OF THE KIND, never hardcoded: a kind whose `workspace_shape`
+        // answers unconditionally is ALWAYS a workspace in the real product, so
+        // pinning this to `false` would fold a state no summon can reach. Every
+        // card-shaped kind still answers `None` and folds exactly as before.
+        workspace: ov.kind.workspace_shape().is_some(),
         detail_focus: false,
         diff_scroll: 0,
         empty: ov.empty_notice(),

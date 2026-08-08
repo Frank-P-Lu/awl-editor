@@ -115,8 +115,8 @@ lines = 567
 
 [[file_size_mark]]
 file = "src/capture.rs"
-lines = 72
-reason = "One `/N` row in the schema ledger, which must move in the same commit as `SCHEMA_VERSION` (+1). Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +4: the `/201` schema-ledger row and `mod plan_sidecar` -- the overlay's planned-geometry serializer, split into its own file rather than grown inside the one sidecar writer, whose own mark is therefore held at 871 exactly. The row and SCHEMA_VERSION must move in the same commit, which this file's own law enforces."
+lines = 76
+reason = "One `/N` row in the schema ledger, which must move in the same commit as `SCHEMA_VERSION` (+1). Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +4: the `/201` schema-ledger row and `mod plan_sidecar` -- the overlay's planned-geometry serializer, split into its own file rather than grown inside the one sidecar writer, whose own mark is therefore held at 871 exactly. The row and SCHEMA_VERSION must move in the same commit, which this file's own law enforces. +4 again, for the `/202` row: a schema bump costs the const line plus its ledger row, and this file's own law requires both in one commit, so this mark moves once per bump by construction."
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
@@ -628,7 +628,7 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/overlay_draw.rs"
 function = "TextPipeline::overlay_upload_text"
-message = "this function has too many lines (183/100)"
+message = "this function has too many lines (182/100)"
 reason = "+6: the mirrored row cluster seats names from their own shaped ink and chords from the accessory column's flow. +1: the diagonal chord column reads the shaped buffer's own width to seat its right-aligned ink. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Item 114 added the workspace rail's own clipped text area (+17). Line/size moved by queue item 114's summoned Settings workspace. Line moved (not size) by item 221's own rotated-location call site above it; that cue's shaping/geometry moved to a dedicated chrome::rotated_location submodule rather than growing this function."
 
 [[clippy_exception]]
