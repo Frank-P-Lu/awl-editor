@@ -166,6 +166,10 @@ mod row_offset_item131;
 /// drawn-equals-clickable at both DPIs, and the pixel laws.
 mod rules_composition_item283;
 mod scroll_pos;
+/// The SELECTED row's secondary column against the ground it is actually drawn
+/// on — the floor the range rail's own "is there a fill under me" answer never
+/// covered for the text column.
+mod selected_secondary_ink_law;
 mod selection_clip_law;
 /// The document-selection band's own legibility floor — the only ink-adjacent
 /// token in the theme model that used to carry none.
