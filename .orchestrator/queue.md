@@ -171,8 +171,19 @@ well as here — **this item has already been answered twice by the user because
 decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
-- 🔵 **THE CARET IS TOO WIDE ON CURRAWONG AND CASSOWARY, AND FIXING IT MAKES IT NARROWER — your
-  call, because the caret is the one accent in this design (item 345).** Those two worlds use **Iosevka**,
+- 🔵 **THE CARET FIX IS BUILT AND WAITING ON ONE WORD FROM YOU — captures are in
+  `gallery/item-345/` (item 345).** Open **`currawong_before_after.png`** and
+  **`cassowary_before_after.png`**: each is a 2×2 grid (1× and 2× rows, before and after columns),
+  cropped and upscaled around a real word with **a red line at the glyph cell's own right edge**, so the
+  overhang and its absence are actually visible rather than a 2.4px change lost in a full window.
+  **Measured:** 14.400 → 12.000 at 1×, 28.800 → 24.000 at 2×, on both worlds; every other world is
+  untouched. ✅ **The branch `claude/item-345-caret-pitch` is ready to merge in one command** — fix, law
+  and mutation proof all done, and the floor it removes was measured redundant on the empty line,
+  end-of-line, a degenerate cell and a tab.
+  ⚠️ **The question is only whether the narrower caret still reads as awl's one loud thing.** Say the
+  word and it lands; say no and the branch is dropped. **The old width was 120% of the letter and
+  overhung 2.4px into the next character**, so "leave it" is the one answer with a real cost.
+  **Original framing: fixing it makes the caret NARROWER, which is why it is yours (item 345).** Those two worlds use **Iosevka**,
   whose glyph cell is **0.50 em** where the other three bundled monos sit at 0.60–0.62. A historical
   floor raises the block caret to a fixed width regardless of face, so it draws **14.400px over a
   12.000px cell — 120% of the letter, overhanging 2.4px into the next character at zoom 1.**
@@ -2926,7 +2937,54 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      **remove 319's exclusion as part of the fix** so its non-vacuity count fails if the exclusion is
      left behind. **Routing:** production tier.
 
-343. 🚧 CLAIMED (worktree item-343-frost-width, deep tier) 🔴 **THE FROSTED FOOTPRINT IS ROUGHLY TWICE AS WIDE AS ANYTHING DRAWN INSIDE IT — user-reported
+343. ✅ **LANDED (merged 2026-08-08) — route (a): the frost's box is the DRAWN SURFACES, and the
+     cross-section goes 576 → 476.4 logical with 0.00 slack per side plus the feather.**
+     ⚠️ **THE ASYMMETRY PREMISE WAS FALSE AND IT WAS THE ORCHESTRATOR'S.** The item predicted 40 left /
+     177 right, the 177 being "149 of dead card width past even the widest line". **That width is not
+     dead: the selected row's chevron mark stands at the card's outer edge** (x 1036.5–1049.5 against a
+     card ending at 1060.0), and `overlay_line_glyph_box` is blind to it **for exactly the reason the
+     item says it is blind to rules — it is a rect, not a shaped run.** Measured in the shape's own
+     un-sheared frame (the only frame where "left" and "right" are properties of the box) **the true old
+     slack was 49.3 / 50.3 — near symmetric.** So the fix is symmetric because the defect was, and the
+     warning about a symmetric trim leaving the larger half was warning against nothing.
+     ✅ **NO MASK WAS INVERTED** — the constraint items 329 and 319 each paid a round to learn. Every term
+     comes from a production owner: rules from a new `x_reach()` beside `rules_ink`, rails from the same
+     `overlay_rails` the pointer hit-test reads, text from an `overlay_panel_bands` **the emitter now
+     loops over**, so the seat glyphon is handed and the seat the frost measures are one object.
+     ✅ **Two shape decisions worth reusing.** The spine is **two END CAPS, not a bbox** — a bbox
+     un-shears to `weight + |shear|·h` = **78.5px, larger than the entire narrowing**, and since the
+     shape is convex and the un-shear affine both caps contain the segment exactly. And the mark is asked
+     of **every** row: item **164's transaction law** caught the first version reading the logical
+     selected display row from a module not allowed to, and the rewrite makes the box
+     **selection-independent**, so a selection move can no longer invalidate the cached backdrop.
+     ✅ **The tightness allowance is 2.0 logical px, bounded from BOTH ends rather than picked** — above by
+     shaper float noise and the advance-versus-cell gap, below by the composition's smallest authored
+     horizontal length of **7px**, so any reintroduced structural slack moves the excess by ≥7 and cannot
+     hide under 2. Measured excess **0.00 at every cell**, because the box is derived rather than compared.
+     ✅ **318's coverage floor untouched and green at 1.0000.** Its **corner** law was re-aimed with sound
+     reasoning: "exactly two corners short" held only while the box was bounded below by the card's, and
+     a narrowed box leaves a corner short for a second reason. **What survives at any width is the
+     property that separates the shapes** — a union contains the card's box so all four corners are
+     frosted, a parallelogram holds at most two — so it is now `full <= 2`.
+     ✅ **Byte-identity measured against a real build of `main`'s source, not asserted:** Wagtail, Galah,
+     Quokka, Tawny, Bilby, Kite and **Paperbark** (enrolled, `Rules`, shear 0) identical, both
+     `Frost::Full` surfaces identical, Mangrove and Magpie differ by design with **byte-identical
+     sidecars**. `blur/extent.rs` was **carved** into a new `blur/narrow.rs` rather than grown.
+     ⚠️ **TWO OF ITS LAWS WERE RED ON THE COMBINED TREE AND ITS OWN GATE NEVER RAN, so neither had been
+     seen.** (a) The containment law **demanded the impossible in one swept cell**: at shear −0.3 the
+     fixture's corner (212,110) is not inside the **card's own** sheared shape either (that span is
+     [264.5, 784.5]), so a shrink-only narrowing cannot contain a point that was never frosted. Re-aimed
+     to "a corner the un-narrowed shape covered stays covered", **with its own non-vacuity count** —
+     skipping uncovered corners would otherwise let a shape covering nothing pass perfectly. (b) The
+     **toggle law** caught `suppress.rs`'s raw `static AtomicBool`; allow-listed with the reason that
+     **there is no shipped state to make sticky** — `mod suppress` is `cfg(test)` and `frost_mode`'s
+     branch carries the same attribute, both verified rather than taken from the module doc. ⚠️ **The
+     allow-list is keyed by the scanner's PATH, not the basename** — a `"suppress.rs"` key left the law
+     red, which is the allow-list working.
+     🔵 **Route (a) is now EXHAUSTED, and that is the honest limit:** the 476 that remains is real ink —
+     the upright head band (122, flush left), the foot hint (359), and the chevron at the far right.
+     **Narrowing further means moving the card, the mark or the foot, which is item 342's live question
+     with the user.** **Original:** 🔴 **THE FROSTED FOOTPRINT IS ROUGHLY TWICE AS WIDE AS ANYTHING DRAWN INSIDE IT — user-reported
      against Mangrove's theme picker, with a screenshot: *"there's a bit too much blur on the left and
      right sides."* The silhouette is now right (312/313/318 landed); its WIDTH is not.**
 
@@ -3026,7 +3084,31 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ⚠️ **The four public ones are the priority** — they are what a user or a screen-reader user reads.
      **Routing:** production tier; sequence behind item 302, which owns the same lever.
 
-345. 🚧 CLAIMED (worktree item-345-caret-pitch, production tier — PREP ONLY, awaits the user) 🔴 **THE BLOCK CARET IS 120% OF THE GLYPH IT SITS ON, ON TWO SHIPPED WORLDS — a 2.4px overhang
+345. 🟡 **PREPPED AND HELD ON A BRANCH — `claude/item-345-caret-pitch`, ready to merge in one
+     command, AWAITING THE USER'S WORD (2026-08-08). Not merged, deliberately: the orchestrator
+     committed to showing the captures first.**
+     ✅ **Premise reproduced through the real render pipeline before anything changed** — Currawong's
+     `caret_block_w()` returned **14.4 against the face's own advance of 12.0**, and Iosevka is still the
+     display face of exactly those two worlds.
+     ✅ **THE FLOOR IS GENUINELY REDUNDANT, MEASURED RATHER THAN INHERITED** — the whole safety argument
+     for removing it, so the lane was told not to take item 302's word. Empty line **14.4**, end-of-line
+     **14.4**, degenerate collapsed cell **14.4**, and **tab 84px** (the font's own wide glyph, where the
+     floor was already a no-op). All four rescue paths return `char_width` **regardless of face**, because
+     `CARET_W == CHAR_WIDTH` by definition — **the floor and the degenerate-cell rescue were always the
+     same number.** No case regresses.
+     ✅ **The fix drops the mono arm entirely**, so the block width is the real shaped advance
+     unconditionally, as the proportional arm always was. **Per-shot, from sidecars:** 14.400→12.000 at
+     1× and 28.800→24.000 at 2× on both worlds — exact doubling, no rounding artefact.
+     ✅ **The law derives BOTH sides independently** (`mono_pitch_em` reads `hmtx ÷ units_per_em` via
+     skrifa, nothing `render::caret` computes) and sweeps `Pitch::Mono` from the roster with a presence
+     floor. Mutation (reinstating the floor) reddens it **by name**; the other three faces were then
+     isolated under the identical mutation and all measured **diff = 0**, confirming the floor is a true
+     no-op for Plex Mono, JetBrains and Monaspace Xenon exactly as the arithmetic predicts.
+     ✅ **The Tawny-only predecessor was corrected rather than deleted**, and now says outright that its
+     pitch happens to equal the cell so it alone could never have caught this — **which is what let this
+     ship.** No other law reddened.
+     🔵 **One number for the merge:** `src/render/caret.rs` 977 → **972** (a decrease). **Original:**
+     🔴 **THE BLOCK CARET IS 120% OF THE GLYPH IT SITS ON, ON TWO SHIPPED WORLDS — a 2.4px overhang
      into the next character at zoom 1.** Found by item 302 while repairing a comment that asserted the
      opposite, and **the numbers are measured, not inferred.** `caret_block_w`'s mono arm keeps a
      historical `.max(caret_w)` floor, and `metrics.caret_w` is a fixed `CARET_W` that is
