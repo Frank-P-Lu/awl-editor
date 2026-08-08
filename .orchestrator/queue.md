@@ -1098,7 +1098,21 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      a second law excusing exactly one pair. Every fix moved the DOCUMENT to the
      roster, never the reverse.
      ✅ **(6) decided earlier by the user — five sections kept.**
-     🚧 **(4) CLAIMED (worktree item-273r4-reference-door, production tier) — UNBLOCKED: the two files it needs are free for the first time. Originally:** 🔵 **(4) IS BLOCKED, correctly reported rather than routed around:** an in-app
+     ✅ **(4) WAS ALREADY DONE — LANDED 2026-08-07 UNDER A DIFFERENT DISPATCH, AND THIS BOARD STAYED
+     STALE LONG ENOUGH THAT THE ORCHESTRATOR DISPATCHED IT A SECOND TIME.** `53082d49` and `96a18427`
+     are both ancestors of `main`; the lane wrote nothing, correctly, and its worktree diff was empty.
+     Verified independently: the `Reference` command exists in the `Tools` category beside Credits and
+     Guide (`catalog/navigation.rs:381`), **no ellipsis** — opening a bundled document loads it straight
+     into the buffer rather than summoning a surface — routed through the ONE owner
+     `open_bundled_doc`, guarded by a source-scan law that fails if a fourth opener hand-rolls the
+     write-and-load shape, replayable through the real `--keys` door (`harness-reach.md` lists
+     `open_reference | Applied`), and **already documented in `REFERENCE.md` and `site/reference.html`**
+     — the document documents its own door.
+     ⚠️ **THE LESSON IS THE ORCHESTRATOR'S: a residual list goes stale when one residual lands under a
+     branch named for the ITEM rather than the residual.** `claude/item-273-inapp-door` closed (4) while
+     this list still read `🔵 BLOCKED`. **Before dispatching any residual, `git log --grep` the item
+     number** — it costs one command and would have saved this round. Originally:** 🔵 **(4) IS BLOCKED,
+     correctly reported rather than routed around:** an in-app
      door needs a new arm in `src/actions.rs` and `src/app/apply.rs`. Sequence it
      behind any lane holding those.
      ✅ **(2) CLOSED (merged 2026-08-07).** `Command` carries `description: Option<&'static str>` with **no `Default` impl**, so all 96 literals had to write the arm — the compiler enumerated the work instead of a law chasing it.

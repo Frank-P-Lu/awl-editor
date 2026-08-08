@@ -393,6 +393,19 @@ figures, and the same discipline belongs on the reassuring sentences. **When a l
 falsifies one, record it in the landing note next to the item's own findings**, since
 the orchestrator's error rate is otherwise the one number nobody tracks.
 
+‼ **BEFORE DISPATCHING, `git log --grep` THE ITEM NUMBER. A BOARD ENTRY CAN BE STALE
+BECAUSE THE WORK ALREADY LANDED.** Measured 2026-08-08: a residual still reading
+`🔵 BLOCKED` had been closed the previous day under a branch named for the ITEM rather
+than the residual, so the orchestrator dispatched it a second time. The lane read the
+tree, found both commits already ancestors of `main`, wrote nothing and said so —
+which is the right outcome, but it cost a round that one command would have saved.
+
+**The failure is structural, not careless: a multi-residual item's list is edited by
+whoever closes a residual, and a lane that closes one under the item's own branch name
+has no obvious place to update the list.** So the check belongs at dispatch time, on the
+orchestrator: **grep the log for the item number, and read the newest commit that
+mentions it, not the board.** The board is a claim about the tree; the tree is the tree.
+
 1. **Claim before code.** Mark the item
    `🟡 IN PROGRESS — <owner> (codex|claude|human), branch <name>`, then dispatch.
 2. **Fold board edits into the work commit.** A claim or a landing note is not
