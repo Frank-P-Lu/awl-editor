@@ -148,7 +148,9 @@ fn personality_assignments_are_exactly_the_decided_table() {
                     density: crate::render::dither::WAGTAIL_HIGHLIGHT_DITHER_DENSITY,
                 },
                 title_style: TitleStyle::InlinePrefix,
-                page_frame: PageFrame::Line { weight_px: 2.0 },
+                page_frame: PageFrame::Line {
+                    weight_px: crate::render::Logical(2.0),
+                },
                 card_anchor: model::CardAnchor::TopLeft,
                 chrome_face: model::ChromeFace::Body,
                 motion: model::MotionJuice::CALM,
@@ -281,7 +283,9 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 card_anchor: CardAnchor::TopRight,
                 chrome_face: ChromeFace::Named("Figtree"),
                 elevation: Elevation::Bordered,
-                page_frame: PageFrame::Line { weight_px: 1.0 },
+                page_frame: PageFrame::Line {
+                    weight_px: crate::render::Logical(1.0),
+                },
                 facet_style: FacetStyle::Band,
                 ..RenderCaps::DEFAULT
             },

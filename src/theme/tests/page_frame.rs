@@ -29,8 +29,8 @@ fn page_frame_ink_is_the_ladder_and_assigned_weights_are_real() {
         }
         if let model::PageFrame::Line { weight_px } = t.render_caps.page_frame {
             assert!(
-                weight_px > 0.0 && weight_px.is_finite(),
-                "{}: an assigned page frame must carry a real positive weight (got {weight_px})",
+                weight_px.0 > 0.0 && weight_px.0.is_finite(),
+                "{}: an assigned page frame must carry a real positive weight (got {weight_px:?})",
                 t.name
             );
         }

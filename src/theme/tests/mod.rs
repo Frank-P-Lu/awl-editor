@@ -26,6 +26,9 @@ mod ornament;
 mod page_frame;
 mod personality;
 mod placard;
+/// The `RenderCaps` family's own unit question — theme DATA, which no sweep over
+/// authored source constants can reach.
+mod render_caps_units;
 mod roster;
 mod selection_ui;
 /// THEMES.md is `include_str!`'d under `not(wasm32)` (its reader is a native

@@ -1399,7 +1399,9 @@ fn parse_page_frame_force(s: &str) -> Option<theme::PageFrame> {
     }
     let w: f32 = s.parse().ok()?;
     if w > 0.0 && w.is_finite() {
-        Some(theme::PageFrame::Line { weight_px: w })
+        Some(theme::PageFrame::Line {
+            weight_px: Logical(w),
+        })
     } else {
         None
     }

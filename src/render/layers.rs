@@ -365,7 +365,10 @@ impl TextPipeline {
                 .prepare(device, queue, width, height, &[]);
             return;
         };
-        let t = weight_px.max(0.1);
+        // A sub-device-pixel stroke rasterizes to nothing, so the floor stays
+        // PHYSICAL — it is a visibility bound on the device grid, not a tuned
+        // length that should grow with the panel.
+        let t = self.metrics.px(weight_px).max(0.1);
         let left = self.column_left();
         let w = self.column_width();
         let (top, bottom) = page_frame_vertical_bounds(

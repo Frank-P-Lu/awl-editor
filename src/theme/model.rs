@@ -307,7 +307,12 @@ pub enum ChipVariant {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PageFrame {
     None,
-    Line { weight_px: f32 },
+    /// A LENGTH: the frame's stroke, typed so it meets the display scale.
+    /// Untyped it was multiplied by nothing whatever — a 2px frame stayed two
+    /// DEVICE px beside text that had doubled.
+    Line {
+        weight_px: crate::render::Logical,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

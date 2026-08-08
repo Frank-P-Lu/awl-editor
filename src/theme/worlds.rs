@@ -842,7 +842,9 @@ pub const WAGTAIL: Theme = Theme {
             density: crate::render::dither::WAGTAIL_HIGHLIGHT_DITHER_DENSITY,
         },
         title_style: TitleStyle::InlinePrefix,
-        page_frame: PageFrame::Line { weight_px: 2.0 },
+        page_frame: PageFrame::Line {
+            weight_px: crate::render::Logical(2.0),
+        },
         card_anchor: CardAnchor::TopLeft,
         chrome_face: ChromeFace::Body,
         motion: MotionJuice::CALM,
@@ -1163,7 +1165,9 @@ pub const KITE: Theme = Theme {
         card_anchor: CardAnchor::TopRight,
         chrome_face: ChromeFace::Named("Figtree"),
         elevation: Elevation::Bordered,
-        page_frame: PageFrame::Line { weight_px: 1.0 },
+        page_frame: PageFrame::Line {
+            weight_px: crate::render::Logical(1.0),
+        },
         facet_style: FacetStyle::Band,
         ..RenderCaps::DEFAULT
     },
