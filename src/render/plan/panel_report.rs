@@ -137,7 +137,8 @@ impl TextPipeline {
         // The caret arguments do not move the card rect or the text origin (the
         // hit-test passes zeros for the same reason); the caret's own x is the
         // shaper's, and is not republished here.
-        let (card, text_left, text_top, _caret_x) = self.panel_layout(self.window_w as u32, 0, 0, 0.0);
+        let (card, text_left, text_top, _caret_x) =
+            self.panel_layout(self.window_w as u32, 0, 0, 0.0);
         let bands = self.panel_rows(text_top);
         let rows = self
             .panel_shaped_rows()

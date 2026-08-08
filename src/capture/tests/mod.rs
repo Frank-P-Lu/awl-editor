@@ -25,6 +25,7 @@ mod frames;
 mod i18n_fixtures;
 mod layout_oracle;
 mod metric_scale;
+mod panel_geometry;
 mod panels;
 mod pickers_faceted;
 mod plan_accessory;

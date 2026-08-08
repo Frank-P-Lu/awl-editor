@@ -13,6 +13,18 @@ pub(super) fn from_pipeline(pipeline: &TextPipeline) -> anyhow::Result<String> {
     Ok(json(&report))
 }
 
+/// `text_origin` — the document's own shaped-frame origin, next to the layout
+/// report whose row tops are measured from it. Both come off the pipeline's own
+/// accessors; the pair is one delegated block so the one sidecar writer stays a
+/// list of blocks rather than a list of coordinates.
+pub(super) fn text_origin_json(pipeline: &TextPipeline) -> String {
+    format!(
+        "{{ \"left\": {}, \"top\": {} }}",
+        pipeline.text_left(),
+        pipeline.text_origin_top()
+    )
+}
+
 pub(super) fn json(report: &LayoutReport) -> String {
     let rows = report
         .rows

@@ -695,9 +695,50 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/202` (`/203` timeline, `/204` held)
+## The sidecar JSON — schema `awl-capture/203` (`/204` timeline, `/205` held)
 
 Field order is stable; consumers may parse positionally or by key.
+
+Schema `/203` adds **`search.panel`** — the summoned find/replace card's PLANNED
+geometry, or `null` while the panel is down.
+
+| key | shape | what it is |
+| --- | --- | --- |
+| `card` | `{ x, y, w, h }` | the card's exterior rect, the one the float primitive rims and the one a press is accepted inside |
+| `text` | `{ left, top }` | the ink origin inside it — where the shaped panel text was uploaded |
+| `rows` | `[{ row, top, h }]` | one band per SHAPED row of the card: `0` the find field, `1` the replace field, `2` the key-hint line. A plain find panel shapes one; the replace state shapes three |
+| `case_toggle` | `{ x0, x1 }` | the `Aa` case indicator's x-span — a CLICK TARGET (a press there toggles case sensitivity), seated on its two shaped glyphs rather than a hardcoded pitch. `null` if the find row shaped fewer than those two glyphs |
+
+`row` indexes the CARD's own shaped lines, never a document row, and the bands are
+the ones the pointer inverts: a press at a band's centre resolves to that field,
+which is what makes the report gradeable against the hit-test rather than only
+against itself. Which field is FOCUSED is deliberately absent — `search.editing_replacement`
+already reports it, and a block whose purpose is making drawn-versus-published
+agreement assertable must not ship two answers to one question.
+
+**These are PHYSICAL pixels**, like the rest of the chrome geometry family.
+⚠️ **But they do not all double with `--capture-dpi`, and the difference is the
+point.** The row pitch and the `Aa` span come off the scaled metrics and the shaped
+advances, so they double exactly (`32 -> 64`, `29.59 -> 59.18` on the default
+canvas). The card's `y` does NOT: it is `12 + menubar_reserve`, and that `12` — like
+the `12` of inner pad between `card` and `text` — is an unscaled constant, so it is
+counted once at either scale and `y` reads `12` at both. On a Retina display the
+card's inset and padding are therefore half their tuned size. The sidecar states
+that rather than hiding it; a projection that "corrected" either figure would be
+reporting a card the frame did not draw.
+
+⚠️ **The card is seated from the window's right edge with no clamp of its own**, so
+below roughly 600 logical px of width its published `x` goes negative and the card
+genuinely hangs off the left of the window (measured: `-33.2` on a 560px canvas).
+That is a layout question, not a reporting one — do not write a law demanding a
+non-negative `x` until the policy exists.
+
+**Why it is a geometry oracle and not a convenience.** Every figure is read off the
+same `panel_layout` the draw sizes the card from and the pointer inverts, plus the
+panel's one row-band owner (`render/plan/panel_report.rs`). Before it, the only law
+asking a geometry question about this card — "can a long query widen it?" — answered
+by walking the PNG inward from the window's right edge with a colour-distance
+threshold, which cannot tell a card that moved from a rim that changed tone.
 
 Schema `/202` adds three keys to each **`overlay.window.rows[]`** entry — the
 row's ACCESSORY CLUSTER, reported part by part:
@@ -1655,7 +1696,7 @@ world.)
 | `text`         | the complete buffer contents (JSON-escaped) |
 | `first_lines`  | the first up-to-12 logical lines, in order, for quick checks |
 | `layout`       | SHAPED-FRAME LAYOUT oracle (schema `/187`): `{ rows, caret, selection }`. Rows are in draw order and carry raw `content`, source `line`, half-open `start_col`/`end_col`, absolute physical-pixel `xs` boundaries, `top`, and shaped `height`. `caret.row` and each selection segment's `row` index directly into that array. Borrowed from the exact sealed frame partition; never recomputed. It proves geometry, not pixel visibility or contrast |
-| `search`       | isearch + find/replace state: `query`, `active`, `case_sensitive`, `hit_count`, `current`, `replace_active` (replace field revealed), `replacement` (replace text) |
+| `search`       | isearch + find/replace state: `query`, `active`, `case_sensitive`, `hit_count`, `current`, `replace_active` (replace field revealed), `replacement` (replace text), plus `panel` — the card's PLANNED geometry (schema `/203`, see the narrative above), `null` while the panel is down |
 | `project`      | active project (`--root`), fields `root`/`name`/`branch`/`dirty`/`default_folder`/`workspace`/`keymap_flavor` (`branch`, `default_folder`, `workspace` may be null); `null` when no project |
 | `overlay`      | summoned nav overlay: `active`, `mode` (`goto`/`switch`/`browse`/`theme`/`caret`/`dictionary`/`cjk_lang`/`date`/`move`/`command`/`spell`/`keybindings`/`history`/`conflict`/`settings`/`assets`/`rename`/`insert_link`/`keep_version`/`context`/`export_dest`), `query`, `selected_index`, `browse_dir` (the level shown: root-relative for `browse`/`move`, ABSOLUTE for the navigable `switch` explorer, else null), `items` (git repos `• `-marked, dirs trailing `/`; `switch` pins a `"."` accept-this-folder row on top; command names for `command`; the three variant labels for `dictionary`), `bindings` (command-palette key chords parallel to `items`; the caret/dictionary pickers' one-line descriptions; else `[]`) |
 | `buffers`      | MULTI-BUFFER registry: `{ open, active }`. `open` = how many buffers are currently open (the active one + everything backgrounded); `active` = the active buffer's path, or `"scratch"`. A plain `--screenshot` always reports `open: 1` |

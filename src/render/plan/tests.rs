@@ -13,6 +13,13 @@
 /// their freedom from a device.
 mod accessory_law;
 
+/// The SEARCH PANEL's device-level law — the published card, row bands and `Aa`
+/// click target graded against the shaped ink and the pointer, over both
+/// menu-bar arms and both row counts. A child of this module for the same reason
+/// its sibling is: it is test-only code that needs a device the pure laws above
+/// deliberately do without.
+mod panel_law;
+
 use super::overlay_rows::{OverlayRowPlanInput, PlanLine, fit_item_rows, plan_overlay_rows};
 
 const CARD_X: f32 = 420.0;
