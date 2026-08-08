@@ -1382,7 +1382,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      with non-overlap and ⅔-relation laws; byte-identity for 19 worlds.
      **Routing:** deep tier.
 
-298. **A right-click menu should not frost the document.** ✅ **294 HAS ANSWERED THE
+298. 🚧 CLAIMED (worktree item-298-frost-routing, deep tier — bundled 298+337) **A right-click menu should not frost the document.** ✅ **294 HAS ANSWERED THE
      SEQUENCING QUESTION AND IT IS A ONE-LINE ROUTING CHANGE — with two caveats that
      change the shape.** Its `Frost::Footprint(rect)` gives proportional defocus, which
      is what this item asks for. But (a) **294's predicate is the wrong one to reuse**:
@@ -2786,7 +2786,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      Any change regenerates `REFERENCE.md`; **verify the regen diff moves only what the change
      explains.** **Routing:** production tier.
 
-337. **THE PARALLELOGRAM CORNER LAW'S SUBJECT SHRINKS AS A WORLD'S GROUND GETS BUSIER, and nothing
+337. 🚧 CLAIMED (worktree item-298-frost-routing, deep tier — bundled 298+337) **THE PARALLELOGRAM CORNER LAW'S SUBJECT SHRINKS AS A WORLD'S GROUND GETS BUSIER, and nothing
      inside the frost tests can fix it.** Reported by item 329's audit and correctly not acted on.
      `frost_parallelogram_item318.rs`'s corner law measures **sharp document** in exactly the region
      where the card-ink veto **cannot distinguish card ink from world ground** — the card genuinely
