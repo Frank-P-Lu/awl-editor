@@ -461,17 +461,15 @@ fn lane_presence(
     off: &[[u8; 4]],
     ink: [u8; 4],
     w: i64,
-    x0: f32,
-    x1: f32,
-    y0: f32,
-    y1: f32,
+    x: (f32, f32),
+    y: (f32, f32),
 ) -> (f64, f64, usize) {
-    let (xa, xb) = (x0.floor().max(0.0) as i64, x1.ceil().max(0.0) as i64);
-    let (ya, yb) = (y0.floor().max(0.0) as i64, y1.ceil().max(0.0) as i64);
+    let (xa, xb) = (x.0.floor().max(0.0) as i64, x.1.ceil().max(0.0) as i64);
+    let (ya, yb) = (y.0.floor().max(0.0) as i64, y.1.ceil().max(0.0) as i64);
     let (mut travel, mut span, mut covered) = (0.0f64, 0.0f64, 0usize);
-    for y in ya..yb {
-        for x in xa..xb {
-            let i = (y * w + x) as usize;
+    for row in ya..yb {
+        for col in xa..xb {
+            let i = (row * w + col) as usize;
             if i >= on.len() || i >= off.len() {
                 continue;
             }
@@ -590,10 +588,8 @@ fn selecting_a_row_paints_the_outer_lane_and_leaves_the_spine_gap_clear() {
                 &frame_off,
                 theme::base_content().rgba_bytes(),
                 cw as i64,
-                lo - 1.0,
-                hi + 1.0,
-                r.row_top,
-                r.row_bottom,
+                (lo - 1.0, hi + 1.0),
+                (r.row_top, r.row_bottom),
             );
             let reached = if span > 0.0 { travel / span } else { 0.0 };
             assert!(
