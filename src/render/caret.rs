@@ -778,7 +778,8 @@ impl TextPipeline {
 
         let block_w = self.caret_block_w(); // real glyph advance (narrow i, wide m)
         let streak_thin = m.caret_streak_h; // the streak's thin cross-dimension
-        let corner = STREAK_RADIUS * m.zoom + (CORNER_RADIUS * m.zoom - STREAK_RADIUS * m.zoom) * s;
+        let streak_r = m.px(STREAK_RADIUS);
+        let corner = streak_r + (m.px(CORNER_RADIUS) - streak_r) * s;
 
         let speed =
             (self.caret.vel.x * self.caret.vel.x + self.caret.vel.y * self.caret.vel.y).sqrt();
@@ -859,12 +860,11 @@ impl TextPipeline {
     /// (`pos`) so it slides with the caret. Drawn through the BLOCK pipeline (a
     /// solid accent rounded rect), which is exactly the slim-bar look we want.
     pub(super) fn caret_space_bar_geometry(&mut self) -> (f32, f32, f32, f32, f32) {
-        let zoom = self.metrics.zoom;
         let w = self.metrics.px(CARET_SPACE_BAR_W);
         let (cy, h) = self.caret_cell_vertical();
         let advance = self.caret_target_w();
         let cx = self.caret.pos.x + advance * 0.5;
-        let corner = (CORNER_RADIUS * zoom).min(w * 0.5);
+        let corner = self.metrics.px(CORNER_RADIUS).min(w * 0.5);
         (cx, cy, w, h, corner)
     }
 

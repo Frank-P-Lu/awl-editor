@@ -75,7 +75,7 @@ impl TextPipeline {
             let xs_s = row.xs.get(s).copied().unwrap_or(0.0);
             let xs_e = row.xs.get(e).copied().unwrap_or(xs_s);
             if self.line_is_inline_image(sp.line)
-                && xs_e - xs_s < Self::IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE
+                && xs_e - xs_s < Self::IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE.0
             {
                 continue;
             }
@@ -124,7 +124,7 @@ impl TextPipeline {
         let amp = m.px(SPELL_AMP);
         let period = m.px(SPELL_PERIOD);
         let thickness = m.px(SPELL_THICKNESS);
-        let gap = theme::active().render_caps.spell_underline_gap * m.zoom;
+        let gap = m.px(theme::active().render_caps.spell_underline_gap);
         let band_h = amp * 2.0 + thickness + 2.0;
         let protos = self.squiggle_cache.protos.borrow();
         let mut out = Vec::with_capacity(protos.len());
@@ -253,7 +253,7 @@ impl TextPipeline {
                 let xs_s = row.xs.get(s).copied().unwrap_or(0.0);
                 let xs_e = row.xs.get(e).copied().unwrap_or(xs_s);
                 if self.line_is_inline_image(li)
-                    && xs_e - xs_s < Self::IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE
+                    && xs_e - xs_s < Self::IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE.0
                 {
                     continue;
                 }
@@ -314,10 +314,10 @@ impl TextPipeline {
                 continue; // off-screen: the quad would be clipped to nothing
             }
             let x = text_left + p.xs_s;
-            let w = (p.xs_e - p.xs_s).max(2.0 * m.zoom);
+            let w = (p.xs_e - p.xs_s).max(m.px(DECOR_MIN_W));
             let (band_y, row_caret_h) = self.row_band_for(p.line, p.line_height, line_top);
             let cell_bottom = band_y + row_caret_h;
-            let y = cell_bottom + 1.0 * m.zoom;
+            let y = cell_bottom + m.px(NIT_UNDERLINE_GAP);
             if !self.band_admits(y, band_h) {
                 continue; // DIFF-AS-PREVIEW: the row scrolled past the card edge
             }

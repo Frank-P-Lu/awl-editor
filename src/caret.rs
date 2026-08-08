@@ -23,9 +23,21 @@ const MAX_SUBSTEP: f32 = 1.0 / 240.0;
 pub const SETTLE_DIST_SCALE: f32 = 26.0;
 pub const SETTLE_VEL_SCALE: f32 = 520.0;
 
-pub const CORNER_RADIUS: f32 = 7.0;
+/// The RESTING block caret's rounded-rect corner radius. A LENGTH on the quad it
+/// rounds, and that quad is `caret_block_h` tall — a metric the owner already
+/// resolves against `zoom * dpi` — so the radius has to meet the same factor or
+/// the corner sharpens as the panel gets denser.
+///
+/// ⚠️ NOT the corner radius `menubar.rs`'s `EDGE_BLEED_PX` reasons about. That is
+/// `selection.rs`'s own `CORNER_RADIUS: f32 = 2.5`, uploaded once at pipeline
+/// construction and never multiplied, which is what makes IT legitimately
+/// physical. Two constants, one name, opposite verdicts.
+pub const CORNER_RADIUS: crate::render::Logical = crate::render::Logical(7.0);
 
-pub const STREAK_RADIUS: f32 = 1.4;
+/// The TRAVELLING streak's corner radius — the same length one shape further
+/// along the caret's motion, morphed toward `CORNER_RADIUS` as the spring
+/// settles.
+pub const STREAK_RADIUS: crate::render::Logical = crate::render::Logical(1.4);
 
 pub const CARET_STREAK_GAP: f32 = 1.5 * crate::render::CHAR_WIDTH;
 

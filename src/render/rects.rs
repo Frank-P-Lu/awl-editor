@@ -166,7 +166,12 @@ impl FencePanelCache {
     }
 }
 
-const ROW_MERGE_EPS: f32 = 0.5;
+/// SUB-DEVICE-PIXEL TOLERANCE on a device-grid coincidence test, so `Physical`
+/// for the reason `menubar::FLUSH_EPS` is: the question is not "how much
+/// breathing room" but "do these two quad edges land on the same pixel". Scaled,
+/// two rows sitting 1.4 device px apart on a 3x display would start counting as
+/// contiguous and be merged — a different quad, not a better-tuned one.
+const ROW_MERGE_EPS: Physical = Physical(0.5);
 
 /// Merge vertically-CONTIGUOUS quads (already built for THIS frame, in any
 /// order) into fewer, taller quads — the fix for the WYSIWYG live-review's
@@ -205,7 +210,7 @@ pub(super) fn merge_row_bands(mut bands: Vec<[f32; 4]>) -> Vec<[f32; 4]> {
     for b in bands {
         if let Some(last) = out.last_mut() {
             let last_bottom = last[1] + last[3];
-            if (b[1] - last_bottom).abs() <= ROW_MERGE_EPS {
+            if (b[1] - last_bottom).abs() <= ROW_MERGE_EPS.0 {
                 let new_left = last[0].min(b[0]);
                 let new_right = (last[0] + last[2]).max(b[0] + b[2]);
                 let new_bottom = (b[1] + b[3]).max(last_bottom);
@@ -737,7 +742,12 @@ impl TextPipeline {
     /// keeps its full-width source (advance well past this) so its behaviour is
     /// unchanged. Sub-pixel by construction at every zoom (the concealed font size
     /// is 0.01), while any real glyph run clears it with room to spare.
-    const IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE: f32 = 1.0;
+    /// `Physical`, and the doc above is its own reason: this discriminates a
+    /// CONCEALED run (0.01 font size, sub-pixel at every zoom and density) from a
+    /// real glyph run, with orders of magnitude of margin on both sides. It is a
+    /// device-grid question about whether anything rasterized at all, not a tuned
+    /// distance the reader's eye should scale.
+    const IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE: Physical = Physical(1.0);
 
     /// Rebuild the cached WASH quad protos IF the shaped geometry / text changed
     /// since they were last built (keyed on the row-geometry GENERATION +
@@ -1055,9 +1065,9 @@ impl TextPipeline {
                 continue; // off-screen: the quad would be clipped to nothing
             }
             let x = text_left + p.xs_s;
-            let w = (p.xs_e - p.xs_s).max(2.0 * m.zoom);
+            let w = (p.xs_e - p.xs_s).max(m.px(DECOR_MIN_W));
             let (band_y, cell_h) = self.row_band_for(p.line, p.line_height, line_top);
-            let (y, band_h, stroke) = super::spans::strike_line_band(band_y, cell_h, m.zoom);
+            let (y, band_h, stroke) = super::spans::strike_line_band(band_y, cell_h, m.scale);
             if !self.band_admits(y, band_h) {
                 continue; // DIFF-AS-PREVIEW: the row scrolled past the card edge
             }
@@ -1107,9 +1117,9 @@ impl TextPipeline {
                 continue; // off-screen: the quad would be clipped to nothing
             }
             let x = text_left + p.xs_s;
-            let w = (p.xs_e - p.xs_s).max(2.0 * m.zoom);
+            let w = (p.xs_e - p.xs_s).max(m.px(DECOR_MIN_W));
             let (band_y, cell_h) = self.row_band_for(p.line, p.line_height, line_top);
-            let (y, band_h, stroke) = super::spans::link_underline_band(band_y, cell_h, m.zoom);
+            let (y, band_h, stroke) = super::spans::link_underline_band(band_y, cell_h, m.scale);
             if !self.band_admits(y, band_h) {
                 continue; // DIFF-AS-PREVIEW: the row scrolled past the card edge
             }

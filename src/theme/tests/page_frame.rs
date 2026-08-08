@@ -29,8 +29,8 @@ fn page_frame_ink_is_the_ladder_and_assigned_weights_are_real() {
         }
         if let model::PageFrame::Line { weight_px } = t.render_caps.page_frame {
             assert!(
-                weight_px > 0.0 && weight_px.is_finite(),
-                "{}: an assigned page frame must carry a real positive weight (got {weight_px})",
+                weight_px.0 > 0.0 && weight_px.0.is_finite(),
+                "{}: an assigned page frame must carry a real positive weight (got {weight_px:?})",
                 t.name
             );
         }
@@ -53,7 +53,7 @@ fn spell_underline_gap_is_the_shared_default_everywhere_except_bilbys_tighter_di
             assert!(
                 t.render_caps.spell_underline_gap < model::SPELL_UNDERLINE_GAP_DEFAULT,
                 "Bilby must carry a STRICTLY tighter (smaller) gap than the shared default \
-                 ({} vs default {})",
+                 ({:?} vs default {:?})",
                 t.render_caps.spell_underline_gap,
                 model::SPELL_UNDERLINE_GAP_DEFAULT
             );

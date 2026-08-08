@@ -398,7 +398,7 @@ impl TextPipeline {
             caret_cy,
             m.caret_w,
             caret_h,
-            CORNER_RADIUS,
+            m.px(CORNER_RADIUS),
         );
     }
 }

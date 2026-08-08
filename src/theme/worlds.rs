@@ -10,7 +10,8 @@ use super::model::{
     ChromeFace, DecorativeWash, Elevation, FacetStyle, FoldAfford, Frost, HighlightTexture,
     IconCursor, IconGround, ImageReveal, ListStyle, LocationStyle, MotionJuice, PageFrame,
     PaneSplit, PlacardCorner, PlacardInk, RenderCaps, RoleOverrides, RuleSelection,
-    SPELL_UNDERLINE_GAP_DEFAULT, SelectionStyle, Theme, ThemeTags, TitleStyle, WashOverride,
+    SPELL_UNDERLINE_GAP_DEFAULT, SPELL_UNDERLINE_GAP_TIGHT, SelectionStyle, Theme, ThemeTags,
+    TitleStyle, WashOverride,
 };
 use super::ornament::{
     BULLET_SCALE_GARAMOND, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN, BULLETS_PLAIN,
@@ -160,7 +161,7 @@ pub const BILBY: Theme = Theme {
     role_overrides: RoleOverrides::NONE,
     render_caps: RenderCaps {
         elevation: Elevation::Bordered,
-        spell_underline_gap: SPELL_UNDERLINE_GAP_DEFAULT - 2.0,
+        spell_underline_gap: SPELL_UNDERLINE_GAP_TIGHT,
         ..RenderCaps::DEFAULT
     },
 };
@@ -841,7 +842,9 @@ pub const WAGTAIL: Theme = Theme {
             density: crate::render::dither::WAGTAIL_HIGHLIGHT_DITHER_DENSITY,
         },
         title_style: TitleStyle::InlinePrefix,
-        page_frame: PageFrame::Line { weight_px: 2.0 },
+        page_frame: PageFrame::Line {
+            weight_px: crate::render::Logical(2.0),
+        },
         card_anchor: CardAnchor::TopLeft,
         chrome_face: ChromeFace::Body,
         motion: MotionJuice::CALM,
@@ -1162,7 +1165,9 @@ pub const KITE: Theme = Theme {
         card_anchor: CardAnchor::TopRight,
         chrome_face: ChromeFace::Named("Figtree"),
         elevation: Elevation::Bordered,
-        page_frame: PageFrame::Line { weight_px: 1.0 },
+        page_frame: PageFrame::Line {
+            weight_px: crate::render::Logical(1.0),
+        },
         facet_style: FacetStyle::Band,
         ..RenderCaps::DEFAULT
     },

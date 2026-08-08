@@ -26,11 +26,15 @@ fn parse_page_frame_force_accepts_none_and_positive_weights() {
     );
     assert_eq!(
         parse_page_frame_force("2"),
-        Some(theme::PageFrame::Line { weight_px: 2.0 })
+        Some(theme::PageFrame::Line {
+            weight_px: crate::render::Logical(2.0)
+        })
     );
     assert_eq!(
         parse_page_frame_force(" 1.5 "),
-        Some(theme::PageFrame::Line { weight_px: 1.5 }),
+        Some(theme::PageFrame::Line {
+            weight_px: crate::render::Logical(1.5)
+        }),
         "whitespace-tolerant"
     );
 }

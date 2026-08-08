@@ -54,17 +54,21 @@ fn fold_tail_text(n: usize) -> String {
     }
 }
 
+/// The inline image quad's rounded corner. A LENGTH on a quad fitted to the
+/// writing column, which scales.
 #[cfg(not(target_arch = "wasm32"))]
-const IMAGE_CORNER_PX: f32 = 4.0;
+const IMAGE_CORNER_PX: Logical = Logical(4.0);
 
 #[cfg(not(target_arch = "wasm32"))]
 const IMAGE_REVEAL_DIM_ALPHA: f32 = 0.4;
 
+/// The caption scrim's padding past the revealed source line's own band. LENGTHS
+/// on a band whose height is `metrics.line_height`.
 #[cfg(not(target_arch = "wasm32"))]
-const CAPTION_SCRIM_PAD_Y: f32 = 3.0;
+const CAPTION_SCRIM_PAD_Y: Logical = Logical(3.0);
 
 #[cfg(not(target_arch = "wasm32"))]
-const CAPTION_SCRIM_PAD_X: f32 = 4.0;
+const CAPTION_SCRIM_PAD_X: Logical = Logical(4.0);
 
 impl TextPipeline {
     /// Per-frame PAGE-MODE margin gradient: punch a hole for the page column and
@@ -365,7 +369,10 @@ impl TextPipeline {
                 .prepare(device, queue, width, height, &[]);
             return;
         };
-        let t = weight_px.max(0.1);
+        // A sub-device-pixel stroke rasterizes to nothing, so the floor stays
+        // PHYSICAL — it is a visibility bound on the device grid, not a tuned
+        // length that should grow with the panel.
+        let t = self.metrics.px(weight_px).max(0.1);
         let left = self.column_left();
         let w = self.column_width();
         let (top, bottom) = page_frame_vertical_bounds(
@@ -905,9 +912,8 @@ impl TextPipeline {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn push_caption_scrim(&self, li: usize, out: &mut Vec<[f32; 4]>) {
-        let zoom = self.metrics.zoom;
-        let pad_x = CAPTION_SCRIM_PAD_X * zoom;
-        let pad_y = CAPTION_SCRIM_PAD_Y * zoom;
+        let pad_x = self.metrics.px(CAPTION_SCRIM_PAD_X);
+        let pad_y = self.metrics.px(CAPTION_SCRIM_PAD_Y);
         let text_left = self.text_left();
         let doc_top = self.doc_top();
         let band_h = self.metrics.line_height;
@@ -975,8 +981,8 @@ impl TextPipeline {
         self.image_cache.retain_paths(&keep);
 
         let max_dim = device.limits().max_texture_dimension_2d;
-        let zoom = self.metrics.zoom;
-        let corner = IMAGE_CORNER_PX * zoom;
+        // The quad is fitted to the writing column, so its corner scales with it.
+        let corner = self.metrics.px(IMAGE_CORNER_PX);
         let text_left = self.text_left();
         let wrap = self.text_wrap_width().max(1.0);
 

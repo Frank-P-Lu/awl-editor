@@ -384,9 +384,9 @@ impl TextPipeline {
         );
         let corner = match look {
             CaretMode::Block => {
-                STREAK_RADIUS * m.zoom + (CORNER_RADIUS * m.zoom - STREAK_RADIUS * m.zoom) * s
+                m.px(STREAK_RADIUS) + (m.px(CORNER_RADIUS) - m.px(STREAK_RADIUS)) * s
             }
-            _ => (STREAK_RADIUS * m.zoom).max(half_across.min(half_along) * 0.6),
+            _ => m.px(STREAK_RADIUS).max(half_across.min(half_along) * 0.6),
         };
         let (w, h, corner) =
             self.caret_demo

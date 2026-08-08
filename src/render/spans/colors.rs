@@ -226,30 +226,43 @@ pub(in crate::render) fn search_match_rgba_bytes() -> [u8; 4] {
     }
 }
 
-pub(in crate::render) const STRIKE_THICKNESS: f32 = 1.3;
+/// The strike line's stroke weight — a LENGTH, so it meets the same display scale
+/// as the glyph cell it crosses. It rode `zoom` alone at all three of its read
+/// sites, so a struck phrase kept a hairline stroke beside doubled text.
+pub(in crate::render) const STRIKE_THICKNESS: crate::render::Logical = crate::render::Logical(1.3);
 
 pub(in crate::render) const STRIKE_V_FRAC: f32 = 0.5;
 
-fn line_band(top: f32, height: f32, zoom: f32, v_frac: f32, thickness: f32) -> (f32, f32, f32) {
-    let stroke = thickness * zoom;
+/// `scale` is `Metrics::scale` — `zoom * dpi`, never the bare zoom. The band's own
+/// PADDING stays physical on purpose: it is the rasterizer's feather either side
+/// of the stroke, a device-grid quantity like `menubar::EDGE_BLEED_PX`, not a
+/// tuned distance that should grow with the panel.
+fn line_band(
+    top: f32,
+    height: f32,
+    scale: f32,
+    v_frac: f32,
+    thickness: crate::render::Logical,
+) -> (f32, f32, f32) {
+    let stroke = thickness.px(scale);
     let band_h = stroke + 2.0;
     let center = top + height * v_frac;
     (center - band_h * 0.5, band_h, stroke)
 }
 
-pub(in crate::render) fn strike_line_band(top: f32, height: f32, zoom: f32) -> (f32, f32, f32) {
-    line_band(top, height, zoom, STRIKE_V_FRAC, STRIKE_THICKNESS)
+pub(in crate::render) fn strike_line_band(top: f32, height: f32, scale: f32) -> (f32, f32, f32) {
+    line_band(top, height, scale, STRIKE_V_FRAC, STRIKE_THICKNESS)
 }
 
-pub(in crate::render) const LINK_UNDERLINE_THICKNESS: f32 = STRIKE_THICKNESS;
+pub(in crate::render) const LINK_UNDERLINE_THICKNESS: crate::render::Logical = STRIKE_THICKNESS;
 
 pub(in crate::render) const LINK_UNDERLINE_V_FRAC: f32 = 0.92;
 
-pub(in crate::render) fn link_underline_band(top: f32, height: f32, zoom: f32) -> (f32, f32, f32) {
+pub(in crate::render) fn link_underline_band(top: f32, height: f32, scale: f32) -> (f32, f32, f32) {
     line_band(
         top,
         height,
-        zoom,
+        scale,
         LINK_UNDERLINE_V_FRAC,
         LINK_UNDERLINE_THICKNESS,
     )
