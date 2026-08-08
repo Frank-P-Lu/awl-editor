@@ -54,9 +54,10 @@
 use super::super::*;
 use super::{headless_pipeline, view};
 
-/// The pixel scale the pads ride (zoom × dpi), read the same way the geometry does.
+/// The pixel scale the pads ride (zoom × dpi), read the same way the geometry does:
+/// the stored [`render::Metrics::scale`] field, not a division that recovers it.
 fn pad_px(p: &TextPipeline) -> f32 {
-    p.metrics.caret_h / CARET_H
+    p.metrics.scale
 }
 
 /// The settled caret's drawn vertical bounds `(top, bottom)` — straight off the
@@ -297,7 +298,7 @@ fn assert_punctuation_cell(
     p.set_view(&view(&text, 0, punctuation_col));
     p.settle_caret();
     let (_, _, _, punctuation_h, ..) = p.caret_geometry();
-    let bound = 14.0 * p.metrics.caret_h / CARET_H;
+    let bound = 14.0 * p.metrics.scale;
     assert!(
         (punctuation_h - letter_h).abs() <= bound,
         "{world} {mode:?} {ch:?} dpi={dpi}: punctuation height {punctuation_h:.2} \
@@ -313,7 +314,7 @@ fn assert_punctuation_cell(
         let (_, ascent, font) = p.caret_row_metrics();
         let short = ink.height < ascent * super::super::facepitch::x_height_ratio(font);
         if short {
-            let tight = 6.0 * p.metrics.caret_h / CARET_H;
+            let tight = 6.0 * p.metrics.scale;
             assert!(
                 (punctuation_h - letter_h).abs() <= tight,
                 "{world} {mode:?} {ch:?} dpi={dpi}: short punctuation height {punctuation_h:.2} \
@@ -359,7 +360,10 @@ fn punctuation_uses_the_rows_letter_height_across_forms_worlds_dpi_and_anchors()
         theme::set_active_by_name(world.name).unwrap();
         p.sync_theme();
         let is_mono = crate::caret::font_is_mono(p.shaped_font);
-        for dpi in [1.0, 2.0] {
+        // dpi 1.5 is a real fractional-scaling factor no capture ever runs at
+        // (`caret_scale_law.rs`'s own blind spot) — enrolled here alongside the
+        // two exact factors so this oracle exercises the axis the fix is for.
+        for dpi in [1.0, 1.5, 2.0] {
             p.set_dpi(dpi);
             for mode in CaretMode::ALL {
                 crate::caret::set_mode(mode);
