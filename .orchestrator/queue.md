@@ -3974,7 +3974,39 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ✅ **Build:** measure each of the seven as 338 did (authored value, dpi-divided, per tier), then classify.
      **Routing:** production tier.
 
-356. 🚧 CLAIMED (worktree item-356-stale-pitch, deep tier) **A FIXTURE CAN SURVIVE A REAL `prepare()` WITH A STALE ROW HEIGHT, and it reads as the product
+356. ✅ **CLOSED (merged 2026-08-08) — THE PREMISE IS TRUE, THE LIVE APP CAN REACH IT, AND IT WAS A REAL
+     DEFECT. But the item pointed at the WRONG CAUSE, and the lane refused it before measuring.**
+     🔴 **It is not pipeline reuse or fixture ordering — the partition is the DOCUMENT.** A concealed markup
+     span is styled with an **ABSOLUTE** `GlyphMetrics` pairing its near-zero font size with the line's own
+     line-height; that absolute value **survives cosmic-text's relayout and wins over the buffer's new
+     metrics.** `set_dpi` rebuilt line attrs **only if the document had headings** — and a heading is not the
+     only construct with absolute per-span metrics. **Conceal was uncovered.** So markdown with concealed
+     markup and no heading held a **32.0 pitch at dpi 1, 1.5, 2 AND 3 alike**, while the plain line in the
+     *same document* tracked correctly. ⚠️ **A heading-ful fixture hides it entirely**, which is why 338's lane
+     read it as an ordering problem.
+     ✅ **The signature that made it visible:** the band scale is row-height over line-height, so **a stale row
+     over live metrics is a ratio that FALLS** — the pill's width tracked density exactly while its band stayed
+     **28px at every tier.** It read as the product *shrinking* as the display got denser.
+     ‼ **REACHABILITY IS EVIDENCED, NOT ARGUED.** `on_scale_factor_changed` is the **only** mid-life scale door
+     and does exactly `set_dpi` then one view push — **and that push cannot repair it**: zoom is unchanged,
+     markdown and syntax are unchanged, and the conceal rescan skips because neither the caret line nor the
+     selection moved. **The lane drove that exact pair against an already-shaped document.** Plain zoom is safe
+     and was **measured** rather than assumed, because it forces a full reshape.
+     ✅ **No harness door can see this axis, and the report says so** — `--screenshot-app` has no GPU and
+     capture builds a fresh pipeline per run. **So no capture is affected, and absence of harness evidence was
+     not read as safety.**
+     ✅ **The fix is one unconditional restyle, with its perf dimension MEASURED:** one added row-geom
+     invalidation per scale change, and **zero reshapes and zero invalidations across eight idle frames
+     afterwards.**
+     🔴 **ITS LAW NEEDED A SECOND WITNESS, and that is the reusable lesson: `reshape_count` cannot see a
+     restyle at all**, so a one-witness version of the frame-path claim **would have been green and blind.**
+     The row-geom generation is the witness that sees it.
+     ⚠️ **And its first mutation run reddened only 2 of 3 claims**, because one enrolment read the **plain**
+     line — which tracks correctly either way — **so the enrolment was satisfied by the defect.** Caught and
+     re-aimed at the concealed line.
+     ⚠️ **`src/render/pipeline_geometry.rs` now sits at 614 = its ceiling with ZERO headroom**; the lane carved
+     its own comment to two lines to land there, and put the mechanism in the law's module doc instead.
+     **Original:** **A FIXTURE CAN SURVIVE A REAL `prepare()` WITH A STALE ROW HEIGHT, and it reads as the product
      shrinking.** Found by 338's lane when its first draft reported a pill band that **shrank** with density.
      Raising a pipeline's DPI while it already holds a shaped document leaves `visual_rows`'s own
      `line_height` at the value it shaped at — **32.0 at dpi 1, 1.5, 2 AND 3 alike** — so anything deriving a
