@@ -4005,6 +4005,39 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      them. Run the relevant documentation/site checks and wasm smoke. **Do not deploy or publish** — that is
      an outward-facing action requiring separate authorization. **Routing:** production tier for the
      generator/laws; vision smoke for the rendered sample.
+
+358. **BUILD A PERSISTENCE FAULT MATRIX OVER THE FILE LIFECYCLE, USING FAKES FOR PRECISE FAILURES AND
+     REAL PROCESSES ONLY WHERE A FAKE CANNOT PROVE THE CLAIM.** The premise is partly satisfied already:
+     `tests/fault_kill9.rs` kills the real binary inside `write_atomic`; `external_item204` covers external
+     edits, both resolutions and relaunch recovery; live-App tests cover unwritable saves, autosave,
+     rename/duplicate, corrupt scratch data and two-instance conflicts. **Begin with a census and do not
+     rebuild those journeys.** The missing matrix is failure by PHASE and by OWNER: temporary-file write,
+     final rename, parent folder renamed/removed, permission revoked or disk full while dirty, interrupted
+     export preserving its prior target, real-editor kill during autosave followed by relaunch, and a large
+     document save/relaunch with explicit time and memory bounds.
+
+     **Tier 1 — deterministic fault injection:** extend the filesystem seam with a scripted failing backend
+     that names the operation and ordinal where it fails. Sweep every durable owner (document manual save,
+     autosave, scratch, recovery record, history, config/session, export) across write failure and rename
+     failure. For user-owned files, assert the previous complete bytes remain, the edited buffer remains
+     recoverable and dirty, and the UI reports a calm durable failure rather than silently acknowledging the
+     version. For best-effort app metadata, assert the failure cannot block editing or corrupt a sibling
+     store. Prove enrolment from the production owner roster rather than a hand-picked test list.
+
+     **Tier 2 — bounded real-process journeys:** add only the cases the fake cannot witness: kill the real
+     editor during autosave then relaunch and recover the newest acknowledged complete version; interrupt a
+     replacement export and require either the old complete export or the new complete export, never a torn
+     file; exercise a large manuscript through edit, save, kill/relaunch and reopen while reporting the
+     fixture size, elapsed time and peak memory. Synchronize on observed write phases or write counts, never
+     wall-clock luck. Every child runs under an isolated HOME/XDG/config tree and every scratch directory is
+     parent-owned and cleaned on unwind.
+
+     **Done:** the matrix report names every enrolled owner × failure phase and every deliberate exclusion;
+     each law is mutation-proven by making the relevant owner falsely acknowledge or overwrite; the existing
+     SIGKILL and external-change suites remain the single owners of their current claims; native both
+     conventions and wasm gates pass, with POSIX-only process arms explicitly gated rather than pretended
+     portable. This is safety work, not permission to redesign notices or recovery policy. **Routing:** deep
+     tier, one owner end to end.
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same

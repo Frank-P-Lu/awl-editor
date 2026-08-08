@@ -46,14 +46,6 @@ the way it is; nothing below overrides it.
   ONE-WAY render: the file on disk stays plain markdown; export is a snapshot
   out, never a second saved format. See `src/export/` (`Action::ExportWord` /
   `ExportHtml` / `ExportPdf`) and `web_export.rs`.
-- **High-contrast derivation.** A single setting that pushes any world's ink
-  ladder further apart — derived per world, not hand-made variants. Belongs
-  beside reduce-motion in the accessibility story.
-- **Typography as world data.** Leading, scale, and letter-spacing become
-  per-world fields — a world owns its type the way it owns its color. Then
-  every world gets a deliberate typography readjustment pass (all twenty,
-  with taste time budgeted). Deep row-geometry implications; follows the
-  capabilities refactor.
 - **Generated world gallery.** Every world over the same document, regenerated
   by script — published on the themes page of the docs, not the front page.
   Screenshots that can't go stale.
@@ -70,6 +62,14 @@ alone do not reopen the roster.
 - **Day/night world pairing.** Post-v1. Each world could eventually name a
   partner across the light/dark line and optionally follow the OS appearance,
   but v1 keeps world choice explicit.
+- **High-contrast derivation.** Post-v1. A future accessibility setting may
+  push any world's ink ladder further apart without creating hand-made theme
+  variants. Every current world already meets the shipped contrast laws, so
+  this waits for real user need.
+- **Per-world leading, scale and letter-spacing.** Post-v1. Fonts, code faces,
+  heading weight and script fallbacks are already world data; these remaining
+  metrics are not. They change wrapping and row geometry across the roster and
+  do not belong in the v1 closeout.
 
 - **User themes / theme packs (TOML).** Wanted, and the eventual pack format —
   but a written format freezes into a compat contract the day the first user

@@ -121,7 +121,7 @@ main loop.
   through the text interface, focus, a live selection); it has no Orca, no
   human, and no ears, so it says
   nothing about what a screen reader user would hear or how navigation feels.
-  That journey is item 251, parked on a Linux desktop with Orca. Everything
+  That post-v1 journey is item 251, parked on a Linux desktop with Orca. Everything
   else is verified by unit and law tests over the snapshot and its AccessKit
   projection — that the tree is correct and complete, that JSON and AccessKit
   say the same thing, that actions really fire. Whether a screen reader
@@ -199,7 +199,7 @@ feeding both the platform and a headless agent.
 
 What tier 3 is for, in order of how much it would matter:
 
-1. **A real Orca sitting on Linux.** VoiceOver is accepted for v1; its next work
+1. **A real Orca sitting on Linux (post-v1).** VoiceOver is accepted for v1; its next work
    follows a concrete user report. The Linux journey still needs a person on a
    real desktop session. **For the Orca half specifically
    (item 251): awl's AT-SPI tree has no Frame/Window node** (see the honest
