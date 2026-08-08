@@ -115,7 +115,7 @@ lines = 567
 
 [[file_size_mark]]
 file = "src/capture.rs"
-lines = 76
+lines = 80
 reason = "One `/N` row in the schema ledger, which must move in the same commit as `SCHEMA_VERSION` (+1). Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +4: the `/201` schema-ledger row and `mod plan_sidecar` -- the overlay's planned-geometry serializer, split into its own file rather than grown inside the one sidecar writer, whose own mark is therefore held at 871 exactly. The row and SCHEMA_VERSION must move in the same commit, which this file's own law enforces. +4 again, for the `/202` row: a schema bump costs the const line plus its ledger row, and this file's own law requires both in one commit, so this mark moves once per bump by construction."
 
 [[file_size_mark]]

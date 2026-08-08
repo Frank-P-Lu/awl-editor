@@ -335,7 +335,7 @@ impl TextPipeline {
         if px < card_x || px > card_x + card_w || py < card_y || py > card_y + card_h {
             return None;
         }
-        let row = ((py - text_top) / self.metrics.line_height).floor() as i64;
+        let row = self.panel_rows(text_top).row_at(py);
         Some(match row {
             0 => match self.panel_case_toggle_span(text_left) {
                 Some((x0, x1)) if px >= x0 && px <= x1 => PanelHit::CaseToggle,
@@ -354,7 +354,7 @@ impl TextPipeline {
     /// bug class `panel_layout` already guards for the caret). `text_left` is
     /// `panel_layout`'s inner text origin. `None` when row 0 has fewer than two
     /// glyphs (never in practice — `"Aa"` is always present).
-    fn panel_case_toggle_span(&self, text_left: f32) -> Option<(f32, f32)> {
+    pub(in crate::render) fn panel_case_toggle_span(&self, text_left: f32) -> Option<(f32, f32)> {
         for run in self.panel_buffer.layout_runs() {
             if run.line_i != 0 {
                 continue;
@@ -372,8 +372,10 @@ impl TextPipeline {
 
     /// Place the amber query caret: a resting block matching the document caret's
     /// height, centered vertically on the FOCUSED field's row (row 0 = search,
-    /// row 1 = replace). Panel rows are uniform height (no md scaling), so the row
-    /// top is simply `caret_row * line_height`.
+    /// row 1 = replace). The row's centre comes from the panel's ONE row-band
+    /// owner (`panel_rows`), the same seam the hit-test inverts and the sidecar
+    /// projection publishes, so the caret cannot ride a row the pointer disagrees
+    /// about.
     fn panel_place_caret(
         &mut self,
         queue: &wgpu::Queue,
@@ -386,7 +388,7 @@ impl TextPipeline {
         let m = self.metrics;
         let caret_h = m.caret_h * 0.8;
         let caret_cx = caret_x + m.caret_w * 0.5;
-        let caret_cy = text_top + (caret_row + 0.5) * m.line_height;
+        let caret_cy = self.panel_rows(text_top).center(caret_row);
         self.panel_caret.prepare(
             queue,
             width,

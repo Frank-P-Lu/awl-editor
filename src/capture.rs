@@ -29,8 +29,11 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 ///          lane, VALUE lane and Range rail, each seated where the frame drew it
 ///          and `null` where it drew nothing. Gated and reported together, which
 ///          of the three ran out of room needed a hand-instrumented build.
+/// `/203` — `search.panel`: the summoned find/replace card's PLANNED geometry —
+///          exterior rect, inner text origin, one band per shaped row, the `Aa`
+///          toggle's click span — or `null` down. Its edge needed a pixel walk.
 /// History lives in Git. Bump this row with the const.
-pub const SCHEMA_VERSION: u32 = 202;
+pub const SCHEMA_VERSION: u32 = 203;
 /// Plain single-frame schema; timeline and held take the next two versions.
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")
@@ -52,6 +55,7 @@ mod layout_sidecar;
 mod modes;
 mod opts;
 mod oracle;
+mod panel_sidecar;
 mod plan_sidecar;
 mod policy;
 mod replay_sidecar;

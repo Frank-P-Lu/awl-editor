@@ -107,9 +107,12 @@ needs.
 ### A PICKER ROW'S GEOMETRY IS NOW A SIDECAR FACT, ON BOTH DOORS
 
 `overlay.window.band` and `overlay.window.rows` (schema `/201`) publish the
-PLANNED rect of every candidate display line — `{ display, item, x, y, w, h,
-selected }` in physical pixels. Both doors carry it, because both write through
-the one `capture::sidecar::write_sidecar`.
+PLANNED rect of every candidate display line — `{ display, item, x, y, w, h }`
+plus its accessory lanes (`label`, `value`, `rail`, schema `/202`) in physical
+pixels. Both doors carry it, because both write through the one
+`capture::sidecar::write_sidecar`. The rows carry NO selection field: `window.sel_row`
+is the one published selection, resolved through the owner that also colours the
+band, so ask that for the selection and these rects for the geometry.
 
 **What this changes for a Verify clause.** "The selected row's band sits at the
 right y", "row 3 is clickable exactly where it is drawn", "the rows keep a fixed
@@ -125,6 +128,24 @@ distinct and legible remain claims about pixels. The rect is what the plan
 DECIDED — the same object the draw emitters and `overlay_row_at` read, so it
 cannot disagree with them, but it says nothing about a downstream emitter that
 declines to draw at all.
+
+### THE FIND/REPLACE PANEL'S CARD IS A SIDECAR FACT TOO
+
+`search.panel` (schema `/203`) publishes the summoned card's exterior rect, its
+inner text origin, one band per shaped row, and the `Aa` toggle's own click span —
+`null` while the panel is down. Same door story: both write through the one
+sidecar writer.
+
+**What this changes for a Verify clause.** "A long query does not widen the card",
+"the replace row is clickable where it is drawn", "the panel yields to a shown menu
+bar" and "the case toggle is where the pointer accepts it" are now arithmetic over
+the sidecar. Two facts a clause should know before asking for one:
+
+* the card's own `12`px outer margin and inner pad are UNSCALED, so `card.y` reads
+  the same at `--capture-dpi 1` and `2` while the row pitch doubles — a clause that
+  wants "everything doubles" is asking for something untrue of this surface;
+* the card has NO clamp to the window, so on a narrow canvas its published `x` is
+  legitimately negative. Verify agreement, not onscreen-ness.
 
 ## Tier 3 — the live-only census, exactly
 
