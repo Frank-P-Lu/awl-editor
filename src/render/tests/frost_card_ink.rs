@@ -127,6 +127,35 @@ impl CardInk {
     }
 }
 
+/// THE CHROME PATH'S OWN DECLARATION OF WHAT THE CARD DREW, at canvas width `w` — the
+/// positive answer this module's veto cannot give, read from
+/// [`TextPipeline::overlay_drawn_surfaces`], which is the production owner the shipped
+/// frost's own box is derived from.
+///
+/// # ⚠️ IT IS A SET OF TERMS, NOT A PIXEL MAP, AND THE SPINE IS THE PROOF
+///
+/// The terms are chosen so their union in the SHAPE'S UN-SHEARED FRAME bounds the card's
+/// drawing; several of them do not contain their own surface in CANVAS space. The diagonal
+/// spine is declared as its two END CAPS — deliberately, because its bounding box
+/// un-shears to `weight + |shear| × height`, wider than the whole narrowing — so a caller
+/// using these boxes as "is the card drawing at this pixel?" misses the entire body of the
+/// stroke between the caps. Measured: a first version of a context-menu law did exactly
+/// that and 186 pixels of a 3-px diagonal stroke walked through it on Mangrove.
+///
+/// So this is for asking whether a DECLARED SURFACE lands somewhere — a coverage claim over
+/// each box — and not for masking pixels. A per-pixel card-ink exclusion is [`CardInk`],
+/// used the one way it is sound: inside the frost, where a blur of a blank page has no step
+/// in it.
+///
+/// Its completeness is `frost_width_item343`'s coverage law, not this comment: that law
+/// renders the card with the frost SUPPRESSED and requires every pixel of the residue to
+/// carry the shipping mask, so a surface nobody remembered fails there by existing.
+pub(super) fn declared_card_surfaces(p: &TextPipeline, w: u32) -> Vec<[f32; 4]> {
+    let geom = p.overlay_geometry(w);
+    let plan = p.overlay_row_plan(&geom);
+    p.overlay_drawn_surfaces(&geom, &plan)
+}
+
 /// What one cell of the census below measured.
 struct Census {
     /// Flagged pixels inside the card's own box, and the box's area: the PRESENCE half.

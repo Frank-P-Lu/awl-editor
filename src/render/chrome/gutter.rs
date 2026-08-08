@@ -430,12 +430,17 @@ impl TextPipeline {
     }
 
     /// True when a FULL-takeover overlay is up and the document RECEDES behind it (the
-    /// cached frosted-blur backdrop is active). False for the search SPLIT panel / no
-    /// overlay (the doc stays bright), for the crisp THEME/CARET pickers (the doc stays
-    /// crisp so the live theme colours / caret preview read honestly), AND for the
-    /// contextual SPELL panel (a small float popup at the word — it recedes nothing).
-    /// Reported in the sidecar as `dim_overlay`.
+    /// cached frosted-blur backdrop is active over the whole canvas). False for the
+    /// search SPLIT panel / no overlay (the doc stays bright), for the crisp THEME/CARET
+    /// pickers (the doc stays crisp so the live theme colours / caret preview read
+    /// honestly), for the POINTER-ANCHORED menu (it frosts its own footprint at most, and
+    /// a footprint dims by nothing), AND for the contextual SPELL panel (a small float
+    /// popup at the word — it recedes nothing). Reported in the sidecar as `dim_overlay`.
+    ///
+    /// ONE OWNER with the frost's own full-arm gate (`overlay_blur`): the sidecar's field
+    /// and the pass that draws the dim answer one question, and a second copy of the rule
+    /// is how the report comes to disagree with the pixels.
     pub fn dims_doc(&self) -> bool {
-        self.overlay_active && !self.overlay_crisp && self.overlay_spell.is_none()
+        self.overlay_blur()
     }
 }
