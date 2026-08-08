@@ -15,20 +15,7 @@ use crate::render::rowlayout;
 /// that accidentally assumed 100 % (mid-band on nothing, rail head on nothing)
 /// fails loudly.
 fn values(zoom: f32, scroll_sensitivity: f32) -> crate::settings::SettingsValues {
-    crate::settings::SettingsValues {
-        page_width_prose: 70,
-        page_width_code: 100,
-        zoom,
-        scroll_sensitivity,
-        default_folder: "/n".into(),
-        workspace: "/w".into(),
-        project_root: "/p".into(),
-        autosave: true,
-        history: true,
-        session_restore: true,
-        keymap: "native".to_string(),
-        today_ymd: crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
-    }
+    super::settings_values(zoom, scroll_sensitivity)
 }
 
 /// A REAL Settings overlay at `zoom` — built exactly as `overlay::build`'s
