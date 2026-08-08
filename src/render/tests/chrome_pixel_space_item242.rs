@@ -750,33 +750,6 @@ fn product_sources() -> Vec<(String, String)> {
     out
 }
 
-/// **CLAIM 4a — EVERY AUTHORED CHROME CONSTANT DECLARES ITS UNIT FAMILY.**
-///
-/// The `_LOGICAL` suffixes this round retired were the right instinct with an
-/// unenforceable mechanism: a suffix is not a type, and nothing stopped the
-/// next constant from being a bare `f32` multiplied by nothing. This is the
-/// enforcement. A new chrome length authored as a bare `f32` fails HERE, by
-/// name, and the only way past is to state which of the four families it is in
-/// — or to record, with a reason, that it is not a length at all.
-///
-/// **FOUR MECHANISMS, and each one names what enrolled it**, because the sweep
-/// now covers `render.rs` and a bare `f32` there can be innocent for a reason no
-/// chrome pad ever had:
-///
-///   * a UNIT TYPE, or a `Millis` — the by-kind exclusion, enforced by the
-///     compiler rather than by this file;
-///   * an `Area` — the by-kind exclusion for a quantity that scales as the
-///     SQUARE of the display factor, so a length's linear door would silently
-///     under-scale it;
-///   * resolved by [`Metrics::with_dpi`] itself, DERIVED from that function's
-///     own body ([`metrics_resolved_constants`]) so the exclusion expires the
-///     moment the owner stops multiplying it;
-///   * [`DIMENSIONLESS`], the reasoned table for a ratio or a colour channel
-///     that no type currently expresses;
-///   * [`DPI_BLIND_PENDING`], a CLOSED ledger of measured defects, cross-checked
-///     against the leftover set in
-///     [`the_dpi_blind_ledger_is_exactly_the_unclassified_leftover`] so it
-///     cannot absorb a new constant quietly.
 /// Per-constant classification tally for
 /// [`every_authored_chrome_constant_declares_its_unit_family`], pulled into its
 /// own owner so the law itself reads as a list of assertions rather than a
@@ -847,6 +820,33 @@ fn tally_declarations(sources: &[(String, String)], resolved: &[String]) -> Decl
     t
 }
 
+/// **CLAIM 4a — EVERY AUTHORED CHROME CONSTANT DECLARES ITS UNIT FAMILY.**
+///
+/// The `_LOGICAL` suffixes this round retired were the right instinct with an
+/// unenforceable mechanism: a suffix is not a type, and nothing stopped the
+/// next constant from being a bare `f32` multiplied by nothing. This is the
+/// enforcement. A new chrome length authored as a bare `f32` fails HERE, by
+/// name, and the only way past is to state which of the four families it is in
+/// — or to record, with a reason, that it is not a length at all.
+///
+/// **FOUR MECHANISMS, and each one names what enrolled it**, because the sweep
+/// now covers `render.rs` and a bare `f32` there can be innocent for a reason no
+/// chrome pad ever had:
+///
+///   * a UNIT TYPE, or a `Millis` — the by-kind exclusion, enforced by the
+///     compiler rather than by this file;
+///   * an `Area` — the by-kind exclusion for a quantity that scales as the
+///     SQUARE of the display factor, so a length's linear door would silently
+///     under-scale it;
+///   * resolved by [`Metrics::with_dpi`] itself, DERIVED from that function's
+///     own body ([`metrics_resolved_constants`]) so the exclusion expires the
+///     moment the owner stops multiplying it;
+///   * [`DIMENSIONLESS`], the reasoned table for a ratio or a colour channel
+///     that no type currently expresses;
+///   * [`DPI_BLIND_PENDING`], a CLOSED ledger of measured defects, cross-checked
+///     against the leftover set in
+///     [`the_dpi_blind_ledger_is_exactly_the_unclassified_leftover`] so it
+///     cannot absorb a new constant quietly.
 #[test]
 fn every_authored_chrome_constant_declares_its_unit_family() {
     let sources = chrome_sources();
