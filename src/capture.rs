@@ -22,8 +22,11 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 ///          or `null`. Added because no capture door could see the channel at
 ///          all: `CaptureOpts` had no slot for it, so a driven editor that had
 ///          raised a notice produced a PNG byte-identical to one that had not.
+/// `/201` — `overlay.window` gains `band` + `rows`: every candidate display
+///          line's PLANNED rect, in the physical pixels the pointer and the PNG
+///          already speak. A row's geometry was measurable only from the PNG.
 /// History lives in Git. Bump this row with the const.
-pub const SCHEMA_VERSION: u32 = 200;
+pub const SCHEMA_VERSION: u32 = 201;
 /// Plain single-frame schema; timeline and held take the next two versions.
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")
@@ -45,6 +48,7 @@ mod layout_sidecar;
 mod modes;
 mod opts;
 mod oracle;
+mod plan_sidecar;
 mod policy;
 mod replay_sidecar;
 mod scroll_sidecar;

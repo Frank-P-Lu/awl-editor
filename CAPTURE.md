@@ -695,9 +695,40 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/200` (`/201` timeline, `/202` held)
+## The sidecar JSON — schema `awl-capture/201` (`/202` timeline, `/203` held)
 
 Field order is stable; consumers may parse positionally or by key.
+
+Schema `/201` adds **`overlay.window.band`** and **`overlay.window.rows`** — the
+PLANNED geometry of a summoned picker's candidate band, one rect per display line.
+
+`band` is `{ x, w, first_top, pitch, footer_top, selected_display }`: the content
+band every row is stepped in from, the band's first row top and row pitch, the y
+where the candidate area ends and the foot hint begins, and the display line the
+plan reports as selected (`null` for a card that plans no rows at all).
+
+`rows` is in draw order, one entry per PLANNED DISPLAY LINE — never one per corpus
+item, so a 40,000-row picker reports the dozen rows on screen:
+`{ display, item, x, y, w, h, selected }`. `item` indexes `overlay.items`, and is
+`null` for a display line that carries no selectable item (the faceted card's
+section headings and its secondary location line). `x .. x + w` is the row's own
+INCLUSIVE pointer span, which on a staggered composition is narrower than `band`.
+
+**These are PHYSICAL pixels**, the space the rest of the overlay geometry family
+already speaks: the same space a pointer arrives in, the same space `card_h` /
+`canvas_h` / `layout.rows[].top` are in, and the same space the PNG is in. A `WxH`
+capture at `--capture-dpi N` is a `(W/N)x(H/N)` logical window, so every figure
+here scales with N — a `y` that does NOT change between `--capture-dpi 1` and `2`
+is the device-pixel bug this block exists to expose.
+
+**Why it is a geometry oracle and not a convenience.** Every number is read off
+the single scene plan (`render/plan/`) that the draw emitters and the pointer
+hit-test read — `x` and `w` come from the plan's one row x-span accessor, the same
+call `overlay_row_at` inverts. So the drawn rect, the clickable rect and the
+reported rect are one object read three times, and a test can assert row geometry
+without inferring anything from pixels. It remains a state oracle: a perfectly
+reported row can still be drawn invisibly, which is an appearance claim and still
+belongs to arithmetic over the PNG.
 
 Schema `/200` adds the top-level **`notice`** block — `{ text, kind }` for the
 calm notice on screen, or `null`. It exists because no capture door could see the

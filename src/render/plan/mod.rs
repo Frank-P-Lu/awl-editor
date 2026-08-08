@@ -50,6 +50,13 @@ mod overlay_header;
 mod overlay_row_plan;
 mod overlay_rows;
 mod row_extent;
+mod row_report;
+
+/// The ONLY names this module publishes past `crate::render`: the PUBLISHED
+/// projection the capture sidecar serializes. Everything else stays
+/// `pub(in crate::render)`, so widening `mod plan` for the sidecar's sake did
+/// not widen the planner's own internals with it.
+pub(crate) use row_report::{OverlayRowGeometry, PlannedRowRect};
 
 pub(in crate::render) use overlay_header::{PlannedHeader, beat_stands_alone, header_band_height};
 pub(in crate::render) use overlay_rows::plan_witness;
