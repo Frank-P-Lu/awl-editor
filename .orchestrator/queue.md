@@ -3872,7 +3872,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      frost changes. **(D)** a stale prose enumeration of the crisp set remains in `pipeline_prepare.rs`.
      **(F)** `PanelRowBands::center()` is ungraded — **the panel caret's Y is asserted nowhere.**
      **Routing:** deep tier.
-354. **FIVE CARET TEST ORACLES STILL RECOVER THE DISPLAY SCALE BY DIVISION, one ULP from the factor the
+354. 🚧 CLAIMED (worktree item-354-oracle-scale, production tier) **FIVE CARET TEST ORACLES STILL RECOVER THE DISPLAY SCALE BY DIVISION, one ULP from the factor the
      product now uses.** Reported by item 352's lane, which fixed the three PRODUCTION sites and left these
      because `src/render/tests/**` was a sibling lane's — the right call, and it recommended folding them into
      whichever lane holds that directory next.
