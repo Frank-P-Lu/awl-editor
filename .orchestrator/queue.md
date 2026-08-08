@@ -3697,7 +3697,29 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      for the eye, and **nobody has looked.**
      ⚠️ **Read-only: the auditor edits nothing.** An audit that finds something **names** the missing law
      without writing it. **Routing:** production tier.
-350. 🚧 CLAIMED (worktree item-350-pairwise, production tier) **A COMPARISON SET NEEDS A PAIRWISE-DISTINCTNESS FLOOR, AND NO CAPTURE PRODUCED FOR A TASTE CALL HAS
+350. ✅ **LANDED (merged 2026-08-08) — AND THE HONEST ANSWER WAS NOT A LAW.** The lane took the
+     capture-side oracle over a standing law and **argued it from evidence rather than defaulting**: the four
+     candidates a vision smoke could not tell apart have **no registry, enum or file to enrol** — `gallery/`
+     is gitignored, no branch or script survives, and the three commits that landed touch one test file and
+     **never construct or name A/B/C/D.** The set was built by a throwaway script in a worktree that no longer
+     exists. ‼ **So a test over an invented registry would have been "a law satisfiable by deleting its own
+     subject" one level removed — grading data nobody declared.**
+     ✅ **The oracle takes candidates ALREADY COMPOSITED into one shared frame at one zoom and dpi**, never
+     cropped to their own bounding boxes and rescaled independently — **that renormalisation is the exact
+     mechanism that erased the vertex-angle signal in the real artifact.** A wrong-sized buffer is **refused
+     rather than skipped**, which makes the own-bbox-crop defect impossible to pass by accident.
+     ✅ **Its companion floor is the SET'S OWN SIZE**, asserted first, so *"every adjacent pair is distinct"*
+     cannot pass vacuously on a singleton. **Both floors are borrowed with their reasons rather than
+     invented** — the covered-pixel count mirrors the selected mark's own floor (a thin stroke must not pass
+     on population alone) and the peak sits past the JND at the margin this tree's other ΔE floors use.
+     🔴 **THE SCALE CLAIM IS PROVEN, NOT ASSERTED, and that is what makes it more than a tidy helper.** A real
+     ~26° edge-angle difference clears both floors at **40×40**, still clears them minified to **4×4** and
+     barely at **3×3**, and **the SAME floor constants correctly REFUSE the SAME real difference box-averaged
+     to 2×2.** **The verdict flips with frame size alone** — so *"measure at the artifact's own scale"* is
+     demonstrated rather than sloganeered.
+     ✅ Three mutations, each with its panic captured. ⚠️ `code-health` caught **four queue-item citations in
+     the lane's own first draft**, fixed in a separate commit rather than argued for.
+     **Original:** **A COMPARISON SET NEEDS A PAIRWISE-DISTINCTNESS FLOOR, AND NO CAPTURE PRODUCED FOR A TASTE CALL HAS
      ONE.** Named by item 349's vision smoke after it could not tell three of four candidates apart in the
      artifact built for exactly that choice.
      ⚠️ **The gap is structural, not a one-off:** every floor this repo has for a rendered treatment grades
