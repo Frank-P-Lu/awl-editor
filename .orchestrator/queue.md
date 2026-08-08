@@ -171,6 +171,30 @@ well as here — **this item has already been answered twice by the user because
 decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
+- 🔵 **THE MAGPIE MARK: THREE CANDIDATES AND A RECOMMENDATION, your call (item 346).** You said it
+  *"needs to be thinner and more elegant"* — and **"thinner" was already answered before you asked**:
+  131e cut the drawn ink from 136 px² to 60 at 1×, a 56% reduction. So what is left is **form**, and the
+  captures stack the options top-to-bottom in `gallery/item-346/compare-magpie-1x-before-A-B-C-D.png`
+  (and the 2× pair), with 6× crops of the mark itself.
+
+  | | weight | reach | aperture | vertex | ink 1× | peak ΔE 1× |
+  |---|---|---|---|---|---|---|
+  | **before** (what you saw) | 3.00 | 5.0 | 1.00 | 98.5° | 136 px² | 89.0 |
+  | **A** shipped today | 1.25 | 4.5 | 0.55 | 70.7° | 60 px² | 59.3 |
+  | **B** slender *(recommended)* | 1.25 | 5.5 | 0.45 | **50.8°** | 64 px² | **65.6** |
+  | **C** compact | 1.25 | 3.75 | 0.62 | 87.6° | 54 px² | 58.0 |
+  | **D** thinner stroke | 1.00 | 4.5 | 0.55 | 70.7° | 53 px² | 54.6 |
+
+  ✅ **B, and the argument is read out of the product rather than from taste:** weight has bottomed out at
+  1.25, so **D is the trap** — it is the only candidate that spends the remaining budget on stroke, and it
+  is measurably the *weakest* at 1× (ΔE 54.6, lowest of the four) for a difference invisible at 2×. B
+  instead closes the vertex from 70.7° to 50.8°, which against Bitter's slab-serif register reads as a
+  **slender drawn reference mark rather than a UI arrow** — and it is simultaneously the **most present**
+  thin candidate at 1× (ΔE 65.6, above even shipped A), because its arms lie nearer the pixel grid. That
+  is the one direction where "thinner" and "still there" do not trade off.
+  ⚠️ **C is the honest third option if B reads too wide** — smaller in both dimensions, but its vertex
+  opens to 87.6°, back toward the blunt mark that drew your complaint. ✅ **Landing B is a one-line change
+  to `DiagonalMark::HAIRLINE`, and Mangrove is provably untouched by it.**
 - 🔵 **THE RIGHT-CLICK MENU NO LONGER DIMS YOUR DOCUMENT, AND THIS IS A SURFACE YOU OPEN
   CONSTANTLY (item 298).** `gallery/item-298/before-Tawny-menu.png` → `after-Tawny-menu.png`: before, the
   whole page frosted behind four rows under the pointer; after, **no frost at all**, because Tawny's card
@@ -947,6 +971,14 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      band's own doc explains that re-running one lets the fill land on a different
      row from the ink shaped against it.
 
+     ⚠️ **THIS NOTE'S MECHANISM HALF WAS ALREADY FALSE WHEN IT WAS WRITTEN, AND IT MISLED A LATER
+     DISPATCH (corrected 2026-08-08, see item 346).** It claims `render/chrome/diagonal.rs` carries a
+     shared `SELECTED_SPINE_WEIGHT = Logical(3.0)` and that the theme layer holds no per-world marker
+     weight. **Neither is true: `SELECTED_SPINE_WEIGHT` exists nowhere in the tree**, and `DiagonalMark
+     { weight, reach, aperture }` has been `DiagonalSpine`'s field — `ListStyle::Diagonal`'s variant
+     payload — since 131e landed it **the same day this note was written**, with Mangrove authoring
+     `CRISP` and Magpie `HAIRLINE`. **The note sits two paragraphs after 131e's own landing note saying
+     so.** The TASTE half stands and is now item 346's. **Original note:**
      🔵 **A LIVE USER CONSTRAINT ON THE SELECTED-ROW MARK, STILL UNADDRESSED —
      verified against the tree 2026-08-06.** From a real Magpie screenshot: *"it
      needs to be thinner and more elegant"*. **The real finding is that ONE glyph
@@ -3430,7 +3462,30 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      which is how the defect surfaced.** ⚠️ **Land the law WITH the fix, never before it** — and do not
      narrow the law to the faces that pass. **Routing:** production tier, then the user's eye.
 
-346. 🚧 CLAIMED (worktree item-346-selected-mark, deep tier) **A LIVE USER CONSTRAINT, LIFTED OUT
+346. 🟡 **THE MECHANISM WAS ALREADY DONE — premise false, and the premise was the ORCHESTRATOR's.
+     A REAL LAW LANDED ANYWAY, AND THE TASTE CALL IS THE USER'S (2026-08-08).**
+     ⚠️ **`SELECTED_SPINE_WEIGHT` EXISTS NOWHERE IN THE TREE** — grep finds it twice, both times in item
+     131's own note — and the mark's weight has been per-world theme data since 131e landed it. Verified
+     independently: both commits are ancestors of `main`. ‼ **The brief quoted 131e's landing note saying
+     the mark landed and then quoted a note TWO PARAGRAPHS LATER in the same item saying it had not.**
+     That contradiction was visible without any grep, and 131's note is now corrected in place.
+     ✅ **The brief's other half was right and is what landed: the DRAWN presence floor did not exist, and
+     its absence was real.** One law counted bytes that **MOVED**, which a lane shifted by one level
+     satisfies; another graded only the **ORDER** of two worlds' ink, which two marks scaled together
+     toward nothing preserve. **Both are the satisfiable-by-deleting-its-subject shape.**
+     🔴 **THE LANE'S FIRST VERSION OF THE FLOOR SURVIVED ITS OWN MUTATION, and the reason generalises:**
+     at an eighth of the shipped stroke **a sub-pixel quad is not absent — the SDF spreads it**, so the
+     wash still peaked at ΔE 28 against an absolute floor picked by halving the shipped numbers. **An
+     absolute ΔE on a rendered cell was the wrong UNIT as much as the wrong number.**
+     ✅ **The floor that holds is RELATIVE AND LOCAL:** for the darkest cell in the lane, how far it moved
+     from **its own unselected ground** as a fraction of the distance to the ink the mark is painted in,
+     plus a count of cells past half-way. Shipped Magpie reads **0.67 at 1× against a 0.5 floor** with 10
+     covered cells against 4; the wash reads **0.30 with zero.** Both quantities are distances between two
+     readings of the same cell, so **no byte is compared to a theme constant** and the law survives a
+     backend that rounds differently.
+     ✅ **Mangrove byte-identical across all five candidate builds at both scales**, proven by rebuilt
+     binaries and matching hashes rather than asserted. ✅ **No theme number changed** — Magpie still ships
+     `1.25/4.5/0.55`. **Original claim: A LIVE USER CONSTRAINT, LIFTED OUT
      OF ITEM 131's BODY WHERE IT SAT UNADDRESSED: the Magpie selected-row mark *"needs to be thinner and
      more elegant"* — the user's own words about a real screenshot.** Item 131e's lane flagged it rather
      than fixing it unasked or silently omitting it, which was right; it is filed here because the

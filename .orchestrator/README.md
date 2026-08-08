@@ -411,6 +411,24 @@ figures, and the same discipline belongs on the reassuring sentences. **When a l
 falsifies one, record it in the landing note next to the item's own findings**, since
 the orchestrator's error rate is otherwise the one number nobody tracks.
 
+‼ **AND READ AN ITEM AGAINST ITSELF: A LONG ITEM'S OWN LANDING NOTE CAN CONTRADICT ITS
+OWN OPEN NOTE, AND THE STALE HALF IS THE ONE THAT READS LIKE WORK.** Measured 2026-08-08,
+and it is the second dispatch this day sent at something already done. Item 131's body
+carried a landing note saying the per-world selected-row mark had shipped, and **two
+paragraphs later** an open note asserting a shared constant that **exists nowhere in the
+tree** — written the same day the mechanism landed and never updated. The orchestrator
+briefed the second and a deep lane spent a round proving the first.
+
+**The `git log --grep` check below would not have caught this, and that is the point:
+the contradiction was inside ONE item, visible by reading it end to end.** A long item
+accretes notes from several rounds, and a note that says *"still unaddressed"* is
+strictly louder than one that says *"landed"*. So: **before briefing from any note in a
+multi-round item, read the whole item and reconcile it — and when a note names a
+concrete symbol as the defect (`SELECTED_SPINE_WEIGHT` here), GREP FOR THAT SYMBOL.**
+One command distinguishes a live defect from an artefact of the board. ⚠️ **When a lane
+falsifies a note, correct the note IN PLACE rather than only closing the item** — it
+misled once and will mislead again.
+
 ‼ **BEFORE DISPATCHING, `git log --grep` THE ITEM NUMBER. A BOARD ENTRY CAN BE STALE
 BECAUSE THE WORK ALREADY LANDED.** Measured 2026-08-08: a residual still reading
 `🔵 BLOCKED` had been closed the previous day under a branch named for the ITEM rather
