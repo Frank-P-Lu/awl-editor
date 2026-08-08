@@ -271,6 +271,10 @@ fn the_site_guide_mirror_states_the_live_world_count() {
 /// `reference::law::rosters::worlds`. If `keytoken::COUNTS`' `worlds` entry
 /// ever pointed at some other roster in the crate — display faces, overlay
 /// kinds, catalog commands — the two answers would part company here.
+// `WORLDS_MD` is embedded under `not(wasm32)`; the cross-check follows it. The
+// laws above carry no such gate — they are about docs the wasm build itself
+// renders.
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn the_world_count_token_agrees_with_the_worlds_md_roster() {
     let _g = crate::testlock::serial();
