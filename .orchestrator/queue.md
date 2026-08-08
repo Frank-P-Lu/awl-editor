@@ -919,7 +919,11 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ⚠️ **131's own rule, which every consumer inherits: never ship a
      half-applied world.** Both worlds move in one commit or neither does.
 
-174. **Separate pure render planning from shaping/cache mechanics and GPU
+174. 🚧 **SLICE 1 CLAIMED (worktree item-174-row-geometry, deep tier) — the sidecar publishes
+     planned ROW GEOMETRY.** Chosen because it is simultaneously 174's own verification clause
+     (drawn↔hit-test↔sidecar identity) and **the one thing item 131e is blocked on.** The slice is
+     explicitly NOT the planner 174 eventually wants: no widget tree, no scene framework, no duplicate
+     CPU renderer, no per-frame document plan. **Original:** **Separate pure render planning from shaping/cache mechanics and GPU
      execution.** **Defect:** `TextPipeline` and the render directory jointly own
      scene policy, document geometry, cache invalidation, hit-test inputs,
      sidecar-visible facts, GPU resources, and feature-specific drawing. Tests
