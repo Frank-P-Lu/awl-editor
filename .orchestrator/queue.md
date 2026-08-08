@@ -964,7 +964,33 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ⚠️ **131's own rule, which every consumer inherits: never ship a
      half-applied world.** Both worlds move in one commit or neither does.
 
-174. 🚧 **SLICE 2 CLAIMED (worktree item-174-accessory, deep tier) — publish the ACCESSORY CLUSTER's geometry (label lane, value lane, rail), which turns item 327's width question from argument into arithmetic. SLICE 1 LANDED (merged 2026-08-08) — the sidecar publishes planned ROW GEOMETRY at
+174. 🟡 **SLICES 1 AND 2 LANDED (2026-08-08). THE ITEM STAYS OPEN — it is a multi-round refactor
+     and these are two surface families of it.**
+     ✅ **SLICE 2 published the accessory cluster's three lanes** (label, value, rail) at schema **/202**,
+     each **`null` rather than a zero-width rect** when the frame drew nothing there — because "the column
+     was yielded" and "the column is empty" are different facts, **and the width at which the pair turns
+     `null` IS the measurement.**
+     🔵 **AND IT ANSWERED ITEM 327's QUESTION — see that item.** No width policy changed:
+     `rowlayout::fits`, `CARD_MAX_W` and the `overlay_right_shown` gating are byte-identical. **The slice
+     makes 327 and 342 arithmetic; it does not answer them.**
+     ⚠️ **THE LANE CROSSED THE `chrome/**` GUARD DELIBERATELY AND WAS RIGHT TO — the brief held a genuine
+     contradiction.** "Extract ONE owner and route both through it" and "stop if you need a chrome
+     accessor" cannot both be obeyed here, and the first is the rule that matters: writing that match in
+     the report would have created **exactly the second copy slice 1 existed to prevent.** ✅ **The rule was
+     spelled inline FOUR times** — in the seat the shaped names upload through, in the rail owner, in the
+     surface list the frost measures from, and in the accessory upload. **All four now ask.** The chrome
+     diff is call-site replacements only, **net −6 lines with no file growing**, isolated in its own commit.
+     🔴 **ONE MUTATION SURVIVED AND THE LANE REPORTED IT.** Halving the published label width **in the
+     SERIALIZER** passed both capture laws — a uniform factor survives a doubling relation untouched, and
+     every internal-consistency check still held. **The general lesson: a lane pinned only by its ORIGIN
+     accepts any uniform width scaling, at every scale.** Fixed by grading width against the ink.
+     ✅ **An existing law reddened and was right:** the println audit counted a test file outside a
+     `tests/` directory as runtime-reachable. **Not weakened and not added to its expected table** — the law
+     moved to the correct side of that boundary, which also took it out of a production size ceiling it had
+     no business being measured against.
+     ✅ **Non-vacuity uses the shipped `window_rows` of 31, not the fixture's parked 12** — at 12 the column
+     fits at every reachable width and the yielding state, the entire subject, goes ungraded.
+     **Slice 1's own note follows. SLICE 1 LANDED (merged 2026-08-08) — the sidecar publishes planned ROW GEOMETRY at
      schema /201. THE ITEM ITSELF STAYS OPEN: this is one slice of a multi-round refactor.**
      ✅ **`overlay.window` gained a `band` block and a per-row rect list**, so a law can assert
      drawn↔hit-test↔sidecar agreement **without inferring anything from pixels** — the defect 174 names
@@ -2616,7 +2642,33 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      on units; **this item is about them agreeing by CONSTRUCTION rather than by both remembering to
      call the same function.** **Routing:** production tier.
 
-327. ⚠️ **STILL OPEN, AND THE PREMISE NEEDED THREE CORRECTIONS — measured 2026-08-08, no code
+327. 🔵 **THE QUESTION IS ANSWERED WITH NUMBERS AND IS NOW PURELY THE USER'S (item 174's slice 2,
+     2026-08-08). NOTHING TECHNICAL REMAINS BLOCKING IT.**
+     ✅ **WHO YIELDS FIRST: THE NAMES DO — and that is not what this item guessed.** Measured at
+     `--theme Mangrove --root /p`, 27 planned rows, menu bar off (macOS's default). **The boundary is
+     between 780 and 781 logical px:**
+
+     | logical width | accessory column | widest label | widest value | rail | rail hit band |
+     |---|---|---|---|---|---|
+     | **780** | **yielded** | **215.42** | — (`null`) | — (`null`) | — |
+     | **781** | granted | **156.67** | 94.32 | 69.63 | 93.57 |
+     | 850+ | granted | 215.42 | 94.32 | 69.63 | 93.57 |
+
+     ✅ **So at 781 the names ELIDE by 58.75px to buy the accessory column, and at 780 the column goes
+     entirely and the names take all 215.42 back.** Between 790 and 850 the label grows in ~9.8px steps
+     **while the value and rail never move at all** — **the accessory cluster is RIGID and the name lane
+     absorbs every pixel until the whole column is dropped.** The rail reserves **79.42px** on top of the
+     94.32 value.
+     ✅ **The menu-bar arm moves the boundary, which confirms that axis is real:** bar **on** grants at 780
+     with 26 rows; bar **off** yields at 780 with 27 — a row fewer is a narrower widest label is a looser
+     budget. ✅ **Only the two diagonal worlds ever yield** in the swept 640–1200 band; the other 18 grant
+     at every width, so the yield regime is a diagonal-cluster phenomenon at these widths.
+     🔵 **WHAT IS LEFT IS ONLY TASTE, and the numbers frame it:** the rail costs ~79px and the value
+     ~94px, against a name lane that gives up 59px before surrendering the lot. **Should the names keep
+     eliding further so the rail survives narrower, should the rail yield before the value, or is dropping
+     the whole column at 780 correct?** ⚠️ **Item 342 is upstream** — it asks whether the card's own width
+     cap should be font-aware, which changes the width this divides. **Worth deciding together.**
+     ⚠️ **The earlier premise corrections stand and are still worth reading. Originally:** ⚠️ **STILL OPEN, AND THE PREMISE NEEDED THREE CORRECTIONS — measured 2026-08-08, no code
      changed.** The defect is real but not where item 317 put it.
      ⚠️ **(a) 317's SPECIFIC CLAIM DID NOT REPRODUCE.** At 1200×800 with the current `SETTINGS`
      roster, Zoom's rail **is present** — via both the ordinary capture and `--screenshot-app`. The
@@ -3403,6 +3455,23 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      has shipped exactly that shape. **Sweep 1×/2×: a 1.25px hairline at dpi 1 is the case to watch.**
      🔵 **CLOSES ON THE USER'S EYE.** Two or three candidate weights, not a sweep of ten, with the
      one to ship named and argued. **Routing:** deep tier, then the user.
+347. 🔴 **THE SETTINGS CARD PLANS ZERO ROWS BELOW ~860 LOGICAL PX ON ITS SHIPPED SHAPE — a narrow-window
+     cliff, not a yield.** Found by item 174's slice 2 while measuring the accessory budget, and reported
+     with the code untouched. On the ordinary capture path with `workspace: true` — **the reachable arm,
+     since `workspace_shape()` answers `Some(RailOverRows)` unconditionally for Settings** — the card
+     plans `rows: []` and draws **no card at all** below roughly 860 logical px, reappearing at 900 with 20
+     rows. With `workspace: false` it plans 20 rows down to 700, **but no summon can reach that state.**
+     ⚠️ **This is ADJACENT TO item 327 and is NOT the same defect:** 327 is about which lane yields inside a
+     card that still exists. This is the card vanishing. It is also **why slice 2's yield law grades a
+     value-less picker rather than a narrowed one.**
+     ⚠️ **Check the premise before building** — it is one lane's measurement on one door, and item 335
+     already found this law family grading a state the product cannot reach. **Establish what a real
+     narrow window does through `--screenshot-app`, since Settings entry is a live-App effect.**
+     ✅ **Build:** find where the row budget goes to zero and decide whether the floor is a minimum card or
+     a refusal to summon. ⚠️ **A card that silently draws nothing is worse than either** — if the honest
+     answer is a product decision about minimum width, **hand it back with the numbers rather than picking.**
+     ✅ Slice 2 also repaired a neighbouring fixture that hardcoded `workspace: false`, folding a state no
+     summon can reach; it now derives it from `workspace_shape()`. **Routing:** production tier.
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same

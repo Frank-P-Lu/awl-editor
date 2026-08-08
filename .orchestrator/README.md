@@ -373,6 +373,24 @@ hides the failure exactly as thoroughly as `|| true`; that is how a red tree rea
 
 ## Claims and the board
 
+‼ **A BRIEF CAN HOLD TWO RULES THAT CANNOT BOTH BE OBEYED, AND THE LANE IS THE ONE
+WHO FINDS OUT.** Measured 2026-08-08: one brief said *"if the span exists only inline,
+extract it into ONE accessor and route both the draw and the report through it"* and,
+a few lines later, *"if publishing needs a `chrome/**` accessor, report it and stop."*
+For the family in question the second forbade the first. The lane **named the tension,
+chose the rule that carried the item's purpose, minimised the incursion to call-site
+replacements (net −6 lines, no file grown), isolated it in its own commit, and told
+the orchestrator which sha to revert if it disagreed.** That is the correct handling
+and it should be the expectation.
+
+**So two things follow.** When writing a partition, **ask whether the slice's own
+deliverable can be achieved inside it** — a partition that forbids the item is a
+briefing bug, not a lane's problem. And when a lane reports a conflict of this shape,
+**the useful reply is which rule wins, not whether it should have asked first**: it
+did the expensive thinking already. ⚠️ **The reviewable-commit trick is the part to
+require**: an incursion isolated in one commit costs nothing to undo, and a lane that
+buries it in a mixed commit takes that option away.
+
 ‼ **A BRIEF'S CONFIDENT ASIDES ARE UNCHECKED CLAIMS TOO, AND A LANE THAT BELIEVES
 ONE LOSES THE ROUND.** The rule that a defect report is a hypothesis is already
 recorded below; this is its sharper form. Measured 2026-08-08: a brief told a lane
