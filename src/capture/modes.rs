@@ -5,6 +5,7 @@ use glyphon::Cache;
 use std::path::Path;
 
 use crate::buffer::Buffer;
+use crate::overlay::OverlayKind;
 use crate::render::{self, TextPipeline, ViewState};
 
 use super::gpu::{headless_device, offscreen_target, read_frame};
@@ -397,8 +398,8 @@ pub(super) fn settled_viewstate(
     let theme_panel = opts
         .overlay
         .as_ref()
-        .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
-        .is_some_and(|k| k == crate::overlay::OverlayKind::Theme);
+        .and_then(|o| OverlayKind::from_mode(o.mode))
+        .is_some_and(|k| k == OverlayKind::Theme);
     // THE PER-KIND VISIBLE-ROW CAP, resolved from the mode string through the ONE
     // owner (`OverlayKind::window_rows`) rather than a hand-copied per-kind table.
     // It used to be spelled out here twice — once for the scroll HINT, once for
@@ -498,10 +499,7 @@ pub(super) fn settled_viewstate(
     vstate.caret_preview = opts
         .overlay
         .as_ref()
-        .filter(|o| {
-            crate::overlay::OverlayKind::from_mode(o.mode)
-                .is_some_and(|k| k == crate::overlay::OverlayKind::Caret)
-        })
+        .filter(|o| OverlayKind::from_mode(o.mode) == Some(OverlayKind::Caret))
         .and_then(|o| {
             o.items
                 .get(o.selected_index)

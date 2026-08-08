@@ -363,6 +363,84 @@ fn published_panel_geometry_agrees_with_the_ink_and_the_pointer() {
     );
 }
 
+/// Grade ONE prepared panel's caret centre-y against the three owners that never
+/// read the placer, returning what the cell enrolled: the focused row, and that
+/// row's published band height (the pitch the DPI arm compares).
+fn grade_caret_cy(
+    label: &str,
+    p: &mut TextPipeline,
+    g: &PanelGeometry,
+    w: f32,
+    replace: bool,
+    editing: bool,
+) -> (usize, f32) {
+    let tops = shaped_row_tops(p);
+    // The FOCUSED row, from the state this cell set rather than from the shaper —
+    // so the shaper's own focus→row mapping is graded too, instead of being read
+    // back out and compared to itself.
+    let want_row = usize::from(editing);
+    let caret_row = p.panel_shape_text(w as u32).caret_row;
+    assert!(
+        (caret_row - want_row as f32).abs() < 0.001,
+        "{label}: the focused field is on row {want_row} but the shaper reports \
+         caret_row {caret_row}"
+    );
+    let cy = p.panel_caret_cy(g.text_top, caret_row);
+
+    // ---- against the PUBLISHED band -----------------------------------------
+    let band = g
+        .rows
+        .iter()
+        .find(|r| r.row == want_row)
+        .unwrap_or_else(|| panic!("{label}: row {want_row} must be published"));
+    assert!(
+        (cy - (band.top + band.h * 0.5)).abs() < 0.01,
+        "{label}: the caret centres at y {cy} while its row's published band \
+         [{}, {}] centres at {}",
+        band.top,
+        band.top + band.h,
+        band.top + band.h * 0.5
+    );
+    assert!(
+        cy > band.top + 0.5 && cy < band.top + band.h - 0.5,
+        "{label}: the caret centre {cy} is not strictly inside its own band \
+         [{}, {}] — a centre that has escaped the row it names draws the caret \
+         against the neighbouring field's ink",
+        band.top,
+        band.top + band.h
+    );
+
+    // ---- against the INK glyphon laid that row out at ------------------------
+    let (line_top, line_h) = p
+        .panel_buffer
+        .layout_runs()
+        .find(|run| run.line_i == want_row)
+        .map(|run| (run.line_top, run.line_height))
+        .unwrap_or_else(|| panic!("{label}: row {want_row} must shape"));
+    assert!(
+        (cy - (g.text_top + line_top + line_h * 0.5)).abs() < 0.51,
+        "{label}: the caret centres at {cy} while row {want_row}'s glyphs were laid \
+         out at text_top {} + line_top {line_top} with height {line_h}, whose \
+         centre is {}",
+        g.text_top,
+        g.text_top + line_top + line_h * 0.5
+    );
+    assert!(
+        tops.iter().any(|(i, _)| *i == want_row),
+        "{label}: the shaped-row census must contain the focused row"
+    );
+
+    // ---- against the POINTER's own inverse -----------------------------------
+    let [cx, _, cw, _] = g.card;
+    assert_eq!(
+        p.panel_hit(cx + cw * 0.5, cy),
+        Some(want_at(want_row as i64, replace)),
+        "{label}: a press at the caret's own centre-y {cy} must land in the field \
+         the caret is editing"
+    );
+    (want_row, band.h)
+}
+
 /// **THE PANEL CARET SITS AT ITS FOCUSED ROW'S VERTICAL CENTRE**, graded against
 /// three owners that never read the placer: the published band, the y glyphon laid
 /// that row's glyphs out at, and the pointer's own inverse.
@@ -404,75 +482,11 @@ fn the_panel_caret_centres_on_its_focused_rows_band_and_ink() {
                     return;
                 };
                 let label = format!("dpi={dpi} {w}x{h} replace={replace} editing={editing}");
-                let tops = shaped_row_tops(&p);
-
-                // The FOCUSED row, from the state this cell set rather than from
-                // the shaper — so the shaper's own focus→row mapping is graded
-                // too, instead of being read back and compared to itself.
-                let want_row = usize::from(editing);
-                let caret_row = p.panel_shape_text(w as u32).caret_row;
-                assert!(
-                    (caret_row - want_row as f32).abs() < 0.001,
-                    "{label}: the focused field is on row {want_row} but the shaper \
-                     reports caret_row {caret_row}"
-                );
-                let cy = p.panel_caret_cy(g.text_top, caret_row);
+                let (row, pitch) = grade_caret_cy(&label, &mut p, &g, w, replace, editing);
                 cells += 1;
-                focused_rows.insert(want_row);
+                focused_rows.insert(row);
                 row_counts.insert(g.rows.len());
-
-                // ---- against the PUBLISHED band ---------------------------
-                let band = g
-                    .rows
-                    .iter()
-                    .find(|r| r.row == want_row)
-                    .unwrap_or_else(|| panic!("{label}: row {want_row} must be published"));
-                pitches.push((dpi.to_bits(), band.h));
-                assert!(
-                    (cy - (band.top + band.h * 0.5)).abs() < 0.01,
-                    "{label}: the caret centres at y {cy} while its row's published \
-                     band [{}, {}] centres at {}",
-                    band.top,
-                    band.top + band.h,
-                    band.top + band.h * 0.5
-                );
-                assert!(
-                    cy > band.top + 0.5 && cy < band.top + band.h - 0.5,
-                    "{label}: the caret centre {cy} is not strictly inside its own \
-                     band [{}, {}] — a centre that has escaped the row it names \
-                     draws the caret against the neighbouring field's ink",
-                    band.top,
-                    band.top + band.h
-                );
-
-                // ---- against the INK glyphon laid that row out at ----------
-                let (line_top, line_h) = p
-                    .panel_buffer
-                    .layout_runs()
-                    .find(|run| run.line_i == want_row)
-                    .map(|run| (run.line_top, run.line_height))
-                    .unwrap_or_else(|| panic!("{label}: row {want_row} must shape"));
-                assert!(
-                    (cy - (g.text_top + line_top + line_h * 0.5)).abs() < 0.51,
-                    "{label}: the caret centres at {cy} while row {want_row}'s glyphs \
-                     were laid out at text_top {} + line_top {line_top} with height \
-                     {line_h}, whose centre is {}",
-                    g.text_top,
-                    g.text_top + line_top + line_h * 0.5
-                );
-                assert!(
-                    tops.iter().any(|(i, _)| *i == want_row),
-                    "{label}: the shaped-row census must contain the focused row"
-                );
-
-                // ---- against the POINTER's own inverse ---------------------
-                let [cx, _, cw, _] = g.card;
-                assert_eq!(
-                    p.panel_hit(cx + cw * 0.5, cy),
-                    Some(want_at(want_row as i64, replace)),
-                    "{label}: a press at the caret's own centre-y {cy} must land in \
-                     the field the caret is editing"
-                );
+                pitches.push((dpi.to_bits(), pitch));
             }
         }
     }
