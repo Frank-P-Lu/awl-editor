@@ -113,16 +113,24 @@ fn overlay_view(kind: OverlayKind, n: usize) -> ViewState {
 
 /// Grade every planned row of one rendered frame: DRAWN (the shaped line's own
 /// top, read off the buffer the draw pass uploads) == PLANNED slot, and
-/// INTERACTIVE (`overlay_row_at` at the slot's centre and both card edges) ==
+/// INTERACTIVE (`overlay_row_at` at the slot's OWN span — never the card's
+/// constant edges, which a staggering composition's row does not sit on) ==
 /// that row's own item. Returns `(item rows, header lines)` graded.
+///
+/// THE DIAGONAL ARM'S OWN FIX: this used to probe the CARD's fixed
+/// `card_x_span()` for every row alike; that is exactly the undisplaced span
+/// `PlannedRow`'s own doc names as a past regression ("a staggered row was
+/// clickable where it was not drawn"), so testing it here would have
+/// reintroduced the bug this file exists to catch. Each row's own
+/// `row_x_span` already carries its `dx`/`dw` — `0.0` on `Pane`/`Bars`, so
+/// this is a no-op there and only a staggering composition's rows actually
+/// exercise the difference.
 fn grade_rows(
     p: &TextPipeline,
     plan: &crate::render::plan::OverlayRowPlan,
     probe: &super::overlay_probe::OverlayYProbe,
     ctx: &str,
 ) -> (usize, usize) {
-    let (x0, x1) = plan.card_x_span();
-    let mid_x = (x0 + x1) * 0.5;
     let (mut items, mut headers) = (0usize, 0usize);
     for row in plan.rows() {
         let drawn = *probe.primary.get(&row.display).unwrap_or_else(|| {
@@ -141,12 +149,19 @@ fn grade_rows(
             row.height
         );
         let mid_y = row.top + row.height * 0.5;
-        for x in [x0, mid_x, x1] {
+        let (rx0, rx1) = plan.row_x_span(row.display).unwrap_or_else(|| {
+            panic!(
+                "{ctx}: display row {} must have a clickable x-span",
+                row.display
+            )
+        });
+        let mid_x = (rx0 + rx1) * 0.5;
+        for x in [rx0, mid_x, rx1] {
             assert_eq!(
                 p.overlay_row_at(x, mid_y),
                 row.item,
                 "{ctx}: display row {} draws item {:?} but the pointer at ({x}, {mid_y}) \
-                 resolves differently",
+                 (row span [{rx0}, {rx1}]) resolves differently",
                 row.display,
                 row.item
             );
@@ -404,8 +419,31 @@ fn assert_sidecar_matches_plan(
     );
 }
 
-/// THE HEADLINE LAW. For every planned row of every picker kind, in both list
-/// styles, at four window geometries, both DPIs and BOTH MENU-BAR STATES: the
+/// THE THREE LIST STYLES the headline sweep below forces, one at a time.
+/// `Pane`/`Bars` alone left the staggering path unswept: `dx`/`dw` are zero
+/// on both, so a mutation that reverted the pointer inverse to the card's own
+/// undisplaced span (`PlannedRow`'s doc names this exact regression) left the
+/// sweep green — a landed sidecar-geometry law caught and reported the gap
+/// rather than hiding it. `Diagonal` is the one shipping style whose rows
+/// carry a nonzero per-row `dx`/`dw`, so enrolling it is what turns the sweep
+/// into a real test of the hit-test/draw agreement `PlannedRow::dx`/`dw`
+/// exist for.
+fn sweep_list_styles() -> [(&'static str, Option<theme::ListStyle>); 3] {
+    [
+        ("pane", Some(theme::ListStyle::Pane)),
+        ("bars", Some(theme::ListStyle::Bars)),
+        (
+            "diagonal",
+            Some(theme::ListStyle::Diagonal(
+                theme::DiagonalSpine::descending(theme::DiagonalMark::CRISP),
+            )),
+        ),
+    ]
+}
+
+/// THE HEADLINE LAW. For every planned row of every picker kind, in every
+/// listed style, at four window geometries, both DPIs and BOTH MENU-BAR
+/// STATES: the
 /// SHAPED glyph line sits in the planned slot, the pointer hit-test at that
 /// slot's own centre accepts that row's own item, and the sidecar reports the
 /// planned window.
@@ -432,10 +470,7 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
     // actually took, so a restore written that way restores the wrong value
     // under any forcing of that initialiser.
     let ambient_menu_bar = crate::menubar::menu_bar_on();
-    let styles: [(&str, Option<theme::ListStyle>); 2] = [
-        ("pane", Some(theme::ListStyle::Pane)),
-        ("bars", Some(theme::ListStyle::Bars)),
-    ];
+    let styles = sweep_list_styles();
     // Harmless for the "pane" arm above (nothing reads it when the resolved
     // style isn't `Bars`); set once rather than threading a second array.
     crate::render::set_bar_config_test_override(Some(theme::BarConfig {

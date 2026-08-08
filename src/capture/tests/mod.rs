@@ -16,6 +16,7 @@ use crate::render;
 
 mod capture_md_drift;
 mod caret_streak;
+mod diagonal_transition_geometry;
 mod folds;
 /// `--screenshot-frames`'s own capture path (`capture::frames`) is native-only
 /// (it builds a hermetic `App`), so this law is too.
