@@ -3048,7 +3048,46 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      `chrome/diagonal/`. **337 grades the same silhouette and 342 is live in the hint's width budget —
      sequence, never pair.**
 
-344. 🚧 CLAIMED (worktree item-344-doc-census, deep tier) 🔴 **THE DOC CENSUS IS 29 CONFIRMED CONTRADICTIONS ACROSS NINE FILES, AND FOUR ARE IN PUBLIC,
+344. ✅ **LANDED (merged 2026-08-08) — and the best of the four public fixes made the number
+     UNSTATEABLE rather than correct.** `GUIDE.md` now writes **`{{count:worlds}} worlds, one chord
+     away`** — a new token kind beside `{{key:}}`/`{{cmd:}}`, answered by `theme::THEMES.len()` at open
+     time, so **the digits are not in the file.** `ACCESSIBILITY.md`'s "14 curated theme worlds" became
+     **"Every curated theme world"**, because the load-bearing word was always *every* — the count was
+     deleted, not corrected. `platform.md` and `GUIDE.md`'s conceal description were reworded.
+     ✅ **TWO MORE PUBLIC SURFACES THE CENSUS NEVER NAMED, found while fixing those:** `site/guide.html`
+     carried the same wrong count and the same caret-only paragraph, and **`REFERENCE.md` +
+     `site/reference.html` printed the retired `C-x #` chord — sourced from the flag roster, so `--help`
+     printed it too.** Fixed at the source and regenerated; that diff moved **exactly two lines**.
+     ⚠️ **THE CENSUS I HANDED OVER WAS WRONG IN PLACES, AND THE LANE CHECKED RATHER THAN INHERITED.**
+     Its claim that two owners' field names *"do not exist in source at all"* is **FALSE** — they exist
+     deliberately, in a test pinning the names each field carried **before extraction**. The real defect
+     is ambiguity: the doc lists pre-extraction names without saying so, so the fix **labels** them
+     rather than rewriting them, since correcting them into current struct fields would duplicate a
+     ratchet that already pins them.
+     ⚠️ **AND A CLAIM IN THE ORCHESTRATOR'S OWN BRIEF WAS FALSE:** I told the lane THEMES.md already had
+     roster-derived laws for its membership tables. **Those laws are over WORLDS.md. THEMES.md was not
+     even embedded** — it is now, with four laws over it.
+     ⚠️ **Several instances were WORSE than reported:** ten sidecar modes missing not nine, seven CJK
+     worlds not five, eight wrong THEMES.md rows not seven — and one of those **named a world that
+     carries no frame at all** while missing the one that does. One entry was **already correct**:
+     WEB.md's "20 worlds" was right, and the contradiction was that two other docs disagreed with it.
+     ✅ **Twelve laws in four files, eleven mutations**, each with its match count asserted, its build
+     confirmed and a `test result:` line. ⚠️ **One mutation SURVIVED and the lane did not believe it** —
+     declaring a decomposed module as a directory passed, because most decomposed modules are **both** a
+     file and a directory. The module doc had **overclaimed** what the arm decides; it was corrected and
+     the arm re-proved against a module with no sibling directory.
+     ✅ **THREE DEFECTS IN ITS OWN LAWS, each caught by a GUARD rather than by re-reading:** a harvest
+     that read "20 worlds" as stating no count, **a cell splitter that swept one row of fourteen while
+     reporting clean** (the enrolment-predicate shape), and a Values check looking for a bare variant
+     tick where the column ticks a payload shape. All three are recorded in the code as tripwires.
+     ✅ **Both gate failures on the way were real**, and the second is the standing lesson in miniature:
+     **web-smoke caught laws that could not compile in the wasm test binary** because their embedded
+     sources are gated `not(wasm32)` — which the native gate is structurally unable to see.
+     ✅ `sidecar.rs` came back to its mark **exactly** rather than asking for a raise: the doc comment
+     that grew it moved to the law that reads the writer.
+     🔵 **One content decision left, not a drift fix:** whether `docs/app-domains.md` should also list
+     each owner's CURRENT struct fields. That is a question about which names a reader should see.
+     **Original:** 🔴 **THE DOC CENSUS IS 29 CONFIRMED CONTRADICTIONS ACROSS NINE FILES, AND FOUR ARE IN PUBLIC,
      USER-FACING DOCS.** Produced by item 302's own fan-out audit; **the orchestrator independently
      re-verified the four public ones against source** and they hold. This is filed separately because
      the census is far larger than 302's brief anticipated (it named five instances) and **must not be

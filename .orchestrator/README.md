@@ -373,6 +373,26 @@ hides the failure exactly as thoroughly as `|| true`; that is how a red tree rea
 
 ## Claims and the board
 
+‼ **A BRIEF'S CONFIDENT ASIDES ARE UNCHECKED CLAIMS TOO, AND A LANE THAT BELIEVES
+ONE LOSES THE ROUND.** The rule that a defect report is a hypothesis is already
+recorded below; this is its sharper form. Measured 2026-08-08: a brief told a lane
+*"THEMES.md already has roster-derived laws for its membership tables, so the
+mechanism exists"* — offered as reassurance, not as the defect. **It was false: those
+laws are over a different document, and THEMES.md was not embedded at all.** The lane
+checked and said so; a lane that trusted it would have looked for laws to extend,
+found none, and either given up or written a second mechanism. The same round's
+census also asserted two struct fields "do not exist in source at all" when they
+exist deliberately, in a test pinning pre-extraction names.
+
+**So: the parts of a brief a lane is most likely to take on faith are the ones
+framed as CONTEXT rather than as the defect** — "the precedent is X", "the mechanism
+already exists", "N of these are wrong". Those get no scrutiny precisely because they
+are not the task. **Either verify an aside before writing it, or mark it as
+unverified in the brief itself** — this repo's briefs already do that for reported
+figures, and the same discipline belongs on the reassuring sentences. **When a lane
+falsifies one, record it in the landing note next to the item's own findings**, since
+the orchestrator's error rate is otherwise the one number nobody tracks.
+
 1. **Claim before code.** Mark the item
    `🟡 IN PROGRESS — <owner> (codex|claude|human), branch <name>`, then dispatch.
 2. **Fold board edits into the work commit.** A claim or a landing note is not
