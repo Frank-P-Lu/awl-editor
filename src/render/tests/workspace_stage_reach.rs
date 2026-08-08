@@ -145,6 +145,33 @@ fn arm_view(rows_primary: bool, detail: bool) -> ViewState {
     v
 }
 
+/// ONE GRADED CELL, and the key the blank ledger is written in: which arm, which
+/// LOGICAL window, which zoom, which scale, which stage.
+#[derive(Clone, Copy, PartialEq)]
+struct Cell {
+    rows_primary: bool,
+    w: u32,
+    h: u32,
+    zoom: f32,
+    dpi: f32,
+    detail: bool,
+}
+
+impl Cell {
+    fn describe(&self, kinds: &[&'static str]) -> String {
+        format!(
+            "rows_primary={} ({}) {}x{} logical zoom={} dpi={} detail={}",
+            self.rows_primary,
+            kinds.join("/"),
+            self.w,
+            self.h,
+            self.zoom,
+            self.dpi,
+            self.detail
+        )
+    }
+}
+
 /// What one rendered cell committed: how many rows the row-owning region planned,
 /// whether this width fits both regions, and whether the OTHER region is drawn.
 struct StageOutcome {
@@ -157,16 +184,16 @@ fn stage(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     p: &mut TextPipeline,
-    rows_primary: bool,
-    detail: bool,
-    logical: (u32, u32),
-    zoom: f32,
-    dpi: f32,
+    cell: Cell,
 ) -> StageOutcome {
-    let (w, h) = (
-        (logical.0 as f32 * dpi) as u32,
-        (logical.1 as f32 * dpi) as u32,
-    );
+    let Cell {
+        rows_primary,
+        zoom,
+        dpi,
+        detail,
+        ..
+    } = cell;
+    let (w, h) = ((cell.w as f32 * dpi) as u32, (cell.h as f32 * dpi) as u32);
     p.set_dpi(dpi);
     p.set_size(w as f32, h as f32);
     let mut v = arm_view(rows_primary, detail);
@@ -201,8 +228,7 @@ fn stage(
 }
 
 /// EVERY MEASURED CELL WHERE A STAGE DRAWS NOTHING AT ALL — the ledger the law
-/// below is two-sided about. `(rows_primary, logical w, logical h, zoom, dpi,
-/// detail)`.
+/// below is two-sided about.
 ///
 /// Each of these is a stage that plans no rows AND whose other region is not
 /// drawn either, so the card carries no list of any kind. All of them sit at the
@@ -216,16 +242,166 @@ fn stage(
 /// open product question is answered (a minimum card that keeps one line, or a
 /// refusal to enter a stage with no room for one), this law reddens and the entry
 /// is deleted rather than quietly kept.
-const BLANK_STAGES: &[(bool, u32, u32, f32, f32, bool)] = &[
-    (false, 464, 288, 3.0, 1.0, false),
-    (false, 464, 288, 3.0, 2.0, false),
-    (false, 520, 400, 3.0, 1.0, false),
-    (false, 520, 400, 3.0, 2.0, false),
-    (true, 464, 288, 3.0, 1.0, true),
-    (true, 464, 288, 3.0, 2.0, true),
-    (true, 520, 400, 3.0, 1.0, true),
-    (true, 520, 400, 3.0, 2.0, true),
+const BLANK_STAGES: &[Cell] = &[
+    Cell {
+        rows_primary: false,
+        w: 464,
+        h: 288,
+        zoom: 3.0,
+        dpi: 1.0,
+        detail: false,
+    },
+    Cell {
+        rows_primary: false,
+        w: 464,
+        h: 288,
+        zoom: 3.0,
+        dpi: 2.0,
+        detail: false,
+    },
+    Cell {
+        rows_primary: false,
+        w: 520,
+        h: 400,
+        zoom: 3.0,
+        dpi: 1.0,
+        detail: false,
+    },
+    Cell {
+        rows_primary: false,
+        w: 520,
+        h: 400,
+        zoom: 3.0,
+        dpi: 2.0,
+        detail: false,
+    },
+    Cell {
+        rows_primary: true,
+        w: 464,
+        h: 288,
+        zoom: 3.0,
+        dpi: 1.0,
+        detail: true,
+    },
+    Cell {
+        rows_primary: true,
+        w: 464,
+        h: 288,
+        zoom: 3.0,
+        dpi: 2.0,
+        detail: true,
+    },
+    Cell {
+        rows_primary: true,
+        w: 520,
+        h: 400,
+        zoom: 3.0,
+        dpi: 1.0,
+        detail: true,
+    },
+    Cell {
+        rows_primary: true,
+        w: 520,
+        h: 400,
+        zoom: 3.0,
+        dpi: 2.0,
+        detail: true,
+    },
 ];
+
+/// THE SWEEP'S RUNNING RECORD. Collected rather than asserted in place so ONE run
+/// reports the WHOLE blank set: a per-cell panic stops at the first entry and
+/// hides the rest, which is how a ledger ends up one line short of the truth.
+#[derive(Default)]
+struct Tally {
+    graded: usize,
+    staged: usize,
+    wide: usize,
+    ledger_hits: usize,
+    blank: Vec<String>,
+    healed: Vec<String>,
+}
+
+impl Tally {
+    /// Grade ONE logical window at one zoom and scale, across both focus stages —
+    /// the pairing the presence floor needs, since "some stage has rows" is a fact
+    /// about the pair rather than about either cell.
+    fn grade_window(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        p: &mut TextPipeline,
+        window: Cell,
+        kinds: &[&'static str],
+    ) {
+        let mut with_rows = 0usize;
+        for detail in [false, true] {
+            let cell = Cell { detail, ..window };
+            let what = cell.describe(kinds);
+            let out = stage(device, queue, p, cell);
+            self.graded += 1;
+            if out.rows > 0 {
+                with_rows += 1;
+                self.wide += usize::from(out.wide);
+                continue;
+            }
+            self.staged += 1;
+            assert!(
+                !out.wide,
+                "{what}: a WIDE workspace planned no rows — wide shows both regions, so this \
+                 is a card that stopped drawing its list, not a stage"
+            );
+            let ledgered = BLANK_STAGES.contains(&cell);
+            self.ledger_hits += usize::from(ledgered);
+            match (out.other_region_drawn, ledgered) {
+                (false, false) => self.blank.push(what),
+                (true, true) => self.healed.push(what),
+                _ => {}
+            }
+        }
+        assert!(
+            with_rows > 0,
+            "{}: NEITHER stage plans a row, so this window has no reachable list at all — the \
+             presence floor beside the staging clause",
+            window.describe(kinds)
+        );
+    }
+
+    fn finish(&self, expected: usize) {
+        assert_eq!(
+            self.graded, expected,
+            "every arm x canvas x zoom x dpi x stage cell must be graded"
+        );
+        assert!(
+            self.blank.is_empty(),
+            "these stages plan no rows AND draw no other region, so the card carries no list \
+             at all — the one outcome neither a minimum card nor a refusal to enter the stage \
+             would give:\n  {}",
+            self.blank.join("\n  ")
+        );
+        assert!(
+            self.healed.is_empty(),
+            "these cells are ledgered blank but now DRAW their other region — the floor \
+             landed, so delete their BLANK_STAGES entries rather than leaving a ledger that \
+             grades nothing:\n  {}",
+            self.healed.join("\n  ")
+        );
+        assert_eq!(
+            self.ledger_hits,
+            BLANK_STAGES.len(),
+            "every BLANK_STAGES entry must name a zero-row cell this sweep actually reaches — \
+             a stale entry is a blank cell nobody is grading any more"
+        );
+        assert!(
+            self.staged > 0 && self.wide > 0,
+            "the sweep must cross the staging threshold in both directions (staged {}, wide \
+             {}) — otherwise one regime went ungraded and the law grades nothing it was \
+             written for",
+            self.staged,
+            self.wide
+        );
+    }
+}
 
 /// **A ZERO-ROW STAGE IS ALWAYS THE NARROW REGIME, AND SOME STAGE ALWAYS HAS ITS
 /// ROWS.**
@@ -264,121 +440,27 @@ fn a_workspace_stage_with_no_rows_is_narrow_and_the_other_stage_always_has_rows(
         !arms.is_empty(),
         "no OverlayKind claims a workspace shape — the sweep would grade nothing"
     );
-    let mut graded = 0usize;
-    let mut staged_cells = 0usize;
-    let mut wide_cells = 0usize;
-    let mut ledger_hits = 0usize;
-    // Collected rather than asserted in place, so ONE run reports the whole blank
-    // set: a per-cell panic stops at the first entry and hides the rest, which is
-    // how a ledger ends up one line short of the truth.
-    let mut blank: Vec<((bool, u32, u32, f32, f32, bool), String)> = Vec::new();
-    let mut healed: Vec<String> = Vec::new();
+    let mut tally = Tally::default();
     for (rows_primary, kinds) in &arms {
-        for logical in logical_canvases() {
+        for (w, h) in logical_canvases() {
             for zoom in zooms {
                 for dpi in [1.0f32, 2.0] {
-                    let mut with_rows = 0usize;
-                    for detail in [false, true] {
-                        let cell = format!(
-                            "rows_primary={rows_primary} ({}) {}x{} logical zoom={zoom} dpi={dpi} \
-                             detail={detail}",
-                            kinds.join("/"),
-                            logical.0,
-                            logical.1
-                        );
-                        let out = stage(
-                            &device,
-                            &queue,
-                            &mut p,
-                            *rows_primary,
-                            detail,
-                            logical,
-                            zoom,
-                            dpi,
-                        );
-                        match out.rows {
-                            0 => {
-                                staged_cells += 1;
-                                assert!(
-                                    !out.wide,
-                                    "{cell}: a WIDE workspace planned no rows — wide shows both \
-                                     regions, so this is a card that stopped drawing its list, \
-                                     not a stage"
-                                );
-                                let key = (*rows_primary, logical.0, logical.1, zoom, dpi, detail);
-                                let ledgered = BLANK_STAGES.contains(&key);
-                                ledger_hits += usize::from(ledgered);
-                                if !out.other_region_drawn {
-                                    blank.push((key, cell.clone()));
-                                }
-                                if out.other_region_drawn && ledgered {
-                                    healed.push(cell.clone());
-                                }
-                            }
-                            _ => {
-                                with_rows += 1;
-                                if out.wide {
-                                    wide_cells += 1;
-                                }
-                            }
-                        }
-                        graded += 1;
-                    }
-                    assert!(
-                        with_rows > 0,
-                        "rows_primary={rows_primary} ({}) {}x{} logical zoom={zoom} dpi={dpi}: \
-                         NEITHER stage plans a row, so this window has no reachable list at all \
-                         — the presence floor beside the staging clause",
-                        kinds.join("/"),
-                        logical.0,
-                        logical.1
-                    );
+                    let window = Cell {
+                        rows_primary: *rows_primary,
+                        w,
+                        h,
+                        zoom,
+                        dpi,
+                        detail: false,
+                    };
+                    tally.grade_window(&device, &queue, &mut p, window, kinds);
                 }
             }
         }
     }
     p.set_dpi(1.0);
     p.set_size(1400.0, 900.0);
-    assert_eq!(
-        graded,
-        arms.len() * logical_canvases().len() * zooms.len() * 4,
-        "every arm x canvas x zoom x dpi x stage cell must be graded"
-    );
-    let unledgered: Vec<&String> = blank
-        .iter()
-        .filter(|(key, _)| !BLANK_STAGES.contains(key))
-        .map(|(_, cell)| cell)
-        .collect();
-    assert!(
-        unledgered.is_empty(),
-        "these stages plan no rows AND draw no other region, so the card carries no list at \
-         all — the one outcome neither a minimum card nor a refusal to enter the stage would \
-         give:\n  {}",
-        unledgered
-            .iter()
-            .map(|cell| cell.as_str())
-            .collect::<Vec<_>>()
-            .join("\n  ")
-    );
-    assert!(
-        healed.is_empty(),
-        "these cells are ledgered blank but now DRAW their other region — the floor landed, so \
-         delete their BLANK_STAGES entries rather than leaving a ledger that grades nothing:\n  \
-         {}",
-        healed.join("\n  ")
-    );
-    assert_eq!(
-        ledger_hits,
-        BLANK_STAGES.len(),
-        "every BLANK_STAGES entry must name a zero-row cell this sweep actually reaches — a \
-         stale entry is a blank cell nobody is grading any more"
-    );
-    assert!(
-        staged_cells > 0 && wide_cells > 0,
-        "the sweep must cross the staging threshold in both directions \
-         (staged {staged_cells}, wide {wide_cells}) — otherwise one regime went ungraded \
-         and the law grades nothing it was written for"
-    );
+    tally.finish(arms.len() * logical_canvases().len() * zooms.len() * 4);
 }
 
 /// **AND THE BLANK-LOOKING STAGE IS NOT BLANK IN THE PIXELS.**
