@@ -6,7 +6,6 @@
 use super::super::caret_body::{
     CARET_VISUAL_BODY_MIN_AREA, CARET_VISUAL_BODY_MIN_W, InkBox, caret_visual_body_dims,
 };
-use super::super::*;
 use super::{headless_pipeline, view};
 use crate::caret::CaretMode;
 use crate::theme::{self, THEMES};
@@ -53,7 +52,7 @@ fn proportional_punctuation_keeps_the_shared_horizontal_body_hug() {
                             world.name
                         )
                     });
-                    let px = p.metrics.caret_h / CARET_H;
+                    let px = p.metrics.scale;
                     let (w, _h) = super::super::caret::caret_visual_body_dims(ink, px);
                     assert!(
                         w >= CARET_VISUAL_BODY_MIN_W.px(px) - 1e-3,

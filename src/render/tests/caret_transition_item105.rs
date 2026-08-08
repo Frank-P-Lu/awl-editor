@@ -82,9 +82,11 @@ use super::{headless_pipeline, view};
 
 /// The pixel scale (zoom × dpi) the pads and the transition bound both ride —
 /// the same quantity `caret_ink_box.rs::pad_px` reads, redefined here so this
-/// file has no cross-module dependency on that one's private helper.
+/// file has no cross-module dependency on that one's private helper. Reads the
+/// stored [`render::Metrics::scale`] field directly rather than recovering it
+/// by division.
 fn pixel_scale(p: &TextPipeline) -> f32 {
-    p.metrics.caret_h / CARET_H
+    p.metrics.scale
 }
 
 /// THE TIGHT AUTHORED BOUND (px at zoom×dpi 1.0): how far the outer cell's

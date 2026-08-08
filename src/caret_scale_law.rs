@@ -158,14 +158,22 @@ fn recovering_the_display_scale_by_division_is_not_bit_exact() {
 /// `a.caret_h/CARET_H` are the same needle.
 const NEEDLE: &str = "caret_h/CARET_H";
 
-/// THE LAW. No PRODUCTION source file re-derives the display scale from an
-/// already-scaled caret length: every caret site reads the one stored
-/// `Metrics::scale`. A fourth site fails here by name.
+/// THE LAW. No source file under `src/` — production OR test — re-derives the
+/// display scale from an already-scaled caret length: every caret site reads
+/// the one stored `Metrics::scale`. A sixth site fails here by name, wherever
+/// it is written.
 ///
-/// Test paths are excluded, not blessed: a test that recovers the scale by
-/// division is asserting against a factor one ULP from the one the product uses,
-/// which is a real (if equally invisible) oracle divergence at dpi 1.5. It is out
-/// of scope here rather than correct.
+/// Test paths are SCANNED, not exempted: this exact needle was once spelled by
+/// five `src/render/tests/**` oracles computing their own expected geometry —
+/// the same oracle/subject divergence the module doc describes, just as
+/// invisible in a test as in production until a caret law is swept at dpi
+/// 1.5. `srgb_eotf_law`'s sibling scan blesses an independent test oracle on
+/// purpose (verifying a transfer function wants its own derivation); this one
+/// does not, because there is no such derivation to protect here — a test
+/// wanting the display scale has the same one field every production site
+/// does. If a genuine exception is ever needed, name it at its own site next
+/// to `src/caret_scale_law.rs`'s self-exclusion below rather than reopening a
+/// path-based allow-list.
 ///
 /// WHAT THIS CANNOT SEE — a source scan is a grep, not a compiler:
 /// - A recovery spelled through a differently named local (`let h = m.caret_h;
@@ -182,14 +190,9 @@ fn no_production_site_recovers_the_display_scale_by_division() {
     let root = repo_root();
     let mut offenders: Vec<String> = Vec::new();
     let mut scanned = 0usize;
-    let mut test_paths = 0usize;
     for rel in src_rs_files(&root) {
         if rel == "src/caret_scale_law.rs" {
-            continue; // this law's own doc names the needle it forbids
-        }
-        if crate::srgb_eotf_law::is_test_path(&rel) {
-            test_paths += 1;
-            continue;
+            continue; // this law's own doc and measurement name the needle it forbids
         }
         let text = std::fs::read_to_string(root.join(&rel)).expect("read src file");
         scanned += 1;
@@ -202,18 +205,19 @@ fn no_production_site_recovers_the_display_scale_by_division() {
     }
     // Enrolment, named in the failure message rather than assumed: a scan that
     // silently stopped finding files would otherwise pass by sweeping nothing.
+    // One count now that test paths are swept too — no separate test bucket to
+    // report, and none to silently stop counting.
     assert!(
-        scanned > 200 && test_paths > 20,
-        "the scan enrolled {scanned} production and {test_paths} test files under src/ — \
-         the tree walk has stopped seeing the tree, and this law is checking almost nothing"
+        scanned > 220,
+        "the scan enrolled {scanned} files under src/ — the tree walk has stopped seeing \
+         the tree, and this law is checking almost nothing"
     );
     offenders.sort();
     assert!(
         offenders.is_empty(),
-        "these production files re-derive the display scale by dividing an already-scaled \
-         caret length ({NEEDLE}): {offenders:?} — read `metrics.scale`, the ONE stored \
-         factor, which the quotient is not bit-equal to at dpi 1.25/1.5/1.75/3 (see \
-         `recovering_the_display_scale_by_division_is_not_bit_exact`). Scanned {scanned} \
-         production files"
+        "these files re-derive the display scale by dividing an already-scaled caret length \
+         ({NEEDLE}): {offenders:?} — read `metrics.scale`, the ONE stored factor, which the \
+         quotient is not bit-equal to at dpi 1.25/1.5/1.75/3 (see \
+         `recovering_the_display_scale_by_division_is_not_bit_exact`). Scanned {scanned} files"
     );
 }
