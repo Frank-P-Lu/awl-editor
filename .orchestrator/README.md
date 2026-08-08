@@ -411,6 +411,26 @@ figures, and the same discipline belongs on the reassuring sentences. **When a l
 falsifies one, record it in the landing note next to the item's own findings**, since
 the orchestrator's error rate is otherwise the one number nobody tracks.
 
+‼ **THE ORCHESTRATOR'S BLIND SPOT IS OBLIGATIONS THAT ARE NOT ON THE BOARD.** Measured
+across 2026-08-08: this orchestrator drove ~50 items competently and **twice declared the
+queue empty while a STANDING-POLICY audit sat undone** — `CLAUDE.md`'s vision smoke
+(*"every render-touching round"*) and its outcome audit (*"an identity-gated refactor …
+byte-identity preserves pre-existing bugs"*). Both were found only after a stop-condition
+pushed back, and **both found real defects**: the vision smoke found a decision artifact
+that could not be judged, and the outcome audit found a **false checkable claim the same
+session had landed** in two production docs, plus the very defect one of its items existed
+to delete, still live one function away.
+
+**The failure mode is specific and worth naming: a board item announces itself and a
+policy obligation does not.** An orchestrator reading `queue.md` sees everything claimed
+and nothing owed. **So before saying "nothing remains", re-read `CLAUDE.md`'s
+"Spot-check audits (standing policy)" triggers against what the session actually did** —
+a new axis value, an identity-gated refactor, a degradation arm, a user-reported bug, a
+render-touching round, pre-tag. **Each is a trigger, not a suggestion, and the session
+itself is the evidence for whether it fired.** ⚠️ **"The queue is empty" is a claim about
+the board; "there is nothing to do" is a claim about the tree, and they are not the same
+sentence.**
+
 ‼ **AND READ AN ITEM AGAINST ITSELF: A LONG ITEM'S OWN LANDING NOTE CAN CONTRADICT ITS
 OWN OPEN NOTE, AND THE STALE HALF IS THE ONE THAT READS LIKE WORK.** Measured 2026-08-08,
 and it is the second dispatch this day sent at something already done. Item 131's body

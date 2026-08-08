@@ -3630,6 +3630,12 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      discriminated on the declaration form. Enrolment walks the test tree, never a name list.
      ✅ **35 tests green before and after, counts stated per file** (36 with the new law), every gate exit 0,
      and **no `code-health.toml` entry references any touched file.**
+     ⚠️ **CORRECTION (item 351's audit): "35 green before and after" is true and MISLEADING.** The fixture
+     parks `overlay_window_rows: 12` where the product sets **31**, and the in-tree note records that
+     correcting it turns `settings_row_reach_law` **RED** — so **part of that green is a configuration the
+     product never runs in.** The dedup was right to preserve it (a dedup must not change behaviour) and the
+     parking is right to stay (un-parking forces item 327's open question), **but the count read as
+     reassurance about laws that are partly vacuous, and now says so.**
      **Original:** **SIX COPIES OF THE
      `SettingsValues` TEST FIXTURE.** Reported by item 347's lane while working on something else, and
      deliberately left because two lanes were live: `workspace_item114.rs`, `workspace_plate_item234.rs`,
@@ -3707,7 +3713,40 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ⚠️ **Scope it honestly** — this only pays for artifacts that exist to settle a decision, not for every
      capture. If the honest answer is that it belongs in a capture helper rather than a law, say so.
      **Routing:** production tier.
-351. 🚧 CLAIMED (read-only audit, deep tier) **THE OUTCOME AUDIT THE STANDING POLICY OWES AFTER AN
+351. ✅ **RAN (2026-08-08) — AND IT FOUND A FALSE CHECKABLE CLAIM THIS SESSION ITSELF LANDED, plus the
+     defect item 302 exists to delete still live one function away.** Read-only; ran four commands and a
+     standalone f32 probe, and **said plainly what it did not audit.**
+     🔴 **(A) `m.caret_h / CARET_H` IS NOT `Metrics::scale`, and items 322 and 341 both assert in landed
+     comments that it is.** Measured in real Rust f32 over awl's own zoom grid × dpi: **8 of 156 pairs
+     mismatch by 1 ULP, every one at dpi 1.5 or 3.0.** ‼ **`(28·s)/28` is not an f32 round-trip — and dpi 1
+     and 2 are EXACT for all 26 grid zooms, which is exactly why 322's 22 shots and 341's 48 files were
+     silent.** dpi 1.5 is reachable through fractional Wayland scaling. ⚠️ **Magnitude ≤1.4e-6 px: NOT a
+     rendering defect, and the audit refused to present it as one.** It is a **false checkable claim** —
+     item 302's own subject — in two production docs, three production sites and ~5 test helpers. **Item 352.**
+     🔴 **(B) The string-vs-type pair 302 merged is still live on the same two kinds:** `capture/modes.rs`
+     gates `caret_preview` on **`o.mode == "caret"`** while `app/viewstate.rs` gates the same field on
+     **`o.kind == OverlayKind::Caret`**. **Item 353.**
+     🔴 **(C) THE LANDED LAW IS WEAKER THAN ITS OWN DOC.** The doc says the frost exemption is earned by
+     *previewing live document state*; the law asserts only **crisp ⊆ `ValuePick`**. The real live-preview
+     owner ends in **`_ => {}`**, so **a new live-previewing kind can inherit frost, blur its own preview, and
+     leave every law green.** **Item 353.**
+     ✅ **(302's merge itself is SOUND, proven symbolically rather than sampled:** the string decider and the
+     type decider are identical for **every** string including unknown ones, since lookup is by `as_str` over
+     `ALL` and injectivity is already lawed. **The note was correctly hedged.**)
+     ✅ **(E) 310 has a seventh EOTF copy — in WGSL — and that is HONEST**, because the law's own doc
+     discloses `.wgsl` is outside its reach; constants verified matching and the f64/f32 pair is bounded four
+     orders of magnitude below visibility. **310's note is accurate including its self-correction.**
+     🔴 **(G) A PRESERVED VACUITY NO BOARD NOTE CARRIES, INCLUDING MINE.** The shared settings fixture parks
+     `overlay_window_rows: 12` where the product sets **31**, and the in-tree note records that correcting it
+     turns `settings_row_reach_law` **RED**. So a family of settings-card laws is green **only in a
+     configuration the product never runs in** — `CLAUDE.md`'s *"the configuration is itself an untested
+     hypothesis"*, live. Inherited from 340 and correctly preserved by 348, **but item 348's note says "35
+     tests green before and after", which reads as reassurance about laws that are partly vacuous.**
+     ⚠️ **Corrected on 348's note.** It stays parked because un-parking it forces item 327's open question.
+     ✅ **It named four laws and wrote none**, as a read-only audit should. ⚠️ **And it listed what it did NOT
+     audit: item 343 entirely, 174's slice 2, most of 322's ~33 constants, and it reproduced NO byte-identity
+     claim** — every identity figure on this board is still only as good as its lane's report.
+     **Original claim: THE OUTCOME AUDIT THE STANDING POLICY OWES AFTER AN
      IDENTITY-GATED REFACTOR, AND THIS SESSION NEVER RAN — the second such omission found after saying the
      queue was empty.** `CLAUDE.md` names the trigger and the reason in one line: *"an identity-gated
      refactor (follow with an outcome audit — **byte-identity preserves pre-existing bugs**)."*
@@ -3728,6 +3767,34 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ✅ **The brief requires ranking by disagreement risk and auditing the top two or three PROPERLY, saying
      plainly which were not audited** — a shallow pass over seven is worth less than a deep pass over two,
      and a clean bill of health from an audit that looked at nothing is the worst outcome. **Read-only.**
+     **Routing:** deep tier.
+352. 🚧 CLAIMED (worktree item-352-one-scale, deep tier) 🔴 **THREE PRODUCTION SITES RE-DERIVE A SCALE
+     THE `Metrics` OWNER ALREADY STORES, AND TWO LANDED COMMENTS SAY THAT IS EXACT. IT IS NOT.**
+     `m.caret_h / CARET_H` mismatches `m.scale` by **1 ULP at 8 of 156 (zoom, dpi) pairs**, every one at
+     **dpi 1.5 or 3.0** — measured in real f32 over awl's own quantised zoom grid. ‼ **dpi 1 and 2 are exact,
+     which is why the identity evidence that shipped with items 322 and 341 could not see it.**
+     ⚠️ **Magnitude ≤1.4e-6 px — NOT a rendering defect. Do not present it as one.** It is a false checkable
+     claim of exactly the class item 302 deletes, now in two production docs and three call sites.
+     ✅ **Build:** route the three sites through `m.scale` — making the claim TRUE rather than deleting it —
+     then the law the audit named (`caret_h / CARET_H == m.scale` bit-exactly over the zoom grid × dpi
+     {1, 1.5, 2, 3}), which **fails today at 8 cells and passes the moment the sites are fixed.** ‼ **Write
+     the law first, watch it fail, then fix: that order IS the proof.** Plus a source scan in item 310's shape
+     so a fourth site cannot reappear. **Routing:** deep tier.
+
+353. 🚧 CLAIMED (worktree item-353-crisp-iff, deep tier) 🔴 **ITEM 302's DEFECT IS STILL LIVE ONE
+     FUNCTION AWAY, AND ITS LAW IS WEAKER THAN ITS OWN DOC.**
+     ⚠️ **(B)** `capture/modes.rs` gates `caret_preview` on the mode **STRING** while `app/viewstate.rs` gates
+     the same field on the **TYPE** — the identical cross-door pair 302's commit message calls *"where two
+     doors drift"*, on the same two kinds.
+     🔴 **(C) THE MAIN DELIVERABLE.** `keeps_backdrop_crisp`'s doc says the exemption is earned by *previewing
+     live document state*; the law asserts only **crisp ⊆ `ValuePick`**, and the real live-preview owner ends
+     in **`_ => {}`**. **So a new live-previewing kind can inherit frost, blur its own preview, and leave every
+     law green.** Extract a wildcard-free `previews_live_document()` that both the preview owner and its
+     duplicate `matches!` route through, and assert the **IFF** the doc claims.
+     ⚠️ **Three `ValuePick` kinds preview INSIDE their own rows** (*"the example dates ARE the preview"*) and
+     therefore **want** frost — the new predicate must put them on the non-previewing side or three pickers'
+     frost changes. **(D)** a stale prose enumeration of the crisp set remains in `pipeline_prepare.rs`.
+     **(F)** `PanelRowBands::center()` is ungraded — **the panel caret's Y is asserted nowhere.**
      **Routing:** deep tier.
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
