@@ -604,3 +604,13 @@ Named here rather than quietly absorbed:
    not because the behaviour is unobservable in principle — item 171's
    `FilesystemCapability` shows the shape (`save`/`finish_save`, then the
    settings trio) for granting one to a future effect that needs it.
+
+**The Settings child-picker return is reachable on the `--screenshot-app` door.**
+Settings *entry* is a live-App `BufferEffect` (`OpenSettings`), so tier 1 cannot summon
+the card even though the `Journey` lifecycle itself is tier 1.
+`awl --screenshot-app OUT.png --theme <World> --keys "s-, Enter Down Down Down Down Down Down Down Down Down Enter Escape"`
+walks entry → focus transfer → child open → return: the sidecar reads `mode: theme`
+with `return_to: settings` at the child, and `mode: settings` with the parent's own
+`selected_index` restored after `Escape`. ⚠️ **`Escape` from the CATEGORY region closes
+the card outright** — the return only reads as a return from a row with
+`detail_focus: true`, which is why a first attempt at this can look like a failure.

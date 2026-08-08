@@ -841,7 +841,29 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      16px margin, the ground effectively vanishes and the roster's spread
      collapses toward palette alone.
 
-131. 🚧 131e's COMPOSITION LAWS CLAIMED (worktree item-311-diagonal, deep tier — bundled with 311) **131e IS PART-LANDED (merged 2026-08-06) — the MARK is done, the composition
+131. 🟡 **131e's FIVE COMPOSITION PIXEL LAWS LANDED (merged 2026-08-08). ONE LINE OF ITS LIST
+     REMAINS — do not mark 131e complete.**
+     ✅ **Five laws, five separate oracles**, over both diagonal worlds × 1×/2× × both `MENU_BAR_ON` arms
+     × four canvases × list shapes and scrolls. ‼ **The spine is located by SEARCH, not read out of the
+     geometry that draws it** — a law asking "is there ink where the code says" cannot fail on a spine
+     the same code draws wrongly. **Continuity walks >8000 interior scanlines**, which is the claim a
+     geometry probe cannot make at all: the accessor returns two endpoints, and so would a per-row spine.
+     The placard law sweeps **every `CardAnchor` exhaustively**, because the wordmark's corner is derived
+     from it and a missed anchor is a missed corner.
+     ⚠️ **THE SIXTH MUTATION IS THE ONE TO READ: at its first floor of 2px the law SURVIVED its own
+     mutation** — zeroing the gap constant still left 32px of room. Caught only because the mutation ran
+     **before** the law was believed. The floor is now **calibrated from the roster**: shipped tightest
+     **57px**, defect **32px**, floor **40** with 17px above and 8px below, both numbers in the code.
+     ✅ **Child-picker return: DONE and capturable** — Settings *entry* is a live-App `BufferEffect`, so
+     the door is `--screenshot-app`; verified end to end that the parked parent's `selected_index: 9` is
+     restored after `Escape` on both worlds. (`Escape` from the **category** region closes outright, which
+     is correct, and is why a first attempt read as a failure.) ✅ **Dashboard captures: DONE**, 14 in
+     `gallery/item-311/`. ✅ **Sidecar geometry: UNBLOCKED by 174's slice**, merged alongside.
+     🔵 **THE GENUINE REMAINDER: a landed law driving filter and scroll through REAL CHORDS.** The
+     measurement exists and is clean — the spine's ink column is **x = 504 in all three Mangrove frames**
+     (base 109 items, filtered to 8, scrolled 12 rows) and **x = 695 in all three Magpie frames**,
+     identical to the pixel — **but the regression guard for that door does not.**
+     **Original:** **131e IS PART-LANDED (merged 2026-08-06) — the MARK is done, the composition
      sweep is not.** ✅ The per-world mark is now theme data: `ListStyle::Diagonal`
      carries `DiagonalSpine { direction, mark: DiagonalMark { weight, reach, aperture } }`
      as its variant payload, so a world **cannot** author an orientation without a mark
@@ -919,8 +941,46 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ⚠️ **131's own rule, which every consumer inherits: never ship a
      half-applied world.** Both worlds move in one commit or neither does.
 
-174. 🚧 **SLICE 1 CLAIMED (worktree item-174-row-geometry, deep tier) — the sidecar publishes
-     planned ROW GEOMETRY.** Chosen because it is simultaneously 174's own verification clause
+174. 🟡 **SLICE 1 LANDED (merged 2026-08-08) — the sidecar publishes planned ROW GEOMETRY at
+     schema /201. THE ITEM ITSELF STAYS OPEN: this is one slice of a multi-round refactor.**
+     ✅ **`overlay.window` gained a `band` block and a per-row rect list**, so a law can assert
+     drawn↔hit-test↔sidecar agreement **without inferring anything from pixels** — the defect 174 names
+     in its first sentence, and the thing item 131e was blocked on.
+     ✅ **The constraint that mattered was reading ONE owner.** `row_x_span` is extracted so the span has
+     a single spelling, read by both the pointer inverse and the published rect; **before this the
+     expression existed once, inside `row_at`, and publishing it would have created the second copy 174
+     exists to prevent.** The serializer performs no arithmetic at all.
+     ✅ **Not on the frame path** — three callers, one per capture and two laws, zero hits in the pipeline
+     or chrome; one rect per planned display line rather than per corpus item, so it inherits the
+     planner's O(visible) bound; and no cache key, so no `buffer.version()` collision can serve a stale
+     band.
+     ✅ **The law grades the published rect against the two oracles that do NOT read it** — the shaped
+     glyph's own y off the uploaded buffer, and whatever the pointer accepts, probed inside the span and
+     1.5px outside each edge. **Comparing the report to the plan alone would have been a tautology.**
+     ⚠️ **A FALSE LAW WAS CAUGHT IN DRAFT:** both laws first asserted rows are **contained** in the band.
+     They are not — **the shipped Saltpan Settings card is staggered**, its `dw` stepping −7px per row and
+     the selected row stepping 4px outward, so it publishes an `x` **left of `band_x`**. Containment
+     would have been a law satisfied by the product only by luck of which world you sample.
+     ⚠️ **AND THE LANE REPORTED A MUTATION ITS OWN LAW DOES NOT CATCH** rather than hiding it: reverting
+     `row_at` to the undisplaced span leaves the sweep green, because the sweep forces `Pane`/`Bars`.
+     Item 131's own staggered-row law catches it; **enrolling the diagonal arm is 131e's axis.**
+     🔴 **TWO PRE-EXISTING ROSTER LAWS WENT RED ON THE COMBINED TREE, and both were right.** Item 164's
+     transaction law caught the projection reading the **LOGICAL** selected row. The lane knew and
+     documented the distinction — but the sidecar **already** publishes a selection as
+     `window.sel_row`, resolved through the owner that also colours the band, so a second answer could
+     only be the logical one and **the two disagree throughout every selection move.** A block whose
+     purpose is making drawn-versus-published agreement assertable must not ship two selections that can
+     disagree, **so the selection was REMOVED from the projection rather than allow-listed.** The second
+     was the capture-source roster refusing to let a new `.rs` file ship unaudited.
+     🔵 **131e's sidecar-geometry agreement is now UNBLOCKED**, and the handoff is precise: read
+     `overlay.window.band` + `rows[]` as JSON (copy `capture/tests/plan_geometry.rs`) or
+     `overlay_row_geometry()` in Rust. It directly answers orientation (`rows[i].x` monotone in `i`, sign
+     giving the mirror), the label–control gap, placard/row non-overlap, and **"filtering and scrolling
+     never make surviving rows jump horizontally"** — compare `rows[]` spans by `item` across two states,
+     which was previously unmeasurable. ⚠️ **Two things its lane must know: the selected row legitimately
+     steps OUTSIDE the band, so do not write a containment law; and the headline sweep forces
+     `Pane`/`Bars`, so enrolling `ListStyle::Diagonal` is a small, well-defined addition and is 131e's.**
+     **Original slice claim: the sidecar publishes planned ROW GEOMETRY.** Chosen because it is simultaneously 174's own verification clause
      (drawn↔hit-test↔sidecar identity) and **the one thing item 131e is blocked on.** The slice is
      explicitly NOT the planner 174 eventually wants: no widget tree, no scene framework, no duplicate
      CPU renderer, no per-frame document plan. **Original:** **Separate pure render planning from shaping/cache mechanics and GPU
@@ -1843,7 +1903,30 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      plus a law with a no-wildcard match so a seventh copy cannot appear.
      **Routing:** production tier.
 
-311. 🚧 CLAIMED (worktree item-311-diagonal, deep tier — bundled with 131e's composition laws) **`Diagonal`'s SECONDARY FLIP IS PROBABLY WRONG BY ITEM 306's OWN ARGUMENT** — a
+311. ✅ **CLOSED (merged 2026-08-08) — PREMISE FALSE. The flip is fine, and it makes the column MORE
+     visible, not less.** On both diagonal worlds `muted` fails the 3.0 floor so the fallback fires — and
+     on both it resolves to **`base_content`, not `base_100`**, so there is no invisible-ink case. Real
+     pixels: the selected chord reads **ΔE 76.60** against its ground on Mangrove and **92.81** on Magpie,
+     against 41.51 and 51.71 unselected — **the flip is worth +35 and +41.**
+     ✅ **Two facts worth keeping.** The selected and unselected grounds are **byte-identical** on both
+     worlds, which is the empirical confirmation that `Diagonal` really does emit no row fill — **so the
+     premise the item reasoned FROM was true and the conclusion drawn from it was not.** That is what
+     "measure before changing" buys.
+     🔴 **THE REAL FINDING IS A LATENT HAZARD: the safety is an accident of both worlds' tokens, not a
+     design.** The accessor returns `base_100` — the page itself — whenever the band's contrast against
+     ground exceeds its contrast against content while `muted` fails the floor. **Magpie sits 1.82 against
+     9.85**, so a Diagonal world authored into that corner would ship Firetail's thumb on its chord
+     column and nothing would have said so. **That law is the deliverable**, over the whole roster with
+     all four list families enrolled.
+     ✅ **Its sharp arm is the interesting part:** when the selected column's ground is the SAME surface as
+     an unselected column's, nothing was traded against and the flip may not cost a ΔE. **A slack
+     tolerance cannot express that** — Galah's chord on its own `Bars` plate legitimately reads 32.7 where
+     the same chord on page reads 47.6, so a global never-worse slack would need to be ~15 wide and would
+     then tolerate most of the defect.
+     ⚠️ **An oracle repair on the way:** the first version took the **most common** non-ground colour as
+     the ink, which measures antialiasing — Paperbark's figure swung from **5.64 to 53.16 between two
+     window heights of one world.** It now takes the furthest colour holding ≥4px of area.
+     **Original:** **`Diagonal`'s SECONDARY FLIP IS PROBABLY WRONG BY ITEM 306's OWN ARGUMENT** — a
      `Diagonal` world emits no row fill at all (`OverlaySelectionRects::default()`, by its
      own documented behaviour), so an ink chosen for a fill that is not under it can land
      on the page exactly as Firetail's thumb did. **Deliberately left alone by 306:**

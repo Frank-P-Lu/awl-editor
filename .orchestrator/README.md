@@ -683,6 +683,15 @@ compile later.
 A failed `main` CI run becomes the top-priority `CI RED` item with the run URL
 and first known bad commit, and blocks further integration.
 
+‼ **A RECEIPT TAKEN ON A DIRTY TREE NAMES A COMMIT THAT IS NOT WHAT RAN.** The gate
+records HEAD at start and end and invalidates itself if they differ — but it does
+**not** check that the working tree is clean, and `cargo` builds the working tree.
+Measured 2026-08-08: a fix was staged-not-committed, the gate passed, and the receipt
+named the **pre-fix** commit. Nothing was wrong with the code; the receipt was simply
+a claim about a commit whose content had never been tested. **Commit first, then gate**
+— which the "never commit while your own gate is running" rule already implies, and
+this is the other half of it. **`git status --short` before reading any receipt.**
+
 ‼ **A BYTE-EXACT ASSERTION ON A RENDERED PIXEL IS A CLAIM ABOUT THE RASTERIZER,
 AND IT WILL GO RED ON CI'S lavapipe WHILE GREEN ON THIS HOST'S METAL.** Measured
 2026-08-07: `linux (build + test)` — a **gating** job — failed on a brand-new law
