@@ -123,7 +123,7 @@ fn backs_its_rows(world: &str) -> bool {
 /// THE SWEEP: the whole roster × 1×/2× × both menu-bar arms. Returns the number of cells
 /// that ran, so a law can tell "green" from "no adapter".
 fn sweep(
-    mut cell: impl FnMut(&wgpu::Device, &wgpu::Queue, &mut TextPipeline, u32, u32, f32, &str, String),
+    mut cell: impl FnMut(&wgpu::Device, &wgpu::Queue, &mut TextPipeline, u32, u32, f32, String),
 ) -> usize {
     let entry = crate::theme::active_index();
     let ambient_bar = crate::menubar::menu_bar_on();
@@ -141,7 +141,7 @@ fn sweep(
                 crate::menubar::set_menu_bar_on(bar);
                 p.set_dpi(dpi);
                 let label = format!("{world} @ {dpi}x ({w}x{h}) bar {bar}");
-                cell(&device, &queue, &mut p, w, h, dpi, world, label);
+                cell(&device, &queue, &mut p, w, h, dpi, label);
                 ran += 1;
             }
         }
@@ -173,7 +173,8 @@ fn a_pointer_anchored_menu_declines_the_full_takeover_and_a_room_summoned_card_k
     let mut footprinted: Vec<String> = Vec::new();
     let mut unfrosted: Vec<String> = Vec::new();
     let mut room_full: Vec<String> = Vec::new();
-    let ran = sweep(|device, queue, p, w, h, dpi, world, label| {
+    let ran = sweep(|device, queue, p, w, h, dpi, label| {
+        let world = crate::theme::active().name;
         p.set_view(&context_menu(DENSE, dpi));
         let _ = render_frame(device, queue, p, w, h);
         let menu = p.frost_mode();
@@ -347,7 +348,7 @@ fn doc_edges(f: &Pair, keep: impl Fn(f32, f32) -> bool) -> (u64, u64, f32) {
 fn the_document_outside_a_pointer_anchored_menu_keeps_its_own_sharp_edges() {
     let _g = crate::testlock::serial();
     let mut fewest = (u64::MAX, String::new());
-    let ran = sweep(|device, queue, p, w, h, dpi, _world, label| {
+    let ran = sweep(|device, queue, p, w, h, dpi, label| {
         let f = pair(device, queue, p, w, h, dpi);
         let skirt = crate::render::blur::footprint_skirt_px(f.frost, dpi);
         let [rx, ry, rw, rh] = f.card;
@@ -395,8 +396,8 @@ fn the_document_outside_a_pointer_anchored_menu_keeps_its_own_sharp_edges() {
 /// ⚠️ **THE SUBJECT IS THE MASK'S OWN FULL-STRENGTH INTERIOR, NOT THE COVERAGE FLOOR.** At
 /// a mask of 0.9 a tenth of the CRISP document composites through, and a document edge of
 /// 250 luma still lands a step of 25 at that tenth — above the threshold, and correctly so.
-/// The claim "no text survives" belongs to the region the frost fully replaces; the ramp is
-/// item 312's subject and is graded as a ramp.
+/// The claim "no text survives" belongs to the region the frost fully replaces; the feather's
+/// ramp is a different subject and is graded as a ramp, by the laws over the edge profile.
 ///
 /// ⚠️ **AND THE CARD'S OWN INK MUST COME OUT**, even though the residue cancels it. A card
 /// glyph composites as `a·ink + (1−a)·backdrop`, so the residue behind it is
@@ -411,7 +412,8 @@ fn inside_the_menus_own_footprint_no_document_edge_survives() {
     let _g = crate::testlock::serial();
     let mut worst = (0u64, String::new());
     let mut arms = 0usize;
-    let ran = sweep(|device, queue, p, w, h, dpi, world, label| {
+    let ran = sweep(|device, queue, p, w, h, dpi, label| {
+        let world = crate::theme::active().name;
         if backs_its_rows(world) || flat_backdrop(world) {
             return; // no frost is owed here; the card's own surface is the backdrop
         }

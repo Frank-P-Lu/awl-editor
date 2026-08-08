@@ -178,6 +178,42 @@ fn sharpness(f: &Frame, field: &[f32], keep: impl Fn(i64, i64) -> bool) -> (u64,
     (measured, edges, peak)
 }
 
+/// EVERY SURFACE THE CHROME PATH SAYS IT DREW SITS INSIDE THE FROST — the DECLARED
+/// counterpart of the derived ink floor, asked of the owner the shipped narrowing is itself
+/// derived from (`overlay_drawn_surfaces`): the seats glyphon was handed, the rules, the
+/// rails, the spine's caps, every row's mark. Returns how many surfaces were graded.
+///
+/// It is what makes the corner law's unfrosted region a DOCUMENT measurement. That region is
+/// derived from the mask alone and holds no card ink exactly while every declared surface is
+/// inside the frost. The alternative is a pixel-derived veto, and in those corners a veto
+/// cannot tell the card's rows and ring from a lava lamp — so what it excludes is a property
+/// of the WORLD, and the law's subject shrinks as a theme's ground gets busier without anyone
+/// having touched either the law or the shape.
+///
+/// ⚠️ It catches a narrowing that CUTS a declared surface loose, and it cannot catch one that
+/// was never declared: the shipped box is derived from the same list, so dropping a term
+/// keeps every remaining term inside. Completeness belongs to the coverage law that measures
+/// the card's ink off a frost-suppressed frame.
+fn every_declared_surface_is_frosted(f: &Frame, dpi: f32, label: &str) -> usize {
+    assert!(
+        !f.surfaces.is_empty(),
+        "{label}: the chrome path declares NO drawn surface, so the card-free claim the corner \
+         law rests on is a claim over an empty enumeration — and the narrowing's own inert \
+         answer to that is to keep the whole box, so nothing downstream would notice"
+    );
+    for s in &f.surfaces {
+        let (worst, wx, wy) = tightest_coverage(f.frost, dpi, *s);
+        assert!(
+            worst >= INK_FROST_FLOOR,
+            "{label}: a surface the card DECLARES it draws, {s:?}, reaches ({wx:.1},{wy:.1}) \
+             where the frost's coverage is only {worst:.4} (floor {INK_FROST_FLOOR}). That is \
+             card ink over sharp document, and it also breaks the premise the corner sharpness \
+             stands on — that a region the mask does not reach carries no card ink"
+        );
+    }
+    f.surfaces.len()
+}
+
 /// EVERY ONE OF THE CARD'S OWN FOUR CORNERS, NAMED, WITH ITS FROST COVERAGE — the figure
 /// that separates a parallelogram from a rectangle when it is asked of the CARD rather than
 /// of the shape's own bounding box.
@@ -276,41 +312,11 @@ fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sh
                 let short: Vec<_> = corners.iter().filter(|(_, m)| *m < 1.0).collect();
                 let full = corners.len() - short.len();
 
-                // EVERY SURFACE THE CHROME PATH SAYS IT DREW SITS INSIDE THE FROST — the
-                // declared counterpart of the derived ink floor below, asked of the owner the
-                // shipped narrowing is itself derived from (`overlay_drawn_surfaces`): the
-                // seats glyphon was handed, the rules, the rails, the spine's caps, every
-                // row's mark. It is stated BEFORE the shear branch on purpose, so the upright
-                // `Rules` member — the one composition that draws at the card's full band, and
-                // the only one whose rules a narrowing can strand — is graded too.
-                //
-                // It is also what makes the unfrosted-corner region further down a DOCUMENT
-                // measurement: that region is derived from the mask alone, and it holds no card
-                // ink exactly while every declared surface is inside the frost. The alternative
-                // is a pixel-derived veto, and in those corners the veto cannot tell the card's
-                // rows and ring from a lava lamp — so what it excludes is a property of the
-                // WORLD, and the law's subject shrinks as a theme's ground gets busier without
-                // anyone touching either the law or the shape.
-                let surfaces = f.surfaces.len();
-                assert!(
-                    surfaces > 0,
-                    "{label}: the chrome path declares NO drawn surface, so the card-free claim \
-                     this law rests on is a claim over an empty enumeration — and the \
-                     narrowing's own inert answer to that is to keep the whole box, so nothing \
-                     downstream would notice"
-                );
-                fewest_surfaces = fewest_surfaces.min(surfaces);
-                for s in &f.surfaces {
-                    let (worst, wx, wy) = tightest_coverage(f.frost, dpi, *s);
-                    assert!(
-                        worst >= INK_FROST_FLOOR,
-                        "{label}: a surface the card DECLARES it draws, {s:?}, reaches \
-                         ({wx:.1},{wy:.1}) where the frost's coverage is only {worst:.4} \
-                         (floor {INK_FROST_FLOOR}). That is card ink over sharp document, and it \
-                         also breaks the premise the corner sharpness below stands on — that a \
-                         region the mask does not reach carries no card ink"
-                    );
-                }
+                // Stated BEFORE the shear branch on purpose, so the upright `Rules` member is
+                // graded too — it is the one composition that draws at the card's full band,
+                // and therefore the only one whose surfaces a narrowing can strand.
+                fewest_surfaces =
+                    fewest_surfaces.min(every_declared_surface_is_frosted(&f, dpi, &label));
                 if f.shear == 0.0 {
                     upright.push(label.clone());
                     assert!(
@@ -365,9 +371,11 @@ fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sh
                 eprintln!(
                     "MEASURED {label}: shear {:.5}, card corner coverages {:?} ({full} full), \
                      {measured} wholly unfrosted px INSIDE the card's box (region derived from \
-                     the mask alone, {surfaces} declared surfaces all inside the frost), \
-                     {edges} carrying a document edge (peak step {peak:.1})",
-                    f.shear, corners
+                     the mask alone, {} declared surfaces all inside the frost), {edges} \
+                     carrying a document edge (peak step {peak:.1})",
+                    f.shear,
+                    corners,
+                    f.surfaces.len()
                 );
                 assert!(
                     measured > 500,
