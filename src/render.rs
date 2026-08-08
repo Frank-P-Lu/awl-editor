@@ -157,12 +157,12 @@ pub const CARET_W: f32 = CHAR_WIDTH;
 pub const CARET_H: f32 = 28.0;
 pub const CARET_BLOCK_H: f32 = CARET_H * 0.80; // ~22.4 px
 /// The caret ink box's own two pads, both resolved at the FULL `zoom * dpi`
-/// factor — the caret sites recover it from the metrics themselves
-/// (`m.caret_h / CARET_H`, which is exactly [`Metrics::scale`] because
-/// [`Metrics::with_dpi`] built `caret_h` as `CARET_H * s`) and hand it to
-/// [`Logical::px`]. So these are logical lengths that already meet the DPI
-/// multiply; the newtype records which factor they are entitled to rather than
-/// leaving the next reader to pick one.
+/// factor: the caret sites read the STORED [`Metrics::scale`] and hand it to
+/// [`Logical::px`], so these are logical lengths that already meet the DPI
+/// multiply. Recovering the factor from an already-scaled length instead
+/// (`caret_h / CARET_H`) is NOT bit-equal to it — multiplying by `s` and dividing
+/// back is no `f32` round trip, and dpi 1 and 2, the only two any capture uses,
+/// are exactly the factors where it looks like one (`caret_scale_law`).
 pub const CARET_DESCENDER_PAD: Logical = Logical(1.5);
 pub const CARET_INK_PAD: Logical = Logical(3.0);
 pub const CARET_STREAK_H: f32 = 2.8;

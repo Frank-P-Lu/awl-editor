@@ -24,11 +24,12 @@ impl InkBox {
 /// The smallest visible body at zoom 1. Width, height, and area are separate:
 /// brackets need width, dashes need height, and commas need all three. Width
 /// and height are `Logical` — the same pixel space chrome's own pads live in —
-/// resolved through the scale the caller already recovered from the metrics
-/// (`px = m.caret_h / CARET_H`, exactly [`super::Metrics::scale`] because
-/// [`super::Metrics::with_dpi`] built `caret_h` that way, the same recovery
-/// `CARET_INK_PAD` already uses). Area is a SEPARATE family, not `Logical`:
-/// doubling the display factor quadruples an area rather than doubling it, so
+/// resolved through `px`, which every caller supplies as the STORED
+/// [`super::Metrics::scale`] — the one `zoom * dpi` factor `CARET_INK_PAD` meets
+/// too. Deriving that factor back out of an already-scaled length is a second
+/// source for the same number and not a bit-equal one; `caret_scale_law` measures
+/// the disagreement and refuses the derivation. Area is a SEPARATE family, not
+/// `Logical`: doubling the display factor quadruples an area, not doubles it, so
 /// resolving it through a length's one-multiply door would under-scale it by
 /// exactly one factor of `scale` — invisible at `--capture-dpi 1`, the same
 /// failure shape `Logical` exists to close for lengths.
@@ -76,7 +77,7 @@ impl TextPipeline {
     ) {
         let ink = self.caret_anchor_ink_box();
         let needs_body = ink.is_some_and(|ink| {
-            let px = self.metrics.caret_h / CARET_H;
+            let px = self.metrics.scale;
             let (w, _) = caret_visual_body_dims(ink, px);
             let (baseline, ascent, font) = self.caret_row_metrics();
             let (_, h) = self.caret_cell_vertical_from_ink(ink, baseline, ascent, font, px);
