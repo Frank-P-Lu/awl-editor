@@ -3620,8 +3620,35 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      (it removed five, found a sixth, and left a law).
      **Routing:** production tier.
 
-349. 🚧 CLAIMED (read-only audit, production tier) **THE VISION SMOKE THIS SESSION OWED AND NEVER
-     RAN.** `CLAUDE.md`'s standing policy: *"Every render-touching round gets a vision-smoke:
+349. ✅ **RAN (2026-08-08) — the session's render work is VISUALLY CORRECT, and the audit found ONE real
+     defect: in the artifact meant to let the user DECIDE.**
+     ✅ **Eight shots opened with the image reader — confirmed explicitly, not inferred from filenames** (a
+     report written from filenames certifies something nobody saw). Every affordance was located: the
+     frost's footprint has a **visible diagonal cut** with sharp text beyond it and the lean follows the
+     rows' own staggered edge; **Tawny's document is fully sharp behind the right-click menu with zero blur
+     anywhere in the frame**, while Mangrove's is frosted **only inside its footprint** — exactly the
+     two-answer routing item 298 built; **"unavailable" is legible on Cut AND Copy** and absent on Paste and
+     Select all, including inside the selection band (it measured ΔE 0.0 — invisible — before item 299);
+     the footer rim reads as a **one-pixel edge, not a box**, with the fill unchanged; **nothing** is drawn
+     above "Switch project…"; the selected rail is identifiable by band and thumb while the others read
+     **quiet rather than disabled**; and the caret's right edge **lands exactly on the cell's own edge** in
+     both "after" panels where the "before" panels visibly overhang.
+     ✅ **ONE ACCENT PER FRAME HOLDS.** No frame showed two hues competing. Cassowary's selected fill, giant
+     background glyph, footer rim and headings are **one green family** reading as the world's tint rather
+     than a second accent; Wagtail is fully monochrome. ⚠️ **Honest caveat recorded: two shots are tight
+     crops without the caret in view**, so they confirm "no second accent in the visible region", not the
+     whole frame.
+     🔴 **THE FINDING, and it is about a deliverable to the USER rather than the product:
+     `compare-magpie-1x-before-A-B-C-D.png` cannot do its one job.** The auditor could tell "before" from
+     all four candidates but **could not tell A from B from C with any confidence** at the size they render
+     — and that file exists solely so a human can choose between them. **The vertex angle is what differs
+     most (98.5° / 70.7° / 50.8° / 87.6°) and a vertex angle is invisible in a small crop.** Being rebuilt.
+     🔵 **The law it named, unwritten as an audit should leave it: a PAIRWISE-DISTINCTNESS floor for a
+     comparison set.** Today each candidate is graded against the page — its presence floor — but nothing
+     asserts a minimum ΔE **between adjacent candidates at the size a human judges them**, so **a comparison
+     set can pass every individual floor while being useless as a comparison.** That generalises past this
+     item: any capture produced to settle a taste call is subject to it.
+     **Original claim: THE VISION SMOKE THIS SESSION OWED AND NEVER RAN.** `CLAUDE.md`'s standing policy: *"Every render-touching round gets a vision-smoke:
      affordance-locating questions over ~5 gallery shots ('which row is selected?'), never 'does this look
      fine?'."* **This session landed frost narrowing, a plate rim, an empty-chip removal, per-rail ink, a
      right-click-menu routing change, a caret width change and a per-world mark — and no vision smoke.**
@@ -3634,6 +3661,22 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      for the eye, and **nobody has looked.**
      ⚠️ **Read-only: the auditor edits nothing.** An audit that finds something **names** the missing law
      without writing it. **Routing:** production tier.
+350. **A COMPARISON SET NEEDS A PAIRWISE-DISTINCTNESS FLOOR, AND NO CAPTURE PRODUCED FOR A TASTE CALL HAS
+     ONE.** Named by item 349's vision smoke after it could not tell three of four candidates apart in the
+     artifact built for exactly that choice.
+     ⚠️ **The gap is structural, not a one-off:** every floor this repo has for a rendered treatment grades
+     it **against its own ground** — presence, contrast, coverage. **Nothing grades one candidate against
+     ANOTHER.** So a comparison set can pass every individual presence floor and still be useless, which is
+     the "law satisfiable while its purpose fails" shape one level up: the laws were about the product and
+     the artifact was about the decision.
+     ✅ **Build:** a floor asserting a minimum perceptual separation between adjacent members of a
+     comparison set **at the size the set is rendered at** — the size is load-bearing, since these
+     candidates differ mostly in vertex angle, which a small crop destroys. ⚠️ **Derive the set from
+     wherever candidates are declared rather than a name list**, and **pair it with the obvious companion:
+     a set of one member is trivially distinct**, so assert the set's own size too.
+     ⚠️ **Scope it honestly** — this only pays for artifacts that exist to settle a decision, not for every
+     capture. If the honest answer is that it belongs in a capture helper rather than a law, say so.
+     **Routing:** production tier.
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
