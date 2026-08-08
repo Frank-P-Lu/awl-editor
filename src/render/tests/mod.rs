@@ -179,6 +179,10 @@ mod selection_clip_law;
 /// token in the theme model that used to carry none.
 mod selection_contrast_law;
 mod selection_token_routing_law;
+/// One owner for the `SettingsValues` probe fixture six sibling files used to
+/// hand-roll independently: a source-scan law so a seventh copy can't appear.
+#[cfg(not(target_arch = "wasm32"))]
+mod settings_fixture_law;
 mod settings_row_reach_law;
 mod split_pane;
 mod stars;
@@ -299,6 +303,38 @@ pub(super) fn comparison_view(text: &str, line: usize, col: usize) -> ViewState 
     v.overlay_items = (0..8).map(|i| format!("version {i}")).collect();
     v.overlay_hint = "type to filter".into();
     v
+}
+
+/// The one owner for the `SettingsValues` probe fixture every Settings-workspace
+/// render test needs: six files under this directory each hand-rolled a
+/// byte-identical `crate::settings::SettingsValues { .. }` literal, differing
+/// only in `zoom`/`scroll_sensitivity` — which two of them deliberately drive
+/// off the 1.0 default (`range_rail`'s rail-position sweep, `settings_row_reach_law`'s
+/// off-default-zoom probe), so those two fields stay parameters rather than
+/// getting forced to agreement. Every other field is a fixed probe value with no
+/// load-bearing role of its own (`page_width_prose`/`_code`, the `/n`/`/w`/`/p`
+/// path stand-ins, the three on-flags, `keymap`, and the capture-deterministic
+/// [`crate::dateformat::CAPTURE_PLACEHOLDER_YMD`]) — none of the six files'
+/// laws depend on any of them differing, unlike [`SETTINGS_VIEW_PARKED_WINDOW_ROWS`]
+/// below, whose parked value IS load-bearing.
+pub(super) fn settings_values(
+    zoom: f32,
+    scroll_sensitivity: f32,
+) -> crate::settings::SettingsValues {
+    crate::settings::SettingsValues {
+        page_width_prose: 70,
+        page_width_code: 100,
+        zoom,
+        scroll_sensitivity,
+        default_folder: "/n".into(),
+        workspace: "/w".into(),
+        project_root: "/p".into(),
+        autosave: true,
+        history: true,
+        session_restore: true,
+        keymap: "native".to_string(),
+        today_ymd: crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
+    }
 }
 
 /// The fixture-only, PARKED `overlay_window_rows` [`settings_overlay_view`]

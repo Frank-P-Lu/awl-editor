@@ -763,20 +763,7 @@ fn settings_view(ov: &OverlayState, selected: usize) -> ViewState {
 
 /// A settings workspace card with `lens` selected, rows staged and focused.
 fn settings_values() -> crate::settings::SettingsValues {
-    crate::settings::SettingsValues {
-        page_width_prose: 70,
-        page_width_code: 100,
-        zoom: 1.0,
-        scroll_sensitivity: 1.0,
-        default_folder: "/n".into(),
-        workspace: "/w".into(),
-        project_root: "/p".into(),
-        autosave: true,
-        history: true,
-        session_restore: true,
-        keymap: "native".to_string(),
-        today_ymd: crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
-    }
+    super::settings_values(1.0, 1.0)
 }
 
 fn settings_card(lens: usize) -> OverlayState {

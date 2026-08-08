@@ -20,20 +20,7 @@ use super::{SETTINGS_VIEW_PARKED_WINDOW_ROWS, headless_dqp, settings_overlay_vie
 use crate::overlay::{OverlayKind, OverlayState};
 
 fn values(zoom: f32) -> crate::settings::SettingsValues {
-    crate::settings::SettingsValues {
-        page_width_prose: 70,
-        page_width_code: 100,
-        zoom,
-        scroll_sensitivity: 1.0,
-        default_folder: "/n".into(),
-        workspace: "/w".into(),
-        project_root: "/p".into(),
-        autosave: true,
-        history: true,
-        session_restore: true,
-        keymap: "native".to_string(),
-        today_ymd: crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
-    }
+    super::settings_values(zoom, 1.0)
 }
 
 /// A REAL Settings overlay, faceted onto Editor exactly as `Right` from the
