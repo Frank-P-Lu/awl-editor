@@ -453,7 +453,7 @@ fn drag_selection_melts_caret_to_bar() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// ITEM 345 — THE MONO BLOCK WIDTH LAW: on every bundled face the build
+/// THE MONO BLOCK WIDTH LAW: on every bundled face the build
 /// DECLARES [`facepitch::Pitch::Mono`] (roster-derived enrolment — reads
 /// `render::bundled_display_faces()`, never a hand-picked world name), the
 /// LIVE shaped block caret on a real glyph of that face equals the face's OWN
@@ -491,15 +491,15 @@ fn mono_block_width_matches_the_faces_own_pitch_no_floor() {
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping mono_block_width_matches_the_faces_own_pitch_no_floor: no wgpu adapter");
+        eprintln!(
+            "skipping mono_block_width_matches_the_faces_own_pitch_no_floor: no wgpu adapter"
+        );
         return;
     };
 
     let mono_faces: Vec<(&'static [u8], String)> = crate::render::bundled_display_faces()
         .filter(|(_, pitch)| *pitch == facepitch::Pitch::Mono)
-        .filter_map(|(bytes, _)| {
-            facepitch::registered_family(bytes).map(|family| (bytes, family))
-        })
+        .filter_map(|(bytes, _)| facepitch::registered_family(bytes).map(|family| (bytes, family)))
         .collect();
     assert!(
         mono_faces.len() >= 2,
@@ -509,8 +509,9 @@ fn mono_block_width_matches_the_faces_own_pitch_no_floor() {
 
     let mut checked = 0usize;
     for (bytes, family) in &mono_faces {
-        let pitch_em = facepitch::mono_pitch_em(bytes)
-            .unwrap_or_else(|| panic!("{family}: declared Mono but mono_pitch_em could not measure it"));
+        let pitch_em = facepitch::mono_pitch_em(bytes).unwrap_or_else(|| {
+            panic!("{family}: declared Mono but mono_pitch_em could not measure it")
+        });
         // A world whose DISPLAY face names this family — roster-derived, not a
         // hand-picked name: any world naming the family will do, since the
         // grid is a property of the face, not the world around it.
@@ -545,7 +546,7 @@ fn mono_block_width_matches_the_faces_own_pitch_no_floor() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// ITEM 345 — the mono block width needs no separate floor to stay VISIBLE on
+/// The mono block width needs no separate floor to stay VISIBLE on
 /// a glyphless or degenerate cell, on EVERY declared-mono face: end-of-line,
 /// an empty line, and the collapsed wrap-boundary space all already rescue to
 /// the default `char_width` inside [`TextPipeline::col_x_and_advance_aff`]
@@ -563,9 +564,7 @@ fn mono_block_stays_visible_without_the_floor_on_glyphless_cells() {
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!(
-            "skipping mono_block_stays_visible_without_the_floor_on_glyphless_cells: no wgpu adapter"
-        );
+        eprintln!("skipping mono_block_stays_visible_without_the_floor: no wgpu adapter");
         return;
     };
     theme::set_active_by_name("Currawong").unwrap();

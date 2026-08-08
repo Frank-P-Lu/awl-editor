@@ -157,17 +157,10 @@ impl TextPipeline {
     /// pitch (own-`hmtx`: Plex Mono/JetBrains 0.60 em, Monaspace Xenon 0.62,
     /// Iosevka 0.50), so a fixed-cell floor keyed on `metrics.caret_w`
     /// (face-INDEPENDENT) would raise the block past the glyph it sits on for
-    /// any face narrower than that cell — exactly the shape that made the
-    /// block too wide on a narrow PROPORTIONAL glyph before this function's
-    /// proportional arm existed. The real advance already IS the uniform mono
-    /// cell on a real grid (every column shares one width by construction), so
-    /// tracking it needs no separate floor to hold the grid.
-    ///
-    /// A GLYPHLESS or DEGENERATE cell (end-of-line, an empty line, the
-    /// collapsed space at a soft-wrap boundary) still reads as a full visible
-    /// cell — [`Self::col_x_and_advance_aff`]'s own rescue to the default
-    /// `char_width` already covers it there, so no floor at this call site is
-    /// needed to keep those cases visible.
+    /// any face narrower than that cell — the same shape the proportional arm
+    /// above already fixes for a narrow proportional glyph. The real advance
+    /// already IS the uniform mono cell on a real grid (every column shares
+    /// one width by construction), so tracking it needs no separate floor.
     pub fn caret_block_w(&self) -> f32 {
         let (_x, adv) = self.col_x_and_advance_aff(
             self.cursor_line,

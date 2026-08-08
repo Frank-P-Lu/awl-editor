@@ -151,9 +151,16 @@ pub fn mono_pitch_em(bytes: &[u8]) -> Option<f32> {
     let charmap = font.charmap();
     let glyph_metrics = font.glyph_metrics(Size::unscaled(), LocationRef::default());
     // Any probe glyph: `measure_pitch` already proved they share one advance.
-    let gid = charmap.map(PITCH_PROBE.chars().next().expect("PITCH_PROBE is non-empty"))?;
+    let gid = charmap.map(
+        PITCH_PROBE
+            .chars()
+            .next()
+            .expect("PITCH_PROBE is non-empty"),
+    )?;
     let adv = glyph_metrics.advance_width(gid)?;
-    let upem = font.metrics(Size::unscaled(), LocationRef::default()).units_per_em;
+    let upem = font
+        .metrics(Size::unscaled(), LocationRef::default())
+        .units_per_em;
     if upem == 0 {
         return None;
     }
