@@ -62,7 +62,8 @@ impl TextPipeline {
         if self.overlay_enter_t >= 1.0 {
             return 0.0;
         }
-        -(1.0 - crate::ease::out_back(self.overlay_enter_t)) * OVERLAY_ENTRANCE_DROP_PX
+        let drop = self.metrics.px(OVERLAY_ENTRANCE_DROP_PX);
+        -(1.0 - crate::ease::out_back(self.overlay_enter_t)) * drop
     }
 
     /// THE ONE band-RETARGET owner: point the shared chase state

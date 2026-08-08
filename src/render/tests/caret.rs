@@ -240,7 +240,7 @@ fn cosmetic_trail_anchor_is_mode_aware() {
 
     // Block | sits at the cell centre; I-beam | sits on the bar near pos.x.
     let want_block = tx + p.caret_block_w() * 0.5;
-    let want_ibeam = tx + IBEAM_W * p.metrics.zoom * 0.5;
+    let want_ibeam = tx + p.metrics.px(IBEAM_W) * 0.5;
     assert!(
         (block_x - want_block).abs() < 1e-3,
         "block | centred: {block_x} vs {want_block}"
@@ -271,13 +271,13 @@ fn ibeam_geometry_rest_and_motion() {
     let text = "alpha\nbeta\ngamma\ndelta\nepsilon\nzeta\neta\ntheta\niota";
     p.set_view(&view(text, 0, 2));
     p.settle_caret();
-    let thin = IBEAM_W * p.metrics.zoom;
+    let thin = p.metrics.px(IBEAM_W);
     let tall = p.metrics.caret_h * p.cursor_scale();
     // AT REST (settle_factor 1, motion 0): the steady thin/tall insertion bar.
     let (cx, _cy, w, h, _c) = p.caret_ibeam_geometry();
     assert!(
         (w - thin).abs() < 1e-3,
-        "rest width == IBEAM_W*zoom: w={w} thin={thin}"
+        "rest width == IBEAM_W*scale: w={w} thin={thin}"
     );
     assert!(
         (h - tall).abs() < 1e-3,
@@ -361,8 +361,8 @@ fn space_bar_caret_centers_on_cell_advance() {
         "space-bar | centres on the cell midpoint: cx={cx} want={want_cx}"
     );
     assert!(
-        (w - CARET_SPACE_BAR_W * p.metrics.zoom).abs() < 1e-3,
-        "space-bar width == CARET_SPACE_BAR_W*zoom: w={w}"
+        (w - p.metrics.px(CARET_SPACE_BAR_W)).abs() < 1e-3,
+        "space-bar width == CARET_SPACE_BAR_W*scale: w={w}"
     );
     crate::caret::set_mode(CaretMode::Block);
 }
@@ -524,8 +524,8 @@ fn morph_linestart_bar_is_the_ibeam_rest_bar() {
 
     // And the shared dims are really the I-beam constants: IBEAM_W across,
     // the full row-scaled glyph cell box tall, pinned at the insertion x.
-    let thin = IBEAM_W * p.metrics.zoom;
-    assert!((mw - thin).abs() < 1e-3, "bar width == IBEAM_W*zoom: {mw}");
+    let thin = p.metrics.px(IBEAM_W);
+    assert!((mw - thin).abs() < 1e-3, "bar width == IBEAM_W*scale: {mw}");
     assert!(
         (mh - p.metrics.caret_h * p.cursor_scale()).abs() < 1e-3,
         "bar height == caret_h*scale: {mh}"

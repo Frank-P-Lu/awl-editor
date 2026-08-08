@@ -582,7 +582,7 @@ impl TextPipeline {
                 to_box,
                 morph_t,
                 1.0,
-                CARET_MORPH_DILATE_PX * self.metrics.zoom,
+                self.metrics.px(CARET_MORPH_DILATE_PX),
             );
         } else if paint_space_bar {
             let (cx, cy, cw, ch, ccorner) = if crate::caret::morph_line_start(self.cursor_col) {
@@ -655,7 +655,7 @@ impl TextPipeline {
                         to_box,
                         morph_t,
                         1.0,
-                        CARET_MORPH_DILATE_PX * self.metrics.zoom,
+                        self.metrics.px(CARET_MORPH_DILATE_PX),
                     );
                 } else {
                     self.caret_glyph_pipeline.clear();

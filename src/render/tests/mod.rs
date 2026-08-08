@@ -220,6 +220,10 @@ mod workspace_shape_item116a;
 /// region draws, and some stage always has rows at every reachable window.
 mod workspace_stage_reach;
 mod wrap_affinity;
+/// The writing column's own decorations — the inline-code pill's inset, the
+/// fence panel's overhang, the spell squiggle's amplitude/period/stroke — graded
+/// as logical lengths at four panel densities.
+mod writing_column_decor_dpi;
 mod wysiwyg;
 mod zoom_anchor;
 

@@ -639,7 +639,7 @@ fn fence_panel_overhang_survives_content_clip_with_page_mode_off() {
     );
     let [rx, _ry, rw, _rh] = rects[0];
 
-    let inset = FENCE_PANEL_INSET_X * p.metrics.zoom;
+    let inset = p.metrics.px(FENCE_PANEL_INSET_X);
     let want_left = p.text_left() - inset;
     let want_right = p.text_left() + p.text_wrap_width() + inset;
     assert!(
@@ -714,7 +714,7 @@ fn code_pill_left_inset_survives_content_clip_at_line_start_with_page_mode_off()
     );
     let [rx, ..] = rects[0];
 
-    let inset = CODE_PILL_INSET_X * p.metrics.zoom;
+    let inset = p.metrics.px(CODE_PILL_INSET_X);
     let want_left = p.text_left() - inset;
     assert!(
         (rx - want_left).abs() < 1e-2,

@@ -356,7 +356,7 @@ fn cosmetic_trail_anchor_follows_morph_linestart_bar() {
         .expect("morph line-start trail active");
 
     // The SAME anchor the real I-beam bar uses at the SAME insertion x.
-    let want_bar = tx + IBEAM_W * p.metrics.zoom * 0.5;
+    let want_bar = tx + p.metrics.px(IBEAM_W) * 0.5;
     assert!(
         (morph_bar_x - want_bar).abs() < 1e-3,
         "morph line-start | must anchor on the bar: got {morph_bar_x} want {want_bar}"

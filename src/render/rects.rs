@@ -1004,8 +1004,8 @@ impl TextPipeline {
         let doc_top = self.doc_top();
         let text_left = self.text_left();
         let m = &self.metrics;
-        let inset_x = CODE_PILL_INSET_X * m.zoom;
-        let inset_y = CODE_PILL_INSET_Y * m.zoom;
+        let inset_x = m.px(CODE_PILL_INSET_X);
+        let inset_y = m.px(CODE_PILL_INSET_Y);
         let mut out = Vec::with_capacity(protos.len());
         for p in protos.iter() {
             let line_top = doc_top + p.line_top;
@@ -1197,7 +1197,7 @@ impl TextPipeline {
         }
         let doc_top = self.doc_top();
         let m = &self.metrics;
-        let inset = FENCE_PANEL_INSET_X * m.zoom;
+        let inset = m.px(FENCE_PANEL_INSET_X);
         let x = self.text_left() - inset;
         let w = self.text_wrap_width() + 2.0 * inset;
         let mut out = Vec::with_capacity(protos.len());
@@ -1438,7 +1438,7 @@ impl TextPipeline {
         let m = &self.metrics;
         let line_top = self.doc_top() + row.line_top;
         let cell_top = line_top + (m.line_height - m.caret_h) * 0.5;
-        let thickness = PREEDIT_UNDERLINE_H * m.zoom;
+        let thickness = m.px(PREEDIT_UNDERLINE_H);
         let y = cell_top + m.caret_h - thickness;
         // ITEM 84: the SAME auxiliary-selection-geometry clip `range_rects`
         // routes through — a composing preedit is selection-adjacent (it rides

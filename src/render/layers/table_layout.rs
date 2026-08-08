@@ -199,8 +199,8 @@ impl TextPipeline {
         }
         let m = self.metrics;
         let avail = self.text_wrap_width().max(1.0);
-        let pad = TABLE_CELL_PAD_X * m.zoom;
-        let gap = TABLE_COL_GAP * m.zoom;
+        let pad = m.px(TABLE_CELL_PAD_X);
+        let gap = m.px(TABLE_COL_GAP);
         let mut starts = Vec::with_capacity(lines.len());
         let mut acc = 0usize;
         for l in &lines {

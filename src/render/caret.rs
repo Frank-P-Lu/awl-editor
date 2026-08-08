@@ -860,7 +860,7 @@ impl TextPipeline {
     /// solid accent rounded rect), which is exactly the slim-bar look we want.
     pub(super) fn caret_space_bar_geometry(&mut self) -> (f32, f32, f32, f32, f32) {
         let zoom = self.metrics.zoom;
-        let w = CARET_SPACE_BAR_W * zoom;
+        let w = self.metrics.px(CARET_SPACE_BAR_W);
         let (cy, h) = self.caret_cell_vertical();
         let advance = self.caret_target_w();
         let cx = self.caret.pos.x + advance * 0.5;
@@ -870,7 +870,7 @@ impl TextPipeline {
 
     fn ibeam_bar_dims(&self) -> (f32, f32) {
         let m = &self.metrics;
-        (IBEAM_W * m.zoom, m.caret_h * self.cursor_scale())
+        (m.px(IBEAM_W), m.caret_h * self.cursor_scale())
     }
 
     /// Whether the caret is drawing as the THIN INSERTION BAR this frame — the

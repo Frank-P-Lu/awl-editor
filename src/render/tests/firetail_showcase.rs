@@ -320,8 +320,9 @@ fn armed_entrance_kicks_then_reduce_motion_folds_instantly() {
         "an armed SpringIn pipeline must start above the resting place (offset {kicked})"
     );
     assert!(
-        (kicked + OVERLAY_ENTRANCE_DROP_PX).abs() < 0.01,
-        "at t=0 the offset is the full drop ({kicked} vs -{OVERLAY_ENTRANCE_DROP_PX})"
+        (kicked + p.metrics.px(OVERLAY_ENTRANCE_DROP_PX)).abs() < 0.01,
+        "at t=0 the offset is the full drop ({kicked} vs -{})",
+        p.metrics.px(OVERLAY_ENTRANCE_DROP_PX)
     );
 
     // THE REDUCE-MOTION FOLD: one step under `reduced` settles instantly.

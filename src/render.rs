@@ -172,19 +172,19 @@ pub const CARET_STREAK_VEL_FULL: f32 = 2600.0;
 
 pub const CARET_TRAIL_TEXT_CENTER_DROP: f32 = 3.0;
 
-pub const CARET_SPACE_BAR_W: f32 = 3.0;
+pub const CARET_SPACE_BAR_W: Logical = Logical(3.0);
 
-pub const IBEAM_W: f32 = 2.6;
+pub const IBEAM_W: Logical = Logical(2.6);
 
 pub const CARET_MORPH_SETTLE_SHOW: f32 = 0.65;
 
-/// Hard, uniform dilation radius (px at zoom 1.0) applied to the MORPH glyph
+/// Hard, uniform dilation radius (LOGICAL px) applied to the MORPH glyph
 /// silhouette so the caret reads a touch FATTER/bolder than the underlying
 /// letter — but still SOLID in the accent (a morphological max-expansion of the
 /// glyph's own crisp coverage, NOT a soft translucent glow or a tapered halo).
-/// Think "the same letter, a bit bolder, one solid accent colour." Zoom-scaled
-/// on the CPU and passed per-instance to the shader.
-pub const CARET_MORPH_DILATE_PX: f32 = 2.0;
+/// Think "the same letter, a bit bolder, one solid accent colour." Resolved through
+/// [`Metrics::px`] on the CPU and passed per-instance to the shader.
+pub const CARET_MORPH_DILATE_PX: Logical = Logical(2.0);
 
 /// Zoom clamps and step. Effective metrics = base metric * zoom. 1.0 is the
 /// default — but NOT, despite what this comment used to claim, the only zoom the
@@ -812,35 +812,35 @@ pub const FONT_ZH_KO_FACES: &[&[u8]] = &[
 pub const FONT_CJK_COMPANION_FACES: &[&[u8]] =
     &[include_bytes!("../assets/fonts/GowunBatang-Regular.ttf")];
 
-/// Thickness (px, at zoom 1.0) of the underline drawn beneath an active IME
+/// Thickness (LOGICAL px) of the underline drawn beneath an active IME
 /// preedit (composition) string. The underline reuses the selection quad
 /// pipeline (same translucent-rect look) but is a thin bar at the glyph baseline
 /// rather than a full cell, so the composing text reads as distinct/provisional.
-pub const PREEDIT_UNDERLINE_H: f32 = 2.5;
+pub const PREEDIT_UNDERLINE_H: Logical = Logical(2.5);
 
-pub const SPELL_AMP: f32 = 3.2;
-pub const SPELL_PERIOD: f32 = 12.0;
-pub const SPELL_THICKNESS: f32 = 3.6;
+pub const SPELL_AMP: Logical = Logical(3.2);
+pub const SPELL_PERIOD: Logical = Logical(12.0);
+pub const SPELL_THICKNESS: Logical = Logical(3.6);
 
-pub const NIT_THICKNESS: f32 = 1.3;
+pub const NIT_THICKNESS: Logical = Logical(1.3);
 
-/// WYSIWYG inline-code PILL inset (px at zoom 1.0): a minimal overhang beyond
+/// WYSIWYG inline-code PILL inset (LOGICAL px): a minimal overhang beyond
 /// the span's own glyph box so the value-step background reads as a small pill
 /// rather than a bare selection-shaped rect. Taste default — flagged for live
 /// review (`code_pill_pipeline` in `render.rs`, geometry in
 /// `rects::code_pill_rects`).
-pub const CODE_PILL_INSET_X: f32 = 3.0;
-pub const CODE_PILL_INSET_Y: f32 = 1.0;
+pub const CODE_PILL_INSET_X: Logical = Logical(3.0);
+pub const CODE_PILL_INSET_Y: Logical = Logical(1.0);
 
-pub const FENCE_PANEL_INSET_X: f32 = 8.0;
+pub const FENCE_PANEL_INSET_X: Logical = Logical(8.0);
 
-pub const TABLE_CELL_PAD_X: f32 = 8.0;
+pub const TABLE_CELL_PAD_X: Logical = Logical(8.0);
 
-pub const TABLE_COL_GAP: f32 = 12.0;
+pub const TABLE_COL_GAP: Logical = Logical(12.0);
 
-pub const TABLE_RULE_THICKNESS: f32 = 1.0;
+pub const TABLE_RULE_THICKNESS: Logical = Logical(1.0);
 
-pub const TABLE_PAN_BAR_THICKNESS: f32 = 2.0;
+pub const TABLE_PAN_BAR_THICKNESS: Logical = Logical(2.0);
 
 /// COPY PULSE (the M-w/Cmd-C in-world confirmation — "obvious and understated"):
 /// how much the selection quad's own tint LIFTS on a successful copy, expressed
@@ -855,7 +855,7 @@ pub const COPY_PULSE_LIFT_ALPHA: f32 = 55.0;
 pub const COPY_PULSE_MS: Millis = Millis(220.0);
 
 pub const OVERLAY_ENTRANCE_MS: Millis = Millis(200.0);
-pub const OVERLAY_ENTRANCE_DROP_PX: f32 = 14.0;
+pub const OVERLAY_ENTRANCE_DROP_PX: Logical = Logical(14.0);
 pub const OVERLAY_BAND_SLIDE_MS: Millis = Millis(110.0);
 
 /// The copy-pulse's eased SETTLE fraction at progress `t` ∈ `[0, 1]` (0 = just
