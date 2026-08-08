@@ -171,6 +171,18 @@ well as here — **this item has already been answered twice by the user because
 decision recorded in one place was invisible in the place it gets read.**
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
+- 🔵 **THE RIGHT-CLICK MENU NO LONGER DIMS YOUR DOCUMENT, AND THIS IS A SURFACE YOU OPEN
+  CONSTANTLY (item 298).** `gallery/item-298/before-Tawny-menu.png` → `after-Tawny-menu.png`: before, the
+  whole page frosted behind four rows under the pointer; after, **no frost at all**, because Tawny's card
+  already backs its own rows. `before-Mangrove-menu.png` → `after-Mangrove-menu.png` is the other answer:
+  Mangrove draws no panel and no plates, so the menu frosts **its own footprint only** — without that, its
+  rows would interleave with your prose glyph-for-glyph. `reference-*-room-takeover.png` shows the same
+  rows summoned to the middle of the room, which is the full takeover this is judged against.
+  **Before/after differs on 79% of Mangrove's pixels and 76% of Tawny's**, so it is not subtle.
+  ⚠️ **Revert is one line if it reads worse to you.** ⚠️ **And one member is now out of step:** the
+  contextual **spell popup** still takes no frost on any world, including the three bare ones — so it has
+  the interleaving problem the menu just stopped having. DESIGN §5 says it "recedes nothing" on purpose,
+  so **whether that stays is your call**, not a defect I should quietly fix.
 - 🔵 **THE CARET FIX IS BUILT AND WAITING ON ONE WORD FROM YOU — captures are in
   `gallery/item-345/` (item 345).** Open **`currawong_before_after.png`** and
   **`cassowary_before_after.png`**: each is a 2×2 grid (1× and 2× rows, before and after columns),
@@ -1396,7 +1408,27 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      with non-overlap and ⅔-relation laws; byte-identity for 19 worlds.
      **Routing:** deep tier.
 
-298. 🚧 CLAIMED (worktree item-298-frost-routing, deep tier — bundled 298+337) **A right-click menu should not frost the document.** ✅ **294 HAS ANSWERED THE
+298. ✅ **LANDED (merged 2026-08-08) — AND THE ANSWER IS TWO ANSWERS, which is better than the item
+     proposed.** Declining the full takeover is right: that arm is the defocus behind a card summoned to
+     the middle of the room and answered with the keyboard, and **a four-row menu under the pointer,
+     dismissed by the next click, never asks the document to stop being the subject.**
+     ⚠️ **BUT `None` EVERYWHERE WOULD HAVE SHIPPED ITEM 294's EXACT DEFECT ONTO THE CONTEXT MENU.** On
+     the three worlds whose composition draws **no panel and no plates**, a menu with no backdrop
+     interleaves with the document **glyph for glyph** — a property of the COMPOSITION, not of which
+     picker is open.
+     ✅ **So the menu declines the takeover and the footprint arm's own roster predicate decides:**
+     `None` on the **17** worlds that back their own rows (the item's off-switch, with a principled
+     reason) and a **footprint** on the **3** that draw neither.
+     ✅ **One predicate read by BOTH arms**, so they cannot both fire or both miss — and it deliberately
+     avoids the crisp-backdrop predicate, whose documented meaning is *"this card previews live document
+     state"*: **a context menu previews nothing.** The sidecar's `dim_overlay` was a **byte-identical
+     second copy** of the same question and now delegates rather than agreeing by coincidence.
+     ✅ **Measured through the real pipeline:** the page beyond the menu carried **343** document edges
+     out of a million pixels, and now carries **75,895–111,232**.
+     🔵 **One inconsistent member left, flagged not touched:** the contextual **spell popup** takes `None`
+     on every world including the three bare ones, so it still has the interleaving problem the menu now
+     avoids. That is a decided position in DESIGN §5 ("it recedes nothing") — **now the only member out
+     of step.** **Original:** **A right-click menu should not frost the document.** ✅ **294 HAS ANSWERED THE
      SEQUENCING QUESTION AND IT IS A ONE-LINE ROUTING CHANGE — with two caveats that
      change the shape.** Its `Frost::Footprint(rect)` gives proportional defocus, which
      is what this item asks for. But (a) **294's predicate is the wrong one to reuse**:
@@ -2800,7 +2832,27 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      Any change regenerates `REFERENCE.md`; **verify the regen diff moves only what the change
      explains.** **Routing:** production tier.
 
-337. 🚧 CLAIMED (worktree item-298-frost-routing, deep tier — bundled 298+337) **THE PARALLELOGRAM CORNER LAW'S SUBJECT SHRINKS AS A WORLD'S GROUND GETS BUSIER, and nothing
+337. ✅ **CLOSED (merged 2026-08-08) — PREMISE FALSE AS A DECAY, and the reason is a good one: ITEM
+     343 ALREADY REMOVED IT.** 343 narrowed the frost's box after this was filed, which **grew** the
+     unfrosted region, so the cited subject of 1716–14263 px now measures **10,825–99,740** — 7× larger.
+     Measured per cell across all eight leaning cells: **the veto removes 0.0% of the graded region**,
+     and with **no document at all** the old field counts **zero** edges there. **So the erosion this
+     item names measures zero** — while the mechanism stays real elsewhere (the veto flags
+     63,312–516,272 px frame-wide).
+     ✅ **The re-aim landed anyway and removes the hazard rather than the symptom.** The region is now
+     **arithmetic over the shape with no pixel term**, so `measured` cannot erode; the field is a
+     **residue in which card ink and world ground both cancel by construction**; and a card-free claim
+     grades every surface `overlay_drawn_surfaces` declares, **stated before the shear branch** so the
+     upright `Rules` member is graded too. 343's `full <= 2` reasoning is kept verbatim.
+     🔴 **A FINDING WORTH CARRYING BEYOND BOTH ITEMS: `overlay_drawn_surfaces` IS NOT A PER-PIXEL INK
+     MAP.** The spine is declared as its **two end caps** — deliberately, since its bbox un-shears wider
+     than the whole narrowing — so a first version using the declared boxes as a **pixel exclusion** let
+     **186 px of a 3px diagonal stroke** through on Mangrove. **That contract is now recorded at the
+     definition**, which is where 329's own contract lives.
+     ⚠️ **One mutation did NOT fire the new clause and the lane said so** rather than claiming it did:
+     the shipped box is derived from the same list, so dropping a term leaves the rest inside it, and a
+     pre-existing clause caught it. **That limit is now stated where the clause is defined.**
+     **Original:** **THE PARALLELOGRAM CORNER LAW'S SUBJECT SHRINKS AS A WORLD'S GROUND GETS BUSIER, and nothing
      inside the frost tests can fix it.** Reported by item 329's audit and correctly not acted on.
      `frost_parallelogram_item318.rs`'s corner law measures **sharp document** in exactly the region
      where the card-ink veto **cannot distinguish card ink from world ground** — the card genuinely
