@@ -3987,6 +3987,24 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ✅ **Verify:** if the live path can reach it, the fix is an invalidation and the law is a DPI change with
      a document already shaped. **If it cannot, the deliverable is a tripwire naming the fixture order** so
      the next lane does not spend the round this one did. **Routing:** production tier.
+
+357. **GENERATE THE PUBLIC WORLD GALLERY FROM THE PRODUCT, SO ITS PICTURES AND ROSTER CANNOT DRIFT.**
+     The four known public documentation contradictions were already fixed by item 344; do not repeat that
+     census. This item is the remaining public-story work named in `ROADMAP.md`: render **every member of
+     `theme::THEMES` over one canonical authored document**, through awl's real headless capture door, and
+     publish the resulting gallery on the site's themes page rather than the front page. One script owns the
+     regeneration command and deterministic ordering; the roster is derived from `theme::THEMES`, never
+     copied into shell, HTML or prose. The canonical document exercises prose, headings, emphasis, a link,
+     code, a list, a table and an inline image so each world's typography and authored treatments are visible
+     over the same content. Generated assets carry no personal-machine paths and require zero network.
+     **Done:** a clean regeneration is repeatable; adding, removing, renaming or reordering a world makes a
+     stale-gallery law fail by that world's name; the themes page contains exactly the generated roster and
+     locally resolvable images; a sample of generated entries is checked against the theme roster and capture
+     sidecars rather than trusting the generator's own HTML; a five-shot affordance-locating vision smoke
+     confirms the selected samples visibly show their named world and the document features needed to judge
+     them. Run the relevant documentation/site checks and wasm smoke. **Do not deploy or publish** — that is
+     an outward-facing action requiring separate authorization. **Routing:** production tier for the
+     generator/laws; vision smoke for the rendered sample.
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
