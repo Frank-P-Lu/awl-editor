@@ -26,6 +26,7 @@ mod layout_oracle;
 mod metric_scale;
 mod panels;
 mod pickers_faceted;
+mod plan_accessory;
 mod plan_geometry;
 mod schema_chrome;
 mod schema_ledger;

@@ -38,6 +38,12 @@
 //! band and active-mark centre, the secondary column's upload origin, and the
 //! split-pane surfaces' gap.
 //!
+//! **THE ACCESSORY CLUSTER** — a row's NAME lane, its VALUE lane and its Range
+//! rail — is seated by [`accessory_lane`]'s accessors, so the rule "name on the
+//! spine end, accessory on the outer end, mirroring as a unit" has one spelling
+//! rather than one per consumer. The accessory upload, the frost's surface list,
+//! the rail owner and the published projection all ask the same question there.
+//!
 //! **THE HEIGHT CLAMP (item 181)** — `fit_item_rows` — is the one owner of
 //! "how many candidate item rows fit the canvas", shared by both families
 //! (`render/chrome/overlay.rs`'s flat window and `render/chrome/theme_picker.rs`'s
@@ -72,5 +78,10 @@ pub(in crate::render) use overlay_rows::{test_header_plan, test_row_top, test_ro
 pub(in crate::render) use row_extent::RowExtent;
 pub(in crate::render) use row_extent::{ClusterExtent, RowSpan};
 
+/// The accessory cluster's DEVICE-level law: the published lanes graded against
+/// the shaped ink and the pointer over the real pipeline. Separate from `tests`,
+/// which is deliberately device-free.
+#[cfg(test)]
+mod accessory_law;
 #[cfg(test)]
 mod tests;
