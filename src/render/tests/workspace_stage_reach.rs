@@ -287,7 +287,14 @@ fn a_workspace_stage_with_no_rows_is_narrow_and_the_other_stage_always_has_rows(
                             logical.1
                         );
                         let out = stage(
-                            &device, &queue, &mut p, *rows_primary, detail, logical, zoom, dpi,
+                            &device,
+                            &queue,
+                            &mut p,
+                            *rows_primary,
+                            detail,
+                            logical,
+                            zoom,
+                            dpi,
                         );
                         match out.rows {
                             0 => {
@@ -298,8 +305,7 @@ fn a_workspace_stage_with_no_rows_is_narrow_and_the_other_stage_always_has_rows(
                                      regions, so this is a card that stopped drawing its list, \
                                      not a stage"
                                 );
-                                let key =
-                                    (*rows_primary, logical.0, logical.1, zoom, dpi, detail);
+                                let key = (*rows_primary, logical.0, logical.1, zoom, dpi, detail);
                                 let ledgered = BLANK_STAGES.contains(&key);
                                 ledger_hits += usize::from(ledgered);
                                 if !out.other_region_drawn {
