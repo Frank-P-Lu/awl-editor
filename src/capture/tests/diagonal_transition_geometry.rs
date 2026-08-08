@@ -1,16 +1,18 @@
-//! **THE FILTER/SCROLL TRANSITION LAW — item 131e's stated remainder.**
+//! **THE FILTER/SCROLL TRANSITION LAW for the diagonal row composition.**
 //!
-//! A prior lane MEASURED (in pixels, over `--keys`-free `set_view` frames) that
-//! the diagonal spine's ink column never moves across a base / filtered /
-//! scrolled sequence, but landed no regression guard for it, and the guard has
-//! to be driven through REAL CHORDS — `crate::run::ReplaySession::apply_chord`,
-//! the same seam `--keys` itself runs, resolving through the real keymap and
-//! `actions::apply_transition` — never a directly-built `ViewState`.
+//! A prior pixel-search measurement (over `--keys`-free `set_view` frames)
+//! found the diagonal spine's ink column never moves across a base / filtered
+//! / scrolled sequence, but no regression guard exists for that door — and
+//! the guard has to be driven through REAL CHORDS —
+//! `crate::run::ReplaySession::apply_chord`, the same seam `--keys` itself
+//! runs, resolving through the real keymap and `actions::apply_transition` —
+//! never a directly-built `ViewState`.
 //!
-//! Item 174's slice makes the read cheap: `overlay.window.rows[]` publishes
-//! each planned row's drawn `x`/`y`/`w`/`h` alongside `item` (its corpus
-//! index) and `display` (its window slot), read here off the sidecar JSON
-//! exactly like `plan_geometry.rs`'s own `read_band`.
+//! The published row geometry (`overlay.window.rows[]`: each planned row's
+//! drawn `x`/`y`/`w`/`h` alongside `item`, its corpus index, and `display`,
+//! its window slot) makes the read cheap: this file's `read_band` copies
+//! `plan_geometry.rs`'s own JSON reader rather than a Rust struct, so a
+//! serializer regression fails here too.
 //!
 //! # Why FILTER is keyed by ITEM and SCROLL is keyed by SLOT
 //!
@@ -27,7 +29,7 @@
 //!   (the slots really are the same rows), but it could not tell "the item I
 //!   was looking at didn't move" from "whatever landed at slot i this time
 //!   happens to match" — it grades the mapping, not the promise a user reads
-//!   the composition by. `sect1_filter_never_displaces_a_surviving_row` below
+//!   the composition by. `filter_never_displaces_a_surviving_row` below
 //!   engineers the corpus so real, substantial filtering (removing most of a
 //!   180-item corpus) provably leaves the on-screen survivors' slots alone,
 //!   then asserts by item.
@@ -35,14 +37,14 @@
 //!   (`top_idx` advances) — so no item can occupy the same slot in the
 //!   before/after frames, and an item-keyed equality claim across a genuine
 //!   scroll would be FALSE, not weak: the per-row cascade is real, authored
-//!   product behavior (131e's own composition doc: "the spine leans"). What
-//!   IS invariant — and what the prior lane's own measurement actually shows,
-//!   x = 504 in a base AND a filtered AND a *scrolled* Mangrove frame alike —
-//!   is that the MAPPING from slot to x is a property of the CARD, not of
-//!   what is scrolled under it. `sect2_scroll_never_moves_the_slot_to_x_map`
+//!   product behavior (the composition's own doc: "the spine leans"). What
+//!   IS invariant — and what the prior pixel-search measurement actually
+//!   shows, x = 504 in a base AND a filtered AND a *scrolled* Mangrove frame
+//!   alike — is that the MAPPING from slot to x is a property of the CARD,
+//!   not of what is scrolled under it. `scroll_never_moves_the_slot_to_x_map`
 //!   below compares slot i's published rect before vs after a real scroll:
-//!   Law 3's own claim (`diagonal_pixel_composition.rs`), reverified here
-//!   through real chords instead of a directly-built `ViewState`.
+//!   `diagonal_pixel_composition.rs`'s own attachment-inset claim, reverified
+//!   here through real chords instead of a directly-built `ViewState`.
 
 use super::super::*;
 use super::adapter_available;
@@ -185,10 +187,11 @@ fn capture_checkpoint(
 
 /// Non-vacuity + selection-exclusion shared by both arms: neither band may be
 /// degenerate, and the row the OWNER colours (`sel_row`) is excluded from
-/// either side of a comparison — it legitimately steps outward
-/// (`docs/harness-reach.md`/item 174's own landed lesson), and the published
-/// rows carry no per-row selection flag to check that against (item 164's
-/// transaction law).
+/// either side of a comparison — it legitimately steps outward on a
+/// staggering composition, and the published rows carry no per-row selection
+/// flag to check that against (the plan's LOGICAL selected row is a
+/// different fact from the drawn one, and no render path may read it outside
+/// the one transaction that colours the band).
 fn assert_real_band(who: &str, b: &Band) {
     assert!(
         b.rows.len() >= 4,
@@ -439,7 +442,7 @@ fn scroll_never_moves_the_slot_to_x_map() {
                         "{ctx}: slot {i} read [{:.2},{:.2},{:.2}x{:.2}] before the scroll and \
                          [{:.2},{:.2},{:.2}x{:.2}] after — the slot-to-x mapping moved, which \
                          means the composition's own surface shifted under a scroll rather \
-                         than staying the fixed surface-relative line item 131e names",
+                         than staying the fixed surface-relative line the composition promises",
                         rb.x,
                         rb.y,
                         rb.w,
