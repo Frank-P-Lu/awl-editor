@@ -163,14 +163,7 @@ impl TextPipeline {
                 hit_x: rail.hit[0],
                 hit_w: rail.hit[2],
             });
-            out.insert(
-                k,
-                RowLanes {
-                    label,
-                    value,
-                    rail,
-                },
-            );
+            out.insert(k, RowLanes { label, value, rail });
         }
         out
     }

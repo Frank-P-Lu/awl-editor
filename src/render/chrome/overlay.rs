@@ -684,7 +684,8 @@ impl TextPipeline {
             // WHERE the accessory hangs is the lane owner's one answer
             // (`overlay_accessory_anchor`, which the accessory upload, the frost's
             // surface list and the sidecar's own projection all ask); only how much
-            // room is LEFT beside it still differs by composition.
+            // room is LEFT beside it still differs by composition — a spined card
+            // reserves it off the cluster, an upright one off what the row leaves.
             let anchor = self.overlay_accessory_anchor(geom, k);
             let avail = match cluster {
                 Some(cluster) => cluster.accessory_w(),

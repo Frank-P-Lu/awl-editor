@@ -135,8 +135,6 @@ impl TextPipeline {
         let geom = self.overlay_geometry(self.window_w as u32);
         let plan = self.overlay_row_plan(&geom);
         let lanes = self.overlay_row_lanes(&geom, &plan);
-        Some(plan.geometry_report(|row| {
-            lanes.get(&row.display).copied().unwrap_or_default()
-        }))
+        Some(plan.geometry_report(|row| lanes.get(&row.display).copied().unwrap_or_default()))
     }
 }

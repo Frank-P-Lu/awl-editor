@@ -1,44 +1,36 @@
 //! **THE ACCESSORY CLUSTER'S PUBLISHED LANES, GRADED AGAINST THE INK AND THE
 //! POINTER** — the device-level companion to [`super::accessory_lane`], over the
-//! real pipeline and the whole world roster.
+//! real pipeline and the whole world roster. `super::tests` asserts the planner's
+//! arithmetic with no device at all; this file asks whether the number the sidecar
+//! PUBLISHES describes the lane the frame actually DREW and the rail a press
+//! actually lands in.
 //!
-//! `super::tests` asserts the planner's own arithmetic with no device at all.
-//! This file asks the harder question: does the number the sidecar PUBLISHES
-//! describe the lane the frame actually DREW, and the rail a press actually
-//! lands in? Comparing the report against the plan it was projected from would
-//! be a tautology, so every assertion below grades it against something that
-//! never reads it:
+//! Grading the report against the plan it was projected from would be a
+//! tautology, so each lane is graded against something that never reads it:
+//! [`grade_label`] against the shaped glyphs' own ink off the buffer the frame
+//! uploaded and the seat the draw handed glyphon; [`grade_value`] against the same
+//! for the accessory buffer, plus the name lane it grows toward; [`grade_rail`]
+//! against the value lane it is pinned to by `rowlayout::rail_accessory_width`,
+//! and against the POINTER itself.
 //!
-//! * **the label lane against the shaped glyphs' own ink**, off the buffer the
-//!   frame uploaded and the seat the draw handed glyphon — so a published
-//!   advance width that does not cover the ink it claims to fails here;
-//! * **the value lane against the RAIL**, which the pointer hit-test reads. The
-//!   rail is seated one fixed accessory gap inward of the value text off the
-//!   same anchor, so the two edges are pinned to each other by
-//!   `rowlayout::rail_accessory_width` — a report that moved the value lane
-//!   without moving the rail is arithmetically impossible to hide;
-//! * **the rail against the pointer**, pressed at its own midpoint and outside
-//!   its own hit band.
+//! **PRESENCE IS GRADED, NOT ONLY POSITION**, because a floor over a width is
+//! satisfied by publishing no lane at all. The sweep counts what it enrolled —
+//! labels, values, rails, both accessory mirrors, and the YIELDED cells where the
+//! card dropped its whole accessory column — and fails if any population is empty.
+//! The swept widths straddle that boundary on purpose; without a crossing the law
+//! would grade the comfortable regime twice.
 //!
-//! **PRESENCE IS GRADED, NOT ONLY POSITION.** A floor over a width is satisfied
-//! by publishing no lane at all, so the sweep counts what it enrolled — labels,
-//! values, rails, both accessory mirrors, and the YIELDED cells where the card
-//! dropped its whole accessory column — and fails if any of those populations is
-//! empty. The yielded cells are the point: the widths swept below straddle the
-//! boundary on purpose, and a sweep that never reached it would be grading the
-//! comfortable case only.
+//! **THE MENU BAR IS AN AXIS HERE.** Its reserve costs the card a whole row, and a
+//! different planned row count is a different widest label, hence a different
+//! accessory budget — the granted/yielded boundary moves with the arm.
 //!
-//! **THE MENU BAR IS AN AXIS HERE.** Its reserve costs the card a whole row, and
-//! a different planned row count is a different widest label, which is a
-//! different accessory budget — the boundary between "column granted" and
-//! "column yielded" moves with the arm. Both are swept.
-//!
-//! Finally [`assert_budget_returns_to_the_names`] asserts the one thing the
-//! published lanes were separated in order to say: yielding the accessory column
-//! hands its budget back to the names, and somewhere on the roster the names
-//! genuinely pay for it.
+//! Finally [`assert_budget_returns_to_the_names`] asserts the one thing separating
+//! the lanes was for: yielding the column hands its budget back to the names, and
+//! somewhere on the roster the names genuinely pay for it.
 
+use super::{Lane, PlannedRowRect, RailLane};
 use crate::overlay::{OverlayKind, OverlayState};
+use crate::render::TextPipeline;
 use crate::render::rowlayout::{ColumnFlow, rail_accessory_width};
 use crate::render::tests::{SETTINGS_VIEW_PARKED_WINDOW_ROWS, headless_dqp, settings_overlay_view};
 use crate::theme;
@@ -164,10 +156,6 @@ fn published_row_lanes_match_the_drawn_ink_and_the_clickable_rail() {
                         e.flows.push(flow);
                     }
                     let lh = p.overlay_lh();
-                    // The rail's own fixed internal gap, recovered from the two
-                    // owners that already publish it rather than re-declared:
-                    // `rail_accessory_width` is the rail plus that gap, and the
-                    // rail's drawn width is published.
                     let bands = p.overlay_panel_bands(&geom, &plan);
                     let first_line = geom.shaped_first_row_line();
 
@@ -179,10 +167,8 @@ fn published_row_lanes_match_the_drawn_ink_and_the_clickable_rail() {
                         e.yielded_cells += 1;
                         e.yielded_worlds.insert(world);
                     }
-                    // ONE SCALE'S widest name per cell, banked for the budget
-                    // relation asserted after the sweep. Only dpi 1: every figure
-                    // doubles with the scale, so mixing the two would compare a
-                    // 1x width against a 2x one.
+                    // Banked for the budget relation, at ONE scale only: every
+                    // figure doubles, so mixing them compares 1x against 2x.
                     if dpi == 1.0 {
                         e.cells.push(Cell {
                             world,
@@ -196,195 +182,24 @@ fn published_row_lanes_match_the_drawn_ink_and_the_clickable_rail() {
                                 .fold(0.0f32, f32::max),
                         });
                     }
-                    // A card may grant its value column and STILL seat no rail —
-                    // the rail needs its own room inside what the column left, and
-                    // that asymmetry is a live product question. The implication
-                    // that does hold is the other way round, and it is asserted
-                    // per-row below: a rail without a readout beside it is a
-                    // control with nothing to read.
-
+                    // A card may grant its value column and STILL seat no rail:
+                    // the rail needs its own room inside what the column left. The
+                    // implication that DOES hold is graded per row in `grade_rail`.
                     for row in &report.rows {
                         let k = row.display;
                         let mid_y = row.y + row.h * 0.5;
-
-                        // ── THE LABEL LANE vs THE SHAPED GLYPHS' OWN INK ──
                         if let Some(label) = row.lanes.label {
                             e.labels += 1;
-                            assert!(
-                                label.w > 0.0,
-                                "{ctx} row {k}: a reported label lane is never zero-width"
-                            );
-                            // The DRAW's own seat for this row's band — never the
-                            // report's `label.x`.
-                            let seat = bands
-                                .as_ref()
-                                .map_or(geom.text_left, |b| b[k + 1].left);
-                            let ink = glyph_ink(&p.panel_buffer, first_line + k);
-                            let (ink_l, ink_r) = ink.unwrap_or_else(|| {
-                                panic!("{ctx} row {k}: a reported label lane must have shaped ink")
-                            });
-                            let (ink_l, ink_r) = (seat + ink_l, seat + ink_r);
-                            // OVERLAP, never containment either way: an advance
-                            // width and a swash's real ink disagree by a pixel or
-                            // so in BOTH directions across this roster, and a
-                            // staggered row can publish an x outside its band.
-                            assert!(
-                                ink_r > label.x - 1.5 && ink_l < label.x + label.w + 1.5,
-                                "{ctx} row {k}: published label [{}, {}] does not meet its \
-                                 drawn ink [{ink_l}, {ink_r}]",
-                                label.x,
-                                label.x + label.w
-                            );
-                            assert!(
-                                (ink_l - label.x).abs() < 2.0,
-                                "{ctx} row {k}: published label origin {} is not where the \
-                                 frame seated the ink ({ink_l})",
-                                label.x
-                            );
-                            // AND THE WIDTH, against the ink's own extent. Without
-                            // this the lane is pinned only by its origin, and a
-                            // width scaled by any uniform factor stays green —
-                            // including at both capture scales, since a factor
-                            // survives the doubling relation untouched.
-                            assert!(
-                                (label.w - (ink_r - ink_l)).abs() < 2.0,
-                                "{ctx} row {k}: published label width {} is not the width \
-                                 of the ink it claims ({})",
-                                label.w,
-                                ink_r - ink_l
-                            );
+                            let seat = bands.as_ref().map_or(geom.text_left, |b| b[k + 1].left);
+                            grade_label(&p, &ctx, k, label, seat, first_line + k);
                         }
-
-                        // ── THE VALUE LANE vs THE RAIL THE POINTER READS ──
                         if let Some(value) = row.lanes.value {
                             e.values += 1;
-                            assert!(
-                                value.w > 0.0,
-                                "{ctx} row {k}: a reported value lane is never zero-width"
-                            );
-                            // The accessory buffer's own ink, for the same reason
-                            // the name lane's width is graded above. Its WIDTH is
-                            // seat-independent, so this holds whichever end the
-                            // column hangs on.
-                            let (vl, vr) = glyph_ink(
-                                &p.panel_bind_buffer,
-                                geom.header_rows + k,
-                            )
-                            .unwrap_or_else(|| {
-                                panic!(
-                                    "{ctx} row {k}: a reported value lane must have shaped ink"
-                                )
-                            });
-                            assert!(
-                                (value.w - (vr - vl)).abs() < 2.0,
-                                "{ctx} row {k}: published value width {} is not the width of \
-                                 the accessory ink it claims ({})",
-                                value.w,
-                                vr - vl
-                            );
-                            if let Some(label) = row.lanes.label {
-                                let (a, b) = (label.x, label.x + label.w);
-                                let (c, d) = (value.x, value.x + value.w);
-                                assert!(
-                                    b <= c + 0.01 || d <= a + 0.01,
-                                    "{ctx} row {k}: the name lane [{a}, {b}] and the value \
-                                     lane [{c}, {d}] overlap — a row's two ends grow toward \
-                                     each other and must never meet"
-                                );
-                            }
+                            grade_value(&p, &ctx, k, value, row.lanes.label, geom.header_rows + k);
                         }
                         if let Some(rail) = row.lanes.rail {
                             e.rails += 1;
-                            let value = row.lanes.value.unwrap_or_else(|| {
-                                panic!(
-                                    "{ctx} row {k}: a rail without a value lane is a control \
-                                     with no readout — the two are gated together"
-                                )
-                            });
-                            let gap = rail_accessory_width(lh) - rail.w;
-                            assert!(
-                                gap > 0.0,
-                                "{ctx} row {k}: the accessory reservation must exceed the \
-                                 rail it reserves for (rail {} of {})",
-                                rail.w,
-                                rail_accessory_width(lh)
-                            );
-                            // The rail hangs one fixed gap INWARD of the value
-                            // text off the same anchor, whichever way the cluster
-                            // mirrors — so the two published edges are pinned to
-                            // each other through the owner the pointer reads.
-                            let (rail_inner, value_outer) = match flow {
-                                ColumnFlow::Leftward => (rail.x + rail.w, value.x),
-                                ColumnFlow::Rightward => (rail.x, value.x + value.w),
-                            };
-                            assert!(
-                                (value_outer - rail_inner).abs() - gap < 0.05
-                                    && ((value_outer - rail_inner).abs() - gap) > -0.05,
-                                "{ctx} row {k}: the rail's inner edge {rail_inner} must sit \
-                                 exactly one accessory gap ({gap}) from the value lane's \
-                                 edge {value_outer}, got {}",
-                                (value_outer - rail_inner).abs()
-                            );
-                            // A rail never crosses into the name.
-                            if let Some(label) = row.lanes.label {
-                                assert!(
-                                    rail.x >= label.x + label.w - 0.01
-                                        || rail.x + rail.w <= label.x + 0.01,
-                                    "{ctx} row {k}: rail [{}, {}] crosses the name lane \
-                                     [{}, {}]",
-                                    rail.x,
-                                    rail.x + rail.w,
-                                    label.x,
-                                    label.x + label.w
-                                );
-                            }
-                            // The hit band is DELIBERATELY more generous, and it
-                            // is published as a separate pair so that is assertable.
-                            assert!(
-                                rail.hit_x < rail.x + 0.01
-                                    && rail.hit_x + rail.hit_w > rail.x + rail.w - 0.01
-                                    && rail.hit_w > rail.w,
-                                "{ctx} row {k}: the hit band [{}, {}] must strictly contain \
-                                 the drawn track [{}, {}]",
-                                rail.hit_x,
-                                rail.hit_x + rail.hit_w,
-                                rail.x,
-                                rail.x + rail.w
-                            );
-
-                            // ── THE POINTER, on the published rail ──
-                            let item = row.item.unwrap_or_else(|| {
-                                panic!("{ctx} row {k}: a rail row always carries an item")
-                            });
-                            let cx = rail.x + rail.w * 0.5;
-                            assert_eq!(
-                                p.overlay_range_at(cx, mid_y).map(|(i, _)| i),
-                                Some(item),
-                                "{ctx} row {k}: a press at the published rail's own midpoint \
-                                 ({cx}, {mid_y}) must adjust that row's range"
-                            );
-                            for px in [rail.hit_x - 1.5, rail.hit_x + rail.hit_w + 1.5] {
-                                assert_ne!(
-                                    p.overlay_range_at(px, mid_y).map(|(i, _)| i),
-                                    Some(item),
-                                    "{ctx} row {k}: a press 1.5px outside the published hit \
-                                     band ({px}) must not adjust that row's range"
-                                );
-                            }
-                            // The published track inverts back through the same
-                            // owner the drag reads, so an edge press reads as an
-                            // edge fraction.
-                            let lo = crate::render::rail_frac_at(rail.x, rail.x, rail.x + rail.w);
-                            let hi = crate::render::rail_frac_at(
-                                rail.x + rail.w,
-                                rail.x,
-                                rail.x + rail.w,
-                            );
-                            assert!(
-                                lo < 0.001 && hi > 0.999,
-                                "{ctx} row {k}: the published track must invert to its own \
-                                 full fraction range, got {lo}..{hi}"
-                            );
+                            grade_rail(&p, &ctx, row, rail, mid_y, lh, flow);
                         }
                     }
                 }
@@ -407,7 +222,9 @@ fn published_row_lanes_match_the_drawn_ink_and_the_clickable_rail() {
     // world yielding somewhere and a different one granting elsewhere: only the
     // crossing proves the swept widths actually bracket the gate.
     assert!(
-        e.yielded_worlds.iter().any(|w| e.granted_worlds.contains(w)),
+        e.yielded_worlds
+            .iter()
+            .any(|w| e.granted_worlds.contains(w)),
         "no world was seen on both sides of the accessory column's gate — \
          yielded {:?}, granted {:?}. Without a crossing, the narrow arm and the \
          wide arm could each be grading a different, comfortable regime.",
@@ -490,6 +307,174 @@ fn assert_budget_returns_to_the_names(cells: &[Cell]) {
          either makes the relation vacuous: with no yielded cell there is nothing \
          to return a budget to, and with no elided granted cell the names never \
          pay and the claim is trivially true."
+    );
+}
+
+/// **THE NAME LANE vs THE SHAPED GLYPHS' OWN INK.** `seat` is the DRAW's own band
+/// origin for this row — never the report's `label.x` — so the two answers arrive
+/// by different routes and can disagree.
+fn grade_label(p: &TextPipeline, ctx: &str, k: usize, label: Lane, seat: f32, line_i: usize) {
+    assert!(
+        label.w > 0.0,
+        "{ctx} row {k}: a reported lane is never empty"
+    );
+    let (l, r) = glyph_ink(&p.panel_buffer, line_i)
+        .unwrap_or_else(|| panic!("{ctx} row {k}: a reported label lane must have shaped ink"));
+    let (ink_l, ink_r) = (seat + l, seat + r);
+    // OVERLAP, never containment either way: an advance width and a swash's real
+    // ink disagree by a pixel or so in BOTH directions across this roster, and a
+    // staggered row legitimately publishes an x outside its own band.
+    assert!(
+        ink_r > label.x - 1.5 && ink_l < label.x + label.w + 1.5,
+        "{ctx} row {k}: published label [{}, {}] does not meet its drawn ink \
+         [{ink_l}, {ink_r}]",
+        label.x,
+        label.x + label.w
+    );
+    assert!(
+        (ink_l - label.x).abs() < 2.0,
+        "{ctx} row {k}: published label origin {} is not where the frame seated \
+         the ink ({ink_l})",
+        label.x
+    );
+    // AND THE WIDTH. Pinned only by its origin, a lane's width scaled by any
+    // uniform factor stays green — including at both capture scales, since a
+    // factor survives the doubling relation untouched.
+    assert!(
+        (label.w - (ink_r - ink_l)).abs() < 2.0,
+        "{ctx} row {k}: published label width {} is not the width of the ink it \
+         claims ({})",
+        label.w,
+        ink_r - ink_l
+    );
+}
+
+/// **THE VALUE LANE**, against the accessory buffer's own ink width — which is
+/// seat-independent, so it holds whichever end the column hangs on — and against
+/// the name lane it grows toward.
+fn grade_value(
+    p: &TextPipeline,
+    ctx: &str,
+    k: usize,
+    value: Lane,
+    label: Option<Lane>,
+    line_i: usize,
+) {
+    assert!(
+        value.w > 0.0,
+        "{ctx} row {k}: a reported lane is never empty"
+    );
+    let (l, r) = glyph_ink(&p.panel_bind_buffer, line_i)
+        .unwrap_or_else(|| panic!("{ctx} row {k}: a reported value lane must have shaped ink"));
+    assert!(
+        (value.w - (r - l)).abs() < 2.0,
+        "{ctx} row {k}: published value width {} is not the width of the accessory \
+         ink it claims ({})",
+        value.w,
+        r - l
+    );
+    if let Some(label) = label {
+        let (a, b) = (label.x, label.x + label.w);
+        let (c, d) = (value.x, value.x + value.w);
+        assert!(
+            b <= c + 0.01 || d <= a + 0.01,
+            "{ctx} row {k}: the name lane [{a}, {b}] and the value lane [{c}, {d}] \
+             overlap — a row's two ends grow toward each other and must never meet"
+        );
+    }
+}
+
+/// **THE RAIL**, against the value lane it annotates and against the POINTER.
+///
+/// The rail hangs one fixed accessory gap inward of the value text off the same
+/// anchor, whichever way the cluster mirrors, so the two published edges are
+/// pinned to each other through the owner the hit-test reads. Then the pointer
+/// itself: pressed at the published track's own midpoint, and 1.5px outside the
+/// published hit band, which must be the whole band a press is accepted in.
+fn grade_rail(
+    p: &TextPipeline,
+    ctx: &str,
+    row: &PlannedRowRect,
+    rail: RailLane,
+    mid_y: f32,
+    lh: f32,
+    flow: ColumnFlow,
+) {
+    let k = row.display;
+    let value = row.lanes.value.unwrap_or_else(|| {
+        panic!(
+            "{ctx} row {k}: a rail without a value lane is a control with no \
+             readout — the two are gated together"
+        )
+    });
+    let gap = rail_accessory_width(lh) - rail.w;
+    assert!(
+        gap > 0.0,
+        "{ctx} row {k}: the accessory reservation must exceed the rail it reserves \
+         for (rail {} of {})",
+        rail.w,
+        rail_accessory_width(lh)
+    );
+    let (rail_inner, value_edge) = match flow {
+        ColumnFlow::Leftward => (rail.x + rail.w, value.x),
+        ColumnFlow::Rightward => (rail.x, value.x + value.w),
+    };
+    let seen = (value_edge - rail_inner).abs();
+    assert!(
+        (seen - gap).abs() < 0.05,
+        "{ctx} row {k}: the rail's inner edge {rail_inner} must sit exactly one \
+         accessory gap ({gap}) from the value lane's edge {value_edge}, got {seen}"
+    );
+    if let Some(label) = row.lanes.label {
+        assert!(
+            rail.x >= label.x + label.w - 0.01 || rail.x + rail.w <= label.x + 0.01,
+            "{ctx} row {k}: rail [{}, {}] crosses the name lane [{}, {}]",
+            rail.x,
+            rail.x + rail.w,
+            label.x,
+            label.x + label.w
+        );
+    }
+    assert!(
+        rail.hit_x < rail.x + 0.01
+            && rail.hit_x + rail.hit_w > rail.x + rail.w - 0.01
+            && rail.hit_w > rail.w,
+        "{ctx} row {k}: the hit band [{}, {}] must strictly contain the drawn \
+         track [{}, {}]",
+        rail.hit_x,
+        rail.hit_x + rail.hit_w,
+        rail.x,
+        rail.x + rail.w
+    );
+    let item = row
+        .item
+        .unwrap_or_else(|| panic!("{ctx} row {k}: a rail row always carries an item"));
+    let cx = rail.x + rail.w * 0.5;
+    assert_eq!(
+        p.overlay_range_at(cx, mid_y).map(|(i, _)| i),
+        Some(item),
+        "{ctx} row {k}: a press at the published rail's own midpoint ({cx}, \
+         {mid_y}) must adjust that row's range"
+    );
+    for px in [rail.hit_x - 1.5, rail.hit_x + rail.hit_w + 1.5] {
+        assert_ne!(
+            p.overlay_range_at(px, mid_y).map(|(i, _)| i),
+            Some(item),
+            "{ctx} row {k}: a press 1.5px outside the published hit band ({px}) \
+             must not adjust that row's range"
+        );
+    }
+    // The published track inverts back through the owner the DRAG reads, so an
+    // edge press reads as an edge fraction.
+    let x1 = rail.x + rail.w;
+    let (lo, hi) = (
+        crate::render::rail_frac_at(rail.x, rail.x, x1),
+        crate::render::rail_frac_at(x1, rail.x, x1),
+    );
+    assert!(
+        lo < 0.001 && hi > 0.999,
+        "{ctx} row {k}: the published track must invert to its own full fraction \
+         range, got {lo}..{hi}"
     );
 }
 

@@ -268,16 +268,8 @@ fn published_row_lanes_are_physical_pixels_and_scale_with_capture_dpi() {
         // the other calls `null` is the same class of bug as a rescaled number, and
         // it would slip past a loop that only compares the lanes both scales have.
         assert_eq!(
-            (
-                lo.label.is_some(),
-                lo.value.is_some(),
-                lo.rail.is_some()
-            ),
-            (
-                hi.label.is_some(),
-                hi.value.is_some(),
-                hi.rail.is_some()
-            ),
+            (lo.label.is_some(), lo.value.is_some(), lo.rail.is_some()),
+            (hi.label.is_some(), hi.value.is_some(), hi.rail.is_some()),
             "row {i}: which lanes the frame drew must not depend on the capture scale"
         );
         if let (Some(l), Some(h)) = (lo.label, hi.label) {
