@@ -403,14 +403,13 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
         dispose_after_accept(ctx);
         return eff;
     }
-    if matches!(
-        ov.kind,
-        crate::overlay::OverlayKind::Theme | crate::overlay::OverlayKind::Caret
-    ) {
-        // COMMIT: the highlighted world is ALREADY active (live preview
+    if ov.kind.previews_live_document() {
+        // COMMIT: the highlighted value is ALREADY live (`preview_overlay`
         // applied it as the selection moved), so Enter just keeps it and
         // closes. Emit the committed name so the caller can re-tint its
-        // GPU pipelines / window title to match.
+        // GPU pipelines / window title to match. Asked of the audition's own
+        // owner rather than naming its two members, so this arm and the
+        // preview that makes it a KEEP cannot enrol different kinds.
         let eff = match ov.selected_value() {
             Some(v) => Effect::OverlayAccept(ov.kind, v.to_string()),
             None => Effect::None,
@@ -755,7 +754,20 @@ pub(super) fn move_dest_value(ov: &OverlayState) -> Option<String> {
     Some(ov.browse_dir.clone().unwrap_or_default())
 }
 
+/// THE LIVE AUDITION: apply the highlighted row's value to the running editor so
+/// the page behind the card shows it before anything is committed.
+///
+/// The roster gate is [`crate::overlay::OverlayKind::previews_live_document`], not
+/// the arms below: a kind that has not declared the audition never reaches its
+/// own arm, so an arm added here alone is inert until the declaration is made —
+/// and the declaration is what pins the card's backdrop crisp
+/// (`keeps_backdrop_crisp`, asserted equal over the roster). Without the gate the
+/// wildcard swallowed the difference, and a new previewing kind could blur the
+/// only thing its rows were showing with every law still green.
 pub(crate) fn preview_overlay(ov: &OverlayState) {
+    if !ov.kind.previews_live_document() {
+        return;
+    }
     match ov.kind {
         crate::overlay::OverlayKind::Theme => {
             if let Some(name) = ov.selected_value() {
@@ -767,6 +779,9 @@ pub(crate) fn preview_overlay(ov: &OverlayState) {
                 crate::caret::set_mode(m);
             }
         }
+        // Unreachable behind the gate above: a kind that answers yes and lands
+        // here has declared an audition it never wired, which the roster law
+        // catches by finding nothing changed.
         _ => {}
     }
 }

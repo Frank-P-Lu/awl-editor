@@ -110,6 +110,19 @@ impl TextPipeline {
         PanelRowBands::new(text_top, self.metrics.line_height)
     }
 
+    /// **THE PANEL CARET'S CENTRE-Y**, the single figure `panel_place_caret` hands
+    /// the caret renderer, named so it can be graded.
+    ///
+    /// It was previously computed inline at its one call site, which meant the
+    /// caret's vertical placement had no seam any law could reach: the row-band
+    /// owner's [`PanelRowBands::center`] arm was the one arm of that owner nothing
+    /// graded, and the panel caret's `y` was asserted nowhere at all — the caret
+    /// law next door pins its `x` only. Routing the placer through here changes no
+    /// arithmetic; it gives the centre a name.
+    pub(in crate::render) fn panel_caret_cy(&self, text_top: f32, caret_row: f32) -> f32 {
+        self.panel_rows(text_top).center(caret_row)
+    }
+
     /// The card's shaped rows, in draw order — the same population
     /// `panel_layout` sizes the card's height from, asked for its row indices
     /// instead of its count. One entry with the plain find panel up, three once
