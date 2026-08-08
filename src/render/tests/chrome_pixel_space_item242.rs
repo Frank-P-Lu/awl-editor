@@ -405,6 +405,14 @@ const UNIT_TYPES: &[&str] = &["Logical", "Physical", "LogicalGrowOnly", "Chars",
 /// [`DIMENSIONLESS`].
 const NON_LENGTH_TYPES: &[&str] = &["Millis"];
 
+/// Families that are declared in the TYPE and scale as an AREA — the SQUARE of
+/// the display factor — rather than as a length or not at all. Kept apart from
+/// [`NON_LENGTH_TYPES`]: a `Millis` never meets the pixel scale at all, but an
+/// `Area` genuinely does, just through its own quadratic door (`Area::px2`)
+/// rather than a length's linear one, so lumping it with a true non-length
+/// would hide that it is still scale-dependent.
+const AREA_TYPES: &[&str] = &["Area"];
+
 /// The constants [`Metrics::with_dpi`] resolves ITSELF, read out of that
 /// function's own body rather than listed by name.
 ///
@@ -632,6 +640,16 @@ fn const_decl(line: &str) -> Option<&str> {
 /// third with its reason, and the fourth is a [`Chars`]. What is left over is a
 /// measured DEFECT with its own closed ledger, [`DPI_BLIND_PENDING`], not a
 /// classification.
+///
+/// WIDENED A FOURTH TIME, to `src/render/caret_body.rs` — the caret's own
+/// minimum-visible-body floor, one directory out from every sweep above and the
+/// same untyped-`f32` shape this file exists to close. Its two length constants
+/// recover `Metrics::scale` at the call site rather than reading `Metrics`
+/// directly and pass it through `Logical::px`, the same recovery `CARET_INK_PAD`
+/// already used. Its third constant is an AREA, met here for the first time: an
+/// area scales as the SQUARE of the display factor, so a length family would
+/// silently under-scale it by one factor of `scale` — it gets its own by-kind
+/// family, `Area`, with a `.px2` door rather than `Logical`'s linear `.px`.
 fn chrome_sources() -> Vec<(String, String)> {
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut out = Vec::new();
@@ -641,6 +659,7 @@ fn chrome_sources() -> Vec<(String, String)> {
         "src/render/geometry.rs",
         "src/render/scroll.rs",
         "src/menubar.rs",
+        "src/render/caret_body.rs",
     ];
     while let Some(dir) = stack.pop() {
         for entry in std::fs::read_dir(&dir).expect("chrome dir readable") {
@@ -731,56 +750,24 @@ fn product_sources() -> Vec<(String, String)> {
     out
 }
 
-/// **CLAIM 4a — EVERY AUTHORED CHROME CONSTANT DECLARES ITS UNIT FAMILY.**
-///
-/// The `_LOGICAL` suffixes this round retired were the right instinct with an
-/// unenforceable mechanism: a suffix is not a type, and nothing stopped the
-/// next constant from being a bare `f32` multiplied by nothing. This is the
-/// enforcement. A new chrome length authored as a bare `f32` fails HERE, by
-/// name, and the only way past is to state which of the four families it is in
-/// — or to record, with a reason, that it is not a length at all.
-///
-/// **FOUR MECHANISMS, and each one names what enrolled it**, because the sweep
-/// now covers `render.rs` and a bare `f32` there can be innocent for a reason no
-/// chrome pad ever had:
-///
-///   * a UNIT TYPE, or a `Millis` — the by-kind exclusion, enforced by the
-///     compiler rather than by this file;
-///   * resolved by [`Metrics::with_dpi`] itself, DERIVED from that function's
-///     own body ([`metrics_resolved_constants`]) so the exclusion expires the
-///     moment the owner stops multiplying it;
-///   * [`DIMENSIONLESS`], the reasoned table for a ratio or a colour channel
-///     that no type currently expresses;
-///   * [`DPI_BLIND_PENDING`], a CLOSED ledger of measured defects, cross-checked
-///     against the leftover set in
-///     [`the_dpi_blind_ledger_is_exactly_the_unclassified_leftover`] so it
-///     cannot absorb a new constant quietly.
-#[test]
-fn every_authored_chrome_constant_declares_its_unit_family() {
-    let mut offenders: Vec<String> = Vec::new();
-    let mut typed = 0usize;
-    let mut non_length_typed = 0usize;
-    let mut dimensionless = 0usize;
-    let mut owner_resolved = 0usize;
-    let mut pending = 0usize;
-    let sources = chrome_sources();
-    let render_src = sources
-        .iter()
-        .find(|(p, _)| p == "src/render.rs")
-        .map(|(_, s)| s.clone())
-        .expect("src/render.rs is in the swept set");
-    let resolved = metrics_resolved_constants(&render_src);
-    // NON-VACUITY OF THE DERIVATION, before anything is excused by it: the owner
-    // really does resolve a family of base metrics, and a parse that silently
-    // matched nothing would excuse nothing rather than everything — but it would
-    // also mean the mechanism this law advertises does not exist.
-    assert!(
-        resolved.len() >= 10,
-        "Metrics::with_dpi's body yielded only {} resolved constants ({resolved:?}) \
-         — the derivation that excuses the base metrics is not reading the owner",
-        resolved.len()
-    );
-    for (path, src) in &sources {
+/// Per-constant classification tally for
+/// [`every_authored_chrome_constant_declares_its_unit_family`], pulled into its
+/// own owner so the law itself reads as a list of assertions rather than a
+/// scan wearing some assertions at the end.
+#[derive(Default)]
+struct DeclarationTally {
+    offenders: Vec<String>,
+    typed: usize,
+    non_length_typed: usize,
+    area_typed: usize,
+    dimensionless: usize,
+    owner_resolved: usize,
+    pending: usize,
+}
+
+fn tally_declarations(sources: &[(String, String)], resolved: &[String]) -> DeclarationTally {
+    let mut t = DeclarationTally::default();
+    for (path, src) in sources {
         for (i, line) in src.lines().enumerate() {
             let Some(rest) = const_decl(line) else {
                 continue;
@@ -800,22 +787,25 @@ fn every_authored_chrome_constant_declares_its_unit_family() {
             // level is not a length and never could be.
             if !(ty == "f32"
                 || UNIT_TYPES.contains(&ty.as_str())
-                || NON_LENGTH_TYPES.contains(&ty.as_str()))
+                || NON_LENGTH_TYPES.contains(&ty.as_str())
+                || AREA_TYPES.contains(&ty.as_str()))
             {
                 continue;
             }
             if UNIT_TYPES.contains(&ty.as_str()) {
-                typed += 1;
+                t.typed += 1;
             } else if NON_LENGTH_TYPES.contains(&ty.as_str()) {
-                non_length_typed += 1;
+                t.non_length_typed += 1;
+            } else if AREA_TYPES.contains(&ty.as_str()) {
+                t.area_typed += 1;
             } else if resolved.iter().any(|n| n == name) {
-                owner_resolved += 1;
+                t.owner_resolved += 1;
             } else if DIMENSIONLESS.iter().any(|(n, _)| *n == name) {
-                dimensionless += 1;
+                t.dimensionless += 1;
             } else if DPI_BLIND_PENDING.iter().any(|(n, _)| *n == name) {
-                pending += 1;
+                t.pending += 1;
             } else {
-                offenders.push(format!(
+                t.offenders.push(format!(
                     "{path}:{}: `{name}: f32` is an untyped chrome constant. \
                      Chrome's default pixel space is LOGICAL — declare it \
                      `Logical` (or `Physical` with a reason, `LogicalGrowOnly`, \
@@ -827,40 +817,94 @@ fn every_authored_chrome_constant_declares_its_unit_family() {
             }
         }
     }
+    t
+}
+
+/// **CLAIM 4a — EVERY AUTHORED CHROME CONSTANT DECLARES ITS UNIT FAMILY.**
+///
+/// The `_LOGICAL` suffixes this round retired were the right instinct with an
+/// unenforceable mechanism: a suffix is not a type, and nothing stopped the
+/// next constant from being a bare `f32` multiplied by nothing. This is the
+/// enforcement. A new chrome length authored as a bare `f32` fails HERE, by
+/// name, and the only way past is to state which of the four families it is in
+/// — or to record, with a reason, that it is not a length at all.
+///
+/// **FOUR MECHANISMS, and each one names what enrolled it**, because the sweep
+/// now covers `render.rs` and a bare `f32` there can be innocent for a reason no
+/// chrome pad ever had:
+///
+///   * a UNIT TYPE, or a `Millis` — the by-kind exclusion, enforced by the
+///     compiler rather than by this file;
+///   * an `Area` — the by-kind exclusion for a quantity that scales as the
+///     SQUARE of the display factor, so a length's linear door would silently
+///     under-scale it;
+///   * resolved by [`Metrics::with_dpi`] itself, DERIVED from that function's
+///     own body ([`metrics_resolved_constants`]) so the exclusion expires the
+///     moment the owner stops multiplying it;
+///   * [`DIMENSIONLESS`], the reasoned table for a ratio or a colour channel
+///     that no type currently expresses;
+///   * [`DPI_BLIND_PENDING`], a CLOSED ledger of measured defects, cross-checked
+///     against the leftover set in
+///     [`the_dpi_blind_ledger_is_exactly_the_unclassified_leftover`] so it
+///     cannot absorb a new constant quietly.
+#[test]
+fn every_authored_chrome_constant_declares_its_unit_family() {
+    let sources = chrome_sources();
+    let render_src = sources
+        .iter()
+        .find(|(p, _)| p == "src/render.rs")
+        .map(|(_, s)| s.clone())
+        .expect("src/render.rs is in the swept set");
+    let resolved = metrics_resolved_constants(&render_src);
+    // NON-VACUITY OF THE DERIVATION, before anything is excused by it: the owner
+    // really does resolve a family of base metrics, and a parse that silently
+    // matched nothing would excuse nothing rather than everything — but it would
+    // also mean the mechanism this law advertises does not exist.
     assert!(
-        offenders.is_empty(),
+        resolved.len() >= 10,
+        "Metrics::with_dpi's body yielded only {} resolved constants ({resolved:?}) \
+         — the derivation that excuses the base metrics is not reading the owner",
+        resolved.len()
+    );
+    let t = tally_declarations(&sources, &resolved);
+    assert!(
+        t.offenders.is_empty(),
         "chrome constants authored outside the pixel space:\n{}",
-        offenders.join("\n")
+        t.offenders.join("\n")
     );
     // Non-vacuity: the sweep must actually be finding constants of every kind it
     // claims to sort, and each floor is named so a green run says what it graded.
     assert!(
-        typed >= 25,
-        "the sweep found only {typed} unit-typed chrome constants — it is not \
-         reading the sources it thinks it is"
+        t.typed >= 25,
+        "the sweep found only {} unit-typed chrome constants — it is not \
+         reading the sources it thinks it is",
+        t.typed
     );
     assert!(
-        non_length_typed >= 3 && owner_resolved >= 10,
-        "the by-kind exclusions must both be populated: {non_length_typed} \
-         Millis-typed, {owner_resolved} resolved by Metrics::with_dpi"
+        t.non_length_typed >= 3 && t.owner_resolved >= 10 && t.area_typed >= 1,
+        "the by-kind exclusions must all be populated: {} Millis-typed, {} \
+         Area-typed, {} resolved by Metrics::with_dpi",
+        t.non_length_typed,
+        t.area_typed,
+        t.owner_resolved
     );
     assert_eq!(
-        dimensionless,
+        t.dimensionless,
         DIMENSIONLESS.len(),
         "every entry in the DIMENSIONLESS table must still name a live chrome \
          constant; a stale entry silently excuses a name nobody wrote"
     );
     assert_eq!(
-        pending,
+        t.pending,
         DPI_BLIND_PENDING.len(),
         "every entry in the DPI_BLIND_PENDING ledger must still name a live \
          untyped constant; one that has been given a family must LEAVE the \
          ledger, or the ledger starts excusing a name nobody wrote"
     );
     eprintln!(
-        "declaration sweep: {typed} unit-typed, {non_length_typed} Millis, \
-         {owner_resolved} resolved by Metrics::with_dpi, {dimensionless} \
-         dimensionless, {pending} DPI-blind pending"
+        "declaration sweep: {} unit-typed, {} Millis, {} Area, {} resolved by \
+         Metrics::with_dpi, {} dimensionless, {} DPI-blind pending",
+        t.typed, t.non_length_typed, t.area_typed, t.owner_resolved, t.dimensionless, t.pending
     );
 }
 
