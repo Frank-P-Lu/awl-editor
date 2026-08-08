@@ -3475,9 +3475,10 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      ⚠️ **The four public ones are the priority** — they are what a user or a screen-reader user reads.
      **Routing:** production tier; sequence behind item 302, which owns the same lever.
 
-345. 🟡 **PREPPED AND HELD ON A BRANCH — `claude/item-345-caret-pitch`, ready to merge in one
-     command, AWAITING THE USER'S WORD (2026-08-08). Not merged, deliberately: the orchestrator
-     committed to showing the captures first.**
+345. ✅ **LANDED ON MAIN (2026-08-08) under the user's new standing preference — an easily-revertible
+     change goes onto `main` for judgement rather than waiting on a branch. Reverting is one commit.**
+     🔵 **STILL OWED: your eye on Currawong and Cassowary.** The caret there is now **narrower** — 12.000px
+     over a 12.000px cell where it was 14.400 — and the caret is this design's one accent.
      ✅ **Premise reproduced through the real render pipeline before anything changed** — Currawong's
      `caret_block_w()` returned **14.4 against the face's own advance of 12.0**, and Iosevka is still the
      display face of exactly those two worlds.
@@ -3697,6 +3698,12 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      for the eye, and **nobody has looked.**
      ⚠️ **Read-only: the auditor edits nothing.** An audit that finds something **names** the missing law
      without writing it. **Routing:** production tier.
+346. 🟡 **CANDIDATE B LANDED ON MAIN (2026-08-08)** — `reach 4.5 → 5.5`, `aperture 0.55 → 0.45`,
+     closing Magpie's vertex from ~70.7° to ~50.8°. Weight stays 1.25. Mangrove untouched (it carries
+     `CRISP`). All six marker laws and all 24 diagonal laws green, **including the drawn presence floor**, so
+     "thinner" has not become "gone". 🔵 **Your eye is still owed** — reverting is one line in
+     `src/theme/diagonal.rs`.
+
 350. ✅ **LANDED (merged 2026-08-08) — AND THE HONEST ANSWER WAS NOT A LAW.** The lane took the
      capture-side oracle over a standing law and **argued it from evidence rather than defaulting**: the four
      candidates a vision smoke could not tell apart have **no registry, enum or file to enrol** — `gallery/`

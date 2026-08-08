@@ -7,6 +7,29 @@
 Always edit `.orchestrator`, and preserve active entries across tools and
 worktrees.
 
+## Taste calls: LAND the easy ones, don't park them (user decision 2026-08-08)
+
+‼ **THE USER'S STANDING PREFERENCE, in their own words: *"if it's easy to change, just
+merge it onto main and await my feedback."* Treat that as the default for any change that
+is cheap to revert.** A one-line theme value, a constant, a routing flip — land it, say in
+the commit message that it is landed for judgement, and name what reverting costs. **A
+taste call parked on a branch is a taste call nobody can see**, and this board accumulated
+eight of them before the user asked for this.
+
+**What still does NOT get landed on this basis**, because "easy to revert" is about the
+diff and these are not:
+- a change that **moves data the user owns** or rewrites a document (a revert does not
+  un-publish it);
+- anything **outward-facing** — a tag, a release, a push to a public page;
+- a change whose **cost is discovering it late** rather than undoing it: a schema bump other
+  tools read, a default that silently rewrites files on open;
+- a change that **is not measured yet.** Landing is not a substitute for the numbers — it
+  is what to do once you have them and only taste is left.
+
+⚠️ **State the revert cost explicitly in the commit** ("reverting is one commit", "one line
+in `<file>`"), so the user's option is visible without reading the diff. And **keep the
+`🔵 OWED` entry** — landing changes where the code lives, not whether an answer is owed.
+
 ## The default: one owner, end to end
 
 One capable agent owns an item from diagnosis through implementation, tests,
