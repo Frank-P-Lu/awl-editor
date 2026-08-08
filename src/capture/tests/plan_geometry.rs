@@ -61,13 +61,26 @@ fn flat_picker_opts(ov: &OverlayState, canvas: (u32, u32), dpi: f32) -> CaptureO
     opts
 }
 
+/// One `overlay.window.rows[]` entry, read back out of the JSON rather than out
+/// of the report struct — so a serializer that dropped or renamed a key fails
+/// here at the `expect` rather than passing on a defaulted zero.
+struct Row {
+    display: u64,
+    item: Option<u64>,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    selected: bool,
+}
+
 struct Band {
     first_top: f64,
     pitch: f64,
     footer_top: f64,
     x: f64,
     w: f64,
-    rows: Vec<(u64, Option<u64>, f64, f64, f64, f64, bool)>,
+    rows: Vec<Row>,
     sel_row: u64,
     canvas_h: f64,
 }
@@ -86,16 +99,14 @@ fn read_band(png: &std::path::Path) -> Band {
         .as_array()
         .expect("schema /201: `rows` is an array")
         .iter()
-        .map(|r| {
-            (
-                r["display"].as_u64().expect("display"),
-                r["item"].as_u64(),
-                r["x"].as_f64().expect("x"),
-                r["y"].as_f64().expect("y"),
-                r["w"].as_f64().expect("w"),
-                r["h"].as_f64().expect("h"),
-                r["selected"].as_bool().expect("selected"),
-            )
+        .map(|r| Row {
+            display: r["display"].as_u64().expect("display"),
+            item: r["item"].as_u64(),
+            x: r["x"].as_f64().expect("x"),
+            y: r["y"].as_f64().expect("y"),
+            w: r["w"].as_f64().expect("w"),
+            h: r["h"].as_f64().expect("h"),
+            selected: r["selected"].as_bool().expect("selected"),
         })
         .collect();
     Band {
@@ -165,8 +176,11 @@ fn published_row_geometry_is_physical_pixels_and_scales_with_capture_dpi() {
     for (name, g) in [("1x", &a), ("2x", &b)] {
         let mut selected = Vec::new();
         for (i, row) in g.rows.iter().enumerate() {
-            let (display, _item, x, y, w, h, sel) = *row;
-            assert_eq!(display as usize, i, "{name}: rows must be in draw order");
+            let (x, y, w, h) = (row.x, row.y, row.w, row.h);
+            assert_eq!(
+                row.display as usize, i,
+                "{name}: rows must be in draw order"
+            );
             assert!(
                 (y - (g.first_top + i as f64 * g.pitch)).abs() < 0.01,
                 "{name}: row {i} is at y {y}, not first_top {} + {i} * pitch {}",
@@ -190,8 +204,8 @@ fn published_row_geometry_is_physical_pixels_and_scales_with_capture_dpi() {
                 g.x,
                 g.x + g.w
             );
-            if sel {
-                selected.push(display);
+            if row.selected {
+                selected.push(row.display);
             }
         }
         assert_eq!(
@@ -201,10 +215,10 @@ fn published_row_geometry_is_physical_pixels_and_scales_with_capture_dpi() {
         );
         let last = g.rows.last().expect("rows");
         assert!(
-            g.footer_top >= last.3 + last.5 - 0.01,
+            g.footer_top >= last.y + last.h - 0.01,
             "{name}: footer_top {} must be at or below the last row's bottom {}",
             g.footer_top,
-            last.3 + last.5
+            last.y + last.h
         );
     }
 
@@ -224,13 +238,13 @@ fn published_row_geometry_is_physical_pixels_and_scales_with_capture_dpi() {
     doubles(a.w, b.w, "band.w");
     for (i, (lo, hi)) in a.rows.iter().zip(b.rows.iter()).enumerate() {
         assert_eq!(
-            (lo.0, lo.1, lo.6),
-            (hi.0, hi.1, hi.6),
+            (lo.display, lo.item, lo.selected),
+            (hi.display, hi.item, hi.selected),
             "row {i}: display / item / selected must not depend on the capture scale"
         );
-        doubles(lo.2, hi.2, &format!("rows[{i}].x"));
-        doubles(lo.3, hi.3, &format!("rows[{i}].y"));
-        doubles(lo.4, hi.4, &format!("rows[{i}].w"));
-        doubles(lo.5, hi.5, &format!("rows[{i}].h"));
+        doubles(lo.x, hi.x, &format!("rows[{i}].x"));
+        doubles(lo.y, hi.y, &format!("rows[{i}].y"));
+        doubles(lo.w, hi.w, &format!("rows[{i}].w"));
+        doubles(lo.h, hi.h, &format!("rows[{i}].h"));
     }
 }
