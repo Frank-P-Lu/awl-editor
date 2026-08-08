@@ -95,6 +95,12 @@ pub const SITE_GUIDE_HTML: &str = include_str!("../site/guide.html");
 #[cfg(test)]
 pub const CAPTURE_MD: &str = include_str!("../CAPTURE.md");
 
+/// The repo's `THEMES.md` — the WORLD LAWS document. Its `RenderCaps`
+/// deviation table is held to `theme::RenderCaps::DEFAULT` and the live roster
+/// by `theme::tests::themes_md`; the surrounding prose is the author's.
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub const THEMES_MD: &str = include_str!("../THEMES.md");
+
 /// Product-boundary source used by the first-launch documentation law.
 #[cfg(test)]
 pub const PHILOSOPHY_MD: &str = include_str!("../PHILOSOPHY.md");

@@ -28,5 +28,6 @@ mod personality;
 mod placard;
 mod roster;
 mod selection_ui;
+mod themes_md;
 mod tokens;
 mod world_pin_item94;
