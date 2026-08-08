@@ -39,6 +39,7 @@
 //! law here claims feel.
 
 use super::super::*;
+use super::pixeldiff;
 use super::pixeldiff::render_frame;
 use super::{headless_dqp, view};
 use crate::overlay::{OverlayKind, OverlayState};
@@ -445,6 +446,53 @@ fn differ_in(a: &[[u8; 4]], b: &[[u8; 4]], w: i64, x0: f32, x1: f32, y0: f32, y1
     n
 }
 
+/// THE LANE'S PERCEPTUAL READING of the same box [`differ_in`] counts bytes in:
+/// the widest ΔE any single cell moved between the two frames, and how many
+/// cells moved past the JND at all. Both are DIFFERENCES between two cells of
+/// the same frame pair — a cell against its own ground — never a byte compared
+/// to a theme constant, so neither is a claim about the rasterizer.
+fn lane_presence(
+    a: &[[u8; 4]],
+    b: &[[u8; 4]],
+    w: i64,
+    x0: f32,
+    x1: f32,
+    y0: f32,
+    y1: f32,
+) -> (f64, usize) {
+    let (xa, xb) = (x0.floor().max(0.0) as i64, x1.ceil().max(0.0) as i64);
+    let (ya, yb) = (y0.floor().max(0.0) as i64, y1.ceil().max(0.0) as i64);
+    let (mut peak, mut past) = (0.0f64, 0usize);
+    for y in ya..yb {
+        for x in xa..xb {
+            let i = (y * w + x) as usize;
+            if i < a.len() && i < b.len() {
+                let de = pixeldiff::delta_e(a[i], b[i]);
+                peak = peak.max(de);
+                if de > JND {
+                    past += 1;
+                }
+            }
+        }
+    }
+    (peak, past)
+}
+
+/// The just-noticeable difference appearance is graded against here.
+const JND: f64 = 2.3;
+
+/// THE MARK'S DRAWN PRESENCE FLOOR, set well under the tightest authorship the
+/// roster ships — measured on this host, the hairline peaks at ΔE 62.03 (1x) and
+/// 92.81 (2x) against its own ground, the crisp mark at 76.60 at both — and well
+/// over anything a wash produces. A FLOOR, so the only way across it is a mark
+/// on its way out.
+const MARK_PEAK_DE_FLOOR: f64 = 18.0;
+
+/// AND HOW MANY CELLS MUST CLEAR THE JND, so one stray sample past the peak
+/// floor cannot stand in for a stroke. Measured: 60 cells for the thinnest
+/// authorship at the coarsest scale.
+const MARK_PAST_JND_FLOOR: usize = 12;
+
 /// REAL PIXELS — SELECTING A ROW PAINTS INK IN ITS OUTER LANE AND LEAVES THE
 /// SPINE-SIDE CONNECTOR GAP UNTOUCHED.
 ///
@@ -454,6 +502,22 @@ fn differ_in(a: &[[u8; 4]], b: &[[u8; 4]], w: i64, x0: f32, x1: f32, y0: f32, y1
 /// selected are compared inside two boxes on the graded row: the mark's own lane
 /// beyond the cluster's outer end, and the connector gap at the spine end where
 /// the mark used to be drawn. The first must gain ink; the second must not.
+///
+/// # The lane's PERCEPTUAL floor, and why a count of moved bytes needed one
+///
+/// A mark authored per world is authored to be *lighter* in an editorial
+/// register, and "lighter" runs all the way down to nothing. Neither reading
+/// that existed before could see that: this law counted BYTES that moved, and a
+/// whole lane shifted by one level passes it, while
+/// [`each_diagonal_world_paints_its_own_authored_mark`] grades the ORDER of two
+/// worlds' ink, which two marks scaled together toward invisibility still
+/// satisfy. So the lane also answers to [`MARK_PEAK_DE_FLOOR`] and
+/// [`MARK_PAST_JND_FLOOR`] against its own ground, which is what makes a thinner
+/// mark a *findable* one rather than an absent one.
+///
+/// Swept over both scales, because a hairline authored in logical pixels is
+/// thinnest in device pixels at 1x — the scale every capture defaults to, and so
+/// the scale at which a vanishing stroke would look correct.
 #[test]
 fn selecting_a_row_paints_the_outer_lane_and_leaves_the_spine_gap_clear() {
     let _g = crate::testlock::serial();
@@ -505,6 +569,31 @@ fn selecting_a_row_paints_the_outer_lane_and_leaves_the_spine_gap_clear() {
                 "{ctx}: selecting the row painted only {lane} differing px in its OUTER \
                  lane [{lo}, {hi}] — the mark is not being drawn where the geometry says \
                  it is, and no state probe can see that"
+            );
+
+            // THE SAME BOX, READ PERCEPTUALLY. `lane` counts cells that moved;
+            // these two say the movement is ink.
+            let (peak, past) = lane_presence(
+                &frame_on,
+                &frame_off,
+                cw as i64,
+                lo - 1.0,
+                hi + 1.0,
+                r.row_top,
+                r.row_bottom,
+            );
+            assert!(
+                peak >= MARK_PEAK_DE_FLOOR,
+                "{ctx}: the mark's darkest cell stands only ΔE {peak:.2} from its own \
+                 unselected ground, under the {MARK_PEAK_DE_FLOOR} floor — this world's \
+                 authored mark has been thinned past the point of being drawn, and \
+                 {lane} moved bytes in the lane cannot tell that from a stroke"
+            );
+            assert!(
+                past >= MARK_PAST_JND_FLOOR,
+                "{ctx}: only {past} cells in the mark's lane clear the JND (floor \
+                 {MARK_PAST_JND_FLOOR}, peak ΔE {peak:.2}) — whatever is drawn there is \
+                 not a shape a reader can find"
             );
 
             // The spine-side connector gap: strictly between the spine and the
