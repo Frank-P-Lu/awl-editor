@@ -147,9 +147,12 @@ fn architecture_md_module_map_paths_resolve_as_declared() {
 /// silently no longer checking any directory module.
 #[test]
 fn the_module_map_grammar_tells_a_file_from_a_directory() {
-    let found = declarations(
-        "- `keymap.rs` — a flat module\n- `search/` — a directory module\n- not a declaration\n- `Action` — a concept\n",
-    );
+    let found = declarations(concat!(
+        "- `keymap.rs` — a flat module\n",
+        "- `search/` — a directory module\n",
+        "- not a declaration\n",
+        "- `Action` — a concept\n",
+    ));
     assert_eq!(
         found,
         vec![

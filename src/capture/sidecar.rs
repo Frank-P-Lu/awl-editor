@@ -224,10 +224,6 @@ fn buffers_json(opts: &CaptureOpts, view: &ViewState) -> String {
     }
 }
 
-/// The sidecar's `project` object. `pub(super)` for one test-only consumer:
-/// `capture::tests::capture_md_drift` reads the KEYS out of this writer's own
-/// output, so CAPTURE.md's `project` row cannot claim a field set the file does
-/// not have.
 pub(super) fn project_json(opts: &CaptureOpts) -> String {
     match &opts.project {
         Some(p) => {

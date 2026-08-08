@@ -106,7 +106,8 @@ fn capture_md_documents_every_overlay_mode() {
 
 /// THE PROJECT LAW. The `project` row names exactly the keys the sidecar writer
 /// emits for that object — read out of the writer's own JSON rather than out of
-/// a second list someone has to remember to grow.
+/// a second list someone has to remember to grow. (`sidecar::project_json` is
+/// `pub(super)` for this one reader and no other.)
 ///
 /// The oracle is the emitted TEXT, not `ProjectInfo`'s fields: what the document
 /// promises a reader is what the file contains, and the two could part company
