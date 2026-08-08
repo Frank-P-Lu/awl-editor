@@ -702,14 +702,21 @@ Field order is stable; consumers may parse positionally or by key.
 Schema `/201` adds **`overlay.window.band`** and **`overlay.window.rows`** — the
 PLANNED geometry of a summoned picker's candidate band, one rect per display line.
 
-`band` is `{ x, w, first_top, pitch, footer_top, selected_display }`: the content
-band every row is stepped in from, the band's first row top and row pitch, the y
-where the candidate area ends and the foot hint begins, and the display line the
-plan reports as selected (`null` for a card that plans no rows at all).
+`band` is `{ x, w, first_top, pitch, footer_top }`: the content band every row is
+stepped in from, the band's first row top and row pitch, and the y where the
+candidate area ends and the foot hint begins.
+
+⚠️ **Neither `band` nor `rows` reports which row is selected, deliberately.**
+`overlay.window.sel_row` already does, resolved through the owner that also colours
+the band — so a second answer here could only be the plan's LOGICAL row, which is a
+different fact (the line `Enter` activates) and disagrees with the drawn one for the
+length of every selection move. Ask `sel_row` for the selection and these rects for
+the geometry; the whole point of the block is that drawn-versus-published agreement
+is assertable rather than ambiguous.
 
 `rows` is in draw order, one entry per PLANNED DISPLAY LINE — never one per corpus
 item, so a 40,000-row picker reports the dozen rows on screen:
-`{ display, item, x, y, w, h, selected }`. `item` indexes `overlay.items`, and is
+`{ display, item, x, y, w, h }`. `item` indexes `overlay.items`, and is
 `null` for a display line that carries no selectable item (the faceted card's
 section headings and its secondary location line). `x .. x + w` is the row's own
 INCLUSIVE pointer span, which on a staggered composition is narrower than `band`.

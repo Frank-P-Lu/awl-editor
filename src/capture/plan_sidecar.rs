@@ -50,12 +50,9 @@ fn geometry_fields(pipeline: &TextPipeline) -> String {
 }
 
 fn band_json(g: &OverlayRowGeometry) -> String {
-    let sel = g
-        .selected_display
-        .map_or_else(|| "null".to_string(), |d| d.to_string());
     format!(
         "{{ \"x\": {}, \"w\": {}, \"first_top\": {}, \"pitch\": {}, \
-         \"footer_top\": {}, \"selected_display\": {sel} }}",
+         \"footer_top\": {} }}",
         g.band_x, g.band_w, g.first_top, g.pitch, g.footer_top
     )
 }
@@ -66,7 +63,7 @@ fn row_json(row: &PlannedRowRect) -> String {
         .map_or_else(|| "null".to_string(), |i| i.to_string());
     format!(
         "{{ \"display\": {}, \"item\": {item}, \"x\": {}, \"y\": {}, \"w\": {}, \
-         \"h\": {}, \"selected\": {} }}",
-        row.display, row.x, row.y, row.w, row.h, row.selected
+         \"h\": {} }}",
+        row.display, row.x, row.y, row.w, row.h
     )
 }

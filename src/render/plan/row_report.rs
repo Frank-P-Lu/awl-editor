@@ -35,9 +35,16 @@ use crate::render::TextPipeline;
 /// `x .. x + w` is the row's own inclusive pointer span (`row_x_span`), so a
 /// pointer at `x + w * 0.5` selects `item` and a pointer outside it does not.
 /// `item` is `None` for a display line that carries no selectable item — the
-/// grouped family's section headings and the card's own secondary location line
-/// — and `selected` marks the one line the plan reports as selected, which is
-/// the line Enter activates rather than wherever an animated band currently sits.
+/// grouped family's section headings and the card's own secondary location line.
+///
+/// WHICH ROW IS SELECTED IS DELIBERATELY ABSENT. The sidecar already reports it
+/// once, as `window.sel_row`, resolved through the owner that also colours the
+/// band — so a second answer here could only be the plan's LOGICAL row, which is
+/// a different fact (the line Enter activates) that disagrees with the drawn one
+/// for the length of every selection move. Publishing both without saying which
+/// is which would put two selections in one sidecar, and this block exists to
+/// make drawn-versus-published agreement assertable rather than ambiguous. Ask
+/// `window.sel_row` for the selection and these rects for the geometry.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct PlannedRowRect {
     pub display: usize,
@@ -46,7 +53,6 @@ pub(crate) struct PlannedRowRect {
     pub y: f32,
     pub w: f32,
     pub h: f32,
-    pub selected: bool,
 }
 
 /// The whole planned candidate band, published. `band_x`/`band_w` are the
@@ -61,7 +67,6 @@ pub(crate) struct OverlayRowGeometry {
     pub first_top: f32,
     pub pitch: f32,
     pub footer_top: f32,
-    pub selected_display: Option<usize>,
     pub rows: Vec<PlannedRowRect>,
 }
 
@@ -69,7 +74,6 @@ impl OverlayRowPlan {
     /// Project this plan into its published form. A projection, never a second
     /// derivation: no arithmetic here that the plan does not already own.
     pub(super) fn geometry_report(&self) -> OverlayRowGeometry {
-        let selected_display = self.selected_display();
         let rows = self
             .rows()
             .iter()
@@ -84,7 +88,6 @@ impl OverlayRowPlan {
                     y: row.top,
                     w: x1 - x0,
                     h: row.height,
-                    selected: Some(row.display) == selected_display,
                 }
             })
             .collect();
@@ -94,7 +97,6 @@ impl OverlayRowPlan {
             first_top: self.first_top(),
             pitch: self.lh(),
             footer_top: self.footer_top(),
-            selected_display,
             rows,
         }
     }

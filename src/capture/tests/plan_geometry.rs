@@ -71,7 +71,6 @@ struct Row {
     y: f64,
     w: f64,
     h: f64,
-    selected: bool,
 }
 
 struct Band {
@@ -106,7 +105,6 @@ fn read_band(png: &std::path::Path) -> Band {
             y: r["y"].as_f64().expect("y"),
             w: r["w"].as_f64().expect("w"),
             h: r["h"].as_f64().expect("h"),
-            selected: r["selected"].as_bool().expect("selected"),
         })
         .collect();
     Band {
@@ -123,11 +121,10 @@ fn read_band(png: &std::path::Path) -> Band {
 
 /// ONE SCALE'S BLOCK, on its own terms: contiguous slots at the reported pitch,
 /// seated at the reported origin, meeting the content band, ending where the
-/// footer begins, with exactly the reported row flagged selected. Checked at BOTH
+/// footer begins, and `sel_row` names one of them. Checked at BOTH
 /// scales, because a relation that holds between two scales says nothing about
 /// whether either one describes a real card.
 fn assert_internally_consistent(name: &str, g: &Band) {
-    let mut selected = Vec::new();
     for (i, row) in g.rows.iter().enumerate() {
         let (x, y, w, h) = (row.x, row.y, row.w, row.h);
         assert_eq!(
@@ -156,14 +153,17 @@ fn assert_internally_consistent(name: &str, g: &Band) {
             g.x,
             g.x + g.w
         );
-        if row.selected {
-            selected.push(row.display);
-        }
     }
-    assert_eq!(
-        selected,
-        vec![g.sel_row],
-        "{name}: exactly the reported `sel_row` must carry `selected: true`"
+    // `sel_row` is asserted to be IN RANGE rather than matched against a per-row
+    // flag: the rows carry no selection, on purpose. The one published selection
+    // comes from the owner that also colours the band, and a second answer here
+    // could only be the plan's logical row -- a different fact that disagrees with
+    // the drawn one throughout every selection move.
+    assert!(
+        (g.sel_row as usize) < g.rows.len(),
+        "{name}: sel_row {} is outside the {} published rows",
+        g.sel_row,
+        g.rows.len()
     );
     let last = g.rows.last().expect("rows");
     assert!(
@@ -242,9 +242,9 @@ fn published_row_geometry_is_physical_pixels_and_scales_with_capture_dpi() {
     doubles(a.w, b.w, "band.w");
     for (i, (lo, hi)) in a.rows.iter().zip(b.rows.iter()).enumerate() {
         assert_eq!(
-            (lo.display, lo.item, lo.selected),
-            (hi.display, hi.item, hi.selected),
-            "row {i}: display / item / selected must not depend on the capture scale"
+            (lo.display, lo.item),
+            (hi.display, hi.item),
+            "row {i}: display / item must not depend on the capture scale"
         );
         doubles(lo.x, hi.x, &format!("rows[{i}].x"));
         doubles(lo.y, hi.y, &format!("rows[{i}].y"));

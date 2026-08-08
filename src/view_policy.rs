@@ -183,6 +183,10 @@ mod tests {
             "capture/modes.rs",
             "capture/opts.rs",
             "capture/oracle.rs",
+            // Projects the overlay's already-planned row band into JSON and decides
+            // nothing: it holds none of the rostered policy identifiers, so like the
+            // other sidecar serializers it contributes zero to every count below.
+            "capture/plan_sidecar.rs",
             "capture/policy.rs",
             // Serializes replay-skip records and owns no view policy.
             "capture/replay_sidecar.rs",

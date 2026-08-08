@@ -193,19 +193,14 @@ fn grade_published_geometry(
         plan.candidate_rows()
     );
     assert_eq!(
-        (g.first_top, g.pitch, g.footer_top, g.selected_display),
-        (
-            plan.first_top(),
-            plan.lh(),
-            plan.footer_top(),
-            plan.selected_display()
-        ),
+        (g.first_top, g.pitch, g.footer_top),
+        (plan.first_top(), plan.lh(), plan.footer_top()),
         "{ctx}: the published band header disagrees with the plan it is a projection of"
     );
     let mut graded = 0usize;
     for (i, rect) in g.rows.iter().enumerate() {
         assert_published_row_matches_its_band(&g, i, plan, ctx);
-        grade_published_row_against_ink_and_pointer(p, plan, probe, rect, ctx);
+        grade_published_row_against_ink_and_pointer(p, probe, rect, ctx);
         graded += 1;
     }
     graded
@@ -278,7 +273,6 @@ fn assert_published_row_matches_its_band(
 /// pointer, neither of which reads the report.
 fn grade_published_row_against_ink_and_pointer(
     p: &TextPipeline,
-    plan: &crate::render::plan::OverlayRowPlan,
     probe: &super::overlay_probe::OverlayYProbe,
     rect: &crate::render::plan::PlannedRowRect,
     ctx: &str,
@@ -327,14 +321,13 @@ fn grade_published_row_against_ink_and_pointer(
             rect.x + rect.w
         );
     }
-    assert_eq!(
-        rect.selected,
-        plan.selected_display() == Some(rect.display),
-        "{ctx}: published row {}'s `selected` flag disagrees with the planned \
-         selected line {:?}",
-        rect.display,
-        plan.selected_display()
-    );
+    // No `selected` assertion here, deliberately: the published rect carries no
+    // selection. `window.sel_row` already reports it from the owner that also
+    // colours the band, and a second answer projected from the plan's LOGICAL row
+    // would disagree with the drawn one for the length of every selection move —
+    // which is the transaction item 164 closed, and what this file's sibling law
+    // `no_render_path_reads_the_logical_selected_row_outside_the_transaction`
+    // refuses. The geometry is this projection's whole claim.
 }
 
 /// ITEM 185 — the REAL pipeline's own path must match production's OWN
