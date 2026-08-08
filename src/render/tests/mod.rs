@@ -83,6 +83,9 @@ mod frost_card_ink;
 mod frost_feather_item312;
 mod frost_footprint_item294;
 mod frost_parallelogram_item318;
+/// THE FROST'S WIDTH — the drawn surfaces bound it from the tight side, and the
+/// enumeration's completeness is measured off a frost-suppressed frame.
+mod frost_width_item343;
 mod geometry;
 mod geometry_reshape;
 mod glide_anchor_law;

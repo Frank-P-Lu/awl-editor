@@ -235,23 +235,29 @@ impl TextPipeline {
         if let (Some(cluster), Some(composition)) =
             (self.diagonal_cluster, super::diagonal::active(self))
         {
-            if let (Some(first), Some(last)) = (plan.rows().first(), plan.rows().last()) {
-                let half = composition.spine_weight * 0.5;
-                let (a, b) = (
-                    cluster.spine_x(first.display),
-                    cluster.spine_x(last.display),
-                );
-                out.push([
-                    a.min(b) - half,
-                    first.top + first.height * 0.5,
-                    a.max(b) + half,
-                    last.top + last.height * 0.5,
-                ]);
+            // ⚠️ THE SPINE'S TWO ENDS, NOT ITS BOUNDING BOX. The spine is a diagonal
+            // segment, and a consumer that shears its bbox about the card's centre reads
+            // the two corners the segment never touches — widening the answer by
+            // `|shear| × spine height`, which on this roster is 78 physical px and larger
+            // than the whole narrowing. The shape is convex and the un-shear affine, so
+            // containing both END caps contains the segment exactly.
+            let half = composition.spine_weight * 0.5;
+            for row in [plan.rows().first(), plan.rows().last()].into_iter().flatten() {
+                let x = cluster.spine_x(row.display);
+                let cy = row.top + row.height * 0.5;
+                out.push([x - half, cy - half, x + half, cy + half]);
             }
+            // THE MARK'S LANE, ASKED OF EVERY ROW — never of "which row is selected".
+            //
+            // Only one row draws a mark, and asking the plan which one would read the LOGICAL
+            // selected row rather than the visual-selection transaction's answer, which is a
+            // second answer on the card during every selection move. `mark_span` needs no
+            // such question: the rail carries its own selected row and applies the outward
+            // shift only there, so the union over all rows already contains the shifted mark
+            // the frame drew, and every unshifted sibling collapses inside it. The frost's
+            // box comes out INDEPENDENT of the selection, which also keeps a selection move
+            // from invalidating the cached backdrop.
             for row in plan.rows() {
-                if plan.selected_display() != Some(row.display) {
-                    continue;
-                }
                 let (vertex, arm) = cluster.mark_span(row.display);
                 let (top, bottom) = composition.mark_span_y(row.top, row.height);
                 let half = composition.mark_weight * 0.5;

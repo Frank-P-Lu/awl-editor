@@ -166,10 +166,10 @@ fn sharpness(f: &Frame, field: &[f32], keep: impl Fn(i64, i64) -> bool) -> (u64,
     (measured, edges, peak)
 }
 
-/// WHICH OF THE CARD'S OWN FOUR CORNERS THE RAKE LEAVES SHORT of a full frost, named and
-/// with each one's coverage — the figure that separates a parallelogram from a rectangle
-/// when it is asked of the CARD rather than of the shape's own bounding box.
-fn corners_short_of_full_frost(f: &Frame, dpi: f32) -> Vec<(&'static str, f32)> {
+/// EVERY ONE OF THE CARD'S OWN FOUR CORNERS, NAMED, WITH ITS FROST COVERAGE — the figure
+/// that separates a parallelogram from a rectangle when it is asked of the CARD rather than
+/// of the shape's own bounding box.
+fn card_corner_coverage(f: &Frame, dpi: f32) -> Vec<(&'static str, f32)> {
     let [rx, ry, rw, rh] = f.card;
     [
         ("top-left", rx, ry),
@@ -179,7 +179,6 @@ fn corners_short_of_full_frost(f: &Frame, dpi: f32) -> Vec<(&'static str, f32)> 
     ]
     .iter()
     .map(|(n, px, py)| (*n, mask_at(f.frost, dpi, *px, *py)))
-    .filter(|(_, m)| *m < 1.0)
     .collect()
 }
 
@@ -191,11 +190,19 @@ fn corners_short_of_full_frost(f: &Frame, dpi: f32) -> Vec<(&'static str, f32)> 
 /// region this law measures is EMPTY under the defect and the law reports its own vacuity
 /// rather than passing green.
 ///
-/// WHICH corners is derived, never named: a corner is enrolled when the frost's own mask
-/// there is zero, asked of the shipping policy's mirror. On a descending card that is the
-/// top-right and bottom-left; on its mirror the other two; and on an upright composition
-/// (`shear == 0`, whose parallelogram IS its rectangle) it is none, which is why the
-/// upright arm is required to enrol NOTHING and is named on failure.
+/// WHICH corners is derived, never named: each one's coverage is read off the shipping
+/// policy's own mirror. On an upright composition (`shear == 0`, whose parallelogram IS its
+/// rectangle, and whose box is its card's) every corner is fully frosted, which is why that
+/// arm is required to leave NOTHING short and is named on failure.
+///
+/// ⚠️ **THE COUNT IS AN UPPER BOUND ON THE *FULLY FROSTED* CORNERS, NOT AN EXACT COUNT OF
+/// THE SHORT ONES**, and the difference is the frost's WIDTH. This law once required exactly
+/// two of the four to fall short, which held only while the shape's box was bounded BELOW by
+/// the card's: once the box is narrowed to the surfaces the card actually draws, a corner can
+/// be short because the frost is narrower there as well as because the rake left it, and a
+/// mirrored card measures three. What survives the narrowing is the property that separates
+/// the two shapes: the retired box-UNION *contains* the card's box, so all FOUR of its
+/// corners are fully frosted, always, and a parallelogram of any width holds at most two.
 #[test]
 fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sharp() {
     let _g = crate::testlock::serial();
@@ -226,26 +233,27 @@ fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sh
                 // bbox corners are unfrosted too. The figure that separates the two shapes is
                 // asked of the CARD: a union CONTAINS the card's box, so all four of its
                 // corners are fully frosted, always. A parallelogram leaves two behind.
-                let off_rake = corners_short_of_full_frost(&f, dpi);
+                let corners = card_corner_coverage(&f, dpi);
+                let short: Vec<_> = corners.iter().filter(|(_, m)| *m < 1.0).collect();
+                let full = corners.len() - short.len();
                 if f.shear == 0.0 {
                     upright.push(label.clone());
                     assert!(
-                        off_rake.is_empty(),
+                        short.is_empty(),
                         "{label}: shear is 0, so the parallelogram IS the card's rectangle, \
-                         yet {off_rake:?} came back short of fully frosted"
+                         yet {short:?} came back short of fully frosted"
                     );
                     continue;
                 }
                 leaning.push(label.clone());
-                assert_eq!(
-                    off_rake.len(),
-                    2,
-                    "{label}: a parallelogram leaves exactly TWO of the CARD's own corners \
-                     behind (shear {}); this shape leaves {:?}. ZERO of them is the rectangle \
-                     the user photographed, and the retired box-union could only ever answer \
-                     zero — the card's box was one of its terms",
+                assert!(
+                    full <= 2,
+                    "{label}: {full} of the CARD's own four corners are FULLY frosted (shear \
+                     {}, coverages {:?}). A parallelogram can hold at most two; FOUR is the \
+                     retired box-union, which contained the card's box as one of its terms, \
+                     and four is the rectangle the user photographed",
                     f.shear,
-                    off_rake
+                    corners
                 );
 
                 // THE DOCUMENT IN THOSE CORNERS IS SHARP, over the part of the card's own box
@@ -263,10 +271,10 @@ fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sh
                         && mask_at(f.frost, dpi, fx, fy) == 0.0
                 });
                 eprintln!(
-                    "MEASURED {label}: shear {:.5}, card corners short of full frost {:?}, \
+                    "MEASURED {label}: shear {:.5}, card corner coverages {:?} ({full} full), \
                      {measured} wholly unfrosted non-ink px INSIDE the card's box, {edges} \
                      carrying a document edge (peak step {peak:.1})",
-                    f.shear, off_rake
+                    f.shear, corners
                 );
                 assert!(
                     measured > 500,

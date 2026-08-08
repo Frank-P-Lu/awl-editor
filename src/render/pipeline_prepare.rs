@@ -149,8 +149,11 @@ impl TextPipeline {
         if theme::active().render_caps.backdrop == theme::Backdrop::Flat {
             return None;
         }
+        // A TEST-ONLY DOOR, and the whole of why it exists is in `blur::suppress`: a
+        // completeness law needs two frames that differ ONLY by the card's own drawing,
+        // and no frosted frame can give it one.
         #[cfg(test)]
-        if frost_suppressed() {
+        if blur::frost_suppressed() {
             return None;
         }
         if self.overlay_blur()
@@ -351,30 +354,3 @@ impl TextPipeline {
     }
 }
 
-/// THE FROST, SUPPRESSED — a test-only door with exactly one purpose: giving a law two
-/// frames whose ONLY difference is the card's own drawing.
-///
-/// The card's ink cannot be isolated from a frosted frame. `frost_card_ink`'s veto exists
-/// because the honest inclusion oracle does not: outside the frost's reach the same frame
-/// shows the world's live ground at full sharpness, so an open-versus-closed difference
-/// carries `blur(ground) − ground` wherever the frost lands, which is precisely the region
-/// a completeness claim needs to read. Turn the frost off and that term is identically
-/// zero — the two frames share their ground and their document exactly, and the residue is
-/// the drawing.
-///
-/// It is NOT carried by `testlock::serial()`, so a law that sets it restores it on the way
-/// out, the same discipline the menu-bar arm follows in the same test family. Reading it
-/// unset is the shipped path; the constant `false` under `cfg(not(test))` is why the ship
-/// build has no branch here at all.
-#[cfg(test)]
-pub(crate) fn frost_suppressed() -> bool {
-    FROST_SUPPRESSED.load(std::sync::atomic::Ordering::Relaxed)
-}
-
-#[cfg(test)]
-pub(crate) fn set_frost_suppressed(on: bool) {
-    FROST_SUPPRESSED.store(on, std::sync::atomic::Ordering::Relaxed);
-}
-
-#[cfg(test)]
-static FROST_SUPPRESSED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);

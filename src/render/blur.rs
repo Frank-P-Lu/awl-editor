@@ -28,6 +28,12 @@ mod narrow;
 
 pub use extent::{BlurSurface, Footprint, Frost, footprint_box, footprint_frost_applies};
 pub(crate) use narrow::footprint_narrow;
+/// THE FROST, SUPPRESSED — the test-only door that gives a law two frames differing only
+/// by the card's own drawing (the positive card-ink oracle `frost_card_ink` cannot be).
+#[cfg(test)]
+mod suppress;
+#[cfg(test)]
+pub(crate) use suppress::{frost_suppressed, set_frost_suppressed};
 use extent::{
     DOWNSAMPLE, U, bytes_of, capped_doc_size, downsample_for, footprint_bound,
     footprint_feather_px, scissor_px,
