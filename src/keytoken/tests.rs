@@ -4,9 +4,10 @@
 
 use super::*;
 
+/// The one doc swept alone: see `every_command_the_welcome_names_exists_on_both
+/// _platforms` for why. Every other law here enrols from
+/// `embedded_docs::STARTING_DOCS`, the owner of that set.
 const WELCOME: &str = crate::embedded_docs::WELCOME_MD;
-const TOUR: &str = crate::embedded_docs::TOUR_MD;
-const GUIDE: &str = crate::embedded_docs::GUIDE_MD;
 
 /// Every `{{key:slug}}` slug used in `text`, in order.
 fn extract_token_slugs(text: &str) -> Vec<String> {
@@ -121,11 +122,7 @@ fn synthetic_tokens_resolve_on_both_conventions() {
 /// reader.
 #[test]
 fn every_key_token_in_the_starting_docs_resolves() {
-    for (name, doc) in [
-        ("welcome.md", WELCOME),
-        ("tour.md", TOUR),
-        ("GUIDE.md", GUIDE),
-    ] {
+    for (name, doc) in crate::embedded_docs::STARTING_DOCS {
         let slugs = extract_token_slugs(doc);
         assert!(
             !slugs.is_empty(),
@@ -155,11 +152,7 @@ fn every_key_token_in_the_starting_docs_resolves() {
 #[test]
 fn every_cmd_token_in_the_starting_docs_resolves() {
     let mut total = 0usize;
-    for (name, doc) in [
-        ("welcome.md", WELCOME),
-        ("tour.md", TOUR),
-        ("GUIDE.md", GUIDE),
-    ] {
+    for (name, doc) in crate::embedded_docs::STARTING_DOCS {
         for slug_want in extract_cmd_slugs(doc) {
             total += 1;
             assert!(
@@ -198,11 +191,7 @@ const SURFACES: &[(Convention, Platform)] = &[
 /// `WEB_ALTERNATE` exists to stand in.
 #[test]
 fn every_chord_the_starting_docs_teach_is_a_chord_that_exists() {
-    for (name, doc) in [
-        ("welcome.md", WELCOME),
-        ("tour.md", TOUR),
-        ("GUIDE.md", GUIDE),
-    ] {
+    for (name, doc) in crate::embedded_docs::STARTING_DOCS {
         for slug_want in extract_token_slugs(&strip_generated_table(doc)) {
             for (convention, platform) in SURFACES {
                 let label = key_token_label(&slug_want, *convention, *platform)
@@ -248,11 +237,7 @@ fn every_chord_the_starting_docs_teach_dispatches_through_the_real_keymap() {
 
     let native_keep: Vec<String> = linux_builtin_keep().iter().map(|s| s.to_string()).collect();
 
-    for (name, doc) in [
-        ("welcome.md", WELCOME),
-        ("tour.md", TOUR),
-        ("GUIDE.md", GUIDE),
-    ] {
+    for (name, doc) in crate::embedded_docs::STARTING_DOCS {
         for slug_want in extract_token_slugs(&strip_generated_table(doc)) {
             let want = commands::COMMANDS
                 .iter()
@@ -376,11 +361,7 @@ fn no_literal_chord_glyphs_survive_outside_tokens_and_the_generated_table() {
     // not an awl chord label) — explicitly out of scope, per the round's
     // own "curate honestly" instruction.
     const ALLOWED_CTRL_WORD_SUBSTRINGS: &[&str] = &["as Ctrl+C/X/V for the system clipboard"];
-    for (name, doc) in [
-        ("welcome.md", WELCOME),
-        ("tour.md", TOUR),
-        ("GUIDE.md", GUIDE),
-    ] {
+    for (name, doc) in crate::embedded_docs::STARTING_DOCS {
         let body = strip_generated_table(doc);
         for line in body.lines() {
             if line.contains('\u{2318}')

@@ -289,7 +289,7 @@ offer Word and HTML export.
 
 ## Looks
 
-**Nineteen worlds, one chord away.** {{key:switch_theme}} opens the
+**{{count:worlds}} worlds, one chord away.** {{key:switch_theme}} opens the
 theme picker — each world pairs its own display face with its own ink
 ladder. Wagtail is the exception: awl's one monochrome world, drawn in
 black, white, and nothing between.
@@ -300,11 +300,13 @@ measures 70 characters by default for prose and 100 for code
 touches the other. Drag the column's edge, or use "{{cmd:widen_page}}" /
 "{{cmd:narrow_page}}" / "{{cmd:reset_page_width}}" in the palette.
 
-**WYSIWYG, reveal-on-caret.** Markdown markup — a heading's `#`,
-`**bold**`, `` `code` ``, `==highlight==`, `~~strikethrough~~`, a
-fenced code block's fence
-lines — renders concealed except on the line your caret is on, where
-it shows in full for editing. The file on disk is always plain
+**WYSIWYG, revealed by caret or selection.** Markdown markup — a
+heading's `#`, `**bold**`, `` `code` ``, `==highlight==`,
+`~~strikethrough~~`, a fenced code block's fence
+lines — renders concealed except on the line your caret is on, or any
+line your selection touches, where it shows in full for editing. A
+fenced block reveals whole: its fence lines show while the caret sits
+anywhere inside it. The file on disk is always plain
 markdown; only the render is rich. `wysiwyg = false` disables the
 conceal entirely.
 

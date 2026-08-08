@@ -436,7 +436,7 @@ At most one capture mode per run: awl refuses a second rather than silently pref
 | `--whichkey` | — | summon the WHICH-KEY panel: the C-x prefix's follow-up keys (live: press C-x and pause ~500ms) |
 | `--default-folder` | `DIR` | fallback active folder for a first launch with nothing remembered (default ~/notes) |
 | `--config` | `PATH` | load settings from PATH (default ~/.config/awl/config.toml) |
-| `--wait` | — | windowed editor only: single-instance daemon — hand `file` to an already-running awl and block until C-x # finishes it (EDITOR=awl --wait for git) |
+| `--wait` | — | windowed editor only: single-instance daemon — hand `file` to an already-running awl and block until "Finish file" finishes it (EDITOR=awl --wait for git) |
 | `--keys` | `"SPEC"` | replay emacs chords (e.g. "C-n C-n M->") then capture |
 | `--seed-data` | `DIR` | seed awl's own DATA ROOT (the unresolved-change record, the scratch stash, session.toml, history) into a hermetic scenario sandbox from DIR's files — the only way a --screenshot-app run can START from state awl already had; refused outside a hermetic door |
 | `--strict-replay` | — | with --screenshot --keys: abort (naming the offender) on an unbound chord, a live-only effect the replay can't perform, or a missing layout oracle; runs HERMETIC (an in-memory fs seeded from the named file + --config — a replayed save never touches the real file, the user's own config/notes/history are never read or written) |

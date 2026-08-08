@@ -67,6 +67,7 @@ mod cursor_shape;
 mod daemon;
 mod dateformat;
 mod debug;
+mod doc_counts_law;
 mod docs_catalog_law;
 mod durable;
 mod ease;

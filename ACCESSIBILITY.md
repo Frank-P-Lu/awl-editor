@@ -27,7 +27,7 @@ this one sits alongside.
   change a setting they were only trying to navigate past.
 - **Zoom.** Cmd-=/Cmd–/Cmd-0 (and the Settings "Zoom" row) scale the whole
   document glyph-for-glyph, independent of the page column measure.
-- **14 curated theme worlds, each contrast-law-tested.** Every world's ink
+- **Every curated theme world is contrast-law-tested.** Every world's ink
   ladder (`base_content` → `muted`) and role tints are checked by an
   automated law test for pairwise distinguishability and an amber guard (see
   THEMES.md) — a world can't ship with illegible or indistinguishable text.

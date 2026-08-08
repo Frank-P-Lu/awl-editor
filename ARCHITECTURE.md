@@ -74,8 +74,9 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   `app/tests/domains.rs` is the gate: every
   root `App` field is classified to exactly one owner, and the field count is a
   ratchet that may only go down.
-- `daemon.rs` — the SINGLE-INSTANCE DAEMON (native only,
-  `cfg(not(target_arch = "wasm32"))`): a Unix domain socket beside the scratch
+- `daemon.rs` — the SINGLE-INSTANCE DAEMON (native only, and not in the
+  sandboxed store build:
+  `cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))`): a Unix domain socket beside the scratch
   stash (`fs::data_root().join("awl.sock")`). Owns the bind-or-handoff startup
   dance (`startup`/`bind_or_connect` — the stale-socket truth table), the
   dumb newline-delimited wire protocol (`format_open`/`parse_open`/
@@ -83,7 +84,7 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   posts a `DaemonEvent` into the live winit event loop via
   `EventLoopProxy::send_event`. `app/daemon.rs` reacts to that event
   (`App::handle_daemon_event` → `load_path` + raise the window), and owns
-  `Action::FinishBuffer` (C-x #, `commands.rs`'s "Finish Buffer") — save,
+  `Action::FinishBuffer` (the catalog's "Finish file", default Cmd-W) — save,
   notify any daemon `--wait` client, switch to the previous buffer. Lives
   ONLY on the live App's startup path (`app::run`), never on any headless
   `--screenshot`/`--bench-*` mode — see `daemon.rs`'s module doc for the full

@@ -577,7 +577,7 @@
 <tr><td><code>--whichkey</code></td><td>—</td><td>summon the WHICH-KEY panel: the C-x prefix's follow-up keys (live: press C-x and pause ~500ms)</td></tr>
 <tr><td><code>--default-folder</code></td><td><code>DIR</code></td><td>fallback active folder for a first launch with nothing remembered (default ~/notes)</td></tr>
 <tr><td><code>--config</code></td><td><code>PATH</code></td><td>load settings from PATH (default ~/.config/awl/config.toml)</td></tr>
-<tr><td><code>--wait</code></td><td>—</td><td>windowed editor only: single-instance daemon — hand `file` to an already-running awl and block until C-x # finishes it (EDITOR=awl --wait for git)</td></tr>
+<tr><td><code>--wait</code></td><td>—</td><td>windowed editor only: single-instance daemon — hand `file` to an already-running awl and block until "Finish file" finishes it (EDITOR=awl --wait for git)</td></tr>
 <tr><td><code>--keys</code></td><td><code>"SPEC"</code></td><td>replay emacs chords (e.g. "C-n C-n M-&gt;") then capture</td></tr>
 <tr><td><code>--seed-data</code></td><td><code>DIR</code></td><td>seed awl's own DATA ROOT (the unresolved-change record, the scratch stash, session.toml, history) into a hermetic scenario sandbox from DIR's files — the only way a --screenshot-app run can START from state awl already had; refused outside a hermetic door</td></tr>
 <tr><td><code>--strict-replay</code></td><td>—</td><td>with --screenshot --keys: abort (naming the offender) on an unbound chord, a live-only effect the replay can't perform, or a missing layout oracle; runs HERMETIC (an in-memory fs seeded from the named file + --config — a replayed save never touches the real file, the user's own config/notes/history are never read or written)</td></tr>

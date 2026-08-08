@@ -43,11 +43,35 @@ use crate::commands::{self, Platform};
 use crate::convention::Convention;
 
 /// The token delimiters: `{{` ... `}}`, with the token KIND named by its
-/// prefix immediately inside (`key:` a chord, `cmd:` a command name).
+/// prefix immediately inside (`key:` a chord, `cmd:` a command name,
+/// `count:` a roster size).
 const OPEN: &str = "{{";
 const CLOSE: &str = "}}";
 const KEY_PREFIX: &str = "key:";
 const CMD_PREFIX: &str = "cmd:";
+const COUNT_PREFIX: &str = "count:";
+
+/// A roster's live size, asked of the roster itself rather than remembered.
+type RosterSize = fn() -> usize;
+
+/// ROSTER COUNTS a doc may state — `(name, || live size)`.
+///
+/// The size of a compiled-in roster is a fact the CODE already holds, so a doc
+/// that types the digits states it twice and the copy rots on the next roster
+/// change. `{{count:name}}` takes the digits out of the file: the doc carries
+/// the question and the roster answers it at render time, through the same seam
+/// `{{key:}}`/`{{cmd:}}` already use.
+///
+/// Every entry is a direct `len()` of the shipped roster — never a literal, and
+/// never a filtered subset (a subset count is a different claim, and belongs in
+/// prose that says what it filtered on).
+const COUNTS: &[(&str, RosterSize)] = &[
+    // The theme worlds. `theme::THEMES` is the roster `--list-worlds` prints and
+    // the theme picker offers; `WORLDS.md`'s table is held to that same array by
+    // `reference::law::worlds_md_names_exactly_the_theme_roster`, so the doc
+    // that COUNTS the worlds and the doc that LISTS them cannot disagree.
+    ("worlds", || crate::theme::THEMES.len()),
+];
 
 /// Non-catalog synthetic slugs: `(slug, mac spec, linux spec)`, each spec in
 /// the same terse form [`crate::keyspec::parse_chord`] accepts. See the module
@@ -135,8 +159,20 @@ pub fn cmd_token_label(slug_want: &str) -> Option<String> {
         .map(|c| c.name.to_string())
 }
 
-/// Replace every `{{key:slug}}` / `{{cmd:slug}}` token in `text` with
-/// [`key_token_label`] / [`cmd_token_label`]'s resolved text for
+/// Resolve `name_want`'s roster SIZE from [`COUNTS`], for a `{{count:name}}`
+/// token. `None` for a name with no roster behind it. Like
+/// [`cmd_token_label`] this carries no convention/platform parameter — a
+/// roster ships whole on every surface.
+pub fn count_token_label(name_want: &str) -> Option<String> {
+    COUNTS
+        .iter()
+        .find(|(name, _)| *name == name_want)
+        .map(|(_, size)| size().to_string())
+}
+
+/// Replace every `{{key:slug}}` / `{{cmd:slug}}` / `{{count:name}}` token in
+/// `text` with [`key_token_label`] / [`cmd_token_label`] /
+/// [`count_token_label`]'s resolved text for
 /// `convention`+`platform`. An UNKNOWN slug is left as a visible
 /// `[[unknown-key:slug]]` / `[[unknown-cmd:slug]]` marker — never panics,
 /// never silently vanishes — so a typo'd token is obvious in the rendered doc
@@ -165,6 +201,11 @@ pub fn render_key_tokens(text: &str, convention: Convention, platform: Platform)
                     match cmd_token_label(slug_want) {
                         Some(label) => out.push_str(&label),
                         None => out.push_str(&format!("[[unknown-cmd:{slug_want}]]")),
+                    }
+                } else if let Some(name_want) = inner.strip_prefix(COUNT_PREFIX) {
+                    match count_token_label(name_want) {
+                        Some(label) => out.push_str(&label),
+                        None => out.push_str(&format!("[[unknown-count:{name_want}]]")),
                     }
                 } else {
                     out.push_str(&format!("[[unknown-token:{inner}]]"));

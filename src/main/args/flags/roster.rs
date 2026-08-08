@@ -170,7 +170,8 @@ flag_roster! {
     Wait: &["--wait"], Options, Shown, &[],
         concat!(
             "windowed editor only: single-instance daemon — hand `file` to an ",
-            "already-running awl and block until C-x # finishes it (EDITOR=awl --wait for git)",
+            "already-running awl and block until \"Finish file\" finishes it ",
+            "(EDITOR=awl --wait for git)",
         );
     Keys: &["--keys"], Options, Shown,
         &[Operand::req("\"SPEC\"", "requires a key-spec string")],
