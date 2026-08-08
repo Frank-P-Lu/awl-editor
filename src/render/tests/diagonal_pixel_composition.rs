@@ -871,7 +871,15 @@ fn both_row_lanes_hang_off_the_spine_so_the_name_control_gap_is_the_cards_own() 
                         }
 
                         // A REAL GAP on every row, elided ones included.
-                        let min_gap = 2.0 * dpi;
+                        // ⚠️ CALIBRATED, not chosen. A floor loose enough to be
+                        // obviously safe is a floor no defect can trip: at 2 device
+                        // px this arm survived the name budget swallowing the whole
+                        // gap allowance. Measured over this sweep, the shipped
+                        // tightest name/control gap is 57 device px at 1x, and
+                        // collapsing the layout's own gap budget takes it to 32 — so
+                        // the floor sits in that interval, with 17 px of headroom
+                        // over the shipped reading and 8 under the defect's.
+                        let min_gap = 40.0 * dpi;
                         for &(rd, _, _, gap, _) in &measured {
                             assert!(
                                 gap >= min_gap,
