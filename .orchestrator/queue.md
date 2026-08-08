@@ -1088,7 +1088,13 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      defect:** the AT-SPI tree was correct all along, since AccessKit filters
      `Role::TextRun` from accessible children by design.
 
-273. **RESIDUALS (3), (5) AND (6) ARE CLOSED (merged 2026-08-06). (1), (2) AND (4)
+273. ✅ **FULLY CLOSED (2026-08-08) — ALL SIX RESIDUALS ARE DONE.** (3), (5) and (6) merged
+     2026-08-06; (2) 2026-08-07; **(1) the CLI flag roster 2026-08-08**; and **(4) had already
+     landed 2026-08-07 under a branch named for the ITEM rather than the residual**, which is why
+     this list read three-remaining for a day and got one residual dispatched twice. ⚠️ **That is the
+     staleness class now recorded in `.orchestrator/README.md`: before dispatching a residual,
+     `git log --grep` the item number — the board is a claim about the tree.**
+     **Original header: RESIDUALS (3), (5) AND (6) ARE CLOSED (merged 2026-08-06). (1), (2) AND (4)
      REMAIN, each with a stated reason.**
      ✅ **(5) built:** `site/reference.html` is a docs page — sidebar navigation and
      anchored headings, **emitted from `Section::ALL` and `blocks()`**, with a nav
@@ -2937,7 +2943,33 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      question. Make it a parameter with the parked default named at one site, so un-parking later is a
      one-line change in one place. **Routing:** production tier.
 
-341. 🚧 CLAIMED (worktree item-341-caret-consts, production tier) **A SCOPE RESIDUAL ONE DIRECTORY OUT, the same shape that hid `TEXT_LEFT`/`TEXT_TOP`.** Found by
+341. ✅ **LANDED (merged 2026-08-08) — and the widening exposed a TEST THAT COULD NOT SEE ITS OWN
+     BUG, which is the fifth time a law's scope has been the defect.**
+     ✅ **The census was exactly the three named** — the first time this class did not find more than
+     briefed. It also read the four sibling caret files, found nothing needing reclassification, and
+     **deliberately did NOT add them to the swept set**: the parser matches line SHAPE rather than scope,
+     so a function-local const in a partition-forbidden file would register as an unfixable offender,
+     forcing either a red gate or a dishonest exclusion for code it never verified. **Reported rather
+     than quietly done** — and they can be folded in cheaply later.
+     ✅ **`_MIN_AREA` IS AN AREA, so it scales as the SQUARE of the linear factor.** The code already knew
+     that implicitly, so it was not a live bug — but **typing it `Logical` and resolving it linearly was
+     exactly the briefed hazard: correct at `px = 1`, where `1×1` equals `1²` and the two are
+     indistinguishable, and silently under-scaled everywhere else.** It gets a new by-kind family,
+     **`Area`, with ONLY a `px2` door and no linear arithmetic**, so a future misuse cannot resolve it
+     through the wrong power. The declaration law recognises it by type with its own non-vacuity floor.
+     🔴 **THE FIND: the pre-existing unit test could not see a magnitude bug in the area term AT ALL.**
+     The width is clamped to the width floor **before** the area term runs, so area growth can only push
+     the width up, never down — a wrong area formula never fails that check. **Proven rather than argued:
+     mutating `px2` back to linear left all 221 caret tests green.** The missing law is now written and
+     mutation-proven before being believed. ✅ **Its companion stayed green under the same mutation,
+     correctly** — `px = 1` is exactly where linear and quadratic coincide, **which is why this would have
+     been invisible at the one scale captures run at by default.**
+     ✅ **Evidence at the scale that matters:** two release binaries, one built **from the base commit
+     rather than stashed**, 24 cells across three proportional worlds × two caret modes × 1×/2× × two
+     zooms, caret landed on a comma to engage both floors. **48 of 48 files byte-identical, including all
+     eight dpi-2 cells.**
+     ✅ A clippy ceiling was cleared by **extracting an owner rather than asking for an exception**, so no
+     ledger number is owed. **Original:** **A SCOPE RESIDUAL ONE DIRECTORY OUT, the same shape that hid `TEXT_LEFT`/`TEXT_TOP`.** Found by
      item 322. `src/render/caret_body.rs` declares `CARET_VISUAL_BODY_MIN_W`, `_MIN_H` and `_MIN_AREA`
      as bare `f32` — multiplied by the correct recovered scale, so **not a defect today**, but outside
      the declaration law's swept set. ⚠️ **A law's scope has now been the defect FOUR times** (items
