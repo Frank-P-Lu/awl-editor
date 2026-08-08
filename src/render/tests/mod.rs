@@ -165,6 +165,7 @@ mod rotated_label_item235;
 mod rotated_location_item221;
 mod rotated_rail_item297;
 mod row_offset_item131;
+mod row_pitch_dpi_law;
 /// The `Rules` composition: the full `OverlayKind` row-surface sweep, the
 /// Settings workspace (both regions), every `SettingId × SettingKind`,
 /// drawn-equals-clickable at both DPIs, and the pixel laws.
