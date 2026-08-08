@@ -2871,7 +2871,7 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      question. Make it a parameter with the parked default named at one site, so un-parking later is a
      one-line change in one place. **Routing:** production tier.
 
-341. **A SCOPE RESIDUAL ONE DIRECTORY OUT, the same shape that hid `TEXT_LEFT`/`TEXT_TOP`.** Found by
+341. 🚧 CLAIMED (worktree item-341-caret-consts, production tier) **A SCOPE RESIDUAL ONE DIRECTORY OUT, the same shape that hid `TEXT_LEFT`/`TEXT_TOP`.** Found by
      item 322. `src/render/caret_body.rs` declares `CARET_VISUAL_BODY_MIN_W`, `_MIN_H` and `_MIN_AREA`
      as bare `f32` — multiplied by the correct recovered scale, so **not a defect today**, but outside
      the declaration law's swept set. ⚠️ **A law's scope has now been the defect FOUR times** (items
