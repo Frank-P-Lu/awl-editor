@@ -149,7 +149,8 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   `--keys` replay reaches the identical transitions; `app/workspace` owns the
   one live instance and derives its ladder rung from it. Scoped to Settings and
   Version History — it is not a route stack. See `docs/app-domains.md`.
-- `search.rs` — incremental search (isearch) state + match finding.
+- `search/` — incremental search (isearch) state + match finding.
+  → `keys` (the chord layer over an active search), `semantic`.
 - `spell.rs` / `spellunderline.rs` — spellcheck (spellbook) + underline data.
 
 **Rendering / presentation**
@@ -167,7 +168,11 @@ name); behavior is byte-identical. Submodules are listed under each root below.
 - `caret.rs` — caret position + its springy motion/glide animation (the "streak"
   / motion work).
   → `caret/`: `spring`, `morph`, `juice`, `preview`, `pipeline`, `tests`.
-- `theme.rs` — palette tokens (BASE_* greys, the single amber accent).
+- `theme/` — the world rosters and every palette token derived from them
+  (BASE_* greys, the single amber accent).
+  → `worlds` (the `THEMES` roster), `model` (`Theme`/`RenderCaps` and their
+    variant types), `color`, `derive`, `ground`/`ground_space`/`icon_ground`,
+    `cjk`, `diagonal`, `ornament`.
 
 **Verification**
 - `capture.rs` — headless one-frame capture: render to an offscreen texture, read

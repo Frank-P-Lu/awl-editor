@@ -130,6 +130,7 @@ mod mas;
 mod menu;
 mod menu_icons;
 mod menubar;
+mod module_map_law;
 mod motion;
 mod nits;
 mod openable;

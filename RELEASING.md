@@ -342,8 +342,8 @@ else in the pipeline changes.
 
 | Build base | glibc | Reaches |
 |---|---|---|
-| `ubuntu-latest` (Ubuntu 24.04) — **today** | 2.39 | Ubuntu 24.04+, Fedora 40+, Arch. **Not** Debian 12, **not** Ubuntu 22.04 LTS, **not** RHEL 9 |
-| `ubuntu-22.04` runner | 2.35 | adds Ubuntu 22.04 LTS and Debian 12. Runner image is on GitHub's retirement track |
+| `ubuntu-latest` (Ubuntu 24.04) | 2.39 | Ubuntu 24.04+, Fedora 40+, Arch. **Not** Debian 12, **not** Ubuntu 22.04 LTS, **not** RHEL 9 |
+| `ubuntu-22.04` runner — **shipped** (see the glibc-floor row above) | 2.35 | adds Ubuntu 22.04 LTS and Debian 12. Runner image is on GitHub's retirement track |
 | `container: debian:bookworm` | 2.36 | adds Debian 12. Matches `Dockerfile.linux`'s existing, stated choice |
 | `container: debian:bullseye` | 2.31 | adds Ubuntu 20.04, Debian 11, RHEL 9. Oldest toolchain and headers, so the highest build risk |
 
