@@ -103,7 +103,7 @@ main loop.
 
 ### The honest limits
 
-- **One real VoiceOver sitting has been run; the follow-up has not.** The first
+- **VoiceOver is accepted for v1 from real use.** The first
   sitting (2026-08-02) is what found the "not responding" report above. A
   second sitting (2026-08-04) came back NEGATIVE: the symptom is unchanged when
   VoiceOver is turned on mid-session, and VoiceOver also stopped reading out
@@ -111,10 +111,10 @@ main loop.
   re-asks for an initial tree mid-session (macOS does this when a window is
   cycled) was served the document as it stood at LAUNCH, and nothing repaired
   it — now fixed and pinned by
-  `a_reasked_initial_tree_describes_the_document_as_it_is_now`. **Whether that
-  closes what the user heard is still unconfirmed:** a capture cannot hear a
-  screen reader, so it needs a third sitting on an unlocked, foregrounded
-  display, and that has not happened. **No AT-SPI journey has been run at all, and item 252's CI arm
+  `a_reasked_initial_tree_describes_the_document_as_it_is_now`. The user has
+  since exercised VoiceOver on macOS and judged it to work well enough for now.
+  Another confirmation sitting is not a v1 gate; new VoiceOver work follows a
+  concrete user report. **No AT-SPI journey has been run at all, and item 252's CI arm
   does not change that sentence** — it is a mechanical check, on every
   push/PR, that AccessKit's Unix adapter registers on the AT-SPI2 bus and
   publishes the tree's shape (the document, item 218's stable line runs read
@@ -199,13 +199,9 @@ feeding both the platform and a headless agent.
 
 What tier 3 is for, in order of how much it would matter:
 
-1. **A real screen-reader sitting.** VoiceOver on macOS and Orca on Linux,
-   driven by a person, on an unlocked display. Nothing below is worth designing
-   before that says what actually reads badly. The first VoiceOver sitting
-   happened and produced item 218; the confirming one is still owed. Note for
-   whoever runs it: check `displaysleep` and the screensaver `idleTime` first —
-   a display that sleeps mid-sitting silently invalidates it, as it did seven
-   minutes into the 2026-08-02 attempt. **For the Orca half specifically
+1. **A real Orca sitting on Linux.** VoiceOver is accepted for v1; its next work
+   follows a concrete user report. The Linux journey still needs a person on a
+   real desktop session. **For the Orca half specifically
    (item 251): awl's AT-SPI tree has no Frame/Window node** (see the honest
    limits above) — check whether Orca can find, announce, and navigate the
    awl window at all without one, since nothing before a real sitting can
