@@ -204,6 +204,18 @@ decision recorded in one place was invisible in the place it gets read.**
   | **C** compact | 1.25 | 3.75 | 0.62 | 87.6° | 54 px² | 58.0 |
   | **D** thinner stroke | 1.00 | 4.5 | 0.55 | 70.7° | 53 px² | 54.6 |
 
+  ‼ **USE THE NEW ARTIFACT, NOT THE OLD ONE.** The first comparison image could not do its job — a vision
+  smoke could tell "before" from all four candidates but **not A from B from C.** Root cause: each
+  candidate was cropped to **its own** bounding box at ~77×39 device px and upscaled 6×, so the vertex
+  angle — the thing that actually differs — was sub-pixel. **Rebuilt with a FIXED crop window shared by all
+  five, upscaled 20× nearest-neighbour, ordered by vertex angle DESCENDING so the comparison reads as a
+  monotonic closing of the angle**, and annotated with each candidate's own numbers:
+  **`gallery/item-346/compare-magpie-mark-1x-vertex-desc-before-C-A-D-B.png`** (and the `2x` twin), with
+  **`compare-magpie-row-{1x,2x}-…`** showing the same five at **1:1 in their own row** — because a mark that
+  reads well magnified can still vanish in place, and you are judging both *elegant* and *findable*.
+  ✅ **Confirmed by looking: B and C are now trivially distinguishable** (50.8° visibly slender against
+  87.6° visibly blunt) at both scales in both views. ⚠️ **A and D stay close on purpose** — only 0.25px of
+  stroke separates them — which is itself the board's own argument for not picking D.
   ✅ **B, and the argument is read out of the product rather than from taste:** weight has bottomed out at
   1.25, so **D is the trap** — it is the only candidate that spends the remaining budget on stroke, and it
   is measurably the *weakest* at 1× (ΔE 54.6, lowest of the four) for a difference invisible at 2×. B
