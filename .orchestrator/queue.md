@@ -3612,7 +3612,25 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      answer is a product decision about minimum width, **hand it back with the numbers rather than picking.**
      ✅ Slice 2 also repaired a neighbouring fixture that hardcoded `workspace: false`, folding a state no
      summon can reach; it now derives it from `workspace_shape()`. **Routing:** production tier.
-348. 🚧 CLAIMED (worktree item-348-settings-fixture, production tier) **SIX COPIES OF THE
+348. ✅ **LANDED (merged 2026-08-08) — one owner, six files each 13 lines smaller, and a law against a
+     seventh.** Six copies confirmed independently rather than trusted from the brief's grep; none had
+     already gone.
+     ✅ **THE FIELD-BY-FIELD DIFF WAS THE PART WORTH DOING FIRST.** All twelve fields matched byte-for-byte
+     across all six **except `zoom` and `scroll_sensitivity`**, which two files deliberately vary — the rail
+     sweep parameterises both, the row-reach probe parameterises zoom alone. **Those stayed parameters
+     rather than being forced to agreement**, which is precisely what a dedup that changed a fixture's
+     behaviour would have done silently.
+     🔴 **AND THE SHARED CONSTANTS ARE NOT INERT — proven, not assumed.** Lengthening `project_root` in the
+     new owner reddens `settings_row_reach_law` **by name**, which is exactly item 327's documented
+     mechanism: **the project root's own length moves the accessory-column budget.** So a dedup that had
+     normalised one file's root would have changed which width its card yields at. That mutation is also
+     what proves the consumers read the new owner rather than a leftover copy.
+     ⚠️ **The anti-seventh-copy law's first draft FALSE-POSITIVED on the six wrappers' own signatures** —
+     a wrapper's return type textually contains the needle it scans for. Caught before landing and
+     discriminated on the declaration form. Enrolment walks the test tree, never a name list.
+     ✅ **35 tests green before and after, counts stated per file** (36 with the new law), every gate exit 0,
+     and **no `code-health.toml` entry references any touched file.**
+     **Original:** **SIX COPIES OF THE
      `SettingsValues` TEST FIXTURE.** Reported by item 347's lane while working on something else, and
      deliberately left because two lanes were live: `workspace_item114.rs`, `workspace_plate_item234.rs`,
      `range_rail.rs`, `settings_row_reach_law.rs`, `marker_side_item303.rs`, `rules_composition_item283.rs`.
