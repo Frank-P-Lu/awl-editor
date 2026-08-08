@@ -150,20 +150,44 @@ mod tests {
             [260.0, 300.0, 371.0, 322.0],
             [300.0, 500.0, 480.0, 528.0],
         ];
+        // The claim is that narrowing never CUTS anything, so it is asked only of the
+        // corners the un-narrowed shape already covered. A corner the card's own sheared
+        // shape never reached was not frosted before either, and no shrink-only narrowing
+        // can be blamed for it: at a steep enough rake the card's span at one row slides
+        // clear of a surface sitting near the opposite face, which is a fact about the
+        // card's placement rather than about this arithmetic. (`footprint_box`'s coverage
+        // floor is the mechanism that widens the shape for chrome the rake leaves behind,
+        // and it runs after this.) Demanding containment unconditionally asked for the
+        // impossible in exactly one swept cell and passed everywhere else — so the
+        // COVERED count below is the law's own non-vacuity clause: without it, a shape
+        // that covered nothing would satisfy the assertion perfectly.
+        let mut covered = 0usize;
         for shear in [-0.3f32, -0.02, 0.0, 0.02, 0.3] {
             let rect = footprint_narrow(card, shear, &surfaces);
             let foot = super::super::Footprint { rect, shear };
+            let before = super::super::Footprint { rect: card, shear };
             for s in &surfaces {
                 for (px, py) in [(s[0], s[1]), (s[2], s[1]), (s[0], s[3]), (s[2], s[3])] {
+                    if super::super::extent::footprint_dist_outside(before, px, py) > 1e-3 {
+                        continue;
+                    }
+                    covered += 1;
                     let d = super::super::extent::footprint_dist_outside(foot, px, py);
                     assert!(
                         d <= 1e-3,
-                        "shear {shear}: surface corner ({px},{py}) sits {d} OUTSIDE the \
-                         narrowed shape {rect:?} — the narrowing has cut a drawn surface"
+                        "shear {shear}: surface corner ({px},{py}) was inside the card's own \
+                         sheared shape {card:?} and sits {d} OUTSIDE the narrowed shape \
+                         {rect:?} — the narrowing has cut a surface that WAS frosted"
                     );
                 }
             }
         }
+        assert!(
+            covered >= 50,
+            "only {covered} surface corners were inside the un-narrowed shape across the \
+             swept shears, so this law graded almost nothing — check the fixture before \
+             trusting a green run"
+        );
     }
 
     /// AND THE NARROWING IS TIGHT, not merely safe: with the card's own corners as the

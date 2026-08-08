@@ -137,6 +137,16 @@ mod tests {
     /// (the pattern below scans for), so they can never appear in `hits`.
     const ALLOWED_RAW_ATOMIC_BOOL: &[(&str, &str)] = &[
         (
+            "render/blur/suppress.rs",
+            "SUPPRESSED cannot exist in a ship build at all: `mod suppress` is \
+            `cfg(test)` and `frost_mode`'s branch on it carries the same attribute, \
+            so there is no shipped state here to make sticky. It is the test-only \
+            door that gives a completeness law two frames differing ONLY by the \
+            card's own drawing -- deliberately outside `testlock::serial()`, and \
+            restored by its caller on every exit path including the unwinding one, \
+            the same discipline the menu-bar arm follows in that test family",
+        ),
+        (
             "streaks.rs",
             "CUMULATIVE rides CardFlag's OWN (deliberately \
             unguarded) discipline — `set_open` resets it in the same \
