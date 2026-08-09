@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Item 175: real Awl drag-trajectory evidence for Paperbark's fixed Room
+# Real Awl drag-trajectory evidence for Paperbark's fixed Room
 # wallpaper. Each frame is one settled headless capture at the next page-width
 # position; the labeled sheet is rendered by Awl, not an external compositor.
 set -euo pipefail

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Item 176 — ONE focused comparison between Bowerbird's shipped ORGANIC control
+# ONE focused comparison between Bowerbird's shipped ORGANIC control
 # (`Arrangement::Masses`, the rounded cut-paper masses) and the crisp
 # three-object COLLECTED-TREASURE revival (`Arrangement::Finds`), at a wide and
 # a narrow page width and at 1x and 2x, plus the identity check that flipping
