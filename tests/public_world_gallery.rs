@@ -35,13 +35,16 @@ fn public_gallery_matches_the_product_roster_in_order() {
         match (expected.get(index), actual.get(index)) {
             (Some(product), Some(gallery)) if product == gallery => {}
             (Some(product), Some(gallery)) => panic!(
-                "public world gallery is stale at position {index}: product has {product:?}, page has {gallery:?}; run scripts/public-world-gallery.sh"
+                "public world gallery is stale at position {index}: product has \
+                 {product:?}, page has {gallery:?}; run scripts/public-world-gallery.sh"
             ),
             (Some(product), None) => panic!(
-                "public world gallery is missing {product:?} at position {index}; run scripts/public-world-gallery.sh"
+                "public world gallery is missing {product:?} at position {index}; \
+                 run scripts/public-world-gallery.sh"
             ),
             (None, Some(gallery)) => panic!(
-                "public world gallery has retired or duplicate world {gallery:?} at position {index}; run scripts/public-world-gallery.sh"
+                "public world gallery has retired or duplicate world {gallery:?} at \
+                 position {index}; run scripts/public-world-gallery.sh"
             ),
             (None, None) => unreachable!(),
         }
