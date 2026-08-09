@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# item 242 — the CHROME PIXEL-SPACE capture matrix.
+# The CHROME PIXEL-SPACE capture matrix.
 #
 # Shoots every world x a surface roster covering all three overlay geometry
 # families (flat picker, grouped/faceted picker, contextual spell popup,

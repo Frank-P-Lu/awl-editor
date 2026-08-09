@@ -1,11 +1,11 @@
-//! ITEM 191 — Bowerbird's shipped `Finds` ground, tuned from rendered pixels.
+//! Bowerbird's shipped `Finds` ground, tuned from rendered pixels.
 //!
 //! Three changes, each verified separately here:
 //!   * the anchor/companion/cut-out composition grew ~15% as ONE
 //!     hierarchy-preserving move (`FINDS_ANCHOR_LO`/`_HI` in
 //!     `shaders/background.wgsl`, whose own comment states the ratio math);
 //!   * the cell PITCH opened separately (Bowerbird's `scale_px`, 156 -> 195);
-//!   * the item-176 UNCONSTRAINED per-cell dropout — an independent coin flip
+//!   * the former UNCONSTRAINED per-cell dropout — an independent coin flip
 //!     every cell, which could and did let several neighbouring omissions
 //!     align into a conspicuous dead patch — is now a DECORRELATED,
 //!     deterministic one (`finds_is_local_min` in the shader) that provably
@@ -129,7 +129,7 @@ fn max_of(xs: &[f32]) -> f32 {
 // holds too few cells for a rare multi-cell dropout run to reliably appear in
 // only a few sampled phases, so the very mutation this law exists to catch
 // could pass it by pure sampling luck — measured directly, the unconstrained
-// item-176 mechanism's worst observed gap over 6 phases was 200px (under the
+// The unconstrained mechanism's worst observed gap over 6 phases was 200px (under the
 // fixed mechanism's OWN ~204px ceiling) at 1800x1200, but 248-339px — clearly
 // over it — at every size from 2400x1600 up. `WIDE`/`NARROW` below are picked
 // from that measurement, not merely "a bit bigger for safety."
@@ -193,7 +193,7 @@ fn render_finds(
 /// Not a law — a measurement dump. Run with
 /// `cargo test --bin awl bowerbird_spacing::measure -- --ignored --nocapture`
 /// before and after a tuning edit to get the real before/after distributions
-/// item 191 asks for (role size, nearest-neighbour spacing, its worst case),
+/// needed here (role size, nearest-neighbour spacing, its worst case),
 /// across wide/narrow, 1x/2x and three drift phases.
 #[test]
 #[ignore]
@@ -228,9 +228,9 @@ fn measure_bowerbird_finds_distributions() {
 // --- The laws -----------------------------------------------------------------
 
 /// LAW: the composition grew as ONE hierarchy-preserving move. At the
-/// item-176 reference scale (156 — a claim about the MECHANISM, not about
+/// unconstrained reference scale (156 — a claim about the MECHANISM, not about
 /// whichever pitch Bowerbird happens to author), the mean anchor/companion/
-/// cut-out radii are each measurably larger than the item-176 empirical
+/// cut-out radii are each measurably larger than the unconstrained empirical
 /// baseline (pinned below, measured once against the pre-191 shader) by
 /// comparable ratios — proving the three roles grew TOGETHER rather than one
 /// role being retuned alone.
@@ -292,7 +292,7 @@ fn finds_cell_pitch_opened_by_a_separately_authored_amount() {
     );
 }
 
-/// LAW (the defect item 191 exists to fix — see the module doc for why this
+/// LAW (the defect this file fixes — see the module doc for why this
 /// reads nearest-neighbour spacing rather than an inscribed circle or a
 /// re-derived lattice grid): the WORST nearest-neighbour gap between any two
 /// surviving collections never exceeds `MAX_NN_CELLS` cell-pitches — wide and
@@ -305,7 +305,7 @@ fn finds_cell_pitch_opened_by_a_separately_authored_amount() {
 /// mechanism's worst observed gap was 1.044 cell-pitches, dead flat across
 /// every canvas size tried (204px at scale 195, i.e. `195 * 1.044`) — the
 /// guarantee that no two Moore-adjacent cells are ever both dropped in
-/// action. Reverting to the item-176 unconstrained dropout (same threshold,
+/// action. Reverting to the unconstrained dropout (same threshold,
 /// `finds_is_local_min` removed) measured 1.27-1.74 cell-pitches at these
 /// same canvas sizes. `1.10` sits with real margin above the fixed ceiling
 /// and real margin below every broken measurement — see this law's own
@@ -352,11 +352,11 @@ fn finds_dropout_never_opens_a_gap_much_larger_than_ordinary_spacing() {
 }
 
 /// LAW: `density: 0.0` still collapses the tuned arrangement to the flat open
-/// ground exactly — item 191 touched the anchor scale, the pitch and the
-/// dropout gate, none of which the density collapse depends on, but this is
+/// ground exactly. The anchor scale, pitch and dropout gate do not affect the
+/// density collapse, but this is
 /// the differential oracle every size/void measurement above implicitly
 /// leans on, so it is checked directly rather than assumed carried over from
-/// item 176.
+/// the original arrangement laws.
 #[test]
 fn finds_tuned_density_zero_is_still_exactly_the_flat_ground() {
     let _g = crate::testlock::serial();

@@ -174,7 +174,7 @@ fn value_and_path_keys_track_their_kinds() {
     }
 }
 
-/// ITEM 94 — THE KIND CONTRACT SWEEP, no wildcard anywhere: for EVERY row,
+/// THE KIND CONTRACT SWEEP, no wildcard anywhere: for EVERY row,
 /// exactly which of the five behaviour maps must resolve, declared per
 /// [`SettingKind`]. A future kind fails to COMPILE here until it declares its
 /// whole contract; a row wired into the wrong map fails at RUN time. This is the
@@ -216,7 +216,7 @@ fn every_setting_kind_declares_its_whole_behaviour_contract() {
     }
 }
 
-/// ITEM 94 — a RANGE row resolves EVERYTHING its interaction needs, and no other
+/// A RANGE row resolves EVERYTHING its interaction needs, and no other
 /// row resolves ANY of it: the authored spec, a live value in the gathered
 /// readout inputs, a config key to persist under, and a rail cell for the drawn
 /// thumb. The four maps sweep together so a range row can never be half-wired
@@ -317,7 +317,7 @@ fn the_zoom_range_is_the_authored_fifty_to_three_hundred_percent_linear_rail() {
     assert!((spec.frac_of(1.0) - 0.2).abs() < 1e-5);
 }
 
-/// ITEM 94 — every zoom DOOR lands on the same authored grid: the ⌘±/rail
+/// Every zoom DOOR lands on the same authored grid: the ⌘±/rail
 /// `stepped` owner, the wheel's own call, `clamp_zoom` (which `--zoom`, a config
 /// load and `set_zoom` all run through) and the typed exact entry. No input path
 /// computes a parallel value — the DONE criterion, asserted.
@@ -819,12 +819,11 @@ fn every_setting_id_maps_1_to_1_to_the_registry() {
     }
 }
 
-/// HEADLINE LAW (item 55): renaming a row's DISPLAY LABEL changes NO
+/// HEADLINE LAW: renaming a row's DISPLAY LABEL changes NO
 /// behavior — every resolver (`toggle_key`/`value_key`/`path_key`/
-/// `sub_overlay`/`value_for`, INCLUDING the value readout, the subtle one
-/// per the item-55 plan) switches on the row's typed `id`, never its
-/// `name`. FAILS before item 55 (when these resolvers matched on
-/// `row.name`): confirmed non-vacuous by construction — this literally
+/// `sub_overlay`/`value_for`, INCLUDING the value readout, the subtle one)
+/// switches on the row's typed `id`, never its `name`. The former resolvers
+/// matched on `row.name`; this is confirmed non-vacuous by construction — it
 /// builds a relabeled COPY of each row and re-runs every resolver against
 /// it, so a regression back to name-keyed matching reintroduces the
 /// failure immediately (a `SettingRow` is `Copy`, so `relabeled` and `r`

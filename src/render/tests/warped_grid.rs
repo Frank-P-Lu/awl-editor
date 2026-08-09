@@ -1,4 +1,4 @@
-//! KITE's WARPED-GRID laws (item 132) — the ground's own test module.
+//! KITE's WARPED-GRID laws — the ground's own test module.
 //!
 //! Two rules shape everything here.
 //!
@@ -9,7 +9,7 @@
 //!
 //! **Appearance claims are arithmetic over real GPU pixels, measured
 //! DIFFERENTIALLY.** Every one renders the world as authored minus the same
-//! world with `density: 0.0` (item 86's `mark_field` oracle), so the flat ground
+//! world with `density: 0.0` (the `mark_field` oracle), so the flat ground
 //! cancels exactly and what remains is the field alone. `density: 0.0` collapsing
 //! this ground to its flat `ground` tone EXACTLY is what makes that possible, and
 //! it is asserted directly.

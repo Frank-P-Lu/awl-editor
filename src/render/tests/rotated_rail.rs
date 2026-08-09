@@ -1,4 +1,4 @@
-//! ITEM 297 — CASSOWARY'S LOCATION CUE IS THE WORDMARK'S VERTICAL COMPANION.
+//! CASSOWARY'S LOCATION CUE IS THE WORDMARK'S VERTICAL COMPANION.
 //!
 //! **Defect:** `LocationStyle::RotatedRail` drew the active facet's name small,
 //! muted and flush with the CARD's own left border — a whisper in the card's

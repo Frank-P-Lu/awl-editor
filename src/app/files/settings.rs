@@ -78,7 +78,7 @@ impl App {
     ///     Persistence rides the ONE `persist_pref` owner (its mirror-match now covers
     ///     every key here), so there is no bespoke per-toggle writer to drift.
     ///
-    /// The read/negate/set core itself (item 193) lives in ONE place,
+    /// The read/negate/set core itself lives in ONE place,
     /// [`crate::settings::flip_toggle_global`], shared with the replay
     /// interpreter (`main/run/settings_effects.rs::interpret_setting_toggle`)
     /// — this method keeps only what is genuinely App's: the `keymap`/
@@ -181,8 +181,8 @@ impl App {
     /// row accepted a folder): write the NAMED config key `key` for `path`. For
     /// `project_root` this IS a genuine switch-project (re-index + the session's
     /// one active-folder-context owner + recent-MRU, the ONE `switch_project`
-    /// owner — item 76 retired the separate `project_root` config key it used to
-    /// write); for `default_folder`/`workspace` we persist the key then
+    /// owner — the separate `project_root` config key is retired); for
+    /// `default_folder`/`workspace` we persist the key then
     /// `reload_config`, which re-folds `self.default_folder`/`self.workspace_root`
     /// (flag > config > default) so the NEXT first-run launch / `C-x p` uses the
     /// new folder. Either way the still-open (re-summoned) menu's cell is

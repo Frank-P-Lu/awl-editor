@@ -50,8 +50,8 @@ for arg in "$@"; do
 done
 
 # This whole script targets wasm32-unknown-unknown, so bypass .cargo/config.toml's
-# rustc-wrapper for every cargo call below (item 195), the same way item 179's
-# code-health.sh --clippy-only already bypasses it for clippy-driver. Item 195
+# rustc-wrapper for every cargo call below, the same way code-health.sh
+# --clippy-only bypasses it for clippy-driver. The wasm probe once
 # found the wasm cross-target probe failing with `sccache: error: Operation not
 # permitted (os error 1)` against an otherwise-healthy, actively-serving sccache
 # server — code, config, and native builds through the same wrapper were all
@@ -61,12 +61,12 @@ done
 # probe itself — exactly the class of risk a bounded, every-lane gate must not
 # be exposed to. Losing sccache here is a real cost, not a free lunch: it is
 # what lets a fresh worktree's first wasm build reuse objects another lane
-# already compiled (item 165); bypassing means that first build pays full cold
+# already compiled; bypassing means that first build pays full cold
 # cost (measured: ~59s wall / ~6 CPU-minutes on this host) instead of a
 # cache-warmed one. That is worth paying so this gate's pass/fail never depends
 # on a shared caching daemon it does not need for correctness.
 export RUSTC_WRAPPER=""
-echo "==> RUSTC_WRAPPER bypassed for this entire script (item 195); wasm builds do not use sccache"
+echo "==> RUSTC_WRAPPER bypassed for this entire script; wasm builds do not use sccache"
 
 # L0 — the site's repo-relative links (GitHub blob URLs to the contract docs +
 # license files) must point at files that exist. No network; catches a doc

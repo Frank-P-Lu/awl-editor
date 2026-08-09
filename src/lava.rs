@@ -90,7 +90,7 @@ pub const LAVA_HORIZONTAL_SWAY: f32 = 0.52;
 // CARVE (which flattened the entire rail to ground). All TASTE TUNABLE — flagged
 // for live review, named like `THEME_FONT_DEBOUNCE`.
 //
-// ORGANIC GLYPH-SEEDED FIELD (item 32): the frost is NOT a union of rectangular
+// ORGANIC GLYPH-SEEDED FIELD: the frost is NOT a union of rectangular
 // pills. Every visible margin glyph SEEDS a small close halo; the halos are
 // summed into ONE continuous scalar field and thresholded ([`frost_coverage`]),
 // so neighbouring seeds MERGE in ANY direction wherever their softened halos
@@ -148,7 +148,7 @@ pub const FROST_PILL_INSET_Y_FRAC: f32 = 0.1;
 /// island structure, with no explicit per-row rule.
 pub const FROST_SEED_RADIUS_FRAC: f32 = 0.62;
 
-/// THE PUNCTUATION-AWARE RUN RADIUS FRACTION (item 61): a run's halo radius is
+/// THE PUNCTUATION-AWARE RUN RADIUS FRACTION: a run's halo radius is
 /// bounded by its OWN measured ink half-width (times this fraction) plus the
 /// skirt, so a run whose ink is narrow relative to the row-height radius — an
 /// isolated `&`, a single-letter heading — gets a halo sized to ITS OWN
@@ -161,7 +161,7 @@ pub const FROST_SEED_RADIUS_FRAC: f32 = 0.62;
 /// is UNCHANGED for ordinary text. See [`crate::render::push_text_seeds`].
 pub const FROST_RUN_INK_RADIUS_FRAC: f32 = 0.5;
 
-/// THE BOUNDED END-PAD CEILING (item 61), expressed as a multiple of the skirt
+/// THE BOUNDED END-PAD CEILING, expressed as a multiple of the skirt
 /// ([`FROST_FEATHER_PX`], zoom/DPI-scaled): the ABSOLUTE most a run's halo may
 /// reach past its own measured ink, independent of the row-height radius
 /// ([`FROST_SEED_RADIUS_FRAC`] × row height). Without this ceiling a run's
@@ -186,11 +186,11 @@ pub const FROST_ISO: f32 = 0.55;
 /// MUST match `shaders/lava.wgsl`.
 pub const FROST_ISO_SOFT: f32 = 0.42;
 
-/// SEED GRANULARITY (item 32 perf arm). `true` = PER-GLYPH seeds (one halo per
+/// SEED GRANULARITY. `true` = PER-GLYPH seeds (one halo per
 /// visible glyph — the ideal bumpy hug). `false` = the NAMED DEGRADATION ARM:
 /// one WORD-RUN seed per whitespace-delimited run, still merging organically in
 /// any direction, far fewer per-pixel seeds. Flipped to the degradation arm only
-/// if the per-glyph steady frame cost regresses > 5% (item 32 STEP 3).
+/// if the per-glyph steady frame cost regresses > 5%.
 pub const FROST_SEED_PER_GLYPH: bool = false;
 
 /// Convert an authored Frost dimension from logical to physical pixels. The lava

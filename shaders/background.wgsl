@@ -8,7 +8,7 @@
 //     alpha 1, painting the ground the page floats on.
 //
 // Almost entirely static (no per-doc/per-glyph input ever reaches this
-// pipeline). The ONE exception (item 87) is `drift` — Bombora's WAVES
+// pipeline). The ONE exception is `drift` — Bombora's WAVES
 // phase drift, a single scalar the host uploads each frame from the SAME
 // shared ambient clock the lava lamp and twinkling stars ride; it is `0.0`
 // for every non-Waves ground and for every headless capture (that clock never
@@ -42,7 +42,7 @@ struct Globals {
     // than reused: every number here is a WIRE value, so renumbering repaints
     // worlds.
     shader: u32,
-    // WAVES phase-drift, in radians (item 87) — a DEDICATED scalar in what was
+    // WAVES phase-drift, in radians — a DEDICATED scalar in what was
     // `pad` after `shader`. `0.0` for every non-Waves ground and every
     // settled/headless frame (so those renders stay byte-identical); shader 6
     // reads it as `g.drift` in `waves_rgb`. Kept OUT of `params` because item
@@ -59,7 +59,7 @@ struct Globals {
     // Per-ground params — the SAME four slots read with a DIFFERENT meaning
     // per shader (exactly one ground is ever active at a time, so there is no
     // real collision): params.x = Dots proximity flag (0/1) OR shader 7's
-    // chevron repeat wavelength `period_px` (item 86); params.y = the
+    // chevron repeat wavelength `period_px`; params.y = the
     // Stripes/Bands angle (radians) OR shader 7's own chevron travel angle;
     // params.z = shader 7's chevron amplitude `amplitude_px`; params.w =
     // shader 7's extra coverage multiplier `density`. Shader 9 (Deckle, item
@@ -70,13 +70,13 @@ struct Globals {
     // `organic_rgb`. All four are 0 for
     // every ground this round didn't touch, so those grounds take their
     // exact original code path. (Waves' item-87 drift is NOT here — it rides
-    // the dedicated `drift` slot above.) Shader 10 (WarpedGrid, item 132) reads
+    // the dedicated `drift` slot above.) Shader 10 (WarpedGrid) reads
     // x/y/w as projected minor-cell spacing / coverage density / framing.
     params: vec4<f32>,
     // Warped-grid travel in minor cells, resolved on the host. Zero for every
     // other ground. Must byte-match `Globals.warp_travel` in src/background.rs.
     warp_travel: f32,
-    // ITEM 186 — PHYSICAL PIXELS PER LOGICAL PIXEL (the display's device ratio:
+    // PHYSICAL PIXELS PER LOGICAL PIXEL (the display's device ratio:
     // 1.0 on a 1:1 screen, 2.0 on a Retina one). The host uploads it from the
     // SAME `scale_factor` the window reports (`--capture-dpi` headlessly);
     // deliberately NOT folded with the user's text zoom, because the ground is a
@@ -85,14 +85,14 @@ struct Globals {
     // is not. See `to_logical` / `sampling_feather` and the classification table
     // in `src/theme/ground.rs`, which is the authority this file mirrors.
     scale: f32,
-    // ITEM 244 — Organic's own per-frame breathe phase, in CYCLES (the raw
+    // Organic's own per-frame breathe phase, in CYCLES (the raw
     // shared-clock phase, NOT radians — unlike `drift` above, nothing
     // pre-multiplies this by TAU). `0.0` for every non-Organic ground and
     // every settled/headless frame. Read directly by `organic_finds_rgb`'s
     // companion (`kind_b`) value-breathe, whose envelope shape matches
     // `stars.rs:185`'s `rate * phase / LAVA_LOOP_CYCLES`. Must byte-match
     // `Globals.organic_phase` in src/background.rs. Replaces the field
-    // TRANSLATION `organic_rgb` used to compute from `drift` (item 163) —
+    // TRANSLATION `organic_rgb` used to compute from `drift` —
     // deleted outright, so the ground no longer translates at all.
     organic_phase: f32,
     // std140 tail padding — a uniform struct is rounded up to its 16-byte
@@ -106,7 +106,7 @@ struct Globals {
 
 @group(0) @binding(0) var<uniform> g: Globals;
 
-// --- ITEM 186 — THE TWO COORDINATE SPACES OF A PROCEDURAL GROUND ---
+// --- THE TWO COORDINATE SPACES OF A PROCEDURAL GROUND ---
 //
 // A ground carries two structurally different classes of authored number, and
 // before this item both were physical pixels by accident of the coordinate the
@@ -201,7 +201,7 @@ const EDGE_FALLOFF: f32 = 90.0;
 // grep-law asserts this line still reads it.
 const ZIGZAG_STROKE_FRAC: f32 = 0.10;
 
-// `px` is LOGICAL (item 186), so the column bounds it is measured against are
+// `px` is LOGICAL, so the column bounds it is measured against are
 // taken in logical units too.
 fn edge_intensity(px: vec2<f32>) -> f32 {
     var d = 0.0;
@@ -231,7 +231,7 @@ fn edge_proximity(px: vec2<f32>) -> f32 {
     return clamp(1.0 - d / span, 0.0, 1.0);
 }
 
-// Coverage [0,1] of the assigned margin ground at LOGICAL pixel `px` (item 186
+// Coverage [0,1] of the assigned margin ground at LOGICAL pixel `px`
 // — the caller divides through the device ratio, so every cell/period/mark size
 // below is a logical quantity and the composition is the same at 1x and 2x).
 // All grounds are pure functions of position — STATIC, no time. Tuned to
@@ -288,8 +288,8 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
     // the id stays unissued rather than being handed to a neighbour, because
     // every id below is a wire value (see `Background::shader_id`). ---
     // --- 7: ZIGZAG — a TILED field of repeating chevron ("V") rows,
-    // whisper-composited over the gradient like Dots/Pinstripe (item 86;
-    // FIELD-tiled by item 89). Four independently authored dials (see
+    // whisper-composited over the gradient like Dots/Pinstripe;
+    // FIELD-tiled. Four independently authored dials (see
     // `Background::Zigzag`'s own doc): `period` is the chevron's repeat
     // wavelength ALONG its travel (the SCALE dial — the tooth wavelength
     // ALONE; the row-to-row pitch ACROSS travel is DERIVED, see the abutment
@@ -300,7 +300,7 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
     // gradient's own `dir`), and `dens` an extra per-world coverage
     // multiplier (the CONTRAST dial) stacked with the shared
     // `PATTERN_MAX_COVERAGE` ceiling every mark ground already carries. ---
-    // ITEM 186: every one of Zigzag's numbers is COMPOSITION and therefore
+    // Every one of Zigzag's numbers is COMPOSITION and therefore
     // logical — `period`, `amp`, and the derived `thickness`. The stroke's soft
     // edge is `thickness * 0.6 .. thickness`, a PROPORTION of the ribbon rather
     // than a fixed skirt, so it is part of the drawn profile and not a sampling
@@ -325,14 +325,14 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
         let rx = px.x * ca + px.y * sa;
         let ry = -px.x * sa + px.y * ca;
         // A broad triangle wave of `rx` (period `period`), in [-1, 1] — the
-        // SAME fold `jagged_wave_band` (`shaders/selection.wgsl`, item 71,
+        // SAME fold `jagged_wave_band` (`shaders/selection.wgsl`,
         // retired) used: `fract` + a fold gives the sharp "jagged" corners a
         // chevron needs.
         let tri = abs(fract(rx / period) * 2.0 - 1.0) * 2.0 - 1.0;
         let center = tri * amp;
         let thickness = max(amp * ZIGZAG_STROKE_FRAC, 1.2);
-        // ITEM 89 — THE FIELD FOLD. `center` is a function of `rx` ALONE, so
-        // `abs(ry - center)` (item 86's original) describes ONE continuous
+        // THE FIELD FOLD. `center` is a function of `rx` ALONE, so
+        // `abs(ry - center)` describes ONE continuous
         // chevron LINE embedded in the plane: teeth repeat along travel, but
         // nothing repeats it ACROSS travel, so a tall margin showed one
         // wandering stroke with large blank areas and a taller window only
@@ -342,8 +342,8 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
         // Mario-like zigzag field that covers any viewport, at any height,
         // with the same row rhythm.
         //
-        // ITEM 89-FIX — THE ABUTMENT RULE, and why the pitch is NOT `period`.
-        // Item 89's first cut set `row_h = period` (a square lattice in the
+        // THE ABUTMENT RULE, and why the pitch is NOT `period`. A first cut
+        // set `row_h = period` (a square lattice in the
         // travel frame). That tiles, but it does NOT COVER: row `k`'s ribbon
         // only ever visits `ry` in `[k*row_h - amp - t, k*row_h + amp + t]`,
         // so when `2*amp + 2*t < period` the field carries a VOID BAND of
@@ -361,13 +361,13 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
         // overlap) across the travel axis for ANY authored dials, so a void
         // band is impossible BY CONSTRUCTION rather than by tuning: over the
         // PLANE the covering property no longer depends on the
-        // period/amplitude ratio or on the angle. (ITEM 100 — the one bound:
+        // period/amplitude ratio or on the angle. (The one bound:
         // a VIEWPORT sees a rotated rectangle of that plane, so it inherits
         // the guarantee only while it holds a whole tooth of travel; a canvas
         // narrower than one `period` never sweeps the full excursion. See
         // `Background::zigzag_row_pitch_px`'s doc comment — no shipping
         // world's tooth is within 4x of that regime.) It also retires
-        // item 89's row-collision clamp — abutting rows cannot smear together
+        // the row-collision clamp — abutting rows cannot smear together
         // (each ribbon is `2*t` wide inside a `2*amp + t` lane), so there is
         // nothing left to guard.
         let row_h = 2.0 * amp + thickness;
@@ -413,7 +413,7 @@ fn tri_tone_mix(coord: f32, b1: f32, b2: f32, aa: f32) -> vec3<f32> {
     return mix(tone01, g.c_to.rgb, m2);
 }
 
-// ITEM 244 — THE FIELD TRANSLATION IS GONE. Item 163's `drift` vec2 (a
+// THE FIELD TRANSLATION IS GONE. The former `drift` vec2 (a
 // `sin(g.drift)`/`cos(g.drift * 0.73)` field pan, both terms) is deleted
 // outright, not retuned: the `0.73` term was DISCONTINUOUS across the shared
 // clock's wrap (`cos(0.73*TAU) != cos(0.0)`, a 1.125-normalised-unit jump —
@@ -450,8 +450,8 @@ fn tri_tone_mix(coord: f32, b1: f32, b2: f32, aa: f32) -> vec3<f32> {
 // A collection reaches at most `JITTER/2 + ANCHOR_HI * (OFFSET_HI +
 // COMPANION_HI * 1.5551)` of a cell from its centre — the 1.5551 is the
 // triangle's circumradius per unit nominal radius, the largest reach of the
-// three kinds. ITEM 191 raised `ANCHOR_HI` (below) for the composition-growth
-// move, which raises this worst-case reach from item 176's ~0.44 to ~0.499 —
+// three kinds. Raising `ANCHOR_HI` (below) for composition growth raises this
+// worst-case reach from ~0.44 to ~0.499 —
 // still inside the half cell, so neighbouring collections still never merge,
 // but the margin is now thin rather than generous, so this claim is a
 // SWEPT PIXEL LAW (`render::tests::bowerbird_finds_item176`'s three-role
@@ -460,7 +460,7 @@ fn tri_tone_mix(coord: f32, b1: f32, b2: f32, aa: f32) -> vec3<f32> {
 const FINDS_SQUARE_HALF: f32 = 0.8862269; // (2a)^2 == pi*r^2
 const FINDS_TRI_HALF_SIDE: f32 = 1.3468; // sqrt(3)*h^2 == pi*r^2
 const FINDS_TRI_INRADIUS: f32 = 0.7776; // the smallest inradius of the three kinds
-// ITEM 191 — the anchor's own nominal-radius range is 1.15x its item-176
+// The anchor's own nominal-radius range is 1.15x its former
 // values, ONE hierarchy-preserving move: the companion and cut-out are both
 // authored as FRACTIONS of the anchor's radius (`r_b`/`r_c` below), and their
 // offsets are fractions of the anchor's radius too, so scaling the anchor
@@ -482,7 +482,7 @@ const FINDS_ACCENT_OFFSET_LO: f32 = 0.10;
 const FINDS_ACCENT_OFFSET_HI: f32 = 0.34;
 const FINDS_JITTER: f32 = 0.15;
 const FINDS_LATTICE_ANGLE: f32 = 0.42;
-// ITEM 191 — the WINNING hash's threshold, not a per-cell rate any more (see
+// The WINNING hash's threshold, not a per-cell rate (see
 // `finds_is_local_min` below). Raised from the item-176 0.10 so the
 // decorrelated mechanism still draws roughly one breathing cell in ten:
 // a cell's own hash is one of 9 i.i.d. draws (itself plus its full
@@ -496,7 +496,7 @@ const FINDS_TAU: f32 = 6.2831855;
 // hard edge resolves without stair-stepping at 1x and at 2x, and at any cell
 // scale a future Organic world might author.
 //
-// ITEM 186 — THIS IS THE CANONICAL SAMPLING QUANTITY AND IT DID NOT MOVE. Every
+// THIS IS THE CANONICAL SAMPLING QUANTITY. Every
 // composition number around it became logical; this one stays physical, and
 // `finds_fill` converts it INTO the logical space the SDFs are evaluated in so
 // that its width on the glass is 0.75px at 1x and 0.75px at 2x. Converting it
@@ -508,7 +508,7 @@ const FINDS_EDGE_AA_PX: f32 = 0.75;
 // under a pixel and a collection aliases into speckle instead of reading as
 // three arranged objects. A property of the shader, not of the dial pair.
 //
-// ITEM 186 — LOGICAL, even though its MOTIVATION is a sampling one. It is a
+// LOGICAL, even though its MOTIVATION is a sampling one. It is a
 // floor on a COMPOSITION quantity (the cell), and a floor applied in physical
 // px would clamp a small authored cell differently at 1x and 2x, putting the
 // composition back under the display's control at exactly the sizes the floor
@@ -517,11 +517,11 @@ const FINDS_EDGE_AA_PX: f32 = 0.75;
 // is strictly more resolution than the number was calibrated against.
 const FINDS_MIN_SCALE_PX: f32 = 96.0;
 
-// ITEM 244 — THE COMPANION'S VALUE BREATHE, replacing the deleted field
+// THE COMPANION'S VALUE BREATHE, replacing the deleted field
 // translation (`organic_rgb`'s own comment). Only the COMPANION role
 // (`kind_b`, drawn as `ink_b` below) breathes; the anchor and cut-out stay
 // static — selection by SHAPE KIND and the cut-out role were both
-// considered and rejected (queue item 244: kinds clump because they are
+// considered and rejected: kinds clump because they are
 // seeded per element, triangles are the highest-salience shape, and the
 // cut-out is the smallest element and risks falling under perceptible).
 //
@@ -561,13 +561,13 @@ const ORGANIC_BREATHE_RATE_STEPS: f32 = 6.0;
 // measured peak per-channel movement at Bowerbird's shipped tones/density is
 // a real but modest ~17 sRGB levels (never the full tone gap, and reached
 // only at a companion's own breathe peak, once every ~8-22s) — comfortably
-// past "I literally don't see it" (item 163's own measured failure mode at a
+// past "I literally don't see it" (the measured failure mode at a
 // ~2-level swing) while a raised-cosine envelope over a multi-second cycle
 // keeps it a breathe, not a flash. The live `--release` sitting is what
 // actually settles this number, not the pixel floor alone.
 const ORGANIC_BREATHE_AMOUNT: f32 = 1.2;
 
-// ITEM 191 — THE VOID-BOUND DROPOUT. The item-176 mechanism drew a cell empty
+// THE VOID-BOUND DROPOUT. The prior mechanism drew a cell empty
 // on an UNCONSTRAINED per-cell coin flip (`hash21(cell) < 0.10`), independent
 // cell to cell. Independent flips have no memory of their neighbours, so nothing
 // stopped a run of several adjacent cells from all landing empty at once — rare
@@ -650,7 +650,7 @@ fn finds_fill(sd_cell: f32, s: f32) -> f32 {
 fn organic_finds_rgb(px: vec2<f32>, s: f32, d: f32) -> vec3<f32> {
     // The lattice is ROTATED and then per-row sheared: the scattered rhythm
     // survives, its rows and columns do not, so the field never resolves into
-    // the visible grid a plain `floor(px / s)` would draw. ITEM 244: no
+    // the visible grid a plain `floor(px / s)` would draw. No
     // longer translated by any per-frame drift — a bower is an arrangement,
     // deliberately placed and then left alone.
     let w = px;
@@ -710,7 +710,7 @@ fn organic_finds_rgb(px: vec2<f32>, s: f32, d: f32) -> vec3<f32> {
     // `density == 0.0` still collapses both inks onto the ground exactly.
     let ink_a = mix(g.c_from.rgb, select(g.c_pat.rgb, g.c_to.rgb, swap), d);
 
-    // ITEM 244 — THE COMPANION'S OWN VALUE BREATHE (see the constants' doc
+    // THE COMPANION'S OWN VALUE BREATHE (see the constants' doc
     // above). A decorrelated per-cell roll off `h6` (a fresh salt, clear of
     // every other draw this cell already made) picks an INTEGER rate and a
     // phase offset; `breathe` is a smooth 0..1 pulse of that roll against the
@@ -739,11 +739,11 @@ fn organic_finds_rgb(px: vec2<f32>, s: f32, d: f32) -> vec3<f32> {
 // scalar and its dial enum went together — a shader branch serving zero worlds
 // is the same infrastructure smell as a one-arm enum, and deleting the enum
 // alone would have banked none of it. `params.z` is inert here now.
-// ITEM 244 — the field is entirely STATIC: a shape is a pure function of its
+// The field is entirely STATIC: a shape is a pure function of its
 // cell and nothing pans, morphs, spawns, or dissolves it. Its one remaining
 // ambient input is the companion's own per-element value breathe
 // (`organic_finds_rgb`'s own doc), which changes a drawn object's TONE, never
-// its position. `px` is LOGICAL (item 186), so `s` — the authored cell — is a
+// its position. `px` is LOGICAL, so `s` — the authored cell — is a
 // logical cell, and every fraction-of-a-cell threshold follows it for free.
 fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
     let s = max(g.params.x, FINDS_MIN_SCALE_PX);
@@ -751,7 +751,7 @@ fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
     return organic_finds_rgb(px, s, d);
 }
 
-// --- 9: DECKLE — THE HANDMADE-PAPER MATERIAL FIELD (item 158). ---
+// --- 9: DECKLE — THE HANDMADE-PAPER MATERIAL FIELD. ---
 //
 // A family of quasi-random CONTOUR LANES through the margins. Each lane is
 // seeded from its own index, so no two neighbours agree; a two-tone sine
@@ -776,7 +776,7 @@ fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
 // amplitude (`wander_px`), params.z = the ONE coverage/contrast multiplier
 // (`density`), params.w = the weave.
 //
-// ITEM 186: this whole field is COMPOSITION and runs in LOGICAL pixels — the
+// This whole field is COMPOSITION and runs in LOGICAL pixels — the
 // pitch, the wander, the wander FREQUENCIES (per logical px), the fibre and
 // vein half-width ramps, and the pitch floor. Deckle carries no sampling
 // feather at all: a lane boundary's softness is `DECKLE_EDGE_LO..HI`, a
@@ -787,7 +787,7 @@ fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
 // `density == 0.0` collapses BOTH profiles to their flat ground EXACTLY — the
 // lane values converge on DECKLE_MID and every tint drops out. That is not a
 // nicety: it is the differential oracle every pixel law for this ground
-// measures against (item 86's `mark_field` idiom), so the gradient, dither and
+// measures against (`mark_field` idiom), so the gradient, dither and
 // 8-bit quantization cancel and what remains is the material alone.
 
 // The lane-value midpoint `density == 0` flattens to, and the value half-range
@@ -826,7 +826,7 @@ const DECKLE_TAU: f32 = 6.2831855;
 // The lane pitch FLOOR, in LOGICAL px. The deckle edge is a FRACTION of a lane,
 // so below this the boundary falls under a pixel and the field aliases into
 // moire instead of reading as paper. Enforced HERE (a property of the shader,
-// not of the dial pair — item 89's abutment lesson) and mirrored by
+// not of the dial pair — the abutment lesson) and mirrored by
 // `theme::DECKLE_MIN_PERIOD_PX`. Logical for the same reason
 // `FINDS_MIN_SCALE_PX` is: a floor on a composition quantity is itself a
 // composition quantity, or the clamp hands the composition back to the display.
@@ -839,7 +839,7 @@ const DECKLE_WEAVE_FIBRES: f32 = 0.5;
 // dragging and under the adaptive-column shift, so an exposed screen point
 // cannot translate, stretch, reseed, or reflow its paper contours. Measuring
 // the distance from the PAGE EDGE instead is precisely the border-decoration
-// behaviour item 175 rejected; that arm is gone, and the wallpaper law now
+// behaviour the wallpaper law rejects; that arm is gone, and the wallpaper law now
 // states the property directly — the field is provably NOT invariant under the
 // displacement a page-anchored owner would have introduced — instead of
 // demonstrating it by keeping the rejected code alive to fail.
@@ -897,7 +897,7 @@ fn deckle_rgb(px: vec2<f32>) -> vec3<f32> {
     return deckle_strata(px, pitch, wander, density);
 }
 
-// ITEM 69 FOLLOW-UP (audit finding): the plain corner-to-corner projection
+// AUDIT FINDING: the plain corner-to-corner projection
 // below reads fine at a NARROW or SQUARE canvas, but at a wide CANONICAL
 // aspect (~1200x800) the projection is dominated by the width term, so a
 // fixed-pixel margin sliver near x=0 or x=viewport.x sees only a sliver of
@@ -911,7 +911,7 @@ fn deckle_rgb(px: vec2<f32>) -> vec3<f32> {
 // views. Tuned so canonical's margins each catch a crossing while the
 // existing mid-field ">15% per band" law still holds comfortably.
 //
-// ITEM 186: Bands has NO composition quantity in pixels at all — every boundary
+// Bands has NO composition quantity in pixels at all — every boundary
 // is a FRACTION of the viewport, so the same three bands span any canvas at any
 // density by construction (this ground was already density-independent, and the
 // item's premise does not reach it). Its one pixel number is the 1.5px boundary
@@ -947,7 +947,7 @@ fn bands_rgb(px: vec2<f32>) -> vec3<f32> {
 // NON-OVERLAPPING by construction (drift never changes the amplitude, only a
 // crest's x-position, so this bound holds at every phase too).
 //
-// DRIFT (item 87): `b1`'s phase ADVANCES by `drift`, `b2`'s RETARDS by the
+// DRIFT: `b1`'s phase ADVANCES by `drift`, `b2`'s RETARDS by the
 // SAME amount — equal magnitude, opposite sign (see `src/background.rs`'s
 // module doc for the full derivation of why opposite-sign is the one choice
 // that avoids the whole field sliding as a single rigid "sheet": a same-sign
@@ -958,7 +958,7 @@ fn bands_rgb(px: vec2<f32>) -> vec3<f32> {
 // bounded by both — visibly shears/breathes counter to them: the sea reads as
 // independently layered swells, never a sheet translating behind the margin.
 //
-// ITEM 186: the scallop AMPLITUDE and WAVELENGTH are COMPOSITION — they say how
+// The scallop AMPLITUDE and WAVELENGTH are COMPOSITION — they say how
 // tall and how wide a swell reads — so both are logical (`WAVE_FREQ` is
 // radians per LOGICAL px, and `px`/`viewport` arrive logical). The tier
 // boundaries themselves are viewport THIRDS, already dimensionless. The 1.5px
@@ -976,7 +976,7 @@ fn waves_rgb(px: vec2<f32>) -> vec3<f32> {
 }
 
 // --- 10: WARPED GRID — ONE camera, ONE projected cylinder, cropped at the page
-// (item 132; the projection recomposed by item 194). ---
+// (the projection is recomposed). ---
 //
 // There is no geometry, no depth buffer and no 3-D engine here: the whole
 // tunnel is a closed-form ray cast done per fragment.
@@ -1016,7 +1016,7 @@ fn waves_rgb(px: vec2<f32>) -> vec3<f32> {
 
 // The anchor ring's projected RADIUS, as a fraction of the room's height. The
 // section is a circle, so this is the whole of its size and shape. 0.432 is
-// round 1's own anchor at the narrowest page on the canonical 1600x1000 canvas
+// first placement's anchor at the narrowest page on the canonical 1600x1000 canvas
 // (`3 * page_half` at measure 20 = 432px), which is the composition the live
 // review approved.
 const WARP_SECTION_ROOM_FRAC: f32 = 0.432;
@@ -1037,7 +1037,7 @@ const WARP_PAGE_VEIL: f32 = 0.13;
 // distance over which the minor lattice retires and the veil settles. Composition
 // (the Pinstripe/Zigzag rule), so a 2x display draws the same crossing.
 const WARP_PAGE_EASE_PX: f32 = 52.0;
-// Round 2's own placement, alive only inside the `MarginPlaced` arm: the margin
+// The second placement, alive only inside the `MarginPlaced` arm: the margin
 // widths, in anchors, between which its window slid, and how far in from the
 // page edge the axis landed once it had.
 const WARP_WINDOW_FULL: f32 = 1.0;
@@ -1085,7 +1085,7 @@ const WARP_AA_PX: f32 = 1.0;
 // rasteriser turns it into moire. It is also what quietly dissolves the
 // LOGICAL, although its motivation is a sampling one: this bound decides HOW
 // DEEP the tunnel is drawn, so in physical pixels the display would choose how
-// much of the world the reader sees — item 186 already settled that tension the
+// much of the world the reader sees — the coordinate contract resolves that tension the
 // same way for `FINDS_MIN_SCALE_PX` and `DECKLE_MIN_PITCH_PX`. It is also the
 // conservative reading: at 2x these logical pixels carry twice the device
 // samples, so the moire it exists to prevent is further away, not nearer.
@@ -1114,7 +1114,7 @@ const WARP_CORE_FADE_HI: f32 = 4.0;
 const WARP_TUNNEL_PAGE_SCALED: f32 = 0.5;
 const WARP_TUNNEL_MARGIN_PLACED: f32 = 1.5;
 const WARP_TUNNEL_REVERSED: f32 = 2.5;
-// Round 1's authored numbers, alive only inside the `PageScaled` arm: the anchor
+// The first placement's authored numbers, alive only inside the `PageScaled` arm: the anchor
 // ring's diameter in page widths, and where its flank crossed the page edge as a
 // fraction of the room's height.
 const WARP_PAGE_SCALED_RATIO: f32 = 3.0;
@@ -1123,7 +1123,7 @@ const WARP_PAGE_SCALED_FIT: f32 = 0.42;
 // its own screen-space gradient — so one expression draws a line of constant
 // width at every projected spacing, near and far.
 //
-// ITEM 186, THE ONE PLACE THIS FILE MEASURES IN DEVICE PIXELS ON PURPOSE:
+// THE ONE PLACE THIS FILE MEASURES IN DEVICE PIXELS ON PURPOSE:
 // `fwidth` differentiates against the RASTERISER's grid whatever space its
 // argument was computed in, so `d` here is PHYSICAL however logical the
 // coordinate is. The two quantities meet it from their own sides — the drawn
@@ -1153,7 +1153,7 @@ fn warp_room_axis(vp_x: f32) -> f32 {
     return vp_x * 0.5;
 }
 
-// ROUND 2'S PLACEMENT, kept as data for the `MarginPlaced` arm: the distance the
+// SECOND PLACEMENT, kept as data for the `MarginPlaced` arm: the distance the
 // axis fell INSIDE the page edge, as a function of the margin's OWN width.
 // Positive hid the axis behind the page; negative brought it out into the
 // margin. See `theme::Tunnel`.
@@ -1326,7 +1326,7 @@ var<private> BAYER8: array<u32, 64> = array<u32, 64>(
 );
 
 // The Bayer threshold at pixel `px`, normalized to [0,1) — tiles every 8px.
-// ITEM 186: called with the PHYSICAL fragment position, deliberately. This is
+// Called with the PHYSICAL fragment position, deliberately. This is
 // the purest SAMPLING quantity in the file — a threshold matrix whose job is to
 // perturb each DEVICE pixel by half a quantization step before the render
 // target rounds it to 8 bits. Tiling it in logical px would put four device
@@ -1373,7 +1373,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     if (in_page && g.shader != 10u) {
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
-    // ITEM 186 — the ONE conversion. Every ground below composes in LOGICAL
+    // THE ONE conversion. Every ground below composes in LOGICAL
     // pixels; the PAGE-COLUMN punch above and the dither below deliberately do
     // not (the column is a physical geometry fact the host measured, and the
     // dither belongs to the device grid).

@@ -981,7 +981,7 @@ fn spell_popup_floats_bare_on_bars_keeps_the_card_on_pane() {
                     p.overlay_spine_selected.instance_count(),
                     2,
                     "{}: diagonal popup selects with the mark's two chevron arms \
-                     (item 247; SHAPE is graded by diagonal_composition's own law)",
+                     (SHAPE is graded by diagonal_composition's own law)",
                     t.name
                 );
             }
@@ -1055,7 +1055,7 @@ fn bars_query_caret_overlaps_the_query_text() {
     // anchor to TopLeft so the query line sits at the left INTERIOR RAIL where this
     // test's pixel windows expect it (the DEFAULT anchor is now `TopCenter` —
     // COMPOSITION-C2 — which centres the card; the caret-Y-overlaps-text law under
-    // test is anchor-agnostic). The pixel windows below are offset by item 67's
+    // test is anchor-agnostic). The pixel windows below are offset by the
     // rail inset (the card's left edge moved from the old flat ~28px edge-hug to
     // the wider interior-rail inset at this window width).
     crate::render::set_card_anchor_test_override(Some(theme::CardAnchor::TopLeft));
@@ -1134,7 +1134,7 @@ fn bars_query_caret_overlaps_the_query_text() {
     theme::set_active(theme::DEFAULT_THEME);
 }
 
-/// ITEM 10 — D: the picker's amber query caret places at its OWN CHAR-index
+/// D: the picker's amber query caret places at its OWN CHAR-index
 /// caret (`ViewState::overlay_query_caret`), not always the query's END.
 /// Renders the SAME query three times — caret at the START (char 0), the
 /// MIDDLE (char 3), and the END (char 6, the pre-item-10 ONLY position) — and
@@ -1801,7 +1801,7 @@ fn footer_plate_hugs_content_under_hug_bars() {
     let text_left = card_x + chrome::BAR_SIDE_INSET.px(1.0) + chrome::BAR_TEXT_PAD.px(1.0);
     let content_px = 240.0; // a footer narrower than the full card width
 
-    // ITEM 174 — the plate's TOP is the planned footer seam, read through the one
+    // The plate's TOP is the planned footer seam, read through the one
     // owner rather than re-derived here.
     let hint_top =
         crate::render::plan::test_row_top(text_top, header_rows, header_gap, content_rows, lh);
@@ -2384,8 +2384,8 @@ fn context_menu_anchor_clamps_and_hits_across_world_dpi_and_edges() {
     theme::set_active(theme::DEFAULT_THEME);
 }
 
-/// ITEM 46 — the faceted grouped-lens SECTION HEADERS sit on a plate (the wave-2
-/// "floating commands" class, header edition). Item 35 plated the bare shortcut
+/// The faceted grouped-lens SECTION HEADERS sit on a plate (the floating
+/// commands class, header edition). The bare shortcut
 /// chords; the section-header plan lines ([`PlanLine::Header`], e.g. "FILE") were
 /// still the ONE candidate-area line the Bars draw skipped ("a header is a label"),
 /// so on a Bars world a header floated BARE over the blurred backdrop while every
@@ -2511,8 +2511,8 @@ fn faceted_section_header_sits_on_a_plate_on_every_bars_world() {
     theme::set_active(theme::DEFAULT_THEME);
 }
 
-/// ITEM 46 — the faceted lens-strip TABS sit on a plate (the wave-2 "floating
-/// commands" class, strip edition). Item 35 plated the chords; the strip's ACTIVE
+/// The faceted lens-strip TABS sit on a plate (the floating commands class,
+/// strip edition). The chords are plated; the strip's ACTIVE
 /// tab already carried its facet mark (underline / band / bracket / chip), but the
 /// INACTIVE tabs — and a bracket/underline active tab, which has no fill — floated
 /// BARE, crisp text over the blurred backdrop. Now every drawn tab gets a quiet

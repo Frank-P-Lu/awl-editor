@@ -210,8 +210,8 @@ fn the_footprint_frost_unmakes_the_document_as_text_and_confines_itself_to_the_c
 
             // The footprint, and a collar outside it. The interior's inset stays small:
             // the frost's mask is FULL STRENGTH on and inside the card's faces (the
-            // feather ramps entirely outward), so item 312's edge did not move this
-            // half of the law at all.
+            // feather ramps entirely outward), so the feather edge does not move
+            // this half of the law at all.
             //
             // ⚠️ THE COLLAR'S INNER BOUNDARY IS THE BOUNDARY'S OWN WIDTH, and the
             // boundary is no longer one pixel: it is the feather, plus the shear's own
@@ -222,8 +222,8 @@ fn the_footprint_frost_unmakes_the_document_as_text_and_confines_itself_to_the_c
             //
             // ⚠️ AND THE INTERIOR IS THE PARALLELOGRAM, NOT THE CARD'S BOX. The frost's
             // shape leans, so the box's two OFF-RAKE corners are deliberately unfrosted
-            // and the document there is deliberately sharp — that is item 318's whole
-            // deliverable, and a region pinned to the box reads those corners as this
+            // and the document there is deliberately sharp — that is the intended
+            // shape, and a region pinned to the box reads those corners as this
             // law's own failure. Both the rect and the shear come from the frost the
             // frame SENT THE SHADER, so this follows the shape that was drawn rather
             // than a second derivation of it.

@@ -362,9 +362,9 @@ fn once_armed_a_drag_stays_armed_through_further_sub_slop_moves() {
     );
 }
 
-// --- ITEM 84: dragging past the page's left edge ------------------------
+// --- Dragging past the page's left edge --------------------------------
 //
-// The PAINT-side half of item 84 (selection wash / search-match / preedit /
+// The PAINT-side half (selection wash / search-match / preedit /
 // caret never spill past the active content clip) is proven over real
 // pixel/geometry arithmetic in `render::tests::selection_clip_law` — that
 // half needs a GPU pipeline. This half is the STATE seam: hit-testing a drag
@@ -516,7 +516,7 @@ fn a_heading_jump_onto_a_hidden_line_reveals_its_fold() {
 
 #[test]
 fn outline_click_target_maps_a_fold_filtered_row_back_to_the_raw_heading_line() {
-    // item 74 — THE BUG: `TextPipeline::outline_hit_line` (what a real outline
+    // THE BUG: `TextPipeline::outline_hit_line` (what a real outline
     // click hit-tests to) reports a row's line in FOLD-FILTERED space — with # A
     // folded, `# B`'s row sits at FILTERED line 1 (the two hidden a1/a2 rows above
     // it collapse away), even though `# B` truly lives on RAW document line 3.
@@ -636,9 +636,9 @@ fn a_click_below_a_collapsed_section_lands_on_the_right_full_document_line() {
     );
 }
 
-/// ITEM 106 FOLLOW-UP — `App::overlay_wheel` is a SECOND deliberate-crossing
+/// `App::overlay_wheel` is a SECOND deliberate-crossing
 /// input path that drives `OverlayState::move_sel` exactly like the keyboard
-/// (item 106's original commit only wired the keyboard-baseline stamp into
+/// (the keyboard-baseline stamp was initially wired only into
 /// `App::apply` / `ReplaySession::apply_chord`, missing this one — the wheel
 /// is dispatched straight from `on_mouse_wheel`, never through `apply`). From
 /// a COLD START (the overlay opened by keyboard, the pointer never having
@@ -647,7 +647,7 @@ fn a_click_below_a_collapsed_section_lands_on_the_right_full_document_line() {
 /// a `None` baseline as unconditional real motion, so the very next
 /// `hover_at` call — even an exact repeat of the SAME resting pixel, the kind
 /// of platform-synthesized duplicate a relayout/redraw can produce — would
-/// silently steal the wheel-driven selection. Reproduces the item-106 hazard
+/// silently steal the wheel-driven selection. Reproduces the hazard
 /// ("a list window scrolling under a stationary cursor... yank the selection
 /// out from under the user") through the wheel rather than the keyboard.
 #[test]

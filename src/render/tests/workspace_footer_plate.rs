@@ -1,4 +1,4 @@
-//! ITEM 225 — A WORKSPACE'S OVERSIZED FOOTER PLATE.
+//! A WORKSPACE'S OVERSIZED FOOTER PLATE.
 //!
 //! A `Bars` world backs its footer line with a plate. On a card that HUGS its
 //! content the plate runs to the card's bottom edge, and that is right: the plate
@@ -31,7 +31,7 @@ fn shoot(
     super::dither::read_pixels(device, queue, &texture, w, h)
 }
 
-/// **ITEM 225 — A WORKSPACE'S FOOTER PLATE ENDS WITH ITS FOOTER.**
+/// **A WORKSPACE'S FOOTER PLATE ENDS WITH ITS FOOTER.**
 ///
 /// A `Bars` world backs its footer line with a plate. On a card that HUGS its
 /// content the plate runs to the card's bottom edge, and that is right: the plate
@@ -168,7 +168,7 @@ fn a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world() {
                          real plate"
                     )
                 });
-            // ITEM 293 — the footer plate now backs TWO compact rows, not one:
+            // The footer plate backs TWO compact rows, not one:
             // the hint's own line, plus the blank separator ahead of it
             // (`overlay_hint_gap_rows`, at its own `overlay_hint_gap_h`).
             // `overlay_footer_reclaim(1, 1)` is the SAME arithmetic the plate's
@@ -188,7 +188,7 @@ fn a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world() {
             // a card bottom a workspace does not have. This fixture draws exactly
             // one footer line and the workspace pad is 12.0 LOGICAL px — scaled by
             // `dpi` (zoom is 1.0 throughout this fixture), a pre-existing gap in
-            // this reconstruction item 293's own taller (still bounded) plate is
+            // this reconstruction; the taller (still bounded) plate is
             // the first thing to reach: at dpi 1 the unscaled literal is within
             // rounding of the true value, so it never mattered until now.
             let retired_bottom = footer_top + row_h + 12.0 * dpi;
@@ -248,7 +248,7 @@ fn a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world() {
         "the exclusion arm must reach every plateless world at both DPIs, got \
          {plateless_graded:?}"
     );
-    // ITEM 293 lowered this floor from 10.0: its own (still bounded) plate is
+    // The floor is below 10.0 because the still-bounded plate is
     // legitimately taller than the one this law was first written against —
     // it now backs TWO compact rows (the hint plus the blank separator ahead
     // of it) instead of one, so the margin against the retired unbounded rule

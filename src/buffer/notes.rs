@@ -4,8 +4,8 @@
 //! stem), and `unique_path` / `move_file` (no-clobber path selection + true
 //! moves over the filesystem seam). Free functions carved out of `buffer.rs`
 //! verbatim; glob-re-exported from the module root so the `crate::buffer::*`
-//! call sites resolve unchanged. Item 76 retired the LIVE-rename-to-title
-//! machinery (`rename_to_stem`/`stem_matches_slug`) — naming is now one-shot,
+//! call sites resolve unchanged. The LIVE-rename-to-title machinery
+//! (`rename_to_stem`/`stem_matches_slug`) is retired — naming is now one-shot,
 //! at the first material save only (see `Buffer::save`'s doc).
 
 use std::path::{Path, PathBuf};

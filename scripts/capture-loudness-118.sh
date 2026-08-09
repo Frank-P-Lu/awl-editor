@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# capture-loudness-118.sh — the idle-loudness audit sweep (queue item 118).
+# capture-loudness-118.sh — the idle-loudness audit sweep.
 #
-# item 20's dashboard (scripts/capture-worlds.sh) captures every world's Room
+# The world dashboard (scripts/capture-worlds.sh) captures every world's Room
 # and Frame at ONE fixed wide canvas. The loudness audit asks a different
 # question — how strongly does a world ask for attention while the user is
 # simply WRITING — and that answer moves with page width: the ground only
@@ -22,7 +22,7 @@
 #                                   ever writes in
 #
 # 70/100 are the product's own defaults (`page_width_prose` / `page_width_code`),
-# not invented numbers. Frames are deliberately NOT captured: item 118's own
+# not invented numbers. Frames are deliberately NOT captured: the audit
 # definition counts palette, typography, margin pattern and ambient motion, and
 # says summoned overlays do not.
 #
@@ -52,7 +52,7 @@
 #   gallery/item-118-loudness/<arm>/<World>.png + .json
 #
 # Measurement over these captures is scripts/loudness-measure.py. It reports
-# territory and contrast only; per item 118, pixel arithmetic never claims the
+# territory and contrast only; pixel arithmetic never claims the
 # taste score.
 set -euo pipefail
 

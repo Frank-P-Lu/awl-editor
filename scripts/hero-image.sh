@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# hero-image.sh — item 157: the site's dedicated social-sharing image, produced
+# hero-image.sh — the site's dedicated social-sharing image, produced
 # through the real product exactly like every other captured asset (see
 # CAPTURE.md, capture-worlds.sh). No HTML mockup, no image editor, no network.
 #
@@ -21,7 +21,7 @@
 #              wave-tier ground, book serif, a genuine fourth contender, not a
 #              substitute for the three the user named.
 #
-# item 157 ROUND 2 (this pass) fixed a real defect the first round shipped:
+# A second pass fixed a real defect the first version shipped:
 # the image was an EDITOR SCREENSHOT, not a composed image — CAPTURE.md's own
 # page-mode chrome leaked into a "marketing" asset. Two leaks, one composition
 # fix, all from REAL product settings (never a hand-picked filename or a
@@ -169,7 +169,7 @@ for world in "${CANDIDATES[@]}"; do
     exit 1
   fi
 
-  # STATE + PIXEL verification (item 157 round 2): the sidecar's gutter.visible
+  # STATE + PIXEL verification: the sidecar's gutter.visible
   # is the state oracle, but the sidecar is never trusted alone for appearance
   # (CAPTURE.md's own tripwire — `selected_index: 2` once rendered on a fully
   # invisible row) — hero-verify.py backs it with real pixel arithmetic over
@@ -201,7 +201,7 @@ echo "==> building comparison sheet"
 THUMB_W=560
 COMPARE_MD="$RUN_DIR/comparison.md"
 {
-  echo "# Hero image candidates — item 157"
+  echo "# Hero image candidates"
   echo
   for world in "${CANDIDATES[@]}"; do
     echo "## $world"

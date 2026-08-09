@@ -1,5 +1,5 @@
-//! src/app/workspace/ — THE SUMMONED-UI LAYER OWNER (`WorkspaceState`, queue
-//! item 172's first slice, extended by item 173; map: `docs/app-domains.md`).
+//! src/app/workspace/ — THE SUMMONED-UI LAYER OWNER (`WorkspaceState`; map:
+//! `docs/app-domains.md`).
 //!
 //! awl summons four surfaces over the editor, and they form a strict
 //! PRECEDENCE LADDER:
@@ -39,7 +39,7 @@
 //! error is the enforcement, and `app/tests/domains.rs` guards the fields from
 //! being re-added to root `App`.
 //!
-//! Item 173 added the fourth rung. The LIFECYCLE behind it —  which surface is
+//! The LIFECYCLE behind the fourth rung — which surface is
 //! up, what is parked beneath it, and where every Esc/Back/accept lands — is
 //! [`crate::overlay::Journey`], in the core the live App and the headless
 //! `--keys` replay share; `WorkspaceState` owns the one live instance and asks
@@ -190,7 +190,7 @@ impl WorkspaceState {
     /// THE ONE DELIBERATE BYPASS in this module, with exactly one call site:
     /// `sync_cursor_icon`'s popover-button hover test in
     /// `app/input/mouse.rs`. It stays ladder-free so the cursor-icon
-    /// composition is byte-identical to the pre-item-172 code; the pipeline's
+    /// composition is byte-identical to the former code; the pipeline's
     /// own popover model is already cleared when a picker is up, so the
     /// combination cannot change the resulting icon. Every other consumer must
     /// ask [`Self::popover_holds_attention`].
@@ -206,7 +206,7 @@ impl WorkspaceState {
         self.journey.card()
     }
 
-    /// Read the WHOLE summoned-overlay journey, for the sidecar fold (item 188):
+    /// Read the WHOLE summoned-overlay journey for the sidecar fold:
     /// a parked parent is lifecycle state, not card content, so `overlay()`
     /// cannot answer it — the same reason `ReplaySession::journey` exists.
     /// Read-only; `core_slots` stays the only way to mutate it. Native/test only,
@@ -291,7 +291,7 @@ impl WorkspaceState {
     }
 
     /// Lend BOTH slots to the shared action core (`actions::ActionCtx`, the
-    /// item-171 typed-transition seam), which is the one place allowed to open
+    /// typed-transition seam), which is the one place allowed to open
     /// or close a picker/panel, because opening one is an `Action` outcome and
     /// the headless `--keys` replay must reach the identical code.
     ///

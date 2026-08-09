@@ -1,8 +1,8 @@
-//! THE SUMMONED-UI LIFECYCLE (`Journey`, queue item 173) — one closed set of
+//! THE SUMMONED-UI LIFECYCLE (`Journey`) — one closed set of
 //! states, one closed set of events, and one table ([`table::landing_of`])
 //! saying where every pair lands.
 //!
-//! Item 172 gave the summoned surfaces a precedence LADDER
+//! The summoned surfaces have a precedence LADDER
 //! (`app::workspace::Layer`). A ladder answers "who holds attention right now".
 //! It cannot answer the questions a SUSTAINED surface asks:
 //!
@@ -39,7 +39,7 @@
 //!
 //! # Why the lifecycle lives in the shared core
 //!
-//! Item 173's brief says "in item 172's `WorkspaceState`". `WorkspaceState` is
+//! `WorkspaceState` is
 //! `pub(in crate::app)`, and the headless `--keys` replay
 //! (`main/run.rs::ReplaySession`) cannot see it — yet every transition here is
 //! reached through `actions::apply_transition`, which both flows share. A
@@ -52,8 +52,8 @@
 //!
 //! # Scope
 //!
-//! Shared lifecycle machinery for Settings (item 114) and Version History
-//! (item 131) — not a route stack: the depth is exactly one by construction,
+//! Shared lifecycle machinery for Settings and Version History — not a route
+//! stack: the depth is exactly one by construction,
 //! the payloads are typed ([`Bind`], [`Audition`]) rather than a string map,
 //! and a content supplier hands over ROWS while navigation preservation stays
 //! here.
@@ -108,7 +108,7 @@ impl OverlayKind {
     /// navigate within — rather than a brief contextual overlay?
     ///
     /// Deliberately scoped to the two surfaces the shared workspace exists for:
-    /// Settings (item 114) and Version History (item 131). It lives beside the
+    /// Settings and Version History. It lives beside the
     /// lifecycle it drives rather than in `overlay/kind.rs`, so the
     /// classification and the table that consumes it are read together.
     ///

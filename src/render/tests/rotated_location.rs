@@ -1,4 +1,4 @@
-//! ITEM 221 — THE FACETED CARD'S LOCATION CUE, DRAWN RATHER THAN SHAPED.
+//! THE FACETED CARD'S LOCATION CUE, DRAWN RATHER THAN SHAPED.
 //!
 //! **Defect:** the shared row planner gave every faceting picker a location
 //! line (the active lens's own name, the second level of the card's title

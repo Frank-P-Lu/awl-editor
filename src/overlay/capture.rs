@@ -100,7 +100,7 @@ pub struct ValueEdit {
     pub name: String,
     /// The config key the commit writes ("page_width_prose"/"page_width_code"/"zoom").
     pub key: String,
-    /// ITEM 10 — the text typed so far (digits, plus a single `.`/`%` for zoom)
+    /// The text typed so far (digits, plus a single `.`/`%` for zoom)
     /// plus its CHAR-index caret, one shared [`TextBox`]. Seeded from the row's
     /// current value cell (caret at END) so a typed edit starts from the shown
     /// value. The digit/`.`/`%` FILTER stays here in [`OverlayState::value_edit_push`]
@@ -121,7 +121,7 @@ pub struct ValueEdit {
 /// [`super::overlay_nav`]'s `rename_edit`-first check (`actions/overlay_nav.rs`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RenameEdit {
-    /// ITEM 10 — the text typed so far + its CHAR-index caret, seeded (caret at
+    /// The text typed so far + its CHAR-index caret, seeded (caret at
     /// END) from the file's current name. The `/`-REJECT filter stays here in
     /// [`OverlayState::rename_edit_push`] — `TextBox::insert` itself accepts any char.
     pub input: TextBox,
@@ -175,7 +175,7 @@ pub enum LinkEditMode {
 /// accepted (the one difference from `RenameEdit::push`'s `/`-rejection).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LinkEdit {
-    /// ITEM 10 — the text typed so far + its CHAR-index caret, seeded (caret at
+    /// The text typed so far + its CHAR-index caret, seeded (caret at
     /// END) from the prefill (existing link's URL in EDIT mode; else the
     /// clipboard/kill head IF it looks like a URL; else empty). NO character
     /// filter — `TextBox::insert` accepts any char, a URL legitimately contains `/`.
@@ -202,7 +202,7 @@ impl LinkEdit {
 /// friction behavior — while Enter with text commits a NAMED point.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeepEdit {
-    /// ITEM 10 — the text typed so far + its CHAR-index caret, one shared
+    /// The text typed so far + its CHAR-index caret, one shared
     /// [`TextBox`]. Seeded EMPTY (a fresh point is being marked — there is no
     /// old name to edit). NO character filter, mirroring [`LinkEdit::input`].
     pub input: TextBox,
@@ -389,7 +389,7 @@ impl OverlayState {
         self.value_edit_mirror();
     }
 
-    /// ITEM 10 — SETTINGS VALUE EDIT char/word motion + forward word-delete: move
+    /// SETTINGS VALUE EDIT char/word motion + forward word-delete: move
     /// (or forward-delete from) the caret WITHOUT editing backward, mirroring the
     /// cell afterward (motion never changes the text, but the mirror stays cheap
     /// + uniform with the edits above). A no-op when no value edit is active.
@@ -512,7 +512,7 @@ impl OverlayState {
         self.rename_edit_mirror();
     }
 
-    /// ITEM 10 — RENAME MINIBUFFER char/word motion + forward word-delete. A
+    /// RENAME MINIBUFFER char/word motion + forward word-delete. A
     /// no-op when no rename edit is active.
     pub fn rename_edit_char_left(&mut self) {
         if let Some(re) = self.rename_edit.as_mut() {
@@ -616,7 +616,7 @@ impl OverlayState {
         self.link_edit_mirror();
     }
 
-    /// ITEM 10 — LINK MINIBUFFER char/word motion + forward word-delete. A no-op
+    /// LINK MINIBUFFER char/word motion + forward word-delete. A no-op
     /// when no link edit is active.
     pub fn link_edit_char_left(&mut self) {
         if let Some(le) = self.link_edit.as_mut() {
@@ -719,7 +719,7 @@ impl OverlayState {
         self.keep_edit_mirror();
     }
 
-    /// ITEM 10 — KEEP-VERSION MINIBUFFER char/word motion + forward word-delete.
+    /// KEEP-VERSION MINIBUFFER char/word motion + forward word-delete.
     /// A no-op when no keep edit is active.
     pub fn keep_edit_char_left(&mut self) {
         if let Some(ke) = self.keep_edit.as_mut() {

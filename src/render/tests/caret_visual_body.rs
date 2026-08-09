@@ -1,4 +1,4 @@
-//! ITEM 126 — a proportional caret remains a visible point of presence on
+//! A proportional caret remains a visible point of presence on
 //! punctuation.  This probes the real shaped/raster geometry across the product
 //! roster; the spawned PNG law in `tests/caret_punctuation_pixels.rs` checks the
 //! resulting pixels.
@@ -59,7 +59,7 @@ fn proportional_punctuation_keeps_the_shared_horizontal_body_hug() {
                         "{} {mode:?} {ch:?}: width floor",
                         world.name
                     );
-                    // Item 205 moves vertical sizing to the row's measured
+                    // Vertical sizing uses the row's measured
                     // x-height band.  This helper still owns only the
                     // horizontal ink hug/support-body floor; asserting its
                     // height here would bless the old punctuation-sized
@@ -81,10 +81,10 @@ fn proportional_punctuation_keeps_the_shared_horizontal_body_hug() {
     );
 }
 
-/// ITEM 200 — the structural half of MONO IMMUNITY. `prepare_morph_body_or_empty`
+/// The structural half of MONO IMMUNITY. `prepare_morph_body_or_empty`
 /// (`caret_body.rs`)'s `needs_body` is `self.caret_anchor_ink_box().map(...).unwrap_or(false)`
 /// — on a mono face `caret_anchor_ink_box` is unconditionally gated to `None`
-/// (item 91's mono/ligature/glyphless policy gate), so `needs_body` is
+/// (the mono/ligature/glyphless policy gate), so `needs_body` is
 /// STRUCTURALLY always `false` there: the whole "draw a support body, knock
 /// the covered glyph back" branch this item's bug lived in can never even be
 /// entered on a mono world. That is a fact about the GATE, provable directly

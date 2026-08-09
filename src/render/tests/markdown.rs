@@ -246,7 +246,7 @@ fn thematic_break_ornament_tracks_the_syntax_per_line() {
     );
 }
 
-/// ITEM 88 — Mulga's `***` finally conceals to the LITERAL asterism ⁂ (three
+/// Mulga's `***` conceals to the LITERAL asterism ⁂ (three
 /// stars for three typed stars, the natural match `Ornaments::star`'s own doc
 /// names), `---` takes the companion two-star asterism ⁑, and the About card's
 /// closing end-mark (which draws `Theme::ornaments.dash` verbatim — see
@@ -261,7 +261,7 @@ fn thematic_break_ornament_tracks_the_syntax_per_line() {
 /// this test was added: the assertion trips on the swapped pair, not on some
 /// unrelated invariant.
 #[test]
-fn mulga_star_conceals_to_the_literal_asterism_item_88() {
+fn mulga_star_conceals_to_the_literal_asterism() {
     // WRITES the process-global active theme (the pin below); hold the theme
     // lock so it can't yank the world out from under a concurrent theme test.
     let _t = crate::testlock::serial();
@@ -272,7 +272,7 @@ fn mulga_star_conceals_to_the_literal_asterism_item_88() {
     theme::set_active_by_name("Mulga").unwrap();
     let orn = theme::active().ornaments;
 
-    // THE EXACT SWAP (item 88's decided semantics): `***` (star) → ⁂, `---`
+    // THE EXACT SWAP: `***` (star) → ⁂, `---`
     // (dash) → ⁑, `___` (underscore) unchanged at ❦.
     assert_eq!(
         (orn.dash, orn.star, orn.underscore),
@@ -521,8 +521,8 @@ fn nested_bullets_cycle_by_depth_and_reveal_on_cursor() {
 /// world keeps `•`/`◦`/`▪`, a literary serif draws its characterful triple, and
 /// Bombora the manicule at level 1 alone. Reveal-on-cursor is unchanged
 /// (off-caret only). Proves the glyph is theme-DATA, not a fixed geometric
-/// triple hardcoded in the renderer — AND (item 15) that the per-level
-/// rotation composes with item 7's per-world pick: `.0`/`.1` below are the
+/// triple hardcoded in the renderer — AND that the per-level rotation composes
+/// with the per-world pick: `.0`/`.1` below are the
 /// EXACT pre-item-15 pair for every world (Bombora/Mopoke's fixes included),
 /// with `.2` the new third rung.
 #[test]
@@ -692,7 +692,7 @@ fn bullet_glyph_never_touches_the_following_text_in_any_world() {
     p.sync_theme();
 }
 
-/// ITEM 15's own OUTCOME half: the padding audit above only ever drew a
+/// The OUTCOME half: the padding audit above only ever drew a
 /// depth-0 bullet, so it never exercised either the per-level rotation's NEW
 /// third glyph (`Theme::bullets.2`) or the per-world `list_indent_scale` rail
 /// that now widens a nested line's leading run. SAMPLED along the changed
@@ -760,7 +760,7 @@ fn bullet_glyph_never_touches_the_following_text_at_depth_two_in_any_world() {
     p.sync_theme();
 }
 
-/// ITEM 15's PER-LEVEL INDENT half: `Theme::list_indent_scale` widens a nested
+/// The PER-LEVEL INDENT half: `Theme::list_indent_scale` widens a nested
 /// list line's leading-space RUN before layout (`render::spans::
 /// add_list_indent_span`) — DATA-DRIVEN, not hardcoded, and DISTINCT per world
 /// tier. Compares each world's OWN geometry against its OWN NATURAL (unwidened)
@@ -1141,7 +1141,7 @@ fn fence_lang_label_paints_real_pixels_on_the_fence_row() {
     );
 }
 
-/// ITEM 29 — the task-list neighborhood's GENUINELY NON-VACUOUS appearance
+/// The task-list neighborhood's GENUINELY NON-VACUOUS appearance
 /// oracle, replacing the one the item-19 audit dropped (1b573bf): that test
 /// compared an OPEN document to a CHECKED one and "passed" purely on the
 /// `[ ]`/`[x]` checkbox glyph — reverting the entire checked-task dim left it
@@ -1159,7 +1159,7 @@ fn fence_lang_label_paints_real_pixels_on_the_fence_row() {
 /// Caret parked OFF both task rows so neither reveals raw (the old test's
 /// other trap — a caret-on-line render shows source, not the styled preview).
 #[test]
-fn checked_task_body_recedes_from_open_task_body_real_pixels_item_29() {
+fn checked_task_body_recedes_from_open_task_body_real_pixels() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(

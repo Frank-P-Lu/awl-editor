@@ -6,7 +6,7 @@
 # identity out of its BUNDLE, not out of the process. A bare
 # `target/release/awl` has no bundle, so several surfaces fall back to the
 # executable's filename and to no icon at all — measured, on 2026-07-29
-# (item 167), against this exact binary:
+# against this exact binary:
 #
 #   surface        bare binary            this script's bundle
 #   ------------   --------------------   ---------------------------

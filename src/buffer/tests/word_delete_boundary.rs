@@ -48,7 +48,7 @@ fn delete_word_forward_boundary_sweep() {
     // NON-VACUOUS: the punct-then-word cases (`⎸... abc` -> ` abc`,
     // `⎸...abc` -> `abc`) FAIL under the retired skip-nonword-then-word rule,
     // which skipped the whole "..." (and any spaces) then ate the word too,
-    // over-deleting to "" — the exact forward twin of the item 3(a) bug.
+    // over-deleting to "" — the exact forward twin of the original backward bug.
     // Each tuple: (text, caret char-index, expected remaining text).
     let cases: &[(&str, usize, &str)] = &[
         ("abc def ghi", 0, " def ghi"), // caret before a word -> only "abc"
@@ -83,7 +83,7 @@ fn delete_word_forward_boundary_sweep() {
 /// The forward/backward twins delete the SAME token count per stroke on a
 /// shared fixture — one class per stroke, both directions. `⎸... abc` forward
 /// removes only `...`; `... abc⎸` backward removes only `abc`. Pins the
-/// symmetry the item-28 fix restored (the old forward rule broke it).
+/// symmetry between the directions (the old forward rule broke it).
 #[test]
 fn word_delete_directions_are_symmetric_on_punct() {
     let mut fwd = b("... abc");

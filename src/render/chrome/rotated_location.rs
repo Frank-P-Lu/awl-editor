@@ -211,7 +211,7 @@ impl TextPipeline {
         (left, right)
     }
 
-    /// TEST-ONLY readers for the item-297 laws, which have to compare the cue's
+    /// TEST-ONLY readers for the cue laws, which have to compare the cue's
     /// own decided placement and the card's own drawn span against real pixels
     /// without re-deriving either.
     #[cfg(test)]

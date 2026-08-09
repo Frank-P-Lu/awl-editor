@@ -1,4 +1,4 @@
-//! ITEM 313 — THE FOOT HINT HANGS ON THE SPINE THE ROWS HANG ON, INSTEAD OF
+//! THE FOOT HINT HANGS ON THE SPINE THE ROWS HANG ON, INSTEAD OF
 //! HOLDING THE CARD'S LEFT EDGE UNDER A LEANING LIST.
 //!
 //! Every line of a card is one rich-text run in one `panel_buffer`, so the hint had

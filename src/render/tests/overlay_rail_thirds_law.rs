@@ -1,4 +1,4 @@
-//! ITEM 67 — ONE GLOBAL RESOLVER FOR THE SUMMONED CARD'S INTERIOR-RAIL PLACEMENT.
+//! ONE GLOBAL RESOLVER FOR THE SUMMONED CARD'S INTERIOR-RAIL PLACEMENT.
 //!
 //! Supersedes the old flush ~28px `TopLeft`/`TopRight` edge-hug
 //! (`overlay_align_law.rs` / `reanchor_crossing_law.rs` / `overlay_right_hug_law.rs`
@@ -13,7 +13,7 @@
 //!   width — generous outer breathing room instead of the old corner hug.
 //! - The inset is a PURE function of the window width alone (never the anchor,
 //!   never the caller's `desired_w`), so the left/right MIRROR law holds BY
-//!   CONSTRUCTION, independent of the card's actual content width — item 51's
+//!   CONSTRUCTION, independent of the card's actual content width — the
 //!   right-anchor content-hug keeps sharing ONE right edge regardless of how
 //!   narrow the measured content makes the card.
 //! - The SAME `full -> anchored_max -> floor -> free` clamp chain the old fixed
@@ -96,7 +96,7 @@ fn wide_window_card_centers_sit_near_thirds_and_exactly_at_center() {
 #[test]
 fn exact_left_right_mirror_across_widths_and_content_widths() {
     // "content widths" spans the whole realistic range: the flat cap, the
-    // faceted cap, and small stand-ins for an item-51 content-hugged card.
+    // faceted cap, and small stand-ins for a content-hugged card.
     for &desired in &[
         120.0_f32,
         180.0,
@@ -201,7 +201,7 @@ fn narrow_sweep_is_continuous_on_canvas_and_symmetric_no_jump_or_drift() {
 #[test]
 fn card_width_caps_and_mirrors_growth_flag_are_untouched() {
     // The width CAPS themselves are pure data, never read by the placement
-    // resolver's arithmetic — item 67 only ever moves `left`.
+    // resolver's arithmetic — the resolver only ever moves `left`.
     assert_eq!(
         chrome::CARD_MAX_W.px(1.0),
         545.0,
@@ -217,7 +217,7 @@ fn card_width_caps_and_mirrors_growth_flag_are_untouched() {
     );
 
     // Mirrored Bars growth is a SEPARATE concern (`CardAnchor::mirrors_growth`)
-    // from placement, and item 67 never touches it.
+    // from placement, and this policy never touches it.
     assert!(
         theme::CardAnchor::TopRight.mirrors_growth(),
         "TopRight still mirrors bar growth"
@@ -238,9 +238,9 @@ fn card_width_caps_and_mirrors_growth_flag_are_untouched() {
 
 #[test]
 fn right_anchor_content_shrink_still_shares_one_right_edge_at_the_policy_level() {
-    // Item 51's law restated at the pure-policy seam: the RIGHT edge a TopRight
+    // The content-hug law restated at the pure-policy seam: the RIGHT edge a TopRight
     // card holds depends ONLY on the window width, never the card's own
-    // (possibly content-hugged, item-51-shrunk) desired width — so a sparse
+    // possibly content-hugged desired width — so a sparse
     // content-hugged card and a wide flat card share the exact same right edge.
     let ww = 1200.0_f32;
     let (_, w_narrow) =
@@ -267,7 +267,7 @@ fn right_anchor_content_shrink_still_shares_one_right_edge_at_the_policy_level()
 
 #[test]
 fn shipped_world_anchor_assignments_are_unchanged() {
-    // Item 67 redefines the SHARED ARITHMETIC only — every world keeps its own
+    // The SHARED ARITHMETIC changes only — every world keeps its own
     // anchor CHOICE, byte-identical to before this round.
     let anchor_of = |name: &str| {
         theme::THEMES

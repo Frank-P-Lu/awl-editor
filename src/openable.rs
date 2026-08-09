@@ -1,4 +1,4 @@
-//! src/openable.rs — item 77's ONE CAPABILITY OWNER: "is this path openable
+//! src/openable.rs — the ONE CAPABILITY OWNER: "is this path openable
 //! as awl-editable TEXT?"
 //!
 //! Every door that can turn a user-named path into the ACTIVE buffer — a

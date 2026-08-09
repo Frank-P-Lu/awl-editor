@@ -4,7 +4,7 @@ use super::*;
 
 mod buffers;
 mod common;
-/// ITEM 172's STRUCTURAL GATES: the `App` ownership map as executable data —
+/// STRUCTURAL GATES: the `App` ownership map as executable data —
 /// every root field classified, extracted domains kept off root `App`, and the
 /// field-count ratchet. Prose map: `docs/app-domains.md`.
 mod domains;
@@ -33,7 +33,7 @@ mod semantic_reach;
 mod source_audit;
 mod spell;
 mod which_key;
-/// ITEM 114's TIER-2 SWEEP: every setting changed and persisted through the
+/// TIER-2 SWEEP: every setting changed and persisted through the
 /// Settings WORKSPACE's own door, by real chords into the live `App`. Why this
 /// tier and not a capture: `docs/harness-reach.md`.
 mod workspace;

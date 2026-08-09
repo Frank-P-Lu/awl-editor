@@ -5,7 +5,7 @@ use super::{keyspec, replay_keys};
 #[cfg(not(target_arch = "wasm32"))]
 use super::replay_keys_mode_isolated;
 
-/// ITEM 190 — the settings trio's own hermetic proof, mirroring
+/// The settings trio's own hermetic proof, mirroring
 /// `hermetic_scenario_save_lands_in_the_sandbox_never_on_real_disk`'s shape
 /// for `save`: a STRICT replay (which owns Isolated filesystem authority, per
 /// `ReplayPolicy::isolated`) opens the Settings picker with the real chord,
@@ -86,7 +86,7 @@ fn ordinary_replay_save_on_scratch_is_nonmutating_and_records_the_skip() {
     assert_eq!(res.replay_skips[0].effect, "save");
 }
 
-/// ITEM 190's Unsupported half: ORDINARY `--keys` (no capability) still
+/// The Unsupported half: ORDINARY `--keys` (no capability) still
 /// cannot witness a settings change — the same real chord as the isolated
 /// proof above, replayed PERMISSIVE/`FilesystemCapability::None`, must skip
 /// and warn rather than silently pretend the value moved.
@@ -119,7 +119,7 @@ fn ordinary_replay_settings_toggle_is_nonmutating_and_records_the_skip() {
     assert_eq!(res.replay_skips[0].effect, "setting_toggle");
 }
 
-/// ITEM 190 — the CONFIG-ONLY toggle branch (`autosave`/`history`/
+/// The CONFIG-ONLY toggle branch (`autosave`/`history`/
 /// `session_restore` have no live process global — the disk write IS the
 /// whole effect, per `App::setting_toggle`'s own doc). A companion to the
 /// `wysiwyg` proof above, which only exercises the global-backed branch.
@@ -158,10 +158,10 @@ fn isolated_strict_replay_toggles_a_config_only_settings_row_and_persists_it() {
     );
 }
 
-/// ITEM 190 — `SettingValueCommit`'s own hermetic proof: the Zoom row's exact
+/// `SettingValueCommit`'s own hermetic proof: the Zoom row's exact
 /// numeric entry (Enter opens it seeded with the current readout — retyping
 /// over it is the point, per `settings::SettingsValues`'s own doc — so the
-/// field is cleared with Backspaces first, mirroring item 114's own sweep).
+/// field is cleared with Backspaces first, mirroring the path-picker sweep).
 /// A Strict/Isolated replay commits it for real: the process-global zoom AND
 /// the persisted config key both move, onto the SAME authored step grid the
 /// live `App::setting_value_commit` clamps onto.
@@ -203,10 +203,10 @@ fn isolated_strict_replay_commits_a_range_rows_exact_value_and_persists_it() {
     );
 }
 
-/// ITEM 190 — `SettingPathPick`'s own hermetic proof, over its simplest key
+/// `SettingPathPick`'s own hermetic proof, over its simplest key
 /// (`default_folder`: a plain persisted path, no further live re-scope). The
 /// `.` row at the top of the real folder navigator accepts the level you are
-/// standing in — the exact interaction item 114's `sweep_path` drives live.
+/// standing in — the exact interaction `sweep_path` drives live.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn isolated_strict_replay_picks_a_settings_path_and_persists_it() {
@@ -220,7 +220,7 @@ fn isolated_strict_replay_picks_a_settings_path_and_persists_it() {
     let mut buffer = Buffer::scratch();
     // Filter the rail to "Default folder", Enter opens the real folder
     // navigator standing at the WORKSPACE (the project root's parent — the
-    // same level item 114's own `sweep_path` picks from); `Up` reaches its
+    // same level `sweep_path` picks from); `Up` reaches its
     // synthetic `.` row (the level you are standing in), `Enter` accepts it.
     let keys = keyspec::parse_keys("s-, d e f a u l t Space f o l d e r Enter Up Enter").unwrap();
     let root = PathBuf::from("/ws/proj");

@@ -48,7 +48,7 @@ fn payload(i: u32) -> String {
 }
 
 /// A fresh, uniquely-named tempdir under the OS temp root, owned by a
-/// [`ScratchDir`] guard that removes it on drop (queue item 168). THE NAMED
+/// [`ScratchDir`] guard that removes it on drop. THE NAMED
 /// EXCEPTION lives here: the child this harness `SIGKILL`s below cannot clean
 /// up its own pre-rename `.awl-tmp` sibling file — that is the property under
 /// test — so ownership of the whole directory belongs to this PARENT process,
@@ -70,7 +70,7 @@ fn tmp_dir(tag: &str) -> ScratchDir {
 /// running the suite can see it) — never asserted on, since a SIGKILL exit
 /// carries no stderr contract.
 fn spawn_write_loop(target: &Path, count: u32, delay_ms: u64) -> Child {
-    // Through the one spawn door (item 93): `--fault-write-loop` never loads a
+    // Through the one spawn door: `--fault-write-loop` never loads a
     // config today, but the law in `tests/spawn_config_law.rs` admits no
     // exemptions — an exempt spawn is exactly how the inverted-isolation idiom
     // would creep back in.

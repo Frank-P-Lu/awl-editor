@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 #[test]
 fn absent_config_is_all_defaults() {
-    // `Config::load` reads through the swappable fs global (queue item 101).
+    // `Config::load` reads through the swappable fs global.
     let _tg = crate::testlock::serial();
     let cfg = Config::load(PathBuf::from("/nonexistent/awl/config.toml"));
     assert!(cfg.default_folder.is_none());

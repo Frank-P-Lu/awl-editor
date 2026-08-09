@@ -2,13 +2,13 @@
 //! than a bare buffer call. `apply_transition`'s `Newline` arm asks [`smart_newline`] to
 //! continue a list / blockquote (ordered lists AUTO-INCREMENT), unconditionally END
 //! the block on an empty BLOCKQUOTE, PRESERVE-or-END an empty LIST item (bullet /
-//! numbered / task) by provenance (item 78, generalizing item 63), or carry leading
+//! numbered / task) by provenance, or carry leading
 //! indentation forward; a `false` return falls through to a plain `insert_newline`,
 //! byte-identical to before. The DECISION ([`SmartNewline`] + [`smart_newline_for`])
 //! is pure over one line's text + cursor column, so it is unit-testable without a
 //! buffer/GPU; the ONE impure bit — reading/writing the buffer's short-lived
 //! list-continuation provenance flag — lives here in [`smart_newline`] itself.
-//! Carved out of `actions.rs` VERBATIM (later split for item 78).
+//! The pure decision and impure provenance update remain separated here.
 
 use super::*;
 
@@ -38,7 +38,7 @@ pub(super) fn smart_newline(ctx: &mut ActionCtx) -> bool {
             s.push_str(&prefix);
             ctx.buffer.replace_before_cursor(0, &s);
             if bare {
-                // Item 78: nothing followed the cursor on the split line, so the
+                // Nothing followed the cursor on the split line, so the
                 // line this Enter just opened is ITSELF a bare, otherwise-empty
                 // list-item continuation — mark its provenance so the very next
                 // smart-newline decision on this line (if nothing intervenes)
@@ -50,21 +50,21 @@ pub(super) fn smart_newline(ctx: &mut ActionCtx) -> bool {
         Some(SmartNewline::EndBlockquote { strip }) => {
             // Empty blockquote: drop the dangling `>` run, leaving the line blank
             // with the caret at column 0 — the quote has ended. Unconditional
-            // (item 78's provenance law does not cover blockquotes — see the
+            // (the provenance law does not cover blockquotes — see the
             // type's own doc).
             ctx.buffer.replace_before_cursor(strip, "");
             true
         }
         Some(SmartNewline::EmptyListItem { strip }) => {
             if ctx.buffer.take_list_continuation_generated() {
-                // Item 78: Enter on the empty continuation awl JUST generated
+                // Enter on the empty continuation awl JUST generated
                 // (the immediately preceding action, nothing intervening) — strip
                 // the dangling marker, ending the list/run. Matches the ordinary
                 // "Enter twice to leave a list" gesture.
                 ctx.buffer.replace_before_cursor(strip, "");
             } else {
-                // Item 63 (reverses item 40), generalized by item 78 to numbered
-                // and task items alongside bullets: a marker of ANY OTHER
+                // The provenance-gated rule covers numbered and task items
+                // alongside bullets: a marker of ANY OTHER
                 // provenance — typed, loaded from disk, undone/redone back into
                 // place, or reached after any other edit — is PRESERVED
                 // byte-semantically, and a fresh PLAIN line opens below it. Park
@@ -150,22 +150,22 @@ fn selection_or_cursor_on_list(ctx: &ActionCtx) -> bool {
 /// The outcome of a markdown smart Enter, computed purely from one line.
 pub(super) enum SmartNewline {
     /// Insert a newline then this continuation prefix — a BLOCKQUOTE run or bare
-    /// indentation. Not a list marker, so item 78's provenance law does not apply:
+    /// indentation. Not a list marker, so the provenance law does not apply:
     /// a blockquote's own empty-item Enter is unconditional (`EndBlockquote`), and
     /// bare indentation has no "end" concept at all.
     Continue(String),
     /// Insert a newline then this LIST marker continuation (bullet / numbered /
     /// task). `bare` is true when nothing on the split line followed the cursor,
-    /// so the line this opens is ITSELF a bare, otherwise-empty item — item 78's
+    /// so the line this opens is ITSELF a bare, otherwise-empty item — the
     /// provenance flag is set (by the caller, `smart_newline`) iff `bare`.
     ContinueListItem { prefix: String, bare: bool },
     /// The current BLOCKQUOTE is EMPTY: strip `strip` chars before the cursor (the
     /// dangling indent + `>` run) and insert nothing, unconditionally ending the
-    /// block — provenance-independent (blockquotes sit outside item 78's law).
+    /// block — provenance-independent (blockquotes sit outside this law).
     EndBlockquote { strip: usize },
     /// The current LIST item (bullet `- `/`* `/`+ `, numbered `N.`/`N)`, or task
-    /// `- [ ] `/`- [x] `) is EMPTY. Item 78: whether Enter here PRESERVES the
-    /// marker (opening a fresh plain line below, item 63) or ENDS the list
+    /// `- [ ] `/`- [x] `) is EMPTY. Whether Enter here PRESERVES the marker
+    /// (opening a fresh plain line below) or ENDS the list
     /// (stripping `strip` chars before the cursor) depends on provenance the
     /// buffer tracks, not on which marker kind this is — see `smart_newline`'s
     /// `EmptyListItem` arm, the ONE place that reads it.
@@ -183,7 +183,7 @@ pub(super) enum SmartNewline {
 ///  * else bare indentation — preserved on a plain Enter.
 ///    An EMPTY blockquote unconditionally ends the block (`EndBlockquote`); an EMPTY
 ///    list item (bullet / numbered / task) is `EmptyListItem` — its caller decides
-///    preserve-vs-end by provenance (item 78, generalizing item 63); bare indentation
+///    preserve-vs-end by provenance; bare indentation
 ///    is only ever carried, never ended. Returns `None` when there's nothing to
 ///    continue (plain prose, or the caret sits inside the marker), so the caller does
 ///    an ordinary newline.
@@ -225,7 +225,7 @@ pub(super) fn smart_newline_for(line: &str, col: usize) -> Option<SmartNewline> 
         }
         let indent: String = chars[..i].iter().collect();
         if chars[prefix_len..].iter().all(|c| c.is_whitespace()) {
-            // Item 63 (bullets)/item 78 (generalized): an empty list item's
+            // For every supported marker, an empty list item's
             // preserve-vs-end is the CALLER's provenance-gated decision.
             return Some(SmartNewline::EmptyListItem { strip: col });
         }

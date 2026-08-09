@@ -1,4 +1,4 @@
-//! ITEM 314 — THE WRITING COLUMN'S LEFT EDGE, THROUGH THE LIVE PIPELINE, AT EVERY DPI.
+//! THE WRITING COLUMN'S LEFT EDGE, THROUGH THE LIVE PIPELINE, AT EVERY DPI.
 //!
 //! `render::geometry::tests::adaptive_column_left_is_dpi_invariant_at_matched_logical_geometry`
 //! is the PURE half — the policy arithmetic, swept exhaustively without a device. These
@@ -7,7 +7,7 @@
 //! caret, the selection, the hit test and the drag handle, so a column that moves must
 //! move all of them TOGETHER.
 //!
-//! The experiment is item 307's, and getting it wrong proves nothing: `--capture-dpi N`
+//! The experiment must hold logical geometry fixed: `--capture-dpi N`
 //! makes a `WxH` DEVICE canvas a `(W/N)x(H/N)` LOGICAL window, so every tier here grows
 //! its physical canvas in lockstep with `dpi` to hold the LOGICAL window fixed.
 //!
@@ -255,7 +255,7 @@ fn the_outline_click_band_starts_at_one_logical_x_at_every_dpi() {
 
 /// CLAIM 4 — THE GUTTER'S VISIBILITY BOUNDARY IS DPI-INVARIANT *WITH A RAIL PRESENT*.
 ///
-/// This is the reported defect in its original form. Item 307 proved the boundary
+/// This is the reported defect in its original form. The boundary is
 /// invariant for a HEADINGLESS buffer; with headings the rail branch runs, the unscaled
 /// pad enters `column_left()`, and the boundary moved a whole `--measure` step — measured
 /// at logical 1200x800: visible through 75 and hidden from 76 at dpi 1, but visible

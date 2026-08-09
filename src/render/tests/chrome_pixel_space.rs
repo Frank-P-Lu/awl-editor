@@ -1,4 +1,4 @@
-//! CHROME'S PIXEL SPACE (item 242) — the laws that did not exist.
+//! CHROME'S PIXEL SPACE — the laws that enforce it.
 //!
 //! awl draws in device pixels and nothing else; "logical" means only
 //! "multiplied by `zoom * dpi` on its way in". The text and caret families

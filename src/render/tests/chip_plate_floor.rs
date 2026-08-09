@@ -1,4 +1,4 @@
-//! ITEM 292 — a filled facet mark (`FacetStyle::Band` or a pill/tick
+//! A filled facet mark (`FacetStyle::Band` or a pill/tick
 //! `Chips(..)` skin) is centred on the lens STRIP's own header-line box
 //! (`OverlayRowPlan::strip_band`), but on a `ListStyle::Pane` world under the
 //! default `PaneSplit::Split` composition that box is not entirely plate: the

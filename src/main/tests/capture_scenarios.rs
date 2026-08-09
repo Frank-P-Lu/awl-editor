@@ -163,9 +163,9 @@ fn capture_sidecar_traces_permissive_replay_skips_and_strict_writes_nothing() {
     assert!(!strict.exists() && !strict.with_extension("json").exists());
 }
 
-/// QUEUE ITEM 189, THE PRIMARY LAW: `ReplaySession` used to resolve `root` /
+/// THE PRIMARY LAW: `ReplaySession` used to resolve `root` /
 /// `workspace` / `corpus` ONCE before replay and hold them fixed for its whole
-/// lifetime. Item 183 fixed the *accepted* sidecar location (`run::project_info`
+/// lifetime. The *accepted* sidecar location (`run::project_info`
 /// re-derives it whole on a Project accept), but a chord applied AFTER the
 /// accept still read the LAUNCH root's file index — a `Cmd-O` following a
 /// Switch-project quietly listed the wrong tree while the capture reported
@@ -199,7 +199,7 @@ fn keys_capture_switch_project_then_goto_lists_the_new_roots_files() {
         // Backspace ascends above the old workspace to `dir`; Enter descends
         // into `new-ws`; Down moves off `other` onto `proj-b`; Enter descends
         // into it; the next Enter accepts the drilled-in directory as the new
-        // root — the exact navigation item 183's model test drives. The final
+        // root — the exact navigation the model test drives. The final
         // chord opens Goto in the (now, or not yet, re-scoped) session.
         let spec = format!("{switch_project} Backspace Enter Down Enter Enter {open_goto}");
         let keys = keyspec::parse_keys(&spec).unwrap();

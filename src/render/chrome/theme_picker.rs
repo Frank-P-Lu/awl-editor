@@ -91,7 +91,7 @@ impl TextPipeline {
         // Strip + hint + footer here, at `min_items: 0`; the SECTION headers are
         // charged to the drawn WINDOW (`fit_sectioned_item_rows`).
         let chrome_rows = header_rows + hint_gap_rows + hint_rows + empty_rows + footer_rows;
-        // ITEM 181 — THE ONE HEIGHT-CLAMP OWNER, shared with the flat family.
+        // THE ONE HEIGHT-CLAMP OWNER, shared with the flat family.
         let avail_px = (self.window_h - card_y - margin - 2.0 * pad - header_gap).max(lh);
         let item_cap = self.overlay_sectioned_item_cap(avail_px, lh, chrome_rows, total_headers, 0);
         let (item_top, item_visible) = scroll_window(
@@ -111,7 +111,7 @@ impl TextPipeline {
         // faceted card (the Cmd-P palette) grows WITH the glyphs like the flat one —
         // otherwise the 600 cap stayed unzoomed while the text doubled and every row
         // elided (the zoom-blind card bug).
-        // ITEM 51: content-hug for a RIGHT-ANCHORED faceted card (via the ONE
+        // Content-hug for a RIGHT-ANCHORED faceted card (via the ONE
         // `overlay_desired_w` owner), the wide `CARD_MAX_W_FACETED` cap otherwise.
         let desired_w = self.overlay_desired_w(super::overlay::CARD_MAX_W_FACETED);
         let (card_x, card_w) = self.overlay_card_box(width, desired_w);
@@ -120,8 +120,8 @@ impl TextPipeline {
         let hpad = self.overlay_text_hpad();
         let text_w = card_w - 2.0 * hpad;
         let mut card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
-        // ITEM 293's gap is decorative breathing room, not load-bearing chrome:
-        // in the item-184 starvation corner (a sectioned card's own fixed
+        // The hint gap is decorative breathing room, not load-bearing chrome:
+        // in the starvation corner (a sectioned card's own fixed
         // header/hint/footer overhead, at the `min_items: 0` floor, already
         // outgrowing the canvas at an extreme zoom), drop it rather than push
         // the card past the canvas — the same degrade the flat family's own
@@ -160,7 +160,7 @@ impl TextPipeline {
             text_top,
             text_w,
             card_narrow,
-            // ITEM 114 — the GROUPED CARD is not a workspace: it floats over a
+            // The GROUPED CARD is not a workspace: it floats over a
             // document the user still needs to read, so it has no navigation
             // rail and its content band IS its card (`OverlayGeom::band_x`).
             workspace: false,

@@ -109,7 +109,7 @@ fn disabled_context_row_is_a_noop_and_still_dismisses_cleanly() {
     assert!(overlay.card().is_none());
 }
 
-/// ITEM 36 — accepting a Date-format picker row COMMITS that format: the core
+/// Accepting a Date-format picker row COMMITS that format: the core
 /// sets the process-global `active_format` AND emits `OverlayAccept(Date, slug)`
 /// so the App persists the sticky pref (the Dictionary/CjkLang accept shape). The
 /// row is resolved by CORPUS INDEX (its primary text is the example date, not a
@@ -227,7 +227,7 @@ fn clicking_a_spell_suggestion_replaces_the_word() {
 #[test]
 fn accepting_the_add_to_dictionary_row_signals_add_and_never_edits_the_buffer() {
     // The SAME spell panel carries an appended "Add '<word>' to dictionary" row
-    // (item 39). Selecting it and pressing Enter must NOT replace the word —
+    // Selecting it and pressing Enter must NOT replace the word —
     // instead it emits `Effect::AddToDictionary(word)` (the live App silences the
     // word + appends it to the personal dictionary file) and closes the panel, the
     // buffer untouched. One surface, no new chrome class.
@@ -302,7 +302,7 @@ fn spell_add_row_survives_a_typed_query_that_matches_no_suggestion() {
     );
 }
 
-/// ITEM 64 — the add row must stay the TERMINAL row ("immediately reachable right
+/// The add row must stay the TERMINAL row ("immediately reachable right
 /// after the last correction") for EVERY query, not just one that drops it out of
 /// the fuzzy ranking entirely. A query that the add row's OWN label matches well —
 /// "ad" is a tight, boundary-anchored subsequence of "Add '...' to dictionary" — can
@@ -344,7 +344,7 @@ fn spell_add_row_stays_last_even_when_it_outranks_a_correction() {
     );
 }
 
-/// ITEM 64 — ARROW-KEY navigation reaches the add row (not just a simulated
+/// ARROW-KEY navigation reaches the add row (not just a simulated
 /// click that sets `selected` directly): pressing Down once per correction lands
 /// exactly on the add row, immediately after the last one, and Enter there ADDS
 /// the word rather than replacing it — the real `NextLine`/`Newline` path a
@@ -410,7 +410,7 @@ fn arrow_key_down_reaches_the_add_row_and_enter_adds_the_word() {
     );
 }
 
-/// ITEM 64 — HOVER reaches the add row through the same `hover_select` mechanic
+/// HOVER reaches the add row through the same `hover_select` mechanic
 /// every picker row uses (the mouse-move path, distinct from a click's `Newline`
 /// accept): hovering the add row's absolute item index highlights it.
 #[test]
@@ -435,7 +435,7 @@ fn hover_reaches_the_add_row() {
     );
 }
 
-/// ITEM 64 — FILTERING interacts correctly with the new top-five cap: typing a
+/// FILTERING interacts correctly with the new top-five cap: typing a
 /// query that matches only a handful of a LARGER (already-truncated-to-5) set of
 /// corrections narrows the list, and the add row still survives, still last.
 #[test]
@@ -761,9 +761,9 @@ fn browse_arrows_cycle_the_lens_ascend_is_backspace() {
 #[test]
 fn goto_arrows_cycle_the_lens() {
     // The FLAT file picker gains the ←/→ lens strip: All (the current doc's headings
-    // mixed with files, item 11's unified default) -> Recent -> This folder ->
+    // mixed with files, the unified default) -> Recent -> This folder ->
     // Headings (the fold that retired the Outline picker; "By type" was CUT — the
-    // redundant facet item 11 removed), driven through the real `apply_transition` overlay
+    // redundant facet removed), driven through the real `apply_transition` overlay
     // intercept (so a `--keys "C-x f <right>"` capture reaches the same code).
     let corpus = vec![
         "README.md".to_string(),
@@ -1273,7 +1273,7 @@ fn theme_move_previews_live() {
     crate::theme::set_active(0);
 }
 
-/// ITEM 52 — a DELIBERATE keyboard crossing RE-ANCHORS the theme picker's card into
+/// A DELIBERATE keyboard crossing RE-ANCHORS the theme picker's card into
 /// the destination world's own rail (choosing a world drops you inside it). The
 /// keyboard-nav path routes through `preview_move` (preview + `reanchor`), so after
 /// each `NextLine` the overlay's frozen `align` re-stamps to the newly-active world's
@@ -1328,7 +1328,7 @@ fn theme_keyboard_crossing_reanchors_to_destination_world() {
     crate::render::set_card_anchor_test_override(None);
 }
 
-/// ITEM 52 — the PASSIVE-HOVER exception: a hover re-tints the world (the live
+/// The PASSIVE-HOVER exception: a hover re-tints the world (the live
 /// preview) but must NOT re-anchor the card (no spatial chase under a wandering
 /// pointer — the item-45 freeze still holds). The mouse hover path runs the BARE
 /// `preview_overlay` (not `preview_move`), so the frozen `align` is untouched even

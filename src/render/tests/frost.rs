@@ -101,7 +101,7 @@ fn frost_pill_geometry_is_dpi_invariant_in_logical_space() {
     }
 }
 
-/// THE 1×/2× FROST SEED LAW: the ORGANIC seed field (item 32) is authored from the
+/// THE 1×/2× FROST SEED LAW: the ORGANIC seed field is authored from the
 /// zoomed glyph geometry in LOGICAL space, so a 2× surface must produce the SAME
 /// seed count with each seed's physical EXTENTS doubled — the x-span (`x1 - x0`)
 /// AND the halo radius (`r`, glyph-derived row-height fraction + the DPI-scaled
@@ -180,9 +180,9 @@ fn frost_seed_geometry_is_dpi_invariant_in_logical_space() {
 /// single-glyph heading ("&"), a long HYPHENATED single-run label
 /// ("Button-free" — no internal whitespace, so it seeds as ONE run), and an
 /// ordinary multi-word heading, at 100% zoom / 1x DPI, page mode + outline on.
-/// The shared fixture for the item-61 punctuation-aware / bounded-end-pad law
+/// The shared fixture for the punctuation-aware / bounded-end-pad law
 /// tests below.
-fn item61_seeds(p: &mut TextPipeline, height: u32) -> (Vec<[f32; 4]>, Vec<[f32; 4]>) {
+fn frost_seeds(p: &mut TextPipeline, height: u32) -> (Vec<[f32; 4]>, Vec<[f32; 4]>) {
     let text = "# &\n\n## Button-free\n\n### The quick brown fox jumps\n\n#### A\n\n##### Getting Started Guide\n";
     let mut v = view_md(text, 0, 0);
     v.zoom = 1.0;
@@ -192,7 +192,7 @@ fn item61_seeds(p: &mut TextPipeline, height: u32) -> (Vec<[f32; 4]>, Vec<[f32; 
     (p.outline_frost_seeds(height), p.gutter_frost_seeds(height))
 }
 
-/// THE ISOLATED-`&`-IS-NOT-A-CIRCULAR-BUMP LAW (item 61): a run's radius is no
+/// THE ISOLATED-`&`-IS-NOT-A-CIRCULAR-BUMP LAW: a run's radius is no
 /// longer a blanket row-height fraction — [`crate::render::frost_run_radius`]
 /// bounds it by the run's OWN ink geometry, so a single-glyph run's halo radius
 /// sits STRICTLY BELOW the row-height radius every multi-glyph run on the same
@@ -228,7 +228,7 @@ fn isolated_punctuation_run_radius_is_bounded_below_a_normal_runs() {
     p.sync_theme();
     p.set_size(960.0, 640.0);
 
-    let (seeds, _gutter) = item61_seeds(&mut p, 640);
+    let (seeds, _gutter) = frost_seeds(&mut p, 640);
     crate::theme::set_active(was_theme);
     crate::outline::set_outline_on(was_outline_on);
     crate::page::set_page_on(was_page_on);
@@ -263,7 +263,7 @@ fn isolated_punctuation_run_radius_is_bounded_below_a_normal_runs() {
     );
 }
 
-/// THE BOUNDED-END-PAD LAW (item 61): a run's radius — which drives how far
+/// THE BOUNDED-END-PAD LAW: a run's radius — which drives how far
 /// its halo reaches PAST its own final glyph — is capped at
 /// `skirt * FROST_END_RADIUS_SKIRTS`, a ceiling that is INDEPENDENT of the
 /// row-height radius. A synthetic tall-row scenario (row height far past
@@ -316,7 +316,7 @@ fn frost_seed_radius_honours_the_capabilitys_feather_value() {
     );
 }
 
-/// THE NEARBY-RUN-MERGE-IS-PRESERVED LAW (item 61): ordinary text — a
+/// THE NEARBY-RUN-MERGE-IS-PRESERVED LAW: ordinary text — a
 /// multi-word heading's own word-runs, and two adjacent multi-word headings —
 /// still bridges into ONE continuous island through the REAL seeds a live
 /// outline draws, exactly like before this round (the bounded/punctuation-aware
@@ -347,7 +347,7 @@ fn nearby_ordinary_runs_still_merge_after_the_bounded_radius_round() {
     p.sync_theme();
     p.set_size(960.0, 640.0);
 
-    let (seeds, _gutter) = item61_seeds(&mut p, 640);
+    let (seeds, _gutter) = frost_seeds(&mut p, 640);
     crate::theme::set_active(was_theme);
     crate::outline::set_outline_on(was_outline_on);
     crate::page::set_page_on(was_page_on);

@@ -28,7 +28,7 @@ pub(super) struct ImageDrag {
     pub(super) width: f32,
 }
 
-/// ITEM 94 — SETTINGS RANGE SCRUB (live app only): the in-flight state of a drag
+/// SETTINGS RANGE SCRUB (live app only): the in-flight state of a drag
 /// on a range row's rail. Snapshotted at press ([`App::begin_range_drag`]) and
 /// carried until release: WHICH setting is being scrubbed (its typed
 /// [`crate::settings::SettingId`] — the key into the ONE range spec) and the
@@ -63,7 +63,7 @@ impl RangeDrag {
 }
 
 impl App {
-    /// ITEM 94 — BEGIN a rail scrub: a left press that landed on a range row's rail
+    /// BEGIN a rail scrub: a left press that landed on a range row's rail
     /// (the generous hit band around the visually small thumb). Selects the row,
     /// applies the pressed step IMMEDIATELY (a click IS a set — pointing, not
     /// buttons), and arms the drag. Returns whether the press was a rail press, so
@@ -115,7 +115,7 @@ impl App {
         true
     }
 
-    /// ITEM 94 — LIVE rail scrub step: resolve the pointer's x against the
+    /// LIVE rail scrub step: resolve the pointer's x against the
     /// PRESS-TIME track scale and apply that step. No persist (see
     /// [`Self::end_range_drag`]).
     pub(in crate::app) fn on_range_drag(&mut self) {
@@ -156,7 +156,7 @@ impl App {
         self.request_frame();
     }
 
-    /// ITEM 94 — FINISH a rail scrub on button RELEASE: drop the drag state and
+    /// FINISH a rail scrub on button RELEASE: drop the drag state and
     /// PERSIST the settled value EXACTLY ONCE (the sticky write the keyboard's
     /// discrete step does per step; a drag defers it to here so a 120 Hz scrub
     /// writes one line, not hundreds). Also refreshes the still-open menu from the

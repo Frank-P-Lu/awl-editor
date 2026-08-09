@@ -5,8 +5,8 @@
 //! function, one env knob, one test mirror) with a single call site in
 //! `render/layers.rs`, and it shares nothing with the pipeline's wgpu plumbing.
 // Bombora's wave-tier boundaries ride a single scalar DRIFT (radians),
-// uploaded through the DEDICATED `Globals.drift` slot (NOT `params` — item 86's
-// Zigzag owns all four `params` slots; see that field's doc). The two boundary
+// uploaded through the DEDICATED `Globals.drift` slot (NOT `params`: Zigzag owns
+// all four `params` slots; see that field's doc). The two boundary
 // curves drift with EQUAL MAGNITUDE and OPPOSITE SIGN: the top/middle
 // boundary advances by `+drift`, the middle/bottom boundary by `-drift`. A
 // SAME-SIGN drift on both curves is mathematically an EXACT rigid horizontal

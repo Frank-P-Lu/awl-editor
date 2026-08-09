@@ -802,7 +802,7 @@ fn overlay_row_region(p: &TextPipeline, header_rows: usize, row: usize) -> Regio
     // Fold in the PALETTE-COMPOSITION round's header gap (the divider after the
     // query/strip header) through the SAME owner the renderer uses, so the
     // sampled band tracks the shaped selected row.
-    // ITEM 174 — through the one row-position owner, never a local copy.
+    // Through the one row-position owner, never a local copy.
     let row_top =
         crate::render::plan::test_row_top(text_top, header_rows, p.overlay_header_gap(), row, lh);
     Region::new(card_x, row_top, card_w, lh)
@@ -1019,9 +1019,9 @@ fn forced_placard_suppresses_the_inline_title_prefix_on_both_shapers() {
     set_title_style_test_override(None);
 }
 
-// --- FLIP ROUND: proportional placard sizing + the narrow fold (item 3 + 4) ---
+// --- Proportional placard sizing + the narrow fold -------------------------
 
-/// THE WIDTH-SWEEP LAW (flip-round spec item 4). Across a window-width sweep, a
+/// THE WIDTH-SWEEP LAW. Across a window-width sweep, a
 /// placard world's poster is ALWAYS one of two clean states — never a
 /// partial/clipped middle:
 ///   - WIDE cells: the wordmark SHAPES, fully ON-CANVAS, and the inline
@@ -1114,7 +1114,7 @@ fn placard_width_sweep_folds_narrow_shows_wide_never_clips() {
     theme::set_active(theme::DEFAULT_THEME);
 }
 
-/// PROPORTIONAL PLACARD SIZING (flip-round spec item 3) — the wordmark height is
+/// PROPORTIONAL PLACARD SIZING — the wordmark height is
 /// WINDOW-scaled (the short side), NEVER zoom-scaled. Two witnesses:
 ///   1. ZOOM-INDEPENDENCE: the SAME window at zoom 1 vs zoom 2 shapes the SAME
 ///      wordmark size (the old `metrics.font_size · TITLE · scale` formula rode

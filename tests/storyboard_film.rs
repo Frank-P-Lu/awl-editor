@@ -30,7 +30,7 @@ mod common;
 use common::ScratchDir;
 
 /// A fresh, uniquely-named tempdir under the OS temp root, owned by a
-/// [`ScratchDir`] guard that removes it on drop (queue item 168).
+/// [`ScratchDir`] guard that removes it on drop.
 fn tmp_dir(tag: &str) -> ScratchDir {
     let dir = std::env::temp_dir().join(format!("awl-storyboard-{tag}-{}", std::process::id()));
     ScratchDir::new(dir)
@@ -48,7 +48,7 @@ fn tmp_dir(tag: &str) -> ScratchDir {
 /// config would seed the sandbox)" — naming exactly the intent that
 /// `env_remove` INVERTS: removing that variable is the one value that makes
 /// `config_path()` fall through to the developer's real `~/.config/awl/`
-/// (item 93). Pointing it at an absent path in a test-owned dir is the fix; see
+/// Pointing it at an absent path in a test-owned dir is the fix; see
 /// `tests/common/mod.rs`.
 fn run_awl(args: &[&str], extra_path: Option<&Path>) -> Output {
     let mut cmd = common::awl(&common::shared_sandbox());

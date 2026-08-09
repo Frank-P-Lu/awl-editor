@@ -69,12 +69,12 @@ pub struct ViewState {
     /// In strip order with All parked at the far left. EMPTY for every other overlay
     /// kind (so the pipeline draws no strip). Drives the theme picker's branch.
     pub overlay_lens: Vec<(String, bool)>,
-    /// ITEM 114 — is the summoned card drawn as a SUMMONED WORKSPACE (viewport,
+    /// Is the summoned card drawn as a SUMMONED WORKSPACE (viewport,
     /// two coordinated regions, document as a quiet backdrop) rather than a
     /// contextual card? Owned by [`crate::overlay::OverlayKind::workspace_shape`]
     /// (`Some` of either shape); the renderer never re-tests the kind.
     pub overlay_workspace: bool,
-    /// ITEM 116a — within a summoned workspace, does the PRIMARY (narrow)
+    /// Within a summoned workspace, does the PRIMARY (narrow)
     /// column carry the workspace's own ROWS (a future timeline), rather than
     /// category labels? The one fact `render::chrome::workspace_geometry`
     /// reduces to for which region is which; owned by

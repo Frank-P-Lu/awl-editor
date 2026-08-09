@@ -48,7 +48,7 @@ pub struct ProjectInfo {
     pub branch: Option<String>,
     pub dirty: bool,
     /// The EFFECTIVE default_folder (flag > config > `~/notes`) — the FIRST-RUN
-    /// fallback only (item 76; not the active folder), surfaced so a
+    /// fallback only (not the active folder), surfaced so a
     /// `--config`-driven launch's configured folder is verifiable from the sidecar
     /// with no flags. `None` (timeline/held paths) -> JSON null.
     pub default_folder: Option<std::path::PathBuf>,
@@ -69,7 +69,7 @@ pub struct ProjectInfo {
 pub struct OverlayInfo {
     pub active: bool,
     pub mode: &'static str,
-    /// ITEM 45 (overlay ALIGNMENT as personality data) — the alignment this overlay
+    /// The alignment this overlay
     /// FROZE at summon ([`crate::overlay::OverlayState::align`]), carried verbatim so
     /// a single-frame `--keys` capture places the card at the SAME anchor the live
     /// picker held (and a preview-crossing capture holds it, exactly like live). Fed
@@ -87,7 +87,7 @@ pub struct OverlayInfo {
     /// current chord). Empty for every other mode; emitted as a parallel array so
     /// the palette's binding column is verifiable from the sidecar.
     pub bindings: Vec<String>,
-    /// ITEM 94 — SETTINGS menu only: the RAIL FRACTION (0..1) parallel to `items` —
+    /// SETTINGS menu only: the RAIL FRACTION (0..1) parallel to `items` —
     /// `Some(frac)` for a `SettingKind::Range` row, `None` for an ordinary row, and
     /// the whole vec EMPTY for every other mode. Emitted as `overlay.ranges`, so a
     /// `--keys` step of the rail is assertable from the sidecar (the row's `bindings`
@@ -156,14 +156,14 @@ pub struct OverlayInfo {
     /// [`crate::overlay::ComparisonRequest::cache_key`] exists to prevent, read
     /// back out at the oracle end.
     pub preview_view: Option<&'static str>,
-    /// ITEM 114 — is this card drawn as a SUMMONED WORKSPACE (the viewport, with a
+    /// Is this card drawn as a SUMMONED WORKSPACE (the viewport, with a
     /// navigation rail beside its content) rather than a contextual card? Emitted
     /// as `overlay.workspace`. When it is true, `lens_strip` IS the rail — the
     /// same category data, stood on its end — so there is no second array to read.
     pub workspace: bool,
     /// Does the summoned surface's DETAIL stage hold the keyboard? For History's
     /// diff-as-preview that is the diff panel (↑/↓ scroll it; its border
-    /// strengthens); for item 114's Settings workspace it is the content pane
+    /// strengthens); for Settings it is the content pane
     /// beside the rail. One fact, one field: emitted as `overlay.detail_focus`,
     /// and false for every card with no second region.
     pub detail_focus: bool,
@@ -172,10 +172,10 @@ pub struct OverlayInfo {
     /// `overlay.diff_scroll`; always 0 elsewhere.
     pub diff_scroll: usize,
     /// File pickers only (go-to / browse): whether dot-prefixed entries (AND,
-    /// since item 77, unsupported/binary Browse rows) are REVEALED. Mirrors the
+    /// unsupported/binary Browse rows) are REVEALED. Mirrors the
     /// STICKY `crate::file_visibility::all_on()` global (Settings -> Files ->
     /// "File visibility") gated on `kind.hides_dotfiles()`, NOT a per-picker
-    /// flag any more (item 77 retired the old `Cmd-Shift-.` toggle +
+    /// flag any more (the old `Cmd-Shift-.` toggle +
     /// `OverlayState::show_hidden`) — so the OBSERVABLE CONTRACT is unchanged:
     /// `false` for a non-file picker (Theme/Settings/…), `items` already
     /// reflects the filtering either way. Emitted as `overlay.show_hidden`.
@@ -222,7 +222,7 @@ pub struct CaptureInfo {
     pub prompt: String,
 }
 
-/// WHICH EDITOR PRODUCED THIS SIDECAR (item 188) — the tier, per
+/// WHICH EDITOR PRODUCED THIS SIDECAR — the tier, per
 /// `docs/harness-reach.md`, that the capture was driven at. Two sidecars with
 /// identical fields can mean different things: a tier-1 capture replays the
 /// SHARED CORE and skips the live-`App`-only effects it owns no capability for

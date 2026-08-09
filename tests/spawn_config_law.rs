@@ -1,4 +1,4 @@
-//! tests/spawn_config_law.rs — THE SPAWNED-CHILD CONFIG LAW (queue item 93).
+//! tests/spawn_config_law.rs — THE SPAWNED-CHILD CONFIG LAW.
 //!
 //! THE BUG THIS LOCKS OUT. `config::config_path()` (`src/config/model.rs`)
 //! resolves `--config` → `$AWL_CONFIG` → `$XDG_CONFIG_HOME/awl/config.toml` →
@@ -11,8 +11,8 @@
 //! (whose row band is computed from the sidecar's `font.line_height`, which AT
 //! THE TIME reported the unscaled base constant) started addressing row 0
 //! instead of row 1 and reporting 118 phantom "stray mark" pixels — red on the
-//! developer's box, green in CI, with zero product change between them. Item 96
-//! later corrected that sidecar field; the config-isolation law remains necessary
+//! developer's box, green in CI, with zero product change between them. That
+//! sidecar field was later corrected; the config-isolation law remains necessary
 //! for every other sticky preference.
 //!
 //! TWO LAWS, ONE RULE ("a spawned child's config source is DECLARED, never
@@ -24,7 +24,7 @@
 //!      test cannot reintroduce the idiom without deleting this law first.
 //!   2. **Behavioural**: a child spawned through the owner renders BYTE-
 //!      IDENTICALLY whether or not an ambient user config exists on the ladder
-//!      below it. This is the assertion that would actually have caught item 93
+//!      below it. This is the assertion that catches the leak
 //!      (the structural law only stops the shape, not the effect), and it is
 //!      proven against a decoy config carrying the exact settings — `zoom` and
 //!      `theme` — that bent the capture.
@@ -161,8 +161,8 @@ fn the_owner_pins_the_config_variable_rather_than_removing_it() {
 }
 
 /// A fresh, uniquely-named tempdir under the OS temp root, owned by a
-/// [`ScratchDir`] guard that removes it on drop (queue item 168; this fixture
-/// used to never remove it at all).
+/// [`ScratchDir`] guard that removes it on drop; this fixture used to never
+/// remove it at all.
 fn tmp_dir(tag: &str) -> ScratchDir {
     let dir =
         std::env::temp_dir().join(format!("awl-spawn-config-law-{tag}-{}", std::process::id()));
@@ -202,7 +202,7 @@ fn a_child_spawned_through_the_owner_ignores_an_ambient_user_config() {
     std::fs::write(&doc, "- \n\nsomething\n").unwrap();
 
     // Rung 3 of the ladder, salted with the settings the developer's real
-    // config carried when item 93 went red — `zoom`, which rescales every pixel
+    // config carried when this law went red — `zoom`, which rescales every pixel
     // metric, plus `page_width`, which moves the column, and a `theme` the
     // explicit `--theme` flag out-ranks (there on purpose: the flag's
     // precedence is itself part of what the capture path relies on). If the pin

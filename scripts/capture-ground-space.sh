@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Item 186 — THE 1x/2x GROUND SHEET. One panel pair per world: the same LOGICAL
+# THE 1x/2x GROUND SHEET. One panel pair per world: the same LOGICAL
 # canvas rendered at a device ratio of 1.0 and of 2.0. After this item the two
 # must show the SAME composition (the 2x panel simply resolves it more finely);
 # before it, the 2x panel showed roughly twice as many, half-sized elements.
@@ -72,7 +72,7 @@ build_sheet() {
   local group=("$@")
   local sheet="$RUN_DIR/sheet-$idx.md"
   {
-    echo "# Item 186 — every ground at 1x and 2x, same logical canvas (sheet $idx)"
+    echo "# Every ground at 1x and 2x, same logical canvas (sheet $idx)"
     echo
     echo "Each pair is the SAME ${LOGICAL_W}x${LOGICAL_H} logical canvas: first at a"
     echo "device ratio of 1.0, then at 2.0 (shown at its logical size). The"

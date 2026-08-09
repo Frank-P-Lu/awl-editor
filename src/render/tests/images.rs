@@ -183,8 +183,7 @@ fn inline_image_reserves_tall_row_and_reveals_source_on_cursor() {
     crate::markdown::set_inline_images_on(prev);
 }
 
-/// SELECTION REVEAL REGRESSION (item 16 follow-up, defect found in adversarial
-/// verify of `0828112`): a SELECTION touching a BARE image's own line — the
+/// SELECTION REVEAL REGRESSION: a SELECTION touching a BARE image's own line — the
 /// caret itself parked elsewhere — must reveal the source EXACTLY like the
 /// caret landing on the line does (mirrors the test above): the raw markup
 /// un-conceals, `images_report().revealed` flips true, and the reserved row
@@ -307,7 +306,7 @@ fn selection_on_image_line_is_body_height_not_the_image_pillar() {
     crate::markdown::set_inline_images_on(prev);
 }
 
-/// CAPTION MODEL (settled `df773ba`): the image is DRAWN on every line now —
+/// CAPTION MODEL: the image is DRAWN on every line —
 /// caret-on-line only floats the raw source as a caption overlay, it no longer
 /// hides the drawn image — so the resize handles must arm REGARDLESS of caret
 /// position. This supersedes the old images-v2 reveal-hides-the-image model's
@@ -361,7 +360,7 @@ fn revealed_images_still_arm_resize_handles() {
     crate::markdown::set_inline_images_on(prev);
 }
 
-/// ITEM 27 REGRESSION: `image_hit_rects` reads the reveal flag through the
+/// `image_hit_rects` reads the reveal flag through the
 /// always-fresh `images_report()` override, NOT the stored `image_report`'s
 /// stale field. A pure CARET move onto an off-cursor MIXED image line (caption
 /// text before the image on the same line) runs `refresh_rule_conceal`, which
@@ -672,14 +671,14 @@ fn inline_image_off_cursor_draws_one_quad_and_stays_drawn_when_revealed() {
     restore();
 }
 
-/// GPU DRAW — SELECTION REVEAL REGRESSION (item 16 follow-up, the defect this
-/// round fixes): the SAME dimmed + scrim draw the caret-revealed test above
+/// GPU DRAW — SELECTION REVEAL REGRESSION: the SAME dimmed + scrim draw the
+/// caret-revealed test above
 /// asserts, reached through a SELECTION instead — the caret stays parked on
 /// the prose line; a selection spans the image line. BEFORE the fix
 /// `images_report().revealed` stayed caret-only, so this exact frame drew the
 /// image at FULL brightness (alpha 1.0, no scrim quad) directly under the
-/// already-revealed raw `![alt](path)` source (item 16 already made the
-/// MARKUP selection-aware) — an un-dimmed, unscrimmed, illegible
+/// already-revealed raw `![alt](path)` source (the markup is selection-aware) —
+/// an un-dimmed, unscrimmed, illegible
 /// double-render. MUTATION CHECK: reverting `images_report`'s `revealed` (or
 /// `compute_image_layout`'s `revealed_now`) back to `r.line ==
 /// self.cursor_line` alone fails this test (scrim count drops to 0). Fixture:
@@ -733,7 +732,7 @@ fn inline_image_selection_reveal_draws_dimmed_with_scrim_not_full_bright() {
     restore();
 }
 
-/// GPU DRAW (item 5 rework): the MIXED-line counterpart to the bare-line test
+/// GPU DRAW: the MIXED-line counterpart to the bare-line test
 /// above — OFF-cursor the image draws its one quad (at the forced trailing
 /// row's own top, per `TextPipeline::image_draw_top`); ON-cursor (revealed,
 /// its raw source wrapping as plain text — see
@@ -816,8 +815,8 @@ fn mixed_list_image_draws_off_cursor_and_parks_when_revealed() {
     restore();
 }
 
-/// GPU DRAW — SELECTION REVEAL REGRESSION, item-5 INTERACTION (item 16
-/// follow-up): the MIXED-line counterpart to the bare-line selection test
+/// GPU DRAW — SELECTION REVEAL REGRESSION: the MIXED-line counterpart to the
+/// bare-line selection test
 /// above, reached via a PURE selection change on ALREADY-SHAPED text — no
 /// caret move, no edit. `set_view`'s composed-text compare skips the reshape
 /// entirely on the second frame here (asserted below via `reshape_count`), so
@@ -831,7 +830,7 @@ fn mixed_list_image_draws_off_cursor_and_parks_when_revealed() {
 /// back to `li == cursor_line` alone re-forces the row and fails this test
 /// (instance count reverts to 1). Fixture: `samples/photo.png`.
 ///
-/// GAP CLOSED BY ITEM 27 (found probing this exact scenario, then fixed): the
+/// HIT-RECT FRESHNESS: the
 /// same reveal-staleness reaches `image_hit_rects` (drag-resize handle arming,
 /// live pointer-only). It once read the STORED `image_report`'s `revealed`
 /// field directly, so on a pure-selection (or a pure CARET) tick — no reshape,
@@ -904,8 +903,8 @@ fn mixed_list_image_parks_under_a_pure_selection_change_no_reshape() {
     restore();
 }
 
-/// GPU DRAW — SELECTION REVEAL REGRESSION, `compute_image_layout` site (item 16
-/// follow-up): the RESHAPE-time counterpart to the pure-selection test above —
+/// GPU DRAW — SELECTION REVEAL REGRESSION at `compute_image_layout`: the
+/// RESHAPE-time counterpart to the pure-selection test above —
 /// here the selection is present on the VERY FIRST `set_view` (a fresh
 /// pipeline's `shaped_key` is `None`, so this call always reshapes and runs
 /// `compute_image_layout` itself), so a MIXED line the selection touches must
@@ -1091,7 +1090,7 @@ fn no_image_buffer_draws_neither_quad_nor_placeholder() {
     crate::markdown::set_inline_images_on(prev);
 }
 
-/// ITEM 5 REWORK REGRESSION GUARD — the forcing measurement MUST shape its
+/// FORCING-MEASUREMENT REGRESSION GUARD — the measurement MUST shape its
 /// isolated probe in the REAL document face (`TextPipeline::doc_attrs`), not a
 /// generic fallback. Caught live: measuring the "iA Writer Quattro S" world's
 /// (Mopoke) caption prefix with a blank `Attrs::new()` under-measured it
@@ -1181,9 +1180,9 @@ fn mixed_list_image_forcing_measures_in_the_real_world_font_under_page_mode() {
     restore();
 }
 
-/// ITEM 5 REWORK (2026-07-22) — LIST ITEM WITH TEXT AND AN IMAGE
-/// (`- caption text ![pic](p)`): the PRIOR round's `base_lh + 2*dh` whole-row
-/// inflation is REJECTED — cosmic-text's unconditional row-centering rendered
+/// LIST ITEM WITH TEXT AND AN IMAGE (`- caption text ![pic](p)`): a
+/// `base_lh + 2*dh` whole-row inflation is REJECTED — cosmic-text's
+/// unconditional row-centering rendered
 /// the caption glyphs ~`dh` px below its own list marker (a real fixture
 /// produced a ~200px void with nothing connecting marker to caption). The fix:
 /// the marker+caption row is NEVER touched (stays exactly `base_lh`, so the
@@ -1276,7 +1275,7 @@ fn mixed_list_image_keeps_marker_adjacent_to_caption_and_draws_image_directly_be
     crate::markdown::set_inline_images_on(prev);
 }
 
-/// ITEM 5 REWORK — REVEALED MIXED LINE (caret ON the line): unconcealed, the
+/// REVEALED MIXED LINE (caret ON the line): unconcealed, the
 /// raw source (caption + `![alt](path)`) is long enough here to WRAP onto a
 /// second visual row on its own. A per-LINE metrics override applied
 /// regardless of reveal state would inflate EVERY wrapped row independently
@@ -1340,7 +1339,7 @@ fn mixed_list_image_reveal_wraps_as_plain_text_and_parks_the_image() {
     crate::markdown::set_inline_images_on(prev);
 }
 
-/// ITEM 5 REWORK companion: a BARE list image (`- ![pic](p)`, no other caption
+/// A BARE list image (`- ![pic](p)`, no other caption
 /// text) keeps the pre-existing `dh`-only reservation and draws at the row TOP
 /// — `image_force` never fires for it (`image_draw_top` falls through to the
 /// plain row top there), so this is byte-identical to the images-v1 behavior.
@@ -1379,18 +1378,17 @@ fn bare_list_image_keeps_the_dh_only_row_and_draws_at_the_top() {
     crate::markdown::set_inline_images_on(prev);
 }
 
-/// ITEM 5b — ROW GEOMETRY OWNS IMAGE HEIGHT (the core fix, PRESERVED across the
-/// item-5 rework): the scroll<->pixel table (`RowGeom`, delegated via
-/// `TextPipeline::row_top_px`) must place the row AFTER an image at the
+/// ROW GEOMETRY OWNS IMAGE HEIGHT: the scroll<->pixel table (`RowGeom`,
+/// delegated via `TextPipeline::row_top_px`) must place the row AFTER an image at the
 /// image's REAL rendered height — not a constant `LINE_HEIGHT` — or scroll
-/// visibly JUMPS as the image enters/leaves view (the item's reported bug).
+/// visibly JUMPS as the image enters/leaves view.
 /// `build_line_attrs` bakes the reserved height into the shaped row's
 /// `line_height` (an absolute `Attrs::metrics` override, the same seam
 /// headings use), and `RowGeom::ensure` reads it straight off
 /// `layout_runs()` — so this is the END-TO-END proof the mechanism holds for
-/// both the BARE image case (unchanged since images-v1) and the item-5-REWORK
-/// MIXED case, which now reserves `base_lh` (the untouched caption row) PLUS
-/// `dh` (the forced trailing row) — a genuine two-visual-row split of the same
+/// both the BARE image case and the MIXED case, which reserves `base_lh` (the
+/// untouched caption row) PLUS `dh` (the forced trailing row) — a genuine
+/// two-visual-row split of the same
 /// logical line, not a single inflated `base_lh + 2*dh` row (see
 /// `TextPipeline::image_force`'s field doc). Fixture: `samples/tiny.png`
 /// (120x48 -> 48px `dh`).
@@ -1434,7 +1432,7 @@ fn row_geometry_places_the_row_after_an_image_at_its_real_height() {
         "total doc height matches the real cumulative row geometry: {doc_h} vs {expected_doc_h}"
     );
 
-    // MIXED case (item 5 rework): `- text ![pic](p)` reserves base_lh (the
+    // MIXED case: `- text ![pic](p)` reserves base_lh (the
     // untouched caption row) + dh (the forced trailing row) — two REAL visual
     // rows of the SAME logical line, so "after" lands at base_lh + dh, not the
     // old base_lh + 2*dh single-row inflation.
@@ -1460,7 +1458,7 @@ fn row_geometry_places_the_row_after_an_image_at_its_real_height() {
     crate::markdown::set_inline_images_on(prev);
 }
 
-/// ITEM 5c — THE THEME-SWITCH SLOWDOWN PROBE (user-reported: "first switches
+/// THE THEME-SWITCH SLOWDOWN PROBE (user-reported: "first switches
 /// slow, later fine", suspects image reload). WITNESS, not a vague timing claim
 /// (the documented "a bench measuring nothing" trap): `ImageCache::ensure` is
 /// keyed by canonical PATH + file MTIME (`image_cache.rs`), never by theme, and
@@ -1530,7 +1528,7 @@ fn theme_switch_never_redecodes_a_cached_image() {
     crate::markdown::set_inline_images_on(prev_images);
 }
 
-/// ITEM 42 REGRESSION — IMAGE ROWS RESERVE THEIR REAL HEIGHT DOC-WIDE (the
+/// IMAGE ROWS RESERVE THEIR REAL HEIGHT DOC-WIDE (the
 /// scroll-UP jump). `full_shape_height` budgets the buffer height cosmic-text
 /// shapes into; it used a UNIFORM `rows * line_height` estimate that ignored the
 /// tall rows inline images reserve. An image-DENSE document therefore exceeded
@@ -1539,7 +1537,7 @@ fn theme_switch_never_redecodes_a_cached_image() {
 /// mis-placing every scroll / hit-test / image-draw-top derived from them. That
 /// is the "rows above the viewport carry estimated text-height geometry until
 /// visited" jump: scroll to the bottom and back UP through a tail image and the
-/// page lurched. The item-5b landed test only checked the row BELOW an image in
+/// page lurched. The earlier test only checked the row BELOW an image in
 /// a TINY (never-truncated) doc — the wrong direction, and a doc small enough
 /// that the bug could not fire.
 ///
@@ -1650,7 +1648,7 @@ fn image_dense_doc_shapes_every_tall_row_doc_wide_no_scroll_jump() {
     restore();
 }
 
-/// ITEM 82, LAW — a row's culling test must read its own BOX (`[top, top +
+/// CULLING LAW — a row's culling test must read its own BOX (`[top, top +
 /// height]`), never just its TOP against a flat margin: a row taller than the
 /// margin can have its top scrolled well past it while its BOTTOM is still
 /// genuinely on-screen. Pure/deterministic — no fixture, no GPU device.
@@ -1710,7 +1708,7 @@ fn row_box_visible_law_a_tall_row_stays_visible_until_its_own_bottom_passes_the_
     );
 }
 
-/// ITEM 82, END-TO-END — a TALL inline image (viewport-fraction capped, well
+/// END-TO-END — a TALL inline image (viewport-fraction capped, well
 /// past the flat ornament-cull margin) stays LAID OUT + DRAWN through the
 /// exact scroll boundary where its top has scrolled off but its bottom is
 /// still on-screen — a real `prepare()` GPU pass witnessing actual image shaping

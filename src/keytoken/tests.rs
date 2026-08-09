@@ -1,5 +1,5 @@
 //! Laws for the chord / command-name token surface, lifted out of `keytoken.rs`
-//! whole when queue item 24's three new laws pushed that file past the 500-line
+//! whole when three new laws pushed that file past the 500-line
 //! ceiling. Nothing here changed in the move.
 
 use super::*;
@@ -177,7 +177,7 @@ const SURFACES: &[(Convention, Platform)] = &[
     (Convention::Linux, Platform::Web),
 ];
 
-/// THE NON-EMPTY LAW (queue item 24). `key_token_label` returning
+/// THE NON-EMPTY LAW. `key_token_label` returning
 /// `Some("")` is not a resolved token — it is a BLANK in the middle of a
 /// sentence, and [`every_key_token_in_the_starting_docs_resolves`] above
 /// says nothing about it, because `Some("")` is `Some`.
@@ -208,7 +208,7 @@ fn every_chord_the_starting_docs_teach_is_a_chord_that_exists() {
     }
 }
 
-/// THE DISPATCH LAW (queue item 24). A chord that resolves to a non-empty
+/// THE DISPATCH LAW. A chord that resolves to a non-empty
 /// LABEL still proves nothing about whether pressing it does anything: the
 /// label owner and the keymap are separate code. So every chord the
 /// starting docs teach is pressed — through a real
@@ -292,7 +292,7 @@ fn every_chord_the_starting_docs_teach_dispatches_through_the_real_keymap() {
     }
 }
 
-/// THE AVAILABILITY LAW (queue item 24). `samples/welcome.md` is SEEDED —
+/// THE AVAILABILITY LAW. `samples/welcome.md` is SEEDED —
 /// one set of bytes written per reader, on whichever platform they are on —
 /// so every command it names must actually exist for that reader. A
 /// native-only command cited in the welcome would be seeded into a browser

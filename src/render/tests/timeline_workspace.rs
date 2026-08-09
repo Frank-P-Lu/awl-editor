@@ -6,7 +6,7 @@
 //!
 //! 1. **THE TWO REGIONS NEVER OVERLAP.** A timeline row's own drawn/clickable
 //!    span and the comparison's box are disjoint, over the world roster and the
-//!    whole geometry range. This is queue item 116's headline pixel law and it is
+//!    whole geometry range. This headline pixel law is
 //!    asserted from the two owners the pixels came from, not from the arithmetic
 //!    that placed them.
 //! 2. **DRAWN IS CLICKABLE.** Every timeline row resolves under the pointer at the

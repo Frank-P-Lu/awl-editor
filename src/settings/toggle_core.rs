@@ -1,11 +1,11 @@
-//! THE SHARED TOGGLE CORE (item 193) — the pure "read the CURRENT value,
+//! THE SHARED TOGGLE CORE — the pure "read the CURRENT value,
 //! negate it, and set the process global if one exists" behavior every
 //! `SettingKind::Toggle` row's Enter key performs, extracted so the live
 //! `App` door (`app/files/settings.rs::setting_toggle`) and the replay
 //! interpreter (`main/run/settings_effects.rs::interpret_setting_toggle`)
 //! route through the SAME code rather than each restating [`super::
-//! toggle_key`]'s roster by hand — the exact duplication item 185 eliminated
-//! elsewhere and item 190's replay door re-grew hours later. Carved into its
+//! toggle_key`]'s roster by hand — the exact duplication already eliminated
+//! elsewhere and later reintroduced at the replay door. Carved into its
 //! own file (not left inline in `settings.rs`) so the extraction costs that
 //! file zero lines rather than raising its file-size mark for growth a
 //! submodule avoids — the size-mark rule items 182/192 record.

@@ -1,7 +1,7 @@
 //! The HEADLESS PRESS DOOR — the tier-2 driver `docs/harness-reach.md` maps.
 //!
-//! It drives the REAL live `App`, not a stand-in for it. Item 183 opened it for
-//! Rust tests; item 188 moved it out of `app/tests/` into production, because the
+//! It drives the REAL live `App`, not a stand-in for it. It lives in production
+//! rather than `app/tests/`, because the
 //! live-`App` CAPTURE MODE (`--screenshot-app`, `main/run/live_app.rs`) drives
 //! its chords through this same door. A test-only driver beside a production one
 //! would have been two input pipelines each claiming to be the live path.

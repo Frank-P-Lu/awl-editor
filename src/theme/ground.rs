@@ -1,6 +1,6 @@
 //! The MARGIN GROUND data model — `Background` and its dials.
 //!
-//! Carved out of `theme/model.rs` when item 158's Deckle family pushed that
+//! Carved out of `theme/model.rs` when the Deckle family pushed that
 //! file past its own size mark: the ground is a self-contained vocabulary (one
 //! enum, its dial enums, the shader mirrors the laws read) with exactly one
 //! consumer shape — `render::background_desc` flattens it into a `BgDesc`, and
@@ -18,7 +18,7 @@
 
 use super::color::Srgb;
 
-// ITEM 186 — the coordinate SPACE each authored quantity below lives in
+// The coordinate SPACE each authored quantity below lives in
 // (composition/logical vs sampling/physical) is declared next door, in
 // `theme::ground_space`: one enum, one per-quantity table, and the no-wildcard
 // sweep that makes a new ground declare itself. Read it before authoring a dial.
@@ -29,7 +29,7 @@ pub const ZIGZAG_MIN_STROKE_PX: f32 = 1.2;
 #[cfg(test)]
 pub const ZIGZAG_MAX_ROW_PITCH_PX: f32 = 160.0;
 
-// DECKLE's shader mirrors (item 158). `cfg(test)` for the same reason the
+// DECKLE's shader mirrors. `cfg(test)` for the same reason the
 // ZIGZAG mirrors are: the GPU is the only runtime consumer, and the host reads
 // these ONLY to state the field's laws. A grep-law holds them in lockstep with
 // `shaders/background.wgsl`'s own copies.
@@ -39,7 +39,7 @@ pub const ZIGZAG_MAX_ROW_PITCH_PX: f32 = 160.0;
 //   * below `DECKLE_MIN_PERIOD_PX` the deckle edge — a FRACTION of a lane —
 //     falls under a pixel and the field aliases into moire. The shader ALSO
 //     clamps to this floor, so coverage is a property of the shader rather
-//     than of a dial pair (item 89's abutment lesson).
+//     than of a dial pair.
 //   * above `DECKLE_MAX_PERIOD_PX` a real page margin cannot hold one whole
 //     lane, so it renders as a single flat tone — the "collapses toward a
 //     quiet gradient" failure Paperbark's own brief forbids.
@@ -64,11 +64,11 @@ pub const DECKLE_SPREAD_GAIN: f32 = 1.2;
 // arrangement — the cut-out is a fraction of the anchor, so below it the
 // smallest of the three roles falls under a pixel and a collection aliases
 // into speckle. Enforced in the shader (a property of the field, not of a dial
-// pair — item 89's abutment lesson, item 158's pitch floor), so no future
+// pair — an abutment lesson and pitch floor), so no future
 // Organic world can author its way under it.
 #[cfg(test)]
 pub const ORGANIC_FINDS_MIN_SCALE_PX: f32 = 96.0;
-/// The anchor's nominal radius, in cell units. ITEM 191: 1.15x the item-176
+/// The anchor's nominal radius, in cell units: 1.15x the authored
 /// values (0.150/0.195) — see `shaders/background.wgsl`'s own comment on
 /// `FINDS_ANCHOR_LO`/`FINDS_ANCHOR_HI` for why bumping the anchor alone
 /// carries the whole three-role composition up by the same factor.
@@ -148,7 +148,7 @@ impl Tunnel {
     }
 }
 
-/// DECKLE's one theme-owned profile dial (item 158). The handmade-paper field
+/// DECKLE's one theme-owned profile dial. The handmade-paper field
 /// draws quasi-random contour lanes; `Weave` picks WHICH lanes, and nothing
 /// else in the renderer ever asks which world is active — a second world adopts
 /// a profile by writing this word in its own literal, exactly as `Tunnel` and

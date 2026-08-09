@@ -1,8 +1,8 @@
-//! ITEM 114 — TIER 1: the summoned workspace's STATE, FOCUS and BACK, driven
+//! TIER 1: the summoned workspace's STATE, FOCUS and BACK, driven
 //! through the real `apply_transition` seam the `--keys` replay shares.
 //!
-//! `docs/harness-reach.md` is explicit that this half is fully capturable: item
-//! 173 put `overlay::Journey` in the shared core precisely so the replay would
+//! `docs/harness-reach.md` is explicit that this half is fully capturable:
+//! `overlay::Journey` lives in the shared core precisely so the replay does
 //! not need a second copy, so entry, focus transfer, child suspend/return, Back
 //! and exit all replay under `--keys` and land in the sidecar. What is asserted
 //! here is asserted in the lifecycle's own vocabulary (`Surface`, `Landing`),
@@ -31,7 +31,7 @@ fn surface(journey: &crate::overlay::Journey) -> Option<Surface> {
 /// Every key a user presses to move between a workspace's two regions is driven
 /// through the REAL action seam, and where it lands is compared against what
 /// `landing_of` says for that exact `(state, event)` pair — so the keyboard
-/// cannot drift from the table item 173 wrote, in either direction. The pairs
+/// cannot drift from the lifecycle table, in either direction. The pairs
 /// are enumerated from the table's own rosters rather than hand-listed, and the
 /// sweep asserts it covered every `Surface` a Settings workspace can occupy.
 #[test]
@@ -250,7 +250,7 @@ fn a_palette_settings_row_deep_links_into_the_workspace_at_its_own_row() {
 }
 
 /// THEME AND CARET AUDITION FROM THE WORKSPACE, and return to it — the fast
-/// editor-backed pickers item 114 deliberately did NOT absorb.
+/// editor-backed pickers the workspace deliberately does NOT absorb.
 ///
 /// Both accepts are replay-Applied (`docs/harness-reach.md`), so this whole
 /// journey is capturable end to end. Asserted for both, and for both outcomes:

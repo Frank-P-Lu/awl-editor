@@ -1,4 +1,4 @@
-//! ITEM 224 — MAGPIE'S LOCATION CUE JOINS THE DIAGONAL LANGUAGE.
+//! MAGPIE'S LOCATION CUE JOINS THE DIAGONAL LANGUAGE.
 //!
 //! **The premise, corrected before this file was written.** A `Diagonal`
 //! world's location row carries no attachment inset (`RowSpan`'s `dx == 0`

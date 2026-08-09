@@ -1,10 +1,10 @@
 //! src/app/persistence.rs — THE APP-GLOBAL SAVE LEDGER (`PersistenceRuntime`,
-//! queue item 172's second slice; the map is `docs/app-domains.md`).
+//! whose ownership map is `docs/app-domains.md`).
 //!
 //! Saving in awl has two halves. The PER-BUFFER half — `doc_saved_version`,
 //! `scratch_saved_version`, `disk_mtime`, `scratch_mtime`, `doc_autosave_at` —
 //! correctly lives in `files::BufferExtra` and travels with the active slot
-//! (item 56 got that cut right). This module owns the APP-GLOBAL half:
+//! (that split keeps this state buffer-local). This module owns the APP-GLOBAL half:
 //!
 //!  - the FRESH-DOCUMENT (unnamed, Cmd-N) autosave ledger: its debounce stamp
 //!    and the buffer version it last wrote,

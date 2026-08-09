@@ -1,4 +1,4 @@
-//! src/range.rs — THE RANGE SPEC OWNER (item 94): one typed description of a
+//! src/range.rs — THE RANGE SPEC OWNER: one typed description of a
 //! numeric setting that can be scrubbed on a rail, and the ONE place every bit of
 //! its arithmetic lives.
 //!
@@ -30,7 +30,7 @@
 //!
 //! THE LOG MAP IS GENUINELY GENERAL, not zoom-shaped: [`RailMap::Log`] maps by
 //! `ln`, so a spec running 25%–400% seats 25/50/100/200/400 at exactly
-//! 0.0/0.25/0.5/0.75/1.0 of the rail — item 90's `scroll_sensitivity` is this
+//! 0.0/0.25/0.5/0.75/1.0 of the rail — `scroll_sensitivity` is this
 //! module's second customer and needs NO new code here (only its own spec
 //! constant). It is deliberately NOT built in this round.
 
@@ -285,8 +285,8 @@ pub(crate) const REGISTERED: &[(&str, RangeSpec)] = &[
 mod tests {
     use super::*;
 
-    /// The item-90 SHAPE, built here only to prove the LOG map is general rather
-    /// than zoom-shaped: 25 %–400 %, whole-percentage 5-point steps. Item 90 owns
+    /// The second range SHAPE, built here only to prove the LOG map is general rather
+    /// than zoom-shaped: 25 %–400 %, whole-percentage 5-point steps. The setting owns
     /// the real `scroll_sensitivity` setting; this is a test fixture, deliberately
     /// NOT registered.
     const SENSITIVITY_SHAPE: RangeSpec =
@@ -295,7 +295,7 @@ mod tests {
     #[test]
     fn quantize_reproduces_the_historical_zoom_clamp_formula() {
         let _g = crate::testlock::serial();
-        // The pre-item-94 body of `render::clamp_zoom`, verbatim.
+        // The former body of `render::clamp_zoom`, retained as an equivalence oracle.
         fn historical(z: f32) -> f32 {
             if z.is_nan() {
                 return 1.0;
@@ -420,8 +420,8 @@ mod tests {
         }
     }
 
-    /// THE LOG MAP'S REASON TO EXIST (item 90's requirement, proved on the SHAPE
-    /// only — the setting itself is item 90's to build): 25/50/100/200/400 % —
+    /// THE LOG MAP'S REASON TO EXIST, proved on the SHAPE only:
+    /// 25/50/100/200/400 % —
     /// each a doubling — occupy EQUAL intervals on the rail.
     #[test]
     fn a_log_rail_seats_every_doubling_at_an_equal_interval() {

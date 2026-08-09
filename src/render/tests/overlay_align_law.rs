@@ -1,4 +1,4 @@
-//! ITEM 45 — OVERLAY/PICKER ALIGNMENT AS PERSONALITY DATA.
+//! OVERLAY/PICKER ALIGNMENT AS PERSONALITY DATA.
 //!
 //! Three laws for the round's mechanism, mirroring the themes-as-data doctrine
 //! (`theme_caps_law` / `glide_anchor_law` scanner shape):
@@ -10,13 +10,13 @@
 //!    render tree ONLY in `render.rs` (the resolver's own definition). A stray
 //!    live read in `chrome/` would relocate an open overlay on a preview cross —
 //!    exactly the HARD RULE this round forbids — so the scanner bans it.
-//! 2. **frozen-holds-under-a-passive-crossing** (item 45; the HOVER case after
-//!    item 52) — the frozen alignment WINS over the live anchor: a theme-preview
+//! 2. **frozen-holds-under-a-passive-crossing** (the HOVER case) — the frozen
+//!    alignment WINS over the live anchor: a theme-preview
 //!    crossing that changes which world is active WITHOUT re-stamping `overlay_align`
 //!    (simulated by moving `set_card_anchor_test_override` under a held frozen value —
 //!    the render mirror of a passive pointer HOVER) does NOT move the open card's
 //!    x-extents. The `None`-frozen contrast proves the mechanism is real (the live
-//!    anchor WOULD have moved it). Item 52 adds the OTHER half: a DELIBERATE crossing
+//!    anchor WOULD have moved it). A DELIBERATE crossing adds the OTHER half:
 //!    (keyboard nav / wheel) DOES re-stamp `overlay_align` and relocates the card —
 //!    pinned in `reanchor_crossing_law`. The render CONSUMERS still never read the
 //!    live world (law 1 holds); only an upstream `reanchor` moves the card.
@@ -167,7 +167,7 @@ fn awl_overlay_align_knob_parses_left_center_right() {
 // ---------------------------------------------------------------------------
 
 /// A right-aligned card genuinely RIGHT-anchors: at a comfortable window its
-/// right edge sits one full interior-rail inset (item 67) in from the window's
+/// right edge sits one full interior-rail inset in from the window's
 /// right margin, the mirror of a left-aligned card sitting one rail inset in
 /// from the LEFT edge — so the row column (`card_x + card_w`, one `hpad` shy of
 /// the card's right edge) reads flush to the right rail. Center sits, well,
@@ -207,7 +207,7 @@ fn right_anchor_hugs_the_right_edge_left_hugs_the_left() {
         lx < cx && cx < rx,
         "left({lx}) < center({cx}) < right({rx})"
     );
-    // And the right card's CENTER sits well past the viewport midpoint — item 67's
+    // And the right card's CENTER sits well past the viewport midpoint — the
     // generous interior rail means the wide card's BODY may now straddle the
     // midline (breathing room, not a corner hug), but the card unmistakably
     // reads as a RIGHT rail: its center sits near the two-thirds mark, not the
@@ -223,7 +223,7 @@ fn right_anchor_hugs_the_right_edge_left_hugs_the_left() {
 // ---------------------------------------------------------------------------
 // 2. FROZEN-HOLDS-UNDER-A-PASSIVE-CROSSING (rendered geometry) — the frozen
 //    alignment holds an open card in place when a theme-preview crossing changes
-//    the live anchor WITHOUT a deliberate re-anchor (the HOVER case; item 52's
+//    the live anchor WITHOUT a deliberate re-anchor (the HOVER case; the
 //    deliberate crossing is `reanchor_crossing_law`).
 // ---------------------------------------------------------------------------
 
@@ -327,10 +327,10 @@ fn frozen_right_alignment_renders_against_the_right_edge() {
 }
 
 // ---------------------------------------------------------------------------
-// 3b. FABLE PICKS (item 45) — the right-anchor law reaching REAL WORLD DATA.
+// 3b. FABLE PICKS — the right-anchor law reaching REAL WORLD DATA.
 // ---------------------------------------------------------------------------
 
-/// The overlay-audition's fable pass (item 45) flipped exactly two shipped
+/// The overlay-audition's fable pass flipped exactly two shipped
 /// worlds to a RIGHT rail — Cassowary (a terminal readout) and Mangrove (a tidal
 /// margin) — leaving every other world at its own alignment. This anchors the
 /// pure/rendered right-anchor laws above to the SHIPPED data: those two worlds
@@ -395,7 +395,7 @@ fn fable_right_picks_ship_right_anchor_and_render_against_the_right_edge() {
             ww - inset
         );
         // Its CENTER sits well past the viewport midpoint — genuinely a right
-        // rail (near the two-thirds mark), not a nudge (item 67's generous rail
+        // rail (near the two-thirds mark), not a nudge (the generous rail
         // may let a wide card's body straddle the midline; the center never does).
         let rcx = rx + rw * 0.5;
         assert!(

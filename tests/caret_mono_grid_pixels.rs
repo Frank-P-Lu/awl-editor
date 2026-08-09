@@ -1,4 +1,4 @@
-//! tests/caret_mono_grid_pixels.rs — QUEUE ITEM 97: THE MONO CARET GRID, IN
+//! tests/caret_mono_grid_pixels.rs — THE MONO CARET GRID, IN
 //! PIXELS, ON EVERY WORLD.
 //!
 //! THE BUG. `caret::font_is_mono` was a literal three-name match — "IBM Plex
@@ -10,7 +10,7 @@
 //! keeps. Measured on this exact fixture at zoom 1 BEFORE the fix, Currawong's
 //! block spanned y18..43 on `l` and y23..48 on `g` — a 5px top wobble letter to
 //! letter — while Tawny/Mangrove/Potoroo/Firetail held a fixed y20 top on all
-//! three. Item 91's vision smoke saw it as "Currawong's caret hugs the g".
+//! three. The vision smoke saw it as "Currawong's caret hugs the g".
 //!
 //! WHAT THIS ASSERTS, and why in pixels. The sidecar is a STATE oracle, not an
 //! appearance oracle (CLAUDE.md), and "the caret holds a grid" is an appearance
@@ -37,7 +37,7 @@
 //! spell nit underlines the row (a misspelling's squiggle is suppressed on the
 //! caret's own line, which would leak into the diff).
 //!
-//! HERMETICITY (item 93). Every child goes through `common::awl`, which PINS
+//! HERMETICITY. Every child goes through `common::awl`, which PINS
 //! `$AWL_CONFIG` inside the test's own sandbox — never `env_remove`. `--theme`
 //! and `--zoom 1.0` are explicit on every capture; `--caret-mode` is explicit on
 //! every MEASURED capture and deliberately omitted on the reference capture,
@@ -69,7 +69,7 @@ const PARK_KEYS: &str = "Down Down Down Down";
 const PARALLEL: usize = 6;
 
 /// A fresh, uniquely-named tempdir under the OS temp root, owned by a
-/// [`ScratchDir`] guard that removes it on drop (queue item 168: the prior
+/// [`ScratchDir`] guard that removes it on drop; the prior
 /// end-of-function `remove_dir_all` never ran when this sweep's own asserts
 /// failed).
 fn tmp_dir(tag: &str) -> ScratchDir {
@@ -321,7 +321,7 @@ fn caret_cell_is_glyph_independent_on_every_mono_world() {
         );
         let really_mono = pitch_spread <= 1;
 
-        // THE CORE LAW OF ITEM 97: the predicate agrees with the font. Iosevka is
+        // THE CORE LAW: the predicate agrees with the font. Iosevka is
         // a fixed-pitch face and the retired name list did not know it, so
         // Currawong and Cassowary claimed "proportional" while their advances
         // marched in lockstep — this line is what that failure looks like now.

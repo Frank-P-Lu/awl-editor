@@ -28,7 +28,7 @@ fn resolve_root_bare_falls_to_cwd() {
     // TWO reads of the process-CWD global (ours + `resolve_root`'s own), so
     // the guard is what makes them the SAME cwd — a `CwdGuard` landing
     // between them would otherwise compare two different directories
-    // (queue item 101).
+    // unless the guard holds.
     let _tg = crate::testlock::serial();
     let cwd = crate::fs::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     assert_eq!(resolve_root(&None, &None), cwd);
@@ -74,7 +74,7 @@ fn resolve_launch_context_dir_argument_awl_dot_is_explicit_not_remembered() {
     // bare-vs-dot distinction: it must win over whatever is remembered,
     // exactly like a file argument does.
     //
-    // THE VICTIM OF QUEUE ITEM 101: `resolve_root` decides "is this
+    // THE VICTIM: `resolve_root` decides "is this
     // argument a directory?" through `fs::active().is_dir(f)`. Without
     // this guard the probe could land on a sibling test's `InMemoryFs`,
     // which knows nothing of this real temp dir — `is_dir` came back
@@ -128,7 +128,7 @@ fn resolve_launch_context_first_run_uses_only_an_explicit_default_folder() {
 #[test]
 fn capture_mode_bare_invocation_never_restores_a_remembered_folder() {
     // The CAPTURE-GATE LAW: headless capture is structurally free of
-    // session state (item 76 folded the old sticky `config.project_root`
+    // session state (the old sticky `config.project_root` is folded
     // into the live-App-only session) — a bare `--screenshot` (no file,
     // no --root) always falls to cwd via the explicit-only `resolve_root`,
     // never a remembered/default folder, regardless of what the config

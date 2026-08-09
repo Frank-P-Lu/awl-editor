@@ -20,7 +20,7 @@ struct Globals {
     params: [f32; 4],
     /// Warped-grid travel in minor cells. Zero for every other ground.
     warp_travel: f32,
-    /// ITEM 186 — physical pixels per logical pixel (the display's device
+    /// Physical pixels per logical pixel (the display's device
     /// ratio). The shader divides every COMPOSITION quantity through this and
     /// leaves every SAMPLING quantity alone; `theme::ground`'s
     /// `Background::authored_quantities` is the table that says which is which.
@@ -196,7 +196,7 @@ impl BackgroundPipeline {
         self.params = ground_params(&desc);
     }
 
-    /// `scale` (item 186) is the display's device ratio — PHYSICAL pixels per
+    /// `scale` is the display's device ratio — PHYSICAL pixels per
     /// LOGICAL pixel, `1.0` on a 1:1 screen, `2.0` on a Retina one. It is the
     /// window's own `scale_factor` (`--capture-dpi` headlessly) and deliberately
     /// NOT the pipeline's `metrics.scale` (zoom x dpi): the ground belongs to the

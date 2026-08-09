@@ -1240,7 +1240,7 @@ fn ladder_clock_rewind_overshoot_self_heals_once_time_advances() {
 
 #[test]
 fn source_path_prefers_buffer_then_scratch_stash() {
-    // Item 56: `Buffer::path()` is the sole authoritative path (the old
+    // `Buffer::path()` is the sole authoritative path (the old
     // App-level `file` mirror this fell back to is gone), so the middle
     // fallback arm retired along with it.
     use std::path::Path;

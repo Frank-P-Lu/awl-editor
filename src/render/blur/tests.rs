@@ -280,7 +280,7 @@ fn the_footprint_mask_is_full_inside_and_ramps_outward_over_the_feather() {
 ///
 /// A **PRESENCE FLOOR** runs beside both, because "the silhouette is not a rectangle" is
 /// satisfied perfectly by frosting nothing — the same satisfied-by-deleting-its-subject
-/// trap item 312's own feather floor exists for. So the interior is required FULLY
+/// trap the feather presence floor exists for. So the interior is required FULLY
 /// frosted, and the frosted area is required to be the box's own `w × h` rather than
 /// merely non-zero: a shape that kept its slope while shrinking to a sliver would pass
 /// both figures above.

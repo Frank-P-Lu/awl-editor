@@ -1,4 +1,4 @@
-//! ITEM 91 — THE CARET INK BOX (VERTICAL). Laws for the one rule that sizes the
+//! THE CARET INK BOX (VERTICAL). Laws for the one rule that sizes the
 //! CELL-form caret's TOP and BOTTOM to the anchored glyph's own full raster ink box
 //! instead of the generic line cell.
 //!
@@ -12,7 +12,7 @@
 //! The fix is one owner — `TextPipeline::caret_cell_vertical` — with arms
 //! behind the SAME ink funnel (`caret_anchor_ink_box`) the horizontal ink
 //! alignment already rode: the padded ink box on a proportional world, else
-//! (item 105 below) a REAL ligature raster box or a SYNTHETIC typical-letter
+//! below) a REAL ligature raster box or a SYNTHETIC typical-letter
 //! box on a proportional glyphless anchor, else (mono only) the row-scaled
 //! line cell (descender extension folded in). These laws pin, with glyph-mask
 //! arithmetic against the real raster placement:
@@ -29,7 +29,7 @@
 //!     (`layers.rs` holds NO vertical caret geometry of its own — the grep-law
 //!     that bans a second rule from growing back).
 //!
-//! **ITEM 105 — THE ADJACENT-COLUMN TRANSITION.** Item 91's laws above prove
+//! **THE ADJACENT-COLUMN TRANSITION.** The laws above prove
 //! each arm correct IN ISOLATION; none of them construct the SEAM between an
 //! on-glyph column and an adjacent glyphless one on the SAME row. That seam is
 //! exactly what a user's paired release screenshots caught: on `aaa`, the
@@ -67,7 +67,7 @@ fn caret_top_bottom(p: &mut TextPipeline) -> (f32, f32) {
     (cy - h * 0.5, cy + h * 0.5)
 }
 
-/// THE CORE LAW (item 91). On a PROPORTIONAL world the settled cell caret's TOP
+/// THE CORE LAW. On a PROPORTIONAL world the settled cell caret's TOP
 /// and BOTTOM follow the row's ordinary-letter band plus the anchored glyph's
 /// real overhang.  Ascenders and descenders retain their real ink extent; a
 /// short mark is raised to the same row-measured x-height band.  There is no
@@ -269,7 +269,7 @@ fn cell_caret_vertical_has_one_owner_across_every_caret_form() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// ITEM 205 — punctuation is horizontally ink-hugging but vertically an
+/// Punctuation is horizontally ink-hugging but vertically an
 /// insertion point in the same ordinary-letter band as its row.  This is the
 /// reported comparison the earlier floor law omitted: a period is not judged
 /// against its own tiny ink, but against a letter caret on the SAME row.
@@ -277,7 +277,7 @@ fn cell_caret_vertical_has_one_owner_across_every_caret_form() {
 /// Every world, form, DPI, and the two anchoring shapes are covered.  Block
 /// and Morph each put their anchor on the period by their real conventions;
 /// I-beam deliberately remains a full line bar, and therefore must be equal
-/// on both columns too.  The bound is item 105's measured adjacent
+/// on both columns too. The bound is the measured adjacent
 /// glyph-to-glyph seam budget, with genuinely short ink held tighter.
 fn assert_punctuation_cell(
     p: &mut TextPipeline,
@@ -399,7 +399,7 @@ fn punctuation_uses_the_rows_letter_height_across_forms_worlds_dpi_and_anchors()
 /// BOTTOM for a real dipper — byte-identical to the pre-item-91 geometry, which
 /// applied that extension at the draw site.
 ///
-/// ITEM 97 widened this from the hand-listed pair `["Tawny", "Mangrove"]` to a
+/// The roster sweep widened this from the hand-listed pair `["Tawny", "Mangrove"]` to a
 /// SWEEP over every mono-display world in the roster
 /// (`super::facepitch::mono_display_worlds`, derived from each face's own
 /// measured advance widths). The old pair is precisely how the bug hid: Currawong
@@ -480,7 +480,7 @@ fn mono_world_caret_grid_stays_uniform_and_line_box_sized() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// THE OTHER HALF OF ITEM 97'S SWEEP: every PROPORTIONAL-display world still
+/// THE OTHER HALF OF THE SWEEP: every PROPORTIONAL-display world still
 /// takes the ink-box arm, with a per-letter top — unchanged by the pitch
 /// predicate becoming a measurement.
 ///
@@ -606,12 +606,12 @@ fn moving_caret_streak_is_unaffected_by_the_ink_box() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// THE GLYPHLESS FALLBACKS SURVIVE — UPDATED BY ITEM 105. There is no ink to
+/// THE GLYPHLESS FALLBACKS SURVIVE. There is no ink to
 /// hug at a SPACE, at END-OF-LINE, or on an EMPTY line, so the ONE ink funnel
 /// returns `None`. On a MONO world the cell owner still falls back to the
 /// historical row-scaled `caret_block_h` centred on the spring anchor
-/// (item 97's uniform grid, byte-identical). On a PROPORTIONAL world it no
-/// longer does: item 105 found that THIS exact invariant — the fallback
+/// (the uniform grid, byte-identical). On a PROPORTIONAL world it no
+/// longer does: THIS exact invariant — the fallback
 /// pinned to `caret.pos.y` (a row-box-geometric-centre convention) — was the
 /// root cause of a visible cell jump the instant a proportional caret left a
 /// real glyph for an adjacent glyphless column (the user's `aaa`->EOL report;
@@ -649,7 +649,7 @@ fn glyphless_fallbacks_use_the_synthetic_baseline_box_on_proportional_worlds() {
         let (cy, h) = p.caret_cell_vertical();
         // NEW INVARIANT: the fallback is no longer the row-box-centred line
         // cell — it must have MOVED OFF `caret.pos.y`/`caret_block_h`, proving
-        // item 105 actually changed this seam rather than leaving it inert.
+        // the adjacent-column transition actually changed this seam rather than leaving it inert.
         let old_cy = p.caret.pos.y;
         let old_h = p.metrics.caret_block_h * p.cursor_scale();
         assert!(
@@ -684,7 +684,7 @@ fn glyphless_fallbacks_use_the_synthetic_baseline_box_on_proportional_worlds() {
 
     // MORPH's LINE-START degrade: the I-beam's own bar, line-box tall — still
     // untouched by the ink-box mechanism (a bar has no glyph of its own to
-    // hug), unchanged by item 105 exactly as it was by item 91.
+    // hug), unchanged by the adjacent-column transition.
     crate::caret::set_mode(CaretMode::Morph);
     p.set_view(&view(text, 0, 0));
     p.settle_caret();
@@ -696,7 +696,7 @@ fn glyphless_fallbacks_use_the_synthetic_baseline_box_on_proportional_worlds() {
     );
 
     // THE MONO COMPLEMENT: on a mono world the fallback is BYTE-IDENTICAL to
-    // the pre-105 line-cell — item 97's uniform grid never reads any ink box,
+    // the prior line-cell — the uniform grid never reads any ink box,
     // real or synthetic (see `caret_cell_vertical`'s mono arm).
     theme::set_active_by_name("Tawny").unwrap();
     p.sync_theme();

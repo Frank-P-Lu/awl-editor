@@ -307,7 +307,7 @@ impl TextPipeline {
                 continue; // reveal-on-cursor: judged only once you've moved off it
             }
             if self.nit_hidden_by_bullet_glyph(p.line, p.end_col) {
-                continue; // item 72: the marker prefix is masked by the bullet glyph
+                continue; // the marker prefix is masked by the bullet glyph
             }
             let line_top = doc_top + p.line_top;
             if !self.proto_visible(line_top, p.line_height) {

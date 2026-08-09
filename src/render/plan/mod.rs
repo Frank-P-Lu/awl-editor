@@ -1,4 +1,4 @@
-//! src/render/plan/ — THE SCENE PLANNER (item 174).
+//! src/render/plan/ — THE SCENE PLANNER.
 //!
 //! A deterministic, device-free layout stage between the measured inputs and the
 //! GPU. It consumes a `ViewState` projection (the pipeline's `overlay_*` mirror),
@@ -44,7 +44,7 @@
 //! rather than one per consumer. The accessory upload, the frost's surface list,
 //! the rail owner and the published projection all ask the same question there.
 //!
-//! **THE HEIGHT CLAMP (item 181)** — `fit_item_rows` — is the one owner of
+//! **THE HEIGHT CLAMP** — `fit_item_rows` — is the one owner of
 //! "how many candidate item rows fit the canvas", shared by both families
 //! (`render/chrome/overlay.rs`'s flat window and `render/chrome/theme_picker.rs`'s
 //! grouped window) so a picker with a big corpus cannot draw a card taller than

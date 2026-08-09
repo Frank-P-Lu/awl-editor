@@ -39,7 +39,7 @@ fn assets_remove_asset_row_shrinks_the_list_and_keeps_the_picker_open() {
     assert_eq!(ov.item_strings(), vec!["a.png", "c.png"]);
     // The secondary column stays index-aligned (b's row is gone, not misaligned).
     assert_eq!(ov.item_bindings(), vec!["1 B · assets", "3 B · assets"]);
-    // ITEM 54 PRESERVATION LAW (removal preserves identity): with ONE typed
+    // PRESERVATION LAW (removal preserves identity): with ONE typed
     // `OverlayRow`, a `Vec::remove` carries a row's own accept + secondary
     // together as a single element — there is no second parallel array that
     // could drift out of step with `rows` after the shift. Assert it directly

@@ -14,7 +14,7 @@ fi
 # compiled for real against the ambient macOS host target, so any
 # `#[cfg(target_os = "macos")]` arm (About window, dock-icon adoption, menu
 # bar, packaging/bundle-identity paths) is actually linted instead of being
-# invisible to every CI job (item 179). `cargo fmt`, code-health.py and
+# invisible to every CI job. `cargo fmt`, code-health.py and
 # cargo-machete already run once, tree-wide, in the linux job — repeating
 # them here would just burn CI minutes on a runner that costs multiples of
 # a Linux one for zero new coverage. Also skip the Darwin
@@ -42,7 +42,7 @@ RUSTC_WRAPPER= cargo clippy --all-targets --all-features -- -D warnings
 # aarch64/x86_64-apple-darwin triple, so any `#[cfg(not(target_os = "macos"))]`
 # source (the non-mac trash-can arm, GPU backend split, dock-icon stub, …) is
 # never compiled here, and a lint living only in that arm is invisible no
-# matter how thorough `--all-targets --all-features` looks (item 178: proven
+# matter how thorough `--all-targets --all-features` looks (proven
 # by mutation — a `needless_return` planted in one such arm passed the plain
 # pass above at exit 0 and was only caught cross-compiled below). CI's `linux`
 # job is the real backstop (it compiles that code for real); this arm exists to

@@ -184,7 +184,7 @@ fn settings_keymap_toggle_flips_persists_and_live_reapplies() {
 /// writing nits / outline / menu bar / reduce motion) is back to its
 /// pre-test value by the time the lock releases — no leak into a sibling
 /// test, mirroring the `page::measure()` save/restore convention used
-/// elsewhere in this file. (16 toggles as of item 77's "File visibility" row.)
+/// elsewhere in this file. (16 toggles with the "File visibility" row.)
 #[test]
 fn every_settings_toggle_row_dispatches_live_and_flips_its_value() {
     use crate::fs::InMemoryFs;
@@ -738,7 +738,7 @@ fn convert_scratch_and_save_promotes_the_buffer_and_retires_the_stash() {
 
     app.convert_scratch_and_save();
 
-    // ONE-SHOT NAMING (item 76): the derive-a-name save ALSO clears the
+    // ONE-SHOT NAMING: the derive-a-name save ALSO clears the
     // fresh-document marker in the same step — by the time this call
     // returns, the buffer reads as an ORDINARY pathed file, not a lasting
     // "note" identity.
@@ -1048,7 +1048,7 @@ fn finish_manual_save_ok_is_silent_failure_notices_the_error() {
 
 #[test]
 fn finish_manual_save_clears_a_freshly_named_documents_dirty_marker_immediately() {
-    // BUG LOCK-DOWN (adapted for item 76's one-shot naming): `Buffer::save`
+    // BUG LOCK-DOWN for one-shot naming: `Buffer::save`
     // derives the filename AND clears the fresh-document marker in the SAME
     // step, so a document named by THIS save reads `is_unnamed_fresh() ==
     // false` + `doc_saved_version`-tracked immediately — `finish_manual_save`
@@ -1397,7 +1397,7 @@ fn emptied_scratch_clears_the_stale_stash() {
     );
 }
 
-// ── ITEM 56 PHASE B: `Buffer::path()` IS THE SOLE, AUTHORITATIVE PATH ──
+// ── `Buffer::path()` IS THE SOLE, AUTHORITATIVE PATH ───────────────────
 //
 // `App.file` is gone entirely (there is no second field left to disagree
 // with `Buffer::path()` — the type system now makes the "single truth" law
@@ -1458,7 +1458,7 @@ fn path_law_across_a_plain_file_lifecycle_open_rename_duplicate_close_toggle() {
 
 #[test]
 fn path_law_across_a_document_lifecycle_new_document_one_shot_name_no_rename_move() {
-    // item 76: New document lands in the ACTIVE folder (never a separate
+    // New document lands in the ACTIVE folder (never a separate
     // separate-notes-root jump); the first material save derives the filename EXACTLY
     // ONCE; a LATER edit to the first line never re-derives/renames it; Move
     // is relative to the active folder.
@@ -1530,7 +1530,7 @@ fn path_law_across_a_document_lifecycle_new_document_one_shot_name_no_rename_mov
     );
 }
 
-// ── ITEM 94 — RANGE ROWS at the LIVE APP seam (apply / persist accounting) ────
+// ── RANGE ROWS at the LIVE APP seam (apply / persist accounting) ─────────────
 
 /// Build a Settings overlay with its rail column, selected on the Zoom row, and
 /// return it plus that row's `items` index — exactly `overlay::build`'s shape.

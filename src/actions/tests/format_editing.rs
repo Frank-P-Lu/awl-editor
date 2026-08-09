@@ -186,7 +186,7 @@ fn smart_newline_continues_lists_quotes_and_indent() {
 }
 
 #[test]
-fn smart_newline_continues_a_task_item_unchecked_item_78() {
+fn smart_newline_continues_an_unchecked_task_item() {
     // A TASK item (checked or not) continues like a bullet, but carries the
     // checkbox forward ALWAYS UNCHECKED — never `[x]`, even continuing a checked
     // item (a fresh continuation line is new, unfinished work).
@@ -214,7 +214,7 @@ fn smart_newline_continues_a_task_item_unchecked_item_78() {
 
 #[test]
 fn smart_newline_empty_blockquote_always_ends_the_block() {
-    // Blockquotes sit OUTSIDE item 78's provenance law: an empty BLOCKQUOTE
+    // Blockquotes sit OUTSIDE the provenance law: an empty BLOCKQUOTE
     // unconditionally strips the dangling `>` run and ends, regardless of the
     // marker's origin (a directly-constructed `md()` buffer, exactly like bytes
     // loaded from disk, carries no generated-provenance flag either way).
@@ -225,8 +225,8 @@ fn smart_newline_empty_blockquote_always_ends_the_block() {
 }
 
 #[test]
-fn smart_newline_empty_list_item_of_unknown_provenance_is_preserved_item_63() {
-    // ITEM 63 (reverses item 40), GENERALIZED by item 78 to numbered and task
+fn smart_newline_empty_list_item_of_unknown_provenance_is_preserved() {
+    // The ordered-list rule, GENERALIZED to numbered and task
     // items alongside bullets: Enter on an EMPTY list marker of ANY provenance
     // OTHER than "awl's own immediately preceding continuation" PRESERVES the
     // marker byte-semantically and opens a fresh PLAIN line below — it does NOT
@@ -278,8 +278,8 @@ fn smart_newline_empty_list_item_of_unknown_provenance_is_preserved_item_63() {
     assert_eq!(b.cursor_char(), 5);
     assert_eq!(b.cursor_line_col(), (1, 0));
 
-    // ITEM 78: an empty ORDERED item of unknown provenance is now ALSO preserved
-    // (generalizing item 63 — this REVERSES the old unconditional "ends the
+    // An empty ORDERED item of unknown provenance is ALSO preserved
+    // (this REVERSES the old unconditional "ends the
     // block" behavior for the non-generated case).
     let mut b = md("1. ", 3);
     drive_newline(&mut b);
@@ -316,15 +316,15 @@ fn smart_newline_empty_list_item_of_unknown_provenance_is_preserved_item_63() {
 }
 
 #[test]
-fn smart_newline_no_guess_provenance_law_item_78() {
-    // THE LAW (item 78): a lone empty list marker's Enter behavior depends on
+fn smart_newline_no_guess_provenance_law() {
+    // THE LAW: a lone empty list marker's Enter behavior depends on
     // WHERE it came from, not on its bytes — identical bytes never let the
     // second Enter guess "generated". Driven through the REAL `Action::Newline`
     // dispatch (exactly what `--keys` replays), never by hand-assembling text.
 
     // (1) A lone `- ` LOADED FROM DISK (here: constructed directly, identical
     // bytes to a generated line, but NOT reached via awl's own continuation) —
-    // Enter PRESERVES the marker and opens a plain line below (item 63).
+    // Enter PRESERVES the marker and opens a plain line below.
     let mut loaded = md("- ", 2);
     drive_act(&mut loaded, &Action::Newline);
     assert_eq!(
@@ -437,7 +437,7 @@ fn smart_newline_no_guess_provenance_law_item_78() {
 }
 
 #[test]
-fn smart_newline_empty_bullet_preserve_is_one_undo_group_item_63() {
+fn smart_newline_empty_bullet_preserve_is_one_undo_group() {
     // The whole gesture is ONE atomic undo group: a single Cmd-Z restores the
     // pre-Enter state (the empty bullet, caret at its end), and a redo re-applies it.
     let mut b = md("- a\n- ", 6);
@@ -494,7 +494,7 @@ fn smart_newline_empty_bullet_preserve_is_one_undo_group_item_63() {
 }
 
 #[test]
-fn smart_newline_empty_bullet_preserve_round_trips_crlf_item_63() {
+fn smart_newline_empty_bullet_preserve_round_trips_crlf() {
     // CRLF restoration: a buffer whose EOL is CRLF preserves the empty bullet and
     // opens a plain line, and `disk_bytes` restores CRLF on EVERY line — including
     // the freshly opened one. The rope stays pure `\n` (EOL is document metadata).
@@ -700,8 +700,8 @@ fn smart_newline_parser_declines_plain_and_inside_marker() {
 }
 
 #[test]
-fn dash_then_enter_leaves_a_writable_line_item_40() {
-    // ITEM 40 regression — `-` then Enter must never strand an UNWRITABLE empty
+fn dash_then_enter_leaves_a_writable_line() {
+    // Regression — `-` then Enter must never strand an UNWRITABLE empty
     // item. Decided semantics (2026-07-23): a lone `-` (no trailing space) is not
     // a list yet, so Enter falls through to a PLAIN newline — the dash stays a
     // literal `-` on its own line with a fresh blank line below. Drive the whole

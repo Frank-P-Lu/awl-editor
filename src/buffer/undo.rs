@@ -50,7 +50,7 @@ impl Buffer {
         // a visual-row end), mirroring `clear_kill_flag`.
         self.goal_x = None;
         self.affinity = crate::caret::Affinity::Downstream;
-        // Item 78: THE content-mutation choke point is also where the list-
+        // THE content-mutation choke point is also where the list-
         // continuation provenance flag must die — any edit reaching here, list-
         // continuation's own or any other, has either already been read (the
         // reader takes it before mutating) or is exactly the "non-list edit"
@@ -222,7 +222,7 @@ impl Buffer {
         self.dirty = true;
         self.version += 1;
         self.last_was_kill = false;
-        // Item 78: undo bypasses `apply_edit` (it edits the rope directly), so
+        // Undo bypasses `apply_edit` (it edits the rope directly), so
         // the provenance flag needs its own explicit clear here too.
         self.list_continuation_generated = false;
         self.redo_stack.push(group);
@@ -256,7 +256,7 @@ impl Buffer {
         self.dirty = true;
         self.version += 1;
         self.last_was_kill = false;
-        // Item 78: same as `undo` — redo also bypasses `apply_edit`.
+        // Same as `undo` — redo also bypasses `apply_edit`.
         self.list_continuation_generated = false;
         self.undo_stack.push(group);
         self.undo_group_open = false;

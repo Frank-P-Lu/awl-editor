@@ -59,7 +59,7 @@ fn a_folded_section_contributes_zero_visual_rows() {
     );
 }
 
-// ITEM 47a — the quiet "… N lines" TAIL on a collapsed heading: it carries the
+// The quiet "… N lines" TAIL on a collapsed heading: it carries the
 // CORRECT hidden count, rides the heading's OWN row (adds no row / never disturbs
 // the zero-height hidden-row law), and hangs to the RIGHT of the heading text.
 #[test]
@@ -92,7 +92,7 @@ fn fold_tail_rides_the_heading_row_with_the_correct_count() {
     let (baseline, left, n, line) = marks[0];
     assert_eq!(n, 2, "the tail's N is the section's hidden-line count");
     assert_eq!(line, 0, "the tail hangs on the filtered heading row");
-    // item 65: the mark's `f32` slot is the heading's REAL shaped BASELINE (the
+    // The mark's `f32` slot is the heading's REAL shaped BASELINE (the
     // draw pass then subtracts the tail's OWN shaped `line_y` from this), not the
     // row's top — baseline-aligned, not merely centered in the tall heading row.
     assert_eq!(
@@ -130,7 +130,7 @@ fn fold_tail_count_tracks_the_hidden_extent() {
     assert_eq!(marks[0].3, 3, "# B renders on filtered row 3");
 }
 
-// item 65 GALLERY-FOUND REGRESSION: a collapsed heading long enough to visually
+// GALLERY-FOUND REGRESSION: a collapsed heading long enough to visually
 // WRAP used to hang its tail off the FLATTENED end-of-line x
 // (`line_glyph_xs(line).last()`, which deliberately offsets each wrapped row's
 // glyphs to continue past the previous one for callers that don't care which row
@@ -207,7 +207,7 @@ fn fold_tail_hangs_after_the_first_visual_row_when_the_heading_wraps() {
     );
 }
 
-/// Item 103's concrete predecessor/victim order. The retina schema capture
+/// The concrete predecessor/victim order. The retina schema capture
 /// once exited at exactly `(page_on=true, measure=80)`; this calls the fold
 /// victim immediately after installing that signature. The victim's pin must
 /// set the prose default before it constructs its pipeline and restore the
@@ -238,7 +238,7 @@ fn retina_measure_predecessor_cannot_contaminate_fold_tail_victim() {
     }
 }
 
-// ITEM 47b (item 65 taste correction) — the expand CHEVRON is a SUMMONED
+// The expand CHEVRON is a SUMMONED
 // affordance: shown only when the caret is on the collapsed heading (the
 // headlessly-reachable arm; hover is live-only). It now hangs IMMEDIATELY LEFT of
 // the heading — OUTSIDE the editable text advance, in the writing column's own
@@ -306,7 +306,7 @@ fn fold_chevron_reveals_only_when_the_caret_is_on_the_collapsed_heading() {
     crate::page::set_page_on(true);
 }
 
-// item 65 NO-OVERLAP PIXEL LAW: the chevron is a SEPARATE ornament — never part of
+// NO-OVERLAP PIXEL LAW: the chevron is a SEPARATE ornament — never part of
 // the shaped document glyph run — so revealing it must never shift the heading's
 // own glyph x-positions vs the no-chevron REST state. Isolated via HOVER (not the
 // caret): landing the CARET on a heading ALSO reveals its raw WYSIWYG markdown
@@ -368,7 +368,7 @@ fn fold_chevron_reveal_never_shifts_the_heading_glyph_positions() {
     crate::page::set_page_on(true);
 }
 
-// item 65 graceful-hide: the chevron needs room in the writing column's own
+// Graceful-hide: the chevron needs room in the writing column's own
 // leading pad ([`TextPipeline::text_left`] minus [`TextPipeline::column_left`]).
 // Edge-to-edge (page mode off) that pad is exactly zero, so the chevron would
 // otherwise land ON TOP of the heading's own first glyph — instead it hides
@@ -404,7 +404,7 @@ fn fold_chevron_hides_gracefully_with_no_room_edge_to_edge() {
     crate::page::set_page_on(true);
 }
 
-// ITEM 81 — the fold chevron is now REVEALED (and clickable) on an EXPANDED
+// The fold chevron is REVEALED (and clickable) on an EXPANDED
 // heading too, not merely a collapsed one's tail row. Pre-fix, `fold_chevron_marks`
 // read only `fold_tails` (empty whenever nothing is folded), so hovering an
 // unfolded heading never showed anything — this test's middle assertion FAILS

@@ -37,7 +37,7 @@ impl OverlayState {
                 .then_with(|| a.index.cmp(&b.index))
         });
         let mut ranked: Vec<usize> = scored.into_iter().map(|r| r.index).collect();
-        // SPELL "Add to dictionary" EXEMPTION (ITEM 64 — always the TERMINAL row):
+        // SPELL "Add to dictionary" EXEMPTION (always the TERMINAL row):
         // the add row acts on the TARGETED word, not the typed query, so it must
         // stay reachable — and stay LAST, right after the trailing correction —
         // for the whole life of the picker, not just while the query drops it.
@@ -142,7 +142,7 @@ impl OverlayState {
     /// The per-row SECTION labels the grouped card draws as faint headers above
     /// each bucket.
     ///
-    /// ITEM 114 — EMPTY for a summoned WORKSPACE. A workspace names the active
+    /// EMPTY for a summoned WORKSPACE. A workspace names the active
     /// category once, in its navigation rail, and repeating it as a header over
     /// the only bucket the rail lets through is the same fact twice. Returning
     /// nothing here (rather than teaching the renderer to skip headers) keeps one
@@ -267,7 +267,7 @@ impl OverlayState {
         }
     }
 
-    /// ITEM 85 — THE REAL-MOTION GATE: [`Self::hover_select`]'s caller-facing door,
+    /// THE REAL-MOTION GATE: [`Self::hover_select`]'s caller-facing door,
     /// gated on the pointer having GENUINELY moved since the last hover check. A
     /// theme-picker world jump can relocate every row under an otherwise-stationary
     /// pointer — a keyboard/wheel crossing re-anchors the card to the destination
@@ -304,7 +304,7 @@ impl OverlayState {
     /// injected value, not a pipeline call — keeps this pure/unit-testable).
     /// Returns whether the highlight actually moved, mirroring
     /// [`Self::hover_select`]'s own return. See [`Self::arm_hover_baseline`] for
-    /// the OTHER half of item 106 — re-anchoring this gate at KEYBOARD-action
+    /// the OTHER half — re-anchoring this gate at KEYBOARD-action
     /// time, not just at the last hover check.
     pub fn hover_at(&mut self, px: f32, py: f32, hit: Option<usize>) -> bool {
         let moved = match self.last_hover_px {
@@ -325,7 +325,7 @@ impl OverlayState {
         }
     }
 
-    /// ITEM 106 — THE KEYBOARD-BASELINE STAMP: re-anchors [`Self::hover_at`]'s
+    /// THE KEYBOARD-BASELINE STAMP: re-anchors [`Self::hover_at`]'s
     /// movement-slop reference point to the pointer's CURRENT physical position,
     /// WITHOUT hit-testing or touching `selected` — the keyboard-driven twin of a
     /// real hover's own bookkeeping. Called by the shared keyboard-dispatch seam
@@ -345,12 +345,12 @@ impl OverlayState {
         self.last_hover_px = Some((px, py));
     }
 
-    /// ITEM 52 — RE-STAMP the card's frozen [`Self::align`] to the CURRENTLY-active
+    /// RE-STAMP the card's frozen [`Self::align`] to the CURRENTLY-active
     /// world's own anchor. Called on a DELIBERATE selection crossing (keyboard nav,
     /// wheel, page/jump moves) AFTER [`crate::actions::preview_overlay`] has made the
     /// highlighted world active, so an open THEME picker SNAPS its card into the
     /// destination world's own left/center/right rail — choosing a world drops you
-    /// inside it (the standing law; SUPERSEDES item 45's summon-time freeze for a
+    /// inside it (the standing law; it supersedes summon-time freeze for a
     /// deliberate move). PASSIVE pointer hover never calls this, so sweeping the
     /// pointer down the rows re-tints every world WITHOUT starting a spatial chase
     /// (the item-45 freeze still holds the card put through a hover). A NO-OP for
@@ -500,7 +500,7 @@ impl OverlayState {
             .collect()
     }
 
-    /// ITEM 94 — the per-row RAIL FRACTION (0..1), in the same row order as
+    /// The per-row RAIL FRACTION (0..1), in the same row order as
     /// [`item_strings`]: `Some(frac)` for a range row, `None` for every ordinary
     /// row. EMPTY when NO visible row carries a rail, so every other picker feeds
     /// the renderer nothing at all (byte-identical there).
@@ -531,7 +531,7 @@ impl OverlayState {
         self.rows.get(self.selected_corpus_index()?)?.range
     }
 
-    /// ITEM 94 — write the highlighted range row's new STEP and value READOUT in
+    /// Write the highlighted range row's new STEP and value READOUT in
     /// place (keyboard step / pointer scrub). Mirrors the value straight into the
     /// still-open menu's own cell, so the number and the thumb move together in the
     /// same frame — live AND in a headless `--keys` replay, which has no App to
@@ -552,7 +552,7 @@ impl OverlayState {
 
     /// The filtered relative-time LABELS, in the same row order as [`item_strings`]
     /// (go-to picker only; empty for every other kind and in headless capture). A
-    /// HEADING row (see [`RowMeta::GotoHeading`]) carries no mtime — since item 11's
+    /// HEADING row (see [`RowMeta::GotoHeading`]) carries no mtime because
     /// unified `All` list mixes heading rows in among file rows, its cell reads the
     /// constant `"heading"` KIND HINT instead, the rowlayout SECONDARY-cell
     /// disambiguator that tells a heading row apart from a file row at a glance (a

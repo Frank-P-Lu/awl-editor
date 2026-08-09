@@ -1,8 +1,8 @@
-//! ITEM 158 — REAL-PIXEL laws for `Background::Deckle`, the handmade-paper
+//! REAL-PIXEL laws for `Background::Deckle`, the handmade-paper
 //! material field, and for Paperbark, its one production assignee.
 //!
 //! Every claim here is DIFFERENTIAL: the world as authored MINUS the same
-//! world at `density: 0.0`, through the shared `mark_field` oracle item 86
+//! world at `density: 0.0`, through the shared `mark_field` oracle
 //! introduced. That is why the shader's `density == 0.0` arm was designed to
 //! collapse both weaves to an exactly flat ground — the gradient, the ordered
 //! dither and the 8-bit quantization cancel, and what remains is the material
@@ -31,7 +31,7 @@ use crate::theme::{self, Background, Weave};
 
 /// Per-pixel total-channel deviation from the mark-free pass that counts as
 /// real material. The differential oracle cancels the dither exactly, so this
-/// only has to clear 8-bit quantization (item 89's own floor).
+/// only has to clear 8-bit quantization.
 const INK_FLOOR: i32 = 3;
 
 fn paperbark_bg() -> Background {
@@ -224,8 +224,8 @@ fn galah_fibres_are_sparse_present_and_deterministic_across_size_and_dpi() {
 /// vertical scan crosses, and the total tonal range the margin spans. Both are
 /// read off the differential field, so they measure the MATERIAL, never the
 /// gradient underneath it.
-// pub(super) (item 201): the lane-INTERIOR tone count is exactly the oracle
-// item 201's own Retina law needs — reused rather than re-derived, per the
+// The lane-INTERIOR tone count is exactly the oracle the Retina law needs —
+// reused rather than re-derived, per the
 // "same behavior, same code" rule.
 pub(super) struct MarginStats {
     /// Peak absolute deviation anywhere in the margin.
@@ -262,7 +262,7 @@ pub(super) fn margin_stats(field: &[i32], w: u32, h: u32, mx0: u32, mx1: u32) ->
     // Band count on the ACROSS-LANE axis. Strata lanes run parallel to the
     // page edge, so the axis that crosses them is x — the same "scan the axis
     // the marks travel across, never the screen axis that looks natural"
-    // lesson item 89's blank-lane law was built on.
+    // lesson the blank-lane law was built on.
     let mut bands = 0usize;
     let mut samples = 0usize;
     let mut tones: std::collections::HashSet<i32> = std::collections::HashSet::new();
@@ -308,7 +308,7 @@ pub(super) fn margin_stats(field: &[i32], w: u32, h: u32, mx0: u32, mx1: u32) ->
 
 /// THE HEADLINE LAW — A REAL MARGIN NEVER COLLAPSES TO ONE FLAT TONE.
 ///
-/// Swept over item 89's twelve `(window, measure)` shapes at the app's OWN
+/// Swept over twelve `(window, measure)` shapes at the app's OWN
 /// adaptive column owner, AND over 1x/2x DPI (which halves the field's
 /// apparent scale, because `period_px` is physical pixels), on every margin
 /// wide enough to hold one authored lane pitch. Each such margin must show:
@@ -405,7 +405,7 @@ fn deckle_strata_never_collapses_to_one_flat_tone_in_a_margin_that_can_hold_a_la
     p.sync_theme();
 }
 
-/// THE WALLPAPER LAW (item 175): a page-width drag changes only the opaque page
+/// THE WALLPAPER LAW: a page-width drag changes only the opaque page
 /// mask. Any screen point exposed before AND after the drag is the SAME fixed
 /// Room wallpaper pixel.
 ///
@@ -583,7 +583,7 @@ fn deckle_material_whispers_and_keeps_clear_of_the_prose_ink() {
 /// NO MOIRE AT THE SHADER'S OWN FLOOR. Deckle's deckled edge is a FRACTION of
 /// a lane, so a lane finer than a few pixels puts that edge under one pixel and
 /// the field aliases. The shader CLAMPS the pitch to `DECKLE_MIN_PITCH_PX`
-/// rather than trusting the dial (item 89's abutment lesson: coverage is a
+/// rather than trusting the dial (the abutment lesson: coverage is a
 /// property of the shader, not of a dial pair), so this law drives an
 /// absurdly fine authored pitch straight at it and asserts the result is still
 /// smooth — measured as the fraction of horizontally adjacent margin pixels
@@ -797,13 +797,13 @@ fn paperbark_reads_as_neither_saltpans_pinstripes_nor_bilbys_gradient() {
         "the Saltpan reference must actually be a STRAIGHT rule (its boundary wanders \
          {sp_wander:.2}px) — otherwise the deckle claim below is meaningless"
     );
-    // ITEM 201: DERIVED from Paperbark's own `wander_px`, not a hand-picked
+    // DERIVED from Paperbark's own `wander_px`, not a hand-picked
     // constant. `boundary_wander` is the stddev of one tracked boundary's x
     // position, which the shader computes as a sinusoid whose amplitude is
     // `wander_px` — linear in the dial regardless of `period_px` — so the
     // measured-to-authored ratio is a stable ~0.74 at both this world's
     // pre-201 (94/13) and post-201 (47/6.5) dials. A hardcoded `6.0` (picked
-    // against 13.0's ~9.6px measurement) went stale the moment item 201
+    // against 13.0's ~9.6px measurement) went stale when the renderer
     // retuned the dial for the Retina regression; half the authored wander
     // stays a comfortable floor at either scale while still failing on a
     // genuinely-flattened mutation.
@@ -874,7 +874,7 @@ fn weave_fibres_draws_a_real_field_distinct_from_strata() {
         frac > 0.50,
         "the two weaves must be genuinely different profiles at IDENTICAL dials \
          ({:.1}% of margin pixels differ) — a weave that falls through to its \
-         sibling is a dial item 159 cannot use",
+         sibling is a dial the marker cannot use",
         frac * 100.0
     );
     // And the dials still do their own work on top of the weave.
@@ -1170,7 +1170,7 @@ fn density_bearing_worlds_show_a_material_gap_between_full_and_half_density() {
 /// exercising the real, always-passing roster.
 #[test]
 fn material_gap_check_fails_when_the_dial_does_not_move_proving_it_is_non_vacuous() {
-    let full = 0.115_f64; // Galah's own shipped mean, item 158's probe.
+    let full = 0.115_f64; // Galah's own shipped mean.
     let half = full; // a degenerate "dial" that does not respond to density at all.
     assert!(
         full <= half * 1.3,

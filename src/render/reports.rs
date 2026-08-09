@@ -172,7 +172,7 @@ impl TextPipeline {
     /// `(on, headings, current, collapsed)` where `on` mirrors
     /// [`crate::outline::outline_on`], `headings` is `(text, level, line)` per
     /// heading in document order, `current` is [`Self::outline_current`] (the
-    /// nearest heading at/above the caret, or `None`), and `collapsed` (item 65) is
+    /// nearest heading at/above the caret, or `None`), and `collapsed` is
     /// the ascending indices INTO `headings` of every heading that is CURRENTLY a
     /// folded root — i.e. owns a visible [`crate::render::FoldTail`]
     /// ([`Self::fold_tails`]), the SAME set the doc-body's own "… N lines" tail

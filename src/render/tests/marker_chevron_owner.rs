@@ -1,4 +1,4 @@
-//! ITEM 247 — THE MARKER IS ONE ROTATABLE SYMBOL, and its turn is the thing
+//! THE MARKER IS ONE ROTATABLE SYMBOL, and its turn is the thing
 //! that carries meaning.
 //!
 //! Two surfaces draw this mark: the overlay's selected-row marker on a

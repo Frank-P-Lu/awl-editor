@@ -26,7 +26,7 @@ impl TextPipeline {
             .sum()
     }
 
-    /// ITEM 112 TEST HOOK — the absolute canvas box occupied by the shaped
+    /// TEST HOOK — the absolute canvas box occupied by the shaped
     /// glyph CELLS on one primary overlay line. This is deliberately read from
     /// `panel_buffer`, the buffer the draw pass uploads, rather than rebuilt
     /// from row arithmetic: ordering and drawn↔hit-test laws can point at a
@@ -72,7 +72,7 @@ impl TextPipeline {
         plan: &OverlayRowPlan,
     ) -> Vec<[f32; 4]> {
         let full = [geom.card_x, geom.card_y, geom.card_w, geom.card_h];
-        // ITEM 114 — A WORKSPACE IS ONE SURFACE. Item 50's split composition
+        // A WORKSPACE IS ONE SURFACE. The split composition
         // carves a card's query beat into a separate upper plate; that is a
         // small-card gesture, and run across a workspace it would cut the
         // navigation rail in half at an arbitrary height. A room does not have a
@@ -148,7 +148,7 @@ impl TextPipeline {
         plan: &OverlayRowPlan,
         vis: &VisualSelection,
     ) {
-        // ITEM 94 — THE RANGE ROW'S RAIL. Every visible range row's track / fill /
+        // THE RANGE ROW'S RAIL. Every visible range row's track / fill /
         // thumb, resolved by the ONE rail owner (`overlay_rails`, which the pointer
         // hit-test reads too — so the control is clickable exactly where it is
         // drawn). EMPTY for every other card (both pipelines park → byte-identical).
@@ -160,7 +160,7 @@ impl TextPipeline {
         // value TEXT beside it already uses, so rail and number stay legible together
         // on every world rather than either growing its own contrast rule.
         //
-        // ITEM 164: WHICH row's rail flips is the shared visual-selection
+        // WHICH row's rail flips is the shared visual-selection
         // transaction's answer, not the logical row's — the thumb is a secondary
         // ink like the value beside it, and both now wait for the band.
         //

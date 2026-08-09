@@ -1,4 +1,4 @@
-//! ITEM 114 — TIER 1: the summoned workspace's PRESENTATION. Its geometry, its
+//! TIER 1: the summoned workspace's PRESENTATION. Its geometry, its
 //! two regions, its wide/narrow staging, and its focus cue, asserted where they
 //! are actually decided.
 //!

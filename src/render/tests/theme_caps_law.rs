@@ -45,7 +45,7 @@ const WORLD_NAMES: &[&str] = &[
     "Paperbark",
 ];
 
-/// THE LIST IS CHECKED AGAINST THE ROSTER (item 158's audit finding). Every
+/// THE LIST IS CHECKED AGAINST THE ROSTER. Every
 /// other hand-maintained per-world list in the suite fails loudly when a world
 /// is added; this one did not — it is a BAN list, so a missing name makes the
 /// law quietly permit exactly the thing it exists to forbid, and nothing goes

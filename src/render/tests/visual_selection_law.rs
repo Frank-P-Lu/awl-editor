@@ -1,4 +1,4 @@
-//! ITEM 164 — THE VISUAL-SELECTION TRANSACTION LAWS.
+//! THE VISUAL-SELECTION TRANSACTION LAWS.
 //!
 //! An overlay card must give ONE answer to "which row is selected?" on EVERY
 //! frame, including the intermediate frames of a selection move. Before the
@@ -15,7 +15,7 @@
 //!
 //! * the REAL ONE, `advance(dt)` on an `arm_live_juice`d pipeline, driving the
 //!   production `chase_or_snap` glide (a test that never advances the clock
-//!   proves nothing — CLAUDE.md's item-94 tripwire);
+//!   proves nothing — the configuration-coverage tripwire);
 //! * the PINNED one, `AWL_LIVING_BAND`'s phase pin, which dumps a deterministic
 //!   mid-flight frame with no clock at all so a REAL-PIXEL law can read it.
 //!
@@ -451,7 +451,7 @@ fn the_shortcut_column_never_flips_ahead_of_its_own_band_in_real_pixels() {
 
 /// The ONLY production files that may READ the LOGICAL selected display row off
 /// the scene plan ([`crate::render::plan::OverlayRowPlan::selected_display`],
-/// which item 174 made the single owner of that derivation).
+/// the single owner of that derivation).
 ///
 /// * `chrome/overlay.rs` — `overlay_window_report`, the sidecar's STATE oracle
 ///   (`sel_row` answers "what does Enter run"), deliberately not a rendering
@@ -559,7 +559,7 @@ fn the_source_scanner_reads_code_and_skips_prose() {
 }
 
 /// FACTUAL RECORD, not a taste law: how many rows read selected across a real
-/// glide. Item 164's brief asked for "exactly one row" at every intermediate
+/// glide. The target is "exactly one row" at every intermediate
 /// frame, and the MEASURED answer on the shipped Morph voice, for a one-row
 /// pointer move, is `[1, 2, 1, 1, ...]` — one row at every frame but a single
 /// one, where the band's stretch majority-covers BOTH rows at once.

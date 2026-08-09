@@ -59,7 +59,7 @@ use super::*;
 ///   slack.
 ///
 /// Switching to the terminus is this one word, and the two are captured side by side
-/// in `gallery/item-313/`.
+/// in the untracked gallery output.
 pub(in crate::render) const FOOT_CONTINUES_THE_LEAN: bool = true;
 
 /// THE FOOT BAND'S PLACEMENT, as the draw seats it and as a law grades it.

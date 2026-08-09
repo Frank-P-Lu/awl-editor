@@ -264,7 +264,7 @@ fn settings_toggle_row_signals_setting_toggle_and_keeps_menu_open() {
 /// live dispatch chain the Keymap-row bug hid in — the row count assertion
 /// keeps this test itself honest against the settings corpus (16 toggles;
 /// "Date format" left the roster when it became a Picker; "File visibility"
-/// joined it, item 77). Companion:
+/// joined it). Companion:
 /// `app::tests::every_settings_toggle_row_dispatches_live_and_flips_its_value`
 /// (App-level: the signaled effect is actually APPLIED and the value cell
 /// visibly flips — the "does the live door apply it" other half).
@@ -1011,7 +1011,7 @@ fn one_history_row() -> Vec<crate::history::TimelineRow> {
 
 #[test]
 fn open_keep_version_over_an_already_open_workspace_descends_and_resumes_it_on_cancel() {
-    // ITEM 116c: `workspace_nav::open_keep_version` — the function
+    // `workspace_nav::open_keep_version` — the function
     // `Action::KeepVersion`'s dispatch calls — no longer unconditionally
     // `enter`s, which used to REPLACE whatever was open with no parent
     // parked, silently stranding it. It cannot be proven by re-dispatching
@@ -1230,7 +1230,7 @@ fn palette_query_word_delete_routes_through_apply_transition() {
     assert_eq!(overlay.card().unwrap().query, "foo ");
 }
 
-/// ITEM 10 — END-TO-END: `Action::ForwardWord`/`BackwardWord` move the
+/// END-TO-END: `Action::ForwardWord`/`BackwardWord` move the
 /// PALETTE QUERY's caret through the real `apply_transition` → `overlay_intercept`
 /// seam (previously a swallowed no-op), while plain `Action::NextLine` /
 /// `PreviousLine` (Up/Down — the list-move actions every kind shares) still
@@ -1270,7 +1270,7 @@ fn palette_query_word_motion_routes_through_apply_transition_list_move_untouched
     );
     // Clear the query back to empty (the full command list ranks, > 1 row) so
     // NextLine has somewhere real to move — proving plain list-move is
-    // UNCHANGED by item 10: it moves the selection, never the query caret.
+    // It moves the selection, never the query caret.
     for _ in 0..8 {
         drive_eff(&mut overlay, &Action::DeleteBackward);
     }
@@ -1290,7 +1290,7 @@ fn palette_query_word_motion_routes_through_apply_transition_list_move_untouched
     );
 }
 
-// ── ITEM 94 — SETTINGS RANGE ROWS (the keyboard half, at the REAL apply seam) ──
+// ── SETTINGS RANGE ROWS (the keyboard half, at the REAL apply seam) ────────────
 
 /// Fuzzy-filter the Settings menu down to the Zoom row and return the overlay.
 fn zoom_row_overlay() -> crate::overlay::Journey {
@@ -1361,7 +1361,7 @@ fn a_range_row_saturates_at_both_ends_of_its_authored_band() {
 
 /// THE GATE the whole Left/Right claim rests on: only a RANGE row takes the keys.
 /// Every other Settings row — and every other faceted picker — keeps cycling its
-/// lens, exactly as before item 94.
+/// lens, exactly as before.
 #[test]
 fn left_right_still_cycle_the_lens_on_every_non_range_row() {
     let _g = crate::testlock::serial();
@@ -1384,7 +1384,7 @@ fn left_right_still_cycle_the_lens_on_every_non_range_row() {
 
 /// A range row's ENTER is UNCHANGED: it still opens the exact numeric-entry
 /// sub-state and commits through the same `SettingValueCommit` seam a Value row
-/// does (item 94 keeps the typed path verbatim).
+/// does (the typed path stays verbatim).
 #[test]
 fn enter_on_a_range_row_still_opens_the_exact_numeric_entry() {
     let _g = crate::testlock::serial();
@@ -1535,7 +1535,7 @@ fn every_range_row_steps_through_the_core_and_signals_its_own_key() {
     }
 }
 
-/// ACCESSIBILITY LAW — THE FOOT LINE MUST NAME THE KEYS THIS ROW HAS. Item 94 gave
+/// ACCESSIBILITY LAW — THE FOOT LINE MUST NAME THE KEYS THIS ROW HAS. Range rows give
 /// Left/Right a SECOND meaning on Settings rows that carry a rail (step the value)
 /// while the card's footer kept advertising the kind's default one (switch the lens).
 /// awl has no screen-reader tree behind that surface (ACCESSIBILITY.md), so the foot
@@ -1606,7 +1606,7 @@ fn the_foot_hint_names_what_left_right_actually_do_on_every_settings_row() {
                     "{name}: the rail step genuinely moved"
                 );
             }
-            // ITEM 114 — on a workspace the lens IS the navigation rail's
+            // On a workspace the lens IS the navigation rail's
             // category, and the footer says the word the rail shows.
             false => assert_eq!(
                 advertised,

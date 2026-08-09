@@ -1,10 +1,10 @@
 //! THE SIDECAR FOLD for a still-open summoned card: the one owner of "what
 //! does an open overlay look like in the sidecar", shared by the storyboard
 //! runner and the one-shot `--keys` capture so the two can never drift. Lifted
-//! verbatim out of `main/run.rs` (queue item 173, to keep that file inside its
-//! size mark); behaviour is unchanged.
+//! verbatim out of `main/run.rs` to keep that file inside its
+//! size mark; behaviour is unchanged.
 //!
-//! ITEM 188 widened it by one level: [`CaptureSubject`] + [`fold_capture_state`]
+//! [`CaptureSubject`] + [`fold_capture_state`]
 //! are now the one owner of the WHOLE per-frame fold (zoom / selection / search /
 //! overlay / diff-preview / buffers), because there is now a THIRD driver — a
 //! real headless live `App` (`--screenshot-app`, `main/run/live_app.rs`) — and a
@@ -46,12 +46,12 @@ pub(crate) trait CaptureSubject {
 /// THE ONE PER-FRAME FOLD: a driven editor's CURRENT state plus its already-built
 /// project block, into the [`CaptureOpts`] the single-frame capture path renders
 /// and [`crate::capture::sidecar`]'s ONE writer serializes. Lifted verbatim out
-/// of `main/story.rs::step_opts` (item 188), which now delegates here, so the
+/// of `main/story.rs::step_opts`, which now delegates here, so the
 /// storyboard stepper and the live-`App` capture cannot answer "what does this
 /// state look like in the sidecar" two different ways.
 ///
-/// `project` arrives already derived — by `run::project_info`, the one builder
-/// (item 183) — rather than being re-derived here, because its inputs (the raw
+/// `project` arrives already derived by the one builder, `run::project_info`,
+/// rather than being re-derived here, because its inputs (the raw
 /// `--workspace` flag, the effective default folder) belong to the caller's door,
 /// not to the frame.
 pub(crate) fn fold_capture_state(

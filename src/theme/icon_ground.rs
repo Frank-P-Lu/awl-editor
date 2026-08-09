@@ -1,4 +1,4 @@
-//! src/theme/icon_ground.rs — the app-icon tile's GROUND (item 121), split
+//! src/theme/icon_ground.rs — the app-icon tile's GROUND, split
 //! out of `model.rs` to stay inside its file-size mark. See
 //! `scripts/icons/README.md` for how the exporter reads it.
 

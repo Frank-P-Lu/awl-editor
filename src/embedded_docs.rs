@@ -47,7 +47,7 @@ pub const WORLDS_MD: &str = include_str!("../WORLDS.md");
 /// The repo's `CREDITS.md` (the in-app Credits card source).
 pub const CREDITS_MD: &str = include_str!("../CREDITS.md");
 
-/// `samples/welcome.md` — the FIRST-RUN document (queue item 24), on both
+/// `samples/welcome.md` — the FIRST-RUN document on both
 /// builds: seeded into the active folder by `crate::firstrun` on a native first
 /// launch, and into the virtual fs by `fs::SEED_SAMPLES` on a browser's first
 /// load. Unconditional — unlike its three siblings below it has a production
@@ -90,7 +90,7 @@ pub const FONT_OFL_TXT: &str = include_str!("../assets/fonts/OFL.txt");
 pub const SITE_GUIDE_HTML: &str = include_str!("../site/guide.html");
 
 /// The repo's `CAPTURE.md` — verified test-only against
-/// `capture::SCHEMA_VERSION` by `capture::tests::schema_ledger` (item 187), so
+/// `capture::SCHEMA_VERSION` by `capture::tests::schema_ledger`, so
 /// the sidecar-schema reservation header can't drift from the const.
 #[cfg(test)]
 pub const CAPTURE_MD: &str = include_str!("../CAPTURE.md");

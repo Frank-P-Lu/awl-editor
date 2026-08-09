@@ -733,7 +733,7 @@ fn global() -> &'static RwLock<Arc<dyn FileSystem>> {
     FS.get_or_init(|| RwLock::new(Arc::new(NativeFs)))
 }
 
-/// THE FS-BACKEND-SERIALIZATION LAW (queue item 101). The active backend is
+/// THE FS-BACKEND-SERIALIZATION LAW. The active backend is
 /// process-GLOBAL and SWAPPABLE, and `cargo test` runs in parallel: while one
 /// test has an [`InMemoryFs`] installed via [`FsGuard`], EVERY other thread's
 /// `fs::active()` returns that fake — so a sibling test reading the real disk
@@ -861,7 +861,7 @@ impl FsGuard {
     ///
     /// This exists because the idiom it replaces —
     /// `FsGuard::install(fs::active())` — is a TORN read-modify-write of the
-    /// global (queue item 101): Rust evaluates the argument BEFORE `install`
+    /// global: Rust evaluates the argument BEFORE `install`
     /// takes the lock, so the "previous" backend it memorizes is whatever was
     /// installed a moment before the guard, not what is installed under it.
     /// Under a concurrent `FsGuard` that restores a backend that was never

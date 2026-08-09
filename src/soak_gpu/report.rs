@@ -78,7 +78,7 @@ pub(crate) struct Report {
 impl Report {
     /// The single pass oracle for the whole probe — the process exit status is
     /// derived straight from this (see `src/app.rs`'s post-run `bail!`), so the
-    /// CI step never computes a second, independent verdict (item 53). Every
+    /// CI step never computes a second, independent verdict. Every
     /// hard gate from the failure-swallowing removal (commit 39a6520) survives:
     /// a real surface (`acquires`), the anti-slideshow presents FLOOR, the
     /// absolute cycle contract, all three faults recovered, and live memory
@@ -211,7 +211,7 @@ mod tests {
 
     /// The presents FLOOR and the faults gate are hard, and both are decided
     /// by the process's OWN exit contract — never a script-side re-derivation
-    /// (item 53). And they are TIME-INDEPENDENT: a run that drifted far past
+    /// that verdict. And they are TIME-INDEPENDENT: a run that drifted far past
     /// its nominal window still fails on a sub-floor presents count or on
     /// fewer than three recovered faults, while the same counts at the floor
     /// pass no matter how late they landed.

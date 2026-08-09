@@ -43,7 +43,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
     // so the flag + its Mode do not exist on the CLI-less wasm target.
     #[cfg(not(target_arch = "wasm32"))]
     let mut frames: Option<u32> = None;
-    // `--screenshot-app OUT.png`: the LIVE-`App` capture (item 188) — hermetic,
+    // `--screenshot-app OUT.png`: the LIVE-`App` capture — hermetic,
     // native-only, and the only door that photographs live-`App`-only state.
     #[cfg(not(target_arch = "wasm32"))]
     let mut live_app = false;
@@ -701,7 +701,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
     // the sandbox, never the user's real files. The legacy permissive paths
     // never install it (real-fs behavior kept byte-for-byte). Three doors select
     // it: `--strict-replay`, `--storyboard` (which seeds the BOARD's document,
-    // resolved above, plus its parent-directory marker), and item 188's
+    // resolved above, plus its parent-directory marker), and
     // `--screenshot-app`, whose claim is the strongest — it drives a real `App`,
     // which PERFORMS the writes a replay only records.
     //
@@ -931,7 +931,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
     })
 }
 
-/// Resolve the DEFAULT FOLDER (item 76 — the first-run launch fallback ONLY,
+/// Resolve the DEFAULT FOLDER (the first-run launch fallback ONLY,
 /// never the active folder once running): explicit `--default-folder`, else
 /// `~/notes` (`$HOME/notes`), else `./notes` if HOME is unset. The directory is
 /// created lazily on first use.

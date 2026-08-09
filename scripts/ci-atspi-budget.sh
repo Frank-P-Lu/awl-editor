@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# scripts/ci-atspi-budget.sh — run item 252's AT-SPI probe under a budget that
+# scripts/ci-atspi-budget.sh — run the AT-SPI probe under a budget that
 # FAILS rather than lets the runner CANCEL.
 #
-# Reuses scripts/ci-wedge-budget.sh's exact pattern (item 243), not a fresh
+# Reuses scripts/ci-wedge-budget.sh's exact pattern, not a fresh
 # design: `continue-on-error: true` tolerates a job that FAILS. It does NOT
 # tolerate a job that is CANCELLED, and a step or job that exceeds
 # `timeout-minutes` is cancelled, not failed — cancellation propagates to the
@@ -11,7 +11,7 @@
 # probe step hung (see ci-atspi-probe.py's own fix for why) until
 # `timeout-minutes: 20` cancelled the JOB, and that cancellation would have
 # propagated to the whole workflow's conclusion had this job's failure mode
-# not already been isolated to its own job (item 243's split). A tolerated
+# not already been isolated to its own job. A tolerated
 # arm that can still take the run down with it has not actually been made
 # safe to fail.
 #

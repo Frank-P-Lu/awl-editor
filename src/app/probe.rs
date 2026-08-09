@@ -39,7 +39,7 @@ impl App {
             }
             crate::probe::ProbeEvent::Shot(path) => self.probe_shot(&path),
             crate::probe::ProbeEvent::Latency => {
-                // ITEM 85: print ONE `LIVE-PROBE latency …` protocol line, mirroring
+                // Print ONE `LIVE-PROBE latency …` protocol line, mirroring
                 // the `shot` line's contract — the wrapping script can assert on it
                 // exactly like a screenshot outcome. `none` is a valid, non-failing
                 // report (a script that never actually moved the theme picker).

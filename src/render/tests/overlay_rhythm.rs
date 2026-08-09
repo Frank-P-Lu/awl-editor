@@ -1,4 +1,4 @@
-//! Item 112 — the shared overlay card's vertical-rhythm outcome laws.
+//! The shared overlay card's vertical-rhythm outcome laws.
 //!
 //! The first law sweeps the closed `OverlayKind` roster without a wildcard and
 //! points at real shaped title/query, facet, candidate, and footer glyph runs,
@@ -202,7 +202,7 @@ fn every_overlay_kind_orders_drawn_title_facet_candidates_footer_and_hits_the_sa
         }
 
         if contract != SurfaceContract::Contextual {
-            // ITEM 293 — `+ 1` for the blank separator row `overlay_hint_gap_rows`
+            // `+ 1` for the blank separator row `overlay_hint_gap_rows`
             // reserves ahead of the hint's own line (`+ 2` is the two candidate
             // rows the loop above just drew).
             let footer_line = first_candidate_line + 2 + 1;
@@ -309,7 +309,7 @@ fn footer_pixels_add_clear_air_above_trim_the_chin_and_reject_the_old_dials() {
         let candidate_box = p
             .overlay_line_glyph_box(first_row + 2)
             .unwrap_or_else(|| panic!("{world}: final candidate shaped"));
-        // ITEM 293 — `+ 1` past the candidates for the blank separator row
+        // `+ 1` past the candidates for the blank separator row
         // `overlay_hint_gap_rows` reserves, THEN the hint's own line.
         let footer_box = p
             .overlay_line_glyph_box(first_row + 3 + 1)
@@ -361,7 +361,7 @@ fn footer_pixels_add_clear_air_above_trim_the_chin_and_reject_the_old_dials() {
             old_bottom_chin > bottom_chin,
             "{world}: retired hint/pad values must leave a fatter chin ({old_bottom_chin} vs {bottom_chin})"
         );
-        // ITEM 293 RETIRED THE STRICT "MORE BALANCED THAN THE OLD DIALS" CLAIM.
+        // THE STRICT "MORE BALANCED THAN THE OLD DIALS" CLAIM IS RETIRED.
         // `glyph_shift`/`old_card_shift` are CONSTANT offsets from the hint_h/pad
         // retirement alone — they shift `top_gap` and `bottom_chin` by the same
         // amount regardless of the gap row's own height, so once a THIRD dial
@@ -380,7 +380,7 @@ fn footer_pixels_add_clear_air_above_trim_the_chin_and_reject_the_old_dials() {
              within the same order of magnitude — imbalance {imbalance}px at \
              {lh:.1}px line height"
         );
-        // ITEM 293 RETIRED THE "retired dials would still be right-way-up"
+        // THE "retired dials would still be right-way-up"
         // non-vacuity check too, for the same reason as the balance claim
         // above: `old_top_gap`/`old_bottom_chin` are CONSTANT shifts off the
         // LIVE `top_gap`/`bottom_chin`, which now itself carries the new gap

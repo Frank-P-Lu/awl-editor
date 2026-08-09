@@ -833,7 +833,7 @@ fn every_overlay_kind_is_classified_and_the_two_families_render_as_declared() {
     theme::set_active(theme::DEFAULT_THEME);
 }
 
-/// LIGHT-WORLD BORDER LAW (composition round item 6, veto 3 adopted: "border on
+/// LIGHT-WORLD BORDER LAW (the adopted verdict: "border on
 /// light worlds totally works") — every LIGHT world (a pale ground,
 /// `dark == false`) carries [`theme::Elevation::Bordered`], so the summoned
 /// card's soft fill gains a crisp rim off the pale ground instead of dissolving

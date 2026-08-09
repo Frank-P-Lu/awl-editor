@@ -1,6 +1,6 @@
 use super::super::*;
 
-/// SAME-PARENT EDGE (item 180 named it, item 189 must sweep it too): switching
+/// SAME-PARENT EDGE: switching
 /// between two projects that share a parent must still rebuild `corpus` from
 /// the NEW root — a fix that only re-derives `workspace` when the parent
 /// visibly changes would leave this case green by coincidence. Calls
@@ -49,9 +49,9 @@ fn resync_project_location_same_parent_switch_still_rebuilds_the_corpus() {
     });
 }
 
-/// ITEM 190 — `SettingPathPick{key: "project_root"}` re-scopes root/workspace/
+/// `SettingPathPick{key: "project_root"}` re-scopes root/workspace/
 /// corpus through the SAME `resync_project_location` owner a Project-picker
-/// accept already uses (item 189) — a white-box companion to the black-box
+/// accept already uses — a white-box companion to the black-box
 /// hermetic proofs above, exercising the interpreter directly (mirroring
 /// `resync_project_location_same_parent_switch_still_rebuilds_the_corpus`'s
 /// own construction) since `ReplayResult` carries no root/workspace/corpus
@@ -91,7 +91,7 @@ fn setting_path_pick_project_root_resyncs_root_workspace_and_corpus() {
     });
 }
 
-/// ITEM 190 — `SettingPathPick{key: "workspace"}` persists the picked folder
+/// `SettingPathPick{key: "workspace"}` persists the picked folder
 /// AND re-derives this session's own `workspace` (root unchanged) so a chord
 /// applied afterward reads the new scope — the one observable slice of live
 /// `App::reload_config`'s work for this key.
@@ -148,8 +148,8 @@ fn setting_path_pick_workspace_persists_and_resyncs_the_workspace_field() {
     );
 }
 
-/// NO-PARENT / FILESYSTEM-ROOT EDGE (item 180 named it, item 189 must sweep it
-/// too): `Path::parent()` returns `None` only for a root component itself, so
+/// NO-PARENT / FILESYSTEM-ROOT EDGE: `Path::parent()` returns `None` only for
+/// a root component itself, so
 /// switching TO the filesystem root is the one case that exercises
 /// `location::resolve_workspace`'s fallback-to-self arm inside a re-scope,
 /// not just at the free-function level (`workspace_falls_back_to_root_when_

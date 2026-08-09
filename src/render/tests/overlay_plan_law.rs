@@ -1,4 +1,4 @@
-//! ITEM 174 — THE SCENE-PLAN LAWS AGAINST THE REAL PIPELINE.
+//! THE SCENE-PLAN LAWS AGAINST THE REAL PIPELINE.
 //!
 //! The pure planner laws live beside the planner (`render/plan/tests.rs`); this
 //! file is the device-level half — the three answers that used to be computed in
@@ -16,7 +16,7 @@
 //! retained across a resize / zoom / buffer swap, its size is O(visible) not
 //! O(doc), and the retired loose-scalar row arithmetic cannot come back.
 //!
-//! ITEM 185 — this file's own `family()` classifier used to be a HAND-COPIED
+//! This file's own `family()` classifier used to be a HAND-COPIED
 //! match that disagreed with the production owner it was meant to describe:
 //! it called `OverlayKind::Assets` `Grouped`, but `facets::scheme(Assets)` is
 //! `None` ("the asset cleaner is a flat list — no lens strip"). That mislabel
@@ -26,7 +26,7 @@
 //! took the GROUPED path for a kind that can never reach it live; the sweep
 //! graded real rows the whole time, just along a code path `Assets` cannot
 //! take outside this test, while never exercising its real FLAT path. Fixed
-//! by deriving `family()` from `facets::scheme` directly (item 181's own
+//! by deriving `family()` from `facets::scheme` directly (the shared
 //! `overlay_height_clamp_law.rs` already did this correctly — the shape to
 //! follow); the headline law also checks the REAL pipeline's `geom.theme`
 //! against `facets::scheme` independently, so a future drift fails by name
@@ -38,7 +38,7 @@ use crate::overlay::OverlayKind;
 use crate::render::chrome::OverlayGeom;
 
 /// How a picker kind lays its candidate area out. NOT a hand-copied match over
-/// `OverlayKind` — item 185's own lesson. `overlay_geometry` decides FLAT vs
+/// `OverlayKind` — the classification lesson. `overlay_geometry` decides FLAT vs
 /// GROUPED by asking exactly one question, `!self.overlay_lens.is_empty()`,
 /// which at sync time is populated iff `crate::facets::scheme(kind)` is
 /// `Some`. A hand-maintained copy of that split (the shape this file shipped
@@ -340,15 +340,15 @@ fn grade_published_row_against_ink_and_pointer(
     // selection. `window.sel_row` already reports it from the owner that also
     // colours the band, and a second answer projected from the plan's LOGICAL row
     // would disagree with the drawn one for the length of every selection move —
-    // which is the transaction item 164 closed, and what this file's sibling law
+    // which is the visual-selection transaction, and what this file's sibling law
     // `no_render_path_reads_the_logical_selected_row_outside_the_transaction`
     // refuses. The geometry is this projection's whole claim.
 }
 
-/// ITEM 185 — the REAL pipeline's own path must match production's OWN
+/// The REAL pipeline's own path must match production's OWN
 /// classifier, `facets::scheme`, checked directly — never `fam` itself,
 /// which would make this tautological (the fixture already built its state
-/// FROM `fam`). Before item 185 this failed for `Assets`: the hand-copied
+/// FROM `fam`). This failed for `Assets` when the hand-copied
 /// `family()` called it Grouped, so the fixture fed it a lens strip and
 /// `overlay_geometry` dutifully took the grouped path (`geom.theme`), even
 /// though `facets::scheme` says `Assets` should never facet at all.
@@ -492,7 +492,7 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
 
     let mut checked_rows = 0usize;
     let mut checked_headers = 0usize;
-    // ITEM 185 — a non-vacuity floor PER FAMILY, not just an aggregate: an
+    // A non-vacuity floor PER FAMILY, not just an aggregate: an
     // aggregate floor is exactly how `Assets` drifted unnoticed (its rows kept
     // landing in the GROUPED bucket's total while the FLAT arm silently lost
     // its only faceted-in-error contributor). Counting each family separately
@@ -768,7 +768,7 @@ fn a_huge_picker_corpus_still_plans_only_the_rows_on_screen() {
     );
 }
 
-/// ITEM 174's ONE DELIBERATE OUTPUT CHANGE.
+/// THE ONE DELIBERATE OUTPUT CHANGE.
 ///
 /// `content_rows` — how many display lines precede the footer — used to be
 /// computed in one place as the grouped family's plan length, omitting the
@@ -1346,7 +1346,7 @@ const NOTICE_IS_GROUND_MAX: f64 = 1.0;
 
 // --- The retired-arithmetic source law ---------------------------------------
 
-/// The sentinel TERMS of the row-Y arithmetic item 174 moved into the planner.
+/// The sentinel TERMS of the row-Y arithmetic moved into the planner.
 /// A production line under `src/render/` that contains one is re-deriving a row's
 /// position from loose scalars — the shape that let the draw path, the hit-test,
 /// the band and the footer plate each carry their own copy.

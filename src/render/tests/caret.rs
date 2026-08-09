@@ -155,7 +155,7 @@ fn caret_geometry_orients_trail_along_travel_axis() {
 /// bottom extends to wrap it). Font-correct (read from the swash placement box),
 /// not a hardcoded letter list.
 ///
-/// ITEM 91 moved the measurement onto the shared full-raster [`InkBox`]
+/// The measurement uses the shared full-raster [`InkBox`]
 /// (`descent()`), so the depth the block's bottom rides is the SAME box its top
 /// now rides — one raster read, one box. The assertions are unchanged.
 #[test]
@@ -957,7 +957,7 @@ fn reduced_motion_settles_the_caret_style_preview_loop_instantly() {
     crate::motion::set_reduced(saved);
 }
 
-/// ITEM 57 — the caret's per-frame glyph lookup is POSITION-INDEPENDENT: on a
+/// The caret's per-frame glyph lookup is POSITION-INDEPENDENT: on a
 /// document of many IDENTICAL lines, the lookup at the TOP, MIDDLE, and TAIL
 /// resolves the SAME glyph, reports the SAME line-local visited work, and lands the
 /// SAME within-row baseline offset — even though the number of shaped runs BEFORE
@@ -1043,7 +1043,7 @@ fn caret_lookup_position_independent() {
     crate::caret::set_mode(saved);
 }
 
-/// ITEM 57 GREP-LAW — the caret render module (`src/render/caret.rs`) must NOT walk
+/// GREP-LAW — the caret render module (`src/render/caret.rs`) must NOT walk
 /// the whole document's `layout_runs()` stream: the per-frame caret glyph lookups
 /// read the cursor line's OWN `layout_opt()` (the target-line-local record) so their
 /// cost is independent of the caret's document position. This structurally bans a

@@ -192,11 +192,11 @@ pub const CARET_MORPH_DILATE_PX: Logical = Logical(2.0);
 /// `config.zoom` in behind that flag for captures too (`main/args.rs`). A
 /// capture-based test whose arithmetic uses BASE constants must still pin
 /// `--zoom`; capture tests should instead read the sidecar's EFFECTIVE
-/// `font.size` / `font.line_height`, which item 96 corrected to this metric
+/// `font.size` / `font.line_height`, which report this effective metric
 /// scale. Believing this comment once made a personal `zoom = 1.5` turn a pixel
-/// test red with no product change behind it (queue item 93).
+/// test red with no product change behind it.
 ///
-/// ITEM 94: the band/step/default no longer live here AT ALL. The former
+/// The band/step/default no longer live here AT ALL. The former
 /// `ZOOM_MIN`/`ZOOM_MAX`/`ZOOM_STEP` consts were deleted rather than re-pointed —
 /// an alias is a drift risk, and there is now exactly ONE place zoom's authored
 /// numbers exist: [`crate::range::ZOOM`] (`.min`/`.max`/`.step`/`.default`), the
@@ -210,7 +210,7 @@ pub const CARET_MORPH_DILATE_PX: Logical = Logical(2.0);
 /// so it falls back to the 1.0 default; ±inf saturates through the normal clamp.
 /// The result is always finite in `[ZOOM.min, ZOOM.max]`.
 ///
-/// ITEM 94 — a ONE-LINE DELEGATE to [`crate::range::RangeSpec::quantize`]: this is
+/// A ONE-LINE DELEGATE to [`crate::range::RangeSpec::quantize`]: this is
 /// still the door every zoom caller knocks on, but the arithmetic behind it now
 /// lives with the rest of the range rule (bit-identical to the formula that used
 /// to sit here — `range::tests::quantize_reproduces_the_historical_zoom_clamp_formula`).
@@ -429,8 +429,8 @@ pub const SYMBOL_FAMILY: &str = "Awl Marks";
 /// order: "IBM Plex Mono" (already FONT_DATA, the default), "Literata",
 /// "Newsreader 16pt 16pt" (the static Newsreader master registers under this
 /// optical-size name), "IBM Plex Sans", "Zilla Slab", "JetBrains Mono"
-/// (Mangrove), "Figtree" (Galah), "iA Writer Quattro S" (now unassigned — Mopoke
-/// moved to Bitter, queue item 30), "Monaspace Xenon" (Potoroo), "Fraunces 9pt"
+/// (Mangrove), "Figtree" (Galah), "iA Writer Quattro S" (now unassigned),
+/// "Monaspace Xenon" (Potoroo), "Fraunces 9pt"
 /// (Saltpan), and "EB Garamond" (Bombora) — eleven distinct faces.
 ///
 /// Literata/Newsreader/Plex Sans/Zilla/Fraunces/EB Garamond are PROPORTIONAL and
@@ -442,7 +442,7 @@ pub const SYMBOL_FAMILY: &str = "Awl Marks";
 /// instanced from its variable master at `wght=400`), so no `mono_safe_weight`
 /// exception is needed beyond IBM Plex Mono's Light.
 ///
-/// EACH FACE DECLARES ITS PITCH (queue item 97). The second tuple field is the
+/// EACH FACE DECLARES ITS PITCH. The second tuple field is the
 /// face's [`facepitch::Pitch`] — the tuple type is the point: a new
 /// `include_bytes!` here CANNOT COMPILE without a conscious Mono/Proportional
 /// call, which is what the caret's mono/proportional fork used to get wrong by
@@ -607,11 +607,11 @@ pub const FONT_CHROME_FACES: &[&[u8]] = &[
     include_bytes!("../assets/fonts/AbrilFatface-Regular.ttf"),
 ];
 
-/// ITEM 70's BUNDLED HEAVY-WEIGHT CANDIDATE — Sour Gummy at `wght=900`
+/// BUNDLED HEAVY-WEIGHT CANDIDATE — Sour Gummy at `wght=900`
 /// ("Black"), registered under the SAME family "Sour Gummy" as the Regular
 /// ([`FONT_THEME_FACES`]) and the real Bold companion
 /// ([`FONT_THEME_BOLD_FACES`]'s `SourGummy-Bold.ttf`, subfamily "Bold",
-/// `usWeightClass 700`) — the queue item's explicit ask: PRODUCE both a
+/// `usWeightClass 700`) — both a
 /// 700-weight AND a 900-weight real instance (not relabelled weight
 /// metadata) so a human taste pass can pick the heavy companion, rather than
 /// silently deciding in code. Both files share the Regular's exact 335-glyph
@@ -1364,7 +1364,7 @@ fn awl_sourgummy_heavy_force() -> &'static Option<String> {
     ONCE.get_or_init(|| std::env::var("AWL_SOURGUMMY_HEAVY_FORCE").ok())
 }
 
-/// DEV-ONLY escape hatch for item 70's 700-vs-900 heavy-candidate gallery
+/// DEV-ONLY escape hatch for the 700-vs-900 heavy-candidate gallery
 /// (mirrors [`apply_cjk_force`]'s shape exactly): unset (every normal run,
 /// every default capture) prunes nothing — `Weight::BOLD` resolves to the
 /// 700 [`FONT_THEME_BOLD_FACES`] file by nearest-weight, and the bundled 900
@@ -1595,11 +1595,11 @@ pub(crate) fn slant_offset(slant: &SlantProbe, row: usize) -> f32 {
 }
 
 /// The deepest row's TOTAL inward step, as a magnitude — used to tax the width
-/// elision budgets against, never as a signed position. Item 131a: the probe's
+/// elision budgets against, never as a signed position. The probe's
 /// step is signed (which edge moves), but a mirrored (right-moving) stagger
 /// eats just as much usable width as a straight (left-moving) one, so the tax
 /// itself is always `>= 0`, `.abs()` of the signed step. Byte-identical to the
-/// pre-131a formula for every existing (positive-only) probe value.
+/// former formula for every existing (positive-only) probe value.
 pub(crate) fn slant_max_offset(slant: &SlantProbe, n_rows: usize) -> f32 {
     slant.px_per_row.abs() * n_rows.saturating_sub(1) as f32
 }
@@ -2088,7 +2088,7 @@ pub struct TextPipeline {
     /// pipeline's `row_top_px` / `row_height_px` / `total_doc_height` /
     /// `total_visual_rows` delegate here.
     row_geom: rowgeom::RowGeom,
-    /// TARGET-LINE-LOCAL caret glyph record (item 57) — the cursor line's shaped
+    /// TARGET-LINE-LOCAL caret glyph record — the cursor line's shaped
     /// glyph clusters `(start_byte, end_byte, CacheKey)`, read from that line's OWN
     /// `layout_opt()` rather than by filtering the whole document's `layout_runs()`.
     /// A SINGLE slot (the caret is only ever on one line), rebuilt when the cursor
@@ -2135,14 +2135,13 @@ pub struct TextPipeline {
     /// variable-row-height machinery headings use. Empty when neither feature
     /// applies (off / no images-or-tables / non-markdown) → byte-identical.
     image_heights: Vec<Option<f32>>,
-    /// INLINE IMAGES (item 5 rework — "list item with text and an image", the
-    /// marker-strand fix): per LOGICAL LINE, `Some((dh, target_advance_px))` when
+    /// INLINE IMAGES: per LOGICAL LINE, `Some((dh, target_advance_px))` when
     /// that line is a MIXED image line (`- caption text ![alt](p)`) currently
     /// OFF-CURSOR — `None` for every other line (bare image lines, revealed mixed
     /// lines, non-image lines). Unlike `image_heights` this NEVER inflates the
     /// line's own shaped row (cosmic-text centers a row's content around its own
-    /// glyph height unconditionally — inflating the CAPTION's row is what stranded
-    /// the marker from the caption in the prior round); instead
+    /// glyph height unconditionally — inflating the CAPTION's row strands the
+    /// marker from the caption); instead
     /// [`add_wysiwyg_conceal_spans`] gives the concealed image markup's SECOND
     /// byte (the `[` of `![alt](p)` — NEVER the leading `!`, see its doc comment
     /// for the UAX14 LB13 tripwire that rules the `!` out) a large `letter_spacing`
@@ -2463,7 +2462,7 @@ pub struct TextPipeline {
     overlay_items: Vec<String>,
     overlay_empty: Option<String>,
     overlay_bindings: Vec<String>,
-    /// ITEM 94 — mirror of [`ViewState::overlay_ranges`]: the per-row RAIL FRACTION
+    /// Mirror of [`ViewState::overlay_ranges`]: the per-row RAIL FRACTION
     /// (parallel to `overlay_items`), `None` for a row with no rail and EMPTY for
     /// every non-Settings card. Read by the ONE rail owner
     /// (`chrome::TextPipeline::overlay_rails`), which both the draw path and the
@@ -2488,7 +2487,7 @@ pub struct TextPipeline {
     /// [`ViewState::overlay_workspace`]). The one input that routes
     /// `overlay_geometry` to its third family.
     overlay_workspace: bool,
-    /// Mirror of [`ViewState::overlay_rows_primary`] (item 116a) — within a
+    /// Mirror of [`ViewState::overlay_rows_primary`] — within a
     /// workspace, does the primary column carry rows rather than labels?
     /// `false` for Settings; `true` for the History timeline.
     overlay_rows_primary: bool,
@@ -2498,7 +2497,7 @@ pub struct TextPipeline {
     overlay_comparison: bool,
     /// The workspace PRIMARY column's MEASURED width (device px) — a rail of
     /// category labels, or a timeline of versions — measured at `set_view` with a
-    /// `&mut FontSystem` in hand: the item-51 `overlay_content_w` pattern, for the
+    /// `&mut FontSystem` in hand: the `overlay_content_w` measurement pattern, for the
     /// same reason. `0.0` off a workspace.
     workspace_primary_w: f32,
     workspace_rail_buffer: GlyphBuffer,

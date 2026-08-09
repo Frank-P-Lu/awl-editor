@@ -1,11 +1,11 @@
-//! ITEM 10 — ONE SHARED SINGLE-LINE TEXTBOX MODEL: text + CHAR-index caret +
+//! ONE SHARED SINGLE-LINE TEXTBOX MODEL: text + CHAR-index caret +
 //! motion/edit/word rules, shared by the 7 end-only single-line fields this
-//! item routes through it — picker query, Rename, Insert-link URL,
+//! model routes through it — picker query, Rename, Insert-link URL,
 //! Keep-version name, Settings value, Find query, Replace text (see
 //! [`TextField::ALL`]). Pure text + caret + motion — NO char filtering (a
 //! Settings digit/`.`/`%` gate, a Rename `/`-reject), NO refilter/recompute/
 //! commit; those stay owned by each surface (`overlay::capture`,
-//! `overlay::nav`, `search::mod` respectively) exactly as before item 10.
+//! `overlay::nav`, `search::mod` respectively).
 //!
 //! CHAR-INDEX DISCIPLINE: `caret` is a CHAR index into `text`
 //! (`0..=text.chars().count()`), NEVER a byte offset — `String::insert` /
@@ -26,10 +26,10 @@
 //! ([`TextBox::delete_word_back`] / [`TextBox::delete_word_forward`],
 //! Opt-Backspace / Opt-forward-Delete) delegates to the SEPARATE
 //! `word_delete_*_boundary` owners the document's `delete_word_backward` /
-//! `_forward` (and the pre-item-10 minibuffer word-delete,
+//! `_forward` (and the minibuffer word-delete,
 //! `overlay::nav::truncate_trailing_word`) already share. Wiring motion to
 //! the delete rule (or vice versa) makes a textbox's opt-arrow disagree with
-//! the document's own M-b/M-f — the item's headline trap.
+//! the document's own M-b/M-f.
 
 use crate::buffer::{
     word_backward_boundary, word_delete_backward_boundary, word_delete_forward_boundary,
@@ -53,7 +53,7 @@ impl TextBox {
     }
 
     /// A field pre-filled with `s`, caret at the END — the seeding every
-    /// existing minibuffer used before item 10 (Rename / Insert-link /
+    /// existing seeded minibuffer uses (Rename / Insert-link /
     /// Settings all start from the current value, caret ready to backspace
     /// it; only Keep-version seeds empty, via [`Self::new`]).
     pub fn seeded(s: &str) -> Self {

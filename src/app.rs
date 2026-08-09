@@ -138,7 +138,7 @@ const WHEEL_PIXELS_PER_LINE: f32 = 16.0;
 /// (`bump_click_count`'s own `4.0`) — both answer "did the pointer really move",
 /// just for two different gestures. See `PointerInput::exceeds_drag_slop`.
 ///
-/// `pub(crate)` so `overlay::nav::HOVER_MOVE_SLOP_PX` (item 106) can read this
+/// `pub(crate)` so `overlay::nav::HOVER_MOVE_SLOP_PX` can read this
 /// SAME constant rather than declaring its own copy of the number — the two
 /// gates answer the identical "did the pointer really move, or did content
 /// relocate under a stationary one" question for two different gestures (a
@@ -356,14 +356,14 @@ pub(crate) mod semantic;
 mod startup;
 mod viewstate;
 mod window;
-/// The SUMMONED-UI LAYER owner (item 172): the overlay/search/popover
+/// The SUMMONED-UI LAYER owner: the overlay/search/popover
 /// precedence ladder, behind one type with private fields.
 mod workspace;
 #[cfg(any(test, not(target_arch = "wasm32")))]
 pub(crate) use schedule::RecordingScheduler;
 mod apply;
 mod apply_context;
-/// ITEM 188 — the live `App`'s own SIDECAR FOLD + its capture constructor.
+/// The live `App`'s own SIDECAR FOLD + its capture constructor.
 /// Native-only, like the `--screenshot-app` mode that is its only consumer.
 #[cfg(not(target_arch = "wasm32"))]
 mod capture_state;
@@ -372,10 +372,10 @@ mod daemon;
 /// every buffer-scoped App cache.
 mod document;
 mod menu;
-/// The APP-GLOBAL SAVE LEDGER (item 172): the fresh-document autosave
+/// The APP-GLOBAL SAVE LEDGER: the fresh-document autosave
 /// debounce+version pair, the save-feedback clocks, the title dirty cache.
 mod persistence;
-/// ITEM 183's HEADLESS PRESS DOOR — real chords into the live `App`, off-window.
+/// The HEADLESS PRESS DOOR — real chords into the live `App`, off-window.
 #[cfg(any(test, not(target_arch = "wasm32")))]
 mod press;
 mod probe;
@@ -395,15 +395,15 @@ pub struct App {
     /// One owner for the active whole slot, background registry, previous-file
     /// target, spell checker, and every buffer-scoped cache.
     document: document::DocumentSession,
-    /// THE SUMMONED-UI LAYER (item 172's first owner — `app/workspace.rs`):
+    /// THE SUMMONED-UI LAYER (`app/workspace.rs`):
     /// the modal picker, the find/replace panel, and the format popover's
     /// summon bit, with their PRECEDENCE LADDER. The three former `App`
     /// fields (`overlay`/`search`/`popover_open`) are private to that module
     /// now, so the ladder cannot be re-derived by a consumer — it used to be
-    /// the same conjunction hand-written across five files. Item 173 grows the
+    /// the same conjunction hand-written across five files. The expanded layer grows the
     /// typed summoned-workspace lifecycle inside this type.
     workspace_state: workspace::WorkspaceState,
-    /// THE APP-GLOBAL SAVE LEDGER (item 172's second owner —
+    /// THE APP-GLOBAL SAVE LEDGER (the second owner —
     /// `app/persistence.rs`): the fresh-document autosave debounce + the
     /// version it last wrote (one ledger, not two fields), the two
     /// save-feedback clocks, and the window title's dirty cache. The
@@ -518,7 +518,7 @@ impl App {
         // ONLY place in the whole codebase that may consult OS/browser motion
         // detection — never a headless capture path.
         crate::motion::apply_at_startup(&config);
-        // ITEM 77 — THE ONE CAPABILITY OWNER: an explicit CLI/OS-open LAUNCH
+        // THE ONE CAPABILITY OWNER: an explicit CLI/OS-open LAUNCH
         // argument that isn't openable text is refused HERE, before it can
         // ever reach `Buffer::from_file` — the SAME door `App::load_path`
         // guards (see `crate::openable`'s module doc). A refusal falls
@@ -712,7 +712,7 @@ impl App {
 ///    machine this is his ACTUAL live session: whatever files happen to be
 ///    open in a real `awl` right now leak into the test's `buffer_registry`,
 ///    and `open_buffer_count()`/similar assertions silently start tracking his
-///    editing session instead of the test's fixture (`d93109e` fixed one
+///    editing session instead of the test's fixture (one
 ///    instance of exactly this leak — this closes the door everywhere else it
 ///    was still open).
 ///  - **Scratch stash**: a `file: None` launch reads the scratch buffer's
@@ -968,7 +968,7 @@ impl App {
         }
         // Keep the surface presenting every tick while the soak runs and is not
         // yet finished — not only when this tick emitted stimuli. The tail of a
-        // slow run (item 53) emits NO new stimuli while the App is still
+        // slow run emits NO new stimuli while the App is still
         // confirming the last resize/recovery through its ordinary frames; the
         // loop must keep waking so those `observe_*` calls land and
         // `soak.finished` can flip on schedule completion. `finished` is false

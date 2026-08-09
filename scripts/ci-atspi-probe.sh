@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# ci-atspi-probe.sh — item 252: does the AT-SPI2 bridge come up on real Linux
+# ci-atspi-probe.sh — does the AT-SPI2 bridge come up on real Linux
 # and expose the tree SemanticSnapshot intends?
 #
-# ‼ THIS IS NOT ITEM 251 AND DOES NOT CLOSE IT. It proves bridge LIVENESS AND
+# ‼ THIS DOES NOT CLOSE THE HUMAN JOURNEY. It proves bridge LIVENESS AND
 # STRUCTURE ONLY — that AccessKit's Unix adapter registers with the
-# accessibility bus and publishes the document, item 218's stable line runs,
+# accessibility bus and publishes the document's stable line runs,
 # focus and a live selection. It says nothing about what a screen reader user
 # would hear or how navigation feels; that needs Orca on a real Linux desktop
-# with a person listening (item 251), which no hosted runner has.
+# with a person listening, which no hosted runner has.
 #
 # CI-ONLY: stands up a virtual X display (Xvfb) plus a minimal window manager
 # (fluxbox — xdotool's keyboard injection needs real X11 input focus, which a

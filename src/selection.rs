@@ -5,7 +5,7 @@ const CORNER_RADIUS: f32 = 2.5;
 /// Per-quad instance: a rectangle center + half-size in pixels, plus the shared
 /// RGBA color. MUST match `Instance` in the WGSL.
 ///
-/// `axis` (item 131b) is the unit rotation axis (cos, sin) the quad's vertex
+/// `axis` is the unit rotation axis (cos, sin) the quad's vertex
 /// positions are rotated onto — `(1.0, 0.0)` is upright, exactly mirroring
 /// `caret.wgsl`'s own `axis` field. [`SelectionPipeline::prepare`] and
 /// [`SelectionPipeline::prepare_multicolor`] both upload the inert default for
@@ -47,12 +47,11 @@ struct Globals {
     /// a 16-byte boundary — MUST match the equal-sized `_pad2: vec2<f32>` in
     /// the WGSL `Globals` (see that struct's doc for the exact byte math).
     _pad2: [f32; 2],
-    /// HALFTONE dot ink (item 70), LINEAR RGBA — derived Rust-side from the
+    /// HALFTONE dot ink, LINEAR RGBA — derived Rust-side from the
     /// theme's own surface ladder (`theme::derive::card_texture_ink`), never
     /// a raw/amber literal. `[0.0; 4]` (construction default, fully
-    /// transparent) is a no-op paired with `halftone == 0.0`. (Item 71 once
-    /// shared this field with a second, JAGGED-WAVE texture — Bowerbird's
-    /// own woven card identity — retired outright by item 86; `dot_color`
+    /// transparent) is a no-op paired with `halftone == 0.0`. A former shared
+    /// field for Bowerbird's retired JAGGED-WAVE texture is gone; `dot_color`
     /// ends the struct at byte 64, already a multiple of the largest
     /// member's 16-byte alignment, so no further tail padding is needed.)
     dot_color: [f32; 4],
@@ -82,7 +81,7 @@ pub struct SelectionPipeline {
     /// on an `fs_invert` pipeline.
     dither_cell: f32,
     /// Chamfer depth (px) uploaded into `Globals::chamfer` each `prepare`
-    /// (item 70). `0.0` (construction default) is the ORIGINAL rounded-rect
+    /// `0.0` (construction default) is the ORIGINAL rounded-rect
     /// silhouette — byte-identical for every pipeline that never calls
     /// [`Self::set_chamfer`] (every world but Quokka's card family).
     chamfer: f32,
@@ -90,10 +89,9 @@ pub struct SelectionPipeline {
     halftone_angle: f32,
     halftone_cell: f32,
     /// HALFTONE dot ink (LINEAR RGBA) uploaded into `Globals::dot_color`
-    /// (item 70) — set via [`Self::set_halftone`], always a theme-ladder
-    /// derived color (see that fn's doc). (Item 71 once shared this field
-    /// with a second, JAGGED-WAVE texture via a `set_wave` sibling —
-    /// Bowerbird's own woven card identity — retired outright by item 86.)
+    /// Set via [`Self::set_halftone`], always a theme-ladder-derived color
+    /// (see that fn's doc). The former JAGGED-WAVE texture and its `set_wave`
+    /// sibling are retired.
     dot_color: [f32; 4],
 }
 
@@ -283,7 +281,7 @@ impl SelectionPipeline {
                     offset: 16,
                     shader_location: 2,
                 },
-                // ITEM 131b — `axis`, at the END of the struct so every offset
+                // `axis`, at the END of the struct so every offset
                 // above is untouched (no existing attribute moves).
                 wgpu::VertexAttribute {
                     format: wgpu::VertexFormat::Float32x2,
@@ -395,8 +393,6 @@ impl SelectionPipeline {
         self.dither_cell = cell.max(1.0);
     }
 
-    /// The current DITHER CELL edge (`1.0` = the fine per-pixel stipple). A
-    /// cheap headless assertion hook, mirroring [`Self::dither`] (used by the
     /// Override the rounded-rect corner radius (px) the NEXT `prepare` call
     /// uploads into `Globals::corner`. Meaningless (never called) on the
     /// ORDINARY fill pipeline (its `CORNER_RADIUS` is fixed at construction
@@ -423,7 +419,7 @@ impl SelectionPipeline {
         self.stroke = stroke.max(0.0);
     }
 
-    /// Set the CHAMFER depth (px, item 70) the NEXT `prepare` uploads into
+    /// Set the CHAMFER depth in px that the NEXT `prepare` uploads into
     /// `Globals::chamfer`. `0.0` (the construction default, and the value
     /// every pipeline but Quokka's card family carries) restores the ORIGINAL
     /// rounded-rect silhouette — byte-identical. `> 0.0` cuts a crisp 45°
@@ -435,9 +431,7 @@ impl SelectionPipeline {
         self.chamfer = chamfer_px.max(0.0);
     }
 
-    /// The current CHAMFER depth (`0.0` = the rounded-rect silhouette). A
-    /// cheap headless assertion hook mirroring [`Self::stroke`] (used by the
-    /// Set the HALFTONE dot texture (item 70) the NEXT `prepare` uploads into
+    /// Set the HALFTONE dot texture the NEXT `prepare` uploads into
     /// `Globals::halftone`/`halftone_angle`/`halftone_cell`/`dot_color`.
     /// `density <= 0.0` disables the texture entirely (`Globals::halftone`
     /// stays `0.0`, `fs_main`'s composite is skipped outright — byte-identical
@@ -453,8 +447,6 @@ impl SelectionPipeline {
         self.dot_color = srgba_u8_to_linear(ink);
     }
 
-    /// The current HALFTONE density ceiling (`0.0` = off). A cheap headless
-    /// assertion hook mirroring [`Self::dither`] (used by the render tests;
     /// How many quad instances the last `prepare` uploaded (0 = nothing drawn). A cheap
     /// headless assertion hook for "is this summoned rect present this frame?" (used by
     /// the render tests; no non-test caller in the shipping binary).

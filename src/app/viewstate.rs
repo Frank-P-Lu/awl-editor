@@ -152,7 +152,7 @@ impl App {
             search_query_caret,
             search_replacement_caret,
             overlay_active: self.workspace_state.overlay_open(),
-            // ITEM 45: carry the alignment FROZEN at summon (`OverlayState::align`)
+            // Carry the alignment FROZEN at summon (`OverlayState::align`)
             // straight through — read verbatim every frame, so a live theme-preview
             // crossing never recomputes it and the open card holds its placement.
             overlay_align: ov.map(|o| o.align),
@@ -179,19 +179,18 @@ impl App {
             overlay_git: ov.map(|o| o.item_git_tags()).unwrap_or_default(),
             overlay_selected: ov.map(|o| o.selected).unwrap_or(0),
             overlay_scroll: ov.map(|o| o.scroll).unwrap_or(0),
-            // The per-kind visible-row cap (item 64's MAX_SUGGESTIONS + 1 for spell /
+            // The per-kind visible-row cap (MAX_SUGGESTIONS + 1 for spell /
             // 12 flat+faceted / more for theme), the ONE owner the pipeline windows
             // against so the drawn rows match the hover/keyboard item-window exactly.
             overlay_window_rows: ov.map(|o| o.window_rows()).unwrap_or(12),
             overlay_hint: ov.map(|o| o.foot_hint()).unwrap_or_default(),
             overlay_lens: ov.map(|o| o.lens_strip()).unwrap_or_default(),
             overlay_workspace: ov.is_some_and(|o| o.workspace_shape().is_some()),
-            // ITEM 116a — the one fact geometry, keyboard handling and the
+            // The one fact geometry, keyboard handling and the
             // footer hint reduce to: does this workspace's PRIMARY column
             // carry its own rows (a future timeline), rather than category
             // labels? `false` off a workspace and for `RailOverRows`
-            // (Settings, today) — `true` is unreached until item 116d routes
-            // `TimelineOverComparison` to a real kind.
+            // (Settings, today); `true` belongs to `TimelineOverComparison`.
             overlay_rows_primary: ov.is_some_and(|o| {
                 o.workspace_shape()
                     .is_some_and(crate::overlay::workspace::WorkspaceShape::rows_are_primary)

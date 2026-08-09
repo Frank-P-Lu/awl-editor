@@ -707,19 +707,19 @@ fn spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default() {
     crate::nits::set_nits_on(true);
 }
 
-/// NEIGHBORHOOD AUDIT (2026-07-22, item 19, Trigger-3 sweep over item 6's
+/// NEIGHBORHOOD AUDIT (2026-07-22, Trigger-3 sweep over the
 /// spell-squiggle class): every existing squiggle test above proves the
 /// PROTO geometry (thickness/amp/period/y-offset) is right, and the color
 /// test below proves the VALUE clears a contrast floor — but none of them
 /// render a real GPU frame, so none proves the wave actually reaches the
-/// framebuffer (exactly the mechanism-vs-outcome gap item 4(a) closed for
+/// framebuffer (the mechanism-vs-outcome gap closed for
 /// strikethrough: `strike_lines` returning non-empty had shipped a whole
 /// round before a real-pixel test existed). This is that APPEARANCE ORACLE
 /// for the squiggle, SAMPLED across a few worlds (never the whole roster —
 /// the color-contrast test below already sweeps all of `theme::THEMES` at
 /// the value level, so this only needs to prove the mechanism reaches real
 /// pixels, not re-derive per-world contrast): Tawny (the shared default
-/// baseline dial), Bilby (the item 6(b) tighter per-world dial), Wagtail
+/// baseline dial), Bilby (the tighter per-world dial), Wagtail
 /// (the one-bit monochrome world — the tightest color budget the amber-guard
 /// class of law worries about), and Saltpan (a light-ground serif world, the
 /// opposite contrast direction from the dark defaults).
@@ -792,7 +792,7 @@ fn spell_squiggle_paints_real_pixels_across_a_world_sample() {
 }
 
 /// OFF-CURSOR IMAGE CONCEAL — no stray spell/nit underline in the placeholder
-/// card (queue item 25). An inline-image line's `![alt](path)` source conceals
+/// card. An inline-image line's `![alt](path)` source conceals
 /// to a ~ZERO-width run off the caret's line, but the raw spell/nit scan still
 /// flags words / mechanical typos INSIDE that source (an alt word, a double
 /// space in the alt). Pre-fix each collapsed to a 1px stray tick — a faint
@@ -859,14 +859,14 @@ fn off_cursor_image_conceal_emits_no_spell_or_nit_underline() {
     crate::nits::set_nits_on(true);
 }
 
-/// QUEUE ITEM 60 — REVEALED image: on the caret's OWN line (full raw
+/// REVEALED image: on the caret's OWN line (full raw
 /// `![alt](path)` source visible, real glyph widths — the opposite of item
 /// 25's OFF-cursor near-zero-collapse guard) a misspelling INSIDE the
 /// DESTINATION never squiggles, while a misspelling in the ALT text still
 /// does. Fixture `![wrold](assets/pasted-18.png)`: alt "wrold" cols 2..7,
 /// destination "pasted" cols 16..22 (inside the `(...)`).
 #[test]
-fn revealed_image_destination_never_squiggles_but_alt_text_still_does_item_60() {
+fn revealed_image_destination_never_squiggles_but_alt_text_still_does() {
     let _g = crate::testlock::serial();
     let prev_img = crate::markdown::inline_images_on();
     crate::markdown::set_inline_images_on(true);
@@ -925,15 +925,14 @@ fn revealed_image_destination_never_squiggles_but_alt_text_still_does_item_60() 
     crate::markdown::set_inline_images_on(prev_img);
 }
 
-/// QUEUE ITEM 60 — an ordinary LINK (never guarded before this item, unlike
-/// item 25's image-only near-zero-advance rule): OFF-cursor (WYSIWYG-
+/// An ordinary LINK (unlike the image-only near-zero-advance rule): OFF-cursor (WYSIWYG-
 /// concealed) a misspelling inside the URL never squiggles, while the SAME
 /// line's visible label text (never concealed — `MdKind::LinkText` stays
 /// full width even off-cursor) still does. Fixture
 /// `See [wrold](https://example.com/pasted18) end.`: label "wrold" cols
 /// 5..10, destination word "pasted18" cols 32..40.
 #[test]
-fn off_cursor_link_destination_never_squiggles_but_label_text_still_does_item_60() {
+fn off_cursor_link_destination_never_squiggles_but_label_text_still_does() {
     let _g = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
     let Some(mut p) = headless_pipeline() else {
@@ -972,7 +971,7 @@ fn off_cursor_link_destination_never_squiggles_but_label_text_still_does_item_60
     );
 }
 
-/// QUEUE ITEM 60 — writing-nits, LINK, REVEALED via a SELECTION touching its
+/// Writing-nits, LINK, REVEALED via a SELECTION touching its
 /// line while the caret sits elsewhere (so the per-LINE caret-reveal
 /// suppression `nit_underlines` applies to its OWN line doesn't mask the
 /// destination exclusion under test). A double-space nit inside the label
@@ -982,7 +981,7 @@ fn off_cursor_link_destination_never_squiggles_but_label_text_still_does_item_60
 /// (never hand-counted columns), so the test can't silently drift from the
 /// scanner's own rules.
 #[test]
-fn revealed_via_selection_link_destination_nit_dropped_label_nit_kept_item_60() {
+fn revealed_via_selection_link_destination_nit_dropped_label_nit_kept() {
     let _g = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
     crate::nits::set_nits_on(true);
@@ -1041,7 +1040,7 @@ fn revealed_via_selection_link_destination_nit_dropped_label_nit_kept_item_60() 
     );
 }
 
-/// SQUIGGLE PHASE (item 38): the wave BEGINS AT ITS TOP (crest) under the word's
+/// SQUIGGLE PHASE: the wave BEGINS AT ITS TOP (crest) under the word's
 /// FIRST glyph — a cosine start (`-cos`), not the old sine zero-crossing that
 /// dived DOWN first. This is a shader-level fact (the `wave_y` phase in
 /// `spellunderline.wgsl`), so it can only be pinned in real pixels: render a

@@ -1,4 +1,4 @@
-//! ITEM 316 — A LOCATION ROW THAT PLANS NO GLYPHS GETS NO PLATE EITHER.
+//! A LOCATION ROW THAT PLANS NO GLYPHS GETS NO PLATE EITHER.
 //!
 //! **Defect (exposed, not introduced, by the rotated-rail location cue):** a
 //! `Bars` card's own LOCATION line (`PlanLine::Location`, the second-level

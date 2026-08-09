@@ -1,4 +1,4 @@
-//! ITEM 97 — THE FACE-PITCH ROSTER LAWS. The membership question the caret's
+//! THE FACE-PITCH ROSTER LAWS. The membership question the caret's
 //! mono/proportional fork asks ("is this family monospaced?") used to be answered
 //! by a literal three-name match in `caret::font_is_mono`, and a literal list is
 //! unsweepable by construction: it had already lost Monaspace Xenon and JetBrains
@@ -287,7 +287,7 @@ fn the_mono_display_worlds_are_these_seven() {
     }
 }
 
-/// ITEM 105 — every bundled display face's `typical_letter_ratio` is a REAL,
+/// Every bundled display face's `typical_letter_ratio` is a REAL,
 /// SANE measurement, not the fallback default sneaking in for a face that
 /// really does declare `x_height`/`cap_height`: within `measure_typical_letter_ratio`'s
 /// own clamp range, and for the roster's proportional faces specifically —

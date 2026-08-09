@@ -1,10 +1,10 @@
-//! ITEM 77 — THE LAW: every open door (a picker selection / C-x b / the
+//! THE LAW: every open door (a picker selection / C-x b / the
 //! daemon's `open` handoff, all routed through `App::load_path`; a CLI/OS-open
 //! LAUNCH argument, `App::new`) asks the SAME `crate::openable::classify`
 //! capability owner the SAME question, and Text-vs-All `file_visibility` only
 //! changes what the Browse picker LISTS, never that verdict.
 //!
-//! NON-VACUOUS: before item 77, `Buffer::from_file` swallowed a decode
+//! NON-VACUOUS: the retired `Buffer::from_file` path swallowed a decode
 //! failure and returned an EMPTY buffer STILL BOUND to the binary path (`fs.rs`'s
 //! `read_to_string` errors on invalid UTF-8, and `Buffer::from_file`'s `Err`
 //! arm silently falls back to an empty rope) — so `load_path`/`App::new`

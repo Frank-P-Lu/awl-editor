@@ -55,7 +55,7 @@ impl App {
     // the wasm build — which never runs a probe — reads it as unused.
     #[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
     pub(super) fn retint_theme_preview(&mut self, prev: crate::theme::Theme) {
-        // ITEM 85 — arm the MOVEMENT-LATENCY clock: this is the ONE owner every input
+        // Arm the MOVEMENT-LATENCY clock here: this is the ONE owner every input
         // kind (keyboard nav, mouse hover, mouse wheel) funnels a theme-picker world
         // change through, so marking HERE — right before the real relayout work below
         // — measures the actual event → first-presented-frame round trip regardless

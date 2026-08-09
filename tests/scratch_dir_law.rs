@@ -1,4 +1,4 @@
-//! tests/scratch_dir_law.rs — THE SCRATCH-DIRECTORY-CLEANUP LAW (queue item 168).
+//! tests/scratch_dir_law.rs — THE SCRATCH-DIRECTORY-CLEANUP LAW.
 //!
 //! THE LEAK THIS LOCKS OUT. Every fixture that needed a real on-disk directory
 //! used to write its own copy of a three-line idiom: wipe a stale leftover,

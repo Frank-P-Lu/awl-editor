@@ -1,4 +1,4 @@
-//! FILE VISIBILITY — item 77's ONE sticky picker-listing switch, replacing
+//! FILE VISIBILITY — the ONE sticky picker-listing switch, replacing
 //! the retired standalone "Show hidden files" toggle (`Action::ToggleHiddenFiles`,
 //! Cmd-Shift-`.`, the per-overlay `OverlayState::show_hidden` flag).
 //!

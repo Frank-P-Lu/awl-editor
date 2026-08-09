@@ -1,7 +1,7 @@
-//! ITEM 131 (the row-composition seam) — A ROW THAT STEPS SIDEWAYS IS CLICKABLE
+//! A ROW THAT STEPS SIDEWAYS IS CLICKABLE
 //! EXACTLY WHERE IT IS DRAWN.
 //!
-//! Item 131 wants a third, theme-owned row composition whose rows are staggered
+//! A third theme-owned row composition has staggered
 //! horizontally down a diagonal spine. The renderer could already stagger rows
 //! before this file existed — the wild-menu slant probe
 //! (`AWL_OVERLAY_SLANT_FORCE`) offsets each successive row's glyph origin and its
@@ -22,7 +22,7 @@
 //! that one number. `dx == 0.0` for every shipping world, so this is a no-op
 //! everywhere until a composition asks for it.
 //!
-//! ## Item 131a — the mirror
+//! ## The mirror
 //!
 //! A single `dx` can only ever move the row's LEFT edge. Mangrove's descending
 //! `\` composition steps rows that way (right edge flush) — but Magpie's
@@ -39,8 +39,8 @@
 //! ## The axis
 //!
 //! The staggering axis is swept against the FULL no-wildcard `OverlayKind`
-//! roster, both list styles, four canvases, both DPIs, and (item 131a) BOTH
-//! signs of the step — the same axes item 174's own headline law sweeps, plus
+//! roster, both list styles, four canvases, both DPIs, and BOTH signs of the
+//! step — the same axes the headline law sweeps, plus
 //! the mirror, because the defect is not a property of one picker or one
 //! direction. Two independent production owners are compared: the quads
 //! `overlay_bar_rects_probe` actually emits (the DRAWN evidence) and
@@ -108,7 +108,7 @@ const PLATED_BARS_CONFIG: theme::BarConfig = theme::BarConfig {
 /// Grade one rendered card: every planned row's clickable span against its own
 /// drawn composition, plus the drawn plates. `step_px` is the SIGNED probe
 /// step driving this card (positive = Mangrove-shape, left edge steps in;
-/// negative = Magpie-shape, right edge steps in — item 131a's mirror). Returns
+/// negative = Magpie-shape, right edge steps in — the mirrored form). Returns
 /// `(rows graded, plates graded, deepest inward step seen)`.
 fn grade_staggered_card(
     p: &TextPipeline,
@@ -230,7 +230,7 @@ fn grade_staggered_card(
 
 /// THE HEADLINE LAW. With a composition that steps every successive row `STEP_PX`
 /// further in, on every `OverlayKind`, both list styles, four canvases and both
-/// DPIs, EITHER SIGN of the step (item 131a's mirror — positive steps the left
+/// DPIs, EITHER SIGN of the step (the mirror — positive steps the left
 /// edge in, negative steps the right edge in):
 ///
 /// * a pointer INSIDE the row's own step — where the row is demonstrably not
@@ -261,7 +261,7 @@ fn a_staggered_row_is_clickable_exactly_where_its_composition_is_drawn() {
     let mut graded_rows = 0usize;
     let mut graded_plates = 0usize;
     let mut deepest_dx = 0.0f32;
-    // ITEM 131a — both mirror directions, not just Mangrove's left-moving shape.
+    // Both mirror directions, not just Mangrove's left-moving shape.
     for step_px in [STEP_PX, -STEP_PX] {
         crate::render::set_slant_test_override(Some(SlantProbe {
             px_per_row: step_px,
@@ -317,7 +317,7 @@ fn a_staggered_row_is_clickable_exactly_where_its_composition_is_drawn() {
     );
 }
 
-/// THE PANE BAND'S OWN DRAWN EVIDENCE (item 131a): `overlay_bar_rects_probe`
+/// THE PANE BAND'S OWN DRAWN EVIDENCE: `overlay_bar_rects_probe`
 /// grades `Bars`, but the Pane world's selected band (`overlay_pane_selection`)
 /// is a THIRD independent production owner reading the same two-sided extent —
 /// `[geom.band_x() + dx, geom.band_w() + dw - dx]` — that could disagree with
@@ -489,7 +489,7 @@ fn assert_diagonal_selection(
     assert_eq!(
         p.overlay_spine_selected.instance_count(),
         2,
-        "{ctx}: the selected mark's two chevron arms (item 247; SHAPE is graded by \
+        "{ctx}: the selected mark's two chevron arms (SHAPE is graded by \
          diagonal_composition's own law — this counts instances only)"
     );
     assert_eq!(

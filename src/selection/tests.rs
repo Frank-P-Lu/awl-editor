@@ -1,7 +1,7 @@
 //! Unit + headless-GPU tests for `selection.rs`'s pure geometry, the shared
-//! pipeline construction, and (item 131b) the rotated-quad primitive. Carved
+//! pipeline construction, and the rotated-quad primitive. Carved
 //! out to its own file — `production()`'s "sibling `tests.rs`" exemption
-//! (`scripts/code-health.py`) — once item 131b's rotation harness pushed the
+//! (`scripts/code-health.py`) once the rotation harness pushed the
 //! inline `mod tests` past the file's own production line ceiling; no
 //! behavior moved, only which file counts the lines.
 
@@ -109,7 +109,7 @@ fn headless_device() -> Option<(wgpu::Device, wgpu::Queue)> {
     })
 }
 
-// --- item 131b: the spine primitive -----------------------------------------
+// --- The spine primitive ----------------------------------------------------
 
 #[test]
 fn spine_segment_computes_center_half_and_normalized_axis() {

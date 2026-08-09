@@ -952,7 +952,7 @@ fn caret_picker_absent_by_default_and_open_reflects_selected_style() {
     };
     // The capture literal layers optional overlay state for readable scenario setup.
     opts.overlay = Some(OverlayInfo {
-        // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
+        // Reproduce the live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
         active: true,
         mode: "caret",
@@ -1110,7 +1110,7 @@ fn caret_picker_morph_preview_paints_the_silhouette() {
     };
     // The capture literal layers optional overlay state for readable scenario setup.
     opts.overlay = Some(OverlayInfo {
-        // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
+        // Reproduce the live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
         active: true,
         mode: "caret",
@@ -1216,7 +1216,7 @@ fn dictionary_picker_absent_by_default_and_open_does_not_preview() {
     };
     // The capture literal layers optional overlay state for readable scenario setup.
     opts.overlay = Some(OverlayInfo {
-        // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
+        // Reproduce the live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
         active: true,
         mode: ov.kind.as_str(),
@@ -1829,7 +1829,7 @@ fn history_comparison_is_relocated_by_the_capture_path_in_every_world() {
     );
 
     let history_overlay = |detail_focus: bool| OverlayInfo {
-        // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
+        // Reproduce the live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
         active: true,
         mode: "history",
@@ -2033,7 +2033,7 @@ fn open_caret_preview_panel(dir: &std::path::Path, tag: &str) -> (image::RgbaIma
     let buf = Buffer::from_str("preview me\n");
     let opts = CaptureOpts {
         overlay: Some(OverlayInfo {
-            // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
+            // Reproduce the live-resolved anchor for this capture literal.
             align: crate::render::effective_card_anchor(),
             active: true,
             mode: "caret",
@@ -2191,7 +2191,7 @@ fn light_world_card_still_reads_elevated_without_a_drop_shadow() {
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 }
 
-/// ITEM 80 — LAW: the find/replace panel's CARD never widens (or narrows) as the
+/// LAW: the find/replace panel's CARD never widens (or narrows) as the
 /// query/replacement grows. Exterior geometry is asserted the Wagtail way — a
 /// pixel scan over the PNG, never inferred from the sidecar (a state oracle
 /// only) — finding the card's LEFT edge on a row safely inside its own top
@@ -2201,7 +2201,7 @@ fn light_world_card_still_reads_elevated_without_a_drop_shadow() {
 /// haystack neither query/replacement substring appears in), so the `n/total`
 /// counter's own digit width — a separate, out-of-scope wobble — never
 /// confounds the assertion: this test isolates the QUERY/REPLACEMENT LENGTH
-/// axis alone. PROVEN NON-VACUOUS: fails on the pre-item-80 code (the long
+/// axis alone. PROVEN NON-VACUOUS: fails on the unbounded-field code (the long
 /// query/replacement measurably widens the card, moving its left edge left).
 #[test]
 fn find_replace_panel_card_width_is_invariant_across_short_long_short_queries() {
@@ -2311,7 +2311,7 @@ fn find_replace_panel_card_width_is_invariant_across_short_long_short_queries() 
 /// is right-anchored with a 12px margin — until the pixel departs that fill
 /// color by a perceptible margin. Unlike scanning for a departure FROM the
 /// background, this stays correct even when the card has grown so wide it
-/// swallows the whole row (the pre-item-80 bug): the walk simply reaches `x =
+/// swallows the whole row (the unbounded-field bug): the walk simply reaches `x =
 /// 0` and reports it, still a valid, comparable measurement across captures.
 /// `None` only when the canvas is too narrow to hold a reference point.
 fn find_card_left_edge(img: &image::RgbaImage, y: u32) -> Option<u32> {

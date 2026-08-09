@@ -178,14 +178,14 @@ fn a_deliberately_dirty_spellcheck_window_fails_and_restores_before_the_next_rea
 
 /// The exact forced value that once escaped a test window and made an unrelated
 /// jump-hint law in another file report a clip that was not one.
-fn item_233_poison() -> crate::theme::ListStyle {
+fn poisoned_list_style() -> crate::theme::ListStyle {
     crate::theme::ListStyle::Bars
 }
 
-/// The layout half of [`item_233_poison`] — off `ListStyle::Bars` since it
+/// The layout half of [`poisoned_list_style`] — off `ListStyle::Bars` since it
 /// carries no fields of its own, but still part of the same historical
 /// poison value (`Bars` alone does not reproduce it without these dials).
-fn item_233_poison_config() -> crate::theme::BarConfig {
+fn poisoned_bar_config() -> crate::theme::BarConfig {
     crate::theme::BarConfig {
         radius: 6.0,
         gap: 8.0,
@@ -203,7 +203,7 @@ fn a_deliberately_dirty_render_override_window_fails_and_restores_before_the_nex
     };
     let leaked = std::panic::catch_unwind(|| {
         let _g = serial();
-        crate::render::set_list_style_test_override(Some(item_233_poison()));
+        crate::render::set_list_style_test_override(Some(poisoned_list_style()));
     });
     assert!(
         leaked.is_err(),
@@ -229,10 +229,10 @@ fn a_window_that_forces_a_knob_and_then_panics_cannot_poison_the_next_test() {
     };
     let died = std::panic::catch_unwind(|| {
         let _g = serial();
-        crate::render::set_list_style_test_override(Some(item_233_poison()));
+        crate::render::set_list_style_test_override(Some(poisoned_list_style()));
         assert_eq!(
             crate::render::effective_list_style(),
-            item_233_poison(),
+            poisoned_list_style(),
             "the fixture's own window really does see the forced knob"
         );
         panic!("fixture dies before it can reset its override");
@@ -277,8 +277,8 @@ fn every_forced_knob_is_restored_not_just_the_one_that_bit_us() {
                 px_per_row: 3.0,
                 italic: true,
             }),
-            list_style: Some(item_233_poison()),
-            bar_config: Some(item_233_poison_config()),
+            list_style: Some(poisoned_list_style()),
+            bar_config: Some(poisoned_bar_config()),
             facet_style: Some(crate::theme::FacetStyle::Band),
             pane_split: Some(crate::theme::PaneSplit::Split),
             density: Some(crate::render::TypeDensity {

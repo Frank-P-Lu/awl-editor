@@ -27,7 +27,7 @@ fn toggle_fold_collapses_then_expands_the_section_under_the_caret() {
     assert!(buffer.folds().is_empty(), "toggling again unfolds");
 }
 
-// item 81 — the fold CHEVRON's own click target: `Buffer::toggle_fold_at_line`
+// The fold CHEVRON's own click target, `Buffer::toggle_fold_at_line`,
 // toggles a SPECIFIC heading line directly (no caret resolution), the owner a
 // mouse click on the chevron drives (mirrored live-only by `mouse.rs`'s
 // `fold_chevron_at_pointer`).

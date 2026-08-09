@@ -1,10 +1,10 @@
-//! ITEM 181 — the ONE height-clamp owner every candidate-row window (flat,
+//! The ONE height-clamp owner every candidate-row window (flat,
 //! grouped, and the spell popup) routes through: the per-kind row count
 //! (`overlay_window_rows`) further bounded to what the card's own available
 //! pixels actually fit. Split out of `overlay.rs` (a grandfathered file at its
 //! own code-health high-water mark) so this round adds a new, small,
-//! unmarked file rather than growing an already-at-its-ceiling one. ITEM 184
-//! moved the shared footer helper here for the same reason — `overlay.rs`
+//! unmarked file rather than growing an already-at-its-ceiling one. The shared
+//! footer helper lives here for the same reason — `overlay.rs`
 //! and `theme_picker.rs` are both already at their own ceiling.
 
 use super::*;
@@ -18,7 +18,7 @@ impl TextPipeline {
     /// a card taller than the canvas (`card_h: 934` against `canvas_h: 800`).
     ///
     /// `min_items` is `fit_item_rows`'s own family floor — see its doc for why
-    /// the FLAT family and the GROUPED family (item 184) pass different
+    /// the FLAT family and the GROUPED family pass different
     /// values here.
     pub(super) fn overlay_item_cap(
         &self,
@@ -86,7 +86,7 @@ impl TextPipeline {
         )
     }
 
-    /// ITEM 184 — the FOOTER band (the keybindings tips) as `(lines, display
+    /// The FOOTER band (the keybindings tips) as `(lines, display
     /// rows)`, the ONE owner both geometry families read so a footer can
     /// never be sized against `avail_px` in one family and left out of the
     /// other (the grouped family used to omit it entirely). `keybindings_tips`

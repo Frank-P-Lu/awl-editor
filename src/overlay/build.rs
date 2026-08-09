@@ -212,7 +212,7 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
                 Vec::new(),
             );
             ov.set_secondaries(crate::settings::visible_value_cells(&ctx.settings_values));
-            // ITEM 94: the RAIL column beside the value text — the same gathered
+            // The RAIL column beside the value text — the same gathered
             // values, read through the range-spec owner, so the thumb and the
             // number are one instant's truth.
             ov.set_range_cells(crate::settings::visible_range_cells(&ctx.settings_values));
@@ -293,7 +293,7 @@ pub fn browse_level(
     // folder), Browse lists files + folders.
     let folders_only = matches!(kind, OverlayKind::MoveDest | OverlayKind::ExportDest);
     let level = crate::index::list_dir_level(active_root, rel.as_deref());
-    // ITEM 77: Browse alone classifies each FILE entry's openability up front
+    // Browse alone classifies each FILE entry's openability up front
     // (bounded to ONE directory level — see `crate::openable::classify`'s doc
     // for why this is scoped here rather than the whole project's Goto index),
     // so `refilter`'s Text-mode filter can hide it and an "All" listing can
@@ -399,7 +399,7 @@ pub fn row_split(row: &str) -> usize {
     if row.starts_with(OverlayKind::SETTINGS_MARKER_PREFIX) {
         return OverlayKind::SETTINGS_MARKER_PREFIX.len();
     }
-    // ITEM 11: a Go-to HEADING row's marker PREFIX (`"❡ "`, `OverlayKind::
+    // A Go-to HEADING row's marker PREFIX (`"❡ "`, `OverlayKind::
     // HEADING_MARKER_PREFIX`) is figure/ground-split the same way — the glyph
     // recedes to muted ink, the (indented) title stays content ink. Checked next
     // (a heading title never itself starts with the settings glyph).

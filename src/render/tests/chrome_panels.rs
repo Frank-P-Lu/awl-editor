@@ -160,7 +160,7 @@ fn spell_panel_width_fits_longest_suggestion_not_the_word() {
     assert!(content > 0.0, "a shaped suggestion has a positive width");
     let [_lx, _ly, w_long, _lh] = p.overlay_card_rect().expect("the spell overlay has a card");
     // The card width follows the formula: max(shaped content, the widest row's
-    // char-grid width — item 49's floor so the char-budget elision never fires
+    // char-grid width — the floor that keeps char-budget elision from firing
     // below the cap) + padding, floored at the calm MIN (140), capped small (520),
     // kept on-canvas — NOT the word's width.
     let widest_chars = long
@@ -214,7 +214,7 @@ fn spell_panel_width_fits_longest_suggestion_not_the_word() {
     );
 }
 
-/// ITEM 49 — THE ADD-TO-DICTIONARY ROW IS A FIRST-CLASS PICKER ROW: at an
+/// THE ADD-TO-DICTIONARY ROW IS A FIRST-CLASS PICKER ROW: at an
 /// ordinary WIDE width its COMPLETE label ("Add '<word>' to dictionary") must
 /// render, never elided. TWO bugs conspired on a WIDE-mono world (Firetail /
 /// Monaspace Xenon), the world the report came from:
@@ -301,7 +301,7 @@ fn spell_add_to_dictionary_row_renders_whole_at_wide_width() {
     );
 }
 
-/// ITEM 64 — the spell popup's fixed, TERMINAL "Add '<word>' to dictionary" row
+/// The spell popup's fixed, TERMINAL "Add '<word>' to dictionary" row
 /// visually SEPARATES from the ranked corrections above it: REAL GPU pixels, not
 /// state (the sidecar is a state oracle only). On a PROPORTIONAL world (Gumtree)
 /// where `muted` reads clearly apart from full content ink, this renders three
@@ -337,7 +337,7 @@ fn spell_add_row_ink_visually_separates_from_a_correction_real_pixels() {
     theme::set_active_by_name("Gumtree").unwrap();
     p.sync_theme();
 
-    // The real corpus shape: 3 corrections + the add row (item 64's cap allows up
+    // The real corpus shape: 3 corrections + the add row (the cap allows up
     // to 5; 3 is enough to exercise an ordinary mid-list correction).
     let add_label = "Add 'teh' to dictionary".to_string();
     let mut v = view("teh quick brown fox\n", 0, 0);
@@ -373,8 +373,7 @@ fn spell_add_row_ink_visually_separates_from_a_correction_real_pixels() {
     assert_ne!(
         correction_ink, add_ink,
         "the add row ({add_ink:?}) must not render in the SAME ink as a correction \
-         ({correction_ink:?}) — indistinguishable ink is exactly the shape item 64's \
-         'visually separated' requirement bans"
+         ({correction_ink:?}) — indistinguishable ink violates the visual-separation rule"
     );
     let dist_to_bg =
         |c: [u8; 4]| -> i64 { (0..3).map(|k| (c[k] as i64 - bg[k] as i64).abs()).sum() };
@@ -390,16 +389,16 @@ fn spell_add_row_ink_visually_separates_from_a_correction_real_pixels() {
     p.sync_theme();
 }
 
-/// ITEM 64 — the add row elides ONLY at the REAL NARROW CAP, never at ordinary
-/// desktop width: the completing half of item 49's own pair
+/// The add row elides ONLY at the REAL NARROW CAP, never at ordinary desktop
+/// width: the completing half of the wide-width pair
 /// (`spell_add_to_dictionary_row_renders_whole_at_wide_width`), which proved an
 /// ADVERSARIALLY LONG word still elides at a WIDE canvas. This proves the other
 /// axis — the SAME ordinary-length label ("Add 'teh' to dictionary", the exact
-/// shape item 49's wide-width half already confirms renders whole at 1200px) —
+/// shape the wide-width half confirms renders whole at 1200px) —
 /// elides once the CANVAS itself genuinely narrows, via the popup's own
 /// `card_w` clamp (`.min(width as f32 - 2*margin)` in `spell_overlay_geometry`).
 /// So "elides only at the real narrow cap" holds on both the word-length axis
-/// AND the window-width axis, not just the one item 49 already covered.
+/// AND the window-width axis.
 #[test]
 fn spell_add_row_elides_only_at_a_genuinely_narrow_width() {
     let _g = crate::testlock::serial();
@@ -426,7 +425,7 @@ fn spell_add_row_elides_only_at_a_genuinely_narrow_width() {
     v.overlay_selected = 0;
     v.overlay_spell = Some((0, 0, 3));
 
-    // ORDINARY DESKTOP WIDTH: the label renders WHOLE (reconfirming item 49's
+    // ORDINARY DESKTOP WIDTH: the label renders WHOLE (reconfirming the
     // own law at this test's own corpus, before narrowing the canvas below).
     p.set_size(1200.0, 800.0);
     p.set_view(&v);
@@ -583,7 +582,7 @@ fn replace_caret_rides_the_reserved_cell_after_the_replacement_text() {
     );
 }
 
-/// ITEM 10 — D: the find/replace panel's amber caret places at its OWN
+/// The find/replace panel's amber caret places at its OWN
 /// CHAR-index caret (`ViewState::search_query_caret` /
 /// `search_replacement_caret`), not always the field's end. Computes
 /// `caret_x` via the SAME `panel_shape_text` + `panel_layout` seam the
@@ -1384,7 +1383,7 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         );
 
         // ALIGNMENT (the crux): faceted header_rows == 2 (query line 0 + lens
-        // strip line 1), then the item rows. Item 0's NAME is on display line 2;
+        // strip line 1), then the entry rows. Entry 0's NAME is on display line 2;
         // its CHORD must land on the SAME line of the (uniform-row-height) bind
         // buffer — not shifted up onto the strip/query or down a row.
         let name = |p: &TextPipeline, i: usize| p.panel_buffer.lines[i].text().to_string();
@@ -1392,15 +1391,15 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         assert_eq!(
             name(&p, 2),
             "Save",
-            "item 0 name on the first candidate row (line 2)"
+            "entry 0 name on the first candidate row (line 2)"
         );
         assert_eq!(
             bind(&p, 2),
             "⌘S",
-            "item 0's chord sits on item 0's row, not shifted"
+            "entry 0's chord sits on entry 0's row, not shifted"
         );
-        assert_eq!(bind(&p, 3), "⌘Z", "item 1's chord on item 1's row");
-        assert_eq!(bind(&p, 4), "⌘⇧Z", "item 2's chord on item 2's row");
+        assert_eq!(bind(&p, 3), "⌘Z", "entry 1's chord on entry 1's row");
+        assert_eq!(bind(&p, 4), "⌘⇧Z", "entry 2's chord on entry 2's row");
         assert_eq!(bind(&p, 0), "", "the query row (line 0) carries no chord");
         assert_eq!(
             bind(&p, 1),
@@ -1518,8 +1517,8 @@ fn overlay_card_spans_nearly_the_full_narrow_window() {
         "re-centered to the floor pad: x={x}"
     );
 
-    // Default canvas: the tightened flat width cap (item 3), one interior-rail
-    // inset in (item 67 — the card centers near the viewport's one-third mark).
+    // Default canvas: the tightened flat width cap, one interior-rail inset in;
+    // the card centers near the viewport's one-third mark.
     p.set_size(1200.0, 800.0);
     let [x, _y, w, _h] = p.overlay_card_rect().expect("overlay card");
     assert!(
@@ -1852,15 +1851,15 @@ fn menu_bar_row_zero_stays_pure_black_or_white_on_a_one_bit_world() {
     theme::set_active(theme::DEFAULT_THEME);
 }
 
-// ===== PALETTE-COMPOSITION ROUND laws ==================================
+// ===== PALETTE-COMPOSITION laws ========================================
 //
-// Item 1 (FIT CONTENT): the summoned card's height is EXACTLY its drawn rows
+// FIT CONTENT: the summoned card's height is EXACTLY its drawn rows
 // plus the two padding tokens plus the header gap — the bottom padding is the
 // `pad` token, never a fixed-height reservation with a fat empty lip below the
 // last row (the Wagtail lesson: assert the OUTCOME geometry, computed
-// independently of `card_h`'s own formula). Item 2 (ANCHOR): the card's left
-// edge is the per-world `CardAnchor` through the ONE owner. Item 3 (HEADER
-// GAP): a positive divider gap is folded into the card AFTER the header, so
+// independently of `card_h`'s own formula). ANCHOR: the card's left edge is
+// the per-world `CardAnchor` through the ONE owner. HEADER GAP: a positive
+// divider gap is folded into the card AFTER the header, so
 // the card grows by exactly it. Flat AND faceted, both sampled.
 
 /// Independently reconstruct `(card_x, text_top, last_row_box_bottom)` for an
@@ -2002,7 +2001,7 @@ fn footer_contract(kind: crate::overlay::OverlayKind) -> FooterContract {
 /// [`crate::overlay::OverlayKind`]. Geometry recomputed independently of the
 /// private `card_h` formula (the Wagtail lesson).
 ///
-/// ITEM 293 — the hint no longer "hugs tight under the last result": a full
+/// The hint does not hug tight under the last result: a full
 /// blank row (`overlay_hint_gap_rows`) now separates them, un-reclaimed like
 /// the footer's own separator. This law's own claim is about the OTHER edge
 /// (the compact, identical chin BELOW the hint, against the card's own
@@ -2066,7 +2065,7 @@ fn overlay_hint_footer_is_compact_and_identical_across_kinds() {
         p.set_view(&vf);
         let [_xf, cy_f, _wf, ch_f] = p.overlay_card_rect().expect("an open flat card");
         let (_tf, lines_f, _sf, _rhf, _cf) = p.overlay_window_report().expect("a flat report");
-        // ITEM 293 — a compact separator row (`overlay_hint_gap_h`) now sits
+        // A compact separator row (`overlay_hint_gap_h`) sits
         // between the last candidate row and the hint's own (still compact)
         // line. The BELOW-hint chin this law pins is unchanged in kind, just
         // shifted down with the hint.
@@ -2143,7 +2142,7 @@ fn jump_hint_is_present_and_never_clips_for_every_kind() {
     // police the render overrides, so this has to be said here.)
     crate::render::set_list_style_test_override(None);
     // (1) PRESENT — no adapter needed: every kind's foot hint teaches the jump. Both
-    // VARIANTS of the line are swept: the ordinary one and item 94's RANGE-ROW one
+    // VARIANTS of the line are swept: the ordinary one and the RANGE-ROW one
     // (`←/→ adjust`), which is a genuinely wider string and therefore its own clip risk.
     for k in OverlayKind::ALL {
         for h in [k.hint(), k.range_row_hint()] {
@@ -2162,7 +2161,7 @@ fn jump_hint_is_present_and_never_clips_for_every_kind() {
     for world in ["Tawny", "Mopoke", "Wagtail"] {
         theme::set_active_by_name(world).unwrap();
         for k in OverlayKind::ALL {
-            // BOTH variants of the real line: the ordinary one, and item 94's
+            // BOTH variants of the real line: the ordinary one, and the
             // range-row one (its `adjust` cell is two glyphs wider than `lens`, so it
             // gets its own measured budget rather than riding the other's).
             for (variant, hint) in [("plain", k.hint()), ("range-row", k.range_row_hint())] {
@@ -2202,7 +2201,7 @@ fn overlay_card_anchor_is_data_center_default_top_left_for_statement_worlds() {
         return;
     };
     let _g = crate::testlock::serial();
-    // Item 67: the interior-rail resolver, a real generous rail inset (not the
+    // The interior-rail resolver uses a real generous rail inset (not the
     // old flush 12px hug, nor the old flat ~28px edge-hug).
     let width = 1200u32;
     let edge_inset = chrome::overlay_rail_inset(width as f32, 1.0);

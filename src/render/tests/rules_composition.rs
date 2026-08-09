@@ -1,4 +1,4 @@
-//! ITEM 283 — `ListStyle::Rules` GRADUATED: the reach and the proof a shipped
+//! `ListStyle::Rules` GRADUATED: the reach and the proof a shipped
 //! row composition owes.
 //!
 //! The composition and its `Weight` selection are decided. What this file adds

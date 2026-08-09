@@ -1,7 +1,6 @@
 //! THE SELECTION-BAND GLIDE-ANCHOR LAW (grep-law test, mirrors
 //! `theme_caps_law.rs`'s scanner shape, incl. its `tests/`-directory skip) —
-//! neighborhood audit, 2026-07-22 (queue item 19, Trigger-3 sweep over item
-//! 8's overlay/selection class).
+//! neighborhood audit over the overlay/selection class.
 //!
 //! `TextPipeline::retarget_band` (`pipeline_overlay.rs`) is THE ONE owner of
 //! the "chase from the band's true drawn position, never a stale previous
@@ -23,7 +22,7 @@
 //! regression coverage for the chase formula itself legitimately calls these
 //! two directly, e.g.
 //! `living_band_phase_snaps_onto_the_selection_when_a_move_outruns_the_glide`
-//! in `tests/firetail_showcase.rs` and the item-48 hybrid oracle in
+//! in `tests/firetail_showcase.rs` and the hybrid oracle in
 //! `tests/hybrid_band_snap.rs`.)
 //!
 //! THE OTHER HALF THE AUDIT NAMED (search / spell popup / which-key /
@@ -48,7 +47,7 @@
 /// definitions) is scanned too but excluded by NAME below, mirroring
 /// `float_surface_law`'s owner-file treatment.
 ///
-/// ITEM 164 MOVED THIS. It used to be `chrome/overlay_selection.rs`, where the
+/// This owner used to be `chrome/overlay_selection.rs`, where the
 /// band emitters ran the animators themselves — and that was exactly the
 /// structure that let OTHER selected visuals (the shortcut ink, the rail thumb)
 /// answer from state instead. The animators now run once, at the transaction,

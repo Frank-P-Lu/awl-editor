@@ -565,7 +565,7 @@ impl Gpu {
         #[cfg(not(target_arch = "wasm32"))]
         if crate::probe::recording() {
             crate::probe::trace(format_args!("present"));
-            // ITEM 85 — close out any pending theme-picker MOVEMENT-LATENCY mark
+            // Close out any pending theme-picker MOVEMENT-LATENCY mark
             // against THIS presented frame (a no-op when nothing is pending, i.e.
             // this present is unrelated to any picker movement).
             crate::probe::note_presented_frame();

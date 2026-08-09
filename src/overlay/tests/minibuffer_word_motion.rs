@@ -4,9 +4,9 @@ use super::*;
 // Every overlay input (the fuzzy query + the Rename / Link / Keep / Settings-
 // value edits) deletes a WHOLE trailing word on ⌥⌫, routed through the ONE
 // document-buffer boundary owner (`buffer::word_delete_backward_boundary`) via
-// the shared `TextBox::delete_word_back` (item 10) — so the palette can never
+// the shared `TextBox::delete_word_back` — so the palette can never
 // disagree with the text about where a word ends. (Plain L/R still drive list
-// navigation; ITEM 10 wires WORD motion — Ctrl/Opt-arrow, `ForwardWord`/
+// navigation; WORD motion — Ctrl/Opt-arrow, `ForwardWord`/
 // `BackwardWord` — to the query's own caret instead, since plain arrows are
 // claimed by lens/descend/list.)
 
@@ -62,7 +62,7 @@ fn keep_minibuffer_word_delete() {
     assert_eq!(ov.rows[0].accept, "my great ");
 }
 
-// ── ITEM 10 — ONE SHARED TEXTBOX MODEL ─────────────────────────────────────
+// ── ONE SHARED TEXTBOX MODEL ───────────────────────────────────────────────
 
 /// C — PICKER QUERY: word MOTION moves the caret WITHOUT refiltering (the
 /// items list, selection, and scroll stay untouched — motion is not an edit),
@@ -95,7 +95,7 @@ fn picker_query_word_motion_does_not_refilter_then_insert_splices_mid_string() {
     );
 }
 
-/// C — RENAME MINIBUFFER: item 10's `/`-reject filter still applies at a
+/// C — RENAME MINIBUFFER: the `/`-reject filter still applies at a
 /// MID-STRING caret, not just at the end.
 #[test]
 fn rename_minibuffer_rejects_slash_mid_string() {

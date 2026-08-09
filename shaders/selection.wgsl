@@ -62,7 +62,7 @@ struct Globals {
     // raise it to ~2 logical px (`render::spans::wagtail_stipple_cell_px`,
     // Retina-aware). Unused by `fs_invert`.
     cell: f32,
-    // CHAMFER (item 70, Quokka printed-card round): `0.0` = the original
+    // CHAMFER: `0.0` = the original
     // ROUNDED-RECT silhouette (`g.corner`, byte-identical to before this
     // field existed — every world but Quokka). `> 0.0` cuts a crisp 45°
     // diagonal off each of the 4 corners this many PIXELS deep, replacing
@@ -72,7 +72,7 @@ struct Globals {
     // the eight-edge boundary (4 straight + 4 chamfer edges) agrees across
     // all three surfaces.
     chamfer: f32,
-    // HALFTONE (item 70): `0.0` = no dot texture (every world but Quokka's
+    // HALFTONE: `0.0` = no dot texture (every world but Quokka's
     // card FILL — border/shadow pipelines always leave this `0.0`, texture
     // is a fill-only decoration). `> 0.0` is the overall ink-intensity
     // ceiling (`[0,1]`) a rotated dot lattice composites over the plain fill
@@ -80,7 +80,7 @@ struct Globals {
     // worlds never carry a card texture) and inside the dither/stroke
     // branches (mutually exclusive fill modes).
     halftone: f32,
-    // Lattice rotation, radians (~15-20° per item 70's spec — see
+    // Lattice rotation, radians (~15-20° — see
     // `render::theme::derive` for the Rust-side owner of the exact angle).
     halftone_angle: f32,
     // Lattice pitch, PHYSICAL px — the center-to-center spacing of dots.
@@ -95,9 +95,9 @@ struct Globals {
     // from the theme's own surface-ladder rung (`theme::derive::
     // card_texture_ink`, e.g. `muted`), NEVER a raw/amber literal baked into
     // this shader. Alpha is the dot's OWN peak coverage-multiplier (combines
-    // with `halftone` + the coverage/rolloff terms below). (Item 71 once
+    // with `halftone` + the coverage/rolloff terms below). (Bowerbird once
     // shared this field with a second, JAGGED-WAVE texture — Bowerbird's own
-    // woven card identity — retired outright by item 86; see `git log -p`
+    // woven card identity — retired outright; see `git log -p`
     // for the removed `wave`/`wave_period_x`/`wave_period_y`/`wave_amp`/
     // `wave_tiers` fields and the `jagged_wave_*` functions they fed.)
     dot_color: vec4<f32>,
@@ -114,7 +114,7 @@ struct Instance {
     // `fs_invert`, which always writes pure white (the invert-blend trick
     // needs `src == 1.0` exactly — see its own doc below).
     @location(2) color: vec4<f32>,
-    // ITEM 131b — THE SPINE PRIMITIVE. Unit rotation axis (cos, sin) the quad's
+// THE SPINE PRIMITIVE. Unit rotation axis (cos, sin) the quad's
     // VERTEX POSITIONS are rotated onto, exactly mirroring `caret.wgsl`'s own
     // `axis` field (down to the "so a diagonal streak draws as a true slant"
     // reasoning that field's doc already carries). `(1.0, 0.0)` — upright, the
@@ -158,7 +158,7 @@ fn vs_main(@builtin(vertex_index) vid: u32, inst: Instance) -> VsOut {
     let extent = inst.hsize + vec2<f32>(1.0, 1.0);
     // `local` stays the rect's OWN (unrotated) frame — the SDF and every
     // fragment-stage composite below run here, untouched by rotation. Only the
-    // vertex's WORLD position rotates onto `inst.axis` (item 131b, mirroring
+// vertex's WORLD position rotates onto `inst.axis` (mirroring
     // `caret.wgsl`'s identical rotate-the-position-not-the-shape split).
     let local = corner * extent;
     let ax = normalize(inst.axis);
@@ -187,7 +187,7 @@ fn sd_round_rect(p: vec2<f32>, b: vec2<f32>, r: f32) -> f32 {
     return min(max(q.x, q.y), 0.0) + length(max(q, vec2<f32>(0.0, 0.0))) - r;
 }
 
-// THE ONE CARD SILHOUETTE (item 70): `chamfer <= 0.0` is byte-identical to a
+// THE ONE CARD SILHOUETTE: `chamfer <= 0.0` is byte-identical to a
 // bare `sd_round_rect(p, b, r)` call — every world but Quokka, and every
 // non-card surface (selection wash, caret, bars, chips…) that never uploads a
 // nonzero `chamfer`. `chamfer > 0.0` REPLACES the rounded corner with a crisp
@@ -205,7 +205,7 @@ fn sd_card_rect(p: vec2<f32>, b: vec2<f32>, r: f32, chamfer: f32) -> f32 {
     return sd_round_rect(p, b, r);
 }
 
-// THE ONE HALFTONE LATTICE (item 70, Quokka's printed-card texture): a
+// THE ONE HALFTONE LATTICE (Quokka's printed-card texture): a
 // rotated dot grid sampled at the ABSOLUTE canvas pixel `px` (not the
 // instance-local position) — the SAME reason the Bayer dither branch above
 // reads `in.px` rather than `in.local`: a card drawn as TWO quad instances
@@ -225,7 +225,7 @@ fn halftone_coverage(px: vec2<f32>, angle: f32, cell: f32) -> f32 {
     return 1.0 - smoothstep(r - 1.0, r + 1.0, dist);
 }
 
-// THE ONE HORIZONTAL ROLLOFF (item 70): "strongest at the far/right
+// THE ONE HORIZONTAL ROLLOFF: "strongest at the far/right
 // decorative side, rolling off before the left-aligned content-heavy side" —
 // a pure function of `tx`, the instance-LOCAL x fraction in `[-1, 1]`
 // (`-1` = the card's own left edge, `1` = its own right edge). Per-INSTANCE
@@ -238,9 +238,9 @@ fn halftone_rolloff(tx: f32) -> f32 {
     return smoothstep(-0.35, 0.55, tx);
 }
 
-// (Item 71's `jagged_wave_band`/`jagged_wave_coverage`/`jagged_wave_rolloff`
+// (The `jagged_wave_band`/`jagged_wave_coverage`/`jagged_wave_rolloff`
 // — Bowerbird's woven printed-card texture, the "jagged wave ribbon" tiers —
-// were retired outright by item 86, which returned Bowerbird's summoned
+// were retired outright, which returned Bowerbird's summoned
 // cards to the plain flat treatment. See `git log -p` on this file for the
 // removed shape if a future world wants a woven texture again.)
 
@@ -312,7 +312,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         return vec4<f32>(in.color.rgb, ring);
     }
     var rgb = in.color.rgb;
-    // THE ONE HALFTONE COMPOSITE (item 70): only inside the silhouette
+    // THE ONE HALFTONE COMPOSITE: only inside the silhouette
     // (`d <= 0.0`), only when `g.halftone > 0.0` (Quokka's card fill alone —
     // every other pipeline/world uploads `0.0`, a total no-op that leaves
     // `rgb` untouched, byte-identical). Ink mixes toward the derived
@@ -327,8 +327,8 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         let ink = cov * roll * g.halftone * g.dot_color.a;
         rgb = mix(rgb, g.dot_color.rgb, clamp(ink, 0.0, 1.0));
     }
-    // (Item 71's JAGGED-WAVE composite — Bowerbird's own woven card texture
-    // — was retired outright by item 86; see this file's earlier doc note.)
+    // (The JAGGED-WAVE composite — Bowerbird's own woven card texture — was
+    // retired outright; see this file's earlier doc note.)
     let a = clamp(fill, 0.0, 1.0) * in.color.a;
     return vec4<f32>(rgb, a);
 }

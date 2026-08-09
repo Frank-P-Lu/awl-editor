@@ -142,7 +142,7 @@ fn enclosing_heading_is_none_before_the_first_heading() {
 
 #[test]
 fn toggle_heading_flips_a_specific_line_regardless_of_direction() {
-    // item 81: the fold chevron's own owner — no caret resolution, the heading
+    // The fold chevron's own owner takes no caret resolution; the heading
     // line is already known (e.g. a precise pixel hit-test).
     let levels = heading_levels(OUTLINE, true);
     let mut f = BTreeSet::new();

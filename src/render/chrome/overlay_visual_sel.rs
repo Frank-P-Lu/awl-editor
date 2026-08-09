@@ -1,6 +1,6 @@
 //! src/render/chrome/overlay_visual_sel.rs — THE VISUAL-SELECTION TRANSACTION.
 //!
-//! ITEM 164. An overlay card answers "which row is selected?" with five separate
+//! An overlay card answers "which row is selected?" with five separate
 //! visuals: the selection BAND, the primary label's ink, the secondary
 //! shortcut/value/git column's ink, a range row's rail thumb, and (under `Bars`)
 //! the shortcut PLATE behind the chord. Before this module each of those decided
@@ -120,7 +120,7 @@ pub(in crate::render) fn overlay_selected_rail_srgb() -> Option<theme::Srgb> {
 
 /// The PRIMARY label's on-band ink, or `None` when the world's band needs no
 /// flip (the glyph keeps `base_content` and reads fine on the fill). ONE owner
-/// so the shaper, the theme picker's own shaper, and the item-164 probe cannot
+/// so the shaper, the theme picker's own shaper, and the selection probe cannot
 /// disagree about what "this row's label reads selected" looks like.
 pub(in crate::render) fn overlay_selected_primary_ink() -> Option<glyphon::Color> {
     match theme::active().highlight_treatment(crate::render::effective_overlay_selrow_band()) {
@@ -224,7 +224,7 @@ impl TextPipeline {
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
     ) -> VisualSelection {
-        // ITEM 174 — the transaction's target is the PLANNED row's own top, and
+        // The transaction's target is the PLANNED row's own top, and
         // the coverage grid is the plan's own band origin/pitch/length. The band
         // therefore starts from the same object the hit-test inverts.
         let logical = plan.selected_display();
@@ -297,8 +297,8 @@ impl TextPipeline {
     /// rows whose PRIMARY glyphs carry the flipped selected ink, and the rows
     /// whose SECONDARY (shortcut / value / git) glyphs carry theirs. The law
     /// that these two agree with each other and with the transaction is the
-    /// whole point of item 164, and reading the committed glyph colours is the
-    /// only oracle that cannot be satisfied by a parallel reimplementation.
+    /// invariant this transaction owns, and reading the committed glyph colours
+    /// is the only oracle that cannot be satisfied by a parallel reimplementation.
     #[cfg(test)]
     pub(in crate::render) fn overlay_ink_flip_probe(
         &self,

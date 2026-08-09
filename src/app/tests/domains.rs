@@ -1,4 +1,4 @@
-//! ITEM 172 STRUCTURAL GATES — the `App` ownership map, as executable data.
+//! STRUCTURAL GATES — the `App` ownership map, as executable data.
 //!
 //! `docs/app-domains.md` is the prose map. This file is the part a reviewer
 //! cannot forget to read: it parses `src/app.rs`'s own `pub struct App`
@@ -9,11 +9,11 @@
 //!  2. the ROOT struct does not grow (so "add a field to `App`" stops being
 //!     the path of least resistance), and
 //!  3. a domain already EXTRACTED into an owner type has zero fields left on
-//!     root `App` — the compile-time removal item 172 asks for, asserted from
+//!     root `App` — compile-time removal asserted from
 //!     the other side so a re-added field cannot quietly rejoin the struct.
 //!
 //! The match in [`Domain::describe`] is deliberately WILDCARD-FREE: adding a
-//! `Domain` variant (item 173 will) fails to COMPILE until the new owner is
+//! `Domain` variant fails to COMPILE until the new owner is
 //! described, and the roster sweep below then forces it to be exercised. A
 //! `_ => ..` arm here would let a whole domain join the map unexamined, which
 //! is the exact failure mode CLAUDE.md's four green-law-over-real-defect

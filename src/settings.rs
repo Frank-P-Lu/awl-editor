@@ -424,7 +424,7 @@ pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
         SettingId::PageWidthCode => {
             crate::range::PAGE_WIDTH_CODE.format(values.page_width_code as f32)
         }
-        // ZOOM (item 94): formatted by its own RANGE SPEC's display unit — the
+        // ZOOM: formatted by its own RANGE SPEC's display unit — the
         // SAME owner the rail, the sidecar and the exact-entry parse read, so the
         // cell and the thumb can never disagree about the value.
         SettingId::Zoom => crate::range::ZOOM.format(values.zoom),
@@ -482,7 +482,7 @@ pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
 /// The config KEY a TOGGLE row flips + persists under — the single owner of the
 /// [`SettingId`] → config-key map for the Enter-to-toggle interaction. `None` for a
 /// non-toggle id (it never signals a `SettingToggle`). The RETURNED wire string is
-/// UNCHANGED from before item 55 — only the ARGUMENT went from `&str` label to
+/// UNCHANGED by the typed-id conversion — only the ARGUMENT went from `&str` label to
 /// `SettingId` — so `Config::write_pref`/`App::setting_toggle`/an old `config.toml`
 /// all still see the exact same key.
 pub fn toggle_key(id: SettingId) -> Option<&'static str> {
@@ -507,7 +507,7 @@ pub fn toggle_key(id: SettingId) -> Option<&'static str> {
     })
 }
 
-// THE SHARED TOGGLE CORE (item 193): one owner both `App::setting_toggle`
+// THE SHARED TOGGLE CORE: one owner both `App::setting_toggle`
 // and the replay interpreter route through — see `toggle_core`'s module doc.
 mod toggle_core;
 #[cfg(test)]
@@ -573,7 +573,7 @@ pub const PAGE_WIDTH_MAX: usize = crate::range::PAGE_WIDTH_PROSE.max as usize;
 /// [`SettingId`] → config-key map for the folder-navigator route. `None` for a
 /// non-path id. `App::setting_path_pick` writes this key (and for `project_root`
 /// additionally re-scopes the active project). The RETURNED wire string is
-/// UNCHANGED from before item 55 — see [`toggle_key`]'s doc.
+/// UNCHANGED by the typed-id conversion — see [`toggle_key`]'s doc.
 pub fn path_key(id: SettingId) -> Option<&'static str> {
     Some(match id {
         SettingId::DefaultFolder => "default_folder",
@@ -589,7 +589,7 @@ pub fn path_key(id: SettingId) -> Option<&'static str> {
 /// percent (`"125"` → 1.25) so retyping over the shown `"80%"` cell does the
 /// obvious thing.
 ///
-/// ITEM 94 — a one-line delegate to the ZOOM range spec's own
+/// A one-line delegate to the ZOOM range spec's own
 /// [`crate::range::RangeSpec::parse`] (which is where those accepted FORMS and the
 /// 0.5..3.0 stepped clamp now live, shared with the rail and the readout). Kept as
 /// a named door because the value-commit seam + its tests read it by name.
@@ -674,7 +674,7 @@ pub static COVERED_BY: &[(SettingId, &str)] = &[
 ];
 
 /// The covering command name for setting `id`, or `None` if it has no command
-/// twin. Re-keyed onto [`SettingId`] (cheap hardening over the item-55 plan) so a
+/// twin. Re-keyed onto [`SettingId`] so a
 /// row RENAME can never silently drop a palette exclusion.
 pub fn covered_by(id: SettingId) -> Option<&'static str> {
     COVERED_BY

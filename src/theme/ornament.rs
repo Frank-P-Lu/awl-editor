@@ -150,13 +150,13 @@ pub const ORNAMENT_SCALE_GEOMETRIC: f32 = 1.5;
 //     triples come from that pool — every pick verified present in its own face by
 //     `render::tests::markdown::bullet_glyphs_resolve_in_each_worlds_assigned_face`.
 //
-// PER-LEVEL ROTATION (item 15, bullet-level readability): [`crate::theme::Theme::bullets`]
+// PER-LEVEL ROTATION: [`crate::theme::Theme::bullets`]
 // widened from a two-glyph PAIR to a three-glyph TRIPLE — [`crate::theme::Theme::bullet_for_depth`]
 // now cycles `.0`/`.1`/`.2` every THREE levels (was every two), composing the new
-// LEVEL axis with item 7's existing per-WORLD axis: `.0` (depth 0) and `.1` (depth 1)
-// are UNCHANGED from before this round on every world (Bombora's manicule, Mopoke's
-// rosette, and every geometric world's `•`/`◦` all still land exactly where item 7 put
-// them), and `.2` (depth 2, cycling back to `.0` at depth 3) is the new third rung —
+// LEVEL axis with the existing per-WORLD axis: `.0` (depth 0) and `.1` (depth 1)
+// are UNCHANGED on every world (Bombora's manicule, Mopoke's rosette, and every
+// geometric world's `•`/`◦` all still land exactly where they did), and `.2`
+// (depth 2, cycling back to `.0` at depth 3) is the new third rung —
 // for [`BULLETS_PLAIN`] the literal filled/hollow/small-square trio the round's brief
 // asked for, for a Junicode/Garamond world the one hedera of its own three-fleuron
 // family `{❧, ❦, ☙}` its pair didn't already use (Bombora's manicule stays exclusive to
@@ -166,7 +166,7 @@ pub const ORNAMENT_SCALE_GEOMETRIC: f32 = 1.5;
 /// The plain geometric bullet triple — level-1 `•` (U+2022, filled) / level-2 `◦`
 /// (U+25E6, hollow) / level-3 `▪` (U+25AA, small square), all three in the merged
 /// [`ORNAMENT_MARKS`] face — the modern/technical worlds' bullets (levels 1/2
-/// byte-identical to the pre-item-15 `•`/`◦` pair; level 3 is the new rung).
+/// byte-identical to the former `•`/`◦` pair; level 3 is the new rung).
 pub const BULLETS_PLAIN: (char, char, char) = ('•', '◦', '▪');
 
 /// PLAIN bullet scale — the geometric `•`/`◦` worlds keep body size (1.0), so their
@@ -192,7 +192,7 @@ pub const BULLET_SCALE_PLAIN: f32 = 1.0;
 pub const BULLET_SCALE_ORNAMENT: f32 = 0.55;
 
 /// The EB-GARAMOND-BODY bullet scale. This was a one-world literal on Bombora
-/// until item 158 added a SECOND world with EB Garamond as its BODY face and
+/// until a SECOND world gained EB Garamond as its BODY face and
 /// the padding law failed on it the same way, for the same reason — the
 /// shared tier is scaled against the concealed `"- "` prefix's advance in the
 /// world's own body font, and EB Garamond's punctuation advance is narrow
@@ -202,7 +202,7 @@ pub const BULLET_SCALE_ORNAMENT: f32 = 0.55;
 /// derives the allowance from the face rather than a world-name list.
 pub const BULLET_SCALE_GARAMOND: f32 = 0.35;
 
-// --- The per-world LIST-ITEM INDENT scale (item 15, the other half of bullet-
+// --- The per-world LIST-ITEM INDENT scale (the other half of bullet-
 // level readability) ---------------------------------------------------------
 //
 // A nested list item's visual indent was, before this round, ENTIRELY a
@@ -223,7 +223,7 @@ pub const BULLET_SCALE_GARAMOND: f32 = 0.35;
 // literary-serif worlds (the same roster [`BULLET_SCALE_ORNAMENT`] already
 // singles out) step up to [`LIST_INDENT_SCALE_WIDE`] — their more decorative
 // register earns the roomier rail. SENSIBLE DEFAULTS, not final taste: the
-// exact multipliers are judged in the pre-tag pass (item 20); the MECHANISM
+// exact multipliers are judged in the pre-tag pass; the MECHANISM
 // (a pure per-world dial, read fresh off the active theme, composing for free
 // with every existing nesting depth) is what this round commits to.
 

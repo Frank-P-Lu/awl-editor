@@ -1,6 +1,6 @@
 //! Plan-level geometry laws — no device, no shaper, no theme.
 //!
-//! These are the laws item 174 exists to make possible: presentation decisions
+//! These laws assert presentation decisions
 //! asserted directly against the planner's own output rather than inferred from
 //! pixels. The device-level companions (drawn ↔ hit-test ↔ sidecar identity over
 //! the real pipeline and the real world roster) live in
@@ -220,7 +220,7 @@ fn selected_display_line_tracks_both_families_and_clamps_defensively() {
     // No items at all: no selected line.
     let empty = flat(0, 0, 0, 1);
     assert_eq!(plan_overlay_rows(&empty).selected_display(), None);
-    // Grouped: two headers above item 2 push it to display 4.
+    // Grouped: two headers above the second item push it to display 4.
     let lines = vec![
         PlanLine::Header("A".into()),
         PlanLine::Item(0),
@@ -295,7 +295,7 @@ fn a_zero_row_pitch_answers_no_pointer() {
     assert_eq!(plan.row_at(CARD_X + 1.0, plan.first_top() + 1.0), None);
 }
 
-// --- ITEM 181 — the height-clamp owner ---------------------------------------
+// --- The height-clamp owner --------------------------------------------------
 
 /// The ordinary case: enough `avail_px` for some rows but not the whole ask,
 /// after the overhead (non-item) rows are paid for. `min_items` doesn't bind
@@ -311,7 +311,7 @@ fn fit_item_rows_divides_the_budget_after_overhead() {
 
 /// THE FLAT/SPELL FLOOR (`min_items: 1`): a card always attempts at least one
 /// item row, however small `avail_px` is — this is the theme-picker
-/// regression itself (item 181): a big flat corpus must lose rows to the
+/// regression case: a big flat corpus must lose rows to the
 /// clamp, never collapse to zero and never keep every row regardless of the
 /// canvas.
 #[test]
@@ -321,11 +321,11 @@ fn fit_item_rows_floors_at_one_even_when_nothing_fits() {
     assert_eq!(fit_item_rows(20.0, 20.0, 10, 1), 1); // overhead alone exceeds the budget
 }
 
-/// THE GROUPED FLOOR (`min_items: 0`, item 184): when the fixed chrome
+/// THE GROUPED FLOOR (`min_items: 0`): when the fixed chrome
 /// overhead ALONE already meets or exceeds what `avail_px` holds — the
-/// residual item 181's own doc named "a chrome-overhead sizing question, not
-/// a row-count one" — the grouped family shows an empty candidate band
-/// rather than a forced row that would overrun the canvas. Wherever the
+/// residual is a chrome-overhead sizing question, not a row-count one: the
+/// grouped family shows an empty candidate band rather than a forced row that
+/// would overrun the canvas. Wherever the
 /// overhead does NOT already consume the whole budget this is unchanged from
 /// the `min_items: 1` case (`saturating_sub` alone already clears 1), so
 /// every already-fitting grouped picker is untouched — only the exact
@@ -425,7 +425,7 @@ fn fit_item_rows_guards_a_zero_row_pitch() {
 /// NON-VACUITY: the clamp genuinely BINDS below a big per-kind row cap once
 /// the corpus and the canvas disagree — the shape `OverlayKind::Theme` hits
 /// (`window_rows() == THEMES.len()`, 19, with no canvas awareness at all
-/// before item 181: `card_h: 934` against `canvas_h: 800` at the theme
+/// in the unclamped implementation: `card_h: 934` against `canvas_h: 800` at the theme
 /// picker's own default geometry). A row pitch and overhead in the same
 /// ballpark as the real overlay metrics, on the default 800px canvas.
 #[test]
@@ -441,7 +441,7 @@ fn fit_item_rows_binds_below_a_big_per_kind_cap_once_the_canvas_cannot_hold_it()
     );
 }
 
-// --- item 131a: the signed step splits into a two-sided extent ---------------
+// --- The signed step splits into a two-sided extent --------------------------
 
 /// THE SIGN SPLIT, at the pure planner level (no device, no pipeline): a
 /// POSITIVE `dx_per_row` plans a growing `dx` with `dw` held at exactly `0.0`

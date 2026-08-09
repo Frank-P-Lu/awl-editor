@@ -11,7 +11,7 @@ fn font_mono_detection() {
     // theme/worlds.rs) are detected — Potoroo/Currawong/Mangrove regressed to Morph
     // defaults (and lost the block's mono cell floor) when this listed only
     // IBM Plex Mono, and Currawong/Cassowary lost the uniform caret grid again
-    // (item 97) while it listed only the three below.
+    // while it listed only the three below.
     assert!(font_is_mono("IBM Plex Mono"));
     assert!(font_is_mono("JetBrains Mono"));
     assert!(font_is_mono("Monaspace Xenon"));

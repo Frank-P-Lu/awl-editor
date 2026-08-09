@@ -290,15 +290,15 @@ pub(super) fn settled_viewstate(
     vstate.search_replace_active = opts.search_replace_active;
     vstate.search_replacement = opts.search_replacement.clone();
     vstate.search_editing_replacement = opts.search_editing_replacement;
-    // ITEM 10 — this synthetic capture-opts path (`CaptureOpts`/`OverlayInfo`)
+    // This synthetic capture-opts path (`CaptureOpts`/`OverlayInfo`)
     // has no caret concept of its own (a `--keys` replay's word-motion caret
     // isn't threaded through it yet), so both fields render their caret at the
-    // END — the ONE position every field always rendered at before item 10, so
+    // END — the ONE position every field always rendered at, so
     // this stays byte-identical to the pre-item-10 capture behavior.
     vstate.search_query_caret = vstate.search_query.chars().count();
     vstate.search_replacement_caret = vstate.search_replacement.chars().count();
     vstate.overlay_active = opts.overlay.as_ref().map(|o| o.active).unwrap_or(false);
-    // ITEM 45 (overlay ALIGNMENT as personality data): the alignment the overlay
+    // The alignment the overlay
     // FROZE at summon rides through verbatim (`None` when no overlay is open), so the
     // card lands at the SAME anchor the live picker held — and the `AWL_OVERLAY_ALIGN`
     // capture knob's right-aligned variant is honored without touching world data.
@@ -334,7 +334,7 @@ pub(super) fn settled_viewstate(
         .as_ref()
         .map(|o| o.query.clone())
         .unwrap_or_default();
-    // ITEM 10 — mirrors the search fields above: `OverlayInfo` carries no caret
+    // Mirrors the search fields above: `OverlayInfo` carries no caret
     // yet, so this synthetic path always renders it at the END (byte-identical
     // to pre-item-10, where the query caret was ALWAYS the end).
     vstate.overlay_query_caret = vstate.overlay_query.chars().count();
@@ -355,7 +355,7 @@ pub(super) fn settled_viewstate(
         })
         .map(|o| o.title)
         .unwrap_or("");
-    // ITEM 66: the path/URL figure-ground gate, resolved from the SAME mode
+    // The path/URL figure-ground gate, resolved from the SAME mode
     // string via the SAME `OverlayKind::row_path_splits` owner `App::sync_view`
     // reads — so a `--keys` capture of, say, InsertLink's typed URL renders
     // identically to the live picker, and every other kind (sharpest of all
@@ -378,7 +378,7 @@ pub(super) fn settled_viewstate(
         .as_ref()
         .map(|o| o.bindings.clone())
         .unwrap_or_default();
-    // ITEM 94: the rail fractions ride the sidecar's own `overlay.ranges` block, so
+    // The rail fractions ride the sidecar's own `overlay.ranges` block, so
     // a JSON-driven capture draws the same thumbs the live picker does.
     vstate.overlay_ranges = opts
         .overlay
@@ -404,7 +404,7 @@ pub(super) fn settled_viewstate(
     // owner (`OverlayKind::window_rows`) rather than a hand-copied per-kind table.
     // It used to be spelled out here twice — once for the scroll HINT, once for
     // the cap — with every kind but Spell and Theme flattened to a literal 12, so
-    // item 114's workspace (whose window is the canvas, not a row count) would
+    // a workspace (whose window is the canvas, not a row count) would
     // have been silently capped at twelve rows in every capture while the live app
     // filled its viewport. A `mode` with no kind (there is none) keeps the old
     // literal. The item-space scroll HINT below reads the SAME number, so the
@@ -462,7 +462,7 @@ pub(super) fn settled_viewstate(
     // second serialized fact; held to the live owner's answer by a scheme sweep.
     vstate.overlay_location =
         crate::facets::strip_location(&vstate.overlay_lens).map(std::string::ToString::to_string);
-    // ITEM 114 — the SUMMONED WORKSPACE's presentation + focus stage. Set for
+    // The SUMMONED WORKSPACE's presentation + focus stage. Set for
     // every capture that carries an overlay, not only a previewing one: a
     // workspace has two regions whether or not anything is previewed beneath it,
     // and the focus stage is what says which of them is live.

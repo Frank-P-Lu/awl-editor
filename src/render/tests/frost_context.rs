@@ -470,7 +470,7 @@ fn inside_the_menus_own_footprint_no_document_edge_survives() {
 /// cargo test --bin awl frost_context::gallery -- --ignored --nocapture
 /// ```
 ///
-/// It writes into `gallery/item-298/` (untracked) at 1× on the two compositions that answer
+/// It writes into the untracked gallery at 1× on the two compositions that answer
 /// the routing differently — one that backs its own rows (no frost) and one that draws
 /// nothing under them (a footprint) — with the room-summoned card beside each as the
 /// full-takeover reference the change is judged against.

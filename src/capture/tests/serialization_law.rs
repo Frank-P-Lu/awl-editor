@@ -1,4 +1,4 @@
-//! THE CAPTURE-SERIALIZATION LAWS (queue item 98) — the two structural rules
+//! THE CAPTURE-SERIALIZATION LAWS — the two structural rules
 //! that retired the `sidecar_reports_doc_lang_and_per_script_font_resolution`
 //! flake, tested at the purest seam each one reaches.
 //!
@@ -59,7 +59,7 @@ fn an_unguarded_capture_is_a_hard_error() {
     assert!(
         outcome.is_err(),
         "an unguarded capture must panic: the law is what stops a future capture \
-         test from silently racing every theme-flipping test (queue item 98)"
+         test from silently racing every theme-flipping test"
     );
 }
 

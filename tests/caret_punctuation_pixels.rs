@@ -1,11 +1,11 @@
-//! ITEM 126 — real PNG proof that punctuation remains a locatable caret body.
+//! Real PNG proof that punctuation remains a locatable caret body.
 //!
 //! The in-render law sweeps every proportional world.  This intentionally
 //! bounded spawned-binary sample covers the five materially different prose
 //! faces (serif/slab/sans/display/one-bit-adjacent) at both caret looks, two
 //! DPI/zoom products, every punctuation class, and letter/space/EOL controls.
 //!
-//! ITEM 196 — one `#[test]` per world, not one `#[test]` for all five. The
+//! One `#[test]` per world, not one `#[test]` for all five. The
 //! original single function spawned the awl binary ~270 times *sequentially*
 //! on one libtest thread (118s mac / 166s linux measured, x4 per CI run: two
 //! platforms x two keymap conventions) because a single `#[test]` cannot be
@@ -26,9 +26,9 @@ const SCALES: [(f32, f32); 2] = [(1.0, 1.0), (2.0, 1.5)];
 const DOC: &str = "a, . ' : ; - ( [ — 。 z\n\n\nreference\n";
 
 /// A fresh, uniquely-named tempdir under the OS temp root, owned by a
-/// [`ScratchDir`] guard that removes it on drop (queue item 168; this fixture
-/// used to never remove it at all). Keyed by world as well as pid: item 196
-/// split the single sequential test into one `#[test]` per world, so several
+/// [`ScratchDir`] guard that removes it on drop; this fixture used to never
+/// remove it at all. Keyed by world as well as pid because the single
+/// sequential test was split into one `#[test]` per world, so several
 /// of these now run concurrently in the same process and would otherwise
 /// collide on one shared directory.
 fn temp(world: &str) -> ScratchDir {
@@ -296,7 +296,7 @@ fn assert_swallowed_control_is_red(
 
 /// The full per-world body: every scale, every punctuation class, both caret
 /// looks. Called once per `#[test]` below, one call per world — see the
-/// item-196 header comment for why this is no longer one function looping
+/// header comment for why this is no longer one function looping
 /// over all five.
 fn proportional_punctuation_has_a_real_pixel_body_for(world: &str) {
     let dir = temp(world);

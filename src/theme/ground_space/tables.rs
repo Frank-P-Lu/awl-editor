@@ -1,4 +1,4 @@
-//! ITEM 186 — THE CLASSIFICATION TABLES THEMSELVES.
+//! THE CLASSIFICATION TABLES THEMSELVES.
 //!
 //! One `const` per ground (per PROFILE, where a ground's profiles author
 //! different numbers), naming every authored quantity, its coordinate space and

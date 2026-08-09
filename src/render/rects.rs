@@ -334,8 +334,8 @@ impl TextPipeline {
     /// image's reserved `dh`, which can run to hundreds of px, far past the flat
     /// margin — needs its own BOTTOM edge tested too: a top-only test culls a tall
     /// row the instant its top scrolls `margin` px above the viewport even while
-    /// its bottom is still fully on-screen (item 82 — the "disappears mid-scroll"
-    /// bug). Byte-identical to the old top-only test at `height == 0.0`.
+    /// its bottom is still fully on-screen. Byte-identical to the old top-only
+    /// test at `height == 0.0`.
     pub(super) fn row_box_visible(&self, top: f32, height: f32) -> bool {
         let margin = self.metrics.line_height * 8.0;
         top + height > -margin && top < self.window_h + margin
@@ -509,7 +509,7 @@ impl TextPipeline {
 
     /// The absolute pixel x of a collapsed heading's own rendered text on its
     /// filtered row `line`, EXACTLY where its last glyph ends — no gap added. The
-    /// FLOOR the "… N lines" tail (item 73) may never cross: it is the true
+    /// FLOOR the "… N lines" tail may never cross: it is the true
     /// boundary between the heading's own real ink and the row's trailing
     /// whitespace, so a tail clamped no closer than this can only ever draw over
     /// blank space, never over a real glyph. Reads the FIRST VISUAL ROW's own real
@@ -519,7 +519,7 @@ impl TextPipeline {
     /// row's glyphs, so it never inherits their cumulative width). This matters
     /// because the tail's baseline ([`Self::fold_tail_marks`]) is ALWAYS the
     /// heading's first-row baseline too (a folded heading's own line is never
-    /// hidden, but it can still visually wrap) — the item 65 gallery sweep's own
+    /// hidden, but it can still visually wrap) — the gallery sweep's own
     /// find: `line_glyph_xs` deliberately FLATTENS wrapped rows by offsetting each
     /// one past the previous (documented for callers that "don't care which visual
     /// row a column lands on"), so its whole-line `.last()` on a wrapped heading
@@ -623,11 +623,11 @@ impl TextPipeline {
         line_top + line_height > -margin && line_top < self.window_h + margin
     }
 
-    /// THE CONTENT CLIP (item 84): the ONE resolved region every document-
+    /// THE CONTENT CLIP: the ONE resolved region every document-
     /// content, selection-adjacent quad — the selection wash, the search-match
     /// highlight, the IME preedit underline, and the caret — must stay inside.
     /// Horizontally it is ALWAYS the writing column (`column_left()` ..
-    /// `+column_width()`) — which item 116b made the RELOCATED column while the
+    /// `+column_width()`) — the RELOCATED column while the
     /// document draws into a workspace's comparison ([`Self::comparison_viewport`]),
     /// so "where the document is" and "what bounds it" stay ONE idea. Vertically it is
     /// the whole canvas on an ordinary frame, narrowed to that region's own
@@ -649,7 +649,7 @@ impl TextPipeline {
     /// fully-outside rects, TRIM partial ones at whichever axis's edge they
     /// cross) — the quad counterpart of the text layer's `TextBounds` clip, so
     /// a scrolled diff transcript's washes/pills/panels stop AT the card edge
-    /// instead of sliding over the margin above/below it, AND (item 84) so a
+    /// instead of sliding over the margin above/below it, and so a
     /// selection / search-match / preedit rect dragged past the page's own
     /// left or right edge stops at the writing column instead of bleeding into
     /// the margin. Identity on an ordinary frame with no dragged/scrolled
@@ -659,8 +659,8 @@ impl TextPipeline {
     /// [`Self::content_clip`] directly. The DECORATIVE-OVERHANG emitters
     /// ([`Self::fence_panel_rects`], [`Self::code_pill_rects`]) and the
     /// column-bound washes ([`Self::wash_rects`]) route through
-    /// [`Self::clip_decorative_rects_to_band`] instead — see item 84-fix's
-    /// note on that fn for why this one is wrong for them.
+    /// [`Self::clip_decorative_rects_to_band`] instead; its doc comment explains
+    /// why this clip is wrong for them.
     fn clip_rects_to_band(&self, mut rects: Vec<[f32; 4]>) -> Vec<[f32; 4]> {
         let (x0, y0, x1, y1) = self.content_clip();
         rects.retain_mut(|r| {
@@ -690,7 +690,7 @@ impl TextPipeline {
     /// [`Self::code_pill_rects`]) plus the column-bound washes
     /// ([`Self::wash_rects`]'s comment/string/highlight buckets), none of
     /// which want [`Self::clip_rects_to_band`]'s strict writing-column X
-    /// bound. **item 84-fix:** an audit found item 84 had routed these
+    /// bound. An audit found these
     /// decorative emitters through `clip_rects_to_band` too, which X-clipped
     /// the fence panel's [`FENCE_PANEL_INSET_X`] and the code pill's
     /// [`CODE_PILL_INSET_X`] overhang flush to the bare glyph column —
@@ -730,7 +730,7 @@ impl TextPipeline {
         }
     }
 
-    /// OFF-CURSOR IMAGE-CONCEAL underline guard (queue item 25): the shaped
+    /// OFF-CURSOR IMAGE-CONCEAL underline guard: the shaped
     /// advance (px) a span on an inline-image line must clear for its spell/nit
     /// underline to survive. Off the caret's line an `![alt](path)` source
     /// conceals to a near-ZERO-width run (`CONCEAL_ZERO_WIDTH_FONT_SIZE`), so a
@@ -1027,7 +1027,7 @@ impl TextPipeline {
             let (y, h) = self.row_band_for(p.line, p.line_height, line_top);
             out.push([x, y - inset_y, w, h + 2.0 * inset_y]);
         }
-        // item 84-fix: the DECORATIVE Y-only clip, not the strict writing-
+        // The DECORATIVE Y-only clip, not the strict writing-
         // column `clip_rects_to_band` — the pill's own `CODE_PILL_INSET_X`
         // overhang is intended to survive at column 0 / the wrap edge.
         self.clip_decorative_rects_to_band(merge_row_bands(out))
@@ -1218,7 +1218,7 @@ impl TextPipeline {
             }
             out.push([x, line_top, w, p.line_height]);
         }
-        // item 84-fix: the DECORATIVE Y-only clip, not the strict writing-
+        // The DECORATIVE Y-only clip, not the strict writing-
         // column `clip_rects_to_band` — the panel's own `FENCE_PANEL_INSET_X`
         // overhang is by design (reads as a distinct surface, not clipped
         // exactly to the glyph edges) and must survive with page mode off.
@@ -1349,14 +1349,14 @@ impl TextPipeline {
                 rects.push([x, y, w, row_caret_h]);
             }
         }
-        // ITEM 84: route through the SAME content clip every other SELECTION-
+        // Route through the SAME content clip every other SELECTION-
         // ADJACENT quad uses, so a selection extended past the page's edge (or
         // a diff-preview transcript scrolled past its card) stops painting at
         // that boundary instead of bleeding into the margin — a visual bound
         // only; the selection RANGE above is untouched. Shared by
         // `selection_rects` and `search_match_rects` (both funnel through
         // here). NOT `clip_decorative_rects_to_band` — that owner is for the
-        // decorative-overhang emitters (item 84-fix).
+        // decorative-overhang emitters.
         self.clip_rects_to_band(rects)
     }
 
@@ -1450,7 +1450,7 @@ impl TextPipeline {
         let cell_top = line_top + (m.line_height - m.caret_h) * 0.5;
         let thickness = m.px(PREEDIT_UNDERLINE_H);
         let y = cell_top + m.caret_h - thickness;
-        // ITEM 84: the SAME auxiliary-selection-geometry clip `range_rects`
+        // The SAME auxiliary-selection-geometry clip `range_rects`
         // routes through — a composing preedit is selection-adjacent (it rides
         // the SAME translucent-quad pipeline), so it stops at the same page /
         // card boundary rather than bleeding into the margin.

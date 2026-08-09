@@ -94,7 +94,7 @@ impl Exit for ActiveEventLoop {
 /// the doors that swallow it (menu, pointer, probe) and to make "did this key
 /// ask the process to end?" observable off-window. Gated exactly like
 /// [`RecordingScheduler`] below — test builds plus every NATIVE build, because
-/// item 188's `--screenshot-app` capture mode is a production caller.
+/// the `--screenshot-app` capture mode is a production caller.
 #[cfg(any(test, not(target_arch = "wasm32")))]
 #[derive(Default)]
 pub(crate) struct RecordingExit {
@@ -297,7 +297,7 @@ impl App {
         // and fires the ONE follow-up present once a boundary crossing has rested.
         // AMBIENT TICK — the slow ~10 fps drift clock behind awl's time-varying
         // grounds: the lava lamp (Firetail/Mangrove), the twinkling stars
-        // (Currawong), AND (item 87) Bombora's wave-tier phase drift — ONE
+        // (Currawong), AND Bombora's wave-tier phase drift — ONE
         // clock, three consumers (`TextPipeline::lava_phase`). A single
         // `WaitUntil` cadence (NEVER the caret spring's hot per-frame `Poll`
         // loop): when it elapses, advance the phase, request ONE redraw, and

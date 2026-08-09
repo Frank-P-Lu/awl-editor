@@ -48,7 +48,7 @@ const ALLOWED: &[(&str, usize)] = &[
     ("app/semantic/bench.rs", 2),
     // `set_dictionary`'s parse-cost measurement (`parsed in {:.2}ms`): times the
     // real dictionary reconstruction — wall-clock by necessity, a diagnostic,
-    // not a scheduled deadline. Item 56: `set_dictionary` now lives in
+    // not a scheduled deadline. `set_dictionary` lives in
     // `app/files/dictionary.rs` (the former `app/files.rs` monolith's split).
     ("app/files/dictionary.rs", 1),
     // The `--soak-gpu` recovery-latency feed (`observe_recovered(kind, ..)`):

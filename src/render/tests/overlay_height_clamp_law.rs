@@ -1,4 +1,4 @@
-//! ITEM 181 — THE HEIGHT-CLAMP LAW.
+//! THE HEIGHT-CLAMP LAW.
 //!
 //! The defect: the GROUPED/faceted geometry (`theme_overlay_geometry`) divided
 //! its own available pixels by the row pitch to bound its item window; the
@@ -41,14 +41,14 @@
 //! minimum, `MIN_COLS`x`MIN_LINES` — see the module doc below on the swept
 //! bound), and four points across the documented zoom range (0.5..3.0).
 //!
-//! ITEM 184 — the GROUPED family's own arm of this clamp was still
+//! The GROUPED family's own arm of this clamp was still
 //! incomplete at the zoom ceiling: a picker cycled onto a sectioned lens
 //! carries extra fixed header overhead (the lens strip + real section
 //! headers) this clamp did not shrink, and at zoom 3.0 on a short canvas that
 //! overhead ALONE — before a single item is counted — could still exceed
 //! `avail_px` (`card_h: 535.4` against `canvas_h: 460`, the command palette
 //! on its File lens, confirmed present on unmodified pre-184 code via `git
-//! stash`; item 181 left it "measurably unchanged"). `fit_item_rows` gained a
+//! stash`. `fit_item_rows` gained a
 //! `min_items` parameter (its own doc): the FLAT family and the spell popup
 //! keep `min_items: 1` (byte-identical), while the GROUPED family now passes
 //! `min_items: 0` — when its fixed chrome overhead alone cannot fit, the card
@@ -66,8 +66,8 @@ enum Family {
     Flat,
     Grouped,
     Contextual,
-    /// ITEM 114 — the SUMMONED WORKSPACE family. Its box comes from the canvas
-    /// rather than from a width cap, so item 181's clamp is bounded by a
+    /// The SUMMONED WORKSPACE family. Its box comes from the canvas rather than
+    /// from a width cap, so its clamp is bounded by a
     /// different budget; it is swept here for the same reason the other three
     /// are, not exempted.
     Workspace,
@@ -80,7 +80,7 @@ fn family(kind: OverlayKind) -> Family {
     if kind == OverlayKind::Spell {
         return Family::Contextual;
     }
-    // ITEM 114 — asked BEFORE the faceting scheme, exactly as
+    // Asked BEFORE the faceting scheme, exactly as
     // `overlay_geometry` asks it: a workspace's rail IS its facet strip stood on
     // its end, so a kind that facets AND is a workspace is presented as the
     // latter. Classifying it as Grouped here would have this law measuring a
@@ -363,14 +363,14 @@ fn no_card_exceeds_its_canvas_for_any_overlay_kind() {
 /// already-clamped GROUPED card, its established sibling, in the state a
 /// grouped picker spends the vast majority of its open time in), and — ITEM
 /// 184 — the command palette CYCLED onto a sectioned lens, the shape whose
-/// extra fixed header overhead item 181 left unswept here (`sectioned: true`
+/// extra fixed header overhead (`sectioned: true`
 /// below). The clamp arithmetic is identical code for every kind — only the
 /// corpus and the per-kind cap differ — so stressing it here across the
 /// documented zoom range (0.5..3.0) at both DPIs, on every logical canvas,
 /// covers the axis the headline law (fixed at zoom 1.0) cannot: the
 /// query-beat/row-pitch growth that only zoom drives.
 ///
-/// ITEM 184 closed the gap this test used to carve out ("NOT SWEPT HERE"):
+/// The grouped-family arm closes the gap this test once carved out ("NOT SWEPT HERE"):
 /// at the documented zoom ceiling on a short canvas the sectioned grouped
 /// card's own fixed overhead (query line + lens strip + the section headers
 /// its window carries) can still exceed `avail_px` before a single item is
@@ -433,7 +433,7 @@ fn no_card_exceeds_its_canvas_across_the_documented_zoom_range() {
     assert!(
         zero_rows_engaged > 0,
         "the sectioned grouped arm never actually reached the pathological corner (empty \
-         candidate band) — this law would pass just as well with item 184's `min_items: 0` \
+         candidate band) — this law would pass just as well with `min_items: 0` \
          floor deleted"
     );
 }
@@ -581,16 +581,15 @@ fn the_reported_theme_picker_regression_stays_fixed() {
     assert!(
         card_h <= canvas_h,
         "the theme picker's default card_h {card_h} exceeds its canvas_h {canvas_h} — \
-         this is the item 181 regression itself, reproduced verbatim"
+         this is the height-clamp regression itself, reproduced verbatim"
     );
     assert!(sel < lines, "the selected world must stay on screen");
 }
 
-/// THE ITEM 184 REGRESSION, pinned by name and by number: the command palette
+/// THE GROUPED-PALETTE REGRESSION: the command palette
 /// cycled onto a sectioned lens, 900x460, zoom 3.0 — used to report `card_h:
 /// 535.4` against `canvas_h: 460` verbatim (measured on the unmodified
-/// pre-184 code; item 181 left this arm "measurably unchanged" by its own
-/// landing note). After item 184's `min_items: 0` floor for the grouped
+/// prior code. After the `min_items: 0` floor for the grouped
 /// family, the same view reports `card_h: 372.2`, an EMPTY candidate band
 /// (`plan.candidate_rows() == 0`) rather than the one forced, overrunning row
 /// the old `min_items: 1` floor demanded. This is the smallest possible
@@ -620,7 +619,7 @@ fn the_900x460_zoom3_sectioned_command_case_now_fits() {
     assert!(
         card_h <= canvas_h,
         "the sectioned command palette's card_h {card_h} exceeds its canvas_h {canvas_h} at \
-         900x460/zoom3.0 — this is the item 184 regression itself, reproduced verbatim"
+         900x460/zoom3.0 — this is the grouped-palette regression itself, reproduced verbatim"
     );
     assert_eq!(
         lines, 0,
@@ -667,7 +666,7 @@ type Fingerprint = (
 /// both in isolation and inside a full `render::tests` run): the geometry
 /// tuple below was IDENTICAL in every combination, while an exact hash of
 /// the rendered pixels moved with the atlas's own packing history alone,
-/// with no change to this item's code. That is exactly why item 181's own
+/// with no change to this law's code. That is exactly why the shared
 /// appearance oracle (`no_card_exceeds_its_canvas_for_any_overlay_kind`'s
 /// `ink_ok`) grades a LOCAL relative-luminance delta rather than a global
 /// exact hash — the same precedent applies here.
@@ -693,7 +692,7 @@ fn fingerprint(
     (geom.card_h, plan.card_x_span(), plan.rows().len(), report)
 }
 
-/// ALREADY-FITTING GROUPED PICKERS STAY BYTE-IDENTICAL (item 184), PROVEN not
+/// ALREADY-FITTING GROUPED PICKERS STAY BYTE-IDENTICAL, PROVEN not
 /// asserted: five representative scenarios — the command palette on "All"
 /// and cycled to a sectioned lens, a narrow canvas, a tall canvas at a small
 /// zoom, and a short canvas at zoom 1.0 (all comfortably clear of the
@@ -710,7 +709,7 @@ fn fingerprint(
 /// of these numbers even though it has nothing to do with the floor this
 /// item changed.
 ///
-/// ITEM 293 re-pinned all five fingerprints: the hint's own gap row is one
+/// The hint's own gap row is one
 /// more row of overhead every one of these scenarios now carries, so
 /// `card_h` grows where the window had slack (`Command`, `Project`) and the
 /// visible row count drops by exactly one where it did not (`Goto`,
@@ -777,7 +776,7 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
             // vertical room, so the height clamp seats six item rows where it
             // used to seat eight (694.0 -> 609.2). At 200% zoom a card whose
             // padding stayed at 100% was the defect, not the baseline.
-            // ITEM 293 — the hint's own gap row costs this cell one visible
+            // The hint's own gap row costs this cell one visible
             // candidate row (6 -> 5): the window was already binding on
             // `avail_px` here, so the extra row of overhead is absorbed by
             // showing one fewer item, exactly as any other overhead addition
@@ -814,7 +813,7 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 Some((25, 13, 12, 254.000_02, 1600.0)),
             ),
         ),
-        // ITEM 114 — this fifth cell used to be `Settings`, which is no longer a
+        // This fifth cell used to be `Settings`, which is no longer a
         // GROUPED picker: it is presented as a summoned workspace, whose box
         // comes from the canvas rather than from a width cap, so its numbers
         // here would be measuring a card production does not draw. `Browse` is
@@ -827,7 +826,7 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 canvas: (900, 460),
                 zoom: 1.0,
             },
-            // ITEM 293 — same absorption shape as the `Goto` cell above: one
+            // Same absorption shape as the `Goto` cell above: one
             // fewer visible row (7 -> 6), and `card_h` also drops (331.8 ->
             // 316.6) for the same content-derived-not-window-clamped reason.
             (316.6, (150.0, 750.0), 6, Some((32, 6, 5, 316.6, 460.0))),
@@ -850,7 +849,7 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
     }
     assert!(
         moved.is_empty(),
-        "already-fitting grouped scenarios changed — item 184's floor fix must be \
+        "already-fitting grouped scenarios changed — the grouped-family floor fix must be \
          a no-op here:\n{}",
         moved.join("\n")
     );

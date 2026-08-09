@@ -90,7 +90,7 @@ fn replay_keys_drives_the_keep_version_minibuffer_prompt_and_sidecar_reflects_ty
 
 #[test]
 fn replay_keys_keep_version_minibuffer_esc_pops_back_to_the_palette() {
-    // ITEM 116c: the minibuffer's Cancel arm routes through the ONE lifecycle
+    // The minibuffer's Cancel arm routes through the ONE lifecycle
     // door (`Journey::cancel`) instead of a hand-rolled `dismiss()` that always
     // dropped to the editor regardless of what was parked. Reached via the
     // palette (like `replay_keys_palette_theme_esc_pops_back_to_palette`), Esc

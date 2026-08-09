@@ -44,8 +44,8 @@ use common::ScratchDir;
 
 /// A fresh, uniquely-named tempdir under the OS temp root, owned by a
 /// [`ScratchDir`] guard that removes it on drop — panic, early return, or
-/// happy path alike (queue item 168; this fixture used to never remove it at
-/// all, the largest single contributor to a 9.2 GB `$TMPDIR` backlog).
+/// happy path alike. This fixture used to never remove it at all, the largest
+/// single contributor to a 9.2 GB `$TMPDIR` backlog.
 fn tmp_dir(tag: &str) -> ScratchDir {
     let dir = std::env::temp_dir().join(format!("awl-frost-pixels-{tag}-{}", std::process::id()));
     ScratchDir::new(dir)
@@ -98,7 +98,7 @@ height to judge both margins at once, still without a single heading line.
 /// produced no PNG) — the caller then skips, mirroring the suite's
 /// `adapter_available()` tolerance on a headless box.
 fn capture(out: &Path, doc: &Path, theme: &str, lava: Option<&str>, frost: bool) -> bool {
-    // `common::awl` PINS the config ladder inside the sandbox (item 93): this
+    // `common::awl` PINS the config ladder inside the sandbox: this
     // helper used to `env_remove("AWL_CONFIG")`, which let the child fall
     // through to the developer's own `~/.config/awl/config.toml` — a personal
     // `zoom`/`theme` there rescaled the rail geometry and turned this test red

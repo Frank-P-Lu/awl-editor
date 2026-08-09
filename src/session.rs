@@ -70,8 +70,8 @@ impl ScreenRect {
     }
 }
 
-/// The whole persisted session. `root` is the ACTIVE FOLDER (item 76 — the
-/// ONE persisted active-folder-context owner: this field + `active` are
+/// The whole persisted session. `root` is the ACTIVE FOLDER — the ONE persisted
+/// active-folder-context owner: this field + `active` are
 /// written atomically together by `session_flush`, so the folder and the
 /// active document restored from them can never disagree — see
 /// `app/session.rs`'s module doc for the launch-precedence law that reads
@@ -319,7 +319,7 @@ mod tests {
 
     #[test]
     fn root_is_absent_when_never_set() {
-        // A pre-item-76 session file (or one written before any folder switch
+        // A legacy session file (or one written before any folder switch
         // this run) carries no `root` line at all — the ONE owner degrades to
         // `None` (the launch law's "nothing remembered" tier), never a crash.
         let state = SessionState {

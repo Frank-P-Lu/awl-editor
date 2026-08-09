@@ -288,7 +288,7 @@ fn action_for_name_matches_label_and_slug() {
     assert_eq!(action_for_name("nope"), None);
 }
 
-/// LAW (item 76): the "Notes"/two-desk-flip command is COMPLETELY gone —
+/// LAW: the "Notes"/two-desk-flip command is COMPLETELY gone —
 /// no catalog row named "Notes", no `Action`/`Effect` variant reachable
 /// through the rebinder by that name or the old `notes` slug. A future
 /// command literally named "Notes" (unlikely, but the point of a

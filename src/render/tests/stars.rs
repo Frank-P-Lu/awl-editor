@@ -281,14 +281,14 @@ fn currawong_star_field_is_dpi_invariant_in_logical_space() {
     );
 }
 
-/// THE DETERMINISTIC-IDENTITY LAW (item 62, 2026-07-24): the SAME star, at the
+/// THE DETERMINISTIC-IDENTITY LAW: the SAME star, at the
 /// SAME fixed phase, renders BYTE-IDENTICAL pixels across two independent
 /// captures — position, size, tint, AND phase (brightness) are all pure
 /// functions of (seed, phase), never a clock or entropy (`crate::stars`'s own
 /// doc). Two full end-to-end captures of the identical Currawong scene, at the
 /// frozen headless phase (0.0, never advanced), must produce the identical
-/// frame buffer down to the byte — the pixel-level proof that the item 62 size
-/// spread stayed deterministic (a live-random size would desync the two
+/// frame buffer down to the byte — pixel-level proof that the size spread stays
+/// deterministic (a live-random size would desync the two
 /// frames the instant it landed on a differently-sized star).
 #[test]
 fn currawong_stars_are_pixel_identical_across_two_captures_of_the_same_phase() {

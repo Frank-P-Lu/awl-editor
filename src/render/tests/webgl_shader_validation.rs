@@ -9,12 +9,12 @@
 //! `[dev-dependencies]`-only addition, never a runtime dependency of the
 //! shipped binary).
 //!
-//! ITEM 240: this used to be a hand-kept list of `#[test]` functions, one
+//! This used to be a hand-kept list of `#[test]` functions, one
 //! per shader the author remembered to add — 4 of 9 shaders in `shaders/`
 //! ended up covered, and the other 5 (including `blur.wgsl`, whose fragment
 //! stage has THREE entry points) were validated at native runtime only,
 //! never against the WebGL2 fallback awl actually ships. A hand-kept list is
-//! the defect, not a fix (CLAUDE.md: item 97's hardcoded mono-face list is
+//! the defect, not a fix (the former hardcoded mono-face list is
 //! the same shape). So this sweeps `shaders/` ITSELF at test time: every
 //! `.wgsl` file, every `@vertex`/`@fragment` entry point found in it — a
 //! tenth shader, or an eleventh entry point on an existing one, is picked up

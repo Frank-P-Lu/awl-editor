@@ -25,7 +25,7 @@
 #                reason rather than a confusing exec failure three steps down.
 #
 # THE ICON is not a second hand-drawn asset: `awl --export-linux-icon` (added
-# alongside this script, item 227) cuts the 256px PNG straight out of the
+# alongside this script) cuts the 256px PNG straight out of the
 # committed canonical `assets/macos/Awl.icns` via the SAME `app_icon::icns`
 # parser the macOS icon law tests use as their oracle — the artwork Finder and
 # the Dock already show. Run through `cargo run --release` on whatever host
@@ -40,7 +40,7 @@
 # the X11/Wayland client libraries (scripts/package-linux.sh's tarball
 # documents the exact package names per distro, and this AppImage inherits
 # the same expectation) — or (b) a GPU-adapter-specific library: the Vulkan
-# loader and ICD/driver. Bundling (b) is explicitly out of scope (item 227's
+# loader and ICD/driver. Bundling (b) is explicitly out of scope (the
 # own brief: "do not bundle GPU drivers") because a bundled driver would be
 # wrong for whatever GPU the AppImage actually runs against; bundling (a)
 # would just duplicate what's already conventionally present and, unlike a

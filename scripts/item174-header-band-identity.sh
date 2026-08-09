@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# item 174 (second family) — CAPTURE IDENTITY MATRIX for the overlay header band.
+# CAPTURE IDENTITY MATRIX for the overlay header band.
 #
 # Shoots the same overlay probes with a given binary into a given directory:
 # every world x a surface roster that covers all three header layouts (flat
@@ -34,7 +34,7 @@ SURFACES=(
   'goto|s-o'                                 # grouped file picker
   'switch|s-S-p'                             # grouped project picker
   'browse|s-p b r o w s e Enter'             # grouped browser
-  'theme|s-t'                                # FLAT, whole-corpus window (item 181)
+  'theme|s-t'                                # FLAT, whole-corpus window
   'keybindings|s-p k e y b i n d Enter'      # FLAT, long corpus + secondary column
   'caret|s-p c a r e t Enter'                # FLAT, short corpus
   'rename|s-p r e n a m e Enter'             # FLAT, no drawn title prefix

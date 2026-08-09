@@ -181,7 +181,7 @@ fn outline_draws_on_page_md_and_the_current_row_is_flagged() {
     crate::outline::set_outline_on(false);
 }
 
-/// item 65 PERSISTENT OUTLINE — the collapsed-parent state marker: fold `##
+/// PERSISTENT OUTLINE — the collapsed-parent state marker: fold `##
 /// Section A` (raw line 4). Its own row STAYS in the outline (PARENT RETENTION),
 /// gains the `outline_collapsed_marker`-style " (N)" suffix and `collapsed: true`
 /// — the SAME hidden count the doc-body's own "… N lines" tail would show. Its hidden descendant `### Deep` (buried inside the fold) is
@@ -286,7 +286,7 @@ fn outline_collapsed_parent_retained_descendant_suppressed_with_a_state_marker()
     crate::outline::set_outline_on(false);
 }
 
-/// item 74 — THE CLICK-TARGET FOLD-SPACE BUG, FIXED: `App::outline_click`
+/// THE CLICK-TARGET FOLD-SPACE BUG, FIXED: `App::outline_click`
 /// (`app/input/mouse.rs`) used to hand `outline_hit_line`'s row `line` — FOLD-
 /// FILTERED space, as `section_b.line == 5` above proves — straight to
 /// `jump_to_line`, which expects a RAW document line (the same contract Go-to's
@@ -1328,7 +1328,7 @@ fn lava_frost_pills_follow_outline_visibility() {
 }
 
 /// THE GUTTER ORGANIC FROST SEEDS wiring ([`TextPipeline::gutter_frost_seeds`] —
-/// the organic-field round, item 32). The bottom-left gutter used to drive a HARD
+/// the organic field). The bottom-left gutter used to drive a HARD
 /// corner carve (`lava_gutter_carve_rect` → the shader's `gutter`/`gutter_rect`
 /// globals) that dropped its band to the flat, darkest page ground — an ugly
 /// geometric dark pocket under the filename/project readout, worst on Firetail.
@@ -1468,7 +1468,7 @@ fn gutter_frost_seeds_follow_gutter_visibility() {
     crate::outline::set_outline_on(false);
 }
 
-/// ITEM 34 — SUMMONED OVERLAYS OWN THE MARGINS. While ANY overlay is open the
+/// SUMMONED OVERLAYS OWN THE MARGINS. While ANY overlay is open the
 /// persistent margin OUTLINE and the bottom-left GUTTER both yield (zero ink),
 /// and both return on dismissal. The gate is `overlay_active` — true for every
 /// summoned picker, INCLUDING the CRISP theme/caret/history pickers (which add

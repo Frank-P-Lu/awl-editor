@@ -6,7 +6,7 @@
 //! writes (open Settings, persist theme/zoom/page/caret, live reload,
 //! commit/reset a captured binding).
 //!
-//! DECOMPOSED (item 56, 2026-07) out of the former single-file `app/files.rs`
+//! Decomposed out of the former single-file `app/files.rs`
 //! monolith (3017 lines) into this directory, mirroring the `app/input/`
 //! precedent — each submodule under the ~500-line ceiling:
 //!  - [`active`] — the OWNED ACTIVE BUFFER SLOT (`App::active`,
@@ -14,8 +14,8 @@
 //!    or touches the park/activate swap.
 //!  - [`open`] — opening folder-relative files, C-x b, folder switching +
 //!    the recent MRUs, the i18n write-back-once + fold-reveal jump.
-//!  - [`document`] — the fresh-document buffer swap (item 76 retired the
-//!    two-desk "Notes" flip that used to live here).
+//!  - [`document`] — the fresh-document buffer swap; the retired two-desk
+//!    "Notes" flip used to live here.
 //!  - [`autosave`] — the document autosave engine, the fresh document's own
 //!    debounced ONE-SHOT auto-name save, save-feedback dirty/title/HUD sync.
 //!  - [`verbs`] — rename/move/duplicate/convert-scratch/manual-save-finish/

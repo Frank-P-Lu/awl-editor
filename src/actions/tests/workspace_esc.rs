@@ -1,4 +1,4 @@
-//! ITEM 116d — **ONE ESC ALWAYS LEAVES**, and the footer says what the Back is.
+//! **ONE ESC ALWAYS LEAVES**, and the footer says what the Back is.
 //!
 //! The user settled this once for BOTH workspace members on 2026-08-02: `Esc`
 //! dismisses a summoned workspace from anywhere inside it, and focus moves

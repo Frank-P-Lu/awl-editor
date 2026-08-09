@@ -117,7 +117,7 @@ pub(in crate::render) fn add_list_indent_span(
     }
     let list_indent_scale = crate::theme::active().list_indent_scale;
     if (list_indent_scale - 1.0).abs() < 1e-3 {
-        return; // the PLAIN tier: byte-identical to the pre-item-15 renderer
+        return; // the PLAIN tier leaves the renderer byte-identical
     }
     let wide = base.clone().metrics(GlyphMetrics::new(
         base_font_size * list_indent_scale,
@@ -157,8 +157,8 @@ pub(in crate::render) fn selection_touch_bytes(
 /// (`selection_touch`, see [`selection_touch_bytes`]) overlaps `range` at
 /// all — a plain half-open-interval overlap test. THE single "does the
 /// selection reveal this span" predicate: [`wysiwyg_reveals`] uses it for its
-/// own `selected` decision, and — SELECTION REVEAL regression fix, item 16
-/// follow-up — [`super::TextPipeline::compute_image_layout`]'s `revealed_now`
+/// own `selected` decision; the SELECTION REVEAL path makes
+/// [`super::TextPipeline::compute_image_layout`]'s `revealed_now`
 /// and [`super::TextPipeline::images_report`]'s `revealed` reuse the SAME
 /// call rather than re-deriving the overlap arithmetic a second (or third)
 /// time, so an inline-image line's LAYOUT/DRAW reveal state can never
@@ -328,7 +328,7 @@ pub(in crate::render) fn line_has_code_span(
 /// [`CONCEAL_ZERO_WIDTH_FONT_SIZE`]'s doc comment for why the concealed span's
 /// paired line-height override must match it exactly rather than shrinking.
 ///
-/// `image_force` (item 5 rework, `Some((dh, target_advance_px))` only for a
+/// `image_force` (`Some((dh, target_advance_px))` only for a
 /// MIXED off-cursor image line — see [`super::TextPipeline::image_force`]'s
 /// field doc for the full mechanism): when set, the line's OWN `Image` conceal
 /// span is NOT collapsed uniformly like every other kind here. Instead its

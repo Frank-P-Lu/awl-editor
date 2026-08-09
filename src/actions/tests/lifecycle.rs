@@ -1,4 +1,4 @@
-//! THE SUMMONED-UI LIFECYCLE AT THE REAL `apply_transition` SEAM (item 173).
+//! THE SUMMONED-UI LIFECYCLE AT THE REAL `apply_transition` SEAM.
 //!
 //! `overlay::journey::tests` pins the table and the transitions in isolation.
 //! These drive the same lifecycle through the one seam the live App and the
@@ -79,7 +79,7 @@ fn drive_on(journey: &mut Journey, buffer: &mut Buffer, action: &Action) -> Effe
 /// and leave — must return the DOCUMENT exactly as it was found, down to the
 /// bytes a save would write.
 ///
-/// This is the law item 114 leans on: a Settings workspace may own its rows and
+/// A Settings workspace may own its rows and
 /// nothing else. It sweeps the WHOLE journey rather than a bare open/close,
 /// because the open/close pair is the case anyone would think to test and the
 /// suspend/resume pair is the one that touches state.

@@ -1,7 +1,7 @@
 //! THE FROSTED FOOTPRINT'S EDGE, MEASURED AS A RAMP — AND ITS LEAN, MEASURED AGAINST
 //! THE DRAWN SPINE.
 //!
-//! Item 294 scoped the crisp picker's frost to the card's own box with a SCISSOR. A
+//! The crisp picker's frost was scoped to the card's own box with a SCISSOR. A
 //! scissor answers yes or no per pixel, so the boundary was a knife edge: words at the
 //! card's edge were sliced mid-glyph, sharp on one side and defocused on the other. It
 //! was hard by CONSTRUCTION — `blend: None` plus an alpha of `1.0` out of `fs_comp` —
@@ -30,7 +30,7 @@
 //!   a pixel or two of the very face being profiled.
 //! * **A PRESENCE floor runs beside the ramp.** A mask that faded the whole footprint to
 //!   nothing has no hard edge anywhere and would satisfy a ramp test perfectly. So the
-//!   profile's own amplitude at the face must clear a floor, and item 294's residue
+//!   profile's own amplitude at the face must clear a floor, and the interior
 //!   presence floor inside the footprint still runs.
 //!
 //! Swept over the enrolled roster — derived from `blur::footprint_frost_applies`, never
@@ -159,7 +159,7 @@ pub(super) fn enrolled_worlds() -> Vec<&'static str> {
 /// makes a column-wise reading wrong. It reports the half-strength crossing, which for a
 /// `smoothstep` over a feather `f` sits at `f / 2`; a step crosses at 1.
 ///
-/// The DPI half is the class item 294 fixed for the blur's own reach: the feather is an
+/// The DPI half covers the blur's own reach: the feather is an
 /// authored logical length, so a version held in device px would halve the reader's edge
 /// softness on retina, and every capture in this tree runs at `--capture-dpi 1`.
 #[test]

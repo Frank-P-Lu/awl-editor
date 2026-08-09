@@ -143,7 +143,7 @@ fn every_effect_lands_in_its_documented_bucket() {
         "line_land",
         "copy_pulse",
         "insert_date",
-        // ITEM 94: a range STEP applies in the shared core (unlike its
+        // A range STEP applies in the shared core (unlike its
         // Toggle/Value siblings, which are Unsupported below) — see its arm.
         "setting_range_step",
     ];
@@ -206,10 +206,10 @@ fn effect_names_are_unique_and_stable() {
     assert_eq!(names.len(), total, "duplicate effect name in classify");
 }
 
-/// ITEM 190 — the settings trio joins `Save`/`Finish` as effects an Isolated
+/// The settings trio joins `Save`/`Finish` as effects an Isolated
 /// filesystem promotes: `SettingToggle` (every key except `"keymap"`),
 /// `SettingValueCommit` and `SettingPathPick` all go Unsupported → Applied
-/// the identical way `save`/`finish_save` did in item 171. Everything else in
+/// the identical way as `save`/`finish_save`. Everything else in
 /// the roster — including a `SettingToggle{key:"keymap"}` sample, which
 /// stays Unsupported even WITH the capability (a live keymap rebuild, not a
 /// filesystem write) — must be untouched by the capability, so this is also
@@ -294,7 +294,7 @@ fn isolated_filesystem_authority_promotes_only_save_and_setting_requests() {
     }
 }
 
-/// **ITEM 193** — closes the direction `the_harness_reach_map_matches_the_
+/// Closes the direction `the_harness_reach_map_matches_the_
 /// production_classifier` (below) leaves unpinned: THIS classifier is
 /// derived from the doc, but nothing pinned the classifier BACK to the
 /// interpreter that actually has to perform its promise.
@@ -506,14 +506,14 @@ fn missing_oracle_error_names_the_fallback_it_refuses() {
     assert!(msg.contains("logical lines"), "{msg}");
 }
 
-// ── ITEM 183 — the harness-reach map is DERIVED, never hand-copied ───────
+// ── The harness-reach map is DERIVED, never hand-copied ─────────────────
 //
 // `docs/harness-reach.md` publishes, for a brief author, exactly what a
 // `--keys` capture can and cannot witness. The half of that map covering the
-// item-171 effect boundary is already owned in production by [`classify_for`]
+// effect boundary is already owned in production by [`classify_for`]
 // (and [`accept_class`] for the per-picker accepts), so the doc must be a VIEW
 // of that owner rather than a second list beside it. A hand-copied table that
-// drifts from the function it describes is the defect queue item 185 exists to
+// drifts from the function it describes is the defect this law exists to
 // fix elsewhere; the map's whole value is that a brief author can trust it.
 
 /// The `(name, bucket)` pairs the production classifier actually produces —

@@ -39,12 +39,12 @@ mod cjk;
 /// The mirrored diagonal row cluster: which end of it a name hangs on, which
 /// end its accessory does, and that a mirrored name is clickable where it draws.
 mod cluster_mirror;
-/// ITEM 314 — the writing column's left edge is a LOGICAL quantity: the same
+/// The writing column's left edge is a LOGICAL quantity: the same
 /// logical window seats it at the same logical x on every display scale, and the
 /// caret / hit test / rail affordance move with it rather than after it.
 mod column_left_dpi;
 mod comparison_composite;
-/// ITEM 116b — the RELOCATED DOCUMENT VIEWPORT: the one owner all four
+/// The RELOCATED DOCUMENT VIEWPORT: the one owner all four
 /// document-geometry owners read, the private page-column bypass, the total
 /// relocation, and the margin-orientation surfaces that yield to it.
 mod comparison_viewport;
@@ -207,12 +207,12 @@ mod washes;
 mod waves_drift;
 #[cfg(not(target_arch = "wasm32"))]
 mod webgl_shader_validation;
-/// ITEM 114 — the summoned workspace's presentation: two regions, wide/narrow
+/// The summoned workspace's presentation: two regions, wide/narrow
 /// staging, drawn-equals-clickable, and a focus cue asserted in real pixels.
 mod workspace;
 mod workspace_footer_plate;
 mod workspace_plate;
-/// ITEM 116a — the shape: `workspace_shape() -> Option<WorkspaceShape>`'s
+/// The shape: `workspace_shape() -> Option<WorkspaceShape>`'s
 /// roster and the `rows_are_primary()` bypass-is-module-private law.
 mod workspace_shape;
 /// The narrow regime: a workspace stages its two regions, and neither stage is
@@ -265,7 +265,7 @@ pub(super) fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue,
     })
 }
 
-/// ITEM 164 — an EMPTY visual selection, for the shaping/width probes that pass
+/// An EMPTY visual selection, for the shaping/width probes that pass
 /// no selected ink and so cannot flip any row.
 pub(super) fn no_vis() -> crate::render::chrome::VisualSelection {
     crate::render::chrome::VisualSelection::default()
@@ -280,7 +280,7 @@ pub(super) fn view(text: &str, line: usize, col: usize) -> ViewState {
     }
 }
 
-/// ITEM 116b — a [`view`] whose summoned workspace carries its own ROWS in the
+/// A [`view`] whose summoned workspace carries its own ROWS in the
 /// PRIMARY column, so the CONTENT pane becomes the RELOCATED DOCUMENT VIEWPORT
 /// (`TextPipeline::comparison_viewport`) and the document layer draws there.
 ///

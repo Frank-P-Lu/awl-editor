@@ -1,4 +1,4 @@
-//! ITEM 114 — TIER 2: every setting, changed and persisted through the REAL
+//! TIER 2: every setting, changed and persisted through the REAL
 //! Settings-workspace door, driven by real chords into the live `App`.
 //!
 //! # Why this tier, and not a capture
@@ -487,7 +487,7 @@ fn every_setting_changes_and_persists_through_the_real_workspace_door() {
 /// setting flipped from a Settings ROW emits `setting_toggle`, which is
 /// **Unsupported** and has no capture at all. A sweep that quietly called
 /// `App::setting_toggle("typewriter_scroll")` would look identical, pass just as
-/// green, and prove nothing about the door item 114 rebuilt.
+/// green, and prove nothing about the workspace door.
 ///
 /// So: the sweep's source may not name any App-side settings door, and must
 /// drive `press_spec_headless`. Both halves are asserted, and the second is what

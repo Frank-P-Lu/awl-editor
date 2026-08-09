@@ -1,10 +1,10 @@
-//! ITEM 48 — THE HYBRID glide+snap OUTCOME ORACLE (the user's decision).
+//! THE HYBRID glide+snap OUTCOME ORACLE (the user's decision).
 //!
 //! The picker selection band ships the living-band MORPH glide. A SINGLE
 //! deliberate selection move must GLIDE fully (the choreography plays and the
 //! band settles exactly on the selected row). But under arrow-key AUTO-REPEAT
 //! the glide (~110ms) is outrun: a new re-target arrives while the band is
-//! still mid-flight. The pre-item-48 path CHAINED another lagging glide from
+//! still mid-flight. The former path CHAINED another lagging glide from
 //! the in-flight position, so the drawn band trailed the logical selection —
 //! "catches up every 2nd Down". The HYBRID (`TextPipeline::chase_or_snap`)
 //! SNAPS on any in-flight re-target so `band == selection` at every step, while
@@ -338,7 +338,7 @@ fn rapid_snap_holds_under_left_center_right_anchors() {
 // advances only every second input, with no transition".
 //
 // `take_band_ease_started` is the bridge across that ordering, and these laws
-// sweep the axis the item-48 laws did not: not "where is the band drawn", but
+// sweep the missing axis: not "where is the band drawn", but
 // "did this prepare tell the loop it owes another frame".
 
 /// The exact ordering the live loop uses: `advance` first (what
@@ -354,7 +354,7 @@ fn one_live_frame(
     (stepped, p.take_band_ease_started())
 }
 
-/// THE ITEM-211 LAW, both band seams. A move that arrives on a SETTLED band is
+/// THE SETTLED-BAND LAW, across both band seams. A move that arrives on a SETTLED band is
 /// invisible to the `advance` that ran before `prepare` — that is the whole
 /// defect — so the retarget must report itself, or the ease it just started
 /// never gets a second frame.

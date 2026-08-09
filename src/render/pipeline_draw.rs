@@ -106,7 +106,7 @@ impl TextPipeline {
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let panel_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
         let panel_bind_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-        // ITEM 114 — the summoned workspace's navigation rail shapes into its own
+        // The summoned workspace's navigation rail shapes into its own
         // buffer: it is a column, not more lines of the card's own list.
         let workspace_rail_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
         let placard_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());

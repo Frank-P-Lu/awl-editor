@@ -37,7 +37,7 @@ fn overlay_secondary_column_shares_the_band_row_origin() {
     }
 }
 
-/// WIDTH-SWEEP LAW (item 7) — the summoned card stays fully on-canvas with a
+/// WIDTH-SWEEP LAW — the summoned card stays fully on-canvas with a
 /// margin no smaller than the floor at EVERY window width, for every anchor: the
 /// edge inset collapses toward [`chrome::CARD_EDGE_INSET_FLOOR`] as the window
 /// tightens, then the card re-centers and fills. Pure (no GPU) so it always
@@ -93,7 +93,7 @@ fn overlay_card_box_stays_on_canvas_across_the_width_sweep() {
             }
         }
     }
-    // WIDE: the top-left card holds the FULL interior-rail inset (item 67 — the
+    // WIDE: the top-left card holds the FULL interior-rail inset (the
     // card centers near the viewport's one-third mark).
     let (left, _) = chrome::overlay_card_box_policy(
         theme::CardAnchor::TopLeft,
@@ -243,7 +243,7 @@ fn overlay_row_elements_agree_in_y_flat_and_faceted_every_world() {
     // pipeline metrics exactly like the live app's monitor scale.
     for dpi in [1.0f32, 2.0] {
         p.set_dpi(dpi);
-        // ITEM 104 — THE FULL ROSTER, not a hand-picked subset: e10b9fa's original
+        // THE FULL ROSTER, not a hand-picked subset: the original
         // seven (four Bars poster worlds + three calm ones) left eleven worlds
         // unswept, Mopoke (the live Settings "every second row" witness,
         // 2026-07-26) among them — Pane/RenderCaps::DEFAULT, never exercised by
@@ -619,9 +619,9 @@ fn narrow_gutter_never_wraps_and_both_lines_elide_independently() {
     );
 }
 
-/// ITEM 307 — THE GUTTER'S VISIBILITY GATE READS A LOGICAL QUANTITY, NOT A
-/// DEVICE-PIXEL ONE. Found by item 242's residual lane: `--capture-dpi 2`
-/// reported `gutter.visible: false` at the SAME `--measure` where `--capture-dpi
+/// THE GUTTER'S VISIBILITY GATE READS A LOGICAL QUANTITY, NOT A DEVICE-PIXEL
+/// ONE. A fixed-canvas observation at `--capture-dpi 2` reported
+/// `gutter.visible: false` at the SAME `--measure` where `--capture-dpi
 /// 1` showed it drawn, on the SAME 1200x800 *device* canvas. That turned out to
 /// be a correct decline, not a bug — a fixed device canvas shows LESS logical
 /// content at a higher dpi (`WxH` at dpi N is a `(W/N)x(H/N)` logical window,
@@ -857,7 +857,7 @@ fn caret_preview_panel_appears_below_picker_and_stops_on_close() {
     );
 }
 
-/// ITEM 119 — every authored world must keep the caret-preview float alive below
+/// Every authored world must keep the caret-preview float alive below
 /// a picker, even when the list skin is forced to the card-less Bars treatment.
 /// This sweeps the real roster and independently forces both list layouts at both
 /// monitor scales; the report proves state while the float/border/demo counts prove

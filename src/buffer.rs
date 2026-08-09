@@ -79,7 +79,7 @@ pub(crate) fn word_delete_backward_boundary(
 /// Punctuation and a word are DISTINCT classes that never delete together; only
 /// the whitespace that INTRODUCES a token folds into it. The old rule
 /// (skip-nonword-then-word) over-deleted BOTH the punct run and the word after
-/// it in one stroke — the forward twin of the backward bug item 3(a) fixed.
+/// it in one stroke — the forward twin of the backward deletion rule.
 ///
 /// `char_at(i)` yields the char at 0-based char index `i` (`cursor <= i < len`).
 pub(crate) fn word_delete_forward_boundary(
@@ -197,7 +197,7 @@ pub struct Buffer {
     /// pipeline reads it (via [`Self::affinity`]) to disambiguate the two legit
     /// renders of the boundary column.
     affinity: crate::caret::Affinity,
-    /// LIST-CONTINUATION PROVENANCE (item 78, short-lived): true for exactly one
+    /// LIST-CONTINUATION PROVENANCE (short-lived): true for exactly one
     /// beat after `actions::edit::smart_newline`'s list-item Continue arm opens a
     /// BARE, otherwise-empty bullet/numbered/task continuation line (nothing
     /// carried over from the split line) — so the very next smart-newline
@@ -441,7 +441,7 @@ impl Buffer {
 
     /// Mark this buffer as a freshly-summoned, UNNAMED document living under
     /// `dir`: it has no filename yet; the first non-empty line names it ONCE, on
-    /// the first material save ([`Self::save`] then clears this — item 76's
+    /// the first material save ([`Self::save`] then clears this — the
     /// one-shot naming law: a LATER title edit never re-triggers a rename, since
     /// [`Self::is_unnamed_fresh`] is false from that first save on).
     pub fn set_note_dir(&mut self, dir: PathBuf) {
@@ -535,9 +535,9 @@ impl Buffer {
     /// clicked visible line is not a collapsed heading, or the click is ON the heading
     /// text (which places the caret for editing, unchanged). Column-based (no pixel
     /// geometry): a click past the last glyph is unambiguously "the affordance", never
-    /// content. **item 65 note:** the expand CHEVRON moved to the LEFT margin (a
+    /// content. The expand CHEVRON is at the LEFT margin (a
     /// summoned VISUAL cue); this hit region — and this fn's behavior — is UNCHANGED
-    /// by that move. **item 81 update:** the chevron IS now its own (separate,
+    /// by that move. The chevron is its own (separate,
     /// left-margin, pixel-hit) click target — see [`Self::toggle_fold_at_line`] — so a
     /// collapsed heading keeps TWO generous expand doors: this tail region, still
     /// unchanged, plus the chevron. Clicking anywhere past the heading text (where the
@@ -572,7 +572,7 @@ impl Buffer {
         Some(h)
     }
 
-    /// THE FOLD CHEVRON's own click target (item 81): toggle the fold on EXACTLY
+    /// THE FOLD CHEVRON's own click target: toggle the fold on EXACTLY
     /// `heading_line` — fold it if open, unfold it if folded — regardless of where
     /// the caret currently sits. The ONE owner BOTH directions of a chevron click
     /// share (`crate::fold::toggle_heading`, the same function
@@ -704,7 +704,7 @@ impl Buffer {
         // `Upstream` AFTER its `set_cursor`, so only that survives (see
         // `crate::caret::Affinity`).
         self.affinity = crate::caret::Affinity::Downstream;
-        // Item 78: any plain motion / edit routed through here is exactly the kind
+        // Any plain motion / edit routed through here is exactly the kind
         // of "something intervened" this provenance flag must not survive.
         self.list_continuation_generated = false;
     }
@@ -798,7 +798,7 @@ impl Buffer {
     /// written, no litter). Returns Err if there is no path and no name can be
     /// derived.
     ///
-    /// **ONE-SHOT NAMING (item 76):** this is the ONLY place a fresh document's
+    /// **ONE-SHOT NAMING:** this is the ONLY place a fresh document's
     /// filename is ever derived. Once bound, `note_dir` is cleared in the SAME
     /// step — [`Self::is_unnamed_fresh`] is false from this call on, so it reads
     /// as an ORDINARY pathed file thereafter. A later edit to the first line

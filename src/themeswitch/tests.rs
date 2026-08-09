@@ -13,7 +13,7 @@ use super::*;
 /// shape the coverage floor most needs to hold on. Every law below that needs
 /// "a real transaction" uses this one: the fixture is a measurement, not an
 /// invention, and its eight numbers sum to its own headline.
-fn measured_item241_transaction() -> (SwitchPhases, f32) {
+fn measured_switch_transaction() -> (SwitchPhases, f32) {
     let mut p = SwitchPhases::default();
     p.record(SwitchPhase::Wait, 101.1);
     p.record(SwitchPhase::Font, 0.0);
@@ -99,7 +99,7 @@ fn breakdown_readout_shows_dash_for_an_unrecorded_phase() {
 /// the transaction this item was raised on.
 #[test]
 fn phase_roster_covers_a_real_transaction() {
-    let (phases, total) = measured_item241_transaction();
+    let (phases, total) = measured_switch_transaction();
     for p in SwitchPhase::ORDER {
         assert!(
             phases.get(p).is_some(),
@@ -167,7 +167,7 @@ fn the_shipped_2026_08_03_blind_spot_fails_the_coverage_floor() {
 /// into a false accusation.
 #[test]
 fn a_zero_total_transaction_makes_no_coverage_claim() {
-    let (phases, _) = measured_item241_transaction();
+    let (phases, _) = measured_switch_transaction();
     assert_eq!(phases.coverage(0.0), None);
     assert_eq!(phases.shortfall_ms(0.0), None);
     assert!(!breakdown_readout(&phases, 0.0).contains("unaccounted"));

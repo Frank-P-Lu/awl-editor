@@ -1,4 +1,4 @@
-//! ITEM 289 — `FacetStyle::Text` and `ChipVariant::Underline` drew their
+//! `FacetStyle::Text` and `ChipVariant::Underline` drew their
 //! active-lens mark's THICKNESS in raw device pixels while every other term of
 //! the same rect (position, span) crossed the `Logical` -> `Metrics::px`
 //! boundary — the chrome-pixel-space rule (author in logical units, multiply

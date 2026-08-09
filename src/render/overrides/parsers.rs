@@ -117,7 +117,7 @@ pub(crate) fn parse_motion_force(s: &str) -> Option<theme::MotionJuice> {
 /// `RenderCaps` field — an env-gated layout variant, not a shipped world
 /// option.
 ///
-/// SIGNED (item 131a): the sign picks WHICH edge steps. Positive walks the
+/// SIGNED: the sign picks WHICH edge steps. Positive walks the
 /// row's LEFT edge in while the right edge stays flush with the band (the
 /// shape Mangrove's descending `\` composition needs — the row's own `dx`).
 /// Negative walks the RIGHT edge in while the left edge stays flush (Magpie's

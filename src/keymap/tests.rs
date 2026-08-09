@@ -1674,7 +1674,7 @@ fn changing_one_valid_default_slot_changes_both_label_and_dispatch() {
     assert_eq!(resolve_spec(&mut km, "Cmd-S").last(), Some(&Action::Ignore));
 }
 
-/// ITEM 116c — THE ALTERNATE-ACCEPT CHORD (⇧↵), swept over BOTH conventions
+/// THE ALTERNATE-ACCEPT CHORD (⇧↵), swept over BOTH conventions
 /// and BOTH keymap flavors. Shift reads identically on Mac and Linux (unlike
 /// Cmd/Ctrl, which the whole rest of this module exists to translate), so
 /// `AcceptAlternate` needs no native/emacs catalog slot and no
