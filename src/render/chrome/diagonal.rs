@@ -20,7 +20,9 @@ const SELECTED_OUTWARD: Logical = Logical(4.0);
 /// it. Its own quantity rather than a second reading of [`CLUSTER_CONNECTOR`]:
 /// that one is a connector — it joins the name to the spine and its length is
 /// the join — where this is a gap, and the mark it holds off is authored
-/// per world.
+/// per world. A mark's aperture also owns its visual mass: a compact mark
+/// spends proportionally less empty lane, so the shared composition seats its
+/// vertex nearer the spine without a world-specific placement rule.
 const MARKER_GAP: Logical = Logical(7.0);
 
 /// The mark's vertical inset inside its row, at BOTH ends, before the world's
@@ -145,7 +147,7 @@ impl DiagonalComposition {
             connector: CLUSTER_CONNECTOR.px(scale),
             selected_outward: SELECTED_OUTWARD.px(scale),
             mark_weight: Logical(spine.mark.weight).px(scale),
-            mark_gap: MARKER_GAP.px(scale),
+            mark_gap: MARKER_GAP.px(scale) * spine.mark.aperture,
             mark_reach: Logical(spine.mark.reach).px(scale),
             mark_row_inset: MARKER_ROW_INSET.px(scale),
             mark_aperture: spine.mark.aperture,

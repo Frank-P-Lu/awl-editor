@@ -81,6 +81,24 @@ fn one_composition_owns_the_two_mirrored_orientations() {
     assert_eq!(down.mark_aperture, up.mark_aperture);
 }
 
+/// A compact mark spends less empty lane. This is composition, not a Magpie
+/// placement exception: full-aperture marks retain the former shared gap while
+/// every smaller aperture moves its vertex inward by the same proportion.
+#[test]
+fn marker_gap_tracks_the_authored_mark_aperture() {
+    let full = DiagonalComposition::resolve(
+        spine(theme::DiagonalDirection::Descending, theme::DiagonalMark::CRISP),
+        1.0,
+    );
+    let compact = DiagonalComposition::resolve(
+        spine(theme::DiagonalDirection::Ascending, theme::DiagonalMark::HAIRLINE),
+        1.0,
+    );
+    assert_eq!(full.mark_gap, 7.0);
+    assert_eq!(compact.mark_gap, full.mark_gap * compact.mark_aperture);
+    assert!(compact.mark_gap < full.mark_gap);
+}
+
 /// THE PRESENCE FLOOR the mark's own dimensions answer to — the companion a
 /// contrast or thickness claim needs, because "thinner" is satisfiable all the
 /// way down to nothing.
