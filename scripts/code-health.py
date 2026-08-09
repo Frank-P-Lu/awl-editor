@@ -582,6 +582,15 @@ def comment_citation_backlog(paths: list[str] | None = None) -> dict[str, int]:
     return counts
 
 
+def check_comment_citation_backlog_empty() -> list[str]:
+    """Phase-one completion ratchet: no grandfathered Rust citations remain."""
+    counts = comment_citation_backlog()
+    total = sum(counts.values())
+    if total:
+        return [f"code-health: Rust comment-citation backlog is {total}, expected zero: {counts}"]
+    return []
+
+
 def clippy_diagnostics(output: str) -> dict[tuple[str, str, str, str], int]:
     """Live high-signal diagnostics, keyed the same way the manifest is:
     (lint, file, function, message) -> the diagnostic's own current line
@@ -1824,6 +1833,7 @@ def main() -> int:
     failures.extend(structural_failures)
     failures.extend(check_structural(allowed, file_size_marks, mark_reasons))
     failures.extend(check_index_named_test_files())
+    failures.extend(check_comment_citation_backlog_empty())
     previous, previous_status = previous_marks()
     if previous_status == "unresolvable":
         print(
