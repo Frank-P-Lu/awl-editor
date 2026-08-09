@@ -712,7 +712,7 @@ impl App {
 ///    machine this is his ACTUAL live session: whatever files happen to be
 ///    open in a real `awl` right now leak into the test's `buffer_registry`,
 ///    and `open_buffer_count()`/similar assertions silently start tracking his
-///    editing session instead of the test's fixture (`d93109e` fixed one
+///    editing session instead of the test's fixture (one
 ///    instance of exactly this leak — this closes the door everywhere else it
 ///    was still open).
 ///  - **Scratch stash**: a `file: None` launch reads the scratch buffer's

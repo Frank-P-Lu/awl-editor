@@ -62,7 +62,7 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // 8 calls, every one inside a `crate::fs::with_fs(fake, || ..)`
         // closure seeded with its own `InMemoryFs` — these tests exist
         // specifically to prove what `apply_session_restore` reads back (5),
-        // plus item 76's 3 more: `switch_project` eagerly flushing the new
+        // plus three more: `switch_project` eagerly flushing the new
         // ONE-OWNER root without waiting for blur/quit (1 call), and the
         // A→B→A folder/document/view round-trip test (2 calls — a first App
         // that switches + flushes, a second bare-launch App that resumes from
@@ -95,26 +95,26 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // `InMemoryFs` handle — they exist specifically to prove what
         // `App::reload_config` reads back from `config.path` on disk (and,
         // for the absent-key case, that it must NOT force a default), same
-        // CONTROL + INSPECT need `new_hermetic` hides. (Item 76 REMOVED the 4
+        // CONTROL + INSPECT need `new_hermetic` hides. (The retired four
         // two-desk "Notes" flip tests that used to be accounted for here — the
         // command is retired; there is now exactly one active folder.) Plus 2
-        // ADD-TO-DICTIONARY tests (item 39:
+        // ADD-TO-DICTIONARY tests:
         // `add_to_dictionary_persists_the_word_and_silences_it_live` +
         // `startup_loads_the_personal_dictionary_so_an_added_word_never_squiggles_across_a_restart`),
         // each inside its own `fs::with_fs(fake, ..)` closure with an `InMemoryFs`
         // handle — they prove what `App::add_to_dictionary` writes to (and
         // `App::new` → `load_user_dictionary` reads back from) `dictionary.txt`
         // beside `config.toml` on disk, the same CONTROL + INSPECT need
-        // `new_hermetic` hides. Item 56: this test module now lives in
+        // `new_hermetic` hides. This test module now lives in
         // `app/files/tests.rs` (the former `app/files.rs` monolith's split
         // moved its `#[cfg(test)] mod tests` verbatim into its own file).
-        // Plus item 180's 5 `ProjectLocation`-derivation tests (the
+        // Plus five `ProjectLocation`-derivation tests (the
         // different-parent repro, the same-parent/filesystem-root/explicit-
         // config-workspace/round-trip axis sweep), each inside its own
         // `fs::with_fs(fake, ..)` closure with an `InMemoryFs` handle — they
         // exist specifically to prove what `App::switch_project` leaves
         // `workspace_root` pointing at, so they need the same CONTROL +
-        // INSPECT access `new_hermetic` hides. Plus item 183's 2: the live/
+        // INSPECT access `new_hermetic` hides. Plus two: the live/
         // headless PARITY law (it must compare a live `App`'s derivation against
         // the capture builder's over the SAME injected tree) and the real-chord
         // Switch-project law (it drives `App::apply` through the whole picker
@@ -448,7 +448,7 @@ fn scheduling_reads_runtime_owners_through_typed_poll_boundaries() {
     }
 }
 
-// ── ITEM 76: the two-desk project-flip command + the old quick-notes-home
+// ── The two-desk project-flip command + the old quick-notes-home
 // config key are COMPLETELY retired — a grep-forced law, same source-scan
 // shape as the guard above. NOTE ON THE NEEDLES: built from concatenated
 // fragments AND never spelled out contiguously anywhere in THIS file's own
@@ -571,7 +571,7 @@ fn resync_project_location_is_the_sole_derivation_of_project_location_fields() {
     );
 }
 
-// ── ITEM 183 — THE EVENT-LOOP CENSUS: what stays live-only, exactly ──────
+// ── THE EVENT-LOOP CENSUS: what stays live-only, exactly ──────────────────
 //
 // An `&ActiveEventLoop` can only be borrowed from inside a running winit loop
 // and cannot be constructed, so ANY `App` transition whose signature demands

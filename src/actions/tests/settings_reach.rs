@@ -2,7 +2,7 @@
 //! User report (2026-07-26, world Mopoke): Settings → Editor visibly contains
 //! every row, but moving/selecting through it reaches only ALTERNATING rows
 //! ("every second item being selectable bug is back" — a recurrence of the
-//! 2026-07-17 Firetail report, `e10b9fa`, whose law proved shaper/plate/band
+//! 2026-07-17 Firetail report whose law proved shaper/plate/band
 //! pitch agreement but never reproduced the live symptom).
 //!
 //! This sweeps the axis the earlier probes (all keyed to the Editor facet,
