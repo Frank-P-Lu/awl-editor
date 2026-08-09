@@ -1016,7 +1016,7 @@ fn waves_rgb(px: vec2<f32>) -> vec3<f32> {
 
 // The anchor ring's projected RADIUS, as a fraction of the room's height. The
 // section is a circle, so this is the whole of its size and shape. 0.432 is
-// round 1's own anchor at the narrowest page on the canonical 1600x1000 canvas
+// first placement's anchor at the narrowest page on the canonical 1600x1000 canvas
 // (`3 * page_half` at measure 20 = 432px), which is the composition the live
 // review approved.
 const WARP_SECTION_ROOM_FRAC: f32 = 0.432;
@@ -1037,7 +1037,7 @@ const WARP_PAGE_VEIL: f32 = 0.13;
 // distance over which the minor lattice retires and the veil settles. Composition
 // (the Pinstripe/Zigzag rule), so a 2x display draws the same crossing.
 const WARP_PAGE_EASE_PX: f32 = 52.0;
-// Round 2's own placement, alive only inside the `MarginPlaced` arm: the margin
+// The second placement, alive only inside the `MarginPlaced` arm: the margin
 // widths, in anchors, between which its window slid, and how far in from the
 // page edge the axis landed once it had.
 const WARP_WINDOW_FULL: f32 = 1.0;
@@ -1114,7 +1114,7 @@ const WARP_CORE_FADE_HI: f32 = 4.0;
 const WARP_TUNNEL_PAGE_SCALED: f32 = 0.5;
 const WARP_TUNNEL_MARGIN_PLACED: f32 = 1.5;
 const WARP_TUNNEL_REVERSED: f32 = 2.5;
-// Round 1's authored numbers, alive only inside the `PageScaled` arm: the anchor
+// The first placement's authored numbers, alive only inside the `PageScaled` arm: the anchor
 // ring's diameter in page widths, and where its flank crossed the page edge as a
 // fraction of the room's height.
 const WARP_PAGE_SCALED_RATIO: f32 = 3.0;
@@ -1153,7 +1153,7 @@ fn warp_room_axis(vp_x: f32) -> f32 {
     return vp_x * 0.5;
 }
 
-// ROUND 2'S PLACEMENT, kept as data for the `MarginPlaced` arm: the distance the
+// SECOND PLACEMENT, kept as data for the `MarginPlaced` arm: the distance the
 // axis fell INSIDE the page edge, as a function of the margin's OWN width.
 // Positive hid the axis behind the page; negative brought it out into the
 // margin. See `theme::Tunnel`.
