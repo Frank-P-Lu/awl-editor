@@ -2396,7 +2396,7 @@ pub struct TextPipeline {
     pub wk_card: SelectionPipeline,
     pub wk_renderer: TextRenderer,
     pub wk_buffer: GlyphBuffer,
-    whichkey_rows: Option<Vec<(String, String)>>,
+    wk: WhichKeyDefaults,
     pub popover_wash: SelectionPipeline,
     pub popover_hl_wash: SelectionPipeline,
     pub popover_strike: SpellUnderlinePipeline,
@@ -2570,6 +2570,11 @@ struct HudDefaults {
     saved: Option<crate::hud::HudSaved>,
     update_checked: Option<crate::updates::UpdateChecked>,
     pending_crash: bool,
+}
+
+#[derive(Default)]
+struct WhichKeyDefaults {
+    rows: Option<Vec<(String, String)>>,
 }
 
 /// Flatten the ACTIVE world's [`crate::theme::Background`] into the host-side

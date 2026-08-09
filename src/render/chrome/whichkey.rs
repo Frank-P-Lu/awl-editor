@@ -14,14 +14,14 @@ impl TextPipeline {
     /// (dismiss); the headless `--whichkey` capture sets it once. Idempotent — the
     /// rows only feed the next `prepare_whichkey`.
     pub fn set_whichkey(&mut self, rows: Option<Vec<(String, String)>>) {
-        self.whichkey_rows = rows;
+        self.wk.rows = rows;
     }
 
     /// The which-key panel's rows for the sidecar / tests, or `None` when it is down —
     /// so a headless assertion can confirm the summoned continuation list without
     /// eyeballing pixels. Clones the small row list.
     pub fn whichkey_report(&self) -> Option<Vec<(String, String)>> {
-        self.whichkey_rows.clone()
+        self.wk.rows.clone()
     }
 
     /// Shape + upload the summoned WHICH-KEY hint panel this frame: a calm bottom-left
@@ -48,7 +48,7 @@ impl TextPipeline {
         let m = self.metrics;
 
         // DOWN: park the card elevation + the text off-screen (byte-identical default).
-        let Some(rows) = self.whichkey_rows.clone() else {
+        let Some(rows) = self.wk.rows.clone() else {
             set_float_quads(
                 &mut self.wk_shadow,
                 &mut self.wk_border,

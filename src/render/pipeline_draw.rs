@@ -509,7 +509,7 @@ impl TextPipeline {
             streaks_view: None,
             peek_rows: Vec::new(),
             keybindings_tips: Vec::new(),
-            whichkey_rows: None,
+            wk: WhichKeyDefaults::default(),
             notice: String::new(),
             notice_drawn: String::new(),
             notice_kind: crate::actions::NoticeKind::default(),
