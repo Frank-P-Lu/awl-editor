@@ -29,6 +29,7 @@ mod openable;
 /// The owner-derived durable-write failure matrix.  Precise filesystem faults
 /// stay at tier 1; real-process-only crash and scale arms live in the paired
 /// integration test.
+#[cfg(not(target_arch = "wasm32"))]
 mod persistence_faults;
 /// THE SEMANTIC FOLD'S REACH BOUNDARY: the tree-building path sees a narrow
 /// `SemanticView`, not the live `App`. Native-only, like `crate::app::semantic`.
