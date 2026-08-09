@@ -10,10 +10,6 @@ use crate::buffer::Buffer;
 use crate::keymap::Action;
 use crate::testscratch::ScratchDir;
 
-fn fixture_opts() -> CaptureOpts {
-    CaptureOpts::default()
-}
-
 /// THEME PICKER (FLAT): its runtime lens strip was RETIRED (2026-07-15) — driving the
 /// REAL [`OverlayState::new_theme`] through the capture renders its settled frame as a
 /// FLAT browsable world list, and the sidecar reports `lens: null` / an empty strip /
@@ -47,7 +43,9 @@ fn theme_picker_is_flat_and_reports_no_lens() {
     assert_eq!(ov.active_facet_id(), None);
 
     // Fold it into capture opts exactly as the live replay does (see main/run.rs).
-    let mut opts = fixture_opts();
+    let mut opts = CaptureOpts {
+        ..CaptureOpts::default()
+    };
     // The capture fixture layers optional overlay state for readable scenario setup.
     opts.overlay = Some(OverlayInfo {
         // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
@@ -176,7 +174,9 @@ fn overlay_empty_state_renders_and_reports() {
         ov.item_strings().is_empty(),
         "query filtered everything out"
     );
-    let mut opts = fixture_opts();
+    let mut opts = CaptureOpts {
+        ..CaptureOpts::default()
+    };
     // The capture fixture layers optional overlay state for readable scenario setup.
     opts.overlay = Some(fold(&ov));
     let miss_png = dir.join("miss.png");
@@ -198,7 +198,9 @@ fn overlay_empty_state_renders_and_reports() {
         vec![],
         vec![],
     );
-    let mut opts2 = fixture_opts();
+    let mut opts2 = CaptureOpts {
+        ..CaptureOpts::default()
+    };
     // The capture fixture layers optional overlay state for readable scenario setup.
     opts2.overlay = Some(fold(&ov2));
     let hit_png = dir.join("hit.png");
@@ -232,7 +234,9 @@ fn file_pickers_faceted_lens_render_and_report() {
     use crate::overlay::{OverlayKind, OverlayState};
 
     let fold = |ov: &OverlayState| {
-        let mut opts = fixture_opts();
+        let mut opts = CaptureOpts {
+            ..CaptureOpts::default()
+        };
         // The capture fixture layers optional overlay state for readable scenario setup.
         opts.overlay = Some(OverlayInfo {
             // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
@@ -370,7 +374,9 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
     let buf = Buffer::from_str("preview me\n");
 
     let fold = |ov: &OverlayState| {
-        let mut opts = fixture_opts();
+        let mut opts = CaptureOpts {
+            ..CaptureOpts::default()
+        };
         // The capture fixture layers optional overlay state for readable scenario setup.
         opts.overlay = Some(OverlayInfo {
             // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
@@ -531,7 +537,9 @@ fn command_and_history_pickers_faceted_lens_render_and_report() {
     use crate::overlay::OverlayState;
 
     let fold = |ov: &OverlayState| {
-        let mut opts = fixture_opts();
+        let mut opts = CaptureOpts {
+            ..CaptureOpts::default()
+        };
         // The capture fixture layers optional overlay state for readable scenario setup.
         opts.overlay = Some(OverlayInfo {
             // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
@@ -847,7 +855,9 @@ fn history_preview_folds_text_and_reports_preview_id() {
     // The buffer is the CURRENT text; the preview is a shorter OLDER version.
     let mut buf = Buffer::from_str("now line one\nnow line two\nnow line three\n");
     buf.set_cursor(buf.text().chars().count()); // cursor deep in the buffer
-    let mut opts = fixture_opts();
+    let mut opts = CaptureOpts {
+        ..CaptureOpts::default()
+    };
     // The capture fixture layers optional history state after shared defaults.
     opts.preview_text = Some("old\n".to_string());
     opts.overlay = Some(OverlayInfo {
@@ -938,7 +948,9 @@ fn a_history_preview_leaves_the_card_figures_over_the_users_document() {
     assert_ne!(transcript_reading.words, fixture::WORDS);
     assert_eq!(transcript_reading.lang, None);
 
-    let mut opts = fixture_opts();
+    let mut opts = CaptureOpts {
+        ..CaptureOpts::default()
+    };
     opts.preview_text = Some(fixture::TRANSCRIPT.to_string());
     opts.overlay = Some(OverlayInfo {
         align: crate::render::effective_card_anchor(),
@@ -1103,7 +1115,9 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
     // Fold + render through the SAME owner the one-shot `--keys` capture uses.
     let (info, _preview, _diff) =
         crate::run::overlay_capture_info(&overlay, &buf).expect("the menu is still open");
-    let mut opts = fixture_opts();
+    let mut opts = CaptureOpts {
+        ..CaptureOpts::default()
+    };
     opts.overlay = Some(info);
     let png = dir.join("range.png");
     capture_with(&png, &buf, &opts).expect("the settings range row captures");

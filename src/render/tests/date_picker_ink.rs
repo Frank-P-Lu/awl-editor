@@ -29,10 +29,6 @@ use super::{headless_dqp, view};
 use crate::capture::CaptureOpts;
 use crate::testscratch::ScratchDir;
 
-fn fixture_opts() -> CaptureOpts {
-    CaptureOpts::default()
-}
-
 /// Build the ONE Date-picker overlay content this whole file drives: all five
 /// live example dates (the fixed capture placeholder date, so every run is
 /// byte-stable) + their format-name labels.
@@ -121,7 +117,9 @@ fn capture_date_picker(
     let (items, labels) = date_examples();
     let buf = crate::buffer::Buffer::from_str("hello world\n");
     // The capture fixture layers its optional overlay state for readability.
-    let mut opts = fixture_opts();
+    let mut opts = CaptureOpts {
+        ..CaptureOpts::default()
+    };
     opts.overlay = Some(OverlayInfo {
         active: true,
         mode: crate::overlay::OverlayKind::Date.as_str(),
