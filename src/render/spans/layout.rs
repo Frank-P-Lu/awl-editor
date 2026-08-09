@@ -94,6 +94,22 @@ pub(in crate::render) fn scaled_base_attrs(
     ))
 }
 
+/// The document-wide inputs for [`build_line_attrs`]. Each text update path builds
+/// this once, so adding another shared input requires every path to supply it.
+pub(in crate::render) struct LineAttrsCtx<'a> {
+    pub(in crate::render) base: &'a Attrs<'static>,
+    pub(in crate::render) base_font_size: f32,
+    pub(in crate::render) base_line_height: f32,
+    pub(in crate::render) md: bool,
+    pub(in crate::render) md_spans: &'a [(std::ops::Range<usize>, crate::markdown::MdKind)],
+    pub(in crate::render) syn_spans: &'a [(std::ops::Range<usize>, crate::syntax::SynKind)],
+    pub(in crate::render) doc_lang: Option<crate::frontmatter::Lang>,
+    pub(in crate::render) cjk_priority: &'a [crate::frontmatter::Lang],
+    pub(in crate::render) fonts: &'a super::text::ScriptFonts,
+    pub(in crate::render) cursor_byte: usize,
+    pub(in crate::render) selection_touch: Option<&'a std::ops::Range<usize>>,
+}
+
 /// Assemble ONE buffer line's complete `AttrsList` from the base doc attrs plus
 /// every styling layer, in the canonical order: heading SIZE scale
 /// ([`scaled_base_attrs`]) → markdown spans → syntax spans → CJK family spans →
@@ -117,24 +133,13 @@ pub(in crate::render) fn scaled_base_attrs(
 /// [`TextPipeline::set_text_incremental`], [`TextPipeline::restyle_all_lines`], and
 /// [`TextPipeline::refresh_rule_conceal`], so the three paths can never drift on layer
 /// ordering, membership, or the caret-vs-selection reveal decision.
-#[allow(clippy::too_many_arguments)]
 pub(in crate::render) fn build_line_attrs(
-    base: &Attrs<'static>,
-    base_font_size: f32,
-    base_line_height: f32,
-    md: bool,
+    ctx: &LineAttrsCtx<'_>,
     line_text: &str,
     line_doc_start: usize,
-    md_spans: &[(std::ops::Range<usize>, crate::markdown::MdKind)],
-    syn_spans: &[(std::ops::Range<usize>, crate::syntax::SynKind)],
-    doc_lang: Option<crate::frontmatter::Lang>,
-    cjk_priority: &[crate::frontmatter::Lang],
-    fonts: &super::text::ScriptFonts,
     conceal_off_cursor: bool,
-    cursor_byte: usize,
     image_row_height: Option<f32>,
     image_force: Option<(f32, f32)>,
-    selection_touch: Option<&std::ops::Range<usize>>,
 ) -> glyphon::cosmic_text::AttrsList {
     // A BARE image line (`- ![alt](p)`, no other content) or a wrapped-table row
     // reserves a TALL row at its display height — NORMAL font size (so the
@@ -161,9 +166,13 @@ pub(in crate::render) fn build_line_attrs(
     // stack source-above-image is geometrically impossible with one layout line per
     // row (cosmic-text gives each line ONE vertically-centred baseline), so we lean
     // into the centering rather than fight it.
-    let confirmed_rule =
-        md && line_has_rule_span(md_spans, line_doc_start, line_doc_start + line_text.len());
-    let scale = md_line_scale(line_text, md, confirmed_rule);
+    let confirmed_rule = ctx.md
+        && line_has_rule_span(
+            ctx.md_spans,
+            line_doc_start,
+            line_doc_start + line_text.len(),
+        );
+    let scale = md_line_scale(line_text, ctx.md, confirmed_rule);
     // ROW-HEIGHT LEAD (theme-QA round): a heading's row grows a further,
     // DECOUPLED amount beyond `scale` alone gives its font — vertical
     // breathing room, a second axis (besides size/weight) for the hierarchy
@@ -171,22 +180,37 @@ pub(in crate::render) fn build_line_attrs(
     // (body text AND thematic breaks alike — `md_line_heading_level` is `0`
     // for both), so `row_scale == scale` there, unchanged from before this
     // round.
-    let heading_level = md_line_heading_level(line_text, md);
+    let heading_level = md_line_heading_level(line_text, ctx.md);
     let row_scale = scale * crate::markdown::heading_row_lead(heading_level);
     let (lb, row_lh) = match image_row_height {
         Some(h) => (
-            base.clone().metrics(GlyphMetrics::new(base_font_size, h)),
+            ctx.base
+                .clone()
+                .metrics(GlyphMetrics::new(ctx.base_font_size, h)),
             h,
         ),
         None => (
-            scaled_base_attrs(base, base_font_size, base_line_height, scale, row_scale),
-            base_line_height * row_scale,
+            scaled_base_attrs(
+                ctx.base,
+                ctx.base_font_size,
+                ctx.base_line_height,
+                scale,
+                row_scale,
+            ),
+            ctx.base_line_height * row_scale,
         ),
     };
     let mut al = glyphon::cosmic_text::AttrsList::new(&lb);
-    add_md_line_spans(&mut al, line_text, line_doc_start, &lb, md_spans);
-    add_syn_line_spans(&mut al, line_text, line_doc_start, &lb, syn_spans);
-    add_script_spans(&mut al, line_text, &lb, doc_lang, cjk_priority, fonts);
+    add_md_line_spans(&mut al, line_text, line_doc_start, &lb, ctx.md_spans);
+    add_syn_line_spans(&mut al, line_text, line_doc_start, &lb, ctx.syn_spans);
+    add_script_spans(
+        &mut al,
+        line_text,
+        &lb,
+        ctx.doc_lang,
+        ctx.cjk_priority,
+        ctx.fonts,
+    );
     add_symbol_spans(&mut al, line_text, &lb);
     // SELECTION REVEAL: does the active selection touch THIS line? Same
     // overlap test `wysiwyg_reveals` uses for a concealable span's own byte
@@ -195,8 +219,9 @@ pub(in crate::render) fn build_line_attrs(
     // bulleted list reveals its raw `-`/`*`/`+` exactly like a selected
     // heading reveals its raw `#`, never a mixed state on the same line.
     let line_end = line_doc_start + line_text.len();
-    let line_selected =
-        selection_touch.is_some_and(|st| st.start < line_end && line_doc_start < st.end);
+    let line_selected = ctx
+        .selection_touch
+        .is_some_and(|st| st.start < line_end && line_doc_start < st.end);
     // REVEAL-ON-CURSOR: when the caret is off this line AND the selection
     // doesn't touch it, conceal a thematic break's raw `---` (leaving the
     // fleuron) AND a bullet's raw `-` (leaving the depth glyph). Both are
@@ -204,7 +229,7 @@ pub(in crate::render) fn build_line_attrs(
     // selected line — the raw markup reveals for editing and no ornament is
     // drawn.
     if conceal_off_cursor && !line_selected {
-        add_rule_conceal_span(&mut al, line_text, line_doc_start, &lb, md_spans);
+        add_rule_conceal_span(&mut al, line_text, line_doc_start, &lb, ctx.md_spans);
         add_bullet_conceal_span(&mut al, line_text, &lb);
     }
     add_wysiwyg_conceal_spans(
@@ -212,13 +237,13 @@ pub(in crate::render) fn build_line_attrs(
         line_text,
         line_doc_start,
         &lb,
-        md_spans,
+        ctx.md_spans,
         conceal_off_cursor,
-        cursor_byte,
+        ctx.cursor_byte,
         row_lh,
         image_force,
-        selection_touch,
+        ctx.selection_touch,
     );
-    add_list_indent_span(&mut al, line_text, &lb, base_font_size, row_lh);
+    add_list_indent_span(&mut al, line_text, &lb, ctx.base_font_size, row_lh);
     al
 }

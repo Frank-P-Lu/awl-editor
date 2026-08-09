@@ -773,25 +773,28 @@ impl TextPipeline {
         let md = self.md_enabled;
         let doc_lang = self.doc_lang;
         let cjk_priority = &self.cjk_priority;
+        let line_attrs_ctx = LineAttrsCtx {
+            base: &attrs,
+            base_font_size: base_fs,
+            base_line_height: base_lh,
+            md,
+            md_spans: &md_spans,
+            syn_spans: &syn_spans,
+            doc_lang,
+            cjk_priority,
+            fonts: &fonts,
+            cursor_byte,
+            selection_touch: selection_touch.as_ref(),
+        };
         let line_attrs = |lt: &str, start: usize, li: usize| {
             let conceal_off_cursor = li != cursor_line;
             build_line_attrs(
-                &attrs,
-                base_fs,
-                base_lh,
-                md,
+                &line_attrs_ctx,
                 lt,
                 start,
-                &md_spans,
-                &syn_spans,
-                doc_lang,
-                cjk_priority,
-                &fonts,
                 conceal_off_cursor,
-                cursor_byte,
                 image_heights.get(li).copied().flatten(),
                 image_force.get(li).copied().flatten(),
-                selection_touch.as_ref(),
             )
         };
 
@@ -930,27 +933,30 @@ impl TextPipeline {
                     .unwrap_or(0)
             },
         );
+        let line_attrs_ctx = LineAttrsCtx {
+            base: &attrs,
+            base_font_size: base_fs,
+            base_line_height: base_lh,
+            md,
+            md_spans: &md_spans,
+            syn_spans: &syn_spans,
+            doc_lang,
+            cjk_priority: &cjk_priority,
+            fonts: &fonts,
+            cursor_byte,
+            selection_touch: selection_touch.as_ref(),
+        };
         let mut start = 0usize;
         for li in 0..self.buffer.lines.len() {
             let tlen = self.buffer.lines[li].text().len();
             if let Some(line) = self.buffer.lines.get_mut(li) {
                 let al = build_line_attrs(
-                    &attrs,
-                    base_fs,
-                    base_lh,
-                    md,
+                    &line_attrs_ctx,
                     line.text(),
                     start,
-                    &md_spans,
-                    &syn_spans,
-                    doc_lang,
-                    &cjk_priority,
-                    &fonts,
                     li != cursor_line,
-                    cursor_byte,
                     image_heights.get(li).copied().flatten(),
                     image_force.get(li).copied().flatten(),
-                    selection_touch.as_ref(),
                 );
                 line.set_attrs_list(al);
             }
@@ -1032,6 +1038,19 @@ impl TextPipeline {
         let mut image_force = std::mem::take(&mut self.image_force);
         let wrap = self.text_wrap_width();
         let base_font_size = self.metrics.font_size;
+        let line_attrs_ctx = LineAttrsCtx {
+            base: &attrs,
+            base_font_size: base_fs,
+            base_line_height: base_lh,
+            md,
+            md_spans: &md_spans,
+            syn_spans: &syn_spans,
+            doc_lang,
+            cjk_priority: &cjk_priority,
+            fonts: &fonts,
+            cursor_byte,
+            selection_touch: selection_touch.as_ref(),
+        };
         let mut changed = false;
         let mut start = 0usize;
         for li in 0..self.buffer.lines.len() {
@@ -1113,22 +1132,12 @@ impl TextPipeline {
                 && let Some(line) = self.buffer.lines.get_mut(li)
             {
                 let al = build_line_attrs(
-                    &attrs,
-                    base_fs,
-                    base_lh,
-                    md,
+                    &line_attrs_ctx,
                     line.text(),
                     start,
-                    &md_spans,
-                    &syn_spans,
-                    doc_lang,
-                    &cjk_priority,
-                    &fonts,
                     li != cursor_line,
-                    cursor_byte,
                     image_heights.get(li).copied().flatten(),
                     image_force.get(li).copied().flatten(),
-                    selection_touch.as_ref(),
                 );
                 changed |= line.set_attrs_list(al);
             }
