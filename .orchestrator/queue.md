@@ -261,7 +261,7 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **358, 369** — independent, no ordering constraint among them.
+1. **369** — finish the theme-data-model cleanup already in flight.
 2. **174** — multi-round refactor, continues by slices.
 3. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **231**
    needs the approved macOS guest-VM spend; **251** needs a human at a Linux desktop with
@@ -293,24 +293,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      containment laws over staggered rows (Saltpan publishes `x` left of `band_x`); the first
      slice's bench delta read as contention noise, so confirmation is owed on a quiet host.
      **Routing:** deep owner with a production-tier outcome audit.
-
-358. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
-     `codex/item-358-persistence-fault-matrix`. Persistence fault matrix over the file lifecycle** — fakes for precise failures, real
-     processes only where a fake cannot prove the claim. Existing coverage stands
-     (`tests/fault_kill9.rs`, `external_item204`, live-App save/autosave/conflict suites) —
-     census first, do not rebuild those journeys. The missing matrix is failure by PHASE ×
-     OWNER: tmp-write, final rename, parent renamed/removed, permission/disk-full while
-     dirty, interrupted export, kill-during-autosave + relaunch, large-doc bounds.
-     **Tier 1:** scripted failing filesystem backend naming operation + ordinal; sweep every
-     durable owner (manual save, autosave, scratch, recovery, history, config/session,
-     export); user files keep previous complete bytes + recoverable dirty buffer + calm
-     durable failure; app metadata never blocks editing or corrupts a sibling. Enrolment from
-     the production owner roster. **Tier 2:** only what fakes can't witness — kill real
-     editor during autosave + relaunch; interrupted replacement export yields old-complete or
-     new-complete, never torn; large-manuscript journey with size/time/memory reported.
-     Synchronize on observed writes, never wall-clock. Isolated HOME/XDG per child.
-     **Done:** matrix report names every owner × phase and every exclusion; each law
-     mutation-proven; POSIX-only arms gated, not pretended portable. **Routing:** deep tier.
 
 369. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
      `codex/item-369-theme-data-model`. Clean the theme data model before the custom-world composer makes it a public
