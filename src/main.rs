@@ -405,6 +405,7 @@ fn main() -> Result<()> {
     // persistence laws that a scripted filesystem cannot witness (process
     // death, replacement interruption, and resident memory). Hidden and
     // intercepted before the ordinary parser, like `--fault-write-loop`.
+    #[cfg(not(target_arch = "wasm32"))]
     if let Some(pos) = std::env::args().position(|a| a == "--persistence-fault-probe") {
         let mut rest = std::env::args().skip(pos + 1);
         let operation = rest
