@@ -312,21 +312,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      **Done:** matrix report names every owner × phase and every exclusion; each law
      mutation-proven; POSIX-only arms gated, not pretended portable. **Routing:** deep tier.
 
-367. 🟡 **IN PROGRESS — codex (production tier), branch
-     `codex/item-367-typed-json-tests`. The sidecar is parseable JSON and four test files
-     scan it as a string.**
-     `capture/tests/panels.rs`: 20 `.contains(` against rendered prose (`:71` pins a literal
-     panel-text run); `schema_chrome.rs`: 24. One wording or serializer-spacing change breaks
-     ~20 literals that were never about wording. `serde_json` is already a dep; the existing
-     helper `num_after` (`capture/tests/mod.rs:137`) is itself a string scanner — part of the
-     subject. **Build:** one parse-then-assert-typed helper in `capture/tests/mod.rs`,
-     replacing the literals and `num_after` call sites; assert the same FACTS (a typed read
-     of an unchecked field is scope creep; a dropped check is a law going vacuous). Then the
-     bigger payoff, separate commit/round: `export/tests.rs` (**57** `.contains`) and
-     `export/pdf/tests.rs` (**58**) — export needs its own parse seam. **Verify:** each
-     converted assertion proven non-vacuous by breaking the field it reads. **Routing:**
-     production tier.
-
 369. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
      `codex/item-369-theme-data-model`. Clean the theme data model before the custom-world composer makes it a public
      contract.** Census every `Theme`/`RenderCaps` capability × adopting worlds; zero/one

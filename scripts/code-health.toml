@@ -287,7 +287,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2734
+lines = 2733
 reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +10: the `footer_plate_rim` pipeline field and its construction, on the file whose GPU floor is a declared exception. +34: the `Millis` family and its `progress_per` door -- the BY-KIND exclusion that makes a duration uncarryable into a pixel multiply, so the compiler refuses `metrics.px(a_duration)` instead of a name list promising nobody will try. Plus the declaration doc comments for `PAGE_TEXT_PAD_CHARS` and the two caret pads, each naming which scale factor it is entitled to -- the classification's evidence lives at the declaration, because a classification whose reason lives in a test is the one that gets re-guessed. Item 355 (+14): `Logical` reaches the theme layer -- the doc for `PageFrame::Line`'s stroke and for the `RenderCaps` spell gap, plus the two further caret-corner call sites that were scaled by nothing whatever. The docs are the deliverable here: a length whose type says `Logical` still needs the sentence saying which pipeline resolves it, because this family already shipped one field named `_px` that no consumer reads at all. +15: `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` make each inert field group one exhaustive default value; these declarations live beside `TextPipeline`, the only owner that embeds them."
 
 [[file_size_mark]]
@@ -323,7 +323,8 @@ reason = "This file is the one owner of a bar's span, and of the chrome-facing g
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
-lines = 894
+lines = 895
+reason = "The combined tree adds one present-tense ownership comment while preserving the outline geometry and draw seams unchanged."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay.rs"
