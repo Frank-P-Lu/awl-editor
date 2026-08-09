@@ -668,7 +668,7 @@ grep -Fq 'native-gate-receipt' "$WORK/output-success" || {
   echo "test-native-gate: successful sibling suites emitted no receipt" >&2
   exit 1
 }
-grep -Fq "unit_tests=$(wc -l <"$WORK/awl-test-list") unit_shards=6 integration_targets=1" \
+grep -Fq "unit_tests=$(awk 'END { print NR }' "$WORK/awl-test-list") unit_shards=6 integration_targets=1" \
   "$WORK/output-success" || {
     echo "test-native-gate: receipt did not state its proved unit/shard/integration scope" >&2
     exit 1
