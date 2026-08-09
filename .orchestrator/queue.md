@@ -150,9 +150,10 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
   to enter the stage? Held by a two-sided ledger meanwhile.
 - 🔵 **The find/replace panel** (item 174 slice 3): outer margin and inner pad
   are raw device-px constants — half their tuned size on every Retina display
-  (CLAUDE.md's own tripwire, live again). Not fixed because the 1× look is what
-  was tuned; the law is fix-tolerant if you say scale it. Also: the card has no
-  clamp to the window — `x` reaches −33 at 560 px width.
+  (CLAUDE.md's own tripwire, live again). Not promoted because the 1× look is
+  what was tuned; the law is fix-tolerant if you say scale it. The objective
+  narrow-window defect is closed: the card now caps to the available width,
+  wraps its complete teaching copy, and stays inside both canvas edges.
 - 🔵 **The right-click menu no longer dims your document** (item 298): carded
   worlds get no frost at all; bare worlds frost the menu's own footprint only.
   Before/after differs on 76–79% of pixels; `gallery/item-298/`. Revert is one
@@ -260,7 +261,7 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **378, 382** — independent closure wave for machine-doable
+1. **382** — finish the machine-visible Retina/gallery audit already in flight.
    residuals recovered from OWED.
 2. **🔵 HUMAN / LIVE** — only after the closure wave reclassifies every
    remaining OWED entry by evidence. **231**
@@ -271,14 +272,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 ---
 
 ## Open items
-
-378. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
-     `codex/item-378-render-residuals`. Close objective render residuals without making taste calls.**
-     Reproduce and clamp the find/replace panel's negative x at the 560 px narrow transition;
-     keep its physical-vs-logical pad choice blocked. Inventory remaining inline pixel literals,
-     classifying ratios/grid tolerances separately from authored lengths. **Done:** objective
-     overflow has a mutation-proven law, ordinary-width output is byte-identical, and every
-     remaining anonymous length is either named/typed or proven not to be an authored pixel dial.
 
 382. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
      `codex/item-382-retina-audit`. Close the machine-visible gallery debt without choosing taste.**
