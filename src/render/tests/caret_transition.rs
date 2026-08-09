@@ -1,4 +1,4 @@
-//! ITEM 105 — THE CARET CELL TRANSITION LAW. Item 91 introduced the two-arm
+//! THE CARET CELL TRANSITION LAW. The caret has a two-arm
 //! `caret_cell_vertical` (a real INK BOX on a single proportional glyph, a
 //! LINE CELL everywhere else) and proved each arm correct IN ISOLATION. Nothing
 //! it wrote ever constructed the SEAM between them: two adjacent caret columns
@@ -15,40 +15,40 @@
 //! `caret_cell_vertical`'s numbers are not an approximation of what gets drawn,
 //! they are literally the values [`TextPipeline::caret_geometry`] feeds the GPU
 //! quad, so a law here about `(cy, h)` is a law about the rendered rectangle's
-//! top/bottom pixels (mirroring how `caret_ink_box.rs`'s own item-91 laws read
+//! top/bottom pixels (mirroring how `caret_ink_box.rs`'s laws read
 //! pixel-exact geometry rather than decoding a PNG).
 //!
-//! NON-VACUITY. Every sweep below also computes the item-91-only OLD fallback
+//! NON-VACUITY. Every sweep below also computes the OLD fallback
 //! formula (`cy = caret.pos.y`, `h = caret_block_h * cursor_scale()` — byte-copy
-//! of the pre-105 `caret.rs`/`facepitch.rs`, i.e. `main`/`07f1b7d`'s line-cell
+//! of the former `caret.rs`/`facepitch.rs` line-cell
 //! arm) and asserts that number alone WOULD have blown the bound — so the
-//! fixture is proven capable of catching the exact regression this item
-//! repairs, not merely passing by construction. Confirmed directly: this whole
+//! fixture is proven capable of catching the exact regression, not merely
+//! passing by construction. Confirmed directly: this whole
 //! file, run with `src/render/caret.rs` + `src/render/facepitch.rs` reverted to
-//! their pre-105 `main` state (the same two-arm formula item 91/07f1b7d
-//! shipped — item 97/main only changed WHICH worlds take which arm, never the
+//! their former `main` state (the same two-arm formula; the pitch classifier
+//! only changed WHICH worlds take which arm, never the
 //! formula), fails every test exercising the `aaa`/x-height class this
 //! docstring's own numbers are drawn from, and passes them all once the repair
 //! is restored — stated as the CLASS that fails, because the fractions that
 //! stood here counted a file since grown. See the commit history for the
 //! console output this proof produced.
 //!
-//! SWEPT AXES (the ones item 91's laws did not): the full proportional-world
+//! SWEPT AXES: the full proportional-world
 //! roster (not just the two the user found), representative glyph classes
 //! (x-height / ascender / descender / punctuation / digit / capital / space /
 //! EOL / empty line / ligature), Block AND Morph (rest — travel is proven
 //! UNAFFECTED, not simply re-measured, since a moving caret is a streak with
 //! no cell to jump), a wrapped-line boundary, two zooms including a non-1.0
 //! value, and 1x/2x DPI — plus the mono complement (must stay at ZERO
-//! discontinuity: item 97's grid never leaves the line-cell arm, so there is
+//! discontinuity: the mono grid never leaves the line-cell arm, so there is
 //! no seam to jump across there).
 //!
-//! THE REPAIR ROUND (found auditing this item's own first landing, `12c2fb4`).
+//! THE NEIGHBOR-BORROW REPAIR.
 //! The first fix's fallback synthesized a "typical letter" box from a per-font
 //! MEAN of x-height/cap-height ratios — a single fixed reference that closed
 //! the reported x-height class but, unswept, silently REGRESSED every other
 //! class it never tested: a CAPITAL letter (absent from the class roster
-//! entirely) landed WORSE than the pre-105 code on 11/11 proportional worlds
+//! entirely) landed WORSE than the former code on 11/11 proportional worlds
 //! (new Δ 2.3–4.4px vs old Δ 0.4–2.9px), and the WIDE-bound "no worse than
 //! before" law meant to catch exactly that kind of regression could not,
 //! because its ceiling FLOORED at the wide bound regardless of how small
@@ -108,7 +108,7 @@ const TRANSITION_BOUND_PX: f32 = 3.0;
 /// ABSOLUTE, not "no worse than the pre-105 formula": the repair round found
 /// that framing was the WRONG invariant here — pre-105's number was a crude
 /// row-centred guess, post-105's is the glyph's OWN real ink (a genuine
-/// improvement item 105 made on purpose), so the two can legitimately differ
+/// deliberate improvement), so the two can legitimately differ
 /// by any natural amount without either being a regression; a "no worse than
 /// old" check on a fixture where "new" is now simply CORRECT produced a false
 /// positive (Mopoke's real `fi`→`n` ligature step is 6.0px, comfortably sane,
@@ -143,7 +143,7 @@ fn cell_at(p: &mut TextPipeline, text: &str, line: usize, col: usize) -> (f32, f
     p.caret_cell_vertical()
 }
 
-/// The OLD (pre-item-105) line-cell arm's `(center_y, height)` at the CURRENT
+/// The OLD line-cell arm's `(center_y, height)` at the CURRENT
 /// view, byte-identical to `caret_cell_vertical`'s fallback arm before this
 /// item — the non-vacuity oracle every sweep below checks itself against.
 fn old_fallback_cell(p: &TextPipeline) -> (f32, f32) {
@@ -259,7 +259,7 @@ fn aaa_to_eol_transition_is_bounded_on_every_proportional_world() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// THE MONO COMPLEMENT: item 97's uniform grid never leaves the line-cell arm
+/// THE MONO COMPLEMENT: the uniform grid never leaves the line-cell arm
 /// on EITHER side of an "aaa"->EOL step (the ink-box arm is gated off entirely
 /// on a mono world), so there is no seam to jump across — the transition must
 /// be EXACTLY zero, not merely bounded.
@@ -309,7 +309,7 @@ fn aaa_to_eol_transition_is_exactly_zero_on_every_mono_world() {
 /// roster, at the LITERAL adjacent seam: ascender, x-height, descender,
 /// punctuation, digit, and CAPITAL — each as the very last character before
 /// end-of-line, immediately followed by it, the exact shape the headline
-/// `aaa` fixture uses for `a`. This is the axis the FIRST item-105 landing did
+/// `aaa` fixture uses for `a`. This is the axis the first repair did
 /// not sweep: CAPITAL was entirely absent from its class roster, and on that
 /// exact absence the first landing regressed 11/11 proportional worlds
 /// against pre-105 (new Δ 2.3–4.4px vs old Δ 0.4–2.9px) without any test
@@ -412,7 +412,7 @@ fn every_glyph_class_closes_exactly_at_the_literal_eol_seam() {
 /// THE LIGATURE SEAM: `caret_anchor_ink_box` deliberately gates a multi-char
 /// LIGATURE cluster OUT of the real ink-box arm (its horizontal ink can't be
 /// fairly split across the chars it covers), so a ligature-anchored column
-/// used to fall all the way to the item-91 fixed line-cell — the SAME jump the
+/// used to fall all the way to the fixed line-cell — the SAME jump the
 /// glyphless case had. `"fine"` genuinely ligates `fi` into one glyph on every
 /// bundled proportional prose face (confirmed by probe: `caret_anchor_ink_box`
 /// is `None` at both col 0 and col 1 while `caret_anchor_raster_box` is
@@ -453,7 +453,7 @@ fn ligature_to_plain_glyph_transition_is_bounded() {
         let (cy0, h0) = p.caret_cell_vertical();
 
         let (cy1, h1) = cell_at(&mut p, text, 0, 2); // the plain 'n' — the ink-box
-        // arm's own value, UNCHANGED by item 105.
+        // arm's own value, unchanged by the transition repair.
         assert!(
             p.caret_anchor_ink_box().is_some(),
             "{}: 'n' must be a plain single-glyph anchor",
@@ -526,16 +526,15 @@ fn wrap_boundary_transition_is_bounded_on_a_proportional_world() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// LEADING WHITESPACE BEFORE A CAPITAL — the SECOND repair round (found
-/// auditing the first one, `12c2fb4`/`fdbc0da`). That round's neighbor-borrow
+/// LEADING WHITESPACE BEFORE A CAPITAL. A one-sided neighbor borrow
 /// tried only `raster_box_at(col - 1)`, a single BACKWARD hop, so a glyphless
 /// anchor at COLUMN 0 (no `col - 1` to borrow from at all) fell straight to
 /// the synthetic guess even though a real letter sits one column FORWARD.
 /// `" A"` is the literal mirror-direction shape of every fixture the first
 /// round shipped (all real-glyph -> glyphless, never glyphless -> real-glyph):
 /// any line beginning with a leading space or indentation before a
-/// capitalized word reproduces this directly. The second round's
-/// `TextPipeline::nearest_row_raster_box` searches OUTWARD (both
+/// capitalized word reproduces this directly. The current
+/// `TextPipeline::nearest_row_raster_box` searches OUTWARD in both
 /// directions), so column 0 now finds the capital ONE column forward and the
 /// seam closes.
 #[test]
@@ -727,7 +726,7 @@ fn run_of_glyphless_columns_stays_bounded_end_to_end() {
 }
 
 /// AN EMPTY LINE'S synthetic cell stays a REASONABLE, bounded size — never the
-/// item-91-original "large empty accent cap" (a fixed ~22px cell regardless of
+/// former "large empty accent cap" (a fixed ~22px cell regardless of
 /// the font) and never degenerate (zero/negative). Compared against the SAME
 /// world's real ink-arm height on an ordinary x-height letter, which the
 /// synthetic box is explicitly modelled to approximate.
@@ -773,7 +772,7 @@ fn empty_line_synthetic_cell_stays_reasonable_not_the_old_fixed_cap() {
             t.name
         );
         // Bounded BOTH ways: not collapsed to nothing, and not the old fixed
-        // ~0.8*row-height cap regardless of the letter (item 91's original bug,
+        // ~0.8*row-height cap regardless of the letter (the original bug,
         // reproduced at the seam if this synthetic box regresses to it). TIGHT
         // (repair round): the previous `h_glyph*2.0+4px` bound was wide enough
         // (36–44px, measured) that the OLD FIXED CAP it names (~22.4px, every
@@ -813,7 +812,7 @@ fn empty_line_synthetic_cell_stays_reasonable_not_the_old_fixed_cap() {
 /// transition stays bounded at EVERY pixel scale, with the bound itself scaled
 /// by that same factor (`pixel_scale`) — proving the fix is a geometric
 /// relationship, not a value tuned to look right only at the capture's default
-/// zoom/DPI. Mindful of the documented zoom trap (CLAUDE.md / item 93/96): this
+/// zoom/DPI. Mindful of the documented zoom trap: this
 /// reads `caret_cell_vertical`'s OWN already-scaled pixel output directly,
 /// never a sidecar field, so there is no scaled/unscaled unit mismatch to fall
 /// into.
@@ -954,7 +953,7 @@ fn morph_rest_transition_is_bounded_through_caret_geometry() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// MORPH, TRAVELLING: item 105 touches only the REST endpoint inside
+/// MORPH, TRAVELLING: the transition repair touches only the REST endpoint inside
 /// `caret_cell_vertical`; a moving caret is a thin STREAK
 /// (`motion_geometry`), with no cell to jump between columns at all. Widens
 /// `caret_ink_box.rs`'s own `moving_caret_streak_is_unaffected_by_the_ink_box`
@@ -1019,7 +1018,7 @@ fn morph_travel_stays_a_thin_streak_on_every_proportional_world() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// THE THEME-PICKER PREVIEW SEAM (found auditing item 105's own repair). The
+/// THE THEME-PICKER PREVIEW SEAM. The
 /// caret's proportional-fallback branch gate and its synthetic ratio lookup
 /// must read [`TextPipeline::doc_family`] (the LIVE face the ACTIVE theme
 /// wants) — NOT `shaped_font` (the face the document is ACTUALLY shaped in
@@ -1029,8 +1028,7 @@ fn morph_travel_stays_a_thin_streak_on_every_proportional_world() {
 /// font reshape (`sync_theme_font`) catches up — the whole point of the
 /// split, so a fast preview scrub never pays a reshape per arrow press.
 ///
-/// Before item 105 this never mattered: a GLYPHLESS anchor's fallback was one
-/// constant formula regardless of font identity. Item 105 made the fallback
+/// This matters because a GLYPHLESS anchor's fallback is now
 /// font-aware, so reading the LAGGING `shaped_font` there would leave the
 /// caret itself showing STALE (source-world) geometry for the entire window
 /// between a preview's color retint and its deferred reshape — exactly the
@@ -1039,8 +1037,8 @@ fn morph_travel_stays_a_thin_streak_on_every_proportional_world() {
 /// to catch (a full-frame pixel diff caught this directly during development;
 /// this is the fast unit-level companion, pinned at the exact seam).
 ///
-/// Non-vacuous: reverting the caller's gate to `self.shaped_font` (item 105's
-/// first draft) makes this red — the MONO source's stale `shaped_font` makes
+/// Non-vacuous: reverting the caller's gate to `self.shaped_font` makes this
+/// red — the MONO source's stale `shaped_font` makes
 /// `caret_cell_vertical` take the old byte-identical MONO branch even after
 /// the active theme (and the caret's OWN colour) have already moved to a
 /// PROPORTIONAL destination.
@@ -1125,7 +1123,7 @@ fn caret_fallback_geometry_tracks_the_live_theme_not_the_lagging_shaped_font() {
 /// font's ratio (`doc_family()`, live) produces a mixed-font number neither
 /// factor alone would — confirmed empirically (throwaway probe, reverted):
 /// worst case 5.19px at (Tawny → Bilby), the SAME magnitude as the original
-/// item-91/105 bug this whole file exists to close.
+/// transition bug this whole file exists to close.
 ///
 /// THE FIX: `caret_synthetic_ink_box`'s ratio now reads `caret_row_metrics`'s
 /// own THIRD element — whichever font actually produced the ascent it is
@@ -1139,8 +1137,8 @@ fn caret_fallback_geometry_tracks_the_live_theme_not_the_lagging_shaped_font() {
 /// drop in the worst-case residual, swept over every mono-source ×
 /// proportional-destination pair on a genuinely shaped row.
 ///
-/// FIXTURE (updated by item 105's SECOND repair round): a real letter ANYWHERE
-/// on the caret's row is no longer safe here — that round widened the
+/// FIXTURE: a real letter ANYWHERE on the caret's row is no longer safe here —
+/// the nearest-raster repair widened the
 /// neighbor-borrow from one fixed hop to an OUTWARD search across the WHOLE
 /// row (`TextPipeline::nearest_row_raster_box`), so a row containing any real
 /// ink at all (the original `"a  "`) now legitimately borrows it instead of
@@ -1238,7 +1236,7 @@ fn caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// ITEM 105 — THE THIRD REPAIR ROUND. Round 2's `nearest_row_raster_box`
+/// THE INTERPOLATION REPAIR. `nearest_row_raster_box` previously
 /// searched outward and hard-PICKED whichever side won (backward on a tie).
 /// That borrows exactly ONE side's ink, so a glyphless column tied between
 /// two DIFFERENT real letters (a table's `"| 1"` — pipe one side, digit the
@@ -1266,7 +1264,7 @@ fn caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent() {
 /// instead of one absorbing all of it. Both seams measure well inside the
 /// empirical bar on every world (worst observed 4.0px, a third of the
 /// bar's 14.0px), and — the mechanism claim — the two seams are now
-/// (near-)SYMMETRIC, which round 2's hard pick structurally could not
+/// (near-)SYMMETRIC, which a hard pick structurally cannot
 /// produce (a hard pick always drove one side to 0 and the other to the
 /// full gap).
 #[test]
@@ -1354,7 +1352,7 @@ fn glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar() {
         );
         worst_glyphless = worst_glyphless.max(bwd / ps).max(fwd / ps);
         // THE MECHANISM CLAIM: a tied single space between two different
-        // letters must now be (near-)SYMMETRIC — round 2's hard pick could
+        // letters must now be (near-)SYMMETRIC — the hard pick could
         // never produce this (one side was always exactly 0, the other the
         // whole gap).
         sym_worst = sym_worst.max((bwd - fwd).abs() / ps);
@@ -1413,9 +1411,8 @@ fn glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// THE INTERIOR-FLIP DEFECT (disclosed, out of item 105's original stated
-/// scope but the same mechanism): a run of 4+ glyphless columns flanked by
-/// two DIFFERENT real letters. Round 2's nearest-distance-wins pick made
+/// THE INTERIOR-FLIP DEFECT: a run of 4+ glyphless columns flanked by two
+/// DIFFERENT real letters. The nearest-distance-wins pick made
 /// exactly ONE interior column switch from "nearest is the left letter" to
 /// "nearest is the right letter" — a hard, single-column STEP from one
 /// letter's full ink to the other's, with nothing between to soften it
@@ -1491,8 +1488,8 @@ fn interior_run_between_two_different_letters_has_no_flip_step() {
 /// [`class_role`] is the ONE no-wildcard match that assigns every variant a
 /// role in the sweep below — a class added here without a role in that match
 /// fails to compile, so a new class cannot silently dodge the law the way
-/// every prior round's hand-picked fixture list could (round 1 tested one
-/// direction; round 2 tested a handful of ad hoc pairs; neither swept the
+/// hand-picked fixture lists could (one tested a single direction; another
+/// tested a handful of ad hoc pairs; neither swept the
 /// cross-product).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum GlyphClass {
@@ -1566,10 +1563,10 @@ fn endpoint_classes() -> Vec<(GlyphClass, &'static str)> {
 /// at most ONE side of the transition it measured (a literal-adjacency
 /// closure, or a run flanked by copies of the SAME letter) — a shape that is
 /// structurally INCAPABLE of exposing a directional asymmetry, because there
-/// is only one direction to have an asymmetry IN. Round 2's actual open
+/// is only one direction to have an asymmetry IN. The open
 /// defect needed a glyphless column with TWO DIFFERENT real letters, one on
-/// each side, and every round's law before this one swept at most one
-/// hand-picked instance of that shape (round 3's own "| 1" fixture: pipe and
+/// each side, while earlier laws swept at most one hand-picked instance of
+/// that shape (the "| 1" fixture: pipe and
 /// digit, and nothing else).
 ///
 /// This law sweeps the ORDERED PAIR cross-product of the full 10-class
@@ -1579,10 +1576,10 @@ fn endpoint_classes() -> Vec<(GlyphClass, &'static str)> {
 /// on EVERY proportional world, in BOTH directions: `"{A} {B}"` and
 /// `"{B} {A}"` are different fixtures, because the space's BACKWARD seam
 /// borrows from whichever letter sits behind it and its FORWARD seam borrows
-/// from whichever sits ahead, and round 2's hard "nearest wins" pick made
+/// from whichever sits ahead, and the hard "nearest wins" pick made
 /// those two seams structurally UNEQUAL (one always ~0, the other the whole
 /// gap) — a claim about DIRECTION, not magnitude, which a bound-only check
-/// cannot catch even at a generous bound (round 2's worst-case single-seam
+/// cannot catch even at a generous bound (the hard pick's worst-case single-seam
 /// magnitude, ~11.85px, still clears a ~14px bar) — see the SYMMETRY assert
 /// below, which is the actual load-bearing check this law adds.
 ///
@@ -1590,21 +1587,21 @@ fn endpoint_classes() -> Vec<(GlyphClass, &'static str)> {
 /// endpoint classes' own ISOLATED real-ink cell (no fallback, no neighbor —
 /// a plain [`TextPipeline::caret_anchor_raster_box`] read), pairwise-diffed —
 /// the same "glyph-to-glyph transitions nobody has filed as a bug" measurement
-/// round 3 introduced, generalized from one hand-picked pair to the full
+/// interpolation testing introduced, generalized from one hand-picked pair to the full
 /// 7-class roster and computed once per world instead of re-shaped per pair.
 ///
 /// Phases 2–4 place the three STRUCTURAL classes (`Eol`, `EmptyLine`,
 /// and `Space` as an endpoint in its own right — leading and trailing) in the
 /// same sweep, so all 10 roster classes are actually exercised, not merely
-/// declared. The MONO complement (item 97's uniform grid) closes the loop:
+/// declared. The MONO complement's uniform grid closes the loop:
 /// every one of the same ordered pairs must read EXACTLY zero there, since a
 /// mono world never leaves the line-cell arm at all.
 ///
 /// NON-VACUITY (see the orchestrator's own required proof, reproduced in the
-/// commit message / task report): this law is RED on `b0ca2cf` (round 2's
+/// commit message / task report): this law is RED on the hard-pick implementation
 /// hard-pick code) via the symmetry assert — at least one ordered pair's
 /// backward/forward seams differ by more than half the bar. It is RED on
-/// `f30519a` (the pre-item-105 baseline) via the per-seam bound assert on the
+/// the former baseline via the per-seam bound assert on the
 /// `"{X-height} {Eol-adjacent...}"`-style fixtures reproducing the original
 /// `aaa`→EOL class of jump. It is GREEN on this round's landed blend.
 #[test]
