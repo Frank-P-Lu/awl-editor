@@ -73,13 +73,17 @@ impl TextPipeline {
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         match_pipeline.set_dither(wagtail_dither_density());
         match_pipeline.set_dither_cell(wagtail_stipple_cell_px(1.0));
-        let selection_invert = SelectionPipeline::new_invert(device, &sel_shader, format);
+        let swap_ground = theme::base_300().rgba_bytes();
+        let swap_ink = theme::base_content().rgba_bytes();
+        let selection_invert =
+            SelectionPipeline::new_two_colour(device, &sel_shader, format, swap_ground, swap_ink);
         // THE 1-BIT CARET ROUND: the caret's own true-inverse-video sibling —
         // same construction, own instance/instance-buffer so the caret's
         // per-frame rect can't collide with the selection's (see the field
         // doc + `prepare_caret_block` / `draw_document_layers`). Idle on
         // every other world.
-        let caret_invert = SelectionPipeline::new_invert(device, &sel_shader, format);
+        let caret_invert =
+            SelectionPipeline::new_two_colour(device, &sel_shader, format, swap_ground, swap_ink);
         // Markdown ORNAMENTS (section-break fleuron): a quiet DIM glyph renderer,
         // sharing the atlas + viewport. One single-glyph buffer per break, shaped
         // centered in the writing column. Empty / parked for a non-markdown buffer so

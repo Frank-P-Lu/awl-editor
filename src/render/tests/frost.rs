@@ -306,7 +306,7 @@ fn long_run_end_pad_is_bounded_independent_of_row_height() {
 }
 
 #[test]
-fn frost_seed_radius_honours_the_capabilitys_feather_value() {
+fn frost_seed_radius_honours_its_renderer_owned_feather_input() {
     let row_h = 40.0;
     let tight = crate::render::frost_seed_radius(row_h, 2.0, 1.0, 2.0);
     let broad = crate::render::frost_seed_radius(row_h, 9.0, 1.0, 2.0);

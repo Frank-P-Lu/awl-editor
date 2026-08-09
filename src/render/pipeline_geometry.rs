@@ -32,6 +32,15 @@ impl TextPipeline {
             .set_color(theme::primary().rgb_bytes());
         self.selection_pipeline
             .set_color(theme::selection_document().rgba_bytes());
+        let active = theme::active();
+        if let Some(pair) = active.render_caps.selection_style.two_colour(&active) {
+            self.selection_invert
+                .set_two_colour(pair.ground.rgba_bytes(), pair.ink.rgba_bytes());
+        }
+        if let Some(pair) = active.render_caps.caret_block_style.two_colour(&active) {
+            self.caret_invert
+                .set_two_colour(pair.ground.rgba_bytes(), pair.ink.rgba_bytes());
+        }
         // Search matches: `theme::selection_document()` on an ordinary world, THE ONE
         // WAGTAIL HIGHLIGHT TEXTURE's pure white + dither density on a
         // one-bit world — see `search_match_rgba_bytes`/`wagtail_dither_density`.

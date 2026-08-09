@@ -79,11 +79,6 @@ const UNIT_VERDICTS: &[(&str, Verdict, &str)] = &[
         "render/layers.rs::prepare_stars_layer, `* (metrics.zoom * dpi)`",
     ),
     (
-        "Frost.blur_px",
-        Verdict::LengthOnTheScale,
-        "render/layers.rs, through lava::frost_px(_, zoom, dpi) = logical * zoom * dpi",
-    ),
-    (
         "CardShape.cut_px",
         Verdict::LengthDpiOnly,
         "render/chrome/mod.rs::card_shape_texture, `* dpi.max(1.0)` — a grow-only \
@@ -94,12 +89,6 @@ const UNIT_VERDICTS: &[(&str, Verdict, &str)] = &[
         Verdict::LengthDpiOnly,
         "render/chrome/mod.rs::card_shape_texture, `* dpi.max(1.0)`, same shape as \
          the chamfer beside it",
-    ),
-    (
-        "Frost.feather_px",
-        Verdict::LengthOnTheScale,
-        "render/chrome outline and gutter frost seeds, through \
-         lava::frost_px(_, zoom, dpi) = logical * zoom * dpi",
     ),
     (
         "CardTexture.angle_deg",
@@ -130,11 +119,6 @@ const UNIT_VERDICTS: &[(&str, Verdict, &str)] = &[
         "AmbientStyle.floor",
         Verdict::NotALength,
         "a brightness at the bottom of the twinkle, 0..=1",
-    ),
-    (
-        "Frost.dim",
-        Verdict::NotALength,
-        "how far the frosted ground is dimmed — a factor on a colour, not a distance",
     ),
     (
         "FoldAfford.chevron_lift",
@@ -529,7 +513,7 @@ fn every_f32_field_in_the_render_caps_family_carries_a_unit_verdict() {
          this census points a new length at does not exist"
     );
     assert!(
-        f32s.len() >= 15,
+        f32s.len() >= 14,
         "the census graded only {} f32 fields ({f32s:?}) — the walk is not \
          reaching the family's payloads",
         f32s.len()

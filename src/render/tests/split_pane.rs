@@ -281,14 +281,14 @@ fn split_stays_valid_narrow_and_empty() {
 // --- exhaustive surface roster / no-world-branch -----------------------------
 
 /// THE EXHAUSTIVE SURFACE-ROSTER LAW (no world branch): sweep EVERY shipped
-/// world. A Pane world's fill count follows its OWN `pane_split` cap
-/// (Split → 2, Unified → 1); a Bars world takes the bare-plate path (the split is
+/// world. A Pane world's fill count follows the renderer-owned split default;
+/// a Bars world takes the bare-plate path (the split is
 /// inert — the card fill is the per-plate scrims, never the 1/2 split). And the
 /// decision is DATA, not identity: forcing the `pane_split` override to `Split`
 /// makes EVERY Pane world draw two surfaces, and to `Unified` makes every Pane
 /// world draw one — the same flip on all of them, no per-world code path.
 #[test]
-fn every_world_splits_by_its_cap_never_by_identity() {
+fn every_world_splits_by_the_shared_default_never_by_identity() {
     let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
@@ -302,7 +302,7 @@ fn every_world_splits_by_its_cap_never_by_identity() {
         theme::set_active_by_name(t.name).unwrap();
         p.sync_theme();
 
-        // (1) The world's OWN data governs (no override).
+        // (1) The shared renderer default governs (no override).
         set_pane_split_test_override(None);
         let v = picker(false, 8);
         p.set_view(&v);
@@ -310,14 +310,10 @@ fn every_world_splits_by_its_cap_never_by_identity() {
         let fills = p.overlay_pane_fills_probe();
         match t.render_caps.list_style {
             theme::ListStyle::Pane => {
-                let want = match t.render_caps.pane_split {
-                    theme::PaneSplit::Split => 2,
-                    theme::PaneSplit::Unified => 1,
-                };
                 assert_eq!(
                     fills.len(),
-                    want,
-                    "{}: Pane fill count follows pane_split",
+                    2,
+                    "{}: every Pane world takes the shared split default",
                     t.name
                 );
             }

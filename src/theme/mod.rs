@@ -135,9 +135,10 @@ pub use icon_ground::IconGround;
 pub use model::{
     AmbientStyle, Backdrop, BandResponse, BarConfig, BarCoverage, BarExtent, CardAnchor, CardShape,
     CardTexture, CaretBlockStyle, ChipVariant, ChromeFace, DecorativeWash, Elevation, FacetStyle,
-    FoldAfford, Frost, HighlightTexture, HighlightTreatment, IconCursor, ImageReveal, ListBacking,
-    ListStyle, LocationStyle, MotionJuice, OverlayEntrance, PageFrame, PaneSplit, PlacardCorner,
-    PlacardInk, RenderCaps, RuleSelection, SelectionStyle, TitleStyle,
+    FoldAfford, HighlightTexture, HighlightTreatment, IconCursor, ImageReveal, ListBacking,
+    ListStyle, LocationStyle, MotionJuice, OverlayEntrance, PageFrame, PaletteRole, PaneSplit,
+    PlacardCorner, PlacardInk, RenderCaps, ResolvedTwoColour, RuleSelection, SelectionStyle,
+    TitleStyle, TwoColour,
 };
 #[allow(unused_imports)] // the per-world ornament/bullet data: public API
 // surface, no NON-TEST in-crate caller today.

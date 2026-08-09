@@ -114,11 +114,10 @@ pub fn selection_document() -> Srgb {
     active().selection_document
 }
 
-/// The band under a SELECTED ROW in a summoned surface. Derived unless the world
-/// authors an override: see [`super::model::Theme::selection_ui`] for why the
-/// derived shape is the default rather than twenty hand-picked colours.
+/// The band under a SELECTED ROW in a summoned surface. One derived value step
+/// for every world, so a selected row cannot introduce an unchecked hue.
 pub fn selection_ui() -> Srgb {
-    resolve_selection_ui(active().selection_ui, derived_selection_ui())
+    derived_selection_ui()
 }
 
 /// `selection_ui`'s default, alone. Product code reads [`selection_ui`] — this
@@ -126,16 +125,6 @@ pub fn selection_ui() -> Srgb {
 /// and the accessor cannot drift into two copies of one expression.
 pub(super) fn derived_selection_ui() -> Srgb {
     surface_step_band(OVERLAY_SELROW_EXTRA_STEPS)
-}
-
-/// Authored-over-derived, as a PURE function. The active world is a process
-/// global reached by INDEX into the static roster, so there is no way to make a
-/// hand-built `Theme` active — which would leave the authored arm unreachable
-/// from any test, and in this repo that means it would not exist. Splitting the
-/// two-line decision out gives it the purest seam it can have. Eager, because
-/// the derivation is a handful of integer steps with no side effects.
-pub(super) fn resolve_selection_ui(authored: Option<Srgb>, derived: Srgb) -> Srgb {
-    authored.unwrap_or(derived)
 }
 
 pub fn fold_afford_chevron_ink() -> Srgb {

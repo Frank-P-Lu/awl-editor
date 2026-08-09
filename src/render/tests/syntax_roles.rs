@@ -769,7 +769,7 @@ fn ink_ladder_and_selection_laws_hold_for_every_world() {
         // 1.0, a "paint fill" by the old law's own words), with legibility
         // carried by a SEPARATE render-side mechanism entirely (the DITHER
         // round's TRUE inverse-video pipeline, `TextPipeline::selection_invert`
-        // — drawn AFTER text with a `OneMinusDst` blend, flipping black<->white
+        // — drawn AFTER text with the two-colour role-swap blend
         // wherever it covers), not by tuning this token's alpha at all.
         // Replaced by the flat + selection laws this world's design actually
         // demands.

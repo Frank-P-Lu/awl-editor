@@ -146,8 +146,14 @@ fn personality_assignments_are_exactly_the_decided_table() {
             // + the page frame's first assignment + NO placard (the silent
             // pole announces nothing — user-confirmed).
             "Wagtail" => RenderCaps {
-                selection_style: model::SelectionStyle::InverseVideo,
-                caret_block_style: model::CaretBlockStyle::InverseVideo,
+                selection_style: model::SelectionStyle::InverseVideo(model::TwoColour::new(
+                    model::PaletteRole::Base300,
+                    model::PaletteRole::BaseContent,
+                )),
+                caret_block_style: model::CaretBlockStyle::InverseVideo(model::TwoColour::new(
+                    model::PaletteRole::Base300,
+                    model::PaletteRole::BaseContent,
+                )),
                 backdrop: model::Backdrop::Flat,
                 elevation: Elevation::Bordered,
                 decorative_wash: model::DecorativeWash::Off,
@@ -160,22 +166,16 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 page_frame: frame(2.0),
                 card_anchor: model::CardAnchor::TopLeft,
                 chrome_face: model::ChromeFace::Body,
-                motion: model::MotionJuice::CALM,
                 list_style: model::ListStyle::Pane,
                 facet_style: model::FacetStyle::Text,
                 // The silent pole keeps the shared inline treatment (only
                 // Cassowary opts to `RotatedRail`).
                 location_style: model::LocationStyle::Inline,
-                // The silent pole takes the DEFAULT split like every Pane world
-                // (only Cassowary opts to `Unified`).
-                pane_split: model::PaneSplit::Split,
                 // No ambient life on the silent pole (and a fractional-alpha
                 // breath is 1-bit-illegal besides).
                 ambient: model::AmbientStyle::None,
                 // The silent pole keeps the shared default gap.
                 spell_underline_gap: model::SPELL_UNDERLINE_GAP_DEFAULT,
-                // Dormant default (no lava ground).
-                frost: model::Frost::DEFAULT,
                 // Dormant default (no lava ground — the silent pole's column
                 // stays flat).
                 fold_afford: model::FoldAfford::DEFAULT,
@@ -248,9 +248,6 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 // flush with the card's own left border, not the inline
                 // treatment every other world uses.
                 location_style: model::LocationStyle::RotatedRail,
-                // The NERV console is the ONE Pane exception — a UNIFIED room
-                // (dormant under its poster Bars list).
-                pane_split: model::PaneSplit::Unified,
                 ..RenderCaps::DEFAULT
             },
             // PAPERBARK (the handmade-paper studio): a LIGHT world, so

@@ -37,7 +37,7 @@ struct Globals {
     /// pre-chunk per-pixel stipple — byte-identical for every consumer that
     /// never raises it (the placard stipple, the always-on page frame). THE
     /// ONE WAGTAIL HIGHLIGHT TEXTURE's three consumers raise it to ~2 logical
-    /// px via [`Self::set_dither_cell`]. Unused by an `fs_invert` pipeline.
+    /// px via [`Self::set_dither_cell`]. Unused by an `fs_two_colour` pipeline.
     cell: f32,
     chamfer: f32,
     halftone: f32,
@@ -67,7 +67,7 @@ pub struct SelectionPipeline {
     color: [f32; 4],
     /// DITHER MODE density uploaded into `Globals::dither` each `prepare`
     /// (`0.0` = off, the pre-round behavior). Meaningless on an invert
-    /// pipeline, where `fs_invert` never reads the field.
+    /// pipeline, where `fs_two_colour` never reads the field.
     dither: f32,
     corner: f32,
     stroke: f32,
@@ -78,7 +78,7 @@ pub struct SelectionPipeline {
     /// WAGTAIL HIGHLIGHT TEXTURE's three consumers raise it to ~2 logical px
     /// (`render::spans::wagtail_stipple_cell_px`, Retina-aware) so the stipple
     /// reads as deliberate dithered pixels rather than fine noise. Meaningless
-    /// on an `fs_invert` pipeline.
+    /// on an `fs_two_colour` pipeline.
     dither_cell: f32,
     /// Chamfer depth (px) uploaded into `Globals::chamfer` each `prepare`
     /// `0.0` (construction default) is the ORIGINAL rounded-rect
@@ -110,23 +110,17 @@ fn ordinary_blend() -> wgpu::BlendState {
     }
 }
 
-/// TRUE INVERSE-VIDEO's blend state: per channel, `result = (1 - dst) * src`
-/// (color: `src_factor: OneMinusDst, dst_factor: Zero`) — combined with
-/// `fs_invert` always writing `src = (1,1,1)`, this computes an exact
-/// `result = 1 - dst`, the classic 1-bit "flip every channel" invert. The
-/// alpha channel is left untouched (`src_factor: Zero, dst_factor: One`) —
-/// the invert is a color-only operation; `OneMinusDst` is a standard wgpu
-/// `BlendFactor` (verified against the pinned `wgpu = "=29.0.3"`,
-/// `wgpu-types-29.0.3/src/render.rs`'s `BlendFactor` enum — `Dst = 6`,
-/// `OneMinusDst = 7` — and it maps to `GL_ONE_MINUS_DST_COLOR`, a factor
-/// WebGL2/OpenGL ES 3.0 have supported since core, so the wasm/WebGL2
-/// fallback build gets the identical blend math).
-fn invert_blend() -> wgpu::BlendState {
+/// The arbitrary two-colour role swap. The fragment writes the linear sum of
+/// the pair and this blend subtracts the destination: for every pixel on the
+/// line between `ground` and `ink`, `ground + ink - dst` lands at the same
+/// interpolation point on the opposite end. Black/white is only one member of
+/// that family; no `1 - dst` assumption is baked into the pipeline.
+fn two_colour_blend() -> wgpu::BlendState {
     wgpu::BlendState {
         color: wgpu::BlendComponent {
-            src_factor: wgpu::BlendFactor::OneMinusDst,
-            dst_factor: wgpu::BlendFactor::Zero,
-            operation: wgpu::BlendOperation::Add,
+            src_factor: wgpu::BlendFactor::One,
+            dst_factor: wgpu::BlendFactor::One,
+            operation: wgpu::BlendOperation::Subtract,
         },
         alpha: wgpu::BlendComponent {
             src_factor: wgpu::BlendFactor::Zero,
@@ -178,38 +172,37 @@ impl SelectionPipeline {
         )
     }
 
-    /// TRUE INVERSE-VIDEO SELECTION (one-bit worlds only — see
-    /// `worlds.rs::WAGTAIL`'s doc comment + THEMES.md's 1-bit section for the
-    /// full history of why this replaces the old "punch outline"
-    /// mechanism). Built with its OWN `wgpu::RenderPipeline` object (blend
-    /// state is baked in at construction, so this could not share the
-    /// ordinary pipeline) using a `OneMinusDst`/`Zero` color blend —
-    /// `shaders/selection.wgsl`'s `fs_invert` doc derives the exact math.
-    /// Always draws pure opaque white regardless of the active theme's
-    /// tokens (the blend trick needs `src == 1.0` exactly to compute a true
-    /// `1 - dst`) — `set_color`/`set_dither`/`prepare_pulsed` are meaningless
-    /// here and simply never called on an instance built this way. Starts
+    /// Arbitrary TWO-COLOUR inverse treatment. Built with its own pipeline
+    /// because the subtractive blend state is baked at construction. The
+    /// caller resolves two palette roles and supplies them through
+    /// [`Self::set_two_colour`]; the shader swaps those endpoints and their
+    /// antialiased interpolation without assuming either endpoint is black or
+    /// white. Starts
     /// with `corner = 0.0` (a hard rectangle — the right shape for a
     /// SELECTION range); a CARET-flavored instance calls [`Self::set_corner`]
     /// each frame to draw a rounded (if aliased) silhouette instead — see
-    /// `shaders/selection.wgsl`'s `fs_invert` doc for the mechanism.
-    pub fn new_invert(
+    /// `shaders/selection.wgsl`'s `fs_two_colour` doc for the mechanism.
+    pub fn new_two_colour(
         device: &wgpu::Device,
         shader: &wgpu::ShaderModule,
         format: wgpu::TextureFormat,
+        ground: [u8; 4],
+        ink: [u8; 4],
     ) -> Self {
-        Self::build(
+        let mut pipeline = Self::build(
             device,
             shader,
             format,
-            [255, 255, 255, 255],
+            ground,
             Flavor {
-                key: "selection.invert",
-                entry_point: "fs_invert",
-                blend: invert_blend(),
+                key: "selection.two-colour",
+                entry_point: "fs_two_colour",
+                blend: two_colour_blend(),
             },
             0.0,
-        )
+        );
+        pipeline.set_two_colour(ground, ink);
+        pipeline
     }
 
     /// The shared pipeline-construction body: every field the two public
@@ -360,6 +353,20 @@ impl SelectionPipeline {
         self.color = srgba_u8_to_linear(srgba);
     }
 
+    /// Resolve an authored palette pair into the source term consumed by the
+    /// subtractive role-swap blend. Both colors remain theme tokens; this layer
+    /// only performs their required linear-space sum.
+    pub fn set_two_colour(&mut self, ground: [u8; 4], ink: [u8; 4]) {
+        let ground = srgba_u8_to_linear(ground);
+        let ink = srgba_u8_to_linear(ink);
+        self.color = [
+            ground[0] + ink[0],
+            ground[1] + ink[1],
+            ground[2] + ink[2],
+            1.0,
+        ];
+    }
+
     /// The colour this pipeline is currently carrying, in the same linear form
     /// [`Self::set_color`] stores. Test-only, and it exists because a headless
     /// capture builds its pipelines ONCE and never runs `sync_theme_colors`: a
@@ -404,7 +411,7 @@ impl SelectionPipeline {
     /// already-computed, already-zoom/squash-animated radius the ORDINARY
     /// (non-one-bit) caret pipeline draws with — one Rust-side owner for the
     /// number, never a second constant; see `shaders/selection.wgsl`'s
-    /// `fs_invert` doc for how the shader spends it.
+    /// `fs_two_colour` doc for how the shader spends it.
     pub fn set_corner(&mut self, corner: f32) {
         self.corner = corner;
     }

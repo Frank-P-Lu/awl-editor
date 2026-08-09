@@ -8,9 +8,7 @@ use super::super::*;
 /// distinguishability sweep is the law that polices its visibility). The shared
 /// band the HUD/menu borders read is untouched.
 ///
-/// This sweeps `selection_ui`'s DERIVED default, which is the shape every world
-/// ships; `selection_ui_authored_override_replaces_the_derivation` below covers
-/// the other arm.
+/// This sweeps `selection_ui`'s derivation, which is the only shipped shape.
 #[test]
 fn selection_ui_is_a_stronger_value_step_never_a_hue() {
     let _g = crate::testlock::serial();
@@ -60,25 +58,12 @@ fn selection_ui_is_a_stronger_value_step_never_a_hue() {
     set_active(DEFAULT_THEME);
 }
 
-/// THE DERIVED DEFAULT IS THE GUARANTEE, and this is the law that keeps it free.
-/// `selection_ui` is a value step off the surface ramp and never a new hue only
-/// because it is COMPUTED; the moment a world authors a colour there, that
-/// property stops holding by construction and becomes a taste claim someone has
-/// to defend. So the roster is swept with no wildcard: every world ships `None`,
-/// and this fails BY NAME on the first world that does not — which is the
-/// conscious look an override deserves, not an obstacle to it. A world that
-/// genuinely wants one moves itself out of this sweep on purpose.
+/// THE DERIVATION IS THE GUARANTEE. Every world routes through the one owner;
+/// there is no dormant authored override whose unexercised branch can drift.
 #[test]
-fn every_world_takes_the_derived_selection_ui_rather_than_authoring_one() {
+fn every_world_routes_selection_ui_through_the_derivation() {
     let _g = crate::testlock::serial();
     for (i, t) in THEMES.iter().enumerate() {
-        assert_eq!(
-            t.selection_ui, None,
-            "{}: authors a selection_ui override — the by-construction \
-             value-step guarantee no longer covers it, so say so deliberately \
-             (see the Theme::selection_ui doc) rather than landing it silently",
-            t.name
-        );
         set_active(i);
         assert_eq!(
             selection_ui(),
@@ -87,50 +72,6 @@ fn every_world_takes_the_derived_selection_ui_rather_than_authoring_one() {
             t.name
         );
     }
-    set_active(DEFAULT_THEME);
-}
-
-/// The other arm of `selection_ui`: an authored override actually replaces the
-/// derivation. No shipping world takes it, so without this the `Some` branch is
-/// unreachable and therefore — in this repo's terms — does not exist. It is
-/// asserted at [`derive::resolve_selection_ui`], the pure seam, because the
-/// active world is reached by INDEX into a static roster and a hand-built
-/// `Theme` can never be made active.
-#[test]
-fn selection_ui_authored_override_replaces_the_derivation() {
-    let _g = crate::testlock::serial();
-    set_active_by_name("Tawny").unwrap();
-    let derived = derive::derived_selection_ui();
-    // A colour no ramp step could land on, so "it returned the override" and
-    // "it returned the derivation" can never be confused.
-    let authored = Srgb::rgb(0x12, 0xAB, 0x34);
-    assert_ne!(derived, authored, "fixture picks a colour off the ramp");
-    assert_eq!(
-        derive::resolve_selection_ui(Some(authored), derived),
-        authored,
-        "an authored selection_ui wins over the derivation"
-    );
-    assert_eq!(
-        derive::resolve_selection_ui(None, derived),
-        derived,
-        "and no override falls through to it"
-    );
-    // The live accessor agrees with the seam on the shipping (None) shape.
-    assert_eq!(
-        selection_ui(),
-        derive::resolve_selection_ui(TAWNY.selection_ui, derived),
-        "selection_ui() is that same decision, not a second copy of it"
-    );
-    // The two tokens are SEPARATE fields, not two names for one colour.
-    assert_ne!(
-        Srgb::rgb(
-            selection_document().r,
-            selection_document().g,
-            selection_document().b
-        ),
-        authored,
-        "selection_ui is not a second name for selection_document"
-    );
     set_active(DEFAULT_THEME);
 }
 

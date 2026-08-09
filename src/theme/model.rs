@@ -29,12 +29,21 @@ impl RoleOverrides {
 // Renderers consume per-theme capabilities as data, never world names.
 pub enum SelectionStyle {
     Fill,
-    InverseVideo,
+    InverseVideo(TwoColour),
+}
+
+impl SelectionStyle {
+    pub fn two_colour(self, theme: &Theme) -> Option<ResolvedTwoColour> {
+        match self {
+            Self::Fill => None,
+            Self::InverseVideo(pair) => Some(pair.resolve(theme)),
+        }
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CaretBlockStyle {
     Normal,
-    InverseVideo,
+    InverseVideo(TwoColour),
     Filled,
 }
 
@@ -42,6 +51,75 @@ impl CaretBlockStyle {
     pub fn folds_morph_to_block(self) -> bool {
         !matches!(self, CaretBlockStyle::Normal)
     }
+
+    pub fn two_colour(self, theme: &Theme) -> Option<ResolvedTwoColour> {
+        match self {
+            Self::InverseVideo(pair) => Some(pair.resolve(theme)),
+            Self::Normal | Self::Filled => None,
+        }
+    }
+}
+
+/// A role in the world's authored token palette. Treatments refer to roles,
+/// never copied colour literals, so changing a token re-resolves every surface
+/// that uses it on the next theme sync.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PaletteRole {
+    Base100,
+    Base200,
+    Base300,
+    BaseContent,
+    Muted,
+    Faint,
+    Primary,
+    PrimaryContent,
+    Error,
+    SelectionDocument,
+}
+
+impl PaletteRole {
+    pub fn resolve(self, theme: &Theme) -> Srgb {
+        match self {
+            Self::Base100 => theme.base_100,
+            Self::Base200 => theme.base_200,
+            Self::Base300 => theme.base_300,
+            Self::BaseContent => theme.base_content,
+            Self::Muted => theme.muted,
+            Self::Faint => theme.faint,
+            Self::Primary => theme.primary,
+            Self::PrimaryContent => theme.primary_content,
+            Self::Error => theme.error,
+            Self::SelectionDocument => theme.selection_document,
+        }
+    }
+}
+
+/// The two palette roles an inverse treatment swaps. The same resolver serves
+/// document selection and a block caret, while each capability chooses its own
+/// pair independently.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TwoColour {
+    pub ground: PaletteRole,
+    pub ink: PaletteRole,
+}
+
+impl TwoColour {
+    pub const fn new(ground: PaletteRole, ink: PaletteRole) -> Self {
+        Self { ground, ink }
+    }
+
+    pub fn resolve(self, theme: &Theme) -> ResolvedTwoColour {
+        ResolvedTwoColour {
+            ground: self.ground.resolve(theme),
+            ink: self.ink.resolve(theme),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ResolvedTwoColour {
+    pub ground: Srgb,
+    pub ink: Srgb,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -403,18 +481,15 @@ pub struct RenderCaps {
     pub page_frame: PageFrame,
     pub card_anchor: CardAnchor,
     pub chrome_face: ChromeFace,
-    pub motion: MotionJuice,
     pub list_style: ListStyle,
     pub facet_style: FacetStyle,
     pub location_style: LocationStyle,
-    pub pane_split: PaneSplit,
     pub ambient: AmbientStyle,
     /// How far below the glyph cell the spell squiggle's band hangs. A LENGTH,
     /// typed so it meets the display scale the wave's own amplitude, period and
     /// thickness meet — untyped it rode the reader's zoom alone, hanging a
     /// half-size gap under a correctly-doubled wave on a dense panel.
     pub spell_underline_gap: crate::render::Logical,
-    pub frost: Frost,
     pub fold_afford: FoldAfford,
     pub card_texture: CardTexture,
     pub card_shape: CardShape,
@@ -428,21 +503,6 @@ pub const SPELL_UNDERLINE_GAP_DEFAULT: crate::render::Logical = crate::render::L
 /// deliberately carries no arithmetic of its own.
 pub const SPELL_UNDERLINE_GAP_TIGHT: crate::render::Logical =
     crate::render::Logical(SPELL_UNDERLINE_GAP_DEFAULT.0 - 2.0);
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Frost {
-    pub dim: f32,
-    pub blur_px: f32,
-    pub feather_px: f32,
-}
-
-impl Frost {
-    pub const DEFAULT: Frost = Frost {
-        dim: crate::lava::FROST_DIM,
-        blur_px: crate::lava::FROST_BLUR_PX,
-        feather_px: crate::lava::FROST_FEATHER_PX,
-    };
-}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FoldAfford {
@@ -494,14 +554,11 @@ impl RenderCaps {
         page_frame: PageFrame::None,
         card_anchor: CardAnchor::TopCenter,
         chrome_face: ChromeFace::Body,
-        motion: MotionJuice::CALM,
         list_style: ListStyle::Pane,
         facet_style: FacetStyle::Text,
         location_style: LocationStyle::Inline,
-        pane_split: PaneSplit::Split,
         ambient: AmbientStyle::None,
         spell_underline_gap: SPELL_UNDERLINE_GAP_DEFAULT,
-        frost: Frost::DEFAULT,
         fold_afford: FoldAfford::DEFAULT,
         card_texture: CardTexture::DEFAULT,
         card_shape: CardShape::DEFAULT,
@@ -552,13 +609,6 @@ pub struct Theme {
     /// same `highlight_treatment`. Authored per world, translucent, and held to
     /// a measured legibility floor against the ink it covers.
     pub selection_document: Srgb,
-    /// The band under a SELECTED ROW in a summoned surface (picker, palette,
-    /// menu list). `None` — the shape every world ships — means DERIVED:
-    /// `base_200` climbed a fixed number of steps toward `base_300`, which is
-    /// what makes the band a value step and never a new hue (DESIGN §3/§5) BY
-    /// CONSTRUCTION rather than by a law someone has to write and enforce. A
-    /// world that authors a colour here opts out of that guarantee knowingly.
-    pub selection_ui: Option<Srgb>,
     pub background: Background,
     pub font: &'static str,
     pub mono: &'static str,
@@ -584,10 +634,13 @@ impl Theme {
     pub fn highlight_treatment(&self, band: Srgb) -> HighlightTreatment {
         match self.render_caps.selection_style {
             SelectionStyle::Fill => HighlightTreatment::ValueBand(band),
-            SelectionStyle::InverseVideo => HighlightTreatment::InverseFill {
-                band: self.base_content,
-                ink: self.base_300,
-            },
+            SelectionStyle::InverseVideo(pair) => {
+                let pair = pair.resolve(self);
+                HighlightTreatment::InverseFill {
+                    band: pair.ink,
+                    ink: pair.ground,
+                }
+            }
         }
     }
 

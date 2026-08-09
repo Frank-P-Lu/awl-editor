@@ -59,11 +59,8 @@ fn outline_frost_pills_keep_ink_contrast_on_every_lava_world() {
                 ..
             } => (ground, blob_lo, blob_hi),
         };
-        // FROST-AS-CAPABILITY: read the WORLD's own recipe (`render_caps.frost`),
-        // not the shipped consts — so a world that dials a gentler/stronger frost
-        // is held to the SAME ink-contrast floor it must clear.
-        let blur = t.render_caps.frost.blur_px;
-        let dim = t.render_caps.frost.dim;
+        let blur = crate::lava::FROST_BLUR_PX;
+        let dim = crate::lava::FROST_DIM;
         assert_eq!(
             ground, t.base_100,
             "{}: frost ground must be base_100",
@@ -206,8 +203,8 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
                 ..
             } => (ground, blob_lo, blob_hi),
         };
-        let blur = t.render_caps.frost.blur_px;
-        let dim = t.render_caps.frost.dim;
+        let blur = crate::lava::FROST_BLUR_PX;
+        let dim = crate::lava::FROST_DIM;
         assert_eq!(
             ground, t.base_100,
             "{}: frost ground must be base_100",
@@ -302,82 +299,14 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
     }
 }
 
-/// THE FROST-AS-CAPABILITY law (the frost round). The softened-lamp recipe is a
-/// per-world RenderCaps dial ([`crate::theme::Frost`]), not bare `crate::lava`
-/// consts — so a world tunes its own frost as DATA (the runtime consumer
-/// `TextPipeline::prepare_lava_layer` reads `render_caps.frost`; the grep-law
-/// `theme_caps_law` bans a world name in `render/`). Three invariants:
-///
-/// (1) ONE SOURCE: `Frost::DEFAULT` equals the `crate::lava` numeric literals its
-///     pure shader-mirror tests still read, and `RenderCaps::DEFAULT.frost` is
-///     that default — so promoting the recipe to a capability is byte-identical.
-///
-/// (2) WELL-FORMED PER WORLD: every world's recipe is a sane frost — `dim` in
-///     [0,1], `blur_px` > 0, `feather_px` >= 0 — an invariant that HOLDS even
-///     after a world dials a gentler/stronger recipe (the ink-contrast floor the
-///     two frost laws enforce is the taste-safety net; this is the shape net).
-///
-/// (3) STATIC GROUNDS ARE INERT: a non-lava world carries the default recipe but
-///     never renders frost (the `lava_params().is_some()` gate in the consumer),
-///     so its `frost` field is dormant data — the 1-bit/static exclusion stays
-///     structural, gated on the lava CAPABILITY, never a world name.
+/// Frost has one renderer-owned recipe. Its three constants remain well formed;
+/// the lava-background gate is the only capability axis.
 #[test]
-fn frost_recipe_is_a_per_world_capability_defaulting_to_the_shipped_lava_values() {
-    use crate::theme::Frost;
-    // (1) One source of truth: the capability default IS the lava consts.
-    assert_eq!(
-        Frost::DEFAULT.dim,
-        crate::lava::FROST_DIM,
-        "frost dim default == lava const"
-    );
-    assert_eq!(
-        Frost::DEFAULT.blur_px,
-        crate::lava::FROST_BLUR_PX,
-        "frost blur default == lava const"
-    );
-    assert_eq!(
-        Frost::DEFAULT.feather_px,
-        crate::lava::FROST_FEATHER_PX,
-        "frost feather default == lava const"
-    );
-    assert_eq!(
-        RenderCaps::DEFAULT.frost,
-        Frost::DEFAULT,
-        "the DEFAULT caps carry the shipped frost recipe (byte-identical promotion)"
-    );
-
-    // (2)+(3) Every world's recipe is well-formed, and the recipe is present as
-    //     DATA on lava and static worlds alike (dormant on static — the consumer
-    //     gates on the lava capability, not this field).
-    let mut saw_lava = false;
-    for t in THEMES.iter() {
-        let f = t.render_caps.frost;
-        assert!(
-            (0.0..=1.0).contains(&f.dim),
-            "{}: frost dim {} out of [0,1]",
-            t.name,
-            f.dim
-        );
-        assert!(
-            f.blur_px > 0.0,
-            "{}: frost blur must be positive ({})",
-            t.name,
-            f.blur_px
-        );
-        assert!(
-            f.feather_px >= 0.0,
-            "{}: frost feather must be non-negative ({})",
-            t.name,
-            f.feather_px
-        );
-        if t.background.is_lava() {
-            saw_lava = true;
-        }
-    }
-    assert!(
-        saw_lava,
-        "a lava world ships (the frost capability has a live consumer)"
-    );
+fn frost_recipe_is_one_renderer_owned_lava_recipe() {
+    assert!((0.0..=1.0).contains(&crate::lava::FROST_DIM));
+    assert!(crate::lava::FROST_BLUR_PX > 0.0);
+    assert!(crate::lava::FROST_FEATHER_PX >= 0.0);
+    assert!(THEMES.iter().any(|t| t.background.is_lava()));
 }
 
 /// THE FOLD-AFFORDANCE CAPABILITY law (mirrors

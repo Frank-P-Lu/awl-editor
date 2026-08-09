@@ -18,14 +18,14 @@
 //     matches on a one-bit world. Every drawn dither pixel is the pure quad
 //     color at FULL alpha or fully transparent — never a fractional alpha —
 //     so no blend step can introduce a forbidden intermediate grey.
-//   * `fs_invert` — TRUE INVERSE-VIDEO (one-bit worlds only), for BOTH the
-//     selection AND the caret: a hard-edged (no AA — see its own doc below)
+//   * `fs_two_colour` — an arbitrary palette-role swap, for BOTH selection
+//     and the caret: a hard-edged (no AA — see its own doc below)
 //     ROUNDED-RECT SILHOUETTE (the same `sd_round_rect` SDF + clamp `fs_main`
 //     uses, reading the SAME `g.corner` uniform), drawn with its OWN
-//     `wgpu::RenderPipeline` object built with a `OneMinusDst` blend state
+//     `wgpu::RenderPipeline` object built with a subtractive blend state
 //     (blend state is baked in at pipeline construction, so this MUST be a
 //     separate pipeline — see `src/selection.rs::SelectionPipeline::
-//     new_invert`). A SELECTION instance leaves `g.corner` at its
+//     new_two_colour`). A SELECTION instance leaves `g.corner` at its
 //     construction default `0.0` (a plain rectangle — selection ranges are
 //     rectangles, never rounded); a CARET instance uploads its own animated
 //     radius via `SelectionPipeline::set_corner` each frame, so the 1-bit
@@ -40,14 +40,14 @@ struct Globals {
     // pre-round behavior, byte-identical). > 0.0 = THE ONE WAGTAIL HIGHLIGHT
     // TEXTURE is active, and this value IS the ordered-dither density (e.g.
     // 0.25 — see `render::dither::WAGTAIL_HIGHLIGHT_DITHER_DENSITY`, the
-    // single Rust-side owner of the actual number). Unused by `fs_invert`.
+    // single Rust-side owner of the actual number). Unused by `fs_two_colour`.
     dither: f32,
     // OUTLINE / STROKE MODE (V6 P5 round): 0.0 = the original SOLID fill
     // (`fs_main`, byte-identical to before this field existed — every
     // shipping consumer). > 0.0 = draw only a HOLLOW RING `stroke` px wide
     // just inside the rounded-rect edge (the interior is left transparent),
     // so the quad reads as an OUTLINE — the `BarFill::Outline` bars and the
-    // `FacetStyle::Chips` inactive ghost pills. Unused by `fs_invert` and the
+    // `FacetStyle::Chips` inactive ghost pills. Unused by `fs_two_colour` and the
     // dither branch (both keep their hard on/off contract).
     stroke: f32,
     // DITHER CELL (CHUNK round): the edge, in PHYSICAL pixels, of ONE Bayer
@@ -60,14 +60,14 @@ struct Globals {
     // placard stipple, the always-on page frame at density 1.0) stays
     // byte-identical. THE ONE WAGTAIL HIGHLIGHT TEXTURE's three consumers
     // raise it to ~2 logical px (`render::spans::wagtail_stipple_cell_px`,
-    // Retina-aware). Unused by `fs_invert`.
+    // Retina-aware). Unused by `fs_two_colour`.
     cell: f32,
     // CHAMFER: `0.0` = the original
     // ROUNDED-RECT silhouette (`g.corner`, byte-identical to before this
     // field existed — every world but Quokka). `> 0.0` cuts a crisp 45°
     // diagonal off each of the 4 corners this many PIXELS deep, replacing
     // (not composing with) the rounded corner — see `sd_card_rect` below.
-    // Shared by `fs_main` AND `fs_invert` (the ONE silhouette both read), and
+    // Shared by `fs_main` AND `fs_two_colour` (the ONE silhouette both read), and
     // uploaded identically to the fill/border/shadow pipelines of a card so
     // the eight-edge boundary (4 straight + 4 chamfer edges) agrees across
     // all three surfaces.
@@ -76,7 +76,7 @@ struct Globals {
     // card FILL — border/shadow pipelines always leave this `0.0`, texture
     // is a fill-only decoration). `> 0.0` is the overall ink-intensity
     // ceiling (`[0,1]`) a rotated dot lattice composites over the plain fill
-    // — see `halftone_coverage` below. Meaningless on `fs_invert` (1-bit
+    // — see `halftone_coverage` below. Meaningless on `fs_two_colour` (inverse
     // worlds never carry a card texture) and inside the dither/stroke
     // branches (mutually exclusive fill modes).
     halftone: f32,
@@ -111,8 +111,8 @@ struct Instance {
     // Half-size (width/2, height/2), in pixels.
     @location(1) hsize: vec2<f32>,
     // Linear RGBA color (alpha is the highlight translucency). Unused by
-    // `fs_invert`, which always writes pure white (the invert-blend trick
-    // needs `src == 1.0` exactly — see its own doc below).
+    // `fs_two_colour`, which writes the linear sum of the resolved palette
+    // pair for the subtractive role-swap blend.
     @location(2) color: vec4<f32>,
 // THE SPINE PRIMITIVE. Unit rotation axis (cos, sin) the quad's
     // VERTEX POSITIONS are rotated onto, exactly mirroring `caret.wgsl`'s own
@@ -333,25 +333,24 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     return vec4<f32>(rgb, a);
 }
 
-// TRUE INVERSE-VIDEO (one-bit worlds only): this entry point is used ONLY by
-// a `RenderPipeline` built with a `OneMinusDst` color blend factor
-// (`src_factor: OneMinusDst, dst_factor: Zero` — see
-// `SelectionPipeline::new_invert`), which computes, per channel,
-// `result = (1 - dst) * src`. Writing `src = (1,1,1)` here makes that exactly
-// `result = 1 - dst` — a true "flip every channel" invert: black text
-// becomes white, white ground becomes black, wherever this quad covers.
+// TWO-COLOUR INVERSE: the quad is drawn AFTER text/ground through a pipeline
+// whose subtractive blend computes `src - dst`. Rust resolves two authored
+// palette roles and uploads their LINEAR sum as `src`, so the endpoints swap:
+// `ground + ink - ground = ink` and `ground + ink - ink = ground`. Every
+// antialiased mixture on the line between them swaps continuously too.
 //
-// HARD discard, deliberately (no smoothstep/AA): the `OneMinusDst`/`Zero`
-// blend factors don't reference the fragment's alpha at all, so there is no
+// HARD discard, deliberately (no smoothstep/AA): the subtractive blend does
+// not reference the fragment's alpha at all, so there is no
 // way to FADE this quad's edge through the blend equation the way the
 // ordinary alpha-blended fill above does — a soft-feathered edge here would
 // need a genuinely different (unsupported) blend trick. But a hard EDGE
-// doesn't mean a hard RECTANGLE: `fs_invert` still evaluates the identical
+// doesn't mean a hard RECTANGLE: `fs_two_colour` still evaluates the identical
 // `sd_round_rect` SDF (+ the identical `min(g.corner, min(hsize))` clamp)
 // `fs_main` above does — ONE owner for the silhouette shape, never a second
 // radius/geometry formula — and simply DISCARDS any fragment outside it
 // rather than blending toward it. Every SURVIVING pixel is still an exact
-// `1 - dst` inversion (the one-bit pixel law holds by construction, only the
+// `ground + ink - dst` role swap (the one-bit pixel law holds as its black/white
+// special case, only the
 // corners end up aliased rather than antialiased — the accepted 1-bit
 // tradeoff). `g.corner` is `0.0` for a SELECTION invert instance (no
 // `set_corner` call — selection ranges are rectangles, not rounded-rects, so
@@ -363,11 +362,11 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
 // yields ~50%-grey, the SAME AA tolerance the one-bit pixel law already
 // grants ordinary (non-inverted) text edges.
 @fragment
-fn fs_invert(in: VsOut) -> @location(0) vec4<f32> {
+fn fs_two_colour(in: VsOut) -> @location(0) vec4<f32> {
     let r = min(g.corner, min(in.hsize.x, in.hsize.y));
     let d = sd_card_rect(in.local, in.hsize, r, g.chamfer);
     if (d > 0.0) {
         discard;
     }
-    return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    return vec4<f32>(in.color.rgb, 1.0);
 }

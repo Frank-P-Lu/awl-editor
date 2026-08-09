@@ -78,7 +78,6 @@ fn field_of(row: &str) -> Reader {
         "page_frame" => r!(page_frame),
         "card_anchor" => r!(card_anchor),
         "chrome_face" => r!(chrome_face),
-        "motion" => r!(motion),
         "list_style" => r!(list_style),
         "facet_style" => r!(facet_style),
         other => panic!(
@@ -97,11 +96,9 @@ fn field_of(row: &str) -> Reader {
 const FIELDS_WITH_NO_ROW: &[&str] = &[
     // Numeric tunings, not treatments: no variant a reader could name.
     "spell_underline_gap",
-    "frost",
     "fold_afford",
     // Documented in their own sections of THEMES.md rather than this table.
     "location_style",
-    "pane_split",
     "ambient",
     "card_texture",
     "card_shape",

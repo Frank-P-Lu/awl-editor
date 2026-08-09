@@ -347,10 +347,14 @@ impl TextPipeline {
         if row_h <= 0.0 {
             return Vec::new();
         }
-        let frost = crate::theme::active().render_caps.frost;
-        let r_row =
-            crate::render::frost_seed_radius(row_h, frost.feather_px, self.metrics.zoom, self.dpi);
-        let skirt = crate::lava::frost_px(frost.feather_px, self.metrics.zoom, self.dpi);
+        let r_row = crate::render::frost_seed_radius(
+            row_h,
+            crate::lava::FROST_FEATHER_PX,
+            self.metrics.zoom,
+            self.dpi,
+        );
+        let skirt =
+            crate::lava::frost_px(crate::lava::FROST_FEATHER_PX, self.metrics.zoom, self.dpi);
         let pad_x =
             crate::lava::frost_px(crate::lava::FROST_PILL_PAD_X, self.metrics.zoom, self.dpi);
         // The two stacked LABEL rows, bottom-anchored at the SAME named inset

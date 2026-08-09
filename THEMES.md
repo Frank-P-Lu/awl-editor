@@ -619,34 +619,27 @@ guarantee comes from the DITHER MECHANISM now, not from the token being
 transparent. Real-pixel proof (not just instance counts):
 `render::tests::dither::dither_mode_paints_only_pure_values_at_roughly_the_configured_density`.
 
-**3. TRUE INVERSE-VIDEO SELECTION — the loudest open call from the greyscale
-round, now RESOLVED, not merely re-fallback'd.** `TextPipeline::selection_invert`
-(`SelectionPipeline::new_invert`, `src/selection.rs`) is exactly the
-`OneMinusDst`/`Zero`-blended `wgpu::RenderPipeline` that round's own
-investigation named as the real answer — its own object (blend state is
-baked in at construction, confirmed against the pinned `wgpu = "=29.0.3"`:
-`OneMinusDst` is a standard `BlendFactor`, maps to `GL_ONE_MINUS_DST_COLOR`,
-core in WebGL2/GLES 3.0). It shares `shaders/selection.wgsl`'s geometry via a
-SECOND fragment entry point, `fs_invert`, which always writes pure white
-(`src = (1,1,1)`); combined with the blend factors this computes an exact
-`result = 1 - dst` per channel wherever the quad covers — drawn strictly
-AFTER the document text (`draw_document_layers`, the reorder the earlier
-investigation flagged as necessary), so it inverts the ALREADY-COMPOSITED
-text+ground pixels: black text flips white, white ground flips black. The
-LITERAL "inverted text" ask, not a fallback. The punch mechanism it replaces
+**3. TWO-COLOUR PALETTE-ROLE SWAP.** `TextPipeline::selection_invert` and
+`caret_invert` use `SelectionPipeline::new_two_colour`, one subtractive
+`wgpu::RenderPipeline` whose source is the linear sum of two authored palette
+roles. Over either endpoint, `ground + ink - destination` produces the other.
+Black/white is one valid pair, not an assumption in the renderer. Selection and
+block caret each carry their own `TwoColour`, resolve independently through the
+active world's tokens, and upload their own pair during theme sync. The shared
+fragment entry point is `fs_two_colour`; no shader or resolved render path asks
+which world selected the treatment. It is drawn strictly AFTER document text,
+so the already-composited ground and glyph exchange roles. The punch mechanism
+it replaces
 (`selection_punch`/`inset_rect`) is DELETED outright, not kept behind a
 "some day" comment — it had zero remaining callers once one-bit selection
 switched to real inversion, and no other world ever wanted an outline
 (same-behavior-same-code: a mechanism with no callers should not exist).
 `selection_pipeline` (the ordinary translucent fill) uploads ZERO rects for a
-one-bit world now — `selection_document`'s pure-white token no longer drives a render
-directly there; the invert pipeline always writes its own fixed white
-regardless of any theme's `selection_document` value. AA edges under inversion: a
-glyph's antialiased ~50%-grey edge pixel inverts to `1 - 0.5 = 0.5`, i.e.
-stays ~50%-grey — the SAME AA-edge tolerance the one-bit pixel law already
-grants ordinary (non-inverted) text, not a new exception; verified as REAL
-GPU output (not asserted from the math alone) by
-`render::tests::dither::invert_pipeline_flips_pure_black_and_pure_white_exactly`.
+one-bit world now — Wagtail authors `Base300` ↔ `BaseContent`, preserving its
+black/white result. The real-GPU law
+`render::tests::dither::two_colour_pipeline_swaps_non_black_white_endpoints`
+uses two deliberately chromatic endpoints, so the retired fixed-white `1-dst`
+pipeline cannot satisfy it.
 
 **The composite proof.** `render::tests::dither::
 wagtail_pixel_law_holds_with_selection_highlight_and_search_all_active`
@@ -669,11 +662,11 @@ black-text inverted selection, all in one frame.
 `render/tests/webgl_shader_validation.rs` runs the pinned `naga = "=29.0.3"`
 WGSL parser → validator → GLSL ES 300 (`is_webgl: true`) backend against
 BOTH shaders' every entry point (`background.wgsl`'s `vs_main`/`fs_main`;
-`selection.wgsl`'s `vs_main`/`fs_main`/the new `fs_invert`) with no live GPU
+`selection.wgsl`'s `vs_main`/`fs_main`/`fs_two_colour`) with no live GPU
 — the same pipeline `wgpu`'s own GL backend runs internally. All five pass:
 the constructs this round added (a private `array<u32,64>`, multiple
-fragment entry points sharing one module, `discard`, the `OneMinusDst`/
-`Zero` blend factors) all translate cleanly. What this does NOT verify: the
+fragment entry points sharing one module, `discard`, and the subtractive blend
+state) all translate cleanly. What this does NOT verify: the
 actual pixel output under a REAL browser WebGL2 context (framebuffer
 correctness, backend-specific driver quirks) — flagged for live web testing,
 not claimed verified.
@@ -1254,8 +1247,8 @@ RenderCaps`):
 
 | Field | Values | Governs | Deviates from default |
 |---|---|---|---|
-| `selection_style` | `Fill` \| `InverseVideo` | Document selection: translucent fill vs. true `1 - dst` inverse video (`prepare_selection_layer`) — and, paired with `highlight_texture`, the search-match quad's color (`search_match_rgba_bytes`). | `InverseVideo` — Wagtail |
-| `caret_block_style` | `Normal` \| `Filled` \| `InverseVideo` | Whether the BLOCK caret draws as an ordinary opaque quad, or must route through the same inverse-video mechanism (an opaque quad the same value as the ink would erase the glyph underneath); also degrades MORPH mode to BLOCK. | `Filled` — Cassowary; `InverseVideo` — Wagtail |
+| `selection_style` | `Fill` \| `InverseVideo(TwoColour)` | Document selection: translucent fill vs. an arbitrary swap between two palette roles (`prepare_selection_layer`) — and, paired with `highlight_texture`, the search-match quad's color (`search_match_rgba_bytes`). Wagtail's pair is Base300 ↔ BaseContent. | `InverseVideo` — Wagtail |
+| `caret_block_style` | `Normal` \| `Filled` \| `InverseVideo(TwoColour)` | Whether the BLOCK caret draws as an ordinary opaque quad, a filled ink cell, or an independently authored swap between two palette roles; also degrades MORPH mode to BLOCK. Wagtail independently chooses Base300 ↔ BaseContent. | `Filled` — Cassowary; `InverseVideo` — Wagtail |
 | `backdrop` | `Blur` \| `Flat` | Whether a full-takeover overlay / held HUD / lifetime card / hold-peek recedes the document behind a frosted gaussian blur, or falls back to the crisp no-blur path (a defocus of a two-value document smears every edge into a forbidden grey). | `Flat` — Wagtail |
 | `elevation` | `Flat` \| `Bordered` \| `Recessed` | Whether a summoned card's elevation is the flat `base_300` fill alone (the blur/scrim backdrop carries its contrast), or ADDS the float-panel primitive's raised border rim + drop shadow (`prepare_panel_card_elevation` → `set_float_quads`, border ink `surface_selected`). `surface_selected` itself keys its pure-ink override on the COLLAPSED RAMP (`base_200 == base_300`), never on this field — so an ordinary `Bordered` world keeps its ordinary ramp-step band. | `Bordered` — Bilby, Brolga, Cassowary, Currawong, Firetail, Galah, Gumtree, Kite, Magpie, Mangrove, Paperbark, Quokka, Saltpan, Wagtail; `Recessed` — Potoroo |
 | `decorative_wash` | `Enabled` \| `Off` | The floating-panel drop shadow (`float_shadow_srgba`) and the writing-nit underline (`nit_underline_srgba`) — both a translucent low-alpha wash, forbidden on a world with no intermediate grey. | `Off` — Wagtail |
@@ -1265,13 +1258,12 @@ RenderCaps`):
 | `page_frame` | `None` \| `Line { weight_px }` | A thin FRAME around the WRITING COLUMN (distinct from the card border) — four hard-edged quads straddling the column boundary over the document's vertical extent, ink always `theme::page_frame_ink()` = the world's own `base_content` (the "dark-line page-frame" idea, recorded in the roster-decisions note below; graduated from the `AWL_PAGE_BORDER` probe). | `Line` — Kite, Wagtail |
 | `card_anchor` | `TopLeft` \| `TopCenter` \| `Inset { x_frac }` \| `TopRight` | Where the summoned overlay card anchors horizontally (one owner `render::effective_card_anchor` → `overlay_card_x`). `TopRight` is more than placement — it also mirrors the selected-BAR growth direction toward the anchored edge under `Bars` (never text alignment). **The card anchor is theme-owned appearance, so the theme picker CROSSES it like any other property (item 52):** a deliberate selection move re-stamps the open picker's frozen `overlay_align` to the highlighted world's anchor (`OverlayState::reanchor`), snapping the card into that world's rail; a passive hover does not (see the crossing law below). | `TopLeft` — Currawong, Firetail, Galah, Magpie, Wagtail; `TopRight` — Cassowary, Kite, Mangrove |
 | `chrome_face` | `Body` \| `Named(family)` | Which FACE the overlay chrome (placard wordmark / title prefix / strip labels) shapes in — `Body` (the world's own display face) everywhere, byte-identical, until a world names another family. | `Named` — Cassowary, Firetail, Kite |
-| `motion` | `MotionJuice { entrance, band }` | Live-only overlay ENTRANCE + selection-band response. `CALM` (zero animators, settled state byte-identical in capture) on every world today. | none |
 | `list_style` | `Pane` \| `Bars { radius, gap, grow_px, extent, coverage }` \| `Diagonal(spine)` \| `Rules(weight)` | How a summoned picker draws the surfaces behind its candidate rows — one pane (default) vs. per-row plates that grow under the selection. | `Bars` — Cassowary, Firetail, Galah; `Diagonal` — Magpie, Mangrove; `Rules` — Paperbark |
 | `facet_style` | `Text` \| `Band` \| `Chips(variant)` | How the faceted picker's lens strip skins its labels. **Chips is rebuilt-for-real but ships INERT** (poster facets render `Text`) pending the user's variant pick. | `Band` — Kite; `Chips` — Cassowary, Firetail, Galah, Magpie, Mangrove |
 
 `RenderCaps::DEFAULT` is what the QUIET worlds carry — every field at its
 ordinary value, byte-identical to the pre-capabilities render paths.
-Wagtail (`theme/worlds.rs::WAGTAIL`) sets every field away from its default;
+Wagtail (`theme/worlds.rs::WAGTAIL`) authors the one-bit expressions it needs;
 the PERSONALITY-ASSIGNMENT round (2026-07-15, below) added the first
 one-line deviations on five more worlds, proving the machinery's whole
 point: personality is a DATA edit, never a render branch. Fields are plain
@@ -1300,7 +1292,7 @@ Every field in the table above is **theme-owned appearance**, and the theme
 picker is where a user tries worlds on. So the standing law: **highlighting a
 world applies EVERY theme-owned visible property to the real open picker at
 once** — world palette/type, background/ambient treatment, `Pane`/`Bars`
-surfaces + facets, `title_style`/`chrome_face`, `motion`, **and** `card_anchor`
+surfaces + facets, `title_style`/`chrome_face`, **and** `card_anchor`
 (the card's own left/center/right rail). What you preview is not a swatch; it
 **is** the destination world's picker. **Only the interaction state survives the
 crossing** — the query, the filtered corpus, the selected world, the row
@@ -1792,10 +1784,8 @@ Checklist:
    `every_world_has_a_bundled_mono`).
 2. Author the base planes + ink ladder (`base_100/200/300`, `base_content`,
    `muted`, `faint`) and the accents (`primary`, `primary_content`, `error`,
-   `selection_document`). Leave `selection_ui` at `None` — the selected-row
-   band derives from the surface ramp, which is what makes it a value step and
-   never a new hue without anyone checking. Authoring it opts out of that, and
-   a law sweeps the roster so the opt-out has to be deliberate.
+   `selection_document`). The selected-row UI band derives from the surface
+   ramp for every world, which makes it a value step and never a new hue.
 3. Pick a `Background` ground and tags on all four lenses. Most worlds pick a
    STATIC ground (Dots / Gradient / Pinstripe / Stripes). A world may
    instead pick the animated `Background::Lava` (a statement world — the whole

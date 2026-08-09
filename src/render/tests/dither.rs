@@ -423,34 +423,39 @@ fn dither_mode_paints_only_pure_values_at_roughly_the_configured_density() {
     }
 }
 
-/// TRUE INVERSE-VIDEO, at the pixel level: a `new_invert` pipeline drawn over
-/// a PURE BLACK clear turns it PURE WHITE, and over a PURE WHITE clear turns
-/// it PURE BLACK — the `OneMinusDst`/`Zero` blend trick computing an exact
-/// `1 - dst`, verified as real GPU output rather than asserted from the math
-/// alone.
+/// ARBITRARY TWO-COLOUR SWAP, at the pixel level. The endpoints are deliberately
+/// neither black nor white: the retired `1 - dst` implementation cannot satisfy
+/// this law. Each authored endpoint must become the other on the real GPU.
 #[test]
-fn invert_pipeline_flips_pure_black_and_pure_white_exactly() {
+fn two_colour_pipeline_swaps_non_black_white_endpoints() {
     let _g = crate::testlock::serial();
     let Some((device, queue)) = crate::test_gpu::shared_device_queue() else {
-        eprintln!(
-            "skipping invert_pipeline_flips_pure_black_and_pure_white_exactly: no wgpu adapter"
-        );
+        eprintln!("skipping two_colour_pipeline_swaps_non_black_white_endpoints: no wgpu adapter");
         return;
     };
     let _g = crate::testlock::serial();
 
     let (w, h) = (32u32, 32u32);
-    let mut invert = crate::selection::SelectionPipeline::new_invert(
+    let ground = [0x34u8, 0x62, 0x91, 0xFF];
+    let ink = [0xC3u8, 0x91, 0x58, 0xFF];
+    let mut invert = crate::selection::SelectionPipeline::new_two_colour(
         &device,
         &crate::selection::selection_shader(&device),
         FMT,
+        ground,
+        ink,
     );
     invert.prepare(&device, &queue, w, h, &[[0.0, 0.0, w as f32, h as f32]]);
 
-    for (clear, expect) in [
-        (wgpu::Color::BLACK, [255u8, 255, 255, 255]),
-        (wgpu::Color::WHITE, [0u8, 0, 0, 255]),
-    ] {
+    assert!(ground[..3].iter().all(|c| *c != 0 && *c != 255));
+    assert!(ink[..3].iter().all(|c| *c != 0 && *c != 255));
+    for (clear_bytes, expect) in [(ground, ink), (ink, ground)] {
+        let clear = wgpu::Color {
+            r: srgb_u8_to_linear(clear_bytes[0]) as f64,
+            g: srgb_u8_to_linear(clear_bytes[1]) as f64,
+            b: srgb_u8_to_linear(clear_bytes[2]) as f64,
+            a: 1.0,
+        };
         let (texture, tview) = offscreen(&device, w, h);
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("awl invert-test encoder"),
@@ -477,20 +482,18 @@ fn invert_pipeline_flips_pure_black_and_pure_white_exactly() {
         queue.submit(Some(encoder.finish()));
         let pixels = read_pixels(&device, &queue, &texture, w, h);
         for (i, p) in pixels.iter().enumerate() {
-            // Alpha is untouched by the invert blend (src_factor Zero / dst_factor
-            // One on that channel) — the clear color's own alpha (always 255 for
-            // an opaque BLACK/WHITE clear) survives, so only rgb is asserted
-            // against `expect`'s rgb; alpha is checked separately for honesty.
-            assert_eq!(
-                &p[..3],
-                &expect[..3],
-                "pixel {i}: expected {expect:?}, got {p:?}"
-            );
+            for channel in 0..3 {
+                assert!(
+                    p[channel].abs_diff(expect[channel]) <= 1,
+                    "pixel {i} channel {channel}: {clear_bytes:?} must swap to {expect:?}, got {p:?}"
+                );
+            }
+            assert_eq!(p[3], 255, "pixel {i}: swap preserves destination alpha");
         }
     }
 }
 
-/// Draw ONE `new_invert` instance — `set_corner(corner)` first when `corner`
+/// Draw ONE `new_two_colour` instance — `set_corner(corner)` first when `corner`
 /// is `Some` (mirroring `caret_invert`'s per-frame call), left at the
 /// construction default `0.0` when `None` (mirroring `selection_invert`,
 /// which never calls `set_corner` at all) — over a pure-black clear, and read
@@ -503,10 +506,12 @@ fn draw_invert_rect(
     rect: [f32; 4],
     corner: Option<f32>,
 ) -> Vec<[u8; 4]> {
-    let mut invert = crate::selection::SelectionPipeline::new_invert(
+    let mut invert = crate::selection::SelectionPipeline::new_two_colour(
         device,
         &crate::selection::selection_shader(device),
         FMT,
+        [0, 0, 0, 255],
+        [255, 255, 255, 255],
     );
     if let Some(c) = corner {
         invert.set_corner(c);
@@ -549,7 +554,7 @@ fn draw_invert_rect(
 /// unflipped), while the rect's CENTER and an EDGE MIDPOINT (inside the
 /// silhouette, away from any corner) both invert to pure WHITE. This is the
 /// literal shape the "hard square" bug this round fixes would have failed:
-/// pre-fix, `fs_invert` always used `radius = 0.0`, so the corner pixel would
+/// pre-fix, the swap fragment always used `radius = 0.0`, so the corner pixel would
 /// ALSO have inverted to white.
 #[test]
 fn caret_invert_corner_radius_hard_discards_outside_the_rounded_silhouette() {
@@ -563,7 +568,7 @@ fn caret_invert_corner_radius_hard_discards_outside_the_rounded_silhouette() {
     let _g = crate::testlock::serial();
 
     // A 60x60 rect at (15,15) on a 90x90 canvas, corner radius 20 (well under
-    // the half-extent of 30, so the clamp in `fs_invert` is a no-op and the
+    // the half-extent of 30, so the fragment's clamp is a no-op and the
     // full 20px radius applies) — chosen so hand-computed sample points land
     // cleanly inside/outside the rounded silhouette (see the SDF arithmetic
     // in this round's own commit message / CLAUDE.md notes).
@@ -948,7 +953,7 @@ fn wagtail_multiline_selection_shows_inverted_text_and_solid_white_on_empty_line
     let pixels = read_pixels(&device, &queue, &texture, 500, 260);
 
     // Sample the STRICT INTERIOR of a rect, not its `floor`/`ceil`-expanded
-    // bounding box: `fs_invert` is a deliberately HARD, non-AA edge (see its
+    // bounding box: `fs_two_colour` is a deliberately HARD, non-AA edge (see its
     // own doc in `shaders/selection.wgsl`) that resolves each pixel by its
     // CENTER against the quad's exact float boundary — a pixel whose center
     // sits a hair outside that boundary is correctly left un-inverted (the

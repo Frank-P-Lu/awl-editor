@@ -240,7 +240,7 @@ fn highlight_treatment_matches_selection_style_on_every_world_no_absent_case() {
                 );
             }
             (
-                crate::theme::SelectionStyle::InverseVideo,
+                crate::theme::SelectionStyle::InverseVideo(_),
                 crate::theme::HighlightTreatment::InverseFill { band: b, ink },
             ) => {
                 // A 1-bit world resolves the pair off its OWN ladder, not the
@@ -262,6 +262,38 @@ fn highlight_treatment_matches_selection_style_on_every_world_no_absent_case() {
                 t.name
             ),
         }
+    }
+}
+
+/// Selection and block caret choose palette-role pairs independently. The
+/// resolver is general palette data, not a Wagtail-shaped black/white switch.
+#[test]
+fn two_colour_roles_resolve_arbitrary_non_black_white_pairs_independently() {
+    let t = THEMES
+        .iter()
+        .find(|t| t.name == "Tawny")
+        .expect("Tawny ships");
+    let selection = crate::theme::SelectionStyle::InverseVideo(crate::theme::TwoColour::new(
+        crate::theme::PaletteRole::Primary,
+        crate::theme::PaletteRole::Error,
+    ))
+    .two_colour(t)
+    .expect("selection pair resolves");
+    let caret = crate::theme::CaretBlockStyle::InverseVideo(crate::theme::TwoColour::new(
+        crate::theme::PaletteRole::Base200,
+        crate::theme::PaletteRole::Muted,
+    ))
+    .two_colour(t)
+    .expect("caret pair resolves");
+
+    assert_eq!((selection.ground, selection.ink), (t.primary, t.error));
+    assert_eq!((caret.ground, caret.ink), (t.base_200, t.muted));
+    assert_ne!(selection, caret, "the two consumers select their own pair");
+    for c in [selection.ground, selection.ink, caret.ground, caret.ink] {
+        assert!(
+            !matches!((c.r, c.g, c.b), (0, 0, 0) | (255, 255, 255)),
+            "fixture endpoint {c:?} must be non-black/white"
+        );
     }
 }
 

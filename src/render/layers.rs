@@ -158,16 +158,9 @@ impl TextPipeline {
             self.frost_seeds.clear();
             self.frost_seed_key = None;
         }
-        // FROST RECIPE AS DATA: the ONE runtime consumer reads the active world's
-        // `frost` capability (see `theme::Frost`), never the bare consts — so a
-        // world dials its own softened-lamp recipe with no per-world code path
-        // (`theme_caps_law`). Every world carries `Frost::DEFAULT` (the shipped
-        // `crate::lava` values), so this is byte-identical until a world tunes. The
-        // third slot carries the field ISO the shader thresholds the summed halos at.
-        let frost = crate::theme::active().render_caps.frost;
         let frost_params = [
-            frost.dim,
-            crate::lava::frost_px(frost.blur_px, self.metrics.zoom, self.dpi),
+            crate::lava::FROST_DIM,
+            crate::lava::frost_px(crate::lava::FROST_BLUR_PX, self.metrics.zoom, self.dpi),
             crate::lava::FROST_ISO,
         ];
         let params = self
@@ -672,7 +665,7 @@ impl TextPipeline {
                     self.caret_glyph_pipeline.clear();
                 }
             }
-            theme::CaretBlockStyle::InverseVideo => {
+            theme::CaretBlockStyle::InverseVideo(_) => {
                 self.caret_glyph_pipeline.clear();
                 // TRUE 1-BIT WORLDS: an opaque pre-text quad here — even one
                 // tinted `primary` (pure white on a one-bit world, the SAME
@@ -683,12 +676,10 @@ impl TextPipeline {
                 // heading's `#` erased the `#`). Route the caret's own ANIMATED
                 // rect (this frame's settle-driven position + streak size, from
                 // `caret_geometry`/the descender extension above — travel-axis
-                // ROTATION is dropped, `fs_invert` has no axis field, and a
+                // ROTATION is dropped, `fs_two_colour` has no axis field, and a
                 // rotated streak is rare + still legible axis-aligned) through
-                // `caret_invert` instead: drawn AFTER text with a `OneMinusDst`
-                // blend, so it flips whatever the ground+text already
-                // composited to beneath it — black ground -> white, white glyph
-                // ink -> black — making the glyph under the caret legible.
+                // `caret_invert` instead: drawn AFTER text with the shared
+                // two-colour role swap, making the glyph under it legible.
                 // `caret_pipeline` draws NOTHING this frame (`prepare_empty`):
                 // an opaque quad here would hand the invert pass a uniform-white
                 // destination with nothing left to flip into a visible glyph.
@@ -698,7 +689,7 @@ impl TextPipeline {
                 // `pop_scaled` computed above — the ONE Rust-side owner an
                 // ORDINARY world's `caret_pipeline.prepare_directed` call below
                 // draws with too. Uploading it into `caret_invert` via
-                // `set_corner` (consumed by `fs_invert`'s SDF discard — see that
+                // `set_corner` (consumed by `fs_two_colour`'s SDF discard — see that
                 // shader entry point's doc) makes the 1-bit caret's silhouette
                 // round the SAME way, rather than falling back to a hard square.
                 self.caret_invert.set_corner(ccorner);
@@ -814,8 +805,11 @@ impl TextPipeline {
         // selection or preedit.
         let mut rects = self.selection_rects();
         rects.extend(self.preedit_rects());
-        let one_bit =
-            theme::active().render_caps.selection_style == theme::SelectionStyle::InverseVideo;
+        let inverse = theme::active()
+            .render_caps
+            .selection_style
+            .two_colour(&theme::active())
+            .is_some();
 
         // ORDINARY WORLDS: the translucent fill, unchanged.
         //
@@ -830,7 +824,7 @@ impl TextPipeline {
         // entirely (see its field doc) — so `selection_pipeline` draws
         // nothing there, never a stale white fill under the inverted text.
         let settle = self.copy_pulse_settle();
-        let fill_rects: &[[f32; 4]] = if one_bit { &[] } else { &rects };
+        let fill_rects: &[[f32; 4]] = if inverse { &[] } else { &rects };
         self.selection_pipeline.prepare_pulsed(
             device,
             queue,
@@ -858,7 +852,7 @@ impl TextPipeline {
         // `TextPipeline::selection_invert`'s field doc. Drawn AFTER text in
         // `draw_document_layers`; every other world uploads zero instances
         // here (parked, byte-identical).
-        let invert_rects: &[[f32; 4]] = if one_bit { &rects } else { &[] };
+        let invert_rects: &[[f32; 4]] = if inverse { &rects } else { &[] };
         self.selection_invert
             .prepare(device, queue, width, height, invert_rects);
     }

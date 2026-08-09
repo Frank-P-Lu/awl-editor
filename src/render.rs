@@ -1582,7 +1582,7 @@ pub(crate) fn effective_chrome_face() -> theme::ChromeFace {
 pub(crate) fn effective_motion_juice() -> theme::MotionJuice {
     match overrides::current().motion_juice {
         Some(m) => m,
-        None => theme::active().render_caps.motion,
+        None => theme::MotionJuice::CALM,
     }
 }
 
@@ -1633,7 +1633,7 @@ pub(crate) fn effective_facet_style() -> theme::FacetStyle {
 pub(crate) fn effective_pane_split() -> theme::PaneSplit {
     match overrides::current().pane_split {
         Some(s) => s,
-        None => theme::active().render_caps.pane_split,
+        None => theme::PaneSplit::Split,
     }
 }
 
@@ -1878,27 +1878,15 @@ pub struct TextPipeline {
     /// The GPU quad pipeline that draws translucent search-match highlights
     /// (same SELECTION color; the current match is shown by the amber caret).
     pub match_pipeline: SelectionPipeline,
-    /// TRUE 1-BIT WORLDS ONLY (`Theme::render_caps.selection_style ==
-    /// SelectionStyle::InverseVideo`): TRUE inverse-video
-    /// selection — a `SelectionPipeline` built via
-    /// [`crate::selection::SelectionPipeline::new_invert`] (its own
-    /// `OneMinusDst`-blended `RenderPipeline` object) drawn AFTER the
-    /// document text, so it inverts whatever is already composited beneath
-    /// it: black text flips white, white ground flips black, wherever a
-    /// selected rect covers. REPLACES the old "punch outline" mechanism
-    /// outright (a translucent-white-quad-plus-inset-black-punch fallback
-    /// this round upgrades away from — see `worlds.rs::WAGTAIL`'s doc comment
-    /// + THEMES.md's 1-bit section for the full history). Idle (zero
-    ///   instances) on every other world — a non-Wagtail capture is
-    ///   byte-identical.
+    /// Selection's arbitrary two-colour palette-role swap. It is drawn after
+    /// document text so the resolved ground and ink exchange roles. Idle when
+    /// [`theme::SelectionStyle::Fill`] is active.
     pub selection_invert: SelectionPipeline,
-    /// TRUE 1-BIT WORLDS ONLY (`Theme::render_caps.caret_block_style ==
-    /// CaretBlockStyle::InverseVideo`), THE 1-BIT CARET ROUND:
-    /// sibling of [`Self::selection_invert`] — the SAME true-inverse-video
-    /// mechanism (`SelectionPipeline::new_invert`, `OneMinusDst`/`Zero`
-    /// blend, drawn AFTER text), carrying the BLOCK caret's own current
+    /// Block caret's independently authored two-colour palette-role swap,
+    /// using the same pipeline mechanism as [`Self::selection_invert`] and
+    /// drawn after text. It carries the BLOCK caret's own current
     /// ANIMATED rect (position + scale from the spring/juice geometry;
-    /// rotation is dropped — `fs_invert` has no axis field, and the caret's
+    /// rotation is dropped — `fs_two_colour` has no axis field, and the caret's
     /// diagonal travel streak is rare + still legible axis-aligned) instead
     /// of a selection range. Fixes the "white block over a white glyph
     /// erases the glyph" bug (a caret parked on a heading's `#` used to make
@@ -1916,10 +1904,10 @@ pub struct TextPipeline {
     /// cells, never over one, so it never needed inverting). KEEPS ITS
     /// ROUNDED SILHOUETTE: every `prepare_caret_block` call also uploads the
     /// frame's already zoom/settle/squash-animated corner radius via
-    /// `SelectionPipeline::set_corner`, so `fs_invert`'s hard-discard SDF
+    /// `SelectionPipeline::set_corner`, so `fs_two_colour`'s hard-discard SDF
     /// (`shaders/selection.wgsl`) still traces the same rounded shape
     /// `caret_pipeline` draws on an ordinary world — aliased at the corners
-    /// (no AA survives the `OneMinusDst` blend trick), never a hard square.
+    /// (the role-swap silhouette is hard-edged), never a hard square.
     /// `selection_invert` never calls `set_corner` and so stays a plain
     /// rectangle, exactly right for a selection range.
     pub caret_invert: SelectionPipeline,
@@ -2425,8 +2413,8 @@ pub struct TextPipeline {
     /// bench / test pipeline — only the live App's GPU init calls
     /// [`Self::arm_live_juice`]. Every motion-juice kick checks this first,
     /// so the capture path is STRUCTURALLY animation-free (the settled state
-    /// is the only state it can ever render), regardless of the world's own
-    /// `render_caps.motion` or the `AWL_MOTION_FORCE` probe.
+    /// is the only state it can ever render), regardless of the dev-only
+    /// motion override.
     juice_live: bool,
     overlay_enter_t: f32,
     /// Selection-BAND slide state: the row-top the band is easing FROM and

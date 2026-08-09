@@ -236,7 +236,7 @@ fn check_color_math(th: &theme::Theme, s: Surface, floor: f32) {
             }
         },
         Surface::DocumentSelection => match th.render_caps.selection_style {
-            theme::SelectionStyle::InverseVideo => {}
+            theme::SelectionStyle::InverseVideo(_) => {}
             theme::SelectionStyle::Fill => {
                 let composited = composite(th.selection_document, th.base_100);
                 let d = redmean(composited, th.base_100);
@@ -251,7 +251,7 @@ fn check_color_math(th: &theme::Theme, s: Surface, floor: f32) {
             }
         },
         Surface::CaretVsGround => match th.render_caps.caret_block_style {
-            theme::CaretBlockStyle::InverseVideo => {}
+            theme::CaretBlockStyle::InverseVideo(_) => {}
             // Both paint an OPAQUE `primary` cell over the ground, so visibility is
             // the same primary-vs-ground redmean check. Filled additionally re-inks
             // the covered GLYPH in `primary_content` — but that only affects the

@@ -176,3 +176,226 @@ fn set_by_name_is_case_insensitive() {
     assert!(set_active_by_name("nope").is_none());
     set_active(DEFAULT_THEME);
 }
+
+fn render_caps_fields() -> Vec<String> {
+    let src = include_str!("../model.rs");
+    let start = src
+        .find("pub struct RenderCaps {")
+        .expect("RenderCaps declaration");
+    let body = &src[start..];
+    let end = body.find("\n}").expect("RenderCaps closing brace");
+    body[..end]
+        .lines()
+        .filter_map(|line| {
+            line.trim()
+                .strip_prefix("pub ")
+                .and_then(|line| line.split_once(':'))
+                .map(|(name, _)| name.to_string())
+        })
+        .collect()
+}
+
+fn capability_adopters(field: &str) -> Vec<&'static str> {
+    let d = RenderCaps::DEFAULT;
+    THEMES
+        .iter()
+        .filter(|t| match field {
+            "selection_style" => t.render_caps.selection_style != d.selection_style,
+            "caret_block_style" => t.render_caps.caret_block_style != d.caret_block_style,
+            "backdrop" => t.render_caps.backdrop != d.backdrop,
+            "elevation" => t.render_caps.elevation != d.elevation,
+            "decorative_wash" => t.render_caps.decorative_wash != d.decorative_wash,
+            "image_reveal" => t.render_caps.image_reveal != d.image_reveal,
+            "highlight_texture" => t.render_caps.highlight_texture != d.highlight_texture,
+            "title_style" => t.render_caps.title_style != d.title_style,
+            "page_frame" => t.render_caps.page_frame != d.page_frame,
+            "card_anchor" => t.render_caps.card_anchor != d.card_anchor,
+            "chrome_face" => t.render_caps.chrome_face != d.chrome_face,
+            "list_style" => t.render_caps.list_style != d.list_style,
+            "facet_style" => t.render_caps.facet_style != d.facet_style,
+            "location_style" => t.render_caps.location_style != d.location_style,
+            "ambient" => t.render_caps.ambient != d.ambient,
+            "spell_underline_gap" => t.render_caps.spell_underline_gap != d.spell_underline_gap,
+            "fold_afford" => t.render_caps.fold_afford != d.fold_afford,
+            "card_texture" => t.render_caps.card_texture != d.card_texture,
+            "card_shape" => t.render_caps.card_shape != d.card_shape,
+            other => {
+                panic!("new RenderCaps field `{other}` has no adoption census or classification")
+            }
+        })
+        .map(|t| t.name)
+        .collect()
+}
+
+/// Every top-level capability carries an explicit data-model verdict. This is
+/// intentionally exhaustive even for common fields: adding a field without a
+/// verdict fails by its declaration name. Zero/single-adopter fields are
+/// printed with their live adopters so a green run is also the audit report.
+#[test]
+fn every_zero_or_single_adopter_capability_is_named_and_classified() {
+    let fields = render_caps_fields();
+    assert_eq!(fields.len(), 19, "RenderCaps declaration census drifted");
+    let mut sparse = Vec::new();
+    for field in fields {
+        let verdict = match field.as_str() {
+            "selection_style" => "keep: authored document-selection expression",
+            "caret_block_style" => "keep: authored block-caret expression",
+            "backdrop" => "keep: authored flat/blur expression",
+            "elevation" => "keep: authored surface expression",
+            "decorative_wash" => "keep: authored one-bit exclusion",
+            "image_reveal" => "keep: authored one-bit exclusion",
+            "highlight_texture" => "keep: authored one-bit texture",
+            "title_style" => "keep: authored title composition",
+            "page_frame" => "keep: authored frame expression",
+            "card_anchor" => "keep: authored card composition",
+            "chrome_face" => "keep: authored display face",
+            "list_style" => "keep: authored Pane/Diagonal/Bars/Rules composition",
+            "facet_style" => "keep: authored facet composition",
+            "location_style" => "keep: authored location composition",
+            "ambient" => "keep: Stars is authored aliveness, not corrective geometry",
+            "spell_underline_gap" => "excluded: separately resolved corrective dial",
+            "fold_afford" => "keep: two measured lava-palette corrections",
+            "card_texture" => "keep: Halftone is authored material",
+            "card_shape" => "keep: Chamfer is authored geometry",
+            other => panic!("RenderCaps field `{other}` has no classification"),
+        };
+        let adopters = capability_adopters(&field);
+        if adopters.len() <= 1 {
+            sparse.push(format!("{field}: {adopters:?} — {verdict}"));
+        }
+    }
+    assert!(!sparse.is_empty(), "sparse-capability report is vacuous");
+    eprintln!(
+        "zero/single-adopter RenderCaps census:\n{}",
+        sparse.join("\n")
+    );
+}
+
+fn background_kind(t: &Theme) -> &'static str {
+    match t.background {
+        Background::Gradient { .. } => "Gradient",
+        Background::Dots { .. } => "Dots",
+        Background::Pinstripe { .. } => "Pinstripe",
+        Background::Stripes { .. } => "Stripes",
+        Background::Lava { .. } => "Lava",
+        Background::Bands { .. } => "Bands",
+        Background::Waves { .. } => "Waves",
+        Background::Zigzag { .. } => "Zigzag",
+        Background::Organic { .. } => "Organic",
+        Background::Deckle { .. } => "Deckle",
+        Background::WarpedGrid { .. } => "WarpedGrid",
+    }
+}
+
+/// Sparse enum arms are expressions, not dead fields. This pins the explicitly
+/// protected roster: Rules, both Diagonal directions, chamfer, ambient stars,
+/// icon-ground presets, and every background kind all remain name-free data.
+#[test]
+fn sparse_authored_variants_remain_classified_data() {
+    let adopters = |pred: &dyn Fn(&Theme) -> bool| {
+        THEMES
+            .iter()
+            .filter(|t| pred(t))
+            .map(|t| t.name)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        adopters(&|t| matches!(t.render_caps.list_style, ListStyle::Rules(_))),
+        ["Paperbark"]
+    );
+    assert_eq!(
+        adopters(&|t| matches!(
+            t.render_caps.list_style,
+            ListStyle::Diagonal(crate::theme::DiagonalSpine {
+                direction: crate::theme::DiagonalDirection::Ascending,
+                ..
+            })
+        )),
+        ["Magpie"]
+    );
+    assert_eq!(
+        adopters(&|t| matches!(
+            t.render_caps.list_style,
+            ListStyle::Diagonal(crate::theme::DiagonalSpine {
+                direction: crate::theme::DiagonalDirection::Descending,
+                ..
+            })
+        )),
+        ["Mangrove"]
+    );
+    assert_eq!(
+        adopters(&|t| matches!(t.render_caps.card_shape, CardShape::Chamfered { .. })),
+        ["Quokka"]
+    );
+    assert_eq!(
+        adopters(&|t| matches!(t.render_caps.ambient, AmbientStyle::Stars { .. })),
+        ["Currawong"]
+    );
+    assert_eq!(
+        adopters(&|t| t.icon_ground == IconGround::Blend40),
+        ["Firetail"]
+    );
+    assert!(
+        adopters(&|t| t.icon_ground == IconGround::Blend25).is_empty(),
+        "Blend25 is a classified closed-preset exploration arm"
+    );
+
+    for kind in [
+        "Gradient",
+        "Dots",
+        "Pinstripe",
+        "Stripes",
+        "Lava",
+        "Bands",
+        "Waves",
+        "Zigzag",
+        "Organic",
+        "Deckle",
+        "WarpedGrid",
+    ] {
+        let worlds: Vec<_> = THEMES
+            .iter()
+            .filter(|t| background_kind(t) == kind)
+            .map(|t| t.name)
+            .collect();
+        assert!(
+            !worlds.is_empty(),
+            "background kind {kind} has no live world"
+        );
+        if worlds.len() == 1 {
+            eprintln!("background.{kind}: {worlds:?} — keep: authored ground vocabulary");
+        }
+    }
+}
+
+/// Removed/no-variation facts have exactly one product owner, while their test
+/// overrides still mutation-prove the latent renderer axes.
+#[test]
+fn promoted_facts_have_renderer_owners_and_no_theme_data_branch() {
+    let model = include_str!("../model.rs");
+    assert!(!model.contains("pub selection_ui:"));
+    assert!(!model.contains("pub motion:"));
+    assert!(!model.contains("pub pane_split:"));
+    assert!(!model.contains("pub frost:"));
+
+    let derive = include_str!("../derive.rs");
+    assert!(!derive.contains("resolve_selection_ui"));
+    assert!(derive.contains("pub fn selection_ui() -> Srgb {\n    derived_selection_ui()\n}"));
+
+    let render = include_str!("../../render.rs");
+    assert!(render.contains("None => theme::MotionJuice::CALM"));
+    assert!(render.contains("None => theme::PaneSplit::Split"));
+    assert!(render.contains("set_overlay_motion_test_override"));
+    assert!(render.contains("set_pane_split_test_override"));
+
+    let layers = include_str!("../../render/layers.rs");
+    let outline = include_str!("../../render/chrome/outline.rs");
+    let gutter = include_str!("../../render/chrome/gutter.rs");
+    assert!(layers.contains("crate::lava::FROST_DIM"));
+    assert!(layers.contains("crate::lava::FROST_BLUR_PX"));
+    assert!(outline.contains("crate::lava::FROST_FEATHER_PX"));
+    assert!(gutter.contains("crate::lava::FROST_FEATHER_PX"));
+    for source in [layers, outline, gutter] {
+        assert!(!source.contains("render_caps.frost"));
+    }
+}

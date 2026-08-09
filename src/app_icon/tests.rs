@@ -551,7 +551,10 @@ fn the_two_law_bound_worlds_keep_their_block() {
     );
     assert_eq!(
         wagtail.render_caps.selection_style,
-        crate::theme::SelectionStyle::InverseVideo,
+        crate::theme::SelectionStyle::InverseVideo(crate::theme::TwoColour::new(
+            crate::theme::PaletteRole::Base300,
+            crate::theme::PaletteRole::BaseContent,
+        )),
         "Wagtail is the true 1-bit world this law is about"
     );
     let cassowary = world("Cassowary");
