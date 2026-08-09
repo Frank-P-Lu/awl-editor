@@ -1,4 +1,4 @@
-//! ITEM 116b — THE SUMMONED WORKSPACE'S TWO BOXES, AND THE RELOCATED DOCUMENT
+//! THE SUMMONED WORKSPACE'S TWO BOXES, AND THE RELOCATED DOCUMENT
 //! VIEWPORT ONE OF THEM CAN BECOME.
 //!
 //! # Why this file exists
@@ -11,7 +11,7 @@
 //! document consumer already routes through ([`TextPipeline::column_left`],
 //! [`TextPipeline::column_width`], `doc_top`, `doc_clip_band`). Nothing else in
 //! the tree learns a second placement rule; ~45 existing call sites compose it
-//! for free, exactly as item 84's content clip and the adaptive column already
+//! for free, exactly as the content clip and adaptive column already
 //! do.
 //!
 //! # The bypass is module-private, and it is named
@@ -51,7 +51,7 @@ use super::*;
 /// The workspace's boxes for one frame: the card it fills, the PRIMARY (narrow)
 /// column, the CONTENT pane beside it, and which of them this width draws.
 ///
-/// Positional only, and deliberately blind to item 116a's `rows_are_primary`:
+/// Positional only, and deliberately blind to `rows_are_primary`:
 /// WHICH region carries the row-window is the caller's question, and asking it
 /// here would put the same fact in two places.
 #[derive(Clone, Copy, Debug)]
@@ -139,7 +139,7 @@ impl TextPipeline {
         }
     }
 
-    /// **THE ONE OWNER OF WHERE THE DOCUMENT LAYER DRAWS** (item 116b).
+    /// **THE ONE OWNER OF WHERE THE DOCUMENT LAYER DRAWS**.
     ///
     /// `Some([x, y, w, h])` — the workspace CONTENT pane, when this frame's
     /// summoned workspace puts its own rows in the PRIMARY column
@@ -253,7 +253,7 @@ impl TextPipeline {
     /// page edges — all compose off the four relocated owners, and none of them
     /// has anything true to say while the document on screen is a read-only
     /// comparison of two versions the user is not editing. So they yield, exactly
-    /// as item 34 already yields them to a summoned overlay.
+    /// as they already yield to a summoned overlay.
     ///
     /// The question is whether the document LAYER is a transcript, not whether its
     /// region is on screen — those differ on the narrow stage, and a margin
@@ -273,7 +273,7 @@ impl TextPipeline {
     /// so the draw path and the item-116b margin-orientation law read the same
     /// sentence. Empty parks the label off-screen.
     ///
-    /// ITEM 116b: word count and reading time describe the user's OWN document.
+    /// Word count and reading time describe the user's OWN document.
     /// While the document layer is relocated into a read-only comparison
     /// ([`TextPipeline::margin_orientation_yields`]) that number would be about
     /// a transcript nobody is writing, so it yields with the rest of the margin

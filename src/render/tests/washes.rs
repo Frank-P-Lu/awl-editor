@@ -585,11 +585,11 @@ fn multiline_comment_wash_merges_into_one_continuous_band() {
     );
 }
 
-/// ITEM 84-FIX — the fence panel's [`FENCE_PANEL_INSET_X`] overhang survives
-/// item 84's writing-column content clip, with PAGE MODE OFF (the case with
+/// The fence panel's [`FENCE_PANEL_INSET_X`] overhang survives the
+/// writing-column content clip, with PAGE MODE OFF (the case with
 /// zero slack: `text_pad()` is hard-zeroed then, so `text_left() ==
 /// column_left()` and there is no margin to absorb the inset if the strict
-/// clip were applied here). Before item 84-fix, `fence_panel_rects` routed
+/// clip were applied here). The broken `fence_panel_rects` routed
 /// through the SAME `clip_rects_to_band` the selection-adjacent quads use,
 /// which X-clips to `[column_left(), column_left()+column_width())` — flush
 /// with the bare glyph column, eating the panel's whole INTENDED overhang on
@@ -664,12 +664,12 @@ fn fence_panel_overhang_survives_content_clip_with_page_mode_off() {
     crate::page::set_page_on(prev_page);
 }
 
-/// ITEM 84-FIX — the inline-code pill's [`CODE_PILL_INSET_X`] LEFT overhang
-/// survives item 84's content clip at COLUMN 0 (line start), with PAGE MODE
+/// The inline-code pill's [`CODE_PILL_INSET_X`] LEFT overhang survives the
+/// content clip at COLUMN 0 (line start), with PAGE MODE
 /// OFF. Mirrors the fence-panel test above: `text_pad()` is zero, so
 /// `text_left() == column_left()`, and a span starting at column 0 has its
 /// pill's un-inset left edge sitting EXACTLY at that shared boundary — the
-/// worst case for the item 84 bug (item 84's X-clip would clamp the pill's
+/// worst case for the bug (the strict X-clip would clamp the pill's
 /// left cap away entirely, not merely narrow it).
 #[test]
 fn code_pill_left_inset_survives_content_clip_at_line_start_with_page_mode_off() {

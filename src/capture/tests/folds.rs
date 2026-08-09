@@ -1,4 +1,4 @@
-//! item 65 capture-level fold laws, driven through the REAL `Buffer` fold
+//! Capture-level fold laws, driven through the REAL `Buffer` fold
 //! gestures (`toggle_fold_at_cursor`) and the REAL `capture_with` entry point —
 //! the same harness a live `--screenshot` uses — so both are genuine end-to-end
 //! proofs, not a re-derivation of the pure fold math `fold::tests` /
@@ -17,7 +17,7 @@ use crate::testscratch::ScratchDir;
 /// IDENTICAL RESTORATION AFTER UNFOLD: capture (unfolded) -> collapse -> capture
 /// (must differ from the first — else this proves nothing) -> unfold -> capture
 /// (must be byte-identical to the FIRST, both the PNG and the sidecar JSON). Also
-/// exercises the item 65 Outline correlation along the way: the sidecar's
+/// exercises the Outline correlation along the way: the sidecar's
 /// `outline.collapsed` names the folded heading's index while collapsed, and is
 /// empty again once restored.
 #[test]
@@ -152,13 +152,13 @@ fn brightest_in(img: &image::RgbaImage, x0: u32, y0: u32, x1: u32, y1: u32) -> [
     best
 }
 
-/// ITEM 65's FABLE ADJUSTMENT — THE NAMED REAL-GROUND CONTRAST FLOOR: on a
+/// FABLE ADJUSTMENT — THE NAMED REAL-GROUND CONTRAST FLOOR: on a
 /// `Background::Lava` world (Mangrove, Firetail), the lamp's edge-glow "soft
 /// light-spill under the column" lifts the WHOLE writing column off flat
 /// `base_100` — so `theme::tests::fold_tail_ink_clears_the_readable_floor_
 /// and_stays_quieter_than_heading_ink`'s theoretical `faint`-vs-`base_100`
 /// check (still a valid, separate ink-ladder regression guard on the bare
-/// token) cannot see this: Fable's item 65 taste audit measured the fold
+/// token) cannot see this: Fable's taste audit measured the fold
 /// chevron/tail against the page ground they ACTUALLY render on and found
 /// Mangrove's chevron at ~1.5:1, Mangrove's tail at ~1.4:1, and Firetail's
 /// tail at ~1.4:1 — all effectively invisible — while Firetail's OWN chevron
@@ -329,13 +329,13 @@ fn rightmost_ink_x(
     None
 }
 
-/// ITEM 73 (Fable-flagged item 65 defect): a collapsed heading's own "… N lines"
+/// Fable's TAIL defect: a collapsed heading's own "… N lines"
 /// TAIL must never bleed past the writing column's own TEXT-COLUMN right edge —
 /// `text_origin.left + text_wrap_width()`, the SAME boundary [`crate::render::
 /// TextPipeline::text_wrap_width`]'s own "the right margin mirrors the left" doc
 /// names, and the exact quantity `render::tests::folds::
 /// fold_tail_hangs_after_the_first_visual_row_when_the_heading_wraps` already
-/// checks the tail's LEFT against (that item 65 law caught the FLATTENED-across-
+/// checks the tail's LEFT against (that law caught the FLATTENED-across-
 /// wrapped-rows placement bug; this one catches the NARROWER defect Fable found
 /// in the corrected placement itself — `fold_affordance_base_x` reads the first
 /// visual row's own real end-x, which is right, but the old code never accounted

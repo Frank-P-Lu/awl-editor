@@ -13,7 +13,7 @@ use super::*;
 use crate::caret::RecoilDir::{Left, Right};
 use crate::overlay::OverlayKind;
 
-/// ITEM 116c — the alternate-accept (⇧↵) byte-identity law over `disk_bytes`.
+/// The alternate-accept (⇧↵) byte-identity law over `disk_bytes`.
 mod alternate_accept;
 mod export_gate;
 mod folds;
@@ -25,7 +25,7 @@ mod pickers_nav;
 mod recoil_flinch;
 mod save_feedback;
 mod settings_reach;
-/// ITEM 114 — the summoned workspace's state, focus and back, in the lifecycle's
+/// The summoned workspace's state, focus and back, in the lifecycle's
 /// own vocabulary. Tier 1, fully capturable (`docs/harness-reach.md`).
 mod workspace;
 mod workspace_esc;
@@ -194,14 +194,14 @@ pub(super) fn settings_overlay() -> OverlayState {
         vec![],
     );
     ov.set_secondaries(crate::settings::value_cells(&Default::default()));
-    // ITEM 94: the rail column, exactly as `overlay::build`'s Settings arm sets it
+    // The rail column, exactly as `overlay::build`'s Settings arm sets it
     // (so a drive test exercises the real row shape, rails included). The default
     // `SettingsValues` carries `zoom: 0.0`, which the spec clamps to the band floor.
     ov.set_range_cells(crate::settings::visible_range_cells(&Default::default()));
     ov
 }
 
-/// ITEM 114 — a Settings WORKSPACE standing in its CONTENT pane, which is where
+/// A Settings WORKSPACE standing in its CONTENT pane, which is where
 /// the picker's own row keys live. A fresh summon lands on the navigation RAIL
 /// (the workspace's primary list), so a test that means to drive a settings ROW
 /// walks in the way a user does — `→` through the real lifecycle — rather than
@@ -212,7 +212,7 @@ pub(super) fn settings_journey() -> crate::overlay::Journey {
     journey
 }
 
-/// ITEM 94 — like [`settings_drive`], but with the caller's OWN zoom scalar
+/// Like [`settings_drive`], but with the caller's OWN zoom scalar
 /// threaded through `ActionCtx`, so a test can assert what a rail step did to the
 /// live value (the same field the live App mirrors back after `apply_transition`).
 pub(super) fn settings_drive_zoom(
@@ -252,7 +252,7 @@ pub(super) fn settings_drive(journey: &mut crate::overlay::Journey, action: &Act
     let mut make_overlay = |k: OverlayKind| match k {
         OverlayKind::Settings => Some(settings_overlay()),
         OverlayKind::Caret => Some(OverlayState::new_caret(crate::caret::mode())),
-        // ITEM 114 — the Theme audition is one of the two fast editor-backed
+        // The Theme audition is one of the two fast editor-backed
         // pickers a Settings row descends into, so the shared drive builds it
         // the same way `overlay::build` does (every world + the active index,
         // which is what a revert restores).

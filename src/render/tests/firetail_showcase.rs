@@ -117,7 +117,7 @@ fn inset_anchor_sweeps_from_topleft_through_center_to_right_pinned() {
         i5[0],
         tc[0]
     );
-    // 1.0: right edge = canvas width - the interior-rail inset (item 67's
+    // 1.0: right edge = canvas width - the interior-rail inset (the
     // `overlay_rail_inset`, cw-independent — the card centers near the
     // viewport's two-thirds mark, generous breathing room over the old flush
     // ~28px edge-hug).
@@ -421,12 +421,12 @@ fn band_slide_snaps_by_default_slides_when_asked_and_folds_under_reduce_motion()
 }
 
 /// THE SELECTION-DESYNC REGRESSION (2026-07-22 user report), now under the
-/// ITEM 48 HYBRID: the living-band choreography (`living_band_phase`, shipped
+/// THE HYBRID: the living-band choreography (`living_band_phase`, shipped
 /// ON by default — see `render/livingband.rs`) must never draw a band that
 /// lags the logical selection under arrow-key auto-repeat ("the highlighted row
 /// doesn't match what Enter would run"). A held-down / fast-repeat Down easily
 /// outruns the ~110ms slide, so a new re-target arrives mid-glide. The user's
-/// decision (item 48) is that such an IN-FLIGHT re-target SNAPS the band
+/// decision is that such an IN-FLIGHT re-target SNAPS the band
 /// straight onto the freshest selection (`TextPipeline::chase_or_snap`) — an
 /// even stronger anti-desync guarantee than the earlier "chase from the true
 /// in-flight position": the band == the selection THIS frame, not an eased
@@ -533,7 +533,7 @@ fn parse_overlay_slant_force_grammar() {
             italic: true
         })
     );
-    // ITEM 131a — a negative step is now a real grammar: it selects the MIRRORED
+    // A negative step is a real grammar: it selects the MIRRORED
     // composition (right edge steps in) rather than being rejected. `0.0` alone
     // stays out-of-grammar (an explicit "no stagger" is the env var unset, not a
     // zero step that would silently no-op every consumer).
@@ -581,7 +581,7 @@ fn slant_offset_math_is_a_stair_with_row_zero_unshifted() {
         "a single row pays no width tax"
     );
 
-    // ITEM 131a — a MIRRORED (negative) step's width tax is the SAME magnitude:
+    // A MIRRORED (negative) step's width tax is the SAME magnitude:
     // a right-moving stagger eats just as much usable width as a left-moving
     // one, so `slant_max_offset` must not go negative and silently GRANT width
     // back to `overlay_shape.rs`'s elision budget.
@@ -909,7 +909,7 @@ fn slant_bar_span_cascades_without_overrunning_the_card() {
         230.0
     );
 
-    // ITEM 131a — FULL, dw (Magpie's mirror): LEFT edge stays flush, the RIGHT
+    // FULL, dw (Magpie's mirror): LEFT edge stays flush, the RIGHT
     // edge steps in by `dw` (negative).
     let (x, w) = chrome::slant_bar_span(30.0, 200.0, false, 0.0, -40.0);
     assert_eq!(

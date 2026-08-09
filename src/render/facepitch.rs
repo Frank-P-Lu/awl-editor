@@ -1,5 +1,5 @@
 //! Face PITCH — is a bundled display family MONOSPACED? — MEASURED from the
-//! face's own metrics, never recognised by name (queue item 97).
+//! face's own metrics, never recognised by name.
 //!
 //! WHAT WENT WRONG. `caret::font_is_mono` used to be a three-name string match
 //! (`"IBM Plex Mono" | "JetBrains Mono" | "Monaspace Xenon"`). The predicate had
@@ -50,7 +50,7 @@
 //! fails the suite, and a world pointed at an unregistered family fails the
 //! suite — the caret's look can no longer change by omission.
 //!
-//! ITEM 105 widened the same per-face measurement pass with a second fact:
+//! The same per-face measurement pass carries a second fact:
 //! [`typical_letter_ratio`], each face's own typical-letter / ascent ratio (the
 //! mean of its x-height and cap-height). The caret's
 //! GLYPHLESS fallback (`caret::TextPipeline::caret_cell_vertical`'s line-cell
@@ -184,7 +184,7 @@ pub fn registered_family(bytes: &[u8]) -> Option<String> {
 /// load-bearing precision — this is a FALLBACK for the case the real
 /// measurement below cannot answer, and the value only ever feeds
 /// [`super::caret::TextPipeline::caret_cell_vertical`]'s GLYPHLESS synthetic
-/// box (item 105), never a real glyph's own ink.
+/// box, never a real glyph's own ink.
 pub(crate) const DEFAULT_TYPICAL_LETTER_RATIO: f32 = 0.62;
 
 /// The x-height/ascent ratio used by the caret's vertical insertion band when
@@ -194,7 +194,7 @@ pub(crate) const DEFAULT_TYPICAL_LETTER_RATIO: f32 = 0.62;
 /// for a glyphless column beside an arbitrary neighbour.
 pub(crate) const DEFAULT_X_HEIGHT_RATIO: f32 = 0.48;
 
-/// MEASURE one font file's own TYPICAL-LETTER-TO-ASCENT ratio (item 105): how
+/// MEASURE one font file's own TYPICAL-LETTER-TO-ASCENT ratio: how
 /// tall a "generic" letter's ink sits relative to the font's own ascent, read
 /// straight from the face's `OS/2`/`hhea` tables through the SAME skrifa
 /// `metrics()` call every other per-face fact here uses.
@@ -204,7 +204,7 @@ pub(crate) const DEFAULT_X_HEIGHT_RATIO: f32 = 0.48;
 /// reference is an approximation — but the two obvious single choices both
 /// under-serve one of the two glyph classes the caret's own ink-box arm treats
 /// as routinely different heights:
-///   * x-height alone reproduces item 91's ORIGINAL bug in miniature at the
+///   * x-height alone reproduces the ORIGINAL bug in miniature at the
 ///     seam for an ASCENDER neighbour (`l`/`h`/`b`/`d`) — x-height sits well
 ///     below a real ascender's ink top, so the fallback would visibly SHRINK
 ///     leaving a tall letter for end-of-line;
@@ -318,7 +318,7 @@ pub fn family_is_mono(family: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// THE RATIO the caret's proportional-fallback SYNTHETIC ink box (item 105)
+/// THE RATIO the caret's proportional-fallback SYNTHETIC ink box
 /// rides: `family`'s own measured x-height/ascent, or
 /// [`DEFAULT_TYPICAL_LETTER_RATIO`] for a family this roster does not know (a system
 /// fallback face, an `AWL_FONT` override — never a bundled display face, exactly
