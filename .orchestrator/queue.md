@@ -1918,6 +1918,101 @@ Order for the next wave (as derived 2026-08-06; read the note above first):
      is 1,700 judgement calls about what each comment was trying to say, not a `sed` script, and the
      repeatable tier will produce 1,700 comments with a hole where the number was.
 
+
+373. **SHARD THE GATE'S TEST EXECUTION ACROSS PROCESSES — 214s → 52s MEASURED — AND MAKE THE
+     PARTITION PROVE ITS OWN COMPLETENESS.** Measured on this 10-core host 2026-08-09: the full
+     `cargo test --bin awl` suite runs at **~1× parallelism** because `testlock::serial()`
+     (`src/testlock/mod.rs:210`) serializes every test in-process. Baseline **214.4s wall at ~100%
+     CPU** (3992 passed / 17 ignored). Running the SAME binary as N concurrent PROCESSES with
+     disjoint libtest filters works — each process gets its own lock and its own GPU device.
+     Count-balanced 4-way gave only **1.61×** (one shard carried 133s); **duration-balanced 6-way
+     gave 52.2s wall, 4.10×, 458% CPU**, with pass/ignored sums matching baseline exactly in every
+     configuration and **zero filter-induced failures across baseline, 2-, 4- and 6-way** — the
+     historical passes-unfiltered/fails-filtered class did not fire once.
+     ✅ **THE NON-NEGOTIABLE, AND IT IS WHAT KEEPS THE RECEIPT HONEST.** `CLAUDE.md` says a filtered
+     Cargo invocation is *"targeted tests"* and only the gate's receipt may say *"full native
+     suite"*. **A provably-complete partition is not a filtered invocation — but only if the proof
+     runs.** So at run time the runner asserts the per-shard `--list` counts **sum exactly** to the
+     binary's own full `--list` count (**4009** today = 3992 + 17), and fails loudly on drift. A
+     hardcoded prefix list silently rots the first time a module is added or renamed, and a shard
+     set that quietly stopped covering a module would still print green.
+     ‼ **LIBTEST FILTERS ARE SUBSTRING MATCHES AND THIS CODEBASE HAS REAL COLLISIONS — verified in
+     the tree:** `render/tests/mod.rs` declares `mod markdown` (`:116`), `mod theme` (`:199`) and
+     `mod chrome_overlay` (`:40`), so a bare `markdown::` / `theme::` / `overlay::` filter also
+     matches inside `render::tests::`; and `src/main.rs` declares both `mod run` (`:42`) and
+     `mod firstrun` (`:81`), so `run::` matches `firstrun::`. **Filter sets use full trailing-`::`
+     prefixes plus explicit `--skip` lists**, which is exactly what the winning composition does.
+     ⚠️ **THE BRIEF'S OWN PREMISE NEEDED CORRECTING IN TWO PLACES, BOTH CHECKED AGAINST THE SCRIPT.**
+     (a) `native-gate.sh` does not run **two** concurrent passes — it runs **four**: `mac_pid`,
+     `linux_pid`, `menubar_on_pid`, `menubar_off_pid`, all launched by `gate_launch` and waited
+     together (`scripts/native-gate.sh:589–609`). `gate_conventions=2` is the CPU-budget divisor,
+     not the process count — the same ×2 the orchestrator README already had to correct in its own
+     build-job arithmetic. **So 6 shards × 2 conventions + 2 menu-bar arms = 14 concurrent test
+     processes, each holding its own GPU device**, and that is the real subject of the shard-count
+     knob. (b) `mac_command`/`linux_command` are bare `cargo test` (`:467–468`), which also builds
+     and runs the **13 integration binaries** under `tests/`. The 4009 count is `--bin awl` ALONE.
+     **Sharding must not narrow the gate from `cargo test` to `cargo test --bin awl`** — the
+     integration binaries stay, and the completeness assertion covers the sharded binary only.
+     ✅ **Build:** derive the partition from `--list` at run time, with the measured composition as
+     **balance hints only** — a static list that is merely verified will still need a human every
+     time it drifts, while a derived one self-heals and the assertion catches the derivation. Locate
+     the test binary via `cargo test --no-run --message-format=json`, never a literal path: the
+     experiment's scripts hardcode `target/debug/deps/awl-871e1acdf7c52cbe` and that hash moves on
+     rebuild. Add an env knob dialling shard count to 1 for orchestrator multi-worktree waves
+     (aggregate GPU memory), defaulting to the wrapper-friendly value.
+     ⚠️ **The measured composition is EPHEMERAL and is this experiment's whole yield:**
+     `/tmp/awl-final/{R1,R2,R3,R4,C,D}.sh` on this machine. **Capture or regenerate it in the FIRST
+     commit.** Shape: R1–R4 split `render::` by measured duration (~34/~37/~52/~27 module prefixes);
+     **C** is nine non-render prefixes — `app:: syntax:: actions:: run:: overlay:: buffer::
+     markdown:: capture:: theme::` with `--skip render:: --skip firstrun::`; **D** is the remainder,
+     expressed as skips of all of the above plus the 20 `run::tests::*` submodules C absorbs.
+     ‼ **R4 CARRIES BOTH SLOW ATOMS** (`diagonal_pixel_composition`, `frost_context_item298`), so
+     **≥37s of the 52.2s wall is two modules** — item 374 is what raises this item's ceiling, and
+     the two should be judged together.
+     ✅ **Verify:** the count-sum assertion proven non-vacuous by deleting one prefix from a shard
+     and watching the gate refuse by name; pass/ignored sums equal to an unsharded baseline on the
+     same commit; `scripts/test-native-gate.sh` (829 lines, the gate's own self-test) green —
+     ⚠️ **and its CPU-heartbeat law flakes under exactly the load this item creates**, so a red
+     heartbeat is classified as contention and rerun alone before it is attributed to the diff.
+     Report the new wall time and the concurrent-process count. **Routing:** deep tier — this edits
+     the one script that issues the receipt, and the failure mode is a green gate that tested less
+     than it claimed.
+
+374. **TWO TEST ATOMS COST 37 OF THE SHARDED SUITE'S 52 SECONDS, AND NOTHING ABOUT THEM LOOKS
+     EXPENSIVE FROM THE OUTSIDE.** The duration survey behind item 373 found
+     `render::tests::diagonal_pixel_composition::` at **22.51s for 5 tests** (~4.5s each) and
+     `render::tests::frost_context_item298::` at **14.51s for 3 tests + 1 ignored**. Together ~37s —
+     **more wall time than roughly 380 of their neighbours combined**, hidden in the long tail of
+     104 small `render::tests` submodules where nothing draws attention to them. Both landed in the
+     same shard (R4), so after duration balancing **these two set the sharded suite's floor**: fixing
+     them raises 373's ceiling with no lock or device-pool redesign.
+     ✅ **The question the item answers:** what makes each test cost seconds — repeated per-test
+     device/pipeline construction, oversized offscreen targets, or many full frames per test — and
+     can that cost come out **without weakening the law**.
+     ‼ **AND THAT LAST CLAUSE IS THE WHOLE RISK, BECAUSE THE COST IS THE LAW'S OWN SWEEP.** Read in
+     the tree: both are roster × DPI sweeps rendering real frames per cell —
+     `diagonal_pixel_composition.rs:63` iterates `theme::THEMES` and each of its four tests then
+     loops `for dpi in [1.0, 2.0]` (`:396`, `:490`, `:619`, `:893`); `frost_context_item298.rs`
+     sweeps worlds through `sweep()` (`:125`) across four tests. **`CLAUDE.md` demands exactly this
+     breadth** — *"the axis it sweeps is the one the author didn't think of… sweep the roster, the
+     whole geometry range"* — so **narrowing the enrolment is not an optimisation, it is this
+     board's recorded satisfiable-by-deleting-its-subject failure wearing a stopwatch.** Legitimate
+     targets are per-cell overhead: frames built once and reused across assertions, offscreen
+     targets sized to the region actually read, a device/pipeline hoisted out of the per-cell loop.
+     If the honest answer is "the cost is the coverage", **say so and close it as premise-answered**
+     — that is a real outcome and it tells 373 its floor.
+     ⚠️ **The figures are one host, one configuration** — this board's standing tripwire. **Re-measure
+     before and after on the same machine**, and report both numbers plus the method, because a
+     timing claim taken from a report rather than from a run is how this repo has been wrong before.
+     ⚠️ **Ordering:** item 365 renames `frost_context_item298.rs` to a mechanism name, which
+     invalidates this item's module path and 373's balance hints on the same day it lands.
+     **Sequence 365 before either, or accept one mechanical fix-up pass across both.**
+     ✅ **Verify:** every assertion in both modules still fires — mutation-prove at least one law per
+     module after the change, since a faster test that stopped seeing its subject is the exact
+     failure this item could cause; enrolment counts (worlds × DPI cells graded) reported before and
+     after and **required to be equal**; `cargo test render::` green under the filter, which is the
+     invocation this repo's serial-guard defects hide behind. **Routing:** production tier.
+
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
