@@ -24,6 +24,17 @@ pub struct ScriptFontReports {
     pub ko: Option<(&'static str, bool)>,
 }
 
+/// A parsed inline-image span, before layout assigns its display size or any
+/// mixed-line forcing. Keeping discovery separate lets the layout pass own all
+/// size-dependent decisions.
+struct FoundImageSpan {
+    range: std::ops::Range<usize>,
+    image: crate::markdown::ImageRef,
+    line: usize,
+    line_start: usize,
+    line_end: usize,
+}
+
 impl ScriptFontReports {
     /// The report for `id`, or `None` for [`theme::FontId::Latin`] (never a
     /// fallback — the base doc attrs already shape in the world's own display
@@ -411,6 +422,36 @@ impl TextPipeline {
     /// itself — so a selected image line PARKS (dims/skips the tall reservation)
     /// exactly like a caret-revealed one, never a bright image under revealed
     /// source text.
+    fn find_inline_image_spans(
+        text: &str,
+        md_spans: &[(std::ops::Range<usize>, crate::markdown::MdKind)],
+    ) -> Vec<FoundImageSpan> {
+        use crate::markdown::{ConcealKind, MdKind};
+
+        md_spans
+            .iter()
+            .filter(|(_, kind)| matches!(kind, MdKind::ConcealMarkup(ConcealKind::Image)))
+            .filter_map(|(range, _)| {
+                let image = text
+                    .get(range.clone())
+                    .and_then(crate::markdown::parse_image_source)?;
+                let line = text[..range.start].bytes().filter(|&b| b == b'\n').count();
+                let line_start = text[..range.start].rfind('\n').map(|i| i + 1).unwrap_or(0);
+                let line_end = text[range.end..]
+                    .find('\n')
+                    .map(|i| range.end + i)
+                    .unwrap_or(text.len());
+                Some(FoundImageSpan {
+                    range: range.clone(),
+                    image,
+                    line,
+                    line_start,
+                    line_end,
+                })
+            })
+            .collect()
+    }
+
     fn compute_image_layout(
         &mut self,
         text: &str,
@@ -426,7 +467,6 @@ impl TextPipeline {
         let mut force: Vec<Option<(f32, f32)>> = vec![None; line_count];
         #[cfg(not(target_arch = "wasm32"))]
         if crate::markdown::inline_images_on() && self.md_enabled {
-            use crate::markdown::{ConcealKind, MdKind};
             let wrap = self.text_wrap_width();
             let base_fs = self.metrics.font_size;
             let base_lh = self.metrics.line_height;
@@ -441,10 +481,8 @@ impl TextPipeline {
             // OWN natural wrap still had a row left, stranding the image mid-text
             // again — the very bug this round fixed).
             let doc_attrs = self.doc_attrs();
-            struct Found {
-                r: std::ops::Range<usize>,
-                img: crate::markdown::ImageRef,
-                line: usize,
+            struct LaidOutImage {
+                found: FoundImageSpan,
                 dw: f32,
                 dh: f32,
                 missing: bool,
@@ -452,28 +490,18 @@ impl TextPipeline {
                 revealed_now: bool,
                 prefix: String,
             }
-            let mut found = Vec::new();
-            for (r, k) in md_spans {
-                if !matches!(k, MdKind::ConcealMarkup(ConcealKind::Image)) {
-                    continue;
-                }
-                let Some(img) = text
-                    .get(r.clone())
-                    .and_then(crate::markdown::parse_image_source)
-                else {
-                    continue;
-                };
-                let line = text[..r.start].bytes().filter(|&b| b == b'\n').count();
-                let resolved = self.resolve_image_path(&img.path);
+            let mut laid_out = Vec::new();
+            for found in Self::find_inline_image_spans(text, md_spans) {
+                let resolved = self.resolve_image_path(&found.image.path);
                 let dims = image::ImageReader::open(&resolved)
                     .ok()
                     .and_then(|rd| rd.with_guessed_format().ok())
                     .and_then(|rd| rd.into_dimensions().ok());
                 let effective_hint = match self.image_preview {
-                    Some((ps, pe, pw)) if ps == r.start && pe == r.end => {
+                    Some((ps, pe, pw)) if ps == found.range.start && pe == found.range.end => {
                         Some(pw.round().max(1.0) as u32)
                     }
-                    _ => img.width_hint,
+                    _ => found.image.width_hint,
                 };
                 let max_h = self.window_h * super::spans::IMAGE_MAX_VIEWPORT_FRAC;
                 let (dw, dh, missing) = match dims {
@@ -488,45 +516,40 @@ impl TextPipeline {
                         true,
                     ),
                 };
-                let line_start = text[..r.start].rfind('\n').map(|i| i + 1).unwrap_or(0);
-                let line_end = text[r.end..]
-                    .find('\n')
-                    .map(|i| r.end + i)
-                    .unwrap_or(text.len());
-                let local = (r.start - line_start)..(r.end - line_start);
-                let mixed =
-                    super::spans::image_line_has_other_content(&text[line_start..line_end], local);
+                let local =
+                    (found.range.start - found.line_start)..(found.range.end - found.line_start);
+                let mixed = super::spans::image_line_has_other_content(
+                    &text[found.line_start..found.line_end],
+                    local,
+                );
                 // SELECTION REVEAL (regression fix, item 16 follow-up): an
                 // image line PARKS (see below) when the caret is on it OR the
-                // active selection touches its own span `r` â the SAME overlap
+                // active selection touches its own span â the SAME overlap
                 // test `wysiwyg_reveals` applies to this exact span for the raw-
                 // markup conceal decision (`super::spans::selection_touches`,
                 // never re-derived), so a selected image line's layout/draw
                 // state can't disagree with its own revealed markup.
-                let revealed_now =
-                    line == cursor_line || super::spans::selection_touches(selection_touch, r);
+                let revealed_now = found.line == cursor_line
+                    || super::spans::selection_touches(selection_touch, &found.range);
                 if mixed {
                     if !revealed_now {
-                        found.push(Found {
-                            r: r.clone(),
-                            img: img.clone(),
-                            line,
+                        let prefix = text[found.line_start..found.range.start].to_string();
+                        laid_out.push(LaidOutImage {
+                            found,
                             dw,
                             dh,
                             missing,
                             mixed: true,
                             revealed_now,
-                            prefix: text[line_start..r.start].to_string(),
+                            prefix,
                         });
                         continue;
                     }
-                } else if let Some(slot) = heights.get_mut(line) {
+                } else if let Some(slot) = heights.get_mut(found.line) {
                     *slot = Some(dh);
                 }
-                found.push(Found {
-                    r: r.clone(),
-                    img: img.clone(),
-                    line,
+                laid_out.push(LaidOutImage {
+                    found,
                     dw,
                     dh,
                     missing,
@@ -535,7 +558,7 @@ impl TextPipeline {
                     prefix: String::new(),
                 });
             }
-            for f in found {
+            for f in laid_out {
                 if f.mixed && !f.revealed_now {
                     // The forcing span's target advance: enough to overflow the
                     // marker+caption's own LAST wrapped row (so it lands on a
@@ -554,16 +577,16 @@ impl TextPipeline {
                     );
                     let remaining = (wrap - last_row_w).max(0.0);
                     let target_advance = remaining + Self::IMAGE_FORCE_MARGIN_PX;
-                    if let Some(slot) = force.get_mut(f.line) {
+                    if let Some(slot) = force.get_mut(f.found.line) {
                         *slot = Some((f.dh, target_advance));
                     }
                 }
                 report.push(crate::render::ImageReport {
-                    range: (f.r.start, f.r.end),
-                    line: f.line,
-                    path: f.img.path,
-                    alt: f.img.alt,
-                    width_hint: f.img.width_hint,
+                    range: (f.found.range.start, f.found.range.end),
+                    line: f.found.line,
+                    path: f.found.image.path,
+                    alt: f.found.image.alt,
+                    width_hint: f.found.image.width_hint,
                     display_w: f.dw,
                     display_h: f.dh,
                     missing: f.missing,
