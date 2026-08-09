@@ -73,6 +73,14 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
 14. **The AT-SPI journey (item 251)** needs a real Linux desktop session with
     Orca. This Mac and its headless/Linux CI arms cannot perform the human
     document-read, caret/selection, overlay, and editing-burst journey.
+15. **Which folders belong in the new flat Switch-project picker (item 376)?**
+    The structural split is decided: recent projects plus a flat selectable
+    list, with a separate “Browse for folder…” navigator door. The remaining
+    choice is (a) include every direct workspace child, preserving today’s
+    reach but making `~` noisy, or (b) show recents plus git-marked children and
+    leave every other folder behind Browse. Recommendation: **(a)**. awl is a
+    writing tool for non-programmers too; git status should not decide whether
+    an ordinary notes folder is directly discoverable.
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
@@ -423,57 +431,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      demonstrated live (second gate queues, naming the holder); heartbeat-flake note
      repointed at the arbiter. **Routing:** production tier — protocol prose + one small
      scripts change.
-
-376. **Split switch-project into two surfaces: a flat project picker (Enter = switch) and
-     a folder-navigator door. USER DECISION 2026-08-09 (design session).** The shipped
-     picker fuses two jobs and both suffer — verified by replay + code, not just report:
-     **(a)** Enter on a folder row ALWAYS descends (`accept_path_overlay`'s Project arm);
-     the only select affordance is the synthetic `.` row, which `new_project` deliberately
-     skips past on open, and the footer hint says "↵ select" while Enter descends.
-     **(b)** The Recent lens filters the CURRENT DIRECTORY LEVEL against the MRU
-     (`new_project` matches `base.join(name)` == recent root), so an MRU root that is not
-     a direct child of the level being viewed can never appear — on the user's machine
-     (`workspace = ~`, MRU holds `~/notes` and `~/code2026/awl-next`) the nested project
-     is structurally unreachable from the landing. The MRU store itself
-     (`recents.rs`, push-on-switch, load-at-launch) is sound. Lens ←/→ navigation itself
-     verified working at every row and level (Down→Right and Enter→Right replays); the
-     user's "can't reach Recent" was the empty lens presenting as a dead control.
-     History: arrows-descend was traded away for "Browse-style" lens arrows when the lens
-     landed (`08a833cd`), no deeper rationale recorded. Alternatives CONSIDERED AND
-     REJECTED in-session: Tab-to-descend (adds a third grammar); a two-layer surface with
-     an Up-focusable strip (new focus state + schema for a lens the split makes
-     unnecessary). The split reuses two grammars that already ship.
-     **Design:**
-     **(a)** ⌘⇧P becomes a FLAT, NON-faceting picker: the recent-projects MRU (full
-     paths, any depth, most-recent first, displayed workspace-/home-relative) merged with
-     the workspace's child folders, deduped, type-to-filter; Enter emits the switch
-     (`OverlayAccept(Project, abs_path)`), never descends. `PROJECT_FACETS` dies —
-     `facets::scheme`'s no-wildcard match forces the Project arm to `None` — and the `.`
-     row dies with it.
-     **(b)** A "Browse for folder…" DOOR row (bottom, visually a door not a folder —
-     Settings submenu-row precedent) descends into the folder navigator: the existing
-     Move/Export destination grammar exactly (→/← in/out, ⌫ up, Enter commits the
-     highlighted folder, falling back to the current dir — `move_dest_value` already owns
-     this), starting at the workspace, walking by absolute path, accept wired to
-     switch-project. Journey descend/return machinery per the Settings-submenu precedent.
-     **(c)** The "Recent projects…" palette/File-menu door retargets to the flat picker
-     (its `focus_facet_id("recent")` has nothing to focus once the lens dies).
-     Known breakage to sweep: `switch_project_arrows_cycle_lens_not_descend` (inverts by
-     name), journey tests seeded with `.`-row Project cards, `pickers_faceted` captures,
-     the C-f/C-b convention arm, hint-line text, `commands/catalog/navigation.rs` entry,
-     docs/render.md + docs/config.md prose. ⚠️ Headless replay feeds an EMPTY MRU by
-     design (determinism gate), so MRU-row laws live at the unit seam with an injected
-     list, and any capture claim over live MRU state goes through docs/harness-reach.md
-     first.
-     **Verify:** unit/sidecar — Enter on a project row switches with NO relevel; an MRU
-     root NOT a child of the workspace appears in the list (the exact case the lens could
-     never serve); the door row descends and its accept switches; `.` row absent;
-     Project returns `None` from `facets::scheme`; hint text matches behavior. Live-App
-     tier for the persisted-MRU round trip.
-     **Open taste call (the user's):** does the flat list show ALL workspace children
-     (parity with today; noisy in `~`) or recents + git-marked folders only, with the
-     rest behind the Browse door? **Routing:** production tier; the taste call above is
-     the user's before or during the round.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
