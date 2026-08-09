@@ -1,7 +1,7 @@
-//! ITEM 85 — THE THEME-PICKER WORLD-JUMP HAZARD IS REAL, against the actual
+//! THE THEME-PICKER WORLD-JUMP HAZARD IS REAL, against the actual
 //! render pipeline (not merely hypothesized): a keyboard-driven crossing
 //! (`preview_move`, the same call `actions/overlay_nav.rs`'s Up/Down arms run)
-//! RE-ANCHORS the card to the destination world's own rail (item 52) — a fixed
+//! RE-ANCHORS the card to the destination world's own rail — a fixed
 //! physical pixel that hit-tests to a candidate row before the crossing can
 //! hit-test to NOTHING (off the relocated card) after it, with the pointer
 //! never having traveled a pixel. This is the geometry half of the item-85 law;
@@ -70,7 +70,7 @@ fn a_deliberate_world_crossing_can_move_a_stationary_pixels_hit_test_row() {
     let restore = theme::active().name;
 
     // GUARD the world-data premise: Wagtail is the LEFT rail world, Cassowary the
-    // RIGHT — the widest possible rail crossing (item 52's `reanchor`), so a
+    // RIGHT — the widest possible rail crossing, so a
     // stationary pixel over Wagtail's card is guaranteed to fall well outside
     // Cassowary's on a 1200px canvas.
     let anchor_of = |name: &str| {

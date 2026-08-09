@@ -241,7 +241,7 @@ mod tests {
     // --- marker round-trip (native-only, real temp dir, injected clock) ----
 
     /// A fresh real temp dir PLUS the process-wide test guard, returned
-    /// together (queue item 101). Every test in this block writes and reads its
+    /// together. Every test in this block writes and reads its
     /// marker through `crate::fs::active()` — the swappable process-global
     /// backend — so running off-guard means a sibling test's `InMemoryFs` can
     /// be installed for part of the round trip: the write lands in the fake and
@@ -249,8 +249,8 @@ mod tests {
     /// dir makes "arranged a temp dir but forgot to serialize" unrepresentable
     /// here; the caller binds it for the test's whole life.
     /// A fresh real temp dir — owned by a [`ScratchDir`] guard that removes it
-    /// on drop (queue item 168) — PLUS the process-wide test guard, returned
-    /// together (queue item 101). Every test in this block writes and reads its
+    /// on drop — PLUS the process-wide test guard, returned
+    /// together. Every test in this block writes and reads its
     /// marker through `crate::fs::active()` — the swappable process-global
     /// backend — so running off-guard means a sibling test's `InMemoryFs` can
     /// be installed for part of the round trip: the write lands in the fake and

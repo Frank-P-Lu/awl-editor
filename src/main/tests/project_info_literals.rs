@@ -5,7 +5,7 @@
 // were three hand-rolled `ProjectInfo` literals, and the accept site carried
 // the LAUNCH root's `workspace` forward while re-deriving everything else from
 // the accepted root — the exact half-derivation in the harness's own
-// copy of the rule, still there after item 180 fixed the App's. A capture of a
+// copy of the rule, after the App's copy was fixed. A capture of a
 // Switch-project therefore reported a workspace the running editor no longer
 // had. `run::project_info` is now the one builder; the parity law pinning it to
 // the live `App` is `app::files::tests::

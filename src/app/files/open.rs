@@ -69,7 +69,7 @@ impl App {
     /// switch-project (both the `Project` picker's accepted folder AND the
     /// Recent Projects picker route here). Re-scopes the root ([`Self::set_root`]),
     /// EAGERLY remembers it as the one active-folder-context (`session_flush`,
-    /// native only — see `app/session.rs`'s module doc; item 76 unified the old
+    /// native only — see `app/session.rs`'s module doc; the old
     /// separate "sticky project root" config key into the ONE session-owned
     /// context, so a crash/relaunch right after a switch still resumes here,
     /// not the pre-switch folder), AND pushes it to the front of the persisted
@@ -144,7 +144,7 @@ impl App {
     /// disk for a first-time open. Shared by `open_rel` and the C-x b toggle so
     /// both keep the history honest.
     pub(in crate::app) fn load_path(&mut self, path: PathBuf) {
-        // ITEM 77 — THE ONE CAPABILITY OWNER, first: a binary/unsupported
+        // THE ONE CAPABILITY OWNER, first: a binary/unsupported
         // `path` is refused HERE, before the MAS grant probe below (never
         // powerbox a file we're about to refuse) or any other side effect —
         // the active buffer, `self.root`, and every remembered-context field
@@ -245,7 +245,7 @@ impl App {
         // arm from `Buffer::from_file(&path)`, on the registry-hit arm from
         // the entry's own remembered path (it was parked under a key derived
         // from that same path) — so there is no separate `App.file` mirror to
-        // write here any more (item 56: `Buffer::path()` is the sole source).
+        // write here any more (`Buffer::path()` is the sole source).
         // RECENTLY-OPENED FILES MRU: this file was just OPENED (either fresh from
         // disk or switched-to from the buffer registry — BOTH arrive here), so push
         // it to the front of the persisted MRU that feeds the go-to Recent lens +
@@ -266,7 +266,7 @@ impl App {
         self.workspace_state.close_search();
         self.input.clear_preedit();
         // The HISTORY TIMELINE preview cache is now buffer-scoped
-        // (`BufferExtra::history_preview`, item 56): the ARRIVING buffer's own
+        // (`BufferExtra::history_preview`): the ARRIVING buffer's own
         // slot already carries its own value (`None` on a fresh open, or
         // whatever it held when it was parked) — no manual clear needed here
         // any more (the whole-slot move made the old hand-written

@@ -59,7 +59,7 @@ impl OraclePipeline {
         &self.pipeline
     }
 
-    /// ITEM 106 — forwards to the wrapped [`TextPipeline::resolve_overlay_hover`]
+    /// Forwards to the wrapped [`TextPipeline::resolve_overlay_hover`]
     /// (hit-test + the real-motion/movement-slop gate), so the headless `--keys`
     /// pointer-replay step (`main/run.rs::ReplaySession::apply_move`) shares the
     /// IDENTICAL hover resolution the live `App::overlay_hover` uses against its
@@ -74,7 +74,7 @@ impl OraclePipeline {
         self.pipeline.resolve_overlay_hover(overlay, px, py)
     }
 
-    /// ITEM 106 — sync the OVERLAY-related view fields onto this oracle's
+    /// Sync the OVERLAY-related view fields onto this oracle's
     /// pipeline, so [`Self::resolve_overlay_hover`] hit-tests against the
     /// CURRENT candidate-row geometry instead of the buffer-only view
     /// [`Self::refresh`] carries. Rebuilt from the SAME `base_viewstate`
@@ -90,7 +90,7 @@ impl OraclePipeline {
     /// mutating it here for a pointer-replay step can't leak into the final
     /// PNG. THEME-PICKER faceting (`overlay_lens`) and the spell popup's word
     /// anchor are intentionally NOT threaded here — every flat/list picker
-    /// (the item 106 roster) is covered; a faceted pointer-replay law is
+    /// is covered; a faceted pointer-replay law is
     /// future work, not a silent gap in what this claims to verify.
     pub fn sync_overlay(
         &mut self,
@@ -112,7 +112,7 @@ impl OraclePipeline {
     }
 
     /// TEST-ONLY geometry accessors, forwarded straight to the wrapped
-    /// pipeline's own public hit-test / card-rect queries — item 106's
+    /// pipeline's own public hit-test / card-rect queries. The
     /// `ReplaySession`-level law uses these to locate a REAL row's pixel
     /// bounds (the same geometry `apply_move`/`resolve_overlay_hover`
     /// consults) without reaching past `OraclePipeline`'s own encapsulation.

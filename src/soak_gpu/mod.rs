@@ -18,7 +18,7 @@ pub(crate) const THEME_TARGET: u32 = 300;
 pub(crate) const OVERLAY_TARGET: u32 = 150;
 /// Minimum presented frames for a run to pass — the anti-slideshow floor, now
 /// owned by the BINARY's pass contract ([`report::Report::passed`]) so the CI
-/// step needs no second, independently-computed verdict (item 53). A fixed
+/// step needs no second, independently-computed verdict. A fixed
 /// minimum, not a per-second rate: any healthy run of the CI length clears it
 /// with room to spare, while a handful-of-frames degradation fails regardless
 /// of how long the run drifted.
@@ -173,7 +173,7 @@ impl Controller {
     /// time-fraction pacing only walks ~95% of the schedule inside the nominal
     /// window; the OLD `elapsed >= duration` guillotine cut there and reported
     /// `290/287/143` against the absolute `300/300/150` contract → a spurious
-    /// FAIL on identical code (item 53). Now the cycle contract stays ABSOLUTE
+    /// FAIL on identical code. Now the cycle contract stays ABSOLUTE
     /// and elapsed time is a REPORTED outcome: the loop keeps stepping until the
     /// schedule completes (a slow VM finishes a little late = PASS), bounded by
     /// a grace cap of 2x the requested duration so a genuinely broken VM — one
@@ -542,7 +542,7 @@ mod tests {
         }
     }
 
-    /// The short-duration contract math (item 53): a slow VM that walks the
+    /// The short-duration contract math: a slow VM that walks the
     /// FULL schedule only AFTER the nominal window has passed is NOT guillotined
     /// — `finished` waits for schedule completion, then fires (a little late =
     /// PASS). A VM that never completes the schedule is not hung forever either:

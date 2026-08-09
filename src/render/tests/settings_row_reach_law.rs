@@ -1,4 +1,4 @@
-//! ITEM 104 — THE SETTINGS "EVERY SECOND ROW" LAW, the PIXEL/HIT-TEST half.
+//! THE SETTINGS "EVERY SECOND ROW" LAW, the PIXEL/HIT-TEST half.
 //! `actions::tests::settings_reach` proves the `apply_transition` seam steps
 //! `selected` one row at a time through every facet/direction/parity/filter/
 //! scroll; this file proves the RENDERED half stays in lock-step with it — a
@@ -8,7 +8,7 @@
 //! alternating rows"), asserting the hit-test, a passive HOVER, and the
 //! corpus mapping an ACCEPT would use all name the SAME item as the row
 //! actually drawn there — across the FULL 18-world roster (not e10b9fa's
-//! hand-picked seven — item 104's own "full roster, not a hand-picked few"
+//! hand-picked seven — the "full roster, not a hand-picked few"
 //! requirement), both `Pane`/`Bars` list styles, and 1×/2× DPI.
 //!
 //! Also covers the Zoom RANGE row's adjacency at the pixel layer: its own
@@ -379,7 +379,7 @@ fn every_editor_row_is_hoverable_at_its_own_y_center_across_the_world_roster() {
     theme::set_active(theme::DEFAULT_THEME);
 }
 
-/// ITEM 94 ADJACENCY, at the pixel layer: the Zoom RANGE row's own band and
+/// RANGE-ROW ADJACENCY, at the pixel layer: the Zoom row's own band and
 /// its immediate neighbours' bands each resolve to their own item — a rail
 /// row must not visually or hit-test-wise bleed into the row above/below it.
 /// Sweeps the same world/DPI/style axes as the row-center law above (a

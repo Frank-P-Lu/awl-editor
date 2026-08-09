@@ -518,9 +518,9 @@ fn nested_list_marker_fix_is_content_independent() {
     set_inline_images_on(prev);
 }
 
-/// ITEM 41 regression — a list item that OWNS a nested child must render its
+/// A list item that OWNS a nested child must render its
 /// OWN text at BODY weight, exactly like a childless sibling. The reopened bug
-/// (survived item 4c, reported twice) showed the parent bolded — a
+/// showed the parent bolded — a
 /// loose-list/span-range sibling of the 4c marker-range defect. A row's shaped
 /// WEIGHT/STYLE is derived PURELY from the md-span KIND over its content bytes
 /// (`render::md_attrs`: only `Bold`/`BoldItalic`/`Heading` re-weight and
@@ -1744,7 +1744,7 @@ fn strikethrough_tag_strings_for_sidecar() {
 }
 
 // -----------------------------------------------------------------------
-// Queue item 60: link/image DESTINATION exclusion (spell + writing-nits).
+// Link/image DESTINATION exclusion (spell + writing-nits).
 // -----------------------------------------------------------------------
 
 #[test]
@@ -1786,7 +1786,7 @@ fn label_destination_range_isolates_just_the_parens_interior() {
 
 #[test]
 fn destination_ranges_excludes_addresses_but_never_label_or_alt_text() {
-    // Item 60's exact motivating fixture (a raw pasted-image line) PLUS an
+    // The exact motivating fixture (a raw pasted-image line) PLUS an
     // ordinary link, both carrying a misspelled LABEL/ALT word ("wrold")
     // that must stay eligible, alongside a misspelling-shaped word buried in
     // each destination that must NOT. The relative path carries a SPACE, which

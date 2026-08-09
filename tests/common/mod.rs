@@ -1,5 +1,5 @@
 //! tests/common/mod.rs — THE ONE OWNER of "a spawned `awl` child never resolves
-//! its config through the DEVELOPER'S OWN dotfiles" (queue item 93).
+//! its config through the DEVELOPER'S OWN dotfiles".
 //!
 //! ROOT CAUSE THIS MODULE EXISTS FOR. `config::config_path()`
 //! (`src/config/model.rs`) walks a LADDER: explicit `--config` → `$AWL_CONFIG`
@@ -56,7 +56,7 @@ pub fn config_path_in(sandbox: &Path) -> std::path::PathBuf {
 
 /// A monotonic counter folded into [`shared_sandbox`]'s path, so concurrent
 /// test threads in one binary each get their OWN directory rather than racing
-/// to wipe-then-recreate a shared one (queue item 168: a [`ScratchDir`] owns
+/// to wipe-then-recreate a shared one (a [`ScratchDir`] owns
 /// exactly one directory, so a genuinely shared one is not this guard's job).
 static SANDBOX_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
@@ -92,7 +92,7 @@ pub fn awl_in_home(home: &Path) -> Command {
 }
 
 /// THE one owner of an on-disk scratch directory these integration tests
-/// create under `std::env::temp_dir()` (queue item 168). A DUPLICATE of
+/// create under `std::env::temp_dir()`. A DUPLICATE of
 /// `src/testscratch.rs`'s type of the same name and shape — unavoidable,
 /// since this crate ships no `[lib]` target (`Cargo.toml`; the binary tests
 /// spawn via `CARGO_BIN_EXE_awl` above), so a `tests/*.rs` integration binary

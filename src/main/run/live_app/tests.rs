@@ -16,7 +16,7 @@ const CFG: &str = "/cfg/config.toml";
 /// The chord that summons the Settings workspace in the convention this
 /// pass is running under — resolved from the RUNNING convention rather than
 /// hardcoded, because `native-gate.sh` runs the suite once per convention
-/// and each pass must drive its own real binding (item 114's rule).
+/// and each pass must drive its own real binding.
 fn open_settings_chord() -> &'static str {
     match crate::convention::Convention::current() {
         crate::convention::Convention::Mac => "s-,",
@@ -142,14 +142,14 @@ fn live_app_first_new_document_asks_for_a_folder_before_creating_a_file() {
     assert_eq!(json["overlay"]["mode"].as_str(), Some("switch"));
 }
 
-/// QUEUE ITEM 188, THE PRIMARY LAW — the transition converted from
+/// THE PRIMARY LAW — the transition converted from
 /// Rust-only to sidecar-provable.
 ///
 /// Flipping the KEYMAP row of the Settings workspace is the hardest case in
 /// the live-only census, not a convenient one: `docs/harness-reach.md` lists
 /// `setting_toggle` as **Unsupported** for an ordinary `--keys` capture, and
 /// names `SettingToggle{key: "keymap"}` as the ONE key that stays Unsupported
-/// even under item 190's `FilesystemCapability::Isolated` grant, because it
+/// even under `FilesystemCapability::Isolated`, because it
 /// needs a LIVE keymap rebuild no filesystem capability can supply. Before
 /// this item it was provable only in Rust (`app::tests::workspace`'s
 /// tier-2 sweep, asserting `App` + config state directly).
@@ -252,7 +252,7 @@ fn a_live_app_capture_photographs_a_keymap_flip_an_ordinary_capture_cannot_see()
     );
 }
 
-/// ITEM 296 — **A CAPTURE CARRIES A TOAST**, and the sidecar's two answers
+/// **A CAPTURE CARRIES A TOAST**, and the sidecar's two answers
 /// about it agree.
 ///
 /// The defect this closes was not "the notice looked wrong": no capture door

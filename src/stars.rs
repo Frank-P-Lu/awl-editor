@@ -46,7 +46,7 @@ const _: () = assert!(STAR_ACTIVE_FRAC >= 0.05 && STAR_ACTIVE_FRAC <= 1.0);
 /// (`theme::tests::ambient_stars_laws_hold_for_every_world`) iterate, so the
 /// drawn tints and the law-checked tints can never drift.
 ///
-/// CHROMA BOOST (item 62, 2026-07-24, user-decided): every entry here (plus
+/// CHROMA BOOST (user-decided): every entry here (plus
 /// the world's own `ambient.tint`, e.g. `worlds::CURRAWONG`) carries ~10%
 /// MORE saturation than it shipped with — never more brightness. Each hex
 /// triple below was hand-picked (not computed at runtime) so the exact
@@ -72,7 +72,7 @@ pub const STAR_TINT_WHITE: Srgb = Srgb::rgb(0xE6, 0xEA, 0xF1);
 /// stays clear of the ambient amber guard despite its warm hue sitting near the
 /// gold caret; a real champagne saturation would read as a second accent.
 ///
-/// CHROMA BOOST, CAPPED (item 62): unlike its two palette siblings, champagne
+/// CHROMA BOOST, CAPPED: unlike its two palette siblings, champagne
 /// does NOT get the full ~10% — its hue (~48°) sits only ~5° from the amber
 /// caret's, so the amber-guard's exemption line (HSL sat <= 0.15) is the hard
 /// ceiling on how much chroma this ONE entry may ever carry (any u8 triple
@@ -242,7 +242,7 @@ pub fn star_palette(base: Srgb) -> [Srgb; 3] {
     [base, STAR_TINT_WHITE, STAR_TINT_CHAMPAGNE]
 }
 
-// --- Size spread (item 62, 2026-07-24) -----------------------------------------
+// --- Size spread ------------------------------------------------------------
 
 /// How far a star's own dot size may spread from the authored `size_px`, as a
 /// fraction of it: a star's scaled size lands in `[1 - SPREAD, 1 + SPREAD]` ×

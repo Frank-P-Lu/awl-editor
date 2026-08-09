@@ -187,7 +187,7 @@ pub fn install_hermetic_fs(
 /// WHICH DOCUMENT SEEDS THE SANDBOX for the door that is opening it. A
 /// STORYBOARD run seeds the BOARD's own document (`board_file`, already resolved
 /// against the board file's own directory) and nothing else — a bare CLI file is
-/// not part of that scenario. Every other door — `--strict-replay`, item 188's
+/// not part of that scenario. Every other door — `--strict-replay` and
 /// `--screenshot-app` — seeds the CLI-named `cli_file`. One owner rather than a
 /// branch at the call site, so the three doors in `args::parse_args` cannot
 /// drift on it, and that one call stays a single unconditional statement.
@@ -205,7 +205,7 @@ mod tests {
     use crate::testscratch::ScratchDir;
 
     /// A fresh, uniquely-named real tempdir for arranging seed inputs, owned
-    /// by a [`ScratchDir`] guard that removes it on drop (queue item 168).
+    /// by a [`ScratchDir`] guard that removes it on drop.
     fn tmp_dir(tag: &str) -> ScratchDir {
         let dir = std::env::temp_dir().join(format!("awl-scenario-{tag}-{}", std::process::id()));
         ScratchDir::new(dir)
@@ -364,7 +364,7 @@ mod tests {
         // FsGuard::capture() restores whatever `install_hermetic_fs` swaps in
         // — even on a failed assert — so no sibling test ever sees the sandbox.
         // `capture()` rather than `install(fs::active())`: the argument form
-        // read the global BEFORE taking the guard (queue item 101).
+        // read the global BEFORE taking the guard.
         let _restore = crate::fs::FsGuard::capture();
         install_hermetic_fs(Some(&doc), None, Some(&dir), None);
         // The active backend now serves the seeded copy…

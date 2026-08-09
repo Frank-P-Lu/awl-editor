@@ -1,9 +1,9 @@
-//! ITEM 188 — THE LIVE `App`'s OWN SIDECAR: the constructor a live-`App`
+//! THE LIVE `App`'s OWN SIDECAR: the constructor a live-`App`
 //! capture builds through, and the `App`'s side of the ONE per-frame fold.
 //!
 //! # The gap this closes
 //!
-//! Item 183 narrowed `App::apply`'s `&ActiveEventLoop` borrow to `app::Exit`,
+//! `App::apply`'s `&ActiveEventLoop` borrow was narrowed to `app::Exit`,
 //! so a real `App` became DRIVABLE headlessly (`app/press.rs`). It stayed
 //! UNPHOTOGRAPHABLE: `App` never called the sidecar writer, so every transition
 //! only a live `App` can perform — a Settings write, a buffer switch, a config
@@ -17,7 +17,7 @@
 //! exactly one per-frame fold (`run::fold_capture_state`), and this file adds
 //! neither. It supplies the five facts that fold asks any driver for — the
 //! `CaptureSubject` impl below — plus the project block, built by
-//! `run::project_info`, the one builder item 183 made for exactly this. The
+//! `run::project_info`, the one builder for exactly this. The
 //! live `App` and the shared-core `ReplaySession` therefore differ in what
 //! drives them and in nothing a sidecar reports.
 
@@ -60,7 +60,7 @@ impl App {
     /// single-frame capture path renders and the one sidecar writer serializes.
     ///
     /// Both halves route through their existing one owner: the project block
-    /// through `run::project_info` (item 183's builder, fed the App's OWN
+    /// through `run::project_info` (fed the App's OWN
     /// flag-over-config workspace fold so a `--screenshot-app` sidecar reports
     /// the location the running editor actually has), and everything else
     /// through `run::fold_capture_state`, shared with the storyboard stepper.

@@ -1,4 +1,4 @@
-//! ITEM 219 — THE STRAY BLANK BAND ABOVE A PICKER'S CONTENT.
+//! THE STRAY BLANK BAND ABOVE A PICKER'S CONTENT.
 //!
 //! A flat picker's query BEAT was folded into the query field's own line box.
 //! cosmic-text CENTRES a line's glyph run in its box, so the field's glyphs were
@@ -62,13 +62,13 @@ fn differing_y_band(
     (top <= bottom).then_some((top, bottom))
 }
 
-/// **ITEM 219 — THE QUERY FIELD'S INK RIDES ITS OWN LINE, ON EVERY WORLD.**
+/// **THE QUERY FIELD'S INK RIDES ITS OWN LINE, ON EVERY WORLD.**
 ///
 /// The claim is stated against the ONE thing a bar's composition depends on: the
 /// field's drawn ink must centre where a plain row's ink would, one half-pitch
 /// below the card's own `text_top`. A beat folded into the field's box does not
 /// sit below the field — it is split around it, and the half above is the blank
-/// strip item 219 names.
+/// strip this law forbids.
 ///
 /// THE ORACLE IS REAL PIXELS AND IT IS DIFFERENTIAL: the same picker is shot
 /// with an empty query and with one typed, and the rows that differ are the

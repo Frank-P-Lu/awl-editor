@@ -1,7 +1,7 @@
-//! ITEM 116d — THE COMPARISON IS COMPOSITED, AND IT IS COMPOSITED *ON* THE
+//! THE COMPARISON IS COMPOSITED, AND IT IS COMPOSITED *ON* THE
 //! WORKSPACE'S SURFACE.
 //!
-//! Item 116b relocated the document layer's GEOMETRY into a workspace's content
+//! The document layer's GEOMETRY was relocated into a workspace's content
 //! region and stopped there, pinning what it had NOT done as a law
 //! (`the_relocated_document_is_geometrically_placed_but_not_yet_composited`)
 //! whose own message asked to be deleted and replaced by a containment and
@@ -351,7 +351,7 @@ fn assert_nothing_escaped(pair: &Pair, label: &str) {
 ///
 /// The compositing call was "ON the surface", not "a window THROUGH it", and the
 /// difference is visible right here: a workspace surface must still cover the
-/// whole comparison region. This is item 116b's own containment half, kept and
+/// whole comparison region. This is the containment half, kept and
 /// re-aimed — it used to read "no comparison content is composited yet"; it now
 /// reads "the comparison is composited onto a surface that is still one piece".
 #[test]

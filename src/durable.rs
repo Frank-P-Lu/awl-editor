@@ -445,7 +445,7 @@ mod tests {
             // two more are the hermetic-scenario tests' real-disk inputs
             // (seeded precisely to prove the sandbox never writes them back).
             // The launch-context law and strict-replay no-artifact law
-            // add two temp input fixtures of the same shape. Item 189's
+            // add two temp input fixtures of the same shape. The
             // Switch-project-then-Goto law adds two more: the launch and
             // accepted roots' marker files for the real `capture_screenshot`
             // fixture tree.

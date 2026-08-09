@@ -1,4 +1,4 @@
-//! ITEM 106 — THE MOVEMENT-SLOP GATE AGAINST REAL PIPELINE GEOMETRY: the
+//! THE MOVEMENT-SLOP GATE AGAINST REAL PIPELINE GEOMETRY: the
 //! render-level companion to `overlay::tests`' pure `hover_at` laws, proving
 //! the item's own named live hazard end to end against a REAL
 //! `TextPipeline` — not merely hypothesized. A keyboard-driven `move_sel`
@@ -7,7 +7,7 @@
 //! gate really does refuse to read that as a pointer gesture; and a genuine
 //! pointer move still takes over immediately. Swept across both list styles
 //! (`Pane`/`Bars`) and 1×/2× DPI, mirroring `settings_row_reach_law`'s own
-//! sweep shape for item 104.
+//! sweep shape used by `settings_row_reach_law`.
 
 use super::super::*;
 use super::{headless_dqp, view};
@@ -119,7 +119,7 @@ fn a_keyboard_scroll_moves_what_a_stationary_pixel_hits_and_the_gate_refuses_it(
             );
 
             // THE LAW: a REAL 1px jitter off the parked pixel — not the exact
-            // same coordinate (item 85's own exact-equality gate already
+            // same coordinate (the exact-equality gate already
             // refused a bare duplicate; this law's own regression needs
             // genuine, if tiny, travel) — re-checked through the real gate,
             // must not steal the keyboard's selection.
