@@ -69,7 +69,7 @@ struct Globals {
     // but the ground draws ONE arrangement now and that slot is inert; see
     // `organic_rgb`. All four are 0 for
     // every ground this round didn't touch, so those grounds take their
-    // exact original code path. (Waves' item-87 drift is NOT here — it rides
+    // exact original code path. (Waves' drift is NOT here — it rides
     // the dedicated `drift` slot above.) Shader 10 (WarpedGrid) reads
     // x/y/w as projected minor-cell spacing / coverage density / framing.
     params: vec4<f32>,
@@ -483,12 +483,12 @@ const FINDS_ACCENT_OFFSET_HI: f32 = 0.34;
 const FINDS_JITTER: f32 = 0.15;
 const FINDS_LATTICE_ANGLE: f32 = 0.42;
 // The WINNING hash's threshold, not a per-cell rate (see
-// `finds_is_local_min` below). Raised from the item-176 0.10 so the
+// `finds_is_local_min` below). Chosen so the
 // decorrelated mechanism still draws roughly one breathing cell in ten:
 // a cell's own hash is one of 9 i.i.d. draws (itself plus its full
 // neighbourhood), so P(cell empty) = P(its draw is both the neighbourhood's
 // minimum AND under this threshold) = (1-(1-t)^9)/9, solved for the
-// item-176 target of 0.10 at t ~= 0.226.
+// target occupancy is 0.10 at t ~= 0.226.
 const FINDS_DROPOUT: f32 = 0.226;
 const FINDS_TAU: f32 = 6.2831855;
 // The feather half-width, in PHYSICAL pixels. Crisp is the whole point, so
@@ -934,7 +934,7 @@ fn bands_rgb(px: vec2<f32>) -> vec3<f32> {
 // layered swells, never a grid). Tier geometry (amplitude/wavelength/phase) is
 // a FIXED constant, never per-world data — every `Waves` world shares this
 // exact shape (only the three tones differ). Pure function of `px` PLUS one
-// scalar, `g.drift` — the item-87 phase DRIFT (radians), `0.0` at rest so
+// scalar, `g.drift` — the phase drift (radians), `0.0` at rest so
 // the settled/headless-capture render is byte-identical to the pre-drift
 // shape. ---
 //

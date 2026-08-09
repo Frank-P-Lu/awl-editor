@@ -39,13 +39,8 @@ jobs:
       # it to exhaust. The evidence, not the argument: this job ran the same
       # `scripts/native-gate.sh` — full suite, both conventions, every
       # `render::tests::` — green on the very commits where `mac` hung, for the
-      # whole ~140-commit red streak. Run 30770386873 (`00199724`, which
-      # contains `8207e519`) is the clean pair: `linux` issued
-      # `native-gate-receipt … conventions=mac,linux scope=all-targets` off a
-      # Mesa 25.2.8 lavapipe runner in 971 s while `mac` failed at 58m03s. A
-      # local arm64 lavapipe container (Debian bookworm, Mesa 22.3.6) agrees:
-      # `render::tests::` at `8207e519` and at `36707d06` never once hung —
-      # every termination was a prompt, diagnosable SIGKILL, never the hosted
+      # full long-running wedge investigation. A local arm64 lavapipe container
+      # agrees: every termination is a prompt, diagnosable SIGKILL, never the hosted
       # runner's park-forever-in-poll. So this arm buys real Linux/Vulkan
       # coverage and buys NOTHING on the virtualised-GPU axis; do not cite it as
       # that axis's arm. The `mac` job below is it.
@@ -53,8 +48,7 @@ jobs:
       # ‼ WHAT THAT CONTAINER *DID* SEE under a
       # FIXED 4 GiB ceiling at `--test-threads=1`, `render::tests::` walks RSS
       # up monotonically and is OOM-killed — and how far it gets is exactly
-      # commit-correlated. `36707d06` reaches test 199; `8207e519` reaches test
-      # 160. Twice each, identical both times. The same suite peaks at 448 MiB
+      # commit-correlated. The same suite peaks at 448 MiB
       # on the dev host's Metal (CLAUDE.md's gate note), so this is not portable
       # as an RSS number — but it makes the residual suspects
       # (per-call `glyphon::Cache` + `TextAtlas`, `offscreen()` textures and
@@ -170,21 +164,15 @@ jobs:
   atspi:
     name: "atspi (AT-SPI2 bridge liveness, item 252) — allowed failure, item 257"
     runs-on: ubuntu-latest
-    # BACKSTOP only (the split's distinction, reused here after run 30887479906
-    # hit it directly): `continue-on-error` tolerates a job that FAILS, not
+    # BACKSTOP only: `continue-on-error` tolerates a job that FAILS, not
     # one that is CANCELLED, and exceeding `timeout-minutes` cancels rather
     # than fails. `scripts/ci-atspi-budget.sh` converts a hung probe into an
     # ordinary non-zero exit well before this fires; this stays only for the
     # different failure it exists for — the runner losing communication with
     # the server — set generously above that script's own budget.
     #
-    # 15 was wrong and inverted the whole point (run 30891737357 hit it
-    # directly, 15m15s against a 15-minute ceiling, no probe output at all —
-    # the job never reached the budget script). Measured, not guessed: run
-    # 30890502496's build alone ran from job start (~08:06) to the probe step
-    # starting at 08:17:05, roughly 11 minutes, before the 180s budget even
-    # begins — a 15-minute ceiling left it a coin flip on cargo's cache, not
-    # a backstop. 30, matching the shape of the other jobs, leaves real
+    # A short ceiling can expire during the build, before the budget begins.
+    # 30, matching the shape of the other jobs, leaves real
     # margin above build + budget.
     timeout-minutes: 30
     continue-on-error: true
@@ -205,16 +193,12 @@ jobs:
       # backend dlopens at startup (the xkbcommon-dl crate). `linux` never
       # needed it — that job runs headless, with no X11 display, so the
       # dlopen path is never reached. This job is the first arm to put a
-      # built awl in front of a real X server, and its first real run found
-      # the gap the hard way: `awl` panicked instantly with `Library
-      # libxkbcommon-x11.so could not be loaded` (run 30883984186). Also
+      # built awl in front of a real X server. Also
       # added to run-linux.sh and package-linux.sh's shipped README.txt,
       # which have the same gap for anyone running awl on a bare X11 session.
       # This step is where a rare apt-get stall against the package mirror
-      # can consume the ENTIRE job budget: run 31183432618 measured "Install
-      # system dependencies" at 21m41s (13:36:36Z -> 13:58:17Z) against a
-      # same-day neighbor's 14s for the identical step, so the AT-SPI probe
-      # below never got a chance to run at all, let alone hang — its own
+      # can consume the ENTIRE job budget, so the AT-SPI probe below may
+      # never get a chance to run at all, let alone hang — its own
       # step recorded `skipped`, because `cargo build` was still mid-compile
       # when the job's 30-minute ceiling cancelled it. `timeout` (not a
       # step-level `timeout-minutes`, which cancels rather than fails and so
@@ -323,9 +307,8 @@ jobs:
   # ── mac, split in two by user decision ──────────────────────────────────────
   # Measurement asked whether a portable software adapter could stand in for
   # hosted macOS's virtualised Metal and measured NO on two independent
-  # stacks: the `linux` job's x86_64 lavapipe (green on the exact commits
-  # where this job hung, all streak long) and a local arm64 lavapipe
-  # container at `8207e519`/`36707d06`, which never hung once. A CPU
+  # stacks: the `linux` job's x86_64 lavapipe and a local arm64 lavapipe
+  # container. A CPU
   # rasteriser has no system-wide GPU resource for a cross-process wedge to
   # exhaust — two processes with two
   # separate wgpu devices stopped within 10 ms of each other. So a hosted-mac
@@ -402,12 +385,9 @@ jobs:
   # to the wedge from this file alone: the hosted macOS runner's virtualised
   # Metal stack HANGS — does not fail, hangs — inside `render::tests::`,
   # every libtest worker parking at the same instant and never moving. Signal
-  # run 30778330964 (`69f379f7`): `web`, `linux` and `mac live-probe` all
-  # green, `mac (build + test)` alone failed with "native-gate: ABORTED on
-  # its 1500s budget with mac_status=143 linux_status=143; no receipt
-  # issued". That is the wedge signature; do not read a red run here as a
-  # new regression without checking that item first, and do not read a green
-  # run here as the wedge fixed without confirming it stays green — the
+  # A red run here is the wedge signature; do not read it as a new regression
+  # without checking the underlying state, and do not read a green run as fixed
+  # without confirming it stays green — the
   # exhausted resource still has no confirming measurement (the diagnosis'
   # entry has the full diagnosis-in-progress).
   #

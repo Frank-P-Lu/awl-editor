@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""hero-verify.py — item 157 follow-up: prove the hero social image is a
+"""hero-verify.py — prove the hero social image is a
 COMPOSED image, not an editor screenshot with the fixture's own name leaked
 into it.
 

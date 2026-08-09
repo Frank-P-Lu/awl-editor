@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""loudness-measure.py — territory and contrast arithmetic over the item 118
+"""loudness-measure.py — territory and contrast arithmetic over the
 idle-loudness Room sweep (`scripts/capture-loudness-118.sh`).
 
-WHAT THIS IS NOT. Item 118 is explicit: "pixel/sidecar arithmetic may prove
+WHAT THIS IS NOT. Pixel/sidecar arithmetic may prove
 territory and contrast but never claims the taste score." Nothing here emits a
 1-5. It measures the things a taste judgement should not have to guess at —
 how much of the window the ground owns, how hard the ground's marks push, how
@@ -41,8 +41,8 @@ Per (world, arm) it reports:
                 a dithered ground (Mangrove) and a 1px-hairline ground
                 (Saltpan, Magpie) both post a large raw g_sd that a viewer
                 never perceives as contrast, because the structure carrying it
-                is below the eye's integration scale. Item 186 recorded the
-                same trap from the other side — a per-pixel metric passed its
+                is below the eye's integration scale. A per-pixel metric can
+                pass its
                 own mutation because doubling a whisper ramp made it gentler
                 per pixel. A ground whose g_sd collapses under low-pass is
                 textured; one that holds it is genuinely high-contrast.

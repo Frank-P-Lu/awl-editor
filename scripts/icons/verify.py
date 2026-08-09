@@ -35,7 +35,7 @@ import zlib
 # The HARD presence gate runs at the Dock size; the ladder below it is
 # reported. Geometry is a separate roster law over the shipped assignment at
 # every native review size. It deliberately does NOT turn 32/24px legibility
-# into a decision: item 99a owns that taste call.
+# into a decision: the user owns that taste call.
 ASSERT_SIZES = [128]
 LADDER = [128, 64, 32, 24]
 GEOMETRY_SIZES = [256, 128, 64, 44, 32, 24]
@@ -226,7 +226,7 @@ def geometry(path, world):
     the real glyph hole from the tile ground.
     """
     w, h, bpp, buf = decode_png(path)
-    # The tile's ACTUAL ground (item 121: `base_100` unless the world opted
+    # The tile's ACTUAL ground (`base_100` unless the world opted
     # into a blend toward `base_300`) — never `base_100` directly, since the
     # rendered pixels follow `ground`, not the raw token.
     ground = hexrgb(world["ground"])
@@ -312,7 +312,7 @@ def geometry(path, world):
 
 def analyse(path, world):
     w, h, bpp, buf = decode_png(path)
-    # The tile's ACTUAL ground (item 121: `base_100` unless the world opted
+    # The tile's ACTUAL ground (`base_100` unless the world opted
     # into a blend toward `base_300`) — never `base_100` directly, since the
     # rendered pixels follow `ground`, not the raw token.
     ground = hexrgb(world["ground"])

@@ -182,10 +182,8 @@ export RUST_TEST_THREADS
 # A duration alone was not enough. `AWL_NATIVE_GATE_BUDGET_SECONDS` starts when
 # THIS SCRIPT starts, but the thing racing it — a hosted macOS runner that stops
 # talking to the server, upstream actions/runner-images#13882 — is on the
-# RUNNER's clock, which started at job step 1. Run 30742490207's mac job entered
-# this script 96 seconds into the job (a hot cache made `cargo build` 14 s) and
-# the runner was lost at job-minute 53; run 30732589551's entered at job-minute
-# 6.6. The same duration therefore expires at two very different points on the
+# RUNNER's clock, which starts at job step 1. This script can start at different
+# points in that clock, so the same duration expires at different points on the
 # clock that actually kills the job. `AWL_NATIVE_GATE_DEADLINE_EPOCH` is an
 # ABSOLUTE unix time, set by the caller from the job's own start, and the gate
 # takes whichever of the two comes first.
@@ -365,14 +363,11 @@ gate_cpu_report() {
 gate_vitals_interval="${AWL_NATIVE_GATE_VITALS_SECONDS:-60}"
 
 # ── Per-phase timing, and naming the line a hang stopped on ──────────────────
-# Run 30732589551 is the only surviving log of this failure, and reconstructing
-# it took line-by-line archaeology: both conventions write to one stdout, so
+# Both conventions write to one stdout, so without line labels
 # "which convention got where" was not readable at all. Every convention line
 # now carries its own label, and the phase boundaries Cargo already announces
 # get a timestamped marker — which answers, without a second run, whether a
-# 40-minute step is COMPILING test harnesses or RUNNING tests. (In 30732589551
-# it was neither: compilation finished 113 s in, tests ran for 3.5 minutes, and
-# then output stopped dead for 35 minutes.)
+# 40-minute step is COMPILING test harnesses or RUNNING tests.
 #
 # The per-convention progress file is APPEND-only on purpose: a truncating
 # writer races the heartbeat that reads it, and `tail -1` of an append-only file
@@ -467,13 +462,9 @@ gate_vitals_loop() {
 }
 
 # ── Ending a phase that will not end itself ──────────────────────────────────
-# `kill $pid` retires `env … cargo test` and NOTHING BELOW IT: run 30732589551's
-# own job cleanup had to reap two survivors by hand ("Terminate orphan process:
-# pid (43065) (awl-a623f1caab4)") AFTER this gate had already exited. Those
+# `kill $pid` retires `env … cargo test` and NOTHING BELOW IT. Those
 # orphans inherit the step's stdout, and a GitHub step does not conclude while
-# anything still holds that pipe — which is the shape of run 30742490207, whose
-# step 8 has conclusion `null` even though its budget came due eleven minutes
-# before the runner was lost.
+# anything still holds that pipe.
 #
 # So every phase is launched under `set -m`, making it a process-group leader,
 # and the budget kills the GROUP. The per-convention output filter lives inside

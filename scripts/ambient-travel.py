@@ -2,7 +2,7 @@
 """ambient-travel.py — how far each ambient ground actually travels per real
 second, measured off `scripts/capture-ambient-118.sh`'s phase series.
 
-Item 118 counts ambient motion toward idle loudness, and the honest question
+Ambient motion contributes to idle loudness, and the honest question
 about ambient motion is not "does it move" (all five do, by construction) but
 "how much of the ground has visibly changed by the time the writer glances up".
 That is what this measures, against the t=0 frame:
@@ -20,7 +20,7 @@ ground.
 
 WHAT THIS IS NOT: a frame-rate or a feel measurement. These are deterministic
 renders at explicit phases; they prove the trajectory, not the cadence and not
-the calmness. Item 118 requires `--release` live observation for those, and
+the calmness. `--release` live observation settles those, and
 this script exists to make that live sitting cheap and specific, not to
 replace it.
 """

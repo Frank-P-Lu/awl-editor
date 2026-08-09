@@ -6,9 +6,8 @@
 # design: `continue-on-error: true` tolerates a job that FAILS. It does NOT
 # tolerate a job that is CANCELLED, and a step or job that exceeds
 # `timeout-minutes` is cancelled, not failed — cancellation propagates to the
-# workflow's conclusion regardless of `continue-on-error`. Run 30887479906
-# hit exactly this: the atspi job carries `continue-on-error: true`, but its
-# probe step hung (see ci-atspi-probe.py's own fix for why) until
+# workflow's conclusion regardless of `continue-on-error`. The atspi job
+# carries `continue-on-error: true`, but its probe can hang until
 # `timeout-minutes: 20` cancelled the JOB, and that cancellation would have
 # propagated to the whole workflow's conclusion had this job's failure mode
 # not already been isolated to its own job. A tolerated

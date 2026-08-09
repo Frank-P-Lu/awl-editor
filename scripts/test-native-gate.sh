@@ -417,8 +417,7 @@ echo "test-native-gate: the budget reaches the canary phase, not only the concur
 
 # ── The budget ends the whole process GROUP ──────────────────────────────────
 # `kill $cargo_pid` retires `env … cargo test` and nothing below it. On
-# 2026-08-02 run 30732589551 the job's own cleanup had to reap two survivors by
-# hand AFTER this gate exited; a survivor holds the step's stdout, and a GitHub
+# A gate cleanup can leave survivors after it exits; a survivor holds the step's stdout, and a GitHub
 # step does not conclude while that pipe is open. The fixture's grandchild
 # IGNORES SIGTERM on purpose, so only a group-directed KILL can retire it — a
 # gate that merely signalled its direct children would leave it running.

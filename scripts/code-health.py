@@ -48,6 +48,49 @@ ITEM_NAMED_TEST_EXCLUSIONS = {
     "retired_item_76_identifiers_leave_no_trace_in_source",
     "retired_item_76_needles",
 }
+# Phase three governs the non-Rust source families that carry implementation
+# prose. These are machine interfaces, not commentary: each allowance records
+# the complete current line so a rename or path change makes the allowance stale.
+NON_RUST_CITATION = re.compile(
+    r"\b(?:item|round|run)[ _-]?\d+[a-z]?\b|`[0-9a-f]{7,40}`", re.IGNORECASE
+)
+PHASE_THREE_SUFFIXES = {".py", ".sh", ".wgsl", ".yml", ".yaml"}
+PHASE_THREE_ALLOWANCES = {
+    "scripts/ambient-travel.py": {
+        'RUN_DIR = os.path.join(_ROOT, "gallery", "item-118-ambient")',
+    },
+    "scripts/capture-ambient-118.sh": {
+        "#   gallery/item-118-ambient/<World>/t<seconds>.png + .json",
+        'RUN_DIR="$ROOT/gallery/item-118-ambient"',
+    },
+    "scripts/capture-bowerbird-spacing-191.sh": {
+        'KEEP_WORLDS="$(mktemp -t awl-item191-worlds)"',
+        'KEEP_SHADER="$(mktemp -t awl-item191-shader)"',
+    },
+    "scripts/capture-ground-space.sh": {'RUN_DIR="$ROOT/gallery/item-186-ground-space"'},
+    "scripts/capture-loudness-118.sh": {
+        "#   gallery/item-118-loudness/<arm>/<World>.png + .json",
+        'RUN_DIR="$ROOT/gallery/item-118-loudness"',
+    },
+    "scripts/loudness-measure.py": {
+        'RUN_DIR = os.path.join(_ROOT, "gallery", "item-118-loudness")',
+    },
+    "scripts/capture-warp-motion.sh": {'RUN_DIR="$ROOT/gallery/item-194-warp-motion"'},
+    "scripts/item174-header-band-identity.sh": {
+        "# Usage: scripts/item174-header-band-identity.sh <binary> <outdir>",
+        'BIN="${1:?usage: item174-header-band-identity.sh <binary> <outdir>}"',
+        'OUT="${2:?usage: item174-header-band-identity.sh <binary> <outdir>}"',
+    },
+    "scripts/item242-chrome-pixel-space-identity.sh": {
+        "# Usage: scripts/item242-chrome-pixel-space-identity.sh <binary> <outdir>",
+        'BIN="${1:?usage: item242-chrome-pixel-space-identity.sh <binary> <outdir>}"',
+        'OUT="${2:?usage: item242-chrome-pixel-space-identity.sh <binary> <outdir>}"',
+    },
+    ".github/workflows/ci.yml": {
+        '    name: "atspi (AT-SPI2 bridge liveness, item 252) — allowed failure, item 257"',
+        '    name: "mac (render::tests) — allowed failure, item 231"',
+    },
+}
 # Capture schema rows are a live append-only protocol ledger.
 CAPTURE_SCHEMA_ROW = re.compile(r"^\s*///\s*`/\d+`")
 
@@ -84,6 +127,43 @@ def check_item_named_test_identifiers() -> list[str]:
     if found != ITEM_NAMED_TEST_EXCLUSIONS:
         return [f"code-health: item-named test identifiers must be exactly {sorted(ITEM_NAMED_TEST_EXCLUSIONS)}, found {sorted(found)}"]
     return []
+
+
+def phase_three_files() -> list[str]:
+    """Tracked shell, Python, WGSL, and workflow files; checker fixtures stay
+    outside their own subject so their deliberate bad examples remain useful."""
+    return [
+        path for path in git("ls-files").splitlines()
+        if path and Path(path).suffix in PHASE_THREE_SUFFIXES
+        and (path.startswith("scripts/") or path.startswith("shaders/") or path.startswith(".github/workflows/"))
+        and path != "scripts/code-health.py"
+    ]
+
+
+def check_phase_three_citations() -> list[str]:
+    """Reject historical queue/round/run/SHA prose outside Rust.
+
+    Every allowed machine-facing spelling is exact and must be consumed once;
+    this turns deletion, movement, or editing of an interface into a stale
+    allowance rather than a silent broad exemption.
+    """
+    seen = {path: set() for path in PHASE_THREE_ALLOWANCES}
+    failures: list[str] = []
+    for path in phase_three_files():
+        for number, text in enumerate((ROOT / path).read_text().splitlines(), 1):
+            if not NON_RUST_CITATION.search(text):
+                continue
+            if text in PHASE_THREE_ALLOWANCES.get(path, set()):
+                seen[path].add(text)
+                continue
+            failures.append(
+                f"{path}:{number}: non-Rust source cites queue-item/round/run/sha archaeology "
+                f"({text.strip()!r}); describe the mechanism, or add an exact live machine interface allowance"
+            )
+    for path, allowed in PHASE_THREE_ALLOWANCES.items():
+        for text in allowed - seen[path]:
+            failures.append(f"code-health: stale phase-three citation allowance {path}: {text!r}")
+    return failures
 
 
 def is_capture_schema_history_row(path: str, text: str) -> bool:
@@ -1108,6 +1188,40 @@ def self_test() -> int:
         raise AssertionError("new high-signal diagnostics must fail")
     if len(check_clippy(set(), current)) != 2:
         raise AssertionError("missing metric diagnostics must make their exceptions stale")
+    # Phase three checks every non-Rust syntax family and names the violating
+    # file. Its live interfaces are exact, so a changed or deleted spelling
+    # makes the allowance stale instead of preserving dead permission.
+    with tempfile.TemporaryDirectory() as directory:
+        root = ROOT
+        original_phase_three_files = phase_three_files
+        original_phase_three_allowances = PHASE_THREE_ALLOWANCES
+        try:
+            globals()["ROOT"] = Path(directory)
+            globals()["PHASE_THREE_ALLOWANCES"] = {}
+            for path in (
+                "scripts/probe.py", "scripts/probe.sh", "shaders/probe.wgsl",
+                ".github/workflows/probe.yml",
+            ):
+                target = Path(directory) / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text("# ordinary mechanism prose\n")
+            globals()["phase_three_files"] = lambda: [
+                "scripts/probe.py", "scripts/probe.sh", "shaders/probe.wgsl",
+                ".github/workflows/probe.yml",
+            ]
+            for path in phase_three_files():
+                target = Path(directory) / path
+                target.write_text("# item 99: archaeology\n")
+                failures = check_phase_three_citations()
+                if not any(f.startswith(f"{path}:1:") for f in failures):
+                    raise AssertionError(f"phase-three citation in {path} must fail by name: {failures}")
+                target.write_text("# present-tense mechanism prose\n")
+            if check_phase_three_citations():
+                raise AssertionError("phase-three scanner must accept citation-free non-Rust source")
+        finally:
+            globals()["ROOT"] = root
+            globals()["phase_three_files"] = original_phase_three_files
+            globals()["PHASE_THREE_ALLOWANCES"] = original_phase_three_allowances
     # A function-anchored exception must keep matching after unrelated growth
     # shifts its line number — the exact class of merge conflict item 256
     # exists to remove. `fn shifted` sits at line 3 here; the manifest's
@@ -1865,6 +1979,7 @@ def main() -> int:
     failures.extend(check_index_named_test_files())
     failures.extend(check_comment_citation_backlog_empty())
     failures.extend(check_item_named_test_identifiers())
+    failures.extend(check_phase_three_citations())
     previous, previous_status = previous_marks()
     if previous_status == "unresolvable":
         print(

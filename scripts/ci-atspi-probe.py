@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""AT-SPI2 bridge-liveness and structure probe (item 252, CI-only).
+"""AT-SPI2 bridge-liveness and structure probe (CI-only).
 
 Grades the bridge itself, not something adjacent to it (the four vacuous laws
-in items 237/244/247/248 all made that mistake). Launches the real awl binary
+in earlier checks all made that mistake). Launches the real awl binary
 under a real X display, connects to the AT-SPI2 accessibility bus as an
 ordinary assistive-technology client would, and asserts that the tree
 `SemanticSnapshot` intends is actually there:
@@ -11,7 +11,7 @@ ordinary assistive-technology client would, and asserts that the tree
     means this alone never appears — that is the mutation-proof case);
   - the editable multiline document (ROLE_ENTRY, EDITABLE, MULTI_LINE,
     eventually FOCUSED) as a descendant of the application node;
-  - item 218's STABLE LINE RUNS, read through the document's TEXT INTERFACE
+  - STABLE LINE RUNS, read through the document's TEXT INTERFACE
     at LINE granularity — one entry per rope line plus the trailing empty run,
     with the exact expected text. A monolithic single-node document (the
     pre-218 shape) reports the whole document as one line and fails this exact
@@ -64,17 +64,15 @@ are two different questions and this probe answers only the first. Whether
 AT-SPI/Orca can navigate an application that publishes no Frame is left
 explicitly UNKNOWN here: this item's scope is bridge liveness and tree
 structure, not the screen-reader experience, and settling it would take a
-real Orca session — item 251's job, not this probe's. Not asserting
+real Orca session — outside this probe's scope. Not asserting
 ROLE_FRAME is the correct probe behavior regardless of that answer (it
 should never fail on a node the product was never going to publish) — but
 that correction must not be read as "so a missing Frame is fine". It is
-recorded as open, not resolved, in ACCESSIBILITY.md and item 252's landing
-report, precisely so item 251 has something to check rather than an
-assumption nobody wrote down.
+recorded as open, not resolved, in ACCESSIBILITY.md rather than assumed.
 
-THIS IS NOT ITEM 251. It says nothing about what a screen reader user would
+This says nothing about what a screen reader user would
 hear or how navigation feels — only that the bridge is live and shaped right.
-Item 251 still needs a human at a real Linux desktop running Orca.
+A real Linux desktop running Orca still needs human confirmation.
 
 Exits non-zero, with a message naming exactly what was missing, on any
 mismatch or timeout. Exit 0 only when every assertion below passed.
@@ -101,7 +99,7 @@ SELECTION_TIMEOUT_S = 10.0
 POLL_S = 0.5
 MAX_DEPTH = 12
 # Every external call this probe makes (dbus-send, xdotool) gets an explicit,
-# generous timeout. Run 30887479906's job hit its 20-minute CANCEL because an
+# generous timeout. A job can hit its timeout because an
 # earlier version of set_bus_enabled used `Gio.DBusProxy.new_for_bus_sync` —
 # a synchronous GI call with no timeout parameter at all — and something in
 # this sandboxed dbus-run-session/Xvfb stack made it block indefinitely. A
@@ -113,7 +111,7 @@ MAX_DEPTH = 12
 SUBPROCESS_TIMEOUT_S = 10.0
 
 FIXTURE_LINES = ["line one", "line two", "line three"]
-# item 218's shape: one run per rope line, PLUS a trailing empty run for the
+# Expected shape: one run per rope line, PLUS a trailing empty run for the
 # implied empty line after the fixture's final newline.
 EXPECTED_RUN_TEXT = [line + "\n" for line in FIXTURE_LINES] + [""]
 
@@ -178,8 +176,7 @@ def set_bus_enabled(value: bool) -> None:
     for `dbus-run-session`) under an explicit subprocess timeout, not
     `Gio.DBusProxy` — a first version used the synchronous GI proxy call,
     which takes no timeout parameter at all, and something in this sandboxed
-    dbus-run-session/Xvfb stack made it block indefinitely (run 30887479906
-    hit its job's 20-minute CANCEL this way). A bare `subprocess` call with a
+    dbus-run-session/Xvfb stack can block indefinitely. A bare `subprocess` call with a
     hard ceiling is something this script fully controls; a GI library call's
     internal blocking behavior is not.
     """
@@ -404,7 +401,7 @@ def main() -> None:
         #
         # ‼ THE RUNS ARE NOT ACCESSIBLE CHILDREN, AND THAT IS CORRECT.
         # This block used to assert `document.get_child_count() == 4` and
-        # failed on every run (item 257). The expectation was wrong, not awl:
+        # failed because the expectation was wrong, not awl:
         # `accesskit_consumer::common_filter` returns `FilterResult::ExcludeNode`
         # for `Role::TextRun`, and BOTH backends compute their exposed tree with
         # it — `accesskit_macos::filters` and `accesskit_atspi_common::filters`
@@ -449,7 +446,7 @@ def main() -> None:
                 "instead of as text"
             )
 
-        # ITEM 218'S SHAPE, THROUGH THE INTERFACE THAT ACTUALLY EXPOSES IT.
+        # THE REQUIRED SHAPE, THROUGH THE INTERFACE THAT ACTUALLY EXPOSES IT.
         # AccessKit derives LINE boundaries from the text runs, so a monolithic
         # single-run document (the pre-218 shape) reports the WHOLE document as
         # one line and fails here. This is the assertion the child-count check
@@ -463,12 +460,12 @@ def main() -> None:
             except (AttributeError, GLib.Error) as exc:
                 fail(
                     "could not read LINE granularity from the document's text "
-                    f"interface ({exc}) — this probe cannot assert item 218's "
+                    f"interface ({exc}) — this probe cannot assert the required "
                     "per-line shape, so it must not report success"
                 )
             if got != want:
                 fail(
-                    f"line {i} reads {got!r}, expected {want!r} — item 218's "
+                    f"line {i} reads {got!r}, expected {want!r} — the required "
                     "per-line run text did not cross the bridge intact (a "
                     "monolithic single-run document fails exactly here)"
                 )
