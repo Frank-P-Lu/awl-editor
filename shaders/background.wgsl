@@ -8,7 +8,7 @@
 //     alpha 1, painting the ground the page floats on.
 //
 // Almost entirely static (no per-doc/per-glyph input ever reaches this
-// pipeline). The ONE exception (item 87) is `drift` — Bombora's WAVES
+// pipeline). The ONE exception is `drift` — Bombora's WAVES
 // phase drift, a single scalar the host uploads each frame from the SAME
 // shared ambient clock the lava lamp and twinkling stars ride; it is `0.0`
 // for every non-Waves ground and for every headless capture (that clock never
@@ -42,7 +42,7 @@ struct Globals {
     // than reused: every number here is a WIRE value, so renumbering repaints
     // worlds.
     shader: u32,
-    // WAVES phase-drift, in radians (item 87) — a DEDICATED scalar in what was
+    // WAVES phase-drift, in radians — a DEDICATED scalar in what was
     // `pad` after `shader`. `0.0` for every non-Waves ground and every
     // settled/headless frame (so those renders stay byte-identical); shader 6
     // reads it as `g.drift` in `waves_rgb`. Kept OUT of `params` because item
@@ -59,7 +59,7 @@ struct Globals {
     // Per-ground params — the SAME four slots read with a DIFFERENT meaning
     // per shader (exactly one ground is ever active at a time, so there is no
     // real collision): params.x = Dots proximity flag (0/1) OR shader 7's
-    // chevron repeat wavelength `period_px` (item 86); params.y = the
+    // chevron repeat wavelength `period_px`; params.y = the
     // Stripes/Bands angle (radians) OR shader 7's own chevron travel angle;
     // params.z = shader 7's chevron amplitude `amplitude_px`; params.w =
     // shader 7's extra coverage multiplier `density`. Shader 9 (Deckle, item
@@ -70,13 +70,13 @@ struct Globals {
     // `organic_rgb`. All four are 0 for
     // every ground this round didn't touch, so those grounds take their
     // exact original code path. (Waves' item-87 drift is NOT here — it rides
-    // the dedicated `drift` slot above.) Shader 10 (WarpedGrid, item 132) reads
+    // the dedicated `drift` slot above.) Shader 10 (WarpedGrid) reads
     // x/y/w as projected minor-cell spacing / coverage density / framing.
     params: vec4<f32>,
     // Warped-grid travel in minor cells, resolved on the host. Zero for every
     // other ground. Must byte-match `Globals.warp_travel` in src/background.rs.
     warp_travel: f32,
-    // ITEM 186 — PHYSICAL PIXELS PER LOGICAL PIXEL (the display's device ratio:
+    // PHYSICAL PIXELS PER LOGICAL PIXEL (the display's device ratio:
     // 1.0 on a 1:1 screen, 2.0 on a Retina one). The host uploads it from the
     // SAME `scale_factor` the window reports (`--capture-dpi` headlessly);
     // deliberately NOT folded with the user's text zoom, because the ground is a
@@ -85,14 +85,14 @@ struct Globals {
     // is not. See `to_logical` / `sampling_feather` and the classification table
     // in `src/theme/ground.rs`, which is the authority this file mirrors.
     scale: f32,
-    // ITEM 244 — Organic's own per-frame breathe phase, in CYCLES (the raw
+    // Organic's own per-frame breathe phase, in CYCLES (the raw
     // shared-clock phase, NOT radians — unlike `drift` above, nothing
     // pre-multiplies this by TAU). `0.0` for every non-Organic ground and
     // every settled/headless frame. Read directly by `organic_finds_rgb`'s
     // companion (`kind_b`) value-breathe, whose envelope shape matches
     // `stars.rs:185`'s `rate * phase / LAVA_LOOP_CYCLES`. Must byte-match
     // `Globals.organic_phase` in src/background.rs. Replaces the field
-    // TRANSLATION `organic_rgb` used to compute from `drift` (item 163) —
+    // TRANSLATION `organic_rgb` used to compute from `drift` —
     // deleted outright, so the ground no longer translates at all.
     organic_phase: f32,
     // std140 tail padding — a uniform struct is rounded up to its 16-byte
@@ -106,7 +106,7 @@ struct Globals {
 
 @group(0) @binding(0) var<uniform> g: Globals;
 
-// --- ITEM 186 — THE TWO COORDINATE SPACES OF A PROCEDURAL GROUND ---
+// --- THE TWO COORDINATE SPACES OF A PROCEDURAL GROUND ---
 //
 // A ground carries two structurally different classes of authored number, and
 // before this item both were physical pixels by accident of the coordinate the
@@ -201,7 +201,7 @@ const EDGE_FALLOFF: f32 = 90.0;
 // grep-law asserts this line still reads it.
 const ZIGZAG_STROKE_FRAC: f32 = 0.10;
 
-// `px` is LOGICAL (item 186), so the column bounds it is measured against are
+// `px` is LOGICAL, so the column bounds it is measured against are
 // taken in logical units too.
 fn edge_intensity(px: vec2<f32>) -> f32 {
     var d = 0.0;
@@ -231,7 +231,7 @@ fn edge_proximity(px: vec2<f32>) -> f32 {
     return clamp(1.0 - d / span, 0.0, 1.0);
 }
 
-// Coverage [0,1] of the assigned margin ground at LOGICAL pixel `px` (item 186
+// Coverage [0,1] of the assigned margin ground at LOGICAL pixel `px`
 // — the caller divides through the device ratio, so every cell/period/mark size
 // below is a logical quantity and the composition is the same at 1x and 2x).
 // All grounds are pure functions of position — STATIC, no time. Tuned to
@@ -288,8 +288,8 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
     // the id stays unissued rather than being handed to a neighbour, because
     // every id below is a wire value (see `Background::shader_id`). ---
     // --- 7: ZIGZAG — a TILED field of repeating chevron ("V") rows,
-    // whisper-composited over the gradient like Dots/Pinstripe (item 86;
-    // FIELD-tiled by item 89). Four independently authored dials (see
+    // whisper-composited over the gradient like Dots/Pinstripe;
+    // FIELD-tiled. Four independently authored dials (see
     // `Background::Zigzag`'s own doc): `period` is the chevron's repeat
     // wavelength ALONG its travel (the SCALE dial — the tooth wavelength
     // ALONE; the row-to-row pitch ACROSS travel is DERIVED, see the abutment
@@ -300,7 +300,7 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
     // gradient's own `dir`), and `dens` an extra per-world coverage
     // multiplier (the CONTRAST dial) stacked with the shared
     // `PATTERN_MAX_COVERAGE` ceiling every mark ground already carries. ---
-    // ITEM 186: every one of Zigzag's numbers is COMPOSITION and therefore
+    // Every one of Zigzag's numbers is COMPOSITION and therefore
     // logical — `period`, `amp`, and the derived `thickness`. The stroke's soft
     // edge is `thickness * 0.6 .. thickness`, a PROPORTION of the ribbon rather
     // than a fixed skirt, so it is part of the drawn profile and not a sampling
@@ -325,14 +325,14 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
         let rx = px.x * ca + px.y * sa;
         let ry = -px.x * sa + px.y * ca;
         // A broad triangle wave of `rx` (period `period`), in [-1, 1] — the
-        // SAME fold `jagged_wave_band` (`shaders/selection.wgsl`, item 71,
+        // SAME fold `jagged_wave_band` (`shaders/selection.wgsl`,
         // retired) used: `fract` + a fold gives the sharp "jagged" corners a
         // chevron needs.
         let tri = abs(fract(rx / period) * 2.0 - 1.0) * 2.0 - 1.0;
         let center = tri * amp;
         let thickness = max(amp * ZIGZAG_STROKE_FRAC, 1.2);
-        // ITEM 89 — THE FIELD FOLD. `center` is a function of `rx` ALONE, so
-        // `abs(ry - center)` (item 86's original) describes ONE continuous
+        // THE FIELD FOLD. `center` is a function of `rx` ALONE, so
+        // `abs(ry - center)` describes ONE continuous
         // chevron LINE embedded in the plane: teeth repeat along travel, but
         // nothing repeats it ACROSS travel, so a tall margin showed one
         // wandering stroke with large blank areas and a taller window only
@@ -342,8 +342,8 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
         // Mario-like zigzag field that covers any viewport, at any height,
         // with the same row rhythm.
         //
-        // ITEM 89-FIX — THE ABUTMENT RULE, and why the pitch is NOT `period`.
-        // Item 89's first cut set `row_h = period` (a square lattice in the
+        // THE ABUTMENT RULE, and why the pitch is NOT `period`. A first cut
+        // set `row_h = period` (a square lattice in the
         // travel frame). That tiles, but it does NOT COVER: row `k`'s ribbon
         // only ever visits `ry` in `[k*row_h - amp - t, k*row_h + amp + t]`,
         // so when `2*amp + 2*t < period` the field carries a VOID BAND of
@@ -361,13 +361,13 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
         // overlap) across the travel axis for ANY authored dials, so a void
         // band is impossible BY CONSTRUCTION rather than by tuning: over the
         // PLANE the covering property no longer depends on the
-        // period/amplitude ratio or on the angle. (ITEM 100 — the one bound:
+        // period/amplitude ratio or on the angle. (The one bound:
         // a VIEWPORT sees a rotated rectangle of that plane, so it inherits
         // the guarantee only while it holds a whole tooth of travel; a canvas
         // narrower than one `period` never sweeps the full excursion. See
         // `Background::zigzag_row_pitch_px`'s doc comment — no shipping
         // world's tooth is within 4x of that regime.) It also retires
-        // item 89's row-collision clamp — abutting rows cannot smear together
+        // the row-collision clamp — abutting rows cannot smear together
         // (each ribbon is `2*t` wide inside a `2*amp + t` lane), so there is
         // nothing left to guard.
         let row_h = 2.0 * amp + thickness;
