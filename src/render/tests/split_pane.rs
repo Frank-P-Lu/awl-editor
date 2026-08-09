@@ -302,7 +302,6 @@ fn every_world_splits_by_the_shared_default_never_by_identity() {
         theme::set_active_by_name(t.name).unwrap();
         p.sync_theme();
 
-        // (1) The shared renderer default governs (no override).
         set_pane_split_test_override(None);
         let v = picker(false, 8);
         p.set_view(&v);
@@ -365,9 +364,7 @@ fn every_world_splits_by_the_shared_default_never_by_identity() {
             }
         }
 
-        // (2) The decision is DATA: the override flips it on EVERY world the same
-        // way. (On a Bars world the Card arm is not reached, so the override is
-        // inert there — assert it stays plate-backed, never 1/2.)
+        // The DATA override flips every Pane; other compositions remain inert.
         for (forced, want) in [
             (theme::PaneSplit::Split, 2usize),
             (theme::PaneSplit::Unified, 1),

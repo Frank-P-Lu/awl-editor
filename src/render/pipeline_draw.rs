@@ -60,12 +60,10 @@ impl TextPipeline {
         // Translucent selection highlight quads, drawn under the text. On a
         // one-bit world `prepare_selection_layer` uploads ZERO rects here
         // (the true-inverse-video `selection_invert` pipeline takes over
-        // document selection entirely — see its own field doc), so this draws
-        // nothing there; elsewhere it tracks `selection_document`, unchanged.
+        // document selection entirely); elsewhere this tracks `selection_document`.
         let selection_pipeline =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
-        // Search matches use the document selection tint, or the one-bit
-        // highlight texture shared with `==highlight==` spans.
+        // Search matches share the one-bit texture with `==highlight==` spans.
         let mut match_pipeline =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         match_pipeline.set_dither(wagtail_dither_density());
@@ -74,9 +72,7 @@ impl TextPipeline {
         let swap_ink = theme::base_content().rgba_bytes();
         let selection_invert =
             SelectionPipeline::new_two_colour(device, &sel_shader, format, swap_ground, swap_ink);
-        // The caret's independent two-colour sibling owns its instance buffer,
-        // keeping caret geometry separate from document selection. Idle on
-        // every ordinary world.
+        // The caret owns a separate two-colour instance buffer.
         let caret_invert =
             SelectionPipeline::new_two_colour(device, &sel_shader, format, swap_ground, swap_ink);
         // Markdown ORNAMENTS (section-break fleuron): a quiet DIM glyph renderer,

@@ -256,8 +256,7 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
             t.name
         );
 
-        // (3) PHASE-FREE WORST BOUND: frost_pixel(1.0, ..) = mix(blob_hi, ground,
-        //     dim) is the brightest a pill can reach; the ink clears the floors
+        // PHASE-FREE WORST BOUND: the brightest pill phase clears the ink floors
         //     against it, so every phase is covered by construction.
         let worst = crate::lava::frost_pixel(1.0, ground, blob_lo, blob_hi, dim);
         assert!(
@@ -274,8 +273,8 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
             frost_redmean(t.muted, worst)
         );
 
-        // (4) THE FROST IS LOCAL — both margins keep their live lamp. The organic
-        //     coverage is solid over the gutter seed's ink (non-vacuous) and exactly
+        // THE FROST IS LOCAL: organic coverage is solid over the gutter seed's
+        //     ink (non-vacuous) and exactly
         //     zero far from every seed (the left margin high above the band, and the
         //     whole right margin), so nothing is carved and the rest of both margins
         //     are untouched. `frost_coverage` sums the seed halos and thresholds them.

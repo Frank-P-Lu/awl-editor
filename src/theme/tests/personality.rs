@@ -36,6 +36,8 @@ fn personality_assignments_are_exactly_the_decided_table() {
     let poster_bars = ListStyle::Bars;
     let wagtail_swap =
         model::TwoColour::new(model::PaletteRole::Base300, model::PaletteRole::BaseContent);
+    // Selection and block caret author capabilities independently even though
+    // Wagtail deliberately assigns both the same palette pair.
     let expected = |name: &str| -> RenderCaps {
         // COMPOSITION-C2: the placard worlds anchor their card TOP-LEFT and let
         // the poster corner DERIVE from that anchor (`Auto` → bottom-RIGHT),
