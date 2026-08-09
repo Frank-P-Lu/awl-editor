@@ -1,4 +1,4 @@
-//! ITEM 69 — REAL-PIXEL proofs for `Background::Bands` (three broad
+//! REAL-PIXEL proofs for `Background::Bands` (three broad
 //! tone-on-tone diagonal bands) and Bombora's wave-TIERS
 //! (`Background::Waves`), the two grounds that replaced Gumtree's old
 //! uniform Dots grid and Bombora's old scattered-star ground. Mirrors `dither.rs`'s
@@ -68,10 +68,10 @@ pub(super) fn bg_desc_for(bg: theme::Background) -> BgDesc {
 /// Draw a `BackgroundPipeline` covering a `width`x`height` canvas, with a page
 /// column hole at `[col_left, col_left+col_w)` (pass `col_w = 0.0` for NO hole
 /// — the whole canvas is margin, the purest scan surface for the band/tier
-/// count laws), and (item 87) a WAVES phase `drift` in radians — inert
-/// (`0.0`) for every non-Waves ground (item 86's Zigzag callers pass `0.0`).
+/// count laws), and a WAVES phase `drift` in radians — inert
+/// (`0.0`) for every non-Waves ground (Zigzag callers pass `0.0`).
 /// Mirrors `dither.rs::render_background`, generalized with the column + drift
-/// params this file's laws (and the item 86 sibling module's) need.
+/// params this file's laws and its sibling module need.
 // Test rendering passes the real GPU and background controls explicitly to mirror production setup.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn render_bg(
@@ -370,7 +370,7 @@ fn bands_narrow_canonical_wide_still_show_exactly_three_bands_that_scale_not_til
     );
 }
 
-/// AUDIT REGRESSION (Fable, item 69 follow-up): at the CANONICAL capture
+/// AUDIT REGRESSION (Fable): at the CANONICAL capture
 /// canvas (a wide ~1200x800 aspect, not square like the test above), a
 /// full-height 16px-wide margin sliver on EITHER side of the page column must
 /// show at least two of the three tones — i.e. it catches a band edge
@@ -672,7 +672,7 @@ fn bombora_wave_wobble_is_a_fixed_logical_pixel_amplitude_not_canvas_scaled() {
     // Both should land near 2*WAVE_AMP (44px, the boundary's own sin() peak-
     // to-peak range) regardless of canvas size — NOT roughly double at the
     // larger canvas, which is what a wobble authored as a FRACTION of the
-    // viewport would show. (ITEM 186 renamed this law: it sweeps CANVAS SIZE at
+    // viewport would show. It sweeps CANVAS SIZE at
     // one device ratio and always has, so "physical pixel" was never what it
     // proved. `WAVE_AMP` is a fixed LOGICAL px constant — the device-ratio half
     // of the claim is `ground_space`'s to make.)
@@ -733,10 +733,10 @@ fn bands_and_waves_render_byte_identically_across_two_independent_draws() {
 /// remains a Gradient.
 #[test]
 fn every_world_reports_its_authored_shader_id() {
-    // Pins the EXACT roster of shader ids item 69 could plausibly have
+    // Pins the EXACT roster of shader ids that could plausibly have
     // disturbed, one line per world, so a future accidental edit to any of
     // these worlds' `background` field fails HERE first. Quokka and Gumtree
-    // are EXCLUDED (item 86 moved both onto `Zigzag`, id 7 — asserted
+    // are EXCLUDED (both use `Zigzag`, id 7 — asserted
     // separately below, alongside Bombora's own item-69 id).
     let expected: &[(&str, u32)] = &[
         ("Potoroo", 4),   // Stripes — untouched
