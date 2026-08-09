@@ -246,8 +246,8 @@ pub fn collapse_others(levels: &[u8], caret_line: usize) -> BTreeSet<usize> {
 /// Toggle the fold on EXACTLY heading line `h` — fold it if open, unfold it if
 /// folded — regardless of caret position. Unlike [`toggle_at`] (which first
 /// resolves the CARET's enclosing heading), the heading line is already known
-/// here — e.g. a chevron click that hit a precise row. `false`
-/// (no-op) when `h` is out of range or is not a heading line (`levels[h] ==
+/// here — e.g. a chevron click that hit a precise row. Returns `false` (no-op)
+/// when `h` is out of range or is not a heading line (`levels[h] ==
 /// 0`): a click on body text can never invent a fold. THE ONE OWNER every
 /// fold-toggling door shares — [`toggle_at`] is a thin wrapper over this (so
 /// the caret-driven `C-c C-f` and a chevron click can never independently
