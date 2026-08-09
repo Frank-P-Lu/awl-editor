@@ -413,7 +413,7 @@ fn tri_tone_mix(coord: f32, b1: f32, b2: f32, aa: f32) -> vec3<f32> {
     return mix(tone01, g.c_to.rgb, m2);
 }
 
-// ITEM 244 — THE FIELD TRANSLATION IS GONE. Item 163's `drift` vec2 (a
+// THE FIELD TRANSLATION IS GONE. The former `drift` vec2 (a
 // `sin(g.drift)`/`cos(g.drift * 0.73)` field pan, both terms) is deleted
 // outright, not retuned: the `0.73` term was DISCONTINUOUS across the shared
 // clock's wrap (`cos(0.73*TAU) != cos(0.0)`, a 1.125-normalised-unit jump —
@@ -450,8 +450,8 @@ fn tri_tone_mix(coord: f32, b1: f32, b2: f32, aa: f32) -> vec3<f32> {
 // A collection reaches at most `JITTER/2 + ANCHOR_HI * (OFFSET_HI +
 // COMPANION_HI * 1.5551)` of a cell from its centre — the 1.5551 is the
 // triangle's circumradius per unit nominal radius, the largest reach of the
-// three kinds. ITEM 191 raised `ANCHOR_HI` (below) for the composition-growth
-// move, which raises this worst-case reach from item 176's ~0.44 to ~0.499 —
+// three kinds. Raising `ANCHOR_HI` (below) for composition growth raises this
+// worst-case reach from ~0.44 to ~0.499 —
 // still inside the half cell, so neighbouring collections still never merge,
 // but the margin is now thin rather than generous, so this claim is a
 // SWEPT PIXEL LAW (`render::tests::bowerbird_finds_item176`'s three-role
@@ -460,7 +460,7 @@ fn tri_tone_mix(coord: f32, b1: f32, b2: f32, aa: f32) -> vec3<f32> {
 const FINDS_SQUARE_HALF: f32 = 0.8862269; // (2a)^2 == pi*r^2
 const FINDS_TRI_HALF_SIDE: f32 = 1.3468; // sqrt(3)*h^2 == pi*r^2
 const FINDS_TRI_INRADIUS: f32 = 0.7776; // the smallest inradius of the three kinds
-// ITEM 191 — the anchor's own nominal-radius range is 1.15x its item-176
+// The anchor's own nominal-radius range is 1.15x its former
 // values, ONE hierarchy-preserving move: the companion and cut-out are both
 // authored as FRACTIONS of the anchor's radius (`r_b`/`r_c` below), and their
 // offsets are fractions of the anchor's radius too, so scaling the anchor
@@ -482,7 +482,7 @@ const FINDS_ACCENT_OFFSET_LO: f32 = 0.10;
 const FINDS_ACCENT_OFFSET_HI: f32 = 0.34;
 const FINDS_JITTER: f32 = 0.15;
 const FINDS_LATTICE_ANGLE: f32 = 0.42;
-// ITEM 191 — the WINNING hash's threshold, not a per-cell rate any more (see
+// The WINNING hash's threshold, not a per-cell rate (see
 // `finds_is_local_min` below). Raised from the item-176 0.10 so the
 // decorrelated mechanism still draws roughly one breathing cell in ten:
 // a cell's own hash is one of 9 i.i.d. draws (itself plus its full
@@ -496,7 +496,7 @@ const FINDS_TAU: f32 = 6.2831855;
 // hard edge resolves without stair-stepping at 1x and at 2x, and at any cell
 // scale a future Organic world might author.
 //
-// ITEM 186 — THIS IS THE CANONICAL SAMPLING QUANTITY AND IT DID NOT MOVE. Every
+// THIS IS THE CANONICAL SAMPLING QUANTITY. Every
 // composition number around it became logical; this one stays physical, and
 // `finds_fill` converts it INTO the logical space the SDFs are evaluated in so
 // that its width on the glass is 0.75px at 1x and 0.75px at 2x. Converting it
@@ -508,7 +508,7 @@ const FINDS_EDGE_AA_PX: f32 = 0.75;
 // under a pixel and a collection aliases into speckle instead of reading as
 // three arranged objects. A property of the shader, not of the dial pair.
 //
-// ITEM 186 — LOGICAL, even though its MOTIVATION is a sampling one. It is a
+// LOGICAL, even though its MOTIVATION is a sampling one. It is a
 // floor on a COMPOSITION quantity (the cell), and a floor applied in physical
 // px would clamp a small authored cell differently at 1x and 2x, putting the
 // composition back under the display's control at exactly the sizes the floor
@@ -517,11 +517,11 @@ const FINDS_EDGE_AA_PX: f32 = 0.75;
 // is strictly more resolution than the number was calibrated against.
 const FINDS_MIN_SCALE_PX: f32 = 96.0;
 
-// ITEM 244 — THE COMPANION'S VALUE BREATHE, replacing the deleted field
+// THE COMPANION'S VALUE BREATHE, replacing the deleted field
 // translation (`organic_rgb`'s own comment). Only the COMPANION role
 // (`kind_b`, drawn as `ink_b` below) breathes; the anchor and cut-out stay
 // static — selection by SHAPE KIND and the cut-out role were both
-// considered and rejected (queue item 244: kinds clump because they are
+// considered and rejected: kinds clump because they are
 // seeded per element, triangles are the highest-salience shape, and the
 // cut-out is the smallest element and risks falling under perceptible).
 //
@@ -561,13 +561,13 @@ const ORGANIC_BREATHE_RATE_STEPS: f32 = 6.0;
 // measured peak per-channel movement at Bowerbird's shipped tones/density is
 // a real but modest ~17 sRGB levels (never the full tone gap, and reached
 // only at a companion's own breathe peak, once every ~8-22s) — comfortably
-// past "I literally don't see it" (item 163's own measured failure mode at a
+// past "I literally don't see it" (the measured failure mode at a
 // ~2-level swing) while a raised-cosine envelope over a multi-second cycle
 // keeps it a breathe, not a flash. The live `--release` sitting is what
 // actually settles this number, not the pixel floor alone.
 const ORGANIC_BREATHE_AMOUNT: f32 = 1.2;
 
-// ITEM 191 — THE VOID-BOUND DROPOUT. The item-176 mechanism drew a cell empty
+// THE VOID-BOUND DROPOUT. The prior mechanism drew a cell empty
 // on an UNCONSTRAINED per-cell coin flip (`hash21(cell) < 0.10`), independent
 // cell to cell. Independent flips have no memory of their neighbours, so nothing
 // stopped a run of several adjacent cells from all landing empty at once — rare
@@ -650,7 +650,7 @@ fn finds_fill(sd_cell: f32, s: f32) -> f32 {
 fn organic_finds_rgb(px: vec2<f32>, s: f32, d: f32) -> vec3<f32> {
     // The lattice is ROTATED and then per-row sheared: the scattered rhythm
     // survives, its rows and columns do not, so the field never resolves into
-    // the visible grid a plain `floor(px / s)` would draw. ITEM 244: no
+    // the visible grid a plain `floor(px / s)` would draw. No
     // longer translated by any per-frame drift — a bower is an arrangement,
     // deliberately placed and then left alone.
     let w = px;
@@ -710,7 +710,7 @@ fn organic_finds_rgb(px: vec2<f32>, s: f32, d: f32) -> vec3<f32> {
     // `density == 0.0` still collapses both inks onto the ground exactly.
     let ink_a = mix(g.c_from.rgb, select(g.c_pat.rgb, g.c_to.rgb, swap), d);
 
-    // ITEM 244 — THE COMPANION'S OWN VALUE BREATHE (see the constants' doc
+    // THE COMPANION'S OWN VALUE BREATHE (see the constants' doc
     // above). A decorrelated per-cell roll off `h6` (a fresh salt, clear of
     // every other draw this cell already made) picks an INTEGER rate and a
     // phase offset; `breathe` is a smooth 0..1 pulse of that roll against the
@@ -739,11 +739,11 @@ fn organic_finds_rgb(px: vec2<f32>, s: f32, d: f32) -> vec3<f32> {
 // scalar and its dial enum went together — a shader branch serving zero worlds
 // is the same infrastructure smell as a one-arm enum, and deleting the enum
 // alone would have banked none of it. `params.z` is inert here now.
-// ITEM 244 — the field is entirely STATIC: a shape is a pure function of its
+// The field is entirely STATIC: a shape is a pure function of its
 // cell and nothing pans, morphs, spawns, or dissolves it. Its one remaining
 // ambient input is the companion's own per-element value breathe
 // (`organic_finds_rgb`'s own doc), which changes a drawn object's TONE, never
-// its position. `px` is LOGICAL (item 186), so `s` — the authored cell — is a
+// its position. `px` is LOGICAL, so `s` — the authored cell — is a
 // logical cell, and every fraction-of-a-cell threshold follows it for free.
 fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
     let s = max(g.params.x, FINDS_MIN_SCALE_PX);
@@ -751,7 +751,7 @@ fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
     return organic_finds_rgb(px, s, d);
 }
 
-// --- 9: DECKLE — THE HANDMADE-PAPER MATERIAL FIELD (item 158). ---
+// --- 9: DECKLE — THE HANDMADE-PAPER MATERIAL FIELD. ---
 //
 // A family of quasi-random CONTOUR LANES through the margins. Each lane is
 // seeded from its own index, so no two neighbours agree; a two-tone sine
@@ -776,7 +776,7 @@ fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
 // amplitude (`wander_px`), params.z = the ONE coverage/contrast multiplier
 // (`density`), params.w = the weave.
 //
-// ITEM 186: this whole field is COMPOSITION and runs in LOGICAL pixels — the
+// This whole field is COMPOSITION and runs in LOGICAL pixels — the
 // pitch, the wander, the wander FREQUENCIES (per logical px), the fibre and
 // vein half-width ramps, and the pitch floor. Deckle carries no sampling
 // feather at all: a lane boundary's softness is `DECKLE_EDGE_LO..HI`, a
@@ -787,7 +787,7 @@ fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
 // `density == 0.0` collapses BOTH profiles to their flat ground EXACTLY — the
 // lane values converge on DECKLE_MID and every tint drops out. That is not a
 // nicety: it is the differential oracle every pixel law for this ground
-// measures against (item 86's `mark_field` idiom), so the gradient, dither and
+// measures against (`mark_field` idiom), so the gradient, dither and
 // 8-bit quantization cancel and what remains is the material alone.
 
 // The lane-value midpoint `density == 0` flattens to, and the value half-range
@@ -826,7 +826,7 @@ const DECKLE_TAU: f32 = 6.2831855;
 // The lane pitch FLOOR, in LOGICAL px. The deckle edge is a FRACTION of a lane,
 // so below this the boundary falls under a pixel and the field aliases into
 // moire instead of reading as paper. Enforced HERE (a property of the shader,
-// not of the dial pair — item 89's abutment lesson) and mirrored by
+// not of the dial pair — the abutment lesson) and mirrored by
 // `theme::DECKLE_MIN_PERIOD_PX`. Logical for the same reason
 // `FINDS_MIN_SCALE_PX` is: a floor on a composition quantity is itself a
 // composition quantity, or the clamp hands the composition back to the display.
@@ -839,7 +839,7 @@ const DECKLE_WEAVE_FIBRES: f32 = 0.5;
 // dragging and under the adaptive-column shift, so an exposed screen point
 // cannot translate, stretch, reseed, or reflow its paper contours. Measuring
 // the distance from the PAGE EDGE instead is precisely the border-decoration
-// behaviour item 175 rejected; that arm is gone, and the wallpaper law now
+// behaviour the wallpaper law rejects; that arm is gone, and the wallpaper law now
 // states the property directly — the field is provably NOT invariant under the
 // displacement a page-anchored owner would have introduced — instead of
 // demonstrating it by keeping the rejected code alive to fail.
