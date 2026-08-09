@@ -897,7 +897,7 @@ fn deckle_rgb(px: vec2<f32>) -> vec3<f32> {
     return deckle_strata(px, pitch, wander, density);
 }
 
-// ITEM 69 FOLLOW-UP (audit finding): the plain corner-to-corner projection
+// AUDIT FINDING: the plain corner-to-corner projection
 // below reads fine at a NARROW or SQUARE canvas, but at a wide CANONICAL
 // aspect (~1200x800) the projection is dominated by the width term, so a
 // fixed-pixel margin sliver near x=0 or x=viewport.x sees only a sliver of
@@ -911,7 +911,7 @@ fn deckle_rgb(px: vec2<f32>) -> vec3<f32> {
 // views. Tuned so canonical's margins each catch a crossing while the
 // existing mid-field ">15% per band" law still holds comfortably.
 //
-// ITEM 186: Bands has NO composition quantity in pixels at all — every boundary
+// Bands has NO composition quantity in pixels at all — every boundary
 // is a FRACTION of the viewport, so the same three bands span any canvas at any
 // density by construction (this ground was already density-independent, and the
 // item's premise does not reach it). Its one pixel number is the 1.5px boundary
@@ -947,7 +947,7 @@ fn bands_rgb(px: vec2<f32>) -> vec3<f32> {
 // NON-OVERLAPPING by construction (drift never changes the amplitude, only a
 // crest's x-position, so this bound holds at every phase too).
 //
-// DRIFT (item 87): `b1`'s phase ADVANCES by `drift`, `b2`'s RETARDS by the
+// DRIFT: `b1`'s phase ADVANCES by `drift`, `b2`'s RETARDS by the
 // SAME amount — equal magnitude, opposite sign (see `src/background.rs`'s
 // module doc for the full derivation of why opposite-sign is the one choice
 // that avoids the whole field sliding as a single rigid "sheet": a same-sign
@@ -958,7 +958,7 @@ fn bands_rgb(px: vec2<f32>) -> vec3<f32> {
 // bounded by both — visibly shears/breathes counter to them: the sea reads as
 // independently layered swells, never a sheet translating behind the margin.
 //
-// ITEM 186: the scallop AMPLITUDE and WAVELENGTH are COMPOSITION — they say how
+// The scallop AMPLITUDE and WAVELENGTH are COMPOSITION — they say how
 // tall and how wide a swell reads — so both are logical (`WAVE_FREQ` is
 // radians per LOGICAL px, and `px`/`viewport` arrive logical). The tier
 // boundaries themselves are viewport THIRDS, already dimensionless. The 1.5px
@@ -976,7 +976,7 @@ fn waves_rgb(px: vec2<f32>) -> vec3<f32> {
 }
 
 // --- 10: WARPED GRID — ONE camera, ONE projected cylinder, cropped at the page
-// (item 132; the projection recomposed by item 194). ---
+// (the projection is recomposed). ---
 //
 // There is no geometry, no depth buffer and no 3-D engine here: the whole
 // tunnel is a closed-form ray cast done per fragment.
@@ -1085,7 +1085,7 @@ const WARP_AA_PX: f32 = 1.0;
 // rasteriser turns it into moire. It is also what quietly dissolves the
 // LOGICAL, although its motivation is a sampling one: this bound decides HOW
 // DEEP the tunnel is drawn, so in physical pixels the display would choose how
-// much of the world the reader sees — item 186 already settled that tension the
+// much of the world the reader sees — the coordinate contract resolves that tension the
 // same way for `FINDS_MIN_SCALE_PX` and `DECKLE_MIN_PITCH_PX`. It is also the
 // conservative reading: at 2x these logical pixels carry twice the device
 // samples, so the moire it exists to prevent is further away, not nearer.
@@ -1123,7 +1123,7 @@ const WARP_PAGE_SCALED_FIT: f32 = 0.42;
 // its own screen-space gradient — so one expression draws a line of constant
 // width at every projected spacing, near and far.
 //
-// ITEM 186, THE ONE PLACE THIS FILE MEASURES IN DEVICE PIXELS ON PURPOSE:
+// THE ONE PLACE THIS FILE MEASURES IN DEVICE PIXELS ON PURPOSE:
 // `fwidth` differentiates against the RASTERISER's grid whatever space its
 // argument was computed in, so `d` here is PHYSICAL however logical the
 // coordinate is. The two quantities meet it from their own sides — the drawn
@@ -1326,7 +1326,7 @@ var<private> BAYER8: array<u32, 64> = array<u32, 64>(
 );
 
 // The Bayer threshold at pixel `px`, normalized to [0,1) — tiles every 8px.
-// ITEM 186: called with the PHYSICAL fragment position, deliberately. This is
+// Called with the PHYSICAL fragment position, deliberately. This is
 // the purest SAMPLING quantity in the file — a threshold matrix whose job is to
 // perturb each DEVICE pixel by half a quantization step before the render
 // target rounds it to 8 bits. Tiling it in logical px would put four device
@@ -1373,7 +1373,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     if (in_page && g.shader != 10u) {
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
-    // ITEM 186 — the ONE conversion. Every ground below composes in LOGICAL
+    // THE ONE conversion. Every ground below composes in LOGICAL
     // pixels; the PAGE-COLUMN punch above and the dither below deliberately do
     // not (the column is a physical geometry fact the host measured, and the
     // dither belongs to the device grid).
