@@ -720,26 +720,14 @@ fn glyphless_fallbacks_use_the_synthetic_baseline_box_on_proportional_worlds() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// THE PAD IS BOUNDED AND OUTRUNS THE SILHOUETTE'S OWN DILATION. Two structural
-/// facts the mechanism rests on, asserted as data so a future tune cannot quietly
-/// break either:
+/// THE PAD IS BOUNDED. The ink box needs room around the true-weight Filled
+/// knockout and the ordinary Morph silhouette alike, but its own job is simply to
+/// remain a small, letter-independent margin rather than a second line cell.
 ///
-///   * `CARET_INK_PAD` is SMALL relative to the line cell (a pad, not a second
-///     cell height) — otherwise "hug the ink" would drift back into "cover the row".
-///   * it is strictly GREATER than `CARET_MORPH_DILATE_PX`. On a world whose block
-///     KNOCKS THE GLYPH OUT of the lit cell (`CaretBlockStyle::Filled` — the CRT
-///     phosphor cursor), the knockout is the morph silhouette dilated by that
-///     constant; a pad at or below it would let the knockout eat the whole cell and
-///     the caret would vanish exactly where the caret IS the cursor.
+/// `CARET_INK_PAD` is SMALL relative to the line cell (a pad, not a second
+/// cell height) — otherwise "hug the ink" would drift back into "cover the row".
 #[test]
-fn caret_ink_pad_is_bounded_and_exceeds_the_morph_dilation() {
-    assert!(
-        std::hint::black_box(CARET_INK_PAD.0) > CARET_MORPH_DILATE_PX.0,
-        "the ink pad must outrun the knockout/silhouette dilation: pad={} \
-         dilate={}",
-        CARET_INK_PAD.0,
-        CARET_MORPH_DILATE_PX.0
-    );
+fn caret_ink_pad_is_bounded() {
     assert!(
         std::hint::black_box(CARET_INK_PAD.0) > 0.0 && CARET_INK_PAD.0 < CARET_BLOCK_H * 0.25,
         "the ink pad must stay a small margin, not a second cell height: {}",

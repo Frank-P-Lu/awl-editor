@@ -640,7 +640,10 @@ impl TextPipeline {
                 // would paint green-on-green and ERASE the letter (unlike an amber-vs-ink
                 // block, whose value contrast keeps the letter legible); the knockout
                 // fixes that WITHOUT the `InverseVideo` photo-negative (which on a
-                // chromatic ink would flip green → magenta, not a lit cell).
+                // chromatic ink would flip green → magenta, not a lit cell). The
+                // knockout is the glyph's TRUE raster weight: Morph's authored hard
+                // dilation belongs to an accent silhouette, not to this legibility
+                // restoration pass.
                 self.caret_pipeline
                     .prepare_directed(queue, width, height, cx, cy, cw, ch, ccorner, ax, ay);
                 let settled = self.caret.settle_factor() >= CARET_MORPH_SETTLE_SHOW;
@@ -659,7 +662,7 @@ impl TextPipeline {
                         to_box,
                         morph_t,
                         1.0,
-                        self.metrics.px(CARET_MORPH_DILATE_PX),
+                        self.metrics.px(CARET_FILLED_KNOCKOUT_DILATE_PX),
                     );
                 } else {
                     self.caret_glyph_pipeline.clear();

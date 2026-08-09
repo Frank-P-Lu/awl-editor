@@ -263,7 +263,8 @@ NOT amber — it is the terminal's own phosphor GREEN, and it introduces the
 **ink-caret** pattern (`Theme::ink_caret`, `primary == base_content`): the caret
 is the ink's own colour, so it carries no separate accent HUE. It draws as the
 authentic CRT block cursor via `CaretBlockStyle::Filled` — a lit `primary`-green
-cell with the covered glyph knocked out in the GROUND (`primary_content`), never
+cell with the covered glyph knocked out at its true raster weight in the GROUND
+(`primary_content`), never
 the `InverseVideo` photo-negative (which on a chromatic ink would flip green →
 magenta). Because an ink caret has no accent hue for a syntax role to steal, it
 is EXEMPT from the amber guard's ≥30° role-hue gap (§4's role-tint law (e)) — an

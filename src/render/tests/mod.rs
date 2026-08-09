@@ -28,6 +28,7 @@ mod build_integrity;
 mod card_texture_shape;
 mod caret;
 mod caret_block;
+mod caret_filled_knockout;
 mod caret_ink_box;
 mod caret_transition;
 mod caret_visual_body;
