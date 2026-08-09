@@ -1428,9 +1428,8 @@ pub(crate) fn effective_page_frame() -> theme::PageFrame {
     }
 }
 
-pub(crate) fn frost_seed_radius(row_h: f32, zoom: f32, dpi: f32) -> f32 {
-    row_h * crate::lava::FROST_SEED_RADIUS_FRAC
-        + crate::lava::frost_px(crate::lava::FROST_FEATHER_PX, zoom, dpi)
+pub(crate) fn frost_seed_radius(row_h: f32, feather_px: f32, zoom: f32, dpi: f32) -> f32 {
+    row_h * crate::lava::FROST_SEED_RADIUS_FRAC + crate::lava::frost_px(feather_px, zoom, dpi)
 }
 
 pub(crate) fn frost_run_radius(r_row: f32, run_ink_w: f32, skirt: f32) -> f32 {

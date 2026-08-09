@@ -278,7 +278,8 @@ fn long_run_end_pad_is_bounded_independent_of_row_height() {
     // A long run (ink width far exceeds any radius candidate) at an ordinary
     // row height: capped by `end_cap`, not by the ink bound.
     let ordinary_row_h = 40.0;
-    let r_row = crate::render::frost_seed_radius(ordinary_row_h, 1.0, 1.0);
+    let r_row =
+        crate::render::frost_seed_radius(ordinary_row_h, crate::lava::FROST_FEATHER_PX, 1.0, 1.0);
     let r_ordinary = crate::render::frost_run_radius(r_row, 400.0, skirt);
     assert!(
         (r_ordinary - end_cap).abs() < 0.01,
@@ -289,7 +290,8 @@ fn long_run_end_pad_is_bounded_independent_of_row_height() {
     // must NOT grow the long run's end-pad reach — the whole point of a
     // ceiling independent of row height.
     let tall_row_h = 400.0;
-    let r_row_tall = crate::render::frost_seed_radius(tall_row_h, 1.0, 1.0);
+    let r_row_tall =
+        crate::render::frost_seed_radius(tall_row_h, crate::lava::FROST_FEATHER_PX, 1.0, 1.0);
     assert!(
         r_row_tall > r_row * 5.0,
         "control: the tall row really is much taller"

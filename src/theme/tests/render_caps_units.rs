@@ -20,8 +20,7 @@
 //! matters more than it sounds: a name list is the enrolment failure this
 //! repository has recorded four times, and the names in THIS family are actively
 //! misleading. `FoldAfford::chevron_lift` and `tail_lift` read as lengths and are
-//! colour-lift fractions clamped to `0..=1`; `Frost::feather_px` reads as a
-//! length in device pixels and is not read by anything at all.
+//! colour-lift fractions clamped to `0..=1`.
 //!
 //!   * [`no_render_caps_field_is_resolved_against_zoom_alone`] — the READ-SITE
 //!     rule, and the one that fails on the defect. `zoom` is the user's type
@@ -33,6 +32,10 @@
 //!     off that owner rather than off the field's name. A field with no verdict
 //!     fails here, which is what makes the sweep enumerate the work instead of a
 //!     reader guessing at it.
+//!   * [`every_struct_field_in_the_render_caps_family_has_a_product_reader`] —
+//!     the CONSUMPTION CENSUS. A struct field carried as theme data must appear
+//!     at a product read site; an authored dial with no reader fails instead of
+//!     earning an "unconsumed" classification.
 //!
 //! ⚠️ A length field whose read site resolves it correctly is recorded, not
 //! typed. Typing the whole family would move read sites in files this round does
@@ -59,9 +62,6 @@ enum Verdict {
     /// different axis from the one this file grades, recorded so it is not
     /// rediscovered as new.
     LengthDpiOnly,
-    /// Declared, carried by world data, and read by NOTHING. A dial with no
-    /// consumer is a claim the product does not honour.
-    Unconsumed,
 }
 
 /// Every `f32` field the family declares, with its verdict and the owner the
@@ -97,9 +97,9 @@ const UNIT_VERDICTS: &[(&str, Verdict, &str)] = &[
     ),
     (
         "Frost.feather_px",
-        Verdict::Unconsumed,
-        "no read site: every consumer of the frost skirt reads the bare \
-         lava::FROST_FEATHER_PX const, which lava::frost_px already scales",
+        Verdict::LengthOnTheScale,
+        "render/chrome outline and gutter frost seeds, through \
+         lava::frost_px(_, zoom, dpi) = logical * zoom * dpi",
     ),
     (
         "CardTexture.angle_deg",
@@ -335,6 +335,66 @@ fn product_sources() -> Vec<(String, String)> {
     out
 }
 
+/// Every field belonging to a struct reached from `RenderCaps`.
+///
+/// Enum payloads are consumed through exhaustive pattern matches, where their
+/// binding names are ordinary locals. Struct fields keep their identity at the
+/// read site as `.field`, so they can carry the stronger unread-data law below.
+fn family_struct_fields() -> Vec<String> {
+    let src = include_str!("../model.rs");
+    let structs: BTreeSet<&str> = src
+        .lines()
+        .filter_map(|line| {
+            line.trim_start()
+                .strip_prefix("pub struct ")
+                .and_then(|rest| rest.split(|c: char| c == '{' || c.is_whitespace()).next())
+        })
+        .collect();
+    family_fields()
+        .into_iter()
+        .map(|(name, _)| name)
+        .filter(|name| {
+            name.split_once('.')
+                .is_some_and(|(owner, _)| structs.contains(owner))
+        })
+        .collect()
+}
+
+/// **ARM 2 — EVERY STRUCT DIAL IN THE FAMILY HAS A PRODUCT READER.**
+///
+/// A declaration and a default do not make a capability real. Struct fields
+/// retain a `.field` spelling at their read sites, so the declaration-derived
+/// family walk can require at least one non-test product read for every one.
+/// This is deliberately separate from the unit verdict: "unconsumed" is not a
+/// unit and may not be used to make a dead dial look classified.
+#[test]
+fn every_struct_field_in_the_render_caps_family_has_a_product_reader() {
+    let _g = crate::testlock::serial();
+    let fields = family_struct_fields();
+    let sources = product_sources();
+    let mut unread = Vec::new();
+    for qualified in &fields {
+        let field = qualified.rsplit('.').next().unwrap_or_default();
+        let needle = format!(".{field}");
+        let read = sources.iter().any(|(_, src)| {
+            src.lines()
+                .any(|line| !line.trim_start().starts_with("//") && line.contains(&needle))
+        });
+        if !read {
+            unread.push(qualified.clone());
+        }
+    }
+    assert!(
+        unread.is_empty(),
+        "RenderCaps-family struct fields carry authored data but have no product reader: {unread:?}"
+    );
+    assert!(
+        fields.len() > 20,
+        "the struct-field consumption census enrolled only {} fields ({fields:?})",
+        fields.len()
+    );
+}
+
 /// **ARM 1 — NO `RenderCaps` FIELD IS RESOLVED AGAINST ZOOM ALONE.**
 ///
 /// The rule the chrome laws hold over authored constants, asked of theme DATA.
@@ -403,7 +463,7 @@ fn no_render_caps_field_is_resolved_against_zoom_alone() {
     );
 }
 
-/// **ARM 2 — EVERY `f32` THE FAMILY DECLARES CARRIES A UNIT VERDICT.**
+/// **ARM 3 — EVERY `f32` THE FAMILY DECLARES CARRIES A UNIT VERDICT.**
 ///
 /// The census, and the reason a new theme length cannot repeat this item. A
 /// bare `f32` in the family is exactly as silent as the bare `f32` chrome
