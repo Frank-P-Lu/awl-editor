@@ -264,10 +264,7 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **383–385** — the three machine-doable items: tighten and locally frost the
-   Diagonal spelling popup; pull the spelling squiggle closer and finish its ends;
-   restore Cassowary's filled-caret knockout to the glyph's true weight.
-2. **🔵 HUMAN / LIVE — everything else is explicitly blocked in the two
+1. **🔵 HUMAN / LIVE — all remaining work is explicitly blocked in the two
    sections above.** **231**
    needs the approved macOS guest-VM spend; **251** needs a human at a Linux desktop with
    Orca. **327** and the landed taste calls
@@ -276,49 +273,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 ---
 
 ## Open items
-
-383. **🟡 IN PROGRESS — owner `/root/item_174`, worktree
-     `/Users/frank/code2026/awl-next-item-383`. Give the contextual spelling popup a tighter, frosted Diagonal treatment.** On
-     Magpie and Mangrove, frost only the popup's raking footprint, matching the local blur
-     language of their other summoned menus; never dim or blur the whole document. Tighten
-     the popup to its measured content instead of letting two short actions claim the current
-     broad diagonal span, while keeping the full “Add '<word>' to dictionary” row readable.
-     Gate the treatment by `ListStyle::Diagonal`, not world names: Pane, Bars, and Rules keep
-     their current spell-popup pixels. **Verify:** Magpie/Mangrove at 1× and 2× with short and
-     long suggestions; frost coverage follows both diagonal directions and remains absent
-     outside its feathered footprint; the widest row neither clips nor elides; roster sweep
-     proves every non-Diagonal spell popup byte-identical. Add a mutation-proven law for the
-     style enrolment and a vision-smoke pair asking where the popup begins and ends.
-
-384. **🟡 IN PROGRESS — owner `/root/item_174_review`, worktree
-     `/Users/frank/code2026/awl-next-item-384`. Pull the red spelling squiggle closer to its word and give it deliberate ends.**
-     The shared underline currently hangs too far below the glyphs and clips a constant-
-     amplitude sine wave at each span boundary, leaving abrupt vertical cuts. Raise the
-     default band by a measured small amount (start from 2–3 logical px), preserving the
-     existing Bilby-specific tighter relationship unless the full roster shows it now
-     collides. Taper the wave's geometry into its centreline over an end half-cycle and
-     finish it with rounded caps; do not use an opacity fade, and keep the shared shader's
-     zero-amplitude writing-nit underline straight and unchanged. **Verify:** short and long
-     misspellings, wrapped words, proportional/mono faces, zoom 0.8/1/2 and DPI 1×/2× across
-     the world roster; pixel arithmetic proves a smaller glyph-to-band gap, no vertical cut
-     at either endpoint, full word-span coverage, and no collision with descenders or the
-     next row. Mutation-prove both the endpoint taper and gap law; vision smoke asks where
-     each underline begins and ends rather than whether it “looks smooth.”
-
-385. **🟡 IN PROGRESS — owner `/root/item_369`, worktree
-     `/Users/frank/code2026/awl-next-item-385`. Stop Cassowary's filled caret from emboldening its knocked-out glyph.** The
-     phosphor block currently redraws the covered letter in `primary_content`, but sends
-     that mask through the same roughly 2-logical-px hard dilation used to make an ordinary
-     Morph silhouette read as the caret. On Cassowary this thickens the negative letter and
-     produces the blobby crescent shapes visible on rounded glyphs. Keep the filled green
-     cell, but give `CaretBlockStyle::Filled` a true-weight knockout (zero dilation, or only
-     the smallest measured coverage allowance needed for antialiasing); do not weaken the
-     ordinary Morph caret's authored silhouette. **Verify:** Cassowary at 1×/2× and zoom
-     0.8/1/2 over round, stem, bowl, descender, punctuation, space, ligature, and line-start
-     cells; pixel arithmetic compares the knockout to the source glyph mask, proves the
-     letter remains legible inside the cell, and proves ordinary Morph output byte-identical.
-     Mutation-prove by restoring the shared dilation and requiring the Cassowary weight law
-     to fail; vision smoke asks which letter occupies the filled cell.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
