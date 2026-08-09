@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# scripts/ci-wedge-budget.sh — run item 231's wedge under a budget that FAILS
+# scripts/ci-wedge-budget.sh — run the hosted-mac wedge under a budget that FAILS
 # rather than lets the runner CANCEL.
 #
 # WHY THIS EXISTS, and it is not the same thing as `timeout-minutes`.
 # GitHub's `continue-on-error: true` tolerates a job that FAILS. It does not
 # tolerate a job that is CANCELLED, and a step or job that exceeds its
 # `timeout-minutes` is cancelled, not failed. Cancellation then propagates to
-# the workflow's conclusion. So the first run after item 243's split
+# the workflow's conclusion. So the first run after the split
 # (30825396088) had every gating job green — `mac (build + test, minus
 # render::tests)`, `linux`, `web`, `mac live-probe` — and still concluded
 # `cancelled`, purely because the tolerated wedge job hit its step timeout.
@@ -28,7 +28,7 @@
 set -uo pipefail
 
 # The test FILTER is an argument rather than baked in, so the workflow step
-# still names `render::tests::` in the file itself. That keeps item 243's
+# still names `render::tests::` in the file itself. That keeps the
 # promise — a red job is attributable from the workflow file alone — and keeps
 # `code-health.py`'s `mac-split-audit` reading the real scope instead of
 # following an indirection into this script.
@@ -52,7 +52,7 @@ wait "$watchdog_pid" 2>/dev/null
 
 if (( status == 0 )); then
   echo "ci-wedge-budget convention=${convention} status=0 — the wedge did NOT hang."
-  echo "Do not read this as item 231 fixed until it stays green; see item 231."
+  echo "Do not read this as the wedge fixed until it stays green."
   exit 0
 fi
 
@@ -61,9 +61,9 @@ fi
 # `continue-on-error` can tolerate them; neither may cancel the workflow.
 if (( status == 137 )); then
   echo "ci-wedge-budget convention=${convention} status=137 — HUNG past ${budget}s."
-  echo "This is item 231's signature. The job is allowed to fail; the workflow is not cancelled."
+  echo "This is the wedge signature. The job is allowed to fail; the workflow is not cancelled."
 else
   echo "ci-wedge-budget convention=${convention} status=${status} — failed without hanging."
-  echo "A wedge job that FAILS rather than hangs is NOT item 231's signature; check it."
+  echo "A wedge job that FAILS rather than hangs is NOT the wedge signature; check it."
 fi
 exit "$status"
