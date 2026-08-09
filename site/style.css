@@ -445,6 +445,42 @@ footer { border-top: 1px solid var(--border); padding: 3rem 0 4rem; }
 .ref-section h2 { margin-top: 0; }
 .ref-section h3 { scroll-margin-top: 1.2rem; }
 
+/* ---- Worlds ------------------------------------------------------------ */
+.themes-nav { position: relative; }
+.worlds-page {
+  width: min(100% - 3rem, 90rem);
+  margin: 0 auto;
+  padding: 5rem 0 7rem;
+}
+.worlds-intro { max-width: 38rem; margin-bottom: 3rem; }
+.worlds-intro h1 {
+  margin: 0.15rem 0 0.8rem;
+  font-family: var(--serif-display);
+  font-size: clamp(3.2rem, 8vw, 6rem);
+  line-height: 0.95;
+  font-weight: 400;
+}
+.worlds-intro > p:last-child { color: var(--muted); }
+.world-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+}
+.world-card { margin: 0; min-width: 0; }
+.world-card a {
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--raised);
+}
+.world-card img { width: 100%; height: auto; }
+.world-card figcaption {
+  padding-top: 0.65rem;
+  font-family: var(--mono);
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 /* A visited-by-anchor section gets a quiet accent rule so a reader who just
    jumped via the sidebar (or a shared link) can see which one they landed on. */
 .ref-section:target { border-left: 2px solid var(--amber); padding-left: 1.2rem; margin-left: -1.2rem; }
@@ -479,4 +515,6 @@ footer { border-top: 1px solid var(--border); padding: 3rem 0 4rem; }
     border-left: 0;
     border-top: 1px solid var(--border);
   }
+  .worlds-page { width: min(100% - 2rem, 90rem); padding-top: 3rem; }
+  .world-grid { grid-template-columns: 1fr; }
 }
