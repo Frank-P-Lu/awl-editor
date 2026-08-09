@@ -666,6 +666,9 @@ pub fn install_web_fs() {
 /// no-op the rest of the time; reading the env var on every call is cheap
 /// enough that a `#[cfg(test)]` gate isn't worth the code-path divergence
 /// between test and release builds this primitive most needs to stay honest.
+/// `AWL_FAULT_OBSERVED_WRITE`, used only by the paired real-process tests,
+/// prints and flushes a line after that write has RETURNED. The parent kills on
+/// this observation rather than guessing from a timer.
 pub fn write_atomic(path: &Path, data: &[u8]) -> io::Result<()> {
     let fs = active();
     let name = path
@@ -678,6 +681,13 @@ pub fn write_atomic(path: &Path, data: &[u8]) -> io::Result<()> {
         _ => PathBuf::from(tmp_name),
     };
     fs.write(&tmp, data)?;
+    #[cfg(not(target_arch = "wasm32"))]
+    if std::env::var_os("AWL_FAULT_OBSERVED_WRITE").is_some() {
+        use std::io::Write;
+        let mut out = std::io::stdout().lock();
+        let _ = writeln!(out, "fault-observed tmp-write {}", tmp.display());
+        let _ = out.flush();
+    }
     #[cfg(not(target_arch = "wasm32"))]
     if let Ok(ms) = std::env::var("AWL_FAULT_DELAY_MS")
         && let Ok(ms) = ms.parse::<u64>()

@@ -50,6 +50,7 @@ pub enum Owner {
     Export,
 }
 
+#[allow(dead_code)] // production roster; its exhaustive consumer is the fault matrix
 pub const OWNERS: &[Owner] = &[
     Owner::ManualSave,
     Owner::Autosave,
@@ -80,7 +81,7 @@ impl Owner {
 /// small mechanism; the owner argument exists so production enrolment is data,
 /// rather than a test's hand-maintained list of call sites.
 pub fn write(owner: Owner, path: &Path, data: &[u8]) -> std::io::Result<()> {
-    let _ = owner;
+    let _ = owner.name();
     crate::fs::write_atomic(path, data)
 }
 

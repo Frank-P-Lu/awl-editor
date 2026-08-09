@@ -401,5 +401,18 @@ fn main() -> Result<()> {
         }
         return Ok(());
     }
+    // `--persistence-fault-probe`: killable, GPU-less real-App journeys for
+    // persistence laws that a scripted filesystem cannot witness (process
+    // death, replacement interruption, and resident memory). Hidden and
+    // intercepted before the ordinary parser, like `--fault-write-loop`.
+    if let Some(pos) = std::env::args().position(|a| a == "--persistence-fault-probe") {
+        let mut rest = std::env::args().skip(pos + 1);
+        let operation = rest
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("--persistence-fault-probe needs an operation"))?;
+        let paths: Vec<PathBuf> = rest.map(PathBuf::from).collect();
+        app::run_persistence_fault_probe(&operation, &paths)?;
+        return Ok(());
+    }
     run::run(args::parse_args()?)
 }

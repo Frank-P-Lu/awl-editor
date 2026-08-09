@@ -56,6 +56,12 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         ("app/tests/lifecycle.rs", 2),
         ("app/tests/buffers.rs", 1),
         ("app/tests/common.rs", 1),
+        // The hidden real-process persistence probe deliberately opens a
+        // NativeFs-backed, GPU-less App: its integration tests must observe a
+        // killable autosave/export and real resident memory. The constructor
+        // disables session restore inline, while each parent process pins
+        // HOME/XDG/AWL_CONFIG to its own scratch root.
+        ("app/persistence_fault_probe.rs", 1),
         // 1 real-disk test (`finish_buffer_saves_...`), session_restore
         // disabled inline.
         ("app/daemon.rs", 1),

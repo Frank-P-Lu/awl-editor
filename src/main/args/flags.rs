@@ -181,7 +181,7 @@ mod roster;
 pub(crate) use roster::{FLAGS, FlagId};
 
 /// THE ROSTER'S BOUNDARY, stated rather than left silent. `fn main` intercepts
-/// these three hidden diagnostics with a bare `env::args()` scan and returns
+/// these hidden diagnostics with a bare `env::args()` scan and returns
 /// BEFORE [`super::parse_args`] runs, so they never reach a roster row and a row
 /// could not serve them: each one exits the process, and two exist only on
 /// macOS. They stay out of the roster deliberately — but a flag added the same
@@ -192,6 +192,7 @@ pub(crate) const PRE_PARSE_FLAGS: &[&str] = &[
     "--print-menu-roster",
     "--dump-menu-icon",
     "--fault-write-loop",
+    "--persistence-fault-probe",
 ];
 
 /// The flag a command-line token names, or `None` for anything that is not a

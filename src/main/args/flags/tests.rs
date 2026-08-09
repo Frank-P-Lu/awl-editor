@@ -386,7 +386,7 @@ fn operand_usage_brackets_exactly_the_optional_operands() {
     }
 }
 
-/// The three flags `fn main` handles before the parser are NOT roster rows, and
+/// The flags `fn main` handles before the parser are NOT roster rows, and
 /// the parser refuses them like any other unknown token. Both halves matter: the
 /// first says the boundary is where [`PRE_PARSE_FLAGS`] claims, and the second
 /// says nothing in the roster has quietly grown to overlap it — which is what
