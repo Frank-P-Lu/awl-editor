@@ -160,11 +160,8 @@ pub struct CaretGlyphPipeline {
 }
 
 impl CaretGlyphPipeline {
-    /// A Filled block restores its covered glyph at true raster weight. Zero
-    /// keeps the source mask's anti-aliasing without expanding its footprint;
-    /// Morph's dilation belongs only to the accent silhouette.
+    /// Filled restores true-weight source AA; Morph alone owns accent dilation.
     pub const FILLED_KNOCKOUT_DILATE_PX: f32 = 0.0;
-
     pub fn new(
         device: &wgpu::Device,
         queue: &wgpu::Queue,

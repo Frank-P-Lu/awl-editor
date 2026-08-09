@@ -148,8 +148,8 @@ reason = "Item 355 (+12): the declaration docs for the spring and damping consta
 
 [[file_size_mark]]
 file = "src/caret_glyph.rs"
-lines = 537
-reason = "The one construction site each pipeline family has now sits inside gpu_cache::render_pipeline's build closure — the seam that makes a GPU program once-per-process instead of once-per-instance, which is what the hosted-macOS gate wedged on. The growth is that closure's own indent (+1). The test-only tint accessor is offset by tightening adjacent comments, lowering rather than moving the frozen ceiling."
+lines = 539
+reason = "+2: the glyph pipeline owns the Filled block's named zero-dilation knockout constant and distinguishes true-weight legibility restoration from Morph's authored accent dilation."
 
 [[file_size_mark]]
 file = "src/commands.rs"
@@ -371,7 +371,7 @@ lines = 1262
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
-lines = 1291
+lines = 1288
 reason = "The per-frame GPU preparation hub remains an explicit renderer exception; missing-image placeholder shaping lives in its own submodule rather than raising this ceiling."
 
 [[file_size_mark]]
