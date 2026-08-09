@@ -49,6 +49,9 @@ fn public_gallery_matches_the_product_roster_in_order() {
 
     for world in expected {
         let png = format!("site/img/worlds/{world}.png");
-        assert!(Path::new(&png).is_file(), "public world gallery is missing {world}: {png}");
+        assert!(
+            Path::new(&png).is_file(),
+            "public world gallery is missing {world}: {png}"
+        );
     }
 }
