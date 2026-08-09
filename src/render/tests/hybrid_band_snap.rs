@@ -1,4 +1,4 @@
-//! ITEM 48 — THE HYBRID glide+snap OUTCOME ORACLE (the user's decision).
+//! THE HYBRID glide+snap OUTCOME ORACLE (the user's decision).
 //!
 //! The picker selection band ships the living-band MORPH glide. A SINGLE
 //! deliberate selection move must GLIDE fully (the choreography plays and the

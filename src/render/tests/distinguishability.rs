@@ -545,7 +545,7 @@ fn interactive_states_are_visible_in_every_world_real_pixels() {
     theme::set_active(theme::DEFAULT_THEME);
 }
 
-/// ITEM 35 — OVERLAY TEXT SITS ON A SURFACE (the Mangrove Bars "floating
+/// OVERLAY TEXT SITS ON A SURFACE (the Mangrove Bars "floating
 /// commands" defect). Under the HugLabel poster HYBRID the label plate hugs the
 /// LABEL alone, so the right-aligned SHORTCUT chord floated BARE over the blurred
 /// backdrop. The fix lays a per-row CHORD PLATE. This is the OUTCOME proof over

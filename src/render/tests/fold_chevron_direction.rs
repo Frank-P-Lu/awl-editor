@@ -1,4 +1,4 @@
-//! Item 248 — the fold chevron's DIRECTION law: a collapsed heading and an
+//! The fold chevron's DIRECTION law: a collapsed heading and an
 //! expanded one must draw genuinely DIFFERENT marks in a still frame, before
 //! any animation exists. This is the defect's core (`fold_chevron.rs` used to
 //! shape one fixed glyph, `\u{203A}`, regardless of fold state) and the exact

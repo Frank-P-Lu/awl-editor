@@ -1,4 +1,4 @@
-//! Item 117's GPU laws: the organic ground is Bowerbird-only, stays outside
+//! GPU laws: the organic ground is Bowerbird-only, stays outside
 //! the page column, and remains visibly-but-quietly populated at dashboard
 //! narrow/wide Room geometries.
 use super::bands_waves::{bg_desc_for, headless_dq, render_bg, render_bg_ambient};

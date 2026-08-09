@@ -301,8 +301,8 @@ impl RowGeom {
     /// Buffer-relative BASELINE y (px) of logical `line`'s FIRST visual row — the
     /// REAL shaped baseline (`LayoutRun::line_y`), not an approximation from the
     /// metrics. `0.0` for an out-of-range line or an unshaped buffer (mirrors
-    /// [`Self::line_first_top`]'s fallback). The item 65 fold-affordance
-    /// baseline-alignment fix's one geometry source.
+    /// [`Self::line_first_top`]'s fallback). This is the fold affordance's one
+    /// baseline-alignment geometry source.
     pub(super) fn line_first_baseline(&self, buf: &GlyphBuffer, m: &Metrics, line: usize) -> f32 {
         self.ensure(buf, m);
         self.line_baselines

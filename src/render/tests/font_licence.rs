@@ -1,4 +1,4 @@
-//! ITEM 255 — THE FONT LICENCE ROSTER LAW. `assets/fonts/LICENSES.md` claimed
+//! THE FONT LICENCE ROSTER LAW. `assets/fonts/LICENSES.md` claimed
 //! "the copyright line for each is in its `name` table", and a hasty
 //! `strings`-based audit (2026-08-04) concluded that was false for 38 of 45
 //! bundled faces — its own tool couldn't see it: plain `strings` only

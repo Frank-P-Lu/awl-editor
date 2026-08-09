@@ -1,4 +1,4 @@
-//! ITEM 123 — Potoroo's rust-striped Frame can meet the ordinary `base_300`
+//! Potoroo's rust-striped Frame can meet the ordinary `base_300`
 //! command-pane face, leaving no reliably locatable card edge. `Elevation::Recessed`
 //! makes the Pane-family face one existing value step darker (`base_200`) without
 //! adding a rim, so this file proves the outcome in real rendered pixels rather

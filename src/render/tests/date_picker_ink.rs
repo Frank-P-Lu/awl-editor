@@ -1,4 +1,4 @@
-//! ITEM 66 — real-pixel law: every example date the Date-format picker draws
+//! Real-pixel law: every example date the Date-format picker draws
 //! (`07/03/09`, `2009-03-07`, …) must render its OWN glyphs in ONE uniform ink,
 //! in both the SELECTED and an UNSELECTED row, across a Pane world, a Bars
 //! world, a light world, and the one-bit (`InverseVideo`) world.

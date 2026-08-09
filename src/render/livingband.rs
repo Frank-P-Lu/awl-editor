@@ -221,7 +221,7 @@ pub fn two_shape_band(from_top: f32, to_top: f32, h: f32, t: f32, p: &MorphParam
 ///
 /// The OLD (state-tied) behaviour is recovered by passing the single settled
 /// target rect: `covered_rows(&[target_band], plan.rows())` returns exactly
-/// `[target_disp]`. ITEM 174 — the grid is the SCENE PLAN's own rows, not an
+/// `[target_disp]`. The grid is the SCENE PLAN's own rows, not an
 /// origin and a pitch this fn steps off itself: a band's covered rows are
 /// compared against the very `f32` slots the draw used.
 pub(in crate::render) fn covered_rows(

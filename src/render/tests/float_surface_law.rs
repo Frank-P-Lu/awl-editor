@@ -114,7 +114,7 @@ fn float_surface_primitive_has_no_bypass_among_the_unified_family() {
     // former in-module caller — through the multi-rect owner
     // `set_float_quads_rects` instead, so it no longer matches the single-rect
     // `set_float_quads(` pattern; both remain in-module, no external bypass.
-    // ITEM 116b retired the other, `prepare_diff_panel`, along with its own
+    // The other bypass, `prepare_diff_panel`, retired with its own
     // dedicated buffer trio — the diff-as-preview card composition it dressed
     // is replaced by a relocated document viewport, which needs no dressing.)
     let owner = render_root.join("chrome/mod.rs");

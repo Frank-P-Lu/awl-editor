@@ -1,4 +1,4 @@
-//! ITEM 244 — Bowerbird's organic ground stops translating and gains a
+//! Bowerbird's organic ground stops translating and gains a
 //! per-element COMPANION value breathe. Real-pixel end-to-end proofs;
 //! supersedes this file's former self (a prior round's field-translation
 //! amplitude fix), which this round retired outright — the field no longer

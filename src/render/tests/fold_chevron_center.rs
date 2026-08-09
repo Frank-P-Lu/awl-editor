@@ -1,4 +1,4 @@
-//! Item 127 real-pixel fold-chevron centring laws.
+//! Real-pixel fold-chevron centring laws.
 
 use super::super::*;
 use super::{headless_dqp, pixeldiff, view_md};
