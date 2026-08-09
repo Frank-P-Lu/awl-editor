@@ -123,27 +123,27 @@ jobs:
         if: github.event_name == 'push'
         run: scripts/release-profile-gate.sh
 
-  # ── AT-SPI bridge liveness (item 252) — separate from `linux`, deliberately ──
+  # ── AT-SPI bridge liveness — separate from `linux`, deliberately ─────────────
   # Question this answers, narrowly: does AccessKit's Unix adapter actually
   # register with the AT-SPI2 accessibility bus on real Linux and publish the
-  # tree `SemanticSnapshot` intends — the document, item 218's STABLE LINE
+  # tree `SemanticSnapshot` intends — the document's STABLE LINE
   # RUNS, focus, and a live selection? `ACCESSIBILITY.md:65` names AT-SPI2 as
   # the Linux half of AccessKit's platform backend and states plainly that no
-  # AT-SPI journey has ever been run against it, and item 218 (`c282cedd`)
+  # AT-SPI journey has ever been run against it, and the stable handler
   # rewrote both the activation handler and the document's shape without any
   # Linux gate able to see either change. This job is bridge LIVENESS AND
   # STRUCTURE, mechanically, on every push/PR — `scripts/ci-atspi-probe.py`
   # has the actual assertions and their rationale.
   #
-  # ‼ THIS IS NOT ITEM 251 AND DOES NOT CLOSE IT. There is no Orca here, no
+  # ‼ THIS DOES NOT CLOSE THE HUMAN JOURNEY. There is no Orca here, no
   # human, no ears — a hosted runner has no desktop session for a screen
   # reader to sit in front of. The probe asserts STRUCTURE over the AT-SPI
   # wire (roles, children, text, focus, a keyboard-driven selection); it says
   # nothing about what a screen reader user would hear or how navigation
-  # feels. Item 251 still owns that, and still needs a human at a real Linux
+  # feels. It still needs a human at a real Linux
   # desktop.
   #
-  # TOLERATED, not gating. ‼ ITEM 257 WAS NOT A PRODUCT DEFECT — IT WAS THIS
+  # TOLERATED, not gating. ‼ THIS WAS NOT A PRODUCT DEFECT — IT WAS THIS
   # PROBE ASSERTING A SHAPE ACCESSKIT DELIBERATELY DOES NOT PUBLISH. The arm
   # asserted `document.get_child_count() == 4` and went red on every run;
   # `accesskit_consumer::common_filter` returns ExcludeNode for
