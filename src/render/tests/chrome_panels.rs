@@ -892,9 +892,10 @@ fn panel_card_yields_to_shown_menu_bar() {
 fn find_replace_panel_clamps_and_fits_its_shaped_rows_across_the_narrow_transition() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!(
-            "skipping find_replace_panel_clamps_and_fits_its_shaped_rows_across_the_narrow_transition: no wgpu adapter"
-        );
+        eprintln!(concat!(
+            "skipping find_replace_panel_clamps_and_fits_its_shaped_rows_",
+            "across_the_narrow_transition: no wgpu adapter"
+        ));
         return;
     };
     let ambient = theme::active_index();
@@ -953,7 +954,8 @@ fn find_replace_panel_clamps_and_fits_its_shaped_rows_across_the_narrow_transiti
             for (line, line_w) in runs {
                 assert!(
                     text_left >= x && text_left + line_w <= x + w + 0.01,
-                    "{} at {width}px: shaped row {line} spans [{text_left}, {}] outside card [{x}, {}]",
+                    "{} at {width}px: shaped row {line} spans [{text_left}, {}] \
+                     outside card [{x}, {}]",
                     world.name,
                     text_left + line_w,
                     x + w

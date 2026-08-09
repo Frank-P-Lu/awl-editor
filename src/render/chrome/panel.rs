@@ -152,8 +152,14 @@ impl TextPipeline {
         let editing_replacement = replace_active && self.search_editing_replacement;
         // The dim key-hint line that teaches the replace actions — muted ink, present
         // only once the replace row is up (a plain find keeps the terse counter panel).
-        const HINT_WIDE: &str = "\u{21B5} replace+next   \u{2318}\u{21B5} all   \u{21E5} switch   \u{2318}\u{2325}c case   Esc done";
-        const HINT_NARROW: &str = "\u{21B5} replace+next   \u{2318}\u{21B5} all\n\u{21E5} switch   \u{2318}\u{2325}c case\nEsc done";
+        const HINT_WIDE: &str = concat!(
+            "\u{21B5} replace+next   \u{2318}\u{21B5} all   \u{21E5} switch   ",
+            "\u{2318}\u{2325}c case   Esc done"
+        );
+        const HINT_NARROW: &str = concat!(
+            "\u{21B5} replace+next   \u{2318}\u{21B5} all\n",
+            "\u{21E5} switch   \u{2318}\u{2325}c case\nEsc done"
+        );
         // Keep the teaching copy whole. A narrow card spends vertical room on
         // semantic line breaks rather than clipping or silently dropping a key.
         let hint = if panel_cells >= 61 {

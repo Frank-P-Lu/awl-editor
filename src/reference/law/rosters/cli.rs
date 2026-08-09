@@ -200,9 +200,7 @@ fn default_folder_help_does_not_invent_an_implicit_notes_folder() {
 /// top-right anchor, and the flag description must say the same thing.
 #[test]
 fn debug_help_names_the_production_panels_anchor() {
-    let text = lookup("--debug")
-        .expect("--debug is a flag")
-        .summary_text();
+    let text = lookup("--debug").expect("--debug is a flag").summary_text();
     assert!(
         text.contains("top-right dev panel"),
         "--debug must name the panel's production anchor: {text}"
