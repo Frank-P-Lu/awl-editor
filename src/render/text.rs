@@ -1,5 +1,9 @@
 use super::*;
 
+mod conceal_image_force;
+mod image_spans;
+use image_spans::FoundImageSpan;
+
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct ScriptFonts {
     pub ja: Option<(&'static str, glyphon::Weight)>,
@@ -22,17 +26,6 @@ pub struct ScriptFontReports {
     pub zh_hans: Option<(&'static str, bool)>,
     pub zh_hant: Option<(&'static str, bool)>,
     pub ko: Option<(&'static str, bool)>,
-}
-
-/// A parsed inline-image span, before layout assigns its display size or any
-/// mixed-line forcing. Keeping discovery separate lets the layout pass own all
-/// size-dependent decisions.
-struct FoundImageSpan {
-    range: std::ops::Range<usize>,
-    image: crate::markdown::ImageRef,
-    line: usize,
-    line_start: usize,
-    line_end: usize,
 }
 
 impl ScriptFontReports {
@@ -422,36 +415,6 @@ impl TextPipeline {
     /// itself — so a selected image line PARKS (dims/skips the tall reservation)
     /// exactly like a caret-revealed one, never a bright image under revealed
     /// source text.
-    fn find_inline_image_spans(
-        text: &str,
-        md_spans: &[(std::ops::Range<usize>, crate::markdown::MdKind)],
-    ) -> Vec<FoundImageSpan> {
-        use crate::markdown::{ConcealKind, MdKind};
-
-        md_spans
-            .iter()
-            .filter(|(_, kind)| matches!(kind, MdKind::ConcealMarkup(ConcealKind::Image)))
-            .filter_map(|(range, _)| {
-                let image = text
-                    .get(range.clone())
-                    .and_then(crate::markdown::parse_image_source)?;
-                let line = text[..range.start].bytes().filter(|&b| b == b'\n').count();
-                let line_start = text[..range.start].rfind('\n').map(|i| i + 1).unwrap_or(0);
-                let line_end = text[range.end..]
-                    .find('\n')
-                    .map(|i| range.end + i)
-                    .unwrap_or(text.len());
-                Some(FoundImageSpan {
-                    range: range.clone(),
-                    image,
-                    line,
-                    line_start,
-                    line_end,
-                })
-            })
-            .collect()
-    }
-
     fn compute_image_layout(
         &mut self,
         text: &str,
@@ -810,12 +773,11 @@ impl TextPipeline {
             selection_touch: selection_touch.as_ref(),
         };
         let line_attrs = |lt: &str, start: usize, li: usize| {
-            let conceal_off_cursor = li != cursor_line;
             build_line_attrs(
                 &line_attrs_ctx,
                 lt,
                 start,
-                conceal_off_cursor,
+                li != cursor_line,
                 image_heights.get(li).copied().flatten(),
                 image_force.get(li).copied().flatten(),
             )
@@ -1011,81 +973,6 @@ impl TextPipeline {
     /// rebuilding the SAME attrs no-ops in `set_attrs_list` (it resets shaping only
     /// when the attrs differ), so a move that crosses no concealable boundary reshapes
     /// nothing.
-    /// Refresh the height reservation and forcing span for an image on one
-    /// concealable line. This is deliberately separate from the attribute refresh:
-    /// image forcing has its own fast-path bookkeeping on cursor-only updates.
-    #[allow(clippy::too_many_arguments)]
-    fn refresh_conceal_image_force(
-        &mut self,
-        li: usize,
-        start: usize,
-        tlen: usize,
-        cursor_line: usize,
-        selection_touch: Option<&std::ops::Range<usize>>,
-        attrs: &Attrs<'static>,
-        base_font_size: f32,
-        wrap: f32,
-        md_spans: &[(std::ops::Range<usize>, crate::markdown::MdKind)],
-        image_heights: &mut [Option<f32>],
-        image_force: &mut [Option<(f32, f32)>],
-    ) {
-        let Some(dh) = self
-            .image_report
-            .borrow()
-            .iter()
-            .find(|im| im.line == li)
-            .map(|im| im.display_h)
-        else {
-            return;
-        };
-        let line_text = self.buffer.lines[li].text().to_string();
-        let Some((img_start, img_end)) = md_spans.iter().find_map(|(r, k)| {
-            matches!(
-                k,
-                crate::markdown::MdKind::ConcealMarkup(crate::markdown::ConcealKind::Image)
-            )
-            .then(|| (r.start.max(start), r.end.min(start + tlen)))
-            .filter(|(s, e)| s < e)
-        }) else {
-            return;
-        };
-        let local_range = (img_start - start)..(img_end - start);
-        let mixed = super::spans::image_line_has_other_content(&line_text, local_range.clone());
-        if mixed {
-            if let Some(slot) = image_heights.get_mut(li) {
-                *slot = None;
-            }
-            // This cursor-only rescan must use the same reveal predicate as layout,
-            // otherwise a selection-driven park would immediately re-force the row.
-            let revealed_now =
-                li == cursor_line || selection_touches(selection_touch, &(img_start..img_end));
-            let want = if revealed_now {
-                None
-            } else {
-                let prefix = &line_text[..local_range.start];
-                let last_row_w = Self::measure_last_row_width(
-                    &mut self.font_system,
-                    prefix,
-                    attrs,
-                    base_font_size,
-                    wrap,
-                );
-                let remaining = (wrap - last_row_w).max(0.0);
-                Some((dh, remaining + Self::IMAGE_FORCE_MARGIN_PX))
-            };
-            if let Some(slot) = image_force.get_mut(li) {
-                *slot = want;
-            }
-        } else {
-            if let Some(slot) = image_heights.get_mut(li) {
-                *slot = Some(dh);
-            }
-            if let Some(slot) = image_force.get_mut(li) {
-                *slot = None;
-            }
-        }
-    }
-
     pub(super) fn refresh_rule_conceal(&mut self, force: bool) {
         if self.md_spans.is_empty() {
             self.last_conceal_cursor_line = Some(self.cursor_line);

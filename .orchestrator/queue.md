@@ -223,14 +223,13 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **362 and 363** — independent render refactors; 363 is identity-gated, so an outcome audit follows it.
-2. **373 then 375** — shard the gate, then raise the lane ceiling and install the gate arbiter.
-   **374** any time after 365; it directly raises 373's ceiling (both slow atoms sit in one shard).
-3. **372** — the citation stock, after 365. Production tier; 1,700 judgement calls, not a sed script.
-4. **357, 358, 369, 370, 359, 360, 371's lane-half** — independent, no ordering constraint among them.
-5. **174** — multi-round refactor, continues by slices.
-6. **231** — no live lead; its named next step is a macOS guest VM, a spend decision, not work to absorb.
-7. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **251** is
+1. **373 then 375** — shard the gate, then raise the lane ceiling and install the gate arbiter.
+   Item 374 measured the two slow atoms as irreducible coverage cost, so they set 373's floor.
+2. **372** — the citation stock, after 365. Production tier; 1,700 judgement calls, not a sed script.
+3. **357, 358, 369, 370, 359, 360, 371's lane-half** — independent, no ordering constraint among them.
+4. **174** — multi-round refactor, continues by slices.
+5. **231** — no live lead; its named next step is a macOS guest VM, a spend decision, not work to absorb.
+6. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **251** is
    hardware-gated (a human at a Linux desktop with Orca). **327** and the landed taste calls
    (338/342/345/346, carried in OWED) close on the user's eye.
 
@@ -365,27 +364,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      nothing. Route the consumers through the field or delete it, and add the census arm that
      makes an unread `RenderCaps` field fail rather than earn a verdict.
 
-362. **A 16-argument positional signature, three call sites, eleven arguments identical.**
-     `build_line_attrs` (`src/render/spans/layout.rs:121`) is the shared recipe behind
-     `set_text_incremental`/`restyle_all_lines`/`refresh_rule_conceal`
-     (`src/render/text.rs:778,:937,:1115`); 11 doc-level args repeat verbatim (measured — the
-     filed count was 9), 5 vary per line. **Build:** one `LineAttrsCtx` built per call site;
-     per-line args stay explicit. The value is compiler help: a twelfth doc-level input
-     reaching two of three sites is today a silent behaviour split. **Verify:**
-     byte-identical capture sweep (output outside any captured corpus) + existing
-     markdown/conceal/image suites. **Routing:** production tier.
-
-363. **Three render functions do two jobs each; each second job lifts cleanly.**
-     `refresh_rule_conceal` (`text.rs:985`, 173 ln — image-force bookkeeping at ~:1049–1111);
-     `compute_image_layout` (`text.rs:414` — find-spans glued to size/force via `Found`);
-     `prepare_images` (`layers.rs:962`, native — placeholder-label tail at ~:1095–1171 →
-     `build_missing_placeholder_areas`). **Build:** three behaviour-identity extractions,
-     three separate commits. ⚠️ Identity-gated refactor ⇒ book the follow-up OUTCOME audit
-     (byte-identity preserves pre-existing bugs; stale-row/height defects cluster here).
-     **Verify:** byte-identical captures over image/table/conceal fixtures at dpi 1+2;
-     helpers named for what they own. **Routing:** production tier; audit dispatched
-     separately so it doesn't read its own diff.
-
 367. **The sidecar is parseable JSON and four test files scan it as a string.**
      `capture/tests/panels.rs`: 20 `.contains(` against rendered prose (`:71` pins a literal
      panel-text run); `schema_chrome.rs`: 24. One wording or serializer-spacing change breaks
@@ -504,24 +482,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      process count. **Routing:** deep tier — this edits the script that issues the receipt;
      the failure mode is a green gate that tested less than it claimed.
 
-374. **Two test atoms cost 37 of the sharded suite's 52 seconds.**
-     `render::tests::diagonal_pixel_composition::` = 22.51 s / 5 tests;
-     `render::tests::frost_context_item298::` = 14.51 s / 3+1 — more wall time than ~380
-     neighbours combined, hidden in the 104-submodule long tail, both in shard R4 (they set
-     373's floor). **Question:** what makes each test cost seconds (per-cell device/pipeline
-     work? oversized offscreen targets? frames rebuilt per assertion?) and can it come out
-     WITHOUT weakening the law. ‼ The cost is the law's own sweep (both are roster × DPI
-     sweeps rendering real frames — `diagonal_pixel_composition.rs:63` iterates
-     `theme::THEMES` × `[1.0, 2.0]`; `frost_context_item298.rs:125` sweeps worlds), and
-     CLAUDE.md demands that breadth — **narrowing enrolment is the satisfiable-by-deleting-
-     its-subject failure wearing a stopwatch.** Legitimate targets are per-cell overhead
-     only. "The cost is the coverage" is a real closing answer; it tells 373 its floor.
-     ⚠️ Figures are one host/one configuration — re-measure before and after, same machine.
-     ⚠️ 365 renames `frost_context_item298.rs` — sequence 365 first or accept a fix-up pass.
-     **Verify:** mutation-prove ≥1 law per module after the change; enrolment cell counts
-     equal before/after; `cargo test render::` green under the filter. **Routing:**
-     production tier.
-
 375. **Raise the lane ceiling to 6–8, put a queue in front of the gate, and partition lanes
      by MECHANISM, not file.** ⚠️ Gated on 373 — short gates are the enabler. (User decision
      2026-08-09.) The four-lane ceiling is gate contention, not editing: each gate runs four
@@ -569,6 +529,11 @@ sweep.**
 
 ## Decided against — do not re-propose without a new reason
 
+- **Reusing one mutable render pipeline across the diagonal/frost roster sweeps to shorten
+  their 23.34 s + 15.84 s cost.** The optimization changed per-cell pixel measurements,
+  proving cross-cell state changed the law's subject. Fresh-pipeline isolation stays. Both
+  laws mutation-failed over their full enrolled cells and `cargo test --bin awl render::`
+  passed 1105/1105; item 373 must budget this measured coverage floor.
 - **A separately-named `THROUGH VIEW` figure on the writer's card.** Closed on
   purpose, not deferred. The recorded reason: the card earns its calm by carrying
   few figures, and "how far through what I can see" is a second answer to a

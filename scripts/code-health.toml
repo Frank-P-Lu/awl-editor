@@ -370,8 +370,8 @@ lines = 1262
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
-lines = 1344
-reason = "The affordance is part of the drawn gutter block, so it joins that block's own cache key (+3). Organic's ambient branch splits into two owners (drift for Waves, breathe phase for Organic) now that the deleted field-translation drift no longer shares one variable with the new companion breathe (+6). Item 355 (+6): the image corner radius and the two caption-scrim pads become `Logical` at their declarations, each with the sentence naming the scale it meets -- the same three lengths whose raw `* zoom` reads were the defect."
+lines = 1297
+reason = "The per-frame GPU preparation hub remains an explicit renderer exception; missing-image placeholder shaping lives in its own submodule rather than raising this ceiling."
 
 [[file_size_mark]]
 file = "src/render/livingband.rs"
@@ -409,8 +409,8 @@ reason = "A new `line_has_rule_span` helper (matching the existing `line_has_ima
 
 [[file_size_mark]]
 file = "src/render/text.rs"
-lines = 1447
-reason = "A doc-comment addition on `has_heading_lines` explaining why it passes `confirmed_rule: true` unconditionally to `md_line_scale` (+6): a harmless over-approximation for its zoom-restyle fast path, never the applied row geometry."
+lines = 1393
+reason = "The text shaping and incremental-restyle hub remains an explicit renderer exception; image span discovery and cursor-only image forcing live in focused submodules rather than raising this ceiling."
 
 [[file_size_mark]]
 file = "src/replay.rs"
@@ -727,14 +727,14 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/text.rs"
 function = "TextPipeline::compute_image_layout"
-message = "this function has too many lines (134/100)"
+message = "this function has too many lines (116/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/text.rs"
 function = "TextPipeline::refresh_rule_conceal"
-message = "this function has too many lines (140/100)"
+message = "this function has too many lines (105/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
@@ -755,7 +755,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/layers.rs"
 function = "TextPipeline::prepare_images"
-message = "this function has too many lines (169/100)"
+message = "this function has too many lines (118/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
