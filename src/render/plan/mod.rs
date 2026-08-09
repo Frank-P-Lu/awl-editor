@@ -54,6 +54,7 @@
 
 mod accessory_lane;
 mod floating;
+mod margin;
 mod overlay_header;
 mod overlay_row_plan;
 mod overlay_rows;
@@ -73,6 +74,9 @@ pub(crate) use row_report::{OverlayRowGeometry, PlannedRowRect};
 pub(in crate::render) use floating::{
     CornerAnchor, StreaksCardInput, plan_corner_label, plan_float_card, plan_streaks_card,
     plan_whichkey_card,
+};
+pub(in crate::render) use margin::{
+    hit_outline_slot, plan_gutter_stack, plan_outline_left, plan_outline_slots,
 };
 pub(in crate::render) use overlay_header::{PlannedHeader, beat_stands_alone, header_band_height};
 pub(in crate::render) use overlay_rows::plan_witness;

@@ -45,12 +45,6 @@ impl GutterLayout {
         }
         out
     }
-
-    /// How many rows tall the block is, as the `f32` every geometry consumer
-    /// multiplies a row height by.
-    pub(super) fn line_count(&self) -> f32 {
-        self.lines().len() as f32
-    }
 }
 
 impl TextPipeline {
@@ -208,7 +202,7 @@ impl TextPipeline {
         // `gutter_layout` (through the shared `rowlayout::fit_primary` door) — this
         // box NEVER lays raw, possibly-overflowing text into a wrapping width, so
         // neither line can ever word-wrap mid-word.
-        let lines = layout.line_count();
+        let lines = layout.lines().len();
         let name = layout.name.clone();
         let project = layout.project.clone();
         // `changed elsewhere` (base content) over filename (muted) over project
@@ -241,7 +235,7 @@ impl TextPipeline {
         self.gutter_buffer.set_size(
             &mut self.font_system,
             Some(layout.avail),
-            Some(m.line_height * label * lines + 1.0),
+            Some(m.line_height * label * lines as f32 + 1.0),
         );
         let default_attrs = base.clone().color(muted);
         self.gutter_buffer.set_rich_text(
@@ -259,12 +253,18 @@ impl TextPipeline {
         // 8px — so `top` is the canvas bottom minus the block's own height. Left
         // 0 with the buffer width == `avail` keeps the right edge a gap shy of the column
         // (horizontal placement unchanged; only the vertical anchor moved top → bottom).
-        let block_h = m.line_height * label * lines;
-        let top = height as f32 - block_h - m.px_physical(super::readout::CANVAS_INSET);
+        let stack = crate::render::plan::plan_gutter_stack(
+            height as f32,
+            layout.avail,
+            m.line_height * label,
+            lines,
+            m.px_physical(super::readout::CANVAS_INSET),
+            GUTTER_CARVE_BREATH.0,
+        );
         let area = TextArea {
             buffer: &self.gutter_buffer,
             left: 0.0,
-            top,
+            top: stack.top,
             scale: 1.0,
             bounds,
             default_color: muted,
@@ -316,16 +316,17 @@ impl TextPipeline {
     /// [`GUTTER_CARVE_BREATH`] constant names the pad the bounds law reads.
     pub(in crate::render) fn gutter_carve_rect(&self, height: u32) -> Option<[f32; 4]> {
         let layout = self.gutter_layout()?;
-        let label = crate::markdown::type_scale::LABEL;
-        let lines = layout.line_count();
-        let block_h = self.metrics.line_height * label * lines;
-        // `prepare_gutter` anchors the block bottom at the SAME named inset the
-        // corner readouts use, not a second reading of the same 8px.
-        let block_top =
-            height as f32 - block_h - self.metrics.px_physical(super::readout::CANVAS_INSET);
-        let breath = self.metrics.line_height * label * GUTTER_CARVE_BREATH.0;
-        let top = (block_top - breath).max(0.0);
-        Some([0.0, top, layout.avail, height as f32])
+        Some(
+            crate::render::plan::plan_gutter_stack(
+                height as f32,
+                layout.avail,
+                self.metrics.line_height * crate::markdown::type_scale::LABEL,
+                layout.lines().len(),
+                self.metrics.px_physical(super::readout::CANVAS_INSET),
+                GUTTER_CARVE_BREATH.0,
+            )
+            .carve,
+        )
     }
 
     /// THE ORGANIC FROST SEEDS for the bottom-left GUTTER (the shipped lava
@@ -361,10 +362,14 @@ impl TextPipeline {
         // (mirrors `prepare_gutter` / `gutter_carve_rect`, and the corner
         // readouts): name over project. Each line is RIGHT-aligned within
         // `[0, avail]`, so its ink hugs the column at the right edge.
-        let lines_n = layout.line_count();
-        let block_top = height as f32
-            - row_h * lines_n
-            - self.metrics.px_physical(super::readout::CANVAS_INSET);
+        let stack = crate::render::plan::plan_gutter_stack(
+            height as f32,
+            layout.avail,
+            row_h,
+            layout.lines().len(),
+            self.metrics.px_physical(super::readout::CANVAS_INSET),
+            GUTTER_CARVE_BREATH.0,
+        );
         // The gutter's own LABEL advance (its glyphs are the doc advance × LABEL).
         let label_char_w = self.metrics.char_width * label;
         let push_line = |seeds: &mut Vec<[f32; 4]>, text: &str, row: f32| {
@@ -372,7 +377,7 @@ impl TextPipeline {
                 return;
             }
             let w = (text.chars().count() as f32 * label_char_w).min(layout.avail);
-            let yc = block_top + (row + 0.5) * row_h;
+            let yc = stack.rows[row as usize][1] + row_h * 0.5;
             crate::render::push_text_seeds(
                 seeds,
                 layout.avail - w - pad_x,
@@ -412,19 +417,19 @@ impl TextPipeline {
     ) -> Option<crate::context_menu::ContextTarget> {
         let layout = self.gutter_layout()?;
         let row_h = self.metrics.line_height * crate::markdown::type_scale::LABEL;
-        let lines = layout.line_count();
-        // The SAME bottom-anchor inset `prepare_gutter` draws from, so a hit-test
-        // agrees with the pixels rather than re-deriving a second reading of it.
-        let top =
-            height as f32 - row_h * lines - self.metrics.px_physical(super::readout::CANVAS_INSET);
-        if px < 0.0 || px > layout.avail || py < top || py >= top + row_h * lines {
-            return None;
-        }
+        let stack = crate::render::plan::plan_gutter_stack(
+            height as f32,
+            layout.avail,
+            row_h,
+            layout.lines().len(),
+            self.metrics.px_physical(super::readout::CANVAS_INSET),
+            GUTTER_CARVE_BREATH.0,
+        );
         // Hit-test against the SAME ordered line list the block is drawn from, so
         // an added line can never shift a target silently: the affordance itself
         // is a LABEL, not a target — it names a state, and the two things you can
         // do about that state are named palette rows, not a click here.
-        let row = ((py - top) / row_h).floor() as usize;
+        let row = stack.hit_row(px, py)?;
         match layout.lines().get(row)?.1 {
             GutterLine::Name => Some(crate::context_menu::ContextTarget::Filename),
             GutterLine::Project => Some(crate::context_menu::ContextTarget::Folder),

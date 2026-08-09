@@ -120,7 +120,7 @@ fn reveal_shown(headings: &[crate::markdown::Heading], current: Option<usize>) -
 /// the graceful-hide case, handled earlier by the char floor, and the clamp is the
 /// belt-and-braces floor.
 fn outline_block_left(right_edge: f32, block_w: f32, min_left: f32) -> f32 {
-    (right_edge - block_w).max(min_left)
+    crate::render::plan::plan_outline_left(right_edge, block_w, min_left)
 }
 
 fn outline_collapsed_marker(hidden: usize) -> String {
@@ -346,19 +346,20 @@ impl TextPipeline {
             .collect();
         let block_w = widths.iter().copied().fold(0.0_f32, f32::max);
         let left = outline_block_left(layout.right_edge, block_w, self.edge_pad());
+        let slots = crate::render::plan::plan_outline_slots(
+            layout.top,
+            row_h,
+            OUTLINE_GAP_ROWS.0,
+            layout.lines.iter().map(|row| (row.line, row.gap_before)),
+        );
         let mut bands = Vec::with_capacity(layout.lines.len());
-        let mut y = layout.top;
         for (i, row) in layout.lines.iter().enumerate() {
-            if row.gap_before {
-                y += row_h * OUTLINE_GAP_ROWS.0;
-            }
             bands.push(OutlineBand {
                 left,
                 width: widths[i],
-                y_top: y,
+                y_top: slots[i].y,
                 label: row.label.clone(),
             });
-            y += row_h;
         }
         bands
     }
@@ -456,17 +457,19 @@ impl TextPipeline {
         if row_h <= 0.0 {
             return None;
         }
-        let mut y = layout.top;
-        for row in &layout.lines {
-            if row.gap_before {
-                y += row_h * OUTLINE_GAP_ROWS.0;
-            }
-            if py >= y && py < y + row_h {
-                return Some(row.line);
-            }
-            y += row_h;
-        }
-        None
+        let slots = crate::render::plan::plan_outline_slots(
+            layout.top,
+            row_h,
+            OUTLINE_GAP_ROWS.0,
+            layout.lines.iter().map(|row| (row.line, row.gap_before)),
+        );
+        crate::render::plan::hit_outline_slot(
+            &slots,
+            px,
+            py,
+            [self.edge_pad(), layout.right_edge],
+            row_h,
+        )
     }
 
     pub(in crate::render) fn prepare_outline(
