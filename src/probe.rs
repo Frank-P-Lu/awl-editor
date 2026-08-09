@@ -66,7 +66,7 @@ pub enum Step {
     /// `on_mouse_wheel` seam; an open picker advances its selection + previews
     /// (`overlay_wheel` → `retint_theme_preview`), coordinate-free.
     Wheel(f32),
-    /// ITEM 85 — print the accumulated THEME-PICKER MOVEMENT-LATENCY distribution
+    /// Print the accumulated THEME-PICKER MOVEMENT-LATENCY distribution
     /// (event → first presented frame) as one `LIVE-PROBE latency …` stdout line,
     /// the live companion to the offscreen `--bench-theme-burst` — this one times
     /// the REAL end-to-end path (dispatch, relayout, encode/submit, and the actual
@@ -105,7 +105,7 @@ pub enum ProbeEvent {
     MouseMove(f64, f64),
     /// Mouse wheel by N notches through the real `on_mouse_wheel`.
     Wheel(f32),
-    /// ITEM 85 — print the movement-latency distribution (main-thread, so it can
+    /// Print the movement-latency distribution (main-thread, so it can
     /// read + format the samples without crossing a lock into the driver thread).
     Latency,
     /// Clean exit through `Action::Quit`.

@@ -1,7 +1,7 @@
 use super::super::*;
 use super::*;
 
-// ── ITEM 94 — the RANGE CELL column (the row model half) ─────────────────────
+// ── The RANGE CELL column (the row model half) ──────────────────────────────
 
 fn settings_values(zoom: f32) -> crate::settings::SettingsValues {
     crate::settings::SettingsValues {
@@ -132,7 +132,7 @@ fn set_selected_range_moves_the_selected_rows_step_and_readout_together() {
 #[test]
 fn the_settings_foot_hint_says_adjust_only_while_a_rail_row_is_selected() {
     let _g = crate::testlock::serial();
-    // ITEM 114 — this law is about the ROWS' keys, and the rows are the
+    // This law is about the ROWS' keys, and the rows are the
     // workspace's DETAIL stage. Focus is moved through the LIFECYCLE (the one
     // writer of that bit), not by assignment, which is also why the card is held
     // inside a `Journey` here.

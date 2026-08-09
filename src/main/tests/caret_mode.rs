@@ -135,7 +135,7 @@ fn caret_render_is_a_pure_function_of_mode_and_world_across_a_wagtail_detour() {
     crate::caret::clear_override();
 }
 
-/// ITEM 106 — THE POINTER-REPLAY SEAM, end to end through the REAL
+/// THE POINTER-REPLAY SEAM, end to end through the REAL
 /// headless `--keys` engine (`ReplaySession`, the exact type
 /// `--screenshot --keys` constructs) — not a pure `OverlayState`
 /// simulation. Opens a real 40-row Goto picker, hovers a row via the oracle's
@@ -240,8 +240,8 @@ fn item_106_pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationa
     );
 
     // THE LAW: a stray re-check with a REAL 1px jitter off the parked
-    // pixel — not the exact same coordinate (item 85's own
-    // exact-equality gate already refused a bare duplicate; this law's
+    // pixel — not the exact same coordinate (the exact-equality gate already
+    // refused a bare duplicate; this law's
     // own regression needs genuine, if tiny, travel) — through the exact
     // production seam a spurious `CursorMoved` would drive — must not
     // steal the keyboard's selection.

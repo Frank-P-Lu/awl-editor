@@ -82,11 +82,11 @@ impl<'a> ReplaySession<'a> {
                         crate::page::set_measure(self.config.measure_for(self.buffer.page_class()));
                     }
                 }
-                // SWITCH-PROJECT (queue item 189): re-scope root/workspace/corpus
+                // SWITCH-PROJECT: re-scope root/workspace/corpus
                 // to the ACCEPTED root BEFORE recording the accept, so every chord
                 // the caller applies afterward (Cmd-O, Browse, the asset scan) reads
                 // the new tree — the sidecar's own re-derivation (`run::project_info`,
-                // item 183) and this session's internal state can no longer disagree.
+                // the same owner) and this session's internal state can no longer disagree.
                 if kind == crate::overlay::OverlayKind::Project {
                     self.resync_project_location(std::path::PathBuf::from(&value));
                 }

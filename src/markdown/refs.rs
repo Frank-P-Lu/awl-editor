@@ -180,11 +180,11 @@ pub fn label_destination_range(src: &str) -> Option<std::ops::Range<usize>> {
 }
 
 /// EVERY inline link/image DESTINATION byte range in the document, in ABSOLUTE
-/// document byte coordinates (queue item 60 — "markdown destinations are
+/// document byte coordinates ("markdown destinations are
 /// ADDRESSES, not prose"). Reads the SAME `ConcealMarkup(Link)` /
 /// `ConcealMarkup(Image)` spans [`super::spans::spans`] already parsed this
-/// reshape (the identical `md_spans` field item 25's concealed-image work
-/// reads via `line_is_inline_image`) and slices out just the `(...)` interior
+/// reshape (the identical `md_spans` field the concealed-image path reads via
+/// `line_is_inline_image`) and slices out just the `(...)` interior
 /// with [`label_destination_range`] — never a second pulldown parse, never a
 /// second path/extension heuristic. A link's `Link` span is already just the
 /// `](url…)` tail (`push_link_markers`), so it needs no alt-skip; an image's

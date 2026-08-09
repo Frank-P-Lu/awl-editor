@@ -99,8 +99,8 @@ WorkspaceDetail/Launcher  Resume   Editor   Editor   Stay     Stay     Suspend  
 /// NON-VACUITY FLOOR for every sweep in this file: the state roster is the
 /// editor plus the full `Surface × Beneath` cross-product, and the event roster
 /// is the whole vocabulary. A roster that quietly shrank would make every sweep
-/// below pass over a fraction of the space — the failure mode item 172's field
-/// parser hit when it silently reported 83 of 105 fields.
+/// below pass over a fraction of the space — the field parser once silently
+/// reported 83 of 105 fields.
 #[test]
 fn the_rosters_are_the_size_the_sweeps_assume() {
     assert_eq!(Surface::ALL.len(), 3, "surfaces");
@@ -634,7 +634,7 @@ fn scan(needle: &str) -> std::collections::BTreeMap<String, usize> {
 /// "is it in the right file" stays green while a second copy lives beside it.
 ///
 /// It matches a FIELD write (`.detail_focus =`) rather than the bare name.
-/// Item 114 gave the render projection of this same fact its own field
+/// The render projection of this same fact has its own field
 /// (`ViewState::overlay_detail_focus`, assigned at the two mirror sites every
 /// `ViewState` field is), and a bare-name needle read those projections as
 /// second writers of the card's bit. Requiring the receiver dot keeps every

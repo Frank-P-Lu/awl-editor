@@ -3,7 +3,7 @@
 //! a browser tab that has already claimed it, and what is left when the answer
 //! is "nothing that fires".
 //!
-//! Lifted out of `commands.rs` whole (queue item 24) when the SPEC half of the
+//! Lifted out of `commands.rs` whole when the SPEC half of the
 //! truthful resolver pushed that file past its recorded size mark. Nothing here
 //! changed in the move except the extraction itself; the cluster was already
 //! one subject, with `resolved_native` at its base and every label surface in
@@ -135,7 +135,7 @@ pub fn resolved_native_label_truthful(
 /// command's own `Action` — which needs the terse spec `keyspec::parse_chord`
 /// accepts, not the ⌘-glyph a human reads.
 ///
-/// THE LINUX BUILT-IN KEEP TIER (queue item 24) is applied here, and it is the
+/// THE LINUX BUILT-IN KEEP TIER is applied here, and it is the
 /// tier this function was missing. `keymap::linux_builtin_keep()` (`["C-k"]`)
 /// is UNCONDITIONAL on `Convention::Linux` — every flavour, every config — so
 /// Insert-link's naively translated `C-k` never fires there; `C-k` is kill-line

@@ -36,7 +36,7 @@ pub use build::{BuildCtx, browse_level, build, elide_path, row_split};
 pub use capture::{Capture, CaptureStage, KeepEdit, LinkEdit, LinkEditMode, RenameEdit, ValueEdit};
 pub use comparison::{CONFLICT_ROWS, ComparisonRequest, ComparisonView, ConflictSubject};
 #[allow(unused_imports)]
-// the table's own vocabulary is consumed by the lifecycle law + item 114
+// the table's own vocabulary is consumed by the lifecycle law and workspace tests
 pub use journey::{
     Audition, Beneath, Bind, Event, Journey, Landing, Parked, Resume, Rung, State, Surface,
     landing_of,
@@ -48,7 +48,7 @@ pub use kind::{
     RANGE_LR_LABEL, format_hint,
 };
 #[allow(unused_imports)]
-// OverlayRow/RowMeta/RowMetaTag: used by overlay::tests + item 55's follow-up
+// OverlayRow/RowMeta/RowMetaTag: used by overlay tests and source-audit laws
 pub use state::{OverlayRow, OverlayState, RangeCell, RowMeta, RowMetaTag};
 
 fn command_hint_actions() -> Vec<HintAction> {

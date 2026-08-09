@@ -1,4 +1,4 @@
-//! ITEM 211 — THE LIVE-`App` EVENT→PRESENT TRACE ASSERTION.
+//! THE LIVE-`App` EVENT→PRESENT TRACE ASSERTION.
 //!
 //! The defect ("picker selection appears to advance only every second input,
 //! with no transition" — Firetail 2026-07-17, Settings 2026-07-26, Commands
@@ -33,8 +33,8 @@ use super::*;
 use std::sync::Arc;
 
 /// A hermetic `App` over an `InMemoryFs` — never the real disk, and never a
-/// real root to index (item 211's first draft handed `App::new` `/` and walked
-/// the whole filesystem).
+/// real root to index (`App::new` must never receive `/` and walk the whole
+/// filesystem).
 fn seeded_fs() -> crate::fs::InMemoryFs {
     crate::fs::InMemoryFs::new()
         .with_dir("/ws")

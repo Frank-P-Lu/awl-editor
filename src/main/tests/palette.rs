@@ -43,10 +43,10 @@ fn replay_keys_drives_palette_guide_and_opens_the_guide_buffer() {
     );
 }
 
-/// Item 273's residual (4) — the reference manual's in-app door — proven at
+/// The reference manual's in-app door — proven at
 /// the purest reachable tier: a Rust assertion on the REAL `replay_keys`
 /// door (the same one `--keys` drives), not just `replay::classify_for`'s
-/// bucket. This is exactly the class of gap item 296 named: an effect that
+/// bucket. This is exactly the class of gap where an effect that
 /// classifies `Applied` while the interpreter silently drops it would still
 /// pass `the_harness_reach_map_matches_the_production_classifier` (it only
 /// checks the CLASSIFICATION), so the buffer's actual resulting TEXT has to be

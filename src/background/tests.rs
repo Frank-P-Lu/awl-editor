@@ -1,5 +1,5 @@
-//! Item 87's WAVES phase-drift laws — split out of `background.rs`'s former
-//! inline `mod waves_drift_tests` (item 163's code-health pass, to make room
+//! WAVES phase-drift laws — split out of `background.rs`'s former
+//! inline `mod waves_drift_tests` to make room
 //! under the file's own size ratchet without touching the drift math itself);
 //! every test's NAME is unchanged, only which file its source lives in moved.
 use super::waves::{WAVE_FREQ, waves_boundaries};

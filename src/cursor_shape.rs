@@ -42,7 +42,7 @@ pub struct CursorContext {
     /// from the popover's OWN hit-test (`TextPipeline::popover_hit`); only ever set
     /// while the popover is up (and it never coexists with an open overlay/search).
     pub over_popover_button: bool,
-    /// item 81: the pointer is over a REVEALED FOLD CHEVRON — a heading's own
+    /// The pointer is over a REVEALED FOLD CHEVRON — a heading's own
     /// left-margin fold-toggle target, expanded or collapsed alike. A clickable
     /// affordance signal like an outline row, computed from the SAME hit-test the
     /// click handler uses (`TextPipeline::fold_chevron_hit`), so a hovered chevron
@@ -108,7 +108,7 @@ pub fn image_handle_icon(handle: ImageHandle) -> CursorIcon {
 /// 8. hovering a clickable MARGIN-OUTLINE row gets the pointing HAND — the same
 ///    click-to-jump affordance signal as a picker row, below the page edge (the
 ///    outline lives just inside the column, so the edge grab wins where they meet);
-///    8b. hovering a REVEALED FOLD CHEVRON gets the pointing HAND too — item 81's
+///    8b. hovering a REVEALED FOLD CHEVRON gets the pointing HAND too — its
 ///    click-to-toggle affordance, ranked with the outline row (the two never
 ///    geometrically overlap: the chevron sits in the leading pad, the outline
 ///    further left still, so which one is set never matters, only that either is);

@@ -432,7 +432,7 @@ async fn theme_burst_async() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// WITNESS a reshape-count delta (item 202) — CLAUDE.md's own tripwire: this
+/// WITNESS a reshape-count delta — CLAUDE.md's own tripwire: this
 /// bench once "measured 5ms while nothing reshaped" because it timed
 /// `sync_theme` without ever checking that anything actually reshaped. Every
 /// step below must state which side of that line it expects.
@@ -534,7 +534,7 @@ fn burst_doc(
             let t0 = Instant::now();
             p.sync_theme();
             let sync_ms = t0.elapsed().as_secs_f64() * 1e3;
-            // WITNESS (item 202): every BURST_WORLDS hop is a different face
+            // WITNESS: every BURST_WORLDS hop is a different face
             // (roster comment above), so this must reshape — see
             // `assert_reshape_witness`'s doc for why this bench asserts it.
             assert_reshape_witness(

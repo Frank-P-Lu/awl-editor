@@ -360,7 +360,7 @@ mod tests {
         // TWO reads of the process-CWD global: this one and the one
         // `normalize_path` takes inside `BufferKey::path`. A `CwdGuard` landing
         // between them made `rel` and `abs` describe two different directories
-        // — so the guard is load-bearing, not ceremony (queue item 101).
+        // — so the guard is load-bearing, not ceremony.
         let _tg = crate::testlock::serial();
         let cwd = crate::fs::current_dir().unwrap();
         let rel = BufferKey::path(Path::new("some_never_created_test_file.rs"));
@@ -430,8 +430,8 @@ mod tests {
 
     #[test]
     fn buffer_key_of_scratch_and_path_and_unnamed_note() {
-        // `Buffer::from_file` reads through the swappable fs global (queue
-        // item 101) — off-guard it can be answered by a sibling test's
+        // `Buffer::from_file` reads through the swappable fs global — off-guard
+        // it can be answered by a sibling test's
         // `InMemoryFs`.
         let _tg = crate::testlock::serial();
         let scratch = Buffer::scratch();

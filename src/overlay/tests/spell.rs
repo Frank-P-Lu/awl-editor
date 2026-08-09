@@ -51,7 +51,7 @@ fn spell_picker_lists_suggestions_and_carries_target() {
     );
 }
 
-/// ITEM 64 — THE TOP-FIVE CAP, as a LAW swept over every corpus length from 0 to
+/// THE TOP-FIVE CAP, as a LAW swept over every corpus length from 0 to
 /// 20: `new_spell` truncates the dictionary's ordered corrections to the top
 /// [`OverlayKind::MAX_SUGGESTIONS`] (ranking/order preserved — a longer list has
 /// only its TAIL dropped, never scrolled or reached via a More/ellipsis button),
@@ -102,8 +102,8 @@ fn spell_picker_caps_corrections_to_the_top_five_across_corpora() {
     }
 }
 
-/// ITEM 64's exact named corpora (0/1/5/6/20), spelled out one at a time so the
-/// literal cases the queue item calls out are pinned individually, alongside the
+/// The exact boundary corpora (0/1/5/6/20), spelled out one at a time so the
+/// literal cases are pinned individually, alongside the
 /// general sweep above.
 #[test]
 fn spell_picker_named_corpora_0_1_5_6_20() {

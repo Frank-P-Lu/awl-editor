@@ -828,9 +828,9 @@ fn narrow_window_still_collapses_edge_to_edge_at_any_zoom() {
     }
 }
 
-/// ITEM 314 — THE COLUMN'S LEFT EDGE IS A LOGICAL QUANTITY, AT EVERY DISPLAY SCALE.
+/// THE COLUMN'S LEFT EDGE IS A LOGICAL QUANTITY, AT EVERY DISPLAY SCALE.
 ///
-/// Item 307 found this while proving the gutter's own gate correct: the placement
+/// The placement
 /// policy mixed dpi-SCALED terms (`outline_pref_px`, `gap`, `window_w`) with an
 /// UNSCALED authored pad, so at a MATCHED LOGICAL window the column's left edge moved
 /// with the display — measured plateaus 244.96 / 236.96 / 234.29 logical px at dpi
