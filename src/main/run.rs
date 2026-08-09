@@ -14,7 +14,7 @@ use crate::{actions, bench};
 mod capture_fold;
 #[path = "run/effect_interpreter.rs"]
 mod effect_interpreter;
-/// ITEM 188 — the live-`App` capture mode (`--screenshot-app`).
+/// The live-`App` capture mode (`--screenshot-app`).
 #[cfg(not(target_arch = "wasm32"))]
 #[path = "run/live_app.rs"]
 mod live_app;
@@ -24,7 +24,7 @@ mod location;
 mod replay_effects;
 #[path = "run/settings_effects.rs"]
 mod settings_effects;
-/// Item 188's driver seam — `App` implements it only on native, where the
+/// The driver's seam — `App` implements it only on native, where the
 /// `--screenshot-app` mode that reads it exists.
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) use capture_fold::CaptureSubject;
@@ -143,11 +143,11 @@ pub(crate) struct ReplaySession<'a> {
     mode: crate::replay::Mode,
     filesystem: crate::replay::FilesystemCapability,
     buffer: &'a mut Buffer,
-    // RE-SCOPED PROJECT LOCATION (queue item 189) — `corpus`/`root`/`workspace`
+    // RE-SCOPED PROJECT LOCATION — `corpus`/`root`/`workspace`
     // are OWNED, not borrowed, so [`Self::resync_project_location`] can rebuild
     // them in place the moment a Switch-project accept lands. Before this,
     // these three were fixed `&'a` borrows for the session's whole lifetime:
-    // the sidecar's *accepted* location was re-derived correctly (item 183,
+    // the sidecar's *accepted* location was re-derived correctly,
     // `run::project_info`), but a chord applied AFTER the accept — a Cmd-O
     // opening Goto, a Browse summon — still read the LAUNCH root's file index
     // and workspace. `docs/harness-reach.md` named the residue; this struct
@@ -269,7 +269,7 @@ impl<'a> ReplaySession<'a> {
         }
     }
 
-    /// ITEM 106 — THE POINTER-REPLAY STEP: move the replay's pointer to
+    /// THE POINTER-REPLAY STEP: move the replay's pointer to
     /// PHYSICAL `(px, py)` and, if an overlay is open, run it through the SAME
     /// hover resolution `App::overlay_hover` uses live (via `OraclePipeline::
     /// resolve_overlay_hover`, which wraps the identical `render::TextPipeline`
@@ -504,7 +504,7 @@ impl<'a> ReplaySession<'a> {
             self.journey.attribute_launch(pending_return_to.take());
             work.expand(action, transition);
         }
-        // ITEM 106 — the headless twin of `App::apply`'s own stamp: re-anchor the
+        // The headless twin of `App::apply`'s own stamp: re-anchor the
         // hover movement-slop gate to the replay's CURRENT pointer position after
         // this whole chord (including any chained palette re-dispatch) has
         // applied, so a scripted keyboard nav step never leaves a stale (or
@@ -710,8 +710,8 @@ fn capture_screenshot(
             // see [`project_info`] for the half-derivation this replaced. The
             // replay session ITSELF re-scoped `root`/`workspace`/`corpus` the
             // moment the accept fired (`ReplaySession::resync_project_location`,
-            // queue item 189 — `docs/harness-reach.md` named this as the
-            // residue item 183 left, now closed), so a chord applied AFTER the
+            // `docs/harness-reach.md` names this as the live-only residue, so a
+            // chord applied AFTER the
             // accept reads the new tree exactly like live.
             crate::overlay::OverlayKind::Project => {
                 opts.project = Some(project_info(
