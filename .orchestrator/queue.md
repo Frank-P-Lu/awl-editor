@@ -329,7 +329,8 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      THEMES.md + docs/render.md updated. **Dependency:** before the composer. **Routing:**
      deep tier.
 
-370. **Trim Magpie's left parallelogram by recomposing the selected mark, not by lying about
+370. 🟡 **IN PROGRESS — codex (gpt-5.6-terra medium), branch
+     `codex/item-370-magpie-mark`. Trim Magpie's left parallelogram by recomposing the selected mark, not by lying about
      the frost footprint.** The user's screenshot shows the selected `>` far left of the `/`
      spine, forcing a broad softened parallelogram; item 343 proved the footprint is already
      tight — the left extent is live mark ink. Bring the mark inward, then let
