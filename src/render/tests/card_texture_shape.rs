@@ -1,4 +1,4 @@
-//! ITEM 70's PRINTED-CARD LAW SUITE — Quokka's `CardTexture::HalftoneDots` +
+//! PRINTED-CARD LAW SUITE — Quokka's `CardTexture::HalftoneDots` +
 //! `CardShape::Chamfered` caps. Structural rosters first (every OTHER world
 //! stays `Flat`/`Rectangular`, no-wildcard match over both closed enums),
 //! then real-pixel proofs (the Wagtail tripwire: appearance is arithmetic
@@ -6,9 +6,9 @@
 //! genuine 45° cut distinguishable from the pre-existing small rounded
 //! corner, and the dot texture rolls off toward the left content side.
 //!
-//! (Item 71 briefly extended this suite with Bowerbird's own woven
+//! (Bowerbird briefly extended this suite with its own woven
 //! `CardTexture::JaggedWave` cap + its own rolloff/legibility/silhouette
-//! tests; item 86 retired the variant outright — Bowerbird's cards returned
+//! tests; retiring the variant returned Bowerbird's cards
 //! to plain flat — so those Bowerbird-specific tests were removed along with
 //! it. `bowerbird_card_corner_is_not_chamfered` survives as a plain roster
 //! member of the "every other world" sweep below, now unremarkable.)
@@ -22,8 +22,8 @@ use super::{headless_dqp, pixeldiff};
 /// byte-identical `Flat` `CardTexture` default; every world but Quokka
 /// carries the byte-identical `Rectangular` `CardShape` default — a
 /// no-wildcard match so a newly added `CardTexture`/`CardShape` variant
-/// can't silently dodge this sweep. (Item 71's `JaggedWave` — Bowerbird's
-/// own woven card texture — was retired outright by item 86; Bowerbird now
+/// can't silently dodge this sweep. (Bowerbird's `JaggedWave` woven card
+/// texture was retired outright; Bowerbird now
 /// falls into the plain `Flat`/`Rectangular` bucket like every other
 /// non-Quokka world.)
 #[test]
@@ -45,12 +45,12 @@ fn card_caps_are_flat_rectangular_for_every_world_but_quokka() {
             _ => {
                 assert!(
                     is_flat,
-                    "{} must keep CardTexture::Flat (item 70 is Quokka-only)",
+                    "{} must keep CardTexture::Flat (Quokka is the only carrier)",
                     t.name
                 );
                 assert!(
                     is_rect,
-                    "{} must keep CardShape::Rectangular (item 70 is Quokka-only)",
+                    "{} must keep CardShape::Rectangular (Quokka is the only carrier)",
                     t.name
                 );
             }
@@ -297,8 +297,8 @@ fn quokka_selected_row_text_stays_legible_over_the_dot_texture() {
 
 /// Bowerbird's card corner stays the pre-existing small rounded corner
 /// (`CardShape::Rectangular`, the default every non-Quokka world carries) —
-/// a named regression pin for the world item 71 once gave a non-default
-/// `CardTexture` (retired by item 86): this proves Bowerbird's card is now
+/// a named regression pin for the world that once gave a non-default
+/// `CardTexture`: this proves Bowerbird's card is now
 /// unremarkable, distinguishing it from Quokka's chamfer just like
 /// [`non_quokka_card_corner_is_not_chamfered`] does generically.
 #[test]
