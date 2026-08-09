@@ -110,11 +110,9 @@ fn ordinary_blend() -> wgpu::BlendState {
     }
 }
 
-/// The arbitrary two-colour role swap. The fragment writes the linear sum of
-/// the pair and this blend subtracts the destination: for every pixel on the
-/// line between `ground` and `ink`, `ground + ink - dst` lands at the same
-/// interpolation point on the opposite end. Black/white is only one member of
-/// that family; no `1 - dst` assumption is baked into the pipeline.
+/// The arbitrary two-colour role swap: the fragment writes the pair's linear
+/// sum and this blend subtracts the destination. Thus `ground + ink - dst`
+/// swaps every interpolation point without baking in a black/white assumption.
 fn two_colour_blend() -> wgpu::BlendState {
     wgpu::BlendState {
         color: wgpu::BlendComponent {
@@ -172,14 +170,10 @@ impl SelectionPipeline {
         )
     }
 
-    /// Arbitrary TWO-COLOUR inverse treatment. Built with its own pipeline
-    /// because the subtractive blend state is baked at construction. The
-    /// caller resolves two palette roles and supplies them through
-    /// [`Self::set_two_colour`]; the shader swaps those endpoints and their
-    /// antialiased interpolation without assuming either endpoint is black or
-    /// white. Starts
-    /// with `corner = 0.0` (a hard rectangle — the right shape for a
-    /// SELECTION range); a CARET-flavored instance calls [`Self::set_corner`]
+    /// Arbitrary TWO-COLOUR inverse treatment. Its subtractive blend is baked
+    /// at construction; [`Self::set_two_colour`] supplies resolved palette
+    /// endpoints without a black/white assumption. Starts with `corner = 0.0`
+    /// (a hard rectangle for a SELECTION range); a CARET instance calls [`Self::set_corner`]
     /// each frame to draw a rounded (if aliased) silhouette instead — see
     /// `shaders/selection.wgsl`'s `fs_two_colour` doc for the mechanism.
     pub fn new_two_colour(
@@ -353,9 +347,8 @@ impl SelectionPipeline {
         self.color = srgba_u8_to_linear(srgba);
     }
 
-    /// Resolve an authored palette pair into the source term consumed by the
-    /// subtractive role-swap blend. Both colors remain theme tokens; this layer
-    /// only performs their required linear-space sum.
+    /// Resolve authored palette roles into the subtractive blend's source term;
+    /// this layer only performs their required linear-space sum.
     pub fn set_two_colour(&mut self, ground: [u8; 4], ink: [u8; 4]) {
         let ground = srgba_u8_to_linear(ground);
         let ink = srgba_u8_to_linear(ink);

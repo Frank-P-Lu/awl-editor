@@ -50,6 +50,7 @@ mod ground_space;
 mod icon_ground;
 mod model;
 mod ornament;
+mod palette;
 mod worlds;
 
 pub(crate) use cjk::EMBEDDED_CJK_FAMILIES;

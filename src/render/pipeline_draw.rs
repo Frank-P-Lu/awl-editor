@@ -64,11 +64,8 @@ impl TextPipeline {
         // nothing there; elsewhere it tracks `selection_document`, unchanged.
         let selection_pipeline =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
-        // Search-match highlights: `theme::selection_document()` tint on every ordinary
-        // world (unchanged). On a one-bit world this instead becomes THE ONE
-        // WAGTAIL HIGHLIGHT TEXTURE — same dither mode + color as
-        // `wash_highlight_pipeline` (search matches and `==highlight==` spans
-        // deliberately share one texture, one meaning).
+        // Search matches use the document selection tint, or the one-bit
+        // highlight texture shared with `==highlight==` spans.
         let mut match_pipeline =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         match_pipeline.set_dither(wagtail_dither_density());
@@ -77,11 +74,9 @@ impl TextPipeline {
         let swap_ink = theme::base_content().rgba_bytes();
         let selection_invert =
             SelectionPipeline::new_two_colour(device, &sel_shader, format, swap_ground, swap_ink);
-        // THE 1-BIT CARET ROUND: the caret's own true-inverse-video sibling —
-        // same construction, own instance/instance-buffer so the caret's
-        // per-frame rect can't collide with the selection's (see the field
-        // doc + `prepare_caret_block` / `draw_document_layers`). Idle on
-        // every other world.
+        // The caret's independent two-colour sibling owns its instance buffer,
+        // keeping caret geometry separate from document selection. Idle on
+        // every ordinary world.
         let caret_invert =
             SelectionPipeline::new_two_colour(device, &sel_shader, format, swap_ground, swap_ink);
         // Markdown ORNAMENTS (section-break fleuron): a quiet DIM glyph renderer,

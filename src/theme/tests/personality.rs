@@ -34,6 +34,8 @@ fn personality_assignments_are_exactly_the_decided_table() {
     // them): `theme::BarConfig::SHIPPED`, read by the renderer rather than by
     // any per-world `Theme`, is the one owner of that hug-all-hybrid shape.
     let poster_bars = ListStyle::Bars;
+    let wagtail_swap =
+        model::TwoColour::new(model::PaletteRole::Base300, model::PaletteRole::BaseContent);
     let expected = |name: &str| -> RenderCaps {
         // COMPOSITION-C2: the placard worlds anchor their card TOP-LEFT and let
         // the poster corner DERIVE from that anchor (`Auto` → bottom-RIGHT),
@@ -146,14 +148,8 @@ fn personality_assignments_are_exactly_the_decided_table() {
             // + the page frame's first assignment + NO placard (the silent
             // pole announces nothing — user-confirmed).
             "Wagtail" => RenderCaps {
-                selection_style: model::SelectionStyle::InverseVideo(model::TwoColour::new(
-                    model::PaletteRole::Base300,
-                    model::PaletteRole::BaseContent,
-                )),
-                caret_block_style: model::CaretBlockStyle::InverseVideo(model::TwoColour::new(
-                    model::PaletteRole::Base300,
-                    model::PaletteRole::BaseContent,
-                )),
+                selection_style: model::SelectionStyle::InverseVideo(wagtail_swap),
+                caret_block_style: model::CaretBlockStyle::InverseVideo(wagtail_swap),
                 backdrop: model::Backdrop::Flat,
                 elevation: Elevation::Bordered,
                 decorative_wash: model::DecorativeWash::Off,

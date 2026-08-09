@@ -262,7 +262,8 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
         let worst = crate::lava::frost_pixel(1.0, ground, blob_lo, blob_hi, dim);
         assert!(
             frost_redmean(t.faint, worst) >= 100.0,
-            "{}: faint project ink only {:.1} redmean from the WORST gutter frost pill (phase-free bound)",
+            "{}: faint project ink only {:.1} redmean from the WORST gutter frost pill \
+             (phase-free bound)",
             t.name,
             frost_redmean(t.faint, worst)
         );
@@ -292,7 +293,8 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
             assert_eq!(
                 crate::lava::frost_coverage(x, y, &[gutter_seed]),
                 0.0,
-                "{}: frost leaked far from the gutter seed at x={x} y={y} (not local — a margin lost its lamp)",
+                "{}: frost leaked far from the gutter seed at x={x} y={y} \
+                 (not local — a margin lost its lamp)",
                 t.name
             );
         }

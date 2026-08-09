@@ -1,5 +1,4 @@
 //! Reconfiguration methods; pure layout and hit-test math lives in [`super::geometry`].
-
 use super::*;
 impl TextPipeline {
     /// Re-tint every baked GPU pipeline (caret, selection, search-match, panel
@@ -18,9 +17,9 @@ impl TextPipeline {
     /// inks read the active theme directly each frame, so this only needs to
     /// update the pipelines that cached a color at construction.
     ///
-    /// Split out so the LIVE theme-picker preview can re-color instantly per
-    /// arrow while DEFERRING the font reshape ([`Self::sync_theme_font`]) until
-    /// the selection settles — the theme-burst profile showed the reshape (plus
+    /// Split so the theme-picker preview can re-color per arrow while DEFERRING
+    /// font reshape until the selection settles — the theme-burst profile
+    /// showed the reshape (plus
     /// the following frame's new-face prepare) dominating every preview step,
     /// while this half is microseconds. Every settled path (commit, revert,
     /// capture, tests) still goes through [`Self::sync_theme`], which runs both.
@@ -32,15 +31,7 @@ impl TextPipeline {
             .set_color(theme::primary().rgb_bytes());
         self.selection_pipeline
             .set_color(theme::selection_document().rgba_bytes());
-        let active = theme::active();
-        if let Some(pair) = active.render_caps.selection_style.two_colour(&active) {
-            self.selection_invert
-                .set_two_colour(pair.ground.rgba_bytes(), pair.ink.rgba_bytes());
-        }
-        if let Some(pair) = active.render_caps.caret_block_style.two_colour(&active) {
-            self.caret_invert
-                .set_two_colour(pair.ground.rgba_bytes(), pair.ink.rgba_bytes());
-        }
+        self.sync_two_colour_pipelines();
         // Search matches: `theme::selection_document()` on an ordinary world, THE ONE
         // WAGTAIL HIGHLIGHT TEXTURE's pure white + dither density on a
         // one-bit world — see `search_match_rgba_bytes`/`wagtail_dither_density`.

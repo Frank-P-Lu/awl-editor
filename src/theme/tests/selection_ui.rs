@@ -141,7 +141,8 @@ fn bars_unselected_sits_a_quiet_rung_below_the_selected_band() {
             );
             assert!(
                 sel_step >= unsel_step,
-                "{}: selected band ({s}) must sit at least as far up the ramp as the unselected whisper ({u}) from the ground ({c})",
+                "{}: selected band ({s}) must sit at least as far up the ramp as \
+                 the unselected whisper ({u}) from the ground ({c})",
                 t.name
             );
         }
@@ -152,7 +153,9 @@ fn bars_unselected_sits_a_quiet_rung_below_the_selected_band() {
         let d_bar = redmean(unsel, ground);
         assert!(
             d_sel >= d_bar,
-            "{}: selected bar {sel:?} must lead the unselected whisper {unsel:?} (redmean {d_sel:.1}) at least as much as the whisper leads the ground {ground:?} (redmean {d_bar:.1})",
+            "{}: selected bar {sel:?} must lead the unselected whisper {unsel:?} \
+             (redmean {d_sel:.1}) at least as much as the whisper leads the ground \
+             {ground:?} (redmean {d_bar:.1})",
             t.name
         );
     }

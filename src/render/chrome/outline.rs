@@ -368,14 +368,9 @@ impl TextPipeline {
         if row_h <= 0.0 {
             return Vec::new();
         }
-        let r_row = crate::render::frost_seed_radius(
-            row_h,
-            crate::lava::FROST_FEATHER_PX,
-            self.metrics.zoom,
-            self.dpi,
-        );
-        let skirt =
-            crate::lava::frost_px(crate::lava::FROST_FEATHER_PX, self.metrics.zoom, self.dpi);
+        let feather = crate::lava::FROST_FEATHER_PX;
+        let r_row = crate::render::frost_seed_radius(row_h, feather, self.metrics.zoom, self.dpi);
+        let skirt = crate::lava::frost_px(feather, self.metrics.zoom, self.dpi);
         let pad_x =
             crate::lava::frost_px(crate::lava::FROST_PILL_PAD_X, self.metrics.zoom, self.dpi);
         let yc_off = row_h * 0.5;

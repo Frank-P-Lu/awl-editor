@@ -127,6 +127,7 @@ pub use viewstate_def::{DocSource, FoldTail, ViewState};
 
 mod pipeline_draw;
 mod pipeline_geometry;
+mod pipeline_inverse;
 mod pipeline_layers;
 mod pipeline_overlay;
 mod pipeline_prepare;

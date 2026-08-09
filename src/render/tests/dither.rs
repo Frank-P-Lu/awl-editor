@@ -485,7 +485,8 @@ fn two_colour_pipeline_swaps_non_black_white_endpoints() {
             for channel in 0..3 {
                 assert!(
                     p[channel].abs_diff(expect[channel]) <= 1,
-                    "pixel {i} channel {channel}: {clear_bytes:?} must swap to {expect:?}, got {p:?}"
+                    "pixel {i} channel {channel}: {clear_bytes:?} must swap to \
+                     {expect:?}, got {p:?}"
                 );
             }
             assert_eq!(p[3], 255, "pixel {i}: swap preserves destination alpha");
