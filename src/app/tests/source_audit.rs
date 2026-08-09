@@ -482,7 +482,7 @@ fn retired_item_76_identifiers_leave_no_trace_in_source() {
     }
 }
 
-/// Every identifier item 76 retires, built from concatenated parts (not one
+/// Every identifier this law retires, built from concatenated parts (not one
 /// contiguous literal) so THIS list can never accidentally match itself.
 #[cfg(test)]
 fn retired_item_76_needles() -> Vec<String> {

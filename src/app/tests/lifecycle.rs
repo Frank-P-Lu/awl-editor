@@ -795,7 +795,7 @@ fn open_serves_the_new_files_text_despite_equal_buffer_versions() {
     // fixture below) — disable session restore explicitly instead, so
     // `apply_session_restore` never reads the developer's real
     // `~/.local/share/awl/session.toml` and parks his real open files into
-    // this test's registry (the exact leak class `d93109e` fixed).
+    // this test's registry (the exact leak class covered here).
     let _fs = crate::testlock::serial();
     let dir =
         ScratchDir::new(std::env::temp_dir().join(format!("awl-open-swap-{}", std::process::id())));
