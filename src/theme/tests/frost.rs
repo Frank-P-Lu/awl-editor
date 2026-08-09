@@ -304,8 +304,8 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
 #[test]
 fn frost_recipe_is_one_renderer_owned_lava_recipe() {
     assert!((0.0..=1.0).contains(&crate::lava::FROST_DIM));
-    assert!(crate::lava::FROST_BLUR_PX > 0.0);
-    assert!(crate::lava::FROST_FEATHER_PX >= 0.0);
+    assert!(std::hint::black_box(crate::lava::FROST_BLUR_PX) > 0.0);
+    assert!(std::hint::black_box(crate::lava::FROST_FEATHER_PX) >= 0.0);
     assert!(THEMES.iter().any(|t| t.background.is_lava()));
 }
 
