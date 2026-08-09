@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# capture-ambient-118.sh — the AMBIENT-MOTION arm of item 118's loudness audit.
+# capture-ambient-118.sh — the AMBIENT-MOTION arm of the loudness audit.
 #
-# Five shipping worlds move while the user is idle, and item 118 counts ambient
+# Five shipping worlds move while the user is idle, and the audit counts ambient
 # motion as loudness. `Theme::has_ambient_tick()` is the roster's own answer for
 # which they are — lava (Firetail, Mangrove), animated stars (Currawong), waves
 # drift (Bombora), organic drift (Bowerbird) — and this script asks the binary
@@ -24,7 +24,7 @@
 #
 # STILL LIVE-ONLY, AND NOT CLAIMED HERE: whether those frames actually arrive
 # at 60fps, whether the tick holds its cadence, and whether the result FEELS
-# calm. Item 118 asks for `--release` observation for exactly that, and this
+# calm. `--release` observation answers that, and this
 # script is the preparation for that judgement, not a substitute for it.
 #
 # Output — a REPLACEABLE gitignored run dir:
