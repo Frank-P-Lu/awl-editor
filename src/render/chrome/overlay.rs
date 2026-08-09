@@ -454,32 +454,28 @@ impl TextPipeline {
         let (top_idx, visible) =
             self.overlay_flat_window(n_items, avail_px, header_rows + hint_rows);
 
-        // Width: fit the WIDEST suggestion ROW — its real SHAPED width, measured into
-        // `overlay_spell_w` at sync — plus padding, NOT the anchor word. So a short
-        // misspelled word ("teh") can no longer make a narrow card the longer
-        // corrections overflow. A calm MIN keeps a lone short suggestion from looking
-        // pinched; the card stays capped small and clamped on-canvas. (Falls back to
-        // the char-count estimate only if a measurement has not run yet.)
+        // Width fits the WIDEST suggestion ROW: its SHAPED width measured into
+        // `overlay_spell_w`, not the anchor word. A short misspelling therefore cannot
+        // make a card too narrow for its longer corrections.
         //
-        // ON NON-DIAGONAL COMPOSITIONS, MEASURE EVERY ROW IN THE ELISION'S OWN UNITS:
-        // the shaped
-        // `overlay_spell_w` is in the UI/chrome face, but the row-elision budget
-        // (`overlay_shape_text` → `rowlayout::plan`) divides `text_w` by the DOCUMENT
-        // mono `char_width` and then charges the primary for the `…` cell AND the
-        // (blank but PRESENT) right column the popup's per-row `overlay_bindings`
-        // carries — one empty slot per suggestion + the add row. On a WIDE-mono world
-        // (Firetail / Monaspace Xenon) that grid needs MORE width than the UI-face
-        // shaped measurement grants — so the first-class "Add '<word>' to dictionary"
-        // row elided at a WIDE width, floating in empty space (the user report). Floor
-        // the content width by the char-grid width of the WIDEST row plus the cells
-        // `rowlayout::plan` reserves off the top — `1` (the `…`) + `GAP_CHARS` (the
-        // secondary-column gutter) — plus one more so the integer `floor(text_w /
-        // char_width)` clears the target even when the f32 division lands a hair under
-        // a whole cell. `max()` only GROWS the card where the grid outruns the shaped
-        // width (byte-identical where the shaped face is the wider of the two); the cap
-        // below still elides a genuinely over-long row as the last resort. Diagonal
-        // instead keeps the shaped measurement and pays for its composition explicitly
-        // below; charging it both the grid and the rake is the broad-span defect.
+        // Non-Diagonal compositions also measure the row in the elision's own units.
+        // The shaped width is in the UI face, while row elision divides `text_w` by the
+        // document mono `char_width` and charges the primary for the ellipsis cell and
+        // the blank but present secondary column carried by each spell row.
+        // A wide-mono world can therefore need more width than the UI-face measurement.
+        // The grid floor covers the widest row plus the cells `rowlayout::plan` reserves:
+        // one ellipsis, the secondary-column gap, and one rounding cell so integer
+        // `floor(text_w / char_width)` clears the target when f32 division lands just
+        // under a whole cell. That expression remains byte-identical for Pane, Bars and
+        // Rules and still permits a genuinely overlong row to elide at the card cap.
+        //
+        // Diagonal rows occupy a measured cluster beside their rake instead. Charging
+        // both the document grid and the rake created the broad empty span, while the
+        // phantom empty secondary column could still shorten the Add action. The shared
+        // spell-popup policy owns that typed boundary, its composition reserve, and the
+        // matching measured-fit decision used by shaping.
+        // The caller supplies measurements only; style arithmetic does not remain here.
+        // This keeps every spell geometry consumer on the same typed decision.
         let widest_chars = self
             .overlay_items
             .iter()
@@ -493,20 +489,6 @@ impl TextPipeline {
         } else {
             char_grid_w
         };
-        // A DIAGONAL popup is one measured row cluster plus the composition that
-        // carries it. The old generic char-grid floor charged every glyph at the
-        // document mono face's mean advance (plus an empty secondary column), making
-        // six short actions claim a broad empty rake and still eliding the widest row.
-        // Give the shaped ink its real width and reserve the spine/connector/mark lane
-        // beside it. `overlay_shape_text` recognizes the same typed arm and keeps the
-        // measured row unelided when that cluster budget fits it.
-        //
-        // Every other composition keeps the historical expression byte-for-byte:
-        // Pane, Bars and Rules still use `max(measured, char-grid) + 2 * pad` below.
-        let diagonal = matches!(
-            crate::render::effective_list_style(),
-            theme::ListStyle::Diagonal(_)
-        );
         let rows = header_rows + visible.max(1) + hint_rows;
         // The MIN/MAX bounds are tuned for the 1:1 capture canvas; GROW them with the
         // current zoom/DPI (the SAME grow-only `LogicalGrowOnly` the takeover
@@ -518,11 +500,7 @@ impl TextPipeline {
         // (~24 mono cells) so it never elides at wide width; a genuinely
         // long adversarial word still overruns it and elides — a small popup, never a
         // takeover card.
-        let framed_w = if diagonal {
-            measured_w + self.diagonal_side_reserve_px(rows) + self.overlay_text_hpad()
-        } else {
-            measured_w.max(char_grid_w) + 2.0 * pad
-        };
+        let framed_w = self.spell_framed_width(rows, measured_w, char_grid_w, pad);
         let card_w = framed_w
             .clamp(
                 self.metrics.px_grow_only(SPELL_MIN_W),

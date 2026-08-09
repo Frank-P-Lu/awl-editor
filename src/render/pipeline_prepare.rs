@@ -219,8 +219,7 @@ impl TextPipeline {
         // neither a card nor row plates beneath it. Enrol that typed composition in
         // the same local footprint as the crisp/menu arms: never a world-name branch,
         // never the full-canvas frost, and never a change to Pane/Bars/Rules.
-        let diagonal_spell =
-            self.overlay_spell.is_some() && matches!(style, theme::ListStyle::Diagonal(_));
+        let diagonal_spell = self.diagonal_spell_popup();
         if self.overlay_active
             && (diagonal_spell
                 || (self.overlay_declines_takeover() && blur::footprint_frost_applies(style)))

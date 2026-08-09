@@ -296,9 +296,8 @@ pub(super) fn overlay_hint_gap_rows(hint_rows: usize) -> usize {
     hint_rows
 }
 
-// The chrome cluster is decomposed into cohesive per-subsystem submodules; each
-// carries its own `impl TextPipeline { .. }` block (Rust merges the inherent impls
-// across the module tree). This file keeps the SHARED items every submodule needs —
+// The chrome cluster is decomposed into cohesive submodules with inherent impl blocks
+// Rust merges across the module tree. This file keeps the SHARED items they need —
 // the panel/overlay geometry structs, the float-quad primitive, the overlay row<->Y
 // owner and the sidecar report structs.
 pub(in crate::render) mod diagonal;
@@ -337,6 +336,7 @@ mod overlay_selection_probe;
 mod overlay_shape;
 pub(in crate::render) mod roster;
 mod rotated_location;
+mod spell_popup;
 // The ONE visual-selection transaction every selected visual reads.
 mod overlay_visual_sel;
 #[cfg(test)]

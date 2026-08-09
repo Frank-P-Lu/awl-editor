@@ -413,26 +413,14 @@ impl TextPipeline {
             .collect();
 
         let right_labels = self.overlay_right_labels();
-        let diagonal_spell = self.overlay_spell.is_some()
-            && matches!(
-                crate::render::effective_list_style(),
-                theme::ListStyle::Diagonal(_)
-            );
-        // The live spell picker carries a parallel vector of EMPTY secondary cells.
-        // On the measured Diagonal arm those are no column: letting the generic
-        // secondary fit pass see them makes a subpixel roundoff between the measured
-        // primary and its cluster budget trigger a second, character-grid elision pass.
-        // Keep the historical interpretation on every other style for output identity.
-        let has_right = !right_labels.is_empty()
-            && !(diagonal_spell && right_labels.iter().all(String::is_empty));
+        let has_right = self.spell_has_secondary(right_labels);
         let chord = |i: &Option<usize>| {
             i.and_then(|i| right_labels.get(i))
                 .map_or("", |s| s.as_str())
         };
         let bind_strs = right_bind_lines(plan.header_rows(), items.iter().map(chord));
 
-        // ONE shared row budget, split by the rowlayout primitive: the card's text
-        // width in mean glyph widths against the widest right-column label. `Split`/
+        // One shared row budget: card text width against the widest right label. `Split`/
         // `Full` elide the names to their granted budget (the historical math);
         // `Measure` shapes them UNELIDED and lets the shaped pixels decide below.
         //
@@ -473,15 +461,7 @@ impl TextPipeline {
         } else {
             None
         };
-        // A diagonal SPELL card was sized from the widest SHAPED row plus the
-        // composition's own side reserve. Once that real pixel width fits the cluster,
-        // a character-grid estimate must not shorten it again: doing so both wastes the
-        // measured room and turns the first-class Add-to-dictionary action into an
-        // ellipsis. Gated by the typed style, never a world name; capped/narrow cards
-        // still fall through to the established elision path.
-        let measured_spell_fits = diagonal_spell
-            && self.overlay_spell_w > 0.0
-            && self.overlay_spell_w <= slant_text_w + 0.5;
+        let measured_spell_fits = self.measured_spell_primary_fits(slant_text_w);
         let budget = if !elide || measured_spell_fits {
             None
         } else {
