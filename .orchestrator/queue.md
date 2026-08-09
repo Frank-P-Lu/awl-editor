@@ -141,11 +141,6 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
   line. Out of step now: the **spell popup** still takes no frost anywhere
   (DESIGN §5 says it "recedes nothing" on purpose) — whether that stands is
   yours.
-- 🔵 **Four public docs state things the code contradicts** (item 344, all four
-  verified): GUIDE says 19 worlds, ACCESSIBILITY says 14 — the roster is 20 and
-  WEB.md already says so; platform.md documents "Finish Buffer" with a retired
-  chord (palette says "Finish file"); GUIDE omits that a selection also reveals
-  conceal. 25 further census entries reported but unverified.
 - 🔵 **Right-click menu's greyed-out labels** (item 299): "unavailable" used to
   sit one row below its own row (ΔE 0.0 — invisible); now correct. A glance to
   confirm it reads as quiet, not broken. `gallery/item-299/`.
@@ -249,8 +244,6 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
 - **245 —** one constant: 200 wpm.
 - **263 —** the construction-site document-seed mutation was deferred (gate
   contention), inferred rather than measured. Worth closing.
-- **273 —** `site/reference.html` is visually unreviewed (links pass, CSS
-  reuses `.credits-body`).
 - **271/283 —** `Rules` ships on one carrier; second-carrier requirements live
   in `theme/tests/personality.rs`.
 
@@ -261,7 +254,7 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **377, 378, 379, 380** — independent closure wave for machine-doable
+1. **378, 379, 380** — independent closure wave for machine-doable
    residuals recovered from OWED.
 2. **🔵 HUMAN / LIVE** — only after the closure wave reclassifies every
    remaining OWED entry by evidence. **231**
@@ -272,17 +265,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 ---
 
 ## Open items
-
-377. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
-     `codex/item-377-public-facts`. Close the machine-verifiable public-doc and reference-page debt.**
-     Fix item 344's four independently verified contradictions; parse/verify all 25 additional
-     census claims against their code owners before changing any of them. Add maintainable
-     source/roster laws where they protect generated or enumerated facts. Render
-     `site/reference.html` at representative desktop and narrow widths, inspect the actual page
-     and link targets, and repair objective layout/link defects. Taste-only placement/caption
-     calls stay blocked and are not silently chosen. **Done:** every changed fact traces to code,
-     browser QA has screenshots and explicit findings, targeted laws are mutation-proven, and
-     the corresponding OWED bullets are removed or narrowed to the human choice.
 
 378. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
      `codex/item-378-render-residuals`. Close objective render residuals without making taste calls.**
