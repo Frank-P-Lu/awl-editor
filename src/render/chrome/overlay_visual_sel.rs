@@ -1,6 +1,6 @@
 //! src/render/chrome/overlay_visual_sel.rs — THE VISUAL-SELECTION TRANSACTION.
 //!
-//! ITEM 164. An overlay card answers "which row is selected?" with five separate
+//! An overlay card answers "which row is selected?" with five separate
 //! visuals: the selection BAND, the primary label's ink, the secondary
 //! shortcut/value/git column's ink, a range row's rail thumb, and (under `Bars`)
 //! the shortcut PLATE behind the chord. Before this module each of those decided
@@ -224,7 +224,7 @@ impl TextPipeline {
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
     ) -> VisualSelection {
-        // ITEM 174 — the transaction's target is the PLANNED row's own top, and
+        // The transaction's target is the PLANNED row's own top, and
         // the coverage grid is the plan's own band origin/pitch/length. The band
         // therefore starts from the same object the hit-test inverts.
         let logical = plan.selected_display();
@@ -297,8 +297,8 @@ impl TextPipeline {
     /// rows whose PRIMARY glyphs carry the flipped selected ink, and the rows
     /// whose SECONDARY (shortcut / value / git) glyphs carry theirs. The law
     /// that these two agree with each other and with the transaction is the
-    /// whole point of item 164, and reading the committed glyph colours is the
-    /// only oracle that cannot be satisfied by a parallel reimplementation.
+    /// invariant this transaction owns, and reading the committed glyph colours
+    /// is the only oracle that cannot be satisfied by a parallel reimplementation.
     #[cfg(test)]
     pub(in crate::render) fn overlay_ink_flip_probe(
         &self,

@@ -118,7 +118,7 @@ mod lifetime;
 // like `mac_chrome` beside it (which owns every other AppKit door).
 mod mac_about;
 mod mac_chrome;
-// The macOS PRODUCT-IDENTITY laws (item 167): the bundle contract lives in
+// The macOS PRODUCT-IDENTITY laws: the bundle contract lives in
 // shell, and the surfaces it governs are live-only, so its structure is
 // asserted here. Test-only by its own inner `cfg`.
 mod macos_identity_law;
@@ -151,7 +151,7 @@ mod println_audit;
 mod probe;
 mod project;
 mod prosediff;
-// ITEM 94 — the RANGE SPEC owner (min/max/step/default/unit/rail mapping) every
+// The RANGE SPEC owner (min/max/step/default/unit/rail mapping) every
 // Settings range row's keyboard, pointer, readout, apply and persistence route
 // through. `render::clamp_zoom` delegates here.
 mod range;
@@ -211,7 +211,7 @@ mod theme;
 mod testlock;
 // THE one owner of an on-disk scratch directory a test creates under
 // `std::env::temp_dir()` — Drop-based removal so cleanup survives a panic or
-// an early return, not just the happy path (queue item 168).
+// an early return, not just the happy path.
 #[cfg(test)]
 mod testscratch;
 mod themeswitch;

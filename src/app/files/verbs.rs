@@ -2,7 +2,7 @@
 //! scratch-to-document conversion, rename, move, duplicate, the inline-image
 //! drag-resize write-back, the asset-cleaner trash verb, and the two
 //! local-history bridges (Keep version / Restore). Split out of the former
-//! `app/files.rs` monolith (item 56); item 76 retired the old LIVE
+//! `app/files.rs` monolith. The old LIVE
 //! rename-to-title behavior — a document's name is now derived exactly once
 //! (its first material save), and Rename is the one, explicit, generic verb
 //! thereafter.
@@ -177,7 +177,7 @@ impl App {
         match self.document.save_into_folder(&self.project_location.root) {
             Ok(()) => {
                 // `Buffer::save_into_folder` already stamped the derived path onto
-                // the buffer itself (the sole authoritative path, item 56).
+                // the buffer itself (the sole authoritative path).
                 self.update_title();
                 self.rescan_file_index();
                 self.sync_page_measure();
@@ -304,7 +304,7 @@ impl App {
     }
 
     /// C-x m accept: MOVE the current file into `dest_rel` (a directory relative
-    /// to the ACTIVE folder — item 76: the same folder Cmd-N creates a document
+    /// to the ACTIVE folder — the same folder Cmd-N creates a document
     /// in, not a separate notes root; `""` = the active folder itself), keeping
     /// the filename. Creates the destination folder if needed, refuses to
     /// clobber (numeric suffix), then re-points the buffer so editing/auto-save

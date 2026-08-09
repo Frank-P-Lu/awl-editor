@@ -1,4 +1,4 @@
-//! ITEM 104 — THE SETTINGS "EVERY SECOND ROW" LAW, the `apply_transition`-seam half.
+//! THE SETTINGS "EVERY SECOND ROW" LAW, the `apply_transition`-seam half.
 //! User report (2026-07-26, world Mopoke): Settings → Editor visibly contains
 //! every row, but moving/selecting through it reaches only ALTERNATING rows
 //! ("every second item being selectable bug is back" — a recurrence of the
@@ -180,7 +180,7 @@ fn a_filtered_settings_list_still_steps_one_row_at_a_time() {
 /// A LONG list reached one row at a time: walking the whole `All` home must visit
 /// every row exactly once, the class of bug a small corpus can't exercise.
 ///
-/// ITEM 114 — this used to force the CORE's own scroll window to advance
+/// This used to force the CORE's own scroll window to advance
 /// mid-walk, and asserted `n > window_rows()` to prove it did. A summoned
 /// workspace is bounded by the canvas rather than by a card-sized row count
 /// (`OverlayKind::window_rows` now names the whole corpus for it, exactly as the
@@ -213,7 +213,7 @@ fn a_window_scrolled_settings_list_reaches_every_row_exactly_once() {
     );
 }
 
-/// ITEM 94 — RANGE-ROW (Zoom) ENTER/EXIT ADJACENCY: stepping ONTO the Zoom
+/// RANGE-ROW (Zoom) ENTER/EXIT ADJACENCY: stepping ONTO the Zoom
 /// row and back OFF it, in both directions, must not poison the neighbouring
 /// rows' reachability — `range_step`'s Left/Right claim on a Range row must
 /// stay confined to Left/Right, never leak into Up/Down's one-row-per-step

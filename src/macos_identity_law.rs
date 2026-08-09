@@ -9,7 +9,7 @@
 //! assert the STRUCTURE of that contract, so the ways it has actually been
 //! observed to break go red here instead of silently on someone's desktop.
 //!
-//! Measured on 2026-07-29 (item 167), bare `target/release/awl` versus the
+//! Measured on 2026-07-29, bare `target/release/awl` versus the
 //! bundle `scripts/dev-app.sh` assembles:
 //!
 //! | surface | bare binary | dev bundle |
@@ -102,7 +102,7 @@ fn the_identity_contract_has_exactly_one_owner() {
 /// locally built `.app` in a build directory is not somewhere LS has looked.
 ///
 /// Dropping the `lsregister` call would silently regress Stage Manager to the
-/// exact defect item 167 was raised for, and nothing else in this repo would
+/// exact live-only defect, and nothing else in this repo would
 /// notice — the surface is live-only and the script would still exit 0.
 #[test]
 fn the_dev_launch_registers_the_bundle_with_launchservices() {
@@ -141,7 +141,7 @@ fn the_dev_launch_reuses_the_release_packaging_metadata() {
 }
 
 /// The bare-binary limitation is DOCUMENTED, not silently advertised as
-/// equivalent. Item 167's "Done" says exactly this: if macOS requires a bundle
+/// equivalent. If macOS requires a bundle
 /// for a surface, the normal dev script uses that bundle and the limitation is
 /// explicit.
 #[test]

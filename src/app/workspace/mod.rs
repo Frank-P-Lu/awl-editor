@@ -1,5 +1,5 @@
-//! src/app/workspace/ — THE SUMMONED-UI LAYER OWNER (`WorkspaceState`, queue
-//! item 172's first slice, extended by item 173; map: `docs/app-domains.md`).
+//! src/app/workspace/ — THE SUMMONED-UI LAYER OWNER (`WorkspaceState`; map:
+//! `docs/app-domains.md`).
 //!
 //! awl summons four surfaces over the editor, and they form a strict
 //! PRECEDENCE LADDER:
@@ -39,7 +39,7 @@
 //! error is the enforcement, and `app/tests/domains.rs` guards the fields from
 //! being re-added to root `App`.
 //!
-//! Item 173 added the fourth rung. The LIFECYCLE behind it —  which surface is
+//! The LIFECYCLE behind the fourth rung — which surface is
 //! up, what is parked beneath it, and where every Esc/Back/accept lands — is
 //! [`crate::overlay::Journey`], in the core the live App and the headless
 //! `--keys` replay share; `WorkspaceState` owns the one live instance and asks
@@ -206,7 +206,7 @@ impl WorkspaceState {
         self.journey.card()
     }
 
-    /// Read the WHOLE summoned-overlay journey, for the sidecar fold (item 188):
+    /// Read the WHOLE summoned-overlay journey for the sidecar fold:
     /// a parked parent is lifecycle state, not card content, so `overlay()`
     /// cannot answer it — the same reason `ReplaySession::journey` exists.
     /// Read-only; `core_slots` stays the only way to mutate it. Native/test only,

@@ -320,7 +320,7 @@ impl TextPipeline {
         // the anchor geometry below — including the spring target — reads the
         // latched value, one global read per frame. A live text-selection DRAG
         // overrides the configured look to the thin insertion BAR (the I-beam
-        // form) for the duration of the drag — item 33's drag-bar. This is the
+        // form) for the duration of the drag — the drag bar. This is the
         // ONE seam that resolves the effective look, so every reader (geometry
         // AND the paint path, which read `self.caret_look`) sees the same form.
         self.caret_look = if view.selecting_drag {
@@ -491,7 +491,7 @@ impl TextPipeline {
         } else {
             0.0
         };
-        // ITEM 51 — a RIGHT-ANCHORED takeover card shrinks to hug its content, so
+        // A RIGHT-ANCHORED takeover card shrinks to hug its content, so
         // measure the widest visible primary (+ optional secondary column, query
         // line, lens strip and footer) NOW, with a `&mut FontSystem` in hand. Gated
         // to the right-anchored takeover cards (the frozen anchor mirrors growth):
@@ -503,7 +503,7 @@ impl TextPipeline {
         if self.overlay_active && self.overlay_spell.is_none() && self.overlay_right_anchored() {
             self.overlay_content_w = self.measure_overlay_content_w();
         }
-        // ITEM 114 — the workspace rail's column is MEASURED, never estimated
+        // The workspace rail's column is MEASURED, never estimated
         // from a mean character width: its labels are display-face words and the
         // column has to hold the widest of them exactly, because that same number
         // is the rail's clip, its mark rect and its pointer hit band. Same

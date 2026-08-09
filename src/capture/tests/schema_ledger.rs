@@ -1,5 +1,5 @@
 //! THE SCHEMA LEDGER — `SCHEMA_VERSION` and its `/N` history table must move
-//! together. Carved out of `capture.rs` (item 158) so a test module stops
+//! together. Carved out of `capture.rs` so a test module stops
 //! counting against a production file's own size mark, exactly as the rest of
 //! `capture::tests` already was.
 
@@ -50,12 +50,12 @@ fn schema_version_matches_latest_history_row() {
     );
 }
 
-// ── ITEM 187 — CAPTURE.md's reservation header must equal the const ────────
+// ── CAPTURE.md's reservation header must equal the const ──────────────────
 //
 // CAPTURE.md's "## The sidecar JSON" header is the RESERVATION TABLE: the
 // artefact a worker reads to answer "which schema number do I take next".
 // Nothing else reads it, so it drifted a full round behind `SCHEMA_VERSION`
-// (item 187) with no law noticing. The three numbers it prints are not an
+// with no law noticing. The three numbers it prints are not an
 // independent design — `schema_plain`/`schema_timeline`/`schema_held` above
 // are `SCHEMA_VERSION`, `+1`, `+2` — so the header is DERIVED from the same
 // const the history rows are, and must be checked against it directly rather

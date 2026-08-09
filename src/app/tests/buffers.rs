@@ -98,7 +98,7 @@ fn load_path_switches_to_already_open_buffer_preserving_edits_and_cursor() {
 
 #[test]
 fn buffer_switch_clears_the_list_continuation_provenance_flag_item_78() {
-    // Item 78: the short-lived "awl just generated this empty list continuation"
+    // The short-lived "awl just generated this empty list continuation"
     // flag must NOT survive a park/activate round trip (`load_path`'s switch) —
     // even though the buffer's cursor/text/undo history all correctly DO survive
     // it (the test above). Simulate the flag as smart_newline would leave it
@@ -531,7 +531,7 @@ fn switching_buffers_isolates_the_view_text_cache() {
 
 #[test]
 fn switching_away_from_a_dirty_file_still_autosaves() {
-    // Item 4 of the spec: the existing autosave flush-on-FILE-SWITCH hook
+    // The existing autosave flush-on-FILE-SWITCH hook
     // (`App::autosave_flush`, the one door) must still fire on a registry
     // switch, exactly as it did on the old single-buffer swap.
     use crate::fs::{FileSystem, InMemoryFs};
@@ -663,7 +663,7 @@ fn right_click_word_summons_spell_suggestions() {
     );
 }
 
-// ── ITEM 56: THE OWNED SLOT — every App-level per-buffer field travels ──
+// ── THE OWNED SLOT — every App-level per-buffer field travels ──────────
 // with its buffer because the WHOLE `Entry<BufferExtra>` moves atomically on
 // park/activate, never a field enumerated by hand (`files/active.rs`'s
 // `park_active_buffer`/`activate_from_registry`). These tests witness that

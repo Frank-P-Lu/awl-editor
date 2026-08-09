@@ -1,4 +1,4 @@
-//! ITEM 176 — the ORGANIC ground's crisp COLLECTED-TREASURE arrangement,
+//! The ORGANIC ground's crisp COLLECTED-TREASURE arrangement,
 //! proved from real rendered pixels. It arrived as one arm of a theme-owned
 //! `Arrangement` dial and is now the ground's only behaviour: the dial, its
 //! scalar and the rounded cut-paper arm it chose between all went once no
@@ -35,7 +35,7 @@ use crate::theme;
 /// A `Background::Organic` at an explicit cell scale, on Bowerbird's own
 /// authored tones and density — the direct-injection seam, so every claim
 /// below is about the MECHANISM rather than one world's literal.
-/// `pub(super)`: item 191's spacing/void laws (`bowerbird_spacing.rs`)
+/// `pub(super)`: the spacing/void laws (`bowerbird_spacing.rs`)
 /// reuse this and the field reader below rather than duplicating them —
 /// same-behavior-same-code.
 pub(super) fn organic_bg(scale_px: f32) -> theme::Background {
@@ -190,10 +190,9 @@ const MIN_MINOR_PX: usize = 90;
 /// smallest authored cut-out (`ACCENT_LO * ANCHOR_LO * MIN_SCALE_PX` ~ 2.9px
 /// radius) keeps only a ~2px solid core once its antialiased skirt is taken
 /// off — so this gates a MISSING hole, not a small one. At this file's own
-/// 156px reference cell (item 176's own scale; item 191 later opened
-/// Bowerbird's shipped `scale_px` to 195, read dynamically by
-/// `bowerbird_spacing.rs` rather than duplicated here) the same
-/// cut-outs measure five to ten times this.
+/// 156px reference cell, the cut-outs measure five to ten times this.
+/// Bowerbird's shipped `scale_px` is now 195 and is read dynamically by
+/// `bowerbird_spacing.rs` rather than duplicated here.
 const MIN_CUTOUT_PX: usize = 8;
 /// A real hierarchy. The authored companion is at most `COMPANION_HI` of the
 /// anchor radius, so even before the companion's own overlap is subtracted the

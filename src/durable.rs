@@ -444,12 +444,12 @@ mod tests {
             // arriving_buffer`) — temp-dir test files, never a durable store;
             // two more are the hermetic-scenario tests' real-disk inputs
             // (seeded precisely to prove the sandbox never writes them back).
-            // The item 76 launch-context law and strict-replay no-artifact law
+            // The launch-context law and strict-replay no-artifact law
             // add two temp input fixtures of the same shape. Item 189's
             // Switch-project-then-Goto law adds two more: the launch and
-            // accepted roots' marker files for its real-`capture_screenshot`
+            // accepted roots' marker files for the real `capture_screenshot`
             // fixture tree.
-            // `main/tests.rs` split into `main/tests/<subject>.rs` (item 274);
+            // `main/tests.rs` split into `main/tests/<subject>.rs`;
             // these seven subject files carry the same 21 sites, unmoved.
             ("main/tests/buffer_switching.rs", 8),
             ("main/tests/capture_scenarios.rs", 4),

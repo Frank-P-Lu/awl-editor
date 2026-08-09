@@ -61,12 +61,12 @@ fn caret_picker_lists_three_styles_navigates_and_maps_modes() {
     crate::caret::clear_override();
 }
 
-/// ITEM 36 — the DATE-FORMAT picker. `new_date` lists all five formats EACH
+/// The DATE-FORMAT picker. `new_date` lists all five formats EACH
 /// rendered with the given `today` as its PRIMARY text (what-you-see-is-what-
 /// inserts), with the format NAME in the secondary column, pre-selects the
 /// active format, and maps the selected CORPUS INDEX back to the format (the
 /// accept path's resolution). Uses the fixed capture placeholder date so the
-/// example strings are deterministic (item 14's gate).
+/// example strings are deterministic.
 #[test]
 fn date_picker_lists_five_examples_with_names_and_maps_by_index() {
     use crate::dateformat::DateFormat;
@@ -122,7 +122,7 @@ fn date_picker_lists_five_examples_with_names_and_maps_by_index() {
     assert_eq!(OverlayKind::Date.hint(), "type to filter   \u{21B5} apply");
 }
 
-/// ITEM 66 — the Date picker's row content must NOT get the muted-directory/
+/// The Date picker's row content must NOT get the muted-directory/
 /// content-filename figure/ground split (`OverlayKind::row_path_splits`):
 /// three of the five example dates (`DD/MM/YY`, `MM/DD/YY`, `YYYY/MM/DD`) use
 /// `/` as a DATE separator, and `row_split` would otherwise mistake it for a

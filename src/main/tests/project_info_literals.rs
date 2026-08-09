@@ -1,10 +1,10 @@
-// ── ITEM 183 — the capture's project location has ONE derivation ─────────
+// ── The capture's project location has ONE derivation ────────────────────
 //
 // `capture_screenshot` reports the project location TWICE (launch root, then
 // again on an accepted Project-picker row) and `story.rs` a third time. Those
 // were three hand-rolled `ProjectInfo` literals, and the accept site carried
 // the LAUNCH root's `workspace` forward while re-deriving everything else from
-// the accepted root — item 180's exact half-derivation, in the harness's own
+// the accepted root — the exact half-derivation in the harness's own
 // copy of the rule, still there after item 180 fixed the App's. A capture of a
 // Switch-project therefore reported a workspace the running editor no longer
 // had. `run::project_info` is now the one builder; the parity law pinning it to

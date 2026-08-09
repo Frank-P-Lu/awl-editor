@@ -2,7 +2,7 @@
 //! default ON: atomic write on idle/blur/switch/quit with a clobber guard,
 //! plus the persistent scratch stash), the note's own debounced auto-name
 //! save, the save-feedback dirty/title/HUD-saved sync, and the local-history
-//! save-hook. Split out of the former `app/files.rs` monolith (item 56).
+//! save-hook. Split out of the former `app/files.rs` monolith.
 
 use super::window_title;
 use super::{SCRATCH_CHANGED_NOTICE, WritePermission};
@@ -134,7 +134,7 @@ impl App {
     /// buffer derives its filename from the first non-empty line on this — its
     /// FIRST — save (an empty document writes nothing — no litter); the moment
     /// that happens, `Buffer::save` binds the path AND clears the fresh-document
-    /// marker in the SAME step (item 76's one-shot naming law), so
+    /// marker in the SAME step (the one-shot naming law), so
     /// `is_unnamed_fresh()` is false by the time this function returns and every
     /// LATER save (including a later edit to the first line) simply routes
     /// through the ordinary document autosave engine instead — never a second
@@ -171,7 +171,7 @@ impl App {
             // autosave naming a fresh document is silent chatter (the
             // window title already renders the new name). `Buffer::save`
             // already stamped the derived path onto the buffer itself
-            // (the sole authoritative path, item 56).
+            // (the sole authoritative path).
             self.update_title();
             // Re-scope the go-to index so the new document is jump-able.
             self.rescan_file_index();

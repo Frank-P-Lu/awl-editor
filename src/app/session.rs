@@ -8,7 +8,7 @@
 //! `App` — the buffer registry, the active buffer, and (on `resumed()`, in
 //! `app.rs`) the window frame.
 //!
-//! **Item 76 — the ONE active-folder-context owner:** `SessionState.root` is
+//! **The ONE active-folder-context owner:** `SessionState.root` is
 //! now written by `session_flush` ALONGSIDE `active`/`buffers` in the exact
 //! same atomic write, so the folder and the active document restored from
 //! them can never disagree (the old, retired `config.project_root` was a
@@ -33,7 +33,7 @@ impl App {
     /// SESSION FLUSH — the CAPTURE half's one door (mirrors the autosave
     /// engine's `autosave_flush`): snapshot every open PATHED buffer's path +
     /// cursor + scroll (the active one, via `self.document.buffer()` — `Buffer::path()`
-    /// is the sole authoritative path, item 56 — plus every backgrounded one
+    /// is the sole authoritative path — plus every backgrounded one
     /// still in the registry), which one is active, and the native window
     /// frame, then write it atomically beside the scratch stash. Config-gated
     /// (`session_restore`, default ON — the SAME flag also gates the restore
@@ -382,7 +382,7 @@ mod tests {
 
     #[test]
     fn switch_project_eagerly_flushes_the_new_root_not_only_on_blur_or_quit() {
-        // item 76: a crash/relaunch right after a folder switch — before any
+        // A crash/relaunch right after a folder switch — before any
         // blur/quit ever fires — must still resume the NEW folder, not the
         // pre-switch one. `switch_project` calls `session_flush` itself.
         let fake = Arc::new(crate::fs::InMemoryFs::new().with_dir("/a").with_dir("/b"));
